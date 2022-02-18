@@ -148,8 +148,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			pPhyInfo->SignalQuality = SQ;
 		}
 	} else { /* is OFDM rate */
-		dm_odm->PhyDbgInfo.NumQryPhyStatusOFDM++;
-
 		/*  (1)Get RSSI for HT rate */
 
 		for (i = RF_PATH_A; i < RF_PATH_MAX; i++) {
