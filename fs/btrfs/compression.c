@@ -259,7 +259,7 @@ static void finish_compressed_bio_read(struct compressed_bio *cb, struct bio *bi
 		 * We have verified the checksum already, set page checked so
 		 * the end_io handlers know about it
 		 */
-		ASSERT(!bio_flagged(bio, BIO_CLONED));
+		ASSERT(!bio_flagged(cb->orig_bio, BIO_CLONED));
 		bio_for_each_segment_all(bvec, cb->orig_bio, iter_all) {
 			u64 bvec_start = page_offset(bvec->bv_page) +
 					 bvec->bv_offset;
