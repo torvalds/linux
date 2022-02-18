@@ -10884,36 +10884,6 @@ static void __net_exit default_device_exit_net(struct net *net)
 	}
 }
 
-static void __net_exit rtnl_lock_unregistering(struct list_head *net_list)
-{
-	/* Return (with the rtnl_lock held) when there are no network
-	 * devices unregistering in any network namespace in net_list.
-	 */
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	bool unregistering;
-	struct net *net;
-
-	ASSERT_RTNL();
-	add_wait_queue(&netdev_unregistering_wq, &wait);
-	for (;;) {
-		unregistering = false;
-
-		list_for_each_entry(net, net_list, exit_list) {
-			if (atomic_read(&net->dev_unreg_count) > 0) {
-				unregistering = true;
-				break;
-			}
-		}
-		if (!unregistering)
-			break;
-		__rtnl_unlock();
-
-		wait_woken(&wait, TASK_UNINTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
-		rtnl_lock();
-	}
-	remove_wait_queue(&netdev_unregistering_wq, &wait);
-}
-
 static void __net_exit default_device_exit_batch(struct list_head *net_list)
 {
 	/* At exit all network devices most be removed from a network
@@ -10930,18 +10900,6 @@ static void __net_exit default_device_exit_batch(struct list_head *net_list)
 		default_device_exit_net(net);
 		cond_resched();
 	}
-	/* To prevent network device cleanup code from dereferencing
-	 * loopback devices or network devices that have been freed
-	 * wait here for all pending unregistrations to complete,
-	 * before unregistring the loopback device and allowing the
-	 * network namespace be freed.
-	 *
-	 * The netdev todo list containing all network devices
-	 * unregistrations that happen in default_device_exit_batch
-	 * will run in the rtnl_unlock() at the end of
-	 * default_device_exit_batch.
-	 */
-	rtnl_lock_unregistering(net_list);
 
 	list_for_each_entry(net, net_list, exit_list) {
 		for_each_netdev_reverse(net, dev) {
