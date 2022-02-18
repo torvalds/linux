@@ -962,7 +962,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *ert;
 
-	if (!mctp_address_ok(daddr_start))
+	if (!mctp_address_unicast(daddr_start))
 		return -EINVAL;
 
 	if (daddr_extent > 0xff || daddr_start + daddr_extent >= 255)
