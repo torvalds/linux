@@ -16,6 +16,8 @@ use strict;
 ## This software falls under the GNU General Public License.     ##
 ## Please read the COPYING file for more information             ##
 
+use Pod::Usage qw/pod2usage/;
+
 =head1 NAME
 
 kernel-doc - Print formatted kernel documentation to stdout
@@ -298,7 +300,13 @@ my $blankline_rst = "\n";
 
 # read arguments
 if ($#ARGV == -1) {
-    usage();
+	pod2usage(
+		-message => "No arguments!\n",
+		-exitval => 1,
+		-verbose => 99,
+		-sections => 'SYNOPSIS',
+		-output => \*STDERR,
+	);
 }
 
 my $kernelversion;
@@ -518,8 +526,14 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	    die "Sphinx version should either major.minor or major.minor.patch format\n";
 	}
     } else {
-	# Unknown argument
-        usage();
+		# Unknown argument
+		pod2usage(
+			-message => "Argument unknown!\n",
+			-exitval => 1,
+			-verbose => 99,
+			-sections => 'SYNOPSIS',
+			-output => \*STDERR,
+		);
     }
 }
 
