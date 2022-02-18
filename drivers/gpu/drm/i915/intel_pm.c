@@ -3814,25 +3814,21 @@ static void icl_sagv_pre_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_bw_state(state);
 	const struct intel_bw_state *new_bw_state =
 		intel_atomic_get_new_bw_state(state);
-	u32 new_mask;
+	u16 old_mask, new_mask;
 
 	if (!new_bw_state)
 		return;
 
-	/*
-	 * Nothing to mask
-	 */
-	if (new_bw_state->qgv_points_mask == old_bw_state->qgv_points_mask)
-		return;
-
+	old_mask = old_bw_state->qgv_points_mask;
 	new_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
 
-	/*
-	 * If new mask is zero - means there is nothing to mask,
-	 * we can only unmask, which should be done in unmask.
-	 */
-	if (!new_mask)
+	if (old_mask == new_mask)
 		return;
+
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(&dev_priv->drm, "Restricting QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
 
 	/*
 	 * Restrict required qgv points before updating the configuration.
@@ -3850,18 +3846,21 @@ static void icl_sagv_post_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_bw_state(state);
 	const struct intel_bw_state *new_bw_state =
 		intel_atomic_get_new_bw_state(state);
-	u32 new_mask = 0;
+	u16 old_mask, new_mask;
 
 	if (!new_bw_state)
 		return;
 
-	/*
-	 * Nothing to unmask
-	 */
-	if (new_bw_state->qgv_points_mask == old_bw_state->qgv_points_mask)
+	old_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
+	new_mask = new_bw_state->qgv_points_mask;
+
+	if (old_mask == new_mask)
 		return;
 
-	new_mask = new_bw_state->qgv_points_mask;
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(&dev_priv->drm, "Relaxing QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
 
 	/*
 	 * Allow required qgv points after updating the configuration.
