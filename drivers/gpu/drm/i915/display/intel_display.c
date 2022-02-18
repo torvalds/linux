@@ -5571,8 +5571,10 @@ intel_crtc_copy_uapi_to_hw_state_modeset(struct intel_atomic_state *state,
 
 	crtc_state->hw.enable = crtc_state->uapi.enable;
 	crtc_state->hw.active = crtc_state->uapi.active;
-	crtc_state->hw.mode = crtc_state->uapi.mode;
-	crtc_state->hw.adjusted_mode = crtc_state->uapi.adjusted_mode;
+	drm_mode_copy(&crtc_state->hw.mode,
+		      &crtc_state->uapi.mode);
+	drm_mode_copy(&crtc_state->hw.adjusted_mode,
+		      &crtc_state->uapi.adjusted_mode);
 	crtc_state->hw.scaling_filter = crtc_state->uapi.scaling_filter;
 
 	intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
@@ -5652,9 +5654,12 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 	memset(&slave_crtc_state->hw, 0, sizeof(slave_crtc_state->hw));
 	slave_crtc_state->hw.enable = master_crtc_state->hw.enable;
 	slave_crtc_state->hw.active = master_crtc_state->hw.active;
-	slave_crtc_state->hw.mode = master_crtc_state->hw.mode;
-	slave_crtc_state->hw.pipe_mode = master_crtc_state->hw.pipe_mode;
-	slave_crtc_state->hw.adjusted_mode = master_crtc_state->hw.adjusted_mode;
+	drm_mode_copy(&slave_crtc_state->hw.mode,
+		      &master_crtc_state->hw.mode);
+	drm_mode_copy(&slave_crtc_state->hw.pipe_mode,
+		      &master_crtc_state->hw.pipe_mode);
+	drm_mode_copy(&slave_crtc_state->hw.adjusted_mode,
+		      &master_crtc_state->hw.adjusted_mode);
 	slave_crtc_state->hw.scaling_filter = master_crtc_state->hw.scaling_filter;
 
 	copy_bigjoiner_crtc_state_nomodeset(state, slave_crtc);
