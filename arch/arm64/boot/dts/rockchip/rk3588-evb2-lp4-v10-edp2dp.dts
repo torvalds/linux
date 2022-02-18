@@ -26,8 +26,7 @@
 
 &edp0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&edp0_hpd>;
-	hpd-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&hdmim0_tx0_hpd>;
 	#sound-dai-cells = <1>;
 	status = "okay";
 };
@@ -46,14 +45,6 @@
 
 &hdmi0 {
 	status = "disabled";
-};
-
-&pinctrl {
-	edp {
-		edp0_hpd: edp0-hpd {
-			rockchip,pins = <1 RK_PA5 0 &pcfg_pull_none>;
-		};
-	};
 };
 
 &spdif_tx3 {
