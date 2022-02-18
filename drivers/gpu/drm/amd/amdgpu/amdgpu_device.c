@@ -3809,12 +3809,6 @@ fence_driver_init:
 		else
 			DRM_INFO("amdgpu: acceleration disabled, skipping move tests\n");
 	}
-	if (amdgpu_benchmarking) {
-		if (adev->accel_working)
-			amdgpu_benchmark(adev, amdgpu_benchmarking);
-		else
-			DRM_INFO("amdgpu: acceleration disabled, skipping benchmarks\n");
-	}
 
 	/*
 	 * Register gpu instance before amdgpu_device_enable_mgpu_fan_boost.
