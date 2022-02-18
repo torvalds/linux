@@ -1164,6 +1164,69 @@ int rockchip_get_read_margin(struct device *dev,
 }
 EXPORT_SYMBOL(rockchip_get_read_margin);
 
+int rockchip_set_read_margin(struct device *dev,
+			     struct rockchip_opp_info *opp_info, u32 rm,
+			     bool is_set_rm)
+{
+	if (!is_set_rm || !opp_info)
+		return 0;
+	if (!opp_info || !opp_info->volt_rm_tbl)
+		return 0;
+	if (!opp_info->data || !opp_info->data->set_read_margin)
+		return 0;
+	if (rm == opp_info->current_rm)
+		return 0;
+
+	return opp_info->data->set_read_margin(dev, opp_info, rm);
+}
+EXPORT_SYMBOL(rockchip_set_read_margin);
+
+int rockchip_set_intermediate_rate(struct device *dev,
+				   struct rockchip_opp_info *opp_info,
+				   struct clk *clk, unsigned long old_freq,
+				   unsigned long new_freq, bool is_scaling_up,
+				   bool is_set_clk)
+{
+	if (!is_set_clk)
+		return 0;
+	if (!opp_info || !opp_info->volt_rm_tbl)
+		return 0;
+	if (!opp_info->data || !opp_info->data->set_read_margin)
+		return 0;
+	if (opp_info->target_rm == opp_info->current_rm)
+		return 0;
+	/*
+	 * There is no need to set intermediate rate if the new voltage
+	 * and the current voltage are high voltage.
+	 */
+	if ((opp_info->target_rm < opp_info->low_rm) &&
+	    (opp_info->current_rm < opp_info->low_rm))
+		return 0;
+
+	if (is_scaling_up) {
+		/*
+		 * If scaling up and the current frequency is less than
+		 * or equal to intermediate threshold frequency, there is
+		 * no need to set intermediate rate.
+		 */
+		if (opp_info->intermediate_threshold_freq &&
+		    old_freq <= opp_info->intermediate_threshold_freq)
+			return 0;
+		return clk_set_rate(clk, new_freq | OPP_SCALING_UP_INTER);
+	}
+	/*
+	 * If scaling down and the new frequency is less than or equal to
+	 * intermediate threshold frequency , there is no need to set
+	 * intermediate rate and set the new frequency directly.
+	 */
+	if (opp_info->intermediate_threshold_freq &&
+	    new_freq <= opp_info->intermediate_threshold_freq)
+		return clk_set_rate(clk, new_freq);
+
+	return clk_set_rate(clk, new_freq | OPP_SCALING_DOWN_INTER);
+}
+EXPORT_SYMBOL(rockchip_set_intermediate_rate);
+
 int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 			    char *lkg_name, char *reg_name)
 {
@@ -1171,6 +1234,7 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 	int bin = -EINVAL, process = -EINVAL;
 	int scale = 0, volt_sel = -EINVAL;
 	int ret = 0, num_clks = 0, i;
+	u32 freq;
 
 	/* Get OPP descriptor node */
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
@@ -1207,6 +1271,11 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 			info->grf = NULL;
 		rockchip_get_volt_rm_table(dev, np, "volt-mem-read-margin",
 					   &info->volt_rm_tbl);
+		of_property_read_u32(np, "low-volt-mem-read-margin",
+				     &info->low_rm);
+		if (!of_property_read_u32(np, "intermediate-threshold-freq",
+					  &freq))
+			info->intermediate_threshold_freq = freq * 1000;
 	}
 	if (info->data && info->data->get_soc_info)
 		info->data->get_soc_info(dev, np, &bin, &process);
