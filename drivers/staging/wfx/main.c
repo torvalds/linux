@@ -305,7 +305,8 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	of_property_read_string(dev->of_node, "silabs,antenna-config-file", &wdev->pdata.file_pds);
 	wdev->pdata.gpio_wakeup = devm_gpiod_get_optional(dev, "wakeup", GPIOD_OUT_LOW);
 	if (IS_ERR(wdev->pdata.gpio_wakeup))
-		return NULL;
+		goto err;
+
 	if (wdev->pdata.gpio_wakeup)
 		gpiod_set_consumer_name(wdev->pdata.gpio_wakeup, "wfx wakeup");
 
@@ -322,6 +323,10 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 		return NULL;
 
 	return wdev;
+
+err:
+	ieee80211_free_hw(hw);
+	return NULL;
 }
 
 int wfx_probe(struct wfx_dev *wdev)
