@@ -51,6 +51,7 @@
 #include "dcn20/hw_translate_dcn20.h"
 #include "dcn21/hw_translate_dcn21.h"
 #include "dcn30/hw_translate_dcn30.h"
+#include "dcn315/hw_translate_dcn315.h"
 #endif
 
 #include "diagnostics/hw_translate_diag.h"
@@ -111,6 +112,9 @@ bool dal_hw_translate_init(
 	case DCN_VERSION_3_1:
 	case DCN_VERSION_3_16:
 		dal_hw_translate_dcn30_init(translate);
+		return true;
+	case DCN_VERSION_3_15:
+		dal_hw_translate_dcn315_init(translate);
 		return true;
 #endif
 
