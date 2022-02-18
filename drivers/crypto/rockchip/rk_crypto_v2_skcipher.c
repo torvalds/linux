@@ -9,6 +9,7 @@
  * Some ideas are from marvell-cesa.c and s5p-sss.c driver.
  */
 
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -220,7 +221,9 @@ static bool is_calc_need_round_up(struct skcipher_request *req)
 
 static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
 {
+	int ret;
 	u32 tmp = 0, tmp_mask = 0;
+	unsigned int  pool_timeout_us = 1000;
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_INT_EN, 0x00);
 
@@ -228,8 +231,13 @@ static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
 	tmp_mask = tmp << CRYPTO_WRITE_MASK_SHIFT;
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_RST_CTL, tmp | tmp_mask);
-	while (CRYPTO_READ(rk_dev, CRYPTO_RST_CTL))
-		nop();
+
+	/* This is usually done in 20 clock cycles */
+	ret = readl_poll_timeout_atomic(rk_dev->reg + CRYPTO_RST_CTL,
+					tmp, !tmp, 0, pool_timeout_us);
+	if (ret)
+		dev_err(rk_dev->dev, "cipher reset pool timeout %ums.",
+			pool_timeout_us);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_BC_CTL, 0xffff0000);
 }
@@ -255,7 +263,6 @@ static void rk_crypto_complete(struct crypto_async_request *base, int err)
 		pr_err("lli->dma_ctl = %08x\n", lli_desc->dma_ctrl);
 		pr_err("lli->usr_def = %08x\n", lli_desc->user_define);
 		pr_err("lli->next    = %08x\n\n\n", lli_desc->next_addr);
-
 	}
 
 	if (base->complete)
@@ -444,6 +451,8 @@ static void rk_ablk_hw_init(struct rk_crypto_dev *rk_dev)
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 	u32 ivsize;
+
+	rk_cipher_reset(rk_dev);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_BC_CTL, 0x00010000);
 

@@ -21,6 +21,9 @@ struct crypto_lli_desc {
 struct rk_hw_crypto_v2_info {
 	struct crypto_lli_desc		*desc;
 	dma_addr_t			desc_dma;
+	bool				is_started;
+	u32				hash_calc_cnt;
+	u32				ciher_calc_cnt;
 };
 
 extern struct rk_crypto_algt rk_v2_ecb_sm4_alg;

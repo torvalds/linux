@@ -127,6 +127,13 @@ struct rk_ahash_ctx {
 	struct rk_alg_ctx		algs_ctx;
 	struct rk_crypto_dev		*rk_dev;
 	u8				authkey[SHA512_BLOCK_SIZE];
+	u32				authkey_len;
+	struct scatterlist		hash_sg[2];
+	u8				*hash_tmp;
+	u32				hash_tmp_len;
+
+	u8				lastc[RK_DMA_ALIGNMENT];
+	u32				lastc_len;
 
 	/* for fallback */
 	struct crypto_ahash		*fallback_tfm;
@@ -134,9 +141,9 @@ struct rk_ahash_ctx {
 
 /* the privete variable of hash for fallback */
 struct rk_ahash_rctx {
-	struct rk_alg_ctx		algs_ctx;
 	struct ahash_request		fallback_req;
 	u32				mode;
+	bool				is_final;
 };
 
 /* the private variable of cipher */
@@ -300,7 +307,7 @@ enum rk_cipher_mode {
 					     CRYPTO_ALG_NEED_FALLBACK,\
 				.cra_blocksize = hash_algo##_BLOCK_SIZE,\
 				.cra_ctxsize = sizeof(struct rk_ahash_ctx),\
-				.cra_alignmask = 3,\
+				.cra_alignmask = 0,\
 				.cra_init = rk_cra_hash_init,\
 				.cra_exit = rk_cra_hash_exit,\
 				.cra_module = THIS_MODULE,\
@@ -334,7 +341,7 @@ enum rk_cipher_mode {
 					     CRYPTO_ALG_NEED_FALLBACK,\
 				.cra_blocksize = hash_algo##_BLOCK_SIZE,\
 				.cra_ctxsize = sizeof(struct rk_ahash_ctx),\
-				.cra_alignmask = 3,\
+				.cra_alignmask = 0,\
 				.cra_init = rk_cra_hash_init,\
 				.cra_exit = rk_cra_hash_exit,\
 				.cra_module = THIS_MODULE,\

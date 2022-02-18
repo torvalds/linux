@@ -103,17 +103,21 @@ static int check_scatter_align(struct scatterlist *sg_src,
 static bool check_from_dmafd(struct crypto_async_request *async_req)
 {
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
+	bool in, out;
 
-	if (alg_ctx->src_nents == 1 &&
-	    sg_virt(alg_ctx->req_src) &&
-	    sg_dma_address(alg_ctx->req_src) &&
-	    alg_ctx->dst_nents == 1 &&
-	    sg_virt(alg_ctx->req_dst) &&
-	    sg_dma_address(alg_ctx->req_dst) &&
-	    sg_dma_len(alg_ctx->req_src) == sg_dma_len(alg_ctx->req_dst))
-		return true;
+	in = alg_ctx->src_nents == 1 &&
+	     sg_virt(alg_ctx->req_src) &&
+	     sg_dma_address(alg_ctx->req_src);
 
-	return false;
+	if (!alg_ctx->req_dst)
+		return in;
+
+	out = alg_ctx->dst_nents == 1 &&
+	      sg_virt(alg_ctx->req_dst) &&
+	      sg_dma_address(alg_ctx->req_dst) &&
+	      sg_dma_len(alg_ctx->req_src) == sg_dma_len(alg_ctx->req_dst);
+
+	return in && out;
 }
 
 static bool check_scatterlist_align(struct crypto_async_request *async_req,
@@ -124,21 +128,23 @@ static bool check_scatterlist_align(struct crypto_async_request *async_req,
 	struct scatterlist *dst_tmp = NULL;
 	unsigned int i;
 
-	if (alg_ctx->src_nents != alg_ctx->dst_nents)
+	if (alg_ctx->req_dst && alg_ctx->src_nents != alg_ctx->dst_nents)
 		return false;
 
 	src_tmp = alg_ctx->req_src;
 	dst_tmp = alg_ctx->req_dst;
 
 	for (i = 0; i < alg_ctx->src_nents; i++) {
-		if (!src_tmp || !dst_tmp)
+		if (!src_tmp)
 			return false;
 
 		if (!check_scatter_align(src_tmp, dst_tmp, align_mask))
 			return false;
 
 		src_tmp = sg_next(src_tmp);
-		dst_tmp = sg_next(dst_tmp);
+
+		if (alg_ctx->req_dst)
+			dst_tmp = sg_next(dst_tmp);
 	}
 
 	return true;
@@ -152,6 +158,10 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	unsigned int count;
 	struct device *dev = rk_dev->dev;
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+
+	/* 0 data input just do nothing */
+	if (alg_ctx->total == 0)
+		return 0;
 
 	if (alg_ctx->left_bytes == alg_ctx->total) {
 		alg_ctx->is_dma = check_from_dmafd(rk_dev->async_req);
@@ -239,7 +249,8 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
 
-	if (alg_ctx->count == 0)
+	/* 0 data input just do nothing */
+	if (alg_ctx->total == 0 || alg_ctx->count == 0)
 		return 0;
 
 	sg_in = alg_ctx->aligned ? alg_ctx->sg_src : &alg_ctx->sg_tmp;
@@ -306,11 +317,18 @@ static int rk_start_op(struct rk_crypto_dev *rk_dev)
 
 	alg_ctx->aligned = false;
 
+	enable_irq(rk_dev->irq);
 	start_irq_timer(rk_dev);
 
 	ret = alg_ctx->ops.start(rk_dev);
 	if (ret)
 		return ret;
+
+	/* fake calculations are used to trigger the Done Task */
+	if (alg_ctx->total == 0) {
+		CRYPTO_TRACE("fake done_task");
+		tasklet_schedule(&rk_dev->done_task);
+	}
 
 	return 0;
 }
@@ -329,12 +347,16 @@ static void rk_complete_op(struct rk_crypto_dev *rk_dev, int err)
 {
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
+	disable_irq(rk_dev->irq);
 	del_timer(&rk_dev->timer);
 
 	if (!alg_ctx || !alg_ctx->ops.complete)
 		return;
 
 	alg_ctx->ops.complete(rk_dev->async_req, err);
+
+	if (err)
+		dev_err(rk_dev->dev, "complete_op err = %d\n", err);
 
 	tasklet_schedule(&rk_dev->queue_task);
 }
@@ -395,7 +417,8 @@ static void rk_crypto_done_task_cb(unsigned long data)
 	if (rk_dev->err)
 		goto exit;
 
-	if (alg_ctx->total && alg_ctx->left_bytes == 0) {
+	if (alg_ctx->left_bytes == 0) {
+		CRYPTO_TRACE("done task cb last calc");
 		/* unload data for last calculation */
 		rk_dev->err = rk_update_op(rk_dev);
 		goto exit;
@@ -755,6 +778,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		dev_err(dev, "irq request failed.\n");
 		goto err_crypto;
 	}
+
+	disable_irq(rk_dev->irq);
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (err) {
