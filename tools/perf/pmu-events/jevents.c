@@ -672,8 +672,6 @@ static int json_events(const char *fn,
 				addfield(map, &je.metric_constraint, "", "", val);
 			} else if (json_streq(map, field, "MetricExpr")) {
 				addfield(map, &je.metric_expr, "", "", val);
-				for (s = je.metric_expr; *s; s++)
-					*s = tolower(*s);
 			} else if (json_streq(map, field, "ArchStdEvent")) {
 				addfield(map, &arch_std, "", "", val);
 				for (s = arch_std; *s; s++)

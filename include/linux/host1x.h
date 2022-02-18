@@ -7,6 +7,8 @@
 #define __LINUX_HOST1X_H
 
 #include <linux/device.h>
+#include <linux/dma-direction.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 enum host1x_class {
@@ -15,6 +17,8 @@ enum host1x_class {
 	HOST1X_CLASS_GR2D_SB = 0x52,
 	HOST1X_CLASS_VIC = 0x5D,
 	HOST1X_CLASS_GR3D = 0x60,
+	HOST1X_CLASS_NVDEC = 0xF0,
+	HOST1X_CLASS_NVDEC1 = 0xF5,
 };
 
 struct host1x;
@@ -22,6 +26,28 @@ struct host1x_client;
 struct iommu_group;
 
 u64 host1x_get_dma_mask(struct host1x *host1x);
+
+/**
+ * struct host1x_bo_cache - host1x buffer object cache
+ * @mappings: list of mappings
+ * @lock: synchronizes accesses to the list of mappings
+ */
+struct host1x_bo_cache {
+	struct list_head mappings;
+	struct mutex lock;
+};
+
+static inline void host1x_bo_cache_init(struct host1x_bo_cache *cache)
+{
+	INIT_LIST_HEAD(&cache->mappings);
+	mutex_init(&cache->lock);
+}
+
+static inline void host1x_bo_cache_destroy(struct host1x_bo_cache *cache)
+{
+	/* XXX warn if not empty? */
+	mutex_destroy(&cache->lock);
+}
 
 /**
  * struct host1x_client_ops - host1x client operations
@@ -73,6 +99,8 @@ struct host1x_client {
 	struct host1x_client *parent;
 	unsigned int usecount;
 	struct mutex lock;
+
+	struct host1x_bo_cache cache;
 };
 
 /*
@@ -82,23 +110,48 @@ struct host1x_client {
 struct host1x_bo;
 struct sg_table;
 
+struct host1x_bo_mapping {
+	struct kref ref;
+	struct dma_buf_attachment *attach;
+	enum dma_data_direction direction;
+	struct list_head list;
+	struct host1x_bo *bo;
+	struct sg_table *sgt;
+	unsigned int chunks;
+	struct device *dev;
+	dma_addr_t phys;
+	size_t size;
+
+	struct host1x_bo_cache *cache;
+	struct list_head entry;
+};
+
+static inline struct host1x_bo_mapping *to_host1x_bo_mapping(struct kref *ref)
+{
+	return container_of(ref, struct host1x_bo_mapping, ref);
+}
+
 struct host1x_bo_ops {
 	struct host1x_bo *(*get)(struct host1x_bo *bo);
 	void (*put)(struct host1x_bo *bo);
-	struct sg_table *(*pin)(struct device *dev, struct host1x_bo *bo,
-				dma_addr_t *phys);
-	void (*unpin)(struct device *dev, struct sg_table *sgt);
+	struct host1x_bo_mapping *(*pin)(struct device *dev, struct host1x_bo *bo,
+					 enum dma_data_direction dir);
+	void (*unpin)(struct host1x_bo_mapping *map);
 	void *(*mmap)(struct host1x_bo *bo);
 	void (*munmap)(struct host1x_bo *bo, void *addr);
 };
 
 struct host1x_bo {
 	const struct host1x_bo_ops *ops;
+	struct list_head mappings;
+	spinlock_t lock;
 };
 
 static inline void host1x_bo_init(struct host1x_bo *bo,
 				  const struct host1x_bo_ops *ops)
 {
+	INIT_LIST_HEAD(&bo->mappings);
+	spin_lock_init(&bo->lock);
 	bo->ops = ops;
 }
 
@@ -112,18 +165,10 @@ static inline void host1x_bo_put(struct host1x_bo *bo)
 	bo->ops->put(bo);
 }
 
-static inline struct sg_table *host1x_bo_pin(struct device *dev,
-					     struct host1x_bo *bo,
-					     dma_addr_t *phys)
-{
-	return bo->ops->pin(dev, bo, phys);
-}
-
-static inline void host1x_bo_unpin(struct device *dev, struct host1x_bo *bo,
-				   struct sg_table *sgt)
-{
-	bo->ops->unpin(dev, sgt);
-}
+struct host1x_bo_mapping *host1x_bo_pin(struct device *dev, struct host1x_bo *bo,
+					enum dma_data_direction dir,
+					struct host1x_bo_cache *cache);
+void host1x_bo_unpin(struct host1x_bo_mapping *map);
 
 static inline void *host1x_bo_mmap(struct host1x_bo *bo)
 {
@@ -181,6 +226,7 @@ struct host1x_job;
 
 struct host1x_channel *host1x_channel_request(struct host1x_client *client);
 struct host1x_channel *host1x_channel_get(struct host1x_channel *channel);
+void host1x_channel_stop(struct host1x_channel *channel);
 void host1x_channel_put(struct host1x_channel *channel);
 int host1x_job_submit(struct host1x_job *job);
 

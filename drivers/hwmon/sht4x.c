@@ -281,9 +281,16 @@ static const struct i2c_device_id sht4x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sht4x_id);
 
+static const struct of_device_id sht4x_of_match[] = {
+	{ .compatible = "sensirion,sht4x" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sht4x_of_match);
+
 static struct i2c_driver sht4x_driver = {
 	.driver = {
 		.name = "sht4x",
+		.of_match_table = sht4x_of_match,
 	},
 	.probe		= sht4x_probe,
 	.id_table	= sht4x_id,

@@ -116,9 +116,20 @@ enum IWL_TLC_MNG_NSS {
 	IWL_TLC_NSS_MAX
 };
 
-enum IWL_TLC_HT_BW_RATES {
-	IWL_TLC_HT_BW_NONE_160,
-	IWL_TLC_HT_BW_160,
+/**
+ * enum IWL_TLC_MCS_PER_BW - mcs index per BW
+ * @IWL_TLC_MCS_PER_BW_80: mcs for bw - 20Hhz, 40Hhz, 80Hhz
+ * @IWL_TLC_MCS_PER_BW_160: mcs for bw - 160Mhz
+ * @IWL_TLC_MCS_PER_BW_320: mcs for bw - 320Mhz
+ * @IWL_TLC_MCS_PER_BW_NUM_V3: number of entries up to version 3
+ * @IWL_TLC_MCS_PER_BW_NUM_V4: number of entries from version 4
+ */
+enum IWL_TLC_MCS_PER_BW {
+	IWL_TLC_MCS_PER_BW_80,
+	IWL_TLC_MCS_PER_BW_160,
+	IWL_TLC_MCS_PER_BW_320,
+	IWL_TLC_MCS_PER_BW_NUM_V3 = IWL_TLC_MCS_PER_BW_160 + 1,
+	IWL_TLC_MCS_PER_BW_NUM_V4 = IWL_TLC_MCS_PER_BW_320 + 1,
 };
 
 /**
@@ -131,8 +142,8 @@ enum IWL_TLC_HT_BW_RATES {
  * @amsdu: TX amsdu is supported
  * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
  * @non_ht_rates: bitmap of supported legacy rates
- * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
- *	      pair (0 - 80mhz width and below, 1 - 160mhz).
+ * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per &enum IWL_TLC_MCS_PER_BW
+ *	      <nss, channel-width> pair (0 - 80mhz width and below, 1 - 160mhz).
  * @max_mpdu_len: max MPDU length, in bytes
  * @sgi_ch_width_supp: bitmap of SGI support per channel width
  *		       use BIT(@enum iwl_tlc_mng_cfg_cw)
@@ -140,7 +151,7 @@ enum IWL_TLC_HT_BW_RATES {
  * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
  *	       set zero for no limit.
  */
-struct iwl_tlc_config_cmd {
+struct iwl_tlc_config_cmd_v3 {
 	u8 sta_id;
 	u8 reserved1[3];
 	u8 max_ch_width;
@@ -149,12 +160,43 @@ struct iwl_tlc_config_cmd {
 	u8 amsdu;
 	__le16 flags;
 	__le16 non_ht_rates;
-	__le16 ht_rates[IWL_TLC_NSS_MAX][2];
+	__le16 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V3];
 	__le16 max_mpdu_len;
 	u8 sgi_ch_width_supp;
 	u8 reserved2;
 	__le32 max_tx_op;
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_3 */
+
+/**
+ * struct tlc_config_cmd - TLC configuration
+ * @sta_id: station id
+ * @reserved1: reserved
+ * @max_ch_width: max supported channel width from &enum iwl_tlc_mng_cfg_cw
+ * @mode: &enum iwl_tlc_mng_cfg_mode
+ * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
+ * @sgi_ch_width_supp: bitmap of SGI support per channel width
+ *		       use BIT(&enum iwl_tlc_mng_cfg_cw)
+ * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
+ * @non_ht_rates: bitmap of supported legacy rates
+ * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
+ *	      pair (0 - 80mhz width and below, 1 - 160mhz, 2 - 320mhz).
+ * @max_mpdu_len: max MPDU length, in bytes
+ * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
+ *	       set zero for no limit.
+ */
+struct iwl_tlc_config_cmd_v4 {
+	u8 sta_id;
+	u8 reserved1[3];
+	u8 max_ch_width;
+	u8 mode;
+	u8 chains;
+	u8 sgi_ch_width_supp;
+	__le16 flags;
+	__le16 non_ht_rates;
+	__le16 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V4];
+	__le16 max_mpdu_len;
+	__le16 max_tx_op;
+} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_4 */
 
 /**
  * enum iwl_tlc_update_flags - updated fields

@@ -1526,50 +1526,6 @@ void smp_send_stop(void)
 		smp_call_function(stop_this_cpu, NULL, 0);
 }
 
-/**
- * pcpu_alloc_bootmem - NUMA friendly alloc_bootmem wrapper for percpu
- * @cpu: cpu to allocate for
- * @size: size allocation in bytes
- * @align: alignment
- *
- * Allocate @size bytes aligned at @align for cpu @cpu.  This wrapper
- * does the right thing for NUMA regardless of the current
- * configuration.
- *
- * RETURNS:
- * Pointer to the allocated area on success, NULL on failure.
- */
-static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
-					size_t align)
-{
-	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
-#ifdef CONFIG_NUMA
-	int node = cpu_to_node(cpu);
-	void *ptr;
-
-	if (!node_online(node) || !NODE_DATA(node)) {
-		ptr = memblock_alloc_from(size, align, goal);
-		pr_info("cpu %d has no node %d or node-local memory\n",
-			cpu, node);
-		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
-			 cpu, size, __pa(ptr));
-	} else {
-		ptr = memblock_alloc_try_nid(size, align, goal,
-					     MEMBLOCK_ALLOC_ACCESSIBLE, node);
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at "
-			 "%016lx\n", cpu, size, node, __pa(ptr));
-	}
-	return ptr;
-#else
-	return memblock_alloc_from(size, align, goal);
-#endif
-}
-
-static void __init pcpu_free_bootmem(void *ptr, size_t size)
-{
-	memblock_free(ptr, size);
-}
-
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
 	if (cpu_to_node(from) == cpu_to_node(to))
@@ -1578,57 +1534,9 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 		return REMOTE_DISTANCE;
 }
 
-static void __init pcpu_populate_pte(unsigned long addr)
+static int __init pcpu_cpu_to_node(int cpu)
 {
-	pgd_t *pgd = pgd_offset_k(addr);
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-
-	if (pgd_none(*pgd)) {
-		pud_t *new;
-
-		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-		if (!new)
-			goto err_alloc;
-		pgd_populate(&init_mm, pgd, new);
-	}
-
-	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d)) {
-		pud_t *new;
-
-		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-		if (!new)
-			goto err_alloc;
-		p4d_populate(&init_mm, p4d, new);
-	}
-
-	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
-		pmd_t *new;
-
-		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-		if (!new)
-			goto err_alloc;
-		pud_populate(&init_mm, pud, new);
-	}
-
-	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd)) {
-		pte_t *new;
-
-		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-		if (!new)
-			goto err_alloc;
-		pmd_populate_kernel(&init_mm, pmd, new);
-	}
-
-	return;
-
-err_alloc:
-	panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
-	      __func__, PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+	return cpu_to_node(cpu);
 }
 
 void __init setup_per_cpu_areas(void)
@@ -1641,8 +1549,7 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 					    PERCPU_DYNAMIC_RESERVE, 4 << 20,
 					    pcpu_cpu_distance,
-					    pcpu_alloc_bootmem,
-					    pcpu_free_bootmem);
+					    pcpu_cpu_to_node);
 		if (rc)
 			pr_warn("PERCPU: %s allocator failed (%d), "
 				"falling back to page size\n",
@@ -1650,9 +1557,7 @@ void __init setup_per_cpu_areas(void)
 	}
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE,
-					   pcpu_alloc_bootmem,
-					   pcpu_free_bootmem,
-					   pcpu_populate_pte);
+					   pcpu_cpu_to_node);
 	if (rc < 0)
 		panic("cannot initialize percpu area (err=%d)", rc);
 

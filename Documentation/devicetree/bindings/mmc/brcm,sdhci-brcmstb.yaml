@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/brcm,sdhci-brcmstb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BRCMSTB/BMIPS SDHCI Controller binding
+
+maintainers:
+  - Al Cooper <alcooperx@gmail.com>
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,bcm7216-sdhci
+          - const: brcm,bcm7445-sdhci
+          - const: brcm,sdhci-brcmstb
+      - items:
+          - enum:
+              - brcm,bcm7445-sdhci
+          - const: brcm,sdhci-brcmstb
+      - items:
+          - enum:
+              - brcm,bcm7425-sdhci
+          - const: brcm,sdhci-brcmstb
+
+  reg:
+    minItems: 2
+
+  reg-names:
+    items:
+      - const: host
+      - const: cfg
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description:
+      handle to core clock for the sdhci controller.
+
+  clock-names:
+    items:
+      - const: sw_sdio
+
+  sdhci,auto-cmd12:
+    type: boolean
+    description: Specifies that controller should use auto CMD12
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mmc@84b0000 {
+      sd-uhs-sdr50;
+      sd-uhs-ddr50;
+      sd-uhs-sdr104;
+      sdhci,auto-cmd12;
+      compatible = "brcm,bcm7216-sdhci",
+                   "brcm,bcm7445-sdhci",
+                   "brcm,sdhci-brcmstb";
+      reg = <0x84b0000 0x260>, <0x84b0300 0x200>;
+      reg-names = "host", "cfg";
+      interrupts = <0x0 0x26 0x4>;
+      interrupt-names = "sdio0_0";
+      clocks = <&scmi_clk 245>;
+      clock-names = "sw_sdio";
+    };
+
+    mmc@84b1000 {
+      mmc-ddr-1_8v;
+      mmc-hs200-1_8v;
+      mmc-hs400-1_8v;
+      mmc-hs400-enhanced-strobe;
+      supports-cqe;
+      non-removable;
+      bus-width = <0x8>;
+      compatible = "brcm,bcm7216-sdhci",
+           "brcm,bcm7445-sdhci",
+            "brcm,sdhci-brcmstb";
+      reg = <0x84b1000 0x260>, <0x84b1300 0x200>;
+      reg-names = "host", "cfg";
+      interrupts = <0x0 0x27 0x4>;
+      interrupt-names = "sdio1_0";
+      clocks = <&scmi_clk 245>;
+      clock-names = "sw_sdio";
+    };

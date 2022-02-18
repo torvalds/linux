@@ -347,7 +347,7 @@ static int ad7124_find_free_config_slot(struct ad7124_state *st)
 {
 	unsigned int free_cfg_slot;
 
-	free_cfg_slot = find_next_zero_bit(&st->cfg_slots_status, AD7124_MAX_CONFIGS, 0);
+	free_cfg_slot = find_first_zero_bit(&st->cfg_slots_status, AD7124_MAX_CONFIGS);
 	if (free_cfg_slot == AD7124_MAX_CONFIGS)
 		return -1;
 

@@ -901,9 +901,7 @@ static struct platform_driver mt6797_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt6797-audio",
 		   .of_match_table = mt6797_afe_pcm_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &mt6797_afe_pm_ops,
-#endif
 	},
 	.probe = mt6797_afe_pcm_dev_probe,
 	.remove = mt6797_afe_pcm_dev_remove,

@@ -10,6 +10,8 @@
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
+#include "hclge_comm_tqp_stats.h"
 
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
@@ -31,21 +33,6 @@
 #define HCLGEVF_MISC_VECTOR_REG_BASE	0x20400
 #define HCLGEVF_VECTOR_REG_OFFSET	0x4
 #define HCLGEVF_VECTOR_VF_OFFSET		0x100000
-
-/* bar registers for cmdq */
-#define HCLGEVF_NIC_CSQ_BASEADDR_L_REG		0x27000
-#define HCLGEVF_NIC_CSQ_BASEADDR_H_REG		0x27004
-#define HCLGEVF_NIC_CSQ_DEPTH_REG		0x27008
-#define HCLGEVF_NIC_CSQ_TAIL_REG		0x27010
-#define HCLGEVF_NIC_CSQ_HEAD_REG		0x27014
-#define HCLGEVF_NIC_CRQ_BASEADDR_L_REG		0x27018
-#define HCLGEVF_NIC_CRQ_BASEADDR_H_REG		0x2701C
-#define HCLGEVF_NIC_CRQ_DEPTH_REG		0x27020
-#define HCLGEVF_NIC_CRQ_TAIL_REG		0x27024
-#define HCLGEVF_NIC_CRQ_HEAD_REG		0x27028
-
-#define HCLGEVF_CMDQ_INTR_EN_REG		0x27108
-#define HCLGEVF_CMDQ_INTR_GEN_REG		0x2710C
 
 /* bar registers for common func */
 #define HCLGEVF_GRO_EN_REG			0x28000
@@ -86,10 +73,6 @@
 #define HCLGEVF_TQP_INTR_GL2_REG		0x20300
 #define HCLGEVF_TQP_INTR_RL_REG			0x20900
 
-/* Vector0 interrupt CMDQ event source register(RW) */
-#define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
-/* Vector0 interrupt CMDQ event status register(RO) */
-#define HCLGEVF_VECTOR0_CMDQ_STATE_REG	0x27104
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 /* RST register bits for RESET event */
@@ -112,26 +95,15 @@
 #define HCLGEVF_WAIT_RESET_DONE		100
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
-#define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
-#define HCLGEVF_RSS_KEY_SIZE		40
-#define HCLGEVF_RSS_HASH_ALGO_TOEPLITZ	0
-#define HCLGEVF_RSS_HASH_ALGO_SIMPLE	1
-#define HCLGEVF_RSS_HASH_ALGO_SYMMETRIC	2
-#define HCLGEVF_RSS_HASH_ALGO_MASK	0xf
-
-#define HCLGEVF_RSS_INPUT_TUPLE_OTHER	GENMASK(3, 0)
-#define HCLGEVF_RSS_INPUT_TUPLE_SCTP	GENMASK(4, 0)
-#define HCLGEVF_D_PORT_BIT		BIT(0)
-#define HCLGEVF_S_PORT_BIT		BIT(1)
-#define HCLGEVF_D_IP_BIT		BIT(2)
-#define HCLGEVF_S_IP_BIT		BIT(3)
-#define HCLGEVF_V_TAG_BIT		BIT(4)
-#define HCLGEVF_RSS_INPUT_TUPLE_SCTP_NO_PORT	\
-	(HCLGEVF_D_IP_BIT | HCLGEVF_S_IP_BIT | HCLGEVF_V_TAG_BIT)
 
 #define HCLGEVF_MAC_MAX_FRAME		9728
 
 #define HCLGEVF_STATS_TIMER_INTERVAL	36U
+
+#define hclgevf_read_dev(a, reg) \
+	hclge_comm_read_reg((a)->hw.io_base, reg)
+#define hclgevf_write_dev(a, reg, value) \
+	hclge_comm_write_reg((a)->hw.io_base, reg, value)
 
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,
@@ -154,7 +126,6 @@ enum hclgevf_states {
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
-	HCLGEVF_STATE_CMD_DISABLE,
 	HCLGEVF_STATE_LINK_UPDATING,
 	HCLGEVF_STATE_PROMISC_CHANGED,
 	HCLGEVF_STATE_RST_FAIL,
@@ -173,29 +144,9 @@ struct hclgevf_mac {
 };
 
 struct hclgevf_hw {
-	void __iomem *io_base;
-	void __iomem *mem_base;
+	struct hclge_comm_hw hw;
 	int num_vec;
-	struct hclgevf_cmq cmq;
 	struct hclgevf_mac mac;
-	void *hdev; /* hchgevf device it is part of */
-};
-
-/* TQP stats */
-struct hlcgevf_tqp_stats {
-	/* query_tqp_tx_queue_statistics, opcode id: 0x0B03 */
-	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics, opcode id: 0x0B13 */
-	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
-};
-
-struct hclgevf_tqp {
-	struct device *dev;	/* device for DMA mapping */
-	struct hnae3_queue q;
-	struct hlcgevf_tqp_stats tqp_stats;
-	u16 index;		/* global index in a NIC controller */
-
-	bool alloced;
 };
 
 struct hclgevf_cfg {
@@ -206,27 +157,6 @@ struct hclgevf_cfg {
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	u32 numa_node_map;
-};
-
-struct hclgevf_rss_tuple_cfg {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
-};
-
-struct hclgevf_rss_cfg {
-	u8  rss_hash_key[HCLGEVF_RSS_KEY_SIZE]; /* user configured hash keys */
-	u32 hash_algo;
-	u32 rss_size;
-	u8 hw_tc_map;
-	/* shadow table */
-	u8 *rss_indirection_tbl;
-	struct hclgevf_rss_tuple_cfg rss_tuple_sets;
 };
 
 struct hclgevf_misc_vector {
@@ -273,7 +203,7 @@ struct hclgevf_dev {
 	struct hnae3_ae_dev *ae_dev;
 	struct hclgevf_hw hw;
 	struct hclgevf_misc_vector misc_vector;
-	struct hclgevf_rss_cfg rss_cfg;
+	struct hclge_comm_rss_cfg rss_cfg;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long default_reset_request;
@@ -324,7 +254,7 @@ struct hclgevf_dev {
 
 	struct delayed_work service_task;
 
-	struct hclgevf_tqp *htqp;
+	struct hclge_comm_tqp *htqp;
 
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;

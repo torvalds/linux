@@ -5,6 +5,191 @@
  * Internal slab definitions
  */
 
+/* Reuses the bits in struct page */
+struct slab {
+	unsigned long __page_flags;
+
+#if defined(CONFIG_SLAB)
+
+	union {
+		struct list_head slab_list;
+		struct rcu_head rcu_head;
+	};
+	struct kmem_cache *slab_cache;
+	void *freelist;	/* array of free object indexes */
+	void *s_mem;	/* first object */
+	unsigned int active;
+
+#elif defined(CONFIG_SLUB)
+
+	union {
+		struct list_head slab_list;
+		struct rcu_head rcu_head;
+#ifdef CONFIG_SLUB_CPU_PARTIAL
+		struct {
+			struct slab *next;
+			int slabs;	/* Nr of slabs left */
+		};
+#endif
+	};
+	struct kmem_cache *slab_cache;
+	/* Double-word boundary */
+	void *freelist;		/* first free object */
+	union {
+		unsigned long counters;
+		struct {
+			unsigned inuse:16;
+			unsigned objects:15;
+			unsigned frozen:1;
+		};
+	};
+	unsigned int __unused;
+
+#elif defined(CONFIG_SLOB)
+
+	struct list_head slab_list;
+	void *__unused_1;
+	void *freelist;		/* first free block */
+	long units;
+	unsigned int __unused_2;
+
+#else
+#error "Unexpected slab allocator configured"
+#endif
+
+	atomic_t __page_refcount;
+#ifdef CONFIG_MEMCG
+	unsigned long memcg_data;
+#endif
+};
+
+#define SLAB_MATCH(pg, sl)						\
+	static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
+SLAB_MATCH(flags, __page_flags);
+SLAB_MATCH(compound_head, slab_list);	/* Ensure bit 0 is clear */
+#ifndef CONFIG_SLOB
+SLAB_MATCH(rcu_head, rcu_head);
+#endif
+SLAB_MATCH(_refcount, __page_refcount);
+#ifdef CONFIG_MEMCG
+SLAB_MATCH(memcg_data, memcg_data);
+#endif
+#undef SLAB_MATCH
+static_assert(sizeof(struct slab) <= sizeof(struct page));
+
+/**
+ * folio_slab - Converts from folio to slab.
+ * @folio: The folio.
+ *
+ * Currently struct slab is a different representation of a folio where
+ * folio_test_slab() is true.
+ *
+ * Return: The slab which contains this folio.
+ */
+#define folio_slab(folio)	(_Generic((folio),			\
+	const struct folio *:	(const struct slab *)(folio),		\
+	struct folio *:		(struct slab *)(folio)))
+
+/**
+ * slab_folio - The folio allocated for a slab
+ * @slab: The slab.
+ *
+ * Slabs are allocated as folios that contain the individual objects and are
+ * using some fields in the first struct page of the folio - those fields are
+ * now accessed by struct slab. It is occasionally necessary to convert back to
+ * a folio in order to communicate with the rest of the mm.  Please use this
+ * helper function instead of casting yourself, as the implementation may change
+ * in the future.
+ */
+#define slab_folio(s)		(_Generic((s),				\
+	const struct slab *:	(const struct folio *)s,		\
+	struct slab *:		(struct folio *)s))
+
+/**
+ * page_slab - Converts from first struct page to slab.
+ * @p: The first (either head of compound or single) page of slab.
+ *
+ * A temporary wrapper to convert struct page to struct slab in situations where
+ * we know the page is the compound head, or single order-0 page.
+ *
+ * Long-term ideally everything would work with struct slab directly or go
+ * through folio to struct slab.
+ *
+ * Return: The slab which contains this page
+ */
+#define page_slab(p)		(_Generic((p),				\
+	const struct page *:	(const struct slab *)(p),		\
+	struct page *:		(struct slab *)(p)))
+
+/**
+ * slab_page - The first struct page allocated for a slab
+ * @slab: The slab.
+ *
+ * A convenience wrapper for converting slab to the first struct page of the
+ * underlying folio, to communicate with code not yet converted to folio or
+ * struct slab.
+ */
+#define slab_page(s) folio_page(slab_folio(s), 0)
+
+/*
+ * If network-based swap is enabled, sl*b must keep track of whether pages
+ * were allocated from pfmemalloc reserves.
+ */
+static inline bool slab_test_pfmemalloc(const struct slab *slab)
+{
+	return folio_test_active((struct folio *)slab_folio(slab));
+}
+
+static inline void slab_set_pfmemalloc(struct slab *slab)
+{
+	folio_set_active(slab_folio(slab));
+}
+
+static inline void slab_clear_pfmemalloc(struct slab *slab)
+{
+	folio_clear_active(slab_folio(slab));
+}
+
+static inline void __slab_clear_pfmemalloc(struct slab *slab)
+{
+	__folio_clear_active(slab_folio(slab));
+}
+
+static inline void *slab_address(const struct slab *slab)
+{
+	return folio_address(slab_folio(slab));
+}
+
+static inline int slab_nid(const struct slab *slab)
+{
+	return folio_nid(slab_folio(slab));
+}
+
+static inline pg_data_t *slab_pgdat(const struct slab *slab)
+{
+	return folio_pgdat(slab_folio(slab));
+}
+
+static inline struct slab *virt_to_slab(const void *addr)
+{
+	struct folio *folio = virt_to_folio(addr);
+
+	if (!folio_test_slab(folio))
+		return NULL;
+
+	return folio_slab(folio);
+}
+
+static inline int slab_order(const struct slab *slab)
+{
+	return folio_order((struct folio *)slab_folio(slab));
+}
+
+static inline size_t slab_size(const struct slab *slab)
+{
+	return PAGE_SIZE << slab_order(slab);
+}
+
 #ifdef CONFIG_SLOB
 /*
  * Common fields provided in kmem_cache by all slab allocators
@@ -245,15 +430,33 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 }
 
 #ifdef CONFIG_MEMCG_KMEM
-int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
-				 gfp_t gfp, bool new_page);
+/*
+ * slab_objcgs - get the object cgroups vector associated with a slab
+ * @slab: a pointer to the slab struct
+ *
+ * Returns a pointer to the object cgroups vector associated with the slab,
+ * or NULL if no such vector has been associated yet.
+ */
+static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
+{
+	unsigned long memcg_data = READ_ONCE(slab->memcg_data);
+
+	VM_BUG_ON_PAGE(memcg_data && !(memcg_data & MEMCG_DATA_OBJCGS),
+							slab_page(slab));
+	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, slab_page(slab));
+
+	return (struct obj_cgroup **)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+}
+
+int memcg_alloc_slab_cgroups(struct slab *slab, struct kmem_cache *s,
+				 gfp_t gfp, bool new_slab);
 void mod_objcg_state(struct obj_cgroup *objcg, struct pglist_data *pgdat,
 		     enum node_stat_item idx, int nr);
 
-static inline void memcg_free_page_obj_cgroups(struct page *page)
+static inline void memcg_free_slab_cgroups(struct slab *slab)
 {
-	kfree(page_objcgs(page));
-	page->memcg_data = 0;
+	kfree(slab_objcgs(slab));
+	slab->memcg_data = 0;
 }
 
 static inline size_t obj_full_size(struct kmem_cache *s)
@@ -298,7 +501,7 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 					      gfp_t flags, size_t size,
 					      void **p)
 {
-	struct page *page;
+	struct slab *slab;
 	unsigned long off;
 	size_t i;
 
@@ -307,19 +510,19 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 
 	for (i = 0; i < size; i++) {
 		if (likely(p[i])) {
-			page = virt_to_head_page(p[i]);
+			slab = virt_to_slab(p[i]);
 
-			if (!page_objcgs(page) &&
-			    memcg_alloc_page_obj_cgroups(page, s, flags,
+			if (!slab_objcgs(slab) &&
+			    memcg_alloc_slab_cgroups(slab, s, flags,
 							 false)) {
 				obj_cgroup_uncharge(objcg, obj_full_size(s));
 				continue;
 			}
 
-			off = obj_to_index(s, page, p[i]);
+			off = obj_to_index(s, slab, p[i]);
 			obj_cgroup_get(objcg);
-			page_objcgs(page)[off] = objcg;
-			mod_objcg_state(objcg, page_pgdat(page),
+			slab_objcgs(slab)[off] = objcg;
+			mod_objcg_state(objcg, slab_pgdat(slab),
 					cache_vmstat_idx(s), obj_full_size(s));
 		} else {
 			obj_cgroup_uncharge(objcg, obj_full_size(s));
@@ -334,7 +537,7 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 	struct kmem_cache *s;
 	struct obj_cgroup **objcgs;
 	struct obj_cgroup *objcg;
-	struct page *page;
+	struct slab *slab;
 	unsigned int off;
 	int i;
 
@@ -345,43 +548,52 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 		if (unlikely(!p[i]))
 			continue;
 
-		page = virt_to_head_page(p[i]);
-		objcgs = page_objcgs_check(page);
+		slab = virt_to_slab(p[i]);
+		/* we could be given a kmalloc_large() object, skip those */
+		if (!slab)
+			continue;
+
+		objcgs = slab_objcgs(slab);
 		if (!objcgs)
 			continue;
 
 		if (!s_orig)
-			s = page->slab_cache;
+			s = slab->slab_cache;
 		else
 			s = s_orig;
 
-		off = obj_to_index(s, page, p[i]);
+		off = obj_to_index(s, slab, p[i]);
 		objcg = objcgs[off];
 		if (!objcg)
 			continue;
 
 		objcgs[off] = NULL;
 		obj_cgroup_uncharge(objcg, obj_full_size(s));
-		mod_objcg_state(objcg, page_pgdat(page), cache_vmstat_idx(s),
+		mod_objcg_state(objcg, slab_pgdat(slab), cache_vmstat_idx(s),
 				-obj_full_size(s));
 		obj_cgroup_put(objcg);
 	}
 }
 
 #else /* CONFIG_MEMCG_KMEM */
+static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
+{
+	return NULL;
+}
+
 static inline struct mem_cgroup *memcg_from_slab_obj(void *ptr)
 {
 	return NULL;
 }
 
-static inline int memcg_alloc_page_obj_cgroups(struct page *page,
+static inline int memcg_alloc_slab_cgroups(struct slab *slab,
 					       struct kmem_cache *s, gfp_t gfp,
-					       bool new_page)
+					       bool new_slab)
 {
 	return 0;
 }
 
-static inline void memcg_free_page_obj_cgroups(struct page *page)
+static inline void memcg_free_slab_cgroups(struct slab *slab)
 {
 }
 
@@ -405,35 +617,35 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s,
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
+#ifndef CONFIG_SLOB
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
-	struct page *page;
+	struct slab *slab;
 
-	page = virt_to_head_page(obj);
-	if (WARN_ONCE(!PageSlab(page), "%s: Object is not a Slab page!\n",
+	slab = virt_to_slab(obj);
+	if (WARN_ONCE(!slab, "%s: Object is not a Slab page!\n",
 					__func__))
 		return NULL;
-	return page->slab_cache;
+	return slab->slab_cache;
 }
 
-static __always_inline void account_slab_page(struct page *page, int order,
-					      struct kmem_cache *s,
-					      gfp_t gfp)
+static __always_inline void account_slab(struct slab *slab, int order,
+					 struct kmem_cache *s, gfp_t gfp)
 {
 	if (memcg_kmem_enabled() && (s->flags & SLAB_ACCOUNT))
-		memcg_alloc_page_obj_cgroups(page, s, gfp, true);
+		memcg_alloc_slab_cgroups(slab, s, gfp, true);
 
-	mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+	mod_node_page_state(slab_pgdat(slab), cache_vmstat_idx(s),
 			    PAGE_SIZE << order);
 }
 
-static __always_inline void unaccount_slab_page(struct page *page, int order,
-						struct kmem_cache *s)
+static __always_inline void unaccount_slab(struct slab *slab, int order,
+					   struct kmem_cache *s)
 {
 	if (memcg_kmem_enabled())
-		memcg_free_page_obj_cgroups(page);
+		memcg_free_slab_cgroups(slab);
 
-	mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+	mod_node_page_state(slab_pgdat(slab), cache_vmstat_idx(s),
 			    -(PAGE_SIZE << order));
 }
 
@@ -452,6 +664,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 		print_tracking(cachep, x);
 	return cachep;
 }
+#endif /* CONFIG_SLOB */
 
 static inline size_t slab_ksize(const struct kmem_cache *s)
 {
@@ -575,11 +788,6 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 
 #endif
 
-void *slab_start(struct seq_file *m, loff_t *pos);
-void *slab_next(struct seq_file *m, void *p, loff_t *pos);
-void slab_stop(struct seq_file *m, void *p);
-int memcg_slab_show(struct seq_file *m, void *p);
-
 #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
 void dump_unreclaimable_slab(void);
 #else
@@ -635,7 +843,7 @@ static inline void debugfs_slab_release(struct kmem_cache *s) { }
 #define KS_ADDRS_COUNT 16
 struct kmem_obj_info {
 	void *kp_ptr;
-	struct page *kp_page;
+	struct slab *kp_slab;
 	void *kp_objp;
 	unsigned long kp_data_offset;
 	struct kmem_cache *kp_slab_cache;
@@ -643,7 +851,18 @@ struct kmem_obj_info {
 	void *kp_stack[KS_ADDRS_COUNT];
 	void *kp_free_stack[KS_ADDRS_COUNT];
 };
-void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct page *page);
+void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
+#endif
+
+#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user);
+#else
+static inline
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user)
+{
+}
 #endif
 
 #endif /* MM_SLAB_H */

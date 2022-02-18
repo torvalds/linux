@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config NET_DEV_REFCNT_TRACKER
+	bool "Enable net device refcount tracking"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select REF_TRACKER
+	default n
+	help
+	  Enable debugging feature to track device references.
+	  This adds memory and cpu costs.
+
+config NET_NS_REFCNT_TRACKER
+	bool "Enable networking namespace refcount tracking"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select REF_TRACKER
+	default n
+	help
+	  Enable debugging feature to track netns references.
+	  This adds memory and cpu costs.

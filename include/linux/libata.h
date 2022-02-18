@@ -39,24 +39,8 @@
  * compile-time options: to be removed as soon as all the drivers are
  * converted to the new debugging mechanism
  */
-#undef ATA_DEBUG		/* debugging output */
-#undef ATA_VERBOSE_DEBUG	/* yet more debugging output */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
-#undef ATA_NDEBUG		/* define to disable quick runtime checks */
 
-
-/* note: prints function name for you */
-#ifdef ATA_DEBUG
-#define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
-#ifdef ATA_VERBOSE_DEBUG
-#define VPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
-#else
-#define VPRINTK(fmt, args...)
-#endif	/* ATA_VERBOSE_DEBUG */
-#else
-#define DPRINTK(fmt, args...)
-#define VPRINTK(fmt, args...)
-#endif	/* ATA_DEBUG */
 
 #define ata_print_version_once(dev, version)			\
 ({								\
@@ -67,38 +51,6 @@
 		ata_print_version(dev, version);		\
 	}							\
 })
-
-/* NEW: debug levels */
-#define HAVE_LIBATA_MSG 1
-
-enum {
-	ATA_MSG_DRV	= 0x0001,
-	ATA_MSG_INFO	= 0x0002,
-	ATA_MSG_PROBE	= 0x0004,
-	ATA_MSG_WARN	= 0x0008,
-	ATA_MSG_MALLOC	= 0x0010,
-	ATA_MSG_CTL	= 0x0020,
-	ATA_MSG_INTR	= 0x0040,
-	ATA_MSG_ERR	= 0x0080,
-};
-
-#define ata_msg_drv(p)    ((p)->msg_enable & ATA_MSG_DRV)
-#define ata_msg_info(p)   ((p)->msg_enable & ATA_MSG_INFO)
-#define ata_msg_probe(p)  ((p)->msg_enable & ATA_MSG_PROBE)
-#define ata_msg_warn(p)   ((p)->msg_enable & ATA_MSG_WARN)
-#define ata_msg_malloc(p) ((p)->msg_enable & ATA_MSG_MALLOC)
-#define ata_msg_ctl(p)    ((p)->msg_enable & ATA_MSG_CTL)
-#define ata_msg_intr(p)   ((p)->msg_enable & ATA_MSG_INTR)
-#define ata_msg_err(p)    ((p)->msg_enable & ATA_MSG_ERR)
-
-static inline u32 ata_msg_init(int dval, int default_msg_enable_bits)
-{
-	if (dval < 0 || dval >= (sizeof(u32) * 8))
-		return default_msg_enable_bits; /* should be 0x1 - only driver info msgs */
-	if (!dval)
-		return 0;
-	return (1 << dval) - 1;
-}
 
 /* defines only for the constants which don't work well as enums */
 #define ATA_TAG_POISON		0xfafbfcfdU
@@ -191,7 +143,7 @@ enum {
 	ATA_LFLAG_NO_LPM	= (1 << 8), /* disable LPM on this link */
 	ATA_LFLAG_RST_ONCE	= (1 << 9), /* limit recovery to one reset */
 	ATA_LFLAG_CHANGED	= (1 << 10), /* LPM state changed on this link */
-	ATA_LFLAG_NO_DB_DELAY	= (1 << 11), /* no debounce delay on link resume */
+	ATA_LFLAG_NO_DEBOUNCE_DELAY = (1 << 11), /* no debounce delay on link resume */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
@@ -428,6 +380,7 @@ enum {
 	ATA_HORKAGE_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
 	ATA_HORKAGE_NO_NCQ_ON_ATI = (1 << 27),	/* Disable NCQ on ATI chipset */
 	ATA_HORKAGE_NO_ID_DEV_LOG = (1 << 28),	/* Identify device log missing */
+	ATA_HORKAGE_NO_LOG_DIR	= (1 << 29),	/* Do not read log directory */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -884,7 +837,6 @@ struct ata_port {
 
 	unsigned int		hsm_task_state;
 
-	u32			msg_enable;
 	struct list_head	eh_done_q;
 	wait_queue_head_t	eh_wait_q;
 	int			eh_tries;
@@ -933,7 +885,8 @@ struct ata_port_operations {
 	void (*set_piomode)(struct ata_port *ap, struct ata_device *dev);
 	void (*set_dmamode)(struct ata_port *ap, struct ata_device *dev);
 	int  (*set_mode)(struct ata_link *link, struct ata_device **r_failed_dev);
-	unsigned int (*read_id)(struct ata_device *dev, struct ata_taskfile *tf, u16 *id);
+	unsigned int (*read_id)(struct ata_device *dev, struct ata_taskfile *tf,
+				__le16 *id);
 
 	void (*dev_config)(struct ata_device *dev);
 
@@ -1160,13 +1113,15 @@ extern enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
+extern unsigned int ata_port_classify(struct ata_port *ap,
+				      const struct ata_taskfile *tf);
 extern void ata_dev_disable(struct ata_device *adev);
 extern void ata_id_string(const u16 *id, unsigned char *s,
 			  unsigned int ofs, unsigned int len);
 extern void ata_id_c_string(const u16 *id, unsigned char *s,
 			    unsigned int ofs, unsigned int len);
 extern unsigned int ata_do_dev_read_id(struct ata_device *dev,
-					struct ata_taskfile *tf, u16 *id);
+				       struct ata_taskfile *tf, __le16 *id);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
 extern u64 ata_qc_get_active(struct ata_port *ap);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd);
@@ -1432,6 +1387,12 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
 	.slave_configure	= ata_scsi_slave_config
 
+#define ATA_SUBBASE_SHT_QD(drv_name, drv_qd)			\
+	__ATA_BASE_SHT(drv_name),				\
+	.can_queue		= drv_qd,			\
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
+	.slave_configure	= ata_scsi_slave_config
+
 #define ATA_BASE_SHT(drv_name)					\
 	ATA_SUBBASE_SHT(drv_name),				\
 	.sdev_groups		= ata_common_sdev_groups
@@ -1441,6 +1402,11 @@ extern const struct attribute_group *ata_ncq_sdev_groups[];
 
 #define ATA_NCQ_SHT(drv_name)					\
 	ATA_SUBBASE_SHT(drv_name),				\
+	.sdev_groups		= ata_ncq_sdev_groups,		\
+	.change_queue_depth	= ata_scsi_change_queue_depth
+
+#define ATA_NCQ_SHT_QD(drv_name, drv_qd)			\
+	ATA_SUBBASE_SHT_QD(drv_name, drv_qd),			\
 	.sdev_groups		= ata_ncq_sdev_groups,		\
 	.change_queue_depth	= ata_scsi_change_queue_depth
 #endif
@@ -1487,51 +1453,61 @@ static inline int sata_srst_pmp(struct ata_link *link)
 	return link->pmp;
 }
 
-/*
- * printk helpers
- */
-__printf(3, 4)
-void ata_port_printk(const struct ata_port *ap, const char *level,
-		     const char *fmt, ...);
-__printf(3, 4)
-void ata_link_printk(const struct ata_link *link, const char *level,
-		     const char *fmt, ...);
-__printf(3, 4)
-void ata_dev_printk(const struct ata_device *dev, const char *level,
-		    const char *fmt, ...);
+#define ata_port_printk(level, ap, fmt, ...)			\
+	pr_ ## level ("ata%u: " fmt, (ap)->print_id, ##__VA_ARGS__)
 
 #define ata_port_err(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_ERR, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_warn(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_WARNING, fmt, ##__VA_ARGS__)
+	ata_port_printk(warn, ap, fmt, ##__VA_ARGS__)
 #define ata_port_notice(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_NOTICE, fmt, ##__VA_ARGS__)
+	ata_port_printk(notice, ap, fmt, ##__VA_ARGS__)
 #define ata_port_info(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_INFO, fmt, ##__VA_ARGS__)
+	ata_port_printk(info, ap, fmt, ##__VA_ARGS__)
 #define ata_port_dbg(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_port_printk(debug, ap, fmt, ##__VA_ARGS__)
+
+#define ata_link_printk(level, link, fmt, ...)			\
+do {								\
+	if (sata_pmp_attached((link)->ap) ||			\
+	    (link)->ap->slave_link)				\
+		pr_ ## level ("ata%u.%02u: " fmt,		\
+			      (link)->ap->print_id,		\
+			      (link)->pmp,			\
+			      ##__VA_ARGS__);			\
+        else							\
+		pr_ ## level ("ata%u: " fmt,			\
+			      (link)->ap->print_id,		\
+			      ##__VA_ARGS__);			\
+} while (0)
 
 #define ata_link_err(link, fmt, ...)				\
-	ata_link_printk(link, KERN_ERR, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_warn(link, fmt, ...)				\
-	ata_link_printk(link, KERN_WARNING, fmt, ##__VA_ARGS__)
+	ata_link_printk(warn, link, fmt, ##__VA_ARGS__)
 #define ata_link_notice(link, fmt, ...)				\
-	ata_link_printk(link, KERN_NOTICE, fmt, ##__VA_ARGS__)
+	ata_link_printk(notice, link, fmt, ##__VA_ARGS__)
 #define ata_link_info(link, fmt, ...)				\
-	ata_link_printk(link, KERN_INFO, fmt, ##__VA_ARGS__)
+	ata_link_printk(info, link, fmt, ##__VA_ARGS__)
 #define ata_link_dbg(link, fmt, ...)				\
-	ata_link_printk(link, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_link_printk(debug, link, fmt, ##__VA_ARGS__)
+
+#define ata_dev_printk(level, dev, fmt, ...)			\
+        pr_ ## level("ata%u.%02u: " fmt,			\
+               (dev)->link->ap->print_id,			\
+	       (dev)->link->pmp + (dev)->devno,			\
+	       ##__VA_ARGS__)
 
 #define ata_dev_err(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_ERR, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_warn(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_WARNING, fmt, ##__VA_ARGS__)
+	ata_dev_printk(warn, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_notice(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_NOTICE, fmt, ##__VA_ARGS__)
+	ata_dev_printk(notice, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_info(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
+	ata_dev_printk(info, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
 
 void ata_print_version(const struct device *dev, const char *version);
 
@@ -2065,11 +2041,8 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 {
 	u8 status = ata_sff_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
-#ifdef ATA_DEBUG
 	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ)))
-		ata_port_printk(ap, KERN_DEBUG, "abnormal Status 0x%X\n",
-				status);
-#endif
+		ata_port_dbg(ap, "abnormal Status 0x%X\n", status);
 
 	return status;
 }

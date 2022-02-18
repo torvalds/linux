@@ -538,6 +538,7 @@ static void p9_trans_xen_exit(void)
 }
 module_exit(p9_trans_xen_exit);
 
+MODULE_ALIAS("xen:9pfs");
 MODULE_AUTHOR("Stefano Stabellini <stefano@aporeto.com>");
 MODULE_DESCRIPTION("Xen Transport for 9P");
 MODULE_LICENSE("GPL");

@@ -40,6 +40,7 @@
 
 #include <linux/slab.h>
 #include "pm8001_sas.h"
+#include "pm80xx_tracepoints.h"
 
 /**
  * pm8001_find_tag - from sas task to find out  tag that belongs to this task
@@ -527,6 +528,9 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task, struct pm8001_ccb_info *ccb, u32 ccb_idx)
 {
+	struct ata_queued_cmd *qc;
+	struct pm8001_device *pm8001_dev;
+
 	if (!ccb->task)
 		return;
 	if (!sas_protocol_ata(task->task_proto))
@@ -549,6 +553,18 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 		/* do nothing */
 		break;
 	}
+
+	if (sas_protocol_ata(task->task_proto)) {
+		// For SCSI/ATA commands uldd_task points to ata_queued_cmd
+		qc = task->uldd_task;
+		pm8001_dev = ccb->device;
+		trace_pm80xx_request_complete(pm8001_ha->id,
+			pm8001_dev ? pm8001_dev->attached_phy : PM8001_MAX_PHYS,
+			ccb_idx, 0 /* ctlr_opcode not known */,
+			qc ? qc->tf.command : 0, // ata opcode
+			pm8001_dev ? atomic_read(&pm8001_dev->running_req) : -1);
+	}
+
 	task->lldd_task = NULL;
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
@@ -753,8 +769,13 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		res = -TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+			struct pm8001_ccb_info *ccb = task->lldd_task;
+
 			pm8001_dbg(pm8001_ha, FAIL, "TMF task[%x]timeout.\n",
 				   tmf->tmf);
+
+			if (ccb)
+				ccb->task = NULL;
 			goto ex_err;
 		}
 
@@ -1183,7 +1204,7 @@ int pm8001_abort_task(struct sas_task *task)
 	struct pm8001_device *pm8001_dev;
 	struct pm8001_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED, ret;
-	u32 phy_id;
+	u32 phy_id, port_id;
 	struct sas_task_slow slow_task;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
@@ -1230,6 +1251,7 @@ int pm8001_abort_task(struct sas_task *task)
 			DECLARE_COMPLETION_ONSTACK(completion_reset);
 			DECLARE_COMPLETION_ONSTACK(completion);
 			struct pm8001_phy *phy = pm8001_ha->phy + phy_id;
+			port_id = phy->port->port_id;
 
 			/* 1. Set Device state as Recovery */
 			pm8001_dev->setds_completion = &completion;
@@ -1281,6 +1303,10 @@ int pm8001_abort_task(struct sas_task *task)
 						PORT_RESET_TMO);
 				if (phy->port_reset_status == PORT_RESET_TMO) {
 					pm8001_dev_gone_notify(dev);
+					PM8001_CHIP_DISP->hw_event_ack_req(
+						pm8001_ha, 0,
+						0x07, /*HW_EVENT_PHY_DOWN ack*/
+						port_id, phy_id, 0, 0);
 					goto out;
 				}
 			}

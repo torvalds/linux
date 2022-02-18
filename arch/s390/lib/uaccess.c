@@ -62,10 +62,14 @@ static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr
 						 unsigned long size)
 {
 	unsigned long tmp1, tmp2;
+	union oac spec = {
+		.oac2.as = PSW_BITS_AS_SECONDARY,
+		.oac2.a = 1,
+	};
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   lghi  0,%[spec]\n"
+		"   lr	  0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%2),0(%1),0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
@@ -84,7 +88,7 @@ static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: [spec] "K" (0x81UL)
+		: [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -135,10 +139,14 @@ static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
 					       unsigned long size)
 {
 	unsigned long tmp1, tmp2;
+	union oac spec = {
+		.oac1.as = PSW_BITS_AS_SECONDARY,
+		.oac1.a = 1,
+	};
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   llilh 0,%[spec]\n"
+		"   lr	  0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%1),0(%2),0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
@@ -157,7 +165,7 @@ static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: [spec] "K" (0x81UL)
+		: [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -207,10 +215,14 @@ EXPORT_SYMBOL(raw_copy_to_user);
 static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
 	unsigned long tmp1, tmp2;
+	union oac spec = {
+		.oac1.as = PSW_BITS_AS_SECONDARY,
+		.oac1.a = 1,
+	};
 
 	tmp1 = -4096UL;
 	asm volatile(
-		"   llilh 0,%[spec]\n"
+		"   lr	  0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%1),0(%4),0\n"
 		"   jz	  4f\n"
 		"1: algr  %0,%2\n"
@@ -228,7 +240,7 @@ static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b)
 		: "+a" (size), "+a" (to), "+a" (tmp1), "=a" (tmp2)
-		: "a" (empty_zero_page), [spec] "K" (0x81UL)
+		: "a" (empty_zero_page), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }

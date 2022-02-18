@@ -222,11 +222,6 @@ struct ia_css_binary_info {
 	struct ia_css_isp_param_isp_segments	mem_initializers;
 	/* MW: Packing (related) bools in an integer ?? */
 	struct {
-		/* ISP2401 */
-		u8	luma_only;
-		u8	input_yuv;
-		u8	input_raw;
-
 		u8	reduced_pipe;
 		u8	vf_veceven;
 		u8	dis;

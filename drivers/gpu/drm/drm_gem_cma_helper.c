@@ -13,6 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
@@ -31,14 +32,18 @@
  * The DRM GEM/CMA helpers use this allocator as a means to provide buffer
  * objects that are physically contiguous in memory. This is useful for
  * display drivers that are unable to map scattered buffers via an IOMMU.
+ *
+ * For GEM callback helpers in struct &drm_gem_object functions, see likewise
+ * named functions with an _object_ infix (e.g., drm_gem_cma_object_vmap() wraps
+ * drm_gem_cma_vmap()). These helpers perform the necessary type conversion.
  */
 
 static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
-	.free = drm_gem_cma_free_object,
-	.print_info = drm_gem_cma_print_info,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
-	.mmap = drm_gem_cma_mmap,
+	.free = drm_gem_cma_object_free,
+	.print_info = drm_gem_cma_object_print_info,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
+	.mmap = drm_gem_cma_object_mmap,
 	.vm_ops = &drm_gem_cma_vm_ops,
 };
 
@@ -62,17 +67,20 @@ __drm_gem_cma_create(struct drm_device *drm, size_t size, bool private)
 	struct drm_gem_object *gem_obj;
 	int ret = 0;
 
-	if (drm->driver->gem_create_object)
+	if (drm->driver->gem_create_object) {
 		gem_obj = drm->driver->gem_create_object(drm, size);
-	else
-		gem_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
-	if (!gem_obj)
-		return ERR_PTR(-ENOMEM);
+		if (IS_ERR(gem_obj))
+			return ERR_CAST(gem_obj);
+		cma_obj = to_drm_gem_cma_obj(gem_obj);
+	} else {
+		cma_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
+		if (!cma_obj)
+			return ERR_PTR(-ENOMEM);
+		gem_obj = &cma_obj->base;
+	}
 
 	if (!gem_obj->funcs)
 		gem_obj->funcs = &drm_gem_cma_default_funcs;
-
-	cma_obj = container_of(gem_obj, struct drm_gem_cma_object, base);
 
 	if (private) {
 		drm_gem_private_object_init(drm, gem_obj, size);
@@ -191,18 +199,16 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 }
 
 /**
- * drm_gem_cma_free_object - free resources associated with a CMA GEM object
- * @gem_obj: GEM object to free
+ * drm_gem_cma_free - free resources associated with a CMA GEM object
+ * @cma_obj: CMA GEM object to free
  *
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
  * If the buffer is imported and the virtual address is set, it is released.
- * Drivers using the CMA helpers should set this as their
- * &drm_gem_object_funcs.free callback.
  */
-void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
+void drm_gem_cma_free(struct drm_gem_cma_object *cma_obj)
 {
-	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem_obj);
+	struct drm_gem_object *gem_obj = &cma_obj->base;
 	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(cma_obj->vaddr);
 
 	if (gem_obj->import_attach) {
@@ -223,7 +229,7 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 
 	kfree(cma_obj);
 }
-EXPORT_SYMBOL_GPL(drm_gem_cma_free_object);
+EXPORT_SYMBOL_GPL(drm_gem_cma_free);
 
 /**
  * drm_gem_cma_dumb_create_internal - create a dumb buffer object
@@ -370,18 +376,15 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_get_unmapped_area);
 
 /**
  * drm_gem_cma_print_info() - Print &drm_gem_cma_object info for debugfs
+ * @cma_obj: CMA GEM object
  * @p: DRM printer
  * @indent: Tab indentation level
- * @obj: GEM object
  *
- * This function can be used as the &drm_driver->gem_print_info callback.
- * It prints paddr and vaddr for use in e.g. debugfs output.
+ * This function prints paddr and vaddr for use in e.g. debugfs output.
  */
-void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
-			    const struct drm_gem_object *obj)
+void drm_gem_cma_print_info(const struct drm_gem_cma_object *cma_obj,
+			    struct drm_printer *p, unsigned int indent)
 {
-	const struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
-
 	drm_printf_indent(p, indent, "paddr=%pad\n", &cma_obj->paddr);
 	drm_printf_indent(p, indent, "vaddr=%p\n", cma_obj->vaddr);
 }
@@ -390,18 +393,17 @@ EXPORT_SYMBOL(drm_gem_cma_print_info);
 /**
  * drm_gem_cma_get_sg_table - provide a scatter/gather table of pinned
  *     pages for a CMA GEM object
- * @obj: GEM object
+ * @cma_obj: CMA GEM object
  *
- * This function exports a scatter/gather table by
- * calling the standard DMA mapping API. Drivers using the CMA helpers should
- * set this as their &drm_gem_object_funcs.get_sg_table callback.
+ * This function exports a scatter/gather table by calling the standard
+ * DMA mapping API.
  *
  * Returns:
  * A pointer to the scatter/gather table of pinned pages or NULL on failure.
  */
-struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_object *obj)
+struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_cma_object *cma_obj)
 {
-	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+	struct drm_gem_object *obj = &cma_obj->base;
 	struct sg_table *sgt;
 	int ret;
 
@@ -467,23 +469,19 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
 /**
  * drm_gem_cma_vmap - map a CMA GEM object into the kernel's virtual
  *     address space
- * @obj: GEM object
+ * @cma_obj: CMA GEM object
  * @map: Returns the kernel virtual address of the CMA GEM object's backing
  *       store.
  *
- * This function maps a buffer into the kernel's
- * virtual address space. Since the CMA buffers are already mapped into the
- * kernel virtual address space this simply returns the cached virtual
- * address. Drivers using the CMA helpers should set this as their DRM
- * driver's &drm_gem_object_funcs.vmap callback.
+ * This function maps a buffer into the kernel's virtual address space.
+ * Since the CMA buffers are already mapped into the kernel virtual address
+ * space this simply returns the cached virtual address.
  *
  * Returns:
  * 0 on success, or a negative error code otherwise.
  */
-int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+int drm_gem_cma_vmap(struct drm_gem_cma_object *cma_obj, struct dma_buf_map *map)
 {
-	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
-
 	dma_buf_map_set_vaddr(map, cma_obj->vaddr);
 
 	return 0;
@@ -492,20 +490,19 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_vmap);
 
 /**
  * drm_gem_cma_mmap - memory-map an exported CMA GEM object
- * @obj: GEM object
+ * @cma_obj: CMA GEM object
  * @vma: VMA for the area to be mapped
  *
  * This function maps a buffer into a userspace process's address space.
  * In addition to the usual GEM VMA setup it immediately faults in the entire
- * object instead of using on-demand faulting. Drivers that use the CMA
- * helpers should set this as their &drm_gem_object_funcs.mmap callback.
+ * object instead of using on-demand faulting.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
  */
-int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+int drm_gem_cma_mmap(struct drm_gem_cma_object *cma_obj, struct vm_area_struct *vma)
 {
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_object *obj = &cma_obj->base;
 	int ret;
 
 	/*
@@ -515,8 +512,6 @@ int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	 */
 	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
 	vma->vm_flags &= ~VM_PFNMAP;
-
-	cma_obj = to_drm_gem_cma_obj(obj);
 
 	if (cma_obj->map_noncoherent) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
@@ -583,3 +578,7 @@ drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
 	return obj;
 }
 EXPORT_SYMBOL(drm_gem_cma_prime_import_sg_table_vmap);
+
+MODULE_DESCRIPTION("DRM CMA memory-management helpers");
+MODULE_IMPORT_NS(DMA_BUF);
+MODULE_LICENSE("GPL");

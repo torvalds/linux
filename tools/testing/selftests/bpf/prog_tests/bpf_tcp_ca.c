@@ -217,21 +217,22 @@ static bool found;
 static int libbpf_debug_print(enum libbpf_print_level level,
 			      const char *format, va_list args)
 {
-	char *log_buf;
+	const char *prog_name, *log_buf;
 
 	if (level != LIBBPF_WARN ||
-	    strcmp(format, "libbpf: \n%s\n")) {
+	    !strstr(format, "-- BEGIN PROG LOAD LOG --")) {
 		vprintf(format, args);
 		return 0;
 	}
 
+	prog_name = va_arg(args, char *);
 	log_buf = va_arg(args, char *);
 	if (!log_buf)
 		goto out;
 	if (err_str && strstr(log_buf, err_str) != NULL)
 		found = true;
 out:
-	printf(format, log_buf);
+	printf(format, prog_name, log_buf);
 	return 0;
 }
 

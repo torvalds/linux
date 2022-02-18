@@ -10,6 +10,7 @@
 #include <linux/math64.h>
 #include <linux/export.h>
 #include <linux/ctype.h>
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/limits.h>
@@ -675,6 +676,39 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 EXPORT_SYMBOL_GPL(kstrdup_quotable_file);
 
 /**
+ * kasprintf_strarray - allocate and fill array of sequential strings
+ * @gfp: flags for the slab allocator
+ * @prefix: prefix to be used
+ * @n: amount of lines to be allocated and filled
+ *
+ * Allocates and fills @n strings using pattern "%s-%zu", where prefix
+ * is provided by caller. The caller is responsible to free them with
+ * kfree_strarray() after use.
+ *
+ * Returns array of strings or NULL when memory can't be allocated.
+ */
+char **kasprintf_strarray(gfp_t gfp, const char *prefix, size_t n)
+{
+	char **names;
+	size_t i;
+
+	names = kcalloc(n + 1, sizeof(char *), gfp);
+	if (!names)
+		return NULL;
+
+	for (i = 0; i < n; i++) {
+		names[i] = kasprintf(gfp, "%s-%zu", prefix, i);
+		if (!names[i]) {
+			kfree_strarray(names, i);
+			return NULL;
+		}
+	}
+
+	return names;
+}
+EXPORT_SYMBOL_GPL(kasprintf_strarray);
+
+/**
  * kfree_strarray - free a number of dynamically allocated strings contained
  *                  in an array and the array itself
  *
@@ -696,6 +730,36 @@ void kfree_strarray(char **array, size_t n)
 	kfree(array);
 }
 EXPORT_SYMBOL_GPL(kfree_strarray);
+
+struct strarray {
+	char **array;
+	size_t n;
+};
+
+static void devm_kfree_strarray(struct device *dev, void *res)
+{
+	struct strarray *array = res;
+
+	kfree_strarray(array->array, array->n);
+}
+
+char **devm_kasprintf_strarray(struct device *dev, const char *prefix, size_t n)
+{
+	struct strarray *ptr;
+
+	ptr = devres_alloc(devm_kfree_strarray, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	ptr->array = kasprintf_strarray(GFP_KERNEL, prefix, n);
+	if (!ptr->array) {
+		devres_free(ptr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return ptr->array;
+}
+EXPORT_SYMBOL_GPL(devm_kasprintf_strarray);
 
 /**
  * strscpy_pad() - Copy a C-string into a sized buffer

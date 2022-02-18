@@ -515,6 +515,10 @@ static void ceph_con_reset_protocol(struct ceph_connection *con)
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	}
+	if (con->bounce_page) {
+		__free_page(con->bounce_page);
+		con->bounce_page = NULL;
+	}
 
 	if (ceph_msgr2(from_msgr(con->msgr)))
 		ceph_con_v2_reset_protocol(con);
@@ -1267,30 +1271,31 @@ static int ceph_parse_server_name(const char *name, size_t namelen,
  */
 int ceph_parse_ips(const char *c, const char *end,
 		   struct ceph_entity_addr *addr,
-		   int max_count, int *count)
+		   int max_count, int *count, char delim)
 {
 	int i, ret = -EINVAL;
 	const char *p = c;
 
 	dout("parse_ips on '%.*s'\n", (int)(end-c), c);
 	for (i = 0; i < max_count; i++) {
+		char cur_delim = delim;
 		const char *ipend;
 		int port;
-		char delim = ',';
 
 		if (*p == '[') {
-			delim = ']';
+			cur_delim = ']';
 			p++;
 		}
 
-		ret = ceph_parse_server_name(p, end - p, &addr[i], delim, &ipend);
+		ret = ceph_parse_server_name(p, end - p, &addr[i], cur_delim,
+					     &ipend);
 		if (ret)
 			goto bad;
 		ret = -EINVAL;
 
 		p = ipend;
 
-		if (delim == ']') {
+		if (cur_delim == ']') {
 			if (*p != ']') {
 				dout("missing matching ']'\n");
 				goto bad;
@@ -1326,11 +1331,11 @@ int ceph_parse_ips(const char *c, const char *end,
 		addr[i].type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
 		addr[i].nonce = 0;
 
-		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i]));
+		dout("%s got %s\n", __func__, ceph_pr_addr(&addr[i]));
 
 		if (p == end)
 			break;
-		if (*p != ',')
+		if (*p != delim)
 			goto bad;
 		p++;
 	}
@@ -1920,7 +1925,7 @@ struct ceph_msg *ceph_msg_new2(int type, int front_len, int max_data_items,
 
 	/* front */
 	if (front_len) {
-		m->front.iov_base = ceph_kvmalloc(front_len, flags);
+		m->front.iov_base = kvmalloc(front_len, flags);
 		if (m->front.iov_base == NULL) {
 			dout("ceph_msg_new can't allocate %d bytes\n",
 			     front_len);

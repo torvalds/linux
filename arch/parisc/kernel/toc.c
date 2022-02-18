@@ -9,8 +9,11 @@
 
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
+#include <asm/ldcw.h>
+#include <asm/processor.h>
 
-unsigned int __aligned(16) toc_lock = 1;
+static unsigned int __aligned(16) toc_lock = 1;
+DEFINE_PER_CPU_PAGE_ALIGNED(char [16384], toc_stack) __visible;
 
 static void toc20_to_pt_regs(struct pt_regs *regs, struct pdc_toc_pim_20 *toc)
 {
@@ -63,7 +66,8 @@ void notrace __noreturn __cold toc_intr(struct pt_regs *regs)
 	struct pdc_toc_pim_20 pim_data20;
 	struct pdc_toc_pim_11 pim_data11;
 
-	nmi_enter();
+	/* verify we wrote regs to the correct stack */
+	BUG_ON(regs != (struct pt_regs *)&per_cpu(toc_stack, raw_smp_processor_id()));
 
 	if (boot_cpu_data.cpu_type >= pcxu) {
 		if (pdc_pim_toc20(&pim_data20))
@@ -76,14 +80,25 @@ void notrace __noreturn __cold toc_intr(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KGDB
+	nmi_enter();
+
 	if (atomic_read(&kgdb_active) != -1)
 		kgdb_nmicallback(raw_smp_processor_id(), regs);
 	kgdb_handle_exception(9, SIGTRAP, 0, regs);
 #endif
+
+	/* serialize output, otherwise all CPUs write backtrace at once */
+	while (__ldcw(&toc_lock) == 0)
+		; /* wait */
 	show_regs(regs);
+	toc_lock = 1;	 /* release lock for next CPU */
+
+	if (raw_smp_processor_id() != 0)
+		while (1) ; /* all but monarch CPU will wait endless. */
 
 	/* give other CPUs time to show their backtrace */
 	mdelay(2000);
+
 	machine_restart("TOC");
 
 	/* should never reach this */

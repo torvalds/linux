@@ -317,7 +317,8 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 		if (ret > 0)
 			nframes += ret;
 
-		if (test_bit(MT76_MCU_RESET, &dev->phy.state)) {
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state) ||
+		    test_bit(MT76_STATE_SUSPEND, &dev->phy.state)) {
 			if (!mt76s_txqs_empty(dev))
 				continue;
 			else

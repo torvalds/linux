@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
 #include <linux/lockdep.h>
+#include <linux/log2.h>
 
 #include <acpi/acpi_numa.h>
 
@@ -592,7 +593,7 @@ static int virtio_mem_sbm_sb_states_prepare_next_mb(struct virtio_mem *vm)
 		return -ENOMEM;
 
 	mutex_lock(&vm->hotplug_mutex);
-	if (new_bitmap)
+	if (vm->sbm.sb_states)
 		memcpy(new_bitmap, vm->sbm.sb_states, old_pages * PAGE_SIZE);
 
 	old_bitmap = vm->sbm.sb_states;
@@ -1120,15 +1121,18 @@ static void virtio_mem_clear_fake_offline(unsigned long pfn,
  */
 static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
 {
-	const unsigned long max_nr_pages = MAX_ORDER_NR_PAGES;
+	unsigned long order = MAX_ORDER - 1;
 	unsigned long i;
 
 	/*
-	 * We are always called at least with MAX_ORDER_NR_PAGES
-	 * granularity/alignment (e.g., the way subblocks work). All pages
-	 * inside such a block are alike.
+	 * We might get called for ranges that don't cover properly aligned
+	 * MAX_ORDER - 1 pages; however, we can only online properly aligned
+	 * pages with an order of MAX_ORDER - 1 at maximum.
 	 */
-	for (i = 0; i < nr_pages; i += max_nr_pages) {
+	while (!IS_ALIGNED(pfn | nr_pages, 1 << order))
+		order--;
+
+	for (i = 0; i < nr_pages; i += 1 << order) {
 		struct page *page = pfn_to_page(pfn + i);
 
 		/*
@@ -1138,14 +1142,12 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
 		 * alike.
 		 */
 		if (PageDirty(page)) {
-			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
-						      false);
-			generic_online_page(page, MAX_ORDER - 1);
+			virtio_mem_clear_fake_offline(pfn + i, 1 << order, false);
+			generic_online_page(page, order);
 		} else {
-			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
-						      true);
-			free_contig_range(pfn + i, max_nr_pages);
-			adjust_managed_page_count(page, max_nr_pages);
+			virtio_mem_clear_fake_offline(pfn + i, 1 << order, true);
+			free_contig_range(pfn + i, 1 << order);
+			adjust_managed_page_count(page, 1 << order);
 		}
 	}
 }
@@ -1228,28 +1230,46 @@ static void virtio_mem_fake_offline_cancel_offline(unsigned long pfn,
 		page_ref_inc(pfn_to_page(pfn + i));
 }
 
-static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
+static void virtio_mem_online_page(struct virtio_mem *vm,
+				   struct page *page, unsigned int order)
 {
-	const unsigned long addr = page_to_phys(page);
-	unsigned long id, sb_id;
-	struct virtio_mem *vm;
+	const unsigned long start = page_to_phys(page);
+	const unsigned long end = start + PFN_PHYS(1 << order);
+	unsigned long addr, next, id, sb_id, count;
 	bool do_online;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(vm, &virtio_mem_devices, next) {
-		if (!virtio_mem_contains_range(vm, addr, PFN_PHYS(1 << order)))
-			continue;
+	/*
+	 * We can get called with any order up to MAX_ORDER - 1. If our
+	 * subblock size is smaller than that and we have a mixture of plugged
+	 * and unplugged subblocks within such a page, we have to process in
+	 * smaller granularity. In that case we'll adjust the order exactly once
+	 * within the loop.
+	 */
+	for (addr = start; addr < end; ) {
+		next = addr + PFN_PHYS(1 << order);
 
 		if (vm->in_sbm) {
-			/*
-			 * We exploit here that subblocks have at least
-			 * MAX_ORDER_NR_PAGES size/alignment - so we cannot
-			 * cross subblocks within one call.
-			 */
 			id = virtio_mem_phys_to_mb_id(addr);
 			sb_id = virtio_mem_phys_to_sb_id(vm, addr);
-			do_online = virtio_mem_sbm_test_sb_plugged(vm, id,
-								   sb_id, 1);
+			count = virtio_mem_phys_to_sb_id(vm, next - 1) - sb_id + 1;
+
+			if (virtio_mem_sbm_test_sb_plugged(vm, id, sb_id, count)) {
+				/* Fully plugged. */
+				do_online = true;
+			} else if (count == 1 ||
+				   virtio_mem_sbm_test_sb_unplugged(vm, id, sb_id, count)) {
+				/* Fully unplugged. */
+				do_online = false;
+			} else {
+				/*
+				 * Mixture, process sub-blocks instead. This
+				 * will be at least the size of a pageblock.
+				 * We'll run into this case exactly once.
+				 */
+				order = ilog2(vm->sbm.sb_size) - PAGE_SHIFT;
+				do_online = virtio_mem_sbm_test_sb_plugged(vm, id, sb_id, 1);
+				continue;
+			}
 		} else {
 			/*
 			 * If the whole block is marked fake offline, keep
@@ -1260,18 +1280,38 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 				    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE;
 		}
 
+		if (do_online)
+			generic_online_page(pfn_to_page(PFN_DOWN(addr)), order);
+		else
+			virtio_mem_set_fake_offline(PFN_DOWN(addr), 1 << order,
+						    false);
+		addr = next;
+	}
+}
+
+static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
+{
+	const unsigned long addr = page_to_phys(page);
+	struct virtio_mem *vm;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(vm, &virtio_mem_devices, next) {
 		/*
-		 * virtio_mem_set_fake_offline() might sleep, we don't need
-		 * the device anymore. See virtio_mem_remove() how races
+		 * Pages we're onlining will never cross memory blocks and,
+		 * therefore, not virtio-mem devices.
+		 */
+		if (!virtio_mem_contains_range(vm, addr, PFN_PHYS(1 << order)))
+			continue;
+
+		/*
+		 * virtio_mem_set_fake_offline() might sleep. We can safely
+		 * drop the RCU lock at this point because the device
+		 * cannot go away. See virtio_mem_remove() how races
 		 * between memory onlining and device removal are handled.
 		 */
 		rcu_read_unlock();
 
-		if (do_online)
-			generic_online_page(page, order);
-		else
-			virtio_mem_set_fake_offline(PFN_DOWN(addr), 1 << order,
-						    false);
+		virtio_mem_online_page(vm, page, order);
 		return;
 	}
 	rcu_read_unlock();
@@ -2438,8 +2478,6 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	/*
 	 * We want subblocks to span at least MAX_ORDER_NR_PAGES and
 	 * pageblock_nr_pages pages. This:
-	 * - Simplifies our page onlining code (virtio_mem_online_page_cb)
-	 *   and fake page onlining code (virtio_mem_fake_online).
 	 * - Is required for now for alloc_contig_range() to work reliably -
 	 *   it doesn't properly handle smaller granularity on ZONE_NORMAL.
 	 */
@@ -2850,7 +2888,7 @@ static void virtio_mem_remove(struct virtio_device *vdev)
 		virtio_mem_deinit_hotplug(vm);
 
 	/* reset the device and cleanup the queues */
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 
 	kfree(vm);

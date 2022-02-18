@@ -11,7 +11,7 @@
 void i915_gem_object_init_memory_region(struct drm_i915_gem_object *obj,
 					struct intel_memory_region *mem)
 {
-	obj->mm.region = intel_memory_region_get(mem);
+	obj->mm.region = mem;
 
 	mutex_lock(&mem->objects.lock);
 	list_add(&obj->mm.region_link, &mem->objects.list);
@@ -25,8 +25,6 @@ void i915_gem_object_release_memory_region(struct drm_i915_gem_object *obj)
 	mutex_lock(&mem->objects.lock);
 	list_del(&obj->mm.region_link);
 	mutex_unlock(&mem->objects.lock);
-
-	intel_memory_region_put(mem);
 }
 
 struct drm_i915_gem_object *

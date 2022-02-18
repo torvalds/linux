@@ -113,7 +113,7 @@ static const struct rhashtable_params mlxsw_afa_set_ht_params = {
 };
 
 struct mlxsw_afa_fwd_entry_ht_key {
-	u8 local_port;
+	u16 local_port;
 };
 
 struct mlxsw_afa_fwd_entry {
@@ -555,7 +555,7 @@ int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block)
 EXPORT_SYMBOL(mlxsw_afa_block_terminate);
 
 static struct mlxsw_afa_fwd_entry *
-mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u8 local_port)
+mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 	int err;
@@ -598,7 +598,7 @@ static void mlxsw_afa_fwd_entry_destroy(struct mlxsw_afa *mlxsw_afa,
 }
 
 static struct mlxsw_afa_fwd_entry *
-mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u8 local_port)
+mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry_ht_key ht_key = {0};
 	struct mlxsw_afa_fwd_entry *fwd_entry;
@@ -647,7 +647,7 @@ mlxsw_afa_fwd_entry_ref_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_fwd_entry_ref *
-mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
+mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
 	struct mlxsw_afa_fwd_entry *fwd_entry;
@@ -1352,7 +1352,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
 struct mlxsw_afa_mirror {
 	struct mlxsw_afa_resource resource;
 	int span_id;
-	u8 local_in_port;
+	u16 local_in_port;
 	bool ingress;
 };
 
@@ -1379,7 +1379,7 @@ mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_mirror *
-mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u8 local_in_port,
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u16 local_in_port,
 			const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
@@ -1423,7 +1423,7 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 }
 
 int
-mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u16 local_in_port,
 			      const struct net_device *out_dev, bool ingress,
 			      struct netlink_ext_ack *extack)
 {
@@ -1663,7 +1663,7 @@ mlxsw_afa_forward_pack(char *payload, enum mlxsw_afa_forward_type type,
 }
 
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port,
+			       u16 local_port, bool in_port,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
@@ -2038,7 +2038,7 @@ static void mlxsw_afa_sampler_pack(char *payload, u8 mirror_agent, u32 rate)
 struct mlxsw_afa_sampler {
 	struct mlxsw_afa_resource resource;
 	int span_id;
-	u8 local_port;
+	u16 local_port;
 	bool ingress;
 };
 
@@ -2061,7 +2061,7 @@ static void mlxsw_afa_sampler_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_sampler *
-mlxsw_afa_sampler_create(struct mlxsw_afa_block *block, u8 local_port,
+mlxsw_afa_sampler_create(struct mlxsw_afa_block *block, u16 local_port,
 			 struct psample_group *psample_group, u32 rate,
 			 u32 trunc_size, bool truncate, bool ingress,
 			 struct netlink_ext_ack *extack)
@@ -2104,7 +2104,7 @@ mlxsw_afa_block_append_allocated_sampler(struct mlxsw_afa_block *block,
 	return 0;
 }
 
-int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u8 local_port,
+int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u16 local_port,
 				   struct psample_group *psample_group,
 				   u32 rate, u32 trunc_size, bool truncate,
 				   bool ingress,

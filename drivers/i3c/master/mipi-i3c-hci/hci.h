@@ -98,7 +98,7 @@ struct hci_xfer {
 
 static inline struct hci_xfer *hci_alloc_xfer(unsigned int n)
 {
-	return kzalloc(sizeof(struct hci_xfer) * n, GFP_KERNEL);
+	return kcalloc(n, sizeof(struct hci_xfer), GFP_KERNEL);
 }
 
 static inline void hci_free_xfer(struct hci_xfer *xfer, unsigned int n)

@@ -140,3 +140,14 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);
+
+void delete_from_page_cache(struct page *page)
+{
+	return filemap_remove_folio(page_folio(page));
+}
+
+int try_to_release_page(struct page *page, gfp_t gfp)
+{
+	return filemap_release_folio(page_folio(page), gfp);
+}
+EXPORT_SYMBOL(try_to_release_page);

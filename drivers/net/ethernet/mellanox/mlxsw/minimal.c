@@ -38,7 +38,7 @@ struct mlxsw_m {
 struct mlxsw_m_port {
 	struct net_device *dev;
 	struct mlxsw_m *mlxsw_m;
-	u8 local_port;
+	u16 local_port;
 	u8 module;
 };
 
@@ -180,7 +180,7 @@ static const struct ethtool_ops mlxsw_m_port_ethtool_ops = {
 };
 
 static int
-mlxsw_m_port_module_info_get(struct mlxsw_m *mlxsw_m, u8 local_port,
+mlxsw_m_port_module_info_get(struct mlxsw_m *mlxsw_m, u16 local_port,
 			     u8 *p_module, u8 *p_width)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
@@ -214,7 +214,7 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 }
 
 static int
-mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
+mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 module)
 {
 	struct mlxsw_m_port *mlxsw_m_port;
 	struct net_device *dev;
@@ -277,7 +277,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
+static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u16 local_port)
 {
 	struct mlxsw_m_port *mlxsw_m_port = mlxsw_m->ports[local_port];
 
@@ -288,7 +288,7 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
 	mlxsw_core_port_fini(mlxsw_m->core, local_port);
 }
 
-static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
+static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u16 local_port,
 				   u8 *last_module)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);

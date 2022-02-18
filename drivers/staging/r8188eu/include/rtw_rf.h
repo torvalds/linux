@@ -6,32 +6,15 @@
 
 #include "rtw_cmd.h"
 
-#define OFDM_PHY		1
-#define MIXED_PHY		2
-#define CCK_PHY		3
-
 #define NumRates	(13)
 
 /*  slot time for 11g */
 #define SHORT_SLOT_TIME			9
 #define NON_SHORT_SLOT_TIME		20
 
-#define RTL8711_RF_MAX_SENS		6
-#define RTL8711_RF_DEF_SENS		4
-
-/*  We now define the following channels as the max channels in each
- * channel plan. */
-/*  2G, total 14 chnls */
-/*  {1,2,3,4,5,6,7,8,9,10,11,12,13,14} */
-#define	MAX_CHANNEL_NUM_2G		14
 #define	MAX_CHANNEL_NUM			14	/* 2.4 GHz only */
 
 #define NUM_REGULATORYS	1
-
-/* Country codes */
-#define USA				0x555320
-#define EUROPE				0x1 /* temp, should be provided later */
-#define JAPAN				0x2 /* temp, should be provided later */
 
 struct	regulatory_class {
 	u32	starting_freq;				/* MHz, */
@@ -69,13 +52,6 @@ enum	_REG_PREAMBLE_MODE {
 	PREAMBLE_SHORT	= 3,
 };
 
-enum rf90_radio_path {
-	RF90_PATH_A = 0,		/* Radio Path A */
-	RF90_PATH_B = 1,		/* Radio Path B */
-	RF90_PATH_C = 2,		/* Radio Path C */
-	RF90_PATH_D = 3			/* Radio Path D */
-};
-
 /*  Bandwidth Offset */
 #define HAL_PRIME_CHNL_OFFSET_DONT_CARE	0
 #define HAL_PRIME_CHNL_OFFSET_LOWER	1
@@ -97,16 +73,6 @@ enum ht_extchnl_offset {
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-};
-
-/* 2007/11/15 MH Define different RF type. */
-enum rt_rf_type_def {
-	RF_1T2R = 0,
-	RF_2T4R = 1,
-	RF_2T2R = 2,
-	RF_1T1R = 3,
-	RF_2T2R_GREEN = 4,
-	RF_819X_MAX_TYPE = 5,
 };
 
 u32 rtw_ch2freq(u32 ch);

@@ -1178,7 +1178,8 @@ found:
 	DEB(DEB_PROBE,printk(KERN_INFO "%s: 82596 at %#3lx,", dev->name, dev->base_addr));
 
 	for (i = 0; i < 6; i++)
-		DEB(DEB_PROBE,printk(" %2.2X", dev->dev_addr[i] = eth_addr[i]));
+		DEB(DEB_PROBE,printk(" %2.2X", eth_addr[i]));
+	eth_hw_addr_set(dev, eth_addr);
 
 	DEB(DEB_PROBE,printk(" IRQ %d.\n", dev->irq));
 

@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
+#include "tcp_rtt.skel.h"
 
 struct tcp_rtt_storage {
 	__u32 invoked;
@@ -91,26 +92,18 @@ static int verify_sk(int map_fd, int client_fd, const char *msg, __u32 invoked,
 
 static int run_test(int cgroup_fd, int server_fd)
 {
-	struct bpf_prog_load_attr attr = {
-		.prog_type = BPF_PROG_TYPE_SOCK_OPS,
-		.file = "./tcp_rtt.o",
-		.expected_attach_type = BPF_CGROUP_SOCK_OPS,
-	};
-	struct bpf_object *obj;
-	struct bpf_map *map;
+	struct tcp_rtt *skel;
 	int client_fd;
 	int prog_fd;
 	int map_fd;
 	int err;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
-	if (err) {
-		log_err("Failed to load BPF object");
+	skel = tcp_rtt__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_load"))
 		return -1;
-	}
 
-	map = bpf_object__next_map(obj, NULL);
-	map_fd = bpf_map__fd(map);
+	map_fd = bpf_map__fd(skel->maps.socket_storage_map);
+	prog_fd = bpf_program__fd(skel->progs._sockops);
 
 	err = bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
@@ -149,7 +142,7 @@ close_client_fd:
 	close(client_fd);
 
 close_bpf_object:
-	bpf_object__close(obj);
+	tcp_rtt__destroy(skel);
 	return err;
 }
 

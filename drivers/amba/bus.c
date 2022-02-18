@@ -21,8 +21,6 @@
 #include <linux/reset.h>
 #include <linux/of_irq.h>
 
-#include <asm/irq.h>
-
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
 /* called on periphid match and class 0x9 coresight device. */
@@ -136,8 +134,6 @@ static ssize_t name##_show(struct device *_dev,				\
 static DEVICE_ATTR_RO(name)
 
 amba_attr_func(id, "%08x\n", dev->periphid);
-amba_attr_func(irq0, "%u\n", dev->irq[0]);
-amba_attr_func(irq1, "%u\n", dev->irq[1]);
 amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
 	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
 	 dev->res.flags);
@@ -175,6 +171,28 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
+static int of_amba_device_decode_irq(struct amba_device *dev)
+{
+	struct device_node *node = dev->dev.of_node;
+	int i, irq = 0;
+
+	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
+		/* Decode the IRQs and address ranges */
+		for (i = 0; i < AMBA_NR_IRQS; i++) {
+			irq = of_irq_get(node, i);
+			if (irq < 0) {
+				if (irq == -EPROBE_DEFER)
+					return irq;
+				irq = 0;
+			}
+
+			dev->irq[i] = irq;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * These are the device model conversion veneers; they convert the
  * device model structures to our more specific structures.
@@ -187,6 +205,10 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
+		ret = of_amba_device_decode_irq(pcdev);
+		if (ret)
+			break;
+
 		ret = of_clk_set_defaults(dev->of_node, false);
 		if (ret < 0)
 			break;
@@ -372,37 +394,11 @@ static void amba_device_release(struct device *dev)
 	kfree(d);
 }
 
-static int of_amba_device_decode_irq(struct amba_device *dev)
-{
-	struct device_node *node = dev->dev.of_node;
-	int i, irq = 0;
-
-	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
-		/* Decode the IRQs and address ranges */
-		for (i = 0; i < AMBA_NR_IRQS; i++) {
-			irq = of_irq_get(node, i);
-			if (irq < 0) {
-				if (irq == -EPROBE_DEFER)
-					return irq;
-				irq = 0;
-			}
-
-			dev->irq[i] = irq;
-		}
-	}
-
-	return 0;
-}
-
 static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 {
 	u32 size;
 	void __iomem *tmp;
 	int i, ret;
-
-	ret = of_amba_device_decode_irq(dev);
-	if (ret)
-		goto err_out;
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)
@@ -488,20 +484,9 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 
  skip_probe:
 	ret = device_add(&dev->dev);
-	if (ret)
-		goto err_release;
-
-	if (dev->irq[0])
-		ret = device_create_file(&dev->dev, &dev_attr_irq0);
-	if (ret == 0 && dev->irq[1])
-		ret = device_create_file(&dev->dev, &dev_attr_irq1);
-	if (ret == 0)
-		return ret;
-
-	device_unregister(&dev->dev);
-
  err_release:
-	release_resource(&dev->res);
+	if (ret)
+		release_resource(&dev->res);
  err_out:
 	return ret;
 

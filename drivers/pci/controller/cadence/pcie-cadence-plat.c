@@ -45,7 +45,6 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 {
 	const struct cdns_plat_pcie_of_data *data;
 	struct cdns_plat_pcie *cdns_plat_pcie;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
 	struct cdns_pcie_ep *ep;
@@ -54,11 +53,10 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 	bool is_rc;
 	int ret;
 
-	match = of_match_device(cdns_plat_pcie_of_match, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct cdns_plat_pcie_of_data *)match->data;
 	is_rc = data->is_rc;
 
 	pr_debug(" Started %s with is_rc: %d\n", __func__, is_rc);

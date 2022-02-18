@@ -36,6 +36,7 @@
 #define  MERGE_3D_IDX   23
 #define  INTF_IDX       31
 #define CTL_INVALID_BIT                 0xffff
+#define CTL_DEFAULT_GROUP_ID		0xf
 
 static const u32 fetch_tbl[SSPP_MAX] = {CTL_INVALID_BIT, 16, 17, 18, 19,
 	CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, 0,
@@ -497,6 +498,13 @@ static void dpu_hw_ctl_intf_cfg_v1(struct dpu_hw_ctl *ctx,
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
 	u32 intf_active = 0;
 	u32 mode_sel = 0;
+
+	/* CTL_TOP[31:28] carries group_id to collate CTL paths
+	 * per VM. Explicitly disable it until VM support is
+	 * added in SW. Power on reset value is not disable.
+	 */
+	if ((test_bit(DPU_CTL_VM_CFG, &ctx->caps->features)))
+		mode_sel = CTL_DEFAULT_GROUP_ID  << 28;
 
 	if (cfg->intf_mode_sel == DPU_CTL_MODE_SEL_CMD)
 		mode_sel |= BIT(17);

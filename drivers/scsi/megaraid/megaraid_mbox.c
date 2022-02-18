@@ -1431,7 +1431,6 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 /**
  * megaraid_queue_command_lck - generic queue entry point for all LLDs
  * @scp		: pointer to the scsi command to be executed
- * @done	: callback routine to be called after the cmd has be completed
  *
  * Queue entry point for mailbox based controllers.
  */

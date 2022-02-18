@@ -208,7 +208,7 @@ static const struct irq_domain_ops i8259_host_ops = {
 	.xlate = i8259_host_xlate,
 };
 
-struct irq_domain *i8259_get_host(void)
+struct irq_domain *__init i8259_get_host(void)
 {
 	return i8259_host;
 }

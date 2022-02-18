@@ -192,7 +192,7 @@ void ipc_mmio_config(struct iosm_mmio *ipc_mmio)
 	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
 
 	iowrite64(ipc_mmio->context_info_addr,
-			ipc_mmio->base + ipc_mmio->offset.context_info);
+		  ipc_mmio->base + ipc_mmio->offset.context_info);
 }
 
 void ipc_mmio_set_psi_addr_and_size(struct iosm_mmio *ipc_mmio, dma_addr_t addr,

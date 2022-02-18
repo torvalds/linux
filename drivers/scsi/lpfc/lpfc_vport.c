@@ -486,22 +486,67 @@ error_out:
 }
 
 static int
+lpfc_send_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	int rc;
+	struct lpfc_hba *phba = vport->phba;
+
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
+
+	spin_lock_irq(&ndlp->lock);
+	if (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO) &&
+	    !ndlp->logo_waitq) {
+		ndlp->logo_waitq = &waitq;
+		ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+		ndlp->nlp_flag |= NLP_ISSUE_LOGO;
+		ndlp->save_flags |= NLP_WAIT_FOR_LOGO;
+	}
+	spin_unlock_irq(&ndlp->lock);
+	rc = lpfc_issue_els_npiv_logo(vport, ndlp);
+	if (!rc) {
+		wait_event_timeout(waitq,
+				   (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO)),
+				   msecs_to_jiffies(phba->fc_ratov * 2000));
+
+		if (!(ndlp->save_flags & NLP_WAIT_FOR_LOGO))
+			goto logo_cmpl;
+		/* LOGO wait failed.  Correct status. */
+		rc = -EINTR;
+	} else {
+		rc = -EIO;
+	}
+
+	/* Error - clean up node flags. */
+	spin_lock_irq(&ndlp->lock);
+	ndlp->nlp_flag &= ~NLP_ISSUE_LOGO;
+	ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
+	spin_unlock_irq(&ndlp->lock);
+
+ logo_cmpl:
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
+			 "1824 Issue LOGO completes with status %d\n",
+			 rc);
+	spin_lock_irq(&ndlp->lock);
+	ndlp->logo_waitq = NULL;
+	spin_unlock_irq(&ndlp->lock);
+	return rc;
+}
+
+static int
 disable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
-	long timeout;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
+	/* Can't disable during an outstanding delete. */
+	if (vport->load_flag & FC_UNLOADING)
+		return 0;
+
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (ndlp && phba->link_state >= LPFC_LINK_UP) {
-		vport->unreg_vpi_cmpl = VPORT_INVAL;
-		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
-		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
-			while (vport->unreg_vpi_cmpl == VPORT_INVAL && timeout)
-				timeout = schedule_timeout(timeout);
-	}
+	if (ndlp && phba->link_state >= LPFC_LINK_UP)
+		(void)lpfc_send_npiv_logo(vport, ndlp);
 
 	lpfc_sli_host_down(vport);
 
@@ -600,7 +645,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	long timeout;
+	int rc;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -665,15 +710,14 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
 			/* Send DA_ID and wait for a completion. */
-			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
-			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))
-				while (vport->ct_flags && timeout)
-					timeout = schedule_timeout(timeout);
-			else
+			rc = lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0);
+			if (rc) {
 				lpfc_printf_log(vport->phba, KERN_WARNING,
 						LOG_VPORT,
 						"1829 CT command failed to "
-						"delete objects on fabric\n");
+						"delete objects on fabric, "
+						"rc %d\n", rc);
+			}
 		}
 
 		/*
@@ -688,11 +732,10 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);
 		if (!ndlp)
 			goto skip_logo;
-		vport->unreg_vpi_cmpl = VPORT_INVAL;
-		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
-		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
-			while (vport->unreg_vpi_cmpl == VPORT_INVAL && timeout)
-				timeout = schedule_timeout(timeout);
+
+		rc = lpfc_send_npiv_logo(vport, ndlp);
+		if (rc)
+			goto skip_logo;
 	}
 
 	if (!(phba->pport->load_flag & FC_UNLOADING))

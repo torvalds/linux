@@ -5,34 +5,25 @@
 	.level 1.1
 
 #include <asm/assembly.h>
-#include <asm/psw.h>
 #include <linux/threads.h>
 #include <linux/linkage.h>
 
 	.text
 	.import toc_intr,code
-	.import toc_lock,data
+	.import toc_stack,data
 	.align 16
 ENTRY_CFI(toc_handler)
-	/*
-	 * synchronize CPUs and obtain offset
-	 * for stack setup.
-	 */
-	load32		PA(toc_lock),%r1
-0:	ldcw,co		0(%r1),%r2
-	cmpib,=		0,%r2,0b
-	nop
-	addi		1,%r2,%r4
-	stw		%r4,0(%r1)
-	addi		-1,%r2,%r4
-
 	load32	PA(toc_stack),%sp
-	/*
-	 * deposit CPU number into stack address,
-	 * so every CPU will have its own stack.
-	 */
-	SHLREG	%r4,14,%r4
+
+#ifdef CONFIG_SMP
+	/* get per-cpu toc_stack address. */
+	mfctl   %cr30, %r1
+	tophys  %r1,%r2			/* task_struct */
+	LDREG   TASK_TI_CPU(%r2),%r4	/* cpu */
+	load32	PA(__per_cpu_offset),%r1
+	LDREGX  %r4(%r1),%r4
 	add	%r4,%sp,%sp
+#endif
 
 	/*
 	 * setup pt_regs on stack and save the
@@ -82,7 +73,3 @@ ENDPROC_CFI(toc_handler)
 	 */
 SYM_DATA(toc_handler_csum, .long 0)
 SYM_DATA(toc_handler_size, .long . - toc_handler)
-
-	__PAGE_ALIGNED_BSS
-	.align 64
-SYM_DATA(toc_stack, .block 16384*NR_CPUS)

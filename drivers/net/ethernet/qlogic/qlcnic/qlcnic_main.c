@@ -2258,8 +2258,7 @@ static int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
 }
 
 int
-qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
-		    int pci_using_dac)
+qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	int err;
 	struct pci_dev *pdev = adapter->pdev;
@@ -2278,18 +2277,13 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 			     NETIF_F_IPV6_CSUM | NETIF_F_GRO |
-			     NETIF_F_HW_VLAN_CTAG_RX);
+			     NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HIGHDMA);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-				  NETIF_F_IPV6_CSUM);
+				  NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA);
 
 	if (QLCNIC_IS_TSO_CAPABLE(adapter)) {
 		netdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
 		netdev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	}
-
-	if (pci_using_dac) {
-		netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
 	if (qlcnic_vlan_tx_check(adapter))
@@ -2336,20 +2330,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (err) {
 		dev_err(&pdev->dev, "failed to register net device\n");
 		return err;
-	}
-
-	return 0;
-}
-
-static int qlcnic_set_dma_mask(struct pci_dev *pdev, int *pci_using_dac)
-{
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
-		*pci_using_dac = 1;
-	else if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
-		*pci_using_dac = 0;
-	else {
-		dev_err(&pdev->dev, "Unable to set DMA mask, aborting\n");
-		return -EIO;
 	}
 
 	return 0;
@@ -2441,8 +2421,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev = NULL;
 	struct qlcnic_adapter *adapter = NULL;
 	struct qlcnic_hardware_context *ahw;
-	int err, pci_using_dac = -1;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -2453,9 +2433,11 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_disable_pdev;
 	}
 
-	err = qlcnic_set_dma_mask(pdev, &pci_using_dac);
-	if (err)
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "Unable to set DMA mask, aborting\n");
 		goto err_out_disable_pdev;
+	}
 
 	err = pci_request_regions(pdev, qlcnic_driver_name);
 	if (err)
@@ -2569,7 +2551,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
-		err = qlcnic_83xx_init(adapter, pci_using_dac);
+		err = qlcnic_83xx_init(adapter);
 		if (err) {
 			switch (err) {
 			case -ENOTRECOVERABLE:
@@ -2633,7 +2615,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (adapter->portnum == 0)
 		qlcnic_set_drv_version(adapter);
 
-	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
+	err = qlcnic_setup_netdev(adapter, netdev);
 	if (err)
 		goto err_out_disable_mbx_intr;
 

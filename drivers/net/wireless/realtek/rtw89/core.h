@@ -411,12 +411,13 @@ enum rtw89_regulation_type {
 	RTW89_NA	= 4,
 	RTW89_IC	= 5,
 	RTW89_KCC	= 6,
-	RTW89_NCC	= 7,
-	RTW89_CHILE	= 8,
-	RTW89_ACMA	= 9,
-	RTW89_MEXICO	= 10,
+	RTW89_ACMA	= 7,
+	RTW89_NCC	= 8,
+	RTW89_MEXICO	= 9,
+	RTW89_CHILE	= 10,
 	RTW89_UKRAINE	= 11,
 	RTW89_CN	= 12,
+	RTW89_QATAR	= 13,
 	RTW89_REGD_NUM,
 };
 
@@ -472,6 +473,9 @@ struct rtw89_rx_phy_ppdu {
 	u8 rssi_avg;
 	s8 rssi[RF_PATH_MAX];
 	u8 mac_id;
+	u8 chan_idx;
+	u8 ie;
+	u16 rate;
 	bool to_self;
 	bool valid;
 };
@@ -543,7 +547,6 @@ enum rtw89_ps_mode {
 	RTW89_PS_MODE_PWR_GATED	= 3,
 };
 
-#define RTW89_MAX_CHANNEL_WIDTH RTW89_CHANNEL_WIDTH_80
 #define RTW89_2G_BW_NUM (RTW89_CHANNEL_WIDTH_40 + 1)
 #define RTW89_5G_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
 #define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
@@ -570,7 +573,6 @@ struct rtw89_channel_params {
 	u8 primary_chan;
 	u8 bandwidth;
 	u8 pri_ch_idx;
-	u8 cch_by_bw[RTW89_MAX_CHANNEL_WIDTH + 1];
 };
 
 struct rtw89_channel_help_params {
@@ -803,6 +805,7 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_HIPRI_RX,
 	BTC_BCNT_LOPRI_TX,
 	BTC_BCNT_LOPRI_RX,
+	BTC_BCNT_POLUT,
 	BTC_BCNT_RATECHG,
 	BTC_BCNT_NUM
 };
@@ -1865,7 +1868,6 @@ struct rtw89_addr_cam_entry {
 	u8 wapi		: 1;
 	u8 mask_sel	: 2;
 	u8 bssid_cam_idx: 6;
-	u8 tma[ETH_ALEN];
 	u8 sma[ETH_ALEN];
 
 	u8 sec_ent_mode;
@@ -1934,14 +1936,6 @@ struct rtw89_vif {
 	bool wowlan_magic;
 	bool is_hesta;
 	bool last_a_ctrl;
-	union {
-		struct {
-			struct ieee80211_sta *ap;
-		} mgd;
-		struct {
-			struct list_head sta_list;
-		} ap;
-	};
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
 	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
@@ -2354,14 +2348,11 @@ struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
 	u8 current_channel;
+	u8 prev_primary_channel;
 	u8 current_primary_channel;
 	enum rtw89_subband current_subband;
 	u8 current_band_width;
 	u8 current_band_type;
-	/* center channel for different available bandwidth,
-	 * val of (bw > current_band_width) is invalid
-	 */
-	u8 cch_by_bw[RTW89_MAX_CHANNEL_WIDTH + 1];
 	u32 sw_amsdu_max_size;
 	u32 antenna_tx;
 	u32 antenna_rx;
@@ -3125,6 +3116,16 @@ static inline struct ieee80211_sta *rtwsta_to_sta(struct rtw89_sta *rtwsta)
 	void *p = rtwsta;
 
 	return container_of(p, struct ieee80211_sta, drv_priv);
+}
+
+static inline struct ieee80211_sta *rtwsta_to_sta_safe(struct rtw89_sta *rtwsta)
+{
+	return rtwsta ? rtwsta_to_sta(rtwsta) : NULL;
+}
+
+static inline struct rtw89_sta *sta_to_rtwsta_safe(struct ieee80211_sta *sta)
+{
+	return sta ? (struct rtw89_sta *)sta->drv_priv : NULL;
 }
 
 static inline

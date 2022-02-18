@@ -64,6 +64,7 @@ struct smc_pnetentry {
 		struct {
 			char eth_name[IFNAMSIZ + 1];
 			struct net_device *ndev;
+			netdevice_tracker dev_tracker;
 		};
 		struct {
 			char ib_name[IB_DEVICE_NAME_MAX + 1];
@@ -119,7 +120,7 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 		    smc_pnet_match(pnetelem->pnet_name, pnet_name)) {
 			list_del(&pnetelem->list);
 			if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev) {
-				dev_put(pnetelem->ndev);
+				dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
 				pr_warn_ratelimited("smc: net device %s "
 						    "erased user defined "
 						    "pnetid %.16s\n",
@@ -195,7 +196,7 @@ static int smc_pnet_add_by_ndev(struct net_device *ndev)
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && !pnetelem->ndev &&
 		    !strncmp(pnetelem->eth_name, ndev->name, IFNAMSIZ)) {
-			dev_hold(ndev);
+			dev_hold_track(ndev, &pnetelem->dev_tracker, GFP_ATOMIC);
 			pnetelem->ndev = ndev;
 			rc = 0;
 			pr_warn_ratelimited("smc: adding net device %s with "
@@ -226,7 +227,7 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 	write_lock(&pnettable->lock);
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev == ndev) {
-			dev_put(pnetelem->ndev);
+			dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
 			pnetelem->ndev = NULL;
 			rc = 0;
 			pr_warn_ratelimited("smc: removing net device %s with "
@@ -367,8 +368,6 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 	new_pe->type = SMC_PNET_ETH;
 	memcpy(new_pe->pnet_name, pnet_name, SMC_MAX_PNETID_LEN);
 	strncpy(new_pe->eth_name, eth_name, IFNAMSIZ);
-	new_pe->ndev = ndev;
-
 	rc = -EEXIST;
 	new_netdev = true;
 	write_lock(&pnettable->lock);
@@ -380,6 +379,11 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 		}
 	}
 	if (new_netdev) {
+		if (ndev) {
+			new_pe->ndev = ndev;
+			netdev_tracker_alloc(ndev, &new_pe->dev_tracker,
+					     GFP_ATOMIC);
+		}
 		list_add_tail(&new_pe->list, &pnettable->pnetlist);
 		write_unlock(&pnettable->lock);
 	} else {
@@ -976,14 +980,16 @@ static int smc_pnet_determine_gid(struct smc_ib_device *ibdev, int i,
 /* find a roce device for the given pnetid */
 static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
 					  struct smc_init_info *ini,
-					  struct smc_ib_device *known_dev)
+					  struct smc_ib_device *known_dev,
+					  struct net *net)
 {
 	struct smc_ib_device *ibdev;
 	int i;
 
 	mutex_lock(&smc_ib_devices.mutex);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
-		if (ibdev == known_dev)
+		if (ibdev == known_dev ||
+		    !rdma_dev_access_netns(ibdev->ibdev, net))
 			continue;
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
 			if (!rdma_is_port_valid(ibdev->ibdev, i))
@@ -1000,12 +1006,14 @@ out:
 	mutex_unlock(&smc_ib_devices.mutex);
 }
 
-/* find alternate roce device with same pnet_id and vlan_id */
+/* find alternate roce device with same pnet_id, vlan_id and net namespace */
 void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
 			    struct smc_init_info *ini,
 			    struct smc_ib_device *known_dev)
 {
-	_smc_pnet_find_roce_by_pnetid(lgr->pnet_id, ini, known_dev);
+	struct net *net = lgr->net;
+
+	_smc_pnet_find_roce_by_pnetid(lgr->pnet_id, ini, known_dev, net);
 }
 
 /* if handshake network device belongs to a roce device, return its
@@ -1014,12 +1022,17 @@ void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
 static void smc_pnet_find_rdma_dev(struct net_device *netdev,
 				   struct smc_init_info *ini)
 {
+	struct net *net = dev_net(netdev);
 	struct smc_ib_device *ibdev;
 
 	mutex_lock(&smc_ib_devices.mutex);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
 		struct net_device *ndev;
 		int i;
+
+		/* check rdma net namespace */
+		if (!rdma_dev_access_netns(ibdev->ibdev, net))
+			continue;
 
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
 			if (!rdma_is_port_valid(ibdev->ibdev, i))
@@ -1051,15 +1064,17 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 					 struct smc_init_info *ini)
 {
 	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
+	struct net *net;
 
 	ndev = pnet_find_base_ndev(ndev);
+	net = dev_net(ndev);
 	if (smc_pnetid_by_dev_port(ndev->dev.parent, ndev->dev_port,
 				   ndev_pnetid) &&
 	    smc_pnet_find_ndev_pnetid_by_table(ndev, ndev_pnetid)) {
 		smc_pnet_find_rdma_dev(ndev, ini);
 		return; /* pnetid could not be determined */
 	}
-	_smc_pnet_find_roce_by_pnetid(ndev_pnetid, ini, NULL);
+	_smc_pnet_find_roce_by_pnetid(ndev_pnetid, ini, NULL, net);
 }
 
 static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,

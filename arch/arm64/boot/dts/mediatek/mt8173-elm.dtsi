@@ -28,7 +28,7 @@
 		enable-gpios = <&pio 95 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&disp_pwm0_pins>;
+		pinctrl-0 = <&panel_backlight_en_pins>;
 		status = "okay";
 	};
 
@@ -827,6 +827,12 @@
 		};
 	};
 
+	panel_backlight_en_pins: panel_backlight_en_pins {
+		pins1 {
+			pinmux = <MT8173_PIN_95_PCM_TX__FUNC_GPIO95>;
+		};
+	};
+
 	panel_fixed_pins: panel_fixed_pins {
 		pins1 {
 			pinmux = <MT8173_PIN_41_CMMCLK__FUNC_GPIO41>;
@@ -901,6 +907,8 @@
 };
 
 &pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm0_pins>;
 	status = "okay";
 };
 

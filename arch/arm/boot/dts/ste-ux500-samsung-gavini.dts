@@ -232,19 +232,18 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* TODO: Memsic MMC328 magnetometer */
-		magnetometer@30 {
-			compatible = "memsic,mmc328";
-			reg = <0x30>;
-			/* TODO: if you have the schematic, check if both voltages come from AUX2 */
-			/* VDA 1.8 V */
-			vda-supply = <&ab8500_ldo_aux2_reg>;
-			/* VDD 1.8V */
-			vdd-supply = <&ab8500_ldo_aux2_reg>;
-			/* GPIO204 */
+		/* Yamaha YAS530 magnetometer */
+		magnetometer@2e {
+			compatible = "yamaha,yas530";
+			reg = <0x2e>;
+			/* VDD 3V */
+			vdd-supply = <&ab8500_ldo_aux1_reg>;
+			/* IOVDD 1.8V */
+			iovdd-supply = <&ab8500_ldo_aux2_reg>;
+			/* GPIO204 COMPASS_RST_N */
 			reset-gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&mmc328_default>;
+			pinctrl-0 = <&yas530_default>;
 		};
 		/* TODO: this should also be used by the NCP6914 Camera power management unit */
 	};
@@ -645,6 +644,15 @@
 			};
 		};
 	};
+	/* Reset line for the Yamaha YAS530 magnetometer */
+	yas530 {
+		yas530_default: yas530_janice {
+			janice_cfg1 {
+				pins = "GPIO204_AF23";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
 	/* Flash and torch */
 	flash {
 		gpio_flash_default_mode: flash_default {
@@ -744,15 +752,6 @@
 			gavini_cfg1 {
 				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
 				ste,config = <&gpio_in_nopull>;
-			};
-		};
-	};
-	/* Reset line for the Memsic MMC328 magnetometer */
-	mmc328 {
-		mmc328_default: mmc328_gavini {
-			gavini_cfg1 {
-				pins = "GPIO204_AF23";
-				ste,config = <&gpio_out_hi>;
 			};
 		};
 	};

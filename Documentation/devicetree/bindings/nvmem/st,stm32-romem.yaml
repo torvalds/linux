@@ -24,6 +24,9 @@ properties:
       - st,stm32f4-otp
       - st,stm32mp15-bsec
 
+  reg:
+    maxItems: 1
+
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object

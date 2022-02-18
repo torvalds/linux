@@ -27,6 +27,14 @@ static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
 /* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
 
+bool bpf_prog_has_trampoline(const struct bpf_prog *prog)
+{
+	enum bpf_attach_type eatype = prog->expected_attach_type;
+
+	return eatype == BPF_TRACE_FENTRY || eatype == BPF_TRACE_FEXIT ||
+	       eatype == BPF_MODIFY_RETURN;
+}
+
 void *bpf_jit_alloc_exec_page(void)
 {
 	void *image;
@@ -542,11 +550,12 @@ static __always_inline u64 notrace bpf_prog_start_time(void)
 static void notrace inc_misses_counter(struct bpf_prog *prog)
 {
 	struct bpf_prog_stats *stats;
+	unsigned int flags;
 
 	stats = this_cpu_ptr(prog->stats);
-	u64_stats_update_begin(&stats->syncp);
+	flags = u64_stats_update_begin_irqsave(&stats->syncp);
 	u64_stats_inc(&stats->misses);
-	u64_stats_update_end(&stats->syncp);
+	u64_stats_update_end_irqrestore(&stats->syncp, flags);
 }
 
 /* The logic is similar to bpf_prog_run(), but with an explicit

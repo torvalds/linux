@@ -41,6 +41,8 @@ extern const struct ieee80211_ops mt76x2_ops;
 int mt76x2_register_device(struct mt76x02_dev *dev);
 int mt76x2_resume_device(struct mt76x02_dev *dev);
 
+int mt76x2_set_sar_specs(struct ieee80211_hw *hw,
+			 const struct cfg80211_sar_specs *sar);
 void mt76x2_phy_power_on(struct mt76x02_dev *dev);
 void mt76x2_stop_hardware(struct mt76x02_dev *dev);
 int mt76x2_eeprom_init(struct mt76x02_dev *dev);

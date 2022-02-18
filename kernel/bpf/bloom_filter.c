@@ -82,6 +82,11 @@ static int bloom_map_delete_elem(struct bpf_map *map, void *value)
 	return -EOPNOTSUPP;
 }
 
+static int bloom_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
+{
+	return -EOPNOTSUPP;
+}
+
 static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 {
 	u32 bitset_bytes, bitset_mask, nr_hash_funcs, nr_bits;
@@ -192,6 +197,7 @@ const struct bpf_map_ops bloom_filter_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = bloom_map_alloc,
 	.map_free = bloom_map_free,
+	.map_get_next_key = bloom_map_get_next_key,
 	.map_push_elem = bloom_map_push_elem,
 	.map_peek_elem = bloom_map_peek_elem,
 	.map_pop_elem = bloom_map_pop_elem,

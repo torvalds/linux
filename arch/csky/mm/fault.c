@@ -67,7 +67,7 @@ static inline void no_context(struct pt_regs *regs, unsigned long addr)
 	pr_alert("Unable to handle kernel paging request at virtual "
 		 "addr 0x%08lx, pc: 0x%08lx\n", addr, regs->pc);
 	die(regs, "Oops");
-	do_exit(SIGKILL);
+	make_task_dead(SIGKILL);
 }
 
 static inline void mm_fault_error(struct pt_regs *regs, unsigned long addr, vm_fault_t fault)

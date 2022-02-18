@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config COMMON_CLK_VISCONTI
+	bool "Support for Toshiba Visconti5 ARM SoC clock controllers"
+	depends on ARCH_VISCONTI || COMPILE_TEST
+	default ARCH_VISCONTI
+	help
+	  Support for the Toshiba Visconti5 ARM SoC clock controller.
+	  Say Y if you want to include clock support.

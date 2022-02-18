@@ -191,7 +191,7 @@ static bool is_shared_mount(const char *path)
 #define SET_GROUP_FROM	"/tmp/move_mount_set_group_supported_from"
 #define SET_GROUP_TO	"/tmp/move_mount_set_group_supported_to"
 
-static int move_mount_set_group_supported(void)
+static bool move_mount_set_group_supported(void)
 {
 	int ret;
 
@@ -222,7 +222,7 @@ static int move_mount_set_group_supported(void)
 		      AT_FDCWD, SET_GROUP_TO, MOVE_MOUNT_SET_GROUP);
 	umount2("/tmp", MNT_DETACH);
 
-	return ret < 0 ? false : true;
+	return ret >= 0;
 }
 
 FIXTURE(move_mount_set_group) {
@@ -232,7 +232,7 @@ FIXTURE(move_mount_set_group) {
 
 FIXTURE_SETUP(move_mount_set_group)
 {
-	int ret;
+	bool ret;
 
 	ASSERT_EQ(prepare_unpriv_mountns(), 0);
 
@@ -254,7 +254,7 @@ FIXTURE_SETUP(move_mount_set_group)
 
 FIXTURE_TEARDOWN(move_mount_set_group)
 {
-	int ret;
+	bool ret;
 
 	ret = move_mount_set_group_supported();
 	ASSERT_GE(ret, 0);
@@ -348,7 +348,7 @@ TEST_F(move_mount_set_group, complex_sharing_copying)
 		.shared = false,
 	};
 	pid_t pid;
-	int ret;
+	bool ret;
 
 	ret = move_mount_set_group_supported();
 	ASSERT_GE(ret, 0);

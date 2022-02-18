@@ -16,7 +16,6 @@ extern int rtw_mc2u_disable;
 u8 usbvendorrequest(struct dvobj_priv *pdvobjpriv, enum bt_usb_request brequest,
 		    enum rt_usb_wvalue wvalue, u8 windex, void *data,
 		    u8 datalen, u8 isdirectionin);
-int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
 void netdev_br_init(struct net_device *netdev);
 void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb);
 void *scdb_findEntry(struct adapter *priv, unsigned char *ipAddr);

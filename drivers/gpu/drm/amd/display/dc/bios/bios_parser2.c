@@ -2995,7 +2995,7 @@ static bool bios_parser2_construct(
 		&bp->object_info_tbl.revision);
 
 	if (bp->object_info_tbl.revision.major == 1
-		&& bp->object_info_tbl.revision.minor >= 4) {
+		&& bp->object_info_tbl.revision.minor == 4) {
 		struct display_object_info_table_v1_4 *tbl_v1_4;
 
 		tbl_v1_4 = GET_IMAGE(struct display_object_info_table_v1_4,
@@ -3004,8 +3004,10 @@ static bool bios_parser2_construct(
 			return false;
 
 		bp->object_info_tbl.v1_4 = tbl_v1_4;
-	} else
+	} else {
+		ASSERT(0);
 		return false;
+	}
 
 	dal_firmware_parser_init_cmd_tbl(bp);
 	dal_bios_parser_init_cmd_tbl_helper2(&bp->cmd_helper, dce_version);

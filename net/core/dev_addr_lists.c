@@ -16,6 +16,35 @@
  * General list handling functions
  */
 
+static int __hw_addr_insert(struct netdev_hw_addr_list *list,
+			    struct netdev_hw_addr *new, int addr_len)
+{
+	struct rb_node **ins_point = &list->tree.rb_node, *parent = NULL;
+	struct netdev_hw_addr *ha;
+
+	while (*ins_point) {
+		int diff;
+
+		ha = rb_entry(*ins_point, struct netdev_hw_addr, node);
+		diff = memcmp(new->addr, ha->addr, addr_len);
+		if (diff == 0)
+			diff = memcmp(&new->type, &ha->type, sizeof(new->type));
+
+		parent = *ins_point;
+		if (diff < 0)
+			ins_point = &parent->rb_left;
+		else if (diff > 0)
+			ins_point = &parent->rb_right;
+		else
+			return -EEXIST;
+	}
+
+	rb_link_node_rcu(&new->node, parent, ins_point);
+	rb_insert_color(&new->node, &list->tree);
+
+	return 0;
+}
+
 static struct netdev_hw_addr*
 __hw_addr_create(const unsigned char *addr, int addr_len,
 		 unsigned char addr_type, bool global, bool sync)
@@ -50,11 +79,6 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
 
-	ha = list_first_entry(&list->list, struct netdev_hw_addr, list);
-	if (ha && !memcmp(addr, ha->addr, addr_len) &&
-	    (!addr_type || addr_type == ha->type))
-		goto found_it;
-
 	while (*ins_point) {
 		int diff;
 
@@ -69,7 +93,6 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 		} else if (diff > 0) {
 			ins_point = &parent->rb_right;
 		} else {
-found_it:
 			if (exclusive)
 				return -EEXIST;
 			if (global) {
@@ -94,16 +117,8 @@ found_it:
 	if (!ha)
 		return -ENOMEM;
 
-	/* The first address in dev->dev_addrs is pointed to by dev->dev_addr
-	 * and mutated freely by device drivers and netdev ops, so if we insert
-	 * it into the tree we'll end up with an invalid rbtree.
-	 */
-	if (list->count > 0) {
-		rb_link_node(&ha->node, parent, ins_point);
-		rb_insert_color(&ha->node, &list->tree);
-	} else {
-		RB_CLEAR_NODE(&ha->node);
-	}
+	rb_link_node(&ha->node, parent, ins_point);
+	rb_insert_color(&ha->node, &list->tree);
 
 	list_add_tail_rcu(&ha->list, &list->list);
 	list->count++;
@@ -138,8 +153,7 @@ static int __hw_addr_del_entry(struct netdev_hw_addr_list *list,
 	if (--ha->refcount)
 		return 0;
 
-	if (!RB_EMPTY_NODE(&ha->node))
-		rb_erase(&ha->node, &list->tree);
+	rb_erase(&ha->node, &list->tree);
 
 	list_del_rcu(&ha->list);
 	kfree_rcu(ha, rcu_head);
@@ -151,17 +165,7 @@ static struct netdev_hw_addr *__hw_addr_lookup(struct netdev_hw_addr_list *list,
 					       const unsigned char *addr, int addr_len,
 					       unsigned char addr_type)
 {
-	struct netdev_hw_addr *ha;
 	struct rb_node *node;
-
-	/* The first address isn't inserted into the tree because in the dev->dev_addrs
-	 * list it's the address pointed to by dev->dev_addr which is freely mutated
-	 * in place, so we need to check it separately.
-	 */
-	ha = list_first_entry(&list->list, struct netdev_hw_addr, list);
-	if (ha && !memcmp(addr, ha->addr, addr_len) &&
-	    (!addr_type || addr_type == ha->type))
-		return ha;
 
 	node = list->tree.rb_node;
 
@@ -498,6 +502,21 @@ EXPORT_SYMBOL(__hw_addr_init);
  * Device addresses handling functions
  */
 
+/* Check that netdev->dev_addr is not written to directly as this would
+ * break the rbtree layout. All changes should go thru dev_addr_set() and co.
+ * Remove this check in mid-2024.
+ */
+void dev_addr_check(struct net_device *dev)
+{
+	if (!memcmp(dev->dev_addr, dev->dev_addr_shadow, MAX_ADDR_LEN))
+		return;
+
+	netdev_warn(dev, "Current addr:  %*ph\n", MAX_ADDR_LEN, dev->dev_addr);
+	netdev_warn(dev, "Expected addr: %*ph\n",
+		    MAX_ADDR_LEN, dev->dev_addr_shadow);
+	netdev_WARN(dev, "Incorrect netdev->dev_addr\n");
+}
+
 /**
  *	dev_addr_flush - Flush device address list
  *	@dev: device
@@ -509,11 +528,11 @@ EXPORT_SYMBOL(__hw_addr_init);
 void dev_addr_flush(struct net_device *dev)
 {
 	/* rtnl_mutex must be held here */
+	dev_addr_check(dev);
 
 	__hw_addr_flush(&dev->dev_addrs);
 	dev->dev_addr = NULL;
 }
-EXPORT_SYMBOL(dev_addr_flush);
 
 /**
  *	dev_addr_init - Init device address list
@@ -547,7 +566,21 @@ int dev_addr_init(struct net_device *dev)
 	}
 	return err;
 }
-EXPORT_SYMBOL(dev_addr_init);
+
+void dev_addr_mod(struct net_device *dev, unsigned int offset,
+		  const void *addr, size_t len)
+{
+	struct netdev_hw_addr *ha;
+
+	dev_addr_check(dev);
+
+	ha = container_of(dev->dev_addr, struct netdev_hw_addr, addr[0]);
+	rb_erase(&ha->node, &dev->dev_addrs.tree);
+	memcpy(&ha->addr[offset], addr, len);
+	memcpy(&dev->dev_addr_shadow[offset], addr, len);
+	WARN_ON(__hw_addr_insert(&dev->dev_addrs, ha, dev->addr_len));
+}
+EXPORT_SYMBOL(dev_addr_mod);
 
 /**
  *	dev_addr_add - Add a device address

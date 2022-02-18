@@ -8,7 +8,7 @@
 #include "dbg.h"
 #include "debugfs.h"
 
-#include "fw/api/soc.h"
+#include "fw/api/system.h"
 #include "fw/api/commands.h"
 #include "fw/api/rx.h"
 #include "fw/api/datapath.h"

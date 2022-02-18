@@ -635,6 +635,35 @@ static int table_open2(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static ssize_t table_write2(struct file *file, const char __user *user_buf,
+			    size_t count, loff_t *ppos)
+{
+	struct seq_file *seq = file->private_data;
+	int n, len, lkb_nodeid, lkb_status, error;
+	char name[DLM_RESNAME_MAXLEN + 1] = {};
+	struct dlm_ls *ls = seq->private;
+	unsigned int lkb_flags;
+	char buf[256] = {};
+	uint32_t lkb_id;
+
+	if (copy_from_user(buf, user_buf,
+			   min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	n = sscanf(buf, "%x %" __stringify(DLM_RESNAME_MAXLEN) "s %x %d %d",
+		   &lkb_id, name, &lkb_flags, &lkb_nodeid, &lkb_status);
+	if (n != 5)
+		return -EINVAL;
+
+	len = strnlen(name, DLM_RESNAME_MAXLEN);
+	error = dlm_debug_add_lkb(ls, lkb_id, name, len, lkb_flags,
+				  lkb_nodeid, lkb_status);
+	if (error)
+		return error;
+
+	return count;
+}
+
 static int table_open3(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
@@ -675,6 +704,7 @@ static const struct file_operations format2_fops = {
 	.owner   = THIS_MODULE,
 	.open    = table_open2,
 	.read    = seq_read,
+	.write   = table_write2,
 	.llseek  = seq_lseek,
 	.release = seq_release
 };
@@ -724,10 +754,35 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	return rv;
 }
 
+static ssize_t waiters_write(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct dlm_ls *ls = file->private_data;
+	int mstype, to_nodeid;
+	char buf[128] = {};
+	uint32_t lkb_id;
+	int n, error;
+
+	if (copy_from_user(buf, user_buf,
+			   min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	n = sscanf(buf, "%x %d %d", &lkb_id, &mstype, &to_nodeid);
+	if (n != 3)
+		return -EINVAL;
+
+	error = dlm_debug_add_lkb_to_waiters(ls, lkb_id, mstype, to_nodeid);
+	if (error)
+		return error;
+
+	return count;
+}
+
 static const struct file_operations waiters_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = waiters_read,
+	.write   = waiters_write,
 	.llseek  = default_llseek,
 };
 
@@ -768,6 +823,42 @@ static int dlm_version_show(struct seq_file *file, void *offset)
 }
 DEFINE_SHOW_ATTRIBUTE(dlm_version);
 
+static ssize_t dlm_rawmsg_write(struct file *fp, const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	void *buf;
+	int ret;
+
+	if (count > PAGE_SIZE || count < sizeof(struct dlm_header))
+		return -EINVAL;
+
+	buf = kmalloc(PAGE_SIZE, GFP_NOFS);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, user_buf, count)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = dlm_midcomms_rawmsg_send(fp->private_data, buf, count);
+	if (ret)
+		goto out;
+
+	kfree(buf);
+	return count;
+
+out:
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations dlm_rawmsg_fops = {
+	.open	= simple_open,
+	.write	= dlm_rawmsg_write,
+	.llseek	= no_llseek,
+};
+
 void *dlm_create_debug_comms_file(int nodeid, void *data)
 {
 	struct dentry *d_node;
@@ -782,6 +873,7 @@ void *dlm_create_debug_comms_file(int nodeid, void *data)
 	debugfs_create_file("send_queue_count", 0444, d_node, data,
 			    &dlm_send_queue_cnt_fops);
 	debugfs_create_file("version", 0444, d_node, data, &dlm_version_fops);
+	debugfs_create_file("rawmsg", 0200, d_node, data, &dlm_rawmsg_fops);
 
 	return d_node;
 }
@@ -809,7 +901,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_locks", ls->ls_name);
 
 	ls->ls_debug_locks_dentry = debugfs_create_file(name,
-							S_IFREG | S_IRUGO,
+							0644,
 							dlm_root,
 							ls,
 							&format2_fops);
@@ -840,7 +932,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
 
 	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
-							  S_IFREG | S_IRUGO,
+							  0644,
 							  dlm_root,
 							  ls,
 							  &waiters_fops);

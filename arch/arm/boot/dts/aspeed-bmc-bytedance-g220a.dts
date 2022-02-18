@@ -260,6 +260,13 @@
 		spi-max-frequency = <50000000>;
 #include "openbmc-flash-layout-64.dtsi"
 	};
+	flash@1 {
+		status = "okay";
+		label = "alt-bmc";
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+#include "openbmc-flash-layout-64-alt.dtsi"
+	};
 };
 
 &spi1 {
@@ -276,6 +283,11 @@
 
 &adc {
 	status = "okay";
+};
+
+&wdt2 {
+	status = "okay";
+	aspeed,alt-boot;
 };
 
 &gpio {

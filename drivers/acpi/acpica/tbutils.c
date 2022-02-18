@@ -328,7 +328,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 
 		status = acpi_tb_install_standard_table(address,
 							ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-							FALSE, TRUE,
+							NULL, FALSE, TRUE,
 							&table_index);
 
 		if (ACPI_SUCCESS(status) &&

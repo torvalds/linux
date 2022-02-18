@@ -293,9 +293,9 @@ static void lpi_check_constraints(void)
 
 	for (i = 0; i < lpi_constraints_table_size; ++i) {
 		acpi_handle handle = lpi_constraints_table[i].handle;
-		struct acpi_device *adev;
+		struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 
-		if (!handle || acpi_bus_get_device(handle, &adev))
+		if (!adev)
 			continue;
 
 		acpi_handle_debug(handle,
@@ -424,15 +424,11 @@ static int lps0_device_attach(struct acpi_device *adev,
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
 	/*
-	 * Some Intel based LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U don't
-	 * use intel-hid or intel-vbtn but require the EC GPE to be enabled while
-	 * suspended for certain wakeup devices to work, so mark it as wakeup-capable.
-	 *
-	 * Only enable on !AMD as enabling this universally causes problems for a number
-	 * of AMD based systems.
+	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the
+	 * EC GPE to be enabled while suspended for certain wakeup devices to
+	 * work, so mark it as wakeup-capable.
 	 */
-	if (!acpi_s2idle_vendor_amd())
-		acpi_ec_mark_gpe_for_wake();
+	acpi_ec_mark_gpe_for_wake();
 
 	return 0;
 }

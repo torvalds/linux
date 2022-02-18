@@ -67,6 +67,9 @@ properties:
 
   ranges: true
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - rockchip,grf

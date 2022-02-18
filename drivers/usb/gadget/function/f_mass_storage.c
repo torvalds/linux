@@ -2547,7 +2547,7 @@ static int fsg_main_thread(void *common_)
 	up_write(&common->filesem);
 
 	/* Let fsg_unbind() know the thread has exited */
-	complete_and_exit(&common->thread_notifier, 0);
+	kthread_complete_and_exit(&common->thread_notifier, 0);
 }
 
 

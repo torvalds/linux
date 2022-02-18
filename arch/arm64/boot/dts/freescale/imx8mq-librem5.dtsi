@@ -14,6 +14,7 @@
 / {
 	model = "Purism Librem 5";
 	compatible = "purism,librem5", "fsl,imx8mq";
+	chassis-type = "handset";
 
 	backlight_dsi: backlight-dsi {
 		compatible = "led-backlight";
@@ -59,6 +60,40 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		gpio = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	/*
+	 * the pinctrl for reg_csi_1v8 and reg_vcam_1v8 is added to the PMIC
+	 * since we can't have it twice in the 2 different regulator nodes.
+	 */
+	reg_csi_1v8: regulator-csi-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAMERA_VDDIO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_vdd_3v3>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	/* controlled by the CAMERA_POWER_KEY HKS */
+	reg_vcam_1v2: regulator-vcam-1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAMERA_VDDD_1V2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&reg_vdd_1v8>;
+		enable-active-high;
+	};
+
+	reg_vcam_2v8: regulator-vcam-2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAMERA_VDDA_2V8";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		vin-supply = <&reg_vdd_3v3>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -237,6 +272,10 @@
 	cpu-supply = <&buck2_reg>;
 };
 
+&csi1 {
+	status = "okay";
+};
+
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
 
@@ -326,6 +365,20 @@
 		fsl,pins = <
 			/* BT_REG_ON */
 			MX8MQ_IOMUXC_SAI5_MCLK_GPIO3_IO25	0x83
+		>;
+	};
+
+	pinctrl_camera_pwr: camerapwrgrp {
+		fsl,pins = <
+			/* CAMERA_PWR_EN_3V3 */
+			MX8MQ_IOMUXC_GPIO1_IO00_GPIO1_IO0	0x83
+		>;
+	};
+
+	pinctrl_csi1: csi1grp {
+		fsl,pins = <
+			/* CSI1_NRST */
+			MX8MQ_IOMUXC_ENET_RXC_GPIO1_IO25	0x83
 		>;
 	};
 
@@ -725,7 +778,7 @@
 		compatible = "rohm,bd71837";
 		reg = <0x4b>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pmic>;
+		pinctrl-0 = <&pinctrl_pmic>, <&pinctrl_camera_pwr>;
 		clocks = <&pmic_osc>;
 		clock-names = "osc";
 		clock-output-names = "pmic_clk";
@@ -958,6 +1011,31 @@
 		>;
 	};
 
+	camera_front: camera@20 {
+		compatible = "hynix,hi846";
+		reg = <0x20>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_csi1>;
+		clocks = <&clk IMX8MQ_CLK_CLKO2>;
+		assigned-clocks = <&clk IMX8MQ_CLK_CLKO2>;
+		assigned-clock-rates = <25000000>;
+		reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+		vdda-supply = <&reg_vcam_2v8>;
+		vddd-supply = <&reg_vcam_1v2>;
+		vddio-supply = <&reg_csi_1v8>;
+		rotation = <90>;
+		orientation = <0>;
+
+		port {
+			camera1_ep: endpoint {
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64
+					<80000000 200000000 300000000>;
+				remote-endpoint = <&mipi1_sensor_ep>;
+			};
+		};
+	};
+
 	backlight@36 {
 		compatible = "ti,lm36922";
 		reg = <0x36>;
@@ -1029,6 +1107,23 @@
 
 &lcdif {
 	status = "okay";
+};
+
+&mipi_csi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+
+			mipi1_sensor_ep: endpoint {
+				remote-endpoint = <&camera1_ep>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &mipi_dsi {

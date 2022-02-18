@@ -98,8 +98,13 @@ static int acpi_soft_cpu_online(unsigned int cpu)
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 	struct acpi_device *device;
 
-	if (!pr || acpi_bus_get_device(pr->handle, &device))
+	if (!pr)
 		return 0;
+
+	device = acpi_fetch_acpi_dev(pr->handle);
+	if (!device)
+		return 0;
+
 	/*
 	 * CPU got physically hotplugged and onlined for the first time:
 	 * Initialize missing things.
@@ -125,9 +130,8 @@ static int acpi_soft_cpu_online(unsigned int cpu)
 static int acpi_soft_cpu_dead(unsigned int cpu)
 {
 	struct acpi_processor *pr = per_cpu(processors, cpu);
-	struct acpi_device *device;
 
-	if (!pr || acpi_bus_get_device(pr->handle, &device))
+	if (!pr || !acpi_fetch_acpi_dev(pr->handle))
 		return 0;
 
 	acpi_processor_reevaluate_tstate(pr, true);

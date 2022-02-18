@@ -593,10 +593,7 @@ int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 err:
 	asoc_simple_clean_reference(card);
 
-	if (ret != -EPROBE_DEFER)
-		dev_err(dev, "parse error %d\n", ret);
-
-	return ret;
+	return dev_err_probe(dev, ret, "parse error\n");
 }
 EXPORT_SYMBOL_GPL(audio_graph_parse_of);
 

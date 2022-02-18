@@ -356,6 +356,7 @@ enum sas_ha_state {
 	SAS_HA_DRAINING,
 	SAS_HA_ATA_EH_ACTIVE,
 	SAS_HA_FROZEN,
+	SAS_HA_RESUMING,
 };
 
 struct sas_ha_struct {
@@ -660,6 +661,7 @@ extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 extern void sas_prep_resume_ha(struct sas_ha_struct *sas_ha);
 extern void sas_resume_ha(struct sas_ha_struct *sas_ha);
+extern void sas_resume_ha_no_sync(struct sas_ha_struct *sas_ha);
 extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 
 int sas_set_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates);

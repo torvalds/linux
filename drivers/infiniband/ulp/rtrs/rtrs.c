@@ -69,16 +69,16 @@ EXPORT_SYMBOL_GPL(rtrs_iu_free);
 
 int rtrs_iu_post_recv(struct rtrs_con *con, struct rtrs_iu *iu)
 {
-	struct rtrs_sess *sess = con->sess;
+	struct rtrs_path *path = con->path;
 	struct ib_recv_wr wr;
 	struct ib_sge list;
 
 	list.addr   = iu->dma_addr;
 	list.length = iu->size;
-	list.lkey   = sess->dev->ib_pd->local_dma_lkey;
+	list.lkey   = path->dev->ib_pd->local_dma_lkey;
 
 	if (list.length == 0) {
-		rtrs_wrn(con->sess,
+		rtrs_wrn(con->path,
 			  "Posting receive work request failed, sg list is empty\n");
 		return -EINVAL;
 	}
@@ -126,7 +126,7 @@ static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
 int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		       struct ib_send_wr *head)
 {
-	struct rtrs_sess *sess = con->sess;
+	struct rtrs_path *path = con->path;
 	struct ib_send_wr wr;
 	struct ib_sge list;
 
@@ -135,7 +135,7 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 
 	list.addr   = iu->dma_addr;
 	list.length = size;
-	list.lkey   = sess->dev->ib_pd->local_dma_lkey;
+	list.lkey   = path->dev->ib_pd->local_dma_lkey;
 
 	wr = (struct ib_send_wr) {
 		.wr_cqe     = &iu->cqe,
@@ -188,11 +188,11 @@ static int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con,
 					  struct ib_send_wr *head)
 {
 	struct ib_rdma_wr wr;
-	struct rtrs_sess *sess = con->sess;
+	struct rtrs_path *path = con->path;
 	enum ib_send_flags sflags;
 
 	atomic_dec_if_positive(&con->sq_wr_avail);
-	sflags = (atomic_inc_return(&con->wr_cnt) % sess->signal_interval) ?
+	sflags = (atomic_inc_return(&con->wr_cnt) % path->signal_interval) ?
 		0 : IB_SEND_SIGNALED;
 
 	wr = (struct ib_rdma_wr) {
@@ -211,12 +211,12 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 
 	switch (ev->event) {
 	case IB_EVENT_COMM_EST:
-		rtrs_info(con->sess, "QP event %s (%d) received\n",
+		rtrs_info(con->path, "QP event %s (%d) received\n",
 			   ib_event_msg(ev->event), ev->event);
 		rdma_notify(con->cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rtrs_info(con->sess, "Unhandled QP event %s (%d) received\n",
+		rtrs_info(con->path, "Unhandled QP event %s (%d) received\n",
 			   ib_event_msg(ev->event), ev->event);
 		break;
 	}
@@ -224,7 +224,7 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 
 static bool is_pollqueue(struct rtrs_con *con)
 {
-	return con->cid >= con->sess->irq_con_num;
+	return con->cid >= con->path->irq_con_num;
 }
 
 static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
@@ -240,7 +240,7 @@ static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
 
 	if (IS_ERR(cq)) {
-		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
+		rtrs_err(con->path, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
 		return PTR_ERR(cq);
 	}
@@ -271,7 +271,7 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 
 	ret = rdma_create_qp(cm_id, pd, &init_attr);
 	if (ret) {
-		rtrs_err(con->sess, "Creating QP failed, err: %d\n", ret);
+		rtrs_err(con->path, "Creating QP failed, err: %d\n", ret);
 		return ret;
 	}
 	con->qp = cm_id->qp;
@@ -290,7 +290,7 @@ static void destroy_cq(struct rtrs_con *con)
 	con->cq = NULL;
 }
 
-int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
+int rtrs_cq_qp_create(struct rtrs_path *path, struct rtrs_con *con,
 		       u32 max_send_sge, int cq_vector, int nr_cqe,
 		       u32 max_send_wr, u32 max_recv_wr,
 		       enum ib_poll_context poll_ctx)
@@ -301,13 +301,13 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	if (err)
 		return err;
 
-	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
+	err = create_qp(con, path->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
 		destroy_cq(con);
 		return err;
 	}
-	con->sess = sess;
+	con->path = path;
 
 	return 0;
 }
@@ -323,24 +323,24 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 }
 EXPORT_SYMBOL_GPL(rtrs_cq_qp_destroy);
 
-static void schedule_hb(struct rtrs_sess *sess)
+static void schedule_hb(struct rtrs_path *path)
 {
-	queue_delayed_work(sess->hb_wq, &sess->hb_dwork,
-			   msecs_to_jiffies(sess->hb_interval_ms));
+	queue_delayed_work(path->hb_wq, &path->hb_dwork,
+			   msecs_to_jiffies(path->hb_interval_ms));
 }
 
-void rtrs_send_hb_ack(struct rtrs_sess *sess)
+void rtrs_send_hb_ack(struct rtrs_path *path)
 {
-	struct rtrs_con *usr_con = sess->con[0];
+	struct rtrs_con *usr_con = path->con[0];
 	u32 imm;
 	int err;
 
 	imm = rtrs_to_imm(RTRS_HB_ACK_IMM, 0);
-	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
+	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
 					     NULL);
 	if (err) {
-		rtrs_err(sess, "send HB ACK failed, errno: %d\n", err);
-		sess->hb_err_handler(usr_con);
+		rtrs_err(path, "send HB ACK failed, errno: %d\n", err);
+		path->hb_err_handler(usr_con);
 		return;
 	}
 }
@@ -349,63 +349,63 @@ EXPORT_SYMBOL_GPL(rtrs_send_hb_ack);
 static void hb_work(struct work_struct *work)
 {
 	struct rtrs_con *usr_con;
-	struct rtrs_sess *sess;
+	struct rtrs_path *path;
 	u32 imm;
 	int err;
 
-	sess = container_of(to_delayed_work(work), typeof(*sess), hb_dwork);
-	usr_con = sess->con[0];
+	path = container_of(to_delayed_work(work), typeof(*path), hb_dwork);
+	usr_con = path->con[0];
 
-	if (sess->hb_missed_cnt > sess->hb_missed_max) {
-		rtrs_err(sess, "HB missed max reached.\n");
-		sess->hb_err_handler(usr_con);
+	if (path->hb_missed_cnt > path->hb_missed_max) {
+		rtrs_err(path, "HB missed max reached.\n");
+		path->hb_err_handler(usr_con);
 		return;
 	}
-	if (sess->hb_missed_cnt++) {
+	if (path->hb_missed_cnt++) {
 		/* Reschedule work without sending hb */
-		schedule_hb(sess);
+		schedule_hb(path);
 		return;
 	}
 
-	sess->hb_last_sent = ktime_get();
+	path->hb_last_sent = ktime_get();
 
 	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
-	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
+	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
 					     NULL);
 	if (err) {
-		rtrs_err(sess, "HB send failed, errno: %d\n", err);
-		sess->hb_err_handler(usr_con);
+		rtrs_err(path, "HB send failed, errno: %d\n", err);
+		path->hb_err_handler(usr_con);
 		return;
 	}
 
-	schedule_hb(sess);
+	schedule_hb(path);
 }
 
-void rtrs_init_hb(struct rtrs_sess *sess, struct ib_cqe *cqe,
+void rtrs_init_hb(struct rtrs_path *path, struct ib_cqe *cqe,
 		  unsigned int interval_ms, unsigned int missed_max,
 		  void (*err_handler)(struct rtrs_con *con),
 		  struct workqueue_struct *wq)
 {
-	sess->hb_cqe = cqe;
-	sess->hb_interval_ms = interval_ms;
-	sess->hb_err_handler = err_handler;
-	sess->hb_wq = wq;
-	sess->hb_missed_max = missed_max;
-	sess->hb_missed_cnt = 0;
-	INIT_DELAYED_WORK(&sess->hb_dwork, hb_work);
+	path->hb_cqe = cqe;
+	path->hb_interval_ms = interval_ms;
+	path->hb_err_handler = err_handler;
+	path->hb_wq = wq;
+	path->hb_missed_max = missed_max;
+	path->hb_missed_cnt = 0;
+	INIT_DELAYED_WORK(&path->hb_dwork, hb_work);
 }
 EXPORT_SYMBOL_GPL(rtrs_init_hb);
 
-void rtrs_start_hb(struct rtrs_sess *sess)
+void rtrs_start_hb(struct rtrs_path *path)
 {
-	schedule_hb(sess);
+	schedule_hb(path);
 }
 EXPORT_SYMBOL_GPL(rtrs_start_hb);
 
-void rtrs_stop_hb(struct rtrs_sess *sess)
+void rtrs_stop_hb(struct rtrs_path *path)
 {
-	cancel_delayed_work_sync(&sess->hb_dwork);
-	sess->hb_missed_cnt = 0;
+	cancel_delayed_work_sync(&path->hb_dwork);
+	path->hb_missed_cnt = 0;
 }
 EXPORT_SYMBOL_GPL(rtrs_stop_hb);
 

@@ -436,4 +436,4 @@ module_exit(liteuart_exit);
 MODULE_AUTHOR("Antmicro <www.antmicro.com>");
 MODULE_DESCRIPTION("LiteUART serial driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform: liteuart");
+MODULE_ALIAS("platform:liteuart");

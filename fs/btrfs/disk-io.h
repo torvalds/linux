@@ -71,6 +71,12 @@ struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
 struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 						 struct btrfs_path *path,
 						 u64 objectid);
+int btrfs_global_root_insert(struct btrfs_root *root);
+void btrfs_global_root_delete(struct btrfs_root *root);
+struct btrfs_root *btrfs_global_root(struct btrfs_fs_info *fs_info,
+				     struct btrfs_key *key);
+struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr);
+struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 
 void btrfs_free_fs_info(struct btrfs_fs_info *fs_info);
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
@@ -101,6 +107,11 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 	if (refcount_inc_not_zero(&root->refs))
 		return root;
 	return NULL;
+}
+
+static inline struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info)
+{
+	return btrfs_extent_root(fs_info, 0);
 }
 
 void btrfs_put_root(struct btrfs_root *root);

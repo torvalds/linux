@@ -40,8 +40,9 @@ config MTD_NAND_AMS_DELTA
 
 config MTD_NAND_OMAP2
 	tristate "OMAP2, OMAP3, OMAP4 and Keystone NAND controller"
-	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
+	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on HAS_IOMEM
+	select OMAP_GPMC if ARCH_K3
 	help
 	  Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
 	  and Keystone platforms.
@@ -308,7 +309,7 @@ config MTD_NAND_DAVINCI
 
 config MTD_NAND_TXX9NDFMC
 	tristate "TXx9 NAND controller"
-	depends on SOC_TX4938 || SOC_TX4939 || COMPILE_TEST
+	depends on SOC_TX4938 || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This enables the NAND flash controller on the TXx9 SoCs.
@@ -460,6 +461,13 @@ config MTD_NAND_PL35X
 	help
 	  Enables support for PrimeCell SMC PL351 and PL353 NAND
 	  controller found on Zynq7000.
+
+config MTD_NAND_RENESAS
+	tristate "Renesas R-Car Gen3 & RZ/N1 NAND controller"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Enables support for the NAND controller found on Renesas R-Car
+	  Gen3 and RZ/N1 SoC families.
 
 comment "Misc"
 

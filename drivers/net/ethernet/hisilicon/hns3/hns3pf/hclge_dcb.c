@@ -203,7 +203,7 @@ static int hclge_map_update(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	hclge_rss_indir_init_cfg(hdev);
+	hclge_comm_rss_indir_init_cfg(hdev->ae_dev, &hdev->rss_cfg);
 
 	return hclge_rss_init_hw(hdev);
 }

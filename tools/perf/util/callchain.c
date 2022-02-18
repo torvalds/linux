@@ -1600,7 +1600,7 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 		map__zput(node->ms.map);
 }
 
-void callchain_param_setup(u64 sample_type)
+void callchain_param_setup(u64 sample_type, const char *arch)
 {
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
@@ -1612,6 +1612,18 @@ void callchain_param_setup(u64 sample_type)
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
+
+	/*
+	 * It's necessary to use libunwind to reliably determine the caller of
+	 * a leaf function on aarch64, as otherwise we cannot know whether to
+	 * start from the LR or FP.
+	 *
+	 * Always starting from the LR can result in duplicate or entirely
+	 * erroneous entries. Always skipping the LR and starting from the FP
+	 * can result in missing entries.
+	 */
+	if (callchain_param.record_mode == CALLCHAIN_FP && !strcmp(arch, "arm64"))
+		dwarf_callchain_users = true;
 }
 
 static bool chain_match(struct callchain_list *base_chain,

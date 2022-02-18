@@ -42,6 +42,7 @@ static const struct reg_default cs42l42_reg_defaults[] = {
 	{ CS42L42_SRC_CTL,			0x10 },
 	{ CS42L42_MCLK_CTL,			0x02 },
 	{ CS42L42_SFTRAMP_RATE,			0xA4 },
+	{ CS42L42_SLOW_START_ENABLE,		0x70 },
 	{ CS42L42_I2C_DEBOUNCE,			0x88 },
 	{ CS42L42_I2C_STRETCH,			0x03 },
 	{ CS42L42_I2C_TIMEOUT,			0xB7 },
@@ -177,6 +178,7 @@ static bool cs42l42_readable_register(struct device *dev, unsigned int reg)
 	case CS42L42_MCLK_STATUS:
 	case CS42L42_MCLK_CTL:
 	case CS42L42_SFTRAMP_RATE:
+	case CS42L42_SLOW_START_ENABLE:
 	case CS42L42_I2C_DEBOUNCE:
 	case CS42L42_I2C_STRETCH:
 	case CS42L42_I2C_TIMEOUT:
@@ -387,6 +389,28 @@ static const struct regmap_config cs42l42_regmap = {
 static DECLARE_TLV_DB_SCALE(adc_tlv, -9700, 100, true);
 static DECLARE_TLV_DB_SCALE(mixer_tlv, -6300, 100, true);
 
+static int cs42l42_slow_start_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	u8 val;
+
+	/* all bits of SLOW_START_EN much change together */
+	switch (ucontrol->value.integer.value[0]) {
+	case 0:
+		val = 0;
+		break;
+	case 1:
+		val = CS42L42_SLOW_START_EN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return snd_soc_component_update_bits(component, CS42L42_SLOW_START_ENABLE,
+					     CS42L42_SLOW_START_EN_MASK, val);
+}
+
 static const char * const cs42l42_hpf_freq_text[] = {
 	"1.86Hz", "120Hz", "235Hz", "466Hz"
 };
@@ -431,7 +455,11 @@ static const struct snd_kcontrol_new cs42l42_snd_controls[] = {
 				CS42L42_DAC_HPF_EN_SHIFT, true, false),
 	SOC_DOUBLE_R_TLV("Mixer Volume", CS42L42_MIXER_CHA_VOL,
 			 CS42L42_MIXER_CHB_VOL, CS42L42_MIXER_CH_VOL_SHIFT,
-				0x3f, 1, mixer_tlv)
+				0x3f, 1, mixer_tlv),
+
+	SOC_SINGLE_EXT("Slow Start Switch", CS42L42_SLOW_START_ENABLE,
+			CS42L42_SLOW_START_EN_SHIFT, true, false,
+			snd_soc_get_volsw, cs42l42_slow_start_put),
 };
 
 static int cs42l42_hp_adc_ev(struct snd_soc_dapm_widget *w,
@@ -521,7 +549,24 @@ static int cs42l42_set_jack(struct snd_soc_component *component, struct snd_soc_
 {
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
 
+	/* Prevent race with interrupt handler */
+	mutex_lock(&cs42l42->jack_detect_mutex);
 	cs42l42->jack = jk;
+
+	if (jk) {
+		switch (cs42l42->hs_type) {
+		case CS42L42_PLUG_CTIA:
+		case CS42L42_PLUG_OMTP:
+			snd_soc_jack_report(jk, SND_JACK_HEADSET, SND_JACK_HEADSET);
+			break;
+		case CS42L42_PLUG_HEADPHONE:
+			snd_soc_jack_report(jk, SND_JACK_HEADPHONE, SND_JACK_HEADPHONE);
+			break;
+		default:
+			break;
+		}
+	}
+	mutex_unlock(&cs42l42->jack_detect_mutex);
 
 	return 0;
 }
@@ -706,10 +751,6 @@ static int cs42l42_pll_config(struct snd_soc_component *component)
 					CS42L42_PLL_DIVOUT_MASK,
 					(pll_ratio_table[i].pll_divout * pll_ratio_table[i].n)
 					<< CS42L42_PLL_DIVOUT_SHIFT);
-				if (pll_ratio_table[i].n != 1)
-					cs42l42->pll_divout = pll_ratio_table[i].pll_divout;
-				else
-					cs42l42->pll_divout = 0;
 				snd_soc_component_update_bits(component,
 					CS42L42_PLL_CAL_RATIO,
 					CS42L42_PLL_CAL_RATIO_MASK,
@@ -976,12 +1017,13 @@ static int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
 							      CS42L42_PLL_START_MASK, 1);
 
-				if (cs42l42->pll_divout) {
+				if (pll_ratio_table[cs42l42->pll_config].n > 1) {
 					usleep_range(CS42L42_PLL_DIVOUT_TIME_US,
 						     CS42L42_PLL_DIVOUT_TIME_US * 2);
+					regval = pll_ratio_table[cs42l42->pll_config].pll_divout;
 					snd_soc_component_update_bits(component, CS42L42_PLL_CTL3,
 								      CS42L42_PLL_DIVOUT_MASK,
-								      cs42l42->pll_divout <<
+								      regval <<
 								      CS42L42_PLL_DIVOUT_SHIFT);
 				}
 
@@ -1242,10 +1284,8 @@ static void cs42l42_process_hs_type_detect(struct cs42l42_private *cs42l42)
 		/* Turn on level detect circuitry */
 		regmap_update_bits(cs42l42->regmap,
 			CS42L42_MISC_DET_CTL,
-			CS42L42_DETECT_MODE_MASK |
 			CS42L42_HSBIAS_CTL_MASK |
 			CS42L42_PDN_MIC_LVL_DET_MASK,
-			(0 << CS42L42_DETECT_MODE_SHIFT) |
 			(3 << CS42L42_HSBIAS_CTL_SHIFT) |
 			(0 << CS42L42_PDN_MIC_LVL_DET_SHIFT));
 
@@ -1272,10 +1312,8 @@ static void cs42l42_process_hs_type_detect(struct cs42l42_private *cs42l42)
 		/* Make sure button detect and HS bias circuits are off */
 		regmap_update_bits(cs42l42->regmap,
 			CS42L42_MISC_DET_CTL,
-			CS42L42_DETECT_MODE_MASK |
 			CS42L42_HSBIAS_CTL_MASK |
 			CS42L42_PDN_MIC_LVL_DET_MASK,
-			(0 << CS42L42_DETECT_MODE_SHIFT) |
 			(1 << CS42L42_HSBIAS_CTL_SHIFT) |
 			(1 << CS42L42_PDN_MIC_LVL_DET_SHIFT));
 	}
@@ -1296,12 +1334,8 @@ static void cs42l42_process_hs_type_detect(struct cs42l42_private *cs42l42)
 	/* Unmask tip sense interrupts */
 	regmap_update_bits(cs42l42->regmap,
 		CS42L42_TSRS_PLUG_INT_MASK,
-		CS42L42_RS_PLUG_MASK |
-		CS42L42_RS_UNPLUG_MASK |
 		CS42L42_TS_PLUG_MASK |
 		CS42L42_TS_UNPLUG_MASK,
-		(1 << CS42L42_RS_PLUG_SHIFT) |
-		(1 << CS42L42_RS_UNPLUG_SHIFT) |
 		(0 << CS42L42_TS_PLUG_SHIFT) |
 		(0 << CS42L42_TS_UNPLUG_SHIFT));
 }
@@ -1311,22 +1345,16 @@ static void cs42l42_init_hs_type_detect(struct cs42l42_private *cs42l42)
 	/* Mask tip sense interrupts */
 	regmap_update_bits(cs42l42->regmap,
 				CS42L42_TSRS_PLUG_INT_MASK,
-				CS42L42_RS_PLUG_MASK |
-				CS42L42_RS_UNPLUG_MASK |
 				CS42L42_TS_PLUG_MASK |
 				CS42L42_TS_UNPLUG_MASK,
-				(1 << CS42L42_RS_PLUG_SHIFT) |
-				(1 << CS42L42_RS_UNPLUG_SHIFT) |
 				(1 << CS42L42_TS_PLUG_SHIFT) |
 				(1 << CS42L42_TS_UNPLUG_SHIFT));
 
 	/* Make sure button detect and HS bias circuits are off */
 	regmap_update_bits(cs42l42->regmap,
 				CS42L42_MISC_DET_CTL,
-				CS42L42_DETECT_MODE_MASK |
 				CS42L42_HSBIAS_CTL_MASK |
 				CS42L42_PDN_MIC_LVL_DET_MASK,
-				(0 << CS42L42_DETECT_MODE_SHIFT) |
 				(1 << CS42L42_HSBIAS_CTL_SHIFT) |
 				(1 << CS42L42_PDN_MIC_LVL_DET_SHIFT));
 
@@ -1370,10 +1398,8 @@ static void cs42l42_init_hs_type_detect(struct cs42l42_private *cs42l42)
 	/* Power up HS bias to 2.7V */
 	regmap_update_bits(cs42l42->regmap,
 				CS42L42_MISC_DET_CTL,
-				CS42L42_DETECT_MODE_MASK |
 				CS42L42_HSBIAS_CTL_MASK |
 				CS42L42_PDN_MIC_LVL_DET_MASK,
-				(0 << CS42L42_DETECT_MODE_SHIFT) |
 				(3 << CS42L42_HSBIAS_CTL_SHIFT) |
 				(1 << CS42L42_PDN_MIC_LVL_DET_SHIFT));
 
@@ -1420,10 +1446,8 @@ static void cs42l42_cancel_hs_type_detect(struct cs42l42_private *cs42l42)
 	/* Ground HS bias */
 	regmap_update_bits(cs42l42->regmap,
 				CS42L42_MISC_DET_CTL,
-				CS42L42_DETECT_MODE_MASK |
 				CS42L42_HSBIAS_CTL_MASK |
 				CS42L42_PDN_MIC_LVL_DET_MASK,
-				(0 << CS42L42_DETECT_MODE_SHIFT) |
 				(1 << CS42L42_HSBIAS_CTL_SHIFT) |
 				(1 << CS42L42_PDN_MIC_LVL_DET_SHIFT));
 
@@ -1611,6 +1635,8 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 		CS42L42_M_DETECT_FT_MASK |
 		CS42L42_M_HSBIAS_HIZ_MASK);
 
+	mutex_lock(&cs42l42->jack_detect_mutex);
+
 	/* Check auto-detect status */
 	if ((~masks[5]) & irq_params_table[5].mask) {
 		if (stickies[5] & CS42L42_HSDET_AUTO_DONE_MASK) {
@@ -1647,18 +1673,8 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 				cs42l42->plug_state = CS42L42_TS_UNPLUG;
 				cs42l42_cancel_hs_type_detect(cs42l42);
 
-				switch (cs42l42->hs_type) {
-				case CS42L42_PLUG_CTIA:
-				case CS42L42_PLUG_OMTP:
-					snd_soc_jack_report(cs42l42->jack, 0, SND_JACK_HEADSET);
-					break;
-				case CS42L42_PLUG_HEADPHONE:
-					snd_soc_jack_report(cs42l42->jack, 0, SND_JACK_HEADPHONE);
-					break;
-				default:
-					break;
-				}
 				snd_soc_jack_report(cs42l42->jack, 0,
+						    SND_JACK_HEADSET |
 						    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 						    SND_JACK_BTN_2 | SND_JACK_BTN_3);
 
@@ -1688,6 +1704,8 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 								   SND_JACK_BTN_2 | SND_JACK_BTN_3);
 		}
 	}
+
+	mutex_unlock(&cs42l42->jack_detect_mutex);
 
 	return IRQ_HANDLED;
 }
@@ -1800,6 +1818,9 @@ static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
 	unsigned int reg;
 
 	cs42l42->hs_type = CS42L42_PLUG_INVALID;
+
+	regmap_update_bits(cs42l42->regmap, CS42L42_MISC_DET_CTL,
+			   CS42L42_DETECT_MODE_MASK, 0);
 
 	/* Latch analog controls to VP power domain */
 	regmap_update_bits(cs42l42->regmap, CS42L42_MIC_DET_CTL1,
@@ -2033,6 +2054,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 
 	cs42l42->dev = &i2c_client->dev;
 	i2c_set_clientdata(i2c_client, cs42l42);
+	mutex_init(&cs42l42->jack_detect_mutex);
 
 	cs42l42->regmap = devm_regmap_init_i2c(i2c_client, &cs42l42_regmap);
 	if (IS_ERR(cs42l42->regmap)) {

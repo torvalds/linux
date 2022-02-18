@@ -1808,19 +1808,20 @@ lcs_get_frames_cb(struct lcs_channel *channel, struct lcs_buffer *buffer)
 			return;
 		}
 		/* What kind of frame is it? */
-		if (lcs_hdr->type == LCS_FRAME_TYPE_CONTROL)
+		if (lcs_hdr->type == LCS_FRAME_TYPE_CONTROL) {
 			/* Control frame. */
 			lcs_get_control(card, (struct lcs_cmd *) lcs_hdr);
-		else if (lcs_hdr->type == LCS_FRAME_TYPE_ENET ||
-			 lcs_hdr->type == LCS_FRAME_TYPE_TR ||
-			 lcs_hdr->type == LCS_FRAME_TYPE_FDDI)
+		} else if (lcs_hdr->type == LCS_FRAME_TYPE_ENET ||
+			   lcs_hdr->type == LCS_FRAME_TYPE_TR ||
+			   lcs_hdr->type == LCS_FRAME_TYPE_FDDI) {
 			/* Normal network packet. */
 			lcs_get_skb(card, (char *)(lcs_hdr + 1),
 				    lcs_hdr->offset - offset -
 				    sizeof(struct lcs_header));
-		else
+		} else {
 			/* Unknown frame type. */
 			; // FIXME: error message ?
+		}
 		/* Proceed to next frame. */
 		offset = lcs_hdr->offset;
 		lcs_hdr->offset = LCS_ILLEGAL_OFFSET;

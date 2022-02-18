@@ -39,8 +39,6 @@
 
 #define RXE_ROCE_V2_SPORT		(0xc000)
 
-extern bool rxe_initialized;
-
 void rxe_set_mtu(struct rxe_dev *rxe, unsigned int dev_mtu);
 
 int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name);

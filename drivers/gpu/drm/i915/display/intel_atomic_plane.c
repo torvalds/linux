@@ -35,14 +35,16 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
-#include "i915_trace.h"
+#include "gt/intel_rps.h"
+
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
+#include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
-#include "gt/intel_rps.h"
 
 static void intel_plane_state_reset(struct intel_plane_state *plane_state,
 				    struct intel_plane *plane)
@@ -394,7 +396,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	const struct intel_plane_state *new_master_plane_state;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, plane->pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, plane->pipe);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
@@ -469,31 +471,72 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	return NULL;
 }
 
-void intel_update_plane(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state)
+void intel_plane_update_noarm(struct intel_plane *plane,
+			      const struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_update_plane(&plane->base, crtc);
+	trace_intel_plane_update_noarm(&plane->base, crtc);
+
+	if (plane->update_noarm)
+		plane->update_noarm(plane, crtc_state, plane_state);
+}
+
+void intel_plane_update_arm(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	trace_intel_plane_update_arm(&plane->base, crtc);
 
 	if (crtc_state->uapi.async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
-		plane->update_plane(plane, crtc_state, plane_state);
+		plane->update_arm(plane, crtc_state, plane_state);
 }
 
-void intel_disable_plane(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
+void intel_plane_disable_arm(struct intel_plane *plane,
+			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_disable_plane(&plane->base, crtc);
-	plane->disable_plane(plane, crtc_state);
+	trace_intel_plane_disable_arm(&plane->base, crtc);
+	plane->disable_arm(plane, crtc_state);
 }
 
-void skl_update_planes_on_crtc(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+void intel_update_planes_on_crtc(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	if (new_crtc_state->uapi.async_flip)
+		return;
+
+	/*
+	 * Since we only write non-arming registers here,
+	 * the order does not matter even for skl+.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		/* TODO: for mailbox updates this should be skipped */
+		if (new_plane_state->uapi.visible ||
+		    new_plane_state->planar_slave)
+			intel_plane_update_noarm(plane, new_crtc_state, new_plane_state);
+	}
+}
+
+void skl_arm_planes_on_crtc(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -515,17 +558,20 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible ||
-		    new_plane_state->planar_slave) {
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else {
-			intel_disable_plane(plane, new_crtc_state);
-		}
+		    new_plane_state->planar_slave)
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
+		else
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 
-void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
-				struct intel_crtc *crtc)
+void i9xx_arm_planes_on_crtc(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -539,10 +585,14 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible)
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
 		else
-			intel_disable_plane(plane, new_crtc_state);
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 
@@ -738,6 +788,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	i915_gem_object_wait_priority(obj, 0, &attr);
 
 	if (!new_plane_state->uapi.fence) { /* implicit fencing */
+		struct dma_resv_iter cursor;
 		struct dma_fence *fence;
 
 		ret = i915_sw_fence_await_reservation(&state->commit_ready,
@@ -748,12 +799,12 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		if (ret < 0)
 			goto unpin_fb;
 
-		fence = dma_resv_get_excl_unlocked(obj->base.resv);
-		if (fence) {
+		dma_resv_iter_begin(&cursor, obj->base.resv, false);
+		dma_resv_for_each_fence_unlocked(&cursor, fence) {
 			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						   fence);
-			dma_fence_put(fence);
 		}
+		dma_resv_iter_end(&cursor);
 	} else {
 		add_rps_boost_after_vblank(new_plane_state->hw.crtc,
 					   new_plane_state->uapi.fence);
@@ -768,7 +819,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
 	if (!state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
+		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, true);
 		state->rps_interactive = true;
 	}
 
@@ -802,7 +853,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		return;
 
 	if (state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
+		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, false);
 		state->rps_interactive = false;
 	}
 

@@ -144,7 +144,9 @@ static int qeth_set_coalesce(struct net_device *dev,
 }
 
 static void qeth_get_ringparam(struct net_device *dev,
-			       struct ethtool_ringparam *param)
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kernel_param,
+			       struct netlink_ext_ack *extack)
 {
 	struct qeth_card *card = dev->ml_priv;
 

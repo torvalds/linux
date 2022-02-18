@@ -36,6 +36,9 @@ properties:
         - const: synopsys,dwc3
           deprecated: true
 
+  reg:
+    maxItems: 1
+
   interrupts:
     description:
       It's either a single common DWC3 interrupt (dwc_usb3) or individual
@@ -64,6 +67,9 @@ properties:
       anyOf:
         - enum: [bus_early, ref, suspend]
         - true
+
+  iommus:
+    maxItems: 1
 
   usb-phy:
     minItems: 1

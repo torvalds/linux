@@ -16,7 +16,7 @@
 		keep-power-in-suspend;
 	};
 
-	ddr_reg: regulator@100 {
+	ddr_reg: regulator-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_ddr";
 		regulator-min-microvolt = <1500000>;
@@ -27,7 +27,7 @@
 		gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
 	};
 
-	sys_3v3_reg: regulator@101 {
+	sys_3v3_reg: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "sys_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -38,7 +38,7 @@
 		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
 	};
 
-	usb1_vbus_reg: regulator@102 {
+	usb1_vbus_reg: regulator-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -49,7 +49,7 @@
 		vin-supply = <&vdd_5v0_reg>;
 	};
 
-	usb3_vbus_reg: regulator@103 {
+	usb3_vbus_reg: regulator-usb3 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -60,7 +60,7 @@
 		vin-supply = <&vdd_5v0_reg>;
 	};
 
-	vdd_5v0_reg: regulator@104 {
+	vdd_5v0_reg: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "5v0";
 		regulator-min-microvolt = <5000000>;
@@ -69,7 +69,7 @@
 		gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
 	};
 
-	vdd_bl_reg: regulator@105 {
+	vdd_bl_reg: regulator-bl {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_bl";
 		regulator-min-microvolt = <5000000>;

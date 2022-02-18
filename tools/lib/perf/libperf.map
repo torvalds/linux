@@ -10,6 +10,7 @@ LIBPERF_0.0.1 {
 		perf_cpu_map__cpu;
 		perf_cpu_map__empty;
 		perf_cpu_map__max;
+		perf_cpu_map__has;
 		perf_thread_map__new_dummy;
 		perf_thread_map__set_pid;
 		perf_thread_map__comm;
@@ -50,6 +51,7 @@ LIBPERF_0.0.1 {
 		perf_mmap__read_init;
 		perf_mmap__read_done;
 		perf_mmap__read_event;
+		perf_counts_values__scale;
 	local:
 		*;
 };

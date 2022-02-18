@@ -21,7 +21,6 @@
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
 
 static struct kvm_event_hw_type_mapping intel_arch_events[] = {
-	/* Index must match CPUID 0x0A.EBX bit vector */
 	[0] = { 0x3c, 0x00, PERF_COUNT_HW_CPU_CYCLES },
 	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },
 	[2] = { 0x3c, 0x01, PERF_COUNT_HW_BUS_CYCLES  },
@@ -29,6 +28,7 @@ static struct kvm_event_hw_type_mapping intel_arch_events[] = {
 	[4] = { 0x2e, 0x41, PERF_COUNT_HW_CACHE_MISSES },
 	[5] = { 0xc4, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
 	[6] = { 0xc5, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
+	/* The above index must match CPUID 0x0A.EBX bit vector */
 	[7] = { 0x00, 0x03, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
@@ -68,34 +68,29 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 		reprogram_counter(pmu, bit);
 }
 
-static unsigned intel_find_arch_event(struct kvm_pmu *pmu,
-				      u8 event_select,
-				      u8 unit_mask)
+static unsigned int intel_pmc_perf_hw_id(struct kvm_pmc *pmc)
 {
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	u8 event_select = pmc->eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
+	u8 unit_mask = (pmc->eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(intel_arch_events); i++)
-		if (intel_arch_events[i].eventsel == event_select
-		    && intel_arch_events[i].unit_mask == unit_mask
-		    && (pmu->available_event_types & (1 << i)))
-			break;
+	for (i = 0; i < ARRAY_SIZE(intel_arch_events); i++) {
+		if (intel_arch_events[i].eventsel != event_select ||
+		    intel_arch_events[i].unit_mask != unit_mask)
+			continue;
+
+		/* disable event that reported as not present by cpuid */
+		if ((i < 7) && !(pmu->available_event_types & (1 << i)))
+			return PERF_COUNT_HW_MAX + 1;
+
+		break;
+	}
 
 	if (i == ARRAY_SIZE(intel_arch_events))
 		return PERF_COUNT_HW_MAX;
 
 	return intel_arch_events[i].event_type;
-}
-
-static unsigned intel_find_fixed_event(int idx)
-{
-	u32 event;
-	size_t size = ARRAY_SIZE(fixed_pmc_events);
-
-	if (idx >= size)
-		return PERF_COUNT_HW_MAX;
-
-	event = fixed_pmc_events[array_index_nospec(idx, size)];
-	return intel_arch_events[event].event_type;
 }
 
 /* check if a PMC is enabled by comparing it with globl_ctrl bits. */
@@ -459,6 +454,21 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
+static void setup_fixed_pmc_eventsel(struct kvm_pmu *pmu)
+{
+	size_t size = ARRAY_SIZE(fixed_pmc_events);
+	struct kvm_pmc *pmc;
+	u32 event;
+	int i;
+
+	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
+		pmc = &pmu->fixed_counters[i];
+		event = fixed_pmc_events[array_index_nospec(i, size)];
+		pmc->eventsel = (intel_arch_events[event].unit_mask << 8) |
+			intel_arch_events[event].eventsel;
+	}
+}
+
 static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -477,7 +487,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->reserved_bits = 0xffffffff00200000ull;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
-	if (!entry)
+	if (!entry || !enable_pmu)
 		return;
 	eax.full = entry->eax;
 	edx.full = entry->edx;
@@ -500,12 +510,14 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		pmu->nr_arch_fixed_counters = 0;
 	} else {
 		pmu->nr_arch_fixed_counters =
-			min_t(int, edx.split.num_counters_fixed,
-			      x86_pmu.num_counters_fixed);
+			min3(ARRAY_SIZE(fixed_pmc_events),
+			     (size_t) edx.split.num_counters_fixed,
+			     (size_t) x86_pmu.num_counters_fixed);
 		edx.split.bit_width_fixed = min_t(int,
 			edx.split.bit_width_fixed, x86_pmu.bit_width_fixed);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =
 			((u64)1 << edx.split.bit_width_fixed) - 1;
+		setup_fixed_pmc_eventsel(pmu);
 	}
 
 	pmu->global_ctrl = ((1ull << pmu->nr_arch_gp_counters) - 1) |
@@ -703,8 +715,7 @@ static void intel_pmu_cleanup(struct kvm_vcpu *vcpu)
 }
 
 struct kvm_pmu_ops intel_pmu_ops = {
-	.find_arch_event = intel_find_arch_event,
-	.find_fixed_event = intel_find_fixed_event,
+	.pmc_perf_hw_id = intel_pmc_perf_hw_id,
 	.pmc_is_enabled = intel_pmc_is_enabled,
 	.pmc_idx_to_pmc = intel_pmc_idx_to_pmc,
 	.rdpmc_ecx_to_pmc = intel_rdpmc_ecx_to_pmc,

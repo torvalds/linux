@@ -35,11 +35,7 @@
 # define NEED_CMOV	0
 #endif
 
-#ifdef CONFIG_X86_USE_3DNOW
-# define NEED_3DNOW	(1<<(X86_FEATURE_3DNOW & 31))
-#else
 # define NEED_3DNOW	0
-#endif
 
 #if defined(CONFIG_X86_P6_NOP) || defined(CONFIG_X86_64)
 # define NEED_NOPL	(1<<(X86_FEATURE_NOPL & 31))

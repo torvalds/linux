@@ -276,25 +276,6 @@ cosicché l'informazione possa trovare la sua strada nel manuale.  Le modifiche
 all'API dello spazio utente dovrebbero essere inviate in copia anche a
 linux-api@vger.kernel.org.
 
-Per le piccole patch potreste aggiungere in CC l'indirizzo
-*Trivial Patch Monkey trivial@kernel.org* che ha lo scopo di raccogliere
-le patch "banali".  Date uno sguardo al file MAINTAINERS per vedere chi
-è l'attuale amministratore.
-
-Le patch banali devono rientrare in una delle seguenti categorie:
-
-- errori grammaticali nella documentazione
-- errori grammaticali negli errori che potrebbero rompere :manpage:`grep(1)`
-- correzione di avvisi di compilazione (riempirsi di avvisi inutili è negativo)
-- correzione di errori di compilazione (solo se correggono qualcosa sul serio)
-- rimozione di funzioni/macro deprecate
-- sostituzione di codice non potabile con uno portabile (anche in codice
-  specifico per un'architettura, dato che le persone copiano, fintanto che
-  la modifica sia banale)
-- qualsiasi modifica dell'autore/manutentore di un file (in pratica
-  "patch monkey" in modalità ritrasmissione)
-
-
 Niente: MIME, links, compressione, allegati.  Solo puro testo
 -------------------------------------------------------------
 

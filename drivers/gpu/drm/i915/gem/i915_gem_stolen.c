@@ -399,7 +399,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		return 0;
 	}
 
-	if (intel_vtd_active() && GRAPHICS_VER(i915) < 8) {
+	if (intel_vtd_active(i915) && GRAPHICS_VER(i915) < 8) {
 		drm_notice(&i915->drm,
 			   "%s, disabling use of stolen memory\n",
 			   "DMAR active");
@@ -487,6 +487,9 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 			&i915->dsm_reserved, &i915->dsm);
 		return 0;
 	}
+
+	/* Exclude the reserved region from driver use */
+	mem->region.end = reserved_base - 1;
 
 	/* It is possible for the reserved area to end before the end of stolen
 	 * memory, so just consider the start. */
@@ -653,7 +656,7 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	cache_level = HAS_LLC(mem->i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
-	if (WARN_ON(!i915_gem_object_trylock(obj)))
+	if (WARN_ON(!i915_gem_object_trylock(obj, NULL)))
 		return -EBUSY;
 
 	i915_gem_object_init_memory_region(obj, mem);
@@ -720,9 +723,10 @@ static int init_stolen_smem(struct intel_memory_region *mem)
 	return i915_gem_init_stolen(mem);
 }
 
-static void release_stolen_smem(struct intel_memory_region *mem)
+static int release_stolen_smem(struct intel_memory_region *mem)
 {
 	i915_gem_cleanup_stolen(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops i915_region_stolen_smem_ops = {
@@ -759,10 +763,11 @@ err_fini:
 	return err;
 }
 
-static void release_stolen_lmem(struct intel_memory_region *mem)
+static int release_stolen_lmem(struct intel_memory_region *mem)
 {
 	io_mapping_fini(&mem->iomap);
 	i915_gem_cleanup_stolen(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops i915_region_stolen_lmem_ops = {
@@ -778,6 +783,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	struct intel_uncore *uncore = &i915->uncore;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
+	resource_size_t min_page_size;
 	resource_size_t io_start;
 	resource_size_t lmem_size;
 	u64 lmem_base;
@@ -789,8 +795,11 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	lmem_size = pci_resource_len(pdev, 2) - lmem_base;
 	io_start = pci_resource_start(pdev, 2) + lmem_base;
 
+	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :
+						I915_GTT_PAGE_SIZE_4K;
+
 	mem = intel_memory_region_create(i915, lmem_base, lmem_size,
-					 I915_GTT_PAGE_SIZE_4K, io_start,
+					 min_page_size, io_start,
 					 type, instance,
 					 &i915_region_stolen_lmem_ops);
 	if (IS_ERR(mem))

@@ -143,8 +143,8 @@ static int vdc_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned command, unsigned long argument)
 {
+	struct vdc_port *port = bdev->bd_disk->private_data;
 	int i;
-	struct gendisk *disk;
 
 	switch (command) {
 	case CDROMMULTISESSION:
@@ -155,12 +155,15 @@ static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 		return 0;
 
 	case CDROM_GET_CAPABILITY:
-		disk = bdev->bd_disk;
-
-		if (bdev->bd_disk && (disk->flags & GENHD_FL_CD))
+		if (!vdc_version_supported(port, 1, 1))
+			return -EINVAL;
+		switch (port->vdisk_mtype) {
+		case VD_MEDIA_TYPE_CD:
+		case VD_MEDIA_TYPE_DVD:
 			return 0;
-		return -EINVAL;
-
+		default:
+			return -EINVAL;
+		}
 	default:
 		pr_debug(PFX "ioctl %08x not supported\n", command);
 		return -EINVAL;
@@ -459,7 +462,7 @@ static int __vdc_tx_trigger(struct vdc_port *port)
 
 static int __send_request(struct request *req)
 {
-	struct vdc_port *port = req->rq_disk->private_data;
+	struct vdc_port *port = req->q->disk->private_data;
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	struct scatterlist sg[MAX_RING_COOKIES];
 	struct vdc_req_entry *rqe;
@@ -854,14 +857,12 @@ static int probe_disk(struct vdc_port *port)
 		switch (port->vdisk_mtype) {
 		case VD_MEDIA_TYPE_CD:
 			pr_info(PFX "Virtual CDROM %s\n", port->disk_name);
-			g->flags |= GENHD_FL_CD;
 			g->flags |= GENHD_FL_REMOVABLE;
 			set_disk_ro(g, 1);
 			break;
 
 		case VD_MEDIA_TYPE_DVD:
 			pr_info(PFX "Virtual DVD %s\n", port->disk_name);
-			g->flags |= GENHD_FL_CD;
 			g->flags |= GENHD_FL_REMOVABLE;
 			set_disk_ro(g, 1);
 			break;

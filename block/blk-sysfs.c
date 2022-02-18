@@ -16,6 +16,7 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
+#include "blk-mq-sched.h"
 #include "blk-wbt.h"
 #include "blk-throttle.h"
 
@@ -734,7 +735,8 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 {
 	struct request_queue *q = container_of(rcu_head, struct request_queue,
 					       rcu_head);
-	kmem_cache_free(blk_requestq_cachep, q);
+
+	kmem_cache_free(blk_get_queue_kmem_cache(blk_queue_has_srcu(q)), q);
 }
 
 /* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
@@ -747,7 +749,7 @@ static void blk_exit_queue(struct request_queue *q)
 	 */
 	if (q->elevator) {
 		ioc_clear_queue(q);
-		__elevator_exit(q, q->elevator);
+		elevator_exit(q);
 	}
 
 	/*
@@ -785,13 +787,14 @@ static void blk_release_queue(struct kobject *kobj)
 
 	might_sleep();
 
-	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
+	if (q->poll_stat)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
-	blk_free_queue_stats(q->stats);
-
 	blk_exit_queue(q);
+
+	blk_free_queue_stats(q->stats);
+	kfree(q->poll_stat);
 
 	blk_queue_free_zone_bitmaps(q);
 
@@ -807,6 +810,9 @@ static void blk_release_queue(struct kobject *kobj)
 		blk_mq_debugfs_unregister(q);
 
 	bioset_exit(&q->bio_split);
+
+	if (blk_queue_has_srcu(q))
+		cleanup_srcu_struct(q->srcu);
 
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
@@ -884,7 +890,6 @@ int blk_register_queue(struct gendisk *disk)
 		kobject_uevent(&q->elevator->kobj, KOBJ_ADD);
 	mutex_unlock(&q->sysfs_lock);
 
-	ret = 0;
 unlock:
 	mutex_unlock(&q->sysfs_dir_lock);
 

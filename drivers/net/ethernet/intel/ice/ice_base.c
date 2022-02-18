@@ -776,7 +776,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	struct ice_channel *ch = ring->ch;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u16 pf_q;
 	u8 tc;
 
@@ -821,9 +821,9 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 					 ring->q_handle, 1, qg_buf, buf_len,
 					 NULL);
 	if (status) {
-		dev_err(ice_pf_to_dev(pf), "Failed to set LAN Tx queue context, error: %s\n",
-			ice_stat_str(status));
-		return -ENODEV;
+		dev_err(ice_pf_to_dev(pf), "Failed to set LAN Tx queue context, error: %d\n",
+			status);
+		return status;
 	}
 
 	/* Add Tx Queue TEID into the VSI Tx ring from the
@@ -946,7 +946,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 	struct ice_pf *pf = vsi->back;
 	struct ice_q_vector *q_vector;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u32 val;
 
 	/* clear cause_ena bit for disabled queues */
@@ -970,18 +970,18 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 				 rel_vmvf_num, NULL);
 
 	/* if the disable queue command was exercised during an
-	 * active reset flow, ICE_ERR_RESET_ONGOING is returned.
+	 * active reset flow, -EBUSY is returned.
 	 * This is not an error as the reset operation disables
 	 * queues at the hardware level anyway.
 	 */
-	if (status == ICE_ERR_RESET_ONGOING) {
+	if (status == -EBUSY) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "Reset in progress. LAN Tx queues already disabled\n");
-	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
+	} else if (status == -ENOENT) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "LAN Tx queues do not exist, nothing to disable\n");
 	} else if (status) {
-		dev_dbg(ice_pf_to_dev(vsi->back), "Failed to disable LAN Tx queues, error: %s\n",
-			ice_stat_str(status));
-		return -ENODEV;
+		dev_dbg(ice_pf_to_dev(vsi->back), "Failed to disable LAN Tx queues, error: %d\n",
+			status);
+		return status;
 	}
 
 	return 0;

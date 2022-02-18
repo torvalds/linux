@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -410,25 +410,26 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	else
 		prop->mmu_pgt_size = MMU_PAGE_TABLES_SIZE;
 	prop->mmu_pte_size = HL_PTE_SIZE;
-	prop->mmu_hop_table_size = HOP_TABLE_SIZE;
-	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
+	prop->mmu_hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->mmu_hop0_tables_total_size = HOP0_512_PTE_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 	prop->dram_supports_virtual_memory = true;
 
-	prop->dmmu.hop0_shift = HOP0_SHIFT;
-	prop->dmmu.hop1_shift = HOP1_SHIFT;
-	prop->dmmu.hop2_shift = HOP2_SHIFT;
-	prop->dmmu.hop3_shift = HOP3_SHIFT;
-	prop->dmmu.hop4_shift = HOP4_SHIFT;
-	prop->dmmu.hop0_mask = HOP0_MASK;
-	prop->dmmu.hop1_mask = HOP1_MASK;
-	prop->dmmu.hop2_mask = HOP2_MASK;
-	prop->dmmu.hop3_mask = HOP3_MASK;
-	prop->dmmu.hop4_mask = HOP4_MASK;
+	prop->dmmu.hop0_shift = MMU_V1_0_HOP0_SHIFT;
+	prop->dmmu.hop1_shift = MMU_V1_0_HOP1_SHIFT;
+	prop->dmmu.hop2_shift = MMU_V1_0_HOP2_SHIFT;
+	prop->dmmu.hop3_shift = MMU_V1_0_HOP3_SHIFT;
+	prop->dmmu.hop4_shift = MMU_V1_0_HOP4_SHIFT;
+	prop->dmmu.hop0_mask = MMU_V1_0_HOP0_MASK;
+	prop->dmmu.hop1_mask = MMU_V1_0_HOP1_MASK;
+	prop->dmmu.hop2_mask = MMU_V1_0_HOP2_MASK;
+	prop->dmmu.hop3_mask = MMU_V1_0_HOP3_MASK;
+	prop->dmmu.hop4_mask = MMU_V1_0_HOP4_MASK;
 	prop->dmmu.start_addr = VA_DDR_SPACE_START;
 	prop->dmmu.end_addr = VA_DDR_SPACE_END;
 	prop->dmmu.page_size = PAGE_SIZE_2MB;
 	prop->dmmu.num_hops = MMU_ARCH_5_HOPS;
+	prop->dmmu.last_mask = LAST_MASK;
 
 	/* shifts and masks are the same in PMMU and DMMU */
 	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
@@ -436,6 +437,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.end_addr = VA_HOST_SPACE_END;
 	prop->pmmu.page_size = PAGE_SIZE_4KB;
 	prop->pmmu.num_hops = MMU_ARCH_5_HOPS;
+	prop->pmmu.last_mask = LAST_MASK;
 
 	/* PMMU and HPMMU are the same except of page size */
 	memcpy(&prop->pmmu_huge, &prop->pmmu, sizeof(prop->pmmu));
@@ -472,6 +474,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
 
 	prop->clk_pll_index = HL_GOYA_MME_PLL;
+
+	prop->use_get_power_for_reset_history = true;
 
 	return 0;
 }
@@ -735,6 +739,11 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	int rc;
 
 	if (hdev->asic_prop.fw_security_enabled) {
+		struct goya_device *goya = hdev->asic_specific;
+
+		if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
+			return;
+
 		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GOYA_PCI_PLL,
 				pll_freq_arr);
 
@@ -778,9 +787,59 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	prop->psoc_pci_pll_div_factor = div_fctr;
 }
 
+/*
+ * goya_set_frequency - set the frequency of the device
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @freq: the new frequency value
+ *
+ * Change the frequency if needed. This function has no protection against
+ * concurrency, therefore it is assumed that the calling function has protected
+ * itself against the case of calling this function from multiple threads with
+ * different values
+ *
+ * Returns 0 if no change was done, otherwise returns 1
+ */
+int goya_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	if ((goya->pm_mng_profile == PM_MANUAL) ||
+			(goya->curr_pll_profile == freq))
+		return 0;
+
+	dev_dbg(hdev->dev, "Changing device frequency to %s\n",
+		freq == PLL_HIGH ? "high" : "low");
+
+	goya_set_pll_profile(hdev, freq);
+
+	goya->curr_pll_profile = freq;
+
+	return 1;
+}
+
+static void goya_set_freq_to_low_job(struct work_struct *work)
+{
+	struct goya_work_freq *goya_work = container_of(work,
+						struct goya_work_freq,
+						work_freq.work);
+	struct hl_device *hdev = goya_work->hdev;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (!hdev->is_compute_ctx_active)
+		goya_set_frequency(hdev, PLL_LOW);
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	schedule_delayed_work(&goya_work->work_freq,
+			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+}
+
 int goya_late_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
 	int rc;
 
 	goya_fetch_psoc_frequency(hdev);
@@ -829,6 +888,16 @@ int goya_late_init(struct hl_device *hdev)
 		return rc;
 	}
 
+	/* force setting to low frequency */
+	goya->curr_pll_profile = PLL_LOW;
+
+	goya->pm_mng_profile = PM_AUTO;
+
+	hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
+
+	schedule_delayed_work(&goya->goya_work->work_freq,
+		usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+
 	return 0;
 }
 
@@ -842,7 +911,10 @@ int goya_late_init(struct hl_device *hdev)
 void goya_late_fini(struct hl_device *hdev)
 {
 	const struct hwmon_channel_info **channel_info_arr;
+	struct goya_device *goya = hdev->asic_specific;
 	int i = 0;
+
+	cancel_delayed_work_sync(&goya->goya_work->work_freq);
 
 	if (!hdev->hl_chip_info->info)
 		return;
@@ -961,11 +1033,20 @@ static int goya_sw_init(struct hl_device *hdev)
 
 	spin_lock_init(&goya->hw_queues_lock);
 	hdev->supports_coresight = true;
-	hdev->supports_soft_reset = true;
-	hdev->allow_inference_soft_reset = true;
+	hdev->asic_prop.supports_soft_reset = true;
+	hdev->asic_prop.allow_inference_soft_reset = true;
 	hdev->supports_wait_for_multi_cs = false;
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
+
+	goya->goya_work = kmalloc(sizeof(struct goya_work_freq), GFP_KERNEL);
+	if (!goya->goya_work) {
+		rc = -ENOMEM;
+		goto free_cpu_accessible_dma_pool;
+	}
+
+	goya->goya_work->hdev = hdev;
+	INIT_DELAYED_WORK(&goya->goya_work->work_freq, goya_set_freq_to_low_job);
 
 	return 0;
 
@@ -1003,6 +1084,7 @@ static int goya_sw_fini(struct hl_device *hdev)
 
 	dma_pool_destroy(hdev->dma_pool);
 
+	kfree(goya->goya_work);
 	kfree(goya);
 
 	return 0;
@@ -2502,7 +2584,7 @@ static void goya_init_firmware_loader(struct hl_device *hdev)
 	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
 
 	/* fill common fields */
-	fw_loader->linux_loaded = false;
+	fw_loader->fw_comp_loaded = FW_TYPE_NONE;
 	fw_loader->boot_fit_img.image_name = GOYA_BOOT_FIT_FILE;
 	fw_loader->linux_img.image_name = GOYA_LINUX_FW_FILE;
 	fw_loader->cpu_timeout = GOYA_CPU_TIMEOUT_USEC;
@@ -2619,7 +2701,7 @@ int goya_mmu_init(struct hl_device *hdev)
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
-					VM_TYPE_USERPTR | VM_TYPE_PHYS_PACK);
+					MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);
@@ -4395,7 +4477,7 @@ static u64 goya_read_pte(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (hdev->hard_reset_pending)
+	if (hdev->reset_info.hard_reset_pending)
 		return U64_MAX;
 
 	return readq(hdev->pcie_bar[DDR_BAR_ID] +
@@ -4406,7 +4488,7 @@ static void goya_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (hdev->hard_reset_pending)
+	if (hdev->reset_info.hard_reset_pending)
 		return;
 
 	writeq(val, hdev->pcie_bar[DDR_BAR_ID] +
@@ -4731,7 +4813,7 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 	return rc;
 }
 
-static int goya_soft_reset_late_init(struct hl_device *hdev)
+static int goya_non_hard_reset_late_init(struct hl_device *hdev)
 {
 	/*
 	 * Unmask all IRQs since some could have been received
@@ -4764,24 +4846,39 @@ static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
 
 static void goya_print_clk_change_info(struct hl_device *hdev, u16 event_type)
 {
+	ktime_t zero_time = ktime_set(0, 0);
+
+	mutex_lock(&hdev->clk_throttling.lock);
+
 	switch (event_type) {
 	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_S:
-		hdev->clk_throttling_reason |= HL_CLK_THROTTLE_POWER;
+		hdev->clk_throttling.current_reason |= HL_CLK_THROTTLE_POWER;
+		hdev->clk_throttling.aggregated_reason |= HL_CLK_THROTTLE_POWER;
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_POWER].start = ktime_get();
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = zero_time;
 		dev_info_ratelimited(hdev->dev,
 			"Clock throttling due to power consumption\n");
 		break;
+
 	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_E:
-		hdev->clk_throttling_reason &= ~HL_CLK_THROTTLE_POWER;
+		hdev->clk_throttling.current_reason &= ~HL_CLK_THROTTLE_POWER;
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = ktime_get();
 		dev_info_ratelimited(hdev->dev,
 			"Power envelop is safe, back to optimal clock\n");
 		break;
+
 	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_S:
-		hdev->clk_throttling_reason |= HL_CLK_THROTTLE_THERMAL;
+		hdev->clk_throttling.current_reason |= HL_CLK_THROTTLE_THERMAL;
+		hdev->clk_throttling.aggregated_reason |= HL_CLK_THROTTLE_THERMAL;
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].start = ktime_get();
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = zero_time;
 		dev_info_ratelimited(hdev->dev,
 			"Clock throttling due to overheating\n");
 		break;
+
 	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
-		hdev->clk_throttling_reason &= ~HL_CLK_THROTTLE_THERMAL;
+		hdev->clk_throttling.current_reason &= ~HL_CLK_THROTTLE_THERMAL;
+		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = ktime_get();
 		dev_info_ratelimited(hdev->dev,
 			"Thermal envelop is safe, back to optimal clock\n");
 		break;
@@ -4791,6 +4888,8 @@ static void goya_print_clk_change_info(struct hl_device *hdev, u16 event_type)
 			event_type);
 		break;
 	}
+
+	mutex_unlock(&hdev->clk_throttling.lock);
 }
 
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
@@ -4834,14 +4933,14 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
 		goya_print_irq_info(hdev, event_type, false);
 		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, (HL_RESET_HARD |
-						HL_RESET_FW_FATAL_ERR));
+			hl_device_reset(hdev, (HL_DRV_RESET_HARD |
+						HL_DRV_RESET_FW_FATAL_ERR));
 		break;
 
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
 		goya_print_irq_info(hdev, event_type, false);
 		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, HL_RESET_HARD);
+			hl_device_reset(hdev, HL_DRV_RESET_HARD);
 		break;
 
 	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
@@ -4901,7 +5000,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 		goya_print_irq_info(hdev, event_type, false);
 		goya_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
 		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, HL_RESET_HARD);
+			hl_device_reset(hdev, HL_DRV_RESET_HARD);
 		else
 			hl_fw_unmask_irq(hdev, event_type);
 		break;
@@ -5209,7 +5308,7 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	int rc;
 
 	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
-		hdev->hard_reset_pending)
+		hdev->reset_info.hard_reset_pending)
 		return 0;
 
 	/* no need in L1 only invalidation in Goya */
@@ -5231,12 +5330,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		!status,
 		1000,
 		timeout_usec);
-
-	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, HL_RESET_HARD);
-	}
 
 	return rc;
 }
@@ -5645,7 +5738,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.disable_clock_gating = goya_disable_clock_gating,
 	.debug_coresight = goya_debug_coresight,
 	.is_device_idle = goya_is_device_idle,
-	.soft_reset_late_init = goya_soft_reset_late_init,
+	.non_hard_reset_late_init = goya_non_hard_reset_late_init,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,
 	.get_pci_id = goya_get_pci_id,

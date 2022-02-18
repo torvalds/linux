@@ -1517,7 +1517,7 @@ EXPORT_SYMBOL_GPL(xt_unregister_table);
 #ifdef CONFIG_PROC_FS
 static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	u8 af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u8 af = (unsigned long)pde_data(file_inode(seq->file));
 	struct net *net = seq_file_net(seq);
 	struct xt_pernet *xt_net;
 
@@ -1529,7 +1529,7 @@ static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	u8 af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u8 af = (unsigned long)pde_data(file_inode(seq->file));
 	struct net *net = seq_file_net(seq);
 	struct xt_pernet *xt_net;
 
@@ -1540,7 +1540,7 @@ static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void xt_table_seq_stop(struct seq_file *seq, void *v)
 {
-	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u_int8_t af = (unsigned long)pde_data(file_inode(seq->file));
 
 	mutex_unlock(&xt[af].mutex);
 }
@@ -1584,7 +1584,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
 		[MTTG_TRAV_NFP_UNSPEC] = MTTG_TRAV_NFP_SPEC,
 		[MTTG_TRAV_NFP_SPEC]   = MTTG_TRAV_DONE,
 	};
-	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
+	uint8_t nfproto = (unsigned long)pde_data(file_inode(seq->file));
 	struct nf_mttg_trav *trav = seq->private;
 
 	if (ppos != NULL)
@@ -1633,7 +1633,7 @@ static void *xt_mttg_seq_start(struct seq_file *seq, loff_t *pos,
 
 static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
 {
-	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
+	uint8_t nfproto = (unsigned long)pde_data(file_inode(seq->file));
 	struct nf_mttg_trav *trav = seq->private;
 
 	switch (trav->class) {

@@ -19,8 +19,8 @@
 	#size-cells = <2>;
 
 	aliases {
-		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
-		sdhc2 = &sdhc_2; /* SDC2 SD card slot */
+		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
+		mmc1 = &sdhc_2; /* SDC2 SD card slot */
 	};
 
 	chosen { };
@@ -451,6 +451,11 @@
 		rpm_msg_ram: sram@60000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00060000 0x8000>;
+		};
+
+		sram@290000 {
+			compatible = "qcom,msm8916-rpm-stats";
+			reg = <0x00290000 0x10000>;
 		};
 
 		bimc: interconnect@400000 {

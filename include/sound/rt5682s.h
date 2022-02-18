@@ -40,6 +40,7 @@ struct rt5682s_platform_data {
 	enum rt5682s_jd_src jd_src;
 	unsigned int dmic_clk_rate;
 	unsigned int dmic_delay;
+	unsigned int amic_delay;
 	bool dmic_clk_driving_high;
 
 	const char *dai_clk_names[RT5682S_DAI_NUM_CLKS];

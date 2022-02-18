@@ -469,7 +469,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 			if (amdgpu_connector->use_digital &&
 			    (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE))
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else if (amdgpu_connector->use_digital)
@@ -488,7 +488,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		if (amdgpu_audio != 0) {
 			if (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else
@@ -506,7 +506,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		} else if (amdgpu_audio != 0) {
 			if (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else

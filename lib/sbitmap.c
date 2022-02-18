@@ -457,10 +457,9 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_init_node);
 
-static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
-					    unsigned int depth)
+static inline void __sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
+					    unsigned int wake_batch)
 {
-	unsigned int wake_batch = sbq_calc_wake_batch(sbq, depth);
 	int i;
 
 	if (sbq->wake_batch != wake_batch) {
@@ -475,6 +474,30 @@ static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
 			atomic_set(&sbq->ws[i].wait_cnt, 1);
 	}
 }
+
+static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
+					    unsigned int depth)
+{
+	unsigned int wake_batch;
+
+	wake_batch = sbq_calc_wake_batch(sbq, depth);
+	__sbitmap_queue_update_wake_batch(sbq, wake_batch);
+}
+
+void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
+					    unsigned int users)
+{
+	unsigned int wake_batch;
+	unsigned int min_batch;
+	unsigned int depth = (sbq->sb.depth + users - 1) / users;
+
+	min_batch = sbq->sb.depth >= (4 * SBQ_WAIT_QUEUES) ? 4 : 1;
+
+	wake_batch = clamp_val(depth / SBQ_WAIT_QUEUES,
+			min_batch, SBQ_WAKE_BATCH);
+	__sbitmap_queue_update_wake_batch(sbq, wake_batch);
+}
+EXPORT_SYMBOL_GPL(sbitmap_queue_recalculate_wake_batch);
 
 void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth)
 {

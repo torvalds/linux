@@ -6,6 +6,7 @@
  * Author: Colin Cross <ccross@android.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -245,7 +246,7 @@ struct tegra_i2c_hw_feature {
  * @msg_buf: pointer to current message data
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: indicates that the transfer is a read access
- * @bus_clk_rate: current I2C bus clock rate
+ * @timings: i2c timings information like bus frequency
  * @multimaster_mode: indicates that I2C controller is in multi-master mode
  * @tx_dma_chan: DMA transmit channel
  * @rx_dma_chan: DMA receive channel
@@ -272,7 +273,7 @@ struct tegra_i2c_dev {
 	unsigned int nclocks;
 
 	struct clk *div_clk;
-	u32 bus_clk_rate;
+	struct i2c_timings timings;
 
 	struct completion msg_complete;
 	size_t msg_buf_remaining;
@@ -608,6 +609,8 @@ static int tegra_i2c_wait_for_config_load(struct tegra_i2c_dev *i2c_dev)
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val, clk_divisor, clk_multiplier, tsu_thd, tlow, thigh, non_hs_mode;
+	acpi_handle handle = ACPI_HANDLE(i2c_dev->dev);
+	struct i2c_timings *t = &i2c_dev->timings;
 	int err;
 
 	/*
@@ -618,7 +621,11 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	 * emit a noisy warning on error, which won't stay unnoticed and
 	 * won't hose machine entirely.
 	 */
-	err = reset_control_reset(i2c_dev->rst);
+	if (handle)
+		err = acpi_evaluate_object(handle, "_RST", NULL, NULL);
+	else
+		err = reset_control_reset(i2c_dev->rst);
+
 	WARN_ON_ONCE(err);
 
 	if (i2c_dev->is_dvc)
@@ -636,14 +643,14 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	if (i2c_dev->is_vi)
 		tegra_i2c_vi_init(i2c_dev);
 
-	switch (i2c_dev->bus_clk_rate) {
+	switch (t->bus_freq_hz) {
 	case I2C_MAX_STANDARD_MODE_FREQ + 1 ... I2C_MAX_FAST_MODE_PLUS_FREQ:
 	default:
 		tlow = i2c_dev->hw->tlow_fast_fastplus_mode;
 		thigh = i2c_dev->hw->thigh_fast_fastplus_mode;
 		tsu_thd = i2c_dev->hw->setup_hold_time_fast_fast_plus_mode;
 
-		if (i2c_dev->bus_clk_rate > I2C_MAX_FAST_MODE_FREQ)
+		if (t->bus_freq_hz > I2C_MAX_FAST_MODE_FREQ)
 			non_hs_mode = i2c_dev->hw->clk_divisor_fast_plus_mode;
 		else
 			non_hs_mode = i2c_dev->hw->clk_divisor_fast_mode;
@@ -679,7 +686,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	clk_multiplier = (tlow + thigh + 2) * (non_hs_mode + 1);
 
 	err = clk_set_rate(i2c_dev->div_clk,
-			   i2c_dev->bus_clk_rate * clk_multiplier);
+			   t->bus_freq_hz * clk_multiplier);
 	if (err) {
 		dev_err(i2c_dev->dev, "failed to set div-clk rate: %d\n", err);
 		return err;
@@ -718,7 +725,7 @@ static int tegra_i2c_disable_packet_mode(struct tegra_i2c_dev *i2c_dev)
 	 * before disabling the controller so that the STOP condition has
 	 * been delivered properly.
 	 */
-	udelay(DIV_ROUND_UP(2 * 1000000, i2c_dev->bus_clk_rate));
+	udelay(DIV_ROUND_UP(2 * 1000000, i2c_dev->timings.bus_freq_hz));
 
 	cnfg = i2c_readl(i2c_dev, I2C_CNFG);
 	if (cnfg & I2C_CNFG_PACKET_MODE_EN)
@@ -1248,7 +1255,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	 * Total bits = 9 bits per byte (including ACK bit) + Start & stop bits
 	 */
 	xfer_time += DIV_ROUND_CLOSEST(((xfer_size * 9) + 2) * MSEC_PER_SEC,
-				       i2c_dev->bus_clk_rate);
+				       i2c_dev->timings.bus_freq_hz);
 
 	int_mask = I2C_INT_NO_ACK | I2C_INT_ARBITRATION_LOST;
 	tegra_i2c_unmask_irq(i2c_dev, int_mask);
@@ -1625,14 +1632,10 @@ static void tegra_i2c_parse_dt(struct tegra_i2c_dev *i2c_dev)
 {
 	struct device_node *np = i2c_dev->dev->of_node;
 	bool multi_mode;
-	int err;
 
-	err = of_property_read_u32(np, "clock-frequency",
-				   &i2c_dev->bus_clk_rate);
-	if (err)
-		i2c_dev->bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
+	i2c_parse_fw_timings(i2c_dev->dev, &i2c_dev->timings, true);
 
-	multi_mode = of_property_read_bool(np, "multi-master");
+	multi_mode = device_property_read_bool(i2c_dev->dev, "multi-master");
 	i2c_dev->multimaster_mode = multi_mode;
 
 	if (of_device_is_compatible(np, "nvidia,tegra20-i2c-dvc"))
@@ -1642,9 +1645,25 @@ static void tegra_i2c_parse_dt(struct tegra_i2c_dev *i2c_dev)
 		i2c_dev->is_vi = true;
 }
 
+static int tegra_i2c_init_reset(struct tegra_i2c_dev *i2c_dev)
+{
+	if (ACPI_HANDLE(i2c_dev->dev))
+		return 0;
+
+	i2c_dev->rst = devm_reset_control_get_exclusive(i2c_dev->dev, "i2c");
+	if (IS_ERR(i2c_dev->rst))
+		return dev_err_probe(i2c_dev->dev, PTR_ERR(i2c_dev->rst),
+				      "failed to get reset control\n");
+
+	return 0;
+}
+
 static int tegra_i2c_init_clocks(struct tegra_i2c_dev *i2c_dev)
 {
 	int err;
+
+	if (ACPI_HANDLE(i2c_dev->dev))
+		return 0;
 
 	i2c_dev->clocks[i2c_dev->nclocks++].id = "div-clk";
 
@@ -1720,7 +1739,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	init_completion(&i2c_dev->msg_complete);
 	init_completion(&i2c_dev->dma_complete);
 
-	i2c_dev->hw = of_device_get_match_data(&pdev->dev);
+	i2c_dev->hw = device_get_match_data(&pdev->dev);
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
 
@@ -1746,14 +1765,11 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	i2c_dev->rst = devm_reset_control_get_exclusive(i2c_dev->dev, "i2c");
-	if (IS_ERR(i2c_dev->rst)) {
-		dev_err_probe(i2c_dev->dev, PTR_ERR(i2c_dev->rst),
-			      "failed to get reset control\n");
-		return PTR_ERR(i2c_dev->rst);
-	}
-
 	tegra_i2c_parse_dt(i2c_dev);
+
+	err = tegra_i2c_init_reset(i2c_dev);
+	if (err)
+		return err;
 
 	err = tegra_i2c_init_clocks(i2c_dev);
 	if (err)
@@ -1923,12 +1939,21 @@ static const struct dev_pm_ops tegra_i2c_pm = {
 			   NULL)
 };
 
+static const struct acpi_device_id tegra_i2c_acpi_match[] = {
+	{.id = "NVDA0101", .driver_data = (kernel_ulong_t)&tegra210_i2c_hw},
+	{.id = "NVDA0201", .driver_data = (kernel_ulong_t)&tegra186_i2c_hw},
+	{.id = "NVDA0301", .driver_data = (kernel_ulong_t)&tegra194_i2c_hw},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, tegra_i2c_acpi_match);
+
 static struct platform_driver tegra_i2c_driver = {
 	.probe = tegra_i2c_probe,
 	.remove = tegra_i2c_remove,
 	.driver = {
 		.name = "tegra-i2c",
 		.of_match_table = tegra_i2c_of_match,
+		.acpi_match_table = tegra_i2c_acpi_match,
 		.pm = &tegra_i2c_pm,
 	},
 };

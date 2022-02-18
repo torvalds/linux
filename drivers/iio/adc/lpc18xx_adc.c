@@ -157,9 +157,6 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(adc->clk),
 				     "error getting clock\n");
 
-	rate = clk_get_rate(adc->clk);
-	clkdiv = DIV_ROUND_UP(rate, LPC18XX_ADC_CLK_TARGET);
-
 	adc->vref = devm_regulator_get(&pdev->dev, "vref");
 	if (IS_ERR(adc->vref))
 		return dev_err_probe(&pdev->dev, PTR_ERR(adc->vref),
@@ -191,6 +188,9 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 				       adc->clk);
 	if (ret)
 		return ret;
+
+	rate = clk_get_rate(adc->clk);
+	clkdiv = DIV_ROUND_UP(rate, LPC18XX_ADC_CLK_TARGET);
 
 	adc->cr_reg = (clkdiv << LPC18XX_ADC_CR_CLKDIV_SHIFT) |
 			LPC18XX_ADC_CR_PDN;

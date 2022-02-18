@@ -178,7 +178,7 @@ do_transfer()
 
 	timeout ${timeout_test} \
 		ip netns exec ${listener_ns} \
-			$mptcp_connect -t ${timeout_poll} -l -M 1 -p $port -s ${srv_proto} -c TIMESTAMPNS \
+			$mptcp_connect -t ${timeout_poll} -l -M 1 -p $port -s ${srv_proto} -c TIMESTAMPNS,TCPINQ \
 				${local_addr} < "$sin" > "$sout" &
 	spid=$!
 
@@ -186,7 +186,7 @@ do_transfer()
 
 	timeout ${timeout_test} \
 		ip netns exec ${connector_ns} \
-			$mptcp_connect -t ${timeout_poll} -M 2 -p $port -s ${cl_proto} -c TIMESTAMPNS \
+			$mptcp_connect -t ${timeout_poll} -M 2 -p $port -s ${cl_proto} -c TIMESTAMPNS,TCPINQ \
 				$connect_addr < "$cin" > "$cout" &
 
 	cpid=$!
@@ -279,6 +279,45 @@ run_tests()
 	fi
 }
 
+do_tcpinq_test()
+{
+	ip netns exec "$ns1" ./mptcp_inq "$@"
+	lret=$?
+	if [ $lret -ne 0 ];then
+		ret=$lret
+		echo "FAIL: mptcp_inq $@" 1>&2
+		return $lret
+	fi
+
+	echo "PASS: TCP_INQ cmsg/ioctl $@"
+	return $lret
+}
+
+do_tcpinq_tests()
+{
+	local lret=0
+
+	ip netns exec "$ns1" iptables -F
+	ip netns exec "$ns1" ip6tables -F
+
+	for args in "-t tcp" "-r tcp"; do
+		do_tcpinq_test $args
+		lret=$?
+		if [ $lret -ne 0 ] ; then
+			return $lret
+		fi
+		do_tcpinq_test -6 $args
+		lret=$?
+		if [ $lret -ne 0 ] ; then
+			return $lret
+		fi
+	done
+
+	do_tcpinq_test -r tcp -t tcp
+
+	return $?
+}
+
 sin=$(mktemp)
 sout=$(mktemp)
 cin=$(mktemp)
@@ -300,4 +339,5 @@ if [ $ret -eq 0 ];then
 	echo "PASS: SOL_MPTCP getsockopt has expected information"
 fi
 
+do_tcpinq_tests
 exit $ret

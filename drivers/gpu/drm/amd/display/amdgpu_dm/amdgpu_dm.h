@@ -50,9 +50,9 @@
 
 #define AMDGPU_DMUB_NOTIFICATION_MAX 5
 
-/**
+/*
  * DMUB Async to Sync Mechanism Status
- **/
+ */
 #define DMUB_ASYNC_TO_SYNC_ACCESS_FAIL 1
 #define DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT 2
 #define DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS 3
@@ -626,6 +626,8 @@ struct dm_crtc_state {
 	bool cm_has_degamma;
 	bool cm_is_degamma_srgb;
 
+	bool mpo_requested;
+
 	int update_type;
 	int active_planes;
 
@@ -731,4 +733,7 @@ extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux,
 					struct dc_context *ctx, unsigned int link_index,
 					void *payload, void *operation_result);
+
+bool check_seamless_boot_capability(struct amdgpu_device *adev);
+
 #endif /* __AMDGPU_DM_H__ */

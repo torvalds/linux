@@ -282,7 +282,10 @@ static int softing_handle_1(struct softing *card)
 			skb = priv->can.echo_skb[priv->tx.echo_get];
 			if (skb)
 				skb->tstamp = ktime;
-			can_get_echo_skb(netdev, priv->tx.echo_get, NULL);
+			++netdev->stats.tx_packets;
+			netdev->stats.tx_bytes +=
+				can_get_echo_skb(netdev, priv->tx.echo_get,
+						 NULL);
 			++priv->tx.echo_get;
 			if (priv->tx.echo_get >= TX_ECHO_SKB_MAX)
 				priv->tx.echo_get = 0;
@@ -290,9 +293,6 @@ static int softing_handle_1(struct softing *card)
 				--priv->tx.pending;
 			if (card->tx.pending)
 				--card->tx.pending;
-			++netdev->stats.tx_packets;
-			if (!(msg.can_id & CAN_RTR_FLAG))
-				netdev->stats.tx_bytes += msg.len;
 		} else {
 			int ret;
 

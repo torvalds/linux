@@ -68,7 +68,7 @@ config SND_SOC_AMD_VANGOGH_MACH
 	tristate "AMD Vangogh support for NAU8821 CS35L41"
 	select SND_SOC_NAU8821
 	select SND_SOC_CS35L41_SPI
-	depends on SND_SOC_AMD_ACP5x && I2C
+	depends on SND_SOC_AMD_ACP5x && I2C && SPI_MASTER
 	help
 	  This option enables machine driver for Vangogh platform
 	  using NAU8821 and CS35L41 codecs.
@@ -95,5 +95,12 @@ config SND_SOC_AMD_YC_MACH
 	  DMIC can be connected directly to ACP IP.
 	  Say m if you have such a device.
 	  If unsure select "N".
+
+config SND_AMD_ACP_CONFIG
+	tristate "AMD ACP configuration selection"
+	select SND_SOC_ACPI if ACPI
+	help
+	 This option adds an auto detection to determine which ACP
+	 driver modules to use
 
 source "sound/soc/amd/acp/Kconfig"

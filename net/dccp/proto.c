@@ -238,17 +238,6 @@ void dccp_destroy_sock(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_destroy_sock);
 
-static inline int dccp_listen_start(struct sock *sk, int backlog)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	dp->dccps_role = DCCP_ROLE_LISTEN;
-	/* do not start to listen if feature negotiation setup fails */
-	if (dccp_feat_finalise_settings(dp))
-		return -EPROTO;
-	return inet_csk_listen_start(sk, backlog);
-}
-
 static inline int dccp_need_reset(int state)
 {
 	return state != DCCP_CLOSED && state != DCCP_LISTEN &&
@@ -931,11 +920,17 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != DCCP_LISTEN) {
-		/*
-		 * FIXME: here it probably should be sk->sk_prot->listen_start
-		 * see tcp_listen_start
-		 */
-		err = dccp_listen_start(sk, backlog);
+		struct dccp_sock *dp = dccp_sk(sk);
+
+		dp->dccps_role = DCCP_ROLE_LISTEN;
+
+		/* do not start to listen if feature negotiation setup fails */
+		if (dccp_feat_finalise_settings(dp)) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		err = inet_csk_listen_start(sk);
 		if (err)
 			goto out;
 	}

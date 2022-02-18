@@ -427,7 +427,7 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
  * Allocates a local channel id and sends a RPM_CMD_OPEN message to the remote.
  * Will return with refcount held, regardless of outcome.
  *
- * Returns 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative errno otherwise.
  */
 static int qcom_glink_send_open_req(struct qcom_glink *glink,
 				    struct glink_channel *channel)

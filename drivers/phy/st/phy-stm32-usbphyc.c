@@ -304,7 +304,7 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 
 		ret = __stm32_usbphyc_pll_disable(usbphyc);
 		if (ret)
-			return ret;
+			goto dec_n_pll_cons;
 	}
 
 	ret = stm32_usbphyc_regulators_enable(usbphyc);
@@ -672,17 +672,15 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 
 	usbphyc->vdda1v1 = devm_regulator_get(dev, "vdda1v1");
 	if (IS_ERR(usbphyc->vdda1v1)) {
-		ret = PTR_ERR(usbphyc->vdda1v1);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vdda1v1 supply: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(usbphyc->vdda1v1),
+				    "failed to get vdda1v1 supply\n");
 		goto clk_disable;
 	}
 
 	usbphyc->vdda1v8 = devm_regulator_get(dev, "vdda1v8");
 	if (IS_ERR(usbphyc->vdda1v8)) {
-		ret = PTR_ERR(usbphyc->vdda1v8);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vdda1v8 supply: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(usbphyc->vdda1v8),
+				    "failed to get vdda1v8 supply\n");
 		goto clk_disable;
 	}
 

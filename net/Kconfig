@@ -455,4 +455,9 @@ config ETHTOOL_NETLINK
 	  netlink. It provides better extensibility and some new features,
 	  e.g. notification messages.
 
+config NETDEV_ADDR_LIST_TEST
+	tristate "Unit tests for device address list"
+	default KUNIT_ALL_TESTS
+	depends on KUNIT
+
 endif   # if NET

@@ -241,11 +241,12 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 
 	/*
 	 * SDMMC_FBCK is selected when an external Delay Block is needed
-	 * with SDR104.
+	 * with SDR104 or HS200.
 	 */
 	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50) {
 		clk |= MCI_STM32_CLK_BUSSPEED;
-		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) {
+		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
+		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
 			clk &= ~MCI_STM32_CLK_SEL_MSK;
 			clk |= MCI_STM32_CLK_SELFBCK;
 		}

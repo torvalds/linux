@@ -53,20 +53,27 @@ static struct virtio_pci_modern_device *vdpa_to_mdev(struct vdpa_device *vdpa)
 	return &vp_vdpa->mdev;
 }
 
-static u64 vp_vdpa_get_features(struct vdpa_device *vdpa)
+static u64 vp_vdpa_get_device_features(struct vdpa_device *vdpa)
 {
 	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
 
 	return vp_modern_get_features(mdev);
 }
 
-static int vp_vdpa_set_features(struct vdpa_device *vdpa, u64 features)
+static int vp_vdpa_set_driver_features(struct vdpa_device *vdpa, u64 features)
 {
 	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
 
 	vp_modern_set_features(mdev, features);
 
 	return 0;
+}
+
+static u64 vp_vdpa_get_driver_features(struct vdpa_device *vdpa)
+{
+	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
+
+	return vp_modern_get_driver_features(mdev);
 }
 
 static u8 vp_vdpa_get_status(struct vdpa_device *vdpa)
@@ -415,8 +422,9 @@ vp_vdpa_get_vq_notification(struct vdpa_device *vdpa, u16 qid)
 }
 
 static const struct vdpa_config_ops vp_vdpa_ops = {
-	.get_features	= vp_vdpa_get_features,
-	.set_features	= vp_vdpa_set_features,
+	.get_device_features = vp_vdpa_get_device_features,
+	.set_driver_features = vp_vdpa_set_driver_features,
+	.get_driver_features = vp_vdpa_get_driver_features,
 	.get_status	= vp_vdpa_get_status,
 	.set_status	= vp_vdpa_set_status,
 	.reset		= vp_vdpa_reset,

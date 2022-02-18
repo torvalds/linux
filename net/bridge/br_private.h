@@ -346,6 +346,7 @@ struct net_bridge_mdb_entry {
 struct net_bridge_port {
 	struct net_bridge		*br;
 	struct net_device		*dev;
+	netdevice_tracker		dev_tracker;
 	struct list_head		list;
 
 	unsigned long			flags;

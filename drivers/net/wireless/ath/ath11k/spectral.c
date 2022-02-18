@@ -581,6 +581,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	u16 length, freq;
 	u8 chan_width_mhz, bin_sz;
 	int ret;
+	u32 check_length;
 
 	lockdep_assert_held(&ar->spectral.lock);
 
@@ -612,6 +613,13 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	    !is_power_of_2(num_bins)) {
 		ath11k_warn(ab, "Invalid num of bins %d\n", num_bins);
 		return -EINVAL;
+	}
+
+	check_length = sizeof(*fft_report) + (num_bins * ab->hw_params.spectral.fft_sz);
+	ret = ath11k_dbring_validate_buffer(ar, data, check_length);
+	if (ret) {
+		ath11k_warn(ar->ab, "found magic value in fft data, dropping\n");
+		return ret;
 	}
 
 	ret = ath11k_spectral_pull_search(ar, data, &search);
@@ -744,6 +752,12 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 				ath11k_warn(ab, "failed to parse spectral summary at bytes %d tlv_len:%d\n",
 					    i, tlv_len);
 				ret = -EINVAL;
+				goto err;
+			}
+
+			ret = ath11k_dbring_validate_buffer(ar, data, tlv_len);
+			if (ret) {
+				ath11k_warn(ar->ab, "found magic value in spectral summary, dropping\n");
 				goto err;
 			}
 

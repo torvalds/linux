@@ -450,7 +450,7 @@ static void virtio_gpio_request_vq(struct virtqueue *vq)
 
 static void virtio_gpio_free_vqs(struct virtio_device *vdev)
 {
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 }
 

@@ -193,7 +193,7 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	struct xgene_ahci_context *ctx = hpriv->plat_data;
 	int rc = 0;
 	u32 port_fbs;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 
 	/*
 	 * Write the pmp value to PxFBS.DEV
@@ -237,7 +237,7 @@ static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
  * does not support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
-				       struct ata_taskfile *tf, u16 *id)
+				       struct ata_taskfile *tf, __le16 *id)
 {
 	u32 err_mask;
 
@@ -454,7 +454,7 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 	int pmp = sata_srst_pmp(link);
 	struct ata_port *ap = link->ap;
 	u32 rc;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 
 	/*
@@ -499,7 +499,7 @@ static int xgene_ahci_softreset(struct ata_link *link, unsigned int *class,
 	struct ata_port *ap = link->ap;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct xgene_ahci_context *ctx = hpriv->plat_data;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 	u32 port_fbs_save;
 	u32 retry = 1;
@@ -588,8 +588,6 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 	void __iomem *mmio;
 	u32 irq_stat, irq_masked;
 
-	VPRINTK("ENTER\n");
-
 	hpriv = host->private_data;
 	mmio = hpriv->mmio;
 
@@ -611,8 +609,6 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 	rc = xgene_ahci_handle_broken_edge_irq(host, irq_masked);
 
 	spin_unlock(&host->lock);
-
-	VPRINTK("EXIT\n");
 
 	return IRQ_RETVAL(rc);
 }

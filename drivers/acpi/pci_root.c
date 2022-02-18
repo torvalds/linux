@@ -67,11 +67,10 @@ static struct acpi_scan_handler pci_root_handler = {
  */
 int acpi_is_root_bridge(acpi_handle handle)
 {
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	int ret;
-	struct acpi_device *device;
 
-	ret = acpi_bus_get_device(handle, &device);
-	if (ret)
+	if (!device)
 		return 0;
 
 	ret = acpi_match_device_ids(device, root_device_ids);
@@ -215,11 +214,10 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 {
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_pci_root *root;
-	struct acpi_device *device;
 
-	if (acpi_bus_get_device(handle, &device) ||
-	    acpi_match_device_ids(device, root_device_ids))
+	if (!device || acpi_match_device_ids(device, root_device_ids))
 		return NULL;
 
 	root = acpi_driver_data(device);
@@ -324,7 +322,7 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * acpi_pci_osc_control_set - Request control of PCI root _OSC features.
  * @handle: ACPI handle of a PCI root bridge (or PCIe Root Complex).
  * @mask: Mask of _OSC bits to request control of, place to store control mask.
- * @req: Mask of _OSC bits the control of is essential to the caller.
+ * @support: _OSC supported capability.
  *
  * Run _OSC query for @mask and if that is successful, compare the returned
  * mask of control bits with @req.  If all of the @req bits are set in the

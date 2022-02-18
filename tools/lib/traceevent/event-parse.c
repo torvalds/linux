@@ -1367,6 +1367,14 @@ static int field_is_dynamic(struct tep_format_field *field)
 	return 0;
 }
 
+static int field_is_relative_dynamic(struct tep_format_field *field)
+{
+	if (strncmp(field->type, "__rel_loc", 9) == 0)
+		return 1;
+
+	return 0;
+}
+
 static int field_is_long(struct tep_format_field *field)
 {
 	/* includes long long */
@@ -1622,6 +1630,8 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 			field->flags |= TEP_FIELD_IS_STRING;
 		if (field_is_dynamic(field))
 			field->flags |= TEP_FIELD_IS_DYNAMIC;
+		if (field_is_relative_dynamic(field))
+			field->flags |= TEP_FIELD_IS_DYNAMIC | TEP_FIELD_IS_RELATIVE;
 		if (field_is_long(field))
 			field->flags |= TEP_FIELD_IS_LONG;
 
@@ -2928,7 +2938,7 @@ process_str(struct tep_event *event __maybe_unused, struct tep_print_arg *arg,
 
 	arg->type = TEP_PRINT_STRING;
 	arg->string.string = token;
-	arg->string.offset = -1;
+	arg->string.field = NULL;
 
 	if (read_expected(TEP_EVENT_DELIM, ")") < 0)
 		goto out_err;
@@ -2957,7 +2967,7 @@ process_bitmask(struct tep_event *event __maybe_unused, struct tep_print_arg *ar
 
 	arg->type = TEP_PRINT_BITMASK;
 	arg->bitmask.bitmask = token;
-	arg->bitmask.offset = -1;
+	arg->bitmask.field = NULL;
 
 	if (read_expected(TEP_EVENT_DELIM, ")") < 0)
 		goto out_err;
@@ -3123,19 +3133,23 @@ process_function(struct tep_event *event, struct tep_print_arg *arg,
 		free_token(token);
 		return process_int_array(event, arg, tok);
 	}
-	if (strcmp(token, "__get_str") == 0) {
+	if (strcmp(token, "__get_str") == 0 ||
+	    strcmp(token, "__get_rel_str") == 0) {
 		free_token(token);
 		return process_str(event, arg, tok);
 	}
-	if (strcmp(token, "__get_bitmask") == 0) {
+	if (strcmp(token, "__get_bitmask") == 0 ||
+	    strcmp(token, "__get_rel_bitmask") == 0) {
 		free_token(token);
 		return process_bitmask(event, arg, tok);
 	}
-	if (strcmp(token, "__get_dynamic_array") == 0) {
+	if (strcmp(token, "__get_dynamic_array") == 0 ||
+	    strcmp(token, "__get_rel_dynamic_array") == 0) {
 		free_token(token);
 		return process_dynamic_array(event, arg, tok);
 	}
-	if (strcmp(token, "__get_dynamic_array_len") == 0) {
+	if (strcmp(token, "__get_dynamic_array_len") == 0 ||
+	    strcmp(token, "__get_rel_dynamic_array_len") == 0) {
 		free_token(token);
 		return process_dynamic_array_len(event, arg, tok);
 	}
@@ -4163,14 +4177,16 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	case TEP_PRINT_STRING: {
 		int str_offset;
 
-		if (arg->string.offset == -1) {
-			struct tep_format_field *f;
+		if (!arg->string.field)
+			arg->string.field = tep_find_any_field(event, arg->string.string);
+		if (!arg->string.field)
+			break;
 
-			f = tep_find_any_field(event, arg->string.string);
-			arg->string.offset = f->offset;
-		}
-		str_offset = data2host4(tep, *(unsigned int *)(data + arg->string.offset));
+		str_offset = data2host4(tep,
+				*(unsigned int *)(data + arg->string.field->offset));
 		str_offset &= 0xffff;
+		if (arg->string.field->flags & TEP_FIELD_IS_RELATIVE)
+			str_offset += arg->string.field->offset + arg->string.field->size;
 		print_str_to_seq(s, format, len_arg, ((char *)data) + str_offset);
 		break;
 	}
@@ -4181,15 +4197,16 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		int bitmask_offset;
 		int bitmask_size;
 
-		if (arg->bitmask.offset == -1) {
-			struct tep_format_field *f;
-
-			f = tep_find_any_field(event, arg->bitmask.bitmask);
-			arg->bitmask.offset = f->offset;
-		}
-		bitmask_offset = data2host4(tep, *(unsigned int *)(data + arg->bitmask.offset));
+		if (!arg->bitmask.field)
+			arg->bitmask.field = tep_find_any_field(event, arg->bitmask.bitmask);
+		if (!arg->bitmask.field)
+			break;
+		bitmask_offset = data2host4(tep,
+				*(unsigned int *)(data + arg->bitmask.field->offset));
 		bitmask_size = bitmask_offset >> 16;
 		bitmask_offset &= 0xffff;
+		if (arg->bitmask.field->flags & TEP_FIELD_IS_RELATIVE)
+			bitmask_offset += arg->bitmask.field->offset + arg->bitmask.field->size;
 		print_bitmask_to_seq(tep, s, format, len_arg,
 				     data + bitmask_offset, bitmask_size);
 		break;
@@ -5109,6 +5126,8 @@ void tep_print_field(struct trace_seq *s, void *data,
 			offset = val;
 			len = offset >> 16;
 			offset &= 0xffff;
+			if (field->flags & TEP_FIELD_IS_RELATIVE)
+				offset += field->offset + field->size;
 		}
 		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {
@@ -6987,6 +7006,8 @@ void *tep_get_field_raw(struct trace_seq *s, struct tep_event *event,
 					 data + offset, field->size);
 		*len = offset >> 16;
 		offset &= 0xffff;
+		if (field->flags & TEP_FIELD_IS_RELATIVE)
+			offset += field->offset + field->size;
 	} else
 		*len = field->size;
 

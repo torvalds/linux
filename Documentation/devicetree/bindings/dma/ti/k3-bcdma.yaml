@@ -30,6 +30,7 @@ description: |
 
 allOf:
   - $ref: /schemas/dma/dma-controller.yaml#
+  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
 properties:
   compatible:

@@ -1108,6 +1108,9 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 			break;
 	}
 
+	if (ii >= RSI_MAX_VIFS)
+		return status;
+
 	mutex_lock(&common->mutex);
 
 	if (ssn != NULL)

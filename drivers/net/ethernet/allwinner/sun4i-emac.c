@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/soc/sunxi/sunxi_sram.h>
+#include <linux/dmaengine.h>
 
 #include "sun4i-emac.h"
 
@@ -76,7 +77,6 @@ struct emac_board_info {
 	void __iomem		*membase;
 	u32			msg_enable;
 	struct net_device	*ndev;
-	struct sk_buff		*skb_last;
 	u16			tx_fifo_stat;
 
 	int			emacrx_completed_flag;
@@ -87,6 +87,16 @@ struct emac_board_info {
 	unsigned int		duplex;
 
 	phy_interface_t		phy_interface;
+	struct dma_chan	*rx_chan;
+	phys_addr_t emac_rx_fifo;
+};
+
+struct emac_dma_req {
+	struct emac_board_info *db;
+	struct dma_async_tx_descriptor *desc;
+	struct sk_buff *skb;
+	dma_addr_t rxbuf;
+	int count;
 };
 
 static void emac_update_speed(struct net_device *dev)
@@ -96,9 +106,9 @@ static void emac_update_speed(struct net_device *dev)
 
 	/* set EMAC SPEED, depend on PHY  */
 	reg_val = readl(db->membase + EMAC_MAC_SUPP_REG);
-	reg_val &= ~(0x1 << 8);
+	reg_val &= ~EMAC_MAC_SUPP_100M;
 	if (db->speed == SPEED_100)
-		reg_val |= 1 << 8;
+		reg_val |= EMAC_MAC_SUPP_100M;
 	writel(reg_val, db->membase + EMAC_MAC_SUPP_REG);
 }
 
@@ -206,6 +216,117 @@ static void emac_inblk_32bit(void __iomem *reg, void *data, int count)
 	readsl(reg, data, round_up(count, 4) / 4);
 }
 
+static struct emac_dma_req *
+emac_alloc_dma_req(struct emac_board_info *db,
+		   struct dma_async_tx_descriptor *desc, struct sk_buff *skb,
+		   dma_addr_t rxbuf, int count)
+{
+	struct emac_dma_req *req;
+
+	req = kzalloc(sizeof(struct emac_dma_req), GFP_ATOMIC);
+	if (!req)
+		return NULL;
+
+	req->db = db;
+	req->desc = desc;
+	req->skb = skb;
+	req->rxbuf = rxbuf;
+	req->count = count;
+	return req;
+}
+
+static void emac_free_dma_req(struct emac_dma_req *req)
+{
+	kfree(req);
+}
+
+static void emac_dma_done_callback(void *arg)
+{
+	struct emac_dma_req *req = arg;
+	struct emac_board_info *db = req->db;
+	struct sk_buff *skb = req->skb;
+	struct net_device *dev = db->ndev;
+	int rxlen = req->count;
+	u32 reg_val;
+
+	dma_unmap_single(db->dev, req->rxbuf, rxlen, DMA_FROM_DEVICE);
+
+	skb->protocol = eth_type_trans(skb, dev);
+	netif_rx(skb);
+	dev->stats.rx_bytes += rxlen;
+	/* Pass to upper layer */
+	dev->stats.rx_packets++;
+
+	/* re enable cpu receive */
+	reg_val = readl(db->membase + EMAC_RX_CTL_REG);
+	reg_val &= ~EMAC_RX_CTL_DMA_EN;
+	writel(reg_val, db->membase + EMAC_RX_CTL_REG);
+
+	/* re enable interrupt */
+	reg_val = readl(db->membase + EMAC_INT_CTL_REG);
+	reg_val |= EMAC_INT_CTL_RX_EN;
+	writel(reg_val, db->membase + EMAC_INT_CTL_REG);
+
+	db->emacrx_completed_flag = 1;
+	emac_free_dma_req(req);
+}
+
+static int emac_dma_inblk_32bit(struct emac_board_info *db,
+		struct sk_buff *skb, void *rdptr, int count)
+{
+	struct dma_async_tx_descriptor *desc;
+	dma_cookie_t cookie;
+	dma_addr_t rxbuf;
+	struct emac_dma_req *req;
+	int ret = 0;
+
+	rxbuf = dma_map_single(db->dev, rdptr, count, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(db->dev, rxbuf);
+	if (ret) {
+		dev_err(db->dev, "dma mapping error.\n");
+		return ret;
+	}
+
+	desc = dmaengine_prep_slave_single(db->rx_chan, rxbuf, count,
+					   DMA_DEV_TO_MEM,
+					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(db->dev, "prepare slave single failed\n");
+		ret = -ENOMEM;
+		goto prepare_err;
+	}
+
+	req = emac_alloc_dma_req(db, desc, skb, rxbuf, count);
+	if (!req) {
+		dev_err(db->dev, "alloc emac dma req error.\n");
+		ret = -ENOMEM;
+		goto alloc_req_err;
+	}
+
+	desc->callback_param = req;
+	desc->callback = emac_dma_done_callback;
+
+	cookie = dmaengine_submit(desc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dev_err(db->dev, "dma submit error.\n");
+		goto submit_err;
+	}
+
+	dma_async_issue_pending(db->rx_chan);
+	return ret;
+
+submit_err:
+	emac_free_dma_req(req);
+
+alloc_req_err:
+	dmaengine_desc_free(desc);
+
+prepare_err:
+	dma_unmap_single(db->dev, rxbuf, count, DMA_FROM_DEVICE);
+	return ret;
+}
+
 /* ethtool ops */
 static void emac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
@@ -308,7 +429,7 @@ static unsigned int emac_powerup(struct net_device *ndev)
 	/* initial EMAC */
 	/* flush RX FIFO */
 	reg_val = readl(db->membase + EMAC_RX_CTL_REG);
-	reg_val |= 0x8;
+	reg_val |= EMAC_RX_CTL_FLUSH_FIFO;
 	writel(reg_val, db->membase + EMAC_RX_CTL_REG);
 	udelay(1);
 
@@ -320,8 +441,8 @@ static unsigned int emac_powerup(struct net_device *ndev)
 
 	/* set MII clock */
 	reg_val = readl(db->membase + EMAC_MAC_MCFG_REG);
-	reg_val &= (~(0xf << 2));
-	reg_val |= (0xD << 2);
+	reg_val &= ~EMAC_MAC_MCFG_MII_CLKD_MASK;
+	reg_val |= EMAC_MAC_MCFG_MII_CLKD_72;
 	writel(reg_val, db->membase + EMAC_MAC_MCFG_REG);
 
 	/* clear RX counter */
@@ -385,7 +506,7 @@ static void emac_init_device(struct net_device *dev)
 
 	/* enable RX/TX0/RX Hlevel interrup */
 	reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-	reg_val |= (0xf << 0) | (0x01 << 8);
+	reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN | EMAC_INT_CTL_RX_EN);
 	writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 	spin_unlock_irqrestore(&db->lock, flags);
@@ -499,7 +620,6 @@ static void emac_rx(struct net_device *dev)
 	struct sk_buff *skb;
 	u8 *rdptr;
 	bool good_packet;
-	static int rxlen_last;
 	unsigned int reg_val;
 	u32 rxhdr, rxstatus, rxcount, rxlen;
 
@@ -514,26 +634,12 @@ static void emac_rx(struct net_device *dev)
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "RXCount: %x\n", rxcount);
 
-		if ((db->skb_last != NULL) && (rxlen_last > 0)) {
-			dev->stats.rx_bytes += rxlen_last;
-
-			/* Pass to upper layer */
-			db->skb_last->protocol = eth_type_trans(db->skb_last,
-								dev);
-			netif_rx(db->skb_last);
-			dev->stats.rx_packets++;
-			db->skb_last = NULL;
-			rxlen_last = 0;
-
-			reg_val = readl(db->membase + EMAC_RX_CTL_REG);
-			reg_val &= ~EMAC_RX_CTL_DMA_EN;
-			writel(reg_val, db->membase + EMAC_RX_CTL_REG);
-		}
-
 		if (!rxcount) {
 			db->emacrx_completed_flag = 1;
 			reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-			reg_val |= (0xf << 0) | (0x01 << 8);
+			reg_val |= (EMAC_INT_CTL_TX_EN |
+					EMAC_INT_CTL_TX_ABRT_EN |
+					EMAC_INT_CTL_RX_EN);
 			writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 			/* had one stuck? */
@@ -565,7 +671,9 @@ static void emac_rx(struct net_device *dev)
 			writel(reg_val | EMAC_CTL_RX_EN,
 			       db->membase + EMAC_CTL_REG);
 			reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-			reg_val |= (0xf << 0) | (0x01 << 8);
+			reg_val |= (EMAC_INT_CTL_TX_EN |
+					EMAC_INT_CTL_TX_ABRT_EN |
+					EMAC_INT_CTL_RX_EN);
 			writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 			db->emacrx_completed_flag = 1;
@@ -623,6 +731,19 @@ static void emac_rx(struct net_device *dev)
 			if (netif_msg_rx_status(db))
 				dev_dbg(db->dev, "RxLen %x\n", rxlen);
 
+			if (rxlen >= dev->mtu && db->rx_chan) {
+				reg_val = readl(db->membase + EMAC_RX_CTL_REG);
+				reg_val |= EMAC_RX_CTL_DMA_EN;
+				writel(reg_val, db->membase + EMAC_RX_CTL_REG);
+				if (!emac_dma_inblk_32bit(db, skb, rdptr, rxlen))
+					break;
+
+				/* re enable cpu receive. then try to receive by emac_inblk_32bit */
+				reg_val = readl(db->membase + EMAC_RX_CTL_REG);
+				reg_val &= ~EMAC_RX_CTL_DMA_EN;
+				writel(reg_val, db->membase + EMAC_RX_CTL_REG);
+			}
+
 			emac_inblk_32bit(db->membase + EMAC_RX_IO_DATA_REG,
 					rdptr, rxlen);
 			dev->stats.rx_bytes += rxlen;
@@ -666,18 +787,23 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 	}
 
 	/* Transmit Interrupt check */
-	if (int_status & (0x01 | 0x02))
+	if (int_status & EMAC_INT_STA_TX_COMPLETE)
 		emac_tx_done(dev, db, int_status);
 
-	if (int_status & (0x04 | 0x08))
+	if (int_status & EMAC_INT_STA_TX_ABRT)
 		netdev_info(dev, " ab : %x\n", int_status);
 
 	/* Re-enable interrupt mask */
 	if (db->emacrx_completed_flag == 1) {
 		reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-		reg_val |= (0xf << 0) | (0x01 << 8);
+		reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN | EMAC_INT_CTL_RX_EN);
+		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
+	} else {
+		reg_val = readl(db->membase + EMAC_INT_CTL_REG);
+		reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN);
 		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 	}
+
 	spin_unlock(&db->lock);
 
 	return IRQ_HANDLED;
@@ -782,6 +908,58 @@ static const struct net_device_ops emac_netdev_ops = {
 #endif
 };
 
+static int emac_configure_dma(struct emac_board_info *db)
+{
+	struct platform_device *pdev = db->pdev;
+	struct net_device *ndev = db->ndev;
+	struct dma_slave_config conf = {};
+	struct resource *regs;
+	int err = 0;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		netdev_err(ndev, "get io resource from device failed.\n");
+		err = -ENOMEM;
+		goto out_clear_chan;
+	}
+
+	netdev_info(ndev, "get io resource from device: %pa, size = %u\n",
+		    &regs->start, (unsigned int)resource_size(regs));
+	db->emac_rx_fifo = regs->start + EMAC_RX_IO_DATA_REG;
+
+	db->rx_chan = dma_request_chan(&pdev->dev, "rx");
+	if (IS_ERR(db->rx_chan)) {
+		netdev_err(ndev,
+			   "failed to request dma channel. dma is disabled\n");
+		err = PTR_ERR(db->rx_chan);
+		goto out_clear_chan;
+	}
+
+	conf.direction = DMA_DEV_TO_MEM;
+	conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	conf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	conf.src_addr = db->emac_rx_fifo;
+	conf.dst_maxburst = 4;
+	conf.src_maxburst = 4;
+	conf.device_fc = false;
+
+	err = dmaengine_slave_config(db->rx_chan, &conf);
+	if (err) {
+		netdev_err(ndev, "config dma slave failed\n");
+		err = -EINVAL;
+		goto out_slave_configure_err;
+	}
+
+	return err;
+
+out_slave_configure_err:
+	dma_release_channel(db->rx_chan);
+
+out_clear_chan:
+	db->rx_chan = NULL;
+	return err;
+}
+
 /* Search EMAC board, allocate space and register it
  */
 static int emac_probe(struct platform_device *pdev)
@@ -823,6 +1001,9 @@ static int emac_probe(struct platform_device *pdev)
 		ret = ndev->irq;
 		goto out_iounmap;
 	}
+
+	if (emac_configure_dma(db))
+		netdev_info(ndev, "configure dma failed. disable dma.\n");
 
 	db->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(db->clk)) {
@@ -891,6 +1072,7 @@ out_clk_disable_unprepare:
 	clk_disable_unprepare(db->clk);
 out_dispose_mapping:
 	irq_dispose_mapping(ndev->irq);
+	dma_release_channel(db->rx_chan);
 out_iounmap:
 	iounmap(db->membase);
 out:
@@ -905,6 +1087,11 @@ static int emac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct emac_board_info *db = netdev_priv(ndev);
+
+	if (db->rx_chan) {
+		dmaengine_terminate_all(db->rx_chan);
+		dma_release_channel(db->rx_chan);
+	}
 
 	unregister_netdev(ndev);
 	sunxi_sram_release(&pdev->dev);

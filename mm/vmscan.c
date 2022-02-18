@@ -951,7 +951,7 @@ out:
 	return freed;
 }
 
-void drop_slab_node(int nid)
+static void drop_slab_node(int nid)
 {
 	unsigned long freed;
 	int shift = 0;
@@ -1066,8 +1066,10 @@ void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason)
 	 * forward progress (e.g. journalling workqueues or kthreads).
 	 */
 	if (!current_is_kswapd() &&
-	    current->flags & (PF_IO_WORKER|PF_KTHREAD))
+	    current->flags & (PF_IO_WORKER|PF_KTHREAD)) {
+		cond_resched();
 		return;
+	}
 
 	/*
 	 * These figures are pulled out of thin air.

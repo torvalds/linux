@@ -989,7 +989,7 @@
 						i2s5_port: port@1 {
 							reg = <1>;
 
-							i2s5_dap_ep: endpoint@0 {
+							i2s5_dap_ep: endpoint {
 								dai-format = "i2s";
 								/* Place holder for external Codec */
 							};
@@ -1878,7 +1878,7 @@
 			status = "okay";
 
 			flash@0 {
-				compatible = "spi-nor";
+				compatible = "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <102000000>;
 				spi-tx-bus-width = <4>;
@@ -2000,7 +2000,7 @@
 		};
 	};
 
-	vdd_5v0_sys: regulator@100 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -2009,7 +2009,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_sys: regulator@101 {
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3_SYS";
 		regulator-min-microvolt = <3300000>;
@@ -2018,7 +2018,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_ao: regulator@102 {
+	vdd_3v3_ao: regulator-vdd-3v3-ao {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3_AO";
 		regulator-min-microvolt = <3300000>;
@@ -2027,7 +2027,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_1v8: regulator@103 {
+	vdd_1v8: regulator-vdd-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -2036,7 +2036,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_hdmi: regulator@104 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_HDMI_CON";
 		regulator-min-microvolt = <5000000>;
@@ -2103,7 +2103,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -2157,7 +2157,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -2171,7 +2171,7 @@
 			};
 		};
 
-		aux {
+		aux-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";

@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/brcm,bcm7038-l1-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM7038-style Level 1 interrupt controller
+
+description: >
+  This block is a first level interrupt controller that is typically connected
+  directly to one of the HW INT lines on each CPU.  Every BCM7xxx set-top chip
+  since BCM7038 has contained this hardware.
+
+  Key elements of the hardware design include:
+
+   - 64, 96, 128, or 160 incoming level IRQ lines
+
+   - Most onchip peripherals are wired directly to an L1 input
+
+   - A separate instance of the register set for each CPU, allowing individual
+     peripheral IRQs to be routed to any CPU
+
+   - Atomic mask/unmask operations
+
+   - No polarity/level/edge settings
+
+   - No FIFO or priority encoder logic; software is expected to read all
+     2-5 status words to determine which IRQs are pending
+
+   If multiple reg ranges and interrupt-parent entries are present on an SMP
+   system, the driver will allow IRQ SMP affinity to be set up through the
+   /proc/irq/ interface.  In the simplest possible configuration, only one
+   reg range and one interrupt-parent is needed.
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+
+properties:
+  compatible:
+    const: brcm,bcm7038-l1-intc
+
+  reg:
+    description: >
+      Specifies the base physical address and size of the registers
+      the number of supported IRQs is inferred from the size argument
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  interrupts:
+    description: >
+     Specifies the interrupt line(s) in the interrupt-parent controller node;
+     valid values depend on the type of parent interrupt controller
+
+  brcm,irq-can-wake:
+    type: boolean
+    description: >
+      If present, this means the L1 controller can be used as a
+      wakeup source for system suspend/resume.
+
+  brcm,int-fwd-mask:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      If present, a bit mask to indicate which interrupts have already been
+      configured by the firmware and should be left unmanaged. This should
+      have one 32-bit word per status/set/clear/mask group.
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - "#interrupt-cells"
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    periph_intc: interrupt-controller@1041a400 {
+      compatible = "brcm,bcm7038-l1-intc";
+      reg = <0x1041a400 0x30>, <0x1041a600 0x30>;
+      interrupt-controller;
+      #interrupt-cells = <1>;
+      interrupt-parent = <&cpu_intc>;
+      interrupts = <2>, <3>;
+    };

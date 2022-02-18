@@ -89,9 +89,9 @@ static int vg_get_active_display_cnt_wa(
 	return display_count;
 }
 
-void vg_update_clocks(struct clk_mgr *clk_mgr_base,
-			struct dc_state *context,
-			bool safe_to_lower)
+static void vg_update_clocks(struct clk_mgr *clk_mgr_base,
+			     struct dc_state *context,
+			     bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
@@ -367,18 +367,6 @@ static void vg_dump_clk_registers(struct clk_state_registers_and_bypass *regs_an
 	}
 }
 
-/* This function produce translated logical clk state values*/
-void vg_get_clk_states(struct clk_mgr *clk_mgr_base, struct clk_states *s)
-{
-
-	struct clk_state_registers_and_bypass sb = { 0 };
-	struct clk_log_info log_info = { 0 };
-
-	vg_dump_clk_registers(&sb, clk_mgr_base, &log_info);
-
-	s->dprefclk_khz = sb.dprefclk * 1000;
-}
-
 static void vg_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -386,7 +374,7 @@ static void vg_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn301_smu_enable_pme_wa(clk_mgr);
 }
 
-void vg_init_clocks(struct clk_mgr *clk_mgr)
+static void vg_init_clocks(struct clk_mgr *clk_mgr)
 {
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
@@ -582,32 +570,32 @@ static struct wm_table lpddr5_wm_table = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 7.95,
-			.sr_enter_plus_exit_time_us = 9,
+			.sr_exit_time_us = 13.5,
+			.sr_enter_plus_exit_time_us = 16.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.82,
-			.sr_enter_plus_exit_time_us = 11.196,
+			.sr_exit_time_us = 13.5,
+			.sr_enter_plus_exit_time_us = 16.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.89,
-			.sr_enter_plus_exit_time_us = 11.24,
+			.sr_exit_time_us = 13.5,
+			.sr_enter_plus_exit_time_us = 16.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.748,
-			.sr_enter_plus_exit_time_us = 11.102,
+			.sr_exit_time_us = 13.5,
+			.sr_enter_plus_exit_time_us = 16.5,
 			.valid = true,
 		},
 	}
@@ -753,7 +741,7 @@ void vg_clk_mgr_construct(
 				sizeof(struct watermarks),
 				&clk_mgr->smu_wm_set.mc_address.quad_part);
 
-	if (clk_mgr->smu_wm_set.wm_set == 0) {
+	if (!clk_mgr->smu_wm_set.wm_set) {
 		clk_mgr->smu_wm_set.wm_set = &dummy_wms;
 		clk_mgr->smu_wm_set.mc_address.quad_part = 0;
 	}

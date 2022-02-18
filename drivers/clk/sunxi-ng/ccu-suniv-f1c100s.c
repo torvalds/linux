@@ -6,7 +6,8 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -522,23 +523,24 @@ static struct ccu_mux_nb suniv_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init suniv_f1c100s_ccu_setup(struct device_node *node)
+static int suniv_f1c100s_ccu_probe(struct platform_device *pdev)
 {
 	void __iomem *reg;
+	int ret;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Force the PLL-Audio-1x divider to 4 */
 	val = readl(reg + SUNIV_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
 	writel(val | (3 << 16), reg + SUNIV_PLL_AUDIO_REG);
 
-	of_sunxi_ccu_probe(node, reg, &suniv_ccu_desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &suniv_ccu_desc);
+	if (ret)
+		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&suniv_pll_cpu_nb);
@@ -546,6 +548,24 @@ static void __init suniv_f1c100s_ccu_setup(struct device_node *node)
 	/* Reparent CPU during PLL CPU rate changes */
 	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
 				  &suniv_cpu_nb);
+
+	return 0;
 }
-CLK_OF_DECLARE(suniv_f1c100s_ccu, "allwinner,suniv-f1c100s-ccu",
-	       suniv_f1c100s_ccu_setup);
+
+static const struct of_device_id suniv_f1c100s_ccu_ids[] = {
+	{ .compatible = "allwinner,suniv-f1c100s-ccu" },
+	{ }
+};
+
+static struct platform_driver suniv_f1c100s_ccu_driver = {
+	.probe	= suniv_f1c100s_ccu_probe,
+	.driver	= {
+		.name			= "suniv-f1c100s-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= suniv_f1c100s_ccu_ids,
+	},
+};
+module_platform_driver(suniv_f1c100s_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

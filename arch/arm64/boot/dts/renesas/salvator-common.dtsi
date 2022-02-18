@@ -97,6 +97,7 @@
 
 		port {
 			hdmi0_con: endpoint {
+				remote-endpoint = <&rcar_dw_hdmi0_out>;
 			};
 		};
 	};
@@ -422,10 +423,6 @@
 			};
 		};
 	};
-};
-
-&hdmi0_con {
-	remote-endpoint = <&rcar_dw_hdmi0_out>;
 };
 
 #ifdef SOC_HAS_HDMI1

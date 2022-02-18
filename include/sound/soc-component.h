@@ -148,6 +148,8 @@ struct snd_soc_component_driver {
 		    struct vm_area_struct *vma);
 	int (*ack)(struct snd_soc_component *component,
 		   struct snd_pcm_substream *substream);
+	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream);
 
 	const struct snd_compress_ops *compress_ops;
 
@@ -505,5 +507,7 @@ int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 					  void *stream, int rollback);
 int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream);
+void snd_soc_pcm_component_delay(struct snd_pcm_substream *substream,
+				 snd_pcm_sframes_t *cpu_delay, snd_pcm_sframes_t *codec_delay);
 
 #endif /* __SOC_COMPONENT_H */

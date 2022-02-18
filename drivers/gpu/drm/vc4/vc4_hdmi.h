@@ -102,6 +102,9 @@ struct vc4_hdmi_variant {
 
 	/* Enables HDR metadata */
 	bool supports_hdr;
+
+	/* Callback for hardware specific hotplug detect */
+	bool (*hp_detect)(struct vc4_hdmi *vc4_hdmi);
 };
 
 /* HDMI audio information */
@@ -178,6 +181,43 @@ struct vc4_hdmi {
 
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
+
+	/**
+	 * @hw_lock: Spinlock protecting device register access.
+	 */
+	spinlock_t hw_lock;
+
+	/**
+	 * @mutex: Mutex protecting the driver access across multiple
+	 * frameworks (KMS, ALSA).
+	 *
+	 * NOTE: While supported, CEC has been left out since
+	 * cec_s_phys_addr_from_edid() might call .adap_enable and lead to a
+	 * reentrancy issue between .get_modes (or .detect) and .adap_enable.
+	 * Since we don't share any state between the CEC hooks and KMS', it's
+	 * not a big deal. The only trouble might come from updating the CEC
+	 * clock divider which might be affected by a modeset, but CEC should
+	 * be resilient to that.
+	 */
+	struct mutex mutex;
+
+	/**
+	 * @saved_adjusted_mode: Copy of @drm_crtc_state.adjusted_mode
+	 * for use by ALSA hooks and interrupt handlers. Protected by @mutex.
+	 */
+	struct drm_display_mode saved_adjusted_mode;
+
+	/**
+	 * @output_enabled: Is the HDMI controller currently active?
+	 * Protected by @mutex.
+	 */
+	bool output_enabled;
+
+	/**
+	 * @scdc_enabled: Is the HDMI controller currently running with
+	 * the scrambler on? Protected by @mutex.
+	 */
+	bool scdc_enabled;
 };
 
 static inline struct vc4_hdmi *

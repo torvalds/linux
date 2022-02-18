@@ -1520,6 +1520,12 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
+
+	/* We set max_scan_ie_len to a random value to make wpa_supplicant scans not
+	 * fail, as the driver will the ignore the extra passed IEs anyway
+	 */
+	wl->hw->wiphy->max_scan_ie_len = 512;
+
 	wl->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
 	wl->hw->queues = 4;

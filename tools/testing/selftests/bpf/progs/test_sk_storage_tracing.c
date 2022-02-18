@@ -68,7 +68,7 @@ static void set_task_info(struct sock *sk)
 }
 
 SEC("fentry/inet_csk_listen_start")
-int BPF_PROG(trace_inet_csk_listen_start, struct sock *sk, int backlog)
+int BPF_PROG(trace_inet_csk_listen_start, struct sock *sk)
 {
 	set_task_info(sk);
 

@@ -379,7 +379,7 @@ static int ext_set_protected(struct i915_user_extension __user *base, void *data
 	if (ext.flags)
 		return -EINVAL;
 
-	if (!intel_pxp_is_enabled(&ext_data->i915->gt.pxp))
+	if (!intel_pxp_is_enabled(&to_gt(ext_data->i915)->pxp))
 		return -ENODEV;
 
 	ext_data->flags |= I915_BO_PROTECTED;

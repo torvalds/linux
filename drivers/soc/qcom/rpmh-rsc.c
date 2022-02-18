@@ -691,7 +691,7 @@ static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
  * @drv: The controller.
  * @msg: The data to be written to the controller.
  *
- * This should only be called for for sleep/wake state, never active-only
+ * This should only be called for sleep/wake state, never active-only
  * state.
  *
  * The caller must ensure that no other RPMH actions are happening and the

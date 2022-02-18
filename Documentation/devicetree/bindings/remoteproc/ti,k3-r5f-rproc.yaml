@@ -38,6 +38,7 @@ properties:
       - ti,j721e-r5fss
       - ti,j7200-r5fss
       - ti,am64-r5fss
+      - ti,j721s2-r5fss
 
   power-domains:
     description: |
@@ -64,9 +65,9 @@ properties:
     description: |
       Configuration Mode for the Dual R5F cores within the R5F cluster.
       Should be either a value of 1 (LockStep mode) or 0 (Split mode) on
-      most SoCs (AM65x, J721E, J7200), default is LockStep mode if omitted;
-      and should be either a value of 0 (Split mode) or 2 (Single-CPU mode)
-      on AM64x SoCs, default is Split mode if omitted.
+      most SoCs (AM65x, J721E, J7200, J721s2), default is LockStep mode if
+      omitted; and should be either a value of 0 (Split mode) or 2
+      (Single-CPU mode) on AM64x SoCs, default is Split mode if omitted.
 
 # R5F Processor Child Nodes:
 # ==========================
@@ -104,6 +105,7 @@ patternProperties:
           - ti,j721e-r5f
           - ti,j7200-r5f
           - ti,am64-r5f
+          - ti,j721s2-r5f
 
       reg:
         items:

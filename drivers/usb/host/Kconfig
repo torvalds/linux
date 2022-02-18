@@ -772,3 +772,14 @@ config USB_HCD_TEST_MODE
 	  This option is of interest only to developers who need to validate
 	  their USB hardware designs.  It is not needed for normal use.  If
 	  unsure, say N.
+
+config USB_XEN_HCD
+	tristate "Xen usb virtual host driver"
+	depends on XEN
+	select XEN_XENBUS_FRONTEND
+	help
+	  The Xen usb virtual host driver serves as a frontend driver enabling
+	  a Xen guest system to access USB Devices passed through to the guest
+	  by the Xen host (usually Dom0).
+	  Only needed if the kernel is running in a Xen guest and generic
+	  access to a USB device is needed.

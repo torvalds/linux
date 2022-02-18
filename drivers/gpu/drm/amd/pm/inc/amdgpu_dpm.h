@@ -423,6 +423,9 @@ enum ip_power_state {
 	POWER_STATE_OFF,
 };
 
+/* Used to mask smu debug modes */
+#define SMU_DEBUG_HALT_ON_ERROR		0x1
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -460,6 +463,11 @@ struct amdgpu_pm {
 	struct list_head	pm_attr_list;
 
 	atomic_t		pwr_state[AMD_IP_BLOCK_TYPE_NUM];
+
+	/*
+	 * 0 = disabled (default), otherwise enable corresponding debug mode
+	 */
+	uint32_t		smu_debug_mask;
 };
 
 #define R600_SSTU_DFLT                               0

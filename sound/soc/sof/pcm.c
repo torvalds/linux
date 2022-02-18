@@ -100,13 +100,15 @@ void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(snd_sof_pcm_period_elapsed);
 
-static int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream,
-				struct snd_sof_dev *sdev,
-				struct snd_sof_pcm *spcm)
+int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
+			 struct snd_sof_pcm *spcm)
 {
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	int ret;
+
+	if (!spcm->prepared[substream->stream])
+		return 0;
 
 	stream.hdr.size = sizeof(stream);
 	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_FREE;
@@ -179,11 +181,9 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.
 	 */
-	if (spcm->prepared[substream->stream]) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-		if (ret < 0)
-			return ret;
-	}
+	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+	if (ret < 0)
+		return ret;
 
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
@@ -299,23 +299,25 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: free stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
-	if (spcm->prepared[substream->stream]) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-		if (ret < 0)
-			err = ret;
-	}
-
-	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	/* free PCM in the DSP */
+	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
 	if (ret < 0)
 		err = ret;
 
-	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
+	/* stop DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0) {
 		dev_err(component->dev, "error: platform hw free failed\n");
 		err = ret;
 	}
+
+	/* free the DAPM widget list */
+	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	if (ret < 0)
+		err = ret;
+
+	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
 	return err;
 }
@@ -393,26 +395,6 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
 		break;
-	case SNDRV_PCM_TRIGGER_RESUME:
-		if (spcm->stream[substream->stream].suspend_ignored) {
-			/*
-			 * this case will be triggered when INFO_RESUME is
-			 * supported, no need to resume streams that remained
-			 * enabled in D0ix.
-			 */
-			spcm->stream[substream->stream].suspend_ignored = false;
-			return 0;
-		}
-
-		/* set up hw_params */
-		ret = sof_pcm_prepare(component, substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"error: failed to set up hw_params upon resume\n");
-			return ret;
-		}
-
-		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
 			/*
@@ -467,13 +449,10 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream,
+					  free_widget_list);
 		if (ret < 0)
 			return ret;
-
-		/* free widget list only for SUSPEND trigger */
-		if (free_widget_list)
-			ret = sof_widget_list_free(sdev, spcm, substream->stream);
 	}
 
 	return ret;
@@ -814,6 +793,18 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
+	case SOF_DAI_MEDIATEK_AFE:
+		rate->min = dai->dai_config->afe.rate;
+		rate->max = dai->dai_config->afe.rate;
+		channels->min = dai->dai_config->afe.channels;
+		channels->max = dai->dai_config->afe.channels;
+
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev,
+			"channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
 	case SOF_DAI_IMX_SAI:
 		rate->min = dai->dai_config->sai.fsync_rate;
 		rate->max = dai->dai_config->sai.fsync_rate;
@@ -824,6 +815,42 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev,
 			"channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
+	case SOF_DAI_AMD_BT:
+		rate->min = dai->dai_config->acpbt.fsync_rate;
+		rate->max = dai->dai_config->acpbt.fsync_rate;
+		channels->min = dai->dai_config->acpbt.tdm_slots;
+		channels->max = dai->dai_config->acpbt.tdm_slots;
+
+		dev_dbg(component->dev,
+			"AMD_BT rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev,
+			"AMD_BT channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
+	case SOF_DAI_AMD_SP:
+		rate->min = dai->dai_config->acpsp.fsync_rate;
+		rate->max = dai->dai_config->acpsp.fsync_rate;
+		channels->min = dai->dai_config->acpsp.tdm_slots;
+		channels->max = dai->dai_config->acpsp.tdm_slots;
+
+		dev_dbg(component->dev,
+			"AMD_SP rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev,
+			"AMD_SP channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
+	case SOF_DAI_AMD_DMIC:
+		rate->min = dai->dai_config->acpdmic.fsync_rate;
+		rate->max = dai->dai_config->acpdmic.fsync_rate;
+		channels->min = dai->dai_config->acpdmic.tdm_slots;
+		channels->max = dai->dai_config->acpdmic.tdm_slots;
+
+		dev_dbg(component->dev,
+			"AMD_DMIC rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev,
+			"AMD_DMIC channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
 	default:
@@ -869,6 +896,14 @@ static void sof_pcm_remove(struct snd_soc_component *component)
 	snd_soc_tplg_component_remove(component);
 }
 
+static int sof_pcm_ack(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+
+	return snd_sof_pcm_platform_ack(sdev, substream);
+}
+
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 {
 	struct snd_soc_component_driver *pd = &sdev->plat_drv;
@@ -887,6 +922,7 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->hw_free = sof_pcm_hw_free;
 	pd->trigger = sof_pcm_trigger;
 	pd->pointer = sof_pcm_pointer;
+	pd->ack = sof_pcm_ack;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	pd->compress_ops = &sof_probe_compressed_ops;

@@ -5,11 +5,6 @@
 
 #define DR_RULE_MAX_STE_CHAIN (DR_RULE_MAX_STES + DR_ACTION_MAX_STES)
 
-struct mlx5dr_rule_action_member {
-	struct mlx5dr_action *action;
-	struct list_head list;
-};
-
 static int dr_rule_append_to_miss_list(struct mlx5dr_ste_ctx *ste_ctx,
 				       struct mlx5dr_ste *new_last_ste,
 				       struct list_head *miss_list,
@@ -979,14 +974,36 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 			return false;
 		}
 	}
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC5) {
+		s_idx = offsetof(struct mlx5dr_match_param, misc5);
+		e_idx = min(s_idx + sizeof(param->misc5), value_size);
+
+		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc5 parameters contains a value not specified by mask\n");
+			return false;
+		}
+	}
 	return true;
 }
 
 static int dr_rule_destroy_rule_nic(struct mlx5dr_rule *rule,
 				    struct mlx5dr_rule_rx_tx *nic_rule)
 {
+	/* Check if this nic rule was actually created, or was it skipped
+	 * and only the other type of the RX/TX nic rule was created.
+	 */
+	if (!nic_rule->last_rule_ste)
+		return 0;
+
 	mlx5dr_domain_nic_lock(nic_rule->nic_matcher->nic_tbl->nic_dmn);
 	dr_rule_clean_rule_members(rule, nic_rule);
+
+	nic_rule->nic_matcher->rules--;
+	if (!nic_rule->nic_matcher->rules)
+		mlx5dr_matcher_remove_from_tbl_nic(rule->matcher->tbl->dmn,
+						   nic_rule->nic_matcher);
+
 	mlx5dr_domain_nic_unlock(nic_rule->nic_matcher->nic_tbl->nic_dmn);
 
 	return 0;
@@ -1002,6 +1019,8 @@ static int dr_rule_destroy_rule_fdb(struct mlx5dr_rule *rule)
 static int dr_rule_destroy_rule(struct mlx5dr_rule *rule)
 {
 	struct mlx5dr_domain *dmn = rule->matcher->tbl->dmn;
+
+	mlx5dr_dbg_rule_del(rule);
 
 	switch (dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -1091,24 +1110,28 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	mlx5dr_domain_nic_lock(nic_dmn);
 
+	ret = mlx5dr_matcher_add_to_tbl_nic(dmn, nic_matcher);
+	if (ret)
+		goto free_hw_ste;
+
 	ret = mlx5dr_matcher_select_builders(matcher,
 					     nic_matcher,
 					     dr_rule_get_ipv(&param->outer),
 					     dr_rule_get_ipv(&param->inner));
 	if (ret)
-		goto free_hw_ste;
+		goto remove_from_nic_tbl;
 
 	/* Set the tag values inside the ste array */
 	ret = mlx5dr_ste_build_ste_arr(matcher, nic_matcher, param, hw_ste_arr);
 	if (ret)
-		goto free_hw_ste;
+		goto remove_from_nic_tbl;
 
 	/* Set the actions values/addresses inside the ste array */
 	ret = mlx5dr_actions_build_ste_arr(matcher, nic_matcher, actions,
 					   num_actions, hw_ste_arr,
 					   &new_hw_ste_arr_sz);
 	if (ret)
-		goto free_hw_ste;
+		goto remove_from_nic_tbl;
 
 	cur_htbl = nic_matcher->s_htbl;
 
@@ -1155,6 +1178,8 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 	if (htbl)
 		mlx5dr_htbl_put(htbl);
 
+	nic_matcher->rules++;
+
 	mlx5dr_domain_nic_unlock(nic_dmn);
 
 	kfree(hw_ste_arr);
@@ -1168,6 +1193,10 @@ free_rule:
 		list_del(&ste_info->send_list);
 		kfree(ste_info);
 	}
+
+remove_from_nic_tbl:
+	mlx5dr_matcher_remove_from_tbl_nic(dmn, nic_matcher);
+
 free_hw_ste:
 	mlx5dr_domain_nic_unlock(nic_dmn);
 	kfree(hw_ste_arr);
@@ -1257,6 +1286,8 @@ dr_rule_create_rule(struct mlx5dr_matcher *matcher,
 	if (ret)
 		goto remove_action_members;
 
+	INIT_LIST_HEAD(&rule->dbg_node);
+	mlx5dr_dbg_rule_add(rule);
 	return rule;
 
 remove_action_members:

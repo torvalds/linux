@@ -712,7 +712,7 @@ ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
  * @hw: pointer to the hardware structure
  * @cntr_id: returns counter index
  */
-enum ice_status ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
+int ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, 1, cntr_id);
@@ -723,7 +723,7 @@ enum ice_status ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
  * @hw: pointer to the hardware structure
  * @cntr_id: counter index to be freed
  */
-enum ice_status ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
+int ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
 {
 	return ice_free_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK,
 				 ICE_AQC_RES_TYPE_FLAG_DEDICATED, 1, cntr_id);
@@ -735,8 +735,7 @@ enum ice_status ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
  * @cntr_id: returns counter index
  * @num_fltr: number of filter entries to be allocated
  */
-enum ice_status
-ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
+int ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_GUARANTEED_ENTRIES,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, num_fltr,
@@ -749,8 +748,7 @@ ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
  * @cntr_id: returns counter index
  * @num_fltr: number of filter entries to be allocated
  */
-enum ice_status
-ice_alloc_fd_shrd_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
+int ice_alloc_fd_shrd_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_SHARED_ENTRIES,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, num_fltr,
@@ -872,7 +870,7 @@ static void ice_pkt_insert_mac_addr(u8 *pkt, u8 *addr)
  * @frag: generate a fragment packet
  * @tun: true implies generate a tunnel packet
  */
-enum ice_status
+int
 ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 			  u8 *pkt, bool frag, bool tun)
 {
@@ -919,15 +917,15 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		if (ice_fdir_pkt[idx].flow == flow)
 			break;
 	if (idx == ICE_FDIR_NUM_PKT)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	if (!tun) {
 		memcpy(pkt, ice_fdir_pkt[idx].pkt, ice_fdir_pkt[idx].pkt_len);
 		loc = pkt;
 	} else {
 		if (!ice_get_open_tunnel_port(hw, &tnl_port, TNL_ALL))
-			return ICE_ERR_DOES_NOT_EXIST;
+			return -ENOENT;
 		if (!ice_fdir_pkt[idx].tun_pkt)
-			return ICE_ERR_PARAM;
+			return -EINVAL;
 		memcpy(pkt, ice_fdir_pkt[idx].tun_pkt,
 		       ice_fdir_pkt[idx].tun_pkt_len);
 		ice_pkt_insert_u16(pkt, ICE_IPV4_UDP_DST_PORT_OFFSET,
@@ -1111,7 +1109,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	default:
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	if (input->flex_fltr)

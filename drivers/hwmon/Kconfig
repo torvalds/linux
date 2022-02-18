@@ -1414,8 +1414,8 @@ config SENSORS_PC87427
 	  will be called pc87427.
 
 config SENSORS_NTC_THERMISTOR
-	tristate "NTC thermistor support from Murata"
-	depends on !OF || IIO=n || IIO
+	tristate "NTC thermistor support"
+	depends on IIO
 	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver supports NTC thermistors sensor reading and its
@@ -1512,6 +1512,16 @@ config SENSORS_NZXT_KRAKEN2
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nzxt-kraken2.
+
+config SENSORS_NZXT_SMART2
+	tristate "NZXT RGB & Fan Controller/Smart Device v2"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  NZXT RGB & Fan Controller/Smart Device v2.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nzxt-smart2.
 
 source "drivers/hwmon/occ/Kconfig"
 
@@ -1872,6 +1882,18 @@ config SENSORS_INA2XX
 	  This driver can also be built as a module. If so, the module
 	  will be called ina2xx.
 
+config SENSORS_INA238
+	tristate "Texas Instruments INA238"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the INA238 power monitor
+	  chip. This driver supports voltage, current, power and temperature
+	  measurements as well as alarm configuration.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ina238.
+
 config SENSORS_INA3221
 	tristate "Texas Instruments INA3221 Triple Power Monitor"
 	depends on I2C
@@ -1939,6 +1961,7 @@ config SENSORS_TMP108
 config SENSORS_TMP401
 	tristate "Texas Instruments TMP401 and compatibles"
 	depends on I2C
+	select REGMAP
 	help
 	  If you say yes here you get support for Texas Instruments TMP401,
 	  TMP411, TMP431, TMP432, and TMP435 temperature sensor chips.
@@ -2214,6 +2237,30 @@ config SENSORS_ATK0110
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_atk0110.
+
+config SENSORS_ASUS_WMI
+	tristate "ASUS WMI X370/X470/B450/X399"
+	depends on ACPI_WMI
+	help
+	  If you say yes here you get support for the ACPI hardware monitoring
+	  interface found in X370/X470/B450/X399 ASUS motherboards. This driver
+	  will provide readings of fans, voltages and temperatures through the system
+	  firmware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_wmi_sensors.
+
+config SENSORS_ASUS_WMI_EC
+	tristate "ASUS WMI B550/X570"
+	depends on ACPI_WMI
+	help
+	  If you say yes here you get support for the ACPI embedded controller
+	  hardware monitoring interface found in B550/X570 ASUS motherboards.
+	  This driver will provide readings of fans, voltages and temperatures
+	  through the system firmware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_wmi_sensors_ec.
 
 endif # ACPI
 

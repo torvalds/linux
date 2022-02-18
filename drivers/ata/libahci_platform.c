@@ -579,11 +579,8 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	int i, irq, n_ports, rc;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		if (irq != -EPROBE_DEFER)
-			dev_err(dev, "no irq\n");
+	if (irq < 0)
 		return irq;
-	}
 	if (!irq)
 		return -EINVAL;
 
@@ -642,13 +639,8 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	if (hpriv->cap & HOST_CAP_64) {
 		rc = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 		if (rc) {
-			rc = dma_coerce_mask_and_coherent(dev,
-							  DMA_BIT_MASK(32));
-			if (rc) {
-				dev_err(dev, "Failed to enable 64-bit DMA.\n");
-				return rc;
-			}
-			dev_warn(dev, "Enable 32-bit DMA instead of 64-bit.\n");
+			dev_err(dev, "Failed to enable 64-bit DMA.\n");
+			return rc;
 		}
 	}
 

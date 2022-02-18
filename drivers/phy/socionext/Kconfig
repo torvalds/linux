@@ -43,4 +43,4 @@ config PHY_UNIPHIER_AHCI
 	select GENERIC_PHY
 	help
 	  Enable this to support PHY implemented in AHCI controller
-	  on UniPhier SoCs. This driver supports PXs2 and PXs3 SoCs.
+	  on UniPhier SoCs. This driver supports Pro4, PXs2 and PXs3 SoCs.

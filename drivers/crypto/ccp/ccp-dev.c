@@ -31,7 +31,7 @@
 #define MAX_CCPS 32
 
 /* Limit CCP use to a specifed number of queues per device */
-static unsigned int nqueues = 0;
+static unsigned int nqueues;
 module_param(nqueues, uint, 0444);
 MODULE_PARM_DESC(nqueues, "Number of queues per CCP (minimum 1; default: all available)");
 

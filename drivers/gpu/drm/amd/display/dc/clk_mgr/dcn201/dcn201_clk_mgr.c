@@ -74,42 +74,6 @@ static const struct clk_mgr_mask clk_mgr_mask = {
 	CLK_COMMON_MASK_SH_LIST_DCN201_BASE(_MASK)
 };
 
-void dcn201_update_clocks_vbios(struct clk_mgr *clk_mgr,
-			struct dc_state *context,
-			bool safe_to_lower)
-{
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
-
-	bool update_dppclk = false;
-	bool update_dispclk = false;
-
-	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->clks.dppclk_khz)) {
-		clk_mgr->clks.dppclk_khz = new_clocks->dppclk_khz;
-		update_dppclk = true;
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr->clks.dispclk_khz)) {
-		clk_mgr->clks.dispclk_khz = new_clocks->dispclk_khz;
-		update_dispclk = true;
-	}
-
-	if (update_dppclk || update_dispclk) {
-		struct bp_set_dce_clock_parameters dce_clk_params;
-		struct dc_bios *bp = clk_mgr->ctx->dc_bios;
-
-		if (update_dispclk) {
-			memset(&dce_clk_params, 0, sizeof(dce_clk_params));
-			dce_clk_params.target_clock_frequency = new_clocks->dispclk_khz;
-			dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
-			dce_clk_params.clock_type = DCECLOCK_TYPE_DISPLAY_CLOCK;
-			bp->funcs->set_dce_clock(bp, &dce_clk_params);
-		}
-		/* currently there is no DCECLOCK_TYPE_DPPCLK type defined in VBIOS interface.
-		 * vbios program DPPCLK to the same DispCLK limitation
-		 */
-	}
-}
-
 static void dcn201_init_clocks(struct clk_mgr *clk_mgr)
 {
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
@@ -126,10 +90,8 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	int display_count;
 	bool update_dppclk = false;
 	bool update_dispclk = false;
-	bool enter_display_off = false;
 	bool dpp_clock_lowered = false;
 	bool force_reset = false;
 	bool p_state_change_support;
@@ -145,10 +107,7 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
 
-	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
-
-	if (display_count == 0)
-		enter_display_off = true;
+	clk_mgr_helper_get_active_display_cnt(dc, context);
 
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz))
 		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;

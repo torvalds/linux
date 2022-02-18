@@ -255,7 +255,7 @@ prctl(PR_SVE_GET_VL)
     vector length change (which would only normally be the case between a
     fork() or vfork() and the corresponding execve() in typical use).
 
-    To extract the vector length from the result, and it with
+    To extract the vector length from the result, bitwise and it with
     PR_SVE_VL_LEN_MASK.
 
     Return value: a nonnegative value on success, or a negative value on error:

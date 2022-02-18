@@ -15,8 +15,6 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
-#define FW_CPU_STATUS_POLL_INTERVAL_USEC	10000
-
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -214,7 +212,8 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
-	u32 tmp, expected_ack_val;
+	struct hl_bd *sent_bd;
+	u32 tmp, expected_ack_val, pi;
 	int rc = 0;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
@@ -239,6 +238,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	/* set fence to a non valid value */
 	pkt->fence = cpu_to_le32(UINT_MAX);
+	pi = queue->pi;
 
 	/*
 	 * The CPU queue is a synchronous queue with an effective depth of
@@ -248,7 +248,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	 * Which means that we don't need to lock the access to the entire H/W
 	 * queues module when submitting a JOB to the CPU queue.
 	 */
-	hl_hw_queue_submit_bd(hdev, queue, 0, len, pkt_dma_addr);
+	hl_hw_queue_submit_bd(hdev, queue, hl_queue_inc_ptr(queue->pi), len, pkt_dma_addr);
 
 	if (prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
@@ -279,6 +279,14 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	} else if (result) {
 		*result = le64_to_cpu(pkt->result);
 	}
+
+	/* Scrub previous buffer descriptor 'ctl' field which contains the
+	 * previous PI value written during packet submission.
+	 * We must do this or else F/W can read an old value upon queue wraparound.
+	 */
+	sent_bd = queue->kernel_address;
+	sent_bd += hl_pi_2_offset(pi);
+	sent_bd->ctl = cpu_to_le32(UINT_MAX);
 
 out:
 	mutex_unlock(&hdev->send_cpu_message_lock);
@@ -445,15 +453,6 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
-	}
-
 	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
 		if (hdev->bmc_enable) {
 			dev_err(hdev->dev,
@@ -497,15 +496,6 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Failed to load preboot primary image\n");
-		/* This is a warning so we don't want it to disable the
-		 * device as we have a secondary preboot image
-		 */
-		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
-	}
-
 	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL) {
 		dev_err(hdev->dev, "Device boot error - Failed to load preboot secondary image\n");
 		err_exists = true;
@@ -524,6 +514,34 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
+
+	/* All warnings should go here in order not to reach the unknown error validation */
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Failed to load preboot primary image\n");
+		/* This is a warning so we don't want it to disable the
+		 * device as we have a secondary preboot image
+		 */
+		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_TPM_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - TPM failure\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_TPM_FAIL;
+	}
 
 	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
 		dev_err(hdev->dev,
@@ -961,6 +979,7 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.type = cpu_to_le16(CPUCP_POWER_INPUT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
@@ -970,6 +989,92 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
 	}
 
 	*power = result;
+
+	return rc;
+}
+
+int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
+				struct cpucp_hbm_row_info *info)
+{
+	struct cpucp_hbm_row_info *cpucp_repl_rows_info_cpu_addr;
+	dma_addr_t cpucp_repl_rows_info_dma_addr;
+	struct cpucp_packet pkt = {};
+	u64 result;
+	int rc;
+
+	cpucp_repl_rows_info_cpu_addr =
+			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
+					sizeof(struct cpucp_hbm_row_info),
+					&cpucp_repl_rows_info_dma_addr);
+	if (!cpucp_repl_rows_info_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP replaced rows info packet\n");
+		return -ENOMEM;
+	}
+
+	memset(cpucp_repl_rows_info_cpu_addr, 0, sizeof(struct cpucp_hbm_row_info));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET <<
+					CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(cpucp_repl_rows_info_dma_addr);
+	pkt.data_max_size = cpu_to_le32(sizeof(struct cpucp_hbm_row_info));
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle CPU-CP replaced rows info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	memcpy(info, cpucp_repl_rows_info_cpu_addr, sizeof(*info));
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
+					sizeof(struct cpucp_hbm_row_info),
+					cpucp_repl_rows_info_cpu_addr);
+
+	return rc;
+}
+
+int hl_fw_dram_pending_row_get(struct hl_device *hdev, u32 *pend_rows_num)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_HBM_PENDING_ROWS_STATUS << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+				"Failed to handle CPU-CP pending rows info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	*pend_rows_num = (u32) result;
+out:
+	return rc;
+}
+
+int hl_fw_cpucp_engine_core_asid_set(struct hl_device *hdev, u32 asid)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_ENGINE_CORE_ASID_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(asid);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+						HL_CPUCP_INFO_TIMEOUT_USEC, NULL);
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed on ASID configuration request for engine core, error %d\n",
+			rc);
 
 	return rc;
 }
@@ -1028,7 +1133,7 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	switch (status) {
 	case CPU_BOOT_STATUS_NA:
 		dev_err(hdev->dev,
-			"Device boot progress - BTL did NOT run\n");
+			"Device boot progress - BTL/ROM did NOT run\n");
 		break;
 	case CPU_BOOT_STATUS_IN_WFE:
 		dev_err(hdev->dev,
@@ -1101,9 +1206,8 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
-		(status == CPU_BOOT_STATUS_SRAM_AVAIL) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		timeout);
 
 	if (rc) {
@@ -1250,8 +1354,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 * 3. FW application - a. Fetch fw application security status
 	 *                     b. Check whether hard reset is done by fw app
 	 */
-	prop->hard_reset_done_by_fw =
-		!!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
+	prop->hard_reset_done_by_fw = !!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 	dev_dbg(hdev->dev, "Firmware preboot boot device status0 %#x\n",
 							cpu_boot_dev_sts0);
@@ -1287,11 +1390,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 {
 	int rc;
 
-	/* pldm was added for cases in which we use preboot on pldm and want
-	 * to load boot fit, but we can't wait for preboot because it runs
-	 * very slowly
-	 */
-	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
 	/*
@@ -1437,7 +1536,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 		le32_to_cpu(dyn_regs->cpu_cmd_status_to_host),
 		status,
 		FIELD_GET(COMMS_STATUS_STATUS_MASK, status) == expected_status,
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		timeout);
 
 	if (rc) {
@@ -1703,6 +1802,9 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 		return rc;
 	}
 
+	/* here we can mark the descriptor as valid as the content has been validated */
+	fw_loader->dynamic_loader.fw_desc_valid = true;
+
 	return 0;
 }
 
@@ -1759,7 +1861,13 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 		return rc;
 	}
 
-	/* extract address copy the descriptor from */
+	/*
+	 * extract address to copy the descriptor from
+	 * in addition, as the descriptor value is going to be over-ridden by new data- we mark it
+	 * as invalid.
+	 * it will be marked again as valid once validated
+	 */
+	fw_loader->dynamic_loader.fw_desc_valid = false;
 	src = hdev->pcie_bar[region->bar_id] + region->offset_in_bar +
 							response->ram_offset;
 	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
@@ -1920,17 +2028,15 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	/* Clear reset status since we need to read it again from boot CPU */
-	prop->hard_reset_done_by_fw = false;
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_BOOT_CPU;
 
 	/* Read boot_cpu status bits */
 	if (prop->fw_preboot_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_bootfit_cpu_boot_dev_sts0 =
 				RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_bootfit_cpu_boot_dev_sts0 &
-				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			prop->hard_reset_done_by_fw = true;
+		prop->hard_reset_done_by_fw = !!(prop->fw_bootfit_cpu_boot_dev_sts0 &
+							CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 		dev_dbg(hdev->dev, "Firmware boot CPU status0 %#x\n",
 					prop->fw_bootfit_cpu_boot_dev_sts0);
@@ -2055,14 +2161,21 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 
 	dyn_loader = &fw_loader->dynamic_loader;
 
-	/* Make sure CPU boot-loader is running */
+	/*
+	 * Make sure CPU boot-loader is running
+	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * yet there is a debug scenario in which we loading uboot (without Linux)
+	 * which at later stage is relocated to DRAM. In this case we expect
+	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
+	 * poll flags
+	 */
 	rc = hl_poll_timeout(
 		hdev,
 		le32_to_cpu(dyn_loader->comm_desc.cpu_dyn_regs.cpu_boot_status),
 		status,
-		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
-		(status == CPU_BOOT_STATUS_READY_TO_BOOT),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
+		hdev->fw_poll_interval_usec,
 		dyn_loader->wait_for_bl_timeout);
 	if (rc) {
 		dev_err(hdev->dev, "failed to wait for boot\n");
@@ -2082,14 +2195,14 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 
 	dyn_loader = &fw_loader->dynamic_loader;
 
-	/* Make sure CPU boot-loader is running */
+	/* Make sure CPU linux is running */
 
 	rc = hl_poll_timeout(
 		hdev,
 		le32_to_cpu(dyn_loader->comm_desc.cpu_dyn_regs.cpu_boot_status),
 		status,
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		fw_loader->cpu_timeout);
 	if (rc) {
 		dev_err(hdev->dev, "failed to wait for Linux\n");
@@ -2121,18 +2234,14 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	hdev->fw_loader.linux_loaded = true;
-
-	/* Clear reset status since we need to read again from app */
-	prop->hard_reset_done_by_fw = false;
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_LINUX;
 
 	/* Read FW application security bits */
 	if (prop->fw_cpu_boot_dev_sts0_valid) {
 		prop->fw_app_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_app_cpu_boot_dev_sts0 &
-				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			prop->hard_reset_done_by_fw = true;
+		prop->hard_reset_done_by_fw = !!(prop->fw_app_cpu_boot_dev_sts0 &
+							CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
@@ -2247,6 +2356,9 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	dev_info(hdev->dev,
 		"Loading firmware to device, may take some time...\n");
 
+	/* initialize FW descriptor as invalid */
+	fw_loader->dynamic_loader.fw_desc_valid = false;
+
 	/*
 	 * In this stage, "cpu_dyn_regs" contains only LKD's hard coded values!
 	 * It will be updated from FW after hl_fw_dynamic_request_descriptor().
@@ -2259,14 +2371,14 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	if (hdev->curr_reset_cause) {
+	if (hdev->reset_info.curr_reset_cause) {
 		rc = hl_fw_dynamic_send_msg(hdev, fw_loader,
-				HL_COMMS_RESET_CAUSE_TYPE, &hdev->curr_reset_cause);
+				HL_COMMS_RESET_CAUSE_TYPE, &hdev->reset_info.curr_reset_cause);
 		if (rc)
 			goto protocol_err;
 
 		/* Clear current reset cause */
-		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+		hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
@@ -2287,6 +2399,15 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 		dev_err(hdev->dev, "failed to load boot fit\n");
 		goto protocol_err;
 	}
+
+	/*
+	 * when testing FW load (without Linux) on PLDM we don't want to
+	 * wait until boot fit is active as it may take several hours.
+	 * instead, we load the bootfit and let it do all initializations in
+	 * the background.
+	 */
+	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
+		return 0;
 
 	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
 	if (rc)
@@ -2333,7 +2454,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	return 0;
 
 protocol_err:
-	fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
+	if (fw_loader->dynamic_loader.fw_desc_valid)
+		fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
 				le32_to_cpu(dyn_regs->cpu_boot_err1),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
@@ -2380,7 +2502,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		cpu_boot_status_reg,
 		status,
 		status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT,
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		fw_loader->boot_fit_timeout);
 
 	if (rc) {
@@ -2403,7 +2525,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 			cpu_msg_status_reg,
 			status,
 			status == CPU_MSG_OK,
-			FW_CPU_STATUS_POLL_INTERVAL_USEC,
+			hdev->fw_poll_interval_usec,
 			fw_loader->boot_fit_timeout);
 
 		if (rc) {
@@ -2416,7 +2538,14 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		WREG32(msg_to_cpu_reg, KMD_MSG_NA);
 	}
 
-	/* Make sure CPU boot-loader is running */
+	/*
+	 * Make sure CPU boot-loader is running
+	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * yet there is a debug scenario in which we loading uboot (without Linux)
+	 * which at later stage is relocated to DRAM. In this case we expect
+	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
+	 * poll flags
+	 */
 	rc = hl_poll_timeout(
 		hdev,
 		cpu_boot_status_reg,
@@ -2425,7 +2554,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		cpu_timeout);
 
 	dev_dbg(hdev->dev, "uboot status = %d\n", status);
@@ -2474,7 +2603,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 			cpu_boot_status_reg,
 			status,
 			(status == CPU_BOOT_STATUS_BMC_WAITING_SKIPPED),
-			FW_CPU_STATUS_POLL_INTERVAL_USEC,
+			hdev->fw_poll_interval_usec,
 			cpu_timeout);
 
 		if (rc) {
@@ -2494,7 +2623,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		cpu_boot_status_reg,
 		status,
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		cpu_timeout);
 
 	/* Clear message */

@@ -78,11 +78,10 @@
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
+#include <linux/comedi/comedi_8254.h>
 
 #include "amcc_s5933.h"
-#include "comedi_8254.h"
 
 /*
  * PCI BAR2 Register map (dev->iobase)

@@ -1307,6 +1307,10 @@ mlxsw_sp_router_ip2me_fib_entry_find(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
 		addr_prefix_len = 32;
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
+		addrp = &addr->addr6;
+		addr_len = 16;
+		addr_prefix_len = 128;
+		break;
 	default:
 		WARN_ON(1);
 		return NULL;
@@ -7002,6 +7006,8 @@ mlxsw_sp_fib6_entry_type_set_local(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_group_info *nhgi = fib_entry->nh_group->nhgi;
 	union mlxsw_sp_l3addr dip = { .addr6 = rt->fib6_dst.addr };
+	u32 tb_id = mlxsw_sp_fix_tb_id(rt->fib6_table->tb6_id);
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	int ifindex = nhgi->nexthops[0].ifindex;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 
@@ -7014,6 +7020,14 @@ mlxsw_sp_fib6_entry_type_set_local(struct mlxsw_sp *mlxsw_sp,
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
 		return mlxsw_sp_fib_entry_decap_init(mlxsw_sp, fib_entry,
 						     ipip_entry);
+	}
+	if (mlxsw_sp_router_nve_is_decap(mlxsw_sp, tb_id,
+					 MLXSW_SP_L3_PROTO_IPV6, &dip)) {
+		u32 tunnel_index;
+
+		tunnel_index = router->nve_decap_config.tunnel_index;
+		fib_entry->decap.tunnel_index = tunnel_index;
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP;
 	}
 
 	return 0;
@@ -8369,9 +8383,6 @@ mlxsw_sp_rif_mac_profile_find(const struct mlxsw_sp *mlxsw_sp, const char *mac)
 	int id;
 
 	idr_for_each_entry(&router->rif_mac_profiles_idr, profile, id) {
-		if (!profile)
-			continue;
-
 		if (ether_addr_equal_masked(profile->mac_prefix, mac,
 					    mlxsw_sp->mac_mask))
 			return profile;
@@ -9344,7 +9355,7 @@ static int mlxsw_sp_rif_vlan_fid_op(struct mlxsw_sp_rif *rif,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
-u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
+u16 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
 {
 	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
 }

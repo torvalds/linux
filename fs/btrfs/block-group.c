@@ -124,7 +124,16 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 {
 	if (refcount_dec_and_test(&cache->refs)) {
 		WARN_ON(cache->pinned > 0);
-		WARN_ON(cache->reserved > 0);
+		/*
+		 * If there was a failure to cleanup a log tree, very likely due
+		 * to an IO failure on a writeback attempt of one or more of its
+		 * extent buffers, we could not do proper (and cheap) unaccounting
+		 * of their reserved space, so don't warn on reserved > 0 in that
+		 * case.
+		 */
+		if (!(cache->flags & BTRFS_BLOCK_GROUP_METADATA) ||
+		    !BTRFS_FS_LOG_CLEANUP_ERROR(cache->fs_info))
+			WARN_ON(cache->reserved > 0);
 
 		/*
 		 * A block_group shouldn't be on the discard_list anymore.
@@ -514,7 +523,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 {
 	struct btrfs_block_group *block_group = caching_ctl->block_group;
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_root *extent_root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -529,6 +538,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 		return -ENOMEM;
 
 	last = max_t(u64, block_group->start, BTRFS_SUPER_INFO_OFFSET);
+	extent_root = btrfs_extent_root(fs_info, last);
 
 #ifdef CONFIG_BTRFS_DEBUG
 	/*
@@ -841,7 +851,7 @@ static int remove_block_group_item(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int ret;
 
-	root = fs_info->extent_root;
+	root = btrfs_block_group_root(fs_info);
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = block_group->length;
@@ -1106,6 +1116,7 @@ out:
 struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 		struct btrfs_fs_info *fs_info, const u64 chunk_offset)
 {
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -1139,8 +1150,7 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 	num_items = 3 + map->num_stripes;
 	free_extent_map(em);
 
-	return btrfs_start_transaction_fallback_global_rsv(fs_info->extent_root,
-							   num_items);
+	return btrfs_start_transaction_fallback_global_rsv(root, num_items);
 }
 
 /*
@@ -1508,7 +1518,6 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
-	LIST_HEAD(again_list);
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
 		return;
@@ -1585,18 +1594,14 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
-		if (ret && ret != -EAGAIN)
+		if (ret)
 			btrfs_err(fs_info, "error relocating chunk %llu",
 				  bg->start);
 
 next:
+		btrfs_put_block_group(bg);
 		spin_lock(&fs_info->unused_bgs_lock);
-		if (ret == -EAGAIN && list_empty(&bg->bg_list))
-			list_add_tail(&bg->bg_list, &again_list);
-		else
-			btrfs_put_block_group(bg);
 	}
-	list_splice_tail(&again_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	btrfs_exclop_finish(fs_info);
@@ -1678,7 +1683,7 @@ static int find_first_block_group(struct btrfs_fs_info *fs_info,
 				  struct btrfs_path *path,
 				  struct btrfs_key *key)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	int ret;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
@@ -2165,6 +2170,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 
 int btrfs_read_block_groups(struct btrfs_fs_info *info)
 {
+	struct btrfs_root *root = btrfs_block_group_root(info);
 	struct btrfs_path *path;
 	int ret;
 	struct btrfs_block_group *cache;
@@ -2173,7 +2179,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	int need_clear = 0;
 	u64 cache_gen;
 
-	if (!info->extent_root)
+	if (!root)
 		return fill_dummy_bgs(info);
 
 	key.objectid = 0;
@@ -2276,7 +2282,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group_item bgi;
-	struct btrfs_root *root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct btrfs_key key;
 
 	spin_lock(&block_group->lock);
@@ -2289,7 +2295,6 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	key.offset = block_group->length;
 	spin_unlock(&block_group->lock);
 
-	root = fs_info->extent_root;
 	return btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
 }
 
@@ -2543,12 +2548,26 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	u64 alloc_flags;
 	int ret;
 	bool dirty_bg_running;
 
+	/*
+	 * This can only happen when we are doing read-only scrub on read-only
+	 * mount.
+	 * In that case we should not start a new transaction on read-only fs.
+	 * Thus here we skip all chunk allocations.
+	 */
+	if (sb_rdonly(fs_info->sb)) {
+		mutex_lock(&fs_info->ro_block_group_mutex);
+		ret = inc_block_group_ro(cache, 0);
+		mutex_unlock(&fs_info->ro_block_group_mutex);
+		return ret;
+	}
+
 	do {
-		trans = btrfs_join_transaction(fs_info->extent_root);
+		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
 
@@ -2653,7 +2672,7 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	unsigned long bi;
 	struct extent_buffer *leaf;
 	struct btrfs_block_group_item bgi;
@@ -3790,7 +3809,7 @@ static void reserve_chunk_space(struct btrfs_trans_handle *trans,
 	}
 
 	if (!ret) {
-		ret = btrfs_block_rsv_add(fs_info->chunk_root,
+		ret = btrfs_block_rsv_add(fs_info,
 					  &fs_info->chunk_block_rsv,
 					  bytes, BTRFS_RESERVE_NO_FLUSH);
 		if (!ret)
@@ -3911,9 +3930,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		list_del_init(&block_group->bg_list);
 		btrfs_put_block_group(block_group);
 	}
-	spin_unlock(&info->unused_bgs_lock);
 
-	spin_lock(&info->unused_bgs_lock);
 	while (!list_empty(&info->reclaim_bgs)) {
 		block_group = list_first_entry(&info->reclaim_bgs,
 					       struct btrfs_block_group,
@@ -3979,9 +3996,22 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		 * important and indicates a real bug if this happens.
 		 */
 		if (WARN_ON(space_info->bytes_pinned > 0 ||
-			    space_info->bytes_reserved > 0 ||
 			    space_info->bytes_may_use > 0))
 			btrfs_dump_space_info(info, space_info, 0, 0);
+
+		/*
+		 * If there was a failure to cleanup a log tree, very likely due
+		 * to an IO failure on a writeback attempt of one or more of its
+		 * extent buffers, we could not do proper (and cheap) unaccounting
+		 * of their reserved space, so don't warn on bytes_reserved > 0 in
+		 * that case.
+		 */
+		if (!(space_info->flags & BTRFS_BLOCK_GROUP_METADATA) ||
+		    !BTRFS_FS_LOG_CLEANUP_ERROR(info)) {
+			if (WARN_ON(space_info->bytes_reserved > 0))
+				btrfs_dump_space_info(info, space_info, 0, 0);
+		}
+
 		WARN_ON(space_info->reclaim_size > 0);
 		list_del(&space_info->list);
 		btrfs_sysfs_remove_space_info(space_info);

@@ -1009,9 +1009,6 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->gc.owner			= THIS_MODULE;
 	gpio_dev->gc.parent			= &pdev->dev;
 	gpio_dev->gc.ngpio			= resource_size(res) / 4;
-#if defined(CONFIG_OF_GPIO)
-	gpio_dev->gc.of_node			= pdev->dev.of_node;
-#endif
 
 	gpio_dev->hwbank_num = gpio_dev->gc.ngpio / 64;
 	gpio_dev->groups = kerncz_groups;

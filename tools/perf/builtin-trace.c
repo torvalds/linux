@@ -2726,6 +2726,8 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 				offset = format_field__intval(field, sample, evsel->needs_swap);
 				syscall_arg.len = offset >> 16;
 				offset &= 0xffff;
+				if (field->flags & TEP_FIELD_IS_RELATIVE)
+					offset += field->offset + field->size;
 			}
 
 			val = (uintptr_t)(sample->raw_data + offset);
@@ -3257,10 +3259,21 @@ static void trace__set_bpf_map_syscalls(struct trace *trace)
 
 static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
 {
+	struct bpf_program *pos, *prog = NULL;
+	const char *sec_name;
+
 	if (trace->bpf_obj == NULL)
 		return NULL;
 
-	return bpf_object__find_program_by_title(trace->bpf_obj, name);
+	bpf_object__for_each_program(pos, trace->bpf_obj) {
+		sec_name = bpf_program__section_name(pos);
+		if (sec_name && !strcmp(sec_name, name)) {
+			prog = pos;
+			break;
+		}
+	}
+
+	return prog;
 }
 
 static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, struct syscall *sc,
@@ -3950,6 +3963,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
 		evlist__add(evlist, pgfault_min);
 	}
+
+	/* Enable ignoring missing threads when -u/-p option is defined. */
+	trace->opts.ignore_missing_thread = trace->opts.target.uid != UINT_MAX || trace->opts.target.pid;
 
 	if (trace->sched &&
 	    evlist__add_newtp(evlist, "sched", "sched_stat_runtime", trace__sched_stat_runtime))

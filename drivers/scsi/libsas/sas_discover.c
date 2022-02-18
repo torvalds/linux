@@ -8,7 +8,6 @@
 
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/async.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_eh.h>
 #include "sas_internal.h"

@@ -645,17 +645,14 @@ static int mk_sockaddr(int domain, const char *ip, unsigned short port,
 static int load_insns(const struct sock_addr_test *test,
 		      const struct bpf_insn *insns, size_t insns_cnt)
 {
-	struct bpf_load_program_attr load_attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int ret;
 
-	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
-	load_attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
-	load_attr.expected_attach_type = test->expected_attach_type;
-	load_attr.insns = insns;
-	load_attr.insns_cnt = insns_cnt;
-	load_attr.license = "GPL";
+	opts.expected_attach_type = test->expected_attach_type;
+	opts.log_buf = bpf_log_buf;
+	opts.log_size = BPF_LOG_BUF_SIZE;
 
-	ret = bpf_load_program_xattr(&load_attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	ret = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK_ADDR, NULL, "GPL", insns, insns_cnt, &opts);
 	if (ret < 0 && test->expected_result != LOAD_REJECT) {
 		log_err(">>> Loading program error.\n"
 			">>> Verifier output:\n%s\n-------\n", bpf_log_buf);
@@ -666,23 +663,36 @@ static int load_insns(const struct sock_addr_test *test,
 
 static int load_path(const struct sock_addr_test *test, const char *path)
 {
-	struct bpf_prog_load_attr attr;
 	struct bpf_object *obj;
-	int prog_fd;
+	struct bpf_program *prog;
+	int err;
 
-	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
-	attr.file = path;
-	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
-	attr.expected_attach_type = test->expected_attach_type;
-	attr.prog_flags = BPF_F_TEST_RND_HI32;
-
-	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
-		if (test->expected_result != LOAD_REJECT)
-			log_err(">>> Loading program (%s) error.\n", path);
+	obj = bpf_object__open_file(path, NULL);
+	err = libbpf_get_error(obj);
+	if (err) {
+		log_err(">>> Opening BPF object (%s) error.\n", path);
 		return -1;
 	}
 
-	return prog_fd;
+	prog = bpf_object__next_program(obj, NULL);
+	if (!prog)
+		goto err_out;
+
+	bpf_program__set_type(prog, BPF_PROG_TYPE_CGROUP_SOCK_ADDR);
+	bpf_program__set_expected_attach_type(prog, test->expected_attach_type);
+	bpf_program__set_flags(prog, BPF_F_TEST_RND_HI32);
+
+	err = bpf_object__load(obj);
+	if (err) {
+		if (test->expected_result != LOAD_REJECT)
+			log_err(">>> Loading program (%s) error.\n", path);
+		goto err_out;
+	}
+
+	return bpf_program__fd(prog);
+err_out:
+	bpf_object__close(obj);
+	return -1;
 }
 
 static int bind4_prog_load(const struct sock_addr_test *test)

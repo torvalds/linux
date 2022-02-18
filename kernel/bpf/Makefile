@@ -36,3 +36,7 @@ obj-$(CONFIG_BPF_SYSCALL) += bpf_struct_ops.o
 obj-${CONFIG_BPF_LSM} += bpf_lsm.o
 endif
 obj-$(CONFIG_BPF_PRELOAD) += preload/
+
+obj-$(CONFIG_BPF_SYSCALL) += relo_core.o
+$(obj)/relo_core.o: $(srctree)/tools/lib/bpf/relo_core.c FORCE
+	$(call if_changed_rule,cc_o_c)

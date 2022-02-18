@@ -110,14 +110,15 @@ void __init plat_mem_setup(void)
 
 void __init device_tree_init(void)
 {
-	int err;
-
 	unflatten_and_copy_device_tree();
 	mips_cpc_probe();
 
-	err = register_cps_smp_ops();
-	if (err)
-		err = register_up_smp_ops();
+	if (!register_cps_smp_ops())
+		return;
+	if (!register_vsmp_smp_ops())
+		return;
+
+	register_up_smp_ops();
 }
 
 int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,

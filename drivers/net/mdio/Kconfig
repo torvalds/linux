@@ -141,7 +141,7 @@ config MDIO_MVUSB
 
 config MDIO_MSCC_MIIM
 	tristate "Microsemi MIIM interface support"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && REGMAP_MMIO
 	select MDIO_DEVRES
 	help
 	  This driver supports the MIIM (MDIO) interface found in the network

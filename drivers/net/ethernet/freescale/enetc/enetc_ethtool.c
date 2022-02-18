@@ -562,7 +562,9 @@ static int enetc_set_rxfh(struct net_device *ndev, const u32 *indir,
 }
 
 static void enetc_get_ringparam(struct net_device *ndev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 

@@ -237,6 +237,10 @@ static void tc358768_hw_enable(struct tc358768_priv *priv)
 	if (priv->enabled)
 		return;
 
+	ret = clk_prepare_enable(priv->refclk);
+	if (ret < 0)
+		dev_err(priv->dev, "error enabling refclk (%d)\n", ret);
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies), priv->supplies);
 	if (ret < 0)
 		dev_err(priv->dev, "error enabling regulators (%d)\n", ret);
@@ -273,6 +277,8 @@ static void tc358768_hw_disable(struct tc358768_priv *priv)
 				     priv->supplies);
 	if (ret < 0)
 		dev_err(priv->dev, "error disabling regulators (%d)\n", ret);
+
+	clk_disable_unprepare(priv->refclk);
 
 	priv->enabled = false;
 }
@@ -625,11 +631,18 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct tc358768_priv *priv = bridge_to_tc358768(bridge);
 	struct mipi_dsi_device *dsi_dev = priv->output.dev;
+	unsigned long mode_flags = dsi_dev->mode_flags;
 	u32 val, val2, lptxcnt, hact, data_type;
 	const struct drm_display_mode *mode;
 	u32 dsibclk_nsk, dsiclk_nsk, ui_nsk, phy_delay_nsk;
-	u32 dsiclk, dsibclk;
+	u32 dsiclk, dsibclk, video_start;
+	const u32 internal_delay = 40;
 	int ret, i;
+
+	if (mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
+		dev_warn_once(priv->dev, "Non-continuous mode unimplemented, falling back to continuous\n");
+		mode_flags &= ~MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	}
 
 	tc358768_hw_enable(priv);
 
@@ -657,23 +670,27 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	case MIPI_DSI_FMT_RGB888:
 		val |= (0x3 << 4);
 		hact = mode->hdisplay * 3;
+		video_start = (mode->htotal - mode->hsync_start) * 3;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
 		break;
 	case MIPI_DSI_FMT_RGB666:
 		val |= (0x4 << 4);
 		hact = mode->hdisplay * 3;
+		video_start = (mode->htotal - mode->hsync_start) * 3;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_18;
 		break;
 
 	case MIPI_DSI_FMT_RGB666_PACKED:
 		val |= (0x4 << 4) | BIT(3);
 		hact = mode->hdisplay * 18 / 8;
+		video_start = (mode->htotal - mode->hsync_start) * 18 / 8;
 		data_type = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
 		break;
 
 	case MIPI_DSI_FMT_RGB565:
 		val |= (0x5 << 4);
 		hact = mode->hdisplay * 2;
+		video_start = (mode->htotal - mode->hsync_start) * 2;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_16;
 		break;
 	default:
@@ -684,7 +701,8 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	}
 
 	/* VSDly[9:0] */
-	tc358768_write(priv, TC358768_VSDLY, 1);
+	video_start = max(video_start, internal_delay + 1) - internal_delay;
+	tc358768_write(priv, TC358768_VSDLY, video_start);
 
 	tc358768_write(priv, TC358768_DATAFMT, val);
 	tc358768_write(priv, TC358768_DSITX_DT, data_type);
@@ -764,7 +782,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 		val |= BIT(i + 1);
 	tc358768_write(priv, TC358768_HSTXVREGEN, val);
 
-	if (!(dsi_dev->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		tc358768_write(priv, TC358768_TXOPTIONCNTRL, 0x1);
 
 	/* TXTAGOCNT[26:16] RXTASURECNT[10:0] */
@@ -772,31 +790,61 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	val = tc358768_ns_to_cnt(val, dsibclk_nsk) - 1;
 	val2 = tc358768_ns_to_cnt(tc358768_to_ns((lptxcnt + 1) * dsibclk_nsk),
 				  dsibclk_nsk) - 2;
-	val |= val2 << 16;
+	val = val << 16 | val2;
 	dev_dbg(priv->dev, "BTACNTRL1: 0x%x\n", val);
 	tc358768_write(priv, TC358768_BTACNTRL1, val);
 
 	/* START[0] */
 	tc358768_write(priv, TC358768_STARTCNTRL, 1);
 
-	/* Set event mode */
-	tc358768_write(priv, TC358768_DSI_EVENT, 1);
+	if (dsi_dev->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+		/* Set pulse mode */
+		tc358768_write(priv, TC358768_DSI_EVENT, 0);
 
-	/* vsw (+ vbp) */
-	tc358768_write(priv, TC358768_DSI_VSW,
-		       mode->vtotal - mode->vsync_start);
-	/* vbp (not used in event mode) */
-	tc358768_write(priv, TC358768_DSI_VBPR, 0);
-	/* vact */
-	tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
+		/* vact */
+		tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
 
-	/* (hsw + hbp) * byteclk * ndl / pclk */
-	val = (u32)div_u64((mode->htotal - mode->hsync_start) *
-			   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
-			   mode->clock * 1000);
-	tc358768_write(priv, TC358768_DSI_HSW, val);
-	/* hbp (not used in event mode) */
-	tc358768_write(priv, TC358768_DSI_HBPR, 0);
+		/* vsw */
+		tc358768_write(priv, TC358768_DSI_VSW,
+			       mode->vsync_end - mode->vsync_start);
+		/* vbp */
+		tc358768_write(priv, TC358768_DSI_VBPR,
+			       mode->vtotal - mode->vsync_end);
+
+		/* hsw * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->hsync_end - mode->hsync_start) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HSW, val);
+
+		/* hbp * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->htotal - mode->hsync_end) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HBPR, val);
+	} else {
+		/* Set event mode */
+		tc358768_write(priv, TC358768_DSI_EVENT, 1);
+
+		/* vact */
+		tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
+
+		/* vsw (+ vbp) */
+		tc358768_write(priv, TC358768_DSI_VSW,
+			       mode->vtotal - mode->vsync_start);
+		/* vbp (not used in event mode) */
+		tc358768_write(priv, TC358768_DSI_VBPR, 0);
+
+		/* (hsw + hbp) * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->htotal - mode->hsync_start) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HSW, val);
+
+		/* hbp (not used in event mode) */
+		tc358768_write(priv, TC358768_DSI_HBPR, 0);
+	}
+
 	/* hact (bytes) */
 	tc358768_write(priv, TC358768_DSI_HACT, hact);
 
@@ -822,7 +870,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	if (!(dsi_dev->mode_flags & MIPI_DSI_MODE_LPM))
 		val |= TC358768_DSI_CONTROL_TXMD;
 
-	if (!(dsi_dev->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		val |= TC358768_DSI_CONTROL_HSCKMD;
 
 	if (dsi_dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET)

@@ -98,6 +98,7 @@ static int
 curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
 	struct nv50_head *head = nv50_head(asyw->state.crtc);
 	int ret;
 
@@ -109,8 +110,20 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (ret || !asyh->curs.visible)
 		return ret;
 
-	if (asyw->image.w != asyw->image.h)
+	if (asyw->state.crtc_w != asyw->state.crtc_h) {
+		NV_ATOMIC(drm, "Plane width/height must be equal for cursors\n");
 		return -EINVAL;
+	}
+
+	if (asyw->image.w != asyw->state.crtc_w) {
+		NV_ATOMIC(drm, "Plane width must be equal to fb width for cursors (height can be larger though)\n");
+		return -EINVAL;
+	}
+
+	if (asyw->state.src_x || asyw->state.src_y) {
+		NV_ATOMIC(drm, "Cursor planes do not support framebuffer offsets\n");
+		return -EINVAL;
+	}
 
 	ret = head->func->curs_layout(head, asyw, asyh);
 	if (ret)

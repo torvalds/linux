@@ -278,7 +278,6 @@ struct iosm_mux {
 struct ipc_mux_config {
 	enum ipc_mux_protocol protocol;
 	enum ipc_mux_ul_flow ul_flow;
-	int nr_sessions;
 	int instance_id;
 };
 

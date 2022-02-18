@@ -36,15 +36,14 @@ static ssize_t store_bridge_parm(struct device *d,
 	struct net_bridge *br = to_bridge(d);
 	struct netlink_ext_ack extack = {0};
 	unsigned long val;
-	char *endp;
 	int err;
 
 	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (endp == buf)
-		return -EINVAL;
+	err = kstrtoul(buf, 0, &val);
+	if (err != 0)
+		return err;
 
 	if (!rtnl_trylock())
 		return restart_syscall();

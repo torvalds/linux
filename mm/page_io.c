@@ -25,6 +25,7 @@
 #include <linux/psi.h>
 #include <linux/uio.h>
 #include <linux/sched/task.h>
+#include <linux/delayacct.h>
 
 void end_swap_bio_write(struct bio *bio)
 {
@@ -370,6 +371,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	 * significant part of overall IO time.
 	 */
 	psi_memstall_enter(&pflags);
+	delayacct_swapin_start();
 
 	if (frontswap_load(page) == 0) {
 		SetPageUptodate(page);
@@ -432,6 +434,7 @@ int swap_readpage(struct page *page, bool synchronous)
 
 out:
 	psi_memstall_leave(&pflags);
+	delayacct_swapin_end();
 	return ret;
 }
 
