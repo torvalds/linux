@@ -2268,6 +2268,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.sg_tablesize		= ISCSI_MAX_BDS_PER_CMD,
 	.shost_groups		= bnx2i_dev_groups,
 	.track_queue_depth	= 1,
+	.cmd_size		= sizeof(struct iscsi_cmd),
 };
 
 struct iscsi_transport bnx2i_iscsi_transport = {
