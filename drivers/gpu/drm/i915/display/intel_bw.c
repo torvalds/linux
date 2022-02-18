@@ -836,25 +836,12 @@ static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
 	return mask;
 }
 
-int intel_bw_atomic_check(struct intel_atomic_state *state)
+static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
-	unsigned int data_rate;
-	unsigned int num_active_planes;
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
-	int i, ret;
-	u32 allowed_points = 0;
-	unsigned int max_bw_point = 0, max_bw = 0;
-	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
-	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
-	bool changed = false;
-
-	/* FIXME earlier gens need some checks too */
-	if (DISPLAY_VER(dev_priv) < 11)
-		return 0;
+	int i;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -866,6 +853,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 			intel_bw_crtc_num_active_planes(old_crtc_state);
 		unsigned int new_active_planes =
 			intel_bw_crtc_num_active_planes(new_crtc_state);
+		struct intel_bw_state *new_bw_state;
 
 		/*
 		 * Avoid locking the bw state when
@@ -882,14 +870,39 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
 		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
-		changed = true;
+		*changed = true;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe %c data rate %u num active planes %u\n",
-			    pipe_name(crtc->pipe),
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] data rate %u num active planes %u\n",
+			    crtc->base.base.id, crtc->base.name,
 			    new_bw_state->data_rate[crtc->pipe],
 			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
+
+	return 0;
+}
+
+int intel_bw_atomic_check(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *old_bw_state;
+	struct intel_bw_state *new_bw_state;
+	unsigned int data_rate;
+	unsigned int num_active_planes;
+	int i, ret;
+	u32 allowed_points = 0;
+	unsigned int max_bw_point = 0, max_bw = 0;
+	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
+	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
+	bool changed = false;
+
+	/* FIXME earlier gens need some checks too */
+	if (DISPLAY_VER(dev_priv) < 11)
+		return 0;
+
+	ret = intel_bw_check_data_rate(state, &changed);
+	if (ret)
+		return ret;
 
 	old_bw_state = intel_atomic_get_old_bw_state(state);
 	new_bw_state = intel_atomic_get_new_bw_state(state);
