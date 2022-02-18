@@ -140,6 +140,7 @@ struct rk_pcie {
 	void __iomem			*apb_base;
 	struct phy			*phy;
 	struct clk_bulk_data		*clks;
+	struct reset_control		*rsts;
 	unsigned int			clk_cnt;
 	struct gpio_desc		*rst_gpio;
 	struct gpio_desc		*prsnt_gpio;
@@ -1252,21 +1253,6 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
-static int rk_pcie_reset_control_release(struct rk_pcie *rk_pcie)
-{
-	struct device *dev = rk_pcie->pci->dev;
-	struct reset_control *rsts;
-
-	rsts = of_reset_control_array_get_exclusive(dev->of_node);
-	if (IS_ERR(rsts))
-		return dev_err_probe(dev, PTR_ERR(rsts), "failed to get reset lines\n");
-
-	reset_control_deassert(rsts);
-	reset_control_put(rsts);
-
-	return 0;
-}
-
 static int rk_pcie_reset_grant_ctrl(struct rk_pcie *rk_pcie,
 						bool enable)
 {
@@ -1779,11 +1765,14 @@ retry_regulator:
 		goto disable_vpcie3v3;
 	}
 
-	ret = rk_pcie_reset_control_release(rk_pcie);
-	if (ret) {
-		dev_err(dev, "reset control init failed\n");
+	rk_pcie->rsts = devm_reset_control_array_get_exclusive(dev);
+	if (IS_ERR(rk_pcie->rsts)) {
+		ret = PTR_ERR(rk_pcie->rsts);
+		dev_err(dev, "failed to get reset lines\n");
 		goto disable_phy;
 	}
+
+	reset_control_deassert(rk_pcie->rsts);
 
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
