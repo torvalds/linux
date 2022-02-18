@@ -492,6 +492,8 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 			   int adjust_flags);
 void drm_mode_copy(struct drm_display_mode *dst,
 		   const struct drm_display_mode *src);
+void drm_mode_init(struct drm_display_mode *dst,
+		   const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode);
 bool drm_mode_match(const struct drm_display_mode *mode1,
