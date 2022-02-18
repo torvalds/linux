@@ -989,10 +989,12 @@ static inline u64 kvm_guest_supported_xcr0(struct kvm_vcpu *vcpu)
 	return vcpu->arch.guest_fpu.fpstate->user_xfeatures;
 }
 
+#ifdef CONFIG_X86_64
 static inline u64 kvm_guest_supported_xfd(struct kvm_vcpu *vcpu)
 {
 	return kvm_guest_supported_xcr0(vcpu) & XFEATURE_MASK_USER_DYNAMIC;
 }
+#endif
 
 static int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 {
@@ -2361,10 +2363,12 @@ static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 	return tsc;
 }
 
+#ifdef CONFIG_X86_64
 static inline int gtod_is_based_on_tsc(int mode)
 {
 	return mode == VDSO_CLOCKMODE_TSC || mode == VDSO_CLOCKMODE_HVCLOCK;
 }
+#endif
 
 static void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
 {
