@@ -19,7 +19,6 @@
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/sync.h>
-#include <asm/war.h>
 #include <asm/thread_info.h>
 
 	__INIT

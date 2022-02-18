@@ -17,7 +17,6 @@
 #include <asm/compiler.h>
 #include <asm/errno.h>
 #include <asm/sync.h>
-#include <asm/war.h>
 
 #define arch_futex_atomic_op_inuser arch_futex_atomic_op_inuser
 #define futex_atomic_cmpxchg_inatomic futex_atomic_cmpxchg_inatomic

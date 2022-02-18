@@ -17,7 +17,6 @@
 #include <asm/stackframe.h>
 #include <asm/isadep.h>
 #include <asm/thread_info.h>
-#include <asm/war.h>
 
 #ifndef CONFIG_PREEMPTION
 #define resume_kernel	restore_all
