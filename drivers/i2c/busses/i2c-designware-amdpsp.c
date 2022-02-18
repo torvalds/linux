@@ -160,9 +160,10 @@ static int psp_send_cmd(struct psp_i2c_req *req)
 /* Helper to verify status returned by PSP */
 static int check_i2c_req_sts(struct psp_i2c_req *req)
 {
-	int status;
+	u32 status;
 
-	status = readl(&req->hdr.status);
+	/* Status field in command-response buffer is updated by PSP */
+	status = READ_ONCE(req->hdr.status);
 
 	switch (status) {
 	case PSP_I2C_REQ_STS_OK:
