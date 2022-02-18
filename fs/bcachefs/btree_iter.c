@@ -1407,12 +1407,12 @@ err:
 static int btree_path_traverse_one(struct btree_trans *, struct btree_path *,
 				   unsigned, unsigned long);
 
-static int __btree_path_traverse_all(struct btree_trans *trans, int ret,
-				     unsigned long trace_ip)
+static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_path *path, *prev = NULL;
-	int i;
+	unsigned long trace_ip = _RET_IP_;
+	int i, ret = 0;
 
 	if (trans->in_traverse_all)
 		return -EINTR;
@@ -1441,7 +1441,7 @@ retry_all:
 	bch2_trans_unlock(trans);
 	cond_resched();
 
-	if (unlikely(ret == -ENOMEM)) {
+	if (unlikely(trans->memory_allocation_failure)) {
 		struct closure cl;
 
 		closure_init_stack(&cl);
@@ -1451,11 +1451,6 @@ retry_all:
 			closure_sync(&cl);
 		} while (ret);
 	}
-
-	if (unlikely(ret == -EIO))
-		goto out;
-
-	BUG_ON(ret && ret != -EINTR);
 
 	/* Now, redo traversals in correct order: */
 	i = 0;
@@ -1482,18 +1477,13 @@ retry_all:
 	 */
 	trans_for_each_path(trans, path)
 		BUG_ON(path->uptodate >= BTREE_ITER_NEED_TRAVERSE);
-out:
+
 	bch2_btree_cache_cannibalize_unlock(c);
 
 	trans->in_traverse_all = false;
 
 	trace_trans_traverse_all(trans->fn, trace_ip);
 	return ret;
-}
-
-static int bch2_btree_path_traverse_all(struct btree_trans *trans)
-{
-	return __btree_path_traverse_all(trans, 0, _RET_IP_);
 }
 
 static inline bool btree_path_good_node(struct btree_trans *trans,
@@ -1618,8 +1608,6 @@ out:
 	bch2_btree_path_verify(trans, path);
 	return ret;
 }
-
-static int __btree_path_traverse_all(struct btree_trans *, int, unsigned long);
 
 int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 					  struct btree_path *path, unsigned flags)

@@ -802,6 +802,14 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_traverse,
 	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
 );
 
+DEFINE_EVENT(transaction_restart_iter,	trans_restart_memory_allocation_failure,
+	TP_PROTO(const char *trans_fn,
+		 unsigned long caller_ip,
+		 enum btree_id btree_id,
+		 struct bpos *pos),
+	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
+);
+
 TRACE_EVENT(trans_restart_would_deadlock,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long	caller_ip,

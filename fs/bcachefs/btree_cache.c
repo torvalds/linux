@@ -672,6 +672,15 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	}
 
 	b = bch2_btree_node_mem_alloc(c);
+
+	if (trans && b == ERR_PTR(-ENOMEM)) {
+		trans->memory_allocation_failure = true;
+		trace_trans_restart_memory_allocation_failure(trans->fn,
+				_THIS_IP_, btree_id, &path->pos);
+		btree_trans_restart(trans);
+		return ERR_PTR(-EINTR);
+	}
+
 	if (IS_ERR(b))
 		return b;
 
