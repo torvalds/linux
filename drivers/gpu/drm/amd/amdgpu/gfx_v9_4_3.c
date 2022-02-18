@@ -1150,6 +1150,29 @@ static void gfx_v9_4_3_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id)
 	WREG32_SOC15(GC, xcc_id, regCPC_PSP_DEBUG, data);
 }
 
+static void gfx_v9_4_3_program_xcc_id(struct amdgpu_device *adev, int xcc_id)
+{
+	uint32_t tmp = 0;
+
+	switch (adev->gfx.num_xcd) {
+	/* directly config VIRTUAL_XCC_ID to 0 for 1-XCC */
+	case 1:
+		WREG32_SOC15(GC, xcc_id, regCP_HYP_XCP_CTL, 0x8);
+		break;
+	case 2:
+		tmp = (xcc_id % adev->gfx.num_xcc_per_xcp) << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, VIRTUAL_XCC_ID);
+		tmp = tmp | (adev->gfx.num_xcd << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, NUM_XCC_IN_XCP));
+		WREG32_SOC15(GC, xcc_id, regCP_HYP_XCP_CTL, tmp);
+
+		tmp = xcc_id << REG_FIELD_SHIFT(CP_PSP_XCP_CTL, PHYSICAL_XCC_ID);
+		tmp = tmp | (xcc_id << REG_FIELD_SHIFT(CP_PSP_XCP_CTL, XCC_DIE_ID));
+		WREG32_SOC15(GC, xcc_id, regCP_PSP_XCP_CTL, tmp);
+		break;
+	default:
+		break;
+	}
+}
+
 static bool gfx_v9_4_3_is_rlc_enabled(struct amdgpu_device *adev)
 {
 	uint32_t rlc_setting;
@@ -1947,6 +1970,9 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 			if (r)
 				return r;
 		}
+
+		/* set the virtual and physical id based on partition_mode */
+		gfx_v9_4_3_program_xcc_id(adev, i);
 
 		r = gfx_v9_4_3_kiq_resume(adev, i);
 		if (r)
