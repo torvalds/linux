@@ -371,7 +371,7 @@ enum _burst_mode {
 };
 
 /* scatter-gather table */
-#  define BUFFER_ADDR ((char *)((sg_virt(SCpnt->SCp.buffer))))
+#define BUFFER_ADDR(SCpnt) ((char *)(sg_virt(nsp_priv(SCpnt)->buffer)))
 
 #endif  /*__nsp_cs__*/
 /* end */
