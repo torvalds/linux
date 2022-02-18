@@ -67,9 +67,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
 
-	pPhyInfo->RxMIMOSignalQuality[RF_PATH_A] = -1;
-	pPhyInfo->RxMIMOSignalQuality[RF_PATH_B] = -1;
-
 	if (isCCKrate) {
 		u8 cck_agc_rpt;
 
@@ -150,8 +147,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 					SQ = ((64 - SQ_rpt) * 100) / 44;
 			}
 			pPhyInfo->SignalQuality = SQ;
-			pPhyInfo->RxMIMOSignalQuality[RF_PATH_A] = SQ;
-			pPhyInfo->RxMIMOSignalQuality[RF_PATH_B] = -1;
 		}
 	} else { /* is OFDM rate */
 		dm_odm->PhyDbgInfo.NumQryPhyStatusOFDM++;
@@ -203,7 +198,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			if (pPktinfo->bPacketMatchBSSID) {
 				if (i == RF_PATH_A) /*  Fill value in RFD, Get the first spatial stream only */
 					pPhyInfo->SignalQuality = (u8)(EVM & 0xff);
-				pPhyInfo->RxMIMOSignalQuality[i] = (u8)(EVM & 0xff);
 			}
 		}
 	}
