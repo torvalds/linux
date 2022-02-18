@@ -58,7 +58,7 @@ struct compressed_bio {
 	bool writeback;
 
 	/* IO errors */
-	u8 errors;
+	blk_status_t status;
 	int mirror_num;
 
 	/* for reads, this is the bio we are copying the data into */
