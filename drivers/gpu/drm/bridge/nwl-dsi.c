@@ -855,7 +855,7 @@ nwl_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	/* Save the new desired phy config */
 	memcpy(&dsi->phy_cfg, &new_cfg, sizeof(new_cfg));
 
-	memcpy(&dsi->mode, adjusted_mode, sizeof(dsi->mode));
+	drm_mode_copy(&dsi->mode, adjusted_mode);
 	drm_mode_debug_printmodeline(adjusted_mode);
 
 	if (pm_runtime_resume_and_get(dev) < 0)

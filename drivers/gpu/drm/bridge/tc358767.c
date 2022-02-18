@@ -1312,7 +1312,7 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	tc->mode = *mode;
+	drm_mode_copy(&tc->mode, mode);
 }
 
 static struct edid *tc_get_edid(struct drm_bridge *bridge,
