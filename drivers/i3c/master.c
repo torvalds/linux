@@ -1312,7 +1312,7 @@ static int i3c_master_retrieve_dev_info(struct i3c_dev_desc *dev)
 	    slot_status == I3C_ADDR_SLOT_I2C_DEV)
 		return -EINVAL;
 
-	if (master->jdec_spd) {
+	if (master->jdec_spd && dev->boardinfo) {
 		dev->info.pid = dev->boardinfo->pid;
 		dev->info.dcr = dev->boardinfo->dcr;
 		dev->info.bcr = dev->boardinfo->bcr;
