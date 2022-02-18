@@ -6902,8 +6902,9 @@ intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct drm_display_mode adjusted_mode =
-		crtc_state->hw.adjusted_mode;
+	struct drm_display_mode adjusted_mode;
+
+	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
 
 	if (crtc_state->vrr.enable) {
 		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
