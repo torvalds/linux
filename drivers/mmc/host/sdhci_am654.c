@@ -745,6 +745,10 @@ static const struct of_device_id sdhci_am654_of_match[] = {
 		.compatible = "ti,am64-sdhci-4bit",
 		.data = &sdhci_j721e_4bit_drvdata,
 	},
+	{
+		.compatible = "ti,am62-sdhci",
+		.data = &sdhci_j721e_4bit_drvdata,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sdhci_am654_of_match);
