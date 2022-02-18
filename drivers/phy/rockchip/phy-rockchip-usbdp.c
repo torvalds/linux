@@ -410,7 +410,6 @@ static int udphy_reset_init(struct rockchip_udphy *udphy, struct device *dev)
 		}
 
 		udphy->rsts[idx] = rst;
-		reset_control_assert(udphy->rsts[idx]);
 	}
 
 	return 0;
@@ -713,6 +712,30 @@ static int udphy_parse_lane_mux_data(struct rockchip_udphy *udphy, struct device
 	udphy->mode = UDPHY_MODE_DP;
 	if (num_lanes == 2)
 		udphy->mode |= UDPHY_MODE_USB;
+
+	return 0;
+}
+
+static int udphy_get_initial_status(struct rockchip_udphy *udphy)
+{
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	int ret, i;
+	u32 value;
+
+	ret = clk_bulk_prepare_enable(udphy->num_clks, udphy->clks);
+	if (ret) {
+		dev_err(udphy->dev, "failed to enable clk\n");
+		return ret;
+	}
+
+	for (i = 0; i < cfg->num_rsts; i++)
+		reset_control_deassert(udphy->rsts[i]);
+
+	regmap_read(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, &value);
+	if (FIELD_GET(CMN_DP_LANE_MUX_ALL, value) && FIELD_GET(CMN_DP_LANE_EN_ALL, value))
+		udphy->status = UDPHY_MODE_DP;
+	else
+		udphy_disable(udphy);
 
 	return 0;
 }
@@ -1155,6 +1178,10 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = udphy_get_initial_status(udphy);
+	if (ret)
+		return ret;
+
 	mutex_init(&udphy->mutex);
 	udphy->dev = dev;
 	platform_set_drvdata(pdev, udphy);
@@ -1182,9 +1209,10 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, child_np) {
 		struct phy *phy;
 
-		if (of_node_name_eq(child_np, "dp-port"))
+		if (of_node_name_eq(child_np, "dp-port")) {
 			phy = devm_phy_create(dev, child_np, &rockchip_dp_phy_ops);
-		else if (of_node_name_eq(child_np, "u3-port"))
+			phy_set_bus_width(phy, udphy_dplane_get(udphy));
+		} else if (of_node_name_eq(child_np, "u3-port"))
 			phy = devm_phy_create(dev, child_np, &rockchip_u3phy_ops);
 		else
 			continue;
