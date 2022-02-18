@@ -1890,6 +1890,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		i3c_bus_normaluse_lock(&master->bus);
 		i3c_master_register_new_i3c_devs(master);
 		i3c_bus_normaluse_unlock(&master->bus);
+		return 0;
 	}
 
 	ret = i3c_master_do_daa(master);
