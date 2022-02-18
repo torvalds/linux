@@ -99,8 +99,28 @@ cleanup_partial()
 	done
 }
 
+check_tools()
+{
+	if ! ip -Version &> /dev/null; then
+		echo "SKIP: Could not run test without ip tool"
+		exit $ksft_skip
+	fi
+
+	if ! iptables -V &> /dev/null; then
+		echo "SKIP: Could not run all tests without iptables tool"
+		exit $ksft_skip
+	fi
+
+	if ! ip6tables -V &> /dev/null; then
+		echo "SKIP: Could not run all tests without ip6tables tool"
+		exit $ksft_skip
+	fi
+}
+
 init() {
 	init=1
+
+	check_tools
 
 	sin=$(mktemp)
 	sout=$(mktemp)
@@ -182,24 +202,6 @@ reset_with_allow_join_id0()
 	ip netns exec $ns1 sysctl -q net.mptcp.allow_join_initial_addr_port=$ns1_enable
 	ip netns exec $ns2 sysctl -q net.mptcp.allow_join_initial_addr_port=$ns2_enable
 }
-
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
-
-iptables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run all tests without iptables tool"
-	exit $ksft_skip
-fi
-
-ip6tables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run all tests without ip6tables tool"
-	exit $ksft_skip
-fi
 
 print_file_err()
 {
