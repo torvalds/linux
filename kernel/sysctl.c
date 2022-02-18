@@ -1694,15 +1694,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= sysctl_latencytop,
 	},
 #endif
-#ifdef CONFIG_BLK_DEV_INITRD
-	{
-		.procname	= "real-root-dev",
-		.data		= &real_root_dev,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
 	{
 		.procname	= "print-fatal-signals",
 		.data		= &print_fatal_signals,
