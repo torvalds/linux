@@ -2,7 +2,12 @@
 // Copyright 2019 IBM Corp.
 
 &pinctrl {
-	pinctrl_pcie1rc_default: pcie1rc_default {
+	pinctrl_pcierc0_default: pcierc0_default {
+		function = "PCIERC0";
+		groups = "PCIERC0";
+	};
+
+	pinctrl_pcierc1_default: pcierc1_default {
 		function = "PCIERC1";
 		groups = "PCIERC1";
 	};
