@@ -83,13 +83,6 @@ sub usage {
     my $message = <<"EOF";
 Usage: $0 [OPTION ...] FILE ...
 
-Output format selection modifier (affects only ReST output):
-
-  -sphinx-version	Use the ReST C domain dialect compatible with an
-			specific Sphinx Version.
-			If not specified, kernel-doc will auto-detect using
-			the sphinx-build version found on PATH.
-
 Output selection (mutually exclusive):
   -export		Only output documentation for symbols that have been
 			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
@@ -2580,6 +2573,21 @@ Output reStructuredText format. This is the default.
 =item -none
 
 Do not output documentation, only warnings.
+
+=back
+
+=head2 Output format modifiers
+
+=head3 reStructuredText only
+
+=over 8
+
+=item -sphinx-version VERSION
+
+Use the ReST C domain dialect compatible with a specific Sphinx Version.
+
+If not specified, kernel-doc will auto-detect using the sphinx-build version
+found on PATH.
 
 =back
 
