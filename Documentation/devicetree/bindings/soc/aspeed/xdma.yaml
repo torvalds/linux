@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Aspeed AST25XX and AST26XX XDMA Engine
 
 maintainers:
- - Eddie James <eajames@linux.ibm.com>
+  - Eddie James <eajames@linux.ibm.com>
 
 description: |
   This binding describes the XDMA Engine embedded in the AST2500 and AST2600
@@ -31,13 +31,11 @@ properties:
     maxItems: 2
 
   reset-names:
-    maxItems: 2
     items:
       - const: device
       - const: root-complex
 
   interrupts:
-    maxItems: 2
     items:
       - description: global interrupt for the XDMA engine
       - description: PCI-E reset or PERST interrupt
@@ -70,6 +68,8 @@ if:
 then:
   required:
     - reset-names
+
+additionalProperties: false
 
 examples:
   - |
