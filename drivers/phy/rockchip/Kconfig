@@ -86,6 +86,7 @@ config PHY_ROCKCHIP_MIPI_RX
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_ROCKCHIP && OF
 	select GENERIC_PHY
+	select V4L2_FWNODE
 	help
 	  Enable this to support the Rockchip MIPI D-PHY with Synopsys or Innosilicon IP block.
 
