@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+
+source "drivers/media/platform/rockchip/cif/Kconfig"
+source "drivers/media/platform/rockchip/isp/Kconfig"
+source "drivers/media/platform/rockchip/ispp/Kconfig"
+source "drivers/media/platform/rockchip/hdmirx/Kconfig"
