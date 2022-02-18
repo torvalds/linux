@@ -1128,10 +1128,6 @@ struct kvm_arch {
 	struct kvm_hv hyperv;
 	struct kvm_xen xen;
 
-	#ifdef CONFIG_KVM_MMU_AUDIT
-	int audit_point;
-	#endif
-
 	bool backwards_tsc_observed;
 	bool boot_vcpu_runs_old_kvmclock;
 	u32 bsp_vcpu_id;

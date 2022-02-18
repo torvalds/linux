@@ -2368,10 +2368,6 @@
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
 
-	kvm.mmu_audit=	[KVM] This is a R/W parameter which allows audit
-			KVM MMU at runtime.
-			Default is 0 (off)
-
 	kvm.nx_huge_pages=
 			[KVM] Controls the software workaround for the
 			X86_BUG_ITLB_MULTIHIT bug.
