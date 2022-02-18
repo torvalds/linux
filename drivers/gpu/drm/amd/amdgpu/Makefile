@@ -46,7 +46,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	atom.o amdgpu_fence.o amdgpu_ttm.o amdgpu_object.o amdgpu_gart.o \
 	amdgpu_encoders.o amdgpu_display.o amdgpu_i2c.o \
 	amdgpu_gem.o amdgpu_ring.o \
-	amdgpu_cs.o amdgpu_bios.o amdgpu_benchmark.o amdgpu_test.o \
+	amdgpu_cs.o amdgpu_bios.o amdgpu_benchmark.o \
 	atombios_dp.o amdgpu_afmt.o amdgpu_trace_points.o \
 	atombios_encoders.o amdgpu_sa.o atombios_i2c.o \
 	amdgpu_dma_buf.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \

@@ -155,7 +155,6 @@ extern int amdgpu_vis_vram_limit;
 extern int amdgpu_gart_size;
 extern int amdgpu_gtt_size;
 extern int amdgpu_moverate;
-extern int amdgpu_testing;
 extern int amdgpu_audio;
 extern int amdgpu_disp_priority;
 extern int amdgpu_hw_i2c;
@@ -586,12 +585,6 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
  * Benchmarking
  */
 int amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
-
-
-/*
- * Testing
- */
-void amdgpu_test_moves(struct amdgpu_device *adev);
 
 /*
  * ASIC specific register table accessible by UMD

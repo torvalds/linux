@@ -110,7 +110,6 @@ int amdgpu_vis_vram_limit;
 int amdgpu_gart_size = -1; /* auto */
 int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
-int amdgpu_testing;
 int amdgpu_audio = -1;
 int amdgpu_disp_priority;
 int amdgpu_hw_i2c;
@@ -229,13 +228,6 @@ module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
  */
 MODULE_PARM_DESC(moverate, "Maximum buffer migration rate in MB/s. (32, 64, etc., -1=auto, 0=1=disabled)");
 module_param_named(moverate, amdgpu_moverate, int, 0600);
-
-/**
- * DOC: test (int)
- * Test BO GTT->VRAM and VRAM->GTT GPU copies. The default is 0 (Skip test, only set 1 to run test).
- */
-MODULE_PARM_DESC(test, "Run tests");
-module_param_named(test, amdgpu_testing, int, 0444);
 
 /**
  * DOC: audio (int)
