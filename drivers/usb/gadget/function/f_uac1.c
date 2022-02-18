@@ -836,7 +836,7 @@ in_rq_res(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 }
 
 static void
-out_rq_cur_complete(struct usb_ep *ep, struct usb_request *req)
+out_rq_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct g_audio *audio = req->context;
 	struct usb_composite_dev *cdev = audio->func.config->cdev;
@@ -861,9 +861,11 @@ out_rq_cur_complete(struct usb_ep *ep, struct usb_request *req)
 			is_playback = 1;
 
 		if (control_selector == UAC_FU_MUTE) {
-			u8 mute = *(u8 *)req->buf;
+			if (cr->bRequest == UAC_SET_CUR) {
+				u8 mute = *(u8 *)req->buf;
 
-			u_audio_set_mute(audio, is_playback, mute);
+				u_audio_set_mute(audio, is_playback, mute);
+			}
 
 			return;
 		} else if (control_selector == UAC_FU_VOLUME) {
@@ -871,7 +873,34 @@ out_rq_cur_complete(struct usb_ep *ep, struct usb_request *req)
 			s16 volume;
 
 			volume = le16_to_cpu(*c);
-			u_audio_set_volume(audio, is_playback, volume);
+
+			switch (cr->bRequest) {
+			case UAC_SET_CUR:
+				u_audio_set_volume(audio, is_playback, volume);
+				break;
+			case UAC_SET_MIN:
+				if (is_playback)
+					opts->p_volume_min = volume;
+				else
+					opts->c_volume_min = volume;
+				break;
+			case UAC_SET_MAX:
+				if (is_playback)
+					opts->p_volume_max = volume;
+				else
+					opts->c_volume_max = volume;
+				break;
+			case UAC_SET_RES:
+				if (is_playback)
+					opts->p_volume_res = volume;
+				else
+					opts->c_volume_res = volume;
+				break;
+			case UAC_SET_MEM:
+				break;
+			default:
+				break;
+			}
 
 			return;
 		} else {
@@ -890,7 +919,7 @@ out_rq_cur_complete(struct usb_ep *ep, struct usb_request *req)
 }
 
 static int
-out_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
+ac_rq_out(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 {
 	struct usb_request *req = fn->config->cdev->req;
 	struct g_audio *audio = func_to_g_audio(fn);
@@ -906,7 +935,7 @@ out_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 			(FUOUT_EN(opts) && (entity_id == USB_OUT_FU_ID))) {
 		memcpy(&uac1->setup_cr, cr, sizeof(*cr));
 		req->context = audio;
-		req->complete = out_rq_cur_complete;
+		req->complete = out_rq_complete;
 
 		return w_length;
 	} else {
@@ -1062,8 +1091,7 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		value = audio_get_endpoint_req(f, ctrl);
 		break;
 	case USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
-		if (ctrl->bRequest == UAC_SET_CUR)
-			value = out_rq_cur(f, ctrl);
+		value = ac_rq_out(f, ctrl);
 		break;
 	case USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
 		value = ac_rq_in(f, ctrl);
