@@ -409,187 +409,24 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
-	% Custom width parameters for TOC --- Redefine low-level commands
-	% defined in report.cls
-	\\makeatletter
-	%% Redefine \\@pnumwidth (page number width)
-	\\renewcommand*\\@pnumwidth{2.7em}
-	%% Redefine \\l@chapter (chapter list entry)
-	\\renewcommand*\\l@chapter[2]{%
-	  \\ifnum \\c@tocdepth >\\m@ne
-	    \\addpenalty{-\\@highpenalty}%
-	    \\vskip 1.0em \\@plus\\p@
-	    \\setlength\\@tempdima{1.8em}%
-	    \\begingroup
-	      \\parindent \\z@ \\rightskip \\@pnumwidth
-	      \\parfillskip -\\@pnumwidth
-	      \\leavevmode \\bfseries
-	      \\advance\\leftskip\\@tempdima
-	      \\hskip -\\leftskip
-	      #1\\nobreak\\hfil
-	      \\nobreak\\hb@xt@\\@pnumwidth{\\hss #2%
-	                                 \\kern-\\p@\\kern\\p@}\\par
-	      \\penalty\\@highpenalty
-	    \\endgroup
-	  \\fi}
-	%% Redefine \\l@section and \\l@subsection
-	\\renewcommand*\\l@section{\\@dottedtocline{1}{1.8em}{3.2em}}
-	\\renewcommand*\\l@subsection{\\@dottedtocline{2}{5em}{4.3em}}
-	\\makeatother
-	%% Sphinx < 1.8 doesn't have \\sphinxtableofcontentshook
-	\\providecommand{\\sphinxtableofcontentshook}{}
-	%% Undefine it for compatibility with Sphinx 1.7.9
-	\\renewcommand{\\sphinxtableofcontentshook}{} % Empty the hook
-	% Prevent column squeezing of tabulary.
-	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
         \\setsansfont{DejaVu Sans}
         \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
-        % Adjust \\headheight for fancyhdr
-        \\addtolength{\\headheight}{1.6pt}
-        \\addtolength{\\topmargin}{-1.6pt}
-     ''',
+    ''',
 }
-
-# Translations have Asian (CJK) characters which are only displayed if
-# xeCJK is used
-
-latex_elements['preamble']  += '''
-    \\IfFontExistsTF{Noto Sans CJK SC}{
-	% This is needed for translations
-	\\usepackage{xeCJK}
-	\\IfFontExistsTF{Noto Serif CJK KR}{
-	    \\setCJKmainfont{Noto Serif CJK KR}[AutoFakeSlant]
-	}{
-	    \\setCJKmainfont{Noto Sans CJK KR}[AutoFakeSlant]
-	}
-	\\setCJKsansfont{Noto Sans CJK KR}[AutoFakeSlant]
-	\\setCJKmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]
-	\\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}
-	\\xeCJKDeclareCharClass{HalfRight}{`”,`’}
-	% CJK Language-specific font choices
-	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}[AutoFakeSlant]
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Serif CJK SC}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}[AutoFakeSlant]
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Sans CJK SC}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[SCsans]\\scsans{Noto Sans CJK SC}[AutoFakeSlant]
-	\\newCJKfontfamily[SCmono]\\scmono{Noto Sans Mono CJK SC}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK TC}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Serif CJK TC}[AutoFakeSlant]
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Serif CJK TC}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}[AutoFakeSlant]
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Sans CJK TC}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[TCsans]\\tcsans{Noto Sans CJK TC}[AutoFakeSlant]
-	\\newCJKfontfamily[TCmono]\\tcmono{Noto Sans Mono CJK TC}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK KR}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Serif CJK KR}[AutoFakeSlant]
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Serif CJK KR}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}[AutoFakeSlant]
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Sans CJK KR}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[KRsans]\\krsans{Noto Sans CJK KR}[AutoFakeSlant]
-	\\newCJKfontfamily[KRmono]\\krmono{Noto Sans Mono CJK KR}[AutoFakeSlant]
-	\\IfFontExistsTF{Noto Serif CJK JP}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Serif CJK JP}[AutoFakeSlant]
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Serif CJK JP}[AutoFakeSlant]
-	}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}[AutoFakeSlant]
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Sans CJK JP}[AutoFakeSlant]
-	}
-	\\newCJKfontfamily[JPsans]\\jpsans{Noto Sans CJK JP}[AutoFakeSlant]
-	\\newCJKfontfamily[JPmono]\\jpmono{Noto Sans Mono CJK JP}[AutoFakeSlant]
-	% Dummy commands for Sphinx < 2.3 (no 'extrapackages' support)
-	\\providecommand{\\onehalfspacing}{}
-	\\providecommand{\\singlespacing}{}
-	% Define custom macros to on/off CJK
-	\\newcommand{\\kerneldocCJKon}{\\makexeCJKactive\\onehalfspacing}
-	\\newcommand{\\kerneldocCJKoff}{\\makexeCJKinactive\\singlespacing}
-	\\newcommand{\\kerneldocBeginSC}{%
-	    \\begingroup%
-	    \\scmain%
-	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
-	    \\renewcommand{\\CJKrmdefault}{SCserif}%
-	    \\renewcommand{\\CJKsfdefault}{SCsans}%
-	    \\renewcommand{\\CJKttdefault}{SCmono}%
-	    \\xeCJKsetup{CJKspace = false}%
-	    % For CJK ascii-art alignment
-	    \\setmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]%
-	}
-	\\newcommand{\\kerneldocEndSC}{\\endgroup}
-	\\newcommand{\\kerneldocBeginTC}{%
-	    \\begingroup%
-	    \\tcmain%
-	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
-	    \\renewcommand{\\CJKrmdefault}{TCserif}%
-	    \\renewcommand{\\CJKsfdefault}{TCsans}%
-	    \\renewcommand{\\CJKttdefault}{TCmono}%
-	    \\xeCJKsetup{CJKspace = false}%
-	    % For CJK ascii-art alignment
-	    \\setmonofont{Noto Sans Mono CJK TC}[AutoFakeSlant]%
-	}
-	\\newcommand{\\kerneldocEndTC}{\\endgroup}
-	\\newcommand{\\kerneldocBeginKR}{%
-	    \\begingroup%
-	    \\krmain%
-	    \\renewcommand{\\CJKrmdefault}{KRserif}%
-	    \\renewcommand{\\CJKsfdefault}{KRsans}%
-	    \\renewcommand{\\CJKttdefault}{KRmono}%
-	    % \\xeCJKsetup{CJKspace = true} % true by default
-	    % For CJK ascii-art alignment (still misaligned for Hangul)
-	    \\setmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]%
-	}
-	\\newcommand{\\kerneldocEndKR}{\\endgroup}
-	\\newcommand{\\kerneldocBeginJP}{%
-	    \\begingroup%
-	    \\jpmain%
-	    \\renewcommand{\\CJKrmdefault}{JPserif}%
-	    \\renewcommand{\\CJKsfdefault}{JPsans}%
-	    \\renewcommand{\\CJKttdefault}{JPmono}%
-	    \\xeCJKsetup{CJKspace = false}%
-	    % For CJK ascii-art alignment
-	    \\setmonofont{Noto Sans Mono CJK JP}[AutoFakeSlant]%
-	}
-	\\newcommand{\\kerneldocEndJP}{\\endgroup}
-	% Single spacing in literal blocks
-	\\fvset{baselinestretch=1}
-	% To customize \\sphinxtableofcontents
-	\\usepackage{etoolbox}
-	% Inactivate CJK after tableofcontents
-	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
-	\\xeCJKsetup{CJKspace = true} % For inter-phrase space of Korean TOC
-    }{ % No CJK font found
-	% Custom macros to on/off CJK (Dummy)
-	\\newcommand{\\kerneldocCJKon}{}
-	\\newcommand{\\kerneldocCJKoff}{}
-	\\newcommand{\\kerneldocBeginSC}[1]{%
-	    \\begin{sphinxadmonition}{note}{Note:}
-		``Noto Sans CJK'' fonts are not found while building this PDF\\@.
-		Translations of zh\\_CN, zh\\_TW, ko\\_KR, and ja\\_JP are
-		skipped.
-	    \\end{sphinxadmonition}}
-	\\newcommand{\\kerneldocEndSC}{}
-	\\newcommand{\\kerneldocBeginTC}[1]{}
-	\\newcommand{\\kerneldocEndTC}{}
-	\\newcommand{\\kerneldocBeginKR}[1]{}
-	\\newcommand{\\kerneldocEndKR}{}
-	\\newcommand{\\kerneldocBeginJP}[1]{}
-	\\newcommand{\\kerneldocEndJP}{}
-    }
-'''
 
 # Fix reference escape troubles with Sphinx 1.4.x
 if major == 1:
     latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
+
+
+# Load kerneldoc specific LaTeX settings
+latex_elements['preamble'] += '''
+        % Load kerneldoc specific LaTeX settings
+	\\input{kerneldoc-preamble.sty}
+'''
 
 # With Sphinx 1.6, it is possible to change the Bg color directly
 # by using:
@@ -651,6 +488,11 @@ for fn in os.listdir('.'):
 
 # If false, no module index is generated.
 #latex_domain_indices = True
+
+# Additional LaTeX stuff to be copied to build directory
+latex_additional_files = [
+    'sphinx/kerneldoc-preamble.sty',
+]
 
 
 # -- Options for manual page output ---------------------------------------
