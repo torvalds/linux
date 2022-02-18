@@ -143,7 +143,7 @@ static ssize_t spi_statistics_##name##_show(struct spi_statistics *stat, \
 	unsigned long flags;						\
 	ssize_t len;							\
 	spin_lock_irqsave(&stat->lock, flags);				\
-	len = sprintf(buf, format_string, stat->field);			\
+	len = sysfs_emit(buf, format_string "\n", stat->field);		\
 	spin_unlock_irqrestore(&stat->lock, flags);			\
 	return len;							\
 }									\
