@@ -97,7 +97,7 @@ int prestera_acl_chain_to_client(u32 chain_index, u32 *client)
 		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2
 	};
 
-	if (chain_index > ARRAY_SIZE(client_map))
+	if (chain_index >= ARRAY_SIZE(client_map))
 		return -EINVAL;
 
 	*client = client_map[chain_index];
