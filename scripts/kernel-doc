@@ -12,6 +12,8 @@ use strict;
 ## 								 ##
 ## #define enhancements by Armin Kuster <akuster@mvista.com>	 ##
 ## Copyright (c) 2000 MontaVista Software, Inc.			 ##
+#
+# Copyright (C) 2022 Tomasz Warniełło (POD)
 
 use Pod::Usage qw/pod2usage/;
 
