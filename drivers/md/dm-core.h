@@ -211,9 +211,9 @@ struct dm_table {
 #define DM_TIO_MAGIC 7282014
 struct dm_target_io {
 	unsigned int magic;
+	unsigned int target_bio_nr;
 	struct dm_io *io;
 	struct dm_target *ti;
-	unsigned int target_bio_nr;
 	unsigned int *len_ptr;
 	bool inside_dm_io;
 	sector_t old_sector;
@@ -227,10 +227,10 @@ struct dm_target_io {
 #define DM_IO_MAGIC 5191977
 struct dm_io {
 	unsigned int magic;
-	struct mapped_device *md;
-	blk_status_t status;
 	atomic_t io_count;
+	struct mapped_device *md;
 	struct bio *orig_bio;
+	blk_status_t status;
 	unsigned long start_time;
 	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
