@@ -2291,7 +2291,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 
 			if (!(sd->flags & SD_SHARE_PKG_RESOURCES) && child &&
 			    (child->flags & SD_SHARE_PKG_RESOURCES)) {
-				struct sched_domain *top, *top_p;
+				struct sched_domain __rcu *top_p;
 				unsigned int nr_llcs;
 
 				/*
@@ -2316,11 +2316,9 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 				sd->imb_numa_nr = imb;
 
 				/* Set span based on the first NUMA domain. */
-				top = sd;
-				top_p = top->parent;
+				top_p = sd->parent;
 				while (top_p && !(top_p->flags & SD_NUMA)) {
-					top = top->parent;
-					top_p = top->parent;
+					top_p = top_p->parent;
 				}
 				imb_span = top_p ? top_p->span_weight : sd->span_weight;
 			} else {
