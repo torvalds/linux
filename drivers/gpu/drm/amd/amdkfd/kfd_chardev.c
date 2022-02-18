@@ -2097,8 +2097,8 @@ static int criu_restore_bos(struct kfd_process *p,
 			    uint64_t *priv_offset,
 			    uint64_t max_priv_data_size)
 {
-	struct kfd_criu_bo_bucket *bo_buckets;
-	struct kfd_criu_bo_priv_data *bo_privs;
+	struct kfd_criu_bo_bucket *bo_buckets = NULL;
+	struct kfd_criu_bo_priv_data *bo_privs = NULL;
 	const bool criu_resume = true;
 	bool flush_tlbs = false;
 	int ret = 0, j = 0;
