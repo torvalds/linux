@@ -227,6 +227,17 @@ static const struct rockchip_grf_info rk3399_grf __initconst = {
 	.num_values = ARRAY_SIZE(rk3399_defaults),
 };
 
+#define RK3588_SYS_GRF_SOC_CON7		0x031c
+
+static const struct rockchip_grf_value rk3588_sys_grf_defaults[] __initconst = {
+	{ "Connect EDP hpd to IO", RK3588_SYS_GRF_SOC_CON7, HIWORD_UPDATE(0x3, 0x3, 14) },
+};
+
+static const struct rockchip_grf_info rk3588_sys_grf __initconst = {
+	.values = rk3588_sys_grf_defaults,
+	.num_values = ARRAY_SIZE(rk3588_sys_grf_defaults),
+};
+
 #define DELAY_ONE_SECOND		0x16E3600
 
 #define RV1126_GRF1_SDDETFLT_CON	0x10254
@@ -281,6 +292,9 @@ static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	}, {
 		.compatible = "rockchip,rk3399-grf",
 		.data = (void *)&rk3399_grf,
+	}, {
+		.compatible = "rockchip,rk3588-sys-grf",
+		.data = (void *)&rk3588_sys_grf,
 	}, {
 		.compatible = "rockchip,rv1126-grf",
 		.data = (void *)&rv1126_grf,
