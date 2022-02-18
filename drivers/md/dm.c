@@ -565,13 +565,16 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 		unsigned target_bio_nr, unsigned *len, gfp_t gfp_mask)
 {
 	struct dm_target_io *tio;
+	struct bio *clone;
 
 	if (!ci->io->tio.io) {
 		/* the dm_target_io embedded in ci->io is available */
 		tio = &ci->io->tio;
+		/* alloc_io() already initialized embedded clone */
+		clone = &tio->clone;
 	} else {
-		struct bio *clone = bio_alloc_clone(ci->bio->bi_bdev, ci->bio,
-						    gfp_mask, &ci->io->md->bs);
+		clone = bio_alloc_clone(ci->bio->bi_bdev, ci->bio,
+					gfp_mask, &ci->io->md->bs);
 		if (!clone)
 			return NULL;
 
@@ -586,7 +589,13 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 	tio->len_ptr = len;
 	tio->old_sector = 0;
 
-	return &tio->clone;
+	if (len) {
+		clone->bi_iter.bi_size = to_bytes(*len);
+		if (bio_integrity(clone))
+			bio_integrity_trim(clone);
+	}
+
+	return clone;
 }
 
 static void free_tio(struct bio *clone)
@@ -1237,17 +1246,12 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 		break;
 	case 1:
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
-		if (len)
-			clone->bi_iter.bi_size = to_bytes(*len);
 		__map_bio(clone);
 		break;
 	default:
 		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
-		while ((clone = bio_list_pop(&blist))) {
-			if (len)
-				clone->bi_iter.bi_size = to_bytes(*len);
+		while ((clone = bio_list_pop(&blist)))
 			__map_bio(clone);
-		}
 		break;
 	}
 }
@@ -1362,12 +1366,7 @@ static int __split_and_process_bio(struct clone_info *ci)
 		return r;
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
-
 	clone = alloc_tio(ci, ti, 0, &len, GFP_NOIO);
-	clone->bi_iter.bi_size = to_bytes(len);
-	if (bio_integrity(clone))
-		bio_integrity_trim(clone);
-
 	__map_bio(clone);
 
 	ci->sector += len;
