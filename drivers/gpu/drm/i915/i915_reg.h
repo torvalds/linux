@@ -7914,6 +7914,12 @@ enum skl_power_gate {
 #define _DKL_PHY6_BASE			0x16D000
 
 /* DEKEL PHY MMIO Address = Phy base + (internal address & ~index_mask) */
+#define _DKL_PCS_DW5			0x14
+#define DKL_PCS_DW5(tc_port)		_MMIO(_PORT(tc_port, _DKL_PHY1_BASE, \
+						    _DKL_PHY2_BASE) + \
+						    _DKL_PCS_DW5)
+#define   DKL_PCS_DW5_CORE_SOFTRESET	REG_BIT(11)
+
 #define _DKL_PLL_DIV0			0x200
 #define   DKL_PLL_DIV0_AFC_STARTUP_MASK	REG_GENMASK(27, 25)
 #define   DKL_PLL_DIV0_AFC_STARTUP(val)	REG_FIELD_PREP(DKL_PLL_DIV0_AFC_STARTUP_MASK, (val))

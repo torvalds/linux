@@ -3101,10 +3101,23 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 						crtc_state->lane_lat_optim_mask);
 }
 
+static void adlp_tbt_to_dp_alt_switch_wa(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, encoder->port);
+	int ln;
+
+	for (ln = 0; ln < 2; ln++) {
+		intel_de_write(i915, HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
+		intel_de_rmw(i915, DKL_PCS_DW5(tc_port), DKL_PCS_DW5_CORE_SOFTRESET, 0);
+	}
+}
+
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 					   const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	u32 dp_tp_ctl, ddi_buf_ctl;
@@ -3139,6 +3152,10 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	}
 	intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
 	intel_de_posting_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
+
+	if (IS_ALDERLAKE_P(dev_priv) &&
+	    (intel_tc_port_in_dp_alt_mode(dig_port) || intel_tc_port_in_legacy_mode(dig_port)))
+		adlp_tbt_to_dp_alt_switch_wa(encoder);
 
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
 	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
