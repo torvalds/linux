@@ -22,25 +22,10 @@ $(obj)/x509_certificate_list: $(CONFIG_SYSTEM_TRUSTED_KEYS) $(obj)/extract-cert 
 
 targets += x509_certificate_list
 
-ifeq ($(CONFIG_MODULE_SIG),y)
-	SIGN_KEY = y
-endif
-
-ifeq ($(CONFIG_IMA_APPRAISE_MODSIG),y)
-ifeq ($(CONFIG_MODULES),y)
-	SIGN_KEY = y
-endif
-endif
-
-ifdef SIGN_KEY
-###############################################################################
-#
 # If module signing is requested, say by allyesconfig, but a key has not been
 # supplied, then one will need to be generated to make sure the build does not
 # fail and that the kernel may be used afterwards.
 #
-###############################################################################
-
 # We do it this way rather than having a boolean option for enabling an
 # external private key, because 'make randconfig' might enable such a
 # boolean option and we unfortunately can't make it depend on !RANDCONFIG.
@@ -76,7 +61,6 @@ $(obj)/system_certificates.o: $(obj)/signing_key.x509
 
 $(obj)/signing_key.x509: $(X509_DEP) $(obj)/extract-cert FORCE
 	$(call if_changed,extract_certs,$(if $(CONFIG_MODULE_SIG_KEY),$(if $(X509_DEP),$<,$(CONFIG_MODULE_SIG_KEY)),""))
-endif # CONFIG_MODULE_SIG
 
 targets += signing_key.x509
 
