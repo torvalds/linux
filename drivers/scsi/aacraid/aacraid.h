@@ -29,6 +29,7 @@
 #include <linux/completion.h>
 #include <linux/pci.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -2673,11 +2674,24 @@ static inline void aac_cancel_rescan_worker(struct aac_dev *dev)
 	cancel_delayed_work_sync(&dev->src_reinit_aif_worker);
 }
 
-/* SCp.phase values */
-#define AAC_OWNER_MIDLEVEL	0x101
-#define AAC_OWNER_LOWLEVEL	0x102
-#define AAC_OWNER_ERROR_HANDLER	0x103
-#define AAC_OWNER_FIRMWARE	0x106
+enum aac_cmd_owner {
+	AAC_OWNER_MIDLEVEL	= 0x101,
+	AAC_OWNER_LOWLEVEL	= 0x102,
+	AAC_OWNER_ERROR_HANDLER	= 0x103,
+	AAC_OWNER_FIRMWARE	= 0x106,
+};
+
+struct aac_cmd_priv {
+	int			(*callback)(struct scsi_cmnd *);
+	int			status;
+	enum aac_cmd_owner	owner;
+	bool			sent_command;
+};
+
+static inline struct aac_cmd_priv *aac_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 void aac_safw_rescan_worker(struct work_struct *work);
 void aac_src_reinit_aif_worker(struct work_struct *work);
