@@ -3743,8 +3743,8 @@
 		reg = <0x0 0xfe180000 0x0 0x10000>,
 		      <0xa 0x40c00000 0x0 0x400000>;
 		reg-names = "pcie-apb", "pcie-dbi";
-		resets = <&cru SRST_PCIE3_POWER_UP>;
-		reset-names = "pipe";
+		resets = <&cru SRST_PCIE3_POWER_UP>, <&cru SRST_P_PCIE3>;
+		reset-names = "pcie", "periph";
 		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
@@ -3797,8 +3797,8 @@
 		reg = <0x0 0xfe190000 0x0 0x10000>,
 		      <0xa 0x41000000 0x0 0x400000>;
 		reg-names = "pcie-apb", "pcie-dbi";
-		resets = <&cru SRST_PCIE4_POWER_UP>;
-		reset-names = "pipe";
+		resets = <&cru SRST_PCIE4_POWER_UP>, <&cru SRST_P_PCIE4>;
+		reset-names = "pcie", "periph";
 		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
