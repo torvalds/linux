@@ -2430,6 +2430,7 @@
   sysfs_create_groups
   sysfs_create_link
   sysfs_emit
+  sysfs_group_change_owner
   __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
