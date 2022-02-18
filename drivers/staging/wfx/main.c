@@ -381,6 +381,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	}
 
 	if (wdev->hw_caps.region_sel_mode) {
+		wdev->hw->wiphy->regulatory_flags |= REGULATORY_DISABLE_BEACON_HINTS;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[11].flags |=
 			IEEE80211_CHAN_NO_IR;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[12].flags |=
