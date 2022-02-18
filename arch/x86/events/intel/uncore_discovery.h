@@ -18,8 +18,6 @@
 #define UNCORE_DISCOVERY_BIR_BASE		0x10
 /* Discovery table BAR step */
 #define UNCORE_DISCOVERY_BIR_STEP		0x4
-/* Mask of the discovery table offset */
-#define UNCORE_DISCOVERY_MASK			0xf
 /* Global discovery table size */
 #define UNCORE_DISCOVERY_GLOBAL_MAP_SIZE	0x20
 
