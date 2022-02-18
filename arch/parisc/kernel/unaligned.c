@@ -31,13 +31,6 @@
 #define RFMT "%08lx"
 #endif
 
-#define FIXUP_BRANCH(lbl) \
-	"\tldil L%%" #lbl ", %%r1\n"			\
-	"\tldo R%%" #lbl "(%%r1), %%r1\n"		\
-	"\tbv,n %%r0(%%r1)\n"
-/* If you use FIXUP_BRANCH, then you must list this clobber */
-#define FIXUP_BRANCH_CLOBBER "r1"
-
 /* 1111 1100 0000 0000 0001 0011 1100 0000 */
 #define OPCODE1(a,b,c)	((a)<<26|(b)<<12|(c)<<6) 
 #define OPCODE2(a,b)	((a)<<26|(b)<<1)
@@ -114,7 +107,6 @@
 #define IM14(i) IM((i),14)
 
 #define ERR_NOTHANDLED	-1
-#define ERR_PAGEFAULT	-2
 
 int unaligned_enabled __read_mostly = 1;
 
@@ -122,7 +114,7 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
 	unsigned long saddr = regs->ior;
 	unsigned long val = 0;
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	DPRINTF("load " RFMT ":" RFMT " to r%d for 2 bytes\n", 
 		regs->isr, regs->ior, toreg);
@@ -132,17 +124,12 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 "1:	ldbs	0(%%sr1,%3), %%r20\n"
 "2:	ldbs	1(%%sr1,%3), %0\n"
 "	depw	%%r20, 23, 24, %0\n"
-"	copy	%%r0, %1\n"
 "3:	\n"
-"	.section .fixup,\"ax\"\n"
-"4:	ldi	-2, %1\n"
-	FIXUP_BRANCH(3b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b, 4b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b, 4b)
-	: "=r" (val), "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
+	: "=r" (val), "+r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
-	: "r20", FIXUP_BRANCH_CLOBBER );
+	: "r20" );
 
 	DPRINTF("val = 0x" RFMT "\n", val);
 
@@ -156,7 +143,7 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 {
 	unsigned long saddr = regs->ior;
 	unsigned long val = 0;
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	DPRINTF("load " RFMT ":" RFMT " to r%d for 4 bytes\n", 
 		regs->isr, regs->ior, toreg);
@@ -170,17 +157,12 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 "	subi	32,%%r19,%%r19\n"
 "	mtctl	%%r19,11\n"
 "	vshd	%0,%%r20,%0\n"
-"	copy	%%r0, %1\n"
 "3:	\n"
-"	.section .fixup,\"ax\"\n"
-"4:	ldi	-2, %1\n"
-	FIXUP_BRANCH(3b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b, 4b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b, 4b)
-	: "=r" (val), "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
+	: "=r" (val), "+r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
-	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20" );
 
 	DPRINTF("val = 0x" RFMT "\n", val);
 
@@ -195,16 +177,15 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 {
 	unsigned long saddr = regs->ior;
 	__u64 val = 0;
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	DPRINTF("load " RFMT ":" RFMT " to r%d for 8 bytes\n", 
 		regs->isr, regs->ior, toreg);
-#ifdef CONFIG_PA20
 
-#ifndef CONFIG_64BIT
-	if (!flop)
-		return -1;
-#endif
+	if (!IS_ENABLED(CONFIG_64BIT) && !flop)
+		return ERR_NOTHANDLED;
+
+#ifdef CONFIG_64BIT
 	__asm__ __volatile__  (
 "	depd,z	%3,60,3,%%r19\n"		/* r19=(ofs&7)*8 */
 "	mtsp	%4, %%sr1\n"
@@ -214,17 +195,12 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 "	subi	64,%%r19,%%r19\n"
 "	mtsar	%%r19\n"
 "	shrpd	%0,%%r20,%%sar,%0\n"
-"	copy	%%r0, %1\n"
 "3:	\n"
-"	.section .fixup,\"ax\"\n"
-"4:	ldi	-2, %1\n"
-	FIXUP_BRANCH(3b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
-	: "=r" (val), "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
+	: "=r" (val), "+r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
-	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20" );
 #else
     {
 	unsigned long valh=0,vall=0;
@@ -239,18 +215,13 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 "	mtsar	%%r19\n"
 "	vshd	%0,%1,%0\n"
 "	vshd	%1,%%r20,%1\n"
-"	copy	%%r0, %2\n"
 "4:	\n"
-"	.section .fixup,\"ax\"\n"
-"5:	ldi	-2, %2\n"
-	FIXUP_BRANCH(4b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,5b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,5b)
-	ASM_EXCEPTIONTABLE_ENTRY(3b,5b)
-	: "=r" (valh), "=r" (vall), "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 4b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 4b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(3b, 4b)
+	: "=r" (valh), "=r" (vall), "+r" (ret)
 	: "0" (valh), "1" (vall), "r" (saddr), "r" (regs->isr)
-	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20" );
 	val=((__u64)valh<<32)|(__u64)vall;
     }
 #endif
@@ -268,7 +239,7 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 static int emulate_sth(struct pt_regs *regs, int frreg)
 {
 	unsigned long val = regs->gr[frreg];
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	if (!frreg)
 		val = 0;
@@ -281,17 +252,12 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 "	extrw,u %1, 23, 8, %%r19\n"
 "1:	stb %1, 1(%%sr1, %2)\n"
 "2:	stb %%r19, 0(%%sr1, %2)\n"
-"	copy	%%r0, %0\n"
 "3:	\n"
-"	.section .fixup,\"ax\"\n"
-"4:	ldi	-2, %0\n"
-	FIXUP_BRANCH(3b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
-	: "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
+	: "+r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
-	: "r19", FIXUP_BRANCH_CLOBBER );
+	: "r19" );
 
 	return ret;
 }
@@ -299,7 +265,7 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 static int emulate_stw(struct pt_regs *regs, int frreg, int flop)
 {
 	unsigned long val;
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	if (flop)
 		val = ((__u32*)(regs->fr))[frreg];
@@ -328,24 +294,19 @@ static int emulate_stw(struct pt_regs *regs, int frreg, int flop)
 "	or	%%r1, %%r21, %%r21\n"
 "	stw	%%r20,0(%%sr1,%2)\n"
 "	stw	%%r21,4(%%sr1,%2)\n"
-"	copy	%%r0, %0\n"
 "3:	\n"
-"	.section .fixup,\"ax\"\n"
-"4:	ldi	-2, %0\n"
-	FIXUP_BRANCH(3b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
-	: "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
+	: "+r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
-	: "r19", "r20", "r21", "r22", "r1", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20", "r21", "r22", "r1" );
 
 	return ret;
 }
 static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 {
 	__u64 val;
-	int ret;
+	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	if (flop)
 		val = regs->fr[frreg];
@@ -357,11 +318,10 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 	DPRINTF("store r%d (0x%016llx) to " RFMT ":" RFMT " for 8 bytes\n", frreg, 
 		val,  regs->isr, regs->ior);
 
-#ifdef CONFIG_PA20
-#ifndef CONFIG_64BIT
-	if (!flop)
-		return -1;
-#endif
+	if (!IS_ENABLED(CONFIG_64BIT) && !flop)
+		return ERR_NOTHANDLED;
+
+#ifdef CONFIG_64BIT
 	__asm__ __volatile__ (
 "	mtsp %3, %%sr1\n"
 "	depd,z	%2, 60, 3, %%r19\n"
@@ -378,19 +338,14 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 "	or	%%r1, %%r21, %%r21\n"
 "3:	std	%%r20,0(%%sr1,%2)\n"
 "4:	std	%%r21,8(%%sr1,%2)\n"
-"	copy	%%r0, %0\n"
 "5:	\n"
-"	.section .fixup,\"ax\"\n"
-"6:	ldi	-2, %0\n"
-	FIXUP_BRANCH(5b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,6b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,6b)
-	ASM_EXCEPTIONTABLE_ENTRY(3b,6b)
-	ASM_EXCEPTIONTABLE_ENTRY(4b,6b)
-	: "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 5b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 5b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(3b, 5b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(4b, 5b)
+	: "+r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
-	: "r19", "r20", "r21", "r22", "r1", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20", "r21", "r22", "r1" );
 #else
     {
 	unsigned long valh=(val>>32),vall=(val&0xffffffffl);
@@ -412,20 +367,15 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 "3:	stw	%1,0(%%sr1,%3)\n"
 "4:	stw	%%r1,4(%%sr1,%3)\n"
 "5:	stw	%2,8(%%sr1,%3)\n"
-"	copy	%%r0, %0\n"
 "6:	\n"
-"	.section .fixup,\"ax\"\n"
-"7:	ldi	-2, %0\n"
-	FIXUP_BRANCH(6b)
-"	.previous\n"
-	ASM_EXCEPTIONTABLE_ENTRY(1b,7b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,7b)
-	ASM_EXCEPTIONTABLE_ENTRY(3b,7b)
-	ASM_EXCEPTIONTABLE_ENTRY(4b,7b)
-	ASM_EXCEPTIONTABLE_ENTRY(5b,7b)
-	: "=r" (ret)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 6b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 6b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(3b, 6b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(4b, 6b)
+	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(5b, 6b)
+	: "+r" (ret)
 	: "r" (valh), "r" (vall), "r" (regs->ior), "r" (regs->isr)
-	: "r19", "r20", "r21", "r1", FIXUP_BRANCH_CLOBBER );
+	: "r19", "r20", "r21", "r1" );
     }
 #endif
 
@@ -547,7 +497,7 @@ void handle_unaligned(struct pt_regs *regs)
 		ret = emulate_stw(regs, R2(regs->iir),0);
 		break;
 
-#ifdef CONFIG_PA20
+#ifdef CONFIG_64BIT
 	case OPCODE_LDD_I:
 	case OPCODE_LDDA_I:
 	case OPCODE_LDD_S:
@@ -606,7 +556,7 @@ void handle_unaligned(struct pt_regs *regs)
 		flop=1;
 		ret = emulate_std(regs, R2(regs->iir),1);
 		break;
-#ifdef CONFIG_PA20
+#ifdef CONFIG_64BIT
 	case OPCODE_LDD_L:
 		ret = emulate_ldd(regs, R2(regs->iir),0);
 		break;
@@ -673,7 +623,7 @@ void handle_unaligned(struct pt_regs *regs)
 		printk(KERN_CRIT "Unaligned handler failed, ret = %d\n", ret);
 		die_if_kernel("Unaligned data reference", regs, 28);
 
-		if (ret == ERR_PAGEFAULT)
+		if (ret == -EFAULT)
 		{
 			force_sig_fault(SIGSEGV, SEGV_MAPERR,
 					(void __user *)regs->ior);
