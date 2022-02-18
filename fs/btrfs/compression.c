@@ -234,7 +234,7 @@ static bool dec_and_test_compressed_bio(struct compressed_bio *cb, struct bio *b
 	return last_io;
 }
 
-static void finish_compressed_bio_read(struct compressed_bio *cb, struct bio *bio)
+static void finish_compressed_bio_read(struct compressed_bio *cb)
 {
 	unsigned int index;
 	struct page *page;
@@ -253,8 +253,6 @@ static void finish_compressed_bio_read(struct compressed_bio *cb, struct bio *bi
 		struct bio_vec *bvec;
 		struct bvec_iter_all iter_all;
 
-		ASSERT(bio);
-		ASSERT(!bio->bi_status);
 		/*
 		 * We have verified the checksum already, set page checked so
 		 * the end_io handlers know about it
@@ -325,7 +323,7 @@ static void end_compressed_bio_read(struct bio *bio)
 csum_failed:
 	if (ret)
 		cb->errors = 1;
-	finish_compressed_bio_read(cb, bio);
+	finish_compressed_bio_read(cb);
 out:
 	bio_put(bio);
 }
@@ -973,7 +971,7 @@ finish_cb:
 	 */
 	ASSERT(refcount_read(&cb->pending_sectors));
 	/* Now we are the only one referring @cb, can finish it safely. */
-	finish_compressed_bio_read(cb, NULL);
+	finish_compressed_bio_read(cb);
 	return ret;
 }
 
