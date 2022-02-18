@@ -82,9 +82,6 @@
 #ifdef CONFIG_SPARC
 #include <asm/setup.h>
 #endif
-#ifdef CONFIG_BSD_PROCESS_ACCT
-#include <linux/acct.h>
-#endif
 #ifdef CONFIG_RT_MUTEXES
 #include <linux/rtmutex.h>
 #endif
@@ -1854,15 +1851,6 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= UEVENT_HELPER_PATH_LEN,
 		.mode		= 0644,
 		.proc_handler	= proc_dostring,
-	},
-#endif
-#ifdef CONFIG_BSD_PROCESS_ACCT
-	{
-		.procname	= "acct",
-		.data		= &acct_parm,
-		.maxlen		= 3*sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
