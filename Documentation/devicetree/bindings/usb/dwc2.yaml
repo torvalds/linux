@@ -68,6 +68,9 @@ properties:
     items:
       - const: otg
 
+  iommus:
+    maxItems: 1
+
   resets:
     items:
       - description: common reset
