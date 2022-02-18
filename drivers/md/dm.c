@@ -1195,12 +1195,6 @@ static void __map_bio(struct bio *clone)
 	}
 }
 
-static void bio_setup_sector(struct bio *bio, sector_t sector, unsigned len)
-{
-	bio->bi_iter.bi_sector = sector;
-	bio->bi_iter.bi_size = to_bytes(len);
-}
-
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 				struct dm_target *ti, unsigned num_bios,
 				unsigned *len)
@@ -1243,14 +1237,14 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 	case 1:
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
 		if (len)
-			bio_setup_sector(clone, ci->sector, *len);
+			clone->bi_iter.bi_size = to_bytes(*len);
 		__map_bio(clone);
 		break;
 	default:
 		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
 		while ((clone = bio_list_pop(&blist))) {
 			if (len)
-				bio_setup_sector(clone, ci->sector, *len);
+				clone->bi_iter.bi_size = to_bytes(*len);
 			__map_bio(clone);
 		}
 		break;
@@ -1369,7 +1363,6 @@ static int __split_and_process_bio(struct clone_info *ci)
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
 
 	clone = alloc_tio(ci, ti, 0, &len, GFP_NOIO);
-	bio_advance(clone, to_bytes(ci->sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 	if (bio_integrity(clone))
 		bio_integrity_trim(clone);
