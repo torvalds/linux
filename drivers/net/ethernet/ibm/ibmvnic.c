@@ -60,6 +60,7 @@
 #include <asm/hvcall.h>
 #include <linux/atomic.h>
 #include <asm/vio.h>
+#include <asm/xive.h>
 #include <asm/iommu.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
@@ -3562,6 +3563,30 @@ static int disable_scrq_irq(struct ibmvnic_adapter *adapter,
 	return rc;
 }
 
+/* We can not use the IRQ chip EOI handler because that has the
+ * unintended effect of changing the interrupt priority.
+ */
+static void ibmvnic_xics_eoi(struct device *dev, struct ibmvnic_sub_crq_queue *scrq)
+{
+	u64 val = 0xff000000 | scrq->hw_irq;
+	unsigned long rc;
+
+	rc = plpar_hcall_norets(H_EOI, val);
+	if (rc)
+		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n", val, rc);
+}
+
+/* Due to a firmware bug, the hypervisor can send an interrupt to a
+ * transmit or receive queue just prior to a partition migration.
+ * Force an EOI after migration.
+ */
+static void ibmvnic_clear_pending_interrupt(struct device *dev,
+					    struct ibmvnic_sub_crq_queue *scrq)
+{
+	if (!xive_enabled())
+		ibmvnic_xics_eoi(dev, scrq);
+}
+
 static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 			   struct ibmvnic_sub_crq_queue *scrq)
 {
@@ -3575,15 +3600,7 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 
 	if (test_bit(0, &adapter->resetting) &&
 	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
-		u64 val = (0xff000000) | scrq->hw_irq;
-
-		rc = plpar_hcall_norets(H_EOI, val);
-		/* H_EOI would fail with rc = H_FUNCTION when running
-		 * in XIVE mode which is expected, but not an error.
-		 */
-		if (rc && (rc != H_FUNCTION))
-			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-				val, rc);
+		ibmvnic_clear_pending_interrupt(dev, scrq);
 	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
