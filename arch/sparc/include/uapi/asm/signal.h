@@ -2,7 +2,6 @@
 #ifndef _UAPI__SPARC_SIGNAL_H
 #define _UAPI__SPARC_SIGNAL_H
 
-#include <asm/posix_types.h>
 #include <asm/sigcontext.h>
 #include <linux/compiler.h>
 
@@ -152,6 +151,7 @@ struct sigstack {
 
 
 #include <asm-generic/signal-defs.h>
+#include <asm/posix_types.h>
 
 #ifndef __KERNEL__
 struct __new_sigaction {
