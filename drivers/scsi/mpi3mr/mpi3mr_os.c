@@ -4308,7 +4308,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(mrioc->fwevt_worker_name, sizeof(mrioc->fwevt_worker_name),
 	    "%s%d_fwevt_wrkr", mrioc->driver_name, mrioc->id);
 	mrioc->fwevt_worker_thread = alloc_ordered_workqueue(
-	    mrioc->fwevt_worker_name, WQ_MEM_RECLAIM);
+	    mrioc->fwevt_worker_name, 0);
 	if (!mrioc->fwevt_worker_thread) {
 		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
