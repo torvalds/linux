@@ -3781,34 +3781,44 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
+static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_bw_state *new_bw_state;
-	const struct intel_bw_state *old_bw_state;
-	u32 new_mask = 0;
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
 
-	/*
-	 * Just return if we can't control SAGV or don't have it.
-	 * This is different from situation when we have SAGV but just can't
-	 * afford it due to DBuf limitation - in case if SAGV is completely
-	 * disabled in a BIOS, we are not even allowed to send a PCode request,
-	 * as it will throw an error. So have to check it here.
-	 */
-	if (!intel_has_sagv(dev_priv))
-		return;
-
-	new_bw_state = intel_atomic_get_new_bw_state(state);
 	if (!new_bw_state)
 		return;
 
-	if (DISPLAY_VER(dev_priv) < 11) {
-		if (!intel_can_enable_sagv(dev_priv, new_bw_state))
-			intel_disable_sagv(dev_priv);
-		return;
-	}
+	if (!intel_can_enable_sagv(i915, new_bw_state))
+		intel_disable_sagv(i915);
+}
 
-	old_bw_state = intel_atomic_get_old_bw_state(state);
+static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+
+	if (!new_bw_state)
+		return;
+
+	if (intel_can_enable_sagv(i915, new_bw_state))
+		intel_enable_sagv(i915);
+}
+
+static void icl_sagv_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+	u32 new_mask;
+
+	if (!new_bw_state)
+		return;
+
 	/*
 	 * Nothing to mask
 	 */
@@ -3833,34 +3843,18 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	icl_pcode_restrict_qgv_points(dev_priv, new_mask);
 }
 
-void intel_sagv_post_plane_update(struct intel_atomic_state *state)
+static void icl_sagv_post_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_bw_state *new_bw_state;
-	const struct intel_bw_state *old_bw_state;
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
 	u32 new_mask = 0;
 
-	/*
-	 * Just return if we can't control SAGV or don't have it.
-	 * This is different from situation when we have SAGV but just can't
-	 * afford it due to DBuf limitation - in case if SAGV is completely
-	 * disabled in a BIOS, we are not even allowed to send a PCode request,
-	 * as it will throw an error. So have to check it here.
-	 */
-	if (!intel_has_sagv(dev_priv))
-		return;
-
-	new_bw_state = intel_atomic_get_new_bw_state(state);
 	if (!new_bw_state)
 		return;
 
-	if (DISPLAY_VER(dev_priv) < 11) {
-		if (intel_can_enable_sagv(dev_priv, new_bw_state))
-			intel_enable_sagv(dev_priv);
-		return;
-	}
-
-	old_bw_state = intel_atomic_get_old_bw_state(state);
 	/*
 	 * Nothing to unmask
 	 */
@@ -3876,6 +3870,46 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	 * and unmasking afterwards.
 	 */
 	icl_pcode_restrict_qgv_points(dev_priv, new_mask);
+}
+
+void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+
+	/*
+	 * Just return if we can't control SAGV or don't have it.
+	 * This is different from situation when we have SAGV but just can't
+	 * afford it due to DBuf limitation - in case if SAGV is completely
+	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * as it will throw an error. So have to check it here.
+	 */
+	if (!intel_has_sagv(i915))
+		return;
+
+	if (DISPLAY_VER(i915) >= 11)
+		icl_sagv_pre_plane_update(state);
+	else
+		skl_sagv_pre_plane_update(state);
+}
+
+void intel_sagv_post_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+
+	/*
+	 * Just return if we can't control SAGV or don't have it.
+	 * This is different from situation when we have SAGV but just can't
+	 * afford it due to DBuf limitation - in case if SAGV is completely
+	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * as it will throw an error. So have to check it here.
+	 */
+	if (!intel_has_sagv(i915))
+		return;
+
+	if (DISPLAY_VER(i915) >= 11)
+		icl_sagv_post_plane_update(state);
+	else
+		skl_sagv_post_plane_update(state);
 }
 
 static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
