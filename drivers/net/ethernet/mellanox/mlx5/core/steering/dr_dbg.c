@@ -630,7 +630,7 @@ void mlx5dr_dbg_init_dump(struct mlx5dr_domain *dmn)
 	}
 
 	dmn->dump_info.steering_debugfs =
-		debugfs_create_dir("steering", dev->priv.dbg_root);
+		debugfs_create_dir("steering", mlx5_debugfs_get_dev_root(dev));
 	dmn->dump_info.fdb_debugfs =
 		debugfs_create_dir("fdb", dmn->dump_info.steering_debugfs);
 

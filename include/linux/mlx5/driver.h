@@ -551,6 +551,14 @@ struct mlx5_adev {
 	int idx;
 };
 
+struct mlx5_debugfs_entries {
+	struct dentry *dbg_root;
+	struct dentry *qp_debugfs;
+	struct dentry *eq_debugfs;
+	struct dentry *cq_debugfs;
+	struct dentry *cmdif_debugfs;
+};
+
 struct mlx5_ft_pool;
 struct mlx5_priv {
 	/* IRQ table valid only for real pci devices PF or VF */
@@ -570,12 +578,7 @@ struct mlx5_priv {
 	struct mlx5_core_health health;
 	struct list_head	traps;
 
-	/* start: qp staff */
-	struct dentry	       *qp_debugfs;
-	struct dentry	       *eq_debugfs;
-	struct dentry	       *cq_debugfs;
-	struct dentry	       *cmdif_debugfs;
-	/* end: qp staff */
+	struct mlx5_debugfs_entries dbg;
 
 	/* start: alloc staff */
 	/* protect buffer allocation according to numa node */
@@ -585,7 +588,6 @@ struct mlx5_priv {
 	struct mutex            pgdir_mutex;
 	struct list_head        pgdir_list;
 	/* end: alloc staff */
-	struct dentry	       *dbg_root;
 
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
@@ -1038,6 +1040,7 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
+struct dentry *mlx5_debugfs_get_dev_root(struct mlx5_core_dev *dev);
 void mlx5_qp_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_access_reg(struct mlx5_core_dev *dev, void *data_in, int size_in,

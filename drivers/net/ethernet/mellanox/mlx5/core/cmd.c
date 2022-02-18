@@ -1543,7 +1543,7 @@ static void create_debugfs_files(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
 
-	dbg->dbg_root = debugfs_create_dir("cmd", dev->priv.dbg_root);
+	dbg->dbg_root = debugfs_create_dir("cmd", mlx5_debugfs_get_dev_root(dev));
 
 	debugfs_create_file("in", 0400, dbg->dbg_root, dev, &dfops);
 	debugfs_create_file("out", 0200, dbg->dbg_root, dev, &dfops);
