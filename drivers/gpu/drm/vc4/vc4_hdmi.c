@@ -1240,9 +1240,8 @@ static void vc4_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 
 	mutex_lock(&vc4_hdmi->mutex);
-	memcpy(&vc4_hdmi->saved_adjusted_mode,
-	       &crtc_state->adjusted_mode,
-	       sizeof(vc4_hdmi->saved_adjusted_mode));
+	drm_mode_copy(&vc4_hdmi->saved_adjusted_mode,
+		      &crtc_state->adjusted_mode);
 	mutex_unlock(&vc4_hdmi->mutex);
 }
 
