@@ -586,6 +586,7 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 	tio->io = ci->io;
 	tio->ti = ti;
 	tio->target_bio_nr = target_bio_nr;
+	tio->is_duplicate_bio = false;
 	tio->len_ptr = len;
 	tio->old_sector = 0;
 
@@ -1087,7 +1088,8 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 /*
  * A target may call dm_accept_partial_bio only from the map routine.  It is
  * allowed for all bio types except REQ_PREFLUSH, REQ_OP_ZONE_* zone management
- * operations and REQ_OP_ZONE_APPEND (zone append writes).
+ * operations, REQ_OP_ZONE_APPEND (zone append writes) and any bio serviced by
+ * __send_duplicate_bios().
  *
  * dm_accept_partial_bio informs the dm that the target only wants to process
  * additional n_sectors sectors of the bio and the rest of the data should be
@@ -1118,7 +1120,7 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 	struct dm_target_io *tio = clone_to_tio(bio);
 	unsigned bi_size = bio->bi_iter.bi_size >> SECTOR_SHIFT;
 
-	BUG_ON(bio->bi_opf & REQ_PREFLUSH);
+	BUG_ON(tio->is_duplicate_bio);
 	BUG_ON(op_is_zone_mgmt(bio_op(bio)));
 	BUG_ON(bio_op(bio) == REQ_OP_ZONE_APPEND);
 	BUG_ON(bi_size > *tio->len_ptr);
@@ -1246,12 +1248,15 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 		break;
 	case 1:
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
+		clone_to_tio(clone)->is_duplicate_bio = true;
 		__map_bio(clone);
 		break;
 	default:
 		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
-		while ((clone = bio_list_pop(&blist)))
+		while ((clone = bio_list_pop(&blist))) {
+			clone_to_tio(clone)->is_duplicate_bio = true;
 			__map_bio(clone);
+		}
 		break;
 	}
 }
@@ -1280,29 +1285,22 @@ static int __send_empty_flush(struct clone_info *ci)
 	return 0;
 }
 
-static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-				       unsigned num_bios)
+static void __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
+					unsigned num_bios)
 {
 	unsigned len;
-
-	/*
-	 * Even though the device advertised support for this type of
-	 * request, that does not mean every target supports it, and
-	 * reconfiguration might also have changed that since the
-	 * check was performed.
-	 */
-	if (!num_bios)
-		return -EOPNOTSUPP;
 
 	len = min_t(sector_t, ci->sector_count,
 		    max_io_len_target_boundary(ti, dm_target_offset(ti, ci->sector)));
 
-	__send_duplicate_bios(ci, ti, num_bios, &len);
-
+	/*
+	 * dm_accept_partial_bio cannot be used with duplicate bios,
+	 * so update clone_info cursor before __send_duplicate_bios().
+	 */
 	ci->sector += len;
 	ci->sector_count -= len;
 
-	return 0;
+	__send_duplicate_bios(ci, ti, num_bios, &len);
 }
 
 static bool is_abnormal_io(struct bio *bio)
@@ -1324,10 +1322,9 @@ static bool is_abnormal_io(struct bio *bio)
 static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 				  int *result)
 {
-	struct bio *bio = ci->bio;
 	unsigned num_bios = 0;
 
-	switch (bio_op(bio)) {
+	switch (bio_op(ci->bio)) {
 	case REQ_OP_DISCARD:
 		num_bios = ti->num_discard_bios;
 		break;
@@ -1344,7 +1341,18 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 		return false;
 	}
 
-	*result = __send_changing_extent_only(ci, ti, num_bios);
+	/*
+	 * Even though the device advertised support for this type of
+	 * request, that does not mean every target supports it, and
+	 * reconfiguration might also have changed that since the
+	 * check was performed.
+	 */
+	if (!num_bios)
+		*result = -EOPNOTSUPP;
+	else {
+		__send_changing_extent_only(ci, ti, num_bios);
+		*result = 0;
+	}
 	return true;
 }
 
