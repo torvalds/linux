@@ -29,6 +29,8 @@
 #include "i915_selftest.h"
 #include "i915_vma_resource.h"
 #include "i915_vma_types.h"
+#include "i915_params.h"
+#include "intel_memory_region.h"
 
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
@@ -223,6 +225,7 @@ struct i915_address_space {
 	struct device *dma;
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 	u64 reserved;		/* size addr space reserved */
+	u64 min_alignment[INTEL_MEMORY_STOLEN_LOCAL + 1];
 
 	unsigned int bind_async_flags;
 
@@ -382,6 +385,25 @@ static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
 	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
+}
+
+static inline u64 i915_vm_min_alignment(struct i915_address_space *vm,
+					enum intel_memory_type type)
+{
+	/* avoid INTEL_MEMORY_MOCK overflow */
+	if ((int)type >= ARRAY_SIZE(vm->min_alignment))
+		type = INTEL_MEMORY_SYSTEM;
+
+	return vm->min_alignment[type];
+}
+
+static inline u64 i915_vm_obj_min_alignment(struct i915_address_space *vm,
+					    struct drm_i915_gem_object  *obj)
+{
+	struct intel_memory_region *mr = READ_ONCE(obj->mm.region);
+	enum intel_memory_type type = mr ? mr->type : INTEL_MEMORY_SYSTEM;
+
+	return i915_vm_min_alignment(vm, type);
 }
 
 static inline bool
