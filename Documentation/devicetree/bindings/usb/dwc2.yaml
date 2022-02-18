@@ -68,6 +68,10 @@ properties:
     items:
       - const: otg
 
+  disable-over-current:
+    type: boolean
+    description: whether to disable detection of over-current condition.
+
   iommus:
     maxItems: 1
 
