@@ -1115,8 +1115,36 @@ s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_phy_read_txpwr_byrate);
 
-static u8 rtw89_channel_to_idx(struct rtw89_dev *rtwdev, u8 channel)
+static u8 rtw89_channel_6g_to_idx(struct rtw89_dev *rtwdev, u8 channel_6g)
 {
+	switch (channel_6g) {
+	case 1 ... 29:
+		return (channel_6g - 1) / 2;
+	case 33 ... 61:
+		return (channel_6g - 3) / 2;
+	case 65 ... 93:
+		return (channel_6g - 5) / 2;
+	case 97 ... 125:
+		return (channel_6g - 7) / 2;
+	case 129 ... 157:
+		return (channel_6g - 9) / 2;
+	case 161 ... 189:
+		return (channel_6g - 11) / 2;
+	case 193 ... 221:
+		return (channel_6g - 13) / 2;
+	case 225 ... 253:
+		return (channel_6g - 15) / 2;
+	default:
+		rtw89_warn(rtwdev, "unknown 6g channel: %d\n", channel_6g);
+		return 0;
+	}
+}
+
+static u8 rtw89_channel_to_idx(struct rtw89_dev *rtwdev, u8 band, u8 channel)
+{
+	if (band == RTW89_BAND_6G)
+		return rtw89_channel_6g_to_idx(rtwdev, channel);
+
 	switch (channel) {
 	case 1 ... 14:
 		return channel - 1;
@@ -1136,8 +1164,8 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 ch_idx = rtw89_channel_to_idx(rtwdev, ch);
 	u8 band = rtwdev->hal.current_band_type;
+	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt = 0, sar;
 
@@ -1152,6 +1180,12 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
 		lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf][regd][ch_idx];
 		if (!lmt)
 			lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf]
+						   [RTW89_WW][ch_idx];
+		break;
+	case RTW89_BAND_6G:
+		lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf][regd][ch_idx];
+		if (!lmt)
+			lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf]
 						   [RTW89_WW][ch_idx];
 		break;
 	default:
@@ -1269,8 +1303,8 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 					u8 ru, u8 ntx, u8 ch)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 ch_idx = rtw89_channel_to_idx(rtwdev, ch);
 	u8 band = rtwdev->hal.current_band_type;
+	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt_ru = 0, sar;
 
@@ -1285,6 +1319,12 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 		lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx][regd][ch_idx];
 		if (!lmt_ru)
 			lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx]
+							 [RTW89_WW][ch_idx];
+		break;
+	case RTW89_BAND_6G:
+		lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx][regd][ch_idx];
+		if (!lmt_ru)
+			lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx]
 							 [RTW89_WW][ch_idx];
 		break;
 	default:

@@ -371,6 +371,25 @@ enum rtw89_hw_rate {
  */
 #define RTW89_5G_CH_NUM 53
 
+/* 6G channels,
+ * 1, 3, 5, 7, 9, 11, 13, 15,
+ * 17, 19, 21, 23, 25, 27, 29, 33,
+ * 35, 37, 39, 41, 43, 45, 47, 49,
+ * 51, 53, 55, 57, 59, 61, 65, 67,
+ * 69, 71, 73, 75, 77, 79, 81, 83,
+ * 85, 87, 89, 91, 93, 97, 99, 101,
+ * 103, 105, 107, 109, 111, 113, 115, 117,
+ * 119, 121, 123, 125, 129, 131, 133, 135,
+ * 137, 139, 141, 143, 145, 147, 149, 151,
+ * 153, 155, 157, 161, 163, 165, 167, 169,
+ * 171, 173, 175, 177, 179, 181, 183, 185,
+ * 187, 189, 193, 195, 197, 199, 201, 203,
+ * 205, 207, 209, 211, 213, 215, 217, 219,
+ * 221, 225, 227, 229, 231, 233, 235, 237,
+ * 239, 241, 243, 245, 247, 249, 251, 253,
+ */
+#define RTW89_6G_CH_NUM 120
+
 enum rtw89_rate_section {
 	RTW89_RS_CCK,
 	RTW89_RS_OFDM,
@@ -554,6 +573,7 @@ enum rtw89_ps_mode {
 
 #define RTW89_2G_BW_NUM (RTW89_CHANNEL_WIDTH_40 + 1)
 #define RTW89_5G_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
+#define RTW89_6G_BW_NUM (RTW89_CHANNEL_WIDTH_160 + 1)
 #define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
 
 enum rtw89_ru_bandwidth {
@@ -2246,10 +2266,15 @@ struct rtw89_chip_info {
 	const s8 (*txpwr_lmt_5g)[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
 				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				[RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+	const s8 (*txpwr_lmt_6g)[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
+				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+				[RTW89_REGD_NUM][RTW89_6G_CH_NUM];
 	const s8 (*txpwr_lmt_ru_2g)[RTW89_RU_NUM][RTW89_NTX_NUM]
 				   [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
 	const s8 (*txpwr_lmt_ru_5g)[RTW89_RU_NUM][RTW89_NTX_NUM]
 				   [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+	const s8 (*txpwr_lmt_ru_6g)[RTW89_RU_NUM][RTW89_NTX_NUM]
+				   [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
 
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
