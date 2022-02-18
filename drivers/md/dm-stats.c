@@ -195,6 +195,7 @@ void dm_stats_init(struct dm_stats *stats)
 
 	mutex_init(&stats->mutex);
 	INIT_LIST_HEAD(&stats->list);
+	stats->precise_timestamps = false;
 	stats->last = alloc_percpu(struct dm_stats_last_position);
 	for_each_possible_cpu(cpu) {
 		last = per_cpu_ptr(stats->last, cpu);
@@ -229,6 +230,22 @@ void dm_stats_cleanup(struct dm_stats *stats)
 	}
 	free_percpu(stats->last);
 	mutex_destroy(&stats->mutex);
+}
+
+static void dm_stats_recalc_precise_timestamps(struct dm_stats *stats)
+{
+	struct list_head *l;
+	struct dm_stat *tmp_s;
+	bool precise_timestamps = false;
+
+	list_for_each(l, &stats->list) {
+		tmp_s = container_of(l, struct dm_stat, list_entry);
+		if (tmp_s->stat_flags & STAT_PRECISE_TIMESTAMPS) {
+			precise_timestamps = true;
+			break;
+		}
+	}
+	stats->precise_timestamps = precise_timestamps;
 }
 
 static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
@@ -376,6 +393,9 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	}
 	ret_id = s->id;
 	list_add_tail_rcu(&s->list_entry, l);
+
+	dm_stats_recalc_precise_timestamps(stats);
+
 	mutex_unlock(&stats->mutex);
 
 	resume_callback(md);
@@ -418,6 +438,9 @@ static int dm_stats_delete(struct dm_stats *stats, int id)
 	}
 
 	list_del_rcu(&s->list_entry);
+
+	dm_stats_recalc_precise_timestamps(stats);
+
 	mutex_unlock(&stats->mutex);
 
 	/*
@@ -654,9 +677,8 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 	got_precise_time = false;
 	list_for_each_entry_rcu(s, &stats->list, list_entry) {
 		if (s->stat_flags & STAT_PRECISE_TIMESTAMPS && !got_precise_time) {
-			if (!end)
-				stats_aux->duration_ns = ktime_to_ns(ktime_get());
-			else
+			/* start (!end) duration_ns is set by DM core's alloc_io() */
+			if (end)
 				stats_aux->duration_ns = ktime_to_ns(ktime_get()) - stats_aux->duration_ns;
 			got_precise_time = true;
 		}
