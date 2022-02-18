@@ -183,6 +183,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		1920 * 1200 * 4
 	};
 
+	mutex_lock(&adev->benchmark_mutex);
 	switch (test_number) {
 	case 1:
 		dev_info(adev->dev,
@@ -192,11 +193,11 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_GTT,
 					  AMDGPU_GEM_DOMAIN_VRAM);
 		if (r)
-			return r;
+			goto done;
 		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
 					  AMDGPU_GEM_DOMAIN_GTT);
 		if (r)
-			return r;
+			goto done;
 		break;
 	case 2:
 		dev_info(adev->dev,
@@ -206,7 +207,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
 					  AMDGPU_GEM_DOMAIN_VRAM);
 		if (r)
-			return r;
+			goto done;
 		break;
 	case 3:
 		dev_info(adev->dev,
@@ -218,7 +219,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 						  AMDGPU_GEM_DOMAIN_GTT,
 						  AMDGPU_GEM_DOMAIN_VRAM);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 	case 4:
@@ -231,7 +232,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 						  AMDGPU_GEM_DOMAIN_VRAM,
 						  AMDGPU_GEM_DOMAIN_GTT);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 	case 5:
@@ -244,7 +245,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 						  AMDGPU_GEM_DOMAIN_VRAM,
 						  AMDGPU_GEM_DOMAIN_VRAM);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 	case 6:
@@ -257,7 +258,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 						  AMDGPU_GEM_DOMAIN_GTT,
 						  AMDGPU_GEM_DOMAIN_VRAM);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 	case 7:
@@ -270,7 +271,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 						  AMDGPU_GEM_DOMAIN_VRAM,
 						  AMDGPU_GEM_DOMAIN_GTT);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 	case 8:
@@ -283,7 +284,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 					      AMDGPU_GEM_DOMAIN_VRAM,
 					      AMDGPU_GEM_DOMAIN_VRAM);
 			if (r)
-				return r;
+				goto done;
 		}
 		break;
 
@@ -292,5 +293,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		r = -EINVAL;
 		break;
 	}
+
+done:
+	mutex_unlock(&adev->benchmark_mutex);
+
 	return r;
 }

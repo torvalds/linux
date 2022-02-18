@@ -1100,6 +1100,8 @@ struct amdgpu_device {
 	struct list_head                ras_list;
 
 	struct ip_discovery_top         *ip_top;
+
+	struct mutex			benchmark_mutex;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
