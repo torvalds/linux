@@ -17,6 +17,7 @@ capture=0
 checksum=0
 ip_mptcp=0
 do_all_tests=1
+init=0
 
 TEST_COUNT=0
 
@@ -38,7 +39,7 @@ CBPF_MPTCP_SUBOPTION_ADD_ADDR="14,
 			       6 0 0 65535,
 			       6 0 0 0"
 
-init()
+init_partial()
 {
 	capout=$(mktemp)
 
@@ -98,6 +99,21 @@ cleanup_partial()
 	done
 }
 
+init() {
+	init=1
+
+	sin=$(mktemp)
+	sout=$(mktemp)
+	cin=$(mktemp)
+	cinsent=$(mktemp)
+	cout=$(mktemp)
+
+	trap cleanup EXIT
+
+	make_file "$cin" "client" 1
+	make_file "$sin" "server" 1
+}
+
 cleanup()
 {
 	rm -f "$cin" "$cout" "$sinfail"
@@ -107,8 +123,13 @@ cleanup()
 
 reset()
 {
-	cleanup_partial
-	init
+	if [ "${init}" != "1" ]; then
+		init
+	else
+		cleanup_partial
+	fi
+
+	init_partial
 }
 
 reset_with_cookies()
@@ -2105,16 +2126,6 @@ usage()
 
 	exit ${ret}
 }
-
-sin=$(mktemp)
-sout=$(mktemp)
-cin=$(mktemp)
-cinsent=$(mktemp)
-cout=$(mktemp)
-init
-make_file "$cin" "client" 1
-make_file "$sin" "server" 1
-trap cleanup EXIT
 
 for arg in "$@"; do
 	# check for "capture/checksum" args before launching tests
