@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
+#include <media/videobuf2-cma-sg.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
 #include <media/v4l2-fwnode.h>
@@ -1220,7 +1221,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 			cif_hw->is_dma_contig = false;
 	}
 	if (is_mem_reserved) {
-		cif_hw->mem_ops = &vb2_rdma_sg_memops;
+		cif_hw->mem_ops = &vb2_cma_sg_memops;
 		cif_hw->is_dma_sg_ops = true;
 	} else if (cif_hw->iommu_en) {
 		cif_hw->mem_ops = &vb2_dma_sg_memops;

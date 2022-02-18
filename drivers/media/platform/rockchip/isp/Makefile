@@ -11,8 +11,7 @@ video_rkisp-objs += hw.o \
 		capture.o \
 		dmarx.o \
 		csi.o \
-		procfs.o \
-		videobuf2-rdma-sg.o
+		procfs.o
 
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V1X) += \
 		isp_stats_v1x.o \

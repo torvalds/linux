@@ -133,6 +133,4 @@ static inline void rkisp_get_bridge_sd(struct platform_device *dev,
 }
 #endif
 
-extern const struct vb2_mem_ops vb2_rdma_sg_memops;
-
 #endif

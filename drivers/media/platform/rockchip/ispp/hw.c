@@ -14,6 +14,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <media/videobuf2-cma-sg.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
 #include <soc/rockchip/rockchip_iommu.h>
@@ -407,8 +408,7 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 			hw_dev->is_dma_contig = false;
 	}
 	if (is_mem_reserved) {
-		/* reserved memory using rdma_sg */
-		hw_dev->mem_ops = &vb2_rdma_sg_memops;
+		hw_dev->mem_ops = &vb2_cma_sg_memops;
 		hw_dev->is_dma_sg_ops = true;
 	} else if (hw_dev->is_mmu) {
 		hw_dev->mem_ops = &vb2_dma_sg_memops;

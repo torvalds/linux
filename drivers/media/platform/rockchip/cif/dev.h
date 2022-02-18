@@ -782,6 +782,4 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream);
 
 u32 rkcif_mbus_pixelcode_to_v4l2(u32 pixelcode);
 
-extern const struct vb2_mem_ops vb2_rdma_sg_memops;
-
 #endif
