@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.24"
+#define DRV_VERSION	"0.6.25"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -420,7 +420,7 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_sff_prereset(link, deadline);
 }
 
-static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
+static void hpt37x_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -442,29 +442,29 @@ static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
 	pci_write_config_dword(pdev, addr, reg);
 }
 /**
- *	hpt370_set_piomode		-	PIO setup
+ *	hpt37x_set_piomode		-	PIO setup
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
  *	Perform PIO mode setup.
  */
 
-static void hpt370_set_piomode(struct ata_port *ap, struct ata_device *adev)
+static void hpt37x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	hpt370_set_mode(ap, adev, adev->pio_mode);
+	hpt37x_set_mode(ap, adev, adev->pio_mode);
 }
 
 /**
- *	hpt370_set_dmamode		-	DMA timing setup
+ *	hpt37x_set_dmamode		-	DMA timing setup
  *	@ap: ATA interface
  *	@adev: Device being configured
  *
  *	Set up the channel for MWDMA or UDMA modes.
  */
 
-static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
+static void hpt37x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	hpt370_set_mode(ap, adev, adev->dma_mode);
+	hpt37x_set_mode(ap, adev, adev->dma_mode);
 }
 
 /**
@@ -504,54 +504,6 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 	ata_bmdma_stop(qc);
 }
 
-static void hpt372_set_mode(struct ata_port *ap, struct ata_device *adev,
-			    u8 mode)
-{
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	u32 reg, timing, mask;
-
-	/* Determine timing mask and find matching mode entry */
-	if (mode < XFER_MW_DMA_0)
-		mask = 0xcfc3ffff;
-	else if (mode < XFER_UDMA_0)
-		mask = 0x31c001ff;
-	else
-		mask = 0x303c0000;
-
-	timing = hpt37x_find_mode(ap, mode);
-
-	pci_read_config_dword(pdev, addr, &reg);
-	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr, reg);
-}
-
-/**
- *	hpt372_set_piomode		-	PIO setup
- *	@ap: ATA interface
- *	@adev: device on the interface
- *
- *	Perform PIO mode setup.
- */
-
-static void hpt372_set_piomode(struct ata_port *ap, struct ata_device *adev)
-{
-	hpt372_set_mode(ap, adev, adev->pio_mode);
-}
-
-/**
- *	hpt372_set_dmamode		-	DMA timing setup
- *	@ap: ATA interface
- *	@adev: Device being configured
- *
- *	Set up the channel for MWDMA or UDMA modes.
- */
-
-static void hpt372_set_dmamode(struct ata_port *ap, struct ata_device *adev)
-{
-	hpt372_set_mode(ap, adev, adev->dma_mode);
-}
-
 /**
  *	hpt37x_bmdma_stop		-	DMA engine stop
  *	@qc: ATA command
@@ -589,8 +541,8 @@ static struct ata_port_operations hpt370_port_ops = {
 
 	.mode_filter	= hpt370_filter,
 	.cable_detect	= hpt37x_cable_detect,
-	.set_piomode	= hpt370_set_piomode,
-	.set_dmamode	= hpt370_set_dmamode,
+	.set_piomode	= hpt37x_set_piomode,
+	.set_dmamode	= hpt37x_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
 };
 
@@ -604,8 +556,7 @@ static struct ata_port_operations hpt370a_port_ops = {
 };
 
 /*
- *	Configuration for HPT371 and HPT302. Slightly different PIO and DMA
- *	mode setting functionality.
+ *	Configuration for HPT371 and HPT302.
  */
 
 static struct ata_port_operations hpt302_port_ops = {
@@ -614,8 +565,8 @@ static struct ata_port_operations hpt302_port_ops = {
 	.bmdma_stop	= hpt37x_bmdma_stop,
 
 	.cable_detect	= hpt37x_cable_detect,
-	.set_piomode	= hpt372_set_piomode,
-	.set_dmamode	= hpt372_set_dmamode,
+	.set_piomode	= hpt37x_set_piomode,
+	.set_dmamode	= hpt37x_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
 };
 
