@@ -556,7 +556,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	return io;
 }
 
-static void free_io(struct mapped_device *md, struct dm_io *io)
+static void free_io(struct dm_io *io)
 {
 	bio_put(&io->tio.clone);
 }
@@ -839,7 +839,7 @@ void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
 
 		io_error = io->status;
 		dm_end_io_acct(io);
-		free_io(md, io);
+		free_io(io);
 		smp_wmb();
 		this_cpu_dec(*md->pending_io);
 
