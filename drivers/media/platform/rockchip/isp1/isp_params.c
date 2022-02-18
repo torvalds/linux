@@ -2630,7 +2630,7 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto err_release_queue;
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(&vdev->dev,
 			"could not register Video for Linux device\n");

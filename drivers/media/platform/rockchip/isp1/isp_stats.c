@@ -640,7 +640,7 @@ int rkisp1_register_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev,
 	if (ret < 0)
 		goto err_release_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(&vdev->dev,
 			"could not register Video for Linux device\n");

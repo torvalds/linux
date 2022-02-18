@@ -543,14 +543,13 @@ static int isp_subdev_notifier(struct rkisp1_device *isp_dev)
 	struct device *dev = isp_dev->dev;
 	int ret;
 
+	v4l2_async_notifier_init(ntf);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		dev, ntf, sizeof(struct rkisp1_async_subdev),
 		rkisp1_fwnode_parse);
 	if (ret < 0)
 		return ret;
-
-	if (!ntf->num_subdevs)
-		return -ENODEV;	/* no endpoint */
 
 	ntf->ops = &subdev_notifier_ops;
 

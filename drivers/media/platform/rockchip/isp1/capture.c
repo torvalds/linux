@@ -920,7 +920,7 @@ static int raw_config_mi(struct rkisp1_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		if (stream->id == RKISP1_STREAM_RAW)
 			v4l2_err(&dev->v4l2_dev,
 				 "only mipi sensor support raw path\n");
@@ -1381,7 +1381,7 @@ static int rkisp1_create_dummy_buf(struct rkisp1_stream *stream)
 		stream->out_fmt.plane_fmt[1].sizeimage,
 		stream->out_fmt.plane_fmt[2].sizeimage);
 	if (dev->active_sensor &&
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
+	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY &&
 	    (dev->isp_ver == ISP_V12 ||
 	     dev->isp_ver == ISP_V13)) {
 		u32 in_size;
@@ -1739,7 +1739,7 @@ int rkisp1_fh_open(struct file *filp)
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		atomic_inc(&dev->open_cnt);
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
@@ -1755,7 +1755,7 @@ int rkisp1_fop_release(struct file *file)
 
 	ret = vb2_fop_release(file);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
+		ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 		if (ret < 0)
 			v4l2_err(&dev->v4l2_dev,
 				"set pipeline power failed %d\n", ret);
@@ -2075,7 +2075,7 @@ static const struct v4l2_ioctl_ops rkisp1_v4l2_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 	.vidioc_enum_input = rkisp1_enum_input,
 	.vidioc_try_fmt_vid_cap_mplane = rkisp1_try_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_cap_mplane = rkisp1_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_cap = rkisp1_enum_fmt_vid_cap_mplane,
 	.vidioc_s_fmt_vid_cap_mplane = rkisp1_s_fmt_vid_cap_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = rkisp1_g_fmt_vid_cap_mplane,
 	.vidioc_s_selection = rkisp1_s_selection,
@@ -2162,7 +2162,7 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	vdev->queue = &node->buf_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev,
 			 "video_register_device failed with error %d\n", ret);
