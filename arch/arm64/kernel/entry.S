@@ -308,13 +308,6 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	msr_s	SYS_ICC_PMR_EL1, x20
 alternative_else_nop_endif
 
-	/* Re-enable tag checking (TCO set on exception entry) */
-#ifdef CONFIG_ARM64_MTE
-alternative_if ARM64_MTE
-	SET_PSTATE_TCO(0)
-alternative_else_nop_endif
-#endif
-
 	/*
 	 * Registers that may be useful after this macro is invoked:
 	 *
