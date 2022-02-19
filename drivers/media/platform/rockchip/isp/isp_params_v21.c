@@ -20,17 +20,17 @@
 	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
 #define ISP2X_REG_WR_MASK		BIT(31) //disable write protect
-#define ISP2X_NOBIG_OVERFLOW_SIZE	(2688 * 1536)
-#define ISP2X_AUTO_BIGMODE_WIDTH	2688
+#define ISP21_NOBIG_OVERFLOW_SIZE	(2688 * 1536)
+#define ISP21_AUTO_BIGMODE_WIDTH	2688
+#define ISP21_VIR2_NOBIG_OVERFLOW_SIZE	(1920 * 1080)
+#define ISP21_VIR2_AUTO_BIGMODE_WIDTH	1920
+#define ISP21_VIR4_NOBIG_OVERFLOW_SIZE	(960 * 540)
+#define ISP21_VIR4_AUTO_BIGMODE_WIDTH	960
 
-static inline size_t
-isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
-{
-	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
-
-	return isp_sdev->in_crop.width * isp_sdev->in_crop.height;
-}
+#define ISP21_VIR2_MAX_WIDTH		3840
+#define ISP21_VIR2_MAX_SIZE		(3840 * 2160)
+#define ISP21_VIR4_MAX_WIDTH		1920
+#define ISP21_VIR4_MAX_SIZE		(1920 * 1080)
 
 static void
 isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
@@ -3819,7 +3819,26 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
-	u32 size = hw->max_in.w ? hw->max_in.w * hw->max_in.h : isp_param_get_insize(params_vdev);
+	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
+	u32 size = width * height;
+	u32 bigmode_max_w, bigmode_max_size;
+
+	if (hw->dev_link_num > 2) {
+		bigmode_max_w = ISP21_VIR4_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP21_VIR4_NOBIG_OVERFLOW_SIZE;
+		if (width > ISP21_VIR4_MAX_WIDTH || size > ISP21_VIR4_MAX_SIZE)
+			dev_err(dev, "%dx%d > max:3840x2160 for %d virtual isp\n",
+				width, height, hw->dev_link_num);
+	} else if (hw->dev_link_num > 1) {
+		bigmode_max_w = ISP21_VIR2_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP21_VIR2_NOBIG_OVERFLOW_SIZE;
+		if (width > ISP21_VIR2_MAX_WIDTH || size > ISP21_VIR2_MAX_SIZE)
+			dev_err(dev, "%dx%d > max:1920x1080 for %d virtual isp\n",
+				width, height, hw->dev_link_num);
+	} else {
+		bigmode_max_w = ISP21_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP21_NOBIG_OVERFLOW_SIZE;
+	}
 
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp21_params);
 	spin_lock(&params_vdev->config_lock);
@@ -3837,7 +3856,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_other_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
-	if (width <= ISP2X_AUTO_BIGMODE_WIDTH && size > ISP2X_NOBIG_OVERFLOW_SIZE) {
+	if (width > bigmode_max_w || size > bigmode_max_size) {
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);
