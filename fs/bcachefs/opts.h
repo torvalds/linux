@@ -329,6 +329,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Read all journal entries, not just dirty ones")\
+	x(read_journal_only,		u8,				\
+	  0,								\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			false,				\
+	  NULL,		"Only read the journal, skip the rest of recovery")\
 	x(journal_transaction_names,	u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_BOOL(),							\
