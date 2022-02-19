@@ -31,8 +31,10 @@ struct cpu_hw_events {
 	int			n_events;
 	/* currently enabled events */
 	struct perf_event	*events[RISCV_MAX_COUNTERS];
-	/* currently enabled counters */
-	DECLARE_BITMAP(used_event_ctrs, RISCV_MAX_COUNTERS);
+	/* currently enabled hardware counters */
+	DECLARE_BITMAP(used_hw_ctrs, RISCV_MAX_COUNTERS);
+	/* currently enabled firmware counters */
+	DECLARE_BITMAP(used_fw_ctrs, RISCV_MAX_COUNTERS);
 };
 
 struct riscv_pmu {
