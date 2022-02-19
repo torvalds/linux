@@ -209,7 +209,7 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!mdev)
 		return -ENODEV;
 
-	if (!mctp_address_ok(addr->s_addr))
+	if (!mctp_address_unicast(addr->s_addr))
 		return -EINVAL;
 
 	/* Prevent duplicates. Under RTNL so don't need to lock for reading */

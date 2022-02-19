@@ -962,7 +962,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *ert;
 
-	if (!mctp_address_ok(daddr_start))
+	if (!mctp_address_unicast(daddr_start))
 		return -EINVAL;
 
 	if (daddr_extent > 0xff || daddr_start + daddr_extent >= 255)
@@ -1090,6 +1090,17 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	/* We have enough for a header; decode and route */
 	mh = mctp_hdr(skb);
 	if (mh->ver < MCTP_VER_MIN || mh->ver > MCTP_VER_MAX)
+		goto err_drop;
+
+	/* source must be valid unicast or null; drop reserved ranges and
+	 * broadcast
+	 */
+	if (!(mctp_address_unicast(mh->src) || mctp_address_null(mh->src)))
+		goto err_drop;
+
+	/* dest address: as above, but allow broadcast */
+	if (!(mctp_address_unicast(mh->dest) || mctp_address_null(mh->dest) ||
+	      mctp_address_broadcast(mh->dest)))
 		goto err_drop;
 
 	/* MCTP drivers must populate halen/haddr */

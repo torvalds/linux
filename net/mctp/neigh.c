@@ -143,7 +143,7 @@ static int mctp_rtm_newneigh(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	eid = nla_get_u8(tb[NDA_DST]);
-	if (!mctp_address_ok(eid)) {
+	if (!mctp_address_unicast(eid)) {
 		NL_SET_ERR_MSG(extack, "Invalid neighbour EID");
 		return -EINVAL;
 	}
