@@ -111,22 +111,25 @@ static inline struct nonce btree_nonce(struct bset *i, unsigned offset)
 	}};
 }
 
-static inline void bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
+static inline int bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
 {
 	struct nonce nonce = btree_nonce(i, offset);
+	int ret;
 
 	if (!offset) {
 		struct btree_node *bn = container_of(i, struct btree_node, keys);
 		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
 
-		bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, &bn->flags,
-			     bytes);
+		ret = bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce,
+				   &bn->flags, bytes);
+		if (ret)
+			return ret;
 
 		nonce = nonce_add(nonce, round_up(bytes, CHACHA_BLOCK_SIZE));
 	}
 
-	bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, i->_data,
-		     vstruct_end(i) - (void *) i->_data);
+	return bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, i->_data,
+			    vstruct_end(i) - (void *) i->_data);
 }
 
 void bch2_btree_sort_into(struct bch_fs *, struct btree *, struct btree *);

@@ -49,7 +49,7 @@ struct bch_csum bch2_checksum(struct bch_fs *, unsigned, struct nonce,
 int bch2_chacha_encrypt_key(struct bch_key *, struct nonce, void *, size_t);
 int bch2_request_key(struct bch_sb *, struct bch_key *);
 
-void bch2_encrypt(struct bch_fs *, unsigned, struct nonce,
+int bch2_encrypt(struct bch_fs *, unsigned, struct nonce,
 		 void *data, size_t);
 
 struct bch_csum bch2_checksum_bio(struct bch_fs *, unsigned,
@@ -61,8 +61,8 @@ int bch2_rechecksum_bio(struct bch_fs *, struct bio *, struct bversion,
 			struct bch_extent_crc_unpacked *,
 			unsigned, unsigned, unsigned);
 
-void bch2_encrypt_bio(struct bch_fs *, unsigned,
-		    struct nonce, struct bio *);
+int bch2_encrypt_bio(struct bch_fs *, unsigned,
+		     struct nonce, struct bio *);
 
 int bch2_decrypt_sb_key(struct bch_fs *, struct bch_sb_field_crypt *,
 			struct bch_key *);

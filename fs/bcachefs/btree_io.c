@@ -917,7 +917,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
 				     "invalid checksum");
 
-			bset_encrypt(c, i, b->written << 9);
+			ret = bset_encrypt(c, i, b->written << 9);
+			if (bch2_fs_fatal_err_on(ret, c,
+					"error decrypting btree node: %i", ret))
+				goto fsck_err;
 
 			btree_err_on(btree_node_is_extents(b) &&
 				     !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data),
@@ -944,7 +947,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
 				     "invalid checksum");
 
-			bset_encrypt(c, i, b->written << 9);
+			ret = bset_encrypt(c, i, b->written << 9);
+			if (bch2_fs_fatal_err_on(ret, c,
+					"error decrypting btree node: %i\n", ret))
+				goto fsck_err;
 
 			sectors = vstruct_sectors(bne, c->block_bits);
 		}
@@ -1753,6 +1759,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_sta
 	unsigned long old, new;
 	bool validate_before_checksum = false;
 	void *data;
+	int ret;
 
 	if (already_started)
 		goto do_write;
@@ -1893,7 +1900,10 @@ do_write:
 	    validate_bset_for_write(c, b, i, sectors_to_write))
 		goto err;
 
-	bset_encrypt(c, i, b->written << 9);
+	ret = bset_encrypt(c, i, b->written << 9);
+	if (bch2_fs_fatal_err_on(ret, c,
+			"error encrypting btree node: %i\n", ret))
+		goto err;
 
 	nonce = btree_nonce(i, b->written << 9);
 

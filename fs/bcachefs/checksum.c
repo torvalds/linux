@@ -93,9 +93,9 @@ static void bch2_checksum_update(struct bch2_checksum_state *state, const void *
 	}
 }
 
-static inline void do_encrypt_sg(struct crypto_sync_skcipher *tfm,
-				 struct nonce nonce,
-				 struct scatterlist *sg, size_t len)
+static inline int do_encrypt_sg(struct crypto_sync_skcipher *tfm,
+				struct nonce nonce,
+				struct scatterlist *sg, size_t len)
 {
 	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	int ret;
@@ -104,17 +104,20 @@ static inline void do_encrypt_sg(struct crypto_sync_skcipher *tfm,
 	skcipher_request_set_crypt(req, sg, sg, len, nonce.d);
 
 	ret = crypto_skcipher_encrypt(req);
-	BUG_ON(ret);
+	if (ret)
+		pr_err("got error %i from crypto_skcipher_encrypt()", ret);
+
+	return ret;
 }
 
-static inline void do_encrypt(struct crypto_sync_skcipher *tfm,
+static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 			      struct nonce nonce,
 			      void *buf, size_t len)
 {
 	struct scatterlist sg;
 
 	sg_init_one(&sg, buf, len);
-	do_encrypt_sg(tfm, nonce, &sg, len);
+	return do_encrypt_sg(tfm, nonce, &sg, len);
 }
 
 int bch2_chacha_encrypt_key(struct bch_key *key, struct nonce nonce,
@@ -136,25 +139,29 @@ int bch2_chacha_encrypt_key(struct bch_key *key, struct nonce nonce,
 		goto err;
 	}
 
-	do_encrypt(chacha20, nonce, buf, len);
+	ret = do_encrypt(chacha20, nonce, buf, len);
 err:
 	crypto_free_sync_skcipher(chacha20);
 	return ret;
 }
 
-static void gen_poly_key(struct bch_fs *c, struct shash_desc *desc,
-			 struct nonce nonce)
+static int gen_poly_key(struct bch_fs *c, struct shash_desc *desc,
+			struct nonce nonce)
 {
 	u8 key[POLY1305_KEY_SIZE];
+	int ret;
 
 	nonce.d[3] ^= BCH_NONCE_POLY;
 
 	memset(key, 0, sizeof(key));
-	do_encrypt(c->chacha20, nonce, key, sizeof(key));
+	ret = do_encrypt(c->chacha20, nonce, key, sizeof(key));
+	if (ret)
+		return ret;
 
 	desc->tfm = c->poly1305;
 	crypto_shash_init(desc);
 	crypto_shash_update(desc, key, sizeof(key));
+	return 0;
 }
 
 struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
@@ -196,13 +203,13 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 	}
 }
 
-void bch2_encrypt(struct bch_fs *c, unsigned type,
+int bch2_encrypt(struct bch_fs *c, unsigned type,
 		  struct nonce nonce, void *data, size_t len)
 {
 	if (!bch2_csum_type_is_encryption(type))
-		return;
+		return 0;
 
-	do_encrypt(c->chacha20, nonce, data, len);
+	return do_encrypt(c->chacha20, nonce, data, len);
 }
 
 static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
@@ -277,23 +284,27 @@ struct bch_csum bch2_checksum_bio(struct bch_fs *c, unsigned type,
 	return __bch2_checksum_bio(c, type, nonce, bio, &iter);
 }
 
-void bch2_encrypt_bio(struct bch_fs *c, unsigned type,
-		      struct nonce nonce, struct bio *bio)
+int bch2_encrypt_bio(struct bch_fs *c, unsigned type,
+		     struct nonce nonce, struct bio *bio)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
 	struct scatterlist sgl[16], *sg = sgl;
 	size_t bytes = 0;
+	int ret = 0;
 
 	if (!bch2_csum_type_is_encryption(type))
-		return;
+		return 0;
 
 	sg_init_table(sgl, ARRAY_SIZE(sgl));
 
 	bio_for_each_segment(bv, bio, iter) {
 		if (sg == sgl + ARRAY_SIZE(sgl)) {
 			sg_mark_end(sg - 1);
-			do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+
+			ret = do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+			if (ret)
+				return ret;
 
 			nonce = nonce_add(nonce, bytes);
 			bytes = 0;
@@ -307,7 +318,7 @@ void bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 	}
 
 	sg_mark_end(sg - 1);
-	do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+	return do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
 }
 
 struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,

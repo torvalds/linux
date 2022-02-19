@@ -724,9 +724,11 @@ static int jset_validate(struct bch_fs *c,
 				 sector, le64_to_cpu(jset->seq)))
 		ret = JOURNAL_ENTRY_BAD;
 
-	bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
+	ret = bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		     jset->encrypted_start,
 		     vstruct_end(jset) - (void *) jset->encrypted_start);
+	bch2_fs_fatal_err_on(ret, c,
+			"error decrypting journal entry: %i", ret);
 csum_done:
 	/* last_seq is ignored when JSET_NO_FLUSH is true */
 	if (journal_entry_err_on(!JSET_NO_FLUSH(jset) &&
@@ -1594,9 +1596,12 @@ void bch2_journal_write(struct closure *cl)
 	    jset_validate_for_write(c, jset))
 		goto err;
 
-	bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
+	ret = bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		    jset->encrypted_start,
 		    vstruct_end(jset) - (void *) jset->encrypted_start);
+	if (bch2_fs_fatal_err_on(ret, c,
+			"error decrypting journal entry: %i", ret))
+		goto err;
 
 	jset->csum = csum_vstruct(c, JSET_CSUM_TYPE(jset),
 				  journal_nonce(jset), jset);
