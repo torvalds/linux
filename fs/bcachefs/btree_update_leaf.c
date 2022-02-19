@@ -982,6 +982,17 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
 
+	ret = bch2_trans_commit_run_triggers(trans);
+	if (ret)
+		goto out_reset;
+
+	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
+	    unlikely(!percpu_ref_tryget(&c->writes))) {
+		ret = bch2_trans_commit_get_rw_cold(trans);
+		if (ret)
+			goto out_reset;
+	}
+
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
 	trans->journal_u64s		= trans->extra_journal_entry_u64s;
@@ -991,17 +1002,6 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 	if (trans->journal_transaction_names)
 		trans->journal_u64s += JSET_ENTRY_LOG_U64s;
-
-	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
-	    unlikely(!percpu_ref_tryget(&c->writes))) {
-		ret = bch2_trans_commit_get_rw_cold(trans);
-		if (ret)
-			goto out_reset;
-	}
-
-	ret = bch2_trans_commit_run_triggers(trans);
-	if (ret)
-		goto out;
 
 	trans_for_each_update(trans, i) {
 		BUG_ON(!i->path->should_be_locked);
