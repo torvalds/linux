@@ -15293,7 +15293,7 @@ L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-samsung-soc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pinctrl/samsung.git
-F:	Documentation/devicetree/bindings/pinctrl/samsung-pinctrl.txt
+F:	Documentation/devicetree/bindings/pinctrl/samsung,pinctrl*yaml
 F:	drivers/pinctrl/samsung/
 F:	include/dt-bindings/pinctrl/samsung.h
 
