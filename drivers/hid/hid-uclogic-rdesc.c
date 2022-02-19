@@ -654,10 +654,9 @@ const size_t uclogic_rdesc_pen_v2_template_size =
 /*
  * Expand to the contents of a generic buttonpad report descriptor.
  *
- * @_padding:	Padding from the end of button bits at bit 44, until
- *		the end of the report, in bits.
+ * @_size:	Size of the report to pad to, including report ID, bytes.
  */
-#define UCLOGIC_RDESC_BUTTONPAD_BYTES(_padding) \
+#define UCLOGIC_RDESC_BUTTONPAD_BYTES(_size) \
 	0x05, 0x01,     /*  Usage Page (Desktop),               */ \
 	0x09, 0x07,     /*  Usage (Keypad),                     */ \
 	0xA1, 0x01,     /*  Collection (Application),           */ \
@@ -692,21 +691,22 @@ const size_t uclogic_rdesc_pen_v2_template_size =
 	0x29, 0x03,     /*          Usage Maximum (03h),        */ \
 	0x95, 0x03,     /*          Report Count (3),           */ \
 	0x81, 0x02,     /*          Input (Variable),           */ \
-	0x95, _padding, /*          Report Count (_padding),    */ \
+	0x95, ((_size) * 8 - 45),                                  \
+			/*          Report Count (padding),     */ \
 	0x81, 0x01,     /*          Input (Constant),           */ \
 	0xC0,           /*      End Collection,                 */ \
 	0xC0            /*  End Collection                      */
 
 /* Fixed report descriptor for (tweaked) v1 buttonpad reports */
 const __u8 uclogic_rdesc_buttonpad_v1_arr[] = {
-	UCLOGIC_RDESC_BUTTONPAD_BYTES(19)
+	UCLOGIC_RDESC_BUTTONPAD_BYTES(8)
 };
 const size_t uclogic_rdesc_buttonpad_v1_size =
 			sizeof(uclogic_rdesc_buttonpad_v1_arr);
 
 /* Fixed report descriptor for (tweaked) v2 buttonpad reports */
 const __u8 uclogic_rdesc_buttonpad_v2_arr[] = {
-	UCLOGIC_RDESC_BUTTONPAD_BYTES(51)
+	UCLOGIC_RDESC_BUTTONPAD_BYTES(12)
 };
 const size_t uclogic_rdesc_buttonpad_v2_size =
 			sizeof(uclogic_rdesc_buttonpad_v2_arr);
