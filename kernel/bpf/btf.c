@@ -6706,7 +6706,7 @@ static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
 				  const struct btf_kfunc_id_set *kset)
 {
 	bool vmlinux_set = !btf_is_module(btf);
-	int type, ret;
+	int type, ret = 0;
 
 	for (type = 0; type < ARRAY_SIZE(kset->sets); type++) {
 		if (!kset->sets[type])
