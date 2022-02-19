@@ -1166,18 +1166,22 @@ static int bch2_mark_reservation(struct btree_trans *trans,
 
 static s64 __bch2_mark_reflink_p(struct btree_trans *trans,
 				 struct bkey_s_c_reflink_p p,
+				 u64 start, u64 end,
 				 u64 *idx, unsigned flags, size_t r_idx)
 {
 	struct bch_fs *c = trans->c;
 	struct reflink_gc *r;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	u64 next_idx = end;
 	s64 ret = 0;
+	char buf[200];
 
 	if (r_idx >= c->reflink_gc_nr)
 		goto not_found;
 
 	r = genradix_ptr(&c->reflink_gc_table, r_idx);
-	if (*idx < r->offset - r->size)
+	next_idx = min(next_idx, r->offset - r->size);
+	if (*idx < next_idx)
 		goto not_found;
 
 	BUG_ON((s64) r->refcount + add < 0);
@@ -1186,23 +1190,22 @@ static s64 __bch2_mark_reflink_p(struct btree_trans *trans,
 	*idx = r->offset;
 	return 0;
 not_found:
-	*idx = U64_MAX;
-	ret = -EIO;
-
-	/*
-	 * XXX: we're replacing the entire reflink pointer with an error
-	 * key, we should just be replacing the part that was missing:
-	 */
-	if (fsck_err(c, "%llu:%llu len %u points to nonexistent indirect extent %llu",
-		     p.k->p.inode, p.k->p.offset, p.k->size, *idx)) {
+	if (fsck_err(c, "pointer to missing indirect extent\n"
+		     "  %s\n"
+		     "  missing range %llu-%llu",
+		     (bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c), buf),
+		     *idx, next_idx)) {
 		struct bkey_i_error new;
 
 		bkey_init(&new.k);
 		new.k.type	= KEY_TYPE_error;
-		new.k.p		= p.k->p;
-		new.k.size	= p.k->size;
+		new.k.p		= bkey_start_pos(p.k);
+		new.k.p.offset += *idx - start;
+		bch2_key_resize(&new.k, next_idx - *idx);
 		ret = __bch2_btree_insert(trans, BTREE_ID_extents, &new.k_i);
 	}
+
+	*idx = next_idx;
 fsck_err:
 	return ret;
 }
@@ -1216,7 +1219,7 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	struct reflink_gc *ref;
 	size_t l, r, m;
-	u64 idx = le64_to_cpu(p.v->idx);
+	u64 idx = le64_to_cpu(p.v->idx), start = idx;
 	u64 end = le64_to_cpu(p.v->idx) + p.k->size;
 	int ret = 0;
 
@@ -1240,7 +1243,8 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 	}
 
 	while (idx < end && !ret)
-		ret = __bch2_mark_reflink_p(trans, p, &idx, flags, l++);
+		ret = __bch2_mark_reflink_p(trans, p, start, end,
+					    &idx, flags, l++);
 
 	return ret;
 }
