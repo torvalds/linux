@@ -39,7 +39,7 @@ void bch2_topology_error(struct bch_fs *);
 
 #define bch2_fs_inconsistent_on(cond, c, ...)				\
 ({									\
-	int _ret = !!(cond);						\
+	bool _ret = unlikely(!!(cond));					\
 									\
 	if (_ret)							\
 		bch2_fs_inconsistent(c, __VA_ARGS__);			\
@@ -59,7 +59,7 @@ do {									\
 
 #define bch2_dev_inconsistent_on(cond, ca, ...)				\
 ({									\
-	int _ret = !!(cond);						\
+	bool _ret = unlikely(!!(cond));					\
 									\
 	if (_ret)							\
 		bch2_dev_inconsistent(ca, __VA_ARGS__);			\
@@ -129,7 +129,7 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 /* XXX: mark in superblock that filesystem contains errors, if we ignore: */
 
 #define __fsck_err_on(cond, c, _flags, ...)				\
-	((cond) ? __fsck_err(c, _flags,	##__VA_ARGS__) : false)
+	(unlikely(cond) ? __fsck_err(c, _flags,	##__VA_ARGS__) : false)
 
 #define need_fsck_err_on(cond, c, ...)					\
 	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, ##__VA_ARGS__)
@@ -164,7 +164,7 @@ do {									\
 
 #define bch2_fs_fatal_err_on(cond, c, ...)				\
 ({									\
-	int _ret = !!(cond);						\
+	bool _ret = unlikely(!!(cond));					\
 									\
 	if (_ret)							\
 		bch2_fs_fatal_error(c, __VA_ARGS__);			\
