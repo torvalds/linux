@@ -127,6 +127,7 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	INIT_LIST_HEAD(&realm->child_item);
 	INIT_LIST_HEAD(&realm->empty_item);
 	INIT_LIST_HEAD(&realm->dirty_item);
+	INIT_LIST_HEAD(&realm->rebuild_item);
 	INIT_LIST_HEAD(&realm->inodes_with_caps);
 	spin_lock_init(&realm->inodes_with_caps_lock);
 	__insert_snap_realm(&mdsc->snap_realms, realm);
@@ -320,7 +321,8 @@ static int cmpu64_rev(const void *a, const void *b)
  * build the snap context for a given realm.
  */
 static int build_snap_context(struct ceph_snap_realm *realm,
-			      struct list_head* dirty_realms)
+			      struct list_head *realm_queue,
+			      struct list_head *dirty_realms)
 {
 	struct ceph_snap_realm *parent = realm->parent;
 	struct ceph_snap_context *snapc;
@@ -334,9 +336,9 @@ static int build_snap_context(struct ceph_snap_realm *realm,
 	 */
 	if (parent) {
 		if (!parent->cached_context) {
-			err = build_snap_context(parent, dirty_realms);
-			if (err)
-				goto fail;
+			/* add to the queue head */
+			list_add(&parent->rebuild_item, realm_queue);
+			return 1;
 		}
 		num += parent->cached_context->num_snaps;
 	}
@@ -420,13 +422,50 @@ fail:
 static void rebuild_snap_realms(struct ceph_snap_realm *realm,
 				struct list_head *dirty_realms)
 {
-	struct ceph_snap_realm *child;
+	LIST_HEAD(realm_queue);
+	int last = 0;
+	bool skip = false;
 
-	dout("rebuild_snap_realms %llx %p\n", realm->ino, realm);
-	build_snap_context(realm, dirty_realms);
+	list_add_tail(&realm->rebuild_item, &realm_queue);
 
-	list_for_each_entry(child, &realm->children, child_item)
-		rebuild_snap_realms(child, dirty_realms);
+	while (!list_empty(&realm_queue)) {
+		struct ceph_snap_realm *_realm, *child;
+
+		_realm = list_first_entry(&realm_queue,
+					  struct ceph_snap_realm,
+					  rebuild_item);
+
+		/*
+		 * If the last building failed dues to memory
+		 * issue, just empty the realm_queue and return
+		 * to avoid infinite loop.
+		 */
+		if (last < 0) {
+			list_del_init(&_realm->rebuild_item);
+			continue;
+		}
+
+		last = build_snap_context(_realm, &realm_queue, dirty_realms);
+		dout("rebuild_snap_realms %llx %p, %s\n", _realm->ino, _realm,
+		     last > 0 ? "is deferred" : !last ? "succeeded" : "failed");
+
+		/* is any child in the list ? */
+		list_for_each_entry(child, &_realm->children, child_item) {
+			if (!list_empty(&child->rebuild_item)) {
+				skip = true;
+				break;
+			}
+		}
+
+		if (!skip) {
+			list_for_each_entry(child, &_realm->children, child_item)
+				list_add_tail(&child->rebuild_item, &realm_queue);
+		}
+
+		/* last == 1 means need to build parent first */
+		if (last <= 0)
+			list_del_init(&_realm->rebuild_item);
+	}
 }
 
 
