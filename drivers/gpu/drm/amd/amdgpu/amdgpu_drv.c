@@ -740,7 +740,7 @@ MODULE_PARM_DESC(debug_largebar,
  * systems with a broken CRAT table.
  *
  * Default is auto (according to asic type, iommu_v2, and crat table, to decide
- * whehter use CRAT)
+ * whether use CRAT)
  */
 int ignore_crat;
 module_param(ignore_crat, int, 0444);
