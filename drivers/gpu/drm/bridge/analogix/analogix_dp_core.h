@@ -122,13 +122,6 @@ enum analog_power_block {
 	POWER_ALL
 };
 
-enum dp_irq_type {
-	DP_IRQ_TYPE_HP_CABLE_IN  = BIT(0),
-	DP_IRQ_TYPE_HP_CABLE_OUT = BIT(1),
-	DP_IRQ_TYPE_HP_CHANGE    = BIT(2),
-	DP_IRQ_TYPE_UNKNOWN      = BIT(3),
-};
-
 struct video_info {
 	char *name;
 	struct drm_display_mode mode;
@@ -176,7 +169,6 @@ struct analogix_dp_device {
 	struct video_info	video_info;
 	struct link_train	link_train;
 	struct phy		*phy;
-	bool			phy_enabled;
 	int			dpms_mode;
 	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
@@ -210,7 +202,6 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 int analogix_dp_init_analog_func(struct analogix_dp_device *dp);
 void analogix_dp_init_hpd(struct analogix_dp_device *dp);
 void analogix_dp_force_hpd(struct analogix_dp_device *dp);
-enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp);
 void analogix_dp_clear_hotplug_interrupts(struct analogix_dp_device *dp);
 void analogix_dp_reset_aux(struct analogix_dp_device *dp);
 void analogix_dp_init_aux(struct analogix_dp_device *dp);
@@ -252,11 +243,13 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 void analogix_dp_set_video_format(struct analogix_dp_device *dp);
 void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp);
-void analogix_dp_phy_power_on(struct analogix_dp_device *dp);
+int analogix_dp_phy_power_on(struct analogix_dp_device *dp);
 void analogix_dp_phy_power_off(struct analogix_dp_device *dp);
 void analogix_dp_audio_config_spdif(struct analogix_dp_device *dp);
 void analogix_dp_audio_config_i2s(struct analogix_dp_device *dp);
 void analogix_dp_audio_enable(struct analogix_dp_device *dp);
 void analogix_dp_audio_disable(struct analogix_dp_device *dp);
+void analogix_dp_init(struct analogix_dp_device *dp);
+void analogix_dp_irq_handler(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */

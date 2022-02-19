@@ -14,14 +14,10 @@
 #include <linux/phy/phy.h>
 
 #include <drm/bridge/analogix_dp.h>
+#include <drm/drm_probe_helper.h>
 
 #include "analogix_dp_core.h"
 #include "analogix_dp_reg.h"
-
-#define COMMON_INT_MASK_1	0
-#define COMMON_INT_MASK_2	0
-#define COMMON_INT_MASK_3	0
-#define COMMON_INT_MASK_4	(HOTPLUG_CHG | HPD_LOST | PLUG)
 
 static void analogix_dp_write(struct analogix_dp_device *dp, u32 reg, u32 val)
 {
@@ -168,9 +164,6 @@ void analogix_dp_reset(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_PKT_SEND_CTL, 0x0);
 	analogix_dp_write(dp, ANALOGIX_DP_HDCP_CTL, 0x0);
 
-	analogix_dp_write(dp, ANALOGIX_DP_HPD_DEGLITCH_L, 0x5e);
-	analogix_dp_write(dp, ANALOGIX_DP_HPD_DEGLITCH_H, 0x1a);
-
 	analogix_dp_write(dp, ANALOGIX_DP_LINK_DEBUG_CTL, 0x10);
 
 	analogix_dp_write(dp, ANALOGIX_DP_PHY_TEST, 0x0);
@@ -191,17 +184,10 @@ void analogix_dp_swreset(struct analogix_dp_device *dp)
 
 void analogix_dp_config_interrupt(struct analogix_dp_device *dp)
 {
-	u32 reg;
-
 	/* 0: mask, 1: unmask */
-	reg = COMMON_INT_MASK_1;
-	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_1, reg);
-
-	reg = COMMON_INT_MASK_2;
-	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_2, reg);
-
-	reg = COMMON_INT_MASK_3;
-	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_3, reg);
+	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_1, 0);
+	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_2, 0);
+	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_3, 0);
 
 	if (dp->force_hpd || dp->hpd_gpiod)
 		analogix_dp_mute_hpd_interrupt(dp);
@@ -215,7 +201,7 @@ void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
 
 	/* 0: mask, 1: unmask */
 	reg = analogix_dp_read(dp, ANALOGIX_DP_COMMON_INT_MASK_4);
-	reg &= ~COMMON_INT_MASK_4;
+	reg &= ~HOTPLUG_CHG;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
@@ -228,7 +214,8 @@ void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp)
 	u32 reg;
 
 	/* 0: mask, 1: unmask */
-	reg = COMMON_INT_MASK_4;
+	reg = analogix_dp_read(dp, ANALOGIX_DP_COMMON_INT_MASK_4);
+	reg |= HOTPLUG_CHG;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
@@ -419,7 +406,8 @@ void analogix_dp_init_hpd(struct analogix_dp_device *dp)
 	if (dp->hpd_gpiod)
 		return;
 
-	analogix_dp_clear_hotplug_interrupts(dp);
+	analogix_dp_write(dp, ANALOGIX_DP_HPD_DEGLITCH_H, 0xbb);
+	analogix_dp_write(dp, ANALOGIX_DP_HPD_DEGLITCH_L, 0x80);
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_3);
 	reg &= ~(F_HPD | HPD_CTRL);
@@ -435,23 +423,30 @@ void analogix_dp_force_hpd(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_3, reg);
 }
 
-enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
+static void analogix_dp_handle_hpd_event(struct analogix_dp_device *dp)
 {
+	bool changed = false;
 	u32 reg;
 
-	/* Parse hotplug interrupt status register */
+	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA);
+	if (reg & INT_HPD) {
+		dev_info(dp->dev, "irq-hpd, it's being ignored for now\n");
+		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, INT_HPD);
+	}
+
 	reg = analogix_dp_read(dp, ANALOGIX_DP_COMMON_INT_STA_4);
+	if (reg & HOTPLUG_CHG) {
+		analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_STA_4, HOTPLUG_CHG);
+		changed = true;
+	}
 
-	if (reg & PLUG)
-		return DP_IRQ_TYPE_HP_CABLE_IN;
+	if (changed)
+		drm_helper_hpd_irq_event(dp->drm_dev);
+}
 
-	if (reg & HPD_LOST)
-		return DP_IRQ_TYPE_HP_CABLE_OUT;
-
-	if (reg & HOTPLUG_CHG)
-		return DP_IRQ_TYPE_HP_CHANGE;
-
-	return DP_IRQ_TYPE_UNKNOWN;
+void analogix_dp_irq_handler(struct analogix_dp_device *dp)
+{
+	analogix_dp_handle_hpd_event(dp);
 }
 
 void analogix_dp_reset_aux(struct analogix_dp_device *dp)
@@ -1080,25 +1075,28 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	return 0;
 }
 
-void analogix_dp_phy_power_on(struct analogix_dp_device *dp)
+int analogix_dp_phy_power_on(struct analogix_dp_device *dp)
 {
-	if (dp->phy_enabled)
-		return;
+	int ret;
 
-	phy_set_mode(dp->phy, PHY_MODE_DP);
-	phy_power_on(dp->phy);
+	ret = phy_set_mode(dp->phy, PHY_MODE_DP);
+	if (ret) {
+		dev_err(dp->dev, "phy_set_mode failed: %d\n", ret);
+		return ret;
+	}
 
-	dp->phy_enabled = true;
+	ret = phy_power_on(dp->phy);
+	if (ret) {
+		dev_err(dp->dev, "phy_power_on failed: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 void analogix_dp_phy_power_off(struct analogix_dp_device *dp)
 {
-	if (!dp->phy_enabled)
-		return;
-
 	phy_power_off(dp->phy);
-
-	dp->phy_enabled = false;
 }
 
 enum {
@@ -1125,12 +1123,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	/* Buffer size of AUX CH is 16 bytes */
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
-
-	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
-	if (reg & AUX_FUNC_EN_N) {
-		analogix_dp_phy_power_on(dp);
-		analogix_dp_init_aux(dp);
-	}
 
 	/* Clear AUX CH data buffer */
 	reg = BUF_CLR;
@@ -1366,4 +1358,12 @@ void analogix_dp_audio_disable(struct analogix_dp_device *dp)
 	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_1);
 	reg |= AUD_FIFO_FUNC_EN_N | AUD_FUNC_EN_N;
 	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_1, reg);
+}
+
+void analogix_dp_init(struct analogix_dp_device *dp)
+{
+	analogix_dp_init_interrupt(dp);
+	analogix_dp_config_interrupt(dp);
+	analogix_dp_init_hpd(dp);
+	analogix_dp_init_aux(dp);
 }

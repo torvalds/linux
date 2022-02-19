@@ -57,6 +57,8 @@ struct analogix_dp_plat_data {
 	void (*convert_to_origin_mode)(struct drm_display_mode *);
 };
 
+int analogix_dp_resume(struct analogix_dp_device *dp);
+int analogix_dp_suspend(struct analogix_dp_device *dp);
 int analogix_dp_runtime_resume(struct analogix_dp_device *dp);
 int analogix_dp_runtime_suspend(struct analogix_dp_device *dp);
 

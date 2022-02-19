@@ -618,6 +618,26 @@ static int rockchip_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static __maybe_unused int rockchip_dp_suspend(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	if (IS_ERR(dp->adp))
+		return 0;
+
+	return analogix_dp_suspend(dp->adp);
+}
+
+static __maybe_unused int rockchip_dp_resume(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	if (IS_ERR(dp->adp))
+		return 0;
+
+	return analogix_dp_resume(dp->adp);
+}
+
 static __maybe_unused int rockchip_dp_runtime_suspend(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
@@ -639,6 +659,7 @@ static __maybe_unused int rockchip_dp_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
 	SET_RUNTIME_PM_OPS(rockchip_dp_runtime_suspend,
 			   rockchip_dp_runtime_resume, NULL)
 };

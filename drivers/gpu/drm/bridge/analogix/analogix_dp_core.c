@@ -920,49 +920,11 @@ static irqreturn_t analogix_dp_hpd_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t analogix_dp_hardirq(int irq, void *arg)
-{
-	struct analogix_dp_device *dp = arg;
-	enum dp_irq_type irq_type;
-	int ret;
-
-	ret = pm_runtime_get_sync(dp->dev);
-	if (ret < 0)
-		return IRQ_NONE;
-
-	irq_type = analogix_dp_get_irq_type(dp);
-	if (irq_type != DP_IRQ_TYPE_UNKNOWN)
-		analogix_dp_mute_hpd_interrupt(dp);
-
-	pm_runtime_put_sync(dp->dev);
-
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t analogix_dp_irq_thread(int irq, void *arg)
 {
 	struct analogix_dp_device *dp = arg;
-	enum dp_irq_type irq_type;
-	int ret;
 
-	ret = pm_runtime_get_sync(dp->dev);
-	if (ret < 0)
-		return IRQ_NONE;
-
-	irq_type = analogix_dp_get_irq_type(dp);
-	if (irq_type & DP_IRQ_TYPE_HP_CABLE_IN ||
-	    irq_type & DP_IRQ_TYPE_HP_CABLE_OUT) {
-		dev_dbg(dp->dev, "Detected cable status changed!\n");
-		if (dp->drm_dev)
-			drm_helper_hpd_irq_event(dp->drm_dev);
-	}
-
-	if (irq_type != DP_IRQ_TYPE_UNKNOWN) {
-		analogix_dp_clear_hotplug_interrupts(dp);
-		analogix_dp_unmute_hpd_interrupt(dp);
-	}
-
-	pm_runtime_put_sync(dp->dev);
+	analogix_dp_irq_handler(dp);
 
 	return IRQ_HANDLED;
 }
@@ -1173,24 +1135,28 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 	struct edid *edid;
-	int num_modes = 0;
+	int ret, num_modes = 0;
 
 	if (dp->plat_data->panel)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel, connector);
 
 	if (!num_modes) {
+		ret = analogix_dp_phy_power_on(dp);
+		if (ret)
+			return 0;
+
 		if (dp->plat_data->panel)
 			analogix_dp_panel_prepare(dp);
 
-		pm_runtime_get_sync(dp->dev);
 		edid = drm_get_edid(connector, &dp->aux.ddc);
-		pm_runtime_put(dp->dev);
 		if (edid) {
 			drm_connector_update_edid_property(&dp->connector,
 							   edid);
 			num_modes += drm_add_edid_modes(&dp->connector, edid);
 			kfree(edid);
 		}
+
+		analogix_dp_phy_power_off(dp);
 	}
 
 	if (dp->plat_data->get_modes)
@@ -1253,10 +1219,12 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 	enum drm_connector_status status = connector_status_disconnected;
 	int ret;
 
+	ret = analogix_dp_phy_power_on(dp);
+	if (ret)
+		return connector_status_disconnected;
+
 	if (dp->plat_data->panel)
 		analogix_dp_panel_prepare(dp);
-
-	pm_runtime_get_sync(dp->dev);
 
 	if (!analogix_dp_detect_hpd(dp)) {
 		ret = analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
@@ -1275,7 +1243,7 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 	}
 
 out:
-	pm_runtime_put(dp->dev);
+	analogix_dp_phy_power_off(dp);
 
 	return status;
 }
@@ -1404,12 +1372,12 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 {
 	int ret;
 
-	pm_runtime_get_sync(dp->dev);
-
 	if (dp->plat_data->power_on_start)
 		dp->plat_data->power_on_start(dp->plat_data);
 
-	analogix_dp_phy_power_on(dp);
+	ret = analogix_dp_phy_power_on(dp);
+	if (ret)
+		return ret;
 
 	ret = analogix_dp_init_dp(dp);
 	if (ret)
@@ -1438,15 +1406,12 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 	if (dp->plat_data->power_on_end)
 		dp->plat_data->power_on_end(dp->plat_data);
 
-	enable_irq(dp->irq);
 	return 0;
 
 out_dp_init:
 	analogix_dp_phy_power_off(dp);
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
-	pm_runtime_put_sync(dp->dev);
-
 	return ret;
 }
 
@@ -1519,16 +1484,11 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	if (!analogix_dp_get_plug_in_status(dp))
 		analogix_dp_link_power_down(dp);
 
-	disable_irq(dp->irq);
-
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
 
-	analogix_dp_reset_aux(dp);
 	analogix_dp_set_analog_power_down(dp, POWER_ALL, 1);
 	analogix_dp_phy_power_off(dp);
-
-	pm_runtime_put_sync(dp->dev);
 
 	if (dp->plat_data->panel)
 		analogix_dp_panel_unprepare(dp);
@@ -1839,13 +1799,9 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 {
 	int ret;
 
-	ret = pm_runtime_resume_and_get(dp->dev);
-	if (ret) {
-		dev_err(dp->dev, "failed to get runtime PM: %d\n", ret);
+	ret = analogix_dp_phy_power_on(dp);
+	if (ret)
 		return ret;
-	}
-
-	analogix_dp_phy_power_on(dp);
 
 	dp->dpms_mode = DRM_MODE_DPMS_ON;
 
@@ -1965,10 +1921,9 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	}
 
 	irq_set_status_flags(dp->irq, IRQ_NOAUTOEN);
-	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
-					analogix_dp_hardirq,
+	ret = devm_request_threaded_irq(dev, dp->irq, NULL,
 					analogix_dp_irq_thread,
-					0, "analogix-dp", dp);
+					IRQF_ONESHOT, dev_name(dev), dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ERR_PTR(ret);
@@ -1997,6 +1952,8 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 		return ret;
 
 	pm_runtime_enable(dp->dev);
+	pm_runtime_get_sync(dp->dev);
+	analogix_dp_init(dp);
 
 	ret = analogix_dp_bridge_init(dp);
 	if (ret) {
@@ -2004,9 +1961,12 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 		goto err_disable_pm_runtime;
 	}
 
+	enable_irq(dp->irq);
+
 	return 0;
 
 err_disable_pm_runtime:
+	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dp->dev);
 
 	return ret;
@@ -2015,8 +1975,10 @@ EXPORT_SYMBOL_GPL(analogix_dp_bind);
 
 void analogix_dp_unbind(struct analogix_dp_device *dp)
 {
+	disable_irq(dp->irq);
 	dp->connector.funcs->destroy(&dp->connector);
 	drm_dp_aux_unregister(&dp->aux);
+	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dp->dev);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
@@ -2026,6 +1988,25 @@ void analogix_dp_remove(struct analogix_dp_device *dp)
 	cancel_work_sync(&dp->modeset_retry_work);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_remove);
+
+int analogix_dp_suspend(struct analogix_dp_device *dp)
+{
+	disable_irq(dp->irq);
+	pm_runtime_force_suspend(dp->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_suspend);
+
+int analogix_dp_resume(struct analogix_dp_device *dp)
+{
+	pm_runtime_force_resume(dp->dev);
+	analogix_dp_init(dp);
+	enable_irq(dp->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_resume);
 
 int analogix_dp_runtime_suspend(struct analogix_dp_device *dp)
 {
