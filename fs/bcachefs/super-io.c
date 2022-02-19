@@ -461,9 +461,6 @@ int bch2_sb_to_fs(struct bch_fs *c, struct bch_sb *src)
 
 	__copy_super(&c->disk_sb, src);
 
-	if (BCH_SB_INITIALIZED(c->disk_sb.sb))
-		set_bit(BCH_FS_INITIALIZED, &c->flags);
-
 	ret = bch2_sb_replicas_to_cpu_replicas(c);
 	if (ret)
 		return ret;
