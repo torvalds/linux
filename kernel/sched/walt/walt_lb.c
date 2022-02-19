@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2020-2021, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2020-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -633,14 +633,10 @@ void walt_lb_tick(struct rq *rq)
 	new_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, 0, 1);
 	rcu_read_unlock();
 
-	if (new_cpu < 0)
-		goto out_unlock;
-
 	new_wrq = (struct walt_rq *) cpu_rq(new_cpu)->android_vendor_data1;
 
 	/* prevent active task migration to busy or same/lower capacity CPU */
-	if (!available_idle_cpu(new_cpu) ||
-		new_wrq->cluster->id <= prev_wrq->cluster->id)
+	if (!available_idle_cpu(new_cpu) || new_wrq->cluster->id <= prev_wrq->cluster->id)
 		goto out_unlock;
 
 	raw_spin_lock(&rq->__lock);

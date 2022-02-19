@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -788,7 +789,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		return prev_cpu;
 
 	if (unlikely(!cpu_array))
-		return -EPERM;
+		return prev_cpu;
 
 	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
 								&energy_eval_needed);
@@ -926,6 +927,9 @@ unlock:
 	rcu_read_unlock();
 
 done:
+	if (best_energy_cpu < 0 || best_energy_cpu >= WALT_NR_CPUS)
+		best_energy_cpu = prev_cpu;
+
 	trace_sched_task_util(p, cpumask_bits(candidates)[0], best_energy_cpu,
 			sync, fbt_env.need_idle, fbt_env.fastpath,
 			start_t, uclamp_boost, start_cpu);
@@ -934,7 +938,7 @@ done:
 
 fail:
 	rcu_read_unlock();
-	return -EPERM;
+	return prev_cpu;
 }
 
 static void
@@ -952,8 +956,6 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 	p->wake_q_count = 0;
 
 	*target_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, sync, sibling_count_hint);
-	if (unlikely(*target_cpu < 0))
-		*target_cpu = prev_cpu;
 }
 
 static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
