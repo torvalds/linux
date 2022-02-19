@@ -365,9 +365,12 @@ static int uclogic_raw_event(struct hid_device *hdev,
 				ARRAY_SIZE(params->pen.subreport_list);
 			/* Try to match a subreport */
 			for (subreport = params->pen.subreport_list;
-			     subreport < subreport_list_end &&
-				(data[1] & subreport->mask) != subreport->mask;
-			     subreport++);
+			     subreport < subreport_list_end; subreport++) {
+				if (subreport->value != 0 &&
+				    subreport->value == data[1]) {
+					break;
+				}
+			}
 			/* If a subreport matched */
 			if (subreport < subreport_list_end) {
 				/* Change to subreport ID, and restart */

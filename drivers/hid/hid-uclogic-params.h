@@ -39,14 +39,15 @@ extern const char *uclogic_params_pen_inrange_to_str(
  */
 struct uclogic_params_pen_subreport {
 	/*
-	 * The subreport's bitmask matching the second byte of the pen report.
-	 * If zero, the subreport is considered invalid, and won't match.
+	 * The value of the second byte of the pen report indicating this
+	 * subreport. If zero, the subreport should be considered invalid and
+	 * not matched.
 	 */
-	__u8 mask;
+	__u8 value;
 
 	/*
-	 * The ID to be assigned to the report, if the "mask" matches.
-	 * Only valid if "mask" is not zero.
+	 * The ID to be assigned to the report, if the second byte of the pen
+	 * report is equal to "value". Only valid if "value" is not zero.
 	 */
 	__u8 id;
 };
@@ -200,7 +201,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->pen.desc_ptr,                                    \
 		(_params)->pen.desc_size,                                   \
 		(_params)->pen.id,                                          \
-		(_params)->pen.subreport_list[0].mask,                      \
+		(_params)->pen.subreport_list[0].value,                     \
 		(_params)->pen.subreport_list[0].id,                        \
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
 		((_params)->pen.fragmented_hires ? "true" : "false"),       \
