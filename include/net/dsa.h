@@ -391,11 +391,6 @@ struct dsa_switch {
 	 */
 	u32			vlan_filtering:1;
 
-	/* MAC PCS does not provide link state change interrupt, and requires
-	 * polling. Flag passed on to PHYLINK.
-	 */
-	u32			pcs_poll:1;
-
 	/* For switches that only have the MRU configurable. To ensure the
 	 * configured MTU is not exceeded, normalization of MRU on all bridged
 	 * interfaces is needed.
