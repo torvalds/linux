@@ -117,19 +117,19 @@ extern const size_t uclogic_rdesc_v1_pen_template_size;
 extern const __u8 uclogic_rdesc_v2_pen_template_arr[];
 extern const size_t uclogic_rdesc_v2_pen_template_size;
 
+/* Report ID for tweaked v1 frame reports */
+#define UCLOGIC_RDESC_V1_FRAME_ID 0xf7
+
 /* Fixed report descriptor for (tweaked) v1 frame reports */
 extern const __u8 uclogic_rdesc_v1_frame_arr[];
 extern const size_t uclogic_rdesc_v1_frame_size;
 
-/* Report ID for tweaked v1 frame reports */
-#define UCLOGIC_RDESC_V1_FRAME_ID 0xf7
+/* Report ID for tweaked v2 frame reports */
+#define UCLOGIC_RDESC_V2_FRAME_ID 0xf7
 
 /* Fixed report descriptor for (tweaked) v2 frame reports */
 extern const __u8 uclogic_rdesc_v2_frame_arr[];
 extern const size_t uclogic_rdesc_v2_frame_size;
-
-/* Report ID for tweaked v2 frame reports */
-#define UCLOGIC_RDESC_V2_FRAME_ID 0xf7
 
 /* Fixed report descriptor for Ugee EX07 frame */
 extern const __u8 uclogic_rdesc_ugee_ex07_frame_arr[];
