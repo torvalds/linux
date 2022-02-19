@@ -9,6 +9,7 @@
 #define I3C_INTERNALS_H
 
 #include <linux/i3c/master.h>
+#include <linux/i3c/target.h>
 
 extern struct bus_type i3c_bus_type;
 extern const struct device_type i3c_masterdev_type;
@@ -27,4 +28,5 @@ void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev);
 int i3c_dev_send_ccc_cmd_locked(struct i3c_dev_desc *dev, u8 ccc_id);
 int i3c_dev_getstatus_locked(struct i3c_dev_desc *dev, struct i3c_device_info *info);
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *));
+int i3c_dev_generate_ibi_locked(struct i3c_dev_desc *dev, const u8 *data, int len);
 #endif /* I3C_INTERNAL_H */

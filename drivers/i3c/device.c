@@ -51,6 +51,29 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 EXPORT_SYMBOL_GPL(i3c_device_do_priv_xfers);
 
 /**
+ * i3c_device_generate_ibi() - request In-Band Interrupt
+ *
+ * @dev: target device
+ * @data: IBI payload
+ * @len: payload length in bytes
+ *
+ * Request In-Band Interrupt with or without data payload.
+ *
+ * Return: 0 in case of success, a negative error code otherwise.
+ */
+int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len)
+{
+	int ret;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	ret = i3c_dev_generate_ibi_locked(dev->desc, data, len);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_generate_ibi);
+
+/**
  * i3c_device_get_info() - get I3C device information
  *
  * @dev: device we want information on

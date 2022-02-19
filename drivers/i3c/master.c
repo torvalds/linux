@@ -316,19 +316,24 @@ static const struct device_type i3c_device_type = {
 	.uevent = i3c_device_uevent,
 };
 
+const struct device_type i3c_target_device_type = {
+};
+
 static int i3c_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct i3c_device *i3cdev;
 	struct i3c_driver *i3cdrv;
 
-	if (dev->type != &i3c_device_type)
+	if (dev->type != &i3c_device_type && dev->type != &i3c_target_device_type)
 		return 0;
 
 	i3cdev = dev_to_i3cdev(dev);
 	i3cdrv = drv_to_i3cdrv(drv);
-	if (i3c_device_match_id(i3cdev, i3cdrv->id_table))
-		return 1;
 
+	if ((dev->type == &i3c_device_type && !i3cdrv->target) ||
+	    (dev->type == &i3c_target_device_type && i3cdrv->target))
+		if (i3c_device_match_id(i3cdev, i3cdrv->id_table))
+			return 1;
 	return 0;
 }
 
@@ -348,7 +353,8 @@ static void i3c_device_remove(struct device *dev)
 	if (driver->remove)
 		driver->remove(i3cdev);
 
-	i3c_device_free_ibi(i3cdev);
+	if (!driver->target)
+		i3c_device_free_ibi(i3cdev);
 }
 
 struct bus_type i3c_bus_type = {
@@ -2885,6 +2891,211 @@ int i3c_master_unregister(struct i3c_master_controller *master)
 }
 EXPORT_SYMBOL_GPL(i3c_master_unregister);
 
+static int i3c_target_bus_init(struct i3c_master_controller *master)
+{
+	return master->target_ops->bus_init(master);
+}
+
+static void i3c_target_bus_cleanup(struct i3c_master_controller *master)
+{
+	if (master->target_ops->bus_cleanup)
+		master->target_ops->bus_cleanup(master);
+}
+
+static void i3c_targetdev_release(struct device *dev)
+{
+	struct i3c_master_controller *master = container_of(dev, struct i3c_master_controller, dev);
+	struct i3c_bus *bus = &master->bus;
+
+	mutex_lock(&i3c_core_lock);
+	idr_remove(&i3c_bus_idr, bus->id);
+	mutex_unlock(&i3c_core_lock);
+
+	of_node_put(dev->of_node);
+}
+
+static void i3c_target_device_release(struct device *dev)
+{
+	struct i3c_device *i3cdev = dev_to_i3cdev(dev);
+	struct i3c_dev_desc *desc = i3cdev->desc;
+
+	kfree(i3cdev);
+	kfree(desc);
+}
+
+static void
+i3c_target_register_new_i3c_dev(struct i3c_master_controller *master, struct i3c_device_info info)
+{
+	struct i3c_dev_desc *desc;
+	int ret;
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return;
+
+	desc->dev = kzalloc(sizeof(*desc->dev), GFP_KERNEL);
+	if (!desc->dev) {
+		kfree(desc);
+		return;
+	}
+
+	desc->dev->bus = &master->bus;
+	desc->dev->desc = desc;
+	desc->dev->dev.parent = &master->dev;
+	desc->dev->dev.type = &i3c_target_device_type;
+	desc->dev->dev.bus = &i3c_bus_type;
+	desc->dev->dev.release = i3c_target_device_release;
+	desc->info = info;
+	desc->common.master = master;
+	dev_set_name(&desc->dev->dev, "%d-target", master->bus.id);
+
+	ret = device_register(&desc->dev->dev);
+	if (ret)
+		dev_err(&master->dev, "Failed to add I3C target device (err = %d)\n", ret);
+
+	master->this = desc;
+}
+
+static void i3c_target_unregister_i3c_dev(struct i3c_master_controller *master)
+{
+	struct i3c_dev_desc *i3cdev = master->this;
+
+	if (device_is_registered(&i3cdev->dev->dev))
+		device_unregister(&i3cdev->dev->dev);
+	else
+		put_device(&i3cdev->dev->dev);
+}
+
+static void i3c_target_read_device_info(struct device_node *np, struct i3c_device_info *info)
+{
+	u64 pid;
+	u32 dcr;
+	int ret;
+
+	ret = of_property_read_u64(np, "pid", &pid);
+	if (ret)
+		info->pid = 0;
+	else
+		info->pid = pid;
+
+	ret = of_property_read_u32(np, "dcr", &dcr);
+	if (ret)
+		info->pid = 0;
+	else
+		info->dcr = dcr;
+}
+
+static int i3c_target_check_ops(const struct i3c_target_ops *ops)
+{
+	if (!ops || !ops->bus_init)
+		return -EINVAL;
+
+	return 0;
+}
+
+int i3c_target_register(struct i3c_master_controller *master, struct device *parent,
+			const struct i3c_target_ops *ops)
+{
+	struct i3c_bus *i3cbus = i3c_master_get_bus(master);
+	struct i3c_device_info info;
+	int ret;
+
+	ret = i3c_target_check_ops(ops);
+	if (ret)
+		return ret;
+
+	master->dev.parent = parent;
+	master->dev.of_node = of_node_get(parent->of_node);
+	master->dev.bus = &i3c_bus_type;
+	master->dev.release = i3c_targetdev_release;
+	master->target_ops = ops;
+	i3cbus->mode = I3C_BUS_MODE_PURE;
+
+	init_rwsem(&i3cbus->lock);
+	mutex_lock(&i3c_core_lock);
+	ret = idr_alloc(&i3c_bus_idr, i3cbus, 0, 0, GFP_KERNEL);
+	mutex_unlock(&i3c_core_lock);
+	if (ret < 0)
+		return ret;
+	i3cbus->id = ret;
+
+	device_initialize(&master->dev);
+	dev_set_name(&master->dev, "i3c-%d", i3cbus->id);
+
+	ret = device_add(&master->dev);
+	if (ret)
+		goto err_put_device;
+
+	i3c_target_read_device_info(master->dev.of_node, &info);
+
+	i3c_target_register_new_i3c_dev(master, info);
+
+	ret = i3c_target_bus_init(master);
+	if (ret)
+		goto err_cleanup_bus;
+
+	return 0;
+
+err_cleanup_bus:
+	i3c_target_bus_cleanup(master);
+
+err_put_device:
+	put_device(&master->dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_target_register);
+
+int i3c_target_unregister(struct i3c_master_controller *master)
+{
+	i3c_target_unregister_i3c_dev(master);
+	i3c_target_bus_cleanup(master);
+	device_unregister(&master->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i3c_target_unregister);
+
+int i3c_target_read_register(struct i3c_device *dev, const struct i3c_target_read_setup *setup)
+{
+	dev->desc->target_info.read_handler = setup->handler;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i3c_target_read_register);
+
+int i3c_register(struct i3c_master_controller *master,
+		 struct device *parent,
+		 const struct i3c_master_controller_ops *master_ops,
+		 const struct i3c_target_ops *target_ops,
+		 bool secondary)
+{
+	const char *role;
+	int ret;
+
+	ret = of_property_read_string(parent->of_node, "initial-role", &role);
+	if (ret || !strcmp("primary", role)) {
+		return i3c_master_register(master, parent, master_ops, secondary);
+	} else if (!strcmp("target", role)) {
+		master->target = true;
+		return i3c_target_register(master, parent, target_ops);
+	} else {
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(i3c_register);
+
+int i3c_unregister(struct i3c_master_controller *master)
+{
+	if (master->target)
+		i3c_target_unregister(master);
+	else
+		i3c_master_unregister(master);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i3c_unregister);
+
 int i3c_dev_do_priv_xfers_locked(struct i3c_dev_desc *dev,
 				 struct i3c_priv_xfer *xfers,
 				 int nxfers)
@@ -2898,10 +3109,38 @@ int i3c_dev_do_priv_xfers_locked(struct i3c_dev_desc *dev,
 	if (!master || !xfers)
 		return -EINVAL;
 
-	if (!master->ops->priv_xfers)
-		return -ENOTSUPP;
+	if (!master->target) {
+		if (!master->ops->priv_xfers)
+			return -EOPNOTSUPP;
 
-	return master->ops->priv_xfers(dev, xfers, nxfers);
+		return master->ops->priv_xfers(dev, xfers, nxfers);
+	}
+
+	if (!master->target_ops->priv_xfers)
+		return -EOPNOTSUPP;
+
+	return master->target_ops->priv_xfers(dev, xfers, nxfers);
+}
+
+int i3c_dev_generate_ibi_locked(struct i3c_dev_desc *dev, const u8 *data, int len)
+
+{
+	struct i3c_master_controller *master;
+
+	if (!dev)
+		return -ENOENT;
+
+	master = i3c_dev_get_master(dev);
+	if (!master)
+		return -EINVAL;
+
+	if (!master->target)
+		return -EINVAL;
+
+	if (!master->target_ops->generate_ibi)
+		return -EOPNOTSUPP;
+
+	return master->target_ops->generate_ibi(dev, data, len);
 }
 
 int i3c_dev_disable_ibi_locked(struct i3c_dev_desc *dev)

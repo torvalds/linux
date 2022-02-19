@@ -208,6 +208,7 @@ struct i3c_driver {
 	int (*probe)(struct i3c_device *dev);
 	void (*remove)(struct i3c_device *dev);
 	const struct i3c_device_id *id_table;
+	bool target;
 };
 
 static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
@@ -323,6 +324,8 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 			     struct i3c_priv_xfer *xfers,
 			     int nxfers);
 
+int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len);
+
 void i3c_device_get_info(struct i3c_device *dev, struct i3c_device_info *info);
 
 struct i3c_ibi_payload {
@@ -364,5 +367,11 @@ int i3c_device_disable_ibi(struct i3c_device *dev);
 int i3c_device_send_ccc_cmd(struct i3c_device *dev, u8 ccc_id);
 
 int i3c_device_getstatus_ccc(struct i3c_device *dev, struct i3c_device_info *info);
+
+struct i3c_target_read_setup {
+	void (*handler)(struct i3c_device *dev, const u8 *data, size_t len);
+};
+
+int i3c_target_read_register(struct i3c_device *dev, const struct i3c_target_read_setup *setup);
 
 #endif /* I3C_DEV_H */
