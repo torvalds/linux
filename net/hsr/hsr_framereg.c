@@ -27,11 +27,11 @@ u32 hsr_mac_hash(struct hsr_priv *hsr, const unsigned char *addr)
 	return reciprocal_scale(hash, hsr->hash_buckets);
 }
 
-struct hsr_node *hsr_node_get_first(struct hlist_head *head)
+struct hsr_node *hsr_node_get_first(struct hlist_head *head, int cond)
 {
 	struct hlist_node *first;
 
-	first = rcu_dereference(hlist_first_rcu(head));
+	first = rcu_dereference_bh_check(hlist_first_rcu(head), cond);
 	if (first)
 		return hlist_entry(first, struct hsr_node, mac_list);
 
@@ -59,7 +59,8 @@ bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
 {
 	struct hsr_node *node;
 
-	node = hsr_node_get_first(&hsr->self_node_db);
+	node = hsr_node_get_first(&hsr->self_node_db,
+				  lockdep_is_held(&hsr->list_lock));
 	if (!node) {
 		WARN_ONCE(1, "HSR: No self node\n");
 		return false;
@@ -106,7 +107,8 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 	ether_addr_copy(node->macaddress_B, addr_b);
 
 	spin_lock_bh(&hsr->list_lock);
-	oldnode = hsr_node_get_first(self_node_db);
+	oldnode = hsr_node_get_first(self_node_db,
+				     lockdep_is_held(&hsr->list_lock));
 	if (oldnode) {
 		hlist_replace_rcu(&oldnode->mac_list, &node->mac_list);
 		spin_unlock_bh(&hsr->list_lock);
@@ -125,7 +127,8 @@ void hsr_del_self_node(struct hsr_priv *hsr)
 	struct hsr_node *node;
 
 	spin_lock_bh(&hsr->list_lock);
-	node = hsr_node_get_first(self_node_db);
+	node = hsr_node_get_first(self_node_db,
+				  lockdep_is_held(&hsr->list_lock));
 	if (node) {
 		hlist_del_rcu(&node->mac_list);
 		kfree_rcu(node, rcu_head);
@@ -597,7 +600,8 @@ void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
 	hash = hsr_mac_hash(hsr, addr);
 
 	if (!_pos) {
-		node = hsr_node_get_first(&hsr->node_db[hash]);
+		node = hsr_node_get_first(&hsr->node_db[hash],
+					  lockdep_is_held(&hsr->list_lock));
 		if (node)
 			ether_addr_copy(addr, node->macaddress_A);
 		return node;

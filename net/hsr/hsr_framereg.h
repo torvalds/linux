@@ -29,7 +29,7 @@ struct hsr_frame_info {
 };
 
 u32 hsr_mac_hash(struct hsr_priv *hsr, const unsigned char *addr);
-struct hsr_node *hsr_node_get_first(struct hlist_head *head);
+struct hsr_node *hsr_node_get_first(struct hlist_head *head, int cond);
 void hsr_del_self_node(struct hsr_priv *hsr);
 void hsr_del_nodes(struct hlist_head *node_db);
 struct hsr_node *hsr_get_node(struct hsr_port *port, struct hlist_head *node_db,
