@@ -86,7 +86,6 @@ enum phylink_op_type {
  * @type: operation type of PHYLINK instance
  * @legacy_pre_march2020: driver has not been updated for March 2020 updates
  *	(See commit 7cceb599d15d ("net: phylink: avoid mac_config calls")
- * @pcs_poll: MAC PCS cannot provide link change interrupt
  * @poll_fixed_state: if true, starts link_poll,
  *		      if MAC link is at %MLO_AN_FIXED mode.
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
@@ -100,7 +99,6 @@ struct phylink_config {
 	struct device *dev;
 	enum phylink_op_type type;
 	bool legacy_pre_march2020;
-	bool pcs_poll;
 	bool poll_fixed_state;
 	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
