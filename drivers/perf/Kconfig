@@ -66,6 +66,16 @@ config RISCV_PMU
 	  PMU functionalities in a core library so that different PMU drivers
 	  can reuse it.
 
+config RISCV_PMU_LEGACY
+	depends on RISCV_PMU
+	bool "RISC-V legacy PMU implementation"
+	default y
+	help
+	  Say y if you want to use the legacy CPU performance monitor
+	  implementation on RISC-V based systems. This only allows counting
+	  of cycle/instruction counter and doesn't support counter overflow,
+	  or programmable counters. It will be removed in future.
+
 config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
