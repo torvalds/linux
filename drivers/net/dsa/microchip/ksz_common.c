@@ -110,6 +110,10 @@ static void ksz_mib_read_work(struct work_struct *work)
 		}
 		port_r_cnt(dev, i);
 		p->read = false;
+
+		if (dev->dev_ops->r_mib_stat64)
+			dev->dev_ops->r_mib_stat64(dev, i);
+
 		mutex_unlock(&mib->cnt_mutex);
 	}
 
