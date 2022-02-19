@@ -46,12 +46,12 @@ struct journal_list {
  * be replayed:
  */
 static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
-			     struct bch_extent_ptr entry_ptr,
+			     struct journal_ptr entry_ptr,
 			     struct journal_list *jlist, struct jset *j,
 			     bool bad)
 {
 	struct journal_replay *i, *pos, *dup = NULL;
-	struct bch_extent_ptr *ptr;
+	struct journal_ptr *ptr;
 	struct list_head *where;
 	size_t bytes = vstruct_bytes(j);
 	u64 last_seq = 0;
@@ -871,9 +871,12 @@ reread:
 		ja->bucket_seq[bucket] = le64_to_cpu(j->seq);
 
 		mutex_lock(&jlist->lock);
-		ret = journal_entry_add(c, ca, (struct bch_extent_ptr) {
-					.dev = ca->dev_idx,
-					.offset	= offset,
+		ret = journal_entry_add(c, ca, (struct journal_ptr) {
+					.dev		= ca->dev_idx,
+					.bucket		= bucket,
+					.bucket_offset	= offset -
+						bucket_to_sector(ca, ja->buckets[bucket]),
+					.sector		= offset,
 					}, jlist, j, ret != 0);
 		mutex_unlock(&jlist->lock);
 
@@ -964,8 +967,8 @@ err:
 	goto out;
 }
 
-static void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
-				      struct journal_replay *j)
+void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
+			       struct journal_replay *j)
 {
 	unsigned i;
 
@@ -973,13 +976,15 @@ static void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		struct bch_dev *ca = bch_dev_bkey_exists(c, j->ptrs[i].dev);
 		u64 offset;
 
-		div64_u64_rem(j->ptrs[i].offset, ca->mi.bucket_size, &offset);
+		div64_u64_rem(j->ptrs[i].sector, ca->mi.bucket_size, &offset);
 
 		if (i)
 			pr_buf(out, " ");
-		pr_buf(out, "%u:%llu (offset %llu)",
+		pr_buf(out, "%u:%u:%u (sector %llu)",
 		       j->ptrs[i].dev,
-		       (u64) j->ptrs[i].offset, offset);
+		       j->ptrs[i].bucket,
+		       j->ptrs[i].bucket_offset,
+		       j->ptrs[i].sector);
 	}
 }
 

@@ -8,7 +8,12 @@
  */
 struct journal_replay {
 	struct list_head	list;
-	struct bch_extent_ptr	ptrs[BCH_REPLICAS_MAX];
+	struct journal_ptr {
+		u8		dev;
+		u32		bucket;
+		u32		bucket_offset;
+		u64		sector;
+	}			ptrs[BCH_REPLICAS_MAX];
 	unsigned		nr_ptrs;
 
 	/* checksum error, but we may want to try using it anyways: */
@@ -44,6 +49,9 @@ int bch2_journal_entry_validate(struct bch_fs *, const char *,
 				struct jset_entry *, unsigned, int, int);
 void bch2_journal_entry_to_text(struct printbuf *, struct bch_fs *,
 				struct jset_entry *);
+
+void bch2_journal_ptrs_to_text(struct printbuf *, struct bch_fs *,
+			       struct journal_replay *);
 
 int bch2_journal_read(struct bch_fs *, struct list_head *, u64 *, u64 *);
 
