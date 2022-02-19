@@ -165,10 +165,10 @@ struct uclogic_params {
 	 */
 	struct uclogic_params_pen pen;
 	/*
-	 * Frame control parameters and optional report descriptor part.
-	 * Only valid, if "invalid" is false.
+	 * The list of frame control parameters and optional report descriptor
+	 * parts. Only valid, if "invalid" is false.
 	 */
-	struct uclogic_params_frame frame;
+	struct uclogic_params_frame frame_list[1];
 };
 
 /* Initialize a tablet interface and discover its parameters */
@@ -187,11 +187,11 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".pen.inrange = %s\n"                           \
 		".pen.fragmented_hires = %s\n"                  \
 		".pen.tilt_y_flipped = %s\n"                    \
-		".frame.desc_ptr = %p\n"                        \
-		".frame.desc_size = %u\n"                       \
-		".frame.id = %u\n"                              \
-		".frame.re_lsb = %u\n"                          \
-		".frame.dev_id_byte = %u\n"
+		".frame_list[0].desc_ptr = %p\n"                \
+		".frame_list[0].desc_size = %u\n"               \
+		".frame_list[0].id = %u\n"                      \
+		".frame_list[0].re_lsb = %u\n"                  \
+		".frame_list[0].dev_id_byte = %u\n"
 
 /* Tablet interface parameters *printf format arguments */
 #define UCLOGIC_PARAMS_FMT_ARGS(_params) \
@@ -206,11 +206,11 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
 		((_params)->pen.fragmented_hires ? "true" : "false"),       \
 		((_params)->pen.tilt_y_flipped ? "true" : "false"),         \
-		(_params)->frame.desc_ptr,                                  \
-		(_params)->frame.desc_size,                                 \
-		(_params)->frame.id,                                        \
-		(_params)->frame.re_lsb,                                    \
-		(_params)->frame.dev_id_byte
+		(_params)->frame_list[0].desc_ptr,                          \
+		(_params)->frame_list[0].desc_size,                         \
+		(_params)->frame_list[0].id,                                \
+		(_params)->frame_list[0].re_lsb,                            \
+		(_params)->frame_list[0].dev_id_byte
 
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,

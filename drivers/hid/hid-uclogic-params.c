@@ -512,9 +512,12 @@ cleanup:
 void uclogic_params_cleanup(struct uclogic_params *params)
 {
 	if (!params->invalid) {
+		size_t i;
 		kfree(params->desc_ptr);
 		uclogic_params_pen_cleanup(&params->pen);
-		uclogic_params_frame_cleanup(&params->frame);
+		for (i = 0; i < ARRAY_SIZE(params->frame_list); i++)
+			uclogic_params_frame_cleanup(&params->frame_list[i]);
+
 		memset(params, 0, sizeof(*params));
 	}
 }
@@ -542,60 +545,53 @@ int uclogic_params_get_desc(const struct uclogic_params *params,
 				__u8 **pdesc,
 				unsigned int *psize)
 {
-	bool common_present;
-	bool pen_present;
-	bool frame_present;
-	unsigned int size;
+	int rc = -ENOMEM;
+	bool present = false;
+	unsigned int size = 0;
 	__u8 *desc = NULL;
+	size_t i;
 
 	/* Check arguments */
 	if (params == NULL || pdesc == NULL || psize == NULL)
 		return -EINVAL;
 
-	size = 0;
+	/* Concatenate descriptors */
+#define ADD_DESC(_desc_ptr, _desc_size) \
+	do {                                                        \
+		unsigned int new_size;                              \
+		__u8 *new_desc;                                     \
+		if ((_desc_ptr) == NULL) {                          \
+			break;                                      \
+		}                                                   \
+		new_size = size + (_desc_size);                     \
+		new_desc = krealloc(desc, new_size, GFP_KERNEL);    \
+		if (new_desc == NULL) {                             \
+			goto cleanup;                               \
+		}                                                   \
+		memcpy(new_desc + size, (_desc_ptr), (_desc_size)); \
+		desc = new_desc;                                    \
+		size = new_size;                                    \
+		present = true;                                     \
+	} while (0)
 
-	common_present = (params->desc_ptr != NULL);
-	pen_present = (params->pen.desc_ptr != NULL);
-	frame_present = (params->frame.desc_ptr != NULL);
-
-	if (common_present)
-		size += params->desc_size;
-	if (pen_present)
-		size += params->pen.desc_size;
-	if (frame_present)
-		size += params->frame.desc_size;
-
-	if (common_present || pen_present || frame_present) {
-		__u8 *p;
-
-		desc = kmalloc(size, GFP_KERNEL);
-		if (desc == NULL)
-			return -ENOMEM;
-		p = desc;
-
-		if (common_present) {
-			memcpy(p, params->desc_ptr,
-				params->desc_size);
-			p += params->desc_size;
-		}
-		if (pen_present) {
-			memcpy(p, params->pen.desc_ptr,
-				params->pen.desc_size);
-			p += params->pen.desc_size;
-		}
-		if (frame_present) {
-			memcpy(p, params->frame.desc_ptr,
-				params->frame.desc_size);
-			p += params->frame.desc_size;
-		}
-
-		WARN_ON(p != desc + size);
-
-		*psize = size;
+	ADD_DESC(params->desc_ptr, params->desc_size);
+	ADD_DESC(params->pen.desc_ptr, params->pen.desc_size);
+	for (i = 0; i < ARRAY_SIZE(params->frame_list); i++) {
+		ADD_DESC(params->frame_list[i].desc_ptr,
+				params->frame_list[i].desc_size);
 	}
 
-	*pdesc = desc;
-	return 0;
+#undef ADD_DESC
+
+	if (present) {
+		*pdesc = desc;
+		*psize = size;
+		desc = NULL;
+	}
+	rc = 0;
+cleanup:
+	kfree(desc);
+	return rc;
 }
 
 /**
@@ -751,7 +747,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			hid_dbg(hdev, "pen v2 parameters found\n");
 			/* Create v2 frame parameters */
 			rc = uclogic_params_frame_init_with_desc(
-					&p.frame,
+					&p.frame_list[0],
 					uclogic_rdesc_v2_frame_arr,
 					uclogic_rdesc_v2_frame_size,
 					UCLOGIC_RDESC_V2_FRAME_ID);
@@ -779,7 +775,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	} else if (found) {
 		hid_dbg(hdev, "pen v1 parameters found\n");
 		/* Try to probe v1 frame */
-		rc = uclogic_params_frame_init_v1(&p.frame,
+		rc = uclogic_params_frame_init_v1(&p.frame_list[0],
 						  &found, hdev);
 		if (rc != 0) {
 			hid_err(hdev, "v1 frame probing failed: %d\n", rc);
@@ -1033,7 +1029,7 @@ int uclogic_params_init(struct uclogic_params *params,
 			}
 			/* Initialize frame parameters */
 			rc = uclogic_params_frame_init_with_desc(
-				&p.frame,
+				&p.frame_list[0],
 				uclogic_rdesc_xppen_deco01_frame_arr,
 				uclogic_rdesc_xppen_deco01_frame_size,
 				0);
@@ -1059,7 +1055,7 @@ int uclogic_params_init(struct uclogic_params *params,
 			goto cleanup;
 		} else if (found) {
 			rc = uclogic_params_frame_init_with_desc(
-				&p.frame,
+				&p.frame_list[0],
 				uclogic_rdesc_ugee_g5_frame_arr,
 				uclogic_rdesc_ugee_g5_frame_size,
 				UCLOGIC_RDESC_UGEE_G5_FRAME_ID);
@@ -1069,9 +1065,9 @@ int uclogic_params_init(struct uclogic_params *params,
 					rc);
 				goto cleanup;
 			}
-			p.frame.re_lsb =
+			p.frame_list[0].re_lsb =
 				UCLOGIC_RDESC_UGEE_G5_FRAME_RE_LSB;
-			p.frame.dev_id_byte =
+			p.frame_list[0].dev_id_byte =
 				UCLOGIC_RDESC_UGEE_G5_FRAME_DEV_ID_BYTE;
 		} else {
 			hid_warn(hdev, "pen parameters not found");
@@ -1093,7 +1089,7 @@ int uclogic_params_init(struct uclogic_params *params,
 			goto cleanup;
 		} else if (found) {
 			rc = uclogic_params_frame_init_with_desc(
-				&p.frame,
+				&p.frame_list[0],
 				uclogic_rdesc_ugee_ex07_frame_arr,
 				uclogic_rdesc_ugee_ex07_frame_size,
 				0);

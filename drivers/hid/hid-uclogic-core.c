@@ -296,17 +296,18 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
  * uclogic_raw_event_frame - handle raw frame events (frame HID reports).
  *
  * @drvdata:	Driver data.
+ * @frame:	The parameters of the frame controls to handle.
  * @data:	Report data buffer, can be modified.
  * @size:	Report data size, bytes.
  *
  * Returns:
  *	Negative value on error (stops event delivery), zero for success.
  */
-static int uclogic_raw_event_frame(struct uclogic_drvdata *drvdata,
-					u8 *data, int size)
+static int uclogic_raw_event_frame(
+		struct uclogic_drvdata *drvdata,
+		const struct uclogic_params_frame *frame,
+		u8 *data, int size)
 {
-	struct uclogic_params_frame *frame = &drvdata->params.frame;
-
 	WARN_ON(drvdata == NULL);
 	WARN_ON(data == NULL && size != 0);
 
@@ -352,6 +353,7 @@ static int uclogic_raw_event(struct hid_device *hdev,
 	struct uclogic_params *params = &drvdata->params;
 	struct uclogic_params_pen_subreport *subreport;
 	struct uclogic_params_pen_subreport *subreport_list_end;
+	size_t i;
 
 	/* Do not handle anything but input reports */
 	if (report->type != HID_INPUT_REPORT)
@@ -382,8 +384,13 @@ static int uclogic_raw_event(struct hid_device *hdev,
 		}
 
 		/* Tweak frame control reports, if necessary */
-		if (report_id == params->frame.id)
-			return uclogic_raw_event_frame(drvdata, data, size);
+		for (i = 0; i < ARRAY_SIZE(params->frame_list); i++) {
+			if (report_id == params->frame_list[i].id) {
+				return uclogic_raw_event_frame(
+					drvdata, &params->frame_list[i],
+					data, size);
+			}
+		}
 
 		break;
 	}
