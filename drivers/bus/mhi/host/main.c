@@ -246,6 +246,11 @@ static void *mhi_to_virtual(struct mhi_ring *ring, dma_addr_t addr)
 	return (addr - ring->iommu_base) + ring->base;
 }
 
+dma_addr_t mhi_to_physical(struct mhi_ring *ring, void *addr)
+{
+	return (addr - ring->base) + ring->iommu_base;
+}
+
 static void mhi_add_ring_element(struct mhi_controller *mhi_cntrl,
 				 struct mhi_ring *ring)
 {
@@ -885,7 +890,8 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 	while (dev_rp != local_rp) {
 		enum mhi_pkt_type type = MHI_TRE_GET_EV_TYPE(local_rp);
 
-		dev_dbg(dev, "Processing Event:0x%llx 0x%08x 0x%08x\n",
+		dev_dbg(dev, "RP:0x%llx Processing Event:0x%llx 0x%08x 0x%08x\n",
+			(u64)mhi_to_physical(ev_ring, local_rp),
 			local_rp->ptr, local_rp->dword[0], local_rp->dword[1]);
 
 		switch (type) {
@@ -1274,6 +1280,7 @@ EXPORT_SYMBOL_GPL(mhi_queue_dma);
 int mhi_gen_tre(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan,
 			struct mhi_buf_info *info, enum mhi_flags flags)
 {
+	struct device *dev = &mhi_chan->mhi_dev->dev;
 	struct mhi_ring *buf_ring, *tre_ring;
 	struct mhi_ring_element *mhi_tre;
 	struct mhi_buf_info *buf_info;
@@ -1315,6 +1322,10 @@ int mhi_gen_tre(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan,
 	mhi_tre->ptr = MHI_TRE_DATA_PTR(buf_info->p_addr);
 	mhi_tre->dword[0] = MHI_TRE_DATA_DWORD0(info->len);
 	mhi_tre->dword[1] = MHI_TRE_DATA_DWORD1(bei, eot, eob, chain);
+
+	MHI_VERB(dev, "Chan: %d WP: 0x%llx TRE: 0x%llx 0x%08x 0x%08x\n",
+		mhi_chan->chan, (u64)mhi_to_physical(tre_ring, mhi_tre),
+		mhi_tre->ptr, mhi_tre->dword[0], mhi_tre->dword[1]);
 
 	/* increment WP */
 	mhi_add_ring_element(mhi_cntrl, tre_ring);
