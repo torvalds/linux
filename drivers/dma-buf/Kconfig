@@ -90,5 +90,6 @@ menuconfig DMABUF_SYSFS_STATS
 	   <inode_number>.
 
 source "drivers/dma-buf/heaps/Kconfig"
+source "drivers/dma-buf/rk_heaps/Kconfig"
 
 endmenu

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig DMABUF_HEAPS_ROCKCHIP
+	bool "DMA-BUF Userland Memory Heaps for RockChip"
+	select DMA_SHARED_BUFFER
+	help
+	  Choose this option to enable the RockChip DMA-BUF userland memory heaps.
+	  This options creates per heap chardevs in /dev/rk_dma_heap/ which
+	  allows userspace to allocate dma-bufs that can be shared
+	  between drivers.
+
+config DMABUF_HEAPS_ROCKCHIP_CMA_HEAP
+	tristate "DMA-BUF RockChip CMA Heap"
+	depends on DMABUF_HEAPS_ROCKCHIP
+	help
+	  Choose this option to enable dma-buf RockChip CMA heap. This heap is backed
+	  by the Contiguous Memory Allocator (CMA). If your system has these
+	  regions, you should say Y here.
+
+config DMABUF_RK_HEAPS_DEBUG
+	bool "DMA-BUF RockChip Heap Debug"
+	depends on DMABUF_HEAPS_ROCKCHIP
+	help
+	  Choose this option to enable dma-buf RockChip heap debug.

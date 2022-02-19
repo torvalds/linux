@@ -30,6 +30,7 @@
 #include <linux/crash_dump.h>
 #include <linux/hugetlb.h>
 #include <linux/acpi_iort.h>
+#include <linux/rk-dma-heap.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -470,6 +471,7 @@ void __init bootmem_init(void)
 	 * Reserve the CMA area after arm64_dma_phys_limit was initialised.
 	 */
 	dma_contiguous_reserve(arm64_dma_phys_limit);
+	rk_dma_heap_cma_setup();
 
 	/*
 	 * request_standard_resources() depends on crashkernel's memory being
