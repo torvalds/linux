@@ -968,6 +968,27 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 	return 0;
 }
 
+/*
+ * This is for updates done in the early part of fsck - btree_gc - before we've
+ * gone RW. we only add the new key to the list of keys for journal replay to
+ * do.
+ */
+static noinline int
+do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_insert_entry *i;
+	int ret = 0;
+
+	trans_for_each_update(trans, i) {
+		ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->k);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 int __bch2_trans_commit(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
@@ -985,6 +1006,11 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)
 		goto out_reset;
+
+	if (unlikely(!test_bit(BCH_FS_MAY_GO_RW, &c->flags))) {
+		ret = do_bch2_trans_commit_to_journal_replay(trans);
+		goto out_reset;
+	}
 
 	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
 	    unlikely(!percpu_ref_tryget(&c->writes))) {

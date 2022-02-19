@@ -1157,6 +1157,7 @@ use_clean:
 
 	clear_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
+	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),
@@ -1317,6 +1318,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	mutex_unlock(&c->sb_lock);
 
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
+	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 
 	for (i = 0; i < BTREE_ID_NR; i++)

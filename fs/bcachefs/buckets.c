@@ -1164,9 +1164,11 @@ static int bch2_mark_reservation(struct btree_trans *trans,
 	return 0;
 }
 
-static s64 __bch2_mark_reflink_p(struct bch_fs *c, struct bkey_s_c_reflink_p p,
+static s64 __bch2_mark_reflink_p(struct btree_trans *trans,
+				 struct bkey_s_c_reflink_p p,
 				 u64 *idx, unsigned flags, size_t r_idx)
 {
+	struct bch_fs *c = trans->c;
 	struct reflink_gc *r;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
 	s64 ret = 0;
@@ -1199,7 +1201,7 @@ not_found:
 		new.k.type	= KEY_TYPE_error;
 		new.k.p		= p.k->p;
 		new.k.size	= p.k->size;
-		ret = bch2_journal_key_insert(c, BTREE_ID_extents, 0, &new.k_i);
+		ret = __bch2_btree_insert(trans, BTREE_ID_extents, &new.k_i);
 	}
 fsck_err:
 	return ret;
@@ -1238,7 +1240,7 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 	}
 
 	while (idx < end && !ret)
-		ret = __bch2_mark_reflink_p(c, p, &idx, flags, l++);
+		ret = __bch2_mark_reflink_p(trans, p, &idx, flags, l++);
 
 	return ret;
 }
