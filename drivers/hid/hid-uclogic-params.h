@@ -33,6 +33,24 @@ enum uclogic_params_pen_inrange {
 extern const char *uclogic_params_pen_inrange_to_str(
 			enum uclogic_params_pen_inrange inrange);
 
+
+/*
+ * Pen report's subreport data.
+ */
+struct uclogic_params_pen_subreport {
+	/*
+	 * The subreport's bitmask matching the second byte of the pen report.
+	 * If zero, the subreport is considered invalid, and won't match.
+	 */
+	__u8 mask;
+
+	/*
+	 * The ID to be assigned to the report, if the "mask" matches.
+	 * Only valid if "mask" is not zero.
+	 */
+	__u8 id;
+};
+
 /*
  * Tablet interface's pen input parameters.
  *
@@ -54,6 +72,8 @@ struct uclogic_params_pen {
 	unsigned int desc_size;
 	/* Report ID, if reports should be tweaked, zero if not */
 	unsigned int id;
+	/* The list of subreports */
+	struct uclogic_params_pen_subreport subreport_list[1];
 	/* Type of in-range reporting, only valid if "id" is not zero */
 	enum uclogic_params_pen_inrange inrange;
 	/*
@@ -148,13 +168,6 @@ struct uclogic_params {
 	 * Only valid, if "invalid" is false.
 	 */
 	struct uclogic_params_frame frame;
-	/*
-	 * Bitmask matching frame controls "sub-report" flag in the second
-	 * byte of the pen report, or zero if it's not expected.
-	 * Only valid if both "pen" and "frame" are valid, and "frame.id" is
-	 * not zero.
-	 */
-	__u8 pen_frame_flag;
 };
 
 /* Initialize a tablet interface and discover its parameters */
@@ -163,21 +176,21 @@ extern int uclogic_params_init(struct uclogic_params *params,
 
 /* Tablet interface parameters *printf format string */
 #define UCLOGIC_PARAMS_FMT_STR \
-		".invalid = %s\n"                   \
-		".desc_ptr = %p\n"                  \
-		".desc_size = %u\n"                 \
-		".pen.desc_ptr = %p\n"              \
-		".pen.desc_size = %u\n"             \
-		".pen.id = %u\n"                    \
-		".pen.inrange = %s\n"               \
-		".pen.fragmented_hires = %s\n"      \
-		".pen.tilt_y_flipped = %s\n"        \
-		".frame.desc_ptr = %p\n"            \
-		".frame.desc_size = %u\n"           \
-		".frame.id = %u\n"                  \
-		".frame.re_lsb = %u\n"              \
-		".frame.dev_id_byte = %u\n"         \
-		".pen_frame_flag = 0x%02x\n"
+		".invalid = %s\n"                               \
+		".desc_ptr = %p\n"                              \
+		".desc_size = %u\n"                             \
+		".pen.desc_ptr = %p\n"                          \
+		".pen.desc_size = %u\n"                         \
+		".pen.id = %u\n"                                \
+		".pen.subreport_list[0] = {0x%02hhx, %hhu}\n"   \
+		".pen.inrange = %s\n"                           \
+		".pen.fragmented_hires = %s\n"                  \
+		".pen.tilt_y_flipped = %s\n"                    \
+		".frame.desc_ptr = %p\n"                        \
+		".frame.desc_size = %u\n"                       \
+		".frame.id = %u\n"                              \
+		".frame.re_lsb = %u\n"                          \
+		".frame.dev_id_byte = %u\n"
 
 /* Tablet interface parameters *printf format arguments */
 #define UCLOGIC_PARAMS_FMT_ARGS(_params) \
@@ -187,6 +200,8 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->pen.desc_ptr,                                    \
 		(_params)->pen.desc_size,                                   \
 		(_params)->pen.id,                                          \
+		(_params)->pen.subreport_list[0].mask,                      \
+		(_params)->pen.subreport_list[0].id,                        \
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
 		((_params)->pen.fragmented_hires ? "true" : "false"),       \
 		((_params)->pen.tilt_y_flipped ? "true" : "false"),         \
@@ -194,8 +209,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->frame.desc_size,                                 \
 		(_params)->frame.id,                                        \
 		(_params)->frame.re_lsb,                                    \
-		(_params)->frame.dev_id_byte,                               \
-		(_params)->pen_frame_flag
+		(_params)->frame.dev_id_byte
 
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,

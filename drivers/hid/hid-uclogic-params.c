@@ -762,8 +762,10 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 					rc);
 				goto cleanup;
 			}
-			/* Set bitmask marking frame reports in pen reports */
-			p.pen_frame_flag = 0x20;
+			/* Link frame button subreports from pen reports */
+			p.pen.subreport_list[0].mask = 0x20;
+			p.pen.subreport_list[0].id =
+				UCLOGIC_RDESC_BUTTONPAD_V2_ID;
 			goto output;
 		}
 		hid_dbg(hdev, "pen v2 parameters not found\n");
@@ -788,8 +790,10 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		hid_dbg(hdev, "buttonpad v1 parameters%s found\n",
 			(found ? "" : " not"));
 		if (found) {
-			/* Set bitmask marking frame reports */
-			p.pen_frame_flag = 0x20;
+			/* Link frame button subreports from pen reports */
+			p.pen.subreport_list[0].mask = 0x20;
+			p.pen.subreport_list[0].id =
+				UCLOGIC_RDESC_BUTTONPAD_V1_ID;
 		}
 		goto output;
 	}

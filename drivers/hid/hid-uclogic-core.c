@@ -350,26 +350,40 @@ static int uclogic_raw_event(struct hid_device *hdev,
 	unsigned int report_id = report->id;
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 	struct uclogic_params *params = &drvdata->params;
+	struct uclogic_params_pen_subreport *subreport;
+	struct uclogic_params_pen_subreport *subreport_list_end;
 
 	/* Do not handle anything but input reports */
 	if (report->type != HID_INPUT_REPORT)
 		return 0;
 
-	/* Tweak pen reports, if necessary */
-	if ((report_id == params->pen.id) && (size >= 2)) {
-		/* If it's the "virtual" frame controls report */
-		if (params->frame.id != 0 &&
-		    data[1] & params->pen_frame_flag) {
-			/* Change to virtual frame controls report ID */
-			report_id = data[0] = params->frame.id;
-		} else {
-			return uclogic_raw_event_pen(drvdata, data, size);
+	while (true) {
+		/* Tweak pen reports, if necessary */
+		if ((report_id == params->pen.id) && (size >= 2)) {
+			subreport_list_end =
+				params->pen.subreport_list +
+				ARRAY_SIZE(params->pen.subreport_list);
+			/* Try to match a subreport */
+			for (subreport = params->pen.subreport_list;
+			     subreport < subreport_list_end &&
+				(data[1] & subreport->mask) != subreport->mask;
+			     subreport++);
+			/* If a subreport matched */
+			if (subreport < subreport_list_end) {
+				/* Change to subreport ID, and restart */
+				report_id = data[0] = subreport->id;
+				continue;
+			} else {
+				return uclogic_raw_event_pen(drvdata, data, size);
+			}
 		}
-	}
 
-	/* Tweak frame control reports, if necessary */
-	if (report_id == params->frame.id)
-		return uclogic_raw_event_frame(drvdata, data, size);
+		/* Tweak frame control reports, if necessary */
+		if (report_id == params->frame.id)
+			return uclogic_raw_event_frame(drvdata, data, size);
+
+		break;
+	}
 
 	return 0;
 }
