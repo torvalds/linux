@@ -1251,7 +1251,6 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 
 	dp->pl_config.dev = ds->dev;
 	dp->pl_config.type = PHYLINK_DEV;
-	dp->pl_config.pcs_poll = ds->pcs_poll;
 
 	err = dsa_port_phylink_create(dp);
 	if (err)

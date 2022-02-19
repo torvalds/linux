@@ -1300,7 +1300,7 @@ void phylink_set_pcs(struct phylink *pl, struct phylink_pcs *pcs)
 
 	if (!pl->phylink_disable_state &&
 	    pl->cfg_link_an_mode == MLO_AN_INBAND) {
-		if (pl->config->pcs_poll || pcs->poll)
+		if (pcs->poll)
 			mod_timer(&pl->link_poll, jiffies + HZ);
 		else
 			del_timer(&pl->link_poll);
@@ -1673,7 +1673,6 @@ void phylink_start(struct phylink *pl)
 		poll |= pl->config->poll_fixed_state;
 		break;
 	case MLO_AN_INBAND:
-		poll |= pl->config->pcs_poll;
 		if (pl->pcs)
 			poll |= pl->pcs->poll;
 		break;
