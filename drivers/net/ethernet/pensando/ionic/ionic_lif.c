@@ -393,11 +393,11 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	ionic_qcq_intr_free(lif, qcq);
 
 	if (qcq->cq.info) {
-		devm_kfree(dev, qcq->cq.info);
+		vfree(qcq->cq.info);
 		qcq->cq.info = NULL;
 	}
 	if (qcq->q.info) {
-		devm_kfree(dev, qcq->q.info);
+		vfree(qcq->q.info);
 		qcq->q.info = NULL;
 	}
 }
@@ -528,8 +528,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	new->q.dev = dev;
 	new->flags = flags;
 
-	new->q.info = devm_kcalloc(dev, num_descs, sizeof(*new->q.info),
-				   GFP_KERNEL);
+	new->q.info = vzalloc(num_descs * sizeof(*new->q.info));
 	if (!new->q.info) {
 		netdev_err(lif->netdev, "Cannot allocate queue info\n");
 		err = -ENOMEM;
@@ -550,8 +549,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	if (err)
 		goto err_out;
 
-	new->cq.info = devm_kcalloc(dev, num_descs, sizeof(*new->cq.info),
-				    GFP_KERNEL);
+	new->cq.info = vzalloc(num_descs * sizeof(*new->cq.info));
 	if (!new->cq.info) {
 		netdev_err(lif->netdev, "Cannot allocate completion queue info\n");
 		err = -ENOMEM;
@@ -640,14 +638,14 @@ err_out_free_cq:
 err_out_free_q:
 	dma_free_coherent(dev, new->q_size, new->q_base, new->q_base_pa);
 err_out_free_cq_info:
-	devm_kfree(dev, new->cq.info);
+	vfree(new->cq.info);
 err_out_free_irq:
 	if (flags & IONIC_QCQ_F_INTR) {
 		devm_free_irq(dev, new->intr.vector, &new->napi);
 		ionic_intr_free(lif->ionic, new->intr.index);
 	}
 err_out_free_q_info:
-	devm_kfree(dev, new->q.info);
+	vfree(new->q.info);
 err_out_free_qcq:
 	devm_kfree(dev, new);
 err_out:
@@ -3303,7 +3301,7 @@ static void ionic_lif_set_netdev_info(struct ionic_lif *lif)
 		},
 	};
 
-	strlcpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
+	strscpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
 		sizeof(ctx.cmd.lif_setattr.name));
 
 	ionic_adminq_post_wait(lif, &ctx);
