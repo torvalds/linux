@@ -915,6 +915,7 @@ config COMPAL_LAPTOP
 config LG_LAPTOP
 	tristate "LG Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
