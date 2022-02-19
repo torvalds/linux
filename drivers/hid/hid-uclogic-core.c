@@ -81,24 +81,6 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
-static int uclogic_input_mapping(struct hid_device *hdev,
-				 struct hid_input *hi,
-				 struct hid_field *field,
-				 struct hid_usage *usage,
-				 unsigned long **bit,
-				 int *max)
-{
-	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
-	struct uclogic_params *params = &drvdata->params;
-
-	/* discard the unused pen interface */
-	if (params->pen_unused && (field->application == HID_DG_PEN))
-		return -1;
-
-	/* let hid-core decide what to do */
-	return 0;
-}
-
 static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
@@ -374,9 +356,7 @@ static int uclogic_raw_event(struct hid_device *hdev,
 		return 0;
 
 	/* Tweak pen reports, if necessary */
-	if (!params->pen_unused &&
-	    (report_id == params->pen.id) &&
-	    (size >= 2)) {
+	if ((report_id == params->pen.id) && (size >= 2)) {
 		/* If it's the "virtual" frame controls report */
 		if (params->frame.id != 0 &&
 		    data[1] & params->pen_frame_flag) {
@@ -464,7 +444,6 @@ static struct hid_driver uclogic_driver = {
 	.remove = uclogic_remove,
 	.report_fixup = uclogic_report_fixup,
 	.raw_event = uclogic_raw_event,
-	.input_mapping = uclogic_input_mapping,
 	.input_configured = uclogic_input_configured,
 #ifdef CONFIG_PM
 	.resume	          = uclogic_resume,

@@ -139,13 +139,8 @@ struct uclogic_params {
 	 */
 	unsigned int desc_size;
 	/*
-	 * True, if pen usage in report descriptor is invalid, when present.
-	 * Only valid, if "invalid" is false.
-	 */
-	bool pen_unused;
-	/*
 	 * Pen parameters and optional report descriptor part.
-	 * Only valid if "pen_unused" is valid and false.
+	 * Only valid, if "invalid" is false.
 	 */
 	struct uclogic_params_pen pen;
 	/*
@@ -171,7 +166,6 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".invalid = %s\n"                   \
 		".desc_ptr = %p\n"                  \
 		".desc_size = %u\n"                 \
-		".pen_unused = %s\n"                \
 		".pen.desc_ptr = %p\n"              \
 		".pen.desc_size = %u\n"             \
 		".pen.id = %u\n"                    \
@@ -190,7 +184,6 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		((_params)->invalid ? "true" : "false"),                    \
 		(_params)->desc_ptr,                                        \
 		(_params)->desc_size,                                       \
-		((_params)->pen_unused ? "true" : "false"),                 \
 		(_params)->pen.desc_ptr,                                    \
 		(_params)->pen.desc_size,                                   \
 		(_params)->pen.id,                                          \

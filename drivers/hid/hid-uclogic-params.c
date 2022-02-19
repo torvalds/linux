@@ -514,8 +514,7 @@ void uclogic_params_cleanup(struct uclogic_params *params)
 {
 	if (!params->invalid) {
 		kfree(params->desc_ptr);
-		if (!params->pen_unused)
-			uclogic_params_pen_cleanup(&params->pen);
+		uclogic_params_pen_cleanup(&params->pen);
 		uclogic_params_frame_cleanup(&params->frame);
 		memset(params, 0, sizeof(*params));
 	}
@@ -557,7 +556,7 @@ int uclogic_params_get_desc(const struct uclogic_params *params,
 	size = 0;
 
 	common_present = (params->desc_ptr != NULL);
-	pen_present = (!params->pen_unused && params->pen.desc_ptr != NULL);
+	pen_present = (params->pen.desc_ptr != NULL);
 	frame_present = (params->frame.desc_ptr != NULL);
 
 	if (common_present)
@@ -681,21 +680,6 @@ cleanup:
 }
 
 /**
- * uclogic_params_init_with_pen_unused() - initialize tablet interface
- * parameters preserving original reports and generic HID processing, but
- * disabling pen usage.
- *
- * @params:		Parameters to initialize (to be cleaned with
- *			uclogic_params_cleanup()). Not modified in case of
- *			error. Cannot be NULL.
- */
-static void uclogic_params_init_with_pen_unused(struct uclogic_params *params)
-{
-	memset(params, 0, sizeof(*params));
-	params->pen_unused = true;
-}
-
-/**
  * uclogic_params_huion_init() - initialize a Huion tablet interface and discover
  * its parameters.
  *
@@ -734,8 +718,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 
 	/* If it's not a pen interface */
 	if (bInterfaceNumber != 0) {
-		/* TODO: Consider marking the interface invalid */
-		uclogic_params_init_with_pen_unused(&p);
+		uclogic_params_init_invalid(&p);
 		goto output;
 	}
 
@@ -1033,8 +1016,7 @@ int uclogic_params_init(struct uclogic_params *params,
 				uclogic_params_init_invalid(&p);
 			}
 		} else {
-			/* TODO: Consider marking the interface invalid */
-			uclogic_params_init_with_pen_unused(&p);
+			uclogic_params_init_invalid(&p);
 		}
 		break;
 	case VID_PID(USB_VENDOR_ID_UGEE,
@@ -1056,8 +1038,7 @@ int uclogic_params_init(struct uclogic_params *params,
 			if (rc != 0)
 				goto cleanup;
 		} else {
-			/* TODO: Consider marking the interface invalid */
-			uclogic_params_init_with_pen_unused(&p);
+			uclogic_params_init_invalid(&p);
 		}
 		break;
 	case VID_PID(USB_VENDOR_ID_TRUST,
