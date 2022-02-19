@@ -207,8 +207,8 @@ static int uclogic_params_pen_init_v1(struct uclogic_params_pen *pen,
 	 * Generate pen report descriptor
 	 */
 	desc_ptr = uclogic_rdesc_template_apply(
-				uclogic_rdesc_pen_v1_template_arr,
-				uclogic_rdesc_pen_v1_template_size,
+				uclogic_rdesc_v1_pen_template_arr,
+				uclogic_rdesc_v1_pen_template_size,
 				desc_params, ARRAY_SIZE(desc_params));
 	if (desc_ptr == NULL) {
 		rc = -ENOMEM;
@@ -221,8 +221,8 @@ static int uclogic_params_pen_init_v1(struct uclogic_params_pen *pen,
 	memset(pen, 0, sizeof(*pen));
 	pen->desc_ptr = desc_ptr;
 	desc_ptr = NULL;
-	pen->desc_size = uclogic_rdesc_pen_v1_template_size;
-	pen->id = UCLOGIC_RDESC_PEN_V1_ID;
+	pen->desc_size = uclogic_rdesc_v1_pen_template_size;
+	pen->id = UCLOGIC_RDESC_V1_PEN_ID;
 	pen->inrange = UCLOGIC_PARAMS_PEN_INRANGE_INVERTED;
 	found = true;
 finish:
@@ -351,8 +351,8 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	 * Generate pen report descriptor
 	 */
 	desc_ptr = uclogic_rdesc_template_apply(
-				uclogic_rdesc_pen_v2_template_arr,
-				uclogic_rdesc_pen_v2_template_size,
+				uclogic_rdesc_v2_pen_template_arr,
+				uclogic_rdesc_v2_pen_template_size,
 				desc_params, ARRAY_SIZE(desc_params));
 	if (desc_ptr == NULL) {
 		rc = -ENOMEM;
@@ -365,8 +365,8 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	memset(pen, 0, sizeof(*pen));
 	pen->desc_ptr = desc_ptr;
 	desc_ptr = NULL;
-	pen->desc_size = uclogic_rdesc_pen_v2_template_size;
-	pen->id = UCLOGIC_RDESC_PEN_V2_ID;
+	pen->desc_size = uclogic_rdesc_v2_pen_template_size;
+	pen->id = UCLOGIC_RDESC_V2_PEN_ID;
 	pen->inrange = UCLOGIC_PARAMS_PEN_INRANGE_NONE;
 	pen->fragmented_hires = true;
 	pen->tilt_y_flipped = true;
@@ -487,9 +487,9 @@ static int uclogic_params_frame_init_v1(struct uclogic_params_frame *frame,
 		hid_dbg(hdev, "generic buttons enabled\n");
 		rc = uclogic_params_frame_init_with_desc(
 				frame,
-				uclogic_rdesc_frame_v1_arr,
-				uclogic_rdesc_frame_v1_size,
-				UCLOGIC_RDESC_FRAME_V1_ID);
+				uclogic_rdesc_v1_frame_arr,
+				uclogic_rdesc_v1_frame_size,
+				UCLOGIC_RDESC_V1_FRAME_ID);
 		if (rc != 0)
 			goto cleanup;
 		found = true;
@@ -752,9 +752,9 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			/* Create v2 frame parameters */
 			rc = uclogic_params_frame_init_with_desc(
 					&p.frame,
-					uclogic_rdesc_frame_v2_arr,
-					uclogic_rdesc_frame_v2_size,
-					UCLOGIC_RDESC_FRAME_V2_ID);
+					uclogic_rdesc_v2_frame_arr,
+					uclogic_rdesc_v2_frame_size,
+					UCLOGIC_RDESC_V2_FRAME_ID);
 			if (rc != 0) {
 				hid_err(hdev,
 					"failed creating v2 frame parameters: %d\n",
@@ -764,7 +764,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			/* Link frame button subreports from pen reports */
 			p.pen.subreport_list[0].value = 0xe0;
 			p.pen.subreport_list[0].id =
-				UCLOGIC_RDESC_FRAME_V2_ID;
+				UCLOGIC_RDESC_V2_FRAME_ID;
 			goto output;
 		}
 		hid_dbg(hdev, "pen v2 parameters not found\n");
@@ -791,7 +791,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			/* Link frame button subreports from pen reports */
 			p.pen.subreport_list[0].value = 0xe0;
 			p.pen.subreport_list[0].id =
-				UCLOGIC_RDESC_FRAME_V1_ID;
+				UCLOGIC_RDESC_V1_FRAME_ID;
 		}
 		goto output;
 	}
