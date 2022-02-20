@@ -358,6 +358,10 @@ enum skb_drop_reason {
 					 * corresponding to
 					 * LINUX_MIB_TCPMD5FAILURE
 					 */
+	SKB_DROP_REASON_SOCKET_BACKLOG,	/* failed to add skb to socket
+					 * backlog (see
+					 * LINUX_MIB_TCPBACKLOGDROP)
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
