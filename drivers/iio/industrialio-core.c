@@ -334,29 +334,6 @@ s64 iio_get_time_ns(const struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_get_time_ns);
 
-/**
- * iio_get_time_res() - utility function to get time stamp clock resolution in
- *                      nano seconds.
- * @indio_dev: device
- */
-unsigned int iio_get_time_res(const struct iio_dev *indio_dev)
-{
-	switch (iio_device_get_clock(indio_dev)) {
-	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
-	case CLOCK_MONOTONIC_RAW:
-	case CLOCK_BOOTTIME:
-	case CLOCK_TAI:
-		return hrtimer_resolution;
-	case CLOCK_REALTIME_COARSE:
-	case CLOCK_MONOTONIC_COARSE:
-		return LOW_RES_NSEC;
-	default:
-		BUG();
-	}
-}
-EXPORT_SYMBOL(iio_get_time_res);
-
 static int __init iio_init(void)
 {
 	int ret;

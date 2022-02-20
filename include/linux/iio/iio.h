@@ -313,7 +313,6 @@ static inline bool iio_channel_has_available(const struct iio_chan_spec *chan,
 }
 
 s64 iio_get_time_ns(const struct iio_dev *indio_dev);
-unsigned int iio_get_time_res(const struct iio_dev *indio_dev);
 
 /*
  * Device operating modes
