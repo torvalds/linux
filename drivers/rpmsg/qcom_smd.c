@@ -1288,9 +1288,14 @@ static void qcom_channel_state_worker(struct work_struct *work)
 		if (channel->state != SMD_CHANNEL_CLOSED)
 			continue;
 
+		/*
+		 * Always open rpm_requests, even when already opened which is
+		 * required on some SoCs like msm8953.
+		 */
 		remote_state = GET_RX_CHANNEL_INFO(channel, state);
 		if (remote_state != SMD_CHANNEL_OPENING &&
-		    remote_state != SMD_CHANNEL_OPENED)
+		    remote_state != SMD_CHANNEL_OPENED &&
+		    strcmp(channel->name, "rpm_requests"))
 			continue;
 
 		if (channel->registered)
