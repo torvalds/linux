@@ -36,6 +36,22 @@ static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 	eytzinger0_sort(r->entries, r->nr, r->entry_size, memcmp, NULL);
 }
 
+void bch2_replicas_entry_v0_to_text(struct printbuf *out,
+				    struct bch_replicas_entry_v0 *e)
+{
+	unsigned i;
+
+	if (e->data_type < BCH_DATA_NR)
+		pr_buf(out, "%s", bch2_data_types[e->data_type]);
+	else
+		pr_buf(out, "(invalid data type %u)", e->data_type);
+
+	pr_buf(out, ": %u [", e->nr_devs);
+	for (i = 0; i < e->nr_devs; i++)
+		pr_buf(out, i ? " %u" : "%u", e->devs[i]);
+	pr_buf(out, "]");
+}
+
 void bch2_replicas_entry_to_text(struct printbuf *out,
 				 struct bch_replicas_entry *e)
 {
@@ -867,7 +883,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 	return 0;
 }
 
-static int bch2_sb_validate_replicas(struct bch_sb *sb, struct bch_sb_field *f,
+static int bch2_sb_replicas_validate(struct bch_sb *sb, struct bch_sb_field *f,
 				     struct printbuf *err)
 {
 	struct bch_sb_field_replicas *sb_r = field_to_type(f, replicas);
@@ -897,14 +913,15 @@ static void bch2_sb_replicas_to_text(struct printbuf *out,
 
 		bch2_replicas_entry_to_text(out, e);
 	}
+	pr_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
-	.validate	= bch2_sb_validate_replicas,
+	.validate	= bch2_sb_replicas_validate,
 	.to_text	= bch2_sb_replicas_to_text,
 };
 
-static int bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb_field *f,
+static int bch2_sb_replicas_v0_validate(struct bch_sb *sb, struct bch_sb_field *f,
 					struct printbuf *err)
 {
 	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
@@ -919,8 +936,27 @@ static int bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb_field *
 	return ret;
 }
 
+static void bch2_sb_replicas_v0_to_text(struct printbuf *out,
+					struct bch_sb *sb,
+					struct bch_sb_field *f)
+{
+	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
+	struct bch_replicas_entry_v0 *e;
+	bool first = true;
+
+	for_each_replicas_entry(sb_r, e) {
+		if (!first)
+			pr_buf(out, " ");
+		first = false;
+
+		bch2_replicas_entry_v0_to_text(out, e);
+	}
+	pr_newline(out);
+}
+
 const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {
-	.validate	= bch2_sb_validate_replicas_v0,
+	.validate	= bch2_sb_replicas_v0_validate,
+	.to_text	= bch2_sb_replicas_v0_to_text,
 };
 
 /* Query replicas: */
@@ -977,19 +1013,42 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 	return ret;
 }
 
+unsigned bch2_sb_dev_has_data(struct bch_sb *sb, unsigned dev)
+{
+	struct bch_sb_field_replicas *replicas;
+	struct bch_sb_field_replicas_v0 *replicas_v0;
+	unsigned i, data_has = 0;
+
+	replicas = bch2_sb_get_replicas(sb);
+	replicas_v0 = bch2_sb_get_replicas_v0(sb);
+
+	if (replicas) {
+		struct bch_replicas_entry *r;
+
+		for_each_replicas_entry(replicas, r)
+			for (i = 0; i < r->nr_devs; i++)
+				if (r->devs[i] == dev)
+					data_has |= 1 << r->data_type;
+	} else if (replicas_v0) {
+		struct bch_replicas_entry_v0 *r;
+
+		for_each_replicas_entry_v0(replicas_v0, r)
+			for (i = 0; i < r->nr_devs; i++)
+				if (r->devs[i] == dev)
+					data_has |= 1 << r->data_type;
+	}
+
+
+	return data_has;
+}
+
 unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 {
-	struct bch_replicas_entry *e;
-	unsigned i, ret = 0;
+	unsigned ret;
 
-	percpu_down_read(&c->mark_lock);
-
-	for_each_cpu_replicas_entry(&c->replicas, e)
-		for (i = 0; i < e->nr_devs; i++)
-			if (e->devs[i] == ca->dev_idx)
-				ret |= 1 << e->data_type;
-
-	percpu_up_read(&c->mark_lock);
+	mutex_lock(&c->sb_lock);
+	ret = bch2_sb_dev_has_data(c->disk_sb.sb, ca->dev_idx);
+	mutex_unlock(&c->sb_lock);
 
 	return ret;
 }

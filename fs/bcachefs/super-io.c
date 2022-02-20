@@ -920,7 +920,7 @@ static int u64_cmp(const void *_l, const void *_r)
 	return l < r ? -1 : l > r ? 1 : 0;
 }
 
-static int bch2_sb_validate_journal(struct bch_sb *sb,
+static int bch2_sb_journal_validate(struct bch_sb *sb,
 				    struct bch_sb_field *f,
 				    struct printbuf *err)
 {
@@ -973,13 +973,26 @@ err:
 	return ret;
 }
 
+static void bch2_sb_journal_to_text(struct printbuf *out, struct bch_sb *sb,
+				    struct bch_sb_field *f)
+{
+	struct bch_sb_field_journal *journal = field_to_type(f, journal);
+	unsigned i, nr = bch2_nr_journal_buckets(journal);
+
+	pr_buf(out, "Buckets: ");
+	for (i = 0; i < nr; i++)
+		pr_buf(out, " %llu", le64_to_cpu(journal->buckets[i]));
+	pr_newline(out);
+}
+
 static const struct bch_sb_field_ops bch_sb_field_ops_journal = {
-	.validate	= bch2_sb_validate_journal,
+	.validate	= bch2_sb_journal_validate,
+	.to_text	= bch2_sb_journal_to_text,
 };
 
 /* BCH_SB_FIELD_members: */
 
-static int bch2_sb_validate_members(struct bch_sb *sb,
+static int bch2_sb_members_validate(struct bch_sb *sb,
 				    struct bch_sb_field *f,
 				    struct printbuf *err)
 {
@@ -1029,13 +1042,105 @@ static int bch2_sb_validate_members(struct bch_sb *sb,
 	return 0;
 }
 
+static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
+				    struct bch_sb_field *f)
+{
+	struct bch_sb_field_members *mi = field_to_type(f, members);
+	struct bch_sb_field_disk_groups *gi = bch2_sb_get_disk_groups(sb);
+	unsigned i;
+
+	for (i = 0; i < sb->nr_devices; i++) {
+		struct bch_member *m = mi->members + i;
+		unsigned data_have = bch2_sb_dev_has_data(sb, i);
+		u64 bucket_size = le16_to_cpu(m->bucket_size);
+		u64 device_size = le64_to_cpu(m->nbuckets) * bucket_size;
+
+		if (!bch2_member_exists(m))
+			continue;
+
+		pr_buf(out, "Device:                  %u", i);
+		pr_newline(out);
+
+		printbuf_indent_push(out, 2);
+
+		pr_buf(out, "UUID:                  ");
+		pr_uuid(out, m->uuid.b);
+		pr_newline(out);
+
+		pr_buf(out, "Size:                  ");
+		pr_units(out, device_size, device_size << 9);
+		pr_newline(out);
+
+		pr_buf(out, "Bucket size:           ");
+		pr_units(out, bucket_size, bucket_size << 9);
+		pr_newline(out);
+
+		pr_buf(out, "First bucket:          %u",
+		       le16_to_cpu(m->first_bucket));
+		pr_newline(out);
+
+		pr_buf(out, "Buckets:               %llu",
+		       le64_to_cpu(m->nbuckets));
+		pr_newline(out);
+
+		pr_buf(out, "Last mount:            ");
+		if (m->last_mount)
+			pr_time(out, le64_to_cpu(m->last_mount));
+		else
+			pr_buf(out, "(never)");
+		pr_newline(out);
+
+		pr_buf(out, "State:                 %s",
+		       BCH_MEMBER_STATE(m) < BCH_MEMBER_STATE_NR
+		       ? bch2_member_states[BCH_MEMBER_STATE(m)]
+		       : "unknown");
+		pr_newline(out);
+
+		pr_buf(out, "Group:                 ");
+		if (BCH_MEMBER_GROUP(m)) {
+			unsigned idx = BCH_MEMBER_GROUP(m) - 1;
+
+			if (idx < disk_groups_nr(gi))
+				pr_buf(out, "%s (%u)",
+				       gi->entries[idx].label, idx);
+			else
+				pr_buf(out, "(bad disk labels section)");
+		} else {
+			pr_buf(out, "(none)");
+		}
+		pr_newline(out);
+
+		pr_buf(out, "Data allowed:          ");
+		if (BCH_MEMBER_DATA_ALLOWED(m))
+			bch2_flags_to_text(out, bch2_data_types,
+					   BCH_MEMBER_DATA_ALLOWED(m));
+		else
+			pr_buf(out, "(none)");
+		pr_newline(out);
+
+		pr_buf(out, "Has data:              ");
+		if (data_have)
+			bch2_flags_to_text(out, bch2_data_types, data_have);
+		else
+			pr_buf(out, "(none)");
+		pr_newline(out);
+
+		pr_buf(out, "Discard:               %llu",
+		       BCH_MEMBER_DISCARD(m));
+		pr_newline(out);
+
+		printbuf_indent_pop(out, 2);
+	}
+}
+
 static const struct bch_sb_field_ops bch_sb_field_ops_members = {
-	.validate	= bch2_sb_validate_members,
+	.validate	= bch2_sb_members_validate,
+	.to_text	= bch2_sb_members_to_text,
 };
 
 /* BCH_SB_FIELD_crypt: */
 
-static int bch2_sb_validate_crypt(struct bch_sb *sb,
+static int bch2_sb_crypt_validate(struct bch_sb *sb,
 				  struct bch_sb_field *f,
 				  struct printbuf *err)
 {
@@ -1055,13 +1160,29 @@ static int bch2_sb_validate_crypt(struct bch_sb *sb,
 	return 0;
 }
 
+static void bch2_sb_crypt_to_text(struct printbuf *out, struct bch_sb *sb,
+				  struct bch_sb_field *f)
+{
+	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
+
+	pr_buf(out, "KFD:               %llu", BCH_CRYPT_KDF_TYPE(crypt));
+	pr_newline(out);
+	pr_buf(out, "scrypt n:          %llu", BCH_KDF_SCRYPT_N(crypt));
+	pr_newline(out);
+	pr_buf(out, "scrypt r:          %llu", BCH_KDF_SCRYPT_R(crypt));
+	pr_newline(out);
+	pr_buf(out, "scrypt p:          %llu", BCH_KDF_SCRYPT_P(crypt));
+	pr_newline(out);
+}
+
 static const struct bch_sb_field_ops bch_sb_field_ops_crypt = {
-	.validate	= bch2_sb_validate_crypt,
+	.validate	= bch2_sb_crypt_validate,
+	.to_text	= bch2_sb_crypt_to_text,
 };
 
 /* BCH_SB_FIELD_clean: */
 
-int bch2_sb_clean_validate(struct bch_fs *c, struct bch_sb_field_clean *clean, int write)
+int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *clean, int write)
 {
 	struct jset_entry *entry;
 	int ret;
@@ -1251,7 +1372,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 	 * this should be in the write path, and we should be validating every
 	 * superblock section:
 	 */
-	ret = bch2_sb_clean_validate(c, sb_clean, WRITE);
+	ret = bch2_sb_clean_validate_late(c, sb_clean, WRITE);
 	if (ret) {
 		bch_err(c, "error writing marking filesystem clean: validate error");
 		goto out;
@@ -1262,7 +1383,7 @@ out:
 	mutex_unlock(&c->sb_lock);
 }
 
-static int bch2_sb_validate_clean(struct bch_sb *sb,
+static int bch2_sb_clean_validate(struct bch_sb *sb,
 				  struct bch_sb_field *f,
 				  struct printbuf *err)
 {
@@ -1277,8 +1398,32 @@ static int bch2_sb_validate_clean(struct bch_sb *sb,
 	return 0;
 }
 
+static void bch2_sb_clean_to_text(struct printbuf *out, struct bch_sb *sb,
+				  struct bch_sb_field *f)
+{
+	struct bch_sb_field_clean *clean = field_to_type(f, clean);
+	struct jset_entry *entry;
+
+	pr_buf(out, "flags:          %x",	le32_to_cpu(clean->flags));
+	pr_newline(out);
+	pr_buf(out, "journal_seq:    %llu",	le64_to_cpu(clean->journal_seq));
+	pr_newline(out);
+
+	for (entry = clean->start;
+	     entry != vstruct_end(&clean->field);
+	     entry = vstruct_next(entry)) {
+		if (entry->type == BCH_JSET_ENTRY_btree_keys &&
+		    !entry->u64s)
+			continue;
+
+		bch2_journal_entry_to_text(out, NULL, entry);
+		pr_newline(out);
+	}
+}
+
 static const struct bch_sb_field_ops bch_sb_field_ops_clean = {
-	.validate	= bch2_sb_validate_clean,
+	.validate	= bch2_sb_clean_validate,
+	.to_text	= bch2_sb_clean_to_text,
 };
 
 static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
@@ -1302,7 +1447,7 @@ static int bch2_sb_field_validate(struct bch_sb *sb, struct bch_sb_field *f,
 
 	ret = bch2_sb_field_ops[type]->validate(sb, f, &err);
 	if (ret) {
-		pr_buf(&err, "\n");
+		pr_newline(&err);
 		bch2_sb_field_to_text(&err, sb, f);
 		*orig_err = err;
 	}
@@ -1323,7 +1468,202 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 		pr_buf(out, "(unknown field %u)", type);
 
 	pr_buf(out, " (size %llu):", vstruct_bytes(f));
+	pr_newline(out);
 
-	if (ops && ops->to_text)
+	if (ops && ops->to_text) {
+		printbuf_indent_push(out, 2);
 		bch2_sb_field_ops[type]->to_text(out, sb, f);
+		printbuf_indent_pop(out, 2);
+	}
+}
+
+void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
+{
+	unsigned i;
+
+	pr_buf(out, "Type:                    %u", l->layout_type);
+	pr_newline(out);
+
+	pr_buf(out, "Superblock max size:     ");
+	pr_units(out,
+		 1 << l->sb_max_size_bits,
+		 512 << l->sb_max_size_bits);
+	pr_newline(out);
+
+	pr_buf(out, "Nr superblocks:          %u", l->nr_superblocks);
+	pr_newline(out);
+
+	pr_buf(out, "Offsets:                 ");
+	for (i = 0; i < l->nr_superblocks; i++) {
+		if (i)
+			pr_buf(out, ", ");
+		pr_buf(out, "%llu", le64_to_cpu(l->sb_offset[i]));
+	}
+	pr_newline(out);
+}
+
+void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
+		     bool print_layout, unsigned fields)
+{
+	struct bch_sb_field_members *mi;
+	struct bch_sb_field *f;
+	u64 fields_have = 0;
+	unsigned nr_devices = 0;
+
+	mi = bch2_sb_get_members(sb);
+	if (mi) {
+		struct bch_member *m;
+
+		for (m = mi->members;
+		     m < mi->members + sb->nr_devices;
+		     m++)
+			nr_devices += bch2_member_exists(m);
+	}
+
+	pr_buf(out, "External UUID:             ");
+	pr_uuid(out, sb->user_uuid.b);
+	pr_newline(out);
+
+	pr_buf(out, "Internal UUID:             ");
+	pr_uuid(out, sb->uuid.b);
+	pr_newline(out);
+
+	pr_buf(out, "Device index:              %u", sb->dev_idx);
+	pr_newline(out);
+
+	pr_buf(out, "Label:                     ");
+	pr_buf(out, "%.*s", (int) sizeof(sb->label), sb->label);
+	pr_newline(out);
+
+	pr_buf(out, "Version:                   %u", le16_to_cpu(sb->version));
+	pr_newline(out);
+
+	pr_buf(out, "Oldest version on disk:    %u", le16_to_cpu(sb->version_min));
+	pr_newline(out);
+
+	pr_buf(out, "Created:                   ");
+	if (sb->time_base_lo)
+		pr_time(out, le64_to_cpu(sb->time_base_lo) / NSEC_PER_SEC);
+	else
+		pr_buf(out, "(not set)");
+	pr_newline(out);
+
+	pr_buf(out, "Squence number:            %llu", le64_to_cpu(sb->seq));
+	pr_newline(out);
+
+	pr_buf(out, "Block_size:                ");
+	pr_units(out, le16_to_cpu(sb->block_size),
+		 (u32) le16_to_cpu(sb->block_size) << 9);
+	pr_newline(out);
+
+	pr_buf(out, "Btree node size:           ");
+	pr_units(out, BCH_SB_BTREE_NODE_SIZE(sb),
+		 BCH_SB_BTREE_NODE_SIZE(sb) << 9);
+	pr_newline(out);
+
+	pr_buf(out, "Error action:              %s",
+	       BCH_SB_ERROR_ACTION(sb) < BCH_ON_ERROR_NR
+	       ? bch2_error_actions[BCH_SB_ERROR_ACTION(sb)]
+	       : "unknown");
+	pr_newline(out);
+
+	pr_buf(out, "Clean:                     %llu", BCH_SB_CLEAN(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Features:                  ");
+	bch2_flags_to_text(out, bch2_sb_features,
+			   le64_to_cpu(sb->features[0]));
+	pr_newline(out);
+
+	pr_buf(out, "Compat features:           ");
+	bch2_flags_to_text(out, bch2_sb_compat,
+			   le64_to_cpu(sb->compat[0]));
+	pr_newline(out);
+
+	pr_buf(out, "Metadata replicas:         %llu", BCH_SB_META_REPLICAS_WANT(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Data replicas:             %llu", BCH_SB_DATA_REPLICAS_WANT(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Metadata checksum type:    %s (%llu)",
+	       BCH_SB_META_CSUM_TYPE(sb) < BCH_CSUM_OPT_NR
+	       ? bch2_csum_opts[BCH_SB_META_CSUM_TYPE(sb)]
+	       : "unknown",
+	       BCH_SB_META_CSUM_TYPE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Data checksum type:        %s (%llu)",
+	       BCH_SB_DATA_CSUM_TYPE(sb) < BCH_CSUM_OPT_NR
+	       ? bch2_csum_opts[BCH_SB_DATA_CSUM_TYPE(sb)]
+	       : "unknown",
+	       BCH_SB_DATA_CSUM_TYPE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Compression type:          %s (%llu)",
+	       BCH_SB_COMPRESSION_TYPE(sb) < BCH_COMPRESSION_OPT_NR
+	       ? bch2_compression_opts[BCH_SB_COMPRESSION_TYPE(sb)]
+	       : "unknown",
+	       BCH_SB_COMPRESSION_TYPE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Foreground write target:   ");
+	bch2_sb_target_to_text(out, sb, BCH_SB_FOREGROUND_TARGET(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Background write target:   ");
+	bch2_sb_target_to_text(out, sb, BCH_SB_BACKGROUND_TARGET(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Promote target:            ");
+	bch2_sb_target_to_text(out, sb, BCH_SB_PROMOTE_TARGET(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Metadata target:           ");
+	bch2_sb_target_to_text(out, sb, BCH_SB_METADATA_TARGET(sb));
+	pr_newline(out);
+
+	pr_buf(out, "String hash type:          %s (%llu)",
+	       BCH_SB_STR_HASH_TYPE(sb) < BCH_STR_HASH_NR
+	       ? bch2_str_hash_types[BCH_SB_STR_HASH_TYPE(sb)]
+	       : "unknown",
+	       BCH_SB_STR_HASH_TYPE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "32 bit inodes:             %llu", BCH_SB_INODE_32BIT(sb));
+	pr_newline(out);
+
+	pr_buf(out, "GC reserve percentage:     %llu%%", BCH_SB_GC_RESERVE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Root reserve percentage:   %llu%%", BCH_SB_ROOT_RESERVE(sb));
+	pr_newline(out);
+
+	pr_buf(out, "Devices:                   %u live, %u total",
+	       nr_devices, sb->nr_devices);
+	pr_newline(out);
+
+	pr_buf(out, "Sections:                  ");
+	vstruct_for_each(sb, f)
+		fields_have |= 1 << le32_to_cpu(f->type);
+	bch2_flags_to_text(out, bch2_sb_fields, fields_have);
+	pr_newline(out);
+
+	pr_buf(out, "Superblock size:           %llu", vstruct_bytes(sb));
+	pr_newline(out);
+
+	if (print_layout) {
+		pr_newline(out);
+		pr_buf(out, "layout:");
+		pr_newline(out);
+		printbuf_indent_push(out, 2);
+		bch2_sb_layout_to_text(out, &sb->layout);
+		printbuf_indent_pop(out, 2);
+	}
+
+	vstruct_for_each(sb, f)
+		if (fields & (1 << le32_to_cpu(f->type))) {
+			pr_newline(out);
+			bch2_sb_field_to_text(out, sb, f);
+		}
 }

@@ -821,7 +821,7 @@ static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = bch2_sb_clean_validate(c, clean, READ);
+	ret = bch2_sb_clean_validate_late(c, clean, READ);
 	if (ret) {
 		mutex_unlock(&c->sb_lock);
 		return ERR_PTR(ret);

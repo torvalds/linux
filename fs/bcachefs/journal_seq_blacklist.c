@@ -235,6 +235,7 @@ static void bch2_sb_journal_seq_blacklist_to_text(struct printbuf *out,
 		       le64_to_cpu(i->start),
 		       le64_to_cpu(i->end));
 	}
+	pr_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_journal_seq_blacklist = {

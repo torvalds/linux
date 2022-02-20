@@ -6,7 +6,18 @@
 #include "subvolume.h"
 #include "super-io.h"
 
-static int bch2_sb_validate_quota(struct bch_sb *sb, struct bch_sb_field *f,
+static const char * const bch2_quota_types[] = {
+	"user",
+	"group",
+	"project",
+};
+
+static const char * const bch2_quota_counters[] = {
+	"space",
+	"inodes",
+};
+
+static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
 				  struct printbuf *err)
 {
 	struct bch_sb_field_quota *q = field_to_type(f, quota);
@@ -14,13 +25,36 @@ static int bch2_sb_validate_quota(struct bch_sb *sb, struct bch_sb_field *f,
 	if (vstruct_bytes(&q->field) < sizeof(*q)) {
 		pr_buf(err, "wrong size (got %llu should be %zu)",
 		       vstruct_bytes(&q->field), sizeof(*q));
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
+static void bch2_sb_quota_to_text(struct printbuf *out, struct bch_sb *sb,
+				  struct bch_sb_field *f)
+{
+	struct bch_sb_field_quota *q = field_to_type(f, quota);
+	unsigned qtyp, counter;
+
+	for (qtyp = 0; qtyp < ARRAY_SIZE(q->q); qtyp++) {
+		pr_buf(out, "%s: flags %llx",
+		       bch2_quota_types[qtyp],
+		       le64_to_cpu(q->q[qtyp].flags));
+
+		for (counter = 0; counter < Q_COUNTERS; counter++)
+			pr_buf(out, " %s timelimit %u warnlimit %u",
+			       bch2_quota_counters[counter],
+			       le32_to_cpu(q->q[qtyp].c[counter].timelimit),
+			       le32_to_cpu(q->q[qtyp].c[counter].warnlimit));
+
+		pr_newline(out);
+	}
+}
+
 const struct bch_sb_field_ops bch_sb_field_ops_quota = {
-	.validate	= bch2_sb_validate_quota,
+	.validate	= bch2_sb_quota_validate,
+	.to_text	= bch2_sb_quota_to_text,
 };
 
 const char *bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k)
@@ -33,11 +67,6 @@ const char *bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k)
 
 	return NULL;
 }
-
-static const char * const bch2_quota_counters[] = {
-	"space",
-	"inodes",
-};
 
 void bch2_quota_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bkey_s_c k)

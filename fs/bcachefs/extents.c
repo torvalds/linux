@@ -953,15 +953,19 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		switch (__extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
 			ptr = entry_to_ptr(entry);
-			ca = ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
-				? bch_dev_bkey_exists(c, ptr->dev)
-				: NULL;
 
-			pr_buf(out, "ptr: %u:%llu gen %u%s%s", ptr->dev,
+			pr_buf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 			       (u64) ptr->offset, ptr->gen,
-			       ptr->cached ? " cached" : "",
-			       ca && ptr_stale(ca, ptr)
-			       ? " stale" : "");
+			       ptr->cached ? " cached" : "");
+
+			if (c) {
+				ca = ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
+					? bch_dev_bkey_exists(c, ptr->dev)
+					: NULL;
+
+				if (ca && ptr_stale(ca, ptr))
+					pr_buf(out, " stale");
+			}
 			break;
 		case BCH_EXTENT_ENTRY_crc32:
 		case BCH_EXTENT_ENTRY_crc64:

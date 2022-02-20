@@ -235,10 +235,17 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
+enum printbuf_units {
+	PRINTBUF_UNITS_RAW,
+	PRINTBUF_UNITS_BYTES,
+	PRINTBUF_UNITS_HUMAN_READABLE,
+};
+
 struct printbuf {
-	char		*pos;
-	char		*end;
-	unsigned	indent;
+	char			*pos;
+	char			*end;
+	unsigned		indent;
+	enum printbuf_units	units;
 };
 
 static inline size_t printbuf_remaining(struct printbuf *buf)
@@ -272,13 +279,53 @@ static inline void printbuf_indent_pop(struct printbuf *buf, unsigned spaces)
 	buf->indent -= spaces;
 }
 
-static inline void printbuf_newline(struct printbuf *buf)
+static inline void pr_newline(struct printbuf *buf)
 {
 	unsigned i;
 
 	pr_buf(buf, "\n");
 	for (i = 0; i < buf->indent; i++)
 		pr_buf(buf, " ");
+}
+
+void bch2_pr_units(struct printbuf *, s64, s64);
+#define pr_units(...) bch2_pr_units(__VA_ARGS__)
+
+#ifdef __KERNEL__
+static inline void pr_time(struct printbuf *out, u64 time)
+{
+	pr_buf(out, "%llu", time);
+}
+#else
+#include <time.h>
+static inline void pr_time(struct printbuf *out, u64 _time)
+{
+	char time_str[64];
+	time_t time = _time;
+	struct tm *tm = localtime(&time);
+	size_t err = strftime(time_str, sizeof(time_str), "%c", tm);
+	if (!err)
+		pr_buf(out, "(formatting error)");
+	else
+		pr_buf(out, "%s", time_str);
+}
+#endif
+
+#ifdef __KERNEL__
+static inline void uuid_unparse_lower(u8 *uuid, char *out)
+{
+	sprintf(out, "%plU", uuid);
+}
+#else
+#include <uuid/uuid.h>
+#endif
+
+static inline void pr_uuid(struct printbuf *out, u8 *uuid)
+{
+	char uuid_str[40];
+
+	uuid_unparse_lower(uuid, uuid_str);
+	pr_buf(out, uuid_str);
 }
 
 int bch2_strtoint_h(const char *, int *);
@@ -783,14 +830,5 @@ static inline int u8_cmp(u8 l, u8 r)
 {
 	return cmp_int(l, r);
 }
-
-#ifdef __KERNEL__
-static inline void uuid_unparse_lower(u8 *uuid, char *out)
-{
-	sprintf(out, "%plU", uuid);
-}
-#else
-#include <uuid/uuid.h>
-#endif
 
 #endif /* _BCACHEFS_UTIL_H */

@@ -121,12 +121,14 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 void bch2_journal_super_entries_add_common(struct bch_fs *,
 					   struct jset_entry **, u64);
 
-int bch2_sb_clean_validate(struct bch_fs *, struct bch_sb_field_clean *, int);
+int bch2_sb_clean_validate_late(struct bch_fs *, struct bch_sb_field_clean *, int);
 
 int bch2_fs_mark_dirty(struct bch_fs *);
 void bch2_fs_mark_clean(struct bch_fs *);
 
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			   struct bch_sb_field *);
+void bch2_sb_layout_to_text(struct printbuf *, struct bch_sb_layout *);
+void bch2_sb_to_text(struct printbuf *, struct bch_sb *, bool, unsigned);
 
 #endif /* _BCACHEFS_SUPER_IO_H */

@@ -120,6 +120,27 @@ void bch2_hprint(struct printbuf *buf, s64 v)
 		pr_buf(buf, "%c", si_units[u]);
 }
 
+void bch2_pr_units(struct printbuf *out, s64 raw, s64 bytes)
+{
+	if (raw < 0) {
+		pr_buf(out, "-");
+		raw	= -raw;
+		bytes	= -bytes;
+	}
+
+	switch (out->units) {
+	case PRINTBUF_UNITS_RAW:
+		pr_buf(out, "%llu", raw);
+		break;
+	case PRINTBUF_UNITS_BYTES:
+		pr_buf(out, "%llu", bytes);
+		break;
+	case PRINTBUF_UNITS_HUMAN_READABLE:
+		bch2_hprint(out, bytes);
+		break;
+	}
+}
+
 void bch2_string_opt_to_text(struct printbuf *out,
 			     const char * const list[],
 			     size_t selected)

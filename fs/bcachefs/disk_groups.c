@@ -343,12 +343,10 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *sb, const char *name)
 	return v;
 }
 
-void bch2_disk_path_to_text(struct printbuf *out,
-			    struct bch_sb_handle *sb,
-			    unsigned v)
+void bch2_disk_path_to_text(struct printbuf *out, struct bch_sb *sb, unsigned v)
 {
 	struct bch_sb_field_disk_groups *groups =
-		bch2_sb_get_disk_groups(sb->sb);
+		bch2_sb_get_disk_groups(sb);
 	struct bch_disk_group *g;
 	unsigned nr = 0;
 	u16 path[32];
@@ -383,7 +381,7 @@ void bch2_disk_path_to_text(struct printbuf *out,
 	}
 	return;
 inval:
-	pr_buf(out, "invalid group %u", v);
+	pr_buf(out, "invalid label %u", v);
 }
 
 int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
@@ -447,6 +445,36 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *buf, u64 *v)
 	return -EINVAL;
 }
 
+void bch2_sb_target_to_text(struct printbuf *out, struct bch_sb *sb, u64 v)
+{
+	struct target t = target_decode(v);
+
+	switch (t.type) {
+	case TARGET_NULL:
+		pr_buf(out, "none");
+		break;
+	case TARGET_DEV: {
+		struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
+		struct bch_member *m = mi->members + t.dev;
+
+		if (bch2_dev_exists(sb, mi, t.dev)) {
+			pr_buf(out, "Device ");
+			pr_uuid(out, m->uuid.b);
+			pr_buf(out, " (%u)", t.dev);
+		} else {
+			pr_buf(out, "Bad device %u", t.dev);
+		}
+
+		break;
+	}
+	case TARGET_GROUP:
+		bch2_disk_path_to_text(out, sb, t.group);
+		break;
+	default:
+		BUG();
+	}
+}
+
 void bch2_opt_target_to_text(struct printbuf *out, struct bch_fs *c, u64 v)
 {
 	struct target t = target_decode(v);
@@ -477,7 +505,7 @@ void bch2_opt_target_to_text(struct printbuf *out, struct bch_fs *c, u64 v)
 	}
 	case TARGET_GROUP:
 		mutex_lock(&c->sb_lock);
-		bch2_disk_path_to_text(out, &c->disk_sb, t.group);
+		bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
 		mutex_unlock(&c->sb_lock);
 		break;
 	default:

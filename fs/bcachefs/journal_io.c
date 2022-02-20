@@ -302,7 +302,7 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 
 	vstruct_for_each(entry, k) {
 		if (!first) {
-			printbuf_newline(out);
+			pr_newline(out);
 			pr_buf(out, "%s: ", bch2_jset_entry_types[entry->type]);
 		}
 		pr_buf(out, "btree=%s l=%u ", bch2_btree_ids[entry->btree_id], entry->level);
