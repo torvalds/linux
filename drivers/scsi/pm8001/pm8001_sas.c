@@ -375,128 +375,114 @@ static int sas_find_local_port_id(struct domain_device *dev)
   */
 int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
+	struct task_status_struct *ts = &task->task_status;
+	enum sas_protocol task_proto = task->task_proto;
 	struct domain_device *dev = task->dev;
+	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha;
-	struct pm8001_device *pm8001_dev;
 	struct pm8001_port *port = NULL;
-	struct sas_task *t = task;
 	struct pm8001_ccb_info *ccb;
-	u32 rc = 0, n_elem = 0;
-	unsigned long flags = 0;
-	enum sas_protocol task_proto = t->task_proto;
 	struct sas_tmf_task *tmf = task->tmf;
 	int is_tmf = !!task->tmf;
+	unsigned long flags;
+	u32 n_elem = 0;
+	int rc = 0;
 
 	if (!dev->port) {
-		struct task_status_struct *tsm = &t->task_status;
-		tsm->resp = SAS_TASK_UNDELIVERED;
-		tsm->stat = SAS_PHY_DOWN;
-		if (dev->dev_type != SAS_SATA_DEV)
-			t->task_done(t);
-		return 0;
-	}
-	pm8001_ha = pm8001_find_ha_by_dev(task->dev);
-	if (pm8001_ha->controller_fatal_error) {
-		struct task_status_struct *ts = &t->task_status;
-
 		ts->resp = SAS_TASK_UNDELIVERED;
-		t->task_done(t);
+		ts->stat = SAS_PHY_DOWN;
+		if (dev->dev_type != SAS_SATA_DEV)
+			task->task_done(task);
 		return 0;
 	}
+
+	pm8001_ha = pm8001_find_ha_by_dev(dev);
+	if (pm8001_ha->controller_fatal_error) {
+		ts->resp = SAS_TASK_UNDELIVERED;
+		task->task_done(task);
+		return 0;
+	}
+
 	pm8001_dbg(pm8001_ha, IO, "pm8001_task_exec device\n");
+
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
-	do {
-		dev = t->dev;
-		pm8001_dev = dev->lldd_dev;
-		port = &pm8001_ha->port[sas_find_local_port_id(dev)];
-		if (DEV_IS_GONE(pm8001_dev) || !port->port_attached) {
-			if (sas_protocol_ata(task_proto)) {
-				struct task_status_struct *ts = &t->task_status;
-				ts->resp = SAS_TASK_UNDELIVERED;
-				ts->stat = SAS_PHY_DOWN;
 
-				spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-				t->task_done(t);
-				spin_lock_irqsave(&pm8001_ha->lock, flags);
-				continue;
-			} else {
-				struct task_status_struct *ts = &t->task_status;
-				ts->resp = SAS_TASK_UNDELIVERED;
-				ts->stat = SAS_PHY_DOWN;
-				t->task_done(t);
-				continue;
-			}
-		}
+	pm8001_dev = dev->lldd_dev;
+	port = &pm8001_ha->port[sas_find_local_port_id(dev)];
 
-		ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, t);
-		if (!ccb) {
-			rc = -SAS_QUEUE_FULL;
-			goto err_out;
-		}
-
-		if (!sas_protocol_ata(task_proto)) {
-			if (t->num_scatter) {
-				n_elem = dma_map_sg(pm8001_ha->dev,
-					t->scatter,
-					t->num_scatter,
-					t->data_dir);
-				if (!n_elem) {
-					rc = -ENOMEM;
-					goto err_out_ccb;
-				}
-			}
+	if (DEV_IS_GONE(pm8001_dev) || !port->port_attached) {
+		ts->resp = SAS_TASK_UNDELIVERED;
+		ts->stat = SAS_PHY_DOWN;
+		if (sas_protocol_ata(task_proto)) {
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			task->task_done(task);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 		} else {
-			n_elem = t->num_scatter;
+			task->task_done(task);
 		}
+		rc = -ENODEV;
+		goto err_out;
+	}
 
-		t->lldd_task = ccb;
-		ccb->n_elem = n_elem;
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, task);
+	if (!ccb) {
+		rc = -SAS_QUEUE_FULL;
+		goto err_out;
+	}
 
-		switch (task_proto) {
-		case SAS_PROTOCOL_SMP:
-			atomic_inc(&pm8001_dev->running_req);
-			rc = pm8001_task_prep_smp(pm8001_ha, ccb);
-			break;
-		case SAS_PROTOCOL_SSP:
-			atomic_inc(&pm8001_dev->running_req);
-			if (is_tmf)
-				rc = pm8001_task_prep_ssp_tm(pm8001_ha,
-					ccb, tmf);
-			else
-				rc = pm8001_task_prep_ssp(pm8001_ha, ccb);
-			break;
-		case SAS_PROTOCOL_SATA:
-		case SAS_PROTOCOL_STP:
-			atomic_inc(&pm8001_dev->running_req);
-			rc = pm8001_task_prep_ata(pm8001_ha, ccb);
-			break;
-		default:
-			dev_printk(KERN_ERR, pm8001_ha->dev,
-				"unknown sas_task proto: 0x%x\n", task_proto);
-			rc = -EINVAL;
-			break;
+	if (!sas_protocol_ata(task_proto)) {
+		if (task->num_scatter) {
+			n_elem = dma_map_sg(pm8001_ha->dev, task->scatter,
+					    task->num_scatter, task->data_dir);
+			if (!n_elem) {
+				rc = -ENOMEM;
+				goto err_out_ccb;
+			}
 		}
+	} else {
+		n_elem = task->num_scatter;
+	}
 
-		if (rc) {
-			pm8001_dbg(pm8001_ha, IO, "rc is %x\n", rc);
-			atomic_dec(&pm8001_dev->running_req);
-			goto err_out_ccb;
-		}
-		/* TODO: select normal or high priority */
-	} while (0);
-	rc = 0;
-	goto out_done;
+	task->lldd_task = ccb;
+	ccb->n_elem = n_elem;
 
+	atomic_inc(&pm8001_dev->running_req);
+
+	switch (task_proto) {
+	case SAS_PROTOCOL_SMP:
+		rc = pm8001_task_prep_smp(pm8001_ha, ccb);
+		break;
+	case SAS_PROTOCOL_SSP:
+		if (is_tmf)
+			rc = pm8001_task_prep_ssp_tm(pm8001_ha, ccb, tmf);
+		else
+			rc = pm8001_task_prep_ssp(pm8001_ha, ccb);
+		break;
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+		rc = pm8001_task_prep_ata(pm8001_ha, ccb);
+		break;
+	default:
+		dev_printk(KERN_ERR, pm8001_ha->dev,
+			   "unknown sas_task proto: 0x%x\n", task_proto);
+		rc = -EINVAL;
+		break;
+	}
+
+	if (rc) {
+		atomic_dec(&pm8001_dev->running_req);
+		if (!sas_protocol_ata(task_proto) && n_elem)
+			dma_unmap_sg(pm8001_ha->dev, task->scatter,
+				     task->num_scatter, task->data_dir);
 err_out_ccb:
-	pm8001_ccb_free(pm8001_ha, ccb);
+		pm8001_ccb_free(pm8001_ha, ccb);
+
 err_out:
-	dev_printk(KERN_ERR, pm8001_ha->dev, "pm8001 exec failed[%d]!\n", rc);
-	if (!sas_protocol_ata(task_proto))
-		if (n_elem)
-			dma_unmap_sg(pm8001_ha->dev, t->scatter, t->num_scatter,
-				t->data_dir);
-out_done:
+		pm8001_dbg(pm8001_ha, IO, "pm8001_task_exec failed[%d]!\n", rc);
+	}
+
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+
 	return rc;
 }
 
