@@ -244,7 +244,7 @@ err_clk_prepared:
 }
 
 /**
- * qfprom_efuse_reg_write() - Write to fuses.
+ * qfprom_reg_write() - Write to fuses.
  * @context: Our driver data.
  * @reg:     The offset to write at.
  * @_val:    Pointer to data to write.
