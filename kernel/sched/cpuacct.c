@@ -352,10 +352,8 @@ void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {
 	struct cpuacct *ca;
 
-	rcu_read_lock();
 	for (ca = task_ca(tsk); ca != &root_cpuacct; ca = parent_ca(ca))
 		__this_cpu_add(ca->cpustat->cpustat[index], val);
-	rcu_read_unlock();
 }
 
 struct cgroup_subsys cpuacct_cgrp_subsys = {
