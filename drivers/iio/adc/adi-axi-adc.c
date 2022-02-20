@@ -86,7 +86,7 @@ void *adi_axi_adc_conv_priv(struct adi_axi_adc_conv *conv)
 
 	return (char *)cl + ALIGN(sizeof(struct adi_axi_adc_client), IIO_ALIGN);
 }
-EXPORT_SYMBOL_GPL(adi_axi_adc_conv_priv);
+EXPORT_SYMBOL_NS_GPL(adi_axi_adc_conv_priv, IIO_ADI_AXI);
 
 static void adi_axi_adc_write(struct adi_axi_adc_state *st,
 			      unsigned int reg,
@@ -224,7 +224,7 @@ struct adi_axi_adc_conv *devm_adi_axi_adc_conv_register(struct device *dev,
 
 	return conv;
 }
-EXPORT_SYMBOL_GPL(devm_adi_axi_adc_conv_register);
+EXPORT_SYMBOL_NS_GPL(devm_adi_axi_adc_conv_register, IIO_ADI_AXI);
 
 static ssize_t in_voltage_scale_available_show(struct device *dev,
 					       struct device_attribute *attr,
