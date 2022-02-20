@@ -133,12 +133,12 @@ static int psp_early_init(void *handle)
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 8):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
 	case IP_VERSION(11, 0, 8):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2 ||
-		    adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 4)) {
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
 			psp_v11_0_8_set_psp_funcs(psp);
 			psp->autoload_supported = false;
 		}

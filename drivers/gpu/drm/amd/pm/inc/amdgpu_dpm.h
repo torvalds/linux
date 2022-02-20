@@ -293,6 +293,18 @@ struct amdgpu_smu_i2c_bus {
 	struct mutex mutex;
 };
 
+struct config_table_setting
+{
+	uint16_t gfxclk_average_tau;
+	uint16_t socclk_average_tau;
+	uint16_t uclk_average_tau;
+	uint16_t gfx_activity_average_tau;
+	uint16_t mem_activity_average_tau;
+	uint16_t socket_power_average_tau;
+	uint16_t apu_socket_power_average_tau;
+	uint16_t fclk_average_tau;
+};
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -341,6 +353,8 @@ struct amdgpu_pm {
 
 	struct mutex            stable_pstate_ctx_lock;
 	struct amdgpu_ctx       *stable_pstate_ctx;
+
+	struct config_table_setting config_table;
 };
 
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,

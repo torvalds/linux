@@ -1033,7 +1033,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.optimize_edp_link_rate = true,
 	.enable_sw_cntl_psr = true,
 	.apply_vendor_specific_lttpr_wa = true,
-	.enable_z9_disable_interface = false
+	.enable_z9_disable_interface = true, /* Allow support for the PMFW interface for disable Z9*/
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

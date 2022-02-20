@@ -1232,8 +1232,10 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	if (adev->umc.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
 
-		strcpy(adev->umc.ras->ras_block.name, "umc");
-		adev->umc.ras->ras_block.block = AMDGPU_RAS_BLOCK__UMC;
+		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
 		if (!adev->umc.ras->ras_block.ras_late_init)
@@ -1242,6 +1244,10 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		/* If don't define special ras_fini function, use default ras_fini */
 		if (!adev->umc.ras->ras_block.ras_fini)
 				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
+
+		/* If not defined special ras_cb function, use default ras_cb */
+		if (!adev->umc.ras->ras_block.ras_cb)
+			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
 	}
 }
 
@@ -1280,12 +1286,10 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 	if (adev->mmhub.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->mmhub.ras->ras_block);
 
-		strcpy(adev->mmhub.ras->ras_block.name,"mmhub");
-		adev->mmhub.ras->ras_block.block = AMDGPU_RAS_BLOCK__MMHUB;
-
-		/* If don't define special ras_late_init function, use default ras_late_init */
-		if (!adev->mmhub.ras->ras_block.ras_late_init)
-			adev->mmhub.ras->ras_block.ras_late_init = amdgpu_mmhub_ras_late_init;
+		strcpy(adev->mmhub.ras->ras_block.ras_comm.name, "mmhub");
+		adev->mmhub.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MMHUB;
+		adev->mmhub.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->mmhub.ras_if = &adev->mmhub.ras->ras_block.ras_comm;
 
 		/* If don't define special ras_fini function, use default ras_fini */
 		if (!adev->mmhub.ras->ras_block.ras_fini)
@@ -1302,6 +1306,7 @@ static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
 {
 	adev->hdp.ras = &hdp_v4_0_ras;
 	amdgpu_ras_register_ras_block(adev, &adev->hdp.ras->ras_block);
+	adev->hdp.ras_if = &adev->hdp.ras->ras_block.ras_comm;
 }
 
 static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)

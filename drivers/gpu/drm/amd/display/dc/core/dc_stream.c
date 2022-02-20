@@ -737,5 +737,21 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 	DC_LOG_DC(
 			"\tlink: %d\n",
 			stream->link->link_index);
+
+	DC_LOG_DC(
+			"\tdsc: %d, mst_pbn: %d\n",
+			stream->timing.flags.DSC,
+			stream->timing.dsc_cfg.mst_pbn);
+
+	if (stream->sink) {
+		if (stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+			stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
+
+			DC_LOG_DC(
+					"\tdispname: %s signal: %x\n",
+					stream->sink->edid_caps.display_name,
+					stream->signal);
+		}
+	}
 }
 

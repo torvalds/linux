@@ -227,7 +227,6 @@ enum {
 #endif
 
 #define FAMILY_YELLOW_CARP                     146
-
 #define YELLOW_CARP_A0 0x01
 #define YELLOW_CARP_B0 0x20
 #define YELLOW_CARP_UNKNOWN 0xFF
@@ -236,6 +235,11 @@ enum {
 #define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKNOWN))
 #endif
 
+#define AMDGPU_FAMILY_GC_10_3_7                151
+#define GC_10_3_7_A0 0x01
+#define GC_10_3_7_UNKNOWN 0xFF
+
+#define ASICREV_IS_GC_10_3_7(eChipRev) ((eChipRev >= GC_10_3_7_A0) && (eChipRev < GC_10_3_7_UNKNOWN))
 
 /*
  * ASIC chip ID

@@ -672,8 +672,10 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 	if (adev->umc.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
 
-		strcpy(adev->umc.ras->ras_block.name, "umc");
-		adev->umc.ras->ras_block.block = AMDGPU_RAS_BLOCK__UMC;
+		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
 		if (!adev->umc.ras->ras_block.ras_late_init)
@@ -682,6 +684,10 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		/* If don't define special ras_fini function, use default ras_fini */
 		if (!adev->umc.ras->ras_block.ras_fini)
 				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
+
+		/* If not defined special ras_cb function, use default ras_cb */
+		if (!adev->umc.ras->ras_block.ras_cb)
+			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
 	}
 }
 
@@ -691,6 +697,7 @@ static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
 	case IP_VERSION(2, 3, 0):
 	case IP_VERSION(2, 4, 0):
+	case IP_VERSION(2, 4, 1):
 		adev->mmhub.funcs = &mmhub_v2_3_funcs;
 		break;
 	default:
@@ -707,7 +714,9 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
+	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		adev->gfxhub.funcs = &gfxhub_v2_1_funcs;
 		break;
 	default:
@@ -887,7 +896,9 @@ static int gmc_v10_0_sw_init(void *handle)
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
+	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,

@@ -3430,6 +3430,54 @@ static int navi10_post_smu_init(struct smu_context *smu)
 	return ret;
 }
 
+static int navi10_get_default_config_table_settings(struct smu_context *smu,
+						    struct config_table_setting *table)
+{
+	if (!table)
+		return -EINVAL;
+
+	table->gfxclk_average_tau = 10;
+	table->socclk_average_tau = 10;
+	table->uclk_average_tau = 10;
+	table->gfx_activity_average_tau = 10;
+	table->mem_activity_average_tau = 10;
+	table->socket_power_average_tau = 10;
+
+	return 0;
+}
+
+static int navi10_set_config_table(struct smu_context *smu,
+				   struct config_table_setting *table)
+{
+	DriverSmuConfig_t driver_smu_config_table;
+
+	if (!table)
+		return -EINVAL;
+
+	memset(&driver_smu_config_table,
+	       0,
+	       sizeof(driver_smu_config_table));
+
+	driver_smu_config_table.GfxclkAverageLpfTau =
+				table->gfxclk_average_tau;
+	driver_smu_config_table.SocclkAverageLpfTau =
+				table->socclk_average_tau;
+	driver_smu_config_table.UclkAverageLpfTau =
+				table->uclk_average_tau;
+	driver_smu_config_table.GfxActivityLpfTau =
+				table->gfx_activity_average_tau;
+	driver_smu_config_table.UclkActivityLpfTau =
+				table->mem_activity_average_tau;
+	driver_smu_config_table.SocketPowerLpfTau =
+				table->socket_power_average_tau;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_DRIVER_SMU_CONFIG,
+				    0,
+				    (void *)&driver_smu_config_table,
+				    true);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
@@ -3519,6 +3567,8 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.post_init = navi10_post_smu_init,
 	.interrupt_work = smu_v11_0_interrupt_work,
 	.set_mp1_state = smu_cmn_set_mp1_state,
+	.get_default_config_table_settings = navi10_get_default_config_table_settings,
+	.set_config_table = navi10_set_config_table,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

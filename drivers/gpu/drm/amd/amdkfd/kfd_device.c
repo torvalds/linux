@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -438,7 +439,8 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 	return ret;
 }
 
-static void kfd_smi_init(struct kfd_dev *dev) {
+static void kfd_smi_init(struct kfd_dev *dev)
+{
 	INIT_LIST_HEAD(&dev->smi_clients);
 	spin_lock_init(&dev->smi_lock);
 }
@@ -571,7 +573,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_migrate_init(kfd->adev);
 
-	if(kgd2kfd_resume_iommu(kfd))
+	if (kgd2kfd_resume_iommu(kfd))
 		goto device_iommu_error;
 
 	if (kfd_resume(kfd))

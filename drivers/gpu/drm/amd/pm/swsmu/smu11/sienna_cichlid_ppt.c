@@ -348,7 +348,7 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->dc_controlled_by_gpio)
        *(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
 
-	if (amdgpu_aspm)
+	if (amdgpu_device_should_use_aspm(adev))
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_LCLK_BIT);
 
 	return 0;
@@ -428,6 +428,36 @@ static int sienna_cichlid_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
+static int sienna_cichlid_patch_pptable_quirk(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t *board_reserved;
+	uint16_t *freq_table_gfx;
+	uint32_t i;
+
+	/* Fix some OEM SKU specific stability issues */
+	GET_PPTABLE_MEMBER(BoardReserved, &board_reserved);
+	if ((adev->pdev->device == 0x73DF) &&
+	    (adev->pdev->revision == 0XC3) &&
+	    (adev->pdev->subsystem_device == 0x16C2) &&
+	    (adev->pdev->subsystem_vendor == 0x1043))
+		board_reserved[0] = 1387;
+
+	GET_PPTABLE_MEMBER(FreqTableGfx, &freq_table_gfx);
+	if ((adev->pdev->device == 0x73DF) &&
+	    (adev->pdev->revision == 0XC3) &&
+	    ((adev->pdev->subsystem_device == 0x16C2) ||
+	    (adev->pdev->subsystem_device == 0x133C)) &&
+	    (adev->pdev->subsystem_vendor == 0x1043)) {
+		for (i = 0; i < NUM_GFXCLK_DPM_LEVELS; i++) {
+			if (freq_table_gfx[i] > 2500)
+				freq_table_gfx[i] = 2500;
+		}
+	}
+
+	return 0;
+}
+
 static int sienna_cichlid_setup_pptable(struct smu_context *smu)
 {
 	int ret = 0;
@@ -448,7 +478,7 @@ static int sienna_cichlid_setup_pptable(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	return ret;
+	return sienna_cichlid_patch_pptable_quirk(smu);
 }
 
 static int sienna_cichlid_tables_init(struct smu_context *smu)
@@ -3925,6 +3955,58 @@ static void sienna_cichlid_stb_init(struct smu_context *smu)
 
 }
 
+static int sienna_cichlid_get_default_config_table_settings(struct smu_context *smu,
+							    struct config_table_setting *table)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!table)
+		return -EINVAL;
+
+	table->gfxclk_average_tau = 10;
+	table->socclk_average_tau = 10;
+	table->fclk_average_tau = 10;
+	table->uclk_average_tau = 10;
+	table->gfx_activity_average_tau = 10;
+	table->mem_activity_average_tau = 10;
+	table->socket_power_average_tau = 100;
+	if (adev->asic_type != CHIP_SIENNA_CICHLID)
+		table->apu_socket_power_average_tau = 100;
+
+	return 0;
+}
+
+static int sienna_cichlid_set_config_table(struct smu_context *smu,
+					   struct config_table_setting *table)
+{
+	DriverSmuConfigExternal_t driver_smu_config_table;
+
+	if (!table)
+		return -EINVAL;
+
+	memset(&driver_smu_config_table,
+	       0,
+	       sizeof(driver_smu_config_table));
+	driver_smu_config_table.DriverSmuConfig.GfxclkAverageLpfTau =
+				table->gfxclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.FclkAverageLpfTau =
+				table->fclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.UclkAverageLpfTau =
+				table->uclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.GfxActivityLpfTau =
+				table->gfx_activity_average_tau;
+	driver_smu_config_table.DriverSmuConfig.UclkActivityLpfTau =
+				table->mem_activity_average_tau;
+	driver_smu_config_table.DriverSmuConfig.SocketPowerLpfTau =
+				table->socket_power_average_tau;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_DRIVER_SMU_CONFIG,
+				    0,
+				    (void *)&driver_smu_config_table,
+				    true);
+}
+
 static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 					      void *buf,
 					      uint32_t size)
@@ -4039,6 +4121,8 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_mp1_state = sienna_cichlid_set_mp1_state,
 	.stb_collect_info = sienna_cichlid_stb_get_data_direct,
 	.get_ecc_info = sienna_cichlid_get_ecc_info,
+	.get_default_config_table_settings = sienna_cichlid_get_default_config_table_settings,
+	.set_config_table = sienna_cichlid_set_config_table,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

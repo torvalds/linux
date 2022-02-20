@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -328,6 +329,7 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			struct queue_properties *q)
 {
 	struct vi_mqd *m;
+
 	init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 
 	m = get_mqd(*mqd);

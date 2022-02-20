@@ -2195,8 +2195,10 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			return err;
 		}
 
-		strcpy(adev->gfx.ras->ras_block.name,"gfx");
-		adev->gfx.ras->ras_block.block = AMDGPU_RAS_BLOCK__GFX;
+		strcpy(adev->gfx.ras->ras_block.ras_comm.name, "gfx");
+		adev->gfx.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__GFX;
+		adev->gfx.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gfx.ras_if = &adev->gfx.ras->ras_block.ras_comm;
 
 		/* If not define special ras_late_init function, use gfx default ras_late_init */
 		if (!adev->gfx.ras->ras_block.ras_late_init)
@@ -2205,6 +2207,10 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		/* If not define special ras_fini function, use gfx default ras_fini */
 		if (!adev->gfx.ras->ras_block.ras_fini)
 			adev->gfx.ras->ras_block.ras_fini = amdgpu_gfx_ras_fini;
+
+		/* If not defined special ras_cb function, use default ras_cb */
+		if (!adev->gfx.ras->ras_block.ras_cb)
+			adev->gfx.ras->ras_block.ras_cb = amdgpu_gfx_process_ras_data_cb;
 	}
 
 	adev->gfx.config.gb_addr_config = gb_addr_config;
@@ -4784,12 +4790,6 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 
 	if (r)
 		return r;
-
-	if (adev->gfx.ras && adev->gfx.ras->ras_block.ras_late_init) {
-		r = adev->gfx.ras->ras_block.ras_late_init(adev, NULL);
-		if (r)
-			return r;
-	}
 
 	if (adev->gfx.ras &&
 	    adev->gfx.ras->enable_watchdog_timer)

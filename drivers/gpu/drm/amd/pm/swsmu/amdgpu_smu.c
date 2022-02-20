@@ -532,6 +532,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 8):
 		yellow_carp_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(11, 0, 8):
@@ -609,6 +610,18 @@ err_out:
 	return ret;
 }
 
+static int smu_apply_default_config_table_settings(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	ret = smu_get_default_config_table_settings(smu,
+						    &adev->pm.config_table);
+	if (ret)
+		return ret;
+
+	return smu_set_config_table(smu, &adev->pm.config_table);
+}
 
 static int smu_late_init(void *handle)
 {
@@ -662,6 +675,12 @@ static int smu_late_init(void *handle)
 	smu_handle_task(smu,
 			smu->smu_dpm.dpm_level,
 			AMD_PP_TASK_COMPLETE_INIT);
+
+	ret = smu_apply_default_config_table_settings(smu);
+	if (ret && (ret != -EOPNOTSUPP)) {
+		dev_err(adev->dev, "Failed to apply default DriverSmuConfig settings!\n");
+		return ret;
+	}
 
 	smu_restore_dpm_user_profile(smu);
 

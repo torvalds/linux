@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -676,9 +677,9 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q,
 		}
 
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
-				(dqm->dev->cwsr_enabled?
-				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE:
-				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
+				(dqm->dev->cwsr_enabled ?
+				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE :
+				 KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
 		if (retval) {
 			pr_err("destroy mqd failed\n");
@@ -771,9 +772,9 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 			continue;
 
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
-				(dqm->dev->cwsr_enabled?
-				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE:
-				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
+				(dqm->dev->cwsr_enabled ?
+				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE :
+				 KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
 		if (retval && !ret)
 			/* Return the first error, but keep going to
@@ -1098,7 +1099,7 @@ static int start_nocpsch(struct device_queue_manager *dqm)
 
 	pr_info("SW scheduler is used");
 	init_interrupts(dqm);
-	
+
 	if (dqm->dev->adev->asic_type == CHIP_HAWAII)
 		r = pm_init(&dqm->packet_mgr, dqm);
 	if (!r)
@@ -1554,8 +1555,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	if (!dqm->active_runlist)
 		return retval;
 
-	retval = pm_send_unmap_queue(&dqm->packet_mgr, KFD_QUEUE_TYPE_COMPUTE,
-			filter, filter_param, reset, 0);
+	retval = pm_send_unmap_queue(&dqm->packet_mgr, filter, filter_param, reset);
 	if (retval)
 		return retval;
 
@@ -2234,8 +2234,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	int r = 0;
 
 	if (!dqm->sched_running) {
-		seq_printf(m, " Device is stopped\n");
-
+		seq_puts(m, " Device is stopped\n");
 		return 0;
 	}
 

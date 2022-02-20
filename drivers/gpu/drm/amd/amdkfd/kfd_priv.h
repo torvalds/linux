@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -359,20 +360,20 @@ struct device *kfd_chardev(void);
 /**
  * enum kfd_unmap_queues_filter - Enum for queue filters.
  *
- * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
- *
  * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
+ *
+ * @KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES: Preempts all non-static queues
+ *						in the run list.
  *
  * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
  *						specific process.
  *
  */
 enum kfd_unmap_queues_filter {
-	KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE,
-	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES,
-	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
-	KFD_UNMAP_QUEUES_FILTER_BY_PASID
+	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES = 1,
+	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES = 2,
+	KFD_UNMAP_QUEUES_FILTER_BY_PASID = 3
 };
 
 /**
@@ -793,7 +794,7 @@ struct svm_range_list {
 	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
-	struct task_struct 		*faulting_task;
+	struct task_struct		*faulting_task;
 };
 
 /* Process data */
@@ -914,7 +915,7 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev);
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
-struct kfd_process *kfd_get_process(const struct task_struct *);
+struct kfd_process *kfd_get_process(const struct task_struct *task);
 struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
@@ -1083,7 +1084,7 @@ struct kfd_criu_svm_range_priv_data {
 	uint64_t start_addr;
 	uint64_t size;
 	/* Variable length array of attributes */
-	struct kfd_ioctl_svm_attribute attrs[0];
+	struct kfd_ioctl_svm_attribute attrs[];
 };
 
 struct kfd_criu_queue_priv_data {
@@ -1246,10 +1247,8 @@ struct packet_manager_funcs {
 	int (*map_queues)(struct packet_manager *pm, uint32_t *buffer,
 			struct queue *q, bool is_static);
 	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
-			enum kfd_queue_type type,
 			enum kfd_unmap_queues_filter mode,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine);
+			uint32_t filter_param, bool reset);
 	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t fence_address,	uint64_t fence_value);
 	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
@@ -1276,10 +1275,9 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues);
 int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 				uint64_t fence_value);
 
-int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
+int pm_send_unmap_queue(struct packet_manager *pm,
 			enum kfd_unmap_queues_filter mode,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine);
+			uint32_t filter_param, bool reset);
 
 void pm_release_ib(struct packet_manager *pm);
 

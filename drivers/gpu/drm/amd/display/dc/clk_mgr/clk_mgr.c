@@ -43,6 +43,7 @@
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dcn301/vg_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
+#include "dcn316/dcn316_clk_mgr.h"
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -289,6 +290,17 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		dcn31_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		return &clk_mgr->base.base;
 	}
+	case AMDGPU_FAMILY_GC_10_3_7: {
+		struct clk_mgr_dcn316 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
+		dcn316_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base.base;
+	}
 #endif
 
 	default:
@@ -323,6 +335,10 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 
 	case FAMILY_YELLOW_CARP:
 			dcn31_clk_mgr_destroy(clk_mgr);
+		break;
+
+	case AMDGPU_FAMILY_GC_10_3_7:
+			dcn316_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

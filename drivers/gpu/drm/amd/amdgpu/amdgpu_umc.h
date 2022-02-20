@@ -72,7 +72,7 @@ struct amdgpu_umc {
 	struct amdgpu_umc_ras *ras;
 };
 
-int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_info);
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 void amdgpu_umc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 		void *ras_error_status,
@@ -85,4 +85,8 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t retired_page,
 		uint32_t channel_index,
 		uint32_t umc_inst);
+
+int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
+		struct amdgpu_iv_entry *entry);
 #endif
