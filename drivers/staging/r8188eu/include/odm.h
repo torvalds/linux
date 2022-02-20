@@ -164,12 +164,6 @@ enum odm_wireless_mode {
 	ODM_WM_AUTO	= BIT(5),
 };
 
-/*  ODM_CMNINFO_BW */
-enum odm_bw {
-	ODM_BW20M		= 0,
-	ODM_BW40M		= 1,
-};
-
 struct odm_ra_info {
 	u8 RateID;
 	u32 RateMask;

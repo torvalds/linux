@@ -266,7 +266,7 @@ static void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
 	u8 i;
 	struct sta_info *pEntry;
 
-	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
+	if (*pDM_Odm->pBandWidth == HT_CHANNEL_WIDTH_40) {
 		if (*pDM_Odm->pSecChOffset == 1)
 			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
 		else if (*pDM_Odm->pSecChOffset == 2)
@@ -766,7 +766,7 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 			rate_bitmap = 0x000ff000;
 		} else {
-			if (*pDM_Odm->pBandWidth == ODM_BW40M)
+			if (*pDM_Odm->pBandWidth == HT_CHANNEL_WIDTH_40)
 				rate_bitmap = 0x000ff015;
 			else
 				rate_bitmap = 0x000ff005;
