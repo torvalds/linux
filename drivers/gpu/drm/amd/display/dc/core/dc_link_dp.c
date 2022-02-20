@@ -347,29 +347,6 @@ static void vendor_specific_lttpr_wa_one_start(struct dc_link *link)
 			sizeof(vendor_lttpr_write_data));
 }
 
-static void vendor_specific_lttpr_wa_one_end(
-	struct dc_link *link,
-	uint8_t retry_count)
-{
-	const uint8_t vendor_lttpr_write_data[4] = {0x1, 0x50, 0x63, 0x0};
-	const uint8_t offset = dp_convert_to_count(
-			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
-	uint32_t vendor_lttpr_write_address = 0xF004F;
-
-	if (!retry_count) {
-		if (offset != 0xFF)
-			vendor_lttpr_write_address +=
-					((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
-
-		/* W/A for certain LTTPR to reset their lane settings, part two of two */
-		core_link_write_dpcd(
-				link,
-				vendor_lttpr_write_address,
-				&vendor_lttpr_write_data[0],
-				sizeof(vendor_lttpr_write_data));
-	}
-}
-
 static void vendor_specific_lttpr_wa_one_two(
 	struct dc_link *link,
 	const uint8_t rate)
@@ -396,9 +373,9 @@ static void vendor_specific_lttpr_wa_one_two(
 	}
 }
 
-static void vendor_specific_lttpr_wa_three(
+static void dp_fixed_vs_pe_read_lane_adjust(
 	struct dc_link *link,
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX])
+	union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX])
 {
 	const uint8_t vendor_lttpr_write_data_vs[3] = {0x0, 0x53, 0x63};
 	const uint8_t vendor_lttpr_write_data_pe[3] = {0x0, 0x54, 0x63};
@@ -440,23 +417,8 @@ static void vendor_specific_lttpr_wa_three(
 			1);
 
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
-		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_LANE = (dprx_vs >> (2 * lane)) & 0x3;
-		dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_LANE = (dprx_pe >> (2 * lane)) & 0x3;
-	}
-}
-
-static void vendor_specific_lttpr_wa_three_dpcd(
-	struct dc_link *link,
-	union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX])
-{
-	union lane_adjust lane_adjust[LANE_COUNT_DP_MAX];
-	uint8_t lane = 0;
-
-	vendor_specific_lttpr_wa_three(link, lane_adjust);
-
-	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
-		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_SET = lane_adjust[lane].bits.VOLTAGE_SWING_LANE;
-		dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_SET = lane_adjust[lane].bits.PRE_EMPHASIS_LANE;
+		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_SET  = (dprx_vs >> (2 * lane)) & 0x3;
+		dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_SET = (dprx_pe >> (2 * lane)) & 0x3;
 	}
 }
 
@@ -1462,13 +1424,6 @@ static enum link_training_result perform_clock_recovery_sequence(
 				&dpcd_lane_status_updated,
 				dpcd_lane_adjust,
 				offset);
-
-		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
-				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-				link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
-			vendor_specific_lttpr_wa_one_end(link, retry_count);
-			vendor_specific_lttpr_wa_three(link, dpcd_lane_adjust);
-		}
 
 		/* 5. check CR done*/
 		if (dp_is_cr_done(lane_count, dpcd_lane_status))
@@ -4136,7 +4091,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
-		vendor_specific_lttpr_wa_three_dpcd(
+		dp_fixed_vs_pe_read_lane_adjust(
 				link,
 				link_training_settings.dpcd_lane_settings);
 
