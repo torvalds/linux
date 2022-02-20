@@ -1336,13 +1336,13 @@ static int __maybe_unused pm8001_pci_resume(struct device *dev)
 	struct pm8001_hba_info *pm8001_ha;
 	int rc;
 	u8 i = 0, j;
-	u32 device_state;
 	DECLARE_COMPLETION_ONSTACK(completion);
-	pm8001_ha = sha->lldd_ha;
-	device_state = pdev->current_state;
 
-	pm8001_info(pm8001_ha, "pdev=0x%p, slot=%s, resuming from previous operating state [D%d]\n",
-		      pdev, pm8001_ha->name, device_state);
+	pm8001_ha = sha->lldd_ha;
+
+	pm8001_info(pm8001_ha,
+		    "pdev=0x%p, slot=%s, resuming from previous operating state [D%d]\n",
+		    pdev, pm8001_ha->name, pdev->current_state);
 
 	rc = pci_go_44(pdev);
 	if (rc)
