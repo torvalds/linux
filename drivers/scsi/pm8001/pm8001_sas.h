@@ -734,6 +734,53 @@ extern const struct attribute_group *pm8001_host_groups[];
 
 #define PM8001_INVALID_TAG	((u32)-1)
 
+/*
+ * Allocate a new tag and return the corresponding ccb after initializing it.
+ */
+static inline struct pm8001_ccb_info *
+pm8001_ccb_alloc(struct pm8001_hba_info *pm8001_ha,
+		 struct pm8001_device *dev, struct sas_task *task)
+{
+	struct pm8001_ccb_info *ccb;
+	u32 tag;
+
+	if (pm8001_tag_alloc(pm8001_ha, &tag)) {
+		pm8001_dbg(pm8001_ha, FAIL, "Failed to allocate a tag\n");
+		return NULL;
+	}
+
+	ccb = &pm8001_ha->ccb_info[tag];
+	ccb->task = task;
+	ccb->n_elem = 0;
+	ccb->ccb_tag = tag;
+	ccb->device = dev;
+	ccb->fw_control_context = NULL;
+	ccb->open_retry = 0;
+
+	return ccb;
+}
+
+/*
+ * Free the tag of an initialized ccb.
+ */
+static inline void pm8001_ccb_free(struct pm8001_hba_info *pm8001_ha,
+				   struct pm8001_ccb_info *ccb)
+{
+	u32 tag = ccb->ccb_tag;
+
+	/*
+	 * Cleanup the ccb to make sure that a manual scan of the adapter
+	 * ccb_info array can detect ccb's that are in use.
+	 * C.f. pm8001_open_reject_retry()
+	 */
+	ccb->task = NULL;
+	ccb->ccb_tag = PM8001_INVALID_TAG;
+	ccb->device = NULL;
+	ccb->fw_control_context = NULL;
+
+	pm8001_tag_free(pm8001_ha, tag);
+}
+
 static inline void
 pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
 			struct sas_task *task, struct pm8001_ccb_info *ccb,
