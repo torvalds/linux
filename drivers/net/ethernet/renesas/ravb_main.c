@@ -475,7 +475,7 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 		goto error;
 
 	for (i = 0; i < priv->num_rx_ring[q]; i++) {
-		skb = netdev_alloc_skb(ndev, info->max_rx_len);
+		skb = __netdev_alloc_skb(ndev, info->max_rx_len, GFP_KERNEL);
 		if (!skb)
 			goto error;
 		ravb_set_buffer_align(skb);
