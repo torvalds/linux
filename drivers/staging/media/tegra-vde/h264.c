@@ -135,7 +135,7 @@ static int tegra_vde_wait_bsev(struct tegra_vde *vde, bool wait_dma)
 		return 0;
 
 	err = readl_relaxed_poll_timeout(vde->bsev + INTR_STATUS, value,
-					 !(value & BSE_DMA_BUSY), 1, 100);
+					 !(value & BSE_DMA_BUSY), 1, 1000);
 	if (err) {
 		dev_err(dev, "BSEV DMA timeout\n");
 		return err;
