@@ -257,6 +257,8 @@ static void mci_release(struct device *dev)
 		}
 		kfree(mci->csrows);
 	}
+	kfree(mci->pvt_info);
+	kfree(mci->layers);
 	kfree(mci);
 }
 
@@ -392,9 +394,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
-	unsigned int idx, size, tot_dimms = 1;
+	unsigned int idx, tot_dimms = 1;
 	unsigned int tot_csrows = 1, tot_channels = 1;
-	void *pvt, *ptr = NULL;
 	bool per_rank = false;
 
 	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
@@ -416,41 +417,25 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 			per_rank = true;
 	}
 
-	/* Figure out the offsets of the various items from the start of an mc
-	 * structure.  We want the alignment of each item to be at least as
-	 * stringent as what the compiler would provide if we could simply
-	 * hardcode everything into a single struct.
-	 */
-	mci	= edac_align_ptr(&ptr, sizeof(*mci), 1);
-	layer	= edac_align_ptr(&ptr, sizeof(*layer), n_layers);
-	pvt	= edac_align_ptr(&ptr, sz_pvt, 1);
-	size	= ((unsigned long)pvt) + sz_pvt;
-
-	edac_dbg(1, "allocating %u bytes for mci data (%d %s, %d csrows/channels)\n",
-		 size,
-		 tot_dimms,
-		 per_rank ? "ranks" : "dimms",
-		 tot_csrows * tot_channels);
-
-	mci = kzalloc(size, GFP_KERNEL);
-	if (mci == NULL)
+	mci = kzalloc(sizeof(struct mem_ctl_info), GFP_KERNEL);
+	if (!mci)
 		return NULL;
+
+	mci->layers = kmalloc_array(n_layers, sizeof(struct edac_mc_layer), GFP_KERNEL | __GFP_ZERO);
+	if (!mci->layers)
+		goto error;
+
+	mci->pvt_info = kzalloc(sz_pvt, GFP_KERNEL);
+	if (!mci->pvt_info)
+		goto error;
 
 	mci->dev.release = mci_release;
 	device_initialize(&mci->dev);
 
-	/* Adjust pointers so they point within the memory we just allocated
-	 * rather than an imaginary chunk of memory located at address 0.
-	 */
-	layer = (struct edac_mc_layer *)(((char *)mci) + ((unsigned long)layer));
-	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
-
 	/* setup index and various internal pointers */
 	mci->mc_idx = mc_num;
 	mci->tot_dimms = tot_dimms;
-	mci->pvt_info = pvt;
 	mci->n_layers = n_layers;
-	mci->layers = layer;
 	memcpy(mci->layers, layers, sizeof(*layer) * n_layers);
 	mci->nr_csrows = tot_csrows;
 	mci->num_cschannel = tot_channels;
