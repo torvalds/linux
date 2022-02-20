@@ -489,22 +489,21 @@ err_out:
 /**
   * pm8001_ccb_task_free - free the sg for ssp and smp command, free the ccb.
   * @pm8001_ha: our hba card information
-  * @ccb: the ccb which attached to ssp task
-  * @task: the task to be free.
-  * @ccb_idx: ccb index.
+  * @ccb: the ccb which attached to ssp task to free
   */
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
-	struct sas_task *task, struct pm8001_ccb_info *ccb, u32 ccb_idx)
+			  struct pm8001_ccb_info *ccb)
 {
+	struct sas_task *task = ccb->task;
 	struct ata_queued_cmd *qc;
 	struct pm8001_device *pm8001_dev;
 
-	if (!ccb->task)
+	if (!task)
 		return;
-	if (!sas_protocol_ata(task->task_proto))
-		if (ccb->n_elem)
-			dma_unmap_sg(pm8001_ha->dev, task->scatter,
-				task->num_scatter, task->data_dir);
+
+	if (!sas_protocol_ata(task->task_proto) && ccb->n_elem)
+		dma_unmap_sg(pm8001_ha->dev, task->scatter,
+			     task->num_scatter, task->data_dir);
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
@@ -523,12 +522,12 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	}
 
 	if (sas_protocol_ata(task->task_proto)) {
-		// For SCSI/ATA commands uldd_task points to ata_queued_cmd
+		/* For SCSI/ATA commands uldd_task points to ata_queued_cmd */
 		qc = task->uldd_task;
 		pm8001_dev = ccb->device;
 		trace_pm80xx_request_complete(pm8001_ha->id,
 			pm8001_dev ? pm8001_dev->attached_phy : PM8001_MAX_PHYS,
-			ccb_idx, 0 /* ctlr_opcode not known */,
+			ccb->ccb_tag, 0 /* ctlr_opcode not known */,
 			qc ? qc->tf.command : 0, // ata opcode
 			pm8001_dev ? atomic_read(&pm8001_dev->running_req) : -1);
 	}
@@ -844,11 +843,11 @@ void pm8001_open_reject_retry(
 				& SAS_TASK_STATE_ABORTED))) {
 			spin_unlock_irqrestore(&task->task_state_lock,
 				flags1);
-			pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb->ccb_tag);
+			pm8001_ccb_task_free(pm8001_ha, ccb);
 		} else {
 			spin_unlock_irqrestore(&task->task_state_lock,
 				flags1);
-			pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb->ccb_tag);
+			pm8001_ccb_task_free(pm8001_ha, ccb);
 			mb();/* in order to force CPU ordering */
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			task->task_done(task);
