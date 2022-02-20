@@ -1000,6 +1000,8 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 			if (res == -EBADCOOKIE || res == -ENOTSYNC) {
 				invalidate_inode_pages2(desc->file->f_mapping);
 				desc->page_index = 0;
+				trace_nfs_readdir_invalidate_cache_range(
+					inode, 0, MAX_LFS_FILESIZE);
 				return -EAGAIN;
 			}
 			return res;
@@ -1014,6 +1016,9 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 			invalidate_inode_pages2_range(desc->file->f_mapping,
 						      desc->page_index_max + 1,
 						      -1);
+			trace_nfs_readdir_invalidate_cache_range(
+				inode, desc->page_index_max + 1,
+				MAX_LFS_FILESIZE);
 		}
 	}
 	res = nfs_readdir_search_array(desc);
@@ -1163,7 +1168,11 @@ static void nfs_readdir_handle_cache_misses(struct inode *inode,
 	if (desc->ctx->pos == 0 ||
 	    cache_misses <= NFS_READDIR_CACHE_MISS_THRESHOLD)
 		return;
-	invalidate_mapping_pages(inode->i_mapping, page_index + 1, -1);
+	if (invalidate_mapping_pages(inode->i_mapping, page_index + 1, -1) == 0)
+		return;
+	trace_nfs_readdir_invalidate_cache_range(
+		inode, (loff_t)(page_index + 1) << PAGE_SHIFT,
+		MAX_LFS_FILESIZE);
 }
 
 /* The file offset position represents the dirent entry number.  A
