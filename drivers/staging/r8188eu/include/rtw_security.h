@@ -215,20 +215,6 @@ struct mic_data {
 	u32  nBytesInM;      /*  # bytes in M */
 };
 
-extern const u32 Te0[256];
-extern const u32 Te1[256];
-extern const u32 Te2[256];
-extern const u32 Te3[256];
-extern const u32 Te4[256];
-extern const u32 Td0[256];
-extern const u32 Td1[256];
-extern const u32 Td2[256];
-extern const u32 Td3[256];
-extern const u32 Td4[256];
-extern const u32 rcon[10];
-extern const u8 Td4s[256];
-extern const u8 rcons[10];
-
 void rtw_secmicsetkey(struct mic_data *pmicdata, u8 *key);
 void rtw_secmicappendbyte(struct mic_data *pmicdata, u8 b);
 void rtw_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nBytes);
