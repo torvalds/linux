@@ -1378,8 +1378,7 @@ void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
 
 	if (pregistrypriv->wifi_spec == 1) {
 		struct wifidirect_info *pwdinfo = &adapter->wdinfo;
-		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-		{
+		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
 			/* auto site survey */
 			rtw_auto_scan_handler(adapter);
 		}
