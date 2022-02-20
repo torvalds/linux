@@ -853,7 +853,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	bcn = kzalloc(sizeof(*bcn) + head_len + tail_len, GFP_KERNEL);
 	/* need an skb for IE builders to operate on */
-	skb = dev_alloc_skb(max(head_len, tail_len));
+	skb = __dev_alloc_skb(max(head_len, tail_len), GFP_KERNEL);
 
 	if (!bcn || !skb)
 		goto out_free;
