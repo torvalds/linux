@@ -362,6 +362,7 @@ enum skb_drop_reason {
 					 * backlog (see
 					 * LINUX_MIB_TCPBACKLOGDROP)
 					 */
+	SKB_DROP_REASON_TCP_FLAGS,	/* TCP flags invalid */
 	SKB_DROP_REASON_MAX,
 };
 
