@@ -60,7 +60,7 @@ void tegra_vde_iommu_unmap(struct tegra_vde *vde, struct iova *iova)
 
 int tegra_vde_iommu_init(struct tegra_vde *vde)
 {
-	struct device *dev = vde->miscdev.parent;
+	struct device *dev = vde->dev;
 	struct iova *iova;
 	unsigned long order;
 	unsigned long shift;

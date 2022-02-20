@@ -66,9 +66,9 @@ int tegra_vde_dmabuf_cache_map(struct tegra_vde *vde,
 			       struct dma_buf_attachment **ap,
 			       dma_addr_t *addrp)
 {
-	struct device *dev = vde->miscdev.parent;
 	struct dma_buf_attachment *attachment;
 	struct tegra_vde_cache_entry *entry;
+	struct device *dev = vde->dev;
 	struct sg_table *sgt;
 	struct iova *iova;
 	int err;

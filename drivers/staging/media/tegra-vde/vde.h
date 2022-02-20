@@ -12,7 +12,6 @@
 #include <linux/dma-direction.h>
 #include <linux/iova.h>
 #include <linux/list.h>
-#include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -107,7 +106,6 @@ struct tegra_vde {
 	struct mutex lock;
 	struct mutex map_lock;
 	struct list_head map_list;
-	struct miscdevice miscdev;
 	struct reset_control *rst;
 	struct reset_control *rst_mc;
 	struct gen_pool *iram_pool;
@@ -183,15 +181,6 @@ u32 tegra_vde_readl(struct tegra_vde *vde, void __iomem *base, u32 offset);
 void tegra_vde_set_bits(struct tegra_vde *vde, u32 mask, void __iomem *base,
 			u32 offset);
 
-int tegra_vde_validate_h264_frame(struct device *dev,
-				  struct tegra_vde_h264_frame *frame);
-int tegra_vde_validate_h264_ctx(struct device *dev,
-				struct tegra_vde_h264_decoder_ctx *ctx);
-int tegra_vde_decode_h264(struct tegra_vde *vde,
-			  struct tegra_vde_h264_decoder_ctx *ctx,
-			  struct tegra_video_frame *dpb_frames,
-			  dma_addr_t bitstream_data_addr,
-			  size_t bitstream_data_size);
 int tegra_vde_h264_decode_run(struct tegra_ctx *ctx);
 int tegra_vde_h264_decode_wait(struct tegra_ctx *ctx);
 

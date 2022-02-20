@@ -14,8 +14,35 @@
 #include <media/v4l2-h264.h>
 
 #include "trace.h"
-#include "uapi.h"
 #include "vde.h"
+
+#define FLAG_B_FRAME		0x1
+#define FLAG_REFERENCE		0x2
+
+struct tegra_vde_h264_frame {
+	unsigned int frame_num;
+	unsigned int flags;
+};
+
+struct tegra_vde_h264_decoder_ctx {
+	unsigned int dpb_frames_nb;
+	unsigned int dpb_ref_frames_with_earlier_poc_nb;
+	unsigned int baseline_profile;
+	unsigned int level_idc;
+	unsigned int log2_max_pic_order_cnt_lsb;
+	unsigned int log2_max_frame_num;
+	unsigned int pic_order_cnt_type;
+	unsigned int direct_8x8_inference_flag;
+	unsigned int pic_width_in_mbs;
+	unsigned int pic_height_in_mbs;
+	unsigned int pic_init_qp;
+	unsigned int deblocking_filter_control_present_flag;
+	unsigned int constrained_intra_pred_flag;
+	unsigned int chroma_qp_index_offset;
+	unsigned int pic_order_present_flag;
+	unsigned int num_ref_idx_l0_active_minus1;
+	unsigned int num_ref_idx_l1_active_minus1;
+};
 
 struct h264_reflists {
 	u8 p[V4L2_H264_NUM_DPB_ENTRIES];
@@ -438,19 +465,8 @@ static void tegra_vde_decode_frame(struct tegra_vde *vde,
 			 vde->sxe, 0x00);
 }
 
-int tegra_vde_validate_h264_frame(struct device *dev,
-				  struct tegra_vde_h264_frame *frame)
-{
-	if (frame->frame_num > 0x7FFFFF) {
-		dev_err(dev, "Bad frame_num %u\n", frame->frame_num);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int tegra_vde_validate_h264_ctx(struct device *dev,
-				struct tegra_vde_h264_decoder_ctx *ctx)
+static int tegra_vde_validate_h264_ctx(struct device *dev,
+				       struct tegra_vde_h264_decoder_ctx *ctx)
 {
 	if (ctx->dpb_frames_nb == 0 || ctx->dpb_frames_nb > 17) {
 		dev_err(dev, "Bad DPB size %u\n", ctx->dpb_frames_nb);
@@ -635,23 +651,6 @@ static int tegra_vde_decode_end(struct tegra_vde *vde)
 	tegra_vde_decode_abort(vde);
 
 	return ret;
-}
-
-int tegra_vde_decode_h264(struct tegra_vde *vde,
-			  struct tegra_vde_h264_decoder_ctx *ctx,
-			  struct tegra_video_frame *dpb_frames,
-			  dma_addr_t bitstream_data_addr,
-			  size_t bitstream_data_size)
-{
-	int err;
-
-	err = tegra_vde_decode_begin(vde, ctx, dpb_frames,
-				     bitstream_data_addr,
-				     bitstream_data_size);
-	if (err)
-		return err;
-
-	return tegra_vde_decode_end(vde);
 }
 
 static struct vb2_buffer *get_ref_buf(struct tegra_ctx *ctx,
