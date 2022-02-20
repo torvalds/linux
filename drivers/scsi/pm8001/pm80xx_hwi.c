@@ -1761,23 +1761,19 @@ static void pm80xx_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_device *pm8001_ha_dev)
 {
 	struct pm8001_ccb_info *ccb;
-	struct sas_task *task = NULL;
+	struct sas_task *task;
 	struct task_abort_req task_abort;
 	u32 opc = OPC_INB_SATA_ABORT;
 	int ret;
 
-	if (!pm8001_ha_dev) {
-		pm8001_dbg(pm8001_ha, FAIL, "dev is null\n");
-		return;
-	}
+	pm8001_ha_dev->id |= NCQ_ABORT_ALL_FLAG;
+	pm8001_ha_dev->id &= ~NCQ_READ_LOG_FLAG;
 
 	task = sas_alloc_slow_task(GFP_ATOMIC);
-
 	if (!task) {
 		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
 		return;
 	}
-
 	task->task_done = pm8001_task_done;
 
 	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
@@ -2446,11 +2442,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			ts->stat = SAS_SAM_STAT_GOOD;
 			/* check if response is for SEND READ LOG */
 			if (pm8001_dev &&
-				(pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
-				/* set new bit for abort_all */
-				pm8001_dev->id |= NCQ_ABORT_ALL_FLAG;
-				/* clear bit for read log */
-				pm8001_dev->id = pm8001_dev->id & 0x7FFFFFFF;
+			    (pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
 				pm80xx_send_abort_all(pm8001_ha, pm8001_dev);
 				/* Free the tag */
 				pm8001_tag_free(pm8001_ha, tag);
