@@ -322,7 +322,7 @@ struct odm_dm_struct {
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8	*pSecChOffset;
 	/*  BW info 20M/40M/80M = 0/1/2 */
-	u8	*pBandWidth;
+	enum ht_channel_width *pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
 	u8	*pChannel;	/* central channel number */
 

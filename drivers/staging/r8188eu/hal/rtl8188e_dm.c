@@ -40,7 +40,7 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 	dm_odm->pWirelessMode = &pmlmeext->cur_wireless_mode;
 	dm_odm->pSecChOffset = &hal_data->nCur40MhzPrimeSC;
-	dm_odm->pBandWidth = (u8 *)&hal_data->CurrentChannelBW;
+	dm_odm->pBandWidth = &hal_data->CurrentChannelBW;
 	dm_odm->pChannel = &hal_data->CurrentChannel;
 	dm_odm->pbScanInProcess = &pmlmepriv->bScanInProcess;
 	dm_odm->pbPowerSaving = &pwrctrlpriv->bpower_saving;
