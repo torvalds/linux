@@ -1553,7 +1553,7 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 
 static int gmc_v9_0_sw_init(void *handle)
 {
-	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
+	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfxhub.funcs->init(adev);
@@ -1669,12 +1669,13 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
-	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
+	dma_addr_bits = adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ? 48:44;
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(dma_addr_bits));
 	if (r) {
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
-	adev->need_swiotlb = drm_need_swiotlb(44);
+	adev->need_swiotlb = drm_need_swiotlb(dma_addr_bits);
 
 	r = gmc_v9_0_mc_init(adev);
 	if (r)
