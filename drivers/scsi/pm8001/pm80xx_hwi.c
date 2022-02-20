@@ -4970,12 +4970,13 @@ static void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
 		pm8001_dbg(pm8001_ha, FAIL, "Invalid tag\n");
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	payload.tag = cpu_to_le32(tag);
-	payload.ppc_phyid = (((operation & 0xF) << 8) | (phyid  & 0xFF));
+	payload.ppc_phyid =
+		cpu_to_le32(((operation & 0xF) << 8) | (phyid  & 0xFF));
 	pm8001_dbg(pm8001_ha, INIT,
 		   " phy profile command for phy %x ,length is %d\n",
-		   payload.ppc_phyid, length);
+		   le32_to_cpu(payload.ppc_phyid), length);
 	for (i = length; i < (length + PHY_DWORD_LENGTH - 1); i++) {
-		payload.reserved[j] =  cpu_to_le32(*((u32 *)buf + i));
+		payload.reserved[j] = cpu_to_le32(*((u32 *)buf + i));
 		j++;
 	}
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
@@ -5015,8 +5016,9 @@ void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
 	opc = OPC_INB_SET_PHY_PROFILE;
 
 	payload.tag = cpu_to_le32(tag);
-	payload.ppc_phyid = (((SAS_PHY_ANALOG_SETTINGS_PAGE & 0xF) << 8)
-				| (phy & 0xFF));
+	payload.ppc_phyid =
+		cpu_to_le32(((SAS_PHY_ANALOG_SETTINGS_PAGE & 0xF) << 8)
+			    | (phy & 0xFF));
 
 	for (i = 0; i < length; i++)
 		payload.reserved[i] = cpu_to_le32(*(buf + i));
