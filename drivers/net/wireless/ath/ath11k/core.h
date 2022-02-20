@@ -461,6 +461,7 @@ struct ath11k_debug {
 	u32 rx_filter;
 	u32 mem_offset;
 	u32 module_id_bitmap[MAX_MODULE_ID_BITMAP_WORDS];
+	struct ath11k_debug_dbr *dbr_debug[WMI_DIRECT_BUF_MAX];
 };
 
 struct ath11k_per_peer_tx_stats {

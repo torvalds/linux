@@ -193,6 +193,7 @@ struct ath11k_hw_params {
 	bool supports_rssi_stats;
 	bool fw_wmi_diag_event;
 	bool current_cc_support;
+	bool dbr_debug_support;
 };
 
 struct ath11k_hw_ops {

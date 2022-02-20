@@ -47,6 +47,36 @@ enum ath11k_dbg_htt_ext_stats_type {
 	ATH11K_DBG_HTT_NUM_EXT_STATS,
 };
 
+#define ATH11K_DEBUG_DBR_ENTRIES_MAX 512
+
+enum ath11k_dbg_dbr_event {
+	ATH11K_DBG_DBR_EVENT_INVALID,
+	ATH11K_DBG_DBR_EVENT_RX,
+	ATH11K_DBG_DBR_EVENT_REPLENISH,
+	ATH11K_DBG_DBR_EVENT_MAX,
+};
+
+struct ath11k_dbg_dbr_entry {
+	u32 hp;
+	u32 tp;
+	u64 timestamp;
+	enum ath11k_dbg_dbr_event event;
+};
+
+struct ath11k_dbg_dbr_data {
+	/* protects ath11k_db_ring_debug data */
+	spinlock_t lock;
+	struct ath11k_dbg_dbr_entry *entries;
+	u32 dbr_debug_idx;
+	u32 num_ring_debug_entries;
+};
+
+struct ath11k_debug_dbr {
+	struct ath11k_dbg_dbr_data dbr_dbg_data;
+	struct dentry *dbr_debugfs;
+	bool dbr_debug_enabled;
+};
+
 struct debug_htt_stats_req {
 	bool done;
 	u8 pdev_id;
@@ -278,6 +308,10 @@ static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 
 int ath11k_debugfs_add_interface(struct ath11k_vif *arvif);
 void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif);
+void ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
+				     enum wmi_direct_buffer_module id,
+				     enum ath11k_dbg_dbr_event event,
+				     struct hal_srng *srng);
 
 #else
 static inline int ath11k_debugfs_soc_create(struct ath11k_base *ab)
@@ -361,6 +395,13 @@ static inline void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif)
 {
 }
 
+static inline void
+ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
+				enum wmi_direct_buffer_module id,
+				enum ath11k_dbg_dbr_event event,
+				struct hal_srng *srng)
+{
+}
 #endif /* CONFIG_ATH11K_DEBUGFS*/
 
 #endif /* _ATH11K_DEBUGFS_H_ */
