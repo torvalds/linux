@@ -28,8 +28,14 @@ struct hsr_frame_info {
 	bool is_from_san;
 };
 
+#ifdef CONFIG_LOCKDEP
+int lockdep_hsr_is_held(spinlock_t *lock);
+#else
+#define lockdep_hsr_is_held(lock)	1
+#endif
+
 u32 hsr_mac_hash(struct hsr_priv *hsr, const unsigned char *addr);
-struct hsr_node *hsr_node_get_first(struct hlist_head *head, int cond);
+struct hsr_node *hsr_node_get_first(struct hlist_head *head, spinlock_t *lock);
 void hsr_del_self_node(struct hsr_priv *hsr);
 void hsr_del_nodes(struct hlist_head *node_db);
 struct hsr_node *hsr_get_node(struct hsr_port *port, struct hlist_head *node_db,
