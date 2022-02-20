@@ -105,10 +105,6 @@
 	pm8226-regulators {
 		compatible = "qcom,rpm-pm8226-regulators";
 
-		pm8226_s1: s1 {
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1275000>;
-		};
 		pm8226_s3: s3 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1350000>;
