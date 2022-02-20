@@ -512,7 +512,7 @@ static int __trigger_module_test_read(const struct core_reloc_test_case *test)
 }
 
 
-static struct core_reloc_test_case test_cases[] = {
+static const struct core_reloc_test_case test_cases[] = {
 	/* validate we can find kernel image and use its BTF for relocs */
 	{
 		.case_name = "kernel",
@@ -843,7 +843,7 @@ static int run_btfgen(const char *src_btf, const char *dst_btf, const char *objp
 	int n;
 
 	n = snprintf(command, sizeof(command),
-		     "./tools/build/bpftool/bpftool gen min_core_btf %s %s %s",
+		     "./bpftool gen min_core_btf %s %s %s",
 		     src_btf, dst_btf, objpath);
 	if (n < 0 || n >= sizeof(command))
 		return -1;
@@ -855,7 +855,7 @@ static void run_core_reloc_tests(bool use_btfgen)
 {
 	const size_t mmap_sz = roundup_page(sizeof(struct data));
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
-	struct core_reloc_test_case *test_case;
+	struct core_reloc_test_case *test_case, test_case_copy;
 	const char *tp_name, *probe_name;
 	int err, i, equal, fd;
 	struct bpf_link *link = NULL;
@@ -870,7 +870,10 @@ static void run_core_reloc_tests(bool use_btfgen)
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		char btf_file[] = "/tmp/core_reloc.btf.XXXXXX";
-		test_case = &test_cases[i];
+
+		test_case_copy = test_cases[i];
+		test_case = &test_case_copy;
+
 		if (!test__start_subtest(test_case->case_name))
 			continue;
 
@@ -881,6 +884,7 @@ static void run_core_reloc_tests(bool use_btfgen)
 
 		/* generate a "minimal" BTF file and use it as source */
 		if (use_btfgen) {
+
 			if (!test_case->btf_src_file || test_case->fails) {
 				test__skip();
 				continue;
@@ -989,7 +993,8 @@ cleanup:
 			CHECK_FAIL(munmap(mmap_data, mmap_sz));
 			mmap_data = NULL;
 		}
-		remove(btf_file);
+		if (use_btfgen)
+			remove(test_case->btf_src_file);
 		bpf_link__destroy(link);
 		link = NULL;
 		bpf_object__close(obj);
@@ -1001,7 +1006,7 @@ void test_core_reloc(void)
 	run_core_reloc_tests(false);
 }
 
-void test_core_btfgen(void)
+void test_core_reloc_btfgen(void)
 {
 	run_core_reloc_tests(true);
 }
