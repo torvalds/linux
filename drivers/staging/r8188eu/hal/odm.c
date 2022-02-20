@@ -639,37 +639,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	pDM_Odm->BbSwingFlagOfdm		= false;
 }
 
-void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, void *pValue)
-{
-	/*  */
-	/*  Hook call by reference pointer. */
-	/*  */
-	switch	(CmnInfo) {
-	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_WM_MODE:
-		pDM_Odm->pWirelessMode = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
-		pDM_Odm->pSecChOffset = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_BW:
-		pDM_Odm->pBandWidth = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_CHNL:
-		pDM_Odm->pChannel = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SCAN:
-		pDM_Odm->pbScanInProcess = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_POWER_SAVING:
-		pDM_Odm->pbPowerSaving = (bool *)pValue;
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
-}
-
 /*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
 void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 {
