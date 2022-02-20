@@ -633,10 +633,13 @@ void walt_lb_tick(struct rq *rq)
 	new_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, 0, 1);
 	rcu_read_unlock();
 
+	if (new_cpu < 0)
+		goto out_unlock;
+
 	new_wrq = (struct walt_rq *) cpu_rq(new_cpu)->android_vendor_data1;
 
 	/* prevent active task migration to busy or same/lower capacity CPU */
-	if (new_cpu < 0 || !available_idle_cpu(new_cpu) ||
+	if (!available_idle_cpu(new_cpu) ||
 		new_wrq->cluster->id <= prev_wrq->cluster->id)
 		goto out_unlock;
 
