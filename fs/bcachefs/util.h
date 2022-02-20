@@ -281,8 +281,6 @@ static inline void printbuf_newline(struct printbuf *buf)
 		pr_buf(buf, " ");
 }
 
-void bch_scnmemcpy(struct printbuf *, const char *, size_t);
-
 int bch2_strtoint_h(const char *, int *);
 int bch2_strtouint_h(const char *, unsigned int *);
 int bch2_strtoll_h(const char *, long long *);

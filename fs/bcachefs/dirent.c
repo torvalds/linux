@@ -122,9 +122,9 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 
-	bch_scnmemcpy(out, d.v->d_name,
-		      bch2_dirent_name_bytes(d));
-	pr_buf(out, " -> %llu type %s",
+	pr_buf(out, "%.*s -> %llu type %s",
+	       bch2_dirent_name_bytes(d),
+	       d.v->d_name,
 	       d.v->d_type != DT_SUBVOL
 	       ? le64_to_cpu(d.v->d_inum)
 	       : le32_to_cpu(d.v->d_child_subvol),

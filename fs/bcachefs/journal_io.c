@@ -595,7 +595,7 @@ static void journal_entry_log_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_log *l = container_of(entry, struct jset_entry_log, entry);
 	unsigned bytes = vstruct_bytes(entry) - offsetof(struct jset_entry_log, d);
 
-	bch_scnmemcpy(out, l->d, strnlen(l->d, bytes));
+	pr_buf(out, "%.*s", bytes, l->d);
 }
 
 struct jset_entry_ops {

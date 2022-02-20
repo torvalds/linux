@@ -76,8 +76,9 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 	for (g = sorted; g + 1 < sorted + nr_groups; g++)
 		if (!BCH_GROUP_DELETED(g) &&
 		    !group_cmp(&g[0], &g[1])) {
-			pr_buf(err, "duplicate label %llu.", BCH_GROUP_PARENT(g));
-			bch_scnmemcpy(err, g->label, strnlen(g->label, sizeof(g->label)));
+			pr_buf(err, "duplicate label %llu.%.*s",
+			       BCH_GROUP_PARENT(g),
+			       (int) sizeof(g->label), g->label);
 			goto err;
 		}
 
@@ -376,9 +377,7 @@ void bch2_disk_path_to_text(struct printbuf *out,
 		v = path[--nr];
 		g = groups->entries + v;
 
-		bch_scnmemcpy(out, g->label,
-			      strnlen(g->label, sizeof(g->label)));
-
+		pr_buf(out, "%.*s", (int) sizeof(g->label), g->label);
 		if (nr)
 			pr_buf(out, ".");
 	}

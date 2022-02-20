@@ -111,11 +111,11 @@ void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
 	else
 		pr_buf(out, "(unknown type %u)", xattr.v->x_type);
 
-	bch_scnmemcpy(out, xattr.v->x_name,
-		      xattr.v->x_name_len);
-	pr_buf(out, ":");
-	bch_scnmemcpy(out, xattr_val(xattr.v),
-		      le16_to_cpu(xattr.v->x_val_len));
+	pr_buf(out, "%.*s:%.*s",
+	       xattr.v->x_name_len,
+	       xattr.v->x_name,
+	       le16_to_cpu(xattr.v->x_val_len),
+	       (char *) xattr_val(xattr.v));
 }
 
 static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info *inode,

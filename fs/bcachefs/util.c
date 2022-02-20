@@ -581,19 +581,6 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 	}
 }
 
-void bch_scnmemcpy(struct printbuf *out,
-		   const char *src, size_t len)
-{
-	size_t n = printbuf_remaining(out);
-
-	if (n) {
-		n = min(n - 1, len);
-		memcpy(out->pos, src, n);
-		out->pos += n;
-		*out->pos = '\0';
-	}
-}
-
 #include "eytzinger.h"
 
 static int alignment_ok(const void *base, size_t align)
