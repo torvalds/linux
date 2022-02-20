@@ -2795,7 +2795,7 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 		goto sort_vars;
 
 	ret = find_elf_sec_sz(obj, name, &size);
-	if (ret || !size || (t->size && t->size != size)) {
+	if (ret || !size) {
 		pr_debug("Invalid size for section %s: %u bytes\n", name, size);
 		return -ENOENT;
 	}
