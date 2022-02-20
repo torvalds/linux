@@ -310,69 +310,84 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (display_count == 0)
 		enter_display_off = true;
 
-	if (enter_display_off == safe_to_lower)
-		dcn30_smu_set_num_of_displays(clk_mgr, display_count);
+	if (clk_mgr->smu_present) {
+		if (enter_display_off == safe_to_lower)
+			dcn30_smu_set_num_of_displays(clk_mgr, display_count);
 
-	if (dc->debug.force_min_dcfclk_mhz > 0)
-		new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
-				new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
+		if (dc->debug.force_min_dcfclk_mhz > 0)
+			new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
+					new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
 
-	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
-		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCFCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
-		clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-		dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
-		/* We don't actually care about socclk, don't notify SMU of hard min */
-		clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
-
-	clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
-	clk_mgr_base->clks.fclk_prev_p_state_change_support = clk_mgr_base->clks.fclk_p_state_change_support;
-
-	total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
-	p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
-	fclk_p_state_change_support = new_clocks->fclk_p_state_change_support || (total_plane_count == 0);
-	if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
-		clk_mgr_base->clks.p_state_change_support = p_state_change_support;
-
-		/* to disable P-State switching, set UCLK min = max */
-		if (!clk_mgr_base->clks.p_state_change_support)
-			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
-	}
-
-	if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 &&
-			should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
-		clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
-
-		/* To disable FCLK P-state switching, send FCLK_PSTATE_NOTSUPPORTED message to PMFW */
-		if (!clk_mgr_base->clks.fclk_p_state_change_support) {
-			/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
-			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_NOTSUPPORTED);
+		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
+			clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCFCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
 		}
-	}
 
-	/* Always update saved value, even if new value not set due to P-State switching unsupported */
-	if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
-		clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
-		update_uclk = true;
-	}
+		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
+			clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
+			dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
+		}
 
-	/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
-	if (clk_mgr_base->clks.p_state_change_support &&
-			(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support))
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
+		if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
+			/* We don't actually care about socclk, don't notify SMU of hard min */
+			clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
 
-	if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 &&
-			clk_mgr_base->clks.fclk_p_state_change_support &&
-			(update_uclk || !clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
-		/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
-		dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_SUPPORTED);
+		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
+		clk_mgr_base->clks.fclk_prev_p_state_change_support = clk_mgr_base->clks.fclk_p_state_change_support;
+		clk_mgr_base->clks.prev_num_ways = clk_mgr_base->clks.num_ways;
+
+		if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
+				clk_mgr_base->clks.num_ways < new_clocks->num_ways) {
+			clk_mgr_base->clks.num_ways = new_clocks->num_ways;
+			dcn32_smu_send_cab_for_uclk_message(clk_mgr, clk_mgr_base->clks.num_ways);
+		}
+
+		total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
+		p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
+		fclk_p_state_change_support = new_clocks->fclk_p_state_change_support || (total_plane_count == 0);
+		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
+
+			/* to disable P-State switching, set UCLK min = max */
+			if (!clk_mgr_base->clks.p_state_change_support)
+				dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
+						clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
+		}
+
+		if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 &&
+				should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
+			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
+
+			/* To disable FCLK P-state switching, send FCLK_PSTATE_NOTSUPPORTED message to PMFW */
+			if (!clk_mgr_base->clks.fclk_p_state_change_support) {
+				/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
+				dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_NOTSUPPORTED);
+			}
+		}
+
+		/* Always update saved value, even if new value not set due to P-State switching unsupported */
+		if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
+			clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
+			update_uclk = true;
+		}
+
+		/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
+		if (clk_mgr_base->clks.p_state_change_support &&
+				(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support))
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
+
+		if (clk_mgr_base->clks.fclk_p_state_change_support &&
+				(update_uclk || !clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
+
+			/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
+			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_SUPPORTED);
+		}
+
+		if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
+				clk_mgr_base->clks.num_ways > new_clocks->num_ways) {
+			clk_mgr_base->clks.num_ways = new_clocks->num_ways;
+			dcn32_smu_send_cab_for_uclk_message(clk_mgr, clk_mgr_base->clks.num_ways);
+		}
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr_base->clks.dppclk_khz)) {
@@ -380,13 +395,19 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			dpp_clock_lowered = true;
 
 		clk_mgr_base->clks.dppclk_khz = new_clocks->dppclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
+
+		if (clk_mgr->smu_present)
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
+
 		update_dppclk = true;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dispclk_khz));
+
+		if (clk_mgr->smu_present)
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dispclk_khz));
+
 		update_dispclk = true;
 	}
 
