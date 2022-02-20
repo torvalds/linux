@@ -11,9 +11,17 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
+#include <media/v4l2-h264.h>
+
 #include "trace.h"
 #include "uapi.h"
 #include "vde.h"
+
+struct h264_reflists {
+	u8 p[V4L2_H264_NUM_DPB_ENTRIES];
+	u8 b0[V4L2_H264_NUM_DPB_ENTRIES];
+	u8 b1[V4L2_H264_NUM_DPB_ENTRIES];
+};
 
 static int tegra_vde_wait_mbe(struct tegra_vde *vde)
 {
@@ -125,8 +133,8 @@ static void tegra_vde_setup_frameid(struct tegra_vde *vde,
 	u32 y_addr  = frame ? frame->y_addr  : 0x6CDEAD00;
 	u32 cb_addr = frame ? frame->cb_addr : 0x6CDEAD00;
 	u32 cr_addr = frame ? frame->cr_addr : 0x6CDEAD00;
-	u32 value1 = frame ? ((mbs_width << 16) | mbs_height) : 0;
-	u32 value2 = frame ? ((((mbs_width + 1) >> 1) << 6) | 1) : 0;
+	u32 value1 = frame ? ((frame->luma_atoms_pitch << 16) | mbs_height) : 0;
+	u32 value2 = frame ? ((frame->chroma_atoms_pitch << 6) | 1) : 0;
 
 	tegra_vde_writel(vde, y_addr  >> 8, vde->frameid, 0x000 + frameid * 4);
 	tegra_vde_writel(vde, cb_addr >> 8, vde->frameid, 0x100 + frameid * 4);
@@ -644,4 +652,296 @@ int tegra_vde_decode_h264(struct tegra_vde *vde,
 		return err;
 
 	return tegra_vde_decode_end(vde);
+}
+
+static struct vb2_buffer *get_ref_buf(struct tegra_ctx *ctx,
+				      struct vb2_v4l2_buffer *dst,
+				      unsigned int dpb_idx)
+{
+	const struct v4l2_h264_dpb_entry *dpb = ctx->h264.decode_params->dpb;
+	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
+	int buf_idx = -1;
+
+	if (dpb[dpb_idx].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)
+		buf_idx = vb2_find_timestamp(cap_q,
+					     dpb[dpb_idx].reference_ts, 0);
+
+	/*
+	 * If a DPB entry is unused or invalid, address of current destination
+	 * buffer is returned.
+	 */
+	if (buf_idx < 0)
+		return &dst->vb2_buf;
+
+	return vb2_get_buffer(cap_q, buf_idx);
+}
+
+static int tegra_vde_validate_vb_size(struct tegra_ctx *ctx,
+				      struct vb2_buffer *vb,
+				      unsigned int plane_id,
+				      size_t min_size)
+{
+	u64 offset = vb->planes[plane_id].data_offset;
+	struct device *dev = ctx->vde->dev;
+
+	if (offset + min_size > vb2_plane_size(vb, plane_id)) {
+		dev_err(dev, "Too small plane[%u] size %lu @0x%llX, should be at least %zu\n",
+			plane_id, vb2_plane_size(vb, plane_id), offset, min_size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int tegra_vde_h264_setup_frame(struct tegra_ctx *ctx,
+				      struct tegra_vde_h264_decoder_ctx *h264,
+				      struct v4l2_h264_reflist_builder *b,
+				      struct vb2_buffer *vb,
+				      unsigned int ref_id,
+				      unsigned int id)
+{
+	struct v4l2_pix_format_mplane *pixfmt = &ctx->decoded_fmt.fmt.pix_mp;
+	struct tegra_m2m_buffer *tb = vb_to_tegra_buf(vb);
+	struct tegra_ctx_h264 *h = &ctx->h264;
+	struct tegra_vde *vde = ctx->vde;
+	struct device *dev = vde->dev;
+	unsigned int cstride, lstride;
+	unsigned int flags = 0;
+	size_t lsize, csize;
+	int err, frame_num;
+
+	lsize = h264->pic_width_in_mbs * 16 * h264->pic_height_in_mbs * 16;
+	csize = h264->pic_width_in_mbs *  8 * h264->pic_height_in_mbs *  8;
+	lstride = pixfmt->plane_fmt[0].bytesperline;
+	cstride = pixfmt->plane_fmt[1].bytesperline;
+
+	err = tegra_vde_validate_vb_size(ctx, vb, 0, lsize);
+	if (err)
+		return err;
+
+	err = tegra_vde_validate_vb_size(ctx, vb, 1, csize);
+	if (err)
+		return err;
+
+	err = tegra_vde_validate_vb_size(ctx, vb, 2, csize);
+	if (err)
+		return err;
+
+	if (!tb->aux || tb->aux->size < csize) {
+		dev_err(dev, "Too small aux size %zd, should be at least %zu\n",
+			tb->aux ? tb->aux->size : -1, csize);
+		return -EINVAL;
+	}
+
+	if (id == 0) {
+		frame_num = h->decode_params->frame_num;
+
+		if (h->decode_params->nal_ref_idc)
+			flags |= FLAG_REFERENCE;
+	} else {
+		frame_num = b->refs[ref_id].frame_num;
+	}
+
+	if (tb->b_frame)
+		flags |= FLAG_B_FRAME;
+
+	vde->frames[id].flags = flags;
+	vde->frames[id].y_addr = tb->dma_addr[0];
+	vde->frames[id].cb_addr = tb->dma_addr[1];
+	vde->frames[id].cr_addr = tb->dma_addr[2];
+	vde->frames[id].aux_addr = tb->aux->dma_addr;
+	vde->frames[id].frame_num = frame_num & 0x7fffff;
+	vde->frames[id].luma_atoms_pitch = lstride / VDE_ATOM;
+	vde->frames[id].chroma_atoms_pitch = cstride / VDE_ATOM;
+
+	return 0;
+}
+
+static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
+				       struct tegra_vde_h264_decoder_ctx *h264)
+{
+	struct vb2_v4l2_buffer *src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	struct vb2_v4l2_buffer *dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+	const struct v4l2_h264_dpb_entry *dpb = ctx->h264.decode_params->dpb;
+	struct tegra_m2m_buffer *tb = vb_to_tegra_buf(&dst->vb2_buf);
+	struct tegra_ctx_h264 *h = &ctx->h264;
+	struct v4l2_h264_reflist_builder b;
+	struct h264_reflists reflists;
+	struct vb2_buffer *ref;
+	unsigned int i;
+	u8 *dpb_id;
+	int err;
+
+	/*
+	 * Tegra hardware requires information about frame's type, assuming
+	 * that frame consists of the same type slices. Userspace must tag
+	 * frame's type appropriately.
+	 *
+	 * Decoding of a non-uniform frames isn't supported by hardware and
+	 * require software preprocessing that we don't implement. Decoding
+	 * is expected to fail in this case. Such video streams are rare in
+	 * practice, so not a big deal.
+	 *
+	 * If userspace doesn't tell us frame's type, then we will try decode
+	 * as-is.
+	 */
+	v4l2_m2m_buf_copy_metadata(src, dst, true);
+
+	if (h->decode_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BFRAME)
+		tb->b_frame = true;
+	else
+		tb->b_frame = false;
+
+	err = tegra_vde_h264_setup_frame(ctx, h264, NULL, &dst->vb2_buf, 0,
+					 h264->dpb_frames_nb++);
+	if (err)
+		return err;
+
+	if (!(h->decode_params->flags & (V4L2_H264_DECODE_PARAM_FLAG_PFRAME |
+					 V4L2_H264_DECODE_PARAM_FLAG_BFRAME)))
+		return 0;
+
+	v4l2_h264_init_reflist_builder(&b, h->decode_params, h->sps, dpb);
+
+	if (h->decode_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BFRAME) {
+		v4l2_h264_build_b_ref_lists(&b, reflists.b0, reflists.b1);
+		dpb_id = reflists.b0;
+	} else {
+		v4l2_h264_build_p_ref_list(&b, reflists.p);
+		dpb_id = reflists.p;
+	}
+
+	for (i = 0; i < b.num_valid; i++) {
+		ref = get_ref_buf(ctx, dst, dpb_id[i]);
+
+		err = tegra_vde_h264_setup_frame(ctx, h264, &b, ref, dpb_id[i],
+						 h264->dpb_frames_nb++);
+		if (err)
+			return err;
+
+		if (b.refs[dpb_id[i]].pic_order_count < b.cur_pic_order_count)
+			h264->dpb_ref_frames_with_earlier_poc_nb++;
+	}
+
+	return 0;
+}
+
+static unsigned int to_tegra_vde_h264_level_idc(unsigned int level_idc)
+{
+	switch (level_idc) {
+	case 11:
+		return 2;
+	case 12:
+		return 3;
+	case 13:
+		return 4;
+	case 20:
+		return 5;
+	case 21:
+		return 6;
+	case 22:
+		return 7;
+	case 30:
+		return 8;
+	case 31:
+		return 9;
+	case 32:
+		return 10;
+	case 40:
+		return 11;
+	case 41:
+		return 12;
+	case 42:
+		return 13;
+	case 50:
+		return 14;
+	default:
+		break;
+	}
+
+	return 15;
+}
+
+static int tegra_vde_h264_setup_context(struct tegra_ctx *ctx,
+					struct tegra_vde_h264_decoder_ctx *h264)
+{
+	struct tegra_ctx_h264 *h = &ctx->h264;
+	struct tegra_vde *vde = ctx->vde;
+	struct device *dev = vde->dev;
+	int err;
+
+	memset(h264, 0, sizeof(*h264));
+	memset(vde->frames, 0, sizeof(vde->frames));
+
+	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_DECODE_PARAMS);
+	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_SPS);
+	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_PPS);
+
+	/* CABAC unsupported by hardware, requires software preprocessing */
+	if (h->pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE)
+		return -EOPNOTSUPP;
+
+	if (h->sps->profile_idc == 66)
+		h264->baseline_profile = 1;
+
+	if (h->sps->flags & V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE)
+		h264->direct_8x8_inference_flag = 1;
+
+	if (h->pps->flags & V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED)
+		h264->constrained_intra_pred_flag = 1;
+
+	if (h->pps->flags & V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT)
+		h264->deblocking_filter_control_present_flag = 1;
+
+	if (h->pps->flags & V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT)
+		h264->pic_order_present_flag = 1;
+
+	h264->level_idc				= to_tegra_vde_h264_level_idc(h->sps->level_idc);
+	h264->log2_max_pic_order_cnt_lsb	= h->sps->log2_max_pic_order_cnt_lsb_minus4 + 4;
+	h264->log2_max_frame_num		= h->sps->log2_max_frame_num_minus4 + 4;
+	h264->pic_order_cnt_type		= h->sps->pic_order_cnt_type;
+	h264->pic_width_in_mbs			= h->sps->pic_width_in_mbs_minus1 + 1;
+	h264->pic_height_in_mbs			= h->sps->pic_height_in_map_units_minus1 + 1;
+
+	h264->num_ref_idx_l0_active_minus1	= h->pps->num_ref_idx_l0_default_active_minus1;
+	h264->num_ref_idx_l1_active_minus1	= h->pps->num_ref_idx_l1_default_active_minus1;
+	h264->chroma_qp_index_offset		= h->pps->chroma_qp_index_offset & 0x1f;
+	h264->pic_init_qp			= h->pps->pic_init_qp_minus26 + 26;
+
+	err = tegra_vde_h264_setup_frames(ctx, h264);
+	if (err)
+		return err;
+
+	err = tegra_vde_validate_h264_ctx(dev, h264);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int tegra_vde_h264_decode_run(struct tegra_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	struct tegra_m2m_buffer *bitstream = vb_to_tegra_buf(&src->vb2_buf);
+	size_t bitstream_size = vb2_get_plane_payload(&src->vb2_buf, 0);
+	struct tegra_vde_h264_decoder_ctx h264;
+	struct tegra_vde *vde = ctx->vde;
+	int err;
+
+	err = tegra_vde_h264_setup_context(ctx, &h264);
+	if (err)
+		return err;
+
+	err = tegra_vde_decode_begin(vde, &h264, vde->frames,
+				     bitstream->dma_addr[0],
+				     bitstream_size);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int tegra_vde_h264_decode_wait(struct tegra_ctx *ctx)
+{
+	return tegra_vde_decode_end(ctx->vde);
 }

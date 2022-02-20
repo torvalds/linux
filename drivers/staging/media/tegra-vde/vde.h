@@ -15,6 +15,16 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
+
+#include <media/media-device.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-mem2mem.h>
 
 #define ICMDQUE_WR		0x00
 #define CMDQUE_CONTROL		0x08
@@ -25,9 +35,15 @@
 #define BSE_ICMDQUE_EMPTY	BIT(3)
 #define BSE_DMA_BUSY		BIT(23)
 
+#define BSEV_ALIGN		SZ_1
+#define FRAMEID_ALIGN		SZ_256
+#define SXE_BUFFER		SZ_32K
+#define VDE_ATOM		SZ_16
+
 struct clk;
 struct dma_buf;
 struct gen_pool;
+struct tegra_ctx;
 struct iommu_group;
 struct iommu_domain;
 struct reset_control;
@@ -46,10 +62,23 @@ struct tegra_video_frame {
 	dma_addr_t aux_addr;
 	u32 frame_num;
 	u32 flags;
+	u32 luma_atoms_pitch;
+	u32 chroma_atoms_pitch;
+};
+
+struct tegra_coded_fmt_desc {
+	u32 fourcc;
+	struct v4l2_frmsize_stepwise frmsize;
+	unsigned int num_decoded_fmts;
+	const u32 *decoded_fmts;
+	int (*decode_run)(struct tegra_ctx *ctx);
+	int (*decode_wait)(struct tegra_ctx *ctx);
 };
 
 struct tegra_vde_soc {
 	bool supports_ref_pic_marking;
+	const struct tegra_coded_fmt_desc *coded_fmts;
+	u32 num_coded_fmts;
 };
 
 struct tegra_vde_bo {
@@ -94,7 +123,59 @@ struct tegra_vde {
 	dma_addr_t bitstream_data_addr;
 	dma_addr_t iram_lists_addr;
 	u32 *iram;
+	struct v4l2_device v4l2_dev;
+	struct v4l2_m2m_dev *m2m;
+	struct media_device mdev;
+	struct video_device vdev;
+	struct mutex v4l2_lock;
+	struct workqueue_struct *wq;
+	struct tegra_video_frame frames[V4L2_H264_NUM_DPB_ENTRIES + 1];
 };
+
+int tegra_vde_alloc_bo(struct tegra_vde *vde,
+		       struct tegra_vde_bo **ret_bo,
+		       enum dma_data_direction dma_dir,
+		       size_t size);
+void tegra_vde_free_bo(struct tegra_vde_bo *bo);
+
+struct tegra_ctx_h264 {
+	const struct v4l2_ctrl_h264_decode_params *decode_params;
+	const struct v4l2_ctrl_h264_sps *sps;
+	const struct v4l2_ctrl_h264_pps *pps;
+};
+
+struct tegra_ctx {
+	struct tegra_vde *vde;
+	struct tegra_ctx_h264 h264;
+	struct work_struct work;
+	struct v4l2_fh fh;
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_format coded_fmt;
+	struct v4l2_format decoded_fmt;
+	const struct tegra_coded_fmt_desc *coded_fmt_desc;
+	struct v4l2_ctrl *ctrls[];
+};
+
+struct tegra_m2m_buffer {
+	struct v4l2_m2m_buffer m2m;
+	struct dma_buf_attachment *a[VB2_MAX_PLANES];
+	dma_addr_t dma_base[VB2_MAX_PLANES];
+	dma_addr_t dma_addr[VB2_MAX_PLANES];
+	struct iova *iova[VB2_MAX_PLANES];
+	struct tegra_vde_bo *aux;
+	bool b_frame;
+};
+
+static inline struct tegra_m2m_buffer *
+vb_to_tegra_buf(struct vb2_buffer *vb)
+{
+	struct v4l2_m2m_buffer *m2m = container_of(vb, struct v4l2_m2m_buffer,
+						   vb.vb2_buf);
+
+	return container_of(m2m, struct tegra_m2m_buffer, m2m);
+}
+
+void tegra_vde_prepare_control_data(struct tegra_ctx *ctx, u32 id);
 
 void tegra_vde_writel(struct tegra_vde *vde, u32 value, void __iomem *base,
 		      u32 offset);
@@ -111,6 +192,8 @@ int tegra_vde_decode_h264(struct tegra_vde *vde,
 			  struct tegra_video_frame *dpb_frames,
 			  dma_addr_t bitstream_data_addr,
 			  size_t bitstream_data_size);
+int tegra_vde_h264_decode_run(struct tegra_ctx *ctx);
+int tegra_vde_h264_decode_wait(struct tegra_ctx *ctx);
 
 int tegra_vde_iommu_init(struct tegra_vde *vde);
 void tegra_vde_iommu_deinit(struct tegra_vde *vde);
@@ -163,5 +246,8 @@ tegra_vde_reg_base_name(struct tegra_vde *vde, void __iomem *base)
 
 	return "???";
 }
+
+int tegra_vde_v4l2_init(struct tegra_vde *vde);
+void tegra_vde_v4l2_deinit(struct tegra_vde *vde);
 
 #endif /* TEGRA_VDE_H */

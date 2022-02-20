@@ -53,10 +53,10 @@ void tegra_vde_set_bits(struct tegra_vde *vde, u32 mask,
 	tegra_vde_writel(vde, value | mask, base, offset);
 }
 
-static int tegra_vde_alloc_bo(struct tegra_vde *vde,
-			      struct tegra_vde_bo **ret_bo,
-			      enum dma_data_direction dma_dir,
-			      size_t size)
+int tegra_vde_alloc_bo(struct tegra_vde *vde,
+		       struct tegra_vde_bo **ret_bo,
+		       enum dma_data_direction dma_dir,
+		       size_t size)
 {
 	struct device *dev = vde->miscdev.parent;
 	struct tegra_vde_bo *bo;
@@ -126,7 +126,7 @@ free_bo:
 	return err;
 }
 
-static void tegra_vde_free_bo(struct tegra_vde_bo *bo)
+void tegra_vde_free_bo(struct tegra_vde_bo *bo)
 {
 	struct tegra_vde *vde = bo->vde;
 	struct device *dev = vde->miscdev.parent;
@@ -332,6 +332,8 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 
 		dpb_frames[i].flags = frames[i].flags;
 		dpb_frames[i].frame_num = frames[i].frame_num;
+		dpb_frames[i].luma_atoms_pitch = ctx.pic_width_in_mbs;
+		dpb_frames[i].chroma_atoms_pitch = cstride / VDE_ATOM;
 
 		dma_dir = (i == 0) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
@@ -626,8 +628,16 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		goto err_free_secure_bo;
 	}
 
+	err = tegra_vde_v4l2_init(vde);
+	if (err) {
+		dev_err(dev, "Failed to initialize V4L2: %d\n", err);
+		goto misc_unreg;
+	}
+
 	return 0;
 
+misc_unreg:
+	misc_deregister(&vde->miscdev);
 err_free_secure_bo:
 	tegra_vde_free_bo(vde->secure_bo);
 err_pm_runtime:
@@ -648,6 +658,7 @@ static int tegra_vde_remove(struct platform_device *pdev)
 	struct tegra_vde *vde = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
+	tegra_vde_v4l2_deinit(vde);
 	misc_deregister(&vde->miscdev);
 
 	tegra_vde_free_bo(vde->secure_bo);
@@ -722,20 +733,73 @@ static const struct dev_pm_ops tegra_vde_pm_ops = {
 				tegra_vde_pm_resume)
 };
 
+static const u32 tegra124_decoded_fmts[] = {
+	/* TBD: T124 supports only a non-standard Tegra tiled format */
+};
+
+static const struct tegra_coded_fmt_desc tegra124_coded_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_H264_SLICE,
+		.frmsize = {
+			.min_width = 16,
+			.max_width = 1920,
+			.step_width = 16,
+			.min_height = 16,
+			.max_height = 2032,
+			.step_height = 16,
+		},
+		.num_decoded_fmts = ARRAY_SIZE(tegra124_decoded_fmts),
+		.decoded_fmts = tegra124_decoded_fmts,
+		.decode_run = tegra_vde_h264_decode_run,
+		.decode_wait = tegra_vde_h264_decode_wait,
+	},
+};
+
+static const u32 tegra20_decoded_fmts[] = {
+	V4L2_PIX_FMT_YUV420M,
+	V4L2_PIX_FMT_YVU420M,
+};
+
+static const struct tegra_coded_fmt_desc tegra20_coded_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_H264_SLICE,
+		.frmsize = {
+			.min_width = 16,
+			.max_width = 1920,
+			.step_width = 16,
+			.min_height = 16,
+			.max_height = 2032,
+			.step_height = 16,
+		},
+		.num_decoded_fmts = ARRAY_SIZE(tegra20_decoded_fmts),
+		.decoded_fmts = tegra20_decoded_fmts,
+		.decode_run = tegra_vde_h264_decode_run,
+		.decode_wait = tegra_vde_h264_decode_wait,
+	},
+};
+
 static const struct tegra_vde_soc tegra124_vde_soc = {
 	.supports_ref_pic_marking = true,
+	.coded_fmts = tegra124_coded_fmts,
+	.num_coded_fmts = ARRAY_SIZE(tegra124_coded_fmts),
 };
 
 static const struct tegra_vde_soc tegra114_vde_soc = {
 	.supports_ref_pic_marking = true,
+	.coded_fmts = tegra20_coded_fmts,
+	.num_coded_fmts = ARRAY_SIZE(tegra20_coded_fmts),
 };
 
 static const struct tegra_vde_soc tegra30_vde_soc = {
 	.supports_ref_pic_marking = false,
+	.coded_fmts = tegra20_coded_fmts,
+	.num_coded_fmts = ARRAY_SIZE(tegra20_coded_fmts),
 };
 
 static const struct tegra_vde_soc tegra20_vde_soc = {
 	.supports_ref_pic_marking = false,
+	.coded_fmts = tegra20_coded_fmts,
+	.num_coded_fmts = ARRAY_SIZE(tegra20_coded_fmts),
 };
 
 static const struct of_device_id tegra_vde_of_match[] = {
