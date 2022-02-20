@@ -721,7 +721,8 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	DECLARE_COMPLETION_ONSTACK(completion);
 	u8		*ioctlbuffer;
 	struct fw_control_info	*fwControl;
-	u32		partitionSize, partitionSizeTmp;
+	__be32		partitionSizeTmp;
+	u32		partitionSize;
 	u32		loopNumber, loopcount;
 	struct pm8001_fw_image_header *image_hdr;
 	u32		sizeRead = 0;
@@ -742,7 +743,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	image_hdr = (struct pm8001_fw_image_header *)pm8001_ha->fw_image->data;
 	while (sizeRead < pm8001_ha->fw_image->size) {
 		partitionSizeTmp =
-			*(u32 *)((u8 *)&image_hdr->image_length + sizeRead);
+			*(__be32 *)((u8 *)&image_hdr->image_length + sizeRead);
 		partitionSize = be32_to_cpu(partitionSizeTmp);
 		loopcount = DIV_ROUND_UP(partitionSize + HEADER_LEN,
 					IOCTL_BUF_SIZE);
