@@ -59,7 +59,8 @@ enum dentist_dispclk_change_mode {
 enum pixel_rate_div {
    PIXEL_RATE_DIV_BY_1 = 0,
    PIXEL_RATE_DIV_BY_2 = 1,
-   PIXEL_RATE_DIV_BY_4 = 3
+   PIXEL_RATE_DIV_BY_4 = 3,
+   PIXEL_RATE_DIV_NA = 0xF
 };
 
 struct dccg {

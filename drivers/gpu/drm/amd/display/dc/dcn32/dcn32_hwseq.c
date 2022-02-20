@@ -47,6 +47,7 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
+#include "dc_link_dp.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -836,20 +837,44 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	}
 }
 
+/*
+* Given any pipe_ctx, return the total ODM combine factor, and optionally return
+* the OPPids which are used
+* */
+static unsigned int get_odm_config(struct pipe_ctx *pipe_ctx, unsigned int *opp_instances)
+{
+	unsigned int opp_count = 1;
+	struct pipe_ctx *odm_pipe;
+
+	/* First get to the top pipe */
+	for (odm_pipe = pipe_ctx; odm_pipe->prev_odm_pipe; odm_pipe = odm_pipe->prev_odm_pipe)
+		;
+
+	/* First pipe is always used */
+	if (opp_instances)
+		opp_instances[0] = odm_pipe->stream_res.opp->inst;
+
+	/* Find and count odm pipes, if any */
+	for (odm_pipe = odm_pipe->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+		if (opp_instances)
+			opp_instances[opp_count] = odm_pipe->stream_res.opp->inst;
+		opp_count++;
+	}
+
+	return opp_count;
+}
+
 void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *odm_pipe;
-	int opp_cnt = 1;
-	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
+	int opp_cnt = 0;
+	int opp_inst[MAX_PIPES] = {0};
 	bool rate_control_2x_pclk = (pipe_ctx->stream->timing.flags.INTERLACE || optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing));
 	struct mpc_dwb_flow_control flow_control;
 	struct mpc *mpc = dc->res_pool->mpc;
 	int i;
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
-		opp_cnt++;
-	}
+	opp_cnt = get_odm_config(pipe_ctx, opp_inst);
 
 	if (opp_cnt > 1)
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
@@ -892,3 +917,38 @@ void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC);
 }
 
+unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	unsigned int odm_combine_factor = 0;
+
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		*k2_div = PIXEL_RATE_DIV_BY_1;
+	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
+		*k1_div = PIXEL_RATE_DIV_BY_1;
+		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		else
+			*k2_div = PIXEL_RATE_DIV_BY_4;
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+			*k1_div = PIXEL_RATE_DIV_BY_1;
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		} else if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+			*k1_div = PIXEL_RATE_DIV_BY_2;
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		} else {
+			if (odm_combine_factor == 1)
+				*k2_div = PIXEL_RATE_DIV_BY_4;
+			else if (odm_combine_factor == 2)
+				*k2_div = PIXEL_RATE_DIV_BY_2;
+		}
+	}
+
+	if ((*k1_div == PIXEL_RATE_DIV_NA) && (*k2_div == PIXEL_RATE_DIV_NA))
+		ASSERT(false);
+
+	return odm_combine_factor;
+}

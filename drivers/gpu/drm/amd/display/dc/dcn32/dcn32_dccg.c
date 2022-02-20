@@ -272,6 +272,7 @@ static const struct dccg_funcs dccg32_funcs = {
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
 	.otg_add_pixel = dccg32_otg_add_pixel,
 	.otg_drop_pixel = dccg32_otg_drop_pixel,
+	.set_pixel_rate_div = dccg32_set_pixel_rate_div,
 };
 
 struct dccg *dccg32_create(

@@ -149,6 +149,9 @@ struct hwseq_private_funcs {
 	void (*program_mall_pipe_config)(struct dc *dc, struct dc_state *context);
 	void (*subvp_update_force_pstate)(struct dc *dc, struct dc_state *context);
 	void (*update_mall_sel)(struct dc *dc, struct dc_state *context);
+	unsigned int (*calculate_dccg_k1_k2_values)(struct pipe_ctx *pipe_ctx,
+			unsigned int *k1_div,
+			unsigned int *k2_div);
 #endif
 };
 

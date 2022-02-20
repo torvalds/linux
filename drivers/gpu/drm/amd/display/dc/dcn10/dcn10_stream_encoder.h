@@ -576,6 +576,7 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_GSP11_LINE_NUM
 
 #define SE_REG_FIELD_LIST_DCN3_2(type) \
+	type DIG_FIFO_OUTPUT_PIXEL_MODE;\
 	type DIG_SYMCLK_FE_ON;\
 	type DIG_FIFO_READ_START_LEVEL;\
 	type DIG_FIFO_ENABLE;\

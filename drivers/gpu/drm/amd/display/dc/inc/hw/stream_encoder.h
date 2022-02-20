@@ -247,6 +247,9 @@ struct stream_encoder_funcs {
 
 	uint32_t (*get_fifo_cal_average_level)(
 		struct stream_encoder *enc);
+
+	void (*set_input_mode)(
+		struct stream_encoder *enc, unsigned int pix_per_container);
 };
 
 struct hpo_dp_stream_encoder_state {
