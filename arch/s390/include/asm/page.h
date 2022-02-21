@@ -90,11 +90,31 @@ typedef pte_t *pgtable_t;
 
 #define pgprot_val(x)	((x).pgprot)
 #define pgste_val(x)	((x).pgste)
-#define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
-#define pud_val(x)	((x).pud)
-#define p4d_val(x)	((x).p4d)
-#define pgd_val(x)      ((x).pgd)
+
+static inline unsigned long pte_val(pte_t pte)
+{
+	return pte.pte;
+}
+
+static inline unsigned long pmd_val(pmd_t pmd)
+{
+	return pmd.pmd;
+}
+
+static inline unsigned long pud_val(pud_t pud)
+{
+	return pud.pud;
+}
+
+static inline unsigned long p4d_val(p4d_t p4d)
+{
+	return p4d.p4d;
+}
+
+static inline unsigned long pgd_val(pgd_t pgd)
+{
+	return pgd.pgd;
+}
 
 #define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
