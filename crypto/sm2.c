@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SM2 asymmetric public-key algorithm
  * as specified by OSCCA GM/T 0003.1-2012 -- 0003.5-2012 SM2 and

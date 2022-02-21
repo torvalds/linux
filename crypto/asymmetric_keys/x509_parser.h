@@ -22,7 +22,7 @@ struct x509_certificate {
 	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
 	unsigned	tbs_size;		/* Size of signed data */
-	unsigned	raw_sig_size;		/* Size of sigature */
+	unsigned	raw_sig_size;		/* Size of signature */
 	const void	*raw_sig;		/* Signature data */
 	const void	*raw_serial;		/* Raw serial number in ASN.1 */
 	unsigned	raw_serial_size;
