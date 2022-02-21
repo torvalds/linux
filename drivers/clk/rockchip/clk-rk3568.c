@@ -1703,14 +1703,12 @@ static const struct of_device_id clk_rk3568_match_table[] = {
 static int __init clk_rk3568_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	const struct clk_rk3568_inits *init_data;
 
-	match = of_match_device(clk_rk3568_match_table, &pdev->dev);
-	if (!match || !match->data)
+	init_data = (struct clk_rk3568_inits *)of_device_get_match_data(&pdev->dev);
+	if (!init_data)
 		return -EINVAL;
 
-	init_data = match->data;
 	if (init_data->inits)
 		init_data->inits(np);
 
