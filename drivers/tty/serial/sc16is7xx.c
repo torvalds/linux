@@ -289,6 +289,14 @@
 						  *       XON1, XON2, XOFF1 and
 						  *       XOFF2
 						  */
+#define SC16IS7XX_EFR_FLOWCTRL_BITS	(SC16IS7XX_EFR_AUTORTS_BIT | \
+					SC16IS7XX_EFR_AUTOCTS_BIT | \
+					SC16IS7XX_EFR_XOFF2_DETECT_BIT | \
+					SC16IS7XX_EFR_SWFLOW3_BIT | \
+					SC16IS7XX_EFR_SWFLOW2_BIT | \
+					SC16IS7XX_EFR_SWFLOW1_BIT | \
+					SC16IS7XX_EFR_SWFLOW0_BIT)
+
 
 /* Misc definitions */
 #define SC16IS7XX_FIFO_SIZE		(64)
@@ -523,8 +531,10 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 
 	/* Enable enhanced features */
 	regcache_cache_bypass(s->regmap, true);
-	sc16is7xx_port_write(port, SC16IS7XX_EFR_REG,
-			     SC16IS7XX_EFR_ENABLE_BIT);
+	sc16is7xx_port_update(port, SC16IS7XX_EFR_REG,
+			      SC16IS7XX_EFR_ENABLE_BIT,
+			      SC16IS7XX_EFR_ENABLE_BIT);
+
 	regcache_cache_bypass(s->regmap, false);
 
 	/* Put LCR back to the normal mode */
@@ -932,7 +942,10 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	if (termios->c_iflag & IXOFF)
 		flow |= SC16IS7XX_EFR_SWFLOW1_BIT;
 
-	sc16is7xx_port_write(port, SC16IS7XX_EFR_REG, flow);
+	sc16is7xx_port_update(port,
+			      SC16IS7XX_EFR_REG,
+			      SC16IS7XX_EFR_FLOWCTRL_BITS,
+			      flow);
 	regcache_cache_bypass(s->regmap, false);
 
 	/* Update LCR register */
@@ -1007,8 +1020,9 @@ static int sc16is7xx_startup(struct uart_port *port)
 	regcache_cache_bypass(s->regmap, true);
 
 	/* Enable write access to enhanced features and internal clock div */
-	sc16is7xx_port_write(port, SC16IS7XX_EFR_REG,
-			     SC16IS7XX_EFR_ENABLE_BIT);
+	sc16is7xx_port_update(port, SC16IS7XX_EFR_REG,
+			      SC16IS7XX_EFR_ENABLE_BIT,
+			      SC16IS7XX_EFR_ENABLE_BIT);
 
 	/* Enable TCR/TLR */
 	sc16is7xx_port_update(port, SC16IS7XX_MCR_REG,
