@@ -533,6 +533,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	unsigned int num_planes = dispc_get_num_ovls(priv->dispc);
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
+	unsigned int zpos;
 	int ret;
 	u32 nformats;
 	const u32 *formats;
@@ -564,7 +565,16 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &omap_plane_helper_funcs);
 
 	omap_plane_install_properties(plane, &plane->base);
-	drm_plane_create_zpos_property(plane, 0, 0, num_planes - 1);
+
+	/*
+	 * Set the zpos default depending on whether we are a primary or overlay
+	 * plane.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+		zpos = 0;
+	else
+		zpos = omap_plane->id;
+	drm_plane_create_zpos_property(plane, zpos, 0, num_planes - 1);
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_PREMULTI) |
 					     BIT(DRM_MODE_BLEND_COVERAGE));
