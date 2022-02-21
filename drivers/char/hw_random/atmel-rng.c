@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/hw_random.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -20,6 +21,7 @@
 #define TRNG_CR		0x00
 #define TRNG_MR		0x04
 #define TRNG_ISR	0x1c
+#define TRNG_ISR_DATRDY	BIT(0)
 #define TRNG_ODATA	0x50
 
 #define TRNG_KEY	0x524e4700 /* RNG */
@@ -36,25 +38,40 @@ struct atmel_trng {
 	struct hwrng rng;
 };
 
+static bool atmel_trng_wait_ready(struct atmel_trng *trng, bool wait)
+{
+	int ready;
+
+	ready = readl(trng->base + TRNG_ISR) & TRNG_ISR_DATRDY;
+	if (!ready && wait)
+		readl_poll_timeout(trng->base + TRNG_ISR, ready,
+				   ready & TRNG_ISR_DATRDY, 1000, 20000);
+
+	return !!ready;
+}
+
 static int atmel_trng_read(struct hwrng *rng, void *buf, size_t max,
 			   bool wait)
 {
 	struct atmel_trng *trng = container_of(rng, struct atmel_trng, rng);
 	u32 *data = buf;
+	int ret;
 
-	/* data ready? */
-	if (readl(trng->base + TRNG_ISR) & 1) {
-		*data = readl(trng->base + TRNG_ODATA);
-		/*
-		  ensure data ready is only set again AFTER the next data
-		  word is ready in case it got set between checking ISR
-		  and reading ODATA, so we don't risk re-reading the
-		  same word
-		*/
-		readl(trng->base + TRNG_ISR);
-		return 4;
-	} else
-		return 0;
+	ret = atmel_trng_wait_ready(trng, wait);
+	if (!ret)
+		goto out;
+
+	*data = readl(trng->base + TRNG_ODATA);
+	/*
+	 * ensure data ready is only set again AFTER the next data word is ready
+	 * in case it got set between checking ISR and reading ODATA, so we
+	 * don't risk re-reading the same word
+	 */
+	readl(trng->base + TRNG_ISR);
+	ret = 4;
+
+out:
+	return ret;
 }
 
 static void atmel_trng_enable(struct atmel_trng *trng)
