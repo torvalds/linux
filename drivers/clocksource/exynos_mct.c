@@ -64,7 +64,8 @@
 #define MCT_G0_IRQ	0
 /* Local timers count starts after global timer count */
 #define MCT_L0_IRQ	4
-#define MCT_NR_IRQS	12
+/* Max number of IRQ as per DT binding document */
+#define MCT_NR_IRQS	20
 
 enum {
 	MCT_INT_SPI,
