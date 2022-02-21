@@ -641,7 +641,10 @@ enum dmub_cmd_type {
 	 * Command type used for all panel control commands.
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
-
+	/**
+	 * Command type used for <TODO:description>
+	 */
+	DMUB_CMD__CAB_FOR_SS = 75,
 	/**
 	 * Command type used for interfacing with DPIA.
 	 */
@@ -878,6 +881,23 @@ struct dmub_rb_cmd_mall {
 	uint8_t reserved2; /**< Reserved bits */
 };
 
+/**
+ * enum dmub_cmd_cab_type - TODO:
+ */
+enum dmub_cmd_cab_type {
+	DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION = 0,
+	DMUB_CMD__CAB_NO_DCN_REQ = 1,
+	DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB = 2,
+};
+
+/**
+ * struct dmub_rb_cmd_cab_for_ss - TODO:
+ */
+struct dmub_rb_cmd_cab_for_ss {
+	struct dmub_cmd_header header;
+	uint8_t cab_alloc_ways; /* total number of ways */
+	uint8_t debug_bits;     /* debug bits */
+};
 /**
  * enum dmub_cmd_idle_opt_type - Idle optimization command type.
  */
@@ -2693,6 +2713,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__MALL command.
 	 */
 	struct dmub_rb_cmd_mall mall;
+	/**
+	 * Definition of a DMUB_CMD__CAB command.
+	 */
+	struct dmub_rb_cmd_cab_for_ss cab;
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
 	 */

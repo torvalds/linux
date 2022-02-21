@@ -246,6 +246,7 @@ struct dmub_srv_hw_params {
 	bool dpia_supported;
 	bool disable_dpia;
 	bool usb4_cm_version;
+	bool fw_in_system_memory;
 };
 
 /**
@@ -310,6 +311,9 @@ struct dmub_srv_hw_funcs {
 			      const struct dmub_window *cw0,
 			      const struct dmub_window *cw1);
 
+	void (*backdoor_load_zfb_mode)(struct dmub_srv *dmub,
+			      const struct dmub_window *cw0,
+			      const struct dmub_window *cw1);
 	void (*setup_windows)(struct dmub_srv *dmub,
 			      const struct dmub_window *cw2,
 			      const struct dmub_window *cw3,
@@ -365,6 +369,7 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_dataout)(struct dmub_srv *dmub);
 
+	void (*configure_dmub_in_system_memory)(struct dmub_srv *dmub);
 	void (*clear_inbox0_ack_register)(struct dmub_srv *dmub);
 	uint32_t (*read_inbox0_ack_register)(struct dmub_srv *dmub);
 	void (*send_inbox0_cmd)(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
@@ -412,6 +417,7 @@ struct dmub_srv {
 	/* private: internal use only */
 	const struct dmub_srv_common_regs *regs;
 	const struct dmub_srv_dcn31_regs *regs_dcn31;
+	const struct dmub_srv_dcn32_regs *regs_dcn32;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;

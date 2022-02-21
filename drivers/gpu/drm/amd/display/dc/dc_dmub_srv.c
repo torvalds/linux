@@ -250,6 +250,37 @@ void dc_dmub_trace_event_control(struct dc *dc, bool enable)
 	dm_helpers_dmub_outbox_interrupt_control(dc->ctx, enable);
 }
 
+void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	enum dmub_status status;
+
+	if (!dmub) {
+		return;
+	}
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/* Prepare fw command */
+	cmd.query_feature_caps.header.type = DMUB_CMD__QUERY_FEATURE_CAPS;
+	cmd.query_feature_caps.header.sub_type = 0;
+	cmd.query_feature_caps.header.ret_status = 1;
+	cmd.query_feature_caps.header.payload_bytes = sizeof(struct dmub_cmd_query_feature_caps_data);
+
+	/* Send command to fw */
+	status = dmub_srv_cmd_with_reply_data(dmub, &cmd);
+
+	ASSERT(status == DMUB_STATUS_OK);
+
+	/* If command was processed, copy feature caps to dmub srv */
+	if (status == DMUB_STATUS_OK &&
+	    cmd.query_feature_caps.header.ret_status == 0) {
+		memcpy(&dmub->feature_caps,
+		       &cmd.query_feature_caps.query_feature_caps_data,
+		       sizeof(struct dmub_feature_caps));
+	}
+}
+
 bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
 {
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub || !diag_data)
