@@ -488,7 +488,7 @@ struct f2fs_filename {
 	 */
 	struct fscrypt_str crypto_buf;
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	/*
 	 * For casefolded directories: the casefolded name, but it's left NULL
 	 * if the original name is not valid Unicode, if the directory is both

@@ -80,7 +80,7 @@ static int smb_direct_max_fragmented_recv_size = 1024 * 1024;
 /*  The maximum single-message size which can be received */
 static int smb_direct_max_receive_size = 8192;
 
-static int smb_direct_max_read_write_size = 1048512;
+static int smb_direct_max_read_write_size = 524224;
 
 static int smb_direct_max_outstanding_rw_ops = 8;
 

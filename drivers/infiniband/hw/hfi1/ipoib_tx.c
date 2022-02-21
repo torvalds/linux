@@ -122,7 +122,7 @@ static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
 		dd_dev_warn(priv->dd,
 			    "%s: Status = 0x%x pbc 0x%llx txq = %d sde = %d\n",
 			    __func__, tx->sdma_status,
-			    le64_to_cpu(tx->sdma_hdr.pbc), tx->txq->q_idx,
+			    le64_to_cpu(tx->sdma_hdr->pbc), tx->txq->q_idx,
 			    tx->txq->sde->this_idx);
 	}
 
@@ -231,7 +231,7 @@ static int hfi1_ipoib_build_tx_desc(struct ipoib_txreq *tx,
 {
 	struct hfi1_devdata *dd = txp->dd;
 	struct sdma_txreq *txreq = &tx->txreq;
-	struct hfi1_sdma_header *sdma_hdr = &tx->sdma_hdr;
+	struct hfi1_sdma_header *sdma_hdr = tx->sdma_hdr;
 	u16 pkt_bytes =
 		sizeof(sdma_hdr->pbc) + (txp->hdr_dwords << 2) + tx->skb->len;
 	int ret;
@@ -256,7 +256,7 @@ static void hfi1_ipoib_build_ib_tx_headers(struct ipoib_txreq *tx,
 					   struct ipoib_txparms *txp)
 {
 	struct hfi1_ipoib_dev_priv *priv = tx->txq->priv;
-	struct hfi1_sdma_header *sdma_hdr = &tx->sdma_hdr;
+	struct hfi1_sdma_header *sdma_hdr = tx->sdma_hdr;
 	struct sk_buff *skb = tx->skb;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(txp->ibp);
 	struct rdma_ah_attr *ah_attr = txp->ah_attr;
@@ -483,7 +483,7 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 	if (likely(!ret)) {
 tx_ok:
 		trace_sdma_output_ibhdr(txq->priv->dd,
-					&tx->sdma_hdr.hdr,
+					&tx->sdma_hdr->hdr,
 					ib_is_sc5(txp->flow.sc5));
 		hfi1_ipoib_check_queue_depth(txq);
 		return NETDEV_TX_OK;
@@ -547,7 +547,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 	hfi1_ipoib_check_queue_depth(txq);
 
 	trace_sdma_output_ibhdr(txq->priv->dd,
-				&tx->sdma_hdr.hdr,
+				&tx->sdma_hdr->hdr,
 				ib_is_sc5(txp->flow.sc5));
 
 	if (!netdev_xmit_more())
@@ -683,7 +683,8 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 {
 	struct net_device *dev = priv->netdev;
 	u32 tx_ring_size, tx_item_size;
-	int i;
+	struct hfi1_ipoib_circ_buf *tx_ring;
+	int i, j;
 
 	/*
 	 * Ring holds 1 less than tx_ring_size
@@ -701,7 +702,9 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
+		struct ipoib_txreq *tx;
 
+		tx_ring = &txq->tx_ring;
 		iowait_init(&txq->wait,
 			    0,
 			    hfi1_ipoib_flush_txq,
@@ -725,14 +728,19 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 					     priv->dd->node);
 
 		txq->tx_ring.items =
-			kcalloc_node(tx_ring_size, tx_item_size,
-				     GFP_KERNEL, priv->dd->node);
+			kvzalloc_node(array_size(tx_ring_size, tx_item_size),
+				      GFP_KERNEL, priv->dd->node);
 		if (!txq->tx_ring.items)
 			goto free_txqs;
 
 		txq->tx_ring.max_items = tx_ring_size;
-		txq->tx_ring.shift = ilog2(tx_ring_size);
+		txq->tx_ring.shift = ilog2(tx_item_size);
 		txq->tx_ring.avail = hfi1_ipoib_ring_hwat(txq);
+		tx_ring = &txq->tx_ring;
+		for (j = 0; j < tx_ring_size; j++)
+			hfi1_txreq_from_idx(tx_ring, j)->sdma_hdr =
+				kzalloc_node(sizeof(*tx->sdma_hdr),
+					     GFP_KERNEL, priv->dd->node);
 
 		netif_tx_napi_add(dev, &txq->napi,
 				  hfi1_ipoib_poll_tx_ring,
@@ -746,7 +754,10 @@ free_txqs:
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
 
 		netif_napi_del(&txq->napi);
-		kfree(txq->tx_ring.items);
+		tx_ring = &txq->tx_ring;
+		for (j = 0; j < tx_ring_size; j++)
+			kfree(hfi1_txreq_from_idx(tx_ring, j)->sdma_hdr);
+		kvfree(tx_ring->items);
 	}
 
 	kfree(priv->txqs);
@@ -780,17 +791,20 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 
 void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < priv->netdev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
+		struct hfi1_ipoib_circ_buf *tx_ring = &txq->tx_ring;
 
 		iowait_cancel_work(&txq->wait);
 		iowait_sdma_drain(&txq->wait);
 		hfi1_ipoib_drain_tx_list(txq);
 		netif_napi_del(&txq->napi);
 		hfi1_ipoib_drain_tx_ring(txq);
-		kfree(txq->tx_ring.items);
+		for (j = 0; j < tx_ring->max_items; j++)
+			kfree(hfi1_txreq_from_idx(tx_ring, j)->sdma_hdr);
+		kvfree(tx_ring->items);
 	}
 
 	kfree(priv->txqs);
