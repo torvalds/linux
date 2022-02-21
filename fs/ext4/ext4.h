@@ -1046,6 +1046,8 @@ struct ext4_inode_info {
 
 	/* Fast commit related info */
 
+	/* For tracking dentry create updates */
+	struct list_head i_fc_dilist;
 	struct list_head i_fc_list;	/*
 					 * inodes that need fast commit
 					 * protected by sbi->s_fc_lock.
