@@ -53,6 +53,7 @@ struct af_alg_iv {
 #define ALG_SET_AEAD_AUTHSIZE		5
 #define ALG_SET_DRBG_ENTROPY		6
 #define ALG_SET_KEY_BY_KEY_SERIAL	7
+#define ALG_SET_PUBKEY			8
 
 /* Operations */
 #define ALG_OP_DECRYPT			0
