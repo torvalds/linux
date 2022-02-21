@@ -549,8 +549,10 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 		rcar_du_plane_setup_format(rgrp, (state->hwindex + 1) % 8,
 					   state);
 
-	if (rcdu->info->gen < 3)
-		rcar_du_plane_setup_scanout(rgrp, state);
+	if (rcdu->info->gen >= 3)
+		return;
+
+	rcar_du_plane_setup_scanout(rgrp, state);
 
 	if (state->source == RCAR_DU_PLANE_VSPD1) {
 		unsigned int vspd1_sink = rgrp->index ? 2 : 0;
