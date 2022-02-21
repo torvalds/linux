@@ -268,8 +268,8 @@ struct vnt_private {
 	u32 rx_buf_sz;
 	int mc_list_count;
 
-	spinlock_t lock;
-	struct mutex usb_lock;
+	spinlock_t lock;		/* prepare tx USB URB */
+	struct mutex usb_lock;		/* USB control messages */
 
 	unsigned long flags;
 
