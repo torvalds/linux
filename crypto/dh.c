@@ -257,6 +257,214 @@ static struct kpp_alg dh = {
 	},
 };
 
+
+struct dh_safe_prime {
+	unsigned int max_strength;
+	unsigned int p_size;
+	const char *p;
+};
+
+static const char safe_prime_g[]  = { 2 };
+
+struct dh_safe_prime_instance_ctx {
+	struct crypto_kpp_spawn dh_spawn;
+	const struct dh_safe_prime *safe_prime;
+};
+
+struct dh_safe_prime_tfm_ctx {
+	struct crypto_kpp *dh_tfm;
+};
+
+static void dh_safe_prime_free_instance(struct kpp_instance *inst)
+{
+	struct dh_safe_prime_instance_ctx *ctx = kpp_instance_ctx(inst);
+
+	crypto_drop_kpp(&ctx->dh_spawn);
+	kfree(inst);
+}
+
+static inline struct dh_safe_prime_instance_ctx *dh_safe_prime_instance_ctx(
+	struct crypto_kpp *tfm)
+{
+	return kpp_instance_ctx(kpp_alg_instance(tfm));
+}
+
+static inline struct kpp_alg *dh_safe_prime_dh_alg(
+	struct dh_safe_prime_tfm_ctx *ctx)
+{
+	return crypto_kpp_alg(ctx->dh_tfm);
+}
+
+static int dh_safe_prime_init_tfm(struct crypto_kpp *tfm)
+{
+	struct dh_safe_prime_instance_ctx *inst_ctx =
+		dh_safe_prime_instance_ctx(tfm);
+	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
+
+	tfm_ctx->dh_tfm = crypto_spawn_kpp(&inst_ctx->dh_spawn);
+	if (IS_ERR(tfm_ctx->dh_tfm))
+		return PTR_ERR(tfm_ctx->dh_tfm);
+
+	return 0;
+}
+
+static void dh_safe_prime_exit_tfm(struct crypto_kpp *tfm)
+{
+	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
+
+	crypto_free_kpp(tfm_ctx->dh_tfm);
+}
+
+static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
+				    unsigned int len)
+{
+	struct dh_safe_prime_instance_ctx *inst_ctx =
+		dh_safe_prime_instance_ctx(tfm);
+	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
+	struct dh params;
+	void *buf;
+	unsigned int buf_size;
+	int err;
+
+	err = __crypto_dh_decode_key(buffer, len, &params);
+	if (err)
+		return err;
+
+	if (params.p_size || params.g_size)
+		return -EINVAL;
+
+	params.p = inst_ctx->safe_prime->p;
+	params.p_size = inst_ctx->safe_prime->p_size;
+	params.g = safe_prime_g;
+	params.g_size = sizeof(safe_prime_g);
+
+	buf_size = crypto_dh_key_len(&params);
+	buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	err = crypto_dh_encode_key(buf, buf_size, &params);
+	if (err)
+		goto out;
+
+	err = crypto_kpp_set_secret(tfm_ctx->dh_tfm, buf, buf_size);
+out:
+	kfree_sensitive(buf);
+	return err;
+}
+
+static void dh_safe_prime_complete_req(struct crypto_async_request *dh_req,
+				       int err)
+{
+	struct kpp_request *req = dh_req->data;
+
+	kpp_request_complete(req, err);
+}
+
+static struct kpp_request *dh_safe_prime_prepare_dh_req(struct kpp_request *req)
+{
+	struct dh_safe_prime_tfm_ctx *tfm_ctx =
+		kpp_tfm_ctx(crypto_kpp_reqtfm(req));
+	struct kpp_request *dh_req = kpp_request_ctx(req);
+
+	kpp_request_set_tfm(dh_req, tfm_ctx->dh_tfm);
+	kpp_request_set_callback(dh_req, req->base.flags,
+				 dh_safe_prime_complete_req, req);
+
+	kpp_request_set_input(dh_req, req->src, req->src_len);
+	kpp_request_set_output(dh_req, req->dst, req->dst_len);
+
+	return dh_req;
+}
+
+static int dh_safe_prime_generate_public_key(struct kpp_request *req)
+{
+	struct kpp_request *dh_req = dh_safe_prime_prepare_dh_req(req);
+
+	return crypto_kpp_generate_public_key(dh_req);
+}
+
+static int dh_safe_prime_compute_shared_secret(struct kpp_request *req)
+{
+	struct kpp_request *dh_req = dh_safe_prime_prepare_dh_req(req);
+
+	return crypto_kpp_compute_shared_secret(dh_req);
+}
+
+static unsigned int dh_safe_prime_max_size(struct crypto_kpp *tfm)
+{
+	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
+
+	return crypto_kpp_maxsize(tfm_ctx->dh_tfm);
+}
+
+static int __maybe_unused __dh_safe_prime_create(
+	struct crypto_template *tmpl, struct rtattr **tb,
+	const struct dh_safe_prime *safe_prime)
+{
+	struct kpp_instance *inst;
+	struct dh_safe_prime_instance_ctx *ctx;
+	const char *dh_name;
+	struct kpp_alg *dh_alg;
+	u32 mask;
+	int err;
+
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_KPP, &mask);
+	if (err)
+		return err;
+
+	dh_name = crypto_attr_alg_name(tb[1]);
+	if (IS_ERR(dh_name))
+		return PTR_ERR(dh_name);
+
+	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+
+	ctx = kpp_instance_ctx(inst);
+
+	err = crypto_grab_kpp(&ctx->dh_spawn, kpp_crypto_instance(inst),
+			      dh_name, 0, mask);
+	if (err)
+		goto err_free_inst;
+
+	err = -EINVAL;
+	dh_alg = crypto_spawn_kpp_alg(&ctx->dh_spawn);
+	if (strcmp(dh_alg->base.cra_name, "dh"))
+		goto err_free_inst;
+
+	ctx->safe_prime = safe_prime;
+
+	err = crypto_inst_setname(kpp_crypto_instance(inst),
+				  tmpl->name, &dh_alg->base);
+	if (err)
+		goto err_free_inst;
+
+	inst->alg.set_secret = dh_safe_prime_set_secret;
+	inst->alg.generate_public_key = dh_safe_prime_generate_public_key;
+	inst->alg.compute_shared_secret = dh_safe_prime_compute_shared_secret;
+	inst->alg.max_size = dh_safe_prime_max_size;
+	inst->alg.init = dh_safe_prime_init_tfm;
+	inst->alg.exit = dh_safe_prime_exit_tfm;
+	inst->alg.reqsize = sizeof(struct kpp_request) + dh_alg->reqsize;
+	inst->alg.base.cra_priority = dh_alg->base.cra_priority;
+	inst->alg.base.cra_module = THIS_MODULE;
+	inst->alg.base.cra_ctxsize = sizeof(struct dh_safe_prime_tfm_ctx);
+
+	inst->free = dh_safe_prime_free_instance;
+
+	err = kpp_register_instance(tmpl, inst);
+	if (err)
+		goto err_free_inst;
+
+	return 0;
+
+err_free_inst:
+	dh_safe_prime_free_instance(inst);
+
+	return err;
+}
+
 static int dh_init(void)
 {
 	return crypto_register_kpp(&dh);
