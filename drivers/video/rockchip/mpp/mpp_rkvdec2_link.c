@@ -1597,7 +1597,7 @@ static int rkvdec2_ccu_link_session_detach(struct mpp_dev *mpp,
 }
 
 static int rkvdec2_ccu_power_on(struct mpp_taskqueue *queue,
-					  struct rkvdec2_ccu *ccu)
+				struct rkvdec2_ccu *ccu)
 {
 	if (!atomic_xchg(&ccu->power_enabled, 1)) {
 		u32 i;
@@ -1622,7 +1622,7 @@ static int rkvdec2_ccu_power_on(struct mpp_taskqueue *queue,
 }
 
 static int rkvdec2_ccu_power_off(struct mpp_taskqueue *queue,
-					   struct rkvdec2_ccu *ccu)
+				 struct rkvdec2_ccu *ccu)
 {
 	if (atomic_xchg(&ccu->power_enabled, 0)) {
 		u32 i;
@@ -1694,34 +1694,55 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 	return 0;
 }
 
-static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue)
+static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue,
+				  struct rkvdec2_ccu *ccu)
 {
-	u32 i = 0;
+	int i;
 
-	for (i = 0; i < queue->core_count; i++) {
+	for (i = queue->core_count - 1; i >= 0; i--) {
+		u32 val;
+
 		struct mpp_dev *mpp = queue->cores[i];
 		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 		if (dec->disable_work)
 			continue;
-		if (!atomic_read(&mpp->reset_request))
-			continue;
+
 		dev_info(mpp->dev, "resetting...\n");
 		disable_hardirq(mpp->irq);
 
 		/* foce idle, disconnect core and ccu */
-		writel(dec->core_mask, dec->ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
+		writel(dec->core_mask, ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
+
+		/* soft reset */
+		mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
+		udelay(5);
+		val = mpp_read(mpp, RKVDEC_REG_INT_EN);
+		if (!(val & RKVDEC_SOFT_RESET_READY))
+			mpp_err("soft reset fail, int %08x\n", val);
+		mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+
+		/* check bus idle */
+		val = mpp_read(mpp, RKVDEC_REG_DEBUG_INT_BASE);
+		if (!(val & RKVDEC_BIT_BUS_IDLE))
+			mpp_err("bus busy\n");
+
+#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
+		/* sip reset */
+		rockchip_dmcfreq_lock();
+		sip_smc_vpu_reset(i, 0, 0);
+		rockchip_dmcfreq_unlock();
+#else
 		rkvdec2_reset(mpp);
-
+#endif
 		/* clear error mask */
-		writel_relaxed(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
-			       dec->ccu->reg_base + RKVDEC_CCU_CORE_ERR_BASE);
-		mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
-		atomic_set(&mpp->reset_request, 0);
-
+		writel(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
+		       ccu->reg_base + RKVDEC_CCU_CORE_ERR_BASE);
 		/* connect core and ccu */
 		writel(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
-		       dec->ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
+		       ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
+		mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
+		atomic_set(&mpp->reset_request, 0);
 
 		enable_irq(mpp->irq);
 		dev_info(mpp->dev, "reset done\n");
@@ -1732,7 +1753,7 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue)
 }
 
 void *rkvdec2_ccu_alloc_task(struct mpp_session *session,
-				  struct mpp_task_msgs *msgs)
+			     struct mpp_task_msgs *msgs)
 {
 	int ret;
 	struct rkvdec2_task *task;
@@ -1904,8 +1925,9 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 	/* process reset request */
 	if (atomic_read(&queue->reset_request)) {
 		if (rkvdec2_core_working(queue))
-			goto done;
-		rkvdec2_soft_ccu_reset(queue);
+			goto out;
+		rkvdec2_ccu_power_on(queue, dec->ccu);
+		rkvdec2_soft_ccu_reset(queue, dec->ccu);
 	}
 
 get_task:
@@ -1926,7 +1948,7 @@ get_task:
 	/* find one core is idle */
 	mpp = rkvdec2_get_idle_core(queue, mpp_task);
 	if (!mpp)
-		goto done;
+		goto out;
 
 	/* set session index */
 	rkvdec2_set_core_info(mpp_task->reg, mpp_task->session->index);
@@ -1948,8 +1970,10 @@ get_task:
 	rkvdec2_ccu_power_on(queue, dec->ccu);
 	rkvdec2_soft_ccu_enqueue(mpp, mpp_task);
 done:
-	if (list_empty(&queue->running_list))
+	if (list_empty(&queue->running_list) &&
+	    list_empty(&queue->pending_list))
 		rkvdec2_ccu_power_off(queue, dec->ccu);
+out:
 	/* session detach out of queue */
 	rkvdec2_ccu_link_session_detach(mpp, queue);
 

@@ -10,9 +10,17 @@
 
 #include "mpp_rkvdec2.h"
 
+#define RKVDEC_REG_IMPORTANT_BASE	0x2c
+#define RKVDEC_REG_IMPORTANT_INDEX	11
+#define RKVDEC_SOFTREST_EN		BIT(20)
+
 #define RKVDEC_REG_SECOND_EN_BASE	0x30
 #define RKVDEC_REG_SECOND_EN_INDEX	12
 #define RKVDEC_WAIT_RESET_EN		BIT(7)
+
+#define RKVDEC_REG_DEBUG_INT_BASE	0x440
+#define RKVDEC_REG_DEBUG_INT_INDEX	272
+#define RKVDEC_BIT_BUS_IDLE		BIT(0)
 
 /* define for link hardware */
 #define RKVDEC_LINK_ADD_CFG_NUM		1
