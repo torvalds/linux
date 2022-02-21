@@ -15,7 +15,6 @@
 
 struct dh_ctx {
 	MPI p;	/* Value is guaranteed to be set. */
-	MPI q;	/* Value is optional. */
 	MPI g;	/* Value is guaranteed to be set. */
 	MPI xa;	/* Value is guaranteed to be set. */
 };
@@ -23,7 +22,6 @@ struct dh_ctx {
 static void dh_clear_ctx(struct dh_ctx *ctx)
 {
 	mpi_free(ctx->p);
-	mpi_free(ctx->q);
 	mpi_free(ctx->g);
 	mpi_free(ctx->xa);
 	memset(ctx, 0, sizeof(*ctx));
@@ -99,11 +97,12 @@ err_clear_ctx:
 /*
  * SP800-56A public key verification:
  *
- * * If Q is provided as part of the domain paramenters, a full validation
- *   according to SP800-56A section 5.6.2.3.1 is performed.
+ * * For the safe-prime groups in FIPS mode, Q can be computed
+ *   trivially from P and a full validation according to SP800-56A
+ *   section 5.6.2.3.1 is performed.
  *
- * * If Q is not provided, a partial validation according to SP800-56A section
- *   5.6.2.3.2 is performed.
+ * * For all other sets of group parameters, only a partial validation
+ *   according to SP800-56A section 5.6.2.3.2 is performed.
  */
 static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)
 {
@@ -114,21 +113,40 @@ static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)
 	 * Step 1: Verify that 2 <= y <= p - 2.
 	 *
 	 * The upper limit check is actually y < p instead of y < p - 1
-	 * as the mpi_sub_ui function is yet missing.
+	 * in order to save one mpi_sub_ui() invocation here. Note that
+	 * p - 1 is the non-trivial element of the subgroup of order 2 and
+	 * thus, the check on y^q below would fail if y == p - 1.
 	 */
 	if (mpi_cmp_ui(y, 1) < 1 || mpi_cmp(y, ctx->p) >= 0)
 		return -EINVAL;
 
-	/* Step 2: Verify that 1 = y^q mod p */
-	if (ctx->q) {
-		MPI val = mpi_alloc(0);
+	/*
+	 * Step 2: Verify that 1 = y^q mod p
+	 *
+	 * For the safe-prime groups q = (p - 1)/2.
+	 */
+	if (fips_enabled) {
+		MPI val, q;
 		int ret;
 
+		val = mpi_alloc(0);
 		if (!val)
 			return -ENOMEM;
 
-		ret = mpi_powm(val, y, ctx->q, ctx->p);
+		q = mpi_alloc(mpi_get_nlimbs(ctx->p));
+		if (!q) {
+			mpi_free(val);
+			return -ENOMEM;
+		}
 
+		/*
+		 * ->p is odd, so no need to explicitly subtract one
+		 * from it before shifting to the right.
+		 */
+		mpi_rshift(q, ctx->p, 1);
+
+		ret = mpi_powm(val, y, q, ctx->p);
+		mpi_free(q);
 		if (ret) {
 			mpi_free(val);
 			return ret;
