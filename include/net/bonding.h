@@ -503,6 +503,13 @@ static inline int bond_is_ip_target_ok(__be32 addr)
 	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
+static inline int bond_is_ip6_target_ok(struct in6_addr *addr)
+{
+	return !ipv6_addr_any(addr) &&
+	       !ipv6_addr_loopback(addr) &&
+	       !ipv6_addr_is_multicast(addr);
+}
+
 /* Get the oldest arp which we've received on this slave for bond's
  * arp_targets.
  */
