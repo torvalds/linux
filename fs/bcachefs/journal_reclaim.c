@@ -286,7 +286,8 @@ void bch2_journal_do_discards(struct journal *j)
 		struct journal_device *ja = &ca->journal;
 
 		while (should_discard_bucket(j, ja)) {
-			if (ca->mi.discard &&
+			if (!c->opts.nochanges &&
+			    ca->mi.discard &&
 			    bdev_max_discard_sectors(ca->disk_sb.bdev))
 				blkdev_issue_discard(ca->disk_sb.bdev,
 					bucket_to_sector(ca,
