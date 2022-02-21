@@ -168,7 +168,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		rste |= _SEGMENT_ENTRY_LARGE;
 
 	clear_huge_pte_skeys(mm, rste);
-	pte_val(*ptep) = rste;
+	set_pte(ptep, __pte(rste));
 }
 
 pte_t huge_ptep_get(pte_t *ptep)

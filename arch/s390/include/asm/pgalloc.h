@@ -103,17 +103,17 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
 {
-	pgd_val(*pgd) = _REGION1_ENTRY | __pa(p4d);
+	set_pgd(pgd, __pgd(_REGION1_ENTRY | __pa(p4d)));
 }
 
 static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
 {
-	p4d_val(*p4d) = _REGION2_ENTRY | __pa(pud);
+	set_p4d(p4d, __p4d(_REGION2_ENTRY | __pa(pud)));
 }
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
+	set_pud(pud, __pud(_REGION3_ENTRY | __pa(pmd)));
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
@@ -129,7 +129,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 static inline void pmd_populate(struct mm_struct *mm,
 				pmd_t *pmd, pgtable_t pte)
 {
-	pmd_val(*pmd) = _SEGMENT_ENTRY + __pa(pte);
+	set_pmd(pmd, __pmd(_SEGMENT_ENTRY | __pa(pte)));
 }
 
 #define pmd_populate_kernel(mm, pmd, pte) pmd_populate(mm, pmd, pte)

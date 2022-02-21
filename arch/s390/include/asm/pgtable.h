@@ -939,29 +939,29 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 static inline void pgd_clear(pgd_t *pgd)
 {
 	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
-		pgd_val(*pgd) = _REGION1_ENTRY_EMPTY;
+		set_pgd(pgd, __pgd(_REGION1_ENTRY_EMPTY));
 }
 
 static inline void p4d_clear(p4d_t *p4d)
 {
 	if ((p4d_val(*p4d) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
-		p4d_val(*p4d) = _REGION2_ENTRY_EMPTY;
+		set_p4d(p4d, __p4d(_REGION2_ENTRY_EMPTY));
 }
 
 static inline void pud_clear(pud_t *pud)
 {
 	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+		set_pud(pud, __pud(_REGION3_ENTRY_EMPTY));
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
 {
-	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+	set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	pte_val(*ptep) = _PAGE_INVALID;
+	set_pte(ptep, __pte(_PAGE_INVALID));
 }
 
 /*
@@ -1169,7 +1169,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 
 	if (full) {
 		res = *ptep;
-		*ptep = __pte(_PAGE_INVALID);
+		set_pte(ptep, __pte(_PAGE_INVALID));
 	} else {
 		res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 	}
@@ -1257,7 +1257,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	if (mm_has_pgste(mm))
 		ptep_set_pte_at(mm, addr, ptep, entry);
 	else
-		*ptep = entry;
+		set_pte(ptep, entry);
 }
 
 /*
@@ -1641,7 +1641,7 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (!MACHINE_HAS_NX)
 		pmd_val(entry) &= ~_SEGMENT_ENTRY_NOEXEC;
-	*pmdp = entry;
+	set_pmd(pmdp, entry);
 }
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
@@ -1666,7 +1666,7 @@ static inline pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 {
 	if (full) {
 		pmd_t pmd = *pmdp;
-		*pmdp = __pmd(_SEGMENT_ENTRY_EMPTY);
+		set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 		return pmd;
 	}
 	return pmdp_xchg_lazy(vma->vm_mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));

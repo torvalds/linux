@@ -115,7 +115,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		pte_val(*ptep) |= _PAGE_INVALID;
+		set_pte(ptep, set_pte_bit(*ptep, __pgprot(_PAGE_INVALID)));
 		mm->context.flush_mm = 1;
 	} else
 		ptep_ipte_global(mm, addr, ptep, nodat);
@@ -232,7 +232,7 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 			pgste_val(pgste) |= PGSTE_UC_BIT;
 	}
 #endif
-	*ptep = entry;
+	set_pte(ptep, entry);
 	return pgste;
 }
 
@@ -280,7 +280,7 @@ static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 		pgste = pgste_set_pte(ptep, pgste, new);
 		pgste_set_unlock(ptep, pgste);
 	} else {
-		*ptep = new;
+		set_pte(ptep, new);
 	}
 	return old;
 }
@@ -352,7 +352,7 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 		pgste = pgste_set_pte(ptep, pgste, pte);
 		pgste_set_unlock(ptep, pgste);
 	} else {
-		*ptep = pte;
+		set_pte(ptep, pte);
 	}
 	preempt_enable();
 }
@@ -417,7 +417,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
+		set_pmd(pmdp, set_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_INVALID)));
 		mm->context.flush_mm = 1;
 		if (mm_has_pgste(mm))
 			gmap_pmdp_invalidate(mm, addr);
@@ -469,7 +469,7 @@ pmd_t pmdp_xchg_direct(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pmdp_flush_direct(mm, addr, pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 	preempt_enable();
 	return old;
 }
@@ -482,7 +482,7 @@ pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pmdp_flush_lazy(mm, addr, pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 	preempt_enable();
 	return old;
 }
@@ -539,7 +539,7 @@ pud_t pudp_xchg_direct(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pudp_flush_direct(mm, addr, pudp);
-	*pudp = new;
+	set_pud(pudp, new);
 	preempt_enable();
 	return old;
 }
@@ -579,9 +579,9 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 		list_del(lh);
 	}
 	ptep = (pte_t *) pgtable;
-	pte_val(*ptep) = _PAGE_INVALID;
+	set_pte(ptep, __pte(_PAGE_INVALID));
 	ptep++;
-	pte_val(*ptep) = _PAGE_INVALID;
+	set_pte(ptep, __pte(_PAGE_INVALID));
 	return pgtable;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -776,7 +776,7 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
 			pte_val(pte) |= _PAGE_INVALID;
-		*ptep = pte;
+		set_pte(ptep, pte);
 	}
 	pgste_set_unlock(ptep, pgste);
 	return dirty;

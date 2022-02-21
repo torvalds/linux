@@ -127,7 +127,7 @@ static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
 		prot &= ~_PAGE_NOEXEC;
 	ptep = pt_dir;
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		pte_val(*ptep) = pte_addr | prot;
+		set_pte(ptep, __pte(pte_addr | prot));
 		pte_addr += PAGE_SIZE;
 		ptep++;
 	}
@@ -208,7 +208,7 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 		prot &= ~_SEGMENT_ENTRY_NOEXEC;
 	pmdp = pm_dir;
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		pmd_val(*pmdp) = pmd_addr | prot;
+		set_pmd(pmdp, __pmd(pmd_addr | prot));
 		pmd_addr += PMD_SIZE;
 		pmdp++;
 	}
@@ -347,23 +347,24 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
+	pte_t *ptep, pte;
 	int nr, i, j;
-	pte_t *pte;
 
 	for (i = 0; i < numpages;) {
 		address = (unsigned long)page_to_virt(page + i);
-		pte = virt_to_kpte(address);
-		nr = (unsigned long)pte >> ilog2(sizeof(long));
+		ptep = virt_to_kpte(address);
+		nr = (unsigned long)ptep >> ilog2(sizeof(long));
 		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));
 		nr = min(numpages - i, nr);
 		if (enable) {
 			for (j = 0; j < nr; j++) {
-				pte_val(*pte) &= ~_PAGE_INVALID;
+				pte = clear_pte_bit(*ptep, __pgprot(_PAGE_INVALID));
+				set_pte(ptep, pte);
 				address += PAGE_SIZE;
-				pte++;
+				ptep++;
 			}
 		} else {
-			ipte_range(pte, address, nr);
+			ipte_range(ptep, address, nr);
 		}
 		i += nr;
 	}
