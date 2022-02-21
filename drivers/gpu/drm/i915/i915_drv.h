@@ -814,8 +814,6 @@ struct drm_i915_private {
 		struct file *mmap_singleton;
 	} gem;
 
-	u8 framestart_delay;
-
 	/* Window2 specifies time required to program DSB (Window2) in number of scan lines */
 	u8 window2_delay;
 

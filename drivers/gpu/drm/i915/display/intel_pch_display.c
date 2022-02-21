@@ -181,7 +181,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 		/* Configure frame start delay to match the CPU */
 		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-		val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 
@@ -192,7 +192,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
 		val &= ~TRANS_FRAME_START_DELAY_MASK;
-		val |= TRANS_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= TRANS_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 
 		/*
 		 * Make the BPC in transcoder be consistent with
@@ -466,9 +466,11 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 	ilk_pch_clock_get(crtc_state);
 }
 
-static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
-				      enum transcoder cpu_transcoder)
+static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val, pipeconf_val;
 
 	/* FDI must be feeding us bits for PCH ports */
@@ -480,7 +482,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 	/* Configure frame start delay to match the CPU */
 	val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-	val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+	val |= TRANS_CHICKEN2_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
@@ -521,7 +523,6 @@ void lpt_pch_enable(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	assert_pch_transcoder_disabled(dev_priv, PIPE_A);
 
@@ -530,7 +531,7 @@ void lpt_pch_enable(struct intel_atomic_state *state,
 	/* Set transcoder timing. */
 	ilk_pch_transcoder_set_timings(crtc_state, PIPE_A);
 
-	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
+	lpt_enable_pch_transcoder(crtc_state);
 }
 
 void lpt_pch_disable(struct intel_atomic_state *state,

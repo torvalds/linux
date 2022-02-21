@@ -1154,6 +1154,8 @@ struct intel_crtc_state {
 	/* bitmask of planes that will be updated during the commit */
 	u8 update_planes;
 
+	u8 framestart_delay; /* 1-4 */
+
 	struct {
 		u32 enable;
 		u32 gcp;

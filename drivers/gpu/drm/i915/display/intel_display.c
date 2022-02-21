@@ -1866,7 +1866,7 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 
 	val = intel_de_read(dev_priv, reg);
 	val &= ~HSW_FRAME_START_DELAY_MASK;
-	val |= HSW_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+	val |= HSW_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 	intel_de_write(dev_priv, reg, val);
 }
 
@@ -3244,7 +3244,7 @@ static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	pipeconf |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	pipeconf |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+	pipeconf |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 
 	intel_de_write(dev_priv, PIPECONF(crtc->pipe), pipeconf);
 	intel_de_posting_read(dev_priv, PIPECONF(crtc->pipe));
@@ -3434,6 +3434,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->gamma_mode = REG_FIELD_GET(PIPECONF_GAMMA_MODE_MASK_I9XX, tmp);
 
+	pipe_config->framestart_delay = REG_FIELD_GET(PIPECONF_FRAME_START_DELAY_MASK, tmp) + 1;
+
 	if (IS_CHERRYVIEW(dev_priv))
 		pipe_config->cgm_mode = intel_de_read(dev_priv,
 						      CGM_PIPE_MODE(crtc->pipe));
@@ -3559,7 +3561,7 @@ static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	val |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+	val |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 
 	intel_de_write(dev_priv, PIPECONF(pipe), val);
 	intel_de_posting_read(dev_priv, PIPECONF(pipe));
@@ -3845,6 +3847,8 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	pipe_config->gamma_mode = REG_FIELD_GET(PIPECONF_GAMMA_MODE_MASK_ILK, tmp);
+
+	pipe_config->framestart_delay = REG_FIELD_GET(PIPECONF_FRAME_START_DELAY_MASK, tmp) + 1;
 
 	pipe_config->csc_mode = intel_de_read(dev_priv,
 					      PIPE_CSC_MODE(crtc->pipe));
@@ -4279,6 +4283,15 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 				      PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
 	} else {
 		pipe_config->pixel_multiplier = 1;
+	}
+
+	if (!transcoder_is_dsi(pipe_config->cpu_transcoder)) {
+		tmp = intel_de_read(dev_priv, CHICKEN_TRANS(pipe_config->cpu_transcoder));
+
+		pipe_config->framestart_delay = REG_FIELD_GET(HSW_FRAME_START_DELAY_MASK, tmp) + 1;
+	} else {
+		/* no idea if this is correct */
+		pipe_config->framestart_delay = 1;
 	}
 
 out:
@@ -5318,6 +5331,9 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 				      &pipe_config->dp_m2_n2);
 	}
 
+	drm_dbg_kms(&dev_priv->drm, "framestart delay: %d\n",
+		    pipe_config->framestart_delay);
+
 	drm_dbg_kms(&dev_priv->drm,
 		    "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
 		    pipe_config->has_audio, pipe_config->has_infoframe,
@@ -5665,6 +5681,8 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
+
+	pipe_config->framestart_delay = 1;
 
 	/*
 	 * Sanitize sync polarity flags based on requested ones. If neither
@@ -6202,6 +6220,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	}
 
 	PIPE_CONF_CHECK_X(output_types);
+
+	PIPE_CONF_CHECK_I(framestart_delay);
 
 	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
 	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
@@ -9612,8 +9632,6 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
 					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 
-	i915->framestart_delay = 1; /* 1-4 */
-
 	i915->window2_delay = 0; /* No DSB so no window2 delay */
 
 	intel_mode_config_init(i915);
@@ -9917,11 +9935,13 @@ static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
 		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == PIPE_A);
 }
 
-static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc_state)
+static void intel_sanitize_frame_start_delay(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	crtc_state->framestart_delay = 1;
 
 	if (DISPLAY_VER(dev_priv) >= 9 ||
 	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
@@ -9933,7 +9953,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~HSW_FRAME_START_DELAY_MASK;
-		val |= HSW_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= HSW_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	} else {
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
@@ -9941,7 +9961,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~PIPECONF_FRAME_START_DELAY_MASK;
-		val |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 
@@ -9954,7 +9974,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~TRANS_FRAME_START_DELAY_MASK;
-		val |= TRANS_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= TRANS_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	} else {
 		enum pipe pch_transcoder = intel_crtc_pch_transcoder(crtc);
@@ -9963,7 +9983,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-		val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 }
