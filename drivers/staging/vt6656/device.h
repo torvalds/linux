@@ -381,13 +381,6 @@ struct vnt_private {
 	struct ieee80211_low_level_stats low_stats;
 };
 
-#define ADD_ONE_WITH_WRAP_AROUND(var, modulo) {	\
-	if ((var) >= ((modulo) - 1))			\
-		(var) = 0;				\
-	else						\
-		(var)++;				\
-}
-
 int vnt_init(struct vnt_private *priv);
 
 #endif
