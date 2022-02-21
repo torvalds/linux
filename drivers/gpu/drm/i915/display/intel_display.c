@@ -519,16 +519,6 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 expected_mask);
 }
 
-enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (HAS_PCH_LPT(dev_priv))
-		return PIPE_A;
-	else
-		return crtc->pipe;
-}
-
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
@@ -9928,13 +9918,6 @@ static struct intel_connector *intel_encoder_find_connector(struct intel_encoder
 	return NULL;
 }
 
-static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
-			      enum pipe pch_transcoder)
-{
-	return HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
-		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == PIPE_A);
-}
-
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
@@ -9989,7 +9972,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		 * PCH transcoders B and C would prevent enabling the south
 		 * error interrupt (see cpt_can_enable_serr_int()).
 		 */
-		if (has_pch_trancoder(dev_priv, crtc->pipe))
+		if (intel_has_pch_trancoder(dev_priv, crtc->pipe))
 			crtc->pch_fifo_underrun_disabled = true;
 	}
 }

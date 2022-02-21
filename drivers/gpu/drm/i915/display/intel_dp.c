@@ -68,6 +68,7 @@
 #include "intel_lspcon.h"
 #include "intel_lvds.h"
 #include "intel_panel.h"
+#include "intel_pch_display.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_tc.h"

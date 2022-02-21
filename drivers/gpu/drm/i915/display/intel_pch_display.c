@@ -14,6 +14,23 @@
 #include "intel_pps.h"
 #include "intel_sdvo.h"
 
+bool intel_has_pch_trancoder(struct drm_i915_private *i915,
+			     enum pipe pch_transcoder)
+{
+	return HAS_PCH_IBX(i915) || HAS_PCH_CPT(i915) ||
+		(HAS_PCH_LPT_H(i915) && pch_transcoder == PIPE_A);
+}
+
+enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (HAS_PCH_LPT(i915))
+		return PIPE_A;
+	else
+		return crtc->pipe;
+}
+
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, enum port port,
 				   i915_reg_t dp_reg)
