@@ -297,7 +297,6 @@ void ipu_plane_disable_deferred(struct drm_plane *plane)
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
-	unsigned int zpos = (plane->type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
 	struct ipu_plane_state *ipu_state;
 
 	if (plane->state) {
@@ -311,8 +310,6 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 
 	if (ipu_state) {
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
-		ipu_state->base.zpos = zpos;
-		ipu_state->base.normalized_zpos = zpos;
 		ipu_state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
 		ipu_state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
