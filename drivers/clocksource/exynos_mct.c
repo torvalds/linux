@@ -60,25 +60,15 @@
 #define MCT_CLKEVENTS_RATING		350
 #endif
 
+/* There are four Global timers starting with 0 offset */
+#define MCT_G0_IRQ	0
+/* Local timers count starts after global timer count */
+#define MCT_L0_IRQ	4
+#define MCT_NR_IRQS	12
+
 enum {
 	MCT_INT_SPI,
 	MCT_INT_PPI
-};
-
-enum {
-	MCT_G0_IRQ,
-	MCT_G1_IRQ,
-	MCT_G2_IRQ,
-	MCT_G3_IRQ,
-	MCT_L0_IRQ,
-	MCT_L1_IRQ,
-	MCT_L2_IRQ,
-	MCT_L3_IRQ,
-	MCT_L4_IRQ,
-	MCT_L5_IRQ,
-	MCT_L6_IRQ,
-	MCT_L7_IRQ,
-	MCT_NR_IRQS,
 };
 
 static void __iomem *reg_base;
