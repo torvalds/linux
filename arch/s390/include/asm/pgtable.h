@@ -538,6 +538,36 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
 	return 0;
 }
 
+static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
+{
+	return __pte(pte_val(pte) & ~pgprot_val(prot));
+}
+
+static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
+{
+	return __pte(pte_val(pte) | pgprot_val(prot));
+}
+
+static inline pmd_t clear_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	return __pmd(pmd_val(pmd) & ~pgprot_val(prot));
+}
+
+static inline pmd_t set_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	return __pmd(pmd_val(pmd) | pgprot_val(prot));
+}
+
+static inline pud_t clear_pud_bit(pud_t pud, pgprot_t prot)
+{
+	return __pud(pud_val(pud) & ~pgprot_val(prot));
+}
+
+static inline pud_t set_pud_bit(pud_t pud, pgprot_t prot)
+{
+	return __pud(pud_val(pud) | pgprot_val(prot));
+}
+
 /*
  * In the case that a guest uses storage keys
  * faults should no longer be backed by zero pages
