@@ -9,14 +9,14 @@
 #define _MESH_H
 
 struct mesh_cmd_priv {
-	struct scsi_pointer scsi_pointer;
+	int this_residual;
+	int message;
+	int status;
 };
 
-static inline struct scsi_pointer *mesh_scsi_pointer(struct scsi_cmnd *cmd)
+static inline struct mesh_cmd_priv *mesh_priv(struct scsi_cmnd *cmd)
 {
-	struct mesh_cmd_priv *mcmd = scsi_cmd_priv(cmd);
-
-	return &mcmd->scsi_pointer;
+	return scsi_cmd_priv(cmd);
 }
 
 /*
