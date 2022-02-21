@@ -1058,8 +1058,8 @@ dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 				phy_interface_t interface)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
 	struct dsa_switch *ds = dp->ds;
-	struct phylink_pcs *pcs = NULL;
 
 	if (ds->ops->phylink_mac_select_pcs)
 		pcs = ds->ops->phylink_mac_select_pcs(ds, dp->index, interface);
