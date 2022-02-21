@@ -9935,59 +9935,6 @@ static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
 		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == PIPE_A);
 }
 
-static void intel_sanitize_frame_start_delay(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-
-	crtc_state->framestart_delay = 1;
-
-	if (DISPLAY_VER(dev_priv) >= 9 ||
-	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
-		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
-		u32 val;
-
-		if (transcoder_is_dsi(cpu_transcoder))
-			return;
-
-		val = intel_de_read(dev_priv, reg);
-		val &= ~HSW_FRAME_START_DELAY_MASK;
-		val |= HSW_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-		intel_de_write(dev_priv, reg, val);
-	} else {
-		i915_reg_t reg = PIPECONF(cpu_transcoder);
-		u32 val;
-
-		val = intel_de_read(dev_priv, reg);
-		val &= ~PIPECONF_FRAME_START_DELAY_MASK;
-		val |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-		intel_de_write(dev_priv, reg, val);
-	}
-
-	if (!crtc_state->has_pch_encoder)
-		return;
-
-	if (HAS_PCH_IBX(dev_priv)) {
-		i915_reg_t reg = PCH_TRANSCONF(crtc->pipe);
-		u32 val;
-
-		val = intel_de_read(dev_priv, reg);
-		val &= ~TRANS_FRAME_START_DELAY_MASK;
-		val |= TRANS_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-		intel_de_write(dev_priv, reg, val);
-	} else {
-		enum pipe pch_transcoder = intel_crtc_pch_transcoder(crtc);
-		i915_reg_t reg = TRANS_CHICKEN2(pch_transcoder);
-		u32 val;
-
-		val = intel_de_read(dev_priv, reg);
-		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-		val |= TRANS_CHICKEN2_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-		intel_de_write(dev_priv, reg, val);
-	}
-}
-
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
@@ -9997,9 +9944,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 
 	if (crtc_state->hw.active) {
 		struct intel_plane *plane;
-
-		/* Clear any frame start delays used for debugging left by the BIOS */
-		intel_sanitize_frame_start_delay(crtc_state);
 
 		/* Disable everything but the primary plane */
 		for_each_intel_plane_on_crtc(dev, crtc, plane) {
