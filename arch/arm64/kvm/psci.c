@@ -308,7 +308,7 @@ out:
 static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 {
 	u32 psci_fn = smccc_get_function(vcpu);
-	u32 feature;
+	u32 arg;
 	unsigned long val;
 	int ret = 1;
 
@@ -320,12 +320,12 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 		val = minor == 0 ? KVM_ARM_PSCI_1_0 : KVM_ARM_PSCI_1_1;
 		break;
 	case PSCI_1_0_FN_PSCI_FEATURES:
-		feature = smccc_get_arg1(vcpu);
-		val = kvm_psci_check_allowed_function(vcpu, feature);
+		arg = smccc_get_arg1(vcpu);
+		val = kvm_psci_check_allowed_function(vcpu, arg);
 		if (val)
 			break;
 
-		switch(feature) {
+		switch(arg) {
 		case PSCI_0_2_FN_PSCI_VERSION:
 		case PSCI_0_2_FN_CPU_SUSPEND:
 		case PSCI_0_2_FN64_CPU_SUSPEND:
@@ -341,11 +341,36 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 		case ARM_SMCCC_VERSION_FUNC_ID:
 			val = 0;
 			break;
+		case PSCI_1_1_FN_SYSTEM_RESET2:
+		case PSCI_1_1_FN64_SYSTEM_RESET2:
+			if (minor >= 1) {
+				val = 0;
+				break;
+			}
+			fallthrough;
 		default:
 			val = PSCI_RET_NOT_SUPPORTED;
 			break;
 		}
 		break;
+	case PSCI_1_1_FN_SYSTEM_RESET2:
+		kvm_psci_narrow_to_32bit(vcpu);
+		fallthrough;
+	case PSCI_1_1_FN64_SYSTEM_RESET2:
+		if (minor >= 1) {
+			arg = smccc_get_arg1(vcpu);
+
+			if (arg > PSCI_1_1_RESET_TYPE_SYSTEM_WARM_RESET &&
+			    arg < PSCI_1_1_RESET_TYPE_VENDOR_START) {
+				val = PSCI_RET_INVALID_PARAMS;
+			} else {
+				kvm_psci_system_reset(vcpu);
+				val = PSCI_RET_INTERNAL_FAILURE;
+				ret = 0;
+			}
+			break;
+		};
+		fallthrough;
 	default:
 		return kvm_psci_0_2_call(vcpu);
 	}
