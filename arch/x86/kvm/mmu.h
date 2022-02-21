@@ -85,7 +85,7 @@ void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu);
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
-	if (likely(vcpu->arch.mmu->root_hpa != INVALID_PAGE))
+	if (likely(vcpu->arch.mmu->root.hpa != INVALID_PAGE))
 		return 0;
 
 	return kvm_mmu_load(vcpu);
@@ -107,7 +107,7 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 
 static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 {
-	u64 root_hpa = vcpu->arch.mmu->root_hpa;
+	u64 root_hpa = vcpu->arch.mmu->root.hpa;
 
 	if (!VALID_PAGE(root_hpa))
 		return;

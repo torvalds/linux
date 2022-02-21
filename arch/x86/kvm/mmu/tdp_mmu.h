@@ -95,7 +95,7 @@ static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return sp->tdp_mmu
 static inline bool is_tdp_mmu(struct kvm_mmu *mmu)
 {
 	struct kvm_mmu_page *sp;
-	hpa_t hpa = mmu->root_hpa;
+	hpa_t hpa = mmu->root.hpa;
 
 	if (WARN_ON(!VALID_PAGE(hpa)))
 		return false;
