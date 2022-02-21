@@ -317,6 +317,15 @@ config SENSORS_PIM4328
 	  This driver can also be built as a module. If so, the module will
 	  be called pim4328.
 
+config SENSORS_PLI1209BC
+	tristate "Vicor PLI1209BC"
+	help
+	  If you say yes here you get hardware monitoring support for Vicor
+	  PLI1209BC Digital Supervisor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pli1209bc.
+
 config SENSORS_PM6764TR
 	tristate "ST PM6764TR"
 	help
