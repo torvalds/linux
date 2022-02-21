@@ -129,7 +129,7 @@
 	};
 
 	panel {
-		compatible = "kyo,tcg121xglp";
+		compatible = "lg,lb070wv8";
 		backlight = <&backlight_lcd>;
 		power-supply = <&reg_3v3>;
 
