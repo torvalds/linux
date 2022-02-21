@@ -296,6 +296,12 @@ tiles linearly in memory. The line stride and image height must be
 aligned to a multiple of 32. The layouts of the luma and chroma planes are
 identical.
 
+``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
+in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
+image height must be aligned to a multiple of 32. The number of luma and chroma
+tiles are identical, even though the tile size differ. The image is formed of
+two non-contiguous planes.
+
 .. _nv12mt:
 
 .. kernel-figure:: nv12mt.svg
