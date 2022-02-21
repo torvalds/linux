@@ -277,9 +277,9 @@
 
 &gpio2 {
 	gpio-line-names =
-		"count0", "count1", "count2", "", "", "", "", "",
-		"REV_ID0", "REV_ID1", "REV_ID2", "REV_ID3", "REV_ID4",
-			"BOARD_ID0", "BOARD_ID1", "BOARD_ID2",
+		"YACO_WHEEL", "YACO_RADAR", "YACO_PTO", "", "", "", "", "",
+		"", "LED_PWM", "", "", "",
+			"", "", "",
 		"", "", "", "", "", "", "", "ON_SWITCH",
 		"POWER_LED", "", "ECSPI2_SS0", "", "", "", "", "";
 };
@@ -298,8 +298,10 @@
 		"", "", "", "", "", "", "UART4_TXD", "UART4_RXD",
 		"UART5_TXD", "UART5_RXD", "CAN1_TX", "CAN1_RX", "CAN1_SR",
 			"CAN2_SR", "CAN2_TX", "CAN2_RX",
-		"LED_DI0_DEBUG_0", "LED_DI0_DEBUG_1", "", "", "", "", "", "",
-		"", "", "", "", "BL_EN", "BL_PWM", "", "";
+		"LED_DI0_DEBUG_0", "LED_DI0_DEBUG_1", "", "", "", "ON1_CTRL",
+			"ON2_CTRL", "HITCH_IN_OUT",
+		"LIGHT_ON", "", "", "CONTACT_IN", "BL_EN", "BL_PWM", "",
+			"ISB_LED";
 };
 
 &gpio5 {
