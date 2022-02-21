@@ -16,7 +16,7 @@
 		stdout-path = &uart4;
 	};
 
-	backlight: backlight {
+	backlight_lcd: backlight {
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_backlight>;
@@ -102,7 +102,7 @@
 
 	panel {
 		compatible = "kyo,tcg121xglp";
-		backlight = <&backlight>;
+		backlight = <&backlight_lcd>;
 		power-supply = <&reg_3v3>;
 
 		port {
