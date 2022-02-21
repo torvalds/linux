@@ -62,6 +62,7 @@ SYNOPSIS
   struct perf_thread_map;
 
   struct perf_thread_map *perf_thread_map__new_dummy(void);
+  struct perf_thread_map *perf_thread_map__new_array(int nr_threads, pid_t *array);
 
   void perf_thread_map__set_pid(struct perf_thread_map *map, int idx, pid_t pid);
   char *perf_thread_map__comm(struct perf_thread_map *map, int idx);
