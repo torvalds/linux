@@ -27,6 +27,8 @@
 
 #include "clk_mgr_internal.h"
 #include "reg_helper.h"
+#include "dalsmc.h"
+#include "smu13_driver_if.h"
 
 #define mmDAL_MSG_REG  0x1628A
 #define mmDAL_ARG_REG  0x16273
@@ -38,8 +40,6 @@
 	mm ## reg_name
 
 #include "logger_types.h"
-#include "dalsmc.h"
-#include "smu13_driver_if.h"
 
 #define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
 
@@ -100,14 +100,6 @@ void dcn32_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool e
 			DALSMC_MSG_SetFclkSwitchAllow, enable ? FCLK_PSTATE_SUPPORTED : FCLK_PSTATE_NOTSUPPORTED, NULL);
 }
 
-void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
-{
-       smu_print("SMU Transfer WM table DRAM 2 SMU\n");
-
-       dcn32_smu_send_msg_with_param(clk_mgr,
-                       DALSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS, NULL);
-}
-
 void dcn32_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsigned int num_ways)
 {
 	smu_print("Numways for SubVP : %d\n", num_ways);
@@ -115,3 +107,10 @@ void dcn32_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsig
 	dcn32_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_SetCabForUclkPstate, num_ways, NULL);
 }
 
+void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
+{
+	smu_print("SMU Transfer WM table DRAM 2 SMU\n");
+
+	dcn32_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS, NULL);
+}

@@ -37,12 +37,9 @@
 #define DALSMC_Result_OK				0x1
 
 void
-dcn32_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr,
-				   bool enable);
-
+dcn32_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool enable);
 void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
-
 void dcn32_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsigned int num_ways);
-
+void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 
 #endif /* __DCN32_CLK_MGR_SMU_MSG_H_ */
