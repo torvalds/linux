@@ -95,6 +95,15 @@ struct crypto_kpp *crypto_alloc_kpp(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_kpp);
 
+int crypto_grab_kpp(struct crypto_kpp_spawn *spawn,
+		    struct crypto_instance *inst,
+		    const char *name, u32 type, u32 mask)
+{
+	spawn->base.frontend = &crypto_kpp_type;
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_grab_kpp);
+
 static void kpp_prepare_alg(struct kpp_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;

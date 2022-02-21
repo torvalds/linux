@@ -28,6 +28,20 @@ struct kpp_instance {
 	};
 };
 
+/**
+ * struct crypto_kpp_spawn - KPP algorithm spawn
+ * @base: Internal. Generic crypto core spawn state.
+ *
+ * Template instances can get a hold on some inner KPP algorithm by
+ * binding a &struct crypto_kpp_spawn via
+ * crypto_grab_kpp(). Transforms may subsequently get instantiated
+ * from the referenced inner &struct kpp_alg by means of
+ * crypto_spawn_kpp().
+ */
+struct crypto_kpp_spawn {
+	struct crypto_spawn base;
+};
+
 /*
  * Transform internal helpers.
  */
@@ -138,5 +152,66 @@ void crypto_unregister_kpp(struct kpp_alg *alg);
  */
 int kpp_register_instance(struct crypto_template *tmpl,
 			  struct kpp_instance *inst);
+
+/*
+ * KPP spawn related functions.
+ */
+/**
+ * crypto_grab_kpp() - Look up a KPP algorithm and bind a spawn to it.
+ * @spawn: The KPP spawn to bind.
+ * @inst: The template instance owning @spawn.
+ * @name: The KPP algorithm name to look up.
+ * @type: The type bitset to pass on to the lookup.
+ * @mask: The mask bismask to pass on to the lookup.
+ * Return: %0 on success, a negative error code otherwise.
+ */
+int crypto_grab_kpp(struct crypto_kpp_spawn *spawn,
+		    struct crypto_instance *inst,
+		    const char *name, u32 type, u32 mask);
+
+/**
+ * crypto_drop_kpp() - Release a spawn previously bound via crypto_grab_kpp().
+ * @spawn: The spawn to release.
+ */
+static inline void crypto_drop_kpp(struct crypto_kpp_spawn *spawn)
+{
+	crypto_drop_spawn(&spawn->base);
+}
+
+/**
+ * crypto_spawn_kpp_alg() - Get the algorithm a KPP spawn has been bound to.
+ * @spawn: The spawn to get the referenced &struct kpp_alg for.
+ *
+ * This function as well as the returned result are safe to use only
+ * after @spawn has been successfully bound via crypto_grab_kpp() and
+ * up to until the template instance owning @spawn has either been
+ * registered successfully or the spawn has been released again via
+ * crypto_drop_spawn().
+ *
+ * Return: A pointer to the &struct kpp_alg referenced from the spawn.
+ */
+static inline struct kpp_alg *crypto_spawn_kpp_alg(
+	struct crypto_kpp_spawn *spawn)
+{
+	return container_of(spawn->base.alg, struct kpp_alg, base);
+}
+
+/**
+ * crypto_spawn_kpp() - Create a transform from a KPP spawn.
+ * @spawn: The spawn previously bound to some &struct kpp_alg via
+ *         crypto_grab_kpp().
+ *
+ * Once a &struct crypto_kpp_spawn has been successfully bound to a
+ * &struct kpp_alg via crypto_grab_kpp(), transforms for the latter
+ * may get instantiated from the former by means of this function.
+ *
+ * Return: A pointer to the freshly created KPP transform on success
+ * or an ``ERR_PTR()`` otherwise.
+ */
+static inline struct crypto_kpp *crypto_spawn_kpp(
+	struct crypto_kpp_spawn *spawn)
+{
+	return crypto_spawn_tfm2(&spawn->base);
+}
 
 #endif
