@@ -453,7 +453,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	}
 
 	/* Read MIB counters every 30 seconds to avoid overflow. */
-	dev->mib_read_interval = msecs_to_jiffies(30000);
+	dev->mib_read_interval = msecs_to_jiffies(5000);
 
 	/* Start the MIB timer. */
 	schedule_delayed_work(&dev->mib_read, 0);
