@@ -135,7 +135,6 @@ static void komeda_plane_destroy(struct drm_plane *plane)
 static void komeda_plane_reset(struct drm_plane *plane)
 {
 	struct komeda_plane_state *state;
-	struct komeda_plane *kplane = to_kplane(plane);
 
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
@@ -146,7 +145,6 @@ static void komeda_plane_reset(struct drm_plane *plane)
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
 		__drm_atomic_helper_plane_reset(plane, &state->base);
-		state->base.zpos = kplane->layer->base.id;
 		state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
 		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
