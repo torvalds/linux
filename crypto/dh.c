@@ -444,17 +444,18 @@ static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 	struct dh_safe_prime_instance_ctx *inst_ctx =
 		dh_safe_prime_instance_ctx(tfm);
 	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
-	struct dh params;
+	struct dh params = {};
 	void *buf = NULL, *key = NULL;
 	unsigned int buf_size;
 	int err;
 
-	err = __crypto_dh_decode_key(buffer, len, &params);
-	if (err)
-		return err;
-
-	if (params.p_size || params.g_size)
-		return -EINVAL;
+	if (buffer) {
+		err = __crypto_dh_decode_key(buffer, len, &params);
+		if (err)
+			return err;
+		if (params.p_size || params.g_size)
+			return -EINVAL;
+	}
 
 	params.p = inst_ctx->safe_prime->p;
 	params.p_size = inst_ctx->safe_prime->p_size;
