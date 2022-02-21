@@ -311,7 +311,21 @@ static int realtek_smi_read(void *ctx, u32 reg, u32 *val)
 	return realtek_smi_read_reg(priv, reg, val);
 }
 
-static const struct regmap_config realtek_smi_mdio_regmap_config = {
+static void realtek_smi_lock(void *ctx)
+{
+	struct realtek_priv *priv = ctx;
+
+	mutex_lock(&priv->map_lock);
+}
+
+static void realtek_smi_unlock(void *ctx)
+{
+	struct realtek_priv *priv = ctx;
+
+	mutex_unlock(&priv->map_lock);
+}
+
+static const struct regmap_config realtek_smi_regmap_config = {
 	.reg_bits = 10, /* A4..A0 R4..R0 */
 	.val_bits = 16,
 	.reg_stride = 1,
@@ -321,6 +335,21 @@ static const struct regmap_config realtek_smi_mdio_regmap_config = {
 	.reg_read = realtek_smi_read,
 	.reg_write = realtek_smi_write,
 	.cache_type = REGCACHE_NONE,
+	.lock = realtek_smi_lock,
+	.unlock = realtek_smi_unlock,
+};
+
+static const struct regmap_config realtek_smi_nolock_regmap_config = {
+	.reg_bits = 10, /* A4..A0 R4..R0 */
+	.val_bits = 16,
+	.reg_stride = 1,
+	/* PHY regs are at 0x8000 */
+	.max_register = 0xffff,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.reg_read = realtek_smi_read,
+	.reg_write = realtek_smi_write,
+	.cache_type = REGCACHE_NONE,
+	.disable_locking = true,
 };
 
 static int realtek_smi_mdio_read(struct mii_bus *bus, int addr, int regnum)
@@ -385,6 +414,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	const struct realtek_variant *var;
 	struct device *dev = &pdev->dev;
 	struct realtek_priv *priv;
+	struct regmap_config rc;
 	struct device_node *np;
 	int ret;
 
@@ -395,10 +425,22 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	priv->chip_data = (void *)priv + sizeof(*priv);
-	priv->map = devm_regmap_init(dev, NULL, priv,
-				     &realtek_smi_mdio_regmap_config);
+
+	mutex_init(&priv->map_lock);
+
+	rc = realtek_smi_regmap_config;
+	rc.lock_arg = priv;
+	priv->map = devm_regmap_init(dev, NULL, priv, &rc);
 	if (IS_ERR(priv->map)) {
 		ret = PTR_ERR(priv->map);
+		dev_err(dev, "regmap init failed: %d\n", ret);
+		return ret;
+	}
+
+	rc = realtek_smi_nolock_regmap_config;
+	priv->map_nolock = devm_regmap_init(dev, NULL, priv, &rc);
+	if (IS_ERR(priv->map_nolock)) {
+		ret = PTR_ERR(priv->map_nolock);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}

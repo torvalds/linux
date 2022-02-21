@@ -98,6 +98,20 @@ out_unlock:
 	return ret;
 }
 
+static void realtek_mdio_lock(void *ctx)
+{
+	struct realtek_priv *priv = ctx;
+
+	mutex_lock(&priv->map_lock);
+}
+
+static void realtek_mdio_unlock(void *ctx)
+{
+	struct realtek_priv *priv = ctx;
+
+	mutex_unlock(&priv->map_lock);
+}
+
 static const struct regmap_config realtek_mdio_regmap_config = {
 	.reg_bits = 10, /* A4..A0 R4..R0 */
 	.val_bits = 16,
@@ -108,6 +122,21 @@ static const struct regmap_config realtek_mdio_regmap_config = {
 	.reg_read = realtek_mdio_read,
 	.reg_write = realtek_mdio_write,
 	.cache_type = REGCACHE_NONE,
+	.lock = realtek_mdio_lock,
+	.unlock = realtek_mdio_unlock,
+};
+
+static const struct regmap_config realtek_mdio_nolock_regmap_config = {
+	.reg_bits = 10, /* A4..A0 R4..R0 */
+	.val_bits = 16,
+	.reg_stride = 1,
+	/* PHY regs are at 0x8000 */
+	.max_register = 0xffff,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.reg_read = realtek_mdio_read,
+	.reg_write = realtek_mdio_write,
+	.cache_type = REGCACHE_NONE,
+	.disable_locking = true,
 };
 
 static int realtek_mdio_probe(struct mdio_device *mdiodev)
@@ -115,8 +144,9 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 	struct realtek_priv *priv;
 	struct device *dev = &mdiodev->dev;
 	const struct realtek_variant *var;
-	int ret;
+	struct regmap_config rc;
 	struct device_node *np;
+	int ret;
 
 	var = of_device_get_match_data(dev);
 	if (!var)
@@ -126,9 +156,21 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->map = devm_regmap_init(dev, NULL, priv, &realtek_mdio_regmap_config);
+	mutex_init(&priv->map_lock);
+
+	rc = realtek_mdio_regmap_config;
+	rc.lock_arg = priv;
+	priv->map = devm_regmap_init(dev, NULL, priv, &rc);
 	if (IS_ERR(priv->map)) {
 		ret = PTR_ERR(priv->map);
+		dev_err(dev, "regmap init failed: %d\n", ret);
+		return ret;
+	}
+
+	rc = realtek_mdio_nolock_regmap_config;
+	priv->map_nolock = devm_regmap_init(dev, NULL, priv, &rc);
+	if (IS_ERR(priv->map_nolock)) {
+		ret = PTR_ERR(priv->map_nolock);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
