@@ -29,8 +29,11 @@
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
 #include <net/bond_options.h>
+#include <net/ipv6.h>
+#include <net/addrconf.h>
 
 #define BOND_MAX_ARP_TARGETS	16
+#define BOND_MAX_NS_TARGETS	BOND_MAX_ARP_TARGETS
 
 #define BOND_DEFAULT_MIIMON	100
 
@@ -146,6 +149,7 @@ struct bond_params {
 	struct reciprocal_value reciprocal_packets_per_slave;
 	u16 ad_actor_sys_prio;
 	u16 ad_user_port_key;
+	struct in6_addr ns_targets[BOND_MAX_NS_TARGETS];
 
 	/* 2 bytes of padding : see ether_addr_equal_64bits() */
 	u8 ad_actor_system[ETH_ALEN + 2];
@@ -628,7 +632,7 @@ struct bond_net {
 	struct class_attribute	class_attr_bonding_masters;
 };
 
-int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
+int bond_rcv_validate(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 netdev_tx_t bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
@@ -730,6 +734,19 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 		if (targets[i] == ip)
 			return i;
 		else if (targets[i] == 0)
+			break;
+
+	return -1;
+}
+
+static inline int bond_get_targets_ip6(struct in6_addr *targets, struct in6_addr *ip)
+{
+	int i;
+
+	for (i = 0; i < BOND_MAX_NS_TARGETS; i++)
+		if (ipv6_addr_equal(&targets[i], ip))
+			return i;
+		else if (ipv6_addr_any(&targets[i]))
 			break;
 
 	return -1;
