@@ -1443,6 +1443,25 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
+	switch (adev->ip_versions[DCE_HWIP][0]) {
+	case IP_VERSION(2, 1, 0):
+		switch (adev->dm.dmcub_fw_version) {
+		case 0: /* development */
+		case 0x1: /* linux-firmware.git hash 6d9f399 */
+		case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
+			init_data.flags.disable_dmcu = false;
+			break;
+		default:
+			init_data.flags.disable_dmcu = true;
+		}
+		break;
+	case IP_VERSION(2, 0, 3):
+		init_data.flags.disable_dmcu = true;
+		break;
+	default:
+		break;
+	}
+
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -1450,28 +1469,14 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		break;
 	default:
 		switch (adev->ip_versions[DCE_HWIP][0]) {
-		case IP_VERSION(2, 1, 0):
-			init_data.flags.gpu_vm_support = true;
-			switch (adev->dm.dmcub_fw_version) {
-			case 0: /* development */
-			case 0x1: /* linux-firmware.git hash 6d9f399 */
-			case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
-				init_data.flags.disable_dmcu = false;
-				break;
-			default:
-				init_data.flags.disable_dmcu = true;
-			}
-			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
+		case IP_VERSION(2, 1, 0):
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
 		case IP_VERSION(3, 1, 5):
 			init_data.flags.gpu_vm_support = true;
-			break;
-		case IP_VERSION(2, 0, 3):
-			init_data.flags.disable_dmcu = true;
 			break;
 		default:
 			break;
