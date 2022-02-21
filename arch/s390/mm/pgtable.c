@@ -224,8 +224,8 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 			 * Without enhanced suppression-on-protection force
 			 * the dirty bit on for all writable ptes.
 			 */
-			pte_val(entry) |= _PAGE_DIRTY;
-			pte_val(entry) &= ~_PAGE_PROTECT;
+			entry = set_pte_bit(entry, __pgprot(_PAGE_DIRTY));
+			entry = clear_pte_bit(entry, __pgprot(_PAGE_PROTECT));
 		}
 		if (!(pte_val(entry) & _PAGE_PROTECT))
 			/* This pte allows write access, set user-dirty */
@@ -275,7 +275,7 @@ static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 			pgste = pgste_update_all(old, pgste, mm);
 			if ((pgste_val(pgste) & _PGSTE_GPS_USAGE_MASK) ==
 			    _PGSTE_GPS_USAGE_UNUSED)
-				pte_val(old) |= _PAGE_UNUSED;
+				old = set_pte_bit(old, __pgprot(_PAGE_UNUSED));
 		}
 		pgste = pgste_set_pte(ptep, pgste, new);
 		pgste_set_unlock(ptep, pgste);
@@ -345,7 +345,7 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (!MACHINE_HAS_NX)
-		pte_val(pte) &= ~_PAGE_NOEXEC;
+		pte = clear_pte_bit(pte, __pgprot(_PAGE_NOEXEC));
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
@@ -646,12 +646,12 @@ int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
 	if (prot == PROT_NONE && !pte_i) {
 		ptep_flush_direct(mm, addr, ptep, nodat);
 		pgste = pgste_update_all(entry, pgste, mm);
-		pte_val(entry) |= _PAGE_INVALID;
+		entry = set_pte_bit(entry, __pgprot(_PAGE_INVALID));
 	}
 	if (prot == PROT_READ && !pte_p) {
 		ptep_flush_direct(mm, addr, ptep, nodat);
-		pte_val(entry) &= ~_PAGE_INVALID;
-		pte_val(entry) |= _PAGE_PROTECT;
+		entry = clear_pte_bit(entry, __pgprot(_PAGE_INVALID));
+		entry = set_pte_bit(entry, __pgprot(_PAGE_PROTECT));
 	}
 	pgste_val(pgste) |= bit;
 	pgste = pgste_set_pte(ptep, pgste, entry);
@@ -675,8 +675,8 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 	      !(pte_val(pte) & _PAGE_PROTECT))) {
 		pgste_val(spgste) |= PGSTE_VSIE_BIT;
 		tpgste = pgste_get_lock(tptep);
-		pte_val(tpte) = (pte_val(spte) & PAGE_MASK) |
-				(pte_val(pte) & _PAGE_PROTECT);
+		tpte = __pte((pte_val(spte) & PAGE_MASK) |
+			     (pte_val(pte) & _PAGE_PROTECT));
 		/* don't touch the storage key - it belongs to parent pgste */
 		tpgste = pgste_set_pte(tptep, tpgste, tpte);
 		pgste_set_unlock(tptep, tpgste);
@@ -773,9 +773,9 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 		nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
 		ptep_ipte_global(mm, addr, ptep, nodat);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
-			pte_val(pte) |= _PAGE_PROTECT;
+			pte = set_pte_bit(pte, __pgprot(_PAGE_PROTECT));
 		else
-			pte_val(pte) |= _PAGE_INVALID;
+			pte = set_pte_bit(pte, __pgprot(_PAGE_INVALID));
 		set_pte(ptep, pte);
 	}
 	pgste_set_unlock(ptep, pgste);
