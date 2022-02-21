@@ -29,14 +29,13 @@
 #define AMDGPU_BENCHMARK_COMMON_MODES_N 17
 
 static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
-				    uint64_t saddr, uint64_t daddr, int n)
+				    uint64_t saddr, uint64_t daddr, int n, s64 *time_ms)
 {
-	unsigned long start_jiffies;
-	unsigned long end_jiffies;
+	ktime_t stime, etime;
 	struct dma_fence *fence;
 	int i, r;
 
-	start_jiffies = jiffies;
+	stime = ktime_get();
 	for (i = 0; i < n; i++) {
 		struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 		r = amdgpu_copy_buffer(ring, saddr, daddr, size, NULL, &fence,
@@ -48,25 +47,28 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 		if (r)
 			goto exit_do_move;
 	}
-	end_jiffies = jiffies;
-	r = jiffies_to_msecs(end_jiffies - start_jiffies);
 
 exit_do_move:
+	etime = ktime_get();
+	*time_ms = ktime_ms_delta(etime, stime);
+
 	return r;
 }
 
 
 static void amdgpu_benchmark_log_results(struct amdgpu_device *adev,
 					 int n, unsigned size,
-					 unsigned int time,
+					 s64 time_ms,
 					 unsigned sdomain, unsigned ddomain,
 					 char *kind)
 {
-	unsigned int throughput = (n * (size >> 10)) / time;
+	s64 throughput = (n * (size >> 10));
+
+	throughput = div64_s64(throughput, time_ms);
 
 	dev_info(adev->dev, "amdgpu: %s %u bo moves of %u kB from"
-		 " %d to %d in %u ms, throughput: %u Mb/s or %u MB/s\n",
-		 kind, n, size >> 10, sdomain, ddomain, time,
+		 " %d to %d in %lld ms, throughput: %lld Mb/s or %lld MB/s\n",
+		 kind, n, size >> 10, sdomain, ddomain, time_ms,
 		 throughput * 8, throughput);
 }
 
@@ -76,6 +78,7 @@ static int amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	struct amdgpu_bo *dobj = NULL;
 	struct amdgpu_bo *sobj = NULL;
 	uint64_t saddr, daddr;
+	s64 time_ms;
 	int r, n;
 
 	n = AMDGPU_BENCHMARK_ITERATIONS;
@@ -96,11 +99,11 @@ static int amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 		goto out_cleanup;
 
 	if (adev->mman.buffer_funcs) {
-		r = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n);
-		if (r < 0)
+		r = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n, &time_ms);
+		if (r)
 			goto out_cleanup;
-		if (r > 0)
-			amdgpu_benchmark_log_results(adev, n, size, r,
+		else
+			amdgpu_benchmark_log_results(adev, n, size, time_ms,
 						     sdomain, ddomain, "dma");
 	}
 
