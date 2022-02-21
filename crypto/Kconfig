@@ -231,6 +231,12 @@ config CRYPTO_DH
 	help
 	  Generic implementation of the Diffie-Hellman algorithm.
 
+config CRYPTO_DH_RFC7919_GROUPS
+	bool "Support for RFC 7919 FFDHE group parameters"
+	depends on CRYPTO_DH
+	help
+	  Provide support for RFC 7919 FFDHE group parameters. If unsure, say N.
+
 config CRYPTO_ECC
 	tristate
 	select CRYPTO_RNG_DEFAULT
