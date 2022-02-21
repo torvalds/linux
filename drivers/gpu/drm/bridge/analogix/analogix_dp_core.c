@@ -1450,6 +1450,15 @@ out_dp_init:
 	return ret;
 }
 
+static void analogix_dp_modeset_retry_work_fn(struct work_struct *work)
+{
+	struct analogix_dp_device *dp =
+			container_of(work, typeof(*dp), modeset_retry_work);
+
+	/* Send Hotplug uevent so userspace can reprobe */
+	drm_kms_helper_hotplug_event(dp->bridge.dev);
+}
+
 static void
 analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 				 struct drm_bridge_state *old_bridge_state)
@@ -1488,6 +1497,9 @@ analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		usleep_range(10, 11);
 	}
 	dev_err(dp->dev, "too many times retry set bridge, give it up\n");
+
+	/* Schedule a Hotplug Uevent to userspace to start modeset */
+	schedule_work(&dp->modeset_retry_work);
 }
 
 static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
@@ -1872,6 +1884,7 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
+	INIT_WORK(&dp->modeset_retry_work, analogix_dp_modeset_retry_work_fn);
 
 	mutex_init(&dp->panel_lock);
 	dp->panel_is_prepared = false;
@@ -2010,6 +2023,7 @@ EXPORT_SYMBOL_GPL(analogix_dp_unbind);
 
 void analogix_dp_remove(struct analogix_dp_device *dp)
 {
+	cancel_work_sync(&dp->modeset_retry_work);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_remove);
 

@@ -182,6 +182,7 @@ struct analogix_dp_device {
 	bool                    force_hpd;
 	bool			fast_train_enable;
 	bool			psr_supported;
+	struct work_struct	modeset_retry_work;
 
 	struct mutex		panel_lock;
 	bool			panel_is_prepared;
