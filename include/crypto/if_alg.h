@@ -134,7 +134,7 @@ struct af_alg_async_req {
  * @more:		More data to be expected from user space?
  * @merge:		Shall new data from user space be merged into existing
  *			SG?
- * @enc:		Cryptographic operation to be performed when
+ * @op:			Cryptographic operation to be performed when
  *			recvmsg is invoked.
  * @init:		True if metadata has been sent.
  * @len:		Length of memory allocated for this data structure.
@@ -152,8 +152,8 @@ struct af_alg_ctx {
 
 	bool more;
 	bool merge;
-	bool enc;
 	bool init;
+	int op;
 
 	unsigned int len;
 };
