@@ -33,6 +33,15 @@
 		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 
+	backlight_led: backlight_led {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 5000000 0>;
+		brightness-levels = <0 16 64 255>;
+		num-interpolated-steps = <16>;
+		default-brightness-level = <48>;
+		power-supply = <&reg_3v3>;
+	};
+
 	connector {
 		compatible = "composite-video-connector";
 		label = "Composite0";
@@ -392,8 +401,8 @@
 &gpio2 {
 	gpio-line-names =
 		"", "", "", "", "", "", "", "",
-		"REV_ID0", "REV_ID1", "REV_ID2", "REV_ID3", "REV_ID4",
-			"BOARD_ID0", "BOARD_ID1", "BOARD_ID2",
+		"", "LED_PWM", "", "", "",
+			"", "", "",
 		"", "", "", "", "", "", "ISB_IN1", "ON_SWITCH",
 		"POWER_LED", "", "", "", "", "", "", "";
 };
@@ -777,17 +786,6 @@
 			MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21		0x1f0b0
 			/* ITU656_nPDN */
 			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20		0x1b0b0
-
-			/* HW revision detect */
-			/* REV_ID0 */
-			MX6QDL_PAD_SD4_DAT0__GPIO2_IO08			0x1b0b0
-			/* REV_ID1 is shared with PWM3 */
-			/* REV_ID2 */
-			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10			0x1b0b0
-			/* REV_ID3 */
-			MX6QDL_PAD_SD4_DAT3__GPIO2_IO11			0x1b0b0
-			/* REV_ID4 */
-			MX6QDL_PAD_SD4_DAT4__GPIO2_IO12			0x1b0b0
 
 			/* New in HW revision 1 */
 			/* ON1_FB */

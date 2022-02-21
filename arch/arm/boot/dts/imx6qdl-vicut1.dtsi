@@ -28,6 +28,15 @@
 		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 
+	backlight_led: backlight_led {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 5000000 0>;
+		brightness-levels = <0 16 64 255>;
+		num-interpolated-steps = <16>;
+		default-brightness-level = <48>;
+		power-supply = <&reg_3v3>;
+	};
+
 	connector {
 		compatible = "composite-video-connector";
 		label = "Composite0";
@@ -448,6 +457,12 @@
 	status = "okay";
 };
 
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
 &ssi1 {
 	#sound-dai-cells = <0>;
 	fsl,mode = "ac97-slave";
@@ -669,18 +684,6 @@
 			/* ITU656_nPDN */
 			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20		0x1b0b0
 
-			/* HW revision detect */
-			/* REV_ID0 */
-			MX6QDL_PAD_SD4_DAT0__GPIO2_IO08			0x1b0b0
-			/* REV_ID1 */
-			MX6QDL_PAD_SD4_DAT1__GPIO2_IO09			0x1b0b0
-			/* REV_ID2 */
-			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10			0x1b0b0
-			/* REV_ID3 */
-			MX6QDL_PAD_SD4_DAT3__GPIO2_IO11			0x1b0b0
-			/* REV_ID4 */
-			MX6QDL_PAD_SD4_DAT4__GPIO2_IO12			0x1b0b0
-
 			/* New in HW revision 1 */
 			/* ON1_FB */
 			MX6QDL_PAD_EIM_D20__GPIO3_IO20			0x100b0
@@ -735,6 +738,12 @@
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT8__PWM1_OUT			0x1b0b0
+		>;
+	};
+
+	pinctrl_pwm3: pwm3grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD4_DAT1__PWM3_OUT			0x1b0b0
 		>;
 	};
 
