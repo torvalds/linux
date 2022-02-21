@@ -528,6 +528,45 @@ static void gfxhub_v1_2_init(struct amdgpu_device *adev)
 	}
 }
 
+static int gfxhub_v1_2_get_xgmi_info(struct amdgpu_device *adev)
+{
+	u32 max_num_physical_nodes;
+	u32 max_physical_node_id;
+	u32 xgmi_lfb_cntl;
+	u32 max_region;
+	u64 seg_size;
+
+	xgmi_lfb_cntl = RREG32_SOC15(GC, 0, regMC_VM_XGMI_LFB_CNTL);
+	seg_size = REG_GET_FIELD(
+		RREG32_SOC15(GC, 0, regMC_VM_XGMI_LFB_SIZE),
+		MC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
+	max_region =
+		REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL, PF_MAX_REGION);
+
+
+
+	max_num_physical_nodes   = 8;
+	max_physical_node_id     = 7;
+
+	/* PF_MAX_REGION=0 means xgmi is disabled */
+	if (max_region || adev->gmc.xgmi.connected_to_cpu) {
+		adev->gmc.xgmi.num_physical_nodes = max_region + 1;
+
+		if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
+			return -EINVAL;
+
+		adev->gmc.xgmi.physical_node_id =
+			REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL,
+					PF_LFB_REGION);
+
+		if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
+			return -EINVAL;
+
+		adev->gmc.xgmi.node_segment_size = seg_size;
+	}
+
+	return 0;
+}
 
 const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.get_mc_fb_offset = gfxhub_v1_2_get_mc_fb_offset,
@@ -536,5 +575,5 @@ const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.gart_disable = gfxhub_v1_2_gart_disable,
 	.set_fault_enable_default = gfxhub_v1_2_set_fault_enable_default,
 	.init = gfxhub_v1_2_init,
-	.get_xgmi_info = gfxhub_v1_1_get_xgmi_info,
+	.get_xgmi_info = gfxhub_v1_2_get_xgmi_info,
 };

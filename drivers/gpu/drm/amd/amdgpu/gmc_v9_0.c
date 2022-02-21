@@ -1419,9 +1419,13 @@ static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* ARCT and VEGA20 don't have XGMI defined in their IP discovery tables */
-	if (adev->asic_type == CHIP_VEGA20 ||
-	    adev->asic_type == CHIP_ARCTURUS)
+	/*
+	 * 9.4.0, 9.4.1 and 9.4.3 don't have XGMI defined
+	 * in their IP discovery tables
+	 */
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 0) ||
+	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1) ||
+	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
 		adev->gmc.xgmi.supported = true;
 
 	if (adev->ip_versions[XGMI_HWIP][0] == IP_VERSION(6, 1, 0)) {
