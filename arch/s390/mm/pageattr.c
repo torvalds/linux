@@ -98,9 +98,9 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		else if (flags & SET_MEMORY_RW)
 			new = pte_mkwrite(pte_mkdirty(new));
 		if (flags & SET_MEMORY_NX)
-			pte_val(new) |= _PAGE_NOEXEC;
+			new = set_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		else if (flags & SET_MEMORY_X)
-			pte_val(new) &= ~_PAGE_NOEXEC;
+			new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
 		ptep++;
 		addr += PAGE_SIZE;
@@ -131,7 +131,7 @@ static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
 		pte_addr += PAGE_SIZE;
 		ptep++;
 	}
-	pmd_val(new) = __pa(pt_dir) | _SEGMENT_ENTRY;
+	new = __pmd(__pa(pt_dir) | _SEGMENT_ENTRY);
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 	update_page_count(PG_DIRECT_MAP_4K, PTRS_PER_PTE);
 	update_page_count(PG_DIRECT_MAP_1M, -1);
@@ -148,9 +148,9 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 	else if (flags & SET_MEMORY_RW)
 		new = pmd_mkwrite(pmd_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		pmd_val(new) |= _SEGMENT_ENTRY_NOEXEC;
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
-		pmd_val(new) &= ~_SEGMENT_ENTRY_NOEXEC;
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 }
 
@@ -212,7 +212,7 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 		pmd_addr += PMD_SIZE;
 		pmdp++;
 	}
-	pud_val(new) = __pa(pm_dir) | _REGION3_ENTRY;
+	new = __pud(__pa(pm_dir) | _REGION3_ENTRY);
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 	update_page_count(PG_DIRECT_MAP_1M, PTRS_PER_PMD);
 	update_page_count(PG_DIRECT_MAP_2G, -1);
@@ -229,9 +229,9 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 	else if (flags & SET_MEMORY_RW)
 		new = pud_mkwrite(pud_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		pud_val(new) |= _REGION_ENTRY_NOEXEC;
+		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
-		pud_val(new) &= ~_REGION_ENTRY_NOEXEC;
+		new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
 
