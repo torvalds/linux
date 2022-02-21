@@ -75,57 +75,25 @@ static int amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 {
 	struct amdgpu_bo *dobj = NULL;
 	struct amdgpu_bo *sobj = NULL;
-	struct amdgpu_bo_param bp;
 	uint64_t saddr, daddr;
 	int r, n;
 
-	memset(&bp, 0, sizeof(bp));
-	bp.size = size;
-	bp.byte_align = PAGE_SIZE;
-	bp.domain = sdomain;
-	bp.flags = 0;
-	bp.type = ttm_bo_type_kernel;
-	bp.resv = NULL;
-	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
-
 	n = AMDGPU_BENCHMARK_ITERATIONS;
-	r = amdgpu_bo_create(adev, &bp, &sobj);
-	if (r) {
+
+	r = amdgpu_bo_create_kernel(adev, size,
+				    PAGE_SIZE, sdomain,
+				    &sobj,
+				    &saddr,
+				    NULL);
+	if (r)
 		goto out_cleanup;
-	}
-	r = amdgpu_bo_reserve(sobj, false);
-	if (unlikely(r != 0))
+	r = amdgpu_bo_create_kernel(adev, size,
+				    PAGE_SIZE, ddomain,
+				    &dobj,
+				    &daddr,
+				    NULL);
+	if (r)
 		goto out_cleanup;
-	r = amdgpu_bo_pin(sobj, sdomain);
-	if (r) {
-		amdgpu_bo_unreserve(sobj);
-		goto out_cleanup;
-	}
-	r = amdgpu_ttm_alloc_gart(&sobj->tbo);
-	amdgpu_bo_unreserve(sobj);
-	if (r) {
-		goto out_cleanup;
-	}
-	saddr = amdgpu_bo_gpu_offset(sobj);
-	bp.domain = ddomain;
-	r = amdgpu_bo_create(adev, &bp, &dobj);
-	if (r) {
-		goto out_cleanup;
-	}
-	r = amdgpu_bo_reserve(dobj, false);
-	if (unlikely(r != 0))
-		goto out_cleanup;
-	r = amdgpu_bo_pin(dobj, ddomain);
-	if (r) {
-		amdgpu_bo_unreserve(sobj);
-		goto out_cleanup;
-	}
-	r = amdgpu_ttm_alloc_gart(&dobj->tbo);
-	amdgpu_bo_unreserve(dobj);
-	if (r) {
-		goto out_cleanup;
-	}
-	daddr = amdgpu_bo_gpu_offset(dobj);
 
 	if (adev->mman.buffer_funcs) {
 		r = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n);
@@ -141,22 +109,10 @@ out_cleanup:
 	if (r < 0)
 		dev_info(adev->dev, "Error while benchmarking BO move.\n");
 
-	if (sobj) {
-		r = amdgpu_bo_reserve(sobj, true);
-		if (likely(r == 0)) {
-			amdgpu_bo_unpin(sobj);
-			amdgpu_bo_unreserve(sobj);
-		}
-		amdgpu_bo_unref(&sobj);
-	}
-	if (dobj) {
-		r = amdgpu_bo_reserve(dobj, true);
-		if (likely(r == 0)) {
-			amdgpu_bo_unpin(dobj);
-			amdgpu_bo_unreserve(dobj);
-		}
-		amdgpu_bo_unref(&dobj);
-	}
+	if (sobj)
+		amdgpu_bo_free_kernel(&sobj, &saddr, NULL);
+	if (dobj)
+		amdgpu_bo_free_kernel(&dobj, &daddr, NULL);
 	return r;
 }
 
