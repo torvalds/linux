@@ -1473,8 +1473,8 @@ static inline int tcrypt_test(const char *alg)
 	pr_debug("testing %s\n", alg);
 
 	ret = alg_test(alg, alg, 0, 0);
-	/* non-fips algs return -EINVAL in fips mode */
-	if (fips_enabled && ret == -EINVAL)
+	/* non-fips algs return -EINVAL or -ECANCELED in fips mode */
+	if (fips_enabled && (ret == -EINVAL || ret == -ECANCELED))
 		ret = 0;
 	return ret;
 }

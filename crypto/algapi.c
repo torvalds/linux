@@ -328,8 +328,16 @@ void crypto_alg_tested(const char *name, int err)
 found:
 	q->cra_flags |= CRYPTO_ALG_DEAD;
 	alg = test->adult;
-	if (err || list_empty(&alg->cra_list))
+
+	if (list_empty(&alg->cra_list))
 		goto complete;
+
+	if (err == -ECANCELED)
+		alg->cra_flags |= CRYPTO_ALG_FIPS_INTERNAL;
+	else if (err)
+		goto complete;
+	else
+		alg->cra_flags &= ~CRYPTO_ALG_FIPS_INTERNAL;
 
 	alg->cra_flags |= CRYPTO_ALG_TESTED;
 
@@ -610,6 +618,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 {
 	struct crypto_larval *larval;
 	struct crypto_spawn *spawn;
+	u32 fips_internal = 0;
 	int err;
 
 	err = crypto_check_alg(&inst->alg);
@@ -632,10 +641,14 @@ int crypto_register_instance(struct crypto_template *tmpl,
 		spawn->inst = inst;
 		spawn->registered = true;
 
+		fips_internal |= spawn->alg->cra_flags;
+
 		crypto_mod_put(spawn->alg);
 
 		spawn = next;
 	}
+
+	inst->alg.cra_flags |= (fips_internal & CRYPTO_ALG_FIPS_INTERNAL);
 
 	larval = __crypto_register_alg(&inst->alg);
 	if (IS_ERR(larval))
@@ -689,7 +702,8 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	alg = crypto_find_alg(name, spawn->frontend, type, mask);
+	alg = crypto_find_alg(name, spawn->frontend,
+			      type | CRYPTO_ALG_FIPS_INTERNAL, mask);
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
