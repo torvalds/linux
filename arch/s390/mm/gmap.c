@@ -974,13 +974,13 @@ static int gmap_protect_pmd(struct gmap *gmap, unsigned long gaddr,
 		return -EAGAIN;
 
 	if (prot == PROT_NONE && !pmd_i) {
-		pmd_val(new) |= _SEGMENT_ENTRY_INVALID;
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
 	if (prot == PROT_READ && !pmd_p) {
-		pmd_val(new) &= ~_SEGMENT_ENTRY_INVALID;
-		pmd_val(new) |= _SEGMENT_ENTRY_PROTECT;
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_PROTECT));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
@@ -2294,7 +2294,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 {
 	gaddr &= HPAGE_MASK;
 	pmdp_notify_gmap(gmap, pmdp, gaddr);
-	pmd_val(new) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_GMAP_IN));
 	if (MACHINE_HAS_TLB_GUEST)
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
 			    IDTE_GLOBAL);
