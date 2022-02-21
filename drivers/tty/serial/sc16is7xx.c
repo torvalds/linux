@@ -784,19 +784,24 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 	spin_unlock_irqrestore(&one->port.lock, irqflags);
 
 	if (config.flags & SC16IS7XX_RECONF_MD) {
+		u8 mcr = 0;
+
+		/* Device ignores RTS setting when hardware flow is enabled */
+		if (one->port.mctrl & TIOCM_RTS)
+			mcr |= SC16IS7XX_MCR_RTS_BIT;
+
+		if (one->port.mctrl & TIOCM_DTR)
+			mcr |= SC16IS7XX_MCR_DTR_BIT;
+
+		if (one->port.mctrl & TIOCM_LOOP)
+			mcr |= SC16IS7XX_MCR_LOOP_BIT;
 		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_RTS_BIT |
+				      SC16IS7XX_MCR_DTR_BIT |
 				      SC16IS7XX_MCR_LOOP_BIT,
-				      (one->port.mctrl & TIOCM_LOOP) ?
-				      SC16IS7XX_MCR_LOOP_BIT : 0);
-		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
-				      SC16IS7XX_MCR_RTS_BIT,
-				      (one->port.mctrl & TIOCM_RTS) ?
-				      SC16IS7XX_MCR_RTS_BIT : 0);
-		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
-				      SC16IS7XX_MCR_DTR_BIT,
-				      (one->port.mctrl & TIOCM_DTR) ?
-				      SC16IS7XX_MCR_DTR_BIT : 0);
+				      mcr);
 	}
+
 	if (config.flags & SC16IS7XX_RECONF_IER)
 		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
 				      config.ier_clear, 0);
