@@ -63,7 +63,7 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params)
 }
 EXPORT_SYMBOL_GPL(crypto_dh_encode_key);
 
-int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
+int __crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 {
 	const u8 *ptr = buf;
 	struct kpp_secret secret;
@@ -81,6 +81,24 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	if (secret.len != crypto_dh_key_len(params))
 		return -EINVAL;
 
+	/* Don't allocate memory. Set pointers to data within
+	 * the given buffer
+	 */
+	params->key = (void *)ptr;
+	params->p = (void *)(ptr + params->key_size);
+	params->g = (void *)(ptr + params->key_size + params->p_size);
+
+	return 0;
+}
+
+int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
+{
+	int err;
+
+	err = __crypto_dh_decode_key(buf, len, params);
+	if (err)
+		return err;
+
 	/*
 	 * Don't permit the buffer for 'key' or 'g' to be larger than 'p', since
 	 * some drivers assume otherwise.
@@ -88,13 +106,6 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	if (params->key_size > params->p_size ||
 	    params->g_size > params->p_size)
 		return -EINVAL;
-
-	/* Don't allocate memory. Set pointers to data within
-	 * the given buffer
-	 */
-	params->key = (void *)ptr;
-	params->p = (void *)(ptr + params->key_size);
-	params->g = (void *)(ptr + params->key_size + params->p_size);
 
 	/*
 	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
