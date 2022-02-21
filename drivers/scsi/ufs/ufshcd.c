@@ -2692,7 +2692,7 @@ static int ufshcd_map_queues(struct Scsi_Host *shost)
 			break;
 		case HCTX_TYPE_READ:
 			map->nr_queues = 0;
-			break;
+			continue;
 		default:
 			WARN_ON_ONCE(true);
 		}
