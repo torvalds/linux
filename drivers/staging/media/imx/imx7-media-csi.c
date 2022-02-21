@@ -498,15 +498,39 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 			cr3 |= BIT_TWO_8BIT_SENSOR;
 			cr18 |= BIT_MIPI_DATA_FORMAT_RAW14;
 			break;
+
 		/*
-		 * CSI-2 sources are supposed to use the 1X16 formats, but not
-		 * all of them comply. Support both variants.
+		 * The CSI bridge has a 16-bit input bus. Depending on the
+		 * connected source, data may be transmitted with 8 or 10 bits
+		 * per clock sample (in bits [9:2] or [9:0] respectively) or
+		 * with 16 bits per clock sample (in bits [15:0]). The data is
+		 * then packed into a 32-bit FIFO (as shown in figure 13-11 of
+		 * the i.MX8MM reference manual rev. 3).
+		 *
+		 * The data packing in a 32-bit FIFO input word is controlled by
+		 * the CR3 TWO_8BIT_SENSOR field (also known as SENSOR_16BITS in
+		 * the i.MX8MM reference manual). When set to 0, data packing
+		 * groups four 8-bit input samples (bits [9:2]). When set to 1,
+		 * data packing groups two 16-bit input samples (bits [15:0]).
+		 *
+		 * The register field CR18 MIPI_DOUBLE_CMPNT also needs to be
+		 * configured according to the input format for YUV 4:2:2 data.
+		 * The field controls the gasket between the CSI-2 receiver and
+		 * the CSI bridge. On i.MX7 and i.MX8MM, the field must be set
+		 * to 1 when the CSIS outputs 16-bit samples. On i.MX8MQ, the
+		 * gasket ignores the MIPI_DOUBLE_CMPNT bit and YUV 4:2:2 always
+		 * uses 16-bit samples. Setting MIPI_DOUBLE_CMPNT in that case
+		 * has no effect, but doesn't cause any issue.
 		 */
 		case MEDIA_BUS_FMT_UYVY8_2X8:
-		case MEDIA_BUS_FMT_UYVY8_1X16:
 		case MEDIA_BUS_FMT_YUYV8_2X8:
-		case MEDIA_BUS_FMT_YUYV8_1X16:
 			cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B;
+			break;
+		case MEDIA_BUS_FMT_UYVY8_1X16:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+			cr3 |= BIT_TWO_8BIT_SENSOR;
+			cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B |
+				BIT_MIPI_DOUBLE_CMPNT;
 			break;
 		}
 	}
