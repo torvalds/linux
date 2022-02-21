@@ -32,14 +32,14 @@ struct perf_thread_map *perf_thread_map__realloc(struct perf_thread_map *map, in
 
 #define thread_map__alloc(__nr) perf_thread_map__realloc(NULL, __nr)
 
-void perf_thread_map__set_pid(struct perf_thread_map *map, int thread, pid_t pid)
+void perf_thread_map__set_pid(struct perf_thread_map *map, int idx, pid_t pid)
 {
-	map->map[thread].pid = pid;
+	map->map[idx].pid = pid;
 }
 
-char *perf_thread_map__comm(struct perf_thread_map *map, int thread)
+char *perf_thread_map__comm(struct perf_thread_map *map, int idx)
 {
-	return map->map[thread].comm;
+	return map->map[idx].comm;
 }
 
 struct perf_thread_map *perf_thread_map__new_dummy(void)
@@ -85,7 +85,7 @@ int perf_thread_map__nr(struct perf_thread_map *threads)
 	return threads ? threads->nr : 1;
 }
 
-pid_t perf_thread_map__pid(struct perf_thread_map *map, int thread)
+pid_t perf_thread_map__pid(struct perf_thread_map *map, int idx)
 {
-	return map->map[thread].pid;
+	return map->map[idx].pid;
 }
