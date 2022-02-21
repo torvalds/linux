@@ -133,28 +133,6 @@ static void set_iv_reg(struct rk_crypto_dev *rk_dev, const u8 *iv, u32 iv_len)
 	CRYPTO_WRITE(rk_dev, CRYPTO_CH0_IV_LEN_0, iv_len);
 }
 
-static uint32_t get_iv_reg(struct rk_crypto_dev *rk_dev, u8 *iv)
-{
-	uint32_t i;
-	uint8_t iv_tmp[AES_BLOCK_SIZE];
-	uint32_t base_iv, iv_len;
-
-	memset(iv_tmp, 0x00, sizeof(iv_tmp));
-
-	iv_len = CRYPTO_READ(rk_dev, CRYPTO_CH0_IV_LEN_0);
-	iv_len = iv_len > sizeof(iv_tmp) ? sizeof(iv_tmp) : iv_len;
-
-	base_iv = CRYPTO_CH0_IV_0;
-	for (i = 0; i < sizeof(iv_tmp) / 4; i++)
-		word2byte_be(CRYPTO_READ(rk_dev, base_iv  + i * 4), iv_tmp + i * 4);
-
-	memcpy(iv, iv_tmp, iv_len);
-
-	CRYPTO_DUMPHEX("get iv", iv, iv_len);
-
-	return iv_len;
-}
-
 static void write_key_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 			  u32 key_len)
 {
@@ -387,23 +365,6 @@ exit:
 	return ret;
 }
 
-static bool check_from_dmafd(struct skcipher_request *req)
-{
-	if (!req || !req->src || !req->dst)
-		return false;
-
-	if (sg_nents_for_len(req->src, req->cryptlen) == 1 &&
-	    sg_virt(req->src) &&
-	    sg_dma_address(req->src) &&
-	    sg_nents_for_len(req->dst, req->cryptlen) == 1 &&
-	    sg_virt(req->dst) &&
-	    sg_dma_address(req->dst) &&
-	    sg_dma_len(req->src) == sg_dma_len(req->dst))
-		return true;
-
-	return false;
-}
-
 static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -437,10 +398,8 @@ static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 			return rk_cipher_fallback(req, ctx, encrypt);
 	}
 
-	if (is_force_fallback(algt, ctx->keylen)) {
-		if (!check_from_dmafd(req))
-			return rk_cipher_fallback(req, ctx, encrypt);
-	}
+	if (is_force_fallback(algt, ctx->keylen))
+		return rk_cipher_fallback(req, ctx, encrypt);
 
 	ctx->mode = cipher_algo2bc[algt->algo] |
 		    cipher_mode2bc[algt->mode];
@@ -460,6 +419,9 @@ static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 		else if (ctx->keylen == AES_KEYSIZE_256 * key_factor)
 			ctx->mode |= CRYPTO_BC_256_bit_key;
 	}
+
+	if (req->iv)
+		memcpy(ctx->iv, req->iv, crypto_skcipher_ivsize(tfm));
 
 	CRYPTO_MSG("ctx->mode = %x\n", ctx->mode);
 	return rk_handle_req(ctx->rk_dev, req);
@@ -659,26 +621,26 @@ static uint32_t rk_get_new_iv(struct rk_cipher_ctx *ctx,
 
 static void rk_update_iv(struct rk_crypto_dev *rk_dev)
 {
-	uint8_t iv[AES_BLOCK_SIZE];
 	uint32_t iv_size;
 	struct rk_cipher_ctx *ctx = rk_cipher_ctx_cast(rk_dev);
 
-	get_iv_reg(rk_dev, iv);
-
-	iv_size = rk_get_new_iv(ctx, iv);
+	iv_size = rk_get_new_iv(ctx, ctx->iv);
 
 	if (iv_size)
-		set_iv_reg(rk_dev, iv, iv_size);
+		set_iv_reg(rk_dev, ctx->iv, iv_size);
 }
 
 static void rk_iv_copyback(struct rk_crypto_dev *rk_dev)
 {
+	uint32_t iv_size;
 	struct skcipher_request *req =
 		skcipher_request_cast(rk_dev->async_req);
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct rk_cipher_ctx *ctx = rk_cipher_ctx_cast(rk_dev);
 
-	rk_get_new_iv(ctx, req->iv);
+	iv_size = rk_get_new_iv(ctx, ctx->iv);
+
+	if (iv_size && req->iv)
+		memcpy(req->iv, ctx->iv, iv_size);
 }
 
 /* return:
