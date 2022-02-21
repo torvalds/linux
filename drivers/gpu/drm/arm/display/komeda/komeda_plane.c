@@ -143,11 +143,8 @@ static void komeda_plane_reset(struct drm_plane *plane)
 	plane->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
+	if (state)
 		__drm_atomic_helper_plane_reset(plane, &state->base);
-		state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
-		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-	}
 }
 
 static struct drm_plane_state *
