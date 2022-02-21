@@ -10362,66 +10362,6 @@ static void intel_early_display_was(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void ibx_sanitize_pch_hdmi_port(struct drm_i915_private *dev_priv,
-				       enum port port, i915_reg_t hdmi_reg)
-{
-	u32 val = intel_de_read(dev_priv, hdmi_reg);
-
-	if (val & SDVO_ENABLE ||
-	    (val & SDVO_PIPE_SEL_MASK) == SDVO_PIPE_SEL(PIPE_A))
-		return;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "Sanitizing transcoder select for HDMI %c\n",
-		    port_name(port));
-
-	val &= ~SDVO_PIPE_SEL_MASK;
-	val |= SDVO_PIPE_SEL(PIPE_A);
-
-	intel_de_write(dev_priv, hdmi_reg, val);
-}
-
-static void ibx_sanitize_pch_dp_port(struct drm_i915_private *dev_priv,
-				     enum port port, i915_reg_t dp_reg)
-{
-	u32 val = intel_de_read(dev_priv, dp_reg);
-
-	if (val & DP_PORT_EN ||
-	    (val & DP_PIPE_SEL_MASK) == DP_PIPE_SEL(PIPE_A))
-		return;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "Sanitizing transcoder select for DP %c\n",
-		    port_name(port));
-
-	val &= ~DP_PIPE_SEL_MASK;
-	val |= DP_PIPE_SEL(PIPE_A);
-
-	intel_de_write(dev_priv, dp_reg, val);
-}
-
-static void ibx_sanitize_pch_ports(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * The BIOS may select transcoder B on some of the PCH
-	 * ports even it doesn't enable the port. This would trip
-	 * assert_pch_dp_disabled() and assert_pch_hdmi_disabled().
-	 * Sanitize the transcoder select bits to prevent that. We
-	 * assume that the BIOS never actually enabled the port,
-	 * because if it did we'd actually have to toggle the port
-	 * on and back off to make the transcoder A select stick
-	 * (see. intel_dp_link_down(), intel_disable_hdmi(),
-	 * intel_disable_sdvo()).
-	 */
-	ibx_sanitize_pch_dp_port(dev_priv, PORT_B, PCH_DP_B);
-	ibx_sanitize_pch_dp_port(dev_priv, PORT_C, PCH_DP_C);
-	ibx_sanitize_pch_dp_port(dev_priv, PORT_D, PCH_DP_D);
-
-	/* PCH SDVOB multiplex with HDMIB */
-	ibx_sanitize_pch_hdmi_port(dev_priv, PORT_B, PCH_HDMIB);
-	ibx_sanitize_pch_hdmi_port(dev_priv, PORT_C, PCH_HDMIC);
-	ibx_sanitize_pch_hdmi_port(dev_priv, PORT_D, PCH_HDMID);
-}
 
 /* Scan out the current hw modeset state,
  * and sanitizes it to the current state
@@ -10443,8 +10383,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	/* HW state is read out, now we need to sanitize this mess. */
 	get_encoder_power_domains(dev_priv);
 
-	if (HAS_PCH_IBX(dev_priv))
-		ibx_sanitize_pch_ports(dev_priv);
+	intel_pch_sanitize(dev_priv);
 
 	/*
 	 * intel_sanitize_plane_mapping() may need to do vblank
