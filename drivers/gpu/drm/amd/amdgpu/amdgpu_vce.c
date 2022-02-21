@@ -34,6 +34,7 @@
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_vce.h"
+#include "amdgpu_cs.h"
 #include "cikd.h"
 
 /* 1 second timeout */

@@ -25,6 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_cs.h"
 #include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"

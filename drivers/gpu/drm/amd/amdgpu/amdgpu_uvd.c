@@ -37,6 +37,7 @@
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_cs.h"
 #include "cikd.h"
 #include "uvd/uvd_4_2_d.h"
 

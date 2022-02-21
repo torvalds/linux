@@ -28,6 +28,13 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
 
+struct amdgpu_device;
+struct amdgpu_ring;
+struct amdgpu_ib;
+struct amdgpu_cs_parser;
+struct amdgpu_job;
+struct amdgpu_vm;
+
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		28
 #define AMDGPU_MAX_HWIP_RINGS		8
@@ -82,11 +89,13 @@ enum amdgpu_ib_pool_type {
 	AMDGPU_IB_POOL_MAX
 };
 
-struct amdgpu_device;
-struct amdgpu_ring;
-struct amdgpu_ib;
-struct amdgpu_cs_parser;
-struct amdgpu_job;
+struct amdgpu_ib {
+	struct amdgpu_sa_bo		*sa_bo;
+	uint32_t			length_dw;
+	uint64_t			gpu_addr;
+	uint32_t			*ptr;
+	uint32_t			flags;
+};
 
 struct amdgpu_sched {
 	u32				num_scheds;
@@ -110,6 +119,8 @@ struct amdgpu_fence_driver {
 	spinlock_t			lock;
 	struct dma_fence		**fences;
 };
+
+extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
 void amdgpu_fence_driver_clear_job_fences(struct amdgpu_ring *ring);
 void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
@@ -352,4 +363,18 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring);
+
+int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		  unsigned size,
+		  enum amdgpu_ib_pool_type pool,
+		  struct amdgpu_ib *ib);
+void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
+		    struct dma_fence *f);
+int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
+		       struct amdgpu_ib *ibs, struct amdgpu_job *job,
+		       struct dma_fence **f);
+int amdgpu_ib_pool_init(struct amdgpu_device *adev);
+void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
+int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
+
 #endif

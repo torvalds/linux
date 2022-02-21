@@ -23,6 +23,9 @@
 #ifndef __AMDGPU_JOB_H__
 #define __AMDGPU_JOB_H__
 
+#include <drm/gpu_scheduler.h>
+#include "amdgpu_sync.h"
+
 /* bit set means command submit involves a preamble IB */
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0)
 /* bit set means preamble IB is first presented in belonging context */
