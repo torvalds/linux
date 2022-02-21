@@ -39,6 +39,7 @@
 #include "cyan_skillfish_ppt.h"
 #include "smu_v13_0_0_ppt.h"
 #include "smu_v13_0_5_ppt.h"
+#include "smu_v13_0_7_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -568,6 +569,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(13, 0, 0):
 		smu_v13_0_0_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(13, 0, 7):
+		smu_v13_0_7_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
