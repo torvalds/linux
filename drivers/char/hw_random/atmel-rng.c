@@ -17,6 +17,7 @@
 #include <linux/hw_random.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #define TRNG_CR		0x00
 #define TRNG_MR		0x04
@@ -58,6 +59,12 @@ static int atmel_trng_read(struct hwrng *rng, void *buf, size_t max,
 	u32 *data = buf;
 	int ret;
 
+	ret = pm_runtime_get_sync((struct device *)trng->rng.priv);
+	if (ret < 0) {
+		pm_runtime_put_sync((struct device *)trng->rng.priv);
+		return ret;
+	}
+
 	ret = atmel_trng_wait_ready(trng, wait);
 	if (!ret)
 		goto out;
@@ -72,6 +79,8 @@ static int atmel_trng_read(struct hwrng *rng, void *buf, size_t max,
 	ret = 4;
 
 out:
+	pm_runtime_mark_last_busy((struct device *)trng->rng.priv);
+	pm_runtime_put_sync_autosuspend((struct device *)trng->rng.priv);
 	return ret;
 }
 
@@ -127,21 +136,28 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	trng->has_half_rate = data->has_half_rate;
 	trng->rng.name = pdev->name;
 	trng->rng.read = atmel_trng_read;
+	trng->rng.priv = (unsigned long)&pdev->dev;
+	platform_set_drvdata(pdev, trng);
 
+#ifndef CONFIG_PM
 	ret = atmel_trng_init(trng);
 	if (ret)
 		return ret;
+#endif
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 100);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
-	if (ret)
-		goto err_register;
+	if (ret) {
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+#ifndef CONFIG_PM
+		atmel_trng_cleanup(trng);
+#endif
+	}
 
-	platform_set_drvdata(pdev, trng);
-
-	return 0;
-
-err_register:
-	atmel_trng_cleanup(trng);
 	return ret;
 }
 
@@ -151,11 +167,13 @@ static int atmel_trng_remove(struct platform_device *pdev)
 
 
 	atmel_trng_cleanup(trng);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
 
 	return 0;
 }
 
-static int __maybe_unused atmel_trng_suspend(struct device *dev)
+static int __maybe_unused atmel_trng_runtime_suspend(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
@@ -164,7 +182,7 @@ static int __maybe_unused atmel_trng_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused atmel_trng_resume(struct device *dev)
+static int __maybe_unused atmel_trng_runtime_resume(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
@@ -172,8 +190,10 @@ static int __maybe_unused atmel_trng_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops __maybe_unused atmel_trng_pm_ops = {
-	.suspend	= atmel_trng_suspend,
-	.resume		= atmel_trng_resume,
+	SET_RUNTIME_PM_OPS(atmel_trng_runtime_suspend,
+			   atmel_trng_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static const struct atmel_trng_data at91sam9g45_config = {
