@@ -162,7 +162,7 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	return PSCI_0_2_AFFINITY_LEVEL_OFF;
 }
 
-static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
+static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type, u64 flags)
 {
 	unsigned long i;
 	struct kvm_vcpu *tmp;
@@ -182,17 +182,24 @@ static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
 
 	memset(&vcpu->run->system_event, 0, sizeof(vcpu->run->system_event));
 	vcpu->run->system_event.type = type;
+	vcpu->run->system_event.flags = flags;
 	vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
 }
 
 static void kvm_psci_system_off(struct kvm_vcpu *vcpu)
 {
-	kvm_prepare_system_event(vcpu, KVM_SYSTEM_EVENT_SHUTDOWN);
+	kvm_prepare_system_event(vcpu, KVM_SYSTEM_EVENT_SHUTDOWN, 0);
 }
 
 static void kvm_psci_system_reset(struct kvm_vcpu *vcpu)
 {
-	kvm_prepare_system_event(vcpu, KVM_SYSTEM_EVENT_RESET);
+	kvm_prepare_system_event(vcpu, KVM_SYSTEM_EVENT_RESET, 0);
+}
+
+static void kvm_psci_system_reset2(struct kvm_vcpu *vcpu)
+{
+	kvm_prepare_system_event(vcpu, KVM_SYSTEM_EVENT_RESET,
+				 KVM_SYSTEM_EVENT_RESET_FLAG_PSCI_RESET2);
 }
 
 static void kvm_psci_narrow_to_32bit(struct kvm_vcpu *vcpu)
@@ -364,7 +371,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 			    arg < PSCI_1_1_RESET_TYPE_VENDOR_START) {
 				val = PSCI_RET_INVALID_PARAMS;
 			} else {
-				kvm_psci_system_reset(vcpu);
+				kvm_psci_system_reset2(vcpu);
 				val = PSCI_RET_INTERNAL_FAILURE;
 				ret = 0;
 			}

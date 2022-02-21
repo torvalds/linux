@@ -5939,6 +5939,11 @@ Valid values for 'type' are:
    to ignore the request, or to gather VM memory core dump and/or
    reset/shutdown of the VM.
 
+Valid flags are:
+
+ - KVM_SYSTEM_EVENT_RESET_FLAG_PSCI_RESET2 (arm64 only) -- the guest issued
+   a SYSTEM_RESET2 call according to v1.1 of the PSCI specification.
+
 ::
 
 		/* KVM_EXIT_IOAPIC_EOI */
