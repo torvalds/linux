@@ -27,6 +27,12 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
 /*
+ * direct_write.c
+ */
+ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
+					   struct netfs_group *netfs_group);
+
+/*
  * io.c
  */
 int netfs_begin_read(struct netfs_io_request *rreq, bool sync);

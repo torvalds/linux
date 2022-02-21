@@ -2706,6 +2706,7 @@ int kiocb_invalidate_pages(struct kiocb *iocb, size_t count)
 	return invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT,
 					     end >> PAGE_SHIFT);
 }
+EXPORT_SYMBOL_GPL(kiocb_invalidate_pages);
 
 /**
  * generic_file_read_iter - generic filesystem read routine
