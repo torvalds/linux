@@ -403,7 +403,6 @@ void omap_plane_install_properties(struct drm_plane *plane,
 
 static void omap_plane_reset(struct drm_plane *plane)
 {
-	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_plane_state *omap_state;
 
 	if (plane->state)
@@ -414,8 +413,6 @@ static void omap_plane_reset(struct drm_plane *plane)
 		return;
 
 	__drm_atomic_helper_plane_reset(plane, &omap_state->base);
-	plane->state->color_encoding = DRM_COLOR_YCBCR_BT601;
-	plane->state->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 }
 
 static struct drm_plane_state *
