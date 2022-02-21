@@ -62,12 +62,6 @@ static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 	if (!ctx->p)
 		return -EINVAL;
 
-	if (params->q && params->q_size) {
-		ctx->q = mpi_read_raw_data(params->q, params->q_size);
-		if (!ctx->q)
-			return -EINVAL;
-	}
-
 	ctx->g = mpi_read_raw_data(params->g, params->g_size);
 	if (!ctx->g)
 		return -EINVAL;

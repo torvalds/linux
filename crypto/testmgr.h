@@ -1246,17 +1246,15 @@ static const struct kpp_testvec dh_tv_template[] = {
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x01\x00" /* type */
-	"\x15\x02" /* len */
+	"\x11\x02" /* len */
 	"\x00\x01\x00\x00" /* key_size */
 	"\x00\x01\x00\x00" /* p_size */
-	"\x00\x00\x00\x00" /* q_size */
 	"\x01\x00\x00\x00" /* g_size */
 #else
 	"\x00\x01" /* type */
-	"\x02\x15" /* len */
+	"\x02\x11" /* len */
 	"\x00\x00\x01\x00" /* key_size */
 	"\x00\x00\x01\x00" /* p_size */
-	"\x00\x00\x00\x00" /* q_size */
 	"\x00\x00\x00\x01" /* g_size */
 #endif
 	/* xa */
@@ -1346,7 +1344,7 @@ static const struct kpp_testvec dh_tv_template[] = {
 	"\xd3\x34\x49\xad\x64\xa6\xb1\xc0\x59\x28\x75\x60\xa7\x8a\xb0\x11"
 	"\x56\x89\x42\x74\x11\xf5\xf6\x5e\x6f\x16\x54\x6a\xb1\x76\x4d\x50"
 	"\x8a\x68\xc1\x5b\x82\xb9\x0d\x00\x32\x50\xed\x88\x87\x48\x92\x17",
-	.secret_size = 533,
+	.secret_size = 529,
 	.b_public_size = 256,
 	.expected_a_public_size = 256,
 	.expected_ss_size = 256,
@@ -1355,17 +1353,15 @@ static const struct kpp_testvec dh_tv_template[] = {
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x01\x00" /* type */
-	"\x15\x02" /* len */
+	"\x11\x02" /* len */
 	"\x00\x01\x00\x00" /* key_size */
 	"\x00\x01\x00\x00" /* p_size */
-	"\x00\x00\x00\x00" /* q_size */
 	"\x01\x00\x00\x00" /* g_size */
 #else
 	"\x00\x01" /* type */
-	"\x02\x15" /* len */
+	"\x02\x11" /* len */
 	"\x00\x00\x01\x00" /* key_size */
 	"\x00\x00\x01\x00" /* p_size */
-	"\x00\x00\x00\x00" /* q_size */
 	"\x00\x00\x00\x01" /* g_size */
 #endif
 	/* xa */
@@ -1455,7 +1451,7 @@ static const struct kpp_testvec dh_tv_template[] = {
 	"\x5e\x5a\x64\xbd\xf6\x85\x04\xe8\x28\x6a\xac\xef\xce\x19\x8e\x9a"
 	"\xfe\x75\xc0\x27\x69\xe3\xb3\x7b\x21\xa7\xb1\x16\xa4\x85\x23\xee"
 	"\xb0\x1b\x04\x6e\xbd\xab\x16\xde\xfd\x86\x6b\xa9\x95\xd7\x0b\xfd",
-	.secret_size = 533,
+	.secret_size = 529,
 	.b_public_size = 256,
 	.expected_a_public_size = 256,
 	.expected_ss_size = 256,

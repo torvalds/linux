@@ -24,21 +24,17 @@
  *
  * @key:	Private DH key
  * @p:		Diffie-Hellman parameter P
- * @q:		Diffie-Hellman parameter Q
  * @g:		Diffie-Hellman generator G
  * @key_size:	Size of the private DH key
  * @p_size:	Size of DH parameter P
- * @q_size:	Size of DH parameter Q
  * @g_size:	Size of DH generator G
  */
 struct dh {
 	void *key;
 	void *p;
-	void *q;
 	void *g;
 	unsigned int key_size;
 	unsigned int p_size;
-	unsigned int q_size;
 	unsigned int g_size;
 };
 
