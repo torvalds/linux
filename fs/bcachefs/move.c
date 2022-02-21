@@ -480,9 +480,7 @@ static void move_read_endio(struct bio *bio)
 	atomic_sub(io->read_sectors, &ctxt->read_sectors);
 	io->read_completed = true;
 
-	if (next_pending_write(ctxt))
-		wake_up(&ctxt->wait);
-
+	wake_up(&ctxt->wait);
 	closure_put(&ctxt->cl);
 }
 
