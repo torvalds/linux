@@ -36,6 +36,7 @@ struct atmel_trng {
 	struct clk *clk;
 	void __iomem *base;
 	struct hwrng rng;
+	bool has_half_rate;
 };
 
 static bool atmel_trng_wait_ready(struct atmel_trng *trng, bool wait)
@@ -74,14 +75,32 @@ out:
 	return ret;
 }
 
-static void atmel_trng_init(struct atmel_trng *trng)
+static int atmel_trng_init(struct atmel_trng *trng)
 {
+	unsigned long rate;
+	int ret;
+
+	ret = clk_prepare_enable(trng->clk);
+	if (ret)
+		return ret;
+
+	if (trng->has_half_rate) {
+		rate = clk_get_rate(trng->clk);
+
+		/* if peripheral clk is above 100MHz, set HALFR */
+		if (rate > 100000000)
+			writel(TRNG_HALFR, trng->base + TRNG_MR);
+	}
+
 	writel(TRNG_KEY | 1, trng->base + TRNG_CR);
+
+	return 0;
 }
 
 static void atmel_trng_cleanup(struct atmel_trng *trng)
 {
 	writel(TRNG_KEY, trng->base + TRNG_CR);
+	clk_disable_unprepare(trng->clk);
 }
 
 static int atmel_trng_probe(struct platform_device *pdev)
@@ -105,21 +124,13 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENODEV;
 
-	if (data->has_half_rate) {
-		unsigned long rate = clk_get_rate(trng->clk);
-
-		/* if peripheral clk is above 100MHz, set HALFR */
-		if (rate > 100000000)
-			writel(TRNG_HALFR, trng->base + TRNG_MR);
-	}
-
-	ret = clk_prepare_enable(trng->clk);
-	if (ret)
-		return ret;
-
-	atmel_trng_init(trng);
+	trng->has_half_rate = data->has_half_rate;
 	trng->rng.name = pdev->name;
 	trng->rng.read = atmel_trng_read;
+
+	ret = atmel_trng_init(trng);
+	if (ret)
+		return ret;
 
 	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
 	if (ret)
@@ -130,7 +141,6 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	return 0;
 
 err_register:
-	clk_disable_unprepare(trng->clk);
 	atmel_trng_cleanup(trng);
 	return ret;
 }
@@ -141,7 +151,6 @@ static int atmel_trng_remove(struct platform_device *pdev)
 
 
 	atmel_trng_cleanup(trng);
-	clk_disable_unprepare(trng->clk);
 
 	return 0;
 }
@@ -152,7 +161,6 @@ static int atmel_trng_suspend(struct device *dev)
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
 	atmel_trng_cleanup(trng);
-	clk_disable_unprepare(trng->clk);
 
 	return 0;
 }
@@ -160,15 +168,8 @@ static int atmel_trng_suspend(struct device *dev)
 static int atmel_trng_resume(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
-	int ret;
 
-	ret = clk_prepare_enable(trng->clk);
-	if (ret)
-		return ret;
-
-	atmel_trng_init(trng);
-
-	return 0;
+	return atmel_trng_init(trng);
 }
 
 static const struct dev_pm_ops atmel_trng_pm_ops = {
