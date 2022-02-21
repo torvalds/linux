@@ -234,6 +234,7 @@ config CRYPTO_DH
 config CRYPTO_DH_RFC7919_GROUPS
 	bool "Support for RFC 7919 FFDHE group parameters"
 	depends on CRYPTO_DH
+	select CRYPTO_RNG_DEFAULT
 	help
 	  Provide support for RFC 7919 FFDHE group parameters. If unsure, say N.
 

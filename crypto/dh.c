@@ -10,6 +10,7 @@
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
+#include <crypto/rng.h>
 #include <linux/mpi.h>
 
 struct dh_ctx {
@@ -315,6 +316,128 @@ static void dh_safe_prime_exit_tfm(struct crypto_kpp *tfm)
 	crypto_free_kpp(tfm_ctx->dh_tfm);
 }
 
+static u64 __add_u64_to_be(__be64 *dst, unsigned int n, u64 val)
+{
+	unsigned int i;
+
+	for (i = n; val && i > 0; --i) {
+		u64 tmp = be64_to_cpu(dst[i - 1]);
+
+		tmp += val;
+		val = tmp >= val ? 0 : 1;
+		dst[i - 1] = cpu_to_be64(tmp);
+	}
+
+	return val;
+}
+
+static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
+				       unsigned int *key_size)
+{
+	unsigned int n, oversampling_size;
+	__be64 *key;
+	int err;
+	u64 h, o;
+
+	/*
+	 * Generate a private key following NIST SP800-56Ar3,
+	 * sec. 5.6.1.1.1 and 5.6.1.1.3 resp..
+	 *
+	 * 5.6.1.1.1: choose key length N such that
+	 * 2 * ->max_strength <= N <= log2(q) + 1 = ->p_size * 8 - 1
+	 * with q = (p - 1) / 2 for the safe-prime groups.
+	 * Choose the lower bound's next power of two for N in order to
+	 * avoid excessively large private keys while still
+	 * maintaining some extra reserve beyond the bare minimum in
+	 * most cases. Note that for each entry in safe_prime_groups[],
+	 * the following holds for such N:
+	 * - N >= 256, in particular it is a multiple of 2^6 = 64
+	 *   bits and
+	 * - N < log2(q) + 1, i.e. N respects the upper bound.
+	 */
+	n = roundup_pow_of_two(2 * safe_prime->max_strength);
+	WARN_ON_ONCE(n & ((1u << 6) - 1));
+	n >>= 6; /* Convert N into units of u64. */
+
+	/*
+	 * Reserve one extra u64 to hold the extra random bits
+	 * required as per 5.6.1.1.3.
+	 */
+	oversampling_size = (n + 1) * sizeof(__be64);
+	key = kmalloc(oversampling_size, GFP_KERNEL);
+	if (!key)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * 5.6.1.1.3, step 3 (and implicitly step 4): obtain N + 64
+	 * random bits and interpret them as a big endian integer.
+	 */
+	err = -EFAULT;
+	if (crypto_get_default_rng())
+		goto out_err;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)key,
+				   oversampling_size);
+	crypto_put_default_rng();
+	if (err)
+		goto out_err;
+
+	/*
+	 * 5.6.1.1.3, step 5 is implicit: 2^N < q and thus,
+	 * M = min(2^N, q) = 2^N.
+	 *
+	 * For step 6, calculate
+	 * key = (key[] mod (M - 1)) + 1 = (key[] mod (2^N - 1)) + 1.
+	 *
+	 * In order to avoid expensive divisions, note that
+	 * 2^N mod (2^N - 1) = 1 and thus, for any integer h,
+	 * 2^N * h mod (2^N - 1) = h mod (2^N - 1) always holds.
+	 * The big endian integer key[] composed of n + 1 64bit words
+	 * may be written as key[] = h * 2^N + l, with h = key[0]
+	 * representing the 64 most significant bits and l
+	 * corresponding to the remaining 2^N bits. With the remark
+	 * from above,
+	 * h * 2^N + l mod (2^N - 1) = l + h mod (2^N - 1).
+	 * As both, l and h are less than 2^N, their sum after
+	 * this first reduction is guaranteed to be <= 2^(N + 1) - 2.
+	 * Or equivalently, that their sum can again be written as
+	 * h' * 2^N + l' with h' now either zero or one and if one,
+	 * then l' <= 2^N - 2. Thus, all bits at positions >= N will
+	 * be zero after a second reduction:
+	 * h' * 2^N + l' mod (2^N - 1) = l' + h' mod (2^N - 1).
+	 * At this point, it is still possible that
+	 * l' + h' = 2^N - 1, i.e. that l' + h' mod (2^N - 1)
+	 * is zero. This condition will be detected below by means of
+	 * the final increment overflowing in this case.
+	 */
+	h = be64_to_cpu(key[0]);
+	h = __add_u64_to_be(key + 1, n, h);
+	h = __add_u64_to_be(key + 1, n, h);
+	WARN_ON_ONCE(h);
+
+	/* Increment to obtain the final result. */
+	o = __add_u64_to_be(key + 1, n, 1);
+	/*
+	 * The overflow bit o from the increment is either zero or
+	 * one. If zero, key[1:n] holds the final result in big-endian
+	 * order. If one, key[1:n] is zero now, but needs to be set to
+	 * one, c.f. above.
+	 */
+	if (o)
+		key[n] = cpu_to_be64(1);
+
+	/* n is in units of u64, convert to bytes. */
+	*key_size = n << 3;
+	/* Strip the leading extra __be64, which is (virtually) zero by now. */
+	memmove(key, &key[1], *key_size);
+
+	return key;
+
+out_err:
+	kfree_sensitive(key);
+	return ERR_PTR(err);
+}
+
 static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 				    unsigned int len)
 {
@@ -322,7 +445,7 @@ static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 		dh_safe_prime_instance_ctx(tfm);
 	struct dh_safe_prime_tfm_ctx *tfm_ctx = kpp_tfm_ctx(tfm);
 	struct dh params;
-	void *buf;
+	void *buf = NULL, *key = NULL;
 	unsigned int buf_size;
 	int err;
 
@@ -338,10 +461,20 @@ static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 	params.g = safe_prime_g;
 	params.g_size = sizeof(safe_prime_g);
 
+	if (!params.key_size) {
+		key = dh_safe_prime_gen_privkey(inst_ctx->safe_prime,
+						&params.key_size);
+		if (IS_ERR(key))
+			return PTR_ERR(key);
+		params.key = key;
+	}
+
 	buf_size = crypto_dh_key_len(&params);
 	buf = kmalloc(buf_size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	err = crypto_dh_encode_key(buf, buf_size, &params);
 	if (err)
@@ -350,6 +483,7 @@ static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 	err = crypto_kpp_set_secret(tfm_ctx->dh_tfm, buf, buf_size);
 out:
 	kfree_sensitive(buf);
+	kfree_sensitive(key);
 	return err;
 }
 
