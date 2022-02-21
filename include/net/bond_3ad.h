@@ -262,7 +262,7 @@ struct ad_system {
 struct ad_bond_info {
 	struct ad_system system;	/* 802.3ad system structure */
 	struct bond_3ad_stats stats;
-	u32 agg_select_timer;		/* Timer to select aggregator after all adapter's hand shakes */
+	atomic_t agg_select_timer;		/* Timer to select aggregator after all adapter's hand shakes */
 	u16 aggregator_identifier;
 };
 

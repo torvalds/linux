@@ -329,6 +329,8 @@ int main(int argc, char *argv[])
 	u32 amx_offset;
 	int stage, ret;
 
+	vm_xsave_req_perm(XSTATE_XTILE_DATA_BIT);
+
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 

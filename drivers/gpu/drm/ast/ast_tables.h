@@ -282,8 +282,6 @@ static const struct ast_vbios_enhtable res_1360x768[] = {
 };
 
 static const struct ast_vbios_enhtable res_1600x900[] = {
-	{1800, 1600, 24, 80, 1000,  900, 1, 3, VCLK108,		/* 60Hz */
-	 (SyncPP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 3, 0x3A },
 	{1760, 1600, 48, 32, 926, 900, 3, 5, VCLK97_75,		/* 60Hz CVT RB */
 	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo |
 	  AST2500PreCatchCRT), 60, 1, 0x3A },

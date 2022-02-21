@@ -736,6 +736,10 @@ static void blk_complete_request(struct request *req)
 
 		/* Completion has already been traced */
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+
+		if (req_op(req) == REQ_OP_ZONE_APPEND)
+			bio->bi_iter.bi_sector = req->__sector;
+
 		if (!is_flush)
 			bio_endio(bio);
 		bio = next;
@@ -2922,6 +2926,8 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	 */
 	blk_mq_run_dispatch_ops(rq->q,
 			ret = blk_mq_request_issue_directly(rq, true));
+	if (ret)
+		blk_account_io_done(rq, ktime_get_ns());
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);

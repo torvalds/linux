@@ -142,9 +142,6 @@ void print__dlg_sys_params_st(struct display_mode_lib *mode_lib, const struct _v
 	dml_print("DML_RQ_DLG_CALC:    t_sr_wm_us           = %3.2f\n", dlg_sys_param->t_sr_wm_us);
 	dml_print("DML_RQ_DLG_CALC:    t_extra_us           = %3.2f\n", dlg_sys_param->t_extra_us);
 	dml_print(
-			"DML_RQ_DLG_CALC:    t_srx_delay_us       = %3.2f\n",
-			dlg_sys_param->t_srx_delay_us);
-	dml_print(
 			"DML_RQ_DLG_CALC:    deepsleep_dcfclk_mhz = %3.2f\n",
 			dlg_sys_param->deepsleep_dcfclk_mhz);
 	dml_print(
