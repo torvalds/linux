@@ -194,7 +194,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 	struct mac53c94_regs __iomem *regs = state->regs;
 	struct dbdma_regs __iomem *dma = state->dma;
 	struct scsi_cmnd *const cmd = state->current_req;
-	struct scsi_pointer *const scsi_pointer = mac53c94_scsi_pointer(cmd);
+	struct mac53c94_cmd_priv *const mcmd = mac53c94_priv(cmd);
 	int nb, stat, seq, intr;
 	static int mac53c94_errors;
 
@@ -264,10 +264,10 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		/* set DMA controller going if any data to transfer */
 		if ((stat & (STAT_MSG|STAT_CD)) == 0
 		    && (scsi_sg_count(cmd) > 0 || scsi_bufflen(cmd))) {
-			nb = scsi_pointer->this_residual;
+			nb = mcmd->this_residual;
 			if (nb > 0xfff0)
 				nb = 0xfff0;
-			scsi_pointer->this_residual -= nb;
+			mcmd->this_residual -= nb;
 			writeb(nb, &regs->count_lo);
 			writeb(nb >> 8, &regs->count_mid);
 			writeb(CMD_DMA_MODE + CMD_NOP, &regs->command);
@@ -294,13 +294,13 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
-		if (scsi_pointer->this_residual != 0
+		if (mcmd->this_residual != 0
 		    && (stat & (STAT_MSG|STAT_CD)) == 0) {
 			/* Set up the count regs to transfer more */
-			nb = scsi_pointer->this_residual;
+			nb = mcmd->this_residual;
 			if (nb > 0xfff0)
 				nb = 0xfff0;
-			scsi_pointer->this_residual -= nb;
+			mcmd->this_residual -= nb;
 			writeb(nb, &regs->count_lo);
 			writeb(nb >> 8, &regs->count_mid);
 			writeb(CMD_DMA_MODE + CMD_NOP, &regs->command);
@@ -322,8 +322,8 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
-		scsi_pointer->Status = readb(&regs->fifo);
-		scsi_pointer->Message = readb(&regs->fifo);
+		mcmd->status = readb(&regs->fifo);
+		mcmd->message = readb(&regs->fifo);
 		writeb(CMD_ACCEPT_MSG, &regs->command);
 		state->phase = busfreeing;
 		break;
@@ -331,8 +331,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		if (intr != INTR_DISCONNECT) {
 			printk(KERN_DEBUG "got intr %x when expected disconnect\n", intr);
 		}
-		cmd_done(state, (DID_OK << 16) + (scsi_pointer->Message << 8)
-			 + scsi_pointer->Status);
+		cmd_done(state, (DID_OK << 16) + (mcmd->message << 8) + mcmd->status);
 		break;
 	default:
 		printk(KERN_DEBUG "don't know about phase %d\n", state->phase);
@@ -390,7 +389,7 @@ static void set_dma_cmds(struct fsc_state *state, struct scsi_cmnd *cmd)
 	dma_cmd += OUTPUT_LAST - OUTPUT_MORE;
 	dcmds[-1].command = cpu_to_le16(dma_cmd);
 	dcmds->command = cpu_to_le16(DBDMA_STOP);
-	mac53c94_scsi_pointer(cmd)->this_residual = total;
+	mac53c94_priv(cmd)->this_residual = total;
 }
 
 static struct scsi_host_template mac53c94_template = {

@@ -213,14 +213,14 @@ struct mac53c94_regs {
 #define CF4_BBTE	0x01
 
 struct mac53c94_cmd_priv {
-	struct scsi_pointer scsi_pointer;
+	int this_residual;
+	int status;
+	int message;
 };
 
-static inline struct scsi_pointer *mac53c94_scsi_pointer(struct scsi_cmnd *cmd)
+static inline struct mac53c94_cmd_priv *mac53c94_priv(struct scsi_cmnd *cmd)
 {
-	struct mac53c94_cmd_priv *mcmd = scsi_cmd_priv(cmd);
-
-	return &mcmd->scsi_pointer;
+	return scsi_cmd_priv(cmd);
 }
 
 #endif /* _MAC53C94_H */
