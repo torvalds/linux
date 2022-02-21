@@ -25,6 +25,9 @@
 #define PCI_SUBSYS_DEVID_OCTX2_95XXO_PTP	0xB600
 #define PCI_DEVID_OCTEONTX2_RST			0xA085
 #define PCI_DEVID_CN10K_PTP			0xA09E
+#define PCI_SUBSYS_DEVID_CN10K_A_PTP		0xB900
+#define PCI_SUBSYS_DEVID_CNF10K_A_PTP		0xBA00
+#define PCI_SUBSYS_DEVID_CNF10K_B_PTP		0xBC00
 
 #define PCI_PTP_BAR_NO				0
 
@@ -46,9 +49,42 @@
 #define PTP_CLOCK_HI				0xF10ULL
 #define PTP_CLOCK_COMP				0xF18ULL
 #define PTP_TIMESTAMP				0xF20ULL
+#define PTP_CLOCK_SEC				0xFD0ULL
 
 static struct ptp *first_ptp_block;
 static const struct pci_device_id ptp_id_table[];
+
+static bool is_ptp_tsfmt_sec_nsec(struct ptp *ptp)
+{
+	if (ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_PTP ||
+	    ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_A_PTP)
+		return true;
+	return false;
+}
+
+static u64 read_ptp_tstmp_sec_nsec(struct ptp *ptp)
+{
+	u64 sec, sec1, nsec;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ptp->ptp_lock, flags);
+	sec = readq(ptp->reg_base + PTP_CLOCK_SEC) & 0xFFFFFFFFUL;
+	nsec = readq(ptp->reg_base + PTP_CLOCK_HI);
+	sec1 = readq(ptp->reg_base + PTP_CLOCK_SEC) & 0xFFFFFFFFUL;
+	/* check nsec rollover */
+	if (sec1 > sec) {
+		nsec = readq(ptp->reg_base + PTP_CLOCK_HI);
+		sec = sec1;
+	}
+	spin_unlock_irqrestore(&ptp->ptp_lock, flags);
+
+	return sec * NSEC_PER_SEC + nsec;
+}
+
+static u64 read_ptp_tstmp_nsec(struct ptp *ptp)
+{
+	return readq(ptp->reg_base + PTP_CLOCK_HI);
+}
 
 struct ptp *ptp_get(void)
 {
@@ -117,7 +153,7 @@ static int ptp_adjfine(struct ptp *ptp, long scaled_ppm)
 static int ptp_get_clock(struct ptp *ptp, u64 *clk)
 {
 	/* Return the current PTP clock */
-	*clk = readq(ptp->reg_base + PTP_CLOCK_HI);
+	*clk = ptp->read_ptp_tstmp(ptp);
 
 	return 0;
 }
@@ -213,6 +249,12 @@ static int ptp_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, ptp);
 	if (!first_ptp_block)
 		first_ptp_block = ptp;
+
+	spin_lock_init(&ptp->ptp_lock);
+	if (is_ptp_tsfmt_sec_nsec(ptp))
+		ptp->read_ptp_tstmp = &read_ptp_tstmp_sec_nsec;
+	else
+		ptp->read_ptp_tstmp = &read_ptp_tstmp_nsec;
 
 	return 0;
 
