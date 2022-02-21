@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Freescale i.MX7 SoC series MIPI-CSI V3.3 receiver driver
+ * Samsung CSIS MIPI CSI-2 receiver driver.
+ *
+ * The Samsung CSIS IP is a MIPI CSI-2 receiver found in various NXP i.MX7 and
+ * i.MX8 SoCs. The i.MX7 features version 3.3 of the IP, while i.MX8 features
+ * version 3.6.3.
  *
  * Copyright (C) 2019 Linaro Ltd
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc. All Rights Reserved.
@@ -31,7 +35,7 @@
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
-#define CSIS_DRIVER_NAME			"imx7-mipi-csis"
+#define CSIS_DRIVER_NAME			"imx-mipi-csis"
 
 #define CSIS_PAD_SINK				0
 #define CSIS_PAD_SOURCE				1
@@ -1519,4 +1523,4 @@ module_platform_driver(mipi_csis_driver);
 
 MODULE_DESCRIPTION("i.MX7 & i.MX8 MIPI CSI-2 receiver driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:imx7-mipi-csi2");
+MODULE_ALIAS("platform:imx-mipi-csi2");

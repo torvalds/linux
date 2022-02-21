@@ -33,7 +33,7 @@ reference manual [#f1]_.
 Entities
 --------
 
-imx7-mipi-csi2
+imx-mipi-csi2
 --------------
 
 This is the MIPI CSI-2 receiver entity. It has one sink pad to receive the pixel
