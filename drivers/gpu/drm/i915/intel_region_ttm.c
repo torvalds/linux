@@ -200,11 +200,14 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	int ret;
 
 	mock_bo.base.size = size;
+	mock_bo.bdev = &mem->i915->bdev;
 	place.flags = flags;
 
 	ret = man->func->alloc(man, &mock_bo, &place, &res);
 	if (ret == -ENOSPC)
 		ret = -ENXIO;
+	if (!ret)
+		res->bo = NULL; /* Rather blow up, then some uaf */
 	return ret ? ERR_PTR(ret) : res;
 }
 
@@ -219,6 +222,11 @@ void intel_region_ttm_resource_free(struct intel_memory_region *mem,
 				    struct ttm_resource *res)
 {
 	struct ttm_resource_manager *man = mem->region_private;
+	struct ttm_buffer_object mock_bo = {};
+
+	mock_bo.base.size = res->num_pages << PAGE_SHIFT;
+	mock_bo.bdev = &mem->i915->bdev;
+	res->bo = &mock_bo;
 
 	man->func->free(man, res);
 }
