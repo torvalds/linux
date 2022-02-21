@@ -23,6 +23,7 @@ properties:
       - rockchip,rk3399-usb2phy
       - rockchip,rk3568-usb2phy
       - rockchip,rk3588-usb2phy
+      - rockchip,rv1106-usb2phy
       - rockchip,rv1108-usb2phy
 
   reg:
