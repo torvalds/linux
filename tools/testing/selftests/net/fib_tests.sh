@@ -9,7 +9,7 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle"
+TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -1954,6 +1954,61 @@ ipv6_mangle_test()
 	route_cleanup
 }
 
+ip_neigh_get_check()
+{
+	ip neigh help 2>&1 | grep -q 'ip neigh get'
+	if [ $? -ne 0 ]; then
+		echo "iproute2 command does not support neigh get. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv4_bcast_neigh_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 broadcast neighbour tests"
+
+	ip_neigh_get_check || return 1
+
+	setup
+
+	set -e
+	run_cmd "$IP neigh add 192.0.2.111 lladdr 00:11:22:33:44:55 nud perm dev dummy0"
+	run_cmd "$IP neigh add 192.0.2.255 lladdr 00:11:22:33:44:55 nud perm dev dummy0"
+
+	run_cmd "$IP neigh get 192.0.2.111 dev dummy0"
+	run_cmd "$IP neigh get 192.0.2.255 dev dummy0"
+
+	run_cmd "$IP address add 192.0.2.1/24 broadcast 192.0.2.111 dev dummy0"
+
+	run_cmd "$IP neigh add 203.0.113.111 nud failed dev dummy0"
+	run_cmd "$IP neigh add 203.0.113.255 nud failed dev dummy0"
+
+	run_cmd "$IP neigh get 203.0.113.111 dev dummy0"
+	run_cmd "$IP neigh get 203.0.113.255 dev dummy0"
+
+	run_cmd "$IP address add 203.0.113.1/24 broadcast 203.0.113.111 dev dummy0"
+	set +e
+
+	run_cmd "$IP neigh get 192.0.2.111 dev dummy0"
+	log_test $? 0 "Resolved neighbour for broadcast address"
+
+	run_cmd "$IP neigh get 192.0.2.255 dev dummy0"
+	log_test $? 0 "Resolved neighbour for network broadcast address"
+
+	run_cmd "$IP neigh get 203.0.113.111 dev dummy0"
+	log_test $? 2 "Unresolved neighbour for broadcast address"
+
+	run_cmd "$IP neigh get 203.0.113.255 dev dummy0"
+	log_test $? 2 "Unresolved neighbour for network broadcast address"
+
+	cleanup
+}
+
 ################################################################################
 # usage
 
@@ -2028,6 +2083,7 @@ do
 	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
 	ipv4_mangle)			ipv4_mangle_test;;
 	ipv6_mangle)			ipv6_mangle_test;;
+	ipv4_bcast_neigh)		ipv4_bcast_neigh_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac
