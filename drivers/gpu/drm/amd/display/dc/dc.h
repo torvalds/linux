@@ -418,12 +418,15 @@ struct dc_clocks {
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
 	int ref_dtbclk_khz;
+	int dtbclk_khz;
+	bool fclk_p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	bool fclk_prev_p_state_change_support;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
 	int max_supported_dispclk_khz;
