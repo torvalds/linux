@@ -202,12 +202,16 @@ unlock:
 	return err;
 }
 
-static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
+static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen,
+		int (*setkey)(void *private, const u8 *key,
+			unsigned int keylen))
 {
 	struct alg_sock *ask = alg_sk(sk);
-	const struct af_alg_type *type = ask->type;
 	u8 *key;
 	int err;
+
+	if (!setkey)
+		return -ENOPROTOOPT;
 
 	key = sock_kmalloc(sk, keylen, GFP_KERNEL);
 	if (!key)
@@ -217,7 +221,7 @@ static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
 	if (copy_from_sockptr(key, ukey, keylen))
 		goto out;
 
-	err = type->setkey(ask->private, key, keylen);
+	err = setkey(ask->private, key, keylen);
 
 out:
 	sock_kzfree_s(sk, key, keylen);
@@ -247,10 +251,14 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 	case ALG_SET_KEY:
 		if (sock->state == SS_CONNECTED)
 			goto unlock;
-		if (!type->setkey)
+
+		err = alg_setkey(sk, optval, optlen, type->setkey);
+		break;
+	case ALG_SET_PUBKEY:
+		if (sock->state == SS_CONNECTED)
 			goto unlock;
 
-		err = alg_setkey(sk, optval, optlen);
+		err = alg_setkey(sk, optval, optlen, type->setpubkey);
 		break;
 	case ALG_SET_AEAD_AUTHSIZE:
 		if (sock->state == SS_CONNECTED)
