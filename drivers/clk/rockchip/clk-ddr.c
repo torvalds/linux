@@ -163,7 +163,7 @@ static long rockchip_ddrclk_scpi_round_rate(struct clk_hw *hw,
 	return (rate * MHZ);
 }
 
-static const struct clk_ops rockchip_ddrclk_scpi_ops = {
+static const struct clk_ops rockchip_ddrclk_scpi_ops __maybe_unused = {
 	.recalc_rate = rockchip_ddrclk_scpi_recalc_rate,
 	.set_rate = rockchip_ddrclk_scpi_set_rate,
 	.round_rate = rockchip_ddrclk_scpi_round_rate,
