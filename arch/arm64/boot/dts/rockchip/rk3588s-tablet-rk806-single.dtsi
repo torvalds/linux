@@ -936,7 +936,7 @@
 	disp_timings0: display-timings {
 		native-mode = <&dsi0_timing0>;
 		dsi0_timing0: timing0 {
-			clock-frequency = <132000000>;
+			clock-frequency = <246000000>;
 			hactive = <1600>;
 			vactive = <2176>;
 			hfront-porch = <18>;
