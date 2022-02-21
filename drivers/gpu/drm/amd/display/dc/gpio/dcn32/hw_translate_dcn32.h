@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-16 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,13 +22,12 @@
  * Authors: AMD
  *
  */
+#ifndef __DAL_HW_TRANSLATE_DCN32_H__
+#define __DAL_HW_TRANSLATE_DCN32_H__
 
-#ifndef __DAL_HW_FACTORY_DIAG_FPGA_H__
-#define __DAL_HW_FACTORY_DIAG_FPGA_H__
+struct hw_translate;
 
-struct hw_factory;
+/* Initialize Hw translate function pointers */
+void dal_hw_translate_dcn32_init(struct hw_translate *tr);
 
-/* Initialize HW factory function pointers and pin info */
-void dal_hw_factory_diag_fpga_init(struct hw_factory *factory);
-
-#endif /* __DAL_HW_FACTORY_DIAG_FPGA_H__ */
+#endif /* __DAL_HW_TRANSLATE_DCN32_H__ */
