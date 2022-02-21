@@ -155,8 +155,7 @@ static int atmel_trng_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int atmel_trng_suspend(struct device *dev)
+static int __maybe_unused atmel_trng_suspend(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
@@ -165,18 +164,17 @@ static int atmel_trng_suspend(struct device *dev)
 	return 0;
 }
 
-static int atmel_trng_resume(struct device *dev)
+static int __maybe_unused atmel_trng_resume(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
 	return atmel_trng_init(trng);
 }
 
-static const struct dev_pm_ops atmel_trng_pm_ops = {
+static const struct dev_pm_ops __maybe_unused atmel_trng_pm_ops = {
 	.suspend	= atmel_trng_suspend,
 	.resume		= atmel_trng_resume,
 };
-#endif /* CONFIG_PM */
 
 static const struct atmel_trng_data at91sam9g45_config = {
 	.has_half_rate = false,
@@ -204,9 +202,7 @@ static struct platform_driver atmel_trng_driver = {
 	.remove		= atmel_trng_remove,
 	.driver		= {
 		.name	= "atmel-trng",
-#ifdef CONFIG_PM
-		.pm	= &atmel_trng_pm_ops,
-#endif /* CONFIG_PM */
+		.pm	= pm_ptr(&atmel_trng_pm_ops),
 		.of_match_table = atmel_trng_dt_ids,
 	},
 };
