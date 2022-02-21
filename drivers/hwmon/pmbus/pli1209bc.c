@@ -8,6 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pmbus.h>
+#include <linux/regulator/driver.h>
 #include "pmbus.h"
 
 /*
@@ -33,10 +34,36 @@ static int pli1209bc_read_word_data(struct i2c_client *client, int page,
 			return data;
 		data = sign_extend32(data, 15) * 10;
 		return clamp_val(data, -32768, 32767) & 0xffff;
+	/*
+	 * PMBUS_READ_VOUT and PMBUS_READ_TEMPERATURE_1 return invalid data
+	 * when the BCM is turned off. Since it is not possible to return
+	 * ENODATA error, return zero instead.
+	 */
+	case PMBUS_READ_VOUT:
+	case PMBUS_READ_TEMPERATURE_1:
+		data = pmbus_read_word_data(client, page, phase,
+					    PMBUS_STATUS_WORD);
+		if (data < 0)
+			return data;
+		if (data & PB_STATUS_POWER_GOOD_N)
+			return 0;
+		return pmbus_read_word_data(client, page, phase, reg);
 	default:
 		return -ENODATA;
 	}
 }
+
+#if IS_ENABLED(CONFIG_SENSORS_PLI1209BC_REGULATOR)
+static const struct regulator_desc pli1209bc_reg_desc = {
+	.name = "vout2",
+	.id = 1,
+	.of_match = of_match_ptr("vout2"),
+	.regulators_node = of_match_ptr("regulators"),
+	.ops = &pmbus_regulator_ops,
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+};
+#endif
 
 static struct pmbus_driver_info pli1209bc_info = {
 	.pages = 2,
@@ -75,6 +102,10 @@ static struct pmbus_driver_info pli1209bc_info = {
 	    | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP
 	    | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_STATUS_INPUT,
 	.read_word_data = pli1209bc_read_word_data,
+#if IS_ENABLED(CONFIG_SENSORS_PLI1209BC_REGULATOR)
+	.num_regulators = 1,
+	.reg_desc = &pli1209bc_reg_desc,
+#endif
 };
 
 static int pli1209bc_probe(struct i2c_client *client)
