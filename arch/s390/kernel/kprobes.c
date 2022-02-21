@@ -372,32 +372,25 @@ static int kprobe_handler(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(kprobe_handler);
 
-/*
- * Function return probe trampoline:
- *	- init_kprobes() establishes a probepoint here
- *	- When the probed function returns, this probe
- *		causes the handlers to fire
- */
-static void __used kretprobe_trampoline_holder(void)
+void arch_kretprobe_fixup_return(struct pt_regs *regs,
+				 kprobe_opcode_t *correct_ret_addr)
 {
-	asm volatile(".global __kretprobe_trampoline\n"
-		     "__kretprobe_trampoline: bcr 0,0\n");
+	/* Replace fake return address with real one. */
+	regs->gprs[14] = (unsigned long)correct_ret_addr;
 }
+NOKPROBE_SYMBOL(arch_kretprobe_fixup_return);
 
 /*
- * Called when the probe at kretprobe trampoline is hit
+ * Called from __kretprobe_trampoline
  */
-static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+void trampoline_probe_handler(struct pt_regs *regs)
 {
-	regs->psw.addr = __kretprobe_trampoline_handler(regs, NULL);
-	/*
-	 * By returning a non-zero value, we are telling
-	 * kprobe_handler() that we don't want the post_handler
-	 * to run (and have re-enabled preemption)
-	 */
-	return 1;
+	kretprobe_trampoline_handler(regs, NULL);
 }
 NOKPROBE_SYMBOL(trampoline_probe_handler);
+
+/* assembler function that handles the kretprobes must not be probed itself */
+NOKPROBE_SYMBOL(__kretprobe_trampoline);
 
 /*
  * Called after single-stepping.  p->addr is the address of the
@@ -551,18 +544,13 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 }
 NOKPROBE_SYMBOL(kprobe_exceptions_notify);
 
-static struct kprobe trampoline = {
-	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,
-	.pre_handler = trampoline_probe_handler
-};
-
 int __init arch_init_kprobes(void)
 {
-	return register_kprobe(&trampoline);
+	return 0;
 }
 
 int arch_trampoline_kprobe(struct kprobe *p)
 {
-	return p->addr == (kprobe_opcode_t *) &__kretprobe_trampoline;
+	return 0;
 }
 NOKPROBE_SYMBOL(arch_trampoline_kprobe);
