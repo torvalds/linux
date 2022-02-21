@@ -74,12 +74,12 @@ out:
 	return ret;
 }
 
-static void atmel_trng_enable(struct atmel_trng *trng)
+static void atmel_trng_init(struct atmel_trng *trng)
 {
 	writel(TRNG_KEY | 1, trng->base + TRNG_CR);
 }
 
-static void atmel_trng_disable(struct atmel_trng *trng)
+static void atmel_trng_cleanup(struct atmel_trng *trng)
 {
 	writel(TRNG_KEY, trng->base + TRNG_CR);
 }
@@ -117,7 +117,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	atmel_trng_enable(trng);
+	atmel_trng_init(trng);
 	trng->rng.name = pdev->name;
 	trng->rng.read = atmel_trng_read;
 
@@ -131,7 +131,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 
 err_register:
 	clk_disable_unprepare(trng->clk);
-	atmel_trng_disable(trng);
+	atmel_trng_cleanup(trng);
 	return ret;
 }
 
@@ -140,7 +140,7 @@ static int atmel_trng_remove(struct platform_device *pdev)
 	struct atmel_trng *trng = platform_get_drvdata(pdev);
 
 
-	atmel_trng_disable(trng);
+	atmel_trng_cleanup(trng);
 	clk_disable_unprepare(trng->clk);
 
 	return 0;
@@ -151,7 +151,7 @@ static int atmel_trng_suspend(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
-	atmel_trng_disable(trng);
+	atmel_trng_cleanup(trng);
 	clk_disable_unprepare(trng->clk);
 
 	return 0;
@@ -166,7 +166,7 @@ static int atmel_trng_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	atmel_trng_enable(trng);
+	atmel_trng_init(trng);
 
 	return 0;
 }
