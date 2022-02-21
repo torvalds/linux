@@ -960,11 +960,6 @@ static void bq25890_set_pd_param(struct bq25890_device *bq, int vol, int cur)
 		i++;
 	}
 
-	if (cur <= 500000)
-		bq25890_field_write(bq, F_AUTO_DPDM_EN, 1);
-	else
-		bq25890_field_write(bq, F_AUTO_DPDM_EN, 0);
-
 	bq25890_field_write(bq, F_IILIM, iilim);
 	bq25890_field_write(bq, F_VINDPM_OFS, vindpm);
 	bq25890_field_write(bq, F_ICHG, ichg);
@@ -1056,6 +1051,7 @@ static int bq25890_register_pd_psy(struct bq25890_device *bq)
 		return ret;
 	}
 
+	bq25890_field_write(bq, F_AUTO_DPDM_EN, 0);
 	if (bq->nb.notifier_call) {
 		notify_psy = power_supply_get_by_phandle(bq->dev->of_node,
 						"ti,usb-charger-detection");
