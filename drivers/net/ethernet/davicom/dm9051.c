@@ -845,17 +845,19 @@ static int dm9051_loop_tx(struct board_info *db)
 
 	while (!skb_queue_empty(&db->txq)) {
 		struct sk_buff *skb;
+		unsigned int len;
 
 		skb = skb_dequeue(&db->txq);
 		if (skb) {
 			ntx++;
 			ret = dm9051_single_tx(db, skb->data, skb->len);
+			len = skb->len;
 			dev_kfree_skb(skb);
 			if (ret < 0) {
 				db->bc.tx_err_counter++;
 				return 0;
 			}
-			ndev->stats.tx_bytes += skb->len;
+			ndev->stats.tx_bytes += len;
 			ndev->stats.tx_packets++;
 		}
 
