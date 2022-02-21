@@ -189,6 +189,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT715_SDW
 	imply SND_SOC_RT1308_SDW
+	imply SND_SOC_RV1106
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
@@ -1294,6 +1295,10 @@ config SND_SOC_RT715_SDW
 	depends on SOUNDWIRE
 	select SND_SOC_RT715
 	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RV1106
+	tristate "Rockchip RV1106 CODEC"
+	select REGMAP_MMIO
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
