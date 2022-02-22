@@ -131,7 +131,7 @@ static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 	 */
 	if (pctl->devdata->spec_ies_smt_set) {
 		return pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
-			pin, pctl->devdata->port_align, value, arg);
+			pctl->devdata, pin, value, arg);
 	}
 
 	if (arg == PIN_CONFIG_INPUT_ENABLE)
@@ -151,10 +151,27 @@ static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 }
 
 int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
-		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,
-		unsigned int pin, unsigned char align, int value)
+		const struct mtk_pinctrl_devdata *devdata,
+		unsigned int pin, int value, enum pin_config_param arg)
 {
-	unsigned int i, reg_addr, bit;
+	const struct mtk_pin_ies_smt_set *ies_smt_infos = NULL;
+	unsigned int i, info_num, reg_addr, bit;
+
+	switch (arg) {
+	case PIN_CONFIG_INPUT_ENABLE:
+		ies_smt_infos = devdata->spec_ies;
+		info_num = devdata->n_spec_ies;
+		break;
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+		ies_smt_infos = devdata->spec_smt;
+		info_num = devdata->n_spec_smt;
+		break;
+	default:
+		break;
+	};
+
+	if (!ies_smt_infos)
+		return -EINVAL;
 
 	for (i = 0; i < info_num; i++) {
 		if (pin >= ies_smt_infos[i].start &&
@@ -167,9 +184,9 @@ int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
 		return -EINVAL;
 
 	if (value)
-		reg_addr = ies_smt_infos[i].offset + align;
+		reg_addr = ies_smt_infos[i].offset + devdata->port_align;
 	else
-		reg_addr = ies_smt_infos[i].offset + (align << 1);
+		reg_addr = ies_smt_infos[i].offset + (devdata->port_align << 1);
 
 	bit = BIT(ies_smt_infos[i].bit);
 	regmap_write(regmap, reg_addr, bit);

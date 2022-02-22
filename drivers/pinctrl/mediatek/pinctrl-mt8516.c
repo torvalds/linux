@@ -285,18 +285,6 @@ static const struct mtk_pin_ies_smt_set mt8516_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(121, 124, 0xA10, 9),
 };
 
-static int mt8516_ies_smt_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, int value, enum pin_config_param arg)
-{
-	if (arg == PIN_CONFIG_INPUT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8516_ies_set,
-			ARRAY_SIZE(mt8516_ies_set), pin, align, value);
-	else if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8516_smt_set,
-			ARRAY_SIZE(mt8516_smt_set), pin, align, value);
-	return -EINVAL;
-}
-
 static const struct mtk_pinctrl_devdata mt8516_pinctrl_data = {
 	.pins = mtk_pins_mt8516,
 	.npins = ARRAY_SIZE(mtk_pins_mt8516),
@@ -304,10 +292,14 @@ static const struct mtk_pinctrl_devdata mt8516_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt8516_drv_grp),
 	.pin_drv_grp = mt8516_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt8516_pin_drv),
+	.spec_ies = mt8516_ies_set,
+	.n_spec_ies = ARRAY_SIZE(mt8516_ies_set),
 	.spec_pupd = mt8516_spec_pupd,
 	.n_spec_pupd = ARRAY_SIZE(mt8516_spec_pupd),
+	.spec_smt = mt8516_smt_set,
+	.n_spec_smt = ARRAY_SIZE(mt8516_smt_set),
 	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
-	.spec_ies_smt_set = mt8516_ies_smt_set,
+	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0500,
 	.pullsel_offset = 0x0600,
