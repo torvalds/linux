@@ -132,6 +132,8 @@ struct pci_bridge_emul {
 	struct pci_bridge_reg_behavior *pcie_cap_regs_behavior;
 	void *data;
 	bool has_pcie;
+	u16 subsystem_vendor_id;
+	u16 subsystem_id;
 };
 
 enum {
