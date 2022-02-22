@@ -1543,7 +1543,8 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 		ret = PTR_ERR(root->node);
 		root->node = NULL;
 		goto fail;
-	} else if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
+	}
+	if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
 		ret = -EIO;
 		goto fail;
 	}
@@ -2537,11 +2538,13 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 		log_tree_root->node = NULL;
 		btrfs_put_root(log_tree_root);
 		return ret;
-	} else if (!extent_buffer_uptodate(log_tree_root->node)) {
+	}
+	if (!extent_buffer_uptodate(log_tree_root->node)) {
 		btrfs_err(fs_info, "failed to read log tree");
 		btrfs_put_root(log_tree_root);
 		return -EIO;
 	}
+
 	/* returns with log_tree_root freed on success */
 	ret = btrfs_recover_log_trees(log_tree_root);
 	if (ret) {
@@ -2983,14 +2986,13 @@ static int load_super_root(struct btrfs_root *root, u64 bytenr, u64 gen, int lev
 	if (IS_ERR(root->node)) {
 		ret = PTR_ERR(root->node);
 		root->node = NULL;
-	} else if (!extent_buffer_uptodate(root->node)) {
+		return ret;
+	}
+	if (!extent_buffer_uptodate(root->node)) {
 		free_extent_buffer(root->node);
 		root->node = NULL;
-		ret = -EIO;
+		return -EIO;
 	}
-
-	if (ret)
-		return ret;
 
 	btrfs_set_root_node(&root->root_item, root->node);
 	root->commit_root = btrfs_root_node(root);

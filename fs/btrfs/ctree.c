@@ -846,9 +846,11 @@ struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
 			     btrfs_header_owner(parent),
 			     btrfs_node_ptr_generation(parent, slot),
 			     level - 1, &first_key);
-	if (!IS_ERR(eb) && !extent_buffer_uptodate(eb)) {
+	if (IS_ERR(eb))
+		return eb;
+	if (!extent_buffer_uptodate(eb)) {
 		free_extent_buffer(eb);
-		eb = ERR_PTR(-EIO);
+		return ERR_PTR(-EIO);
 	}
 
 	return eb;
@@ -1460,19 +1462,19 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	ret = -EAGAIN;
 	tmp = read_tree_block(fs_info, blocknr, root->root_key.objectid,
 			      gen, parent_level - 1, &first_key);
-	if (!IS_ERR(tmp)) {
-		/*
-		 * If the read above didn't mark this buffer up to date,
-		 * it will never end up being up to date.  Set ret to EIO now
-		 * and give up so that our caller doesn't loop forever
-		 * on our EAGAINs.
-		 */
-		if (!extent_buffer_uptodate(tmp))
-			ret = -EIO;
-		free_extent_buffer(tmp);
-	} else {
-		ret = PTR_ERR(tmp);
+	if (IS_ERR(tmp)) {
+		btrfs_release_path(p);
+		return PTR_ERR(tmp);
 	}
+	/*
+	 * If the read above didn't mark this buffer up to date,
+	 * it will never end up being up to date.  Set ret to EIO now
+	 * and give up so that our caller doesn't loop forever
+	 * on our EAGAINs.
+	 */
+	if (!extent_buffer_uptodate(tmp))
+		ret = -EIO;
+	free_extent_buffer(tmp);
 
 	btrfs_release_path(p);
 	return ret;

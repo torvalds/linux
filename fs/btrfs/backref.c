@@ -789,11 +789,13 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 		if (IS_ERR(eb)) {
 			free_pref(ref);
 			return PTR_ERR(eb);
-		} else if (!extent_buffer_uptodate(eb)) {
+		}
+		if (!extent_buffer_uptodate(eb)) {
 			free_pref(ref);
 			free_extent_buffer(eb);
 			return -EIO;
 		}
+
 		if (lock)
 			btrfs_tree_read_lock(eb);
 		if (btrfs_header_level(eb) == 0)
@@ -1335,7 +1337,8 @@ again:
 				if (IS_ERR(eb)) {
 					ret = PTR_ERR(eb);
 					goto out;
-				} else if (!extent_buffer_uptodate(eb)) {
+				}
+				if (!extent_buffer_uptodate(eb)) {
 					free_extent_buffer(eb);
 					ret = -EIO;
 					goto out;

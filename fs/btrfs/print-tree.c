@@ -392,9 +392,9 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 				       btrfs_header_owner(c),
 				       btrfs_node_ptr_generation(c, i),
 				       level - 1, &first_key);
-		if (IS_ERR(next)) {
+		if (IS_ERR(next))
 			continue;
-		} else if (!extent_buffer_uptodate(next)) {
+		if (!extent_buffer_uptodate(next)) {
 			free_extent_buffer(next);
 			continue;
 		}
