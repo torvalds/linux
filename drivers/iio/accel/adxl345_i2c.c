@@ -31,8 +31,7 @@ static int adxl345_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(regmap), "Error initializing regmap\n");
 
-	return adxl345_core_probe(&client->dev, regmap, id->driver_data,
-				  id->name);
+	return adxl345_core_probe(&client->dev, regmap, id->driver_data);
 }
 
 static const struct i2c_device_id adxl345_i2c_id[] = {

@@ -213,13 +213,24 @@ static void adxl345_powerdown(void *regmap)
 	regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_STANDBY);
 }
 
-int adxl345_core_probe(struct device *dev, struct regmap *regmap,
-		       enum adxl345_device_type type, const char *name)
+int adxl345_core_probe(struct device *dev, struct regmap *regmap, enum adxl345_device_type type)
 {
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
+	const char *name;
 	u32 regval;
 	int ret;
+
+	switch (type) {
+	case ADXL345:
+		name = "adxl345";
+		break;
+	case ADXL375:
+		name = "adxl375";
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
 	if (ret < 0)
