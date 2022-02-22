@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -551,7 +550,7 @@ static int secocec_acpi_probe(struct secocec_data *sdev)
 	struct gpio_desc *gpio;
 	int irq = 0;
 
-	gpio = devm_gpiod_get(dev, NULL, GPIOF_IN);
+	gpio = devm_gpiod_get(dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "Cannot request interrupt gpio");
 		return PTR_ERR(gpio);
