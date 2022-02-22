@@ -27,9 +27,6 @@
 #include "intel_vga.h"
 #include "vlv_sideband.h"
 
-bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
-					 enum i915_power_well_id power_well_id);
-
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain)
 {
@@ -916,29 +913,6 @@ static void assert_dmc_loaded(struct drm_i915_private *dev_priv)
 		      "DMC SSP Base Not fine\n");
 	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, DMC_HTP_SKL),
 		      "DMC HTP Not fine\n");
-}
-
-static struct i915_power_well *
-lookup_power_well(struct drm_i915_private *dev_priv,
-		  enum i915_power_well_id power_well_id)
-{
-	struct i915_power_well *power_well;
-
-	for_each_power_well(dev_priv, power_well)
-		if (power_well->desc->id == power_well_id)
-			return power_well;
-
-	/*
-	 * It's not feasible to add error checking code to the callers since
-	 * this condition really shouldn't happen and it doesn't even make sense
-	 * to abort things like display initialization sequences. Just return
-	 * the first power well and hope the WARN gets reported so we can fix
-	 * our driver.
-	 */
-	drm_WARN(&dev_priv->drm, 1,
-		 "Power well %d not defined for this platform\n",
-		 power_well_id);
-	return &dev_priv->power_domains.power_wells[0];
 }
 
 /**
@@ -3329,16 +3303,6 @@ static const struct i915_power_well_desc chv_power_wells[] = {
 		},
 	},
 };
-
-bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
-					 enum i915_power_well_id power_well_id)
-{
-	struct i915_power_well *power_well;
-
-	power_well = lookup_power_well(dev_priv, power_well_id);
-
-	return intel_power_well_is_enabled(dev_priv, power_well);
-}
 
 static const struct i915_power_well_desc skl_power_wells[] = {
 	{
