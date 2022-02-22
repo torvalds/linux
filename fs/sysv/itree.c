@@ -482,7 +482,7 @@ static int sysv_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, flags, pagep, get_block);
+	ret = block_write_begin(mapping, pos, len, pagep, get_block);
 	if (unlikely(ret))
 		sysv_write_failed(mapping, pos + len);
 
