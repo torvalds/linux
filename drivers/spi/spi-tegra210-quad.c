@@ -137,7 +137,6 @@ struct tegra_qspi {
 	spinlock_t				lock;
 
 	struct clk				*clk;
-	struct reset_control			*rst;
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned int				irq;
@@ -948,9 +947,8 @@ static void tegra_qspi_handle_error(struct tegra_qspi *tqspi)
 	dev_err(tqspi->dev, "error in transfer, fifo status 0x%08x\n", tqspi->status_reg);
 	tegra_qspi_dump_regs(tqspi);
 	tegra_qspi_flush_fifos(tqspi, true);
-	reset_control_assert(tqspi->rst);
-	udelay(2);
-	reset_control_deassert(tqspi->rst);
+	if (device_reset(tqspi->dev) < 0)
+		dev_warn_once(tqspi->dev, "device reset failed\n");
 }
 
 static void tegra_qspi_transfer_end(struct spi_device *spi)
@@ -1251,13 +1249,6 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	tqspi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(tqspi->rst)) {
-		ret = PTR_ERR(tqspi->rst);
-		dev_err(&pdev->dev, "failed to get reset control: %d\n", ret);
-		return ret;
-	}
-
 	tqspi->max_buf_size = QSPI_FIFO_DEPTH << 2;
 	tqspi->dma_buf_size = DEFAULT_QSPI_DMA_BUF_LEN;
 
@@ -1279,9 +1270,8 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	reset_control_assert(tqspi->rst);
-	udelay(2);
-	reset_control_deassert(tqspi->rst);
+	if (device_reset(tqspi->dev) < 0)
+		dev_warn_once(tqspi->dev, "device reset failed\n");
 
 	tqspi->def_command1_reg = QSPI_M_S | QSPI_CS_SW_HW |  QSPI_CS_SW_VAL;
 	tegra_qspi_writel(tqspi, tqspi->def_command1_reg, QSPI_COMMAND1);
