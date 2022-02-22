@@ -906,7 +906,6 @@ out:
 int ext4_da_write_inline_data_begin(struct address_space *mapping,
 				    struct inode *inode,
 				    loff_t pos, unsigned len,
-				    unsigned flags,
 				    struct page **pagep,
 				    void **fsdata)
 {
@@ -915,6 +914,7 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 	struct page *page;
 	struct ext4_iloc iloc;
 	int retries = 0;
+	unsigned int flags;
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
@@ -931,12 +931,6 @@ retry_journal:
 	if (ret && ret != -ENOSPC)
 		goto out_journal;
 
-	/*
-	 * We cannot recurse into the filesystem as the transaction
-	 * is already started.
-	 */
-	flags |= AOP_FLAG_NOFS;
-
 	if (ret == -ENOSPC) {
 		ext4_journal_stop(handle);
 		ret = ext4_da_convert_inline_data_to_extent(mapping,
@@ -948,7 +942,13 @@ retry_journal:
 		goto out;
 	}
 
-	page = grab_cache_page_write_begin(mapping, 0, flags);
+	/*
+	 * We cannot recurse into the filesystem as the transaction
+	 * is already started.
+	 */
+	flags = memalloc_nofs_save();
+	page = grab_cache_page_write_begin(mapping, 0, 0);
+	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;
 		goto out_journal;
