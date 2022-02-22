@@ -8,6 +8,7 @@
 /s390x/memop
 /s390x/resets
 /s390x/sync_regs_test
+/s390x/tprot
 /x86_64/amx_test
 /x86_64/cpuid_test
 /x86_64/cr4_cpuid_sync_test
