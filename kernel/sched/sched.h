@@ -6,7 +6,25 @@
 #define _KERNEL_SCHED_SCHED_H
 
 #include <linux/sched.h>
+#include <linux/cpumask.h>
+#include <linux/ktime_api.h>
+#include <linux/cgroup_api.h>
+#include <linux/topology.h>
+#include <linux/prctl.h>
+#include <linux/ptrace_api.h>
+#include <linux/gfp_api.h>
+#include <linux/sched/clock.h>
+#include <linux/workqueue_api.h>
+#include <linux/tick.h>
+#include <linux/ktime_api.h>
+#include <linux/swait_api.h>
+#include <linux/hashtable_api.h>
+#include <linux/cpufreq.h>
+#include <linux/utsname.h>
 
+#include <asm/irq_regs.h>
+
+#include <linux/sched/affinity.h>
 #include <linux/sched/autogroup.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/coredump.h>
@@ -24,6 +42,7 @@
 #include <linux/sched/nohz.h>
 #include <linux/sched/numa_balancing.h>
 #include <linux/sched/prio.h>
+#include <linux/sched/rseq_api.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/smt.h>
@@ -31,6 +50,7 @@
 #include <linux/sched/sysctl.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sched/thread_info_api.h>
 #include <linux/sched/topology.h>
 #include <linux/sched/user.h>
 #include <linux/sched/wake_q.h>
@@ -69,8 +89,7 @@
 #include <linux/syscalls.h>
 #include <linux/task_work.h>
 #include <linux/tsacct_kern.h>
-
-#include <asm/tlb.h>
+#include <linux/hrtimer_api.h>
 
 #ifdef CONFIG_PARAVIRT
 # include <asm/paravirt.h>
@@ -86,6 +105,40 @@
 #else
 # define SCHED_WARN_ON(x)	({ (void)(x), 0; })
 #endif
+
+#include <linux/bitmap.h>
+#include <linux/capability.h>
+#include <linux/cgroup.h>
+#include <linux/cpufreq.h>
+#include <linux/cpumask_api.h>
+#include <linux/ctype.h>
+#include <linux/file.h>
+#include <linux/jiffies.h>
+#include <linux/kref_api.h>
+#include <linux/lockdep_api.h>
+#include <linux/module.h>
+#include <linux/mutex_api.h>
+#include <linux/poll.h>
+#include <linux/proc_fs.h>
+#include <linux/psi.h>
+#include <linux/sched/affinity.h>
+#include <linux/sched.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/rseq_api.h>
+#include <linux/seq_file.h>
+#include <linux/seqlock.h>
+#include <linux/syscalls_api.h>
+#include <linux/syscalls.h>
+#include <linux/topology.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
+#include <linux/wait_api.h>
+#include <linux/workqueue_api.h>
+
+#include <trace/events/power.h>
+
+#include "../workqueue_internal.h"
 
 struct rq;
 struct cpuidle_state;

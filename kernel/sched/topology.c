@@ -2,7 +2,6 @@
 /*
  * Scheduler topology setup/handling methods
  */
-#include "sched.h"
 
 DEFINE_MUTEX(sched_domains_mutex);
 

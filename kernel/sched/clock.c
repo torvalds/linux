@@ -53,8 +53,6 @@
  * that is otherwise invisible (TSC gets stopped).
  *
  */
-#include "sched.h"
-#include <linux/sched_clock.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
