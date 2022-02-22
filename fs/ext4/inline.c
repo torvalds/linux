@@ -563,7 +563,7 @@ retry:
 	/* We cannot recurse into the filesystem as the transaction is already
 	 * started */
 	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0, 0);
+	page = grab_cache_page_write_begin(mapping, 0);
 	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;
@@ -692,7 +692,7 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 		goto out;
 
 	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0, 0);
+	page = grab_cache_page_write_begin(mapping, 0);
 	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;
@@ -852,7 +852,7 @@ static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 	int ret = 0, inline_size;
 	struct page *page;
 
-	page = grab_cache_page_write_begin(mapping, 0, 0);
+	page = grab_cache_page_write_begin(mapping, 0);
 	if (!page)
 		return -ENOMEM;
 
@@ -946,7 +946,7 @@ retry_journal:
 	 * is already started.
 	 */
 	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, 0, 0);
+	page = grab_cache_page_write_begin(mapping, 0);
 	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;

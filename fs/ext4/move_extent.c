@@ -141,13 +141,13 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 	}
 
 	flags = memalloc_nofs_save();
-	page[0] = grab_cache_page_write_begin(mapping[0], index1, 0);
+	page[0] = grab_cache_page_write_begin(mapping[0], index1);
 	if (!page[0]) {
 		memalloc_nofs_restore(flags);
 		return -ENOMEM;
 	}
 
-	page[1] = grab_cache_page_write_begin(mapping[1], index2, 0);
+	page[1] = grab_cache_page_write_begin(mapping[1], index2);
 	memalloc_nofs_restore(flags);
 	if (!page[1]) {
 		unlock_page(page[0]);
