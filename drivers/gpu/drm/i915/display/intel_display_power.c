@@ -636,28 +636,10 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 
-static u64 async_put_domains_mask(struct i915_power_domains *power_domains);
-
-static int power_well_async_ref_count(struct drm_i915_private *dev_priv,
-				      struct i915_power_well *power_well)
-{
-	int refs = hweight64(power_well->desc->domains &
-			     async_put_domains_mask(&dev_priv->power_domains));
-
-	drm_WARN_ON(&dev_priv->drm, refs > power_well->count);
-
-	return refs;
-}
-
 static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well,
 					struct intel_digital_port *dig_port)
 {
-	/* Bypass the check if all references are released asynchronously */
-	if (power_well_async_ref_count(dev_priv, power_well) ==
-	    power_well->count)
-		return;
-
 	if (drm_WARN_ON(&dev_priv->drm, !dig_port))
 		return;
 
@@ -749,18 +731,6 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 }
 
 static void
-icl_tc_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
-				  struct i915_power_well *power_well)
-{
-	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
-	struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
-
-	icl_tc_port_assert_ref_held(dev_priv, power_well, dig_port);
-
-	hsw_power_well_disable(dev_priv, power_well);
-}
-
-static void
 icl_aux_power_well_enable(struct drm_i915_private *dev_priv,
 			  struct i915_power_well *power_well)
 {
@@ -782,7 +752,7 @@ icl_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	if (intel_phy_is_tc(dev_priv, phy))
-		return icl_tc_phy_aux_power_well_disable(dev_priv, power_well);
+		return hsw_power_well_disable(dev_priv, power_well);
 	else if (IS_ICELAKE(dev_priv))
 		return icl_combo_phy_aux_power_well_disable(dev_priv,
 							    power_well);
