@@ -496,7 +496,6 @@ static const struct b53_io_ops b53_srab_ops = {
 	.serdes_config = b53_serdes_config,
 	.serdes_an_restart = b53_serdes_an_restart,
 	.serdes_link_set = b53_serdes_link_set,
-	.serdes_phylink_validate = b53_serdes_phylink_validate,
 #endif
 };
 

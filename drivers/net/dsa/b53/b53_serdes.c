@@ -158,28 +158,6 @@ void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 }
 EXPORT_SYMBOL(b53_serdes_link_set);
 
-void b53_serdes_phylink_validate(struct b53_device *dev, int port,
-				 unsigned long *supported,
-				 struct phylink_link_state *state)
-{
-	u8 lane = b53_serdes_map_lane(dev, port);
-
-	if (lane == B53_INVALID_LANE)
-		return;
-
-	switch (lane) {
-	case 0:
-		phylink_set(supported, 2500baseX_Full);
-		fallthrough;
-	case 1:
-		phylink_set(supported, 1000baseX_Full);
-		break;
-	default:
-		break;
-	}
-}
-EXPORT_SYMBOL(b53_serdes_phylink_validate);
-
 void b53_serdes_phylink_get_caps(struct b53_device *dev, int port,
 				 struct phylink_config *config)
 {

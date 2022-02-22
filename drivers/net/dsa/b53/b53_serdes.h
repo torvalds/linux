@@ -117,9 +117,6 @@ void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 			 phy_interface_t interface, bool link_up);
 void b53_serdes_phylink_get_caps(struct b53_device *dev, int port,
 				 struct phylink_config *config);
-void b53_serdes_phylink_validate(struct b53_device *dev, int port,
-				unsigned long *supported,
-				struct phylink_link_state *state);
 #if IS_ENABLED(CONFIG_B53_SERDES)
 int b53_serdes_init(struct b53_device *dev, int port);
 #else
