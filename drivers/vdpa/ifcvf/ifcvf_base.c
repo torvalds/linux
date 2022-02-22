@@ -15,6 +15,26 @@ struct ifcvf_adapter *vf_to_adapter(struct ifcvf_hw *hw)
 	return container_of(hw, struct ifcvf_adapter, vf);
 }
 
+u16 ifcvf_set_vq_vector(struct ifcvf_hw *hw, u16 qid, int vector)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
+
+	vp_iowrite16(qid, &cfg->queue_select);
+	vp_iowrite16(vector, &cfg->queue_msix_vector);
+
+	return vp_ioread16(&cfg->queue_msix_vector);
+}
+
+u16 ifcvf_set_config_vector(struct ifcvf_hw *hw, int vector)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
+
+	cfg = hw->common_cfg;
+	vp_iowrite16(vector,  &cfg->msix_config);
+
+	return vp_ioread16(&cfg->msix_config);
+}
+
 static void __iomem *get_cap_addr(struct ifcvf_hw *hw,
 				  struct virtio_pci_cap *cap)
 {
@@ -131,6 +151,7 @@ next:
 			notify_off * hw->notify_off_multiplier;
 		hw->vring[i].notify_pa = hw->notify_base_pa +
 			notify_off * hw->notify_off_multiplier;
+		hw->vring[i].irq = -EINVAL;
 	}
 
 	hw->lm_cfg = hw->base[IFCVF_LM_BAR];
@@ -139,6 +160,9 @@ next:
 		  "PCI capability mapping: common cfg: %p, notify base: %p\n, isr cfg: %p, device cfg: %p, multiplier: %u\n",
 		  hw->common_cfg, hw->notify_base, hw->isr,
 		  hw->dev_cfg, hw->notify_off_multiplier);
+
+	hw->vqs_reused_irq = -EINVAL;
+	hw->config_irq = -EINVAL;
 
 	return 0;
 }
@@ -321,13 +345,6 @@ static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 
 	ifcvf = vf_to_adapter(hw);
 	cfg = hw->common_cfg;
-	vp_iowrite16(IFCVF_MSI_CONFIG_OFF, &cfg->msix_config);
-
-	if (vp_ioread16(&cfg->msix_config) == VIRTIO_MSI_NO_VECTOR) {
-		IFCVF_ERR(ifcvf->pdev, "No msix vector for device config\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < hw->nr_vring; i++) {
 		if (!hw->vring[i].ready)
 			break;
@@ -340,15 +357,6 @@ static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 		vp_iowrite64_twopart(hw->vring[i].used, &cfg->queue_used_lo,
 				     &cfg->queue_used_hi);
 		vp_iowrite16(hw->vring[i].size, &cfg->queue_size);
-		vp_iowrite16(i + IFCVF_MSI_QUEUE_OFF, &cfg->queue_msix_vector);
-
-		if (vp_ioread16(&cfg->queue_msix_vector) ==
-		    VIRTIO_MSI_NO_VECTOR) {
-			IFCVF_ERR(ifcvf->pdev,
-				  "No msix vector for queue %u\n", i);
-			return -EINVAL;
-		}
-
 		ifcvf_set_vq_state(hw, i, hw->vring[i].last_avail_idx);
 		vp_iowrite16(1, &cfg->queue_enable);
 	}
@@ -362,14 +370,10 @@ static void ifcvf_hw_disable(struct ifcvf_hw *hw)
 	u32 i;
 
 	cfg = hw->common_cfg;
-	vp_iowrite16(VIRTIO_MSI_NO_VECTOR, &cfg->msix_config);
-
+	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
 	for (i = 0; i < hw->nr_vring; i++) {
-		vp_iowrite16(i, &cfg->queue_select);
-		vp_iowrite16(VIRTIO_MSI_NO_VECTOR, &cfg->queue_msix_vector);
+		ifcvf_set_vq_vector(hw, i, VIRTIO_MSI_NO_VECTOR);
 	}
-
-	vp_ioread16(&cfg->queue_msix_vector);
 }
 
 int ifcvf_start_hw(struct ifcvf_hw *hw)

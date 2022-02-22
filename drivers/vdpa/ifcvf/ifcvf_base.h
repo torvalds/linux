@@ -28,8 +28,6 @@
 
 #define IFCVF_QUEUE_ALIGNMENT	PAGE_SIZE
 #define IFCVF_QUEUE_MAX		32768
-#define IFCVF_MSI_CONFIG_OFF	0
-#define IFCVF_MSI_QUEUE_OFF	1
 #define IFCVF_PCI_MAX_RESOURCE	6
 
 #define IFCVF_LM_CFG_SIZE		0x40
@@ -42,6 +40,13 @@
 
 #define ifcvf_private_to_vf(adapter) \
 	(&((struct ifcvf_adapter *)adapter)->vf)
+
+/* all vqs and config interrupt has its own vector */
+#define MSIX_VECTOR_PER_VQ_AND_CONFIG		1
+/* all vqs share a vector, and config interrupt has a separate vector */
+#define MSIX_VECTOR_SHARED_VQ_AND_CONFIG	2
+/* all vqs and config interrupt share a vector */
+#define MSIX_VECTOR_DEV_SHARED			3
 
 struct vring_info {
 	u64 desc;
@@ -77,9 +82,11 @@ struct ifcvf_hw {
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;
-	unsigned int config_irq;
+	int config_irq;
+	int vqs_reused_irq;
 	/* virtio-net or virtio-blk device config size */
 	u32 config_size;
+	u8 msix_vector_status;
 };
 
 struct ifcvf_adapter {
@@ -124,4 +131,6 @@ int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num);
 struct ifcvf_adapter *vf_to_adapter(struct ifcvf_hw *hw);
 int ifcvf_probed_virtio_net(struct ifcvf_hw *hw);
 u32 ifcvf_get_config_size(struct ifcvf_hw *hw);
+u16 ifcvf_set_vq_vector(struct ifcvf_hw *hw, u16 qid, int vector);
+u16 ifcvf_set_config_vector(struct ifcvf_hw *hw, int vector);
 #endif /* _IFCVF_H_ */
