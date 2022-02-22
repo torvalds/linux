@@ -192,10 +192,10 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	is_enabled = true;
 
 	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain)) {
-		if (power_well->desc->always_on)
+		if (intel_power_well_is_always_on(power_well))
 			continue;
 
-		if (!power_well->hw_enabled) {
+		if (!intel_power_well_is_enabled_cached(power_well)) {
 			is_enabled = false;
 			break;
 		}
@@ -331,7 +331,7 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	if (intel_de_wait_for_set(dev_priv, regs->driver,
 				  HSW_PWR_WELL_CTL_STATE(pw_idx), 1)) {
 		drm_dbg_kms(&dev_priv->drm, "%s power well enable timeout\n",
-			    power_well->desc->name);
+			    intel_power_well_name(power_well));
 
 		drm_WARN_ON(&dev_priv->drm, !timeout_expected);
 
@@ -379,7 +379,7 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
-		    power_well->desc->name,
+		    intel_power_well_name(power_well),
 		    !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
 }
 
@@ -968,8 +968,7 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 	if (state == dev_priv->dmc.target_dc_state)
 		goto unlock;
 
-	dc_off_enabled = power_well->desc->ops->is_enabled(dev_priv,
-							   power_well);
+	dc_off_enabled = intel_power_well_is_enabled(dev_priv, power_well);
 	/*
 	 * If DC off power well is disabled, need to enable and disable the
 	 * DC off power well to effect target DC state.
@@ -1091,17 +1090,17 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 	struct i915_power_well *power_well;
 
 	power_well = lookup_power_well(dev_priv, BXT_DISP_PW_DPIO_CMN_A);
-	if (power_well->count > 0)
+	if (intel_power_well_refcount(power_well) > 0)
 		bxt_ddi_phy_verify_state(dev_priv, power_well->desc->bxt.phy);
 
 	power_well = lookup_power_well(dev_priv, VLV_DISP_PW_DPIO_CMN_BC);
-	if (power_well->count > 0)
+	if (intel_power_well_refcount(power_well) > 0)
 		bxt_ddi_phy_verify_state(dev_priv, power_well->desc->bxt.phy);
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		power_well = lookup_power_well(dev_priv,
 					       GLK_DISP_PW_DPIO_CMN_C);
-		if (power_well->count > 0)
+		if (intel_power_well_refcount(power_well) > 0)
 			bxt_ddi_phy_verify_state(dev_priv,
 						 power_well->desc->bxt.phy);
 	}
@@ -1227,7 +1226,7 @@ static bool i830_pipes_power_well_enabled(struct drm_i915_private *dev_priv,
 static void i830_pipes_power_well_sync_hw(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	if (power_well->count > 0)
+	if (intel_power_well_refcount(power_well) > 0)
 		i830_pipes_power_well_enable(dev_priv, power_well);
 	else
 		i830_pipes_power_well_disable(dev_priv, power_well);
@@ -1500,7 +1499,7 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 0) |
 				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1));
 
-	if (cmn_bc->desc->ops->is_enabled(dev_priv, cmn_bc)) {
+	if (intel_power_well_is_enabled(dev_priv, cmn_bc)) {
 		phy_status |= PHY_POWERGOOD(DPIO_PHY0);
 
 		/* this assumes override is only used to enable lanes */
@@ -1541,7 +1540,7 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 1);
 	}
 
-	if (cmn_d->desc->ops->is_enabled(dev_priv, cmn_d)) {
+	if (intel_power_well_is_enabled(dev_priv, cmn_d)) {
 		phy_status |= PHY_POWERGOOD(DPIO_PHY1);
 
 		/* this assumes override is only used to enable lanes */
@@ -3335,12 +3334,10 @@ bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id)
 {
 	struct i915_power_well *power_well;
-	bool ret;
 
 	power_well = lookup_power_well(dev_priv, power_well_id);
-	ret = power_well->desc->ops->is_enabled(dev_priv, power_well);
 
-	return ret;
+	return intel_power_well_is_enabled(dev_priv, power_well);
 }
 
 static const struct i915_power_well_desc skl_power_wells[] = {
@@ -3910,7 +3907,7 @@ static void
 tgl_tc_cold_off_power_well_sync_hw(struct drm_i915_private *i915,
 				   struct i915_power_well *power_well)
 {
-	if (power_well->count > 0)
+	if (intel_power_well_refcount(power_well) > 0)
 		tgl_tc_cold_off_power_well_enable(i915, power_well);
 	else
 		tgl_tc_cold_off_power_well_disable(i915, power_well);
@@ -3924,7 +3921,7 @@ tgl_tc_cold_off_power_well_is_enabled(struct drm_i915_private *dev_priv,
 	 * Not the correctly implementation but there is no way to just read it
 	 * from PCODE, so returning count to avoid state mismatch errors
 	 */
-	return power_well->count;
+	return intel_power_well_refcount(power_well);
 }
 
 static const struct i915_power_well_ops tgl_tc_cold_off_ops = {
@@ -5730,7 +5727,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * override and set the lane powerdown bits accding to the
 	 * current lane status.
 	 */
-	if (cmn_bc->desc->ops->is_enabled(dev_priv, cmn_bc)) {
+	if (intel_power_well_is_enabled(dev_priv, cmn_bc)) {
 		u32 status = intel_de_read(dev_priv, DPLL(PIPE_A));
 		unsigned int mask;
 
@@ -5761,7 +5758,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 		dev_priv->chv_phy_assert[DPIO_PHY0] = true;
 	}
 
-	if (cmn_d->desc->ops->is_enabled(dev_priv, cmn_d)) {
+	if (intel_power_well_is_enabled(dev_priv, cmn_d)) {
 		u32 status = intel_de_read(dev_priv, DPIO_PHY_STATUS);
 		unsigned int mask;
 
@@ -5797,8 +5794,8 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 		lookup_power_well(dev_priv, VLV_DISP_PW_DISP2D);
 
 	/* If the display might be already active skip this */
-	if (cmn->desc->ops->is_enabled(dev_priv, cmn) &&
-	    disp2d->desc->ops->is_enabled(dev_priv, disp2d) &&
+	if (intel_power_well_is_enabled(dev_priv, cmn) &&
+	    intel_power_well_is_enabled(dev_priv, disp2d) &&
 	    intel_de_read(dev_priv, DPIO_CTL) & DPIO_CMNRST)
 		return;
 
@@ -5965,12 +5962,12 @@ void intel_power_domains_sanitize_state(struct drm_i915_private *i915)
 
 	for_each_power_well_reverse(i915, power_well) {
 		if (power_well->desc->always_on || power_well->count ||
-		    !power_well->desc->ops->is_enabled(i915, power_well))
+		    !intel_power_well_is_enabled(i915, power_well))
 			continue;
 
 		drm_dbg_kms(&i915->drm,
 			    "BIOS left unused %s power well enabled, disabling it\n",
-			    power_well->desc->name);
+			    intel_power_well_name(power_well));
 		intel_power_well_disable(i915, power_well);
 	}
 
@@ -6109,9 +6106,9 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
 		enum intel_display_power_domain domain;
 
 		drm_dbg(&i915->drm, "%-25s %d\n",
-			power_well->desc->name, power_well->count);
+			intel_power_well_name(power_well), intel_power_well_refcount(power_well));
 
-		for_each_power_domain(domain, power_well->desc->domains)
+		for_each_power_domain(domain, intel_power_well_domains(power_well))
 			drm_dbg(&i915->drm, "  %-23s %d\n",
 				intel_display_power_domain_str(domain),
 				power_domains->domain_use_count[domain]);
@@ -6144,23 +6141,25 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 		int domains_count;
 		bool enabled;
 
-		enabled = power_well->desc->ops->is_enabled(i915, power_well);
-		if ((power_well->count || power_well->desc->always_on) !=
+		enabled = intel_power_well_is_enabled(i915, power_well);
+		if ((intel_power_well_refcount(power_well) ||
+		     intel_power_well_is_always_on(power_well)) !=
 		    enabled)
 			drm_err(&i915->drm,
 				"power well %s state mismatch (refcount %d/enabled %d)",
-				power_well->desc->name,
-				power_well->count, enabled);
+				intel_power_well_name(power_well),
+				intel_power_well_refcount(power_well), enabled);
 
 		domains_count = 0;
-		for_each_power_domain(domain, power_well->desc->domains)
+		for_each_power_domain(domain, intel_power_well_domains(power_well))
 			domains_count += power_domains->domain_use_count[domain];
 
-		if (power_well->count != domains_count) {
+		if (intel_power_well_refcount(power_well) != domains_count) {
 			drm_err(&i915->drm,
 				"power well %s refcount/domain refcount mismatch "
 				"(refcount %d/domains refcount %d)\n",
-				power_well->desc->name, power_well->count,
+				intel_power_well_name(power_well),
+				intel_power_well_refcount(power_well),
 				domains_count);
 			dump_domain_info = true;
 		}
@@ -6265,10 +6264,10 @@ void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m
 		enum intel_display_power_domain power_domain;
 
 		power_well = &power_domains->power_wells[i];
-		seq_printf(m, "%-25s %d\n", power_well->desc->name,
-			   power_well->count);
+		seq_printf(m, "%-25s %d\n", intel_power_well_name(power_well),
+			   intel_power_well_refcount(power_well));
 
-		for_each_power_domain(power_domain, power_well->desc->domains)
+		for_each_power_domain(power_domain, intel_power_well_domains(power_well))
 			seq_printf(m, "  %-23s %d\n",
 				   intel_display_power_domain_str(power_domain),
 				   power_domains->domain_use_count[power_domain]);

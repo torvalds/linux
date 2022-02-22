@@ -113,5 +113,12 @@ void intel_power_well_get(struct drm_i915_private *i915,
 			  struct i915_power_well *power_well);
 void intel_power_well_put(struct drm_i915_private *i915,
 			  struct i915_power_well *power_well);
+bool intel_power_well_is_enabled(struct drm_i915_private *i915,
+				 struct i915_power_well *power_well);
+bool intel_power_well_is_enabled_cached(struct i915_power_well *power_well);
+bool intel_power_well_is_always_on(struct i915_power_well *power_well);
+const char *intel_power_well_name(struct i915_power_well *power_well);
+u64 intel_power_well_domains(struct i915_power_well *power_well);
+int intel_power_well_refcount(struct i915_power_well *power_well);
 
 #endif
