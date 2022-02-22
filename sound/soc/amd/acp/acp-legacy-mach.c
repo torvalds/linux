@@ -96,7 +96,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
-		.name = "rn_rt5682_rt1019",
+		.name = "acp3xalc56821019",
 		.driver_data = (kernel_ulong_t)&rt5682_rt1019_data,
 	},
 	{ }
@@ -113,5 +113,5 @@ module_platform_driver(acp_asoc_audio);
 
 MODULE_IMPORT_NS(SND_SOC_AMD_MACH);
 MODULE_DESCRIPTION("ACP chrome audio support");
-MODULE_ALIAS("platform:rn_rt5682_rt1019");
+MODULE_ALIAS("platform:acp3xalc56821019");
 MODULE_LICENSE("GPL v2");
