@@ -303,18 +303,13 @@ static const struct mtk_pinctrl_devdata mt8127_pinctrl_data = {
 	},
 };
 
-static int mt8127_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt8127_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt8127_pctrl_match[] = {
-	{ .compatible = "mediatek,mt8127-pinctrl", },
+	{ .compatible = "mediatek,mt8127-pinctrl", .data = &mt8127_pinctrl_data },
 	{ }
 };
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt8127_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt8127-pinctrl",
 		.of_match_table = mt8127_pctrl_match,

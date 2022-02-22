@@ -469,20 +469,13 @@ static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	},
 };
 
-static int mtk_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt8365_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt8365_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt8365-pinctrl",
-	},
+	{ .compatible = "mediatek,mt8365-pinctrl", .data = &mt8365_pinctrl_data },
 	{}
 };
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mtk_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt8365-pinctrl",
 		.of_match_table = mt8365_pctrl_match,

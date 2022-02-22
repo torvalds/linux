@@ -534,20 +534,15 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	},
 };
 
-static int mt2701_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt2701_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt2701_pctrl_match[] = {
-	{ .compatible = "mediatek,mt2701-pinctrl", },
-	{ .compatible = "mediatek,mt7623-pinctrl", },
+	{ .compatible = "mediatek,mt2701-pinctrl", .data = &mt2701_pinctrl_data },
+	{ .compatible = "mediatek,mt7623-pinctrl", .data = &mt2701_pinctrl_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mt2701_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt2701_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt2701-pinctrl",
 		.of_match_table = mt2701_pctrl_match,
