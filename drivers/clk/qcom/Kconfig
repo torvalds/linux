@@ -29,11 +29,11 @@ config QCOM_A53PLL
 	  devices.
 
 config QCOM_A7PLL
-	tristate "SDX55 A7 PLL"
+	tristate "A7 PLL driver for SDX55 and SDX65"
 	help
-	  Support for the A7 PLL on SDX55 devices. It provides the CPU with
+	  Support for the A7 PLL on SDX55 and SDX65 devices. It provides the CPU with
 	  frequencies above 1GHz.
-	  Say Y if you want to support higher CPU frequencies on SDX55
+	  Say Y if you want to support higher CPU frequencies on SDX55 and SDX65
 	  devices.
 
 config QCOM_CLK_APCS_MSM8916
