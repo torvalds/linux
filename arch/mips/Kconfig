@@ -927,9 +927,6 @@ config SNI_RM
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
-config MACH_TX39XX
-	bool "Toshiba TX39 series based machines"
-
 config MACH_TX49XX
 	bool "Toshiba TX49 series based machines"
 	select WAR_TX49XX_ICACHE_INDEX_INV
@@ -1584,12 +1581,6 @@ config CPU_R3000
 	  might be a safe bet.  If the resulting kernel does not work,
 	  try to recompile with R3000.
 
-config CPU_TX39XX
-	bool "R39XX"
-	depends on SYS_HAS_CPU_TX39XX
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_R3K_TLB
-
 config CPU_VR41XX
 	bool "R41xx"
 	depends on SYS_HAS_CPU_VR41XX
@@ -1916,9 +1907,6 @@ config SYS_HAS_CPU_P5600
 config SYS_HAS_CPU_R3000
 	bool
 
-config SYS_HAS_CPU_TX39XX
-	bool
-
 config SYS_HAS_CPU_VR41XX
 	bool
 
@@ -2149,7 +2137,7 @@ config PAGE_SIZE_8KB
 
 config PAGE_SIZE_16KB
 	bool "16kB"
-	depends on !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000
 	help
 	  Using 16kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2168,7 +2156,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2236,7 +2224,7 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_TX39XX)
+	default y if !CPU_R3000
 
 config MIPS_FP_SUPPORT
 	bool "Floating Point support" if EXPERT
@@ -2256,7 +2244,7 @@ config MIPS_FP_SUPPORT
 config CPU_R2300_FPU
 	bool
 	depends on MIPS_FP_SUPPORT
-	default y if CPU_R3000 || CPU_TX39XX
+	default y if CPU_R3000
 
 config CPU_R3K_TLB
 	bool
@@ -2575,13 +2563,13 @@ config CPU_R4X00_BUGS64
 
 config MIPS_ASID_SHIFT
 	int
-	default 6 if CPU_R3000 || CPU_TX39XX
+	default 6 if CPU_R3000
 	default 0
 
 config MIPS_ASID_BITS
 	int
 	default 0 if MIPS_ASID_BITS_VARIABLE
-	default 6 if CPU_R3000 || CPU_TX39XX
+	default 6 if CPU_R3000
 	default 8
 
 config MIPS_ASID_BITS_VARIABLE

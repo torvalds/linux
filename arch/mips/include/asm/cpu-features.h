@@ -120,9 +120,6 @@
 #ifndef cpu_has_4k_cache
 #define cpu_has_4k_cache	__isa_ge_or_opt(1, MIPS_CPU_4K_CACHE)
 #endif
-#ifndef cpu_has_tx39_cache
-#define cpu_has_tx39_cache	__opt(MIPS_CPU_TX39_CACHE)
-#endif
 #ifndef cpu_has_octeon_cache
 #define cpu_has_octeon_cache	0
 #endif

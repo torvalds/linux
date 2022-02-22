@@ -1718,7 +1718,7 @@ config AR7_WDT
 
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"
-	depends on CPU_TX39XX || CPU_TX49XX || (MIPS && COMPILE_TEST)
+	depends on CPU_TX49XX || (MIPS && COMPILE_TEST)
 	select WATCHDOG_CORE
 	help
 	  Hardware driver for the built-in watchdog timer on TXx9 MIPS SoCs.

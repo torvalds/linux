@@ -100,7 +100,7 @@ restore_partial:		# restore partial frame
 	SAVE_AT
 	SAVE_TEMP
 	LONG_L	v0, PT_STATUS(sp)
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000)
 	and	v0, ST0_IEP
 #else
 	and	v0, ST0_IE
