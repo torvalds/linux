@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/vdpa.h>
+#include <linux/virtio_pci_modern.h>
 #include <uapi/linux/virtio_net.h>
 #include <uapi/linux/virtio_blk.h>
 #include <uapi/linux/virtio_config.h>

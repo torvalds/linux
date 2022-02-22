@@ -348,7 +348,7 @@ static u32 ifcvf_vdpa_get_generation(struct vdpa_device *vdpa_dev)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return ioread8(&vf->common_cfg->config_generation);
+	return vp_ioread8(&vf->common_cfg->config_generation);
 }
 
 static u32 ifcvf_vdpa_get_device_id(struct vdpa_device *vdpa_dev)
