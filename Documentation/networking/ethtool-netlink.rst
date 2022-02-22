@@ -861,6 +861,7 @@ Kernel response contents:
   ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
   ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
   ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT``    u8      TCP header / data split
+  ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
   ====================================  ======  ===========================
 
 ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT`` indicates whether the device is usable with
@@ -885,12 +886,22 @@ Request contents:
   ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
   ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
   ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
+  ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
   ====================================  ======  ===========================
 
 Kernel checks that requested ring sizes do not exceed limits reported by
 driver. Driver may impose additional constraints and may not suspport all
 attributes.
 
+
+``ETHTOOL_A_RINGS_CQE_SIZE`` specifies the completion queue event size.
+Completion queue events(CQE) are the events posted by NIC to indicate the
+completion status of a packet when the packet is sent(like send success or
+error) or received(like pointers to packet fragments). The CQE size parameter
+enables to modify the CQE size other than default size if NIC supports it.
+A bigger CQE can have more receive buffer pointers inturn NIC can transfer
+a bigger frame from wire. Based on the NIC hardware, the overall completion
+queue size can be adjusted in the driver if CQE size is modified.
 
 CHANNELS_GET
 ============
