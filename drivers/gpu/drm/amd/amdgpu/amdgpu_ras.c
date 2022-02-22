@@ -2456,7 +2456,7 @@ cleanup:
 	return r;
 }
 
-int amdgpu_ras_block_late_init_default(struct amdgpu_device *adev,
+static int amdgpu_ras_block_late_init_default(struct amdgpu_device *adev,
 			 struct ras_common_if *ras_block)
 {
 	return amdgpu_ras_block_late_init(adev, ras_block);
