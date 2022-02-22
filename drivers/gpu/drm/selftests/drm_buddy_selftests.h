@@ -7,3 +7,4 @@
  * Tests are executed in order by igt/drm_buddy
  */
 selftest(sanitycheck, igt_sanitycheck) /* keep first (selfcheck for igt) */
+selftest(buddy_alloc_limit, igt_buddy_alloc_limit)
