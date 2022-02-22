@@ -81,6 +81,11 @@ and the following optional properties:
 - reset-gpios: optional GPIO to PERST#
 - reset-delay-us: delay in us to wait after reset de-assertion, if not
   specified will default to 100ms, as required by the PCIe specification.
+- interrupt-names: list of interrupt names, supported are:
+   - "intx" - interrupt line triggered by one of the legacy interrupt
+- interrupts or interrupts-extended: List of the interrupt sources which
+  corresponding to the "interrupt-names". If non-empty then also additional
+  'interrupt-controller' subnode must be defined.
 
 Example:
 
