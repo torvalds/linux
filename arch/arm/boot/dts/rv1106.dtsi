@@ -181,6 +181,11 @@
 		status = "disabled";
 	};
 
+	pmuioc: syscon@ff388000 {
+		compatible = "rockchip,rv1106-pmuioc", "syscon";
+		reg = <0xff388000 0x1000>;
+	};
+
 	cru: clock-controller@ff3a0000 {
 		compatible = "rockchip,rv1106-cru";
 		reg = <0xff3a0000 0x20000>;
@@ -356,6 +361,11 @@
 		status = "disabled";
 	};
 
+	ioc: syscon@ff538000 {
+		compatible = "rockchip,rv1106-ioc", "syscon";
+		reg = <0xff538000 0x40000>;
+	};
+
 	vop: vop@ff990000 {
 		compatible = "rockchip,rv1106-vop";
 		reg = <0xff990000 0x200>;
@@ -458,4 +468,80 @@
 			status = "disabled";
 		};
 	};
+
+	pinctrl: pinctrl {
+		compatible = "rockchip,rv1106-pinctrl";
+		rockchip,grf = <&ioc>;
+		rockchip,pmu = <&pmuioc>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio@ff380000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff380000 0x100>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_PMU_GPIO0>, <&cru DBCLK_PMU_GPIO0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@ff530000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff530000 0x100>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@ff540000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff540000 0x100>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@ff550000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff550000 0x100>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@ff560000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff560000 0x100>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
 };
+
+#include "rv1106-pinctrl.dtsi"
