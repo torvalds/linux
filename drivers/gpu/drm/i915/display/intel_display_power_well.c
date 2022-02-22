@@ -22,6 +22,14 @@ void intel_power_well_disable(struct drm_i915_private *i915,
 	power_well->desc->ops->disable(i915, power_well);
 }
 
+void intel_power_well_sync_hw(struct drm_i915_private *i915,
+			      struct i915_power_well *power_well)
+{
+	power_well->desc->ops->sync_hw(i915, power_well);
+	power_well->hw_enabled =
+		power_well->desc->ops->is_enabled(i915, power_well);
+}
+
 void intel_power_well_get(struct drm_i915_private *i915,
 			  struct i915_power_well *power_well)
 {

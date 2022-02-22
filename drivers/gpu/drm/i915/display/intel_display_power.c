@@ -5016,11 +5016,8 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	struct i915_power_well *power_well;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(dev_priv, power_well) {
-		power_well->desc->ops->sync_hw(dev_priv, power_well);
-		power_well->hw_enabled =
-			power_well->desc->ops->is_enabled(dev_priv, power_well);
-	}
+	for_each_power_well(dev_priv, power_well)
+		intel_power_well_sync_hw(dev_priv, power_well);
 	mutex_unlock(&power_domains->lock);
 }
 
