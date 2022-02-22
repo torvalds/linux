@@ -326,7 +326,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 
 	regs = ftrace_get_regs(fregs);
 	p = get_kprobe((kprobe_opcode_t *)ip);
-	if (unlikely(!p) || kprobe_disabled(p))
+	if (!regs || unlikely(!p) || kprobe_disabled(p))
 		goto out;
 
 	if (kprobe_running()) {
