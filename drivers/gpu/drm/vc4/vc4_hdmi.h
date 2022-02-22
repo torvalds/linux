@@ -218,7 +218,8 @@ struct vc4_hdmi {
 	bool scdc_enabled;
 
 	/**
-	 * @output_bpc: BPC currently being used. Protected by @mutex.
+	 * @output_bpc: Copy of @vc4_connector_state.output_bpc for use
+	 * outside of KMS hooks. Protected by @mutex.
 	 */
 	unsigned int output_bpc;
 };
@@ -240,6 +241,7 @@ encoder_to_vc4_hdmi(struct drm_encoder *encoder)
 struct vc4_hdmi_connector_state {
 	struct drm_connector_state	base;
 	unsigned long long		tmds_char_rate;
+	unsigned int 			output_bpc;
 };
 
 static inline struct vc4_hdmi_connector_state *
