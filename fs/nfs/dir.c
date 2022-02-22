@@ -990,9 +990,14 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 		/*
 		 * Set the cookie verifier if the page cache was empty
 		 */
-		if (desc->page_index == 0)
+		if (desc->last_cookie == 0 &&
+		    memcmp(nfsi->cookieverf, verf, sizeof(nfsi->cookieverf))) {
 			memcpy(nfsi->cookieverf, verf,
 			       sizeof(nfsi->cookieverf));
+			invalidate_inode_pages2_range(desc->file->f_mapping,
+						      desc->page_index_max + 1,
+						      -1);
+		}
 	}
 	res = nfs_readdir_search_array(desc);
 	if (res == 0)
