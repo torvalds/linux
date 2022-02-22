@@ -132,6 +132,9 @@
  *  14 Feb 2022 : 1. Reset assert and clock disable support during Link Down.
  *		  2. Version update.
  *  VERSION     : 01-00-42
+ *  22 Feb 2022 : 1. Supported GPIO configuration save and restoration
+ *		  2. Version update.
+ *  VERSION     : 01-00-43
  */
 
 #ifndef __TC956XMAC_H__
@@ -187,7 +190,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-42"
+#define DRV_MODULE_VERSION	"V_01-00-43"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -501,6 +504,11 @@ struct tc956x_cbs_params {
 	u32 percentage;
 };
 
+struct tc956x_gpio_config {
+	u8 config; /* 1: configured, 0: not configured*/
+	u8 out_val; /* 0 or 1 */
+};
+
 struct tc956xmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_coal_frames;
@@ -668,6 +676,8 @@ struct tc956xmac_priv {
 	u32 pm_saved_linkdown_rst; /* Save and restore Resets during link-down sequence */
 	u32 pm_saved_linkdown_clk; /* Save and restore Clocks during link-down sequence */
 	bool port_link_down; /* Flag to save per port link down state */
+
+	struct tc956x_gpio_config saved_gpio_config[GPIO_12 + 1]; /* Only GPIO0- GPIO06, GPI010-GPIO12 are used */
 };
 
 struct tc956x_version {
@@ -1032,5 +1042,5 @@ static inline int tc956x_platform_resume(struct tc956xmac_priv *priv) { return 0
 #endif
 
 int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 out_value);
-
+int tc956x_gpio_restore_configuration(struct tc956xmac_priv *priv);
 #endif /* __TC956XMAC_H__ */

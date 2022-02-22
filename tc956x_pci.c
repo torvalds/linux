@@ -134,14 +134,17 @@
  *  24 Jan 2022 : 1. Set Clock control and Reset control register to default value on driver unload.
  *		  2. Version update
  *  VERSION     : 01-00-38
- *  31 Jan 2022 :  1. Version update
+ *  31 Jan 2022 : 1. Version update
  *  VERSION     : 01-00-39
- *  02 Feb 2022 :  1. Version update
+ *  02 Feb 2022 : 1. Version update
  *  VERSION     : 01-00-40
- *  04 Feb 2022 :  1. Version update
+ *  04 Feb 2022 : 1. Version update
  *  VERSION     : 01-00-41
- *  14 Feb 2022 :  1. Version update
+ *  14 Feb 2022 : 1. Version update
  *  VERSION     : 01-00-42
+ *  22 Feb 2022 : 1. GPIO configuration restoration supported during resume.
+ *		  2. Version update
+ *  VERSION     : 01-00-43
  */
 
 #include <linux/clk-provider.h>
@@ -206,7 +209,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 4, 2};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 4, 3};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -3205,6 +3208,11 @@ static int tc956x_pcie_resume(struct device *dev)
 		goto err;
 
 	tc956xmac_pm_set_power(priv, RESUME);
+
+	/* Restore the GPIO settings which was saved during GPIO configuration */
+	ret = tc956x_gpio_restore_configuration(priv);
+	if (ret < 0)
+		KPRINT_INFO("GPIO configuration restoration failed\n");
 
 	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Resume", __func__, priv->port_num);
 	ret = tc956x_platform_resume(priv);

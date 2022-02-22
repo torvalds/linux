@@ -107,6 +107,8 @@
  *  VERSION     : 01-00-41
  *  14 Feb 2022 : 1. Reset assert and clock disable support during Link Down.
  *  VERSION     : 01-00-42
+ *  22 Feb 2022 : 1. Supported GPIO configuration save and restoration
+ *  VERSION     : 01-00-43
 */
 
 #include <linux/clk.h>
@@ -907,6 +909,8 @@ int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 ou
 			return -EPERM;
 	}
 
+	priv->saved_gpio_config[gpio_pin].config = 1;
+
 	/* Write data to GPIO pin */
 	if(gpio_pin < GPIO_32) {
 		config = 1 << gpio_pin; 
@@ -926,6 +930,8 @@ int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 ou
 		writel(val, priv->ioaddr + GPIOO1_OFFSET);
 	}
 
+	priv->saved_gpio_config[gpio_pin].out_val = out_value;
+
 	/* Configure the GPIO pin in output direction */
 	if(gpio_pin < GPIO_32) {
 		config = ~(1 << gpio_pin) ;
@@ -937,6 +943,128 @@ int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 ou
 		writel(val & config, priv->ioaddr + GPIOE1_OFFSET);
 	}
 
+	return 0;
+}
+
+/**
+ *  tc956x_gpio_restore_configuration - to restore the saved configuration of GPIO
+ *  @priv: driver private structure
+ *  @remarks : Only GPIO0- GPIO06, GPI010-GPIO12 are allowed
+ */
+int tc956x_gpio_restore_configuration(struct tc956xmac_priv *priv)
+{
+	u32 config, val, gpio_pin, out_value;
+
+	DBGPR_FUNC(priv->device, "-->%s", __func__);
+
+	for (gpio_pin = 0; gpio_pin <= GPIO_12; gpio_pin++) {
+
+		/* Restore only the GPIOs which were configured/saved */
+		if (!(priv->saved_gpio_config[gpio_pin].config))
+			continue;
+
+		DBGPR_FUNC(priv->device, "%s : Restoring GPIO configuration for pin: %d, val: %d",
+				__func__, gpio_pin, priv->saved_gpio_config[gpio_pin].out_val);
+
+		/* Only GPIO0- GPIO06, GPI010-GPIO12 are allowed */
+		switch (gpio_pin) {
+			case GPIO_00:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_00;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_00_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_01:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_01;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_01_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_02:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_02;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_02_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_03:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_03;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_03_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_04:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_04;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_04_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_05:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_05;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_05_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_06:
+				val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+				val &= ~NFUNCEN4_GPIO_06;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_06_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+				break;
+			case GPIO_10:
+				val = readl(priv->ioaddr + NFUNCEN5_OFFSET);
+				val &= ~NFUNCEN5_GPIO_10;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN5_GPIO_10_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN5_OFFSET);
+				break;
+			case GPIO_11:
+				val = readl(priv->ioaddr + NFUNCEN5_OFFSET);
+				val &= ~NFUNCEN5_GPIO_11;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN5_GPIO_11_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN5_OFFSET);
+				break;
+			case GPIO_12:
+				val = readl(priv->ioaddr + NFUNCEN6_OFFSET);
+				val &= ~NFUNCEN6_GPIO_12;
+				val |= (NFUNCEN_FUNC0 << NFUNCEN6_GPIO_12_SHIFT);
+				writel(val, priv->ioaddr + NFUNCEN6_OFFSET);
+				break;
+			default : 
+				netdev_err(priv->dev, "Invalid GPIO pin - %d\n", gpio_pin);
+				return -EPERM;
+		}
+
+		out_value = priv->saved_gpio_config[gpio_pin].out_val;
+
+		/* Write data to GPIO pin */
+		if(gpio_pin < GPIO_32) {
+			config = 1 << gpio_pin; 
+			val = readl(priv->ioaddr + GPIOO0_OFFSET);
+			val &= ~config;
+			if(out_value)
+				val |= config;
+
+			writel(val, priv->ioaddr + GPIOO0_OFFSET);
+		}  else {
+			config = 1 << (gpio_pin - GPIO_32);
+			val = readl(priv->ioaddr + GPIOO1_OFFSET);
+			val &= ~config;
+			if(out_value)
+				val |= config;
+
+			writel(val, priv->ioaddr + GPIOO1_OFFSET);
+		}
+
+		/* Configure the GPIO pin in output direction */
+		if(gpio_pin < GPIO_32) {
+			config = ~(1 << gpio_pin) ;
+			val = readl(priv->ioaddr + GPIOE0_OFFSET);
+			writel(val & config, priv->ioaddr + GPIOE0_OFFSET);
+		} else {
+			config = ~(1 << (gpio_pin - GPIO_32)) ;
+			val = readl(priv->ioaddr + GPIOE1_OFFSET);
+			writel(val & config, priv->ioaddr + GPIOE1_OFFSET);
+		}
+	}
 	return 0;
 }
 
@@ -10942,6 +11070,8 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv->device = device;
 	priv->dev = ndev;
 	priv->ioaddr = res->addr;
+
+	memset(priv->saved_gpio_config, 0, sizeof(struct tc956x_gpio_config) * (GPIO_12 + 1));
 
 	ret = tc956x_platform_probe(priv, res);
 	if (ret) {
