@@ -1544,9 +1544,9 @@ pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha)
 {
 	int ret = 0;
 	u32 scratch_pad_rsvd0 = pm8001_cr32(pm8001_ha, 0,
-					MSGU_HOST_SCRATCH_PAD_6);
+					    MSGU_SCRATCH_PAD_RSVD_0);
 	u32 scratch_pad_rsvd1 = pm8001_cr32(pm8001_ha, 0,
-					MSGU_HOST_SCRATCH_PAD_7);
+					    MSGU_SCRATCH_PAD_RSVD_1);
 	u32 scratch_pad1 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
 	u32 scratch_pad2 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_2);
 	u32 scratch_pad3 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_3);
@@ -1655,9 +1655,9 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 			PCI_VENDOR_ID_ATTO &&
 			pm8001_ha->pdev->subsystem_vendor != 0) {
 			ibutton0 = pm8001_cr32(pm8001_ha, 0,
-					MSGU_HOST_SCRATCH_PAD_6);
+					       MSGU_SCRATCH_PAD_RSVD_0);
 			ibutton1 = pm8001_cr32(pm8001_ha, 0,
-					MSGU_HOST_SCRATCH_PAD_7);
+					       MSGU_SCRATCH_PAD_RSVD_1);
 			if (!ibutton0 && !ibutton1) {
 				pm8001_dbg(pm8001_ha, FAIL,
 					   "iButton Feature is not Available!!!\n");
@@ -4064,9 +4064,9 @@ static void print_scratchpad_registers(struct pm8001_hba_info *pm8001_ha)
 	pm8001_dbg(pm8001_ha, FAIL, "MSGU_HOST_SCRATCH_PAD_5: 0x%x\n",
 		   pm8001_cr32(pm8001_ha, 0, MSGU_HOST_SCRATCH_PAD_5));
 	pm8001_dbg(pm8001_ha, FAIL, "MSGU_RSVD_SCRATCH_PAD_0: 0x%x\n",
-		   pm8001_cr32(pm8001_ha, 0, MSGU_HOST_SCRATCH_PAD_6));
+		   pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_RSVD_0));
 	pm8001_dbg(pm8001_ha, FAIL, "MSGU_RSVD_SCRATCH_PAD_1: 0x%x\n",
-		   pm8001_cr32(pm8001_ha, 0, MSGU_HOST_SCRATCH_PAD_7));
+		   pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_RSVD_1));
 }
 
 static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
@@ -4100,6 +4100,22 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 			pm8001_handle_event(pm8001_ha, NULL, IO_FATAL_ERROR);
 			print_scratchpad_registers(pm8001_ha);
 			return ret;
+		} else {
+			/*read scratchpad rsvd 0 register*/
+			regval = pm8001_cr32(pm8001_ha, 0,
+					     MSGU_SCRATCH_PAD_RSVD_0);
+			switch (regval) {
+			case NON_FATAL_SPBC_LBUS_ECC_ERR:
+			case NON_FATAL_BDMA_ERR:
+			case NON_FATAL_THERM_OVERTEMP_ERR:
+				/*Clear the register*/
+				pm8001_cw32(pm8001_ha, 0,
+					    MSGU_SCRATCH_PAD_RSVD_0,
+					    0x00000000);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 	circularQ = &pm8001_ha->outbnd_q_tbl[vec];
