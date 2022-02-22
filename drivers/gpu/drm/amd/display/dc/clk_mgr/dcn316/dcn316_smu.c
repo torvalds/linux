@@ -168,22 +168,6 @@ int dcn316_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispc
 	return actual_dispclk_set_mhz * 1000;
 }
 
-int dcn316_smu_set_voltage_via_phyclk(struct clk_mgr_internal *clk_mgr, int requested_phyclk_khz)
-{
-	int actual_phypclk_set_mhz = -1;
-
-	if (!clk_mgr->smu_present && requested_phyclk_khz)
-		return requested_phyclk_khz;
-
-	/*  Unit of SMU msg parameter is Mhz */
-	actual_phypclk_set_mhz = dcn316_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetPhyclkVoltageByFreq,
-			khz_to_mhz_ceil(requested_phyclk_khz));
-
-	return actual_phypclk_set_mhz * 1000;
-}
-
 int dcn316_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_dcfclk_khz)
 {
 	int actual_dcfclk_set_mhz = -1;
