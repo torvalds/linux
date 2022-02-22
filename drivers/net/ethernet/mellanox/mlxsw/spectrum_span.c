@@ -269,7 +269,8 @@ mlxsw_sp_span_entry_bridge_8021q(const struct net_device *br_dev,
 
 	if (!vid && WARN_ON(br_vlan_get_pvid(br_dev, &vid)))
 		return NULL;
-	if (!vid || br_vlan_get_info(br_dev, vid, &vinfo))
+	if (!vid || br_vlan_get_info(br_dev, vid, &vinfo) ||
+	    !(vinfo.flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return NULL;
 
 	edev = br_fdb_find_port(br_dev, dmac, vid);
