@@ -495,7 +495,7 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;

@@ -2426,7 +2426,7 @@ static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
 
 static int
 shmem_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;

@@ -862,7 +862,7 @@ static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
 }
 
 static int ntfs_write_begin(struct file *file, struct address_space *mapping,
-			    loff_t pos, u32 len, u32 flags, struct page **pagep,
+			    loff_t pos, u32 len, struct page **pagep,
 			    void **fsdata)
 {
 	int err;

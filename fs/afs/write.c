@@ -42,7 +42,7 @@ static void afs_folio_start_fscache(bool caching, struct folio *folio)
  * prepare to perform part of a write to a page
  */
 int afs_write_begin(struct file *file, struct address_space *mapping,
-		    loff_t pos, unsigned len, unsigned flags,
+		    loff_t pos, unsigned len,
 		    struct page **_page, void **fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));

@@ -727,7 +727,7 @@ cache in your filesystem.  The following members are defined:
 		bool (*dirty_folio)(struct address_space *, struct folio *);
 		void (*readahead)(struct readahead_control *);
 		int (*write_begin)(struct file *, struct address_space *mapping,
-				   loff_t pos, unsigned len, unsigned flags,
+				   loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
@@ -831,9 +831,6 @@ cache in your filesystem.  The following members are defined:
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
 	into the page).
-
-	flags is a field for AOP_FLAG_xxx flags, described in
-	include/linux/fs.h.
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.

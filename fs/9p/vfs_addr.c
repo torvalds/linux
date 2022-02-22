@@ -260,7 +260,7 @@ v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
-			    loff_t pos, unsigned int len, unsigned int flags,
+			    loff_t pos, unsigned int len,
 			    struct page **subpagep, void **fsdata)
 {
 	int retval;

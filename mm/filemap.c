@@ -3628,8 +3628,7 @@ int pagecache_write_begin(struct file *file, struct address_space *mapping,
 {
 	const struct address_space_operations *aops = mapping->a_ops;
 
-	return aops->write_begin(file, mapping, pos, len, flags,
-							pagep, fsdata);
+	return aops->write_begin(file, mapping, pos, len, pagep, fsdata);
 }
 EXPORT_SYMBOL(pagecache_write_begin);
 
@@ -3754,7 +3753,6 @@ ssize_t generic_perform_write(struct kiocb *iocb, struct iov_iter *i)
 	const struct address_space_operations *a_ops = mapping->a_ops;
 	long status = 0;
 	ssize_t written = 0;
-	unsigned int flags = 0;
 
 	do {
 		struct page *page;
@@ -3784,7 +3782,7 @@ again:
 			break;
 		}
 
-		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
+		status = a_ops->write_begin(file, mapping, pos, bytes,
 						&page, &fsdata);
 		if (unlikely(status < 0))
 			break;

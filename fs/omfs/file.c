@@ -316,7 +316,7 @@ static void omfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int omfs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
