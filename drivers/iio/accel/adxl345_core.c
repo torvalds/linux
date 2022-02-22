@@ -222,16 +222,12 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	int ret;
 
 	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
-	if (ret < 0) {
-		dev_err(dev, "Error reading device ID: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Error reading device ID\n");
 
-	if (regval != ADXL345_DEVID) {
-		dev_err(dev, "Invalid device ID: %x, expected %x\n",
-			regval, ADXL345_DEVID);
-		return -ENODEV;
-	}
+	if (regval != ADXL345_DEVID)
+		return dev_err_probe(dev, -ENODEV, "Invalid device ID: %x, expected %x\n",
+				     regval, ADXL345_DEVID);
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -245,10 +241,8 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 
 	ret = regmap_write(data->regmap, ADXL345_REG_DATA_FORMAT,
 			   data->data_range);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set data range: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to set data range\n");
 
 	indio_dev->name = name;
 	indio_dev->info = &adxl345_info;
@@ -259,10 +253,8 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	/* Enable measurement mode */
 	ret = regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
 			   ADXL345_POWER_CTL_MEASURE);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable measurement mode: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to enable measurement mode\n");
 
 	ret = devm_add_action_or_reset(dev, adxl345_powerdown, data->regmap);
 	if (ret < 0)

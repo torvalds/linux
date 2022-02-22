@@ -26,18 +26,13 @@ static int adxl345_spi_probe(struct spi_device *spi)
 	struct regmap *regmap;
 
 	/* Bail out if max_speed_hz exceeds 5 MHz */
-	if (spi->max_speed_hz > ADXL345_MAX_SPI_FREQ_HZ) {
-		dev_err(&spi->dev, "SPI CLK, %d Hz exceeds 5 MHz\n",
-			spi->max_speed_hz);
-		return -EINVAL;
-	}
+	if (spi->max_speed_hz > ADXL345_MAX_SPI_FREQ_HZ)
+		return dev_err_probe(&spi->dev, -EINVAL, "SPI CLK, %d Hz exceeds 5 MHz\n",
+				     spi->max_speed_hz);
 
 	regmap = devm_regmap_init_spi(spi, &adxl345_spi_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&spi->dev, PTR_ERR(regmap), "Error initializing regmap\n");
 
 	return adxl345_core_probe(&spi->dev, regmap, id->driver_data, id->name);
 }
