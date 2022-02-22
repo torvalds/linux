@@ -1043,7 +1043,12 @@ struct bus_type acpi_bus_type = {
 	.remove		= acpi_device_remove,
 	.uevent		= acpi_device_uevent,
 };
-EXPORT_SYMBOL_GPL(acpi_bus_type);
+
+int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data)
+{
+	return bus_for_each_dev(&acpi_bus_type, NULL, data, fn);
+}
+EXPORT_SYMBOL_GPL(acpi_bus_for_each_dev);
 
 /* --------------------------------------------------------------------------
                              Initialization/Cleanup
