@@ -91,17 +91,6 @@ static void drm_mode_to_intf_timing_params(
 		timing->vsync_polarity = 0;
 	}
 
-	/*
-	 * For edp only:
-	 * DISPLAY_V_START = (VBP * HCYCLE) + HBP
-	 * DISPLAY_V_END = (VBP + VACTIVE) * HCYCLE - 1 - HFP
-	 */
-	/*
-	 * if (vid_enc->hw->cap->type == INTF_EDP) {
-	 * display_v_start += mode->htotal - mode->hsync_start;
-	 * display_v_end -= mode->hsync_start - mode->hdisplay;
-	 * }
-	 */
 	/* for DP/EDP, Shift timings to align it to bottom right */
 	if ((phys_enc->hw_intf->cap->type == INTF_DP) ||
 		(phys_enc->hw_intf->cap->type == INTF_EDP)) {
