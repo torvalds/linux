@@ -1160,6 +1160,32 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				    struct v4l2_mbus_frame_desc *fd)
+{
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	struct v4l2_mbus_frame_desc_entry *entry = &fd->entry[0];
+
+	if (pad != CSIS_PAD_SOURCE)
+		return -EINVAL;
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL;
+	fd->num_entries = 1;
+
+	memset(entry, 0, sizeof(*entry));
+
+	mutex_lock(&csis->lock);
+
+	entry->flags = 0;
+	entry->pixelcode = csis->csis_fmt->code;
+	entry->bus.csi2.vc = 0;
+	entry->bus.csi2.dt = csis->csis_fmt->data_type;
+
+	mutex_unlock(&csis->lock);
+
+	return 0;
+}
+
 static int mipi_csis_log_status(struct v4l2_subdev *sd)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1184,6 +1210,7 @@ static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
 	.enum_mbus_code		= mipi_csis_enum_mbus_code,
 	.get_fmt		= mipi_csis_get_fmt,
 	.set_fmt		= mipi_csis_set_fmt,
+	.get_frame_desc		= mipi_csis_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops mipi_csis_subdev_ops = {
