@@ -44,12 +44,10 @@
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
 
-#ifdef CONFIG_PARAVIRT
-# include <asm/paravirt.h>
-#endif
-
 #include <uapi/linux/prctl.h>
 #include <uapi/linux/sched/types.h>
+
+#include <asm/switch_to.h>
 
 #include "sched.h"
 #include "sched-pelt.h"

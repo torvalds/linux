@@ -28,10 +28,6 @@
 #include <linux/tsacct_kern.h>
 #include <linux/vtime.h>
 
-#ifdef CONFIG_PARAVIRT
-# include <asm/paravirt.h>
-#endif
-
 #include <uapi/linux/sched/types.h>
 
 #include "sched.h"
