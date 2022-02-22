@@ -705,8 +705,14 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	int idx = rcu_seq_ctr(s) % ARRAY_SIZE(sdp->mynode->srcu_have_cbs);
 	unsigned long sgsne;
 	struct srcu_node *snp;
-	struct srcu_node *snp_leaf = smp_load_acquire(&sdp->mynode);
+	struct srcu_node *snp_leaf;
 	unsigned long snp_seq;
+
+	/* Ensure that snp node tree is fully initialized before traversing it */
+	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
+		snp_leaf = NULL;
+	else
+		snp_leaf = sdp->mynode;
 
 	if (snp_leaf)
 		/* Each pass through the loop does one level of the srcu_node tree. */
@@ -889,10 +895,13 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	bool needgp = false;
 	unsigned long s;
 	struct srcu_data *sdp;
+	struct srcu_node *sdp_mynode;
+	int ss_state;
 
 	check_init_srcu_struct(ssp);
 	idx = srcu_read_lock(ssp);
-	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_CALL)
+	ss_state = smp_load_acquire(&ssp->srcu_size_state);
+	if (ss_state < SRCU_SIZE_WAIT_CALL)
 		sdp = per_cpu_ptr(ssp->sda, 0);
 	else
 		sdp = raw_cpu_ptr(ssp->sda);
@@ -912,10 +921,17 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 		needexp = true;
 	}
 	spin_unlock_irqrestore_rcu_node(sdp, flags);
+
+	/* Ensure that snp node tree is fully initialized before traversing it */
+	if (ss_state < SRCU_SIZE_WAIT_BARRIER)
+		sdp_mynode = NULL;
+	else
+		sdp_mynode = sdp->mynode;
+
 	if (needgp)
 		srcu_funnel_gp_start(ssp, sdp, s, do_norm);
 	else if (needexp)
-		srcu_funnel_exp_start(ssp, smp_load_acquire(&sdp->mynode), s);
+		srcu_funnel_exp_start(ssp, sdp_mynode, s);
 	srcu_read_unlock(ssp, idx);
 	return s;
 }
