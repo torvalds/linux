@@ -925,12 +925,11 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	}
 #endif
 
-	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
-			 GFP_ATOMIC);
+	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
 	if (!buff)
 		return;
 
-	skb_reserve(buff, MAX_HEADER + sizeof(struct ipv6hdr) + tot_len);
+	skb_reserve(buff, MAX_TCP_HEADER);
 
 	t1 = skb_push(buff, tot_len);
 	skb_reset_transport_header(buff);
