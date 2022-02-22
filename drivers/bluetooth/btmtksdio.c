@@ -1226,8 +1226,8 @@ static bool btmtksdio_sdio_wakeup(struct hci_dev *hdev)
 				      &bt_awake, HCI_CMD_TIMEOUT);
 		if (IS_ERR(skb))
 			may_wakeup = false;
-
-		kfree_skb(skb);
+		else
+			kfree_skb(skb);
 	}
 
 	return may_wakeup;
