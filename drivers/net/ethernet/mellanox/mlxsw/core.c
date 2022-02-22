@@ -223,6 +223,9 @@ static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	int err;
 	int i;
 
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return 0;
+
 	for (i = 0; i < ARRAY_SIZE(mlxsw_core_trap_groups); i++) {
 		mlxsw_reg_htgt_pack(htgt_pl, mlxsw_core_trap_groups[i],
 				    MLXSW_REG_HTGT_INVALID_POLICER,
@@ -2522,6 +2525,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int err;
 
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return 0;
+
 	err = mlxsw_core_listener_register(mlxsw_core, listener, priv,
 					   listener->enabled_on_register);
 	if (err)
@@ -2550,6 +2556,9 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				void *priv)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return;
 
 	if (!listener->is_event) {
 		mlxsw_reg_hpkt_pack(hpkt_pl, listener->dis_action,
