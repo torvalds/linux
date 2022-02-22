@@ -349,6 +349,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	/* Peripheral clocks */
 	for (i = fclk0; i <= fclk3; i++) {
 		int enable = !!(fclk_enable & BIT(i - fclk0));
+
 		zynq_clk_register_fclk(i, clk_output_name[i],
 				SLCR_FPGA0_CLK_CTRL + 0x10 * (i - fclk0),
 				periph_parents, enable);
