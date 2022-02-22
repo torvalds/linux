@@ -340,10 +340,8 @@ int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u16 num)
 static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 {
 	struct virtio_pci_common_cfg __iomem *cfg;
-	struct ifcvf_adapter *ifcvf;
 	u32 i;
 
-	ifcvf = vf_to_adapter(hw);
 	cfg = hw->common_cfg;
 	for (i = 0; i < hw->nr_vring; i++) {
 		if (!hw->vring[i].ready)
@@ -366,10 +364,8 @@ static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 
 static void ifcvf_hw_disable(struct ifcvf_hw *hw)
 {
-	struct virtio_pci_common_cfg __iomem *cfg;
 	u32 i;
 
-	cfg = hw->common_cfg;
 	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
 	for (i = 0; i < hw->nr_vring; i++) {
 		ifcvf_set_vq_vector(hw, i, VIRTIO_MSI_NO_VECTOR);
