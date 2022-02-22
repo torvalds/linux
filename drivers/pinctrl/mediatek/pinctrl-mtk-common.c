@@ -1117,3 +1117,14 @@ chip_error:
 	gpiochip_remove(pctl->chip);
 	return ret;
 }
+
+int mtk_pctrl_common_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	const struct mtk_pinctrl_devdata *data = device_get_match_data(dev);
+
+	if (!data)
+		return -ENODEV;
+
+	return mtk_pctrl_init(pdev, data, NULL);
+}
