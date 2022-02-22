@@ -589,12 +589,17 @@ enum rtw89_sc_offset {
 	RTW89_SC_20_LOWER	= 2,
 	RTW89_SC_20_UPMOST	= 3,
 	RTW89_SC_20_LOWEST	= 4,
+	RTW89_SC_20_UP2X	= 5,
+	RTW89_SC_20_LOW2X	= 6,
+	RTW89_SC_20_UP3X	= 7,
+	RTW89_SC_20_LOW3X	= 8,
 	RTW89_SC_40_UPPER	= 9,
 	RTW89_SC_40_LOWER	= 10,
 };
 
 struct rtw89_channel_params {
 	u8 center_chan;
+	u32 center_freq;
 	u8 primary_chan;
 	u8 bandwidth;
 	u8 pri_ch_idx;
@@ -2404,6 +2409,7 @@ struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
 	u8 current_channel;
+	u32 current_freq;
 	u8 prev_primary_channel;
 	u8 current_primary_channel;
 	enum rtw89_subband current_subband;
@@ -3199,6 +3205,25 @@ static inline u8 rtw89_hw_to_rate_info_bw(enum rtw89_bandwidth hw_bw)
 		return RATE_INFO_BW_40;
 	else
 		return RATE_INFO_BW_20;
+}
+
+static inline
+enum rtw89_bandwidth nl_to_rtw89_bandwidth(enum nl80211_chan_width width)
+{
+	switch (width) {
+	default:
+		WARN(1, "Not support bandwidth %d\n", width);
+		fallthrough;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		return RTW89_CHANNEL_WIDTH_20;
+	case NL80211_CHAN_WIDTH_40:
+		return RTW89_CHANNEL_WIDTH_40;
+	case NL80211_CHAN_WIDTH_80:
+		return RTW89_CHANNEL_WIDTH_80;
+	case NL80211_CHAN_WIDTH_160:
+		return RTW89_CHANNEL_WIDTH_160;
+	}
 }
 
 static inline

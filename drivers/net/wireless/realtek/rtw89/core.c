@@ -232,6 +232,7 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	u8 center_chan;
 	u8 bandwidth = RTW89_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
+	u32 offset;
 	u8 band;
 	u8 subband;
 
@@ -256,23 +257,16 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		}
 		break;
 	case NL80211_CHAN_WIDTH_80:
-		bandwidth = RTW89_CHANNEL_WIDTH_80;
+	case NL80211_CHAN_WIDTH_160:
+		bandwidth = nl_to_rtw89_bandwidth(width);
 		if (primary_freq > center_freq) {
-			if (primary_freq - center_freq == 10) {
-				primary_chan_idx = RTW89_SC_20_UPPER;
-				center_chan -= 2;
-			} else {
-				primary_chan_idx = RTW89_SC_20_UPMOST;
-				center_chan -= 6;
-			}
+			offset = (primary_freq - center_freq - 10) / 20;
+			primary_chan_idx = RTW89_SC_20_UPPER + offset * 2;
+			center_chan -= 2 + offset * 4;
 		} else {
-			if (center_freq - primary_freq == 10) {
-				primary_chan_idx = RTW89_SC_20_LOWER;
-				center_chan += 2;
-			} else {
-				primary_chan_idx = RTW89_SC_20_LOWEST;
-				center_chan += 6;
-			}
+			offset = (center_freq - primary_freq - 10) / 20;
+			primary_chan_idx = RTW89_SC_20_LOWER + offset * 2;
+			center_chan += 2 + offset * 4;
 		}
 		break;
 	default:
@@ -349,6 +343,7 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	}
 
 	chan_param->center_chan = center_chan;
+	chan_param->center_freq = center_freq;
 	chan_param->primary_chan = channel->hw_value;
 	chan_param->bandwidth = bandwidth;
 	chan_param->pri_ch_idx = primary_chan_idx;
@@ -377,6 +372,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
+	hal->current_freq = ch_param.center_freq;
 	hal->prev_primary_channel = hal->current_primary_channel;
 	hal->current_primary_channel = ch_param.primary_chan;
 	hal->current_band_type = ch_param.band_type;
