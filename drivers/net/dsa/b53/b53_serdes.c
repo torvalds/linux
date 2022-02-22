@@ -158,9 +158,8 @@ void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 }
 EXPORT_SYMBOL(b53_serdes_link_set);
 
-void b53_serdes_phylink_validate(struct b53_device *dev, int port,
-				 unsigned long *supported,
-				 struct phylink_link_state *state)
+void b53_serdes_phylink_get_caps(struct b53_device *dev, int port,
+				 struct phylink_config *config)
 {
 	u8 lane = b53_serdes_map_lane(dev, port);
 
@@ -169,16 +168,24 @@ void b53_serdes_phylink_validate(struct b53_device *dev, int port,
 
 	switch (lane) {
 	case 0:
-		phylink_set(supported, 2500baseX_Full);
+		/* It appears lane 0 supports 2500base-X and 1000base-X */
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+			  config->supported_interfaces);
+		config->mac_capabilities |= MAC_2500FD;
 		fallthrough;
 	case 1:
-		phylink_set(supported, 1000baseX_Full);
+		/* It appears lane 1 only supports 1000base-X and SGMII */
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  config->supported_interfaces);
+		config->mac_capabilities |= MAC_1000FD;
 		break;
 	default:
 		break;
 	}
 }
-EXPORT_SYMBOL(b53_serdes_phylink_validate);
+EXPORT_SYMBOL(b53_serdes_phylink_get_caps);
 
 int b53_serdes_init(struct b53_device *dev, int port)
 {
