@@ -2929,14 +2929,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		req->flags |= REQ_F_ISREG;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
-	if (kiocb->ki_pos == -1) {
-		if (!(file->f_mode & FMODE_STREAM)) {
-			req->flags |= REQ_F_CUR_POS;
-			kiocb->ki_pos = file->f_pos;
-		} else {
-			kiocb->ki_pos = 0;
-		}
-	}
 	kiocb->ki_hint = ki_hint_validate(file_write_hint(kiocb->ki_filp));
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
 	ret = kiocb_set_rw_flags(kiocb, READ_ONCE(sqe->rw_flags));
@@ -3015,6 +3007,20 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 		fallthrough;
 	default:
 		kiocb->ki_complete(kiocb, ret, 0);
+	}
+}
+
+static inline void io_kiocb_update_pos(struct io_kiocb *req)
+{
+	struct kiocb *kiocb = &req->rw.kiocb;
+
+	if (kiocb->ki_pos == -1) {
+		if (!(req->file->f_mode & FMODE_STREAM)) {
+			req->flags |= REQ_F_CUR_POS;
+			kiocb->ki_pos = req->file->f_pos;
+		} else {
+			kiocb->ki_pos = 0;
+		}
 	}
 }
 
@@ -3573,6 +3579,8 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		return ret ?: -EAGAIN;
 	}
 
+	io_kiocb_update_pos(req);
+
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), req->result);
 	if (unlikely(ret)) {
 		kfree(iovec);
@@ -3706,6 +3714,8 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
 	    (req->flags & REQ_F_ISREG))
 		goto copy_iov;
+
+	io_kiocb_update_pos(req);
 
 	ret = rw_verify_area(WRITE, req->file, io_kiocb_ppos(kiocb), req->result);
 	if (unlikely(ret))
