@@ -2921,6 +2921,10 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 		uint64_t temp;
 		uint8_t i;
 
+		/* Don't remove this.
+		 * The contents need to actually be read from the ring buffer
+		 * for this function to be effective.
+		 */
 		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
 			temp = *data++;
 
