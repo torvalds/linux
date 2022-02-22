@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+obj-$(CONFIG_ARCH_HAS_CC_PLATFORM) += coco/
+
 obj-y += entry/
 
 obj-$(CONFIG_PERF_EVENTS) += events/
