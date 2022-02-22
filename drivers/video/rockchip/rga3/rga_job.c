@@ -777,7 +777,7 @@ int rga_job_config_by_user_ctx(struct rga_user_ctx_t *user_ctx)
 		first_config = true;
 	}
 
-	if (unlikely(copy_from_user(cached_cmd, (struct rga_req *)(unsigned long)user_ctx->cmd_ptr,
+	if (unlikely(copy_from_user(cached_cmd, u64_to_user_ptr(user_ctx->cmd_ptr),
 				    sizeof(struct rga_req) * user_ctx->cmd_num))) {
 		pr_err("rga_user_ctx cmd list copy_from_user failed\n");
 		if (first_config)

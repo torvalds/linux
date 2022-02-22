@@ -209,7 +209,7 @@ struct rga_external_buffer {
 };
 
 struct rga_buffer_pool {
-	struct rga_external_buffer __user *buffers;
+	uint64_t buffers_ptr;
 	uint32_t size;
 };
 

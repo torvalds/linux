@@ -255,7 +255,7 @@ static long rga_ioctl_import_buffer(unsigned long arg)
 		return -EFBIG;
 	}
 
-	if (buffer_pool.buffers == NULL) {
+	if (buffer_pool.buffers_ptr == 0) {
 		pr_err("Import buffers is NULL!\n");
 		return -EFAULT;
 	}
@@ -267,7 +267,8 @@ static long rga_ioctl_import_buffer(unsigned long arg)
 		return -ENOMEM;
 	}
 
-	if (unlikely(copy_from_user(external_buffer, buffer_pool.buffers,
+	if (unlikely(copy_from_user(external_buffer,
+				    u64_to_user_ptr(buffer_pool.buffers_ptr),
 				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
 		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
 		ret = -EFAULT;
@@ -286,7 +287,8 @@ static long rga_ioctl_import_buffer(unsigned long arg)
 		external_buffer[i].handle = ret;
 	}
 
-	if (unlikely(copy_to_user(buffer_pool.buffers, external_buffer,
+	if (unlikely(copy_to_user(u64_to_user_ptr(buffer_pool.buffers_ptr),
+				  external_buffer,
 				  sizeof(struct rga_external_buffer) * buffer_pool.size))) {
 		pr_err("rga_buffer_pool external_buffer list copy_to_user failed\n");
 		ret = -EFAULT;
@@ -319,7 +321,7 @@ static long rga_ioctl_release_buffer(unsigned long arg)
 		return -EFBIG;
 	}
 
-	if (buffer_pool.buffers == NULL) {
+	if (buffer_pool.buffers_ptr == 0) {
 		pr_err("Release buffers is NULL!\n");
 		return -EFAULT;
 	}
@@ -331,7 +333,8 @@ static long rga_ioctl_release_buffer(unsigned long arg)
 		return -ENOMEM;
 	}
 
-	if (unlikely(copy_from_user(external_buffer, buffer_pool.buffers,
+	if (unlikely(copy_from_user(external_buffer,
+				    u64_to_user_ptr(buffer_pool.buffers_ptr),
 				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
 		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
 		ret = -EFAULT;
