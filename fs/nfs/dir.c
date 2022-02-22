@@ -249,17 +249,20 @@ static const char *nfs_readdir_copy_name(const char *name, unsigned int len)
 	return ret;
 }
 
+static size_t nfs_readdir_array_maxentries(void)
+{
+	return (PAGE_SIZE - sizeof(struct nfs_cache_array)) /
+	       sizeof(struct nfs_cache_array_entry);
+}
+
 /*
  * Check that the next array entry lies entirely within the page bounds
  */
 static int nfs_readdir_array_can_expand(struct nfs_cache_array *array)
 {
-	struct nfs_cache_array_entry *cache_entry;
-
 	if (array->page_full)
 		return -ENOSPC;
-	cache_entry = &array->array[array->size + 1];
-	if ((char *)cache_entry - (char *)array > PAGE_SIZE) {
+	if (array->size == nfs_readdir_array_maxentries()) {
 		array->page_full = 1;
 		return -ENOSPC;
 	}
@@ -316,6 +319,11 @@ static struct page *nfs_readdir_page_get_locked(struct address_space *mapping,
 	}
 
 	return page;
+}
+
+static loff_t nfs_readdir_page_offset(struct page *page)
+{
+	return (loff_t)page->index * (loff_t)nfs_readdir_array_maxentries();
 }
 
 static u64 nfs_readdir_page_last_cookie(struct page *page)
@@ -448,7 +456,7 @@ static int nfs_readdir_search_for_cookie(struct nfs_cache_array *array,
 		if (array->array[i].cookie == desc->dir_cookie) {
 			struct nfs_inode *nfsi = NFS_I(file_inode(desc->file));
 
-			new_pos = desc->current_index + i;
+			new_pos = nfs_readdir_page_offset(desc->page) + i;
 			if (desc->attr_gencount != nfsi->attr_gencount ||
 			    !nfs_readdir_inode_mapping_valid(nfsi)) {
 				desc->duped = 0;
