@@ -17,6 +17,11 @@
 
 static unsigned int random_seed;
 
+static inline u64 get_size(int order, u64 chunk_size)
+{
+	return (1 << order) * chunk_size;
+}
+
 static inline const char *yesno(bool v)
 {
 	return v ? "yes" : "no";
@@ -307,6 +312,81 @@ static void igt_mm_config(u64 *size, u64 *chunk_size)
 	/* Convert from pages to bytes */
 	*chunk_size = (u64)ms << 12;
 	*size = (u64)s << 12;
+}
+
+static int igt_buddy_alloc_optimistic(void *arg)
+{
+	u64 mm_size, size, min_page_size, start = 0;
+	struct drm_buddy_block *block;
+	unsigned long flags = 0;
+	const int max_order = 16;
+	struct drm_buddy mm;
+	LIST_HEAD(blocks);
+	LIST_HEAD(tmp);
+	int order, err;
+
+	/*
+	 * Create a mm with one block of each order available, and
+	 * try to allocate them all.
+	 */
+
+	mm_size = PAGE_SIZE * ((1 << (max_order + 1)) - 1);
+	err = drm_buddy_init(&mm,
+			     mm_size,
+			     PAGE_SIZE);
+	if (err) {
+		pr_err("buddy_init failed(%d)\n", err);
+		return err;
+	}
+
+	BUG_ON(mm.max_order != max_order);
+
+	for (order = 0; order <= max_order; order++) {
+		size = min_page_size = get_size(order, PAGE_SIZE);
+		err = drm_buddy_alloc_blocks(&mm, start, mm_size, size, min_page_size, &tmp, flags);
+		if (err) {
+			pr_info("buddy_alloc hit -ENOMEM with order=%d\n",
+				order);
+			goto err;
+		}
+
+		block = list_first_entry_or_null(&tmp,
+						 struct drm_buddy_block,
+						 link);
+		if (!block) {
+			pr_err("alloc_blocks has no blocks\n");
+			err = -EINVAL;
+			goto err;
+		}
+
+		list_move_tail(&block->link, &blocks);
+	}
+
+	/* Should be completely full! */
+	size = min_page_size = get_size(0, PAGE_SIZE);
+	err = drm_buddy_alloc_blocks(&mm, start, mm_size, size, min_page_size, &tmp, flags);
+	if (!err) {
+		pr_info("buddy_alloc unexpectedly succeeded, it should be full!");
+		block = list_first_entry_or_null(&tmp,
+						 struct drm_buddy_block,
+						 link);
+		if (!block) {
+			pr_err("alloc_blocks has no blocks\n");
+			err = -EINVAL;
+			goto err;
+		}
+
+		list_move_tail(&block->link, &blocks);
+		err = -EINVAL;
+		goto err;
+	} else {
+		err = 0;
+	}
+
+err:
+	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_fini(&mm);
+	return err;
 }
 
 static int igt_buddy_alloc_range(void *arg)
