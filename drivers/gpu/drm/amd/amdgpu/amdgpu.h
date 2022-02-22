@@ -1008,6 +1008,7 @@ struct amdgpu_device {
 
 	bool                            pm_sysfs_en;
 	bool                            ucode_sysfs_en;
+	bool                            psp_sysfs_en;
 
 	/* Chip product information */
 	char				product_number[16];

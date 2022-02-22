@@ -372,6 +372,9 @@ struct psp_context
 	struct psp_memory_training_context mem_train_ctx;
 
 	uint32_t			boot_cfg_bitmask;
+
+	char *vbflash_tmp_buf;
+	size_t vbflash_image_size;
 };
 
 struct amdgpu_psp_funcs {
@@ -501,4 +504,7 @@ int psp_load_fw_list(struct psp_context *psp,
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
+
+int amdgpu_psp_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev);
 #endif

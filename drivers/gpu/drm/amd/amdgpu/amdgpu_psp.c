@@ -42,6 +42,8 @@
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_atomfirmware.h"
 
+#define AMD_VBIOS_FILE_MAX_SIZE_B      (1024*1024*3)
+
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
@@ -3443,6 +3445,116 @@ int is_psp_fw_valid(struct psp_bin_desc bin)
 	return bin.size_bytes;
 }
 
+static ssize_t amdgpu_psp_vbflash_write(struct file *filp, struct kobject *kobj,
+					struct bin_attribute *bin_attr,
+					char *buffer, loff_t pos, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	/* Safeguard against memory drain */
+	if (adev->psp.vbflash_image_size > AMD_VBIOS_FILE_MAX_SIZE_B) {
+		dev_err(adev->dev, "File size cannot exceed %u", AMD_VBIOS_FILE_MAX_SIZE_B);
+		kvfree(adev->psp.vbflash_tmp_buf);
+		adev->psp.vbflash_tmp_buf = NULL;
+		adev->psp.vbflash_image_size = 0;
+		return -ENOMEM;
+	}
+
+	/* TODO Just allocate max for now and optimize to realloc later if needed */
+	if (!adev->psp.vbflash_tmp_buf) {
+		adev->psp.vbflash_tmp_buf = kvmalloc(AMD_VBIOS_FILE_MAX_SIZE_B, GFP_KERNEL);
+		if (!adev->psp.vbflash_tmp_buf)
+			return -ENOMEM;
+	}
+
+	mutex_lock(&adev->psp.mutex);
+	memcpy(adev->psp.vbflash_tmp_buf + pos, buffer, count);
+	adev->psp.vbflash_image_size += count;
+	mutex_unlock(&adev->psp.mutex);
+
+	dev_info(adev->dev, "VBIOS flash write PSP done");
+
+	return count;
+}
+
+static ssize_t amdgpu_psp_vbflash_read(struct file *filp, struct kobject *kobj,
+				       struct bin_attribute *bin_attr, char *buffer,
+				       loff_t pos, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_bo *fw_buf_bo = NULL;
+	uint64_t fw_pri_mc_addr;
+	void *fw_pri_cpu_addr;
+	int ret;
+
+	dev_info(adev->dev, "VBIOS flash to PSP started");
+
+	ret = amdgpu_bo_create_kernel(adev, adev->psp.vbflash_image_size,
+					AMDGPU_GPU_PAGE_SIZE,
+					AMDGPU_GEM_DOMAIN_VRAM,
+					&fw_buf_bo,
+					&fw_pri_mc_addr,
+					&fw_pri_cpu_addr);
+	if (ret)
+		goto rel_buf;
+
+	memcpy_toio(fw_pri_cpu_addr, adev->psp.vbflash_tmp_buf, adev->psp.vbflash_image_size);
+
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_update_spirom(&adev->psp, fw_pri_mc_addr);
+	mutex_unlock(&adev->psp.mutex);
+
+	amdgpu_bo_free_kernel(&fw_buf_bo, &fw_pri_mc_addr, &fw_pri_cpu_addr);
+
+rel_buf:
+	kvfree(adev->psp.vbflash_tmp_buf);
+	adev->psp.vbflash_tmp_buf = NULL;
+	adev->psp.vbflash_image_size = 0;
+
+	if (ret) {
+		dev_err(adev->dev, "Failed to load VBIOS FW, err = %d", ret);
+		return ret;
+	}
+
+	dev_info(adev->dev, "VBIOS flash to PSP done");
+	return 0;
+}
+
+static const struct bin_attribute psp_vbflash_bin_attr = {
+	.attr = {.name = "psp_vbflash", .mode = 0664},
+	.size = 0,
+	.write = amdgpu_psp_vbflash_write,
+	.read = amdgpu_psp_vbflash_read,
+};
+
+int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
+{
+	int ret = 0;
+	struct psp_context *psp = &adev->psp;
+
+	if (amdgpu_sriov_vf(adev))
+		return -EINVAL;
+
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 7):
+		if (!psp->adev) {
+			psp->adev = adev;
+			psp_v13_0_set_psp_funcs(psp);
+		}
+		ret = sysfs_create_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
+		if (ret)
+			dev_err(adev->dev, "Failed to create device file psp_vbflash");
+		return ret;
+	default:
+		return 0;
+	}
+}
+
 const struct amd_ip_funcs psp_ip_funcs = {
 	.name = "psp",
 	.early_init = psp_early_init,
@@ -3469,6 +3581,11 @@ static int psp_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("Failed to create USBC PD FW control file!");
 
 	return ret;
+}
+
+void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev)
+{
+	sysfs_remove_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
 }
 
 static void psp_sysfs_fini(struct amdgpu_device *adev)
