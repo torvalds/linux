@@ -1382,6 +1382,7 @@ dtb-$(CONFIG_ARCH_U8500) += \
 	ste-ux500-samsung-janice.dtb \
 	ste-ux500-samsung-gavini.dtb \
 	ste-ux500-samsung-codina.dtb \
+	ste-ux500-samsung-codina-tmo.dtb \
 	ste-ux500-samsung-skomer.dtb \
 	ste-ux500-samsung-kyle.dtb
 dtb-$(CONFIG_ARCH_UNIPHIER) += \

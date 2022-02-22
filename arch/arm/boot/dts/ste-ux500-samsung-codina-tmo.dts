@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy Ace 2 GT-I8160 also known as Codina.
+ * Devicetree for the Samsung Galaxy Exhibit SGH-T599 also known as Codina-TMO,
+ * the "TMO" shall be read "T-Mobile" as this phone was produced exlusively
+ * for T-Mobile in the United States.
  *
- * NOTE: this is the most common variant according to the vendor tree, known
- * as "R0.0". There appears to be a "R0.4" variant with backlight on GPIO69,
- * AB8505 and other changes. There is also talk about some variants having a
- * Samsung S6D27A1 display, indicated by passing a different command line from
- * the boot loader.
- *
- * The Samsung tree further talks about GT-I8160P and GT-I8160chn (China).
- * The GT-I8160 plain is known as the "europe" variant.
- * The GT-I8160P is the CDMA version and it appears to not use the ST
- * Microelectronics accelerometer and reportedly has NFC mounted.
- * The GT-I8160chn appears to be the same as the europe variant.
- *
- * There is also the Codina-TMO, Samsung SGH-T599, which has its own device
- * tree.
+ * This phone is closely related to the Codina, but has:
+ * - No CPU speed cap, full ~1GHz rate
+ * - Different power management IC, AB8505
+ * - As AB8505 has a micro USB phy, no TI TSU6111
+ * - Different power routing such as the removal of the external LDO for the
+ *   touchscreen in favor of using the AB8505
+ * - Using a regulator for the key backlight LED
+ * - Using the Samsung S6D27A1 panel by default
+ * - The panel is using one of the ordinary AB8505 regulators for 1.8V
+ * - WiFi/Bluetooth combi chip upgraded to BCM4334
+ * - GPIO for backlight control moved from 68 to 69
  */
 
 /dts-v1/;
 #include "ste-db8500.dtsi"
-#include "ste-ab8500.dtsi"
+#include "ste-ab8505.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
@@ -28,20 +27,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "Samsung Galaxy Ace 2 (GT-I8160)";
-	compatible = "samsung,codina", "st-ericsson,u8500";
-
-	cpus {
-		cpu@300 {
-			/*
-			 * This has a frequency cap at ~800 MHz in the firmware.
-			 * (Changing this number here will not overclock it.)
-			 */
-			operating-points = <798720 0
-					    399360 0
-					    199680 0>;
-		};
-	};
+	model = "Samsung Galaxy Exhibit (SGH-T599)";
+	compatible = "samsung,codina-tmo", "st-ericsson,u8500";
 
 	chosen {
 		stdout-path = &serial2;
@@ -103,42 +90,8 @@
 	};
 
 	/*
-	 * External Ricoh "TSP" regulator for the touchscreen.
-	 * One GPIO line controls two voltages of 3.3V and 1.8V
-	 * this line is known as "TSP_LDO_ON1" in the schematics.
-	 */
-	ldo_tsp_3v3_reg: regulator-gpio-tsp-ldo-3v3 {
-		compatible = "regulator-fixed";
-		/* Supplied in turn by VBAT */
-		regulator-name = "LDO_TSP_A3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		/* GPIO94 controls this regulator */
-		gpio = <&gpio2 30 GPIO_ACTIVE_HIGH>;
-		/* 70 ms power-on delay */
-		startup-delay-us = <70000>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_ldo_en_default_mode>;
-	};
-	ldo_tsp_1v8_reg: regulator-gpio-tsp-ldo-1v8 {
-		compatible = "regulator-fixed";
-		/* Supplied in turn by VBAT */
-		regulator-name = "VREG_TSP_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		/* GPIO94 controls this regulator */
-		gpio = <&gpio2 30 GPIO_ACTIVE_HIGH>;
-		/* 70 ms power-on delay */
-		startup-delay-us = <70000>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_ldo_en_default_mode>;
-	};
-
-	/*
 	 * External Ricoh RP152L010B-TR LCD LDO regulator for the display.
-	 * LCD_PWR_EN controls both a 3.0V and 1.8V output.
+	 * LCD_PWR_EN controls both the 3.0V output.
 	 */
 	lcd_3v0_reg: regulator-gpio-lcd-3v0 {
 		compatible = "regulator-fixed";
@@ -147,18 +100,6 @@
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 		/* GPIO219 controls this regulator */
-		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pwr_en_default_mode>;
-	};
-	lcd_1v8_reg: regulator-gpio-lcd-1v8 {
-		compatible = "regulator-fixed";
-		/* Supplied in turn by VBAT */
-		regulator-name = "VREG_LCD_1.8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		/* GPIO219 controls this regulator too */
 		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		pinctrl-names = "default";
@@ -221,29 +162,18 @@
 		};
 	};
 
-	gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_leds_default_mode>;
-		touchkey-led {
-			label = "touchkeys";
-			/*
-			 * GPIO194 on R0.0, R0.4 does not use this at all, it
-			 * will instead turn LDO AUX4 on/off for key led backlighy.
-			 * (Line is pulled down on R0.4)
-			 */
-			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
+	led-touchkeys {
+		compatible = "regulator-led";
+		vled-supply = <&ab8500_ldo_aux4_reg>; // 3.3V
+		default-state = "on";
+		function = LED_FUNCTION_KBD_BACKLIGHT;
+		color = <LED_COLOR_ID_WHITE>;
 	};
 
 	ktd253: backlight {
 		compatible = "kinetic,ktd253";
-		/*
-		 * GPIO68 is for R0.0, the board file talks about a TMO variant
-		 * (R0.4) using GPIO69.
-		 */
-		enable-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+		/* GPIO69 is used on Codina R0.4 and Codina TMO */
+		enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 		/* Default to 13/32 brightness */
 		default-brightness = <13>;
 		pinctrl-names = "default";
@@ -286,18 +216,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		magnetometer@c {
-			compatible = "alps,hscdtd008a";
-			reg = <0x0c>;
-			clock-frequency = <400000>;
-
-			avdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
-			dvdd-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
-		};
 		/* TODO: this should also be used by the SM5103 Camera power management unit */
 	};
 
-	/* Bit-banged I2C on GPIO151 and GPIO152 also called "NFC I2C" */
+	/* Bit-banged I2C on GPIO151 and GPIO152 also called "COMP I2C" */
 	i2c-gpio-1 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -307,7 +229,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* TODO: add the NFC chip here */
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+			clock-frequency = <400000>;
+
+			avdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
+			dvdd-supply = <&ab8500_ldo_aux8_reg>; // 1.8V
+		};
 	};
 
 	spi-gpio-0 {
@@ -327,14 +256,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/*
-		 * Some Codinas (90%) have a WideChips WS2401-based LMS380KF01
-		 * display mounted and some 10% has a Samsung S6D27A1 instead.
-		 * The boot loader needs to modify this compatible to
-		 * correspond to whatever is passed from the early Samsung boot.
-		 */
 		panel@0 {
-			compatible = "samsung,lms380kf01";
+			compatible = "samsung,s6d27a1";
 			spi-max-frequency = <1200000>;
 			/* TYPE 3: inverse clock polarity and phase */
 			spi-cpha;
@@ -342,7 +265,7 @@
 
 			reg = <0>;
 			vci-supply = <&lcd_3v0_reg>;
-			vccio-supply = <&lcd_1v8_reg>;
+			vccio-supply = <&ab8500_ldo_aux6_reg>;
 
 			/* Reset on GPIO139 */
 			reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
@@ -405,8 +328,7 @@
 			status = "okay";
 
 			wifi@1 {
-				/* Actually BRCM4330 */
-				compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
+				compatible = "brcm,bcm4334-fmac", "brcm,bcm4329-fmac";
 				reg = <1>;
 				/* GPIO216 WL_HOST_WAKE */
 				interrupt-parent = <&gpio6>;
@@ -446,6 +368,7 @@
 			status = "okay";
 
 			bluetooth {
+				/* BCM4334B0 actually */
 				compatible = "brcm,bcm4330-bt";
 				/* GPIO222 rail BT_VREG_EN to BT_REG_ON */
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
@@ -471,7 +394,7 @@
 			/* FIXME: add a device for the GPS here */
 		};
 
-		/* Debugging console UART connected to TSU6111RSVR (FSA880) */
+		/* Debugging console UART connected to AB8505 */
 		uart@80007000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
@@ -480,33 +403,56 @@
 		};
 
 		prcmu@80157000 {
-			ab8500 {
+			ab8505 {
 				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
+				/* This is mostly identical to the Codina v0.4 regulators */
 				regulator {
 					ab8500_ldo_aux1 {
-						/* Used for VDD for sensors */
-						regulator-name = "V-SENSORS-VDD";
+						regulator-name = "v-sensors-vdd";
 						regulator-min-microvolt = <3000000>;
-						regulator-max-microvolt = <3000000>;
+						regulator-max-microvolt = <3300000>;
 					};
 
 					ab8500_ldo_aux2 {
-						/* Used for VIO for sensors */
-						regulator-name = "V-SENSORS-VIO";
+						regulator-name = "v-aux2";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux3 {
+						regulator-name = "v-mmc-sd";
+					};
+
+					ab8500_ldo_aux4 {
+						regulator-name = "v-aux4";
+						/*
+						 * Providing some span here makes the touchkey
+						 * LEDs actually dimmable.
+						 */
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux5 {
+						regulator-name = "v-aux5";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
-					ab8500_ldo_aux3 {
-						/* Used for voltage for external MMC/SD card */
-						regulator-name = "V-MMC-SD";
-						regulator-min-microvolt = <1200000>;
-						regulator-max-microvolt = <2910000>;
+					ab8500_ldo_aux6 {
+						/* 1.8 V to the display */
+						regulator-name = "v-aux6";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ab8500_ldo_aux8 {
+						regulator-name = "v-sensors-vio";
 					};
 				};
 			};
@@ -519,40 +465,19 @@
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
 
-			/* TODO: write bindings and driver for this proximity sensor */
 			proximity@39 {
-				/* Codina has the Mouser TMD2672 */
-				compatible = "mouser,tmd2672";
+				/* Codina has the Amstaos TMD2672 */
+				compatible = "amstaos,tmd2672";
 				clock-frequency = <400000>;
 				reg = <0x39>;
 
 				/* IRQ on GPIO146 "PS_INT" */
 				interrupt-parent = <&gpio4>;
 				interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-				/* FIXME: needs a VDDIO supply that is connected to a pull-up resistor */
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&ab8500_ldo_aux8_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&tms2672_codina_default>;
-			};
-		};
-
-		/* I2C1 on GPIO16 and GPIO17 also called "MUS I2C" */
-		i2c@80122000 {
-			status = "okay";
-			pinctrl-names = "default","sleep";
-			/* FIXME: If it doesn't work try what we use on Gavini */
-			pinctrl-0 = <&i2c1_b_2_default>;
-			pinctrl-1 = <&i2c1_b_2_sleep>;
-
-			/* Texas Instruments TSU6111 micro USB switch */
-			usb-switch@25 {
-				compatible = "ti,tsu6111";
-				reg = <0x25>;
-				/* Interrupt JACK_INT_N on GPIO95 */
-				interrupt-parent = <&gpio2>;
-				interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&tsu6111_codina_default>;
+				pinctrl-0 = <&tmd2672_codina_default>;
 			};
 		};
 
@@ -563,16 +488,15 @@
 			pinctrl-0 = <&i2c2_b_2_default>;
 			pinctrl-1 = <&i2c2_b_2_sleep>;
 
-			lisd3dh@19 {
-				/* ST Microelectronics Accelerometer */
-				compatible = "st,lis3dh-accel";
-				st,drdy-int-pin = <1>;
-				reg = <0x19>;
-				vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
-				vddio-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
-				mount-matrix = "0", "-1", "0",
-					       "1", "0", "0",
+			/* Bosch BMA254 accelerometer */
+			accelerometer@18 {
+				compatible = "bosch,bma254";
+				reg = <0x18>;
+				mount-matrix = "0", "1", "0",
+					       "-1", "0", "0",
 					       "0", "0", "1";
+				vddio-supply = <&ab8500_ldo_aux8_reg>; // 1.8V
+				vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 			};
 		};
 
@@ -601,8 +525,8 @@
 				/* GPIO218 (TSP_INT_1V8) */
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
-				vcca-supply = <&ldo_tsp_3v3_reg>;
-				vdd-supply = <&ldo_tsp_1v8_reg>;
+				vcca-supply = <&ab8500_ldo_aux2_reg>; // 3.3V
+				vdd-supply = <&ab8500_ldo_aux5_reg>; // 1.8V
 				zinitix,mode = <2>;
 				touchscreen-size-x = <480>;
 				touchscreen-size-y = <800>;
@@ -640,15 +564,13 @@
 	};
 	sdi2 {
 		/*
-		 * This will make the resistor mounted in R0.0 pull up
-		 * the reset line and take the eMMC out of reset. On
-		 * R0.4 variants, GPIO130 should be set in GPIO mode and
+		 * GPIO130 should be set in GPIO mode and
 		 * pulled down. (Not connected.)
 		 */
 		mc2_a_1_default {
 			default_cfg2 {
 				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
@@ -687,32 +609,12 @@
 			};
 		};
 	};
-	/* GPIO that enables the LDO regulator for the touchscreen */
-	tsp-ldo {
-		tsp_ldo_en_default_mode: tsp_ldo_default {
-			/* LDO enable on GPIO94 */
-			gavini_cfg1 {
-				pins = "GPIO94_D7";
-				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
 	/* GPIO that enables the LDO regulator for the LCD display */
 	lcd-ldo {
 		lcd_pwr_en_default_mode: lcd_pwr_en_default {
 			/* LCD_PWR_EN on GPIO219 */
 			codina_cfg1 {
 				pins = "GPIO219_AG10";
-				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
-	/* GPIO that enables the LDO regulator for the key LED */
-	key-led {
-		gpio_leds_default_mode: en_led_ldo_default {
-			/* EN_LED_LDO on GPIO194 */
-			codina_cfg1 {
-				pins = "GPIO194_AF27";
 				ste,config = <&gpio_out_hi>;
 			};
 		};
@@ -731,7 +633,7 @@
 	backlight {
 		ktd253_backlight_default_mode: backlight_default {
 			skomer_cfg1 {
-				pins = "GPIO68_E1"; /* LCD_BL_CTRL */
+				pins = "GPIO69_E2"; /* LCD_BL_CTRL */
 				ste,config = <&gpio_out_lo>;
 			};
 		};
@@ -765,9 +667,9 @@
 			};
 		};
 	};
-	/* Interrupt line for light/proximity sensor TMS2672 */
-	tms2672 {
-		tms2672_codina_default: tms2672_codina {
+	/* Interrupt line for light/proximity sensor TMD2672 */
+	tmd2672 {
+		tmd2672_codina_default: tmd2672_codina {
 			codina_cfg1 {
 				pins = "GPIO146_D13";
 				ste,config = <&gpio_in_nopull>;
@@ -838,16 +740,6 @@
 			codina_cfg3 {
 				pins = "GPIO209_AG15";
 				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
-	/* Interrupt line for TI TSU6111 Micro USB switch */
-	tsu6111 {
-		tsu6111_codina_default: tsu6111_codina {
-			codina_cfg1 {
-				/* GPIO95 used for IRQ */
-				pins = "GPIO95_E8";
-				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
