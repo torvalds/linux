@@ -29,6 +29,7 @@
 #include <linux/pagemap.h>
 #include <linux/time.h>
 #include <linux/fcntl.h>
+#include <linux/sched/mm.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>
@@ -3308,6 +3309,8 @@ static int ext4_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	}
 
 	if ((disk_link.len > EXT4_N_BLOCKS * 4)) {
+		unsigned int flags;
+
 		if (!IS_ENCRYPTED(inode))
 			inode->i_op = &ext4_symlink_inode_operations;
 		inode_nohighmem(inode);
@@ -3329,7 +3332,9 @@ static int ext4_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 		handle = NULL;
 		if (err)
 			goto err_drop_inode;
-		err = __page_symlink(inode, disk_link.name, disk_link.len, 1);
+		flags = memalloc_nofs_save();
+		err = page_symlink(inode, disk_link.name, disk_link.len);
+		memalloc_nofs_restore(flags);
 		if (err)
 			goto err_drop_inode;
 		/*
