@@ -561,7 +561,7 @@ static const struct regulator_desc da9217_reg = {
 };
 
 #define DA914X_MIN_MV		500
-#define DA914X_MAX_MV		1000
+#define DA914X_MAX_MV		1300
 #define DA914X_STEP_MV		10
 #define DA914X_MIN_SEL		(DA914X_MIN_MV / DA914X_STEP_MV)
 #define DA914X_N_VOLTAGES	(((DA914X_MAX_MV - DA914X_MIN_MV) / DA914X_STEP_MV) \
