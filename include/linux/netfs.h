@@ -276,7 +276,7 @@ struct readahead_control;
 extern void netfs_readahead(struct readahead_control *);
 extern int netfs_readpage(struct file *, struct page *);
 extern int netfs_write_begin(struct file *, struct address_space *,
-			     loff_t, unsigned int, unsigned int, struct folio **,
+			     loff_t, unsigned int, struct folio **,
 			     void **);
 
 extern void netfs_subreq_terminated(struct netfs_io_subrequest *, ssize_t, bool);

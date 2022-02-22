@@ -142,7 +142,6 @@ Three read helpers are provided::
 			      struct address_space *mapping,
 			      loff_t pos,
 			      unsigned int len,
-			      unsigned int flags,
 			      struct folio **_folio,
 			      void **_fsdata);
 

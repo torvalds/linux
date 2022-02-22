@@ -275,7 +275,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	retval = netfs_write_begin(filp, mapping, pos, len, flags, &folio, fsdata);
+	retval = netfs_write_begin(filp, mapping, pos, len, &folio, fsdata);
 	if (retval < 0)
 		return retval;
 
