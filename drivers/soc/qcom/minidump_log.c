@@ -44,6 +44,7 @@
 #include <asm/memory.h>
 
 #include "../../../kernel/sched/sched.h"
+#include <linux/sched/walt.h>
 
 #include <linux/kdebug.h>
 #include <linux/thread_info.h>
@@ -106,7 +107,11 @@ static bool minidump_ftrace_dump = true;
 
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_DUMP
 /* Rnqueue information */
+#ifndef CONFIG_MINIDUMP_ALL_TASK_INFO
 #define MD_RUNQUEUE_PAGES	8
+#else
+#define MD_RUNQUEUE_PAGES	150
+#endif
 
 static bool md_in_oops_handler;
 static atomic_t md_handle_done;
@@ -709,31 +714,15 @@ static void md_dump_task_info(struct task_struct *task, char *status,
 	se = &task->se;
 	if (task == curr) {
 		seq_buf_printf(md_runq_seq_buf,
-			       "[status: curr] pid: %d comm: %s preempt: %#x\n",
-			       task_pid_nr(task), task->comm,
+			       "[status: curr] pid: %d preempt: %#x\n",
+			       task_pid_nr(task),
 			       task->thread_info.preempt_count);
 		return;
 	}
 
 	seq_buf_printf(md_runq_seq_buf,
-		       "[status: %s] pid: %d tsk: %#lx comm: %s stack: %#lx",
-		       status, task_pid_nr(task),
-		       (unsigned long)task,
-		       task->comm,
-		       (unsigned long)task->stack);
-	seq_buf_printf(md_runq_seq_buf,
-		       " prio: %d aff: %*pb",
-		       task->prio, cpumask_pr_args(&task->cpus_mask));
-#ifdef CONFIG_SCHED_WALT
-	seq_buf_printf(md_runq_seq_buf, " enq: %lu wake: %lu sleep: %lu",
-		       task->wts.last_enqueued_ts, task->wts.last_wake_ts,
-		       task->wts.last_sleep_ts);
-#endif
-	seq_buf_printf(md_runq_seq_buf,
-		       " vrun: %lu arr: %lu sum_ex: %lu\n",
-		       (unsigned long)se->vruntime,
-		       (unsigned long)se->exec_start,
-		       (unsigned long)se->sum_exec_runtime);
+		       "[status: %s] pid: %d\n",
+		       status, task_pid_nr(task));
 }
 
 static void md_dump_cfs_rq(struct cfs_rq *cfs, struct task_struct *curr);
@@ -829,12 +818,46 @@ static void md_dump_rt_rq(struct rt_rq  *rt_rq, struct task_struct *curr)
 	}
 }
 
+static const char * const task_state_array[] = {
+	"R", /* 0x00 */
+	"S", /* 0x01 */
+	"D", /* 0x02 */
+	"T", /* 0x04 */
+	"t", /* 0x08 */
+	"X", /* 0x10 */
+	"Z", /* 0x20 */
+	"P", /* 0x40 */
+	"I", /* 0x80 */
+};
+
+/* In line with task_state_index from fs/proc/array.c */
+static inline unsigned int md_task_state_index(struct task_struct *tsk)
+{
+	unsigned int tsk_state = READ_ONCE(tsk->__state);
+	unsigned int state = (tsk_state | tsk->exit_state) & TASK_REPORT;
+
+	if (tsk_state == TASK_IDLE)
+		state = TASK_REPORT_IDLE;
+
+	return fls(state);
+}
+
+/* In line with get_task_state from fs/proc/array.c */
+static inline const char *md_get_task_state(struct task_struct *tsk)
+{
+	return task_state_array[md_task_state_index(tsk)];
+}
+
 static void md_dump_runqueues(void)
 {
 	int cpu;
 	struct rq *rq;
 	struct rt_rq  *rt;
 	struct cfs_rq *cfs;
+	struct task_struct *p, *t;
+#if IS_ENABLED(CONFIG_SCHED_WALT)
+	struct walt_task_struct *wts;
+#endif
 
 	if (!md_runq_seq_buf)
 		return;
@@ -844,17 +867,53 @@ static void md_dump_runqueues(void)
 		rt = &rq->rt;
 		cfs = &rq->cfs;
 		seq_buf_printf(md_runq_seq_buf,
-			       "CPU%d %d process is running\n",
-			       cpu, rq->nr_running);
-		md_dump_task_info(cpu_curr(cpu), "curr", NULL);
+			       "CPU%d has %d process, current is pid %d\n",
+			       cpu, rq->nr_running, cpu_curr(cpu)->pid);
 		seq_buf_printf(md_runq_seq_buf,
-			       "CFS %d process is pending\n",
+			       "CFS has %d process\n",
 			       cfs->nr_running);
 		md_dump_cfs_rq(cfs, cpu_curr(cpu));
 		seq_buf_printf(md_runq_seq_buf,
-			       "RT %d process is pending\n",
+			       "RT has %d process\n",
 			       rt->rt_nr_running);
 		md_dump_rt_rq(rt, cpu_curr(cpu));
+		seq_buf_printf(md_runq_seq_buf, "\n");
+	}
+
+	seq_buf_printf(md_runq_seq_buf, "%-15s", "Task name");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 6, "PID");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 16, "Exec_started_at");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 16, "Last_queued_at");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 16, "Total_wait_time");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 12, "Exec_times");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 4, "CPU");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 5, "Prio");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 6, "State");
+#if IS_ENABLED(CONFIG_SCHED_WALT)
+	seq_buf_printf(md_runq_seq_buf, "%*s", 17, "Last_enqueued_ts");
+	seq_buf_printf(md_runq_seq_buf, "%*s", 16, "Last_sleep_ts");
+#endif
+	seq_buf_printf(md_runq_seq_buf, "\n");
+
+	for_each_process_thread(p, t) {
+#ifndef CONFIG_MINIDUMP_ALL_TASK_INFO
+		if (READ_ONCE(t->__state))
+			continue;
+#endif
+		seq_buf_printf(md_runq_seq_buf, "%-15s", t->comm);
+		seq_buf_printf(md_runq_seq_buf, "%6d", t->pid);
+		seq_buf_printf(md_runq_seq_buf, "%16lld", t->sched_info.last_arrival);
+		seq_buf_printf(md_runq_seq_buf, "%16lld", t->sched_info.last_queued);
+		seq_buf_printf(md_runq_seq_buf, "%16lld", t->sched_info.run_delay);
+		seq_buf_printf(md_runq_seq_buf, "%12ld", t->sched_info.pcount);
+		seq_buf_printf(md_runq_seq_buf, "%4d", t->on_cpu);
+		seq_buf_printf(md_runq_seq_buf, "%5d", t->prio);
+		seq_buf_printf(md_runq_seq_buf, "%*s", 6, md_get_task_state(t));
+#if IS_ENABLED(CONFIG_SCHED_WALT)
+		wts = (struct walt_task_struct *) t->android_vendor_data1;
+		seq_buf_printf(md_runq_seq_buf, "%17ld", wts->last_enqueued_ts);
+		seq_buf_printf(md_runq_seq_buf, "%16ld", wts->last_sleep_ts);
+#endif
 		seq_buf_printf(md_runq_seq_buf, "\n");
 	}
 }
