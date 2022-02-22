@@ -8,3 +8,4 @@
  */
 selftest(sanitycheck, igt_sanitycheck) /* keep first (selfcheck for igt) */
 selftest(buddy_alloc_limit, igt_buddy_alloc_limit)
+selftest(buddy_alloc_range, igt_buddy_alloc_range)

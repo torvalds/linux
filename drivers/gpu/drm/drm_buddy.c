@@ -211,7 +211,7 @@ static int split_block(struct drm_buddy *mm,
 }
 
 static struct drm_buddy_block *
-get_buddy(struct drm_buddy_block *block)
+__get_buddy(struct drm_buddy_block *block)
 {
 	struct drm_buddy_block *parent;
 
@@ -225,6 +225,23 @@ get_buddy(struct drm_buddy_block *block)
 	return parent->left;
 }
 
+/**
+ * drm_get_buddy - get buddy address
+ *
+ * @block: DRM buddy block
+ *
+ * Returns the corresponding buddy block for @block, or NULL
+ * if this is a root block and can't be merged further.
+ * Requires some kind of locking to protect against
+ * any concurrent allocate and free operations.
+ */
+struct drm_buddy_block *
+drm_get_buddy(struct drm_buddy_block *block)
+{
+	return __get_buddy(block);
+}
+EXPORT_SYMBOL(drm_get_buddy);
+
 static void __drm_buddy_free(struct drm_buddy *mm,
 			     struct drm_buddy_block *block)
 {
@@ -233,7 +250,7 @@ static void __drm_buddy_free(struct drm_buddy *mm,
 	while ((parent = block->parent)) {
 		struct drm_buddy_block *buddy;
 
-		buddy = get_buddy(block);
+		buddy = __get_buddy(block);
 
 		if (!drm_buddy_block_is_free(buddy))
 			break;
@@ -361,7 +378,7 @@ err_undo:
 	 * bigger is better, so make sure we merge everything back before we
 	 * free the allocated blocks.
 	 */
-	buddy = get_buddy(block);
+	buddy = __get_buddy(block);
 	if (buddy &&
 	    (drm_buddy_block_is_free(block) &&
 	     drm_buddy_block_is_free(buddy)))
@@ -500,7 +517,7 @@ err_undo:
 	 * bigger is better, so make sure we merge everything back before we
 	 * free the allocated blocks.
 	 */
-	buddy = get_buddy(block);
+	buddy = __get_buddy(block);
 	if (buddy &&
 	    (drm_buddy_block_is_free(block) &&
 	     drm_buddy_block_is_free(buddy)))
