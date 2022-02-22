@@ -19502,6 +19502,8 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/hwmon/ti,tmp464.yaml
+F:	Documentation/hwmon/tmp464.rst
+F:	drivers/hwmon/tmp464.c
 
 TMP513 HARDWARE MONITOR DRIVER
 M:	Eric Tremblay <etremblay@distech-controls.com>

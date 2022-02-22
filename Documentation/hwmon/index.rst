@@ -195,6 +195,7 @@ Hardware Monitoring Kernel Drivers
    tmp108
    tmp401
    tmp421
+   tmp464
    tmp513
    tps23861
    tps40422
