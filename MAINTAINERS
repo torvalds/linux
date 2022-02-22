@@ -18553,6 +18553,7 @@ SUNPLUS UART DRIVER
 M:	Hammer Hsieh <hammerh0314@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/serial/sunplus,sp7021-uart.yaml
+F:	drivers/tty/serial/sunplus-uart.c
 
 SUPERH
 M:	Yoshinori Sato <ysato@users.sourceforge.jp>
