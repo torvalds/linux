@@ -343,7 +343,7 @@ vc4_hdmi_connector_duplicate_state(struct drm_connector *connector)
 	if (!new_state)
 		return NULL;
 
-	new_state->pixel_rate = vc4_state->pixel_rate;
+	new_state->tmds_char_rate = vc4_state->tmds_char_rate;
 	__drm_atomic_helper_connector_duplicate_state(connector, &new_state->base);
 
 	return &new_state->base;
@@ -1028,7 +1028,7 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	struct vc4_hdmi_connector_state *vc4_conn_state =
 		conn_state_to_vc4_hdmi_conn_state(conn_state);
 	struct drm_display_mode *mode = &vc4_hdmi->saved_adjusted_mode;
-	unsigned long pixel_rate = vc4_conn_state->pixel_rate;
+	unsigned long tmds_char_rate = vc4_conn_state->tmds_char_rate;
 	unsigned long bvb_rate, hsm_rate;
 	unsigned long flags;
 	int ret;
@@ -1051,7 +1051,7 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	 * Additionally, the AXI clock needs to be at least 25% of
 	 * pixel clock, but HSM ends up being the limiting factor.
 	 */
-	hsm_rate = max_t(unsigned long, 120000000, (pixel_rate / 100) * 101);
+	hsm_rate = max_t(unsigned long, 120000000, (tmds_char_rate / 100) * 101);
 	ret = clk_set_min_rate(vc4_hdmi->hsm_clock, hsm_rate);
 	if (ret) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", ret);
@@ -1064,7 +1064,7 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 		goto out;
 	}
 
-	ret = clk_set_rate(vc4_hdmi->pixel_clock, pixel_rate);
+	ret = clk_set_rate(vc4_hdmi->pixel_clock, tmds_char_rate);
 	if (ret) {
 		DRM_ERROR("Failed to set pixel clock rate: %d\n", ret);
 		goto err_put_runtime_pm;
@@ -1079,9 +1079,9 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 
 	vc4_hdmi_cec_update_clk_div(vc4_hdmi);
 
-	if (pixel_rate > 297000000)
+	if (tmds_char_rate > 297000000)
 		bvb_rate = 300000000;
-	else if (pixel_rate > 148500000)
+	else if (tmds_char_rate > 148500000)
 		bvb_rate = 150000000;
 	else
 		bvb_rate = 75000000;
@@ -1255,8 +1255,8 @@ static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	struct vc4_hdmi_connector_state *vc4_state = conn_state_to_vc4_hdmi_conn_state(conn_state);
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
-	unsigned long long pixel_rate = mode->clock * 1000;
-	unsigned long long tmds_rate;
+	unsigned long long tmds_char_rate = mode->clock * 1000;
+	unsigned long long tmds_bit_rate;
 
 	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
 	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
@@ -1269,32 +1269,32 @@ static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	 * bandwidth). Slightly lower the frequency to bring it out of
 	 * the WiFi range.
 	 */
-	tmds_rate = pixel_rate * 10;
+	tmds_bit_rate = tmds_char_rate * 10;
 	if (vc4_hdmi->disable_wifi_frequencies &&
-	    (tmds_rate >= WIFI_2_4GHz_CH1_MIN_FREQ &&
-	     tmds_rate <= WIFI_2_4GHz_CH1_MAX_FREQ)) {
+	    (tmds_bit_rate >= WIFI_2_4GHz_CH1_MIN_FREQ &&
+	     tmds_bit_rate <= WIFI_2_4GHz_CH1_MAX_FREQ)) {
 		mode->clock = 238560;
-		pixel_rate = mode->clock * 1000;
+		tmds_char_rate = mode->clock * 1000;
 	}
 
 	if (conn_state->max_bpc == 12) {
-		pixel_rate = pixel_rate * 150;
-		do_div(pixel_rate, 100);
+		tmds_char_rate = tmds_char_rate * 150;
+		do_div(tmds_char_rate, 100);
 	} else if (conn_state->max_bpc == 10) {
-		pixel_rate = pixel_rate * 125;
-		do_div(pixel_rate, 100);
+		tmds_char_rate = tmds_char_rate * 125;
+		do_div(tmds_char_rate, 100);
 	}
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		pixel_rate = pixel_rate * 2;
+		tmds_char_rate = tmds_char_rate * 2;
 
-	if (pixel_rate > vc4_hdmi->variant->max_pixel_clock)
+	if (tmds_char_rate > vc4_hdmi->variant->max_pixel_clock)
 		return -EINVAL;
 
-	if (vc4_hdmi->disable_4kp60 && (pixel_rate > HDMI_14_MAX_TMDS_CLK))
+	if (vc4_hdmi->disable_4kp60 && (tmds_char_rate > HDMI_14_MAX_TMDS_CLK))
 		return -EINVAL;
 
-	vc4_state->pixel_rate = pixel_rate;
+	vc4_state->tmds_char_rate = tmds_char_rate;
 
 	return 0;
 }
