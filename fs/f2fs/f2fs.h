@@ -18,6 +18,7 @@
 #include <linux/kobject.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
+#include <linux/sched/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
@@ -2654,6 +2655,7 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 						pgoff_t index, bool for_write)
 {
 	struct page *page;
+	unsigned int flags;
 
 	if (IS_ENABLED(CONFIG_F2FS_FAULT_INJECTION)) {
 		if (!for_write)
@@ -2673,7 +2675,12 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 
 	if (!for_write)
 		return grab_cache_page(mapping, index);
-	return grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
+
+	flags = memalloc_nofs_save();
+	page = grab_cache_page_write_begin(mapping, index, 0);
+	memalloc_nofs_restore(flags);
+
+	return page;
 }
 
 static inline struct page *f2fs_pagecache_get_page(
