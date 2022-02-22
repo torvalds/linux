@@ -11323,24 +11323,24 @@ enum mlxsw_reg_mgpir_device_type {
 	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
 };
 
-/* device_type
+/* mgpir_device_type
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, device_type, 0x00, 24, 4);
 
-/* devices_per_flash
+/* mgpir_devices_per_flash
  * Number of devices of device_type per flash (can be shared by few devices).
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
 
-/* num_of_devices
+/* mgpir_num_of_devices
  * Number of devices of device_type.
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
-/* num_of_modules
+/* mgpir_num_of_modules
  * Number of modules.
  * Access: RO
  */
