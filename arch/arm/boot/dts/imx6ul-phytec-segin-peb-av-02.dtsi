@@ -11,7 +11,7 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <5>;
 		power-supply = <&reg_backlight_en>;
-		pwms = <&pwm3 0 5000000>;
+		pwms = <&pwm3 0 5000000 0>;
 		status = "disabled";
 	};
 
@@ -91,7 +91,6 @@
 };
 
 &pwm3 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm3>;
 	status = "disabled";
