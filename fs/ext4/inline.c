@@ -527,13 +527,13 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
 }
 
 static int ext4_convert_inline_data_to_extent(struct address_space *mapping,
-					      struct inode *inode,
-					      unsigned flags)
+					      struct inode *inode)
 {
 	int ret, needed_blocks, no_expand;
 	handle_t *handle = NULL;
 	int retries = 0, sem_held = 0;
 	struct page *page = NULL;
+	unsigned int flags;
 	unsigned from, to;
 	struct ext4_iloc iloc;
 
@@ -562,9 +562,9 @@ retry:
 
 	/* We cannot recurse into the filesystem as the transaction is already
 	 * started */
-	flags |= AOP_FLAG_NOFS;
-
-	page = grab_cache_page_write_begin(mapping, 0, flags);
+	flags = memalloc_nofs_save();
+	page = grab_cache_page_write_begin(mapping, 0, 0);
+	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;
 		goto out;
@@ -649,11 +649,11 @@ out:
 int ext4_try_to_write_inline_data(struct address_space *mapping,
 				  struct inode *inode,
 				  loff_t pos, unsigned len,
-				  unsigned flags,
 				  struct page **pagep)
 {
 	int ret;
 	handle_t *handle;
+	unsigned int flags;
 	struct page *page;
 	struct ext4_iloc iloc;
 
@@ -691,9 +691,9 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 	if (ret)
 		goto out;
 
-	flags |= AOP_FLAG_NOFS;
-
-	page = grab_cache_page_write_begin(mapping, 0, flags);
+	flags = memalloc_nofs_save();
+	page = grab_cache_page_write_begin(mapping, 0, 0);
+	memalloc_nofs_restore(flags);
 	if (!page) {
 		ret = -ENOMEM;
 		goto out;
@@ -727,8 +727,7 @@ out:
 	brelse(iloc.bh);
 	return ret;
 convert:
-	return ext4_convert_inline_data_to_extent(mapping,
-						  inode, flags);
+	return ext4_convert_inline_data_to_extent(mapping, inode);
 }
 
 int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
