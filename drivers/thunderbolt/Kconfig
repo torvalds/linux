@@ -27,6 +27,16 @@ config USB4_DEBUGFS_WRITE
 	  Only enable this if you know what you are doing! Never enable
 	  this for production systems or distro kernels.
 
+config USB4_DEBUGFS_MARGINING
+	bool "Expose receiver lane margining operations under USB4 ports (DANGEROUS)"
+	depends on DEBUG_FS
+	depends on USB4_DEBUGFS_WRITE
+	help
+	  Enables hardware and software based receiver lane margining support
+	  under each USB4 port. Used for electrical quality and robustness
+	  validation during manufacturing. Should not be enabled by distro
+	  kernels.
+
 config USB4_KUNIT_TEST
 	bool "KUnit tests" if !KUNIT_ALL_TESTS
 	depends on (USB4=m || KUNIT=y)
