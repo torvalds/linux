@@ -6387,7 +6387,7 @@ static bool is_freesync_video_mode(const struct drm_display_mode *mode,
 		return true;
 }
 
-struct dc_stream_state *
+static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
 		       const struct dm_connector_state *dm_state,
@@ -10214,7 +10214,7 @@ static void set_freesync_fixed_config(struct dm_crtc_state *dm_new_crtc_state) {
 	dm_new_crtc_state->freesync_config.fixed_refresh_in_uhz = res;
 }
 
-int dm_update_crtc_state(struct amdgpu_display_manager *dm,
+static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 			 struct drm_atomic_state *state,
 			 struct drm_crtc *crtc,
 			 struct drm_crtc_state *old_crtc_state,

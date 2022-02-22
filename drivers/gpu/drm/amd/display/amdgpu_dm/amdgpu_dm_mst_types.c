@@ -213,7 +213,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	return true;
 }
 
-bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
+static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
 {
 	union dp_downstream_port_present ds_port_present;
 
