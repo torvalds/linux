@@ -22,7 +22,6 @@ static const struct regmap_config adxl345_spi_regmap_config = {
 
 static int adxl345_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct regmap *regmap;
 
 	/* Bail out if max_speed_hz exceeds 5 MHz */
@@ -34,7 +33,7 @@ static int adxl345_spi_probe(struct spi_device *spi)
 	if (IS_ERR(regmap))
 		return dev_err_probe(&spi->dev, PTR_ERR(regmap), "Error initializing regmap\n");
 
-	return adxl345_core_probe(&spi->dev, regmap, id->driver_data);
+	return adxl345_core_probe(&spi->dev, regmap);
 }
 
 static const struct spi_device_id adxl345_spi_id[] = {

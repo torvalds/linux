@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <linux/iio/iio.h>
@@ -213,14 +214,16 @@ static void adxl345_powerdown(void *regmap)
 	regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_STANDBY);
 }
 
-int adxl345_core_probe(struct device *dev, struct regmap *regmap, enum adxl345_device_type type)
+int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 {
+	enum adxl345_device_type type;
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
 	const char *name;
 	u32 regval;
 	int ret;
 
+	type = (uintptr_t)device_get_match_data(dev);
 	switch (type) {
 	case ADXL345:
 		name = "adxl345";

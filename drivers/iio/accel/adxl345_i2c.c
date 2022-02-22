@@ -19,19 +19,15 @@ static const struct regmap_config adxl345_i2c_regmap_config = {
 	.val_bits = 8,
 };
 
-static int adxl345_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int adxl345_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
-
-	if (!id)
-		return -ENODEV;
 
 	regmap = devm_regmap_init_i2c(client, &adxl345_i2c_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(regmap), "Error initializing regmap\n");
 
-	return adxl345_core_probe(&client->dev, regmap, id->driver_data);
+	return adxl345_core_probe(&client->dev, regmap);
 }
 
 static const struct i2c_device_id adxl345_i2c_id[] = {
@@ -55,7 +51,7 @@ static struct i2c_driver adxl345_i2c_driver = {
 		.name	= "adxl345_i2c",
 		.of_match_table = adxl345_of_match,
 	},
-	.probe		= adxl345_i2c_probe,
+	.probe_new	= adxl345_i2c_probe,
 	.id_table	= adxl345_i2c_id,
 };
 
