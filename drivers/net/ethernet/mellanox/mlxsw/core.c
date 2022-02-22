@@ -2078,7 +2078,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	const char *device_kind = mlxsw_bus_info->device_kind;
 	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_driver *mlxsw_driver;
-	struct mlxsw_res *res;
 	size_t alloc_size;
 	int err;
 
@@ -2104,8 +2103,8 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	mlxsw_core->bus_priv = bus_priv;
 	mlxsw_core->bus_info = mlxsw_bus_info;
 
-	res = mlxsw_driver->res_query_enabled ? &mlxsw_core->res : NULL;
-	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile, res);
+	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
+			      &mlxsw_core->res);
 	if (err)
 		goto err_bus_init;
 
@@ -3239,9 +3238,6 @@ int mlxsw_core_resources_query(struct mlxsw_core *mlxsw_core, char *mbox,
 	u64 data;
 	u16 id;
 	int err;
-
-	if (!res)
-		return 0;
 
 	mlxsw_cmd_mbox_zero(mbox);
 

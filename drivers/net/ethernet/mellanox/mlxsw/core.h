@@ -402,7 +402,6 @@ struct mlxsw_driver {
 
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
-	bool res_query_enabled;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,

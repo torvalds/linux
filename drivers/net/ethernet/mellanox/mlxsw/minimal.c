@@ -461,7 +461,6 @@ static struct mlxsw_driver mlxsw_m_driver = {
 	.init			= mlxsw_m_init,
 	.fini			= mlxsw_m_fini,
 	.profile		= &mlxsw_m_config_profile,
-	.res_query_enabled	= true,
 };
 
 static const struct i2c_device_id mlxsw_m_i2c_id[] = {
