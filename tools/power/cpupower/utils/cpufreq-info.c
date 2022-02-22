@@ -438,6 +438,17 @@ static int get_latency(unsigned int cpu, unsigned int human)
 	return 0;
 }
 
+/* --performance / -c */
+
+static int get_perf_cap(unsigned int cpu)
+{
+	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
+	    cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATE)
+		amd_pstate_show_perf_and_freq(cpu, no_rounding);
+
+	return 0;
+}
+
 static void debug_output_one(unsigned int cpu)
 {
 	struct cpufreq_available_frequencies *freqs;
@@ -466,6 +477,7 @@ static void debug_output_one(unsigned int cpu)
 	if (get_freq_hardware(cpu, 1) < 0)
 		get_freq_kernel(cpu, 1);
 	get_boost_mode(cpu);
+	get_perf_cap(cpu);
 }
 
 static struct option info_opts[] = {
@@ -484,6 +496,7 @@ static struct option info_opts[] = {
 	{"proc",	 no_argument,		 NULL,	 'o'},
 	{"human",	 no_argument,		 NULL,	 'm'},
 	{"no-rounding", no_argument,	 NULL,	 'n'},
+	{"performance", no_argument,	 NULL,	 'c'},
 	{ },
 };
 
@@ -497,7 +510,7 @@ int cmd_freq_info(int argc, char **argv)
 	int output_param = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "oefwldpgrasmybn", info_opts,
+		ret = getopt_long(argc, argv, "oefwldpgrasmybnc", info_opts,
 				  NULL);
 		switch (ret) {
 		case '?':
@@ -520,6 +533,7 @@ int cmd_freq_info(int argc, char **argv)
 		case 'e':
 		case 's':
 		case 'y':
+		case 'c':
 			if (output_param) {
 				output_param = -1;
 				cont = 0;
@@ -625,6 +639,9 @@ int cmd_freq_info(int argc, char **argv)
 			break;
 		case 'y':
 			ret = get_latency(cpu, human);
+			break;
+		case 'c':
+			ret = get_perf_cap(cpu);
 			break;
 		}
 		if (ret)
