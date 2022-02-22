@@ -1513,6 +1513,26 @@ static int rockchip_system_status_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int rockchip_system_monitor_set_cpu_uevent_suppress(bool is_suppress)
+{
+	struct monitor_dev_info *info;
+	struct cpufreq_policy *policy;
+
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TPYE_CPU)
+			continue;
+		policy = (struct cpufreq_policy *)info->devp->data;
+		if (!policy || !policy->cdev)
+			continue;
+		if (is_suppress)
+			dev_set_uevent_suppress(&policy->cdev->device, 1);
+		else
+			dev_set_uevent_suppress(&policy->cdev->device, 0);
+	}
+
+	return 0;
+}
+
 static int monitor_pm_notify(struct notifier_block *nb,
 			     unsigned long mode, void *_unused)
 {
@@ -1521,6 +1541,7 @@ static int monitor_pm_notify(struct notifier_block *nb,
 	case PM_RESTORE_PREPARE:
 	case PM_SUSPEND_PREPARE:
 		atomic_set(&monitor_in_suspend, 1);
+		rockchip_system_monitor_set_cpu_uevent_suppress(true);
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
@@ -1528,6 +1549,7 @@ static int monitor_pm_notify(struct notifier_block *nb,
 		if (system_monitor->tz)
 			rockchip_system_monitor_thermal_update();
 		atomic_set(&monitor_in_suspend, 0);
+		rockchip_system_monitor_set_cpu_uevent_suppress(false);
 		break;
 	default:
 		break;
