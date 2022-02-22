@@ -87,16 +87,16 @@ static struct da9121_range da9121_3A_1phase_current = {
 };
 
 static struct da9121_range da914x_40A_4phase_current = {
-	.val_min = 14000000,
-	.val_max = 80000000,
-	.val_stp =  2000000,
+	.val_min = 26000000,
+	.val_max = 78000000,
+	.val_stp =  4000000,
 	.reg_min = 1,
 	.reg_max = 14,
 };
 
 static struct da9121_range da914x_20A_2phase_current = {
-	.val_min =  7000000,
-	.val_max = 40000000,
+	.val_min = 13000000,
+	.val_max = 39000000,
 	.val_stp =  2000000,
 	.reg_min = 1,
 	.reg_max = 14,
