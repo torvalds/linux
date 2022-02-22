@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "ext4_extents.h"
@@ -127,7 +128,7 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 		      pgoff_t index1, pgoff_t index2, struct page *page[2])
 {
 	struct address_space *mapping[2];
-	unsigned fl = AOP_FLAG_NOFS;
+	unsigned int flags;
 
 	BUG_ON(!inode1 || !inode2);
 	if (inode1 < inode2) {
@@ -139,11 +140,15 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 		mapping[1] = inode1->i_mapping;
 	}
 
-	page[0] = grab_cache_page_write_begin(mapping[0], index1, fl);
-	if (!page[0])
+	flags = memalloc_nofs_save();
+	page[0] = grab_cache_page_write_begin(mapping[0], index1, 0);
+	if (!page[0]) {
+		memalloc_nofs_restore(flags);
 		return -ENOMEM;
+	}
 
-	page[1] = grab_cache_page_write_begin(mapping[1], index2, fl);
+	page[1] = grab_cache_page_write_begin(mapping[1], index2, 0);
+	memalloc_nofs_restore(flags);
 	if (!page[1]) {
 		unlock_page(page[0]);
 		put_page(page[0]);
