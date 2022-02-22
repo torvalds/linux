@@ -1697,6 +1697,10 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	n = bch2_btree_node_alloc(as, b->c.level);
 	bch2_btree_update_add_new_node(as, n);
 
+	SET_BTREE_NODE_SEQ(n->data,
+			   max(BTREE_NODE_SEQ(b->data),
+			       BTREE_NODE_SEQ(m->data)) + 1);
+
 	btree_set_min(n, prev->data->min_key);
 	btree_set_max(n, next->data->max_key);
 	n->data->format		= new_f;
