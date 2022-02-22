@@ -45,52 +45,49 @@
 #include "spectrum_ptp.h"
 #include "spectrum_trap.h"
 
+#define MLXSW_SP_FWREV_MINOR 2010
+#define MLXSW_SP_FWREV_SUBMINOR 1006
+
 #define MLXSW_SP1_FWREV_MAJOR 13
-#define MLXSW_SP1_FWREV_MINOR 2010
-#define MLXSW_SP1_FWREV_SUBMINOR 1006
 #define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	.major = MLXSW_SP1_FWREV_MAJOR,
-	.minor = MLXSW_SP1_FWREV_MINOR,
-	.subminor = MLXSW_SP1_FWREV_SUBMINOR,
+	.minor = MLXSW_SP_FWREV_MINOR,
+	.subminor = MLXSW_SP_FWREV_SUBMINOR,
 	.can_reset_minor = MLXSW_SP1_FWREV_CAN_RESET_MINOR,
 };
 
 #define MLXSW_SP1_FW_FILENAME \
 	"mellanox/mlxsw_spectrum-" __stringify(MLXSW_SP1_FWREV_MAJOR) \
-	"." __stringify(MLXSW_SP1_FWREV_MINOR) \
-	"." __stringify(MLXSW_SP1_FWREV_SUBMINOR) ".mfa2"
+	"." __stringify(MLXSW_SP_FWREV_MINOR) \
+	"." __stringify(MLXSW_SP_FWREV_SUBMINOR) ".mfa2"
 
 #define MLXSW_SP2_FWREV_MAJOR 29
-#define MLXSW_SP2_FWREV_MINOR 2010
-#define MLXSW_SP2_FWREV_SUBMINOR 1006
 
 static const struct mlxsw_fw_rev mlxsw_sp2_fw_rev = {
 	.major = MLXSW_SP2_FWREV_MAJOR,
-	.minor = MLXSW_SP2_FWREV_MINOR,
-	.subminor = MLXSW_SP2_FWREV_SUBMINOR,
+	.minor = MLXSW_SP_FWREV_MINOR,
+	.subminor = MLXSW_SP_FWREV_SUBMINOR,
 };
 
 #define MLXSW_SP2_FW_FILENAME \
 	"mellanox/mlxsw_spectrum2-" __stringify(MLXSW_SP2_FWREV_MAJOR) \
-	"." __stringify(MLXSW_SP2_FWREV_MINOR) \
-	"." __stringify(MLXSW_SP2_FWREV_SUBMINOR) ".mfa2"
+	"." __stringify(MLXSW_SP_FWREV_MINOR) \
+	"." __stringify(MLXSW_SP_FWREV_SUBMINOR) ".mfa2"
 
 #define MLXSW_SP3_FWREV_MAJOR 30
-#define MLXSW_SP3_FWREV_MINOR 2010
-#define MLXSW_SP3_FWREV_SUBMINOR 1006
 
 static const struct mlxsw_fw_rev mlxsw_sp3_fw_rev = {
 	.major = MLXSW_SP3_FWREV_MAJOR,
-	.minor = MLXSW_SP3_FWREV_MINOR,
-	.subminor = MLXSW_SP3_FWREV_SUBMINOR,
+	.minor = MLXSW_SP_FWREV_MINOR,
+	.subminor = MLXSW_SP_FWREV_SUBMINOR,
 };
 
 #define MLXSW_SP3_FW_FILENAME \
 	"mellanox/mlxsw_spectrum3-" __stringify(MLXSW_SP3_FWREV_MAJOR) \
-	"." __stringify(MLXSW_SP3_FWREV_MINOR) \
-	"." __stringify(MLXSW_SP3_FWREV_SUBMINOR) ".mfa2"
+	"." __stringify(MLXSW_SP_FWREV_MINOR) \
+	"." __stringify(MLXSW_SP_FWREV_SUBMINOR) ".mfa2"
 
 static const char mlxsw_sp1_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp2_driver_name[] = "mlxsw_spectrum2";
