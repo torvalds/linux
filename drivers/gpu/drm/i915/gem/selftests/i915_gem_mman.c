@@ -169,7 +169,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 
 out:
 	i915_gem_object_lock(obj, NULL);
-	__i915_vma_put(vma);
+	i915_vma_destroy(vma);
 	i915_gem_object_unlock(obj);
 	return err;
 }
@@ -266,7 +266,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 			return err;
 
 		i915_gem_object_lock(obj, NULL);
-		__i915_vma_put(vma);
+		i915_vma_destroy(vma);
 		i915_gem_object_unlock(obj);
 
 		if (igt_timeout(end_time,

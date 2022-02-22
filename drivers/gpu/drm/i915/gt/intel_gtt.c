@@ -107,14 +107,19 @@ void __i915_vm_close(struct i915_address_space *vm)
 	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		/* Keep the obj (and hence the vma) alive as _we_ destroy it */
-		if (!kref_get_unless_zero(&obj->base.refcount))
+		if (!kref_get_unless_zero(&obj->base.refcount)) {
+			/*
+			 * Unbind the dying vma to ensure the bound_list
+			 * is completely drained. We leave the destruction to
+			 * the object destructor.
+			 */
+			atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
+			WARN_ON(__i915_vma_unbind(vma));
 			continue;
+		}
 
-		atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
-		WARN_ON(__i915_vma_unbind(vma));
-		__i915_vma_put(vma);
-
+		/* Keep the obj (and hence the vma) alive as _we_ destroy it */
+		i915_vma_destroy_locked(vma);
 		i915_gem_object_put(obj);
 	}
 	GEM_BUG_ON(!list_empty(&vm->bound_list));

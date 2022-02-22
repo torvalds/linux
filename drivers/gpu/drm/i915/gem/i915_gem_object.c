@@ -272,12 +272,6 @@ void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
 
-		/*
-		 * Note that the vma keeps an object reference while
-		 * it is active, so it *should* not sleep while we
-		 * destroy it. Our debug code errs insits it *might*.
-		 * For the moment, play along.
-		 */
 		spin_lock(&obj->vma.lock);
 		while ((vma = list_first_entry_or_null(&obj->vma.list,
 						       struct i915_vma,
@@ -285,13 +279,7 @@ void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 			GEM_BUG_ON(vma->obj != obj);
 			spin_unlock(&obj->vma.lock);
 
-			/* Verify that the vma is unbound under the vm mutex. */
-			mutex_lock(&vma->vm->mutex);
-			atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
-			__i915_vma_unbind(vma);
-			mutex_unlock(&vma->vm->mutex);
-
-			__i915_vma_put(vma);
+			i915_vma_destroy(vma);
 
 			spin_lock(&obj->vma.lock);
 		}
