@@ -35,7 +35,6 @@ static const struct i2c_device_id adxl345_i2c_id[] = {
 	{ "adxl375", ADXL375 },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(i2c, adxl345_i2c_id);
 
 static const struct of_device_id adxl345_of_match[] = {
@@ -43,7 +42,6 @@ static const struct of_device_id adxl345_of_match[] = {
 	{ .compatible = "adi,adxl375", .data = (const void *)ADXL375 },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(of, adxl345_of_match);
 
 static const struct acpi_device_id adxl345_acpi_match[] = {
@@ -61,7 +59,6 @@ static struct i2c_driver adxl345_i2c_driver = {
 	.probe_new	= adxl345_i2c_probe,
 	.id_table	= adxl345_i2c_id,
 };
-
 module_i2c_driver(adxl345_i2c_driver);
 
 MODULE_AUTHOR("Eva Rachel Retuya <eraretuya@gmail.com>");

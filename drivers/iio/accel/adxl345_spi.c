@@ -41,7 +41,6 @@ static const struct spi_device_id adxl345_spi_id[] = {
 	{ "adxl375", ADXL375 },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(spi, adxl345_spi_id);
 
 static const struct of_device_id adxl345_of_match[] = {
@@ -49,7 +48,6 @@ static const struct of_device_id adxl345_of_match[] = {
 	{ .compatible = "adi,adxl375", .data = (const void *)ADXL375 },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(of, adxl345_of_match);
 
 static const struct acpi_device_id adxl345_acpi_match[] = {
@@ -67,7 +65,6 @@ static struct spi_driver adxl345_spi_driver = {
 	.probe		= adxl345_spi_probe,
 	.id_table	= adxl345_spi_id,
 };
-
 module_spi_driver(adxl345_spi_driver);
 
 MODULE_AUTHOR("Eva Rachel Retuya <eraretuya@gmail.com>");
