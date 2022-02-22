@@ -119,7 +119,7 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ifaddrmsg *hdr;
 	struct mctp_dev *mdev;
 	int ifindex;
-	int idx, rc;
+	int idx = 0, rc;
 
 	hdr = nlmsg_data(cb->nlh);
 	// filter by ifindex if requested

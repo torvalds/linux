@@ -456,7 +456,6 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		 * the reassembly/response key
 		 */
 		if (!rc && flags & MCTP_HDR_FLAG_EOM) {
-			msk = container_of(key->sk, struct mctp_sock, sk);
 			sock_queue_rcv_skb(key->sk, key->reasm_head);
 			key->reasm_head = NULL;
 			__mctp_key_done_in(key, net, f, MCTP_TRACE_KEY_REPLIED);
