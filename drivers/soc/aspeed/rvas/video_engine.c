@@ -431,10 +431,7 @@ void set_direct_mode(struct AstRVAS *pAstRVAS)
 			Direct_Mode = 0;
 		} else {
 			if (ColorDepthIndex > 2) {
-				if ((pAstRVAS->current_vg.wStride * pAstRVAS->current_vg.wScreenHeight) > (1024 * 768))
-					Direct_Mode = 1;
-				else
-					Direct_Mode = 0;
+				Direct_Mode = 1;
 			} else {
 				Direct_Mode = 0;
 			}
