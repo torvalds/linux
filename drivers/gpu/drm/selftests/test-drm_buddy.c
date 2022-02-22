@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/prime_numbers.h>
+#include <linux/sched/signal.h>
 
 #include <drm/drm_buddy.h>
 
@@ -15,11 +16,34 @@
 #define TESTS "drm_buddy_selftests.h"
 #include "drm_selftest.h"
 
+#define IGT_TIMEOUT(name__) \
+	unsigned long name__ = jiffies + MAX_SCHEDULE_TIMEOUT
+
 static unsigned int random_seed;
 
 static inline u64 get_size(int order, u64 chunk_size)
 {
 	return (1 << order) * chunk_size;
+}
+
+__printf(2, 3)
+static bool __igt_timeout(unsigned long timeout, const char *fmt, ...)
+{
+	va_list va;
+
+	if (!signal_pending(current)) {
+		cond_resched();
+		if (time_before(jiffies, timeout))
+			return false;
+	}
+
+	if (fmt) {
+		va_start(va, fmt);
+		vprintk(fmt, va);
+		va_end(va);
+	}
+
+	return true;
 }
 
 static inline const char *yesno(bool v)
@@ -312,6 +336,121 @@ static void igt_mm_config(u64 *size, u64 *chunk_size)
 	/* Convert from pages to bytes */
 	*chunk_size = (u64)ms << 12;
 	*size = (u64)s << 12;
+}
+
+static int igt_buddy_alloc_smoke(void *arg)
+{
+	u64 mm_size, min_page_size, chunk_size, start = 0;
+	unsigned long flags = 0;
+	struct drm_buddy mm;
+	int *order;
+	int err, i;
+
+	DRM_RND_STATE(prng, random_seed);
+	IGT_TIMEOUT(end_time);
+
+	igt_mm_config(&mm_size, &chunk_size);
+
+	err = drm_buddy_init(&mm, mm_size, chunk_size);
+	if (err) {
+		pr_err("buddy_init failed(%d)\n", err);
+		return err;
+	}
+
+	order = drm_random_order(mm.max_order + 1, &prng);
+	if (!order)
+		goto out_fini;
+
+	for (i = 0; i <= mm.max_order; ++i) {
+		struct drm_buddy_block *block;
+		int max_order = order[i];
+		bool timeout = false;
+		LIST_HEAD(blocks);
+		u64 total, size;
+		LIST_HEAD(tmp);
+		int order;
+
+		err = igt_check_mm(&mm);
+		if (err) {
+			pr_err("pre-mm check failed, abort\n");
+			break;
+		}
+
+		order = max_order;
+		total = 0;
+
+		do {
+retry:
+			size = min_page_size = get_size(order, chunk_size);
+			err = drm_buddy_alloc_blocks(&mm, start, mm_size, size,
+						     min_page_size, &tmp, flags);
+			if (err) {
+				if (err == -ENOMEM) {
+					pr_info("buddy_alloc hit -ENOMEM with order=%d\n",
+						order);
+				} else {
+					if (order--) {
+						err = 0;
+						goto retry;
+					}
+
+					pr_err("buddy_alloc with order=%d failed(%d)\n",
+					       order, err);
+				}
+
+				break;
+			}
+
+			block = list_first_entry_or_null(&tmp,
+							 struct drm_buddy_block,
+							 link);
+			if (!block) {
+				pr_err("alloc_blocks has no blocks\n");
+				err = -EINVAL;
+				break;
+			}
+
+			list_move_tail(&block->link, &blocks);
+
+			if (drm_buddy_block_order(block) != order) {
+				pr_err("buddy_alloc order mismatch\n");
+				err = -EINVAL;
+				break;
+			}
+
+			total += drm_buddy_block_size(&mm, block);
+
+			if (__igt_timeout(end_time, NULL)) {
+				timeout = true;
+				break;
+			}
+		} while (total < mm.size);
+
+		if (!err)
+			err = igt_check_blocks(&mm, &blocks, total, false);
+
+		drm_buddy_free_list(&mm, &blocks);
+
+		if (!err) {
+			err = igt_check_mm(&mm);
+			if (err)
+				pr_err("post-mm check failed\n");
+		}
+
+		if (err || timeout)
+			break;
+
+		cond_resched();
+	}
+
+	if (err == -ENOMEM)
+		err = 0;
+
+	kfree(order);
+out_fini:
+	drm_buddy_fini(&mm);
+
+	return err;
 }
 
 static int igt_buddy_alloc_pessimistic(void *arg)
