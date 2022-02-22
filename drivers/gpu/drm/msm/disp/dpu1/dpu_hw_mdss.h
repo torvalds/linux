@@ -232,7 +232,6 @@ enum dpu_intf_type {
 	INTF_EDP = 0x9,
 	/* both DP and eDP,  handled by the new DP driver */
 	INTF_DP = 0xa,
-	INTF_TYPE_MAX,
 
 	/* virtual interfaces */
 	INTF_WB = 0x100,
