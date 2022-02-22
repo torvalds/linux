@@ -1528,12 +1528,6 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	init_rate = get_highest_rate_idx(mask) & 0x3f;
 
 	if (haldata->fw_ractrl) {
-		u8 arg;
-
-		arg = mac_id & 0x1f;/* MACID */
-		arg |= BIT(7);
-		if (shortGIrate)
-			arg |= BIT(5);
 		mask |= ((raid << 28) & 0xf0000000);
 		psta->ra_mask = mask;
 		mask |= ((raid << 28) & 0xf0000000);
