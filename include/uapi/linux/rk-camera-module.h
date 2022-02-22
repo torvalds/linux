@@ -352,11 +352,38 @@ struct rkmodule_lsc_cfg {
  * NO_HDR: linear mode
  * HDR_X2: hdr two frame or line mode
  * HDR_X3: hdr three or line mode
+ * HDR_COMPR: linearised and compressed data for hdr
  */
 enum rkmodule_hdr_mode {
 	NO_HDR = 0,
 	HDR_X2 = 5,
 	HDR_X3 = 6,
+	HDR_COMPR,
+};
+
+enum rkmodule_hdr_compr_segment {
+	HDR_COMPR_SEGMENT_4 = 4,
+	HDR_COMPR_SEGMENT_12 = 12,
+	HDR_COMPR_SEGMENT_16 = 16,
+};
+
+/* rkmodule_hdr_compr
+ * linearised and compressed data for hdr: data_src = K * data_compr + XX
+ *
+ * bit: bit of src data, max 20 bit.
+ * segment: linear segment, support 4, 6 or 16.
+ * k_shift: left shift bit of slop amplification factor, 2^k_shift, [0 15].
+ * slope_k: K * 2^k_shift.
+ * data_src_shitf: left shift bit of source data, data_src = 2^data_src_shitf
+ * data_compr: compressed data.
+ */
+struct rkmodule_hdr_compr {
+	enum rkmodule_hdr_compr_segment segment;
+	__u8 bit;
+	__u8 k_shift;
+	__u8 data_src_shitf[HDR_COMPR_SEGMENT_16];
+	__u16 data_compr[HDR_COMPR_SEGMENT_16];
+	__u32 slope_k[HDR_COMPR_SEGMENT_16];
 };
 
 /**
@@ -395,6 +422,7 @@ struct rkmodule_hdr_esp {
 struct rkmodule_hdr_cfg {
 	__u32 hdr_mode;
 	struct rkmodule_hdr_esp esp;
+	struct rkmodule_hdr_compr compr;
 } __attribute__ ((packed));
 
 /* sensor lvds sync code

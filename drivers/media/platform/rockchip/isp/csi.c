@@ -429,6 +429,108 @@ static int csi_config(struct rkisp_csi_device *csi)
 	return 0;
 }
 
+int rkisp_expander_config(struct rkisp_device *dev,
+			  struct rkmodule_hdr_cfg *cfg, bool on)
+{
+	struct rkmodule_hdr_cfg hdr_cfg;
+	int ret = -EINVAL;
+	u32 i, val, num, d0, d1, drop_bit = 0;
+
+	if (dev->isp_ver != ISP_V32)
+		return 0;
+
+	if (!on) {
+		rkisp_write(dev, ISP32_EXPD_CTRL, 0, false);
+		return 0;
+	}
+
+	if (!cfg) {
+		struct v4l2_subdev *sd = NULL;
+
+		get_remote_mipi_sensor(dev, &sd, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
+		if (!sd)
+			goto err;
+		ret = v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_HDR_CFG, &hdr_cfg);
+		if (ret)
+			goto err;
+		cfg = &hdr_cfg;
+	}
+
+	if (cfg->hdr_mode != HDR_COMPR)
+		return 0;
+
+	/* compressed data max 12bit and src data max 20bit */
+	if (cfg->compr.bit > 20)
+		drop_bit = cfg->compr.bit - 20;
+	dev->hdr.compr_bit = cfg->compr.bit - drop_bit;
+
+	num = cfg->compr.segment;
+	for (i = 0; i < num; i++) {
+		val = cfg->compr.slope_k[i];
+		rkisp_write(dev, ISP32_EXPD_K0 + i * 4, val, false);
+	}
+
+	d0 = 0;
+	d1 = cfg->compr.data_compr[0];
+	val = ISP32_EXPD_DATA(d0, d1 > 0xfff ? 0xfff : d1);
+	rkisp_write(dev, ISP32_EXPD_X00_01, val, false);
+
+	d1 = cfg->compr.data_src_shitf[0];
+	val = ISP32_EXPD_DATA(d0, drop_bit ? d1 >> drop_bit : d1);
+	rkisp_write(dev, ISP32_EXPD_Y00_01, val, false);
+
+	for (i = 1; i < num - 1; i += 2) {
+		d0 = cfg->compr.data_compr[i];
+		d1 = cfg->compr.data_compr[i + 1];
+		val = ISP32_EXPD_DATA(d0 > 0xfff ? 0xfff : d0,
+				      d1 > 0xfff ? 0xfff : d1);
+		rkisp_write(dev, ISP32_EXPD_X00_01 + (i + 1) * 2, val, false);
+
+		d0 = cfg->compr.data_src_shitf[i];
+		d1 = cfg->compr.data_src_shitf[i + 1];
+		if (drop_bit) {
+			d0 = d0 >> drop_bit;
+			d1 = d1 >> drop_bit;
+		}
+		val = ISP32_EXPD_DATA(d0, d1);
+		rkisp_write(dev, ISP32_EXPD_Y00_01 + (i + 1) * 2, val, false);
+	}
+
+	/* the last valid point */
+	val = cfg->compr.data_compr[i];
+	val = val > 0xfff ? 0xfff : val;
+	d0 = ISP32_EXPD_DATA(val, val);
+
+	val = cfg->compr.data_src_shitf[i];
+	val = drop_bit ? val >> drop_bit : val;
+	d1 = ISP32_EXPD_DATA(val, val);
+
+	num = HDR_COMPR_SEGMENT_16;
+	for (; i < num - 1; i += 2) {
+		rkisp_write(dev, ISP32_EXPD_X00_01 + (i + 1) * 2, d0, false);
+		rkisp_write(dev, ISP32_EXPD_Y00_01 + (i + 1) * 2, d1, false);
+	}
+	rkisp_write(dev, ISP32_EXPD_Y16, val, false);
+
+	switch (cfg->compr.segment) {
+	case HDR_COMPR_SEGMENT_12:
+		num = 1;
+		break;
+	case HDR_COMPR_SEGMENT_16:
+		num = 2;
+		break;
+	default:
+		num = 0;
+	}
+	val = ISP32_EXPD_EN |
+	      ISP32_EXPD_MODE(num) |
+	      ISP32_EXPD_K_SHIFT(cfg->compr.k_shift);
+	rkisp_write(dev, ISP32_EXPD_CTRL, val, false);
+	return 0;
+err:
+	return -EINVAL;
+}
+
 int rkisp_csi_config_patch(struct rkisp_device *dev)
 {
 	int val = 0, ret = 0;
@@ -458,11 +560,12 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				if (!ret) {
 					dev->hdr.op_mode = hdr_cfg.hdr_mode;
 					dev->hdr.esp_mode = hdr_cfg.esp.mode;
+					rkisp_expander_config(dev, &hdr_cfg, true);
 				}
 			}
 
-			/* normal read back mode for V2X */
-			if (dev->hdr.op_mode == HDR_NORMAL)
+			/* normal read back mode default */
+			if (dev->hdr.op_mode == HDR_NORMAL || dev->hdr.op_mode == HDR_COMPR)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
 
 			if (dev->isp_inp == INP_CIF && dev->hw_dev->is_single)

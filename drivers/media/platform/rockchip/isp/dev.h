@@ -149,6 +149,7 @@ struct rkisp_sensor_info {
 struct rkisp_hdr {
 	u8 op_mode;
 	u8 esp_mode;
+	u8 compr_bit;
 	u8 index[HDR_DMA_MAX];
 	atomic_t refcnt;
 	struct v4l2_subdev *sensor;

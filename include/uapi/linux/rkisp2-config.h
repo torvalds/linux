@@ -334,6 +334,7 @@ struct rkisp_mirror_flip {
  * T_START_X1: isp read one frame
  * T_START_X2: isp read hdr two frame
  * T_START_X3: isp read hdr three frame
+ * T_START_C: isp read hdr linearised and compressed data
  */
 enum isp2x_trigger_mode {
 	T_TRY = BIT(0),
@@ -343,6 +344,7 @@ enum isp2x_trigger_mode {
 	T_START_X1 = BIT(4),
 	T_START_X2 = BIT(5),
 	T_START_X3 = BIT(6),
+	T_START_C = BIT(7),
 };
 
 struct isp2x_csi_trigger {

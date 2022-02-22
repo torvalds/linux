@@ -517,7 +517,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, NULL, true);
 
 	val = 0;
-	if (mode & T_START_X1) {
+	if (mode & (T_START_X1 | T_START_C)) {
 		rd_mode = HDR_RDBK_FRAME1;
 	} else if (mode & T_START_X2) {
 		rd_mode = HDR_RDBK_FRAME2;
@@ -529,6 +529,11 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		rd_mode = dev->rd_mode;
 		val = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	}
+
+	if (mode & T_START_C)
+		rkisp_expander_config(dev, NULL, true);
+	else
+		rkisp_expander_config(dev, NULL, false);
 
 	if (is_feature_on) {
 		if ((ISP2X_MODULE_HDRMGE & ~iq_feature) && (val & SW_HDRMGE_EN)) {
