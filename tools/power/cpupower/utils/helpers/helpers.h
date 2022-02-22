@@ -140,6 +140,8 @@ extern int cpufreq_has_boost_support(unsigned int cpu, int *support,
 
 /* AMD P-State stuff **************************/
 bool cpupower_amd_pstate_enabled(void);
+void amd_pstate_boost_init(unsigned int cpu,
+			   int *support, int *active);
 
 /* AMD P-State stuff **************************/
 
@@ -177,6 +179,9 @@ static inline int cpufreq_has_boost_support(unsigned int cpu, int *support,
 
 static inline bool cpupower_amd_pstate_enabled(void)
 { return false; }
+static inline void amd_pstate_boost_init(unsigned int cpu, int *support,
+					 int *active)
+{}
 
 /* cpuid and cpuinfo helpers  **************************/
 
