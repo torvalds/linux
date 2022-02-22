@@ -783,18 +783,16 @@ static struct nullb_page *null_alloc_page(void)
 
 	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
 	if (!t_page)
-		goto out;
+		return NULL;
 
 	t_page->page = alloc_pages(GFP_NOIO, 0);
-	if (!t_page->page)
-		goto out_freepage;
+	if (!t_page->page) {
+		kfree(t_page);
+		return NULL;
+	}
 
 	memset(t_page->bitmap, 0, sizeof(t_page->bitmap));
 	return t_page;
-out_freepage:
-	kfree(t_page);
-out:
-	return NULL;
 }
 
 static void null_free_page(struct nullb_page *t_page)
