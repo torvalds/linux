@@ -1348,8 +1348,6 @@ void b53_phylink_validate(struct dsa_switch *ds, int port,
 
 	linkmode_and(supported, supported, mask);
 	linkmode_and(state->advertising, state->advertising, mask);
-
-	phylink_helper_basex_speed(state);
 }
 EXPORT_SYMBOL(b53_phylink_validate);
 
