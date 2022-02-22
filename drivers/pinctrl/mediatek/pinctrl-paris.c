@@ -1021,8 +1021,7 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
-int mtk_paris_pinctrl_probe(struct platform_device *pdev,
-			    const struct mtk_pin_soc *soc)
+int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pins;
@@ -1034,7 +1033,11 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev,
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, hw);
-	hw->soc = soc;
+
+	hw->soc = device_get_match_data(dev);
+	if (!hw->soc)
+		return -ENOENT;
+
 	hw->dev = &pdev->dev;
 
 	if (!hw->soc->nbase_names)
