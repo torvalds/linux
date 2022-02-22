@@ -11,6 +11,7 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/display/rockchip_vop.h>
 #include <dt-bindings/sensor-dev.h>
+#include "rk3588-cpu-swap.dtsi"
 
 / {
 	adc_keys: adc-keys {
