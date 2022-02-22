@@ -105,6 +105,7 @@ struct nfs_open_dir_context {
 	__be32	verf[NFS_DIR_VERIFIER_SIZE];
 	__u64 dir_cookie;
 	__u64 dup_cookie;
+	__u64 last_cookie;
 	pgoff_t page_index;
 	signed char duped;
 	bool eof;
