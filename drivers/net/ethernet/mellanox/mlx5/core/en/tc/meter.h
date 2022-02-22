@@ -4,6 +4,7 @@
 #ifndef __MLX5_EN_FLOW_METER_H__
 #define __MLX5_EN_FLOW_METER_H__
 
+struct mlx5e_post_meter_priv;
 struct mlx5e_flow_meter_aso_obj;
 struct mlx5e_flow_meters;
 struct mlx5_flow_attr;
@@ -35,6 +36,7 @@ struct mlx5e_flow_meter_handle {
 struct mlx5e_meter_attr {
 	struct mlx5e_flow_meter_params params;
 	struct mlx5e_flow_meter_handle *meter;
+	struct mlx5e_post_meter_priv *post_meter;
 };
 
 int
@@ -47,8 +49,8 @@ mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *p
 void
 mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter);
 
-struct mlx5_flow_table *
-mlx5e_tc_meter_get_post_meter_ft(struct mlx5e_flow_meters *flow_meters);
+enum mlx5_flow_namespace_type
+mlx5e_tc_meter_get_namespace(struct mlx5e_flow_meters *flow_meters);
 
 struct mlx5e_flow_meters *
 mlx5e_flow_meters_init(struct mlx5e_priv *priv,
