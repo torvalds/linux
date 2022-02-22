@@ -24,12 +24,25 @@ struct mctp_dump_cb {
 	size_t a_idx;
 };
 
-/* unlocked: caller must hold rcu_read_lock */
+/* unlocked: caller must hold rcu_read_lock.
+ * Returned mctp_dev has its refcount incremented, or NULL if unset.
+ */
 struct mctp_dev *__mctp_dev_get(const struct net_device *dev)
 {
-	return rcu_dereference(dev->mctp_ptr);
+	struct mctp_dev *mdev = rcu_dereference(dev->mctp_ptr);
+
+	/* RCU guarantees that any mdev is still live.
+	 * Zero refcount implies a pending free, return NULL.
+	 */
+	if (mdev)
+		if (!refcount_inc_not_zero(&mdev->refs))
+			return NULL;
+	return mdev;
 }
 
+/* Returned mctp_dev does not have refcount incremented. The returned pointer
+ * remains live while rtnl_lock is held, as that prevents mctp_unregister()
+ */
 struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev)
 {
 	return rtnl_dereference(dev->mctp_ptr);
@@ -123,6 +136,7 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 				if (mdev) {
 					rc = mctp_dump_dev_addrinfo(mdev,
 								    skb, cb);
+					mctp_dev_put(mdev);
 					// Error indicates full buffer, this
 					// callback will get retried.
 					if (rc < 0)
@@ -297,7 +311,7 @@ void mctp_dev_hold(struct mctp_dev *mdev)
 
 void mctp_dev_put(struct mctp_dev *mdev)
 {
-	if (refcount_dec_and_test(&mdev->refs)) {
+	if (mdev && refcount_dec_and_test(&mdev->refs)) {
 		dev_put(mdev->dev);
 		kfree_rcu(mdev, rcu);
 	}
@@ -369,6 +383,7 @@ static size_t mctp_get_link_af_size(const struct net_device *dev,
 	if (!mdev)
 		return 0;
 	ret = nla_total_size(4); /* IFLA_MCTP_NET */
+	mctp_dev_put(mdev);
 	return ret;
 }
 

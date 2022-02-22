@@ -836,7 +836,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb = mctp_cb(skb);
-	struct mctp_route tmp_rt;
+	struct mctp_route tmp_rt = {0};
 	struct mctp_sk_key *key;
 	struct net_device *dev;
 	struct mctp_hdr *hdr;
@@ -948,6 +948,7 @@ out_release:
 		mctp_route_release(rt);
 
 	dev_put(dev);
+	mctp_dev_put(tmp_rt.dev);
 
 	return rc;
 
@@ -1124,11 +1125,13 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 
 	rt->output(rt, skb);
 	mctp_route_release(rt);
+	mctp_dev_put(mdev);
 
 	return NET_RX_SUCCESS;
 
 err_drop:
 	kfree_skb(skb);
+	mctp_dev_put(mdev);
 	return NET_RX_DROP;
 }
 
