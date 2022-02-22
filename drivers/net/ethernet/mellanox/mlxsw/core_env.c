@@ -87,6 +87,7 @@ mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id, bool *qsfp,
 		*qsfp = true;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD:
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_OSFP:
 		*qsfp = true;
 		*cmis = true;
 		break;
@@ -303,6 +304,7 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN / 2;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD:
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_OSFP:
 		/* Use SFF_8636 as base type. ethtool should recognize specific
 		 * type through the identifier value.
 		 */
