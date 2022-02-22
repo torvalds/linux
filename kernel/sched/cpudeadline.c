@@ -6,7 +6,6 @@
  *
  *  Author: Juri Lelli <j.lelli@sssup.it>
  */
-#include "sched.h"
 
 static inline int parent(int i)
 {

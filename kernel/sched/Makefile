@@ -30,5 +30,5 @@ endif
 #
 obj-y += core.o
 obj-y += fair.o
+obj-y += build_policy.o
 obj-y += build_utility.o
-obj-y += idle.o rt.o deadline.o cputime.o cpudeadline.o pelt.o

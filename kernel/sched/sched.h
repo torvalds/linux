@@ -13,6 +13,7 @@
 #include <linux/prctl.h>
 #include <linux/ptrace_api.h>
 #include <linux/gfp_api.h>
+#include <linux/posix-timers.h>
 #include <linux/sched/clock.h>
 #include <linux/workqueue_api.h>
 #include <linux/tick.h>
@@ -113,8 +114,11 @@
 #include <linux/cpumask_api.h>
 #include <linux/ctype.h>
 #include <linux/file.h>
+#include <linux/hrtimer_api.h>
+#include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/kref_api.h>
+#include <linux/ktime_api.h>
 #include <linux/lockdep_api.h>
 #include <linux/module.h>
 #include <linux/mutex_api.h>
@@ -126,12 +130,16 @@
 #include <linux/sched/loadavg.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/rseq_api.h>
+#include <linux/sched/signal.h>
 #include <linux/seq_file.h>
 #include <linux/seqlock.h>
+#include <linux/softirq.h>
+#include <linux/spinlock_api.h>
 #include <linux/syscalls_api.h>
 #include <linux/syscalls.h>
 #include <linux/topology.h>
 #include <linux/types.h>
+#include <linux/u64_stats_sync_api.h>
 #include <linux/uaccess.h>
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>

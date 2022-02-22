@@ -15,8 +15,6 @@
  *                    Michael Trimarchi <michael@amarulasolutions.com>,
  *                    Fabio Checconi <fchecconi@gmail.com>
  */
-#include "sched.h"
-#include "pelt.h"
 
 struct dl_bandwidth def_dl_bandwidth;
 
