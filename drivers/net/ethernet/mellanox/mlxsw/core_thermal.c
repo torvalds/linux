@@ -746,9 +746,6 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	int i, err;
 
-	if (!mlxsw_core_res_query_enabled(core))
-		return 0;
-
 	mlxsw_reg_mgpir_pack(mgpir_pl);
 	err = mlxsw_reg_query(core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
@@ -792,9 +789,6 @@ static void
 mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal)
 {
 	int i;
-
-	if (!mlxsw_core_res_query_enabled(thermal->core))
-		return;
 
 	for (i = thermal->tz_module_num - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);
@@ -843,9 +837,6 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 	int i;
 	int err;
 
-	if (!mlxsw_core_res_query_enabled(core))
-		return 0;
-
 	mlxsw_reg_mgpir_pack(mgpir_pl);
 	err = mlxsw_reg_query(core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
@@ -888,9 +879,6 @@ static void
 mlxsw_thermal_gearboxes_fini(struct mlxsw_thermal *thermal)
 {
 	int i;
-
-	if (!mlxsw_core_res_query_enabled(thermal->core))
-		return;
 
 	for (i = thermal->tz_gearbox_num - 1; i >= 0; i--)
 		mlxsw_thermal_gearbox_tz_fini(&thermal->tz_gearbox_arr[i]);

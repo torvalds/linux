@@ -177,12 +177,6 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_driver_priv);
 
-bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->driver->res_query_enabled;
-}
-EXPORT_SYMBOL(mlxsw_core_res_query_enabled);
-
 bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->driver->temp_warn_enabled;

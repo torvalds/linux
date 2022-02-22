@@ -655,9 +655,6 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	u8 module_sensor_max;
 	int i, err;
 
-	if (!mlxsw_core_res_query_enabled(mlxsw_hwmon->core))
-		return 0;
-
 	mlxsw_reg_mgpir_pack(mgpir_pl);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
