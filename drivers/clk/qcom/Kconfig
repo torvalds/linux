@@ -660,6 +660,14 @@ config SM_GCC_8450
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_GPUCC_6350
+	tristate "SM6350 Graphics Clock Controller"
+	select SM_GCC_6350
+	help
+	  Support for the graphics clock controller on SM6350 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SM_GPUCC_8150
 	tristate "SM8150 Graphics Clock Controller"
 	select SM_GCC_8150
