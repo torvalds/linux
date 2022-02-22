@@ -1186,8 +1186,10 @@ static int record__mmap_evlist(struct record *rec,
 
 	if (record__threads_enabled(rec)) {
 		ret = perf_data__create_dir(&rec->data, evlist->core.nr_mmaps);
-		if (ret)
+		if (ret) {
+			pr_err("Failed to create data directory: %s\n", strerror(-ret));
 			return ret;
+		}
 		for (i = 0; i < evlist->core.nr_mmaps; i++) {
 			if (evlist->mmap)
 				evlist->mmap[i].file = &rec->data.dir.files[i];
