@@ -2,7 +2,7 @@
 /*
  * ARTPEC-6 clock initialization
  *
- * Copyright 2015-2016 Axis Comunications AB.
+ * Copyright 2015-2016 Axis Communications AB.
  */
 
 #include <linux/clk-provider.h>
