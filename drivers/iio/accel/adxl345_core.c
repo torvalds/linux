@@ -195,7 +195,7 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
 
 static struct attribute *adxl345_attrs[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	NULL,
+	NULL
 };
 
 static const struct attribute_group adxl345_attrs_group = {
