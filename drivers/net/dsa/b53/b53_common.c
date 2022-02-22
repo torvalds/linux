@@ -1327,11 +1327,14 @@ void b53_phylink_validate(struct dsa_switch *ds, int port,
 
 	/* With the exclusion of 5325/5365, MII, Reverse MII and 802.3z, we
 	 * support Gigabit, including Half duplex.
+	 *
+	 * FIXME: this is weird - 802.3z is always Gigabit, but we exclude
+	 * it here. Why? This makes no sense.
 	 */
-	if (state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_REVMII &&
-	    !phy_interface_mode_is_8023z(state->interface) &&
-	    !(is5325(dev) || is5365(dev))) {
+	if (!(state->interface == PHY_INTERFACE_MODE_MII ||
+	      state->interface == PHY_INTERFACE_MODE_REVMII ||
+	      phy_interface_mode_is_8023z(state->interface) ||
+	      is5325(dev) || is5365(dev))) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseT_Half);
 	}
