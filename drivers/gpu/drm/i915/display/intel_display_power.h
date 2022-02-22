@@ -14,6 +14,11 @@ struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
 
+/*
+ * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
+ * consecutive, so that the pipe,transcoder,port -> power domain macros
+ * work correctly.
+ */
 enum intel_display_power_domain {
 	POWER_DOMAIN_DISPLAY_CORE,
 	POWER_DOMAIN_PIPE_A,
@@ -29,10 +34,12 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_D,
 	POWER_DOMAIN_TRANSCODER_EDP,
-	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
-	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
 	POWER_DOMAIN_TRANSCODER_DSI_A,
 	POWER_DOMAIN_TRANSCODER_DSI_C,
+
+	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
+	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
+
 	POWER_DOMAIN_PORT_DDI_A_LANES,
 	POWER_DOMAIN_PORT_DDI_B_LANES,
 	POWER_DOMAIN_PORT_DDI_C_LANES,
