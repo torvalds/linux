@@ -613,6 +613,28 @@ properties:
           - const: kontron,imx6ul-n6310-som
           - const: fsl,imx6ul
 
+      - description: TQ-Systems TQMa6UL1 SoM on MBa6ULx board
+        items:
+          - enum:
+              - tq,imx6ul-tqma6ul1-mba6ulx
+          - const: tq,imx6ul-tqma6ul1      # MCIMX6G1
+          - const: fsl,imx6ul
+
+      - description: TQ-Systems TQMa6UL2 SoM on MBa6ULx board
+        items:
+          - enum:
+              - tq,imx6ul-tqma6ul2-mba6ulx
+          - const: tq,imx6ul-tqma6ul2      # MCIMX6G2
+          - const: fsl,imx6ul
+
+      - description: TQ-Systems TQMa6ULxL SoM on MBa6ULx[L] board
+        items:
+          - enum:
+              - tq,imx6ul-tqma6ul2l-mba6ulx # using LGA adapter
+              - tq,imx6ul-tqma6ul2l-mba6ulxl
+          - const: tq,imx6ul-tqma6ul2l      # MCIMX6G2, LGA SoM variant
+          - const: fsl,imx6ul
+
       - description: i.MX6ULL based Boards
         items:
           - enum:
@@ -665,6 +687,21 @@ properties:
         items:
           - const: kontron,imx6ull-n6411-s
           - const: kontron,imx6ull-n6411-som
+          - const: fsl,imx6ull
+
+      - description: TQ Systems TQMa6ULLx SoM on MBa6ULx board
+        items:
+          - enum:
+              - tq,imx6ull-tqma6ull2-mba6ulx
+          - const: tq,imx6ull-tqma6ull2      # MCIMX6Y2
+          - const: fsl,imx6ull
+
+      - description: TQ Systems TQMa6ULLxL SoM on MBa6ULx[L] board
+        items:
+          - enum:
+              - tq,imx6ull-tqma6ull2l-mba6ulx # using LGA adapter
+              - tq,imx6ull-tqma6ull2l-mba6ulxl
+          - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
           - const: fsl,imx6ull
 
       - description: i.MX6ULZ based Boards
