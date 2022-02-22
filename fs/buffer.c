@@ -2568,8 +2568,7 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
  * On exit the page is fully uptodate in the areas outside (from,to)
  * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin(struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+int nobh_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
 {

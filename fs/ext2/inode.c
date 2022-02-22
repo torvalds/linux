@@ -917,7 +917,7 @@ ext2_nobh_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
-	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
+	ret = nobh_write_begin(mapping, pos, len, pagep, fsdata,
 			       ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
