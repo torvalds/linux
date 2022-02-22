@@ -222,9 +222,8 @@ static int mtk_pconf_set_driving(struct mtk_pinctrl *pctl,
 }
 
 int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
-		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
-		unsigned int info_num, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0)
+		const struct mtk_pinctrl_devdata *devdata,
+		unsigned int pin, bool isup, unsigned int r1r0)
 {
 	unsigned int i;
 	unsigned int reg_pupd, reg_set, reg_rst;
@@ -232,8 +231,11 @@ int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
 	const struct mtk_pin_spec_pupd_set_samereg *spec_pupd_pin;
 	bool find = false;
 
-	for (i = 0; i < info_num; i++) {
-		if (pin == pupd_infos[i].pin) {
+	if (!devdata->spec_pupd)
+		return -EINVAL;
+
+	for (i = 0; i < devdata->n_spec_pupd; i++) {
+		if (pin == devdata->spec_pupd[i].pin) {
 			find = true;
 			break;
 		}
@@ -242,9 +244,9 @@ int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
 	if (!find)
 		return -EINVAL;
 
-	spec_pupd_pin = pupd_infos + i;
-	reg_set = spec_pupd_pin->offset + align;
-	reg_rst = spec_pupd_pin->offset + (align << 1);
+	spec_pupd_pin = devdata->spec_pupd + i;
+	reg_set = spec_pupd_pin->offset + devdata->port_align;
+	reg_rst = spec_pupd_pin->offset + (devdata->port_align << 1);
 
 	if (isup)
 		reg_pupd = reg_rst;
@@ -298,7 +300,8 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 		 */
 		r1r0 = enable ? arg : MTK_PUPD_SET_R1R0_00;
 		ret = pctl->devdata->spec_pull_set(mtk_get_regmap(pctl, pin),
-			pin, pctl->devdata->port_align, isup, r1r0);
+						   pctl->devdata, pin, isup,
+						   r1r0);
 		if (!ret)
 			return 0;
 	}

@@ -270,13 +270,6 @@ static const struct mtk_pin_spec_pupd_set_samereg mt2701_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(261, 0x140, 8, 9, 10),	/* ms1 ins */
 };
 
-static int mt2701_spec_pull_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt2701_spec_pupd,
-		ARRAY_SIZE(mt2701_spec_pupd), pin, align, isup, r1r0);
-}
-
 static const struct mtk_pin_ies_smt_set mt2701_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 6, 0xb20, 0),
 	MTK_PIN_IES_SMT_SPEC(7, 9, 0xb20, 1),
@@ -508,7 +501,9 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt2701_drv_grp),
 	.pin_drv_grp = mt2701_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt2701_pin_drv),
-	.spec_pull_set = mt2701_spec_pull_set,
+	.spec_pupd = mt2701_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt2701_spec_pupd),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
 	.spec_ies_smt_set = mt2701_ies_smt_set,
 	.spec_pinmux_set = mt2701_spec_pinmux_set,
 	.spec_dir_set = mt2701_spec_dir_set,

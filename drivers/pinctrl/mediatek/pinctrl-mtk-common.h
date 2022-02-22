@@ -193,6 +193,8 @@ struct mtk_eint_offsets {
  *
  * @grp_desc: The driving group info.
  * @pin_drv_grp: The driving group for all pins.
+ * @spec_pupd: Special pull up/down setting
+ * @n_spec_pupd: Number of entries in spec_pupd
  * @spec_pull_set: Each SoC may have special pins for pull up/down setting,
  *  these pins' pull setting are very different, they have separate pull
  *  up/down bit, R0 and R1 resistor bit, so they need special pull setting.
@@ -231,8 +233,11 @@ struct mtk_pinctrl_devdata {
 	unsigned int	n_grp_cls;
 	const struct mtk_pin_drv_grp	*pin_drv_grp;
 	unsigned int	n_pin_drv_grps;
-	int (*spec_pull_set)(struct regmap *reg, unsigned int pin,
-			unsigned char align, bool isup, unsigned int arg);
+	const struct mtk_pin_spec_pupd_set_samereg *spec_pupd;
+	unsigned int n_spec_pupd;
+	int (*spec_pull_set)(struct regmap *regmap,
+			const struct mtk_pinctrl_devdata *devdata,
+			unsigned int pin, bool isup, unsigned int r1r0);
 	int (*spec_ies_smt_set)(struct regmap *reg, unsigned int pin,
 			unsigned char align, int value, enum pin_config_param arg);
 	void (*spec_pinmux_set)(struct regmap *reg, unsigned int pin,
@@ -280,9 +285,8 @@ int mtk_pctrl_init(struct platform_device *pdev,
 int mtk_pctrl_common_probe(struct platform_device *pdev);
 
 int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
-		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
-		unsigned int info_num, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0);
+		const struct mtk_pinctrl_devdata *devdata,
+		unsigned int pin, bool isup, unsigned int r1r0);
 
 int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
 		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,

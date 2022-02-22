@@ -172,13 +172,6 @@ static const struct mtk_pin_spec_pupd_set_samereg mt8127_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(142, 0xdc0, 2, 0, 1),	/* EINT21 */
 };
 
-static int mt8127_spec_pull_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt8127_spec_pupd,
-		ARRAY_SIZE(mt8127_spec_pupd), pin, align, isup, r1r0);
-}
-
 static const struct mtk_pin_ies_smt_set mt8127_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 9, 0x900, 0),
 	MTK_PIN_IES_SMT_SPEC(10, 13, 0x900, 1),
@@ -279,7 +272,9 @@ static const struct mtk_pinctrl_devdata mt8127_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt8127_drv_grp),
 	.pin_drv_grp = mt8127_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt8127_pin_drv),
-	.spec_pull_set = mt8127_spec_pull_set,
+	.spec_pupd = mt8127_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt8127_spec_pupd),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
 	.spec_ies_smt_set = mt8127_ies_smt_set,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0100,
