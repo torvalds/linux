@@ -1952,6 +1952,7 @@
   dma_heap_get_dev
   __sg_page_iter_next
   __sg_page_iter_start
+  swiotlb_max_segment
 
 # required by tcpci_husb311.ko
   i2c_smbus_read_word_data
