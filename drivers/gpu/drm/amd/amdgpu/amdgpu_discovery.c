@@ -435,8 +435,8 @@ next_ip:
 	}
 }
 
-static void amdgpu_disocvery_read_from_harvest_table(struct amdgpu_device *adev,
-						uint32_t *vcn_harvest_count)
+static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
+						     uint32_t *vcn_harvest_count)
 {
 	struct binary_header *bhdr;
 	struct harvest_table *harvest_info;
@@ -1140,7 +1140,7 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 			amdgpu_discovery_read_harvest_bit_per_ip(adev,
 				&vcn_harvest_count);
 	} else {
-		amdgpu_disocvery_read_from_harvest_table(adev,
+		amdgpu_discovery_read_from_harvest_table(adev,
 			&vcn_harvest_count);
 	}
 
