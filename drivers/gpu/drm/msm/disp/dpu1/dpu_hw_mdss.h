@@ -217,12 +217,20 @@ enum dpu_intf {
 	INTF_MAX
 };
 
+/*
+ * Historically these values correspond to the values written to the
+ * DISP_INTF_SEL register, which had to programmed manually. On newer MDP
+ * generations this register is NOP, but we keep the values for historical
+ * reasons.
+ */
 enum dpu_intf_type {
 	INTF_NONE = 0x0,
 	INTF_DSI = 0x1,
 	INTF_HDMI = 0x3,
 	INTF_LCDC = 0x5,
+	/* old eDP found on 8x74 and 8x84 */
 	INTF_EDP = 0x9,
+	/* both DP and eDP,  handled by the new DP driver */
 	INTF_DP = 0xa,
 	INTF_TYPE_MAX,
 
