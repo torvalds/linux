@@ -1061,7 +1061,7 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 		pr_buf(out, "Device:                  %u", i);
 		pr_newline(out);
 
-		printbuf_indent_push(out, 2);
+		pr_indent_push(out, 2);
 
 		pr_buf(out, "UUID:                  ");
 		pr_uuid(out, m->uuid.b);
@@ -1129,7 +1129,7 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 		       BCH_MEMBER_DISCARD(m));
 		pr_newline(out);
 
-		printbuf_indent_pop(out, 2);
+		pr_indent_pop(out, 2);
 	}
 }
 
@@ -1471,9 +1471,9 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	pr_newline(out);
 
 	if (ops && ops->to_text) {
-		printbuf_indent_push(out, 2);
+		pr_indent_push(out, 2);
 		bch2_sb_field_ops[type]->to_text(out, sb, f);
-		printbuf_indent_pop(out, 2);
+		pr_indent_pop(out, 2);
 	}
 }
 
@@ -1656,9 +1656,9 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		pr_newline(out);
 		pr_buf(out, "layout:");
 		pr_newline(out);
-		printbuf_indent_push(out, 2);
+		pr_indent_push(out, 2);
 		bch2_sb_layout_to_text(out, &sb->layout);
-		printbuf_indent_pop(out, 2);
+		pr_indent_pop(out, 2);
 	}
 
 	vstruct_for_each(sb, f)

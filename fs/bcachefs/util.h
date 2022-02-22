@@ -244,8 +244,12 @@ enum printbuf_units {
 struct printbuf {
 	char			*pos;
 	char			*end;
+	char			*last_newline;
+	char			*last_field;
 	unsigned		indent;
 	enum printbuf_units	units;
+	unsigned		tabstop;
+	unsigned		tabstops[4];
 };
 
 static inline size_t printbuf_remaining(struct printbuf *buf)
@@ -253,13 +257,21 @@ static inline size_t printbuf_remaining(struct printbuf *buf)
 	return buf->end - buf->pos;
 }
 
+static inline size_t printbuf_linelen(struct printbuf *buf)
+{
+	return buf->pos - buf->last_newline;
+}
+
 #define _PBUF(_buf, _len)						\
 	((struct printbuf) {						\
-		.pos	= _buf,						\
-		.end	= _buf + _len,					\
+		.pos		= _buf,					\
+		.end		= _buf + _len,				\
+		.last_newline	= _buf,					\
+		.last_field	= _buf,					\
 	})
 
 #define PBUF(_buf) _PBUF(_buf, sizeof(_buf))
+
 
 #define pr_buf(_out, ...)						\
 do {									\
@@ -267,15 +279,27 @@ do {									\
 				 __VA_ARGS__);				\
 } while (0)
 
-static inline void printbuf_indent_push(struct printbuf *buf, unsigned spaces)
+static inline void pr_char(struct printbuf *out, char c)
+{
+	if (printbuf_remaining(out) > 1) {
+		*out->pos = c;
+		out->pos++;
+	}
+}
+
+static inline void pr_indent_push(struct printbuf *buf, unsigned spaces)
 {
 	buf->indent += spaces;
 	while (spaces--)
-		pr_buf(buf, " ");
+		pr_char(buf, ' ');
 }
 
-static inline void printbuf_indent_pop(struct printbuf *buf, unsigned spaces)
+static inline void pr_indent_pop(struct printbuf *buf, unsigned spaces)
 {
+	if (buf->last_newline + buf->indent == buf->pos) {
+		buf->pos -= spaces;
+		buf->pos = '\0';
+	}
 	buf->indent -= spaces;
 }
 
@@ -283,13 +307,59 @@ static inline void pr_newline(struct printbuf *buf)
 {
 	unsigned i;
 
-	pr_buf(buf, "\n");
+	pr_char(buf, '\n');
+
+	buf->last_newline	= buf->pos;
+
 	for (i = 0; i < buf->indent; i++)
-		pr_buf(buf, " ");
+		pr_char(buf, ' ');
+
+	buf->last_field		= buf->pos;
+	buf->tabstop = 0;
+}
+
+static inline void pr_tab(struct printbuf *buf)
+{
+	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
+
+	while (printbuf_remaining(buf) > 1 &&
+	       printbuf_linelen(buf) < buf->tabstops[buf->tabstop])
+		pr_char(buf, ' ');
+
+	buf->last_field = buf->pos;
+	buf->tabstop++;
+}
+
+static inline void pr_tab_rjust(struct printbuf *buf)
+{
+	ssize_t shift = min_t(ssize_t, buf->tabstops[buf->tabstop] -
+			      printbuf_linelen(buf),
+			      printbuf_remaining(buf));
+	ssize_t move = min_t(ssize_t, buf->pos - buf->last_field,
+			     printbuf_remaining(buf) - shift);
+
+	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
+
+	if (shift > 0) {
+		memmove(buf->last_field + shift,
+			buf->last_field,
+			move);
+		memset(buf->last_field, ' ', shift);
+		buf->pos += shift;
+		*buf->pos = 0;
+	}
+
+	buf->last_field = buf->pos;
+	buf->tabstop++;
 }
 
 void bch2_pr_units(struct printbuf *, s64, s64);
 #define pr_units(...) bch2_pr_units(__VA_ARGS__)
+
+static inline void pr_sectors(struct printbuf *out, u64 v)
+{
+	bch2_pr_units(out, v, v << 9);
+}
 
 #ifdef __KERNEL__
 static inline void pr_time(struct printbuf *out, u64 time)

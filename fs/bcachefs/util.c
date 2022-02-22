@@ -117,17 +117,11 @@ void bch2_hprint(struct printbuf *buf, s64 v)
 	if (u && t && v < 100 && v > -100)
 		pr_buf(buf, ".%i", t / 103);
 	if (u)
-		pr_buf(buf, "%c", si_units[u]);
+		pr_char(buf, si_units[u]);
 }
 
 void bch2_pr_units(struct printbuf *out, s64 raw, s64 bytes)
 {
-	if (raw < 0) {
-		pr_buf(out, "-");
-		raw	= -raw;
-		bytes	= -bytes;
-	}
-
 	switch (out->units) {
 	case PRINTBUF_UNITS_RAW:
 		pr_buf(out, "%llu", raw);
