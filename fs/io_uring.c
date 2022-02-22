@@ -7926,7 +7926,15 @@ static __cold int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		ret = wait_for_completion_interruptible(&data->done);
 		if (!ret) {
 			mutex_lock(&ctx->uring_lock);
-			break;
+			if (atomic_read(&data->refs) > 0) {
+				/*
+				 * it has been revived by another thread while
+				 * we were unlocked
+				 */
+				mutex_unlock(&ctx->uring_lock);
+			} else {
+				break;
+			}
 		}
 
 		atomic_inc(&data->refs);
