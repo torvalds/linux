@@ -1296,44 +1296,47 @@ SEQ_RAWDATA_FOPS(compressed_size);
 
 static int deflate_decompress(char *src, size_t slen, char *dst, size_t dlen)
 {
-	int error;
-	struct z_stream_s strm;
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
+	if (aa_g_rawdata_compression_level != 0) {
+		int error = 0;
+		struct z_stream_s strm;
 
-	if (aa_g_rawdata_compression_level == 0) {
-		if (dlen < slen)
-			return -EINVAL;
-		memcpy(dst, src, slen);
-		return 0;
-	}
+		memset(&strm, 0, sizeof(strm));
 
-	memset(&strm, 0, sizeof(strm));
+		strm.workspace = kvzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
+		if (!strm.workspace)
+			return -ENOMEM;
 
-	strm.workspace = kvzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-	if (!strm.workspace)
-		return -ENOMEM;
+		strm.next_in = src;
+		strm.avail_in = slen;
 
-	strm.next_in = src;
-	strm.avail_in = slen;
+		error = zlib_inflateInit(&strm);
+		if (error != Z_OK) {
+			error = -ENOMEM;
+			goto fail_inflate_init;
+		}
 
-	error = zlib_inflateInit(&strm);
-	if (error != Z_OK) {
-		error = -ENOMEM;
-		goto fail_inflate_init;
-	}
+		strm.next_out = dst;
+		strm.avail_out = dlen;
 
-	strm.next_out = dst;
-	strm.avail_out = dlen;
+		error = zlib_inflate(&strm, Z_FINISH);
+		if (error != Z_STREAM_END)
+			error = -EINVAL;
+		else
+			error = 0;
 
-	error = zlib_inflate(&strm, Z_FINISH);
-	if (error != Z_STREAM_END)
-		error = -EINVAL;
-	else
-		error = 0;
-
-	zlib_inflateEnd(&strm);
+		zlib_inflateEnd(&strm);
 fail_inflate_init:
-	kvfree(strm.workspace);
-	return error;
+		kvfree(strm.workspace);
+
+		return error;
+	}
+#endif
+
+	if (dlen < slen)
+		return -EINVAL;
+	memcpy(dst, src, slen);
+	return 0;
 }
 
 static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
