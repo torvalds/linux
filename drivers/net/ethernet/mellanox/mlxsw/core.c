@@ -177,11 +177,6 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_driver_priv);
 
-bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->driver->temp_warn_enabled;
-}
-
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev)
@@ -2033,7 +2028,7 @@ static int mlxsw_core_health_init(struct mlxsw_core *mlxsw_core)
 	struct devlink_health_reporter *fw_fatal;
 	int err;
 
-	if (!mlxsw_core->driver->fw_fatal_enabled)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return 0;
 
 	fw_fatal = devlink_health_reporter_create(devlink, &mlxsw_core_health_fw_fatal_ops,
@@ -2063,7 +2058,7 @@ err_trap_register:
 
 static void mlxsw_core_health_fini(struct mlxsw_core *mlxsw_core)
 {
-	if (!mlxsw_core->driver->fw_fatal_enabled)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return;
 
 	mlxsw_core_health_fw_fatal_config(mlxsw_core, false);
