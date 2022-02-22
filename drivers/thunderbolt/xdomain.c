@@ -1131,11 +1131,6 @@ static int populate_properties(struct tb_xdomain *xd,
 	return 0;
 }
 
-static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
-{
-	return tb_to_switch(xd->dev.parent);
-}
-
 static int tb_xdomain_update_link_attributes(struct tb_xdomain *xd)
 {
 	bool change = false;
