@@ -604,5 +604,6 @@ out:
 	if (sme_me_mask) {
 		physical_mask &= ~sme_me_mask;
 		cc_set_vendor(CC_VENDOR_AMD);
+		cc_set_mask(sme_me_mask);
 	}
 }
