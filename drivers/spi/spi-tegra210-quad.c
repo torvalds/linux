@@ -125,6 +125,10 @@
 #define QSPI_DMA_TIMEOUT			(msecs_to_jiffies(1000))
 #define DEFAULT_QSPI_DMA_BUF_LEN		(64 * 1024)
 
+struct tegra_qspi_soc_data {
+	bool has_dma;
+};
+
 struct tegra_qspi_client_data {
 	int tx_clk_tap_delay;
 	int rx_clk_tap_delay;
@@ -184,6 +188,7 @@ struct tegra_qspi {
 	u32					*tx_dma_buf;
 	dma_addr_t				tx_dma_phys;
 	struct dma_async_tx_descriptor		*tx_dma_desc;
+	const struct tegra_qspi_soc_data	*soc_data;
 };
 
 static inline u32 tegra_qspi_readl(struct tegra_qspi *tqspi, unsigned long offset)
@@ -1191,10 +1196,32 @@ static irqreturn_t tegra_qspi_isr_thread(int irq, void *context_data)
 	return handle_dma_based_xfer(tqspi);
 }
 
+static struct tegra_qspi_soc_data tegra210_qspi_soc_data = {
+	.has_dma = true,
+};
+
+static struct tegra_qspi_soc_data tegra186_qspi_soc_data = {
+	.has_dma = true,
+};
+
+static struct tegra_qspi_soc_data tegra234_qspi_soc_data = {
+	.has_dma = false,
+};
+
 static const struct of_device_id tegra_qspi_of_match[] = {
-	{ .compatible = "nvidia,tegra210-qspi", },
-	{ .compatible = "nvidia,tegra186-qspi", },
-	{ .compatible = "nvidia,tegra194-qspi", },
+	{
+		.compatible = "nvidia,tegra210-qspi",
+		.data	    = &tegra210_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra186-qspi",
+		.data	    = &tegra186_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra194-qspi",
+		.data	    = &tegra186_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra234-qspi",
+		.data	    = &tegra234_qspi_soc_data,
+	},
 	{}
 };
 
