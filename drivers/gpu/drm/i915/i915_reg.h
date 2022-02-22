@@ -13012,12 +13012,6 @@ enum skl_power_gate {
 #define   DSB_ENABLE			(1 << 31)
 #define   DSB_STATUS			(1 << 0)
 
-#define TGL_ROOT_DEVICE_ID		0x9A00
-#define TGL_ROOT_DEVICE_MASK		0xFF00
-#define TGL_ROOT_DEVICE_SKU_MASK	0xF
-#define TGL_ROOT_DEVICE_SKU_ULX		0x2
-#define TGL_ROOT_DEVICE_SKU_ULT		0x4
-
 #define CLKREQ_POLICY			_MMIO(0x101038)
 #define  CLKREQ_POLICY_MEM_UP_OVRD	REG_BIT(1)
 

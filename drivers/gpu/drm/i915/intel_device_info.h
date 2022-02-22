@@ -106,6 +106,9 @@ enum intel_platform {
 /* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
 
+/* TGL */
+#define INTEL_SUBPLATFORM_UY	(0)
+
 /* DG2 */
 #define INTEL_SUBPLATFORM_G10	0
 #define INTEL_SUBPLATFORM_G11	1
