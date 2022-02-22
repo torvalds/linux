@@ -585,10 +585,6 @@ static const struct regulator_desc da9141_reg = {
 	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
 	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
 	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
-	/* Default value of BUCK_BUCK1_0.CH1_SRC_DVC_UP */
-	.ramp_delay = 20000,
-	/* tBUCK_EN */
-	.enable_time = 20,
 };
 
 static const struct regulator_desc da9142_reg = {
