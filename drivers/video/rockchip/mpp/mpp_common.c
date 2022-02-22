@@ -221,6 +221,103 @@ int mpp_power_off(struct mpp_dev *mpp)
 	return 0;
 }
 
+static void task_msgs_reset(struct mpp_task_msgs *msgs)
+{
+	list_del_init(&msgs->list);
+
+	msgs->flags = 0;
+	msgs->req_cnt = 0;
+	msgs->set_cnt = 0;
+	msgs->poll_cnt = 0;
+}
+
+static void task_msgs_init(struct mpp_task_msgs *msgs, struct mpp_session *session)
+{
+	INIT_LIST_HEAD(&msgs->list);
+
+	msgs->session = session;
+	msgs->queue = NULL;
+	msgs->task = NULL;
+	msgs->mpp = NULL;
+
+	msgs->ext_fd = -1;
+
+	task_msgs_reset(msgs);
+}
+
+static struct mpp_task_msgs *get_task_msgs(struct mpp_session *session)
+{
+	unsigned long flags;
+	struct mpp_task_msgs *msgs;
+
+	spin_lock_irqsave(&session->lock_msgs, flags);
+	msgs = list_first_entry_or_null(&session->list_msgs_idle,
+					struct mpp_task_msgs, list_session);
+	if (msgs) {
+		list_move_tail(&msgs->list_session, &session->list_msgs);
+		spin_unlock_irqrestore(&session->lock_msgs, flags);
+
+		return msgs;
+	}
+	spin_unlock_irqrestore(&session->lock_msgs, flags);
+
+	msgs = kzalloc(sizeof(*msgs), GFP_KERNEL);
+	task_msgs_init(msgs, session);
+	INIT_LIST_HEAD(&msgs->list_session);
+
+	spin_lock_irqsave(&session->lock_msgs, flags);
+	list_move_tail(&msgs->list_session, &session->list_msgs);
+	session->msgs_cnt++;
+	spin_unlock_irqrestore(&session->lock_msgs, flags);
+
+	mpp_debug_func(DEBUG_TASK_INFO, "session %p:%d msgs cnt %d\n",
+			session, session->index, session->msgs_cnt);
+
+	return msgs;
+}
+
+static void put_task_msgs(struct mpp_task_msgs *msgs)
+{
+	struct mpp_session *session = msgs->session;
+	unsigned long flags;
+
+	if (!session) {
+		pr_err("invalid msgs without session\n");
+		return;
+	}
+
+	if (msgs->ext_fd >= 0) {
+		fdput(msgs->f);
+		msgs->ext_fd = -1;
+	}
+
+	task_msgs_reset(msgs);
+
+	spin_lock_irqsave(&session->lock_msgs, flags);
+	list_move_tail(&msgs->list_session, &session->list_msgs_idle);
+	spin_unlock_irqrestore(&session->lock_msgs, flags);
+}
+
+static void clear_task_msgs(struct mpp_session *session)
+{
+	struct mpp_task_msgs *msgs, *n;
+	LIST_HEAD(list_to_free);
+	unsigned long flags;
+
+	spin_lock_irqsave(&session->lock_msgs, flags);
+
+	list_for_each_entry_safe(msgs, n, &session->list_msgs, list_session)
+		list_move_tail(&msgs->list_session, &list_to_free);
+
+	list_for_each_entry_safe(msgs, n, &session->list_msgs_idle, list_session)
+		list_move_tail(&msgs->list_session, &list_to_free);
+
+	spin_unlock_irqrestore(&session->lock_msgs, flags);
+
+	list_for_each_entry_safe(msgs, n, &list_to_free, list_session)
+		kfree(msgs);
+}
+
 static int mpp_session_clear(struct mpp_dev *mpp,
 			     struct mpp_session *session)
 {
@@ -244,13 +341,9 @@ static int mpp_session_clear(struct mpp_dev *mpp,
 static struct mpp_session *mpp_session_init(void)
 {
 	struct mpp_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
-	struct mpp_task_msgs *msgs = kzalloc(sizeof(*msgs), GFP_KERNEL);
 
-	if (!session || !msgs) {
-		kfree(session);
-		kfree(msgs);
+	if (!session)
 		return NULL;
-	}
 
 	session->pid = current->pid;
 
@@ -262,9 +355,9 @@ static struct mpp_session *mpp_session_init(void)
 	atomic_set(&session->task_count, 0);
 	atomic_set(&session->release_request, 0);
 
-	session->msgs_cap = 1;
-	session->msgs_cnt = 0;
-	session->msgs = msgs;
+	INIT_LIST_HEAD(&session->list_msgs);
+	INIT_LIST_HEAD(&session->list_msgs_idle);
+	spin_lock_init(&session->lock_msgs);
 
 	mpp_dbg_session("session %p init\n", session);
 	return session;
@@ -315,7 +408,8 @@ int mpp_session_deinit(struct mpp_session *session)
 
 	mpp_dbg_session("session %p:%d deinit\n", session, session->index);
 
-	kfree(session->msgs);
+	clear_task_msgs(session);
+
 	kfree(session);
 	return 0;
 }
@@ -400,7 +494,7 @@ void mpp_free_task(struct kref *ref)
 	}
 	session = task->session;
 
-	mpp_debug_func(DEBUG_TASK_INFO, "task %d:%d state 0x%lx abort %d\n",
+	mpp_debug_func(DEBUG_TASK_INFO, "task %d:%d free state 0x%lx abort %d\n",
 		       session->index, task->task_index, task->state,
 		       atomic_read(&task->abort_request));
 
@@ -623,8 +717,8 @@ static int mpp_task_run(struct mpp_dev *mpp,
 
 	mpp_power_on(mpp);
 	mpp_time_record(task);
-	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
-		  task->session->pid, dev_name(mpp->dev));
+	mpp_debug_func(DEBUG_TASK_INFO, "pid %d run %s\n",
+		       task->session->pid, dev_name(mpp->dev));
 
 	if (mpp->auto_freq_en && mpp->hw_ops->set_freq)
 		mpp->hw_ops->set_freq(mpp, task);
@@ -653,6 +747,7 @@ static void mpp_task_worker_default(struct kthread_work *work_s)
 
 	mpp_debug_enter();
 
+again:
 	task = mpp_taskqueue_get_pending_task(queue);
 	if (!task)
 		goto done;
@@ -660,7 +755,7 @@ static void mpp_task_worker_default(struct kthread_work *work_s)
 	/* if task timeout and aborted, remove it */
 	if (atomic_read(&task->abort_request) > 0) {
 		mpp_taskqueue_pop_pending(queue, task);
-		goto done;
+		goto again;
 	}
 
 	/* get device for current task */
@@ -691,6 +786,8 @@ static void mpp_task_worker_default(struct kthread_work *work_s)
 		set_bit(TASK_STATE_RUNNING, &task->state);
 		if (mpp_task_run(task_mpp, task))
 			mpp_taskqueue_pop_running(queue, task);
+		else
+			goto again;
 	}
 
 done:
@@ -747,8 +844,9 @@ static int mpp_wait_result_default(struct mpp_session *session,
 			task->task_index);
 	}
 
-	mpp_debug_func(DEBUG_TASK_INFO,
-		       "kref_read=%d, ret=%d\n", kref_read(&task->ref), ret);
+	mpp_debug_func(DEBUG_TASK_INFO, "task %d kref_%d\n",
+		       task->task_index, kref_read(&task->ref));
+
 	mpp_session_pop_pending(session, task);
 
 	return ret;
@@ -1071,15 +1169,6 @@ static int mpp_process_request(struct mpp_session *session,
 				return ret;
 		}
 
-		if (session->msgs_cap != mpp->msgs_cap) {
-			kfree(session->msgs);
-			session->msgs = kcalloc(mpp->msgs_cap, sizeof(*session->msgs), GFP_KERNEL);
-			if (!session->msgs)
-				return -EINVAL;
-
-			session->msgs_cap = mpp->msgs_cap;
-		}
-
 		mpp_session_attach_workqueue(session, mpp->queue);
 	} break;
 	case MPP_CMD_INIT_DRIVER_DATA: {
@@ -1225,41 +1314,23 @@ static int mpp_process_request(struct mpp_session *session,
 	return 0;
 }
 
-static void task_msgs_reset(struct mpp_task_msgs *msgs)
-{
-	msgs->flags = 0;
-	msgs->req_cnt = 0;
-	msgs->set_cnt = 0;
-	msgs->poll_cnt = 0;
-}
-
-static void task_msgs_init(struct mpp_task_msgs *msgs, struct mpp_session *session)
-{
-	INIT_LIST_HEAD(&msgs->list);
-
-	msgs->session = session;
-	msgs->queue = NULL;
-	msgs->task = NULL;
-	msgs->mpp = NULL;
-
-	msgs->ext_fd = -1;
-
-	task_msgs_reset(msgs);
-}
-
 static void task_msgs_add(struct mpp_task_msgs *msgs, struct list_head *head)
 {
 	struct mpp_session *session = msgs->session;
 	int ret = 0;
 
 	/* process each task */
-	if (msgs->set_cnt)
+	if (msgs->set_cnt) {
+		/* NOTE: update msg_flags for fd over 1024 */
+		session->msg_flags = msgs->flags;
 		ret = mpp_process_task(session, msgs);
+	}
 
 	if (!ret) {
 		INIT_LIST_HEAD(&msgs->list);
 		list_add_tail(&msgs->list, head);
-		session->msgs_cnt++;
+	} else {
+		put_task_msgs(msgs);
 	}
 }
 
@@ -1267,8 +1338,8 @@ static int mpp_collect_msgs(struct list_head *head, struct mpp_session *session,
 			    unsigned int cmd, void __user *msg)
 {
 	struct mpp_msg_v1 msg_v1;
-	struct mpp_task_msgs *msgs = NULL;
 	struct mpp_request *req;
+	struct mpp_task_msgs *msgs = NULL;
 	int last = 1;
 	int ret;
 
@@ -1324,25 +1395,24 @@ next:
 			goto session_switch_done;
 		}
 
-		if (msgs && msgs->req_cnt) {
-			msgs->session = session;
+		/* NOTE: add previous ready task to queue and drop empty task */
+		if (msgs) {
+			if (msgs->req_cnt)
+				task_msgs_add(msgs, head);
+			else
+				put_task_msgs(msgs);
 
-			task_msgs_add(msgs, head);
+			msgs = NULL;
 		}
 
-		if (f.file->private_data == session) {
-			fdput(f);
-			msgs = &session->msgs[session->msgs_cnt];
-			msgs->ext_fd = -1;
-		} else {
-			session = f.file->private_data;
-			msgs = &session->msgs[session->msgs_cnt];
+		/* switch session */
+		session = f.file->private_data;
+		msgs = get_task_msgs(session);
+
+		if (f.file->private_data == session)
 			msgs->ext_fd = bat_msg.fd;
-			msgs->f = f;
-		}
 
-		/* skip finished message */
-		task_msgs_reset(msgs);
+		msgs->f = f;
 
 		mpp_debug(DEBUG_IOCTL, "fd %d, session %d msg_cnt %d\n",
 				bat_msg.fd, session->index, session->msgs_cnt);
@@ -1355,13 +1425,14 @@ session_switch_done:
 		goto next;
 	}
 
-	if (session->msgs_cnt >= session->msgs_cap) {
-		mpp_err("session %d request count %d more than capacity %d\n",
-			session->index, session->msgs_cnt, session->msgs_cap);
+	if (!msgs)
+		msgs = get_task_msgs(session);
+
+	if (!msgs) {
+		pr_err("session %p:%d failed to get task msgs",
+		       session, session->index);
 		return -EINVAL;
 	}
-
-	msgs = &session->msgs[session->msgs_cnt];
 
 	if (msgs->req_cnt >= MPP_MAX_MSG_NUM) {
 		mpp_err("session %d message count %d more than %d.\n",
@@ -1386,8 +1457,8 @@ session_switch_done:
 	if (!last)
 		goto next;
 
-	msgs->session = session;
 	task_msgs_add(msgs, head);
+	msgs = NULL;
 
 	return 0;
 }
@@ -1424,6 +1495,9 @@ static void mpp_msgs_trigger(struct list_head *msgs_list)
 			queue_prev = queue;
 		}
 
+		if (test_bit(TASK_STATE_ABORT, &task->state))
+			pr_info("try to trigger abort task %d\n", task->task_index);
+
 		atomic_inc(&mpp->task_count);
 
 		set_bit(TASK_STATE_PENDING, &task->state);
@@ -1453,22 +1527,17 @@ static void mpp_msgs_wait(struct list_head *msgs_list)
 			}
 		}
 
-		task_msgs_reset(msgs);
-		list_del_init(&msgs->list);
-		msgs->session->msgs_cnt--;
+		put_task_msgs(msgs);
 
-		if (msgs->ext_fd >= 0)
-			fdput(msgs->f);
 	}
 }
 
 static long mpp_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret = 0;
 	struct mpp_service *srv;
 	struct mpp_session *session = (struct mpp_session *)filp->private_data;
 	struct list_head msgs_list;
-	u32 i;
+	int ret = 0;
 
 	mpp_debug_enter();
 
@@ -1488,10 +1557,6 @@ static long mpp_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		return -EBUSY;
 	}
 
-	for (i = 0; i < session->msgs_cap; i++)
-		task_msgs_init(&session->msgs[i], session);
-
-	session->msgs_cnt = 0;
 	INIT_LIST_HEAD(&msgs_list);
 
 	ret = mpp_collect_msgs(&msgs_list, session, cmd, (void __user *)arg);
@@ -1772,8 +1837,7 @@ int mpp_translate_reg_offset_info(struct mpp_task *task,
 	return 0;
 }
 
-int mpp_task_init(struct mpp_session *session,
-		  struct mpp_task *task)
+int mpp_task_init(struct mpp_session *session, struct mpp_task *task)
 {
 	INIT_LIST_HEAD(&task->pending_link);
 	INIT_LIST_HEAD(&task->queue_link);
@@ -1967,7 +2031,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 			 mpp->task_capacity);
 		/* do not setup autosuspend on multi task device */
 	}
-	mpp->msgs_cap = 1;
 
 	kthread_init_work(&mpp->work, mpp_task_worker_default);
 

@@ -200,6 +200,8 @@ struct mpp_request {
 struct mpp_task_msgs {
 	/* for ioctl msgs bat process */
 	struct list_head list;
+	struct list_head list_session;
+
 	struct mpp_session *session;
 	struct mpp_taskqueue *queue;
 	struct mpp_task *task;
@@ -391,9 +393,10 @@ struct mpp_session {
 	void (*deinit)(struct mpp_session *session);
 
 	/* max message count */
-	int msgs_cap;
 	int msgs_cnt;
-	struct mpp_task_msgs *msgs;
+	struct list_head list_msgs;
+	struct list_head list_msgs_idle;
+	spinlock_t lock_msgs;
 };
 
 /* task state in work thread */
