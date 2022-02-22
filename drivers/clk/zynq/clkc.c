@@ -355,14 +355,14 @@ static void __init zynq_clk_setup(struct device_node *np)
 				periph_parents, enable);
 	}
 
-	zynq_clk_register_periph_clk(lqspi, 0, clk_output_name[lqspi], NULL,
-			SLCR_LQSPI_CLK_CTRL, periph_parents, 0);
+	zynq_clk_register_periph_clk(lqspi, clk_max, clk_output_name[lqspi], NULL,
+				     SLCR_LQSPI_CLK_CTRL, periph_parents, 0);
 
-	zynq_clk_register_periph_clk(smc, 0, clk_output_name[smc], NULL,
-			SLCR_SMC_CLK_CTRL, periph_parents, 0);
+	zynq_clk_register_periph_clk(smc, clk_max, clk_output_name[smc], NULL,
+				     SLCR_SMC_CLK_CTRL, periph_parents, 0);
 
-	zynq_clk_register_periph_clk(pcap, 0, clk_output_name[pcap], NULL,
-			SLCR_PCAP_CLK_CTRL, periph_parents, 0);
+	zynq_clk_register_periph_clk(pcap, clk_max, clk_output_name[pcap], NULL,
+				     SLCR_PCAP_CLK_CTRL, periph_parents, 0);
 
 	zynq_clk_register_periph_clk(sdio0, sdio1, clk_output_name[sdio0],
 			clk_output_name[sdio1], SLCR_SDIO_CLK_CTRL,
