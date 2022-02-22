@@ -338,6 +338,136 @@ static void igt_mm_config(u64 *size, u64 *chunk_size)
 	*size = (u64)s << 12;
 }
 
+static int igt_buddy_alloc_pathological(void *arg)
+{
+	u64 mm_size, size, min_page_size, start = 0;
+	struct drm_buddy_block *block;
+	const int max_order = 3;
+	unsigned long flags = 0;
+	int order, top, err;
+	struct drm_buddy mm;
+	LIST_HEAD(blocks);
+	LIST_HEAD(holes);
+	LIST_HEAD(tmp);
+
+	/*
+	 * Create a pot-sized mm, then allocate one of each possible
+	 * order within. This should leave the mm with exactly one
+	 * page left. Free the largest block, then whittle down again.
+	 * Eventually we will have a fully 50% fragmented mm.
+	 */
+
+	mm_size = PAGE_SIZE << max_order;
+	err = drm_buddy_init(&mm, mm_size, PAGE_SIZE);
+	if (err) {
+		pr_err("buddy_init failed(%d)\n", err);
+		return err;
+	}
+	BUG_ON(mm.max_order != max_order);
+
+	for (top = max_order; top; top--) {
+		/* Make room by freeing the largest allocated block */
+		block = list_first_entry_or_null(&blocks, typeof(*block), link);
+		if (block) {
+			list_del(&block->link);
+			drm_buddy_free_block(&mm, block);
+		}
+
+		for (order = top; order--; ) {
+			size = min_page_size = get_size(order, PAGE_SIZE);
+			err = drm_buddy_alloc_blocks(&mm, start, mm_size, size,
+						     min_page_size, &tmp, flags);
+			if (err) {
+				pr_info("buddy_alloc hit -ENOMEM with order=%d, top=%d\n",
+					order, top);
+				goto err;
+			}
+
+			block = list_first_entry_or_null(&tmp,
+							 struct drm_buddy_block,
+							 link);
+			if (!block) {
+				pr_err("alloc_blocks has no blocks\n");
+				err = -EINVAL;
+				goto err;
+			}
+
+			list_move_tail(&block->link, &blocks);
+		}
+
+		/* There should be one final page for this sub-allocation */
+		size = min_page_size = get_size(0, PAGE_SIZE);
+		err = drm_buddy_alloc_blocks(&mm, start, mm_size, size, min_page_size, &tmp, flags);
+		if (err) {
+			pr_info("buddy_alloc hit -ENOMEM for hole\n");
+			goto err;
+		}
+
+		block = list_first_entry_or_null(&tmp,
+						 struct drm_buddy_block,
+						 link);
+		if (!block) {
+			pr_err("alloc_blocks has no blocks\n");
+			err = -EINVAL;
+			goto err;
+		}
+
+		list_move_tail(&block->link, &holes);
+
+		size = min_page_size = get_size(top, PAGE_SIZE);
+		err = drm_buddy_alloc_blocks(&mm, start, mm_size, size, min_page_size, &tmp, flags);
+		if (!err) {
+			pr_info("buddy_alloc unexpectedly succeeded at top-order %d/%d, it should be full!",
+				top, max_order);
+			block = list_first_entry_or_null(&tmp,
+							 struct drm_buddy_block,
+							 link);
+			if (!block) {
+				pr_err("alloc_blocks has no blocks\n");
+				err = -EINVAL;
+				goto err;
+			}
+
+			list_move_tail(&block->link, &blocks);
+			err = -EINVAL;
+			goto err;
+		}
+	}
+
+	drm_buddy_free_list(&mm, &holes);
+
+	/* Nothing larger than blocks of chunk_size now available */
+	for (order = 1; order <= max_order; order++) {
+		size = min_page_size = get_size(order, PAGE_SIZE);
+		err = drm_buddy_alloc_blocks(&mm, start, mm_size, size, min_page_size, &tmp, flags);
+		if (!err) {
+			pr_info("buddy_alloc unexpectedly succeeded at order %d, it should be full!",
+				order);
+			block = list_first_entry_or_null(&tmp,
+							 struct drm_buddy_block,
+							 link);
+			if (!block) {
+				pr_err("alloc_blocks has no blocks\n");
+				err = -EINVAL;
+				goto err;
+			}
+
+			list_move_tail(&block->link, &blocks);
+			err = -EINVAL;
+			goto err;
+		}
+	}
+
+	if (err)
+		err = 0;
+
+err:
+	list_splice_tail(&holes, &blocks);
+	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_fini(&mm);
+	return err;
+}
+
 static int igt_buddy_alloc_smoke(void *arg)
 {
 	u64 mm_size, min_page_size, chunk_size, start = 0;
