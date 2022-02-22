@@ -1130,12 +1130,12 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 	 * DC off power well to effect target DC state.
 	 */
 	if (!dc_off_enabled)
-		power_well->desc->ops->enable(dev_priv, power_well);
+		intel_power_well_enable(dev_priv, power_well);
 
 	dev_priv->dmc.target_dc_state = state;
 
 	if (!dc_off_enabled)
-		power_well->desc->ops->disable(dev_priv, power_well);
+		intel_power_well_disable(dev_priv, power_well);
 
 unlock:
 	mutex_unlock(&power_domains->lock);
@@ -6073,7 +6073,7 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	drm_dbg_kms(&dev_priv->drm, "toggling display PHY side reset\n");
 
 	/* cmnlane needs DPLL registers */
-	disp2d->desc->ops->enable(dev_priv, disp2d);
+	intel_power_well_enable(dev_priv, disp2d);
 
 	/*
 	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
@@ -6082,7 +6082,7 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	 * Simply ungating isn't enough to reset the PHY enough to get
 	 * ports and lanes running.
 	 */
-	cmn->desc->ops->disable(dev_priv, cmn);
+	intel_power_well_disable(dev_priv, cmn);
 }
 
 static bool vlv_punit_is_power_gated(struct drm_i915_private *dev_priv, u32 reg0)
