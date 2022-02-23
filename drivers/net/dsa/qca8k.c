@@ -2654,7 +2654,7 @@ qca8k_lag_can_offload(struct dsa_switch *ds,
 	int id, members = 0;
 
 	id = dsa_lag_id(ds->dst, lag_dev);
-	if (id < 0 || id >= ds->num_lag_ids)
+	if (id <= 0 || id > ds->num_lag_ids)
 		return false;
 
 	dsa_lag_foreach_port(dp, ds->dst, lag_dev)
@@ -2732,7 +2732,8 @@ qca8k_lag_refresh_portmap(struct dsa_switch *ds, int port,
 	int ret, id, i;
 	u32 val;
 
-	id = dsa_lag_id(ds->dst, lag_dev);
+	/* DSA LAG IDs are one-based, hardware is zero-based */
+	id = dsa_lag_id(ds->dst, lag_dev) - 1;
 
 	/* Read current port member */
 	ret = regmap_read(priv->regmap, QCA8K_REG_GOL_TRUNK_CTRL0, &val);

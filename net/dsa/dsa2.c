@@ -86,13 +86,13 @@ void dsa_lag_map(struct dsa_switch_tree *dst, struct net_device *lag_dev)
 {
 	unsigned int id;
 
-	if (dsa_lag_id(dst, lag_dev) >= 0)
+	if (dsa_lag_id(dst, lag_dev) > 0)
 		/* Already mapped */
 		return;
 
-	for (id = 0; id < dst->lags_len; id++) {
+	for (id = 1; id <= dst->lags_len; id++) {
 		if (!dsa_lag_dev(dst, id)) {
-			dst->lags[id] = lag_dev;
+			dst->lags[id - 1] = lag_dev;
 			return;
 		}
 	}
@@ -124,7 +124,7 @@ void dsa_lag_unmap(struct dsa_switch_tree *dst, struct net_device *lag_dev)
 
 	dsa_lags_foreach_id(id, dst) {
 		if (dsa_lag_dev(dst, id) == lag_dev) {
-			dst->lags[id] = NULL;
+			dst->lags[id - 1] = NULL;
 			break;
 		}
 	}

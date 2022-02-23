@@ -251,7 +251,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		 * so we inject the frame directly on the upper
 		 * team/bond.
 		 */
-		skb->dev = dsa_lag_dev(cpu_dp->dst, source_port);
+		skb->dev = dsa_lag_dev(cpu_dp->dst, source_port + 1);
 	} else {
 		skb->dev = dsa_master_find_slave(dev, source_device,
 						 source_port);
