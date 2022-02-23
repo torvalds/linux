@@ -14,6 +14,7 @@
 #include <linux/ftrace.h>
 #include <linux/bug.h>
 #include <linux/uaccess.h>
+#include <linux/kernel.h>
 #include <asm/module.h>
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
@@ -429,7 +430,7 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 	if (is_mprofile_ftrace_call(name))
 		return create_ftrace_stub(entry, addr, me);
 
-	for (i = 0; i < sizeof(ppc64_stub_insns) / sizeof(u32); i++) {
+	for (i = 0; i < ARRAY_SIZE(ppc64_stub_insns); i++) {
 		if (patch_instruction(&entry->jump[i],
 				      ppc_inst(ppc64_stub_insns[i])))
 			return 0;
