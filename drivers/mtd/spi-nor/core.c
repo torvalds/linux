@@ -2499,9 +2499,6 @@ static void spi_nor_init_flags(struct spi_nor *nor)
 
 	if (flags & USE_CLSR)
 		nor->flags |= SNOR_F_USE_CLSR;
-
-	if (flags & USE_FSR)
-		nor->flags |= SNOR_F_USE_FSR;
 }
 
 /**
