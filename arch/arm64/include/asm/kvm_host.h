@@ -390,6 +390,12 @@ int kvm_s2mpu_init(void);
 static inline int kvm_s2mpu_init(void) { return -ENODEV; }
 #endif
 
+enum pkvm_iommu_driver_id {
+	PKVM_IOMMU_NR_DRIVERS,
+};
+
+int pkvm_iommu_driver_init(enum pkvm_iommu_driver_id drv_id, void *data, size_t size);
+
 struct vcpu_reset_state {
 	unsigned long	pc;
 	unsigned long	r0;
