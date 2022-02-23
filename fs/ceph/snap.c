@@ -522,22 +522,14 @@ static bool has_new_snaps(struct ceph_snap_context *o,
  * Caller must hold snap_rwsem for read (i.e., the realm topology won't
  * change).
  */
-static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
+static void ceph_queue_cap_snap(struct ceph_inode_info *ci,
+				struct ceph_cap_snap **pcapsnap)
 {
 	struct inode *inode = &ci->vfs_inode;
-	struct ceph_cap_snap *capsnap;
 	struct ceph_snap_context *old_snapc, *new_snapc;
+	struct ceph_cap_snap *capsnap = *pcapsnap;
 	struct ceph_buffer *old_blob = NULL;
 	int used, dirty;
-
-	capsnap = kmem_cache_zalloc(ceph_cap_snap_cachep, GFP_NOFS);
-	if (!capsnap) {
-		pr_err("ENOMEM allocating ceph_cap_snap on %p\n", inode);
-		return;
-	}
-	capsnap->cap_flush.is_capsnap = true;
-	INIT_LIST_HEAD(&capsnap->cap_flush.i_list);
-	INIT_LIST_HEAD(&capsnap->cap_flush.g_list);
 
 	spin_lock(&ci->i_ceph_lock);
 	used = __ceph_caps_used(ci);
@@ -595,9 +587,6 @@ static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	     capsnap->need_flush ? "" : "no_flush");
 	ihold(inode);
 
-	refcount_set(&capsnap->nref, 1);
-	INIT_LIST_HEAD(&capsnap->ci_item);
-
 	capsnap->follows = old_snapc->seq;
 	capsnap->issued = __ceph_caps_issued(ci, NULL);
 	capsnap->dirty = dirty;
@@ -635,7 +624,7 @@ static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		/* note mtime, size NOW. */
 		__ceph_finish_cap_snap(ci, capsnap);
 	}
-	capsnap = NULL;
+	*pcapsnap = NULL;
 	old_snapc = NULL;
 
 update_snapc:
@@ -651,8 +640,6 @@ update_snapc:
 	spin_unlock(&ci->i_ceph_lock);
 
 	ceph_buffer_put(old_blob);
-	if (capsnap)
-		kmem_cache_free(ceph_cap_snap_cachep, capsnap);
 	ceph_put_snap_context(old_snapc);
 }
 
@@ -720,6 +707,7 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 {
 	struct ceph_inode_info *ci;
 	struct inode *lastinode = NULL;
+	struct ceph_cap_snap *capsnap = NULL;
 
 	dout("queue_realm_cap_snaps %p %llx inodes\n", realm, realm->ino);
 
@@ -731,12 +719,34 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 		spin_unlock(&realm->inodes_with_caps_lock);
 		iput(lastinode);
 		lastinode = inode;
-		ceph_queue_cap_snap(ci);
+
+		/*
+		 * Allocate the capsnap memory outside of ceph_queue_cap_snap()
+		 * to reduce very possible but unnecessary frequently memory
+		 * allocate/free in this loop.
+		 */
+		if (!capsnap) {
+			capsnap = kmem_cache_zalloc(ceph_cap_snap_cachep, GFP_NOFS);
+			if (!capsnap) {
+				pr_err("ENOMEM allocating ceph_cap_snap on %p\n",
+				       inode);
+				return;
+			}
+		}
+		capsnap->cap_flush.is_capsnap = true;
+		refcount_set(&capsnap->nref, 1);
+		INIT_LIST_HEAD(&capsnap->cap_flush.i_list);
+		INIT_LIST_HEAD(&capsnap->cap_flush.g_list);
+		INIT_LIST_HEAD(&capsnap->ci_item);
+
+		ceph_queue_cap_snap(ci, &capsnap);
 		spin_lock(&realm->inodes_with_caps_lock);
 	}
 	spin_unlock(&realm->inodes_with_caps_lock);
 	iput(lastinode);
 
+	if (capsnap)
+		kmem_cache_free(ceph_cap_snap_cachep, capsnap);
 	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->ino);
 }
 
