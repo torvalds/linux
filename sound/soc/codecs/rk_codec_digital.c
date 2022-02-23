@@ -968,10 +968,18 @@ static const struct rk_codec_digital_soc_data rv1126_data = {
 #ifdef CONFIG_OF
 static const struct of_device_id rcd_of_match[] = {
 	{ .compatible = "rockchip,codec-digital-v1", },
+#ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-codec-digital", .data = &rk3568_data },
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-codec-digital", .data = &rk3588_data },
+#endif
+#ifdef CONFIG_CPU_RV1106
 	{ .compatible = "rockchip,rv1106-codec-digital", .data = &rv1106_data },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-codec-digital", .data = &rv1126_data },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcd_of_match);
