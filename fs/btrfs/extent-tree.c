@@ -598,7 +598,7 @@ fail:
 static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
 					   struct btrfs_root *root,
 					   struct btrfs_path *path,
-					   int refs_to_drop, int *last_ref)
+					   int refs_to_drop)
 {
 	struct btrfs_key key;
 	struct btrfs_extent_data_ref *ref1 = NULL;
@@ -631,7 +631,6 @@ static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
 
 	if (num_refs == 0) {
 		ret = btrfs_del_item(trans, root, path);
-		*last_ref = 1;
 	} else {
 		if (key.type == BTRFS_EXTENT_DATA_REF_KEY)
 			btrfs_set_extent_data_ref_count(leaf, ref1, num_refs);
@@ -1072,8 +1071,7 @@ static noinline_for_stack
 void update_inline_extent_backref(struct btrfs_path *path,
 				  struct btrfs_extent_inline_ref *iref,
 				  int refs_to_mod,
-				  struct btrfs_delayed_extent_op *extent_op,
-				  int *last_ref)
+				  struct btrfs_delayed_extent_op *extent_op)
 {
 	struct extent_buffer *leaf = path->nodes[0];
 	struct btrfs_extent_item *ei;
@@ -1121,7 +1119,6 @@ void update_inline_extent_backref(struct btrfs_path *path,
 		else
 			btrfs_set_shared_data_ref_count(leaf, sref, refs);
 	} else {
-		*last_ref = 1;
 		size =  btrfs_extent_inline_ref_size(type);
 		item_size = btrfs_item_size(leaf, path->slots[0]);
 		ptr = (unsigned long)iref;
@@ -1166,8 +1163,7 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 			}
 			return -EUCLEAN;
 		}
-		update_inline_extent_backref(path, iref, refs_to_add,
-					     extent_op, NULL);
+		update_inline_extent_backref(path, iref, refs_to_add, extent_op);
 	} else if (ret == -ENOENT) {
 		setup_inline_extent_backref(trans->fs_info, path, iref, parent,
 					    root_objectid, owner, offset,
@@ -1181,21 +1177,17 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
 				 struct btrfs_extent_inline_ref *iref,
-				 int refs_to_drop, int is_data, int *last_ref)
+				 int refs_to_drop, int is_data)
 {
 	int ret = 0;
 
 	BUG_ON(!is_data && refs_to_drop != 1);
-	if (iref) {
-		update_inline_extent_backref(path, iref, -refs_to_drop, NULL,
-					     last_ref);
-	} else if (is_data) {
-		ret = remove_extent_data_ref(trans, root, path, refs_to_drop,
-					     last_ref);
-	} else {
-		*last_ref = 1;
+	if (iref)
+		update_inline_extent_backref(path, iref, -refs_to_drop, NULL);
+	else if (is_data)
+		ret = remove_extent_data_ref(trans, root, path, refs_to_drop);
+	else
 		ret = btrfs_del_item(trans, root, path);
-	}
 	return ret;
 }
 
@@ -2942,7 +2934,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	u64 refs;
 	u64 bytenr = node->bytenr;
 	u64 num_bytes = node->num_bytes;
-	int last_ref = 0;
 	bool skinny_metadata = btrfs_fs_incompat(info, SKINNY_METADATA);
 
 	extent_root = btrfs_extent_root(info, bytenr);
@@ -3009,8 +3000,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 			/* Must be SHARED_* item, remove the backref first */
 			ret = remove_extent_backref(trans, extent_root, path,
-						    NULL, refs_to_drop, is_data,
-						    &last_ref);
+						    NULL, refs_to_drop, is_data);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -3135,8 +3125,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		}
 		if (found_extent) {
 			ret = remove_extent_backref(trans, extent_root, path,
-						    iref, refs_to_drop, is_data,
-						    &last_ref);
+						    iref, refs_to_drop, is_data);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -3181,7 +3170,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 		}
 
-		last_ref = 1;
 		ret = btrfs_del_items(trans, extent_root, path, path->slots[0],
 				      num_to_del);
 		if (ret) {
