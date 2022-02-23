@@ -814,6 +814,7 @@ static const struct snd_soc_dai_ops nau8821_dai_ops = {
 	.hw_params = nau8821_hw_params,
 	.set_fmt = nau8821_set_dai_fmt,
 	.mute_stream = nau8821_digital_mute,
+	.no_capture_mute = 1,
 };
 
 #define NAU8821_RATES SNDRV_PCM_RATE_8000_192000
