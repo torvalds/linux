@@ -1197,9 +1197,9 @@ static int tscs42xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
-	/* Slave mode not supported since it needs always-on frame clock */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	/* Consumer mode not supported since it needs always-on frame clock */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ret = snd_soc_component_update_bits(component,
 				R_AIC1, RM_AIC1_MS, RV_AIC1_MS_MASTER);
 		if (ret < 0) {
