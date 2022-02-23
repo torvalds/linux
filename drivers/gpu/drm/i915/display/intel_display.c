@@ -5593,12 +5593,9 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 
 	copy_bigjoiner_crtc_state_nomodeset(state, slave_crtc);
 
-	/* Some fixups */
 	slave_crtc_state->uapi.mode_changed = master_crtc_state->uapi.mode_changed;
 	slave_crtc_state->uapi.connectors_changed = master_crtc_state->uapi.connectors_changed;
 	slave_crtc_state->uapi.active_changed = master_crtc_state->uapi.active_changed;
-	slave_crtc_state->cpu_transcoder = master_crtc_state->cpu_transcoder;
-	slave_crtc_state->has_audio = master_crtc_state->has_audio;
 
 	return 0;
 }
