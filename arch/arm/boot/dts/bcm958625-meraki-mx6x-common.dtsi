@@ -22,7 +22,7 @@
 		};
 
 		led-2 {
-			function = LED_FUNCTION_INDICATOR;
+			function = LED_FUNCTION_POWER;
 			color = <LED_COLOR_ID_GREEN>;
 			pwms = <&pwm 2 50000>;
 			max-brightness = <255>;
