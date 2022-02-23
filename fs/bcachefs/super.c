@@ -835,9 +835,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	if (c->opts.nochanges)
-		set_bit(JOURNAL_NOCHANGES, &c->journal.flags);
-
 	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (i = 0; i < c->sb.nr_devices; i++)
 		if (bch2_dev_exists(c->disk_sb.sb, mi, i) &&
