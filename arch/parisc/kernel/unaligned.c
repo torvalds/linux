@@ -113,7 +113,7 @@ int unaligned_enabled __read_mostly = 1;
 static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
 	unsigned long saddr = regs->ior;
-	unsigned long val = 0;
+	unsigned long val = 0, temp1;
 	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	DPRINTF("load " RFMT ":" RFMT " to r%d for 2 bytes\n", 
@@ -121,15 +121,14 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 
 	__asm__ __volatile__  (
 "	mtsp	%4, %%sr1\n"
-"1:	ldbs	0(%%sr1,%3), %%r20\n"
+"1:	ldbs	0(%%sr1,%3), %2\n"
 "2:	ldbs	1(%%sr1,%3), %0\n"
-"	depw	%%r20, 23, 24, %0\n"
+"	depw	%2, 23, 24, %0\n"
 "3:	\n"
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
-	: "=r" (val), "+r" (ret)
-	: "0" (val), "r" (saddr), "r" (regs->isr)
-	: "r20" );
+	: "+r" (val), "+r" (ret), "=&r" (temp1)
+	: "r" (saddr), "r" (regs->isr) );
 
 	DPRINTF("val = 0x" RFMT "\n", val);
 
