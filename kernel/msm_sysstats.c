@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -28,10 +29,11 @@ struct tgid_iter {
 static struct genl_family family;
 
 static DEFINE_PER_CPU(__u32, sysstats_seqnum);
-#define SYSSTATS_CMD_ATTR_MAX 2
+#define SYSSTATS_CMD_ATTR_MAX 3
 static const struct nla_policy sysstats_cmd_get_policy[SYSSTATS_CMD_ATTR_MAX + 1] = {
 	[SYSSTATS_TASK_CMD_ATTR_PID]  = { .type = NLA_U32 },
-	[SYSSTATS_TASK_CMD_ATTR_FOREACH]  = { .type = NLA_U32 },};
+	[SYSSTATS_TASK_CMD_ATTR_FOREACH]  = { .type = NLA_U32 },
+	[SYSSTATS_TASK_CMD_ATTR_PIDS_OF_NAME] = { .type = NLA_NUL_STRING}};
 
 static int sysstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			      struct genl_info *info)
@@ -40,6 +42,7 @@ static int sysstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 
 	switch (ops->cmd) {
 	case SYSSTATS_TASK_CMD_GET:
+	case SYSSTATS_PIDS_CMD_GET:
 		policy = sysstats_cmd_get_policy;
 		break;
 	case SYSSTATS_MEMINFO_CMD_GET:
@@ -194,6 +197,21 @@ static unsigned long get_system_unreclaimble_info(void)
 
 	return size;
 }
+static char *nla_strdup_cust(const struct nlattr *nla, gfp_t flags)
+{
+	size_t srclen = nla_len(nla);
+	char *src = nla_data(nla), *dst;
+
+	if (srclen > 0 && src[srclen - 1] == '\0')
+		srclen--;
+
+	dst = kmalloc(srclen + 1, flags);
+	if (dst != NULL) {
+		memcpy(dst, src, srclen);
+		dst[srclen] = '\0';
+	}
+	return dst;
+}
 
 static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 {
@@ -319,6 +337,58 @@ retry:
 	}
 	rcu_read_unlock();
 	return iter;
+}
+
+static int sysstats_all_pids_of_name(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct pid_namespace *ns = task_active_pid_ns(current);
+	struct tgid_iter iter;
+	void *reply;
+	struct nlattr *attr;
+	struct nlattr *nla;
+	struct sysstats_pid *stats;
+	char *comm;
+
+	nla = nla_find(nlmsg_attrdata(cb->nlh, GENL_HDRLEN),
+			nlmsg_attrlen(cb->nlh, GENL_HDRLEN),
+			SYSSTATS_TASK_CMD_ATTR_PIDS_OF_NAME);
+	if (!nla)
+		goto out;
+
+	comm = nla_strdup_cust(nla, GFP_KERNEL);
+
+	iter.tgid = cb->args[0];
+	iter.task = NULL;
+	for (iter = next_tgid(ns, iter); iter.task;
+			iter.tgid += 1, iter = next_tgid(ns, iter)) {
+
+		if (strcmp(iter.task->comm, comm))
+			continue;
+		reply = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			cb->nlh->nlmsg_seq, &family, 0, SYSSTATS_PIDS_CMD_GET);
+		if (reply == NULL) {
+			put_task_struct(iter.task);
+			break;
+		}
+		attr = nla_reserve(skb, SYSSTATS_PID_TYPE_STATS,
+				sizeof(struct sysstats_pid));
+		if (!attr) {
+			put_task_struct(iter.task);
+			genlmsg_cancel(skb, reply);
+			break;
+		}
+		stats = nla_data(attr);
+		memset(stats, 0, sizeof(struct sysstats_pid));
+		rcu_read_lock();
+		stats->pid = task_pid_nr_ns(iter.task,
+						task_active_pid_ns(current));
+		rcu_read_unlock();
+		genlmsg_end(skb, reply);
+	}
+	cb->args[0] = iter.tgid;
+	kfree(comm);
+out:
+	return skb->len;
 }
 
 static int sysstats_task_foreach(struct sk_buff *skb, struct netlink_callback *cb)
@@ -549,6 +619,11 @@ static const struct genl_ops sysstats_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= sysstats_meminfo_user_cmd,
 	},
+	{
+		.cmd		= SYSSTATS_PIDS_CMD_GET,
+		.validate	= GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.dumpit		= sysstats_all_pids_of_name,
+	}
 };
 
 static struct genl_family family __ro_after_init = {

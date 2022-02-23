@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _UAPI_MSM_SYSSTATS_H_
 #define _UAPI_MSM_SYSSTATS_H_
@@ -8,7 +9,7 @@
 #include <linux/types.h>
 
 #define SYSSTATS_GENL_NAME	"SYSSTATS"
-#define SYSSTATS_GENL_VERSION	0x1
+#define SYSSTATS_GENL_VERSION	0x2
 
 #define TS_COMM_LEN		32
 
@@ -17,16 +18,21 @@
 #define	SYSSTATS_TYPE_NULL 2
 #define	SYSSTATS_TASK_TYPE_FOREACH 3
 #define	SYSSTATS_MEMINFO_TYPE_STATS 4
+#define	SYSSTATS_PID_TYPE_STATS 5
 
 #define	SYSSTATS_CMD_ATTR_UNSPEC 0
 #define	SYSSTATS_TASK_CMD_ATTR_PID 1
 #define	SYSSTATS_TASK_CMD_ATTR_FOREACH 2
+#define	SYSSTATS_TASK_CMD_ATTR_PIDS_OF_NAME 3
 
 #define	SYSSTATS_CMD_UNSPEC 0
 #define	SYSSTATS_TASK_CMD_GET 1
 #define	SYSSTATS_TASK_CMD_NEW 2
 #define	SYSSTATS_MEMINFO_CMD_GET 3
 #define	SYSSTATS_MEMINFO_CMD_NEW 4
+#define	SYSSTATS_PIDS_CMD_GET 5
+#define	SYSSTATS_PIDS_CMD_NEW 6
+
 
 struct sysstats_task {
 	__u64 anon_rss;	/* KB */
@@ -87,6 +93,10 @@ struct sysstats_mem {
 	__u64 highmem_nr_inactive_anon;
 	__u64 highmem_nr_active_file;
 	__u64 highmem_nr_inactive_file;
+};
+
+struct sysstats_pid {
+	__u64 pid;
 };
 
 #endif /* _UAPI_MSM_SYSSTATS_H_ */
