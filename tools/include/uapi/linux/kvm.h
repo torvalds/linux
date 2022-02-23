@@ -1135,6 +1135,8 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_XSAVE2 208
 #define KVM_CAP_SYS_ATTRIBUTES 209
 #define KVM_CAP_PPC_AIL_MODE_3 210
+#define KVM_CAP_S390_MEM_OP_EXTENSION 211
+#define KVM_CAP_PMU_CAPABILITY 212
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1970,6 +1972,8 @@ struct kvm_dirty_gfn {
 
 #define KVM_BUS_LOCK_DETECTION_OFF             (1 << 0)
 #define KVM_BUS_LOCK_DETECTION_EXIT            (1 << 1)
+
+#define KVM_PMU_CAP_DISABLE                    (1 << 0)
 
 /**
  * struct kvm_stats_header - Header of per vm/vcpu binary statistics data.
