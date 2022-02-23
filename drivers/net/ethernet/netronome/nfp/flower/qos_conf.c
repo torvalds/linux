@@ -11,10 +11,14 @@
 
 #define NFP_FL_QOS_UPDATE		msecs_to_jiffies(1000)
 #define NFP_FL_QOS_PPS  BIT(15)
+#define NFP_FL_QOS_METER  BIT(10)
 
 struct nfp_police_cfg_head {
 	__be32 flags_opts;
-	__be32 port;
+	union {
+		__be32 meter_id;
+		__be32 port;
+	};
 };
 
 enum NFP_FL_QOS_TYPES {
@@ -46,7 +50,15 @@ enum NFP_FL_QOS_TYPES {
  * |                    Committed Information Rate                 |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * Word[0](FLag options):
- * [15] p(pps) 1 for pps ,0 for bps
+ * [15] p(pps) 1 for pps, 0 for bps
+ *
+ * Meter control message
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-------------------------------+-+---+-----+-+---------+-+---+-+
+ * |            Reserved           |p| Y |TYPE |E|TSHFV    |P| PC|R|
+ * +-------------------------------+-+---+-----+-+---------+-+---+-+
+ * |                            meter ID                           |
+ * +-------------------------------+-------------------------------+
  *
  */
 struct nfp_police_config {
@@ -67,6 +79,40 @@ struct nfp_police_stats_reply {
 	__be64 drop_pkts;
 };
 
+int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
+				  bool pps, u32 id, u32 rate, u32 burst)
+{
+	struct nfp_police_config *config;
+	struct sk_buff *skb;
+
+	skb = nfp_flower_cmsg_alloc(app, sizeof(struct nfp_police_config),
+				    NFP_FLOWER_CMSG_TYPE_QOS_MOD, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	config = nfp_flower_cmsg_get_data(skb);
+	memset(config, 0, sizeof(struct nfp_police_config));
+	if (pps)
+		config->head.flags_opts |= cpu_to_be32(NFP_FL_QOS_PPS);
+	if (!ingress)
+		config->head.flags_opts |= cpu_to_be32(NFP_FL_QOS_METER);
+
+	if (ingress)
+		config->head.port = cpu_to_be32(id);
+	else
+		config->head.meter_id = cpu_to_be32(id);
+
+	config->bkt_tkn_p = cpu_to_be32(burst);
+	config->bkt_tkn_c = cpu_to_be32(burst);
+	config->pbs = cpu_to_be32(burst);
+	config->cbs = cpu_to_be32(burst);
+	config->pir = cpu_to_be32(rate);
+	config->cir = cpu_to_be32(rate);
+	nfp_ctrl_tx(app->ctrl, skb);
+
+	return 0;
+}
+
 static int
 nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 				struct tc_cls_matchall_offload *flow,
@@ -77,14 +123,13 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_flower_priv *fl_priv = app->priv;
 	struct flow_action_entry *action = NULL;
 	struct nfp_flower_repr_priv *repr_priv;
-	struct nfp_police_config *config;
 	u32 netdev_port_id, i;
 	struct nfp_repr *repr;
-	struct sk_buff *skb;
 	bool pps_support;
 	u32 bps_num = 0;
 	u32 pps_num = 0;
 	u32 burst;
+	bool pps;
 	u64 rate;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
@@ -169,23 +214,12 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		}
 
 		if (rate != 0) {
-			skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
-						    NFP_FLOWER_CMSG_TYPE_QOS_MOD, GFP_KERNEL);
-			if (!skb)
-				return -ENOMEM;
-
-			config = nfp_flower_cmsg_get_data(skb);
-			memset(config, 0, sizeof(struct nfp_police_config));
+			pps = false;
 			if (action->police.rate_pkt_ps > 0)
-				config->head.flags_opts = cpu_to_be32(NFP_FL_QOS_PPS);
-			config->head.port = cpu_to_be32(netdev_port_id);
-			config->bkt_tkn_p = cpu_to_be32(burst);
-			config->bkt_tkn_c = cpu_to_be32(burst);
-			config->pbs = cpu_to_be32(burst);
-			config->cbs = cpu_to_be32(burst);
-			config->pir = cpu_to_be32(rate);
-			config->cir = cpu_to_be32(rate);
-			nfp_ctrl_tx(repr->app->ctrl, skb);
+				pps = true;
+			nfp_flower_offload_one_police(repr->app, true,
+						      pps, netdev_port_id,
+						      rate, burst);
 		}
 	}
 	repr_priv->qos_table.netdev_port_id = netdev_port_id;
