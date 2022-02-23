@@ -2302,6 +2302,7 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 	cgroup_taskset_first(tset, &css);
 	cs = css_cs(css);
 
+	cpus_read_lock();
 	percpu_down_write(&cpuset_rwsem);
 
 	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
@@ -2355,6 +2356,7 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 		wake_up(&cpuset_attach_wq);
 
 	percpu_up_write(&cpuset_rwsem);
+	cpus_read_unlock();
 }
 
 /* The various types of files and directories in a cpuset file system */
@@ -3538,8 +3540,8 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
 	return cs;
 }
 
-/**
- * cpuset_node_allowed - Can we allocate on a memory node?
+/*
+ * __cpuset_node_allowed - Can we allocate on a memory node?
  * @node: is this an allowed node?
  * @gfp_mask: memory allocation flags
  *
@@ -3710,8 +3712,8 @@ void cpuset_print_current_mems_allowed(void)
 
 int cpuset_memory_pressure_enabled __read_mostly;
 
-/**
- * cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
+/*
+ * __cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
  *
  * Keep a running average of the rate of synchronous (direct)
  * page reclaim efforts initiated by tasks in each cpuset.
@@ -3726,7 +3728,7 @@ int cpuset_memory_pressure_enabled __read_mostly;
  * "memory_pressure".  Value displayed is an integer
  * representing the recent rate of entry into the synchronous
  * (direct) page reclaim by any task attached to the cpuset.
- **/
+ */
 
 void __cpuset_memory_pressure_bump(void)
 {
