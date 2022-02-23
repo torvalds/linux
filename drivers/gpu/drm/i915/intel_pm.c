@@ -5931,7 +5931,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 		val |= PLANE_WM_EN;
 	if (level->ignore_lines)
 		val |= PLANE_WM_IGNORE_LINES;
-	val |= level->blocks;
+	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
 	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
 	intel_de_write_fw(dev_priv, reg, val);
@@ -6579,7 +6579,7 @@ static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 {
 	level->enable = val & PLANE_WM_EN;
 	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
-	level->blocks = val & PLANE_WM_BLOCKS_MASK;
+	level->blocks = REG_FIELD_GET(PLANE_WM_BLOCKS_MASK, val);
 	level->lines = REG_FIELD_GET(PLANE_WM_LINES_MASK, val);
 }
 
