@@ -2802,18 +2802,55 @@ static void intel_encoder_get_config(struct intel_encoder *encoder,
 	intel_crtc_readout_derived_state(crtc_state);
 }
 
+static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (crtc_state->bigjoiner)
+		crtc_state->pipe_src_w /= 2;
+
+	/*
+	 * Pipe horizontal size must be even in:
+	 * - DVO ganged mode
+	 * - LVDS dual channel mode
+	 * - Double wide pipe
+	 */
+	if (crtc_state->pipe_src_w & 1) {
+		if (crtc_state->double_wide) {
+			drm_dbg_kms(&i915->drm,
+				    "[CRTC:%d:%s] Odd pipe source width not supported with double wide pipe\n",
+				    crtc->base.base.id, crtc->base.name);
+			return -EINVAL;
+		}
+
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+		    intel_is_dual_link_lvds(i915)) {
+			drm_dbg_kms(&i915->drm,
+				    "[CRTC:%d:%s] Odd pipe source width not supported with dual link LVDS\n",
+				    crtc->base.base.id, crtc->base.name);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
 				     struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
 	int clock_limit = i915->max_dotclk_freq;
+	int ret;
+
+	ret = intel_crtc_compute_pipe_src(crtc_state);
+	if (ret)
+		return ret;
 
 	drm_mode_copy(pipe_mode, &crtc_state->hw.adjusted_mode);
 
 	intel_bigjoiner_adjust_timings(crtc_state, pipe_mode);
-	if (crtc_state->bigjoiner)
-		crtc_state->pipe_src_w /= 2;
 
 	intel_splitter_adjust_timings(crtc_state, pipe_mode);
 
@@ -2839,27 +2876,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 			    pipe_mode->crtc_clock, clock_limit,
 			    yesno(crtc_state->double_wide));
 		return -EINVAL;
-	}
-
-	/*
-	 * Pipe horizontal size must be even in:
-	 * - DVO ganged mode
-	 * - LVDS dual channel mode
-	 * - Double wide pipe
-	 */
-	if (crtc_state->pipe_src_w & 1) {
-		if (crtc_state->double_wide) {
-			drm_dbg_kms(&i915->drm,
-				    "Odd pipe source width not supported with double wide pipe\n");
-			return -EINVAL;
-		}
-
-		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-		    intel_is_dual_link_lvds(i915)) {
-			drm_dbg_kms(&i915->drm,
-				    "Odd pipe source width not supported with dual link LVDS\n");
-			return -EINVAL;
-		}
 	}
 
 	intel_crtc_compute_pixel_rate(crtc_state);
