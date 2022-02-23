@@ -234,7 +234,7 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 
 static int emulate_sth(struct pt_regs *regs, int frreg)
 {
-	unsigned long val = regs->gr[frreg];
+	unsigned long val = regs->gr[frreg], temp1;
 	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	if (!frreg)
@@ -244,16 +244,15 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 		val, regs->isr, regs->ior);
 
 	__asm__ __volatile__ (
-"	mtsp %3, %%sr1\n"
-"	extrw,u %1, 23, 8, %%r19\n"
-"1:	stb %1, 1(%%sr1, %2)\n"
-"2:	stb %%r19, 0(%%sr1, %2)\n"
+"	mtsp %4, %%sr1\n"
+"	extrw,u %2, 23, 8, %1\n"
+"1:	stb %1, 0(%%sr1, %3)\n"
+"2:	stb %2, 1(%%sr1, %3)\n"
 "3:	\n"
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
-	: "+r" (ret)
-	: "r" (val), "r" (regs->ior), "r" (regs->isr)
-	: "r19" );
+	: "+r" (ret), "=&r" (temp1)
+	: "r" (val), "r" (regs->ior), "r" (regs->isr) );
 
 	return ret;
 }
