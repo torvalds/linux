@@ -149,6 +149,8 @@ enum {
 
 	/* Indicates there was an error cleaning up a log tree. */
 	BTRFS_FS_STATE_LOG_CLEANUP_ERROR,
+
+	BTRFS_FS_STATE_COUNT
 };
 
 #define BTRFS_BACKREF_REV_MAX		256
