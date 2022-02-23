@@ -97,9 +97,13 @@ static int iomemtest(struct intel_memory_region *mem,
 		     bool test_all,
 		     const void *caller)
 {
-	resource_size_t last = resource_size(&mem->region) - PAGE_SIZE;
-	resource_size_t page;
+	resource_size_t last, page;
 	int err;
+
+	if (resource_size(&mem->region) < PAGE_SIZE)
+		return 0;
+
+	last = resource_size(&mem->region) - PAGE_SIZE;
 
 	/*
 	 * Quick test to check read/write access to the iomap (backing store).
