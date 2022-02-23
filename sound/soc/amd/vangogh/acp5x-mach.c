@@ -100,6 +100,13 @@ static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.mask = 0,
 };
 
+static const unsigned int acp5x_nau8821_format[] = {32};
+
+static struct snd_pcm_hw_constraint_list constraints_sample_bits = {
+	.list = acp5x_nau8821_format,
+	.count = ARRAY_SIZE(acp5x_nau8821_format),
+};
+
 static int acp5x_8821_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -115,6 +122,9 @@ static int acp5x_8821_startup(struct snd_pcm_substream *substream)
 				   &constraints_channels);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				   &constraints_rates);
+	snd_pcm_hw_constraint_list(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				   &constraints_sample_bits);
 	return 0;
 }
 
