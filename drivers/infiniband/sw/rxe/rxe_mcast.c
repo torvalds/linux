@@ -259,6 +259,46 @@ static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 	spin_unlock_irqrestore(&mcg->rxe->mcg_lock, flags);
 }
 
+/**
+ * __rxe_init_mca - initialize a new mca holding lock
+ * @qp: qp object
+ * @mcg: mcg object
+ * @mca: empty space for new mca
+ *
+ * Context: caller must hold references on qp and mcg, rxe->mcg_lock
+ * and pass memory for new mca
+ *
+ * Returns: 0 on success else an error
+ */
+static int __rxe_init_mca(struct rxe_qp *qp, struct rxe_mcg *mcg,
+			  struct rxe_mca *mca)
+{
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	int n;
+
+	n = atomic_inc_return(&rxe->mcg_attach);
+	if (n > rxe->attr.max_total_mcast_qp_attach) {
+		atomic_dec(&rxe->mcg_attach);
+		return -ENOMEM;
+	}
+
+	n = atomic_inc_return(&mcg->qp_num);
+	if (n > rxe->attr.max_mcast_qp_attach) {
+		atomic_dec(&mcg->qp_num);
+		atomic_dec(&rxe->mcg_attach);
+		return -ENOMEM;
+	}
+
+	atomic_inc(&qp->mcg_num);
+
+	rxe_add_ref(qp);
+	mca->qp = qp;
+
+	list_add_tail(&mca->qp_list, &mcg->qp_list);
+
+	return 0;
+}
+
 static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 				  struct rxe_mcg *mcg)
 {
@@ -291,22 +331,9 @@ static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 		}
 	}
 
-	/* check limits after checking if already attached */
-	if (atomic_inc_return(&mcg->qp_num) > rxe->attr.max_mcast_qp_attach) {
-		atomic_dec(&mcg->qp_num);
+	err = __rxe_init_mca(qp, mcg, mca);
+	if (err)
 		kfree(mca);
-		err = -ENOMEM;
-		goto out;
-	}
-
-	/* protect pointer to qp in mca */
-	rxe_add_ref(qp);
-	mca->qp = qp;
-
-	atomic_inc(&qp->mcg_num);
-	list_add(&mca->qp_list, &mcg->qp_list);
-
-	err = 0;
 out:
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
 	return err;
@@ -329,6 +356,7 @@ static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 		if (mca->qp == qp) {
 			list_del(&mca->qp_list);
 			atomic_dec(&qp->mcg_num);
+			atomic_dec(&rxe->mcg_attach);
 			rxe_drop_ref(qp);
 
 			/* if the number of qp's attached to the
