@@ -7921,7 +7921,8 @@ static bool is_permanent_ops_registered(void)
 	return false;
 }
 
-int
+#ifdef CONFIG_SYSCTL
+static int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -7964,3 +7965,22 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	mutex_unlock(&ftrace_lock);
 	return ret;
 }
+
+static struct ctl_table ftrace_sysctls[] = {
+	{
+		.procname       = "ftrace_enabled",
+		.data           = &ftrace_enabled,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = ftrace_enable_sysctl,
+	},
+	{}
+};
+
+static int __init ftrace_sysctl_init(void)
+{
+	register_sysctl_init("kernel", ftrace_sysctls);
+	return 0;
+}
+late_initcall(ftrace_sysctl_init);
+#endif

@@ -1751,15 +1751,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#ifdef CONFIG_FUNCTION_TRACER
-	{
-		.procname	= "ftrace_enabled",
-		.data		= &ftrace_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= ftrace_enable_sysctl,
-	},
-#endif
 #ifdef CONFIG_STACK_TRACER
 	{
 		.procname	= "stack_tracer_enabled",
