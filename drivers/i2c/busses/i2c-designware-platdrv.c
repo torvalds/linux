@@ -445,9 +445,7 @@ static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i2c_lock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
-	i_dev->suspended = true;
-	i2c_unlock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
+	i2c_mark_adapter_suspended(&i_dev->adapter);
 
 	return dw_i2c_plat_runtime_suspend(dev);
 }
@@ -469,10 +467,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	dw_i2c_plat_runtime_resume(dev);
-
-	i2c_lock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
-	i_dev->suspended = false;
-	i2c_unlock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
+	i2c_mark_adapter_resumed(&i_dev->adapter);
 
 	return 0;
 }
