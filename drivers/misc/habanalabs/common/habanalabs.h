@@ -142,6 +142,9 @@ enum hl_mmu_page_table_location {
  *
  * - HL_DRV_RESET_FW_FATAL_ERR
  *       Set if reset is due to a fatal error from FW
+ *
+ * - HL_DRV_RESET_DELAY
+ *       Set if a delay should be added before the reset
  */
 
 #define HL_DRV_RESET_HARD		(1 << 0)
@@ -151,6 +154,7 @@ enum hl_mmu_page_table_location {
 #define HL_DRV_RESET_DEV_RELEASE	(1 << 4)
 #define HL_DRV_RESET_BYPASS_REQ_TO_FW	(1 << 5)
 #define HL_DRV_RESET_FW_FATAL_ERR	(1 << 6)
+#define HL_DRV_RESET_DELAY		(1 << 7)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 

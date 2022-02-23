@@ -13,6 +13,8 @@
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 
+#define HL_RESET_DELAY_USEC		10000	/* 10ms */
+
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
@@ -980,7 +982,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
 			reset_upon_device_release = false, schedule_hard_reset = false,
-			skip_wq_flush = false;
+			skip_wq_flush, delay_reset;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -994,6 +996,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	from_hard_reset_thread = !!(flags & HL_DRV_RESET_FROM_RESET_THR);
 	fw_reset = !!(flags & HL_DRV_RESET_BYPASS_REQ_TO_FW);
 	skip_wq_flush = !!(flags & HL_DRV_RESET_DEV_RELEASE);
+	delay_reset = !!(flags & HL_DRV_RESET_DELAY);
 
 	if (!hard_reset && !hdev->asic_prop.supports_soft_reset) {
 		hard_instead_soft = true;
@@ -1042,6 +1045,9 @@ do_reset:
 		}
 		hdev->reset_info.in_reset = 1;
 		spin_unlock(&hdev->reset_info.lock);
+
+		if (delay_reset)
+			usleep_range(HL_RESET_DELAY_USEC, HL_RESET_DELAY_USEC << 1);
 
 		handle_reset_trigger(hdev, flags);
 

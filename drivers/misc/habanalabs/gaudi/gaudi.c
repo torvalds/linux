@@ -8199,7 +8199,7 @@ reset_device:
 					| HL_DRV_RESET_BYPASS_REQ_TO_FW
 					| fw_fatal_err_flag);
 	else if (hdev->hard_reset_on_fw_events)
-		hl_device_reset(hdev, HL_DRV_RESET_HARD | fw_fatal_err_flag);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD | HL_DRV_RESET_DELAY | fw_fatal_err_flag);
 	else
 		hl_fw_unmask_irq(hdev, event_type);
 }
