@@ -121,12 +121,12 @@ enum {
 	DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_1		= 0x70,
 	DR_STE_V1_ACTION_MDFY_FLD_METADATA_2_CQE	= 0x7b,
 	DR_STE_V1_ACTION_MDFY_FLD_GNRL_PURPOSE		= 0x7c,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2		= 0x8c,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_3		= 0x8d,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_4		= 0x8e,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_5		= 0x8f,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_6		= 0x90,
-	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_7		= 0x91,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2_0		= 0x8c,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2_1		= 0x8d,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_1_0		= 0x8e,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_1_1		= 0x8f,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_0		= 0x90,
+	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_1		= 0x91,
 };
 
 static const struct mlx5dr_ste_action_modify_field dr_ste_v1_action_modify_field_arr[] = {
@@ -223,22 +223,22 @@ static const struct mlx5dr_ste_action_modify_field dr_ste_v1_action_modify_field
 		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_METADATA_2_CQE, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_0] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_6, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_0, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_1] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_7, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_1, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_2] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_4, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_1_0, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_3] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_5, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_1_1, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_4] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2_0, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_METADATA_REG_C_5] = {
-		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_3, .start = 0, .end = 31,
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2_1, .start = 0, .end = 31,
 	},
 	[MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM] = {
 		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_TCP_MISC_0, .start = 0, .end = 31,
