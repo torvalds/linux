@@ -121,7 +121,11 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	if (!realm)
 		return ERR_PTR(-ENOMEM);
 
-	atomic_set(&realm->nref, 1);    /* for caller */
+	/* Do not release the global dummy snaprealm until unmouting */
+	if (ino == CEPH_INO_GLOBAL_SNAPREALM)
+		atomic_set(&realm->nref, 2);
+	else
+		atomic_set(&realm->nref, 1);
 	realm->ino = ino;
 	INIT_LIST_HEAD(&realm->children);
 	INIT_LIST_HEAD(&realm->child_item);
@@ -261,9 +265,14 @@ static void __cleanup_empty_realms(struct ceph_mds_client *mdsc)
 	spin_unlock(&mdsc->snap_empty_lock);
 }
 
-void ceph_cleanup_empty_realms(struct ceph_mds_client *mdsc)
+void ceph_cleanup_global_and_empty_realms(struct ceph_mds_client *mdsc)
 {
+	struct ceph_snap_realm *global_realm;
+
 	down_write(&mdsc->snap_rwsem);
+	global_realm = __lookup_snap_realm(mdsc, CEPH_INO_GLOBAL_SNAPREALM);
+	if (global_realm)
+		ceph_put_snap_realm(mdsc, global_realm);
 	__cleanup_empty_realms(mdsc);
 	up_write(&mdsc->snap_rwsem);
 }
