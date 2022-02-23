@@ -1207,8 +1207,6 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		hdev,
 		cpu_boot_status_reg,
 		status,
-		(status == CPU_BOOT_STATUS_IN_UBOOT) ||
-		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
