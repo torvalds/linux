@@ -15,7 +15,6 @@ enum spi_nor_option_flags {
 	SNOR_F_USE_FSR		= BIT(0),
 	SNOR_F_HAS_SR_TB	= BIT(1),
 	SNOR_F_NO_OP_CHIP_ERASE	= BIT(2),
-	SNOR_F_READY_XSR_RDY	= BIT(3),
 	SNOR_F_USE_CLSR		= BIT(4),
 	SNOR_F_BROKEN_RESET	= BIT(5),
 	SNOR_F_4B_OPCODES	= BIT(6),
@@ -351,8 +350,6 @@ struct spi_nor_fixups {
  *   SPI_NOR_NO_FR:           can't do fastread.
  *   USE_CLSR:                use CLSR command.
  *   USE_FSR:                 use flag status register
- *   SPI_NOR_XSR_RDY:         S3AN flashes have specific opcode to read the
- *                            status register.
  *
  * @no_sfdp_flags:  flags that indicate support that can be discovered via SFDP.
  *                  Used when SFDP tables are not defined in the flash. These
@@ -405,7 +402,6 @@ struct flash_info {
 #define SPI_NOR_NO_FR			BIT(8)
 #define USE_CLSR			BIT(9)
 #define USE_FSR				BIT(10)
-#define SPI_NOR_XSR_RDY			BIT(11)
 
 	u8 no_sfdp_flags;
 #define SPI_NOR_SKIP_SFDP		BIT(0)
@@ -461,19 +457,6 @@ struct flash_info {
 		.page_size = (_page_size),				\
 		.addr_width = (_addr_width),				\
 		.flags = SPI_NOR_NO_ERASE | SPI_NOR_NO_FR,		\
-
-#define S3AN_INFO(_jedec_id, _n_sectors, _page_size)			\
-		.id = {							\
-			((_jedec_id) >> 16) & 0xff,			\
-			((_jedec_id) >> 8) & 0xff,			\
-			(_jedec_id) & 0xff				\
-			},						\
-		.id_len = 3,						\
-		.sector_size = (8 * (_page_size)),			\
-		.n_sectors = (_n_sectors),				\
-		.page_size = (_page_size),				\
-		.addr_width = 3,					\
-		.flags = SPI_NOR_NO_FR | SPI_NOR_XSR_RDY,
 
 #define OTP_INFO(_len, _n_regions, _base, _offset)			\
 		.otp_org = {						\
@@ -564,7 +547,6 @@ int spi_nor_write_sr(struct spi_nor *nor, const u8 *sr, size_t len);
 int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 sr1);
 int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr);
 
-int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr);
 ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len,
 			  u8 *buf);
 ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
