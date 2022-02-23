@@ -4455,12 +4455,6 @@ intel_dp_detect(struct drm_connector *connector,
 		memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
 		memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
 
-		/* Reset VRR Capable property */
-		drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] VRR capable: FALSE\n",
-			    connector->base.id, connector->name);
-		drm_connector_set_vrr_capable_property(connector,
-						       false);
-
 		if (intel_dp->is_mst) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "MST device may have disappeared %d vs %d\n",
@@ -4575,18 +4569,15 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct edid *edid;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 	int num_modes = 0;
 
 	edid = intel_connector->detect_edid;
 	if (edid) {
-		bool vrr_capable;
-
 		num_modes = intel_connector_update_modes(connector, edid);
-		vrr_capable = intel_vrr_is_capable(connector);
-		drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] VRR capable: %s\n",
-			    connector->base.id, connector->name, yesno(vrr_capable));
-		drm_connector_set_vrr_capable_property(connector, vrr_capable);
+
+		if (intel_vrr_is_capable(connector))
+			drm_connector_set_vrr_capable_property(connector,
+							       true);
 	}
 
 	/* Also add fixed mode, which may or may not be present in EDID */
