@@ -413,6 +413,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop_table_size = HOP_TABLE_SIZE_512_PTE;
 	prop->mmu_hop0_tables_total_size = HOP0_512_PTE_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
+	prop->device_mem_alloc_default_page_size = prop->dram_page_size;
 	prop->dram_supports_virtual_memory = true;
 
 	prop->dmmu.hop0_shift = MMU_V1_0_HOP0_SHIFT;

@@ -528,6 +528,10 @@ struct hl_hints_range {
  * @fw_app_cpu_boot_dev_sts1: bitmap representation of application security
  *                            status reported by FW, bit description can be
  *                            found in CPU_BOOT_DEV_STS1
+ * @device_mem_alloc_default_page_size: may be different than dram_page_size only for ASICs for
+ *                                      which the property supports_user_set_page_size is true
+ *                                      (i.e. the DRAM supports multiple page sizes), otherwise
+ *                                      it will shall  be equal to dram_page_size.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -626,6 +630,7 @@ struct asic_fixed_properties {
 	u32				fw_bootfit_cpu_boot_dev_sts1;
 	u32				fw_app_cpu_boot_dev_sts0;
 	u32				fw_app_cpu_boot_dev_sts1;
+	u32				device_mem_alloc_default_page_size;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;

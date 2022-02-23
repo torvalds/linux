@@ -41,7 +41,7 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 			return -EINVAL;
 		}
 	} else {
-		psize = hdev->asic_prop.dram_page_size;
+		psize = prop->device_mem_alloc_default_page_size;
 	}
 
 	*page_size = psize;
