@@ -133,6 +133,11 @@ struct ice_vf {
 	struct devlink_port devlink_port;
 };
 
+/* Flags for controlling behavior of ice_reset_vf */
+enum ice_vf_reset_flags {
+	ICE_VF_RESET_VFLR = BIT(0), /* Indicate a VFLR reset */
+};
+
 static inline u16 ice_vf_get_port_vlan_id(struct ice_vf *vf)
 {
 	return vf->port_vlan_info.vid;
@@ -212,7 +217,7 @@ int
 ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m);
 int
 ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m);
-int ice_reset_vf(struct ice_vf *vf, bool is_vflr);
+int ice_reset_vf(struct ice_vf *vf, u32 flags);
 void ice_reset_all_vfs(struct ice_pf *pf);
 #else /* CONFIG_PCI_IOV */
 static inline struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
@@ -270,7 +275,7 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	return -EOPNOTSUPP;
 }
 
-static inline int ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+static inline int ice_reset_vf(struct ice_vf *vf, u32 flags)
 {
 	return 0;
 }

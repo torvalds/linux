@@ -444,13 +444,16 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 /**
  * ice_reset_vf - Reset a particular VF
  * @vf: pointer to the VF structure
- * @is_vflr: true if VFLR was issued, false if not
+ * @flags: flags controlling behavior of the reset
+ *
+ * Flags:
+ *   ICE_VF_RESET_VFLR - Indicates a reset is due to VFLR event
  *
  * Returns 0 if the VF is currently in reset, if the resets are disabled, or
  * if the VF resets successfully. Returns an error code if the VF fails to
  * rebuild.
  */
-int ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+int ice_reset_vf(struct ice_vf *vf, u32 flags)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
@@ -478,7 +481,7 @@ int ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 
 	/* Set VF disable bit state here, before triggering reset */
 	set_bit(ICE_VF_STATE_DIS, vf->vf_states);
-	ice_trigger_vf_reset(vf, is_vflr, false);
+	ice_trigger_vf_reset(vf, flags & ICE_VF_RESET_VFLR, false);
 
 	vsi = ice_get_vf_vsi(vf);
 
