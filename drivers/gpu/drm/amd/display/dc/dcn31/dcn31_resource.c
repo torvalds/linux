@@ -1787,7 +1787,9 @@ int dcn31_populate_dml_pipes_from_context(
 	struct pipe_ctx *pipe;
 	bool upscaled = false;
 
+	DC_FP_START();
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
@@ -1999,7 +2001,9 @@ static void dcn31_calculate_wm_and_dlg_fp(
 		pipe_idx++;
 	}
 
+	DC_FP_START();
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 }
 
 void dcn31_calculate_wm_and_dlg(

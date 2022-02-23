@@ -1363,7 +1363,9 @@ static noinline bool dcn21_validate_bandwidth_fp(struct dc *dc,
 	}
 
 	dcn21_calculate_wm(dc, context, pipes, &pipe_cnt, pipe_split_from, vlevel, fast_validate);
+	DC_FP_START();
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 
 	BW_VAL_TRACE_END_WATERMARKS();
 
@@ -1902,8 +1904,12 @@ static int dcn21_populate_dml_pipes_from_context(
 		display_e2e_pipe_params_st *pipes,
 		bool fast_validate)
 {
-	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	uint32_t pipe_cnt;
 	int i;
+
+	DC_FP_START();
+	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	for (i = 0; i < pipe_cnt; i++) {
 
