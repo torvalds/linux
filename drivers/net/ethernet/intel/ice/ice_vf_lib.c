@@ -364,7 +364,7 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
  *
  * Returns true if any VFs were reset, and false otherwise.
  */
-bool ice_reset_all_vfs(struct ice_pf *pf)
+void ice_reset_all_vfs(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
@@ -373,7 +373,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf)
 
 	/* If we don't have any VFs, then there is nothing to reset */
 	if (!ice_has_vfs(pf))
-		return false;
+		return;
 
 	mutex_lock(&pf->vfs.table_lock);
 
@@ -387,7 +387,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf)
 	/* If VFs have been disabled, there is no need to reset */
 	if (test_and_set_bit(ICE_VF_DIS, pf->state)) {
 		mutex_unlock(&pf->vfs.table_lock);
-		return false;
+		return;
 	}
 
 	/* Begin reset on all VFs at once */
@@ -439,8 +439,6 @@ bool ice_reset_all_vfs(struct ice_pf *pf)
 	clear_bit(ICE_VF_DIS, pf->state);
 
 	mutex_unlock(&pf->vfs.table_lock);
-
-	return true;
 }
 
 /**
