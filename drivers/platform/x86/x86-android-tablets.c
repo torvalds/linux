@@ -89,6 +89,12 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 
 	switch (data->type) {
 	case X86_ACPI_IRQ_TYPE_APIC:
+		/*
+		 * The DSDT may already reference the GSI in a device skipped by
+		 * acpi_quirk_skip_i2c_client_enumeration(). Unregister the GSI
+		 * to avoid EBUSY errors in this case.
+		 */
+		acpi_unregister_gsi(data->index);
 		irq = acpi_register_gsi(NULL, data->index, data->trigger, data->polarity);
 		if (irq < 0)
 			pr_err("error %d getting APIC IRQ %d\n", irq, data->index);
