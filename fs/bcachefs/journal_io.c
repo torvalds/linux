@@ -1298,49 +1298,6 @@ done:
 	return replicas >= c->opts.metadata_replicas_required ? 0 : -EROFS;
 }
 
-static void journal_write_compact(struct jset *jset)
-{
-	struct jset_entry *i, *next, *prev = NULL;
-
-	/*
-	 * Simple compaction, dropping empty jset_entries (from journal
-	 * reservations that weren't fully used) and merging jset_entries that
-	 * can be.
-	 *
-	 * If we wanted to be really fancy here, we could sort all the keys in
-	 * the jset and drop keys that were overwritten - probably not worth it:
-	 */
-	vstruct_for_each_safe(jset, i, next) {
-		unsigned u64s = le16_to_cpu(i->u64s);
-
-		/* Empty entry: */
-		if (!u64s)
-			continue;
-
-		/* Can we merge with previous entry? */
-		if (prev &&
-		    i->btree_id == prev->btree_id &&
-		    i->level	== prev->level &&
-		    i->type	== prev->type &&
-		    i->type	== BCH_JSET_ENTRY_btree_keys &&
-		    le16_to_cpu(prev->u64s) + u64s <= U16_MAX) {
-			memmove_u64s_down(vstruct_next(prev),
-					  i->_data,
-					  u64s);
-			le16_add_cpu(&prev->u64s, u64s);
-			continue;
-		}
-
-		/* Couldn't merge, move i into new position (after prev): */
-		prev = prev ? vstruct_next(prev) : jset->start;
-		if (i != prev)
-			memmove_u64s_down(prev, i, jset_u64s(u64s));
-	}
-
-	prev = prev ? vstruct_next(prev) : jset->start;
-	jset->u64s = cpu_to_le32((u64 *) prev - jset->_data);
-}
-
 static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 {
 	/* we aren't holding j->lock: */
@@ -1577,8 +1534,6 @@ void bch2_journal_write(struct closure *cl)
 
 	le32_add_cpu(&jset->u64s, u64s);
 	BUG_ON(vstruct_sectors(jset, c->block_bits) > w->sectors);
-
-	journal_write_compact(jset);
 
 	jset->magic		= cpu_to_le64(jset_magic(c));
 	jset->version		= c->sb.version < bcachefs_metadata_version_new_versioning
