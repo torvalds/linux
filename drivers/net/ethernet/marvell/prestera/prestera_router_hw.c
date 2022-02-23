@@ -239,7 +239,7 @@ prestera_fib_node_find(struct prestera_switch *sw, struct prestera_fib_key *key)
 
 	fib_node = rhashtable_lookup_fast(&sw->router->fib_ht, key,
 					  __prestera_fib_ht_params);
-	return IS_ERR(fib_node) ? NULL : fib_node;
+	return fib_node;
 }
 
 static void __prestera_fib_node_destruct(struct prestera_switch *sw,
