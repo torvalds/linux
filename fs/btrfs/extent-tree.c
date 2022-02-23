@@ -4761,9 +4761,10 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_block_group(trans, extent_key.objectid,
 				       fs_info->nodesize, true);
 	if (ret) { /* -ENOENT, logic error */
+		ASSERT(!ret);
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
 			extent_key.objectid, extent_key.offset);
-		BUG();
+		return ret;
 	}
 
 	trace_btrfs_reserved_extent_alloc(fs_info, extent_key.objectid,
