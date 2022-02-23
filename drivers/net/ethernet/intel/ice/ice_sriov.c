@@ -661,7 +661,7 @@ void ice_free_vfs(struct ice_pf *pf)
 
 		/* clear malicious info since the VF is getting released */
 		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
-					ICE_MAX_VF_COUNT, vf->vf_id))
+					ICE_MAX_SRIOV_VFS, vf->vf_id))
 			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
 				vf->vf_id);
 
@@ -1591,7 +1591,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	/* clear all malicious info if the VFs are getting reset */
 	ice_for_each_vf(pf, bkt, vf)
 		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
-					ICE_MAX_VF_COUNT, vf->vf_id))
+					ICE_MAX_SRIOV_VFS, vf->vf_id))
 			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
 				vf->vf_id);
 
@@ -1805,7 +1805,7 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 
 	/* if the VF has been reset allow it to come up again */
 	if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
-				ICE_MAX_VF_COUNT, vf->vf_id))
+				ICE_MAX_SRIOV_VFS, vf->vf_id))
 		dev_dbg(dev, "failed to clear malicious VF state for VF %u\n", i);
 
 	return true;
@@ -6624,7 +6624,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 		 * know about it, then let them know now
 		 */
 		status = ice_mbx_report_malvf(&pf->hw, pf->vfs.malvfs,
-					      ICE_MAX_VF_COUNT, vf_id,
+					      ICE_MAX_SRIOV_VFS, vf_id,
 					      &report_vf);
 		if (status)
 			dev_dbg(dev, "Error reporting malicious VF\n");

@@ -22,7 +22,7 @@
 #define ICE_PCI_CIAD_WAIT_DELAY_US	1
 
 /* VF resource constraints */
-#define ICE_MAX_VF_COUNT		256
+#define ICE_MAX_SRIOV_VFS		256
 #define ICE_MIN_QS_PER_VF		1
 #define ICE_NONQ_VECS_VF		1
 #define ICE_MAX_RSS_QS_PER_VF		16
@@ -147,7 +147,7 @@ struct ice_vfs {
 	u16 num_qps_per;		/* number of queue pairs per VF */
 	u16 num_msix_per;		/* number of MSI-X vectors per VF */
 	unsigned long last_printed_mdd_jiffies;	/* MDD message rate limit */
-	DECLARE_BITMAP(malvfs, ICE_MAX_VF_COUNT); /* malicious VF indicator */
+	DECLARE_BITMAP(malvfs, ICE_MAX_SRIOV_VFS); /* malicious VF indicator */
 };
 
 /* VF information structure */
