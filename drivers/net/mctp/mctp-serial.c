@@ -403,8 +403,16 @@ static void mctp_serial_tty_receive_buf(struct tty_struct *tty,
 		mctp_serial_push(dev, c[i]);
 }
 
+static void mctp_serial_uninit(struct net_device *ndev)
+{
+	struct mctp_serial *dev = netdev_priv(ndev);
+
+	cancel_work_sync(&dev->tx_work);
+}
+
 static const struct net_device_ops mctp_serial_netdev_ops = {
 	.ndo_start_xmit = mctp_serial_tx,
+	.ndo_uninit = mctp_serial_uninit,
 };
 
 static void mctp_serial_setup(struct net_device *ndev)
@@ -483,7 +491,6 @@ static void mctp_serial_close(struct tty_struct *tty)
 	int idx = dev->idx;
 
 	unregister_netdev(dev->netdev);
-	cancel_work_sync(&dev->tx_work);
 	ida_free(&mctp_serial_ida, idx);
 }
 

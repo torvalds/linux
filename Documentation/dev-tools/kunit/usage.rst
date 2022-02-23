@@ -242,7 +242,7 @@ example:
 
 	int rectangle_area(struct shape *this)
 	{
-		struct rectangle *self = container_of(this, struct shape, parent);
+		struct rectangle *self = container_of(this, struct rectangle, parent);
 
 		return self->length * self->width;
 	};
