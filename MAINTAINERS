@@ -10660,6 +10660,14 @@ F:	include/linux/keyctl.h
 F:	include/uapi/linux/keyctl.h
 F:	security/keys/
 
+KEYS/KEYRINGS_INTEGRITY
+M:	Jarkko Sakkinen <jarkko@kernel.org>
+M:	Mimi Zohar <zohar@linux.ibm.com>
+L:	linux-integrity@vger.kernel.org
+L:	keyrings@vger.kernel.org
+S:	Supported
+F:	security/integrity/platform_certs
+
 KFENCE
 M:	Alexander Potapenko <glider@google.com>
 M:	Marco Elver <elver@google.com>
