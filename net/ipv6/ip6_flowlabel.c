@@ -450,10 +450,8 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		err = -EINVAL;
 		goto done;
 	}
-	if (fl_shared_exclusive(fl) || fl->opt) {
-		WRITE_ONCE(sock_net(sk)->ipv6.flowlabel_has_excl, 1);
+	if (fl_shared_exclusive(fl) || fl->opt)
 		static_branch_deferred_inc(&ipv6_flowlabel_exclusive);
-	}
 	return fl;
 
 done:
