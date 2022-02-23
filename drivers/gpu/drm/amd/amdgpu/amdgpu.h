@@ -1094,6 +1094,10 @@ struct amdgpu_device {
 	struct ip_discovery_top         *ip_top;
 
 	struct mutex			benchmark_mutex;
+
+	/* reset dump register */
+	uint32_t                        *reset_dump_reg_list;
+	int                             num_regs;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
