@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2019 Netronome Systems, Inc. */
 
+#include <linux/hash.h>
+#include <linux/hashtable.h>
+#include <linux/jhash.h>
 #include <linux/math64.h>
+#include <linux/vmalloc.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 
@@ -440,6 +444,9 @@ void nfp_flower_qos_init(struct nfp_app *app)
 	struct nfp_flower_priv *fl_priv = app->priv;
 
 	spin_lock_init(&fl_priv->qos_stats_lock);
+	mutex_init(&fl_priv->meter_stats_lock);
+	nfp_init_meter_table(app);
+
 	INIT_DELAYED_WORK(&fl_priv->qos_stats_work, &update_stats_cache);
 }
 
@@ -478,6 +485,122 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 
 /* offload tc action, currently only for tc police */
 
+static const struct rhashtable_params stats_meter_table_params = {
+	.key_offset	= offsetof(struct nfp_meter_entry, meter_id),
+	.head_offset	= offsetof(struct nfp_meter_entry, ht_node),
+	.key_len	= sizeof(u32),
+};
+
+static struct nfp_meter_entry *
+nfp_flower_search_meter_entry(struct nfp_app *app, u32 meter_id)
+{
+	struct nfp_flower_priv *priv = app->priv;
+
+	return rhashtable_lookup_fast(&priv->meter_table, &meter_id,
+				      stats_meter_table_params);
+}
+
+static struct nfp_meter_entry *
+nfp_flower_add_meter_entry(struct nfp_app *app, u32 meter_id)
+{
+	struct nfp_meter_entry *meter_entry = NULL;
+	struct nfp_flower_priv *priv = app->priv;
+
+	meter_entry = rhashtable_lookup_fast(&priv->meter_table,
+					     &meter_id,
+					     stats_meter_table_params);
+	if (meter_entry)
+		return meter_entry;
+
+	meter_entry = kzalloc(sizeof(*meter_entry), GFP_KERNEL);
+	if (!meter_entry)
+		return NULL;
+
+	meter_entry->meter_id = meter_id;
+	meter_entry->used = jiffies;
+	if (rhashtable_insert_fast(&priv->meter_table, &meter_entry->ht_node,
+				   stats_meter_table_params)) {
+		kfree(meter_entry);
+		return NULL;
+	}
+
+	priv->qos_rate_limiters++;
+	if (priv->qos_rate_limiters == 1)
+		schedule_delayed_work(&priv->qos_stats_work,
+				      NFP_FL_QOS_UPDATE);
+
+	return meter_entry;
+}
+
+static void nfp_flower_del_meter_entry(struct nfp_app *app, u32 meter_id)
+{
+	struct nfp_meter_entry *meter_entry = NULL;
+	struct nfp_flower_priv *priv = app->priv;
+
+	meter_entry = rhashtable_lookup_fast(&priv->meter_table, &meter_id,
+					     stats_meter_table_params);
+	if (!meter_entry)
+		return;
+
+	rhashtable_remove_fast(&priv->meter_table,
+			       &meter_entry->ht_node,
+			       stats_meter_table_params);
+	kfree(meter_entry);
+	priv->qos_rate_limiters--;
+	if (!priv->qos_rate_limiters)
+		cancel_delayed_work_sync(&priv->qos_stats_work);
+}
+
+int nfp_flower_setup_meter_entry(struct nfp_app *app,
+				 const struct flow_action_entry *action,
+				 enum nfp_meter_op op,
+				 u32 meter_id)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct nfp_meter_entry *meter_entry = NULL;
+	int err = 0;
+
+	mutex_lock(&fl_priv->meter_stats_lock);
+
+	switch (op) {
+	case NFP_METER_DEL:
+		nfp_flower_del_meter_entry(app, meter_id);
+		goto exit_unlock;
+	case NFP_METER_ADD:
+		meter_entry = nfp_flower_add_meter_entry(app, meter_id);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		goto exit_unlock;
+	}
+
+	if (!meter_entry) {
+		err = -ENOMEM;
+		goto exit_unlock;
+	}
+
+	if (action->police.rate_bytes_ps > 0) {
+		meter_entry->bps = true;
+		meter_entry->rate = action->police.rate_bytes_ps;
+		meter_entry->burst = action->police.burst;
+	} else {
+		meter_entry->bps = false;
+		meter_entry->rate = action->police.rate_pkt_ps;
+		meter_entry->burst = action->police.burst_pkt;
+	}
+
+exit_unlock:
+	mutex_unlock(&fl_priv->meter_stats_lock);
+	return err;
+}
+
+int nfp_init_meter_table(struct nfp_app *app)
+{
+	struct nfp_flower_priv *priv = app->priv;
+
+	return rhashtable_init(&priv->meter_table, &stats_meter_table_params);
+}
+
 static int
 nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 			struct netlink_ext_ack *extack)
@@ -514,10 +637,13 @@ nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 		}
 
 		if (rate != 0) {
+			meter_id = action->hw_index;
+			if (nfp_flower_setup_meter_entry(app, action, NFP_METER_ADD, meter_id))
+				continue;
+
 			pps = false;
 			if (action->police.rate_pkt_ps > 0)
 				pps = true;
-			meter_id = action->hw_index;
 			nfp_flower_offload_one_police(app, false, pps, meter_id,
 						      rate, burst);
 			add = true;
@@ -531,9 +657,11 @@ static int
 nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 		       struct netlink_ext_ack *extack)
 {
+	struct nfp_meter_entry *meter_entry = NULL;
 	struct nfp_police_config *config;
 	struct sk_buff *skb;
 	u32 meter_id;
+	bool pps;
 
 	/*delete qos associate data for this interface */
 	if (fl_act->id != FLOW_ACTION_POLICE) {
@@ -543,6 +671,14 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	}
 
 	meter_id = fl_act->index;
+	meter_entry = nfp_flower_search_meter_entry(app, meter_id);
+	if (!meter_entry) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "no meter entry when delete the action index.\n");
+		return -ENOENT;
+	}
+	pps = !meter_entry->bps;
+
 	skb = nfp_flower_cmsg_alloc(app, sizeof(struct nfp_police_config),
 				    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
 	if (!skb)
@@ -552,7 +688,11 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	memset(config, 0, sizeof(struct nfp_police_config));
 	config->head.flags_opts = cpu_to_be32(NFP_FL_QOS_METER);
 	config->head.meter_id = cpu_to_be32(meter_id);
+	if (pps)
+		config->head.flags_opts |= cpu_to_be32(NFP_FL_QOS_PPS);
+
 	nfp_ctrl_tx(app->ctrl, skb);
+	nfp_flower_setup_meter_entry(app, NULL, NFP_METER_DEL, meter_id);
 
 	return 0;
 }
