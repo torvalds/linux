@@ -2791,16 +2791,16 @@ static void intel_encoder_get_config(struct intel_encoder *encoder,
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
-				     struct intel_crtc_state *pipe_config)
+				     struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct drm_display_mode *pipe_mode = &pipe_config->hw.pipe_mode;
-	int clock_limit = dev_priv->max_dotclk_freq;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
+	int clock_limit = i915->max_dotclk_freq;
 
-	drm_mode_copy(pipe_mode, &pipe_config->hw.adjusted_mode);
+	drm_mode_copy(pipe_mode, &crtc_state->hw.adjusted_mode);
 
 	/* Adjust pipe_mode for bigjoiner, with half the horizontal mode */
-	if (pipe_config->bigjoiner) {
+	if (crtc_state->bigjoiner) {
 		pipe_mode->crtc_clock /= 2;
 		pipe_mode->crtc_hdisplay /= 2;
 		pipe_mode->crtc_hblank_start /= 2;
@@ -2808,12 +2808,12 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		pipe_mode->crtc_hsync_start /= 2;
 		pipe_mode->crtc_hsync_end /= 2;
 		pipe_mode->crtc_htotal /= 2;
-		pipe_config->pipe_src_w /= 2;
+		crtc_state->pipe_src_w /= 2;
 	}
 
-	if (pipe_config->splitter.enable) {
-		int n = pipe_config->splitter.link_count;
-		int overlap = pipe_config->splitter.pixel_overlap;
+	if (crtc_state->splitter.enable) {
+		int n = crtc_state->splitter.link_count;
+		int overlap = crtc_state->splitter.pixel_overlap;
 
 		pipe_mode->crtc_hdisplay = (pipe_mode->crtc_hdisplay - overlap) * n;
 		pipe_mode->crtc_hblank_start = (pipe_mode->crtc_hblank_start - overlap) * n;
@@ -2826,8 +2826,8 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 	intel_mode_from_crtc_timings(pipe_mode, pipe_mode);
 
-	if (DISPLAY_VER(dev_priv) < 4) {
-		clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
+	if (DISPLAY_VER(i915) < 4) {
+		clock_limit = i915->max_cdclk_freq * 9 / 10;
 
 		/*
 		 * Enable double wide mode when the dot clock
@@ -2835,16 +2835,16 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		 */
 		if (intel_crtc_supports_double_wide(crtc) &&
 		    pipe_mode->crtc_clock > clock_limit) {
-			clock_limit = dev_priv->max_dotclk_freq;
-			pipe_config->double_wide = true;
+			clock_limit = i915->max_dotclk_freq;
+			crtc_state->double_wide = true;
 		}
 	}
 
 	if (pipe_mode->crtc_clock > clock_limit) {
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(&i915->drm,
 			    "requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
 			    pipe_mode->crtc_clock, clock_limit,
-			    yesno(pipe_config->double_wide));
+			    yesno(crtc_state->double_wide));
 		return -EINVAL;
 	}
 
@@ -2854,25 +2854,25 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if (pipe_config->pipe_src_w & 1) {
-		if (pipe_config->double_wide) {
-			drm_dbg_kms(&dev_priv->drm,
+	if (crtc_state->pipe_src_w & 1) {
+		if (crtc_state->double_wide) {
+			drm_dbg_kms(&i915->drm,
 				    "Odd pipe source width not supported with double wide pipe\n");
 			return -EINVAL;
 		}
 
-		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
-		    intel_is_dual_link_lvds(dev_priv)) {
-			drm_dbg_kms(&dev_priv->drm,
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+		    intel_is_dual_link_lvds(i915)) {
+			drm_dbg_kms(&i915->drm,
 				    "Odd pipe source width not supported with dual link LVDS\n");
 			return -EINVAL;
 		}
 	}
 
-	intel_crtc_compute_pixel_rate(pipe_config);
+	intel_crtc_compute_pixel_rate(crtc_state);
 
-	if (pipe_config->has_pch_encoder)
-		return ilk_fdi_compute_config(crtc, pipe_config);
+	if (crtc_state->has_pch_encoder)
+		return ilk_fdi_compute_config(crtc, crtc_state);
 
 	return 0;
 }
