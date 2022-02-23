@@ -304,6 +304,9 @@ void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb)
 	u32 netdev_port_id;
 
 	msg = nfp_flower_cmsg_get_data(skb);
+	if (be32_to_cpu(msg->head.flags_opts) & NFP_FL_QOS_METER)
+		return nfp_act_stats_reply(app, msg);
+
 	netdev_port_id = be32_to_cpu(msg->head.port);
 	rcu_read_lock();
 	netdev = nfp_app_dev_get(app, netdev_port_id, NULL);
@@ -335,7 +338,7 @@ exit_unlock_rcu:
 
 static void
 nfp_flower_stats_rlim_request(struct nfp_flower_priv *fl_priv,
-			      u32 netdev_port_id)
+			      u32 id, bool ingress)
 {
 	struct nfp_police_cfg_head *head;
 	struct sk_buff *skb;
@@ -346,10 +349,15 @@ nfp_flower_stats_rlim_request(struct nfp_flower_priv *fl_priv,
 				    GFP_ATOMIC);
 	if (!skb)
 		return;
-
 	head = nfp_flower_cmsg_get_data(skb);
+
 	memset(head, 0, sizeof(struct nfp_police_cfg_head));
-	head->port = cpu_to_be32(netdev_port_id);
+	if (ingress) {
+		head->port = cpu_to_be32(id);
+	} else {
+		head->flags_opts = cpu_to_be32(NFP_FL_QOS_METER);
+		head->meter_id = cpu_to_be32(id);
+	}
 
 	nfp_ctrl_tx(fl_priv->app->ctrl, skb);
 }
@@ -379,7 +387,8 @@ nfp_flower_stats_rlim_request_all(struct nfp_flower_priv *fl_priv)
 			if (!netdev_port_id)
 				continue;
 
-			nfp_flower_stats_rlim_request(fl_priv, netdev_port_id);
+			nfp_flower_stats_rlim_request(fl_priv,
+						      netdev_port_id, true);
 		}
 	}
 
@@ -397,6 +406,8 @@ static void update_stats_cache(struct work_struct *work)
 			       qos_stats_work);
 
 	nfp_flower_stats_rlim_request_all(fl_priv);
+	nfp_flower_stats_meter_request_all(fl_priv);
+
 	schedule_delayed_work(&fl_priv->qos_stats_work, NFP_FL_QOS_UPDATE);
 }
 
@@ -601,6 +612,28 @@ int nfp_init_meter_table(struct nfp_app *app)
 	return rhashtable_init(&priv->meter_table, &stats_meter_table_params);
 }
 
+void
+nfp_flower_stats_meter_request_all(struct nfp_flower_priv *fl_priv)
+{
+	struct nfp_meter_entry *meter_entry = NULL;
+	struct rhashtable_iter iter;
+
+	mutex_lock(&fl_priv->meter_stats_lock);
+	rhashtable_walk_enter(&fl_priv->meter_table, &iter);
+	rhashtable_walk_start(&iter);
+
+	while ((meter_entry = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(meter_entry))
+			continue;
+		nfp_flower_stats_rlim_request(fl_priv,
+					      meter_entry->meter_id, false);
+	}
+
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+	mutex_unlock(&fl_priv->meter_stats_lock);
+}
+
 static int
 nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 			struct netlink_ext_ack *extack)
@@ -697,6 +730,79 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	return 0;
 }
 
+void
+nfp_act_stats_reply(struct nfp_app *app, void *pmsg)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct nfp_meter_entry *meter_entry = NULL;
+	struct nfp_police_stats_reply *msg = pmsg;
+	u32 meter_id;
+
+	meter_id = be32_to_cpu(msg->head.meter_id);
+	mutex_lock(&fl_priv->meter_stats_lock);
+
+	meter_entry = nfp_flower_search_meter_entry(app, meter_id);
+	if (!meter_entry)
+		goto exit_unlock;
+
+	meter_entry->stats.curr.pkts = be64_to_cpu(msg->pass_pkts) +
+				       be64_to_cpu(msg->drop_pkts);
+	meter_entry->stats.curr.bytes = be64_to_cpu(msg->pass_bytes) +
+					be64_to_cpu(msg->drop_bytes);
+	meter_entry->stats.curr.drops = be64_to_cpu(msg->drop_pkts);
+	if (!meter_entry->stats.update) {
+		meter_entry->stats.prev.pkts = meter_entry->stats.curr.pkts;
+		meter_entry->stats.prev.bytes = meter_entry->stats.curr.bytes;
+		meter_entry->stats.prev.drops = meter_entry->stats.curr.drops;
+	}
+
+	meter_entry->stats.update = jiffies;
+
+exit_unlock:
+	mutex_unlock(&fl_priv->meter_stats_lock);
+}
+
+static int
+nfp_act_stats_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
+		      struct netlink_ext_ack *extack)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct nfp_meter_entry *meter_entry = NULL;
+	u64 diff_bytes, diff_pkts, diff_drops;
+	int err = 0;
+
+	if (fl_act->id != FLOW_ACTION_POLICE) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: qos rate limit offload requires police action");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&fl_priv->meter_stats_lock);
+	meter_entry = nfp_flower_search_meter_entry(app, fl_act->index);
+	if (!meter_entry) {
+		err = -ENOENT;
+		goto exit_unlock;
+	}
+	diff_pkts = meter_entry->stats.curr.pkts > meter_entry->stats.prev.pkts ?
+		    meter_entry->stats.curr.pkts - meter_entry->stats.prev.pkts : 0;
+	diff_bytes = meter_entry->stats.curr.bytes > meter_entry->stats.prev.bytes ?
+		     meter_entry->stats.curr.bytes - meter_entry->stats.prev.bytes : 0;
+	diff_drops = meter_entry->stats.curr.drops > meter_entry->stats.prev.drops ?
+		     meter_entry->stats.curr.drops - meter_entry->stats.prev.drops : 0;
+
+	flow_stats_update(&fl_act->stats, diff_bytes, diff_pkts, diff_drops,
+			  meter_entry->stats.update,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+
+	meter_entry->stats.prev.pkts = meter_entry->stats.curr.pkts;
+	meter_entry->stats.prev.bytes = meter_entry->stats.curr.bytes;
+	meter_entry->stats.prev.drops = meter_entry->stats.curr.drops;
+
+exit_unlock:
+	mutex_unlock(&fl_priv->meter_stats_lock);
+	return err;
+}
+
 int nfp_setup_tc_act_offload(struct nfp_app *app,
 			     struct flow_offload_action *fl_act)
 {
@@ -711,6 +817,8 @@ int nfp_setup_tc_act_offload(struct nfp_app *app,
 		return nfp_act_install_actions(app, fl_act, extack);
 	case FLOW_ACT_DESTROY:
 		return nfp_act_remove_actions(app, fl_act, extack);
+	case FLOW_ACT_STATS:
+		return nfp_act_stats_actions(app, fl_act, extack);
 	default:
 		return -EOPNOTSUPP;
 	}

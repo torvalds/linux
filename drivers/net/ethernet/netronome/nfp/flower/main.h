@@ -605,7 +605,8 @@ nfp_flower_update_merge_stats(struct nfp_app *app,
 int nfp_setup_tc_act_offload(struct nfp_app *app,
 			     struct flow_offload_action *fl_act);
 int nfp_init_meter_table(struct nfp_app *app);
-
+void nfp_flower_stats_meter_request_all(struct nfp_flower_priv *fl_priv);
+void nfp_act_stats_reply(struct nfp_app *app, void *pmsg);
 int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
 				  bool pps, u32 id, u32 rate, u32 burst);
 int nfp_flower_setup_meter_entry(struct nfp_app *app,
