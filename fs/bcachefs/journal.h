@@ -372,7 +372,7 @@ static inline bool journal_check_may_get_unreserved(struct journal *j)
 {
 	union journal_preres_state s = READ_ONCE(j->prereserved);
 	bool ret = s.reserved < s.remaining &&
-		fifo_free(&j->pin) > 8;
+		fifo_free(&j->pin) > j->pin.size / 4;
 
 	lockdep_assert_held(&j->lock);
 

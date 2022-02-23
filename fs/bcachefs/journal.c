@@ -416,7 +416,7 @@ unlock:
 	    (flags & JOURNAL_RES_GET_RESERVED)) {
 		char *journal_debug_buf = kmalloc(4096, GFP_ATOMIC);
 
-		bch_err(c, "Journal stuck!");
+		bch_err(c, "Journal stuck! Hava a pre-reservation but journal full");
 		if (journal_debug_buf) {
 			bch2_journal_debug_to_text(&_PBUF(journal_debug_buf, 4096), j);
 			bch_err(c, "%s", journal_debug_buf);
