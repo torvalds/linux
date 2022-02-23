@@ -5,13 +5,7 @@
 #define _ICE_SRIOV_H_
 #include "ice_virtchnl_fdir.h"
 #include "ice_vf_lib.h"
-
-/* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
-#define ICE_MAX_VLAN_PER_VF		8
-/* MAC filters: 1 is reserved for the VF's default/perm_addr/LAA MAC, 1 for
- * broadcast, and 16 for additional unicast/multicast filters
- */
-#define ICE_MAX_MACADDR_PER_VF		18
+#include "ice_virtchnl.h"
 
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA
@@ -31,39 +25,6 @@
 #define ICE_MAX_VF_RESET_TRIES		40
 #define ICE_MAX_VF_RESET_SLEEP_MS	20
 
-struct ice_vf;
-
-struct ice_virtchnl_ops {
-	int (*get_ver_msg)(struct ice_vf *vf, u8 *msg);
-	int (*get_vf_res_msg)(struct ice_vf *vf, u8 *msg);
-	void (*reset_vf)(struct ice_vf *vf);
-	int (*add_mac_addr_msg)(struct ice_vf *vf, u8 *msg);
-	int (*del_mac_addr_msg)(struct ice_vf *vf, u8 *msg);
-	int (*cfg_qs_msg)(struct ice_vf *vf, u8 *msg);
-	int (*ena_qs_msg)(struct ice_vf *vf, u8 *msg);
-	int (*dis_qs_msg)(struct ice_vf *vf, u8 *msg);
-	int (*request_qs_msg)(struct ice_vf *vf, u8 *msg);
-	int (*cfg_irq_map_msg)(struct ice_vf *vf, u8 *msg);
-	int (*config_rss_key)(struct ice_vf *vf, u8 *msg);
-	int (*config_rss_lut)(struct ice_vf *vf, u8 *msg);
-	int (*get_stats_msg)(struct ice_vf *vf, u8 *msg);
-	int (*cfg_promiscuous_mode_msg)(struct ice_vf *vf, u8 *msg);
-	int (*add_vlan_msg)(struct ice_vf *vf, u8 *msg);
-	int (*remove_vlan_msg)(struct ice_vf *vf, u8 *msg);
-	int (*ena_vlan_stripping)(struct ice_vf *vf);
-	int (*dis_vlan_stripping)(struct ice_vf *vf);
-	int (*handle_rss_cfg_msg)(struct ice_vf *vf, u8 *msg, bool add);
-	int (*add_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
-	int (*del_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
-	int (*get_offload_vlan_v2_caps)(struct ice_vf *vf);
-	int (*add_vlan_v2_msg)(struct ice_vf *vf, u8 *msg);
-	int (*remove_vlan_v2_msg)(struct ice_vf *vf, u8 *msg);
-	int (*ena_vlan_stripping_v2_msg)(struct ice_vf *vf, u8 *msg);
-	int (*dis_vlan_stripping_v2_msg)(struct ice_vf *vf, u8 *msg);
-	int (*ena_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
-	int (*dis_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
-};
-
 #ifdef CONFIG_PCI_IOV
 void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
@@ -73,11 +34,6 @@ ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
-void ice_vc_notify_link_state(struct ice_pf *pf);
-void ice_vc_notify_reset(struct ice_pf *pf);
-void ice_vc_notify_vf_link_state(struct ice_vf *vf);
-void ice_virtchnl_set_repr_ops(struct ice_vf *vf);
-void ice_virtchnl_set_dflt_ops(struct ice_vf *vf);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
 bool
 ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
@@ -108,20 +64,11 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf);
 void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
 bool
 ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto);
-int
-ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
-		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen);
-bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id);
 #else /* CONFIG_PCI_IOV */
 static inline void ice_process_vflr_event(struct ice_pf *pf) { }
 static inline void ice_free_vfs(struct ice_pf *pf) { }
 static inline
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) { }
-static inline void ice_vc_notify_link_state(struct ice_pf *pf) { }
-static inline void ice_vc_notify_reset(struct ice_pf *pf) { }
-static inline void ice_vc_notify_vf_link_state(struct ice_vf *vf) { }
-static inline void ice_virtchnl_set_repr_ops(struct ice_vf *vf) { }
-static inline void ice_virtchnl_set_dflt_ops(struct ice_vf *vf) { }
 static inline
 void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
 static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
