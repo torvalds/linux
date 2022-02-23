@@ -880,11 +880,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_err_on(le64_to_cpu(b->data->magic) != bset_magic(c),
 		     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
-		     "bad magic");
+		     "bad magic: want %llx, got %llx",
+		     bset_magic(c), le64_to_cpu(b->data->magic));
 
 	btree_err_on(!b->data->keys.seq,
 		     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
-		     "bad btree header");
+		     "bad btree header: seq 0");
 
 	if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
 		struct bch_btree_ptr_v2 *bp =
