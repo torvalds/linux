@@ -55,8 +55,8 @@ static const struct iio_chan_spec ds1803_channels[] = {
 };
 
 static int ds1803_read_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int *val, int *val2, long mask)
+			   struct iio_chan_spec const *chan,
+			   int *val, int *val2, long mask)
 {
 	struct ds1803_data *data = iio_priv(indio_dev);
 	int pot = chan->channel;
@@ -66,7 +66,7 @@ static int ds1803_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = i2c_master_recv(data->client, result,
-				indio_dev->num_channels);
+				      indio_dev->num_channels);
 		if (ret < 0)
 			return ret;
 
@@ -83,8 +83,8 @@ static int ds1803_read_raw(struct iio_dev *indio_dev,
 }
 
 static int ds1803_write_raw(struct iio_dev *indio_dev,
-			     struct iio_chan_spec const *chan,
-			     int val, int val2, long mask)
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
 {
 	struct ds1803_data *data = iio_priv(indio_dev);
 	int pot = chan->channel;
@@ -109,8 +109,7 @@ static const struct iio_info ds1803_info = {
 	.write_raw = ds1803_write_raw,
 };
 
-static int ds1803_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ds1803_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct ds1803_data *data;
