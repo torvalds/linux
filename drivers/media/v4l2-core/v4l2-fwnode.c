@@ -903,11 +903,7 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 	if (!index)
 		return -ENOENT;
 
-	/*
-	 * Note that right now both -ENODATA and -ENOENT may signal
-	 * out-of-bounds access. Return the error in cases other than that.
-	 */
-	if (ret != -ENOENT && ret != -ENODATA)
+	if (ret != -ENOENT)
 		return ret;
 
 	for (index = 0;
