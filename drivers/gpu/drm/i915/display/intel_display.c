@@ -2728,6 +2728,21 @@ static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 			ilk_pipe_pixel_rate(crtc_state);
 }
 
+static void intel_bigjoiner_adjust_timings(const struct intel_crtc_state *crtc_state,
+					   struct drm_display_mode *mode)
+{
+	if (!crtc_state->bigjoiner)
+		return;
+
+	mode->crtc_clock /= 2;
+	mode->crtc_hdisplay /= 2;
+	mode->crtc_hblank_start /= 2;
+	mode->crtc_hblank_end /= 2;
+	mode->crtc_hsync_start /= 2;
+	mode->crtc_hsync_end /= 2;
+	mode->crtc_htotal /= 2;
+}
+
 static void intel_splitter_adjust_timings(const struct intel_crtc_state *crtc_state,
 					  struct drm_display_mode *mode)
 {
@@ -2760,19 +2775,7 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 
 	drm_mode_copy(pipe_mode, adjusted_mode);
 
-	if (crtc_state->bigjoiner) {
-		/*
-		 * transcoder is programmed to the full mode,
-		 * but pipe timings are half of the transcoder mode
-		 */
-		pipe_mode->crtc_hdisplay /= 2;
-		pipe_mode->crtc_hblank_start /= 2;
-		pipe_mode->crtc_hblank_end /= 2;
-		pipe_mode->crtc_hsync_start /= 2;
-		pipe_mode->crtc_hsync_end /= 2;
-		pipe_mode->crtc_htotal /= 2;
-		pipe_mode->crtc_clock /= 2;
-	}
+	intel_bigjoiner_adjust_timings(crtc_state, pipe_mode);
 
 	if (crtc_state->splitter.enable) {
 		intel_splitter_adjust_timings(crtc_state, pipe_mode);
@@ -2808,17 +2811,9 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 	drm_mode_copy(pipe_mode, &crtc_state->hw.adjusted_mode);
 
-	/* Adjust pipe_mode for bigjoiner, with half the horizontal mode */
-	if (crtc_state->bigjoiner) {
-		pipe_mode->crtc_clock /= 2;
-		pipe_mode->crtc_hdisplay /= 2;
-		pipe_mode->crtc_hblank_start /= 2;
-		pipe_mode->crtc_hblank_end /= 2;
-		pipe_mode->crtc_hsync_start /= 2;
-		pipe_mode->crtc_hsync_end /= 2;
-		pipe_mode->crtc_htotal /= 2;
+	intel_bigjoiner_adjust_timings(crtc_state, pipe_mode);
+	if (crtc_state->bigjoiner)
 		crtc_state->pipe_src_w /= 2;
-	}
 
 	intel_splitter_adjust_timings(crtc_state, pipe_mode);
 
