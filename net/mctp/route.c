@@ -836,9 +836,8 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb = mctp_cb(skb);
-	struct mctp_route tmp_rt;
+	struct mctp_route tmp_rt = {0};
 	struct mctp_sk_key *key;
-	struct net_device *dev;
 	struct mctp_hdr *hdr;
 	unsigned long flags;
 	unsigned int mtu;
@@ -851,12 +850,12 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 
 	if (rt) {
 		ext_rt = false;
-		dev = NULL;
-
 		if (WARN_ON(!rt->dev))
 			goto out_release;
 
 	} else if (cb->ifindex) {
+		struct net_device *dev;
+
 		ext_rt = true;
 		rt = &tmp_rt;
 
@@ -866,7 +865,6 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 			rcu_read_unlock();
 			return rc;
 		}
-
 		rt->dev = __mctp_dev_get(dev);
 		rcu_read_unlock();
 
@@ -947,10 +945,9 @@ out_release:
 	if (!ext_rt)
 		mctp_route_release(rt);
 
-	dev_put(dev);
+	mctp_dev_put(tmp_rt.dev);
 
 	return rc;
-
 }
 
 /* route management */
@@ -1124,11 +1121,13 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 
 	rt->output(rt, skb);
 	mctp_route_release(rt);
+	mctp_dev_put(mdev);
 
 	return NET_RX_SUCCESS;
 
 err_drop:
 	kfree_skb(skb);
+	mctp_dev_put(mdev);
 	return NET_RX_DROP;
 }
 
