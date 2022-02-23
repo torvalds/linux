@@ -379,10 +379,6 @@ extern s64 kvm_nvhe_sym(hyp_physvirt_offset);
 extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 #define hyp_cpu_logical_map CHOOSE_NVHE_SYM(hyp_cpu_logical_map)
 
-enum kvm_iommu_driver {
-	KVM_IOMMU_DRIVER_NONE,
-};
-
 enum pkvm_iommu_driver_id {
 	PKVM_IOMMU_DRIVER_S2MPU,
 	PKVM_IOMMU_NR_DRIVERS,

@@ -1919,11 +1919,6 @@ static bool init_psci_relay(void)
 	return true;
 }
 
-static int init_stage2_iommu(void)
-{
-	return KVM_IOMMU_DRIVER_NONE;
-}
-
 static int init_subsystems(void)
 {
 	int err = 0;
@@ -1982,7 +1977,7 @@ static void teardown_hyp_mode(void)
 	}
 }
 
-static int do_pkvm_init(u32 hyp_va_bits, enum kvm_iommu_driver iommu_driver)
+static int do_pkvm_init(u32 hyp_va_bits)
 {
 	void *per_cpu_base = kvm_ksym_ref(kvm_nvhe_sym(kvm_arm_hyp_percpu_base));
 	int ret;
@@ -1991,7 +1986,7 @@ static int do_pkvm_init(u32 hyp_va_bits, enum kvm_iommu_driver iommu_driver)
 	cpu_hyp_init_context();
 	ret = kvm_call_hyp_nvhe(__pkvm_init, hyp_mem_base, hyp_mem_size,
 				num_possible_cpus(), kern_hyp_va(per_cpu_base),
-				hyp_va_bits, iommu_driver);
+				hyp_va_bits);
 	cpu_hyp_init_features();
 
 	/*
@@ -2028,11 +2023,7 @@ static int kvm_hyp_init_protection(u32 hyp_va_bits)
 	if (ret)
 		return ret;
 
-	ret = init_stage2_iommu();
-	if (ret < 0)
-		return ret;
-
-	ret = do_pkvm_init(hyp_va_bits, (enum kvm_iommu_driver)ret);
+	ret = do_pkvm_init(hyp_va_bits);
 	if (ret)
 		return ret;
 
