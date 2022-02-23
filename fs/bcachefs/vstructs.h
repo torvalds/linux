@@ -20,7 +20,7 @@
 ({									\
 	BUILD_BUG_ON(offsetof(_type, _data) % sizeof(u64));		\
 									\
-	(offsetof(_type, _data) + (_u64s) * sizeof(u64));		\
+	(size_t) (offsetof(_type, _data) + (_u64s) * sizeof(u64));	\
 })
 
 #define vstruct_bytes(_s)						\

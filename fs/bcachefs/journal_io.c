@@ -1105,7 +1105,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 				struct journal_replay *p = list_prev_entry(i, list);
 
 				bch2_journal_ptrs_to_text(&out, c, p);
-				pr_buf(&out, " size %llu", vstruct_sectors(&p->j, c->block_bits));
+				pr_buf(&out, " size %zu", vstruct_sectors(&p->j, c->block_bits));
 			} else
 				sprintf(buf1, "(none)");
 			bch2_journal_ptrs_to_text(&PBUF(buf2), c, i);

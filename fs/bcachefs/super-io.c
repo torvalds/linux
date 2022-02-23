@@ -1147,7 +1147,7 @@ static int bch2_sb_crypt_validate(struct bch_sb *sb,
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 
 	if (vstruct_bytes(&crypt->field) < sizeof(*crypt)) {
-		pr_buf(err, "wrong size (got %llu should be %zu)",
+		pr_buf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&crypt->field), sizeof(*crypt));
 		return -EINVAL;
 	}
@@ -1390,7 +1390,7 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 
 	if (vstruct_bytes(&clean->field) < sizeof(*clean)) {
-		pr_buf(err, "wrong size (got %llu should be %zu)",
+		pr_buf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&clean->field), sizeof(*clean));
 		return -EINVAL;
 	}
@@ -1467,7 +1467,7 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	else
 		pr_buf(out, "(unknown field %u)", type);
 
-	pr_buf(out, " (size %llu):", vstruct_bytes(f));
+	pr_buf(out, " (size %zu):", vstruct_bytes(f));
 	pr_newline(out);
 
 	if (ops && ops->to_text) {
@@ -1543,7 +1543,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	pr_buf(out, "Created:                   ");
 	if (sb->time_base_lo)
-		pr_time(out, le64_to_cpu(sb->time_base_lo) / NSEC_PER_SEC);
+		pr_time(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
 	else
 		pr_buf(out, "(not set)");
 	pr_newline(out);
@@ -1649,7 +1649,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	bch2_flags_to_text(out, bch2_sb_fields, fields_have);
 	pr_newline(out);
 
-	pr_buf(out, "Superblock size:           %llu", vstruct_bytes(sb));
+	pr_buf(out, "Superblock size:           %zu", vstruct_bytes(sb));
 	pr_newline(out);
 
 	if (print_layout) {

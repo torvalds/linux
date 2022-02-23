@@ -23,7 +23,7 @@ static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
 	struct bch_sb_field_quota *q = field_to_type(f, quota);
 
 	if (vstruct_bytes(&q->field) < sizeof(*q)) {
-		pr_buf(err, "wrong size (got %llu should be %zu)",
+		pr_buf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&q->field), sizeof(*q));
 		return -EINVAL;
 	}
