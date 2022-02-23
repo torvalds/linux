@@ -23,7 +23,7 @@ extern const struct regmap_config pcm3060_regmap;
 #define PCM3060_CLK2		2
 
 struct pcm3060_priv_dai {
-	bool is_master;
+	bool is_provider;
 	unsigned int sclk_freq;
 };
 
