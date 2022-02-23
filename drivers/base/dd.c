@@ -520,6 +520,17 @@ static void device_unbind_cleanup(struct device *dev)
 	dev_pm_set_driver_flags(dev, 0);
 }
 
+static void device_remove(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_state_synced);
+	device_remove_groups(dev, dev->driver->dev_groups);
+
+	if (dev->bus && dev->bus->remove)
+		dev->bus->remove(dev);
+	else if (dev->driver->remove)
+		dev->driver->remove(dev);
+}
+
 static int call_driver_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = 0;
@@ -633,14 +644,7 @@ re_probe:
 	if (test_remove) {
 		test_remove = false;
 
-		device_remove_file(dev, &dev_attr_state_synced);
-		device_remove_groups(dev, drv->dev_groups);
-
-		if (dev->bus->remove)
-			dev->bus->remove(dev);
-		else if (drv->remove)
-			drv->remove(dev);
-
+		device_remove(dev);
 		driver_sysfs_remove(dev);
 		device_unbind_cleanup(dev);
 
@@ -658,12 +662,8 @@ re_probe:
 	goto done;
 
 dev_sysfs_state_synced_failed:
-	device_remove_groups(dev, drv->dev_groups);
 dev_groups_failed:
-	if (dev->bus->remove)
-		dev->bus->remove(dev);
-	else if (drv->remove)
-		drv->remove(dev);
+	device_remove(dev);
 probe_failed:
 	driver_sysfs_remove(dev);
 sysfs_failed:
@@ -1196,13 +1196,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 
 		pm_runtime_put_sync(dev);
 
-		device_remove_file(dev, &dev_attr_state_synced);
-		device_remove_groups(dev, drv->dev_groups);
-
-		if (dev->bus && dev->bus->remove)
-			dev->bus->remove(dev);
-		else if (drv->remove)
-			drv->remove(dev);
+		device_remove(dev);
 
 		device_links_driver_cleanup(dev);
 		device_unbind_cleanup(dev);
