@@ -174,15 +174,12 @@ static void ice_wait_on_vf_reset(struct ice_vf *vf)
  */
 int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
 {
-	struct ice_pf *pf;
-
 	ice_wait_on_vf_reset(vf);
 
 	if (ice_is_vf_disabled(vf))
 		return -EINVAL;
 
-	pf = vf->pf;
-	if (ice_check_vf_init(pf, vf))
+	if (ice_check_vf_init(vf))
 		return -EBUSY;
 
 	return 0;
@@ -620,11 +617,12 @@ void ice_dis_vf_qs(struct ice_vf *vf)
 
 /**
  * ice_check_vf_init - helper to check if VF init complete
- * @pf: pointer to the PF structure
  * @vf: the pointer to the VF to check
  */
-int ice_check_vf_init(struct ice_pf *pf, struct ice_vf *vf)
+int ice_check_vf_init(struct ice_vf *vf)
 {
+	struct ice_pf *pf = vf->pf;
+
 	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
 		dev_err(ice_pf_to_dev(pf), "VF ID: %u in reset. Try again.\n",
 			vf->vf_id);
@@ -752,9 +750,9 @@ bool ice_vf_has_no_qs_ena(struct ice_vf *vf)
  */
 bool ice_is_vf_link_up(struct ice_vf *vf)
 {
-	struct ice_pf *pf = vf->pf;
+	struct ice_port_info *pi = ice_vf_get_port_info(vf);
 
-	if (ice_check_vf_init(pf, vf))
+	if (ice_check_vf_init(vf))
 		return false;
 
 	if (ice_vf_has_no_qs_ena(vf))
@@ -762,7 +760,7 @@ bool ice_is_vf_link_up(struct ice_vf *vf)
 	else if (vf->link_forced)
 		return vf->link_up;
 	else
-		return pf->hw.port_info->phy.link_info.link_info &
+		return pi->phy.link_info.link_info &
 			ICE_AQ_LINK_UP;
 }
 

@@ -370,12 +370,12 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_vf_resource *vfres = NULL;
-	struct ice_pf *pf = vf->pf;
+	struct ice_hw *hw = &vf->pf->hw;
 	struct ice_vsi *vsi;
 	int len = 0;
 	int ret;
 
-	if (ice_check_vf_init(pf, vf)) {
+	if (ice_check_vf_init(vf)) {
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto err;
 	}
@@ -412,9 +412,9 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 		 * inner/single VLAN respectively and don't allow VF to
 		 * negotiate VIRTCHNL_VF_OFFLOAD in any other cases
 		 */
-		if (ice_is_dvm_ena(&pf->hw) && ice_vf_is_port_vlan_ena(vf)) {
+		if (ice_is_dvm_ena(hw) && ice_vf_is_port_vlan_ena(vf)) {
 			vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_VLAN;
-		} else if (!ice_is_dvm_ena(&pf->hw) &&
+		} else if (!ice_is_dvm_ena(hw) &&
 			   !ice_vf_is_port_vlan_ena(vf)) {
 			vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_VLAN;
 			/* configure backward compatible support for VFs that
@@ -422,7 +422,7 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 			 * configured in SVM, and no port VLAN is configured
 			 */
 			ice_vf_vsi_cfg_svm_legacy_vlan_mode(vsi);
-		} else if (ice_is_dvm_ena(&pf->hw)) {
+		} else if (ice_is_dvm_ena(hw)) {
 			/* configure software offloaded VLAN support when DVM
 			 * is enabled, but no port VLAN is enabled
 			 */
@@ -472,7 +472,7 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 	vfres->num_vsis = 1;
 	/* Tx and Rx queue are equal for VF */
 	vfres->num_queue_pairs = vsi->num_txq;
-	vfres->max_vectors = pf->vfs.num_msix_per;
+	vfres->max_vectors = vf->pf->vfs.num_msix_per;
 	vfres->rss_key_size = ICE_VSIQF_HKEY_ARRAY_SIZE;
 	vfres->rss_lut_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
 	vfres->max_mtu = ice_vc_get_max_frame_size(vf);
