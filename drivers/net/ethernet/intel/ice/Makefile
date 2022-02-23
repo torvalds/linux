@@ -34,11 +34,12 @@ ice-y := ice_main.o	\
 	 ice_repr.o	\
 	 ice_tc_lib.o
 ice-$(CONFIG_PCI_IOV) +=	\
+	ice_sriov.o		\
 	ice_virtchnl_allowlist.o \
 	ice_virtchnl_fdir.o	\
 	ice_vf_mbx.o		\
 	ice_vf_vsi_vlan_ops.o	\
-	ice_sriov.o
+	ice_vf_lib.o
 ice-$(CONFIG_PTP_1588_CLOCK) += ice_ptp.o ice_ptp_hw.o
 ice-$(CONFIG_TTY) += ice_gnss.o
 ice-$(CONFIG_DCB) += ice_dcb.o ice_dcb_nl.o ice_dcb_lib.o
