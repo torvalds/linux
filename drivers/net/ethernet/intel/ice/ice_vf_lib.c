@@ -56,9 +56,7 @@ static void ice_release_vf(struct kref *ref)
 {
 	struct ice_vf *vf = container_of(ref, struct ice_vf, refcnt);
 
-	mutex_destroy(&vf->cfg_lock);
-
-	kfree_rcu(vf, rcu);
+	vf->vf_ops->free(vf);
 }
 
 /**

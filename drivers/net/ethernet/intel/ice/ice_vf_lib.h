@@ -52,6 +52,18 @@ struct ice_mdd_vf_events {
 	u16 last_printed;
 };
 
+/* VF operations */
+struct ice_vf_ops {
+	enum ice_disq_rst_src reset_type;
+	void (*free)(struct ice_vf *vf);
+	void (*clear_mbx_register)(struct ice_vf *vf);
+	void (*trigger_reset_register)(struct ice_vf *vf, bool is_vflr);
+	bool (*poll_reset_status)(struct ice_vf *vf);
+	void (*clear_reset_trigger)(struct ice_vf *vf);
+	int (*vsi_rebuild)(struct ice_vf *vf);
+	void (*post_vsi_rebuild)(struct ice_vf *vf);
+};
+
 /* Virtchnl/SR-IOV config info */
 struct ice_vfs {
 	DECLARE_HASHTABLE(table, 8);	/* table of VF entries */
@@ -115,6 +127,7 @@ struct ice_vf {
 
 	struct ice_repr *repr;
 	const struct ice_virtchnl_ops *virtchnl_ops;
+	const struct ice_vf_ops *vf_ops;
 
 	/* devlink port data */
 	struct devlink_port devlink_port;
