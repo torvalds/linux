@@ -13,9 +13,6 @@
  */
 #define ICE_MAX_MACADDR_PER_VF		18
 
-/* Malicious Driver Detection */
-#define ICE_MDD_EVENTS_THRESHOLD		30
-
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA
 #define VF_TRANS_PENDING_M		0x20
@@ -28,7 +25,6 @@
 #define ICE_MAX_VF_COUNT		256
 #define ICE_MIN_QS_PER_VF		1
 #define ICE_NONQ_VECS_VF		1
-#define ICE_MAX_SCATTER_QS_PER_VF	16
 #define ICE_MAX_RSS_QS_PER_VF		16
 #define ICE_NUM_VF_MSIX_MED		17
 #define ICE_NUM_VF_MSIX_SMALL		5
@@ -95,8 +91,7 @@ enum ice_vf_states {
 
 /* VF capabilities */
 enum ice_virtchnl_cap {
-	ICE_VIRTCHNL_VF_CAP_L2 = 0,
-	ICE_VIRTCHNL_VF_CAP_PRIVILEGE,
+	ICE_VIRTCHNL_VF_CAP_PRIVILEGE = 0,
 };
 
 struct ice_time_mac {
