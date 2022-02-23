@@ -419,6 +419,9 @@ static int lan966x_netdevice_event(struct notifier_block *nb,
 	return notifier_from_errno(ret);
 }
 
+/* We don't offload uppers such as LAG as bridge ports, so every device except
+ * the bridge itself is foreign.
+ */
 static bool lan966x_foreign_dev_check(const struct net_device *dev,
 				      const struct net_device *foreign_dev)
 {
@@ -426,10 +429,10 @@ static bool lan966x_foreign_dev_check(const struct net_device *dev,
 	struct lan966x *lan966x = port->lan966x;
 
 	if (netif_is_bridge_master(foreign_dev))
-		if (lan966x->bridge != foreign_dev)
-			return true;
+		if (lan966x->bridge == foreign_dev)
+			return false;
 
-	return false;
+	return true;
 }
 
 static int lan966x_switchdev_event(struct notifier_block *nb,
@@ -449,8 +452,7 @@ static int lan966x_switchdev_event(struct notifier_block *nb,
 		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
 							   lan966x_netdevice_check,
 							   lan966x_foreign_dev_check,
-							   lan966x_handle_fdb,
-							   NULL);
+							   lan966x_handle_fdb);
 		return notifier_from_errno(err);
 	}
 

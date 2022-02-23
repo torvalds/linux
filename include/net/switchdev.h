@@ -313,10 +313,7 @@ int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long e
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info),
-		int (*lag_mod_cb)(struct net_device *dev, struct net_device *orig_dev,
-				  unsigned long event, const void *ctx,
-				  const struct switchdev_notifier_fdb_info *fdb_info));
+			      const struct switchdev_notifier_fdb_info *fdb_info));
 
 int switchdev_handle_port_obj_add(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
@@ -443,10 +440,7 @@ switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long event
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info),
-		int (*lag_mod_cb)(struct net_device *dev, struct net_device *orig_dev,
-				  unsigned long event, const void *ctx,
-				  const struct switchdev_notifier_fdb_info *fdb_info))
+			      const struct switchdev_notifier_fdb_info *fdb_info))
 {
 	return 0;
 }
