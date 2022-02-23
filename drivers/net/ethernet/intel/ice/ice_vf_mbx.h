@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2018, Intel Corporation. */
 
-#ifndef _ICE_SRIOV_H_
-#define _ICE_SRIOV_H_
+#ifndef _ICE_VF_MBX_H_
+#define _ICE_VF_MBX_H_
 
 #include "ice_type.h"
 #include "ice_controlq.h"
@@ -49,4 +49,4 @@ ice_conv_link_speed_to_virtchnl(bool __always_unused adv_link_support,
 }
 
 #endif /* CONFIG_PCI_IOV */
-#endif /* _ICE_SRIOV_H_ */
+#endif /* _ICE_VF_MBX_H_ */

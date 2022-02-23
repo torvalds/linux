@@ -2,7 +2,7 @@
 /* Copyright (c) 2018, Intel Corporation. */
 
 #include "ice_common.h"
-#include "ice_sriov.h"
+#include "ice_vf_mbx.h"
 
 /**
  * ice_aq_send_msg_to_vf
