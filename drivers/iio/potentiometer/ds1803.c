@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Maxim Integrated DS1803 digital potentiometer driver
+ * Maxim Integrated DS1803 and similar digital potentiometer driver
  * Copyright (c) 2016 Slawomir Stepien
+ * Copyright (c) 2022 Jagath Jog J
  *
  * Datasheet: https://datasheets.maximintegrated.com/en/ds/DS1803.pdf
+ * Datasheet: https://datasheets.maximintegrated.com/en/ds/DS3502.pdf
  *
  * DEVID	#Wipers	#Positions	Resistor Opts (kOhm)	i2c address
  * ds1803	2	256		10, 50, 100		0101xxx
+ * ds3502	1	128		10			01010xx
  */
 
 #include <linux/err.h>
@@ -19,11 +22,13 @@
 
 #define DS1803_WIPER_0         0xA9
 #define DS1803_WIPER_1         0xAA
+#define DS3502_WR_IVR          0x00
 
 enum ds1803_type {
 	DS1803_010,
 	DS1803_050,
 	DS1803_100,
+	DS3502,
 };
 
 struct ds1803_cfg {
@@ -57,6 +62,10 @@ static const struct iio_chan_spec ds1803_channels[] = {
 	DS1803_CHANNEL(1, DS1803_WIPER_1),
 };
 
+static const struct iio_chan_spec ds3502_channels[] = {
+	DS1803_CHANNEL(0, DS3502_WR_IVR),
+};
+
 static int ds1803_read(struct iio_dev *indio_dev,
 		       struct iio_chan_spec const *chan,
 		       int *val)
@@ -70,6 +79,21 @@ static int ds1803_read(struct iio_dev *indio_dev,
 		return ret;
 
 	*val = result[chan->channel];
+	return ret;
+}
+
+static int ds3502_read(struct iio_dev *indio_dev,
+		       struct iio_chan_spec const *chan,
+		       int *val)
+{
+	struct ds1803_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(data->client, chan->address);
+	if (ret < 0)
+		return ret;
+
+	*val = ret;
 	return ret;
 }
 
@@ -97,6 +121,14 @@ static const struct ds1803_cfg ds1803_cfg[] = {
 		.channels = ds1803_channels,
 		.num_channels = ARRAY_SIZE(ds1803_channels),
 		.read = ds1803_read,
+	},
+	[DS3502] = {
+	  .wipers = 1,
+	  .avail = { 0, 1, 127 },
+	  .kohms =  10,
+	  .channels = ds3502_channels,
+	  .num_channels = ARRAY_SIZE(ds3502_channels),
+	  .read = ds3502_read,
 	},
 };
 
@@ -200,6 +232,7 @@ static const struct of_device_id ds1803_dt_ids[] = {
 	{ .compatible = "maxim,ds1803-010", .data = &ds1803_cfg[DS1803_010] },
 	{ .compatible = "maxim,ds1803-050", .data = &ds1803_cfg[DS1803_050] },
 	{ .compatible = "maxim,ds1803-100", .data = &ds1803_cfg[DS1803_100] },
+	{ .compatible = "maxim,ds3502", .data = &ds1803_cfg[DS3502] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ds1803_dt_ids);
@@ -208,6 +241,7 @@ static const struct i2c_device_id ds1803_id[] = {
 	{ "ds1803-010", DS1803_010 },
 	{ "ds1803-050", DS1803_050 },
 	{ "ds1803-100", DS1803_100 },
+	{ "ds3502", DS3502 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ds1803_id);
@@ -224,5 +258,6 @@ static struct i2c_driver ds1803_driver = {
 module_i2c_driver(ds1803_driver);
 
 MODULE_AUTHOR("Slawomir Stepien <sst@poczta.fm>");
+MODULE_AUTHOR("Jagath Jog J <jagathjog1996@gmail.com>");
 MODULE_DESCRIPTION("DS1803 digital potentiometer");
 MODULE_LICENSE("GPL v2");
