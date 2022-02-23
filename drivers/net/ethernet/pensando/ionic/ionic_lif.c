@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/cpumask.h>
 #include <linux/crash_dump.h>
+#include <linux/vmalloc.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
