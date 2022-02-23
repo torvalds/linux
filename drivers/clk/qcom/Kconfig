@@ -452,6 +452,16 @@ config SC_LPASS_CORECC_7180
 	  Say Y if you want to use LPASS clocks and power domains of the LPASS
 	  core clock controller.
 
+config SC_LPASS_CORECC_7280
+	tristate "SC7280 LPASS Core & Audio Clock Controller"
+	select SC_GCC_7280
+	select QCOM_GDSC
+	help
+	  Support for the LPASS(Low Power Audio Subsystem) core and audio clock
+	  controller on SC7280 devices.
+	  Say Y if you want to use LPASS clocks and power domains of the LPASS
+	  core clock controller.
+
 config SC_MSS_7180
 	tristate "SC7180 Modem Clock Controller"
 	select SC_GCC_7180
