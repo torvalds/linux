@@ -11,6 +11,34 @@
 #include <linux/set_memory.h>
 #include "internal.h"
 
+/*
+ * LKM RO/NX protection: protect module's text/ro-data
+ * from modification and any data from execution.
+ *
+ * General layout of module is:
+ *          [text] [read-only-data] [ro-after-init] [writable data]
+ * text_size -----^                ^               ^               ^
+ * ro_size ------------------------|               |               |
+ * ro_after_init_size -----------------------------|               |
+ * size -----------------------------------------------------------|
+ *
+ * These values are always page-aligned (as is base) when
+ * CONFIG_STRICT_MODULE_RWX is set.
+ */
+
+/*
+ * Since some arches are moving towards PAGE_KERNEL module allocations instead
+ * of PAGE_KERNEL_EXEC, keep frob_text() and module_enable_x() independent of
+ * CONFIG_STRICT_MODULE_RWX because they are needed regardless of whether we
+ * are strict.
+ */
+static void frob_text(const struct module_layout *layout,
+		      int (*set_memory)(unsigned long start, int num_pages))
+{
+	set_memory((unsigned long)layout->base,
+		   PAGE_ALIGN(layout->text_size) >> PAGE_SHIFT);
+}
+
 static void frob_rodata(const struct module_layout *layout,
 		 int (*set_memory)(unsigned long start, int num_pages))
 {
@@ -41,10 +69,24 @@ static void frob_writable_data(const struct module_layout *layout,
 		   (layout->size - layout->ro_after_init_size) >> PAGE_SHIFT);
 }
 
+void module_enable_x(const struct module *mod)
+{
+	if (!PAGE_ALIGNED(mod->core_layout.base) ||
+	    !PAGE_ALIGNED(mod->init_layout.base))
+		return;
+
+	frob_text(&mod->core_layout, set_memory_x);
+	frob_text(&mod->init_layout, set_memory_x);
+}
+
 void module_enable_ro(const struct module *mod, bool after_init)
 {
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		return;
+#ifdef CONFIG_STRICT_MODULE_RWX
 	if (!rodata_enabled)
 		return;
+#endif
 
 	set_vm_flush_reset_perms(mod->core_layout.base);
 	set_vm_flush_reset_perms(mod->init_layout.base);
@@ -60,6 +102,9 @@ void module_enable_ro(const struct module *mod, bool after_init)
 
 void module_enable_nx(const struct module *mod)
 {
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		return;
+
 	frob_rodata(&mod->core_layout, set_memory_nx);
 	frob_ro_after_init(&mod->core_layout, set_memory_nx);
 	frob_writable_data(&mod->core_layout, set_memory_nx);
@@ -72,6 +117,9 @@ int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 {
 	const unsigned long shf_wx = SHF_WRITE | SHF_EXECINSTR;
 	int i;
+
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		return 0;
 
 	for (i = 0; i < hdr->e_shnum; i++) {
 		if ((sechdrs[i].sh_flags & shf_wx) == shf_wx) {

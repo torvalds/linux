@@ -175,24 +175,11 @@ static inline struct module *mod_find(unsigned long addr)
 }
 #endif /* CONFIG_MODULES_TREE_LOOKUP */
 
-void frob_text(const struct module_layout *layout, int (*set_memory)(unsigned long start,
-								     int num_pages));
-
-#ifdef CONFIG_STRICT_MODULE_RWX
 void module_enable_ro(const struct module *mod, bool after_init);
 void module_enable_nx(const struct module *mod);
+void module_enable_x(const struct module *mod);
 int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 				char *secstrings, struct module *mod);
-
-#else /* !CONFIG_STRICT_MODULE_RWX */
-static inline void module_enable_nx(const struct module *mod) { }
-static inline void module_enable_ro(const struct module *mod, bool after_init) {}
-static inline int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-				       char *secstrings, struct module *mod)
-{
-	return 0;
-}
-#endif /* CONFIG_STRICT_MODULE_RWX */
 
 #ifdef CONFIG_MODULE_SIG
 int module_sig_check(struct load_info *info, int flags);
