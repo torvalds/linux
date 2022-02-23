@@ -1367,6 +1367,8 @@ struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version)
 		return mlx5dr_ste_get_ctx_v0();
 	else if (version == MLX5_STEERING_FORMAT_CONNECTX_6DX)
 		return mlx5dr_ste_get_ctx_v1();
+	else if (version == MLX5_STEERING_FORMAT_CONNECTX_7)
+		return mlx5dr_ste_get_ctx_v2();
 
 	return NULL;
 }

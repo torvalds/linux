@@ -201,5 +201,6 @@ struct mlx5dr_ste_ctx {
 
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v0(void);
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v1(void);
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v2(void);
 
 #endif  /* _DR_STE_ */

@@ -108,7 +108,7 @@ dr_mask_is_vxlan_gpe_set(struct mlx5dr_match_misc3 *misc3)
 static bool
 dr_matcher_supp_vxlan_gpe(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_VXLAN_GPE_ENABLED);
 }
 
@@ -149,7 +149,7 @@ static bool dr_mask_is_tnl_geneve_tlv_opt_exist_set(struct mlx5dr_match_misc *mi
 static bool
 dr_matcher_supp_tnl_geneve(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_GENEVE_ENABLED);
 }
 
@@ -266,13 +266,13 @@ static bool dr_mask_is_tnl_gtpu_any(struct mlx5dr_match_param *mask,
 
 static int dr_matcher_supp_icmp_v4(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED);
 }
 
 static int dr_matcher_supp_icmp_v6(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V6_ENABLED);
 }
 
