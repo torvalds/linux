@@ -409,6 +409,7 @@ enum hl_server_type {
  * @dram_page_size: The DRAM physical page size.
  * @number_of_user_interrupts: The number of interrupts that are available to the userspace
  *                             application to use. Relevant for Gaudi2 and later.
+ * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -436,6 +437,8 @@ struct hl_info_hw_ip_info {
 	__u32 reserved3;
 	__u16 number_of_user_interrupts;
 	__u16 pad2;
+	__u64 reserved4;
+	__u64 device_mem_alloc_default_page_size;
 };
 
 struct hl_info_dram_usage {
