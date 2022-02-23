@@ -336,7 +336,7 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c,
 	return 0;
 
 fail1:
-	kfree(lcd);
+	charlcd_free(lcd2s->charlcd);
 	return err;
 }
 
@@ -345,7 +345,7 @@ static int lcd2s_i2c_remove(struct i2c_client *i2c)
 	struct lcd2s_data *lcd2s = i2c_get_clientdata(i2c);
 
 	charlcd_unregister(lcd2s->charlcd);
-	kfree(lcd2s->charlcd);
+	charlcd_free(lcd2s->charlcd);
 	return 0;
 }
 
