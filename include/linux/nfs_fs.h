@@ -106,11 +106,9 @@ struct nfs_open_dir_context {
 	unsigned long attr_gencount;
 	__be32	verf[NFS_DIR_VERIFIER_SIZE];
 	__u64 dir_cookie;
-	__u64 dup_cookie;
 	__u64 last_cookie;
 	pgoff_t page_index;
 	unsigned int dtsize;
-	signed char duped;
 	bool eof;
 	struct rcu_head rcu_head;
 };
