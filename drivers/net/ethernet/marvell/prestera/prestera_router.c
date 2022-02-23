@@ -68,7 +68,7 @@ prestera_kern_fib_cache_find(struct prestera_switch *sw,
 	fib_cache =
 	 rhashtable_lookup_fast(&sw->router->kern_fib_cache_ht, key,
 				__prestera_kern_fib_cache_ht_params);
-	return IS_ERR(fib_cache) ? NULL : fib_cache;
+	return fib_cache;
 }
 
 static void
