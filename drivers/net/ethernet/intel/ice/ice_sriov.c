@@ -1251,7 +1251,8 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	ice_vf_pre_vsi_rebuild(vf);
 
 	if (vf->vf_ops->vsi_rebuild(vf)) {
-		dev_err(dev, "Failed to release and setup the VF%u's VSI\n", vf->vf_id);
+		dev_err(dev, "Failed to release and setup the VF%u's VSI\n",
+			vf->vf_id);
 		return false;
 	}
 
