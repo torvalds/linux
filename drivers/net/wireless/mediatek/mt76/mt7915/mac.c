@@ -761,9 +761,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 				return -EINVAL;
 		}
 
-		if (!is_mt7915(&dev->mt76) ||
-		    (is_mt7915(&dev->mt76) &&
-		     (rxd1 & MT_RXD1_NORMAL_GROUP_5))) {
+		if (!is_mt7915(&dev->mt76) || (rxd1 & MT_RXD1_NORMAL_GROUP_5)) {
 			ret = mt7915_mac_fill_rx_rate(dev, status, sband, rxv);
 			if (ret < 0)
 				return ret;
