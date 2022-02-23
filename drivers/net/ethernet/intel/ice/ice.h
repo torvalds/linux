@@ -52,9 +52,6 @@
 #include <net/udp_tunnel.h>
 #include <net/vxlan.h>
 #include <net/gtp.h>
-#if IS_ENABLED(CONFIG_DCB)
-#include <scsi/iscsi_proto.h>
-#endif /* CONFIG_DCB */
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"

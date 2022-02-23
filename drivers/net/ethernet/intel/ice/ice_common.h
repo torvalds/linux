@@ -6,12 +6,12 @@
 
 #include <linux/bitfield.h>
 
-#include "ice.h"
 #include "ice_type.h"
 #include "ice_nvm.h"
 #include "ice_flex_pipe.h"
-#include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
+#include "ice_switch.h"
+#include "ice_fdir.h"
 
 #define ICE_SQ_SEND_DELAY_TIME_MS	10
 #define ICE_SQ_SEND_MAX_EXECUTE		3

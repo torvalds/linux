@@ -9,6 +9,7 @@
 #define ICE_CHNL_MAX_TC		16
 
 #include "ice_hw_autogen.h"
+#include "ice_devids.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"

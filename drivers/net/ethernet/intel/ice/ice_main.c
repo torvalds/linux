@@ -48,6 +48,21 @@ static DEFINE_IDA(ice_aux_ida);
 DEFINE_STATIC_KEY_FALSE(ice_xdp_locking_key);
 EXPORT_SYMBOL(ice_xdp_locking_key);
 
+/**
+ * ice_hw_to_dev - Get device pointer from the hardware structure
+ * @hw: pointer to the device HW structure
+ *
+ * Used to access the device pointer from compilation units which can't easily
+ * include the definition of struct ice_pf without leading to circular header
+ * dependencies.
+ */
+struct device *ice_hw_to_dev(struct ice_hw *hw)
+{
+	struct ice_pf *pf = container_of(hw, struct ice_pf, hw);
+
+	return &pf->pdev->dev;
+}
+
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_safe_mode_ops;
 static const struct net_device_ops ice_netdev_ops;

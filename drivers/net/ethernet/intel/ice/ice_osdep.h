@@ -5,7 +5,14 @@
 #define _ICE_OSDEP_H_
 
 #include <linux/types.h>
+#include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/bitops.h>
+#include <linux/ethtool.h>
+#include <linux/etherdevice.h>
+#include <linux/if_ether.h>
+#include <linux/pci_ids.h>
 #ifndef CONFIG_64BIT
 #include <linux/io-64-nonatomic-lo-hi.h>
 #endif
@@ -25,8 +32,8 @@ struct ice_dma_mem {
 	size_t size;
 };
 
-#define ice_hw_to_dev(ptr)	\
-	(&(container_of((ptr), struct ice_pf, hw))->pdev->dev)
+struct ice_hw;
+struct device *ice_hw_to_dev(struct ice_hw *hw);
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 #define ice_debug(hw, type, fmt, args...) \
