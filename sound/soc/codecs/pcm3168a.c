@@ -48,7 +48,7 @@ static const char *const pcm3168a_supply_names[] = {
 
 /* ADC/DAC side parameters */
 struct pcm3168a_io_params {
-	bool master_mode;
+	bool provider_mode;
 	unsigned int format;
 	int tdm_slots;
 	u32 tdm_mask;
@@ -357,7 +357,7 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
 	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
-	bool master_mode;
+	bool provider_mode;
 
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -371,15 +371,15 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 		return -EINVAL;
 	}
 
-	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		master_mode = false;
+	switch (format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
+		provider_mode = false;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		master_mode = true;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		provider_mode = true;
 		break;
 	default:
-		dev_err(component->dev, "unsupported master/slave mode\n");
+		dev_err(component->dev, "unsupported provider mode\n");
 		return -EINVAL;
 	}
 
@@ -390,7 +390,7 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 		return -EINVAL;
 	}
 
-	io_params->master_mode = master_mode;
+	io_params->provider_mode = provider_mode;
 	io_params->format = format & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	pcm3168a_update_fixup_pcm_stream(dai);
@@ -440,7 +440,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
 	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
-	bool master_mode, tdm_mode;
+	bool provider_mode, tdm_mode;
 	unsigned int format;
 	unsigned int reg, mask, ms, ms_shift, fmt, fmt_shift, ratio, tdm_slots;
 	int i, num_scki_ratios, slot_width;
@@ -459,9 +459,9 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		fmt_shift = PCM3168A_ADC_FMTAD_SHIFT;
 	}
 
-	master_mode = io_params->master_mode;
+	provider_mode = io_params->provider_mode;
 
-	if (master_mode) {
+	if (provider_mode) {
 		ratio = pcm3168a->sysclk / params_rate(params);
 
 		for (i = 0; i < num_scki_ratios; i++) {
@@ -488,15 +488,15 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 
 	switch (slot_width) {
 	case 16:
-		if (master_mode || (format != SND_SOC_DAIFMT_RIGHT_J)) {
-			dev_err(component->dev, "16-bit slots are supported only for slave mode using right justified\n");
+		if (provider_mode || (format != SND_SOC_DAIFMT_RIGHT_J)) {
+			dev_err(component->dev, "16-bit slots are supported only for consumer mode using right justified\n");
 			return -EINVAL;
 		}
 		break;
 	case 24:
-		if (master_mode || (format == SND_SOC_DAIFMT_DSP_A) ||
-				   (format == SND_SOC_DAIFMT_DSP_B)) {
-			dev_err(component->dev, "24-bit slots not supported in master mode, or slave mode using DSP\n");
+		if (provider_mode || (format == SND_SOC_DAIFMT_DSP_A) ||
+		    		     (format == SND_SOC_DAIFMT_DSP_B)) {
+			dev_err(component->dev, "24-bit slots not supported in provider mode, or consumer mode using DSP\n");
 			return -EINVAL;
 		}
 		break;
