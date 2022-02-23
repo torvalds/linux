@@ -181,15 +181,14 @@ static int mc13783_set_fmt(struct snd_soc_dai *dai, unsigned int fmt,
 	}
 
 	/* DAI clock master masks */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		val |= AUDIO_C_CLK_EN;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		val |= AUDIO_CSM;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-	case SND_SOC_DAIFMT_CBS_CFM:
+	default:
 		return -EINVAL;
 	}
 
@@ -217,11 +216,11 @@ static int mc13783_set_fmt_sync(struct snd_soc_dai *dai, unsigned int fmt)
 		return ret;
 
 	/*
-	 * In synchronous mode force the voice codec into slave mode
+	 * In synchronous mode force the voice codec into consumer mode
 	 * so that the clock / framesync from the stereo DAC is used
 	 */
-	fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-	fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	fmt &= ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+	fmt |= SND_SOC_DAIFMT_CBC_CFC;
 	ret = mc13783_set_fmt(dai, fmt, MC13783_AUDIO_CODEC);
 
 	return ret;
