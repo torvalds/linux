@@ -2398,6 +2398,9 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 		if (switchdev_work->host_addr)
 			err = dsa_port_host_fdb_add(dp, switchdev_work->addr,
 						    switchdev_work->vid);
+		else if (dp->lag)
+			err = dsa_port_lag_fdb_add(dp, switchdev_work->addr,
+						   switchdev_work->vid);
 		else
 			err = dsa_port_fdb_add(dp, switchdev_work->addr,
 					       switchdev_work->vid);
@@ -2415,6 +2418,9 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 		if (switchdev_work->host_addr)
 			err = dsa_port_host_fdb_del(dp, switchdev_work->addr,
 						    switchdev_work->vid);
+		else if (dp->lag)
+			err = dsa_port_lag_fdb_del(dp, switchdev_work->addr,
+						   switchdev_work->vid);
 		else
 			err = dsa_port_fdb_del(dp, switchdev_work->addr,
 					       switchdev_work->vid);
@@ -2457,31 +2463,38 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 	bool host_addr = fdb_info->is_local;
 	struct dsa_switch *ds = dp->ds;
 
-	if (dp->lag)
-		return -EOPNOTSUPP;
-
 	if (ctx && ctx != dp)
 		return 0;
 
-	if (!ds->ops->port_fdb_add || !ds->ops->port_fdb_del)
-		return -EOPNOTSUPP;
+	if (switchdev_fdb_is_dynamically_learned(fdb_info)) {
+		if (dsa_port_offloads_bridge_port(dp, orig_dev))
+			return 0;
 
-	if (dsa_slave_dev_check(orig_dev) &&
-	    switchdev_fdb_is_dynamically_learned(fdb_info))
-		return 0;
-
-	/* FDB entries learned by the software bridge should be installed as
-	 * host addresses only if the driver requests assisted learning.
-	 */
-	if (switchdev_fdb_is_dynamically_learned(fdb_info) &&
-	    !ds->assisted_learning_on_cpu_port)
-		return 0;
+		/* FDB entries learned by the software bridge or by foreign
+		 * bridge ports should be installed as host addresses only if
+		 * the driver requests assisted learning.
+		 */
+		if (!ds->assisted_learning_on_cpu_port)
+			return 0;
+	}
 
 	/* Also treat FDB entries on foreign interfaces bridged with us as host
 	 * addresses.
 	 */
 	if (dsa_foreign_dev_check(dev, orig_dev))
 		host_addr = true;
+
+	/* Check early that we're not doing work in vain.
+	 * Host addresses on LAG ports still require regular FDB ops,
+	 * since the CPU port isn't in a LAG.
+	 */
+	if (dp->lag && !host_addr) {
+		if (!ds->ops->lag_fdb_add || !ds->ops->lag_fdb_del)
+			return -EOPNOTSUPP;
+	} else {
+		if (!ds->ops->port_fdb_add || !ds->ops->port_fdb_del)
+			return -EOPNOTSUPP;
+	}
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (!switchdev_work)
