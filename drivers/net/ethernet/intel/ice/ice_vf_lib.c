@@ -446,10 +446,11 @@ void ice_reset_all_vfs(struct ice_pf *pf)
  * @vf: pointer to the VF structure
  * @is_vflr: true if VFLR was issued, false if not
  *
- * Returns true if the VF is currently in reset, resets successfully, or resets
- * are disabled and false otherwise.
+ * Returns 0 if the VF is currently in reset, if the resets are disabled, or
+ * if the VF resets successfully. Returns an error code if the VF fails to
+ * rebuild.
  */
-bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+int ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
@@ -466,13 +467,13 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	if (test_bit(ICE_VF_RESETS_DISABLED, pf->state)) {
 		dev_dbg(dev, "Trying to reset VF %d, but all VF resets are disabled\n",
 			vf->vf_id);
-		return true;
+		return 0;
 	}
 
 	if (ice_is_vf_disabled(vf)) {
 		dev_dbg(dev, "VF is already disabled, there is no need for resetting it, telling VM, all is fine %d\n",
 			vf->vf_id);
-		return true;
+		return 0;
 	}
 
 	/* Set VF disable bit state here, before triggering reset */
@@ -532,7 +533,7 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	if (vf->vf_ops->vsi_rebuild(vf)) {
 		dev_err(dev, "Failed to release and setup the VF%u's VSI\n",
 			vf->vf_id);
-		return false;
+		return -EFAULT;
 	}
 
 	vf->vf_ops->post_vsi_rebuild(vf);
@@ -546,7 +547,7 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 		dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
 			vf->vf_id);
 
-	return true;
+	return 0;
 }
 
 /**
