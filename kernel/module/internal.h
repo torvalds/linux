@@ -23,9 +23,9 @@
 /*
  * Modules' sections will be aligned on page boundaries
  * to ensure complete separation of code and data, but
- * only when CONFIG_ARCH_HAS_STRICT_MODULE_RWX=y
+ * only when CONFIG_STRICT_MODULE_RWX=y
  */
-#ifdef CONFIG_ARCH_HAS_STRICT_MODULE_RWX
+#ifdef CONFIG_STRICT_MODULE_RWX
 # define debug_align(X) PAGE_ALIGN(X)
 #else
 # define debug_align(X) (X)
@@ -175,10 +175,8 @@ static inline struct module *mod_find(unsigned long addr)
 }
 #endif /* CONFIG_MODULES_TREE_LOOKUP */
 
-#ifdef CONFIG_ARCH_HAS_STRICT_MODULE_RWX
 void frob_text(const struct module_layout *layout, int (*set_memory)(unsigned long start,
 								     int num_pages));
-#endif /* CONFIG_ARCH_HAS_STRICT_MODULE_RWX */
 
 #ifdef CONFIG_STRICT_MODULE_RWX
 void module_enable_ro(const struct module *mod, bool after_init);
