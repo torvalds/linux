@@ -613,4 +613,6 @@ int nfp_flower_setup_meter_entry(struct nfp_app *app,
 				 const struct flow_action_entry *action,
 				 enum nfp_meter_op op,
 				 u32 meter_id);
+struct nfp_meter_entry *
+nfp_flower_search_meter_entry(struct nfp_app *app, u32 meter_id);
 #endif

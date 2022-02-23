@@ -502,7 +502,7 @@ static const struct rhashtable_params stats_meter_table_params = {
 	.key_len	= sizeof(u32),
 };
 
-static struct nfp_meter_entry *
+struct nfp_meter_entry *
 nfp_flower_search_meter_entry(struct nfp_app *app, u32 meter_id)
 {
 	struct nfp_flower_priv *priv = app->priv;
