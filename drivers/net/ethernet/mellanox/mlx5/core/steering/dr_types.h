@@ -555,7 +555,9 @@ struct mlx5dr_match_spec {
 	 */
 	u32 tcp_dport:16;
 
-	u32 reserved_auto1:24;
+	u32 reserved_auto1:16;
+	u32 ipv4_ihl:4;
+	u32 reserved_auto2:4;
 	u32 ttl_hoplimit:8;
 
 	/* UDP source port.;tcp and udp sport/dport are mutually exclusive */

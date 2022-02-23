@@ -793,6 +793,7 @@ static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec, bo
 	spec->tcp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_sport, clr);
 	spec->tcp_dport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_dport, clr);
 
+	spec->ipv4_ihl = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ipv4_ihl, clr);
 	spec->ttl_hoplimit = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ttl_hoplimit, clr);
 
 	spec->udp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, udp_sport, clr);

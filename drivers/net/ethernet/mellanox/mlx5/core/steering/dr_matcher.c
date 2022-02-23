@@ -47,6 +47,11 @@ static bool dr_mask_is_ttl_set(struct mlx5dr_match_spec *spec)
 	return spec->ttl_hoplimit;
 }
 
+static bool dr_mask_is_ipv4_ihl_set(struct mlx5dr_match_spec *spec)
+{
+	return spec->ipv4_ihl;
+}
+
 #define DR_MASK_IS_L2_DST(_spec, _misc, _inner_outer) (_spec.first_vid || \
 	(_spec).first_cfi || (_spec).first_prio || (_spec).cvlan_tag || \
 	(_spec).svlan_tag || (_spec).dmac_47_16 || (_spec).dmac_15_0 || \
@@ -507,7 +512,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_eth_l3_ipv4_5_tuple(ste_ctx, &sb[idx++],
 								     &mask, inner, rx);
 
-			if (dr_mask_is_ttl_set(&mask.outer))
+			if (dr_mask_is_ttl_set(&mask.outer) ||
+			    dr_mask_is_ipv4_ihl_set(&mask.outer))
 				mlx5dr_ste_build_eth_l3_ipv4_misc(ste_ctx, &sb[idx++],
 								  &mask, inner, rx);
 		}
@@ -614,7 +620,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_eth_l3_ipv4_5_tuple(ste_ctx, &sb[idx++],
 								     &mask, inner, rx);
 
-			if (dr_mask_is_ttl_set(&mask.inner))
+			if (dr_mask_is_ttl_set(&mask.inner) ||
+			    dr_mask_is_ipv4_ihl_set(&mask.inner))
 				mlx5dr_ste_build_eth_l3_ipv4_misc(ste_ctx, &sb[idx++],
 								  &mask, inner, rx);
 		}
