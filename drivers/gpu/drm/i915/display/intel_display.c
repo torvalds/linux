@@ -3192,6 +3192,23 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	}
 }
 
+static void intel_bigjoiner_adjust_pipe_src(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	int num_pipes = intel_bigjoiner_num_pipes(crtc_state);
+	enum pipe master_pipe, pipe = crtc->pipe;
+	int width;
+
+	if (num_pipes < 2)
+		return;
+
+	master_pipe = bigjoiner_master_pipe(crtc_state);
+	width = drm_rect_width(&crtc_state->pipe_src);
+
+	drm_rect_translate_to(&crtc_state->pipe_src,
+			      (pipe - master_pipe) * width, 0);
+}
+
 static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 				    struct intel_crtc_state *pipe_config)
 {
@@ -3204,6 +3221,8 @@ static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 	drm_rect_init(&pipe_config->pipe_src, 0, 0,
 		      REG_FIELD_GET(PIPESRC_WIDTH_MASK, tmp) + 1,
 		      REG_FIELD_GET(PIPESRC_HEIGHT_MASK, tmp) + 1);
+
+	intel_bigjoiner_adjust_pipe_src(pipe_config);
 }
 
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
@@ -5837,6 +5856,8 @@ intel_modeset_pipe_config_late(struct intel_crtc_state *crtc_state)
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;
 	int i;
+
+	intel_bigjoiner_adjust_pipe_src(crtc_state);
 
 	for_each_new_connector_in_state(&state->base, connector,
 					conn_state, i) {

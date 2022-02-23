@@ -958,21 +958,21 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 static int check_overlay_dst(struct intel_overlay *overlay,
 			     struct drm_intel_overlay_put_image *rec)
 {
-	const struct intel_crtc_state *pipe_config =
+	const struct intel_crtc_state *crtc_state =
 		overlay->crtc->config;
-	int pipe_src_w = drm_rect_width(&pipe_config->pipe_src);
-	int pipe_src_h = drm_rect_height(&pipe_config->pipe_src);
+	struct drm_rect req, clipped;
 
-	if (rec->dst_height == 0 || rec->dst_width == 0)
+	drm_rect_init(&req, rec->dst_x, rec->dst_y,
+		      rec->dst_width, rec->dst_height);
+
+	clipped = req;
+	drm_rect_intersect(&clipped, &crtc_state->pipe_src);
+
+	if (!drm_rect_visible(&clipped) ||
+	    !drm_rect_equals(&clipped, &req))
 		return -EINVAL;
 
-	if (rec->dst_x < pipe_src_w &&
-	    rec->dst_x + rec->dst_width <= pipe_src_w &&
-	    rec->dst_y < pipe_src_h &&
-	    rec->dst_y + rec->dst_height <= pipe_src_h)
-		return 0;
-	else
-		return -EINVAL;
+	return 0;
 }
 
 static int check_overlay_scaling(struct drm_intel_overlay_put_image *rec)

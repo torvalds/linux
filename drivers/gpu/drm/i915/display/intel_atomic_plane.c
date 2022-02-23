@@ -823,10 +823,6 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 		return -ERANGE;
 	}
 
-	/* right side of the image is on the slave crtc, adjust dst to match */
-	if (intel_crtc_is_bigjoiner_slave(crtc_state))
-		drm_rect_translate(dst, -drm_rect_width(&crtc_state->pipe_src), 0);
-
 	/*
 	 * FIXME: This might need further adjustment for seamless scaling
 	 * with phase information, for the 2p2 and 2p1 scenarios.
@@ -842,6 +838,9 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 		drm_rect_debug_print("clip: ", clip, false);
 		return -EINVAL;
 	}
+
+	/* final plane coordinates will be relative to the plane's pipe */
+	drm_rect_translate(dst, -clip->x1, -clip->y1);
 
 	return 0;
 }
