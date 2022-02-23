@@ -87,7 +87,7 @@ static bool max77802_rtc_is_volatile_reg(struct device *dev, unsigned int reg)
 		reg == MAX77802_RTC_WEEKDAY ||
 		reg == MAX77802_RTC_MONTH ||
 		reg == MAX77802_RTC_YEAR ||
-		reg == MAX77802_RTC_DATE);
+		reg == MAX77802_RTC_MONTHDAY);
 }
 
 static bool max77802_is_volatile_reg(struct device *dev, unsigned int reg)

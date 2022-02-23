@@ -57,7 +57,7 @@ enum {
 	RTC_WEEKDAY,
 	RTC_MONTH,
 	RTC_YEAR,
-	RTC_DATE,
+	RTC_MONTHDAY,
 	RTC_NR_TIME
 };
 
@@ -119,7 +119,7 @@ enum max77686_rtc_reg_offset {
 	REG_RTC_WEEKDAY,
 	REG_RTC_MONTH,
 	REG_RTC_YEAR,
-	REG_RTC_DATE,
+	REG_RTC_MONTHDAY,
 	REG_ALARM1_SEC,
 	REG_ALARM1_MIN,
 	REG_ALARM1_HOUR,
@@ -150,7 +150,7 @@ static const unsigned int max77686_map[REG_RTC_END] = {
 	[REG_RTC_WEEKDAY]    = MAX77686_RTC_WEEKDAY,
 	[REG_RTC_MONTH]      = MAX77686_RTC_MONTH,
 	[REG_RTC_YEAR]       = MAX77686_RTC_YEAR,
-	[REG_RTC_DATE]       = MAX77686_RTC_DATE,
+	[REG_RTC_MONTHDAY]   = MAX77686_RTC_MONTHDAY,
 	[REG_ALARM1_SEC]     = MAX77686_ALARM1_SEC,
 	[REG_ALARM1_MIN]     = MAX77686_ALARM1_MIN,
 	[REG_ALARM1_HOUR]    = MAX77686_ALARM1_HOUR,
@@ -233,7 +233,7 @@ static const unsigned int max77802_map[REG_RTC_END] = {
 	[REG_RTC_WEEKDAY]    = MAX77802_RTC_WEEKDAY,
 	[REG_RTC_MONTH]      = MAX77802_RTC_MONTH,
 	[REG_RTC_YEAR]       = MAX77802_RTC_YEAR,
-	[REG_RTC_DATE]       = MAX77802_RTC_DATE,
+	[REG_RTC_MONTHDAY]   = MAX77802_RTC_MONTHDAY,
 	[REG_ALARM1_SEC]     = MAX77802_ALARM1_SEC,
 	[REG_ALARM1_MIN]     = MAX77802_ALARM1_MIN,
 	[REG_ALARM1_HOUR]    = MAX77802_ALARM1_HOUR,
@@ -288,7 +288,7 @@ static void max77686_rtc_data_to_tm(u8 *data, struct rtc_time *tm,
 
 	/* Only a single bit is set in data[], so fls() would be equivalent */
 	tm->tm_wday = ffs(data[RTC_WEEKDAY] & mask) - 1;
-	tm->tm_mday = data[RTC_DATE] & 0x1f;
+	tm->tm_mday = data[RTC_MONTHDAY] & 0x1f;
 	tm->tm_mon = (data[RTC_MONTH] & 0x0f) - 1;
 	tm->tm_year = data[RTC_YEAR] & mask;
 	tm->tm_yday = 0;
@@ -309,7 +309,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data,
 	data[RTC_MIN] = tm->tm_min;
 	data[RTC_HOUR] = tm->tm_hour;
 	data[RTC_WEEKDAY] = 1 << tm->tm_wday;
-	data[RTC_DATE] = tm->tm_mday;
+	data[RTC_MONTHDAY] = tm->tm_mday;
 	data[RTC_MONTH] = tm->tm_mon + 1;
 
 	if (info->drv_data->alarm_enable_reg) {
@@ -565,8 +565,8 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 			data[RTC_MONTH] |= (1 << ALARM_ENABLE_SHIFT);
 		if (data[RTC_YEAR] & info->drv_data->mask)
 			data[RTC_YEAR] |= (1 << ALARM_ENABLE_SHIFT);
-		if (data[RTC_DATE] & 0x1f)
-			data[RTC_DATE] |= (1 << ALARM_ENABLE_SHIFT);
+		if (data[RTC_MONTHDAY] & 0x1f)
+			data[RTC_MONTHDAY] |= (1 << ALARM_ENABLE_SHIFT);
 
 		ret = regmap_bulk_write(info->rtc_regmap, map[REG_ALARM1_SEC],
 					data, ARRAY_SIZE(data));
