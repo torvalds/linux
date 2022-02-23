@@ -201,26 +201,24 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 	: "r19", "r20" );
 #else
     {
-	unsigned long valh=0,vall=0;
+	unsigned long shift, temp1;
 	__asm__ __volatile__  (
-"	zdep	%5,29,2,%%r19\n"		/* r19=(ofs&3)*8 */
-"	mtsp	%6, %%sr1\n"
-"	dep	%%r0,31,2,%5\n"
-"1:	ldw	0(%%sr1,%5),%0\n"
-"2:	ldw	4(%%sr1,%5),%1\n"
-"3:	ldw	8(%%sr1,%5),%%r20\n"
-"	subi	32,%%r19,%%r19\n"
-"	mtsar	%%r19\n"
-"	vshd	%0,%1,%0\n"
-"	vshd	%1,%%r20,%1\n"
+"	zdep	%2,29,2,%3\n"		/* r19=(ofs&3)*8 */
+"	mtsp	%5, %%sr1\n"
+"	dep	%%r0,31,2,%2\n"
+"1:	ldw	0(%%sr1,%2),%0\n"
+"2:	ldw	4(%%sr1,%2),%R0\n"
+"3:	ldw	8(%%sr1,%2),%4\n"
+"	subi	32,%3,%3\n"
+"	mtsar	%3\n"
+"	vshd	%0,%R0,%0\n"
+"	vshd	%R0,%4,%R0\n"
 "4:	\n"
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 4b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 4b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(3b, 4b)
-	: "=r" (valh), "=r" (vall), "+r" (ret)
-	: "0" (valh), "1" (vall), "r" (saddr), "r" (regs->isr)
-	: "r19", "r20" );
-	val=((__u64)valh<<32)|(__u64)vall;
+	: "+r" (val), "+r" (ret), "+r" (saddr), "=&r" (shift), "=&r" (temp1)
+	: "r" (regs->isr) );
     }
 #endif
 
