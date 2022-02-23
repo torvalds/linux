@@ -630,6 +630,49 @@ static int dwc3_gadget_set_ep_config(struct dwc3_ep *dep, unsigned int action)
 }
 
 /**
+ * dwc3_gadget_get_tx_fifos_size - Get the txfifos total size
+ * @dwc: pointer to the DWC3 context
+ *
+ * 3-RAM configuration:
+ * RAM0 depth = Descriptor Cache depth
+ * RAM1 depth = TxFIFOs depth
+ * RAM2 depth = RxFIFOs depth
+ *
+ * 2-RAM configuration:
+ * RAM0 depth = Descriptor Cache depth + RxFIFOs depth
+ * RAM1 depth = TxFIFOs depth
+ *
+ * 1-RAM configuration:
+ * RAM0 depth = Descriptor Cache depth + RxFIFOs depth + TxFIFOs depth
+ */
+static int dwc3_gadget_get_tx_fifos_size(struct dwc3 *dwc)
+{
+	int txfifo_depth = 0;
+	int ram0_depth, rxfifo_size;
+
+	/* Get the depth of the TxFIFOs */
+	if (DWC3_NUM_RAMS(dwc->hwparams.hwparams1) > 1) {
+		/* For 2 or 3-RAM, RAM1 contains TxFIFOs */
+		txfifo_depth = DWC3_RAM1_DEPTH(dwc->hwparams.hwparams7);
+	} else {
+		/* For 1-RAM, RAM0 contains Descriptor Cache, RxFIFOs, and TxFIFOs */
+		ram0_depth = DWC3_GHWPARAMS6_RAM0_DEPTH(dwc->hwparams.hwparams6);
+
+		/* All OUT endpoints share a single RxFIFO space */
+		rxfifo_size = dwc3_readl(dwc->regs, DWC3_GRXFIFOSIZ(0));
+		if (DWC3_IP_IS(DWC3))
+			txfifo_depth = ram0_depth - DWC3_GRXFIFOSIZ_RXFDEP(rxfifo_size);
+		else
+			txfifo_depth = ram0_depth - DWC31_GRXFIFOSIZ_RXFDEP(rxfifo_size);
+
+		/* The value of GRxFIFOSIZ0[31:16] is the depth of Descriptor Cache */
+		txfifo_depth -= DWC3_GRXFIFOSIZ_RXFSTADDR(rxfifo_size) >> 16;
+	}
+
+	return txfifo_depth;
+}
+
+/**
  * dwc3_gadget_calc_tx_fifo_size - calculates the txfifo size value
  * @dwc: pointer to the DWC3 context
  * @nfifos: number of fifos to calculate for
@@ -750,7 +793,7 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3_ep *dep)
 	if (dep->flags & DWC3_EP_TXFIFO_RESIZED)
 		return 0;
 
-	ram1_depth = DWC3_RAM1_DEPTH(dwc->hwparams.hwparams7);
+	ram1_depth = dwc3_gadget_get_tx_fifos_size(dwc);
 
 	if ((dep->endpoint.maxburst > 1 &&
 	     usb_endpoint_xfer_bulk(dep->endpoint.desc)) ||
@@ -2848,7 +2891,7 @@ static int dwc3_gadget_check_config(struct usb_gadget *g)
 	fifo_size += dwc->max_cfg_eps;
 
 	/* Check if we can fit a single fifo per endpoint */
-	ram1_depth = DWC3_RAM1_DEPTH(dwc->hwparams.hwparams7);
+	ram1_depth = dwc3_gadget_get_tx_fifos_size(dwc);
 	if (fifo_size > ram1_depth)
 		return -ENOMEM;
 
