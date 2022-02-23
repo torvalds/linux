@@ -609,6 +609,10 @@ static inline __u32 fsnotify_calc_mask(struct fsnotify_mark *mark)
 	if (!mark->ignored_mask)
 		return mask;
 
+	/* Interest in FS_MODIFY may be needed for clearing ignored mask */
+	if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+		mask |= FS_MODIFY;
+
 	/*
 	 * If mark is interested in ignoring events on children, the object must
 	 * show interest in those events for fsnotify_parent() to notice it.
