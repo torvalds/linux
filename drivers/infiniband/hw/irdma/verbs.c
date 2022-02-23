@@ -1200,7 +1200,7 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		av->attrs = attr->ah_attr;
 		rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
 		rdma_gid2ip((struct sockaddr *)&av->dgid_addr, &attr->ah_attr.grh.dgid);
-		if (av->sgid_addr.saddr.sa_family == AF_INET6) {
+		if (av->net_type == RDMA_NETWORK_IPV6) {
 			__be32 *daddr =
 				av->dgid_addr.saddr_in6.sin6_addr.in6_u.u6_addr32;
 			__be32 *saddr =
@@ -1216,7 +1216,7 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 							    &local_ip[0],
 							    false, NULL,
 							    IRDMA_ARP_RESOLVE);
-		} else {
+		} else if (av->net_type == RDMA_NETWORK_IPV4) {
 			__be32 saddr = av->sgid_addr.saddr_in.sin_addr.s_addr;
 			__be32 daddr = av->dgid_addr.saddr_in.sin_addr.s_addr;
 
@@ -4129,8 +4129,6 @@ static int irdma_create_ah(struct ib_ah *ibah,
 	rdma_gid2ip((struct sockaddr *)&dgid_addr, &ah_attr->grh.dgid);
 	ah->av.attrs = *ah_attr;
 	ah->av.net_type = rdma_gid_attr_network_type(sgid_attr);
-	ah->av.sgid_addr.saddr = sgid_addr.saddr;
-	ah->av.dgid_addr.saddr = dgid_addr.saddr;
 	ah_info = &sc_ah->ah_info;
 	ah_info->ah_idx = ah_id;
 	ah_info->pd_idx = pd->sc_pd.pd_id;
@@ -4141,7 +4139,7 @@ static int irdma_create_ah(struct ib_ah *ibah,
 	}
 
 	ether_addr_copy(dmac, ah_attr->roce.dmac);
-	if (rdma_gid_attr_network_type(sgid_attr) == RDMA_NETWORK_IPV4) {
+	if (ah->av.net_type == RDMA_NETWORK_IPV4) {
 		ah_info->ipv4_valid = true;
 		ah_info->dest_ip_addr[0] =
 			ntohl(dgid_addr.saddr_in.sin_addr.s_addr);
