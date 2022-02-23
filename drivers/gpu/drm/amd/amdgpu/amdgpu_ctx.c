@@ -205,8 +205,14 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	if (r)
 		goto error_free_entity;
 
-	ctx->entities[hw_ip][ring] = entity;
+	/* It's not an error if we fail to install the new entity */
+	if (cmpxchg(&ctx->entities[hw_ip][ring], NULL, entity))
+		goto cleanup_entity;
+
 	return 0;
+
+cleanup_entity:
+	drm_sched_entity_fini(&entity->entity);
 
 error_free_entity:
 	kfree(entity);
