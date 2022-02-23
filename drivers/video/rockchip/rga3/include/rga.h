@@ -489,7 +489,10 @@ struct rga_req {
 	/* RGA2 1106 add */
 	struct rga_mosaic_info mosaic_info;
 
-	uint8_t reservr[125];
+	uint8_t uvhds_mode;
+	uint8_t uvvds_mode;
+
+	uint8_t reservr[123];
 };
 
 struct rga2_req {
@@ -626,6 +629,9 @@ struct rga2_req {
 	struct rga_mosaic_info mosaic_info;
 
 	uint8_t yin_yout_en;
+
+	uint8_t uvhds_mode;
+	uint8_t uvvds_mode;
 };
 
 struct rga3_req {

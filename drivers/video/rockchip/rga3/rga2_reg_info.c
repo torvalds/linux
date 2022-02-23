@@ -281,6 +281,10 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			if (msg->rotate_mode >> 6)
 				scale_h_flag = 3;
 		}
+
+		/* uvvds need to force tile mode. */
+		if (msg->uvvds_mode && scale_w_flag == 0)
+			scale_w_flag = 3;
 	}
 
 	switch (msg->src.format) {
@@ -1039,6 +1043,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		((reg & (~m_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE)) |
 		 (s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(
 			msg->yuv2rgb_mode >> 7)));
+
+	reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_UVHDS_MODE)) |
+	       (s_RGA2_DST_INFO_SW_DST_UVHDS_MODE(msg->uvhds_mode)));
+	reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_UVVDS_MODE)) |
+	       (s_RGA2_DST_INFO_SW_DST_UVVDS_MODE(msg->uvvds_mode)));
 
 	ydither_en = (msg->dst.format == RGA_FORMAT_Y4)
 		&& ((msg->alpha_rop_flag >> 6) & 0x1);
@@ -1836,6 +1845,9 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	    rga_is_only_y_format(req->src.format) &&
 	    rga_is_only_y_format(req->dst.format))
 		req->yin_yout_en = true;
+
+	req->uvhds_mode = req_rga->uvhds_mode;
+	req->uvvds_mode = req_rga->uvvds_mode;
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
