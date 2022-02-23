@@ -20,6 +20,8 @@
 /* Maximum number of characters written by module_flags() */
 #define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)
 
+#define	data_layout core_layout
+
 /*
  * Modules' sections will be aligned on page boundaries
  * to ensure complete separation of code and data, but
