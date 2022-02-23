@@ -473,6 +473,7 @@ static void ice_notify_vf_reset(struct ice_vf *vf)
  * Flags:
  *   ICE_VF_RESET_VFLR - Indicates a reset is due to VFLR event
  *   ICE_VF_RESET_NOTIFY - Send VF a notification prior to reset
+ *   ICE_VF_RESET_LOCK - Acquire VF cfg_lock before resetting
  *
  * Returns 0 if the VF is currently in reset, if the resets are disabled, or
  * if the VF resets successfully. Returns an error code if the VF fails to
@@ -485,9 +486,8 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	struct device *dev;
 	struct ice_hw *hw;
 	u8 promisc_m;
+	int err = 0;
 	bool rsd;
-
-	lockdep_assert_held(&vf->cfg_lock);
 
 	dev = ice_pf_to_dev(pf);
 	hw = &pf->hw;
@@ -506,6 +506,11 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 			vf->vf_id);
 		return 0;
 	}
+
+	if (flags & ICE_VF_RESET_LOCK)
+		mutex_lock(&vf->cfg_lock);
+	else
+		lockdep_assert_held(&vf->cfg_lock);
 
 	/* Set VF disable bit state here, before triggering reset */
 	set_bit(ICE_VF_STATE_DIS, vf->vf_states);
@@ -564,7 +569,8 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	if (vf->vf_ops->vsi_rebuild(vf)) {
 		dev_err(dev, "Failed to release and setup the VF%u's VSI\n",
 			vf->vf_id);
-		return -EFAULT;
+		err = -EFAULT;
+		goto out_unlock;
 	}
 
 	vf->vf_ops->post_vsi_rebuild(vf);
@@ -578,7 +584,11 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 		dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
 			vf->vf_id);
 
-	return 0;
+out_unlock:
+	if (flags & ICE_VF_RESET_LOCK)
+		mutex_unlock(&vf->cfg_lock);
+
+	return err;
 }
 
 /**

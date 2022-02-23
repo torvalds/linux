@@ -1366,12 +1366,9 @@ void ice_process_vflr_event(struct ice_pf *pf)
 		bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
 		/* read GLGEN_VFLRSTAT register to find out the flr VFs */
 		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
-		if (reg & BIT(bit_idx)) {
+		if (reg & BIT(bit_idx))
 			/* GLGEN_VFLRSTAT bit will be cleared in ice_reset_vf */
-			mutex_lock(&vf->cfg_lock);
-			ice_reset_vf(vf, ICE_VF_RESET_VFLR);
-			mutex_unlock(&vf->cfg_lock);
-		}
+			ice_reset_vf(vf, ICE_VF_RESET_VFLR | ICE_VF_RESET_LOCK);
 	}
 	mutex_unlock(&pf->vfs.table_lock);
 }
@@ -1453,10 +1450,7 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 	if (!vf)
 		return;
 
-	mutex_lock(&vf->cfg_lock);
-	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
-	mutex_unlock(&vf->cfg_lock);
-
+	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY | ICE_VF_RESET_LOCK);
 	ice_put_vf(vf);
 }
 
