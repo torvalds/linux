@@ -21229,6 +21229,11 @@ T:	git https://github.com/Xilinx/linux-xlnx.git
 F:	Documentation/devicetree/bindings/phy/xlnx,zynqmp-psgtr.yaml
 F:	drivers/phy/xilinx/phy-zynqmp.c
 
+XILINX ZYNQMP SHA3 DRIVER
+M:	Harsha <harsha.harsha@xilinx.com>
+S:	Maintained
+F:	drivers/crypto/xilinx/zynqmp-sha.c
+
 XILINX EVENT MANAGEMENT DRIVER
 M:	Abhyuday Godhasara <abhyuday.godhasara@xilinx.com>
 S:	Maintained
