@@ -369,6 +369,11 @@ bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state)
 		crtc->pipe == bigjoiner_master_pipe(crtc_state);
 }
 
+static int intel_bigjoiner_num_pipes(const struct intel_crtc_state *crtc_state)
+{
+	return hweight8(crtc_state->bigjoiner_pipes);
+}
+
 struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
@@ -2719,16 +2724,18 @@ static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 static void intel_bigjoiner_adjust_timings(const struct intel_crtc_state *crtc_state,
 					   struct drm_display_mode *mode)
 {
-	if (!crtc_state->bigjoiner_pipes)
+	int num_pipes = intel_bigjoiner_num_pipes(crtc_state);
+
+	if (num_pipes < 2)
 		return;
 
-	mode->crtc_clock /= 2;
-	mode->crtc_hdisplay /= 2;
-	mode->crtc_hblank_start /= 2;
-	mode->crtc_hblank_end /= 2;
-	mode->crtc_hsync_start /= 2;
-	mode->crtc_hsync_end /= 2;
-	mode->crtc_htotal /= 2;
+	mode->crtc_clock /= num_pipes;
+	mode->crtc_hdisplay /= num_pipes;
+	mode->crtc_hblank_start /= num_pipes;
+	mode->crtc_hblank_end /= num_pipes;
+	mode->crtc_hsync_start /= num_pipes;
+	mode->crtc_hsync_end /= num_pipes;
+	mode->crtc_htotal /= num_pipes;
 }
 
 static void intel_splitter_adjust_timings(const struct intel_crtc_state *crtc_state,
@@ -2780,7 +2787,8 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 	/* Populate the "user" mode with full numbers */
 	drm_mode_copy(mode, pipe_mode);
 	intel_mode_from_crtc_timings(mode, mode);
-	mode->hdisplay = drm_rect_width(&crtc_state->pipe_src) << !!crtc_state->bigjoiner_pipes;
+	mode->hdisplay = drm_rect_width(&crtc_state->pipe_src) *
+		(intel_bigjoiner_num_pipes(crtc_state) ?: 1);
 	mode->vdisplay = drm_rect_height(&crtc_state->pipe_src);
 
 	/* Derive per-pipe timings in case bigjoiner is used */
@@ -2800,16 +2808,17 @@ static void intel_encoder_get_config(struct intel_encoder *encoder,
 
 static void intel_bigjoiner_compute_pipe_src(struct intel_crtc_state *crtc_state)
 {
+	int num_pipes = intel_bigjoiner_num_pipes(crtc_state);
 	int width, height;
 
-	if (!crtc_state->bigjoiner_pipes)
+	if (num_pipes < 2)
 		return;
 
 	width = drm_rect_width(&crtc_state->pipe_src);
 	height = drm_rect_height(&crtc_state->pipe_src);
 
 	drm_rect_init(&crtc_state->pipe_src, 0, 0,
-		      width / 2, height);
+		      width / num_pipes, height);
 }
 
 static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
