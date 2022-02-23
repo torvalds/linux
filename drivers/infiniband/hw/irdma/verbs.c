@@ -3882,11 +3882,7 @@ static int irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	int ret = 0;
 	bool ipv4;
 	u16 vlan_id;
-	union {
-		struct sockaddr saddr;
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr;
+	union irdma_sockaddr sgid_addr;
 	unsigned char dmac[ETH_ALEN];
 
 	rdma_gid2ip((struct sockaddr *)&sgid_addr, ibgid);
@@ -4022,11 +4018,7 @@ static int irdma_detach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	struct irdma_mcast_grp_ctx_entry_info mcg_info = {};
 	int ret;
 	unsigned long flags;
-	union {
-		struct sockaddr saddr;
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr;
+	union irdma_sockaddr sgid_addr;
 
 	rdma_gid2ip((struct sockaddr *)&sgid_addr, ibgid);
 	if (!ipv6_addr_v4mapped((struct in6_addr *)ibgid))
@@ -4104,10 +4096,7 @@ static int irdma_create_ah(struct ib_ah *ibah,
 	u32 ah_id = 0;
 	struct irdma_ah_info *ah_info;
 	struct irdma_create_ah_resp uresp;
-	union {
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr, dgid_addr;
+	union irdma_sockaddr sgid_addr, dgid_addr;
 	int err;
 	u8 dmac[ETH_ALEN];
 
