@@ -238,7 +238,7 @@ static int lcd2s_redefine_char(struct charlcd *lcd, char *esc)
 	if (buf[1] > 7)
 		return 1;
 
-	i = 0;
+	i = 2;
 	shift = 0;
 	value = 0;
 	while (*esc && i < LCD2S_CHARACTER_SIZE + 2) {
