@@ -837,8 +837,16 @@ struct drm_i915_private {
 
 	bool irq_enabled;
 
-	/* perform PHY state sanity checks? */
-	bool chv_phy_assert[2];
+	union {
+		/* perform PHY state sanity checks? */
+		bool chv_phy_assert[2];
+
+		/*
+		 * DG2: Mask of PHYs that were not calibrated by the firmware
+		 * and should not be used.
+		 */
+		u8 snps_phy_failed_calibration;
+	};
 
 	bool ipc_enabled;
 
