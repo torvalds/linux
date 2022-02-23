@@ -985,16 +985,15 @@ static int ice_vsi_dis_spoofchk(struct ice_vsi *vsi)
 }
 
 /**
- * ice_vf_set_spoofchk_cfg - apply Tx spoof checking setting
- * @vf: VF set spoofchk for
+ * ice_vsi_apply_spoofchk - Apply Tx spoof checking setting to a VSI
  * @vsi: VSI associated to the VF
+ * @enable: whether to enable or disable the spoof checking
  */
-static int
-ice_vf_set_spoofchk_cfg(struct ice_vf *vf, struct ice_vsi *vsi)
+static int ice_vsi_apply_spoofchk(struct ice_vsi *vsi, bool enable)
 {
 	int err;
 
-	if (vf->spoofchk)
+	if (enable)
 		err = ice_vsi_ena_spoofchk(vsi);
 	else
 		err = ice_vsi_dis_spoofchk(vsi);
@@ -1478,7 +1477,7 @@ static void ice_vf_rebuild_host_cfg(struct ice_vf *vf)
 		dev_err(dev, "failed to rebuild Tx rate limiting configuration for VF %u\n",
 			vf->vf_id);
 
-	if (ice_vf_set_spoofchk_cfg(vf, vsi))
+	if (ice_vsi_apply_spoofchk(vsi, vf->spoofchk))
 		dev_err(dev, "failed to rebuild spoofchk configuration for VF %d\n",
 			vf->vf_id);
 
@@ -1915,7 +1914,7 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 		goto release_vsi;
 	}
 
-	err = ice_vf_set_spoofchk_cfg(vf, vsi);
+	err = ice_vsi_apply_spoofchk(vsi, vf->spoofchk);
 	if (err) {
 		dev_warn(dev, "Failed to initialize spoofchk setting for VF %d\n",
 			 vf->vf_id);
@@ -3129,10 +3128,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 		goto out_put_vf;
 	}
 
-	if (ena)
-		ret = ice_vsi_ena_spoofchk(vf_vsi);
-	else
-		ret = ice_vsi_dis_spoofchk(vf_vsi);
+	ret = ice_vsi_apply_spoofchk(vf_vsi, ena);
 	if (ret)
 		dev_err(dev, "Failed to set spoofchk %s for VF %d VSI %d\n error %d\n",
 			ena ? "ON" : "OFF", vf->vf_id, vf_vsi->vsi_num, ret);
