@@ -75,6 +75,7 @@ bool module_check_misalignment(const struct module *mod)
 		return false;
 
 	return layout_check_misalignment(&mod->core_layout) ||
+	       layout_check_misalignment(&mod->data_layout) ||
 	       layout_check_misalignment(&mod->init_layout);
 }
 
