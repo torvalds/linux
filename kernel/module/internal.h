@@ -26,9 +26,9 @@
  * only when CONFIG_STRICT_MODULE_RWX=y
  */
 #ifdef CONFIG_STRICT_MODULE_RWX
-# define debug_align(X) PAGE_ALIGN(X)
+# define strict_align(X) PAGE_ALIGN(X)
 #else
-# define debug_align(X) (X)
+# define strict_align(X) (X)
 #endif
 
 extern struct mutex module_mutex;

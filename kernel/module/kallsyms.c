@@ -139,7 +139,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	mod->core_layout.size += strtab_size;
 	info->core_typeoffs = mod->core_layout.size;
 	mod->core_layout.size += ndst * sizeof(char);
-	mod->core_layout.size = debug_align(mod->core_layout.size);
+	mod->core_layout.size = strict_align(mod->core_layout.size);
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
@@ -154,7 +154,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	mod->init_layout.size += sizeof(struct mod_kallsyms);
 	info->init_typeoffs = mod->init_layout.size;
 	mod->init_layout.size += nsrc * sizeof(char);
-	mod->init_layout.size = debug_align(mod->init_layout.size);
+	mod->init_layout.size = strict_align(mod->init_layout.size);
 }
 
 /*
