@@ -5679,6 +5679,12 @@ static u32 *goya_get_stream_master_qid_arr(void)
 	return NULL;
 }
 
+static void goya_get_valid_dram_page_orders(struct hl_info_dev_memalloc_page_sizes *info)
+{
+	/* set 0 since multiple pages are not supported */
+	info->page_order_bitmask = 0;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5767,6 +5773,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_stream_master_qid_arr = goya_get_stream_master_qid_arr,
 	.is_valid_dram_page_size = NULL,
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
+	.get_valid_dram_page_orders = goya_get_valid_dram_page_orders,
 };
 
 /*

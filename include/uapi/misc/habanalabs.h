@@ -348,33 +348,35 @@ enum hl_server_type {
  *                            The address which accessing it caused the razwi.
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
+ * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
  */
-#define HL_INFO_HW_IP_INFO		0
-#define HL_INFO_HW_EVENTS		1
-#define HL_INFO_DRAM_USAGE		2
-#define HL_INFO_HW_IDLE			3
-#define HL_INFO_DEVICE_STATUS		4
-#define HL_INFO_DEVICE_UTILIZATION	6
-#define HL_INFO_HW_EVENTS_AGGREGATE	7
-#define HL_INFO_CLK_RATE		8
-#define HL_INFO_RESET_COUNT		9
-#define HL_INFO_TIME_SYNC		10
-#define HL_INFO_CS_COUNTERS		11
-#define HL_INFO_PCI_COUNTERS		12
-#define HL_INFO_CLK_THROTTLE_REASON	13
-#define HL_INFO_SYNC_MANAGER		14
-#define HL_INFO_TOTAL_ENERGY		15
-#define HL_INFO_PLL_FREQUENCY		16
-#define HL_INFO_POWER			17
-#define HL_INFO_OPEN_STATS		18
-#define HL_INFO_DRAM_REPLACED_ROWS	21
-#define HL_INFO_DRAM_PENDING_ROWS	22
-#define HL_INFO_LAST_ERR_OPEN_DEV_TIME	23
-#define HL_INFO_CS_TIMEOUT_EVENT	24
-#define HL_INFO_RAZWI_EVENT		25
+#define HL_INFO_HW_IP_INFO			0
+#define HL_INFO_HW_EVENTS			1
+#define HL_INFO_DRAM_USAGE			2
+#define HL_INFO_HW_IDLE				3
+#define HL_INFO_DEVICE_STATUS			4
+#define HL_INFO_DEVICE_UTILIZATION		6
+#define HL_INFO_HW_EVENTS_AGGREGATE		7
+#define HL_INFO_CLK_RATE			8
+#define HL_INFO_RESET_COUNT			9
+#define HL_INFO_TIME_SYNC			10
+#define HL_INFO_CS_COUNTERS			11
+#define HL_INFO_PCI_COUNTERS			12
+#define HL_INFO_CLK_THROTTLE_REASON		13
+#define HL_INFO_SYNC_MANAGER			14
+#define HL_INFO_TOTAL_ENERGY			15
+#define HL_INFO_PLL_FREQUENCY			16
+#define HL_INFO_POWER				17
+#define HL_INFO_OPEN_STATS			18
+#define HL_INFO_DRAM_REPLACED_ROWS		21
+#define HL_INFO_DRAM_PENDING_ROWS		22
+#define HL_INFO_LAST_ERR_OPEN_DEV_TIME		23
+#define HL_INFO_CS_TIMEOUT_EVENT		24
+#define HL_INFO_RAZWI_EVENT			25
+#define HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES	26
 
-#define HL_INFO_VERSION_MAX_LEN		128
-#define HL_INFO_CARD_NAME_MAX_LEN	16
+#define HL_INFO_VERSION_MAX_LEN			128
+#define HL_INFO_CARD_NAME_MAX_LEN		16
 
 /**
  * struct hl_info_hw_ip_info - hardware information on various IPs in the ASIC
@@ -641,6 +643,15 @@ struct hl_info_razwi_event {
 	__u8 no_engine_id;
 	__u8 error_type;
 	__u8 pad[2];
+};
+
+/**
+ * struct hl_info_dev_memalloc_page_sizes - valid page sizes in device mem alloc information.
+ * @page_order_bitmask: bitmap in which a set bit represents the order of the supported page size
+ *                      (e.g. 0x2100000 means that 1MB and 32MB pages are supported).
+ */
+struct hl_info_dev_memalloc_page_sizes {
+	__u64 page_order_bitmask;
 };
 
 enum gaudi_dcores {

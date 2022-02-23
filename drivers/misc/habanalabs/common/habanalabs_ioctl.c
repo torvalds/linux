@@ -591,6 +591,27 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	struct hl_info_dev_memalloc_page_sizes info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	/*
+	 * Future ASICs that will support multiple DRAM page sizes will support only "powers of 2"
+	 * pages (unlike some of the ASICs before supporting multiple page sizes).
+	 * For this reason for all ASICs that not support multiple page size the function will
+	 * return an empty bitmask indicating that multiple page sizes is not supported.
+	 */
+	hdev->asic_funcs->get_valid_dram_page_orders(&info);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -640,6 +661,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_RAZWI_EVENT:
 		return razwi_info(hpriv, args);
+
+	case HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES:
+		return dev_mem_alloc_page_sizes_info(hpriv, args);
 
 	default:
 		break;
