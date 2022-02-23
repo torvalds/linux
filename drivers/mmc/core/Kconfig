@@ -89,3 +89,14 @@ config MMC_CRYPTO
 	  Enabling this makes it possible for the kernel to use the crypto
 	  capabilities of the MMC device (if present) to perform crypto
 	  operations on data being transferred to/from the device.
+
+config MMC_QUEUE_DEPTH
+	int "MMC Queue Depth number"
+	range 1 64
+	depends on ROCKCHIP_MINI_KERNEL
+	default 64
+	help
+	  Set a depth num for mmc queue, user can set it lower to decrease
+	  queue number to save memory, suggest set to NR_CPUS.
+
+	  If unsure, say 64 here.

@@ -419,7 +419,11 @@ static inline bool mmc_merge_capable(struct mmc_host *host)
 }
 
 /* Set queue depth to get a reasonable value for q->nr_requests */
+#ifdef CONFIG_MMC_QUEUE_DEPTH
+#define MMC_QUEUE_DEPTH CONFIG_MMC_QUEUE_DEPTH
+#else
 #define MMC_QUEUE_DEPTH 64
+#endif
 
 /**
  * mmc_init_queue - initialise a queue structure.
