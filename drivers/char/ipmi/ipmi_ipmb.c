@@ -433,6 +433,8 @@ static int ipmi_ipmb_remove(struct i2c_client *client)
 	}
 	ipmi_ipmb_stop_thread(iidev);
 
+	ipmi_unregister_smi(iidev->intf);
+
 	return 0;
 }
 
