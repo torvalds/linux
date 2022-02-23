@@ -141,27 +141,26 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 {
 	unsigned long saddr = regs->ior;
-	unsigned long val = 0;
+	unsigned long val = 0, temp1, temp2;
 	ASM_EXCEPTIONTABLE_VAR(ret);
 
 	DPRINTF("load " RFMT ":" RFMT " to r%d for 4 bytes\n", 
 		regs->isr, regs->ior, toreg);
 
 	__asm__ __volatile__  (
-"	zdep	%3,28,2,%%r19\n"		/* r19=(ofs&3)*8 */
-"	mtsp	%4, %%sr1\n"
-"	depw	%%r0,31,2,%3\n"
-"1:	ldw	0(%%sr1,%3),%0\n"
-"2:	ldw	4(%%sr1,%3),%%r20\n"
-"	subi	32,%%r19,%%r19\n"
-"	mtctl	%%r19,11\n"
-"	vshd	%0,%%r20,%0\n"
+"	zdep	%4,28,2,%2\n"		/* r19=(ofs&3)*8 */
+"	mtsp	%5, %%sr1\n"
+"	depw	%%r0,31,2,%4\n"
+"1:	ldw	0(%%sr1,%4),%0\n"
+"2:	ldw	4(%%sr1,%4),%3\n"
+"	subi	32,%4,%2\n"
+"	mtctl	%2,11\n"
+"	vshd	%0,%3,%0\n"
 "3:	\n"
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 3b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 3b)
-	: "=r" (val), "+r" (ret)
-	: "0" (val), "r" (saddr), "r" (regs->isr)
-	: "r19", "r20" );
+	: "+r" (val), "+r" (ret), "=&r" (temp1), "=&r" (temp2)
+	: "r" (saddr), "r" (regs->isr) );
 
 	DPRINTF("val = 0x" RFMT "\n", val);
 
