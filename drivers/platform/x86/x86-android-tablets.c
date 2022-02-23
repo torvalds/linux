@@ -12,6 +12,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/efi.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -24,6 +25,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/platform_data/lp855x.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/power/bq24190_charger.h>
 #include <linux/rmi.h>
 #include <linux/serdev.h>
@@ -817,6 +819,7 @@ static struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
 	.modules = bq24190_modules,
 	.invalid_aei_gpiochip = "INT33FC:02",
 	.init = lenovo_yoga_tab2_830_1050_init,
+	.exit = lenovo_yoga_tab2_830_1050_exit,
 };
 
 /*
@@ -863,6 +866,18 @@ static int __init lenovo_yoga_tab2_830_1050_init_display(void)
 	return 0;
 }
 
+/*
+ * These tablet's DSDT does not set acpi_gbl_reduced_hardware, so acpi_power_off
+ * gets used as pm_power_off handler. This causes "poweroff" on these tablets
+ * to hang hard. Requiring pressing the powerbutton for 30 seconds *twice*
+ * followed by a normal 3 second press to recover. Avoid this by doing an EFI
+ * poweroff instead.
+ */
+static void lenovo_yoga_tab2_830_1050_power_off(void)
+{
+	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
+}
+
 static int __init lenovo_yoga_tab2_830_1050_init(void)
 {
 	int ret;
@@ -871,7 +886,13 @@ static int __init lenovo_yoga_tab2_830_1050_init(void)
 	if (ret)
 		return ret;
 
+	pm_power_off = lenovo_yoga_tab2_830_1050_power_off;
 	return 0;
+}
+
+static void lenovo_yoga_tab2_830_1050_exit(void)
+{
+	pm_power_off = NULL; /* Just turn poweroff into halt on module unload */
 }
 
 /* Nextbook Ares 8 tablets have an Android factory img with everything hardcoded */
