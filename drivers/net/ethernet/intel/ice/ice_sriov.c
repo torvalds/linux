@@ -1275,11 +1275,15 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 	u16 num_msix_per_vf, num_txq, num_rxq, avail_qs;
 	int msix_avail_per_vf, msix_avail_for_sriov;
 	struct device *dev = ice_pf_to_dev(pf);
+	int err;
 
 	lockdep_assert_held(&pf->vfs.table_lock);
 
-	if (!num_vfs || max_valid_res_idx < 0)
+	if (!num_vfs)
 		return -EINVAL;
+
+	if (max_valid_res_idx < 0)
+		return -ENOSPC;
 
 	/* determine MSI-X resources per VF */
 	msix_avail_for_sriov = pf->hw.func_caps.common_cap.num_msix_vectors -
@@ -1297,7 +1301,7 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 		dev_err(dev, "Only %d MSI-X interrupts available for SR-IOV. Not enough to support minimum of %d MSI-X interrupts per VF for %d VFs\n",
 			msix_avail_for_sriov, ICE_MIN_INTR_PER_VF,
 			num_vfs);
-		return -EIO;
+		return -ENOSPC;
 	}
 
 	num_txq = min_t(u16, num_msix_per_vf - ICE_NONQ_VECS_VF,
@@ -1319,13 +1323,14 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 	if (num_txq < ICE_MIN_QS_PER_VF || num_rxq < ICE_MIN_QS_PER_VF) {
 		dev_err(dev, "Not enough queues to support minimum of %d queue pairs per VF for %d VFs\n",
 			ICE_MIN_QS_PER_VF, num_vfs);
-		return -EIO;
+		return -ENOSPC;
 	}
 
-	if (ice_sriov_set_msix_res(pf, num_msix_per_vf * num_vfs)) {
-		dev_err(dev, "Unable to set MSI-X resources for %d VFs\n",
-			num_vfs);
-		return -EINVAL;
+	err = ice_sriov_set_msix_res(pf, num_msix_per_vf * num_vfs);
+	if (err) {
+		dev_err(dev, "Unable to set MSI-X resources for %d VFs, err %d\n",
+			num_vfs, err);
+		return err;
 	}
 
 	/* only allow equal Tx/Rx queue count (i.e. queue pairs) */
@@ -2058,10 +2063,10 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 
 	mutex_lock(&pf->vfs.table_lock);
 
-	if (ice_set_per_vf_res(pf, num_vfs)) {
-		dev_err(dev, "Not enough resources for %d VFs, try with fewer number of VFs\n",
-			num_vfs);
-		ret = -ENOSPC;
+	ret = ice_set_per_vf_res(pf, num_vfs);
+	if (ret) {
+		dev_err(dev, "Not enough resources for %d VFs, err %d. Try with fewer number of VFs\n",
+			num_vfs, ret);
 		goto err_unroll_sriov;
 	}
 
@@ -2072,8 +2077,9 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 		goto err_unroll_sriov;
 	}
 
-	if (ice_start_vfs(pf)) {
-		dev_err(dev, "Failed to start VF(s)\n");
+	ret = ice_start_vfs(pf);
+	if (ret) {
+		dev_err(dev, "Failed to start %d VFs, err %d\n", num_vfs, ret);
 		ret = -EAGAIN;
 		goto err_unroll_vf_entries;
 	}
