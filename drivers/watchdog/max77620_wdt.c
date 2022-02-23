@@ -123,6 +123,11 @@ static int max77620_wdt_set_timeout(struct watchdog_device *wdt_dev,
 		break;
 	}
 
+	/*
+	 * "If the value of TWD needs to be changed, clear the system
+	 * watchdog timer first [...], then change the value of TWD."
+	 * (MAX77714 datasheet but applies to MAX77620 too)
+	 */
 	ret = regmap_update_bits(wdt->rmap, wdt->drv_data->reg_cnfg_glbl3,
 				 wdt->drv_data->wdtc_mask, 0x1);
 	if (ret < 0)
