@@ -442,12 +442,37 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 }
 
 /**
+ * ice_notify_vf_reset - Notify VF of a reset event
+ * @vf: pointer to the VF structure
+ */
+static void ice_notify_vf_reset(struct ice_vf *vf)
+{
+	struct ice_hw *hw = &vf->pf->hw;
+	struct virtchnl_pf_event pfe;
+
+	/* Bail out if VF is in disabled state, neither initialized, nor active
+	 * state - otherwise proceed with notifications
+	 */
+	if ((!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
+	     !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) ||
+	    test_bit(ICE_VF_STATE_DIS, vf->vf_states))
+		return;
+
+	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	ice_aq_send_msg_to_vf(hw, vf->vf_id, VIRTCHNL_OP_EVENT,
+			      VIRTCHNL_STATUS_SUCCESS, (u8 *)&pfe, sizeof(pfe),
+			      NULL);
+}
+
+/**
  * ice_reset_vf - Reset a particular VF
  * @vf: pointer to the VF structure
  * @flags: flags controlling behavior of the reset
  *
  * Flags:
  *   ICE_VF_RESET_VFLR - Indicates a reset is due to VFLR event
+ *   ICE_VF_RESET_NOTIFY - Send VF a notification prior to reset
  *
  * Returns 0 if the VF is currently in reset, if the resets are disabled, or
  * if the VF resets successfully. Returns an error code if the VF fails to
@@ -466,6 +491,9 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 
 	dev = ice_pf_to_dev(pf);
 	hw = &pf->hw;
+
+	if (flags & ICE_VF_RESET_NOTIFY)
+		ice_notify_vf_reset(vf);
 
 	if (test_bit(ICE_VF_RESETS_DISABLED, pf->state)) {
 		dev_dbg(dev, "Trying to reset VF %d, but all VF resets are disabled\n",

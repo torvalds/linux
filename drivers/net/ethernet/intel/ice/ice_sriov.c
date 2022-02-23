@@ -830,30 +830,6 @@ void ice_vc_notify_reset(struct ice_pf *pf)
 }
 
 /**
- * ice_vc_notify_vf_reset - Notify VF of a reset event
- * @vf: pointer to the VF structure
- */
-static void ice_vc_notify_vf_reset(struct ice_vf *vf)
-{
-	struct virtchnl_pf_event pfe;
-	struct ice_pf *pf = vf->pf;
-
-	/* Bail out if VF is in disabled state, neither initialized, nor active
-	 * state - otherwise proceed with notifications
-	 */
-	if ((!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
-	     !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) ||
-	    test_bit(ICE_VF_STATE_DIS, vf->vf_states))
-		return;
-
-	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
-	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
-	ice_aq_send_msg_to_vf(&pf->hw, vf->vf_id, VIRTCHNL_OP_EVENT,
-			      VIRTCHNL_STATUS_SUCCESS, (u8 *)&pfe, sizeof(pfe),
-			      NULL);
-}
-
-/**
  * ice_init_vf_vsi_res - initialize/setup VF VSI resources
  * @vf: VF to initialize/setup the VSI for
  *
@@ -1401,16 +1377,6 @@ void ice_process_vflr_event(struct ice_pf *pf)
 }
 
 /**
- * ice_vc_reset_vf - Perform software reset on the VF after informing the AVF
- * @vf: pointer to the VF info
- */
-static void ice_vc_reset_vf(struct ice_vf *vf)
-{
-	ice_vc_notify_vf_reset(vf);
-	ice_reset_vf(vf, 0);
-}
-
-/**
  * ice_get_vf_from_pfq - get the VF who owns the PF space queue passed in
  * @pf: PF used to index all VFs
  * @pfq: queue index relative to the PF's function space
@@ -1488,7 +1454,7 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 		return;
 
 	mutex_lock(&vf->cfg_lock);
-	ice_vc_reset_vf(vf);
+	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
 	mutex_unlock(&vf->cfg_lock);
 
 	ice_put_vf(vf);
@@ -3311,7 +3277,7 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 	} else {
 		/* request is successful, then reset VF */
 		vf->num_req_qs = req_queues;
-		ice_vc_reset_vf(vf);
+		ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
 		dev_info(dev, "VF %d granted request of %u queues.\n",
 			 vf->vf_id, req_queues);
 		return 0;
@@ -5183,7 +5149,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 			    mac, vf_id);
 	}
 
-	ice_vc_reset_vf(vf);
+	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
 	mutex_unlock(&vf->cfg_lock);
 
 out_put_vf:
@@ -5227,7 +5193,7 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 	mutex_lock(&vf->cfg_lock);
 
 	vf->trusted = trusted;
-	ice_vc_reset_vf(vf);
+	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
 	dev_info(ice_pf_to_dev(pf), "VF %u is now %strusted\n",
 		 vf_id, trusted ? "" : "un");
 
@@ -5549,7 +5515,7 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	else
 		dev_info(dev, "Clearing port VLAN on VF %d\n", vf_id);
 
-	ice_vc_reset_vf(vf);
+	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
 	mutex_unlock(&vf->cfg_lock);
 
 out_put_vf:

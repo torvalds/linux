@@ -136,6 +136,7 @@ struct ice_vf {
 /* Flags for controlling behavior of ice_reset_vf */
 enum ice_vf_reset_flags {
 	ICE_VF_RESET_VFLR = BIT(0), /* Indicate a VFLR reset */
+	ICE_VF_RESET_NOTIFY = BIT(1), /* Notify VF prior to reset */
 };
 
 static inline u16 ice_vf_get_port_vlan_id(struct ice_vf *vf)
