@@ -42,9 +42,6 @@ static void frob_text(const struct module_layout *layout,
 static void frob_rodata(const struct module_layout *layout,
 		 int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON(!PAGE_ALIGNED(layout->base));
-	BUG_ON(!PAGE_ALIGNED(layout->text_size));
-	BUG_ON(!PAGE_ALIGNED(layout->ro_size));
 	set_memory((unsigned long)layout->base + layout->text_size,
 		   (layout->ro_size - layout->text_size) >> PAGE_SHIFT);
 }
@@ -52,9 +49,6 @@ static void frob_rodata(const struct module_layout *layout,
 static void frob_ro_after_init(const struct module_layout *layout,
 			int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON(!PAGE_ALIGNED(layout->base));
-	BUG_ON(!PAGE_ALIGNED(layout->ro_size));
-	BUG_ON(!PAGE_ALIGNED(layout->ro_after_init_size));
 	set_memory((unsigned long)layout->base + layout->ro_size,
 		   (layout->ro_after_init_size - layout->ro_size) >> PAGE_SHIFT);
 }
@@ -62,11 +56,26 @@ static void frob_ro_after_init(const struct module_layout *layout,
 static void frob_writable_data(const struct module_layout *layout,
 			int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON(!PAGE_ALIGNED(layout->base));
-	BUG_ON(!PAGE_ALIGNED(layout->ro_after_init_size));
-	BUG_ON(!PAGE_ALIGNED(layout->size));
 	set_memory((unsigned long)layout->base + layout->ro_after_init_size,
 		   (layout->size - layout->ro_after_init_size) >> PAGE_SHIFT);
+}
+
+static bool layout_check_misalignment(const struct module_layout *layout)
+{
+	return WARN_ON(!PAGE_ALIGNED(layout->base)) ||
+	       WARN_ON(!PAGE_ALIGNED(layout->text_size)) ||
+	       WARN_ON(!PAGE_ALIGNED(layout->ro_size)) ||
+	       WARN_ON(!PAGE_ALIGNED(layout->ro_after_init_size)) ||
+	       WARN_ON(!PAGE_ALIGNED(layout->size));
+}
+
+bool module_check_misalignment(const struct module *mod)
+{
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		return false;
+
+	return layout_check_misalignment(&mod->core_layout) ||
+	       layout_check_misalignment(&mod->init_layout);
 }
 
 void module_enable_x(const struct module *mod)
