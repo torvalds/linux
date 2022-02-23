@@ -2400,7 +2400,7 @@ bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev)
 int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 			 struct ras_common_if *ras_block)
 {
-	struct amdgpu_ras_block_object *ras_obj;
+	struct amdgpu_ras_block_object *ras_obj = NULL;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	unsigned long ue_count, ce_count;
 	int r;
