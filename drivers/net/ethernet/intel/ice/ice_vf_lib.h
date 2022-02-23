@@ -212,6 +212,8 @@ int
 ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m);
 int
 ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m);
+bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
+bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 #else /* CONFIG_PCI_IOV */
 static inline struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
 {
@@ -266,6 +268,16 @@ static inline int
 ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+{
+	return true;
+}
+
+static inline bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
+{
+	return true;
 }
 #endif /* !CONFIG_PCI_IOV */
 

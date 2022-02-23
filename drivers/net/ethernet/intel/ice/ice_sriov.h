@@ -78,8 +78,6 @@ void ice_vc_notify_reset(struct ice_pf *pf);
 void ice_vc_notify_vf_link_state(struct ice_vf *vf);
 void ice_virtchnl_set_repr_ops(struct ice_vf *vf);
 void ice_virtchnl_set_dflt_ops(struct ice_vf *vf);
-bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
-bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
 bool
 ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
@@ -137,19 +135,6 @@ ice_is_malicious_vf(struct ice_pf __always_unused *pf,
 		    u16 __always_unused num_msg_pending)
 {
 	return false;
-}
-
-static inline bool
-ice_reset_all_vfs(struct ice_pf __always_unused *pf,
-		  bool __always_unused is_vflr)
-{
-	return true;
-}
-
-static inline bool
-ice_reset_vf(struct ice_vf __always_unused *vf, bool __always_unused is_vflr)
-{
-	return true;
 }
 
 static inline int
