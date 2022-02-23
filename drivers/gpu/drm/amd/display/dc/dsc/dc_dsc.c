@@ -25,7 +25,7 @@
 #include <drm/drm_dsc.h>
 #include "dc_hw_types.h"
 #include "dsc.h"
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include "dc.h"
 #include "rc_calc.h"
 #include "fixed31_32.h"

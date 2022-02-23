@@ -248,6 +248,9 @@ void virtio_gpu_array_put_free(struct virtio_gpu_object_array *objs)
 {
 	u32 i;
 
+	if (!objs)
+		return;
+
 	for (i = 0; i < objs->nents; i++)
 		drm_gem_object_put(objs->objs[i]);
 	virtio_gpu_array_free(objs);

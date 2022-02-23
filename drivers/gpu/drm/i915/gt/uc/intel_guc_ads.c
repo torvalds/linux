@@ -42,6 +42,10 @@
  *      +---------------------------------------+
  *      | padding                               |
  *      +---------------------------------------+ <== 4K aligned
+ *      | capture lists                         |
+ *      +---------------------------------------+
+ *      | padding                               |
+ *      +---------------------------------------+ <== 4K aligned
  *      | private data                          |
  *      +---------------------------------------+
  *      | padding                               |
@@ -67,6 +71,12 @@ static u32 guc_ads_golden_ctxt_size(struct intel_guc *guc)
 	return PAGE_ALIGN(guc->ads_golden_ctxt_size);
 }
 
+static u32 guc_ads_capture_size(struct intel_guc *guc)
+{
+	/* FIXME: Allocate a proper capture list */
+	return PAGE_ALIGN(PAGE_SIZE);
+}
+
 static u32 guc_ads_private_data_size(struct intel_guc *guc)
 {
 	return PAGE_ALIGN(guc->fw.private_data_size);
@@ -87,12 +97,22 @@ static u32 guc_ads_golden_ctxt_offset(struct intel_guc *guc)
 	return PAGE_ALIGN(offset);
 }
 
-static u32 guc_ads_private_data_offset(struct intel_guc *guc)
+static u32 guc_ads_capture_offset(struct intel_guc *guc)
 {
 	u32 offset;
 
 	offset = guc_ads_golden_ctxt_offset(guc) +
 		 guc_ads_golden_ctxt_size(guc);
+
+	return PAGE_ALIGN(offset);
+}
+
+static u32 guc_ads_private_data_offset(struct intel_guc *guc)
+{
+	u32 offset;
+
+	offset = guc_ads_capture_offset(guc) +
+		 guc_ads_capture_size(guc);
 
 	return PAGE_ALIGN(offset);
 }
@@ -188,14 +208,18 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 
 /*
  * The save/restore register list must be pre-calculated to a temporary
- * buffer of driver defined size before it can be generated in place
- * inside the ADS.
+ * buffer before it can be copied inside the ADS.
  */
-#define MAX_MMIO_REGS	128	/* Arbitrary size, increase as needed */
 struct temp_regset {
+	/*
+	 * ptr to the section of the storage for the engine currently being
+	 * worked on
+	 */
 	struct guc_mmio_reg *registers;
-	u32 used;
-	u32 size;
+	/* ptr to the base of the allocated storage for all engines */
+	struct guc_mmio_reg *storage;
+	u32 storage_used;
+	u32 storage_max;
 };
 
 static int guc_mmio_reg_cmp(const void *a, const void *b)
@@ -206,17 +230,43 @@ static int guc_mmio_reg_cmp(const void *a, const void *b)
 	return (int)ra->offset - (int)rb->offset;
 }
 
-static void guc_mmio_reg_add(struct temp_regset *regset,
-			     u32 offset, u32 flags)
+static struct guc_mmio_reg * __must_check
+__mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 {
-	u32 count = regset->used;
+	u32 pos = regset->storage_used;
+	struct guc_mmio_reg *slot;
+
+	if (pos >= regset->storage_max) {
+		size_t size = ALIGN((pos + 1) * sizeof(*slot), PAGE_SIZE);
+		struct guc_mmio_reg *r = krealloc(regset->storage,
+						  size, GFP_KERNEL);
+		if (!r) {
+			WARN_ONCE(1, "Incomplete regset list: can't add register (%d)\n",
+				  -ENOMEM);
+			return ERR_PTR(-ENOMEM);
+		}
+
+		regset->registers = r + (regset->registers - regset->storage);
+		regset->storage = r;
+		regset->storage_max = size / sizeof(*slot);
+	}
+
+	slot = &regset->storage[pos];
+	regset->storage_used++;
+	*slot = *reg;
+
+	return slot;
+}
+
+static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
+					  u32 offset, u32 flags)
+{
+	u32 count = regset->storage_used - (regset->registers - regset->storage);
 	struct guc_mmio_reg reg = {
 		.offset = offset,
 		.flags = flags,
 	};
 	struct guc_mmio_reg *slot;
-
-	GEM_BUG_ON(count >= regset->size);
 
 	/*
 	 * The mmio list is built using separate lists within the driver.
@@ -226,11 +276,11 @@ static void guc_mmio_reg_add(struct temp_regset *regset,
 	 */
 	if (bsearch(&reg, regset->registers, count,
 		    sizeof(reg), guc_mmio_reg_cmp))
-		return;
+		return 0;
 
-	slot = &regset->registers[count];
-	regset->used++;
-	*slot = reg;
+	slot = __mmio_reg_add(regset, &reg);
+	if (IS_ERR(slot))
+		return PTR_ERR(slot);
 
 	while (slot-- > regset->registers) {
 		GEM_BUG_ON(slot[0].offset == slot[1].offset);
@@ -239,6 +289,8 @@ static void guc_mmio_reg_add(struct temp_regset *regset,
 
 		swap(slot[1], slot[0]);
 	}
+
+	return 0;
 }
 
 #define GUC_MMIO_REG_ADD(regset, reg, masked) \
@@ -246,62 +298,71 @@ static void guc_mmio_reg_add(struct temp_regset *regset,
 			 i915_mmio_reg_offset((reg)), \
 			 (masked) ? GUC_REGSET_MASKED : 0)
 
-static void guc_mmio_regset_init(struct temp_regset *regset,
-				 struct intel_engine_cs *engine)
+static int guc_mmio_regset_init(struct temp_regset *regset,
+				struct intel_engine_cs *engine)
 {
 	const u32 base = engine->mmio_base;
 	struct i915_wa_list *wal = &engine->wa_list;
 	struct i915_wa *wa;
 	unsigned int i;
+	int ret = 0;
 
-	regset->used = 0;
+	/*
+	 * Each engine's registers point to a new start relative to
+	 * storage
+	 */
+	regset->registers = regset->storage + regset->storage_used;
 
-	GUC_MMIO_REG_ADD(regset, RING_MODE_GEN7(base), true);
-	GUC_MMIO_REG_ADD(regset, RING_HWS_PGA(base), false);
-	GUC_MMIO_REG_ADD(regset, RING_IMR(base), false);
+	ret |= GUC_MMIO_REG_ADD(regset, RING_MODE_GEN7(base), true);
+	ret |= GUC_MMIO_REG_ADD(regset, RING_HWS_PGA(base), false);
+	ret |= GUC_MMIO_REG_ADD(regset, RING_IMR(base), false);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		GUC_MMIO_REG_ADD(regset, wa->reg, wa->masked_reg);
+		ret |= GUC_MMIO_REG_ADD(regset, wa->reg, wa->masked_reg);
 
 	/* Be extra paranoid and include all whitelist registers. */
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
-		GUC_MMIO_REG_ADD(regset,
-				 RING_FORCE_TO_NONPRIV(base, i),
-				 false);
+		ret |= GUC_MMIO_REG_ADD(regset,
+					RING_FORCE_TO_NONPRIV(base, i),
+					false);
 
 	/* add in local MOCS registers */
 	for (i = 0; i < GEN9_LNCFCMOCS_REG_COUNT; i++)
-		GUC_MMIO_REG_ADD(regset, GEN9_LNCFCMOCS(i), false);
+		ret |= GUC_MMIO_REG_ADD(regset, GEN9_LNCFCMOCS(i), false);
+
+	return ret ? -1 : 0;
 }
 
-static int guc_mmio_reg_state_query(struct intel_guc *guc)
+static long guc_mmio_reg_state_create(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	struct temp_regset temp_set;
-	u32 total;
+	struct temp_regset temp_set = {};
+	long total = 0;
+	long ret;
 
-	/*
-	 * Need to actually build the list in order to filter out
-	 * duplicates and other such data dependent constructions.
-	 */
-	temp_set.size = MAX_MMIO_REGS;
-	temp_set.registers = kmalloc_array(temp_set.size,
-					   sizeof(*temp_set.registers),
-					   GFP_KERNEL);
-	if (!temp_set.registers)
-		return -ENOMEM;
-
-	total = 0;
 	for_each_engine(engine, gt, id) {
-		guc_mmio_regset_init(&temp_set, engine);
-		total += temp_set.used;
+		u32 used = temp_set.storage_used;
+
+		ret = guc_mmio_regset_init(&temp_set, engine);
+		if (ret < 0)
+			goto fail_regset_init;
+
+		guc->ads_regset_count[id] = temp_set.storage_used - used;
+		total += guc->ads_regset_count[id];
 	}
 
-	kfree(temp_set.registers);
+	guc->ads_regset = temp_set.storage;
+
+	drm_dbg(&guc_to_gt(guc)->i915->drm, "Used %zu KB for temporary ADS regset\n",
+		(temp_set.storage_max * sizeof(struct guc_mmio_reg)) >> 10);
 
 	return total * sizeof(struct guc_mmio_reg);
+
+fail_regset_init:
+	kfree(temp_set.storage);
+	return ret;
 }
 
 static void guc_mmio_reg_state_init(struct intel_guc *guc,
@@ -309,40 +370,38 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc,
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
+	struct guc_mmio_reg *ads_registers;
 	enum intel_engine_id id;
-	struct temp_regset temp_set;
-	struct guc_mmio_reg_set *ads_reg_set;
 	u32 addr_ggtt, offset;
-	u8 guc_class;
 
 	offset = guc_ads_regset_offset(guc);
 	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
-	temp_set.registers = (struct guc_mmio_reg *)(((u8 *)blob) + offset);
-	temp_set.size = guc->ads_regset_size / sizeof(temp_set.registers[0]);
+	ads_registers = (struct guc_mmio_reg *)(((u8 *)blob) + offset);
+
+	memcpy(ads_registers, guc->ads_regset, guc->ads_regset_size);
 
 	for_each_engine(engine, gt, id) {
+		u32 count = guc->ads_regset_count[id];
+		struct guc_mmio_reg_set *ads_reg_set;
+		u8 guc_class;
+
 		/* Class index is checked in class converter */
 		GEM_BUG_ON(engine->instance >= GUC_MAX_INSTANCES_PER_CLASS);
 
 		guc_class = engine_class_to_guc_class(engine->class);
 		ads_reg_set = &blob->ads.reg_state_list[guc_class][engine->instance];
 
-		guc_mmio_regset_init(&temp_set, engine);
-		if (!temp_set.used) {
+		if (!count) {
 			ads_reg_set->address = 0;
 			ads_reg_set->count = 0;
 			continue;
 		}
 
 		ads_reg_set->address = addr_ggtt;
-		ads_reg_set->count = temp_set.used;
+		ads_reg_set->count = count;
 
-		temp_set.size -= temp_set.used;
-		temp_set.registers += temp_set.used;
-		addr_ggtt += temp_set.used * sizeof(struct guc_mmio_reg);
+		addr_ggtt += count * sizeof(struct guc_mmio_reg);
 	}
-
-	GEM_BUG_ON(temp_set.size);
 }
 
 static void fill_engine_enable_masks(struct intel_gt *gt,
@@ -501,6 +560,26 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	GEM_BUG_ON(guc->ads_golden_ctxt_size != total_size);
 }
 
+static void guc_capture_list_init(struct intel_guc *guc, struct __guc_ads_blob *blob)
+{
+	int i, j;
+	u32 addr_ggtt, offset;
+
+	offset = guc_ads_capture_offset(guc);
+	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
+
+	/* FIXME: Populate a proper capture list */
+
+	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; i++) {
+		for (j = 0; j < GUC_MAX_ENGINE_CLASSES; j++) {
+			blob->ads.capture_instance[i][j] = addr_ggtt;
+			blob->ads.capture_class[i][j] = addr_ggtt;
+		}
+
+		blob->ads.capture_global[i] = addr_ggtt;
+	}
+}
+
 static void __guc_ads_init(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -534,6 +613,9 @@ static void __guc_ads_init(struct intel_guc *guc)
 
 	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
 
+	/* Capture list for hang debug */
+	guc_capture_list_init(guc, blob);
+
 	/* ADS */
 	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
 	blob->ads.gt_system_info = base + ptr_offset(blob, system_info);
@@ -561,8 +643,11 @@ int intel_guc_ads_create(struct intel_guc *guc)
 
 	GEM_BUG_ON(guc->ads_vma);
 
-	/* Need to calculate the reg state size dynamically: */
-	ret = guc_mmio_reg_state_query(guc);
+	/*
+	 * Create reg state size dynamically on system memory to be copied to
+	 * the final ads blob on gt init/reset
+	 */
+	ret = guc_mmio_reg_state_create(guc);
 	if (ret < 0)
 		return ret;
 	guc->ads_regset_size = ret;
@@ -602,6 +687,7 @@ void intel_guc_ads_destroy(struct intel_guc *guc)
 {
 	i915_vma_unpin_and_release(&guc->ads_vma, I915_VMA_RELEASE_MAP);
 	guc->ads_blob = NULL;
+	kfree(guc->ads_regset);
 }
 
 static void guc_ads_private_data_reset(struct intel_guc *guc)

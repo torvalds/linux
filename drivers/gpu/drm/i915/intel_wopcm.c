@@ -43,6 +43,7 @@
 /* Default WOPCM size is 2MB from Gen11, 1MB on previous platforms */
 #define GEN11_WOPCM_SIZE		SZ_2M
 #define GEN9_WOPCM_SIZE			SZ_1M
+#define MAX_WOPCM_SIZE			SZ_8M
 /* 16KB WOPCM (RSVD WOPCM) is reserved from HuC firmware top. */
 #define WOPCM_RESERVED_SIZE		SZ_16K
 
@@ -207,6 +208,14 @@ static bool __wopcm_regs_locked(struct intel_uncore *uncore,
 	return true;
 }
 
+static bool __wopcm_regs_writable(struct intel_uncore *uncore)
+{
+	if (!HAS_GUC_DEPRIVILEGE(uncore->i915))
+		return true;
+
+	return intel_uncore_read(uncore, GUC_SHIM_CONTROL2) & GUC_IS_PRIVILEGED;
+}
+
 /**
  * intel_wopcm_init() - Initialize the WOPCM structure.
  * @wopcm: pointer to intel_wopcm.
@@ -224,18 +233,19 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 guc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.guc.fw);
 	u32 huc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.huc.fw);
 	u32 ctx_rsvd = context_reserved_size(i915);
+	u32 wopcm_size = wopcm->size;
 	u32 guc_wopcm_base;
 	u32 guc_wopcm_size;
 
 	if (!guc_fw_size)
 		return;
 
-	GEM_BUG_ON(!wopcm->size);
+	GEM_BUG_ON(!wopcm_size);
 	GEM_BUG_ON(wopcm->guc.base);
 	GEM_BUG_ON(wopcm->guc.size);
-	GEM_BUG_ON(guc_fw_size >= wopcm->size);
-	GEM_BUG_ON(huc_fw_size >= wopcm->size);
-	GEM_BUG_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm->size);
+	GEM_BUG_ON(guc_fw_size >= wopcm_size);
+	GEM_BUG_ON(huc_fw_size >= wopcm_size);
+	GEM_BUG_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm_size);
 
 	if (i915_inject_probe_failure(i915))
 		return;
@@ -243,6 +253,24 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	if (__wopcm_regs_locked(gt->uncore, &guc_wopcm_base, &guc_wopcm_size)) {
 		drm_dbg(&i915->drm, "GuC WOPCM is already locked [%uK, %uK)\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
+		/*
+		 * Note that to keep things simple (i.e. avoid different
+		 * defines per platform) our WOPCM math doesn't always use the
+		 * actual WOPCM size, but a value that is less or equal to it.
+		 * This is perfectly fine when i915 programs the registers, but
+		 * on platforms with GuC deprivilege the registers are not
+		 * writable from i915 and are instead pre-programmed by the
+		 * bios/IFWI, so there might be a mismatch of sizes.
+		 * Instead of handling the size difference, we trust that the
+		 * programmed values make sense and disable the relevant check
+		 * by using the maximum possible WOPCM size in the verification
+		 * math. In the extremely unlikely case that the registers
+		 * were pre-programmed with an invalid value, we will still
+		 * gracefully fail later during the GuC/HuC dma.
+		 */
+		if (!__wopcm_regs_writable(gt->uncore))
+			wopcm_size = MAX_WOPCM_SIZE;
+
 		goto check;
 	}
 
@@ -257,17 +285,17 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	 * Need to clamp guc_wopcm_base now to make sure the following math is
 	 * correct. Formal check of whole WOPCM layout will be done below.
 	 */
-	guc_wopcm_base = min(guc_wopcm_base, wopcm->size - ctx_rsvd);
+	guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);
 
 	/* Aligned remainings of usable WOPCM space can be assigned to GuC. */
-	guc_wopcm_size = wopcm->size - ctx_rsvd - guc_wopcm_base;
+	guc_wopcm_size = wopcm_size - ctx_rsvd - guc_wopcm_base;
 	guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
 
 	drm_dbg(&i915->drm, "Calculated GuC WOPCM [%uK, %uK)\n",
 		guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 
 check:
-	if (__check_layout(i915, wopcm->size, guc_wopcm_base, guc_wopcm_size,
+	if (__check_layout(i915, wopcm_size, guc_wopcm_base, guc_wopcm_size,
 			   guc_fw_size, huc_fw_size)) {
 		wopcm->guc.base = guc_wopcm_base;
 		wopcm->guc.size = guc_wopcm_size;

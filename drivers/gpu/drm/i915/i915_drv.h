@@ -641,8 +641,6 @@ struct drm_i915_private {
 	struct drm_atomic_state *modeset_restore_state;
 	struct drm_modeset_acquire_ctx reset_ctx;
 
-	struct i915_ggtt ggtt; /* VM representing the global address space */
-
 	struct i915_gem_mm mm;
 
 	/* Kernel Modesetting */
@@ -1089,6 +1087,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G10)
 #define IS_DG2_G11(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G11)
+#define IS_DG2_G12(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G12)
 #define IS_ADLS_RPLS(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_S, INTEL_SUBPLATFORM_RPL_S)
 #define IS_ADLP_N(dev_priv) \
@@ -1205,16 +1205,17 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
 /*
- * DG2 hardware steppings are a bit unusual.  The hardware design was forked
- * to create two variants (G10 and G11) which have distinct workaround sets.
- * The G11 fork of the DG2 design resets the GT stepping back to "A0" for its
- * first iteration, even though it's more similar to a G10 B0 stepping in terms
- * of functionality and workarounds.  However the display stepping does not
- * reset in the same manner --- a specific stepping like "B0" has a consistent
- * meaning regardless of whether it belongs to a G10 or G11 DG2.
+ * DG2 hardware steppings are a bit unusual.  The hardware design was forked to
+ * create three variants (G10, G11, and G12) which each have distinct
+ * workaround sets.  The G11 and G12 forks of the DG2 design reset the GT
+ * stepping back to "A0" for their first iterations, even though they're more
+ * similar to a G10 B0 stepping and G10 C0 stepping respectively in terms of
+ * functionality and workarounds.  However the display stepping does not reset
+ * in the same manner --- a specific stepping like "B0" has a consistent
+ * meaning regardless of whether it belongs to a G10, G11, or G12 DG2.
  *
  * TLDR:  All GT workarounds and stepping-specific logic must be applied in
- * relation to a specific subplatform (G10 or G11), whereas display workarounds
+ * relation to a specific subplatform (G10/G11/G12), whereas display workarounds
  * and stepping-specific logic will be applied with a general DG2-wide stepping
  * number.
  */
@@ -1384,6 +1385,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define INTEL_DISPLAY_ENABLED(dev_priv) \
 	(drm_WARN_ON(&(dev_priv)->drm, !HAS_DISPLAY(dev_priv)), !(dev_priv)->params.disable_display)
 
+#define HAS_GUC_DEPRIVILEGE(dev_priv) \
+	(INTEL_INFO(dev_priv)->has_guc_deprivilege)
+
 static inline bool run_as_guest(void)
 {
 	return !hypervisor_is_type(X86_HYPER_NATIVE);
@@ -1480,6 +1484,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
 #define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
 #define I915_GEM_OBJECT_UNBIND_VM_TRYLOCK BIT(3)
+#define I915_GEM_OBJECT_UNBIND_ASYNC BIT(4)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
@@ -1498,7 +1503,7 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	return i915->ggtt.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
+	return to_gt(i915)->ggtt->bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		i915_gem_object_is_tiled(obj);
 }
 

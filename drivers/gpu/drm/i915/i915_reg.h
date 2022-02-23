@@ -8835,4 +8835,8 @@ enum skl_power_gate {
 #define CLKGATE_DIS_MISC			_MMIO(0x46534)
 #define  CLKGATE_DIS_MISC_DMASC_GATING_DIS	REG_BIT(21)
 
+#define GEN12_CULLBIT1			_MMIO(0x6100)
+#define GEN12_CULLBIT2			_MMIO(0x7030)
+#define GEN12_STATE_ACK_DEBUG		_MMIO(0x20BC)
+
 #endif /* _I915_REG_H_ */

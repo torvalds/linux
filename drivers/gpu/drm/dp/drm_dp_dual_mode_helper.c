@@ -28,7 +28,7 @@
 #include <linux/string.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_dp_dual_mode_helper.h>
+#include <drm/dp/drm_dp_dual_mode_helper.h>
 #include <drm/drm_print.h>
 
 /**

@@ -179,32 +179,34 @@ struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt,
 
 void ppgtt_bind_vma(struct i915_address_space *vm,
 		    struct i915_vm_pt_stash *stash,
-		    struct i915_vma *vma,
+		    struct i915_vma_resource *vma_res,
 		    enum i915_cache_level cache_level,
 		    u32 flags)
 {
 	u32 pte_flags;
 
-	if (!test_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma))) {
-		vm->allocate_va_range(vm, stash, vma->node.start, vma->size);
-		set_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma));
+	if (!vma_res->allocated) {
+		vm->allocate_va_range(vm, stash, vma_res->start,
+				      vma_res->vma_size);
+		vma_res->allocated = true;
 	}
 
 	/* Applicable to VLV, and gen8+ */
 	pte_flags = 0;
-	if (i915_gem_object_is_readonly(vma->obj))
+	if (vma_res->bi.readonly)
 		pte_flags |= PTE_READ_ONLY;
-	if (i915_gem_object_is_lmem(vma->obj))
+	if (vma_res->bi.lmem)
 		pte_flags |= PTE_LM;
 
-	vm->insert_entries(vm, vma, cache_level, pte_flags);
+	vm->insert_entries(vm, vma_res, cache_level, pte_flags);
 	wmb();
 }
 
-void ppgtt_unbind_vma(struct i915_address_space *vm, struct i915_vma *vma)
+void ppgtt_unbind_vma(struct i915_address_space *vm,
+		      struct i915_vma_resource *vma_res)
 {
-	if (test_and_clear_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma)))
-		vm->clear_range(vm, vma->node.start, vma->size);
+	if (vma_res->allocated)
+		vm->clear_range(vm, vma_res->start, vma_res->vma_size);
 }
 
 static unsigned long pd_count(u64 size, int shift)

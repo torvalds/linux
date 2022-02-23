@@ -319,7 +319,7 @@ static int pin_buffer(struct i915_vma *vma, u64 addr)
 	int err;
 
 	if (drm_mm_node_allocated(&vma->node) && vma->node.start != addr) {
-		err = i915_vma_unbind(vma);
+		err = i915_vma_unbind_unlocked(vma);
 		if (err)
 			return err;
 	}
@@ -544,7 +544,7 @@ static bool has_bit17_swizzle(int sw)
 
 static bool bad_swizzling(struct drm_i915_private *i915)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 
 	if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		return true;

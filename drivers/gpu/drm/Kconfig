@@ -68,6 +68,7 @@ config DRM_DEBUG_SELFTEST
 	depends on DRM
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
+	select DRM_DP_HELPER
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
 	select DRM_EXPORT_FOR_TESTS if m
@@ -79,6 +80,12 @@ config DRM_DEBUG_SELFTEST
 	  developers working on DRM and associated drivers.
 
 	  If in doubt, say "N".
+
+config DRM_DP_HELPER
+	tristate
+	depends on DRM
+	help
+	  DRM helpers for DisplayPort.
 
 config DRM_KMS_HELPER
 	tristate
@@ -198,6 +205,12 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_BUDDY
+	tristate
+	depends on DRM
+	help
+	  A page based buddy allocator
+
 config DRM_VRAM_HELPER
 	tristate
 	depends on DRM
@@ -236,6 +249,7 @@ config DRM_RADEON
 	depends on DRM && PCI && MMU
 	depends on AGP || !AGP
 	select FW_LOADER
+	select DRM_DP_HELPER
         select DRM_KMS_HELPER
         select DRM_TTM
 	select DRM_TTM_HELPER
@@ -256,6 +270,7 @@ config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI && MMU
 	select FW_LOADER
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_SCHED
 	select DRM_TTM

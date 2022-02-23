@@ -163,7 +163,6 @@ gem-y += \
 i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
-	  i915_buddy.o \
 	  i915_cmd_parser.o \
 	  i915_deps.o \
 	  i915_gem_evict.o \
@@ -176,7 +175,7 @@ i915-y += \
 	  i915_trace_points.o \
 	  i915_ttm_buddy_manager.o \
 	  i915_vma.o \
-	  i915_vma_snapshot.o \
+	  i915_vma_resource.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support

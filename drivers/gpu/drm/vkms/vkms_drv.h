@@ -20,6 +20,8 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
+#define NUM_OVERLAY_PLANES 8
+
 struct vkms_writeback_job {
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 	struct iosys_map data[DRM_FORMAT_MAX_PLANES];

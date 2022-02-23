@@ -285,6 +285,12 @@ void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 			GEM_BUG_ON(vma->obj != obj);
 			spin_unlock(&obj->vma.lock);
 
+			/* Verify that the vma is unbound under the vm mutex. */
+			mutex_lock(&vma->vm->mutex);
+			atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
+			__i915_vma_unbind(vma);
+			mutex_unlock(&vma->vm->mutex);
+
 			__i915_vma_put(vma);
 
 			spin_lock(&obj->vma.lock);
@@ -759,6 +765,18 @@ struct dma_fence *
 i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj)
 {
 	return dma_fence_get(i915_gem_to_ttm(obj)->moving);
+}
+
+void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
+				      struct dma_fence *fence)
+{
+	struct dma_fence **moving = &i915_gem_to_ttm(obj)->moving;
+
+	if (*moving == fence)
+		return;
+
+	dma_fence_put(*moving);
+	*moving = dma_fence_get(fence);
 }
 
 /**

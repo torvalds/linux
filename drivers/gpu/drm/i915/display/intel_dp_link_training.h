@@ -6,7 +6,7 @@
 #ifndef __INTEL_DP_LINK_TRAINING_H__
 #define __INTEL_DP_LINK_TRAINING_H__
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 struct intel_crtc_state;
 struct intel_dp;

@@ -69,7 +69,7 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_drain_workqueue(i915);
 	i915_gem_drain_freed_objects(i915);
 
-	mock_fini_ggtt(&i915->ggtt);
+	mock_fini_ggtt(to_gt(i915)->ggtt);
 	destroy_workqueue(i915->wq);
 
 	intel_region_ttm_device_fini(i915);
@@ -196,8 +196,13 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mock_init_contexts(i915);
 
-	mock_init_ggtt(i915, &i915->ggtt);
-	to_gt(i915)->vm = i915_vm_get(&i915->ggtt.vm);
+	/* allocate the ggtt */
+	ret = intel_gt_assign_ggtt(to_gt(i915));
+	if (ret)
+		goto err_unlock;
+
+	mock_init_ggtt(to_gt(i915));
+	to_gt(i915)->vm = i915_vm_get(&to_gt(i915)->ggtt->vm);
 
 	mkwrite_device_info(i915)->platform_engine_mask = BIT(0);
 	to_gt(i915)->info.engine_mask = BIT(0);

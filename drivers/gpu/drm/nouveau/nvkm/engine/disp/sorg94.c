@@ -77,7 +77,18 @@ g94_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32 loff = nv50_sor_link(sor);
-	nvkm_mask(device, 0x61c10c + loff, 0x0f000000, pattern << 24);
+	u32 data;
+
+	switch (pattern) {
+	case 0: data = 0x00001000; break;
+	case 1: data = 0x01000000; break;
+	case 2: data = 0x02000000; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	nvkm_mask(device, 0x61c10c + loff, 0x0f001000, data);
 }
 
 void

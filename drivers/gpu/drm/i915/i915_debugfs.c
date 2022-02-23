@@ -183,7 +183,8 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (%s offset: %08llx, size: %08llx, pages: %s",
 			   stringify_vma_type(vma),
 			   vma->node.start, vma->node.size,
-			   stringify_page_sizes(vma->page_sizes.gtt, NULL, 0));
+			   stringify_page_sizes(vma->resource->page_sizes_gtt,
+						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
 			switch (vma->ggtt_view.type) {
 			case I915_GGTT_VIEW_NORMAL:
@@ -403,9 +404,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_x));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_y));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_y));
 
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
