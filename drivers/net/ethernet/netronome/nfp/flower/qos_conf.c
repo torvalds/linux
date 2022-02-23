@@ -475,3 +475,103 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 }
+
+/* offload tc action, currently only for tc police */
+
+static int
+nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
+			struct netlink_ext_ack *extack)
+{
+	struct flow_action_entry *paction = &fl_act->action.entries[0];
+	u32 action_num = fl_act->action.num_entries;
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct flow_action_entry *action = NULL;
+	u32 burst, i, meter_id;
+	bool pps_support, pps;
+	bool add = false;
+	u64 rate;
+
+	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
+
+	for (i = 0 ; i < action_num; i++) {
+		/*set qos associate data for this interface */
+		action = paction + i;
+		if (action->id != FLOW_ACTION_POLICE) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: qos rate limit offload requires police action");
+			continue;
+		}
+		if (action->police.rate_bytes_ps > 0) {
+			rate = action->police.rate_bytes_ps;
+			burst = action->police.burst;
+		} else if (action->police.rate_pkt_ps > 0 && pps_support) {
+			rate = action->police.rate_pkt_ps;
+			burst = action->police.burst_pkt;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: unsupported qos rate limit");
+			continue;
+		}
+
+		if (rate != 0) {
+			pps = false;
+			if (action->police.rate_pkt_ps > 0)
+				pps = true;
+			meter_id = action->hw_index;
+			nfp_flower_offload_one_police(app, false, pps, meter_id,
+						      rate, burst);
+			add = true;
+		}
+	}
+
+	return add ? 0 : -EOPNOTSUPP;
+}
+
+static int
+nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
+		       struct netlink_ext_ack *extack)
+{
+	struct nfp_police_config *config;
+	struct sk_buff *skb;
+	u32 meter_id;
+
+	/*delete qos associate data for this interface */
+	if (fl_act->id != FLOW_ACTION_POLICE) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: qos rate limit offload requires police action");
+		return -EOPNOTSUPP;
+	}
+
+	meter_id = fl_act->index;
+	skb = nfp_flower_cmsg_alloc(app, sizeof(struct nfp_police_config),
+				    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	config = nfp_flower_cmsg_get_data(skb);
+	memset(config, 0, sizeof(struct nfp_police_config));
+	config->head.flags_opts = cpu_to_be32(NFP_FL_QOS_METER);
+	config->head.meter_id = cpu_to_be32(meter_id);
+	nfp_ctrl_tx(app->ctrl, skb);
+
+	return 0;
+}
+
+int nfp_setup_tc_act_offload(struct nfp_app *app,
+			     struct flow_offload_action *fl_act)
+{
+	struct netlink_ext_ack *extack = fl_act->extack;
+	struct nfp_flower_priv *fl_priv = app->priv;
+
+	if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_METER))
+		return -EOPNOTSUPP;
+
+	switch (fl_act->command) {
+	case FLOW_ACT_REPLACE:
+		return nfp_act_install_actions(app, fl_act, extack);
+	case FLOW_ACT_DESTROY:
+		return nfp_act_remove_actions(app, fl_act, extack);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
