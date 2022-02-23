@@ -914,15 +914,12 @@ static void init_scheduler(struct rga_scheduler_t *rga_scheduler,
 	if (!strcmp(name, "rga3_core0")) {
 		rga_scheduler->ops = &rga3_ops;
 		/* TODO: get by hw version */
-		rga_scheduler->data = &rga3_data;
 		rga_scheduler->core = RGA3_SCHEDULER_CORE0;
 	} else if (!strcmp(name, "rga3_core1")) {
 		rga_scheduler->ops = &rga3_ops;
-		rga_scheduler->data = &rga3_data;
 		rga_scheduler->core = RGA3_SCHEDULER_CORE1;
 	} else if (!strcmp(name, "rga2")) {
 		rga_scheduler->ops = &rga2_ops;
-		rga_scheduler->data = &rga2e_data;
 		rga_scheduler->core = RGA2_SCHEDULER_CORE0;
 	}
 }
@@ -1048,8 +1045,19 @@ static int rga_drv_probe(struct platform_device *pdev)
 #endif //CONFIG_ROCKCHIP_FPGA
 
 	rga_scheduler->ops->get_version(rga_scheduler);
-	pr_err("Driver loaded successfully rga[%d] ver:%s\n", i,
-		rga_scheduler->version.str);
+	pr_err("%s driver loaded successfully ver:%s\n",
+	       dev_driver_string(dev), rga_scheduler->version.str);
+
+	/* TODO: get by hw version, Currently only supports judgment 1106. */
+	if (rga_scheduler->core == RGA3_SCHEDULER_CORE0 ||
+	    rga_scheduler->core == RGA3_SCHEDULER_CORE1) {
+		rga_scheduler->data = &rga3_data;
+	} else if (rga_scheduler->core == RGA2_SCHEDULER_CORE0) {
+		if (!strcmp(rga_scheduler->version.str, "3.3.87975"))
+			rga_scheduler->data = &rga2e_1106_data;
+		else
+			rga_scheduler->data = &rga2e_data;
+	}
 
 	data->rga_scheduler[data->num_of_scheduler] = rga_scheduler;
 

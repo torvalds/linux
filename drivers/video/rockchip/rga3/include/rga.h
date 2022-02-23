@@ -105,13 +105,19 @@ enum {
 
 /* RGA feature */
 enum {
-	RGA_COLOR_FILL			 = 0x1 << 0,
-	RGA_COLOR_PALETTE		 = 0x1 << 1,
-	RGA_COLOR_KEY			 = 0x1 << 2,
-	RGA_ROP_CALCULATE		 = 0x1 << 3,
-	RGA_NN_QUANTIZE			 = 0x1 << 4,
-	RGA_OSD_BLEND			 = 0x1 << 5,
-	RGA_DITHER			 = 0x1 << 6,
+	RGA_COLOR_FILL			= 0x1 << 0,
+	RGA_COLOR_PALETTE		= 0x1 << 1,
+	RGA_COLOR_KEY			= 0x1 << 2,
+	RGA_ROP_CALCULATE		= 0x1 << 3,
+	RGA_NN_QUANTIZE			= 0x1 << 4,
+	RGA_OSD_BLEND			= 0x1 << 5,
+	RGA_DITHER			= 0x1 << 6,
+	RGA_MOSAIC			= 0x1 << 7,
+	RGA_YIN_YOUT			= 0x1 << 8,
+	RGA_YUV_HDS			= 0x1 << 9,
+	RGA_YUV_VDS			= 0x1 << 10,
+	RGA_OSD				= 0x1 << 11,
+	RGA_PRE_INTR			= 0x1 << 12,
 };
 
 enum rga_surf_format {

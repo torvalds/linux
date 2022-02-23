@@ -52,5 +52,6 @@ struct rga_hw_data {
 
 extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
+extern const struct rga_hw_data rga2e_1106_data;
 
 #endif /* __LINUX_RGA_HW_CONFIG_H_ */
