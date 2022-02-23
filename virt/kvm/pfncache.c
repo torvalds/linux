@@ -27,7 +27,7 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 {
 	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
 	struct gfn_to_pfn_cache *gpc;
-	bool wake_vcpus = false;
+	bool evict_vcpus = false;
 
 	spin_lock(&kvm->gpc_lock);
 	list_for_each_entry(gpc, &kvm->gpc_list, list) {
@@ -40,11 +40,11 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 
 			/*
 			 * If a guest vCPU could be using the physical address,
-			 * it needs to be woken.
+			 * it needs to be forced out of guest mode.
 			 */
 			if (gpc->guest_uses_pa) {
-				if (!wake_vcpus) {
-					wake_vcpus = true;
+				if (!evict_vcpus) {
+					evict_vcpus = true;
 					bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
 				}
 				__set_bit(gpc->vcpu->vcpu_idx, vcpu_bitmap);
@@ -67,14 +67,18 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 	}
 	spin_unlock(&kvm->gpc_lock);
 
-	if (wake_vcpus) {
-		unsigned int req = KVM_REQ_GPC_INVALIDATE;
+	if (evict_vcpus) {
+		/*
+		 * KVM needs to ensure the vCPU is fully out of guest context
+		 * before allowing the invalidation to continue.
+		 */
+		unsigned int req = KVM_REQ_OUTSIDE_GUEST_MODE;
 		bool called;
 
 		/*
 		 * If the OOM reaper is active, then all vCPUs should have
 		 * been stopped already, so perform the request without
-		 * KVM_REQUEST_WAIT and be sad if any needed to be woken.
+		 * KVM_REQUEST_WAIT and be sad if any needed to be IPI'd.
 		 */
 		if (!may_block)
 			req &= ~KVM_REQUEST_WAIT;
