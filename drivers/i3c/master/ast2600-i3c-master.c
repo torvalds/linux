@@ -1950,8 +1950,8 @@ static int aspeed_i3c_master_unregister_slave(struct i3c_master_controller *m)
 	return 0;
 }
 
-static int aspeed_i3c_maser_send_sir(struct i3c_master_controller *m,
-				 struct i3c_slave_payload *payload)
+static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
+				      struct i3c_slave_payload *payload)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	uint32_t slv_event, intr_req, act_len;
@@ -2019,7 +2019,7 @@ static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.recycle_ibi_slot = aspeed_i3c_master_recycle_ibi_slot,
 	.register_slave = aspeed_i3c_master_register_slave,
 	.unregister_slave = aspeed_i3c_master_unregister_slave,
-	.send_sir = aspeed_i3c_maser_send_sir,
+	.send_sir = aspeed_i3c_master_send_sir,
 };
 
 static int aspeed_i3c_probe(struct platform_device *pdev)
