@@ -154,7 +154,7 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	plane_state->uapi.dst = dst;
 	if (intel_crtc_is_bigjoiner_slave(crtc_state))
 		drm_rect_translate(&plane_state->uapi.dst,
-				   -crtc_state->pipe_src_w, 0);
+				   -drm_rect_width(&crtc_state->pipe_src), 0);
 
 	ret = intel_cursor_check_surface(plane_state);
 	if (ret)

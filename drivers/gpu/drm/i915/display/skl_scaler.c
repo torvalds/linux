@@ -197,7 +197,8 @@ int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state)
 	return skl_update_scaler(crtc_state, !crtc_state->hw.active,
 				 SKL_CRTC_INDEX,
 				 &crtc_state->scaler_state.scaler_id,
-				 crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+				 drm_rect_width(&crtc_state->pipe_src),
+				 drm_rect_height(&crtc_state->pipe_src),
 				 width, height, NULL, 0,
 				 crtc_state->pch_pfit.enabled);
 }
@@ -400,10 +401,6 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct drm_rect src = {
-		.x2 = crtc_state->pipe_src_w << 16,
-		.y2 = crtc_state->pipe_src_h << 16,
-	};
 	const struct drm_rect *dst = &crtc_state->pch_pfit.dst;
 	u16 uv_rgb_hphase, uv_rgb_vphase;
 	enum pipe pipe = crtc->pipe;
@@ -413,6 +410,7 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	int y = dst->y1;
 	int hscale, vscale;
 	unsigned long irqflags;
+	struct drm_rect src;
 	int id;
 	u32 ps_ctrl;
 
@@ -422,6 +420,10 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	if (drm_WARN_ON(&dev_priv->drm,
 			crtc_state->scaler_state.scaler_id < 0))
 		return;
+
+	drm_rect_init(&src, 0, 0,
+		      drm_rect_width(&crtc_state->pipe_src) << 16,
+		      drm_rect_height(&crtc_state->pipe_src) << 16);
 
 	hscale = drm_rect_calc_hscale(&src, dst, 0, INT_MAX);
 	vscale = drm_rect_calc_vscale(&src, dst, 0, INT_MAX);

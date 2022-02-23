@@ -2675,8 +2675,8 @@ static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 		return pixel_rate;
 
 	drm_rect_init(&src, 0, 0,
-		      crtc_state->pipe_src_w << 16,
-		      crtc_state->pipe_src_h << 16);
+		      drm_rect_width(&crtc_state->pipe_src) << 16,
+		      drm_rect_height(&crtc_state->pipe_src) << 16);
 
 	return intel_adjusted_rate(&src, &crtc_state->pch_pfit.dst,
 				   pixel_rate);
@@ -2780,8 +2780,8 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 	/* Populate the "user" mode with full numbers */
 	drm_mode_copy(mode, pipe_mode);
 	intel_mode_from_crtc_timings(mode, mode);
-	mode->hdisplay = crtc_state->pipe_src_w << crtc_state->bigjoiner;
-	mode->vdisplay = crtc_state->pipe_src_h;
+	mode->hdisplay = drm_rect_width(&crtc_state->pipe_src) << crtc_state->bigjoiner;
+	mode->vdisplay = drm_rect_height(&crtc_state->pipe_src);
 
 	/* Derive per-pipe timings in case bigjoiner is used */
 	intel_bigjoiner_adjust_timings(crtc_state, pipe_mode);
@@ -2798,13 +2798,26 @@ static void intel_encoder_get_config(struct intel_encoder *encoder,
 	intel_crtc_readout_derived_state(crtc_state);
 }
 
+static void intel_bigjoiner_compute_pipe_src(struct intel_crtc_state *crtc_state)
+{
+	int width, height;
+
+	if (!crtc_state->bigjoiner)
+		return;
+
+	width = drm_rect_width(&crtc_state->pipe_src);
+	height = drm_rect_height(&crtc_state->pipe_src);
+
+	drm_rect_init(&crtc_state->pipe_src, 0, 0,
+		      width / 2, height);
+}
+
 static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	if (crtc_state->bigjoiner)
-		crtc_state->pipe_src_w /= 2;
+	intel_bigjoiner_compute_pipe_src(crtc_state);
 
 	/*
 	 * Pipe horizontal size must be even in:
@@ -2812,7 +2825,7 @@ static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if (crtc_state->pipe_src_w & 1) {
+	if (drm_rect_width(&crtc_state->pipe_src) & 1) {
 		if (crtc_state->double_wide) {
 			drm_dbg_kms(&i915->drm,
 				    "[CRTC:%d:%s] Odd pipe source width not supported with double wide pipe\n",
@@ -3099,14 +3112,15 @@ static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int width = drm_rect_width(&crtc_state->pipe_src);
+	int height = drm_rect_height(&crtc_state->pipe_src);
 	enum pipe pipe = crtc->pipe;
 
 	/* pipesrc controls the size that is scaled from, which should
 	 * always be the user's requested size.
 	 */
 	intel_de_write(dev_priv, PIPESRC(pipe),
-		       PIPESRC_WIDTH(crtc_state->pipe_src_w - 1) |
-		       PIPESRC_HEIGHT(crtc_state->pipe_src_h - 1));
+		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
 }
 
 static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)
@@ -3177,8 +3191,10 @@ static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 	u32 tmp;
 
 	tmp = intel_de_read(dev_priv, PIPESRC(crtc->pipe));
-	pipe_config->pipe_src_w = REG_FIELD_GET(PIPESRC_WIDTH_MASK, tmp) + 1;
-	pipe_config->pipe_src_h = REG_FIELD_GET(PIPESRC_HEIGHT_MASK, tmp) + 1;
+
+	drm_rect_init(&pipe_config->pipe_src, 0, 0,
+		      REG_FIELD_GET(PIPESRC_WIDTH_MASK, tmp) + 1,
+		      REG_FIELD_GET(PIPESRC_HEIGHT_MASK, tmp) + 1);
 }
 
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
@@ -5369,9 +5385,8 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 	drm_mode_debug_printmodeline(&pipe_config->hw.pipe_mode);
 	intel_dump_crtc_timings(dev_priv, &pipe_config->hw.pipe_mode);
 	drm_dbg_kms(&dev_priv->drm,
-		    "port clock: %d, pipe src size: %dx%d, pixel rate %d\n",
-		    pipe_config->port_clock,
-		    pipe_config->pipe_src_w, pipe_config->pipe_src_h,
+		    "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d\n",
+		    pipe_config->port_clock, DRM_RECT_ARG(&pipe_config->pipe_src),
 		    pipe_config->pixel_rate);
 
 	drm_dbg_kms(&dev_priv->drm, "linetime: %d, ips linetime: %d\n",
@@ -5666,6 +5681,7 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(pipe_config->uapi.crtc->dev);
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
+	int pipe_src_w, pipe_src_h;
 	int base_bpp, ret, i;
 	bool retry = true;
 
@@ -5703,8 +5719,9 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 	 * can be changed by the connectors in the below retry loop.
 	 */
 	drm_mode_get_hv_timing(&pipe_config->hw.mode,
-			       &pipe_config->pipe_src_w,
-			       &pipe_config->pipe_src_h);
+			       &pipe_src_w, &pipe_src_h);
+	drm_rect_init(&pipe_config->pipe_src, 0, 0,
+		      pipe_src_w, pipe_src_h);
 
 	for_each_new_connector_in_state(&state->base, connector, connector_state, i) {
 		struct intel_encoder *encoder =
@@ -6283,8 +6300,10 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(pch_pfit.force_thru);
 
 	if (!fastset) {
-		PIPE_CONF_CHECK_I(pipe_src_w);
-		PIPE_CONF_CHECK_I(pipe_src_h);
+		PIPE_CONF_CHECK_I(pipe_src.x1);
+		PIPE_CONF_CHECK_I(pipe_src.y1);
+		PIPE_CONF_CHECK_I(pipe_src.x2);
+		PIPE_CONF_CHECK_I(pipe_src.y2);
 
 		PIPE_CONF_CHECK_BOOL(pch_pfit.enabled);
 		if (current_config->pch_pfit.enabled) {

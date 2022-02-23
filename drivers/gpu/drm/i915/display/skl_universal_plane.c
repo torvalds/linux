@@ -1401,7 +1401,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 		to_i915(plane_state->uapi.plane->dev);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
-	int pipe_src_w = crtc_state->pipe_src_w;
+	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
 
 	/*
 	 * Display WA #1175: glk
