@@ -523,7 +523,7 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 	return test_bit(feature_id, feature->supported);
 }
 
-int __smu_get_enabled_features(struct smu_context *smu,
+static int __smu_get_enabled_features(struct smu_context *smu,
 			       uint64_t *enabled_features)
 {
 	return smu_cmn_call_asic_func(get_enabled_mask, smu, enabled_features);
