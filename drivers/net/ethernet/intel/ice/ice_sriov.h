@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2018, Intel Corporation. */
 
-#ifndef _ICE_VIRTCHNL_PF_H_
-#define _ICE_VIRTCHNL_PF_H_
+#ifndef _ICE_SRIOV_H_
+#define _ICE_SRIOV_H_
 #include "ice.h"
 #include "ice_virtchnl_fdir.h"
 #include "ice_vsi_vlan_ops.h"
@@ -434,4 +434,4 @@ static inline bool ice_vf_is_port_vlan_ena(struct ice_vf __always_unused *vf)
 	return false;
 }
 #endif /* CONFIG_PCI_IOV */
-#endif /* _ICE_VIRTCHNL_PF_H_ */
+#endif /* _ICE_SRIOV_H_ */
