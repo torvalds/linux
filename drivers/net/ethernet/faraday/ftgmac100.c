@@ -1410,10 +1410,8 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 	return err;
 }
 
-static void ftgmac100_reset_task(struct work_struct *work)
+static void ftgmac100_reset(struct ftgmac100 *priv)
 {
-	struct ftgmac100 *priv = container_of(work, struct ftgmac100,
-					      reset_task);
 	struct net_device *netdev = priv->netdev;
 	int err;
 
@@ -1457,6 +1455,14 @@ static void ftgmac100_reset_task(struct work_struct *work)
 	if (netdev->phydev)
 		mutex_unlock(&netdev->phydev->lock);
 	rtnl_unlock();
+}
+
+static void ftgmac100_reset_task(struct work_struct *work)
+{
+	struct ftgmac100 *priv = container_of(work, struct ftgmac100,
+					      reset_task);
+
+	ftgmac100_reset(priv);
 }
 
 static int ftgmac100_open(struct net_device *netdev)
