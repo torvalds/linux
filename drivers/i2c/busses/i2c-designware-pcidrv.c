@@ -194,14 +194,30 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 };
 
+static int __maybe_unused i2c_dw_pci_runtime_suspend(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	i_dev->disable(i_dev);
+	return 0;
+}
+
 static int __maybe_unused i2c_dw_pci_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
+	i2c_lock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
 	i_dev->suspended = true;
-	i_dev->disable(i_dev);
+	i2c_unlock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
 
-	return 0;
+	return i2c_dw_pci_runtime_suspend(dev);
+}
+
+static int __maybe_unused i2c_dw_pci_runtime_resume(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	return i_dev->init(i_dev);
 }
 
 static int __maybe_unused i2c_dw_pci_resume(struct device *dev)
@@ -209,14 +225,19 @@ static int __maybe_unused i2c_dw_pci_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 	int ret;
 
-	ret = i_dev->init(i_dev);
+	ret = i2c_dw_pci_runtime_resume(dev);
+
+	i2c_lock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
 	i_dev->suspended = false;
+	i2c_unlock_bus(&i_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
 
 	return ret;
 }
 
-static UNIVERSAL_DEV_PM_OPS(i2c_dw_pm_ops, i2c_dw_pci_suspend,
-			    i2c_dw_pci_resume, NULL);
+static const struct dev_pm_ops i2c_dw_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(i2c_dw_pci_suspend, i2c_dw_pci_resume)
+	SET_RUNTIME_PM_OPS(i2c_dw_pci_runtime_suspend, i2c_dw_pci_runtime_resume, NULL)
+};
 
 static int i2c_dw_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
