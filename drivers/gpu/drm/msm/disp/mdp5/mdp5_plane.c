@@ -8,6 +8,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_print.h>
 
 #include "mdp5_kms.h"
@@ -143,18 +144,34 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.atomic_print_state = mdp5_plane_atomic_print_state,
 };
 
+static int mdp5_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_plane_state *new_state)
+{
+	struct msm_drm_private *priv = plane->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	bool needs_dirtyfb = to_mdp5_plane_state(new_state)->needs_dirtyfb;
+
+	if (!new_state->fb)
+		return 0;
+
+	drm_gem_plane_helper_prepare_fb(plane, new_state);
+
+	return msm_framebuffer_prepare(new_state->fb, kms->aspace, needs_dirtyfb);
+}
+
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = old_state->fb;
+	bool needed_dirtyfb = to_mdp5_plane_state(old_state)->needs_dirtyfb;
 
 	if (!fb)
 		return;
 
 	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, kms->aspace);
+	msm_framebuffer_cleanup(fb, kms->aspace, needed_dirtyfb);
 }
 
 static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
@@ -452,7 +469,7 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
-		.prepare_fb = msm_atomic_prepare_fb,
+		.prepare_fb = mdp5_plane_prepare_fb,
 		.cleanup_fb = mdp5_plane_cleanup_fb,
 		.atomic_check = mdp5_plane_atomic_check,
 		.atomic_update = mdp5_plane_atomic_update,
