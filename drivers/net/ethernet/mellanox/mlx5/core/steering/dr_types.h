@@ -91,6 +91,7 @@ enum mlx5dr_ste_ctx_action_cap {
 	DR_STE_CTX_ACTION_CAP_TX_POP   = 1 << 0,
 	DR_STE_CTX_ACTION_CAP_RX_PUSH  = 1 << 1,
 	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 2,
+	DR_STE_CTX_ACTION_CAP_POP_MDFY = 1 << 3,
 };
 
 enum {

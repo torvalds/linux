@@ -513,6 +513,7 @@ static void dr_ste_v1_arr_init_next_match(u8 **last_ste,
 
 static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 				     u8 *action_type_set,
+				     u32 actions_caps,
 				     u8 *last_ste,
 				     struct mlx5dr_ste_actions_attr *attr,
 				     u32 *added_stes)
@@ -533,6 +534,10 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_set_pop_vlan(last_ste, action, attr->vlans.count);
 		action_sz -= DR_STE_ACTION_SINGLE_SZ;
 		action += DR_STE_ACTION_SINGLE_SZ;
+
+		/* Check if vlan_pop and modify_hdr on same STE is supported */
+		if (!(actions_caps & DR_STE_CTX_ACTION_CAP_POP_MDFY))
+			allow_modify_hdr = false;
 	}
 
 	if (action_type_set[DR_ACTION_TYP_CTR])
@@ -632,6 +637,7 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 
 static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 				     u8 *action_type_set,
+				     u32 actions_caps,
 				     u8 *last_ste,
 				     struct mlx5dr_ste_actions_attr *attr,
 				     u32 *added_stes)
@@ -682,6 +688,10 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		action_sz -= DR_STE_ACTION_SINGLE_SZ;
 		action += DR_STE_ACTION_SINGLE_SZ;
 		allow_ctr = false;
+
+		/* Check if vlan_pop and modify_hdr on same STE is supported */
+		if (!(actions_caps & DR_STE_CTX_ACTION_CAP_POP_MDFY))
+			allow_modify_hdr = false;
 	}
 
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
@@ -2045,7 +2055,7 @@ dr_ste_v1_build_tnl_gtpu_flex_parser_1_init(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_v1_build_tnl_gtpu_flex_parser_1_tag;
 }
 
-struct mlx5dr_ste_ctx ste_ctx_v1 = {
+static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	/* Builders */
 	.build_eth_l2_src_dst_init	= &dr_ste_v1_build_eth_l2_src_dst_init,
 	.build_eth_l3_ipv6_src_init	= &dr_ste_v1_build_eth_l3_ipv6_src_init,
@@ -2090,7 +2100,8 @@ struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	/* Actions */
 	.actions_caps			= DR_STE_CTX_ACTION_CAP_TX_POP |
 					  DR_STE_CTX_ACTION_CAP_RX_PUSH |
-					  DR_STE_CTX_ACTION_CAP_RX_ENCAP,
+					  DR_STE_CTX_ACTION_CAP_RX_ENCAP |
+					  DR_STE_CTX_ACTION_CAP_POP_MDFY,
 	.set_actions_rx			= &dr_ste_v1_set_actions_rx,
 	.set_actions_tx			= &dr_ste_v1_set_actions_tx,
 	.modify_field_arr_sz		= ARRAY_SIZE(dr_ste_v1_action_modify_field_arr),
@@ -2102,3 +2113,8 @@ struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };
+
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v1(void)
+{
+	return &ste_ctx_v1;
+}
