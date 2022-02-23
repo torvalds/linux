@@ -286,14 +286,14 @@ static DEFINE_PER_CPU(struct crng, crngs) = {
 };
 
 /* Used by crng_reseed() to extract a new seed from the input pool. */
-static bool drain_entropy(void *buf, size_t nbytes);
+static bool drain_entropy(void *buf, size_t nbytes, bool force);
 
 /*
  * This extracts a new crng key from the input pool, but only if there is a
- * sufficient amount of entropy available, in order to mitigate bruteforcing
- * of newly added bits.
+ * sufficient amount of entropy available or force is true, in order to
+ * mitigate bruteforcing of newly added bits.
  */
-static void crng_reseed(void)
+static void crng_reseed(bool force)
 {
 	unsigned long flags;
 	unsigned long next_gen;
@@ -301,7 +301,7 @@ static void crng_reseed(void)
 	bool finalize_init = false;
 
 	/* Only reseed if we can, to prevent brute forcing a small amount of new bits. */
-	if (!drain_entropy(key, sizeof(key)))
+	if (!drain_entropy(key, sizeof(key), force))
 		return;
 
 	/*
@@ -398,7 +398,7 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
 	 * in turn bumps the generation counter that we check below.
 	 */
 	if (unlikely(time_after(jiffies, READ_ONCE(base_crng.birth) + CRNG_RESEED_INTERVAL)))
-		crng_reseed();
+		crng_reseed(false);
 
 	local_lock_irqsave(&crngs.lock, flags);
 	crng = raw_cpu_ptr(&crngs);
@@ -763,10 +763,10 @@ EXPORT_SYMBOL(get_random_bytes_arch);
  *
  * Finally, extract entropy via these two, with the latter one
  * setting the entropy count to zero and extracting only if there
- * is POOL_MIN_BITS entropy credited prior:
+ * is POOL_MIN_BITS entropy credited prior or force is true:
  *
  *     static void extract_entropy(void *buf, size_t nbytes)
- *     static bool drain_entropy(void *buf, size_t nbytes)
+ *     static bool drain_entropy(void *buf, size_t nbytes, bool force)
  *
  **********************************************************************/
 
@@ -824,7 +824,7 @@ static void credit_entropy_bits(size_t nbits)
 	} while (cmpxchg(&input_pool.entropy_count, orig, entropy_count) != orig);
 
 	if (crng_init < 2 && entropy_count >= POOL_MIN_BITS)
-		crng_reseed();
+		crng_reseed(false);
 }
 
 /*
@@ -874,16 +874,16 @@ static void extract_entropy(void *buf, size_t nbytes)
 }
 
 /*
- * First we make sure we have POOL_MIN_BITS of entropy in the pool, and then we
- * set the entropy count to zero (but don't actually touch any data). Only then
- * can we extract a new key with extract_entropy().
+ * First we make sure we have POOL_MIN_BITS of entropy in the pool unless force
+ * is true, and then we set the entropy count to zero (but don't actually touch
+ * any data). Only then can we extract a new key with extract_entropy().
  */
-static bool drain_entropy(void *buf, size_t nbytes)
+static bool drain_entropy(void *buf, size_t nbytes, bool force)
 {
 	unsigned int entropy_count;
 	do {
 		entropy_count = READ_ONCE(input_pool.entropy_count);
-		if (entropy_count < POOL_MIN_BITS)
+		if (!force && entropy_count < POOL_MIN_BITS)
 			return false;
 	} while (cmpxchg(&input_pool.entropy_count, entropy_count, 0) != entropy_count);
 	extract_entropy(buf, nbytes);
@@ -907,6 +907,7 @@ static bool drain_entropy(void *buf, size_t nbytes)
  *	void add_hwgenerator_randomness(const void *buffer, size_t count,
  *					size_t entropy);
  *	void add_bootloader_randomness(const void *buf, size_t size);
+ *	void add_vmfork_randomness(const void *unique_vm_id, size_t size);
  *	void add_interrupt_randomness(int irq);
  *
  * add_device_randomness() adds data to the input pool that
@@ -937,6 +938,10 @@ static bool drain_entropy(void *buf, size_t nbytes)
  * add_bootloader_randomness() is the same as add_hwgenerator_randomness() or
  * add_device_randomness(), depending on whether or not the configuration
  * option CONFIG_RANDOM_TRUST_BOOTLOADER is set.
+ *
+ * add_vmfork_randomness() adds a unique (but not necessarily secret) ID
+ * representing the current instance of a VM to the pool, without crediting,
+ * and then force-reseeds the crng so that it takes effect immediately.
  *
  * add_interrupt_randomness() uses the interrupt timing as random
  * inputs to the entropy pool. Using the cycle counters and the irq source
@@ -1162,6 +1167,21 @@ void add_bootloader_randomness(const void *buf, size_t size)
 		add_device_randomness(buf, size);
 }
 EXPORT_SYMBOL_GPL(add_bootloader_randomness);
+
+/*
+ * Handle a new unique VM ID, which is unique, not secret, so we
+ * don't credit it, but we do immediately force a reseed after so
+ * that it's used by the crng posthaste.
+ */
+void add_vmfork_randomness(const void *unique_vm_id, size_t size)
+{
+	add_device_randomness(unique_vm_id, size);
+	if (crng_ready()) {
+		crng_reseed(true);
+		pr_notice("crng reseeded due to virtual machine fork\n");
+	}
+}
+EXPORT_SYMBOL_GPL(add_vmfork_randomness);
 
 struct fast_pool {
 	union {
@@ -1534,7 +1554,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		if (crng_init < 2)
 			return -ENODATA;
-		crng_reseed();
+		crng_reseed(false);
 		return 0;
 	default:
 		return -EINVAL;
