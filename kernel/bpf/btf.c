@@ -6398,7 +6398,8 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			pr_warn("failed to validate module [%s] BTF: %ld\n",
 				mod->name, PTR_ERR(btf));
 			kfree(btf_mod);
-			err = PTR_ERR(btf);
+			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+				err = PTR_ERR(btf);
 			goto out;
 		}
 		err = btf_alloc_id(btf);
