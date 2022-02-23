@@ -37,8 +37,8 @@ struct amdgpu_job;
 struct amdgpu_vm;
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		28
-#define AMDGPU_MAX_HWIP_RINGS		8
+#define AMDGPU_MAX_RINGS		96
+#define AMDGPU_MAX_HWIP_RINGS		32
 #define AMDGPU_MAX_GFX_RINGS		2
 #define AMDGPU_MAX_SW_GFX_RINGS         2
 #define AMDGPU_MAX_COMPUTE_RINGS	8

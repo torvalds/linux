@@ -26,7 +26,7 @@
 #include "amdgpu_ras.h"
 
 /* max number of IP instances */
-#define AMDGPU_MAX_SDMA_INSTANCES		8
+#define AMDGPU_MAX_SDMA_INSTANCES		16
 
 enum amdgpu_sdma_irq {
 	AMDGPU_SDMA_IRQ_INSTANCE0  = 0,
@@ -49,6 +49,7 @@ struct amdgpu_sdma_instance {
 	struct amdgpu_ring	ring;
 	struct amdgpu_ring	page;
 	bool			burst_nop;
+	uint32_t		aid_id;
 };
 
 struct amdgpu_sdma_ras {
@@ -66,6 +67,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	srbm_write_irq;
 
 	int			num_instances;
+	int			num_inst_per_aid;
 	uint32_t                    srbm_soft_reset;
 	bool			has_page_queue;
 	struct ras_common_if	*ras_if;

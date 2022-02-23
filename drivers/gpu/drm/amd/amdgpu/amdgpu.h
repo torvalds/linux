@@ -1051,6 +1051,7 @@ struct amdgpu_device {
 
 	bool                            job_hang;
 	bool                            dc_enabled;
+	uint32_t			num_aid;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
