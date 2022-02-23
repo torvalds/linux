@@ -129,6 +129,10 @@ bool
 mlx5e_tc_ct_restore_flow(struct mlx5_tc_ct_priv *ct_priv,
 			 struct sk_buff *skb, u8 zone_restore_id);
 
+int
+mlx5_tc_ct_set_ct_clear_regs(struct mlx5_tc_ct_priv *priv,
+			     struct mlx5e_tc_mod_hdr_acts *mod_acts);
+
 #else /* CONFIG_MLX5_TC_CT */
 
 static inline struct mlx5_tc_ct_priv *
@@ -168,6 +172,13 @@ static inline int
 mlx5_tc_ct_add_no_trk_match(struct mlx5_flow_spec *spec)
 {
 	return 0;
+}
+
+static inline int
+mlx5_tc_ct_set_ct_clear_regs(struct mlx5_tc_ct_priv *priv,
+			     struct mlx5e_tc_mod_hdr_acts *mod_acts)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int
