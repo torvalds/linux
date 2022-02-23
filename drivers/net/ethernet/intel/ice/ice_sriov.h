@@ -113,7 +113,7 @@ struct ice_mdd_vf_events {
 
 struct ice_vf;
 
-struct ice_vc_vf_ops {
+struct ice_virtchnl_ops {
 	int (*get_ver_msg)(struct ice_vf *vf, u8 *msg);
 	int (*get_vf_res_msg)(struct ice_vf *vf, u8 *msg);
 	void (*reset_vf)(struct ice_vf *vf);
@@ -206,8 +206,7 @@ struct ice_vf {
 	DECLARE_BITMAP(opcodes_allowlist, VIRTCHNL_OP_MAX);
 
 	struct ice_repr *repr;
-
-	struct ice_vc_vf_ops vc_ops;
+	const struct ice_virtchnl_ops *virtchnl_ops;
 
 	/* devlink port data */
 	struct devlink_port devlink_port;
@@ -230,8 +229,8 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_vc_notify_link_state(struct ice_pf *pf);
 void ice_vc_notify_reset(struct ice_pf *pf);
 void ice_vc_notify_vf_link_state(struct ice_vf *vf);
-void ice_vc_change_ops_to_repr(struct ice_vc_vf_ops *ops);
-void ice_vc_set_dflt_vf_ops(struct ice_vc_vf_ops *ops);
+void ice_virtchnl_set_repr_ops(struct ice_vf *vf);
+void ice_virtchnl_set_dflt_ops(struct ice_vf *vf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
@@ -303,8 +302,8 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) {
 static inline void ice_vc_notify_link_state(struct ice_pf *pf) { }
 static inline void ice_vc_notify_reset(struct ice_pf *pf) { }
 static inline void ice_vc_notify_vf_link_state(struct ice_vf *vf) { }
-static inline void ice_vc_change_ops_to_repr(struct ice_vc_vf_ops *ops) { }
-static inline void ice_vc_set_dflt_vf_ops(struct ice_vc_vf_ops *ops) { }
+static inline void ice_virtchnl_set_repr_ops(struct ice_vf *vf) { }
+static inline void ice_virtchnl_set_dflt_ops(struct ice_vf *vf) { }
 static inline void ice_set_vf_state_qs_dis(struct ice_vf *vf) { }
 static inline
 void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }

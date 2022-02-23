@@ -2023,7 +2023,7 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 		ice_vf_ctrl_invalidate_vsi(vf);
 		ice_vf_fdir_init(vf);
 
-		ice_vc_set_dflt_vf_ops(&vf->vc_ops);
+		ice_virtchnl_set_dflt_ops(vf);
 
 		mutex_init(&vf->cfg_lock);
 
@@ -5672,7 +5672,7 @@ out:
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_DISABLE_VLAN_INSERTION_V2, v_ret, NULL, 0);
 }
 
-static struct ice_vc_vf_ops ice_vc_vf_dflt_ops = {
+static const struct ice_virtchnl_ops ice_virtchnl_dflt_ops = {
 	.get_ver_msg = ice_vc_get_ver_msg,
 	.get_vf_res_msg = ice_vc_get_vf_res_msg,
 	.reset_vf = ice_vc_reset_vf_msg,
@@ -5703,9 +5703,13 @@ static struct ice_vc_vf_ops ice_vc_vf_dflt_ops = {
 	.dis_vlan_insertion_v2_msg = ice_vc_dis_vlan_insertion_v2_msg,
 };
 
-void ice_vc_set_dflt_vf_ops(struct ice_vc_vf_ops *ops)
+/**
+ * ice_virtchnl_set_dflt_ops - Switch to default virtchnl ops
+ * @vf: the VF to switch ops
+ */
+void ice_virtchnl_set_dflt_ops(struct ice_vf *vf)
 {
-	*ops = ice_vc_vf_dflt_ops;
+	vf->virtchnl_ops = &ice_virtchnl_dflt_ops;
 }
 
 /**
@@ -5838,15 +5842,44 @@ ice_vc_repr_cfg_promiscuous_mode(struct ice_vf *vf, u8 __always_unused *msg)
 				     NULL, 0);
 }
 
-void ice_vc_change_ops_to_repr(struct ice_vc_vf_ops *ops)
+static const struct ice_virtchnl_ops ice_virtchnl_repr_ops = {
+	.get_ver_msg = ice_vc_get_ver_msg,
+	.get_vf_res_msg = ice_vc_get_vf_res_msg,
+	.reset_vf = ice_vc_reset_vf_msg,
+	.add_mac_addr_msg = ice_vc_repr_add_mac,
+	.del_mac_addr_msg = ice_vc_repr_del_mac,
+	.cfg_qs_msg = ice_vc_cfg_qs_msg,
+	.ena_qs_msg = ice_vc_ena_qs_msg,
+	.dis_qs_msg = ice_vc_dis_qs_msg,
+	.request_qs_msg = ice_vc_request_qs_msg,
+	.cfg_irq_map_msg = ice_vc_cfg_irq_map_msg,
+	.config_rss_key = ice_vc_config_rss_key,
+	.config_rss_lut = ice_vc_config_rss_lut,
+	.get_stats_msg = ice_vc_get_stats_msg,
+	.cfg_promiscuous_mode_msg = ice_vc_repr_cfg_promiscuous_mode,
+	.add_vlan_msg = ice_vc_repr_add_vlan,
+	.remove_vlan_msg = ice_vc_repr_del_vlan,
+	.ena_vlan_stripping = ice_vc_repr_ena_vlan_stripping,
+	.dis_vlan_stripping = ice_vc_repr_dis_vlan_stripping,
+	.handle_rss_cfg_msg = ice_vc_handle_rss_cfg,
+	.add_fdir_fltr_msg = ice_vc_add_fdir_fltr,
+	.del_fdir_fltr_msg = ice_vc_del_fdir_fltr,
+	.get_offload_vlan_v2_caps = ice_vc_get_offload_vlan_v2_caps,
+	.add_vlan_v2_msg = ice_vc_add_vlan_v2_msg,
+	.remove_vlan_v2_msg = ice_vc_remove_vlan_v2_msg,
+	.ena_vlan_stripping_v2_msg = ice_vc_ena_vlan_stripping_v2_msg,
+	.dis_vlan_stripping_v2_msg = ice_vc_dis_vlan_stripping_v2_msg,
+	.ena_vlan_insertion_v2_msg = ice_vc_ena_vlan_insertion_v2_msg,
+	.dis_vlan_insertion_v2_msg = ice_vc_dis_vlan_insertion_v2_msg,
+};
+
+/**
+ * ice_virtchnl_set_repr_ops - Switch to representor virtchnl ops
+ * @vf: the VF to switch ops
+ */
+void ice_virtchnl_set_repr_ops(struct ice_vf *vf)
 {
-	ops->add_mac_addr_msg = ice_vc_repr_add_mac;
-	ops->del_mac_addr_msg = ice_vc_repr_del_mac;
-	ops->add_vlan_msg = ice_vc_repr_add_vlan;
-	ops->remove_vlan_msg = ice_vc_repr_del_vlan;
-	ops->ena_vlan_stripping = ice_vc_repr_ena_vlan_stripping;
-	ops->dis_vlan_stripping = ice_vc_repr_dis_vlan_stripping;
-	ops->cfg_promiscuous_mode_msg = ice_vc_repr_cfg_promiscuous_mode;
+	vf->virtchnl_ops = &ice_virtchnl_repr_ops;
 }
 
 /**
@@ -5861,8 +5894,8 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 {
 	u32 v_opcode = le32_to_cpu(event->desc.cookie_high);
 	s16 vf_id = le16_to_cpu(event->desc.retval);
+	const struct ice_virtchnl_ops *ops;
 	u16 msglen = event->msg_len;
-	struct ice_vc_vf_ops *ops;
 	u8 *msg = event->msg_buf;
 	struct ice_vf *vf = NULL;
 	struct device *dev;
@@ -5883,7 +5916,7 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 		goto error_handler;
 	}
 
-	ops = &vf->vc_ops;
+	ops = vf->virtchnl_ops;
 
 	/* Perform basic checks on the msg */
 	err = virtchnl_vc_validate_vf_msg(&vf->vf_ver, v_opcode, msg, msglen);

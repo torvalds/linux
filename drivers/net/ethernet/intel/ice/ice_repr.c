@@ -339,7 +339,7 @@ static int ice_repr_add(struct ice_vf *vf)
 
 	devlink_port_type_eth_set(&vf->devlink_port, repr->netdev);
 
-	ice_vc_change_ops_to_repr(&vf->vc_ops);
+	ice_virtchnl_set_repr_ops(vf);
 
 	return 0;
 
@@ -384,7 +384,7 @@ static void ice_repr_rem(struct ice_vf *vf)
 	kfree(vf->repr);
 	vf->repr = NULL;
 
-	ice_vc_set_dflt_vf_ops(&vf->vc_ops);
+	ice_virtchnl_set_dflt_ops(vf);
 }
 
 /**
