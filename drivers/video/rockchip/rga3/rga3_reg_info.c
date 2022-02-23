@@ -1340,6 +1340,12 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	if (rga_is_alpha_format(req_rga->src.format))
 		req->alpha_mode_1 = 0x0a00;
 
+	/*
+	 * Layer binding:
+	 *     src => win1
+	 *     src1/dst => win0
+	 *     dst => wr
+	 */
 	/* simple win can not support dst offset */
 	if ((!((req_rga->alpha_rop_flag) & 1)) &&
 	    (req_rga->dst.x_offset == 0 && req_rga->dst.y_offset == 0)) {
@@ -1358,47 +1364,45 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		req->win0.format = req_rga->src.format;
 		req->wr.format = req_rga->dst.format;
 	} else {
-		/* A+B->C */
+		set_win_info(&req->win1, &req_rga->src);
+
+		/* enable win1 rotate */
+		req->win1.rotate_mode = 1;
+
+		addr_copy(&req->win1, &req_rga->src);
+		addr_copy(&req->wr, &req_rga->dst);
+
+		req->win1.format = req_rga->src.format;
+		req->wr.format = req_rga->dst.format;
+
 		if (req_rga->pat.yrgb_addr != 0) {
+			/* A+B->C mode */
 			set_win_info(&req->win0, &req_rga->pat);
-			set_win_info(&req->win1, &req_rga->src);
-			/* enable win1 rotate */
-			req->win1.rotate_mode = 1;
-
-			addr_copy(&req->win1, &req_rga->src);
 			addr_copy(&req->win0, &req_rga->pat);
-			addr_copy(&req->wr, &req_rga->dst);
+			req->win0.format = req_rga->pat.format;
 
-			req->win0.format = req_rga->src.format;
-			req->wr.format = req_rga->dst.format;
-			req->win1.format = req_rga->pat.format;
-
+			/* set win0 dst size */
+			req->win0.dst_act_w = req_rga->pat.act_w;
+			req->win0.dst_act_h = req_rga->pat.act_h;
+			/* set win1 dst size */
+			req->win1.dst_act_w = req_rga->pat.act_w;
+			req->win1.dst_act_h = req_rga->pat.act_h;
 		} else {
-			/* A+B->B */
-			set_win_info(&req->win1, &req_rga->src);
+			/* A+B->B mode */
 			set_win_info(&req->win0, &req_rga->dst);
+			addr_copy(&req->win0, &req_rga->dst);
+			req->win0.format = req_rga->dst.format;
 
-			/* enable win1 rotate */
-			req->win1.rotate_mode = 1;
 			/* only win1 && wr support fbcd, win0 default raster */
 			req->win0.rd_mode = 0;
 
-			addr_copy(&req->win1, &req_rga->src);
-			addr_copy(&req->win0, &req_rga->dst);
-			addr_copy(&req->wr, &req_rga->dst);
-
-			req->win1.format = req_rga->src.format;
-			req->wr.format = req_rga->dst.format;
-			req->win0.format = req_rga->dst.format;
+			/* set win0 dst size */
+			req->win0.dst_act_w = req_rga->dst.act_w;
+			req->win0.dst_act_h = req_rga->dst.act_h;
+			/* set win1 dst size */
+			req->win1.dst_act_w = req_rga->dst.act_w;
+			req->win1.dst_act_h = req_rga->dst.act_h;
 		}
-
-		/* set win0 dst size */
-		req->win0.dst_act_w = req_rga->dst.act_w;
-		req->win0.dst_act_h = req_rga->dst.act_h;
-
-		/* set win1 dst size */
-		req->win1.dst_act_w = req_rga->dst.act_w;
-		req->win1.dst_act_h = req_rga->dst.act_h;
 
 		/* dst offset need to config overlap offset */
 		req->wr.x_offset = req_rga->dst.x_offset;
