@@ -16,7 +16,8 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 
-#define DS1803_WRITE(chan)	(0xa8 | ((chan) + 1))
+#define DS1803_WIPER_0         0xA9
+#define DS1803_WIPER_1         0xAA
 
 enum ds1803_type {
 	DS1803_010,
@@ -25,8 +26,11 @@ enum ds1803_type {
 };
 
 struct ds1803_cfg {
+	int wipers;
 	int avail[3];
 	int kohms;
+	const struct iio_chan_spec *channels;
+	u8 num_channels;
 };
 
 struct ds1803_data {
@@ -34,33 +38,43 @@ struct ds1803_data {
 	const struct ds1803_cfg *cfg;
 };
 
-#define DS1803_CHANNEL(ch) {						\
+#define DS1803_CHANNEL(ch, addr) {					\
 	.type = IIO_RESISTANCE,						\
 	.indexed = 1,							\
 	.output = 1,							\
 	.channel = (ch),						\
+	.address = (addr),						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_RAW),   \
 }
 
 static const struct iio_chan_spec ds1803_channels[] = {
-	DS1803_CHANNEL(0),
-	DS1803_CHANNEL(1),
+	DS1803_CHANNEL(0, DS1803_WIPER_0),
+	DS1803_CHANNEL(1, DS1803_WIPER_1),
 };
 
 static const struct ds1803_cfg ds1803_cfg[] = {
 	[DS1803_010] = {
+		.wipers = 2,
 		.avail = { 0, 1, 255 },
 		.kohms =  10,
+		.channels = ds1803_channels,
+		.num_channels = ARRAY_SIZE(ds1803_channels),
 	},
 	[DS1803_050] = {
+		.wipers = 2,
 		.avail = { 0, 1, 255 },
 		.kohms =  50,
+		.channels = ds1803_channels,
+		.num_channels = ARRAY_SIZE(ds1803_channels),
 	},
 	[DS1803_100] = {
+		.wipers = 2,
 		.avail = { 0, 1, 255 },
 		.kohms = 100,
+		.channels = ds1803_channels,
+		.num_channels = ARRAY_SIZE(ds1803_channels),
 	},
 };
 
@@ -97,7 +111,7 @@ static int ds1803_write_raw(struct iio_dev *indio_dev,
 			    int val, int val2, long mask)
 {
 	struct ds1803_data *data = iio_priv(indio_dev);
-	int pot = chan->channel;
+	u8 addr = chan->address;
 	int max_pos = data->cfg->avail[2];
 
 	if (val2 != 0)
@@ -112,7 +126,7 @@ static int ds1803_write_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	return i2c_smbus_write_byte_data(data->client, DS1803_WRITE(pot), val);
+	return i2c_smbus_write_byte_data(data->client, addr, val);
 }
 
 static int ds1803_read_avail(struct iio_dev *indio_dev,
@@ -155,8 +169,8 @@ static int ds1803_probe(struct i2c_client *client, const struct i2c_device_id *i
 	data->cfg = &ds1803_cfg[id->driver_data];
 
 	indio_dev->info = &ds1803_info;
-	indio_dev->channels = ds1803_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ds1803_channels);
+	indio_dev->channels = data->cfg->channels;
+	indio_dev->num_channels = data->cfg->num_channels;
 	indio_dev->name = client->name;
 
 	return devm_iio_device_register(dev, indio_dev);
