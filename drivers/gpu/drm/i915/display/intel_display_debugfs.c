@@ -945,7 +945,7 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 
 	intel_scaler_info(m, crtc);
 
-	if (crtc_state->bigjoiner)
+	if (crtc_state->bigjoiner_pipes)
 		seq_printf(m, "\tLinked to 0x%x pipes as a %s\n",
 			   crtc_state->bigjoiner_pipes,
 			   intel_crtc_is_bigjoiner_slave(crtc_state) ? "slave" : "master");

@@ -630,7 +630,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * FIXME bigjoiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner)
+	    crtc_state->update_pipe || crtc_state->bigjoiner_pipes)
 		goto slow;
 
 	/*

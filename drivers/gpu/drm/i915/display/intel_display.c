@@ -1918,7 +1918,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
 		return;
 
-	if (!new_crtc_state->bigjoiner) {
+	if (!new_crtc_state->bigjoiner_pipes) {
 		intel_encoders_pre_pll_enable(state, crtc);
 
 		if (new_crtc_state->shared_dpll)
@@ -2719,7 +2719,7 @@ static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 static void intel_bigjoiner_adjust_timings(const struct intel_crtc_state *crtc_state,
 					   struct drm_display_mode *mode)
 {
-	if (!crtc_state->bigjoiner)
+	if (!crtc_state->bigjoiner_pipes)
 		return;
 
 	mode->crtc_clock /= 2;
@@ -2780,7 +2780,7 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 	/* Populate the "user" mode with full numbers */
 	drm_mode_copy(mode, pipe_mode);
 	intel_mode_from_crtc_timings(mode, mode);
-	mode->hdisplay = drm_rect_width(&crtc_state->pipe_src) << crtc_state->bigjoiner;
+	mode->hdisplay = drm_rect_width(&crtc_state->pipe_src) << !!crtc_state->bigjoiner_pipes;
 	mode->vdisplay = drm_rect_height(&crtc_state->pipe_src);
 
 	/* Derive per-pipe timings in case bigjoiner is used */
@@ -2802,7 +2802,7 @@ static void intel_bigjoiner_compute_pipe_src(struct intel_crtc_state *crtc_state
 {
 	int width, height;
 
-	if (!crtc_state->bigjoiner)
+	if (!crtc_state->bigjoiner_pipes)
 		return;
 
 	width = drm_rect_width(&crtc_state->pipe_src);
@@ -4190,7 +4190,6 @@ static void intel_bigjoiner_get_config(struct intel_crtc_state *crtc_state)
 	if (((master_pipes | slave_pipes) & BIT(pipe)) == 0)
 		return;
 
-	crtc_state->bigjoiner = true;
 	crtc_state->bigjoiner_pipes =
 		BIT(get_bigjoiner_master_pipe(pipe, master_pipes, slave_pipes)) |
 		get_bigjoiner_slave_pipes(pipe, master_pipes, slave_pipes);
@@ -5600,6 +5599,9 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, master_crtc);
 	struct intel_crtc_state *saved_state;
 
+	WARN_ON(master_crtc_state->bigjoiner_pipes !=
+		slave_crtc_state->bigjoiner_pipes);
+
 	saved_state = kmemdup(master_crtc_state, sizeof(*saved_state), GFP_KERNEL);
 	if (!saved_state)
 		return -ENOMEM;
@@ -5629,6 +5631,9 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 	slave_crtc_state->uapi.mode_changed = master_crtc_state->uapi.mode_changed;
 	slave_crtc_state->uapi.connectors_changed = master_crtc_state->uapi.connectors_changed;
 	slave_crtc_state->uapi.active_changed = master_crtc_state->uapi.active_changed;
+
+	WARN_ON(master_crtc_state->bigjoiner_pipes !=
+		slave_crtc_state->bigjoiner_pipes);
 
 	return 0;
 }
@@ -6405,7 +6410,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_X(sync_mode_slaves_mask);
 	PIPE_CONF_CHECK_I(master_transcoder);
-	PIPE_CONF_CHECK_BOOL(bigjoiner);
 	PIPE_CONF_CHECK_X(bigjoiner_pipes);
 
 	PIPE_CONF_CHECK_I(dsc.compression_enable);
@@ -7336,32 +7340,26 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	struct intel_crtc_state *master_crtc_state =
 		intel_atomic_get_new_crtc_state(state, master_crtc);
 	struct intel_crtc *slave_crtc;
-	u8 slave_pipes;
 
-	/*
-	 * TODO: encoder.compute_config() may be the best
-	 * place to populate the bitmask for the master crtc.
-	 * For now encoder.compute_config() just flags things
-	 * as needing bigjoiner and we populate the bitmask
-	 * here.
-	 */
-	WARN_ON(master_crtc_state->bigjoiner_pipes);
-
-	if (!master_crtc_state->bigjoiner)
+	if (!master_crtc_state->bigjoiner_pipes)
 		return 0;
 
-	slave_pipes = BIT(master_crtc->pipe + 1);
+	/* sanity check */
+	if (drm_WARN_ON(&i915->drm,
+			master_crtc->pipe != bigjoiner_master_pipe(master_crtc_state)))
+		return -EINVAL;
 
-	if (slave_pipes & ~bigjoiner_pipes(i915)) {
+	if (master_crtc_state->bigjoiner_pipes & ~bigjoiner_pipes(i915)) {
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] Cannot act as big joiner master "
-			    "(need 0x%x as slave pipes, only 0x%x possible)\n",
+			    "(need 0x%x as pipes, only 0x%x possible)\n",
 			    master_crtc->base.base.id, master_crtc->base.name,
-			    slave_pipes, bigjoiner_pipes(i915));
+			    master_crtc_state->bigjoiner_pipes, bigjoiner_pipes(i915));
 		return -EINVAL;
 	}
 
-	for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc, slave_pipes) {
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc,
+					 intel_crtc_bigjoiner_slave_pipes(master_crtc_state)) {
 		struct intel_crtc_state *slave_crtc_state;
 		int ret;
 
@@ -7395,10 +7393,8 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 			    slave_crtc->base.base.id, slave_crtc->base.name,
 			    master_crtc->base.base.id, master_crtc->base.name);
 
-		master_crtc_state->bigjoiner_pipes =
-			BIT(master_crtc->pipe) | BIT(slave_crtc->pipe);
 		slave_crtc_state->bigjoiner_pipes =
-			BIT(master_crtc->pipe) | BIT(slave_crtc->pipe);
+			master_crtc_state->bigjoiner_pipes;
 
 		ret = copy_bigjoiner_crtc_state_modeset(state, slave_crtc);
 		if (ret)
@@ -7421,13 +7417,11 @@ static void kill_bigjoiner_slave(struct intel_atomic_state *state,
 		struct intel_crtc_state *slave_crtc_state =
 			intel_atomic_get_new_crtc_state(state, slave_crtc);
 
-		slave_crtc_state->bigjoiner = false;
 		slave_crtc_state->bigjoiner_pipes = 0;
 
 		intel_crtc_copy_uapi_to_hw_state_modeset(state, slave_crtc);
 	}
 
-	master_crtc_state->bigjoiner = false;
 	master_crtc_state->bigjoiner_pipes = 0;
 }
 
@@ -7840,7 +7834,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			}
 		}
 
-		if (new_crtc_state->bigjoiner) {
+		if (new_crtc_state->bigjoiner_pipes) {
 			if (intel_pipes_need_modeset(state, new_crtc_state->bigjoiner_pipes)) {
 				new_crtc_state->uapi.mode_changed = true;
 				new_crtc_state->update_pipe = false;
@@ -10176,7 +10170,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			intel_encoder_get_config(encoder, crtc_state);
 
 			/* read out to slave crtc as well for bigjoiner */
-			if (crtc_state->bigjoiner) {
+			if (crtc_state->bigjoiner_pipes) {
 				struct intel_crtc *slave_crtc;
 
 				/* encoder should read be linked to bigjoiner master */
