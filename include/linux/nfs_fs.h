@@ -109,6 +109,7 @@ struct nfs_open_dir_context {
 	__u64 last_cookie;
 	pgoff_t page_index;
 	unsigned int dtsize;
+	bool force_clear;
 	bool eof;
 	struct rcu_head rcu_head;
 };

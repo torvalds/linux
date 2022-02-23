@@ -170,6 +170,7 @@ struct nfs_readdir_descriptor {
 	unsigned int	cache_entry_index;
 	unsigned int	buffer_fills;
 	unsigned int	dtsize;
+	bool clear_cache;
 	bool plus;
 	bool eob;
 	bool eof;
@@ -225,6 +226,13 @@ static void nfs_readdir_clear_array(struct page *page)
 		kfree(array->array[i].name);
 	array->size = 0;
 	kunmap_atomic(array);
+}
+
+static void nfs_readdir_page_reinit_array(struct page *page, u64 last_cookie,
+					  u64 change_attr)
+{
+	nfs_readdir_clear_array(page);
+	nfs_readdir_page_init_array(page, last_cookie, change_attr);
 }
 
 static struct page *
@@ -428,12 +436,11 @@ static struct page *nfs_readdir_page_get_next(struct address_space *mapping,
 	struct page *page;
 
 	page = nfs_readdir_page_get_locked(mapping, cookie, change_attr);
-	if (page) {
-		if (nfs_readdir_page_last_cookie(page) == cookie)
-			return page;
-		nfs_readdir_page_unlock_and_put(page);
-	}
-	return NULL;
+	if (!page)
+		return NULL;
+	if (nfs_readdir_page_last_cookie(page) != cookie)
+		nfs_readdir_page_reinit_array(page, cookie, change_attr);
+	return page;
 }
 
 static inline
@@ -960,9 +967,15 @@ nfs_readdir_page_get_cached(struct nfs_readdir_descriptor *desc)
 {
 	struct address_space *mapping = desc->file->f_mapping;
 	u64 change_attr = inode_peek_iversion_raw(mapping->host);
+	u64 cookie = desc->last_cookie;
+	struct page *page;
 
-	return nfs_readdir_page_get_locked(mapping, desc->last_cookie,
-					   change_attr);
+	page = nfs_readdir_page_get_locked(mapping, cookie, change_attr);
+	if (!page)
+		return NULL;
+	if (desc->clear_cache && !nfs_readdir_page_needs_filling(page))
+		nfs_readdir_page_reinit_array(page, cookie, change_attr);
+	return page;
 }
 
 /*
@@ -1013,6 +1026,7 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 			trace_nfs_readdir_invalidate_cache_range(
 				inode, 1, MAX_LFS_FILESIZE);
 		}
+		desc->clear_cache = false;
 	}
 	res = nfs_readdir_search_array(desc);
 	if (res == 0)
@@ -1147,16 +1161,17 @@ out:
 
 #define NFS_READDIR_CACHE_MISS_THRESHOLD (16UL)
 
-static void nfs_readdir_handle_cache_misses(struct inode *inode,
+static bool nfs_readdir_handle_cache_misses(struct inode *inode,
 					    struct nfs_readdir_descriptor *desc,
-					    unsigned int cache_misses)
+					    unsigned int cache_misses,
+					    bool force_clear)
 {
-	if (desc->ctx->pos == 0 ||
-	    cache_misses <= NFS_READDIR_CACHE_MISS_THRESHOLD)
-		return;
-	if (invalidate_mapping_pages(inode->i_mapping, 0, -1) == 0)
-		return;
-	trace_nfs_readdir_invalidate_cache_range(inode, 0, MAX_LFS_FILESIZE);
+	if (desc->ctx->pos == 0 || !desc->plus)
+		return false;
+	if (cache_misses <= NFS_READDIR_CACHE_MISS_THRESHOLD && !force_clear)
+		return false;
+	trace_nfs_readdir_force_readdirplus(inode);
+	return true;
 }
 
 /* The file offset position represents the dirent entry number.  A
@@ -1171,6 +1186,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	struct nfs_open_dir_context *dir_ctx = file->private_data;
 	struct nfs_readdir_descriptor *desc;
 	unsigned int cache_hits, cache_misses;
+	bool force_clear;
 	int res;
 
 	dfprintk(FILE, "NFS: readdir(%pD2) starting at cookie %llu\n",
@@ -1203,6 +1219,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	memcpy(desc->verf, dir_ctx->verf, sizeof(desc->verf));
 	cache_hits = atomic_xchg(&dir_ctx->cache_hits, 0);
 	cache_misses = atomic_xchg(&dir_ctx->cache_misses, 0);
+	force_clear = dir_ctx->force_clear;
 	spin_unlock(&file->f_lock);
 
 	if (desc->eof) {
@@ -1211,7 +1228,9 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	desc->plus = nfs_use_readdirplus(inode, ctx, cache_hits, cache_misses);
-	nfs_readdir_handle_cache_misses(inode, desc, cache_misses);
+	force_clear = nfs_readdir_handle_cache_misses(inode, desc, cache_misses,
+						      force_clear);
+	desc->clear_cache = force_clear;
 
 	do {
 		res = readdir_search_pagecache(desc);
@@ -1240,6 +1259,8 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 
 		nfs_do_filldir(desc, nfsi->cookieverf);
 		nfs_readdir_page_unlock_and_put_cached(desc);
+		if (desc->page_index == desc->page_index_max)
+			desc->clear_cache = force_clear;
 	} while (!desc->eob && !desc->eof);
 
 	spin_lock(&file->f_lock);
@@ -1247,6 +1268,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	dir_ctx->last_cookie = desc->last_cookie;
 	dir_ctx->attr_gencount = desc->attr_gencount;
 	dir_ctx->page_index = desc->page_index;
+	dir_ctx->force_clear = force_clear;
 	dir_ctx->eof = desc->eof;
 	dir_ctx->dtsize = desc->dtsize;
 	memcpy(dir_ctx->verf, desc->verf, sizeof(dir_ctx->verf));
