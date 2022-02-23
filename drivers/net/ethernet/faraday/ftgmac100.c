@@ -1402,8 +1402,17 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
-	/* Reset the adapter asynchronously */
-	schedule_work(&priv->reset_task);
+	/* Release phy lock to allow ftgmac100_reset to aquire it, keeping lock
+	 * order consistent to prevent dead lock.
+	 */
+	if (netdev->phydev)
+		mutex_unlock(&netdev->phydev->lock);
+
+	ftgmac100_reset(priv);
+
+	if (netdev->phydev)
+		mutex_lock(&netdev->phydev->lock);
+
 }
 
 static int ftgmac100_mii_probe(struct net_device *netdev)
