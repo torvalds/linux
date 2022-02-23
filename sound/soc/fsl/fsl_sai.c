@@ -1161,7 +1161,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	if (sai->soc_data->use_imx_pcm) {
-		ret = imx_pcm_dma_init(pdev, IMX_SAI_DMABUF_SIZE);
+		ret = imx_pcm_dma_init(pdev);
 		if (ret)
 			goto err_pm_get_sync;
 	} else {

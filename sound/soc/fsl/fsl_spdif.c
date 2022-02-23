@@ -1522,7 +1522,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	 * Register platform component before registering cpu dai for there
 	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
-	ret = imx_pcm_dma_init(pdev, IMX_SPDIF_DMABUF_SIZE);
+	ret = imx_pcm_dma_init(pdev);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "imx_pcm_dma_init failed\n");
 		goto err_pm_disable;
