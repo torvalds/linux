@@ -2087,8 +2087,10 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 	clear_bit(ICE_VF_DIS, pf->state);
 
 	ret = ice_eswitch_configure(pf);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "Failed to configure eswitch, err %d\n", ret);
 		goto err_unroll_sriov;
+	}
 
 	/* rearm global interrupts */
 	if (test_and_clear_bit(ICE_OICR_INTR_DIS, pf->state))
