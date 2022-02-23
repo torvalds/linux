@@ -346,7 +346,10 @@ static enum pipe bigjoiner_master_pipe(const struct intel_crtc_state *crtc_state
 
 u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->bigjoiner_pipes & ~BIT(bigjoiner_master_pipe(crtc_state));
+	if (crtc_state->bigjoiner_pipes)
+		return crtc_state->bigjoiner_pipes & ~BIT(bigjoiner_master_pipe(crtc_state));
+	else
+		return 0;
 }
 
 bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state)
