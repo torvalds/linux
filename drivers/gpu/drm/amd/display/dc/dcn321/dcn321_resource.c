@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2019 Advanced Micro Devices, Inc.
  *
@@ -22,7 +23,6 @@
  * Authors: AMD
  *
  */
-
 
 #include "dm_services.h"
 #include "dc.h"
@@ -98,28 +98,25 @@
 #define MAX_INSTANCE                                        8
 #define MAX_SEGMENT                                         6
 
-
-struct IP_BASE_INSTANCE
-{
-    unsigned int segment[MAX_SEGMENT];
+struct IP_BASE_INSTANCE {
+	unsigned int segment[MAX_SEGMENT];
 };
 
-struct IP_BASE
-{
-    struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
+struct IP_BASE {
+	struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
 };
 
 static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C0, 0x00009000, 0x02403C00, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } },
-                                        { { 0, 0, 0, 0, 0, 0 } } } };
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } },
+					{ { 0, 0, 0, 0, 0, 0 } } } };
 
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
+#define fixed16_to_double(x) (((double)x) / ((double) (1 << 16)))
 #define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 #define DCN3_2_DEFAULT_DET_SIZE 256
@@ -1534,9 +1531,8 @@ static void dcn321_resource_destruct(struct dcn321_resource_pool *pool)
 			pool->base.hubps[i] = NULL;
 		}
 
-		if (pool->base.irqs != NULL) {
+		if (pool->base.irqs != NULL)
 			dal_irq_service_destroy(&pool->base.irqs);
-		}
 	}
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
