@@ -177,17 +177,6 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_driver_priv);
 
-bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->driver->res_query_enabled;
-}
-EXPORT_SYMBOL(mlxsw_core_res_query_enabled);
-
-bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->driver->temp_warn_enabled;
-}
-
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev)
@@ -222,6 +211,9 @@ static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
 	int err;
 	int i;
+
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_core_trap_groups); i++) {
 		mlxsw_reg_htgt_pack(htgt_pl, mlxsw_core_trap_groups[i],
@@ -2036,7 +2028,7 @@ static int mlxsw_core_health_init(struct mlxsw_core *mlxsw_core)
 	struct devlink_health_reporter *fw_fatal;
 	int err;
 
-	if (!mlxsw_core->driver->fw_fatal_enabled)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return 0;
 
 	fw_fatal = devlink_health_reporter_create(devlink, &mlxsw_core_health_fw_fatal_ops,
@@ -2066,7 +2058,7 @@ err_trap_register:
 
 static void mlxsw_core_health_fini(struct mlxsw_core *mlxsw_core)
 {
-	if (!mlxsw_core->driver->fw_fatal_enabled)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return;
 
 	mlxsw_core_health_fw_fatal_config(mlxsw_core, false);
@@ -2086,7 +2078,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	const char *device_kind = mlxsw_bus_info->device_kind;
 	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_driver *mlxsw_driver;
-	struct mlxsw_res *res;
 	size_t alloc_size;
 	int err;
 
@@ -2112,8 +2103,8 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	mlxsw_core->bus_priv = bus_priv;
 	mlxsw_core->bus_info = mlxsw_bus_info;
 
-	res = mlxsw_driver->res_query_enabled ? &mlxsw_core->res : NULL;
-	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile, res);
+	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
+			      &mlxsw_core->res);
 	if (err)
 		goto err_bus_init;
 
@@ -2522,6 +2513,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int err;
 
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return 0;
+
 	err = mlxsw_core_listener_register(mlxsw_core, listener, priv,
 					   listener->enabled_on_register);
 	if (err)
@@ -2550,6 +2544,9 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				void *priv)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return;
 
 	if (!listener->is_event) {
 		mlxsw_reg_hpkt_pack(hpkt_pl, listener->dis_action,
@@ -3241,9 +3238,6 @@ int mlxsw_core_resources_query(struct mlxsw_core *mlxsw_core, char *mbox,
 	u64 data;
 	u16 id;
 	int err;
-
-	if (!res)
-		return 0;
 
 	mlxsw_cmd_mbox_zero(mbox);
 

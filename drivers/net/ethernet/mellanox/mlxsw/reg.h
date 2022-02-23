@@ -10037,6 +10037,7 @@ enum mlxsw_reg_mcia_eeprom_module_info_id {
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS	= 0x0D,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28	= 0x11,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD	= 0x18,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_OSFP	= 0x19,
 };
 
 enum mlxsw_reg_mcia_eeprom_module_info {
@@ -11323,24 +11324,24 @@ enum mlxsw_reg_mgpir_device_type {
 	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
 };
 
-/* device_type
+/* mgpir_device_type
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, device_type, 0x00, 24, 4);
 
-/* devices_per_flash
+/* mgpir_devices_per_flash
  * Number of devices of device_type per flash (can be shared by few devices).
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
 
-/* num_of_devices
+/* mgpir_num_of_devices
  * Number of devices of device_type.
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
-/* num_of_modules
+/* mgpir_num_of_modules
  * Number of modules.
  * Access: RO
  */
