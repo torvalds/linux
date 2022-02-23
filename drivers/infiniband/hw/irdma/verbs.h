@@ -29,7 +29,6 @@ struct irdma_av {
 	u8 macaddr[16];
 	struct rdma_ah_attr attrs;
 	union {
-		struct sockaddr saddr;
 		struct sockaddr_in saddr_in;
 		struct sockaddr_in6 saddr_in6;
 	} sgid_addr, dgid_addr;

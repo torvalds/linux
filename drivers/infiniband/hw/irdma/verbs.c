@@ -4105,7 +4105,6 @@ static int irdma_create_ah(struct ib_ah *ibah,
 	struct irdma_ah_info *ah_info;
 	struct irdma_create_ah_resp uresp;
 	union {
-		struct sockaddr saddr;
 		struct sockaddr_in saddr_in;
 		struct sockaddr_in6 saddr_in6;
 	} sgid_addr, dgid_addr;
