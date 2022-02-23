@@ -479,10 +479,6 @@
 	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
 };
 
-&pcie {
-	status = "okay";
-};
-
 &espi_ctrl {
 	status = "okay";
 	perif,dma-mode;
