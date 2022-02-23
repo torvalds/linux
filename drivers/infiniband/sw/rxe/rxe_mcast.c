@@ -339,13 +339,31 @@ out:
 	return err;
 }
 
+/**
+ * __rxe_cleanup_mca - cleanup mca object holding lock
+ * @mca: mca object
+ * @mcg: mcg object
+ *
+ * Context: caller must hold a reference to mcg and rxe->mcg_lock
+ */
+static void __rxe_cleanup_mca(struct rxe_mca *mca, struct rxe_mcg *mcg)
+{
+	list_del(&mca->qp_list);
+
+	atomic_dec(&mcg->qp_num);
+	atomic_dec(&mcg->rxe->mcg_attach);
+	atomic_dec(&mca->qp->mcg_num);
+	rxe_drop_ref(mca->qp);
+
+	kfree(mca);
+}
+
 static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 				   union ib_gid *mgid)
 {
 	struct rxe_mcg *mcg;
 	struct rxe_mca *mca, *tmp;
 	unsigned long flags;
-	int err;
 
 	mcg = rxe_lookup_mcg(rxe, mgid);
 	if (!mcg)
@@ -354,37 +372,30 @@ static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
 	list_for_each_entry_safe(mca, tmp, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
-			list_del(&mca->qp_list);
-			atomic_dec(&qp->mcg_num);
-			atomic_dec(&rxe->mcg_attach);
-			rxe_drop_ref(qp);
+			__rxe_cleanup_mca(mca, mcg);
 
 			/* if the number of qp's attached to the
 			 * mcast group falls to zero go ahead and
 			 * tear it down. This will not free the
 			 * object since we are still holding a ref
-			 * from the get key above.
+			 * from the get key above
 			 */
-			if (atomic_dec_return(&mcg->qp_num) <= 0)
+			if (atomic_read(&mcg->qp_num) <= 0)
 				__rxe_destroy_mcg(mcg);
 
 			/* drop the ref from get key. This will free the
 			 * object if qp_num is zero.
 			 */
 			kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
-			kfree(mca);
-			err = 0;
-			goto out_unlock;
+
+			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+			return 0;
 		}
 	}
 
 	/* we didn't find the qp on the list */
-	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
-	err = -EINVAL;
-
-out_unlock:
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	return err;
+	return -EINVAL;
 }
 
 int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
