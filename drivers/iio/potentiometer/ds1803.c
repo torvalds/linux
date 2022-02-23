@@ -32,6 +32,8 @@ struct ds1803_cfg {
 	int kohms;
 	const struct iio_chan_spec *channels;
 	u8 num_channels;
+	int (*read)(struct iio_dev *indio_dev,
+		    struct iio_chan_spec const *chan, int *val);
 };
 
 struct ds1803_data {
@@ -55,6 +57,22 @@ static const struct iio_chan_spec ds1803_channels[] = {
 	DS1803_CHANNEL(1, DS1803_WIPER_1),
 };
 
+static int ds1803_read(struct iio_dev *indio_dev,
+		       struct iio_chan_spec const *chan,
+		       int *val)
+{
+	struct ds1803_data *data = iio_priv(indio_dev);
+	int ret;
+	u8 result[ARRAY_SIZE(ds1803_channels)];
+
+	ret = i2c_master_recv(data->client, result, indio_dev->num_channels);
+	if (ret < 0)
+		return ret;
+
+	*val = result[chan->channel];
+	return ret;
+}
+
 static const struct ds1803_cfg ds1803_cfg[] = {
 	[DS1803_010] = {
 		.wipers = 2,
@@ -62,6 +80,7 @@ static const struct ds1803_cfg ds1803_cfg[] = {
 		.kohms =  10,
 		.channels = ds1803_channels,
 		.num_channels = ARRAY_SIZE(ds1803_channels),
+		.read = ds1803_read,
 	},
 	[DS1803_050] = {
 		.wipers = 2,
@@ -69,6 +88,7 @@ static const struct ds1803_cfg ds1803_cfg[] = {
 		.kohms =  50,
 		.channels = ds1803_channels,
 		.num_channels = ARRAY_SIZE(ds1803_channels),
+		.read = ds1803_read,
 	},
 	[DS1803_100] = {
 		.wipers = 2,
@@ -76,6 +96,7 @@ static const struct ds1803_cfg ds1803_cfg[] = {
 		.kohms = 100,
 		.channels = ds1803_channels,
 		.num_channels = ARRAY_SIZE(ds1803_channels),
+		.read = ds1803_read,
 	},
 };
 
@@ -84,18 +105,14 @@ static int ds1803_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct ds1803_data *data = iio_priv(indio_dev);
-	int pot = chan->channel;
 	int ret;
-	u8 result[ARRAY_SIZE(ds1803_channels)];
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = i2c_master_recv(data->client, result,
-				      indio_dev->num_channels);
+		ret = data->cfg->read(indio_dev, chan, val);
 		if (ret < 0)
 			return ret;
 
-		*val = result[pot];
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
