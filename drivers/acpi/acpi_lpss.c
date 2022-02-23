@@ -82,7 +82,7 @@ struct lpss_device_desc {
 	const char *clk_con_id;
 	unsigned int prv_offset;
 	size_t prv_size_override;
-	struct property_entry *properties;
+	const struct property_entry *properties;
 	void (*setup)(struct lpss_private_data *pdata);
 	bool resume_from_noirq;
 };
