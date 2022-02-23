@@ -326,6 +326,37 @@ static void test_not_member_allow_list(struct kvm_vm *vm)
 }
 
 /*
+ * Verify that setting KVM_PMU_CAP_DISABLE prevents the use of the PMU.
+ *
+ * Note that KVM_CAP_PMU_CAPABILITY must be invoked prior to creating VCPUs.
+ */
+static void test_pmu_config_disable(void (*guest_code)(void))
+{
+	int r;
+	struct kvm_vm *vm;
+	struct kvm_enable_cap cap = { 0 };
+
+	r = kvm_check_cap(KVM_CAP_PMU_CAPABILITY);
+	if (!(r & KVM_PMU_CAP_DISABLE))
+		return;
+
+	vm = vm_create_without_vcpus(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES);
+
+	cap.cap = KVM_CAP_PMU_CAPABILITY;
+	cap.args[0] = KVM_PMU_CAP_DISABLE;
+	TEST_ASSERT(!vm_enable_cap(vm, &cap), "Failed to set KVM_PMU_CAP_DISABLE.");
+
+	vm_vcpu_add_default(vm, VCPU_ID, guest_code);
+	vm_init_descriptor_tables(vm);
+	vcpu_init_descriptor_tables(vm, VCPU_ID);
+
+	TEST_ASSERT(!sanity_check_pmu(vm),
+		    "Guest should not be able to use disabled PMU.");
+
+	kvm_vm_free(vm);
+}
+
+/*
  * Check for a non-zero PMU version, at least one general-purpose
  * counter per logical processor, an EBX bit vector of length greater
  * than 5, and EBX[5] clear.
@@ -429,6 +460,8 @@ int main(int argc, char *argv[])
 	test_not_member_allow_list(vm);
 
 	kvm_vm_free(vm);
+
+	test_pmu_config_disable(guest_code);
 
 	return 0;
 }
