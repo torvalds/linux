@@ -57,8 +57,6 @@
 static struct cmn2asic_msg_mapping smu_v13_0_5_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			1),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		1),
-	MSG_MAP(EnableGfxOff,             PPSMC_MSG_EnableGfxOff,		1),
-	MSG_MAP(DisableGfxOff,                   PPSMC_MSG_DisableGfxOff,			1),
 	MSG_MAP(PowerDownVcn,                    PPSMC_MSG_PowerDownVcn,			1),
 	MSG_MAP(PowerUpVcn,                 PPSMC_MSG_PowerUpVcn,		1),
 	MSG_MAP(SetHardMinVcn,                   PPSMC_MSG_SetHardMinVcn,			1),
@@ -227,22 +225,6 @@ static bool smu_v13_0_5_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int smu_v13_0_5_post_smu_init(struct smu_context *smu)
-{
-	/*
-	struct amdgpu_device *adev = smu->adev;
-	*/
-	int ret = 0;
-
-	/* allow message will be sent after enable gfxoff on smu 13.0.5 */
-	/*
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
-	if (ret)
-		dev_err(adev->dev, "Failed to Enable GfxOff!\n");
-	*/
-	return ret;
-}
-
 static int smu_v13_0_5_mode_reset(struct smu_context *smu, int type)
 {
 	int ret = 0;
@@ -314,30 +296,6 @@ static int smu_v13_0_5_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_VOLTAGE_VDDSOC:
 		*value = metrics->Voltage[1];
 		break;
-#if 0
-	case METRICS_SS_APU_SHARE:
-		/* return the percentage of APU power with respect to APU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if (metrics->StapmOpnLimit > 0)
-			*value =  (metrics->ApuPower * 100) / metrics->StapmOpnLimit;
-		else
-			*value = 0;
-		break;
-	case METRICS_SS_DGPU_SHARE:
-		/* return the percentage of dGPU power with respect to dGPU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if ((metrics->dGpuPower > 0) &&
-		    (metrics->StapmCurrentLimit > metrics->StapmOpnLimit))
-			*value = (metrics->dGpuPower * 100) /
-				  (metrics->StapmCurrentLimit - metrics->StapmOpnLimit);
-		else
-			*value = 0;
-		break;
-#endif
 	default:
 		*value = UINT_MAX;
 		break;
@@ -503,12 +461,6 @@ static ssize_t smu_v13_0_5_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
 	gpu_metrics->temperature_soc = metrics.SocTemperature;
-	/*
-	memcpy(&gpu_metrics->temperature_core[0],
-		&metrics.CoreTemperature[0],
-		sizeof(uint16_t) * 8);
-	gpu_metrics->temperature_l3[0] = metrics.L3Temperature;
-	*/
 
 	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
 	gpu_metrics->average_mm_activity = metrics.UvdActivity;
@@ -516,28 +468,13 @@ static ssize_t smu_v13_0_5_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
 	gpu_metrics->average_gfx_power = metrics.Power[0];
 	gpu_metrics->average_soc_power = metrics.Power[1];
-	/*
-	memcpy(&gpu_metrics->average_core_power[0],
-		&metrics.CorePower[0],
-		sizeof(uint16_t) * 8);
-	*/
-
 	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
 	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
 	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
-
-	/*
-	memcpy(&gpu_metrics->current_coreclk[0],
-		&metrics.CoreFrequency[0],
-		sizeof(uint16_t) * 8);
-	gpu_metrics->current_l3clk[0] = metrics.L3Frequency;
-	*/
-
 	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
-
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	*table = (void *)gpu_metrics;
@@ -652,9 +589,11 @@ static int smu_v13_0_5_get_current_clk_freq(struct smu_context *smu,
 	case SMU_MCLK:
 		member_type = METRICS_AVERAGE_UCLK;
 		break;
-	case SMU_FCLK:
+	case SMU_GFXCLK:
+	case SMU_SCLK:
 		return smu_cmn_send_smc_msg_with_param(smu,
-				SMU_MSG_GetFclkFrequency, 0, value);
+				SMU_MSG_GetGfxclkFrequency, 0, value);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -891,14 +830,6 @@ static int smu_v13_0_5_set_soft_freq_limited_range(struct smu_context *smu,
 		msg_set_min = SMU_MSG_SetHardMinGfxClk;
 		msg_set_max = SMU_MSG_SetSoftMaxGfxClk;
 		break;
-	case SMU_FCLK:
-		msg_set_min = SMU_MSG_SetHardMinFclkByFreq;
-		msg_set_max = SMU_MSG_SetSoftMaxFclkByFreq;
-		break;
-	case SMU_SOCCLK:
-		msg_set_min = SMU_MSG_SetHardMinSocclkByFreq;
-		msg_set_max = SMU_MSG_SetSoftMaxSocclkByFreq;
-		break;
 	case SMU_VCLK:
 	case SMU_DCLK:
 		msg_set_min = SMU_MSG_SetHardMinVcn;
@@ -925,6 +856,7 @@ static int smu_v13_0_5_print_clk_levels(struct smu_context *smu,
 {
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
+	uint32_t min = 0, max = 0;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
@@ -945,7 +877,6 @@ static int smu_v13_0_5_print_clk_levels(struct smu_context *smu,
 	case SMU_VCLK:
 	case SMU_DCLK:
 	case SMU_MCLK:
-	case SMU_FCLK:
 		ret = smu_v13_0_5_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			goto print_clk_out;
@@ -963,6 +894,27 @@ static int smu_v13_0_5_print_clk_levels(struct smu_context *smu,
 					cur_value == value ? "*" : "");
 		}
 		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		ret = smu_v13_0_5_get_current_clk_freq(smu, clk_type, &cur_value);
+		if (ret)
+			goto print_clk_out;
+		min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
+		max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
+		if (cur_value  == max)
+			i = 2;
+		else if (cur_value == min)
+			i = 0;
+		else
+			i = 1;
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
+				i == 0 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+				i == 1 ? cur_value : SMU_13_0_5_UMD_PSTATE_GFXCLK,
+				i == 1 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
+				i == 2 ? "*" : "");
+		break;
 	default:
 		break;
 	}
@@ -970,6 +922,7 @@ static int smu_v13_0_5_print_clk_levels(struct smu_context *smu,
 print_clk_out:
 	return size;
 }
+
 
 static int smu_v13_0_5_force_clk_levels(struct smu_context *smu,
 				enum smu_clk_type clk_type, uint32_t mask)
@@ -982,8 +935,6 @@ static int smu_v13_0_5_force_clk_levels(struct smu_context *smu,
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
 
 	switch (clk_type) {
-	case SMU_SOCCLK:
-	case SMU_FCLK:
 	case SMU_VCLK:
 	case SMU_DCLK:
 		ret = smu_v13_0_5_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
@@ -1012,31 +963,19 @@ static int smu_v13_0_5_set_performance_level(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t sclk_min = 0, sclk_max = 0;
-	uint32_t fclk_min = 0, fclk_max = 0;
-	uint32_t socclk_min = 0, socclk_max = 0;
 	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_max);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &fclk_max);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &socclk_max);
 		sclk_min = sclk_max;
-		fclk_min = fclk_max;
-		socclk_min = socclk_max;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, NULL);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, NULL);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, NULL);
 		sclk_max = sclk_min;
-		fclk_max = fclk_min;
-		socclk_max = socclk_min;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, &sclk_max);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, &fclk_max);
-		smu_v13_0_5_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, &socclk_max);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
@@ -1062,24 +1001,6 @@ static int smu_v13_0_5_set_performance_level(struct smu_context *smu,
 
 		smu->gfx_actual_hard_min_freq = sclk_min;
 		smu->gfx_actual_soft_max_freq = sclk_max;
-	}
-
-	if (fclk_min && fclk_max) {
-		ret = smu_v13_0_5_set_soft_freq_limited_range(smu,
-							    SMU_FCLK,
-							    fclk_min,
-							    fclk_max);
-		if (ret)
-			return ret;
-	}
-
-	if (socclk_min && socclk_max) {
-		ret = smu_v13_0_5_set_soft_freq_limited_range(smu,
-							    SMU_SOCCLK,
-							    socclk_min,
-							    socclk_max);
-		if (ret)
-			return ret;
 	}
 
 	return ret;
@@ -1117,7 +1038,6 @@ static const struct pptable_funcs smu_v13_0_5_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.gfx_off_control = smu_v13_0_gfx_off_control,
-	.post_init = smu_v13_0_5_post_smu_init,
 	.mode2_reset = smu_v13_0_5_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v13_0_5_get_dpm_ultimate_freq,
 	.od_edit_dpm_table = smu_v13_0_5_od_edit_dpm_table,
