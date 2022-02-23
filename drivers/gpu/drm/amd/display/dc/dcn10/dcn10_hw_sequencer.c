@@ -1375,11 +1375,6 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
 
-		if (tg->funcs->is_tg_enabled(tg)) {
-			if (tg->funcs->init_odm)
-				tg->funcs->init_odm(tg);
-		}
-
 		tg->funcs->tg_init(tg);
 	}
 

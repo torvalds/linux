@@ -158,10 +158,9 @@ static void dccg31_disable_dpstreamclk(struct dccg *dccg, int otg_inst)
 	}
 }
 
-void dccg31_set_dpstreamclk(
-		struct dccg *dccg,
-		enum hdmistreamclk_source src,
-		int otg_inst)
+void dccg31_set_dpstreamclk(struct dccg *dccg,
+			    enum streamclk_source src,
+			    int otg_inst)
 {
 	if (src == REFCLK)
 		dccg31_disable_dpstreamclk(dccg, otg_inst);
@@ -662,6 +661,24 @@ void dccg31_init(struct dccg *dccg)
 	}
 }
 
+void dccg31_otg_add_pixel(struct dccg *dccg,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_ADD_PIXEL[otg_inst], 1);
+}
+
+void dccg31_otg_drop_pixel(struct dccg *dccg,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_DROP_PIXEL[otg_inst], 1);
+}
+
 static const struct dccg_funcs dccg31_funcs = {
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
@@ -674,6 +691,9 @@ static const struct dccg_funcs dccg31_funcs = {
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg31_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
+	.otg_add_pixel = dccg31_otg_add_pixel,
+	.otg_drop_pixel = dccg31_otg_drop_pixel,
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,

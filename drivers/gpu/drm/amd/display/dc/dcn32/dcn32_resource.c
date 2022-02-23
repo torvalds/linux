@@ -77,7 +77,7 @@
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
-#include "dcn/nbio_4_3_0_offset.h"
+#include "nbio/nbio_4_3_0_offset.h"
 
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"

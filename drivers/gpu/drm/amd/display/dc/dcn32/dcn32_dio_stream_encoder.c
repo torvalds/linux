@@ -211,8 +211,10 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	/* Disable Audio Content Protection packet transmission */
 	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
+#endif
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */
@@ -301,6 +303,21 @@ static void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 0);
 
+	/* DIG Resync FIFO now needs to be explicitly enabled
+	 */
+	// TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON
+	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
+
+	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
+
+	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 10, 5000);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
+
 	/* wait 100us for DIG/DP logic to prime
 	 * (i.e. a few video lines)
 	 */
@@ -354,6 +371,23 @@ static void enc32_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
+static void enc32_stream_encoder_reset_fifo(struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t fifo_enabled;
+
+	REG_GET(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, &fifo_enabled);
+
+	if (fifo_enabled == 0) {
+		/* reset DIG resync FIFO */
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
+		/* TODO: fix timeout when wait for DIG_FIFO_RESET_DONE */
+		//REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 1, 100);
+		udelay(1);
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
+		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 1, 100);
+	}
+}
 
 static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.dp_set_odm_combine =
@@ -375,7 +409,7 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
 	.reset_fifo =
-		enc1_stream_encoder_reset_fifo,
+		enc32_stream_encoder_reset_fifo,
 	.dp_blank =
 		enc1_stream_encoder_dp_blank,
 	.dp_unblank =

@@ -514,6 +514,7 @@ struct dcn_optc_registers {
 	type DIG_UPDATE_POSITION_X;\
 	type DIG_UPDATE_POSITION_Y;\
 	type OTG_H_TIMING_DIV_MODE;\
+	type OTG_H_TIMING_DIV_MODE_MANUAL;\
 	type OTG_DRR_TIMING_DBUF_UPDATE_MODE;\
 	type OTG_CRC_DSC_MODE;\
 	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
@@ -553,6 +554,7 @@ struct optc {
 	int vupdate_offset;
 	int vupdate_width;
 	int vready_offset;
+	struct dc_crtc_timing orginal_patched_timing;
 	enum signal_type signal;
 };
 

@@ -38,6 +38,8 @@ DC_LIBS += dcn303
 DC_LIBS += dcn31
 DC_LIBS += dcn315
 DC_LIBS += dcn316
+DC_LIBS += dcn32
+DC_LIBS += dcn321
 endif
 
 DC_LIBS += dce120

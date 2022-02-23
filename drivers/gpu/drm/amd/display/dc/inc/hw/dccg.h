@@ -45,9 +45,10 @@ enum physymclk_clock_source {
 	PHYSYMCLK_FORCE_SRC_PHYD32CLK, // Select phyd32clk as the source of clock which is output to PHY through DCIO.
 };
 
-enum hdmistreamclk_source {
+enum streamclk_source {
 	REFCLK,                   // Selects REFCLK as source for hdmistreamclk.
 	DTBCLK0,                  // Selects DTBCLK0 as source for hdmistreamclk.
+	DPREFCLK,                 // Selects DPREFCLK as source for hdmistreamclk
 };
 
 enum dentist_dispclk_change_mode {
@@ -91,7 +92,7 @@ struct dccg_funcs {
 
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,
-			enum hdmistreamclk_source src,
+			enum streamclk_source src,
 			int otg_inst);
 
 	void (*enable_symclk32_se)(

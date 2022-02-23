@@ -28,10 +28,6 @@
 
 #include "dcn30/dcn30_dccg.h"
 
-#define DCCG_SFII(block, reg_name, field_prefix, field_name, inst, post_fix)\
-	.field_prefix ## _ ## field_name[inst] = block ## inst ## _ ## reg_name ## __ ## field_prefix ## inst ## _ ## field_name ## post_fix
-
-
 #define DCCG_REG_LIST_DCN31() \
 	SR(DPPCLK_DTO_CTRL),\
 	DCCG_SRII(DTO_PARAM, DPPCLK, 0),\
@@ -124,6 +120,10 @@
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, DTBCLK_DTO, DIV, 1, mask_sh),\
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, DTBCLK_DTO, DIV, 2, mask_sh),\
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, DTBCLK_DTO, DIV, 3, mask_sh),\
+	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 0, mask_sh),\
+	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 1, mask_sh),\
+	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 2, mask_sh),\
+	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 3, mask_sh),\
 	DCCG_SF(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO_SEL, mask_sh),\
 	DCCG_SF(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL, mask_sh),\
 	DCCG_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_MODE, mask_sh), \
@@ -163,7 +163,7 @@ void dccg31_init(struct dccg *dccg);
 
 void dccg31_set_dpstreamclk(
 		struct dccg *dccg,
-		enum hdmistreamclk_source src,
+		enum streamclk_source src,
 		int otg_inst);
 
 void dccg31_enable_symclk32_se(
@@ -193,9 +193,5 @@ void dccg31_set_physymclk(
 void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params);
-
-void dccg31_set_hdmistreamclk(
-		struct dccg *dccg,
-		enum hdmistreamclk_source src);
 
 #endif //__DCN31_DCCG_H__

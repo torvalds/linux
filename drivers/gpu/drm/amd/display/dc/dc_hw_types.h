@@ -780,6 +780,7 @@ struct dc_crtc_timing {
 	uint32_t v_sync_width;
 
 	uint32_t pix_clk_100hz;
+	uint32_t min_refresh_in_uhz;
 
 	uint32_t vic;
 	uint32_t hdmi_vic;

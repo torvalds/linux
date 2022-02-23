@@ -328,8 +328,8 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	    dcn32_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 	    return &clk_mgr->base;
 	    break;
-#endif
 	}
+#endif
 	default:
 		ASSERT(0); /* Unknown Asic */
 		break;

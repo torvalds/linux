@@ -3054,11 +3054,15 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	}
 
-	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
-		dc->hwss.interdependent_update_lock(dc, context, false);
-	} else {
-		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
-	}
+#ifdef CONFIG_DRM_AMD_DC_DCN
+		if (update_type != UPDATE_TYPE_FAST)
+			if (dc->hwss.commit_subvp_config)
+				dc->hwss.commit_subvp_config(dc, context);
+#endif
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock)
+			dc->hwss.interdependent_update_lock(dc, context, false);
+		else
+			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {

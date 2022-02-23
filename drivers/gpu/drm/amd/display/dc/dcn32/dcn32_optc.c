@@ -91,10 +91,18 @@ static void optc32_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
 			OPTC_SEGMENT_WIDTH, mpcc_hactive);
 
-	REG_SET(OTG_H_TIMING_CNTL, 0, OTG_H_TIMING_DIV_MODE, opp_cnt - 1);
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+			OTG_H_TIMING_DIV_MODE, opp_cnt - 1);
 	optc1->opp_count = opp_cnt;
 }
 
+static void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+			OTG_H_TIMING_DIV_MODE_MANUAL, manual_mode ? 1 : 0);
+}
 /**
  * Enable CRTC
  * Enable CRTC - call ASIC Control Object to enable Timing generator.
@@ -157,6 +165,29 @@ void optc32_phantom_crtc_post_enable(struct timing_generator *optc)
 	REG_WAIT(OTG_CLOCK_CONTROL, OTG_BUSY, 0, 1, 100000);
 }
 
+static void optc32_set_odm_bypass(struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	enum h_timing_div_mode h_div = H_TIMING_NO_DIV;
+
+	REG_SET_5(OPTC_DATA_SOURCE_SELECT, 0,
+			OPTC_NUM_OF_INPUT_SEGMENT, 0,
+			OPTC_SEG0_SRC_SEL, optc->inst,
+			OPTC_SEG1_SRC_SEL, 0xf,
+			OPTC_SEG2_SRC_SEL, 0xf,
+			OPTC_SEG3_SRC_SEL, 0xf
+			);
+
+	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+			OTG_H_TIMING_DIV_MODE, h_div);
+
+	REG_SET(OPTC_MEMORY_CONFIG, 0,
+			OPTC_MEM_SEL, 0);
+	optc1->opp_count = 1;
+}
+
 
 static struct timing_generator_funcs dcn32_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
@@ -206,8 +237,9 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.set_dsc_config = optc3_set_dsc_config,
 		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = NULL,
-		.set_odm_bypass = optc3_set_odm_bypass,
+		.set_odm_bypass = optc32_set_odm_bypass,
 		.set_odm_combine = optc32_set_odm_combine,
+		.set_h_timing_div_manual_mode = optc32_set_h_timing_div_manual_mode,
 		.get_optc_source = optc2_get_optc_source,
 		.set_out_mux = optc3_set_out_mux,
 		.set_drr_trigger_window = optc3_set_drr_trigger_window,

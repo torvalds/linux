@@ -162,6 +162,10 @@ struct dc_color_caps {
 	struct mpc_color_caps mpc;
 };
 
+struct dc_dmub_caps {
+    bool psr;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -196,12 +200,22 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
+	struct dc_dmub_caps dmub_caps;
 	bool dp_hpo;
 	bool hdmi_frl_pcon_support;
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 	uint32_t max_otg_num;
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	uint32_t max_cab_allocation_bytes;
+	uint32_t cache_line_size;
+	uint32_t cache_num_ways;
+	uint16_t subvp_fw_processing_delay_us;
+	uint16_t subvp_prefetch_end_to_mall_start_us;
+	uint16_t subvp_pstate_allow_width_us;
+	uint16_t subvp_vertical_int_margin_us;
+#endif
 };
 
 struct dc_bug_wa {
@@ -427,6 +441,8 @@ struct dc_clocks {
 	 */
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
+	int num_ways;
+	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
 	int max_supported_dispclk_khz;
@@ -721,6 +737,9 @@ struct dc_debug_options {
 	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
+	bool force_disable_subvp;
+	bool force_subvp_mclk_switch;
+	bool force_usr_allow;
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;

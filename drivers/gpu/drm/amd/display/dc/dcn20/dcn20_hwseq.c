@@ -768,6 +768,10 @@ enum dc_status dcn20_enable_stream_timing(
 	/* TODO enable stream if timing changed */
 	/* TODO unblank stream if DP */
 
+	if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (pipe_ctx->stream_res.tg && pipe_ctx->stream_res.tg->funcs->phantom_crtc_post_enable)
+			pipe_ctx->stream_res.tg->funcs->phantom_crtc_post_enable(pipe_ctx->stream_res.tg);
+	}
 	return DC_OK;
 }
 
@@ -1247,6 +1251,16 @@ void dcn20_pipe_control_lock(
 					lock,
 					&hw_locks,
 					&inst_flags);
+	} else if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
+		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
+		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
+		hw_lock_cmd.bits.lock_pipe = 1;
+		hw_lock_cmd.bits.otg_inst = pipe->stream_res.tg->inst;
+		hw_lock_cmd.bits.lock = lock;
+		if (!lock)
+			hw_lock_cmd.bits.should_release = 1;
+		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
 	} else if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
 			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
@@ -1564,10 +1578,12 @@ static void dcn20_update_dchubp_dpp(
 		plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
 
-
-
 	if (pipe_ctx->update_flags.bits.enable)
 		hubp->funcs->set_blank(hubp, false);
+	/* If the stream paired with this plane is phantom, the plane is also phantom */
+	if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM
+			&& hubp->funcs->phantom_hubp_post_enable)
+		hubp->funcs->phantom_hubp_post_enable(hubp);
 }
 
 
@@ -1578,6 +1594,7 @@ static void dcn20_program_pipe(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	/* Only need to unblank on top pipe */
+
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->stream->update_flags.bits.abm_level)
 			&& !pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe)
 		hws->funcs.blank_pixel_data(dc, pipe_ctx, !pipe_ctx->plane_state->visible);
@@ -1585,7 +1602,6 @@ static void dcn20_program_pipe(
 	/* Only update TG on top pipe */
 	if (pipe_ctx->update_flags.bits.global_sync && !pipe_ctx->top_pipe
 			&& !pipe_ctx->prev_odm_pipe) {
-
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg,
 				pipe_ctx->pipe_dlg_param.vready_offset,
@@ -1593,7 +1609,12 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
-		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
+		if (pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(
+				pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(
+				pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
+		}
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
@@ -1749,6 +1770,8 @@ void dcn20_program_front_end_for_ctx(
 			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start(pipe->plane_res.hubp);
 		}
 	}
+	if (hws->funcs.program_mall_pipe_config)
+		hws->funcs.program_mall_pipe_config(dc, context);
 }
 
 void dcn20_post_unlock_program_front_end(
@@ -2409,6 +2432,7 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			NULL,
 			hubp->inst,
 			mpcc_id);
+
 	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);

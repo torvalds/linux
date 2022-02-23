@@ -67,6 +67,8 @@
 #include "dcn31/dcn31_resource.h"
 #include "dcn315/dcn315_resource.h"
 #include "dcn316/dcn316_resource.h"
+#include "../dcn32/dcn32_resource.h"
+#include "../dcn321/dcn321_resource.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -162,7 +164,11 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_GC_10_3_7(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_16;
 		break;
-
+	case AMDGPU_FAMILY_GC_11_0_0:
+		dc_version = DCN_VERSION_3_2;
+		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_21;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -257,6 +263,12 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_16:
 		res_pool = dcn316_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_2:
+		res_pool = dcn32_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_21:
+		res_pool = dcn321_create_resource_pool(init_data, dc);
 		break;
 #endif
 	default:
@@ -1982,6 +1994,11 @@ enum dc_status dc_remove_stream_from_ctx(
 				dc->res_pool,
 			del_pipe->stream_res.stream_enc,
 			false);
+	/* Release link encoder from stream in new dc_state. */
+	if (dc->res_pool->funcs->link_enc_unassign)
+		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (is_dp_128b_132b_signal(del_pipe)) {
 		update_hpo_dp_stream_engine_usage(
 			&new_ctx->res_ctx, dc->res_pool,
@@ -1989,6 +2006,7 @@ enum dc_status dc_remove_stream_from_ctx(
 			false);
 		remove_hpo_dp_link_enc_from_ctx(&new_ctx->res_ctx, del_pipe, del_pipe->stream);
 	}
+#endif
 
 	if (del_pipe->stream_res.audio)
 		update_audio_usage(

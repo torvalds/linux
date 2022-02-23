@@ -145,6 +145,24 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
+#define SUBVP_DRR_MARGIN_US 500 // 500us for DRR margin (SubVP + DRR)
+
+enum mall_stream_type {
+	SUBVP_NONE, // subvp not in use
+	SUBVP_MAIN, // subvp in use, this stream is main stream
+	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
+};
+
+struct mall_stream_config {
+	/* MALL stream config to indicate if the stream is phantom or not.
+	 * We will use a phantom stream to indicate that the pipe is phantom.
+	 */
+	enum mall_stream_type type;
+	struct dc_stream_state *paired_stream;	// master / slave stream
+};
+#endif
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -255,6 +273,9 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	struct mall_stream_config mall_stream_config;
+#endif
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255

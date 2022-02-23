@@ -811,9 +811,14 @@ void dcn20_calculate_dlg_params(
 		pipes[pipe_idx].pipe.dest.vupdate_offset = get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 		pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 		pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
-		context->res_ctx.pipe_ctx[i].det_buffer_size_kb = context->bw_ctx.dml.ip.det_buffer_size_kbytes;
-		context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
-
+		if (context->res_ctx.pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			// Phantom pipe requires that DET_SIZE = 0 and no unbounded requests
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = 0;
+			context->res_ctx.pipe_ctx[i].unbounded_req = false;
+		} else {
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = context->bw_ctx.dml.ip.det_buffer_size_kbytes;
+			context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
+		}
 		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
 			context->bw_ctx.bw.dcn.clk.dppclk_khz = pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
 		context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz =
@@ -1013,6 +1018,31 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.dest.pixel_rate_mhz *= 2;
 		pipes[pipe_cnt].pipe.dest.otg_inst = res_ctx->pipe_ctx[i].stream_res.tg->inst;
 		pipes[pipe_cnt].dout.dp_lanes = 4;
+		if (res_ctx->pipe_ctx[i].stream->link) {
+			switch (res_ctx->pipe_ctx[i].stream->link->cur_link_settings.link_rate) {
+			case LINK_RATE_HIGH:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr;
+				break;
+			case LINK_RATE_HIGH2:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr2;
+				break;
+			case LINK_RATE_HIGH3:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr3;
+				break;
+			case LINK_RATE_UHBR10:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr10;
+				break;
+			case LINK_RATE_UHBR13_5:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr13p5;
+				break;
+			case LINK_RATE_UHBR20:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr20;
+				break;
+			default:
+				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_na;
+				break;
+			}
+		}
 		pipes[pipe_cnt].dout.is_virtual = 0;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
@@ -1070,6 +1100,7 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.is_virtual = 1;
 			pipes[pipe_cnt].dout.output_type = dm_dp;
 			pipes[pipe_cnt].dout.dp_lanes = 4;
+			pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr2;
 		}
 
 		switch (res_ctx->pipe_ctx[i].stream->timing.display_color_depth) {
@@ -1138,7 +1169,8 @@ int dcn20_populate_dml_pipes_from_context(
 		 * bw calculations due to cursor on/off
 		 */
 		if (res_ctx->pipe_ctx[i].plane_state &&
-				res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+				(res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE ||
+				 res_ctx->pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM))
 			pipes[pipe_cnt].pipe.src.num_cursors = 0;
 		else
 			pipes[pipe_cnt].pipe.src.num_cursors = dc->dml.ip.number_of_cursors;
@@ -1149,6 +1181,7 @@ int dcn20_populate_dml_pipes_from_context(
 		if (!res_ctx->pipe_ctx[i].plane_state) {
 			pipes[pipe_cnt].pipe.src.is_hsplit = pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
 			pipes[pipe_cnt].pipe.src.source_scan = dm_horz;
+			pipes[pipe_cnt].pipe.src.source_rotation = dm_rotation_0;
 			pipes[pipe_cnt].pipe.src.sw_mode = dm_sw_4kb_s;
 			pipes[pipe_cnt].pipe.src.macro_tile_size = dm_64k_tile;
 			pipes[pipe_cnt].pipe.src.viewport_width = timing->h_addressable;
@@ -1201,8 +1234,26 @@ int dcn20_populate_dml_pipes_from_context(
 
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
+			switch (pln->rotation) {
+			case ROTATION_ANGLE_0:
+				pipes[pipe_cnt].pipe.src.source_rotation = dm_rotation_0;
+				break;
+			case ROTATION_ANGLE_90:
+				pipes[pipe_cnt].pipe.src.source_rotation = dm_rotation_90;
+				break;
+			case ROTATION_ANGLE_180:
+				pipes[pipe_cnt].pipe.src.source_rotation = dm_rotation_180;
+				break;
+			case ROTATION_ANGLE_270:
+				pipes[pipe_cnt].pipe.src.source_rotation = dm_rotation_270;
+				break;
+			default:
+				break;
+			}
 			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport.y;
 			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c.y;
+			pipes[pipe_cnt].pipe.src.viewport_x_y = scl->viewport.x;
+			pipes[pipe_cnt].pipe.src.viewport_x_c = scl->viewport_c.x;
 			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport.width;
 			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c.width;
 			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport.height;

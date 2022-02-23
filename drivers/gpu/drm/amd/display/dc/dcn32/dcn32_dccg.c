@@ -141,52 +141,45 @@ static void dccg32_set_dtbclk_p_src(
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
 void dccg32_set_dtbclk_dto(
 		struct dccg *dccg,
-		int otg_inst,
-		int pixclk_khz,
-		int num_odm_segments,
-		const struct dc_crtc_timing *timing)
+		const struct dtbclk_dto_params *params)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	/* DTO Output Rate / Pixel Rate = 1/4 */
-	int req_dtbclk_khz = pixclk_khz / 4;
+	int req_dtbclk_khz = params->pixclk_khz / 4;
 
-	if (dccg->ref_dtbclk_khz && req_dtbclk_khz) {
+	if (params->ref_dtbclk_khz && req_dtbclk_khz) {
 		uint32_t modulo, phase;
 
 		// phase / modulo = dtbclk / dtbclk ref
-		modulo = 0xffffffff;
-		phase = (((unsigned long long)modulo * req_dtbclk_khz) + dccg->ref_dtbclk_khz - 1) / dccg->ref_dtbclk_khz;
+		modulo = params->ref_dtbclk_khz * 1000;
+		phase = req_dtbclk_khz * 1000;
 
-		REG_WRITE(DTBCLK_DTO_MODULO[otg_inst], modulo);
-		REG_WRITE(DTBCLK_DTO_PHASE[otg_inst], phase);
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], modulo);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], phase);
 
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
-				DTBCLK_DTO_ENABLE[otg_inst], 1);
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 1);
 
-		REG_WAIT(OTG_PIXEL_RATE_CNTL[otg_inst],
-				DTBCLKDTO_ENABLE_STATUS[otg_inst], 1,
+		REG_WAIT(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLKDTO_ENABLE_STATUS[params->otg_inst], 1,
 				1, 100);
 
 		/* program OTG_PIXEL_RATE_DIV for DIVK1 and DIVK2 fields */
-		dccg32_set_pixel_rate_div(dccg, otg_inst, PIXEL_RATE_DIV_BY_1, PIXEL_RATE_DIV_BY_1);
+		dccg32_set_pixel_rate_div(dccg, params->otg_inst, PIXEL_RATE_DIV_BY_1, PIXEL_RATE_DIV_BY_1);
 
 		/* The recommended programming sequence to enable DTBCLK DTO to generate
 		 * valid pixel HPO DPSTREAM ENCODER, specifies that DTO source select should
 		 * be set only after DTO is enabled
 		 */
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
-				PIPE_DTO_SRC_SEL[otg_inst], 2);
-
-		dccg->dtbclk_khz[otg_inst] = req_dtbclk_khz;
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				PIPE_DTO_SRC_SEL[params->otg_inst], 2);
 	} else {
-		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[otg_inst],
-				DTBCLK_DTO_ENABLE[otg_inst], 0,
-				PIPE_DTO_SRC_SEL[otg_inst], 1);
+		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 0,
+				PIPE_DTO_SRC_SEL[params->otg_inst], 1);
 
-		REG_WRITE(DTBCLK_DTO_MODULO[otg_inst], 0);
-		REG_WRITE(DTBCLK_DTO_PHASE[otg_inst], 0);
-
-		dccg->dtbclk_khz[otg_inst] = 0;
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);
 	}
 }
 
