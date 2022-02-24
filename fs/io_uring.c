@@ -830,7 +830,7 @@ enum {
  * NOTE! Each of the iocb union members has the file pointer
  * as the first entry in their struct definition. So you can
  * access the file pointer through any of the sub-structs,
- * or directly as just 'ki_filp' in this struct.
+ * or directly as just 'file' in this struct.
  */
 struct io_kiocb {
 	union {
