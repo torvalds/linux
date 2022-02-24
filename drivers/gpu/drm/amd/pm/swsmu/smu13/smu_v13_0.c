@@ -488,32 +488,6 @@ int smu_v13_0_fini_power(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v13_0_atom_get_smu_clockinfo(struct amdgpu_device *adev,
-					    uint8_t clk_id,
-					    uint8_t syspll_id,
-					    uint32_t *clk_freq)
-{
-	struct atom_get_smu_clock_info_parameters_v3_1 input = {0};
-	struct atom_get_smu_clock_info_output_parameters_v3_1 *output;
-	int ret, index;
-
-	input.clk_id = clk_id;
-	input.syspll_id = syspll_id;
-	input.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
-	index = get_index_into_master_table(atom_master_list_of_command_functions_v2_1,
-					    getsmuclockinfo);
-
-	ret = amdgpu_atom_execute_table(adev->mode_info.atom_context, index,
-					(uint32_t *)&input);
-	if (ret)
-		return -EINVAL;
-
-	output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&input;
-	*clk_freq = le32_to_cpu(output->atom_smu_outputclkfreq.smu_clock_freq_hz) / 10000;
-
-	return 0;
-}
-
 int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 {
 	int ret, index;
@@ -523,6 +497,8 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 	struct atom_firmware_info_v3_4 *v_3_4;
 	struct atom_firmware_info_v3_3 *v_3_3;
 	struct atom_firmware_info_v3_1 *v_3_1;
+	struct atom_smu_info_v3_6 *smu_info_v3_6;
+	struct atom_smu_info_v4_0 *smu_info_v4_0;
 
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 					    firmwareinfo);
@@ -588,37 +564,30 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 	smu->smu_table.boot_values.format_revision = header->format_revision;
 	smu->smu_table.boot_values.content_revision = header->content_revision;
 
-	smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-					 (uint8_t)SMU11_SYSPLL0_SOCCLK_ID,
-					 (uint8_t)0,
-					 &smu->smu_table.boot_values.socclk);
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    smu_info);
+	if (!amdgpu_atombios_get_data_table(smu->adev, index, &size, &frev, &crev,
+					    (uint8_t **)&header)) {
+		if ((frev == 3) && (crev == 6)) {
+			smu_info_v3_6 = (struct atom_smu_info_v3_6 *)header;
 
-	smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-					 (uint8_t)SMU11_SYSPLL0_DCEFCLK_ID,
-					 (uint8_t)0,
-					 &smu->smu_table.boot_values.dcefclk);
+			smu->smu_table.boot_values.socclk = smu_info_v3_6->bootup_socclk_10khz;
+			smu->smu_table.boot_values.vclk = smu_info_v3_6->bootup_vclk_10khz;
+			smu->smu_table.boot_values.dclk = smu_info_v3_6->bootup_dclk_10khz;
+			smu->smu_table.boot_values.fclk = smu_info_v3_6->bootup_fclk_10khz;
+		} else if ((frev == 4) && (crev == 0)) {
+			smu_info_v4_0 = (struct atom_smu_info_v4_0 *)header;
 
-	smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-					 (uint8_t)SMU11_SYSPLL0_ECLK_ID,
-					 (uint8_t)0,
-					 &smu->smu_table.boot_values.eclk);
-
-	smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-					 (uint8_t)SMU11_SYSPLL0_VCLK_ID,
-					 (uint8_t)0,
-					 &smu->smu_table.boot_values.vclk);
-
-	smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-					 (uint8_t)SMU11_SYSPLL0_DCLK_ID,
-					 (uint8_t)0,
-					 &smu->smu_table.boot_values.dclk);
-
-	if ((smu->smu_table.boot_values.format_revision == 3) &&
-	    (smu->smu_table.boot_values.content_revision >= 2))
-		smu_v13_0_atom_get_smu_clockinfo(smu->adev,
-						 (uint8_t)SMU11_SYSPLL1_0_FCLK_ID,
-						 (uint8_t)SMU11_SYSPLL1_2_ID,
-						 &smu->smu_table.boot_values.fclk);
+			smu->smu_table.boot_values.socclk = smu_info_v4_0->bootup_socclk_10khz;
+			smu->smu_table.boot_values.dcefclk = smu_info_v4_0->bootup_dcefclk_10khz;
+			smu->smu_table.boot_values.vclk = smu_info_v4_0->bootup_vclk0_10khz;
+			smu->smu_table.boot_values.dclk = smu_info_v4_0->bootup_dclk0_10khz;
+			smu->smu_table.boot_values.fclk = smu_info_v4_0->bootup_fclk_10khz;
+		} else {
+			dev_warn(smu->adev->dev, "Unexpected and unhandled version: %d.%d\n",
+						(uint32_t)frev, (uint32_t)crev);
+		}
+	}
 
 	return 0;
 }
