@@ -30,13 +30,13 @@
 #define IRQ_ENABLE_BANK		0x10
 #define IRQ_i_CFG		0x110
 
-#define PDC_NO_PARENT_IRQ	~0UL
-
 struct pdc_pin_region {
 	u32 pin_base;
 	u32 parent_base;
 	u32 cnt;
 };
+
+#define pin_to_hwirq(r, p)	((r)->parent_base + (p) - (r)->pin_base)
 
 static DEFINE_RAW_SPINLOCK(pdc_lock);
 static void __iomem *pdc_base;
@@ -186,19 +186,17 @@ static struct irq_chip qcom_pdc_gic_chip = {
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 };
 
-static irq_hw_number_t get_parent_hwirq(int pin)
+static struct pdc_pin_region *get_pin_region(int pin)
 {
 	int i;
-	struct pdc_pin_region *region;
 
 	for (i = 0; i < pdc_region_cnt; i++) {
-		region = &pdc_region[i];
-		if (pin >= region->pin_base &&
-		    pin < region->pin_base + region->cnt)
-			return (region->parent_base + pin - region->pin_base);
+		if (pin >= pdc_region[i].pin_base &&
+		    pin < pdc_region[i].pin_base + pdc_region[i].cnt)
+			return &pdc_region[i];
 	}
 
-	return PDC_NO_PARENT_IRQ;
+	return NULL;
 }
 
 static int qcom_pdc_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
@@ -221,7 +219,8 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_fwspec *fwspec = data;
 	struct irq_fwspec parent_fwspec;
-	irq_hw_number_t hwirq, parent_hwirq;
+	struct pdc_pin_region *region;
+	irq_hw_number_t hwirq;
 	unsigned int type;
 	int ret;
 
@@ -234,8 +233,8 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	parent_hwirq = get_parent_hwirq(hwirq);
-	if (parent_hwirq == PDC_NO_PARENT_IRQ)
+	region = get_pin_region(hwirq);
+	if (!region)
 		return irq_domain_disconnect_hierarchy(domain->parent, virq);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
@@ -247,7 +246,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	parent_fwspec.fwnode      = domain->parent->fwnode;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0]    = 0;
-	parent_fwspec.param[1]    = parent_hwirq;
+	parent_fwspec.param[1]    = pin_to_hwirq(region, hwirq);
 	parent_fwspec.param[2]    = type;
 
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
@@ -265,7 +264,8 @@ static int qcom_pdc_gpio_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_fwspec *fwspec = data;
 	struct irq_fwspec parent_fwspec;
-	irq_hw_number_t hwirq, parent_hwirq;
+	struct pdc_pin_region *region;
+	irq_hw_number_t hwirq;
 	unsigned int type;
 	int ret;
 
@@ -281,8 +281,8 @@ static int qcom_pdc_gpio_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	parent_hwirq = get_parent_hwirq(hwirq);
-	if (parent_hwirq == PDC_NO_PARENT_IRQ)
+	region = get_pin_region(hwirq);
+	if (!region)
 		return irq_domain_disconnect_hierarchy(domain->parent, virq);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
@@ -294,7 +294,7 @@ static int qcom_pdc_gpio_alloc(struct irq_domain *domain, unsigned int virq,
 	parent_fwspec.fwnode      = domain->parent->fwnode;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0]    = 0;
-	parent_fwspec.param[1]    = parent_hwirq;
+	parent_fwspec.param[1]    = pin_to_hwirq(region, hwirq);
 	parent_fwspec.param[2]    = type;
 
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
