@@ -33,6 +33,7 @@ struct vfio_device {
 	struct vfio_group *group;
 	struct vfio_device_set *dev_set;
 	struct list_head dev_set_list;
+	unsigned int migration_flags;
 
 	/* Members below here are private, not for driver use */
 	refcount_t refcount;

@@ -1577,39 +1577,56 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 			    enum vfio_device_mig_state new_fsm,
 			    enum vfio_device_mig_state *next_fsm)
 {
-	enum { VFIO_DEVICE_NUM_STATES = VFIO_DEVICE_STATE_RESUMING + 1 };
+	enum { VFIO_DEVICE_NUM_STATES = VFIO_DEVICE_STATE_RUNNING_P2P + 1 };
 	/*
-	 * The coding in this table requires the driver to implement 6
-	 * FSM arcs:
+	 * The coding in this table requires the driver to implement the
+	 * following FSM arcs:
 	 *         RESUMING -> STOP
-	 *         RUNNING -> STOP
 	 *         STOP -> RESUMING
-	 *         STOP -> RUNNING
 	 *         STOP -> STOP_COPY
 	 *         STOP_COPY -> STOP
 	 *
-	 * The coding will step through multiple states for these combination
-	 * transitions:
-	 *         RESUMING -> STOP -> RUNNING
+	 * If P2P is supported then the driver must also implement these FSM
+	 * arcs:
+	 *         RUNNING -> RUNNING_P2P
+	 *         RUNNING_P2P -> RUNNING
+	 *         RUNNING_P2P -> STOP
+	 *         STOP -> RUNNING_P2P
+	 * Without P2P the driver must implement:
+	 *         RUNNING -> STOP
+	 *         STOP -> RUNNING
+	 *
+	 * The coding will step through multiple states for some combination
+	 * transitions; if all optional features are supported, this means the
+	 * following ones:
+	 *         RESUMING -> STOP -> RUNNING_P2P
+	 *         RESUMING -> STOP -> RUNNING_P2P -> RUNNING
 	 *         RESUMING -> STOP -> STOP_COPY
-	 *         RUNNING -> STOP -> RESUMING
-	 *         RUNNING -> STOP -> STOP_COPY
+	 *         RUNNING -> RUNNING_P2P -> STOP
+	 *         RUNNING -> RUNNING_P2P -> STOP -> RESUMING
+	 *         RUNNING -> RUNNING_P2P -> STOP -> STOP_COPY
+	 *         RUNNING_P2P -> STOP -> RESUMING
+	 *         RUNNING_P2P -> STOP -> STOP_COPY
+	 *         STOP -> RUNNING_P2P -> RUNNING
 	 *         STOP_COPY -> STOP -> RESUMING
-	 *         STOP_COPY -> STOP -> RUNNING
+	 *         STOP_COPY -> STOP -> RUNNING_P2P
+	 *         STOP_COPY -> STOP -> RUNNING_P2P -> RUNNING
 	 */
 	static const u8 vfio_from_fsm_table[VFIO_DEVICE_NUM_STATES][VFIO_DEVICE_NUM_STATES] = {
 		[VFIO_DEVICE_STATE_STOP] = {
 			[VFIO_DEVICE_STATE_STOP] = VFIO_DEVICE_STATE_STOP,
-			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_RUNNING,
+			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_RUNNING_P2P,
 			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_STOP_COPY,
 			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_RESUMING,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_RUNNING_P2P,
 			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
 		},
 		[VFIO_DEVICE_STATE_RUNNING] = {
-			[VFIO_DEVICE_STATE_STOP] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_STOP] = VFIO_DEVICE_STATE_RUNNING_P2P,
 			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_RUNNING,
-			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_STOP,
-			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_RUNNING_P2P,
+			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_RUNNING_P2P,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_RUNNING_P2P,
 			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
 		},
 		[VFIO_DEVICE_STATE_STOP_COPY] = {
@@ -1617,6 +1634,7 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_STOP,
 			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_STOP_COPY,
 			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_STOP,
 			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
 		},
 		[VFIO_DEVICE_STATE_RESUMING] = {
@@ -1624,6 +1642,15 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_STOP,
 			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_STOP,
 			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_RESUMING,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
+		},
+		[VFIO_DEVICE_STATE_RUNNING_P2P] = {
+			[VFIO_DEVICE_STATE_STOP] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_RUNNING,
+			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_STOP,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_RUNNING_P2P,
 			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
 		},
 		[VFIO_DEVICE_STATE_ERROR] = {
@@ -1631,17 +1658,41 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 			[VFIO_DEVICE_STATE_RUNNING] = VFIO_DEVICE_STATE_ERROR,
 			[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_DEVICE_STATE_ERROR,
 			[VFIO_DEVICE_STATE_RESUMING] = VFIO_DEVICE_STATE_ERROR,
+			[VFIO_DEVICE_STATE_RUNNING_P2P] = VFIO_DEVICE_STATE_ERROR,
 			[VFIO_DEVICE_STATE_ERROR] = VFIO_DEVICE_STATE_ERROR,
 		},
 	};
 
-	if (WARN_ON(cur_fsm >= ARRAY_SIZE(vfio_from_fsm_table)))
+	static const unsigned int state_flags_table[VFIO_DEVICE_NUM_STATES] = {
+		[VFIO_DEVICE_STATE_STOP] = VFIO_MIGRATION_STOP_COPY,
+		[VFIO_DEVICE_STATE_RUNNING] = VFIO_MIGRATION_STOP_COPY,
+		[VFIO_DEVICE_STATE_STOP_COPY] = VFIO_MIGRATION_STOP_COPY,
+		[VFIO_DEVICE_STATE_RESUMING] = VFIO_MIGRATION_STOP_COPY,
+		[VFIO_DEVICE_STATE_RUNNING_P2P] =
+			VFIO_MIGRATION_STOP_COPY | VFIO_MIGRATION_P2P,
+		[VFIO_DEVICE_STATE_ERROR] = ~0U,
+	};
+
+	if (WARN_ON(cur_fsm >= ARRAY_SIZE(vfio_from_fsm_table) ||
+		    (state_flags_table[cur_fsm] & device->migration_flags) !=
+			state_flags_table[cur_fsm]))
 		return -EINVAL;
 
-	if (new_fsm >= ARRAY_SIZE(vfio_from_fsm_table))
+	if (new_fsm >= ARRAY_SIZE(vfio_from_fsm_table) ||
+	   (state_flags_table[new_fsm] & device->migration_flags) !=
+			state_flags_table[new_fsm])
 		return -EINVAL;
 
+	/*
+	 * Arcs touching optional and unsupported states are skipped over. The
+	 * driver will instead see an arc from the original state to the next
+	 * logical state, as per the above comment.
+	 */
 	*next_fsm = vfio_from_fsm_table[cur_fsm][new_fsm];
+	while ((state_flags_table[*next_fsm] & device->migration_flags) !=
+			state_flags_table[*next_fsm])
+		*next_fsm = vfio_from_fsm_table[*next_fsm][new_fsm];
+
 	return (*next_fsm != VFIO_DEVICE_STATE_ERROR) ? 0 : -EINVAL;
 }
 EXPORT_SYMBOL_GPL(vfio_mig_get_next_state);
@@ -1731,7 +1782,7 @@ static int vfio_ioctl_device_feature_migration(struct vfio_device *device,
 					       size_t argsz)
 {
 	struct vfio_device_feature_migration mig = {
-		.flags = VFIO_MIGRATION_STOP_COPY,
+		.flags = device->migration_flags,
 	};
 	int ret;
 

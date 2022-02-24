@@ -1011,10 +1011,16 @@ struct vfio_device_feature {
  *
  * VFIO_MIGRATION_STOP_COPY means that STOP, STOP_COPY and
  * RESUMING are supported.
+ *
+ * VFIO_MIGRATION_STOP_COPY | VFIO_MIGRATION_P2P means that RUNNING_P2P
+ * is supported in addition to the STOP_COPY states.
+ *
+ * Other combinations of flags have behavior to be defined in the future.
  */
 struct vfio_device_feature_migration {
 	__aligned_u64 flags;
 #define VFIO_MIGRATION_STOP_COPY	(1 << 0)
+#define VFIO_MIGRATION_P2P		(1 << 1)
 };
 #define VFIO_DEVICE_FEATURE_MIGRATION 1
 
@@ -1065,10 +1071,13 @@ struct vfio_device_feature_mig_state {
  *  RESUMING - The device is stopped and is loading a new internal state
  *  ERROR - The device has failed and must be reset
  *
+ * And 1 optional state to support VFIO_MIGRATION_P2P:
+ *  RUNNING_P2P - RUNNING, except the device cannot do peer to peer DMA
+ *
  * The FSM takes actions on the arcs between FSM states. The driver implements
  * the following behavior for the FSM arcs:
  *
- * RUNNING -> STOP
+ * RUNNING_P2P -> STOP
  * STOP_COPY -> STOP
  *   While in STOP the device must stop the operation of the device. The device
  *   must not generate interrupts, DMA, or any other change to external state.
@@ -1095,10 +1104,15 @@ struct vfio_device_feature_mig_state {
  *
  *   To abort a RESUMING session the device must be reset.
  *
- * STOP -> RUNNING
+ * RUNNING_P2P -> RUNNING
  *   While in RUNNING the device is fully operational, the device may generate
  *   interrupts, DMA, respond to MMIO, all vfio device regions are functional,
  *   and the device may advance its internal state.
+ *
+ * RUNNING -> RUNNING_P2P
+ * STOP -> RUNNING_P2P
+ *   While in RUNNING_P2P the device is partially running in the P2P quiescent
+ *   state defined below.
  *
  * STOP -> STOP_COPY
  *   This arc begin the process of saving the device state and will return a
@@ -1129,6 +1143,18 @@ struct vfio_device_feature_mig_state {
  *   To recover from ERROR VFIO_DEVICE_RESET must be used to return the
  *   device_state back to RUNNING.
  *
+ * The optional peer to peer (P2P) quiescent state is intended to be a quiescent
+ * state for the device for the purposes of managing multiple devices within a
+ * user context where peer-to-peer DMA between devices may be active. The
+ * RUNNING_P2P states must prevent the device from initiating
+ * any new P2P DMA transactions. If the device can identify P2P transactions
+ * then it can stop only P2P DMA, otherwise it must stop all DMA. The migration
+ * driver must complete any such outstanding operations prior to completing the
+ * FSM arc into a P2P state. For the purpose of specification the states
+ * behave as though the device was fully running if not supported. Like while in
+ * STOP or STOP_COPY the user must not touch the device, otherwise the state
+ * can be exited.
+ *
  * The remaining possible transitions are interpreted as combinations of the
  * above FSM arcs. As there are multiple paths through the FSM arcs the path
  * should be selected based on the following rules:
@@ -1141,6 +1167,11 @@ struct vfio_device_feature_mig_state {
  * fails. When handling these types of errors users should anticipate future
  * revisions of this protocol using new states and those states becoming
  * visible in this case.
+ *
+ * The optional states cannot be used with SET_STATE if the device does not
+ * support them. The user can discover if these states are supported by using
+ * VFIO_DEVICE_FEATURE_MIGRATION. By using combination transitions the user can
+ * avoid knowing about these optional states if the kernel driver supports them.
  */
 enum vfio_device_mig_state {
 	VFIO_DEVICE_STATE_ERROR = 0,
@@ -1148,6 +1179,7 @@ enum vfio_device_mig_state {
 	VFIO_DEVICE_STATE_RUNNING = 2,
 	VFIO_DEVICE_STATE_STOP_COPY = 3,
 	VFIO_DEVICE_STATE_RESUMING = 4,
+	VFIO_DEVICE_STATE_RUNNING_P2P = 5,
 };
 
 /* -------- API for Type1 VFIO IOMMU -------- */
