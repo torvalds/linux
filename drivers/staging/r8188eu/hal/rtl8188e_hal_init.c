@@ -189,7 +189,6 @@ static void efuse_read_phymap_from_txpktbuf(
 {
 	u16 dbg_addr = 0;
 	u32 start  = 0, passing_time = 0;
-	u8 reg_0x143 = 0;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
 	int i = 0;
@@ -209,7 +208,7 @@ static void efuse_read_phymap_from_txpktbuf(
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		start = jiffies;
-		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
+		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000)
 			rtw_usleep_os(100);
 
