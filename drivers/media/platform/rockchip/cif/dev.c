@@ -993,7 +993,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 	bool can_be_set = false;
 	int i, ret;
 
-	if (cif_dev->hdr.hdr_mode == NO_HDR) {
+	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
 		    (!on && atomic_dec_return(&p->stream_cnt) > 0))
 			return 0;

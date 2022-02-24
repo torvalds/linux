@@ -2138,7 +2138,7 @@ static void rkcif_csi_set_lvds_sav_eav(struct rkcif_stream *stream,
 	struct rkmodule_lvds_frm_sync_code *odd_sync_code = NULL;
 	struct rkmodule_lvds_frm_sync_code *even_sync_code = NULL;
 
-	if (dev->hdr.hdr_mode == NO_HDR) {
+	if (dev->hdr.hdr_mode == NO_HDR || dev->hdr.hdr_mode == HDR_COMPR) {
 		frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_LINEAR];
 		odd_sync_code = &frm_sync_code->odd_sync_code;
 		even_sync_code = odd_sync_code;
@@ -2315,6 +2315,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 					       &dev->channels[stream->id]);
 
 	if (dev->hdr.hdr_mode == NO_HDR ||
+	    dev->hdr.hdr_mode == HDR_COMPR ||
 	    (dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
 	    (dev->hdr.hdr_mode == HDR_X3 && stream->id > 2))
 		channel->vc = vc >= 0 ? vc : channel->id;
@@ -2746,7 +2747,8 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 
 		val |= stream->cif_fmt_in->csi_yuv_order;
 		val |= rkcif_csi_get_output_type_mask(stream);
-		if (stream->cifdev->hdr.hdr_mode == NO_HDR)
+		if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
+		    stream->cifdev->hdr.hdr_mode == HDR_COMPR)
 			val |= CSI_NO_HDR;
 		else if (stream->cifdev->hdr.hdr_mode == HDR_X2)
 			val |= CSI_HDR2;
@@ -3531,7 +3533,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			vb2_buffer_done(&stream->next_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
-		if (dev->hdr.hdr_mode != NO_HDR)
+		if (dev->hdr.hdr_mode == HDR_X2 ||
+		    dev->hdr.hdr_mode == HDR_X3)
 			rkcif_release_rdbk_buf(stream);
 
 		stream->curr_buf = NULL;
@@ -6072,7 +6075,8 @@ void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 				      stream->pixm.plane_fmt[i].sizeimage);
 	}
 
-	if (stream->cifdev->hdr.hdr_mode == NO_HDR)
+	if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
+	    stream->cifdev->hdr.hdr_mode == HDR_COMPR)
 		vb_done->vb2_buf.timestamp = ktime_get_ns();
 
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
@@ -6789,7 +6793,7 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 			vb_done->sequence /= 2;
 	}
 
-	if (cif_dev->hdr.hdr_mode == NO_HDR) {
+	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
 			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf) {
 				if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
@@ -6930,7 +6934,8 @@ static void rkcif_deal_readout_time(struct rkcif_stream *stream)
 	if (stream->id == RKCIF_STREAM_MIPI_ID0)
 		detect_stream->readout.readout_time = stream->readout.fe_timestamp - stream->readout.fs_timestamp;
 
-	if ((cif_dev->hdr.hdr_mode == NO_HDR) && (stream->id == RKCIF_STREAM_MIPI_ID0)) {
+	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) &&
+	    (stream->id == RKCIF_STREAM_MIPI_ID0)) {
 		detect_stream->readout.early_time = stream->readout.fe_timestamp - stream->readout.wk_timestamp;
 
 	} else if ((cif_dev->hdr.hdr_mode == HDR_X2) && (stream->id == RKCIF_STREAM_MIPI_ID1)) {
@@ -7371,7 +7376,7 @@ void rkcif_reset_watchdog_timer_handler(struct timer_list *t)
 	int ret, is_reset = 0;
 	struct rkmodule_vicap_reset_info rst_info;
 
-	if (dev->hdr.hdr_mode == NO_HDR) {
+	if (dev->hdr.hdr_mode == NO_HDR || dev->hdr.hdr_mode == HDR_COMPR) {
 		i = 0;
 		if (dev->stream[i].state != RKCIF_STATE_STREAMING)
 			goto end_detect;
@@ -7543,7 +7548,8 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 		stream->is_line_inten = true;
 	}
 
-	if (cif_dev->hdr.hdr_mode == NO_HDR && stream->id == RKCIF_STREAM_MIPI_ID0) {
+	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) &&
+	    stream->id == RKCIF_STREAM_MIPI_ID0) {
 		if (cif_dev->wait_line != cif_dev->wait_line_cache)
 			cif_dev->wait_line = cif_dev->wait_line_cache;
 	} else if (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == RKCIF_STREAM_MIPI_ID1) {

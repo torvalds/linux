@@ -134,7 +134,8 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, width %d, height %d, hdr mode %d\n",
 			__func__, fmt->format.width, fmt->format.height, priv->hdr_cfg.hdr_mode);
-		if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+		if (priv->hdr_cfg.hdr_mode == NO_HDR ||
+		    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
@@ -351,7 +352,8 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	unsigned int width = priv->cap_info.width;
 	unsigned int height = priv->cap_info.height;
 
-	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
+	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
 			ch0 = cif_dev->csi_host_idx * 4;
 		else
@@ -436,7 +438,8 @@ static void sditf_channel_disable(struct sditf_priv *priv, int user)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	unsigned int ctrl_val = 0;
 
-	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
+	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 		if (user == 0)
 			ctrl_val = CIF_TOISP0_FE(0);
 		else
@@ -479,7 +482,8 @@ static int sditf_start_stream(struct sditf_priv *priv)
 		sditf_channel_enable(priv, 1);
 	}
 
-	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
+	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 		rkcif_do_start_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		rkcif_do_start_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
@@ -504,7 +508,9 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 		sditf_channel_disable(priv, 0);
 		sditf_channel_disable(priv, 1);
 	}
-	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+
+	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
+	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 		rkcif_do_stop_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		rkcif_do_stop_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
