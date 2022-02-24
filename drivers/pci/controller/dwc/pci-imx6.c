@@ -453,10 +453,6 @@ static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 	case IMX7D:
 		break;
 	case IMX8MM:
-		ret = clk_prepare_enable(imx6_pcie->pcie_aux);
-		if (ret)
-			dev_err(dev, "unable to enable pcie_aux clock\n");
-		break;
 	case IMX8MQ:
 		ret = clk_prepare_enable(imx6_pcie->pcie_aux);
 		if (ret) {
