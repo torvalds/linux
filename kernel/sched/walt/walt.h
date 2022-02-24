@@ -59,6 +59,7 @@ struct walt_cpu_load {
 	unsigned long	pl;
 	bool		rtgb_active;
 	u64		ws;
+	bool		ed_active;
 };
 
 #define DECLARE_BITMAP_ARRAY(name, nr, bits) \
@@ -216,6 +217,7 @@ extern unsigned int sysctl_sched_user_hint;
 extern unsigned int sysctl_sched_conservative_pl;
 extern unsigned int sysctl_sched_hyst_min_coloc_ns;
 extern unsigned int sysctl_sched_long_running_rt_task_ms;
+extern unsigned int sysctl_ed_boost_pct;
 
 #define WALT_MANY_WAKEUP_DEFAULT 1000
 extern unsigned int sysctl_sched_many_wakeup_threshold;
