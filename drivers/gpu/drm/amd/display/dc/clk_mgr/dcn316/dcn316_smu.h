@@ -133,5 +133,7 @@ void dcn316_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 void dcn316_smu_request_voltage_via_phyclk(struct clk_mgr_internal *clk_mgr, int requested_phyclk_khz);
 void dcn316_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr);
 void dcn316_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable);
+int dcn316_smu_get_dpref_clk(struct clk_mgr_internal *clk_mgr);
+int dcn316_smu_get_smu_fclk(struct clk_mgr_internal *clk_mgr);
 
 #endif /* DAL_DC_316_SMU_H_ */
