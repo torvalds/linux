@@ -1117,13 +1117,13 @@ static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 	 * e.g. x201.
 	 */
 	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
-		intel_de_write(dev_priv, PF_CTL(pipe), PF_ENABLE |
-			       PF_FILTER_MED_3x3 | PF_PIPE_SEL_IVB(pipe));
+		intel_de_write_fw(dev_priv, PF_CTL(pipe), PF_ENABLE |
+				  PF_FILTER_MED_3x3 | PF_PIPE_SEL_IVB(pipe));
 	else
-		intel_de_write(dev_priv, PF_CTL(pipe), PF_ENABLE |
-			       PF_FILTER_MED_3x3);
-	intel_de_write(dev_priv, PF_WIN_POS(pipe), x << 16 | y);
-	intel_de_write(dev_priv, PF_WIN_SZ(pipe), width << 16 | height);
+		intel_de_write_fw(dev_priv, PF_CTL(pipe), PF_ENABLE |
+				  PF_FILTER_MED_3x3);
+	intel_de_write_fw(dev_priv, PF_WIN_POS(pipe), x << 16 | y);
+	intel_de_write_fw(dev_priv, PF_WIN_SZ(pipe), width << 16 | height);
 }
 
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *crtc)
@@ -2023,9 +2023,9 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->pch_pfit.enabled)
 		return;
 
-	intel_de_write(dev_priv, PF_CTL(pipe), 0);
-	intel_de_write(dev_priv, PF_WIN_POS(pipe), 0);
-	intel_de_write(dev_priv, PF_WIN_SZ(pipe), 0);
+	intel_de_write_fw(dev_priv, PF_CTL(pipe), 0);
+	intel_de_write_fw(dev_priv, PF_WIN_POS(pipe), 0);
+	intel_de_write_fw(dev_priv, PF_WIN_SZ(pipe), 0);
 }
 
 static void ilk_crtc_disable(struct intel_atomic_state *state,
