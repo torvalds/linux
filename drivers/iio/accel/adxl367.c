@@ -884,7 +884,7 @@ static irqreturn_t adxl367_irq_handler(int irq, void *private)
 	if (ret)
 		return IRQ_NONE;
 
-	handled |= adxl367_push_event(indio_dev, status);
+	handled = adxl367_push_event(indio_dev, status);
 	handled |= adxl367_push_fifo_data(indio_dev, status, fifo_entries);
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
