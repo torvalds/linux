@@ -1690,6 +1690,13 @@ static int swclk_gate_enable(struct clk_hw *hw)
 {
 	struct tx_macro *tx = to_tx_macro(hw);
 	struct regmap *regmap = tx->regmap;
+	int ret;
+
+	ret = clk_prepare_enable(tx->mclk);
+	if (ret) {
+		dev_err(tx->dev, "failed to enable mclk\n");
+		return ret;
+	}
 
 	tx_macro_mclk_enable(tx, true);
 	if (tx->reset_swr)
@@ -1717,6 +1724,7 @@ static void swclk_gate_disable(struct clk_hw *hw)
 			   CDC_TX_SWR_CLK_EN_MASK, 0x0);
 
 	tx_macro_mclk_enable(tx, false);
+	clk_disable_unprepare(tx->mclk);
 }
 
 static int swclk_gate_is_enabled(struct clk_hw *hw)
@@ -1753,7 +1761,7 @@ static int tx_macro_register_mclk_output(struct tx_macro *tx)
 	struct clk_init_data init;
 	int ret;
 
-	parent_clk_name = __clk_get_name(tx->mclk);
+	parent_clk_name = __clk_get_name(tx->npl);
 
 	init.name = clk_name;
 	init.ops = &swclk_gate_ops;
