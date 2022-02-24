@@ -3,14 +3,11 @@
  *    Unaligned memory access handler
  *
  *    Copyright (C) 2001 Randolph Chung <tausq@debian.org>
+ *    Copyright (C) 2022 Helge Deller <deller@gmx.de>
  *    Significantly tweaked by LaMont Jones <lamont@debian.org>
  */
 
-#include <linux/jiffies.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
@@ -25,11 +22,7 @@
 #define DPRINTF(fmt, args...)
 #endif
 
-#ifdef CONFIG_64BIT
-#define RFMT "%016lx"
-#else
-#define RFMT "%08lx"
-#endif
+#define RFMT "%#08lx"
 
 /* 1111 1100 0000 0000 0001 0011 1100 0000 */
 #define OPCODE1(a,b,c)	((a)<<26|(b)<<12|(c)<<6) 
@@ -130,7 +123,7 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 	: "+r" (val), "+r" (ret), "=&r" (temp1)
 	: "r" (saddr), "r" (regs->isr) );
 
-	DPRINTF("val = 0x" RFMT "\n", val);
+	DPRINTF("val = " RFMT "\n", val);
 
 	if (toreg)
 		regs->gr[toreg] = val;
@@ -162,7 +155,7 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 	: "+r" (val), "+r" (ret), "=&r" (temp1), "=&r" (temp2)
 	: "r" (saddr), "r" (regs->isr) );
 
-	DPRINTF("val = 0x" RFMT "\n", val);
+	DPRINTF("val = " RFMT "\n", val);
 
 	if (flop)
 		((__u32*)(regs->fr))[toreg] = val;
@@ -240,7 +233,7 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 	if (!frreg)
 		val = 0;
 
-	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 2 bytes\n", frreg, 
+	DPRINTF("store r%d (" RFMT ") to " RFMT ":" RFMT " for 2 bytes\n", frreg,
 		val, regs->isr, regs->ior);
 
 	__asm__ __volatile__ (
@@ -269,7 +262,7 @@ static int emulate_stw(struct pt_regs *regs, int frreg, int flop)
 	else
 		val = 0;
 
-	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 4 bytes\n", frreg, 
+	DPRINTF("store r%d (" RFMT ") to " RFMT ":" RFMT " for 4 bytes\n", frreg,
 		val, regs->isr, regs->ior);
 
 
@@ -383,7 +376,6 @@ void handle_unaligned(struct pt_regs *regs)
 	unsigned long newbase = R1(regs->iir)?regs->gr[R1(regs->iir)]:0;
 	int modify = 0;
 	int ret = ERR_NOTHANDLED;
-	register int flop=0;	/* true if this is a flop */
 
 	__inc_irq_stat(irq_unaligned_count);
 
@@ -395,10 +387,10 @@ void handle_unaligned(struct pt_regs *regs)
 
 		if (!(current->thread.flags & PARISC_UAC_NOPRINT) &&
 			__ratelimit(&ratelimit)) {
-			char buf[256];
-			sprintf(buf, "%s(%d): unaligned access to 0x" RFMT " at ip=0x" RFMT "\n",
-				current->comm, task_pid_nr(current), regs->ior, regs->iaoq[0]);
-			printk(KERN_WARNING "%s", buf);
+			printk(KERN_WARNING "%s(%d): unaligned access to " RFMT
+				" at ip " RFMT " (iir " RFMT ")\n",
+				current->comm, task_pid_nr(current), regs->ior,
+				regs->iaoq[0], regs->iir);
 #ifdef DEBUG_UNALIGNED
 			show_regs(regs);
 #endif		
@@ -510,13 +502,11 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_FLDWS:
 	case OPCODE_FLDWXR:
 	case OPCODE_FLDWSR:
-		flop=1;
 		ret = emulate_ldw(regs,FR3(regs->iir),1);
 		break;
 
 	case OPCODE_FLDDX:
 	case OPCODE_FLDDS:
-		flop=1;
 		ret = emulate_ldd(regs,R3(regs->iir),1);
 		break;
 
@@ -524,13 +514,11 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_FSTWS:
 	case OPCODE_FSTWXR:
 	case OPCODE_FSTWSR:
-		flop=1;
 		ret = emulate_stw(regs,FR3(regs->iir),1);
 		break;
 
 	case OPCODE_FSTDX:
 	case OPCODE_FSTDS:
-		flop=1;
 		ret = emulate_std(regs,R3(regs->iir),1);
 		break;
 
@@ -544,11 +532,9 @@ void handle_unaligned(struct pt_regs *regs)
 	switch (regs->iir & OPCODE2_MASK)
 	{
 	case OPCODE_FLDD_L:
-		flop=1;
 		ret = emulate_ldd(regs,R2(regs->iir),1);
 		break;
 	case OPCODE_FSTD_L:
-		flop=1;
 		ret = emulate_std(regs, R2(regs->iir),1);
 		break;
 #ifdef CONFIG_64BIT
@@ -563,7 +549,6 @@ void handle_unaligned(struct pt_regs *regs)
 	switch (regs->iir & OPCODE3_MASK)
 	{
 	case OPCODE_FLDW_L:
-		flop=1;
 		ret = emulate_ldw(regs, R2(regs->iir), 1);
 		break;
 	case OPCODE_LDW_M:
@@ -571,7 +556,6 @@ void handle_unaligned(struct pt_regs *regs)
 		break;
 
 	case OPCODE_FSTW_L:
-		flop=1;
 		ret = emulate_stw(regs, R2(regs->iir),1);
 		break;
 	case OPCODE_STW_M:
