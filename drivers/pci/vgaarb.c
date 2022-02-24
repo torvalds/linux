@@ -1564,4 +1564,4 @@ static int __init vga_arb_device_init(void)
 	pr_info("loaded\n");
 	return rc;
 }
-subsys_initcall(vga_arb_device_init);
+subsys_initcall_sync(vga_arb_device_init);
