@@ -187,14 +187,10 @@ static inline unsigned long get_tod_clock(void)
 
 static inline unsigned long get_tod_clock_fast(void)
 {
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 	unsigned long clk;
 
 	asm volatile("stckf %0" : "=Q" (clk) : : "cc");
 	return clk;
-#else
-	return get_tod_clock();
-#endif
 }
 
 static inline cycles_t get_cycles(void)

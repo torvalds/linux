@@ -60,15 +60,6 @@ asm(
 #ifdef CONFIG_EXPOLINE
 asm(
 	"	.align 16\n"
-	"ftrace_shared_hotpatch_trampoline_ex:\n"
-	"	lmg	%r0,%r1,2(%r1)\n"
-	"	ex	%r0," __stringify(__LC_BR_R1) "(%r0)\n"
-	"	j	.\n"
-	"ftrace_shared_hotpatch_trampoline_ex_end:\n"
-);
-
-asm(
-	"	.align 16\n"
 	"ftrace_shared_hotpatch_trampoline_exrl:\n"
 	"	lmg	%r0,%r1,2(%r1)\n"
 	"	.insn	ril,0xc60000000000,%r0,0f\n" /* exrl */
@@ -90,12 +81,8 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 	tend = ftrace_shared_hotpatch_trampoline_br_end;
 #ifdef CONFIG_EXPOLINE
 	if (!nospec_disable) {
-		tstart = ftrace_shared_hotpatch_trampoline_ex;
-		tend = ftrace_shared_hotpatch_trampoline_ex_end;
-		if (test_facility(35)) { /* exrl */
-			tstart = ftrace_shared_hotpatch_trampoline_exrl;
-			tend = ftrace_shared_hotpatch_trampoline_exrl_end;
-		}
+		tstart = ftrace_shared_hotpatch_trampoline_exrl;
+		tend = ftrace_shared_hotpatch_trampoline_exrl_end;
 	}
 #endif /* CONFIG_EXPOLINE */
 	if (end)

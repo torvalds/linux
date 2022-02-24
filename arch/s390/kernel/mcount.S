@@ -35,14 +35,8 @@ ENDPROC(ftrace_stub)
 	.if \allregs == 1
 	# save psw mask
 	# don't put any instructions clobbering CC before this point
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	epsw	%r1,%r14
 	risbg	%r14,%r1,0,31,32
-#else
-	epsw	%r14,%r1
-	sllg	%r14,%r14,32
-	lr	%r14,%r1
-#endif
 	.endif
 
 	lgr	%r1,%r15
@@ -58,12 +52,7 @@ ENDPROC(ftrace_stub)
 
 	.if \allregs == 1
 	stg	%r14,(STACK_PTREGS_PSW)(%r15)
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	mvghi	STACK_PTREGS_FLAGS(%r15),_PIF_FTRACE_FULL_REGS
-#else
-	lghi	%r14,_PIF_FTRACE_FULL_REGS
-	stg	%r14,STACK_PTREGS_FLAGS(%r15)
-#endif
 	.else
 	xc	STACK_PTREGS_FLAGS(8,%r15),STACK_PTREGS_FLAGS(%r15)
 	.endif

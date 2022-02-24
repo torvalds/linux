@@ -570,15 +570,8 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	if (nospec_uses_trampoline()) {
 		jit->r14_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r14 thunk */
-		if (test_facility(35)) {
-			/* exrl %r0,.+10 */
-			EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-		} else {
-			/* larl %r1,.+14 */
-			EMIT6_PCREL_RILB(0xc0000000, REG_1, jit->prg + 14);
-			/* ex 0,0(%r1) */
-			EMIT4_DISP(0x44000000, REG_0, REG_1, 0);
-		}
+		/* exrl %r0,.+10 */
+		EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
 		/* j . */
 		EMIT4_PCREL(0xa7f40000, 0);
 	}
@@ -589,20 +582,12 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	    (is_first_pass(jit) || (jit->seen & SEEN_FUNC))) {
 		jit->r1_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r1 thunk */
-		if (test_facility(35)) {
-			/* exrl %r0,.+10 */
-			EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-			/* j . */
-			EMIT4_PCREL(0xa7f40000, 0);
-			/* br %r1 */
-			_EMIT2(0x07f1);
-		} else {
-			/* ex 0,S390_lowcore.br_r1_tampoline */
-			EMIT4_DISP(0x44000000, REG_0, REG_0,
-				   offsetof(struct lowcore, br_r1_trampoline));
-			/* j . */
-			EMIT4_PCREL(0xa7f40000, 0);
-		}
+		/* exrl %r0,.+10 */
+		EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
+		/* j . */
+		EMIT4_PCREL(0xa7f40000, 0);
+		/* br %r1 */
+		_EMIT2(0x07f1);
 	}
 }
 

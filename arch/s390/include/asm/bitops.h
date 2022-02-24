@@ -256,8 +256,6 @@ static inline bool test_bit_inv(unsigned long nr,
 	return test_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
-
 /**
  * __flogr - find leftmost one
  * @word - The word to search
@@ -375,16 +373,6 @@ static inline int fls(unsigned int word)
 {
 	return fls64(word);
 }
-
-#else /* CONFIG_HAVE_MARCH_Z9_109_FEATURES */
-
-#include <asm-generic/bitops/__ffs.h>
-#include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/__fls.h>
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/fls64.h>
-
-#endif /* CONFIG_HAVE_MARCH_Z9_109_FEATURES */
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/hweight.h>

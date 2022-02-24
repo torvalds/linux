@@ -118,12 +118,6 @@ static void __init_or_module __nospec_revert(s32 *start, s32 *end)
 		if (thunk[0] == 0xc6 && thunk[1] == 0x00)
 			/* exrl %r0,<target-br> */
 			br = thunk + (*(int *)(thunk + 2)) * 2;
-		else if (thunk[0] == 0xc0 && (thunk[1] & 0x0f) == 0x00 &&
-			 thunk[6] == 0x44 && thunk[7] == 0x00 &&
-			 (thunk[8] & 0x0f) == 0x00 && thunk[9] == 0x00 &&
-			 (thunk[1] & 0xf0) == (thunk[8] & 0xf0))
-			/* larl %rx,<target br> + ex %r0,0(%rx) */
-			br = thunk + (*(int *)(thunk + 2)) * 2;
 		else
 			continue;
 		if (br[0] != 0x07 || (br[1] & 0xf0) != 0xf0)

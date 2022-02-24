@@ -122,7 +122,6 @@ int main(void)
 	OFFSET(__LC_LPP, lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
 	OFFSET(__LC_GMAP, lowcore, gmap);
-	OFFSET(__LC_BR_R1, lowcore, br_r1_trampoline);
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);

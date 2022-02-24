@@ -1451,6 +1451,8 @@ static size_t cfdiag_maxsize(struct cpumf_ctr_info *info)
 /* Get the CPU speed, try sampling facility first and CPU attributes second. */
 static void cfdiag_get_cpu_speed(void)
 {
+	unsigned long mhz;
+
 	if (cpum_sf_avail()) {			/* Sampling facility first */
 		struct hws_qsi_info_block si;
 
@@ -1464,12 +1466,9 @@ static void cfdiag_get_cpu_speed(void)
 	/* Fallback: CPU speed extract static part. Used in case
 	 * CPU Measurement Sampling Facility is turned off.
 	 */
-	if (test_facility(34)) {
-		unsigned long mhz = __ecag(ECAG_CPU_ATTRIBUTE, 0);
-
-		if (mhz != -1UL)
-			cfdiag_cpu_speed = mhz & 0xffffffff;
-	}
+	mhz = __ecag(ECAG_CPU_ATTRIBUTE, 0);
+	if (mhz != -1UL)
+		cfdiag_cpu_speed = mhz & 0xffffffff;
 }
 
 static int cfset_init(void)

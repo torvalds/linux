@@ -517,15 +517,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 		ij = me->core_layout.base + me->arch.plt_offset +
 			me->arch.plt_size - PLT_ENTRY_SIZE;
-		if (test_facility(35)) {
-			ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
-			ij[1] = 0x0005a7f4;	/* j	.		*/
-			ij[2] = 0x000007f1;	/* br	%r1		*/
-		} else {
-			ij[0] = 0x44000000 | (unsigned int)
-				offsetof(struct lowcore, br_r1_trampoline);
-			ij[1] = 0xa7f40000;	/* j	.		*/
-		}
+		ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
+		ij[1] = 0x0005a7f4;	/* j	.		*/
+		ij[2] = 0x000007f1;	/* br	%r1		*/
 	}
 
 	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
