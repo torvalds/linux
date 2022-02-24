@@ -765,7 +765,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	/* Check host capabilities. */
 	error = vmci_check_host_caps(pdev);
 	if (error)
-		goto err_remove_bitmap;
+		goto err_remove_vmci_dev_g;
 
 	/* Enable device. */
 
@@ -795,7 +795,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		error = pci_alloc_irq_vectors(pdev, 1, 1,
 				PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY);
 		if (error < 0)
-			goto err_remove_bitmap;
+			goto err_unsubscribe_event;
 	} else {
 		vmci_dev->exclusive_vectors = true;
 	}
@@ -871,25 +871,25 @@ err_free_irq:
 err_disable_msi:
 	pci_free_irq_vectors(pdev);
 
+err_unsubscribe_event:
 	vmci_err = vmci_event_unsubscribe(ctx_update_sub_id);
 	if (vmci_err < VMCI_SUCCESS)
 		dev_warn(&pdev->dev,
 			 "Failed to unsubscribe from event (type=%d) with subscriber (ID=0x%x): %d\n",
 			 VMCI_EVENT_CTX_ID_UPDATE, ctx_update_sub_id, vmci_err);
 
-err_remove_bitmap:
+err_remove_vmci_dev_g:
+	spin_lock_irq(&vmci_dev_spinlock);
+	vmci_pdev = NULL;
+	vmci_dev_g = NULL;
+	spin_unlock_irq(&vmci_dev_spinlock);
+
 	if (vmci_dev->notification_bitmap) {
 		vmci_write_reg(vmci_dev, VMCI_CONTROL_RESET, VMCI_CONTROL_ADDR);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
 				  vmci_dev->notification_bitmap,
 				  vmci_dev->notification_base);
 	}
-
-err_remove_vmci_dev_g:
-	spin_lock_irq(&vmci_dev_spinlock);
-	vmci_pdev = NULL;
-	vmci_dev_g = NULL;
-	spin_unlock_irq(&vmci_dev_spinlock);
 
 err_free_data_buffers:
 	vmci_free_dg_buffers(vmci_dev);
