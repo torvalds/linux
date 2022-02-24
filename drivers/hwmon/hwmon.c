@@ -604,6 +604,7 @@ static const char * const hwmon_pwm_attr_templates[] = {
 	[hwmon_pwm_enable] = "pwm%d_enable",
 	[hwmon_pwm_mode] = "pwm%d_mode",
 	[hwmon_pwm_freq] = "pwm%d_freq",
+	[hwmon_pwm_auto_channels_temp] = "pwm%d_auto_channels_temp",
 };
 
 static const char * const hwmon_intrusion_attr_templates[] = {
