@@ -2988,6 +2988,8 @@ void bch2_trans_begin(struct btree_trans *trans)
 	}
 
 	trans_for_each_path(trans, path) {
+		path->should_be_locked = false;
+
 		/*
 		 * XXX: we probably shouldn't be doing this if the transaction
 		 * was restarted, but currently we still overflow transaction
@@ -2996,7 +2998,7 @@ void bch2_trans_begin(struct btree_trans *trans)
 		if (!path->ref && !path->preserve)
 			__bch2_path_free(trans, path);
 		else
-			path->preserve = path->should_be_locked = false;
+			path->preserve = false;
 	}
 
 	bch2_trans_cond_resched(trans);
