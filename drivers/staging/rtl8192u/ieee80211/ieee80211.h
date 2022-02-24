@@ -2315,8 +2315,13 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 			  union iwreq_data *wrqu, char *b);
 
 /* ieee80211_module.c */
+#ifdef CONFIG_IEEE80211_DEBUG
 int ieee80211_debug_init(void);
 void ieee80211_debug_exit(void);
+#else
+static inline int ieee80211_debug_init(void) { return 0; }
+static inline void ieee80211_debug_exit(void) { }
+#endif
 
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 void ieee80211_wx_sync_scan_wq(struct work_struct *work);
