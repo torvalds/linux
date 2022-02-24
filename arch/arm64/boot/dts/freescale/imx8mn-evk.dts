@@ -41,7 +41,7 @@
 
 		regulators {
 			buck1: BUCK1{
-				regulator-name = "BUCK1";
+				regulator-name = "VDD_SOC";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <2187500>;
 				regulator-boot-on;
@@ -50,7 +50,7 @@
 			};
 
 			buck2: BUCK2 {
-				regulator-name = "BUCK2";
+				regulator-name = "VDD_ARM_0V9";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <2187500>;
 				regulator-boot-on;
@@ -61,7 +61,7 @@
 			};
 
 			buck4: BUCK4{
-				regulator-name = "BUCK4";
+				regulator-name = "VDD_3V3";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <3400000>;
 				regulator-boot-on;
@@ -69,7 +69,7 @@
 			};
 
 			buck5: BUCK5{
-				regulator-name = "BUCK5";
+				regulator-name = "VDD_1V8";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <3400000>;
 				regulator-boot-on;
@@ -77,7 +77,7 @@
 			};
 
 			buck6: BUCK6 {
-				regulator-name = "BUCK6";
+				regulator-name = "NVCC_DRAM_1V1";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <3400000>;
 				regulator-boot-on;
@@ -85,7 +85,7 @@
 			};
 
 			ldo1: LDO1 {
-				regulator-name = "LDO1";
+				regulator-name = "NVCC_SNVS_1V8";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -93,7 +93,7 @@
 			};
 
 			ldo2: LDO2 {
-				regulator-name = "LDO2";
+				regulator-name = "VDD_SNVS_0V8";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1150000>;
 				regulator-boot-on;
@@ -101,7 +101,7 @@
 			};
 
 			ldo3: LDO3 {
-				regulator-name = "LDO3";
+				regulator-name = "VDDA_1V8";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -109,7 +109,7 @@
 			};
 
 			ldo4: LDO4 {
-				regulator-name = "LDO4";
+				regulator-name = "VDD_PHY_1V2";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -117,7 +117,7 @@
 			};
 
 			ldo5: LDO5 {
-				regulator-name = "LDO5";
+				regulator-name = "NVCC_SD2";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
