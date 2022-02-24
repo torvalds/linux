@@ -18,8 +18,8 @@ from typing import Any, Dict
 @dataclass
 class Metadata:
 	"""Stores metadata about this run to include in get_json_result()."""
-	arch: str = 'UM'
-	def_config: str = 'kunit_defconfig'
+	arch: str = ''
+	def_config: str = ''
 	build_dir: str = ''
 
 JsonObj = Dict[str, Any]
