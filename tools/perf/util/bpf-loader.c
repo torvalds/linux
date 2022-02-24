@@ -26,6 +26,7 @@
 #include "util.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
+#include "hashmap.h"
 
 #include <internal/xyarray.h>
 
@@ -55,6 +56,7 @@ struct bpf_perf_object {
 };
 
 static LIST_HEAD(bpf_objects_list);
+static struct hashmap *bpf_program_hash;
 
 static struct bpf_perf_object *
 bpf_perf_object__next(struct bpf_perf_object *prev)
@@ -173,18 +175,8 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 	return obj;
 }
 
-void bpf__clear(void)
-{
-	struct bpf_perf_object *perf_obj, *tmp;
-
-	bpf_perf_object__for_each(perf_obj, tmp) {
-		bpf__unprobe(perf_obj->obj);
-		bpf_perf_object__close(perf_obj);
-	}
-}
-
 static void
-clear_prog_priv(struct bpf_program *prog __maybe_unused,
+clear_prog_priv(const struct bpf_program *prog __maybe_unused,
 		void *_priv)
 {
 	struct bpf_prog_priv *priv = _priv;
@@ -195,6 +187,80 @@ clear_prog_priv(struct bpf_program *prog __maybe_unused,
 	zfree(&priv->sys_name);
 	zfree(&priv->evt_name);
 	free(priv);
+}
+
+static void bpf_program_hash_free(void)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	if (IS_ERR_OR_NULL(bpf_program_hash))
+		return;
+
+	hashmap__for_each_entry(bpf_program_hash, cur, bkt)
+		clear_prog_priv(cur->key, cur->value);
+
+	hashmap__free(bpf_program_hash);
+	bpf_program_hash = NULL;
+}
+
+void bpf__clear(void)
+{
+	struct bpf_perf_object *perf_obj, *tmp;
+
+	bpf_perf_object__for_each(perf_obj, tmp) {
+		bpf__unprobe(perf_obj->obj);
+		bpf_perf_object__close(perf_obj);
+	}
+
+	bpf_program_hash_free();
+}
+
+static size_t ptr_hash(const void *__key, void *ctx __maybe_unused)
+{
+	return (size_t) __key;
+}
+
+static bool ptr_equal(const void *key1, const void *key2,
+			  void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
+
+static void *program_priv(const struct bpf_program *prog)
+{
+	void *priv;
+
+	if (IS_ERR_OR_NULL(bpf_program_hash))
+		return NULL;
+	if (!hashmap__find(bpf_program_hash, prog, &priv))
+		return NULL;
+	return priv;
+}
+
+static int program_set_priv(struct bpf_program *prog, void *priv)
+{
+	void *old_priv;
+
+	/*
+	 * Should not happen, we warn about it in the
+	 * caller function - config_bpf_program
+	 */
+	if (IS_ERR(bpf_program_hash))
+		return PTR_ERR(bpf_program_hash);
+
+	if (!bpf_program_hash) {
+		bpf_program_hash = hashmap__new(ptr_hash, ptr_equal, NULL);
+		if (IS_ERR(bpf_program_hash))
+			return PTR_ERR(bpf_program_hash);
+	}
+
+	old_priv = program_priv(prog);
+	if (old_priv) {
+		clear_prog_priv(prog, old_priv);
+		return hashmap__set(bpf_program_hash, prog, priv, NULL, NULL);
+	}
+	return hashmap__add(bpf_program_hash, prog, priv);
 }
 
 static int
@@ -438,7 +504,7 @@ config_bpf_program(struct bpf_program *prog)
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
 set_priv:
-	err = bpf_program__set_priv(prog, priv, clear_prog_priv);
+	err = program_set_priv(prog, priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
 		goto errout;
@@ -479,7 +545,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 		     struct bpf_insn *orig_insns, int orig_insns_cnt,
 		     struct bpf_prog_prep_result *res)
 {
-	struct bpf_prog_priv *priv = bpf_program__priv(prog);
+	struct bpf_prog_priv *priv = program_priv(prog);
 	struct probe_trace_event *tev;
 	struct perf_probe_event *pev;
 	struct bpf_insn *buf;
@@ -630,7 +696,7 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 static int hook_load_preprocessor(struct bpf_program *prog)
 {
-	struct bpf_prog_priv *priv = bpf_program__priv(prog);
+	struct bpf_prog_priv *priv = program_priv(prog);
 	struct perf_probe_event *pev;
 	bool need_prologue = false;
 	int err, i;
@@ -706,7 +772,7 @@ int bpf__probe(struct bpf_object *obj)
 		if (err)
 			goto out;
 
-		priv = bpf_program__priv(prog);
+		priv = program_priv(prog);
 		if (IS_ERR_OR_NULL(priv)) {
 			if (!priv)
 				err = -BPF_LOADER_ERRNO__INTERNAL;
@@ -758,7 +824,7 @@ int bpf__unprobe(struct bpf_object *obj)
 	struct bpf_program *prog;
 
 	bpf_object__for_each_program(prog, obj) {
-		struct bpf_prog_priv *priv = bpf_program__priv(prog);
+		struct bpf_prog_priv *priv = program_priv(prog);
 		int i;
 
 		if (IS_ERR_OR_NULL(priv) || priv->is_tp)
@@ -814,7 +880,7 @@ int bpf__foreach_event(struct bpf_object *obj,
 	int err;
 
 	bpf_object__for_each_program(prog, obj) {
-		struct bpf_prog_priv *priv = bpf_program__priv(prog);
+		struct bpf_prog_priv *priv = program_priv(prog);
 		struct probe_trace_event *tev;
 		struct perf_probe_event *pev;
 		int i, fd;
