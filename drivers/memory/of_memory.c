@@ -318,14 +318,21 @@ const struct lpddr2_info
 	struct property *prop;
 	const char *cp;
 	int err;
+	u32 revision_id[2];
 
-	err = of_property_read_u32(np, "revision-id1", &info.revision_id1);
-	if (err)
-		info.revision_id1 = -ENOENT;
+	err = of_property_read_u32_array(np, "revision-id", revision_id, 2);
+	if (!err) {
+		info.revision_id1 = revision_id[0];
+		info.revision_id2 = revision_id[1];
+	} else {
+		err = of_property_read_u32(np, "revision-id1", &info.revision_id1);
+		if (err)
+			info.revision_id1 = -ENOENT;
 
-	err = of_property_read_u32(np, "revision-id2", &info.revision_id2);
-	if (err)
-		info.revision_id2 = -ENOENT;
+		err = of_property_read_u32(np, "revision-id2", &info.revision_id2);
+		if (err)
+			info.revision_id2 = -ENOENT;
+	}
 
 	err = of_property_read_u32(np, "io-width", &info.io_width);
 	if (err)
