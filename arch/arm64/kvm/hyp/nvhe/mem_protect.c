@@ -726,6 +726,7 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 	BUG_ON(!__get_fault_info(esr, &fault));
 
 	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
+	addr |= fault.far_el2 & FAR_MASK;
 
 	/* See if any subsystem can handle this abort. */
 	if (is_dabt(esr) && !addr_is_memory(addr))
