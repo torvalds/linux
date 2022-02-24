@@ -39,6 +39,10 @@
 #define RK_BUFFER_ORDER			3
 #define RK_BUFFER_SIZE			(PAGE_SIZE << RK_BUFFER_ORDER)
 
+#define RK_DMA_ALIGNMENT		64
+#define sha384_state			sha512_state
+#define sha224_state			sha256_state
+
 struct rk_crypto_soc_data {
 	char				**valid_algs_name;
 	int				valid_algs_num;
@@ -184,7 +188,9 @@ struct rk_crypto_algt {
 enum rk_hash_algo {
 	HASH_ALGO_MD5,
 	HASH_ALGO_SHA1,
+	HASH_ALGO_SHA224,
 	HASH_ALGO_SHA256,
+	HASH_ALGO_SHA384,
 	HASH_ALGO_SHA512,
 	HASH_ALGO_SM3,
 };

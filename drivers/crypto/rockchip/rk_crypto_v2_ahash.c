@@ -23,7 +23,9 @@
 static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_MD5]    = CRYPTO_MD5,
 	[HASH_ALGO_SHA1]   = CRYPTO_SHA1,
+	[HASH_ALGO_SHA224] = CRYPTO_SHA224,
 	[HASH_ALGO_SHA256] = CRYPTO_SHA256,
+	[HASH_ALGO_SHA384] = CRYPTO_SHA384,
 	[HASH_ALGO_SHA512] = CRYPTO_SHA512,
 	[HASH_ALGO_SM3]    = CRYPTO_SM3,
 };
@@ -31,7 +33,9 @@ static const u32 hash_algo2bc[] = {
 const char *hash_algo2name[] = {
 	[HASH_ALGO_MD5]    = "md5",
 	[HASH_ALGO_SHA1]   = "sha1",
+	[HASH_ALGO_SHA256] = "sha224",
 	[HASH_ALGO_SHA256] = "sha256",
+	[HASH_ALGO_SHA384] = "sha384",
 	[HASH_ALGO_SHA512] = "sha512",
 	[HASH_ALGO_SM3]    = "sm3",
 };
@@ -563,7 +567,9 @@ static void rk_cra_hash_exit(struct crypto_tfm *tfm)
 
 struct rk_crypto_algt rk_v2_ahash_md5    = RK_HASH_ALGO_INIT(MD5, md5);
 struct rk_crypto_algt rk_v2_ahash_sha1   = RK_HASH_ALGO_INIT(SHA1, sha1);
+struct rk_crypto_algt rk_v2_ahash_sha224 = RK_HASH_ALGO_INIT(SHA224, sha224);
 struct rk_crypto_algt rk_v2_ahash_sha256 = RK_HASH_ALGO_INIT(SHA256, sha256);
+struct rk_crypto_algt rk_v2_ahash_sha384 = RK_HASH_ALGO_INIT(SHA384, sha384);
 struct rk_crypto_algt rk_v2_ahash_sha512 = RK_HASH_ALGO_INIT(SHA512, sha512);
 struct rk_crypto_algt rk_v2_ahash_sm3    = RK_HASH_ALGO_INIT(SM3, sm3);
 

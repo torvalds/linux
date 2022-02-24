@@ -569,7 +569,9 @@ static struct rk_crypto_algt *crypto_v2_algs[] = {
 	&rk_v2_ofb_des3_ede_alg,	/* ofb(des3_ede) */
 
 	&rk_v2_ahash_sha1,		/* sha1 */
+	&rk_v2_ahash_sha224,		/* sha224 */
 	&rk_v2_ahash_sha256,		/* sha256 */
+	&rk_v2_ahash_sha384,		/* sha384 */
 	&rk_v2_ahash_sha512,		/* sha512 */
 	&rk_v2_ahash_md5,		/* md5 */
 	&rk_v2_ahash_sm3,		/* sm3 */
@@ -583,16 +585,18 @@ static struct rk_crypto_algt *crypto_v2_algs[] = {
 	&rk_v2_asym_rsa,		/* rsa */
 };
 
-static char *px30_algs_name[] = {
-	"ecb(aes)", "cbc(aes)", "xts(aes)",
-	"ecb(des)", "cbc(des)",
-	"ecb(des3_ede)", "cbc(des3_ede)",
-	"sha1", "sha256", "sha512", "md5",
+static char *crypto_no_sm_algs_name[] = {
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
+	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
+	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
+	"sha1", "sha224", "sha256", "sha384", "sha512", "md5",
+	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)",
+	"rsa"
 };
 
-static char *crypto_full_algs_name[] = {
-	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "xts(sm4)",
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)", "xts(aes)",
+static char *crypto_rv1126_algs_name[] = {
+	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
 	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
@@ -600,11 +604,21 @@ static char *crypto_full_algs_name[] = {
 	"rsa"
 };
 
+static char *crypto_full_algs_name[] = {
+	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
+	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
+	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
+	"sha1", "sha224", "sha256", "sha384", "sha512", "md5", "sm3",
+	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
+	"rsa"
+};
+
 static const struct rk_crypto_soc_data px30_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(px30_algs_name, false);
+	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_no_sm_algs_name, false);
 
 static const struct rk_crypto_soc_data rv1126_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, true);
+	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_rv1126_algs_name, true);
 
 static const struct rk_crypto_soc_data full_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, false);

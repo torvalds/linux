@@ -48,7 +48,9 @@ extern struct rk_crypto_algt rk_v2_cfb_des3_ede_alg;
 extern struct rk_crypto_algt rk_v2_ofb_des3_ede_alg;
 
 extern struct rk_crypto_algt rk_v2_ahash_sha1;
+extern struct rk_crypto_algt rk_v2_ahash_sha224;
 extern struct rk_crypto_algt rk_v2_ahash_sha256;
+extern struct rk_crypto_algt rk_v2_ahash_sha384;
 extern struct rk_crypto_algt rk_v2_ahash_sha512;
 extern struct rk_crypto_algt rk_v2_ahash_md5;
 extern struct rk_crypto_algt rk_v2_ahash_sm3;
