@@ -653,7 +653,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	struct bkey_s_c old;
 	int ret, u64s_delta = 0;
 
 	trans_for_each_update(trans, i) {
@@ -671,22 +670,11 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	}
 
 	trans_for_each_update(trans, i) {
-		struct bkey u;
-
-		/*
-		 * peek_slot() doesn't yet work on iterators that point to
-		 * interior nodes:
-		 */
-		if (i->cached || i->level)
+		if (i->cached)
 			continue;
 
-		old = bch2_btree_path_peek_slot(i->path, &u);
-		ret = bkey_err(old);
-		if (unlikely(ret))
-			return ret;
-
 		u64s_delta += !bkey_deleted(&i->k->k) ? i->k->k.u64s : 0;
-		u64s_delta -= !bkey_deleted(old.k) ? old.k->u64s : 0;
+		u64s_delta -= i->old_btree_u64s;
 
 		if (!same_leaf_as_next(trans, i)) {
 			if (u64s_delta <= 0) {
@@ -1432,10 +1420,18 @@ int __must_check bch2_trans_update_by_path(struct btree_trans *trans, struct btr
 		}
 
 		bch2_path_put(trans, i->path, true);
-		*i = n;
-	} else
+		i->flags	= n.flags;
+		i->cached	= n.cached;
+		i->k		= n.k;
+		i->path		= n.path;
+		i->ip_allocated	= n.ip_allocated;
+	} else {
 		array_insert_item(trans->updates, trans->nr_updates,
 				  i - trans->updates, n);
+
+		i->old_v = bch2_btree_path_peek_slot(path, &i->old_k).v;
+		i->old_btree_u64s = !bkey_deleted(&i->old_k) ? i->old_k.u64s : 0;
+	}
 
 	__btree_path_get(n.path, true);
 	return 0;

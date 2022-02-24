@@ -1322,25 +1322,14 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 		should_not_have_added, disk_res_sectors);
 
 	trans_for_each_update(trans, i) {
+		struct bkey_s_c old = { &i->old_k, i->old_v };
+
 		pr_err("while inserting");
 		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-		pr_err("%s", buf);
+		pr_err("  %s", buf);
 		pr_err("overlapping with");
-
-		if (!i->cached) {
-			struct bkey u;
-			struct bkey_s_c k = bch2_btree_path_peek_slot(i->path, &u);
-
-			bch2_bkey_val_to_text(&PBUF(buf), c, k);
-			pr_err("%s", buf);
-		} else {
-			struct bkey_cached *ck = (void *) i->path->l[0].b;
-
-			if (ck->valid) {
-				bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(ck->k));
-				pr_err("%s", buf);
-			}
-		}
+		bch2_bkey_val_to_text(&PBUF(buf), c, old);
+		pr_err("  %s", buf);
 	}
 	__WARN();
 }

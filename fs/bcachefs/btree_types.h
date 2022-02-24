@@ -339,12 +339,20 @@ struct btree_insert_entry {
 	unsigned		flags;
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
-	u8			level;
+	u8			level:4;
 	bool			cached:1;
 	bool			insert_trigger_run:1;
 	bool			overwrite_trigger_run:1;
+	/*
+	 * @old_k may be a key from the journal; @old_btree_u64s always refers
+	 * to the size of the key being overwritten in the btree:
+	 */
+	u8			old_btree_u64s;
 	struct bkey_i		*k;
 	struct btree_path	*path;
+	/* key being overwritten: */
+	struct bkey		old_k;
+	const struct bch_val	*old_v;
 	unsigned long		ip_allocated;
 };
 
