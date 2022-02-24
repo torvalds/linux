@@ -340,7 +340,7 @@ static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
 static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 			       struct iommu_iotlb_gather *gather,
 			       unsigned long iova, size_t size, size_t pgcount,
-			       int lvl, arm_lpae_iopte *ptep);
+			       int lvl, arm_lpae_iopte *ptep, unsigned long *flags);
 
 static void __arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 				phys_addr_t paddr, arm_lpae_iopte prot,
@@ -392,12 +392,21 @@ static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 					     arm_lpae_iopte curr,
 					     struct io_pgtable_cfg *cfg,
 					     int refcount,
-					     struct arm_lpae_io_pgtable *data)
+					     struct arm_lpae_io_pgtable *data,
+					     unsigned long *flags)
 {
 	arm_lpae_iopte old, new;
 
+	/*
+	 * Drop the lock for TLB SYNC operation in order to
+	 * enable clock & regulator through rpm hooks and
+	 * acquire after it.
+	 */
+
+	spin_unlock_irqrestore(&data->lock, *flags);
 	/* Due to tlb maintenance in unmap being deferred */
 	qcom_io_pgtable_tlb_sync(data->iommu_tlb_ops, data->iop.cookie);
+	spin_lock_irqsave(&data->lock, *flags);
 
 	new = __pa(table) | ARM_LPAE_PTE_TYPE_TABLE;
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
@@ -526,7 +535,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 		if (!cptep)
 			return -ENOMEM;
 
-		pte = arm_lpae_install_table(cptep, ptep, 0, cfg, 0, data);
+		pte = arm_lpae_install_table(cptep, ptep, 0, cfg, 0, data, flags);
 		if (pte)
 			__arm_lpae_free_pages(data, cptep, tblsz, cfg, cookie, false);
 		else
@@ -865,7 +874,8 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 				       struct iommu_iotlb_gather *gather,
 				       unsigned long iova, size_t size,
 				       arm_lpae_iopte blk_pte, int lvl,
-				       arm_lpae_iopte *ptep, size_t pgcount)
+				       arm_lpae_iopte *ptep, size_t pgcount,
+				       unsigned long *flags)
 {
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 	arm_lpae_iopte pte, *tablep;
@@ -902,7 +912,7 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 		child_cnt++;
 	}
 
-	pte = arm_lpae_install_table(tablep, ptep, blk_pte, cfg, child_cnt, data);
+	pte = arm_lpae_install_table(tablep, ptep, blk_pte, cfg, child_cnt, data, flags);
 	if (pte != blk_pte) {
 		__arm_lpae_free_pages(data, tablep, tablesz, cfg, cookie, false);
 		/*
@@ -928,13 +938,13 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 		return num_entries * size;
 	}
 
-	return __arm_lpae_unmap(data, gather, iova, size, pgcount, lvl, tablep);
+	return __arm_lpae_unmap(data, gather, iova, size, pgcount, lvl, tablep, flags);
 }
 
 static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 			       struct iommu_iotlb_gather *gather,
 			       unsigned long iova, size_t size, size_t pgcount,
-			       int lvl, arm_lpae_iopte *ptep)
+			       int lvl, arm_lpae_iopte *ptep, unsigned long *flags)
 {
 	arm_lpae_iopte pte;
 	struct io_pgtable *iop = &data->iop;
@@ -1017,12 +1027,12 @@ static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 		 * minus the part we want to unmap
 		 */
 		return arm_lpae_split_blk_unmap(data, gather, iova, size, pte,
-						lvl + 1, ptep, pgcount);
+						lvl + 1, ptep, pgcount, flags);
 	}
 
 	/* Keep on walkin' */
 	ptep = iopte_deref(pte, data);
-	return __arm_lpae_unmap(data, gather, iova, size, pgcount, lvl + 1, ptep);
+	return __arm_lpae_unmap(data, gather, iova, size, pgcount, lvl + 1, ptep, flags);
 }
 
 static size_t arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iova,
@@ -1046,7 +1056,7 @@ static size_t arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iov
 
 	spin_lock_irqsave(&data->lock, flags);
 	unmapped = __arm_lpae_unmap(data, gather, iova, pgsize, pgcount,
-				    data->start_level, ptep);
+				    data->start_level, ptep, &flags);
 	qcom_io_pgtable_tlb_add_inv(data->iommu_tlb_ops, data->iop.cookie);
 	spin_unlock_irqrestore(&data->lock, flags);
 
