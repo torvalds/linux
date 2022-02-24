@@ -15,6 +15,15 @@ config VIDEO_GS1662
 	help
 	  Enable the GS1662 driver which serializes video streams.
 
+config VIDEO_ROCKCHIP_PREISP
+	tristate "Rockchip Image Signal Pre-processing driver"
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && SPI_MASTER
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select V4L2_FWNODE
+	default n
+	help
+	  Support for Pre-isp on the rockchip SoC.
+
 endmenu
 
 endif

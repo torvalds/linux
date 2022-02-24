@@ -635,4 +635,6 @@ void rk1608_set_spi_speed(struct rk1608_state *pdata, u32 hz);
 
 int rk1608_set_log_level(struct rk1608_state *pdata, int level);
 
+int rk1608_get_dcrop_cfg(struct v4l2_rect *crop_in,
+			 struct v4l2_rect *crop_out);
 #endif

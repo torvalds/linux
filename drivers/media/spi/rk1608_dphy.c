@@ -27,6 +27,7 @@
 #include <linux/rkisp1-config.h>
 #include <linux/rk-camera-module.h>
 #include "rk1608_dphy.h"
+#include <linux/compat.h>
 
 #define RK1608_DPHY_NAME	"RK1608-dphy"
 
@@ -201,9 +202,9 @@ static int rk1608_set_fmt(struct v4l2_subdev *sd,
 
 	pdata->fmt_inf_idx = idx;
 
+	pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 	v4l2_subdev_call(pdata->rk1608_sd, pad, set_fmt, cfg, fmt);
 
-	pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 	remote_ctrl = v4l2_ctrl_find(pdata->rk1608_sd->ctrl_handler,
 						 V4L2_CID_HBLANK);
 	if (remote_ctrl) {
@@ -249,7 +250,7 @@ static int rk1608_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int rk1608_g_mbus_config(struct v4l2_subdev *sd,
+static int rk1608_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 
@@ -260,7 +261,7 @@ static int rk1608_g_mbus_config(struct v4l2_subdev *sd,
 	V4L2_MBUS_CSI2_CHANNEL_0 |
 	V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -310,7 +311,7 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s hdrae_exp;
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
-	long ret;
+	long ret = -EFAULT;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -327,7 +328,10 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = rk1608_ioctl(sd, cmd, inf);
 		if (!ret)
-			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (copy_to_user(up, inf, sizeof(*inf))) {
+				kfree(inf);
+				return -EFAULT;
+			}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -385,6 +389,47 @@ static int rk1608_set_ctrl(struct v4l2_ctrl *ctrl)
 				     ctrl->id);
 	if (remote_ctrl)
 		ret = v4l2_ctrl_s_ctrl(remote_ctrl, ctrl->val);
+
+	return ret;
+}
+
+static int rk1608_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
+{
+	struct rk1608_dphy *pdata = to_state(sd);
+	u32 idx = pdata->fmt_inf_idx;
+
+	if (sel->target != V4L2_SEL_TGT_CROP_BOUNDS)
+		return -EINVAL;
+
+	sel->r.left = 0;
+	sel->r.top = 0;
+	sel->r.width = pdata->fmt_inf[idx].mf.width;
+	sel->r.height = pdata->fmt_inf[idx].mf.height;
+
+	return 0;
+}
+
+static int rk1608_enum_frame_interval(struct v4l2_subdev *sd,
+	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct rk1608_dphy *pdata = to_state(sd);
+	u32 idx = pdata->fmt_inf_idx;
+	int ret = 0;
+	struct v4l2_fract max_fps = {
+		.numerator = 10000,
+		.denominator = 300000,
+	};
+
+	if (fie->index >= pdata->fmt_inf_num)
+		return -EINVAL;
+
+	fie->code = pdata->fmt_inf[idx].mf.code;
+	fie->width = pdata->fmt_inf[idx].mf.width;
+	fie->height = pdata->fmt_inf[idx].mf.height;
+	fie->interval = max_fps;
 
 	return ret;
 }
@@ -511,7 +556,6 @@ static const struct v4l2_subdev_video_ops rk1608_subdev_video_ops = {
 	.s_stream	= rk1608_s_stream,
 	.g_frame_interval = rk1608_g_frame_interval,
 	.s_frame_interval = rk1608_s_frame_interval,
-	.g_mbus_config = rk1608_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {
@@ -519,6 +563,9 @@ static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {
 	.enum_frame_size = rk1608_enum_frame_sizes,
 	.get_fmt	= rk1608_get_fmt,
 	.set_fmt	= rk1608_set_fmt,
+	.get_mbus_config = rk1608_g_mbus_config,
+	.get_selection = rk1608_get_selection,
+	.enum_frame_interval = rk1608_enum_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops rk1608_core_ops = {

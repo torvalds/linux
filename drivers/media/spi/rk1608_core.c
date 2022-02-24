@@ -580,16 +580,19 @@ static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 static int rk1608_msg_init_dsp_time(struct rk1608_state *pdata,
 				  struct msg_init_dsp_time *msg, int id)
 {
-	struct timeval tv;
+	u64 usecs64;
+	u32 mod;
 
 	msg->msg_head.size = sizeof(struct msg_init_dsp_time);
 	msg->msg_head.type = id_msg_sys_time_set_t;
 	msg->msg_head.id.camera_id = id;
 	msg->msg_head.mux.sync = 0;
 
-	do_gettimeofday(&tv);
-	msg->tv_sec = tv.tv_sec;
-	msg->tv_usec = tv.tv_usec;
+	usecs64 = ktime_to_us(ktime_get());
+
+	mod = do_div(usecs64, USEC_PER_MSEC);
+	msg->tv_usec = mod;
+	msg->tv_sec = usecs64;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
@@ -1030,6 +1033,9 @@ static int rk1608_power_on(struct rk1608_state *pdata)
 	struct spi_device *spi = pdata->spi;
 	int ret = 0;
 
+	if (pdata->pwren_gpio)
+		gpiod_direction_output(pdata->pwren_gpio, 1);
+
 	if (!IS_ERR(pdata->mclk)) {
 		ret = clk_set_rate(pdata->mclk, RK1608_MCLK_RATE);
 		if (ret < 0)
@@ -1093,6 +1099,9 @@ static int rk1608_power_off(struct rk1608_state *pdata)
 	if (pdata->reset_gpio)
 		gpiod_direction_output(pdata->reset_gpio, 0);
 	rk1608_cs_set_value(pdata, 0);
+
+	if (pdata->pwren_gpio)
+		gpiod_direction_output(pdata->pwren_gpio, 0);
 
 	if (!IS_ERR(pdata->mclk))
 		clk_disable_unprepare(pdata->mclk);
@@ -1880,7 +1889,6 @@ static int preisp_file_import_data(struct rk1608_state *pdata, struct msg *msg)
 	unsigned int file_size = 0;
 	unsigned int write_size = 0;
 	char *file_data = NULL;
-	struct kstat *stat;
 	struct msg_xfile *xfile;
 
 	char *ref_data_path = REF_DATA_PATH;
@@ -1899,30 +1907,21 @@ static int preisp_file_import_data(struct rk1608_state *pdata, struct msg *msg)
 		return -EFAULT;
 	}
 
-	stat = kmalloc(sizeof(*stat), GFP_KERNEL);
-	if (!stat) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	vfs_stat(file_path, stat);
-
-	file_size = stat->size;
-	file_size = (file_size+0x3)&(~0x3);
-
 	dev_info(pdata->dev, "start import %s to addr:0x%x size:%d\n",
-			file_path, xfile->addr, file_size);
+			file_path, xfile->addr, xfile->data_size);
 
-	file_data = vmalloc(file_size);
+	file_data = vmalloc(xfile->data_size);
 	if (!file_data) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	ret = kernel_read(fp, file_data, file_size, &pos);
-	if (ret <= 0)
+	file_size = kernel_read(fp, file_data, xfile->data_size, &pos);
+	if (file_size <= 0) {
 		dev_err(pdata->dev, "%s: read error: ret=%d\n",
 				__func__, ret);
+		goto err;
+	}
 
 	write_size = (file_size <= xfile->data_size)?file_size:xfile->data_size;
 	if (file_size != xfile->data_size)
@@ -1946,7 +1945,6 @@ static int preisp_file_import_data(struct rk1608_state *pdata, struct msg *msg)
 			xfile->path, xfile->addr, file_size);
 
 err:
-	kfree(stat);
 	if (file_data)
 		vfree(file_data);
 	if (fp)
@@ -2299,7 +2297,7 @@ static void rk1608_dispatch_received_msg(struct rk1608_state *pdata,
 #define PREISP_DCROP_CALIB_RATIO		192
 #define PREISP_DCROP_CALIB_XOFFSET	196
 #define PREISP_DCROP_CALIB_YOFFSET	198
-static int rk1608_get_dcrop_cfg(struct v4l2_rect *crop_in,
+int rk1608_get_dcrop_cfg(struct v4l2_rect *crop_in,
 			 struct v4l2_rect *crop_out)
 {
 	struct file *fp;
