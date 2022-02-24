@@ -27,6 +27,7 @@
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 #include "hashmap.h"
+#include "asm/bug.h"
 
 #include <internal/xyarray.h>
 
@@ -57,6 +58,7 @@ struct bpf_perf_object {
 
 static LIST_HEAD(bpf_objects_list);
 static struct hashmap *bpf_program_hash;
+static struct hashmap *bpf_map_hash;
 
 static struct bpf_perf_object *
 bpf_perf_object__next(struct bpf_perf_object *prev)
@@ -204,6 +206,8 @@ static void bpf_program_hash_free(void)
 	bpf_program_hash = NULL;
 }
 
+static void bpf_map_hash_free(void);
+
 void bpf__clear(void)
 {
 	struct bpf_perf_object *perf_obj, *tmp;
@@ -214,6 +218,7 @@ void bpf__clear(void)
 	}
 
 	bpf_program_hash_free();
+	bpf_map_hash_free();
 }
 
 static size_t ptr_hash(const void *__key, void *ctx __maybe_unused)
@@ -976,13 +981,60 @@ bpf_map_priv__purge(struct bpf_map_priv *priv)
 }
 
 static void
-bpf_map_priv__clear(struct bpf_map *map __maybe_unused,
+bpf_map_priv__clear(const struct bpf_map *map __maybe_unused,
 		    void *_priv)
 {
 	struct bpf_map_priv *priv = _priv;
 
 	bpf_map_priv__purge(priv);
 	free(priv);
+}
+
+static void *map_priv(const struct bpf_map *map)
+{
+	void *priv;
+
+	if (IS_ERR_OR_NULL(bpf_map_hash))
+		return NULL;
+	if (!hashmap__find(bpf_map_hash, map, &priv))
+		return NULL;
+	return priv;
+}
+
+static void bpf_map_hash_free(void)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	if (IS_ERR_OR_NULL(bpf_map_hash))
+		return;
+
+	hashmap__for_each_entry(bpf_map_hash, cur, bkt)
+		bpf_map_priv__clear(cur->key, cur->value);
+
+	hashmap__free(bpf_map_hash);
+	bpf_map_hash = NULL;
+}
+
+static int map_set_priv(struct bpf_map *map, void *priv)
+{
+	void *old_priv;
+
+	if (WARN_ON_ONCE(IS_ERR(bpf_map_hash)))
+		return PTR_ERR(bpf_program_hash);
+
+	if (!bpf_map_hash) {
+		bpf_map_hash = hashmap__new(ptr_hash, ptr_equal, NULL);
+		if (IS_ERR(bpf_map_hash))
+			return PTR_ERR(bpf_map_hash);
+	}
+
+	old_priv = map_priv(map);
+	if (old_priv) {
+		bpf_map_priv__clear(map, old_priv);
+		return hashmap__set(bpf_map_hash, map, priv, NULL, NULL);
+	}
+	return hashmap__add(bpf_map_hash, map, priv);
 }
 
 static int
@@ -1084,7 +1136,7 @@ static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
 	const char *map_name = bpf_map__name(map);
-	struct bpf_map_priv *priv = bpf_map__priv(map);
+	struct bpf_map_priv *priv = map_priv(map);
 
 	if (IS_ERR(priv)) {
 		pr_debug("Failed to get private from map %s\n", map_name);
@@ -1099,7 +1151,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 		}
 		INIT_LIST_HEAD(&priv->ops_list);
 
-		if (bpf_map__set_priv(map, priv, bpf_map_priv__clear)) {
+		if (map_set_priv(map, priv)) {
 			free(priv);
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
@@ -1440,7 +1492,7 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 	struct bpf_map_op *op;
 	const struct bpf_map_def *def;
 	const char *name = bpf_map__name(map);
-	struct bpf_map_priv *priv = bpf_map__priv(map);
+	struct bpf_map_priv *priv = map_priv(map);
 
 	if (IS_ERR(priv)) {
 		pr_debug("ERROR: failed to get private from map %s\n", name);
@@ -1660,7 +1712,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 	bool need_init = false;
 
 	bpf__perf_for_each_map_named(map, perf_obj, tmp, name) {
-		struct bpf_map_priv *priv = bpf_map__priv(map);
+		struct bpf_map_priv *priv = map_priv(map);
 
 		if (IS_ERR(priv))
 			return ERR_PTR(-BPF_LOADER_ERRNO__INTERNAL);
@@ -1696,7 +1748,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 	}
 
 	bpf__perf_for_each_map_named(map, perf_obj, tmp, name) {
-		struct bpf_map_priv *priv = bpf_map__priv(map);
+		struct bpf_map_priv *priv = map_priv(map);
 
 		if (IS_ERR(priv))
 			return ERR_PTR(-BPF_LOADER_ERRNO__INTERNAL);
@@ -1708,7 +1760,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 			if (!priv)
 				return ERR_PTR(-ENOMEM);
 
-			err = bpf_map__set_priv(map, priv, bpf_map_priv__clear);
+			err = map_set_priv(map, priv);
 			if (err) {
 				bpf_map_priv__clear(map, priv);
 				return ERR_PTR(err);
