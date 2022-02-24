@@ -18,14 +18,38 @@
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
 
-static inline void zpci_err_insn(u8 cc, u8 status, u64 req, u64 offset)
+struct zpci_err_insn_data {
+	u8 insn;
+	u8 cc;
+	u8 status;
+	union {
+		struct {
+			u64 req;
+			u64 offset;
+		};
+		struct {
+			u64 addr;
+			u64 len;
+		};
+	};
+} __packed;
+
+static inline void zpci_err_insn_req(u8 insn, u8 cc, u8 status,
+				     u64 req, u64 offset)
 {
-	struct {
-		u64 req;
-		u64 offset;
-		u8 cc;
-		u8 status;
-	} __packed data = {req, offset, cc, status};
+	struct zpci_err_insn_data data = {
+		.insn = insn, .cc = cc, .status = status,
+		.req = req, .offset = offset};
+
+	zpci_err_hex(&data, sizeof(data));
+}
+
+static inline void zpci_err_insn_addr(u8 insn, u8 cc, u8 status,
+				      u64 addr, u64 len)
+{
+	struct zpci_err_insn_data data = {
+		.insn = insn, .cc = cc, .status = status,
+		.addr = addr, .len = len};
 
 	zpci_err_hex(&data, sizeof(data));
 }
@@ -56,7 +80,7 @@ u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status)
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, *status, req, 0);
+		zpci_err_insn_req('M', cc, *status, req, 0);
 
 	return cc;
 }
@@ -89,7 +113,7 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, addr, range);
+		zpci_err_insn_addr('R', cc, status, addr, range);
 
 	if (cc == 1 && (status == 4 || status == 16))
 		return -ENOMEM;
@@ -154,7 +178,7 @@ int __zpci_load(u64 *data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, req, offset);
+		zpci_err_insn_req('l', cc, status, req, offset);
 
 	return (cc > 0) ? -EIO : cc;
 }
@@ -198,7 +222,7 @@ int zpci_load(u64 *data, const volatile void __iomem *addr, unsigned long len)
 
 	cc = __pcilg_mio(data, (__force u64) addr, len, &status);
 	if (cc)
-		zpci_err_insn(cc, status, 0, (__force u64) addr);
+		zpci_err_insn_addr('L', cc, status, (__force u64) addr, len);
 
 	return (cc > 0) ? -EIO : cc;
 }
@@ -235,7 +259,7 @@ int __zpci_store(u64 data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, req, offset);
+		zpci_err_insn_req('s', cc, status, req, offset);
 
 	return (cc > 0) ? -EIO : cc;
 }
@@ -278,7 +302,7 @@ int zpci_store(const volatile void __iomem *addr, u64 data, unsigned long len)
 
 	cc = __pcistg_mio(data, (__force u64) addr, len, &status);
 	if (cc)
-		zpci_err_insn(cc, status, 0, (__force u64) addr);
+		zpci_err_insn_addr('S', cc, status, (__force u64) addr, len);
 
 	return (cc > 0) ? -EIO : cc;
 }
@@ -314,7 +338,7 @@ int __zpci_store_block(const u64 *data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, req, offset);
+		zpci_err_insn_req('b', cc, status, req, offset);
 
 	return (cc > 0) ? -EIO : cc;
 }
@@ -358,7 +382,7 @@ int zpci_write_block(volatile void __iomem *dst,
 
 	cc = __pcistb_mio(src, (__force u64) dst, len, &status);
 	if (cc)
-		zpci_err_insn(cc, status, 0, (__force u64) dst);
+		zpci_err_insn_addr('B', cc, status, (__force u64) dst, len);
 
 	return (cc > 0) ? -EIO : cc;
 }
