@@ -2,8 +2,8 @@
  *
  * mcp251xfd - Microchip MCP251xFD Family CAN controller driver
  *
- * Copyright (c) 2019 Pengutronix,
- *                    Marc Kleine-Budde <kernel@pengutronix.de>
+ * Copyright (c) 2019, 2020, 2021 Pengutronix,
+ *               Marc Kleine-Budde <kernel@pengutronix.de>
  * Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
  */
 
@@ -383,8 +383,6 @@
 #endif
 
 #define MCP251XFD_NAPI_WEIGHT 32
-#define MCP251XFD_TX_FIFO 1
-#define MCP251XFD_RX_FIFO(x) (MCP251XFD_TX_FIFO + 1 + (x))
 
 /* SPI commands */
 #define MCP251XFD_SPI_INSTRUCTION_RESET 0x0000
@@ -411,6 +409,15 @@ static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
 #define MCP251XFD_ECC_CNT_MAX 2
 #define MCP251XFD_SANITIZE_SPI 1
 #define MCP251XFD_SANITIZE_CAN 1
+
+/* FIFO and Ring */
+#define MCP251XFD_FIFO_TEF_NUM 1U
+#define MCP251XFD_FIFO_RX_NUM_MAX 1U
+#define MCP251XFD_FIFO_TX_NUM 1U
+
+static_assert(MCP251XFD_FIFO_TEF_NUM == 1U);
+static_assert(MCP251XFD_FIFO_TEF_NUM == MCP251XFD_FIFO_TX_NUM);
+static_assert(MCP251XFD_FIFO_RX_NUM_MAX <= 4U);
 
 /* Silence TX MAB overflow warnings */
 #define MCP251XFD_QUIRK_MAB_NO_WARN BIT(0)
@@ -521,6 +528,8 @@ struct mcp251xfd_tx_ring {
 	unsigned int tail;
 
 	u16 base;
+	u8 nr;
+	u8 fifo_nr;
 	u8 obj_num;
 	u8 obj_size;
 
@@ -561,6 +570,7 @@ struct mcp251xfd_ecc {
 
 struct mcp251xfd_regs_status {
 	u32 intf;
+	u32 rxif;
 };
 
 enum mcp251xfd_model {
@@ -592,10 +602,12 @@ struct mcp251xfd_priv {
 
 	struct spi_device *spi;
 	u32 spi_max_speed_hz_orig;
+	u32 spi_max_speed_hz_fast;
+	u32 spi_max_speed_hz_slow;
 
-	struct mcp251xfd_tef_ring tef[1];
-	struct mcp251xfd_tx_ring tx[1];
-	struct mcp251xfd_rx_ring *rx[1];
+	struct mcp251xfd_tef_ring tef[MCP251XFD_FIFO_TEF_NUM];
+	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM_MAX];
+	struct mcp251xfd_tx_ring tx[MCP251XFD_FIFO_TX_NUM];
 
 	u8 rx_ring_num;
 
@@ -608,6 +620,7 @@ struct mcp251xfd_priv {
 
 	struct gpio_desc *rx_int;
 	struct clk *clk;
+	bool pll_enable;
 	struct regulator *reg_vdd;
 	struct regulator *reg_xceiver;
 
@@ -776,7 +789,7 @@ mcp251xfd_tx_tail_get_from_chip(const struct mcp251xfd_priv *priv,
 	int err;
 
 	err = regmap_read(priv->map_reg,
-			  MCP251XFD_REG_FIFOSTA(MCP251XFD_TX_FIFO),
+			  MCP251XFD_REG_FIFOSTA(priv->tx->fifo_nr),
 			  &fifo_sta);
 	if (err)
 		return err;
@@ -879,7 +892,7 @@ u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size);
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
 int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
-void mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
+int mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv);
 int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv);
 int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv);

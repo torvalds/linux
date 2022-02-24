@@ -2,8 +2,8 @@
 //
 // mcp251xfd - Microchip MCP251xFD Family CAN controller driver
 //
-// Copyright (c) 2019, 2020 Pengutronix,
-//                          Marc Kleine-Budde <kernel@pengutronix.de>
+// Copyright (c) 2019, 2020, 2021 Pengutronix,
+//               Marc Kleine-Budde <kernel@pengutronix.de>
 //
 
 #include "mcp251xfd.h"
@@ -47,22 +47,32 @@ mcp251xfd_regmap_nocrc_gather_write(void *context,
 	return spi_sync_transfer(spi, xfer, ARRAY_SIZE(xfer));
 }
 
-static inline bool mcp251xfd_update_bits_read_reg(unsigned int reg)
+static inline bool
+mcp251xfd_update_bits_read_reg(const struct mcp251xfd_priv *priv,
+			       unsigned int reg)
 {
+	struct mcp251xfd_rx_ring *ring;
+	int n;
+
 	switch (reg) {
 	case MCP251XFD_REG_INT:
 	case MCP251XFD_REG_TEFCON:
-	case MCP251XFD_REG_FIFOCON(MCP251XFD_RX_FIFO(0)):
 	case MCP251XFD_REG_FLTCON(0):
 	case MCP251XFD_REG_ECCSTAT:
 	case MCP251XFD_REG_CRC:
 		return false;
 	case MCP251XFD_REG_CON:
-	case MCP251XFD_REG_FIFOSTA(MCP251XFD_RX_FIFO(0)):
 	case MCP251XFD_REG_OSC:
 	case MCP251XFD_REG_ECCCON:
 		return true;
 	default:
+		mcp251xfd_for_each_rx_ring(priv, ring, n) {
+			if (reg == MCP251XFD_REG_FIFOCON(ring->fifo_nr))
+				return false;
+			if (reg == MCP251XFD_REG_FIFOSTA(ring->fifo_nr))
+				return true;
+		}
+
 		WARN(1, "Status of reg 0x%04x unknown.\n", reg);
 	}
 
@@ -92,7 +102,7 @@ mcp251xfd_regmap_nocrc_update_bits(void *context, unsigned int reg,
 	last_byte = mcp251xfd_last_byte_set(mask);
 	len = last_byte - first_byte + 1;
 
-	if (mcp251xfd_update_bits_read_reg(reg)) {
+	if (mcp251xfd_update_bits_read_reg(priv, reg)) {
 		struct spi_transfer xfer[2] = { };
 		struct spi_message msg;
 
@@ -368,7 +378,7 @@ mcp251xfd_regmap_crc_read(void *context,
 		 * to the caller. It will take care of both cases.
 		 *
 		 */
-		if (reg == MCP251XFD_REG_OSC) {
+		if (reg == MCP251XFD_REG_OSC && val_len == sizeof(__le32)) {
 			err = 0;
 			goto out;
 		}

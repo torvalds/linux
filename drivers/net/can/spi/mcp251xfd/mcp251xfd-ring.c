@@ -53,6 +53,49 @@ mcp251xfd_cmd_prepare_write_reg(const struct mcp251xfd_priv *priv,
 }
 
 static void
+mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv, u16 *base)
+{
+	struct mcp251xfd_tef_ring *tef_ring;
+	struct spi_transfer *xfer;
+	u32 val;
+	u16 addr;
+	u8 len;
+	int i;
+
+	/* TEF */
+	tef_ring = priv->tef;
+	tef_ring->head = 0;
+	tef_ring->tail = 0;
+
+	/* TEF- and TX-FIFO have same number of objects */
+	*base = mcp251xfd_get_tef_obj_addr(priv->tx->obj_num);
+
+	/* FIFO increment TEF tail pointer */
+	addr = MCP251XFD_REG_TEFCON;
+	val = MCP251XFD_REG_TEFCON_UINC;
+	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->uinc_buf,
+					      addr, val, val);
+
+	for (i = 0; i < ARRAY_SIZE(tef_ring->uinc_xfer); i++) {
+		xfer = &tef_ring->uinc_xfer[i];
+		xfer->tx_buf = &tef_ring->uinc_buf;
+		xfer->len = len;
+		xfer->cs_change = 1;
+		xfer->cs_change_delay.value = 0;
+		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	}
+
+	/* "cs_change == 1" on the last transfer results in an active
+	 * chip select after the complete SPI message. This causes the
+	 * controller to interpret the next register access as
+	 * data. Set "cs_change" of the last transfer to "0" to
+	 * properly deactivate the chip select at the end of the
+	 * message.
+	 */
+	xfer->cs_change = 0;
+}
+
+static void
 mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 			      const struct mcp251xfd_tx_ring *ring,
 			      struct mcp251xfd_tx_obj *tx_obj,
@@ -88,81 +131,55 @@ mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 					ARRAY_SIZE(tx_obj->xfer));
 }
 
-void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
+static void
+mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 {
-	struct mcp251xfd_tef_ring *tef_ring;
 	struct mcp251xfd_tx_ring *tx_ring;
-	struct mcp251xfd_rx_ring *rx_ring, *prev_rx_ring = NULL;
 	struct mcp251xfd_tx_obj *tx_obj;
-	struct spi_transfer *xfer;
 	u32 val;
 	u16 addr;
 	u8 len;
-	int i, j;
+	int i;
 
-	netdev_reset_queue(priv->ndev);
-
-	/* TEF */
-	tef_ring = priv->tef;
-	tef_ring->head = 0;
-	tef_ring->tail = 0;
-
-	/* FIFO increment TEF tail pointer */
-	addr = MCP251XFD_REG_TEFCON;
-	val = MCP251XFD_REG_TEFCON_UINC;
-	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->uinc_buf,
-					      addr, val, val);
-
-	for (j = 0; j < ARRAY_SIZE(tef_ring->uinc_xfer); j++) {
-		xfer = &tef_ring->uinc_xfer[j];
-		xfer->tx_buf = &tef_ring->uinc_buf;
-		xfer->len = len;
-		xfer->cs_change = 1;
-		xfer->cs_change_delay.value = 0;
-		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
-	}
-
-	/* "cs_change == 1" on the last transfer results in an active
-	 * chip select after the complete SPI message. This causes the
-	 * controller to interpret the next register access as
-	 * data. Set "cs_change" of the last transfer to "0" to
-	 * properly deactivate the chip select at the end of the
-	 * message.
-	 */
-	xfer->cs_change = 0;
-
-	/* TX */
 	tx_ring = priv->tx;
 	tx_ring->head = 0;
 	tx_ring->tail = 0;
-	tx_ring->base = mcp251xfd_get_tef_obj_addr(tx_ring->obj_num);
+	tx_ring->base = *base;
+	tx_ring->nr = 0;
+	tx_ring->fifo_nr = *fifo_nr;
+
+	*base = mcp251xfd_get_tx_obj_addr(tx_ring, tx_ring->obj_num);
+	*fifo_nr += 1;
 
 	/* FIFO request to send */
-	addr = MCP251XFD_REG_FIFOCON(MCP251XFD_TX_FIFO);
+	addr = MCP251XFD_REG_FIFOCON(tx_ring->fifo_nr);
 	val = MCP251XFD_REG_FIFOCON_TXREQ | MCP251XFD_REG_FIFOCON_UINC;
 	len = mcp251xfd_cmd_prepare_write_reg(priv, &tx_ring->rts_buf,
 					      addr, val, val);
 
 	mcp251xfd_for_each_tx_obj(tx_ring, tx_obj, i)
 		mcp251xfd_tx_ring_init_tx_obj(priv, tx_ring, tx_obj, len, i);
+}
 
-	/* RX */
+static void
+mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
+{
+	struct mcp251xfd_rx_ring *rx_ring;
+	struct spi_transfer *xfer;
+	u32 val;
+	u16 addr;
+	u8 len;
+	int i, j;
+
 	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
 		rx_ring->head = 0;
 		rx_ring->tail = 0;
+		rx_ring->base = *base;
 		rx_ring->nr = i;
-		rx_ring->fifo_nr = MCP251XFD_RX_FIFO(i);
+		rx_ring->fifo_nr = *fifo_nr;
 
-		if (!prev_rx_ring)
-			rx_ring->base =
-				mcp251xfd_get_tx_obj_addr(tx_ring,
-							  tx_ring->obj_num);
-		else
-			rx_ring->base = prev_rx_ring->base +
-				prev_rx_ring->obj_size *
-				prev_rx_ring->obj_num;
-
-		prev_rx_ring = rx_ring;
+		*base = mcp251xfd_get_rx_obj_addr(rx_ring, rx_ring->obj_num);
+		*fifo_nr += 1;
 
 		/* FIFO increment RX tail pointer */
 		addr = MCP251XFD_REG_FIFOCON(rx_ring->fifo_nr);
@@ -188,6 +205,74 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 		 */
 		xfer->cs_change = 0;
 	}
+}
+
+int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
+{
+	const struct mcp251xfd_rx_ring *rx_ring;
+	u16 base = 0, ram_used;
+	u8 fifo_nr = 1;
+	int i;
+
+	netdev_reset_queue(priv->ndev);
+
+	mcp251xfd_ring_init_tef(priv, &base);
+	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
+	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
+
+	/* mcp251xfd_handle_rxif() will iterate over all RX rings.
+	 * Rings with their corresponding bit set in
+	 * priv->regs_status.rxif are read out.
+	 *
+	 * If the chip is configured for only 1 RX-FIFO, and if there
+	 * is an RX interrupt pending (RXIF in INT register is set),
+	 * it must be the 1st RX-FIFO.
+	 *
+	 * We mark the RXIF of the 1st FIFO as pending here, so that
+	 * we can skip the read of the RXIF register in
+	 * mcp251xfd_read_regs_status() for the 1 RX-FIFO only case.
+	 *
+	 * If we use more than 1 RX-FIFO, this value gets overwritten
+	 * in mcp251xfd_read_regs_status(), so set it unconditionally
+	 * here.
+	 */
+	priv->regs_status.rxif = BIT(priv->rx[0]->fifo_nr);
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes\n",
+		   mcp251xfd_get_tef_obj_addr(0),
+		   priv->tx->obj_num, sizeof(struct mcp251xfd_hw_tef_obj),
+		   priv->tx->obj_num * sizeof(struct mcp251xfd_hw_tef_obj));
+
+	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
+		netdev_dbg(priv->ndev,
+			   "FIFO setup: RX-%u: FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
+			   rx_ring->nr, rx_ring->fifo_nr,
+			   mcp251xfd_get_rx_obj_addr(rx_ring, 0),
+			   rx_ring->obj_num, rx_ring->obj_size,
+			   rx_ring->obj_num * rx_ring->obj_size);
+	}
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: TX:   FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
+		   priv->tx->fifo_nr,
+		   mcp251xfd_get_tx_obj_addr(priv->tx, 0),
+		   priv->tx->obj_num, priv->tx->obj_size,
+		   priv->tx->obj_num * priv->tx->obj_size);
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: free:                             %4u bytes\n",
+		   MCP251XFD_RAM_SIZE - (base - MCP251XFD_RAM_START));
+
+	ram_used = base - MCP251XFD_RAM_START;
+	if (ram_used > MCP251XFD_RAM_SIZE) {
+		netdev_err(priv->ndev,
+			   "Error during ring configuration, using more RAM (%u bytes) than available (%u bytes).\n",
+			   ram_used, MCP251XFD_RAM_SIZE);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
@@ -248,22 +333,6 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		ram_free -= rx_ring->obj_num * rx_ring->obj_size;
 	}
 	priv->rx_ring_num = i;
-
-	netdev_dbg(priv->ndev,
-		   "FIFO setup: TEF: %d*%d bytes = %d bytes, TX: %d*%d bytes = %d bytes\n",
-		   tx_obj_num, tef_obj_size, tef_obj_size * tx_obj_num,
-		   tx_obj_num, tx_obj_size, tx_obj_size * tx_obj_num);
-
-	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
-		netdev_dbg(priv->ndev,
-			   "FIFO setup: RX-%d: %d*%d bytes = %d bytes\n",
-			   i, rx_ring->obj_num, rx_ring->obj_size,
-			   rx_ring->obj_size * rx_ring->obj_num);
-	}
-
-	netdev_dbg(priv->ndev,
-		   "FIFO setup: free: %d bytes\n",
-		   ram_free);
 
 	return 0;
 }

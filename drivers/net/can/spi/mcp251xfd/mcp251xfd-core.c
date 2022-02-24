@@ -112,6 +112,22 @@ static const char *mcp251xfd_get_mode_str(const u8 mode)
 	return "<unknown>";
 }
 
+static const char *
+mcp251xfd_get_osc_str(const u32 osc, const u32 osc_reference)
+{
+	switch (~osc & osc_reference &
+		(MCP251XFD_REG_OSC_OSCRDY | MCP251XFD_REG_OSC_PLLRDY)) {
+	case MCP251XFD_REG_OSC_PLLRDY:
+		return "PLL";
+	case MCP251XFD_REG_OSC_OSCRDY:
+		return "Oscillator";
+	case MCP251XFD_REG_OSC_PLLRDY | MCP251XFD_REG_OSC_OSCRDY:
+		return "Oscillator/PLL";
+	}
+
+	return "<unknown>";
+}
+
 static inline int mcp251xfd_vdd_enable(const struct mcp251xfd_priv *priv)
 {
 	if (!priv->reg_vdd)
@@ -178,6 +194,11 @@ static int mcp251xfd_clks_and_vdd_disable(const struct mcp251xfd_priv *priv)
 	return 0;
 }
 
+static inline bool mcp251xfd_reg_invalid(u32 reg)
+{
+	return reg == 0x0 || reg == 0xffffffff;
+}
+
 static inline int
 mcp251xfd_chip_get_mode(const struct mcp251xfd_priv *priv, u8 *mode)
 {
@@ -197,34 +218,55 @@ static int
 __mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
 			  const u8 mode_req, bool nowait)
 {
-	u32 con, con_reqop;
+	u32 con = 0, con_reqop, osc = 0;
+	u8 mode;
 	int err;
 
 	con_reqop = FIELD_PREP(MCP251XFD_REG_CON_REQOP_MASK, mode_req);
 	err = regmap_update_bits(priv->map_reg, MCP251XFD_REG_CON,
 				 MCP251XFD_REG_CON_REQOP_MASK, con_reqop);
-	if (err)
+	if (err == -EBADMSG) {
+		netdev_err(priv->ndev,
+			   "Failed to set Requested Operation Mode.\n");
+
+		return -ENODEV;
+	} else if (err) {
 		return err;
+	}
 
 	if (mode_req == MCP251XFD_REG_CON_MODE_SLEEP || nowait)
 		return 0;
 
 	err = regmap_read_poll_timeout(priv->map_reg, MCP251XFD_REG_CON, con,
+				       !mcp251xfd_reg_invalid(con) &&
 				       FIELD_GET(MCP251XFD_REG_CON_OPMOD_MASK,
 						 con) == mode_req,
 				       MCP251XFD_POLL_SLEEP_US,
 				       MCP251XFD_POLL_TIMEOUT_US);
-	if (err) {
-		u8 mode = FIELD_GET(MCP251XFD_REG_CON_OPMOD_MASK, con);
-
-		netdev_err(priv->ndev,
-			   "Controller failed to enter mode %s Mode (%u) and stays in %s Mode (%u).\n",
-			   mcp251xfd_get_mode_str(mode_req), mode_req,
-			   mcp251xfd_get_mode_str(mode), mode);
+	if (err != -ETIMEDOUT && err != -EBADMSG)
 		return err;
+
+	/* Ignore return value.
+	 * Print below error messages, even if this fails.
+	 */
+	regmap_read(priv->map_reg, MCP251XFD_REG_OSC, &osc);
+
+	if (mcp251xfd_reg_invalid(con)) {
+		netdev_err(priv->ndev,
+			   "Failed to read CAN Control Register (con=0x%08x, osc=0x%08x).\n",
+			   con, osc);
+
+		return -ENODEV;
 	}
 
-	return 0;
+	mode = FIELD_GET(MCP251XFD_REG_CON_OPMOD_MASK, con);
+	netdev_err(priv->ndev,
+		   "Controller failed to enter mode %s Mode (%u) and stays in %s Mode (%u) (con=0x%08x, osc=0x%08x).\n",
+		   mcp251xfd_get_mode_str(mode_req), mode_req,
+		   mcp251xfd_get_mode_str(mode), mode,
+		   con, osc);
+
+	return -ETIMEDOUT;
 }
 
 static inline int
@@ -241,27 +283,58 @@ mcp251xfd_chip_set_mode_nowait(const struct mcp251xfd_priv *priv,
 	return __mcp251xfd_chip_set_mode(priv, mode_req, true);
 }
 
-static inline bool mcp251xfd_osc_invalid(u32 reg)
+static int
+mcp251xfd_chip_wait_for_osc_ready(const struct mcp251xfd_priv *priv,
+				  u32 osc_reference, u32 osc_mask)
 {
-	return reg == 0x0 || reg == 0xffffffff;
+	u32 osc;
+	int err;
+
+	err = regmap_read_poll_timeout(priv->map_reg, MCP251XFD_REG_OSC, osc,
+				       !mcp251xfd_reg_invalid(osc) &&
+				       (osc & osc_mask) == osc_reference,
+				       MCP251XFD_OSC_STAB_SLEEP_US,
+				       MCP251XFD_OSC_STAB_TIMEOUT_US);
+	if (err != -ETIMEDOUT)
+		return err;
+
+	if (mcp251xfd_reg_invalid(osc)) {
+		netdev_err(priv->ndev,
+			   "Failed to read Oscillator Configuration Register (osc=0x%08x).\n",
+			   osc);
+		return -ENODEV;
+	}
+
+	netdev_err(priv->ndev,
+		   "Timeout waiting for %s ready (osc=0x%08x, osc_reference=0x%08x, osc_mask=0x%08x).\n",
+		   mcp251xfd_get_osc_str(osc, osc_reference),
+		   osc, osc_reference, osc_mask);
+
+	return -ETIMEDOUT;
 }
 
-static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
+static int mcp251xfd_chip_wake(const struct mcp251xfd_priv *priv)
 {
 	u32 osc, osc_reference, osc_mask;
 	int err;
 
-	/* Set Power On Defaults for "Clock Output Divisor" and remove
-	 * "Oscillator Disable" bit.
+	/* For normal sleep on MCP2517FD and MCP2518FD, clearing
+	 * "Oscillator Disable" will wake the chip. For low power mode
+	 * on MCP2518FD, asserting the chip select will wake the
+	 * chip. Writing to the Oscillator register will wake it in
+	 * both cases.
 	 */
 	osc = FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
 			 MCP251XFD_REG_OSC_CLKODIV_10);
-	osc_reference = MCP251XFD_REG_OSC_OSCRDY;
-	osc_mask = MCP251XFD_REG_OSC_OSCRDY | MCP251XFD_REG_OSC_PLLRDY;
 
-	/* Note:
-	 *
-	 * If the controller is in Sleep Mode the following write only
+	/* We cannot check for the PLL ready bit (either set or
+	 * unset), as the PLL might be enabled. This can happen if the
+	 * system reboots, while the mcp251xfd stays powered.
+	 */
+	osc_reference = MCP251XFD_REG_OSC_OSCRDY;
+	osc_mask = MCP251XFD_REG_OSC_OSCRDY;
+
+	/* If the controller is in Sleep Mode the following write only
 	 * removes the "Oscillator Disable" bit and powers it up. All
 	 * other bits are unaffected.
 	 */
@@ -269,24 +342,31 @@ static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	/* Wait for "Oscillator Ready" bit */
-	err = regmap_read_poll_timeout(priv->map_reg, MCP251XFD_REG_OSC, osc,
-				       (osc & osc_mask) == osc_reference,
-				       MCP251XFD_OSC_STAB_SLEEP_US,
-				       MCP251XFD_OSC_STAB_TIMEOUT_US);
-	if (mcp251xfd_osc_invalid(osc)) {
-		netdev_err(priv->ndev,
-			   "Failed to detect %s (osc=0x%08x).\n",
-			   mcp251xfd_get_model_str(priv), osc);
-		return -ENODEV;
-	} else if (err == -ETIMEDOUT) {
-		netdev_err(priv->ndev,
-			   "Timeout waiting for Oscillator Ready (osc=0x%08x, osc_reference=0x%08x)\n",
-			   osc, osc_reference);
-		return -ETIMEDOUT;
+	/* Sometimes the PLL is stuck enabled, the controller never
+	 * sets the OSC Ready bit, and we get an -ETIMEDOUT. Our
+	 * caller takes care of retry.
+	 */
+	return mcp251xfd_chip_wait_for_osc_ready(priv, osc_reference, osc_mask);
+}
+
+static inline int mcp251xfd_chip_sleep(const struct mcp251xfd_priv *priv)
+{
+	if (priv->pll_enable) {
+		u32 osc;
+		int err;
+
+		/* Turn off PLL */
+		osc = FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
+				 MCP251XFD_REG_OSC_CLKODIV_10);
+		err = regmap_write(priv->map_reg, MCP251XFD_REG_OSC, osc);
+		if (err)
+			netdev_err(priv->ndev,
+				   "Failed to disable PLL.\n");
+
+		priv->spi->max_speed_hz = priv->spi_max_speed_hz_slow;
 	}
 
-	return err;
+	return mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
 }
 
 static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
@@ -294,10 +374,10 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 	const __be16 cmd = mcp251xfd_cmd_reset();
 	int err;
 
-	/* The Set Mode and SPI Reset command only seems to works if
-	 * the controller is not in Sleep Mode.
+	/* The Set Mode and SPI Reset command only works if the
+	 * controller is not in Sleep Mode.
 	 */
-	err = mcp251xfd_chip_clock_enable(priv);
+	err = mcp251xfd_chip_wake(priv);
 	if (err)
 		return err;
 
@@ -311,9 +391,20 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 
 static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 {
-	u32 osc, osc_reference;
+	u32 osc_reference, osc_mask;
 	u8 mode;
 	int err;
+
+	/* Check for reset defaults of OSC reg.
+	 * This will take care of stabilization period.
+	 */
+	osc_reference = MCP251XFD_REG_OSC_OSCRDY |
+		FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
+			   MCP251XFD_REG_OSC_CLKODIV_10);
+	osc_mask = osc_reference | MCP251XFD_REG_OSC_PLLRDY;
+	err = mcp251xfd_chip_wait_for_osc_ready(priv, osc_reference, osc_mask);
+	if (err)
+		return err;
 
 	err = mcp251xfd_chip_get_mode(priv, &mode);
 	if (err)
@@ -323,22 +414,6 @@ static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 		netdev_info(priv->ndev,
 			    "Controller not in Config Mode after reset, but in %s Mode (%u).\n",
 			    mcp251xfd_get_mode_str(mode), mode);
-		return -ETIMEDOUT;
-	}
-
-	osc_reference = MCP251XFD_REG_OSC_OSCRDY |
-		FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
-			   MCP251XFD_REG_OSC_CLKODIV_10);
-
-	/* check reset defaults of OSC reg */
-	err = regmap_read(priv->map_reg, MCP251XFD_REG_OSC, &osc);
-	if (err)
-		return err;
-
-	if (osc != osc_reference) {
-		netdev_info(priv->ndev,
-			    "Controller failed to reset. osc=0x%08x, reference value=0x%08x.\n",
-			    osc, osc_reference);
 		return -ETIMEDOUT;
 	}
 
@@ -374,7 +449,7 @@ static int mcp251xfd_chip_softreset(const struct mcp251xfd_priv *priv)
 
 static int mcp251xfd_chip_clock_init(const struct mcp251xfd_priv *priv)
 {
-	u32 osc;
+	u32 osc, osc_reference, osc_mask;
 	int err;
 
 	/* Activate Low Power Mode on Oscillator Disable. This only
@@ -384,10 +459,29 @@ static int mcp251xfd_chip_clock_init(const struct mcp251xfd_priv *priv)
 	osc = MCP251XFD_REG_OSC_LPMEN |
 		FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
 			   MCP251XFD_REG_OSC_CLKODIV_10);
+	osc_reference = MCP251XFD_REG_OSC_OSCRDY;
+	osc_mask = MCP251XFD_REG_OSC_OSCRDY | MCP251XFD_REG_OSC_PLLRDY;
+
+	if (priv->pll_enable) {
+		osc |= MCP251XFD_REG_OSC_PLLEN;
+		osc_reference |= MCP251XFD_REG_OSC_PLLRDY;
+	}
+
 	err = regmap_write(priv->map_reg, MCP251XFD_REG_OSC, osc);
 	if (err)
 		return err;
 
+	err = mcp251xfd_chip_wait_for_osc_ready(priv, osc_reference, osc_mask);
+	if (err)
+		return err;
+
+	priv->spi->max_speed_hz = priv->spi_max_speed_hz_fast;
+
+	return 0;
+}
+
+static int mcp251xfd_chip_timestamp_init(const struct mcp251xfd_priv *priv)
+{
 	/* Set Time Base Counter Prescaler to 1.
 	 *
 	 * This means an overflow of the 32 bit Time Base Counter
@@ -628,14 +722,14 @@ static int mcp251xfd_chip_interrupts_disable(const struct mcp251xfd_priv *priv)
 	return regmap_write(priv->map_reg, MCP251XFD_REG_CRC, 0);
 }
 
-static int mcp251xfd_chip_stop(struct mcp251xfd_priv *priv,
-			       const enum can_state state)
+static void mcp251xfd_chip_stop(struct mcp251xfd_priv *priv,
+				const enum can_state state)
 {
 	priv->can.state = state;
 
 	mcp251xfd_chip_interrupts_disable(priv);
 	mcp251xfd_chip_rx_int_disable(priv);
-	return mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+	mcp251xfd_chip_sleep(priv);
 }
 
 static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
@@ -647,6 +741,10 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 		goto out_chip_stop;
 
 	err = mcp251xfd_chip_clock_init(priv);
+	if (err)
+		goto out_chip_stop;
+
+	err = mcp251xfd_chip_timestamp_init(priv);
 	if (err)
 		goto out_chip_stop;
 
@@ -662,7 +760,9 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 	if (err)
 		goto out_chip_stop;
 
-	mcp251xfd_ring_init(priv);
+	err = mcp251xfd_ring_init(priv);
+	if (err)
+		goto out_chip_stop;
 
 	err = mcp251xfd_chip_fifo_init(priv);
 	if (err)
@@ -1284,6 +1384,20 @@ static int mcp251xfd_handle_spicrcif(struct mcp251xfd_priv *priv)
 	return 0;
 }
 
+static int mcp251xfd_read_regs_status(struct mcp251xfd_priv *priv)
+{
+	const int val_bytes = regmap_get_val_bytes(priv->map_reg);
+	size_t len;
+
+	if (priv->rx_ring_num == 1)
+		len = sizeof(priv->regs_status.intf);
+	else
+		len = sizeof(priv->regs_status);
+
+	return regmap_bulk_read(priv->map_reg, MCP251XFD_REG_INT,
+				&priv->regs_status, len / val_bytes);
+}
+
 #define mcp251xfd_handle(priv, irq, ...) \
 ({ \
 	struct mcp251xfd_priv *_priv = (priv); \
@@ -1300,7 +1414,6 @@ static int mcp251xfd_handle_spicrcif(struct mcp251xfd_priv *priv)
 static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 {
 	struct mcp251xfd_priv *priv = dev_id;
-	const int val_bytes = regmap_get_val_bytes(priv->map_reg);
 	irqreturn_t handled = IRQ_NONE;
 	int err;
 
@@ -1312,21 +1425,28 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 			if (!rx_pending)
 				break;
 
+			/* Assume 1st RX-FIFO pending, if other FIFOs
+			 * are pending the main IRQ handler will take
+			 * care.
+			 */
+			priv->regs_status.rxif = BIT(priv->rx[0]->fifo_nr);
 			err = mcp251xfd_handle(priv, rxif);
 			if (err)
 				goto out_fail;
 
 			handled = IRQ_HANDLED;
-		} while (1);
+
+			/* We don't know which RX-FIFO is pending, but only
+			 * handle the 1st RX-FIFO. Leave loop here if we have
+			 * more than 1 RX-FIFO to avoid starvation.
+			 */
+		} while (priv->rx_ring_num == 1);
 
 	do {
 		u32 intf_pending, intf_pending_clearable;
 		bool set_normal_mode = false;
 
-		err = regmap_bulk_read(priv->map_reg, MCP251XFD_REG_INT,
-				       &priv->regs_status,
-				       sizeof(priv->regs_status) /
-				       val_bytes);
+		err = mcp251xfd_read_regs_status(priv);
 		if (err)
 			goto out_fail;
 
@@ -1621,8 +1741,9 @@ static int mcp251xfd_register_check_rx_int(struct mcp251xfd_priv *priv)
 }
 
 static int
-mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv,
-			      u32 *dev_id, u32 *effective_speed_hz)
+mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
+			      u32 *effective_speed_hz_slow,
+			      u32 *effective_speed_hz_fast)
 {
 	struct mcp251xfd_map_buf_nocrc *buf_rx;
 	struct mcp251xfd_map_buf_nocrc *buf_tx;
@@ -1641,16 +1762,20 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv,
 
 	xfer[0].tx_buf = buf_tx;
 	xfer[0].len = sizeof(buf_tx->cmd);
+	xfer[0].speed_hz = priv->spi_max_speed_hz_slow;
 	xfer[1].rx_buf = buf_rx->data;
 	xfer[1].len = sizeof(dev_id);
+	xfer[1].speed_hz = priv->spi_max_speed_hz_fast;
 
 	mcp251xfd_spi_cmd_read_nocrc(&buf_tx->cmd, MCP251XFD_REG_DEVID);
+
 	err = spi_sync_transfer(priv->spi, xfer, ARRAY_SIZE(xfer));
 	if (err)
 		goto out_kfree_buf_tx;
 
 	*dev_id = be32_to_cpup((__be32 *)buf_rx->data);
-	*effective_speed_hz = xfer->effective_speed_hz;
+	*effective_speed_hz_slow = xfer[0].effective_speed_hz;
+	*effective_speed_hz_fast = xfer[1].effective_speed_hz;
 
  out_kfree_buf_tx:
 	kfree(buf_tx);
@@ -1666,34 +1791,45 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv,
 static int
 mcp251xfd_register_done(const struct mcp251xfd_priv *priv)
 {
-	u32 dev_id, effective_speed_hz;
+	u32 dev_id, effective_speed_hz_slow, effective_speed_hz_fast;
+	unsigned long clk_rate;
 	int err;
 
 	err = mcp251xfd_register_get_dev_id(priv, &dev_id,
-					    &effective_speed_hz);
+					    &effective_speed_hz_slow,
+					    &effective_speed_hz_fast);
 	if (err)
 		return err;
 
+	clk_rate = clk_get_rate(priv->clk);
+
 	netdev_info(priv->ndev,
-		    "%s rev%lu.%lu (%cRX_INT %cMAB_NO_WARN %cCRC_REG %cCRC_RX %cCRC_TX %cECC %cHD c:%u.%02uMHz m:%u.%02uMHz r:%u.%02uMHz e:%u.%02uMHz) successfully initialized.\n",
+		    "%s rev%lu.%lu (%cRX_INT %cPLL %cMAB_NO_WARN %cCRC_REG %cCRC_RX %cCRC_TX %cECC %cHD o:%lu.%02luMHz c:%u.%02uMHz m:%u.%02uMHz rs:%u.%02uMHz es:%u.%02uMHz rf:%u.%02uMHz ef:%u.%02uMHz) successfully initialized.\n",
 		    mcp251xfd_get_model_str(priv),
 		    FIELD_GET(MCP251XFD_REG_DEVID_ID_MASK, dev_id),
 		    FIELD_GET(MCP251XFD_REG_DEVID_REV_MASK, dev_id),
 		    priv->rx_int ? '+' : '-',
+		    priv->pll_enable ? '+' : '-',
 		    MCP251XFD_QUIRK_ACTIVE(MAB_NO_WARN),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_REG),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_RX),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_TX),
 		    MCP251XFD_QUIRK_ACTIVE(ECC),
 		    MCP251XFD_QUIRK_ACTIVE(HALF_DUPLEX),
+		    clk_rate / 1000000,
+		    clk_rate % 1000000 / 1000 / 10,
 		    priv->can.clock.freq / 1000000,
 		    priv->can.clock.freq % 1000000 / 1000 / 10,
 		    priv->spi_max_speed_hz_orig / 1000000,
 		    priv->spi_max_speed_hz_orig % 1000000 / 1000 / 10,
-		    priv->spi->max_speed_hz / 1000000,
-		    priv->spi->max_speed_hz % 1000000 / 1000 / 10,
-		    effective_speed_hz / 1000000,
-		    effective_speed_hz % 1000000 / 1000 / 10);
+		    priv->spi_max_speed_hz_slow / 1000000,
+		    priv->spi_max_speed_hz_slow % 1000000 / 1000 / 10,
+		    effective_speed_hz_slow / 1000000,
+		    effective_speed_hz_slow % 1000000 / 1000 / 10,
+		    priv->spi_max_speed_hz_fast / 1000000,
+		    priv->spi_max_speed_hz_fast % 1000000 / 1000 / 10,
+		    effective_speed_hz_fast / 1000000,
+		    effective_speed_hz_fast % 1000000 / 1000 / 10);
 
 	return 0;
 }
@@ -1719,19 +1855,25 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	if (err == -ENODEV)
 		goto out_runtime_disable;
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
+
+	err = mcp251xfd_chip_clock_init(priv);
+	if (err == -ENODEV)
+		goto out_runtime_disable;
+	if (err)
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_chip_detect(priv);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_check_rx_int(priv);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = register_candev(ndev);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_done(priv);
 	if (err)
@@ -1741,7 +1883,7 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	 * disable the clocks and vdd. If CONFIG_PM is not enabled,
 	 * the clocks and vdd will stay powered.
 	 */
-	err = mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+	err = mcp251xfd_chip_sleep(priv);
 	if (err)
 		goto out_unregister_candev;
 
@@ -1751,8 +1893,8 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 
  out_unregister_candev:
 	unregister_candev(ndev);
- out_chip_set_mode_sleep:
-	mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+ out_chip_sleep:
+	mcp251xfd_chip_sleep(priv);
  out_runtime_disable:
 	pm_runtime_disable(ndev->dev.parent);
  out_runtime_put_noidle:
@@ -1768,10 +1910,10 @@ static inline void mcp251xfd_unregister(struct mcp251xfd_priv *priv)
 
 	unregister_candev(ndev);
 
-	pm_runtime_get_sync(ndev->dev.parent);
-	pm_runtime_put_noidle(ndev->dev.parent);
-	mcp251xfd_clks_and_vdd_disable(priv);
-	pm_runtime_disable(ndev->dev.parent);
+	if (pm_runtime_enabled(ndev->dev.parent))
+		pm_runtime_disable(ndev->dev.parent);
+	else
+		mcp251xfd_clks_and_vdd_disable(priv);
 }
 
 static const struct of_device_id mcp251xfd_of_match[] = {
@@ -1814,6 +1956,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	struct gpio_desc *rx_int;
 	struct regulator *reg_vdd, *reg_xceiver;
 	struct clk *clk;
+	bool pll_enable = false;
 	u32 freq = 0;
 	int err;
 
@@ -1864,12 +2007,8 @@ static int mcp251xfd_probe(struct spi_device *spi)
 		return -ERANGE;
 	}
 
-	if (freq <= MCP251XFD_SYSCLOCK_HZ_MAX / MCP251XFD_OSC_PLL_MULTIPLIER) {
-		dev_err(&spi->dev,
-			"Oscillator frequency (%u Hz) is too low and PLL is not supported.\n",
-			freq);
-		return -ERANGE;
-	}
+	if (freq <= MCP251XFD_SYSCLOCK_HZ_MAX / MCP251XFD_OSC_PLL_MULTIPLIER)
+		pll_enable = true;
 
 	ndev = alloc_candev(sizeof(struct mcp251xfd_priv),
 			    MCP251XFD_TX_OBJ_NUM_MAX);
@@ -1885,6 +2024,8 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	priv = netdev_priv(ndev);
 	spi_set_drvdata(spi, priv);
 	priv->can.clock.freq = freq;
+	if (pll_enable)
+		priv->can.clock.freq *= MCP251XFD_OSC_PLL_MULTIPLIER;
 	priv->can.do_set_mode = mcp251xfd_set_mode;
 	priv->can.do_get_berr_counter = mcp251xfd_get_berr_counter;
 	priv->can.bittiming_const = &mcp251xfd_bittiming_const;
@@ -1897,6 +2038,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	priv->spi = spi;
 	priv->rx_int = rx_int;
 	priv->clk = clk;
+	priv->pll_enable = pll_enable;
 	priv->reg_vdd = reg_vdd;
 	priv->reg_xceiver = reg_xceiver;
 
@@ -1934,7 +2076,16 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	 *
 	 */
 	priv->spi_max_speed_hz_orig = spi->max_speed_hz;
-	spi->max_speed_hz = min(spi->max_speed_hz, freq / 2 / 1000 * 850);
+	priv->spi_max_speed_hz_slow = min(spi->max_speed_hz,
+					  freq / 2 / 1000 * 850);
+	if (priv->pll_enable)
+		priv->spi_max_speed_hz_fast = min(spi->max_speed_hz,
+						  freq *
+						  MCP251XFD_OSC_PLL_MULTIPLIER /
+						  2 / 1000 * 850);
+	else
+		priv->spi_max_speed_hz_fast = priv->spi_max_speed_hz_slow;
+	spi->max_speed_hz = priv->spi_max_speed_hz_slow;
 	spi->bits_per_word = 8;
 	spi->rt = true;
 	err = spi_setup(spi);
@@ -1951,8 +2102,11 @@ static int mcp251xfd_probe(struct spi_device *spi)
 		goto out_free_candev;
 
 	err = mcp251xfd_register(priv);
-	if (err)
+	if (err) {
+		dev_err_probe(&spi->dev, err, "Failed to detect %s.\n",
+			      mcp251xfd_get_model_str(priv));
 		goto out_can_rx_offload_del;
+	}
 
 	return 0;
 
