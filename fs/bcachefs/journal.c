@@ -1290,6 +1290,10 @@ void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
 		pr_buf(out, "%llu: count %u\n",
 		       i, atomic_read(&pin_list->count));
 
+		list_for_each_entry(pin, &pin_list->key_cache_list, list)
+			pr_buf(out, "\t%px %ps\n",
+			       pin, pin->flush);
+
 		list_for_each_entry(pin, &pin_list->list, list)
 			pr_buf(out, "\t%px %ps\n",
 			       pin, pin->flush);
