@@ -1201,7 +1201,8 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 		goto out;
 	}
 
-	if (sts && !wait_for_completion_timeout(&completion, 2 * HZ)) {
+	if (sts && !wait_for_completion_timeout(&completion,
+		HISI_SAS_WAIT_PHYUP_TIMEOUT)) {
 		dev_warn(dev, "phy%d wait phyup timed out for func %d\n",
 			 phy_no, func);
 		if (phy->in_reset)
