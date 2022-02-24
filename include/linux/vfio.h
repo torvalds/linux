@@ -55,6 +55,7 @@ struct vfio_device {
  * @match: Optional device name match callback (return: 0 for no-match, >0 for
  *         match, -errno for abort (ex. match with insufficient or incorrect
  *         additional args)
+ * @device_feature: Optional, fill in the VFIO_DEVICE_FEATURE ioctl
  */
 struct vfio_device_ops {
 	char	*name;
@@ -69,7 +70,38 @@ struct vfio_device_ops {
 	int	(*mmap)(struct vfio_device *vdev, struct vm_area_struct *vma);
 	void	(*request)(struct vfio_device *vdev, unsigned int count);
 	int	(*match)(struct vfio_device *vdev, char *buf);
+	int	(*device_feature)(struct vfio_device *device, u32 flags,
+				  void __user *arg, size_t argsz);
 };
+
+/**
+ * vfio_check_feature - Validate user input for the VFIO_DEVICE_FEATURE ioctl
+ * @flags: Arg from the device_feature op
+ * @argsz: Arg from the device_feature op
+ * @supported_ops: Combination of VFIO_DEVICE_FEATURE_GET and SET the driver
+ *                 supports
+ * @minsz: Minimum data size the driver accepts
+ *
+ * For use in a driver's device_feature op. Checks that the inputs to the
+ * VFIO_DEVICE_FEATURE ioctl are correct for the driver's feature. Returns 1 if
+ * the driver should execute the get or set, otherwise the relevant
+ * value should be returned.
+ */
+static inline int vfio_check_feature(u32 flags, size_t argsz, u32 supported_ops,
+				    size_t minsz)
+{
+	if ((flags & (VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_SET)) &
+	    ~supported_ops)
+		return -EINVAL;
+	if (flags & VFIO_DEVICE_FEATURE_PROBE)
+		return 0;
+	/* Without PROBE one of GET or SET must be requested */
+	if (!(flags & (VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_SET)))
+		return -EINVAL;
+	if (argsz < minsz)
+		return -EINVAL;
+	return 1;
+}
 
 void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
 			 const struct vfio_device_ops *ops);
