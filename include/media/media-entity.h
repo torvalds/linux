@@ -654,6 +654,10 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  *
  * This function must be called during the cleanup phase after unregistering
  * the entity (currently, it does nothing).
+ *
+ * Calling media_entity_cleanup() on a media_entity whose memory has been
+ * zeroed but that has not been initialized with media_entity_pad_init() is
+ * valid and is a no-op.
  */
 #if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
 static inline void media_entity_cleanup(struct media_entity *entity) {}
