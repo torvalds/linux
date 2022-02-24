@@ -34,7 +34,7 @@
 
 #if SW_RSPI_CAN
 	/* SW8 should be at position 2->3 so that GPIO9_CAN1_STB line is activated */
-	can1-stb {
+	can1-stb-hog {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(44, 3) GPIO_ACTIVE_HIGH>;
 		output-low;

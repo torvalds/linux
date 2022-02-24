@@ -18,7 +18,7 @@
 	};
 
 	/* SW7 should be at position 2->3 so that GPIO8_CAN0_STB line is activated */
-	can0-stb {
+	can0-stb-hog {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(42, 2) GPIO_ACTIVE_HIGH>;
 		output-low;
@@ -31,7 +31,7 @@
 	};
 
 	/* SW8 should be at position 2->3 so that GPIO9_CAN1_STB line is activated */
-	can1-stb {
+	can1-stb-hog {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(42, 3) GPIO_ACTIVE_HIGH>;
 		output-low;

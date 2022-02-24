@@ -77,7 +77,7 @@
 };
 
 &gpio6 {
-	usb_hub_reset {
+	usb-hub-reset-hog {
 		gpio-hog;
 		gpios = <10 GPIO_ACTIVE_HIGH>;
 		output-high;
