@@ -1835,15 +1835,19 @@ static bool has_address_auth_cpucap(const struct arm64_cpu_capabilities *entry, 
 static bool has_address_auth_metacap(const struct arm64_cpu_capabilities *entry,
 				     int scope)
 {
-	return has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH], scope) ||
-	       has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_IMP_DEF], scope);
+	bool api = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_IMP_DEF], scope);
+	bool apa = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5], scope);
+
+	return apa || api;
 }
 
 static bool has_generic_auth(const struct arm64_cpu_capabilities *entry,
 			     int __unused)
 {
-	return __system_matches_cap(ARM64_HAS_GENERIC_AUTH_ARCH) ||
-	       __system_matches_cap(ARM64_HAS_GENERIC_AUTH_IMP_DEF);
+	bool gpi = __system_matches_cap(ARM64_HAS_GENERIC_AUTH_IMP_DEF);
+	bool gpa = __system_matches_cap(ARM64_HAS_GENERIC_AUTH_ARCH_QARMA5);
+
+	return gpa || gpi;
 }
 #endif /* CONFIG_ARM64_PTR_AUTH */
 
@@ -2230,8 +2234,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #ifdef CONFIG_ARM64_PTR_AUTH
 	{
-		.desc = "Address authentication (architected algorithm)",
-		.capability = ARM64_HAS_ADDRESS_AUTH_ARCH,
+		.desc = "Address authentication (architected QARMA5 algorithm)",
+		.capability = ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
 		.sys_reg = SYS_ID_AA64ISAR1_EL1,
 		.sign = FTR_UNSIGNED,
@@ -2255,8 +2259,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.matches = has_address_auth_metacap,
 	},
 	{
-		.desc = "Generic authentication (architected algorithm)",
-		.capability = ARM64_HAS_GENERIC_AUTH_ARCH,
+		.desc = "Generic authentication (architected QARMA5 algorithm)",
+		.capability = ARM64_HAS_GENERIC_AUTH_ARCH_QARMA5,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.sys_reg = SYS_ID_AA64ISAR1_EL1,
 		.sign = FTR_UNSIGNED,
