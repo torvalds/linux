@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 import re
+import sys
 
 import datetime
 from enum import Enum, auto
@@ -503,14 +504,20 @@ RESET = '\033[0;0m'
 
 def red(text: str) -> str:
 	"""Returns inputted string with red color code."""
+	if not sys.stdout.isatty():
+		return text
 	return '\033[1;31m' + text + RESET
 
 def yellow(text: str) -> str:
 	"""Returns inputted string with yellow color code."""
+	if not sys.stdout.isatty():
+		return text
 	return '\033[1;33m' + text + RESET
 
 def green(text: str) -> str:
 	"""Returns inputted string with green color code."""
+	if not sys.stdout.isatty():
+		return text
 	return '\033[1;32m' + text + RESET
 
 ANSI_LEN = len(red(''))
