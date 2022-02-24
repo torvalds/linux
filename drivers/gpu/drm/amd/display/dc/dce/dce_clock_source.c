@@ -978,70 +978,87 @@ static bool dcn31_program_pix_clk(
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+	unsigned int dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
+	const struct pixel_rate_range_table_entry *e =
+			look_up_in_video_optimized_rate_tlb(pix_clk_params->requested_pix_clk_100hz / 10);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 	enum transmitter_color_depth bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
-
-	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
-		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-		unsigned dp_dto_ref_100hz = 7000000;
-		unsigned clock_100hz = pll_settings->actual_pix_clk_100hz;
-
-		/* Set DTO values: phase = target clock, modulo = reference clock */
-		REG_WRITE(PHASE[inst], clock_100hz);
-		REG_WRITE(MODULO[inst], dp_dto_ref_100hz);
-
-		/* Enable DTO */
+	// For these signal types Driver to program DP_DTO without calling VBIOS Command table
+	if (dc_is_dp_signal(pix_clk_params->signal_type)) {
+		if (e) {
+			/* Set DTO values: phase = target clock, modulo = reference clock*/
+			REG_WRITE(PHASE[inst], e->target_pixel_rate_khz * e->mult_factor);
+			REG_WRITE(MODULO[inst], dp_dto_ref_khz * e->div_factor);
+		} else {
+			/* Set DTO values: phase = target clock, modulo = reference clock*/
+			REG_WRITE(PHASE[inst], pll_settings->actual_pix_clk_100hz * 100);
+			REG_WRITE(MODULO[inst], dp_dto_ref_khz * 1000);
+		}
 		REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
-		return true;
-	}
+	} else {
+		if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
+			unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+			unsigned dp_dto_ref_100hz = 7000000;
+			unsigned clock_100hz = pll_settings->actual_pix_clk_100hz;
 
-	/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
-	bp_pc_params.controller_id = pix_clk_params->controller_id;
-	bp_pc_params.pll_id = clock_source->id;
-	bp_pc_params.target_pixel_clock_100hz = pll_settings->actual_pix_clk_100hz;
-	bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
-	bp_pc_params.signal_type = pix_clk_params->signal_type;
+			/* Set DTO values: phase = target clock, modulo = reference clock */
+			REG_WRITE(PHASE[inst], clock_100hz);
+			REG_WRITE(MODULO[inst], dp_dto_ref_100hz);
 
-	// Make sure we send the correct color depth to DMUB for HDMI
-	if (pix_clk_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A) {
-		switch (pix_clk_params->color_depth) {
-		case COLOR_DEPTH_888:
-			bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
-			break;
-		case COLOR_DEPTH_101010:
-			bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_30;
-			break;
-		case COLOR_DEPTH_121212:
-			bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_36;
-			break;
-		case COLOR_DEPTH_161616:
-			bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_48;
-			break;
-		default:
-			bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
-			break;
+			/* Enable DTO */
+			REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
+			return true;
 		}
-		bp_pc_params.color_depth = bp_pc_colour_depth;
-	}
 
-	if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
-		bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
-						pll_settings->use_external_clk;
-		bp_pc_params.flags.SET_XTALIN_REF_SRC =
-						!pll_settings->use_external_clk;
-		if (pix_clk_params->flags.SUPPORT_YCBCR420) {
-			bp_pc_params.flags.SUPPORT_YUV_420 = 1;
+		/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
+		bp_pc_params.controller_id = pix_clk_params->controller_id;
+		bp_pc_params.pll_id = clock_source->id;
+		bp_pc_params.target_pixel_clock_100hz = pll_settings->actual_pix_clk_100hz;
+		bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
+		bp_pc_params.signal_type = pix_clk_params->signal_type;
+
+		// Make sure we send the correct color depth to DMUB for HDMI
+		if (pix_clk_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A) {
+			switch (pix_clk_params->color_depth) {
+			case COLOR_DEPTH_888:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+				break;
+			case COLOR_DEPTH_101010:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_30;
+				break;
+			case COLOR_DEPTH_121212:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_36;
+				break;
+			case COLOR_DEPTH_161616:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_48;
+				break;
+			default:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+				break;
+			}
+			bp_pc_params.color_depth = bp_pc_colour_depth;
 		}
+
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
+			bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
+							pll_settings->use_external_clk;
+			bp_pc_params.flags.SET_XTALIN_REF_SRC =
+							!pll_settings->use_external_clk;
+			if (pix_clk_params->flags.SUPPORT_YCBCR420) {
+				bp_pc_params.flags.SUPPORT_YUV_420 = 1;
+			}
+		}
+		if (clk_src->bios->funcs->set_pixel_clock(
+				clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
+			return false;
+		/* Resync deep color DTO */
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO)
+			dce112_program_pixel_clk_resync(clk_src,
+						pix_clk_params->signal_type,
+						pix_clk_params->color_depth,
+						pix_clk_params->flags.SUPPORT_YCBCR420);
 	}
-	if (clk_src->bios->funcs->set_pixel_clock(
-			clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
-		return false;
-	/* Resync deep color DTO */
-	if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO)
-		dce112_program_pixel_clk_resync(clk_src,
-					pix_clk_params->signal_type,
-					pix_clk_params->color_depth,
-					pix_clk_params->flags.SUPPORT_YCBCR420);
 
 	return true;
 }
