@@ -498,6 +498,11 @@ void snd_sof_complete(struct device *dev);
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
 
 /*
+ * Compress support
+ */
+extern struct snd_compress_ops sof_compressed_ops;
+
+/*
  * Firmware loading.
  */
 int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev);
