@@ -125,6 +125,10 @@
 #define QSPI_DMA_TIMEOUT			(msecs_to_jiffies(1000))
 #define DEFAULT_QSPI_DMA_BUF_LEN		(64 * 1024)
 
+struct tegra_qspi_soc_data {
+	bool has_dma;
+};
+
 struct tegra_qspi_client_data {
 	int tx_clk_tap_delay;
 	int rx_clk_tap_delay;
@@ -137,7 +141,6 @@ struct tegra_qspi {
 	spinlock_t				lock;
 
 	struct clk				*clk;
-	struct reset_control			*rst;
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned int				irq;
@@ -185,6 +188,7 @@ struct tegra_qspi {
 	u32					*tx_dma_buf;
 	dma_addr_t				tx_dma_phys;
 	struct dma_async_tx_descriptor		*tx_dma_desc;
+	const struct tegra_qspi_soc_data	*soc_data;
 };
 
 static inline u32 tegra_qspi_readl(struct tegra_qspi *tqspi, unsigned long offset)
@@ -948,9 +952,8 @@ static void tegra_qspi_handle_error(struct tegra_qspi *tqspi)
 	dev_err(tqspi->dev, "error in transfer, fifo status 0x%08x\n", tqspi->status_reg);
 	tegra_qspi_dump_regs(tqspi);
 	tegra_qspi_flush_fifos(tqspi, true);
-	reset_control_assert(tqspi->rst);
-	udelay(2);
-	reset_control_deassert(tqspi->rst);
+	if (device_reset(tqspi->dev) < 0)
+		dev_warn_once(tqspi->dev, "device reset failed\n");
 }
 
 static void tegra_qspi_transfer_end(struct spi_device *spi)
@@ -1193,10 +1196,32 @@ static irqreturn_t tegra_qspi_isr_thread(int irq, void *context_data)
 	return handle_dma_based_xfer(tqspi);
 }
 
+static struct tegra_qspi_soc_data tegra210_qspi_soc_data = {
+	.has_dma = true,
+};
+
+static struct tegra_qspi_soc_data tegra186_qspi_soc_data = {
+	.has_dma = true,
+};
+
+static struct tegra_qspi_soc_data tegra234_qspi_soc_data = {
+	.has_dma = false,
+};
+
 static const struct of_device_id tegra_qspi_of_match[] = {
-	{ .compatible = "nvidia,tegra210-qspi", },
-	{ .compatible = "nvidia,tegra186-qspi", },
-	{ .compatible = "nvidia,tegra194-qspi", },
+	{
+		.compatible = "nvidia,tegra210-qspi",
+		.data	    = &tegra210_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra186-qspi",
+		.data	    = &tegra186_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra194-qspi",
+		.data	    = &tegra186_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra234-qspi",
+		.data	    = &tegra234_qspi_soc_data,
+	},
 	{}
 };
 
@@ -1251,13 +1276,6 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	tqspi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(tqspi->rst)) {
-		ret = PTR_ERR(tqspi->rst);
-		dev_err(&pdev->dev, "failed to get reset control: %d\n", ret);
-		return ret;
-	}
-
 	tqspi->max_buf_size = QSPI_FIFO_DEPTH << 2;
 	tqspi->dma_buf_size = DEFAULT_QSPI_DMA_BUF_LEN;
 
@@ -1279,9 +1297,8 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	reset_control_assert(tqspi->rst);
-	udelay(2);
-	reset_control_deassert(tqspi->rst);
+	if (device_reset(tqspi->dev) < 0)
+		dev_warn_once(tqspi->dev, "device reset failed\n");
 
 	tqspi->def_command1_reg = QSPI_M_S | QSPI_CS_SW_HW |  QSPI_CS_SW_VAL;
 	tegra_qspi_writel(tqspi, tqspi->def_command1_reg, QSPI_COMMAND1);
