@@ -498,13 +498,7 @@ void mpp_free_task(struct kref *ref)
 		       session->index, task->task_index, task->state,
 		       atomic_read(&task->abort_request));
 
-	mpp = session->mpp;
-	if (!mpp) {
-		mpp_err("task %d:%d mpp is null.\n",
-			session->index, task->task_index);
-		return;
-	}
-
+	mpp = mpp_get_task_used_device(task, session);
 	if (mpp->dev_ops->free_task)
 		mpp->dev_ops->free_task(session, task);
 
@@ -537,8 +531,8 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 		mpp_err("session %p, session->mpp is null.\n", session);
 		return;
 	}
-	mpp = session->mpp;
 
+	mpp = mpp_get_task_used_device(task, session);
 	/* hardware maybe dead, reset it */
 	mpp_reset_up_read(mpp->reset_group);
 	mpp_dev_reset(mpp);
@@ -571,6 +565,9 @@ static int mpp_process_task_default(struct mpp_session *session,
 		mpp_err("alloc_task failed.\n");
 		return -ENOMEM;
 	}
+	/* ensure current device */
+	mpp = mpp_get_task_used_device(task, session);
+
 	kref_init(&task->ref);
 	init_waitqueue_head(&task->wait);
 	atomic_set(&task->abort_request, 0);
@@ -1701,7 +1698,7 @@ int mpp_translate_reg_address(struct mpp_session *session,
 		cnt = session->trans_count;
 		tbl = session->trans_table;
 	} else {
-		struct mpp_dev *mpp = session->mpp;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, session);
 		struct mpp_trans_info *trans_info = mpp->var->trans_info;
 
 		cnt = trans_info[fmt].count;

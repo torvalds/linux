@@ -328,15 +328,57 @@ static struct vepu_dev *vepu_core_balance(struct vepu_ccu *ccu)
 static void *vepu_ccu_alloc_task(struct mpp_session *session,
 				 struct mpp_task_msgs *msgs)
 {
-	struct vepu_dev *enc = to_vepu_dev(session->mpp);
+	int ret;
+	struct mpp_task *mpp_task = NULL;
+	struct vepu_task *task = NULL;
+	struct mpp_dev *mpp = session->mpp;
+	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	/* if multi-cores, choose one for current task */
+	mpp_debug_enter();
+
+	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	if (!task)
+		return NULL;
+
+	mpp_task = &task->mpp_task;
+	/* if multicore, choose one for current task */
 	if (enc->ccu) {
 		enc = vepu_core_balance(enc->ccu);
-		session->mpp = &enc->mpp;
+		mpp_task->mpp = &enc->mpp;
+		mpp = mpp_task->mpp;
+		mpp_debug(DEBUG_TASK_INFO, "%s\n", dev_name(mpp->dev));
 	}
 
-	return vepu_alloc_task(session, msgs);
+	mpp_task_init(session, mpp_task);
+	mpp_task->hw_info = mpp->var->hw_info;
+	mpp_task->reg = task->reg;
+	/* extract reqs for current task */
+	ret = vepu_extract_task_msg(task, msgs);
+	if (ret)
+		goto fail;
+	/* process fd in register */
+	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
+		ret = vepu_process_reg_fd(session, task, msgs);
+		if (ret)
+			goto fail;
+	}
+	task->clk_mode = CLK_MODE_NORMAL;
+	/* get resolution info */
+	task->width = VEPU2_GET_WIDTH(task->reg[VEPU2_REG_ENC_EN_INDEX]);
+	task->height = VEPU2_GET_HEIGHT(task->reg[VEPU2_REG_ENC_EN_INDEX]);
+	task->pixels = task->width * task->height;
+	mpp_debug(DEBUG_TASK_INFO, "width=%d, height=%d\n", task->width, task->height);
+
+	mpp_debug_leave();
+
+	return mpp_task;
+
+fail:
+	mpp_task_dump_mem_region(mpp, mpp_task);
+	mpp_task_dump_reg(mpp, mpp_task);
+	mpp_task_finalize(session, mpp_task);
+	kfree(task);
+	return NULL;
 }
 
 static int vepu_run(struct mpp_dev *mpp,
