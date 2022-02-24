@@ -226,6 +226,10 @@ static const struct arm64_ftr_bits ftr_id_aa64isar1[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64isar2[] = {
+	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_PTR_AUTH),
+		       FTR_STRICT, FTR_EXACT, ID_AA64ISAR2_APA3_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_PTR_AUTH),
+		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_GPA3_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_RPRES_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
@@ -596,6 +600,7 @@ static const struct arm64_ftr_bits ftr_raz[] = {
 struct arm64_ftr_override __ro_after_init id_aa64mmfr1_override;
 struct arm64_ftr_override __ro_after_init id_aa64pfr1_override;
 struct arm64_ftr_override __ro_after_init id_aa64isar1_override;
+struct arm64_ftr_override __ro_after_init id_aa64isar2_override;
 
 static const struct __ftr_reg_entry {
 	u32			sys_id;
@@ -644,6 +649,8 @@ static const struct __ftr_reg_entry {
 	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64ISAR1_EL1, ftr_id_aa64isar1,
 			       &id_aa64isar1_override),
 	ARM64_FTR_REG(SYS_ID_AA64ISAR2_EL1, ftr_id_aa64isar2),
+	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64ISAR2_EL1, ftr_id_aa64isar2,
+			       &id_aa64isar2_override),
 
 	/* Op1 = 0, CRn = 0, CRm = 7 */
 	ARM64_FTR_REG(SYS_ID_AA64MMFR0_EL1, ftr_id_aa64mmfr0),
@@ -1837,8 +1844,9 @@ static bool has_address_auth_metacap(const struct arm64_cpu_capabilities *entry,
 {
 	bool api = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_IMP_DEF], scope);
 	bool apa = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5], scope);
+	bool apa3 = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA3], scope);
 
-	return apa || api;
+	return apa || apa3 || api;
 }
 
 static bool has_generic_auth(const struct arm64_cpu_capabilities *entry,
@@ -1846,8 +1854,9 @@ static bool has_generic_auth(const struct arm64_cpu_capabilities *entry,
 {
 	bool gpi = __system_matches_cap(ARM64_HAS_GENERIC_AUTH_IMP_DEF);
 	bool gpa = __system_matches_cap(ARM64_HAS_GENERIC_AUTH_ARCH_QARMA5);
+	bool gpa3 = __system_matches_cap(ARM64_HAS_GENERIC_AUTH_ARCH_QARMA3);
 
-	return gpa || gpi;
+	return gpa || gpa3 || gpi;
 }
 #endif /* CONFIG_ARM64_PTR_AUTH */
 
@@ -2244,6 +2253,16 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.matches = has_address_auth_cpucap,
 	},
 	{
+		.desc = "Address authentication (architected QARMA3 algorithm)",
+		.capability = ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA3,
+		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
+		.sys_reg = SYS_ID_AA64ISAR2_EL1,
+		.sign = FTR_UNSIGNED,
+		.field_pos = ID_AA64ISAR2_APA3_SHIFT,
+		.min_field_value = ID_AA64ISAR2_APA3_ARCHITECTED,
+		.matches = has_address_auth_cpucap,
+	},
+	{
 		.desc = "Address authentication (IMP DEF algorithm)",
 		.capability = ARM64_HAS_ADDRESS_AUTH_IMP_DEF,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
@@ -2266,6 +2285,16 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.sign = FTR_UNSIGNED,
 		.field_pos = ID_AA64ISAR1_GPA_SHIFT,
 		.min_field_value = ID_AA64ISAR1_GPA_ARCHITECTED,
+		.matches = has_cpuid_feature,
+	},
+	{
+		.desc = "Generic authentication (architected QARMA3 algorithm)",
+		.capability = ARM64_HAS_GENERIC_AUTH_ARCH_QARMA3,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.sys_reg = SYS_ID_AA64ISAR2_EL1,
+		.sign = FTR_UNSIGNED,
+		.field_pos = ID_AA64ISAR2_GPA3_SHIFT,
+		.min_field_value = ID_AA64ISAR2_GPA3_ARCHITECTED,
 		.matches = has_cpuid_feature,
 	},
 	{
@@ -2416,6 +2445,10 @@ static const struct arm64_cpu_capabilities ptr_auth_hwcap_addr_matches[] = {
 				  FTR_UNSIGNED, ID_AA64ISAR1_APA_ARCHITECTED)
 	},
 	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR2_EL1, ID_AA64ISAR2_APA3_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR2_APA3_ARCHITECTED)
+	},
+	{
 		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_SHIFT,
 				  FTR_UNSIGNED, ID_AA64ISAR1_API_IMP_DEF)
 	},
@@ -2426,6 +2459,10 @@ static const struct arm64_cpu_capabilities ptr_auth_hwcap_gen_matches[] = {
 	{
 		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_GPA_SHIFT,
 				  FTR_UNSIGNED, ID_AA64ISAR1_GPA_ARCHITECTED)
+	},
+	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR2_EL1, ID_AA64ISAR2_GPA3_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR2_GPA3_ARCHITECTED)
 	},
 	{
 		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_GPI_SHIFT,
