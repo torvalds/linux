@@ -132,6 +132,7 @@ static struct unwindme *unwindme;
 #define UWM_PGM			0x40	/* Unwind from program check handler */
 #define UWM_KPROBE_ON_FTRACE	0x80	/* Unwind from kprobe handler called via ftrace. */
 #define UWM_FTRACE		0x100	/* Unwind from ftrace handler. */
+#define UWM_KRETPROBE		0x200	/* Unwind kretprobe handlers. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -141,6 +142,55 @@ static __always_inline unsigned long get_psw_addr(void)
 		"basr	%[psw_addr],0\n"
 		: [psw_addr] "=d" (psw_addr));
 	return psw_addr;
+}
+
+static int kretprobe_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct unwindme *u = unwindme;
+
+	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? regs : NULL,
+			     (u->flags & UWM_SP) ? u->sp : 0);
+
+	return 0;
+}
+
+static noinline notrace void test_unwind_kretprobed_func(void)
+{
+	asm volatile("	nop\n");
+}
+
+static noinline void test_unwind_kretprobed_func_caller(void)
+{
+	test_unwind_kretprobed_func();
+}
+
+static int test_unwind_kretprobe(struct unwindme *u)
+{
+	int ret;
+	struct kretprobe my_kretprobe;
+
+	if (!IS_ENABLED(CONFIG_KPROBES))
+		kunit_skip(current_test, "requires CONFIG_KPROBES");
+
+	u->ret = -1; /* make sure kprobe is called */
+	unwindme = u;
+
+	memset(&my_kretprobe, 0, sizeof(my_kretprobe));
+	my_kretprobe.handler = kretprobe_ret_handler;
+	my_kretprobe.maxactive = 1;
+	my_kretprobe.kp.addr = (kprobe_opcode_t *)test_unwind_kretprobed_func;
+
+	ret = register_kretprobe(&my_kretprobe);
+
+	if (ret < 0) {
+		kunit_err(current_test, "register_kretprobe failed %d\n", ret);
+		return -EINVAL;
+	}
+
+	test_unwind_kretprobed_func_caller();
+	unregister_kretprobe(&my_kretprobe);
+	unwindme = NULL;
+	return u->ret;
 }
 
 static int kprobe_pre_handler(struct kprobe *p, struct pt_regs *regs)
@@ -254,6 +304,8 @@ static noinline int unwindme_func4(struct unwindme *u)
 		return 0;
 	} else if (u->flags & (UWM_PGM | UWM_KPROBE_ON_FTRACE)) {
 		return test_unwind_kprobe(u);
+	} else if (u->flags & (UWM_KRETPROBE)) {
+		return test_unwind_kretprobe(u);
 	} else if (u->flags & UWM_FTRACE) {
 		return test_unwind_ftrace(u);
 	} else {
@@ -396,6 +448,10 @@ static const struct test_params param_list[] = {
 	TEST_WITH_FLAGS(UWM_FTRACE | UWM_SP),
 	TEST_WITH_FLAGS(UWM_FTRACE | UWM_REGS),
 	TEST_WITH_FLAGS(UWM_FTRACE | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KRETPROBE),
+	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_SP),
+	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_SP | UWM_REGS),
 };
 
 /*
