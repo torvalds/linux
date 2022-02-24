@@ -148,6 +148,8 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_MANGLE,
 	FLOW_ACTION_GATE,
 	FLOW_ACTION_PPPOE_PUSH,
+	FLOW_ACTION_JUMP,
+	FLOW_ACTION_PIPE,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -235,9 +237,16 @@ struct flow_action_entry {
 		struct {				/* FLOW_ACTION_POLICE */
 			u32			burst;
 			u64			rate_bytes_ps;
+			u64			peakrate_bytes_ps;
+			u32			avrate;
+			u16			overhead;
 			u64			burst_pkt;
 			u64			rate_pkt_ps;
 			u32			mtu;
+			struct {
+				enum flow_action_id	act_id;
+				u32			extval;
+			} exceed, notexceed;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
