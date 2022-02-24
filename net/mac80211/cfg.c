@@ -3256,9 +3256,31 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 void ieee80211_csa_finish(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
 
-	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->csa_finalize_work);
+	rcu_read_lock();
+
+	if (vif->mbssid_tx_vif == vif) {
+		/* Trigger ieee80211_csa_finish() on the non-transmitting
+		 * interfaces when channel switch is received on
+		 * transmitting interface
+		 */
+		struct ieee80211_sub_if_data *iter;
+
+		list_for_each_entry_rcu(iter, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(iter))
+				continue;
+
+			if (iter == sdata || iter->vif.mbssid_tx_vif != vif)
+				continue;
+
+			ieee80211_queue_work(&iter->local->hw,
+					     &iter->csa_finalize_work);
+		}
+	}
+	ieee80211_queue_work(&local->hw, &sdata->csa_finalize_work);
+
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_csa_finish);
 
