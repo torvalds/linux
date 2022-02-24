@@ -37,6 +37,11 @@ config ROCKCHIP_DRM_DEBUG
 	  cat /d/dri/0/ff900000.vop/vop_dump/dump get more help
 	  the upper ff900000.vop is different at different SOC platform.
 
+config ROCKCHIP_DRM_DIRECT_SHOW
+	bool "Rockchip DRM direct show"
+	help
+	  This is a quick display scheme api in kernel space.
+
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
 	default y if (CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
