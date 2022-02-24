@@ -789,6 +789,21 @@ out:
 	dput(dentry);
 }
 
+static int nfs_readdir_entry_decode(struct nfs_readdir_descriptor *desc,
+				    struct nfs_entry *entry,
+				    struct xdr_stream *stream)
+{
+	int ret;
+
+	if (entry->fattr->label)
+		entry->fattr->label->len = NFS4_MAXLABELLEN;
+	ret = xdr_decode(desc, entry, stream);
+	if (ret || !desc->plus)
+		return ret;
+	nfs_prime_dcache(file_dentry(desc->file), entry, desc->dir_verifier);
+	return 0;
+}
+
 /* Perform conversion from xdr to cache array */
 static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 				   struct nfs_entry *entry,
@@ -811,16 +826,9 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 	xdr_set_scratch_page(&stream, scratch);
 
 	do {
-		if (entry->fattr->label)
-			entry->fattr->label->len = NFS4_MAXLABELLEN;
-
-		status = xdr_decode(desc, entry, &stream);
+		status = nfs_readdir_entry_decode(desc, entry, &stream);
 		if (status != 0)
 			break;
-
-		if (desc->plus)
-			nfs_prime_dcache(file_dentry(desc->file), entry,
-					desc->dir_verifier);
 
 		status = nfs_readdir_page_array_append(page, entry, &cookie);
 		if (status != -ENOSPC)
@@ -849,15 +857,19 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 
 	switch (status) {
 	case -EBADCOOKIE:
-		if (entry->eof) {
-			nfs_readdir_page_set_eof(page);
-			status = 0;
-		}
-		break;
-	case -ENOSPC:
+		if (!entry->eof)
+			break;
+		nfs_readdir_page_set_eof(page);
+		fallthrough;
 	case -EAGAIN:
 		status = 0;
 		break;
+	case -ENOSPC:
+		status = 0;
+		if (!desc->plus)
+			break;
+		while (!nfs_readdir_entry_decode(desc, entry, &stream))
+			;
 	}
 
 	if (page != *arrays)
