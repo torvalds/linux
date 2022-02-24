@@ -6,6 +6,7 @@
 # Copyright (C) 2020, Google LLC.
 # Author: Heidi Fahim <heidifahim@google.com>
 
+from dataclasses import dataclass
 import json
 import os
 
@@ -13,6 +14,13 @@ import kunit_parser
 
 from kunit_parser import Test, TestStatus
 from typing import Any, Dict
+
+@dataclass
+class Metadata:
+	"""Stores metadata about this run to include in get_json_result()."""
+	arch: str = 'UM'
+	def_config: str = 'kunit_defconfig'
+	build_dir: str = ''
 
 JsonObj = Dict[str, Any]
 
@@ -22,14 +30,13 @@ _status_map: Dict[TestStatus, str] = {
 	TestStatus.TEST_CRASHED: "ERROR",
 }
 
-def _get_group_json(test: Test, def_config: str, build_dir: str) -> JsonObj:
+def _get_group_json(test: Test, common_fields: JsonObj) -> JsonObj:
 	sub_groups = []  # List[JsonObj]
 	test_cases = []  # List[JsonObj]
 
 	for subtest in test.subtests:
 		if subtest.subtests:
-			sub_group = _get_group_json(subtest, def_config,
-				build_dir)
+			sub_group = _get_group_json(subtest, common_fields)
 			sub_groups.append(sub_group)
 			continue
 		status = _status_map.get(subtest.status, "FAIL")
@@ -37,19 +44,23 @@ def _get_group_json(test: Test, def_config: str, build_dir: str) -> JsonObj:
 
 	test_group = {
 		"name": test.name,
-		"arch": "UM",
-		"defconfig": def_config,
-		"build_environment": build_dir,
 		"sub_groups": sub_groups,
 		"test_cases": test_cases,
+	}
+	test_group.update(common_fields)
+	return test_group
+
+def get_json_result(test: Test, metadata: Metadata) -> str:
+	common_fields = {
+		"arch": metadata.arch,
+		"defconfig": metadata.def_config,
+		"build_environment": metadata.build_dir,
 		"lab_name": None,
 		"kernel": None,
 		"job": None,
 		"git_branch": "kselftest",
 	}
-	return test_group
 
-def get_json_result(test: Test, def_config: str, build_dir: str) -> str:
-	test_group = _get_group_json(test, def_config, build_dir)
+	test_group = _get_group_json(test, common_fields)
 	test_group["name"] = "KUnit Test Group"
 	return json.dumps(test_group, indent=4)

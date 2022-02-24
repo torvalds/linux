@@ -47,11 +47,11 @@ class KunitBuildRequest(KunitConfigRequest):
 @dataclass
 class KunitParseRequest:
 	raw_output: Optional[str]
-	build_dir: str
 	json: Optional[str]
 
 @dataclass
 class KunitExecRequest(KunitParseRequest):
+	build_dir: str
 	timeout: int
 	alltests: bool
 	filter_glob: str
@@ -153,6 +153,8 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 				test_glob = request.filter_glob.split('.', maxsplit=2)[1]
 				filter_globs = [g + '.'+ test_glob for g in filter_globs]
 
+	metadata = kunit_json.Metadata(build_dir=request.build_dir)
+
 	test_counts = kunit_parser.TestCounts()
 	exec_time = 0.0
 	for i, filter_glob in enumerate(filter_globs):
@@ -165,7 +167,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 			filter_glob=filter_glob,
 			build_dir=request.build_dir)
 
-		_, test_result = parse_tests(request, run_result)
+		_, test_result = parse_tests(request, metadata, run_result)
 		# run_kernel() doesn't block on the kernel exiting.
 		# That only happens after we get the last line of output from `run_result`.
 		# So exec_time here actually contains parsing + execution time, which is fine.
@@ -189,7 +191,7 @@ def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 	else:
 		return KunitStatus.TEST_FAILURE
 
-def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
+def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
 	parse_start = time.time()
 
 	test_result = kunit_parser.Test()
@@ -216,8 +218,7 @@ def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> Tuple[
 	if request.json:
 		json_str = kunit_json.get_json_result(
 					test=test_result,
-					def_config='kunit_defconfig',
-					build_dir=request.build_dir)
+					metadata=metadata)
 		if request.json == 'stdout':
 			print(json_str)
 		else:
@@ -504,10 +505,11 @@ def main(argv, linux=None):
 		else:
 			with open(cli_args.file, 'r', errors='backslashreplace') as f:
 				kunit_output = f.read().splitlines()
+		# We know nothing about how the result was created!
+		metadata = kunit_json.Metadata()
 		request = KunitParseRequest(raw_output=cli_args.raw_output,
-					    build_dir='',
 					    json=cli_args.json)
-		result, _ = parse_tests(request, kunit_output)
+		result, _ = parse_tests(request, metadata, kunit_output)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	else:
