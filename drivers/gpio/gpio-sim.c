@@ -570,6 +570,11 @@ static struct gpio_sim_bank *to_gpio_sim_bank(struct config_item *item)
 	return container_of(group, struct gpio_sim_bank, group);
 }
 
+static bool gpio_sim_bank_has_label(struct gpio_sim_bank *bank)
+{
+	return bank->label && *bank->label;
+}
+
 static struct gpio_sim_device *
 gpio_sim_bank_get_device(struct gpio_sim_bank *bank)
 {
@@ -770,9 +775,15 @@ static int gpio_sim_add_hogs(struct gpio_sim_device *dev)
 			 * point the device doesn't exist yet and so dev_name()
 			 * is not available.
 			 */
-			hog->chip_label = kasprintf(GFP_KERNEL,
-						    "gpio-sim.%u-%s", dev->id,
-						    fwnode_get_name(bank->swnode));
+			if (gpio_sim_bank_has_label(bank))
+				hog->chip_label = kstrdup(bank->label,
+							  GFP_KERNEL);
+			else
+				hog->chip_label = kasprintf(GFP_KERNEL,
+							"gpio-sim.%u-%s",
+							dev->id,
+							fwnode_get_name(
+								bank->swnode));
 			if (!hog->chip_label) {
 				gpio_sim_remove_hogs(dev);
 				return -ENOMEM;
@@ -816,7 +827,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	properties[prop_idx++] = PROPERTY_ENTRY_U32("ngpios", bank->num_lines);
 
-	if (bank->label && (strlen(bank->label) > 0))
+	if (gpio_sim_bank_has_label(bank))
 		properties[prop_idx++] = PROPERTY_ENTRY_STRING("gpio-sim,label",
 							       bank->label);
 

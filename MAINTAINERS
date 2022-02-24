@@ -7581,6 +7581,12 @@ S:	Maintained
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
 F:	arch/x86/math-emu/
 
+FRAMEBUFFER CORE
+M:	Daniel Vetter <daniel@ffwll.ch>
+F:	drivers/video/fbdev/core/
+S:	Odd Fixes
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+
 FRAMEBUFFER LAYER
 M:	Helge Deller <deller@gmx.de>
 L:	linux-fbdev@vger.kernel.org
@@ -13309,8 +13315,8 @@ W:	http://www.iptables.org/
 W:	http://www.nftables.org/
 Q:	http://patchwork.ozlabs.org/project/netfilter-devel/list/
 C:	irc://irc.libera.chat/netfilter
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-next.git
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
 F:	include/net/netfilter/
@@ -13577,7 +13583,7 @@ F:	tools/testing/selftests/nci/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <trond.myklebust@hammerspace.com>
-M:	Anna Schumaker <anna.schumaker@netapp.com>
+M:	Anna Schumaker <anna@kernel.org>
 L:	linux-nfs@vger.kernel.org
 S:	Maintained
 W:	http://client.linux-nfs.org
@@ -16827,8 +16833,8 @@ F:	drivers/video/fbdev/savage/
 S390
 M:	Heiko Carstens <hca@linux.ibm.com>
 M:	Vasily Gorbik <gor@linux.ibm.com>
-M:	Christian Borntraeger <borntraeger@linux.ibm.com>
-R:	Alexander Gordeev <agordeev@linux.ibm.com>
+M:	Alexander Gordeev <agordeev@linux.ibm.com>
+R:	Christian Borntraeger <borntraeger@linux.ibm.com>
 R:	Sven Schnelle <svens@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
@@ -19620,6 +19626,14 @@ F:	Documentation/trace/osnoise-tracer.rst
 F:	Documentation/trace/timerlat-tracer.rst
 F:	Documentation/trace/hwlat_detector.rst
 F:	arch/*/kernel/trace.c
+
+Real-time Linux Analysis (RTLA) tools
+M:	Daniel Bristot de Oliveira <bristot@kernel.org>
+M:	Steven Rostedt <rostedt@goodmis.org>
+L:	linux-trace-devel@vger.kernel.org
+S:	Maintained
+F:	Documentation/tools/rtla/
+F:	tools/tracing/rtla/
 
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Hu Haowen <src.res@email.cn>
