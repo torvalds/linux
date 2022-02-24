@@ -12,6 +12,7 @@
 struct mlx5_vf_migration_file {
 	struct file *filp;
 	struct mutex lock;
+	bool disabled;
 
 	struct sg_append_table table;
 	size_t total_length;
