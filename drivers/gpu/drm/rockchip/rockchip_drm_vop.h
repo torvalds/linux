@@ -1353,7 +1353,6 @@ static inline int interpolate(int x1, int y1, int x2, int y2, int x)
 	return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
 }
 
-extern void vop2_standby(struct drm_crtc *crtc, bool standby);
 extern const struct component_ops vop_component_ops;
 extern const struct component_ops vop2_component_ops;
 #endif /* _ROCKCHIP_DRM_VOP_H */

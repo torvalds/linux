@@ -448,12 +448,12 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_disable(dsi2->panel);
 
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
-		vop2_standby(encoder->crtc, 1);
+		rockchip_drm_crtc_standby(encoder->crtc, 1);
 
 	dw_mipi_dsi2_disable(dsi2);
 
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
-		vop2_standby(encoder->crtc, 0);
+		rockchip_drm_crtc_standby(encoder->crtc, 0);
 
 	if (dsi2->panel)
 		drm_panel_unprepare(dsi2->panel);
