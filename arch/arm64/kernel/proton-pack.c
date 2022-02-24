@@ -233,17 +233,20 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 	__this_cpu_write(bp_hardening_data.slot, HYP_VECTOR_SPECTRE_DIRECT);
 }
 
-static void call_smc_arch_workaround_1(void)
+/* Called during entry so must be noinstr */
+static noinstr void call_smc_arch_workaround_1(void)
 {
 	arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
 }
 
-static void call_hvc_arch_workaround_1(void)
+/* Called during entry so must be noinstr */
+static noinstr void call_hvc_arch_workaround_1(void)
 {
 	arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
 }
 
-static void qcom_link_stack_sanitisation(void)
+/* Called during entry so must be noinstr */
+static noinstr void qcom_link_stack_sanitisation(void)
 {
 	u64 tmp;
 
