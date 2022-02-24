@@ -413,12 +413,32 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		*swap = BYTE_SWAP_SWAP2;
 		break;
 
+	case DRM_FORMAT_YVYU:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4;
+		break;
+
+	case DRM_FORMAT_VYUY:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4HW;
+		break;
+
 	case DRM_FORMAT_YUV420:
 		*format = WIN_COLOR_DEPTH_YCbCr420P;
 		break;
 
 	case DRM_FORMAT_YUV422:
 		*format = WIN_COLOR_DEPTH_YCbCr422P;
+		break;
+
+	case DRM_FORMAT_YUV444:
+		*format = WIN_COLOR_DEPTH_YCbCr444P;
 		break;
 
 	case DRM_FORMAT_NV12:
@@ -486,6 +506,7 @@ bool tegra_plane_format_is_yuv(unsigned int format, unsigned int *planes, unsign
 	case WIN_COLOR_DEPTH_YUV422R:
 	case WIN_COLOR_DEPTH_YCbCr422RA:
 	case WIN_COLOR_DEPTH_YUV422RA:
+	case WIN_COLOR_DEPTH_YCbCr444P:
 		if (planes)
 			*planes = 3;
 
