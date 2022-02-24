@@ -311,6 +311,12 @@ static inline bool flow_offload_has_one_action(const struct flow_action *action)
 	return action->num_entries == 1;
 }
 
+static inline bool flow_action_is_last_entry(const struct flow_action *action,
+					     const struct flow_action_entry *entry)
+{
+	return entry == &action->entries[action->num_entries - 1];
+}
+
 #define flow_action_for_each(__i, __act, __actions)			\
         for (__i = 0, __act = &(__actions)->entries[0];			\
 	     __i < (__actions)->num_entries;				\

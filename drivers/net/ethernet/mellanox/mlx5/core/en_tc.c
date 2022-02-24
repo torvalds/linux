@@ -4482,6 +4482,46 @@ static int apply_police_params(struct mlx5e_priv *priv, u64 rate,
 	return err;
 }
 
+static int mlx5e_policer_validate(const struct flow_action *action,
+				  const struct flow_action_entry *act,
+				  struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
 					struct flow_action *flow_action,
 					struct netlink_ext_ack *extack)
@@ -4509,10 +4549,10 @@ static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
-			if (act->police.rate_pkt_ps) {
-				NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
-				return -EOPNOTSUPP;
-			}
+			err = mlx5e_policer_validate(flow_action, act, extack);
+			if (err)
+				return err;
+
 			err = apply_police_params(priv, act->police.rate_bytes_ps, extack);
 			if (err)
 				return err;
