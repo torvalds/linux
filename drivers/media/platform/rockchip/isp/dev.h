@@ -236,5 +236,6 @@ struct rkisp_device {
 	struct rkisp_cmsk_cfg cmsk_cfg;
 	bool is_cmsk_upd;
 	bool is_hw_link;
+	bool is_bigmode;
 };
 #endif

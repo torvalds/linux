@@ -388,6 +388,14 @@ void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev)
 		params_vdev->ops->stream_stop(params_vdev);
 }
 
+bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev)
+{
+	if (params_vdev->ops->check_bigmode)
+		return params_vdev->ops->check_bigmode(params_vdev);
+
+	return 0;
+}
+
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 				struct v4l2_device *v4l2_dev,
 				struct rkisp_device *dev)

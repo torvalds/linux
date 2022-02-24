@@ -3827,19 +3827,17 @@ err_3dlut:
 	return ret;
 }
 
-/* Not called when the camera active, thus not isr protection. */
-static void
-rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
+static bool
+rkisp_params_check_bigmode_v21(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct device *dev = params_vdev->dev->dev;
-	struct rkisp_isp_params_val_v21 *priv_val =
-		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
 	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
 	u32 size = width * height;
 	u32 bigmode_max_w, bigmode_max_size;
+	bool is_bigmode = false;
 
 	if (hw->dev_link_num > 2) {
 		bigmode_max_w = ISP21_VIR4_AUTO_BIGMODE_WIDTH;
@@ -3858,12 +3856,26 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		bigmode_max_size = ISP21_NOBIG_OVERFLOW_SIZE;
 	}
 
+	if (width > bigmode_max_w || size > bigmode_max_size)
+		is_bigmode = true;
+	return is_bigmode;
+}
+
+/* Not called when the camera active, thus not isr protection. */
+static void
+rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_params_val_v21 *priv_val =
+		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp21_params);
+	dev->is_bigmode = rkisp_params_check_bigmode_v21(params_vdev);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp21_params->module_cfg_update &&
 	    !params_vdev->isp21_params->module_en_update)
-		dev_warn(dev, "can not get first iq setting in stream on\n");
+		dev_warn(dev->dev, "can not get first iq setting in stream on\n");
 
 	priv_val->dhaz_en = 0;
 	priv_val->wdr_en = 0;
@@ -3874,11 +3886,10 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_other_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
-	if (width > bigmode_max_w || size > bigmode_max_size) {
+	if (dev->is_bigmode)
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);
-	}
 
 	priv_val->cur_hdrmge = params_vdev->isp21_params->others.hdrmge_cfg;
 	priv_val->cur_hdrdrc = params_vdev->isp21_params->others.drc_cfg;
@@ -4216,6 +4227,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.set_meshbuf_size = rkisp_params_set_ldchbuf_size_v2x,
 	.stream_stop = rkisp_params_stream_stop_v2x,
 	.fop_release = rkisp_params_fop_release_v2x,
+	.check_bigmode = rkisp_params_check_bigmode_v21,
 };
 
 int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)

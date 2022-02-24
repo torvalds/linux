@@ -198,7 +198,6 @@ struct rkisp_isp_params_val_v3x {
 	bool mge_en;
 	bool lut3d_en;
 	bool bay3d_en;
-	bool is_bigmode;
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)

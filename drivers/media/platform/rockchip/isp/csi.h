@@ -77,7 +77,7 @@ struct rkisp_csi_device {
 int rkisp_register_csi_subdev(struct rkisp_device *dev,
 			      struct v4l2_device *v4l2_dev);
 void rkisp_unregister_csi_subdev(struct rkisp_device *dev);
-
+int rkisp_csi_get_hdr_cfg(struct rkisp_device *dev, void *arg);
 int rkisp_csi_config_patch(struct rkisp_device *dev);
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id);
 #endif

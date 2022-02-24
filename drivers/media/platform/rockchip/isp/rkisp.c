@@ -2920,6 +2920,55 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	return v4l2_event_subscribe(fh, sub, ISP_V4L2_EVENT_ELEMS, NULL);
 }
 
+static int rkisp_get_info(struct rkisp_device *dev, struct rkisp_isp_info *info)
+{
+	struct v4l2_rect *in_crop = &dev->isp_sdev.in_crop;
+	u32 rd_mode, mode = 0, bit = 0;
+	int ret;
+
+	if (!(dev->isp_state & ISP_START)) {
+		struct rkmodule_hdr_cfg cfg;
+
+		ret = rkisp_csi_get_hdr_cfg(dev, &cfg);
+		if (ret)
+			return ret;
+		rd_mode = cfg.hdr_mode;
+		if (rd_mode == HDR_COMPR)
+			bit = cfg.compr.bit > 20 ? 20 : cfg.compr.bit;
+	} else {
+		rd_mode = dev->rd_mode;
+		bit = dev->hdr.compr_bit;
+	}
+
+	switch (rd_mode) {
+	case HDR_RDBK_FRAME2:
+	case HDR_FRAMEX2_DDR:
+	case HDR_LINEX2_DDR:
+		mode = RKISP_ISP_HDR2;
+		break;
+	case HDR_RDBK_FRAME3:
+	case HDR_FRAMEX3_DDR:
+	case HDR_LINEX3_DDR:
+		mode = RKISP_ISP_HDR3;
+		break;
+	default:
+		mode = RKISP_ISP_NORMAL;
+	}
+	if (bit)
+		mode = RKISP_ISP_COMPR;
+	info->compr_bit = bit;
+
+	if (rkisp_params_check_bigmode(&dev->params_vdev))
+		mode |= RKISP_ISP_BIGMODE;
+	info->mode = mode;
+	if (dev->hw_dev->is_unite)
+		info->act_width = in_crop->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+	else
+		info->act_width = in_crop->width;
+	info->act_height = in_crop->height;
+	return 0;
+}
+
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -2936,6 +2985,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
 		rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, arg);
+		break;
+	case RKISP_CMD_GET_ISP_INFO:
+		rkisp_get_info(isp_dev, arg);
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
 		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
@@ -3065,7 +3117,7 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkisp_ioctl(sd, cmd, &ldchsize);
 		break;
 	case RKISP_CMD_GET_MESHBUF_INFO:
-		if (copy_from_user(&meshsize, up, sizeof(meshsize)))
+		if (copy_from_user(&meshbuf, up, sizeof(meshbuf)))
 			return -EFAULT;
 		ret = rkisp_ioctl(sd, cmd, &meshbuf);
 		if (!ret && copy_to_user(up, &meshbuf, sizeof(meshbuf)))

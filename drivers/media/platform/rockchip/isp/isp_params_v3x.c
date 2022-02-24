@@ -3605,11 +3605,28 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_CAC_STRENGTH0 + i * 4, id);
 	}
 
-	/* two buf, buf0 for no bigmode, buf1 for bigmode */
-	i = 0;
-	if (priv_val->is_bigmode)
-		i = 1;
+	for (i = 0; i < ISP3X_MESH_BUF_NUM; i++) {
+		if (arg->buf_fd == priv_val->buf_cac[id][i].dma_fd)
+			break;
+	}
+
+	if (i == ISP3X_MESH_BUF_NUM) {
+		dev_err(dev->dev, "cannot find cac buf fd(%d)\n", arg->buf_fd);
+		return;
+	}
+
+	if (!priv_val->buf_cac[id][i].vaddr) {
+		dev_err(dev->dev, "no cac buffer allocated\n");
+		return;
+	}
+
+	val = priv_val->buf_cac_idx[id];
+	head = (struct isp2x_mesh_head *)priv_val->buf_cac[id][val].vaddr;
+	head->stat = MESH_BUF_INIT;
+
 	head = (struct isp2x_mesh_head *)priv_val->buf_cac[id][i].vaddr;
+	head->stat = MESH_BUF_CHIPINUSE;
+	priv_val->buf_cac_idx[id] = i;
 	rkisp_prepare_buffer(dev, &priv_val->buf_cac[id][i]);
 	val = priv_val->buf_cac[id][i].dma_addr + head->data_oft;
 	isp3_param_write(params_vdev, val, ISP3X_MI_LUT_CAC_RD_BASE, id);
@@ -4180,21 +4197,17 @@ err_3dlut:
 	return ret;
 }
 
-/* Not called when the camera active, thus not isr protection. */
-static void
-rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
+static bool
+rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct device *dev = params_vdev->dev->dev;
-	struct rkisp_isp_params_val_v3x *priv_val =
-		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
 	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
 	u32 size = width * height;
 	u32 bigmode_max_w, bigmode_max_size;
-
-	tasklet_enable(&priv_val->lsc_tasklet);
+	bool is_bigmode = false;
 
 	if (hw->dev_link_num > 2) {
 		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
@@ -4212,12 +4225,34 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;
 	}
+
+	if (hw->is_unite) {
+		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		size = width * out_crop->height;
+	}
+
+	if (width > bigmode_max_w || size > bigmode_max_size)
+		is_bigmode = true;
+	return is_bigmode;
+}
+
+/* Not called when the camera active, thus not isr protection. */
+static void
+rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_params_val_v3x *priv_val =
+		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
+	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
+
+	tasklet_enable(&priv_val->lsc_tasklet);
+	dev->is_bigmode = rkisp_params_check_bigmode_v3x(params_vdev);
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp3x_params);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp3x_params->module_cfg_update &&
 	    !params_vdev->isp3x_params->module_en_update)
-		dev_warn(dev, "can not get first iq setting in stream on\n");
+		dev_warn(dev->dev, "can not get first iq setting in stream on\n");
 
 	priv_val->bay3d_en = 0;
 	priv_val->dhaz_en = 0;
@@ -4225,30 +4260,18 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
 	priv_val->lut3d_en = 0;
-	priv_val->is_bigmode = 0;
 	if (hw->is_unite) {
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
-		size = width * out_crop->height;
-		if (width > bigmode_max_w || size > bigmode_max_size) {
-			priv_val->is_bigmode = true;
+		if (dev->is_bigmode)
 			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
-		}
 		__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_other_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_other_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
-		if (width > bigmode_max_w || size > bigmode_max_size) {
-			priv_val->is_bigmode = true;
-			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
-					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
-		}
 	}
-	if (width > bigmode_max_w || size > bigmode_max_size) {
-		priv_val->is_bigmode = true;
+	if (dev->is_bigmode)
 		rkisp_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 			       ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
-	}
 	__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_other_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_other_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
@@ -4663,6 +4686,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.set_meshbuf_size = rkisp_params_set_meshbuf_size_v3x,
 	.stream_stop = rkisp_params_stream_stop_v3x,
 	.fop_release = rkisp_params_fop_release_v3x,
+	.check_bigmode = rkisp_params_check_bigmode_v3x,
 };
 
 int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)

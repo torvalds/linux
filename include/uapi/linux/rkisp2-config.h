@@ -17,6 +17,9 @@
 #define RKISP_CMD_TRIGGER_READ_BACK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
 
+#define RKISP_CMD_GET_ISP_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 1, struct rkisp_isp_info)
+
 #define RKISP_CMD_GET_SHARED_BUF \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_thunderboot_resmem)
 
@@ -234,6 +237,24 @@
 #define ISP2X_FBCBUF_FD_NUM		64
 
 #define ISP2X_MESH_BUF_NUM		2
+
+enum rkisp_isp_mode {
+	/* frame input related */
+	RKISP_ISP_NORMAL = BIT(0),
+	RKISP_ISP_HDR2 = BIT(1),
+	RKISP_ISP_HDR3 = BIT(2),
+	RKISP_ISP_COMPR = BIT(3),
+
+	/* isp function related */
+	RKISP_ISP_BIGMODE = BIT(28),
+};
+
+struct rkisp_isp_info {
+	enum rkisp_isp_mode mode;
+	u32 act_width;
+	u32 act_height;
+	u8 compr_bit;
+} __attribute__ ((packed));
 
 enum isp2x_mesh_buf_stat {
 	MESH_BUF_INIT = 0,

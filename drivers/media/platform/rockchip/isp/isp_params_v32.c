@@ -3448,11 +3448,28 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	val = arg->expo_adj_r & 0xfffff;
 	isp3_param_write(params_vdev, val, ISP32_CAC_EXPO_ADJ_R);
 
-	/* two buf, buf0 for no bigmode, buf1 for bigmode */
-	i = 0;
-	if (priv_val->is_bigmode)
-		i = 1;
+	for (i = 0; i < ISP32_MESH_BUF_NUM; i++) {
+		if (arg->buf_fd == priv_val->buf_cac[i].dma_fd)
+			break;
+	}
+
+	if (i == ISP32_MESH_BUF_NUM) {
+		dev_err(dev->dev, "cannot find cac buf fd(%d)\n", arg->buf_fd);
+		return;
+	}
+
+	if (!priv_val->buf_cac[i].vaddr) {
+		dev_err(dev->dev, "no cac buffer allocated\n");
+		return;
+	}
+
+	val = priv_val->buf_cac_idx;
+	head = (struct isp2x_mesh_head *)priv_val->buf_cac[val].vaddr;
+	head->stat = MESH_BUF_INIT;
+
 	head = (struct isp2x_mesh_head *)priv_val->buf_cac[i].vaddr;
+	head->stat = MESH_BUF_CHIPINUSE;
+	priv_val->buf_cac_idx = i;
 	rkisp_prepare_buffer(dev, &priv_val->buf_cac[i]);
 	val = priv_val->buf_cac[i].dma_addr + head->data_oft;
 	isp3_param_write(params_vdev, val, ISP3X_MI_LUT_CAC_RD_BASE);
@@ -4037,21 +4054,17 @@ err_3dlut:
 	return ret;
 }
 
-/* Not called when the camera active, thus not isr protection. */
-static void
-rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
+static bool
+rkisp_params_check_bigmode_v32(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct device *dev = params_vdev->dev->dev;
-	struct rkisp_isp_params_val_v32 *priv_val =
-		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
 	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
 	u32 size = width * height;
 	u32 bigmode_max_w, bigmode_max_size;
-
-	tasklet_enable(&priv_val->lsc_tasklet);
+	bool is_bigmode = false;
 
 	if (hw->dev_link_num > 2) {
 		bigmode_max_w = ISP32_VIR4_AUTO_BIGMODE_WIDTH;
@@ -4069,12 +4082,28 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 		bigmode_max_w = ISP32_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP32_NOBIG_OVERFLOW_SIZE;
 	}
+
+	if (width > bigmode_max_w || size > bigmode_max_size)
+		is_bigmode = true;
+	return is_bigmode;
+}
+
+/* Not called when the camera active, thus not isr protection. */
+static void
+rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_params_val_v32 *priv_val =
+		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
+
+	tasklet_enable(&priv_val->lsc_tasklet);
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
+	dev->is_bigmode = rkisp_params_check_bigmode_v32(params_vdev);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp32_params->module_cfg_update &&
 	    !params_vdev->isp32_params->module_en_update)
-		dev_warn(dev, "can not get first iq setting in stream on\n");
+		dev_warn(dev->dev, "can not get first iq setting in stream on\n");
 
 	priv_val->bay3d_en = 0;
 	priv_val->dhaz_en = 0;
@@ -4082,12 +4111,10 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
 	priv_val->lut3d_en = 0;
-	priv_val->is_bigmode = 0;
-	if (width > bigmode_max_w || size > bigmode_max_size) {
-		priv_val->is_bigmode = true;
+	if (dev->is_bigmode)
 		rkisp_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 			       ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
-	}
+
 	__isp_isr_meas_config(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
 	__isp_isr_other_config(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
 	__isp_isr_other_en(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
@@ -4442,6 +4469,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.set_meshbuf_size = rkisp_params_set_meshbuf_size_v32,
 	.stream_stop = rkisp_params_stream_stop_v32,
 	.fop_release = rkisp_params_fop_release_v32,
+	.check_bigmode = rkisp_params_check_bigmode_v32,
 };
 
 int rkisp_init_params_vdev_v32(struct rkisp_isp_params_vdev *params_vdev)

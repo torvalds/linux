@@ -281,15 +281,10 @@ static int csi_config(struct rkisp_csi_device *csi)
 
 		dev->hdr.op_mode = HDR_NORMAL;
 		dev->hdr.esp_mode = HDR_NORMAL_VC;
-		if (mipi_sensor) {
-			ret = v4l2_subdev_call(mipi_sensor,
-					       core, ioctl,
-					       RKMODULE_GET_HDR_CFG,
-					       &hdr_cfg);
-			if (!ret) {
-				dev->hdr.op_mode = hdr_cfg.hdr_mode;
-				dev->hdr.esp_mode = hdr_cfg.esp.mode;
-			}
+		memset(&hdr_cfg, 0, sizeof(hdr_cfg));
+		if (rkisp_csi_get_hdr_cfg(dev, &hdr_cfg) == 0) {
+			dev->hdr.op_mode = hdr_cfg.hdr_mode;
+			dev->hdr.esp_mode = hdr_cfg.esp.mode;
 		}
 
 		/* normal read back mode */
@@ -433,7 +428,6 @@ int rkisp_expander_config(struct rkisp_device *dev,
 			  struct rkmodule_hdr_cfg *cfg, bool on)
 {
 	struct rkmodule_hdr_cfg hdr_cfg;
-	int ret = -EINVAL;
 	u32 i, val, num, d0, d1, drop_bit = 0;
 
 	if (dev->isp_ver != ISP_V32)
@@ -445,13 +439,7 @@ int rkisp_expander_config(struct rkisp_device *dev,
 	}
 
 	if (!cfg) {
-		struct v4l2_subdev *sd = NULL;
-
-		get_remote_mipi_sensor(dev, &sd, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
-		if (!sd)
-			goto err;
-		ret = v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_HDR_CFG, &hdr_cfg);
-		if (ret)
+		if (rkisp_csi_get_hdr_cfg(dev, &hdr_cfg) != 0)
 			goto err;
 		cfg = &hdr_cfg;
 	}
@@ -531,6 +519,38 @@ err:
 	return -EINVAL;
 }
 
+int rkisp_csi_get_hdr_cfg(struct rkisp_device *dev, void *arg)
+{
+	struct rkmodule_hdr_cfg *cfg = arg;
+	struct v4l2_subdev *sd = NULL;
+	u32 type;
+
+	if (dev->isp_inp & INP_CSI) {
+		type = MEDIA_ENT_F_CAM_SENSOR;
+	} else if (dev->isp_inp & INP_CIF) {
+		type = MEDIA_ENT_F_PROC_VIDEO_COMPOSER;
+	} else {
+		switch (dev->isp_inp & 0x7) {
+		case INP_RAWRD2 | INP_RAWRD0:
+			cfg->hdr_mode = HDR_RDBK_FRAME2;
+			break;
+		case INP_RAWRD2 | INP_RAWRD1 | INP_RAWRD0:
+			cfg->hdr_mode = HDR_RDBK_FRAME3;
+			break;
+		default: //INP_RAWRD2
+			cfg->hdr_mode = HDR_RDBK_FRAME1;
+		}
+		return 0;
+	}
+	get_remote_mipi_sensor(dev, &sd, type);
+	if (!sd) {
+		v4l2_err(&dev->v4l2_dev, "%s don't find subdev\n", __func__);
+		return -EINVAL;
+	}
+
+	return v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_HDR_CFG, cfg);
+}
+
 int rkisp_csi_config_patch(struct rkisp_device *dev)
 {
 	int val = 0, ret = 0;
@@ -542,8 +562,11 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		dev->hw_dev->mipi_dev_id = dev->dev_id;
 		ret = csi_config(&dev->csi_dev);
 	} else {
+		struct rkmodule_hdr_cfg hdr_cfg;
+
+		memset(&hdr_cfg, 0, sizeof(hdr_cfg));
+		ret = rkisp_csi_get_hdr_cfg(dev, &hdr_cfg);
 		if (dev->isp_inp & INP_CIF) {
-			struct rkmodule_hdr_cfg hdr_cfg;
 			struct rkisp_vicap_mode mode = {
 				.name = dev->name,
 				.is_rdbk = true,
@@ -552,16 +575,10 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 			dev->hdr.op_mode = HDR_NORMAL;
 			dev->hdr.esp_mode = HDR_NORMAL_VC;
-			if (mipi_sensor) {
-				ret = v4l2_subdev_call(mipi_sensor,
-						       core, ioctl,
-						       RKMODULE_GET_HDR_CFG,
-						       &hdr_cfg);
-				if (!ret) {
-					dev->hdr.op_mode = hdr_cfg.hdr_mode;
-					dev->hdr.esp_mode = hdr_cfg.esp.mode;
-					rkisp_expander_config(dev, &hdr_cfg, true);
-				}
+			if (!ret) {
+				dev->hdr.op_mode = hdr_cfg.hdr_mode;
+				dev->hdr.esp_mode = hdr_cfg.esp.mode;
+				rkisp_expander_config(dev, &hdr_cfg, true);
 			}
 
 			/* normal read back mode default */
@@ -593,16 +610,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				}
 			}
 		} else {
-			switch (dev->isp_inp & 0x7) {
-			case INP_RAWRD2 | INP_RAWRD0:
-				dev->hdr.op_mode = HDR_RDBK_FRAME2;
-				break;
-			case INP_RAWRD2 | INP_RAWRD1 | INP_RAWRD0:
-				dev->hdr.op_mode = HDR_RDBK_FRAME3;
-				break;
-			default: //INP_RAWRD2
-				dev->hdr.op_mode = HDR_RDBK_FRAME1;
-			}
+			dev->hdr.op_mode = hdr_cfg.hdr_mode;
 		}
 
 		if (!dev->hw_dev->is_mi_update)
