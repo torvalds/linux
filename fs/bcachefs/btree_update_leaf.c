@@ -1372,6 +1372,7 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 int __must_check bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 				   struct bkey_i *k, enum btree_update_flags flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
 
 	BUG_ON(!path->should_be_locked);
@@ -1431,6 +1432,16 @@ int __must_check bch2_trans_update_by_path(struct btree_trans *trans, struct btr
 
 		i->old_v = bch2_btree_path_peek_slot(path, &i->old_k).v;
 		i->old_btree_u64s = !bkey_deleted(&i->old_k) ? i->old_k.u64s : 0;
+
+		if (unlikely(trans->journal_replay_not_finished)) {
+			struct bkey_i *j_k =
+				bch2_journal_keys_peek(c, n.btree_id, n.level, k->k.p);
+
+			if (j_k && !bpos_cmp(j_k->k.p, i->k->k.p)) {
+				i->old_k = j_k->k;
+				i->old_v = &j_k->v;
+			}
+		}
 	}
 
 	__btree_path_get(n.path, true);

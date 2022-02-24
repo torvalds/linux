@@ -94,6 +94,24 @@ size_t bch2_journal_key_search(struct journal_keys *journal_keys,
 	return l;
 }
 
+struct bkey_i *bch2_journal_keys_peek(struct bch_fs *c, enum btree_id btree_id,
+				      unsigned level, struct bpos pos)
+{
+	struct journal_keys *keys = &c->journal_keys;
+	struct journal_key *end = keys->d + keys->nr;
+	struct journal_key *k = keys->d +
+		bch2_journal_key_search(keys, btree_id, level, pos);
+
+	while (k < end && k->overwritten)
+		k++;
+
+	if (k < end &&
+	    k->btree_id	== btree_id &&
+	    k->level	== level)
+		return k->k;
+	return NULL;
+}
+
 static void journal_iter_fix(struct bch_fs *c, struct journal_iter *iter, unsigned idx)
 {
 	struct bkey_i *n = iter->keys->d[idx].k;

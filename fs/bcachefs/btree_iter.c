@@ -2199,30 +2199,14 @@ static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
 		: NULL;
 }
 
-static struct bkey_i *__btree_trans_peek_journal(struct btree_trans *trans,
-						 struct btree_path *path)
-{
-	struct journal_keys *keys = &trans->c->journal_keys;
-	size_t idx = bch2_journal_key_search(keys, path->btree_id,
-					     path->level, path->pos);
-
-	while (idx < keys->nr && keys->d[idx].overwritten)
-		idx++;
-
-	return (idx < keys->nr &&
-		keys->d[idx].btree_id	== path->btree_id &&
-		keys->d[idx].level	== path->level)
-		? keys->d[idx].k
-		: NULL;
-}
-
 static noinline
 struct bkey_s_c btree_trans_peek_slot_journal(struct btree_trans *trans,
 					      struct btree_iter *iter)
 {
-	struct bkey_i *k = __btree_trans_peek_journal(trans, iter->path);
+	struct bkey_i *k = bch2_journal_keys_peek(trans->c, iter->btree_id, 0,
+						  iter->path->pos);
 
-	if (k && !bpos_cmp(k->k.p, iter->pos)) {
+	if (k && !bpos_cmp(k->k.p, iter->path->pos)) {
 		iter->k = k->k;
 		return bkey_i_to_s_c(k);
 	} else {
@@ -2236,7 +2220,8 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
 					 struct bkey_s_c k)
 {
 	struct bkey_i *next_journal =
-		__btree_trans_peek_journal(trans, iter->path);
+		bch2_journal_keys_peek(trans->c, iter->btree_id, 0,
+				       iter->path->pos);
 
 	if (next_journal &&
 	    bpos_cmp(next_journal->k.p,
