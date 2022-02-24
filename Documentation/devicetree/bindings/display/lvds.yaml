@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/panel/lvds.yaml#
+$id: http://devicetree.org/schemas/display/lvds.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: LVDS Display Panel
+title: LVDS Display Common Properties
 
 maintainers:
   - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
@@ -13,8 +13,8 @@ maintainers:
 description: |+
   LVDS is a physical layer specification defined in ANSI/TIA/EIA-644-A. Multiple
   incompatible data link layers have been used over time to transmit image data
-  to LVDS panels. This bindings supports display panels compatible with the
-  following specifications.
+  to LVDS devices. This bindings supports devices compatible with the following
+  specifications.
 
   [JEIDA] "Digital Interface Standards for Monitor", JEIDA-59-1999, February
   1999 (Version 1.0), Japan Electronic Industry Development Association (JEIDA)
@@ -26,18 +26,7 @@ description: |+
   Device compatible with those specifications have been marketed under the
   FPD-Link and FlatLink brands.
 
-allOf:
-  - $ref: panel-common.yaml#
-
 properties:
-  compatible:
-    contains:
-      const: panel-lvds
-    description:
-      Shall contain "panel-lvds" in addition to a mandatory panel-specific
-      compatible string defined in individual panel bindings. The "panel-lvds"
-      value shall never be used on its own.
-
   data-mapping:
     enum:
       - jeida-18
@@ -95,22 +84,6 @@ properties:
     description:
       If set, reverse the bit order described in the data mappings below on all
       data lanes, transmitting bits for slots 6 to 0 instead of 0 to 6.
-
-  port: true
-  ports: true
-
-required:
-  - compatible
-  - data-mapping
-  - width-mm
-  - height-mm
-  - panel-timing
-
-oneOf:
-  - required:
-      - port
-  - required:
-      - ports
 
 additionalProperties: true
 

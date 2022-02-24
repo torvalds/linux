@@ -236,6 +236,9 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	struct device *dma_dev;
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	if (!iommu_present(&platform_bus_type))
 		return -EPROBE_DEFER;
 

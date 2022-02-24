@@ -33,7 +33,6 @@ struct amdgpu_hive_info {
 	struct list_head node;
 	atomic_t number_devices;
 	struct mutex hive_lock;
-	atomic_t in_reset;
 	int hi_req_count;
 	struct amdgpu_device *hi_req_gpu;
 	struct task_barrier tb;
@@ -42,6 +41,8 @@ struct amdgpu_hive_info {
 		AMDGPU_XGMI_PSTATE_MAX_VEGA20,
 		AMDGPU_XGMI_PSTATE_UNKNOWN
 	} pstate;
+
+	struct amdgpu_reset_domain *reset_domain;
 };
 
 struct amdgpu_pcs_ras_field {
