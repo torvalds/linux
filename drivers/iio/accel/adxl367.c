@@ -1359,7 +1359,7 @@ static int adxl367_buffer_predisable(struct iio_dev *indio_dev)
 
 	ret = adxl367_set_measure_en(st, true);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
 					   false);
