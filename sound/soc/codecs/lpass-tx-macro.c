@@ -1881,6 +1881,12 @@ static int tx_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clkout;
 
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 
 err_clkout:
@@ -1910,6 +1916,60 @@ static int tx_macro_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused tx_macro_runtime_suspend(struct device *dev)
+{
+	struct tx_macro *tx = dev_get_drvdata(dev);
+
+	regcache_cache_only(tx->regmap, true);
+	regcache_mark_dirty(tx->regmap);
+
+	clk_disable_unprepare(tx->mclk);
+	clk_disable_unprepare(tx->npl);
+	clk_disable_unprepare(tx->fsgen);
+
+	return 0;
+}
+
+static int __maybe_unused tx_macro_runtime_resume(struct device *dev)
+{
+	struct tx_macro *tx = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(tx->mclk);
+	if (ret) {
+		dev_err(dev, "unable to prepare mclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(tx->npl);
+	if (ret) {
+		dev_err(dev, "unable to prepare npl\n");
+		goto err_npl;
+	}
+
+	ret = clk_prepare_enable(tx->fsgen);
+	if (ret) {
+		dev_err(dev, "unable to prepare fsgen\n");
+		goto err_fsgen;
+	}
+
+	regcache_cache_only(tx->regmap, false);
+	regcache_sync(tx->regmap);
+	tx->reset_swr = true;
+
+	return 0;
+err_fsgen:
+	clk_disable_unprepare(tx->npl);
+err_npl:
+	clk_disable_unprepare(tx->mclk);
+
+	return ret;
+}
+
+static const struct dev_pm_ops tx_macro_pm_ops = {
+	SET_RUNTIME_PM_OPS(tx_macro_runtime_suspend, tx_macro_runtime_resume, NULL)
+};
+
 static const struct of_device_id tx_macro_dt_match[] = {
 	{ .compatible = "qcom,sc7280-lpass-tx-macro" },
 	{ .compatible = "qcom,sm8250-lpass-tx-macro" },
@@ -1921,6 +1981,7 @@ static struct platform_driver tx_macro_driver = {
 		.name = "tx_macro",
 		.of_match_table = tx_macro_dt_match,
 		.suppress_bind_attrs = true,
+		.pm = &tx_macro_pm_ops,
 	},
 	.probe = tx_macro_probe,
 	.remove = tx_macro_remove,
