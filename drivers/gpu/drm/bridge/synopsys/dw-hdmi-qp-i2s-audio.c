@@ -71,12 +71,6 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	/* Clear the audio FIFO */
 	hdmi_write(audio, AUDIO_FIFO_CLR_P, AUDIO_INTERFACE_CONTROL0);
 
-	/* Disable AUDS, ACR, AUDI, AMD */
-	hdmi_mod(audio, 0,
-		 PKTSCHED_ACR_TX_EN | PKTSCHED_AUDS_TX_EN |
-		 PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		 PKTSCHED_PKT_EN);
-
 	/* Select I2S interface as the audio source */
 	hdmi_mod(audio, AUD_IF_I2S, AUD_IF_SEL_MSK, AUDIO_INTERFACE_CONFIG0);
 
@@ -123,15 +117,7 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	dw_hdmi_qp_set_channel_status(hdmi, hparms->iec.status);
 	dw_hdmi_qp_set_channel_count(hdmi, hparms->channels);
 	dw_hdmi_qp_set_channel_allocation(hdmi, hparms->cea.channel_allocation);
-
-	/* Enable ACR, AUDI, AMD */
-	hdmi_mod(audio,
-		 PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		 PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		 PKTSCHED_PKT_EN);
-
-	/* Enable AUDS */
-	hdmi_mod(audio, PKTSCHED_AUDS_TX_EN, PKTSCHED_AUDS_TX_EN, PKTSCHED_PKT_EN);
+	dw_hdmi_qp_set_audio_infoframe(hdmi);
 
 	return 0;
 }

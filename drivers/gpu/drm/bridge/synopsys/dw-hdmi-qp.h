@@ -37,6 +37,8 @@
 #define CMU_CONFIG2					0xa8
 #define CMU_CONFIG3					0xac
 #define CMU_STATUS					0xb0
+#define DISPLAY_CLK_MONITOR				0x3f
+#define DISPLAY_CLK_LOCKED				0X15
 #define EARC_BPCLK_OFF					BIT(9)
 #define AUDCLK_OFF					BIT(7)
 #define LINKQPCLK_OFF					BIT(5)

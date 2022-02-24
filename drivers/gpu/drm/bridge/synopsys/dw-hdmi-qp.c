@@ -237,6 +237,7 @@ struct dw_hdmi_qp {
 	void __iomem *regs;
 	bool sink_is_hdmi;
 	bool sink_has_audio;
+	bool dclk_en;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
@@ -251,7 +252,6 @@ struct dw_hdmi_qp {
 	u32 flt_intr;
 	u32 earc_intr;
 
-	spinlock_t audio_lock;
 	struct mutex audio_mutex;
 	unsigned int sample_rate;
 	unsigned int audio_cts;
@@ -463,11 +463,19 @@ static unsigned int hdmi_find_n(struct dw_hdmi_qp *hdmi, unsigned long pixel_clk
 void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi,
 				   u8 *channel_status)
 {
+	mutex_lock(&hdmi->audio_mutex);
+	if (!hdmi->dclk_en) {
+		mutex_unlock(&hdmi->audio_mutex);
+		return;
+	}
+
 	/* Set channel status */
 	hdmi_writel(hdmi, channel_status[3] | (channel_status[4] << 8),
 		    AUDPKT_CHSTATUS_OVR1);
 	hdmi_modb(hdmi, AUDPKT_CHSTATUS_OVR_EN,
 		  AUDPKT_CHSTATUS_OVR_EN_MASK, AUDPKT_CONTROL0);
+
+	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_status);
 
@@ -478,34 +486,36 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi_qp *hdmi,
 
 	n = hdmi_find_n(hdmi, pixel_clk, sample_rate);
 
-	spin_lock_irq(&hdmi->audio_lock);
 	hdmi->audio_n = n;
 	hdmi->audio_cts = cts;
 	hdmi_set_cts_n(hdmi, cts, hdmi->audio_enable ? n : 0);
-	spin_unlock_irq(&hdmi->audio_lock);
 }
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi_qp *hdmi)
 {
 	mutex_lock(&hdmi->audio_mutex);
-	hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate);
+	if (hdmi->dclk_en)
+		hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
 
 static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi_qp *hdmi)
 {
 	mutex_lock(&hdmi->audio_mutex);
-	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
-				 hdmi->sample_rate);
+	if (hdmi->dclk_en)
+		hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
+					 hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
 
 void dw_hdmi_qp_set_sample_rate(struct dw_hdmi_qp *hdmi, unsigned int rate)
 {
 	mutex_lock(&hdmi->audio_mutex);
-	hdmi->sample_rate = rate;
-	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
-				 hdmi->sample_rate);
+	if (hdmi->dclk_en) {
+		hdmi->sample_rate = rate;
+		hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
+					 hdmi->sample_rate);
+	}
 	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_sample_rate);
@@ -519,6 +529,26 @@ void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca)
 {
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_allocation);
+
+void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi)
+{
+	mutex_lock(&hdmi->audio_mutex);
+	if (!hdmi->dclk_en) {
+		mutex_unlock(&hdmi->audio_mutex);
+		return;
+	}
+
+	/* Enable ACR, AUDI, AMD */
+	hdmi_modb(hdmi,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+		  PKTSCHED_PKT_EN);
+
+	/* Enable AUDS */
+	hdmi_modb(hdmi, PKTSCHED_AUDS_TX_EN, PKTSCHED_AUDS_TX_EN, PKTSCHED_PKT_EN);
+	mutex_unlock(&hdmi->audio_mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_audio_infoframe);
 
 static void hdmi_enable_audio_clk(struct dw_hdmi_qp *hdmi, bool enable)
 {
@@ -538,30 +568,36 @@ static void dw_hdmi_i2s_audio_enable(struct dw_hdmi_qp *hdmi)
 
 static void dw_hdmi_i2s_audio_disable(struct dw_hdmi_qp *hdmi)
 {
+	/* Disable AUDS, ACR, AUDI, AMD */
+	hdmi_modb(hdmi, 0,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDS_TX_EN |
+		  PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+		  PKTSCHED_PKT_EN);
+
 	hdmi_enable_audio_clk(hdmi, false);
 }
 
 void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&hdmi->audio_lock, flags);
-	hdmi->audio_enable = true;
-	if (hdmi->enable_audio)
-		hdmi->enable_audio(hdmi);
-	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+	mutex_lock(&hdmi->audio_mutex);
+	if (hdmi->dclk_en) {
+		hdmi->audio_enable = true;
+		if (hdmi->enable_audio)
+			hdmi->enable_audio(hdmi);
+	}
+	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_audio_enable);
 
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&hdmi->audio_lock, flags);
-	hdmi->audio_enable = false;
-	if (hdmi->disable_audio)
-		hdmi->disable_audio(hdmi);
-	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+	mutex_lock(&hdmi->audio_mutex);
+	if (hdmi->dclk_en) {
+		hdmi->audio_enable = false;
+		if (hdmi->disable_audio)
+			hdmi->disable_audio(hdmi);
+	}
+	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_audio_disable);
 
@@ -1820,6 +1856,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		u32 val;
+
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
@@ -1847,6 +1885,22 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 						       vmode->mpixelclock);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			vmode->mtmdsclock /= 2;
+
+		val = hdmi_readl(hdmi, CMU_STATUS);
+		/*
+		 * If uboot logo enabled, atomic_enable won't be called,
+		 * but atomic_disable will be called when hdmi plug out.
+		 * That will cause dclk enable count is incorrect. So
+		 * we should check ipi/link/video clk to determine whether
+		 * uboot logo is enabled.
+		 */
+		if (((val & DISPLAY_CLK_MONITOR) == DISPLAY_CLK_LOCKED) && !hdmi->dclk_en) {
+			mutex_lock(&hdmi->audio_mutex);
+			if (hdmi->plat_data->dclk_set)
+				hdmi->plat_data->dclk_set(data, true);
+			hdmi->dclk_en = true;
+			mutex_unlock(&hdmi->audio_mutex);
+		}
 	}
 
 	if (!hdr_metadata_equal(old_state, new_state) ||
@@ -2005,12 +2059,22 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 					     struct drm_bridge_state *old_state)
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+	void *data = hdmi->plat_data->phy_data;
 
 	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
 	handle_plugged_change(hdmi, false);
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
 	hdmi->curr_conn = NULL;
+
+	if (hdmi->dclk_en) {
+		mutex_lock(&hdmi->audio_mutex);
+		if (hdmi->plat_data->dclk_set)
+			hdmi->plat_data->dclk_set(data, false);
+		hdmi->dclk_en = false;
+		mutex_unlock(&hdmi->audio_mutex);
+	};
+
 	if (hdmi->phy.ops->disable)
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	mutex_unlock(&hdmi->mutex);
@@ -2022,6 +2086,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 	struct drm_atomic_state *state = old_state->base.state;
 	struct drm_connector *connector;
+	void *data = hdmi->plat_data->phy_data;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state,
 							     bridge->encoder);
@@ -2031,6 +2096,15 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	hdmi->curr_conn = connector;
 	dw_hdmi_qp_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
 	mutex_unlock(&hdmi->mutex);
+
+	if (!hdmi->dclk_en) {
+		mutex_lock(&hdmi->audio_mutex);
+		if (hdmi->plat_data->dclk_set)
+			hdmi->plat_data->dclk_set(data, true);
+		hdmi->dclk_en = true;
+		mutex_unlock(&hdmi->audio_mutex);
+	}
+
 	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
 	handle_plugged_change(hdmi, true);
 }
@@ -2269,7 +2343,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	mutex_init(&hdmi->mutex);
 	mutex_init(&hdmi->audio_mutex);
 	mutex_init(&hdmi->cec_notifier_mutex);
-	spin_lock_init(&hdmi->audio_lock);
 
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
