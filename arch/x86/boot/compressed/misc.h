@@ -185,10 +185,16 @@ enum efi_type {
 #ifdef CONFIG_EFI
 /* helpers for early EFI config table access */
 enum efi_type efi_get_type(struct boot_params *bp);
+unsigned long efi_get_system_table(struct boot_params *bp);
 #else
 static inline enum efi_type efi_get_type(struct boot_params *bp)
 {
 	return EFI_TYPE_NONE;
+}
+
+static inline unsigned long efi_get_system_table(struct boot_params *bp)
+{
+	return 0;
 }
 #endif /* CONFIG_EFI */
 
