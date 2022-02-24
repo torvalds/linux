@@ -3426,6 +3426,13 @@ static int rx_macro_component_probe(struct snd_soc_component *component)
 static int swclk_gate_enable(struct clk_hw *hw)
 {
 	struct rx_macro *rx = to_rx_macro(hw);
+	int ret;
+
+	ret = clk_prepare_enable(rx->mclk);
+	if (ret) {
+		dev_err(rx->dev, "unable to prepare mclk\n");
+		return ret;
+	}
 
 	rx_macro_mclk_enable(rx, true);
 	if (rx->reset_swr)
@@ -3452,6 +3459,7 @@ static void swclk_gate_disable(struct clk_hw *hw)
 			   CDC_RX_SWR_CLK_EN_MASK, 0);
 
 	rx_macro_mclk_enable(rx, false);
+	clk_disable_unprepare(rx->mclk);
 }
 
 static int swclk_gate_is_enabled(struct clk_hw *hw)
@@ -3488,7 +3496,7 @@ static int rx_macro_register_mclk_output(struct rx_macro *rx)
 	struct clk_init_data init;
 	int ret;
 
-	parent_clk_name = __clk_get_name(rx->mclk);
+	parent_clk_name = __clk_get_name(rx->npl);
 
 	init.name = clk_name;
 	init.ops = &swclk_gate_ops;
