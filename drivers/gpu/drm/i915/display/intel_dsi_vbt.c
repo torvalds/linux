@@ -44,6 +44,7 @@
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "vlv_dsi.h"
+#include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
@@ -675,11 +676,11 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 	drm_dbg_kms(&i915->drm, "Lane count %d\n", intel_dsi->lane_count);
 	drm_dbg_kms(&i915->drm, "DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
 	drm_dbg_kms(&i915->drm, "Video mode format %s\n",
-		    intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
+		    intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
 		    "non-burst with sync pulse" :
-		    intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
+		    intel_dsi->video_mode == NON_BURST_SYNC_EVENTS ?
 		    "non-burst with sync events" :
-		    intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
+		    intel_dsi->video_mode == BURST_MODE ?
 		    "burst" : "<unknown>");
 	drm_dbg_kms(&i915->drm, "Burst mode ratio %d\n",
 		    intel_dsi->burst_mode_ratio);
@@ -739,7 +740,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
 	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
-	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
+	intel_dsi->video_mode = mipi_config->video_transfer_mode;
 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
 	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
 	intel_dsi->hs_tx_timeout = mipi_config->hs_tx_timeout;
@@ -770,7 +771,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 * Target ddr frequency from VBT / non burst ddr freq
 	 * multiply by 100 to preserve remainder
 	 */
-	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+	if (intel_dsi->video_mode == BURST_MODE) {
 		if (mipi_config->target_burst_mode_freq) {
 			u32 bitrate = intel_dsi_bitrate(intel_dsi);
 

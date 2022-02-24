@@ -6,6 +6,7 @@
 #include <drm/drm_print.h>
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_internal.h"
 #include "gt/intel_gt_regs.h"
 
 #include "i915_cmd_parser.h"
@@ -1229,17 +1230,6 @@ void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
 	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
-const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
-{
-	switch (type) {
-	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
-	case I915_CACHE_L3_LLC: return " L3+LLC";
-	case I915_CACHE_WT: return " WT";
-	default: return "";
-	}
-}
-
 static u32
 read_subslice_reg(const struct intel_engine_cs *engine,
 		  int slice, int subslice, i915_reg_t reg)
@@ -1710,18 +1700,15 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 
 static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 {
-	struct i915_vma_snapshot *vsnap = &rq->batch_snapshot;
+	struct i915_vma_resource *vma_res = rq->batch_res;
 	void *ring;
 	int size;
-
-	if (!i915_vma_snapshot_present(vsnap))
-		vsnap = NULL;
 
 	drm_printf(m,
 		   "[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]:\n",
 		   rq->head, rq->postfix, rq->tail,
-		   vsnap ? upper_32_bits(vsnap->gtt_offset) : ~0u,
-		   vsnap ? lower_32_bits(vsnap->gtt_offset) : ~0u);
+		   vma_res ? upper_32_bits(vma_res->start) : ~0u,
+		   vma_res ? lower_32_bits(vma_res->start) : ~0u);
 
 	size = rq->tail - rq->head;
 	if (rq->tail < rq->head)

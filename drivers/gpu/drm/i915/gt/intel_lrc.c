@@ -8,6 +8,8 @@
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
+#include "i915_reg.h"
+#include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
@@ -1067,6 +1069,10 @@ lrc_pin(struct intel_context *ce,
 
 void lrc_unpin(struct intel_context *ce)
 {
+	if (unlikely(ce->parallel.last_rq)) {
+		i915_request_put(ce->parallel.last_rq);
+		ce->parallel.last_rq = NULL;
+	}
 	check_redzone((void *)ce->lrc_reg_state - LRC_STATE_OFFSET,
 		      ce->engine);
 }
@@ -1162,12 +1168,40 @@ gen12_emit_cmd_buf_wa(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
+/*
+ * On DG2 during context restore of a preempted context in GPGPU mode,
+ * RCS restore hang is detected. This is extremely timing dependent.
+ * To address this below sw wabb is implemented for DG2 A steppings.
+ */
+static u32 *
+dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(GEN12_STATE_ACK_DEBUG);
+	*cs++ = 0x21;
+
+	*cs++ = MI_LOAD_REGISTER_REG;
+	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
+	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT1);
+
+	*cs++ = MI_LOAD_REGISTER_REG;
+	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
+	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT2);
+
+	return cs;
+}
+
 static u32 *
 gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 {
 	cs = gen12_emit_timestamp_wa(ce, cs);
 	cs = gen12_emit_cmd_buf_wa(ce, cs);
 	cs = gen12_emit_restore_scratch(ce, cs);
+
+	/* Wa_22011450934:dg2 */
+	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_A0, STEP_B0) ||
+	    IS_DG2_GRAPHICS_STEP(ce->engine->i915, G11, STEP_A0, STEP_B0))
+		cs = dg2_emit_rcs_hang_wabb(ce, cs);
 
 	/* Wa_16013000631:dg2 */
 	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_B0, STEP_C0) ||
@@ -1686,6 +1720,17 @@ static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
 	ce->runtime.num_underflow++;
 	ce->runtime.max_underflow = max_t(u32, ce->runtime.max_underflow, -dt);
 #endif
+}
+
+static u32 lrc_get_runtime(const struct intel_context *ce)
+{
+	/*
+	 * We can use either ppHWSP[16] which is recorded before the context
+	 * switch (and so excludes the cost of context switches) or use the
+	 * value from the context image itself, which is saved/restored earlier
+	 * and so includes the cost of the save.
+	 */
+	return READ_ONCE(ce->lrc_reg_state[CTX_TIMESTAMP]);
 }
 
 void lrc_update_runtime(struct intel_context *ce)

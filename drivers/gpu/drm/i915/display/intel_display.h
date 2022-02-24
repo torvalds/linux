@@ -430,11 +430,11 @@ enum hpd_pin {
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)
 
-#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask)		\
+#define for_each_intel_crtc_in_pipe_mask(dev, intel_crtc, pipe_mask)	\
 	list_for_each_entry(intel_crtc,					\
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)					\
-		for_each_if((crtc_mask) & drm_crtc_mask(&intel_crtc->base))
+		for_each_if((pipe_mask) & BIT(intel_crtc->pipe))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
@@ -555,6 +555,10 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				bool bigjoiner);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
+bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state);
+bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state);
+u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state);
+struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
@@ -632,9 +636,6 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 			 struct intel_crtc_state *pipe_config);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
-bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
-void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
-void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain intel_port_to_power_domain(enum port port);
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);

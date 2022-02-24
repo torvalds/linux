@@ -1496,7 +1496,7 @@ ilk_dummy_write(struct intel_uncore *uncore)
 	/* WaIssueDummyWriteToWakeupFromRC6:ilk Issue a dummy write to wake up
 	 * the chip from rc6 before touching it for real. MI_MODE is masked,
 	 * hence harmless to write 0 into. */
-	__raw_uncore_write32(uncore, MI_MODE, 0);
+	__raw_uncore_write32(uncore, RING_MI_MODE(RENDER_RING_BASE), 0);
 }
 
 static void

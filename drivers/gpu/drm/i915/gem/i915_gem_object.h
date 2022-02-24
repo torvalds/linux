@@ -459,7 +459,6 @@ i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 
 int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
-void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
@@ -523,6 +522,9 @@ i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 
 struct dma_fence *
 i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj);
+
+void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
+				      struct dma_fence *fence);
 
 int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				      bool intr);

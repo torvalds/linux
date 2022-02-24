@@ -16,6 +16,7 @@
 #include "i915_gem_stolen.h"
 #include "i915_reg.h"
 #include "i915_vgpu.h"
+#include "intel_mchbar_regs.h"
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
@@ -72,7 +73,7 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
 static int i915_adjust_stolen(struct drm_i915_private *i915,
 			      struct resource *dsm)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 	struct resource *r;
 
@@ -583,6 +584,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 
 static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *pages =
 		i915_pages_create_for_stolen(obj->base.dev,
 					     obj->stolen->start,
@@ -590,7 +592,7 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	dbg_poison(&to_i915(obj->base.dev)->ggtt,
+	dbg_poison(to_gt(i915)->ggtt,
 		   sg_dma_address(pages->sgl),
 		   sg_dma_len(pages->sgl),
 		   POISON_INUSE);
@@ -603,9 +605,10 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
 					     struct sg_table *pages)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	/* Should only be called from i915_gem_object_release_stolen() */
 
-	dbg_poison(&to_i915(obj->base.dev)->ggtt,
+	dbg_poison(to_gt(i915)->ggtt,
 		   sg_dma_address(pages->sgl),
 		   sg_dma_len(pages->sgl),
 		   POISON_FREE);

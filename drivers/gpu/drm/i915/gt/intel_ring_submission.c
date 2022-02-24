@@ -3,6 +3,10 @@
  * Copyright © 2008-2021 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
+#include "gem/i915_gem_internal.h"
+
 #include "gen2_engine_cs.h"
 #include "gen6_engine_cs.h"
 #include "gen6_ppgtt.h"

@@ -208,6 +208,9 @@ struct intel_dpll_hw_state {
 	/* icl */
 	u32 cfgcr0;
 
+	/* tgl */
+	u32 div0;
+
 	/* bxt */
 	u32 ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10, pcsdw12;
 

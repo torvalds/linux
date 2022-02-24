@@ -37,6 +37,21 @@
 				 __is_constexpr(__low) &&		\
 				 ((__low) < 0 || (__high) > 31 || (__low) > (__high)))))
 
+/**
+ * REG_GENMASK64() - Prepare a continuous u64 bitmask
+ * @__high: 0-based high bit
+ * @__low: 0-based low bit
+ *
+ * Local wrapper for GENMASK_ULL() to force u64, with compile time checks.
+ *
+ * @return: Continuous bitmask from @__high to @__low, inclusive.
+ */
+#define REG_GENMASK64(__high, __low)					\
+	((u64)(GENMASK_ULL(__high, __low) +				\
+	       BUILD_BUG_ON_ZERO(__is_constexpr(__high) &&		\
+				 __is_constexpr(__low) &&		\
+				 ((__low) < 0 || (__high) > 63 || (__low) > (__high)))))
+
 /*
  * Local integer constant expression version of is_power_of_2().
  */
@@ -70,6 +85,18 @@
  * @return: Masked and shifted value of the field defined by @__mask in @__val.
  */
 #define REG_FIELD_GET(__mask, __val)	((u32)FIELD_GET(__mask, __val))
+
+/**
+ * REG_FIELD_GET64() - Extract a u64 bitfield value
+ * @__mask: shifted mask defining the field's length and position
+ * @__val: value to extract the bitfield value from
+ *
+ * Local wrapper for FIELD_GET() to force u64 and for consistency with
+ * REG_GENMASK64().
+ *
+ * @return: Masked and shifted value of the field defined by @__mask in @__val.
+ */
+#define REG_FIELD_GET64(__mask, __val)	((u64)FIELD_GET(__mask, __val))
 
 typedef struct {
 	u32 reg;

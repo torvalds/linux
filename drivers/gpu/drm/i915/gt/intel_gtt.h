@@ -27,6 +27,7 @@
 
 #include "gt/intel_reset.h"
 #include "i915_selftest.h"
+#include "i915_vma_resource.h"
 #include "i915_vma_types.h"
 
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
@@ -200,7 +201,7 @@ struct i915_vma_ops {
 	/* Map an object into an address space with the given cache flags. */
 	void (*bind_vma)(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash,
-			 struct i915_vma *vma,
+			 struct i915_vma_resource *vma_res,
 			 enum i915_cache_level cache_level,
 			 u32 flags);
 	/*
@@ -208,7 +209,8 @@ struct i915_vma_ops {
 	 * setting the valid PTE entries to a reserved scratch page.
 	 */
 	void (*unbind_vma)(struct i915_address_space *vm,
-			   struct i915_vma *vma);
+			   struct i915_vma_resource *vma_res);
+
 };
 
 struct i915_address_space {
@@ -263,6 +265,9 @@ struct i915_address_space {
 	/* Flags used when creating page-table objects for this vm */
 	unsigned long lmem_pt_obj_flags;
 
+	/* Interval tree for pending unbind vma resources */
+	struct rb_root_cached pending_unbind;
+
 	struct drm_i915_gem_object *
 		(*alloc_pt_dma)(struct i915_address_space *vm, int sz);
 	struct drm_i915_gem_object *
@@ -285,7 +290,7 @@ struct i915_address_space {
 			    enum i915_cache_level cache_level,
 			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
-			       struct i915_vma *vma,
+			       struct i915_vma_resource *vma_res,
 			       enum i915_cache_level cache_level,
 			       u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
@@ -600,11 +605,11 @@ void gen6_ggtt_invalidate(struct i915_ggtt *ggtt);
 
 void ppgtt_bind_vma(struct i915_address_space *vm,
 		    struct i915_vm_pt_stash *stash,
-		    struct i915_vma *vma,
+		    struct i915_vma_resource *vma_res,
 		    enum i915_cache_level cache_level,
 		    u32 flags);
 void ppgtt_unbind_vma(struct i915_address_space *vm,
-		      struct i915_vma *vma);
+		      struct i915_vma_resource *vma_res);
 
 void gtt_write_workarounds(struct intel_gt *gt);
 
@@ -627,8 +632,8 @@ __vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long
 static inline struct sgt_dma {
 	struct scatterlist *sg;
 	dma_addr_t dma, max;
-} sgt_dma(struct i915_vma *vma) {
-	struct scatterlist *sg = vma->pages->sgl;
+} sgt_dma(struct i915_vma_resource *vma_res) {
+	struct scatterlist *sg = vma_res->bi.pages->sgl;
 	dma_addr_t addr = sg_dma_address(sg);
 
 	return (struct sgt_dma){ sg, addr, addr + sg_dma_len(sg) };

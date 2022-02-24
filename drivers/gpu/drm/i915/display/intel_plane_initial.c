@@ -46,17 +46,18 @@ static struct i915_vma *
 initial_plane_vma(struct drm_i915_private *i915,
 		  struct intel_initial_plane_config *plane_config)
 {
+	struct intel_memory_region *mem = i915->mm.stolen_region;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 base, size;
 
-	if (plane_config->size == 0)
+	if (!mem || plane_config->size == 0)
 		return NULL;
 
 	base = round_down(plane_config->base,
 			  I915_GTT_MIN_ALIGNMENT);
 	size = round_up(plane_config->base + plane_config->size,
-			I915_GTT_MIN_ALIGNMENT);
+			mem->min_page_size);
 	size -= base;
 
 	/*
@@ -94,7 +95,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 		goto err_obj;
 	}
 
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(obj, &to_gt(i915)->ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		goto err_obj;
 
@@ -165,8 +166,6 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *plane =
 		to_intel_plane(crtc->base.primary);
 	struct intel_plane_state *plane_state =
@@ -203,11 +202,6 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	 * pretend the BIOS never had it enabled.
 	 */
 	intel_plane_disable_noatomic(crtc, plane);
-	if (crtc_state->bigjoiner) {
-		struct intel_crtc *slave =
-			crtc_state->bigjoiner_linked_crtc;
-		intel_plane_disable_noatomic(slave, to_intel_plane(slave->base.primary));
-	}
 
 	return;
 

@@ -70,6 +70,12 @@
 #define RING_NOPID(base)			_MMIO((base) + 0x94)
 #define RING_HWSTAM(base)			_MMIO((base) + 0x98)
 #define RING_MI_MODE(base)			_MMIO((base) + 0x9c)
+#define   ASYNC_FLIP_PERF_DISABLE		REG_BIT(14)
+#define   MI_FLUSH_ENABLE			REG_BIT(12)
+#define   TGL_NESTED_BB_EN			REG_BIT(12)
+#define   MODE_IDLE				REG_BIT(9)
+#define   STOP_RING				REG_BIT(8)
+#define   VS_TIMER_DISPATCH			REG_BIT(6)
 #define RING_IMR(base)				_MMIO((base) + 0xa8)
 #define RING_EIR(base)				_MMIO((base) + 0xb0)
 #define RING_EMR(base)				_MMIO((base) + 0xb4)
@@ -211,7 +217,24 @@
 #define GEN8_RING_CS_GPR(base, n)		_MMIO((base) + 0x600 + (n) * 8)
 #define GEN8_RING_CS_GPR_UDW(base, n)		_MMIO((base) + 0x600 + (n) * 8 + 4)
 
+#define GEN11_VCS_SFC_FORCED_LOCK(base)		_MMIO((base) + 0x88c)
+#define   GEN11_VCS_SFC_FORCED_LOCK_BIT		(1 << 0)
+#define GEN11_VCS_SFC_LOCK_STATUS(base)		_MMIO((base) + 0x890)
+#define   GEN11_VCS_SFC_USAGE_BIT		(1 << 0)
+#define   GEN11_VCS_SFC_LOCK_ACK_BIT		(1 << 1)
+
+#define GEN11_VECS_SFC_FORCED_LOCK(base)	_MMIO((base) + 0x201c)
+#define   GEN11_VECS_SFC_FORCED_LOCK_BIT	(1 << 0)
+#define GEN11_VECS_SFC_LOCK_ACK(base)		_MMIO((base) + 0x2018)
+#define   GEN11_VECS_SFC_LOCK_ACK_BIT		(1 << 0)
+#define GEN11_VECS_SFC_USAGE(base)		_MMIO((base) + 0x2014)
+#define   GEN11_VECS_SFC_USAGE_BIT		(1 << 0)
+
 #define RING_HWS_PGA_GEN6(base)	_MMIO((base) + 0x2080)
+
+#define GEN12_HCP_SFC_LOCK_STATUS(base)		_MMIO((base) + 0x2914)
+#define   GEN12_HCP_SFC_LOCK_ACK_BIT		REG_BIT(1)
+#define   GEN12_HCP_SFC_USAGE_BIT		REG_BIT(0)
 
 #define VDBOX_CGCTL3F10(base)			_MMIO((base) + 0x3f10)
 #define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
