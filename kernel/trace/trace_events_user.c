@@ -362,6 +362,8 @@ skip_next:
 	*field++ = '\0';
 	depth++;
 parse:
+	name = NULL;
+
 	while ((part = strsep(&field, " ")) != NULL) {
 		switch (depth++) {
 		case FIELD_DEPTH_TYPE:
@@ -382,7 +384,7 @@ parse:
 		}
 	}
 
-	if (depth < FIELD_DEPTH_SIZE)
+	if (depth < FIELD_DEPTH_SIZE || !name)
 		return -EINVAL;
 
 	if (depth == FIELD_DEPTH_SIZE)
