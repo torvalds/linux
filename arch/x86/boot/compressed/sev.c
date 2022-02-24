@@ -478,3 +478,24 @@ bool snp_init(struct boot_params *bp)
 
 	return true;
 }
+
+void sev_prep_identity_maps(unsigned long top_level_pgt)
+{
+	/*
+	 * The Confidential Computing blob is used very early in uncompressed
+	 * kernel to find the in-memory CPUID table to handle CPUID
+	 * instructions. Make sure an identity-mapping exists so it can be
+	 * accessed after switchover.
+	 */
+	if (sev_snp_enabled()) {
+		unsigned long cc_info_pa = boot_params->cc_blob_address;
+		struct cc_blob_sev_info *cc_info;
+
+		kernel_add_identity_map(cc_info_pa, cc_info_pa + sizeof(*cc_info));
+
+		cc_info = (struct cc_blob_sev_info *)cc_info_pa;
+		kernel_add_identity_map(cc_info->cpuid_phys, cc_info->cpuid_phys + cc_info->cpuid_len);
+	}
+
+	sev_verify_cbit(top_level_pgt);
+}
