@@ -9,7 +9,7 @@
 struct prestera_switch *prestera_devlink_alloc(struct prestera_device *dev);
 void prestera_devlink_free(struct prestera_switch *sw);
 
-int prestera_devlink_register(struct prestera_switch *sw);
+void prestera_devlink_register(struct prestera_switch *sw);
 void prestera_devlink_unregister(struct prestera_switch *sw);
 
 int prestera_devlink_port_register(struct prestera_port *port);
@@ -22,5 +22,7 @@ struct devlink_port *prestera_devlink_get_port(struct net_device *dev);
 
 void prestera_devlink_trap_report(struct prestera_port *port,
 				  struct sk_buff *skb, u8 cpu_code);
+int prestera_devlink_traps_register(struct prestera_switch *sw);
+void prestera_devlink_traps_unregister(struct prestera_switch *sw);
 
 #endif /* _PRESTERA_DEVLINK_H_ */

@@ -37,9 +37,6 @@ void __init acpi_hest_init(void);
 static inline void acpi_hest_init(void) { return; }
 #endif
 
-typedef int (*apei_hest_func_t)(struct acpi_hest_header *hest_hdr, void *data);
-int apei_hest_parse(apei_hest_func_t func, void *data);
-
 int erst_write(const struct cper_record_header *record);
 ssize_t erst_get_record_count(void);
 int erst_get_record_id_begin(int *pos);

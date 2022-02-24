@@ -1203,6 +1203,7 @@ static int fjes_probe(struct platform_device *plat_dev)
 	struct net_device *netdev;
 	struct resource *res;
 	struct fjes_hw *hw;
+	u8 addr[ETH_ALEN];
 	int err;
 
 	err = -ENOMEM;
@@ -1261,17 +1262,23 @@ static int fjes_probe(struct platform_device *plat_dev)
 	hw->hw_res.start = res->start;
 	hw->hw_res.size = resource_size(res);
 	hw->hw_res.irq = platform_get_irq(plat_dev, 0);
+	if (hw->hw_res.irq < 0) {
+		err = hw->hw_res.irq;
+		goto err_free_control_wq;
+	}
+
 	err = fjes_hw_init(&adapter->hw);
 	if (err)
 		goto err_free_control_wq;
 
 	/* setup MAC address (02:00:00:00:00:[epid])*/
-	netdev->dev_addr[0] = 2;
-	netdev->dev_addr[1] = 0;
-	netdev->dev_addr[2] = 0;
-	netdev->dev_addr[3] = 0;
-	netdev->dev_addr[4] = 0;
-	netdev->dev_addr[5] = hw->my_epid; /* EPID */
+	addr[0] = 2;
+	addr[1] = 0;
+	addr[2] = 0;
+	addr[3] = 0;
+	addr[4] = 0;
+	addr[5] = hw->my_epid; /* EPID */
+	eth_hw_addr_set(netdev, addr);
 
 	err = register_netdev(netdev);
 	if (err)

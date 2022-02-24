@@ -85,6 +85,5 @@ int vmw_prime_handle_to_fd(struct drm_device *dev,
 			   int *prime_fd)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-
 	return ttm_prime_handle_to_fd(tfile, handle, flags, prime_fd);
 }

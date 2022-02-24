@@ -1225,28 +1225,28 @@ static int m88e1118_config_aneg(struct phy_device *phydev)
 
 static int m88e1118_config_init(struct phy_device *phydev)
 {
+	u16 leds;
 	int err;
 
-	/* Change address */
-	err = marvell_set_page(phydev, MII_MARVELL_MSCR_PAGE);
-	if (err < 0)
-		return err;
-
 	/* Enable 1000 Mbit */
-	err = phy_write(phydev, 0x15, 0x1070);
+	err = phy_write_paged(phydev, MII_MARVELL_MSCR_PAGE,
+			      MII_88E1121_PHY_MSCR_REG, 0x1070);
 	if (err < 0)
 		return err;
 
-	/* Change address */
-	err = marvell_set_page(phydev, MII_MARVELL_LED_PAGE);
-	if (err < 0)
-		return err;
+	if (phy_interface_is_rgmii(phydev)) {
+		err = m88e1121_config_aneg_rgmii_delays(phydev);
+		if (err < 0)
+			return err;
+	}
 
 	/* Adjust LED Control */
 	if (phydev->dev_flags & MARVELL_PHY_M1118_DNS323_LEDS)
-		err = phy_write(phydev, 0x10, 0x1100);
+		leds = 0x1100;
 	else
-		err = phy_write(phydev, 0x10, 0x021e);
+		leds = 0x021e;
+
+	err = phy_write_paged(phydev, MII_MARVELL_LED_PAGE, 0x10, leds);
 	if (err < 0)
 		return err;
 
@@ -1254,7 +1254,7 @@ static int m88e1118_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	/* Reset address */
+	/* Reset page register */
 	err = marvell_set_page(phydev, MII_MARVELL_COPPER_PAGE);
 	if (err < 0)
 		return err;

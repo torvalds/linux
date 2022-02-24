@@ -1,19 +1,37 @@
 #!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0
 
+BEGIN { $Pod::Usage::Formatter = 'Pod::Text::Termcap'; }
+
 use strict;
 use warnings;
 use utf8;
-use Pod::Usage;
+use Pod::Usage qw(pod2usage);
 use Getopt::Long;
 use File::Find;
+use IO::Handle;
 use Fcntl ':mode';
+use Cwd 'abs_path';
+use Data::Dumper;
 
 my $help = 0;
+my $hint = 0;
 my $man = 0;
 my $debug = 0;
 my $enable_lineno = 0;
+my $show_warnings = 1;
 my $prefix="Documentation/ABI";
+my $sysfs_prefix="/sys";
+my $search_string;
+
+# Debug options
+my $dbg_what_parsing = 1;
+my $dbg_what_open = 2;
+my $dbg_dump_abi_structs = 4;
+my $dbg_undefined = 8;
+
+$Data::Dumper::Indent = 1;
+$Data::Dumper::Terse = 1;
 
 #
 # If true, assumes that the description is formatted with ReST
@@ -21,25 +39,27 @@ my $prefix="Documentation/ABI";
 my $description_is_rst = 1;
 
 GetOptions(
-	"debug|d+" => \$debug,
+	"debug=i" => \$debug,
 	"enable-lineno" => \$enable_lineno,
 	"rst-source!" => \$description_is_rst,
 	"dir=s" => \$prefix,
 	'help|?' => \$help,
+	"show-hints" => \$hint,
+	"search-string=s" => \$search_string,
 	man => \$man
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
-pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(-exitstatus => 0, -noperldoc, -verbose => 2) if $man;
 
 pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
 
 my ($cmd, $arg) = @ARGV;
 
-pod2usage(2) if ($cmd ne "search" && $cmd ne "rest" && $cmd ne "validate");
+pod2usage(2) if ($cmd ne "search" && $cmd ne "rest" && $cmd ne "validate" && $cmd ne "undefined");
 pod2usage(2) if ($cmd eq "search" && !$arg);
 
-require Data::Dumper if ($debug);
+require Data::Dumper if ($debug & $dbg_dump_abi_structs);
 
 my %data;
 my %symbols;
@@ -49,6 +69,8 @@ my %symbols;
 #
 sub parse_error($$$$) {
 	my ($file, $ln, $msg, $data) = @_;
+
+	return if (!$show_warnings);
 
 	$data =~ s/\s+$/\n/;
 
@@ -97,7 +119,7 @@ sub parse_abi {
 	my @labels;
 	my $label = "";
 
-	print STDERR "Opening $file\n" if ($debug > 1);
+	print STDERR "Opening $file\n" if ($debug & $dbg_what_open);
 	open IN, $file;
 	while(<IN>) {
 		$ln++;
@@ -129,12 +151,12 @@ sub parse_abi {
 				push @{$symbols{$content}->{file}}, " $file:" . ($ln - 1);
 
 				if ($tag =~ m/what/) {
-					$what .= ", " . $content;
+					$what .= "\xac" . $content;
 				} else {
 					if ($what) {
 						parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
 
-						foreach my $w(split /, /, $what) {
+						foreach my $w(split /\xac/, $what) {
 							$symbols{$w}->{xref} = $what;
 						};
 					}
@@ -164,12 +186,13 @@ sub parse_abi {
 						$data{$what}->{file} = $name;
 						$data{$what}->{filepath} = $file;
 					} else {
+						$data{$what}->{description} .= "\n\n" if (defined($data{$what}->{description}));
 						if ($name ne $data{$what}->{file}) {
 							$data{$what}->{file} .= " " . $name;
 							$data{$what}->{filepath} .= " " . $file;
 						}
 					}
-					print STDERR "\twhat: $what\n" if ($debug > 1);
+					print STDERR "\twhat: $what\n" if ($debug & $dbg_what_parsing);
 					$data{$what}->{line_no} = $ln;
 				} else {
 					$data{$what}->{line_no} = $ln if (!defined($data{$what}->{line_no}));
@@ -239,7 +262,7 @@ sub parse_abi {
 	if ($what) {
 		parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
 
-		foreach my $w(split /, /,$what) {
+		foreach my $w(split /\xac/,$what) {
 			$symbols{$w}->{xref} = $what;
 		};
 	}
@@ -328,7 +351,7 @@ sub output_rest {
 
 			printf ".. _%s:\n\n", $data{$what}->{label};
 
-			my @names = split /, /,$w;
+			my @names = split /\xac/,$w;
 			my $len = 0;
 
 			foreach my $name (@names) {
@@ -492,6 +515,7 @@ sub search_symbols {
 
 		my $file = $data{$what}->{filepath};
 
+		$what =~ s/\xac/, /g;
 		my $bar = $what;
 		$bar =~ s/./-/g;
 
@@ -521,22 +545,420 @@ sub search_symbols {
 	}
 }
 
+# Exclude /sys/kernel/debug and /sys/kernel/tracing from the search path
+sub dont_parse_special_attributes {
+	if (($File::Find::dir =~ m,^/sys/kernel,)) {
+		return grep {!/(debug|tracing)/ } @_;
+	}
+
+	if (($File::Find::dir =~ m,^/sys/fs,)) {
+		return grep {!/(pstore|bpf|fuse)/ } @_;
+	}
+
+	return @_
+}
+
+my %leaf;
+my %aliases;
+my @files;
+my %root;
+
+sub graph_add_file {
+	my $file = shift;
+	my $type = shift;
+
+	my $dir = $file;
+	$dir =~ s,^(.*/).*,$1,;
+	$file =~ s,.*/,,;
+
+	my $name;
+	my $file_ref = \%root;
+	foreach my $edge(split "/", $dir) {
+		$name .= "$edge/";
+		if (!defined ${$file_ref}{$edge}) {
+			${$file_ref}{$edge} = { };
+		}
+		$file_ref = \%{$$file_ref{$edge}};
+		${$file_ref}{"__name"} = [ $name ];
+	}
+	$name .= "$file";
+	${$file_ref}{$file} = {
+		"__name" => [ $name ]
+	};
+
+	return \%{$$file_ref{$file}};
+}
+
+sub graph_add_link {
+	my $file = shift;
+	my $link = shift;
+
+	# Traverse graph to find the reference
+	my $file_ref = \%root;
+	foreach my $edge(split "/", $file) {
+		$file_ref = \%{$$file_ref{$edge}} || die "Missing node!";
+	}
+
+	# do a BFS
+
+	my @queue;
+	my %seen;
+	my $st;
+
+	push @queue, $file_ref;
+	$seen{$start}++;
+
+	while (@queue) {
+		my $v = shift @queue;
+		my @child = keys(%{$v});
+
+		foreach my $c(@child) {
+			next if $seen{$$v{$c}};
+			next if ($c eq "__name");
+
+			if (!defined($$v{$c}{"__name"})) {
+				printf STDERR "Error: Couldn't find a non-empty name on a children of $file/.*: ";
+				print STDERR Dumper(%{$v});
+				exit;
+			}
+
+			# Add new name
+			my $name = @{$$v{$c}{"__name"}}[0];
+			if ($name =~ s#^$file/#$link/#) {
+				push @{$$v{$c}{"__name"}}, $name;
+			}
+			# Add child to the queue and mark as seen
+			push @queue, $$v{$c};
+			$seen{$c}++;
+		}
+	}
+}
+
+my $escape_symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x29\x2b-\x2d\x3a-\x40\x7b-\xfe]) }x;
+sub parse_existing_sysfs {
+	my $file = $File::Find::name;
+
+	my $mode = (lstat($file))[2];
+	my $abs_file = abs_path($file);
+
+	my @tmp;
+	push @tmp, $file;
+	push @tmp, $abs_file if ($abs_file ne $file);
+
+	foreach my $f(@tmp) {
+		# Ignore cgroup, as this is big and has zero docs under ABI
+		return if ($f =~ m#^/sys/fs/cgroup/#);
+
+		# Ignore firmware as it is documented elsewhere
+		# Either ACPI or under Documentation/devicetree/bindings/
+		return if ($f =~ m#^/sys/firmware/#);
+
+		# Ignore some sysfs nodes that aren't actually part of ABI
+		return if ($f =~ m#/sections|notes/#);
+
+		# Would need to check at
+		# Documentation/admin-guide/kernel-parameters.txt, but this
+		# is not easily parseable.
+		return if ($f =~ m#/parameters/#);
+	}
+
+	if (S_ISLNK($mode)) {
+		$aliases{$file} = $abs_file;
+		return;
+	}
+
+	return if (S_ISDIR($mode));
+
+	# Trivial: file is defined exactly the same way at ABI What:
+	return if (defined($data{$file}));
+	return if (defined($data{$abs_file}));
+
+	push @files, graph_add_file($abs_file, "file");
+}
+
+sub get_leave($)
+{
+	my $what = shift;
+	my $leave;
+
+	my $l = $what;
+	my $stop = 1;
+
+	$leave = $l;
+	$leave =~ s,/$,,;
+	$leave =~ s,.*/,,;
+	$leave =~ s/[\(\)]//g;
+
+	# $leave is used to improve search performance at
+	# check_undefined_symbols, as the algorithm there can seek
+	# for a small number of "what". It also allows giving a
+	# hint about a leave with the same name somewhere else.
+	# However, there are a few occurences where the leave is
+	# either a wildcard or a number. Just group such cases
+	# altogether.
+	if ($leave =~ m/\.\*/ || $leave eq "" || $leave =~ /\\d/) {
+		$leave = "others";
+	}
+
+	return $leave;
+}
+
+my @not_found;
+
+sub check_file($$)
+{
+	my $file_ref = shift;
+	my $names_ref = shift;
+	my @names = @{$names_ref};
+	my $file = $names[0];
+
+	my $found_string;
+
+	my $leave = get_leave($file);
+	if (!defined($leaf{$leave})) {
+		$leave = "others";
+	}
+	my @expr = @{$leaf{$leave}->{expr}};
+	die ("\rmissing rules for $leave") if (!defined($leaf{$leave}));
+
+	my $path = $file;
+	$path =~ s,(.*/).*,$1,;
+
+	if ($search_string) {
+		return if (!($file =~ m#$search_string#));
+		$found_string = 1;
+	}
+
+	for (my $i = 0; $i < @names; $i++) {
+		if ($found_string && $hint) {
+			if (!$i) {
+				print STDERR "--> $names[$i]\n";
+			} else {
+				print STDERR "    $names[$i]\n";
+			}
+		}
+		foreach my $re (@expr) {
+			print STDERR "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+			if ($names[$i] =~ $re) {
+				return;
+			}
+		}
+	}
+
+	if ($leave ne "others") {
+		my @expr = @{$leaf{"others"}->{expr}};
+		for (my $i = 0; $i < @names; $i++) {
+			foreach my $re (@expr) {
+				print STDERR "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+				if ($names[$i] =~ $re) {
+					return;
+				}
+			}
+		}
+	}
+
+	push @not_found, $file if (!$search_string || $found_string);
+
+	if ($hint && (!$search_string || $found_string)) {
+		my $what = $leaf{$leave}->{what};
+		$what =~ s/\xac/\n\t/g;
+		if ($leave ne "others") {
+			print STDERR "\r    more likely regexes:\n\t$what\n";
+		} else {
+			print STDERR "\r    tested regexes:\n\t$what\n";
+		}
+	}
+}
+
+sub check_undefined_symbols {
+	my $num_files = scalar @files;
+	my $next_i = 0;
+	my $start_time = times;
+
+	@files = sort @files;
+
+	my $last_time = $start_time;
+
+	# When either debug or hint is enabled, there's no sense showing
+	# progress, as the progress will be overriden.
+	if ($hint || ($debug && $dbg_undefined)) {
+		$next_i = $num_files;
+	}
+
+	my $is_console;
+	$is_console = 1 if (-t STDERR);
+
+	for (my $i = 0; $i < $num_files; $i++) {
+		my $file_ref = $files[$i];
+		my @names = @{$$file_ref{"__name"}};
+
+		check_file($file_ref, \@names);
+
+		my $cur_time = times;
+
+		if ($i == $next_i || $cur_time > $last_time + 1) {
+			my $percent = $i * 100 / $num_files;
+
+			my $tm = $cur_time - $start_time;
+			my $time = sprintf "%d:%02d", int($tm), 60 * ($tm - int($tm));
+
+			printf STDERR "\33[2K\r", if ($is_console);
+			printf STDERR "%s: processing sysfs files... %i%%: $names[0]", $time, $percent;
+			printf STDERR "\n", if (!$is_console);
+			STDERR->flush();
+
+			$next_i = int (($percent + 1) * $num_files / 100);
+			$last_time = $cur_time;
+		}
+	}
+
+	my $cur_time = times;
+	my $tm = $cur_time - $start_time;
+	my $time = sprintf "%d:%02d", int($tm), 60 * ($tm - int($tm));
+
+	printf STDERR "\33[2K\r", if ($is_console);
+	printf STDERR "%s: processing sysfs files... done\n", $time;
+
+	foreach my $file (@not_found) {
+		print "$file not found.\n";
+	}
+}
+
+sub undefined_symbols {
+	print STDERR "Reading $sysfs_prefix directory contents...";
+	find({
+		wanted =>\&parse_existing_sysfs,
+		preprocess =>\&dont_parse_special_attributes,
+		no_chdir => 1
+	     }, $sysfs_prefix);
+	print STDERR "done.\n";
+
+	$leaf{"others"}->{what} = "";
+
+	print STDERR "Converting ABI What fields into regexes...";
+	foreach my $w (sort keys %data) {
+		foreach my $what (split /\xac/,$w) {
+			next if (!($what =~ m/^$sysfs_prefix/));
+
+			# Convert what into regular expressions
+
+			# Escape dot characters
+			$what =~ s/\./\xf6/g;
+
+			# Temporarily change [0-9]+ type of patterns
+			$what =~ s/\[0\-9\]\+/\xff/g;
+
+			# Temporarily change [\d+-\d+] type of patterns
+			$what =~ s/\[0\-\d+\]/\xff/g;
+			$what =~ s/\[(\d+)\]/\xf4$1\xf5/g;
+
+			# Temporarily change [0-9] type of patterns
+			$what =~ s/\[(\d)\-(\d)\]/\xf4$1-$2\xf5/g;
+
+			# Handle multiple option patterns
+			$what =~ s/[\{\<\[]([\w_]+)(?:[,|]+([\w_]+)){1,}[\}\>\]]/($1|$2)/g;
+
+			# Handle wildcards
+			$what =~ s,\*,.*,g;
+			$what =~ s,/\xf6..,/.*,g;
+			$what =~ s/\<[^\>]+\>/.*/g;
+			$what =~ s/\{[^\}]+\}/.*/g;
+			$what =~ s/\[[^\]]+\]/.*/g;
+
+			$what =~ s/[XYZ]/.*/g;
+
+			# Recover [0-9] type of patterns
+			$what =~ s/\xf4/[/g;
+			$what =~ s/\xf5/]/g;
+
+			# Remove duplicated spaces
+			$what =~ s/\s+/ /g;
+
+			# Special case: this ABI has a parenthesis on it
+			$what =~ s/sqrt\(x^2\+y^2\+z^2\)/sqrt\(x^2\+y^2\+z^2\)/;
+
+			# Special case: drop comparition as in:
+			#	What: foo = <something>
+			# (this happens on a few IIO definitions)
+			$what =~ s,\s*\=.*$,,;
+
+			# Escape all other symbols
+			$what =~ s/$escape_symbols/\\$1/g;
+			$what =~ s/\\\\/\\/g;
+			$what =~ s/\\([\[\]\(\)\|])/$1/g;
+			$what =~ s/(\d+)\\(-\d+)/$1$2/g;
+
+			$what =~ s/\xff/\\d+/g;
+
+			# Special case: IIO ABI which a parenthesis.
+			$what =~ s/sqrt(.*)/sqrt\(.*\)/;
+
+			# Simplify regexes with multiple .*
+			$what =~ s#(?:\.\*){2,}##g;
+#			$what =~ s#\.\*/\.\*#.*#g;
+
+			# Recover dot characters
+			$what =~ s/\xf6/\./g;
+
+			my $leave = get_leave($what);
+
+			my $added = 0;
+			foreach my $l (split /\|/, $leave) {
+				if (defined($leaf{$l})) {
+					next if ($leaf{$l}->{what} =~ m/\b$what\b/);
+					$leaf{$l}->{what} .= "\xac" . $what;
+					$added = 1;
+				} else {
+					$leaf{$l}->{what} = $what;
+					$added = 1;
+				}
+			}
+			if ($search_string && $added) {
+				print STDERR "What: $what\n" if ($what =~ m#$search_string#);
+			}
+
+		}
+	}
+	# Compile regexes
+	foreach my $l (sort keys %leaf) {
+		my @expr;
+		foreach my $w(sort split /\xac/, $leaf{$l}->{what}) {
+			push @expr, qr /^$w$/;
+		}
+		$leaf{$l}->{expr} = \@expr;
+	}
+
+	# Take links into account
+	foreach my $link (sort keys %aliases) {
+		my $abs_file = $aliases{$link};
+		graph_add_link($abs_file, $link);
+	}
+	print STDERR "done.\n";
+
+	check_undefined_symbols;
+}
+
 # Ensure that the prefix will always end with a slash
 # While this is not needed for find, it makes the patch nicer
 # with --enable-lineno
 $prefix =~ s,/?$,/,;
 
+if ($cmd eq "undefined" || $cmd eq "search") {
+	$show_warnings = 0;
+}
 #
 # Parses all ABI files located at $prefix dir
 #
 find({wanted =>\&parse_abi, no_chdir => 1}, $prefix);
 
-print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
+print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug & $dbg_dump_abi_structs);
 
 #
 # Handles the command
 #
-if ($cmd eq "search") {
+if ($cmd eq "undefined") {
+	undefined_symbols;
+} elsif ($cmd eq "search") {
 	search_symbols;
 } else {
 	if ($cmd eq "rest") {
@@ -562,18 +984,23 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] [--enable-lineno] [--man] [--help]
-	       [--(no-)rst-source] [--dir=<dir>] <COMAND> [<ARGUMENT>]
+B<abi_book.pl> [--debug <level>] [--enable-lineno] [--man] [--help]
+	       [--(no-)rst-source] [--dir=<dir>] [--show-hints]
+	       [--search-string <regex>]
+	       <COMAND> [<ARGUMENT>]
 
-Where <COMMAND> can be:
+Where B<COMMAND> can be:
 
 =over 8
 
-B<search> [SEARCH_REGEX] - search for [SEARCH_REGEX] inside ABI
+B<search> I<SEARCH_REGEX> - search for I<SEARCH_REGEX> inside ABI
 
-B<rest>                  - output the ABI in ReST markup language
+B<rest>                   - output the ABI in ReST markup language
 
-B<validate>              - validate the ABI contents
+B<validate>               - validate the ABI contents
+
+B<undefined>              - existing symbols at the system that aren't
+                            defined at Documentation/ABI
 
 =back
 
@@ -589,18 +1016,32 @@ the Documentation/ABI directory.
 =item B<--rst-source> and B<--no-rst-source>
 
 The input file may be using ReST syntax or not. Those two options allow
-selecting between a rst-compliant source ABI (--rst-source), or a
+selecting between a rst-compliant source ABI (B<--rst-source>), or a
 plain text that may be violating ReST spec, so it requres some escaping
-logic (--no-rst-source).
+logic (B<--no-rst-source>).
 
 =item B<--enable-lineno>
 
 Enable output of #define LINENO lines.
 
-=item B<--debug>
+=item B<--debug> I<debug level>
 
-Put the script in verbose mode, useful for debugging. Can be called multiple
-times, to increase verbosity.
+Print debug information according with the level, which is given by the
+following bitmask:
+
+    -  1: Debug parsing What entries from ABI files;
+    -  2: Shows what files are opened from ABI files;
+    -  4: Dump the structs used to store the contents of the ABI files.
+
+=item B<--show-hints>
+
+Show hints about possible definitions for the missing ABI symbols.
+Used only when B<undefined>.
+
+=item B<--search-string> I<regex string>
+
+Show only occurences that match a search string.
+Used only when B<undefined>.
 
 =item B<--help>
 
@@ -646,11 +1087,11 @@ $ scripts/get_abi.pl rest --dir Documentation/ABI/obsolete
 
 =head1 BUGS
 
-Report bugs to Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Report bugs to Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2016-2019 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
+Copyright (c) 2016-2021 by Mauro Carvalho Chehab <mchehab+huawei@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 

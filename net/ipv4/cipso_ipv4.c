@@ -73,7 +73,7 @@ struct cipso_v4_map_cache_entry {
 static struct cipso_v4_map_cache_bkt *cipso_v4_cache;
 
 /* Restricted bitmap (tag #1) flags */
-int cipso_v4_rbm_optfmt = 0;
+int cipso_v4_rbm_optfmt;
 int cipso_v4_rbm_strictvalid = 1;
 
 /*
@@ -465,16 +465,14 @@ void cipso_v4_doi_free(struct cipso_v4_doi *doi_def)
 	if (!doi_def)
 		return;
 
-	if (doi_def->map.std) {
-		switch (doi_def->type) {
-		case CIPSO_V4_MAP_TRANS:
-			kfree(doi_def->map.std->lvl.cipso);
-			kfree(doi_def->map.std->lvl.local);
-			kfree(doi_def->map.std->cat.cipso);
-			kfree(doi_def->map.std->cat.local);
-			kfree(doi_def->map.std);
-			break;
-		}
+	switch (doi_def->type) {
+	case CIPSO_V4_MAP_TRANS:
+		kfree(doi_def->map.std->lvl.cipso);
+		kfree(doi_def->map.std->lvl.local);
+		kfree(doi_def->map.std->cat.cipso);
+		kfree(doi_def->map.std->cat.local);
+		kfree(doi_def->map.std);
+		break;
 	}
 	kfree(doi_def);
 }

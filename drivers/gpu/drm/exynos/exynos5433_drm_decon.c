@@ -793,7 +793,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct decon_context *ctx;
-	struct resource *res;
 	int ret;
 	int i;
 
@@ -818,8 +817,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->clks[i] = clk;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->addr = devm_ioremap_resource(dev, res);
+	ctx->addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->addr))
 		return PTR_ERR(ctx->addr);
 

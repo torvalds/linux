@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
+#include <linux/stdarg.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <asm/stacktrace.h>
@@ -8,7 +9,6 @@
 #include <asm/setup.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
-#include <stdarg.h>
 #include "boot.h"
 
 const char hex_asc[] = "0123456789abcdef";
@@ -175,6 +175,6 @@ void print_pgm_check_info(void)
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
 	print_stacktrace();
 	decompressor_printk("Last Breaking-Event-Address:\n");
-	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.breaking_event_addr,
-			    (void *)S390_lowcore.breaking_event_addr);
+	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.pgm_last_break,
+			    (void *)S390_lowcore.pgm_last_break);
 }

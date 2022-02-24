@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus SVK (BCM958525ER)";
-	compatible = "brcm,bcm58525", "brcm,nsp";
+	compatible = "brcm,bcm958525er", "brcm,bcm58525", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -134,6 +134,7 @@
 };
 
 &qspi {
+	status = "okay";
 	bspi-sel = <0>;
 	flash: m25p80@0 {
 		#address-cells = <1>;

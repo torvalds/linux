@@ -47,17 +47,12 @@ unsigned long
 svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr);
 
 int svm_migrate_init(struct amdgpu_device *adev);
-void svm_migrate_fini(struct amdgpu_device *adev);
 
 #else
 
 static inline int svm_migrate_init(struct amdgpu_device *adev)
 {
 	return 0;
-}
-static inline void svm_migrate_fini(struct amdgpu_device *adev)
-{
-	/* empty */
 }
 
 #endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */

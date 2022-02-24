@@ -33,6 +33,7 @@
 struct sdm845_snd_data {
 	struct snd_soc_jack jack;
 	bool jack_setup;
+	bool slim_port_setup;
 	bool stream_prepared[AFE_PORT_MAX];
 	struct snd_soc_card *card;
 	uint32_t pri_mi2s_clk_count;
@@ -56,8 +57,8 @@ static int sdm845_slim_snd_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0, i;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		sruntime = snd_soc_dai_get_sdw_stream(codec_dai,
-						      substream->stream);
+		sruntime = snd_soc_dai_get_stream(codec_dai,
+						  substream->stream);
 		if (sruntime != ERR_PTR(-ENOTSUPP))
 			pdata->sruntime[cpu_dai->id] = sruntime;
 
@@ -224,6 +225,7 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct sdm845_snd_data *pdata = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dai_link *link = rtd->dai_link;
 	struct snd_jack *jack;
 	/*
 	 * Codec SLIMBUS configuration
@@ -276,6 +278,10 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 		}
 		break;
 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
+		/* setting up wcd multiple times for slim port is redundant */
+		if (pdata->slim_port_setup || !link->no_pcm)
+			return 0;
+
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			rval = snd_soc_dai_set_channel_map(codec_dai,
 							  ARRAY_SIZE(tx_ch),
@@ -295,8 +301,10 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 				dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 				return rval;
 			}
-
 		}
+
+		pdata->slim_port_setup = true;
+
 		break;
 	default:
 		break;

@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
@@ -83,6 +84,7 @@
 #define SWRM_DP_PORT_HCTRL_BANK(n, m)	(0x1134 + 0x100 * (n - 1) + 0x40 * m)
 #define SWRM_DP_BLOCK_CTRL3_BANK(n, m)	(0x1138 + 0x100 * (n - 1) + 0x40 * m)
 #define SWRM_DIN_DPn_PCM_PORT_CTRL(n)	(0x1054 + 0x100 * (n - 1))
+#define SWR_MSTR_MAX_REG_ADDR		(0x1740)
 
 #define SWRM_DP_PORT_CTRL_EN_CHAN_SHFT				0x18
 #define SWRM_DP_PORT_CTRL_OFFSET2_SHFT				0x10
@@ -127,6 +129,9 @@ struct qcom_swrm_ctrl {
 	struct device *dev;
 	struct regmap *regmap;
 	void __iomem *mmio;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
 	struct completion broadcast;
 	struct completion enumeration;
 	struct work_struct slave_work;
@@ -1019,8 +1024,8 @@ static int qcom_swrm_startup(struct snd_pcm_substream *substream,
 	ctrl->sruntime[dai->id] = sruntime;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		ret = snd_soc_dai_set_sdw_stream(codec_dai, sruntime,
-						 substream->stream);
+		ret = snd_soc_dai_set_stream(codec_dai, sruntime,
+					     substream->stream);
 		if (ret < 0 && ret != -ENOTSUPP) {
 			dev_err(dai->dev, "Failed to set sdw stream on %s\n",
 				codec_dai->name);
@@ -1046,8 +1051,8 @@ static const struct snd_soc_dai_ops qcom_swrm_pdm_dai_ops = {
 	.hw_free = qcom_swrm_hw_free,
 	.startup = qcom_swrm_startup,
 	.shutdown = qcom_swrm_shutdown,
-	.set_sdw_stream = qcom_swrm_set_sdw_stream,
-	.get_sdw_stream = qcom_swrm_get_sdw_stream,
+	.set_stream = qcom_swrm_set_sdw_stream,
+	.get_stream = qcom_swrm_get_sdw_stream,
 };
 
 static const struct snd_soc_component_driver qcom_swrm_dai_component = {
@@ -1151,11 +1156,7 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 	ret = of_property_read_u8_array(np, "qcom,ports-block-pack-mode",
 					bp_mode, nports);
 	if (ret) {
-		u32 version;
-
-		ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &version);
-
-		if (version <= 0x01030000)
+		if (ctrl->version <= 0x01030000)
 			memset(bp_mode, SWR_INVALID_PARAM, QCOM_SDW_MAX_PORTS);
 		else
 			return ret;
@@ -1191,6 +1192,22 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 
 	return 0;
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int swrm_reg_show(struct seq_file *s_file, void *data)
+{
+	struct qcom_swrm_ctrl *swrm = s_file->private;
+	int reg, reg_val;
+
+	for (reg = 0; reg <= SWR_MSTR_MAX_REG_ADDR; reg += 4) {
+		swrm->reg_read(swrm, reg, &reg_val);
+		seq_printf(s_file, "0x%.3x: 0x%.2x\n", reg, reg_val);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(swrm_reg);
+#endif
 
 static int qcom_swrm_probe(struct platform_device *pdev)
 {
@@ -1301,6 +1318,12 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	dev_info(dev, "Qualcomm Soundwire controller v%x.%x.%x Registered\n",
 		 (ctrl->version >> 24) & 0xff, (ctrl->version >> 16) & 0xff,
 		 ctrl->version & 0xffff);
+
+#ifdef CONFIG_DEBUG_FS
+	ctrl->debugfs = debugfs_create_dir("qualcomm-sdw", ctrl->bus.debugfs);
+	debugfs_create_file("qualcomm-registers", 0400, ctrl->debugfs, ctrl,
+			    &swrm_reg_fops);
+#endif
 
 	return 0;
 

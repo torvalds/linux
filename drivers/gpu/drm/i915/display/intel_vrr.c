@@ -60,7 +60,7 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
  * Between those two points the vblank exit starts (and hence registers get
  * latched) ASAP after a push is sent.
  *
- * framestart_delay is programmable 0-3.
+ * framestart_delay is programmable 1-4.
  */
 static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
 {
@@ -138,13 +138,13 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			i915->window2_delay;
 	else
 		/*
-		 * FIXME: s/4/framestart_delay+1/ to get consistent
+		 * FIXME: s/4/framestart_delay/ to get consistent
 		 * earliest/latest points for register latching regardless
 		 * of the framestart_delay used?
 		 *
 		 * FIXME: this really needs the extra scanline to provide consistent
 		 * behaviour for all framestart_delay values. Otherwise with
-		 * framestart_delay==3 we will end up extending the min vblank by
+		 * framestart_delay==4 we will end up extending the min vblank by
 		 * one extra line.
 		 */
 		crtc_state->vrr.pipeline_full =
@@ -191,6 +191,18 @@ void intel_vrr_send_push(const struct intel_crtc_state *crtc_state)
 
 	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder),
 		       TRANS_PUSH_EN | TRANS_PUSH_SEND);
+}
+
+bool intel_vrr_is_push_sent(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	if (!crtc_state->vrr.enable)
+		return false;
+
+	return intel_de_read(dev_priv, TRANS_PUSH(cpu_transcoder)) & TRANS_PUSH_SEND;
 }
 
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)

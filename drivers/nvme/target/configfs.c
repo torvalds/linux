@@ -1028,7 +1028,7 @@ nvmet_subsys_attr_version_store_locked(struct nvmet_subsys *subsys,
 	}
 
 	/* passthru subsystems use the underlying controller's version */
-	if (nvmet_passthru_ctrl(subsys))
+	if (nvmet_is_passthru_subsys(subsys))
 		return -EINVAL;
 
 	ret = sscanf(page, "%d.%d.%d\n", &major, &minor, &tertiary);
@@ -1067,7 +1067,8 @@ static ssize_t nvmet_subsys_attr_serial_show(struct config_item *item,
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
 
-	return snprintf(page, PAGE_SIZE, "%s\n", subsys->serial);
+	return snprintf(page, PAGE_SIZE, "%.*s\n",
+			NVMET_SN_MAX_SIZE, subsys->serial);
 }
 
 static ssize_t
@@ -1232,6 +1233,44 @@ static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_model);
 
+static ssize_t nvmet_subsys_attr_discovery_nqn_show(struct config_item *item,
+			char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%s\n",
+			nvmet_disc_subsys->subsysnqn);
+}
+
+static ssize_t nvmet_subsys_attr_discovery_nqn_store(struct config_item *item,
+			const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	char *subsysnqn;
+	int len;
+
+	len = strcspn(page, "\n");
+	if (!len)
+		return -EINVAL;
+
+	subsysnqn = kmemdup_nul(page, len, GFP_KERNEL);
+	if (!subsysnqn)
+		return -ENOMEM;
+
+	/*
+	 * The discovery NQN must be different from subsystem NQN.
+	 */
+	if (!strcmp(subsysnqn, subsys->subsysnqn)) {
+		kfree(subsysnqn);
+		return -EBUSY;
+	}
+	down_write(&nvmet_config_sem);
+	kfree(nvmet_disc_subsys->subsysnqn);
+	nvmet_disc_subsys->subsysnqn = subsysnqn;
+	up_write(&nvmet_config_sem);
+
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_discovery_nqn);
+
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 static ssize_t nvmet_subsys_attr_pi_enable_show(struct config_item *item,
 						char *page)
@@ -1261,6 +1300,7 @@ static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_cntlid_min,
 	&nvmet_subsys_attr_attr_cntlid_max,
 	&nvmet_subsys_attr_attr_model,
+	&nvmet_subsys_attr_attr_discovery_nqn,
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	&nvmet_subsys_attr_attr_pi_enable,
 #endif
@@ -1552,6 +1592,8 @@ static void nvmet_port_release(struct config_item *item)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 
+	/* Let inflight controllers teardown complete */
+	flush_scheduled_work();
 	list_del(&port->global_entry);
 
 	kfree(port->ana_state);

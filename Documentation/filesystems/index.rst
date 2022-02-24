@@ -29,7 +29,6 @@ algorithms work.
    fiemap
    files
    locks
-   mandatory-locking
    mount_api
    quota
    seq_file
@@ -101,6 +100,7 @@ Documentation for filesystem implementations.
    nilfs2
    nfs/index
    ntfs
+   ntfs3
    ocfs2
    ocfs2-online-filecheck
    omfs

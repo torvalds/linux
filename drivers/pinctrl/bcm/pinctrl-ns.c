@@ -5,7 +5,6 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -13,8 +12,10 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/slab.h>
+
+#include "../core.h"
+#include "../pinmux.h"
 
 #define FLAG_BCM4708		BIT(1)
 #define FLAG_BCM4709		BIT(2)
@@ -24,14 +25,9 @@ struct ns_pinctrl {
 	struct device *dev;
 	unsigned int chipset_flag;
 	struct pinctrl_dev *pctldev;
-	struct regmap *regmap;
-	u32 offset;
+	void __iomem *base;
 
 	struct pinctrl_desc pctldesc;
-	struct ns_pinctrl_group *groups;
-	unsigned int num_groups;
-	struct ns_pinctrl_function *functions;
-	unsigned int num_functions;
 };
 
 /*
@@ -68,22 +64,22 @@ static const struct pinctrl_pin_desc ns_pinctrl_pins[] = {
 
 struct ns_pinctrl_group {
 	const char *name;
-	const unsigned int *pins;
+	unsigned int *pins;
 	const unsigned int num_pins;
 	unsigned int chipsets;
 };
 
-static const unsigned int spi_pins[] = { 0, 1, 2, 3 };
-static const unsigned int i2c_pins[] = { 4, 5 };
-static const unsigned int mdio_pins[] = { 6, 7 };
-static const unsigned int pwm0_pins[] = { 8 };
-static const unsigned int pwm1_pins[] = { 9 };
-static const unsigned int pwm2_pins[] = { 10 };
-static const unsigned int pwm3_pins[] = { 11 };
-static const unsigned int uart1_pins[] = { 12, 13, 14, 15 };
-static const unsigned int uart2_pins[] = { 16, 17 };
-static const unsigned int sdio_pwr_pins[] = { 22 };
-static const unsigned int sdio_1p8v_pins[] = { 23 };
+static unsigned int spi_pins[] = { 0, 1, 2, 3 };
+static unsigned int i2c_pins[] = { 4, 5 };
+static unsigned int mdio_pins[] = { 6, 7 };
+static unsigned int pwm0_pins[] = { 8 };
+static unsigned int pwm1_pins[] = { 9 };
+static unsigned int pwm2_pins[] = { 10 };
+static unsigned int pwm3_pins[] = { 11 };
+static unsigned int uart1_pins[] = { 12, 13, 14, 15 };
+static unsigned int uart2_pins[] = { 16, 17 };
+static unsigned int sdio_pwr_pins[] = { 22 };
+static unsigned int sdio_1p8v_pins[] = { 23 };
 
 #define NS_GROUP(_name, _pins, _chipsets)		\
 {							\
@@ -149,38 +145,10 @@ static const struct ns_pinctrl_function ns_pinctrl_functions[] = {
  * Groups code
  */
 
-static int ns_pinctrl_get_groups_count(struct pinctrl_dev *pctrl_dev)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	return ns_pinctrl->num_groups;
-}
-
-static const char *ns_pinctrl_get_group_name(struct pinctrl_dev *pctrl_dev,
-					     unsigned int selector)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	return ns_pinctrl->groups[selector].name;
-}
-
-static int ns_pinctrl_get_group_pins(struct pinctrl_dev *pctrl_dev,
-				     unsigned int selector,
-				     const unsigned int **pins,
-				     unsigned int *num_pins)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	*pins = ns_pinctrl->groups[selector].pins;
-	*num_pins = ns_pinctrl->groups[selector].num_pins;
-
-	return 0;
-}
-
 static const struct pinctrl_ops ns_pinctrl_ops = {
-	.get_groups_count = ns_pinctrl_get_groups_count,
-	.get_group_name = ns_pinctrl_get_group_name,
-	.get_group_pins = ns_pinctrl_get_group_pins,
+	.get_groups_count = pinctrl_generic_get_group_count,
+	.get_group_name = pinctrl_generic_get_group_name,
+	.get_group_pins = pinctrl_generic_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
@@ -189,60 +157,34 @@ static const struct pinctrl_ops ns_pinctrl_ops = {
  * Functions code
  */
 
-static int ns_pinctrl_get_functions_count(struct pinctrl_dev *pctrl_dev)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	return ns_pinctrl->num_functions;
-}
-
-static const char *ns_pinctrl_get_function_name(struct pinctrl_dev *pctrl_dev,
-						unsigned int selector)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	return ns_pinctrl->functions[selector].name;
-}
-
-static int ns_pinctrl_get_function_groups(struct pinctrl_dev *pctrl_dev,
-					  unsigned int selector,
-					  const char * const **groups,
-					  unsigned * const num_groups)
-{
-	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-
-	*groups = ns_pinctrl->functions[selector].groups;
-	*num_groups = ns_pinctrl->functions[selector].num_groups;
-
-	return 0;
-}
-
 static int ns_pinctrl_set_mux(struct pinctrl_dev *pctrl_dev,
 			      unsigned int func_select,
-			      unsigned int grp_select)
+			      unsigned int group_selector)
 {
 	struct ns_pinctrl *ns_pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
+	struct group_desc *group;
 	u32 unset = 0;
 	u32 tmp;
 	int i;
 
-	for (i = 0; i < ns_pinctrl->groups[grp_select].num_pins; i++) {
-		int pin_number = ns_pinctrl->groups[grp_select].pins[i];
+	group = pinctrl_generic_get_group(pctrl_dev, group_selector);
+	if (!group)
+		return -EINVAL;
 
-		unset |= BIT(pin_number);
-	}
+	for (i = 0; i < group->num_pins; i++)
+		unset |= BIT(group->pins[i]);
 
-	regmap_read(ns_pinctrl->regmap, ns_pinctrl->offset, &tmp);
+	tmp = readl(ns_pinctrl->base);
 	tmp &= ~unset;
-	regmap_write(ns_pinctrl->regmap, ns_pinctrl->offset, tmp);
+	writel(tmp, ns_pinctrl->base);
 
 	return 0;
 }
 
 static const struct pinmux_ops ns_pinctrl_pmxops = {
-	.get_functions_count = ns_pinctrl_get_functions_count,
-	.get_function_name = ns_pinctrl_get_function_name,
-	.get_function_groups = ns_pinctrl_get_function_groups,
+	.get_functions_count = pinmux_generic_get_function_count,
+	.get_function_name = pinmux_generic_get_function_name,
+	.get_function_groups = pinmux_generic_get_function_groups,
 	.set_mux = ns_pinctrl_set_mux,
 };
 
@@ -266,13 +208,11 @@ static const struct of_device_id ns_pinctrl_of_match_table[] = {
 static int ns_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	const struct of_device_id *of_id;
 	struct ns_pinctrl *ns_pinctrl;
 	struct pinctrl_desc *pctldesc;
 	struct pinctrl_pin_desc *pin;
-	struct ns_pinctrl_group *group;
-	struct ns_pinctrl_function *function;
+	struct resource *res;
 	int i;
 
 	ns_pinctrl = devm_kzalloc(dev, sizeof(*ns_pinctrl), GFP_KERNEL);
@@ -290,18 +230,12 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	ns_pinctrl->chipset_flag = (uintptr_t)of_id->data;
 
-	ns_pinctrl->regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(ns_pinctrl->regmap)) {
-		int err = PTR_ERR(ns_pinctrl->regmap);
-
-		dev_err(dev, "Failed to map pinctrl regs: %d\n", err);
-
-		return err;
-	}
-
-	if (of_property_read_u32(np, "offset", &ns_pinctrl->offset)) {
-		dev_err(dev, "Failed to get register offset\n");
-		return -ENOENT;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "cru_gpio_control");
+	ns_pinctrl->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(ns_pinctrl->base)) {
+		dev_err(dev, "Failed to map pinctrl regs\n");
+		return PTR_ERR(ns_pinctrl->base);
 	}
 
 	memcpy(pctldesc, &ns_pinctrl_desc, sizeof(*pctldesc));
@@ -324,43 +258,33 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	ns_pinctrl->groups = devm_kcalloc(dev, ARRAY_SIZE(ns_pinctrl_groups),
-					  sizeof(struct ns_pinctrl_group),
-					  GFP_KERNEL);
-	if (!ns_pinctrl->groups)
-		return -ENOMEM;
-	for (i = 0, group = &ns_pinctrl->groups[0];
-	     i < ARRAY_SIZE(ns_pinctrl_groups); i++) {
-		const struct ns_pinctrl_group *src = &ns_pinctrl_groups[i];
-
-		if (src->chipsets & ns_pinctrl->chipset_flag) {
-			memcpy(group++, src, sizeof(*src));
-			ns_pinctrl->num_groups++;
-		}
-	}
-
-	ns_pinctrl->functions = devm_kcalloc(dev,
-					     ARRAY_SIZE(ns_pinctrl_functions),
-					     sizeof(struct ns_pinctrl_function),
-					     GFP_KERNEL);
-	if (!ns_pinctrl->functions)
-		return -ENOMEM;
-	for (i = 0, function = &ns_pinctrl->functions[0];
-	     i < ARRAY_SIZE(ns_pinctrl_functions); i++) {
-		const struct ns_pinctrl_function *src = &ns_pinctrl_functions[i];
-
-		if (src->chipsets & ns_pinctrl->chipset_flag) {
-			memcpy(function++, src, sizeof(*src));
-			ns_pinctrl->num_functions++;
-		}
-	}
-
 	/* Register */
 
 	ns_pinctrl->pctldev = devm_pinctrl_register(dev, pctldesc, ns_pinctrl);
 	if (IS_ERR(ns_pinctrl->pctldev)) {
 		dev_err(dev, "Failed to register pinctrl\n");
 		return PTR_ERR(ns_pinctrl->pctldev);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ns_pinctrl_groups); i++) {
+		const struct ns_pinctrl_group *group = &ns_pinctrl_groups[i];
+
+		if (!(group->chipsets & ns_pinctrl->chipset_flag))
+			continue;
+
+		pinctrl_generic_add_group(ns_pinctrl->pctldev, group->name,
+					  group->pins, group->num_pins, NULL);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ns_pinctrl_functions); i++) {
+		const struct ns_pinctrl_function *function = &ns_pinctrl_functions[i];
+
+		if (!(function->chipsets & ns_pinctrl->chipset_flag))
+			continue;
+
+		pinmux_generic_add_function(ns_pinctrl->pctldev, function->name,
+					    function->groups,
+					    function->num_groups, NULL);
 	}
 
 	return 0;

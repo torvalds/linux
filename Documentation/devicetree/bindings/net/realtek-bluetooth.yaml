@@ -34,6 +34,8 @@ properties:
     maxItems: 1
     description: GPIO specifier, used to wakeup the host processor
 
+  max-speed: true
+
 required:
   - compatible
 

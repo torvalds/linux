@@ -918,6 +918,13 @@ void key_change_session_keyring(struct callback_head *twork)
 		return;
 	}
 
+	/* If get_ucounts fails more bits are needed in the refcount */
+	if (unlikely(!get_ucounts(old->ucounts))) {
+		WARN_ONCE(1, "In %s get_ucounts failed\n", __func__);
+		put_cred(new);
+		return;
+	}
+
 	new->  uid	= old->  uid;
 	new-> euid	= old-> euid;
 	new-> suid	= old-> suid;
@@ -927,6 +934,7 @@ void key_change_session_keyring(struct callback_head *twork)
 	new-> sgid	= old-> sgid;
 	new->fsgid	= old->fsgid;
 	new->user	= get_uid(old->user);
+	new->ucounts	= old->ucounts;
 	new->user_ns	= get_user_ns(old->user_ns);
 	new->group_info	= get_group_info(old->group_info);
 

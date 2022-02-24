@@ -20,7 +20,7 @@
 #include <math_support.h>
 #include <type_support.h>
 #include <platform_support.h>
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #if !defined(ISP2401)
 #include "input_formatter.h"
@@ -86,12 +86,6 @@
 #define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (not defined yet).*/
 #define SH_CSS_IF_CONFIG_NOT_NEEDED	0xFF
 
-#define SH_CSS_ENABLE_METADATA
-
-#if defined(SH_CSS_ENABLE_METADATA) && !defined(ISP2401)
-#define SH_CSS_ENABLE_METADATA_THREAD
-#endif
-
 /*
  * SH_CSS_MAX_SP_THREADS:
  *	 sp threads visible to host with connected communication queues
@@ -101,7 +95,7 @@
  *	 these threads can't be used as image pipe
  */
 
-#if defined(SH_CSS_ENABLE_METADATA_THREAD)
+#if !defined(ISP2401)
 #define SH_CSS_SP_INTERNAL_METADATA_THREAD	1
 #else
 #define SH_CSS_SP_INTERNAL_METADATA_THREAD	0
@@ -276,7 +270,7 @@ struct sh_css_binary_args {
 	struct ia_css_frame *in_frame;	     /* input frame */
 	const struct ia_css_frame
 		*delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];   /* reference input frame */
-	const struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];   /* tnr frames */
+	const struct ia_css_frame *tnr_frames[NUM_VIDEO_TNR_FRAMES];   /* tnr frames */
 	struct ia_css_frame
 		*out_frame[IA_CSS_BINARY_MAX_OUTPUT_PORTS];      /* output frame */
 	struct ia_css_frame *out_vf_frame;   /* viewfinder output frame */
@@ -526,7 +520,6 @@ struct sh_css_sp_pipeline {
 				  this struct; needs cleanup */
 	s32 num_execs; /* number of times to run if this is
 			      an acceleration pipe. */
-#if defined(SH_CSS_ENABLE_METADATA)
 	struct {
 		u32        format;   /* Metadata format in hrt format */
 		u32        width;    /* Width of a line */
@@ -535,10 +528,7 @@ struct sh_css_sp_pipeline {
 		u32        size;     /* Total size (in bytes) */
 		ia_css_ptr    cont_buf; /* Address of continuous buffer */
 	} metadata;
-#endif
-#if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 	u32	output_frame_queue_id;
-#endif
 	union {
 		struct {
 			u32	bytes_available;
@@ -551,14 +541,6 @@ struct sh_css_sp_pipeline {
 			u32	raw_bit_depth;
 		} raw;
 	} copy;
-
-/* ISP2401 */
-
-	/* Parameters passed to Shading Correction kernel. */
-	struct {
-		u32 internal_frame_origin_x_bqs_on_sctbl; /* Origin X (bqs) of internal frame on shading table */
-		u32 internal_frame_origin_y_bqs_on_sctbl; /* Origin Y (bqs) of internal frame on shading table */
-	} shading;
 };
 
 /*
@@ -580,9 +562,7 @@ struct ia_css_frames_sp {
 	struct ia_css_frame_sp_info internal_frame_info;
 	struct ia_css_buffer_sp s3a_buf;
 	struct ia_css_buffer_sp dvs_buf;
-#if defined SH_CSS_ENABLE_METADATA
 	struct ia_css_buffer_sp metadata_buf;
-#endif
 };
 
 /* Information for a single pipeline stage for an ISP */
@@ -695,8 +675,6 @@ struct sh_css_sp_output {
 	unsigned int		sw_interrupt_value[SH_CSS_NUM_SDW_IRQS];
 };
 
-#define CONFIG_ON_FRAME_ENQUEUE() 0
-
 /**
  * @brief Data structure for the circular buffer.
  * The circular buffer is empty if "start == end". The
@@ -734,9 +712,6 @@ struct sh_css_hmm_buffer {
 			u32	exp_id;
 			u32	isp_parameters_id; /** Unique ID to track which config was
 								actually applied to a particular frame */
-#if CONFIG_ON_FRAME_ENQUEUE()
-			struct sh_css_config_on_frame_enqueue config_on_frame_enqueue;
-#endif
 		} frame;
 		ia_css_ptr ddr_ptrs;
 	} payload;
@@ -752,16 +727,9 @@ struct sh_css_hmm_buffer {
 	clock_value_t isys_eof_clock_tick;
 };
 
-#if CONFIG_ON_FRAME_ENQUEUE()
-#define SIZE_OF_FRAME_STRUCT						\
-	(SIZE_OF_HRT_VADDRESS +						\
-	(3 * sizeof(uint32_t)) +					\
-	sizeof(uint32_t))
-#else
 #define SIZE_OF_FRAME_STRUCT						\
 	(SIZE_OF_HRT_VADDRESS +						\
 	(3 * sizeof(uint32_t)))
-#endif
 
 #define SIZE_OF_PAYLOAD_UNION						\
 	(MAX(MAX(MAX(MAX(						\

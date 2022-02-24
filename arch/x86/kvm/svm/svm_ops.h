@@ -4,7 +4,7 @@
 
 #include <linux/compiler_types.h>
 
-#include <asm/kvm_host.h>
+#include "x86.h"
 
 #define svm_asm(insn, clobber...)				\
 do {								\
@@ -56,12 +56,12 @@ static inline void invlpga(unsigned long addr, u32 asid)
  * VMSAVE, VMLOAD, etc... is still controlled by the effective address size,
  * hence 'unsigned long' instead of 'hpa_t'.
  */
-static inline void vmsave(unsigned long pa)
+static __always_inline void vmsave(unsigned long pa)
 {
 	svm_asm1(vmsave, "a" (pa), "memory");
 }
 
-static inline void vmload(unsigned long pa)
+static __always_inline void vmload(unsigned long pa)
 {
 	svm_asm1(vmload, "a" (pa), "memory");
 }

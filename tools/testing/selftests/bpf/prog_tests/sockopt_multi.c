@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include "cgroup_helpers.h"
 
-static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
+static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title, const char *name)
 {
 	enum bpf_attach_type attach_type;
 	enum bpf_prog_type prog_type;
@@ -15,23 +15,23 @@ static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
 		return -1;
 	}
 
-	prog = bpf_object__find_program_by_title(obj, title);
+	prog = bpf_object__find_program_by_name(obj, name);
 	if (!prog) {
-		log_err("Failed to find %s BPF program", title);
+		log_err("Failed to find %s BPF program", name);
 		return -1;
 	}
 
 	err = bpf_prog_attach(bpf_program__fd(prog), cgroup_fd,
 			      attach_type, BPF_F_ALLOW_MULTI);
 	if (err) {
-		log_err("Failed to attach %s BPF program", title);
+		log_err("Failed to attach %s BPF program", name);
 		return -1;
 	}
 
 	return 0;
 }
 
-static int prog_detach(struct bpf_object *obj, int cgroup_fd, const char *title)
+static int prog_detach(struct bpf_object *obj, int cgroup_fd, const char *title, const char *name)
 {
 	enum bpf_attach_type attach_type;
 	enum bpf_prog_type prog_type;
@@ -42,7 +42,7 @@ static int prog_detach(struct bpf_object *obj, int cgroup_fd, const char *title)
 	if (err)
 		return -1;
 
-	prog = bpf_object__find_program_by_title(obj, title);
+	prog = bpf_object__find_program_by_name(obj, name);
 	if (!prog)
 		return -1;
 
@@ -89,7 +89,7 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - child:  0x80 -> 0x90
 	 */
 
-	err = prog_attach(obj, cg_child, "cgroup/getsockopt/child");
+	err = prog_attach(obj, cg_child, "cgroup/getsockopt", "_getsockopt_child");
 	if (err)
 		goto detach;
 
@@ -113,7 +113,7 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - parent: 0x90 -> 0xA0
 	 */
 
-	err = prog_attach(obj, cg_parent, "cgroup/getsockopt/parent");
+	err = prog_attach(obj, cg_parent, "cgroup/getsockopt", "_getsockopt_parent");
 	if (err)
 		goto detach;
 
@@ -157,7 +157,7 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - parent: unexpected 0x40, EPERM
 	 */
 
-	err = prog_detach(obj, cg_child, "cgroup/getsockopt/child");
+	err = prog_detach(obj, cg_child, "cgroup/getsockopt", "_getsockopt_child");
 	if (err) {
 		log_err("Failed to detach child program");
 		goto detach;
@@ -198,8 +198,8 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	}
 
 detach:
-	prog_detach(obj, cg_child, "cgroup/getsockopt/child");
-	prog_detach(obj, cg_parent, "cgroup/getsockopt/parent");
+	prog_detach(obj, cg_child, "cgroup/getsockopt", "_getsockopt_child");
+	prog_detach(obj, cg_parent, "cgroup/getsockopt", "_getsockopt_parent");
 
 	return err;
 }
@@ -236,7 +236,7 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 
 	/* Attach child program and make sure it adds 0x10. */
 
-	err = prog_attach(obj, cg_child, "cgroup/setsockopt");
+	err = prog_attach(obj, cg_child, "cgroup/setsockopt", "_setsockopt");
 	if (err)
 		goto detach;
 
@@ -263,7 +263,7 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 
 	/* Attach parent program and make sure it adds another 0x10. */
 
-	err = prog_attach(obj, cg_parent, "cgroup/setsockopt");
+	err = prog_attach(obj, cg_parent, "cgroup/setsockopt", "_setsockopt");
 	if (err)
 		goto detach;
 
@@ -289,22 +289,18 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 	}
 
 detach:
-	prog_detach(obj, cg_child, "cgroup/setsockopt");
-	prog_detach(obj, cg_parent, "cgroup/setsockopt");
+	prog_detach(obj, cg_child, "cgroup/setsockopt", "_setsockopt");
+	prog_detach(obj, cg_parent, "cgroup/setsockopt", "_setsockopt");
 
 	return err;
 }
 
 void test_sockopt_multi(void)
 {
-	struct bpf_prog_load_attr attr = {
-		.file = "./sockopt_multi.o",
-	};
 	int cg_parent = -1, cg_child = -1;
 	struct bpf_object *obj = NULL;
 	int sock_fd = -1;
 	int err = -1;
-	int ignored;
 
 	cg_parent = test__join_cgroup("/parent");
 	if (CHECK_FAIL(cg_parent < 0))
@@ -314,8 +310,12 @@ void test_sockopt_multi(void)
 	if (CHECK_FAIL(cg_child < 0))
 		goto out;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (CHECK_FAIL(err))
+	obj = bpf_object__open_file("sockopt_multi.o", NULL);
+	if (!ASSERT_OK_PTR(obj, "obj_load"))
+		goto out;
+
+	err = bpf_object__load(obj);
+	if (!ASSERT_OK(err, "obj_load"))
 		goto out;
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -30,37 +30,6 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 	default:
 		dev_err(hdev->dev, "unknown frequency setting\n");
 	}
-}
-
-int goya_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
-{
-	long value;
-
-	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
-
-	value = hl_get_frequency(hdev, HL_GOYA_MME_PLL, false);
-
-	if (value < 0) {
-		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n",
-			value);
-		return value;
-	}
-
-	*max_clk = (value / 1000 / 1000);
-
-	value = hl_get_frequency(hdev, HL_GOYA_MME_PLL, true);
-
-	if (value < 0) {
-		dev_err(hdev->dev,
-			"Failed to retrieve device current clock %ld\n",
-			value);
-		return value;
-	}
-
-	*cur_clk = (value / 1000 / 1000);
-
-	return 0;
 }
 
 static ssize_t mme_clk_show(struct device *dev, struct device_attribute *attr,
@@ -93,7 +62,7 @@ static ssize_t mme_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	if (hdev->pm_mng_profile == PM_AUTO) {
+	if (goya->pm_mng_profile == PM_AUTO) {
 		count = -EPERM;
 		goto fail;
 	}
@@ -142,7 +111,7 @@ static ssize_t tpc_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	if (hdev->pm_mng_profile == PM_AUTO) {
+	if (goya->pm_mng_profile == PM_AUTO) {
 		count = -EPERM;
 		goto fail;
 	}
@@ -191,7 +160,7 @@ static ssize_t ic_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	if (hdev->pm_mng_profile == PM_AUTO) {
+	if (goya->pm_mng_profile == PM_AUTO) {
 		count = -EPERM;
 		goto fail;
 	}
@@ -265,13 +234,14 @@ static ssize_t pm_mng_profile_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct goya_device *goya = hdev->asic_specific;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	return sprintf(buf, "%s\n",
-			(hdev->pm_mng_profile == PM_AUTO) ? "auto" :
-			(hdev->pm_mng_profile == PM_MANUAL) ? "manual" :
+			(goya->pm_mng_profile == PM_AUTO) ? "auto" :
+			(goya->pm_mng_profile == PM_MANUAL) ? "manual" :
 			"unknown");
 }
 
@@ -279,6 +249,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct goya_device *goya = hdev->asic_specific;
 
 	if (!hl_device_operational(hdev, NULL)) {
 		count = -ENODEV;
@@ -287,7 +258,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hdev->compute_ctx) {
+	if (hdev->is_compute_ctx_active) {
 		dev_err(hdev->dev,
 			"Can't change PM profile while compute context is opened on the device\n");
 		count = -EPERM;
@@ -296,26 +267,27 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 
 	if (strncmp("auto", buf, strlen("auto")) == 0) {
 		/* Make sure we are in LOW PLL when changing modes */
-		if (hdev->pm_mng_profile == PM_MANUAL) {
-			hdev->curr_pll_profile = PLL_HIGH;
-			hdev->pm_mng_profile = PM_AUTO;
-			hl_device_set_frequency(hdev, PLL_LOW);
+		if (goya->pm_mng_profile == PM_MANUAL) {
+			goya->curr_pll_profile = PLL_HIGH;
+			goya->pm_mng_profile = PM_AUTO;
+			goya_set_frequency(hdev, PLL_LOW);
 		}
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
-		if (hdev->pm_mng_profile == PM_AUTO) {
+		if (goya->pm_mng_profile == PM_AUTO) {
 			/* Must release the lock because the work thread also
 			 * takes this lock. But before we release it, set
 			 * the mode to manual so nothing will change if a user
 			 * suddenly opens the device
 			 */
-			hdev->pm_mng_profile = PM_MANUAL;
+			goya->pm_mng_profile = PM_MANUAL;
 
 			mutex_unlock(&hdev->fpriv_list_lock);
 
 			/* Flush the current work so we can return to the user
 			 * knowing that he is the only one changing frequencies
 			 */
-			flush_delayed_work(&hdev->work_freq);
+			if (goya->goya_work)
+				flush_delayed_work(&goya->goya_work->work_freq);
 
 			return count;
 		}

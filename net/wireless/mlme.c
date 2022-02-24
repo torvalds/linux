@@ -452,9 +452,9 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 
 	lockdep_assert_held(&rdev->wiphy.mtx);
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 	if (!wdev->mgmt_registrations_need_update) {
-		spin_unlock_bh(&wdev->mgmt_registrations_lock);
+		spin_unlock_bh(&rdev->mgmt_registrations_lock);
 		return;
 	}
 
@@ -479,7 +479,7 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 	rcu_read_unlock();
 
 	wdev->mgmt_registrations_need_update = 0;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	rdev_update_mgmt_frame_registrations(rdev, wdev, &upd);
 }
@@ -503,6 +503,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				int match_len, bool multicast_rx,
 				struct netlink_ext_ack *extack)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
@@ -548,7 +549,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	if (!nreg)
 		return -ENOMEM;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry(reg, &wdev->mgmt_registrations, list) {
 		int mlen = min(match_len, reg->match_len);
@@ -583,7 +584,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 		list_add(&nreg->list, &wdev->mgmt_registrations);
 	}
 	wdev->mgmt_registrations_need_update = 1;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
 
@@ -591,7 +592,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 
  out:
 	kfree(nreg);
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	return err;
 }
@@ -602,7 +603,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
 		if (reg->nlportid != nlportid)
@@ -615,7 +616,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 		schedule_work(&rdev->mgmt_registrations_update_wk);
 	}
 
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	if (nlportid && rdev->crit_proto_nlportid == nlportid) {
 		rdev->crit_proto_nlportid = 0;
@@ -628,15 +629,16 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
 		list_del(&reg->list);
 		kfree(reg);
 	}
 	wdev->mgmt_registrations_need_update = 1;
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
 }
@@ -784,7 +786,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 	data = buf + ieee80211_hdrlen(mgmt->frame_control);
 	data_len = len - ieee80211_hdrlen(mgmt->frame_control);
 
-	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
 	list_for_each_entry(reg, &wdev->mgmt_registrations, list) {
 		if (reg->frame_type != ftype)
@@ -808,7 +810,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 		break;
 	}
 
-	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+	spin_unlock_bh(&rdev->mgmt_registrations_lock);
 
 	trace_cfg80211_return_bool(result);
 	return result;
@@ -903,19 +905,22 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 }
 
 
-void cfg80211_radar_event(struct wiphy *wiphy,
-			  struct cfg80211_chan_def *chandef,
-			  gfp_t gfp)
+void __cfg80211_radar_event(struct wiphy *wiphy,
+			    struct cfg80211_chan_def *chandef,
+			    bool offchan, gfp_t gfp)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
-	trace_cfg80211_radar_event(wiphy, chandef);
+	trace_cfg80211_radar_event(wiphy, chandef, offchan);
 
 	/* only set the chandef supplied channel to unavailable, in
 	 * case the radar is detected on only one of multiple channels
 	 * spanned by the chandef.
 	 */
 	cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_UNAVAILABLE);
+
+	if (offchan)
+		queue_work(cfg80211_wq, &rdev->background_cac_abort_wk);
 
 	cfg80211_sched_dfs_chan_update(rdev);
 
@@ -924,7 +929,7 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 	memcpy(&rdev->radar_chandef, chandef, sizeof(struct cfg80211_chan_def));
 	queue_work(cfg80211_wq, &rdev->propagate_radar_detect_wk);
 }
-EXPORT_SYMBOL(cfg80211_radar_event);
+EXPORT_SYMBOL(__cfg80211_radar_event);
 
 void cfg80211_cac_event(struct net_device *netdev,
 			const struct cfg80211_chan_def *chandef,
@@ -968,3 +973,143 @@ void cfg80211_cac_event(struct net_device *netdev,
 	nl80211_radar_notify(rdev, chandef, event, netdev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cac_event);
+
+static void
+__cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
+				struct wireless_dev *wdev,
+				const struct cfg80211_chan_def *chandef,
+				enum nl80211_radar_event event)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	struct net_device *netdev;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	if (!cfg80211_chandef_valid(chandef))
+		return;
+
+	if (!rdev->background_radar_wdev)
+		return;
+
+	switch (event) {
+	case NL80211_RADAR_CAC_FINISHED:
+		cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_AVAILABLE);
+		memcpy(&rdev->cac_done_chandef, chandef, sizeof(*chandef));
+		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
+		cfg80211_sched_dfs_chan_update(rdev);
+		wdev = rdev->background_radar_wdev;
+		break;
+	case NL80211_RADAR_CAC_ABORTED:
+		if (!cancel_delayed_work(&rdev->background_cac_done_wk))
+			return;
+		wdev = rdev->background_radar_wdev;
+		break;
+	case NL80211_RADAR_CAC_STARTED:
+		break;
+	default:
+		return;
+	}
+
+	netdev = wdev ? wdev->netdev : NULL;
+	nl80211_radar_notify(rdev, chandef, event, netdev, GFP_KERNEL);
+}
+
+static void
+cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
+			      const struct cfg80211_chan_def *chandef,
+			      enum nl80211_radar_event event)
+{
+	wiphy_lock(&rdev->wiphy);
+	__cfg80211_background_cac_event(rdev, rdev->background_radar_wdev,
+					chandef, event);
+	wiphy_unlock(&rdev->wiphy);
+}
+
+void cfg80211_background_cac_done_wk(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(delayed_work, struct cfg80211_registered_device,
+			    background_cac_done_wk);
+	cfg80211_background_cac_event(rdev, &rdev->background_radar_chandef,
+				      NL80211_RADAR_CAC_FINISHED);
+}
+
+void cfg80211_background_cac_abort_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    background_cac_abort_wk);
+	cfg80211_background_cac_event(rdev, &rdev->background_radar_chandef,
+				      NL80211_RADAR_CAC_ABORTED);
+}
+
+void cfg80211_background_cac_abort(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	queue_work(cfg80211_wq, &rdev->background_cac_abort_wk);
+}
+EXPORT_SYMBOL(cfg80211_background_cac_abort);
+
+int
+cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rdev,
+					  struct wireless_dev *wdev,
+					  struct cfg80211_chan_def *chandef)
+{
+	unsigned int cac_time_ms;
+	int err;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_RADAR_BACKGROUND))
+		return -EOPNOTSUPP;
+
+	/* Offchannel chain already locked by another wdev */
+	if (rdev->background_radar_wdev && rdev->background_radar_wdev != wdev)
+		return -EBUSY;
+
+	/* CAC already in progress on the offchannel chain */
+	if (rdev->background_radar_wdev == wdev &&
+	    delayed_work_pending(&rdev->background_cac_done_wk))
+		return -EBUSY;
+
+	err = rdev_set_radar_background(rdev, chandef);
+	if (err)
+		return err;
+
+	cac_time_ms = cfg80211_chandef_dfs_cac_time(&rdev->wiphy, chandef);
+	if (!cac_time_ms)
+		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
+
+	rdev->background_radar_chandef = *chandef;
+	rdev->background_radar_wdev = wdev; /* Get offchain ownership */
+
+	__cfg80211_background_cac_event(rdev, wdev, chandef,
+					NL80211_RADAR_CAC_STARTED);
+	queue_delayed_work(cfg80211_wq, &rdev->background_cac_done_wk,
+			   msecs_to_jiffies(cac_time_ms));
+
+	return 0;
+}
+
+void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	lockdep_assert_wiphy(wiphy);
+
+	if (wdev != rdev->background_radar_wdev)
+		return;
+
+	rdev_set_radar_background(rdev, NULL);
+	rdev->background_radar_wdev = NULL; /* Release offchain ownership */
+
+	__cfg80211_background_cac_event(rdev, wdev,
+					&rdev->background_radar_chandef,
+					NL80211_RADAR_CAC_ABORTED);
+}

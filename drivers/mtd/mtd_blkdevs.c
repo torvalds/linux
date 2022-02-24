@@ -23,7 +23,6 @@
 #include "mtdcore.h"
 
 static LIST_HEAD(blktrans_majors);
-static DEFINE_MUTEX(blktrans_ref_mutex);
 
 static void blktrans_dev_release(struct kref *kref)
 {
@@ -37,26 +36,9 @@ static void blktrans_dev_release(struct kref *kref)
 	kfree(dev);
 }
 
-static struct mtd_blktrans_dev *blktrans_dev_get(struct gendisk *disk)
-{
-	struct mtd_blktrans_dev *dev;
-
-	mutex_lock(&blktrans_ref_mutex);
-	dev = disk->private_data;
-
-	if (!dev)
-		goto unlock;
-	kref_get(&dev->ref);
-unlock:
-	mutex_unlock(&blktrans_ref_mutex);
-	return dev;
-}
-
 static void blktrans_dev_put(struct mtd_blktrans_dev *dev)
 {
-	mutex_lock(&blktrans_ref_mutex);
 	kref_put(&dev->ref, blktrans_dev_release);
-	mutex_unlock(&blktrans_ref_mutex);
 }
 
 
@@ -64,23 +46,19 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 			       struct mtd_blktrans_dev *dev,
 			       struct request *req)
 {
+	struct req_iterator iter;
+	struct bio_vec bvec;
 	unsigned long block, nsect;
 	char *buf;
 
 	block = blk_rq_pos(req) << 9 >> tr->blkshift;
 	nsect = blk_rq_cur_bytes(req) >> tr->blkshift;
 
-	if (req_op(req) == REQ_OP_FLUSH) {
+	switch (req_op(req)) {
+	case REQ_OP_FLUSH:
 		if (tr->flush(dev))
 			return BLK_STS_IOERR;
 		return BLK_STS_OK;
-	}
-
-	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
-	    get_capacity(req->rq_disk))
-		return BLK_STS_IOERR;
-
-	switch (req_op(req)) {
 	case REQ_OP_DISCARD:
 		if (tr->discard(dev, block, nsect))
 			return BLK_STS_IOERR;
@@ -94,13 +72,17 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 			}
 		}
 		kunmap(bio_page(req->bio));
-		rq_flush_dcache_pages(req);
+
+		rq_for_each_segment(bvec, req, iter)
+			flush_dcache_page(bvec.bv_page);
 		return BLK_STS_OK;
 	case REQ_OP_WRITE:
 		if (!tr->writesect)
 			return BLK_STS_IOERR;
 
-		rq_flush_dcache_pages(req);
+		rq_for_each_segment(bvec, req, iter)
+			flush_dcache_page(bvec.bv_page);
+
 		buf = kmap(bio_page(req->bio)) + bio_offset(req->bio);
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize) {
 			if (tr->writesect(dev, block, buf)) {
@@ -201,19 +183,16 @@ static blk_status_t mtd_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static int blktrans_open(struct block_device *bdev, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
 	int ret = 0;
 
-	if (!dev)
-		return -ERESTARTSYS; /* FIXME: busy loop! -arnd*/
+	kref_get(&dev->ref);
 
-	mutex_lock(&mtd_table_mutex);
 	mutex_lock(&dev->lock);
 
 	if (dev->open)
 		goto unlock;
 
-	kref_get(&dev->ref);
 	__module_get(dev->tr->owner);
 
 	if (!dev->mtd)
@@ -233,8 +212,6 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 unlock:
 	dev->open++;
 	mutex_unlock(&dev->lock);
-	mutex_unlock(&mtd_table_mutex);
-	blktrans_dev_put(dev);
 	return ret;
 
 error_release:
@@ -242,27 +219,20 @@ error_release:
 		dev->tr->release(dev);
 error_put:
 	module_put(dev->tr->owner);
-	kref_put(&dev->ref, blktrans_dev_release);
 	mutex_unlock(&dev->lock);
-	mutex_unlock(&mtd_table_mutex);
 	blktrans_dev_put(dev);
 	return ret;
 }
 
 static void blktrans_release(struct gendisk *disk, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
+	struct mtd_blktrans_dev *dev = disk->private_data;
 
-	if (!dev)
-		return;
-
-	mutex_lock(&mtd_table_mutex);
 	mutex_lock(&dev->lock);
 
 	if (--dev->open)
 		goto unlock;
 
-	kref_put(&dev->ref, blktrans_dev_release);
 	module_put(dev->tr->owner);
 
 	if (dev->mtd) {
@@ -272,17 +242,13 @@ static void blktrans_release(struct gendisk *disk, fmode_t mode)
 	}
 unlock:
 	mutex_unlock(&dev->lock);
-	mutex_unlock(&mtd_table_mutex);
 	blktrans_dev_put(dev);
 }
 
 static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
 	int ret = -ENXIO;
-
-	if (!dev)
-		return ret;
 
 	mutex_lock(&dev->lock);
 
@@ -292,7 +258,6 @@ static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	ret = dev->tr->getgeo ? dev->tr->getgeo(dev, geo) : -ENOTTY;
 unlock:
 	mutex_unlock(&dev->lock);
-	blktrans_dev_put(dev);
 	return ret;
 }
 
@@ -315,12 +280,8 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	struct gendisk *gd;
 	int ret;
 
-	if (mutex_trylock(&mtd_table_mutex)) {
-		mutex_unlock(&mtd_table_mutex);
-		BUG();
-	}
+	lockdep_assert_held(&mtd_table_mutex);
 
-	mutex_lock(&blktrans_ref_mutex);
 	list_for_each_entry(d, &tr->devs, list) {
 		if (new->devnum == -1) {
 			/* Use first free number */
@@ -332,7 +293,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 			}
 		} else if (d->devnum == new->devnum) {
 			/* Required number taken */
-			mutex_unlock(&blktrans_ref_mutex);
 			return -EBUSY;
 		} else if (d->devnum > new->devnum) {
 			/* Required number was free */
@@ -350,14 +310,11 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	 * minor numbers and that the disk naming code below can cope
 	 * with this number. */
 	if (new->devnum > (MINORMASK >> tr->part_bits) ||
-	    (tr->part_bits && new->devnum >= 27 * 26)) {
-		mutex_unlock(&blktrans_ref_mutex);
+	    (tr->part_bits && new->devnum >= 27 * 26))
 		return ret;
-	}
 
 	list_add_tail(&new->list, &tr->devs);
  added:
-	mutex_unlock(&blktrans_ref_mutex);
 
 	mutex_init(&new->lock);
 	kref_init(&new->ref);
@@ -389,7 +346,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	gd->minors = 1 << tr->part_bits;
 	gd->fops = &mtd_block_ops;
 
-	if (tr->part_bits)
+	if (tr->part_bits) {
 		if (new->devnum < 26)
 			snprintf(gd->disk_name, sizeof(gd->disk_name),
 				 "%s%c", tr->name, 'a' + new->devnum);
@@ -398,9 +355,11 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 				 "%s%c%c", tr->name,
 				 'a' - 1 + new->devnum / 26,
 				 'a' + new->devnum % 26);
-	else
+	} else {
 		snprintf(gd->disk_name, sizeof(gd->disk_name),
 			 "%s%d", tr->name, new->devnum);
+		gd->flags |= GENHD_FL_NO_PART;
+	}
 
 	set_capacity(gd, ((u64)new->size * tr->blksize) >> 9);
 
@@ -427,7 +386,9 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	if (new->readonly)
 		set_disk_ro(gd, 1);
 
-	device_add_disk(&new->mtd->dev, gd, NULL);
+	ret = device_add_disk(&new->mtd->dev, gd, NULL);
+	if (ret)
+		goto out_cleanup_disk;
 
 	if (new->disk_attributes) {
 		ret = sysfs_create_group(&disk_to_dev(gd)->kobj,
@@ -436,6 +397,8 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	}
 	return 0;
 
+out_cleanup_disk:
+	blk_cleanup_disk(new->disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(new->tag_set);
 out_kfree_tag_set:
@@ -449,10 +412,7 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 {
 	unsigned long flags;
 
-	if (mutex_trylock(&mtd_table_mutex)) {
-		mutex_unlock(&mtd_table_mutex);
-		BUG();
-	}
+	lockdep_assert_held(&mtd_table_mutex);
 
 	if (old->disk_attributes)
 		sysfs_remove_group(&disk_to_dev(old->disk)->kobj,

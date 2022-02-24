@@ -8,6 +8,7 @@
 #include <linux/nexthop.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
 #include <net/lwtunnel.h>
@@ -1899,15 +1900,33 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 /* if any FIB entries reference this nexthop, any dst entries
  * need to be regenerated
  */
-static void nh_rt_cache_flush(struct net *net, struct nexthop *nh)
+static void nh_rt_cache_flush(struct net *net, struct nexthop *nh,
+			      struct nexthop *replaced_nh)
 {
 	struct fib6_info *f6i;
+	struct nh_group *nhg;
+	int i;
 
 	if (!list_empty(&nh->fi_list))
 		rt_cache_flush(net);
 
 	list_for_each_entry(f6i, &nh->f6i_list, nh_list)
 		ipv6_stub->fib6_update_sernum(net, f6i);
+
+	/* if an IPv6 group was replaced, we have to release all old
+	 * dsts to make sure all refcounts are released
+	 */
+	if (!replaced_nh->is_group)
+		return;
+
+	nhg = rtnl_dereference(replaced_nh->nh_grp);
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+		struct nh_info *nhi = rtnl_dereference(nhge->nh->nh_info);
+
+		if (nhi->family == AF_INET6)
+			ipv6_stub->fib6_nh_release_dsts(&nhi->fib6_nh);
+	}
 }
 
 static int replace_nexthop_grp(struct net *net, struct nexthop *old,
@@ -1980,6 +1999,9 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 		newg->nh_entries[i].nh_parent = old;
 
 	rcu_assign_pointer(old->nh_grp, newg);
+
+	/* Make sure concurrent readers are not using 'oldg' anymore. */
+	synchronize_net();
 
 	if (newg->resilient) {
 		rcu_assign_pointer(oldg->res_table, tmp_table);
@@ -2245,7 +2267,7 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 		err = replace_nexthop_single(net, old, new, extack);
 
 	if (!err) {
-		nh_rt_cache_flush(net, old);
+		nh_rt_cache_flush(net, old, new);
 
 		__remove_nexthop(net, new, NULL);
 		nexthop_put(new);
@@ -2490,6 +2512,7 @@ static int nh_create_ipv4(struct net *net, struct nexthop *nh,
 		.fc_gw4   = cfg->gw.ipv4,
 		.fc_gw_family = cfg->gw.ipv4 ? AF_INET : 0,
 		.fc_flags = cfg->nh_flags,
+		.fc_nlinfo = cfg->nlinfo,
 		.fc_encap = cfg->nh_encap,
 		.fc_encap_type = cfg->nh_encap_type,
 	};
@@ -2528,6 +2551,7 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 		.fc_ifindex = cfg->nh_ifindex,
 		.fc_gateway = cfg->gw.ipv6,
 		.fc_flags = cfg->nh_flags,
+		.fc_nlinfo = cfg->nlinfo,
 		.fc_encap = cfg->nh_encap,
 		.fc_encap_type = cfg->nh_encap_type,
 		.fc_is_fdb = cfg->nh_fdb,
@@ -2540,11 +2564,15 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 	/* sets nh_dev if successful */
 	err = ipv6_stub->fib6_nh_init(net, fib6_nh, &fib6_cfg, GFP_KERNEL,
 				      extack);
-	if (err)
+	if (err) {
+		/* IPv6 is not enabled, don't call fib6_nh_release */
+		if (err == -EAFNOSUPPORT)
+			goto out;
 		ipv6_stub->fib6_nh_release(fib6_nh);
-	else
+	} else {
 		nh->nh_flags = fib6_nh->fib_nh_flags;
-
+	}
+out:
 	return err;
 }
 
@@ -3563,6 +3591,7 @@ static struct notifier_block nh_netdev_notifier = {
 };
 
 static int nexthops_dump(struct net *net, struct notifier_block *nb,
+			 enum nexthop_event_type event_type,
 			 struct netlink_ext_ack *extack)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
@@ -3573,8 +3602,7 @@ static int nexthops_dump(struct net *net, struct notifier_block *nb,
 		struct nexthop *nh;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		err = call_nexthop_notifier(nb, net, NEXTHOP_EVENT_REPLACE, nh,
-					    extack);
+		err = call_nexthop_notifier(nb, net, event_type, nh, extack);
 		if (err)
 			break;
 	}
@@ -3588,7 +3616,7 @@ int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
 	int err;
 
 	rtnl_lock();
-	err = nexthops_dump(net, nb, extack);
+	err = nexthops_dump(net, nb, NEXTHOP_EVENT_REPLACE, extack);
 	if (err)
 		goto unlock;
 	err = blocking_notifier_chain_register(&net->nexthop.notifier_chain,
@@ -3601,8 +3629,17 @@ EXPORT_SYMBOL(register_nexthop_notifier);
 
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
-						  nb);
+	int err;
+
+	rtnl_lock();
+	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						 nb);
+	if (err)
+		goto unlock;
+	nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
+unlock:
+	rtnl_unlock();
+	return err;
 }
 EXPORT_SYMBOL(unregister_nexthop_notifier);
 

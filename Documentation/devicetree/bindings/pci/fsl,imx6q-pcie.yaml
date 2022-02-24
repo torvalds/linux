@@ -41,7 +41,6 @@ properties:
       - description: builtin MSI controller.
 
   interrupt-names:
-    minItems: 1
     items:
       - const: msi
 
@@ -127,6 +126,12 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 3, 4]
     default: 1
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: pcie-phy
 
   reset-gpio:
     description: Should specify the GPIO for controlling the PCI bus device

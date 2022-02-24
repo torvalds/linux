@@ -15,13 +15,13 @@
  * level RX-ring queues.  It is information that is specific to how
  * the driver have configured a given RX-ring queue.
  *
- * Each xdp_buff frame received in the driver carry a (pointer)
+ * Each xdp_buff frame received in the driver carries a (pointer)
  * reference to this xdp_rxq_info structure.  This provides the XDP
  * data-path read-access to RX-info for both kernel and bpf-side
  * (limited subset).
  *
  * For now, direct access is only safe while running in NAPI/softirq
- * context.  Contents is read-mostly and must not be updated during
+ * context.  Contents are read-mostly and must not be updated during
  * driver NAPI/softirq poll.
  *
  * The driver usage API is a register and unregister API.
@@ -30,8 +30,8 @@
  * can be attached as long as it doesn't change the underlying
  * RX-ring.  If the RX-ring does change significantly, the NIC driver
  * naturally need to stop the RX-ring before purging and reallocating
- * memory.  In that process the driver MUST call unregistor (which
- * also apply for driver shutdown and unload).  The register API is
+ * memory.  In that process the driver MUST call unregister (which
+ * also applies for driver shutdown and unload).  The register API is
  * also mandatory during RX-ring setup.
  */
 
@@ -260,6 +260,9 @@ bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq);
 int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 			       enum xdp_mem_type type, void *allocator);
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq);
+int xdp_reg_mem_model(struct xdp_mem_info *mem,
+		      enum xdp_mem_type type, void *allocator);
+void xdp_unreg_mem_model(struct xdp_mem_info *mem);
 
 /* Drivers not supporting XDP metadata can use this helper, which
  * rejects any room expansion for metadata as a result.

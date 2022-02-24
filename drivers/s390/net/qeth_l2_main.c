@@ -71,7 +71,7 @@ static int qeth_l2_send_setdelmac_cb(struct qeth_card *card,
 	return qeth_l2_setdelmac_makerc(card, cmd->hdr.return_code);
 }
 
-static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
+static int qeth_l2_send_setdelmac(struct qeth_card *card, const __u8 *mac,
 			   enum qeth_ipa_cmds ipacmd)
 {
 	struct qeth_ipa_cmd *cmd;
@@ -88,7 +88,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	return qeth_send_ipa_cmd(card, iob, qeth_l2_send_setdelmac_cb, NULL);
 }
 
-static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
+static int qeth_l2_send_setmac(struct qeth_card *card, const __u8 *mac)
 {
 	int rc;
 
@@ -121,11 +121,11 @@ static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 	QETH_CARD_TEXT(card, 2, "L2Wmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
 	if (rc == -EADDRINUSE)
-		QETH_DBF_MESSAGE(2, "MAC already registered on device %x\n",
-				 CARD_DEVID(card));
+		QETH_DBF_MESSAGE(2, "MAC address %012llx is already registered on device %x\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card));
 	else if (rc)
-		QETH_DBF_MESSAGE(2, "Failed to register MAC on device %x: %d\n",
-				 CARD_DEVID(card), rc);
+		QETH_DBF_MESSAGE(2, "Failed to register MAC address %012llx on device %x: %d\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card), rc);
 	return rc;
 }
 
@@ -138,8 +138,8 @@ static int qeth_l2_remove_mac(struct qeth_card *card, u8 *mac)
 	QETH_CARD_TEXT(card, 2, "L2Rmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
 	if (rc)
-		QETH_DBF_MESSAGE(2, "Failed to delete MAC on device %u: %d\n",
-				 CARD_DEVID(card), rc);
+		QETH_DBF_MESSAGE(2, "Failed to delete MAC address %012llx on device %x: %d\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card), rc);
 	return rc;
 }
 
@@ -377,7 +377,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	if (rc)
 		return rc;
 	ether_addr_copy(old_addr, dev->dev_addr);
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (card->info.dev_addr_is_registered)
 		qeth_l2_remove_mac(card, old_addr);
@@ -519,19 +519,11 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
-				struct net_device *sb_dev)
+static u16 qeth_l2_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+				    struct net_device *sb_dev)
 {
-	struct qeth_card *card = dev->ml_priv;
-
-	if (IS_IQD(card))
-		return qeth_iqd_select_queue(dev, skb,
-					     qeth_get_ether_cast_type(skb),
-					     sb_dev);
-	if (qeth_uses_tx_prio_queueing(card))
-		return qeth_get_priority_queue(card, skb);
-
-	return netdev_pick_tx(dev, skb, sb_dev);
+	return qeth_iqd_select_queue(dev, skb, qeth_get_ether_cast_type(skb),
+				     sb_dev);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)
@@ -661,13 +653,13 @@ static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
 					 card->dev, &info.info, NULL);
 		QETH_CARD_TEXT(card, 4, "andelmac");
 		QETH_CARD_TEXT_(card, 4,
-				"mc%012lx", ether_addr_to_u64(ntfy_mac));
+				"mc%012llx", ether_addr_to_u64(ntfy_mac));
 	} else {
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 					 card->dev, &info.info, NULL);
 		QETH_CARD_TEXT(card, 4, "anaddmac");
 		QETH_CARD_TEXT_(card, 4,
-				"mc%012lx", ether_addr_to_u64(ntfy_mac));
+				"mc%012llx", ether_addr_to_u64(ntfy_mac));
 	}
 }
 
@@ -726,7 +718,8 @@ struct qeth_l2_br2dev_event_work {
 	unsigned char addr[ETH_ALEN];
 };
 
-static const struct net_device_ops qeth_l2_netdev_ops;
+static const struct net_device_ops qeth_l2_iqd_netdev_ops;
+static const struct net_device_ops qeth_l2_osa_netdev_ops;
 
 static bool qeth_l2_must_learn(struct net_device *netdev,
 			       struct net_device *dstdev)
@@ -738,7 +731,8 @@ static bool qeth_l2_must_learn(struct net_device *netdev,
 		(priv->brport_features & BR_LEARNING_SYNC) &&
 		!(br_port_flag_is_set(netdev, BR_ISOLATED) &&
 		  br_port_flag_is_set(dstdev, BR_ISOLATED)) &&
-		netdev->netdev_ops == &qeth_l2_netdev_ops);
+		(netdev->netdev_ops == &qeth_l2_iqd_netdev_ops ||
+		 netdev->netdev_ops == &qeth_l2_osa_netdev_ops));
 }
 
 /**
@@ -765,8 +759,8 @@ static void qeth_l2_br2dev_worker(struct work_struct *work)
 	int err = 0;
 
 	kfree(br2dev_event_work);
-	QETH_CARD_TEXT_(card, 4, "b2dw%04x", event);
-	QETH_CARD_TEXT_(card, 4, "ma%012lx", ether_addr_to_u64(addr));
+	QETH_CARD_TEXT_(card, 4, "b2dw%04lx", event);
+	QETH_CARD_TEXT_(card, 4, "ma%012llx", ether_addr_to_u64(addr));
 
 	rcu_read_lock();
 	/* Verify preconditions are still valid: */
@@ -795,7 +789,7 @@ static void qeth_l2_br2dev_worker(struct work_struct *work)
 				if (err) {
 					QETH_CARD_TEXT(card, 2, "b2derris");
 					QETH_CARD_TEXT_(card, 2,
-							"err%02x%03d", event,
+							"err%02lx%03d", event,
 							lowerdev->ifindex);
 				}
 			}
@@ -813,7 +807,7 @@ static void qeth_l2_br2dev_worker(struct work_struct *work)
 			break;
 		}
 		if (err)
-			QETH_CARD_TEXT_(card, 2, "b2derr%02x", event);
+			QETH_CARD_TEXT_(card, 2, "b2derr%02lx", event);
 	}
 
 unlock:
@@ -878,7 +872,7 @@ static int qeth_l2_switchdev_event(struct notifier_block *unused,
 	while (lowerdev) {
 		if (qeth_l2_must_learn(lowerdev, dstdev)) {
 			card = lowerdev->ml_priv;
-			QETH_CARD_TEXT_(card, 4, "b2dqw%03x", event);
+			QETH_CARD_TEXT_(card, 4, "b2dqw%03lx", event);
 			rc = qeth_l2_br2dev_queue_work(brdev, lowerdev,
 						       dstdev, event,
 						       fdb_info->addr);
@@ -1051,13 +1045,34 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	return rc;
 }
 
-static const struct net_device_ops qeth_l2_netdev_ops = {
+static const struct net_device_ops qeth_l2_iqd_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
-	.ndo_select_queue	= qeth_l2_select_queue,
+	.ndo_select_queue	= qeth_l2_iqd_select_queue,
+	.ndo_validate_addr	= qeth_l2_validate_addr,
+	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
+	.ndo_eth_ioctl		= qeth_do_ioctl,
+	.ndo_siocdevprivate	= qeth_siocdevprivate,
+	.ndo_set_mac_address	= qeth_l2_set_mac_address,
+	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qeth_l2_vlan_rx_kill_vid,
+	.ndo_tx_timeout		= qeth_tx_timeout,
+	.ndo_fix_features	= qeth_fix_features,
+	.ndo_set_features	= qeth_set_features,
+	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
+	.ndo_bridge_setlink	= qeth_l2_bridge_setlink,
+};
+
+static const struct net_device_ops qeth_l2_osa_netdev_ops = {
+	.ndo_open		= qeth_open,
+	.ndo_stop		= qeth_stop,
+	.ndo_get_stats64	= qeth_get_stats64,
+	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
+	.ndo_features_check	= qeth_features_check,
+	.ndo_select_queue	= qeth_osa_select_queue,
 	.ndo_validate_addr	= qeth_l2_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,
@@ -1068,14 +1083,13 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_tx_timeout		= qeth_tx_timeout,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
-	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
-	.ndo_bridge_setlink	= qeth_l2_bridge_setlink,
 };
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
+	card->dev->netdev_ops = IS_IQD(card) ? &qeth_l2_iqd_netdev_ops :
+					       &qeth_l2_osa_netdev_ops;
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
-	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (IS_OSM(card)) {
@@ -2307,7 +2321,6 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 	if (gdev->state == CCWGROUP_ONLINE)
 		qeth_set_offline(card, card->discipline, false);
 
-	cancel_work_sync(&card->close_dev_work);
 	if (card->dev->reg_state == NETREG_REGISTERED) {
 		priv = netdev_priv(card->dev);
 		if (priv->brport_features & BR_LEARNING_SYNC) {
@@ -2431,7 +2444,6 @@ const struct qeth_discipline qeth_l2_discipline = {
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,
 	.set_offline = qeth_l2_set_offline,
-	.do_ioctl = NULL,
 	.control_event_handler = qeth_l2_control_event,
 };
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);

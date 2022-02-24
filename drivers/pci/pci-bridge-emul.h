@@ -54,7 +54,7 @@ struct pci_bridge_emul_pcie_conf {
 	__le16 slotctl;
 	__le16 slotsta;
 	__le16 rootctl;
-	__le16 rsvd;
+	__le16 rootcap;
 	__le32 rootsta;
 	__le32 devcap2;
 	__le16 devctl2;

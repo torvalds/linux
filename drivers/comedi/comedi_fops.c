@@ -23,7 +23,7 @@
 #include <linux/poll.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 #include <linux/cdev.h>
 
 #include <linux/io.h>
@@ -3090,6 +3090,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	mutex_lock(&dev->mutex);
 	rc = do_insnlist_ioctl(dev, insns, insnlist32.n_insns, file);
 	mutex_unlock(&dev->mutex);
+	kfree(insns);
 	return rc;
 }
 

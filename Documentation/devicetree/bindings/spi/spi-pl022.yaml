@@ -72,6 +72,9 @@ properties:
       - const: rx
       - const: tx
 
+  resets:
+    maxItems: 1
+
 patternProperties:
   "^[a-zA-Z][a-zA-Z0-9,+\\-._]{0,63}@[0-9a-f]+$":
     type: object

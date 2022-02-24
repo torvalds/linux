@@ -1,11 +1,15 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../cpu-freq/core`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/cpu-freq/core.rst
 
-.. _cn_core.rst:
+:翻译:
 
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
+
+:校译:
+
+ 唐艺舟 Tang Yizhou <tangyeechou@gmail.com>
 
 ====================================
 CPUFreq核心和CPUFreq通知器的通用说明
@@ -27,10 +31,10 @@ CPUFreq核心和CPUFreq通知器的通用说明
 ======================
 
 cpufreq核心代码位于drivers/cpufreq/cpufreq.c中。这些cpufreq代码为CPUFreq架构的驱
-动程序（那些操作硬件切换频率的代码）以及 "通知器 "提供了一个标准化的接口。
-这些是设备驱动程序或需要了解策略变化的其它内核部分（如 ACPI 热量管理）或所有频率更改（除
-计时代码外），甚至需要强制确定速度限制的通知器（如 ARM 架构上的 LCD 驱动程序）。
-此外， 内核 "常数" loops_per_jiffy会根据频率变化而更新。
+动程序（那些执行硬件频率切换的代码）以及 "通知器" 提供了一个标准化的接口。
+包括设备驱动程序；需要了解策略变化（如 ACPI 热量管理），或所有频率变化（如计时代码），
+甚至需要强制限制为指定频率（如 ARM 架构上的 LCD 驱动程序）的其它内核组件。
+此外，内核 "常数" loops_per_jiffy 会根据频率变化而更新。
 
 cpufreq策略的引用计数由 cpufreq_cpu_get 和 cpufreq_cpu_put 来完成，以确保 cpufreq 驱
 动程序被正确地注册到核心中，并且驱动程序在 cpufreq_put_cpu 被调用之前不会被卸载。这也保证
@@ -39,7 +43,7 @@ cpufreq策略的引用计数由 cpufreq_cpu_get 和 cpufreq_cpu_put 来完成，
 2. CPUFreq 通知器
 ====================
 
-CPUFreq通知器符合标准的内核通知器接口。
+CPUFreq通知器遵循标准的内核通知器接口。
 关于通知器的细节请参阅 linux/include/linux/notifier.h。
 
 这里有两个不同的CPUfreq通知器 - 策略通知器和转换通知器。
@@ -67,20 +71,20 @@ CPUFreq通知器符合标准的内核通知器接口。
 
 第三个参数是一个包含如下值的结构体cpufreq_freqs：
 
-=====	====================
-cpu	受影响cpu的编号
+======	===============================
+policy	指向struct cpufreq_policy的指针
 old	旧频率
 new	新频率
 flags	cpufreq驱动的标志
-=====	====================
+======	===============================
 
 3. 含有Operating Performance Point (OPP)的CPUFreq表的生成
 ==================================================================
 关于OPP的细节请参阅 Documentation/power/opp.rst
 
 dev_pm_opp_init_cpufreq_table -
-	这个功能提供了一个随时可用的转换程序，用来将OPP层关于可用频率的内部信息翻译成一种容易提供给
-	cpufreq的格式。
+	这个函数提供了一个随时可用的转换例程，用来将OPP层关于可用频率的内部信息翻译成一种
+	cpufreq易于处理的格式。
 
 	.. Warning::
 

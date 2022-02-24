@@ -287,6 +287,12 @@ void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
 
 struct mlxsw_sp_acl_bf;
 
+struct mlxsw_sp_acl_bf_ops {
+	unsigned int (*index_get)(struct mlxsw_sp_acl_bf *bf,
+				  struct mlxsw_sp_acl_atcam_region *aregion,
+				  struct mlxsw_sp_acl_atcam_entry *aentry);
+};
+
 int
 mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_bf *bf,

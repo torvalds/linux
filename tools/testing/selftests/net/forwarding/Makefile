@@ -9,6 +9,7 @@ TEST_PROGS = bridge_igmp.sh \
 	gre_inner_v4_multipath.sh \
 	gre_inner_v6_multipath.sh \
 	gre_multipath.sh \
+	ip6_forward_instats_vrf.sh \
 	ip6gre_inner_v4_multipath.sh \
 	ip6gre_inner_v6_multipath.sh \
 	ipip_flat_gre_key.sh \

@@ -591,12 +591,16 @@ int cmd_annotate(int argc, const char **argv)
 		return ret;
 	}
 
+	ret = symbol__validate_sym_arguments();
+	if (ret)
+		return ret;
+
 	if (quiet)
 		perf_quiet_option();
 
 	data.path = input_name;
 
-	annotate.session = perf_session__new(&data, false, &annotate.tool);
+	annotate.session = perf_session__new(&data, &annotate.tool);
 	if (IS_ERR(annotate.session))
 		return PTR_ERR(annotate.session);
 

@@ -4,6 +4,7 @@
  */
 
 #include <linux/kmemleak.h>
+#include <linux/sizes.h>
 
 #include "i915_buddy.h"
 
@@ -82,6 +83,7 @@ int i915_buddy_init(struct i915_buddy_mm *mm, u64 size, u64 chunk_size)
 	size = round_down(size, chunk_size);
 
 	mm->size = size;
+	mm->avail = size;
 	mm->chunk_size = chunk_size;
 	mm->max_order = ilog2(size) - ilog2(chunk_size);
 
@@ -154,6 +156,8 @@ void i915_buddy_fini(struct i915_buddy_mm *mm)
 		GEM_WARN_ON(!i915_buddy_block_is_free(mm->roots[i]));
 		i915_block_free(mm, mm->roots[i]);
 	}
+
+	GEM_WARN_ON(mm->avail != mm->size);
 
 	kfree(mm->roots);
 	kfree(mm->free_list);
@@ -230,6 +234,7 @@ void i915_buddy_free(struct i915_buddy_mm *mm,
 		     struct i915_buddy_block *block)
 {
 	GEM_BUG_ON(!i915_buddy_block_is_allocated(block));
+	mm->avail += i915_buddy_block_size(mm, block);
 	__i915_buddy_free(mm, block);
 }
 
@@ -283,6 +288,7 @@ i915_buddy_alloc(struct i915_buddy_mm *mm, unsigned int order)
 	}
 
 	mark_allocated(block);
+	mm->avail -= i915_buddy_block_size(mm, block);
 	kmemleak_update_trace(block);
 	return block;
 
@@ -368,6 +374,7 @@ int i915_buddy_alloc_range(struct i915_buddy_mm *mm,
 			}
 
 			mark_allocated(block);
+			mm->avail -= i915_buddy_block_size(mm, block);
 			list_add_tail(&block->link, &allocated);
 			continue;
 		}
@@ -400,6 +407,44 @@ err_undo:
 err_free:
 	i915_buddy_free_list(mm, &allocated);
 	return err;
+}
+
+void i915_buddy_block_print(struct i915_buddy_mm *mm,
+			    struct i915_buddy_block *block,
+			    struct drm_printer *p)
+{
+	u64 start = i915_buddy_block_offset(block);
+	u64 size = i915_buddy_block_size(mm, block);
+
+	drm_printf(p, "%#018llx-%#018llx: %llu\n", start, start + size, size);
+}
+
+void i915_buddy_print(struct i915_buddy_mm *mm, struct drm_printer *p)
+{
+	int order;
+
+	drm_printf(p, "chunk_size: %lluKiB, total: %lluMiB, free: %lluMiB\n",
+		   mm->chunk_size >> 10, mm->size >> 20, mm->avail >> 20);
+
+	for (order = mm->max_order; order >= 0; order--) {
+		struct i915_buddy_block *block;
+		u64 count = 0, free;
+
+		list_for_each_entry(block, &mm->free_list[order], link) {
+			GEM_BUG_ON(!i915_buddy_block_is_free(block));
+			count++;
+		}
+
+		drm_printf(p, "order-%d ", order);
+
+		free = count * (mm->chunk_size << order);
+		if (free < SZ_1M)
+			drm_printf(p, "free: %lluKiB", free >> 10);
+		else
+			drm_printf(p, "free: %lluMiB", free >> 20);
+
+		drm_printf(p, ", pages: %llu\n", count);
+	}
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

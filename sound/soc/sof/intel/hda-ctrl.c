@@ -353,7 +353,7 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 	snd_hdac_bus_stop_cmd_io(bus);
 #endif
 	/* disable position buffer */
-	if (bus->posbuf.addr) {
+	if (bus->use_posbuf && bus->posbuf.addr) {
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
 				  SOF_HDA_ADSP_DPLBASE, 0);
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,

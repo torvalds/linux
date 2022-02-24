@@ -78,7 +78,7 @@
 #endif
 #define XCHAL_KIO_SIZE			0x10000000
 
-#if (!XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY) && defined(CONFIG_OF)
+#if (!XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY) && defined(CONFIG_USE_OF)
 #define XCHAL_KIO_PADDR			xtensa_get_kio_paddr()
 #ifndef __ASSEMBLY__
 extern unsigned long xtensa_kio_paddr;

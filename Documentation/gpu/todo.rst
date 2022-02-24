@@ -268,17 +268,6 @@ Contact: Daniel Vetter
 
 Level: Intermediate
 
-Clean up mmap forwarding
-------------------------
-
-A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
-And also a lot of them forward dma-buf mmap to the gem mmap implementations.
-There's drm_gem_prime_mmap() for this now, but still needs to be rolled out.
-
-Contact: Daniel Vetter
-
-Level: Intermediate
-
 Generic fbdev defio support
 ---------------------------
 
@@ -314,15 +303,18 @@ Level: Advanced
 Garbage collect fbdev scrolling acceleration
 --------------------------------------------
 
-Scroll acceleration is disabled in fbcon by hard-wiring p->scrollmode =
-SCROLL_REDRAW. There's a ton of code this will allow us to remove:
+Scroll acceleration has been disabled in fbcon. Now it works as the old
+SCROLL_REDRAW mode. A ton of code was removed in fbcon.c and the hook bmove was
+removed from fbcon_ops.
+Remaining tasks:
 
-- lots of code in fbcon.c
-
-- a bunch of the hooks in fbcon_ops, maybe the remaining hooks could be called
+- a bunch of the hooks in fbcon_ops could be removed or simplified by calling
   directly instead of the function table (with a switch on p->rotate)
 
 - fb_copyarea is unused after this, and can be deleted from all drivers
+
+- after that, fb_copyarea can be deleted from fb_ops in include/linux/fb.h as
+  well as cfb_copyarea
 
 Note that not all acceleration code can be deleted, since clearing and cursor
 support is still accelerated, which might be good candidates for further
@@ -352,23 +344,6 @@ DRM driver struct. This is now the preferred way. Callbacks in drivers have been
 converted, except for struct drm_driver.gem_prime_mmap.
 
 Level: Intermediate
-
-Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
----------------------------------------------------------
-
-For cases where drivers are attempting to grab the modeset locks with a local
-acquire context. Replace the boilerplate code surrounding
-drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
-DRM_MODESET_LOCK_ALL_END() instead.
-
-This should also be done for all places where drm_modeset_lock_all() is still
-used.
-
-As a reference, take a look at the conversions already completed in drm core.
-
-Contact: Sean Paul, respective driver maintainers
-
-Level: Starter
 
 Rename CMA helpers to DMA helpers
 ---------------------------------
@@ -474,6 +449,21 @@ The task is to use struct dma_buf_map where it makes sense.
 * Framebuffer copying and blitting helpers should operate on struct dma_buf_map.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vetter
+
+Level: Intermediate
+
+Review all drivers for setting struct drm_mode_config.{max_width,max_height} correctly
+--------------------------------------------------------------------------------------
+
+The values in struct drm_mode_config.{max_width,max_height} describe the
+maximum supported framebuffer size. It's the virtual screen size, but many
+drivers treat it like limitations of the physical resolution.
+
+The maximum width depends on the hardware's maximum scanline pitch. The
+maximum height depends on the amount of addressable video memory. Review all
+drivers to initialize the fields to the correct values.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
 
 Level: Intermediate
 
@@ -655,6 +645,17 @@ a bunch of progress cleaning it up but there's still plenty of work to be done.
 See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
+
+vmwgfx: Replace hashtable with Linux' implementation
+----------------------------------------------------
+
+The vmwgfx driver uses its own hashtable implementation. Replace the
+code with Linux' implementation and update the callers. It's mostly a
+refactoring task, but the interfaces are different.
+
+Contact: Zack Rusin, Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Intermediate
 
 Bootsplash
 ==========

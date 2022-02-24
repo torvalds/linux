@@ -176,16 +176,6 @@ static inline int is_compat_task(void)
 	return test_thread_flag(TIF_31BIT);
 }
 
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	unsigned long stack;
-
-	stack = KSTK_ESP(current);
-	if (is_compat_task())
-		stack &= 0x7fffffffUL;
-	return (void __user *) (stack - len);
-}
-
 #endif
 
 struct compat_ipc64_perm {

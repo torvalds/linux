@@ -151,7 +151,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		rq->stats->xdp_redirect++;
 		return true;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(rq->netdev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 xdp_abort:

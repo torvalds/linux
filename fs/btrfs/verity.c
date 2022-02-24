@@ -333,7 +333,7 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 		if (key.objectid != btrfs_ino(inode) || key.type != key_type)
 			break;
 
-		item_end = btrfs_item_size_nr(leaf, path->slots[0]) + key.offset;
+		item_end = btrfs_item_size(leaf, path->slots[0]) + key.offset;
 
 		if (copied > 0) {
 			/*
@@ -451,7 +451,7 @@ static int del_orphan(struct btrfs_trans_handle *trans, struct btrfs_inode *inod
  */
 static int rollback_verity(struct btrfs_inode *inode)
 {
-	struct btrfs_trans_handle *trans;
+	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_root *root = inode->root;
 	int ret;
 
@@ -473,6 +473,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		trans = NULL;
 		btrfs_handle_fs_error(root->fs_info, ret,
 			"failed to start transaction in verity rollback %llu",
 			(u64)inode->vfs_inode.i_ino);
@@ -490,8 +491,9 @@ static int rollback_verity(struct btrfs_inode *inode)
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
-	btrfs_end_transaction(trans);
 out:
+	if (trans)
+		btrfs_end_transaction(trans);
 	return ret;
 }
 

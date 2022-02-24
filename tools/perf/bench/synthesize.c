@@ -80,7 +80,7 @@ static int do_run_single_threaded(struct perf_session *session,
 						NULL,
 						target, threads,
 						process_synthesized_event,
-						data_mmap,
+						true, data_mmap,
 						nr_threads_synthesize);
 		if (err)
 			return err;
@@ -117,7 +117,7 @@ static int run_single_threaded(void)
 	int err;
 
 	perf_set_singlethreaded();
-	session = perf_session__new(NULL, false, NULL);
+	session = perf_session__new(NULL, NULL);
 	if (IS_ERR(session)) {
 		pr_err("Session creation failed.\n");
 		return PTR_ERR(session);
@@ -161,7 +161,7 @@ static int do_run_multi_threaded(struct target *target,
 	init_stats(&time_stats);
 	init_stats(&event_stats);
 	for (i = 0; i < multi_iterations; i++) {
-		session = perf_session__new(NULL, false, NULL);
+		session = perf_session__new(NULL, NULL);
 		if (IS_ERR(session))
 			return PTR_ERR(session);
 
@@ -171,7 +171,7 @@ static int do_run_multi_threaded(struct target *target,
 						NULL,
 						target, NULL,
 						process_synthesized_event,
-						false,
+						true, false,
 						nr_threads_synthesize);
 		if (err) {
 			perf_session__delete(session);

@@ -126,8 +126,9 @@ void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
 void __nd_device_register(struct device *dev);
 struct nd_label_id;
-char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags);
-bool nd_is_uuid_unique(struct device *dev, u8 *uuid);
+char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
+		      u32 flags);
+bool nd_is_uuid_unique(struct device *dev, uuid_t *uuid);
 struct nd_region;
 struct nvdimm_drvdata;
 struct nd_mapping;

@@ -248,13 +248,15 @@ static int hibvt_pwm_remove(struct platform_device *pdev)
 
 	pwm_chip = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&pwm_chip->chip);
+
 	reset_control_assert(pwm_chip->rstc);
 	msleep(30);
 	reset_control_deassert(pwm_chip->rstc);
 
 	clk_disable_unprepare(pwm_chip->clk);
 
-	return pwmchip_remove(&pwm_chip->chip);
+	return 0;
 }
 
 static const struct of_device_id hibvt_pwm_of_match[] = {

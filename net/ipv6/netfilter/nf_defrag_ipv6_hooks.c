@@ -25,8 +25,6 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
-extern unsigned int nf_frag_pernet_id;
-
 static DEFINE_MUTEX(defrag6_mutex);
 
 static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
@@ -91,12 +89,10 @@ static const struct nf_hook_ops ipv6_defrag_ops[] = {
 
 static void __net_exit defrag6_net_exit(struct net *net)
 {
-	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
-
-	if (nf_frag->users) {
+	if (net->nf.defrag_ipv6_users) {
 		nf_unregister_net_hooks(net, ipv6_defrag_ops,
 					ARRAY_SIZE(ipv6_defrag_ops));
-		nf_frag->users = 0;
+		net->nf.defrag_ipv6_users = 0;
 	}
 }
 
@@ -134,24 +130,23 @@ static void __exit nf_defrag_fini(void)
 
 int nf_defrag_ipv6_enable(struct net *net)
 {
-	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
 	int err = 0;
 
 	mutex_lock(&defrag6_mutex);
-	if (nf_frag->users == UINT_MAX) {
+	if (net->nf.defrag_ipv6_users == UINT_MAX) {
 		err = -EOVERFLOW;
 		goto out_unlock;
 	}
 
-	if (nf_frag->users) {
-		nf_frag->users++;
+	if (net->nf.defrag_ipv6_users) {
+		net->nf.defrag_ipv6_users++;
 		goto out_unlock;
 	}
 
 	err = nf_register_net_hooks(net, ipv6_defrag_ops,
 				    ARRAY_SIZE(ipv6_defrag_ops));
 	if (err == 0)
-		nf_frag->users = 1;
+		net->nf.defrag_ipv6_users = 1;
 
  out_unlock:
 	mutex_unlock(&defrag6_mutex);
@@ -161,12 +156,10 @@ EXPORT_SYMBOL_GPL(nf_defrag_ipv6_enable);
 
 void nf_defrag_ipv6_disable(struct net *net)
 {
-	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
-
 	mutex_lock(&defrag6_mutex);
-	if (nf_frag->users) {
-		nf_frag->users--;
-		if (nf_frag->users == 0)
+	if (net->nf.defrag_ipv6_users) {
+		net->nf.defrag_ipv6_users--;
+		if (net->nf.defrag_ipv6_users == 0)
 			nf_unregister_net_hooks(net, ipv6_defrag_ops,
 						ARRAY_SIZE(ipv6_defrag_ops));
 	}

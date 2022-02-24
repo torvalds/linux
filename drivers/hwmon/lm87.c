@@ -141,7 +141,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 
 struct lm87_data {
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* In jiffies */
 
 	u8 channel;		/* register value */
@@ -251,7 +251,7 @@ static struct lm87_data *lm87_update_device(struct device *dev)
 		data->aout = lm87_read_value(client, LM87_REG_AOUT);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

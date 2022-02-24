@@ -137,7 +137,7 @@ static const struct iio_chan_spec_ext_info max5821_ext_info[] = {
 		.shared = IIO_SEPARATE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &max5821_powerdown_mode_enum),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &max5821_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &max5821_powerdown_mode_enum),
 	{ },
 };
 
@@ -321,12 +321,9 @@ static int max5821_probe(struct i2c_client *client,
 	}
 
 	data->vref_reg = devm_regulator_get(&client->dev, "vref");
-	if (IS_ERR(data->vref_reg)) {
-		ret = PTR_ERR(data->vref_reg);
-		dev_err(&client->dev,
-			"Failed to get vref regulator: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(data->vref_reg))
+		return dev_err_probe(&client->dev, PTR_ERR(data->vref_reg),
+				     "Failed to get vref regulator\n");
 
 	ret = regulator_enable(data->vref_reg);
 	if (ret) {

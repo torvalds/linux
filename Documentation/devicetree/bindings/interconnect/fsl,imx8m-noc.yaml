@@ -81,10 +81,10 @@ examples:
         noc_opp_table: opp-table {
             compatible = "operating-points-v2";
 
-            opp-133M {
+            opp-133333333 {
                 opp-hz = /bits/ 64 <133333333>;
             };
-            opp-800M {
+            opp-800000000 {
                 opp-hz = /bits/ 64 <800000000>;
             };
         };

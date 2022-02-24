@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 general-purpose 16 and 32 bits timers bindings
 
 maintainers:
-  - Benjamin Gaignard <benjamin.gaignard@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+  - Patrice Chotard <patrice.chotard@foss.st.com>
 
 properties:
   compatible:

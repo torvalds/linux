@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /dts-v1/;
 
 #include "mt7621.dtsi"
@@ -18,7 +19,7 @@
 		bootargs = "console=ttyS0,57600";
 	};
 
-	palmbus: palmbus@1E000000 {
+	palmbus: palmbus@1e000000 {
 		i2c@900 {
 			status = "okay";
 		};

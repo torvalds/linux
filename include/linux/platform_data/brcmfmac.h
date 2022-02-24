@@ -125,7 +125,7 @@ struct brcmfmac_pd_cc_entry {
  */
 struct brcmfmac_pd_cc {
 	int				table_size;
-	struct brcmfmac_pd_cc_entry	table[0];
+	struct brcmfmac_pd_cc_entry	table[];
 };
 
 /**

@@ -8,12 +8,6 @@
 #ifndef __INTEL_SVM_H__
 #define __INTEL_SVM_H__
 
-/* Values for rxwp in fault_cb callback */
-#define SVM_REQ_READ	(1<<3)
-#define SVM_REQ_WRITE	(1<<2)
-#define SVM_REQ_EXEC	(1<<1)
-#define SVM_REQ_PRIV	(1<<0)
-
 /* Page Request Queue depth */
 #define PRQ_ORDER	2
 #define PRQ_RING_MASK	((0x1000 << PRQ_ORDER) - 0x20)

@@ -539,6 +539,7 @@ static int gehc_achc_probe(struct spi_device *spi)
 
 static const struct spi_device_id gehc_achc_id[] = {
 	{ "ge,achc", 0 },
+	{ "achc", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, gehc_achc_id);

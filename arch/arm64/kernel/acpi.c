@@ -22,6 +22,7 @@
 #include <linux/irq_work.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
+#include <linux/libfdt.h>
 #include <linux/smp.h>
 #include <linux/serial_core.h>
 #include <linux/pgtable.h>
@@ -62,29 +63,22 @@ static int __init parse_acpi(char *arg)
 }
 early_param("acpi", parse_acpi);
 
-static int __init dt_scan_depth1_nodes(unsigned long node,
-				       const char *uname, int depth,
-				       void *data)
+static bool __init dt_is_stub(void)
 {
-	/*
-	 * Ignore anything not directly under the root node; we'll
-	 * catch its parent instead.
-	 */
-	if (depth != 1)
-		return 0;
+	int node;
 
-	if (strcmp(uname, "chosen") == 0)
-		return 0;
+	fdt_for_each_subnode(node, initial_boot_params, 0) {
+		const char *name = fdt_get_name(initial_boot_params, node, NULL);
+		if (strcmp(name, "chosen") == 0)
+			continue;
+		if (strcmp(name, "hypervisor") == 0 &&
+		    of_flat_dt_is_compatible(node, "xen,xen"))
+			continue;
 
-	if (strcmp(uname, "hypervisor") == 0 &&
-	    of_flat_dt_is_compatible(node, "xen,xen"))
-		return 0;
+		return false;
+	}
 
-	/*
-	 * This node at depth 1 is neither a chosen node nor a xen node,
-	 * which we do not expect.
-	 */
-	return 1;
+	return true;
 }
 
 /*
@@ -205,8 +199,7 @@ void __init acpi_boot_table_init(void)
 	 *   and ACPI has not been [force] enabled (acpi=on|force)
 	 */
 	if (param_acpi_off ||
-	    (!param_acpi_on && !param_acpi_force &&
-	     of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
+	    (!param_acpi_on && !param_acpi_force && !dt_is_stub()))
 		goto done;
 
 	/*
@@ -273,8 +266,7 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 	return __pgprot(PROT_DEVICE_nGnRnE);
 }
 
-static void __iomem *__acpi_os_ioremap(acpi_physical_address phys,
-				       acpi_size size, bool memory)
+void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 {
 	efi_memory_desc_t *md, *region = NULL;
 	pgprot_t prot;
@@ -300,11 +292,9 @@ static void __iomem *__acpi_os_ioremap(acpi_physical_address phys,
 	 * It is fine for AML to remap regions that are not represented in the
 	 * EFI memory map at all, as it only describes normal memory, and MMIO
 	 * regions that require a virtual mapping to make them accessible to
-	 * the EFI runtime services. Determine the region default
-	 * attributes by checking the requested memory semantics.
+	 * the EFI runtime services.
 	 */
-	prot = memory ? __pgprot(PROT_NORMAL_NC) :
-			__pgprot(PROT_DEVICE_nGnRnE);
+	prot = __pgprot(PROT_DEVICE_nGnRnE);
 	if (region) {
 		switch (region->type) {
 		case EFI_LOADER_CODE:
@@ -362,16 +352,6 @@ static void __iomem *__acpi_os_ioremap(acpi_physical_address phys,
 		}
 	}
 	return __ioremap(phys, size, prot);
-}
-
-void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
-{
-	return __acpi_os_ioremap(phys, size, false);
-}
-
-void __iomem *acpi_os_memmap(acpi_physical_address phys, acpi_size size)
-{
-	return __acpi_os_ioremap(phys, size, true);
 }
 
 /*

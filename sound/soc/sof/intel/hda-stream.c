@@ -25,6 +25,33 @@
 
 #define HDA_LTRP_GB_VALUE_US	95
 
+static inline const char *hda_hstream_direction_str(struct hdac_stream *hstream)
+{
+	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
+		return "Playback";
+	else
+		return "Capture";
+}
+
+static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	if (hstream->substream)
+		rtd = asoc_substream_to_rtd(hstream->substream);
+	else if (hstream->cstream)
+		rtd = hstream->cstream->private_data;
+	else
+		/* Non audio DMA user, like dma-trace */
+		return kasprintf(GFP_KERNEL, "-- (%s, stream_tag: %u)",
+				 hda_hstream_direction_str(hstream),
+				 hstream->stream_tag);
+
+	return kasprintf(GFP_KERNEL, "dai_link \"%s\" (%s, stream_tag: %u)",
+			 rtd->dai_link->name, hda_hstream_direction_str(hstream),
+			 hstream->stream_tag);
+}
+
 /*
  * set up one of BDL entries for a stream
  */
@@ -89,13 +116,13 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = stream->period_bytes;
-	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
+	dev_dbg(sdev->dev, "%s: period_bytes:0x%x\n", __func__, period_bytes);
 	if (!period_bytes)
 		period_bytes = stream->bufsize;
 
 	periods = stream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "periods:%d\n", periods);
+	dev_dbg(sdev->dev, "%s: periods:%d\n", __func__, periods);
 
 	remain = stream->bufsize % period_bytes;
 	if (remain)
@@ -244,8 +271,48 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "stream_tag %d not opened!\n", stream_tag);
+		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+			__func__, stream_tag);
 		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int hda_dsp_stream_reset(struct snd_sof_dev *sdev, struct hdac_stream *hstream)
+{
+	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	int timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	u32 val;
+
+	/* enter stream reset */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, SOF_STREAM_SD_OFFSET_CRST,
+				SOF_STREAM_SD_OFFSET_CRST);
+	do {
+		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, sd_offset);
+		if (val & SOF_STREAM_SD_OFFSET_CRST)
+			break;
+	} while (--timeout);
+	if (timeout == 0) {
+		dev_err(sdev->dev, "timeout waiting for stream reset\n");
+		return -ETIMEDOUT;
+	}
+
+	timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+
+	/* exit stream reset and wait to read a zero before reading any other register */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, SOF_STREAM_SD_OFFSET_CRST, 0x0);
+
+	/* wait for hardware to report that stream is out of reset */
+	udelay(3);
+	do {
+		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, sd_offset);
+		if ((val & SOF_STREAM_SD_OFFSET_CRST) == 0)
+			break;
+	} while (--timeout);
+	if (timeout == 0) {
+		dev_err(sdev->dev, "timeout waiting for stream to exit reset\n");
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -257,12 +324,11 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
-	int ret;
+	int ret = 0;
 	u32 run;
 
 	/* cmd must be for audio stream */
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_START:
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
@@ -283,14 +349,9 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
-				__func__, cmd);
-			return ret;
-		}
+		if (ret >= 0)
+			hstream->running = true;
 
-		hstream->running = true;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -306,27 +367,32 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 						HDA_DSP_REG_POLL_INTERVAL_US,
 						HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
-				__func__, cmd);
-			return ret;
+		if (ret >= 0) {
+			snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+					  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+					  SOF_HDA_CL_DMA_SD_INT_MASK);
+
+			hstream->running = false;
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+						SOF_HDA_INTCTL,
+						1 << hstream->index, 0x0);
 		}
-
-		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset +
-				  SOF_HDA_ADSP_REG_CL_SD_STS,
-				  SOF_HDA_CL_DMA_SD_INT_MASK);
-
-		hstream->running = false;
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
-					1 << hstream->index, 0x0);
 		break;
 	default:
 		dev_err(sdev->dev, "error: unknown command: %d\n", cmd);
 		return -EINVAL;
 	}
 
-	return 0;
+	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
+		dev_err(sdev->dev,
+			"%s: cmd %d on %s: timeout on STREAM_SD_OFFSET read\n",
+			__func__, cmd, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
+	}
+
+	return ret;
 }
 
 /* minimal recommended programming for ICCMAX stream */
@@ -405,12 +471,13 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
 			     struct snd_pcm_hw_params *params)
 {
+	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret, timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	int ret;
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
-	u32 val, mask;
+	u32 mask;
 	u32 run;
 
 	if (!stream) {
@@ -440,9 +507,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
 	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
 		dev_err(sdev->dev,
-			"error: %s: timeout on STREAM_SD_OFFSET read1\n",
-			__func__);
+			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
+			__func__, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
 		return ret;
 	}
 
@@ -452,36 +522,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 				SOF_HDA_CL_DMA_SD_INT_MASK);
 
 	/* stream reset */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, 0x1,
-				0x1);
-	udelay(3);
-	do {
-		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       sd_offset);
-		if (val & 0x1)
-			break;
-	} while (--timeout);
-	if (timeout == 0) {
-		dev_err(sdev->dev, "error: stream reset failed\n");
-		return -ETIMEDOUT;
-	}
-
-	timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, 0x1,
-				0x0);
-
-	/* wait for hardware to report that stream is out of reset */
-	udelay(3);
-	do {
-		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       sd_offset);
-		if ((val & 0x1) == 0)
-			break;
-	} while (--timeout);
-	if (timeout == 0) {
-		dev_err(sdev->dev, "error: timeout waiting for stream reset\n");
-		return -ETIMEDOUT;
-	}
+	ret = hda_dsp_stream_reset(sdev, hstream);
+	if (ret < 0)
+		return ret;
 
 	if (hstream->posbuf)
 		*hstream->posbuf = 0;
@@ -506,9 +549,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
 	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
 		dev_err(sdev->dev,
-			"error: %s: timeout on STREAM_SD_OFFSET read2\n",
-			__func__);
+			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
+			__func__, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
 		return ret;
 	}
 
@@ -538,6 +584,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/*
 	 * Recommended hardware programming sequence for HDAudio DMA format
+	 * on earlier platforms - this is not needed on newer platforms
 	 *
 	 * 1. Put DMA into coupled mode by clearing PPCTL.PROCEN bit
 	 *    for corresponding stream index before the time of writing
@@ -547,9 +594,11 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	 *    enable decoupled mode
 	 */
 
-	/* couple host and link DMA, disable DSP features */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, 0);
+	if (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK) {
+		/* couple host and link DMA, disable DSP features */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+					mask, 0);
+	}
 
 	/* program stream format */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -557,9 +606,11 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 				SOF_HDA_ADSP_REG_CL_SD_FORMAT,
 				0xffff, hstream->format_val);
 
-	/* decouple host and link DMA, enable DSP features */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, mask);
+	if (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK) {
+		/* decouple host and link DMA, enable DSP features */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+					mask, mask);
+	}
 
 	/* program last valid index */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -574,9 +625,10 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
 			  upper_32_bits(hstream->bdl.addr));
 
-	/* enable position buffer */
-	if (!(snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE)
-				& SOF_HDA_ADSP_DPLBASE_ENABLE)) {
+	/* enable position buffer, if needed */
+	if (bus->use_posbuf && bus->posbuf.addr &&
+	    !(snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE)
+	      & SOF_HDA_ADSP_DPLBASE_ENABLE)) {
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPUBASE,
 				  upper_32_bits(bus->posbuf.addr));
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE,
@@ -613,6 +665,11 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 							hstream);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	u32 mask = 0x1 << stream->index;
+	int ret;
+
+	ret = hda_dsp_stream_reset(sdev, stream);
+	if (ret < 0)
+		return ret;
 
 	spin_lock_irq(&bus->reg_lock);
 	/* couple host and link DMA if link DMA channel is idle */
@@ -620,6 +677,8 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
 					SOF_HDA_REG_PP_PPCTL, mask, 0);
 	spin_unlock_irq(&bus->reg_lock);
+
+	hda_dsp_stream_spib_config(sdev, link_dev, HDA_DSP_SPIB_DISABLE, 0);
 
 	stream->substream = NULL;
 

@@ -267,13 +267,13 @@ int bcm_vk_tty_init(struct bcm_vk *vk, char *name)
 		struct device *tty_dev;
 
 		tty_port_init(&vk->tty[i].port);
-		tty_dev = tty_port_register_device(&vk->tty[i].port, tty_drv,
-						   i, dev);
+		tty_dev = tty_port_register_device_attr(&vk->tty[i].port,
+							tty_drv, i, dev, vk,
+							NULL);
 		if (IS_ERR(tty_dev)) {
 			err = PTR_ERR(tty_dev);
 			goto unwind;
 		}
-		dev_set_drvdata(tty_dev, vk);
 		vk->tty[i].is_opened = false;
 	}
 

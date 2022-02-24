@@ -606,19 +606,18 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return 0;
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_nf_init(&priv->notifier);
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
 		struct max9286_asd *mas;
 
-		mas = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
-							    source->fwnode,
-							    struct max9286_asd);
+		mas = v4l2_async_nf_add_fwnode(&priv->notifier, source->fwnode,
+					       struct max9286_asd);
 		if (IS_ERR(mas)) {
 			dev_err(dev, "Failed to add subdev for source %u: %ld",
 				i, PTR_ERR(mas));
-			v4l2_async_notifier_cleanup(&priv->notifier);
+			v4l2_async_nf_cleanup(&priv->notifier);
 			return PTR_ERR(mas);
 		}
 
@@ -627,10 +626,10 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 
 	priv->notifier.ops = &max9286_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
 	if (ret) {
 		dev_err(dev, "Failed to register subdev_notifier");
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->notifier);
 		return ret;
 	}
 
@@ -642,8 +641,8 @@ static void max9286_v4l2_notifier_unregister(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return;
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 }
 
 static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1056,7 +1055,6 @@ static int max9286_register_gpio(struct max9286_priv *priv)
 	gpio->label = dev_name(dev);
 	gpio->parent = dev;
 	gpio->owner = THIS_MODULE;
-	gpio->of_node = dev->of_node;
 	gpio->ngpio = 2;
 	gpio->base = -1;
 	gpio->set = max9286_gpio_set;
@@ -1296,11 +1294,9 @@ static int max9286_probe(struct i2c_client *client)
 
 	priv->regulator = devm_regulator_get(&client->dev, "poc");
 	if (IS_ERR(priv->regulator)) {
-		if (PTR_ERR(priv->regulator) != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Unable to get PoC regulator (%ld)\n",
-				PTR_ERR(priv->regulator));
 		ret = PTR_ERR(priv->regulator);
+		dev_err_probe(&client->dev, ret,
+			      "Unable to get PoC regulator\n");
 		goto err_powerdown;
 	}
 

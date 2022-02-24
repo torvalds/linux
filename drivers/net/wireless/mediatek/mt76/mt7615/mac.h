@@ -86,6 +86,8 @@ enum rx_pkt_type {
 #define MT_RXD6_SEQ_CTRL		GENMASK(15, 0)
 #define MT_RXD6_QOS_CTL			GENMASK(31, 16)
 
+#define MT_RXD7_HT_CONTROL		GENMASK(31, 0)
+
 #define MT_RXV1_ACID_DET_H		BIT(31)
 #define MT_RXV1_ACID_DET_L		BIT(30)
 #define MT_RXV1_VHTA2_B8_B3		GENMASK(29, 24)

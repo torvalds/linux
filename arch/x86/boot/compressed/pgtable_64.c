@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "misc.h"
 #include <linux/efi.h>
 #include <asm/e820/types.h>
 #include <asm/processor.h>

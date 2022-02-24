@@ -40,6 +40,7 @@ static bool wmi_requires_smbios_request;
 
 struct dell_wmi_priv {
 	struct input_dev *input_dev;
+	struct input_dev *tabletswitch_dev;
 	u32 interface_version;
 };
 
@@ -309,6 +310,9 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
  * Keymap for WMI events of type 0x0011
  */
 static const struct key_entry dell_wmi_keymap_type_0011[] = {
+	/* Reflex keyboard switch on 2n1 devices */
+	{ KE_IGNORE, 0xe070, { KEY_RESERVED } },
+
 	/* Battery unplugged */
 	{ KE_IGNORE, 0xfff0, { KEY_RESERVED } },
 
@@ -340,21 +344,55 @@ static const struct key_entry dell_wmi_keymap_type_0011[] = {
  * They are events with extended data
  */
 static const struct key_entry dell_wmi_keymap_type_0012[] = {
+	/* Ultra-performance mode switch request */
+	{ KE_IGNORE, 0x000d, { KEY_RESERVED } },
+
 	/* Fn-lock button pressed */
 	{ KE_IGNORE, 0xe035, { KEY_RESERVED } },
 };
 
-static void dell_wmi_process_key(struct wmi_device *wdev, int type, int code)
+static void dell_wmi_switch_event(struct input_dev **subdev,
+				  const char *devname,
+				  int switchid,
+				  int value)
+{
+	if (!*subdev) {
+		struct input_dev *dev = input_allocate_device();
+
+		if (!dev) {
+			pr_warn("could not allocate device for %s\n", devname);
+			return;
+		}
+		__set_bit(EV_SW, (dev)->evbit);
+		__set_bit(switchid, (dev)->swbit);
+
+		(dev)->name = devname;
+		(dev)->id.bustype = BUS_HOST;
+		if (input_register_device(dev)) {
+			input_free_device(dev);
+			pr_warn("could not register device for %s\n", devname);
+			return;
+		}
+		*subdev = dev;
+	}
+
+	input_report_switch(*subdev, switchid, value);
+	input_sync(*subdev);
+}
+
+static int dell_wmi_process_key(struct wmi_device *wdev, int type, int code, u16 *buffer, int remaining)
 {
 	struct dell_wmi_priv *priv = dev_get_drvdata(&wdev->dev);
 	const struct key_entry *key;
+	int used = 0;
+	int value = 1;
 
 	key = sparse_keymap_entry_from_scancode(priv->input_dev,
 						(type << 16) | code);
 	if (!key) {
 		pr_info("Unknown key with type 0x%04x and code 0x%04x pressed\n",
 			type, code);
-		return;
+		return 0;
 	}
 
 	pr_debug("Key with type 0x%04x and code 0x%04x pressed\n", type, code);
@@ -363,16 +401,27 @@ static void dell_wmi_process_key(struct wmi_device *wdev, int type, int code)
 	if ((key->keycode == KEY_BRIGHTNESSUP ||
 	     key->keycode == KEY_BRIGHTNESSDOWN) &&
 	    acpi_video_handles_brightness_key_presses())
-		return;
+		return 0;
 
 	if (type == 0x0000 && code == 0xe025 && !wmi_requires_smbios_request)
-		return;
+		return 0;
 
-	if (key->keycode == KEY_KBDILLUMTOGGLE)
+	if (key->keycode == KEY_KBDILLUMTOGGLE) {
 		dell_laptop_call_notifier(
 			DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED, NULL);
+	} else if (type == 0x0011 && code == 0xe070 && remaining > 0) {
+		dell_wmi_switch_event(&priv->tabletswitch_dev,
+				      "Dell tablet mode switch",
+				      SW_TABLET_MODE, !buffer[0]);
+		return 1;
+	} else if (type == 0x0012 && code == 0x000d && remaining > 0) {
+		value = (buffer[2] == 2);
+		used = 1;
+	}
 
-	sparse_keymap_report_entry(priv->input_dev, key, 1, true);
+	sparse_keymap_report_entry(priv->input_dev, key, value, true);
+
+	return used;
 }
 
 static void dell_wmi_notify(struct wmi_device *wdev,
@@ -430,21 +479,26 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 		case 0x0000: /* One key pressed or event occurred */
 			if (len > 2)
 				dell_wmi_process_key(wdev, buffer_entry[1],
-						     buffer_entry[2]);
+						     buffer_entry[2],
+						     buffer_entry + 3,
+						     len - 3);
 			/* Extended data is currently ignored */
 			break;
 		case 0x0010: /* Sequence of keys pressed */
 		case 0x0011: /* Sequence of events occurred */
 			for (i = 2; i < len; ++i)
-				dell_wmi_process_key(wdev, buffer_entry[1],
-						     buffer_entry[i]);
+				i += dell_wmi_process_key(wdev, buffer_entry[1],
+							  buffer_entry[i],
+							  buffer_entry + i,
+							  len - i - 1);
 			break;
 		case 0x0012:
 			if ((len > 4) && dell_privacy_process_event(buffer_entry[1], buffer_entry[3],
 								    buffer_entry[4]))
 				/* dell_privacy_process_event has handled the event */;
 			else if (len > 2)
-				dell_wmi_process_key(wdev, buffer_entry[1], buffer_entry[2]);
+				dell_wmi_process_key(wdev, buffer_entry[1], buffer_entry[2],
+						     buffer_entry + 3, len - 3);
 			break;
 		default: /* Unknown event */
 			pr_info("Unknown WMI event type 0x%x\n",
@@ -661,6 +715,8 @@ static void dell_wmi_input_destroy(struct wmi_device *wdev)
 	struct dell_wmi_priv *priv = dev_get_drvdata(&wdev->dev);
 
 	input_unregister_device(priv->input_dev);
+	if (priv->tabletswitch_dev)
+		input_unregister_device(priv->tabletswitch_dev);
 }
 
 /*

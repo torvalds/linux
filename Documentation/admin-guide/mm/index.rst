@@ -27,6 +27,7 @@ the Linux memory management.
 
    concepts
    cma_debugfs
+   damon/index
    hugetlbpage
    idle_page_tracking
    ksm
@@ -36,5 +37,7 @@ the Linux memory management.
    numaperf
    pagemap
    soft-dirty
+   swap_numa
    transhuge
    userfaultfd
+   zswap

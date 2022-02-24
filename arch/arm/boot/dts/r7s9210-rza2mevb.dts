@@ -100,6 +100,8 @@
 	renesas,no-ether-link;
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id001c.c816",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
 };
@@ -107,6 +109,20 @@
 /* EXTAL */
 &extal_clk {
 	clock-frequency = <24000000>;	/* 24MHz */
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24128", "atmel,24c128";
+		reg = <0x50>;
+		pagesize = <64>;
+	};
 };
 
 /* High resolution System tick timers */
@@ -145,6 +161,11 @@
 			 <RZA2_PINMUX(PORT3, 3, 1)>, /* ET1_MDC */
 			 <RZA2_PINMUX(PORT3, 4, 1)>, /* ET1_MDIO */
 			 <RZA2_PINMUX(PORTL, 1, 5)>; /* IRQ5 */
+	};
+
+	i2c3_pins: i2c3 {
+		pinmux = <RZA2_PINMUX(PORTD, 6, 1)>,	/* RIIC3SCL */
+			 <RZA2_PINMUX(PORTD, 7, 1)>;	/* RIIC3SDA */
 	};
 
 	keyboard_pins: keyboard {

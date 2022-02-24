@@ -81,33 +81,39 @@ static const struct xtensa_exception_cause xtensa_exception_causes[] = {
 };
 
 /* only need xtensa atm */
-static void xtensa_dsp_oops(struct snd_sof_dev *sdev, void *oops)
+static void xtensa_dsp_oops(struct snd_sof_dev *sdev, const char *level, void *oops)
 {
 	struct sof_ipc_dsp_oops_xtensa *xoops = oops;
 	int i;
 
-	dev_err(sdev->dev, "error: DSP Firmware Oops\n");
+	dev_printk(level, sdev->dev, "error: DSP Firmware Oops\n");
 	for (i = 0; i < ARRAY_SIZE(xtensa_exception_causes); i++) {
 		if (xtensa_exception_causes[i].id == xoops->exccause) {
-			dev_err(sdev->dev, "error: Exception Cause: %s, %s\n",
-				xtensa_exception_causes[i].msg,
-				xtensa_exception_causes[i].description);
+			dev_printk(level, sdev->dev,
+				   "error: Exception Cause: %s, %s\n",
+				   xtensa_exception_causes[i].msg,
+				   xtensa_exception_causes[i].description);
 		}
 	}
-	dev_err(sdev->dev, "EXCCAUSE 0x%8.8x EXCVADDR 0x%8.8x PS       0x%8.8x SAR     0x%8.8x\n",
-		xoops->exccause, xoops->excvaddr, xoops->ps, xoops->sar);
-	dev_err(sdev->dev, "EPC1     0x%8.8x EPC2     0x%8.8x EPC3     0x%8.8x EPC4    0x%8.8x",
-		xoops->epc1, xoops->epc2, xoops->epc3, xoops->epc4);
-	dev_err(sdev->dev, "EPC5     0x%8.8x EPC6     0x%8.8x EPC7     0x%8.8x DEPC    0x%8.8x",
-		xoops->epc5, xoops->epc6, xoops->epc7, xoops->depc);
-	dev_err(sdev->dev, "EPS2     0x%8.8x EPS3     0x%8.8x EPS4     0x%8.8x EPS5    0x%8.8x",
-		xoops->eps2, xoops->eps3, xoops->eps4, xoops->eps5);
-	dev_err(sdev->dev, "EPS6     0x%8.8x EPS7     0x%8.8x INTENABL 0x%8.8x INTERRU 0x%8.8x",
-		xoops->eps6, xoops->eps7, xoops->intenable, xoops->interrupt);
+	dev_printk(level, sdev->dev,
+		   "EXCCAUSE 0x%8.8x EXCVADDR 0x%8.8x PS       0x%8.8x SAR     0x%8.8x\n",
+		   xoops->exccause, xoops->excvaddr, xoops->ps, xoops->sar);
+	dev_printk(level, sdev->dev,
+		   "EPC1     0x%8.8x EPC2     0x%8.8x EPC3     0x%8.8x EPC4    0x%8.8x",
+		   xoops->epc1, xoops->epc2, xoops->epc3, xoops->epc4);
+	dev_printk(level, sdev->dev,
+		   "EPC5     0x%8.8x EPC6     0x%8.8x EPC7     0x%8.8x DEPC    0x%8.8x",
+		   xoops->epc5, xoops->epc6, xoops->epc7, xoops->depc);
+	dev_printk(level, sdev->dev,
+		   "EPS2     0x%8.8x EPS3     0x%8.8x EPS4     0x%8.8x EPS5    0x%8.8x",
+		   xoops->eps2, xoops->eps3, xoops->eps4, xoops->eps5);
+	dev_printk(level, sdev->dev,
+		   "EPS6     0x%8.8x EPS7     0x%8.8x INTENABL 0x%8.8x INTERRU 0x%8.8x",
+		   xoops->eps6, xoops->eps7, xoops->intenable, xoops->interrupt);
 }
 
-static void xtensa_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
-			 u32 stack_words)
+static void xtensa_stack(struct snd_sof_dev *sdev, const char *level, void *oops,
+			 u32 *stack, u32 stack_words)
 {
 	struct sof_ipc_dsp_oops_xtensa *xoops = oops;
 	u32 stack_ptr = xoops->plat_hdr.stackptr;
@@ -115,20 +121,20 @@ static void xtensa_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
 	unsigned char buf[4 * 8 + 3 + 1];
 	int i;
 
-	dev_err(sdev->dev, "stack dump from 0x%8.8x\n", stack_ptr);
+	dev_printk(level, sdev->dev, "stack dump from 0x%8.8x\n", stack_ptr);
 
 	/*
 	 * example output:
 	 * 0x0049fbb0: 8000f2d0 0049fc00 6f6c6c61 00632e63
 	 */
 	for (i = 0; i < stack_words; i += 4) {
-		hex_dump_to_buffer(stack + i * 4, 16, 16, 4,
+		hex_dump_to_buffer(stack + i, 16, 16, 4,
 				   buf, sizeof(buf), false);
-		dev_err(sdev->dev, "0x%08x: %s\n", stack_ptr + i, buf);
+		dev_printk(level, sdev->dev, "0x%08x: %s\n", stack_ptr + i * 4, buf);
 	}
 }
 
-const struct sof_arch_ops sof_xtensa_arch_ops = {
+const struct dsp_arch_ops sof_xtensa_arch_ops = {
 	.dsp_oops = xtensa_dsp_oops,
 	.dsp_stack = xtensa_stack,
 };

@@ -85,7 +85,7 @@ void __init ip27_be_init(void)
 	int cpu = LOCAL_HUB_L(PI_CPU_NUM);
 	int cpuoff = cpu << 8;
 
-	board_be_handler = ip27_be_handler;
+	mips_set_be_handler(ip27_be_handler);
 
 	LOCAL_HUB_S(PI_ERR_INT_PEND,
 		    cpu ? PI_ERR_CLEAR_ALL_B : PI_ERR_CLEAR_ALL_A);

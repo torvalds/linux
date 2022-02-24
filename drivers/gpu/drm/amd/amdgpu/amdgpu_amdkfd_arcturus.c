@@ -57,11 +57,6 @@
 		(*dump)[i++][1] = RREG32(addr);		\
 	} while (0)
 
-static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
-{
-	return (struct amdgpu_device *)kgd;
-}
-
 static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 {
 	return (struct v9_sdma_mqd *)mqd;
@@ -123,10 +118,9 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 	return sdma_rlc_reg_offset;
 }
 
-int kgd_arcturus_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
+int kgd_arcturus_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	unsigned long end_jiffies;
@@ -193,11 +187,10 @@ int kgd_arcturus_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-int kgd_arcturus_hqd_sdma_dump(struct kgd_dev *kgd,
+int kgd_arcturus_hqd_sdma_dump(struct amdgpu_device *adev,
 			     uint32_t engine_id, uint32_t queue_id,
 			     uint32_t (**dump)[2], uint32_t *n_regs)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev,
 			engine_id, queue_id);
 	uint32_t i = 0, reg;
@@ -225,9 +218,9 @@ int kgd_arcturus_hqd_sdma_dump(struct kgd_dev *kgd,
 	return 0;
 }
 
-bool kgd_arcturus_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
+bool kgd_arcturus_hqd_sdma_is_occupied(struct amdgpu_device *adev,
+				void *mqd)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	uint32_t sdma_rlc_rb_cntl;
@@ -244,10 +237,9 @@ bool kgd_arcturus_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-int kgd_arcturus_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
+int kgd_arcturus_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 				unsigned int utimeout)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	uint32_t temp;

@@ -19,9 +19,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
 #define PROG(F) PROG_(F, _##F)
-#define PROG_(NUM, NAME) SEC("flow_dissector/"#NUM) int bpf_func##NAME
+#define PROG_(NUM, NAME) SEC("flow_dissector") int flow_dissector_##NUM
 
 /* These are the identifiers of the BPF programs that will be used in tail
  * calls. Name is limited to 16 characters, with the terminating character and

@@ -20,7 +20,7 @@ mlx5e_hv_vhca_fill_ring_stats(struct mlx5e_priv *priv, int ch,
 	struct mlx5e_channel_stats *stats;
 	int tc;
 
-	stats = &priv->channel_stats[ch];
+	stats = priv->channel_stats[ch];
 	data->rx_packets = stats->rq.packets;
 	data->rx_bytes   = stats->rq.bytes;
 
@@ -35,7 +35,7 @@ static void mlx5e_hv_vhca_fill_stats(struct mlx5e_priv *priv, void *data,
 {
 	int ch, i = 0;
 
-	for (ch = 0; ch < priv->max_nch; ch++) {
+	for (ch = 0; ch < priv->stats_nch; ch++) {
 		void *buf = data + i;
 
 		if (WARN_ON_ONCE(buf +
@@ -51,7 +51,7 @@ static void mlx5e_hv_vhca_fill_stats(struct mlx5e_priv *priv, void *data,
 static int mlx5e_hv_vhca_stats_buf_size(struct mlx5e_priv *priv)
 {
 	return (sizeof(struct mlx5e_hv_vhca_per_ring_stats) *
-		priv->max_nch);
+		priv->stats_nch);
 }
 
 static void mlx5e_hv_vhca_stats_work(struct work_struct *work)
@@ -100,7 +100,7 @@ static void mlx5e_hv_vhca_stats_control(struct mlx5_hv_vhca_agent *agent,
 	sagent = &priv->stats_agent;
 
 	block->version = MLX5_HV_VHCA_STATS_VERSION;
-	block->rings   = priv->max_nch;
+	block->rings   = priv->stats_nch;
 
 	if (!block->command) {
 		cancel_delayed_work_sync(&priv->stats_agent.work);
@@ -120,14 +120,14 @@ static void mlx5e_hv_vhca_stats_cleanup(struct mlx5_hv_vhca_agent *agent)
 	cancel_delayed_work_sync(&priv->stats_agent.work);
 }
 
-int mlx5e_hv_vhca_stats_create(struct mlx5e_priv *priv)
+void mlx5e_hv_vhca_stats_create(struct mlx5e_priv *priv)
 {
 	int buf_len = mlx5e_hv_vhca_stats_buf_size(priv);
 	struct mlx5_hv_vhca_agent *agent;
 
 	priv->stats_agent.buf = kvzalloc(buf_len, GFP_KERNEL);
 	if (!priv->stats_agent.buf)
-		return -ENOMEM;
+		return;
 
 	agent = mlx5_hv_vhca_agent_create(priv->mdev->hv_vhca,
 					  MLX5_HV_VHCA_AGENT_STATS,
@@ -142,13 +142,11 @@ int mlx5e_hv_vhca_stats_create(struct mlx5e_priv *priv)
 				    PTR_ERR(agent));
 
 		kvfree(priv->stats_agent.buf);
-		return IS_ERR_OR_NULL(agent);
+		return;
 	}
 
 	priv->stats_agent.agent = agent;
 	INIT_DELAYED_WORK(&priv->stats_agent.work, mlx5e_hv_vhca_stats_work);
-
-	return 0;
 }
 
 void mlx5e_hv_vhca_stats_destroy(struct mlx5e_priv *priv)

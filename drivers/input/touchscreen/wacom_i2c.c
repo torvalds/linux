@@ -6,6 +6,7 @@
  * <tobita.tatsunosuke@wacom.co.jp>
  */
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -14,6 +15,15 @@
 #include <linux/interrupt.h>
 #include <asm/unaligned.h>
 
+/* Bitmasks (for data[3]) */
+#define WACOM_TIP_SWITCH	BIT(0)
+#define WACOM_BARREL_SWITCH	BIT(1)
+#define WACOM_ERASER		BIT(2)
+#define WACOM_INVERT		BIT(3)
+#define WACOM_BARREL_SWITCH_2	BIT(4)
+#define WACOM_IN_PROXIMITY	BIT(5)
+
+/* Registers */
 #define WACOM_CMD_QUERY0	0x04
 #define WACOM_CMD_QUERY1	0x00
 #define WACOM_CMD_QUERY2	0x33
@@ -99,19 +109,19 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 	if (error < 0)
 		goto out;
 
-	tsw = data[3] & 0x01;
-	ers = data[3] & 0x04;
-	f1 = data[3] & 0x02;
-	f2 = data[3] & 0x10;
+	tsw = data[3] & WACOM_TIP_SWITCH;
+	ers = data[3] & WACOM_ERASER;
+	f1 = data[3] & WACOM_BARREL_SWITCH;
+	f2 = data[3] & WACOM_BARREL_SWITCH_2;
 	x = le16_to_cpup((__le16 *)&data[4]);
 	y = le16_to_cpup((__le16 *)&data[6]);
 	pressure = le16_to_cpup((__le16 *)&data[8]);
 
 	if (!wac_i2c->prox)
-		wac_i2c->tool = (data[3] & 0x0c) ?
+		wac_i2c->tool = (data[3] & (WACOM_ERASER | WACOM_INVERT)) ?
 			BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 
-	wac_i2c->prox = data[3] & 0x20;
+	wac_i2c->prox = data[3] & WACOM_IN_PROXIMITY;
 
 	input_report_key(input, BTN_TOUCH, tsw || ers);
 	input_report_key(input, wac_i2c->tool, wac_i2c->prox);

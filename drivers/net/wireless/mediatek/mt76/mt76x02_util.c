@@ -138,7 +138,7 @@ mt76x02_led_set_brightness(struct led_classdev *led_cdev,
 		mt76x02_led_set_config(mdev, 0xff, 0);
 }
 
-void mt76x02_init_device(struct mt76x02_dev *dev)
+int mt76x02_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
@@ -197,6 +197,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		dev->mphy.chainmask = 0x101;
 		dev->mphy.antenna_mask = 1;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);
 
@@ -287,6 +289,8 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
+	mt76_packet_id_init(&mvif->group_wcid);
+
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 	mtxq->wcid = &mvif->group_wcid;
 }
@@ -341,6 +345,7 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
 	dev->mt76.vif_mask &= ~BIT(mvif->idx);
+	mt76_packet_id_flush(&dev->mt76, &mvif->group_wcid);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
 

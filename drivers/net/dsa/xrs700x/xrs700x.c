@@ -5,6 +5,7 @@
  */
 
 #include <net/dsa.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/of_device.h>
 #include <linux/netdev_features.h>
@@ -456,7 +457,7 @@ static void xrs700x_phylink_validate(struct dsa_switch *ds, int port,
 		phylink_set(mask, 1000baseT_Full);
 		break;
 	default:
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		dev_err(ds->dev, "Unsupported port: %i\n", port);
 		return;
 	}
@@ -467,10 +468,8 @@ static void xrs700x_phylink_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, 10baseT_Full);
 	phylink_set(mask, 100baseT_Full);
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void xrs700x_mac_link_up(struct dsa_switch *ds, int port,
@@ -503,7 +502,7 @@ static void xrs700x_mac_link_up(struct dsa_switch *ds, int port,
 }
 
 static int xrs700x_bridge_common(struct dsa_switch *ds, int port,
-				 struct net_device *bridge, bool join)
+				 struct dsa_bridge bridge, bool join)
 {
 	unsigned int i, cpu_mask = 0, mask = 0;
 	struct xrs700x *priv = ds->priv;
@@ -515,14 +514,14 @@ static int xrs700x_bridge_common(struct dsa_switch *ds, int port,
 
 		cpu_mask |= BIT(i);
 
-		if (dsa_to_port(ds, i)->bridge_dev == bridge)
+		if (dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
 			continue;
 
 		mask |= BIT(i);
 	}
 
 	for (i = 0; i < ds->num_ports; i++) {
-		if (dsa_to_port(ds, i)->bridge_dev != bridge)
+		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
 			continue;
 
 		/* 1 = Disable forwarding to the port */
@@ -542,13 +541,13 @@ static int xrs700x_bridge_common(struct dsa_switch *ds, int port,
 }
 
 static int xrs700x_bridge_join(struct dsa_switch *ds, int port,
-			       struct net_device *bridge)
+			       struct dsa_bridge bridge, bool *tx_fwd_offload)
 {
 	return xrs700x_bridge_common(ds, port, bridge, true);
 }
 
 static void xrs700x_bridge_leave(struct dsa_switch *ds, int port,
-				 struct net_device *bridge)
+				 struct dsa_bridge bridge)
 {
 	xrs700x_bridge_common(ds, port, bridge, false);
 }
@@ -821,6 +820,12 @@ void xrs700x_switch_remove(struct xrs700x *priv)
 	dsa_unregister_switch(priv->ds);
 }
 EXPORT_SYMBOL(xrs700x_switch_remove);
+
+void xrs700x_switch_shutdown(struct xrs700x *priv)
+{
+	dsa_switch_shutdown(priv->ds);
+}
+EXPORT_SYMBOL(xrs700x_switch_shutdown);
 
 MODULE_AUTHOR("George McCollister <george.mccollister@gmail.com>");
 MODULE_DESCRIPTION("Arrow SpeedChips XRS700x DSA driver");

@@ -7,10 +7,9 @@
 #ifndef __MIPS_ASM_MIPS_CPS_H__
 #define __MIPS_ASM_MIPS_CPS_H__
 
+#include <linux/bitfield.h>
 #include <linux/io.h>
 #include <linux/types.h>
-
-#include <asm/mips-boards/launch.h>
 
 extern unsigned long __cps_access_bad_size(void)
 	__compiletime_error("Bad size for CPS accessor");
@@ -114,14 +113,10 @@ static inline void clear_##unit##_##name(uint##sz##_t val)		\
  */
 static inline unsigned int mips_cps_numclusters(void)
 {
-	unsigned int num_clusters;
-
 	if (mips_cm_revision() < CM_REV_CM3_5)
 		return 1;
 
-	num_clusters = read_gcr_config() & CM_GCR_CONFIG_NUM_CLUSTERS;
-	num_clusters >>= __ffs(CM_GCR_CONFIG_NUM_CLUSTERS);
-	return num_clusters;
+	return FIELD_GET(CM_GCR_CONFIG_NUM_CLUSTERS, read_gcr_config());
 }
 
 /**
@@ -167,30 +162,12 @@ static inline uint64_t mips_cps_cluster_config(unsigned int cluster)
  */
 static inline unsigned int mips_cps_numcores(unsigned int cluster)
 {
-	unsigned int ncores;
-
 	if (!mips_cm_present())
 		return 0;
 
 	/* Add one before masking to handle 0xff indicating no cores */
-	ncores = (mips_cps_cluster_config(cluster) + 1) & CM_GCR_CONFIG_PCORES;
-
-	if (IS_ENABLED(CONFIG_SOC_MT7621)) {
-		struct cpulaunch *launch;
-
-		/*
-		 * Ralink MT7621S SoC is single core, but the GCR_CONFIG method
-		 * always reports 2 cores. Check the second core's LAUNCH_FREADY
-		 * flag to detect if the second core is missing. This method
-		 * only works before the core has been started.
-		 */
-		launch = (struct cpulaunch *)CKSEG0ADDR(CPULAUNCH);
-		launch += 2; /* MT7621 has 2 VPEs per core */
-		if (!(launch->flags & LAUNCH_FREADY))
-			ncores = 1;
-	}
-
-	return ncores;
+	return FIELD_GET(CM_GCR_CONFIG_PCORES,
+			 mips_cps_cluster_config(cluster) + 1);
 }
 
 /**
@@ -202,14 +179,11 @@ static inline unsigned int mips_cps_numcores(unsigned int cluster)
  */
 static inline unsigned int mips_cps_numiocu(unsigned int cluster)
 {
-	unsigned int num_iocu;
-
 	if (!mips_cm_present())
 		return 0;
 
-	num_iocu = mips_cps_cluster_config(cluster) & CM_GCR_CONFIG_NUMIOCU;
-	num_iocu >>= __ffs(CM_GCR_CONFIG_NUMIOCU);
-	return num_iocu;
+	return FIELD_GET(CM_GCR_CONFIG_NUMIOCU,
+			 mips_cps_cluster_config(cluster));
 }
 
 /**
@@ -251,7 +225,7 @@ static inline unsigned int mips_cps_numvps(unsigned int cluster, unsigned int co
 
 	mips_cm_unlock_other();
 
-	return (cfg + 1) & CM_GCR_Cx_CONFIG_PVPE;
+	return FIELD_GET(CM_GCR_Cx_CONFIG_PVPE, cfg + 1);
 }
 
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */

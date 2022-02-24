@@ -26,14 +26,17 @@ The ``ice`` driver reports the following versions
     * - ``fw.mgmt``
       - running
       - 2.1.7
-      - 3-digit version number of the management firmware that controls the
-        PHY, link, etc.
+      - 3-digit version number of the management firmware running on the
+        Embedded Management Processor of the device. It controls the PHY,
+        link, access to device resources, etc. Intel documentation refers to
+        this as the EMP firmware.
     * - ``fw.mgmt.api``
       - running
-      - 1.5
-      - 2-digit version number of the API exported over the AdminQ by the
-        management firmware. Used by the driver to identify what commands
-        are supported.
+      - 1.5.1
+      - 3-digit version number (major.minor.patch) of the API exported over
+        the AdminQ by the management firmware. Used by the driver to
+        identify what commands are supported. Historical versions of the
+        kernel only displayed a 2-digit version number (major.minor).
     * - ``fw.mgmt.build``
       - running
       - 0x305d955f
@@ -118,6 +121,24 @@ preserving settings, and thus ``DEVLINK_FLASH_OVERWRITE_IDENTIFIERS`` on its
 own will be rejected. If no overwrite mask is provided, the firmware will be
 instructed to preserve all settings and identifying fields when updating.
 
+Reload
+======
+
+The ``ice`` driver supports activating new firmware after a flash update
+using ``DEVLINK_CMD_RELOAD`` with the ``DEVLINK_RELOAD_ACTION_FW_ACTIVATE``
+action.
+
+.. code:: shell
+
+    $ devlink dev reload pci/0000:01:00.0 reload action fw_activate
+
+The new firmware is activated by issuing a device specific Embedded
+Management Processor reset which requests the device to reset and reload the
+EMP firmware image.
+
+The driver does not currently support reloading the driver via
+``DEVLINK_RELOAD_ACTION_DRIVER_REINIT``.
+
 Regions
 =======
 
@@ -140,6 +161,10 @@ Users can request an immediate capture of a snapshot via the
 ``DEVLINK_CMD_REGION_NEW``
 
 .. code:: shell
+
+    $ devlink region show
+    pci/0000:01:00.0/nvm-flash: size 10485760 snapshot [] max 1
+    pci/0000:01:00.0/device-caps: size 4096 snapshot [] max 10
 
     $ devlink region new pci/0000:01:00.0/nvm-flash snapshot 1
     $ devlink region dump pci/0000:01:00.0/nvm-flash snapshot 1

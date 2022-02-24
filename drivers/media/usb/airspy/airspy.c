@@ -415,8 +415,11 @@ static int airspy_alloc_urbs(struct airspy *s)
 		dev_dbg(s->dev, "alloc urb=%d\n", i);
 		s->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!s->urb_list[i]) {
-			for (j = 0; j < i; j++)
+			for (j = 0; j < i; j++) {
 				usb_free_urb(s->urb_list[j]);
+				s->urb_list[j] = NULL;
+			}
+			s->urbs_initialized = 0;
 			return -ENOMEM;
 		}
 		usb_fill_bulk_urb(s->urb_list[i],

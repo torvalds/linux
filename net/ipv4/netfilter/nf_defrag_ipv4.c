@@ -20,12 +20,7 @@
 #endif
 #include <net/netfilter/nf_conntrack_zones.h>
 
-static unsigned int defrag4_pernet_id __read_mostly;
 static DEFINE_MUTEX(defrag4_mutex);
-
-struct defrag4_pernet {
-	unsigned int users;
-};
 
 static int nf_ct_ipv4_gather_frags(struct net *net, struct sk_buff *skb,
 				   u_int32_t user)
@@ -111,19 +106,15 @@ static const struct nf_hook_ops ipv4_defrag_ops[] = {
 
 static void __net_exit defrag4_net_exit(struct net *net)
 {
-	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
-
-	if (nf_defrag->users) {
+	if (net->nf.defrag_ipv4_users) {
 		nf_unregister_net_hooks(net, ipv4_defrag_ops,
 					ARRAY_SIZE(ipv4_defrag_ops));
-		nf_defrag->users = 0;
+		net->nf.defrag_ipv4_users = 0;
 	}
 }
 
 static struct pernet_operations defrag4_net_ops = {
 	.exit = defrag4_net_exit,
-	.id   = &defrag4_pernet_id,
-	.size = sizeof(struct defrag4_pernet),
 };
 
 static int __init nf_defrag_init(void)
@@ -138,24 +129,23 @@ static void __exit nf_defrag_fini(void)
 
 int nf_defrag_ipv4_enable(struct net *net)
 {
-	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
 	int err = 0;
 
 	mutex_lock(&defrag4_mutex);
-	if (nf_defrag->users == UINT_MAX) {
+	if (net->nf.defrag_ipv4_users == UINT_MAX) {
 		err = -EOVERFLOW;
 		goto out_unlock;
 	}
 
-	if (nf_defrag->users) {
-		nf_defrag->users++;
+	if (net->nf.defrag_ipv4_users) {
+		net->nf.defrag_ipv4_users++;
 		goto out_unlock;
 	}
 
 	err = nf_register_net_hooks(net, ipv4_defrag_ops,
 				    ARRAY_SIZE(ipv4_defrag_ops));
 	if (err == 0)
-		nf_defrag->users = 1;
+		net->nf.defrag_ipv4_users = 1;
 
  out_unlock:
 	mutex_unlock(&defrag4_mutex);
@@ -165,12 +155,10 @@ EXPORT_SYMBOL_GPL(nf_defrag_ipv4_enable);
 
 void nf_defrag_ipv4_disable(struct net *net)
 {
-	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
-
 	mutex_lock(&defrag4_mutex);
-	if (nf_defrag->users) {
-		nf_defrag->users--;
-		if (nf_defrag->users == 0)
+	if (net->nf.defrag_ipv4_users) {
+		net->nf.defrag_ipv4_users--;
+		if (net->nf.defrag_ipv4_users == 0)
 			nf_unregister_net_hooks(net, ipv4_defrag_ops,
 						ARRAY_SIZE(ipv4_defrag_ops));
 	}

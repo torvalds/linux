@@ -85,9 +85,14 @@ struct mt76_connac_coredump {
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
+static inline bool is_mt7922(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7922;
+}
+
 static inline bool is_mt7921(struct mt76_dev *dev)
 {
-	return mt76_chip(dev) == 0x7961;
+	return mt76_chip(dev) == 0x7961 || is_mt7922(dev);
 }
 
 static inline bool is_mt7663(struct mt76_dev *dev)

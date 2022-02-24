@@ -196,7 +196,7 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 		for (i = 0; dev_list[i]; i++) {
 			dev = dev_list[i];
 			vf = dev_get_drvdata(dev);
-			spin_lock(&vf->lock);
+			mutex_lock(&vf->lock);
 			vnic = vf->vnic;
 			if (!usnic_vnic_check_room(vnic, res_spec)) {
 				usnic_dbg("Found used vnic %s from %s\n",
@@ -208,10 +208,10 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 							     vf, pd, res_spec,
 							     trans_spec);
 
-				spin_unlock(&vf->lock);
+				mutex_unlock(&vf->lock);
 				goto qp_grp_check;
 			}
-			spin_unlock(&vf->lock);
+			mutex_unlock(&vf->lock);
 
 		}
 		usnic_uiom_free_dev_list(dev_list);
@@ -220,7 +220,7 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 
 	/* Try to find resources on an unused vf */
 	list_for_each_entry(vf, &us_ibdev->vf_dev_list, link) {
-		spin_lock(&vf->lock);
+		mutex_lock(&vf->lock);
 		vnic = vf->vnic;
 		if (vf->qp_grp_ref_cnt == 0 &&
 		    usnic_vnic_check_room(vnic, res_spec) == 0) {
@@ -228,10 +228,10 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 						     vf, pd, res_spec,
 						     trans_spec);
 
-			spin_unlock(&vf->lock);
+			mutex_unlock(&vf->lock);
 			goto qp_grp_check;
 		}
-		spin_unlock(&vf->lock);
+		mutex_unlock(&vf->lock);
 	}
 
 	usnic_info("No free qp grp found on %s\n",
@@ -253,9 +253,9 @@ static void qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 
 	WARN_ON(qp_grp->state != IB_QPS_RESET);
 
-	spin_lock(&vf->lock);
+	mutex_lock(&vf->lock);
 	usnic_ib_qp_grp_destroy(qp_grp);
-	spin_unlock(&vf->lock);
+	mutex_unlock(&vf->lock);
 }
 
 static int create_qp_validate_user_data(struct usnic_ib_create_qp_cmd cmd)
@@ -442,12 +442,10 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct usnic_ib_pd *pd = to_upd(ibpd);
-	void *umem_pd;
 
-	umem_pd = pd->umem_pd = usnic_uiom_alloc_pd();
-	if (IS_ERR_OR_NULL(umem_pd)) {
-		return umem_pd ? PTR_ERR(umem_pd) : -ENOMEM;
-	}
+	pd->umem_pd = usnic_uiom_alloc_pd();
+	if (IS_ERR(pd->umem_pd))
+		return PTR_ERR(pd->umem_pd);
 
 	return 0;
 }

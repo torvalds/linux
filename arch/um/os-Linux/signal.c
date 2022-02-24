@@ -67,7 +67,7 @@ int signals_enabled;
 #ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
 static int signals_blocked;
 #else
-#define signals_blocked false
+#define signals_blocked 0
 #endif
 static unsigned int signals_pending;
 static unsigned int signals_active = 0;
@@ -94,7 +94,7 @@ void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 
 	sig_handler_common(sig, si, mc);
 
-	set_signals_trace(enabled);
+	um_set_signals_trace(enabled);
 }
 
 static void timer_real_alarm_handler(mcontext_t *mc)
@@ -126,7 +126,7 @@ void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
 
 	signals_active &= ~SIGALRM_MASK;
 
-	set_signals_trace(enabled);
+	um_set_signals_trace(enabled);
 }
 
 void deliver_alarm(void) {
@@ -348,7 +348,7 @@ void unblock_signals(void)
 	}
 }
 
-int set_signals(int enable)
+int um_set_signals(int enable)
 {
 	int ret;
 	if (signals_enabled == enable)
@@ -362,7 +362,7 @@ int set_signals(int enable)
 	return ret;
 }
 
-int set_signals_trace(int enable)
+int um_set_signals_trace(int enable)
 {
 	int ret;
 	if (signals_enabled == enable)

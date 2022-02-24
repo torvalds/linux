@@ -8,7 +8,7 @@ Description:
 		PCIe form factor add-in Coprocessor card based on the Intel Many
 		Integrated Core (MIC) architecture that runs a Linux OS.
 
-What:		/sys/class/mic/mic(x)
+What:		/sys/class/mic/mic<X>
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -17,7 +17,7 @@ Description:
 		represent MIC devices (0,1,..etc). Each directory has
 		information specific to that MIC device.
 
-What:		/sys/class/mic/mic(x)/family
+What:		/sys/class/mic/mic<X>/family
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -25,7 +25,7 @@ Description:
 		Provides information about the Coprocessor family for an Intel
 		MIC device. For example - "x100"
 
-What:		/sys/class/mic/mic(x)/stepping
+What:		/sys/class/mic/mic<X>/stepping
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -33,7 +33,7 @@ Description:
 		Provides information about the silicon stepping for an Intel
 		MIC device. For example - "A0" or "B0"
 
-What:		/sys/class/mic/mic(x)/state
+What:		/sys/class/mic/mic<X>/state
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -69,7 +69,7 @@ Description:
 		"shutdown"  Initiates card OS shutdown.
 		==========  ===================================================
 
-What:		/sys/class/mic/mic(x)/shutdown_status
+What:		/sys/class/mic/mic<X>/shutdown_status
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -88,7 +88,7 @@ Description:
 		"restart"   Shutdown because of a restart command.
 		==========  ===================================================
 
-What:		/sys/class/mic/mic(x)/cmdline
+What:		/sys/class/mic/mic<X>/cmdline
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -104,7 +104,7 @@ Description:
 		or modify existing ones and then write the whole kernel command
 		line back to this entry.
 
-What:		/sys/class/mic/mic(x)/firmware
+What:		/sys/class/mic/mic<X>/firmware
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -114,7 +114,7 @@ Description:
 		card can be found. The entry can be written to change the
 		firmware image location under /lib/firmware/.
 
-What:		/sys/class/mic/mic(x)/ramdisk
+What:		/sys/class/mic/mic<X>/ramdisk
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -124,7 +124,7 @@ Description:
 		OS boot can be found. The entry can be written to change
 		the ramdisk image location under /lib/firmware/.
 
-What:		/sys/class/mic/mic(x)/bootmode
+What:		/sys/class/mic/mic<X>/bootmode
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -135,7 +135,7 @@ Description:
 		a) linux - Boot a Linux image.
 		b) flash - Boot an image for flash updates.
 
-What:		/sys/class/mic/mic(x)/log_buf_addr
+What:		/sys/class/mic/mic<X>/log_buf_addr
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -149,7 +149,7 @@ Description:
 		log buffer address to be written can be found in the System.map
 		file of the card OS.
 
-What:		/sys/class/mic/mic(x)/log_buf_len
+What:		/sys/class/mic/mic<X>/log_buf_len
 Date:		October 2013
 KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -163,7 +163,7 @@ Description:
 		buffer length address to be written can be found in the
 		System.map file of the card OS.
 
-What:		/sys/class/mic/mic(x)/heartbeat_enable
+What:		/sys/class/mic/mic<X>/heartbeat_enable
 Date:		March 2015
 KernelVersion:	4.4
 Contact:	Ashutosh Dixit <ashutosh.dixit@intel.com>

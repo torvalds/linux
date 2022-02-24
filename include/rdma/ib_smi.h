@@ -144,5 +144,15 @@ ib_get_smp_direction(struct ib_smp *smp)
 #define IB_NOTICE_TRAP_DR_NOTICE	0x80
 #define IB_NOTICE_TRAP_DR_TRUNC		0x40
 
-
+/**
+ * ib_init_query_mad - Initialize query MAD.
+ * @mad: MAD to initialize.
+ */
+static inline void ib_init_query_mad(struct ib_smp *mad)
+{
+	mad->base_version = IB_MGMT_BASE_VERSION;
+	mad->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
+	mad->class_version = 1;
+	mad->method = IB_MGMT_METHOD_GET;
+}
 #endif /* IB_SMI_H */

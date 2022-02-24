@@ -3,12 +3,47 @@
 
 #include "dr_types.h"
 
+static int dr_table_set_miss_action_nic(struct mlx5dr_domain *dmn,
+					struct mlx5dr_table_rx_tx *nic_tbl,
+					struct mlx5dr_action *action)
+{
+	struct mlx5dr_matcher_rx_tx *last_nic_matcher = NULL;
+	struct mlx5dr_htbl_connect_info info;
+	struct mlx5dr_ste_htbl *last_htbl;
+	int ret;
+
+	if (!list_empty(&nic_tbl->nic_matcher_list))
+		last_nic_matcher = list_last_entry(&nic_tbl->nic_matcher_list,
+						   struct mlx5dr_matcher_rx_tx,
+						   list_node);
+
+	if (last_nic_matcher)
+		last_htbl = last_nic_matcher->e_anchor;
+	else
+		last_htbl = nic_tbl->s_anchor;
+
+	if (action)
+		nic_tbl->default_icm_addr =
+			nic_tbl->nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX ?
+				action->dest_tbl->tbl->rx.s_anchor->chunk->icm_addr :
+				action->dest_tbl->tbl->tx.s_anchor->chunk->icm_addr;
+	else
+		nic_tbl->default_icm_addr = nic_tbl->nic_dmn->default_icm_addr;
+
+	info.type = CONNECT_MISS;
+	info.miss_icm_addr = nic_tbl->default_icm_addr;
+
+	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_tbl->nic_dmn,
+						last_htbl, &info, true);
+	if (ret)
+		mlx5dr_dbg(dmn, "Failed to set NIC RX/TX miss action, ret %d\n", ret);
+
+	return ret;
+}
+
 int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 				 struct mlx5dr_action *action)
 {
-	struct mlx5dr_matcher *last_matcher = NULL;
-	struct mlx5dr_htbl_connect_info info;
-	struct mlx5dr_ste_htbl *last_htbl;
 	int ret;
 
 	if (action && action->action_type != DR_ACTION_TYP_FT)
@@ -16,56 +51,18 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 
 	mlx5dr_domain_lock(tbl->dmn);
 
-	if (!list_empty(&tbl->matcher_list))
-		last_matcher = list_last_entry(&tbl->matcher_list,
-					       struct mlx5dr_matcher,
-					       matcher_list);
-
 	if (tbl->dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX ||
 	    tbl->dmn->type == MLX5DR_DOMAIN_TYPE_FDB) {
-		if (last_matcher)
-			last_htbl = last_matcher->rx.e_anchor;
-		else
-			last_htbl = tbl->rx.s_anchor;
-
-		tbl->rx.default_icm_addr = action ?
-			action->dest_tbl->tbl->rx.s_anchor->chunk->icm_addr :
-			tbl->rx.nic_dmn->default_icm_addr;
-
-		info.type = CONNECT_MISS;
-		info.miss_icm_addr = tbl->rx.default_icm_addr;
-
-		ret = mlx5dr_ste_htbl_init_and_postsend(tbl->dmn,
-							tbl->rx.nic_dmn,
-							last_htbl,
-							&info, true);
-		if (ret) {
-			mlx5dr_dbg(tbl->dmn, "Failed to set RX miss action, ret %d\n", ret);
+		ret = dr_table_set_miss_action_nic(tbl->dmn, &tbl->rx, action);
+		if (ret)
 			goto out;
-		}
 	}
 
 	if (tbl->dmn->type == MLX5DR_DOMAIN_TYPE_NIC_TX ||
 	    tbl->dmn->type == MLX5DR_DOMAIN_TYPE_FDB) {
-		if (last_matcher)
-			last_htbl = last_matcher->tx.e_anchor;
-		else
-			last_htbl = tbl->tx.s_anchor;
-
-		tbl->tx.default_icm_addr = action ?
-			action->dest_tbl->tbl->tx.s_anchor->chunk->icm_addr :
-			tbl->tx.nic_dmn->default_icm_addr;
-
-		info.type = CONNECT_MISS;
-		info.miss_icm_addr = tbl->tx.default_icm_addr;
-
-		ret = mlx5dr_ste_htbl_init_and_postsend(tbl->dmn,
-							tbl->tx.nic_dmn,
-							last_htbl, &info, true);
-		if (ret) {
-			mlx5dr_dbg(tbl->dmn, "Failed to set TX miss action, ret %d\n", ret);
+		ret = dr_table_set_miss_action_nic(tbl->dmn, &tbl->tx, action);
+		if (ret)
 			goto out;
-		}
 	}
 
 	/* Release old action */
@@ -121,6 +118,8 @@ static int dr_table_init_nic(struct mlx5dr_domain *dmn,
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_tbl->nic_dmn;
 	struct mlx5dr_htbl_connect_info info;
 	int ret;
+
+	INIT_LIST_HEAD(&nic_tbl->nic_matcher_list);
 
 	nic_tbl->default_icm_addr = nic_dmn->default_icm_addr;
 
@@ -266,6 +265,8 @@ struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level, u
 	if (ret)
 		goto uninit_tbl;
 
+	INIT_LIST_HEAD(&tbl->dbg_node);
+	mlx5dr_dbg_tbl_add(tbl);
 	return tbl;
 
 uninit_tbl:
@@ -281,9 +282,10 @@ int mlx5dr_table_destroy(struct mlx5dr_table *tbl)
 {
 	int ret;
 
-	if (refcount_read(&tbl->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&tbl->refcount) > 1))
 		return -EBUSY;
 
+	mlx5dr_dbg_tbl_del(tbl);
 	ret = dr_table_destroy_sw_owned_tbl(tbl);
 	if (ret)
 		return ret;

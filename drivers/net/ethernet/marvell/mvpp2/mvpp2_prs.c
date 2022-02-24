@@ -2347,7 +2347,7 @@ int mvpp2_prs_update_mac_da(struct net_device *dev, const u8 *da)
 		return err;
 
 	/* Set addr in the device */
-	ether_addr_copy(dev->dev_addr, da);
+	eth_hw_addr_set(dev, da);
 
 	return 0;
 }

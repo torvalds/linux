@@ -335,7 +335,7 @@
 
 		amba {
 			/* eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;

@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
@@ -326,19 +325,30 @@ static void set_cq_param(struct hns_roce_cq *hr_cq, u32 cq_entries, int vector,
 	INIT_LIST_HEAD(&hr_cq->rq_list);
 }
 
-static void set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
-			 struct hns_roce_ib_create_cq *ucmd)
+static int set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
+			struct hns_roce_ib_create_cq *ucmd)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(hr_cq->ib_cq.device);
 
-	if (udata) {
-		if (udata->inlen >= offsetofend(typeof(*ucmd), cqe_size))
-			hr_cq->cqe_size = ucmd->cqe_size;
-		else
-			hr_cq->cqe_size = HNS_ROCE_V2_CQE_SIZE;
-	} else {
+	if (!udata) {
 		hr_cq->cqe_size = hr_dev->caps.cqe_sz;
+		return 0;
 	}
+
+	if (udata->inlen >= offsetofend(typeof(*ucmd), cqe_size)) {
+		if (ucmd->cqe_size != HNS_ROCE_V2_CQE_SIZE &&
+		    ucmd->cqe_size != HNS_ROCE_V3_CQE_SIZE) {
+			ibdev_err(&hr_dev->ib_dev,
+				  "invalid cqe size %u.\n", ucmd->cqe_size);
+			return -EINVAL;
+		}
+
+		hr_cq->cqe_size = ucmd->cqe_size;
+	} else {
+		hr_cq->cqe_size = HNS_ROCE_V2_CQE_SIZE;
+	}
+
+	return 0;
 }
 
 int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
@@ -366,7 +376,9 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 
 	set_cq_param(hr_cq, attr->cqe, attr->comp_vector, &ucmd);
 
-	set_cqe_size(hr_cq, udata, &ucmd);
+	ret = set_cqe_size(hr_cq, udata, &ucmd);
+	if (ret)
+		return ret;
 
 	ret = alloc_cq_buf(hr_dev, hr_cq, udata, ucmd.buf_addr);
 	if (ret) {
@@ -393,15 +405,6 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		goto err_cqn;
 	}
 
-	/*
-	 * For the QP created by kernel space, tptr value should be initialized
-	 * to zero; For the QP created by user space, it will cause synchronous
-	 * problems if tptr is set to zero here, so we initialize it in user
-	 * space.
-	 */
-	if (!udata && hr_cq->tptr_addr)
-		*hr_cq->tptr_addr = 0;
-
 	if (udata) {
 		resp.cqn = hr_cq->cqn;
 		ret = ib_copy_to_udata(udata, &resp,
@@ -427,9 +430,6 @@ int hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-
-	if (hr_dev->hw->destroy_cq)
-		hr_dev->hw->destroy_cq(ib_cq, udata);
 
 	free_cqc(hr_dev, hr_cq);
 	free_cqn(hr_dev, hr_cq->cqn);

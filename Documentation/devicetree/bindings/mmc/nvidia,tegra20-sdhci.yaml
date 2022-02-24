@@ -1,0 +1,317 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/nvidia,tegra20-sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Secure Digital Host Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  This controller on Tegra family SoCs provides an interface for MMC, SD, and
+  SDIO types of memory cards.
+
+  This file documents differences between the core properties described by
+  mmc-controller.yaml and the properties for the Tegra SDHCI controller.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra20-sdhci
+          - nvidia,tegra30-sdhci
+          - nvidia,tegra114-sdhci
+          - nvidia,tegra124-sdhci
+          - nvidia,tegra210-sdhci
+          - nvidia,tegra186-sdhci
+          - nvidia,tegra194-sdhci
+
+      - items:
+          - const: nvidia,tegra132-sdhci
+          - const: nvidia,tegra124-sdhci
+
+      - items:
+          - enum:
+              - nvidia,tegra194-sdhci
+              - nvidia,tegra234-sdhci
+          - const: nvidia,tegra186-sdhci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  assigned-clocks: true
+  assigned-clock-parents: true
+  assigned-clock-rates: true
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: sdhci
+
+  power-gpios:
+    description: specify GPIOs for power control
+    maxItems: 1
+
+  interconnects:
+    items:
+      - description: memory read client
+      - description: memory write client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  iommus:
+    maxItems: 1
+
+  operating-points-v2:
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  power-domains:
+    items:
+      - description: phandle to the core power domain
+
+  nvidia,default-tap:
+    description: Specify the default inbound sampling clock trimmer value for
+      non-tunable modes.
+
+      The values are used for compensating trace length differences by
+      adjusting the sampling point. The values are programmed to the Vendor
+      Clock Control Register. Please refer to the reference manual of the SoC
+      for correct values.
+
+      The DQS trim values are only used on controllers which support HS400
+      timing. Only SDMMC4 on Tegra210 and Tegra186 supports HS400.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,default-trim:
+    description: Specify the default outbound clock trimmer value.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,dqs-trim:
+    description: Specify DQS trim value for HS400 timing.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-1v8:
+    description: Specify drive strength calibration offsets for 1.8 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-1v8-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 1.8 V signaling mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-3v3:
+    description: Specify drive strength calibration offsets for 3.3 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-3v3-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 3.3 V signaling mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-sdr104:
+    description: Specify drive strength calibration offsets for SDR104 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-hs400:
+    description: Specify drive strength calibration offsets for HS400 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-1v8:
+    description: Specify drive strength calibration offsets for 1.8 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-1v8-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 1.8 V signaling mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-3v3:
+    description: Specify drive strength calibration offsets for 3.3 V
+      signaling modes.
+
+      The property values are drive codes which are programmed into the
+      PD_OFFSET and PU_OFFSET sections of the SDHCI_TEGRA_AUTO_CAL_CONFIG
+      register. A higher value corresponds to higher drive strength. Please
+      refer to the reference manual of the SoC for correct values. The SDR104
+      and HS400 timing specific values are used in corresponding modes if
+      specified.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-3v3-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 3.3 V signaling mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-sdr104:
+    description: Specify drive strength calibration offsets for SDR104 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-hs400:
+    description: Specify drive strength calibration offsets for HS400 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,only-1-8v:
+    description: The presence of this property indicates that the controller
+      operates at a 1.8 V fixed I/O voltage.
+    $ref: "/schemas/types.yaml#/definitions/flag"
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - reset-names
+
+allOf:
+  - $ref: "mmc-controller.yaml"
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra20-sdhci
+              - nvidia,tegra30-sdhci
+              - nvidia,tegra114-sdhci
+              - nvidia,tegra124-sdhci
+        clocks:
+          items:
+            - description: module clock
+          minItems: 1
+          maxItems: 1
+    else:
+      properties:
+        clocks:
+          items:
+            - description: module clock
+            - description: timeout clock
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: sdhci
+            - const: tmclk
+          minItems: 2
+          maxItems: 2
+      required:
+        - clock-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-sdhci
+    then:
+      properties:
+        pinctrl-names:
+          oneOf:
+            - items:
+                - const: sdmmc-3v3
+                  description: pad configuration for 3.3 V
+                - const: sdmmc-1v8
+                  description: pad configuration for 1.8 V
+                - const: sdmmc-3v3-drv
+                  description: pull-up/down configuration for 3.3 V
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+            - items:
+                - const: sdmmc-3v3-drv
+                  description: pull-up/down configuration for 3.3 V
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+            - items:
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+      required:
+        - clock-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-sdhci
+              - nvidia,tegra194-sdhci
+    then:
+      properties:
+        pinctrl-names:
+          items:
+            - const: sdmmc-3v3
+              description: pad configuration for 3.3 V
+            - const: sdmmc-1v8
+              description: pad configuration for 1.8 V
+      required:
+        - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mmc@c8000200 {
+        compatible = "nvidia,tegra20-sdhci";
+        reg = <0xc8000200 0x200>;
+        interrupts = <47>;
+        clocks = <&tegra_car 14>;
+        resets = <&tegra_car 14>;
+        reset-names = "sdhci";
+        cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+        wp-gpios = <&gpio 57 0>; /* gpio PH1 */
+        power-gpios = <&gpio 155 0>; /* gpio PT3 */
+        bus-width = <8>;
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mmc@700b0000 {
+        compatible = "nvidia,tegra210-sdhci";
+        reg = <0x700b0000 0x200>;
+        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_SDMMC1>,
+                 <&tegra_car TEGRA210_CLK_SDMMC_LEGACY>;
+        clock-names = "sdhci", "tmclk";
+        resets = <&tegra_car 14>;
+        reset-names = "sdhci";
+        pinctrl-names = "sdmmc-3v3", "sdmmc-1v8",
+                        "sdmmc-3v3-drv", "sdmmc-1v8-drv";
+        pinctrl-0 = <&sdmmc1_3v3>;
+        pinctrl-1 = <&sdmmc1_1v8>;
+        pinctrl-2 = <&sdmmc1_3v3_drv>;
+        pinctrl-3 = <&sdmmc1_1v8_drv>;
+        nvidia,pad-autocal-pull-up-offset-3v3 = <0x00>;
+        nvidia,pad-autocal-pull-down-offset-3v3 = <0x7d>;
+        nvidia,pad-autocal-pull-up-offset-1v8 = <0x7b>;
+        nvidia,pad-autocal-pull-down-offset-1v8 = <0x7b>;
+        nvidia,default-tap = <0x2>;
+        nvidia,default-trim = <0x4>;
+        assigned-clocks = <&tegra_car TEGRA210_CLK_SDMMC4>,
+                          <&tegra_car TEGRA210_CLK_PLL_C4_OUT0>,
+                          <&tegra_car TEGRA210_CLK_PLL_C4>;
+        assigned-clock-parents = <&tegra_car TEGRA210_CLK_PLL_C4_OUT0>;
+        assigned-clock-rates = <200000000>, <1000000000>, <1000000000>;
+    };

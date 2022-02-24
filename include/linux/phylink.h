@@ -20,6 +20,29 @@ enum {
 	MLO_AN_PHY = 0,	/* Conventional PHY */
 	MLO_AN_FIXED,	/* Fixed-link mode */
 	MLO_AN_INBAND,	/* In-band protocol */
+
+	MAC_SYM_PAUSE	= BIT(0),
+	MAC_ASYM_PAUSE	= BIT(1),
+	MAC_10HD	= BIT(2),
+	MAC_10FD	= BIT(3),
+	MAC_10		= MAC_10HD | MAC_10FD,
+	MAC_100HD	= BIT(4),
+	MAC_100FD	= BIT(5),
+	MAC_100		= MAC_100HD | MAC_100FD,
+	MAC_1000HD	= BIT(6),
+	MAC_1000FD	= BIT(7),
+	MAC_1000	= MAC_1000HD | MAC_1000FD,
+	MAC_2500FD	= BIT(8),
+	MAC_5000FD	= BIT(9),
+	MAC_10000FD	= BIT(10),
+	MAC_20000FD	= BIT(11),
+	MAC_25000FD	= BIT(12),
+	MAC_40000FD	= BIT(13),
+	MAC_50000FD	= BIT(14),
+	MAC_56000FD	= BIT(15),
+	MAC_100000FD	= BIT(16),
+	MAC_200000FD	= BIT(17),
+	MAC_400000FD	= BIT(18),
 };
 
 static inline bool phylink_autoneg_inband(unsigned int mode)
@@ -61,26 +84,35 @@ enum phylink_op_type {
  * struct phylink_config - PHYLINK configuration structure
  * @dev: a pointer to a struct device associated with the MAC
  * @type: operation type of PHYLINK instance
+ * @legacy_pre_march2020: driver has not been updated for March 2020 updates
+ *	(See commit 7cceb599d15d ("net: phylink: avoid mac_config calls")
  * @pcs_poll: MAC PCS cannot provide link change interrupt
  * @poll_fixed_state: if true, starts link_poll,
  *		      if MAC link is at %MLO_AN_FIXED mode.
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
  * @get_fixed_state: callback to execute to determine the fixed link state,
  *		     if MAC link is at %MLO_AN_FIXED mode.
+ * @supported_interfaces: bitmap describing which PHY_INTERFACE_MODE_xxx
+ *                        are supported by the MAC/PCS.
+ * @mac_capabilities: MAC pause/speed/duplex capabilities.
  */
 struct phylink_config {
 	struct device *dev;
 	enum phylink_op_type type;
+	bool legacy_pre_march2020;
 	bool pcs_poll;
 	bool poll_fixed_state;
 	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
+	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
+	unsigned long mac_capabilities;
 };
 
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
+ * @mac_select_pcs: Select a PCS for the interface mode.
  * @mac_pcs_get_state: Read the current link state from the hardware.
  * @mac_prepare: prepare for a major reconfiguration of the interface.
  * @mac_config: configure the MAC for the selected mode and state.
@@ -95,6 +127,8 @@ struct phylink_mac_ops {
 	void (*validate)(struct phylink_config *config,
 			 unsigned long *supported,
 			 struct phylink_link_state *state);
+	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
+					      phy_interface_t interface);
 	void (*mac_pcs_get_state)(struct phylink_config *config,
 				  struct phylink_link_state *state);
 	int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
@@ -133,14 +167,35 @@ struct phylink_mac_ops {
  * based on @state->advertising and/or @state->speed and update
  * @state->interface accordingly. See phylink_helper_basex_speed().
  *
- * When @state->interface is %PHY_INTERFACE_MODE_NA, phylink expects the
- * MAC driver to return all supported link modes.
+ * When @config->supported_interfaces has been set, phylink will iterate
+ * over the supported interfaces to determine the full capability of the
+ * MAC. The validation function must not print errors if @state->interface
+ * is set to an unexpected value.
+ *
+ * When @config->supported_interfaces is empty, phylink will call this
+ * function with @state->interface set to %PHY_INTERFACE_MODE_NA, and
+ * expects the MAC driver to return all supported link modes.
  *
  * If the @state->interface mode is not supported, then the @supported
  * mask must be cleared.
  */
 void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
+/**
+ * mac_select_pcs: Select a PCS for the interface mode.
+ * @config: a pointer to a &struct phylink_config.
+ * @interface: PHY interface mode for PCS
+ *
+ * Return the &struct phylink_pcs for the specified interface mode, or
+ * NULL if none is required, or an error pointer on error.
+ *
+ * This must not modify any state. It is used to query which PCS should
+ * be used. Phylink will use this during validation to ensure that the
+ * configuration is valid, and when setting a configuration to internally
+ * set the PCS that will be used.
+ */
+struct phylink_pcs *mac_select_pcs(struct phylink_config *config,
+				   phy_interface_t interface);
 
 /**
  * mac_pcs_get_state() - Read the current inband link state from the hardware
@@ -153,6 +208,10 @@ void validate(struct phylink_config *config, unsigned long *supported,
  * negotiation completion state in @state->an_complete, and link up state
  * in @state->link. If possible, @state->lp_advertising should also be
  * populated.
+ *
+ * Note: This is a legacy method. This function will not be called unless
+ * legacy_pre_march2020 is set in &struct phylink_config and there is no
+ * PCS attached.
  */
 void mac_pcs_get_state(struct phylink_config *config,
 		       struct phylink_link_state *state);
@@ -192,6 +251,15 @@ int mac_prepare(struct phylink_config *config, unsigned int mode,
  * @state->lp_advertising, @state->link, @state->an_complete are never
  * guaranteed to be correct, and so any mac_config() implementation must
  * never reference these fields.
+ *
+ * Note: For legacy March 2020 drivers (drivers with legacy_pre_march2020 set
+ * in their &phylnk_config and which don't have a PCS), this function will be
+ * called on each link up event, and to also change the in-band advert. For
+ * non-legacy drivers, it will only be called to reconfigure the MAC for a
+ * "major" change in e.g. interface mode. It will not be called for changes
+ * in speed, duplex or pause modes or to change the in-band advertisement.
+ * In any case, it is strongly preferred that speed, duplex and pause settings
+ * are handled in the mac_link_up() method and not in this method.
  *
  * (this requires a rewrite - please refer to mac_link_up() for situations
  *  where the PCS and MAC are not tightly integrated.)
@@ -277,6 +345,10 @@ int mac_finish(struct phylink_config *config, unsigned int mode,
 /**
  * mac_an_restart() - restart 802.3z BaseX autonegotiation
  * @config: a pointer to a &struct phylink_config.
+ *
+ * Note: This is a legacy method. This function will not be called unless
+ * legacy_pre_march2020 is set in &struct phylink_config and there is no
+ * PCS attached.
  */
 void mac_an_restart(struct phylink_config *config);
 
@@ -344,6 +416,7 @@ struct phylink_pcs {
 
 /**
  * struct phylink_pcs_ops - MAC PCS operations structure.
+ * @pcs_validate: validate the link configuration.
  * @pcs_get_state: read the current MAC PCS link state from the hardware.
  * @pcs_config: configure the MAC PCS for the selected mode and state.
  * @pcs_an_restart: restart 802.3z BaseX autonegotiation.
@@ -351,6 +424,8 @@ struct phylink_pcs {
  *               (where necessary).
  */
 struct phylink_pcs_ops {
+	int (*pcs_validate)(struct phylink_pcs *pcs, unsigned long *supported,
+			    const struct phylink_link_state *state);
 	void (*pcs_get_state)(struct phylink_pcs *pcs,
 			      struct phylink_link_state *state);
 	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int mode,
@@ -363,6 +438,23 @@ struct phylink_pcs_ops {
 };
 
 #if 0 /* For kernel-doc purposes only. */
+/**
+ * pcs_validate() - validate the link configuration.
+ * @pcs: a pointer to a &struct phylink_pcs.
+ * @supported: ethtool bitmask for supported link modes.
+ * @state: a const pointer to a &struct phylink_link_state.
+ *
+ * Validate the interface mode, and advertising's autoneg bit, removing any
+ * media ethtool link modes that would not be supportable from the supported
+ * mask. Phylink will propagate the changes to the advertising mask. See the
+ * &struct phylink_mac_ops validate() method.
+ *
+ * Returns -EINVAL if the interface mode/autoneg mode is not supported.
+ * Returns non-zero positive if the link state can be supported.
+ */
+int pcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
+		 const struct phylink_link_state *state);
+
 /**
  * pcs_get_state() - Read the current inband link state from the hardware
  * @pcs: a pointer to a &struct phylink_pcs.
@@ -433,6 +525,12 @@ void pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		 phy_interface_t interface, int speed, int duplex);
 #endif
 
+void phylink_get_linkmodes(unsigned long *linkmodes, phy_interface_t interface,
+			   unsigned long mac_capabilities);
+void phylink_generic_validate(struct phylink_config *config,
+			      unsigned long *supported,
+			      struct phylink_link_state *state);
+
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *mac_ops);
@@ -450,6 +548,9 @@ void phylink_mac_change(struct phylink *, bool up);
 
 void phylink_start(struct phylink *);
 void phylink_stop(struct phylink *);
+
+void phylink_suspend(struct phylink *pl, bool mac_wol);
+void phylink_resume(struct phylink *pl);
 
 void phylink_ethtool_get_wol(struct phylink *, struct ethtool_wolinfo *);
 int phylink_ethtool_set_wol(struct phylink *, struct ethtool_wolinfo *);
@@ -481,13 +582,15 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
+void phylink_set_10g_modes(unsigned long *mask);
 void phylink_helper_basex_speed(struct phylink_link_state *state);
 
+void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
+				      u16 bmsr, u16 lpa);
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);
-int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
-					  phy_interface_t interface,
-					  const unsigned long *advertising);
+int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
+					     const unsigned long *advertising);
 int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 			       phy_interface_t interface,
 			       const unsigned long *advertising);

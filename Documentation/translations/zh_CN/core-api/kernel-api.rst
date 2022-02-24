@@ -1,10 +1,12 @@
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: Documentation/core-api/kernel-api.rst
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_kernel-api.rst:
-
 
 ============
 Linux内核API
@@ -289,8 +291,6 @@ block/blk-map.c
 block/blk-sysfs.c
 
 block/blk-settings.c
-
-block/blk-exec.c
 
 block/blk-flush.c
 

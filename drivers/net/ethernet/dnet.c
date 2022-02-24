@@ -60,11 +60,11 @@ static void __dnet_set_hwaddr(struct dnet *bp)
 {
 	u16 tmp;
 
-	tmp = be16_to_cpup((__be16 *)bp->dev->dev_addr);
+	tmp = be16_to_cpup((const __be16 *)bp->dev->dev_addr);
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_0_REG, tmp);
-	tmp = be16_to_cpup((__be16 *)(bp->dev->dev_addr + 2));
+	tmp = be16_to_cpup((const __be16 *)(bp->dev->dev_addr + 2));
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_1_REG, tmp);
-	tmp = be16_to_cpup((__be16 *)(bp->dev->dev_addr + 4));
+	tmp = be16_to_cpup((const __be16 *)(bp->dev->dev_addr + 4));
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_2_REG, tmp);
 }
 
@@ -93,7 +93,7 @@ static void dnet_get_hwaddr(struct dnet *bp)
 	*((__be16 *)(addr + 4)) = cpu_to_be16(tmp);
 
 	if (is_valid_ether_addr(addr))
-		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+		eth_hw_addr_set(bp->dev, addr);
 }
 
 static int dnet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)

@@ -417,7 +417,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 			"error: fail in snd_sof_dma_trace_init %d\n", ret);
 		return ret;
 	}
-	dev_dbg(sdev->dev, "stream_tag: %d\n", params.stream_tag);
+	dev_dbg(sdev->dev, "%s: stream_tag: %d\n", __func__, params.stream_tag);
 
 	/* send IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc,
@@ -480,7 +480,8 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 		goto table_err;
 
 	sdev->dma_trace_pages = ret;
-	dev_dbg(sdev->dev, "dma_trace_pages: %d\n", sdev->dma_trace_pages);
+	dev_dbg(sdev->dev, "%s: dma_trace_pages: %d\n",
+		__func__, sdev->dma_trace_pages);
 
 	if (sdev->first_boot) {
 		ret = trace_debugfs_create(sdev);
@@ -530,7 +531,6 @@ void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev)
 		return;
 
 	if (sdev->dtrace_is_enabled) {
-		dev_err(sdev->dev, "error: waking up any trace sleepers\n");
 		sdev->dtrace_error = true;
 		wake_up(&sdev->trace_sleep);
 	}
@@ -539,6 +539,10 @@ EXPORT_SYMBOL(snd_sof_trace_notify_for_error);
 
 void snd_sof_release_trace(struct snd_sof_dev *sdev)
 {
+	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
+	struct sof_ipc_fw_version *v = &ready->version;
+	struct sof_ipc_cmd_hdr hdr;
+	struct sof_ipc_reply ipc_reply;
 	int ret;
 
 	if (!sdev->dtrace_is_supported || !sdev->dtrace_is_enabled)
@@ -548,6 +552,20 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_err(sdev->dev,
 			"error: snd_sof_dma_trace_trigger: stop: %d\n", ret);
+
+	/*
+	 * stop and free trace DMA in the DSP. TRACE_DMA_FREE is only supported from
+	 * ABI 3.20.0 onwards
+	 */
+	if (v->abi_version >= SOF_ABI_VER(3, 20, 0)) {
+		hdr.size = sizeof(hdr);
+		hdr.cmd = SOF_IPC_GLB_TRACE_MSG | SOF_IPC_TRACE_DMA_FREE;
+
+		ret = sof_ipc_tx_message(sdev->ipc, hdr.cmd, &hdr, hdr.size,
+					 &ipc_reply, sizeof(ipc_reply));
+		if (ret < 0)
+			dev_err(sdev->dev, "DMA_TRACE_FREE failed with error: %d\n", ret);
+	}
 
 	ret = snd_sof_dma_trace_release(sdev);
 	if (ret < 0)

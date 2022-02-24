@@ -16,6 +16,7 @@ struct drm_bridge;
 int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq);
 void rcar_lvds_clk_disable(struct drm_bridge *bridge);
 bool rcar_lvds_dual_link(struct drm_bridge *bridge);
+bool rcar_lvds_is_connected(struct drm_bridge *bridge);
 #else
 static inline int rcar_lvds_clk_enable(struct drm_bridge *bridge,
 				       unsigned long freq)
@@ -24,6 +25,10 @@ static inline int rcar_lvds_clk_enable(struct drm_bridge *bridge,
 }
 static inline void rcar_lvds_clk_disable(struct drm_bridge *bridge) { }
 static inline bool rcar_lvds_dual_link(struct drm_bridge *bridge)
+{
+	return false;
+}
+static inline bool rcar_lvds_is_connected(struct drm_bridge *bridge)
 {
 	return false;
 }

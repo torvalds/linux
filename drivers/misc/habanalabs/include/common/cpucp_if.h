@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2020 HabanaLabs, Ltd.
+ * Copyright 2020-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -98,6 +98,18 @@ struct hl_eq_fw_alive {
 	__u8 pad[7];
 };
 
+enum hl_pcie_addr_dec_cause {
+	PCIE_ADDR_DEC_HBW_ERR_RESP,
+	PCIE_ADDR_DEC_LBW_ERR_RESP,
+	PCIE_ADDR_DEC_TLP_BLOCKED_BY_RR
+};
+
+struct hl_eq_pcie_addr_dec_data {
+	/* enum hl_pcie_addr_dec_cause */
+	__u8 addr_dec_cause;
+	__u8 pad[7];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
@@ -106,6 +118,7 @@ struct hl_eq_entry {
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
 		struct hl_eq_fw_alive fw_alive;
+		struct hl_eq_pcie_addr_dec_data pcie_addr_dec_data;
 		__le64 data[7];
 	};
 };
@@ -116,7 +129,7 @@ struct hl_eq_entry {
 #define EQ_CTL_READY_MASK		0x80000000
 
 #define EQ_CTL_EVENT_TYPE_SHIFT		16
-#define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
+#define EQ_CTL_EVENT_TYPE_MASK		0x0FFF0000
 
 #define EQ_CTL_INDEX_SHIFT		0
 #define EQ_CTL_INDEX_MASK		0x0000FFFF
@@ -300,7 +313,7 @@ enum pq_init_status {
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * CPUCP_PACKET_PCIE_THROUGHPUT_GET
+ * CPUCP_PACKET_PCIE_THROUGHPUT_GET -
  *       Get throughput of PCIe.
  *       The packet's arguments specify the transaction direction (TX/RX).
  *       The window measurement is 10[msec], and the return value is in KB/sec.
@@ -309,19 +322,19 @@ enum pq_init_status {
  *       Replay count measures number of "replay" events, which is basicly
  *       number of retries done by PCIe.
  *
- * CPUCP_PACKET_TOTAL_ENERGY_GET
+ * CPUCP_PACKET_TOTAL_ENERGY_GET -
  *       Total Energy is measurement of energy from the time FW Linux
  *       is loaded. It is calculated by multiplying the average power
  *       by time (passed from armcp start). The units are in MilliJouls.
  *
- * CPUCP_PACKET_PLL_INFO_GET
+ * CPUCP_PACKET_PLL_INFO_GET -
  *       Fetch frequencies of PLL from the required PLL IP.
  *       The packet's arguments specify the device PLL type
  *       Pll type is the PLL from device pll_index enum.
  *       The result is composed of 4 outputs, each is 16-bit
  *       frequency in MHz.
  *
- * CPUCP_PACKET_POWER_GET
+ * CPUCP_PACKET_POWER_GET -
  *       Fetch the present power consumption of the device (Current * Voltage).
  *
  * CPUCP_PACKET_NIC_PFC_SET -
@@ -345,6 +358,37 @@ enum pq_init_status {
  * CPUCP_PACKET_MSI_INFO_SET -
  *       set the index number for each supported msi type going from
  *       host to device
+ *
+ * CPUCP_PACKET_NIC_XPCS91_REGS_GET -
+ *       Fetch the un/correctable counters values from the NIC MAC.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_GET -
+ *       Fetch various NIC MAC counters from the NIC STAT.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_CLR -
+ *       Clear the various NIC MAC counters in the NIC STAT.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_ALL_GET -
+ *       Fetch all NIC MAC counters from the NIC STAT.
+ *
+ * CPUCP_PACKET_IS_IDLE_CHECK -
+ *       Check if the device is IDLE in regard to the DMA/compute engines
+ *       and QMANs. The f/w will return a bitmask where each bit represents
+ *       a different engine or QMAN according to enum cpucp_idle_mask.
+ *       The bit will be 1 if the engine is NOT idle.
+ *
+ * CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET -
+ *       Fetch all HBM replaced-rows and prending to be replaced rows data.
+ *
+ * CPUCP_PACKET_HBM_PENDING_ROWS_STATUS -
+ *       Fetch status of HBM rows pending replacement and need a reboot to
+ *       be replaced.
+ *
+ * CPUCP_PACKET_POWER_SET -
+ *       Resets power history of device to 0
+ *
+ * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
+ *       Packet to perform engine core ASID configuration
  */
 
 enum cpucp_packet_id {
@@ -385,6 +429,16 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_NIC_LPBK_SET,		/* internal */
 	CPUCP_PACKET_NIC_MAC_CFG,		/* internal */
 	CPUCP_PACKET_MSI_INFO_SET,		/* internal */
+	CPUCP_PACKET_NIC_XPCS91_REGS_GET,	/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_GET,		/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_CLR,		/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_ALL_GET,	/* internal */
+	CPUCP_PACKET_IS_IDLE_CHECK,		/* internal */
+	CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET,/* internal */
+	CPUCP_PACKET_HBM_PENDING_ROWS_STATUS,	/* internal */
+	CPUCP_PACKET_POWER_SET,			/* internal */
+	CPUCP_PACKET_RESERVED,			/* not used */
+	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -414,6 +468,11 @@ enum cpucp_packet_id {
 #define CPUCP_PKT_VAL_LPBK_IN2_SHIFT	1
 #define CPUCP_PKT_VAL_LPBK_IN2_MASK	0x000000000000001Eull
 
+#define CPUCP_PKT_VAL_MAC_CNT_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_MAC_CNT_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_MAC_CNT_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_MAC_CNT_IN2_MASK	0x00000000FFFFFFFEull
+
 /* heartbeat status bits */
 #define CPUCP_PKT_HB_STATUS_EQ_FAULT_SHIFT		0
 #define CPUCP_PKT_HB_STATUS_EQ_FAULT_MASK		0x00000001
@@ -439,7 +498,14 @@ struct cpucp_packet {
 			__u8 i2c_bus;
 			__u8 i2c_addr;
 			__u8 i2c_reg;
-			__u8 pad; /* unused */
+			/*
+			 * In legacy implemetations, i2c_len was not present,
+			 * was unused and just added as pad.
+			 * So if i2c_len is 0, it is treated as legacy
+			 * and r/w 1 Byte, else if i2c_len is specified,
+			 * its treated as new multibyte r/w support.
+			 */
+			__u8 i2c_len;
 		};
 
 		struct {/* For PLL info fetch */
@@ -467,13 +533,20 @@ struct cpucp_packet {
 		__le32 status_mask;
 	};
 
-	__le32 reserved;
+	/* For NIC requests */
+	__le32 port_index;
 };
 
 struct cpucp_unmask_irq_arr_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
 	__le32 irqs[0];
+};
+
+struct cpucp_nic_status_packet {
+	struct cpucp_packet cpucp_pkt;
+	__le32 length;
+	__le32 data[0];
 };
 
 struct cpucp_array_data_packet {
@@ -494,11 +567,14 @@ enum cpucp_packet_rc {
  */
 enum cpucp_temp_type {
 	cpucp_temp_input,
+	cpucp_temp_min = 4,
+	cpucp_temp_min_hyst,
 	cpucp_temp_max = 6,
 	cpucp_temp_max_hyst,
 	cpucp_temp_crit,
 	cpucp_temp_crit_hyst,
 	cpucp_temp_offset = 19,
+	cpucp_temp_lowest = 21,
 	cpucp_temp_highest = 22,
 	cpucp_temp_reset_history = 23
 };
@@ -507,6 +583,7 @@ enum cpucp_in_attributes {
 	cpucp_in_input,
 	cpucp_in_min,
 	cpucp_in_max,
+	cpucp_in_lowest = 6,
 	cpucp_in_highest = 7,
 	cpucp_in_reset_history
 };
@@ -515,6 +592,7 @@ enum cpucp_curr_attributes {
 	cpucp_curr_input,
 	cpucp_curr_min,
 	cpucp_curr_max,
+	cpucp_curr_lowest = 6,
 	cpucp_curr_highest = 7,
 	cpucp_curr_reset_history
 };
@@ -548,6 +626,16 @@ enum cpucp_pll_reg_attributes {
 enum cpucp_pll_type_attributes {
 	cpucp_pll_cpu,
 	cpucp_pll_pci,
+};
+
+/*
+ * cpucp_power_type aligns with hwmon_power_attributes
+ * defined in Linux kernel hwmon.h file
+ */
+enum cpucp_power_type {
+	CPUCP_POWER_INPUT = 8,
+	CPUCP_POWER_INPUT_HIGHEST = 9,
+	CPUCP_POWER_RESET_INPUT_HISTORY = 11
 };
 
 /*
@@ -595,6 +683,18 @@ enum pll_index {
 	PLL_MAX
 };
 
+enum rl_index {
+	TPC_RL = 0,
+	MME_RL,
+};
+
+enum pvt_index {
+	PVT_SW,
+	PVT_SE,
+	PVT_NW,
+	PVT_NE
+};
+
 /* Event Queue Packets */
 
 struct eq_generic_event {
@@ -613,6 +713,7 @@ struct eq_generic_event {
 #define CPUCP_MAX_NIC_LANES		(CPUCP_MAX_NICS * CPUCP_LANES_PER_NIC)
 #define CPUCP_NIC_MASK_ARR_LEN		((CPUCP_MAX_NICS + 63) / 64)
 #define CPUCP_NIC_POLARITY_ARR_LEN	((CPUCP_MAX_NIC_LANES + 63) / 64)
+#define CPUCP_HBM_ROW_REPLACE_MAX	32
 
 struct cpucp_sensor {
 	__le32 type;
@@ -665,12 +766,20 @@ struct cpucp_security_info {
  * @fuse_version: silicon production FUSE information.
  * @thermal_version: thermald S/W version.
  * @cpucp_version: CpuCP S/W version.
+ * @infineon_second_stage_version: Infineon 2nd stage DC-DC version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
  * @pll_map: Bit map of supported PLLs for current ASIC version.
  * @mme_binning_mask: MME binning mask,
  *                   (0 = functional, 1 = binned)
+ * @dram_binning_mask: DRAM binning mask, 1 bit per dram instance
+ *                     (0 = functional 1 = binned)
+ * @memory_repair_flag: eFuse flag indicating memory repair
+ * @edma_binning_mask: EDMA binning mask, 1 bit per EDMA instance
+ *                     (0 = functional 1 = binned)
+ * @xbar_binning_mask: Xbar binning mask, 1 bit per Xbar instance
+ *                     (0 = functional 1 = binned)
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -683,13 +792,17 @@ struct cpucp_info {
 	__u8 fuse_version[VERSION_MAX_LEN];
 	__u8 thermal_version[VERSION_MAX_LEN];
 	__u8 cpucp_version[VERSION_MAX_LEN];
-	__le32 reserved2;
+	__le32 infineon_second_stage_version;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
 	__le64 reserved3;
 	__le64 reserved4;
 	__u8 reserved5;
-	__u8 pad[7];
+	__u8 dram_binning_mask;
+	__u8 memory_repair_flag;
+	__u8 edma_binning_mask;
+	__u8 xbar_binning_mask;
+	__u8 pad[3];
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];
@@ -700,6 +813,15 @@ struct cpucp_mac_addr {
 	__u8 mac_addr[ETH_ALEN];
 };
 
+enum cpucp_serdes_type {
+	TYPE_1_SERDES_TYPE,
+	TYPE_2_SERDES_TYPE,
+	HLS1_SERDES_TYPE,
+	HLS1H_SERDES_TYPE,
+	UNKNOWN_SERDES_TYPE,
+	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
+};
+
 struct cpucp_nic_info {
 	struct cpucp_mac_addr mac_addrs[CPUCP_MAX_NICS];
 	__le64 link_mask[CPUCP_NIC_MASK_ARR_LEN];
@@ -708,6 +830,61 @@ struct cpucp_nic_info {
 	__le64 link_ext_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
+	__le16 serdes_type; /* enum cpucp_serdes_type */
+	__u8 reserved[6];
+};
+
+/*
+ * struct cpucp_nic_status - describes the status of a NIC port.
+ * @port: NIC port index.
+ * @bad_format_cnt: e.g. CRC.
+ * @responder_out_of_sequence_psn_cnt: e.g NAK.
+ * @high_ber_reinit_cnt: link reinit due to high BER.
+ * @correctable_err_cnt: e.g. bit-flip.
+ * @uncorrectable_err_cnt: e.g. MAC errors.
+ * @retraining_cnt: re-training counter.
+ * @up: is port up.
+ * @pcs_link: has PCS link.
+ * @phy_ready: is PHY ready.
+ * @auto_neg: is Autoneg enabled.
+ * @timeout_retransmission_cnt: timeout retransmission events
+ * @high_ber_cnt: high ber events
+ */
+struct cpucp_nic_status {
+	__le32 port;
+	__le32 bad_format_cnt;
+	__le32 responder_out_of_sequence_psn_cnt;
+	__le32 high_ber_reinit;
+	__le32 correctable_err_cnt;
+	__le32 uncorrectable_err_cnt;
+	__le32 retraining_cnt;
+	__u8 up;
+	__u8 pcs_link;
+	__u8 phy_ready;
+	__u8 auto_neg;
+	__le32 timeout_retransmission_cnt;
+	__le32 high_ber_cnt;
+};
+
+enum cpucp_hbm_row_replace_cause {
+	REPLACE_CAUSE_DOUBLE_ECC_ERR,
+	REPLACE_CAUSE_MULTI_SINGLE_ECC_ERR,
+};
+
+struct cpucp_hbm_row_info {
+	__u8 hbm_idx;
+	__u8 pc;
+	__u8 sid;
+	__u8 bank_idx;
+	__le16 row_addr;
+	__u8 replaced_row_cause; /* enum cpucp_hbm_row_replace_cause */
+	__u8 pad;
+};
+
+struct cpucp_hbm_row_replaced_rows_info {
+	__le16 num_replaced_rows;
+	__u8 pad[6];
+	struct cpucp_hbm_row_info replaced_rows[CPUCP_HBM_ROW_REPLACE_MAX];
 };
 
 #endif /* CPUCP_IF_H */

@@ -345,9 +345,6 @@ err:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_trigger_ops afe4403_trigger_ops = {
-};
-
 #define AFE4403_TIMING_PAIRS			\
 	{ AFE440X_LED2STC,	0x000050 },	\
 	{ AFE440X_LED2ENDC,	0x0003e7 },	\
@@ -487,10 +484,10 @@ static int afe4403_probe(struct spi_device *spi)
 	}
 
 	afe->regulator = devm_regulator_get(afe->dev, "tx_sup");
-	if (IS_ERR(afe->regulator)) {
-		dev_err(afe->dev, "Unable to get regulator\n");
-		return PTR_ERR(afe->regulator);
-	}
+	if (IS_ERR(afe->regulator))
+		return dev_err_probe(afe->dev, PTR_ERR(afe->regulator),
+				     "Unable to get regulator\n");
+
 	ret = regulator_enable(afe->regulator);
 	if (ret) {
 		dev_err(afe->dev, "Unable to enable regulator\n");
@@ -529,8 +526,6 @@ static int afe4403_probe(struct spi_device *spi)
 		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
-
-		afe->trig->ops = &afe4403_trigger_ops;
 
 		ret = iio_trigger_register(afe->trig);
 		if (ret) {
@@ -589,10 +584,8 @@ static int afe4403_remove(struct spi_device *spi)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
-		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
+	if (ret)
+		dev_warn(afe->dev, "Unable to disable regulator\n");
 
 	return 0;
 }

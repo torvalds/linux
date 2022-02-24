@@ -505,24 +505,6 @@ out:
 	return ret;
 }
 
-static void _load_pasid(void *unused)
-{
-	update_pasid();
-}
-
-static void load_pasid(struct mm_struct *mm, u32 pasid)
-{
-	mutex_lock(&mm->context.lock);
-
-	/* Synchronize with READ_ONCE in update_pasid(). */
-	smp_store_release(&mm->pasid, pasid);
-
-	/* Update PASID MSR on all CPUs running the mm's tasks. */
-	on_each_cpu_mask(mm_cpumask(mm), _load_pasid, NULL, true);
-
-	mutex_unlock(&mm->context.lock);
-}
-
 static int intel_svm_alloc_pasid(struct device *dev, struct mm_struct *mm,
 				 unsigned int flags)
 {
@@ -617,10 +599,6 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	if (ret)
 		goto free_sdev;
 
-	/* The newly allocated pasid is loaded to the mm. */
-	if (!(flags & SVM_FLAG_SUPERVISOR_MODE) && list_empty(&svm->devs))
-		load_pasid(mm, svm->pasid);
-
 	list_add_rcu(&sdev->list, &svm->devs);
 success:
 	return &sdev->sva;
@@ -673,11 +651,8 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 			kfree_rcu(sdev, rcu);
 
 			if (list_empty(&svm->devs)) {
-				if (svm->notifier.ops) {
+				if (svm->notifier.ops)
 					mmu_notifier_unregister(&svm->notifier, mm);
-					/* Clear mm's pasid. */
-					load_pasid(mm, PASID_DISABLED);
-				}
 				pasid_private_remove(svm->pasid);
 				/* We mandate that no page faults may be outstanding
 				 * for the PASID when intel_svm_unbind_mm() is called.
@@ -792,7 +767,19 @@ prq_retry:
 		goto prq_retry;
 	}
 
+	/*
+	 * A work in IO page fault workqueue may try to lock pasid_mutex now.
+	 * Holding pasid_mutex while waiting in iopf_queue_flush_dev() for
+	 * all works in the workqueue to finish may cause deadlock.
+	 *
+	 * It's unnecessary to hold pasid_mutex in iopf_queue_flush_dev().
+	 * Unlock it to allow the works to be handled while waiting for
+	 * them to finish.
+	 */
+	lockdep_assert_held(&pasid_mutex);
+	mutex_unlock(&pasid_mutex);
 	iopf_queue_flush_dev(dev);
+	mutex_lock(&pasid_mutex);
 
 	/*
 	 * Perform steps described in VT-d spec CH7.10 to drain page

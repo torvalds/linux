@@ -458,7 +458,6 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios,
 	chip->ngpio = num_gpios;
 	chip->label = adnp->client->name;
 	chip->parent = &adnp->client->dev;
-	chip->of_node = chip->parent->of_node;
 	chip->owner = THIS_MODULE;
 
 	if (is_irq_controller) {

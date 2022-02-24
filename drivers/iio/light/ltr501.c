@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltr501.c - Support for Lite-On LTR501 ambient light and proximity sensor
+ * Support for Lite-On LTR501 and similar ambient light and proximity sensors.
  *
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/events.h>
@@ -97,6 +98,7 @@ enum {
 	ltr501 = 0,
 	ltr559,
 	ltr301,
+	ltr303,
 };
 
 struct ltr501_gain {
@@ -151,6 +153,7 @@ struct ltr501_chip_info {
 
 struct ltr501_data {
 	struct i2c_client *client;
+	struct regulator_bulk_data regulators[2];
 	struct mutex lock_als, lock_ps;
 	const struct ltr501_chip_info *chip_info;
 	u8 als_contr, ps_contr;
@@ -163,6 +166,7 @@ struct ltr501_data {
 	struct regmap_field *reg_ps_rate;
 	struct regmap_field *reg_als_prst;
 	struct regmap_field *reg_ps_prst;
+	uint32_t near_level;
 };
 
 static const struct ltr501_samp_table ltr501_als_samp_table[] = {
@@ -522,6 +526,25 @@ static int ltr501_write_intr_prst(struct ltr501_data *data,
 	return -EINVAL;
 }
 
+static ssize_t ltr501_read_near_level(struct iio_dev *indio_dev,
+				      uintptr_t priv,
+				      const struct iio_chan_spec *chan,
+				      char *buf)
+{
+	struct ltr501_data *data = iio_priv(indio_dev);
+
+	return sprintf(buf, "%u\n", data->near_level);
+}
+
+static const struct iio_chan_spec_ext_info ltr501_ext_info[] = {
+	{
+		.name = "nearlevel",
+		.shared = IIO_SEPARATE,
+		.read = ltr501_read_near_level,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct iio_event_spec ltr501_als_event_spec[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
@@ -606,6 +629,7 @@ static const struct iio_chan_spec ltr501_channels[] = {
 		},
 		.event_spec = ltr501_pxs_event_spec,
 		.num_event_specs = ARRAY_SIZE(ltr501_pxs_event_spec),
+		.ext_info = ltr501_ext_info,
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
@@ -1229,6 +1253,18 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.channels = ltr301_channels,
 		.no_channels = ARRAY_SIZE(ltr301_channels),
 	},
+	[ltr303] = {
+		.partid = 0x0A,
+		.als_gain = ltr559_als_gain_tbl,
+		.als_gain_tbl_size = ARRAY_SIZE(ltr559_als_gain_tbl),
+		.als_mode_active = BIT(0),
+		.als_gain_mask = BIT(2) | BIT(3) | BIT(4),
+		.als_gain_shift = 2,
+		.info = &ltr301_info,
+		.info_no_irq = &ltr301_info_no_irq,
+		.channels = ltr301_channels,
+		.no_channels = ARRAY_SIZE(ltr301_channels),
+	},
 };
 
 static int ltr501_write_contr(struct ltr501_data *data, u8 als_val, u8 ps_val)
@@ -1273,7 +1309,7 @@ static irqreturn_t ltr501_trigger_handler(int irq, void *p)
 		ret = regmap_bulk_read(data->regmap, LTR501_ALS_DATA1,
 				       als_buf, sizeof(als_buf));
 		if (ret < 0)
-			return ret;
+			goto done;
 		if (test_bit(0, indio_dev->active_scan_mask))
 			scan.channels[j++] = le16_to_cpu(als_buf[1]);
 		if (test_bit(1, indio_dev->active_scan_mask))
@@ -1379,6 +1415,13 @@ static const struct regmap_config ltr501_regmap_config = {
 	.volatile_reg = ltr501_is_volatile_reg,
 };
 
+static void ltr501_disable_regulators(void *d)
+{
+	struct ltr501_data *data = d;
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
+}
+
 static int ltr501_powerdown(struct ltr501_data *data)
 {
 	return ltr501_write_contr(data, data->als_contr &
@@ -1422,6 +1465,25 @@ static int ltr501_probe(struct i2c_client *client,
 	data->regmap = regmap;
 	mutex_init(&data->lock_als);
 	mutex_init(&data->lock_ps);
+
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(&client->dev,
+				      ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&client->dev,
+				       ltr501_disable_regulators, data);
+	if (ret)
+		return ret;
 
 	data->reg_it = devm_regmap_field_alloc(&client->dev, regmap,
 					       reg_field_it);
@@ -1489,6 +1551,10 @@ static int ltr501_probe(struct i2c_client *client,
 
 	if ((partid >> 4) != data->chip_info->partid)
 		return -ENODEV;
+
+	if (device_property_read_u32(&client->dev, "proximity-near-level",
+				     &data->near_level))
+		data->near_level = 0;
 
 	indio_dev->info = data->chip_info->info;
 	indio_dev->channels = data->chip_info->channels;
@@ -1577,13 +1643,24 @@ static const struct i2c_device_id ltr501_id[] = {
 	{ "ltr501", ltr501},
 	{ "ltr559", ltr559},
 	{ "ltr301", ltr301},
+	{ "ltr303", ltr303},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr501_id);
 
+static const struct of_device_id ltr501_of_match[] = {
+	{ .compatible = "liteon,ltr501", },
+	{ .compatible = "liteon,ltr559", },
+	{ .compatible = "liteon,ltr301", },
+	{ .compatible = "liteon,ltr303", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ltr501_of_match);
+
 static struct i2c_driver ltr501_driver = {
 	.driver = {
 		.name   = LTR501_DRV_NAME,
+		.of_match_table = ltr501_of_match,
 		.pm	= &ltr501_pm_ops,
 		.acpi_match_table = ACPI_PTR(ltr_acpi_match),
 	},

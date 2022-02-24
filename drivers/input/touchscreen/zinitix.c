@@ -488,6 +488,15 @@ static int zinitix_ts_probe(struct i2c_client *client)
 		return error;
 	}
 
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, zinitix_ts_irq_handler,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  client->name, bt541);
+	if (error) {
+		dev_err(&client->dev, "Failed to request IRQ: %d\n", error);
+		return error;
+	}
+
 	error = zinitix_init_input_dev(bt541);
 	if (error) {
 		dev_err(&client->dev,
@@ -511,15 +520,6 @@ static int zinitix_ts_probe(struct i2c_client *client)
 			"Malformed zinitix,mode property, must be 2 (supplied: %d)\n",
 			bt541->zinitix_mode);
 		return -EINVAL;
-	}
-
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, zinitix_ts_irq_handler,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
-					  client->name, bt541);
-	if (error) {
-		dev_err(&client->dev, "Failed to request IRQ: %d\n", error);
-		return error;
 	}
 
 	return 0;

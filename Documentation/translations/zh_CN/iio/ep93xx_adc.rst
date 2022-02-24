@@ -1,10 +1,12 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../iio/ep93xx_adc`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/iio/ep93xx_adc.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_iio_ep93xx_adc:
-
 
 ==================================
 思睿逻辑 EP93xx 模拟数字转换器驱动

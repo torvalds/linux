@@ -346,7 +346,6 @@ struct irdma_device {
 	bool roce_mode:1;
 	bool roce_dcqcn_en:1;
 	bool dcb:1;
-	bool reset:1;
 	bool iw_ooo:1;
 	enum init_completion_state init_state;
 
@@ -468,7 +467,8 @@ void irdma_qp_rem_ref(struct ib_qp *ibqp);
 void irdma_free_lsmm_rsrc(struct irdma_qp *iwqp);
 struct ib_qp *irdma_get_qp(struct ib_device *ibdev, int qpn);
 void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask);
-void irdma_manage_arp_cache(struct irdma_pci_f *rf, unsigned char *mac_addr,
+void irdma_manage_arp_cache(struct irdma_pci_f *rf,
+			    const unsigned char *mac_addr,
 			    u32 *ip_addr, bool ipv4, u32 action);
 struct irdma_apbvt_entry *irdma_add_apbvt(struct irdma_device *iwdev, u16 port);
 void irdma_del_apbvt(struct irdma_device *iwdev,
@@ -480,7 +480,7 @@ void irdma_free_cqp_request(struct irdma_cqp *cqp,
 void irdma_put_cqp_request(struct irdma_cqp *cqp,
 			   struct irdma_cqp_request *cqp_request);
 int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx);
-int irdma_add_local_mac_entry(struct irdma_pci_f *rf, u8 *mac_addr, u16 idx);
+int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx);
 void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx);
 
 u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf);
@@ -542,6 +542,7 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		    void (*callback_fcn)(struct irdma_cqp_request *cqp_request),
 		    void *cb_param);
 void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request);
+bool irdma_cq_empty(struct irdma_cq *iwcq);
 int irdma_inetaddr_event(struct notifier_block *notifier, unsigned long event,
 			 void *ptr);
 int irdma_inet6addr_event(struct notifier_block *notifier, unsigned long event,

@@ -129,15 +129,14 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	sdata->wpan_dev.extended_addr = extended_addr;
 
 	/* update lowpan interface mac address when
 	 * wpan mac has been changed
 	 */
 	if (sdata->wpan_dev.lowpan_dev)
-		memcpy(sdata->wpan_dev.lowpan_dev->dev_addr, dev->dev_addr,
-		       dev->addr_len);
+		dev_addr_set(sdata->wpan_dev.lowpan_dev, dev->dev_addr);
 
 	return mac802154_wpan_update_llsec(dev);
 }
@@ -615,9 +614,10 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		  unsigned char name_assign_type, enum nl802154_iftype type,
 		  __le64 extended_addr)
 {
+	u8 addr[IEEE802154_EXTENDED_ADDR_LEN];
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
-	int ret = -ENOMEM;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -638,11 +638,12 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
-		if (ieee802154_is_valid_extended_unicast_addr(extended_addr))
-			ieee802154_le64_to_be64(ndev->dev_addr, &extended_addr);
-		else
-			memcpy(ndev->dev_addr, ndev->perm_addr,
-			       IEEE802154_EXTENDED_ADDR_LEN);
+		if (ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
+			ieee802154_le64_to_be64(addr, &extended_addr);
+			dev_addr_set(ndev, addr);
+		} else {
+			dev_addr_set(ndev, ndev->perm_addr);
+		}
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		ndev->type = ARPHRD_IEEE802154_MONITOR;

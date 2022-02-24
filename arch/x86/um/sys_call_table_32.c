@@ -9,8 +9,6 @@
 #include <linux/cache.h>
 #include <asm/syscall.h>
 
-#define __NO_STUBS
-
 /*
  * Below you can see, in terms of #define's, the differences between the x86-64
  * and the UML syscall table.
@@ -22,8 +20,6 @@
 
 #define sys_vm86old sys_ni_syscall
 #define sys_vm86 sys_ni_syscall
-
-#define old_mmap sys_old_mmap
 
 #define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 

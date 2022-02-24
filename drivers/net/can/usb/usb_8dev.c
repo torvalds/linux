@@ -114,14 +114,11 @@ struct usb_8dev_tx_urb_context {
 	struct usb_8dev_priv *priv;
 
 	u32 echo_index;
-	u8 dlc;
 };
 
 /* Structure to hold all of our device specific stuff */
 struct usb_8dev_priv {
 	struct can_priv can; /* must be the first member */
-
-	struct sk_buff *echo_skb[MAX_TX_URBS];
 
 	struct usb_device *udev;
 	struct net_device *netdev;
@@ -449,8 +446,6 @@ static void usb_8dev_rx_err_msg(struct usb_8dev_priv *priv,
 	priv->bec.txerr = txerr;
 	priv->bec.rxerr = rxerr;
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 }
 
@@ -476,13 +471,14 @@ static void usb_8dev_rx_can_msg(struct usb_8dev_priv *priv,
 		if (msg->flags & USB_8DEV_EXTID)
 			cf->can_id |= CAN_EFF_FLAG;
 
-		if (msg->flags & USB_8DEV_RTR)
+		if (msg->flags & USB_8DEV_RTR) {
 			cf->can_id |= CAN_RTR_FLAG;
-		else
+		} else {
 			memcpy(cf->data, msg->data, cf->len);
-
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
+
 		netif_rx(skb);
 
 		can_led_event(priv->netdev, CAN_LED_EVENT_RX);
@@ -584,9 +580,7 @@ static void usb_8dev_write_bulk_callback(struct urb *urb)
 			 urb->status);
 
 	netdev->stats.tx_packets++;
-	netdev->stats.tx_bytes += context->dlc;
-
-	can_get_echo_skb(netdev, context->echo_index, NULL);
+	netdev->stats.tx_bytes += can_get_echo_skb(netdev, context->echo_index, NULL);
 
 	can_led_event(netdev, CAN_LED_EVENT_TX);
 
@@ -657,7 +651,6 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 
 	context->priv = priv;
 	context->echo_index = i;
-	context->dlc = cf->len;
 
 	usb_fill_bulk_urb(urb, priv->udev,
 			  usb_sndbulkpipe(priv->udev, USB_8DEV_ENDP_DATA_TX),

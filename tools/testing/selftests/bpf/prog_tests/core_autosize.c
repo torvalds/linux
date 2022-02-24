@@ -112,7 +112,7 @@ void test_core_autosize(void)
 	if (!ASSERT_OK_PTR(f, "btf_fdopen"))
 		goto cleanup;
 
-	raw_data = btf__get_raw_data(btf, &raw_sz);
+	raw_data = btf__raw_data(btf, &raw_sz);
 	if (!ASSERT_OK_PTR(raw_data, "raw_data"))
 		goto cleanup;
 	written = fwrite(raw_data, 1, raw_sz, f);
@@ -163,7 +163,7 @@ void test_core_autosize(void)
 
 	usleep(1);
 
-	bss_map = bpf_object__find_map_by_name(skel->obj, "test_cor.bss");
+	bss_map = bpf_object__find_map_by_name(skel->obj, ".bss");
 	if (!ASSERT_OK_PTR(bss_map, "bss_map_find"))
 		goto cleanup;
 

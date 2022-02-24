@@ -33,6 +33,16 @@ config VDPA_SIM_BLOCK
 	  vDPA block device simulator which terminates IO request in a
 	  memory buffer.
 
+config VDPA_USER
+	tristate "VDUSE (vDPA Device in Userspace) support"
+	depends on EVENTFD && MMU && HAS_DMA
+	select DMA_OPS
+	select VHOST_IOTLB
+	select IOMMU_IOVA
+	help
+	  With VDUSE it is possible to emulate a vDPA Device
+	  in a userspace program.
+
 config IFCVF
 	tristate "Intel IFC VF vDPA driver"
 	depends on PCI_MSI
@@ -53,6 +63,7 @@ config MLX5_VDPA
 config MLX5_VDPA_NET
 	tristate "vDPA driver for ConnectX devices"
 	select MLX5_VDPA
+	select VHOST_RING
 	depends on MLX5_CORE
 	help
 	  VDPA network driver for ConnectX6 and newer. Provides offloading
@@ -66,5 +77,13 @@ config VP_VDPA
 	depends on PCI_MSI
 	help
 	  This kernel module bridges virtio PCI device to vDPA bus.
+
+config ALIBABA_ENI_VDPA
+	tristate "vDPA driver for Alibaba ENI"
+	select VIRTIO_PCI_LIB_LEGACY
+	depends on PCI_MSI && X86
+	help
+	  VDPA driver for Alibaba ENI (Elastic Network Interface) which is built upon
+	  virtio 0.9.5 specification.
 
 endif # VDPA

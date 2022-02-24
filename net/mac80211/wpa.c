@@ -449,7 +449,6 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
 		return 0;
 
-	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
 	pn64 = atomic64_inc_return(&key->conf.tx_pn);
@@ -519,6 +518,9 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 		if (skb_linearize(rx->skb))
 			return RX_DROP_UNUSABLE;
 	}
+
+	/* reload hdr - skb might have been reallocated */
+	hdr = (void *)rx->skb->data;
 
 	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN - mic_len;
 	if (!rx->sta || data_len < 0)
@@ -683,7 +685,6 @@ static int gcmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
 		return 0;
 
-	hdr = (struct ieee80211_hdr *)pos;
 	pos += hdrlen;
 
 	pn64 = atomic64_inc_return(&key->conf.tx_pn);
@@ -748,6 +749,9 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 		if (skb_linearize(rx->skb))
 			return RX_DROP_UNUSABLE;
 	}
+
+	/* reload hdr - skb might have been reallocated */
+	hdr = (void *)rx->skb->data;
 
 	data_len = skb->len - hdrlen - IEEE80211_GCMP_HDR_LEN - mic_len;
 	if (!rx->sta || data_len < 0)
@@ -874,8 +878,6 @@ ieee80211_crypto_cs_decrypt(struct ieee80211_rx_data *rx)
 
 	if (skb_linearize(rx->skb))
 		return RX_DROP_UNUSABLE;
-
-	hdr = (struct ieee80211_hdr *)rx->skb->data;
 
 	rx_pn = key->u.gen.rx_pn[qos_tid];
 	skb_pn = rx->skb->data + hdrlen + cs->pn_off;

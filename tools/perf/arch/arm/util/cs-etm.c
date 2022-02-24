@@ -16,19 +16,19 @@
 #include <linux/zalloc.h>
 
 #include "cs-etm.h"
-#include "../../util/debug.h"
-#include "../../util/record.h"
-#include "../../util/auxtrace.h"
-#include "../../util/cpumap.h"
-#include "../../util/event.h"
-#include "../../util/evlist.h"
-#include "../../util/evsel.h"
-#include "../../util/perf_api_probe.h"
-#include "../../util/evsel_config.h"
-#include "../../util/pmu.h"
-#include "../../util/cs-etm.h"
+#include "../../../util/debug.h"
+#include "../../../util/record.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/cpumap.h"
+#include "../../../util/event.h"
+#include "../../../util/evlist.h"
+#include "../../../util/evsel.h"
+#include "../../../util/perf_api_probe.h"
+#include "../../../util/evsel_config.h"
+#include "../../../util/pmu.h"
+#include "../../../util/cs-etm.h"
 #include <internal/lib.h> // page_size
-#include "../../util/session.h"
+#include "../../../util/session.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -47,15 +47,17 @@ static const char *metadata_etmv3_ro[CS_ETM_PRIV_MAX] = {
 	[CS_ETM_ETMIDR]		= "mgmt/etmidr",
 };
 
-static const char *metadata_etmv4_ro[CS_ETMV4_PRIV_MAX] = {
+static const char * const metadata_etmv4_ro[] = {
 	[CS_ETMV4_TRCIDR0]		= "trcidr/trcidr0",
 	[CS_ETMV4_TRCIDR1]		= "trcidr/trcidr1",
 	[CS_ETMV4_TRCIDR2]		= "trcidr/trcidr2",
 	[CS_ETMV4_TRCIDR8]		= "trcidr/trcidr8",
 	[CS_ETMV4_TRCAUTHSTATUS]	= "mgmt/trcauthstatus",
+	[CS_ETE_TRCDEVARCH]		= "mgmt/trcdevarch"
 };
 
 static bool cs_etm_is_etmv4(struct auxtrace_record *itr, int cpu);
+static bool cs_etm_is_ete(struct auxtrace_record *itr, int cpu);
 
 static int cs_etm_set_context_id(struct auxtrace_record *itr,
 				 struct evsel *evsel, int cpu)
@@ -73,7 +75,7 @@ static int cs_etm_set_context_id(struct auxtrace_record *itr,
 	if (!cs_etm_is_etmv4(itr, cpu))
 		goto out;
 
-	/* Get a handle on TRCIRD2 */
+	/* Get a handle on TRCIDR2 */
 	snprintf(path, PATH_MAX, "cpu%d/%s",
 		 cpu, metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
 	err = perf_pmu__scan_file(cs_etm_pmu, path, "%x", &val);
@@ -533,7 +535,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		      struct evlist *evlist __maybe_unused)
 {
 	int i;
-	int etmv3 = 0, etmv4 = 0;
+	int etmv3 = 0, etmv4 = 0, ete = 0;
 	struct perf_cpu_map *event_cpus = evlist->core.cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
@@ -544,7 +546,9 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 			    !cpu_map__has(online_cpus, i))
 				continue;
 
-			if (cs_etm_is_etmv4(itr, i))
+			if (cs_etm_is_ete(itr, i))
+				ete++;
+			else if (cs_etm_is_etmv4(itr, i))
 				etmv4++;
 			else
 				etmv3++;
@@ -555,7 +559,9 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 			if (!cpu_map__has(online_cpus, i))
 				continue;
 
-			if (cs_etm_is_etmv4(itr, i))
+			if (cs_etm_is_ete(itr, i))
+				ete++;
+			else if (cs_etm_is_etmv4(itr, i))
 				etmv4++;
 			else
 				etmv3++;
@@ -565,6 +571,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	perf_cpu_map__put(online_cpus);
 
 	return (CS_ETM_HEADER_SIZE +
+	       (ete   * CS_ETE_PRIV_SIZE) +
 	       (etmv4 * CS_ETMV4_PRIV_SIZE) +
 	       (etmv3 * CS_ETMV3_PRIV_SIZE));
 }
@@ -607,6 +614,49 @@ static int cs_etm_get_ro(struct perf_pmu *pmu, int cpu, const char *path)
 	return val;
 }
 
+#define TRCDEVARCH_ARCHPART_SHIFT 0
+#define TRCDEVARCH_ARCHPART_MASK  GENMASK(11, 0)
+#define TRCDEVARCH_ARCHPART(x)    (((x) & TRCDEVARCH_ARCHPART_MASK) >> TRCDEVARCH_ARCHPART_SHIFT)
+
+#define TRCDEVARCH_ARCHVER_SHIFT 12
+#define TRCDEVARCH_ARCHVER_MASK  GENMASK(15, 12)
+#define TRCDEVARCH_ARCHVER(x)    (((x) & TRCDEVARCH_ARCHVER_MASK) >> TRCDEVARCH_ARCHVER_SHIFT)
+
+static bool cs_etm_is_ete(struct auxtrace_record *itr, int cpu)
+{
+	struct cs_etm_recording *ptr = container_of(itr, struct cs_etm_recording, itr);
+	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
+	int trcdevarch = cs_etm_get_ro(cs_etm_pmu, cpu, metadata_etmv4_ro[CS_ETE_TRCDEVARCH]);
+
+	/*
+	 * ETE if ARCHVER is 5 (ARCHVER is 4 for ETM) and ARCHPART is 0xA13.
+	 * See ETM_DEVARCH_ETE_ARCH in coresight-etm4x.h
+	 */
+	return TRCDEVARCH_ARCHVER(trcdevarch) == 5 && TRCDEVARCH_ARCHPART(trcdevarch) == 0xA13;
+}
+
+static void cs_etm_save_etmv4_header(__u64 data[], struct auxtrace_record *itr, int cpu)
+{
+	struct cs_etm_recording *ptr = container_of(itr, struct cs_etm_recording, itr);
+	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
+
+	/* Get trace configuration register */
+	data[CS_ETMV4_TRCCONFIGR] = cs_etmv4_get_config(itr);
+	/* Get traceID from the framework */
+	data[CS_ETMV4_TRCTRACEIDR] = coresight_get_trace_id(cpu);
+	/* Get read-only information from sysFS */
+	data[CS_ETMV4_TRCIDR0] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR0]);
+	data[CS_ETMV4_TRCIDR1] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR1]);
+	data[CS_ETMV4_TRCIDR2] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
+	data[CS_ETMV4_TRCIDR8] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR8]);
+	data[CS_ETMV4_TRCAUTHSTATUS] = cs_etm_get_ro(cs_etm_pmu, cpu,
+						     metadata_etmv4_ro[CS_ETMV4_TRCAUTHSTATUS]);
+}
+
 static void cs_etm_get_metadata(int cpu, u32 *offset,
 				struct auxtrace_record *itr,
 				struct perf_record_auxtrace_info *info)
@@ -618,31 +668,20 @@ static void cs_etm_get_metadata(int cpu, u32 *offset,
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 
 	/* first see what kind of tracer this cpu is affined to */
-	if (cs_etm_is_etmv4(itr, cpu)) {
+	if (cs_etm_is_ete(itr, cpu)) {
+		magic = __perf_cs_ete_magic;
+		/* ETE uses the same registers as ETMv4 plus TRCDEVARCH */
+		cs_etm_save_etmv4_header(&info->priv[*offset], itr, cpu);
+		info->priv[*offset + CS_ETE_TRCDEVARCH] =
+			cs_etm_get_ro(cs_etm_pmu, cpu,
+				      metadata_etmv4_ro[CS_ETE_TRCDEVARCH]);
+
+		/* How much space was used */
+		increment = CS_ETE_PRIV_MAX;
+		nr_trc_params = CS_ETE_PRIV_MAX - CS_ETM_COMMON_BLK_MAX_V1;
+	} else if (cs_etm_is_etmv4(itr, cpu)) {
 		magic = __perf_cs_etmv4_magic;
-		/* Get trace configuration register */
-		info->priv[*offset + CS_ETMV4_TRCCONFIGR] =
-						cs_etmv4_get_config(itr);
-		/* Get traceID from the framework */
-		info->priv[*offset + CS_ETMV4_TRCTRACEIDR] =
-						coresight_get_trace_id(cpu);
-		/* Get read-only information from sysFS */
-		info->priv[*offset + CS_ETMV4_TRCIDR0] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR0]);
-		info->priv[*offset + CS_ETMV4_TRCIDR1] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR1]);
-		info->priv[*offset + CS_ETMV4_TRCIDR2] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
-		info->priv[*offset + CS_ETMV4_TRCIDR8] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR8]);
-		info->priv[*offset + CS_ETMV4_TRCAUTHSTATUS] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro
-				      [CS_ETMV4_TRCAUTHSTATUS]);
+		cs_etm_save_etmv4_header(&info->priv[*offset], itr, cpu);
 
 		/* How much space was used */
 		increment = CS_ETMV4_PRIV_MAX;

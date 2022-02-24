@@ -51,7 +51,8 @@ properties:
     $ref: '/schemas/types.yaml#/definitions/phandle'
     description: |
       phandle of the connected DRAM memory device. For more information please
-      refer to documentation file: Documentation/devicetree/bindings/ddr/lpddr3.txt
+      refer to documentation file:
+      Documentation/devicetree/bindings/memory-controllers/ddr/lpddr3.txt
 
   operating-points-v2: true
 

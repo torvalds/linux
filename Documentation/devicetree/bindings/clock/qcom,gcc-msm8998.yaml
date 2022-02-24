@@ -25,21 +25,17 @@ properties:
     items:
       - description: Board XO source
       - description: Sleep clock source
-      - description: USB 3.0 phy pipe clock
-      - description: UFS phy rx symbol clock for pipe 0
-      - description: UFS phy rx symbol clock for pipe 1
-      - description: UFS phy tx symbol clock
-      - description: PCIE phy pipe clock
+      - description: Audio reference clock (Optional clock)
+      - description: PLL test clock source (Optional clock)
+    minItems: 2
 
   clock-names:
     items:
       - const: xo
       - const: sleep_clk
-      - const: usb3_pipe
-      - const: ufs_rx_symbol0
-      - const: ufs_rx_symbol1
-      - const: ufs_tx_symbol0
-      - const: pcie0_pipe
+      - const: aud_ref_clk # Optional clock
+      - const: core_bi_pll_test_se # Optional clock
+    minItems: 2
 
   '#clock-cells':
     const: 1
@@ -80,16 +76,10 @@ examples:
       clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
                <&sleep>,
                <0>,
-               <0>,
-               <0>,
-               <0>,
                <0>;
       clock-names = "xo",
                     "sleep_clk",
-                    "usb3_pipe",
-                    "ufs_rx_symbol0",
-                    "ufs_rx_symbol1",
-                    "ufs_tx_symbol0",
-                    "pcie0_pipe";
+                    "aud_ref_clk",
+                    "core_bi_pll_test_se";
     };
 ...

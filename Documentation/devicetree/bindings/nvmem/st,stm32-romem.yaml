@@ -13,7 +13,7 @@ description: |
   internal vref (VREFIN_CAL), unique device ID...
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
   - $ref: "nvmem.yaml#"
@@ -23,6 +23,9 @@ properties:
     enum:
       - st,stm32f4-otp
       - st,stm32mp15-bsec
+
+  reg:
+    maxItems: 1
 
 patternProperties:
   "^.*@[0-9a-f]+$":

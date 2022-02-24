@@ -114,27 +114,24 @@ static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 				  struct amdgpu_ras_eeprom_control *control)
 {
-	uint8_t ras_rom_i2c_slave_addr;
+	u8 i2c_addr;
 
 	if (!control)
 		return false;
 
-	control->i2c_address = 0;
+	if (amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
+		/* The address given by VBIOS is an 8-bit, wire-format
+		 * address, i.e. the most significant byte.
+		 *
+		 * Normalize it to a 19-bit EEPROM address. Remove the
+		 * device type identifier and make it a 7-bit address;
+		 * then make it a 19-bit EEPROM address. See top of
+		 * amdgpu_eeprom.c.
+		 */
+		i2c_addr = (i2c_addr & 0x0F) >> 1;
+		control->i2c_address = ((u32) i2c_addr) << 16;
 
-	if (amdgpu_atomfirmware_ras_rom_addr(adev, &ras_rom_i2c_slave_addr))
-	{
-		switch (ras_rom_i2c_slave_addr) {
-		case 0xA0:
-			control->i2c_address = 0;
-			return true;
-		case 0xA8:
-			control->i2c_address = 0x40000;
-			return true;
-		default:
-			dev_warn(adev->dev, "RAS EEPROM I2C slave address %02x not supported",
-				 ras_rom_i2c_slave_addr);
-			return false;
-		}
+		return true;
 	}
 
 	switch (adev->asic_type) {
@@ -760,7 +757,7 @@ Out:
 	return res;
 }
 
-inline uint32_t amdgpu_ras_eeprom_max_record_count(void)
+uint32_t amdgpu_ras_eeprom_max_record_count(void)
 {
 	return RAS_MAX_RECORD_COUNT;
 }
@@ -1080,6 +1077,13 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		if (res)
 			DRM_ERROR("RAS table incorrect checksum or error:%d\n",
 				  res);
+
+		/* Warn if we are at 90% of the threshold or above
+		 */
+		if (10 * control->ras_num_recs >= 9 * ras->bad_page_cnt_threshold)
+			dev_warn(adev->dev, "RAS records:%u exceeds 90%% of threshold:%d",
+					control->ras_num_recs,
+					ras->bad_page_cnt_threshold);
 	} else if (hdr->header == RAS_TABLE_HDR_BAD &&
 		   amdgpu_bad_page_threshold != 0) {
 		res = __verify_ras_table_checksum(control);
@@ -1101,11 +1105,18 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 			res = amdgpu_ras_eeprom_correct_header_tag(control,
 								   RAS_TABLE_HDR_VAL);
 		} else {
-			*exceed_err_limit = true;
-			dev_err(adev->dev,
-				"RAS records:%d exceed threshold:%d, "
-				"maybe retire this GPU?",
+			dev_err(adev->dev, "RAS records:%d exceed threshold:%d",
 				control->ras_num_recs, ras->bad_page_cnt_threshold);
+			if (amdgpu_bad_page_threshold == -2) {
+				dev_warn(adev->dev, "GPU will be initialized due to bad_page_threshold = -2.");
+				res = 0;
+			} else {
+				*exceed_err_limit = true;
+				dev_err(adev->dev,
+					"RAS records:%d exceed threshold:%d, "
+					"GPU will not be initialized. Replace this GPU or increase the threshold",
+					control->ras_num_recs, ras->bad_page_cnt_threshold);
+			}
 		}
 	} else {
 		DRM_INFO("Creating a new EEPROM table");

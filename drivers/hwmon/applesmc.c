@@ -391,7 +391,7 @@ static const struct applesmc_entry *applesmc_get_entry_by_index(int index)
 	cache->len = info[0];
 	memcpy(cache->type, &info[1], 4);
 	cache->flags = info[5];
-	cache->valid = 1;
+	cache->valid = true;
 
 out:
 	mutex_unlock(&smcreg.mutex);

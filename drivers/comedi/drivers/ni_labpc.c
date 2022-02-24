@@ -48,8 +48,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "ni_labpc.h"
 #include "ni_labpc_isadma.h"

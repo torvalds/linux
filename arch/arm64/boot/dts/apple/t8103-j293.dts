@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple MacBook Pro (13-inch, M1, 2020)
+ *
+ * target-type: J293
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t8103.dtsi"
+#include "t8103-jxxx.dtsi"
+
+/ {
+	compatible = "apple,j293", "apple,t8103", "apple,arm-platform";
+	model = "Apple MacBook Pro (13-inch, M1, 2020)";
+};
+
+/*
+ * Remove unused PCIe ports and disable the associated DARTs.
+ */
+
+&pcie0_dart_1 {
+	status = "disabled";
+};
+
+&pcie0_dart_2 {
+	status = "disabled";
+};
+
+/delete-node/ &port01;
+/delete-node/ &port02;
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+};

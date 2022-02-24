@@ -32,7 +32,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 
-static int showcapimsgs = 0;
+static int showcapimsgs;
 static struct workqueue_struct *kcapi_wq;
 
 module_param(showcapimsgs, uint, 0);
@@ -479,6 +479,11 @@ int detach_capi_ctr(struct capi_ctr *ctr)
 	mutex_lock(&capi_controller_lock);
 
 	ctr_down(ctr, CAPI_CTR_DETACHED);
+
+	if (ctr->cnr < 1 || ctr->cnr - 1 >= CAPI_MAXCONTR) {
+		err = -EINVAL;
+		goto unlock_out;
+	}
 
 	if (capi_controller[ctr->cnr - 1] != ctr) {
 		err = -EINVAL;

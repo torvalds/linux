@@ -231,6 +231,9 @@ EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);
  * return either the associated struct drm_panel or drm_bridge device. Either
  * @panel or @bridge must not be NULL.
  *
+ * This function is deprecated and should not be used in new drivers. Use
+ * devm_drm_of_get_bridge() instead.
+ *
  * Returns zero if successful, or one of the standard error codes if it fails.
  */
 int drm_of_find_panel_or_bridge(const struct device_node *np,
@@ -399,3 +402,36 @@ int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
 		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
 }
 EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
+
+/**
+ * drm_of_lvds_get_data_mapping - Get LVDS data mapping
+ * @port: DT port node of the LVDS source or sink
+ *
+ * Convert DT "data-mapping" property string value into media bus format value.
+ *
+ * Return:
+ * * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG - data-mapping is "jeida-18"
+ * * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - data-mapping is "jeida-24"
+ * * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG - data-mapping is "vesa-24"
+ * * -EINVAL - the "data-mapping" property is unsupported
+ * * -ENODEV - the "data-mapping" property is missing
+ */
+int drm_of_lvds_get_data_mapping(const struct device_node *port)
+{
+	const char *mapping;
+	int ret;
+
+	ret = of_property_read_string(port, "data-mapping", &mapping);
+	if (ret < 0)
+		return -ENODEV;
+
+	if (!strcmp(mapping, "jeida-18"))
+		return MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
+	if (!strcmp(mapping, "jeida-24"))
+		return MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
+	if (!strcmp(mapping, "vesa-24"))
+		return MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(drm_of_lvds_get_data_mapping);

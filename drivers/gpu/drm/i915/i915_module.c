@@ -4,7 +4,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <linux/console.h>
+#include <drm/drm_drv.h>
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_object.h"
@@ -24,14 +24,14 @@ static int i915_check_nomodeset(void)
 
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset prarameter or by the
-	 * vga_text_mode_force boot option.
+	 * either the i915.modeset parameter or by the
+	 * nomodeset boot option.
 	 */
 
 	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
-	if (vgacon_text_force() && i915_modparams.modeset == -1)
+	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
 		use_kms = false;
 
 	if (!use_kms) {
@@ -67,8 +67,8 @@ static const struct {
 	{ .init = i915_mock_selftests },
 	{ .init = i915_pmu_init,
 	  .exit = i915_pmu_exit },
-	{ .init = i915_register_pci_driver,
-	  .exit = i915_unregister_pci_driver },
+	{ .init = i915_pci_register_driver,
+	  .exit = i915_pci_unregister_driver },
 	{ .init = i915_perf_sysctl_register,
 	  .exit = i915_perf_sysctl_unregister },
 };

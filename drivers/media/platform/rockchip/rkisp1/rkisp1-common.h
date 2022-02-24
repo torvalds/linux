@@ -12,6 +12,7 @@
 #define _RKISP1_COMMON_H
 
 #include <linux/clk.h>
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/rkisp1-config.h>
 #include <media/media-device.h>
@@ -231,6 +232,16 @@ struct rkisp1_capture {
 	} pix;
 };
 
+struct rkisp1_stats;
+struct rkisp1_stats_ops {
+	void (*get_awb_meas)(struct rkisp1_stats *stats,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_aec_meas)(struct rkisp1_stats *stats,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_hst_meas)(struct rkisp1_stats *stats,
+			     struct rkisp1_stat_buffer *pbuf);
+};
+
 /*
  * struct rkisp1_stats - ISP Statistics device
  *
@@ -243,10 +254,34 @@ struct rkisp1_capture {
 struct rkisp1_stats {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
+	const struct rkisp1_stats_ops *ops;
 
 	spinlock_t lock; /* locks the buffers list 'stats' */
 	struct list_head stat;
 	struct v4l2_format vdev_fmt;
+};
+
+struct rkisp1_params;
+struct rkisp1_params_ops {
+	void (*lsc_matrix_config)(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_lsc_config *pconfig);
+	void (*goc_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_goc_config *arg);
+	void (*awb_meas_config)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_meas_config *arg);
+	void (*awb_meas_enable)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_meas_config *arg,
+				bool en);
+	void (*awb_gain_config)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_gain_config *arg);
+	void (*aec_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_aec_config *arg);
+	void (*hst_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_hst_config *arg);
+	void (*hst_enable)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_hst_config *arg, bool en);
+	void (*afm_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_afc_config *arg);
 };
 
 /*
@@ -254,6 +289,7 @@ struct rkisp1_stats {
  *
  * @vnode:		video node
  * @rkisp1:		pointer to the rkisp1 device
+ * @ops:		pointer to the variant-specific operations
  * @config_lock:	locks the buffer list 'params'
  * @params:		queue of rkisp1_buffer
  * @vdev_fmt:		v4l2_format of the metadata format
@@ -263,6 +299,7 @@ struct rkisp1_stats {
 struct rkisp1_params {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
+	const struct rkisp1_params_ops *ops;
 
 	spinlock_t config_lock; /* locks the buffers list 'params' */
 	struct list_head params;
@@ -348,7 +385,6 @@ struct rkisp1_debug {
  */
 struct rkisp1_device {
 	void __iomem *base_addr;
-	int irq;
 	struct device *dev;
 	unsigned int clk_size;
 	struct clk_bulk_data clks[RKISP1_MAX_BUS_CLK];
@@ -456,9 +492,9 @@ void rkisp1_params_configure(struct rkisp1_params *params,
 void rkisp1_params_disable(struct rkisp1_params *params);
 
 /* irq handlers */
-void rkisp1_isp_isr(struct rkisp1_device *rkisp1);
-void rkisp1_mipi_isr(struct rkisp1_device *rkisp1);
-void rkisp1_capture_isr(struct rkisp1_device *rkisp1);
+irqreturn_t rkisp1_isp_isr(int irq, void *ctx);
+irqreturn_t rkisp1_mipi_isr(int irq, void *ctx);
+irqreturn_t rkisp1_capture_isr(int irq, void *ctx);
 void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris);
 void rkisp1_params_isr(struct rkisp1_device *rkisp1);
 

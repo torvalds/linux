@@ -131,6 +131,9 @@ bool sja1105_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
 bool sja1110_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
 void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
 
+void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port, u8 ts_id,
+				 enum sja1110_meta_tstamp dir, u64 tstamp);
+
 #else
 
 struct sja1105_ptp_cmd;
@@ -196,6 +199,8 @@ static inline int sja1105_ptp_commit(struct dsa_switch *ds,
 #define sja1105_rxtstamp NULL
 #define sja1110_rxtstamp NULL
 #define sja1110_txtstamp NULL
+
+#define sja1110_process_meta_tstamp NULL
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP) */
 

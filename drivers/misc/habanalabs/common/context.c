@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -9,15 +9,69 @@
 
 #include <linux/slab.h>
 
+void hl_encaps_handle_do_release(struct kref *ref)
+{
+	struct hl_cs_encaps_sig_handle *handle =
+		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	idr_remove(&mgr->handles, handle->id);
+	spin_unlock(&mgr->lock);
+
+	hl_ctx_put(handle->ctx);
+	kfree(handle);
+}
+
+static void hl_encaps_handle_do_release_sob(struct kref *ref)
+{
+	struct hl_cs_encaps_sig_handle *handle =
+		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
+
+	/* if we're here, then there was a signals reservation but cs with
+	 * encaps signals wasn't submitted, so need to put refcount
+	 * to hw_sob taken at the reservation.
+	 */
+	hw_sob_put(handle->hw_sob);
+
+	spin_lock(&mgr->lock);
+	idr_remove(&mgr->handles, handle->id);
+	spin_unlock(&mgr->lock);
+
+	hl_ctx_put(handle->ctx);
+	kfree(handle);
+}
+
+static void hl_encaps_sig_mgr_init(struct hl_encaps_signals_mgr *mgr)
+{
+	spin_lock_init(&mgr->lock);
+	idr_init(&mgr->handles);
+}
+
+static void hl_encaps_sig_mgr_fini(struct hl_device *hdev,
+			struct hl_encaps_signals_mgr *mgr)
+{
+	struct hl_cs_encaps_sig_handle *handle;
+	struct idr *idp;
+	u32 id;
+
+	idp = &mgr->handles;
+
+	if (!idr_is_empty(idp)) {
+		dev_warn(hdev->dev, "device released while some encaps signals handles are still allocated\n");
+		idr_for_each_entry(idp, handle, id)
+			kref_put(&handle->refcount,
+					hl_encaps_handle_do_release_sob);
+	}
+
+	idr_destroy(&mgr->handles);
+}
+
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 	int i;
-
-	/* Release all allocated pending cb's, those cb's were never
-	 * scheduled so it is safe to release them here
-	 */
-	hl_pending_cb_list_flush(ctx);
 
 	/* Release all allocated HW block mapped list entries and destroy
 	 * the mutex.
@@ -43,16 +97,15 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
-		 * Stop only if this is the compute context, as there can be
-		 * only one compute context
 		 */
-		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
-			hl_device_set_debug_mode(hdev, false);
+		if (hdev->in_debug)
+			hl_device_set_debug_mode(hdev, ctx, false);
 
 		hdev->asic_funcs->ctx_fini(ctx);
 		hl_cb_va_pool_fini(ctx);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+		hl_encaps_sig_mgr_fini(hdev, &ctx->sig_mgr);
 
 		/* Scrub both SRAM and DRAM */
 		hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
@@ -112,7 +165,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	hpriv->ctx = ctx;
 
 	/* TODO: remove the following line for multiple process support */
-	hdev->compute_ctx = ctx;
+	hdev->is_compute_ctx_active = true;
 
 	return 0;
 
@@ -126,15 +179,6 @@ out_err:
 	return rc;
 }
 
-void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
-{
-	if (kref_put(&ctx->refcount, hl_ctx_do_release) == 1)
-		return;
-
-	dev_warn(hdev->dev,
-		"user process released device but its command submissions are still executing\n");
-}
-
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 {
 	int rc = 0;
@@ -144,11 +188,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	kref_init(&ctx->refcount);
 
 	ctx->cs_sequence = 1;
-	INIT_LIST_HEAD(&ctx->pending_cb_list);
-	spin_lock_init(&ctx->pending_cb_lock);
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
-	atomic_set(&ctx->thread_pending_cb_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
 				sizeof(struct hl_fence *),
@@ -200,6 +241,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			goto err_cb_va_pool_fini;
 		}
 
+		hl_encaps_sig_mgr_init(&ctx->sig_mgr);
+
 		dev_dbg(hdev->dev, "create user context %d\n", ctx->asid);
 	}
 
@@ -229,29 +272,105 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
-struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
+{
+	struct hl_ctx *ctx = NULL;
+	struct hl_fpriv *hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+		/* There can only be a single user which has opened the compute device, so exit
+		 * immediately once we find him
+		 */
+		ctx = hpriv->ctx;
+		hl_ctx_get(hdev, ctx);
+		break;
+	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	return ctx;
+}
+
+/*
+ * hl_ctx_get_fence_locked - get CS fence under CS lock
+ *
+ * @ctx: pointer to the context structure.
+ * @seq: CS sequences number
+ *
+ * @return valid fence pointer on success, NULL if fence is gone, otherwise
+ *         error pointer.
+ *
+ * NOTE: this function shall be called with cs_lock locked
+ */
+static struct hl_fence *hl_ctx_get_fence_locked(struct hl_ctx *ctx, u64 seq)
 {
 	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
 	struct hl_fence *fence;
 
-	spin_lock(&ctx->cs_lock);
-
-	if (seq >= ctx->cs_sequence) {
-		spin_unlock(&ctx->cs_lock);
+	if (seq >= ctx->cs_sequence)
 		return ERR_PTR(-EINVAL);
-	}
 
-	if (seq + asic_prop->max_pending_cs < ctx->cs_sequence) {
-		spin_unlock(&ctx->cs_lock);
+	if (seq + asic_prop->max_pending_cs < ctx->cs_sequence)
 		return NULL;
-	}
 
 	fence = ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)];
 	hl_fence_get(fence);
+	return fence;
+}
+
+struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+{
+	struct hl_fence *fence;
+
+	spin_lock(&ctx->cs_lock);
+
+	fence = hl_ctx_get_fence_locked(ctx, seq);
 
 	spin_unlock(&ctx->cs_lock);
 
 	return fence;
+}
+
+/*
+ * hl_ctx_get_fences - get multiple CS fences under the same CS lock
+ *
+ * @ctx: pointer to the context structure.
+ * @seq_arr: array of CS sequences to wait for
+ * @fence: fence array to store the CS fences
+ * @arr_len: length of seq_arr and fence_arr
+ *
+ * @return 0 on success, otherwise non 0 error code
+ */
+int hl_ctx_get_fences(struct hl_ctx *ctx, u64 *seq_arr,
+				struct hl_fence **fence, u32 arr_len)
+{
+	struct hl_fence **fence_arr_base = fence;
+	int i, rc = 0;
+
+	spin_lock(&ctx->cs_lock);
+
+	for (i = 0; i < arr_len; i++, fence++) {
+		u64 seq = seq_arr[i];
+
+		*fence = hl_ctx_get_fence_locked(ctx, seq);
+
+		if (IS_ERR(*fence)) {
+			dev_err(ctx->hdev->dev,
+				"Failed to get fence for CS with seq 0x%llx\n",
+					seq);
+			rc = PTR_ERR(*fence);
+			break;
+		}
+	}
+
+	spin_unlock(&ctx->cs_lock);
+
+	if (rc)
+		hl_fences_put(fence_arr_base, i);
+
+	return rc;
 }
 
 /*
@@ -286,7 +405,7 @@ void hl_ctx_mgr_fini(struct hl_device *hdev, struct hl_ctx_mgr *mgr)
 	idp = &mgr->ctx_handles;
 
 	idr_for_each_entry(idp, ctx, id)
-		hl_ctx_free(hdev, ctx);
+		kref_put(&ctx->refcount, hl_ctx_do_release);
 
 	idr_destroy(&mgr->ctx_handles);
 	mutex_destroy(&mgr->ctx_lock);

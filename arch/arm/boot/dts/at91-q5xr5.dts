@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree file for Exegin Q5xR5 board
+ *
+ * Copyright (C) 2014 Owen Kirby <osk@exegin.com>
+ */
+
+/dts-v1/;
+#include "at91sam9g20.dtsi"
+
+/ {
+	model = "Exegin Q5x (rev5)";
+	compatible = "exegin,q5xr5", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 rootfstype=squashfs,jffs2";
+	};
+
+	memory {
+		reg = <0x20000000 0x0>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
+	};
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&ebi {
+	status = "okay";
+
+	flash: flash@0 {
+		compatible = "cfi-flash";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0 0x1000000 0x800000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			kernel@0 {
+				label = "kernel";
+				reg = <0x0 0x200000>;
+			};
+
+			rootfs@200000 {
+				label = "rootfs";
+				reg = <0x200000 0x600000>;
+			};
+		};
+	};
+};
+
+&macb0 {
+	phy-mode = "mii";
+	status = "okay";
+};
+
+&pinctrl {
+	board {
+		pinctrl_pck0_as_mck: pck0_as_mck {
+			atmel,pins = <AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+		};
+	};
+
+	spi0 {
+		pinctrl_spi0: spi0-0 {
+			atmel,pins =
+				<AT91_PIOA 0 AT91_PERIPH_A AT91_PINCTRL_NONE
+				 AT91_PIOA 1 AT91_PERIPH_A AT91_PINCTRL_NONE
+				 AT91_PIOA 2 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_spi0_npcs0: spi0_npcs0 {
+			atmel,pins = <AT91_PIOA 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_spi0_npcs1: spi0_npcs1 {
+			atmel,pins = <AT91_PIOC 11 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+		};
+	};
+
+	spi1 {
+		pinctrl_spi1: spi1-0 {
+			atmel,pins =
+				<AT91_PIOB 0 AT91_PERIPH_A AT91_PINCTRL_NONE
+				 AT91_PIOB 1 AT91_PERIPH_A AT91_PINCTRL_NONE
+				 AT91_PIOB 2 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_spi1_npcs0: spi1_npcs0 {
+			atmel,pins = <AT91_PIOB 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_spi1_npcs1: spi1_npcs1 {
+			atmel,pins = <AT91_PIOC 5 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+		};
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi0 &pinctrl_spi0_npcs0 &pinctrl_spi0_npcs1>;
+	cs-gpios = <&pioA 3 GPIO_ACTIVE_HIGH>, <&pioC 11 GPIO_ACTIVE_LOW>, <0>, <0>;
+	status = "okay";
+
+	m25p80@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		at91boot@0 {
+			label = "at91boot";
+			reg = <0x0 0x4000>;
+		};
+
+		uenv@4000 {
+			label = "uboot-env";
+			reg = <0x4000 0x4000>;
+		};
+
+		uboot@8000 {
+			label = "uboot";
+			reg = <0x8000 0x3E000>;
+		};
+	};
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1 &pinctrl_spi1_npcs0 &pinctrl_spi1_npcs1>;
+	cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>, <&pioC 5 GPIO_ACTIVE_LOW>, <0>, <0>;
+	status = "okay";
+};
+
+&usart0 {
+	pinctrl-0 =
+		<&pinctrl_usart0
+		 &pinctrl_usart0_rts
+		 &pinctrl_usart0_cts
+		 &pinctrl_usart0_dtr_dsr
+		 &pinctrl_usart0_dcd
+		 &pinctrl_usart0_ri>;
+	status = "okay";
+};
+
+&usb0 {
+	num-ports = <2>;
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};

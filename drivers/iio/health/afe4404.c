@@ -347,9 +347,6 @@ err:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_trigger_ops afe4404_trigger_ops = {
-};
-
 /* Default timings from data-sheet */
 #define AFE4404_TIMING_PAIRS			\
 	{ AFE440X_PRPCOUNT,	39999	},	\
@@ -494,10 +491,10 @@ static int afe4404_probe(struct i2c_client *client,
 	}
 
 	afe->regulator = devm_regulator_get(afe->dev, "tx_sup");
-	if (IS_ERR(afe->regulator)) {
-		dev_err(afe->dev, "Unable to get regulator\n");
-		return PTR_ERR(afe->regulator);
-	}
+	if (IS_ERR(afe->regulator))
+		return dev_err_probe(afe->dev, PTR_ERR(afe->regulator),
+				     "Unable to get regulator\n");
+
 	ret = regulator_enable(afe->regulator);
 	if (ret) {
 		dev_err(afe->dev, "Unable to enable regulator\n");
@@ -536,8 +533,6 @@ static int afe4404_probe(struct i2c_client *client,
 		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
-
-		afe->trig->ops = &afe4404_trigger_ops;
 
 		ret = iio_trigger_register(afe->trig);
 		if (ret) {

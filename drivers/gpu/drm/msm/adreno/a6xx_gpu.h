@@ -19,7 +19,6 @@ struct a6xx_gpu {
 	uint64_t sqe_iova;
 
 	struct msm_ringbuffer *cur_ring;
-	struct msm_file_private *cur_ctx;
 
 	struct a6xx_gmu gmu;
 

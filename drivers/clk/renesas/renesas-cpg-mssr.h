@@ -88,7 +88,7 @@ struct device_node;
 enum clk_reg_layout {
 	CLK_REG_LAYOUT_RCAR_GEN2_AND_GEN3 = 0,
 	CLK_REG_LAYOUT_RZ_A,
-	CLK_REG_LAYOUT_RCAR_V3U,
+	CLK_REG_LAYOUT_RCAR_GEN4,
 };
 
     /**
@@ -178,6 +178,7 @@ extern const struct cpg_mssr_info r8a77980_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77990_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77995_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779a0_cpg_mssr_info;
+extern const struct cpg_mssr_info r8a779f0_cpg_mssr_info;
 
 void __init cpg_mssr_early_init(struct device_node *np,
 				const struct cpg_mssr_info *info);

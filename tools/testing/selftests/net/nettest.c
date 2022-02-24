@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
+#include <getopt.h>
 
 #include <linux/xfrm.h>
 #include <linux/ipsec.h>
@@ -84,6 +85,7 @@ struct sock_args {
 	int version;   /* AF_INET/AF_INET6 */
 
 	int use_setsockopt;
+	int use_freebind;
 	int use_cmsg;
 	const char *dev;
 	const char *server_dev;
@@ -101,6 +103,8 @@ struct sock_args {
 		struct sockaddr_in6 v6;
 	} md5_prefix;
 	unsigned int prefix_len;
+	/* 0: default, -1: force off, +1: force on */
+	int bind_key_ifindex;
 
 	/* expected addresses and device index for connection */
 	const char *expected_dev;
@@ -271,11 +275,14 @@ static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args
 	}
 	memcpy(&md5sig.tcpm_addr, addr, alen);
 
-	if (args->ifindex) {
+	if ((args->ifindex && args->bind_key_ifindex >= 0) || args->bind_key_ifindex >= 1) {
 		opt = TCP_MD5SIG_EXT;
 		md5sig.tcpm_flags |= TCP_MD5SIG_FLAG_IFINDEX;
 
 		md5sig.tcpm_ifindex = args->ifindex;
+		log_msg("TCP_MD5SIG_FLAG_IFINDEX set tcpm_ifindex=%d\n", md5sig.tcpm_ifindex);
+	} else {
+		log_msg("TCP_MD5SIG_FLAG_IFINDEX off\n", md5sig.tcpm_ifindex);
 	}
 
 	rc = setsockopt(sd, IPPROTO_TCP, opt, &md5sig, sizeof(md5sig));
@@ -506,6 +513,29 @@ static int set_membership(int sd, uint32_t grp, uint32_t addr, int ifindex)
 	}
 
 	return 0;
+}
+
+static int set_freebind(int sd, int version)
+{
+	unsigned int one = 1;
+	int rc = 0;
+
+	switch (version) {
+	case AF_INET:
+		if (setsockopt(sd, SOL_IP, IP_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IP_FREEBIND)");
+			rc = -1;
+		}
+		break;
+	case AF_INET6:
+		if (setsockopt(sd, SOL_IPV6, IPV6_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IPV6_FREEBIND");
+			rc = -1;
+		}
+		break;
+	}
+
+	return rc;
 }
 
 static int set_broadcast(int sd)
@@ -1413,6 +1443,9 @@ static int lsock_init(struct sock_args *args)
 		 set_unicast_if(sd, args->ifindex, args->version))
 		goto err;
 
+	if (args->use_freebind && set_freebind(sd, args->version))
+		goto err;
+
 	if (bind_socket(sd, args))
 		goto err;
 
@@ -1821,7 +1854,15 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbq"
+#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbqf"
+#define OPT_FORCE_BIND_KEY_IFINDEX 1001
+#define OPT_NO_BIND_KEY_IFINDEX 1002
+
+static struct option long_opts[] = {
+	{"force-bind-key-ifindex", 0, 0, OPT_FORCE_BIND_KEY_IFINDEX},
+	{"no-bind-key-ifindex", 0, 0, OPT_NO_BIND_KEY_IFINDEX},
+	{0, 0, 0, 0}
+};
 
 static void print_usage(char *prog)
 {
@@ -1850,6 +1891,7 @@ static void print_usage(char *prog)
 	"    -I dev        bind socket to given device name - server mode\n"
 	"    -S            use setsockopt (IP_UNICAST_IF or IP_MULTICAST_IF)\n"
 	"                  to set device binding\n"
+	"    -f            bind socket with the IP[V6]_FREEBIND option\n"
 	"    -C            use cmsg and IP_PKTINFO to specify device binding\n"
 	"\n"
 	"    -L len        send random message of given length\n"
@@ -1858,6 +1900,10 @@ static void print_usage(char *prog)
 	"    -M password   use MD5 sum protection\n"
 	"    -X password   MD5 password for client mode\n"
 	"    -m prefix/len prefix and length to use for MD5 key\n"
+	"    --no-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX off\n"
+	"    --force-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX on\n"
+	"        (default: only if -I is passed)\n"
+	"\n"
 	"    -g grp        multicast group (e.g., 239.1.1.1)\n"
 	"    -i            interactive mode (default is echo and terminate)\n"
 	"\n"
@@ -1893,7 +1939,7 @@ int main(int argc, char *argv[])
 	 * process input args
 	 */
 
-	while ((rc = getopt(argc, argv, GETOPT_STR)) != -1) {
+	while ((rc = getopt_long(argc, argv, GETOPT_STR, long_opts, NULL)) != -1) {
 		switch (rc) {
 		case 'B':
 			both_mode = 1;
@@ -1966,6 +2012,12 @@ int main(int argc, char *argv[])
 		case 'M':
 			args.password = optarg;
 			break;
+		case OPT_FORCE_BIND_KEY_IFINDEX:
+			args.bind_key_ifindex = 1;
+			break;
+		case OPT_NO_BIND_KEY_IFINDEX:
+			args.bind_key_ifindex = -1;
+			break;
 		case 'X':
 			args.client_pw = optarg;
 			break;
@@ -1974,6 +2026,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'S':
 			args.use_setsockopt = 1;
+			break;
+		case 'f':
+			args.use_freebind = 1;
 			break;
 		case 'C':
 			args.use_cmsg = 1;

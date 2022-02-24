@@ -62,13 +62,45 @@ static u16 bcm_sf2_reg_rgmii_cntrl(struct bcm_sf2_priv *priv, int port)
 	return REG_SWITCH_STATUS;
 }
 
+static u16 bcm_sf2_reg_led_base(struct bcm_sf2_priv *priv, int port)
+{
+	switch (port) {
+	case 0:
+		return REG_LED_0_CNTRL;
+	case 1:
+		return REG_LED_1_CNTRL;
+	case 2:
+		return REG_LED_2_CNTRL;
+	}
+
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+		switch (port) {
+		case 3:
+			return REG_LED_3_CNTRL;
+		case 7:
+			return REG_LED_4_CNTRL;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	WARN_ONCE(1, "Unsupported port %d\n", port);
+
+	/* RO fallback reg */
+	return REG_SWITCH_STATUS;
+}
+
 /* Return the number of active ports, not counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port, count = 0;
 
-	for (port = 0; port < ARRAY_SIZE(priv->port_sts); port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			continue;
 		if (priv->port_sts[port].enabled)
@@ -187,9 +219,14 @@ static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
 
 	/* Use PHY-driven LED signaling */
 	if (!enable) {
-		reg = reg_readl(priv, REG_LED_CNTRL(0));
-		reg |= SPDLNK_SRC_SEL;
-		reg_writel(priv, reg, REG_LED_CNTRL(0));
+		u16 led_ctrl = bcm_sf2_reg_led_base(priv, 0);
+
+		if (priv->type == BCM7278_DEVICE_ID ||
+		    priv->type == BCM7445_DEVICE_ID) {
+			reg = reg_led_readl(priv, led_ctrl, 0);
+			reg |= LED_CNTRL_SPDLNK_SRC_SEL;
+			reg_led_writel(priv, reg, led_ctrl, 0);
+		}
 	}
 }
 
@@ -667,7 +704,9 @@ static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
 	if (priv->int_phy_mask & BIT(port))
 		return priv->hw_params.gphy_rev;
 	else
-		return 0;
+		return PHY_BRCM_AUTO_PWRDWN_ENABLE |
+		       PHY_BRCM_DIS_TXCRXC_NOENRGY |
+		       PHY_BRCM_IDDQ_SUSPEND;
 }
 
 static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
@@ -683,7 +722,7 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 	    state->interface != PHY_INTERFACE_MODE_GMII &&
 	    state->interface != PHY_INTERFACE_MODE_INTERNAL &&
 	    state->interface != PHY_INTERFACE_MODE_MOCA) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		if (port != core_readl(priv, CORE_IMP0_PRT_ID))
 			dev_err(ds->dev,
 				"Unsupported interface: %d for port %d\n",
@@ -711,10 +750,8 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, 100baseT_Half);
 	phylink_set(mask, 100baseT_Full);
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
@@ -1232,9 +1269,14 @@ static const u16 bcm_sf2_4908_reg_offsets[] = {
 	[REG_SPHY_CNTRL]	= 0x24,
 	[REG_CROSSBAR]		= 0xc8,
 	[REG_RGMII_11_CNTRL]	= 0x014c,
-	[REG_LED_0_CNTRL]	= 0x40,
-	[REG_LED_1_CNTRL]	= 0x4c,
-	[REG_LED_2_CNTRL]	= 0x58,
+	[REG_LED_0_CNTRL]		= 0x40,
+	[REG_LED_1_CNTRL]		= 0x4c,
+	[REG_LED_2_CNTRL]		= 0x58,
+	[REG_LED_3_CNTRL]		= 0x64,
+	[REG_LED_4_CNTRL]		= 0x88,
+	[REG_LED_5_CNTRL]		= 0xa0,
+	[REG_LED_AGGREGATE_CTRL]	= 0xb8,
+
 };
 
 static const struct bcm_sf2_of_data bcm_sf2_4908_data = {
@@ -1512,6 +1554,9 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
+	if (!priv)
+		return 0;
+
 	priv->wol_ports_mask = 0;
 	/* Disable interrupts */
 	bcm_sf2_intr_disable(priv);
@@ -1523,12 +1568,17 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	if (priv->type == BCM7278_DEVICE_ID)
 		reset_control_assert(priv->rcdev);
 
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
 static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+
+	if (!priv)
+		return;
 
 	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
 	 * successful MDIO bus scan to occur. If we did turn off the GPHY
@@ -1538,6 +1588,10 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 	 */
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(priv->dev->ds, true);
+
+	dsa_switch_shutdown(priv->dev->ds);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

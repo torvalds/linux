@@ -57,7 +57,7 @@ SYM_FUNC_START(__get_user_1)
 1:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_1)
 EXPORT_SYMBOL(__get_user_1)
 
@@ -71,7 +71,7 @@ SYM_FUNC_START(__get_user_2)
 2:	movzwl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_2)
 EXPORT_SYMBOL(__get_user_2)
 
@@ -85,7 +85,7 @@ SYM_FUNC_START(__get_user_4)
 3:	movl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_4)
 EXPORT_SYMBOL(__get_user_4)
 
@@ -100,7 +100,7 @@ SYM_FUNC_START(__get_user_8)
 4:	movq (%_ASM_AX),%rdx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 #else
 	LOAD_TASK_SIZE_MINUS_N(7)
 	cmp %_ASM_DX,%_ASM_AX
@@ -112,7 +112,7 @@ SYM_FUNC_START(__get_user_8)
 5:	movl 4(%_ASM_AX),%ecx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 #endif
 SYM_FUNC_END(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
@@ -124,7 +124,7 @@ SYM_FUNC_START(__get_user_nocheck_1)
 6:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_nocheck_1)
 EXPORT_SYMBOL(__get_user_nocheck_1)
 
@@ -134,7 +134,7 @@ SYM_FUNC_START(__get_user_nocheck_2)
 7:	movzwl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_nocheck_2)
 EXPORT_SYMBOL(__get_user_nocheck_2)
 
@@ -144,7 +144,7 @@ SYM_FUNC_START(__get_user_nocheck_4)
 8:	movl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_nocheck_4)
 EXPORT_SYMBOL(__get_user_nocheck_4)
 
@@ -159,7 +159,7 @@ SYM_FUNC_START(__get_user_nocheck_8)
 #endif
 	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__get_user_nocheck_8)
 EXPORT_SYMBOL(__get_user_nocheck_8)
 
@@ -169,7 +169,7 @@ SYM_CODE_START_LOCAL(.Lbad_get_user_clac)
 bad_get_user:
 	xor %edx,%edx
 	mov $(-EFAULT),%_ASM_AX
-	ret
+	RET
 SYM_CODE_END(.Lbad_get_user_clac)
 
 #ifdef CONFIG_X86_32
@@ -179,7 +179,7 @@ bad_get_user_8:
 	xor %edx,%edx
 	xor %ecx,%ecx
 	mov $(-EFAULT),%_ASM_AX
-	ret
+	RET
 SYM_CODE_END(.Lbad_get_user_8_clac)
 #endif
 

@@ -82,5 +82,5 @@
 		"EventName": "PROBLEM_STATE_L1D_PENALTY_CYCLES",
 		"BriefDescription": "Problem-State L1D Penalty Cycles",
 		"PublicDescription": "Problem-State Level-1 D-Cache Penalty Cycle Count"
-	},
+	}
 ]

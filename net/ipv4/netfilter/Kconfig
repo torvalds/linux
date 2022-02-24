@@ -59,12 +59,8 @@ config NF_TABLES_ARP
 endif # NF_TABLES
 
 config NF_FLOW_TABLE_IPV4
-	tristate "Netfilter flow table IPv4 module"
-	depends on NF_FLOW_TABLE
-	help
-	  This option adds the flow table IPv4 support.
-
-	  To compile it as a module, choose M here.
+	tristate
+	select NF_FLOW_TABLE_INET
 
 config NF_DUP_IPV4
 	tristate "Netfilter IPv4 packet duplication to alternate destination"

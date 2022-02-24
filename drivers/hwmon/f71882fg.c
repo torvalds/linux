@@ -49,6 +49,7 @@
 #define SIO_F81768D_ID		0x1210	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 #define SIO_F81866_ID		0x1010	/* Chipset ID */
+#define SIO_F81966_ID		0x1502	/* Chipset ID */
 
 #define REGION_LENGTH		8
 #define ADDR_REG_OFFSET		5
@@ -253,7 +254,7 @@ struct f71882fg_data {
 
 	struct mutex update_lock;
 	int temp_start;			/* temp numbering start (0 or 1) */
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	char auto_point_temp_signed;
 	unsigned long last_updated;	/* In jiffies */
 	unsigned long last_limits;	/* In jiffies */
@@ -1359,7 +1360,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 							F71882FG_REG_IN(nr));
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -2672,6 +2673,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		sio_data->type = f81865f;
 		break;
 	case SIO_F81866_ID:
+	case SIO_F81966_ID:
 		sio_data->type = f81866a;
 		break;
 	default:

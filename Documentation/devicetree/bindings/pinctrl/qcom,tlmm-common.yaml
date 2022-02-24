@@ -51,6 +51,9 @@ properties:
       should not be accessed by the OS. Please see the ../gpio/gpio.txt for more
       information.
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - interrupts
   - interrupt-controller

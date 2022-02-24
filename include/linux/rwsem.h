@@ -11,7 +11,6 @@
 #include <linux/linkage.h>
 
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
@@ -142,22 +141,14 @@ struct rw_semaphore {
 #define DECLARE_RWSEM(lockname) \
 	struct rw_semaphore lockname = __RWSEM_INITIALIZER(lockname)
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-extern void  __rwsem_init(struct rw_semaphore *rwsem, const char *name,
+extern void  __init_rwsem(struct rw_semaphore *rwsem, const char *name,
 			  struct lock_class_key *key);
-#else
-static inline void  __rwsem_init(struct rw_semaphore *rwsem, const char *name,
-				 struct lock_class_key *key)
-{
-}
-#endif
 
 #define init_rwsem(sem)						\
 do {								\
 	static struct lock_class_key __key;			\
 								\
-	init_rwbase_rt(&(sem)->rwbase);			\
-	__rwsem_init((sem), #sem, &__key);			\
+	__init_rwsem((sem), #sem, &__key);			\
 } while (0)
 
 static __always_inline int rwsem_is_locked(struct rw_semaphore *sem)

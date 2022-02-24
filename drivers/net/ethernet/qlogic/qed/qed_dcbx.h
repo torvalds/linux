@@ -84,16 +84,17 @@ struct qed_dcbx_mib_meta_data {
 extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
 
 #ifdef CONFIG_DCB
-int qed_dcbx_get_config_params(struct qed_hwfn *, struct qed_dcbx_set *);
+int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
+			       struct qed_dcbx_set *params);
 
-int qed_dcbx_config_params(struct qed_hwfn *,
-			   struct qed_ptt *, struct qed_dcbx_set *, bool);
+int qed_dcbx_config_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			   struct qed_dcbx_set *params, bool hw_commit);
 #endif
 
 /* QED local interface routines */
 int
-qed_dcbx_mib_update_event(struct qed_hwfn *,
-			  struct qed_ptt *, enum qed_mib_read_type);
+qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			  enum qed_mib_read_type type);
 
 int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn);
 void qed_dcbx_info_free(struct qed_hwfn *p_hwfn);

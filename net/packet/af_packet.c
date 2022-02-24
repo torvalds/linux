@@ -46,7 +46,10 @@
  *					Copyright (C) 2011, <lokec@ccs.neu.edu>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ethtool.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/capability.h>
@@ -89,6 +92,7 @@
 #endif
 #include <linux/bpf.h>
 #include <net/compat.h>
+#include <linux/netfilter_netdev.h>
 
 #include "internal.h"
 
@@ -239,8 +243,42 @@ struct packet_skb_cb {
 static void __fanout_unlink(struct sock *sk, struct packet_sock *po);
 static void __fanout_link(struct sock *sk, struct packet_sock *po);
 
+#ifdef CONFIG_NETFILTER_EGRESS
+static noinline struct sk_buff *nf_hook_direct_egress(struct sk_buff *skb)
+{
+	struct sk_buff *next, *head = NULL, *tail;
+	int rc;
+
+	rcu_read_lock();
+	for (; skb != NULL; skb = next) {
+		next = skb->next;
+		skb_mark_not_on_list(skb);
+
+		if (!nf_hook_egress(skb, &rc, skb->dev))
+			continue;
+
+		if (!head)
+			head = skb;
+		else
+			tail->next = skb;
+
+		tail = skb;
+	}
+	rcu_read_unlock();
+
+	return head;
+}
+#endif
+
 static int packet_direct_xmit(struct sk_buff *skb)
 {
+#ifdef CONFIG_NETFILTER_EGRESS
+	if (nf_hook_egress_active()) {
+		skb = nf_hook_direct_egress(skb);
+		if (!skb)
+			return NET_XMIT_DROP;
+	}
+#endif
 	return dev_direct_xmit(skb, packet_pick_tx_queue(skb));
 }
 
@@ -3065,16 +3103,14 @@ static int packet_release(struct socket *sock)
 	sk_del_node_init_rcu(sk);
 	mutex_unlock(&net->packet.sklist_lock);
 
-	preempt_disable();
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
-	preempt_enable();
 
 	spin_lock(&po->bind_lock);
 	unregister_prot_hook(sk, false);
 	packet_cached_dev_reset(po);
 
 	if (po->prot_hook.dev) {
-		dev_put(po->prot_hook.dev);
+		dev_put_track(po->prot_hook.dev, &po->prot_hook.dev_tracker);
 		po->prot_hook.dev = NULL;
 	}
 	spin_unlock(&po->bind_lock);
@@ -3126,12 +3162,10 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 			  __be16 proto)
 {
 	struct packet_sock *po = pkt_sk(sk);
-	struct net_device *dev_curr;
-	__be16 proto_curr;
-	bool need_rehook;
 	struct net_device *dev = NULL;
-	int ret = 0;
 	bool unlisted = false;
+	bool need_rehook;
+	int ret = 0;
 
 	lock_sock(sk);
 	spin_lock(&po->bind_lock);
@@ -3156,14 +3190,10 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 		}
 	}
 
-	dev_hold(dev);
-
-	proto_curr = po->prot_hook.type;
-	dev_curr = po->prot_hook.dev;
-
-	need_rehook = proto_curr != proto || dev_curr != dev;
+	need_rehook = po->prot_hook.type != proto || po->prot_hook.dev != dev;
 
 	if (need_rehook) {
+		dev_hold(dev);
 		if (po->running) {
 			rcu_read_unlock();
 			/* prevents packet_notifier() from calling
@@ -3172,7 +3202,6 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 			WRITE_ONCE(po->num, 0);
 			__unregister_prot_hook(sk, true);
 			rcu_read_lock();
-			dev_curr = po->prot_hook.dev;
 			if (dev)
 				unlisted = !dev_get_by_index_rcu(sock_net(sk),
 								 dev->ifindex);
@@ -3182,18 +3211,21 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 		WRITE_ONCE(po->num, proto);
 		po->prot_hook.type = proto;
 
+		dev_put_track(po->prot_hook.dev, &po->prot_hook.dev_tracker);
+
 		if (unlikely(unlisted)) {
-			dev_put(dev);
 			po->prot_hook.dev = NULL;
 			WRITE_ONCE(po->ifindex, -1);
 			packet_cached_dev_reset(po);
 		} else {
+			dev_hold_track(dev, &po->prot_hook.dev_tracker,
+				       GFP_ATOMIC);
 			po->prot_hook.dev = dev;
 			WRITE_ONCE(po->ifindex, dev ? dev->ifindex : 0);
 			packet_cached_dev_assign(po, dev);
 		}
+		dev_put(dev);
 	}
-	dev_put(dev_curr);
 
 	if (proto == 0 || !need_rehook)
 		goto out_unlock;
@@ -3331,9 +3363,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	sk_add_node_tail_rcu(sk, &net->packet.sklist);
 	mutex_unlock(&net->packet.sklist_lock);
 
-	preempt_disable();
 	sock_prot_inuse_add(net, &packet_proto, 1);
-	preempt_enable();
 
 	return 0;
 out2:
@@ -4105,7 +4135,8 @@ static int packet_notifier(struct notifier_block *this,
 				if (msg == NETDEV_UNREGISTER) {
 					packet_cached_dev_reset(po);
 					WRITE_ONCE(po->ifindex, -1);
-					dev_put(po->prot_hook.dev);
+					dev_put_track(po->prot_hook.dev,
+						      &po->prot_hook.dev_tracker);
 					po->prot_hook.dev = NULL;
 				}
 				spin_unlock(&po->bind_lock);
@@ -4455,9 +4486,10 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	}
 
 out_free_pg_vec:
-	bitmap_free(rx_owner_map);
-	if (pg_vec)
+	if (pg_vec) {
+		bitmap_free(rx_owner_map);
 		free_pg_vec(pg_vec, order, req->tp_block_nr);
+	}
 out:
 	return err;
 }

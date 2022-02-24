@@ -160,13 +160,6 @@
 #define BTEMP_HIGH_TH_57_1		0x02
 #define BTEMP_HIGH_TH_62		0x03
 
-/* current is mA */
-#define USB_0P1A			100
-#define USB_0P2A			200
-#define USB_0P3A			300
-#define USB_0P4A			400
-#define USB_0P5A			500
-
 #define LOW_BAT_3P1V			0x20
 #define LOW_BAT_2P3V			0x00
 #define LOW_BAT_RESET			0x01
@@ -203,8 +196,8 @@ enum bup_vch_sel {
 #define BATT_OVV_TH_3P7			0x00
 #define BATT_OVV_TH_4P75		0x01
 
-/* A value to indicate over voltage */
-#define BATT_OVV_VALUE			4750
+/* A value to indicate over voltage (microvolts) */
+#define BATT_OVV_VALUE			4750000
 
 /* VBUS OVV constants */
 #define VBUS_OVV_SELECT_MASK		0x78
@@ -291,16 +284,6 @@ struct ab8500_res_to_temp {
 	int resist;
 };
 
-/**
- * struct ab8500_v_to_cap - Table for translating voltage to capacity
- * @voltage:		Voltage in mV
- * @capacity:		Capacity in percent
- */
-struct ab8500_v_to_cap {
-	int voltage;
-	int capacity;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 
@@ -314,10 +297,9 @@ struct ab8500_fg;
  * @init_total_time:		Total init time during startup
  * @high_curr_time:		Time current has to be high to go to recovery
  * @accu_charging:		FG accumulation time while charging
- * @accu_high_curr:		FG accumulation time in high current mode
- * @high_curr_threshold:	High current threshold, in mA
- * @lowbat_threshold:		Low battery threshold, in mV
- * @overbat_threshold:		Over battery threshold, in mV
+ * @accu_high_curr_ua:		FG accumulation time in high current mode
+ * @high_curr_threshold_ua:	High current threshold, in uA
+ * @lowbat_threshold_uv:	Low battery threshold, in uV
  * @battok_falling_th_sel0	Threshold in mV for battOk signal sel0
  *				Resolution in 50 mV step.
  * @battok_raising_th_sel1	Threshold in mV for battOk signal sel1
@@ -342,9 +324,8 @@ struct ab8500_fg_parameters {
 	int high_curr_time;
 	int accu_charging;
 	int accu_high_curr;
-	int high_curr_threshold;
-	int lowbat_threshold;
-	int overbat_threshold;
+	int high_curr_threshold_ua;
+	int lowbat_threshold_uv;
 	int battok_falling_th_sel0;
 	int battok_raising_th_sel1;
 	int user_cap_limit;
@@ -359,31 +340,21 @@ struct ab8500_fg_parameters {
 /**
  * struct ab8500_charger_maximization - struct used by the board config.
  * @use_maxi:		Enable maximization for this battery type
- * @maxi_chg_curr:	Maximum charger current allowed
+ * @maxi_chg_curr_ua:	Maximum charger current allowed in microampere
  * @maxi_wait_cycles:	cycles to wait before setting charger current
- * @charger_curr_step	delta between two charger current settings (mA)
+ * @charger_curr_step_ua: delta between two charger current settings (uA)
  */
 struct ab8500_maxim_parameters {
 	bool ena_maxi;
-	int chg_curr;
+	int chg_curr_ua;
 	int wait_cycles;
-	int charger_curr_step;
+	int charger_curr_step_ua;
 };
 
 /**
  * struct ab8500_battery_type - different batteries supported
- * @name:			battery technology
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @charge_full_design:		Maximum battery capacity in mAh
- * @nominal_voltage:		Nominal voltage of the battery in mV
- * @termination_vol:		max voltage upto which battery can be charged
- * @termination_curr		battery charging termination current in mA
- * @recharge_cap		battery capacity limit that will trigger a new
- *				full charging cycle in the case where maintenan-
- *				-ce charging has been disabled
- * @normal_cur_lvl:		charger current in normal state in mA
- * @normal_vol_lvl:		charger voltage in normal state in mV
  * @maint_a_cur_lvl:		charger current in maintenance A state in mA
  * @maint_a_vol_lvl:		charger voltage in maintenance A state in mV
  * @maint_a_chg_timer_h:	charge time in maintenance A state
@@ -392,25 +363,12 @@ struct ab8500_maxim_parameters {
  * @maint_b_chg_timer_h:	charge time in maintenance B state
  * @low_high_cur_lvl:		charger current in temp low/high state in mA
  * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
- * @battery_resistance:		battery inner resistance in mOhm.
  * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
  * @r_to_t_tbl:			table containing resistance to temp points
- * @n_v_cap_tbl_elements:	number of elements in v_to_cap_tbl
- * @v_to_cap_tbl:		Voltage to capacity (in %) table
- * @n_batres_tbl_elements	number of elements in the batres_tbl
- * @batres_tbl			battery internal resistance vs temperature table
  */
 struct ab8500_battery_type {
-	int name;
 	int resis_high;
 	int resis_low;
-	int charge_full_design;
-	int nominal_voltage;
-	int termination_vol;
-	int termination_curr;
-	int recharge_cap;
-	int normal_cur_lvl;
-	int normal_vol_lvl;
 	int maint_a_cur_lvl;
 	int maint_a_vol_lvl;
 	int maint_a_chg_timer_h;
@@ -419,13 +377,8 @@ struct ab8500_battery_type {
 	int maint_b_chg_timer_h;
 	int low_high_cur_lvl;
 	int low_high_vol_lvl;
-	int battery_resistance;
 	int n_temp_tbl_elements;
 	const struct ab8500_res_to_temp *r_to_t_tbl;
-	int n_v_cap_tbl_elements;
-	const struct ab8500_v_to_cap *v_to_cap_tbl;
-	int n_batres_tbl_elements;
-	const struct batres_vs_temp *batres_tbl;
 };
 
 /**
@@ -446,24 +399,21 @@ struct ab8500_bm_capacity_levels {
 
 /**
  * struct ab8500_bm_charger_parameters - Charger specific parameters
- * @usb_volt_max:	maximum allowed USB charger voltage in mV
- * @usb_curr_max:	maximum allowed USB charger current in mA
- * @ac_volt_max:	maximum allowed AC charger voltage in mV
- * @ac_curr_max:	maximum allowed AC charger current in mA
+ * @usb_volt_max_uv:	maximum allowed USB charger voltage in uV
+ * @usb_curr_max_ua:	maximum allowed USB charger current in uA
+ * @ac_volt_max_uv:	maximum allowed AC charger voltage in uV
+ * @ac_curr_max_ua:	maximum allowed AC charger current in uA
  */
 struct ab8500_bm_charger_parameters {
-	int usb_volt_max;
-	int usb_curr_max;
-	int ac_volt_max;
-	int ac_curr_max;
+	int usb_volt_max_uv;
+	int usb_curr_max_ua;
+	int ac_volt_max_uv;
+	int ac_curr_max_ua;
 };
 
 /**
  * struct ab8500_bm_data - ab8500 battery management data
- * @temp_under		under this temp, charging is stopped
- * @temp_low		between this temp and temp_under charging is reduced
- * @temp_high		between this temp and temp_over charging is reduced
- * @temp_over		over this temp, charging is stopped
+ * @bi			battery info from device tree
  * @temp_now		present battery temperature
  * @temp_interval_chg	temperature measurement interval in s when charging
  * @temp_interval_nochg	temperature measurement interval in s when not charging
@@ -478,16 +428,10 @@ struct ab8500_bm_charger_parameters {
  * @enable_overshoot	flag to enable VBAT overshoot control
  * @auto_trig		flag to enable auto adc trigger
  * @fg_res		resistance of FG resistor in 0.1mOhm
- * @n_btypes		number of elements in array bat_type
- * @batt_id		index of the identified battery in array bat_type
  * @interval_charging	charge alg cycle period time when charging (sec)
  * @interval_not_charging charge alg cycle period time when not charging (sec)
  * @temp_hysteresis	temperature hysteresis
  * @gnd_lift_resistance	Battery ground to phone ground resistance (mOhm)
- * @n_chg_out_curr		number of elements in array chg_output_curr
- * @n_chg_in_curr		number of elements in array chg_input_curr
- * @chg_output_curr	charger output current level map
- * @chg_input_curr		charger input current level map
  * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
  * @bat_type		table of supported battery types
@@ -495,10 +439,7 @@ struct ab8500_bm_charger_parameters {
  * @fg_params		fuel gauge parameters
  */
 struct ab8500_bm_data {
-	int temp_under;
-	int temp_low;
-	int temp_high;
-	int temp_over;
+	struct power_supply_battery_info *bi;
 	int temp_now;
 	int temp_interval_chg;
 	int temp_interval_nochg;
@@ -513,16 +454,10 @@ struct ab8500_bm_data {
 	bool auto_trig;
 	enum ab8500_adc_therm adc_therm;
 	int fg_res;
-	int n_btypes;
-	int batt_id;
 	int interval_charging;
 	int interval_not_charging;
 	int temp_hysteresis;
 	int gnd_lift_resistance;
-	int n_chg_out_curr;
-	int n_chg_in_curr;
-	int *chg_output_curr;
-	int *chg_input_curr;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;
 	struct ab8500_battery_type *bat_type;
@@ -547,17 +482,6 @@ struct res_to_temp {
 	int resist;
 };
 
-/**
- * struct batres_vs_temp - defines one point in a temp vs battery internal
- * resistance curve.
- * @temp:			battery pack temperature in Celsius
- * @resist:			battery internal reistance in mOhm
- */
-struct batres_vs_temp {
-	int temp;
-	int resist;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 
@@ -570,9 +494,10 @@ int ab8500_fg_inst_curr_start(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res);
 int ab8500_fg_inst_curr_started(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di);
-int ab8500_bm_of_probe(struct device *dev,
-		       struct device_node *np,
+int ab8500_bm_of_probe(struct power_supply *psy,
 		       struct ab8500_bm_data *bm);
+void ab8500_bm_of_remove(struct power_supply *psy,
+			 struct ab8500_bm_data *bm);
 
 extern struct platform_driver ab8500_fg_driver;
 extern struct platform_driver ab8500_btemp_driver;

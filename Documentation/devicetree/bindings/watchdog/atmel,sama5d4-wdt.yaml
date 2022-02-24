@@ -22,6 +22,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   atmel,watchdog-type:
     $ref: /schemas/types.yaml#/definitions/string
     description: should be hardware or software.

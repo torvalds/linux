@@ -120,12 +120,13 @@ efiarch() {
 }
 
 # Get the combined sizes in bytes of the files given, counting sparse
-# files as full length, and padding each file to a 4K block size
+# files as full length, and padding each file to cluster size
+cluster=16384
 filesizes() {
 	local t=0
 	local s
 	for s in $(ls -lnL "$@" 2>/dev/null | awk '/^-/{ print $5; }'); do
-		t=$((t + ((s+4095)/4096)*4096))
+		t=$((t + ((s+cluster-1)/cluster)*cluster))
 	done
 	echo $t
 }
@@ -230,14 +231,14 @@ genhdimage() {
 		ptype='-T 0xef'	# EFI system partition, no GPT
 	fi
 	sizes=$(filesizes "$FBZIMAGE" "${FDINITRDS[@]}" "$efishell")
-	# Allow 1% + 1 MiB for filesystem and partition table overhead,
-	# syslinux, and config files
+	# Allow 1% + 2 MiB for filesystem and partition table overhead,
+	# syslinux, and config files; this is probably excessive...
 	megs=$(((sizes + sizes/100 + 2*1024*1024 - 1)/(1024*1024)))
 	$dd if=/dev/zero of="$FIMAGE" bs=$((1024*1024)) count=$megs 2>/dev/null
-	mpartition -I -c -s 32 -h 64 -t $megs $ptype -b 512 -a h:
+	mpartition -I -c -s 32 -h 64 $ptype -b 64 -a p:
 	$dd if="$mbr" of="$FIMAGE" bs=440 count=1 conv=notrunc 2>/dev/null
-	mformat -v 'LINUX_BOOT' -s 32 -h 64 -t $megs h:
-	syslinux --offset $((512*512)) "$FIMAGE"
+	mformat -v 'LINUX_BOOT' -s 32 -h 64 -c $((cluster/512)) -t $megs h:
+	syslinux --offset $((64*512)) "$FIMAGE"
 	do_mcopy h:
 }
 

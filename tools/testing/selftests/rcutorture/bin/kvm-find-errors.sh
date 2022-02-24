@@ -30,9 +30,9 @@ editor=${EDITOR-vi}
 files=
 for i in ${rundir}/*/Make.out
 do
-	if egrep -q "error:|warning:" < $i
+	if egrep -q "error:|warning:|^ld: .*undefined reference to" < $i
 	then
-		egrep "error:|warning:" < $i > $i.diags
+		egrep "error:|warning:|^ld: .*undefined reference to" < $i > $i.diags
 		files="$files $i.diags $i"
 	fi
 done

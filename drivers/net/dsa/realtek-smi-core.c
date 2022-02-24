@@ -368,7 +368,7 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	smi->slave_mii_bus->parent = smi->dev;
 	smi->ds->slave_mii_bus = smi->slave_mii_bus;
 
-	ret = of_mdiobus_register(smi->slave_mii_bus, mdio_np);
+	ret = devm_of_mdiobus_register(smi->dev, smi->slave_mii_bus, mdio_np);
 	if (ret) {
 		dev_err(smi->dev, "unable to register MDIO bus %s\n",
 			smi->slave_mii_bus->id);
@@ -456,7 +456,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	smi->ds->ops = var->ds_ops;
 	ret = dsa_register_switch(smi->ds);
 	if (ret) {
-		dev_err(dev, "unable to register switch ret = %d\n", ret);
+		dev_err_probe(dev, ret, "unable to register switch\n");
 		return ret;
 	}
 	return 0;
@@ -464,14 +464,31 @@ static int realtek_smi_probe(struct platform_device *pdev)
 
 static int realtek_smi_remove(struct platform_device *pdev)
 {
-	struct realtek_smi *smi = dev_get_drvdata(&pdev->dev);
+	struct realtek_smi *smi = platform_get_drvdata(pdev);
+
+	if (!smi)
+		return 0;
 
 	dsa_unregister_switch(smi->ds);
 	if (smi->slave_mii_bus)
 		of_node_put(smi->slave_mii_bus->dev.of_node);
 	gpiod_set_value(smi->reset, 1);
 
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
+}
+
+static void realtek_smi_shutdown(struct platform_device *pdev)
+{
+	struct realtek_smi *smi = platform_get_drvdata(pdev);
+
+	if (!smi)
+		return;
+
+	dsa_switch_shutdown(smi->ds);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct of_device_id realtek_smi_of_match[] = {
@@ -484,6 +501,10 @@ static const struct of_device_id realtek_smi_of_match[] = {
 		.compatible = "realtek,rtl8366s",
 		.data = NULL,
 	},
+	{
+		.compatible = "realtek,rtl8365mb",
+		.data = &rtl8365mb_variant,
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, realtek_smi_of_match);
@@ -495,6 +516,7 @@ static struct platform_driver realtek_smi_driver = {
 	},
 	.probe  = realtek_smi_probe,
 	.remove = realtek_smi_remove,
+	.shutdown = realtek_smi_shutdown,
 };
 module_platform_driver(realtek_smi_driver);
 

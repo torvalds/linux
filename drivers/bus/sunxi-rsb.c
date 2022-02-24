@@ -687,11 +687,11 @@ err_clk_disable:
 
 static void sunxi_rsb_hw_exit(struct sunxi_rsb *rsb)
 {
-	/* Keep the clock and PM reference counts consistent. */
-	if (pm_runtime_status_suspended(rsb->dev))
-		pm_runtime_resume(rsb->dev);
 	reset_control_assert(rsb->rstc);
-	clk_disable_unprepare(rsb->clk);
+
+	/* Keep the clock and PM reference counts consistent. */
+	if (!pm_runtime_status_suspended(rsb->dev))
+		clk_disable_unprepare(rsb->clk);
 }
 
 static int __maybe_unused sunxi_rsb_runtime_suspend(struct device *dev)

@@ -1046,7 +1046,7 @@ int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id)
 }
 EXPORT_SYMBOL_GPL(mlx4_flow_detach);
 
-int mlx4_tunnel_steer_add(struct mlx4_dev *dev, unsigned char *addr,
+int mlx4_tunnel_steer_add(struct mlx4_dev *dev, const unsigned char *addr,
 			  int port, int qpn, u16 prio, u64 *reg_id)
 {
 	int err;

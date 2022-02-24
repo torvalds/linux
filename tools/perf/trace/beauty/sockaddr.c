@@ -7,7 +7,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 
-#include "trace/beauty/generated/socket_arrays.c"
+#include "trace/beauty/generated/sockaddr.c"
 DEFINE_STRARRAY(socket_families, "PF_");
 
 static size_t af_inet__scnprintf(struct sockaddr *sa, char *bf, size_t size)

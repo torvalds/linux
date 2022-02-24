@@ -25,7 +25,8 @@ if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] 
 	die "livepatch kselftest(s) failed"
 fi
 
-set_ftrace_enabled 0
+# Check that ftrace could not get disabled when a livepatch is enabled
+set_ftrace_enabled --fail 0
 if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] ; then
 	echo -e "FAIL\n\n"
 	die "livepatch kselftest(s) failed"

@@ -100,6 +100,30 @@ static ssize_t rpc_sysfs_xprt_dstaddr_show(struct kobject *kobj,
 	return ret + 1;
 }
 
+static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	struct sockaddr_storage saddr;
+	struct sock_xprt *sock;
+	ssize_t ret = -1;
+
+	if (!xprt || !xprt_connected(xprt)) {
+		xprt_put(xprt);
+		return -ENOTCONN;
+	}
+
+	sock = container_of(xprt, struct sock_xprt, xprt);
+	if (kernel_getsockname(sock->sock, (struct sockaddr *)&saddr) < 0)
+		goto out;
+
+	ret = sprintf(buf, "%pISc\n", &saddr);
+out:
+	xprt_put(xprt);
+	return ret + 1;
+}
+
 static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
@@ -107,21 +131,25 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	ssize_t ret;
 
-	if (!xprt)
-		return 0;
+	if (!xprt || !xprt_connected(xprt)) {
+		xprt_put(xprt);
+		return -ENOTCONN;
+	}
 
 	ret = sprintf(buf, "last_used=%lu\ncur_cong=%lu\ncong_win=%lu\n"
 		       "max_num_slots=%u\nmin_num_slots=%u\nnum_reqs=%u\n"
 		       "binding_q_len=%u\nsending_q_len=%u\npending_q_len=%u\n"
 		       "backlog_q_len=%u\nmain_xprt=%d\nsrc_port=%u\n"
-		       "tasks_queuelen=%ld\n",
+		       "tasks_queuelen=%ld\ndst_port=%s\n",
 		       xprt->last_used, xprt->cong, xprt->cwnd, xprt->max_reqs,
 		       xprt->min_reqs, xprt->num_reqs, xprt->binding.qlen,
 		       xprt->sending.qlen, xprt->pending.qlen,
 		       xprt->backlog.qlen, xprt->main,
 		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
 		       get_srcport(xprt) : 0,
-		       atomic_long_read(&xprt->queuelen));
+		       atomic_long_read(&xprt->queuelen),
+		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
+				xprt->address_strings[RPC_DISPLAY_PORT] : "0");
 	xprt_put(xprt);
 	return ret + 1;
 }
@@ -183,8 +211,10 @@ static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 
 	if (!xprt_switch)
 		return 0;
-	ret = sprintf(buf, "num_xprts=%u\nnum_active=%u\nqueue_len=%ld\n",
+	ret = sprintf(buf, "num_xprts=%u\nnum_active=%u\n"
+		      "num_unique_destaddr=%u\nqueue_len=%ld\n",
 		      xprt_switch->xps_nxprts, xprt_switch->xps_nactive,
+		      xprt_switch->xps_nunique_destaddr_xprts,
 		      atomic_long_read(&xprt_switch->xps_queuelen));
 	xprt_switch_put(xprt_switch);
 	return ret + 1;
@@ -376,6 +406,9 @@ static const void *rpc_sysfs_xprt_namespace(struct kobject *kobj)
 static struct kobj_attribute rpc_sysfs_xprt_dstaddr = __ATTR(dstaddr,
 	0644, rpc_sysfs_xprt_dstaddr_show, rpc_sysfs_xprt_dstaddr_store);
 
+static struct kobj_attribute rpc_sysfs_xprt_srcaddr = __ATTR(srcaddr,
+	0644, rpc_sysfs_xprt_srcaddr_show, NULL);
+
 static struct kobj_attribute rpc_sysfs_xprt_info = __ATTR(xprt_info,
 	0444, rpc_sysfs_xprt_info_show, NULL);
 
@@ -384,6 +417,7 @@ static struct kobj_attribute rpc_sysfs_xprt_change_state = __ATTR(xprt_state,
 
 static struct attribute *rpc_sysfs_xprt_attrs[] = {
 	&rpc_sysfs_xprt_dstaddr.attr,
+	&rpc_sysfs_xprt_srcaddr.attr,
 	&rpc_sysfs_xprt_info.attr,
 	&rpc_sysfs_xprt_change_state.attr,
 	NULL,

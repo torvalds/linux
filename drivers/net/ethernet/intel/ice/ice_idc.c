@@ -271,6 +271,12 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	struct auxiliary_device *adev;
 	int ret;
 
+	/* if this PF doesn't support a technology that requires auxiliary
+	 * devices, then gracefully exit
+	 */
+	if (!ice_is_aux_ena(pf))
+		return 0;
+
 	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
 	if (!iadev)
 		return -ENOMEM;
@@ -282,7 +288,7 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	adev->id = pf->aux_idx;
 	adev->dev.release = ice_adev_release;
 	adev->dev.parent = &pf->pdev->dev;
-	adev->name = IIDC_RDMA_ROCE_NAME;
+	adev->name = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2 ? "roce" : "iwarp";
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
@@ -329,6 +335,6 @@ int ice_init_rdma(struct ice_pf *pf)
 		dev_err(dev, "failed to reserve vectors for RDMA\n");
 		return ret;
 	}
-
+	pf->rdma_mode |= IIDC_RDMA_PROTOCOL_ROCEV2;
 	return ice_plug_aux_dev(pf);
 }

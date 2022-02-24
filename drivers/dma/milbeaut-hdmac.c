@@ -269,7 +269,7 @@ milbeaut_hdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!md)
 		return NULL;
 
-	md->sgl = kzalloc(sizeof(*sgl) * sg_len, GFP_NOWAIT);
+	md->sgl = kcalloc(sg_len, sizeof(*sgl), GFP_NOWAIT);
 	if (!md->sgl) {
 		kfree(md);
 		return NULL;

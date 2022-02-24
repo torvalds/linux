@@ -274,7 +274,7 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 	if (symbol_conf.priv_size) {
 		if (symbol_conf.init_annotation) {
 			struct annotation *notes = (void *)sym;
-			pthread_mutex_init(&notes->lock, NULL);
+			annotation__init(notes);
 		}
 		sym = ((void *)sym) + symbol_conf.priv_size;
 	}
@@ -294,6 +294,13 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 
 void symbol__delete(struct symbol *sym)
 {
+	if (symbol_conf.priv_size) {
+		if (symbol_conf.init_annotation) {
+			struct annotation *notes = symbol__annotation(sym);
+
+			annotation__exit(notes);
+		}
+	}
 	free(((void *)sym) - symbol_conf.priv_size);
 }
 
@@ -700,6 +707,10 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	struct rb_root_cached *root = &dso->symbols;
 
 	if (!symbol_type__filter(type))
+		return 0;
+
+	/* Ignore local symbols for ARM modules */
+	if (name[0] == '$')
 		return 0;
 
 	/*
@@ -1581,10 +1592,6 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	if (bfd_get_flavour(abfd) == bfd_target_elf_flavour)
 		goto out_close;
 
-	section = bfd_get_section_by_name(abfd, ".text");
-	if (section)
-		dso->text_offset = section->vma - section->filepos;
-
 	symbols_size = bfd_get_symtab_upper_bound(abfd);
 	if (symbols_size == 0) {
 		bfd_close(abfd);
@@ -1601,6 +1608,22 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	symbols_count = bfd_canonicalize_symtab(abfd, symbols);
 	if (symbols_count < 0)
 		goto out_free;
+
+	section = bfd_get_section_by_name(abfd, ".text");
+	if (section) {
+		for (i = 0; i < symbols_count; ++i) {
+			if (!strcmp(bfd_asymbol_name(symbols[i]), "__ImageBase") ||
+			    !strcmp(bfd_asymbol_name(symbols[i]), "__image_base__"))
+				break;
+		}
+		if (i < symbols_count) {
+			/* PE symbols can only have 4 bytes, so use .text high bits */
+			dso->text_offset = section->vma - (u32)section->vma;
+			dso->text_offset += (u32)bfd_asymbol_value(symbols[i]);
+		} else {
+			dso->text_offset = section->vma - section->filepos;
+		}
+	}
 
 	qsort(symbols, symbols_count, sizeof(asymbol *), bfd_symbols__cmpvalue);
 
@@ -2617,4 +2640,26 @@ struct mem_info *mem_info__new(void)
 	if (mi)
 		refcount_set(&mi->refcnt, 1);
 	return mi;
+}
+
+/*
+ * Checks that user supplied symbol kernel files are accessible because
+ * the default mechanism for accessing elf files fails silently. i.e. if
+ * debug syms for a build ID aren't found perf carries on normally. When
+ * they are user supplied we should assume that the user doesn't want to
+ * silently fail.
+ */
+int symbol__validate_sym_arguments(void)
+{
+	if (symbol_conf.vmlinux_name &&
+	    access(symbol_conf.vmlinux_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
+		return -EINVAL;
+	}
+	if (symbol_conf.kallsyms_name &&
+	    access(symbol_conf.kallsyms_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
+		return -EINVAL;
+	}
+	return 0;
 }

@@ -78,7 +78,7 @@ int hashmap_output = 0;
 int hashmap_elems = 0;
 int percpu_map_elems = 0;
 
-SEC("classifier")
+SEC("tc")
 int test_pkt_access(struct __sk_buff *skb)
 {
 	struct callback_ctx data;

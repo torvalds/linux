@@ -166,7 +166,7 @@ struct dn_skb_cb {
 	int iif;
 };
 
-static inline __le16 dn_eth2dn(unsigned char *ethaddr)
+static inline __le16 dn_eth2dn(const unsigned char *ethaddr)
 {
 	return get_unaligned((__le16 *)(ethaddr + 4));
 }

@@ -85,9 +85,9 @@ test_tagged_vlan_dir()
 	RET=0
 
 	mirror_install $swp1 $direction $swp3.555 "matchall $tcflags"
-	do_test_span_vlan_dir_ips 10 "$h3.555" 111 "$direction" \
+	do_test_span_vlan_dir_ips 10 "$h3.555" 111 "$direction" ip \
 				  192.0.2.17 192.0.2.18
-	do_test_span_vlan_dir_ips  0 "$h3.555" 555 "$direction" \
+	do_test_span_vlan_dir_ips  0 "$h3.555" 555 "$direction" ip \
 				  192.0.2.17 192.0.2.18
 	mirror_uninstall $swp1 $direction
 

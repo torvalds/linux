@@ -20,7 +20,7 @@
 #include "ops.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "probe.h"
+#include "sof-probes.h"
 
 /**
  * strsplit_u32 - Split string into sequence of u32 tokens
@@ -336,6 +336,104 @@ static int sof_debug_ipc_flood_test(struct snd_sof_dev *sdev,
 }
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+static ssize_t msg_inject_read(struct file *file, char __user *buffer,
+			       size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct sof_ipc_reply *rhdr = dfse->msg_inject_rx;
+
+	if (!rhdr->hdr.size || !count || *ppos)
+		return 0;
+
+	if (count > rhdr->hdr.size)
+		count = rhdr->hdr.size;
+
+	if (copy_to_user(buffer, dfse->msg_inject_rx, count))
+		return -EFAULT;
+
+	*ppos += count;
+	return count;
+}
+
+static ssize_t msg_inject_write(struct file *file, const char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct snd_sof_dev *sdev = dfse->sdev;
+	struct sof_ipc_cmd_hdr *hdr = dfse->msg_inject_tx;
+	size_t size;
+	int ret, err;
+
+	if (*ppos)
+		return 0;
+
+	size = simple_write_to_buffer(dfse->msg_inject_tx, SOF_IPC_MSG_MAX_SIZE,
+				      ppos, buffer, count);
+	if (size != count)
+		return size > 0 ? -EFAULT : size;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err_ratelimited(sdev->dev, "%s: DSP resume failed: %d\n",
+				    __func__, ret);
+		pm_runtime_put_noidle(sdev->dev);
+		goto out;
+	}
+
+	/* send the message */
+	memset(dfse->msg_inject_rx, 0, SOF_IPC_MSG_MAX_SIZE);
+	ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, dfse->msg_inject_tx, count,
+				 dfse->msg_inject_rx, SOF_IPC_MSG_MAX_SIZE);
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "%s: DSP idle failed: %d\n",
+				    __func__, err);
+
+	/* return size if test is successful */
+	if (ret >= 0)
+		ret = size;
+
+out:
+	return ret;
+}
+
+static const struct file_operations msg_inject_fops = {
+	.open = simple_open,
+	.read = msg_inject_read,
+	.write = msg_inject_write,
+	.llseek = default_llseek,
+};
+
+static int snd_sof_debugfs_msg_inject_item(struct snd_sof_dev *sdev,
+					   const char *name, mode_t mode,
+					   const struct file_operations *fops)
+{
+	struct snd_sof_dfsentry *dfse;
+
+	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	if (!dfse)
+		return -ENOMEM;
+
+	/* pre allocate the tx and rx buffers */
+	dfse->msg_inject_tx = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	dfse->msg_inject_rx = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!dfse->msg_inject_tx || !dfse->msg_inject_rx)
+		return -ENOMEM;
+
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
+	dfse->sdev = sdev;
+
+	debugfs_create_file(name, mode, sdev->debugfs_root, dfse, fops);
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
+
+	return 0;
+}
+#endif
+
 static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *ppos)
 {
@@ -546,10 +644,10 @@ static const struct file_operations sof_dfs_fops = {
 };
 
 /* create FS entry for debug files that can expose DSP memories, registers */
-int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
-			    void __iomem *base, size_t size,
-			    const char *name,
-			    enum sof_debugfs_access_type access_type)
+static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+				   void __iomem *base, size_t size,
+				   const char *name,
+				   enum sof_debugfs_access_type access_type)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -586,7 +684,21 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
+
+int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type, u32 offset,
+					  size_t size, const char *name,
+					  enum sof_debugfs_access_type access_type)
+{
+	int bar = snd_sof_dsp_get_bar_index(sdev, blk_type);
+
+	if (bar < 0)
+		return bar;
+
+	return snd_sof_debugfs_io_item(sdev, sdev->bar[bar] + offset, size, name,
+				       access_type);
+}
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_add_region_item_iomem);
 
 /* create FS entry for debug files to expose kernel memory */
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
@@ -798,6 +910,15 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 		return err;
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+	err = snd_sof_debugfs_msg_inject_item(sdev, "ipc_msg_inject", 0644,
+					      &msg_inject_fops);
+
+	/* errors are only due to memory allocation, not debugfs */
+	if (err < 0)
+		return err;
+#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_sof_dbg_init);
@@ -808,18 +929,86 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
 
+static const struct soc_fw_state_info {
+	enum sof_fw_state state;
+	const char *name;
+} fw_state_dbg[] = {
+	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
+	{SOF_FW_BOOT_PREPARE, "SOF_FW_BOOT_PREPARE"},
+	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
+	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},
+	{SOF_FW_BOOT_READY_FAILED, "SOF_FW_BOOT_READY_FAILED"},
+	{SOF_FW_BOOT_READY_OK, "SOF_FW_BOOT_READY_OK"},
+	{SOF_FW_BOOT_COMPLETE, "SOF_FW_BOOT_COMPLETE"},
+	{SOF_FW_CRASHED, "SOF_FW_CRASHED"},
+};
+
+static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev, const char *level)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_state_dbg); i++) {
+		if (sdev->fw_state == fw_state_dbg[i].state) {
+			dev_printk(level, sdev->dev, "fw_state: %s (%d)\n",
+				   fw_state_dbg[i].name, i);
+			return;
+		}
+	}
+
+	dev_printk(level, sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
+}
+
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags)
+{
+	char *level = flags & SOF_DBG_DUMP_OPTIONAL ? KERN_DEBUG : KERN_ERR;
+	bool print_all = sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS);
+
+	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
+		return;
+
+	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump start ]------------\n");
+		if (msg)
+			dev_printk(level, sdev->dev, "%s\n", msg);
+		snd_sof_dbg_print_fw_state(sdev, level);
+		sof_ops(sdev)->dbg_dump(sdev, flags);
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump end ]------------\n");
+		if (!print_all)
+			sdev->dbg_dump_printed = true;
+	} else if (msg) {
+		dev_printk(level, sdev->dev, "%s\n", msg);
+	}
+}
+EXPORT_SYMBOL(snd_sof_dsp_dbg_dump);
+
+static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->ipc_dump  && !sdev->ipc_dump_printed) {
+		dev_err(sdev->dev, "------------[ IPC dump start ]------------\n");
+		sof_ops(sdev)->ipc_dump(sdev);
+		dev_err(sdev->dev, "------------[ IPC dump end ]------------\n");
+		if (!sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS))
+			sdev->ipc_dump_printed = true;
+	}
+}
+
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
-	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
+	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
-		dev_info(sdev->dev, "info: preventing DSP entering D3 state to preserve context\n");
+		if (!sdev->ipc_dump_printed)
+			dev_info(sdev->dev,
+				 "preventing DSP entering D3 state to preserve context\n");
 		pm_runtime_get_noresume(sdev->dev);
 	}
 
 	/* dump vital information to the logs */
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_ipc_dump(sdev);
+	snd_sof_dsp_dbg_dump(sdev, "Firmware exception",
+			     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

@@ -3,7 +3,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ8064/AP-148";
-	compatible = "qcom,ipq8064-ap148";
+	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
 
 	soc {
 		pinmux@800000 {

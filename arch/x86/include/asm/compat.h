@@ -156,19 +156,6 @@ struct compat_shmid64_ds {
 	(!!(task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT))
 #endif
 
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	compat_uptr_t sp = task_pt_regs(current)->sp;
-
-	/*
-	 * -128 for the x32 ABI redzone.  For IA32, it is not strictly
-	 * necessary, but not harmful.
-	 */
-	sp -= 128;
-
-	return (void __user *)round_down(sp - len, 16);
-}
-
 static inline bool in_x32_syscall(void)
 {
 #ifdef CONFIG_X86_X32_ABI

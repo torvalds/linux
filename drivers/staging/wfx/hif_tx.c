@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Implementation of host-to-chip commands (aka request/confirmation) of WFxxx
- * Split Mac (WSM) API.
+ * Implementation of the host-to-chip commands (aka request/confirmation) of the
+ * hardware API.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -28,7 +28,7 @@ static void wfx_fill_header(struct hif_msg *hif, int if_id,
 	if (if_id == -1)
 		if_id = 2;
 
-	WARN(cmd > 0x3f, "invalid WSM command %#.2x", cmd);
+	WARN(cmd > 0x3f, "invalid hardware command %#.2x", cmd);
 	WARN(size > 0xFFF, "requested buffer is too large: %zu bytes", size);
 	WARN(if_id > 0x3, "invalid interface ID %d", if_id);
 
@@ -55,15 +55,16 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 	int vif = request->interface;
 	int ret;
 
-	// Do not wait for any reply if chip is frozen
+	/* Do not wait for any reply if chip is frozen */
 	if (wdev->chip_frozen)
 		return -ETIMEDOUT;
 
 	mutex_lock(&wdev->hif_cmd.lock);
 	WARN(wdev->hif_cmd.buf_send, "data locking error");
 
-	// Note: call to complete() below has an implicit memory barrier that
-	// hopefully protect buf_send
+	/* Note: call to complete() below has an implicit memory barrier that
+	 * hopefully protect buf_send
+	 */
 	wdev->hif_cmd.buf_send = request;
 	wdev->hif_cmd.buf_recv = reply;
 	wdev->hif_cmd.len_recv = reply_len;
@@ -72,8 +73,9 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 	wfx_bh_request_tx(wdev);
 
 	if (no_reply) {
-		// Chip won't reply. Give enough time to the wq to send the
-		// buffer.
+		/* Chip won't reply. Give enough time to the wq to send the
+		 * buffer.
+		 */
 		msleep(100);
 		wdev->hif_cmd.buf_send = NULL;
 		mutex_unlock(&wdev->hif_cmd.lock);
@@ -108,19 +110,18 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 		mib_sep = "/";
 	}
 	if (ret < 0)
-		dev_err(wdev->dev,
-			"WSM request %s%s%s (%#.2x) on vif %d returned error %d\n",
+		dev_err(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned error %d\n",
 			get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 	if (ret > 0)
-		dev_warn(wdev->dev,
-			 "WSM request %s%s%s (%#.2x) on vif %d returned status %d\n",
+		dev_warn(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned status %d\n",
 			 get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 
 	return ret;
 }
 
-// This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any
-// request anymore. Obviously, only call this function during device unregister.
+/* This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any
+ * request anymore. Obviously, only call this function during device unregister.
+ */
 int hif_shutdown(struct wfx_dev *wdev)
 {
 	int ret;
@@ -227,14 +228,13 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 }
 
 int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
-	     int chan_start_idx, int chan_num, int *timeout)
+	     int chan_start_idx, int chan_num)
 {
 	int ret, i;
 	struct hif_msg *hif;
 	size_t buf_len =
 		sizeof(struct hif_req_start_scan_alt) + chan_num * sizeof(u8);
 	struct hif_req_start_scan_alt *body = wfx_alloc_hif(buf_len, &hif);
-	int tmo_chan_fg, tmo_chan_bg, tmo;
 
 	WARN(chan_num > HIF_API_MAX_NB_CHANNELS, "invalid params");
 	WARN(req->n_ssids > HIF_API_MAX_NB_SSIDS, "invalid params");
@@ -269,12 +269,6 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 		body->num_of_probe_requests = 2;
 		body->probe_delay = 100;
 	}
-	tmo_chan_bg = le32_to_cpu(body->max_channel_time) * USEC_PER_TU;
-	tmo_chan_fg = 512 * USEC_PER_TU + body->probe_delay;
-	tmo_chan_fg *= body->num_of_probe_requests;
-	tmo = chan_num * max(tmo_chan_bg, tmo_chan_fg) + 512 * USEC_PER_TU;
-	if (timeout)
-		*timeout = usecs_to_jiffies(tmo);
 
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START_SCAN, buf_len);
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
@@ -286,7 +280,7 @@ int hif_stop_scan(struct wfx_vif *wvif)
 {
 	int ret;
 	struct hif_msg *hif;
-	// body associated to HIF_REQ_ID_STOP_SCAN is empty
+	/* body associated to HIF_REQ_ID_STOP_SCAN is empty */
 	wfx_alloc_hif(0, &hif);
 
 	if (!hif)
@@ -308,16 +302,11 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	WARN_ON(!conf->basic_rates);
 	WARN_ON(sizeof(body->ssid) < ssidlen);
 	WARN(!conf->ibss_joined && !ssidlen, "joining an unknown BSS");
-	if (WARN_ON(!channel))
-		return -EINVAL;
 	if (!hif)
 		return -ENOMEM;
 	body->infrastructure_bss_mode = !conf->ibss_joined;
 	body->short_preamble = conf->use_short_preamble;
-	if (channel->flags & IEEE80211_CHAN_NO_IR)
-		body->probe_for_join = 0;
-	else
-		body->probe_for_join = 1;
+	body->probe_for_join = !(channel->flags & IEEE80211_CHAN_NO_IR);
 	body->channel_number = channel->hw_value;
 	body->beacon_interval = cpu_to_le32(conf->beacon_int);
 	body->basic_rate_set =
@@ -355,16 +344,17 @@ int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg)
 {
 	int ret;
 	struct hif_msg *hif;
-	// FIXME: only send necessary bits
+	/* FIXME: only send necessary bits */
 	struct hif_req_add_key *body = wfx_alloc_hif(sizeof(*body), &hif);
 
 	if (!hif)
 		return -ENOMEM;
-	// FIXME: swap bytes as necessary in body
+	/* FIXME: swap bytes as necessary in body */
 	memcpy(body, arg, sizeof(*body));
 	if (wfx_api_older_than(wdev, 1, 5))
-		// Legacy firmwares expect that add_key to be sent on right
-		// interface.
+		/* Legacy firmwares expect that add_key to be sent on right
+		 * interface.
+		 */
 		wfx_fill_header(hif, arg->int_id, HIF_REQ_ID_ADD_KEY,
 				sizeof(*body));
 	else
@@ -408,7 +398,7 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
 	body->cw_max = cpu_to_le16(arg->cw_max);
 	body->tx_op_limit = cpu_to_le16(arg->txop * USEC_PER_TXOP);
 	body->queue_id = 3 - queue;
-	// API 2.0 has changed queue IDs values
+	/* API 2.0 has changed queue IDs values */
 	if (wfx_api_older_than(wvif->wdev, 2, 0) && queue == IEEE80211_AC_BE)
 		body->queue_id = HIF_QUEUE_ID_BACKGROUND;
 	if (wfx_api_older_than(wvif->wdev, 2, 0) && queue == IEEE80211_AC_BK)
@@ -433,7 +423,7 @@ int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 		return -ENOMEM;
 	if (ps) {
 		body->enter_psm = 1;
-		// Firmware does not support more than 128ms
+		/* Firmware does not support more than 128ms */
 		body->fast_psm_idle_period = min(dynamic_ps_timeout * 2, 255);
 		if (body->fast_psm_idle_period)
 			body->fast_psm = 1;

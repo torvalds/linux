@@ -69,7 +69,7 @@ static void __noreturn wii_spin(void)
 		cpu_relax();
 }
 
-static void __iomem *wii_ioremap_hw_regs(char *name, char *compatible)
+static void __iomem *__init wii_ioremap_hw_regs(char *name, char *compatible)
 {
 	void __iomem *hw_regs = NULL;
 	struct device_node *np;

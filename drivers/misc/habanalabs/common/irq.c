@@ -141,10 +141,17 @@ static void handle_user_cq(struct hl_device *hdev,
 			struct hl_user_interrupt *user_cq)
 {
 	struct hl_user_pending_interrupt *pend;
+	ktime_t now = ktime_get();
 
 	spin_lock(&user_cq->wait_list_lock);
-	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node)
-		complete_all(&pend->fence.completion);
+	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node) {
+		if ((pend->cq_kernel_addr &&
+				*(pend->cq_kernel_addr) >= pend->cq_target_value) ||
+				!pend->cq_kernel_addr) {
+			pend->fence.timestamp = now;
+			complete_all(&pend->fence.completion);
+		}
+	}
 	spin_unlock(&user_cq->wait_list_lock);
 }
 
@@ -242,10 +249,8 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		 */
 		dma_rmb();
 
-		if (hdev->disabled) {
-			dev_warn(hdev->dev,
-				"Device disabled but received IRQ %d for EQ\n",
-					irq);
+		if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
 			goto skip_irq;
 		}
 

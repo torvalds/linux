@@ -272,7 +272,8 @@ nfp_flower_tun_is_gre(struct flow_rule *rule, int start_idx)
 	for (act_idx = start_idx + 1; act_idx < num_act; act_idx++)
 		if (act[act_idx].id == FLOW_ACTION_REDIRECT ||
 		    act[act_idx].id == FLOW_ACTION_MIRRED)
-			return netif_is_gretap(act[act_idx].dev);
+			return netif_is_gretap(act[act_idx].dev) ||
+			       netif_is_ip6gretap(act[act_idx].dev);
 
 	return false;
 }

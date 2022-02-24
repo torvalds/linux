@@ -49,7 +49,7 @@
 	model = "Sierra Wireless WP8548 Module";
 	compatible = "swir,wp8548", "qcom,mdm9615";
 
-	memory {
+	memory@48000000 {
 		device_type = "memory";
 		reg = <0x48000000 0x7F00000>;
 	};

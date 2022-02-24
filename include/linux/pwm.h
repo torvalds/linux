@@ -404,7 +404,7 @@ int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
 int pwmchip_add(struct pwm_chip *chip);
-int pwmchip_remove(struct pwm_chip *chip);
+void pwmchip_remove(struct pwm_chip *chip);
 
 int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip);
 
@@ -414,6 +414,8 @@ struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 
 struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *pc,
 		const struct of_phandle_args *args);
+struct pwm_device *of_pwm_single_xlate(struct pwm_chip *pc,
+				       const struct of_phandle_args *args);
 
 struct pwm_device *pwm_get(struct device *dev, const char *con_id);
 struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
@@ -429,16 +431,19 @@ struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 #else
 static inline struct pwm_device *pwm_request(int pwm_id, const char *label)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
 static inline void pwm_free(struct pwm_device *pwm)
 {
+	might_sleep();
 }
 
 static inline int pwm_apply_state(struct pwm_device *pwm,
 				  const struct pwm_state *state)
 {
+	might_sleep();
 	return -ENOTSUPP;
 }
 
@@ -450,6 +455,7 @@ static inline int pwm_adjust_config(struct pwm_device *pwm)
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 			     int period_ns)
 {
+	might_sleep();
 	return -EINVAL;
 }
 
@@ -462,11 +468,13 @@ static inline int pwm_capture(struct pwm_device *pwm,
 
 static inline int pwm_enable(struct pwm_device *pwm)
 {
+	might_sleep();
 	return -EINVAL;
 }
 
 static inline void pwm_disable(struct pwm_device *pwm)
 {
+	might_sleep();
 }
 
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
@@ -493,12 +501,14 @@ static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 						       unsigned int index,
 						       const char *label)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
 static inline struct pwm_device *pwm_get(struct device *dev,
 					 const char *consumer)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
@@ -506,16 +516,19 @@ static inline struct pwm_device *of_pwm_get(struct device *dev,
 					    struct device_node *np,
 					    const char *con_id)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
 static inline void pwm_put(struct pwm_device *pwm)
 {
+	might_sleep();
 }
 
 static inline struct pwm_device *devm_pwm_get(struct device *dev,
 					      const char *consumer)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
@@ -523,6 +536,7 @@ static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
 						 struct device_node *np,
 						 const char *con_id)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 
@@ -530,6 +544,7 @@ static inline struct pwm_device *
 devm_fwnode_pwm_get(struct device *dev, struct fwnode_handle *fwnode,
 		    const char *con_id)
 {
+	might_sleep();
 	return ERR_PTR(-ENODEV);
 }
 #endif

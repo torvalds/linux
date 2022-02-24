@@ -146,7 +146,7 @@ static const struct iio_chan_spec_ext_info ti_dac_ext_info[] = {
 		.shared	   = IIO_SHARED_BY_TYPE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &ti_dac_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
 	{ },
 };
 
@@ -266,10 +266,9 @@ static int ti_dac_probe(struct spi_device *spi)
 	ti_dac->resolution = spec->resolution;
 
 	ti_dac->vref = devm_regulator_get(dev, "vref");
-	if (IS_ERR(ti_dac->vref)) {
-		dev_err(dev, "error to get regulator\n");
-		return PTR_ERR(ti_dac->vref);
-	}
+	if (IS_ERR(ti_dac->vref))
+		return dev_err_probe(dev, PTR_ERR(ti_dac->vref),
+				     "error to get regulator\n");
 
 	ret = regulator_enable(ti_dac->vref);
 	if (ret < 0) {

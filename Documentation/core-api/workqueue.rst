@@ -216,10 +216,6 @@ resources, scheduled and executed.
 
   This flag is meaningless for unbound wq.
 
-Note that the flag ``WQ_NON_REENTRANT`` no longer exists as all
-workqueues are now non-reentrant - any work item is guaranteed to be
-executed by at most one worker system-wide at any given time.
-
 
 ``max_active``
 --------------
@@ -390,6 +386,23 @@ the stack trace of the offending worker thread. ::
 
 The work item's function should be trivially visible in the stack
 trace.
+
+Non-reentrance Conditions
+=========================
+
+Workqueue guarantees that a work item cannot be re-entrant if the following
+conditions hold after a work item gets queued:
+
+        1. The work function hasn't been changed.
+        2. No one queues the work item to another workqueue.
+        3. The work item hasn't been reinitiated.
+
+In other words, if the above conditions hold, the work item is guaranteed to be
+executed by at most one worker system-wide at any given time.
+
+Note that requeuing the work item (to the same queue) in the self function
+doesn't break these conditions, so it's safe to do. Otherwise, caution is
+required when breaking the conditions inside a work function.
 
 
 Kernel Inline Documentations Reference

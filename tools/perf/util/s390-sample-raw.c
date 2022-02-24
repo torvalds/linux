@@ -135,12 +135,12 @@ static int get_counterset_start(int setnr)
  * the name of this counter.
  * If no match is found a NULL pointer is returned.
  */
-static const char *get_counter_name(int set, int nr, struct pmu_events_map *map)
+static const char *get_counter_name(int set, int nr, const struct pmu_events_map *map)
 {
 	int rc, event_nr, wanted = get_counterset_start(set) + nr;
 
 	if (map) {
-		struct pmu_event *evp = map->table;
+		const struct pmu_event *evp = map->table;
 
 		for (; evp->name || evp->event || evp->desc; ++evp) {
 			if (evp->name == NULL || evp->event == NULL)
@@ -159,7 +159,7 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 	unsigned char *buf = sample->raw_data;
 	const char *color = PERF_COLOR_BLUE;
 	struct cf_ctrset_entry *cep, ce;
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 	u64 *p;
 
 	map = pmu_events_map__find();

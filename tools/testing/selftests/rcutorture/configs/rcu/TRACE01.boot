@@ -1,1 +1,2 @@
 rcutorture.torture_type=tasks-tracing
+rcupdate.rcu_task_enqueue_lim=2

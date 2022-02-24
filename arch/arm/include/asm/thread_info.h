@@ -29,9 +29,9 @@
 
 struct task_struct;
 
-#include <asm/types.h>
+DECLARE_PER_CPU(struct task_struct *, __entry_task);
 
-typedef unsigned long mm_segment_t;
+#include <asm/types.h>
 
 struct cpu_context_save {
 	__u32	r4;
@@ -54,15 +54,13 @@ struct cpu_context_save {
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
-	mm_segment_t		addr_limit;	/* address limit */
+#ifndef CONFIG_THREAD_INFO_IN_TASK
 	struct task_struct	*task;		/* main task structure */
+#endif
 	__u32			cpu;		/* cpu */
 	__u32			cpu_domain;	/* cpu domain */
-#ifdef CONFIG_STACKPROTECTOR_PER_TASK
-	unsigned long		stack_canary;
-#endif
 	struct cpu_context_save	cpu_context;	/* cpu context */
-	__u32			syscall;	/* syscall number */
+	__u32			abi_syscall;	/* ABI type and syscall nr */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value[2];	/* TLS registers */
 	union fp_state		fpstate __attribute__((aligned(8)));
@@ -74,10 +72,25 @@ struct thread_info {
 
 #define INIT_THREAD_INFO(tsk)						\
 {									\
-	.task		= &tsk,						\
+	INIT_THREAD_INFO_TASK(tsk)					\
 	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.addr_limit	= KERNEL_DS,					\
+}
+
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+#define INIT_THREAD_INFO_TASK(tsk)
+
+static inline struct task_struct *thread_task(struct thread_info* ti)
+{
+	return (struct task_struct *)ti;
+}
+
+#else
+#define INIT_THREAD_INFO_TASK(tsk)	.task = &(tsk),
+
+static inline struct task_struct *thread_task(struct thread_info* ti)
+{
+	return ti->task;
 }
 
 /*
@@ -90,6 +103,7 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)
 		(current_stack_pointer & ~(THREAD_SIZE - 1));
 }
+#endif
 
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(task_thread_info(tsk)->cpu_context.pc))

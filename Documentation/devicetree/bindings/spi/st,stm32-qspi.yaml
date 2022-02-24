@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 Quad Serial Peripheral Interface (QSPI) bindings
 
 maintainers:
-  - Christophe Kerello <christophe.kerello@st.com>
-  - Patrice Chotard <patrice.chotard@st.com>
+  - Christophe Kerello <christophe.kerello@foss.st.com>
+  - Patrice Chotard <patrice.chotard@foss.st.com>
 
 allOf:
   - $ref: "spi-controller.yaml#"

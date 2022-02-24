@@ -680,6 +680,11 @@ config STACK_HASH_ORDER
 	 Select the hash size as a power of 2 for the stackdepot hash table.
 	 Choose a lower value to reduce the memory impact.
 
+config REF_TRACKER
+	bool
+	depends on STACKTRACE_SUPPORT
+	select STACKDEPOT
+
 config SBITMAP
 	bool
 

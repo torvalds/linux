@@ -192,7 +192,7 @@ struct es581_4_urb_cmd {
 		struct es581_4_rx_cmd_ret rx_cmd_ret;
 		__le64 timestamp;
 		u8 rx_cmd_ret_u8;
-		u8 raw_msg[0];
+		DECLARE_FLEX_ARRAY(u8, raw_msg);
 	} __packed;
 
 	__le16 reserved_for_crc16_do_not_use;

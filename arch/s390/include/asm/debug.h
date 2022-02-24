@@ -462,7 +462,7 @@ arch_initcall(VNAME(var, reg))
  *
  * @var: Name of debug_info_t variable
  * @name: Name of debug log (e.g. used for debugfs entry)
- * @pages_per_area: Number of pages per area
+ * @pages: Number of pages per area
  * @nr_areas: Number of debug areas
  * @buf_size: Size of data area in each debug entry
  * @view: Pointer to debug view struct

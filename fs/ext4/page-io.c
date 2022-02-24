@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/backing-dev.h>
+#include <linux/sched/mm.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -279,14 +279,14 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 		io_end->inode = inode;
 		INIT_LIST_HEAD(&io_end->list);
 		INIT_LIST_HEAD(&io_end->list_vec);
-		atomic_set(&io_end->count, 1);
+		refcount_set(&io_end->count, 1);
 	}
 	return io_end;
 }
 
 void ext4_put_io_end_defer(ext4_io_end_t *io_end)
 {
-	if (atomic_dec_and_test(&io_end->count)) {
+	if (refcount_dec_and_test(&io_end->count)) {
 		if (!(io_end->flag & EXT4_IO_END_UNWRITTEN) ||
 				list_empty(&io_end->list_vec)) {
 			ext4_release_io_end(io_end);
@@ -300,7 +300,7 @@ int ext4_put_io_end(ext4_io_end_t *io_end)
 {
 	int err = 0;
 
-	if (atomic_dec_and_test(&io_end->count)) {
+	if (refcount_dec_and_test(&io_end->count)) {
 		if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
 			err = ext4_convert_unwritten_io_end_vec(io_end->handle,
 								io_end);
@@ -314,7 +314,7 @@ int ext4_put_io_end(ext4_io_end_t *io_end)
 
 ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 {
-	atomic_inc(&io_end->count);
+	refcount_inc(&io_end->count);
 	return io_end;
 }
 
@@ -523,12 +523,13 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			ret = PTR_ERR(bounce_page);
 			if (ret == -ENOMEM &&
 			    (io->io_bio || wbc->sync_mode == WB_SYNC_ALL)) {
-				gfp_flags = GFP_NOFS;
+				gfp_t new_gfp_flags = GFP_NOFS;
 				if (io->io_bio)
 					ext4_io_submit(io);
 				else
-					gfp_flags |= __GFP_NOFAIL;
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
+					new_gfp_flags |= __GFP_NOFAIL;
+				memalloc_retry_wait(gfp_flags);
+				gfp_flags = new_gfp_flags;
 				goto retry_encrypt;
 			}
 

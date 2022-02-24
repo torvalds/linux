@@ -12,7 +12,6 @@
 #define ADF_C3XXXIOV_TX_RINGS_MASK 0xFF
 #define ADF_C3XXXIOV_ETR_BAR 0
 #define ADF_C3XXXIOV_ETR_MAX_BANKS 1
-#define ADF_C3XXXIOV_PF2VF_OFFSET	0x200
 
 void adf_init_hw_data_c3xxxiov(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_c3xxxiov(struct adf_hw_device_data *hw_data);

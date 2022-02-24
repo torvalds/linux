@@ -128,17 +128,19 @@ static const struct ttm_resource_manager_func ttm_range_manager_func = {
 };
 
 /**
- * ttm_range_man_init
+ * ttm_range_man_init_nocheck - Initialise a generic range manager for the
+ * selected memory type.
  *
  * @bdev: ttm device
  * @type: memory manager type
  * @use_tt: if the memory manager uses tt
  * @p_size: size of area to be managed in pages.
  *
- * Initialise a generic range manager for the selected memory type.
  * The range manager is installed for this device in the type slot.
+ *
+ * Return: %0 on success or a negative error code on failure
  */
-int ttm_range_man_init(struct ttm_device *bdev,
+int ttm_range_man_init_nocheck(struct ttm_device *bdev,
 		       unsigned type, bool use_tt,
 		       unsigned long p_size)
 {
@@ -163,17 +165,18 @@ int ttm_range_man_init(struct ttm_device *bdev,
 	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_range_man_init);
+EXPORT_SYMBOL(ttm_range_man_init_nocheck);
 
 /**
- * ttm_range_man_fini
+ * ttm_range_man_fini_nocheck - Remove the generic range manager from a slot
+ * and tear it down.
  *
  * @bdev: ttm device
  * @type: memory manager type
  *
- * Remove the generic range manager from a slot and tear it down.
+ * Return: %0 on success or a negative error code on failure
  */
-int ttm_range_man_fini(struct ttm_device *bdev,
+int ttm_range_man_fini_nocheck(struct ttm_device *bdev,
 		       unsigned type)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, type);
@@ -200,4 +203,4 @@ int ttm_range_man_fini(struct ttm_device *bdev,
 	kfree(rman);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_range_man_fini);
+EXPORT_SYMBOL(ttm_range_man_fini_nocheck);

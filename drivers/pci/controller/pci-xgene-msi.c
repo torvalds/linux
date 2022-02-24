@@ -269,9 +269,7 @@ static void xgene_free_domains(struct xgene_msi *msi)
 
 static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 {
-	int size = BITS_TO_LONGS(NR_MSI_VEC) * sizeof(long);
-
-	xgene_msi->bitmap = kzalloc(size, GFP_KERNEL);
+	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
 	if (!xgene_msi->bitmap)
 		return -ENOMEM;
 
@@ -291,8 +289,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct xgene_msi_group *msi_groups;
 	struct xgene_msi *xgene_msi;
-	unsigned int virq;
-	int msir_index, msir_val, hw_irq;
+	int msir_index, msir_val, hw_irq, ret;
 	u32 intr_index, grp_select, msi_grp;
 
 	chained_irq_enter(chip, desc);
@@ -303,7 +300,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 	/*
 	 * MSIINTn (n is 0..F) indicates if there is a pending MSI interrupt
-	 * If bit x of this register is set (x is 0..7), one or more interupts
+	 * If bit x of this register is set (x is 0..7), one or more interrupts
 	 * corresponding to MSInIRx is set.
 	 */
 	grp_select = xgene_msi_int_read(xgene_msi, msi_grp);
@@ -330,10 +327,8 @@ static void xgene_msi_isr(struct irq_desc *desc)
 			 * CPU0
 			 */
 			hw_irq = hwirq_to_canonical_hwirq(hw_irq);
-			virq = irq_find_mapping(xgene_msi->inner_domain, hw_irq);
-			WARN_ON(!virq);
-			if (virq != 0)
-				generic_handle_irq(virq);
+			ret = generic_handle_domain_irq(xgene_msi->inner_domain, hw_irq);
+			WARN_ON_ONCE(ret);
 			msir_val &= ~(1 << intr_index);
 		}
 		grp_select &= ~(1 << msir_index);
@@ -363,7 +358,7 @@ static int xgene_msi_remove(struct platform_device *pdev)
 
 	kfree(msi->msi_groups);
 
-	kfree(msi->bitmap);
+	bitmap_free(msi->bitmap);
 	msi->bitmap = NULL;
 
 	xgene_free_domains(msi);
@@ -451,7 +446,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	xgene_msi->msi_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
-		dev_err(&pdev->dev, "no reg space\n");
 		rc = PTR_ERR(xgene_msi->msi_regs);
 		goto error;
 	}

@@ -435,9 +435,9 @@ static int setup_frame32(struct ksignal *ksig, struct pt_regs *regs,
 			      (_COMPAT_NSIG_WORDS - 1) * sizeof(unsigned int));
 
 	if (!wsaved) {
-		err |= copy_in_user((u32 __user *)sf,
-				    (u32 __user *)(regs->u_regs[UREG_FP]),
-				    sizeof(struct reg_window32));
+		err |= raw_copy_in_user((u32 __user *)sf,
+					(u32 __user *)(regs->u_regs[UREG_FP]),
+					sizeof(struct reg_window32));
 	} else {
 		struct reg_window *rp;
 
@@ -567,9 +567,9 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	err |= put_compat_sigset(&sf->mask, oldset, sizeof(compat_sigset_t));
 
 	if (!wsaved) {
-		err |= copy_in_user((u32 __user *)sf,
-				    (u32 __user *)(regs->u_regs[UREG_FP]),
-				    sizeof(struct reg_window32));
+		err |= raw_copy_in_user((u32 __user *)sf,
+					(u32 __user *)(regs->u_regs[UREG_FP]),
+					sizeof(struct reg_window32));
 	} else {
 		struct reg_window *rp;
 

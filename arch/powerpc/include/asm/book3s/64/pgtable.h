@@ -1101,6 +1101,16 @@ static inline void vmemmap_remove_mapping(unsigned long start,
 }
 #endif
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+static inline void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (radix_enabled())
+		radix__kernel_map_pages(page, numpages, enable);
+	else
+		hash__kernel_map_pages(page, numpages, enable);
+}
+#endif
+
 static inline pte_t pmd_pte(pmd_t pmd)
 {
 	return __pte_raw(pmd_raw(pmd));

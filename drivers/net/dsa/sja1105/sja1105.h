@@ -20,6 +20,27 @@
 #define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
 #define SJA1105_NUM_L2_POLICERS		SJA1110_MAX_L2_POLICING_COUNT
 
+/* Calculated assuming 1Gbps, where the clock has 125 MHz (8 ns period)
+ * To avoid floating point operations, we'll multiply the degrees by 10
+ * to get a "phase" and get 1 decimal point precision.
+ */
+#define SJA1105_RGMII_DELAY_PS_TO_PHASE(ps) \
+	(((ps) * 360) / 800)
+#define SJA1105_RGMII_DELAY_PHASE_TO_PS(phase) \
+	((800 * (phase)) / 360)
+#define SJA1105_RGMII_DELAY_PHASE_TO_HW(phase) \
+	(((phase) - 738) / 9)
+#define SJA1105_RGMII_DELAY_PS_TO_HW(ps) \
+	SJA1105_RGMII_DELAY_PHASE_TO_HW(SJA1105_RGMII_DELAY_PS_TO_PHASE(ps))
+
+/* Valid range in degrees is a value between 73.8 and 101.7
+ * in 0.9 degree increments
+ */
+#define SJA1105_RGMII_DELAY_MIN_PS \
+	SJA1105_RGMII_DELAY_PHASE_TO_PS(738)
+#define SJA1105_RGMII_DELAY_MAX_PS \
+	SJA1105_RGMII_DELAY_PHASE_TO_PS(1017)
+
 typedef enum {
 	SPI_READ = 0,
 	SPI_WRITE = 1,
@@ -222,33 +243,35 @@ struct sja1105_flow_block {
 
 struct sja1105_private {
 	struct sja1105_static_config static_config;
-	bool rgmii_rx_delay[SJA1105_MAX_NUM_PORTS];
-	bool rgmii_tx_delay[SJA1105_MAX_NUM_PORTS];
+	int rgmii_rx_delay_ps[SJA1105_MAX_NUM_PORTS];
+	int rgmii_tx_delay_ps[SJA1105_MAX_NUM_PORTS];
 	phy_interface_t phy_mode[SJA1105_MAX_NUM_PORTS];
 	bool fixed_link[SJA1105_MAX_NUM_PORTS];
-	bool vlan_aware;
 	unsigned long ucast_egress_floods;
 	unsigned long bcast_egress_floods;
+	unsigned long hwts_tx_en;
 	const struct sja1105_info *info;
 	size_t max_xfer_len;
-	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
 	u16 bridge_pvid[SJA1105_MAX_NUM_PORTS];
 	u16 tag_8021q_pvid[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_flow_block flow_block;
-	struct sja1105_port ports[SJA1105_MAX_NUM_PORTS];
 	/* Serializes transmission of management frames so that
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	/* PTP two-step TX timestamp ID, and its serialization lock */
+	spinlock_t ts_id_lock;
+	u8 ts_id;
+	/* Serializes access to the dynamic config interface */
+	struct mutex dynamic_config_lock;
 	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
 	struct mii_bus *mdio_base_t1;
 	struct mii_bus *mdio_base_tx;
 	struct mii_bus *mdio_pcs;
 	struct dw_xpcs *xpcs[SJA1105_MAX_NUM_PORTS];
-	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
 	struct sja1105_tas_data tas_data;
 };

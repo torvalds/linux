@@ -151,6 +151,7 @@ struct audio_drv_data {
 	struct snd_pcm_substream *capture_i2sbt_stream;
 	void __iomem *acp_mmio;
 	u32 asic_type;
+	snd_pcm_sframes_t delay;
 };
 
 /*
@@ -203,5 +204,7 @@ typedef struct acp_dma_dscr_transfer {
 	/* Reserved for future use */
 	u32 reserved;
 } acp_dma_dscr_transfer_t;
+
+extern bool acp_bt_uart_enable;
 
 #endif /*__ACP_HW_H */

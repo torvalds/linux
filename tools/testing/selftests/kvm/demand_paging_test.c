@@ -42,17 +42,15 @@ static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 static size_t demand_paging_size;
 static char *guest_data_prototype;
 
-static void *vcpu_worker(void *data)
+static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
 	int ret;
-	struct perf_test_vcpu_args *vcpu_args = (struct perf_test_vcpu_args *)data;
 	int vcpu_id = vcpu_args->vcpu_id;
 	struct kvm_vm *vm = perf_test_args.vm;
 	struct kvm_run *run;
 	struct timespec start;
 	struct timespec ts_diff;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
@@ -69,8 +67,6 @@ static void *vcpu_worker(void *data)
 	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
 		       ts_diff.tv_sec, ts_diff.tv_nsec);
-
-	return NULL;
 }
 
 static int handle_uffd_page_request(int uffd_mode, int uffd, uint64_t addr)
@@ -180,7 +176,7 @@ static void *uffd_handler_thread_fn(void *arg)
 			return NULL;
 		}
 
-		if (!pollfd[0].revents & POLLIN)
+		if (!(pollfd[0].revents & POLLIN))
 			continue;
 
 		r = read(uffd, &msg, sizeof(msg));
@@ -283,7 +279,6 @@ struct test_params {
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
 	struct test_params *p = arg;
-	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
 	struct uffd_handler_args *uffd_args = NULL;
 	struct timespec start;
@@ -293,10 +288,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int vcpu_id;
 	int r;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
-				 p->src_type);
-
-	perf_test_args.wr_fract = 1;
+	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
+				 p->src_type, p->partition_vcpu_memory_access);
 
 	demand_paging_size = get_backing_src_pagesz(p->src_type);
 
@@ -304,12 +297,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	TEST_ASSERT(guest_data_prototype,
 		    "Failed to allocate buffer for guest data pattern");
 	memset(guest_data_prototype, 0xAB, demand_paging_size);
-
-	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
-	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
-			      p->partition_vcpu_memory_access);
 
 	if (p->uffd_mode) {
 		uffd_handler_threads =
@@ -323,26 +310,15 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		TEST_ASSERT(pipefds, "Unable to allocate memory for pipefd");
 
 		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-			vm_paddr_t vcpu_gpa;
+			struct perf_test_vcpu_args *vcpu_args;
 			void *vcpu_hva;
 			void *vcpu_alias;
-			uint64_t vcpu_mem_size;
 
-
-			if (p->partition_vcpu_memory_access) {
-				vcpu_gpa = guest_test_phys_mem +
-					   (vcpu_id * guest_percpu_mem_size);
-				vcpu_mem_size = guest_percpu_mem_size;
-			} else {
-				vcpu_gpa = guest_test_phys_mem;
-				vcpu_mem_size = guest_percpu_mem_size * nr_vcpus;
-			}
-			PER_VCPU_DEBUG("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-				       vcpu_id, vcpu_gpa, vcpu_gpa + vcpu_mem_size);
+			vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
 
 			/* Cache the host addresses of the region */
-			vcpu_hva = addr_gpa2hva(vm, vcpu_gpa);
-			vcpu_alias = addr_gpa2alias(vm, vcpu_gpa);
+			vcpu_hva = addr_gpa2hva(vm, vcpu_args->gpa);
+			vcpu_alias = addr_gpa2alias(vm, vcpu_args->gpa);
 
 			/*
 			 * Set up user fault fd to handle demand paging
@@ -356,32 +332,18 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 					    pipefds[vcpu_id * 2], p->uffd_mode,
 					    p->uffd_delay, &uffd_args[vcpu_id],
 					    vcpu_hva, vcpu_alias,
-					    vcpu_mem_size);
+					    vcpu_args->pages * perf_test_args.guest_page_size);
 		}
 	}
-
-	/* Export the shared variables to the guest */
-	sync_global_to_guest(vm, perf_test_args);
 
 	pr_info("Finished creating vCPUs and starting uffd threads\n");
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
-			       &perf_test_args.vcpu_args[vcpu_id]);
-	}
-
+	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
 	pr_info("Started all vCPUs\n");
 
-	/* Wait for the vcpu threads to quit */
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-		pthread_join(vcpu_threads[vcpu_id], NULL);
-		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
-	}
-
+	perf_test_join_vcpu_threads(nr_vcpus);
 	ts_diff = timespec_elapsed(start);
-
 	pr_info("All vCPU threads joined\n");
 
 	if (p->uffd_mode) {
@@ -405,7 +367,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	perf_test_destroy_vm(vm);
 
 	free(guest_data_prototype);
-	free(vcpu_threads);
 	if (p->uffd_mode) {
 		free(uffd_handler_threads);
 		free(uffd_args);
@@ -417,7 +378,7 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-m vm_mode] [-u uffd_mode] [-d uffd_delay_usec]\n"
-	       "          [-b memory] [-t type] [-v vcpus] [-o]\n", name);
+	       "          [-b memory] [-s type] [-v vcpus] [-o]\n", name);
 	guest_modes_help();
 	printf(" -u: use userfaultfd to handle vCPU page faults. Mode is a\n"
 	       "     UFFD registration mode: 'MISSING' or 'MINOR'.\n");
@@ -427,8 +388,7 @@ static void help(char *name)
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     demand paged by each vCPU. e.g. 10M or 3G.\n"
 	       "     Default: 1G\n");
-	printf(" -t: The type of backing memory to use. Default: anonymous\n");
-	backing_src_help();
+	backing_src_help("-s");
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
@@ -440,14 +400,14 @@ int main(int argc, char *argv[])
 {
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	struct test_params p = {
-		.src_type = VM_MEM_SRC_ANONYMOUS,
+		.src_type = DEFAULT_VM_MEM_SRC,
 		.partition_vcpu_memory_access = true,
 	};
 	int opt;
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hm:u:d:b:t:v:o")) != -1) {
+	while ((opt = getopt(argc, argv, "hm:u:d:b:s:v:o")) != -1) {
 		switch (opt) {
 		case 'm':
 			guest_modes_cmdline(optarg);
@@ -466,7 +426,7 @@ int main(int argc, char *argv[])
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
 			break;
-		case 't':
+		case 's':
 			p.src_type = parse_backing_src_type(optarg);
 			break;
 		case 'v':
@@ -486,7 +446,7 @@ int main(int argc, char *argv[])
 
 	if (p.uffd_mode == UFFDIO_REGISTER_MODE_MINOR &&
 	    !backing_src_is_shared(p.src_type)) {
-		TEST_FAIL("userfaultfd MINOR mode requires shared memory; pick a different -t");
+		TEST_FAIL("userfaultfd MINOR mode requires shared memory; pick a different -s");
 	}
 
 	for_each_guest_mode(run_test, &p);

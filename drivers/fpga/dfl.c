@@ -1019,16 +1019,18 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 {
 	unsigned int irq_base, nr_irqs;
 	struct dfl_feature_info *finfo;
+	u8 revision = 0;
 	int ret;
-	u8 revision;
 	u64 v;
 
-	v = readq(binfo->ioaddr + ofst);
-	revision = FIELD_GET(DFH_REVISION, v);
+	if (fid != FEATURE_ID_AFU) {
+		v = readq(binfo->ioaddr + ofst);
+		revision = FIELD_GET(DFH_REVISION, v);
 
-	/* read feature size and id if inputs are invalid */
-	size = size ? size : feature_size(v);
-	fid = fid ? fid : feature_id(v);
+		/* read feature size and id if inputs are invalid */
+		size = size ? size : feature_size(v);
+		fid = fid ? fid : feature_id(v);
+	}
 
 	if (binfo->len - ofst < size)
 		return -EINVAL;
@@ -1405,19 +1407,15 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 
-	cdev->region = devm_fpga_region_create(info->dev, NULL, NULL);
-	if (!cdev->region) {
-		ret = -ENOMEM;
-		goto free_cdev_exit;
-	}
-
 	cdev->parent = info->dev;
 	mutex_init(&cdev->lock);
 	INIT_LIST_HEAD(&cdev->port_dev_list);
 
-	ret = fpga_region_register(cdev->region);
-	if (ret)
+	cdev->region = fpga_region_register(info->dev, NULL, NULL);
+	if (IS_ERR(cdev->region)) {
+		ret = PTR_ERR(cdev->region);
 		goto free_cdev_exit;
+	}
 
 	/* create and init build info for enumeration */
 	binfo = devm_kzalloc(info->dev, sizeof(*binfo), GFP_KERNEL);

@@ -493,6 +493,25 @@ static int gpy_loopback(struct phy_device *phydev, bool enable)
 	return ret;
 }
 
+static int gpy115_loopback(struct phy_device *phydev, bool enable)
+{
+	int ret;
+	int fw_minor;
+
+	if (enable)
+		return gpy_loopback(phydev, enable);
+
+	ret = phy_read(phydev, PHY_FWV);
+	if (ret < 0)
+		return ret;
+
+	fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, ret);
+	if (fw_minor > 0x0076)
+		return gpy_loopback(phydev, 0);
+
+	return genphy_soft_reset(phydev);
+}
+
 static struct phy_driver gpy_drivers[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY2xx),
@@ -527,7 +546,7 @@ static struct phy_driver gpy_drivers[] = {
 		.handle_interrupt = gpy_handle_interrupt,
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
-		.set_loopback	= gpy_loopback,
+		.set_loopback	= gpy115_loopback,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY115C),
@@ -544,7 +563,7 @@ static struct phy_driver gpy_drivers[] = {
 		.handle_interrupt = gpy_handle_interrupt,
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
-		.set_loopback	= gpy_loopback,
+		.set_loopback	= gpy115_loopback,
 	},
 	{
 		.phy_id		= PHY_ID_GPY211B,

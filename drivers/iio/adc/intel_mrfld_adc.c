@@ -205,8 +205,6 @@ static int mrfld_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	platform_set_drvdata(pdev, indio_dev);
-
 	indio_dev->name = pdev->name;
 
 	indio_dev->channels = mrfld_adc_channels;
@@ -214,28 +212,11 @@ static int mrfld_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &mrfld_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_map_array_register(indio_dev, iio_maps);
+	ret = devm_iio_map_array_register(dev, indio_dev, iio_maps);
 	if (ret)
 		return ret;
 
-	ret = devm_iio_device_register(dev, indio_dev);
-	if (ret < 0)
-		goto err_array_unregister;
-
-	return 0;
-
-err_array_unregister:
-	iio_map_array_unregister(indio_dev);
-	return ret;
-}
-
-static int mrfld_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_map_array_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct platform_device_id mrfld_adc_id_table[] = {
@@ -249,7 +230,6 @@ static struct platform_driver mrfld_adc_driver = {
 		.name = "mrfld_bcove_adc",
 	},
 	.probe = mrfld_adc_probe,
-	.remove = mrfld_adc_remove,
 	.id_table = mrfld_adc_id_table,
 };
 module_platform_driver(mrfld_adc_driver);

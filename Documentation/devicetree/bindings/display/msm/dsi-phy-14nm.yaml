@@ -17,6 +17,7 @@ properties:
     enum:
       - qcom,dsi-phy-14nm
       - qcom,dsi-phy-14nm-660
+      - qcom,dsi-phy-14nm-8953
 
   reg:
     items:

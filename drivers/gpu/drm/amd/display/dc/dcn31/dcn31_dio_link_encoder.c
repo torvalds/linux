@@ -37,6 +37,7 @@
 
 #include "link_enc_cfg.h"
 #include "dc_dmub_srv.h"
+#include "dal_asic_id.h"
 
 #define CTX \
 	enc10->base.ctx
@@ -61,6 +62,72 @@
 
 #define AUX_REG_WRITE(reg_name, val) \
 			dm_write_reg(CTX, AUX_REG(reg_name), val)
+
+#ifndef MIN
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
+
+static uint8_t phy_id_from_transmitter(enum transmitter t)
+{
+	uint8_t phy_id;
+
+	switch (t) {
+	case TRANSMITTER_UNIPHY_A:
+		phy_id = 0;
+		break;
+	case TRANSMITTER_UNIPHY_B:
+		phy_id = 1;
+		break;
+	case TRANSMITTER_UNIPHY_C:
+		phy_id = 2;
+		break;
+	case TRANSMITTER_UNIPHY_D:
+		phy_id = 3;
+		break;
+	case TRANSMITTER_UNIPHY_E:
+		phy_id = 4;
+		break;
+	case TRANSMITTER_UNIPHY_F:
+		phy_id = 5;
+		break;
+	case TRANSMITTER_UNIPHY_G:
+		phy_id = 6;
+		break;
+	default:
+		phy_id = 0;
+		break;
+	}
+	return phy_id;
+}
+
+static bool has_query_dp_alt(struct link_encoder *enc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = enc->ctx->dmub_srv;
+
+	/* Supports development firmware and firmware >= 4.0.11 */
+	return dc_dmub_srv &&
+	       !(dc_dmub_srv->dmub->fw_version >= DMUB_FW_VERSION(4, 0, 0) &&
+		 dc_dmub_srv->dmub->fw_version <= DMUB_FW_VERSION(4, 0, 10));
+}
+
+static bool query_dp_alt_from_dmub(struct link_encoder *enc,
+				   union dmub_rb_cmd *cmd)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	struct dc_dmub_srv *dc_dmub_srv = enc->ctx->dmub_srv;
+
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->query_dp_alt.header.type = DMUB_CMD__VBIOS;
+	cmd->query_dp_alt.header.sub_type =
+		DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT;
+	cmd->query_dp_alt.header.payload_bytes = sizeof(cmd->query_dp_alt.data);
+	cmd->query_dp_alt.data.phy_id = phy_id_from_transmitter(enc10->base.transmitter);
+
+	if (!dc_dmub_srv_cmd_with_reply_data(dc_dmub_srv, cmd))
+		return false;
+
+	return true;
+}
 
 void dcn31_link_encoder_set_dio_phy_mux(
 	struct link_encoder *enc,
@@ -136,7 +203,7 @@ void dcn31_link_encoder_set_dio_phy_mux(
 	}
 }
 
-void enc31_hw_init(struct link_encoder *enc)
+static void enc31_hw_init(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 
@@ -215,8 +282,8 @@ static const struct link_encoder_funcs dcn31_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
-	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
+	.is_in_alt_mode = dcn31_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn31_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 };
 
@@ -320,6 +387,10 @@ void dcn31_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc10->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+		enc10->base.features.flags.bits.IS_DP2_CAPABLE = bp_cap_info.IS_DP2_CAPABLE;
+		enc10->base.features.flags.bits.IS_UHBR10_CAPABLE = bp_cap_info.DP_UHBR10_EN;
+		enc10->base.features.flags.bits.IS_UHBR13_5_CAPABLE = bp_cap_info.DP_UHBR13_5_EN;
+		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		enc10->base.features.flags.bits.DP_IS_USB_C =
 				bp_cap_info.DP_IS_USB_C;
 	} else {
@@ -357,19 +428,79 @@ void dcn31_link_encoder_construct_minimal(
 		SIGNAL_TYPE_EDP;
 }
 
+/* DPIA equivalent of link_transmitter_control. */
+static bool link_dpia_control(struct dc_context *dc_ctx,
+	struct dmub_cmd_dig_dpia_control_data *dpia_control)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_dmub_srv *dmub = dc_ctx->dmub_srv;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.dig1_dpia_control.header.type = DMUB_CMD__DPIA;
+	cmd.dig1_dpia_control.header.sub_type =
+			DMUB_CMD__DPIA_DIG1_DPIA_CONTROL;
+	cmd.dig1_dpia_control.header.payload_bytes =
+		sizeof(cmd.dig1_dpia_control) -
+		sizeof(cmd.dig1_dpia_control.header);
+
+	cmd.dig1_dpia_control.dpia_control = *dpia_control;
+
+	dc_dmub_srv_cmd_queue(dmub, &cmd);
+	dc_dmub_srv_cmd_execute(dmub);
+	dc_dmub_srv_wait_idle(dmub);
+
+	return true;
+}
+
+static void link_encoder_disable(struct dcn10_link_encoder *enc10)
+{
+	/* reset training complete */
+	REG_UPDATE(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, 0);
+}
+
 void dcn31_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
 {
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn20_link_encoder_enable_dp_output(enc, link_settings, clock_source);
 
 	} else {
 
-		/** @todo Handle transmitter with programmable mapping to link encoder. */
+		struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
+		struct dc_link *link;
+
+		link = link_enc_cfg_get_link_using_link_enc(enc->ctx->dc, enc->preferred_engine);
+
+		enc1_configure_encoder(enc10, link_settings);
+
+		dpia_control.action = (uint8_t)TRANSMITTER_CONTROL_ENABLE;
+		dpia_control.enc_id = enc->preferred_engine;
+		dpia_control.mode_laneset.digmode = 0; /* 0 for SST; 5 for MST */
+		dpia_control.lanenum = (uint8_t)link_settings->lane_count;
+		dpia_control.symclk_10khz = link_settings->link_rate *
+				LINK_RATE_REF_FREQ_IN_KHZ / 10;
+		/* DIG_BE_CNTL.DIG_HPD_SELECT set to 5 (hpdsel - 1) to indicate HPD pin
+		 * unused by DPIA.
+		 */
+		dpia_control.hpdsel = 6;
+
+		if (link) {
+			dpia_control.dpia_id = link->ddc_hw_inst;
+			dpia_control.fec_rdy = dc_link_should_enable_fec(link);
+		} else {
+			DC_LOG_ERROR("%s: Failed to execute DPIA enable DMUB command.\n", __func__);
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+
+		link_dpia_control(enc->ctx, &dpia_control);
 	}
 }
 
@@ -378,14 +509,43 @@ void dcn31_link_encoder_enable_dp_mst_output(
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
 {
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
 
 	} else {
 
-		/** @todo Handle transmitter with programmable mapping to link encoder. */
+		struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
+		struct dc_link *link;
+
+		link = link_enc_cfg_get_link_using_link_enc(enc->ctx->dc, enc->preferred_engine);
+
+		enc1_configure_encoder(enc10, link_settings);
+
+		dpia_control.action = (uint8_t)TRANSMITTER_CONTROL_ENABLE;
+		dpia_control.enc_id = enc->preferred_engine;
+		dpia_control.mode_laneset.digmode = 5; /* 0 for SST; 5 for MST */
+		dpia_control.lanenum = (uint8_t)link_settings->lane_count;
+		dpia_control.symclk_10khz = link_settings->link_rate *
+				LINK_RATE_REF_FREQ_IN_KHZ / 10;
+		/* DIG_BE_CNTL.DIG_HPD_SELECT set to 5 (hpdsel - 1) to indicate HPD pin
+		 * unused by DPIA.
+		 */
+		dpia_control.hpdsel = 6;
+
+		if (link) {
+			dpia_control.dpia_id = link->ddc_hw_inst;
+			dpia_control.fec_rdy = dc_link_should_enable_fec(link);
+		} else {
+			DC_LOG_ERROR("%s: Failed to execute DPIA enable DMUB command.\n", __func__);
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+
+		link_dpia_control(enc->ctx, &dpia_control);
 	}
 }
 
@@ -393,14 +553,135 @@ void dcn31_link_encoder_disable_output(
 	struct link_encoder *enc,
 	enum signal_type signal)
 {
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
 	/* Disable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_disable_output(enc, signal);
 
 	} else {
 
-		/** @todo Handle transmitter with programmable mapping to link encoder. */
+		struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
+		struct dc_link *link;
+
+		if (!dcn10_is_dig_enabled(enc))
+			return;
+
+		link = link_enc_cfg_get_link_using_link_enc(enc->ctx->dc, enc->preferred_engine);
+
+		dpia_control.action = (uint8_t)TRANSMITTER_CONTROL_DISABLE;
+		dpia_control.enc_id = enc->preferred_engine;
+		if (signal == SIGNAL_TYPE_DISPLAY_PORT) {
+			dpia_control.mode_laneset.digmode = 0; /* 0 for SST; 5 for MST */
+		} else if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			dpia_control.mode_laneset.digmode = 5; /* 0 for SST; 5 for MST */
+		} else {
+			DC_LOG_ERROR("%s: USB4 DPIA only supports DisplayPort.\n", __func__);
+			BREAK_TO_DEBUGGER();
+		}
+
+		if (link) {
+			dpia_control.dpia_id = link->ddc_hw_inst;
+		} else {
+			DC_LOG_ERROR("%s: Failed to execute DPIA enable DMUB command.\n", __func__);
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+
+		link_dpia_control(enc->ctx, &dpia_control);
+
+		link_encoder_disable(enc10);
 	}
 }
 
+bool dcn31_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	union dmub_rb_cmd cmd;
+	uint32_t dp_alt_mode_disable;
+
+	/* Only applicable to USB-C PHY. */
+	if (!enc->features.flags.bits.DP_IS_USB_C)
+		return false;
+
+	/*
+	 * Use the new interface from DMCUB if available.
+	 * Avoids hanging the RDCPSPIPE if DMCUB wasn't already running.
+	 */
+	if (has_query_dp_alt(enc)) {
+		if (!query_dp_alt_from_dmub(enc, &cmd))
+			return false;
+
+		return (cmd.query_dp_alt.data.is_dp_alt_disable == 0);
+	}
+
+	/* Legacy path, avoid if possible. */
+	if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+			&dp_alt_mode_disable);
+	} else {
+		/*
+		 * B0 phys use a new set of registers to check whether alt mode is disabled.
+		 * if value == 1 alt mode is disabled, otherwise it is enabled.
+		 */
+		if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_B) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+				&dp_alt_mode_disable);
+		} else {
+			REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+				&dp_alt_mode_disable);
+		}
+	}
+
+	return (dp_alt_mode_disable == 0);
+}
+
+void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc, struct dc_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	union dmub_rb_cmd cmd;
+	uint32_t is_in_usb_c_dp4_mode = 0;
+
+	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
+
+	/* Take the link cap directly if not USB */
+	if (!enc->features.flags.bits.DP_IS_USB_C)
+		return;
+
+	/*
+	 * Use the new interface from DMCUB if available.
+	 * Avoids hanging the RDCPSPIPE if DMCUB wasn't already running.
+	 */
+	if (has_query_dp_alt(enc)) {
+		if (!query_dp_alt_from_dmub(enc, &cmd))
+			return;
+
+		if (cmd.query_dp_alt.data.is_usb &&
+		    cmd.query_dp_alt.data.is_dp4 == 0)
+			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+
+		return;
+	}
+
+	/* Legacy path, avoid if possible. */
+	if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+			&is_in_usb_c_dp4_mode);
+	} else {
+		if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_B) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+				&is_in_usb_c_dp4_mode);
+		} else {
+			REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+				&is_in_usb_c_dp4_mode);
+		}
+	}
+
+	if (!is_in_usb_c_dp4_mode)
+		link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+}

@@ -28,6 +28,9 @@ const char *dlm_midcomms_state(struct midcomms_node *node);
 unsigned long dlm_midcomms_flags(struct midcomms_node *node);
 int dlm_midcomms_send_queue_cnt(struct midcomms_node *node);
 uint32_t dlm_midcomms_version(struct midcomms_node *node);
+int dlm_midcomms_rawmsg_send(struct midcomms_node *node, void *buf,
+			     int buflen);
+struct kmem_cache *dlm_midcomms_cache_create(void);
 
 #endif				/* __MIDCOMMS_DOT_H__ */
 

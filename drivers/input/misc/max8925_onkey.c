@@ -1,4 +1,4 @@
-/**
+/*
  * MAX8925 ONKEY driver
  *
  * Copyright (C) 2009 Marvell International Ltd.

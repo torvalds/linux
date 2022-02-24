@@ -1140,8 +1140,8 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			continue;
 		length = 0;
 		switch (c) {
-		/* SOF0: baseline JPEG */
-		case SOF0:
+		/* JPEG_MARKER_SOF0: baseline JPEG */
+		case JPEG_MARKER_SOF0:
 			if (get_word_be(&jpeg_buffer, &word))
 				break;
 			length = (long)word - 2;
@@ -1172,7 +1172,7 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			notfound = 0;
 			break;
 
-		case DQT:
+		case JPEG_MARKER_DQT:
 			if (get_word_be(&jpeg_buffer, &word))
 				break;
 			length = (long)word - 2;
@@ -1185,7 +1185,7 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			skip(&jpeg_buffer, length);
 			break;
 
-		case DHT:
+		case JPEG_MARKER_DHT:
 			if (get_word_be(&jpeg_buffer, &word))
 				break;
 			length = (long)word - 2;
@@ -1198,15 +1198,15 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			skip(&jpeg_buffer, length);
 			break;
 
-		case SOS:
+		case JPEG_MARKER_SOS:
 			sos = jpeg_buffer.curr - 2; /* 0xffda */
 			break;
 
 		/* skip payload-less markers */
-		case RST ... RST + 7:
-		case SOI:
-		case EOI:
-		case TEM:
+		case JPEG_MARKER_RST ... JPEG_MARKER_RST + 7:
+		case JPEG_MARKER_SOI:
+		case JPEG_MARKER_EOI:
+		case JPEG_MARKER_TEM:
 			break;
 
 		/* skip uninteresting payload markers */
@@ -2425,17 +2425,17 @@ static int s5p_jpeg_job_ready(void *priv)
 	return 1;
 }
 
-static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.device_run	= s5p_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
 	.device_run	= exynos3250_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
@@ -2850,7 +2850,6 @@ static void *jpeg_get_drv_data(struct device *dev);
 static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
-	struct resource *res;
 	int i, ret;
 
 	/* JPEG IP abstraction struct */
@@ -2867,9 +2866,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->dev = &pdev->dev;
 
 	/* memory-mapped registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	jpeg->regs = devm_ioremap_resource(&pdev->dev, res);
+	jpeg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpeg->regs))
 		return PTR_ERR(jpeg->regs);
 

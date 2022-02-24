@@ -98,7 +98,7 @@ static struct i2c_driver w83l785ts_driver = {
 struct w83l785ts_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
@@ -270,7 +270,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev)
 				W83L785TS_REG_TEMP_OVER, data->temp[1]);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

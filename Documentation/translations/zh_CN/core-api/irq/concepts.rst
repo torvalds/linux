@@ -1,10 +1,12 @@
 .. include:: ../../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../../core-api/irq/concepts`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/core-api/irq/concepts.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_concepts.rst:
-
 
 ===========
 什么是IRQ？

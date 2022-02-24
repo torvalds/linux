@@ -17,7 +17,6 @@
 #include <linux/clk-provider.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/gpio-dwapb.h>
 #include <linux/property.h>
 
 /* PCI BAR for register base address */
@@ -27,15 +26,6 @@
 /* ACPI _ADR value to match the child node */
 #define MFD_ACPI_MATCH_GPIO	0ULL
 #define MFD_ACPI_MATCH_I2C	1ULL
-
-/* The base GPIO number under GPIOLIB framework */
-#define INTEL_QUARK_MFD_GPIO_BASE	8
-
-/* The default number of South-Cluster GPIO on Quark. */
-#define INTEL_QUARK_MFD_NGPIO		8
-
-/* The DesignWare GPIO ports on Quark. */
-#define INTEL_QUARK_GPIO_NPORTS	1
 
 #define INTEL_QUARK_IORES_MEM	0
 #define INTEL_QUARK_IORES_IRQ	1
@@ -111,10 +101,36 @@ static struct resource intel_quark_gpio_res[] = {
 	[INTEL_QUARK_IORES_MEM] = {
 		.flags = IORESOURCE_MEM,
 	},
+	[INTEL_QUARK_IORES_IRQ] = {
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct mfd_cell_acpi_match intel_quark_acpi_match_gpio = {
 	.adr = MFD_ACPI_MATCH_GPIO,
+};
+
+static const struct software_node intel_quark_gpio_controller_node = {
+	.name = "intel-quark-gpio-controller",
+};
+
+static const struct property_entry intel_quark_gpio_portA_properties[] = {
+	PROPERTY_ENTRY_U32("reg", 0),
+	PROPERTY_ENTRY_U32("snps,nr-gpios", 8),
+	PROPERTY_ENTRY_U32("gpio-base", 8),
+	{ }
+};
+
+static const struct software_node intel_quark_gpio_portA_node = {
+	.name = "portA",
+	.parent = &intel_quark_gpio_controller_node,
+	.properties = intel_quark_gpio_portA_properties,
+};
+
+static const struct software_node *intel_quark_gpio_node_group[] = {
+	&intel_quark_gpio_controller_node,
+	&intel_quark_gpio_portA_node,
+	NULL
 };
 
 static struct mfd_cell intel_quark_mfd_cells[] = {
@@ -203,35 +219,19 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev)
 {
 	struct mfd_cell *cell = &intel_quark_mfd_cells[MFD_GPIO_BAR];
 	struct resource *res = intel_quark_gpio_res;
-	struct dwapb_platform_data *pdata;
-	struct device *dev = &pdev->dev;
+	int ret;
 
 	res[INTEL_QUARK_IORES_MEM].start = pci_resource_start(pdev, MFD_GPIO_BAR);
 	res[INTEL_QUARK_IORES_MEM].end = pci_resource_end(pdev, MFD_GPIO_BAR);
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
+	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
+	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
 
-	/* For intel quark x1000, it has only one port: portA */
-	pdata->nports = INTEL_QUARK_GPIO_NPORTS;
-	pdata->properties = devm_kcalloc(dev, pdata->nports,
-					 sizeof(*pdata->properties),
-					 GFP_KERNEL);
-	if (!pdata->properties)
-		return -ENOMEM;
+	ret = software_node_register_node_group(intel_quark_gpio_node_group);
+	if (ret)
+		return ret;
 
-	/* Set the properties for portA */
-	pdata->properties->fwnode	= NULL;
-	pdata->properties->idx		= 0;
-	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
-	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;
-	pdata->properties->irq[0]	= pci_irq_vector(pdev, 0);
-	pdata->properties->irq_shared	= true;
-
-	cell->platform_data = pdata;
-	cell->pdata_size = sizeof(*pdata);
-
+	cell->swnode = &intel_quark_gpio_controller_node;
 	return 0;
 }
 
@@ -274,10 +274,12 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 			      ARRAY_SIZE(intel_quark_mfd_cells), NULL, 0,
 			      NULL);
 	if (ret)
-		goto err_free_irq_vectors;
+		goto err_unregister_gpio_node_group;
 
 	return 0;
 
+err_unregister_gpio_node_group:
+	software_node_unregister_node_group(intel_quark_gpio_node_group);
 err_free_irq_vectors:
 	pci_free_irq_vectors(pdev);
 err_unregister_i2c_clk:
@@ -288,6 +290,7 @@ err_unregister_i2c_clk:
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
+	software_node_unregister_node_group(intel_quark_gpio_node_group);
 	pci_free_irq_vectors(pdev);
 	intel_quark_unregister_i2c_clk(&pdev->dev);
 }

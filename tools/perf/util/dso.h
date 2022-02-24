@@ -170,6 +170,7 @@ struct dso {
 	u8		 has_srcline:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
+	u8		 auxtrace_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
@@ -192,7 +193,7 @@ struct dso {
 		int		 fd;
 		int		 status;
 		u32		 status_seen;
-		size_t		 file_size;
+		u64		 file_size;
 		struct list_head open_entry;
 		u64		 debug_frame_offset;
 		u64		 eh_frame_hdr_offset;

@@ -47,7 +47,7 @@
 #include "guest_modes.h"
 
 /* Global variable used to synchronize all of the vCPU threads. */
-static int iteration = -1;
+static int iteration;
 
 /* Defines what vCPU threads should do during a given iteration. */
 static enum {
@@ -215,14 +215,11 @@ static bool spin_wait_for_next_iteration(int *current_iteration)
 	return true;
 }
 
-static void *vcpu_thread_main(void *arg)
+static void vcpu_thread_main(struct perf_test_vcpu_args *vcpu_args)
 {
-	struct perf_test_vcpu_args *vcpu_args = arg;
 	struct kvm_vm *vm = perf_test_args.vm;
 	int vcpu_id = vcpu_args->vcpu_id;
-	int current_iteration = -1;
-
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
+	int current_iteration = 0;
 
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
@@ -237,8 +234,6 @@ static void *vcpu_thread_main(void *arg)
 
 		vcpu_last_completed_iteration[vcpu_id] = current_iteration;
 	}
-
-	return NULL;
 }
 
 static void spin_wait_for_vcpu(int vcpu_id, int target_iteration)
@@ -279,8 +274,7 @@ static void run_iteration(struct kvm_vm *vm, int vcpus, const char *description)
 static void access_memory(struct kvm_vm *vm, int vcpus, enum access_type access,
 			  const char *description)
 {
-	perf_test_args.wr_fract = (access == ACCESS_READ) ? INT_MAX : 1;
-	sync_global_to_guest(vm, perf_test_args);
+	perf_test_set_wr_fract(vm, (access == ACCESS_READ) ? INT_MAX : 1);
 	iteration_work = ITERATION_ACCESS_MEMORY;
 	run_iteration(vm, vcpus, description);
 }
@@ -298,48 +292,16 @@ static void mark_memory_idle(struct kvm_vm *vm, int vcpus)
 	run_iteration(vm, vcpus, "Mark memory idle");
 }
 
-static pthread_t *create_vcpu_threads(int vcpus)
-{
-	pthread_t *vcpu_threads;
-	int i;
-
-	vcpu_threads = malloc(vcpus * sizeof(vcpu_threads[0]));
-	TEST_ASSERT(vcpu_threads, "Failed to allocate vcpu_threads.");
-
-	for (i = 0; i < vcpus; i++) {
-		vcpu_last_completed_iteration[i] = iteration;
-		pthread_create(&vcpu_threads[i], NULL, vcpu_thread_main,
-			       &perf_test_args.vcpu_args[i]);
-	}
-
-	return vcpu_threads;
-}
-
-static void terminate_vcpu_threads(pthread_t *vcpu_threads, int vcpus)
-{
-	int i;
-
-	/* Set done to signal the vCPU threads to exit */
-	done = true;
-
-	for (i = 0; i < vcpus; i++)
-		pthread_join(vcpu_threads[i], NULL);
-}
-
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
 	struct test_params *params = arg;
 	struct kvm_vm *vm;
-	pthread_t *vcpu_threads;
 	int vcpus = params->vcpus;
 
-	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes,
-				 params->backing_src);
+	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes, 1,
+				 params->backing_src, !overlap_memory_access);
 
-	perf_test_setup_vcpus(vm, vcpus, params->vcpu_memory_bytes,
-			      !overlap_memory_access);
-
-	vcpu_threads = create_vcpu_threads(vcpus);
+	perf_test_start_vcpu_threads(vcpus, vcpu_thread_main);
 
 	pr_info("\n");
 	access_memory(vm, vcpus, ACCESS_WRITE, "Populating memory");
@@ -354,8 +316,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	mark_memory_idle(vm, vcpus);
 	access_memory(vm, vcpus, ACCESS_READ, "Reading from idle memory");
 
-	terminate_vcpu_threads(vcpu_threads, vcpus);
-	free(vcpu_threads);
+	/* Set done to signal the vCPU threads to exit */
+	done = true;
+
+	perf_test_join_vcpu_threads(vcpus);
 	perf_test_destroy_vm(vm);
 }
 
@@ -373,9 +337,7 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
-	printf(" -s: specify the type of memory that should be used to\n"
-	       "     back the guest data region.\n\n");
-	backing_src_help();
+	backing_src_help("-s");
 	puts("");
 	exit(0);
 }
@@ -383,7 +345,7 @@ static void help(char *name)
 int main(int argc, char *argv[])
 {
 	struct test_params params = {
-		.backing_src = VM_MEM_SRC_ANONYMOUS,
+		.backing_src = DEFAULT_VM_MEM_SRC,
 		.vcpu_memory_bytes = DEFAULT_PER_VCPU_MEM_SIZE,
 		.vcpus = 1,
 	};

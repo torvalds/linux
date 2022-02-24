@@ -4,12 +4,14 @@
 #
 
 obj-y += setup.o init.o env.o time.o reset.o irq.o \
-    bonito-irq.o mem.o machtype.o platform.o serial.o
+    bonito-irq.o mem.o machtype.o platform.o
 obj-$(CONFIG_PCI) += pci.o
 
 #
 # Serial port support
 #
+obj-$(CONFIG_LOONGSON_UART_BASE) += serial.o
+obj-$(CONFIG_EARLY_PRINTK) += serial.o
 obj-$(CONFIG_LOONGSON_UART_BASE) += uart_base.o
 obj-$(CONFIG_LOONGSON_MC146818) += rtc.o
 

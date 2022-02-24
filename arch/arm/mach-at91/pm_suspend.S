@@ -1014,31 +1014,55 @@ ENTRY(at91_pm_suspend_in_sram)
 	mov	tmp1, #0
 	mcr	p15, 0, tmp1, c7, c10, 4
 
-	ldr	tmp1, [r0, #PM_DATA_PMC]
-	str	tmp1, .pmc_base
-	ldr	tmp1, [r0, #PM_DATA_RAMC0]
-	str	tmp1, .sramc_base
-	ldr	tmp1, [r0, #PM_DATA_RAMC1]
-	str	tmp1, .sramc1_base
-	ldr	tmp1, [r0, #PM_DATA_RAMC_PHY]
-	str	tmp1, .sramc_phy_base
-	ldr	tmp1, [r0, #PM_DATA_MEMCTRL]
-	str	tmp1, .memtype
-	ldr	tmp1, [r0, #PM_DATA_MODE]
-	str	tmp1, .pm_mode
+	/* Flush tlb. */
+	mov	r4, #0
+	mcr	p15, 0, r4, c8, c7, 0
+
 	ldr	tmp1, [r0, #PM_DATA_PMC_MCKR_OFFSET]
 	str	tmp1, .mckr_offset
 	ldr	tmp1, [r0, #PM_DATA_PMC_VERSION]
 	str	tmp1, .pmc_version
-	/* Both ldrne below are here to preload their address in the TLB */
+	ldr	tmp1, [r0, #PM_DATA_MEMCTRL]
+	str	tmp1, .memtype
+	ldr	tmp1, [r0, #PM_DATA_MODE]
+	str	tmp1, .pm_mode
+
+	/*
+	 * ldrne below are here to preload their address in the TLB as access
+	 * to RAM may be limited while in self-refresh.
+	 */
+	ldr	tmp1, [r0, #PM_DATA_PMC]
+	str	tmp1, .pmc_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
+	ldr	tmp1, [r0, #PM_DATA_RAMC0]
+	str	tmp1, .sramc_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
+	ldr	tmp1, [r0, #PM_DATA_RAMC1]
+	str	tmp1, .sramc1_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
+#ifndef CONFIG_SOC_SAM_V4_V5
+	/* ldrne below are here to preload their address in the TLB */
+	ldr	tmp1, [r0, #PM_DATA_RAMC_PHY]
+	str	tmp1, .sramc_phy_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
 	ldr	tmp1, [r0, #PM_DATA_SHDWC]
 	str	tmp1, .shdwc
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0]
+
 	ldr	tmp1, [r0, #PM_DATA_SFRBU]
 	str	tmp1, .sfrbu
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0x10]
+#endif
 
 	/* Active the self-refresh mode */
 	at91_sramc_self_refresh_ena

@@ -81,6 +81,9 @@ struct atomisp_video_pipe {
 	/* the link list to store per_frame parameters */
 	struct list_head per_frame_params;
 
+	/* Store here the initial run mode */
+	unsigned int default_run_mode;
+
 	unsigned int buffers_in_css;
 
 	/* irq_lock is used to protect video buffer state change operations and
@@ -316,7 +319,6 @@ struct atomisp_sub_device {
 
 	/* ISP2401 */
 	struct v4l2_ctrl *ion_dev_fd;
-	struct v4l2_ctrl *select_isp_version;
 
 	struct v4l2_ctrl *disable_dz;
 

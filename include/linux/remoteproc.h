@@ -369,9 +369,8 @@ enum rsc_handling_status {
  * @da_to_va:	optional platform hook to perform address translations
  * @parse_fw:	parse firmware to extract information (e.g. resource table)
  * @handle_rsc:	optional platform hook to handle vendor resources. Should return
- * RSC_HANDLED if resource was handled, RSC_IGNORED if not handled and a
- * negative value on error
- * @load_rsc_table:	load resource table from firmware image
+ *		RSC_HANDLED if resource was handled, RSC_IGNORED if not handled
+ *		and a negative value on error
  * @find_loaded_rsc_table: find the loaded resource table from firmware image
  * @get_loaded_rsc_table: get resource table installed in memory
  *			  by external entity
@@ -684,18 +683,6 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 						     size_t size),
 				      void *priv);
 int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine);
-
-static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
-{
-	return container_of(vdev->dev.parent, struct rproc_vdev, dev);
-}
-
-static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
-{
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-
-	return rvdev->rproc;
-}
 
 void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 

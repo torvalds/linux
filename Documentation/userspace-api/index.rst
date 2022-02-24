@@ -27,6 +27,8 @@ place where this information is gathered.
    iommu
    media/index
    sysfs-platform_profile
+   vduse
+   futex2
 
 .. only::  subproject and html
 

@@ -16,12 +16,12 @@ static int prog_load(void)
 	};
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
-	return bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
+	return bpf_test_load_program(BPF_PROG_TYPE_CGROUP_SKB,
 			       prog, insns_cnt, "GPL", 0,
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 }
 
-void test_cgroup_attach_autodetach(void)
+void serial_test_cgroup_attach_autodetach(void)
 {
 	__u32 duration = 0, prog_cnt = 4, attach_flags;
 	int allow_prog[2] = {-1};

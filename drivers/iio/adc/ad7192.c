@@ -257,7 +257,8 @@ static const struct iio_chan_spec_ext_info ad7192_calibsys_ext_info[] = {
 	},
 	IIO_ENUM("sys_calibration_mode", IIO_SEPARATE,
 		 &ad7192_syscalib_mode_enum),
-	IIO_ENUM_AVAILABLE("sys_calibration_mode", &ad7192_syscalib_mode_enum),
+	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
+			   &ad7192_syscalib_mode_enum),
 	{}
 };
 
@@ -293,6 +294,7 @@ static const struct ad_sigma_delta_info ad7192_sigma_delta_info = {
 	.has_registers = true,
 	.addr_shift = 3,
 	.read_mask = BIT(6),
+	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
 static const struct ad_sd_calib_data ad7192_calib_arr[8] = {

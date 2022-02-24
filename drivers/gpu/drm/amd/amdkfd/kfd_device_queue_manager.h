@@ -81,6 +81,8 @@ struct device_process_node {
  *
  * @get_wave_state: Retrieves context save state and optionally copies the
  * control stack, if kept in the MQD, to the given userspace address.
+ *
+ * @reset_queues: reset queues which consume RAS poison
  */
 
 struct device_queue_manager_ops {
@@ -93,7 +95,7 @@ struct device_queue_manager_ops {
 				struct queue *q);
 
 	int	(*update_queue)(struct device_queue_manager *dqm,
-				struct queue *q);
+				struct queue *q, struct mqd_update_info *minfo);
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
@@ -134,6 +136,9 @@ struct device_queue_manager_ops {
 				  void __user *ctl_stack,
 				  u32 *ctl_stack_used_size,
 				  u32 *save_area_used_size);
+
+	int (*reset_queues)(struct device_queue_manager *dqm,
+					uint16_t pasid);
 };
 
 struct device_queue_manager_asic_ops {

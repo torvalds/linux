@@ -1057,8 +1057,6 @@ static int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 			dprintk(DBGLVL_API, "  numformats   = 0x%x\n",
 				vcoutputtermhdr->numformats);
 
-			t = (struct tmComResDescrHeader *)
-				((struct tmComResDMATermDescrHeader *)(buf + idx));
 			next_offset = idx + (vcoutputtermhdr->len);
 			for (i = 0; i < vcoutputtermhdr->numformats; i++) {
 				t = (struct tmComResDescrHeader *)

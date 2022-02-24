@@ -25,6 +25,7 @@
 #define MODEL_SATELLITE		0x00200f
 #define MODEL_SCS1M		0x001000
 #define MODEL_DUET_FW		0x01dddd
+#define MODEL_ONYX_1640I	0x001640
 
 #define SPECIFIER_1394TA	0x00a02d
 #define VERSION_AVC		0x010001
@@ -184,12 +185,22 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 			model = val;
 	}
 
-	/*
-	 * Mackie Onyx Satellite with base station has a quirk to report a wrong
-	 * value in 'dbs' field of CIP header against its format information.
-	 */
-	if (vendor == VENDOR_LOUD && model == MODEL_SATELLITE)
+	if (vendor == VENDOR_LOUD) {
+		// Mackie Onyx Satellite with base station has a quirk to report a wrong
+		// value in 'dbs' field of CIP header against its format information.
 		oxfw->quirks |= SND_OXFW_QUIRK_WRONG_DBS;
+
+		// OXFW971-based models may transfer events by blocking method.
+		if (!(oxfw->quirks & SND_OXFW_QUIRK_JUMBO_PAYLOAD))
+			oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
+
+		if (model == MODEL_ONYX_1640I) {
+			//Unless receiving packets without NOINFO packet, the device transfers
+			//mostly half of events in packets than expected.
+			oxfw->quirks |= SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET |
+					SND_OXFW_QUIRK_VOLUNTARY_RECOVERY;
+		}
+	}
 
 	return 0;
 }

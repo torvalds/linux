@@ -276,6 +276,22 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
 	__evlist__for_each_entry_continue(&(evlist)->core.entries, evsel)
 
 /**
+ * __evlist__for_each_entry_from - continue iteration from @evsel (included)
+ * @list: list_head instance to iterate
+ * @evsel: struct evsel iterator
+ */
+#define __evlist__for_each_entry_from(list, evsel) \
+	list_for_each_entry_from(evsel, list, core.node)
+
+/**
+ * evlist__for_each_entry_from - continue iteration from @evsel (included)
+ * @evlist: evlist instance to iterate
+ * @evsel: struct evsel iterator
+ */
+#define evlist__for_each_entry_from(evlist, evsel) \
+	__evlist__for_each_entry_from(&(evlist)->core.entries, evsel)
+
+/**
  * __evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
  * @list: list_head instance to iterate
  * @evsel: struct evsel iterator

@@ -4,7 +4,9 @@
  * Infrared Toy and IR Droid RC core driver
  *
  * Copyright (C) 2020 Sean Young <sean@mess.org>
-
+ *
+ * http://dangerousprototypes.com/docs/USB_IR_Toy:_Sampling_mode
+ *
  * This driver is based on the lirc driver which can be found here:
  * https://sourceforge.net/p/lirc/git/ci/master/tree/plugins/irtoy.c
  * Copyright (C) 2011 Peter Kooiman <pkooiman@gmail.com>
@@ -24,6 +26,7 @@ static const u8 COMMAND_VERSION[] = { 'v' };
 // End transmit and repeat reset command so we exit sump mode
 static const u8 COMMAND_RESET[] = { 0xff, 0xff, 0, 0, 0, 0, 0 };
 static const u8 COMMAND_SMODE_ENTER[] = { 's' };
+static const u8 COMMAND_SMODE_EXIT[] = { 0 };
 static const u8 COMMAND_TXSTART[] = { 0x26, 0x24, 0x25, 0x03 };
 
 #define REPLY_XMITCOUNT 't'
@@ -45,7 +48,7 @@ static const u8 COMMAND_TXSTART[] = { 0x26, 0x24, 0x25, 0x03 };
 
 enum state {
 	STATE_IRDATA,
-	STATE_RESET,
+	STATE_COMMAND_NO_RESP,
 	STATE_COMMAND,
 	STATE_TX,
 };
@@ -120,6 +123,7 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 				len, irtoy->in);
 		}
 		break;
+	case STATE_COMMAND_NO_RESP:
 	case STATE_IRDATA: {
 		struct ir_raw_event rawir = { .pulse = irtoy->pulse };
 		__be16 *in = (__be16 *)irtoy->in;
@@ -165,10 +169,8 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			int err;
 
 			if (len != 1 || space > MAX_PACKET || space == 0) {
-				dev_err(irtoy->dev, "packet length expected: %*phN\n",
+				dev_dbg(irtoy->dev, "packet length expected: %*phN\n",
 					len, irtoy->in);
-				irtoy->state = STATE_IRDATA;
-				complete(&irtoy->command_done);
 				break;
 			}
 
@@ -192,9 +194,6 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			irtoy->tx_len -= buf_len;
 		}
 		break;
-	case STATE_RESET:
-		dev_err(irtoy->dev, "unexpected response to reset: %*phN\n",
-			len, irtoy->in);
 	}
 }
 
@@ -203,7 +202,7 @@ static void irtoy_out_callback(struct urb *urb)
 	struct irtoy *irtoy = urb->context;
 
 	if (urb->status == 0) {
-		if (irtoy->state == STATE_RESET)
+		if (irtoy->state == STATE_COMMAND_NO_RESP)
 			complete(&irtoy->command_done);
 	} else {
 		dev_warn(irtoy->dev, "out urb status: %d\n", urb->status);
@@ -215,10 +214,20 @@ static void irtoy_in_callback(struct urb *urb)
 	struct irtoy *irtoy = urb->context;
 	int ret;
 
-	if (urb->status == 0)
+	switch (urb->status) {
+	case 0:
 		irtoy_response(irtoy, urb->actual_length);
-	else
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -EPROTO:
+	case -EPIPE:
+		usb_unlink_urb(urb);
+		return;
+	default:
 		dev_dbg(irtoy->dev, "in urb status: %d\n", urb->status);
+	}
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret && ret != -ENODEV)
@@ -255,7 +264,7 @@ static int irtoy_setup(struct irtoy *irtoy)
 	int err;
 
 	err = irtoy_command(irtoy, COMMAND_RESET, sizeof(COMMAND_RESET),
-			    STATE_RESET);
+			    STATE_COMMAND_NO_RESP);
 	if (err != 0) {
 		dev_err(irtoy->dev, "could not write reset command: %d\n",
 			err);
@@ -315,6 +324,24 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	irtoy->tx_len = size;
 	irtoy->emitted = 0;
 
+	// There is an issue where if the unit is receiving IR while the
+	// first TXSTART command is sent, the device might end up hanging
+	// with its led on. It does not respond to any command when this
+	// happens. To work around this, re-enter sample mode.
+	err = irtoy_command(irtoy, COMMAND_SMODE_EXIT,
+			    sizeof(COMMAND_SMODE_EXIT), STATE_COMMAND_NO_RESP);
+	if (err) {
+		dev_err(irtoy->dev, "exit sample mode: %d\n", err);
+		return err;
+	}
+
+	err = irtoy_command(irtoy, COMMAND_SMODE_ENTER,
+			    sizeof(COMMAND_SMODE_ENTER), STATE_COMMAND);
+	if (err) {
+		dev_err(irtoy->dev, "enter sample mode: %d\n", err);
+		return err;
+	}
+
 	err = irtoy_command(irtoy, COMMAND_TXSTART, sizeof(COMMAND_TXSTART),
 			    STATE_TX);
 	kfree(buf);
@@ -336,6 +363,27 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	}
 
 	return count;
+}
+
+static int irtoy_tx_carrier(struct rc_dev *rc, uint32_t carrier)
+{
+	struct irtoy *irtoy = rc->priv;
+	u8 buf[3];
+	int err;
+
+	if (carrier < 11800)
+		return -EINVAL;
+
+	buf[0] = 0x06;
+	buf[1] = DIV_ROUND_CLOSEST(48000000, 16 * carrier) - 1;
+	buf[2] = 0;
+
+	err = irtoy_command(irtoy, buf, sizeof(buf), STATE_COMMAND_NO_RESP);
+	if (err)
+		dev_err(irtoy->dev, "could not write carrier command: %d\n",
+			err);
+
+	return err;
 }
 
 static int irtoy_probe(struct usb_interface *intf,
@@ -417,8 +465,9 @@ static int irtoy_probe(struct usb_interface *intf,
 	if (err)
 		goto free_rcdev;
 
-	dev_info(irtoy->dev, "version: hardware %u, firmware %u, protocol %u",
-		 irtoy->hw_version, irtoy->sw_version, irtoy->proto_version);
+	dev_info(irtoy->dev, "version: hardware %u, firmware %u.%u, protocol %u",
+		 irtoy->hw_version, irtoy->sw_version / 10,
+		 irtoy->sw_version % 10, irtoy->proto_version);
 
 	if (irtoy->sw_version < MIN_FW_VERSION) {
 		dev_err(irtoy->dev, "need firmware V%02u or higher",
@@ -436,6 +485,7 @@ static int irtoy_probe(struct usb_interface *intf,
 	rc->dev.parent = &intf->dev;
 	rc->priv = irtoy;
 	rc->tx_ir = irtoy_tx;
+	rc->s_tx_carrier = irtoy_tx_carrier;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->map_name = RC_MAP_RC6_MCE;
 	rc->rx_resolution = UNIT_US;

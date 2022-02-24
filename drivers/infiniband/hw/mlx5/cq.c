@@ -328,8 +328,11 @@ static void mlx5_handle_error_cqe(struct mlx5_ib_dev *dev,
 	}
 
 	wc->vendor_err = cqe->vendor_err_synd;
-	if (dump)
+	if (dump) {
+		mlx5_ib_warn(dev, "WC error: %d, Message: %s\n", wc->status,
+			     ib_wc_status_msg(wc->status));
 		dump_cqe(dev, cqe);
+	}
 }
 
 static void handle_atomics(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,

@@ -17,6 +17,13 @@
 	};
 };
 
+&es8316 {
+	pinctrl-0 = <&hp_detect &hp_int>;
+	pinctrl-names = "default";
+	interrupt-parent = <&gpio1>;
+	interrupts = <RK_PA1 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &sdio0 {
 	status = "okay";
 
@@ -31,18 +38,25 @@
 	};
 };
 
+&sound {
+	hp-det-gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+};
+
 &uart0 {
 	status = "okay";
 
 	bluetooth {
-		compatible = "brcm,bcm43438-bt";
+		compatible = "brcm,bcm4345c5";
 		clocks = <&rk808 1>;
-		clock-names = "ext_clock";
+		clock-names = "lpo";
 		device-wakeup-gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_HIGH>;
 		host-wakeup-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		shutdown-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bt_host_wake_l &bt_wake_l &bt_enable_h>;
+		vbat-supply = <&vcc3v3_sys>;
+		vddio-supply = <&vcc_1v8>;
 	};
 };
 

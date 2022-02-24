@@ -27,7 +27,7 @@
 #define PA_INT_CLEAR			0x1c7c
 #define PA_EVENT_TYPE0			0x1c80
 #define PA_PMU_VERSION			0x1cf0
-#define PA_EVENT_CNT0_L			0x1f00
+#define PA_EVENT_CNT0_L			0x1d00
 
 #define PA_EVTYPE_MASK			0xff
 #define PA_NR_COUNTERS			0x8

@@ -65,14 +65,14 @@ static int bperf_load_program(struct evlist *evlist)
 
 	/* we need one copy of events per cpu for reading */
 	map_size = total_cpus * evlist->core.nr_entries / nr_cgroups;
-	bpf_map__resize(skel->maps.events, map_size);
-	bpf_map__resize(skel->maps.cgrp_idx, nr_cgroups);
+	bpf_map__set_max_entries(skel->maps.events, map_size);
+	bpf_map__set_max_entries(skel->maps.cgrp_idx, nr_cgroups);
 	/* previous result is saved in a per-cpu array */
 	map_size = evlist->core.nr_entries / nr_cgroups;
-	bpf_map__resize(skel->maps.prev_readings, map_size);
+	bpf_map__set_max_entries(skel->maps.prev_readings, map_size);
 	/* cgroup result needs all events (per-cpu) */
 	map_size = evlist->core.nr_entries;
-	bpf_map__resize(skel->maps.cgrp_readings, map_size);
+	bpf_map__set_max_entries(skel->maps.cgrp_readings, map_size);
 
 	set_max_rlimit();
 

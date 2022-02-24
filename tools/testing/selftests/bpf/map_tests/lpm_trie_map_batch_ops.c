@@ -64,13 +64,7 @@ static void map_batch_verify(int *visited, __u32 max_entries,
 
 void test_lpm_trie_map_batch_ops(void)
 {
-	struct bpf_create_map_attr xattr = {
-		.name = "lpm_trie_map",
-		.map_type = BPF_MAP_TYPE_LPM_TRIE,
-		.key_size = sizeof(struct test_lpm_key),
-		.value_size = sizeof(int),
-		.map_flags = BPF_F_NO_PREALLOC,
-	};
+	LIBBPF_OPTS(bpf_map_create_opts, create_opts, .map_flags = BPF_F_NO_PREALLOC);
 	struct test_lpm_key *keys, key;
 	int map_fd, *values, *visited;
 	__u32 step, count, total, total_success;
@@ -82,9 +76,10 @@ void test_lpm_trie_map_batch_ops(void)
 		.flags = 0,
 	);
 
-	xattr.max_entries = max_entries;
-	map_fd = bpf_create_map_xattr(&xattr);
-	CHECK(map_fd == -1, "bpf_create_map_xattr()", "error:%s\n",
+	map_fd = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, "lpm_trie_map",
+				sizeof(struct test_lpm_key), sizeof(int),
+				max_entries, &create_opts);
+	CHECK(map_fd == -1, "bpf_map_create()", "error:%s\n",
 	      strerror(errno));
 
 	keys = malloc(max_entries * sizeof(struct test_lpm_key));

@@ -36,6 +36,7 @@ config KVM
 	select KVM_MMIO
 	select SCHED_INFO
 	select PERF_EVENTS
+	select GUEST_PERF_EVENTS
 	select HAVE_KVM_MSI
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_NO_POLL
@@ -128,5 +129,8 @@ config KVM_MMU_AUDIT
 	help
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
+
+config KVM_EXTERNAL_WRITE_TRACKING
+	bool
 
 endif # VIRTUALIZATION

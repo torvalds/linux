@@ -410,7 +410,8 @@ void __init paging_init(void)
 
 	min_addr = m68k_memory[0].addr;
 	max_addr = min_addr + m68k_memory[0].size;
-	memblock_add_node(m68k_memory[0].addr, m68k_memory[0].size, 0);
+	memblock_add_node(m68k_memory[0].addr, m68k_memory[0].size, 0,
+			  MEMBLOCK_NONE);
 	for (i = 1; i < m68k_num_memory;) {
 		if (m68k_memory[i].addr < min_addr) {
 			printk("Ignoring memory chunk at 0x%lx:0x%lx before the first chunk\n",
@@ -421,7 +422,8 @@ void __init paging_init(void)
 				(m68k_num_memory - i) * sizeof(struct m68k_mem_info));
 			continue;
 		}
-		memblock_add_node(m68k_memory[i].addr, m68k_memory[i].size, i);
+		memblock_add_node(m68k_memory[i].addr, m68k_memory[i].size, i,
+				  MEMBLOCK_NONE);
 		addr = m68k_memory[i].addr + m68k_memory[i].size;
 		if (addr > max_addr)
 			max_addr = addr;
@@ -455,6 +457,8 @@ void __init paging_init(void)
 
 	flush_tlb_all();
 
+	early_memtest(min_addr, max_addr);
+
 	/*
 	 * initialize the bad page table and bad page to point
 	 * to a couple of allocated pages
@@ -467,7 +471,7 @@ void __init paging_init(void)
 	/*
 	 * Set up SFC/DFC registers
 	 */
-	set_fs(KERNEL_DS);
+	set_fc(USER_DATA);
 
 #ifdef DEBUG
 	printk ("before free_area_init\n");

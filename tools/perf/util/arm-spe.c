@@ -51,6 +51,7 @@ struct arm_spe {
 	u8				timeless_decoding;
 	u8				data_queued;
 
+	u64				sample_type;
 	u8				sample_flc;
 	u8				sample_llc;
 	u8				sample_tlb;
@@ -71,6 +72,7 @@ struct arm_spe {
 	u64				kernel_start;
 
 	unsigned long			num_events;
+	u8				use_ctx_pkt_for_pid;
 };
 
 struct arm_spe_queue {
@@ -100,7 +102,7 @@ static void arm_spe_dump(struct arm_spe *spe __maybe_unused,
 	const char *color = PERF_COLOR_BLUE;
 
 	color_fprintf(stdout, color,
-		      ". ... ARM SPE data: size %zu bytes\n",
+		      ". ... ARM SPE data: size %#zx bytes\n",
 		      len);
 
 	while (len) {
@@ -226,6 +228,44 @@ static inline u8 arm_spe_cpumode(struct arm_spe *spe, u64 ip)
 		PERF_RECORD_MISC_USER;
 }
 
+static void arm_spe_set_pid_tid_cpu(struct arm_spe *spe,
+				    struct auxtrace_queue *queue)
+{
+	struct arm_spe_queue *speq = queue->priv;
+	pid_t tid;
+
+	tid = machine__get_current_tid(spe->machine, speq->cpu);
+	if (tid != -1) {
+		speq->tid = tid;
+		thread__zput(speq->thread);
+	} else
+		speq->tid = queue->tid;
+
+	if ((!speq->thread) && (speq->tid != -1)) {
+		speq->thread = machine__find_thread(spe->machine, -1,
+						    speq->tid);
+	}
+
+	if (speq->thread) {
+		speq->pid = speq->thread->pid_;
+		if (queue->cpu == -1)
+			speq->cpu = speq->thread->cpu;
+	}
+}
+
+static int arm_spe_set_tid(struct arm_spe_queue *speq, pid_t tid)
+{
+	struct arm_spe *spe = speq->spe;
+	int err = machine__set_current_tid(spe->machine, speq->cpu, -1, tid);
+
+	if (err)
+		return err;
+
+	arm_spe_set_pid_tid_cpu(spe, &spe->queues.queue_array[speq->queue_nr]);
+
+	return 0;
+}
+
 static void arm_spe_prep_sample(struct arm_spe *spe,
 				struct arm_spe_queue *speq,
 				union perf_event *event,
@@ -248,6 +288,12 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 	event->sample.header.size = sizeof(struct perf_event_header);
 }
 
+static int arm_spe__inject_event(union perf_event *event, struct perf_sample *sample, u64 type)
+{
+	event->header.size = perf_event__sample_event_size(sample, type, 0);
+	return perf_event__synthesize_sample(event, type, 0, sample);
+}
+
 static inline int
 arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct arm_spe_queue *speq __maybe_unused,
@@ -255,6 +301,12 @@ arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct perf_sample *sample)
 {
 	int ret;
+
+	if (spe->synth_opts.inject) {
+		ret = arm_spe__inject_event(event, sample, spe->sample_type);
+		if (ret)
+			return ret;
+	}
 
 	ret = perf_session__deliver_synth_event(spe->session, event, sample);
 	if (ret)
@@ -460,6 +512,19 @@ static int arm_spe_run_decoder(struct arm_spe_queue *speq, u64 *timestamp)
 		 * can correlate samples between Arm SPE trace data and other
 		 * perf events with correct time ordering.
 		 */
+
+		/*
+		 * Update pid/tid info.
+		 */
+		record = &speq->decoder->record;
+		if (!spe->timeless_decoding && record->context_id != (u64)-1) {
+			ret = arm_spe_set_tid(speq, record->context_id);
+			if (ret)
+				return ret;
+
+			spe->use_ctx_pkt_for_pid = true;
+		}
+
 		ret = arm_spe_sample(speq);
 		if (ret)
 			return ret;
@@ -586,31 +651,6 @@ static bool arm_spe__is_timeless_decoding(struct arm_spe *spe)
 	return timeless_decoding;
 }
 
-static void arm_spe_set_pid_tid_cpu(struct arm_spe *spe,
-				    struct auxtrace_queue *queue)
-{
-	struct arm_spe_queue *speq = queue->priv;
-	pid_t tid;
-
-	tid = machine__get_current_tid(spe->machine, speq->cpu);
-	if (tid != -1) {
-		speq->tid = tid;
-		thread__zput(speq->thread);
-	} else
-		speq->tid = queue->tid;
-
-	if ((!speq->thread) && (speq->tid != -1)) {
-		speq->thread = machine__find_thread(spe->machine, -1,
-						    speq->tid);
-	}
-
-	if (speq->thread) {
-		speq->pid = speq->thread->pid_;
-		if (queue->cpu == -1)
-			speq->cpu = speq->thread->cpu;
-	}
-}
-
 static int arm_spe_process_queues(struct arm_spe *spe, u64 timestamp)
 {
 	unsigned int queue_nr;
@@ -641,7 +681,12 @@ static int arm_spe_process_queues(struct arm_spe *spe, u64 timestamp)
 			ts = timestamp;
 		}
 
-		arm_spe_set_pid_tid_cpu(spe, queue);
+		/*
+		 * A previous context-switch event has set pid/tid in the machine's context, so
+		 * here we need to update the pid/tid in the thread and SPE queue.
+		 */
+		if (!spe->use_ctx_pkt_for_pid)
+			arm_spe_set_pid_tid_cpu(spe, queue);
 
 		ret = arm_spe_run_decoder(speq, &ts);
 		if (ret < 0) {
@@ -681,6 +726,25 @@ static int arm_spe_process_timeless_queues(struct arm_spe *spe, pid_t tid,
 	return 0;
 }
 
+static int arm_spe_context_switch(struct arm_spe *spe, union perf_event *event,
+				  struct perf_sample *sample)
+{
+	pid_t pid, tid;
+	int cpu;
+
+	if (!(event->header.misc & PERF_RECORD_MISC_SWITCH_OUT))
+		return 0;
+
+	pid = event->context_switch.next_prev_pid;
+	tid = event->context_switch.next_prev_tid;
+	cpu = sample->cpu;
+
+	if (tid == -1)
+		pr_warning("context_switch event has no tid\n");
+
+	return machine__set_current_tid(spe->machine, cpu, pid, tid);
+}
+
 static int arm_spe_process_event(struct perf_session *session,
 				 union perf_event *event,
 				 struct perf_sample *sample,
@@ -718,6 +782,13 @@ static int arm_spe_process_event(struct perf_session *session,
 		}
 	} else if (timestamp) {
 		err = arm_spe_process_queues(spe, timestamp);
+		if (err)
+			return err;
+
+		if (!spe->use_ctx_pkt_for_pid &&
+		    (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE ||
+		    event->header.type == PERF_RECORD_SWITCH))
+			err = arm_spe_context_switch(spe, event, sample);
 	}
 
 	return err;
@@ -783,7 +854,15 @@ static int arm_spe_flush(struct perf_session *session __maybe_unused,
 		return arm_spe_process_timeless_queues(spe, -1,
 				MAX_TIMESTAMP - 1);
 
-	return arm_spe_process_queues(spe, MAX_TIMESTAMP);
+	ret = arm_spe_process_queues(spe, MAX_TIMESTAMP);
+	if (ret)
+		return ret;
+
+	if (!spe->use_ctx_pkt_for_pid)
+		ui__warning("Arm SPE CONTEXT packets not found in the traces.\n"
+			    "Matching of TIDs to SPE events could be inaccurate.\n");
+
+	return 0;
 }
 
 static void arm_spe_free_queue(void *priv)
@@ -919,6 +998,8 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 		attr.sample_type &= ~(u64)PERF_SAMPLE_TIME;
 	else
 		attr.sample_type |= PERF_SAMPLE_TIME;
+
+	spe->sample_type = attr.sample_type;
 
 	attr.exclude_user = evsel->core.attr.exclude_user;
 	attr.exclude_kernel = evsel->core.attr.exclude_kernel;

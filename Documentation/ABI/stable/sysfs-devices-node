@@ -176,3 +176,9 @@ Contact:	Keith Busch <keith.busch@intel.com>
 Description:
 		The cache write policy: 0 for write-back, 1 for write-through,
 		other or unknown.
+
+What:		/sys/devices/system/node/nodeX/x86/sgx_total_bytes
+Date:		November 2021
+Contact:	Jarkko Sakkinen <jarkko@kernel.org>
+Description:
+		The total amount of SGX physical memory in bytes.

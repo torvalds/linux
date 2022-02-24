@@ -163,7 +163,8 @@ static struct iio_map lp8788_default_iio_maps[] = {
 	{ }
 };
 
-static int lp8788_iio_map_register(struct iio_dev *indio_dev,
+static int lp8788_iio_map_register(struct device *dev,
+				struct iio_dev *indio_dev,
 				struct lp8788_platform_data *pdata,
 				struct lp8788_adc *adc)
 {
@@ -173,7 +174,7 @@ static int lp8788_iio_map_register(struct iio_dev *indio_dev,
 	map = (!pdata || !pdata->adc_pdata) ?
 		lp8788_default_iio_maps : pdata->adc_pdata;
 
-	ret = iio_map_array_register(indio_dev, map);
+	ret = devm_iio_map_array_register(dev, indio_dev, map);
 	if (ret) {
 		dev_err(&indio_dev->dev, "iio map err: %d\n", ret);
 		return ret;
@@ -196,9 +197,8 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 
 	adc = iio_priv(indio_dev);
 	adc->lp = lp;
-	platform_set_drvdata(pdev, indio_dev);
 
-	ret = lp8788_iio_map_register(indio_dev, lp->pdata, adc);
+	ret = lp8788_iio_map_register(&pdev->dev, indio_dev, lp->pdata, adc);
 	if (ret)
 		return ret;
 
@@ -210,32 +210,11 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = lp8788_adc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lp8788_adc_channels);
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "iio dev register err: %d\n", ret);
-		goto err_iio_device;
-	}
-
-	return 0;
-
-err_iio_device:
-	iio_map_array_unregister(indio_dev);
-	return ret;
-}
-
-static int lp8788_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_map_array_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 static struct platform_driver lp8788_adc_driver = {
 	.probe = lp8788_adc_probe,
-	.remove = lp8788_adc_remove,
 	.driver = {
 		.name = LP8788_DEV_ADC,
 	},

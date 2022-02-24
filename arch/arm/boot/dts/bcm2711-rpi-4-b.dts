@@ -3,6 +3,7 @@
 #include "bcm2711.dtsi"
 #include "bcm2711-rpi.dtsi"
 #include "bcm283x-rpi-usb-peripheral.dtsi"
+#include "bcm283x-rpi-wifi-bt.dtsi"
 
 / {
 	compatible = "raspberrypi,4-model-b", "brcm,bcm2711";
@@ -26,11 +27,6 @@
 		};
 	};
 
-	wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
-	};
-
 	sd_io_1v8_reg: sd_io_1v8_reg {
 		compatible = "regulator-gpio";
 		regulator-name = "vdd-sd-io";
@@ -40,8 +36,8 @@
 		regulator-always-on;
 		regulator-settling-time-us = <5000>;
 		gpios = <&expgpio 4 GPIO_ACTIVE_HIGH>;
-		states = <1800000 0x1
-			  3300000 0x0>;
+		states = <1800000 0x1>,
+			 <3300000 0x0>;
 		status = "okay";
 	};
 
@@ -56,6 +52,10 @@
 	};
 };
 
+&bt {
+	shutdown-gpios = <&expgpio 0 GPIO_ACTIVE_HIGH>;
+};
+
 &ddc0 {
 	status = "okay";
 };
@@ -65,12 +65,12 @@
 };
 
 &expgpio {
-	gpio-line-names = "BT_ON",
+	gpio-line-names = "BT_ON",		/*  0 */
 			  "WL_ON",
 			  "PWR_LED_OFF",
 			  "GLOBAL_RESET",
 			  "VDD_SD_IO_SEL",
-			  "CAM_GPIO",
+			  "CAM_GPIO",		/*  5 */
 			  "SD_PWR_ON",
 			  "";
 };
@@ -84,66 +84,66 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "ID_SDA",
+	gpio-line-names = "ID_SDA",		/*  0 */
 			  "ID_SCL",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
-			  "GPIO5",
+			  "GPIO5",		/*  5 */
 			  "GPIO6",
 			  "SPI_CE1_N",
 			  "SPI_CE0_N",
 			  "SPI_MISO",
-			  "SPI_MOSI",
+			  "SPI_MOSI",		/* 10 */
 			  "SPI_SCLK",
 			  "GPIO12",
 			  "GPIO13",
 			  /* Serial port */
 			  "TXD1",
-			  "RXD1",
+			  "RXD1",		/* 15 */
 			  "GPIO16",
 			  "GPIO17",
 			  "GPIO18",
 			  "GPIO19",
-			  "GPIO20",
+			  "GPIO20",		/* 20 */
 			  "GPIO21",
 			  "GPIO22",
 			  "GPIO23",
 			  "GPIO24",
-			  "GPIO25",
+			  "GPIO25",		/* 25 */
 			  "GPIO26",
 			  "GPIO27",
 			  "RGMII_MDIO",
 			  "RGMIO_MDC",
 			  /* Used by BT module */
-			  "CTS0",
+			  "CTS0",		/* 30 */
 			  "RTS0",
 			  "TXD0",
 			  "RXD0",
 			  /* Used by Wifi */
 			  "SD1_CLK",
-			  "SD1_CMD",
+			  "SD1_CMD",		/* 35 */
 			  "SD1_DATA0",
 			  "SD1_DATA1",
 			  "SD1_DATA2",
 			  "SD1_DATA3",
 			  /* Shared with SPI flash */
-			  "PWM0_MISO",
+			  "PWM0_MISO",		/* 40 */
 			  "PWM1_MOSI",
 			  "STATUS_LED_G_CLK",
 			  "SPIFLASH_CE_N",
 			  "SDA0",
-			  "SCL0",
+			  "SCL0",		/* 45 */
 			  "RGMII_RXCLK",
 			  "RGMII_RXCTL",
 			  "RGMII_RXD0",
 			  "RGMII_RXD1",
-			  "RGMII_RXD2",
+			  "RGMII_RXD2",		/* 50 */
 			  "RGMII_RXD3",
 			  "RGMII_TXCLK",
 			  "RGMII_TXCTL",
 			  "RGMII_TXD0",
-			  "RGMII_TXD1",
+			  "RGMII_TXD1",		/* 55 */
 			  "RGMII_TXD2",
 			  "RGMII_TXD3";
 };
@@ -178,23 +178,6 @@
 	status = "okay";
 };
 
-/* SDHCI is used to control the SDIO for wireless */
-&sdhci {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_gpio34>;
-	bus-width = <4>;
-	non-removable;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	status = "okay";
-
-	brcmf: wifi@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-	};
-};
-
 /* EMMC2 is used to drive the SD card */
 &emmc2 {
 	vqmmc-supply = <&sd_io_1v8_reg>;
@@ -217,15 +200,16 @@
 };
 
 &pcie0 {
-	pci@1,0 {
+	pci@0,0 {
+		device_type = "pci";
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
 
 		reg = <0 0 0 0 0>;
 
-		usb@1,0 {
-			reg = <0x10000 0 0 0 0>;
+		usb@0,0 {
+			reg = <0 0 0 0 0>;
 			resets = <&reset RASPBERRYPI_FIRMWARE_RESET_ID_USB>;
 		};
 	};
@@ -236,13 +220,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_ctsrts_gpio30 &uart0_gpio32>;
 	uart-has-rtscts;
-	status = "okay";
-
-	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		max-speed = <2000000>;
-		shutdown-gpios = <&expgpio 0 GPIO_ACTIVE_HIGH>;
-	};
 };
 
 /* uart1 is mapped to the pin header */
@@ -258,4 +235,8 @@
 
 &vec {
 	status = "disabled";
+};
+
+&wifi_pwrseq {
+	reset-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
 };

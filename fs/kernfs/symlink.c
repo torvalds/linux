@@ -36,8 +36,7 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 		gid = target->iattr->ia_gid;
 	}
 
-	kn = kernfs_new_node(parent, name, S_IFLNK|S_IRWXUGO, uid, gid,
-			     KERNFS_LINK);
+	kn = kernfs_new_node(parent, name, S_IFLNK|0777, uid, gid, KERNFS_LINK);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -114,11 +113,12 @@ static int kernfs_getlink(struct inode *inode, char *path)
 	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_node *parent = kn->parent;
 	struct kernfs_node *target = kn->symlink.target_kn;
+	struct kernfs_root *root = kernfs_root(parent);
 	int error;
 
-	down_read(&kernfs_rwsem);
+	down_read(&root->kernfs_rwsem);
 	error = kernfs_get_target_path(parent, target, path);
-	up_read(&kernfs_rwsem);
+	up_read(&root->kernfs_rwsem);
 
 	return error;
 }

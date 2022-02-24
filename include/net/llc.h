@@ -72,7 +72,9 @@ struct llc_sap {
 static inline
 struct hlist_head *llc_sk_dev_hash(struct llc_sap *sap, int ifindex)
 {
-	return &sap->sk_dev_hash[ifindex % LLC_SK_DEV_HASH_ENTRIES];
+	u32 bucket = hash_32(ifindex, LLC_SK_DEV_HASH_BITS);
+
+	return &sap->sk_dev_hash[bucket];
 }
 
 static inline
@@ -133,7 +135,7 @@ static inline void llc_sap_put(struct llc_sap *sap)
 struct llc_sap *llc_sap_find(unsigned char sap_value);
 
 int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
-			      unsigned char *dmac, unsigned char dsap);
+			      const unsigned char *dmac, unsigned char dsap);
 
 void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb);
 void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb);

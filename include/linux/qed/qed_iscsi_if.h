@@ -182,7 +182,7 @@ struct qed_iscsi_cb_ops {
  *			@param stats - pointer to struck that would be filled
  *				we stats
  *			@return 0 on success, error otherwise.
- * @change_mac		Change MAC of interface
+ * @change_mac:		Change MAC of interface
  *			@param cdev
  *			@param handle - the connection handle.
  *			@param mac - new MAC to configure.

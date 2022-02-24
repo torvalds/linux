@@ -170,10 +170,10 @@ static inline int has_ebcdic_char(const char *str)
 
 void setup_boot_command_line(void)
 {
-	parmarea.command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
+	parmarea.command_line[COMMAND_LINE_SIZE - 1] = 0;
 	/* convert arch command line to ascii if necessary */
 	if (has_ebcdic_char(parmarea.command_line))
-		EBCASC(parmarea.command_line, ARCH_COMMAND_LINE_SIZE);
+		EBCASC(parmarea.command_line, COMMAND_LINE_SIZE);
 	/* copy arch command line */
 	strcpy(early_command_line, strim(parmarea.command_line));
 

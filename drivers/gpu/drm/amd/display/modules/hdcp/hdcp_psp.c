@@ -105,6 +105,7 @@ static enum mod_hdcp_status remove_display_from_topology_v3(
 	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	mutex_unlock(&psp->dtm_context.mutex);
 
 	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
 		status = remove_display_from_topology_v2(hdcp, index);
@@ -114,8 +115,6 @@ static enum mod_hdcp_status remove_display_from_topology_v3(
 		display->state = MOD_HDCP_DISPLAY_ACTIVE;
 		HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
 	}
-
-	mutex_unlock(&psp->dtm_context.mutex);
 
 	return status;
 }
@@ -205,6 +204,7 @@ static enum mod_hdcp_status add_display_to_topology_v3(
 	dtm_cmd->dtm_in_message.topology_update_v3.link_hdcp_cap = link->hdcp_supported_informational;
 
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	mutex_unlock(&psp->dtm_context.mutex);
 
 	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
 		status = add_display_to_topology_v2(hdcp, display);
@@ -213,8 +213,6 @@ static enum mod_hdcp_status add_display_to_topology_v3(
 	} else {
 		HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
 	}
-
-	mutex_unlock(&psp->dtm_context.mutex);
 
 	return status;
 }

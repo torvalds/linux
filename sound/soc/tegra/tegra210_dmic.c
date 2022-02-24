@@ -156,49 +156,160 @@ static int tegra210_dmic_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int tegra210_dmic_get_control(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
+static int tegra210_dmic_get_boost_gain(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 
-	if (strstr(kcontrol->id.name, "Boost Gain Volume"))
-		ucontrol->value.integer.value[0] = dmic->boost_gain;
-	else if (strstr(kcontrol->id.name, "Channel Select"))
-		ucontrol->value.integer.value[0] = dmic->ch_select;
-	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		ucontrol->value.integer.value[0] = dmic->mono_to_stereo;
-	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		ucontrol->value.integer.value[0] = dmic->stereo_to_mono;
-	else if (strstr(kcontrol->id.name, "OSR Value"))
-		ucontrol->value.integer.value[0] = dmic->osr_val;
-	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		ucontrol->value.integer.value[0] = dmic->lrsel;
+	ucontrol->value.integer.value[0] = dmic->boost_gain;
 
 	return 0;
 }
 
-static int tegra210_dmic_put_control(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
+static int tegra210_dmic_put_boost_gain(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 	int value = ucontrol->value.integer.value[0];
 
-	if (strstr(kcontrol->id.name, "Boost Gain Volume"))
-		dmic->boost_gain = value;
-	else if (strstr(kcontrol->id.name, "Channel Select"))
-		dmic->ch_select = ucontrol->value.integer.value[0];
-	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		dmic->mono_to_stereo = value;
-	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		dmic->stereo_to_mono = value;
-	else if (strstr(kcontrol->id.name, "OSR Value"))
-		dmic->osr_val = value;
-	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		dmic->lrsel = value;
+	if (value == dmic->boost_gain)
+		return 0;
+
+	dmic->boost_gain = value;
+
+	return 1;
+}
+
+static int tegra210_dmic_get_ch_select(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = dmic->ch_select;
 
 	return 0;
+}
+
+static int tegra210_dmic_put_ch_select(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dmic->ch_select)
+		return 0;
+
+	dmic->ch_select = value;
+
+	return 1;
+}
+
+static int tegra210_dmic_get_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = dmic->mono_to_stereo;
+
+	return 0;
+}
+
+static int tegra210_dmic_put_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dmic->mono_to_stereo)
+		return 0;
+
+	dmic->mono_to_stereo = value;
+
+	return 1;
+}
+
+static int tegra210_dmic_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = dmic->stereo_to_mono;
+
+	return 0;
+}
+
+static int tegra210_dmic_put_stereo_to_mono(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dmic->stereo_to_mono)
+		return 0;
+
+	dmic->stereo_to_mono = value;
+
+	return 1;
+}
+
+static int tegra210_dmic_get_osr_val(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = dmic->osr_val;
+
+	return 0;
+}
+
+static int tegra210_dmic_put_osr_val(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dmic->osr_val)
+		return 0;
+
+	dmic->osr_val = value;
+
+	return 1;
+}
+
+static int tegra210_dmic_get_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = dmic->lrsel;
+
+	return 0;
+}
+
+static int tegra210_dmic_put_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dmic->lrsel)
+		return 0;
+
+	dmic->lrsel = value;
+
+	return 1;
 }
 
 static const struct snd_soc_dai_ops tegra210_dmic_dai_ops = {
@@ -287,19 +398,22 @@ static const struct soc_enum tegra210_dmic_lrsel_enum =
 
 static const struct snd_kcontrol_new tegra210_dmic_controls[] = {
 	SOC_SINGLE_EXT("Boost Gain Volume", 0, 0, MAX_BOOST_GAIN, 0,
-		       tegra210_dmic_get_control, tegra210_dmic_put_control),
+		       tegra210_dmic_get_boost_gain,
+		       tegra210_dmic_put_boost_gain),
 	SOC_ENUM_EXT("Channel Select", tegra210_dmic_ch_enum,
-		     tegra210_dmic_get_control, tegra210_dmic_put_control),
+		     tegra210_dmic_get_ch_select, tegra210_dmic_put_ch_select),
 	SOC_ENUM_EXT("Mono To Stereo",
-		     tegra210_dmic_mono_conv_enum, tegra210_dmic_get_control,
-		     tegra210_dmic_put_control),
+		     tegra210_dmic_mono_conv_enum,
+		     tegra210_dmic_get_mono_to_stereo,
+		     tegra210_dmic_put_mono_to_stereo),
 	SOC_ENUM_EXT("Stereo To Mono",
-		     tegra210_dmic_stereo_conv_enum, tegra210_dmic_get_control,
-		     tegra210_dmic_put_control),
+		     tegra210_dmic_stereo_conv_enum,
+		     tegra210_dmic_get_stereo_to_mono,
+		     tegra210_dmic_put_stereo_to_mono),
 	SOC_ENUM_EXT("OSR Value", tegra210_dmic_osr_enum,
-		     tegra210_dmic_get_control, tegra210_dmic_put_control),
+		     tegra210_dmic_get_osr_val, tegra210_dmic_put_osr_val),
 	SOC_ENUM_EXT("LR Polarity Select", tegra210_dmic_lrsel_enum,
-		     tegra210_dmic_get_control, tegra210_dmic_put_control),
+		     tegra210_dmic_get_pol_sel, tegra210_dmic_put_pol_sel),
 };
 
 static const struct snd_soc_component_driver tegra210_dmic_compnt = {

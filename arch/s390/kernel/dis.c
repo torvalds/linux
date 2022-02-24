@@ -278,6 +278,7 @@ static const unsigned char formats[][6] = {
 	[INSTR_SIL_RDI]	     = { D_20, B_16, I16_32, 0, 0, 0 },
 	[INSTR_SIL_RDU]	     = { D_20, B_16, U16_32, 0, 0, 0 },
 	[INSTR_SIY_IRD]	     = { D20_20, B_16, I8_8, 0, 0, 0 },
+	[INSTR_SIY_RD]	     = { D20_20, B_16, 0, 0, 0, 0 },
 	[INSTR_SIY_URD]	     = { D20_20, B_16, U8_8, 0, 0, 0 },
 	[INSTR_SI_RD]	     = { D_20, B_16, 0, 0, 0, 0 },
 	[INSTR_SI_URD]	     = { D_20, B_16, U8_8, 0, 0, 0 },

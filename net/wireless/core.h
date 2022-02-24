@@ -84,6 +84,11 @@ struct cfg80211_registered_device {
 
 	struct delayed_work dfs_update_channels_wk;
 
+	struct wireless_dev *background_radar_wdev;
+	struct cfg80211_chan_def background_radar_chandef;
+	struct delayed_work background_cac_done_wk;
+	struct work_struct background_cac_abort_wk;
+
 	/* netlink port which started critical protocol (0 means not started) */
 	u32 crit_proto_nlportid;
 
@@ -100,6 +105,8 @@ struct cfg80211_registered_device {
 	struct work_struct propagate_cac_done_wk;
 
 	struct work_struct mgmt_registrations_update_wk;
+	/* lock for all wdev lists */
+	spinlock_t mgmt_registrations_lock;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -488,6 +495,17 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef);
 
 void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev);
+
+int
+cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rdev,
+					  struct wireless_dev *wdev,
+					  struct cfg80211_chan_def *chandef);
+
+void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev);
+
+void cfg80211_background_cac_done_wk(struct work_struct *work);
+
+void cfg80211_background_cac_abort_wk(struct work_struct *work);
 
 bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 				  struct ieee80211_channel *chan);

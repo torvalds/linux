@@ -294,7 +294,7 @@ struct lm85_data {
 	bool has_vid5;	/* true if VID5 is configured for ADT7463 or ADT7468 */
 
 	struct mutex update_lock;
-	int valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_reading;	/* In jiffies */
 	unsigned long last_config;	/* In jiffies */
 
@@ -541,7 +541,7 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 		data->last_config = jiffies;
 	}  /* last_config */
 
-	data->valid = 1;
+	data->valid = true;
 
 	mutex_unlock(&data->update_lock);
 

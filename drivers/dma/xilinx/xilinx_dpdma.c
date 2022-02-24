@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/dma/xilinx_dpdma.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
@@ -271,9 +272,6 @@ struct xilinx_dpdma_device {
 /* -----------------------------------------------------------------------------
  * DebugFS
  */
-
-#ifdef CONFIG_DEBUG_FS
-
 #define XILINX_DPDMA_DEBUGFS_READ_MAX_SIZE	32
 #define XILINX_DPDMA_DEBUGFS_UINT16_MAX_STR	"65535"
 
@@ -299,7 +297,7 @@ struct xilinx_dpdma_debugfs_request {
 
 static void xilinx_dpdma_debugfs_desc_done_irq(struct xilinx_dpdma_chan *chan)
 {
-	if (chan->id == dpdma_debugfs.chan_id)
+	if (IS_ENABLED(CONFIG_DEBUG_FS) && chan->id == dpdma_debugfs.chan_id)
 		dpdma_debugfs.xilinx_dpdma_irq_done_count++;
 }
 
@@ -461,16 +459,6 @@ static void xilinx_dpdma_debugfs_init(struct xilinx_dpdma_device *xdev)
 	if (IS_ERR(dent))
 		dev_err(xdev->dev, "Failed to create debugfs testcase file\n");
 }
-
-#else
-static void xilinx_dpdma_debugfs_init(struct xilinx_dpdma_device *xdev)
-{
-}
-
-static void xilinx_dpdma_debugfs_desc_done_irq(struct xilinx_dpdma_chan *chan)
-{
-}
-#endif /* CONFIG_DEBUG_FS */
 
 /* -----------------------------------------------------------------------------
  * I/O Accessors
@@ -1286,6 +1274,7 @@ static int xilinx_dpdma_config(struct dma_chan *dchan,
 			       struct dma_slave_config *config)
 {
 	struct xilinx_dpdma_chan *chan = to_xilinx_chan(dchan);
+	struct xilinx_dpdma_peripheral_config *pconfig;
 	unsigned long flags;
 
 	/*
@@ -1295,15 +1284,18 @@ static int xilinx_dpdma_config(struct dma_chan *dchan,
 	 * fixed both on the DPDMA side and on the DP controller side.
 	 */
 
-	spin_lock_irqsave(&chan->lock, flags);
-
 	/*
-	 * Abuse the slave_id to indicate that the channel is part of a video
-	 * group.
+	 * Use the peripheral_config to indicate that the channel is part
+	 * of a video group. This requires matching use of the custom
+	 * structure in each driver.
 	 */
-	if (chan->id <= ZYNQMP_DPDMA_VIDEO2)
-		chan->video_group = config->slave_id != 0;
+	pconfig = config->peripheral_config;
+	if (WARN_ON(pconfig && config->peripheral_size != sizeof(*pconfig)))
+		return -EINVAL;
 
+	spin_lock_irqsave(&chan->lock, flags);
+	if (chan->id <= ZYNQMP_DPDMA_VIDEO2 && pconfig)
+		chan->video_group = pconfig->video_group;
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	return 0;

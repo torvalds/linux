@@ -55,14 +55,14 @@ static unsigned int pata_falcon_data_xfer(struct ata_queued_cmd *qc,
 	/* Transfer multiple of 2 bytes */
 	if (rw == READ) {
 		if (swap)
-			raw_insw_swapw((u16 *)data_addr, (u16 *)buf, words);
+			raw_insw_swapw(data_addr, (u16 *)buf, words);
 		else
-			raw_insw((u16 *)data_addr, (u16 *)buf, words);
+			raw_insw(data_addr, (u16 *)buf, words);
 	} else {
 		if (swap)
-			raw_outsw_swapw((u16 *)data_addr, (u16 *)buf, words);
+			raw_outsw_swapw(data_addr, (u16 *)buf, words);
 		else
-			raw_outsw((u16 *)data_addr, (u16 *)buf, words);
+			raw_outsw(data_addr, (u16 *)buf, words);
 	}
 
 	/* Transfer trailing byte, if any. */
@@ -74,16 +74,16 @@ static unsigned int pata_falcon_data_xfer(struct ata_queued_cmd *qc,
 
 		if (rw == READ) {
 			if (swap)
-				raw_insw_swapw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_insw_swapw(data_addr, (u16 *)pad, 1);
 			else
-				raw_insw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_insw(data_addr, (u16 *)pad, 1);
 			*buf = pad[0];
 		} else {
 			pad[0] = *buf;
 			if (swap)
-				raw_outsw_swapw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_outsw_swapw(data_addr, (u16 *)pad, 1);
 			else
-				raw_outsw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_outsw(data_addr, (u16 *)pad, 1);
 		}
 		words++;
 	}

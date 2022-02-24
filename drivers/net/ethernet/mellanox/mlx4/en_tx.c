@@ -130,6 +130,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		ring->bf_enabled = !!(priv->pflags &
 				      MLX4_EN_PRIV_FLAGS_BLUEFLAME);
 	}
+	ring->doorbell_address = ring->bf.uar->map + MLX4_SEND_DOORBELL;
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
@@ -753,8 +754,7 @@ void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring)
 #else
 	iowrite32be(
 #endif
-		  (__force u32)ring->doorbell_qpn,
-		  ring->bf.uar->map + MLX4_SEND_DOORBELL);
+		  (__force u32)ring->doorbell_qpn, ring->doorbell_address);
 }
 
 static void mlx4_en_tx_write_desc(struct mlx4_en_tx_ring *ring,

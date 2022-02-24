@@ -122,15 +122,13 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	struct dw_plat_pcie *dw_plat_pcie;
 	struct dw_pcie *pci;
 	int ret;
-	const struct of_device_id *match;
 	const struct dw_plat_pcie_of_data *data;
 	enum dw_pcie_device_mode mode;
 
-	match = of_match_device(dw_plat_pcie_of_match, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct dw_plat_pcie_of_data *)match->data;
 	mode = (enum dw_pcie_device_mode)data->mode;
 
 	dw_plat_pcie = devm_kzalloc(dev, sizeof(*dw_plat_pcie), GFP_KERNEL);
@@ -164,7 +162,6 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 
 		pci->ep.ops = &pcie_ep_ops;
 		return dw_pcie_ep_init(&pci->ep);
-		break;
 	default:
 		dev_err(dev, "INVALID device type %d\n", dw_plat_pcie->mode);
 	}

@@ -337,7 +337,7 @@ static int mtu3_probe(struct platform_device *pdev)
 		goto comm_init_err;
 
 	if (ssusb->wakeup_irq > 0) {
-		ret = dev_pm_set_dedicated_wake_irq(dev, ssusb->wakeup_irq);
+		ret = dev_pm_set_dedicated_wake_irq_reverse(dev, ssusb->wakeup_irq);
 		if (ret) {
 			dev_err(dev, "failed to set wakeup irq %d\n", ssusb->wakeup_irq);
 			goto comm_exit;

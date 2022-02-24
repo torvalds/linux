@@ -1243,6 +1243,9 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 		.module_id = MODULE_MASTER,
 		.msg = "MODULE_MASTER"
 	}, {
+		.module_id = MODULE_HIMAC,
+		.msg = "MODULE_HIMAC"
+	}, {
 		.module_id = MODULE_ROCEE_TOP,
 		.msg = "MODULE_ROCEE_TOP"
 	}, {
@@ -1316,12 +1319,21 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.type_id = GLB_ERROR,
 		.msg = "glb_error"
 	}, {
+		.type_id = LINK_ERROR,
+		.msg = "link_error"
+	}, {
+		.type_id = PTP_ERROR,
+		.msg = "ptp_error"
+	}, {
 		.type_id = ROCEE_NORMAL_ERR,
 		.msg = "rocee_normal_error"
 	}, {
 		.type_id = ROCEE_OVF_ERR,
 		.msg = "rocee_ovf_error"
-	}
+	}, {
+		.type_id = ROCEE_BUS_ERR,
+		.msg = "rocee_bus_error"
+	},
 };
 
 static void hclge_log_error(struct device *dev, char *reg,
@@ -1387,7 +1399,7 @@ static int hclge_config_common_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure common error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_COMMON_ECC_INT_CFG, false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_COMMON_ECC_INT_CFG, false);
 
 	if (en) {
@@ -1486,7 +1498,7 @@ static int hclge_config_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 
 	/* configure PPP error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
 
 	if (cmd == HCLGE_PPP_CMD0_INT_CMD) {
@@ -1560,8 +1572,11 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure TM QCN hw errors */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_QCN_MEM_INT_CFG, false);
-	if (en)
+	desc.data[0] = cpu_to_le32(HCLGE_TM_QCN_ERR_INT_TYPE);
+	if (en) {
+		desc.data[0] |= cpu_to_le32(HCLGE_TM_QCN_FIFO_INT_EN);
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
+	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -1618,7 +1633,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 	/* configure PPU error interrupts */
 	if (cmd == HCLGE_PPU_MPF_ECC_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
-		desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
 		if (en) {
 			desc[0].data[0] =
@@ -1703,7 +1718,7 @@ static int hclge_config_ssu_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure SSU ecc error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_SSU_ECC_INT_CMD, false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_SSU_ECC_INT_CMD, false);
 	if (en) {
 		desc[0].data[0] = cpu_to_le32(HCLGE_SSU_1BIT_ECC_ERR_INT_EN);
@@ -1725,7 +1740,7 @@ static int hclge_config_ssu_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure SSU common error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_SSU_COMMON_INT_CMD, false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_SSU_COMMON_INT_CMD, false);
 
 	if (en) {
@@ -1948,7 +1963,7 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 				&ae_dev->hw_err_reset_req);
 
 	/* clear all main PF RAS errors */
-	hclge_cmd_reuse_desc(&desc[0], false);
+	hclge_comm_cmd_reuse_desc(&desc[0], false);
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all mpf ras int cmd failed (%d)\n", ret);
@@ -2021,7 +2036,7 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	}
 
 	/* clear all PF RAS errors */
-	hclge_cmd_reuse_desc(&desc[0], false);
+	hclge_comm_cmd_reuse_desc(&desc[0], false);
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all pf ras int cmd failed (%d)\n", ret);
@@ -2072,8 +2087,8 @@ static int hclge_log_rocee_axi_error(struct hclge_dev *hdev)
 				   true);
 	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	desc[1].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], 3);
 	if (ret) {
@@ -2104,7 +2119,7 @@ static int hclge_log_rocee_ecc_error(struct hclge_dev *hdev)
 
 	ret = hclge_cmd_query_error(hdev, &desc[0],
 				    HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD,
-				    HCLGE_CMD_FLAG_NEXT);
+				    HCLGE_COMM_CMD_FLAG_NEXT);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE ECC error sts\n", ret);
 		return ret;
@@ -2220,7 +2235,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	}
 
 	/* clear error status */
-	hclge_cmd_reuse_desc(&desc[0], false);
+	hclge_comm_cmd_reuse_desc(&desc[0], false);
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], 1);
 	if (ret) {
 		dev_err(dev, "failed(%d) to clear ROCEE RAS error\n", ret);
@@ -2390,7 +2405,8 @@ static int hclge_clear_hw_msix_error(struct hclge_dev *hdev,
 	else
 		desc[0].opcode = cpu_to_le16(HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT);
 
-	desc[0].flag = cpu_to_le16(HCLGE_CMD_FLAG_NO_INTR | HCLGE_CMD_FLAG_IN);
+	desc[0].flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_NO_INTR |
+				   HCLGE_COMM_CMD_FLAG_IN);
 
 	return hclge_cmd_send(&hdev->hw, &desc[0], bd_num);
 }
@@ -2445,12 +2461,12 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 		return;
 	}
 
-	dev_err(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vf_id(%u), queue_id(%u)\n",
+	dev_err(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vport(%u), queue_id(%u)\n",
 		vf_id, q_id);
 
 	if (vf_id) {
 		if (vf_id >= hdev->num_alloc_vport) {
-			dev_err(dev, "invalid vf id(%u)\n", vf_id);
+			dev_err(dev, "invalid vport(%u)\n", vf_id);
 			return;
 		}
 
@@ -2463,8 +2479,8 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 
 		ret = hclge_inform_reset_assert_to_vf(&hdev->vport[vf_id]);
 		if (ret)
-			dev_err(dev, "inform reset to vf(%u) failed %d!\n",
-				hdev->vport->vport_id, ret);
+			dev_err(dev, "inform reset to vport(%u) failed %d!\n",
+				vf_id, ret);
 	} else {
 		set_bit(HNAE3_FUNC_RESET, reset_requests);
 	}

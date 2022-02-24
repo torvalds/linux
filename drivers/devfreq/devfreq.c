@@ -27,6 +27,7 @@
 #include <linux/hrtimer.h>
 #include <linux/of.h>
 #include <linux/pm_qos.h>
+#include <linux/units.h>
 #include "governor.h"
 
 #define CREATE_TRACE_POINTS
@@ -34,7 +35,6 @@
 
 #define IS_SUPPORTED_FLAG(f, name) ((f & DEVFREQ_GOV_FLAG_##name) ? true : false)
 #define IS_SUPPORTED_ATTR(f, name) ((f & DEVFREQ_GOV_ATTR_##name) ? true : false)
-#define HZ_PER_KHZ	1000
 
 static struct class *devfreq_class;
 static struct dentry *devfreq_debugfs;
@@ -382,8 +382,8 @@ static int devfreq_set_target(struct devfreq *devfreq, unsigned long new_freq,
 	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
 
 	if (devfreq_update_status(devfreq, new_freq))
-		dev_err(&devfreq->dev,
-			"Couldn't update frequency transition information.\n");
+		dev_warn(&devfreq->dev,
+			 "Couldn't update frequency transition information.\n");
 
 	devfreq->previous_freq = new_freq;
 
@@ -827,7 +827,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_dev;
 	}
 
-	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
+	if (!devfreq->profile->max_state || !devfreq->profile->freq_table) {
 		mutex_unlock(&devfreq->lock);
 		err = set_freq_table(devfreq);
 		if (err < 0)
@@ -1300,6 +1300,32 @@ err_out:
 	return err;
 }
 EXPORT_SYMBOL(devfreq_add_governor);
+
+static void devm_devfreq_remove_governor(void *governor)
+{
+	WARN_ON(devfreq_remove_governor(governor));
+}
+
+/**
+ * devm_devfreq_add_governor() - Add devfreq governor
+ * @dev:	device which adds devfreq governor
+ * @governor:	the devfreq governor to be added
+ *
+ * This is a resource-managed variant of devfreq_add_governor().
+ */
+int devm_devfreq_add_governor(struct device *dev,
+			      struct devfreq_governor *governor)
+{
+	int err;
+
+	err = devfreq_add_governor(governor);
+	if (err)
+		return err;
+
+	return devm_add_action_or_reset(dev, devm_devfreq_remove_governor,
+					governor);
+}
+EXPORT_SYMBOL(devm_devfreq_add_governor);
 
 /**
  * devfreq_remove_governor() - Remove devfreq feature from a device.

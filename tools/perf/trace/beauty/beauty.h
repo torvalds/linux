@@ -62,6 +62,8 @@ size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_
 
 extern struct strarray strarray__socket_families;
 
+extern struct strarray strarray__socket_level;
+
 /**
  * augmented_arg: extra payload for syscall pointer arguments
  
@@ -229,6 +231,9 @@ size_t syscall_arg__scnprintf_sockaddr(char *bf, size_t size, struct syscall_arg
 
 size_t syscall_arg__scnprintf_socket_protocol(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SK_PROTO syscall_arg__scnprintf_socket_protocol
+
+size_t syscall_arg__scnprintf_socket_level(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_SK_LEVEL syscall_arg__scnprintf_socket_level
 
 size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_FLAGS syscall_arg__scnprintf_statx_flags

@@ -6,7 +6,7 @@
 #include <linux/debugfs.h>
 #include <drm/drm_print.h>
 
-#include "gt/debugfs_gt.h"
+#include "gt/intel_gt_debugfs.h"
 #include "intel_guc_debugfs.h"
 #include "intel_huc_debugfs.h"
 #include "intel_uc.h"
@@ -32,11 +32,11 @@ static int uc_usage_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(uc_usage);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(uc_usage);
 
 void intel_uc_debugfs_register(struct intel_uc *uc, struct dentry *gt_root)
 {
-	static const struct debugfs_gt_file files[] = {
+	static const struct intel_gt_debugfs_file files[] = {
 		{ "usage", &uc_usage_fops, NULL },
 	};
 	struct dentry *root;

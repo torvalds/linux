@@ -15,14 +15,14 @@ static void c_can_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *info)
 {
 	struct c_can_priv *priv = netdev_priv(netdev);
-	struct platform_device *pdev = to_platform_device(priv->device);
-
 	strscpy(info->driver, "c_can", sizeof(info->driver));
-	strscpy(info->bus_info, pdev->name, sizeof(info->bus_info));
+	strscpy(info->bus_info, dev_name(priv->device), sizeof(info->bus_info));
 }
 
 static void c_can_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct c_can_priv *priv = netdev_priv(netdev);
 

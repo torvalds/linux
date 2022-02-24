@@ -38,7 +38,7 @@
  * elements entered into the array, during which, we're decaying all elements.
  * If, after decay, an element gets inserted again, its generation is set to 11b
  * to make sure it has higher numerical count than other, older elements and
- * thus emulate an an LRU-like behavior when deleting elements to free up space
+ * thus emulate an LRU-like behavior when deleting elements to free up space
  * in the page.
  *
  * When an element reaches it's max count of action_threshold, we try to poison

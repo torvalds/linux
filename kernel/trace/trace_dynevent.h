@@ -76,13 +76,15 @@ int dyn_event_init(struct dyn_event *ev, struct dyn_event_operations *ops)
 	return 0;
 }
 
-static inline int dyn_event_add(struct dyn_event *ev)
+static inline int dyn_event_add(struct dyn_event *ev,
+				struct trace_event_call *call)
 {
 	lockdep_assert_held(&event_mutex);
 
 	if (!ev || !ev->ops)
 		return -EINVAL;
 
+	call->flags |= TRACE_EVENT_FL_DYNAMIC;
 	list_add_tail(&ev->list, &dyn_event_list);
 	return 0;
 }

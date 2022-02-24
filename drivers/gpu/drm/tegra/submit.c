@@ -64,33 +64,62 @@ static void gather_bo_put(struct host1x_bo *host_bo)
 	kref_put(&bo->ref, gather_bo_release);
 }
 
-static struct sg_table *
-gather_bo_pin(struct device *dev, struct host1x_bo *host_bo, dma_addr_t *phys)
+static struct host1x_bo_mapping *
+gather_bo_pin(struct device *dev, struct host1x_bo *bo, enum dma_data_direction direction)
 {
-	struct gather_bo *bo = container_of(host_bo, struct gather_bo, base);
-	struct sg_table *sgt;
+	struct gather_bo *gather = container_of(bo, struct gather_bo, base);
+	struct host1x_bo_mapping *map;
 	int err;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt)
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
 		return ERR_PTR(-ENOMEM);
 
-	err = dma_get_sgtable(bo->dev, sgt, bo->gather_data, bo->gather_data_dma,
-			      bo->gather_data_words * 4);
-	if (err) {
-		kfree(sgt);
-		return ERR_PTR(err);
+	kref_init(&map->ref);
+	map->bo = host1x_bo_get(bo);
+	map->direction = direction;
+	map->dev = dev;
+
+	map->sgt = kzalloc(sizeof(*map->sgt), GFP_KERNEL);
+	if (!map->sgt) {
+		err = -ENOMEM;
+		goto free;
 	}
 
-	return sgt;
+	err = dma_get_sgtable(gather->dev, map->sgt, gather->gather_data, gather->gather_data_dma,
+			      gather->gather_data_words * 4);
+	if (err)
+		goto free_sgt;
+
+	err = dma_map_sgtable(dev, map->sgt, direction, 0);
+	if (err)
+		goto free_sgt;
+
+	map->phys = sg_dma_address(map->sgt->sgl);
+	map->size = gather->gather_data_words * 4;
+	map->chunks = err;
+
+	return map;
+
+free_sgt:
+	sg_free_table(map->sgt);
+	kfree(map->sgt);
+free:
+	kfree(map);
+	return ERR_PTR(err);
 }
 
-static void gather_bo_unpin(struct device *dev, struct sg_table *sgt)
+static void gather_bo_unpin(struct host1x_bo_mapping *map)
 {
-	if (sgt) {
-		sg_free_table(sgt);
-		kfree(sgt);
-	}
+	if (!map)
+		return;
+
+	dma_unmap_sgtable(map->dev, map->sgt, map->direction, 0);
+	sg_free_table(map->sgt);
+	kfree(map->sgt);
+	host1x_bo_put(map->bo);
+
+	kfree(map);
 }
 
 static void *gather_bo_mmap(struct host1x_bo *host_bo)
@@ -475,8 +504,8 @@ static void release_job(struct host1x_job *job)
 	kfree(job_data->used_mappings);
 	kfree(job_data);
 
-	if (pm_runtime_enabled(client->base.dev))
-		pm_runtime_put_autosuspend(client->base.dev);
+	pm_runtime_mark_last_busy(client->base.dev);
+	pm_runtime_put_autosuspend(client->base.dev);
 }
 
 int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
@@ -560,12 +589,10 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 	}
 
 	/* Boot engine. */
-	if (pm_runtime_enabled(context->client->base.dev)) {
-		err = pm_runtime_resume_and_get(context->client->base.dev);
-		if (err < 0) {
-			SUBMIT_ERR(context, "could not power up engine: %d", err);
-			goto unpin_job;
-		}
+	err = pm_runtime_resume_and_get(context->client->base.dev);
+	if (err < 0) {
+		SUBMIT_ERR(context, "could not power up engine: %d", err);
+		goto unpin_job;
 	}
 
 	job->user_data = job_data;

@@ -41,9 +41,6 @@ config NO_IOPORT_MAP
 config FPU
 	def_bool n
 
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool n
-
 menu "Kernel features"
 
 source "kernel/Kconfig.hz"

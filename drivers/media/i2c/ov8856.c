@@ -107,6 +107,11 @@ static const char * const ov8856_supply_names[] = {
 	"dvdd",		/* Digital core power */
 };
 
+enum {
+	OV8856_MEDIA_BUS_FMT_SBGGR10_1X10,
+	OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
+};
+
 struct ov8856_reg {
 	u16 address;
 	u8 val;
@@ -145,6 +150,9 @@ struct ov8856_mode {
 
 	/* Number of data lanes */
 	u8 data_lanes;
+
+	/* Default MEDIA_BUS_FMT for this mode */
+	u32 default_mbus_index;
 };
 
 struct ov8856_mipi_data_rates {
@@ -1055,7 +1063,7 @@ static const struct ov8856_reg lane_4_mode_3264x2448[] = {
 		{0x3810, 0x00},
 		{0x3811, 0x04},
 		{0x3812, 0x00},
-		{0x3813, 0x01},
+		{0x3813, 0x02},
 		{0x3814, 0x01},
 		{0x3815, 0x01},
 		{0x3816, 0x00},
@@ -1259,7 +1267,7 @@ static const struct ov8856_reg lane_4_mode_1632x1224[] = {
 		{0x3810, 0x00},
 		{0x3811, 0x02},
 		{0x3812, 0x00},
-		{0x3813, 0x01},
+		{0x3813, 0x02},
 		{0x3814, 0x03},
 		{0x3815, 0x01},
 		{0x3816, 0x00},
@@ -1372,12 +1380,36 @@ static const struct ov8856_reg lane_4_mode_1632x1224[] = {
 		{0x5e10, 0xfc}
 };
 
+static const struct ov8856_reg mipi_data_mbus_sbggr10_1x10[] = {
+	{0x3813, 0x02},
+};
+
+static const struct ov8856_reg mipi_data_mbus_sgrbg10_1x10[] = {
+	{0x3813, 0x01},
+};
+
+static const u32 ov8856_mbus_codes[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10
+};
+
 static const char * const ov8856_test_pattern_menu[] = {
 	"Disabled",
 	"Standard Color Bar",
 	"Top-Bottom Darker Color Bar",
 	"Right-Left Darker Color Bar",
 	"Bottom-Top Darker Color Bar"
+};
+
+static const struct ov8856_reg_list bayer_offset_configs[] = {
+	[OV8856_MEDIA_BUS_FMT_SBGGR10_1X10] = {
+		.num_of_regs = ARRAY_SIZE(mipi_data_mbus_sbggr10_1x10),
+		.regs = mipi_data_mbus_sbggr10_1x10,
+	},
+	[OV8856_MEDIA_BUS_FMT_SGRBG10_1X10] = {
+		.num_of_regs = ARRAY_SIZE(mipi_data_mbus_sgrbg10_1x10),
+		.regs = mipi_data_mbus_sgrbg10_1x10,
+	}
 };
 
 struct ov8856 {
@@ -1399,6 +1431,9 @@ struct ov8856 {
 	/* Current mode */
 	const struct ov8856_mode *cur_mode;
 
+	/* Application specified mbus format */
+	u32 cur_mbus_index;
+
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
@@ -1410,6 +1445,9 @@ struct ov8856 {
 
 	const struct ov8856_lane_cfg *priv_lane;
 	u8 modes_size;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 struct ov8856_lane_cfg {
@@ -1450,6 +1488,7 @@ static const struct ov8856_lane_cfg lane_cfg_2 = {
 		},
 		.link_freq_index = 0,
 		.data_lanes = 2,
+		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
 	},
 	{
 		.width = 1640,
@@ -1464,6 +1503,7 @@ static const struct ov8856_lane_cfg lane_cfg_2 = {
 		},
 		.link_freq_index = 1,
 		.data_lanes = 2,
+		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
 	}}
 };
 
@@ -1499,6 +1539,7 @@ static const struct ov8856_lane_cfg lane_cfg_4 = {
 			},
 			.link_freq_index = 0,
 			.data_lanes = 4,
+			.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
 		},
 		{
 			.width = 1640,
@@ -1513,6 +1554,7 @@ static const struct ov8856_lane_cfg lane_cfg_4 = {
 			},
 			.link_freq_index = 1,
 			.data_lanes = 4,
+			.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
 		},
 		{
 			.width = 3264,
@@ -1527,6 +1569,7 @@ static const struct ov8856_lane_cfg lane_cfg_4 = {
 			},
 			.link_freq_index = 0,
 			.data_lanes = 4,
+			.default_mbus_index = OV8856_MEDIA_BUS_FMT_SBGGR10_1X10,
 		},
 		{
 			.width = 1632,
@@ -1541,6 +1584,7 @@ static const struct ov8856_lane_cfg lane_cfg_4 = {
 			},
 			.link_freq_index = 1,
 			.data_lanes = 4,
+			.default_mbus_index = OV8856_MEDIA_BUS_FMT_SBGGR10_1X10,
 		}}
 };
 
@@ -1640,6 +1684,71 @@ static int ov8856_write_reg_list(struct ov8856 *ov8856,
 			return ret;
 		}
 	}
+
+	return 0;
+}
+
+static int ov8856_identify_module(struct ov8856 *ov8856)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
+	int ret;
+	u32 val;
+
+	if (ov8856->identified)
+		return 0;
+
+	ret = ov8856_read_reg(ov8856, OV8856_REG_CHIP_ID,
+			      OV8856_REG_VALUE_24BIT, &val);
+	if (ret)
+		return ret;
+
+	if (val != OV8856_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			OV8856_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
+			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
+	if (ret)
+		return ret;
+
+	ret = ov8856_write_reg(ov8856, OV8856_OTP_MODE_CTRL,
+			       OV8856_REG_VALUE_08BIT, OV8856_OTP_MODE_AUTO);
+	if (ret) {
+		dev_err(&client->dev, "failed to set otp mode");
+		return ret;
+	}
+
+	ret = ov8856_write_reg(ov8856, OV8856_OTP_LOAD_CTRL,
+			       OV8856_REG_VALUE_08BIT,
+			       OV8856_OTP_LOAD_CTRL_ENABLE);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable load control");
+		return ret;
+	}
+
+	ret = ov8856_read_reg(ov8856, OV8856_MODULE_REVISION,
+			      OV8856_REG_VALUE_08BIT, &val);
+	if (ret) {
+		dev_err(&client->dev, "failed to read module revision");
+		return ret;
+	}
+
+	dev_info(&client->dev, "OV8856 revision %x (%s) at address 0x%02x\n",
+		 val,
+		 val == OV8856_2A_MODULE ? "2A" :
+		 val == OV8856_1B_MODULE ? "1B" : "unknown revision",
+		 client->addr);
+
+	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
+			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY);
+	if (ret) {
+		dev_err(&client->dev, "failed to exit streaming mode");
+		return ret;
+	}
+
+	ov8856->identified = true;
 
 	return 0;
 }
@@ -1904,12 +2013,21 @@ static int ov8856_init_controls(struct ov8856 *ov8856)
 	return 0;
 }
 
-static void ov8856_update_pad_format(const struct ov8856_mode *mode,
+static void ov8856_update_pad_format(struct ov8856 *ov8856,
+				     const struct ov8856_mode *mode,
 				     struct v4l2_mbus_framefmt *fmt)
 {
+	int index;
+
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	for (index = 0; index < ARRAY_SIZE(ov8856_mbus_codes); ++index)
+		if (ov8856_mbus_codes[index] == fmt->code)
+			break;
+	if (index == ARRAY_SIZE(ov8856_mbus_codes))
+		index = mode->default_mbus_index;
+	fmt->code = ov8856_mbus_codes[index];
+	ov8856->cur_mbus_index = index;
 	fmt->field = V4L2_FIELD_NONE;
 }
 
@@ -1918,6 +2036,10 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	const struct ov8856_reg_list *reg_list;
 	int link_freq_index, ret;
+
+	ret = ov8856_identify_module(ov8856);
+	if (ret)
+		return ret;
 
 	link_freq_index = ov8856->cur_mode->link_freq_index;
 	reg_list = &ov8856->priv_lane->link_freq_configs[link_freq_index].reg_list;
@@ -1932,6 +2054,13 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 	ret = ov8856_write_reg_list(ov8856, reg_list);
 	if (ret) {
 		dev_err(&client->dev, "failed to set mode");
+		return ret;
+	}
+
+	reg_list = &bayer_offset_configs[ov8856->cur_mbus_index];
+	ret = ov8856_write_reg_list(ov8856, reg_list);
+	if (ret) {
+		dev_err(&client->dev, "failed to set mbus format");
 		return ret;
 	}
 
@@ -2096,7 +2225,7 @@ static int ov8856_set_format(struct v4l2_subdev *sd,
 				      fmt->format.height);
 
 	mutex_lock(&ov8856->mutex);
-	ov8856_update_pad_format(mode, &fmt->format);
+	ov8856_update_pad_format(ov8856, mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	} else {
@@ -2140,7 +2269,7 @@ static int ov8856_get_format(struct v4l2_subdev *sd,
 							  sd_state,
 							  fmt->pad);
 	else
-		ov8856_update_pad_format(ov8856->cur_mode, &fmt->format);
+		ov8856_update_pad_format(ov8856, ov8856->cur_mode, &fmt->format);
 
 	mutex_unlock(&ov8856->mutex);
 
@@ -2151,11 +2280,10 @@ static int ov8856_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	/* Only one bayer order GRBG is supported */
-	if (code->index > 0)
+	if (code->index >= ARRAY_SIZE(ov8856_mbus_codes))
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	code->code = ov8856_mbus_codes[code->index];
 
 	return 0;
 }
@@ -2165,11 +2293,15 @@ static int ov8856_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct ov8856 *ov8856 = to_ov8856(sd);
+	int index;
 
 	if (fse->index >= ov8856->modes_size)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
+	for (index = 0; index < ARRAY_SIZE(ov8856_mbus_codes); ++index)
+		if (fse->code == ov8856_mbus_codes[index])
+			break;
+	if (index == ARRAY_SIZE(ov8856_mbus_codes))
 		return -EINVAL;
 
 	fse->min_width = ov8856->priv_lane->supported_modes[fse->index].width;
@@ -2185,7 +2317,7 @@ static int ov8856_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct ov8856 *ov8856 = to_ov8856(sd);
 
 	mutex_lock(&ov8856->mutex);
-	ov8856_update_pad_format(&ov8856->priv_lane->supported_modes[0],
+	ov8856_update_pad_format(ov8856, &ov8856->priv_lane->supported_modes[0],
 				 v4l2_subdev_get_try_format(sd, fh->state, 0));
 	mutex_unlock(&ov8856->mutex);
 
@@ -2216,65 +2348,6 @@ static const struct v4l2_subdev_internal_ops ov8856_internal_ops = {
 	.open = ov8856_open,
 };
 
-static int ov8856_identify_module(struct ov8856 *ov8856)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-	int ret;
-	u32 val;
-
-	ret = ov8856_read_reg(ov8856, OV8856_REG_CHIP_ID,
-			      OV8856_REG_VALUE_24BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != OV8856_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			OV8856_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
-			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
-	if (ret)
-		return ret;
-
-	ret = ov8856_write_reg(ov8856, OV8856_OTP_MODE_CTRL,
-			       OV8856_REG_VALUE_08BIT, OV8856_OTP_MODE_AUTO);
-	if (ret) {
-		dev_err(&client->dev, "failed to set otp mode");
-		return ret;
-	}
-
-	ret = ov8856_write_reg(ov8856, OV8856_OTP_LOAD_CTRL,
-			       OV8856_REG_VALUE_08BIT,
-			       OV8856_OTP_LOAD_CTRL_ENABLE);
-	if (ret) {
-		dev_err(&client->dev, "failed to enable load control");
-		return ret;
-	}
-
-	ret = ov8856_read_reg(ov8856, OV8856_MODULE_REVISION,
-			      OV8856_REG_VALUE_08BIT, &val);
-	if (ret) {
-		dev_err(&client->dev, "failed to read module revision");
-		return ret;
-	}
-
-	dev_info(&client->dev, "OV8856 revision %x (%s) at address 0x%02x\n",
-		 val,
-		 val == OV8856_2A_MODULE ? "2A" :
-		 val == OV8856_1B_MODULE ? "1B" : "unknown revision",
-		 client->addr);
-
-	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
-			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY);
-	if (ret) {
-		dev_err(&client->dev, "failed to exit streaming mode");
-		return ret;
-	}
-
-	return 0;
-}
 
 static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 {
@@ -2398,6 +2471,7 @@ static int ov8856_probe(struct i2c_client *client)
 {
 	struct ov8856 *ov8856;
 	int ret;
+	bool full_power;
 
 	ov8856 = devm_kzalloc(&client->dev, sizeof(*ov8856), GFP_KERNEL);
 	if (!ov8856)
@@ -2412,20 +2486,24 @@ static int ov8856_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov8856->sd, client, &ov8856_subdev_ops);
 
-	ret = __ov8856_power_on(ov8856);
-	if (ret) {
-		dev_err(&client->dev, "failed to power on\n");
-		return ret;
-	}
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		ret = __ov8856_power_on(ov8856);
+		if (ret) {
+			dev_err(&client->dev, "failed to power on\n");
+			return ret;
+		}
 
-	ret = ov8856_identify_module(ov8856);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		goto probe_power_off;
+		ret = ov8856_identify_module(ov8856);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			goto probe_power_off;
+		}
 	}
 
 	mutex_init(&ov8856->mutex);
 	ov8856->cur_mode = &ov8856->priv_lane->supported_modes[0];
+	ov8856->cur_mbus_index = ov8856->cur_mode->default_mbus_index;
 	ret = ov8856_init_controls(ov8856);
 	if (ret) {
 		dev_err(&client->dev, "failed to init controls: %d", ret);
@@ -2450,11 +2528,9 @@ static int ov8856_probe(struct i2c_client *client)
 		goto probe_error_media_entity_cleanup;
 	}
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(&client->dev);
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -2501,6 +2577,7 @@ static struct i2c_driver ov8856_i2c_driver = {
 	},
 	.probe_new = ov8856_probe,
 	.remove = ov8856_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(ov8856_i2c_driver);

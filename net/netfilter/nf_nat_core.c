@@ -13,7 +13,7 @@
 #include <linux/skbuff.h>
 #include <linux/gfp.h>
 #include <net/xfrm.h>
-#include <linux/jhash.h>
+#include <linux/siphash.h>
 #include <linux/rtnetlink.h>
 
 #include <net/netfilter/nf_conntrack.h>
@@ -34,7 +34,7 @@ static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
 static unsigned int nf_nat_htable_size __read_mostly;
-static unsigned int nf_nat_hash_rnd __read_mostly;
+static siphash_aligned_key_t nf_nat_hash_rnd;
 
 struct nf_nat_lookup_hook_priv {
 	struct nf_hook_entries __rcu *entries;
@@ -150,15 +150,32 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 
 /* We keep an extra hash for each conntrack, for fast searching. */
 static unsigned int
-hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
+hash_by_src(const struct net *net,
+	    const struct nf_conntrack_zone *zone,
+	    const struct nf_conntrack_tuple *tuple)
 {
 	unsigned int hash;
+	struct {
+		struct nf_conntrack_man src;
+		u32 net_mix;
+		u32 protonum;
+		u32 zone;
+	} __aligned(SIPHASH_ALIGNMENT) combined;
 
 	get_random_once(&nf_nat_hash_rnd, sizeof(nf_nat_hash_rnd));
 
+	memset(&combined, 0, sizeof(combined));
+
 	/* Original src, to ensure we map it consistently if poss. */
-	hash = jhash2((u32 *)&tuple->src, sizeof(tuple->src) / sizeof(u32),
-		      tuple->dst.protonum ^ nf_nat_hash_rnd ^ net_hash_mix(n));
+	combined.src = tuple->src;
+	combined.net_mix = net_hash_mix(net);
+	combined.protonum = tuple->dst.protonum;
+
+	/* Zone ID can be used provided its valid for both directions */
+	if (zone->dir == NF_CT_DEFAULT_ZONE_DIR)
+		combined.zone = zone->id;
+
+	hash = siphash(&combined, sizeof(combined), &nf_nat_hash_rnd);
 
 	return reciprocal_scale(hash, nf_nat_htable_size);
 }
@@ -262,7 +279,7 @@ find_appropriate_src(struct net *net,
 		     struct nf_conntrack_tuple *result,
 		     const struct nf_nat_range2 *range)
 {
-	unsigned int h = hash_by_src(net, tuple);
+	unsigned int h = hash_by_src(net, zone, tuple);
 	const struct nf_conn *ct;
 
 	hlist_for_each_entry_rcu(ct, &nf_nat_bysource[h], nat_bysource) {
@@ -477,6 +494,38 @@ another_round:
 	goto another_round;
 }
 
+static bool tuple_force_port_remap(const struct nf_conntrack_tuple *tuple)
+{
+	u16 sp, dp;
+
+	switch (tuple->dst.protonum) {
+	case IPPROTO_TCP:
+		sp = ntohs(tuple->src.u.tcp.port);
+		dp = ntohs(tuple->dst.u.tcp.port);
+		break;
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE:
+		sp = ntohs(tuple->src.u.udp.port);
+		dp = ntohs(tuple->dst.u.udp.port);
+		break;
+	default:
+		return false;
+	}
+
+	/* IANA: System port range: 1-1023,
+	 *         user port range: 1024-49151,
+	 *      private port range: 49152-65535.
+	 *
+	 * Linux default ephemeral port range is 32768-60999.
+	 *
+	 * Enforce port remapping if sport is significantly lower
+	 * than dport to prevent NAT port shadowing, i.e.
+	 * accidental match of 'new' inbound connection vs.
+	 * existing outbound one.
+	 */
+	return sp < 16384 && dp >= 32768;
+}
+
 /* Manipulate the tuple into the range given. For NF_INET_POST_ROUTING,
  * we change the source to map into the range. For NF_INET_PRE_ROUTING
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
@@ -490,10 +539,16 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
+	bool random_port = range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL;
 	const struct nf_conntrack_zone *zone;
 	struct net *net = nf_ct_net(ct);
 
 	zone = nf_ct_zone(ct);
+
+	if (maniptype == NF_NAT_MANIP_SRC &&
+	    !random_port &&
+	    !ct->local_origin)
+		random_port = tuple_force_port_remap(orig_tuple);
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	 * and that same mapping gives a unique tuple within the given
@@ -503,8 +558,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
-	if (maniptype == NF_NAT_MANIP_SRC &&
-	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
+	if (maniptype == NF_NAT_MANIP_SRC && !random_port) {
 		/* try the original tuple first */
 		if (in_range(orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
@@ -528,7 +582,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
+	if (!random_port) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
 			    l4proto_in_range(tuple, maniptype,
@@ -609,7 +663,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		unsigned int srchash;
 		spinlock_t *lock;
 
-		srchash = hash_by_src(net,
+		srchash = hash_by_src(net, nf_ct_zone(ct),
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		lock = &nf_nat_locks[srchash % CONNTRACK_LOCKS];
 		spin_lock_bh(lock);
@@ -682,6 +736,16 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
 
+static bool in_vrf_postrouting(const struct nf_hook_state *state)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (state->hook == NF_INET_POST_ROUTING &&
+	    netif_is_l3_master(state->out))
+		return true;
+#endif
+	return false;
+}
+
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state)
@@ -698,7 +762,7 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	 * packet filter it out, or implement conntrack/NAT for that
 	 * protocol. 8) --RR
 	 */
-	if (!ct)
+	if (!ct || in_vrf_postrouting(state))
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);
@@ -778,7 +842,7 @@ static void __nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
 	unsigned int h;
 
-	h = hash_by_src(nf_ct_net(ct), &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+	h = hash_by_src(nf_ct_net(ct), nf_ct_zone(ct), &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 	spin_lock_bh(&nf_nat_locks[h % CONNTRACK_LOCKS]);
 	hlist_del_rcu(&ct->nat_bysource);
 	spin_unlock_bh(&nf_nat_locks[h % CONNTRACK_LOCKS]);
@@ -1103,7 +1167,7 @@ static struct pernet_operations nat_net_ops = {
 	.size = sizeof(struct nat_net),
 };
 
-static struct nf_nat_hook nat_hook = {
+static const struct nf_nat_hook nat_hook = {
 	.parse_nat_setup	= nfnetlink_parse_nat_setup,
 #ifdef CONFIG_XFRM
 	.decode_session		= __nf_nat_decode_session,

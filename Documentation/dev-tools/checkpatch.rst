@@ -710,6 +710,39 @@ Indentation and Line Breaks
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#breaking-long-lines-and-strings
 
+  **SPLIT_STRING**
+    Quoted strings that appear as messages in userspace and can be
+    grepped, should not be split across multiple lines.
+
+    See: https://lore.kernel.org/lkml/20120203052727.GA15035@leaf/
+
+  **MULTILINE_DEREFERENCE**
+    A single dereferencing identifier spanned on multiple lines like::
+
+      struct_identifier->member[index].
+      member = <foo>;
+
+    is generally hard to follow. It can easily lead to typos and so makes
+    the code vulnerable to bugs.
+
+    If fixing the multiple line dereferencing leads to an 80 column
+    violation, then either rewrite the code in a more simple way or if the
+    starting part of the dereferencing identifier is the same and used at
+    multiple places then store it in a temporary variable, and use that
+    temporary variable only at all the places. For example, if there are
+    two dereferencing identifiers::
+
+      member1->member2->member3.foo1;
+      member1->member2->member3.foo2;
+
+    then store the member1->member2->member3 part in a temporary variable.
+    It not only helps to avoid the 80 column violation but also reduces
+    the program size by removing the unnecessary dereferences.
+
+    But if none of the above methods work then ignore the 80 column
+    violation because it is much easier to read a dereferencing identifier
+    on a single line.
+
   **TRAILING_STATEMENTS**
     Trailing statements (for example after any conditional) should be
     on the next line.
@@ -845,6 +878,38 @@ Macros, Attributes and Symbols
     Use the `fallthrough;` pseudo keyword instead of
     `/* fallthrough */` like comments.
 
+  **TRAILING_SEMICOLON**
+    Macro definition should not end with a semicolon. The macro
+    invocation style should be consistent with function calls.
+    This can prevent any unexpected code paths::
+
+      #define MAC do_something;
+
+    If this macro is used within a if else statement, like::
+
+      if (some_condition)
+              MAC;
+
+      else
+              do_something;
+
+    Then there would be a compilation error, because when the macro is
+    expanded there are two trailing semicolons, so the else branch gets
+    orphaned.
+
+    See: https://lore.kernel.org/lkml/1399671106.2912.21.camel@joe-AO725/
+
+  **SINGLE_STATEMENT_DO_WHILE_MACRO**
+    For the multi-statement macros, it is necessary to use the do-while
+    loop to avoid unpredictable code paths. The do-while loop helps to
+    group the multiple statements into a single one so that a
+    function-like macro can be used as a function only.
+
+    But for the single statement macros, it is unnecessary to use the
+    do-while loop. Although the code is syntactically correct but using
+    the do-while loop is redundant. So remove the do-while loop for single
+    statement macros.
+
   **WEAK_DECLARATION**
     Using weak declarations like __attribute__((weak)) or __weak
     can have unintended link defects.  Avoid using them.
@@ -920,6 +985,11 @@ Functions and Variables
     Your compiler (or rather your loader) automatically does
     it for you.
 
+  **MULTIPLE_ASSIGNMENTS**
+    Multiple assignments on a single line makes the code unnecessarily
+    complicated. So on a single line assign value to a single variable
+    only, this makes the code more readable and helps avoid typos.
+
   **RETURN_PARENTHESES**
     return is not a function and as such doesn't need parentheses::
 
@@ -956,6 +1026,17 @@ Permissions
   **NON_OCTAL_PERMISSIONS**
     Permission bits should use 4 digit octal permissions (like 0700 or 0444).
     Avoid using any other base like decimal.
+
+  **SYMBOLIC_PERMS**
+    Permission bits in the octal form are more readable and easier to
+    understand than their symbolic counterparts because many command-line
+    tools use this notation. Experienced kernel developers have been using
+    these traditional Unix permission bits for decades and so they find it
+    easier to understand the octal notation than the symbolic macros.
+    For example, it is harder to read S_IWUSR|S_IRUGO than 0644, which
+    obscures the developer's intent rather than clarifying it.
+
+    See: https://lore.kernel.org/lkml/CA+55aFw5v23T-zvDZp-MmD_EYxF8WbafwwB59934FV7g21uMGQ@mail.gmail.com/
 
 
 Spacing and Brackets

@@ -27,5 +27,11 @@ struct netns_nf {
 #if IS_ENABLED(CONFIG_DECNET)
 	struct nf_hook_entries __rcu *hooks_decnet[NF_DN_NUMHOOKS];
 #endif
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+	unsigned int defrag_ipv4_users;
+#endif
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+	unsigned int defrag_ipv6_users;
+#endif
 };
 #endif

@@ -54,5 +54,5 @@
 		"EventName": "PROBLEM_STATE_INSTRUCTIONS",
 		"BriefDescription": "Problem-State Instructions",
 		"PublicDescription": "Problem-State Instruction Count"
-	},
+	}
 ]

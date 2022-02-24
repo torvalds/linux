@@ -526,6 +526,7 @@ static int mce_handle_err_realmode(int disposition, u8 error_type)
 			disposition = RTAS_DISP_FULLY_RECOVERED;
 			break;
 		case	MC_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
 			/*
 			 * Store the old slb content in paca before flushing.
 			 * Print this when we go to virtual mode.
@@ -538,6 +539,7 @@ static int mce_handle_err_realmode(int disposition, u8 error_type)
 				slb_save_contents(local_paca->mce_faulty_slbs);
 			flush_and_reload_slb();
 			disposition = RTAS_DISP_FULLY_RECOVERED;
+#endif
 			break;
 		default:
 			break;
@@ -783,7 +785,7 @@ static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 {
 	int recovered = 0;
 
-	if (!(regs->msr & MSR_RI)) {
+	if (regs_is_unrecoverable(regs)) {
 		/* If MSR_RI isn't set, we cannot recover */
 		pr_err("Machine check interrupt unrecoverable: MSR(RI=0)\n");
 		recovered = 0;

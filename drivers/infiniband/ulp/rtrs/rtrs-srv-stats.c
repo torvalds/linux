@@ -23,8 +23,7 @@ int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable)
 	return -EINVAL;
 }
 
-ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
-				    char *page, size_t len)
+ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats, char *page)
 {
 	struct rtrs_srv_stats_rdma_stats *r = &stats->rdma_stats;
 

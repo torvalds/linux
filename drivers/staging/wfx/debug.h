@@ -16,4 +16,4 @@ const char *get_hif_name(unsigned long id);
 const char *get_mib_name(unsigned long id);
 const char *get_reg_name(unsigned long id);
 
-#endif /* WFX_DEBUG_H */
+#endif

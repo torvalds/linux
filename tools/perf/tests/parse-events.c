@@ -9,6 +9,7 @@
 #include "pmu-hybrid.h"
 #include <dirent.h>
 #include <errno.h>
+#include "fncache.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -604,7 +605,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 10);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 
 	/* config1 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -613,7 +614,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config1"));
 
 	/* config2=3 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -622,7 +623,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 3);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config2"));
 
 	/* umask=1*/
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -660,7 +661,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 0xead);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 	return 0;
 }
 
@@ -2044,7 +2045,6 @@ static int test_event(struct evlist_test *e)
 	struct evlist *evlist;
 	int ret;
 
-	bzero(&err, sizeof(err));
 	if (e->valid && !e->valid()) {
 		pr_debug("... SKIP");
 		return 0;
@@ -2054,15 +2054,16 @@ static int test_event(struct evlist_test *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, e->name, &err);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 e->name, ret, err.str);
-		parse_events_print_error(&err, e->name);
+		parse_events_error__print(&err, e->name);
 	} else {
 		ret = e->check(evlist);
 	}
-
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 
 	return ret;
@@ -2194,9 +2195,91 @@ static int test_pmu_events(void)
 	return ret;
 }
 
-int test__parse_events(struct test *test __maybe_unused, int subtest __maybe_unused)
+static bool test_alias(char **event, char **alias)
+{
+	char path[PATH_MAX];
+	DIR *dir;
+	struct dirent *dent;
+	const char *sysfs = sysfs__mountpoint();
+	char buf[128];
+	FILE *file;
+
+	if (!sysfs)
+		return false;
+
+	snprintf(path, PATH_MAX, "%s/bus/event_source/devices/", sysfs);
+	dir = opendir(path);
+	if (!dir)
+		return false;
+
+	while ((dent = readdir(dir))) {
+		if (!strcmp(dent->d_name, ".") ||
+		    !strcmp(dent->d_name, ".."))
+			continue;
+
+		snprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/alias",
+			 sysfs, dent->d_name);
+
+		if (!file_available(path))
+			continue;
+
+		file = fopen(path, "r");
+		if (!file)
+			continue;
+
+		if (!fgets(buf, sizeof(buf), file)) {
+			fclose(file);
+			continue;
+		}
+
+		/* Remove the last '\n' */
+		buf[strlen(buf) - 1] = 0;
+
+		fclose(file);
+		*event = strdup(dent->d_name);
+		*alias = strdup(buf);
+		closedir(dir);
+
+		if (*event == NULL || *alias == NULL) {
+			free(*event);
+			free(*alias);
+			return false;
+		}
+
+		return true;
+	}
+
+	closedir(dir);
+	return false;
+}
+
+static int test__checkevent_pmu_events_alias(struct evlist *evlist)
+{
+	struct evsel *evsel1 = evlist__first(evlist);
+	struct evsel *evsel2 = evlist__last(evlist);
+
+	TEST_ASSERT_VAL("wrong type", evsel1->core.attr.type == evsel2->core.attr.type);
+	TEST_ASSERT_VAL("wrong config", evsel1->core.attr.config == evsel2->core.attr.config);
+	return 0;
+}
+
+static int test_pmu_events_alias(char *event, char *alias)
+{
+	struct evlist_test e = { .id = 0, };
+	char name[2 * NAME_MAX + 20];
+
+	snprintf(name, sizeof(name), "%s/event=1/,%s/event=1/",
+		 event, alias);
+
+	e.name  = name;
+	e.check = test__checkevent_pmu_events_alias;
+	return test_event(&e);
+}
+
+static int test__parse_events(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
+	char *event, *alias;
 
 #define TEST_EVENTS(tests)				\
 do {							\
@@ -2221,9 +2304,20 @@ do {							\
 			return ret;
 	}
 
+	if (test_alias(&event, &alias)) {
+		int ret = test_pmu_events_alias(event, alias);
+
+		free(event);
+		free(alias);
+		if (ret)
+			return ret;
+	}
+
 	ret1 = test_terms(test__terms, ARRAY_SIZE(test__terms));
 	if (!ret2)
 		ret2 = ret1;
 
 	return ret2;
 }
+
+DEFINE_SUITE("Parse event definition strings", parse_events);

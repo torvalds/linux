@@ -439,11 +439,9 @@ preemption. The following substitution works on both kernels::
   spin_lock(&p->lock);
   p->count += this_cpu_read(var2);
 
-On a non-PREEMPT_RT kernel migrate_disable() maps to preempt_disable()
-which makes the above code fully equivalent. On a PREEMPT_RT kernel
 migrate_disable() ensures that the task is pinned on the current CPU which
 in turn guarantees that the per-CPU access to var1 and var2 are staying on
-the same CPU.
+the same CPU while the task remains preemptible.
 
 The migrate_disable() substitution is not valid for the following
 scenario::
@@ -456,9 +454,8 @@ scenario::
     p = this_cpu_ptr(&var1);
     p->val = func2();
 
-While correct on a non-PREEMPT_RT kernel, this breaks on PREEMPT_RT because
-here migrate_disable() does not protect against reentrancy from a
-preempting task. A correct substitution for this case is::
+This breaks because migrate_disable() does not protect against reentrancy from
+a preempting task. A correct substitution for this case is::
 
   func()
   {

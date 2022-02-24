@@ -201,6 +201,21 @@ Without it, the error from compiling bpf selftests looks like:
 
 __ https://reviews.llvm.org/D93563
 
+btf_tag test and Clang version
+==============================
+
+The btf_tag selftest requires LLVM support to recognize the btf_decl_tag and
+btf_type_tag attributes. They are introduced in `Clang 14` [0_, 1_].
+
+Without them, the btf_tag selftest will be skipped and you will observe:
+
+.. code-block:: console
+
+  #<test_num> btf_tag:SKIP
+
+.. _0: https://reviews.llvm.org/D111588
+.. _1: https://reviews.llvm.org/D111199
+
 Clang dependencies for static linking tests
 ===========================================
 
@@ -228,3 +243,16 @@ To fix this issue, user newer libbpf.
 .. Links
 .. _clang reloc patch: https://reviews.llvm.org/D102712
 .. _kernel llvm reloc: /Documentation/bpf/llvm_reloc.rst
+
+Clang dependencies for the u32 spill test (xdpwall)
+===================================================
+The xdpwall selftest requires a change in `Clang 14`__.
+
+Without it, the xdpwall selftest will fail and the error message
+from running test_progs will look like:
+
+.. code-block:: console
+
+  test_xdpwall:FAIL:Does LLVM have https://reviews.llvm.org/D109073? unexpected error: -4007
+
+__ https://reviews.llvm.org/D109073

@@ -2450,6 +2450,8 @@ static int scarlett2_update_monitor_other(struct usb_mixer_interface *mixer)
 		err = scarlett2_usb_get_config(mixer,
 					       SCARLETT2_CONFIG_TALKBACK_MAP,
 					       1, &bitmap);
+		if (err < 0)
+			return err;
 		for (i = 0; i < num_mixes; i++, bitmap >>= 1)
 			private->talkback_map[i] = bitmap & 1;
 	}

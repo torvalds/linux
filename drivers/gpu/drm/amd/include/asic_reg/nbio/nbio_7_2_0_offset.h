@@ -20753,8 +20753,6 @@
 
 // addressBlock: nbio_nbif0_gdc_GDCDEC
 // base address: 0xd0000000
-#define regGDC1_LOGAN_FAST_WRITE_RESPONSE_CNTL                                                          0x2ffc0eda
-#define regGDC1_LOGAN_FAST_WRITE_RESPONSE_CNTL_BASE_IDX                                                 5
 #define regGDC1_NGDC_SDP_PORT_CTRL                                                                      0x2ffc0ee2
 #define regGDC1_NGDC_SDP_PORT_CTRL_BASE_IDX                                                             5
 #define regGDC1_SHUB_REGS_IF_CTL                                                                        0x2ffc0ee3

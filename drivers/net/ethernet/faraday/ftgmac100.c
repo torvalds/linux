@@ -182,13 +182,10 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 	u8 mac[ETH_ALEN];
 	unsigned int m;
 	unsigned int l;
-	void *addr;
 
-	addr = device_get_mac_address(priv->dev, mac, ETH_ALEN);
-	if (addr) {
-		ether_addr_copy(priv->netdev->dev_addr, mac);
+	if (!device_get_ethdev_address(priv->dev, priv->netdev)) {
 		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
-			 mac);
+			 priv->netdev->dev_addr);
 		return;
 	}
 
@@ -203,7 +200,7 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 	mac[5] = l & 0xff;
 
 	if (is_valid_ether_addr(mac)) {
-		ether_addr_copy(priv->netdev->dev_addr, mac);
+		eth_hw_addr_set(priv->netdev, mac);
 		dev_info(priv->dev, "Read MAC address %pM from chip\n", mac);
 	} else {
 		eth_hw_addr_random(priv->netdev);
@@ -1181,8 +1178,11 @@ static void ftgmac100_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
 
-static void ftgmac100_get_ringparam(struct net_device *netdev,
-				    struct ethtool_ringparam *ering)
+static void
+ftgmac100_get_ringparam(struct net_device *netdev,
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
@@ -1193,8 +1193,11 @@ static void ftgmac100_get_ringparam(struct net_device *netdev,
 	ering->tx_pending = priv->tx_q_entries;
 }
 
-static int ftgmac100_set_ringparam(struct net_device *netdev,
-				   struct ethtool_ringparam *ering)
+static int
+ftgmac100_set_ringparam(struct net_device *netdev,
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 

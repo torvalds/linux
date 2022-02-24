@@ -837,11 +837,8 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 		new_mr->device = new_pd->device;
 		new_mr->pd = new_pd;
 		new_mr->type = IB_MR_TYPE_USER;
-		new_mr->dm = NULL;
-		new_mr->sig_attrs = NULL;
 		new_mr->uobject = uobj;
 		atomic_inc(&new_pd->usecnt);
-		new_mr->iova = cmd.hca_va;
 		new_uobj->object = new_mr;
 
 		rdma_restrack_new(&new_mr->res, RDMA_RESTRACK_MR);
@@ -1402,7 +1399,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	attr.sq_sig_type   = cmd->sq_sig_all ? IB_SIGNAL_ALL_WR :
 					      IB_SIGNAL_REQ_WR;
 	attr.qp_type       = cmd->qp_type;
-	attr.create_flags  = 0;
 
 	attr.cap.max_send_wr     = cmd->max_send_wr;
 	attr.cap.max_recv_wr     = cmd->max_recv_wr;
