@@ -4723,7 +4723,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!hisi_hba->regs) {
 		dev_err(dev, "cannot map register\n");
 		rc = -ENOMEM;
-		goto err_out_ha;
+		goto err_out_free_host;
 	}
 
 	phy_nr = port_nr = hisi_hba->n_phy;
@@ -4732,7 +4732,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	arr_port = devm_kcalloc(dev, port_nr, sizeof(void *), GFP_KERNEL);
 	if (!arr_phy || !arr_port) {
 		rc = -ENOMEM;
-		goto err_out_ha;
+		goto err_out_free_host;
 	}
 
 	sha->sas_phy = arr_phy;
@@ -4773,19 +4773,19 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rc = interrupt_preinit_v3_hw(hisi_hba);
 	if (rc)
-		goto err_out_debugfs;
+		goto err_out_undo_debugfs;
 
 	rc = scsi_add_host(shost, dev);
 	if (rc)
-		goto err_out_debugfs;
+		goto err_out_undo_debugfs;
 
 	rc = sas_register_ha(sha);
 	if (rc)
-		goto err_out_register_ha;
+		goto err_out_remove_host;
 
 	rc = hisi_sas_v3_init(hisi_hba);
 	if (rc)
-		goto err_out_hw_init;
+		goto err_out_unregister_ha;
 
 	scsi_scan_host(shost);
 
@@ -4804,13 +4804,13 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-err_out_hw_init:
+err_out_unregister_ha:
 	sas_unregister_ha(sha);
-err_out_register_ha:
+err_out_remove_host:
 	scsi_remove_host(shost);
-err_out_debugfs:
+err_out_undo_debugfs:
 	debugfs_exit_v3_hw(hisi_hba);
-err_out_ha:
+err_out_free_host:
 	hisi_sas_free(hisi_hba);
 	scsi_host_put(shost);
 err_out:
