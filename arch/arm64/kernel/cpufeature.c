@@ -1829,7 +1829,7 @@ static bool has_address_auth_cpucap(const struct arm64_cpu_capabilities *entry, 
 	/* Now check for the secondary CPUs with SCOPE_LOCAL_CPU scope */
 	sec_val = cpuid_feature_extract_field(__read_sysreg_by_encoding(entry->sys_reg),
 					      entry->field_pos, entry->sign);
-	return sec_val == boot_val;
+	return (sec_val >= entry->min_field_value) && (sec_val == boot_val);
 }
 
 static bool has_address_auth_metacap(const struct arm64_cpu_capabilities *entry,
