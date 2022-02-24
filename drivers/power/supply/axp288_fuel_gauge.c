@@ -9,6 +9,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -545,12 +546,6 @@ static const struct dmi_system_id axp288_no_battery_list[] = {
 		},
 	},
 	{
-		/* ECS EF20EA */
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
-		},
-	},
-	{
 		/* Intel Cherry Trail Compute Stick, Windows version */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
@@ -672,6 +667,13 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	};
 	struct device *dev = &pdev->dev;
 	int i, pirq, ret;
+
+	/*
+	 * Normally the native AXP288 fg/charger drivers are preferred but
+	 * on some devices the ACPI drivers should be used instead.
+	 */
+	if (!acpi_quirk_skip_acpi_ac_and_battery())
+		return -ENODEV;
 
 	if (dmi_check_system(axp288_no_battery_list))
 		return -ENODEV;
