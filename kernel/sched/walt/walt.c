@@ -4204,48 +4204,6 @@ static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 	*eas_check = true;
 }
 
-static void android_rvh_set_cpus_allowed_ptr_locked(void *unused,
-						    const struct cpumask *cpu_valid_mask,
-						    const struct cpumask *new_mask,
-						    unsigned int *dest_cpu)
-{
-	cpumask_t allowed_cpus;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	if (cpu_halted(*dest_cpu)) {
-		/* remove halted cpus from the valid mask, and store locally */
-		cpumask_andnot(&allowed_cpus, cpu_valid_mask, cpu_halt_mask);
-		*dest_cpu = cpumask_any_and_distribute(&allowed_cpus, new_mask);
-	}
-}
-
-static void android_rvh_rto_next_cpu(void *unused,
-				     int rto_cpu,
-				     struct cpumask *rto_mask,
-				     int *cpu)
-{
-	cpumask_t allowed_cpus;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	if (cpu_halted(*cpu)) {
-		/* remove halted cpus from the valid mask, and store locally */
-		cpumask_andnot(&allowed_cpus, rto_mask, cpu_halt_mask);
-		*cpu = cpumask_next(rto_cpu, &allowed_cpus);
-	}
-}
-
-static void android_rvh_is_cpu_allowed(void *unused, int cpu, bool *allowed)
-{
-	if (unlikely(walt_disabled))
-		return;
-
-	*allowed = !cpumask_test_cpu(cpu, cpu_halt_mask);
-}
-
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
@@ -4273,10 +4231,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
 	register_trace_android_rvh_build_perf_domains(android_rvh_build_perf_domains, NULL);
 	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
-	register_trace_android_rvh_set_cpus_allowed_ptr_locked(
-						android_rvh_set_cpus_allowed_ptr_locked, NULL);
-	register_trace_android_rvh_rto_next_cpu(android_rvh_rto_next_cpu, NULL);
-	register_trace_android_rvh_is_cpu_allowed(android_rvh_is_cpu_allowed, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;
