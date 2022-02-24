@@ -254,6 +254,7 @@ struct rcu_data {
 	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
 	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
 	unsigned long last_fqs_resched;	/* Time of last rcu_resched(). */
+	unsigned long last_sched_clock;	/* Jiffies of last rcu_sched_clock_irq(). */
 
 	int cpu;
 };
