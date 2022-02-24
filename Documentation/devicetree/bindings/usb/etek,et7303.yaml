@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/usb/etek,et7303.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Etek ET7303 Type-C Port controller DT bindings
+
+maintainers:
+  - Wang Jie <dave.wang@rock-chips.com>
+
+properties:
+  compatible:
+    const: etek,et7303
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  connector:
+    type: object
+    $ref: ../connector/usb-connector.txt#
+    description:
+      Properties for usb c connector that attached to the tcpci chip.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - connector
+
+additionalProperties: false
+
+examples:
+  - |
+    #include "dt-bindings/usb/pd.h"
+    i2c0 {
+      usbc0: et7303@4e {
+        compatible = "etek,et7303";
+        reg = <0x4e>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&et7303_int>;
+        vbus-supply = <&vcc5v0_typec>;
+        status = "okay";
+
+        usb_con: connector {
+          label = "USB-C";
+          data-role = "dual";
+          power-role = "dual";
+          try-power-role = "sink";
+          op-sink-microwatt = <1000000>;
+          sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
+          source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+        };
+      };
+    };
+...
