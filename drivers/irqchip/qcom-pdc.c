@@ -198,21 +198,6 @@ static struct pdc_pin_region *get_pin_region(int pin)
 	return NULL;
 }
 
-static int qcom_pdc_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
-			      unsigned long *hwirq, unsigned int *type)
-{
-	if (is_of_node(fwspec->fwnode)) {
-		if (fwspec->param_count != 2)
-			return -EINVAL;
-
-		*hwirq = fwspec->param[0];
-		*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 			  unsigned int nr_irqs, void *data)
 {
@@ -223,7 +208,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	unsigned int type;
 	int ret;
 
-	ret = qcom_pdc_translate(domain, fwspec, &hwirq, &type);
+	ret = irq_domain_translate_twocell(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
 
@@ -256,7 +241,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops qcom_pdc_ops = {
-	.translate	= qcom_pdc_translate,
+	.translate	= irq_domain_translate_twocell,
 	.alloc		= qcom_pdc_alloc,
 	.free		= irq_domain_free_irqs_common,
 };
