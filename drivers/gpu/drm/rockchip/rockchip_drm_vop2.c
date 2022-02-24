@@ -7951,12 +7951,14 @@ static void vop2_crtc_reset(struct drm_crtc *crtc)
 static struct drm_crtc_state *vop2_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate, *old_vcstate;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 
 	old_vcstate = to_rockchip_crtc_state(crtc->state);
 	vcstate = kmemdup(old_vcstate, sizeof(*old_vcstate), GFP_KERNEL);
 	if (!vcstate)
 		return NULL;
 
+	vcstate->vp_id = vp->id;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vcstate->base);
 	return &vcstate->base;
 }

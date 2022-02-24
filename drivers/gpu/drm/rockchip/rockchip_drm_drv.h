@@ -160,6 +160,7 @@ struct rockchip_dsc_sink_cap {
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	int vp_id;
 	int output_type;
 	int output_mode;
 	int output_bpc;
