@@ -412,28 +412,26 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 			       struct btree_insert_entry *i,
 			       unsigned flags)
 {
-	struct bkey		_deleted = KEY(0, 0, 0);
-	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
-	struct bkey_s_c		old;
-	struct bkey		unpacked;
+	struct bkey_s_c old = { &i->old_k, i->old_v };
 	struct bkey_i *new = i->k;
 	int ret;
-
-	_deleted.p = i->path->pos;
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
 
-	if (!btree_node_type_needs_gc(i->path->btree_id))
+	if (!btree_node_type_needs_gc(i->btree_id))
 		return 0;
-
-	old = bch2_btree_path_peek_slot(i->path, &unpacked);
 
 	if (old.k->type == new->k.type &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
 		ret   = bch2_mark_key(trans, old, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
 	} else {
+		struct bkey		_deleted = KEY(0, 0, 0);
+		struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
+
+		_deleted.p = i->path->pos;
+
 		ret   = bch2_mark_key(trans, deleted, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|flags) ?:
 			bch2_mark_key(trans, old, deleted,
@@ -443,12 +441,16 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	return ret;
 }
 
-static int run_one_trans_trigger(struct btree_trans *trans,
-				 struct btree_insert_entry *i,
-				 bool overwrite)
+static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_entry *i,
+			   bool overwrite)
 {
-	struct bkey_s_c		old;
-	struct bkey		unpacked;
+	/*
+	 * Transactional triggers create new btree_insert_entries, so we can't
+	 * pass them a pointer to a btree_insert_entry, that memory is going to
+	 * move:
+	 */
+	struct bkey old_k = i->old_k;
+	struct bkey_s_c old = { &old_k, i->old_v };
 	int ret = 0;
 
 	if ((i->flags & BTREE_TRIGGER_NORUN) ||
@@ -468,8 +470,6 @@ static int run_one_trans_trigger(struct btree_trans *trans,
 		BUG_ON(!i->insert_trigger_run);
 		i->overwrite_trigger_run = true;
 	}
-
-	old = bch2_btree_path_peek_slot(i->path, &unpacked);
 
 	if (overwrite) {
 		ret = bch2_trans_mark_old(trans, old, i->flags);
