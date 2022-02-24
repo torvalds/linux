@@ -1326,8 +1326,12 @@ static const struct v4l2_file_operations rkisp1_fops = {
 
 static void rkisp1_unregister_capture(struct rkisp1_capture *cap)
 {
+	if (!video_is_registered(&cap->vnode.vdev))
+		return;
+
 	media_entity_cleanup(&cap->vnode.vdev.entity);
 	vb2_video_unregister_device(&cap->vnode.vdev);
+	mutex_destroy(&cap->vnode.vlock);
 }
 
 void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1)
@@ -1381,14 +1385,14 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 	if (ret) {
 		dev_err(cap->rkisp1->dev,
 			"vb2 queue init failed (err=%d)\n", ret);
-		return ret;
+		goto error;
 	}
 
 	vdev->queue = q;
 
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret)
-		return ret;
+		goto error;
 
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
@@ -1404,6 +1408,7 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 
 error:
 	media_entity_cleanup(&vdev->entity);
+	mutex_destroy(&node->vlock);
 	return ret;
 }
 
@@ -1439,26 +1444,21 @@ rkisp1_capture_init(struct rkisp1_device *rkisp1, enum rkisp1_stream_id id)
 
 int rkisp1_capture_devs_register(struct rkisp1_device *rkisp1)
 {
-	struct rkisp1_capture *cap;
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(rkisp1->capture_devs); i++) {
+		struct rkisp1_capture *cap = &rkisp1->capture_devs[i];
+
 		rkisp1_capture_init(rkisp1, i);
-		cap = &rkisp1->capture_devs[i];
-		cap->rkisp1 = rkisp1;
+
 		ret = rkisp1_register_capture(cap);
-		if (ret)
-			goto err_unreg_capture_devs;
+		if (ret) {
+			rkisp1_capture_devs_unregister(rkisp1);
+			return ret;
+		}
 	}
 
 	return 0;
 
-err_unreg_capture_devs:
-	for (j = 0; j < i; j++) {
-		cap = &rkisp1->capture_devs[j];
-		rkisp1_unregister_capture(cap);
-	}
-
-	return ret;
 }
