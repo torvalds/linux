@@ -1111,6 +1111,7 @@ static int adc3xxx_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct adc3xxx *adc3xxx = snd_soc_component_get_drvdata(component);
 	u8 clkdir = 0, format = 0;
 	int master = 0;
+	int ret;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1161,10 +1162,13 @@ static int adc3xxx_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	adc3xxx->master = master;
 
 	/* set clock direction and format */
-	return snd_soc_component_update_bits(component,
-					     ADC3XXX_INTERFACE_CTRL_1,
-					     ADC3XXX_CLKDIR_MASK | ADC3XXX_FORMAT_MASK,
-					     clkdir | format);
+	ret = snd_soc_component_update_bits(component,
+					    ADC3XXX_INTERFACE_CTRL_1,
+					    ADC3XXX_CLKDIR_MASK | ADC3XXX_FORMAT_MASK,
+					    clkdir | format);
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 static const struct snd_soc_dai_ops adc3xxx_dai_ops = {
