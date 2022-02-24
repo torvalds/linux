@@ -88,9 +88,9 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	}
 
 	if (rq_data_dir(rq) == READ)
-		hdr->din_resid = sreq->resid_len;
+		hdr->din_resid = scmd->resid_len;
 	else
-		hdr->dout_resid = sreq->resid_len;
+		hdr->dout_resid = scmd->resid_len;
 
 	blk_rq_unmap_user(bio);
 

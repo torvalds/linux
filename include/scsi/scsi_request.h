@@ -6,7 +6,6 @@
 
 struct scsi_request {
 	int		result;
-	unsigned int	resid_len;	/* residual count */
 	int		retries;
 };
 

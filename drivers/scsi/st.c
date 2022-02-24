@@ -521,7 +521,7 @@ static void st_scsi_execute_end(struct request *req, blk_status_t status)
 	struct bio *tmp;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = rq->result;
-	STp->buffer->cmdstat.residual = rq->resid_len;
+	STp->buffer->cmdstat.residual = scmd->resid_len;
 
 	st_do_stats(STp, req);
 

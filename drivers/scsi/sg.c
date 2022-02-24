@@ -1346,7 +1346,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 
 	sense = scmd->sense_buffer;
 	result = req->result;
-	resid = req->resid_len;
+	resid = scmd->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,
 				      "sg_cmd_done: pack_id=%d, res=0x%x\n",

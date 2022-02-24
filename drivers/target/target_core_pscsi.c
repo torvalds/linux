@@ -1046,7 +1046,7 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 	switch (host_byte(result)) {
 	case DID_OK:
 		target_complete_cmd_with_length(cmd, scsi_status,
-			cmd->data_length - scsi_req(req)->resid_len);
+			cmd->data_length - scmd->resid_len);
 		break;
 	default:
 		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"
