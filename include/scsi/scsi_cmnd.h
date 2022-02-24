@@ -28,9 +28,6 @@ struct scsi_driver;
  * supports without specifying a cmd_len by ULD's
  */
 #define MAX_COMMAND_SIZE 16
-#if (MAX_COMMAND_SIZE > BLK_MAX_CDB)
-# error MAX_COMMAND_SIZE can not be bigger than BLK_MAX_CDB
-#endif
 
 struct scsi_data_buffer {
 	struct sg_table table;
@@ -100,9 +97,7 @@ struct scsi_cmnd {
 	unsigned short cmd_len;
 	enum dma_data_direction sc_data_direction;
 
-	/* These elements define the operation we are about to perform */
-	unsigned char *cmnd;
-
+	unsigned char cmnd[32]; /* SCSI CDB */
 
 	/* These elements define the operation we ultimately want to perform */
 	struct scsi_data_buffer sdb;

@@ -345,19 +345,15 @@ EXPORT_SYMBOL(scsi_cmd_allowed);
 static int scsi_fill_sghdr_rq(struct scsi_device *sdev, struct request *rq,
 		struct sg_io_hdr *hdr, fmode_t mode)
 {
-	struct scsi_request *req = scsi_req(rq);
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 
 	if (hdr->cmd_len < 6)
 		return -EMSGSIZE;
-	if (copy_from_user(req->cmd, hdr->cmdp, hdr->cmd_len))
+	if (copy_from_user(scmd->cmnd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (!scsi_cmd_allowed(req->cmd, mode))
+	if (!scsi_cmd_allowed(scmd->cmnd, mode))
 		return -EPERM;
-
-	/*
-	 * fill in request structure
-	 */
-	req->cmd_len = hdr->cmd_len;
+	scmd->cmd_len = hdr->cmd_len;
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
@@ -416,6 +412,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	int at_head = 0;
 	struct request *rq;
 	struct scsi_request *req;
+	struct scsi_cmnd *scmd;
 	struct bio *bio;
 
 	if (hdr->interface_id != 'S')
@@ -444,16 +441,16 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 	req = scsi_req(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
-	if (hdr->cmd_len > BLK_MAX_CDB) {
-		req->cmd = kzalloc(hdr->cmd_len, GFP_KERNEL);
-		if (!req->cmd)
-			goto out_put_request;
+	if (hdr->cmd_len > sizeof(scmd->cmnd)) {
+		ret = -EINVAL;
+		goto out_put_request;
 	}
 
 	ret = scsi_fill_sghdr_rq(sdev, rq, hdr, mode);
 	if (ret < 0)
-		goto out_free_cdb;
+		goto out_put_request;
 
 	ret = 0;
 	if (hdr->iovec_count) {
@@ -463,7 +460,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 		ret = import_iovec(rq_data_dir(rq), hdr->dxferp,
 				   hdr->iovec_count, 0, &iov, &i);
 		if (ret < 0)
-			goto out_free_cdb;
+			goto out_put_request;
 
 		/* SG_IO howto says that the shorter of the two wins */
 		iov_iter_truncate(&i, hdr->dxfer_len);
@@ -475,7 +472,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 				      hdr->dxfer_len, GFP_KERNEL);
 
 	if (ret)
-		goto out_free_cdb;
+		goto out_put_request;
 
 	bio = rq->bio;
 	req->retries = 0;
@@ -488,8 +485,6 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 
 	ret = scsi_complete_sghdr_rq(rq, hdr, bio);
 
-out_free_cdb:
-	scsi_req_free_cmd(req);
 out_put_request:
 	blk_mq_free_request(rq);
 	return ret;
@@ -530,6 +525,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 	struct scsi_request *req;
 	int err;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
+	struct scsi_cmnd *scmd;
 	char *buffer = NULL;
 
 	if (!sic)
@@ -561,6 +557,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		goto error_free_buffer;
 	}
 	req = scsi_req(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
 
@@ -568,15 +565,15 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 	 * get command and data to send to device, if any
 	 */
 	err = -EFAULT;
-	req->cmd_len = cmdlen;
-	if (copy_from_user(req->cmd, sic->data, cmdlen))
+	scmd->cmd_len = cmdlen;
+	if (copy_from_user(scmd->cmnd, sic->data, cmdlen))
 		goto error;
 
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
 	err = -EPERM;
-	if (!scsi_cmd_allowed(req->cmd, mode))
+	if (!scsi_cmd_allowed(scmd->cmnd, mode))
 		goto error;
 
 	/* default.  possible overridden later */

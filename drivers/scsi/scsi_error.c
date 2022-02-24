@@ -980,7 +980,7 @@ static void scsi_abort_eh_cmnd(struct scsi_cmnd *scmd)
  * @scmd:       SCSI command structure to hijack
  * @ses:        structure to save restore information
  * @cmnd:       CDB to send. Can be NULL if no new cmnd is needed
- * @cmnd_size:  size in bytes of @cmnd (must be <= BLK_MAX_CDB)
+ * @cmnd_size:  size in bytes of @cmnd (must be <= MAX_COMMAND_SIZE)
  * @sense_bytes: size of sense data to copy. or 0 (if != 0 @cmnd is ignored)
  *
  * This function is used to save a scsi command information before re-execution
@@ -1002,7 +1002,6 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	 * command.
 	 */
 	ses->cmd_len = scmd->cmd_len;
-	ses->cmnd = scmd->cmnd;
 	ses->data_direction = scmd->sc_data_direction;
 	ses->sdb = scmd->sdb;
 	ses->result = scmd->result;
@@ -1013,8 +1012,8 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 
 	scmd->prot_op = SCSI_PROT_NORMAL;
 	scmd->eh_eflags = 0;
-	scmd->cmnd = ses->eh_cmnd;
-	memset(scmd->cmnd, 0, BLK_MAX_CDB);
+	memcpy(ses->cmnd, scmd->cmnd, sizeof(ses->cmnd));
+	memset(scmd->cmnd, 0, sizeof(scmd->cmnd));
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
 	scmd->result = 0;
 	scmd->req.resid_len = 0;
@@ -1033,7 +1032,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	} else {
 		scmd->sc_data_direction = DMA_NONE;
 		if (cmnd) {
-			BUG_ON(cmnd_size > BLK_MAX_CDB);
+			BUG_ON(cmnd_size > sizeof(scmd->cmnd));
 			memcpy(scmd->cmnd, cmnd, cmnd_size);
 			scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 		}
@@ -1066,7 +1065,7 @@ void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 	 * Restore original data
 	 */
 	scmd->cmd_len = ses->cmd_len;
-	scmd->cmnd = ses->cmnd;
+	memcpy(scmd->cmnd, ses->cmnd, sizeof(ses->cmnd));
 	scmd->sc_data_direction = ses->data_direction;
 	scmd->sdb = ses->sdb;
 	scmd->result = ses->result;
@@ -2022,6 +2021,7 @@ static void eh_lock_door_done(struct request *req, blk_status_t status)
  */
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
+	struct scsi_cmnd *scmd;
 	struct request *req;
 	struct scsi_request *rq;
 
@@ -2029,14 +2029,15 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);
+	scmd = blk_mq_rq_to_pdu(req);
 
-	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
-	rq->cmd[1] = 0;
-	rq->cmd[2] = 0;
-	rq->cmd[3] = 0;
-	rq->cmd[4] = SCSI_REMOVAL_PREVENT;
-	rq->cmd[5] = 0;
-	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
+	scmd->cmnd[0] = ALLOW_MEDIUM_REMOVAL;
+	scmd->cmnd[1] = 0;
+	scmd->cmnd[2] = 0;
+	scmd->cmnd[3] = 0;
+	scmd->cmnd[4] = SCSI_REMOVAL_PREVENT;
+	scmd->cmnd[5] = 0;
+	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
@@ -2399,7 +2400,6 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 
 	scmd = (struct scsi_cmnd *)(rq + 1);
 	scsi_init_command(dev, scmd);
-	scmd->cmnd = scsi_req(rq)->cmd;
 
 	scmd->submitter = SUBMITTED_BY_SCSI_RESET_IOCTL;
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));

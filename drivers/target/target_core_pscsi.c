@@ -961,6 +961,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
+	struct scsi_cmnd *scmd;
 	struct request *req;
 	sense_reason_t ret;
 
@@ -978,12 +979,15 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
-	scsi_req(req)->cmd_len = scsi_command_size(cmd->t_task_cdb);
-	if (scsi_req(req)->cmd_len > BLK_MAX_CDB) {
+
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = scsi_command_size(cmd->t_task_cdb);
+	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto fail_put_request;
 	}
-	memcpy(scsi_req(req)->cmd, cmd->t_task_cdb, scsi_req(req)->cmd_len);
+	memcpy(scmd->cmnd, cmd->t_task_cdb, scmd->cmd_len);
+
 	if (pdv->pdv_sd->type == TYPE_DISK ||
 	    pdv->pdv_sd->type == TYPE_ZBC)
 		req->timeout = PS_TIMEOUT_DISK;
@@ -991,7 +995,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		req->timeout = PS_TIMEOUT_OTHER;
 	scsi_req(req)->retries = PS_RETRY;
 
-	cmd->priv = scsi_req(req)->cmd;
+	cmd->priv = scmd->cmnd;
 
 	blk_execute_rq_nowait(req, cmd->sam_task_attr == TCM_HEAD_TAG,
 			pscsi_req_done);

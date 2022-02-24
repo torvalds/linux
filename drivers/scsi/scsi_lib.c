@@ -214,6 +214,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 {
 	struct request *req;
 	struct scsi_request *rq;
+	struct scsi_cmnd *scmd;
 	int ret;
 
 	req = scsi_alloc_request(sdev->request_queue,
@@ -231,8 +232,9 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		if (ret)
 			goto out;
 	}
-	rq->cmd_len = COMMAND_SIZE(cmd[0]);
-	memcpy(rq->cmd, cmd, rq->cmd_len);
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = COMMAND_SIZE(cmd[0]);
+	memcpy(scmd->cmnd, cmd, scmd->cmd_len);
 	rq->retries = retries;
 	req->timeout = timeout;
 	req->cmd_flags |= flags;
@@ -1126,9 +1128,9 @@ static void scsi_initialize_rq(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	struct scsi_request *req = &cmd->req;
 
-	memset(req->__cmd, 0, sizeof(req->__cmd));
-	req->cmd = req->__cmd;
-	req->cmd_len = BLK_MAX_CDB;
+	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
+	cmd->cmd_len = MAX_COMMAND_SIZE;
+
 	req->sense_len = 0;
 
 	init_rcu_head(&cmd->rcu);
@@ -1196,8 +1198,6 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 	}
 
-	cmd->cmd_len = scsi_req(req)->cmd_len;
-	cmd->cmnd = scsi_req(req)->cmd;
 	cmd->transfersize = blk_rq_bytes(req);
 	cmd->allowed = scsi_req(req)->retries;
 	return BLK_STS_OK;
@@ -1567,8 +1567,6 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	cmd->prot_type = 0;
 	cmd->prot_flags = 0;
 	cmd->submitter = 0;
-	cmd->cmd_len = 0;
-	cmd->cmnd = NULL;
 	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 	cmd->underflow = 0;
 	cmd->transfersize = 0;
@@ -1616,8 +1614,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 			return ret;
 	}
 
-	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
-	memset(cmd->cmnd, 0, BLK_MAX_CDB);
+	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
 	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
 

@@ -818,7 +818,6 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	}
 	if (atomic_read(&sdp->detaching)) {
 		if (srp->bio) {
-			scsi_req_free_cmd(scsi_req(srp->rq));
 			blk_mq_free_request(srp->rq);
 			srp->rq = NULL;
 		}
@@ -1393,7 +1392,6 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 	 * blk_rq_unmap_user() can be called from user context.
 	 */
 	srp->rq = NULL;
-	scsi_req_free_cmd(scsi_req(rq));
 	blk_mq_free_request(rq);
 
 	write_lock_irqsave(&sfp->rq_list_lock, iflags);
@@ -1738,17 +1736,11 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	struct request_queue *q = sfp->parentdp->device->request_queue;
 	struct rq_map_data *md, map_data;
 	int rw = hp->dxfer_direction == SG_DXFER_TO_DEV ? WRITE : READ;
-	unsigned char *long_cmdp = NULL;
+	struct scsi_cmnd *scmd;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sfp->parentdp,
 				      "sg_start_req: dxfer_len=%d\n",
 				      dxfer_len));
-
-	if (hp->cmd_len > BLK_MAX_CDB) {
-		long_cmdp = kzalloc(hp->cmd_len, GFP_KERNEL);
-		if (!long_cmdp)
-			return -ENOMEM;
-	}
 
 	/*
 	 * NOTE
@@ -1763,16 +1755,18 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	 */
 	rq = scsi_alloc_request(q, hp->dxfer_direction == SG_DXFER_TO_DEV ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
-	if (IS_ERR(rq)) {
-		kfree(long_cmdp);
+	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	}
+	scmd = blk_mq_rq_to_pdu(rq);
 	req = scsi_req(rq);
 
-	if (hp->cmd_len > BLK_MAX_CDB)
-		req->cmd = long_cmdp;
-	memcpy(req->cmd, cmd, hp->cmd_len);
-	req->cmd_len = hp->cmd_len;
+	if (hp->cmd_len > sizeof(scmd->cmnd)) {
+		blk_mq_free_request(rq);
+		return -EINVAL;
+	}
+
+	memcpy(scmd->cmnd, cmd, hp->cmd_len);
+	scmd->cmd_len = hp->cmd_len;
 
 	srp->rq = rq;
 	rq->end_io_data = srp;
@@ -1865,10 +1859,8 @@ sg_finish_rem_req(Sg_request *srp)
 	if (srp->bio)
 		ret = blk_rq_unmap_user(srp->bio);
 
-	if (srp->rq) {
-		scsi_req_free_cmd(scsi_req(srp->rq));
+	if (srp->rq)
 		blk_mq_free_request(srp->rq);
-	}
 
 	if (srp->res_used)
 		sg_unlink_reserve(sfp, srp);

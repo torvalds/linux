@@ -38,10 +38,8 @@ struct scsi_eh_save {
 	unsigned underflow;
 	unsigned char cmd_len;
 	unsigned char prot_op;
-	unsigned char *cmnd;
+	unsigned char cmnd[32];
 	struct scsi_data_buffer sdb;
-	/* new command support */
-	unsigned char eh_cmnd[BLK_MAX_CDB];
 	struct scatterlist sense_sgl;
 };
 

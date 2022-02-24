@@ -128,7 +128,6 @@ static DEFINE_IDA(sd_index_ida);
 static DEFINE_MUTEX(sd_ref_mutex);
 
 static struct kmem_cache *sd_cdb_cache;
-static mempool_t *sd_cdb_pool;
 static mempool_t *sd_page_pool;
 static struct lock_class_key sd_bio_compl_lkclass;
 
@@ -1075,13 +1074,7 @@ static blk_status_t sd_setup_rw32_cmnd(struct scsi_cmnd *cmd, bool write,
 				       sector_t lba, unsigned int nr_blocks,
 				       unsigned char flags)
 {
-	cmd->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
-	if (unlikely(cmd->cmnd == NULL))
-		return BLK_STS_RESOURCE;
-
 	cmd->cmd_len = SD_EXT_CDB_SIZE;
-	memset(cmd->cmnd, 0, cmd->cmd_len);
-
 	cmd->cmnd[0]  = VARIABLE_LENGTH_CMD;
 	cmd->cmnd[7]  = 0x18; /* Additional CDB len */
 	cmd->cmnd[9]  = write ? WRITE_32 : READ_32;
@@ -1313,17 +1306,9 @@ static blk_status_t sd_init_command(struct scsi_cmnd *cmd)
 static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = scsi_cmd_to_rq(SCpnt);
-	u8 *cmnd;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		mempool_free(rq->special_vec.bv_page, sd_page_pool);
-
-	if (SCpnt->cmnd != scsi_req(rq)->cmd) {
-		cmnd = SCpnt->cmnd;
-		SCpnt->cmnd = NULL;
-		SCpnt->cmd_len = 0;
-		mempool_free(cmnd, sd_cdb_pool);
-	}
 }
 
 static bool sd_need_revalidate(struct block_device *bdev,
@@ -3819,18 +3804,11 @@ static int __init init_sd(void)
 		goto err_out_class;
 	}
 
-	sd_cdb_pool = mempool_create_slab_pool(SD_MEMPOOL_SIZE, sd_cdb_cache);
-	if (!sd_cdb_pool) {
-		printk(KERN_ERR "sd: can't init extended cdb pool\n");
-		err = -ENOMEM;
-		goto err_out_cache;
-	}
-
 	sd_page_pool = mempool_create_page_pool(SD_MEMPOOL_SIZE, 0);
 	if (!sd_page_pool) {
 		printk(KERN_ERR "sd: can't init discard page pool\n");
 		err = -ENOMEM;
-		goto err_out_ppool;
+		goto err_out_cache;
 	}
 
 	err = scsi_register_driver(&sd_template.gendrv);
@@ -3841,9 +3819,6 @@ static int __init init_sd(void)
 
 err_out_driver:
 	mempool_destroy(sd_page_pool);
-
-err_out_ppool:
-	mempool_destroy(sd_cdb_pool);
 
 err_out_cache:
 	kmem_cache_destroy(sd_cdb_cache);
@@ -3868,7 +3843,6 @@ static void __exit exit_sd(void)
 	SCSI_LOG_HLQUEUE(3, printk("exit_sd: exiting sd driver\n"));
 
 	scsi_unregister_driver(&sd_template.gendrv);
-	mempool_destroy(sd_cdb_pool);
 	mempool_destroy(sd_page_pool);
 	kmem_cache_destroy(sd_cdb_cache);
 
