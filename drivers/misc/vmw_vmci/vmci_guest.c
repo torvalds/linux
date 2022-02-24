@@ -706,13 +706,11 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		vmci_dev->notification_bitmap = dma_alloc_coherent(
 			&pdev->dev, PAGE_SIZE, &vmci_dev->notification_base,
 			GFP_KERNEL);
-		if (!vmci_dev->notification_bitmap) {
+		if (!vmci_dev->notification_bitmap)
 			dev_warn(&pdev->dev,
 				 "Unable to allocate notification bitmap\n");
-		} else {
-			memset(vmci_dev->notification_bitmap, 0, PAGE_SIZE);
+		else
 			caps_in_use |= VMCI_CAPS_NOTIFICATIONS;
-		}
 	}
 
 	if (mmio_base != NULL) {
