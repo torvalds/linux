@@ -347,7 +347,11 @@ struct wsa_macro {
 	int is_softclip_on[WSA_MACRO_SOFTCLIP_MAX];
 	int softclip_clk_users[WSA_MACRO_SOFTCLIP_MAX];
 	struct regmap *regmap;
-	struct clk_bulk_data clks[WSA_NUM_CLKS_MAX];
+	struct clk *mclk;
+	struct clk *npl;
+	struct clk *macro;
+	struct clk *dcodec;
+	struct clk *fsgen;
 	struct clk_hw hw;
 };
 #define to_wsa_macro(_hw) container_of(_hw, struct wsa_macro, hw)
@@ -2350,7 +2354,7 @@ static int wsa_macro_register_mclk_output(struct wsa_macro *wsa)
 	struct clk_init_data init;
 	int ret;
 
-	parent_clk_name = __clk_get_name(wsa->clks[2].clk);
+	parent_clk_name = __clk_get_name(wsa->mclk);
 
 	init.name = clk_name;
 	init.ops = &swclk_gate_ops;
@@ -2388,17 +2392,25 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	if (!wsa)
 		return -ENOMEM;
 
-	wsa->clks[0].id = "macro";
-	wsa->clks[1].id = "dcodec";
-	wsa->clks[2].id = "mclk";
-	wsa->clks[3].id = "npl";
-	wsa->clks[4].id = "fsgen";
+	wsa->macro = devm_clk_get_optional(dev, "macro");
+	if (IS_ERR(wsa->macro))
+		return PTR_ERR(wsa->macro);
 
-	ret = devm_clk_bulk_get(dev, WSA_NUM_CLKS_MAX, wsa->clks);
-	if (ret) {
-		dev_err(dev, "Error getting WSA Clocks (%d)\n", ret);
-		return ret;
-	}
+	wsa->dcodec = devm_clk_get_optional(dev, "dcodec");
+	if (IS_ERR(wsa->dcodec))
+		return PTR_ERR(wsa->dcodec);
+
+	wsa->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(wsa->mclk))
+		return PTR_ERR(wsa->mclk);
+
+	wsa->npl = devm_clk_get(dev, "npl");
+	if (IS_ERR(wsa->npl))
+		return PTR_ERR(wsa->npl);
+
+	wsa->fsgen = devm_clk_get(dev, "fsgen");
+	if (IS_ERR(wsa->fsgen))
+		return PTR_ERR(wsa->fsgen);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -2414,25 +2426,53 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	wsa->dev = dev;
 
 	/* set MCLK and NPL rates */
-	clk_set_rate(wsa->clks[2].clk, WSA_MACRO_MCLK_FREQ);
-	clk_set_rate(wsa->clks[3].clk, WSA_MACRO_MCLK_FREQ);
+	clk_set_rate(wsa->mclk, WSA_MACRO_MCLK_FREQ);
+	clk_set_rate(wsa->npl, WSA_MACRO_MCLK_FREQ);
 
-	ret = clk_bulk_prepare_enable(WSA_NUM_CLKS_MAX, wsa->clks);
+	ret = clk_prepare_enable(wsa->macro);
 	if (ret)
-		return ret;
+		goto err;
 
-	wsa_macro_register_mclk_output(wsa);
+	ret = clk_prepare_enable(wsa->dcodec);
+	if (ret)
+		goto err_dcodec;
+
+	ret = clk_prepare_enable(wsa->mclk);
+	if (ret)
+		goto err_mclk;
+
+	ret = clk_prepare_enable(wsa->npl);
+	if (ret)
+		goto err_npl;
+
+	ret = clk_prepare_enable(wsa->fsgen);
+	if (ret)
+		goto err_fsgen;
+
+	ret = wsa_macro_register_mclk_output(wsa);
+	if (ret)
+		goto err_clkout;
+
 
 	ret = devm_snd_soc_register_component(dev, &wsa_macro_component_drv,
 					      wsa_macro_dai,
 					      ARRAY_SIZE(wsa_macro_dai));
 	if (ret)
-		goto err;
+		goto err_clkout;
 
-	return ret;
+	return 0;
+
+err_clkout:
+	clk_disable_unprepare(wsa->fsgen);
+err_fsgen:
+	clk_disable_unprepare(wsa->npl);
+err_npl:
+	clk_disable_unprepare(wsa->mclk);
+err_mclk:
+	clk_disable_unprepare(wsa->dcodec);
+err_dcodec:
+	clk_disable_unprepare(wsa->macro);
 err:
-	clk_bulk_disable_unprepare(WSA_NUM_CLKS_MAX, wsa->clks);
-
 	return ret;
 
 }
@@ -2441,7 +2481,11 @@ static int wsa_macro_remove(struct platform_device *pdev)
 {
 	struct wsa_macro *wsa = dev_get_drvdata(&pdev->dev);
 
-	clk_bulk_disable_unprepare(WSA_NUM_CLKS_MAX, wsa->clks);
+	clk_disable_unprepare(wsa->macro);
+	clk_disable_unprepare(wsa->dcodec);
+	clk_disable_unprepare(wsa->mclk);
+	clk_disable_unprepare(wsa->npl);
+	clk_disable_unprepare(wsa->fsgen);
 
 	return 0;
 }
