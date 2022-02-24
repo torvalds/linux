@@ -14,7 +14,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/videodev2.h>
 #include <linux/module.h>
@@ -752,7 +752,6 @@ static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	const struct m5mols_platform_data *pdata = info->pdata;
 	int ret;
 
 	if (info->power == enable)
@@ -772,7 +771,7 @@ static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
 			return ret;
 		}
 
-		gpio_set_value(pdata->gpio_reset, !pdata->reset_polarity);
+		gpiod_set_value(info->reset, 0);
 		info->power = 1;
 
 		return ret;
@@ -785,7 +784,7 @@ static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
 	if (info->set_power)
 		info->set_power(&client->dev, 0);
 
-	gpio_set_value(pdata->gpio_reset, pdata->reset_polarity);
+	gpiod_set_value(info->reset, 1);
 
 	info->isp_ready = 0;
 	info->power = 0;
@@ -944,18 +943,12 @@ static int m5mols_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	const struct m5mols_platform_data *pdata = client->dev.platform_data;
-	unsigned long gpio_flags;
 	struct m5mols_info *info;
 	struct v4l2_subdev *sd;
 	int ret;
 
 	if (pdata == NULL) {
 		dev_err(&client->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	if (!gpio_is_valid(pdata->gpio_reset)) {
-		dev_err(&client->dev, "No valid RESET GPIO specified\n");
 		return -EINVAL;
 	}
 
@@ -968,17 +961,15 @@ static int m5mols_probe(struct i2c_client *client,
 	if (!info)
 		return -ENOMEM;
 
+	/* This asserts reset, descriptor shall have polarity specified */
+	info->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(info->reset))
+		return PTR_ERR(info->reset);
+	/* Notice: the "N" in M5MOLS_NRST implies active low */
+	gpiod_set_consumer_name(info->reset, "M5MOLS_NRST");
+
 	info->pdata = pdata;
 	info->set_power	= pdata->set_power;
-
-	gpio_flags = pdata->reset_polarity
-		   ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-	ret = devm_gpio_request_one(&client->dev, pdata->gpio_reset, gpio_flags,
-				    "M5MOLS_NRST");
-	if (ret) {
-		dev_err(&client->dev, "Failed to request gpio: %d\n", ret);
-		return ret;
-	}
 
 	ret = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies),
 				      supplies);

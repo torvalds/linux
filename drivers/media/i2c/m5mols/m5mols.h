@@ -13,6 +13,7 @@
 #define M5MOLS_H
 
 #include <linux/sizes.h>
+#include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include "m5mols_reg.h"
 
@@ -224,6 +225,7 @@ struct m5mols_info {
 	struct v4l2_ctrl *jpeg_quality;
 
 	int (*set_power)(struct device *dev, int on);
+	struct gpio_desc *reset;
 
 	struct mutex lock;
 
