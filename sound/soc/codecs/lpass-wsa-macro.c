@@ -10,6 +10,7 @@
 #include <linux/clk-provider.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_platform.h>
 #include <sound/tlv.h>
 #include "lpass-wsa-macro.h"
@@ -2468,6 +2469,12 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clkout;
 
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 
 err_clkout:
@@ -2498,6 +2505,59 @@ static int wsa_macro_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused wsa_macro_runtime_suspend(struct device *dev)
+{
+	struct wsa_macro *wsa = dev_get_drvdata(dev);
+
+	regcache_cache_only(wsa->regmap, true);
+	regcache_mark_dirty(wsa->regmap);
+
+	clk_disable_unprepare(wsa->mclk);
+	clk_disable_unprepare(wsa->npl);
+	clk_disable_unprepare(wsa->fsgen);
+
+	return 0;
+}
+
+static int __maybe_unused wsa_macro_runtime_resume(struct device *dev)
+{
+	struct wsa_macro *wsa = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(wsa->mclk);
+	if (ret) {
+		dev_err(dev, "unable to prepare mclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(wsa->npl);
+	if (ret) {
+		dev_err(dev, "unable to prepare mclkx2\n");
+		goto err_npl;
+	}
+
+	ret = clk_prepare_enable(wsa->fsgen);
+	if (ret) {
+		dev_err(dev, "unable to prepare fsgen\n");
+		goto err_fsgen;
+	}
+
+	regcache_cache_only(wsa->regmap, false);
+	regcache_sync(wsa->regmap);
+
+	return 0;
+err_fsgen:
+	clk_disable_unprepare(wsa->npl);
+err_npl:
+	clk_disable_unprepare(wsa->mclk);
+
+	return ret;
+}
+
+static const struct dev_pm_ops wsa_macro_pm_ops = {
+	SET_RUNTIME_PM_OPS(wsa_macro_runtime_suspend, wsa_macro_runtime_resume, NULL)
+};
+
 static const struct of_device_id wsa_macro_dt_match[] = {
 	{.compatible = "qcom,sc7280-lpass-wsa-macro"},
 	{.compatible = "qcom,sm8250-lpass-wsa-macro"},
@@ -2509,6 +2569,7 @@ static struct platform_driver wsa_macro_driver = {
 	.driver = {
 		.name = "wsa_macro",
 		.of_match_table = wsa_macro_dt_match,
+		.pm = &wsa_macro_pm_ops,
 	},
 	.probe = wsa_macro_probe,
 	.remove = wsa_macro_remove,
