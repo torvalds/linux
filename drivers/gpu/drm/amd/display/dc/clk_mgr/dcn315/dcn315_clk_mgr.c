@@ -430,7 +430,7 @@ static unsigned int find_clk_for_voltage(
 	return 0;
 }
 
-void dcn315_clk_mgr_helper_populate_bw_params(
+static void dcn315_clk_mgr_helper_populate_bw_params(
 		struct clk_mgr_internal *clk_mgr,
 		struct integrated_info *bios_info,
 		const DpmClocks_315_t *clock_table)

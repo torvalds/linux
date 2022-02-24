@@ -42,7 +42,7 @@
 #define DCN_BASE__INST0_SEG4                       0x02403C00
 #define DCN_BASE__INST0_SEG5                       0
 
-enum dc_irq_source to_dal_irq_source_dcn315(
+static enum dc_irq_source to_dal_irq_source_dcn315(
 		struct irq_service *irq_service,
 		uint32_t src_id,
 		uint32_t ext_id)
