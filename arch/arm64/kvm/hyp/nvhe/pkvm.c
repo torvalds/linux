@@ -825,6 +825,14 @@ err_unlock:
 	return err;
 }
 
+void pkvm_clear_pvmfw_pages(void)
+{
+	void *addr = hyp_phys_to_virt(pvmfw_base);
+
+	memset(addr, 0, pvmfw_size);
+	kvm_flush_dcache_to_poc(addr, pvmfw_size);
+}
+
 /*
  * This function sets the registers on the vcpu to their architecturally defined
  * reset values.
