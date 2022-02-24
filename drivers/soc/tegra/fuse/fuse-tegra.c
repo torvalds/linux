@@ -202,8 +202,8 @@ static const struct nvmem_cell_info tegra_fuse_cells[] = {
 
 static void tegra_fuse_restore(void *base)
 {
+	fuse->base = (void __iomem *)base;
 	fuse->clk = NULL;
-	fuse->base = base;
 }
 
 static int tegra_fuse_probe(struct platform_device *pdev)
@@ -213,7 +213,7 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	err = devm_add_action(&pdev->dev, tegra_fuse_restore, base);
+	err = devm_add_action(&pdev->dev, tegra_fuse_restore, (void __force *)base);
 	if (err)
 		return err;
 
