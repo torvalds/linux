@@ -1937,6 +1937,7 @@ static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 
 	default:
 		WARN_ON(1);
+		return -EINVAL;
 	}
 
 	/* Enable/disable SerDes auto-negotiation as necessary */
