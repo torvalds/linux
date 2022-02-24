@@ -5,7 +5,6 @@
 #include <linux/blk-mq.h>
 
 struct scsi_request {
-	int		result;
 	int		retries;
 };
 

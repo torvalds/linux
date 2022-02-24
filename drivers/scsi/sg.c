@@ -1325,7 +1325,6 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sg_request *srp = rq->end_io_data;
-	struct scsi_request *req = scsi_req(rq);
 	Sg_device *sdp;
 	Sg_fd *sfp;
 	unsigned long iflags;
@@ -1345,7 +1344,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 		pr_info("%s: device detaching\n", __func__);
 
 	sense = scmd->sense_buffer;
-	result = req->result;
+	result = scmd->result;
 	resid = scmd->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,

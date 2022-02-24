@@ -718,7 +718,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 		rq->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(rq, false);
-	if (scsi_req(rq)->result)
+	if (scmd->result)
 		ret = -EIO;
 out:
 	blk_mq_free_request(rq);

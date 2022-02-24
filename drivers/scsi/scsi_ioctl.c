@@ -370,16 +370,15 @@ static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 		struct bio *bio)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct scsi_request *req = scsi_req(rq);
 	int r, ret = 0;
 
 	/*
 	 * fill in all the output members
 	 */
-	hdr->status = req->result & 0xff;
-	hdr->masked_status = status_byte(req->result);
+	hdr->status = scmd->result & 0xff;
+	hdr->masked_status = status_byte(scmd->result);
 	hdr->msg_status = COMMAND_COMPLETE;
-	hdr->host_status = host_byte(req->result);
+	hdr->host_status = host_byte(scmd->result);
 	hdr->driver_status = 0;
 	if (scsi_status_is_check_condition(hdr->status))
 		hdr->driver_status = DRIVER_SENSE;
@@ -611,7 +610,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 
 	blk_execute_rq(rq, false);
 
-	err = req->result & 0xff;	/* only 8 bit SCSI status */
+	err = scmd->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (scmd->sense_len && scmd->sense_buffer) {
 			/* limit sense len for backward compatibility */

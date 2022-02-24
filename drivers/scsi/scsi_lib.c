@@ -261,7 +261,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (sshdr)
 		scsi_normalize_sense(scmd->sense_buffer, scmd->sense_len,
 				     sshdr);
-	ret = rq->result;
+	ret = scmd->result;
  out:
 	blk_mq_free_request(req);
 
@@ -958,13 +958,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 
 	if (unlikely(result))	/* a nz result may or may not be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
-
-	if (unlikely(blk_rq_is_passthrough(req))) {
-		/*
-		 * scsi_result_to_blk_status may have reset the host_byte
-		 */
-		scsi_req(req)->result = cmd->result;
-	}
 
 	/*
 	 * Next deal with any sectors which we were able to correctly
@@ -1779,15 +1772,15 @@ out_put_budget:
 			ret = BLK_STS_DEV_RESOURCE;
 		break;
 	case BLK_STS_AGAIN:
-		scsi_req(req)->result = DID_BUS_BUSY << 16;
+		cmd->result = DID_BUS_BUSY << 16;
 		if (req->rq_flags & RQF_DONTPREP)
 			scsi_mq_uninit_cmd(cmd);
 		break;
 	default:
 		if (unlikely(!scsi_device_online(sdev)))
-			scsi_req(req)->result = DID_NO_CONNECT << 16;
+			cmd->result = DID_NO_CONNECT << 16;
 		else
-			scsi_req(req)->result = DID_ERROR << 16;
+			cmd->result = DID_ERROR << 16;
 		/*
 		 * Make sure to release all allocated resources when
 		 * we hit an error, as we will never see this command

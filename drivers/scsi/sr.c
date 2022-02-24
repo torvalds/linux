@@ -996,7 +996,7 @@ static int sr_read_cdda_bpc(struct cdrom_device_info *cdi, void __user *ubuf,
 	bio = rq->bio;
 
 	blk_execute_rq(rq, false);
-	if (scsi_req(rq)->result) {
+	if (scmd->result) {
 		struct scsi_sense_hdr sshdr;
 
 		scsi_normalize_sense(scmd->sense_buffer, scmd->sense_len,

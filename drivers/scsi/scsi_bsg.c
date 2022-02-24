@@ -12,7 +12,6 @@
 static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		fmode_t mode, unsigned int timeout)
 {
-	struct scsi_request *sreq;
 	struct scsi_cmnd *scmd;
 	struct request *rq;
 	struct bio *bio;
@@ -33,7 +32,6 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	rq->timeout = timeout;
 
 	ret = -ENOMEM;
-	sreq = scsi_req(rq);
 	scmd = blk_mq_rq_to_pdu(rq);
 	scmd->cmd_len = hdr->request_len;
 	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
@@ -66,10 +64,10 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	/*
 	 * fill in all the output members
 	 */
-	hdr->device_status = sreq->result & 0xff;
-	hdr->transport_status = host_byte(sreq->result);
+	hdr->device_status = scmd->result & 0xff;
+	hdr->transport_status = host_byte(scmd->result);
 	hdr->driver_status = 0;
-	if (scsi_status_is_check_condition(sreq->result))
+	if (scsi_status_is_check_condition(scmd->result))
 		hdr->driver_status = DRIVER_SENSE;
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
