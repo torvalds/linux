@@ -656,7 +656,8 @@ static bool vga_is_boot_device(struct vga_device *vgadev)
 	 * We use the first one we find, so if we've already found one,
 	 * vgadev is no better.
 	 */
-	if (boot_vga)
+	if (boot_vga &&
+	    (boot_vga->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK)
 		return false;
 
 	if ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK)
@@ -692,6 +693,13 @@ static bool vga_is_boot_device(struct vga_device *vgadev)
 		}
 		return true;
 	}
+
+	/*
+	 * vgadev has neither IO nor MEM enabled.  If we haven't found any
+	 * other VGA devices, it is the best candidate so far.
+	 */
+	if (!boot_vga)
+		return true;
 
 	return false;
 }
@@ -1559,21 +1567,6 @@ static struct miscdevice vga_arb_device = {
 	MISC_DYNAMIC_MINOR, "vga_arbiter", &vga_arb_device_fops
 };
 
-static void __init vga_arb_select_default_device(void)
-{
-	struct vga_device *vgadev;
-
-	if (!vga_default_device()) {
-		vgadev = list_first_entry_or_null(&vga_list,
-						  struct vga_device, list);
-		if (vgadev) {
-			struct device *dev = &vgadev->pdev->dev;
-			vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
-			vga_set_default_device(vgadev->pdev);
-		}
-	}
-}
-
 static int __init vga_arb_device_init(void)
 {
 	int rc;
@@ -1602,8 +1595,6 @@ static int __init vga_arb_device_init(void)
 		else
 			vgaarb_info(dev, "no bridge control possible\n");
 	}
-
-	vga_arb_select_default_device();
 
 	pr_info("loaded\n");
 	return rc;
