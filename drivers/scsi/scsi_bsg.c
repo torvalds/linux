@@ -76,11 +76,12 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		hdr->info |= SG_INFO_CHECK;
 	hdr->response_len = 0;
 
-	if (sreq->sense_len && hdr->response) {
+	if (scmd->sense_len && hdr->response) {
 		int len = min_t(unsigned int, hdr->max_response_len,
-					sreq->sense_len);
+				scmd->sense_len);
 
-		if (copy_to_user(uptr64(hdr->response), sreq->sense, len))
+		if (copy_to_user(uptr64(hdr->response), scmd->sense_buffer,
+				 len))
 			ret = -EFAULT;
 		else
 			hdr->response_len = len;

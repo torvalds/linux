@@ -6,10 +6,8 @@
 
 struct scsi_request {
 	int		result;
-	unsigned int	sense_len;
 	unsigned int	resid_len;	/* residual count */
 	int		retries;
-	void		*sense;
 };
 
 static inline struct scsi_request *scsi_req(struct request *rq)

@@ -256,10 +256,11 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	if (resid)
 		*resid = rq->resid_len;
-	if (sense && rq->sense_len)
-		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
+	if (sense && scmd->sense_len)
+		memcpy(sense, scmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 	if (sshdr)
-		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
+		scsi_normalize_sense(scmd->sense_buffer, scmd->sense_len,
+				     sshdr);
 	ret = rq->result;
  out:
 	blk_mq_free_request(req);
@@ -876,9 +877,8 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 			/*
 			 * SG_IO wants current and deferred errors
 			 */
-			scsi_req(req)->sense_len =
-				min(8 + cmd->sense_buffer[7],
-				    SCSI_SENSE_BUFFERSIZE);
+			cmd->sense_len = min(8 + cmd->sense_buffer[7],
+					     SCSI_SENSE_BUFFERSIZE);
 		}
 		if (sense_current)
 			*blk_statp = scsi_result_to_blk_status(cmd, result);
@@ -1126,13 +1126,10 @@ EXPORT_SYMBOL(scsi_alloc_sgtables);
 static void scsi_initialize_rq(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
-	struct scsi_request *req = &cmd->req;
 
 	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
 	cmd->cmd_len = MAX_COMMAND_SIZE;
-
-	req->sense_len = 0;
-
+	cmd->sense_len = 0;
 	init_rcu_head(&cmd->rcu);
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->retries = 0;
@@ -1824,7 +1821,6 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		kmem_cache_alloc_node(scsi_sense_cache, GFP_KERNEL, numa_node);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
-	cmd->req.sense = cmd->sense_buffer;
 
 	if (scsi_host_get_prot(shost)) {
 		sg = (void *)cmd + sizeof(struct scsi_cmnd) +

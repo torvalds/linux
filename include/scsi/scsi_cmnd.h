@@ -112,6 +112,7 @@ struct scsi_cmnd {
 				   reconnects.   Probably == sector
 				   size */
 
+	unsigned sense_len;
 	unsigned char *sense_buffer;
 				/* obtained by REQUEST SENSE when
 				 * CHECK CONDITION is received on original

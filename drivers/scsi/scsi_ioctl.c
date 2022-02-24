@@ -369,6 +369,7 @@ static int scsi_fill_sghdr_rq(struct scsi_device *sdev, struct request *rq,
 static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 		struct bio *bio)
 {
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct scsi_request *req = scsi_req(rq);
 	int r, ret = 0;
 
@@ -388,10 +389,10 @@ static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	hdr->resid = req->resid_len;
 	hdr->sb_len_wr = 0;
 
-	if (req->sense_len && hdr->sbp) {
-		int len = min((unsigned int) hdr->mx_sb_len, req->sense_len);
+	if (scmd->sense_len && hdr->sbp) {
+		int len = min((unsigned int) hdr->mx_sb_len, scmd->sense_len);
 
-		if (!copy_to_user(hdr->sbp, req->sense, len))
+		if (!copy_to_user(hdr->sbp, scmd->sense_buffer, len))
 			hdr->sb_len_wr = len;
 		else
 			ret = -EFAULT;
@@ -520,7 +521,6 @@ out_put_request:
 static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		struct scsi_ioctl_command __user *sic)
 {
-	enum { OMAX_SB_LEN = 16 };	/* For backward compatibility */
 	struct request *rq;
 	struct scsi_request *req;
 	int err;
@@ -613,10 +613,10 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 
 	err = req->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
-		if (req->sense_len && req->sense) {
-			bytes = (OMAX_SB_LEN > req->sense_len) ?
-				req->sense_len : OMAX_SB_LEN;
-			if (copy_to_user(sic->data, req->sense, bytes))
+		if (scmd->sense_len && scmd->sense_buffer) {
+			/* limit sense len for backward compatibility */
+			if (copy_to_user(sic->data, scmd->sense_buffer,
+					 min(scmd->sense_len, 16U)))
 				err = -EFAULT;
 		}
 	} else {

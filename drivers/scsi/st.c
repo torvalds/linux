@@ -514,6 +514,7 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 
 static void st_scsi_execute_end(struct request *req, blk_status_t status)
 {
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	struct st_request *SRpnt = req->end_io_data;
 	struct scsi_request *rq = scsi_req(req);
 	struct scsi_tape *STp = SRpnt->stp;
@@ -525,8 +526,8 @@ static void st_scsi_execute_end(struct request *req, blk_status_t status)
 	st_do_stats(STp, req);
 
 	tmp = SRpnt->bio;
-	if (rq->sense_len)
-		memcpy(SRpnt->sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
+	if (scmd->sense_len)
+		memcpy(SRpnt->sense, scmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);
 

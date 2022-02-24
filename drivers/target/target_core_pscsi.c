@@ -1031,6 +1031,7 @@ static sector_t pscsi_get_blocks(struct se_device *dev)
 static void pscsi_req_done(struct request *req, blk_status_t status)
 {
 	struct se_cmd *cmd = req->end_io_data;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	int result = scsi_req(req)->result;
 	enum sam_status scsi_status = result & 0xff;
 	u8 *cdb = cmd->priv;
@@ -1040,7 +1041,7 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 			" 0x%02x Result: 0x%08x\n", cmd, cdb[0], result);
 	}
 
-	pscsi_complete_cmd(cmd, scsi_status, scsi_req(req)->sense);
+	pscsi_complete_cmd(cmd, scsi_status, scmd->sense_buffer);
 
 	switch (host_byte(result)) {
 	case DID_OK:
