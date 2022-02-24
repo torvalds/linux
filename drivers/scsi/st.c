@@ -539,7 +539,6 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 			   int timeout, int retries)
 {
 	struct request *req;
-	struct scsi_request *rq;
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 	int err = 0;
 	struct scsi_tape *STp = SRpnt->stp;
@@ -551,7 +550,6 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	scmd = blk_mq_rq_to_pdu(req);
-	rq = scsi_req(req);
 	req->rq_flags |= RQF_QUIET;
 
 	mdata->null_mapped = 1;
@@ -580,7 +578,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	scmd->cmd_len = COMMAND_SIZE(cmd[0]);
 	memcpy(scmd->cmnd, cmd, scmd->cmd_len);
 	req->timeout = timeout;
-	rq->retries = retries;
+	scmd->allowed = retries;
 	req->end_io_data = SRpnt;
 
 	blk_execute_rq_nowait(req, true, st_scsi_execute_end);

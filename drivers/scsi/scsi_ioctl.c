@@ -411,7 +411,6 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	int writing = 0;
 	int at_head = 0;
 	struct request *rq;
-	struct scsi_request *req;
 	struct scsi_cmnd *scmd;
 	struct bio *bio;
 
@@ -440,7 +439,6 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	req = scsi_req(rq);
 	scmd = blk_mq_rq_to_pdu(rq);
 
 	if (hdr->cmd_len > sizeof(scmd->cmnd)) {
@@ -475,7 +473,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 		goto out_put_request;
 
 	bio = rq->bio;
-	req->retries = 0;
+	scmd->allowed = 0;
 
 	start_time = jiffies;
 
@@ -521,7 +519,6 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		struct scsi_ioctl_command __user *sic)
 {
 	struct request *rq;
-	struct scsi_request *req;
 	int err;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
 	struct scsi_cmnd *scmd;
@@ -555,7 +552,6 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		err = PTR_ERR(rq);
 		goto error_free_buffer;
 	}
-	req = scsi_req(rq);
 	scmd = blk_mq_rq_to_pdu(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
@@ -576,13 +572,13 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		goto error;
 
 	/* default.  possible overridden later */
-	req->retries = 5;
+	scmd->allowed = 5;
 
 	switch (opcode) {
 	case SEND_DIAGNOSTIC:
 	case FORMAT_UNIT:
 		rq->timeout = FORMAT_UNIT_TIMEOUT;
-		req->retries = 1;
+		scmd->allowed = 1;
 		break;
 	case START_STOP:
 		rq->timeout = START_STOP_TIMEOUT;
@@ -595,7 +591,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		break;
 	case READ_DEFECT_DATA:
 		rq->timeout = READ_DEFECT_DATA_TIMEOUT;
-		req->retries = 1;
+		scmd->allowed = 1;
 		break;
 	default:
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;

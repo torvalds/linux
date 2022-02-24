@@ -33,7 +33,7 @@ static int scsi_flags_show(struct seq_file *m, const unsigned long flags,
 
 void scsi_show_rq(struct seq_file *m, struct request *rq)
 {
-	struct scsi_cmnd *cmd = container_of(scsi_req(rq), typeof(*cmd), req);
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	int alloc_ms = jiffies_to_msecs(jiffies - cmd->jiffies_at_alloc);
 	int timeout_ms = jiffies_to_msecs(rq->timeout);
 	char buf[80] = "(?)";

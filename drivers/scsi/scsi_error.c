@@ -2023,12 +2023,10 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
 	struct scsi_cmnd *scmd;
 	struct request *req;
-	struct scsi_request *rq;
 
 	req = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return;
-	rq = scsi_req(req);
 	scmd = blk_mq_rq_to_pdu(req);
 
 	scmd->cmnd[0] = ALLOW_MEDIUM_REMOVAL;
@@ -2041,7 +2039,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
-	rq->retries = 5;
+	scmd->allowed = 5;
 
 	blk_execute_rq_nowait(req, true, eh_lock_door_done);
 }

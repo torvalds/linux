@@ -4,13 +4,4 @@
 
 #include <linux/blk-mq.h>
 
-struct scsi_request {
-	int		retries;
-};
-
-static inline struct scsi_request *scsi_req(struct request *rq)
-{
-	return blk_mq_rq_to_pdu(rq);
-}
-
 #endif /* _SCSI_SCSI_REQUEST_H */

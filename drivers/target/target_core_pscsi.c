@@ -993,7 +993,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		req->timeout = PS_TIMEOUT_DISK;
 	else
 		req->timeout = PS_TIMEOUT_OTHER;
-	scsi_req(req)->retries = PS_RETRY;
+	scmd->allowed = PS_RETRY;
 
 	cmd->priv = scmd->cmnd;
 

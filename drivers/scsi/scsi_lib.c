@@ -213,7 +213,6 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int *resid)
 {
 	struct request *req;
-	struct scsi_request *rq;
 	struct scsi_cmnd *scmd;
 	int ret;
 
@@ -224,8 +223,6 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	rq = scsi_req(req);
-
 	if (bufflen) {
 		ret = blk_rq_map_kern(sdev->request_queue, req,
 				      buffer, bufflen, GFP_NOIO);
@@ -235,7 +232,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	scmd = blk_mq_rq_to_pdu(req);
 	scmd->cmd_len = COMMAND_SIZE(cmd[0]);
 	memcpy(scmd->cmnd, cmd, scmd->cmd_len);
-	rq->retries = retries;
+	scmd->allowed = retries;
 	req->timeout = timeout;
 	req->cmd_flags |= flags;
 	req->rq_flags |= rq_flags | RQF_QUIET;
@@ -1189,7 +1186,6 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	}
 
 	cmd->transfersize = blk_rq_bytes(req);
-	cmd->allowed = scsi_req(req)->retries;
 	return BLK_STS_OK;
 }
 
