@@ -1658,7 +1658,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 		return MT_DFS_STATE_DISABLED;
 	}
 
-	if (phy->chandef.chan->dfs_state != NL80211_DFS_AVAILABLE)
+	if (!cfg80211_reg_can_beacon(hw->wiphy, &phy->chandef, NL80211_IFTYPE_AP))
 		return MT_DFS_STATE_CAC;
 
 	return MT_DFS_STATE_ACTIVE;
