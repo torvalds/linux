@@ -595,6 +595,9 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 		if ((intf & 4) && !(cmn->ports_used & BIT(intf & 3)))
 			return 0;
 
+		if (chan == 4 && cmn->model == CMN600)
+			return 0;
+
 		if ((chan == 5 && cmn->rsp_vc_num < 2) ||
 		    (chan == 6 && cmn->dat_vc_num < 2))
 			return 0;
