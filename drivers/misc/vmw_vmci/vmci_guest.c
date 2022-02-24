@@ -253,9 +253,9 @@ static void vmci_guest_cid_update(u32 sub_id,
 
 /*
  * Verify that the host supports the hypercalls we need. If it does not,
- * try to find fallback hypercalls and use those instead.  Returns
- * true if required hypercalls (or fallback hypercalls) are
- * supported by the host, false otherwise.
+ * try to find fallback hypercalls and use those instead.  Returns 0 if
+ * required hypercalls (or fallback hypercalls) are supported by the host,
+ * an error code otherwise.
  */
 static int vmci_check_host_caps(struct pci_dev *pdev)
 {
