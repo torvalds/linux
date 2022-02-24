@@ -7225,6 +7225,9 @@ F:	net/core/of_net.c
 EXEC & BINFMT API
 R:	Eric Biederman <ebiederm@xmission.com>
 R:	Kees Cook <keescook@chromium.org>
+L:	linux-mm@kvack.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/execve
 F:	arch/alpha/kernel/binfmt_loader.c
 F:	arch/x86/ia32/ia32_aout.c
 F:	fs/*binfmt_*.c
@@ -7232,6 +7235,7 @@ F:	fs/exec.c
 F:	include/linux/binfmts.h
 F:	include/linux/elf.h
 F:	include/uapi/linux/binfmts.h
+F:	include/uapi/linux/elf.h
 F:	tools/testing/selftests/exec/
 N:	asm/elf.h
 N:	binfmt
