@@ -72,6 +72,7 @@ struct vga_device {
 	unsigned int io_norm_cnt;	/* normal IO count */
 	unsigned int mem_norm_cnt;	/* normal MEM count */
 	bool bridge_has_one_vga;
+	bool is_firmware_default;	/* device selected by firmware */
 	unsigned int (*set_decode)(struct pci_dev *pdev, bool decode);
 };
 
@@ -565,10 +566,9 @@ bail:
 }
 EXPORT_SYMBOL(vga_put);
 
-static void __init vga_select_framebuffer_device(struct pci_dev *pdev)
+static bool vga_is_firmware_default(struct pci_dev *pdev)
 {
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
-	struct device *dev = &pdev->dev;
 	u64 base = screen_info.lfb_base;
 	u64 size = screen_info.lfb_size;
 	u64 limit;
@@ -582,15 +582,6 @@ static void __init vga_select_framebuffer_device(struct pci_dev *pdev)
 		base |= (u64)screen_info.ext_lfb_base << 32;
 
 	limit = base + size;
-
-	/*
-	 * Override vga_arbiter_add_pci_device()'s I/O based detection
-	 * as it may take the wrong device (e.g. on Apple system under
-	 * EFI).
-	 *
-	 * Select the device owning the boot framebuffer if there is
-	 * one.
-	 */
 
 	/* Does firmware framebuffer belong to us? */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -608,13 +599,10 @@ static void __init vga_select_framebuffer_device(struct pci_dev *pdev)
 		if (base < start || limit >= end)
 			continue;
 
-		if (!vga_default_device())
-			vgaarb_info(dev, "setting as boot device\n");
-		else if (pdev != vga_default_device())
-			vgaarb_info(dev, "overriding boot device\n");
-		vga_set_default_device(pdev);
+		return true;
 	}
 #endif
+	return false;
 }
 
 static bool vga_arb_integrated_gpu(struct device *dev)
@@ -635,6 +623,7 @@ static bool vga_arb_integrated_gpu(struct device *dev)
 static bool vga_is_boot_device(struct vga_device *vgadev)
 {
 	struct vga_device *boot_vga = vgadev_find(vga_default_device());
+	struct pci_dev *pdev = vgadev->pdev;
 
 	/*
 	 * We select the default VGA device in this order:
@@ -644,6 +633,18 @@ static bool vga_is_boot_device(struct vga_device *vgadev)
 	 *   Non-legacy discrete device (see vga_arb_select_default_device())
 	 *   Other device (see vga_arb_select_default_device())
 	 */
+
+	/*
+	 * We always prefer a firmware default device, so if we've already
+	 * found one, there's no need to consider vgadev.
+	 */
+	if (boot_vga && boot_vga->is_firmware_default)
+		return false;
+
+	if (vga_is_firmware_default(pdev)) {
+		vgadev->is_firmware_default = true;
+		return true;
+	}
 
 	/*
 	 * A legacy VGA device has MEM and IO enabled and any bridges
@@ -1530,10 +1531,6 @@ static void __init vga_arb_select_default_device(void)
 {
 	struct pci_dev *pdev, *found = NULL;
 	struct vga_device *vgadev;
-
-	list_for_each_entry(vgadev, &vga_list, list) {
-		vga_select_framebuffer_device(vgadev->pdev);
-	}
 
 	if (!vga_default_device()) {
 		list_for_each_entry_reverse(vgadev, &vga_list, list) {
