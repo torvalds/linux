@@ -409,7 +409,6 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	int x = dst->x1;
 	int y = dst->y1;
 	int hscale, vscale;
-	unsigned long irqflags;
 	struct drm_rect src;
 	int id;
 	u32 ps_ctrl;
@@ -436,8 +435,6 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	ps_ctrl = skl_scaler_get_filter_select(crtc_state->hw.scaling_filter, 0);
 	ps_ctrl |=  PS_SCALER_EN | scaler_state->scalers[id].mode;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	skl_scaler_setup_filter(dev_priv, pipe, id, 0,
 				crtc_state->hw.scaling_filter);
 
@@ -451,8 +448,6 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 			  x << 16 | y);
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, id),
 			  width << 16 | height);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 void
@@ -521,15 +516,10 @@ static void skl_detach_scaler(struct intel_crtc *crtc, int id)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, SKL_PS_CTRL(crtc->pipe, id), 0);
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(crtc->pipe, id), 0);
 	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, id), 0);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 /*
