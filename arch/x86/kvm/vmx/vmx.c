@@ -1080,14 +1080,9 @@ static void pt_guest_exit(struct vcpu_vmx *vmx)
 		wrmsrl(MSR_IA32_RTIT_CTL, vmx->pt_desc.host.ctl);
 }
 
-void vmx_set_vmcs_host_state(struct vmcs_host_state *host, unsigned long cr3,
-			     u16 fs_sel, u16 gs_sel,
-			     unsigned long fs_base, unsigned long gs_base)
+void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
+			unsigned long fs_base, unsigned long gs_base)
 {
-	if (unlikely(cr3 != host->cr3)) {
-		vmcs_writel(HOST_CR3, cr3);
-		host->cr3 = cr3;
-	}
 	if (unlikely(fs_sel != host->fs_sel)) {
 		if (!(fs_sel & 7))
 			vmcs_write16(HOST_FS_SELECTOR, fs_sel);
@@ -1119,6 +1114,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_X86_64
 	int cpu = raw_smp_processor_id();
 #endif
+	unsigned long cr3;
 	unsigned long fs_base, gs_base;
 	u16 fs_sel, gs_sel;
 	int i;
@@ -1182,8 +1178,14 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	gs_base = segment_base(gs_sel);
 #endif
 
-	vmx_set_vmcs_host_state(host_state, __get_current_cr3_fast(),
-				fs_sel, gs_sel, fs_base, gs_base);
+	vmx_set_host_fs_gs(host_state, fs_sel, gs_sel, fs_base, gs_base);
+
+	/* Host CR3 including its PCID is stable when guest state is loaded. */
+	cr3 = __get_current_cr3_fast();
+	if (unlikely(cr3 != host_state->cr3)) {
+		vmcs_writel(HOST_CR3, cr3);
+		host_state->cr3 = cr3;
+	}
 
 	vmx->guest_state_loaded = true;
 }
