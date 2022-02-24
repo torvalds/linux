@@ -84,7 +84,7 @@ int irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
  * irdma_create_mg_ctx() - create a mcg context
  * @info: multicast group context info
  */
-static int irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
+static void irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
 {
 	struct irdma_mcast_grp_ctx_entry_info *entry_info = NULL;
 	u8 idx = 0; /* index in the array */
@@ -103,8 +103,6 @@ static int irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
 			ctx_idx++;
 		}
 	}
-
-	return 0;
 }
 
 /**
@@ -119,7 +117,6 @@ int irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 			   u64 scratch)
 {
 	__le64 *wqe;
-	int ret_code = 0;
 
 	if (info->mg_id >= IRDMA_UDA_MAX_FSI_MGS) {
 		ibdev_dbg(to_ibdev(cqp->dev), "WQE: mg_id out of range\n");
@@ -132,9 +129,7 @@ int irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 		return -ENOMEM;
 	}
 
-	ret_code = irdma_create_mg_ctx(info);
-	if (ret_code)
-		return ret_code;
+	irdma_create_mg_ctx(info);
 
 	set_64bit_val(wqe, 32, info->dma_mem_mc.pa);
 	set_64bit_val(wqe, 16,
