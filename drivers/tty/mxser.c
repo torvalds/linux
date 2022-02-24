@@ -588,21 +588,7 @@ static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_term
 	}
 
 	/* byte size and parity */
-	switch (cflag & CSIZE) {
-	default:
-	case CS5:
-		cval = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		cval = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		cval = UART_LCR_WLEN7;
-		break;
-	case CS8:
-		cval = UART_LCR_WLEN8;
-		break;
-	}
+	cval = UART_LCR_WLEN(tty_get_char_size(tty->termios.c_cflag));
 
 	if (cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
