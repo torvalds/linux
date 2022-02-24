@@ -343,14 +343,23 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	    die "Sphinx version should either major.minor or major.minor.patch format\n";
 	}
     } else {
-		# Unknown argument
-		pod2usage(
-			-message => "Argument unknown!\n",
-			-exitval => 1,
-			-verbose => 99,
-			-sections => 'SYNOPSIS',
-			-output => \*STDERR,
-		);
+	# Unknown argument
+	pod2usage(
+	    -message => "Argument unknown!\n",
+	    -exitval => 1,
+	    -verbose => 99,
+	    -sections => 'SYNOPSIS',
+	    -output => \*STDERR,
+	    );
+    }
+    if ($#ARGV < 0){
+	pod2usage(
+	    -message => "FILE argument missing\n",
+	    -exitval => 1,
+	    -verbose => 99,
+	    -sections => 'SYNOPSIS',
+	    -output => \*STDERR,
+	    );
     }
 }
 
