@@ -85,7 +85,7 @@ Usage
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
 	./page_owner_sort page_owner_full.txt sorted_page_owner.txt
 
-   The general output of ``page_owner_full.txt`` is as follows:
+   The general output of ``page_owner_full.txt`` is as follows::
 
 	Page allocated via order XXX, ...
 	PFN XXX ...
@@ -100,7 +100,7 @@ Usage
    and pages of buf, and finally sorts them according to the times.
 
    See the result about who allocated each page
-   in the ``sorted_page_owner.txt``. General output:
+   in the ``sorted_page_owner.txt``. General output::
 
 	XXX times, XXX pages:
 	Page allocated via order XXX, ...
