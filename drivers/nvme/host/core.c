@@ -3810,12 +3810,45 @@ out:
 	return ERR_PTR(ret);
 }
 
+static int nvme_global_check_duplicate_ids(struct nvme_subsystem *this,
+		struct nvme_ns_ids *ids)
+{
+	struct nvme_subsystem *s;
+	int ret = 0;
+
+	/*
+	 * Note that this check is racy as we try to avoid holding the global
+	 * lock over the whole ns_head creation.  But it is only intended as
+	 * a sanity check anyway.
+	 */
+	mutex_lock(&nvme_subsystems_lock);
+	list_for_each_entry(s, &nvme_subsystems, entry) {
+		if (s == this)
+			continue;
+		mutex_lock(&s->lock);
+		ret = nvme_subsys_check_duplicate_ids(s, ids);
+		mutex_unlock(&s->lock);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&nvme_subsystems_lock);
+
+	return ret;
+}
+
 static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 		struct nvme_ns_ids *ids, bool is_shared)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_ns_head *head = NULL;
-	int ret = 0;
+	int ret;
+
+	ret = nvme_global_check_duplicate_ids(ctrl->subsys, ids);
+	if (ret) {
+		dev_err(ctrl->device,
+			"globally duplicate IDs for nsid %d\n", nsid);
+		return ret;
+	}
 
 	mutex_lock(&ctrl->subsys->lock);
 	head = nvme_find_ns_head(ctrl->subsys, nsid);
@@ -3823,7 +3856,8 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 		ret = nvme_subsys_check_duplicate_ids(ctrl->subsys, ids);
 		if (ret) {
 			dev_err(ctrl->device,
-				"duplicate IDs for nsid %d\n", nsid);
+				"duplicate IDs in subsystem for nsid %d\n",
+				nsid);
 			goto out_unlock;
 		}
 		head = nvme_alloc_ns_head(ctrl, nsid, ids);
