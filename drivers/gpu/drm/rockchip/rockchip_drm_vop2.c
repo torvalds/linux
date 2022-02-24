@@ -681,6 +681,29 @@ struct vop2 {
 
 	/* no move win from one vp to another */
 	bool disable_win_move;
+	/*
+	 * Usually we increase old fb refcount at
+	 * atomic_flush and decrease it when next
+	 * vsync come, this can make user the fb
+	 * not been releasced before vop finish use
+	 * it.
+	 *
+	 * But vop decrease fb refcount by a thread
+	 * vop2_unref_fb_work, which may run a little
+	 * slow sometimes, so when userspace do a rmfb,
+	 *
+	 * see drm_mode_rmfb,
+	 * it will find the fb refcount is still > 1,
+	 * than goto a fallback to init drm_mode_rmfb_work_fn,
+	 * this will cost a long time(>10 ms maybe) and block
+	 * rmfb work. Some userspace don't have with this(such as vo).
+	 *
+	 * Don't reference framebuffer refcount by
+	 * drm_framebuffer_get as some userspace want
+	 * rmfb as soon as possible(nvr vo). And the userspace
+	 * should make sure release fb after it receive the vsync.
+	 */
+	bool skip_ref_fb;
 
 	bool loader_protect;
 
@@ -7880,8 +7903,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 
 		if (old_pstate->fb == plane->state->fb)
 			continue;
-
-		drm_framebuffer_get(old_pstate->fb);
+		if (!vop2->skip_ref_fb)
+			drm_framebuffer_get(old_pstate->fb);
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 		drm_flip_work_queue(&vp->fb_unref_work, old_pstate->fb);
 		set_bit(VOP_PENDING_FB_UNREF, &vp->pending);
@@ -8133,7 +8156,8 @@ static void vop2_fb_unref_worker(struct drm_flip_work *work, void *val)
 	struct drm_framebuffer *fb = val;
 
 	drm_crtc_vblank_put(&vp->rockchip_crtc.crtc);
-	drm_framebuffer_put(fb);
+	if (!vp->vop2->skip_ref_fb)
+		drm_framebuffer_put(fb);
 }
 
 static void vop2_handle_vblank(struct vop2 *vop2, struct drm_crtc *crtc)
@@ -9167,6 +9191,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->support_multi_area = of_property_read_bool(dev->of_node, "support-multi-area");
 	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
 	vop2->disable_win_move = of_property_read_bool(dev->of_node, "disable-win-move");
+	vop2->skip_ref_fb = of_property_read_bool(dev->of_node, "skip-ref-fb");
 
 	ret = vop2_pd_data_init(vop2);
 	if (ret)
