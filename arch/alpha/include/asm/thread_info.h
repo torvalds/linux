@@ -41,6 +41,8 @@ struct thread_info {
 register struct thread_info *__current_thread_info __asm__("$8");
 #define current_thread_info()  __current_thread_info
 
+register unsigned long *current_stack_pointer __asm__ ("$30");
+
 #endif /* __ASSEMBLY__ */
 
 /* Thread information allocation.  */
