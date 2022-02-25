@@ -63,6 +63,13 @@
 		clock-output-names = "osc_27m";
 	};
 
+	hdmi_phy_27m: clock-hdmi-phy-27m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+		clock-output-names = "hdmi_phy_27m";
+	};
+
 	clk_ext1: clock-ext1 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
