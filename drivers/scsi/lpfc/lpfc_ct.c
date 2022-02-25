@@ -659,6 +659,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	geniocb->context_un.ndlp = lpfc_nlp_get(ndlp);
 	if (!geniocb->context_un.ndlp)
 		goto out;
+
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
 
 	if (rc == IOCB_ERROR) {

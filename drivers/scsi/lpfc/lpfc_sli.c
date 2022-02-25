@@ -11251,6 +11251,8 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 	int rc;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		lpfc_sli_prep_wqe(phba, piocb);
+
 		eq = phba->sli4_hba.hdwq[piocb->hba_wqidx].hba_eq;
 
 		pring = lpfc_sli4_calc_ring(phba, piocb);
@@ -13074,9 +13076,11 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	unsigned long iflags;
 	bool iocb_completed = true;
 
-	if (phba->sli_rev >= LPFC_SLI_REV4)
+	if (phba->sli_rev >= LPFC_SLI_REV4) {
+		lpfc_sli_prep_wqe(phba, piocb);
+
 		pring = lpfc_sli4_calc_ring(phba, piocb);
-	else
+	} else
 		pring = &phba->sli.sli3_ring[ring_number];
 	/*
 	 * If the caller has provided a response iocbq buffer, then context2
@@ -22447,4 +22451,193 @@ lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 	}
 
 	spin_unlock_irqrestore(&hdwq->hdwq_lock, iflags);
+}
+
+/**
+ * lpfc_sli_prep_wqe - Prepare WQE for the command to be posted
+ * @phba: phba object
+ * @job: job entry of the command to be posted.
+ *
+ * Fill the common fields of the wqe for each of the command.
+ *
+ * Return codes:
+ *	None
+ **/
+void
+lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
+{
+	u8 cmnd;
+	u32 *pcmd;
+	u32 if_type = 0;
+	u32 fip, abort_tag;
+	struct lpfc_nodelist *ndlp = NULL;
+	union lpfc_wqe128 *wqe = &job->wqe;
+	struct lpfc_dmabuf *context2;
+	u32 els_id = LPFC_ELS_ID_DEFAULT;
+	u8 command_type = ELS_COMMAND_NON_FIP;
+
+	fip = phba->hba_flag & HBA_FIP_SUPPORT;
+	/* The fcp commands will set command type */
+	if (job->cmd_flag &  LPFC_IO_FCP)
+		command_type = FCP_COMMAND;
+	else if (fip && (job->cmd_flag & LPFC_FIP_ELS_ID_MASK))
+		command_type = ELS_COMMAND_FIP;
+	else
+		command_type = ELS_COMMAND_NON_FIP;
+
+	abort_tag = job->iotag;
+	cmnd = bf_get(wqe_cmnd, &wqe->els_req.wqe_com);
+
+	switch (cmnd) {
+	case CMD_ELS_REQUEST64_WQE:
+		if (job->cmd_flag & LPFC_IO_LIBDFC)
+			ndlp = job->context_un.ndlp;
+		else
+			ndlp = (struct lpfc_nodelist *)job->context1;
+
+		/* CCP CCPE PV PRI in word10 were set in the memcpy */
+		if (command_type == ELS_COMMAND_FIP)
+			els_id = ((job->cmd_flag & LPFC_FIP_ELS_ID_MASK)
+				  >> LPFC_FIP_ELS_ID_SHIFT);
+
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
+			context2 = (struct lpfc_dmabuf *)job->context2;
+			pcmd = (u32 *)context2->virt;
+			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
+				     *pcmd == ELS_CMD_SCR ||
+				     *pcmd == ELS_CMD_RDF ||
+				     *pcmd == ELS_CMD_EDC ||
+				     *pcmd == ELS_CMD_RSCN_XMT ||
+				     *pcmd == ELS_CMD_FDISC ||
+				     *pcmd == ELS_CMD_LOGO ||
+				     *pcmd == ELS_CMD_QFPA ||
+				     *pcmd == ELS_CMD_UVEM ||
+				     *pcmd == ELS_CMD_PLOGI)) {
+				bf_set(els_req64_sp, &wqe->els_req, 1);
+				bf_set(els_req64_sid, &wqe->els_req,
+				       job->vport->fc_myDID);
+
+				if ((*pcmd == ELS_CMD_FLOGI) &&
+				    !(phba->fc_topology ==
+				      LPFC_TOPOLOGY_LOOP))
+					bf_set(els_req64_sid, &wqe->els_req, 0);
+
+				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
+				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+				       phba->vpi_ids[job->vport->vpi]);
+			} else if (pcmd) {
+				bf_set(wqe_ct, &wqe->els_req.wqe_com, 0);
+				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+				       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
+			}
+		}
+
+		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com,
+		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
+
+		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
+		bf_set(wqe_dbde, &wqe->els_req.wqe_com, 1);
+		bf_set(wqe_iod, &wqe->els_req.wqe_com, LPFC_WQE_IOD_READ);
+		bf_set(wqe_qosd, &wqe->els_req.wqe_com, 1);
+		bf_set(wqe_lenloc, &wqe->els_req.wqe_com, LPFC_WQE_LENLOC_NONE);
+		bf_set(wqe_ebde_cnt, &wqe->els_req.wqe_com, 0);
+		break;
+	case CMD_XMIT_ELS_RSP64_WQE:
+		ndlp = (struct lpfc_nodelist *)job->context1;
+
+		/* word4 */
+		wqe->xmit_els_rsp.word4 = 0;
+
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
+			if (job->vport->fc_flag & FC_PT2PT) {
+				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
+				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
+				       job->vport->fc_myDID);
+				if (job->vport->fc_myDID == Fabric_DID) {
+					bf_set(wqe_els_did,
+					       &wqe->xmit_els_rsp.wqe_dest, 0);
+				}
+			}
+		}
+
+		bf_set(wqe_dbde, &wqe->xmit_els_rsp.wqe_com, 1);
+		bf_set(wqe_iod, &wqe->xmit_els_rsp.wqe_com, LPFC_WQE_IOD_WRITE);
+		bf_set(wqe_qosd, &wqe->xmit_els_rsp.wqe_com, 1);
+		bf_set(wqe_lenloc, &wqe->xmit_els_rsp.wqe_com,
+		       LPFC_WQE_LENLOC_WORD3);
+		bf_set(wqe_ebde_cnt, &wqe->xmit_els_rsp.wqe_com, 0);
+
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+			bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
+			bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
+			       job->vport->fc_myDID);
+			bf_set(wqe_ct, &wqe->xmit_els_rsp.wqe_com, 1);
+		}
+
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp,
+			       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
+
+			if (bf_get(wqe_ct, &wqe->xmit_els_rsp.wqe_com))
+				bf_set(wqe_ctxt_tag, &wqe->xmit_els_rsp.wqe_com,
+				       phba->vpi_ids[job->vport->vpi]);
+		}
+		command_type = OTHER_COMMAND;
+		break;
+	case CMD_GEN_REQUEST64_WQE:
+		/* Word 10 */
+		bf_set(wqe_dbde, &wqe->gen_req.wqe_com, 1);
+		bf_set(wqe_iod, &wqe->gen_req.wqe_com, LPFC_WQE_IOD_READ);
+		bf_set(wqe_qosd, &wqe->gen_req.wqe_com, 1);
+		bf_set(wqe_lenloc, &wqe->gen_req.wqe_com, LPFC_WQE_LENLOC_NONE);
+		bf_set(wqe_ebde_cnt, &wqe->gen_req.wqe_com, 0);
+		command_type = OTHER_COMMAND;
+		break;
+	case CMD_XMIT_SEQUENCE64_WQE:
+		if (phba->link_flag & LS_LOOPBACK_MODE)
+			bf_set(wqe_xo, &wqe->xmit_sequence.wge_ctl, 1);
+
+		wqe->xmit_sequence.rsvd3 = 0;
+		bf_set(wqe_pu, &wqe->xmit_sequence.wqe_com, 0);
+		bf_set(wqe_dbde, &wqe->xmit_sequence.wqe_com, 1);
+		bf_set(wqe_iod, &wqe->xmit_sequence.wqe_com,
+		       LPFC_WQE_IOD_WRITE);
+		bf_set(wqe_lenloc, &wqe->xmit_sequence.wqe_com,
+		       LPFC_WQE_LENLOC_WORD12);
+		bf_set(wqe_ebde_cnt, &wqe->xmit_sequence.wqe_com, 0);
+		command_type = OTHER_COMMAND;
+		break;
+	case CMD_XMIT_BLS_RSP64_WQE:
+		bf_set(xmit_bls_rsp64_seqcnthi, &wqe->xmit_bls_rsp, 0xffff);
+		bf_set(wqe_xmit_bls_pt, &wqe->xmit_bls_rsp.wqe_dest, 0x1);
+		bf_set(wqe_ct, &wqe->xmit_bls_rsp.wqe_com, 1);
+		bf_set(wqe_ctxt_tag, &wqe->xmit_bls_rsp.wqe_com,
+		       phba->vpi_ids[phba->pport->vpi]);
+		bf_set(wqe_qosd, &wqe->xmit_bls_rsp.wqe_com, 1);
+		bf_set(wqe_lenloc, &wqe->xmit_bls_rsp.wqe_com,
+		       LPFC_WQE_LENLOC_NONE);
+		/* Overwrite the pre-set comnd type with OTHER_COMMAND */
+		command_type = OTHER_COMMAND;
+		break;
+	case CMD_FCP_ICMND64_WQE:	/* task mgmt commands */
+	case CMD_ABORT_XRI_WQE:		/* abort iotag */
+	case CMD_SEND_FRAME:		/* mds loopback */
+		/* cases already formatted for sli4 wqe - no chgs necessary */
+		return;
+	default:
+		dump_stack();
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"6207 Invalid command 0x%x\n",
+				cmnd);
+		break;
+	}
+
+	wqe->generic.wqe_com.abort_tag = abort_tag;
+	bf_set(wqe_reqtag, &wqe->generic.wqe_com, job->iotag);
+	bf_set(wqe_cmd_type, &wqe->generic.wqe_com, command_type);
+	bf_set(wqe_cqid, &wqe->generic.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
 }

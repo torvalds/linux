@@ -191,6 +191,7 @@ void lpfc_els_timeout_handler(struct lpfc_vport *);
 struct lpfc_iocbq *lpfc_prep_els_iocb(struct lpfc_vport *, uint8_t, uint16_t,
 				      uint8_t, struct lpfc_nodelist *,
 				      uint32_t, uint32_t);
+void lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job);
 void lpfc_hb_timeout_handler(struct lpfc_hba *);
 
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
