@@ -484,36 +484,44 @@ void bch2_pd_controller_init(struct bch_pd_controller *pd)
 	pd->backpressure	= 1;
 }
 
-size_t bch2_pd_controller_print_debug(struct bch_pd_controller *pd, char *buf)
+void bch2_pd_controller_debug_to_text(struct printbuf *out, struct bch_pd_controller *pd)
 {
-	/* 2^64 - 1 is 20 digits, plus null byte */
-	char rate[21];
-	char actual[21];
-	char target[21];
-	char proportional[21];
-	char derivative[21];
-	char change[21];
-	s64 next_io;
+	out->tabstops[0] = 20;
 
-	bch2_hprint(&PBUF(rate),	pd->rate.rate);
-	bch2_hprint(&PBUF(actual),	pd->last_actual);
-	bch2_hprint(&PBUF(target),	pd->last_target);
-	bch2_hprint(&PBUF(proportional), pd->last_proportional);
-	bch2_hprint(&PBUF(derivative),	pd->last_derivative);
-	bch2_hprint(&PBUF(change),	pd->last_change);
+	pr_buf(out, "rate:");
+	pr_tab(out);
+	bch2_hprint(out, pd->rate.rate);
+	pr_newline(out);
 
-	next_io = div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC);
+	pr_buf(out, "target:");
+	pr_tab(out);
+	bch2_hprint(out, pd->last_target);
+	pr_newline(out);
 
-	return sprintf(buf,
-		       "rate:\t\t%s/sec\n"
-		       "target:\t\t%s\n"
-		       "actual:\t\t%s\n"
-		       "proportional:\t%s\n"
-		       "derivative:\t%s\n"
-		       "change:\t\t%s/sec\n"
-		       "next io:\t%llims\n",
-		       rate, target, actual, proportional,
-		       derivative, change, next_io);
+	pr_buf(out, "actual:");
+	pr_tab(out);
+	bch2_hprint(out, pd->last_actual);
+	pr_newline(out);
+
+	pr_buf(out, "proportional:");
+	pr_tab(out);
+	bch2_hprint(out, pd->last_proportional);
+	pr_newline(out);
+
+	pr_buf(out, "derivative:");
+	pr_tab(out);
+	bch2_hprint(out, pd->last_derivative);
+	pr_newline(out);
+
+	pr_buf(out, "change:");
+	pr_tab(out);
+	bch2_hprint(out, pd->last_change);
+	pr_newline(out);
+
+	pr_buf(out, "next io:");
+	pr_tab(out);
+	pr_buf(out, "%llims", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
+	pr_newline(out);
 }
 
 /* misc: */

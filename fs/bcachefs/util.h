@@ -582,7 +582,7 @@ struct bch_pd_controller {
 
 void bch2_pd_controller_update(struct bch_pd_controller *, s64, s64, int);
 void bch2_pd_controller_init(struct bch_pd_controller *);
-size_t bch2_pd_controller_print_debug(struct bch_pd_controller *, char *);
+void bch2_pd_controller_debug_to_text(struct printbuf *, struct bch_pd_controller *);
 
 #define sysfs_pd_controller_attribute(name)				\
 	rw_attribute(name##_rate);					\
@@ -605,8 +605,10 @@ do {									\
 	sysfs_print(name##_rate_d_term,		(var)->d_term);		\
 	sysfs_print(name##_rate_p_term_inverse,	(var)->p_term_inverse);	\
 									\
-	if (attr == &sysfs_##name##_rate_debug)				\
-		return bch2_pd_controller_print_debug(var, buf);		\
+	if (attr == &sysfs_##name##_rate_debug) {			\
+		bch2_pd_controller_debug_to_text(&out, var);		\
+		return out.pos - buf;					\
+	}								\
 } while (0)
 
 #define sysfs_pd_controller_store(name, var)				\
