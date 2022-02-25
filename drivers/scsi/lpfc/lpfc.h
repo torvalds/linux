@@ -931,8 +931,6 @@ struct lpfc_hba {
 	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
 			 struct lpfc_iocbq *);
 	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
-	IOCB_t * (*lpfc_get_iocb_from_iocbq)
-		(struct lpfc_iocbq *);
 	void (*lpfc_scsi_cmd_iocb_cmpl)
 		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
 
@@ -979,6 +977,9 @@ struct lpfc_hba {
 					   struct lpfc_dmabuf *bmp, u16 rpi,
 					   u16 ox_id, u32 num_entry, u8 rctl,
 					   u8 last_seq, u8 cr_cx_cmd);
+	void (*__lpfc_sli_prep_abort_xri)(struct lpfc_iocbq *cmdiocbq,
+					  u16 ulp_context, u16 iotag,
+					  u8 ulp_class, u16 cqid, bool ia);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1867,6 +1868,15 @@ u32 get_job_data_placed(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		return iocbq->wcqe_cmpl.total_data_placed;
 	else
 		return iocbq->iocb.un.genreq64.bdl.bdeSize;
+}
+
+static inline
+u32 get_job_abtsiotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wqe.abort_cmd.wqe_com.abort_tag;
+	else
+		return iocbq->iocb.un.acxri.abortIoTag;
 }
 
 static inline

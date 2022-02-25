@@ -76,11 +76,13 @@ struct lpfc_iocbq {
 	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
 	u32 unsol_rcv_len;	/* Receive len in usol path */
+
 	uint8_t num_bdes;
 	uint8_t abort_bls;	/* ABTS by initiator or responder */
-
+	u8 abort_rctl;		/* ACC or RJT flag */
 	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
+
 	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
 #define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
