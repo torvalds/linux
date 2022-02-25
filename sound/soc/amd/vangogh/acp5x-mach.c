@@ -230,7 +230,7 @@ SND_SOC_DAILINK_DEF(platform,
 
 static struct snd_soc_dai_link acp5x_dai[] = {
 	{
-		.name = "acp5x-8825-play",
+		.name = "acp5x-8821-play",
 		.stream_name = "Playback/Capture",
 		.dai_fmt = SND_SOC_DAIFMT_I2S  | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBC_CFC,
