@@ -1396,6 +1396,12 @@ static void sja1105_phylink_get_caps(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 
+	/* This driver does not make use of the speed, duplex, pause or the
+	 * advertisement in its mac_config, so it is safe to mark this driver
+	 * as non-legacy.
+	 */
+	config->legacy_pre_march2020 = false;
+
 	/* The SJA1105 MAC programming model is through the static config
 	 * (the xMII Mode table cannot be dynamically reconfigured), and
 	 * we have to program that early.
