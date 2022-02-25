@@ -3087,12 +3087,14 @@ static int __init smc_init(void)
 	rc = tcp_register_ulp(&smc_ulp_ops);
 	if (rc) {
 		pr_err("%s: tcp_ulp_register fails with %d\n", __func__, rc);
-		goto out_sock;
+		goto out_ib;
 	}
 
 	static_branch_enable(&tcp_have_smc);
 	return 0;
 
+out_ib:
+	smc_ib_unregister_client();
 out_sock:
 	sock_unregister(PF_SMC);
 out_proto6:
