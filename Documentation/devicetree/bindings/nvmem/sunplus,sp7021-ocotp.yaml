@@ -60,13 +60,11 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/sp-sp7021.h>
-
     otp: otp@9c00af00 {
         compatible = "sunplus,sp7021-ocotp";
         reg = <0x9c00af00 0x34>, <0x9c00af80 0x58>;
         reg-names = "hb_gpio", "otprx";
-        clocks = <&clks OTPRX>;
+        clocks = <&clkc 0x15>;
 
         #address-cells = <1>;
         #size-cells = <1>;
