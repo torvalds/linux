@@ -869,7 +869,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 
 	/* print content written from fifo for debugging purposes */
 	for (i = 0; i < size; i++)
-		dev_dbg(&spi->dev, "0x%x\n", buffer[i]);
+		dev_dbg(&spi->dev, "%d - 0x%x\n", i, buffer[i]);
 
 	return spi_write(spi, local_buffer, size + 1);
 }
