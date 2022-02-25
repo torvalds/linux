@@ -38,7 +38,7 @@ struct pxa_spi_info {
 	void *tx_param;
 	void *rx_param;
 
-	int dma_burst_size;
+	unsigned int dma_burst_size;
 
 	int (*setup)(struct pci_dev *pdev, struct pxa_spi_info *c);
 };
@@ -111,6 +111,7 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	}
 
 	c->dma_filter = lpss_dma_filter;
+	c->dma_burst_size = 1;
 	return 0;
 }
 
@@ -265,7 +266,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	spi_pdata.tx_param = c->tx_param;
 	spi_pdata.rx_param = c->rx_param;
 	spi_pdata.enable_dma = c->rx_param && c->tx_param;
-	spi_pdata.dma_burst_size = c->dma_burst_size ? c->dma_burst_size : 1;
+	spi_pdata.dma_burst_size = c->dma_burst_size;
 
 	ssp = &spi_pdata.ssp;
 	ssp->dev = &dev->dev;
