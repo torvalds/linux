@@ -93,10 +93,14 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf,
 static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	int ret;
 
 	if (obj->base.size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
+
+	if (HAS_LMEM(i915))
+		return drm_gem_prime_mmap(&obj->base, vma);
 
 	if (!obj->base.filp)
 		return -ENODEV;
