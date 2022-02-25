@@ -6,7 +6,7 @@
 #ifndef __INTEL_DDI_H__
 #define __INTEL_DDI_H__
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 struct drm_connector_state;
 struct drm_i915_private;

@@ -5,12 +5,15 @@
 
 #include <linux/bitfield.h>
 #include <linux/firmware.h>
+
+#include <drm/drm_cache.h>
 #include <drm/drm_print.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "intel_uc_fw.h"
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 
 static inline struct intel_gt *
 ____uc_fw_to_gt(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)

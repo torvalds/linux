@@ -139,9 +139,9 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower) {
-		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_ALLOW &&
+		if (new_clocks->zstate_support != DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, true);
+			dcn31_smu_set_zstate_support(clk_mgr, new_clocks->zstate_support);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, true);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -167,7 +167,7 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	} else {
 		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_DISALLOW &&
 				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
-			dcn31_smu_set_Z9_support(clk_mgr, false);
+			dcn31_smu_set_zstate_support(clk_mgr, DCN_ZSTATE_SUPPORT_DISALLOW);
 			dm_helpers_enable_periodic_detection(clk_mgr_base->ctx, false);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
@@ -329,38 +329,38 @@ static struct clk_bw_params dcn31_bw_params = {
 
 };
 
-static struct wm_table ddr4_wm_table = {
+static struct wm_table ddr5_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 6.09,
-			.sr_enter_plus_exit_time_us = 7.14,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 9,
+			.sr_enter_plus_exit_time_us = 11,
 			.valid = true,
 		},
 	}
@@ -687,7 +687,7 @@ void dcn31_clk_mgr_construct(
 		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
 			dcn31_bw_params.wm_table = lpddr5_wm_table;
 		} else {
-			dcn31_bw_params.wm_table = ddr4_wm_table;
+			dcn31_bw_params.wm_table = ddr5_wm_table;
 		}
 		/* Saved clocks configured at boot for debug purposes */
 		 dcn31_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);

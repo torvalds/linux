@@ -8,9 +8,13 @@
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
+#include "i915_reg.h"
+#include "intel_context.h"
 #include "intel_engine.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt.h"
+#include "intel_gt_regs.h"
 #include "intel_lrc.h"
 #include "intel_lrc_reg.h"
 #include "intel_ring.h"
@@ -1716,6 +1720,17 @@ static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
 	ce->runtime.num_underflow++;
 	ce->runtime.max_underflow = max_t(u32, ce->runtime.max_underflow, -dt);
 #endif
+}
+
+static u32 lrc_get_runtime(const struct intel_context *ce)
+{
+	/*
+	 * We can use either ppHWSP[16] which is recorded before the context
+	 * switch (and so excludes the cost of context switches) or use the
+	 * value from the context image itself, which is saved/restored earlier
+	 * and so includes the cost of the save.
+	 */
+	return READ_ONCE(ce->lrc_reg_state[CTX_TIMESTAMP]);
 }
 
 void lrc_update_runtime(struct intel_context *ce)

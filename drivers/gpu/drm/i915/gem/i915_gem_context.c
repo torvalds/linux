@@ -67,6 +67,7 @@
 #include <linux/log2.h>
 #include <linux/nospec.h>
 
+#include <drm/drm_cache.h>
 #include <drm/drm_syncobj.h>
 
 #include "gt/gen6_ppgtt.h"
@@ -79,6 +80,7 @@
 
 #include "pxp/intel_pxp.h"
 
+#include "i915_file_private.h"
 #include "i915_gem_context.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
@@ -341,6 +343,20 @@ static int proto_context_register(struct drm_i915_file_private *fpriv,
 	mutex_unlock(&fpriv->proto_context_lock);
 
 	return ret;
+}
+
+static struct i915_address_space *
+i915_gem_vm_lookup(struct drm_i915_file_private *file_priv, u32 id)
+{
+	struct i915_address_space *vm;
+
+	xa_lock(&file_priv->vm_xa);
+	vm = xa_load(&file_priv->vm_xa, id);
+	if (vm)
+		kref_get(&vm->ref);
+	xa_unlock(&file_priv->vm_xa);
+
+	return vm;
 }
 
 static int set_proto_ctx_vm(struct drm_i915_file_private *fpriv,

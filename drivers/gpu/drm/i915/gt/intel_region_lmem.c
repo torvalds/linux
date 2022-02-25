@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_memory_region.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"
@@ -11,6 +12,7 @@
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 
 static int
 region_lmem_release(struct intel_memory_region *mem)

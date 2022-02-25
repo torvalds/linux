@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/string_helpers.h>
 
 #include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_print.h>
@@ -143,6 +144,69 @@ u8 drm_dp_get_adjust_tx_ffe_preset(const u8 link_status[DP_LINK_STATUS_SIZE],
 	return (l >> s) & 0xf;
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_tx_ffe_preset);
+
+/* DP 2.0 errata for 128b/132b */
+bool drm_dp_128b132b_lane_channel_eq_done(const u8 link_status[DP_LINK_STATUS_SIZE],
+					  int lane_count)
+{
+	u8 lane_align, lane_status;
+	int lane;
+
+	lane_align = dp_link_status(link_status, DP_LANE_ALIGN_STATUS_UPDATED);
+	if (!(lane_align & DP_INTERLANE_ALIGN_DONE))
+		return false;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if (!(lane_status & DP_LANE_CHANNEL_EQ_DONE))
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_lane_channel_eq_done);
+
+/* DP 2.0 errata for 128b/132b */
+bool drm_dp_128b132b_lane_symbol_locked(const u8 link_status[DP_LINK_STATUS_SIZE],
+					int lane_count)
+{
+	u8 lane_status;
+	int lane;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if (!(lane_status & DP_LANE_SYMBOL_LOCKED))
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_lane_symbol_locked);
+
+/* DP 2.0 errata for 128b/132b */
+bool drm_dp_128b132b_eq_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	u8 status = dp_link_status(link_status, DP_LANE_ALIGN_STATUS_UPDATED);
+
+	return status & DP_128B132B_DPRX_EQ_INTERLANE_ALIGN_DONE;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_eq_interlane_align_done);
+
+/* DP 2.0 errata for 128b/132b */
+bool drm_dp_128b132b_cds_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	u8 status = dp_link_status(link_status, DP_LANE_ALIGN_STATUS_UPDATED);
+
+	return status & DP_128B132B_DPRX_CDS_INTERLANE_ALIGN_DONE;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_cds_interlane_align_done);
+
+/* DP 2.0 errata for 128b/132b */
+bool drm_dp_128b132b_link_training_failed(const u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	u8 status = dp_link_status(link_status, DP_LANE_ALIGN_STATUS_UPDATED);
+
+	return status & DP_128B132B_LT_FAILED;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_link_training_failed);
 
 u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
 					 unsigned int lane)
@@ -280,6 +344,26 @@ int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIV
 	return __read_delay(aux, dpcd, dp_phy, uhbr, false);
 }
 EXPORT_SYMBOL(drm_dp_read_channel_eq_delay);
+
+/* Per DP 2.0 Errata */
+int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux)
+{
+	int unit;
+	u8 val;
+
+	if (drm_dp_dpcd_readb(aux, DP_128B132B_TRAINING_AUX_RD_INTERVAL, &val) != 1) {
+		drm_err(aux->drm_dev, "%s: failed rd interval read\n",
+			aux->name);
+		/* default to max */
+		val = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+	}
+
+	unit = (val & DP_128B132B_TRAINING_AUX_RD_INTERVAL_1MS_UNIT) ? 1 : 2;
+	val &= DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+
+	return (val + 1) * unit * 1000;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_read_aux_rd_interval);
 
 void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
 					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
@@ -1239,7 +1323,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	bool branch_device = drm_dp_is_branch(dpcd);
 
 	seq_printf(m, "\tDP branch device present: %s\n",
-		   branch_device ? "yes" : "no");
+		   str_yes_no(branch_device));
 
 	if (!branch_device)
 		return;

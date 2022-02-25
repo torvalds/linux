@@ -6,15 +6,19 @@
 #include <drm/drm_managed.h>
 #include <drm/intel-gtt.h>
 
-#include "intel_gt_debugfs.h"
-
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
+#include "pxp/intel_pxp.h"
+
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_buffer_pool.h"
 #include "intel_gt_clock_utils.h"
+#include "intel_gt_debugfs.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_migrate.h"
 #include "intel_mocs.h"
@@ -24,7 +28,6 @@
 #include "intel_rps.h"
 #include "intel_uncore.h"
 #include "shmem_utils.h"
-#include "pxp/intel_pxp.h"
 
 void __intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 {
@@ -208,7 +211,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 
 	if (IS_HASWELL(i915))
 		intel_uncore_write(uncore,
-				   MI_PREDICATE_RESULT_2,
+				   HSW_MI_PREDICATE_RESULT_2,
 				   IS_HSW_GT3(i915) ?
 				   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 

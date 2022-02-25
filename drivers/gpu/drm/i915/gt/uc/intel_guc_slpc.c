@@ -3,9 +3,14 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_guc_slpc.h"
+#include "intel_mchbar_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
 
 static inline struct intel_guc *slpc_to_guc(struct intel_guc_slpc *slpc)

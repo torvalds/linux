@@ -462,6 +462,10 @@ operation table looks like the following::
 			     struct iov_iter *iter,
 			     netfs_io_terminated_t term_func,
 			     void *term_func_priv);
+
+		int (*query_occupancy)(struct netfs_cache_resources *cres,
+				       loff_t start, size_t len, size_t granularity,
+				       loff_t *_data_start, size_t *_data_len);
 	};
 
 With a termination handler function pointer::
@@ -535,6 +539,18 @@ The methods defined in the table are:
    with the number of bytes transferred or an error code, plus a flag
    indicating whether the termination is definitely happening in the caller's
    context.
+
+ * ``query_occupancy()``
+
+   [Required] Called to find out where the next piece of data is within a
+   particular region of the cache.  The start and length of the region to be
+   queried are passed in, along with the granularity to which the answer needs
+   to be aligned.  The function passes back the start and length of the data,
+   if any, available within that region.  Note that there may be a hole at the
+   front.
+
+   It returns 0 if some data was found, -ENODATA if there was no usable data
+   within the region or -ENOBUFS if there is no caching on this file.
 
 Note that these methods are passed a pointer to the cache resource structure,
 not the read request structure as they could be used in other situations where

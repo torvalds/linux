@@ -44,6 +44,7 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_encoder;
 struct intel_shared_dpll;
+struct intel_shared_dpll_funcs;
 
 /**
  * enum intel_dpll_id - possible DPLL ids
@@ -207,6 +208,9 @@ struct intel_dpll_hw_state {
 	/* icl */
 	u32 cfgcr0;
 
+	/* tgl */
+	u32 div0;
+
 	/* bxt */
 	u32 ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10, pcsdw12;
 
@@ -249,51 +253,6 @@ struct intel_shared_dpll_state {
 	 * struct &intel_dpll_hw_state.
 	 */
 	struct intel_dpll_hw_state hw_state;
-};
-
-/**
- * struct intel_shared_dpll_funcs - platform specific hooks for managing DPLLs
- */
-struct intel_shared_dpll_funcs {
-	/**
-	 * @enable:
-	 *
-	 * Hook for enabling the pll, called from intel_enable_shared_dpll()
-	 * if the pll is not already enabled.
-	 */
-	void (*enable)(struct drm_i915_private *dev_priv,
-		       struct intel_shared_dpll *pll);
-
-	/**
-	 * @disable:
-	 *
-	 * Hook for disabling the pll, called from intel_disable_shared_dpll()
-	 * only when it is safe to disable the pll, i.e., there are no more
-	 * tracked users for it.
-	 */
-	void (*disable)(struct drm_i915_private *dev_priv,
-			struct intel_shared_dpll *pll);
-
-	/**
-	 * @get_hw_state:
-	 *
-	 * Hook for reading the values currently programmed to the DPLL
-	 * registers. This is used for initial hw state readout and state
-	 * verification after a mode set.
-	 */
-	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
-			     struct intel_shared_dpll *pll,
-			     struct intel_dpll_hw_state *hw_state);
-
-	/**
-	 * @get_freq:
-	 *
-	 * Hook for calculating the pll's output frequency based on its
-	 * passed in state.
-	 */
-	int (*get_freq)(struct drm_i915_private *i915,
-			const struct intel_shared_dpll *pll,
-			const struct intel_dpll_hw_state *pll_state);
 };
 
 /**

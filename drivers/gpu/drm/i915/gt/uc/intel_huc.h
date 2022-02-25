@@ -6,7 +6,7 @@
 #ifndef _INTEL_HUC_H_
 #define _INTEL_HUC_H_
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 #include "intel_uc_fw.h"
 #include "intel_huc_fw.h"
 

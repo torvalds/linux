@@ -273,6 +273,9 @@ static int __init armada_drm_init(void)
 {
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	ret = platform_driver_register(&armada_lcd_platform_driver);
 	if (ret)
 		return ret;

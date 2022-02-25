@@ -116,11 +116,13 @@
 #include "intel_context.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_engine_stats.h"
 #include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_lrc.h"
 #include "intel_lrc_reg.h"
@@ -3501,7 +3503,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 		(u64 *)&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 
 	execlists->csb_write =
-		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
+		&engine->status_page.addr[INTEL_HWS_CSB_WRITE_INDEX(i915)];
 
 	if (GRAPHICS_VER(i915) < 11)
 		execlists->csb_size = GEN8_CSB_ENTRIES;

@@ -37,6 +37,8 @@
 #include "amdgpu_fw_attestation.h"
 #include "amdgpu_umr.h"
 
+#include "amdgpu_reset.h"
+
 #if defined(CONFIG_DEBUG_FS)
 
 /**
@@ -728,7 +730,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 3;
+	config[no_regs++] = 4;
 	config[no_regs++] = adev->gfx.config.max_shader_engines;
 	config[no_regs++] = adev->gfx.config.max_tile_pipes;
 	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
@@ -767,6 +769,9 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	config[no_regs++] = adev->pdev->revision;
 	config[no_regs++] = adev->pdev->subsystem_device;
 	config[no_regs++] = adev->pdev->subsystem_vendor;
+
+	/* rev==4 APU flag */
+	config[no_regs++] = adev->flags & AMD_IS_APU ? 1 : 0;
 
 	while (size && (*pos < no_regs * 4)) {
 		uint32_t value;
@@ -1120,8 +1125,10 @@ static ssize_t amdgpu_debugfs_gfxoff_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0)
+	if (r < 0) {
+		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 		return r;
+	}
 
 	while (size) {
 		uint32_t value;
@@ -1279,7 +1286,7 @@ static int amdgpu_debugfs_test_ib_show(struct seq_file *m, void *unused)
 	}
 
 	/* Avoid accidently unparking the sched thread during GPU reset */
-	r = down_write_killable(&adev->reset_sem);
+	r = down_write_killable(&adev->reset_domain->sem);
 	if (r)
 		return r;
 
@@ -1308,7 +1315,7 @@ static int amdgpu_debugfs_test_ib_show(struct seq_file *m, void *unused)
 		kthread_unpark(ring->sched.thread);
 	}
 
-	up_write(&adev->reset_sem);
+	up_write(&adev->reset_domain->sem);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1517,7 +1524,7 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 		return -ENOMEM;
 
 	/* Avoid accidently unparking the sched thread during GPU reset */
-	r = down_read_killable(&adev->reset_sem);
+	r = down_read_killable(&adev->reset_domain->sem);
 	if (r)
 		goto pro_end;
 
@@ -1560,7 +1567,7 @@ failure:
 	/* restart the scheduler */
 	kthread_unpark(ring->sched.thread);
 
-	up_read(&adev->reset_sem);
+	up_read(&adev->reset_domain->sem);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 
@@ -1585,22 +1592,25 @@ static int amdgpu_debugfs_sclk_set(void *data, u64 val)
 		return ret;
 	}
 
-	if (is_support_sw_smu(adev)) {
-		ret = smu_get_dpm_freq_range(&adev->smu, SMU_SCLK, &min_freq, &max_freq);
-		if (ret || val > max_freq || val < min_freq)
-			return -EINVAL;
-		ret = smu_set_soft_freq_range(&adev->smu, SMU_SCLK, (uint32_t)val, (uint32_t)val);
-	} else {
-		return 0;
+	ret = amdgpu_dpm_get_dpm_freq_range(adev, PP_SCLK, &min_freq, &max_freq);
+	if (ret == -EOPNOTSUPP) {
+		ret = 0;
+		goto out;
+	}
+	if (ret || val > max_freq || val < min_freq) {
+		ret = -EINVAL;
+		goto out;
 	}
 
+	ret = amdgpu_dpm_set_soft_freq_range(adev, PP_SCLK, (uint32_t)val, (uint32_t)val);
+	if (ret)
+		ret = -EINVAL;
+
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
-	if (ret)
-		return -EINVAL;
-
-	return 0;
+	return ret;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_ib_preempt, NULL,

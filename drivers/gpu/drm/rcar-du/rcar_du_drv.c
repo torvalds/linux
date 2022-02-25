@@ -701,6 +701,9 @@ static struct platform_driver rcar_du_platform_driver = {
 
 static int __init rcar_du_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	rcar_du_of_init(rcar_du_of_table);
 
 	return platform_driver_register(&rcar_du_platform_driver);

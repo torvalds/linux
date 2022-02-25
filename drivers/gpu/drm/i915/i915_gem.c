@@ -25,7 +25,6 @@
  *
  */
 
-#include <drm/drm_vma_manager.h>
 #include <linux/dma-fence-array.h>
 #include <linux/kthread.h>
 #include <linux/dma-resv.h>
@@ -37,6 +36,9 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include <drm/drm_cache.h>
+#include <drm/drm_vma_manager.h>
+
 #include "display/intel_display.h"
 #include "display/intel_frontbuffer.h"
 
@@ -44,16 +46,18 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_pm.h"
 #include "gem/i915_gem_region.h"
+#include "gem/i915_gem_userptr.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-
 #include "intel_pm.h"
 
 static int

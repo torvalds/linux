@@ -16,7 +16,7 @@
  * Copyright 1999-2001 Jeff Garzik <jgarzik@pobox.com>
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -313,7 +313,8 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	return 0;
 }
 
-static int cirrus_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf_map *map,
+static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
+			       const struct iosys_map *map,
 			       struct drm_rect *rect)
 {
 	struct cirrus_device *cirrus = to_cirrus(fb->dev);
@@ -345,7 +346,8 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf_
 	return 0;
 }
 
-static int cirrus_fb_blit_fullscreen(struct drm_framebuffer *fb, const struct dma_buf_map *map)
+static int cirrus_fb_blit_fullscreen(struct drm_framebuffer *fb,
+				     const struct iosys_map *map)
 {
 	struct drm_rect fullscreen = {
 		.x1 = 0,

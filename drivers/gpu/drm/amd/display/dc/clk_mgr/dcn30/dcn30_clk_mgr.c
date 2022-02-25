@@ -42,8 +42,8 @@
 
 #include "nbio/nbio_7_4_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -184,6 +184,7 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn3_init_single_clock(clk_mgr, PPCLK_DCEFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_levels);
+	dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, 0);
 
 	/* DTBCLK */
 	dcn3_init_single_clock(clk_mgr, PPCLK_DTBCLK,
@@ -473,8 +474,10 @@ static void dcn3_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->bw_params->dc_mode_softmax_memclk = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
 
 	/* Refresh bounding box */
+	DC_FP_START();
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
+	DC_FP_END();
 }
 
 static bool dcn3_is_smu_present(struct clk_mgr *clk_mgr_base)

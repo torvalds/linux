@@ -6,8 +6,10 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt.h"
+#include "intel_gt_regs.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
 
@@ -235,7 +237,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_en(wal, INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:bdw,chv */
-	wa_masked_en(wal, MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+	wa_masked_en(wal, RING_MI_MODE(RENDER_RING_BASE), ASYNC_FLIP_PERF_DISABLE);
 
 	/* WaDisablePartialInstShootdown:bdw,chv */
 	wa_masked_en(wal, GEN8_ROW_CHICKEN,
@@ -2227,7 +2229,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * For DG1 this only applies to A0.
 		 */
 		wa_masked_en(wal,
-			     GEN6_RC_SLEEP_PSMI_CONTROL,
+			     RING_PSMI_CTL(RENDER_RING_BASE),
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
 	}
@@ -2442,7 +2444,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	if (GRAPHICS_VER(i915) == 7) {
 		/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
 		wa_masked_en(wal,
-			     GFX_MODE_GEN7,
+			     RING_MODE_GEN7(RENDER_RING_BASE),
 			     GFX_TLB_INVALIDATE_EXPLICIT | GFX_REPLAY_MODE);
 
 		/* WaDisable_RenderCache_OperationalFlush:ivb,vlv,hsw */
@@ -2480,7 +2482,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 		 */
 		wa_masked_en(wal,
-			     MI_MODE,
+			     RING_MI_MODE(RENDER_RING_BASE),
 			     ASYNC_FLIP_PERF_DISABLE);
 
 	if (GRAPHICS_VER(i915) == 6) {
@@ -2539,7 +2541,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 	if (IS_GRAPHICS_VER(i915, 4, 6))
 		/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-		wa_add(wal, MI_MODE,
+		wa_add(wal, RING_MI_MODE(RENDER_RING_BASE),
 		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
 		       /* XXX bit doesn't stick on Broadwater */
 		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH, true);
@@ -2555,7 +2557,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * they are already accustomed to from before contexts were
 		 * enabled.
 		 */
-		wa_add(wal, ECOSKPD,
+		wa_add(wal, ECOSKPD(RENDER_RING_BASE),
 		       0, _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE),
 		       0 /* XXX bit doesn't stick on Broadwater */,
 		       true);

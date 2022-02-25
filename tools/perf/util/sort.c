@@ -915,7 +915,7 @@ static int hist_entry__sym_from_snprintf(struct hist_entry *he, char *bf,
 		struct addr_map_symbol *from = &he->branch_info->from;
 
 		return _hist_entry__sym_snprintf(&from->ms, from->al_addr,
-						 he->level, bf, size, width);
+						 from->al_level, bf, size, width);
 	}
 
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
@@ -928,7 +928,7 @@ static int hist_entry__sym_to_snprintf(struct hist_entry *he, char *bf,
 		struct addr_map_symbol *to = &he->branch_info->to;
 
 		return _hist_entry__sym_snprintf(&to->ms, to->al_addr,
-						 he->level, bf, size, width);
+						 to->al_level, bf, size, width);
 	}
 
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");

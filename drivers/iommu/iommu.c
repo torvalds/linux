@@ -207,9 +207,14 @@ static struct dev_iommu *dev_iommu_get(struct device *dev)
 
 static void dev_iommu_free(struct device *dev)
 {
-	iommu_fwspec_free(dev);
-	kfree(dev->iommu);
+	struct dev_iommu *param = dev->iommu;
+
 	dev->iommu = NULL;
+	if (param->fwspec) {
+		fwnode_handle_put(param->fwspec->iommu_fwnode);
+		kfree(param->fwspec);
+	}
+	kfree(param);
 }
 
 static int __iommu_probe_device(struct device *dev, struct list_head *group_list)
@@ -980,17 +985,6 @@ static int iommu_group_device_count(struct iommu_group *group)
 	return ret;
 }
 
-/**
- * iommu_group_for_each_dev - iterate over each device in the group
- * @group: the group
- * @data: caller opaque data to be passed to callback function
- * @fn: caller supplied callback function
- *
- * This function is called by group users to iterate over group devices.
- * Callers should hold a reference count to the group during callback.
- * The group->mutex is held across callbacks, which will block calls to
- * iommu_group_add/remove_device.
- */
 static int __iommu_group_for_each_dev(struct iommu_group *group, void *data,
 				      int (*fn)(struct device *, void *))
 {
@@ -1005,7 +999,17 @@ static int __iommu_group_for_each_dev(struct iommu_group *group, void *data,
 	return ret;
 }
 
-
+/**
+ * iommu_group_for_each_dev - iterate over each device in the group
+ * @group: the group
+ * @data: caller opaque data to be passed to callback function
+ * @fn: caller supplied callback function
+ *
+ * This function is called by group users to iterate over group devices.
+ * Callers should hold a reference count to the group during callback.
+ * The group->mutex is held across callbacks, which will block calls to
+ * iommu_group_add/remove_device.
+ */
 int iommu_group_for_each_dev(struct iommu_group *group, void *data,
 			     int (*fn)(struct device *, void *))
 {
@@ -3032,6 +3036,7 @@ EXPORT_SYMBOL_GPL(iommu_aux_get_pasid);
  * iommu_sva_bind_device() - Bind a process address space to a device
  * @dev: the device
  * @mm: the mm to bind, caller must hold a reference to it
+ * @drvdata: opaque data pointer to pass to bind callback
  *
  * Create a bond between device and address space, allowing the device to access
  * the mm using the returned PASID. If a bond already exists between @device and

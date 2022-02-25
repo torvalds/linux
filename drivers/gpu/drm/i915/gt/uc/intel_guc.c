@@ -7,11 +7,13 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm_irq.h"
+#include "gt/intel_gt_regs.h"
 #include "intel_guc.h"
 #include "intel_guc_slpc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
+#include "i915_irq.h"
 
 /**
  * DOC: GuC

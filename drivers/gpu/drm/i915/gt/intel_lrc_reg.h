@@ -53,21 +53,6 @@
 #define GEN8_EXECLISTS_STATUS_BUF 0x370
 #define GEN11_EXECLISTS_STATUS_BUF2 0x3c0
 
-/* Execlists regs */
-#define RING_ELSP(base)				_MMIO((base) + 0x230)
-#define RING_EXECLIST_STATUS_LO(base)		_MMIO((base) + 0x234)
-#define RING_EXECLIST_STATUS_HI(base)		_MMIO((base) + 0x234 + 4)
-#define RING_CONTEXT_CONTROL(base)		_MMIO((base) + 0x244)
-#define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	REG_BIT(0)
-#define   CTX_CTRL_RS_CTX_ENABLE		REG_BIT(1)
-#define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	REG_BIT(2)
-#define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	REG_BIT(3)
-#define	  GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE	REG_BIT(8)
-#define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
-#define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
-#define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
-#define	  EL_CTRL_LOAD				REG_BIT(0)
-
 /*
  * The docs specify that the write pointer wraps around after 5h, "After status
  * is written out to the last available status QW at offset 5h, this pointer

@@ -62,6 +62,8 @@
 #include "display/intel_vga.h"
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_create.h"
+#include "gem/i915_gem_dmabuf.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_pm.h"
@@ -71,10 +73,13 @@
 
 #include "pxp/intel_pxp_pm.h"
 
+#include "i915_file_private.h"
 #include "i915_debugfs.h"
 #include "i915_driver.h"
 #include "i915_drv.h"
+#include "i915_getparam.h"
 #include "i915_ioc32.h"
+#include "i915_ioctl.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "i915_perf.h"
@@ -86,6 +91,7 @@
 #include "intel_dram.h"
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
+#include "intel_pci_config.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 #include "intel_region_ttm.h"
@@ -1804,6 +1810,21 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_CREATE, i915_gem_vm_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_DESTROY, i915_gem_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 };
+
+/*
+ * Interface history:
+ *
+ * 1.1: Original.
+ * 1.2: Add Power Management
+ * 1.3: Add vblank support
+ * 1.4: Fix cmdbuffer path, add heap destroy
+ * 1.5: Add vblank pipe configuration
+ * 1.6: - New ioctl for scheduling buffer swaps on vertical blank
+ *      - Support vertical blank on secondary display pipe
+ */
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		6
+#define DRIVER_PATCHLEVEL	0
 
 static const struct drm_driver i915_drm_driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should

@@ -28,6 +28,25 @@
 #include "intel_dpll.h"
 #include "vlv_dsi_pll.h"
 
+struct intel_color_funcs {
+	int (*color_check)(struct intel_crtc_state *crtc_state);
+	/*
+	 * Program double buffered color management registers during
+	 * vblank evasion. The registers should then latch during the
+	 * next vblank start, alongside any other double buffered registers
+	 * involved with the same commit.
+	 */
+	void (*color_commit)(const struct intel_crtc_state *crtc_state);
+	/*
+	 * Load LUTs (and other single buffered color management
+	 * registers). Will (hopefully) be called during the vblank
+	 * following the latching of any double buffered registers
+	 * involved with the same commit.
+	 */
+	void (*load_luts)(const struct intel_crtc_state *crtc_state);
+	void (*read_luts)(struct intel_crtc_state *crtc_state);
+};
+
 #define CTM_COEFF_SIGN	(1ULL << 63)
 
 #define CTM_COEFF_1_0	(1ULL << 32)
@@ -160,29 +179,29 @@ static void ilk_update_pipe_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RY_GY(pipe),
-		       coeff[0] << 16 | coeff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RY_GY(pipe),
+			  coeff[0] << 16 | coeff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RU_GU(pipe),
-		       coeff[3] << 16 | coeff[4]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RU_GU(pipe),
+			  coeff[3] << 16 | coeff[4]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RV_GV(pipe),
-		       coeff[6] << 16 | coeff[7]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RV_GV(pipe),
+			  coeff[6] << 16 | coeff[7]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
 
 	if (DISPLAY_VER(dev_priv) >= 7) {
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_HI(pipe),
-			       postoff[0]);
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_ME(pipe),
-			       postoff[1]);
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_LO(pipe),
-			       postoff[2]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_HI(pipe),
+				  postoff[0]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_ME(pipe),
+				  postoff[1]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_LO(pipe),
+				  postoff[2]);
 	}
 }
 
@@ -194,28 +213,28 @@ static void icl_update_output_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
-		       coeff[0] << 16 | coeff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
-		       coeff[2] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
+			  coeff[0] << 16 | coeff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
+			  coeff[2] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
-		       coeff[3] << 16 | coeff[4]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
-		       coeff[5] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
+			  coeff[3] << 16 | coeff[4]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
+			  coeff[5] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
-		       coeff[6] << 16 | coeff[7]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
-		       coeff[8] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
+			  coeff[6] << 16 | coeff[7]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
+			  coeff[8] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
 }
 
 static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
@@ -319,8 +338,8 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				    ilk_csc_off_zero);
 	}
 
-	intel_de_write(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-		       crtc_state->csc_mode);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
 static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
@@ -346,8 +365,8 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				      ilk_csc_postoff_limited_range);
 	}
 
-	intel_de_write(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-		       crtc_state->csc_mode);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
@@ -377,16 +396,16 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 		coeffs[i] |= (abs_coeff >> 20) & 0xfff;
 	}
 
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
-		       coeffs[1] << 16 | coeffs[0]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
-		       coeffs[3] << 16 | coeffs[2]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
-		       coeffs[5] << 16 | coeffs[4]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
-		       coeffs[7] << 16 | coeffs[6]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF8(pipe),
-		       coeffs[8]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
+			  coeffs[1] << 16 | coeffs[0]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
+			  coeffs[3] << 16 | coeffs[2]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
+			  coeffs[5] << 16 | coeffs[4]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
+			  coeffs[7] << 16 | coeffs[6]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF8(pipe),
+			  coeffs[8]);
 }
 
 /* convert hw value with given bit_precision to lut property val */

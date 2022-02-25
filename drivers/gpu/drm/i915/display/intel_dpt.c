@@ -3,11 +3,13 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "gem/i915_gem_domain.h"
+#include "gt/gen8_ppgtt.h"
+
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
-#include "gt/gen8_ppgtt.h"
 
 struct i915_dpt {
 	struct i915_address_space vm;

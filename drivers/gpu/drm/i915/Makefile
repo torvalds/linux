@@ -13,6 +13,7 @@
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
 subdir-ccflags-y := -Wall -Wextra
+subdir-ccflags-y += -Wno-format-security
 subdir-ccflags-y += -Wno-unused-parameter
 subdir-ccflags-y += -Wno-type-limits
 subdir-ccflags-y += -Wno-missing-field-initializers
@@ -32,8 +33,9 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 # core driver code
 i915-y += i915_driver.o \
 	  i915_config.o \
-	  i915_irq.o \
 	  i915_getparam.o \
+	  i915_ioctl.o \
+	  i915_irq.o \
 	  i915_mitigations.o \
 	  i915_module.o \
 	  i915_params.o \
@@ -196,6 +198,7 @@ i915-y += gt/uc/intel_uc.o \
 
 # modesetting core code
 i915-y += \
+	display/hsw_ips.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \

@@ -27,7 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_caching.h>
@@ -41,7 +41,7 @@ struct ttm_resource;
 struct ttm_place;
 struct ttm_buffer_object;
 struct ttm_placement;
-struct dma_buf_map;
+struct iosys_map;
 struct io_mapping;
 struct sg_table;
 struct scatterlist;
@@ -130,10 +130,15 @@ struct ttm_resource_manager {
 	struct dma_fence *move;
 
 	/*
-	 * Protected by the global->lru_lock.
+	 * Protected by the bdev->lru_lock.
 	 */
-
 	struct list_head lru[TTM_MAX_BO_PRIORITY];
+
+	/**
+	 * @usage: How much of the resources are used, protected by the
+	 * bdev->lru_lock.
+	 */
+	uint64_t usage;
 };
 
 /**
@@ -210,7 +215,7 @@ struct ttm_kmap_iter_iomap {
  */
 struct ttm_kmap_iter_linear_io {
 	struct ttm_kmap_iter base;
-	struct dma_buf_map dmap;
+	struct iosys_map dmap;
 	bool needs_unmap;
 };
 
@@ -278,11 +283,12 @@ void ttm_resource_set_bo(struct ttm_resource *res,
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       struct ttm_device *bdev,
-			       unsigned long p_size);
+			       uint64_t size);
 
 int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 				   struct ttm_resource_manager *man);
 
+uint64_t ttm_resource_manager_usage(struct ttm_resource_manager *man);
 void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 				struct drm_printer *p);
 

@@ -14,7 +14,9 @@
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
+#include "i915_reg.h"
 #include "i915_vgpu.h"
+#include "intel_mchbar_regs.h"
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive

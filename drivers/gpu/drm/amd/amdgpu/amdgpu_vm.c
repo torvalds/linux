@@ -375,6 +375,8 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 	if (bo->tbo.base.resv != vm->root.bo->tbo.base.resv)
 		return;
 
+	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
+
 	vm->bulk_moveable = false;
 	if (bo->tbo.type == ttm_bo_type_kernel && bo->parent)
 		amdgpu_vm_bo_relocated(base);
@@ -1634,7 +1636,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			nptes = max(nptes, 1u);
 
 			trace_amdgpu_vm_update_ptes(params, frag_start, upd_end,
-						    nptes, dst, incr, upd_flags,
+						    min(nptes, 32u), dst, incr, upd_flags,
 						    vm->task_info.pid,
 						    vm->immediate.fence_context);
 			amdgpu_vm_update_flags(params, to_amdgpu_bo_vm(pt),
@@ -2257,6 +2259,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	if (!bo)
 		return bo_va;
 
+	dma_resv_assert_held(bo->tbo.base.resv);
 	if (amdgpu_dmabuf_is_xgmi_accessible(adev, bo)) {
 		bo_va->is_xgmi = true;
 		/* Power up XGMI if it can be potentially used */
@@ -2634,7 +2637,7 @@ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
 }
 
 /**
- * amdgpu_vm_bo_rmv - remove a bo to a specific vm
+ * amdgpu_vm_bo_del - remove a bo from a specific vm
  *
  * @adev: amdgpu_device pointer
  * @bo_va: requested bo_va
@@ -2643,7 +2646,7 @@ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
  *
  * Object have to be reserved!
  */
-void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
+void amdgpu_vm_bo_del(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va)
 {
 	struct amdgpu_bo_va_mapping *mapping, *next;
@@ -2651,7 +2654,10 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_vm_bo_base **base;
 
+	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
+
 	if (bo) {
+		dma_resv_assert_held(bo->tbo.base.resv);
 		if (bo->tbo.base.resv == vm->root.bo->tbo.base.resv)
 			vm->bulk_moveable = false;
 

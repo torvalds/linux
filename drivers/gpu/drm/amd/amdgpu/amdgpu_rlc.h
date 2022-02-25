@@ -127,9 +127,17 @@ struct amdgpu_rlc_funcs {
 	void (*reset)(struct amdgpu_device *adev);
 	void (*start)(struct amdgpu_device *adev);
 	void (*update_spm_vmid)(struct amdgpu_device *adev, unsigned vmid);
-	void (*sriov_wreg)(struct amdgpu_device *adev, u32 offset, u32 v, u32 acc_flags, u32 hwip);
-	u32 (*sriov_rreg)(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip);
 	bool (*is_rlcg_access_range)(struct amdgpu_device *adev, uint32_t reg);
+};
+
+struct amdgpu_rlcg_reg_access_ctrl {
+	uint32_t scratch_reg0;
+	uint32_t scratch_reg1;
+	uint32_t scratch_reg2;
+	uint32_t scratch_reg3;
+	uint32_t grbm_cntl;
+	uint32_t grbm_idx;
+	uint32_t spare_int;
 };
 
 struct amdgpu_rlc {
@@ -191,6 +199,10 @@ struct amdgpu_rlc {
 	struct amdgpu_bo	*rlc_toc_bo;
 	uint64_t		rlc_toc_gpu_addr;
 	void			*rlc_toc_buf;
+
+	bool rlcg_reg_access_supported;
+	/* registers for rlcg indirect reg access */
+	struct amdgpu_rlcg_reg_access_ctrl reg_access_ctrl;
 };
 
 void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev);

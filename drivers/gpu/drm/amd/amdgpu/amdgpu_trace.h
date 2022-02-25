@@ -358,11 +358,10 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 			}
 	),
 	TP_printk("pid:%u vm_ctx:0x%llx start:0x%010llx end:0x%010llx,"
-		  " flags:0x%llx, incr:%llu, dst:\n%s%s", __entry->pid,
+		  " flags:0x%llx, incr:%llu, dst:\n%s", __entry->pid,
 		  __entry->vm_ctx, __entry->start, __entry->end,
 		  __entry->flags, __entry->incr,  __print_array(
-		  __get_dynamic_array(dst), min(__entry->nptes, 32u), 8),
-		  __entry->nptes > 32 ? "..." : "")
+		  __get_dynamic_array(dst), __entry->nptes, 8))
 );
 
 TRACE_EVENT(amdgpu_vm_set_ptes,

@@ -10,6 +10,7 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_requests.h"
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 
 #if defined(CONFIG_X86)

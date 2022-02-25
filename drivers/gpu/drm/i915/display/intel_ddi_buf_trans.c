@@ -985,15 +985,15 @@ static const struct intel_ddi_buf_trans adlp_dkl_phy_trans_dp_hbr2_hbr3 = {
 };
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans[] = {
-	{ .snps = { 26, 0, 0 } },	/* VS 0, pre-emph 0 */
-	{ .snps = { 33, 0, 6 } },	/* VS 0, pre-emph 1 */
-	{ .snps = { 38, 0, 12 } },	/* VS 0, pre-emph 2 */
-	{ .snps = { 43, 0, 19 } },	/* VS 0, pre-emph 3 */
-	{ .snps = { 39, 0, 0 } },	/* VS 1, pre-emph 0 */
-	{ .snps = { 44, 0, 8 } },	/* VS 1, pre-emph 1 */
-	{ .snps = { 47, 0, 15 } },	/* VS 1, pre-emph 2 */
-	{ .snps = { 52, 0, 0 } },	/* VS 2, pre-emph 0 */
-	{ .snps = { 51, 0, 10 } },	/* VS 2, pre-emph 1 */
+	{ .snps = { 25, 0, 0 } },	/* VS 0, pre-emph 0 */
+	{ .snps = { 32, 0, 6 } },	/* VS 0, pre-emph 1 */
+	{ .snps = { 35, 0, 10 } },	/* VS 0, pre-emph 2 */
+	{ .snps = { 43, 0, 17 } },	/* VS 0, pre-emph 3 */
+	{ .snps = { 35, 0, 0 } },	/* VS 1, pre-emph 0 */
+	{ .snps = { 45, 0, 8 } },	/* VS 1, pre-emph 1 */
+	{ .snps = { 48, 0, 14 } },	/* VS 1, pre-emph 2 */
+	{ .snps = { 47, 0, 0 } },	/* VS 2, pre-emph 0 */
+	{ .snps = { 55, 0, 7 } },	/* VS 2, pre-emph 1 */
 	{ .snps = { 62, 0, 0 } },	/* VS 3, pre-emph 0 */
 };
 
@@ -1005,21 +1005,21 @@ static const struct intel_ddi_buf_trans dg2_snps_trans = {
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans_uhbr[] = {
 	{ .snps = { 62, 0, 0 } },	/* preset 0 */
-	{ .snps = { 56, 0, 6 } },	/* preset 1 */
-	{ .snps = { 51, 0, 11 } },	/* preset 2 */
-	{ .snps = { 48, 0, 14 } },	/* preset 3 */
-	{ .snps = { 43, 0, 19 } },	/* preset 4 */
+	{ .snps = { 55, 0, 7 } },	/* preset 1 */
+	{ .snps = { 50, 0, 12 } },	/* preset 2 */
+	{ .snps = { 44, 0, 18 } },	/* preset 3 */
+	{ .snps = { 35, 0, 21 } },	/* preset 4 */
 	{ .snps = { 59, 3, 0 } },	/* preset 5 */
 	{ .snps = { 53, 3, 6 } },	/* preset 6 */
-	{ .snps = { 49, 3, 10 } },	/* preset 7 */
-	{ .snps = { 45, 3, 14 } },	/* preset 8 */
-	{ .snps = { 42, 3, 17 } },	/* preset 9 */
+	{ .snps = { 48, 3, 11 } },	/* preset 7 */
+	{ .snps = { 42, 5, 15 } },	/* preset 8 */
+	{ .snps = { 37, 5, 20 } },	/* preset 9 */
 	{ .snps = { 56, 6, 0 } },	/* preset 10 */
-	{ .snps = { 50, 6, 6 } },	/* preset 11 */
-	{ .snps = { 47, 6, 9 } },	/* preset 12 */
-	{ .snps = { 42, 6, 14 } },	/* preset 13 */
-	{ .snps = { 46, 8, 8 } },	/* preset 14 */
-	{ .snps = { 56, 3, 3 } },	/* preset 15 */
+	{ .snps = { 48, 7, 7 } },	/* preset 11 */
+	{ .snps = { 45, 7, 10 } },	/* preset 12 */
+	{ .snps = { 39, 8, 15 } },	/* preset 13 */
+	{ .snps = { 48, 14, 0 } },	/* preset 14 */
+	{ .snps = { 45, 4, 4 } },	/* preset 15 */
 };
 
 static const struct intel_ddi_buf_trans dg2_snps_trans_uhbr = {

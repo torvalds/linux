@@ -38,6 +38,7 @@
 #include "gt/intel_gt_debugfs.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_pm_debugfs.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_reset.h"
@@ -48,6 +49,7 @@
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
 #include "i915_scheduler.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -134,6 +136,17 @@ static const char *stringify_vma_type(const struct i915_vma *vma)
 		return "dpt";
 
 	return "ppgtt";
+}
+
+static const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+{
+	switch (type) {
+	case I915_CACHE_NONE: return " uncached";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
+	case I915_CACHE_WT: return " WT";
+	default: return "";
+	}
 }
 
 void

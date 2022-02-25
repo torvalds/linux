@@ -5,10 +5,14 @@
 
 #include <linux/log2.h>
 
+#include "gem/i915_gem_internal.h"
+
 #include "gen6_ppgtt.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_gt_regs.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 
 /* Write pde (index) from the page directory @pd to the page table @pt */

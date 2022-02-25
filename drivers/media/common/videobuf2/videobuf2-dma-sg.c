@@ -303,7 +303,7 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 static void *vb2_dma_sg_vaddr(struct vb2_buffer *vb, void *buf_priv)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	int ret;
 
 	BUG_ON(!buf);
@@ -492,11 +492,12 @@ vb2_dma_sg_dmabuf_ops_end_cpu_access(struct dma_buf *dbuf,
 	return 0;
 }
 
-static int vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf, struct dma_buf_map *map)
+static int vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf,
+				      struct iosys_map *map)
 {
 	struct vb2_dma_sg_buf *buf = dbuf->priv;
 
-	dma_buf_map_set_vaddr(map, buf->vaddr);
+	iosys_map_set_vaddr(map, buf->vaddr);
 
 	return 0;
 }
@@ -581,7 +582,7 @@ static void vb2_dma_sg_unmap_dmabuf(void *mem_priv)
 {
 	struct vb2_dma_sg_buf *buf = mem_priv;
 	struct sg_table *sgt = buf->dma_sgt;
-	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(buf->vaddr);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(buf->vaddr);
 
 	if (WARN_ON(!buf->db_attach)) {
 		pr_err("trying to unpin a not attached buffer\n");

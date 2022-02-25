@@ -36,6 +36,7 @@
 #include "gt/intel_context.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_heartbeat.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_ring.h"
@@ -43,6 +44,7 @@
 
 #include "i915_active.h"
 #include "i915_deps.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"

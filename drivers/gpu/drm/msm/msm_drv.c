@@ -512,6 +512,9 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	struct msm_kms *kms;
 	int ret, i;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	ddev = drm_dev_alloc(drv, dev);
 	if (IS_ERR(ddev)) {
 		DRM_DEV_ERROR(dev, "failed to allocate drm_device\n");

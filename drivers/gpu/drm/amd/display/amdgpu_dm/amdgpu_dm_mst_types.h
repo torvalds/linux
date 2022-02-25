@@ -26,6 +26,14 @@
 #ifndef __DAL_AMDGPU_DM_MST_TYPES_H__
 #define __DAL_AMDGPU_DM_MST_TYPES_H__
 
+#define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
+
+#define SYNAPTICS_RC_COMMAND       0x4B2
+#define SYNAPTICS_RC_RESULT        0x4B3
+#define SYNAPTICS_RC_LENGTH        0x4B8
+#define SYNAPTICS_RC_OFFSET        0x4BC
+#define SYNAPTICS_RC_DATA          0x4C0
+
 struct amdgpu_display_manager;
 struct amdgpu_dm_connector;
 
@@ -50,6 +58,12 @@ struct dsc_mst_fairness_vars {
 bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 				       struct dc_state *dc_state,
 				       struct dsc_mst_fairness_vars *vars);
+
+bool needs_dsc_aux_workaround(struct dc_link *link);
+
+void pre_validate_dsc(struct drm_atomic_state *state,
+		      struct dm_atomic_state **dm_state_ptr,
+		      struct dsc_mst_fairness_vars *vars);
 #endif
 
 #endif

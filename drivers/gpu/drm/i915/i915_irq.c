@@ -34,6 +34,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/icl_dsi_regs.h"
 #include "display/intel_de.h"
 #include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
@@ -46,8 +47,10 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm_irq.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_pm.h"
@@ -177,6 +180,7 @@ static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
 	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_B),
 	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_C),
 	[HPD_PORT_D] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_D),
+	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_DG2(HPD_PORT_TC1),
 };
 
 static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
@@ -836,10 +840,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
 
-	if (DISPLAY_VER(dev_priv) == 2)
-		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
-	else
-		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+	position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & PIPEDSL_LINE_MASK;
 
 	/*
 	 * On HSW, the DSL reg (0x70000) appears to return 0 if we
@@ -858,7 +859,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 		for (i = 0; i < 100; i++) {
 			udelay(1);
-			temp = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+			temp = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & PIPEDSL_LINE_MASK;
 			if (temp != position) {
 				position = temp;
 				break;
@@ -4349,6 +4350,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	return ret;
 }
 
+struct intel_hotplug_funcs {
+	void (*hpd_irq_setup)(struct drm_i915_private *i915);
+};
+
 #define HPD_FUNCS(platform)					 \
 static const struct intel_hotplug_funcs platform##_hpd_funcs = { \
 	.hpd_irq_setup = platform##_hpd_irq_setup,		 \
@@ -4362,6 +4367,12 @@ HPD_FUNCS(icp);
 HPD_FUNCS(spt);
 HPD_FUNCS(ilk);
 #undef HPD_FUNCS
+
+void intel_hpd_irq_setup(struct drm_i915_private *i915)
+{
+	if (i915->display_irqs_enabled && i915->hotplug_funcs)
+		i915->hotplug_funcs->hpd_irq_setup(i915);
+}
 
 /**
  * intel_irq_init - initializes irq support
@@ -4415,7 +4426,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->hotplug_funcs = &i915_hpd_funcs;
 	} else {
-		if (HAS_PCH_DG1(dev_priv))
+		if (HAS_PCH_DG2(dev_priv))
+			dev_priv->hotplug_funcs = &icp_hpd_funcs;
+		else if (HAS_PCH_DG1(dev_priv))
 			dev_priv->hotplug_funcs = &dg1_hpd_funcs;
 		else if (DISPLAY_VER(dev_priv) >= 11)
 			dev_priv->hotplug_funcs = &gen11_hpd_funcs;

@@ -25,6 +25,13 @@
 #define __KGD_PP_INTERFACE_H__
 
 extern const struct amdgpu_ip_block_version pp_smu_ip_block;
+extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
+extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
+extern const struct amdgpu_ip_block_version smu_v13_0_ip_block;
+
+enum smu_event_type {
+	SMU_EVENT_RESET_COMPLETE = 0,
+};
 
 struct amd_vce_state {
 	/* vce clocks */
@@ -308,12 +315,13 @@ struct amd_pm_funcs {
 				void  *rps,
 				bool  *equal);
 /* export for sysfs */
-	void (*set_fan_control_mode)(void *handle, u32 mode);
-	u32 (*get_fan_control_mode)(void *handle);
+	int (*set_fan_control_mode)(void *handle, u32 mode);
+	int (*get_fan_control_mode)(void *handle, u32 *fan_mode);
 	int (*set_fan_speed_pwm)(void *handle, u32 speed);
 	int (*get_fan_speed_pwm)(void *handle, u32 *speed);
 	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
+	int (*emit_clock_levels)(void *handle, enum pp_clock_type type, char *buf, int *offset);
 	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
 	int (*get_sclk_od)(void *handle);
 	int (*set_sclk_od)(void *handle, uint32_t value);
@@ -400,6 +408,7 @@ struct amd_pm_funcs {
 	int (*get_dpm_clock_table)(void *handle,
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
+	void (*pm_compute_clocks)(void *handle);
 };
 
 struct metrics_table_header {

@@ -5,7 +5,10 @@
  */
 
 #include <linux/pagevec.h>
+#include <linux/shmem_fs.h>
 #include <linux/swap.h>
+
+#include <drm/drm_cache.h>
 
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"

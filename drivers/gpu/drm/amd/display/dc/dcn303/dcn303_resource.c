@@ -48,8 +48,8 @@
 #include "sienna_cichlid_ip_offset.h"
 #include "dcn/dcn_3_0_3_offset.h"
 #include "dcn/dcn_3_0_3_sh_mask.h"
-#include "dcn/dpcs_3_0_3_offset.h"
-#include "dcn/dpcs_3_0_3_sh_mask.h"
+#include "dpcs/dpcs_3_0_3_offset.h"
+#include "dpcs/dpcs_3_0_3_sh_mask.h"
 #include "nbio/nbio_2_3_offset.h"
 
 #define DC_LOGGER_INIT(logger)

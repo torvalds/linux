@@ -113,8 +113,10 @@ int drm_gem_shmem_get_pages(struct drm_gem_shmem_object *shmem);
 void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem);
 int drm_gem_shmem_pin(struct drm_gem_shmem_object *shmem);
 void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem);
-int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem, struct dma_buf_map *map);
-void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem, struct dma_buf_map *map);
+int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
+		       struct iosys_map *map);
+void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
+			  struct iosys_map *map);
 int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct *vma);
 
 int drm_gem_shmem_madvise(struct drm_gem_shmem_object *shmem, int madv);
@@ -134,6 +136,8 @@ struct sg_table *drm_gem_shmem_get_pages_sgt(struct drm_gem_shmem_object *shmem)
 
 void drm_gem_shmem_print_info(const struct drm_gem_shmem_object *shmem,
 			      struct drm_printer *p, unsigned int indent);
+
+extern const struct vm_operations_struct drm_gem_shmem_vm_ops;
 
 /*
  * GEM object functions
@@ -226,7 +230,8 @@ static inline struct sg_table *drm_gem_shmem_object_get_sg_table(struct drm_gem_
  * Returns:
  * 0 on success or a negative error code on failure.
  */
-static inline int drm_gem_shmem_object_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+static inline int drm_gem_shmem_object_vmap(struct drm_gem_object *obj,
+					    struct iosys_map *map)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
@@ -241,7 +246,8 @@ static inline int drm_gem_shmem_object_vmap(struct drm_gem_object *obj, struct d
  * This function wraps drm_gem_shmem_vunmap(). Drivers that employ the shmem helpers should
  * use it as their &drm_gem_object_funcs.vunmap handler.
  */
-static inline void drm_gem_shmem_object_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+static inline void drm_gem_shmem_object_vunmap(struct drm_gem_object *obj,
+					       struct iosys_map *map)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 

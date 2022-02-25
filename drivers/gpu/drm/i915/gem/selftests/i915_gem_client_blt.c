@@ -7,8 +7,9 @@
 
 #include "gt/intel_context.h"
 #include "gt/intel_engine_user.h"
-#include "gt/intel_gt.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "selftests/igt_flush_test.h"

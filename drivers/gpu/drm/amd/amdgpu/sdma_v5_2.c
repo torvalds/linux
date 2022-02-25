@@ -51,6 +51,7 @@ MODULE_FIRMWARE("amdgpu/beige_goby_sdma.bin");
 
 MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_sdma.bin");
+MODULE_FIRMWARE("amdgpu/sdma_5_2_7.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
@@ -138,28 +139,32 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(5, 2, 0):
-		chip_name = "sienna_cichlid";
+		chip_name = "sienna_cichlid_sdma";
 		break;
 	case IP_VERSION(5, 2, 2):
-		chip_name = "navy_flounder";
+		chip_name = "navy_flounder_sdma";
 		break;
 	case IP_VERSION(5, 2, 1):
-		chip_name = "vangogh";
+		chip_name = "vangogh_sdma";
 		break;
 	case IP_VERSION(5, 2, 4):
-		chip_name = "dimgrey_cavefish";
+		chip_name = "dimgrey_cavefish_sdma";
 		break;
 	case IP_VERSION(5, 2, 5):
-		chip_name = "beige_goby";
+		chip_name = "beige_goby_sdma";
 		break;
 	case IP_VERSION(5, 2, 3):
-		chip_name = "yellow_carp";
+		chip_name = "yellow_carp_sdma";
 		break;
+	case IP_VERSION(5, 2, 7):
+		chip_name = "sdma_5_2_7";
+		break;
+
 	default:
 		BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", chip_name);
 
 	err = request_firmware(&adev->sdma.instance[0].fw, fw_name, adev->dev);
 	if (err)
