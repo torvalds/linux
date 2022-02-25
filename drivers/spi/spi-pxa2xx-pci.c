@@ -28,19 +28,7 @@
 #define PCI_DEVICE_ID_INTEL_LPT1_1		0x9ce6
 
 struct pxa_spi_info {
-	enum pxa_ssp_type type;
-	unsigned int port_id;
-	unsigned int num_chipselect;
-	unsigned long max_clk_rate;
-
-	/* DMA channel request parameters */
-	bool (*dma_filter)(struct dma_chan *chan, void *param);
-	void *tx_param;
-	void *rx_param;
-
-	unsigned int dma_burst_size;
-
-	int (*setup)(struct pci_dev *pdev, struct pxa_spi_info *c);
+	int (*setup)(struct pci_dev *pdev, struct pxa2xx_spi_controller *c);
 };
 
 static struct dw_dma_slave byt_tx_param = { .dst_id = 0 };
@@ -99,48 +87,49 @@ static void lpss_dma_put_device(void *dma_dev)
 	pci_dev_put(dma_dev);
 }
 
-static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+static int lpss_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 {
+	struct ssp_device *ssp = &c->ssp;
 	struct dw_dma_slave *tx, *rx;
 	struct pci_dev *dma_dev;
 	int ret;
 
 	switch (dev->device) {
 	case PCI_DEVICE_ID_INTEL_BYT:
-		c->type = LPSS_BYT_SSP;
-		c->port_id = 0;
+		ssp->type = LPSS_BYT_SSP;
+		ssp->port_id = 0;
 		c->tx_param = &byt_tx_param;
 		c->rx_param = &byt_rx_param;
 		break;
 	case PCI_DEVICE_ID_INTEL_BSW0:
-		c->type = LPSS_BSW_SSP;
-		c->port_id = 0;
+		ssp->type = LPSS_BSW_SSP;
+		ssp->port_id = 0;
 		c->tx_param = &bsw0_tx_param;
 		c->rx_param = &bsw0_rx_param;
 		break;
 	case PCI_DEVICE_ID_INTEL_BSW1:
-		c->type = LPSS_BSW_SSP;
-		c->port_id = 1;
+		ssp->type = LPSS_BSW_SSP;
+		ssp->port_id = 1;
 		c->tx_param = &bsw1_tx_param;
 		c->rx_param = &bsw1_rx_param;
 		break;
 	case PCI_DEVICE_ID_INTEL_BSW2:
-		c->type = LPSS_BSW_SSP;
-		c->port_id = 2;
+		ssp->type = LPSS_BSW_SSP;
+		ssp->port_id = 2;
 		c->tx_param = &bsw2_tx_param;
 		c->rx_param = &bsw2_rx_param;
 		break;
 	case PCI_DEVICE_ID_INTEL_LPT0_0:
 	case PCI_DEVICE_ID_INTEL_LPT1_0:
-		c->type = LPSS_LPT_SSP;
-		c->port_id = 0;
+		ssp->type = LPSS_LPT_SSP;
+		ssp->port_id = 0;
 		c->tx_param = &lpt0_tx_param;
 		c->rx_param = &lpt0_rx_param;
 		break;
 	case PCI_DEVICE_ID_INTEL_LPT0_1:
 	case PCI_DEVICE_ID_INTEL_LPT1_1:
-		c->type = LPSS_LPT_SSP;
-		c->port_id = 1;
+		ssp->type = LPSS_LPT_SSP;
+		ssp->port_id = 1;
 		c->tx_param = &lpt1_tx_param;
 		c->rx_param = &lpt1_rx_param;
 		break;
@@ -149,7 +138,10 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	}
 
 	c->num_chipselect = 1;
-	c->max_clk_rate = 50000000;
+
+	ret = pxa2xx_spi_pci_clk_register(dev, ssp, 50000000);
+	if (ret)
+		return ret;
 
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
 	ret = devm_add_action_or_reset(&dev->dev, lpss_dma_put_device, dma_dev);
@@ -168,6 +160,7 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 
 	c->dma_filter = lpss_dma_filter;
 	c->dma_burst_size = 1;
+	c->enable_dma = 1;
 	return 0;
 }
 
@@ -175,41 +168,45 @@ static struct pxa_spi_info lpss_info_config = {
 	.setup = lpss_spi_setup,
 };
 
-static int ce4100_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+static int ce4100_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 {
-	c->type = PXA25x_SSP;
-	c->port_id = dev->devfn;
-	c->num_chipselect = dev->devfn;
-	c->max_clk_rate = 3686400;
+	struct ssp_device *ssp = &c->ssp;
 
-	return 0;
+	ssp->type = PXA25x_SSP;
+	ssp->port_id = dev->devfn;
+	c->num_chipselect = dev->devfn;
+
+	return pxa2xx_spi_pci_clk_register(dev, ssp, 3686400);
 }
 
 static struct pxa_spi_info ce4100_info_config = {
 	.setup = ce4100_spi_setup,
 };
 
-static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+static int mrfld_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 {
+	struct ssp_device *ssp = &c->ssp;
 	struct dw_dma_slave *tx, *rx;
 	struct pci_dev *dma_dev;
 	int ret;
 
+	ssp->type = MRFLD_SSP;
+
 	switch (PCI_FUNC(dev->devfn)) {
 	case 0:
-		c->port_id = 3;
+		ssp->port_id = 3;
 		c->num_chipselect = 1;
 		c->tx_param = &mrfld3_tx_param;
 		c->rx_param = &mrfld3_rx_param;
 		break;
 	case 1:
-		c->port_id = 5;
+		ssp->port_id = 5;
 		c->num_chipselect = 4;
 		c->tx_param = &mrfld5_tx_param;
 		c->rx_param = &mrfld5_rx_param;
 		break;
 	case 2:
-		c->port_id = 6;
+		ssp->port_id = 6;
 		c->num_chipselect = 1;
 		c->tx_param = &mrfld6_tx_param;
 		c->rx_param = &mrfld6_rx_param;
@@ -218,8 +215,9 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 		return -ENODEV;
 	}
 
-	c->type = MRFLD_SSP;
-	c->max_clk_rate = 25000000;
+	ret = pxa2xx_spi_pci_clk_register(dev, ssp, 25000000);
+	if (ret)
+		return ret;
 
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(21, 0));
 	ret = devm_add_action_or_reset(&dev->dev, lpss_dma_put_device, dma_dev);
@@ -234,6 +232,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 
 	c->dma_filter = lpss_dma_filter;
 	c->dma_burst_size = 8;
+	c->enable_dma = 1;
 	return 0;
 }
 
@@ -241,14 +240,15 @@ static struct pxa_spi_info mrfld_info_config = {
 	.setup = mrfld_spi_setup,
 };
 
-static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+static int qrk_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 {
-	c->type = QUARK_X1000_SSP;
-	c->port_id = dev->devfn;
-	c->num_chipselect = 1;
-	c->max_clk_rate = 50000000;
+	struct ssp_device *ssp = &c->ssp;
 
-	return 0;
+	ssp->type = QUARK_X1000_SSP;
+	ssp->port_id = dev->devfn;
+	c->num_chipselect = 1;
+
+	return pxa2xx_spi_pci_clk_register(dev, ssp, 50000000);
 }
 
 static struct pxa_spi_info qrk_info_config = {
@@ -262,8 +262,8 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	int ret;
 	struct platform_device *pdev;
 	struct pxa2xx_spi_controller spi_pdata;
+	struct pxa_spi_info *info;
 	struct ssp_device *ssp;
-	struct pxa_spi_info *c;
 
 	ret = pcim_enable_device(dev);
 	if (ret)
@@ -273,25 +273,17 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	c = (struct pxa_spi_info *)ent->driver_data;
-	ret = c->setup(dev, c);
-	if (ret)
-		return ret;
-
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
-	spi_pdata.num_chipselect = c->num_chipselect;
-	spi_pdata.dma_filter = c->dma_filter;
-	spi_pdata.tx_param = c->tx_param;
-	spi_pdata.rx_param = c->rx_param;
-	spi_pdata.enable_dma = c->rx_param && c->tx_param;
-	spi_pdata.dma_burst_size = c->dma_burst_size;
 
 	ssp = &spi_pdata.ssp;
 	ssp->dev = &dev->dev;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = pcim_iomap_table(dev)[0];
-	ssp->type = c->type;
-	ssp->port_id = c->port_id;
+
+	info = (struct pxa_spi_info *)ent->driver_data;
+	ret = info->setup(dev, &spi_pdata);
+	if (ret)
+		return ret;
 
 	pci_set_master(dev);
 
@@ -299,10 +291,6 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret < 0)
 		return ret;
 	ssp->irq = pci_irq_vector(dev, 0);
-
-	ret = pxa2xx_spi_pci_clk_register(dev, ssp, c->max_clk_rate);
-	if (ret)
-		return ret;
 
 	memset(&pi, 0, sizeof(pi));
 	pi.fwnode = dev_fwnode(&dev->dev);
