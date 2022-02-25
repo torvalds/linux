@@ -255,11 +255,9 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return ret;
 
 	c = &spi_info_configs[ent->driver_data];
-	if (c->setup) {
-		ret = c->setup(dev, c);
-		if (ret)
-			return ret;
-	}
+	ret = c->setup(dev, c);
+	if (ret)
+		return ret;
 
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
 	spi_pdata.num_chipselect = c->num_chipselect;
