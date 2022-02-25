@@ -239,7 +239,7 @@ static void __init kvmclock_init_mem(void)
 
 static int __init kvm_setup_vsyscall_timeinfo(void)
 {
-	if (!kvmclock)
+	if (!kvm_para_available() || !kvmclock)
 		return 0;
 
 	kvmclock_init_mem();
