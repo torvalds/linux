@@ -738,7 +738,7 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 		inode = ilookup(blockdev_superblock, dev);
 		if (inode)
 			pr_warn_ratelimited(
-"block device autoloading is deprecated. It will be removed in Linux 5.19\n");
+"block device autoloading is deprecated and will be removed.\n");
 	}
 	if (!inode)
 		return NULL;
