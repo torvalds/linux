@@ -50,7 +50,6 @@ required:
   - interrupts
   - interrupt-names
   - clocks
-  - clocks-names
   - resets
   - pinctrl-names
   - pinctrl-0
