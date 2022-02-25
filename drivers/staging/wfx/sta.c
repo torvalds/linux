@@ -687,7 +687,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 
 int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	int i, ret = 0;
+	int i;
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
@@ -747,7 +747,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		else
 			wfx_hif_set_block_ack_policy(wvif, 0x00, 0x00);
 	}
-	return ret;
+	return 0;
 }
 
 void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
