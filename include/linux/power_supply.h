@@ -349,6 +349,52 @@ struct power_supply_resistance_temp_table {
 	int resistance;	/* internal resistance percent */
 };
 
+/**
+ * struct power_supply_maintenance_charge_table - setting for maintenace charging
+ * @charge_current_max_ua: maintenance charging current that is used to keep
+ *   the charge of the battery full as current is consumed after full charging.
+ *   The corresponding charge_voltage_max_uv is used as a safeguard: when we
+ *   reach this voltage the maintenance charging current is turned off. It is
+ *   turned back on if we fall below this voltage.
+ * @charge_voltage_max_uv: maintenance charging voltage that is usually a bit
+ *   lower than the constant_charge_voltage_max_uv. We can apply this settings
+ *   charge_current_max_ua until we get back up to this voltage.
+ * @safety_timer_minutes: maintenance charging safety timer, with an expiry
+ *   time in minutes. We will only use maintenance charging in this setting
+ *   for a certain amount of time, then we will first move to the next
+ *   maintenance charge current and voltage pair in respective array and wait
+ *   for the next safety timer timeout, or, if we reached the last maintencance
+ *   charging setting, disable charging until we reach
+ *   charge_restart_voltage_uv and restart ordinary CC/CV charging from there.
+ *   These timers should be chosen to align with the typical discharge curve
+ *   for the battery.
+ *
+ * When the main CC/CV charging is complete the battery can optionally be
+ * maintenance charged at the voltages from this table: a table of settings is
+ * traversed using a slightly lower current and voltage than what is used for
+ * CC/CV charging. The maintenance charging will for safety reasons not go on
+ * indefinately: we lower the current and voltage with successive maintenance
+ * settings, then disable charging completely after we reach the last one,
+ * and after that we do not restart charging until we reach
+ * charge_restart_voltage_uv (see struct power_supply_battery_info) and restart
+ * ordinary CC/CV charging from there.
+ *
+ * As an example, a Samsung EB425161LA Lithium-Ion battery is CC/CV charged
+ * at 900mA to 4340mV, then maintenance charged at 600mA and 4150mV for
+ * 60 hours, then maintenance charged at 600mA and 4100mV for 200 hours.
+ * After this the charge cycle is restarted waiting for
+ * charge_restart_voltage_uv.
+ *
+ * For most mobile electronics this type of maintenance charging is enough for
+ * the user to disconnect the device and make use of it before both maintenance
+ * charging cycles are complete.
+ */
+struct power_supply_maintenance_charge_table {
+	int charge_current_max_ua;
+	int charge_voltage_max_uv;
+	int charge_safety_timer_minutes;
+};
+
 #define POWER_SUPPLY_OCV_TEMP_MAX 20
 
 /**
@@ -394,6 +440,10 @@ struct power_supply_resistance_temp_table {
  * @constant_charge_voltage_max_uv: voltage in microvolts signifying the end of
  *   the CC (constant current) charging phase and the beginning of the CV
  *   (constant voltage) charging phase.
+ * @maintenance_charge: an array of maintenance charging settings to be used
+ *   after the main CC/CV charging phase is complete.
+ * @maintenance_charge_size: the number of maintenance charging settings in
+ *   maintenance_charge.
  * @factory_internal_resistance_uohm: the internal resistance of the battery
  *   at fabrication time, expressed in microohms. This resistance will vary
  *   depending on the lifetime and charge of the battery, so this is just a
@@ -543,6 +593,8 @@ struct power_supply_battery_info {
 	int overvoltage_limit_uv;
 	int constant_charge_current_max_ua;
 	int constant_charge_voltage_max_uv;
+	struct power_supply_maintenance_charge_table *maintenance_charge;
+	int maintenance_charge_size;
 	int factory_internal_resistance_uohm;
 	int ocv_temp[POWER_SUPPLY_OCV_TEMP_MAX];
 	int temp_ambient_alert_min;
@@ -596,12 +648,24 @@ extern int power_supply_batinfo_ocv2cap(struct power_supply_battery_info *info,
 extern int
 power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *table,
 				int table_len, int temp);
+extern struct power_supply_maintenance_charge_table *
+power_supply_get_maintenance_charging_setting(struct power_supply_battery_info *info, int index);
 extern void power_supply_changed(struct power_supply *psy);
 extern int power_supply_am_i_supplied(struct power_supply *psy);
 int power_supply_get_property_from_supplier(struct power_supply *psy,
 					    enum power_supply_property psp,
 					    union power_supply_propval *val);
 extern int power_supply_set_battery_charged(struct power_supply *psy);
+
+static inline bool
+power_supply_supports_maintenance_charging(struct power_supply_battery_info *info)
+{
+	struct power_supply_maintenance_charge_table *mt;
+
+	mt = power_supply_get_maintenance_charging_setting(info, 0);
+
+	return (mt != NULL);
+}
 
 #ifdef CONFIG_POWER_SUPPLY
 extern int power_supply_is_system_supplied(void);

@@ -430,7 +430,7 @@ static void ab8500_chargalg_stop_safety_timer(struct ab8500_chargalg *di)
 /**
  * ab8500_chargalg_start_maintenance_timer() - Start charging maintenance timer
  * @di:		pointer to the ab8500_chargalg structure
- * @duration:	duration of ther maintenance timer in hours
+ * @duration:	duration of ther maintenance timer in minutes
  *
  * The maintenance timer is used to maintain the charge in the battery once
  * the battery is considered full. These timers are chosen to match the
@@ -439,9 +439,10 @@ static void ab8500_chargalg_stop_safety_timer(struct ab8500_chargalg *di)
 static void ab8500_chargalg_start_maintenance_timer(struct ab8500_chargalg *di,
 	int duration)
 {
+	/* Set a timer in minutes with a 30 second range */
 	hrtimer_set_expires_range(&di->maintenance_timer,
-		ktime_set(duration * ONE_HOUR_IN_SECONDS, 0),
-		ktime_set(FIVE_MINUTES_IN_SECONDS, 0));
+		ktime_set(duration * 60, 0),
+		ktime_set(30, 0));
 	di->events.maintenance_timer_expired = false;
 	hrtimer_start_expires(&di->maintenance_timer, HRTIMER_MODE_REL);
 }
@@ -1223,6 +1224,7 @@ static void ab8500_chargalg_external_power_changed(struct power_supply *psy)
 static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 {
 	struct power_supply_battery_info *bi = di->bm->bi;
+	struct power_supply_maintenance_charge_table *mt;
 	int charger_status;
 	int ret;
 
@@ -1433,7 +1435,12 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		handle_maxim_chg_curr(di);
 		if (di->charge_status == POWER_SUPPLY_STATUS_FULL &&
 			di->maintenance_chg) {
-			if (di->bm->no_maintenance)
+			/*
+			 * The battery is fully charged, check if we support
+			 * maintenance charging else go back to waiting for
+			 * the recharge voltage limit.
+			 */
+			if (!power_supply_supports_maintenance_charging(bi))
 				ab8500_chargalg_state_to(di,
 					STATE_WAIT_FOR_RECHARGE_INIT);
 			else
@@ -1454,12 +1461,19 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		break;
 
 	case STATE_MAINTENANCE_A_INIT:
+		mt = power_supply_get_maintenance_charging_setting(bi, 0);
+		if (!mt) {
+			/* No maintenance A state, go back to normal */
+			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+			power_supply_changed(di->chargalg_psy);
+			break;
+		}
 		ab8500_chargalg_stop_safety_timer(di);
 		ab8500_chargalg_start_maintenance_timer(di,
-			di->bm->bat_type->maint_a_chg_timer_h);
+			mt->charge_safety_timer_minutes);
 		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type->maint_a_vol_lvl,
-			di->bm->bat_type->maint_a_cur_lvl);
+			mt->charge_voltage_max_uv,
+			mt->charge_current_max_ua);
 		ab8500_chargalg_state_to(di, STATE_MAINTENANCE_A);
 		power_supply_changed(di->chargalg_psy);
 		fallthrough;
@@ -1472,11 +1486,18 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		break;
 
 	case STATE_MAINTENANCE_B_INIT:
+		mt = power_supply_get_maintenance_charging_setting(bi, 1);
+		if (!mt) {
+			/* No maintenance B state, go back to normal */
+			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+			power_supply_changed(di->chargalg_psy);
+			break;
+		}
 		ab8500_chargalg_start_maintenance_timer(di,
-			di->bm->bat_type->maint_b_chg_timer_h);
+			mt->charge_safety_timer_minutes);
 		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type->maint_b_vol_lvl,
-			di->bm->bat_type->maint_b_cur_lvl);
+			mt->charge_voltage_max_uv,
+			mt->charge_current_max_ua);
 		ab8500_chargalg_state_to(di, STATE_MAINTENANCE_B);
 		power_supply_changed(di->chargalg_psy);
 		fallthrough;

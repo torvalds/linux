@@ -58,16 +58,25 @@ static struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[]
 	{ .temp = -20, .resistance = 198 /* 595 mOhm */ },
 };
 
+static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] = {
+	{
+		/* Maintenance charging phase A, 60 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4050000,
+		.charge_safety_timer_minutes = 60*60,
+	},
+	{
+		/* Maintenance charging phase B, 200 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4000000,
+		.charge_safety_timer_minutes = 200*60,
+	}
+};
+
 /* Default battery type for reference designs is the unknown type */
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
-	.maint_a_cur_lvl = 400,
-	.maint_a_vol_lvl = 4050,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 400,
-	.maint_b_vol_lvl = 4000,
-	.maint_b_chg_timer_h = 200,
 	.low_high_cur_lvl = 300,
 	.low_high_vol_lvl = 4000,
 };
@@ -124,7 +133,6 @@ struct ab8500_bm_data ab8500_bm_data = {
 	.usb_safety_tmr_h       = 4,
 	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
 	.bkup_bat_i             = BUP_ICH_SEL_150UA,
-	.no_maintenance         = false,
 	.capacity_scaling       = false,
 	.chg_unknown_bat        = false,
 	.enable_overshoot       = false,
@@ -178,6 +186,11 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	if (bi->charge_term_current_ua)
 		/* Charging stops when we drop below this current */
 		bi->charge_term_current_ua = 200000;
+
+	if (!bi->maintenance_charge || !bi->maintenance_charge_size) {
+		bi->maintenance_charge = ab8500_maint_charg_table;
+		bi->maintenance_charge_size = ARRAY_SIZE(ab8500_maint_charg_table);
+	}
 
 	/*
 	 * Internal resistance and factory resistance are tightly coupled
