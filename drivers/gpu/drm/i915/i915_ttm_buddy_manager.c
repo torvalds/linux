@@ -82,7 +82,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 			lpfn = pages;
 	}
 
-	if (size > mm->size) {
+	if (size > lpfn << PAGE_SHIFT) {
 		err = -E2BIG;
 		goto err_free_res;
 	}
