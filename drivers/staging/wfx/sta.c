@@ -432,8 +432,7 @@ static void wfx_join(struct wfx_vif *wvif)
 	wfx_tx_unlock(wvif->wdev);
 }
 
-static void wfx_join_finalize(struct wfx_vif *wvif,
-			      struct ieee80211_bss_conf *info)
+static void wfx_join_finalize(struct wfx_vif *wvif, struct ieee80211_bss_conf *info)
 {
 	struct ieee80211_sta *sta = NULL;
 	int ampdu_density = 0;
@@ -539,8 +538,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_KEEP_ALIVE)
-		wfx_hif_keep_alive_period(wvif, info->max_idle_period *
-						USEC_PER_TU / USEC_PER_MSEC);
+		wfx_hif_keep_alive_period(wvif,
+					  info->max_idle_period * USEC_PER_TU / USEC_PER_MSEC);
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT)
 		wfx_hif_erp_use_protection(wvif, info->use_cts_prot);

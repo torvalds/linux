@@ -192,8 +192,7 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 				return ret;
 		}
 		if (ktime_compare(now, start))
-			dev_dbg(wdev->dev, "answer after %lldus\n",
-				ktime_us_delta(now, start));
+			dev_dbg(wdev->dev, "answer after %lldus\n", ktime_us_delta(now, start));
 
 		ret = wfx_sram_write_dma_safe(wdev, WFX_DNLD_FIFO + (offs % DNLD_FIFO_SIZE),
 					      data + offs, DNLD_BLOCK_SIZE);

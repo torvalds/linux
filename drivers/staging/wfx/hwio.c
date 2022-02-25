@@ -71,8 +71,7 @@ static int wfx_write32_locked(struct wfx_dev *wdev, int reg, u32 val)
 	return ret;
 }
 
-static int wfx_write32_bits_locked(struct wfx_dev *wdev,
-				   int reg, u32 mask, u32 val)
+static int wfx_write32_bits_locked(struct wfx_dev *wdev, int reg, u32 mask, u32 val)
 {
 	int ret;
 	u32 val_r, val_w;
@@ -94,8 +93,7 @@ err:
 	return ret;
 }
 
-static int wfx_indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
-			     void *buf, size_t len)
+static int wfx_indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf, size_t len)
 {
 	int ret;
 	int i;
@@ -199,8 +197,7 @@ static int wfx_indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u
 	return ret;
 }
 
-static int wfx_indirect_write32_locked(struct wfx_dev *wdev, int reg,
-				       u32 addr, u32 val)
+static int wfx_indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);

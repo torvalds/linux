@@ -169,8 +169,7 @@ int wfx_hif_reset(struct wfx_vif *wvif, bool reset_stat)
 	return ret;
 }
 
-int wfx_hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
-		     void *val, size_t val_len)
+int wfx_hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, size_t val_len)
 {
 	int ret;
 	struct wfx_hif_msg *hif;

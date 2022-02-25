@@ -244,8 +244,7 @@ static int wfx_hif_generic_indication(struct wfx_dev *wdev,
 		mutex_unlock(&wdev->tx_power_loop_info_lock);
 		return 0;
 	default:
-		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n",
-			type);
+		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n", type);
 		return -EIO;
 	}
 }

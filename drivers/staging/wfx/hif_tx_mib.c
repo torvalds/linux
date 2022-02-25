@@ -84,8 +84,7 @@ int wfx_hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 				 &arg, sizeof(arg));
 }
 
-int wfx_hif_set_rx_filter(struct wfx_vif *wvif,
-			  bool filter_bssid, bool filter_prbreq)
+int wfx_hif_set_rx_filter(struct wfx_vif *wvif, bool filter_bssid, bool filter_prbreq)
 {
 	struct wfx_hif_mib_rx_filter arg = { };
 
