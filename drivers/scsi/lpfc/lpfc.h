@@ -1841,6 +1841,15 @@ u16 get_job_ulpcontext(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 }
 
 static inline
+u16 get_job_rcvoxid(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_rcvoxid, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.unsli3.rcvsli3.ox_id;
+}
+
+static inline
 u32 get_job_els_rsp64_did(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	if (phba->sli_rev == LPFC_SLI_REV4)
