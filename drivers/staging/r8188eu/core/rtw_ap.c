@@ -613,16 +613,10 @@ exit:
 	kfree(pbackup_remainder_ie);
 }
 
-static void update_bcn_p2p_ie(struct adapter *padapter)
-{
-}
-
 static void update_bcn_vendor_spec_ie(struct adapter *padapter, u8 *oui)
 {
 	if (!memcmp(WPS_OUI, oui, 4))
 		update_bcn_wps_ie(padapter);
-	else if (!memcmp(P2P_OUI, oui, 4))
-		update_bcn_p2p_ie(padapter);
 }
 
 void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
