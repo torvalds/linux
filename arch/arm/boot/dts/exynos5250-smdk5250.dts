@@ -410,7 +410,7 @@
 };
 
 &pinctrl_0 {
-	max77686_irq: max77686-irq {
+	max77686_irq: max77686-irq-pins {
 		samsung,pins = "gpx3-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

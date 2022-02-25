@@ -999,7 +999,7 @@
 };
 
 &pinctrl_0 {
-	s2mps11_irq: s2mps11-irq {
+	s2mps11_irq: s2mps11-irq-pins {
 		samsung,pins = "gpx0-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
