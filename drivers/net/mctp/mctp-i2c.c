@@ -338,7 +338,7 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 
 	if (status == NET_RX_SUCCESS) {
 		ndev->stats.rx_packets++;
-		ndev->stats.rx_bytes += skb->len;
+		ndev->stats.rx_bytes += recvlen;
 	} else {
 		ndev->stats.rx_dropped++;
 	}
