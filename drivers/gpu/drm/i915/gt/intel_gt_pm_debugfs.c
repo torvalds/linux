@@ -5,6 +5,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -105,7 +106,7 @@ static int vlv_drpc(struct seq_file *m)
 	rcctl1 = intel_uncore_read(uncore, GEN6_RC_CONTROL);
 
 	seq_printf(m, "RC6 Enabled: %s\n",
-		   yesno(rcctl1 & (GEN7_RC_CTL_TO_MODE |
+		   str_yes_no(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
 	seq_printf(m, "Render Power Well: %s\n",
 		   (pw_status & VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
@@ -140,19 +141,19 @@ static int gen6_drpc(struct seq_file *m)
 		snb_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS, &rc6vids, NULL);
 
 	seq_printf(m, "RC1e Enabled: %s\n",
-		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
+		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
-		   yesno(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
+		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
 	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Well Gating Enabled: %s\n",
-			   yesno(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
+			   str_yes_no(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
 		seq_printf(m, "Media Well Gating Enabled: %s\n",
-			   yesno(gen9_powergate_enable & GEN9_MEDIA_PG_ENABLE));
+			   str_yes_no(gen9_powergate_enable & GEN9_MEDIA_PG_ENABLE));
 	}
 	seq_printf(m, "Deep RC6 Enabled: %s\n",
-		   yesno(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
+		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
 	seq_printf(m, "Deepest RC6 Enabled: %s\n",
-		   yesno(rcctl1 & GEN6_RC_CTL_RC6pp_ENABLE));
+		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6pp_ENABLE));
 	seq_puts(m, "Current RC state: ");
 	switch (gt_core_status & GEN6_RCn_MASK) {
 	case GEN6_RC0:
@@ -176,7 +177,7 @@ static int gen6_drpc(struct seq_file *m)
 	}
 
 	seq_printf(m, "Core Power Down: %s\n",
-		   yesno(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+		   str_yes_no(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
 	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Power Well: %s\n",
 			   (gen9_powergate_status &
@@ -216,16 +217,17 @@ static int ilk_drpc(struct seq_file *m)
 	rstdbyctl = intel_uncore_read(uncore, RSTDBYCTL);
 	crstandvid = intel_uncore_read16(uncore, CRSTANDVID);
 
-	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
+	seq_printf(m, "HD boost: %s\n",
+		   str_yes_no(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
 		   (rgvmodectl & MEMMODE_BOOST_FREQ_MASK) >>
 		   MEMMODE_BOOST_FREQ_SHIFT);
 	seq_printf(m, "HW control enabled: %s\n",
-		   yesno(rgvmodectl & MEMMODE_HWIDLE_EN));
+		   str_yes_no(rgvmodectl & MEMMODE_HWIDLE_EN));
 	seq_printf(m, "SW control enabled: %s\n",
-		   yesno(rgvmodectl & MEMMODE_SWMODE_EN));
+		   str_yes_no(rgvmodectl & MEMMODE_SWMODE_EN));
 	seq_printf(m, "Gated voltage change: %s\n",
-		   yesno(rgvmodectl & MEMMODE_RCLK_GATE));
+		   str_yes_no(rgvmodectl & MEMMODE_RCLK_GATE));
 	seq_printf(m, "Starting frequency: P%d\n",
 		   (rgvmodectl & MEMMODE_FSTART_MASK) >> MEMMODE_FSTART_SHIFT);
 	seq_printf(m, "Max P-state: P%d\n",
@@ -234,7 +236,7 @@ static int ilk_drpc(struct seq_file *m)
 	seq_printf(m, "RS1 VID: %d\n", (crstandvid & 0x3f));
 	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
 	seq_printf(m, "Render standby enabled: %s\n",
-		   yesno(!(rstdbyctl & RCX_SW_EXIT)));
+		   str_yes_no(!(rstdbyctl & RCX_SW_EXIT)));
 	seq_puts(m, "Current RS state: ");
 	switch (rstdbyctl & RSX_STATUS_MASK) {
 	case RSX_STATUS_ON:
@@ -307,12 +309,11 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 
 		rpmodectl = intel_uncore_read(uncore, GEN6_RP_CONTROL);
 		drm_printf(p, "Video Turbo Mode: %s\n",
-			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
+			   str_yes_no(rpmodectl & GEN6_RP_MEDIA_TURBO));
 		drm_printf(p, "HW control enabled: %s\n",
-			   yesno(rpmodectl & GEN6_RP_ENABLE));
+			   str_yes_no(rpmodectl & GEN6_RP_ENABLE));
 		drm_printf(p, "SW control enabled: %s\n",
-			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				 GEN6_RP_MEDIA_SW_MODE));
+			   str_yes_no((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) == GEN6_RP_MEDIA_SW_MODE));
 
 		vlv_punit_get(i915);
 		freq_sts = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
@@ -417,12 +418,11 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 		pm_mask = intel_uncore_read(uncore, GEN6_PMINTRMSK);
 
 		drm_printf(p, "Video Turbo Mode: %s\n",
-			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
+			   str_yes_no(rpmodectl & GEN6_RP_MEDIA_TURBO));
 		drm_printf(p, "HW control enabled: %s\n",
-			   yesno(rpmodectl & GEN6_RP_ENABLE));
+			   str_yes_no(rpmodectl & GEN6_RP_ENABLE));
 		drm_printf(p, "SW control enabled: %s\n",
-			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				 GEN6_RP_MEDIA_SW_MODE));
+			   str_yes_no((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) == GEN6_RP_MEDIA_SW_MODE));
 
 		drm_printf(p, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_mask);
@@ -542,7 +542,7 @@ static int llc_show(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 	int gpu_freq, ia_freq;
 
-	seq_printf(m, "LLC: %s\n", yesno(HAS_LLC(i915)));
+	seq_printf(m, "LLC: %s\n", str_yes_no(HAS_LLC(i915)));
 	seq_printf(m, "%s: %uMB\n", edram ? "eDRAM" : "eLLC",
 		   i915->edram_size_mb);
 
@@ -604,10 +604,12 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_rps *rps = &gt->rps;
 
-	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
-	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
+	seq_printf(m, "RPS enabled? %s\n",
+		   str_yes_no(intel_rps_is_enabled(rps)));
+	seq_printf(m, "RPS active? %s\n",
+		   str_yes_no(intel_rps_is_active(rps)));
 	seq_printf(m, "GPU busy? %s, %llums\n",
-		   yesno(gt->awake),
+		   str_yes_no(gt->awake),
 		   ktime_to_ms(intel_gt_get_awake_time(gt)));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));

@@ -31,6 +31,7 @@
 #include <linux/nmi.h>
 #include <linux/pagevec.h>
 #include <linux/scatterlist.h>
+#include <linux/string_helpers.h>
 #include <linux/utsname.h>
 #include <linux/zlib.h>
 
@@ -719,7 +720,7 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 	const struct intel_engine_coredump *ee;
 	int i;
 
-	err_printf(m, "GT awake: %s\n", yesno(gt->awake));
+	err_printf(m, "GT awake: %s\n", str_yes_no(gt->awake));
 	err_printf(m, "EIR: 0x%08x\n", gt->eir);
 	err_printf(m, "IER: 0x%08x\n", gt->ier);
 	for (i = 0; i < gt->ngtier; i++)
@@ -827,14 +828,14 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		struct intel_dmc *dmc = &m->i915->dmc;
 
 		err_printf(m, "DMC loaded: %s\n",
-			   yesno(intel_dmc_has_payload(m->i915) != 0));
+			   str_yes_no(intel_dmc_has_payload(m->i915) != 0));
 		err_printf(m, "DMC fw version: %d.%d\n",
 			   DMC_VERSION_MAJOR(dmc->version),
 			   DMC_VERSION_MINOR(dmc->version));
 	}
 
-	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));
-	err_printf(m, "PM suspended: %s\n", yesno(error->suspended));
+	err_printf(m, "RPM wakelock: %s\n", str_yes_no(error->wakelock));
+	err_printf(m, "PM suspended: %s\n", str_yes_no(error->suspended));
 
 	if (error->gt)
 		err_print_gt(m, error->gt);

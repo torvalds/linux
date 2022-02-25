@@ -30,6 +30,8 @@
  * support.
  */
 
+#include <linux/string_helpers.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_color_mgmt.h>
@@ -96,13 +98,13 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 	if (src_x % hsub || src_w % hsub) {
 		drm_dbg_kms(&i915->drm, "src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_x, src_w, hsub, yesno(rotated));
+			    src_x, src_w, hsub, str_yes_no(rotated));
 		return -EINVAL;
 	}
 
 	if (src_y % vsub || src_h % vsub) {
 		drm_dbg_kms(&i915->drm, "src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_y, src_h, vsub, yesno(rotated));
+			    src_y, src_h, vsub, str_yes_no(rotated));
 		return -EINVAL;
 	}
 
