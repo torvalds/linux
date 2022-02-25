@@ -10130,6 +10130,7 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_CMD_FUNC_CAP     3 /* To get DYTC capabilities */
 #define DYTC_FC_MMC           27 /* MMC Mode supported */
+#define DYTC_FC_PSC           29 /* PSC Mode supported */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
@@ -10140,12 +10141,17 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_FUNCTION_STD     0  /* Function = 0, standard mode */
 #define DYTC_FUNCTION_CQL     1  /* Function = 1, lap mode */
-#define DYTC_FUNCTION_MMC     11 /* Function = 11, desk mode */
+#define DYTC_FUNCTION_MMC     11 /* Function = 11, MMC mode */
+#define DYTC_FUNCTION_PSC     13 /* Function = 13, PSC mode */
 
-#define DYTC_MODE_PERFORM     2  /* High power mode aka performance */
-#define DYTC_MODE_LOWPOWER    3  /* Low power mode */
-#define DYTC_MODE_BALANCE   0xF  /* Default mode aka balanced */
-#define DYTC_MODE_MMC_BALANCE 0  /* Default mode from MMC_GET, aka balanced */
+#define DYTC_MODE_MMC_PERFORM  2  /* High power mode aka performance */
+#define DYTC_MODE_MMC_LOWPOWER 3  /* Low power mode */
+#define DYTC_MODE_MMC_BALANCE  0xF  /* Default mode aka balanced */
+#define DYTC_MODE_MMC_DEFAULT  0  /* Default mode from MMC_GET, aka balanced */
+
+#define DYTC_MODE_PSC_LOWPOWER 3  /* Low power mode */
+#define DYTC_MODE_PSC_BALANCE  5  /* Default mode aka balanced */
+#define DYTC_MODE_PSC_PERFORM  7  /* High power mode aka performance */
 
 #define DYTC_ERR_MASK       0xF  /* Bits 0-3 in cmd result are the error result */
 #define DYTC_ERR_SUCCESS      1  /* CMD completed successful */
@@ -10155,10 +10161,16 @@ static struct ibm_struct proxsensor_driver_data = {
 	 (mode) << DYTC_SET_MODE_BIT | \
 	 (on) << DYTC_SET_VALID_BIT)
 
-#define DYTC_DISABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, 0)
+#define DYTC_DISABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 0)
+#define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 1)
 
-#define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, 1)
+enum dytc_profile_funcmode {
+	DYTC_FUNCMODE_NONE = 0,
+	DYTC_FUNCMODE_MMC,
+	DYTC_FUNCMODE_PSC,
+};
 
+static enum dytc_profile_funcmode dytc_profile_available;
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
@@ -10166,19 +10178,37 @@ static bool dytc_mmc_get_available;
 
 static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *profile)
 {
-	switch (dytcmode) {
-	case DYTC_MODE_LOWPOWER:
-		*profile = PLATFORM_PROFILE_LOW_POWER;
-		break;
-	case DYTC_MODE_BALANCE:
-	case DYTC_MODE_MMC_BALANCE:
-		*profile =  PLATFORM_PROFILE_BALANCED;
-		break;
-	case DYTC_MODE_PERFORM:
-		*profile =  PLATFORM_PROFILE_PERFORMANCE;
-		break;
-	default: /* Unknown mode */
-		return -EINVAL;
+	if (dytc_profile_available == DYTC_FUNCMODE_MMC) {
+		switch (dytcmode) {
+		case DYTC_MODE_MMC_LOWPOWER:
+			*profile = PLATFORM_PROFILE_LOW_POWER;
+			break;
+		case DYTC_MODE_MMC_DEFAULT:
+		case DYTC_MODE_MMC_BALANCE:
+			*profile =  PLATFORM_PROFILE_BALANCED;
+			break;
+		case DYTC_MODE_MMC_PERFORM:
+			*profile =  PLATFORM_PROFILE_PERFORMANCE;
+			break;
+		default: /* Unknown mode */
+			return -EINVAL;
+		}
+		return 0;
+	}
+	if (dytc_profile_available == DYTC_FUNCMODE_PSC) {
+		switch (dytcmode) {
+		case DYTC_MODE_PSC_LOWPOWER:
+			*profile = PLATFORM_PROFILE_LOW_POWER;
+			break;
+		case DYTC_MODE_PSC_BALANCE:
+			*profile =  PLATFORM_PROFILE_BALANCED;
+			break;
+		case DYTC_MODE_PSC_PERFORM:
+			*profile =  PLATFORM_PROFILE_PERFORMANCE;
+			break;
+		default: /* Unknown mode */
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -10187,13 +10217,22 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
 {
 	switch (profile) {
 	case PLATFORM_PROFILE_LOW_POWER:
-		*perfmode = DYTC_MODE_LOWPOWER;
+		if (dytc_profile_available == DYTC_FUNCMODE_MMC)
+			*perfmode = DYTC_MODE_MMC_LOWPOWER;
+		else if (dytc_profile_available == DYTC_FUNCMODE_PSC)
+			*perfmode = DYTC_MODE_PSC_LOWPOWER;
 		break;
 	case PLATFORM_PROFILE_BALANCED:
-		*perfmode = DYTC_MODE_BALANCE;
+		if (dytc_profile_available == DYTC_FUNCMODE_MMC)
+			*perfmode = DYTC_MODE_MMC_BALANCE;
+		else if (dytc_profile_available == DYTC_FUNCMODE_PSC)
+			*perfmode = DYTC_MODE_PSC_BALANCE;
 		break;
 	case PLATFORM_PROFILE_PERFORMANCE:
-		*perfmode = DYTC_MODE_PERFORM;
+		if (dytc_profile_available == DYTC_FUNCMODE_MMC)
+			*perfmode = DYTC_MODE_MMC_PERFORM;
+		else if (dytc_profile_available == DYTC_FUNCMODE_PSC)
+			*perfmode = DYTC_MODE_PSC_PERFORM;
 		break;
 	default: /* Unknown profile */
 		return -EOPNOTSUPP;
@@ -10266,25 +10305,39 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 	if (err)
 		return err;
 
-	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/*
-		 * To get back to balanced mode we need to issue a reset command.
-		 * Note we still need to disable CQL mode before hand and re-enable
-		 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
-		 * stuck at 0 for aprox. 30 minutes.
-		 */
-		err = dytc_cql_command(DYTC_CMD_RESET, &output);
-		if (err)
-			goto unlock;
-	} else {
+	if (dytc_profile_available == DYTC_FUNCMODE_MMC) {
+		if (profile == PLATFORM_PROFILE_BALANCED) {
+			/*
+			 * To get back to balanced mode we need to issue a reset command.
+			 * Note we still need to disable CQL mode before hand and re-enable
+			 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
+			 * stuck at 0 for aprox. 30 minutes.
+			 */
+			err = dytc_cql_command(DYTC_CMD_RESET, &output);
+			if (err)
+				goto unlock;
+		} else {
+			int perfmode;
+
+			err = convert_profile_to_dytc(profile, &perfmode);
+			if (err)
+				goto unlock;
+
+			/* Determine if we are in CQL mode. This alters the commands we do */
+			err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
+						&output);
+			if (err)
+				goto unlock;
+		}
+	}
+	if (dytc_profile_available == DYTC_FUNCMODE_PSC) {
 		int perfmode;
 
 		err = convert_profile_to_dytc(profile, &perfmode);
 		if (err)
 			goto unlock;
 
-		/* Determine if we are in CQL mode. This alters the commands we do */
-		err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1), &output);
+		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
 			goto unlock;
 	}
@@ -10302,10 +10355,14 @@ static void dytc_profile_refresh(void)
 	int perfmode;
 
 	mutex_lock(&dytc_mutex);
-	if (dytc_mmc_get_available)
-		err = dytc_command(DYTC_CMD_MMC_GET, &output);
-	else
-		err = dytc_cql_command(DYTC_CMD_GET, &output);
+	if (dytc_profile_available == DYTC_FUNCMODE_MMC) {
+		if (dytc_mmc_get_available)
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+		else
+			err = dytc_cql_command(DYTC_CMD_GET, &output);
+	} else if (dytc_profile_available == DYTC_FUNCMODE_PSC)
+		err = dytc_command(DYTC_CMD_GET, &output);
+
 	mutex_unlock(&dytc_mutex);
 	if (err)
 		return;
@@ -10332,6 +10389,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	set_bit(PLATFORM_PROFILE_BALANCED, dytc_profile.choices);
 	set_bit(PLATFORM_PROFILE_PERFORMANCE, dytc_profile.choices);
 
+	dytc_profile_available = DYTC_FUNCMODE_NONE;
 	err = dytc_command(DYTC_CMD_QUERY, &output);
 	if (err)
 		return err;
@@ -10343,27 +10401,34 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (dytc_version < 5)
 		return -ENODEV;
 
-	/* Check what capabilities are supported. Currently MMC is needed */
+	/* Check what capabilities are supported */
 	err = dytc_command(DYTC_CMD_FUNC_CAP, &output);
 	if (err)
 		return err;
-	if (!(output & BIT(DYTC_FC_MMC))) {
-		dbg_printk(TPACPI_DBG_INIT, " DYTC MMC mode not supported\n");
+
+	if (test_bit(DYTC_FC_MMC, (void *)&output)) { /* MMC MODE */
+		dytc_profile_available = DYTC_FUNCMODE_MMC;
+
+		/*
+		 * Check if MMC_GET functionality available
+		 * Version > 6 and return success from MMC_GET command
+		 */
+		dytc_mmc_get_available = false;
+		if (dytc_version >= 6) {
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
+				dytc_mmc_get_available = true;
+		}
+	} else if (test_bit(DYTC_FC_PSC, (void *)&output)) { /*PSC MODE */
+		dytc_profile_available = DYTC_FUNCMODE_PSC;
+	} else {
+		dbg_printk(TPACPI_DBG_INIT, "No DYTC support available\n");
 		return -ENODEV;
 	}
 
 	dbg_printk(TPACPI_DBG_INIT,
 			"DYTC version %d: thermal mode available\n", dytc_version);
-	/*
-	 * Check if MMC_GET functionality available
-	 * Version > 6 and return success from MMC_GET command
-	 */
-	dytc_mmc_get_available = false;
-	if (dytc_version >= 6) {
-		err = dytc_command(DYTC_CMD_MMC_GET, &output);
-		if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
-			dytc_mmc_get_available = true;
-	}
+
 	/* Create platform_profile structure and register */
 	err = platform_profile_register(&dytc_profile);
 	/*
@@ -10381,6 +10446,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 
 static void dytc_profile_exit(void)
 {
+	dytc_profile_available = DYTC_FUNCMODE_NONE;
 	platform_profile_remove();
 }
 
