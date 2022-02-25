@@ -1730,7 +1730,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		break;
 	case IP_VERSION(9, 4, 3):
 		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0), adev->gfx.num_xcd);
-		bitmap_set(adev->vmhubs_mask, AMDGPU_MMHUB0(0), 1);
+		bitmap_set(adev->vmhubs_mask, AMDGPU_MMHUB0(0), adev->num_aid);
 
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
