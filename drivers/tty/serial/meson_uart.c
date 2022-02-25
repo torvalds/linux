@@ -720,15 +720,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
-	if (!devm_request_mem_region(&pdev->dev, res_mem->start,
-				     resource_size(res_mem),
-				     dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev, "Memory region busy\n");
-		return -EBUSY;
-	}
-
-	port->membase = devm_ioremap(&pdev->dev, res_mem->start,
-				     resource_size(res_mem));
+	port->membase = devm_ioremap_resource(&pdev->dev, res_mem);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
 
