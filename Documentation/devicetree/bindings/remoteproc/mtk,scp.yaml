@@ -42,6 +42,9 @@ properties:
   clock-names:
     const: main
 
+  interrupts:
+    maxItems: 1
+
 required:
   - compatible
   - reg
