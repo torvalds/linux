@@ -451,6 +451,18 @@ static void sii902x_set_embedded_sync(struct sii902x *sii902x)
 	if (!sii902x_check_embedded_format(sii902x->bus_format))
 		return;
 
+	switch (sii902x->bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
+					     0x20, 0x20);
+		break;
+	default:
+		break;
+	}
+
 	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
 				     0x80,  0x00);
 	regmap_write(sii902x->regmap,
@@ -490,6 +502,10 @@ static void sii902x_set_format(struct sii902x *sii902x)
 	case MEDIA_BUS_FMT_YVYU8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		val = SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
 		break;
 	case MEDIA_BUS_FMT_YUV8_1X24:
@@ -538,6 +554,10 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	case MEDIA_BUS_FMT_YVYU8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		buf[8] |= SII902X_TPI_AVI_PIXEL_REP_RISING_EDGE;
 		break;
 	default:
@@ -550,6 +570,10 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	case MEDIA_BUS_FMT_YVYU8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
 		break;
 	case MEDIA_BUS_FMT_YUV8_1X24:
