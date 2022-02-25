@@ -942,6 +942,12 @@ config GART_IOMMU
 
 	  If unsure, say Y.
 
+config BOOT_VESA_SUPPORT
+	bool
+	help
+	  If true, at least one selected framebuffer driver can take advantage
+	  of VESA video modes set at an early boot stage via the vga= parameter.
+
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL
