@@ -29,7 +29,7 @@ enum {
 
 struct pxa_spi_info {
 	enum pxa_ssp_type type;
-	int port_id;
+	unsigned int port_id;
 	unsigned int num_chipselect;
 	unsigned long max_clk_rate;
 
@@ -116,6 +116,7 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 
 static int ce4100_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	c->port_id = dev->devfn;
 	c->num_chipselect = dev->devfn;
 	c->max_clk_rate = 3686400;
 
@@ -169,6 +170,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 
 static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	c->port_id = dev->devfn;
 	c->num_chipselect = 1;
 	c->max_clk_rate = 50000000;
 
@@ -178,7 +180,6 @@ static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_CE4100] = {
 		.type = PXA25x_SSP,
-		.port_id =  -1,
 		.setup = ce4100_spi_setup,
 	},
 	[PORT_BYT] = {
@@ -216,7 +217,6 @@ static struct pxa_spi_info spi_info_configs[] = {
 	},
 	[PORT_QUARK_X1000] = {
 		.type = QUARK_X1000_SSP,
-		.port_id = -1,
 		.setup = qrk_spi_setup,
 	},
 	[PORT_LPT0] = {
@@ -271,8 +271,8 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp->dev = &dev->dev;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = pcim_iomap_table(dev)[0];
-	ssp->port_id = (c->port_id >= 0) ? c->port_id : dev->devfn;
 	ssp->type = c->type;
+	ssp->port_id = c->port_id;
 
 	pci_set_master(dev);
 
