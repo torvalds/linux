@@ -968,6 +968,13 @@ struct lpfc_hba {
 					    struct lpfc_dmabuf *bmp,
 					    u16 cmd_size, u32 did, u32 elscmd,
 					    u8 tmo, u8 expect_rsp);
+	void (*__lpfc_sli_prep_gen_req)(struct lpfc_iocbq *cmdiocbq,
+					struct lpfc_dmabuf *bmp, u16 rpi,
+					u32 num_entry, u8 tmo);
+	void (*__lpfc_sli_prep_xmit_seq64)(struct lpfc_iocbq *cmdiocbq,
+					   struct lpfc_dmabuf *bmp, u16 rpi,
+					   u16 ox_id, u32 num_entry, u8 rctl,
+					   u8 last_seq, u8 cr_cx_cmd);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1847,6 +1854,15 @@ u16 get_job_rcvoxid(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		return bf_get(wqe_rcvoxid, &iocbq->wqe.generic.wqe_com);
 	else
 		return iocbq->iocb.unsli3.rcvsli3.ox_id;
+}
+
+static inline
+u32 get_job_data_placed(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wcqe_cmpl.total_data_placed;
+	else
+		return iocbq->iocb.un.genreq64.bdl.bdeSize;
 }
 
 static inline

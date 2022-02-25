@@ -1255,20 +1255,15 @@ __lpfc_sli_get_els_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	struct lpfc_sglq *start_sglq = NULL;
 	struct lpfc_io_buf *lpfc_cmd;
 	struct lpfc_nodelist *ndlp;
-	struct lpfc_sli_ring *pring = NULL;
 	int found = 0;
+	u8 cmnd;
 
-	if (piocbq->cmd_flag & LPFC_IO_NVME_LS)
-		pring =  phba->sli4_hba.nvmels_wq->pring;
-	else
-		pring = lpfc_phba_elsring(phba);
-
-	lockdep_assert_held(&pring->ring_lock);
+	cmnd = get_job_cmnd(phba, piocbq);
 
 	if (piocbq->cmd_flag &  LPFC_IO_FCP) {
 		lpfc_cmd = (struct lpfc_io_buf *) piocbq->context1;
 		ndlp = lpfc_cmd->rdata->pnode;
-	} else  if ((piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) &&
+	} else  if ((cmnd == CMD_GEN_REQUEST64_CR) &&
 			!(piocbq->cmd_flag & LPFC_IO_LIBDFC)) {
 		ndlp = piocbq->context_un.ndlp;
 	} else  if (piocbq->cmd_flag & LPFC_IO_LIBDFC) {
@@ -3367,6 +3362,56 @@ lpfc_complete_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return 0;
 }
 
+static void
+lpfc_sli_prep_unsol_wqe(struct lpfc_hba *phba,
+			struct lpfc_iocbq *saveq)
+{
+	IOCB_t *irsp;
+	union lpfc_wqe128 *wqe;
+	u16 i = 0;
+
+	irsp = &saveq->iocb;
+	wqe = &saveq->wqe;
+
+	/* Fill wcqe with the IOCB status fields */
+	bf_set(lpfc_wcqe_c_status, &saveq->wcqe_cmpl, irsp->ulpStatus);
+	saveq->wcqe_cmpl.word3 = irsp->ulpBdeCount;
+	saveq->wcqe_cmpl.parameter = irsp->un.ulpWord[4];
+	saveq->wcqe_cmpl.total_data_placed = irsp->unsli3.rcvsli3.acc_len;
+
+	/* Source ID */
+	bf_set(els_rsp64_sid, &wqe->xmit_els_rsp, irsp->un.rcvels.parmRo);
+
+	/* rx-id of the response frame */
+	bf_set(wqe_ctxt_tag, &wqe->xmit_els_rsp.wqe_com, irsp->ulpContext);
+
+	/* ox-id of the frame */
+	bf_set(wqe_rcvoxid, &wqe->xmit_els_rsp.wqe_com,
+	       irsp->unsli3.rcvsli3.ox_id);
+
+	/* DID */
+	bf_set(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest,
+	       irsp->un.rcvels.remoteID);
+
+	/* unsol data len */
+	for (i = 0; i < irsp->ulpBdeCount; i++) {
+		struct lpfc_hbq_entry *hbqe = NULL;
+
+		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+			if (i == 0) {
+				hbqe = (struct lpfc_hbq_entry *)
+					&irsp->un.ulpWord[0];
+				saveq->wqe.gen_req.bde.tus.f.bdeSize =
+					hbqe->bde.tus.f.bdeSize;
+			} else if (i == 1) {
+				hbqe = (struct lpfc_hbq_entry *)
+					&irsp->unsli3.sli3Words[4];
+				saveq->unsol_rcv_len = hbqe->bde.tus.f.bdeSize;
+			}
+		}
+	}
+}
+
 /**
  * lpfc_sli_process_unsol_iocb - Unsolicited iocb handler
  * @phba: Pointer to HBA context object.
@@ -3387,11 +3432,13 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	IOCB_t           * irsp;
 	WORD5            * w5p;
+	dma_addr_t	 paddr;
 	uint32_t           Rctl, Type;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_dmabuf *dmzbuf;
 
-	irsp = &(saveq->iocb);
+	irsp = &saveq->iocb;
+	saveq->vport = phba->pport;
 
 	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
 		if (pring->lpfc_sli_rcv_async_status)
@@ -3409,22 +3456,22 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	if ((irsp->ulpCommand == CMD_IOCB_RET_XRI64_CX) &&
-		(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)) {
+	    (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)) {
 		if (irsp->ulpBdeCount > 0) {
 			dmzbuf = lpfc_sli_get_buff(phba, pring,
-					irsp->un.ulpWord[3]);
+						   irsp->un.ulpWord[3]);
 			lpfc_in_buf_free(phba, dmzbuf);
 		}
 
 		if (irsp->ulpBdeCount > 1) {
 			dmzbuf = lpfc_sli_get_buff(phba, pring,
-					irsp->unsli3.sli3Words[3]);
+						   irsp->unsli3.sli3Words[3]);
 			lpfc_in_buf_free(phba, dmzbuf);
 		}
 
 		if (irsp->ulpBdeCount > 2) {
 			dmzbuf = lpfc_sli_get_buff(phba, pring,
-				irsp->unsli3.sli3Words[7]);
+						   irsp->unsli3.sli3Words[7]);
 			lpfc_in_buf_free(phba, dmzbuf);
 		}
 
@@ -3457,9 +3504,10 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					irsp->unsli3.sli3Words[7]);
 		}
 		list_for_each_entry(iocbq, &saveq->list, list) {
-			irsp = &(iocbq->iocb);
+			irsp = &iocbq->iocb;
 			if (irsp->ulpBdeCount != 0) {
-				iocbq->context2 = lpfc_sli_get_buff(phba, pring,
+				iocbq->context2 = lpfc_sli_get_buff(phba,
+							pring,
 							irsp->un.ulpWord[3]);
 				if (!iocbq->context2)
 					lpfc_printf_log(phba,
@@ -3471,7 +3519,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						irsp->un.ulpWord[3]);
 			}
 			if (irsp->ulpBdeCount == 2) {
-				iocbq->context3 = lpfc_sli_get_buff(phba, pring,
+				iocbq->context3 = lpfc_sli_get_buff(phba,
+						pring,
 						irsp->unsli3.sli3Words[7]);
 				if (!iocbq->context3)
 					lpfc_printf_log(phba,
@@ -3484,7 +3533,20 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						irsp->unsli3.sli3Words[7]);
 			}
 		}
+	} else {
+		paddr = getPaddr(irsp->un.cont64[0].addrHigh,
+				 irsp->un.cont64[0].addrLow);
+		saveq->context2 = lpfc_sli_ringpostbuf_get(phba, pring,
+							     paddr);
+		if (irsp->ulpBdeCount == 2) {
+			paddr = getPaddr(irsp->un.cont64[1].addrHigh,
+					 irsp->un.cont64[1].addrLow);
+			saveq->context3 = lpfc_sli_ringpostbuf_get(phba,
+								   pring,
+								   paddr);
+		}
 	}
+
 	if (irsp->ulpBdeCount != 0 &&
 	    (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX ||
 	     irsp->ulpStatus == IOSTAT_INTERMED_RSP)) {
@@ -3502,12 +3564,14 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if (!found)
 			list_add_tail(&saveq->clist,
 				      &pring->iocb_continue_saveq);
+
 		if (saveq->iocb.ulpStatus != IOSTAT_INTERMED_RSP) {
 			list_del_init(&iocbq->clist);
 			saveq = iocbq;
-			irsp = &(saveq->iocb);
-		} else
+			irsp = &saveq->iocb;
+		} else {
 			return 0;
+		}
 	}
 	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX) ||
 	    (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX) ||
@@ -3529,6 +3593,19 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			w5p->hcsw.Type = Type;
 		}
 	}
+
+	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
+	    (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX ||
+	    irsp->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
+		if (irsp->unsli3.rcvsli3.vpi == 0xffff)
+			saveq->vport = phba->pport;
+		else
+			saveq->vport = lpfc_find_vport_by_vpid(phba,
+					       irsp->unsli3.rcvsli3.vpi);
+	}
+
+	/* Prepare WQE with Unsol frame */
+	lpfc_sli_prep_unsol_wqe(phba, saveq);
 
 	if (!lpfc_complete_unsol_iocb(phba, pring, saveq, Rctl, Type))
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
@@ -10570,6 +10647,195 @@ lpfc_sli_prep_els_req_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
 					  elscmd, tmo, expect_rsp);
 }
 
+static void
+__lpfc_sli_prep_gen_req_s3(struct lpfc_iocbq *cmdiocbq, struct lpfc_dmabuf *bmp,
+			   u16 rpi, u32 num_entry, u8 tmo)
+{
+	IOCB_t *cmd;
+
+	cmd = &cmdiocbq->iocb;
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
+	cmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
+	cmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+	cmd->un.genreq64.bdl.bdeSize = num_entry * sizeof(struct ulp_bde64);
+
+	cmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
+	cmd->un.genreq64.w5.hcsw.Type = FC_TYPE_CT;
+	cmd->un.genreq64.w5.hcsw.Fctl = (SI | LA);
+
+	cmd->ulpContext = rpi;
+	cmd->ulpClass = CLASS3;
+	cmd->ulpCommand = CMD_GEN_REQUEST64_CR;
+	cmd->ulpBdeCount = 1;
+	cmd->ulpLe = 1;
+	cmd->ulpOwner = OWN_CHIP;
+	cmd->ulpTimeout = tmo;
+}
+
+static void
+__lpfc_sli_prep_gen_req_s4(struct lpfc_iocbq *cmdiocbq, struct lpfc_dmabuf *bmp,
+			   u16 rpi, u32 num_entry, u8 tmo)
+{
+	union lpfc_wqe128 *cmdwqe;
+	struct ulp_bde64_le *bde, *bpl;
+	u32 xmit_len = 0, total_len = 0, size, type, i;
+
+	cmdwqe = &cmdiocbq->wqe;
+	memset(cmdwqe, 0, sizeof(*cmdwqe));
+
+	/* Calculate total_len and xmit_len */
+	bpl = (struct ulp_bde64_le *)bmp->virt;
+	for (i = 0; i < num_entry; i++) {
+		size = le32_to_cpu(bpl[i].type_size) & ULP_BDE64_SIZE_MASK;
+		total_len += size;
+	}
+	for (i = 0; i < num_entry; i++) {
+		size = le32_to_cpu(bpl[i].type_size) & ULP_BDE64_SIZE_MASK;
+		type = le32_to_cpu(bpl[i].type_size) & ULP_BDE64_TYPE_MASK;
+		if (type != ULP_BDE64_TYPE_BDE_64)
+			break;
+		xmit_len += size;
+	}
+
+	/* Words 0 - 2 */
+	bde = (struct ulp_bde64_le *)&cmdwqe->generic.bde;
+	bde->addr_low = cpu_to_le32(putPaddrLow(bmp->phys));
+	bde->addr_high = cpu_to_le32(putPaddrHigh(bmp->phys));
+	bde->type_size = cpu_to_le32(xmit_len);
+	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BLP_64);
+
+	/* Word 3 */
+	cmdwqe->gen_req.request_payload_len = xmit_len;
+
+	/* Word 5 */
+	bf_set(wqe_type, &cmdwqe->gen_req.wge_ctl, FC_TYPE_CT);
+	bf_set(wqe_rctl, &cmdwqe->gen_req.wge_ctl, FC_RCTL_DD_UNSOL_CTL);
+	bf_set(wqe_si, &cmdwqe->gen_req.wge_ctl, 1);
+	bf_set(wqe_la, &cmdwqe->gen_req.wge_ctl, 1);
+
+	/* Word 6 */
+	bf_set(wqe_ctxt_tag, &cmdwqe->gen_req.wqe_com, rpi);
+
+	/* Word 7 */
+	bf_set(wqe_tmo, &cmdwqe->gen_req.wqe_com, tmo);
+	bf_set(wqe_class, &cmdwqe->gen_req.wqe_com, CLASS3);
+	bf_set(wqe_cmnd, &cmdwqe->gen_req.wqe_com, CMD_GEN_REQUEST64_CR);
+	bf_set(wqe_ct, &cmdwqe->gen_req.wqe_com, SLI4_CT_RPI);
+
+	/* Word 12 */
+	cmdwqe->gen_req.max_response_payload_len = total_len - xmit_len;
+}
+
+void
+lpfc_sli_prep_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
+		      struct lpfc_dmabuf *bmp, u16 rpi, u32 num_entry, u8 tmo)
+{
+	phba->__lpfc_sli_prep_gen_req(cmdiocbq, bmp, rpi, num_entry, tmo);
+}
+
+static void
+__lpfc_sli_prep_xmit_seq64_s3(struct lpfc_iocbq *cmdiocbq,
+			      struct lpfc_dmabuf *bmp, u16 rpi, u16 ox_id,
+			      u32 num_entry, u8 rctl, u8 last_seq, u8 cr_cx_cmd)
+{
+	IOCB_t *icmd;
+
+	icmd = &cmdiocbq->iocb;
+	memset(icmd, 0, sizeof(*icmd));
+
+	icmd->un.xseq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
+	icmd->un.xseq64.bdl.addrLow = putPaddrLow(bmp->phys);
+	icmd->un.xseq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+	icmd->un.xseq64.bdl.bdeSize = (num_entry * sizeof(struct ulp_bde64));
+	icmd->un.xseq64.w5.hcsw.Fctl = LA;
+	if (last_seq)
+		icmd->un.xseq64.w5.hcsw.Fctl |= LS;
+	icmd->un.xseq64.w5.hcsw.Dfctl = 0;
+	icmd->un.xseq64.w5.hcsw.Rctl = rctl;
+	icmd->un.xseq64.w5.hcsw.Type = FC_TYPE_CT;
+
+	icmd->ulpBdeCount = 1;
+	icmd->ulpLe = 1;
+	icmd->ulpClass = CLASS3;
+
+	switch (cr_cx_cmd) {
+	case CMD_XMIT_SEQUENCE64_CR:
+		icmd->ulpContext = rpi;
+		icmd->ulpCommand = CMD_XMIT_SEQUENCE64_CR;
+		break;
+	case CMD_XMIT_SEQUENCE64_CX:
+		icmd->ulpContext = ox_id;
+		icmd->ulpCommand = CMD_XMIT_SEQUENCE64_CX;
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+__lpfc_sli_prep_xmit_seq64_s4(struct lpfc_iocbq *cmdiocbq,
+			      struct lpfc_dmabuf *bmp, u16 rpi, u16 ox_id,
+			      u32 full_size, u8 rctl, u8 last_seq, u8 cr_cx_cmd)
+{
+	union lpfc_wqe128 *wqe;
+	struct ulp_bde64 *bpl;
+	struct ulp_bde64_le *bde;
+
+	wqe = &cmdiocbq->wqe;
+	memset(wqe, 0, sizeof(*wqe));
+
+	/* Words 0 - 2 */
+	bpl = (struct ulp_bde64 *)bmp->virt;
+	if (cmdiocbq->cmd_flag & (LPFC_IO_LIBDFC | LPFC_IO_LOOPBACK)) {
+		wqe->xmit_sequence.bde.addrHigh = bpl->addrHigh;
+		wqe->xmit_sequence.bde.addrLow = bpl->addrLow;
+		wqe->xmit_sequence.bde.tus.w = bpl->tus.w;
+	} else {
+		bde = (struct ulp_bde64_le *)&wqe->xmit_sequence.bde;
+		bde->addr_low = cpu_to_le32(putPaddrLow(bmp->phys));
+		bde->addr_high = cpu_to_le32(putPaddrHigh(bmp->phys));
+		bde->type_size = cpu_to_le32(bpl->tus.f.bdeSize);
+		bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
+	}
+
+	/* Word 5 */
+	bf_set(wqe_ls, &wqe->xmit_sequence.wge_ctl, last_seq);
+	bf_set(wqe_la, &wqe->xmit_sequence.wge_ctl, 1);
+	bf_set(wqe_dfctl, &wqe->xmit_sequence.wge_ctl, 0);
+	bf_set(wqe_rctl, &wqe->xmit_sequence.wge_ctl, rctl);
+	bf_set(wqe_type, &wqe->xmit_sequence.wge_ctl, FC_TYPE_CT);
+
+	/* Word 6 */
+	bf_set(wqe_ctxt_tag, &wqe->xmit_sequence.wqe_com, rpi);
+
+	bf_set(wqe_cmnd, &wqe->xmit_sequence.wqe_com,
+	       CMD_XMIT_SEQUENCE64_WQE);
+
+	/* Word 7 */
+	bf_set(wqe_class, &wqe->xmit_sequence.wqe_com, CLASS3);
+
+	/* Word 9 */
+	bf_set(wqe_rcvoxid, &wqe->xmit_sequence.wqe_com, ox_id);
+
+	/* Word 12 */
+	if (cmdiocbq->cmd_flag & (LPFC_IO_LIBDFC | LPFC_IO_LOOPBACK))
+		wqe->xmit_sequence.xmit_len = full_size;
+	else
+		wqe->xmit_sequence.xmit_len =
+			wqe->xmit_sequence.bde.tus.f.bdeSize;
+}
+
+void
+lpfc_sli_prep_xmit_seq64(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
+			 struct lpfc_dmabuf *bmp, u16 rpi, u16 ox_id,
+			 u32 num_entry, u8 rctl, u8 last_seq, u8 cr_cx_cmd)
+{
+	phba->__lpfc_sli_prep_xmit_seq64(cmdiocbq, bmp, rpi, ox_id, num_entry,
+					 rctl, last_seq, cr_cx_cmd);
+}
+
 /**
  * lpfc_sli_api_table_setup - Set up sli api function jump table
  * @phba: The hba struct for which this call is being executed.
@@ -10589,12 +10855,16 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s3;
 		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s3;
 		phba->__lpfc_sli_prep_els_req_rsp = __lpfc_sli_prep_els_req_rsp_s3;
+		phba->__lpfc_sli_prep_gen_req = __lpfc_sli_prep_gen_req_s3;
+		phba->__lpfc_sli_prep_xmit_seq64 = __lpfc_sli_prep_xmit_seq64_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->__lpfc_sli_issue_iocb = __lpfc_sli_issue_iocb_s4;
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s4;
 		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s4;
 		phba->__lpfc_sli_prep_els_req_rsp = __lpfc_sli_prep_els_req_rsp_s4;
+		phba->__lpfc_sli_prep_gen_req = __lpfc_sli_prep_gen_req_s4;
+		phba->__lpfc_sli_prep_xmit_seq64 = __lpfc_sli_prep_xmit_seq64_s4;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -18469,7 +18739,6 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 	struct fc_frame_header *fc_hdr;
 	uint32_t sid;
 	uint32_t len, tot_len;
-	struct ulp_bde64 *pbde;
 
 	fc_hdr = (struct fc_frame_header *)seq_dmabuf->hbuf.virt;
 	/* remove from receive buffer list */
@@ -18482,40 +18751,40 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 	first_iocbq = lpfc_sli_get_iocbq(vport->phba);
 	if (first_iocbq) {
 		/* Initialize the first IOCB. */
-		first_iocbq->iocb.unsli3.rcvsli3.acc_len = 0;
-		first_iocbq->iocb.ulpStatus = IOSTAT_SUCCESS;
+		first_iocbq->wcqe_cmpl.total_data_placed = 0;
+		bf_set(lpfc_wcqe_c_status, &first_iocbq->wcqe_cmpl,
+		       IOSTAT_SUCCESS);
 		first_iocbq->vport = vport;
 
 		/* Check FC Header to see what TYPE of frame we are rcv'ing */
 		if (sli4_type_from_fc_hdr(fc_hdr) == FC_TYPE_ELS) {
-			first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_ELS64_CX;
-			first_iocbq->iocb.un.rcvels.parmRo =
-				sli4_did_from_fc_hdr(fc_hdr);
-			first_iocbq->iocb.ulpPU = PARM_NPIV_DID;
-		} else
-			first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_SEQ64_CX;
-		first_iocbq->iocb.ulpContext = NO_XRI;
-		first_iocbq->iocb.unsli3.rcvsli3.ox_id =
-			be16_to_cpu(fc_hdr->fh_ox_id);
-		/* iocbq is prepped for internal consumption.  Physical vpi. */
-		first_iocbq->iocb.unsli3.rcvsli3.vpi =
-			vport->phba->vpi_ids[vport->vpi];
-		/* put the first buffer into the first IOCBq */
+			bf_set(els_rsp64_sid, &first_iocbq->wqe.xmit_els_rsp,
+			       sli4_did_from_fc_hdr(fc_hdr));
+		}
+
+		bf_set(wqe_ctxt_tag, &first_iocbq->wqe.xmit_els_rsp.wqe_com,
+		       NO_XRI);
+		bf_set(wqe_rcvoxid, &first_iocbq->wqe.xmit_els_rsp.wqe_com,
+		       be16_to_cpu(fc_hdr->fh_ox_id));
+
+		/* put the first buffer into the first iocb */
 		tot_len = bf_get(lpfc_rcqe_length,
-				       &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
+				 &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
 
 		first_iocbq->context2 = &seq_dmabuf->dbuf;
 		first_iocbq->context3 = NULL;
-		first_iocbq->iocb.ulpBdeCount = 1;
+		/* Keep track of the BDE count */
+		first_iocbq->wcqe_cmpl.word3 = 1;
+
 		if (tot_len > LPFC_DATA_BUF_SIZE)
-			first_iocbq->iocb.un.cont64[0].tus.f.bdeSize =
-							LPFC_DATA_BUF_SIZE;
+			first_iocbq->wqe.gen_req.bde.tus.f.bdeSize =
+				LPFC_DATA_BUF_SIZE;
 		else
-			first_iocbq->iocb.un.cont64[0].tus.f.bdeSize = tot_len;
+			first_iocbq->wqe.gen_req.bde.tus.f.bdeSize = tot_len;
 
-		first_iocbq->iocb.un.rcvels.remoteID = sid;
-
-		first_iocbq->iocb.unsli3.rcvsli3.acc_len = tot_len;
+		first_iocbq->wcqe_cmpl.total_data_placed = tot_len;
+		bf_set(wqe_els_did, &first_iocbq->wqe.xmit_els_rsp.wqe_dest,
+		       sid);
 	}
 	iocbq = first_iocbq;
 	/*
@@ -18529,28 +18798,23 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		}
 		if (!iocbq->context3) {
 			iocbq->context3 = d_buf;
-			iocbq->iocb.ulpBdeCount++;
+			iocbq->wcqe_cmpl.word3++;
 			/* We need to get the size out of the right CQE */
 			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 			len = bf_get(lpfc_rcqe_length,
 				       &hbq_buf->cq_event.cqe.rcqe_cmpl);
-			pbde = (struct ulp_bde64 *)
-					&iocbq->iocb.unsli3.sli3Words[4];
-			if (len > LPFC_DATA_BUF_SIZE)
-				pbde->tus.f.bdeSize = LPFC_DATA_BUF_SIZE;
-			else
-				pbde->tus.f.bdeSize = len;
-
-			iocbq->iocb.unsli3.rcvsli3.acc_len += len;
+			iocbq->unsol_rcv_len = len;
+			iocbq->wcqe_cmpl.total_data_placed += len;
 			tot_len += len;
 		} else {
 			iocbq = lpfc_sli_get_iocbq(vport->phba);
 			if (!iocbq) {
 				if (first_iocbq) {
-					first_iocbq->iocb.ulpStatus =
-							IOSTAT_FCP_RSP_ERROR;
-					first_iocbq->iocb.un.ulpWord[4] =
-							IOERR_NO_RESOURCES;
+					bf_set(lpfc_wcqe_c_status,
+					       &first_iocbq->wcqe_cmpl,
+					       IOSTAT_SUCCESS);
+					first_iocbq->wcqe_cmpl.parameter =
+						IOERR_NO_RESOURCES;
 				}
 				lpfc_in_buf_free(vport->phba, d_buf);
 				continue;
@@ -18561,17 +18825,19 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 				       &hbq_buf->cq_event.cqe.rcqe_cmpl);
 			iocbq->context2 = d_buf;
 			iocbq->context3 = NULL;
-			iocbq->iocb.ulpBdeCount = 1;
+			iocbq->wcqe_cmpl.word3 = 1;
+
 			if (len > LPFC_DATA_BUF_SIZE)
-				iocbq->iocb.un.cont64[0].tus.f.bdeSize =
-							LPFC_DATA_BUF_SIZE;
+				iocbq->wqe.xmit_els_rsp.bde.tus.f.bdeSize =
+					LPFC_DATA_BUF_SIZE;
 			else
-				iocbq->iocb.un.cont64[0].tus.f.bdeSize = len;
+				iocbq->wqe.xmit_els_rsp.bde.tus.f.bdeSize =
+					len;
 
 			tot_len += len;
-			iocbq->iocb.unsli3.rcvsli3.acc_len = tot_len;
-
-			iocbq->iocb.un.rcvels.remoteID = sid;
+			iocbq->wcqe_cmpl.total_data_placed = tot_len;
+			bf_set(wqe_els_did, &iocbq->wqe.xmit_els_rsp.wqe_dest,
+			       sid);
 			list_add_tail(&iocbq->list, &first_iocbq->list);
 		}
 	}

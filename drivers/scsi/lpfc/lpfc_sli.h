@@ -75,6 +75,7 @@ struct lpfc_iocbq {
 	IOCB_t iocb;		/* SLI-3 */
 	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
+	u32 unsol_rcv_len;	/* Receive len in usol path */
 	uint8_t num_bdes;
 	uint8_t abort_bls;	/* ABTS by initiator or responder */
 

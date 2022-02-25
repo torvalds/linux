@@ -358,6 +358,14 @@ void lpfc_sli_prep_els_req_rsp(struct lpfc_hba *phba,
 			       struct lpfc_vport *vport,
 			       struct lpfc_dmabuf *bmp, u16 cmd_size, u32 did,
 			       u32 elscmd, u8 tmo, u8 expect_rsp);
+void lpfc_sli_prep_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
+			   struct lpfc_dmabuf *bmp, u16 rpi, u32 num_entry,
+			   u8 tmo);
+void lpfc_sli_prep_xmit_seq64(struct lpfc_hba *phba,
+			      struct lpfc_iocbq *cmdiocbq,
+			      struct lpfc_dmabuf *bmp, u16 rpi, u16 ox_id,
+			      u32 num_entry, u8 rctl, u8 last_seq,
+			      u8 cr_cx_cmd);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
 struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
 					    struct lpfc_iocbq *piocbq);
