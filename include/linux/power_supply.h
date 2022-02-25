@@ -498,6 +498,14 @@ struct power_supply_maintenance_charge_table {
  *   by temperature: highest temperature with lowest resistance first, lowest
  *   temperature with highest resistance last.
  * @resist_table_size: the number of items in the resist_table.
+ * @bti_resistance_ohm: The Battery Type Indicator (BIT) nominal resistance
+ *   in ohms for this battery, if an identification resistor is mounted
+ *   between a third battery terminal and ground. This scheme is used by a lot
+ *   of mobile device batteries.
+ * @bti_resistance_tolerance: The tolerance in percent of the BTI resistance,
+ *   for example 10 for +/- 10%, if the bti_resistance is set to 7000 and the
+ *   tolerance is 10% we will detect a proper battery if the BTI resistance
+ *   is between 6300 and 7700 Ohm.
  *
  * This is the recommended struct to manage static battery parameters,
  * populated by power_supply_get_battery_info(). Most platform drivers should
@@ -624,6 +632,8 @@ struct power_supply_battery_info {
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	struct power_supply_resistance_temp_table *resist_table;
 	int resist_table_size;
+	int bti_resistance_ohm;
+	int bti_resistance_tolerance;
 };
 
 extern struct atomic_notifier_head power_supply_notifier;
@@ -667,6 +677,8 @@ power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *table
 				int table_len, int temp);
 extern struct power_supply_maintenance_charge_table *
 power_supply_get_maintenance_charging_setting(struct power_supply_battery_info *info, int index);
+extern bool power_supply_battery_bti_in_range(struct power_supply_battery_info *info,
+					      int resistance);
 extern void power_supply_changed(struct power_supply *psy);
 extern int power_supply_am_i_supplied(struct power_supply *psy);
 int power_supply_get_property_from_supplier(struct power_supply *psy,
@@ -683,6 +695,7 @@ power_supply_supports_maintenance_charging(struct power_supply_battery_info *inf
 
 	return (mt != NULL);
 }
+
 
 #ifdef CONFIG_POWER_SUPPLY
 extern int power_supply_is_system_supplied(void);

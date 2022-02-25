@@ -328,16 +328,6 @@ struct ab8500_maxim_parameters {
 };
 
 /**
- * struct ab8500_battery_type - different batteries supported
- * @resis_high:			battery upper resistance limit
- * @resis_low:			battery lower resistance limit
- */
-struct ab8500_battery_type {
-	int resis_high;
-	int resis_low;
-};
-
-/**
  * struct ab8500_bm_capacity_levels - ab8500 capacity level data
  * @critical:		critical capacity level in percent
  * @low:		low capacity level in percent
@@ -387,7 +377,6 @@ struct ab8500_bm_charger_parameters {
  * @temp_hysteresis	temperature hysteresis
  * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
- * @bat_type		table of supported battery types
  * @chg_params		charger parameters
  * @fg_params		fuel gauge parameters
  */
@@ -410,7 +399,6 @@ struct ab8500_bm_data {
 	int temp_hysteresis;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;
-	struct ab8500_battery_type *bat_type;
 	const struct ab8500_bm_charger_parameters *chg_params;
 	const struct ab8500_fg_parameters *fg_params;
 };

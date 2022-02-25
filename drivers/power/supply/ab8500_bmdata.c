@@ -73,12 +73,6 @@ static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] =
 	}
 };
 
-/* Default battery type for reference designs is the unknown type */
-static struct ab8500_battery_type bat_type_thermistor_unknown = {
-	.resis_high = 0,
-	.resis_low = 0,
-};
-
 static const struct ab8500_bm_capacity_levels cap_levels = {
 	.critical	= 2,
 	.low		= 10,
@@ -136,7 +130,6 @@ struct ab8500_bm_data ab8500_bm_data = {
 	.enable_overshoot       = false,
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
-	.bat_type               = &bat_type_thermistor_unknown,
 	.interval_charging      = 5,
 	.interval_not_charging  = 120,
 	.maxi                   = &ab8500_maxi_params,
@@ -212,6 +205,13 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		bi->factory_internal_resistance_uohm = 300000;
 		bi->resist_table = temp_to_batres_tbl_thermistor;
 		bi->resist_table_size = ARRAY_SIZE(temp_to_batres_tbl_thermistor);
+	}
+
+	/* The default battery is emulated by a resistor at 7K */
+	if (bi->bti_resistance_ohm < 0 ||
+	    bi->bti_resistance_tolerance < 0) {
+		bi->bti_resistance_ohm = 7000;
+		bi->bti_resistance_tolerance = 20;
 	}
 
 	if (!bi->ocv_table[0]) {
