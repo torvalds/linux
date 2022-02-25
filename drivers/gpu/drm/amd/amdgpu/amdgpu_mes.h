@@ -265,6 +265,9 @@ void amdgpu_mes_remove_ring(struct amdgpu_device *adev,
 int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 				   struct amdgpu_mes_ctx_data *ctx_data);
 void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data);
+int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,
+				 struct amdgpu_vm *vm,
+				 struct amdgpu_mes_ctx_data *ctx_data);
 
 int amdgpu_mes_self_test(struct amdgpu_device *adev);
 

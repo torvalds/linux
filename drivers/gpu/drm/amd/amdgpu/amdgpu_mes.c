@@ -883,40 +883,76 @@ void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data)
 		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj, NULL, NULL);
 }
 
-static int amdgpu_mes_test_map_ctx_meta_data(struct amdgpu_device *adev,
-				     struct amdgpu_vm *vm,
-				     struct amdgpu_mes_ctx_data *ctx_data)
+int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,
+				 struct amdgpu_vm *vm,
+				 struct amdgpu_mes_ctx_data *ctx_data)
 {
-	struct amdgpu_bo_va *meta_data_va = NULL;
-	uint64_t meta_data_addr = AMDGPU_VA_RESERVED_SIZE;
+	struct amdgpu_bo_va *bo_va;
+	struct ww_acquire_ctx ticket;
+	struct list_head list;
+	struct amdgpu_bo_list_entry pd;
+	struct ttm_validate_buffer csa_tv;
+	struct amdgpu_sync sync;
 	int r;
 
-	r = amdgpu_map_static_csa(adev, vm, ctx_data->meta_data_obj,
-				  &meta_data_va, meta_data_addr,
-				  sizeof(struct amdgpu_mes_ctx_meta_data));
-	if (r)
-		return r;
+	amdgpu_sync_create(&sync);
+	INIT_LIST_HEAD(&list);
+	INIT_LIST_HEAD(&csa_tv.head);
 
-	r = amdgpu_vm_bo_update(adev, meta_data_va, false);
-	if (r)
+	csa_tv.bo = &ctx_data->meta_data_obj->tbo;
+	csa_tv.num_shared = 1;
+
+	list_add(&csa_tv.head, &list);
+	amdgpu_vm_get_pd_bo(vm, &list, &pd);
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
+	if (r) {
+		DRM_ERROR("failed to reserve meta data BO: err=%d\n", r);
+		return r;
+	}
+
+	bo_va = amdgpu_vm_bo_add(adev, vm, ctx_data->meta_data_obj);
+	if (!bo_va) {
+		ttm_eu_backoff_reservation(&ticket, &list);
+		DRM_ERROR("failed to create bo_va for meta data BO\n");
+		return -ENOMEM;
+	}
+
+	r = amdgpu_vm_bo_map(adev, bo_va, ctx_data->meta_data_gpu_addr, 0,
+			     sizeof(struct amdgpu_mes_ctx_meta_data),
+			     AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
+			     AMDGPU_PTE_EXECUTABLE);
+
+	if (r) {
+		DRM_ERROR("failed to do bo_map on meta data, err=%d\n", r);
 		goto error;
+	}
+
+	r = amdgpu_vm_bo_update(adev, bo_va, false);
+	if (r) {
+		DRM_ERROR("failed to do vm_bo_update on meta data\n");
+		goto error;
+	}
+	amdgpu_sync_fence(&sync, bo_va->last_pt_update);
 
 	r = amdgpu_vm_update_pdes(adev, vm, false);
-	if (r)
+	if (r) {
+		DRM_ERROR("failed to update pdes on meta data\n");
 		goto error;
+	}
+	amdgpu_sync_fence(&sync, vm->last_update);
 
-	dma_fence_wait(vm->last_update, false);
-	dma_fence_wait(meta_data_va->last_pt_update, false);
+	amdgpu_sync_wait(&sync, false);
+	ttm_eu_backoff_reservation(&ticket, &list);
 
-	ctx_data->meta_data_gpu_addr = meta_data_addr;
-	ctx_data->meta_data_va = meta_data_va;
-
+	amdgpu_sync_free(&sync);
+	ctx_data->meta_data_va = bo_va;
 	return 0;
 
 error:
-	BUG_ON(amdgpu_bo_reserve(ctx_data->meta_data_obj, true));
-	amdgpu_vm_bo_rmv(adev, meta_data_va);
-	amdgpu_bo_unreserve(ctx_data->meta_data_obj);
+	amdgpu_vm_bo_del(adev, bo_va);
+	ttm_eu_backoff_reservation(&ticket, &list);
+	amdgpu_sync_free(&sync);
 	return r;
 }
 
@@ -1029,7 +1065,8 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 		goto error_pasid;
 	}
 
-	r = amdgpu_mes_test_map_ctx_meta_data(adev, vm, &ctx_data);
+	ctx_data.meta_data_gpu_addr = AMDGPU_VA_RESERVED_SIZE;
+	r = amdgpu_mes_ctx_map_meta_data(adev, vm, &ctx_data);
 	if (r) {
 		DRM_ERROR("failed to map ctx meta data\n");
 		goto error_vm;
@@ -1075,7 +1112,7 @@ error_queues:
 
 error_vm:
 	BUG_ON(amdgpu_bo_reserve(ctx_data.meta_data_obj, true));
-	amdgpu_vm_bo_rmv(adev, ctx_data.meta_data_va);
+	amdgpu_vm_bo_del(adev, ctx_data.meta_data_va);
 	amdgpu_bo_unreserve(ctx_data.meta_data_obj);
 	amdgpu_vm_fini(adev, vm);
 
