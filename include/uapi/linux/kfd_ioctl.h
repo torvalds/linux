@@ -463,6 +463,7 @@ enum kfd_smi_event {
 };
 
 #define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
+#define KFD_SMI_EVENT_MSG_SIZE	96
 
 struct kfd_ioctl_smi_events_args {
 	__u32 gpuid;	/* to KFD */
