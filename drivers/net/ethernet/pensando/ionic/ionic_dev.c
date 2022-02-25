@@ -202,21 +202,25 @@ do_check_time:
 		}
 	}
 
+	dev_dbg(ionic->dev, "fw_status 0x%02x ready %d idev->ready %d last_hb 0x%x state 0x%02lx\n",
+		fw_status, fw_status_ready, idev->fw_status_ready,
+		idev->last_fw_hb, lif->state[0]);
+
 	/* is this a transition? */
-	if (fw_status_ready != idev->fw_status_ready) {
+	if (fw_status_ready != idev->fw_status_ready &&
+	    !test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
 		bool trigger = false;
 
 		idev->fw_status_ready = fw_status_ready;
 
-		if (!fw_status_ready && lif &&
+		if (!fw_status_ready &&
 		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
 		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
 			dev_info(ionic->dev, "FW stopped 0x%02x\n", fw_status);
 			trigger = true;
 
-		} else if (fw_status_ready && lif &&
-			   test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
-			   !test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+		} else if (fw_status_ready &&
+			   test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
 			dev_info(ionic->dev, "FW running 0x%02x\n", fw_status);
 			trigger = true;
 		}
