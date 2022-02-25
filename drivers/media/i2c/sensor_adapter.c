@@ -439,10 +439,10 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	s64 link_freq = 0;
 	int i = 0;
-	u64 *preg_addr = NULL;
-	u64 *preg_value = NULL;
-	u64 *preg_addr_bytes = NULL;
-	u64 *preg_value_bytes = NULL;
+	u32 *preg_addr = NULL;
+	u32 *preg_value = NULL;
+	u32 *preg_addr_bytes = NULL;
+	u32 *preg_value_bytes = NULL;
 	u32 lens = 0;
 	u8 dev_num = 0;
 	u32 stream = 0;
@@ -498,7 +498,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 
-		dev_info(&sensor->client->dev, "sensor reg array num %d\n",
+		dev_dbg(&sensor->client->dev, "sensor reg array num %d\n",
 			 reg_s->num_regs);
 		lens = sizeof(u32) * reg_s->num_regs;
 		preg_addr = kzalloc(lens, GFP_KERNEL);
@@ -544,7 +544,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			goto end_set_reg;
 		}
 		for (i = 0; i < reg_s->num_regs; i++) {
-			dev_dbg(&sensor->client->dev, "sensor reg 0x%llx, reg_bytes %lld, val 0x%llx, val_bytes %lld\n",
+			dev_dbg(&sensor->client->dev, "sensor reg 0x%x, reg_bytes %u, val 0x%x, val_bytes %u\n",
 				preg_addr[i], preg_addr_bytes[i], preg_value[i], preg_value_bytes[i]);
 			//custom todo
 			if (g_rkcam_bus_callback[sensor->i2cdev].prkcam_write_i2c_data) {
