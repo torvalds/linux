@@ -607,7 +607,7 @@ static const struct dsc_error_info dsc_buffer_flow[] = {
 
 static const struct vop2_dsc_data rk3588_vop_dsc_data[] = {
 	{
-	 .id = 0,
+	 .id = ROCKCHIP_VOP2_DSC_8K,
 	 .pd_id = VOP2_PD_DSC_8K,
 	 .max_slice_num = 8,
 	 .max_linebuf_depth = 11,
@@ -620,7 +620,7 @@ static const struct vop2_dsc_data rk3588_vop_dsc_data[] = {
 	},
 
 	{
-	 .id = 1,
+	 .id = ROCKCHIP_VOP2_DSC_4K,
 	 .pd_id = VOP2_PD_DSC_4K,
 	 .max_slice_num = 2,
 	 .max_linebuf_depth = 11,
@@ -2066,39 +2066,48 @@ const struct vop2_power_domain_regs rk3588_dsc_4k_pd_regs = {
 static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
 	{
 	  .id = VOP2_PD_CLUSTER0,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_CLUSTER0),
 	  .regs = &rk3588_cluster0_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_CLUSTER1,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_CLUSTER1),
 	  .parent_id = VOP2_PD_CLUSTER0,
 	  .regs = &rk3588_cluster1_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_CLUSTER2,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_CLUSTER2),
 	  .parent_id = VOP2_PD_CLUSTER0,
 	  .regs = &rk3588_cluster2_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_CLUSTER3,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_CLUSTER3),
 	  .parent_id = VOP2_PD_CLUSTER0,
 	  .regs = &rk3588_cluster3_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_ESMART,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_ESMART1) |
+			    BIT(ROCKCHIP_VOP2_ESMART2) |
+			    BIT(ROCKCHIP_VOP2_ESMART3),
 	  .regs = &rk3588_esmart_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_DSC_8K,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_DSC_8K),
 	  .regs = &rk3588_dsc_8k_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_DSC_4K,
+	  .module_id_mask = BIT(ROCKCHIP_VOP2_DSC_4K),
 	  .regs = &rk3588_dsc_4k_pd_regs,
 	},
 };

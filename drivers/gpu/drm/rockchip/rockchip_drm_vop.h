@@ -103,6 +103,12 @@ enum vop2_win_dly_mode {
 };
 
 /*
+ * vop2 dsc id
+ */
+#define ROCKCHIP_VOP2_DSC_8K	0
+#define ROCKCHIP_VOP2_DSC_4K	1
+
+/*
  * vop2 internal power domain id,
  * should be all none zero, 0 will be
  * treat as invalid;
@@ -772,6 +778,12 @@ struct vop2_wb_regs {
 struct vop2_power_domain_data {
 	uint8_t id;
 	uint8_t parent_id;
+	/*
+	 * @module_id_mask: module id of which module this power domain is belongs to.
+	 * PD_CLUSTER0,1,2,3 only belongs to CLUSTER0/1/2/3, PD_Esmart0 shared by Esmart1/2/3
+	 */
+	uint32_t module_id_mask;
+
 	const struct vop2_power_domain_regs *regs;
 };
 
