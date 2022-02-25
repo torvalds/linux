@@ -524,9 +524,9 @@ static int __uc_init_hw(struct intel_uc *uc)
 	}
 
 	drm_info(&i915->drm, "GuC submission %s\n",
-		 enableddisabled(intel_uc_uses_guc_submission(uc)));
+		 str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
 	drm_info(&i915->drm, "GuC SLPC %s\n",
-		 enableddisabled(intel_uc_uses_guc_slpc(uc)));
+		 str_enabled_disabled(intel_uc_uses_guc_slpc(uc)));
 
 	return 0;
 

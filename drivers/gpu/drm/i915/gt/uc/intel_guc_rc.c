@@ -66,7 +66,7 @@ static int __guc_rc_control(struct intel_guc *guc, bool enable)
 	}
 
 	drm_info(&gt->i915->drm, "GuC RC: %s\n",
-		 enableddisabled(enable));
+		 str_enabled_disabled(enable));
 
 	return 0;
 }

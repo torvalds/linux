@@ -95,7 +95,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 
-	seq_printf(m, "self-refresh: %s\n", enableddisabled(sr_enabled));
+	seq_printf(m, "self-refresh: %s\n", str_enabled_disabled(sr_enabled));
 
 	return 0;
 }
@@ -297,7 +297,7 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 		enabled = val & EDP_PSR_ENABLE;
 	}
 	seq_printf(m, "Source PSR ctl: %s [0x%08x]\n",
-		   enableddisabled(enabled), val);
+		   str_enabled_disabled(enabled), val);
 	psr_source_status(intel_dp, m);
 	seq_printf(m, "Busy frontbuffer bits: 0x%08x\n",
 		   psr->busy_frontbuffer_bits);
@@ -344,7 +344,7 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 		}
 
 		seq_printf(m, "PSR2 selective fetch: %s\n",
-			   enableddisabled(psr->psr2_sel_fetch_enabled));
+			   str_enabled_disabled(psr->psr2_sel_fetch_enabled));
 	}
 
 unlock:
@@ -1269,7 +1269,7 @@ static int i915_lpsp_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	seq_printf(m, "LPSP: %s\n", enableddisabled(lpsp_enabled));
+	seq_printf(m, "LPSP: %s\n", str_enabled_disabled(lpsp_enabled));
 
 	return 0;
 }
