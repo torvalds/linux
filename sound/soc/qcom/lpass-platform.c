@@ -986,7 +986,8 @@ static irqreturn_t lpass_dma_interrupt_handler(
 				"error writing to irqclear reg: %d\n", rv);
 			return IRQ_NONE;
 		}
-		dev_warn(soc_runtime->dev, "xrun warning\n");
+		dev_warn_ratelimited(soc_runtime->dev, "xrun warning\n");
+
 		snd_pcm_stop_xrun(substream);
 		ret = IRQ_HANDLED;
 	}
