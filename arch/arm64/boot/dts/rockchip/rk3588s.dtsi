@@ -285,6 +285,14 @@
 			clock-names = "link";
 			#clock-cells = <0>;
 		};
+
+		pclk_vo1_grf: pclk_vo1_grf@fd7c08ec {
+			compatible = "rockchip,rk3588-clock-gate-link";
+			reg = <0x0 0xfd7c08ec 0x0 0x4>;
+			clocks = <&hclk_vo1>;
+			clock-names = "link";
+			#clock-cells = <0>;
+		};
 	};
 
 	cpus {
@@ -1548,6 +1556,7 @@
 	vo1_grf: syscon@fd5a8000 {
 		compatible = "rockchip,rk3588-vo-grf", "syscon";
 		reg = <0x0 0xfd5a8000 0x0 0x100>;
+		clocks = <&pclk_vo1_grf>;
 	};
 
 	usb_grf: syscon@fd5ac000 {
