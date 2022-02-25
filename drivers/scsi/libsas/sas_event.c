@@ -10,29 +10,26 @@
 #include <scsi/scsi_host.h>
 #include "sas_internal.h"
 
-int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
+bool sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {
-	/* it's added to the defer_q when draining so return succeed */
-	int rc = 1;
-
 	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
-		return 0;
+		return false;
 
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
 		/* add it to the defer list, if not already pending */
 		if (list_empty(&sw->drain_node))
 			list_add_tail(&sw->drain_node, &ha->defer_q);
-	} else
-		rc = queue_work(ha->event_q, &sw->work);
+		return true;
+	}
 
-	return rc;
+	return queue_work(ha->event_q, &sw->work);
 }
 
-static int sas_queue_event(int event, struct sas_work *work,
+static bool sas_queue_event(int event, struct sas_work *work,
 			    struct sas_ha_struct *ha)
 {
 	unsigned long flags;
-	int rc;
+	bool rc;
 
 	spin_lock_irqsave(&ha->lock, flags);
 	rc = sas_queue_work(ha, work);
@@ -44,13 +41,12 @@ static int sas_queue_event(int event, struct sas_work *work,
 void sas_queue_deferred_work(struct sas_ha_struct *ha)
 {
 	struct sas_work *sw, *_sw;
-	int ret;
 
 	spin_lock_irq(&ha->lock);
 	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
 		list_del_init(&sw->drain_node);
-		ret = sas_queue_work(ha, sw);
-		if (ret != 1) {
+
+		if (!sas_queue_work(ha, sw)) {
 			pm_runtime_put(ha->dev);
 			sas_free_event(to_asd_sas_event(&sw->work));
 		}
@@ -170,7 +166,6 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 {
 	struct sas_ha_struct *ha = phy->ha;
 	struct asd_sas_event *ev;
-	int ret;
 
 	BUG_ON(event >= PORT_NUM_EVENTS);
 
@@ -186,8 +181,7 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 	if (sas_defer_event(phy, ev))
 		return;
 
-	ret = sas_queue_event(event, &ev->work, ha);
-	if (ret != 1) {
+	if (!sas_queue_event(event, &ev->work, ha)) {
 		pm_runtime_put(ha->dev);
 		sas_free_event(ev);
 	}
@@ -199,7 +193,6 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 {
 	struct sas_ha_struct *ha = phy->ha;
 	struct asd_sas_event *ev;
-	int ret;
 
 	BUG_ON(event >= PHY_NUM_EVENTS);
 
@@ -215,8 +208,7 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 	if (sas_defer_event(phy, ev))
 		return;
 
-	ret = sas_queue_event(event, &ev->work, ha);
-	if (ret != 1) {
+	if (!sas_queue_event(event, &ev->work, ha)) {
 		pm_runtime_put(ha->dev);
 		sas_free_event(ev);
 	}
