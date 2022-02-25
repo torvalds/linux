@@ -153,6 +153,8 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 		return -ENODEV;
 	}
 
+	c->max_clk_rate = 25000000;
+
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(21, 0));
 	ret = devm_add_action_or_reset(&dev->dev, lpss_dma_put_device, dma_dev);
 	if (ret)
@@ -213,7 +215,6 @@ static struct pxa_spi_info spi_info_configs[] = {
 	},
 	[PORT_MRFLD] = {
 		.type = MRFLD_SSP,
-		.max_clk_rate = 25000000,
 		.setup = mrfld_spi_setup,
 	},
 	[PORT_QUARK_X1000] = {
