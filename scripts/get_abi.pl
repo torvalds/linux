@@ -988,7 +988,7 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 B<abi_book.pl> [--debug <level>] [--enable-lineno] [--man] [--help]
 	       [--(no-)rst-source] [--dir=<dir>] [--show-hints]
 	       [--search-string <regex>]
-	       <COMAND> [<ARGUMENT>]
+	       <COMMAND> [<ARGUMENT>]
 
 Where B<COMMAND> can be:
 
