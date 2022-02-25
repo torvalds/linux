@@ -30,31 +30,7 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 
-#ifdef __HAVE_ARCH_MEMMOVE
-#ifndef CONFIG_OPT_LIB_FUNCTION
-void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
-{
-	const char *src = v_src;
-	char *dst = v_dst;
-
-	if (!c)
-		return v_dst;
-
-	/* Use memcpy when source is higher than dest */
-	if (v_dst <= v_src)
-		return memcpy(v_dst, v_src, c);
-
-	/* copy backwards, from end to beginning */
-	src += c;
-	dst += c;
-
-	/* Simple, byte oriented memmove. */
-	while (c--)
-		*--dst = *--src;
-
-	return v_dst;
-}
-#else /* CONFIG_OPT_LIB_FUNCTION */
+#ifdef CONFIG_OPT_LIB_FUNCTION
 void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 {
 	const char *src = v_src;
@@ -215,6 +191,5 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 	}
 	return v_dst;
 }
-#endif /* CONFIG_OPT_LIB_FUNCTION */
 EXPORT_SYMBOL(memmove);
-#endif /* __HAVE_ARCH_MEMMOVE */
+#endif /* CONFIG_OPT_LIB_FUNCTION */
