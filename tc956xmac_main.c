@@ -109,6 +109,9 @@
  *  VERSION     : 01-00-42
  *  22 Feb 2022 : 1. Supported GPIO configuration save and restoration
  *  VERSION     : 01-00-43
+ *  25 Feb 2022 : 1. XPCS module is re-initialized after link-up as MACxPONRST is asserted during link-down.
+ *		  2. Disable Rx side EEE LPI before configuring Rx Parser (FRP). Enable the same after Rx Parser configuration.
+ *  VERSION     : 01-00-44
 */
 
 #include <linux/clk.h>
@@ -6787,11 +6790,19 @@ int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv)
 {
 	int ret = -EINVAL;
 
+	/* Disable XPCS Rx LPI to configure FRP in EEE mode */
+	if (priv->eee_enabled)
+		tc956x_xpcs_ctrl0_lrx(priv, false);
+
 	if (priv->hw->mac->rx_parser_init && priv->plat->rxp_cfg.enable)
 		ret = tc956xmac_rx_parser_init(priv,
 			priv->dev, priv->hw, priv->dma_cap.spram,
 			priv->dma_cap.frpsel, priv->dma_cap.frpes,
 			&priv->plat->rxp_cfg);
+
+	/* Enable XPCS Rx LPI after configuring FRP in EEE mode */
+	if (priv->eee_enabled)
+		tc956x_xpcs_ctrl0_lrx(priv, true);
 
 		/* spram feautre is not present in TC956X */
 	if (ret)
@@ -11778,6 +11789,9 @@ static void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC
 	void *nrst_reg = NULL, *nclk_reg = NULL, *commonrst_reg = NULL, *commonclk_reg = NULL;
 	u32 nrst_val = 0, nclk_val = 0, commonrst_val = 0, commonclk_val = 0;
 	static u32 pm_saved_cmn_linkdown_rst = 0, pm_saved_cmn_linkdown_clk = 0;
+	int ret;
+	bool enable_en = true;
+
 	KPRINT_INFO("-->%s : Port %d", __func__, priv->port_num);
 	/* Select register address by port */
 	if (priv->port_num == 0) {
@@ -11858,6 +11872,24 @@ static void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC
 
 		tc956xmac_link_down_counter--; /* Decrement Counter Only when this api called */
 		priv->port_link_down = false;
+
+		/* Re-Init XPCS module as MACxPONRST is asserted during link-down */
+		ret = tc956x_xpcs_init(priv, priv->xpcsaddr);
+		if (ret < 0)
+			KPRINT_INFO("XPCS initialization error\n");
+
+		/*C37 AN enable*/
+		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+			enable_en = false;
+		else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
+			if (priv->is_sgmii_2p5g == true)
+				enable_en = false;
+			else
+				enable_en = true;
+		} else
+			enable_en = true;
+
+		tc956x_xpcs_ctrl_ane(priv, enable_en);
 	}
 	KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
 		readl(nrst_reg), readl(nclk_reg));

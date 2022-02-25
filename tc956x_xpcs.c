@@ -37,6 +37,8 @@
  *  VERSION     : 01-00-04
  *  26 Oct 2021 : 1. Added EEE configration for PHY and MAC Controlled Mode.
  *  VERSION     : 01-00-19
+ *  25 Feb 2022 : 1. Helper function added for XPCS Rx LPI enable/disable
+ *  VERSION     : 01-00-44
  */
 
 #include "common.h"
@@ -226,5 +228,27 @@ void tc956x_xpcs_ctrl_ane(struct tc956xmac_priv *priv, bool ane)
 		KPRINT_INFO("%s Disable AN", __func__);
 	}
 	tc956x_xpcs_write(priv->xpcsaddr, XGMAC_SR_MII_CTRL, reg_value);
+}
+
+/**
+ *  tc956x_xpcs_ctrl0_lrx - to configure XPCS LPI Rx Enable bit
+ *  @priv: driver private structure
+ *  @lrx : true to enable, false to disable
+ *  @remarks : -
+ */
+void tc956x_xpcs_ctrl0_lrx(struct tc956xmac_priv *priv, bool lrx)
+{
+	u32 reg_value;
+
+	reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0);
+	if (lrx) {
+		reg_value |= XGMAC_EEE_LRX_EN;
+		KPRINT_INFO("%s Enable XPCS LPI Rx\n", __func__);
+	} else {
+		reg_value &= (~XGMAC_EEE_LRX_EN);
+		KPRINT_INFO("%s Disable XPCS LPI Rx\n", __func__);
+	}
+
+	tc956x_xpcs_write(priv->xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0, reg_value);
 }
 #endif

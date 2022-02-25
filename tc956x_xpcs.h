@@ -35,6 +35,8 @@
  *  VERSION     : 01-00-02
  *  26 Oct 2021 : 1. Added EEE macros for PHY and MAC Controlled Mode.
  *  VERSION     : 01-00-19
+ *  25 Feb 2022 : 1. Helper function added for XPCS Rx LPI enable/disable
+ *  VERSION     : 01-00-44
  */
 
 #ifndef __TC956X_XPCS_H__
@@ -109,7 +111,7 @@
 #define XGMAC_SR_MII_CTRL_SPEED_5G		0x00002020	/* SR_MII_CTRL SPEED: 5G */
 #define XGMAC_SR_MII_CTRL_SPEED_2_5G		0x00000020	/* SR_MII_CTRL SPEED: 5G */
 #define XGMAC_USRA_RST				0x400		/* USRA_RST */
-
+#define XGMAC_EEE_LRX_EN			BIT(1)		/* LPI Rx Enable */
 
 
 #define XPCS_REG_BASE_ADDR				10
@@ -123,5 +125,5 @@ u32 tc956x_xpcs_read(void __iomem *xpcsaddr, u32 pcs_reg_num);
 u32 tc956x_xpcs_write(void __iomem *xpcsaddr, u32 pcs_reg_num, u32 value);
 void tc956x_xpcs_ctrl_ane(struct tc956xmac_priv *priv, bool ane);
 int tc956x_xpcs_init(struct tc956xmac_priv *priv, void __iomem *xpcsaddr);
-
+void tc956x_xpcs_ctrl0_lrx(struct tc956xmac_priv *priv, bool lrx);
 #endif /* __TC956X_XPCS_H__ */
