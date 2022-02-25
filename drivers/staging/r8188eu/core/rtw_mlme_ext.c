@@ -6834,23 +6834,6 @@ void mlmeext_sta_del_event_callback(struct adapter *padapter)
 Following are the functions for the timer handlers
 
 *****************************************************************************/
-static void _linked_rx_signal_strength_display(struct adapter *padapter)
-{
-	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info    *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 mac_id;
-	int UndecoratedSmoothedPWDB;
-
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE)
-		mac_id = 0;
-	else if ((pmlmeinfo->state & 0x03) == _HW_STATE_AP_)
-		mac_id = 2;
-
-	GetHalDefVar8188EUsb(padapter, HW_DEF_RA_INFO_DUMP, &mac_id);
-
-	GetHalDefVar8188EUsb(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
-}
-
 static u8 chk_ap_is_alive(struct sta_info *psta)
 {
 	u8 ret = false;
@@ -6885,9 +6868,6 @@ void linked_status_chk(struct adapter *padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-
-	if (padapter->bRxRSSIDisplay)
-		_linked_rx_signal_strength_display(padapter);
 
 	rtl8188e_sreset_linked_status_check(padapter);
 

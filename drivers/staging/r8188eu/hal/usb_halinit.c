@@ -1396,16 +1396,6 @@ void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 	struct hal_data_8188e *haldata = &Adapter->haldata;
 
 	switch (eVariable) {
-	case HAL_DEF_UNDERCORATEDSMOOTHEDPWDB:
-		{
-			struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
-			struct sta_priv *pstapriv = &Adapter->stapriv;
-			struct sta_info *psta;
-			psta = rtw_get_stainfo(pstapriv, pmlmepriv->cur_network.network.MacAddress);
-			if (psta)
-				*((int *)pValue) = psta->rssi_stat.UndecoratedSmoothedPWDB;
-		}
-		break;
 	case HAL_DEF_IS_SUPPORT_ANT_DIV:
 		*((u8 *)pValue) = (haldata->AntDivCfg == 0) ? false : true;
 		break;
@@ -1414,9 +1404,6 @@ void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 		break;
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)pValue) = haldata->odmpriv.SupportAbility;
-		break;
-	case HW_DEF_RA_INFO_DUMP:
-		check_fwstate(&Adapter->mlmepriv, _FW_LINKED);
 		break;
 	case HAL_DEF_DBG_DUMP_RXPKT:
 		*((u8 *)pValue) = haldata->bDumpRxPkt;
