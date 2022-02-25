@@ -353,6 +353,11 @@ int lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 			struct lpfc_iocbq *pwqe);
 int lpfc_sli4_issue_abort_iotag(struct lpfc_hba *phba,
 			struct lpfc_iocbq *cmdiocb, void *cmpl);
+void lpfc_sli_prep_els_req_rsp(struct lpfc_hba *phba,
+			       struct lpfc_iocbq *cmdiocbq,
+			       struct lpfc_vport *vport,
+			       struct lpfc_dmabuf *bmp, u16 cmd_size, u32 did,
+			       u32 elscmd, u8 tmo, u8 expect_rsp);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
 struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
 					    struct lpfc_iocbq *piocbq);

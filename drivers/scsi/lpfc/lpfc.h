@@ -961,7 +961,13 @@ struct lpfc_hba {
 
 	int (*lpfc_bg_scsi_prep_dma_buf)
 		(struct lpfc_hba *, struct lpfc_io_buf *);
-	/* Add new entries here */
+
+	/* Prep SLI WQE/IOCB jump table entries */
+	void (*__lpfc_sli_prep_els_req_rsp)(struct lpfc_iocbq *cmdiocbq,
+					    struct lpfc_vport *vport,
+					    struct lpfc_dmabuf *bmp,
+					    u16 cmd_size, u32 did, u32 elscmd,
+					    u8 tmo, u8 expect_rsp);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1832,4 +1838,13 @@ u16 get_job_ulpcontext(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		return bf_get(wqe_ctxt_tag, &iocbq->wqe.generic.wqe_com);
 	else
 		return iocbq->iocb.ulpContext;
+}
+
+static inline
+u32 get_job_els_rsp64_did(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_els_did, &iocbq->wqe.els_req.wqe_dest);
+	else
+		return iocbq->iocb.un.elsreq64.remoteID;
 }

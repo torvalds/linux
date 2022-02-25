@@ -11159,6 +11159,130 @@ __lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 	return phba->__lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
 }
 
+static void
+__lpfc_sli_prep_els_req_rsp_s3(struct lpfc_iocbq *cmdiocbq,
+			       struct lpfc_vport *vport,
+			       struct lpfc_dmabuf *bmp, u16 cmd_size, u32 did,
+			       u32 elscmd, u8 tmo, u8 expect_rsp)
+{
+	struct lpfc_hba *phba = vport->phba;
+	IOCB_t *cmd;
+
+	cmd = &cmdiocbq->iocb;
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->un.elsreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
+	cmd->un.elsreq64.bdl.addrLow = putPaddrLow(bmp->phys);
+	cmd->un.elsreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+
+	if (expect_rsp) {
+		cmd->un.elsreq64.bdl.bdeSize = (2 * sizeof(struct ulp_bde64));
+		cmd->un.elsreq64.remoteID = did; /* DID */
+		cmd->ulpCommand = CMD_ELS_REQUEST64_CR;
+		cmd->ulpTimeout = tmo;
+	} else {
+		cmd->un.elsreq64.bdl.bdeSize = sizeof(struct ulp_bde64);
+		cmd->un.genreq64.xmit_els_remoteID = did; /* DID */
+		cmd->ulpCommand = CMD_XMIT_ELS_RSP64_CX;
+	}
+	cmd->ulpBdeCount = 1;
+	cmd->ulpLe = 1;
+	cmd->ulpClass = CLASS3;
+
+	/* If we have NPIV enabled, we want to send ELS traffic by VPI. */
+	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+		if (expect_rsp) {
+			cmd->un.elsreq64.myID = vport->fc_myDID;
+
+			/* For ELS_REQUEST64_CR, use the VPI by default */
+			cmd->ulpContext = phba->vpi_ids[vport->vpi];
+		}
+
+		cmd->ulpCt_h = 0;
+		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
+		if (elscmd == ELS_CMD_ECHO)
+			cmd->ulpCt_l = 0; /* context = invalid RPI */
+		else
+			cmd->ulpCt_l = 1; /* context = VPI */
+	}
+}
+
+static void
+__lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
+			       struct lpfc_vport *vport,
+			       struct lpfc_dmabuf *bmp, u16 cmd_size, u32 did,
+			       u32 elscmd, u8 tmo, u8 expect_rsp)
+{
+	struct lpfc_hba  *phba = vport->phba;
+	union lpfc_wqe128 *wqe;
+	struct ulp_bde64_le *bde;
+
+	wqe = &cmdiocbq->wqe;
+	memset(wqe, 0, sizeof(*wqe));
+
+	/* Word 0 - 2 BDE */
+	bde = (struct ulp_bde64_le *)&wqe->generic.bde;
+	bde->addr_low = cpu_to_le32(putPaddrLow(bmp->phys));
+	bde->addr_high = cpu_to_le32(putPaddrHigh(bmp->phys));
+	bde->type_size = cpu_to_le32(cmd_size);
+	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
+
+	if (expect_rsp) {
+		bf_set(wqe_cmnd, &wqe->els_req.wqe_com, CMD_ELS_REQUEST64_CR);
+
+		/* Transfer length */
+		wqe->els_req.payload_len = cmd_size;
+		wqe->els_req.max_response_payload_len = FCELSSIZE;
+
+		/* DID */
+		bf_set(wqe_els_did, &wqe->els_req.wqe_dest, did);
+	} else {
+		/* DID */
+		bf_set(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest, did);
+
+		/* Transfer length */
+		wqe->xmit_els_rsp.response_payload_len = cmd_size;
+
+		bf_set(wqe_cmnd, &wqe->xmit_els_rsp.wqe_com,
+		       CMD_XMIT_ELS_RSP64_CX);
+	}
+
+	bf_set(wqe_tmo, &wqe->generic.wqe_com, tmo);
+	bf_set(wqe_reqtag, &wqe->generic.wqe_com, cmdiocbq->iotag);
+	bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
+
+	/* If we have NPIV enabled, we want to send ELS traffic by VPI.
+	 * For SLI4, since the driver controls VPIs we also want to include
+	 * all ELS pt2pt protocol traffic as well.
+	 */
+	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) ||
+	    (vport->fc_flag & FC_PT2PT)) {
+		if (expect_rsp) {
+			bf_set(els_req64_sid, &wqe->els_req, vport->fc_myDID);
+
+			/* For ELS_REQUEST64_CR, use the VPI by default */
+			bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+			       phba->vpi_ids[vport->vpi]);
+		}
+
+		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
+		if (elscmd == ELS_CMD_ECHO)
+			bf_set(wqe_ct, &wqe->generic.wqe_com, 0);
+		else
+			bf_set(wqe_ct, &wqe->generic.wqe_com, 1);
+	}
+}
+
+void
+lpfc_sli_prep_els_req_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
+			  struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
+			  u16 cmd_size, u32 did, u32 elscmd, u8 tmo,
+			  u8 expect_rsp)
+{
+	phba->__lpfc_sli_prep_els_req_rsp(cmdiocbq, vport, bmp, cmd_size, did,
+					  elscmd, tmo, expect_rsp);
+}
+
 /**
  * lpfc_sli_api_table_setup - Set up sli api function jump table
  * @phba: The hba struct for which this call is being executed.
@@ -11177,11 +11301,13 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->__lpfc_sli_issue_iocb = __lpfc_sli_issue_iocb_s3;
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s3;
 		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s3;
+		phba->__lpfc_sli_prep_els_req_rsp = __lpfc_sli_prep_els_req_rsp_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->__lpfc_sli_issue_iocb = __lpfc_sli_issue_iocb_s4;
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s4;
 		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s4;
+		phba->__lpfc_sli_prep_els_req_rsp = __lpfc_sli_prep_els_req_rsp_s4;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -19214,7 +19340,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *iocbq = NULL;
-	union  lpfc_wqe *wqe;
+	union  lpfc_wqe128 *pwqe;
 	struct lpfc_dmabuf *pcmd = NULL;
 	uint32_t frame_len;
 	int rc;
@@ -19249,34 +19375,46 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	/* copyin the payload */
 	memcpy(pcmd->virt, dmabuf->dbuf.virt, frame_len);
 
-	/* fill in BDE's for command */
-	iocbq->iocb.un.xseq64.bdl.addrHigh = putPaddrHigh(pcmd->phys);
-	iocbq->iocb.un.xseq64.bdl.addrLow = putPaddrLow(pcmd->phys);
-	iocbq->iocb.un.xseq64.bdl.bdeFlags = BUFF_TYPE_BDE_64;
-	iocbq->iocb.un.xseq64.bdl.bdeSize = frame_len;
-
 	iocbq->context2 = pcmd;
 	iocbq->vport = vport;
 	iocbq->cmd_flag &= ~LPFC_FIP_ELS_ID_MASK;
 	iocbq->cmd_flag |= LPFC_USE_FCPWQIDX;
+	iocbq->num_bdes = 0;
 
-	/*
-	 * Setup rest of the iocb as though it were a WQE
-	 * Build the SEND_FRAME WQE
-	 */
-	wqe = (union lpfc_wqe *)&iocbq->iocb;
+	pwqe = &iocbq->wqe;
+	/* fill in BDE's for command */
+	pwqe->gen_req.bde.addrHigh = putPaddrHigh(pcmd->phys);
+	pwqe->gen_req.bde.addrLow = putPaddrLow(pcmd->phys);
+	pwqe->gen_req.bde.tus.f.bdeSize = frame_len;
+	pwqe->gen_req.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 
-	wqe->send_frame.frame_len = frame_len;
-	wqe->send_frame.fc_hdr_wd0 = be32_to_cpu(*((uint32_t *)fc_hdr));
-	wqe->send_frame.fc_hdr_wd1 = be32_to_cpu(*((uint32_t *)fc_hdr + 1));
-	wqe->send_frame.fc_hdr_wd2 = be32_to_cpu(*((uint32_t *)fc_hdr + 2));
-	wqe->send_frame.fc_hdr_wd3 = be32_to_cpu(*((uint32_t *)fc_hdr + 3));
-	wqe->send_frame.fc_hdr_wd4 = be32_to_cpu(*((uint32_t *)fc_hdr + 4));
-	wqe->send_frame.fc_hdr_wd5 = be32_to_cpu(*((uint32_t *)fc_hdr + 5));
+	pwqe->send_frame.frame_len = frame_len;
+	pwqe->send_frame.fc_hdr_wd0 = be32_to_cpu(*((__be32 *)fc_hdr));
+	pwqe->send_frame.fc_hdr_wd1 = be32_to_cpu(*((__be32 *)fc_hdr + 1));
+	pwqe->send_frame.fc_hdr_wd2 = be32_to_cpu(*((__be32 *)fc_hdr + 2));
+	pwqe->send_frame.fc_hdr_wd3 = be32_to_cpu(*((__be32 *)fc_hdr + 3));
+	pwqe->send_frame.fc_hdr_wd4 = be32_to_cpu(*((__be32 *)fc_hdr + 4));
+	pwqe->send_frame.fc_hdr_wd5 = be32_to_cpu(*((__be32 *)fc_hdr + 5));
 
-	iocbq->iocb.ulpCommand = CMD_SEND_FRAME;
-	iocbq->iocb.ulpLe = 1;
+	pwqe->generic.wqe_com.word7 = 0;
+	pwqe->generic.wqe_com.word10 = 0;
+
+	bf_set(wqe_cmnd, &pwqe->generic.wqe_com, CMD_SEND_FRAME);
+	bf_set(wqe_sof, &pwqe->generic.wqe_com, 0x2E); /* SOF byte */
+	bf_set(wqe_eof, &pwqe->generic.wqe_com, 0x41); /* EOF byte */
+	bf_set(wqe_lenloc, &pwqe->generic.wqe_com, 1);
+	bf_set(wqe_xbl, &pwqe->generic.wqe_com, 1);
+	bf_set(wqe_dbde, &pwqe->generic.wqe_com, 1);
+	bf_set(wqe_xc, &pwqe->generic.wqe_com, 1);
+	bf_set(wqe_cmd_type, &pwqe->generic.wqe_com, 0xA);
+	bf_set(wqe_cqid, &pwqe->generic.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_xri_tag, &pwqe->generic.wqe_com, iocbq->sli4_xritag);
+	bf_set(wqe_reqtag, &pwqe->generic.wqe_com, iocbq->iotag);
+	bf_set(wqe_class, &pwqe->generic.wqe_com, CLASS3);
+	pwqe->generic.wqe_com.abort_tag = iocbq->iotag;
+
 	iocbq->cmd_cmpl = lpfc_sli4_mds_loopback_cmpl;
+
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, iocbq, 0);
 	if (rc == IOCB_ERROR)
 		goto exit;
