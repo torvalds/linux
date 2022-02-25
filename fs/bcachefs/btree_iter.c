@@ -1410,7 +1410,7 @@ static int btree_path_traverse_one(struct btree_trans *, struct btree_path *,
 static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_path *path, *prev = NULL;
+	struct btree_path *path, *prev;
 	unsigned long trace_ip = _RET_IP_;
 	int i, ret = 0;
 
@@ -1419,6 +1419,7 @@ static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 
 	trans->in_traverse_all = true;
 retry_all:
+	prev = NULL;
 	trans->restarted = false;
 
 	trans_for_each_path(trans, path)
@@ -1852,6 +1853,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 	int i;
 
 	BUG_ON(trans->restarted);
+	btree_trans_sort_paths(trans);
 
 	btree_trans_sort_paths(trans);
 
@@ -2722,7 +2724,10 @@ static void btree_trans_verify_sorted(struct btree_trans *trans)
 	unsigned i;
 
 	trans_for_each_path_inorder(trans, path, i) {
-		BUG_ON(prev && btree_path_cmp(prev, path) > 0);
+		if (prev && btree_path_cmp(prev, path) > 0) {
+			bch2_dump_trans_paths_updates(trans);
+			panic("trans paths out of order!\n");
+		}
 		prev = path;
 	}
 }
