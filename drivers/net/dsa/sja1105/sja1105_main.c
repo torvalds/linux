@@ -1412,6 +1412,18 @@ static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
 	sja1105_inhibit_tx(priv, BIT(port), false);
 }
 
+static void sja1105_phylink_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
+{
+	struct sja1105_private *priv = ds->priv;
+
+	/* The SJA1105 MAC programming model is through the static config
+	 * (the xMII Mode table cannot be dynamically reconfigured), and
+	 * we have to program that early.
+	 */
+	__set_bit(priv->phy_mode[port], config->supported_interfaces);
+}
+
 static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 				     unsigned long *supported,
 				     struct phylink_link_state *state)
@@ -3152,6 +3164,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.set_ageing_time	= sja1105_set_ageing_time,
 	.port_change_mtu	= sja1105_change_mtu,
 	.port_max_mtu		= sja1105_get_max_mtu,
+	.phylink_get_caps	= sja1105_phylink_get_caps,
 	.phylink_validate	= sja1105_phylink_validate,
 	.phylink_mac_config	= sja1105_mac_config,
 	.phylink_mac_link_up	= sja1105_mac_link_up,
