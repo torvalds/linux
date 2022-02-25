@@ -17,7 +17,6 @@ wfx-y := \
 	sta.o \
 	key.o \
 	main.o \
-	sta.o \
 	debug.o
 wfx-$(CONFIG_SPI) += bus_spi.o
 # When CONFIG_MMC == m, append to 'wfx-y' (and not to 'wfx-m')
