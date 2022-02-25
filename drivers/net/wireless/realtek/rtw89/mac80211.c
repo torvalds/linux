@@ -66,6 +66,9 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 
+	/* let previous ips work finish to ensure we don't leave ips twice */
+	cancel_work_sync(&rtwdev->ips_work);
+
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
 
@@ -347,6 +350,13 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw89_phy_set_bss_color(rtwdev, vif);
 			rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, vif);
 			rtw89_mac_port_update(rtwdev, rtwvif);
+			rtw89_store_op_chan(rtwdev);
+		} else {
+			/* Abort ongoing scan if cancel_scan isn't issued
+			 * when disconnected by peer
+			 */
+			if (rtwdev->scanning)
+				rtw89_hw_scan_abort(rtwdev, vif);
 		}
 	}
 
@@ -684,15 +694,9 @@ static void rtw89_ops_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	struct rtw89_hal *hal = &rtwdev->hal;
 
 	mutex_lock(&rtwdev->mutex);
-	rtwdev->scanning = true;
-	rtw89_leave_lps(rtwdev);
-	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, hal->current_band_type);
-	rtw89_chip_rfk_scan(rtwdev, true);
-	rtw89_hci_recalc_int_mit(rtwdev);
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, mac_addr);
+	rtw89_core_scan_start(rtwdev, rtwvif, mac_addr, false);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -700,14 +704,9 @@ static void rtw89_ops_sw_scan_complete(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
-	rtw89_chip_rfk_scan(rtwdev, false);
-	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
-	rtwdev->scanning = false;
-	rtwdev->dig.bypass_dig = true;
+	rtw89_core_scan_complete(rtwdev, vif, false);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -718,6 +717,46 @@ static void rtw89_ops_reconfig_complete(struct ieee80211_hw *hw,
 
 	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
 		rtw89_ser_recfg_done(rtwdev);
+}
+
+static int rtw89_ops_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     struct ieee80211_scan_request *req)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	int ret = 0;
+
+	if (!rtwdev->fw.scan_offload)
+		return 1;
+
+	if (rtwdev->scanning)
+		return -EBUSY;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw89_hw_scan_start(rtwdev, vif, req);
+	ret = rtw89_hw_scan_offload(rtwdev, vif, true);
+	if (ret) {
+		rtw89_hw_scan_abort(rtwdev, vif);
+		rtw89_err(rtwdev, "HW scan failed with status: %d\n", ret);
+	}
+	mutex_unlock(&rtwdev->mutex);
+
+	return ret;
+}
+
+static void rtw89_ops_cancel_hw_scan(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	if (!rtwdev->fw.scan_offload)
+		return;
+
+	if (!rtwdev->scanning)
+		return;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw89_hw_scan_abort(rtwdev, vif);
+	mutex_unlock(&rtwdev->mutex);
 }
 
 const struct ieee80211_ops rtw89_ops = {
@@ -746,6 +785,8 @@ const struct ieee80211_ops rtw89_ops = {
 	.sw_scan_start		= rtw89_ops_sw_scan_start,
 	.sw_scan_complete	= rtw89_ops_sw_scan_complete,
 	.reconfig_complete	= rtw89_ops_reconfig_complete,
+	.hw_scan		= rtw89_ops_hw_scan,
+	.cancel_hw_scan		= rtw89_ops_cancel_hw_scan,
 	.set_sar_specs		= rtw89_ops_set_sar_specs,
 };
 EXPORT_SYMBOL(rtw89_ops);

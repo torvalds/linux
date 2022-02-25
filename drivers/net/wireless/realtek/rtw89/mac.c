@@ -3129,6 +3129,57 @@ rtw89_mac_c2h_macid_pause(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 {
 }
 
+static bool rtw89_is_op_chan(struct rtw89_dev *rtwdev, u8 band, u8 channel)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+
+	return band == scan_info->op_band && channel == scan_info->op_pri_ch;
+}
+
+static void
+rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+			   u32 len)
+{
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 reason, status, tx_fail, band;
+	u16 chan;
+
+	tx_fail = RTW89_GET_MAC_C2H_SCANOFLD_TX_FAIL(c2h->data);
+	status = RTW89_GET_MAC_C2H_SCANOFLD_STATUS(c2h->data);
+	chan = RTW89_GET_MAC_C2H_SCANOFLD_PRI_CH(c2h->data);
+	reason = RTW89_GET_MAC_C2H_SCANOFLD_RSP(c2h->data);
+	band = RTW89_GET_MAC_C2H_SCANOFLD_BAND(c2h->data);
+
+	if (!(rtwdev->chip->support_bands & BIT(NL80211_BAND_6GHZ)))
+		band = chan > 14 ? RTW89_BAND_5G : RTW89_BAND_2G;
+
+	rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
+		    "band: %d, chan: %d, reason: %d, status: %d, tx_fail: %d\n",
+		    band, chan, reason, status, tx_fail);
+
+	switch (reason) {
+	case RTW89_SCAN_LEAVE_CH_NOTIFY:
+		if (rtw89_is_op_chan(rtwdev, band, chan))
+			ieee80211_stop_queues(rtwdev->hw);
+		return;
+	case RTW89_SCAN_END_SCAN_NOTIFY:
+		rtw89_hw_scan_complete(rtwdev, vif, false);
+		break;
+	case RTW89_SCAN_ENTER_CH_NOTIFY:
+		if (rtw89_is_op_chan(rtwdev, band, chan))
+			ieee80211_wake_queues(rtwdev->hw);
+		break;
+	default:
+		return;
+	}
+
+	hal->prev_band_type = hal->current_band_type;
+	hal->prev_primary_channel = hal->current_channel;
+	hal->current_channel = chan;
+	hal->current_band_type = band;
+}
+
 static void
 rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
@@ -3172,6 +3223,7 @@ void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_PKT_OFLD_RSP] = NULL,
 	[RTW89_MAC_C2H_FUNC_BCN_RESEND] = NULL,
 	[RTW89_MAC_C2H_FUNC_MACID_PAUSE] = rtw89_mac_c2h_macid_pause,
+	[RTW89_MAC_C2H_FUNC_SCANOFLD_RSP] = rtw89_mac_c2h_scanofld_rsp,
 };
 
 static
