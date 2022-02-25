@@ -74,9 +74,8 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 	if (no_reply) {
 		/* Chip won't reply. Give enough time to the wq to send the buffer. */
 		msleep(100);
-		wdev->hif_cmd.buf_send = NULL;
-		mutex_unlock(&wdev->hif_cmd.lock);
-		return 0;
+		ret = 0;
+		goto end;
 	}
 
 	if (wdev->poll_irq)
@@ -98,6 +97,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 		ret = wdev->hif_cmd.ret;
 	}
 
+end:
 	wdev->hif_cmd.buf_send = NULL;
 	mutex_unlock(&wdev->hif_cmd.lock);
 
