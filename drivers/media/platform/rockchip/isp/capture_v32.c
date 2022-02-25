@@ -24,6 +24,7 @@
 #define CIF_ISP_REQ_BUFS_MIN 0
 
 static int mi_frame_end(struct rkisp_stream *stream);
+static int mi_frame_start(struct rkisp_stream *stream, u32 mis);
 
 static const struct capture_fmt bp_fmts[] = {
 	{
@@ -149,25 +150,83 @@ static struct stream_config rkisp_mpds_stream_config = {
 	},
 };
 
-static bool is_bp_stream_stopped(void __iomem *base)
+static bool bp_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = readl(base + ISP32_MI_WR_CTRL2_SHD);
+	u32 en = ISP32_BP_EN_OUT_SHD;
+	u32 reg = ISP32_MI_WR_CTRL2_SHD;
+	bool is_direct = true;
 
-	return !(ret & ISP32_BP_EN_OUT_SHD);
+	if (!stream->ispdev->hw_dev->is_single) {
+		is_direct = false;
+		en = ISP3X_BP_ENABLE;
+		reg = ISP3X_MI_BP_WR_CTRL;
+	}
+
+	return !(rkisp_read(stream->ispdev, reg, is_direct) & en);
 }
 
-static bool is_bpds_stream_stopped(void __iomem *base)
+static bool bpds_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = readl(base + ISP32_MI_WR_CTRL2_SHD);
+	struct rkisp_device *dev = stream->ispdev;
+	struct rkisp_stream *st = &dev->cap_dev.stream[RKISP_STREAM_BP];
+	u32 ret, en = ISP32_BPDS_EN_OUT_SHD;
+	u32 reg = ISP32_MI_WR_CTRL2_SHD;
+	bool is_direct = true;
 
-	return is_bp_stream_stopped(base) || !(ret & ISP32_BPDS_EN_OUT_SHD);
+	if (!dev->hw_dev->is_single) {
+		is_direct = false;
+		en = ISP32_DS_ENABLE;
+		reg = ISP32_MI_BPDS_WR_CTRL;
+	}
+	ret = rkisp_read(dev, reg, is_direct);
+	return (!st->is_pause && bp_is_stream_stopped(st)) || !(ret & en);
 }
 
-static bool is_mpds_stream_stopped(void __iomem *base)
+static bool mpds_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = readl(base + ISP32_MI_WR_CTRL2_SHD);
+	struct rkisp_device *dev = stream->ispdev;
+	struct rkisp_stream *st = &dev->cap_dev.stream[RKISP_STREAM_MP];
+	u32 ret, en = ISP32_MPDS_EN_OUT_SHD;
+	u32 reg = ISP32_MI_WR_CTRL2_SHD;
+	bool is_direct = true;
 
-	return mp_is_stream_stopped(base) || !(ret & ISP32_MPDS_EN_OUT_SHD);
+	if (!dev->hw_dev->is_single) {
+		is_direct = false;
+		en = ISP32_DS_ENABLE;
+		reg = ISP32_MI_MPDS_WR_CTRL;
+	}
+	ret = rkisp_read(dev, reg, is_direct);
+	return (!st->is_pause && mp_is_stream_stopped(st)) || !(ret & en);
+}
+
+static void stream_self_update(struct rkisp_stream *stream)
+{
+	u32 mask = ISP3X_MPSELF_UPD | ISP3X_SPSELF_UPD |
+		   ISP3X_BPSELF_UPD | ISP32_MPDSSELF_FORCE_UPD |
+		   ISP32_BPDSSELF_FORCE_UPD;
+	u32 val;
+
+	switch (stream->id) {
+	case RKISP_STREAM_MP:
+		val = ISP3X_MPSELF_UPD;
+		break;
+	case RKISP_STREAM_SP:
+		val = ISP3X_SPSELF_UPD;
+		break;
+	case RKISP_STREAM_BP:
+		val = ISP3X_BPSELF_UPD;
+		break;
+	case RKISP_STREAM_MPDS:
+		val = ISP32_MPDSSELF_FORCE_UPD;
+		break;
+	case RKISP_STREAM_BPDS:
+		val = ISP32_BPDSSELF_FORCE_UPD;
+		break;
+	default:
+		return;
+	}
+
+	rkisp_set_bits(stream->ispdev, ISP3X_MI_WR_CTRL2, mask, val, true);
 }
 
 static int get_stream_irq_mask(struct rkisp_stream *stream)
@@ -393,6 +452,10 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
 	mi_frame_end(stream);
+
+	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cr_offs_cnt_init, 0, false);
 	return 0;
 }
 
@@ -480,6 +543,10 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
 	mi_frame_end(stream);
+
+	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cr_offs_cnt_init, 0, false);
 	return 0;
 }
 
@@ -519,6 +586,9 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
 	mi_frame_end(stream);
+
+	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
 	return 0;
 }
 
@@ -546,6 +616,9 @@ static int ds_config_mi(struct rkisp_stream *stream)
 	mi_frame_end_int_enable(stream);
 
 	mi_frame_end(stream);
+
+	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
+	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
 	return 0;
 }
 
@@ -562,7 +635,7 @@ static void mp_enable_mi(struct rkisp_stream *stream)
 	rkisp_set_bits(stream->ispdev, ISP3X_MI_WR_CTRL, mask, val, false);
 
 	/* enable bpds path output */
-	if (t->streaming)
+	if (t->streaming && !t->is_pause)
 		t->ops->enable_mi(t);
 }
 
@@ -584,7 +657,7 @@ static void bp_enable_mi(struct rkisp_stream *stream)
 	rkisp_write(stream->ispdev, ISP3X_MI_BP_WR_CTRL, val, false);
 
 	/* enable bpds path output */
-	if (t->streaming)
+	if (t->streaming && !t->is_pause)
 		t->ops->enable_mi(t);
 }
 
@@ -606,7 +679,7 @@ static void mp_disable_mi(struct rkisp_stream *stream)
 	rkisp_clear_bits(stream->ispdev, ISP3X_MI_WR_CTRL, mask, false);
 
 	/* disable mpds path output */
-	if (t->streaming)
+	if (!stream->is_pause && t->streaming)
 		t->ops->disable_mi(t);
 }
 
@@ -623,7 +696,7 @@ static void bp_disable_mi(struct rkisp_stream *stream)
 	rkisp_clear_bits(stream->ispdev, ISP3X_MI_BP_WR_CTRL, ISP3X_BP_ENABLE, false);
 
 	/* disable bpds path output */
-	if (t->streaming)
+	if (!stream->is_pause && t->streaming)
 		t->ops->disable_mi(t);
 }
 
@@ -657,19 +730,37 @@ static void update_mi(struct rkisp_stream *stream)
 			rkisp_write(dev, reg, val, false);
 		}
 
+		if (stream->is_pause) {
+			/* single sensor mode with pingpong buffer:
+			 * if mi on, addr will auto update at frame end
+			 * else addr need update by SELF_UPD.
+			 *
+			 * multi sensor mode with single buffer:
+			 * mi and buffer will update by readback.
+			 */
+			if (dev->hw_dev->is_single &&
+			    stream->ops->is_stream_stopped(stream)) {
+				/* isp no start and mi close, force to enable it */
+				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
+					stream->ops->enable_mi(stream);
+					stream->is_pause = false;
+				}
+				stream_self_update(stream);
+				if (!stream->curr_buf) {
+					stream->curr_buf = stream->next_buf;
+					stream->next_buf = NULL;
+				}
+			}
+			if (stream->is_pause) {
+				stream->ops->enable_mi(stream);
+				stream->is_pause = false;
+			}
+		}
+
 		/* single buf force updated at readback for multidevice */
 		if (!dev->hw_dev->is_single) {
-			unsigned long lock_flags = 0;
-
 			stream->curr_buf = stream->next_buf;
 			stream->next_buf = NULL;
-			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-			if (!list_empty(&stream->buf_queue)) {
-				stream->next_buf = list_first_entry(&stream->buf_queue,
-							struct rkisp_buffer, queue);
-				list_del(&stream->next_buf->queue);
-			}
-			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 		}
 	} else if (dummy_buf->mem_priv) {
 		val = dummy_buf->dma_addr;
@@ -682,16 +773,14 @@ static void update_mi(struct rkisp_stream *stream)
 			reg = stream->config->mi.cr_base_ad_init;
 			rkisp_write(dev, reg, val, false);
 		}
+	} else if (!stream->is_pause) {
+		stream->is_pause = true;
+		stream->ops->disable_mi(stream);
+		/* no buf, force to close mi */
+		if (!stream->curr_buf)
+			stream_self_update(stream);
 	}
 
-	reg = stream->config->mi.y_offs_cnt_init;
-	rkisp_write(dev, reg, 0, false);
-	reg = stream->config->mi.cb_offs_cnt_init;
-	rkisp_write(dev, reg, 0, false);
-	if (is_cr_cfg) {
-		reg = stream->config->mi.cr_offs_cnt_init;
-		rkisp_write(dev, reg, 0, false);
-	}
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "%s stream:%d Y:0x%x CB:0x%x | Y_SHD:0x%x\n",
 		 __func__, stream->id,
@@ -751,6 +840,7 @@ static struct streams_ops rkisp_mp_streams_ops = {
 	.is_stream_stopped = mp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
+	.frame_start = mi_frame_start,
 };
 
 static struct streams_ops rkisp_sp_streams_ops = {
@@ -761,34 +851,64 @@ static struct streams_ops rkisp_sp_streams_ops = {
 	.is_stream_stopped = sp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
+	.frame_start = mi_frame_start,
 };
 
 static struct streams_ops rkisp_bp_streams_ops = {
 	.config_mi = bp_config_mi,
 	.enable_mi = bp_enable_mi,
 	.disable_mi = bp_disable_mi,
-	.is_stream_stopped = is_bp_stream_stopped,
+	.is_stream_stopped = bp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
+	.frame_start = mi_frame_start,
 };
 
 static struct streams_ops rkisp_bpds_streams_ops = {
 	.config_mi = ds_config_mi,
 	.enable_mi = ds_enable_mi,
 	.disable_mi = ds_disable_mi,
-	.is_stream_stopped = is_bpds_stream_stopped,
+	.is_stream_stopped = bpds_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
+	.frame_start = mi_frame_start,
 };
 
 static struct streams_ops rkisp_mpds_streams_ops = {
 	.config_mi = ds_config_mi,
 	.enable_mi = ds_enable_mi,
 	.disable_mi = ds_disable_mi,
-	.is_stream_stopped = is_mpds_stream_stopped,
+	.is_stream_stopped = mpds_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
+	.frame_start = mi_frame_start,
 };
+
+static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
+{
+	unsigned long lock_flags = 0;
+
+	/* readback start to update stream buf if null */
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (stream->streaming) {
+		/* update buf for mulit sensor at readback */
+		if (!mis && !stream->ispdev->hw_dev->is_single &&
+		    !stream->curr_buf &&
+		    !list_empty(&stream->buf_queue)) {
+			stream->next_buf = list_first_entry(&stream->buf_queue,
+							struct rkisp_buffer, queue);
+			list_del(&stream->next_buf->queue);
+			stream->ops->update_mi(stream);
+		}
+		/* check frame loss */
+		if (mis && stream->ops->is_stream_stopped(stream))
+			stream->dbg.frameloss++;
+	}
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
+	return 0;
+}
+
 /*
  * This function is called when a frame end come. The next frame
  * is processing and we should set up buffer for next-next frame,
@@ -805,8 +925,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	set_mirror_flip(stream);
 	rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
 
-	/* hold one buf for hw dma write */
-	if (stream->curr_buf && stream->next_buf) {
+	if (stream->curr_buf) {
 		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
 
 		for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -827,36 +946,18 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
 		vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
-		stream->curr_buf = NULL;
-	} else {
-		if (!stream->next_buf && stream->curr_buf) {
-			v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-				 "stream:%d can't get buf, drop %d frame\n",
-				 stream->id, seq);
-			stream->dbg.frameloss++;
-		}
-		if (!dev->hw_dev->is_single)
-			stream->next_buf = stream->curr_buf;
 	}
 
-	/*
-	 * base/shd with same buf for multi device update after update_mi
-	 * base/shd with dual buf for single device
-	 */
-	if (stream->next_buf && dev->hw_dev->is_single) {
-		stream->curr_buf = stream->next_buf;
-		stream->next_buf = NULL;
-	}
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	if (!stream->next_buf && !list_empty(&stream->buf_queue)) {
+	stream->curr_buf = stream->next_buf;
+	stream->next_buf = NULL;
+	if (!list_empty(&stream->buf_queue)) {
 		stream->next_buf = list_first_entry(&stream->buf_queue,
 						    struct rkisp_buffer, queue);
 		list_del(&stream->next_buf->queue);
 	}
-	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
-
 	stream->ops->update_mi(stream);
-
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 	return 0;
 }
 
@@ -873,10 +974,11 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	int ret = 0;
 
 	stream->stopping = true;
+	stream->is_pause = false;
 	if (dev->hw_dev->is_single)
 		stream->ops->disable_mi(stream);
 	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(dev->base_addr)) {
+	    !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));
@@ -1019,7 +1121,15 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 		 stream->id, ispbuf->buff_addr[0]);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	list_add_tail(&ispbuf->queue, &stream->buf_queue);
+	/* single sensor with pingpong buf, update next if need */
+	if (stream->ispdev->hw_dev->is_single &&
+	    stream->id != RKISP_STREAM_VIR &&
+	    stream->streaming && !stream->next_buf) {
+		stream->next_buf = ispbuf;
+		stream->ops->update_mi(stream);
+	} else {
+		list_add_tail(&ispbuf->queue, &stream->buf_queue);
+	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
@@ -1428,20 +1538,19 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 				stream->streaming = false;
 				stream->ops->disable_mi(stream);
 				wake_up(&stream->done);
-			} else if (stream->ops->is_stream_stopped(dev->base_addr)) {
+			} else if (stream->ops->is_stream_stopped(stream)) {
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);
 			}
 		} else {
-			/* TODO frame end event to mpp */
 			mi_frame_end(stream);
 		}
 	}
 
 	if (mis_val & ISP3X_MI_MP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
-		if (!stream->streaming)
+		if (!stream->streaming || stream->is_pause)
 			dev->irq_ends_mask &= ~ISP_FRAME_MP;
 		else
 			dev->irq_ends_mask |= ISP_FRAME_MP;
@@ -1449,7 +1558,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 	}
 	if (mis_val & ISP3X_MI_SP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
-		if (!stream->streaming)
+		if (!stream->streaming || stream->is_pause)
 			dev->irq_ends_mask &= ~ISP_FRAME_SP;
 		else
 			dev->irq_ends_mask |= ISP_FRAME_SP;
@@ -1457,7 +1566,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 	}
 	if (mis_val & ISP3X_MI_BP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_BP];
-		if (!stream->streaming)
+		if (!stream->streaming || stream->is_pause)
 			dev->irq_ends_mask &= ~ISP_FRAME_BP;
 		else
 			dev->irq_ends_mask |= ISP_FRAME_BP;

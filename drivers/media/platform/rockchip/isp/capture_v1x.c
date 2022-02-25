@@ -945,7 +945,7 @@ void rkisp_mi_v1x_isr(u32 mis_val, struct rkisp_device *dev)
 			 * frame end that sync the configurations to shadow
 			 * regs.
 			 */
-			if (stream->ops->is_stream_stopped(dev->base_addr)) {
+			if (stream->ops->is_stream_stopped(stream)) {
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);

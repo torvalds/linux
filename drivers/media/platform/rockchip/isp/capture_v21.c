@@ -1004,7 +1004,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		hdr_stop_dmatx(dev);
 
 	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(dev->base_addr)) {
+	    !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));
@@ -1581,7 +1581,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 				stream->streaming = false;
 				stream->ops->disable_mi(stream);
 				wake_up(&stream->done);
-			} else if (stream->ops->is_stream_stopped(dev->base_addr)) {
+			} else if (stream->ops->is_stream_stopped(stream)) {
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);

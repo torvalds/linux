@@ -433,6 +433,26 @@ int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs)
 	return 0;
 }
 
+int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
+{
+	struct rkisp_stream *stream;
+	int i;
+
+	if (isp_mis)
+		rkisp_bridge_update_mi(dev, isp_mis);
+
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		if (i == RKISP_STREAM_VIR)
+			continue;
+		stream = &dev->cap_dev.stream[i];
+		if (stream->streaming &&
+		    stream->ops && stream->ops->frame_start)
+			stream->ops->frame_start(stream, isp_mis);
+	}
+
+	return 0;
+}
+
 static const struct capture_fmt mp_fmts[] = {
 	/* yuv422 */
 	{

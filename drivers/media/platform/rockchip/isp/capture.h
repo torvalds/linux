@@ -208,9 +208,10 @@ struct streams_ops {
 	void (*enable_mi)(struct rkisp_stream *stream);
 	void (*disable_mi)(struct rkisp_stream *stream);
 	void (*set_data_path)(struct rkisp_stream *stream);
-	bool (*is_stream_stopped)(void __iomem *base);
+	bool (*is_stream_stopped)(struct rkisp_stream *stream);
 	void (*update_mi)(struct rkisp_stream *stream);
 	int (*frame_end)(struct rkisp_stream *stream);
+	int (*frame_start)(struct rkisp_stream *stream, u32 mis);
 };
 
 /*
@@ -256,6 +257,7 @@ struct rkisp_stream {
 	bool start_stream;
 	bool is_mf_upd;
 	bool is_flip;
+	bool is_pause;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
@@ -299,6 +301,7 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev);
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 			      u32 width, u32 height, u32 pixelformat);
+int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis);
 int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
 int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs);
 int rkisp_fh_open(struct file *filp);

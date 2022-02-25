@@ -109,18 +109,31 @@ static struct stream_config rkisp_bp_stream_config = {
 	},
 };
 
-static inline bool is_bp_stream_stopped(void __iomem *base)
+static inline bool bp_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = readl(base + ISP3X_MI_BP_WR_CTRL);
+	u32 ret, en = ISP3X_BP_ENABLE;
+	bool is_direct = true;
 
-	return !(ret & ISP3X_BP_ENABLE);
+	if (!stream->ispdev->hw_dev->is_single)
+		is_direct = false;
+	ret = rkisp_read(stream->ispdev, ISP3X_MI_BP_WR_CTRL, is_direct);
+
+	return !(ret & en);
 }
 
-static bool is_fbc_stream_stopped(void __iomem *base)
+static bool fbc_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = readl(base + ISP3X_MPFBC_CTRL);
+	u32 ret, en = ISP3X_MPFBC_EN_SHD;
+	bool is_direct = true;
 
-	return !(ret & ISP3X_MPFBC_EN_SHD);
+	if (!stream->ispdev->hw_dev->is_single) {
+		is_direct = false;
+		en = ISP3X_MPFBC_EN;
+	}
+
+	ret = rkisp_read(stream->ispdev, ISP3X_MPFBC_CTRL, is_direct);
+
+	return !(ret & en);
 }
 
 static int get_stream_irq_mask(struct rkisp_stream *stream)
@@ -692,7 +705,7 @@ static struct streams_ops rkisp_fbc_streams_ops = {
 	.config_mi = fbc_config_mi,
 	.enable_mi = fbc_enable_mi,
 	.disable_mi = fbc_disable_mi,
-	.is_stream_stopped = is_fbc_stream_stopped,
+	.is_stream_stopped = fbc_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
 };
@@ -701,7 +714,7 @@ static struct streams_ops rkisp_bp_streams_ops = {
 	.config_mi = bp_config_mi,
 	.enable_mi = bp_enable_mi,
 	.disable_mi = bp_disable_mi,
-	.is_stream_stopped = is_bp_stream_stopped,
+	.is_stream_stopped = bp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
 };
@@ -796,7 +809,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	if (dev->hw_dev->is_single)
 		stream->ops->disable_mi(stream);
 	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(dev->base_addr)) {
+	    !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));
@@ -1449,7 +1462,7 @@ void rkisp_mi_v30_isr(u32 mis_val, struct rkisp_device *dev)
 				stream->streaming = false;
 				stream->ops->disable_mi(stream);
 				wake_up(&stream->done);
-			} else if (stream->ops->is_stream_stopped(dev->base_addr)) {
+			} else if (stream->ops->is_stream_stopped(stream)) {
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);

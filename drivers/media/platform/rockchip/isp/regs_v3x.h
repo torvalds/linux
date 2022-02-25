@@ -1870,6 +1870,8 @@
 #define ISP3X_3A_RAWAWB			BIT(11)
 #define ISP3X_3A_DDR_DONE		BIT(12)
 
+#define ISP3X_ISP_OUT_LINE(a)		((a) & 0x3fff)
+
 /* DUAL CROP */
 #define ISP3X_DUAL_CROP_FBC_MODE	BIT(8)
 

@@ -574,6 +574,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			       dev->isp_sdev.quantization);
 	rkisp_params_cfg(params_vdev, cur_frame_id);
 	rkisp_config_cmsk(dev);
+	rkisp_stream_frame_start(dev, 0);
 	if (!hw->is_single && !is_try) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
 		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, DUAL_CROP_S_V_SIZE);
@@ -801,8 +802,19 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 
 	/* check output stream is off */
 	val = ISP_FRAME_MP | ISP_FRAME_SP | ISP_FRAME_MPFBC | ISP_FRAME_BP;
-	if (!(dev->irq_ends_mask & val))
-		dev->isp_state = ISP_STOP;
+	if (!(dev->irq_ends_mask & val)) {
+		u32 state = dev->isp_state;
+		struct rkisp_stream *s;
+
+		for (val = 0; val < RKISP_STREAM_VIR; val++) {
+			s = &dev->cap_dev.stream[val];
+			dev->isp_state = ISP_STOP;
+			if (s->streaming) {
+				dev->isp_state = state;
+				break;
+			}
+		}
+	}
 
 	val = 0;
 	dev->irq_ends = 0;
@@ -820,8 +832,6 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 	rkisp2_rawrd_isr(val, dev);
 	if (dev->dmarx_dev.trigger == T_MANUAL)
 		rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
-	if (dev->isp_state == ISP_STOP)
-		wake_up(&dev->sync_onoff);
 }
 
 static void rkisp_set_state(u32 *state, u32 val)
@@ -2568,10 +2578,6 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 
 	if (!on) {
 		rkisp_stop_3a_run(isp_dev);
-		wait_event_timeout(isp_dev->sync_onoff,
-			isp_dev->irq_ends_mask == (ISP_FRAME_END | ISP_FRAME_IN) &&
-			(!IS_HDR_RDBK(isp_dev->rd_mode) ||
-			 isp_dev->isp_state & ISP_STOP), msecs_to_jiffies(5));
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
@@ -3508,7 +3514,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		}
 		/* last vsync to config next buf */
 		if (!dev->filt_state[RDBK_F_VS])
-			rkisp_bridge_update_mi(dev, isp_mis);
+			rkisp_stream_frame_start(dev, isp_mis);
 		else
 			dev->filt_state[RDBK_F_VS]--;
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
