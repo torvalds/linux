@@ -341,11 +341,28 @@ struct dsa_link {
 	struct list_head list;
 };
 
+enum dsa_db_type {
+	DSA_DB_PORT,
+	DSA_DB_LAG,
+	DSA_DB_BRIDGE,
+};
+
+struct dsa_db {
+	enum dsa_db_type type;
+
+	union {
+		const struct dsa_port *dp;
+		struct dsa_lag lag;
+		struct dsa_bridge bridge;
+	};
+};
+
 struct dsa_mac_addr {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	refcount_t refcount;
 	struct list_head list;
+	struct dsa_db db;
 };
 
 struct dsa_vlan {
@@ -408,6 +425,13 @@ struct dsa_switch {
 	 * interfaces is needed.
 	 */
 	u32			mtu_enforcement_ingress:1;
+
+	/* Drivers that isolate the FDBs of multiple bridges must set this
+	 * to true to receive the bridge as an argument in .port_fdb_{add,del}
+	 * and .port_mdb_{add,del}. Otherwise, the bridge.num will always be
+	 * passed as zero.
+	 */
+	u32			fdb_isolation:1;
 
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
@@ -941,23 +965,29 @@ struct dsa_switch_ops {
 	 * Forwarding database
 	 */
 	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid);
+				const unsigned char *addr, u16 vid,
+				struct dsa_db db);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid);
+				const unsigned char *addr, u16 vid,
+				struct dsa_db db);
 	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
 				 dsa_fdb_dump_cb_t *cb, void *data);
 	int	(*lag_fdb_add)(struct dsa_switch *ds, struct dsa_lag lag,
-			       const unsigned char *addr, u16 vid);
+			       const unsigned char *addr, u16 vid,
+			       struct dsa_db db);
 	int	(*lag_fdb_del)(struct dsa_switch *ds, struct dsa_lag lag,
-			       const unsigned char *addr, u16 vid);
+			       const unsigned char *addr, u16 vid,
+			       struct dsa_db db);
 
 	/*
 	 * Multicast database
 	 */
 	int	(*port_mdb_add)(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb);
+				const struct switchdev_obj_port_mdb *mdb,
+				struct dsa_db db);
 	int	(*port_mdb_del)(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb);
+				const struct switchdev_obj_port_mdb *mdb,
+				struct dsa_db db);
 	/*
 	 * RXNFC
 	 */

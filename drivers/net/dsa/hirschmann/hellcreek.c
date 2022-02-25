@@ -827,7 +827,8 @@ static int hellcreek_fdb_get(struct hellcreek *hellcreek,
 }
 
 static int hellcreek_fdb_add(struct dsa_switch *ds, int port,
-			     const unsigned char *addr, u16 vid)
+			     const unsigned char *addr, u16 vid,
+			     struct dsa_db db)
 {
 	struct hellcreek_fdb_entry entry = { 0 };
 	struct hellcreek *hellcreek = ds->priv;
@@ -872,7 +873,8 @@ out:
 }
 
 static int hellcreek_fdb_del(struct dsa_switch *ds, int port,
-			     const unsigned char *addr, u16 vid)
+			     const unsigned char *addr, u16 vid,
+			     struct dsa_db db)
 {
 	struct hellcreek_fdb_entry entry = { 0 };
 	struct hellcreek *hellcreek = ds->priv;

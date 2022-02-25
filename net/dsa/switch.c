@@ -210,21 +210,41 @@ static bool dsa_port_host_address_match(struct dsa_port *dp,
 	return false;
 }
 
+static bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
+{
+	if (a->type != b->type)
+		return false;
+
+	switch (a->type) {
+	case DSA_DB_PORT:
+		return a->dp == b->dp;
+	case DSA_DB_LAG:
+		return a->lag.dev == b->lag.dev;
+	case DSA_DB_BRIDGE:
+		return a->bridge.num == b->bridge.num;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+}
+
 static struct dsa_mac_addr *dsa_mac_addr_find(struct list_head *addr_list,
-					      const unsigned char *addr,
-					      u16 vid)
+					      const unsigned char *addr, u16 vid,
+					      struct dsa_db db)
 {
 	struct dsa_mac_addr *a;
 
 	list_for_each_entry(a, addr_list, list)
-		if (ether_addr_equal(a->addr, addr) && a->vid == vid)
+		if (ether_addr_equal(a->addr, addr) && a->vid == vid &&
+		    dsa_db_equal(&a->db, &db))
 			return a;
 
 	return NULL;
 }
 
 static int dsa_port_do_mdb_add(struct dsa_port *dp,
-			       const struct switchdev_obj_port_mdb *mdb)
+			       const struct switchdev_obj_port_mdb *mdb,
+			       struct dsa_db db)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
@@ -233,11 +253,11 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_mdb_add(ds, port, mdb);
+		return ds->ops->port_mdb_add(ds, port, mdb, db);
 
 	mutex_lock(&dp->addr_lists_lock);
 
-	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid);
+	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
 		goto out;
@@ -249,7 +269,7 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 		goto out;
 	}
 
-	err = ds->ops->port_mdb_add(ds, port, mdb);
+	err = ds->ops->port_mdb_add(ds, port, mdb, db);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -257,6 +277,7 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 
 	ether_addr_copy(a->addr, mdb->addr);
 	a->vid = mdb->vid;
+	a->db = db;
 	refcount_set(&a->refcount, 1);
 	list_add_tail(&a->list, &dp->mdbs);
 
@@ -267,7 +288,8 @@ out:
 }
 
 static int dsa_port_do_mdb_del(struct dsa_port *dp,
-			       const struct switchdev_obj_port_mdb *mdb)
+			       const struct switchdev_obj_port_mdb *mdb,
+			       struct dsa_db db)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
@@ -276,11 +298,11 @@ static int dsa_port_do_mdb_del(struct dsa_port *dp,
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_mdb_del(ds, port, mdb);
+		return ds->ops->port_mdb_del(ds, port, mdb, db);
 
 	mutex_lock(&dp->addr_lists_lock);
 
-	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid);
+	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid, db);
 	if (!a) {
 		err = -ENOENT;
 		goto out;
@@ -289,7 +311,7 @@ static int dsa_port_do_mdb_del(struct dsa_port *dp,
 	if (!refcount_dec_and_test(&a->refcount))
 		goto out;
 
-	err = ds->ops->port_mdb_del(ds, port, mdb);
+	err = ds->ops->port_mdb_del(ds, port, mdb, db);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -305,7 +327,7 @@ out:
 }
 
 static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
-			       u16 vid)
+			       u16 vid, struct dsa_db db)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
@@ -314,11 +336,11 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_fdb_add(ds, port, addr, vid);
+		return ds->ops->port_fdb_add(ds, port, addr, vid, db);
 
 	mutex_lock(&dp->addr_lists_lock);
 
-	a = dsa_mac_addr_find(&dp->fdbs, addr, vid);
+	a = dsa_mac_addr_find(&dp->fdbs, addr, vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
 		goto out;
@@ -330,7 +352,7 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		goto out;
 	}
 
-	err = ds->ops->port_fdb_add(ds, port, addr, vid);
+	err = ds->ops->port_fdb_add(ds, port, addr, vid, db);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -338,6 +360,7 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 
 	ether_addr_copy(a->addr, addr);
 	a->vid = vid;
+	a->db = db;
 	refcount_set(&a->refcount, 1);
 	list_add_tail(&a->list, &dp->fdbs);
 
@@ -348,7 +371,7 @@ out:
 }
 
 static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
-			       u16 vid)
+			       u16 vid, struct dsa_db db)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
@@ -357,11 +380,11 @@ static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
-		return ds->ops->port_fdb_del(ds, port, addr, vid);
+		return ds->ops->port_fdb_del(ds, port, addr, vid, db);
 
 	mutex_lock(&dp->addr_lists_lock);
 
-	a = dsa_mac_addr_find(&dp->fdbs, addr, vid);
+	a = dsa_mac_addr_find(&dp->fdbs, addr, vid, db);
 	if (!a) {
 		err = -ENOENT;
 		goto out;
@@ -370,7 +393,7 @@ static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	if (!refcount_dec_and_test(&a->refcount))
 		goto out;
 
-	err = ds->ops->port_fdb_del(ds, port, addr, vid);
+	err = ds->ops->port_fdb_del(ds, port, addr, vid, db);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -386,14 +409,15 @@ out:
 }
 
 static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
-				     const unsigned char *addr, u16 vid)
+				     const unsigned char *addr, u16 vid,
+				     struct dsa_db db)
 {
 	struct dsa_mac_addr *a;
 	int err = 0;
 
 	mutex_lock(&lag->fdb_lock);
 
-	a = dsa_mac_addr_find(&lag->fdbs, addr, vid);
+	a = dsa_mac_addr_find(&lag->fdbs, addr, vid, db);
 	if (a) {
 		refcount_inc(&a->refcount);
 		goto out;
@@ -405,7 +429,7 @@ static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
 		goto out;
 	}
 
-	err = ds->ops->lag_fdb_add(ds, *lag, addr, vid);
+	err = ds->ops->lag_fdb_add(ds, *lag, addr, vid, db);
 	if (err) {
 		kfree(a);
 		goto out;
@@ -423,14 +447,15 @@ out:
 }
 
 static int dsa_switch_do_lag_fdb_del(struct dsa_switch *ds, struct dsa_lag *lag,
-				     const unsigned char *addr, u16 vid)
+				     const unsigned char *addr, u16 vid,
+				     struct dsa_db db)
 {
 	struct dsa_mac_addr *a;
 	int err = 0;
 
 	mutex_lock(&lag->fdb_lock);
 
-	a = dsa_mac_addr_find(&lag->fdbs, addr, vid);
+	a = dsa_mac_addr_find(&lag->fdbs, addr, vid, db);
 	if (!a) {
 		err = -ENOENT;
 		goto out;
@@ -439,7 +464,7 @@ static int dsa_switch_do_lag_fdb_del(struct dsa_switch *ds, struct dsa_lag *lag,
 	if (!refcount_dec_and_test(&a->refcount))
 		goto out;
 
-	err = ds->ops->lag_fdb_del(ds, *lag, addr, vid);
+	err = ds->ops->lag_fdb_del(ds, *lag, addr, vid, db);
 	if (err) {
 		refcount_set(&a->refcount, 1);
 		goto out;
@@ -466,7 +491,8 @@ static int dsa_switch_host_fdb_add(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds) {
 		if (dsa_port_host_address_match(dp, info->sw_index,
 						info->port)) {
-			err = dsa_port_do_fdb_add(dp, info->addr, info->vid);
+			err = dsa_port_do_fdb_add(dp, info->addr, info->vid,
+						  info->db);
 			if (err)
 				break;
 		}
@@ -487,7 +513,8 @@ static int dsa_switch_host_fdb_del(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds) {
 		if (dsa_port_host_address_match(dp, info->sw_index,
 						info->port)) {
-			err = dsa_port_do_fdb_del(dp, info->addr, info->vid);
+			err = dsa_port_do_fdb_del(dp, info->addr, info->vid,
+						  info->db);
 			if (err)
 				break;
 		}
@@ -505,7 +532,7 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	return dsa_port_do_fdb_add(dp, info->addr, info->vid);
+	return dsa_port_do_fdb_add(dp, info->addr, info->vid, info->db);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
@@ -517,7 +544,7 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return dsa_port_do_fdb_del(dp, info->addr, info->vid);
+	return dsa_port_do_fdb_del(dp, info->addr, info->vid, info->db);
 }
 
 static int dsa_switch_lag_fdb_add(struct dsa_switch *ds,
@@ -532,7 +559,8 @@ static int dsa_switch_lag_fdb_add(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds)
 		if (dsa_port_offloads_lag(dp, info->lag))
 			return dsa_switch_do_lag_fdb_add(ds, info->lag,
-							 info->addr, info->vid);
+							 info->addr, info->vid,
+							 info->db);
 
 	return 0;
 }
@@ -549,7 +577,8 @@ static int dsa_switch_lag_fdb_del(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds)
 		if (dsa_port_offloads_lag(dp, info->lag))
 			return dsa_switch_do_lag_fdb_del(ds, info->lag,
-							 info->addr, info->vid);
+							 info->addr, info->vid,
+							 info->db);
 
 	return 0;
 }
@@ -604,7 +633,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
-	return dsa_port_do_mdb_add(dp, info->mdb);
+	return dsa_port_do_mdb_add(dp, info->mdb, info->db);
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
@@ -616,7 +645,7 @@ static int dsa_switch_mdb_del(struct dsa_switch *ds,
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
 
-	return dsa_port_do_mdb_del(dp, info->mdb);
+	return dsa_port_do_mdb_del(dp, info->mdb, info->db);
 }
 
 static int dsa_switch_host_mdb_add(struct dsa_switch *ds,
@@ -631,7 +660,7 @@ static int dsa_switch_host_mdb_add(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds) {
 		if (dsa_port_host_address_match(dp, info->sw_index,
 						info->port)) {
-			err = dsa_port_do_mdb_add(dp, info->mdb);
+			err = dsa_port_do_mdb_add(dp, info->mdb, info->db);
 			if (err)
 				break;
 		}
@@ -652,7 +681,7 @@ static int dsa_switch_host_mdb_del(struct dsa_switch *ds,
 	dsa_switch_for_each_port(dp, ds) {
 		if (dsa_port_host_address_match(dp, info->sw_index,
 						info->port)) {
-			err = dsa_port_do_mdb_del(dp, info->mdb);
+			err = dsa_port_do_mdb_del(dp, info->mdb, info->db);
 			if (err)
 				break;
 		}
