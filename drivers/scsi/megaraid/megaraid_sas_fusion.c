@@ -5100,8 +5100,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			if (instance->adapter_type >= VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(fusion->stream_detect_by_ld[j],
-					0, sizeof(struct LD_STREAM_DETECT));
-				 fusion->stream_detect_by_ld[j]->mru_bit_map
+					       0, sizeof(struct LD_STREAM_DETECT));
+					fusion->stream_detect_by_ld[j]->mru_bit_map
 						= MR_STREAM_BITMAP;
 				}
 			}
