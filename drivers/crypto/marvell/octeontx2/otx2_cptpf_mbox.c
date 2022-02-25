@@ -20,8 +20,10 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 
 	mutex_lock(&cptpf->lock);
 	msg = otx2_mbox_alloc_msg(&cptpf->afpf_mbox, 0, size);
-	if (msg == NULL)
+	if (msg == NULL) {
+		mutex_unlock(&cptpf->lock);
 		return -ENOMEM;
+	}
 
 	memcpy((uint8_t *)msg + sizeof(struct mbox_msghdr),
 	       (uint8_t *)req + sizeof(struct mbox_msghdr), size);
