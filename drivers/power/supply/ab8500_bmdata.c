@@ -77,8 +77,6 @@ static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] =
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
 };
 
 static const struct ab8500_bm_capacity_levels cap_levels = {
@@ -190,6 +188,19 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	if (!bi->maintenance_charge || !bi->maintenance_charge_size) {
 		bi->maintenance_charge = ab8500_maint_charg_table;
 		bi->maintenance_charge_size = ARRAY_SIZE(ab8500_maint_charg_table);
+	}
+
+	if (bi->alert_low_temp_charge_current_ua < 0 ||
+	    bi->alert_low_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_low_temp_charge_current_ua = 300000;
+		bi->alert_low_temp_charge_voltage_uv = 4000000;
+	}
+	if (bi->alert_high_temp_charge_current_ua < 0 ||
+	    bi->alert_high_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_high_temp_charge_current_ua = 300000;
+		bi->alert_high_temp_charge_voltage_uv = 4000000;
 	}
 
 	/*

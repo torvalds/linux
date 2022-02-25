@@ -444,6 +444,19 @@ struct power_supply_maintenance_charge_table {
  *   after the main CC/CV charging phase is complete.
  * @maintenance_charge_size: the number of maintenance charging settings in
  *   maintenance_charge.
+ * @alert_low_temp_charge_current_ua: The charging current to use if the battery
+ *   enters low alert temperature, i.e. if the internal temperature is between
+ *   temp_alert_min and temp_min. No matter the charging phase, this
+ *   and alert_high_temp_charge_voltage_uv will be applied.
+ * @alert_low_temp_charge_voltage_uv: Same as alert_low_temp_charge_current_ua,
+ *   but for the charging voltage.
+ * @alert_high_temp_charge_current_ua: The charging current to use if the
+ *   battery enters high alert temperature, i.e. if the internal temperature is
+ *   between temp_alert_max and temp_max. No matter the charging phase, this
+ *   and alert_high_temp_charge_voltage_uv will be applied, usually lowering
+ *   the charging current as an evasive manouver.
+ * @alert_high_temp_charge_voltage_uv: Same as
+ *   alert_high_temp_charge_current_ua, but for the charging voltage.
  * @factory_internal_resistance_uohm: the internal resistance of the battery
  *   at fabrication time, expressed in microohms. This resistance will vary
  *   depending on the lifetime and charge of the battery, so this is just a
@@ -595,6 +608,10 @@ struct power_supply_battery_info {
 	int constant_charge_voltage_max_uv;
 	struct power_supply_maintenance_charge_table *maintenance_charge;
 	int maintenance_charge_size;
+	int alert_low_temp_charge_current_ua;
+	int alert_low_temp_charge_voltage_uv;
+	int alert_high_temp_charge_current_ua;
+	int alert_high_temp_charge_voltage_uv;
 	int factory_internal_resistance_uohm;
 	int ocv_temp[POWER_SUPPLY_OCV_TEMP_MAX];
 	int temp_ambient_alert_min;

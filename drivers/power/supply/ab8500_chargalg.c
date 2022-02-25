@@ -149,7 +149,8 @@ struct ab8500_chargalg_events {
 	bool batt_ovv;
 	bool batt_rem;
 	bool btemp_underover;
-	bool btemp_lowhigh;
+	bool btemp_low;
+	bool btemp_high;
 	bool main_thermal_prot;
 	bool usb_thermal_prot;
 	bool main_ovv;
@@ -684,26 +685,31 @@ static void ab8500_chargalg_check_temp(struct ab8500_chargalg *di)
 		di->batt_data.temp < (bi->temp_alert_max - di->t_hyst_norm)) {
 		/* Temp OK! */
 		di->events.btemp_underover = false;
-		di->events.btemp_lowhigh = false;
+		di->events.btemp_low = false;
+		di->events.btemp_high = false;
 		di->t_hyst_norm = 0;
 		di->t_hyst_lowhigh = 0;
 	} else {
-		if (((di->batt_data.temp >= bi->temp_alert_max) &&
-			(di->batt_data.temp <
-				(bi->temp_max - di->t_hyst_lowhigh))) ||
-			((di->batt_data.temp >
-				(bi->temp_min + di->t_hyst_lowhigh)) &&
-			(di->batt_data.temp <= bi->temp_alert_min))) {
-			/* TEMP minor!!!!! */
+		if ((di->batt_data.temp >= bi->temp_alert_max) &&
+		    (di->batt_data.temp < (bi->temp_max - di->t_hyst_lowhigh))) {
+			/* Alert zone for high temperature */
 			di->events.btemp_underover = false;
-			di->events.btemp_lowhigh = true;
+			di->events.btemp_high = true;
+			di->t_hyst_norm = di->bm->temp_hysteresis;
+			di->t_hyst_lowhigh = 0;
+		} else if ((di->batt_data.temp > (bi->temp_min + di->t_hyst_lowhigh)) &&
+			   (di->batt_data.temp <= bi->temp_alert_min)) {
+			/* Alert zone for low temperature */
+			di->events.btemp_underover = false;
+			di->events.btemp_low = true;
 			di->t_hyst_norm = di->bm->temp_hysteresis;
 			di->t_hyst_lowhigh = 0;
 		} else if (di->batt_data.temp <= bi->temp_min ||
 			di->batt_data.temp >= bi->temp_max) {
 			/* TEMP major!!!!! */
 			di->events.btemp_underover = true;
-			di->events.btemp_lowhigh = false;
+			di->events.btemp_low = false;
+			di->events.btemp_high = false;
 			di->t_hyst_norm = 0;
 			di->t_hyst_lowhigh = di->bm->temp_hysteresis;
 		} else {
@@ -1313,7 +1319,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 			ab8500_chargalg_state_to(di, STATE_WD_EXPIRED_INIT);
 	}
 	/* Battery temp high/low */
-	else if (di->events.btemp_lowhigh) {
+	else if (di->events.btemp_low || di->events.btemp_high) {
 		if (di->charge_state != STATE_TEMP_LOWHIGH)
 			ab8500_chargalg_state_to(di, STATE_TEMP_LOWHIGH_INIT);
 	}
@@ -1510,9 +1516,19 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		break;
 
 	case STATE_TEMP_LOWHIGH_INIT:
-		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type->low_high_vol_lvl,
-			di->bm->bat_type->low_high_cur_lvl);
+		if (di->events.btemp_low) {
+			ab8500_chargalg_start_charging(di,
+				       bi->alert_low_temp_charge_voltage_uv,
+				       bi->alert_low_temp_charge_current_ua);
+		} else if (di->events.btemp_high) {
+			ab8500_chargalg_start_charging(di,
+				       bi->alert_high_temp_charge_voltage_uv,
+				       bi->alert_high_temp_charge_current_ua);
+		} else {
+			dev_err(di->dev, "neither low or high temp event occured\n");
+			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+			break;
+		}
 		ab8500_chargalg_stop_maintenance_timer(di);
 		di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 		ab8500_chargalg_state_to(di, STATE_TEMP_LOWHIGH);
@@ -1520,7 +1536,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		fallthrough;
 
 	case STATE_TEMP_LOWHIGH:
-		if (!di->events.btemp_lowhigh)
+		if (!di->events.btemp_low && !di->events.btemp_high)
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 

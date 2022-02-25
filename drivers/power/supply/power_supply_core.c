@@ -596,6 +596,10 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	info->charge_restart_voltage_uv      = -EINVAL;
 	info->overvoltage_limit_uv           = -EINVAL;
 	info->maintenance_charge             = NULL;
+	info->alert_low_temp_charge_current_ua = -EINVAL;
+	info->alert_low_temp_charge_voltage_uv = -EINVAL;
+	info->alert_high_temp_charge_current_ua = -EINVAL;
+	info->alert_high_temp_charge_voltage_uv = -EINVAL;
 	info->temp_ambient_alert_min         = INT_MIN;
 	info->temp_ambient_alert_max         = INT_MAX;
 	info->temp_alert_min                 = INT_MIN;
