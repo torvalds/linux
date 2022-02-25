@@ -263,6 +263,8 @@ asmlinkage void __init mmu_init(void)
 
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
+
+	memblock_dump_all();
 }
 
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
