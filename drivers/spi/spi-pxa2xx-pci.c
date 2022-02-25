@@ -30,7 +30,7 @@ enum {
 struct pxa_spi_info {
 	enum pxa_ssp_type type;
 	int port_id;
-	int num_chipselect;
+	unsigned int num_chipselect;
 	unsigned long max_clk_rate;
 
 	/* DMA channel request parameters */
@@ -114,6 +114,14 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
+static int ce4100_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+{
+	c->num_chipselect = dev->devfn;
+	c->max_clk_rate = 3686400;
+
+	return 0;
+}
+
 static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
 	struct dw_dma_slave *tx, *rx;
@@ -163,8 +171,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_CE4100] = {
 		.type = PXA25x_SSP,
 		.port_id =  -1,
-		.num_chipselect = -1,
-		.max_clk_rate = 3686400,
+		.setup = ce4100_spi_setup,
 	},
 	[PORT_BYT] = {
 		.type = LPSS_BYT_SSP,
@@ -248,7 +255,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	}
 
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
-	spi_pdata.num_chipselect = (c->num_chipselect > 0) ? c->num_chipselect : dev->devfn;
+	spi_pdata.num_chipselect = c->num_chipselect;
 	spi_pdata.dma_filter = c->dma_filter;
 	spi_pdata.tx_param = c->tx_param;
 	spi_pdata.rx_param = c->rx_param;
