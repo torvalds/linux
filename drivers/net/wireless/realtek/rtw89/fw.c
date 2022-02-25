@@ -205,6 +205,10 @@ static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 	if (chip->chip_id == RTL8852A &&
 	    RTW89_FW_SUIT_VER_CODE(fw_suit) >= RTW89_FW_VER_CODE(0, 13, 35, 0))
 		rtwdev->fw.scan_offload = true;
+
+	if (chip->chip_id == RTL8852A &&
+	    RTW89_FW_SUIT_VER_CODE(fw_suit) >= RTW89_FW_VER_CODE(0, 13, 35, 0))
+		rtwdev->fw.tx_wake = true;
 }
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
