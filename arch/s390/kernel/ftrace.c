@@ -62,7 +62,7 @@ asm(
 	"	.align 16\n"
 	"ftrace_shared_hotpatch_trampoline_exrl:\n"
 	"	lmg	%r0,%r1,2(%r1)\n"
-	"	.insn	ril,0xc60000000000,%r0,0f\n" /* exrl */
+	"	exrl	%r0,0f\n"
 	"	j	.\n"
 	"0:	br	%r1\n"
 	"ftrace_shared_hotpatch_trampoline_exrl_end:\n"

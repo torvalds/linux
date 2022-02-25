@@ -148,7 +148,7 @@ struct ptff_qui {
 	asm volatile(							\
 		"	lgr	0,%[reg0]\n"				\
 		"	lgr	1,%[reg1]\n"				\
-		"	.insn	e,0x0104\n"				\
+		"	ptff\n"						\
 		"	ipm	%[rc]\n"				\
 		"	srl	%[rc],28\n"				\
 		: [rc] "=&d" (rc), "+m" (*(struct addrtype *)reg1)	\

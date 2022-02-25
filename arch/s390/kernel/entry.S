@@ -226,7 +226,7 @@ ENTRY(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
 ENDPROC(__switch_to)
 
@@ -648,7 +648,7 @@ ENTRY(mcck_int_handler)
 ENDPROC(mcck_int_handler)
 
 ENTRY(restart_int_handler)
-	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f

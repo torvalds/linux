@@ -225,8 +225,7 @@ static inline unsigned long __ecag(unsigned int asi, unsigned char parm)
 {
 	unsigned long val;
 
-	asm volatile(".insn	rsy,0xeb000000004c,%0,0,0(%1)" /* ecag */
-		     : "=d" (val) : "a" (asi << 8 | parm));
+	asm volatile("ecag %0,0,0(%1)" : "=d" (val) : "a" (asi << 8 | parm));
 	return val;
 }
 

@@ -160,7 +160,7 @@ struct hws_trailer_entry {
 /* Load program parameter */
 static inline void lpp(void *pp)
 {
-	asm volatile(".insn s,0xb2800000,0(%0)\n":: "a" (pp) : "memory");
+	asm volatile("lpp 0(%0)\n" :: "a" (pp) : "memory");
 }
 
 /* Query counter information */
@@ -169,7 +169,7 @@ static inline int qctri(struct cpumf_ctr_info *info)
 	int rc = -EINVAL;
 
 	asm volatile (
-		"0:	.insn	s,0xb28e0000,%1\n"
+		"0:	qctri	%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(1b, 2b)
@@ -183,7 +183,7 @@ static inline int lcctl(u64 ctl)
 	int cc;
 
 	asm volatile (
-		"	.insn	s,0xb2840000,%1\n"
+		"	lcctl	%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc) : "Q" (ctl) : "cc");
@@ -197,7 +197,7 @@ static inline int __ecctr(u64 ctr, u64 *content)
 	int cc;
 
 	asm volatile (
-		"	.insn	rre,0xb2e40000,%0,%2\n"
+		"	ecctr	%0,%2\n"
 		"	ipm	%1\n"
 		"	srl	%1,28\n"
 		: "=d" (_content), "=d" (cc) : "d" (ctr) : "cc");
@@ -247,7 +247,7 @@ static inline int qsi(struct hws_qsi_info_block *info)
 	int cc = 1;
 
 	asm volatile(
-		"0:	.insn	s,0xb2860000,%1\n"
+		"0:	qsi	%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
@@ -262,7 +262,7 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 
 	cc = 1;
 	asm volatile(
-		"0:	.insn	s,0xb2870000,0(%1)\n"
+		"0:	lsctl	0(%1)\n"
 		"1:	ipm	%0\n"
 		"	srl	%0,28\n"
 		"2:\n"

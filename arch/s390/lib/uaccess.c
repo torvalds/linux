@@ -45,7 +45,7 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 	tmp1 = -4096UL;
 	asm volatile(
 		"   lr	  0,%[spec]\n"
-		"0: .insn ss,0xc80000000000,0(%0,%2),0(%1),0\n"
+		"0: mvcos 0(%2),0(%1),%0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
 		"   slgr  %1,%3\n"
@@ -56,7 +56,7 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		"   slgr  %4,%1\n"
 		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
 		"   jnh   5f\n"
-		"3: .insn ss,0xc80000000000,0(%4,%2),0(%1),0\n"
+		"3: mvcos 0(%2),0(%1),%4\n"
 		"7: slgr  %0,%4\n"
 		"   j     5f\n"
 		"4: slgr  %0,%0\n"
@@ -104,7 +104,7 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 	tmp1 = -4096UL;
 	asm volatile(
 		"   lr	  0,%[spec]\n"
-		"0: .insn ss,0xc80000000000,0(%0,%1),0(%2),0\n"
+		"0: mvcos 0(%1),0(%2),%0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
 		"   slgr  %1,%3\n"
@@ -115,7 +115,7 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		"   slgr  %4,%1\n"
 		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
 		"   jnh   5f\n"
-		"3: .insn ss,0xc80000000000,0(%4,%1),0(%2),0\n"
+		"3: mvcos 0(%1),0(%2),%4\n"
 		"7: slgr  %0,%4\n"
 		"   j     5f\n"
 		"4: slgr  %0,%0\n"
@@ -155,7 +155,7 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 	tmp1 = -4096UL;
 	asm volatile(
 		"   lr	  0,%[spec]\n"
-		"0: .insn ss,0xc80000000000,0(%0,%1),0(%4),0\n"
+		"0: mvcos 0(%1),0(%4),%0\n"
 		"   jz	  4f\n"
 		"1: algr  %0,%2\n"
 		"   slgr  %1,%2\n"
@@ -165,7 +165,7 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 		"   slgr  %3,%1\n"
 		"   clgr  %0,%3\n"	/* copy crosses next page boundary? */
 		"   jnh	  5f\n"
-		"3: .insn ss,0xc80000000000,0(%3,%1),0(%4),0\n"
+		"3: mvcos 0(%1),0(%4),%3\n"
 		"   slgr  %0,%3\n"
 		"   j	  5f\n"
 		"4: slgr  %0,%0\n"
