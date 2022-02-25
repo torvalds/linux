@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/badblocks.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 
 enum nvdimm_event {
 	NVDIMM_REVALIDATE_POISON,
@@ -23,6 +24,19 @@ enum nvdimm_claim_class {
 	NVDIMM_CCLASS_DAX,
 	NVDIMM_CCLASS_UNKNOWN,
 };
+
+#define NVDIMM_EVENT_VAR(_id)  event_attr_##_id
+#define NVDIMM_EVENT_PTR(_id)  (&event_attr_##_id.attr.attr)
+
+#define NVDIMM_EVENT_ATTR(_name, _id)				\
+	PMU_EVENT_ATTR(_name, NVDIMM_EVENT_VAR(_id), _id,	\
+			nvdimm_events_sysfs_show)
+
+/* Event attribute array index */
+#define NVDIMM_PMU_FORMAT_ATTR	0
+#define NVDIMM_PMU_EVENT_ATTR	1
+#define NVDIMM_PMU_CPUMASK_ATTR	2
+#define NVDIMM_PMU_NULL_ATTR	3
 
 /**
  * struct nvdimm_pmu - data structure for nvdimm perf driver
@@ -42,6 +56,16 @@ struct nvdimm_pmu {
 	/* cpumask provided by arch/platform specific code */
 	struct cpumask arch_cpumask;
 };
+
+extern ssize_t nvdimm_events_sysfs_show(struct device *dev,
+					struct device_attribute *attr,
+					char *page);
+
+int register_nvdimm_pmu(struct nvdimm_pmu *nvdimm, struct platform_device *pdev);
+void unregister_nvdimm_pmu(struct nvdimm_pmu *nd_pmu);
+void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu);
+int perf_pmu_register(struct pmu *pmu, const char *name, int type);
+void perf_pmu_unregister(struct pmu *pmu);
 
 struct nd_device_driver {
 	struct device_driver drv;
