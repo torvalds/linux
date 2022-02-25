@@ -306,7 +306,7 @@ static u16 sja1105_port_get_tag_8021q_vid(struct dsa_port *dp)
 
 	bridge_num = dsa_port_bridge_num_get(dp);
 
-	return dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+	return dsa_tag_8021q_bridge_vid(bridge_num);
 }
 
 static int sja1105_init_virtual_links(struct sja1105_private *priv,

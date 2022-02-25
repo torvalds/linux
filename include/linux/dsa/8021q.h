@@ -47,7 +47,7 @@ void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id,
 struct net_device *dsa_tag_8021q_find_port_by_vbid(struct net_device *master,
 						   int vbid);
 
-u16 dsa_8021q_bridge_tx_fwd_offload_vid(unsigned int bridge_num);
+u16 dsa_tag_8021q_bridge_vid(unsigned int bridge_num);
 
 u16 dsa_tag_8021q_standalone_vid(const struct dsa_port *dp);
 
