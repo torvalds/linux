@@ -59,6 +59,7 @@ struct dsa_notifier_bridge_info {
 	int sw_index;
 	int port;
 	bool tx_fwd_offload;
+	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_FDB_* */

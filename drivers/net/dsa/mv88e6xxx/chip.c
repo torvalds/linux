@@ -2618,7 +2618,8 @@ static int mv88e6xxx_map_virtual_bridge_to_pvt(struct dsa_switch *ds,
 
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct dsa_bridge bridge,
-				      bool *tx_fwd_offload)
+				      bool *tx_fwd_offload,
+				      struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -2684,7 +2685,8 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds,
 					   int tree_index, int sw_index,
-					   int port, struct dsa_bridge bridge)
+					   int port, struct dsa_bridge bridge,
+					   struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;

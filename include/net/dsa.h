@@ -937,7 +937,8 @@ struct dsa_switch_ops {
 	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct dsa_bridge bridge,
-				    bool *tx_fwd_offload);
+				    bool *tx_fwd_offload,
+				    struct netlink_ext_ack *extack);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port,
 				     struct dsa_bridge bridge);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
@@ -1021,7 +1022,8 @@ struct dsa_switch_ops {
 	 */
 	int	(*crosschip_bridge_join)(struct dsa_switch *ds, int tree_index,
 					 int sw_index, int port,
-					 struct dsa_bridge bridge);
+					 struct dsa_bridge bridge,
+					 struct netlink_ext_ack *extack);
 	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int tree_index,
 					  int sw_index, int port,
 					  struct dsa_bridge bridge);

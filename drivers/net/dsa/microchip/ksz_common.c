@@ -217,7 +217,8 @@ EXPORT_SYMBOL_GPL(ksz_get_ethtool_stats);
 
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 			 struct dsa_bridge bridge,
-			 bool *tx_fwd_offload)
+			 bool *tx_fwd_offload,
+			 struct netlink_ext_ack *extack)
 {
 	/* port_stp_state_set() will be called after to put the port in
 	 * appropriate state so there is no need to do anything.
