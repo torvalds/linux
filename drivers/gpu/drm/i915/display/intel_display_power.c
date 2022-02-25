@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_cdclk.h"
@@ -4996,7 +4998,7 @@ static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
 	state = intel_de_read(dev_priv, reg) & DBUF_POWER_STATE;
 	drm_WARN(&dev_priv->drm, enable != state,
 		 "DBuf slice %d power %s timeout!\n",
-		 slice, enabledisable(enable));
+		 slice, str_enable_disable(enable));
 }
 
 void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
