@@ -118,8 +118,6 @@ int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
 unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref);
 unsigned long gnttab_end_foreign_transfer(grant_ref_t ref);
 
-int gnttab_query_foreign_access(grant_ref_t ref);
-
 /*
  * operations on reserved batches of grant references
  */
