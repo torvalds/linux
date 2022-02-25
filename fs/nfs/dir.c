@@ -89,6 +89,7 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir
 						      NFS_INO_REVAL_FORCED);
 		list_add(&ctx->list, &nfsi->open_files);
 		clear_bit(NFS_INO_FORCE_READDIR, &nfsi->flags);
+		memcpy(ctx->verf, nfsi->cookieverf, sizeof(ctx->verf));
 		spin_unlock(&dir->i_lock);
 		return ctx;
 	}
