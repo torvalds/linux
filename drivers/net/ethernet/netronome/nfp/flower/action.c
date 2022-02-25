@@ -922,6 +922,51 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 	}
 }
 
+static struct nfp_fl_meter *nfp_fl_meter(char *act_data)
+{
+	size_t act_size = sizeof(struct nfp_fl_meter);
+	struct nfp_fl_meter *meter_act;
+
+	meter_act = (struct nfp_fl_meter *)act_data;
+
+	memset(meter_act, 0, act_size);
+
+	meter_act->head.jump_id = NFP_FL_ACTION_OPCODE_METER;
+	meter_act->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+
+	return meter_act;
+}
+
+static int
+nfp_flower_meter_action(struct nfp_app *app,
+			const struct flow_action_entry *action,
+			struct nfp_fl_payload *nfp_fl, int *a_len,
+			struct net_device *netdev,
+			struct netlink_ext_ack *extack)
+{
+	struct nfp_fl_meter *fl_meter;
+	u32 meter_id;
+
+	if (*a_len + sizeof(struct nfp_fl_meter) > NFP_FL_MAX_A_SIZ) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload:meter action size beyond the allowed maximum");
+		return -EOPNOTSUPP;
+	}
+
+	meter_id = action->hw_index;
+	if (!nfp_flower_search_meter_entry(app, meter_id)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "can not offload flow table with unsupported police action.\n");
+		return -EOPNOTSUPP;
+	}
+
+	fl_meter = nfp_fl_meter(&nfp_fl->action_data[*a_len]);
+	*a_len += sizeof(struct nfp_fl_meter);
+	fl_meter->meter_id = cpu_to_be32(meter_id);
+
+	return 0;
+}
+
 static int
 nfp_flower_output_action(struct nfp_app *app,
 			 const struct flow_action_entry *act,
@@ -985,6 +1030,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		       struct nfp_flower_pedit_acts *set_act, bool *pkt_host,
 		       struct netlink_ext_ack *extack, int act_idx)
 {
+	struct nfp_flower_priv *fl_priv = app->priv;
 	struct nfp_fl_pre_tunnel *pre_tun;
 	struct nfp_fl_set_tun *set_tun;
 	struct nfp_fl_push_vlan *psh_v;
@@ -1148,6 +1194,18 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return -EOPNOTSUPP;
 
 		*pkt_host = true;
+		break;
+	case FLOW_ACTION_POLICE:
+		if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_METER)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: unsupported police action in action list");
+			return -EOPNOTSUPP;
+		}
+
+		err = nfp_flower_meter_action(app, act, nfp_fl, a_len, netdev,
+					      extack);
+		if (err)
+			return err;
 		break;
 	default:
 		/* Currently we do not handle any other actions. */
