@@ -68,8 +68,8 @@ static int qcom_smd_qrtr_probe(struct rpmsg_device *rpdev)
 {
 	struct qrtr_array svc_arr = {NULL, 0};
 	struct qrtr_smd_dev *qdev;
-	size_t size;
 	u32 net_id;
+	int size;
 	bool rt;
 	int rc;
 
