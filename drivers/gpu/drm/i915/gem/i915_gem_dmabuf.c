@@ -66,15 +66,6 @@ err:
 	return ERR_PTR(ret);
 }
 
-static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-				   struct sg_table *sg,
-				   enum dma_data_direction dir)
-{
-	dma_unmap_sgtable(attachment->dev, sg, dir, DMA_ATTR_SKIP_CPU_SYNC);
-	sg_free_table(sg);
-	kfree(sg);
-}
-
 static int i915_gem_dmabuf_vmap(struct dma_buf *dma_buf,
 				struct iosys_map *map)
 {
@@ -209,7 +200,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.attach = i915_gem_dmabuf_attach,
 	.detach = i915_gem_dmabuf_detach,
 	.map_dma_buf = i915_gem_map_dma_buf,
-	.unmap_dma_buf = i915_gem_unmap_dma_buf,
+	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
 	.mmap = i915_gem_dmabuf_mmap,
 	.vmap = i915_gem_dmabuf_vmap,
