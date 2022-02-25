@@ -140,7 +140,7 @@
 };
 
 &gpio6 {
-	usb1-reset {
+	usb1-reset-hog {
 		gpio-hog;
 		gpios = <10 GPIO_ACTIVE_LOW>;
 		output-low;

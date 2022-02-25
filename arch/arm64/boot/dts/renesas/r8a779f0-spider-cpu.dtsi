@@ -31,6 +31,11 @@
 	clock-frequency = <32768>;
 };
 
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &scif3 {
 	status = "okay";
 };

@@ -414,7 +414,7 @@
 		     &sound_pcm_pins>;
 
 	ports {
-		/* rsnd_port0/1 are on salvator-common */
+		/* rsnd_port0/1 are defined in ulcb.dtsi */
 		rsnd_port2: port@2 {
 			reg = <2>;
 			rsnd_for_pcm3168a_play: endpoint {
