@@ -401,7 +401,7 @@ static void wait_for_pipe_scanline_moving(struct intel_crtc *crtc, bool state)
 	if (wait_for(pipe_scanline_is_moving(dev_priv, pipe) == state, 100))
 		drm_err(&dev_priv->drm,
 			"pipe %c scanline %s wait timed out\n",
-			pipe_name(pipe), onoff(state));
+			pipe_name(pipe), str_on_off(state));
 }
 
 static void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc)
@@ -457,7 +457,7 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 	I915_STATE_WARN(cur_state != state,
 			"transcoder %s assertion failure (expected %s, current %s)\n",
 			transcoder_name(cpu_transcoder),
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 
 static void assert_plane(struct intel_plane *plane, bool state)
@@ -469,7 +469,8 @@ static void assert_plane(struct intel_plane *plane, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"%s assertion failure (expected %s, current %s)\n",
-			plane->base.name, onoff(state), onoff(cur_state));
+			plane->base.name, str_on_off(state),
+			str_on_off(cur_state));
 }
 
 #define assert_plane_enabled(p) assert_plane(p, true)

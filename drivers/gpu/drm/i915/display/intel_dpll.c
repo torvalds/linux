@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/string_helpers.h>
 
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -1945,7 +1946,7 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 	cur_state = intel_de_read(dev_priv, DPLL(pipe)) & DPLL_VCO_ENABLE;
 	I915_STATE_WARN(cur_state != state,
 			"PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)

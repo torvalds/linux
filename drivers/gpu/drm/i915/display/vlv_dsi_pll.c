@@ -26,6 +26,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "intel_de.h"
@@ -581,7 +582,7 @@ static void assert_dsi_pll(struct drm_i915_private *i915, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"DSI PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
+			str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_dsi_pll_enabled(struct drm_i915_private *i915)
