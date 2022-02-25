@@ -2310,7 +2310,7 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 				       struct list_head *invalid_list,
 				       int *nr_zapped)
 {
-	bool list_unstable;
+	bool list_unstable, zapped_root = false;
 
 	trace_kvm_mmu_prepare_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
@@ -2352,14 +2352,20 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 		 * in kvm_mmu_zap_all_fast().  Note, is_obsolete_sp() also
 		 * treats invalid shadow pages as being obsolete.
 		 */
-		if (!is_obsolete_sp(kvm, sp))
-			kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
+		zapped_root = !is_obsolete_sp(kvm, sp);
 	}
 
 	if (sp->lpage_disallowed)
 		unaccount_huge_nx_page(kvm, sp);
 
 	sp->role.invalid = 1;
+
+	/*
+	 * Make the request to free obsolete roots after marking the root
+	 * invalid, otherwise other vCPUs may not see it as invalid.
+	 */
+	if (zapped_root)
+		kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
 	return list_unstable;
 }
 
@@ -3947,7 +3953,7 @@ static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 	 * previous root, then __kvm_mmu_prepare_zap_page() signals all vCPUs
 	 * to reload even if no vCPU is actively using the root.
 	 */
-	if (!sp && kvm_test_request(KVM_REQ_MMU_RELOAD, vcpu))
+	if (!sp && kvm_test_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
 		return true;
 
 	return fault->slot &&
@@ -4180,8 +4186,8 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 	/*
 	 * It's possible that the cached previous root page is obsolete because
 	 * of a change in the MMU generation number. However, changing the
-	 * generation number is accompanied by KVM_REQ_MMU_RELOAD, which will
-	 * free the root set here and allocate a new one.
+	 * generation number is accompanied by KVM_REQ_MMU_FREE_OBSOLETE_ROOTS,
+	 * which will free the root set here and allocate a new one.
 	 */
 	kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
 
@@ -5085,6 +5091,51 @@ void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
 }
 
+static bool is_obsolete_root(struct kvm *kvm, hpa_t root_hpa)
+{
+	struct kvm_mmu_page *sp;
+
+	if (!VALID_PAGE(root_hpa))
+		return false;
+
+	/*
+	 * When freeing obsolete roots, treat roots as obsolete if they don't
+	 * have an associated shadow page.  This does mean KVM will get false
+	 * positives and free roots that don't strictly need to be freed, but
+	 * such false positives are relatively rare:
+	 *
+	 *  (a) only PAE paging and nested NPT has roots without shadow pages
+	 *  (b) remote reloads due to a memslot update obsoletes _all_ roots
+	 *  (c) KVM doesn't track previous roots for PAE paging, and the guest
+	 *      is unlikely to zap an in-use PGD.
+	 */
+	sp = to_shadow_page(root_hpa);
+	return !sp || is_obsolete_sp(kvm, sp);
+}
+
+static void __kvm_mmu_free_obsolete_roots(struct kvm *kvm, struct kvm_mmu *mmu)
+{
+	unsigned long roots_to_free = 0;
+	int i;
+
+	if (is_obsolete_root(kvm, mmu->root.hpa))
+		roots_to_free |= KVM_MMU_ROOT_CURRENT;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		if (is_obsolete_root(kvm, mmu->root.hpa))
+			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
+	}
+
+	if (roots_to_free)
+		kvm_mmu_free_roots(kvm, mmu, roots_to_free);
+}
+
+void kvm_mmu_free_obsolete_roots(struct kvm_vcpu *vcpu)
+{
+	__kvm_mmu_free_obsolete_roots(vcpu->kvm, &vcpu->arch.root_mmu);
+	__kvm_mmu_free_obsolete_roots(vcpu->kvm, &vcpu->arch.guest_mmu);
+}
+
 static bool need_remote_flush(u64 old, u64 new)
 {
 	if (!is_shadow_present_pte(old))
@@ -5656,7 +5707,7 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	 * Note: we need to do this under the protection of mmu_lock,
 	 * otherwise, vcpu would purge shadow page but miss tlb flush.
 	 */
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
+	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
 
 	kvm_zap_obsolete_pages(kvm);
 
