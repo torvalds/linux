@@ -2128,6 +2128,10 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	spin_lock_init(&ctlr->lock);
 	ctlr->rumble_queue = alloc_workqueue("hid-nintendo-rumble_wq",
 					     WQ_FREEZABLE | WQ_MEM_RECLAIM, 0);
+	if (!ctlr->rumble_queue) {
+		ret = -ENOMEM;
+		goto err;
+	}
 	INIT_WORK(&ctlr->rumble_worker, joycon_rumble_worker);
 
 	ret = hid_parse(hdev);
