@@ -21,6 +21,7 @@
 struct msm_gem_submit;
 struct msm_gpu_perfcntr;
 struct msm_gpu_state;
+struct msm_file_private;
 
 struct msm_gpu_config {
 	const char *ioname;
