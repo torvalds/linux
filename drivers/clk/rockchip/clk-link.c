@@ -96,6 +96,7 @@ static const struct rockchip_link_info rk3588_clk_gate_link_info[] = {
 	GATE_LINK("pclk_av1_pre", "pclk_av1_root", 4),
 	GATE_LINK("hclk_sdio_pre", "hclk_sdio_root", 1),
 	GATE_LINK("pclk_vo0_grf", "pclk_vo0_root", 10),
+	GATE_LINK("pclk_vo1_grf", "pclk_vo1_root", 12),
 };
 
 static const struct rockchip_link rk3588_clk_gate_link = {
