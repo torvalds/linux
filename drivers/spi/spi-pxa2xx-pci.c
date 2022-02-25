@@ -83,6 +83,7 @@ static void lpss_dma_put_device(void *dma_dev)
 
 static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	struct dw_dma_slave *tx, *rx;
 	struct pci_dev *dma_dev;
 	int ret;
 
@@ -137,21 +138,15 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	if (ret)
 		return ret;
 
-	if (c->tx_param) {
-		struct dw_dma_slave *slave = c->tx_param;
+	tx = c->tx_param;
+	tx->dma_dev = &dma_dev->dev;
+	tx->m_master = 0;
+	tx->p_master = 1;
 
-		slave->dma_dev = &dma_dev->dev;
-		slave->m_master = 0;
-		slave->p_master = 1;
-	}
-
-	if (c->rx_param) {
-		struct dw_dma_slave *slave = c->rx_param;
-
-		slave->dma_dev = &dma_dev->dev;
-		slave->m_master = 0;
-		slave->p_master = 1;
-	}
+	rx = c->rx_param;
+	rx->dma_dev = &dma_dev->dev;
+	rx->m_master = 0;
+	rx->p_master = 1;
 
 	c->dma_filter = lpss_dma_filter;
 	c->dma_burst_size = 1;
