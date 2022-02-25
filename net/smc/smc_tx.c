@@ -235,15 +235,14 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		 */
 		if ((msg->msg_flags & MSG_OOB) && !send_remaining)
 			conn->urg_tx_pend = true;
-		if ((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc) ||
-		     msg->msg_flags & MSG_SENDPAGE_NOTLAST) &&
-		    (atomic_read(&conn->sndbuf_space)))
-			/* for a corked socket defer the RDMA writes if
-			 * sndbuf_space is still available. The applications
-			 * should known how/when to uncork it.
-			 */
-			continue;
-		smc_tx_sndbuf_nonempty(conn);
+		/* for a corked socket defer the RDMA writes if
+		 * sndbuf_space is still available. The applications
+		 * should known how/when to uncork it.
+		 */
+		if (!((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc) ||
+		       msg->msg_flags & MSG_SENDPAGE_NOTLAST) &&
+		      atomic_read(&conn->sndbuf_space)))
+			smc_tx_sndbuf_nonempty(conn);
 
 		trace_smc_tx_sendmsg(smc, copylen);
 	} /* while (msg_data_left(msg)) */
