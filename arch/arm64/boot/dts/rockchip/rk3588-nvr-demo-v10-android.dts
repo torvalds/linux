@@ -73,3 +73,9 @@
 &sata1 {
 	status = "disabled";
 };
+
+&usbdrd_dwc3_0 {
+	dr_mode = "otg";
+	extcon = <&u2phy0>;
+	status = "okay";
+};
