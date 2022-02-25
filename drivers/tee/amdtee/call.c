@@ -122,7 +122,7 @@ static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 }
 
 static DEFINE_MUTEX(ta_refcount_mutex);
-static struct list_head ta_list = LIST_HEAD_INIT(ta_list);
+static LIST_HEAD(ta_list);
 
 static u32 get_ta_refcount(u32 ta_handle)
 {
