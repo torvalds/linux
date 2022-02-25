@@ -21,13 +21,13 @@ bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
 	unsigned long flags;
 	unsigned char seconds;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 100; i++) {
 		spin_lock_irqsave(&rtc_lock, flags);
 
 		/*
 		 * Check whether there is an update in progress during which the
 		 * readout is unspecified. The maximum update time is ~2ms. Poll
-		 * every msec for completion.
+		 * every 100 usec for completion.
 		 *
 		 * Store the second value before checking UIP so a long lasting
 		 * NMI which happens to hit after the UIP check cannot make
@@ -37,7 +37,7 @@ bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
 
 		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
 			spin_unlock_irqrestore(&rtc_lock, flags);
-			mdelay(1);
+			udelay(100);
 			continue;
 		}
 
@@ -56,7 +56,7 @@ bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
 		 */
 		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
 			spin_unlock_irqrestore(&rtc_lock, flags);
-			mdelay(1);
+			udelay(100);
 			continue;
 		}
 
