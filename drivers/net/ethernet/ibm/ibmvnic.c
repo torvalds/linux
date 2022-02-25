@@ -5383,6 +5383,12 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		goto ibmvnic_dev_file_err;
 
 	netif_carrier_off(netdev);
+
+	adapter->state = VNIC_PROBED;
+
+	adapter->wait_for_reset = false;
+	adapter->last_reset_time = jiffies;
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
@@ -5390,10 +5396,6 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 	dev_info(&dev->dev, "ibmvnic registered\n");
 
-	adapter->state = VNIC_PROBED;
-
-	adapter->wait_for_reset = false;
-	adapter->last_reset_time = jiffies;
 	return 0;
 
 ibmvnic_register_fail:
