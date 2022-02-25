@@ -4324,6 +4324,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = boot_cpu_has(X86_FEATURE_XSAVE);
 		break;
 	case KVM_CAP_TSC_CONTROL:
+	case KVM_CAP_VM_TSC_CONTROL:
 		r = kvm_has_tsc_control;
 		break;
 	case KVM_CAP_X2APIC_API:
@@ -6522,6 +6523,28 @@ set_pit2_out:
 	case KVM_GET_CLOCK:
 		r = kvm_vm_ioctl_get_clock(kvm, argp);
 		break;
+	case KVM_SET_TSC_KHZ: {
+		u32 user_tsc_khz;
+
+		r = -EINVAL;
+		user_tsc_khz = (u32)arg;
+
+		if (kvm_has_tsc_control &&
+		    user_tsc_khz >= kvm_max_guest_tsc_khz)
+			goto out;
+
+		if (user_tsc_khz == 0)
+			user_tsc_khz = tsc_khz;
+
+		WRITE_ONCE(kvm->arch.default_tsc_khz, user_tsc_khz);
+		r = 0;
+
+		goto out;
+	}
+	case KVM_GET_TSC_KHZ: {
+		r = READ_ONCE(kvm->arch.default_tsc_khz);
+		goto out;
+	}
 	case KVM_MEMORY_ENCRYPT_OP: {
 		r = -ENOTTY;
 		if (!kvm_x86_ops.mem_enc_ioctl)
@@ -11266,7 +11289,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	kvm_xen_init_vcpu(vcpu);
 	kvm_vcpu_mtrr_init(vcpu);
 	vcpu_load(vcpu);
-	kvm_set_tsc_khz(vcpu, max_tsc_khz);
+	kvm_set_tsc_khz(vcpu, vcpu->kvm->arch.default_tsc_khz);
 	kvm_vcpu_reset(vcpu, false);
 	kvm_init_mmu(vcpu);
 	vcpu_put(vcpu);
@@ -11714,6 +11737,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	pvclock_update_vm_gtod_copy(kvm);
 	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
+	kvm->arch.default_tsc_khz = max_tsc_khz;
 	kvm->arch.guest_can_read_msr_platform_info = true;
 	kvm->arch.enable_pmu = enable_pmu;
 
