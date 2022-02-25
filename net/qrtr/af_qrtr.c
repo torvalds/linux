@@ -642,6 +642,95 @@ static void qrtr_tx_flow_failed(struct qrtr_node *node, int dest_node,
 	}
 }
 
+static int qrtr_pad_word_pskb(struct sk_buff *skb)
+{
+	unsigned int padding_len;
+	unsigned int padto;
+	int nfrags;
+	int count;
+	int i;
+
+	padto = ALIGN(skb->len, 4);
+	padding_len = padto - skb->len;
+	if (!padding_len)
+		return 0;
+
+	count = skb_headlen(skb);
+	nfrags = skb_shinfo(skb)->nr_frags;
+	for (i = 0; i < nfrags; i++) {
+		u32 p_off, p_len, copied;
+		u32 f_off, f_len;
+		u32 d_off, d_len;
+		skb_frag_t *frag;
+		struct page *p;
+		u8 *vaddr;
+
+		frag = &skb_shinfo(skb)->frags[i];
+		f_off = skb_frag_off(frag);
+		f_len = skb_frag_size(frag);
+		if (count + f_len < skb->len) {
+			count += f_len;
+			continue;
+		}
+
+		/* fragment can fit all padding */
+		if (count + f_len >= padto) {
+			skb_frag_foreach_page(frag, f_off, f_len, p, p_off,
+					      p_len, copied) {
+				if (count + p_len < padto) {
+					count += p_len;
+					continue;
+				}
+
+				d_off = skb->len - count;
+				vaddr = kmap_atomic(p);
+				memset(vaddr + p_off + d_off, 0, padding_len);
+				kunmap_atomic(vaddr);
+				count += d_off + padding_len;
+				skb->len = padto;
+				break;
+			}
+		} else {
+			 /* messy case, padding split between pages */
+			skb_frag_foreach_page(frag, f_off, f_len, p, p_off,
+					      p_len, copied) {
+				if (count + p_len < skb->len) {
+					count += p_len;
+					continue;
+				}
+
+				/* need to add padding into next page */
+				if (count + p_len < padto) {
+					d_off = skb->len - count;
+					d_len = p_len - d_off;
+
+					vaddr = kmap_atomic(p);
+					memset(vaddr + p_off + d_off, 0, d_len);
+					kunmap_atomic(vaddr);
+
+					count += p_len;
+					padding_len -= d_len;
+					skb->len += d_len;
+					continue;
+				}
+
+				d_off = (count < skb->len) ? skb->len - count : 0;
+				vaddr = kmap_atomic(p);
+				memset(vaddr + p_off + d_off, 0, padding_len);
+				kunmap_atomic(vaddr);
+				count += d_off + padding_len;
+				skb->len += padding_len;
+			}
+		}
+
+		if (skb->len == padto)
+			break;
+	}
+	WARN_ON(skb->len != padto);
+
+	return 0;
+}
+
 /* Pass an outgoing packet socket buffer to the endpoint driver. */
 static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 			     int type, struct sockaddr_qrtr *from,
@@ -690,10 +779,15 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	hdr->confirm_rx = !!confirm_rx;
 
 	qrtr_log_tx_msg(node, hdr, skb);
-	rc = skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
+	/* word align the data and pad with 0s */
+	if (skb_is_nonlinear(skb))
+		rc = qrtr_pad_word_pskb(skb);
+	else
+		rc = skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
+
 	if (rc)
 		pr_err("%s: failed to pad size %lu to %lu rc:%d\n", __func__,
-		       len, ALIGN(len, 4) + sizeof(*hdr), rc);
+		       skb->len, ALIGN(skb->len, 4), rc);
 
 	if (!rc) {
 		mutex_lock(&node->ep_lock);
@@ -1681,6 +1775,8 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	struct qrtr_node *node;
 	struct qrtr_node *srv_node;
 	struct sk_buff *skb;
+	int pdata_len = 0;
+	int data_len = 0;
 	size_t plen;
 	u32 type;
 	int rc;
@@ -1742,8 +1838,17 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	plen = (len + 3) & ~3;
-	skb = sock_alloc_send_skb(sk, plen + QRTR_HDR_MAX_SIZE,
-				  msg->msg_flags & MSG_DONTWAIT, &rc);
+	if (plen > SKB_MAX_ALLOC) {
+		data_len = min_t(size_t,
+				 plen - SKB_MAX_ALLOC,
+				 MAX_SKB_FRAGS * PAGE_SIZE);
+		pdata_len = PAGE_ALIGN(data_len);
+
+		BUILD_BUG_ON(SKB_MAX_ALLOC < PAGE_SIZE);
+	}
+	skb = sock_alloc_send_pskb(sk, QRTR_HDR_MAX_SIZE + (plen - data_len),
+				   pdata_len, msg->msg_flags & MSG_DONTWAIT,
+				   &rc, PAGE_ALLOC_COSTLY_ORDER);
 	if (!skb) {
 		rc = -ENOMEM;
 		goto out_node;
@@ -1751,7 +1856,13 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	skb_reserve(skb, QRTR_HDR_MAX_SIZE);
 
-	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
+	/* len is used by the enqueue functions and should remain accurate
+	 * regardless of padding or allocation size
+	 */
+	skb_put(skb, len - data_len);
+	skb->data_len = data_len;
+	skb->len = len;
+	rc = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, len);
 	if (rc) {
 		kfree_skb(skb);
 		goto out_node;
