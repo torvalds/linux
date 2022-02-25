@@ -564,7 +564,6 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	struct bsg_job_data *dd_data;
 	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *pcmd = NULL, *prsp = NULL;
 	struct fc_bsg_ctels_reply *els_reply;
@@ -572,6 +571,7 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	unsigned long flags;
 	unsigned int rsp_size;
 	int rc = 0;
+	u32 ulp_status, ulp_word4, total_data_placed;
 
 	dd_data = cmdiocbq->context1;
 	ndlp = dd_data->context_un.iocb.ndlp;
@@ -592,7 +592,9 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	cmdiocbq->cmd_flag &= ~LPFC_IO_CMD_OUTSTANDING;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	rsp = &rspiocbq->iocb;
+	ulp_status = get_job_ulpstatus(phba, rspiocbq);
+	ulp_word4 = get_job_word4(phba, rspiocbq);
+	total_data_placed = get_job_data_placed(phba, rspiocbq);
 	pcmd = (struct lpfc_dmabuf *)cmdiocbq->context2;
 	prsp = (struct lpfc_dmabuf *)pcmd->list.next;
 
@@ -601,24 +603,28 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	 */
 
 	if (job) {
-		if (rsp->ulpStatus == IOSTAT_SUCCESS) {
-			rsp_size = rsp->un.elsreq64.bdl.bdeSize;
+		if (ulp_status == IOSTAT_SUCCESS) {
+			rsp_size = total_data_placed;
 			bsg_reply->reply_payload_rcv_len =
 				sg_copy_from_buffer(job->reply_payload.sg_list,
 						    job->reply_payload.sg_cnt,
 						    prsp->virt,
 						    rsp_size);
-		} else if (rsp->ulpStatus == IOSTAT_LS_RJT) {
+		} else if (ulp_status == IOSTAT_LS_RJT) {
 			bsg_reply->reply_payload_rcv_len =
 				sizeof(struct fc_bsg_ctels_reply);
 			/* LS_RJT data returned in word 4 */
-			rjt_data = (uint8_t *)&rsp->un.ulpWord[4];
+			rjt_data = (uint8_t *)&ulp_word4;
 			els_reply = &bsg_reply->reply_data.ctels_reply;
 			els_reply->status = FC_CTELS_STATUS_REJECT;
 			els_reply->rjt_data.action = rjt_data[3];
 			els_reply->rjt_data.reason_code = rjt_data[2];
 			els_reply->rjt_data.reason_explanation = rjt_data[1];
 			els_reply->rjt_data.vendor_unique = rjt_data[0];
+		} else if (ulp_status == IOSTAT_LOCAL_REJECT &&
+			   (ulp_word4 & IOERR_PARAM_MASK) ==
+			   IOERR_SEQUENCE_TIMEOUT) {
+			rc = -ETIMEDOUT;
 		} else {
 			rc = -EIO;
 		}
@@ -695,7 +701,6 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 	 * we won't be dma into memory that is no longer allocated to for the
 	 * request.
 	 */
-
 	cmdiocbq = lpfc_prep_els_iocb(vport, 1, cmdsize, 0, ndlp,
 				      ndlp->nlp_DID, elscmd);
 	if (!cmdiocbq) {
@@ -707,12 +712,13 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 	sg_copy_to_buffer(job->request_payload.sg_list,
 			  job->request_payload.sg_cnt,
 			  ((struct lpfc_dmabuf *)cmdiocbq->context2)->virt,
-			  cmdsize);
+			  job->request_payload.payload_len);
 
 	rpi = ndlp->nlp_rpi;
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
-		cmdiocbq->iocb.ulpContext = phba->sli4_hba.rpi_ids[rpi];
+		bf_set(wqe_ctxt_tag, &cmdiocbq->wqe.generic.wqe_com,
+		       phba->sli4_hba.rpi_ids[rpi]);
 	else
 		cmdiocbq->iocb.ulpContext = rpi;
 	cmdiocbq->cmd_flag |= LPFC_IO_LIBDFC;
@@ -1372,11 +1378,11 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 	struct bsg_job_data *dd_data;
 	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp;
 	struct lpfc_nodelist *ndlp;
 	unsigned long flags;
 	int rc = 0;
+	u32 ulp_status, ulp_word4;
 
 	dd_data = cmdiocbq->context1;
 
@@ -1397,15 +1403,17 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 	ndlp = dd_data->context_un.iocb.ndlp;
 	cmp = cmdiocbq->context2;
 	bmp = cmdiocbq->context3;
-	rsp = &rspiocbq->iocb;
+
+	ulp_status = get_job_ulpstatus(phba, rspiocbq);
+	ulp_word4 = get_job_word4(phba, rspiocbq);
 
 	/* Copy the completed job data or set the error status */
 
 	if (job) {
 		bsg_reply = job->reply;
-		if (rsp->ulpStatus) {
-			if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
+		if (ulp_status) {
+			if (ulp_status == IOSTAT_LOCAL_REJECT) {
+				switch (ulp_word4 & IOERR_PARAM_MASK) {
 				case IOERR_SEQUENCE_TIMEOUT:
 					rc = -ETIMEDOUT;
 					break;
