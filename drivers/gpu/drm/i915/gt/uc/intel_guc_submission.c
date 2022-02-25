@@ -4023,10 +4023,9 @@ static void guc_handle_context_reset(struct intel_guc *guc,
 		capture_error_state(guc, ce);
 		guc_context_replay(ce);
 	} else {
-		drm_err(&guc_to_gt(guc)->i915->drm,
-			"Invalid GuC engine reset notificaion for 0x%04X on %s: banned = %d, blocked = %d",
-			ce->guc_id.id, ce->engine->name, intel_context_is_banned(ce),
-			context_blocked(ce));
+		drm_info(&guc_to_gt(guc)->i915->drm,
+			 "Ignoring context reset notification of banned context 0x%04X on %s",
+			 ce->guc_id.id, ce->engine->name);
 	}
 }
 
