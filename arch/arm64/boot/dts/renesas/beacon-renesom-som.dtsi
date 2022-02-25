@@ -293,7 +293,6 @@
 	vqmmc-supply = <&reg_1p8v>;
 	non-removable;
 	cap-power-off-card;
-	pm-ignore-notify;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&wlan_pwrseq>;
 	status = "okay";

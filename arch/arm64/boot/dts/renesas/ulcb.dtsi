@@ -95,11 +95,11 @@
 	};
 
 	sound_card: sound {
-		compatible = "audio-graph-card";
+		compatible = "audio-graph-card2";
 		label = "rcar-sound";
 
-		dais = <&rsnd_port0	/* ak4613 */
-			&rsnd_port1	/* HDMI0  */
+		links = <&rsnd_port0	/* ak4613 */
+			 &rsnd_port1	/* HDMI0  */
 			>;
 	};
 
@@ -408,11 +408,8 @@
 			reg = <0>;
 			rsnd_for_ak4613: endpoint {
 				remote-endpoint = <&ak4613_endpoint>;
-
-				dai-format = "left_j";
-				bitclock-master = <&rsnd_for_ak4613>;
-				frame-master = <&rsnd_for_ak4613>;
-
+				bitclock-master;
+				frame-master;
 				playback = <&ssi0>, <&src0>, <&dvc0>;
 				capture  = <&ssi1>, <&src1>, <&dvc1>;
 			};
@@ -421,11 +418,8 @@
 			reg = <1>;
 			rsnd_for_hdmi: endpoint {
 				remote-endpoint = <&dw_hdmi0_snd_in>;
-
-				dai-format = "i2s";
-				bitclock-master = <&rsnd_for_hdmi>;
-				frame-master = <&rsnd_for_hdmi>;
-
+				bitclock-master;
+				frame-master;
 				playback = <&ssi2>;
 			};
 		};
