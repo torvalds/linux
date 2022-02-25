@@ -65,6 +65,24 @@ static struct dw_dma_slave lpt1_rx_param = { .src_id = 1 };
 static struct dw_dma_slave lpt0_tx_param = { .dst_id = 2 };
 static struct dw_dma_slave lpt0_rx_param = { .src_id = 3 };
 
+static void pxa2xx_spi_pci_clk_unregister(void *clk)
+{
+	clk_unregister(clk);
+}
+
+static int pxa2xx_spi_pci_clk_register(struct pci_dev *dev, struct ssp_device *ssp,
+				       unsigned long rate)
+{
+	char buf[40];
+
+	snprintf(buf, sizeof(buf), "pxa2xx-spi.%d", ssp->port_id);
+	ssp->clk = clk_register_fixed_rate(&dev->dev, buf, NULL, 0, rate);
+	if (IS_ERR(ssp->clk))
+		return PTR_ERR(ssp->clk);
+
+	return devm_add_action_or_reset(&dev->dev, pxa2xx_spi_pci_clk_unregister, ssp->clk);
+}
+
 static bool lpss_dma_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_dma_slave *dws = param;
@@ -246,7 +264,6 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	struct pxa2xx_spi_controller spi_pdata;
 	struct ssp_device *ssp;
 	struct pxa_spi_info *c;
-	char buf[40];
 
 	ret = pcim_enable_device(dev);
 	if (ret)
@@ -283,11 +300,9 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return ret;
 	ssp->irq = pci_irq_vector(dev, 0);
 
-	snprintf(buf, sizeof(buf), "pxa2xx-spi.%d", ssp->port_id);
-	ssp->clk = clk_register_fixed_rate(&dev->dev, buf, NULL, 0,
-					   c->max_clk_rate);
-	if (IS_ERR(ssp->clk))
-		return PTR_ERR(ssp->clk);
+	ret = pxa2xx_spi_pci_clk_register(dev, ssp, c->max_clk_rate);
+	if (ret)
+		return ret;
 
 	memset(&pi, 0, sizeof(pi));
 	pi.fwnode = dev_fwnode(&dev->dev);
@@ -298,10 +313,8 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	pi.size_data = sizeof(spi_pdata);
 
 	pdev = platform_device_register_full(&pi);
-	if (IS_ERR(pdev)) {
-		clk_unregister(ssp->clk);
+	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
-	}
 
 	pci_set_drvdata(dev, pdev);
 
@@ -311,12 +324,8 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 {
 	struct platform_device *pdev = pci_get_drvdata(dev);
-	struct pxa2xx_spi_controller *spi_pdata;
-
-	spi_pdata = dev_get_platdata(&pdev->dev);
 
 	platform_device_unregister(pdev);
-	clk_unregister(spi_pdata->ssp.clk);
 }
 
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
