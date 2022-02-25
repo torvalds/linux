@@ -25,7 +25,7 @@ static u32 share_count_sai6;
 static u32 share_count_dcss;
 static u32 share_count_nand;
 
-static const char * const pll_ref_sels[] = { "osc_25m", "osc_27m", "dummy", "dummy", };
+static const char * const pll_ref_sels[] = { "osc_25m", "osc_27m", "hdmi_phy_27m", "dummy", };
 static const char * const arm_pll_bypass_sels[] = {"arm_pll", "arm_pll_ref_sel", };
 static const char * const gpu_pll_bypass_sels[] = {"gpu_pll", "gpu_pll_ref_sel", };
 static const char * const vpu_pll_bypass_sels[] = {"vpu_pll", "vpu_pll_ref_sel", };
