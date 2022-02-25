@@ -23,6 +23,7 @@
 #include <linux/thermal.h>
 #include <linux/fixp-arith.h>
 #include "power_supply.h"
+#include "samsung-sdi-battery.h"
 
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
@@ -578,9 +579,42 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	const __be32 *list;
 	u32 min_max[2];
 
+	if (psy->of_node) {
+		battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
+		if (!battery_np)
+			return -ENODEV;
+
+		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
+	} else {
+		err = fwnode_property_get_reference_args(
+					dev_fwnode(psy->dev.parent),
+					"monitored-battery", NULL, 0, 0, &args);
+		if (err)
+			return err;
+
+		fwnode = args.fwnode;
+	}
+
+	err = fwnode_property_read_string(fwnode, "compatible", &value);
+	if (err)
+		goto out_put_node;
+
+
+	/* Try static batteries first */
+	err = samsung_sdi_battery_get_info(&psy->dev, value, &info);
+	if (!err)
+		goto out_ret_pointer;
+
+	if (strcmp("simple-battery", value)) {
+		err = -ENODEV;
+		goto out_put_node;
+	}
+
 	info = devm_kmalloc(&psy->dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
+	if (!info) {
+		err = -ENOMEM;
+		goto out_put_node;
+	}
 
 	info->technology                     = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 	info->energy_full_design_uwh         = -EINVAL;
@@ -615,31 +649,6 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->ocv_table[index]       = NULL;
 		info->ocv_temp[index]        = -EINVAL;
 		info->ocv_table_size[index]  = -EINVAL;
-	}
-
-	if (psy->of_node) {
-		battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
-		if (!battery_np)
-			return -ENODEV;
-
-		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
-	} else {
-		err = fwnode_property_get_reference_args(
-					dev_fwnode(psy->dev.parent),
-					"monitored-battery", NULL, 0, 0, &args);
-		if (err)
-			return err;
-
-		fwnode = args.fwnode;
-	}
-
-	err = fwnode_property_read_string(fwnode, "compatible", &value);
-	if (err)
-		goto out_put_node;
-
-	if (strcmp("simple-battery", value)) {
-		err = -ENODEV;
-		goto out_put_node;
 	}
 
 	/* The property and field names below must correspond to elements
