@@ -190,7 +190,6 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 
 	GEN_BR_THUNK %r14
-	GEN_BR_THUNK %r14,%r13
 
 	.section .kprobes.text, "ax"
 .Ldummy:
