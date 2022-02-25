@@ -31,6 +31,10 @@ tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	bool clear_action = act->ct.action & TCA_CT_ACT_CLEAR;
 	int err;
 
+	/* It's redundant to do ct clear more than once. */
+	if (clear_action && parse_state->ct_clear)
+		return 0;
+
 	err = mlx5_tc_ct_parse_action(parse_state->ct_priv, attr,
 				      &attr->parse_attr->mod_hdr_acts,
 				      act, parse_state->extack);
@@ -46,6 +50,7 @@ tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 		flow_flag_set(parse_state->flow, CT);
 		parse_state->ct = true;
 	}
+	parse_state->ct_clear = clear_action;
 
 	return 0;
 }

@@ -4549,6 +4549,7 @@ F:	drivers/platform/chrome/
 
 CHROMEOS EC CODEC DRIVER
 M:	Cheng-Yi Chiang <cychiang@chromium.org>
+M:	Tzung-Bi Shih <tzungbi@google.com>
 R:	Guenter Roeck <groeck@chromium.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/google,cros-ec-codec.yaml
@@ -7012,12 +7013,6 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/sb_edac.c
 
-EDAC-SIFIVE
-M:	Yash Shah <yash.shah@sifive.com>
-L:	linux-edac@vger.kernel.org
-S:	Supported
-F:	drivers/edac/sifive_edac.c
-
 EDAC-SKYLAKE
 M:	Tony Luck <tony.luck@intel.com>
 L:	linux-edac@vger.kernel.org
@@ -9263,6 +9258,15 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 W:	https://github.com/o2genum/ideapad-slidebar
 F:	drivers/input/misc/ideapad_slidebar.c
+
+IDMAPPED MOUNTS
+M:	Christian Brauner <brauner@kernel.org>
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brauner/linux.git
+F:	Documentation/filesystems/idmappings.rst
+F:	tools/testing/selftests/mount_setattr/
+F:	include/linux/mnt_idmapping.h
 
 IDT VersaClock 5 CLOCK DRIVER
 M:	Luca Ceresoli <luca@lucaceresoli.net>
@@ -16000,14 +16004,6 @@ F:	Documentation/devicetree/bindings/misc/qcom,fastrpc.txt
 F:	drivers/misc/fastrpc.c
 F:	include/uapi/misc/fastrpc.h
 
-QUALCOMM GENERIC INTERFACE I2C DRIVER
-M:	Akash Asthana <akashast@codeaurora.org>
-M:	Mukesh Savaliya <msavaliy@codeaurora.org>
-L:	linux-i2c@vger.kernel.org
-L:	linux-arm-msm@vger.kernel.org
-S:	Supported
-F:	drivers/i2c/busses/i2c-qcom-geni.c
-
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Brian Cain <bcain@codeaurora.org>
 L:	linux-hexagon@vger.kernel.org
@@ -16079,8 +16075,8 @@ F:	Documentation/devicetree/bindings/mtd/qcom,nandc.yaml
 F:	drivers/mtd/nand/raw/qcom_nandc.c
 
 QUALCOMM RMNET DRIVER
-M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
-M:	Sean Tranchetti <stranche@codeaurora.org>
+M:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
+M:	Sean Tranchetti <quic_stranche@quicinc.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
@@ -16372,6 +16368,7 @@ F:	drivers/watchdog/realtek_otto_wdt.c
 
 REALTEK RTL83xx SMI DSA ROUTER CHIPS
 M:	Linus Walleij <linus.walleij@linaro.org>
+M:	Alvin Šipraga <alsi@bang-olufsen.dk>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/realtek-smi.txt
 F:	drivers/net/dsa/realtek/*
