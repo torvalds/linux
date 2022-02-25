@@ -170,4 +170,6 @@ int dpu_encoder_get_linecount(struct drm_encoder *drm_enc);
  */
 int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc);
 
+bool dpu_encoder_is_widebus_enabled(const struct drm_encoder *drm_enc);
+
 #endif /* __DPU_ENCODER_H__ */
