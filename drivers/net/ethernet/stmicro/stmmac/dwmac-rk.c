@@ -1593,6 +1593,79 @@ static const struct rk_gmac_ops rk3588_ops = {
 	.set_clock_selection = rk3588_set_clock_selection,
 };
 
+#define RV1106_VOGRF_GMAC_CLK_CON		0X60004
+
+#define RV1106_VOGRF_GMAC_CLK_RMII_DIV2		GRF_BIT(2)
+#define RV1106_VOGRF_GMAC_CLK_RMII_DIV20	GRF_CLR_BIT(2)
+
+#define RV1106_VOGRF_MACPHY_CON0		0X60028
+
+#define RV1106_VOGRF_MACPHY_SHUTDOWN		GRF_BIT(1)
+#define RV1106_VOGRF_MACPHY_POWERUP		GRF_CLR_BIT(1)
+#define RV1106_VOGRF_MACPHY_SIM_MODE		GRF_BIT(2)
+#define RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL	GRF_BIT(6)
+#define RV1106_VOGRF_MACPHY_24M_CLK_SEL		(GRF_BIT(8) | GRF_BIT(9))
+#define RV1106_VOGRF_MACPHY_PHY_ID		GRF_BIT(11)
+
+#define RV1106_VOGRF_MACPHY_CON1		0X6002C
+
+#define RV1106_VOGRF_MACPHY_BGS			GRF_BIT(1)
+
+static void rv1106_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int val = 0;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	if (speed == 10) {
+		val = RV1106_VOGRF_GMAC_CLK_RMII_DIV20;
+	} else if (speed == 100) {
+		val = RV1106_VOGRF_GMAC_CLK_RMII_DIV2;
+	} else {
+		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RV1106_VOGRF_GMAC_CLK_CON, val);
+}
+
+static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
+{
+	struct device *dev = &priv->pdev->dev;
+
+	if (IS_ERR(priv->grf) || !priv->phy_reset) {
+		dev_err(dev, "%s: Missing rockchip,grf or phy_reset property\n",
+			__func__);
+		return;
+	}
+
+	if (up) {
+		reset_control_assert(priv->phy_reset);
+		udelay(20);
+		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
+			     RV1106_VOGRF_MACPHY_POWERUP |
+			     RV1106_VOGRF_MACPHY_SIM_MODE |
+			     RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL |
+			     RV1106_VOGRF_MACPHY_24M_CLK_SEL |
+			     RV1106_VOGRF_MACPHY_PHY_ID);
+		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON1,
+			     RV1106_VOGRF_MACPHY_BGS);
+		reset_control_deassert(priv->phy_reset);
+	} else {
+		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
+			     RV1106_VOGRF_MACPHY_SHUTDOWN);
+	}
+}
+
+static const struct rk_gmac_ops rv1106_ops = {
+	.set_rmii_speed = rv1106_set_rmii_speed,
+	.integrated_phy_power = rv1106_integrated_sphy_power,
+};
+
 #define RV1108_GRF_GMAC_CON0		0X0900
 
 /* RV1108_GRF_GMAC_CON0 */
@@ -2368,6 +2441,9 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-gmac", .data = &rk3588_ops },
+#endif
+#ifdef CONFIG_CPU_RV1106
+	{ .compatible = "rockchip,rv1106-gmac", .data = &rv1106_ops },
 #endif
 #ifdef CONFIG_CPU_RV1108
 	{ .compatible = "rockchip,rv1108-gmac", .data = &rv1108_ops },
