@@ -12648,6 +12648,7 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 	wait_queue_head_t *pdone_q;
 	unsigned long iflags;
 	struct lpfc_io_buf *lpfc_cmd;
+	size_t offset = offsetof(struct lpfc_iocbq, wqe);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (cmdiocbq->cmd_flag & LPFC_IO_WAKE_TMO) {
@@ -12668,10 +12669,11 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 		return;
 	}
 
+	/* Copy the contents of the local rspiocb into the caller's buffer. */
 	cmdiocbq->cmd_flag |= LPFC_IO_WAKE;
 	if (cmdiocbq->context2 && rspiocbq)
-		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
-		       &rspiocbq->iocb, sizeof(IOCB_t));
+		memcpy((char *)cmdiocbq->context2 + offset,
+		       (char *)rspiocbq + offset, sizeof(*rspiocbq) - offset);
 
 	/* Set the exchange busy flag for task management commands */
 	if ((cmdiocbq->cmd_flag & LPFC_IO_FCP) &&
