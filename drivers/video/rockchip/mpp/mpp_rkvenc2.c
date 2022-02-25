@@ -114,6 +114,27 @@ struct rkvenc_hw_info {
 	u32 err_mask;
 };
 
+#define DCHS_REG_OFFSET		(0x304)
+#define DCHS_CLASS_OFFSET	(33)
+#define DCHS_TXE		(0x10)
+#define DCHS_RXE		(0x20)
+
+/* dual core hand-shake info */
+union rkvenc2_dual_core_handshake_id {
+	u64 val;
+	struct {
+		u32 txid	: 2;
+		u32 rxid	: 2;
+		u32 txe		: 1;
+		u32 rxe		: 1;
+		u32 working	: 1;
+		u32 reserve0	: 9;
+		u32 offset	: 11;
+		u32 reserve1	: 5;
+		u32 session_id;
+	};
+};
+
 struct rkvenc_task {
 	struct mpp_task mpp_task;
 	int fmt;
@@ -136,7 +157,8 @@ struct rkvenc_task {
 	u32 r_req_cnt;
 	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
 	struct mpp_dma_buffer *table;
-	u32 task_no;
+
+	union rkvenc2_dual_core_handshake_id dchs_id;
 };
 
 #define RKVENC_MAX_RCB_NUM		(4)
@@ -197,6 +219,9 @@ struct rkvenc_ccu {
 	struct mutex lock;
 	struct list_head core_list;
 	struct mpp_dev *main_core;
+
+	spinlock_t lock_dchs;
+	union rkvenc2_dual_core_handshake_id dchs[RKVENC_MAX_CORE_NUM];
 };
 
 static struct rkvenc_hw_info rkvenc_v2_hw_info = {
@@ -633,6 +658,17 @@ static int rkvenc2_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
 	return 0;
 }
 
+static void rkvenc2_setup_task_id(u32 session_id, struct rkvenc_task *task)
+{
+	u32 val = task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET];
+
+	/* always enable tx */
+	val |= DCHS_TXE;
+
+	task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET] = val;
+	task->dchs_id.val = (((u64)session_id << 32) | val);
+}
+
 static void *rkvenc_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
@@ -691,6 +727,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 		}
 	}
 	rkvenc2_set_rcbbuf(mpp, session, task);
+	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
 
 	mpp_debug_leave();
@@ -749,6 +786,97 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return mpp_task;
 }
 
+static void rkvenc2_patch_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
+{
+	struct rkvenc_ccu *ccu;
+	union rkvenc2_dual_core_handshake_id *dchs;
+	union rkvenc2_dual_core_handshake_id *task_id = &task->dchs_id;
+	int core_num;
+	int core_id = enc->mpp.core_id;
+	unsigned long flags;
+	int i;
+
+	if (!enc->ccu)
+		return;
+
+	if (core_id >= RKVENC_MAX_CORE_NUM) {
+		dev_err(enc->mpp.dev, "invalid core id %d max %d\n",
+			core_id, RKVENC_MAX_CORE_NUM);
+		return;
+	}
+
+	ccu = enc->ccu;
+	dchs = ccu->dchs;
+	core_num = ccu->core_num;
+
+	spin_lock_irqsave(&ccu->lock_dchs, flags);
+
+	if (dchs[core_id].working) {
+		pr_err("can not config when core %d is still working\n", core_id);
+		spin_unlock_irqrestore(&ccu->lock_dchs, flags);
+		return;
+	}
+
+	if (mpp_debug_unlikely(DEBUG_CORE))
+		pr_info("core tx:rx 0 %s %d:%d %d:%d -- 1 %s %d:%d %d:%d -- task %d %d:%d %d:%d\n",
+			dchs[0].working ? "work" : "idle",
+			dchs[0].txid, dchs[0].txe, dchs[0].rxid, dchs[0].rxe,
+			dchs[1].working ? "work" : "idle",
+			dchs[1].txid, dchs[1].txe, dchs[1].rxid, dchs[1].rxe,
+			core_id, task_id->txid, task_id->txe, task_id->rxid, task_id->rxe);
+
+	dchs[core_id].val = task_id->val;
+
+	if (task_id->rxe) {
+		u32 task_rxid = task_id->rxid;
+		u32 session_id = task_id->session_id;
+		int dependency_core = -1;
+
+		for (i = 0; i < core_num; i++) {
+			if (i == core_id || !dchs[i].working)
+				continue;
+
+			if (task_rxid == dchs[i].txid && session_id == dchs[i].session_id) {
+				dependency_core = i;
+				break;
+			}
+		}
+
+		if (dependency_core < 0) {
+			u32 dchs_val = (u32)task_id->val & (~(DCHS_RXE));
+
+			dchs[core_id].rxe = 0;
+			mpp_write_relaxed(&enc->mpp, DCHS_REG_OFFSET, dchs_val);
+		}
+	}
+	dchs[core_id].working = 1;
+
+	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
+}
+
+static void rkvenc2_update_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
+{
+	struct rkvenc_ccu *ccu = enc->ccu;
+	int core_id = enc->mpp.core_id;
+	unsigned long flags;
+
+	if (!ccu)
+		return;
+
+	if (core_id >= RKVENC_MAX_CORE_NUM) {
+		dev_err(enc->mpp.dev, "invalid core id %d max %d\n",
+			core_id, RKVENC_MAX_CORE_NUM);
+		return;
+	}
+
+	if (mpp_debug_unlikely(DEBUG_CORE))
+		pr_info("core %d task done\n", core_id);
+
+	spin_lock_irqsave(&ccu->lock_dchs, flags);
+	ccu->dchs[core_id].val = 0;
+	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
+}
+
 static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	u32 i, j;
@@ -786,15 +914,13 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		}
 	}
 
-	if (mpp_debug_unlikely(DEBUG_CORE))
-		dev_info(mpp->dev, "reg[%03x] %08x\n", 0x304,
-			 mpp_read_relaxed(mpp, 0x304));
-
 	/* flush tlb before starting hardware */
 	mpp_iommu_flush_tlb(mpp->iommu_info);
 
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	rkvenc2_patch_dchs(enc, task);
 
 	/* Flush the register before the start the device */
 	wmb();
@@ -850,6 +976,8 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 
 	task = to_rkvenc_task(mpp_task);
 	task->irq_status = mpp->irq_status;
+
+	rkvenc2_update_dchs(enc, task);
 
 	mpp_debug(DEBUG_IRQ_STATUS, "%s irq_status: %08x\n",
 		  dev_name(mpp->dev), task->irq_status);
@@ -1344,6 +1472,7 @@ static int rkvenc_ccu_probe(struct platform_device *pdev)
 
 	mutex_init(&ccu->lock);
 	INIT_LIST_HEAD(&ccu->core_list);
+	spin_lock_init(&ccu->lock_dchs);
 
 	return 0;
 }
