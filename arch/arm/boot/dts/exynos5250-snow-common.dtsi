@@ -698,6 +698,11 @@
 	cs-gpios = <&gpa2 5 GPIO_ACTIVE_HIGH>;
 };
 
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
+};
+
 &usbdrd_dwc3 {
 	dr_mode = "host";
 };

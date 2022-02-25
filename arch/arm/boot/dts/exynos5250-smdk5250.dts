@@ -417,3 +417,8 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 };
+
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
+};

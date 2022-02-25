@@ -553,4 +553,9 @@
 	num-cs = <1>;
 };
 
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
+};
+
 #include "cros-ec-keyboard.dtsi"
