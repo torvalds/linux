@@ -11153,6 +11153,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_hba *phba = vport->phba;
 	IOCB_t *icmd;
+	union lpfc_wqe128 *wqe = NULL;
 	struct lpfc_iocbq *elsiocb;
 	struct serv_parm *sp;
 	uint8_t *pcmd;
@@ -11172,15 +11173,14 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 1;
 	}
 
-	icmd = &elsiocb->iocb;
-	icmd->un.elsreq64.myID = 0;
-	icmd->un.elsreq64.fl = 1;
-
-	/*
-	 * SLI3 ports require a different context type value than SLI4.
-	 * Catch SLI3 ports here and override the prep.
-	 */
-	if (phba->sli_rev == LPFC_SLI_REV3) {
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		wqe = &elsiocb->wqe;
+		bf_set(els_req64_sid, &wqe->els_req, 0);
+		bf_set(els_req64_sp, &wqe->els_req, 1);
+	} else {
+		icmd = &elsiocb->iocb;
+		icmd->un.elsreq64.myID = 0;
+		icmd->un.elsreq64.fl = 1;
 		icmd->ulpCt_h = 1;
 		icmd->ulpCt_l = 0;
 	}
@@ -11218,14 +11218,11 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		did, 0, 0);
 
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
-	if (!elsiocb->context1) {
-		lpfc_els_free_iocb(phba, elsiocb);
+	if (!elsiocb->context1)
 		goto err_out;
-	}
 
 	rc = lpfc_issue_fabric_iocb(phba, elsiocb);
 	if (rc == IOCB_ERROR) {
-		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
 		goto err_out;
 	}
@@ -11234,6 +11231,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return 0;
 
  err_out:
+	lpfc_els_free_iocb(phba, elsiocb);
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0256 Issue FDISC: Cannot send IOCB\n");
@@ -11262,23 +11260,36 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	u32 ulp_status, ulp_word4, did, tmo;
 
 	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
-	irsp = &rspiocb->iocb;
+
+	ulp_status = get_job_ulpstatus(phba, rspiocb);
+	ulp_word4 = get_job_word4(phba, rspiocb);
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		did = get_job_els_rsp64_did(phba, cmdiocb);
+		tmo = get_wqe_tmo(cmdiocb);
+	} else {
+		irsp = &rspiocb->iocb;
+		did = get_job_els_rsp64_did(phba, rspiocb);
+		tmo = irsp->ulpTimeout;
+	}
+
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
-		irsp->ulpStatus, irsp->un.ulpWord[4], irsp->un.rcvels.remoteID);
+		ulp_status, ulp_word4, did);
 
 	/* NPIV LOGO completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "2928 NPIV LOGO completes to NPort x%x "
 			 "Data: x%x x%x x%x x%x x%x x%x x%x\n",
-			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
-			 irsp->ulpTimeout, vport->num_disc_nodes,
+			 ndlp->nlp_DID, ulp_status, ulp_word4,
+			 tmo, vport->num_disc_nodes,
 			 kref_read(&ndlp->kref), ndlp->nlp_flag,
 			 ndlp->fc4_xpt_flags);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~FC_NDISC_ACTIVE;
 		vport->fc_flag &= ~FC_FABRIC;
