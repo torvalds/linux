@@ -2134,7 +2134,7 @@ dsa_slave_lag_changeupper(struct net_device *dev,
 			continue;
 
 		dp = dsa_slave_to_port(lower);
-		if (!dp->lag_dev)
+		if (!dp->lag)
 			/* Software LAG */
 			continue;
 
@@ -2163,7 +2163,7 @@ dsa_slave_lag_prechangeupper(struct net_device *dev,
 			continue;
 
 		dp = dsa_slave_to_port(lower);
-		if (!dp->lag_dev)
+		if (!dp->lag)
 			/* Software LAG */
 			continue;
 
@@ -2373,35 +2373,34 @@ static void
 dsa_fdb_offload_notify(struct dsa_switchdev_event_work *switchdev_work)
 {
 	struct switchdev_notifier_fdb_info info = {};
-	struct dsa_switch *ds = switchdev_work->ds;
-	struct dsa_port *dp;
-
-	if (!dsa_is_user_port(ds, switchdev_work->port))
-		return;
 
 	info.addr = switchdev_work->addr;
 	info.vid = switchdev_work->vid;
 	info.offloaded = true;
-	dp = dsa_to_port(ds, switchdev_work->port);
 	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
-				 dp->slave, &info.info, NULL);
+				 switchdev_work->orig_dev, &info.info, NULL);
 }
 
 static void dsa_slave_switchdev_event_work(struct work_struct *work)
 {
 	struct dsa_switchdev_event_work *switchdev_work =
 		container_of(work, struct dsa_switchdev_event_work, work);
-	struct dsa_switch *ds = switchdev_work->ds;
+	struct net_device *dev = switchdev_work->dev;
+	struct dsa_switch *ds;
 	struct dsa_port *dp;
 	int err;
 
-	dp = dsa_to_port(ds, switchdev_work->port);
+	dp = dsa_slave_to_port(dev);
+	ds = dp->ds;
 
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		if (switchdev_work->host_addr)
 			err = dsa_port_host_fdb_add(dp, switchdev_work->addr,
 						    switchdev_work->vid);
+		else if (dp->lag)
+			err = dsa_port_lag_fdb_add(dp, switchdev_work->addr,
+						   switchdev_work->vid);
 		else
 			err = dsa_port_fdb_add(dp, switchdev_work->addr,
 					       switchdev_work->vid);
@@ -2419,6 +2418,9 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 		if (switchdev_work->host_addr)
 			err = dsa_port_host_fdb_del(dp, switchdev_work->addr,
 						    switchdev_work->vid);
+		else if (dp->lag)
+			err = dsa_port_lag_fdb_del(dp, switchdev_work->addr,
+						   switchdev_work->vid);
 		else
 			err = dsa_port_fdb_del(dp, switchdev_work->addr,
 					       switchdev_work->vid);
@@ -2464,25 +2466,35 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 	if (ctx && ctx != dp)
 		return 0;
 
-	if (!ds->ops->port_fdb_add || !ds->ops->port_fdb_del)
-		return -EOPNOTSUPP;
+	if (switchdev_fdb_is_dynamically_learned(fdb_info)) {
+		if (dsa_port_offloads_bridge_port(dp, orig_dev))
+			return 0;
 
-	if (dsa_slave_dev_check(orig_dev) &&
-	    switchdev_fdb_is_dynamically_learned(fdb_info))
-		return 0;
-
-	/* FDB entries learned by the software bridge should be installed as
-	 * host addresses only if the driver requests assisted learning.
-	 */
-	if (switchdev_fdb_is_dynamically_learned(fdb_info) &&
-	    !ds->assisted_learning_on_cpu_port)
-		return 0;
+		/* FDB entries learned by the software bridge or by foreign
+		 * bridge ports should be installed as host addresses only if
+		 * the driver requests assisted learning.
+		 */
+		if (!ds->assisted_learning_on_cpu_port)
+			return 0;
+	}
 
 	/* Also treat FDB entries on foreign interfaces bridged with us as host
 	 * addresses.
 	 */
 	if (dsa_foreign_dev_check(dev, orig_dev))
 		host_addr = true;
+
+	/* Check early that we're not doing work in vain.
+	 * Host addresses on LAG ports still require regular FDB ops,
+	 * since the CPU port isn't in a LAG.
+	 */
+	if (dp->lag && !host_addr) {
+		if (!ds->ops->lag_fdb_add || !ds->ops->lag_fdb_del)
+			return -EOPNOTSUPP;
+	} else {
+		if (!ds->ops->port_fdb_add || !ds->ops->port_fdb_del)
+			return -EOPNOTSUPP;
+	}
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (!switchdev_work)
@@ -2494,10 +2506,9 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 		   host_addr ? " as host address" : "");
 
 	INIT_WORK(&switchdev_work->work, dsa_slave_switchdev_event_work);
-	switchdev_work->ds = ds;
-	switchdev_work->port = dp->index;
 	switchdev_work->event = event;
 	switchdev_work->dev = dev;
+	switchdev_work->orig_dev = orig_dev;
 
 	ether_addr_copy(switchdev_work->addr, fdb_info->addr);
 	switchdev_work->vid = fdb_info->vid;
@@ -2526,8 +2537,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
 							   dsa_slave_dev_check,
 							   dsa_foreign_dev_check,
-							   dsa_slave_fdb_event,
-							   NULL);
+							   dsa_slave_fdb_event);
 		return notifier_from_errno(err);
 	default:
 		return NOTIFY_DONE;

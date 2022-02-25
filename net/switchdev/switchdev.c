@@ -458,63 +458,40 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info),
-		int (*lag_mod_cb)(struct net_device *dev, struct net_device *orig_dev,
-				  unsigned long event, const void *ctx,
-				  const struct switchdev_notifier_fdb_info *fdb_info))
+			      const struct switchdev_notifier_fdb_info *fdb_info))
 {
 	const struct switchdev_notifier_info *info = &fdb_info->info;
-	struct net_device *br, *lower_dev;
+	struct net_device *br, *lower_dev, *switchdev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
 	if (check_cb(dev))
 		return mod_cb(dev, orig_dev, event, info->ctx, fdb_info);
 
-	if (netif_is_lag_master(dev)) {
-		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
-			goto maybe_bridged_with_us;
-
-		/* This is a LAG interface that we offload */
-		if (!lag_mod_cb)
-			return -EOPNOTSUPP;
-
-		return lag_mod_cb(dev, orig_dev, event, info->ctx, fdb_info);
-	}
-
 	/* Recurse through lower interfaces in case the FDB entry is pointing
-	 * towards a bridge device.
+	 * towards a bridge or a LAG device.
 	 */
-	if (netif_is_bridge_master(dev)) {
-		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
-			return 0;
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		/* Do not propagate FDB entries across bridges */
+		if (netif_is_bridge_master(lower_dev))
+			continue;
 
-		/* This is a bridge interface that we offload */
-		netdev_for_each_lower_dev(dev, lower_dev, iter) {
-			/* Do not propagate FDB entries across bridges */
-			if (netif_is_bridge_master(lower_dev))
-				continue;
+		/* Bridge ports might be either us, or LAG interfaces
+		 * that we offload.
+		 */
+		if (!check_cb(lower_dev) &&
+		    !switchdev_lower_dev_find_rcu(lower_dev, check_cb,
+						  foreign_dev_check_cb))
+			continue;
 
-			/* Bridge ports might be either us, or LAG interfaces
-			 * that we offload.
-			 */
-			if (!check_cb(lower_dev) &&
-			    !switchdev_lower_dev_find_rcu(lower_dev, check_cb,
-							  foreign_dev_check_cb))
-				continue;
-
-			err = __switchdev_handle_fdb_event_to_device(lower_dev, orig_dev,
-								     event, fdb_info, check_cb,
-								     foreign_dev_check_cb,
-								     mod_cb, lag_mod_cb);
-			if (err && err != -EOPNOTSUPP)
-				return err;
-		}
-
-		return 0;
+		err = __switchdev_handle_fdb_event_to_device(lower_dev, orig_dev,
+							     event, fdb_info, check_cb,
+							     foreign_dev_check_cb,
+							     mod_cb);
+		if (err && err != -EOPNOTSUPP)
+			return err;
 	}
 
-maybe_bridged_with_us:
 	/* Event is neither on a bridge nor a LAG. Check whether it is on an
 	 * interface that is in a bridge with us.
 	 */
@@ -522,12 +499,16 @@ maybe_bridged_with_us:
 	if (!br || !netif_is_bridge_master(br))
 		return 0;
 
-	if (!switchdev_lower_dev_find_rcu(br, check_cb, foreign_dev_check_cb))
+	switchdev = switchdev_lower_dev_find_rcu(br, check_cb, foreign_dev_check_cb);
+	if (!switchdev)
 		return 0;
+
+	if (!foreign_dev_check_cb(switchdev, dev))
+		return err;
 
 	return __switchdev_handle_fdb_event_to_device(br, orig_dev, event, fdb_info,
 						      check_cb, foreign_dev_check_cb,
-						      mod_cb, lag_mod_cb);
+						      mod_cb);
 }
 
 int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long event,
@@ -537,16 +518,13 @@ int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long e
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info),
-		int (*lag_mod_cb)(struct net_device *dev, struct net_device *orig_dev,
-				  unsigned long event, const void *ctx,
-				  const struct switchdev_notifier_fdb_info *fdb_info))
+			      const struct switchdev_notifier_fdb_info *fdb_info))
 {
 	int err;
 
 	err = __switchdev_handle_fdb_event_to_device(dev, dev, event, fdb_info,
 						     check_cb, foreign_dev_check_cb,
-						     mod_cb, lag_mod_cb);
+						     mod_cb);
 	if (err == -EOPNOTSUPP)
 		err = 0;
 
