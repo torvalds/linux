@@ -1652,6 +1652,8 @@ static int read_super_block(struct super_block *s, int offset)
 		return 1;
 	}
 
+	reiserfs_warning(NULL, "", "reiserfs filesystem is deprecated and "
+		"scheduled to be removed from the kernel in 2025");
 	SB_BUFFER_WITH_SB(s) = bh;
 	SB_DISK_SUPER_BLOCK(s) = rs;
 
