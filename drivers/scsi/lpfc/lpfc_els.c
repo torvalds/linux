@@ -11920,7 +11920,8 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vmid_priority_range *vmid_range = NULL;
 	u32 *data;
 	struct lpfc_dmabuf *dmabuf = cmdiocb->context2;
-	IOCB_t *irsp = &rspiocb->iocb;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 	u8 *pcmd, max_desc;
 	u32 len, i;
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
@@ -11937,10 +11938,10 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 data[0], data[1]);
 		goto out;
 	}
-	if (irsp->ulpStatus) {
+	if (ulp_status) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
 				 "6529 QFPA failed with status x%x  x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4]);
+				 ulp_status, ulp_word4);
 		goto out;
 	}
 
@@ -12139,7 +12140,8 @@ lpfc_cmpl_els_uvem(struct lpfc_hba *phba, struct lpfc_iocbq *icmdiocb,
 	struct lpfc_nodelist *ndlp = icmdiocb->context1;
 	u8 *pcmd;
 	u32 *data;
-	IOCB_t *irsp = &rspiocb->iocb;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 	struct lpfc_dmabuf *dmabuf = icmdiocb->context2;
 	struct lpfc_vmid *vmid;
 
@@ -12157,10 +12159,10 @@ lpfc_cmpl_els_uvem(struct lpfc_hba *phba, struct lpfc_iocbq *icmdiocb,
 				 "4532 UVEM LS_RJT %x %x\n", data[0], data[1]);
 		goto out;
 	}
-	if (irsp->ulpStatus) {
+	if (ulp_status) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_SLI,
 				 "4533 UVEM error status %x: %x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4]);
+				 ulp_status, ulp_word4);
 		goto out;
 	}
 	spin_lock(&phba->hbalock);
