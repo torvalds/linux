@@ -320,7 +320,6 @@ static struct snd_soc_card acp5x_card = {
 	.num_controls = ARRAY_SIZE(acp5x_8821_controls),
 };
 
-
 static int acp5x_vg_quirk_cb(const struct dmi_system_id *id)
 {
 	acp5x_machine_id = VG_JUPITER;
@@ -350,7 +349,7 @@ static int acp5x_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dmi_check_system(acp5x_vg_quirk_table);
-	switch(acp5x_machine_id) {
+	switch (acp5x_machine_id) {
 	case VG_JUPITER:
 		card = &acp5x_card;
 		acp5x_card.dev = &pdev->dev;
