@@ -310,8 +310,7 @@ static void clk_range_test_multiple_disjoints_range(struct kunit *test)
 
 /*
  * Test that if our clock has some boundaries and we try to round a rate
- * lower than the minimum, the returned rate won't be affected by the
- * boundaries.
+ * lower than the minimum, the returned rate will be within range.
  */
 static void clk_range_test_set_range_round_rate_lower(struct kunit *test)
 {
@@ -328,18 +327,20 @@ static void clk_range_test_set_range_round_rate_lower(struct kunit *test)
 
 	rate = clk_round_rate(clk, DUMMY_CLOCK_RATE_1 - 1000);
 	KUNIT_ASSERT_GT(test, rate, 0);
-	KUNIT_EXPECT_EQ(test, rate, DUMMY_CLOCK_RATE_1 - 1000);
+	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_2);
 }
 
 /*
  * Test that if our clock has some boundaries and we try to set a rate
- * lower than the minimum, we'll get an error.
+ * higher than the maximum, the new rate will be within range.
  */
 static void clk_range_test_set_range_set_rate_lower(struct kunit *test)
 {
 	struct clk_dummy_context *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = hw->clk;
+	unsigned long rate;
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate_range(clk,
@@ -347,15 +348,21 @@ static void clk_range_test_set_range_set_rate_lower(struct kunit *test)
 					   DUMMY_CLOCK_RATE_2),
 			0);
 
-	KUNIT_ASSERT_LT(test,
+	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_1 - 1000),
 			0);
+
+	rate = clk_get_rate(clk);
+	KUNIT_ASSERT_GT(test, rate, 0);
+	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_2);
 }
 
 /*
  * Test that if our clock has some boundaries and we try to round and
- * set a rate lower than the minimum, the values won't be consistent
- * between clk_round_rate() and clk_set_rate().
+ * set a rate lower than the minimum, the rate returned by
+ * clk_round_rate() will be consistent with the new rate set by
+ * clk_set_rate().
  */
 static void clk_range_test_set_range_set_round_rate_consistent_lower(struct kunit *test)
 {
@@ -373,17 +380,16 @@ static void clk_range_test_set_range_set_round_rate_consistent_lower(struct kuni
 	rounded = clk_round_rate(clk, DUMMY_CLOCK_RATE_1 - 1000);
 	KUNIT_ASSERT_GT(test, rounded, 0);
 
-	KUNIT_EXPECT_LT(test,
+	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_1 - 1000),
 			0);
 
-	KUNIT_EXPECT_NE(test, rounded, clk_get_rate(clk));
+	KUNIT_EXPECT_EQ(test, rounded, clk_get_rate(clk));
 }
 
 /*
  * Test that if our clock has some boundaries and we try to round a rate
- * higher than the maximum, the returned rate won't be affected by the
- * boundaries.
+ * higher than the maximum, the returned rate will be within range.
  */
 static void clk_range_test_set_range_round_rate_higher(struct kunit *test)
 {
@@ -400,18 +406,20 @@ static void clk_range_test_set_range_round_rate_higher(struct kunit *test)
 
 	rate = clk_round_rate(clk, DUMMY_CLOCK_RATE_2 + 1000);
 	KUNIT_ASSERT_GT(test, rate, 0);
-	KUNIT_EXPECT_EQ(test, rate, DUMMY_CLOCK_RATE_2 + 1000);
+	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_2);
 }
 
 /*
  * Test that if our clock has some boundaries and we try to set a rate
- * lower than the maximum, we'll get an error.
+ * higher than the maximum, the new rate will be within range.
  */
 static void clk_range_test_set_range_set_rate_higher(struct kunit *test)
 {
 	struct clk_dummy_context *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = hw->clk;
+	unsigned long rate;
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate_range(clk,
@@ -419,15 +427,21 @@ static void clk_range_test_set_range_set_rate_higher(struct kunit *test)
 					   DUMMY_CLOCK_RATE_2),
 			0);
 
-	KUNIT_ASSERT_LT(test,
+	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_2 + 1000),
 			0);
+
+	rate = clk_get_rate(clk);
+	KUNIT_ASSERT_GT(test, rate, 0);
+	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_2);
 }
 
 /*
  * Test that if our clock has some boundaries and we try to round and
- * set a rate higher than the maximum, the values won't be consistent
- * between clk_round_rate() and clk_set_rate().
+ * set a rate higher than the maximum, the rate returned by
+ * clk_round_rate() will be consistent with the new rate set by
+ * clk_set_rate().
  */
 static void clk_range_test_set_range_set_round_rate_consistent_higher(struct kunit *test)
 {
@@ -445,11 +459,11 @@ static void clk_range_test_set_range_set_round_rate_consistent_higher(struct kun
 	rounded = clk_round_rate(clk, DUMMY_CLOCK_RATE_2 + 1000);
 	KUNIT_ASSERT_GT(test, rounded, 0);
 
-	KUNIT_EXPECT_LT(test,
+	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_2 + 1000),
 			0);
 
-	KUNIT_EXPECT_NE(test, rounded, clk_get_rate(clk));
+	KUNIT_EXPECT_EQ(test, rounded, clk_get_rate(clk));
 }
 
 /*
