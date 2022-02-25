@@ -537,6 +537,9 @@ static int mctp_i2c_header_create(struct sk_buff *skb, struct net_device *dev,
 	struct mctp_hdr *mhdr;
 	u8 lldst, llsrc;
 
+	if (len > MCTP_I2C_MAXMTU)
+		return -EMSGSIZE;
+
 	lldst = *((u8 *)daddr);
 	llsrc = *((u8 *)saddr);
 
@@ -547,8 +550,6 @@ static int mctp_i2c_header_create(struct sk_buff *skb, struct net_device *dev,
 	hdr->dest_slave = (lldst << 1) & 0xff;
 	hdr->command = MCTP_I2C_COMMANDCODE;
 	hdr->byte_count = len + 1;
-	if (hdr->byte_count > MCTP_I2C_MAXBLOCK)
-		return -EMSGSIZE;
 	hdr->source_slave = ((llsrc << 1) & 0xff) | 0x01;
 	mhdr->ver = 0x01;
 
