@@ -113,8 +113,11 @@ static void __init kasan_populate_pud(pgd_t *pgd,
 		base_pud = pt_ops.get_pud_virt(pfn_to_phys(_pgd_pfn(*pgd)));
 	} else {
 		base_pud = (pud_t *)pgd_page_vaddr(*pgd);
-		if (base_pud == lm_alias(kasan_early_shadow_pud))
+		if (base_pud == lm_alias(kasan_early_shadow_pud)) {
 			base_pud = memblock_alloc(PTRS_PER_PUD * sizeof(pud_t), PAGE_SIZE);
+			memcpy(base_pud, (void *)kasan_early_shadow_pud,
+			       sizeof(pud_t) * PTRS_PER_PUD);
+		}
 	}
 
 	pudp = base_pud + pud_index(vaddr);
