@@ -164,7 +164,7 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 	return 0;
 }
 
-static struct pxa_spi_info lpss_info_config = {
+static const struct pxa_spi_info lpss_info_config = {
 	.setup = lpss_spi_setup,
 };
 
@@ -179,7 +179,7 @@ static int ce4100_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c
 	return pxa2xx_spi_pci_clk_register(dev, ssp, 3686400);
 }
 
-static struct pxa_spi_info ce4100_info_config = {
+static const struct pxa_spi_info ce4100_info_config = {
 	.setup = ce4100_spi_setup,
 };
 
@@ -236,7 +236,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 	return 0;
 }
 
-static struct pxa_spi_info mrfld_info_config = {
+static const struct pxa_spi_info mrfld_info_config = {
 	.setup = mrfld_spi_setup,
 };
 
@@ -251,18 +251,18 @@ static int qrk_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 	return pxa2xx_spi_pci_clk_register(dev, ssp, 50000000);
 }
 
-static struct pxa_spi_info qrk_info_config = {
+static const struct pxa_spi_info qrk_info_config = {
 	.setup = qrk_spi_setup,
 };
 
 static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		const struct pci_device_id *ent)
 {
+	const struct pxa_spi_info *info;
 	struct platform_device_info pi;
 	int ret;
 	struct platform_device *pdev;
 	struct pxa2xx_spi_controller spi_pdata;
-	struct pxa_spi_info *info;
 	struct ssp_device *ssp;
 
 	ret = pcim_enable_device(dev);
