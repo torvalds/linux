@@ -110,6 +110,15 @@ int dsa_8021q_rx_source_port(u16 vid)
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_rx_source_port);
 
+/* Returns the decoded VBID from the RX VID. */
+static int dsa_tag_8021q_rx_vbid(u16 vid)
+{
+	u16 vbid_hi = (vid & DSA_8021Q_VBID_HI_MASK) >> DSA_8021Q_VBID_HI_SHIFT;
+	u16 vbid_lo = (vid & DSA_8021Q_VBID_LO_MASK) >> DSA_8021Q_VBID_LO_SHIFT;
+
+	return (vbid_hi << 2) | vbid_lo;
+}
+
 bool vid_is_dsa_8021q_rxvlan(u16 vid)
 {
 	return (vid & DSA_8021Q_DIR_MASK) == DSA_8021Q_DIR_RX;
@@ -244,9 +253,15 @@ int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 			if (dsa_port_is_user(dp))
 				flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
+			/* Standalone VLANs are PVIDs */
 			if (vid_is_dsa_8021q_rxvlan(info->vid) &&
 			    dsa_8021q_rx_switch_id(info->vid) == ds->index &&
 			    dsa_8021q_rx_source_port(info->vid) == dp->index)
+				flags |= BRIDGE_VLAN_INFO_PVID;
+
+			/* And bridging VLANs are PVIDs too on user ports */
+			if (dsa_tag_8021q_rx_vbid(info->vid) &&
+			    dsa_port_is_user(dp))
 				flags |= BRIDGE_VLAN_INFO_PVID;
 
 			err = dsa_port_do_tag_8021q_vlan_add(dp, info->vid,
@@ -326,107 +341,52 @@ int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
  * +-+-----+-+-----+-+-----+-+-----+-+    +-+-----+-+-----+-+-----+-+-----+-+
  *   swp0    swp1    swp2    swp3           swp0    swp1    swp2    swp3
  */
-static bool
-dsa_port_tag_8021q_bridge_match(struct dsa_port *dp,
-				struct dsa_notifier_bridge_info *info)
+int dsa_tag_8021q_bridge_join(struct dsa_switch *ds, int port,
+			      struct dsa_bridge bridge)
 {
-	/* Don't match on self */
-	if (dp->ds->dst->index == info->tree_index &&
-	    dp->ds->index == info->sw_index &&
-	    dp->index == info->port)
-		return false;
-
-	if (dsa_port_is_user(dp))
-		return dsa_port_offloads_bridge(dp, &info->bridge);
-
-	return false;
-}
-
-int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
-			      struct dsa_notifier_bridge_info *info)
-{
-	struct dsa_switch *targeted_ds;
-	struct dsa_port *targeted_dp;
-	struct dsa_port *dp;
-	u16 targeted_rx_vid;
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	u16 standalone_vid, bridge_vid;
 	int err;
 
-	if (!ds->tag_8021q_ctx)
-		return 0;
+	/* Delete the standalone VLAN of the port and replace it with a
+	 * bridging VLAN
+	 */
+	standalone_vid = dsa_tag_8021q_rx_vid(dp);
+	bridge_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
 
-	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
-	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
+	err = dsa_port_tag_8021q_vlan_add(dp, bridge_vid, true);
+	if (err)
+		return err;
 
-	dsa_switch_for_each_port(dp, ds) {
-		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
-
-		if (!dsa_port_tag_8021q_bridge_match(dp, info))
-			continue;
-
-		/* Install the RX VID of the targeted port in our VLAN table */
-		err = dsa_port_tag_8021q_vlan_add(dp, targeted_rx_vid, true);
-		if (err)
-			return err;
-
-		/* Install our RX VID into the targeted port's VLAN table */
-		err = dsa_port_tag_8021q_vlan_add(targeted_dp, rx_vid, true);
-		if (err)
-			return err;
-	}
+	dsa_port_tag_8021q_vlan_del(dp, standalone_vid, false);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_join);
 
-int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
-			       struct dsa_notifier_bridge_info *info)
+void dsa_tag_8021q_bridge_leave(struct dsa_switch *ds, int port,
+				struct dsa_bridge bridge)
 {
-	struct dsa_switch *targeted_ds;
-	struct dsa_port *targeted_dp;
-	struct dsa_port *dp;
-	u16 targeted_rx_vid;
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	u16 standalone_vid, bridge_vid;
+	int err;
 
-	if (!ds->tag_8021q_ctx)
-		return 0;
+	/* Delete the bridging VLAN of the port and replace it with a
+	 * standalone VLAN
+	 */
+	standalone_vid = dsa_tag_8021q_rx_vid(dp);
+	bridge_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
 
-	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
-	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
-
-	dsa_switch_for_each_port(dp, ds) {
-		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
-
-		if (!dsa_port_tag_8021q_bridge_match(dp, info))
-			continue;
-
-		/* Remove the RX VID of the targeted port from our VLAN table */
-		dsa_port_tag_8021q_vlan_del(dp, targeted_rx_vid, true);
-
-		/* Remove our RX VID from the targeted port's VLAN table */
-		dsa_port_tag_8021q_vlan_del(targeted_dp, rx_vid, true);
+	err = dsa_port_tag_8021q_vlan_add(dp, standalone_vid, false);
+	if (err) {
+		dev_err(ds->dev,
+			"Failed to delete tag_8021q standalone VLAN %d from port %d: %pe\n",
+			standalone_vid, port, ERR_PTR(err));
 	}
 
-	return 0;
+	dsa_port_tag_8021q_vlan_del(dp, bridge_vid, true);
 }
-
-int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
-					struct dsa_bridge bridge)
-{
-	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
-
-	return dsa_port_tag_8021q_vlan_add(dsa_to_port(ds, port), tx_vid,
-					   true);
-}
-EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_offload);
-
-void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
-					   struct dsa_bridge bridge)
-{
-	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
-
-	dsa_port_tag_8021q_vlan_del(dsa_to_port(ds, port), tx_vid, true);
-}
-EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_unoffload);
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_leave);
 
 /* Set up a port's tag_8021q RX and TX VLAN for standalone mode operation */
 static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
