@@ -115,6 +115,25 @@ static int rzg2l_wdt_stop(struct watchdog_device *wdev)
 	return 0;
 }
 
+static int rzg2l_wdt_set_timeout(struct watchdog_device *wdev, unsigned int timeout)
+{
+	struct rzg2l_wdt_priv *priv = watchdog_get_drvdata(wdev);
+
+	wdev->timeout = timeout;
+
+	/*
+	 * If the watchdog is active, reset the module for updating the WDTSET
+	 * register so that it is updated with new timeout values.
+	 */
+	if (watchdog_active(wdev)) {
+		pm_runtime_put(wdev->parent);
+		reset_control_reset(priv->rstc);
+		rzg2l_wdt_start(wdev);
+	}
+
+	return 0;
+}
+
 static int rzg2l_wdt_restart(struct watchdog_device *wdev,
 			     unsigned long action, void *data)
 {
@@ -151,6 +170,7 @@ static const struct watchdog_ops rzg2l_wdt_ops = {
 	.start = rzg2l_wdt_start,
 	.stop = rzg2l_wdt_stop,
 	.ping = rzg2l_wdt_ping,
+	.set_timeout = rzg2l_wdt_set_timeout,
 	.restart = rzg2l_wdt_restart,
 };
 
