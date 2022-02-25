@@ -171,9 +171,8 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *pcmd, *prsp;
 	uint32_t *lp;
 	void     *ptr = NULL;
-	IOCB_t   *irsp;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	irsp = &rspiocb->iocb;
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 
 	/* For lpfc_els_abort, context2 could be zero'ed to delay
@@ -187,10 +186,16 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			ptr = (void *)((uint8_t *)lp + sizeof(uint32_t));
 		}
 	} else {
-		/* Force ulpStatus error since we are returning NULL ptr */
-		if (!(irsp->ulpStatus)) {
-			irsp->ulpStatus = IOSTAT_LOCAL_REJECT;
-			irsp->un.ulpWord[4] = IOERR_SLI_ABORTED;
+		/* Force ulp_status error since we are returning NULL ptr */
+		if (!(ulp_status)) {
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				bf_set(lpfc_wcqe_c_status, &rspiocb->wcqe_cmpl,
+				       IOSTAT_LOCAL_REJECT);
+				rspiocb->wcqe_cmpl.parameter = IOERR_SLI_ABORTED;
+			} else {
+				rspiocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
+				rspiocb->iocb.un.ulpWord[4] = IOERR_SLI_ABORTED;
+			}
 		}
 		ptr = NULL;
 	}
@@ -325,6 +330,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_dmabuf *mp;
 	uint64_t nlp_portwwn = 0;
 	uint32_t *lp;
+	union lpfc_wqe128 *wqe;
 	IOCB_t *icmd;
 	struct serv_parm *sp;
 	uint32_t ed_tov;
@@ -334,6 +340,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct ls_rjt stat;
 	uint32_t vid, flag;
 	int rc;
+	u32 remote_did;
 
 	memset(&stat, 0, sizeof (struct ls_rjt));
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
@@ -367,7 +374,11 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			NULL);
 		return 0;
 	}
-	icmd = &cmdiocb->iocb;
+
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		wqe = &cmdiocb->wqe;
+	else
+		icmd = &cmdiocb->iocb;
 
 	/* PLOGI chkparm OK */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -457,7 +468,12 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if ((vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_PT2PT_PLOGI)) {
 		/* rcv'ed PLOGI decides what our NPortId will be */
-		vport->fc_myDID = icmd->un.rcvels.parmRo;
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			vport->fc_myDID = bf_get(els_rsp64_sid,
+						 &cmdiocb->wqe.xmit_els_rsp);
+		} else {
+			vport->fc_myDID = icmd->un.rcvels.parmRo;
+		}
 
 		/* If there is an outstanding FLOGI, abort it now.
 		 * The remote NPort is not going to ACC our FLOGI
@@ -538,7 +554,11 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Issue REG_LOGIN first, before ACCing the PLOGI, thus we will
 	 * always be deferring the ACC.
 	 */
-	rc = lpfc_reg_rpi(phba, vport->vpi, icmd->un.rcvels.remoteID,
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		remote_did = bf_get(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest);
+	else
+		remote_did = icmd->un.rcvels.remoteID;
+	rc = lpfc_reg_rpi(phba, vport->vpi, remote_did,
 			    (uint8_t *)sp, login_mbox, ndlp->nlp_rpi);
 	if (rc)
 		goto out;
