@@ -35,7 +35,6 @@ config ALPHA
 	select OLD_SIGSUSPEND
 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
 	select MMU_GATHER_NO_RANGE
-	select SET_FS
 	select SPARSEMEM_EXTREME if SPARSEMEM
 	select ZONE_DMA
 	help

@@ -32,10 +32,6 @@ struct fpq {
 };
 #endif
 
-typedef struct {
-	int seg;
-} mm_segment_t;
-
 /* The Sparc processor specific thread struct. */
 struct thread_struct {
 	struct pt_regs *kregs;
@@ -50,11 +46,9 @@ struct thread_struct {
 	unsigned long   fsr;
 	unsigned long   fpqdepth;
 	struct fpq	fpqueue[16];
-	mm_segment_t current_ds;
 };
 
 #define INIT_THREAD  { \
-	.current_ds = KERNEL_DS, \
 	.kregs = (struct pt_regs *)(init_stack+THREAD_SIZE)-1 \
 }
 

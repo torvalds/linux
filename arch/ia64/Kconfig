@@ -61,7 +61,6 @@ config IA64
 	select NEED_SG_DMA_LENGTH
 	select NUMA if !FLATMEM
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
-	select SET_FS
 	select ZONE_DMA32
 	default y
 	help

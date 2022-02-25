@@ -251,7 +251,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 	DBG(1,"setup_rt_frame: frame %p info %p\n", frame, ksig->info);
 
 	start = (unsigned long) frame;
-	if (start >= user_addr_max() - sigframe_size)
+	if (start >= TASK_SIZE_MAX - sigframe_size)
 		return -EFAULT;
 	
 #ifdef CONFIG_64BIT
@@ -518,7 +518,7 @@ insert_restart_trampoline(struct pt_regs *regs)
 		long err = 0;
 
 		/* check that we don't exceed the stack */
-		if (A(&usp[0]) >= user_addr_max() - 5 * sizeof(int))
+		if (A(&usp[0]) >= TASK_SIZE_MAX - 5 * sizeof(int))
 			return;
 
 		/* Setup a trampoline to restart the syscall

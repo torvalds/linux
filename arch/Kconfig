@@ -24,9 +24,6 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
-config SET_FS
-	bool
-
 config HOTPLUG_SMT
 	bool
 
@@ -897,6 +894,13 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	help
 	  Architecture provides a function to run __do_softirq() on a
 	  separate stack.
+
+config ALTERNATE_USER_ADDRESS_SPACE
+	bool
+	help
+	  Architectures set this when the CPU uses separate address
+	  spaces for kernel and user space pointers. In this case, the
+	  access_ok() check on a __user pointer is skipped.
 
 config PGTABLE_LEVELS
 	int

@@ -13,7 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/uaccess.h>
 
-#define get_user_space() (uaccess_kernel() ? 0 : mfsp(3))
+#define get_user_space() (mfsp(3))
 #define get_kernel_space() (0)
 
 /* Returns 0 for success, otherwise, returns number of bytes not transferred. */

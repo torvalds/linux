@@ -11,6 +11,7 @@
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/types.h>
+#include <asm-generic/access_ok.h>
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 
@@ -33,23 +34,6 @@ struct exception_table_entry {
 
 extern int fixup_exception(struct pt_regs *regs);
 
-#define KERNEL_DS 	((mm_segment_t) { ~0UL })
-#define USER_DS		((mm_segment_t) {TASK_SIZE - 1})
-
-#define get_fs()	(current_thread_info()->addr_limit)
-#define user_addr_max	get_fs
-
-static inline void set_fs(mm_segment_t fs)
-{
-	current_thread_info()->addr_limit = fs;
-}
-
-#define uaccess_kernel()	(get_fs() == KERNEL_DS)
-
-#define __range_ok(addr, size) (size <= get_fs() && addr <= (get_fs() -size))
-
-#define access_ok(addr, size)	\
-	__range_ok((unsigned long)addr, (unsigned long)size)
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
@@ -70,9 +54,7 @@ static inline void set_fs(mm_segment_t fs)
  * versions are void (ie, don't return a value as such).
  */
 
-#define get_user	__get_user					\
-
-#define __get_user(x, ptr)						\
+#define get_user(x, ptr)						\
 ({									\
 	long __gu_err = 0;						\
 	__get_user_check((x), (ptr), __gu_err);				\
@@ -83,6 +65,14 @@ static inline void set_fs(mm_segment_t fs)
 ({									\
 	__get_user_check((x), (ptr), (err));				\
 	(void)0;							\
+})
+
+#define __get_user(x, ptr)						\
+({									\
+	long __gu_err = 0;						\
+	const __typeof__(*(ptr)) __user *__p = (ptr);			\
+	__get_user_err((x), __p, (__gu_err));				\
+	__gu_err;							\
 })
 
 #define __get_user_check(x, ptr, err)					\
@@ -165,12 +155,18 @@ do {									\
 		: "r"(addr), "i"(-EFAULT)				\
 		: "cc")
 
-#define put_user	__put_user					\
+#define put_user(x, ptr)						\
+({									\
+	long __pu_err = 0;						\
+	__put_user_check((x), (ptr), __pu_err);				\
+	__pu_err;							\
+})
 
 #define __put_user(x, ptr)						\
 ({									\
 	long __pu_err = 0;						\
-	__put_user_err((x), (ptr), __pu_err);				\
+	__typeof__(*(ptr)) __user *__p = (ptr);				\
+	__put_user_err((x), __p, __pu_err);				\
 	__pu_err;							\
 })
 
