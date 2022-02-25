@@ -167,6 +167,14 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
+static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
+{
+	c->num_chipselect = 1;
+	c->max_clk_rate = 50000000;
+
+	return 0;
+}
+
 static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_CE4100] = {
 		.type = PXA25x_SSP,
@@ -209,8 +217,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_QUARK_X1000] = {
 		.type = QUARK_X1000_SSP,
 		.port_id = -1,
-		.num_chipselect = 1,
-		.max_clk_rate = 50000000,
+		.setup = qrk_spi_setup,
 	},
 	[PORT_LPT0] = {
 		.type = LPSS_LPT_SSP,
