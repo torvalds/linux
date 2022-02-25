@@ -534,21 +534,6 @@ void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
 }
 
-u8 GetEEPROMSize8188E(struct adapter *padapter)
-{
-	u8 size = 0;
-	u32	cr;
-
-	cr = rtw_read16(padapter, REG_9346CR);
-	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
-	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
-
-	netdev_dbg(padapter->pnetdev, "EEPROM type is %s\n",
-		   size == 4 ? "E-FUSE" : "93C46");
-
-	return size;
-}
-
 /*  */
 /*  */
 /*  LLT R/W/Init function */

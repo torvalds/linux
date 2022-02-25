@@ -835,9 +835,6 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 	struct led_priv *ledpriv = &Adapter->ledpriv;
 	u8 eeValue;
 
-	/*  Read EEPROM size before call any EEPROM function */
-	Adapter->EepromAddressSize = GetEEPROMSize8188E(Adapter);
-
 	/* check system boot selection */
 	eeValue = rtw_read8(Adapter, REG_9346CR);
 	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM);
