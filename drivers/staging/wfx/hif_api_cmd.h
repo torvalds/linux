@@ -8,8 +8,6 @@
 #ifndef WFX_HIF_API_CMD_H
 #define WFX_HIF_API_CMD_H
 
-#include <linux/ieee80211.h>
-
 #include "hif_api_general.h"
 
 enum wfx_hif_requests_ids {
