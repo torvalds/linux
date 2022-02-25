@@ -45,6 +45,11 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	GEM_BUG_ON(flags & ~I915_BO_ALLOC_FLAGS);
 
+	if (WARN_ON_ONCE(flags & I915_BO_ALLOC_GPU_ONLY &&
+			 (flags & I915_BO_ALLOC_CPU_CLEAR ||
+			  flags & I915_BO_ALLOC_PM_EARLY)))
+		return ERR_PTR(-EINVAL);
+
 	if (!mem)
 		return ERR_PTR(-ENODEV);
 

@@ -358,6 +358,9 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	    !i915_gem_object_has_iomem(obj))
 		return ERR_PTR(-ENXIO);
 
+	if (WARN_ON_ONCE(obj->flags & I915_BO_ALLOC_GPU_ONLY))
+		return ERR_PTR(-EINVAL);
+
 	assert_object_held(obj);
 
 	pinned = !(type & I915_MAP_OVERRIDE);

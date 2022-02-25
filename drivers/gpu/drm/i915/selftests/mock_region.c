@@ -22,17 +22,12 @@ static void mock_region_put_pages(struct drm_i915_gem_object *obj,
 
 static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 {
-	unsigned int flags;
 	struct sg_table *pages;
 	int err;
 
-	flags = 0;
-	if (obj->flags & I915_BO_ALLOC_CONTIGUOUS)
-		flags |= TTM_PL_FLAG_CONTIGUOUS;
-
 	obj->mm.res = intel_region_ttm_resource_alloc(obj->mm.region,
 						      obj->base.size,
-						      flags);
+						      obj->flags);
 	if (IS_ERR(obj->mm.res))
 		return PTR_ERR(obj->mm.res);
 

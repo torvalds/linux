@@ -129,10 +129,14 @@ i915_ttm_place_from_region(const struct intel_memory_region *mr,
 	place->mem_type = intel_region_to_ttm_type(mr);
 
 	if (flags & I915_BO_ALLOC_CONTIGUOUS)
-		place->flags = TTM_PL_FLAG_CONTIGUOUS;
+		place->flags |= TTM_PL_FLAG_CONTIGUOUS;
 	if (mr->io_size && mr->io_size < mr->total) {
-		place->fpfn = 0;
-		place->lpfn = mr->io_size >> PAGE_SHIFT;
+		if (flags & I915_BO_ALLOC_GPU_ONLY) {
+			place->flags |= TTM_PL_FLAG_TOPDOWN;
+		} else {
+			place->fpfn = 0;
+			place->lpfn = mr->io_size >> PAGE_SHIFT;
+		}
 	}
 }
 
@@ -889,6 +893,9 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	obj = i915_ttm_to_gem(bo);
 	if (!obj)
 		return VM_FAULT_SIGBUS;
+
+	if (obj->flags & I915_BO_ALLOC_GPU_ONLY)
+		return -EINVAL;
 
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
