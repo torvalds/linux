@@ -85,4 +85,6 @@ const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead);
 
 const char *rk_get_hash_name(uint32_t id, int *is_hmac);
 
+bool rk_cryptodev_multi_thread(const char *name);
+
 #endif

@@ -44,6 +44,7 @@
 #define sha224_state			sha256_state
 
 struct rk_crypto_soc_data {
+	const char			*crypto_ver;
 	char				**valid_algs_name;
 	int				valid_algs_num;
 	struct rk_crypto_algt		**total_algs;

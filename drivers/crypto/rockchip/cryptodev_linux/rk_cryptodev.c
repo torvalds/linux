@@ -36,6 +36,7 @@ struct dma_fd_map_node {
 struct crypto_dev_info {
 	struct device *dev;
 	char name[MAX_CRYPTO_NAME_LEN];
+	bool is_multi_thread;
 };
 
 static struct crypto_dev_info g_dev_infos[MAX_CRYPTO_DEV];
@@ -61,6 +62,8 @@ int rk_cryptodev_register_dev(struct device *dev, const char *name)
 
 			g_dev_infos[i].dev = dev;
 			strncpy(g_dev_infos[i].name, name, sizeof(g_dev_infos[i].name));
+
+			g_dev_infos[i].is_multi_thread = strstr(g_dev_infos[i].name, "multi");
 			dev_info(dev, "register to cryptodev ok!\n");
 			return 0;
 		}
@@ -954,3 +957,14 @@ const char *rk_get_hash_name(uint32_t id, int *is_hmac)
 	return NULL;
 }
 
+bool rk_cryptodev_multi_thread(const char *name)
+{
+	uint32_t i;
+
+	for (i = 0; i < ARRAY_SIZE(g_dev_infos); i++) {
+		if (g_dev_infos[i].dev)
+			return g_dev_infos[i].is_multi_thread;
+	}
+
+	return false;
+}

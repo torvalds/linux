@@ -25,6 +25,7 @@
 #include "cryptodev_linux/rk_cryptodev_int.h"
 
 #define RK_CRYPTO_V1_SOC_DATA_INIT(names) {\
+	.crypto_ver  = "CRYPTO V1.0.0.0",\
 	.use_soft_aes192 = false,\
 	.valid_algs_name = (names),\
 	.valid_algs_num = ARRAY_SIZE(names),\
@@ -39,6 +40,7 @@
 }
 
 #define RK_CRYPTO_V2_SOC_DATA_INIT(names, soft_aes_192) {\
+	.crypto_ver  = "CRYPTO V2.0.0.0",\
 	.use_soft_aes192 = soft_aes_192,\
 	.valid_algs_name = (names),\
 	.valid_algs_num = ARRAY_SIZE(names),\
@@ -835,9 +837,9 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_register_alg;
 	}
 
-	rk_cryptodev_register_dev(rk_dev->dev, "rk_crypto");
+	rk_cryptodev_register_dev(rk_dev->dev, soc_data->crypto_ver);
 
-	dev_info(dev, "Crypto Accelerator successfully registered\n");
+	dev_info(dev, "%s Accelerator successfully registered\n", soc_data->crypto_ver);
 	return 0;
 
 err_register_alg:
