@@ -8814,22 +8814,22 @@ static int kvmclock_cpu_online(unsigned int cpu)
 
 static void kvm_timer_init(void)
 {
-	max_tsc_khz = tsc_khz;
-
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
-#ifdef CONFIG_CPU_FREQ
-		struct cpufreq_policy *policy;
-		int cpu;
+		max_tsc_khz = tsc_khz;
 
-		cpu = get_cpu();
-		policy = cpufreq_cpu_get(cpu);
-		if (policy) {
-			if (policy->cpuinfo.max_freq)
-				max_tsc_khz = policy->cpuinfo.max_freq;
-			cpufreq_cpu_put(policy);
+		if (IS_ENABLED(CONFIG_CPU_FREQ)) {
+			struct cpufreq_policy *policy;
+			int cpu;
+
+			cpu = get_cpu();
+			policy = cpufreq_cpu_get(cpu);
+			if (policy) {
+				if (policy->cpuinfo.max_freq)
+					max_tsc_khz = policy->cpuinfo.max_freq;
+				cpufreq_cpu_put(policy);
+			}
+			put_cpu();
 		}
-		put_cpu();
-#endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
 	}
@@ -11737,7 +11737,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	pvclock_update_vm_gtod_copy(kvm);
 	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
-	kvm->arch.default_tsc_khz = max_tsc_khz;
+	kvm->arch.default_tsc_khz = max_tsc_khz ? : tsc_khz;
 	kvm->arch.guest_can_read_msr_platform_info = true;
 	kvm->arch.enable_pmu = enable_pmu;
 
