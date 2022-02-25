@@ -210,8 +210,8 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 	if (wvif->vif->type != NL80211_IFTYPE_AP)
 		return false;
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
-		/* Note: since only AP can have mcast frames in queue and only
-		 * one vif can be AP, all queued frames has same interface id
+		/* Note: since only AP can have mcast frames in queue and only one vif can be AP,
+		 * all queued frames has same interface id
 		 */
 		if (!skb_queue_empty_lockless(&wvif->tx_queue[i].cab))
 			return true;
@@ -253,9 +253,8 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			skb = skb_dequeue(&queues[i]->cab);
 			if (!skb)
 				continue;
-			/* Note: since only AP can have mcast frames in queue
-			 * and only one vif can be AP, all queued frames has
-			 * same interface id
+			/* Note: since only AP can have mcast frames in queue and only one vif can
+			 * be AP, all queued frames has same interface id
 			 */
 			hif = (struct wfx_hif_msg *)skb->data;
 			WARN_ON(hif->interface != wvif->id);

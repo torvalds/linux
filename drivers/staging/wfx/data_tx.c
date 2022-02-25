@@ -117,9 +117,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rat
 	if (idx >= 0) {
 		*renew = false;
 	} else {
-		/* If policy is not found create a new one using the oldest
-		 * entry in "free" list
-		 */
+		/* If policy is not found create a new one using the oldest entry in "free" list */
 		*renew = true;
 		entry = list_entry(cache->free.prev, struct wfx_tx_policy, link);
 		memcpy(entry->rates, wanted.rates, sizeof(entry->rates));
@@ -494,9 +492,7 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 	wfx_tx_fill_rates(wdev, tx_info, arg);
 	skb_trim(skb, skb->len - tx_priv->icv_size);
 
-	/* From now, you can touch to tx_info->status, but do not touch to
-	 * tx_priv anymore
-	 */
+	/* From now, you can touch to tx_info->status, but do not touch to tx_priv anymore */
 	/* FIXME: use ieee80211_tx_info_clear_status() */
 	memset(tx_info->rate_driver_data, 0, sizeof(tx_info->rate_driver_data));
 	memset(tx_info->pad, 0, sizeof(tx_info->pad));
