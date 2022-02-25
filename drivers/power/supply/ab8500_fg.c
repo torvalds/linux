@@ -877,27 +877,38 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
 /**
  * ab8500_fg_battery_resistance() - Returns the battery inner resistance
  * @di:		pointer to the ab8500_fg structure
+ * @vbat_uncomp_uv: Uncompensated VBAT voltage
  *
  * Returns battery inner resistance added with the fuel gauge resistor value
  * to get the total resistance in the whole link from gnd to bat+ node
  * in milliohm.
  */
-static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
+static int ab8500_fg_battery_resistance(struct ab8500_fg *di, int vbat_uncomp_uv)
 {
 	struct power_supply_battery_info *bi = di->bm->bi;
 	int resistance_percent = 0;
 	int resistance;
 
-	resistance_percent = power_supply_temp2resist_simple(bi->resist_table,
-						 bi->resist_table_size,
-						 di->bat_temp / 10);
 	/*
-	 * We get a percentage of factory resistance here so first get
-	 * the factory resistance in milliohms then calculate how much
-	 * resistance we have at this temperature.
+	 * Determine the resistance at this voltage. First try VBAT-to-Ri else
+	 * just infer it from the surrounding temperature, if nothing works just
+	 * use the internal resistance.
 	 */
-	resistance = (bi->factory_internal_resistance_uohm / 1000);
-	resistance = resistance * resistance_percent / 100;
+	if (power_supply_supports_vbat2ri(bi)) {
+		resistance = power_supply_vbat2ri(bi, vbat_uncomp_uv, di->flags.charging);
+		/* Convert to milliohm */
+		resistance = resistance / 1000;
+	} else if (power_supply_supports_temp2ri(bi)) {
+		resistance_percent = power_supply_temp2resist_simple(bi->resist_table,
+								     bi->resist_table_size,
+								     di->bat_temp / 10);
+		/* Convert to milliohm */
+		resistance = bi->factory_internal_resistance_uohm / 1000;
+		resistance = resistance * resistance_percent / 100;
+	} else {
+		/* Last fallback */
+		resistance = bi->factory_internal_resistance_uohm / 1000;
+	}
 
 	dev_dbg(di->dev, "%s Temp: %d battery internal resistance: %d"
 	    " fg resistance %d, total: %d (mOhm)\n",
@@ -955,7 +966,7 @@ static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di, bool always)
 	vbat_uv = vbat_uv / i;
 
 	/* Next we apply voltage compensation from internal resistance */
-	rcomp = ab8500_fg_battery_resistance(di);
+	rcomp = ab8500_fg_battery_resistance(di, vbat_uv);
 	vbat_uv = vbat_uv - (di->inst_curr_ua * rcomp) / 1000;
 
 	/* Always keep this state at latest measurement */
