@@ -443,10 +443,15 @@ mt7615_ext_mac_addr_read(struct file *file, char __user *userbuf,
 			 size_t count, loff_t *ppos)
 {
 	struct mt7615_dev *dev = file->private_data;
-	char buf[32 * ((ETH_ALEN * 3) + 4) + 1];
+	u32 len = 32 * ((ETH_ALEN * 3) + 4) + 1;
 	u8 addr[ETH_ALEN];
+	char *buf;
 	int ofs = 0;
 	int i;
+
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	for (i = 0; i < 32; i++) {
 		if (!(dev->muar_mask & BIT(i)))
@@ -458,10 +463,13 @@ mt7615_ext_mac_addr_read(struct file *file, char __user *userbuf,
 		put_unaligned_le32(mt76_rr(dev, MT_WF_RMAC_MAR0), addr);
 		put_unaligned_le16((mt76_rr(dev, MT_WF_RMAC_MAR1) &
 				    MT_WF_RMAC_MAR1_ADDR), addr + 4);
-		ofs += snprintf(buf + ofs, sizeof(buf) - ofs, "%d=%pM\n", i, addr);
+		ofs += snprintf(buf + ofs, len - ofs, "%d=%pM\n", i, addr);
 	}
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, ofs);
+	ofs = simple_read_from_buffer(userbuf, count, ppos, buf, ofs);
+
+	kfree(buf);
+	return ofs;
 }
 
 static ssize_t

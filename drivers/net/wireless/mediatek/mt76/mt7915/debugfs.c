@@ -548,12 +548,12 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)
-		range[i] = mt76_rr(dev, MT_MIB_ARNG(ext_phy, i));
+		range[i] = mt76_rr(dev, MT_MIB_ARNG(phy->band_idx, i));
 
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
 		bound[i] = MT_MIB_ARNCR_RANGE(range[i / 4], i % 4) + 1;
 
-	seq_printf(file, "\nPhy %d\n", ext_phy);
+	seq_printf(file, "\nPhy %d, Phy band %d\n", ext_phy, phy->band_idx);
 
 	seq_printf(file, "Length: %8d | ", bound[0]);
 	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
@@ -561,7 +561,7 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 			   bound[i] + 1, bound[i + 1]);
 
 	seq_puts(file, "\nCount:  ");
-	n = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
+	n = phy->band_idx ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
 		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + n]);
 	seq_puts(file, "\n");
@@ -898,7 +898,7 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
 				    mt7915_twt_stats);
 	debugfs_create_file("ser_trigger", 0200, dir, dev, &fops_ser_trigger);
-	if (!dev->dbdc_support || ext_phy) {
+	if (!dev->dbdc_support || phy->band_idx) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
 		debugfs_create_file("radar_trigger", 0200, dir, dev,
@@ -947,13 +947,13 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int 
 		__le16 len;
 	} hdr = {
 		.magic = cpu_to_le32(FW_BIN_LOG_MAGIC),
-		.msg_type = PKT_TYPE_RX_FW_MONITOR,
+		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
 	};
 
 	if (!dev->relay_fwlog)
 		return;
 
-	hdr.timestamp = mt76_rr(dev, MT_LPON_FRCR(0));
+	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
 	hdr.len = *(__le16 *)data;
 	mt7915_debugfs_write_fwlog(dev, &hdr, sizeof(hdr), data, len);
 }

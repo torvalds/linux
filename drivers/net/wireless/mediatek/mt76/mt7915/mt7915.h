@@ -35,9 +35,20 @@
 #define MT7916_FIRMWARE_WM		"mediatek/mt7916_wm.bin"
 #define MT7916_ROM_PATCH		"mediatek/mt7916_rom_patch.bin"
 
+#define MT7986_FIRMWARE_WA		"mediatek/mt7986_wa.bin"
+#define MT7986_FIRMWARE_WM		"mediatek/mt7986_wm.bin"
+#define MT7986_FIRMWARE_WM_MT7975	"mediatek/mt7986_wm_mt7975.bin"
+#define MT7986_ROM_PATCH		"mediatek/mt7986_rom_patch.bin"
+#define MT7986_ROM_PATCH_MT7975		"mediatek/mt7986_rom_patch_mt7975.bin"
+
 #define MT7915_EEPROM_DEFAULT		"mediatek/mt7915_eeprom.bin"
 #define MT7915_EEPROM_DEFAULT_DBDC	"mediatek/mt7915_eeprom_dbdc.bin"
 #define MT7916_EEPROM_DEFAULT		"mediatek/mt7916_eeprom.bin"
+#define MT7986_EEPROM_MT7975_DEFAULT		"mediatek/mt7986_eeprom_mt7975.bin"
+#define MT7986_EEPROM_MT7975_DUAL_DEFAULT	"mediatek/mt7986_eeprom_mt7975_dual.bin"
+#define MT7986_EEPROM_MT7976_DEFAULT		"mediatek/mt7986_eeprom_mt7976.bin"
+#define MT7986_EEPROM_MT7976_DEFAULT_DBDC	"mediatek/mt7986_eeprom_mt7976_dbdc.bin"
+#define MT7986_EEPROM_MT7976_DUAL_DEFAULT	"mediatek/mt7986_eeprom_mt7976_dual.bin"
 
 #define MT7915_EEPROM_SIZE		3584
 #define MT7916_EEPROM_SIZE		4096
@@ -49,6 +60,7 @@
 #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
 #define MT7915_THERMAL_THROTTLE_MAX	100
+#define MT7915_CDEV_THROTTLE_MAX	99
 
 #define MT7915_SKU_RATE_NUM		161
 
@@ -218,11 +230,13 @@ struct mt7915_phy {
 	struct ieee80211_vif *monitor_vif;
 
 	struct thermal_cooling_device *cdev;
+	u8 cdev_state;
 	u8 throttle_state;
 	u32 throttle_temp[2]; /* 0: critical high, 1: maximum */
 
 	u32 rxfilter;
 	u64 omac_mask;
+	u8 band_idx;
 
 	u16 noise;
 
@@ -273,6 +287,7 @@ struct mt7915_dev {
 	struct mt7915_phy *rdd2_phy;
 
 	u16 chainmask;
+	u16 chainshift;
 	u32 hif_idx;
 
 	struct work_struct init_work;
@@ -305,6 +320,10 @@ struct mt7915_dev {
 		u8 table_mask;
 		u8 n_agrt;
 	} twt;
+
+	struct reset_control *rstc;
+	void __iomem *dcm;
+	void __iomem *sku;
 };
 
 enum {
@@ -377,11 +396,35 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 	return phy->priv;
 }
 
+static inline u32 mt7915_check_adie(struct mt7915_dev *dev, bool sku)
+{
+	u32 mask = sku ? MT_CONNINFRA_SKU_MASK : MT_ADIE_TYPE_MASK;
+
+	if (!is_mt7986(&dev->mt76))
+		return 0;
+
+	return mt76_rr(dev, MT_CONNINFRA_SKU_DEC_ADDR) & mask;
+}
+
 extern const struct ieee80211_ops mt7915_ops;
 extern const struct mt76_testmode_ops mt7915_testmode_ops;
 extern struct pci_driver mt7915_pci_driver;
 extern struct pci_driver mt7915_hif_driver;
+extern struct platform_driver mt7986_wmac_driver;
 
+#ifdef CONFIG_MT7986_WMAC
+int mt7986_wmac_enable(struct mt7915_dev *dev);
+void mt7986_wmac_disable(struct mt7915_dev *dev);
+#else
+static inline int mt7986_wmac_enable(struct mt7915_dev *dev)
+{
+	return 0;
+}
+
+static inline void mt7986_wmac_disable(struct mt7915_dev *dev)
+{
+}
+#endif
 struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 				     void __iomem *mem_base, u32 device_id);
 irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);

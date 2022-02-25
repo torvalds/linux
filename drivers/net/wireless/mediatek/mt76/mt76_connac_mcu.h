@@ -1642,7 +1642,7 @@ void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
 int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta,
-				  struct mt76_phy *phy, u8 wlan_idx,
+				  struct mt76_phy *phy, u16 wlan_idx,
 				  bool enable);
 void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta);
