@@ -86,6 +86,7 @@ static void bch2_journal_buf_init(struct journal *j)
 	buf->noflush	= false;
 	buf->must_flush	= false;
 	buf->separate_flush = false;
+	buf->flush_time	= 0;
 
 	memset(buf->data, 0, sizeof(*buf->data));
 	buf->data->seq	= cpu_to_le64(journal_cur_seq(j));
@@ -152,11 +153,6 @@ static bool __journal_entry_close(struct journal *j)
 			return true;
 		}
 
-		if (!test_bit(JOURNAL_NEED_WRITE, &j->flags)) {
-			set_bit(JOURNAL_NEED_WRITE, &j->flags);
-			j->need_write_time = local_clock();
-		}
-
 		new.cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL;
 		new.idx++;
 
@@ -205,7 +201,6 @@ static bool __journal_entry_close(struct journal *j)
 	bch2_journal_buf_init(j);
 
 	cancel_delayed_work(&j->write_work);
-	clear_bit(JOURNAL_NEED_WRITE, &j->flags);
 
 	bch2_journal_space_available(j);
 
@@ -216,15 +211,16 @@ static bool __journal_entry_close(struct journal *j)
 static bool journal_entry_want_write(struct journal *j)
 {
 	union journal_res_state s = READ_ONCE(j->reservations);
+	struct journal_buf *buf = journal_cur_buf(j);
 	bool ret = false;
 
-	/*
-	 * Don't close it yet if we already have a write in flight, but do set
-	 * NEED_WRITE:
-	 */
-	if (s.idx != s.unwritten_idx)
-		set_bit(JOURNAL_NEED_WRITE, &j->flags);
-	else
+	if (!buf->flush_time) {
+		buf->flush_time	= local_clock() ?: 1;
+		buf->expires = jiffies;
+	}
+
+	/* Don't close it yet if we already have a write in flight: */
+	if (s.idx == s.unwritten_idx)
 		ret = __journal_entry_close(j);
 
 	return ret;
@@ -278,6 +274,8 @@ static int journal_entry_open(struct journal *j)
 	 */
 	BUG_ON(buf->data->u64s);
 
+	buf->expires		= jiffies +
+		msecs_to_jiffies(c->opts.journal_flush_delay);
 	buf->u64s_reserved	= j->entry_u64s_reserved;
 	buf->disk_sectors	= j->cur_entry_sectors;
 	buf->sectors		= min(buf->disk_sectors, buf->buf_size >> 9);
@@ -337,8 +335,19 @@ static void journal_quiesce(struct journal *j)
 static void journal_write_work(struct work_struct *work)
 {
 	struct journal *j = container_of(work, struct journal, write_work.work);
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct journal_buf *buf;
+	long delta;
 
-	journal_entry_close(j);
+	spin_lock(&j->lock);
+	buf = journal_cur_buf(j);
+	delta = buf->expires - jiffies;
+
+	if (delta > 0)
+		mod_delayed_work(c->io_complete_wq, &j->write_work, delta);
+	else
+		__journal_entry_close(j);
+	spin_unlock(&j->lock);
 }
 
 static int __journal_res_get(struct journal *j, struct journal_res *res,
@@ -591,7 +600,11 @@ recheck_need_open:
 		seq = res.seq;
 		buf = j->buf + (seq & JOURNAL_BUF_MASK);
 		buf->must_flush = true;
-		set_bit(JOURNAL_NEED_WRITE, &j->flags);
+
+		if (!buf->flush_time) {
+			buf->flush_time	= local_clock() ?: 1;
+			buf->expires = jiffies;
+		}
 
 		if (parent && !closure_wait(&buf->wait, parent))
 			BUG();
@@ -657,7 +670,11 @@ int bch2_journal_meta(struct journal *j)
 
 	buf = j->buf + (res.seq & JOURNAL_BUF_MASK);
 	buf->must_flush = true;
-	set_bit(JOURNAL_NEED_WRITE, &j->flags);
+
+	if (!buf->flush_time) {
+		buf->flush_time	= local_clock() ?: 1;
+		buf->expires = jiffies;
+	}
 
 	bch2_journal_res_put(j, &res);
 
@@ -1233,12 +1250,22 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 
 		pr_buf(out, "unwritten entry:\tidx %u refcount %u sectors %u\n",
 		       i, journal_state_count(s, i), j->buf[i].sectors);
+		pr_indent_push(out, 2);
+
+		pr_buf(out, "refcount %u", journal_state_count(s, i));
+		pr_newline(out);
+
+		pr_buf(out, "sectors %u", j->buf[i].sectors);
+		pr_newline(out);
+
+		pr_buf(out, "expires %li ms", jiffies_to_msecs(j->buf[i].expires - jiffies));
+		pr_newline(out);
+
+		pr_indent_pop(out, 2);
 	}
 
 	pr_buf(out,
-	       "need write:\t\t%i\n"
 	       "replay done:\t\t%i\n",
-	       test_bit(JOURNAL_NEED_WRITE,	&j->flags),
 	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
 	pr_buf(out, "space:\n");

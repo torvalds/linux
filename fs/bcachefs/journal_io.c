@@ -1403,13 +1403,15 @@ static void journal_write_done(struct closure *cl)
 	closure_wake_up(&w->wait);
 	journal_wake(j);
 
-	if (test_bit(JOURNAL_NEED_WRITE, &j->flags))
-		mod_delayed_work(c->io_complete_wq, &j->write_work, 0);
-	spin_unlock(&j->lock);
+	if (new.unwritten_idx == new.idx) {
+		struct journal_buf *buf = journal_cur_buf(j);
+		long delta = buf->expires - jiffies;
 
-	if (new.unwritten_idx != new.idx &&
-	    !journal_state_count(new, new.unwritten_idx))
+		mod_delayed_work(c->io_complete_wq, &j->write_work, max(0L, delta));
+	} else if (!journal_state_count(new, new.unwritten_idx))
 		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+
+	spin_unlock(&j->lock);
 }
 
 static void journal_write_endio(struct bio *bio)
