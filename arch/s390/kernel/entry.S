@@ -98,11 +98,6 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 	.endm
 
-	.macro STCK savearea
-	ALTERNATIVE ".insn	s,0xb2050000,\savearea", \
-		    ".insn	s,0xb27c0000,\savearea", 25
-	.endm
-
 	/*
 	 * The TSTMSK macro generates a test-under-mask instruction by
 	 * calculating the memory offset for the specified mask value.
@@ -442,7 +437,7 @@ ENDPROC(pgm_check_handler)
  */
 .macro INT_HANDLER name,lc_old_psw,handler
 ENTRY(\name)
-	STCK	__LC_INT_CLOCK
+	stckf	__LC_INT_CLOCK
 	stpt	__LC_SYS_ENTER_TIMER
 	STBEAR	__LC_LAST_BREAK
 	BPOFF
@@ -514,7 +509,7 @@ ENTRY(psw_idle)
 .Lpsw_idle_stcctm:
 	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
 	BPON
-	STCK	__CLOCK_IDLE_ENTER(%r2)
+	stckf	__CLOCK_IDLE_ENTER(%r2)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 	lpswe	__SF_EMPTY(%r15)
 .globl psw_idle_exit
@@ -526,7 +521,7 @@ ENDPROC(psw_idle)
  * Machine check handler routines
  */
 ENTRY(mcck_int_handler)
-	STCK	__LC_MCCK_CLOCK
+	stckf	__LC_MCCK_CLOCK
 	BPOFF
 	la	%r1,4095		# validate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
