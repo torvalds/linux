@@ -412,6 +412,11 @@
 	status = "okay";
 };
 
+&usbdrd {
+	vdd10-supply = <&ldo4_reg>;
+	vdd33-supply = <&ldo6_reg>;
+};
+
 &usbdrd_phy {
 	vbus-supply = <&usb30_vbus_reg>;
 	vbus-boost-supply = <&usb3drd_boost_5v>;
