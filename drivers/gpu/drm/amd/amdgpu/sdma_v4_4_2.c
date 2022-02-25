@@ -1492,6 +1492,9 @@ static int sdma_v4_4_2_process_trap_irq(struct amdgpu_device *adev,
 
 	DRM_DEBUG("IH: SDMA trap\n");
 	instance = sdma_v4_4_2_irq_id_to_seq(entry->client_id);
+	instance += node_id_to_phys_map[entry->node_id] *
+			adev->sdma.num_inst_per_aid;
+
 	switch (entry->ring_id) {
 	case 0:
 		amdgpu_fence_process(&adev->sdma.instance[instance].ring);
