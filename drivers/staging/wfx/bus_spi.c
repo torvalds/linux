@@ -162,7 +162,7 @@ static int wfx_spi_irq_subscribe(void *priv)
 		flags = IRQF_TRIGGER_HIGH;
 	flags |= IRQF_ONESHOT;
 	return devm_request_threaded_irq(&bus->func->dev, bus->func->irq, NULL,
-					 wfx_spi_irq_handler, IRQF_ONESHOT, "wfx", bus);
+					 wfx_spi_irq_handler, flags, "wfx", bus);
 }
 
 static int wfx_spi_irq_unsubscribe(void *priv)
