@@ -42,7 +42,6 @@ int rf69_set_bandwidth_during_afc(struct spi_device *spi,
 int rf69_set_ook_threshold_dec(struct spi_device *spi,
 			       enum threshold_decrement threshold_decrement);
 int rf69_set_dio_mapping(struct spi_device *spi, u8 dio_number, u8 value);
-bool rf69_get_flag(struct spi_device *spi, enum flag flag);
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold);
 int rf69_set_preamble_length(struct spi_device *spi, u16 preamble_length);
 int rf69_enable_sync(struct spi_device *spi);
