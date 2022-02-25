@@ -80,6 +80,7 @@ struct adreno_gpu {
 	const struct adreno_info *info;
 	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
+	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
 	/* interesting register offsets to dump: */
@@ -324,6 +325,8 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		struct platform_device *pdev);
 
 void adreno_set_llc_attributes(struct iommu_domain *iommu);
+
+int adreno_read_speedbin(struct device *dev, u32 *speedbin);
 
 /*
  * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
