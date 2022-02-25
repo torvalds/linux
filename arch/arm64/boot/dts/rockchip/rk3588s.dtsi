@@ -277,6 +277,14 @@
 			#power-domain-cells = <1>;
 			#clock-cells = <0>;
 		};
+
+		pclk_vo0_grf: pclk_vo0_grf@fd7c08dc {
+			compatible = "rockchip,rk3588-clock-gate-link";
+			reg = <0x0 0xfd7c08dc 0x0 0x4>;
+			clocks = <&hclk_vo0>;
+			clock-names = "link";
+			#clock-cells = <0>;
+		};
 	};
 
 	cpus {
@@ -1534,6 +1542,7 @@
 	vo0_grf: syscon@fd5a6000 {
 		compatible = "rockchip,rk3588-vo-grf", "syscon";
 		reg = <0x0 0xfd5a6000 0x0 0x2000>;
+		clocks = <&pclk_vo0_grf>;
 	};
 
 	vo1_grf: syscon@fd5a8000 {
