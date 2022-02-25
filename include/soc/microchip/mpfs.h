@@ -34,9 +34,9 @@ struct mpfs_mss_response {
 
 #if IS_ENABLED(CONFIG_POLARFIRE_SOC_SYS_CTRL)
 
-int mpfs_blocking_transaction(struct mpfs_sys_controller *mpfs_client, void *msg);
+int mpfs_blocking_transaction(struct mpfs_sys_controller *mpfs_client, struct mpfs_mss_msg *msg);
 
-struct mpfs_sys_controller *mpfs_sys_controller_get(struct device_node *mailbox_node);
+struct mpfs_sys_controller *mpfs_sys_controller_get(struct device *dev);
 
 #endif /* if IS_ENABLED(CONFIG_POLARFIRE_SOC_SYS_CTRL) */
 
