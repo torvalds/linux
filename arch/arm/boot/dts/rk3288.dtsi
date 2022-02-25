@@ -980,7 +980,6 @@
 		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
 		resets = <&cru SRST_CRYPTO>;
 		reset-names = "crypto-rst";
-		status = "okay";
 	};
 
 	iep_mmu: iommu@ff900800 {
