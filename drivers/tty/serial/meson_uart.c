@@ -365,7 +365,12 @@ static void meson_uart_set_termios(struct uart_port *port,
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	baud = uart_get_baud_rate(port, termios, old, 50, 4000000);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	meson_uart_change_speed(port, baud);
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	port->read_status_mask = AML_UART_TX_FIFO_WERR;
 	if (iflags & INPCK)
