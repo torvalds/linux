@@ -15,17 +15,17 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-dw.h>
 
-enum {
-	PORT_QUARK_X1000,
-	PORT_BYT,
-	PORT_MRFLD,
-	PORT_BSW0,
-	PORT_BSW1,
-	PORT_BSW2,
-	PORT_CE4100,
-	PORT_LPT0,
-	PORT_LPT1,
-};
+#define PCI_DEVICE_ID_INTEL_QUARK_X1000		0x0935
+#define PCI_DEVICE_ID_INTEL_BYT			0x0f0e
+#define PCI_DEVICE_ID_INTEL_MRFLD		0x1194
+#define PCI_DEVICE_ID_INTEL_BSW0		0x228e
+#define PCI_DEVICE_ID_INTEL_BSW1		0x2290
+#define PCI_DEVICE_ID_INTEL_BSW2		0x22ac
+#define PCI_DEVICE_ID_INTEL_CE4100		0x2e6a
+#define PCI_DEVICE_ID_INTEL_LPT0_0		0x9c65
+#define PCI_DEVICE_ID_INTEL_LPT0_1		0x9c66
+#define PCI_DEVICE_ID_INTEL_LPT1_0		0x9ce5
+#define PCI_DEVICE_ID_INTEL_LPT1_1		0x9ce6
 
 struct pxa_spi_info {
 	enum pxa_ssp_type type;
@@ -86,6 +86,49 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	struct pci_dev *dma_dev;
 	int ret;
 
+	switch (dev->device) {
+	case PCI_DEVICE_ID_INTEL_BYT:
+		c->type = LPSS_BYT_SSP;
+		c->port_id = 0;
+		c->tx_param = &byt_tx_param;
+		c->rx_param = &byt_rx_param;
+		break;
+	case PCI_DEVICE_ID_INTEL_BSW0:
+		c->type = LPSS_BSW_SSP;
+		c->port_id = 0;
+		c->tx_param = &bsw0_tx_param;
+		c->rx_param = &bsw0_rx_param;
+		break;
+	case PCI_DEVICE_ID_INTEL_BSW1:
+		c->type = LPSS_BSW_SSP;
+		c->port_id = 1;
+		c->tx_param = &bsw1_tx_param;
+		c->rx_param = &bsw1_rx_param;
+		break;
+	case PCI_DEVICE_ID_INTEL_BSW2:
+		c->type = LPSS_BSW_SSP;
+		c->port_id = 2;
+		c->tx_param = &bsw2_tx_param;
+		c->rx_param = &bsw2_rx_param;
+		break;
+	case PCI_DEVICE_ID_INTEL_LPT0_0:
+	case PCI_DEVICE_ID_INTEL_LPT1_0:
+		c->type = LPSS_LPT_SSP;
+		c->port_id = 0;
+		c->tx_param = &lpt0_tx_param;
+		c->rx_param = &lpt0_rx_param;
+		break;
+	case PCI_DEVICE_ID_INTEL_LPT0_1:
+	case PCI_DEVICE_ID_INTEL_LPT1_1:
+		c->type = LPSS_LPT_SSP;
+		c->port_id = 1;
+		c->tx_param = &lpt1_tx_param;
+		c->rx_param = &lpt1_rx_param;
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	c->num_chipselect = 1;
 	c->max_clk_rate = 50000000;
 
@@ -115,14 +158,23 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
+static struct pxa_spi_info lpss_info_config = {
+	.setup = lpss_spi_setup,
+};
+
 static int ce4100_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	c->type = PXA25x_SSP;
 	c->port_id = dev->devfn;
 	c->num_chipselect = dev->devfn;
 	c->max_clk_rate = 3686400;
 
 	return 0;
 }
+
+static struct pxa_spi_info ce4100_info_config = {
+	.setup = ce4100_spi_setup,
+};
 
 static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
@@ -153,6 +205,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 		return -ENODEV;
 	}
 
+	c->type = MRFLD_SSP;
 	c->max_clk_rate = 25000000;
 
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(21, 0));
@@ -171,8 +224,13 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
+static struct pxa_spi_info mrfld_info_config = {
+	.setup = mrfld_spi_setup,
+};
+
 static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	c->type = QUARK_X1000_SSP;
 	c->port_id = dev->devfn;
 	c->num_chipselect = 1;
 	c->max_clk_rate = 50000000;
@@ -180,61 +238,8 @@ static int qrk_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	return 0;
 }
 
-static struct pxa_spi_info spi_info_configs[] = {
-	[PORT_CE4100] = {
-		.type = PXA25x_SSP,
-		.setup = ce4100_spi_setup,
-	},
-	[PORT_BYT] = {
-		.type = LPSS_BYT_SSP,
-		.port_id = 0,
-		.setup = lpss_spi_setup,
-		.tx_param = &byt_tx_param,
-		.rx_param = &byt_rx_param,
-	},
-	[PORT_BSW0] = {
-		.type = LPSS_BSW_SSP,
-		.port_id = 0,
-		.setup = lpss_spi_setup,
-		.tx_param = &bsw0_tx_param,
-		.rx_param = &bsw0_rx_param,
-	},
-	[PORT_BSW1] = {
-		.type = LPSS_BSW_SSP,
-		.port_id = 1,
-		.setup = lpss_spi_setup,
-		.tx_param = &bsw1_tx_param,
-		.rx_param = &bsw1_rx_param,
-	},
-	[PORT_BSW2] = {
-		.type = LPSS_BSW_SSP,
-		.port_id = 2,
-		.setup = lpss_spi_setup,
-		.tx_param = &bsw2_tx_param,
-		.rx_param = &bsw2_rx_param,
-	},
-	[PORT_MRFLD] = {
-		.type = MRFLD_SSP,
-		.setup = mrfld_spi_setup,
-	},
-	[PORT_QUARK_X1000] = {
-		.type = QUARK_X1000_SSP,
-		.setup = qrk_spi_setup,
-	},
-	[PORT_LPT0] = {
-		.type = LPSS_LPT_SSP,
-		.port_id = 0,
-		.setup = lpss_spi_setup,
-		.tx_param = &lpt0_tx_param,
-		.rx_param = &lpt0_rx_param,
-	},
-	[PORT_LPT1] = {
-		.type = LPSS_LPT_SSP,
-		.port_id = 1,
-		.setup = lpss_spi_setup,
-		.tx_param = &lpt1_tx_param,
-		.rx_param = &lpt1_rx_param,
-	},
+static struct pxa_spi_info qrk_info_config = {
+	.setup = qrk_spi_setup,
 };
 
 static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
@@ -256,7 +261,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	c = &spi_info_configs[ent->driver_data];
+	c = (struct pxa_spi_info *)ent->driver_data;
 	ret = c->setup(dev, c);
 	if (ret)
 		return ret;
@@ -320,17 +325,17 @@ static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
-	{ PCI_VDEVICE(INTEL, 0x0935), PORT_QUARK_X1000 },
-	{ PCI_VDEVICE(INTEL, 0x0f0e), PORT_BYT },
-	{ PCI_VDEVICE(INTEL, 0x1194), PORT_MRFLD },
-	{ PCI_VDEVICE(INTEL, 0x228e), PORT_BSW0 },
-	{ PCI_VDEVICE(INTEL, 0x2290), PORT_BSW1 },
-	{ PCI_VDEVICE(INTEL, 0x22ac), PORT_BSW2 },
-	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
-	{ PCI_VDEVICE(INTEL, 0x9c65), PORT_LPT0 },
-	{ PCI_VDEVICE(INTEL, 0x9c66), PORT_LPT1 },
-	{ PCI_VDEVICE(INTEL, 0x9ce5), PORT_LPT0 },
-	{ PCI_VDEVICE(INTEL, 0x9ce6), PORT_LPT1 },
+	{ PCI_DEVICE_DATA(INTEL, QUARK_X1000, &qrk_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, BYT, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, MRFLD, &mrfld_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, BSW0, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, BSW1, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, BSW2, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, CE4100, &ce4100_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, LPT0_0, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, LPT0_1, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, LPT1_0, &lpss_info_config) },
+	{ PCI_DEVICE_DATA(INTEL, LPT1_1, &lpss_info_config) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pxa2xx_spi_pci_devices);
