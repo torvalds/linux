@@ -51,6 +51,7 @@
 #define SIP_SCMI_AGENT15		0x8200001f
 #define SIP_SDEI_FIQ_DBG_SWITCH_CPU	0x82000020
 #define SIP_SDEI_FIQ_DBG_GET_EVENT_ID	0x82000021
+#define RK_SIP_FIQ_CTRL			0x82000024
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -140,6 +141,13 @@ typedef enum {
 	SHARE_PAGE_TYPE_MAX,
 } share_page_type_t;
 
+/* fiq control sub func */
+enum {
+	RK_SIP_FIQ_CTRL_FIQ_EN = 1,
+	RK_SIP_FIQ_CTRL_FIQ_DIS,
+	RK_SIP_FIQ_CTRL_SET_AFF
+};
+
 /*
  * Rules: struct arm_smccc_res contains result and data, details:
  *
@@ -177,6 +185,7 @@ int sip_fiq_debugger_switch_cpu(u32 cpu);
 int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu, u32 flag);
 int sip_fiq_debugger_is_enabled(void);
 int sip_fiq_debugger_sdei_get_event_id(u32 *fiq, u32 *sw_cpu, u32 *flag);
+int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data);
 #else
 static inline struct arm_smccc_res sip_smc_get_atf_version(void)
 {
@@ -269,6 +278,10 @@ static inline int sip_fiq_debugger_switch_cpu(u32 cpu) { return 0; }
 static inline int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu,
 						   u32 flag) { return 0; }
 static inline int sip_fiq_debugger_is_enabled(void) { return 0; }
+static inline int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
+{
+	return 0;
+}
 #endif
 
 /* 32-bit OP-TEE context, never change order of members! */

@@ -527,6 +527,15 @@ void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 }
 EXPORT_SYMBOL_GPL(sip_fiq_debugger_enable_fiq);
 
+int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(RK_SIP_FIQ_CTRL,
+				  sub_func, irq, 0);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_fiq_control);
 /******************************************************************************/
 #ifdef CONFIG_ARM
 static __init int sip_firmware_init(void)
