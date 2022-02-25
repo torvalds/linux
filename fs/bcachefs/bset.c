@@ -58,7 +58,7 @@ void bch2_dump_bset(struct bch_fs *c, struct btree *b,
 	struct bkey_packed *_k, *_n;
 	struct bkey uk, n;
 	struct bkey_s_c k;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 
 	if (!i->u64s)
 		return;
@@ -69,12 +69,14 @@ void bch2_dump_bset(struct bch_fs *c, struct btree *b,
 		_n = bkey_next(_k);
 
 		k = bkey_disassemble(b, _k, &uk);
+
+		printbuf_reset(&buf);
 		if (c)
-			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+			bch2_bkey_val_to_text(&buf, c, k);
 		else
-			bch2_bkey_to_text(&PBUF(buf), k.k);
+			bch2_bkey_to_text(&buf, k.k);
 		printk(KERN_ERR "block %u key %5zu: %s\n", set,
-		       _k->_data - i->_data, buf);
+		       _k->_data - i->_data, buf.buf);
 
 		if (_n == vstruct_last(i))
 			continue;
@@ -90,6 +92,8 @@ void bch2_dump_bset(struct bch_fs *c, struct btree *b,
 		    !bpos_cmp(n.p, k.k->p))
 			printk(KERN_ERR "Duplicate keys\n");
 	}
+
+	printbuf_exit(&buf);
 }
 
 void bch2_dump_btree_node(struct bch_fs *c, struct btree *b)
@@ -106,6 +110,7 @@ void bch2_dump_btree_node_iter(struct btree *b,
 			      struct btree_node_iter *iter)
 {
 	struct btree_node_iter_set *set;
+	struct printbuf buf = PRINTBUF;
 
 	printk(KERN_ERR "btree node iter with %u/%u sets:\n",
 	       __btree_node_iter_used(iter), b->nsets);
@@ -114,12 +119,14 @@ void bch2_dump_btree_node_iter(struct btree *b,
 		struct bkey_packed *k = __btree_node_offset_to_key(b, set->k);
 		struct bset_tree *t = bch2_bkey_to_bset(b, k);
 		struct bkey uk = bkey_unpack_key(b, k);
-		char buf[100];
 
-		bch2_bkey_to_text(&PBUF(buf), &uk);
+		printbuf_reset(&buf);
+		bch2_bkey_to_text(&buf, &uk);
 		printk(KERN_ERR "set %zu key %u: %s\n",
-		       t - b->set, set->k, buf);
+		       t - b->set, set->k, buf.buf);
 	}
+
+	printbuf_exit(&buf);
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -155,13 +162,14 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 		struct btree_node_iter_set *set;
 		struct bkey ku = bkey_unpack_key(b, k);
 		struct bkey nu = bkey_unpack_key(b, n);
-		char buf1[80], buf2[80];
+		struct printbuf buf1 = PRINTBUF;
+		struct printbuf buf2 = PRINTBUF;
 
 		bch2_dump_btree_node(NULL, b);
-		bch2_bkey_to_text(&PBUF(buf1), &ku);
-		bch2_bkey_to_text(&PBUF(buf2), &nu);
+		bch2_bkey_to_text(&buf1, &ku);
+		bch2_bkey_to_text(&buf2, &nu);
 		printk(KERN_ERR "out of order/overlapping:\n%s\n%s\n",
-		       buf1, buf2);
+		       buf1.buf, buf2.buf);
 		printk(KERN_ERR "iter was:");
 
 		btree_node_iter_for_each(_iter, set) {
@@ -226,6 +234,8 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 	struct bset_tree *t = bch2_bkey_to_bset(b, where);
 	struct bkey_packed *prev = bch2_bkey_prev_all(b, t, where);
 	struct bkey_packed *next = (void *) (where->_data + clobber_u64s);
+	struct printbuf buf1 = PRINTBUF;
+	struct printbuf buf2 = PRINTBUF;
 #if 0
 	BUG_ON(prev &&
 	       bkey_iter_cmp(b, prev, insert) > 0);
@@ -234,17 +244,15 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 	    bkey_iter_cmp(b, prev, insert) > 0) {
 		struct bkey k1 = bkey_unpack_key(b, prev);
 		struct bkey k2 = bkey_unpack_key(b, insert);
-		char buf1[100];
-		char buf2[100];
 
 		bch2_dump_btree_node(NULL, b);
-		bch2_bkey_to_text(&PBUF(buf1), &k1);
-		bch2_bkey_to_text(&PBUF(buf2), &k2);
+		bch2_bkey_to_text(&buf1, &k1);
+		bch2_bkey_to_text(&buf2, &k2);
 
 		panic("prev > insert:\n"
 		      "prev    key %s\n"
 		      "insert  key %s\n",
-		      buf1, buf2);
+		      buf1.buf, buf2.buf);
 	}
 #endif
 #if 0
@@ -255,17 +263,15 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 	    bkey_iter_cmp(b, insert, next) > 0) {
 		struct bkey k1 = bkey_unpack_key(b, insert);
 		struct bkey k2 = bkey_unpack_key(b, next);
-		char buf1[100];
-		char buf2[100];
 
 		bch2_dump_btree_node(NULL, b);
-		bch2_bkey_to_text(&PBUF(buf1), &k1);
-		bch2_bkey_to_text(&PBUF(buf2), &k2);
+		bch2_bkey_to_text(&buf1, &k1);
+		bch2_bkey_to_text(&buf2, &k2);
 
 		panic("insert > next:\n"
 		      "insert  key %s\n"
 		      "next    key %s\n",
-		      buf1, buf2);
+		      buf1.buf, buf2.buf);
 	}
 #endif
 }
@@ -1554,9 +1560,6 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 	struct bset_tree *t = bch2_bkey_to_bset(b, k);
 	struct bkey uk;
 	unsigned j, inorder;
-
-	if (out->pos != out->end)
-		*out->pos = '\0';
 
 	if (!bset_has_ro_aux_tree(t))
 		return;

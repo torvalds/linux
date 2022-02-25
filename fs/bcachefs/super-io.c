@@ -572,15 +572,9 @@ int bch2_read_super(const char *path, struct bch_opts *opts,
 {
 	u64 offset = opt_get(*opts, sb);
 	struct bch_sb_layout layout;
-	char *_err;
-	struct printbuf err;
+	struct printbuf err = PRINTBUF;
 	__le64 *i;
 	int ret;
-
-	_err = kmalloc(4096, GFP_KERNEL);
-	if (!_err)
-		return -ENOMEM;
-	err = _PBUF(_err, 4096);
 
 	pr_verbose_init(*opts, "");
 
@@ -633,8 +627,8 @@ int bch2_read_super(const char *path, struct bch_opts *opts,
 		goto err;
 
 	printk(KERN_ERR "bcachefs (%s): error reading default superblock: %s",
-	       path, _err);
-	err = _PBUF(_err, 4096);
+	       path, err.buf);
+	printbuf_reset(&err);
 
 	/*
 	 * Error reading primary superblock - read location of backup
@@ -689,16 +683,16 @@ got_super:
 	ret = bch2_sb_validate(sb, &err);
 	if (ret) {
 		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s",
-		       path, _err);
+		       path, err.buf);
 		goto err_no_print;
 	}
 out:
 	pr_verbose_init(*opts, "ret %i", ret);
-	kfree(_err);
+	printbuf_exit(&err);
 	return ret;
 err:
 	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s",
-	       path, _err);
+	       path, err.buf);
 err_no_print:
 	bch2_free_super(sb);
 	goto out;
@@ -768,6 +762,7 @@ int bch2_write_super(struct bch_fs *c)
 {
 	struct closure *cl = &c->sb_write;
 	struct bch_dev *ca;
+	struct printbuf err = PRINTBUF;
 	unsigned i, sb = 0, nr_wrote;
 	struct bch_devs_mask sb_written;
 	bool wrote, can_mount_without_written, can_mount_with_written;
@@ -795,18 +790,11 @@ int bch2_write_super(struct bch_fs *c)
 		bch2_sb_from_fs(c, ca);
 
 	for_each_online_member(ca, c, i) {
-		struct printbuf buf = { NULL, NULL };
+		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&ca->disk_sb, &buf);
+		ret = bch2_sb_validate(&ca->disk_sb, &err);
 		if (ret) {
-			char *_buf = kmalloc(4096, GFP_NOFS);
-			if (_buf) {
-				buf = _PBUF(_buf, 4096);
-				bch2_sb_validate(&ca->disk_sb, &buf);
-			}
-
-			bch2_fs_inconsistent(c, "sb invalid before write: %s", _buf);
-			kfree(_buf);
+			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			percpu_ref_put(&ca->io_ref);
 			goto out;
 		}
@@ -897,6 +885,7 @@ int bch2_write_super(struct bch_fs *c)
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
+	printbuf_exit(&err);
 	return ret;
 }
 

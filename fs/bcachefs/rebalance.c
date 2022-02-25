@@ -257,35 +257,47 @@ void bch2_rebalance_work_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct rebalance_work w = rebalance_work(c);
-	char h1[21], h2[21];
 
-	bch2_hprint(&PBUF(h1), w.dev_most_full_work << 9);
-	bch2_hprint(&PBUF(h2), w.dev_most_full_capacity << 9);
-	pr_buf(out, "fullest_dev (%i):\t%s/%s\n",
-	       w.dev_most_full_idx, h1, h2);
+	out->tabstops[0] = 20;
 
-	bch2_hprint(&PBUF(h1), w.total_work << 9);
-	bch2_hprint(&PBUF(h2), c->capacity << 9);
-	pr_buf(out, "total work:\t\t%s/%s\n", h1, h2);
+	pr_buf(out, "fullest_dev (%i):", w.dev_most_full_idx);
+	pr_tab(out);
 
-	pr_buf(out, "rate:\t\t\t%u\n", r->pd.rate.rate);
+	bch2_hprint(out, w.dev_most_full_work << 9);
+	pr_buf(out, "/");
+	bch2_hprint(out, w.dev_most_full_capacity << 9);
+	pr_newline(out);
+
+	pr_buf(out, "total work:");
+	pr_tab(out);
+
+	bch2_hprint(out, w.total_work << 9);
+	pr_buf(out, "/");
+	bch2_hprint(out, c->capacity << 9);
+	pr_newline(out);
+
+	pr_buf(out, "rate:");
+	pr_tab(out);
+	pr_buf(out, "%u", r->pd.rate.rate);
+	pr_newline(out);
 
 	switch (r->state) {
 	case REBALANCE_WAITING:
-		pr_buf(out, "waiting\n");
+		pr_buf(out, "waiting");
 		break;
 	case REBALANCE_THROTTLED:
-		bch2_hprint(&PBUF(h1),
+		pr_buf(out, "throttled for %lu sec or ",
+		       (r->throttled_until_cputime - jiffies) / HZ);
+		bch2_hprint(out,
 			    (r->throttled_until_iotime -
 			     atomic64_read(&c->io_clock[WRITE].now)) << 9);
-		pr_buf(out, "throttled for %lu sec or %s io\n",
-		       (r->throttled_until_cputime - jiffies) / HZ,
-		       h1);
+		pr_buf(out, " io");
 		break;
 	case REBALANCE_RUNNING:
-		pr_buf(out, "running\n");
+		pr_buf(out, "running");
 		break;
 	}
+	pr_newline(out);
 }
 
 void bch2_rebalance_stop(struct bch_fs *c)

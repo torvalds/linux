@@ -760,6 +760,8 @@ static int verify_superblock_clean(struct bch_fs *c,
 {
 	unsigned i;
 	struct bch_sb_field_clean *clean = *cleanp;
+	struct printbuf buf1 = PRINTBUF;
+	struct printbuf buf2 = PRINTBUF;
 	int ret = 0;
 
 	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
@@ -772,7 +774,6 @@ static int verify_superblock_clean(struct bch_fs *c,
 	}
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
-		char buf1[200], buf2[200];
 		struct bkey_i *k1, *k2;
 		unsigned l1 = 0, l2 = 0;
 
@@ -781,6 +782,19 @@ static int verify_superblock_clean(struct bch_fs *c,
 
 		if (!k1 && !k2)
 			continue;
+
+		printbuf_reset(&buf1);
+		printbuf_reset(&buf2);
+
+		if (k1)
+			bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(k1));
+		else
+			pr_buf(&buf1, "(none)");
+
+		if (k2)
+			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(k2));
+		else
+			pr_buf(&buf2, "(none)");
 
 		mustfix_fsck_err_on(!k1 || !k2 ||
 				    IS_ERR(k1) ||
@@ -791,10 +805,12 @@ static int verify_superblock_clean(struct bch_fs *c,
 			"superblock btree root %u doesn't match journal after clean shutdown\n"
 			"sb:      l=%u %s\n"
 			"journal: l=%u %s\n", i,
-			l1, (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(k1)), buf1),
-			l2, (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(k2)), buf2));
+			l1, buf1.buf,
+			l2, buf2.buf);
 	}
 fsck_err:
+	printbuf_exit(&buf2);
+	printbuf_exit(&buf1);
 	return ret;
 }
 

@@ -157,6 +157,7 @@ void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 	unsigned long now;
 	unsigned i;
 
+	out->atomic++;
 	spin_lock(&clock->timer_lock);
 	now = atomic64_read(&clock->now);
 
@@ -165,6 +166,7 @@ void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 		       clock->timers.data[i]->fn,
 		       clock->timers.data[i]->expire - now);
 	spin_unlock(&clock->timer_lock);
+	--out->atomic;
 }
 
 void bch2_io_clock_exit(struct io_clock *clock)

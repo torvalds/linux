@@ -70,22 +70,22 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	struct bpos expected_start = bkey_deleted(&prev->k->k)
 		? node_start
 		: bpos_successor(prev->k->k.p);
-	char buf1[200], buf2[200];
+	struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
 	int ret = 0;
 
 	if (cur.k->k.type == KEY_TYPE_btree_ptr_v2) {
 		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(cur.k);
 
-		if (bkey_deleted(&prev->k->k)) {
-			struct printbuf out = PBUF(buf1);
-			pr_buf(&out, "start of node: ");
-			bch2_bpos_to_text(&out, node_start);
-		} else {
-			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev->k));
-		}
-
 		if (bpos_cmp(expected_start, bp->v.min_key)) {
 			bch2_topology_error(c);
+
+			if (bkey_deleted(&prev->k->k)) {
+				pr_buf(&buf1, "start of node: ");
+				bch2_bpos_to_text(&buf1, node_start);
+			} else {
+				bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(prev->k));
+			}
+			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(cur.k));
 
 			if (__fsck_err(c,
 				  FSCK_CAN_FIX|
@@ -95,11 +95,11 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				  "  prev %s\n"
 				  "  cur %s",
 				  bch2_btree_ids[b->c.btree_id], b->c.level,
-				  buf1,
-				  (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2)) &&
+				  buf1.buf, buf2.buf) &&
 			    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
-				return FSCK_ERR_START_TOPOLOGY_REPAIR;
+				ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
+				goto err;
 			} else {
 				set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
 			}
@@ -109,6 +109,12 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	if (is_last && bpos_cmp(cur.k->k.p, node_end)) {
 		bch2_topology_error(c);
 
+		printbuf_reset(&buf1);
+		printbuf_reset(&buf2);
+
+		bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(cur.k));
+		bch2_bpos_to_text(&buf2, node_end);
+
 		if (__fsck_err(c,
 			  FSCK_CAN_FIX|
 			  FSCK_CAN_IGNORE|
@@ -117,18 +123,21 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			  "  %s\n"
 			  "  expected %s",
 			  bch2_btree_ids[b->c.btree_id], b->c.level,
-			  (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
-			  (bch2_bpos_to_text(&PBUF(buf2), node_end), buf2)) &&
+			  buf1.buf, buf2.buf) &&
 		    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
-			return FSCK_ERR_START_TOPOLOGY_REPAIR;
+			ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
+			goto err;
 		} else {
 			set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
 		}
 	}
 
 	bch2_bkey_buf_copy(prev, c, cur.k);
+err:
 fsck_err:
+	printbuf_exit(&buf2);
+	printbuf_exit(&buf1);
 	return ret;
 }
 
@@ -251,18 +260,17 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 	struct bpos expected_start = !prev
 		? b->data->min_key
 		: bpos_successor(prev->key.k.p);
-	char buf1[200], buf2[200];
+	struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
 	int ret = 0;
 
 	if (!prev) {
-		struct printbuf out = PBUF(buf1);
-		pr_buf(&out, "start of node: ");
-		bch2_bpos_to_text(&out, b->data->min_key);
+		pr_buf(&buf1, "start of node: ");
+		bch2_bpos_to_text(&buf1, b->data->min_key);
 	} else {
-		bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(&prev->key));
+		bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(&prev->key));
 	}
 
-	bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&cur->key));
+	bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(&cur->key));
 
 	if (prev &&
 	    bpos_cmp(expected_start, cur->data->min_key) > 0 &&
@@ -275,8 +283,10 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"  node %s\n"
 				"  next %s",
 				bch2_btree_ids[b->c.btree_id], b->c.level,
-				buf1, buf2))
-			return DROP_PREV_NODE;
+				buf1.buf, buf2.buf)) {
+			ret = DROP_PREV_NODE;
+			goto out;
+		}
 
 		if (mustfix_fsck_err_on(bpos_cmp(prev->key.k.p,
 						 bpos_predecessor(cur->data->min_key)), c,
@@ -284,7 +294,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"  node %s\n"
 				"  next %s",
 				bch2_btree_ids[b->c.btree_id], b->c.level,
-				buf1, buf2))
+				buf1.buf, buf2.buf))
 			ret = set_node_max(c, prev,
 					   bpos_predecessor(cur->data->min_key));
 	} else {
@@ -296,39 +306,49 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"  prev %s\n"
 				"  node %s",
 				bch2_btree_ids[b->c.btree_id], b->c.level,
-				buf1, buf2))
-			return DROP_THIS_NODE;
+				buf1.buf, buf2.buf)) {
+			ret = DROP_THIS_NODE;
+			goto out;
+		}
 
 		if (mustfix_fsck_err_on(bpos_cmp(expected_start, cur->data->min_key), c,
 				"btree node with incorrect min_key at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
 				bch2_btree_ids[b->c.btree_id], b->c.level,
-				buf1, buf2))
+				buf1.buf, buf2.buf))
 		    ret = set_node_min(c, cur, expected_start);
 	}
+out:
 fsck_err:
+	printbuf_exit(&buf2);
+	printbuf_exit(&buf1);
 	return ret;
 }
 
 static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
 				 struct btree *child)
 {
-	char buf1[200], buf2[200];
+	struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
 	int ret = 0;
+
+	bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(&child->key));
+	bch2_bpos_to_text(&buf2, b->key.k.p);
 
 	if (mustfix_fsck_err_on(bpos_cmp(child->key.k.p, b->key.k.p), c,
 			"btree node with incorrect max_key at btree %s level %u:\n"
 			"  %s\n"
 			"  expected %s",
 			bch2_btree_ids[b->c.btree_id], b->c.level,
-			(bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(&child->key)), buf1),
-			(bch2_bpos_to_text(&PBUF(buf2), b->key.k.p), buf2))) {
+			buf1.buf, buf2.buf)) {
 		ret = set_node_max(c, child, b->key.k.p);
 		if (ret)
-			return ret;
+			goto err;
 	}
+err:
 fsck_err:
+	printbuf_exit(&buf2);
+	printbuf_exit(&buf1);
 	return ret;
 }
 
@@ -339,7 +359,7 @@ static int bch2_btree_repair_topology_recurse(struct bch_fs *c, struct btree *b)
 	struct bkey_buf prev_k, cur_k;
 	struct btree *prev = NULL, *cur = NULL;
 	bool have_child, dropped_children = false;
-	char buf[200];
+	struct printbuf buf;
 	int ret = 0;
 
 	if (!b->c.level)
@@ -363,12 +383,15 @@ again:
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
 
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
+
 		if (mustfix_fsck_err_on(ret == -EIO, c,
 				"Unreadable btree node at btree %s level %u:\n"
 				"  %s",
 				bch2_btree_ids[b->c.btree_id],
 				b->c.level - 1,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur_k.k)), buf))) {
+				buf.buf)) {
 			bch2_btree_node_evict(c, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
@@ -468,12 +491,14 @@ again:
 		have_child = true;
 	}
 
+	printbuf_reset(&buf);
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
+
 	if (mustfix_fsck_err_on(!have_child, c,
 			"empty interior btree node at btree %s level %u\n"
 			"  %s",
 			bch2_btree_ids[b->c.btree_id],
-			b->c.level,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(&b->key)), buf)))
+			b->c.level, buf.buf))
 		ret = DROP_THIS_NODE;
 err:
 fsck_err:
@@ -489,6 +514,7 @@ fsck_err:
 	if (!ret && dropped_children)
 		goto again;
 
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -524,7 +550,7 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p = { 0 };
 	bool do_update = false;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	/*
@@ -542,7 +568,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
 				p.ptr.gen,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (!p.ptr.cached) {
 				g->_mark.gen		= p.ptr.gen;
 				g->gen_valid		= true;
@@ -557,7 +584,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
 				p.ptr.gen, g->mark.gen,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (!p.ptr.cached) {
 				g->_mark.gen		= p.ptr.gen;
 				g->gen_valid		= true;
@@ -576,7 +604,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->mark.gen,
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
 				p.ptr.gen,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
 			do_update = true;
 
 		if (fsck_err_on(!p.ptr.cached &&
@@ -586,7 +615,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
 				p.ptr.gen, g->mark.gen,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
 			do_update = true;
 
 		if (data_type != BCH_DATA_btree && p.ptr.gen != g->mark.gen)
@@ -599,7 +629,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[g->mark.data_type],
 				bch2_data_types[data_type],
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (data_type == BCH_DATA_btree) {
 				g->_mark.data_type	= data_type;
 				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
@@ -615,14 +646,16 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 					"pointer to nonexistent stripe %llu\n"
 					"while marking %s",
 					(u64) p.ec.idx,
-					(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
+					(printbuf_reset(&buf),
+					 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
 				do_update = true;
 
 			if (fsck_err_on(!bch2_ptr_matches_stripe_m(m, p), c,
 					"pointer does not match stripe %llu\n"
 					"while marking %s",
 					(u64) p.ec.idx,
-					(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
+					(printbuf_reset(&buf),
+					 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
 				do_update = true;
 		}
 	}
@@ -635,13 +668,15 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 
 		if (is_root) {
 			bch_err(c, "cannot update btree roots yet");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
 		if (!new) {
 			bch_err(c, "%s: error allocating new key", __func__);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err;
 		}
 
 		bkey_reassemble(new, *k);
@@ -705,19 +740,25 @@ found:
 		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
 		if (ret) {
 			kfree(new);
-			return ret;
+			goto err;
 		}
 
 		if (level)
 			bch2_btree_node_update_key_early(c, btree_id, level - 1, *k, new);
 
-		bch2_bkey_val_to_text(&PBUF(buf), c, *k);
-		bch_info(c, "updated %s", buf);
-		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(new));
-		bch_info(c, "new key %s", buf);
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, *k);
+		bch_info(c, "updated %s", buf.buf);
+
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
+		bch_info(c, "new key %s", buf.buf);
+
 		*k = bkey_i_to_s_c(new);
 	}
+err:
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -852,7 +893,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf cur, prev;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
@@ -913,7 +954,8 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					  "  %s",
 					  bch2_btree_ids[b->c.btree_id],
 					  b->c.level - 1,
-					  (bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur.k)), buf)) &&
+					  (printbuf_reset(&buf),
+					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
 				    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 					ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
 					bch_info(c, "Halting mark and sweep to start topology repair pass");
@@ -943,6 +985,7 @@ fsck_err:
 	bch2_bkey_buf_exit(&cur, c);
 	bch2_bkey_buf_exit(&prev, c);
 	bch2_btree_and_journal_iter_exit(&iter);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -956,7 +999,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 		: bch2_expensive_debug_checks		? 0
 		: !btree_node_type_needs_gc(btree_id)	? 1
 		: 0;
-	char buf[100];
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	b = c->btree_roots[btree_id].b;
@@ -965,17 +1008,19 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 		return 0;
 
 	six_lock_read(&b->c.lock, NULL, NULL);
+	printbuf_reset(&buf);
+	bch2_bpos_to_text(&buf, b->data->min_key);
 	if (mustfix_fsck_err_on(bpos_cmp(b->data->min_key, POS_MIN), c,
-			"btree root with incorrect min_key: %s",
-			(bch2_bpos_to_text(&PBUF(buf), b->data->min_key), buf))) {
+			"btree root with incorrect min_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = FSCK_ERR_EXIT;
 		goto fsck_err;
 	}
 
+	printbuf_reset(&buf);
+	bch2_bpos_to_text(&buf, b->data->max_key);
 	if (mustfix_fsck_err_on(bpos_cmp(b->data->max_key, SPOS_MAX), c,
-			"btree root with incorrect max_key: %s",
-			(bch2_bpos_to_text(&PBUF(buf), b->data->max_key), buf))) {
+			"btree root with incorrect max_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = FSCK_ERR_EXIT;
 		goto fsck_err;
@@ -995,6 +1040,7 @@ fsck_err:
 
 	if (ret < 0)
 		bch_err(c, "%s: ret %i", __func__, ret);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1131,6 +1177,7 @@ static int bch2_gc_done(struct bch_fs *c,
 			bool initial, bool metadata_only)
 {
 	struct bch_dev *ca = NULL;
+	struct printbuf buf = PRINTBUF;
 	bool verify = !metadata_only && (!initial ||
 		       (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
 	unsigned i, dev;
@@ -1201,16 +1248,16 @@ static int bch2_gc_done(struct bch_fs *c,
 		for (i = 0; i < c->replicas.nr; i++) {
 			struct bch_replicas_entry *e =
 				cpu_replicas_entry(&c->replicas, i);
-			char buf[80];
 
 			if (metadata_only &&
 			    (e->data_type == BCH_DATA_user ||
 			     e->data_type == BCH_DATA_cached))
 				continue;
 
-			bch2_replicas_entry_to_text(&PBUF(buf), e);
+			printbuf_reset(&buf);
+			bch2_replicas_entry_to_text(&buf, e);
 
-			copy_fs_field(replicas[i], "%s", buf);
+			copy_fs_field(replicas[i], "%s", buf.buf);
 		}
 	}
 
@@ -1225,6 +1272,7 @@ fsck_err:
 		bch_err(c, "%s: ret %i", __func__, ret);
 
 	percpu_up_write(&c->mark_lock);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1424,7 +1472,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 	struct bkey_s_c k;
 	struct reflink_gc *r;
 	size_t idx = 0;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (metadata_only)
@@ -1452,7 +1500,8 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 				"reflink key has wrong refcount:\n"
 				"  %s\n"
 				"  should be %u",
-				(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf),
 				r->refcount)) {
 			struct bkey_i *new;
 
@@ -1481,6 +1530,7 @@ fsck_err:
 	bch2_trans_iter_exit(&trans, &iter);
 	c->reflink_gc_nr = 0;
 	bch2_trans_exit(&trans);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1539,7 +1589,7 @@ static int bch2_gc_stripes_done(struct bch_fs *c, bool metadata_only)
 	struct bkey_s_c k;
 	struct gc_stripe *m;
 	const struct bch_stripe *s;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	unsigned i;
 	int ret = 0;
 
@@ -1565,7 +1615,8 @@ inconsistent:
 				"stripe has wrong block sector count %u:\n"
 				"  %s\n"
 				"  should be %u", i,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf),
 				m ? m->block_sectors[i] : 0)) {
 			struct bkey_i_stripe *new;
 
@@ -1589,6 +1640,8 @@ fsck_err:
 	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
+
+	printbuf_exit(&buf);
 	return ret;
 }
 

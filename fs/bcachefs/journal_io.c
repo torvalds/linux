@@ -251,14 +251,15 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(k),
 				    __btree_node_type(level, btree_id));
 	if (invalid) {
-		char buf[160];
+		struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(k));
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
 		mustfix_fsck_err(c, "invalid %s in %s entry offset %zi/%u: %s\n%s",
 				 type, where,
 				 (u64 *) k - entry->_data,
 				 le16_to_cpu(entry->u64s),
-				 invalid, buf);
+				 invalid, buf.buf);
+		printbuf_exit(&buf);
 
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
@@ -995,6 +996,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 	struct journal_replay *i, *t;
 	struct bch_dev *ca;
 	unsigned iter;
+	struct printbuf buf = PRINTBUF;
 	size_t keys = 0, entries = 0;
 	bool degraded = false;
 	u64 seq, last_seq = 0;
@@ -1053,7 +1055,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 
 	if (!last_seq) {
 		fsck_err(c, "journal read done, but no entries found after dropping non-flushes");
-		return -1;
+		ret = -1;
+		goto err;
 	}
 
 	/* Drop blacklisted entries and entries older than last_seq: */
@@ -1085,7 +1088,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 
 		while (seq < le64_to_cpu(i->j.seq)) {
 			u64 missing_start, missing_end;
-			char buf1[200], buf2[200];
+			struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
 
 			while (seq < le64_to_cpu(i->j.seq) &&
 			       bch2_journal_seq_is_blacklisted(c, seq, false))
@@ -1101,14 +1104,13 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 				seq++;
 
 			if (i->list.prev != list) {
-				struct printbuf out = PBUF(buf1);
 				struct journal_replay *p = list_prev_entry(i, list);
 
-				bch2_journal_ptrs_to_text(&out, c, p);
-				pr_buf(&out, " size %zu", vstruct_sectors(&p->j, c->block_bits));
+				bch2_journal_ptrs_to_text(&buf1, c, p);
+				pr_buf(&buf1, " size %zu", vstruct_sectors(&p->j, c->block_bits));
 			} else
-				sprintf(buf1, "(none)");
-			bch2_journal_ptrs_to_text(&PBUF(buf2), c, i);
+				pr_buf(&buf1, "(none)");
+			bch2_journal_ptrs_to_text(&buf2, c, i);
 
 			missing_end = seq - 1;
 			fsck_err(c, "journal entries %llu-%llu missing! (replaying %llu-%llu)\n"
@@ -1116,7 +1118,10 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 				 "  next at %s",
 				 missing_start, missing_end,
 				 last_seq, *blacklist_seq - 1,
-				 buf1, buf2);
+				 buf1.buf, buf2.buf);
+
+			printbuf_exit(&buf1);
+			printbuf_exit(&buf2);
 		}
 
 		seq++;
@@ -1130,14 +1135,13 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 			.e.nr_required = 1,
 		};
 		unsigned ptr;
-		char buf[80];
 
 		if (i->ignore)
 			continue;
 
 		ret = jset_validate_entries(c, &i->j, READ);
 		if (ret)
-			goto fsck_err;
+			goto err;
 
 		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
 			replicas.e.devs[replicas.e.nr_devs++] = i->ptrs[ptr].dev;
@@ -1149,15 +1153,17 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		 * the devices - this is wrong:
 		 */
 
+		printbuf_reset(&buf);
+		bch2_replicas_entry_to_text(&buf, &replicas.e);
+
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
 		     fsck_err_on(!bch2_replicas_marked(c, &replicas.e), c,
 				 "superblock not marked as containing replicas %s",
-				 (bch2_replicas_entry_to_text(&PBUF(buf),
-							      &replicas.e), buf)))) {
+				 buf.buf))) {
 			ret = bch2_mark_replicas(c, &replicas.e);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		for_each_jset_key(k, _n, entry, &i->j)
@@ -1171,7 +1177,9 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 	if (*start_seq != *blacklist_seq)
 		bch_info(c, "dropped unflushed entries %llu-%llu",
 			 *blacklist_seq, *start_seq - 1);
+err:
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1481,7 +1489,7 @@ void bch2_journal_write(struct closure *cl)
 	struct jset_entry *start, *end;
 	struct jset *jset;
 	struct bio *bio;
-	char *journal_debug_buf = NULL;
+	struct printbuf journal_debug_buf = PRINTBUF;
 	bool validate_before_checksum = false;
 	unsigned i, sectors, bytes, u64s, nr_rw_members = 0;
 	int ret;
@@ -1586,11 +1594,8 @@ retry_alloc:
 		goto retry_alloc;
 	}
 
-	if (ret) {
-		journal_debug_buf = kmalloc(4096, GFP_ATOMIC);
-		if (journal_debug_buf)
-			__bch2_journal_debug_to_text(&_PBUF(journal_debug_buf, 4096), j);
-	}
+	if (ret)
+		__bch2_journal_debug_to_text(&journal_debug_buf, j);
 
 	/*
 	 * write is allocated, no longer need to account for it in
@@ -1607,8 +1612,8 @@ retry_alloc:
 
 	if (ret) {
 		bch_err(c, "Unable to allocate journal write:\n%s",
-			journal_debug_buf);
-		kfree(journal_debug_buf);
+			journal_debug_buf.buf);
+		printbuf_exit(&journal_debug_buf);
 		bch2_fatal_error(c);
 		continue_at(cl, journal_write_done, c->io_complete_wq);
 		return;

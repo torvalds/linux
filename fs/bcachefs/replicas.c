@@ -997,11 +997,12 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 
 		if (dflags & ~flags) {
 			if (print) {
-				char buf[100];
+				struct printbuf buf = PRINTBUF;
 
-				bch2_replicas_entry_to_text(&PBUF(buf), e);
+				bch2_replicas_entry_to_text(&buf, e);
 				bch_err(c, "insufficient devices online (%u) for replicas entry %s",
-					nr_online, buf);
+					nr_online, buf.buf);
+				printbuf_exit(&buf);
 			}
 			ret = false;
 			break;

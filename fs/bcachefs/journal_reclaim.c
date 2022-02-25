@@ -216,14 +216,11 @@ void bch2_journal_space_available(struct journal *j)
 	if (!clean_ondisk &&
 	    j->reservations.idx ==
 	    j->reservations.unwritten_idx) {
-		char *buf = kmalloc(4096, GFP_ATOMIC);
+		struct printbuf buf = PRINTBUF;
 
-		bch_err(c, "journal stuck");
-		if (buf) {
-			__bch2_journal_debug_to_text(&_PBUF(buf, 4096), j);
-			pr_err("\n%s", buf);
-			kfree(buf);
-		}
+		__bch2_journal_debug_to_text(&buf, j);
+		bch_err(c, "journal stuck\n%s", buf.buf);
+		printbuf_exit(&buf);
 
 		bch2_fatal_error(c);
 		ret = cur_entry_journal_stuck;

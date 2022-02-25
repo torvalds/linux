@@ -286,14 +286,15 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 			struct bch_csum got = ec_block_checksum(buf, i, offset);
 
 			if (bch2_crc_cmp(want, got)) {
-				char buf2[200];
+				struct printbuf buf2 = PRINTBUF;
 
-				bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&buf->key.k_i));
+				bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(&buf->key.k_i));
 
 				bch_err_ratelimited(c,
 					"stripe checksum error for %ps at %u:%u: csum type %u, expected %llx got %llx\n%s",
 					(void *) _RET_IP_, i, j, v->csum_type,
-					want.lo, got.lo, buf2);
+					want.lo, got.lo, buf2.buf);
+				printbuf_exit(&buf2);
 				clear_bit(i, buf->valid);
 				break;
 			}

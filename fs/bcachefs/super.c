@@ -870,11 +870,8 @@ noinline_for_stack
 static void print_mount_opts(struct bch_fs *c)
 {
 	enum bch_opt_id i;
-	char buf[512];
-	struct printbuf p = PBUF(buf);
+	struct printbuf p = PRINTBUF;
 	bool first = true;
-
-	strcpy(buf, "(null)");
 
 	if (c->opts.read_only) {
 		pr_buf(&p, "ro");
@@ -897,7 +894,11 @@ static void print_mount_opts(struct bch_fs *c)
 		bch2_opt_to_text(&p, c, opt, v, OPT_SHOW_MOUNT_STYLE);
 	}
 
-	bch_info(c, "mounted with opts: %s", buf);
+	if (!p.pos)
+		pr_buf(&p, "(null)");
+
+	bch_info(c, "mounted with opts: %s", p.buf);
+	printbuf_exit(&p);
 }
 
 int bch2_fs_start(struct bch_fs *c)
@@ -1561,11 +1562,11 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	data = bch2_dev_has_data(c, ca);
 	if (data) {
-		char data_has_str[100];
+		struct printbuf data_has = PRINTBUF;
 
-		bch2_flags_to_text(&PBUF(data_has_str),
-				   bch2_data_types, data);
-		bch_err(ca, "Remove failed, still has data (%s)", data_has_str);
+		bch2_flags_to_text(&data_has, bch2_data_types, data);
+		bch_err(ca, "Remove failed, still has data (%s)", data_has.buf);
+		printbuf_exit(&data_has);
 		ret = -EBUSY;
 		goto err;
 	}
@@ -1614,15 +1615,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	struct bch_sb_field_members *mi;
 	struct bch_member dev_mi;
 	unsigned dev_idx, nr_devices, u64s;
-	char *_errbuf;
-	struct printbuf errbuf;
+	struct printbuf errbuf = PRINTBUF;
 	int ret;
-
-	_errbuf = kmalloc(4096, GFP_KERNEL);
-	if (!_errbuf)
-		return -ENOMEM;
-
-	errbuf = _PBUF(_errbuf, 4096);
 
 	ret = bch2_read_super(path, &opts, &sb);
 	if (ret) {
@@ -1741,7 +1735,7 @@ err:
 	if (ca)
 		bch2_dev_free(ca);
 	bch2_free_super(&sb);
-	kfree(_errbuf);
+	printbuf_exit(&errbuf);
 	return ret;
 err_late:
 	up_write(&c->state_lock);
@@ -1906,8 +1900,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	struct bch_sb_field_members *mi;
 	unsigned i, best_sb = 0;
 	const char *err;
-	char *_errbuf = NULL;
-	struct printbuf errbuf;
+	struct printbuf errbuf = PRINTBUF;
 	int ret = 0;
 
 	if (!try_module_get(THIS_MODULE))
@@ -1919,14 +1912,6 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		ret = -EINVAL;
 		goto err;
 	}
-
-	_errbuf = kmalloc(4096, GFP_KERNEL);
-	if (!_errbuf) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	errbuf = _PBUF(_errbuf, 4096);
 
 	sb = kcalloc(nr_devices, sizeof(*sb), GFP_KERNEL);
 	if (!sb) {
@@ -1991,7 +1976,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	}
 out:
 	kfree(sb);
-	kfree(_errbuf);
+	printbuf_exit(&errbuf);
 	module_put(THIS_MODULE);
 	pr_verbose_init(opts, "ret %i", PTR_ERR_OR_ZERO(c));
 	return c;

@@ -99,6 +99,38 @@ STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
 STRTO_H(strtou64, u64)
 
+static int bch2_printbuf_realloc(struct printbuf *out, unsigned extra)
+{
+	unsigned new_size = roundup_pow_of_two(out->size + extra);
+	char *buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_ATOMIC);
+
+	if (!buf) {
+		out->allocation_failure = true;
+		return -ENOMEM;
+	}
+
+	out->buf	= buf;
+	out->size	= new_size;
+	return 0;
+}
+
+void bch2_pr_buf(struct printbuf *out, const char *fmt, ...)
+{
+	va_list args;
+	int len;
+
+	do {
+		va_start(args, fmt);
+		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args);
+		va_end(args);
+	} while (len + 1 >= printbuf_remaining(out) &&
+		 !bch2_printbuf_realloc(out, len + 1));
+
+	len = min_t(size_t, len,
+		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
+	out->pos += len;
+}
+
 void bch2_hprint(struct printbuf *buf, s64 v)
 {
 	int u, t = 0;
@@ -150,9 +182,6 @@ void bch2_flags_to_text(struct printbuf *out,
 {
 	unsigned bit, nr = 0;
 	bool first = true;
-
-	if (out->pos != out->end)
-		*out->pos = '\0';
 
 	while (list[nr])
 		nr++;

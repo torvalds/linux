@@ -376,22 +376,23 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 {
 	struct bch_fs_usage __percpu *fs_usage;
 	int idx, ret = 0;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 
 	percpu_down_read(&c->mark_lock);
+	buf.atomic++;
 
 	idx = bch2_replicas_entry_idx(c, r);
 	if (idx < 0 &&
 	    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
 	     fsck_err(c, "no replicas entry\n"
 		      "  while marking %s",
-		      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf)))) {
+		      (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))) {
 		percpu_up_read(&c->mark_lock);
 		ret = bch2_mark_replicas(c, r);
-		if (ret)
-			return ret;
-
 		percpu_down_read(&c->mark_lock);
+
+		if (ret)
+			goto err;
 		idx = bch2_replicas_entry_idx(c, r);
 	}
 	if (idx < 0) {
@@ -407,6 +408,7 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 err:
 fsck_err:
 	percpu_up_read(&c->mark_lock);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -678,7 +680,8 @@ static int check_bucket_ref(struct bch_fs *c,
 	u16 bucket_sectors = !ptr->cached
 		? dirty_sectors
 		: cached_sectors;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
 
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
@@ -687,8 +690,9 @@ static int check_bucket_ref(struct bch_fs *c,
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_types[bucket_data_type ?: ptr_data_type],
 			ptr->gen,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-		return -EIO;
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		ret = -EIO;
+		goto err;
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
@@ -698,8 +702,10 @@ static int check_bucket_ref(struct bch_fs *c,
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_types[bucket_data_type ?: ptr_data_type],
 			ptr->gen,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-		return -EIO;
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		ret = -EIO;
+		goto err;
 	}
 
 	if (b_gen != ptr->gen && !ptr->cached) {
@@ -710,12 +716,16 @@ static int check_bucket_ref(struct bch_fs *c,
 			*bucket_gen(ca, bucket_nr),
 			bch2_data_types[bucket_data_type ?: ptr_data_type],
 			ptr->gen,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-		return -EIO;
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		ret = -EIO;
+		goto err;
 	}
 
-	if (b_gen != ptr->gen)
-		return 1;
+	if (b_gen != ptr->gen) {
+		ret = 1;
+		goto err;
+	}
 
 	if (bucket_data_type && ptr_data_type &&
 	    bucket_data_type != ptr_data_type) {
@@ -725,8 +735,10 @@ static int check_bucket_ref(struct bch_fs *c,
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_types[bucket_data_type],
 			bch2_data_types[ptr_data_type],
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-		return -EIO;
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		ret = -EIO;
+		goto err;
 	}
 
 	if ((unsigned) (bucket_sectors + sectors) > U16_MAX) {
@@ -736,11 +748,14 @@ static int check_bucket_ref(struct bch_fs *c,
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_types[bucket_data_type ?: ptr_data_type],
 			bucket_sectors, sectors,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-		return -EIO;
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		ret = -EIO;
+		goto err;
 	}
-
-	return 0;
+err:
+	printbuf_exit(&buf);
+	return ret;
 }
 
 static int mark_stripe_bucket(struct btree_trans *trans,
@@ -759,7 +774,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	struct bucket *g;
 	struct bucket_mark new, old;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	BUG_ON(!(flags & BTREE_TRIGGER_GC));
@@ -767,6 +782,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	/* * XXX doesn't handle deletion */
 
 	percpu_down_read(&c->mark_lock);
+	buf.atomic++;
 	g = PTR_GC_BUCKET(ca, ptr);
 
 	if (g->mark.dirty_sectors ||
@@ -774,7 +790,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		bch2_fs_inconsistent(c,
 			      "bucket %u:%zu gen %u: multiple stripes using same bucket\n%s",
 			      ptr->dev, PTR_BUCKET_NR(ca, ptr), g->mark.gen,
-			      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+			      (bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 		ret = -EINVAL;
 		goto err;
 	}
@@ -799,8 +815,8 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	bch2_dev_usage_update(c, ca, old, new, journal_seq, true);
 err:
 	percpu_up_read(&c->mark_lock);
-
-	return 0;
+	printbuf_exit(&buf);
+	return ret;
 }
 
 static int __mark_pointer(struct btree_trans *trans,
@@ -987,10 +1003,11 @@ static int bch2_mark_extent(struct btree_trans *trans,
 	if (r.e.nr_devs) {
 		ret = update_replicas(c, k, &r.e, dirty_sectors, journal_seq, true);
 		if (ret) {
-			char buf[200];
+			struct printbuf buf = PRINTBUF;
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, k);
-			bch2_fs_fatal_error(c, "no replicas entry for %s", buf);
+			bch2_bkey_val_to_text(&buf, c, k);
+			bch2_fs_fatal_error(c, "no replicas entry for %s", buf.buf);
+			printbuf_exit(&buf);
 			return ret;
 		}
 	}
@@ -1019,13 +1036,16 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 		if (!m || (old_s && !m->alive)) {
-			char buf1[200], buf2[200];
+			struct printbuf buf1 = PRINTBUF;
+			struct printbuf buf2 = PRINTBUF;
 
-			bch2_bkey_val_to_text(&PBUF(buf1), c, old);
-			bch2_bkey_val_to_text(&PBUF(buf2), c, new);
+			bch2_bkey_val_to_text(&buf1, c, old);
+			bch2_bkey_val_to_text(&buf2, c, new);
 			bch_err_ratelimited(c, "error marking nonexistent stripe %llu while marking\n"
 					    "old %s\n"
-					    "new %s", idx, buf1, buf2);
+					    "new %s", idx, buf1.buf, buf2.buf);
+			printbuf_exit(&buf2);
+			printbuf_exit(&buf1);
 			bch2_inconsistent_error(c);
 			return -1;
 		}
@@ -1090,10 +1110,11 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 				      ((s64) m->sectors * m->nr_redundant),
 				      journal_seq, gc);
 		if (ret) {
-			char buf[200];
+			struct printbuf buf = PRINTBUF;
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, new);
-			bch2_fs_fatal_error(c, "no replicas entry for %s", buf);
+			bch2_bkey_val_to_text(&buf, c, new);
+			bch2_fs_fatal_error(c, "no replicas entry for %s", buf.buf);
+			printbuf_exit(&buf);
 			return ret;
 		}
 	}
@@ -1174,7 +1195,7 @@ static s64 __bch2_mark_reflink_p(struct btree_trans *trans,
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
 	u64 next_idx = end;
 	s64 ret = 0;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 
 	if (r_idx >= c->reflink_gc_nr)
 		goto not_found;
@@ -1193,7 +1214,7 @@ not_found:
 	if (fsck_err(c, "pointer to missing indirect extent\n"
 		     "  %s\n"
 		     "  missing range %llu-%llu",
-		     (bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c), buf),
+		     (bch2_bkey_val_to_text(&buf, c, p.s_c), buf.buf),
 		     *idx, next_idx)) {
 		struct bkey_i_error new;
 
@@ -1207,6 +1228,7 @@ not_found:
 
 	*idx = next_idx;
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1289,7 +1311,7 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 
 	bch_err(c, "disk usage increased %lli more than %u sectors reserved",
 		should_not_have_added, disk_res_sectors);
@@ -1298,13 +1320,17 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 		struct bkey_s_c old = { &i->old_k, i->old_v };
 
 		pr_err("while inserting");
-		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-		pr_err("  %s", buf);
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
+		pr_err("  %s", buf.buf);
 		pr_err("overlapping with");
-		bch2_bkey_val_to_text(&PBUF(buf), c, old);
-		pr_err("  %s", buf);
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, old);
+		pr_err("  %s", buf.buf);
 	}
+
 	__WARN();
+	printbuf_exit(&buf);
 }
 
 int bch2_trans_fs_usage_apply(struct btree_trans *trans,
@@ -1744,7 +1770,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_i *n;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
-	char buf[200];
+	struct printbuf buf = PRINTBUF;
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink, POS(0, *idx),
@@ -1764,19 +1790,19 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 
 	refcount = bkey_refcount(n);
 	if (!refcount) {
-		bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c);
+		bch2_bkey_val_to_text(&buf, c, p.s_c);
 		bch2_fs_inconsistent(c,
 			"nonexistent indirect extent at %llu while marking\n  %s",
-			*idx, buf);
+			*idx, buf.buf);
 		ret = -EIO;
 		goto err;
 	}
 
 	if (!*refcount && (flags & BTREE_TRIGGER_OVERWRITE)) {
-		bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c);
+		bch2_bkey_val_to_text(&buf, c, p.s_c);
 		bch2_fs_inconsistent(c,
 			"indirect extent refcount underflow at %llu while marking\n  %s",
-			*idx, buf);
+			*idx, buf.buf);
 		ret = -EIO;
 		goto err;
 	}
@@ -1811,6 +1837,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	*idx = k.k->p.offset;
 err:
 	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
 	return ret;
 }
 

@@ -46,8 +46,28 @@ struct sysfs_ops type ## _sysfs_ops = {					\
 }
 
 #define SHOW(fn)							\
+static ssize_t fn ## _to_text(struct printbuf *,			\
+			      struct kobject *, struct attribute *);\
+									\
 static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 			   char *buf)					\
+{									\
+	struct printbuf out = PRINTBUF;					\
+	ssize_t ret = fn ## _to_text(&out, kobj, attr);			\
+									\
+	if (!ret && out.allocation_failure)				\
+		ret = -ENOMEM;						\
+									\
+	if (!ret) {							\
+		ret = min_t(size_t, out.pos, PAGE_SIZE - 1);		\
+		memcpy(buf, out.buf, ret);				\
+	}								\
+	printbuf_exit(&out);						\
+	return ret;							\
+}									\
+									\
+static ssize_t fn ## _to_text(struct printbuf *out, struct kobject *kobj,\
+			      struct attribute *attr)
 
 #define STORE(fn)							\
 static ssize_t fn ## _store(struct kobject *kobj, struct attribute *attr,\
@@ -64,22 +84,19 @@ static ssize_t fn ## _store(struct kobject *kobj, struct attribute *attr,\
 #define sysfs_printf(file, fmt, ...)					\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		return scnprintf(buf, PAGE_SIZE, fmt "\n", __VA_ARGS__);\
+		pr_buf(out, fmt "\n", __VA_ARGS__);			\
 } while (0)
 
 #define sysfs_print(file, var)						\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		return snprint(buf, PAGE_SIZE, var);			\
+		snprint(out, var);					\
 } while (0)
 
 #define sysfs_hprint(file, val)						\
 do {									\
-	if (attr == &sysfs_ ## file) {					\
-		bch2_hprint(&out, val);					\
-		pr_buf(&out, "\n");					\
-		return out.pos - buf;					\
-	}								\
+	if (attr == &sysfs_ ## file)					\
+		bch2_hprint(out, val);					\
 } while (0)
 
 #define var_printf(_var, fmt)	sysfs_printf(_var, fmt, var(_var))
@@ -348,7 +365,6 @@ static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
 	sysfs_print(minor,			c->minor);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
@@ -365,10 +381,8 @@ SHOW(bch2_fs)
 
 	sysfs_printf(btree_gc_periodic, "%u",	(int) c->btree_gc_periodic);
 
-	if (attr == &sysfs_gc_gens_pos) {
-		bch2_gc_gens_pos_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_gc_gens_pos)
+		bch2_gc_gens_pos_to_text(out, c);
 
 	sysfs_printf(copy_gc_enabled, "%i", c->copy_gc_enabled);
 
@@ -378,83 +392,54 @@ SHOW(bch2_fs)
 		     max(0LL, c->copygc_wait -
 			 atomic64_read(&c->io_clock[WRITE].now)) << 9);
 
-	if (attr == &sysfs_rebalance_work) {
-		bch2_rebalance_work_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_rebalance_work)
+		bch2_rebalance_work_to_text(out, c);
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
 	/* Debugging: */
 
-	if (attr == &sysfs_journal_debug) {
-		bch2_journal_debug_to_text(&out, &c->journal);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_journal_debug)
+		bch2_journal_debug_to_text(out, &c->journal);
 
-	if (attr == &sysfs_journal_pins) {
-		bch2_journal_pins_to_text(&out, &c->journal);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_journal_pins)
+		bch2_journal_pins_to_text(out, &c->journal);
 
-	if (attr == &sysfs_btree_updates) {
-		bch2_btree_updates_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_btree_updates)
+		bch2_btree_updates_to_text(out, c);
 
-	if (attr == &sysfs_dirty_btree_nodes) {
-		bch2_dirty_btree_nodes_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_dirty_btree_nodes)
+		bch2_dirty_btree_nodes_to_text(out, c);
 
-	if (attr == &sysfs_btree_cache) {
-		bch2_btree_cache_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_btree_cache)
+		bch2_btree_cache_to_text(out, c);
 
-	if (attr == &sysfs_btree_key_cache) {
-		bch2_btree_key_cache_to_text(&out, &c->btree_key_cache);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_btree_key_cache)
+		bch2_btree_key_cache_to_text(out, &c->btree_key_cache);
 
-	if (attr == &sysfs_btree_transactions) {
-		bch2_btree_trans_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_btree_transactions)
+		bch2_btree_trans_to_text(out, c);
 
-	if (attr == &sysfs_stripes_heap) {
-		bch2_stripes_heap_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_stripes_heap)
+		bch2_stripes_heap_to_text(out, c);
 
-	if (attr == &sysfs_open_buckets) {
-		bch2_open_buckets_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_open_buckets)
+		bch2_open_buckets_to_text(out, c);
 
-	if (attr == &sysfs_compression_stats) {
-		bch2_compression_stats_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_compression_stats)
+		bch2_compression_stats_to_text(out, c);
 
-	if (attr == &sysfs_new_stripes) {
-		bch2_new_stripes_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_new_stripes)
+		bch2_new_stripes_to_text(out, c);
 
-	if (attr == &sysfs_io_timers_read) {
-		bch2_io_timers_to_text(&out, &c->io_clock[READ]);
-		return out.pos - buf;
-	}
-	if (attr == &sysfs_io_timers_write) {
-		bch2_io_timers_to_text(&out, &c->io_clock[WRITE]);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_io_timers_read)
+		bch2_io_timers_to_text(out, &c->io_clock[READ]);
 
-	if (attr == &sysfs_data_jobs) {
-		data_progress_to_text(&out, c);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_io_timers_write)
+		bch2_io_timers_to_text(out, &c->io_clock[WRITE]);
+
+	if (attr == &sysfs_data_jobs)
+		data_progress_to_text(out, c);
 
 	return 0;
 }
@@ -567,7 +552,7 @@ struct attribute *bch2_fs_files[] = {
 SHOW(bch2_fs_internal)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, internal);
-	return bch2_fs_show(&c->kobj, attr, buf);
+	return bch2_fs_to_text(out, &c->kobj, attr);
 }
 
 STORE(bch2_fs_internal)
@@ -617,16 +602,15 @@ struct attribute *bch2_fs_internal_files[] = {
 
 SHOW(bch2_fs_opts_dir)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs *c = container_of(kobj, struct bch_fs, opts_dir);
 	const struct bch_option *opt = container_of(attr, struct bch_option, attr);
 	int id = opt - bch2_opt_table;
 	u64 v = bch2_opt_get_by_id(&c->opts, id);
 
-	bch2_opt_to_text(&out, c, opt, v, OPT_SHOW_FULL_LIST);
-	pr_buf(&out, "\n");
+	bch2_opt_to_text(out, c, opt, v, OPT_SHOW_FULL_LIST);
+	pr_char(out, '\n');
 
-	return out.pos - buf;
+	return 0;
 }
 
 STORE(bch2_fs_opts_dir)
@@ -690,13 +674,10 @@ int bch2_opts_create_sysfs_files(struct kobject *kobj)
 SHOW(bch2_fs_time_stats)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, time_stats);
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
 #define x(name)								\
-	if (attr == &sysfs_time_stat_##name) {				\
-		bch2_time_stats_to_text(&out, &c->times[BCH_TIME_##name]);\
-		return out.pos - buf;					\
-	}
+	if (attr == &sysfs_time_stat_##name)				\
+		bch2_time_stats_to_text(out, &c->times[BCH_TIME_##name]);
 	BCH_TIME_STATS()
 #undef x
 
@@ -812,7 +793,6 @@ SHOW(bch2_dev)
 {
 	struct bch_dev *ca = container_of(kobj, struct bch_dev, kobj);
 	struct bch_fs *c = ca->fs;
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
 	sysfs_printf(uuid,		"%pU\n", ca->uuid.b);
 
@@ -825,58 +805,47 @@ SHOW(bch2_dev)
 	if (attr == &sysfs_label) {
 		if (ca->mi.group) {
 			mutex_lock(&c->sb_lock);
-			bch2_disk_path_to_text(&out, c->disk_sb.sb,
+			bch2_disk_path_to_text(out, c->disk_sb.sb,
 					       ca->mi.group - 1);
 			mutex_unlock(&c->sb_lock);
 		}
 
-		pr_buf(&out, "\n");
-		return out.pos - buf;
+		pr_char(out, '\n');
 	}
 
 	if (attr == &sysfs_has_data) {
-		bch2_flags_to_text(&out, bch2_data_types,
+		bch2_flags_to_text(out, bch2_data_types,
 				   bch2_dev_has_data(c, ca));
-		pr_buf(&out, "\n");
-		return out.pos - buf;
+		pr_char(out, '\n');
 	}
 
 	if (attr == &sysfs_state_rw) {
-		bch2_string_opt_to_text(&out, bch2_member_states,
+		bch2_string_opt_to_text(out, bch2_member_states,
 					ca->mi.state);
-		pr_buf(&out, "\n");
-		return out.pos - buf;
+		pr_char(out, '\n');
 	}
 
-	if (attr == &sysfs_iodone) {
-		dev_iodone_to_text(&out, ca);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_iodone)
+		dev_iodone_to_text(out, ca);
 
 	sysfs_print(io_latency_read,		atomic64_read(&ca->cur_latency[READ]));
 	sysfs_print(io_latency_write,		atomic64_read(&ca->cur_latency[WRITE]));
 
-	if (attr == &sysfs_io_latency_stats_read) {
-		bch2_time_stats_to_text(&out, &ca->io_latency[READ]);
-		return out.pos - buf;
-	}
-	if (attr == &sysfs_io_latency_stats_write) {
-		bch2_time_stats_to_text(&out, &ca->io_latency[WRITE]);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_io_latency_stats_read)
+		bch2_time_stats_to_text(out, &ca->io_latency[READ]);
+
+	if (attr == &sysfs_io_latency_stats_write)
+		bch2_time_stats_to_text(out, &ca->io_latency[WRITE]);
 
 	sysfs_printf(congested,			"%u%%",
 		     clamp(atomic_read(&ca->congested), 0, CONGESTED_MAX)
 		     * 100 / CONGESTED_MAX);
 
-	if (attr == &sysfs_reserve_stats) {
-		reserve_stats_to_text(&out, ca);
-		return out.pos - buf;
-	}
-	if (attr == &sysfs_alloc_debug) {
-		dev_alloc_debug_to_text(&out, ca);
-		return out.pos - buf;
-	}
+	if (attr == &sysfs_reserve_stats)
+		reserve_stats_to_text(out, ca);
+
+	if (attr == &sysfs_alloc_debug)
+		dev_alloc_debug_to_text(out, ca);
 
 	return 0;
 }

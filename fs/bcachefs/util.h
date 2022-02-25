@@ -242,19 +242,39 @@ enum printbuf_units {
 };
 
 struct printbuf {
-	char			*pos;
-	char			*end;
-	char			*last_newline;
-	char			*last_field;
+	char			*buf;
+	unsigned		size;
+	unsigned		pos;
+	unsigned		last_newline;
+	unsigned		last_field;
 	unsigned		indent;
-	enum printbuf_units	units;
-	unsigned		tabstop;
-	unsigned		tabstops[4];
+	enum printbuf_units	units:8;
+	u8			atomic;
+	bool			allocation_failure:1;
+	u8			tabstop;
+	u8			tabstops[4];
 };
+
+#define PRINTBUF ((struct printbuf) { NULL })
+
+static inline void printbuf_exit(struct printbuf *buf)
+{
+	kfree(buf->buf);
+	buf->buf = ERR_PTR(-EINTR); /* poison value */
+}
+
+static inline void printbuf_reset(struct printbuf *buf)
+{
+	buf->pos		= 0;
+	buf->last_newline	= 0;
+	buf->last_field		= 0;
+	buf->indent		= 0;
+	buf->tabstop		= 0;
+}
 
 static inline size_t printbuf_remaining(struct printbuf *buf)
 {
-	return buf->end - buf->pos;
+	return buf->size - buf->pos;
 }
 
 static inline size_t printbuf_linelen(struct printbuf *buf)
@@ -262,29 +282,13 @@ static inline size_t printbuf_linelen(struct printbuf *buf)
 	return buf->pos - buf->last_newline;
 }
 
-#define _PBUF(_buf, _len)						\
-	((struct printbuf) {						\
-		.pos		= _buf,					\
-		.end		= _buf + _len,				\
-		.last_newline	= _buf,					\
-		.last_field	= _buf,					\
-	})
+void bch2_pr_buf(struct printbuf *out, const char *fmt, ...);
 
-#define PBUF(_buf) _PBUF(_buf, sizeof(_buf))
-
-
-#define pr_buf(_out, ...)						\
-do {									\
-	(_out)->pos += scnprintf((_out)->pos, printbuf_remaining(_out),	\
-				 __VA_ARGS__);				\
-} while (0)
+#define pr_buf(_out, ...) bch2_pr_buf(_out, __VA_ARGS__)
 
 static inline void pr_char(struct printbuf *out, char c)
 {
-	if (printbuf_remaining(out) > 1) {
-		*out->pos = c;
-		out->pos++;
-	}
+	bch2_pr_buf(out, "%c", c);
 }
 
 static inline void pr_indent_push(struct printbuf *buf, unsigned spaces)
@@ -298,7 +302,7 @@ static inline void pr_indent_pop(struct printbuf *buf, unsigned spaces)
 {
 	if (buf->last_newline + buf->indent == buf->pos) {
 		buf->pos -= spaces;
-		buf->pos = '\0';
+		buf->buf[buf->pos] = '\0';
 	}
 	buf->indent -= spaces;
 }
@@ -341,12 +345,12 @@ static inline void pr_tab_rjust(struct printbuf *buf)
 	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
 
 	if (shift > 0) {
-		memmove(buf->last_field + shift,
-			buf->last_field,
+		memmove(buf->buf + buf->last_field + shift,
+			buf->buf + buf->last_field,
 			move);
-		memset(buf->last_field, ' ', shift);
+		memset(buf->buf + buf->last_field, ' ', shift);
 		buf->pos += shift;
-		*buf->pos = 0;
+		buf->buf[buf->pos] = 0;
 	}
 
 	buf->last_field = buf->pos;
@@ -460,8 +464,8 @@ static inline int bch2_strtoul_h(const char *cp, long *res)
 	_r;								\
 })
 
-#define snprint(buf, size, var)						\
-	snprintf(buf, size,						\
+#define snprint(out, var)						\
+	pr_buf(out,							\
 		   type_is(var, int)		? "%i\n"		\
 		 : type_is(var, unsigned)	? "%u\n"		\
 		 : type_is(var, long)		? "%li\n"		\
@@ -605,10 +609,8 @@ do {									\
 	sysfs_print(name##_rate_d_term,		(var)->d_term);		\
 	sysfs_print(name##_rate_p_term_inverse,	(var)->p_term_inverse);	\
 									\
-	if (attr == &sysfs_##name##_rate_debug) {			\
-		bch2_pd_controller_debug_to_text(&out, var);		\
-		return out.pos - buf;					\
-	}								\
+	if (attr == &sysfs_##name##_rate_debug)				\
+		bch2_pd_controller_debug_to_text(out, var);		\
 } while (0)
 
 #define sysfs_pd_controller_store(name, var)				\

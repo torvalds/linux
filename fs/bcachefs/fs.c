@@ -1676,7 +1676,8 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
 	enum bch_opt_id i;
-	char buf[512];
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
 
 	for (i = 0; i < bch2_opts_nr; i++) {
 		const struct bch_option *opt = &bch2_opt_table[i];
@@ -1688,13 +1689,17 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
 			continue;
 
-		bch2_opt_to_text(&PBUF(buf), c, opt, v,
+		printbuf_reset(&buf);
+		bch2_opt_to_text(&buf, c, opt, v,
 				 OPT_SHOW_MOUNT_STYLE);
 		seq_putc(seq, ',');
-		seq_puts(seq, buf);
+		seq_puts(seq, buf.buf);
 	}
 
-	return 0;
+	if (buf.allocation_failure)
+		ret = -ENOMEM;
+	printbuf_exit(&buf);
+	return ret;
 }
 
 static void bch2_put_super(struct super_block *sb)

@@ -831,11 +831,12 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		const char *invalid = bch2_bkey_invalid(c,
 				bkey_i_to_s_c(i->k), i->bkey_type);
 		if (invalid) {
-			char buf[200];
+			struct printbuf buf = PRINTBUF;
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
 			bch2_fs_fatal_error(c, "invalid bkey %s on insert from %s -> %ps: %s\n",
-					    buf, trans->fn, (void *) i->ip_allocated, invalid);
+					    buf.buf, trans->fn, (void *) i->ip_allocated, invalid);
+			printbuf_exit(&buf);
 			return -EINVAL;
 		}
 		btree_insert_entry_checks(trans, i);
