@@ -43,6 +43,8 @@ struct rzg2l_wdt_priv {
 	struct reset_control *rstc;
 	unsigned long osc_clk_rate;
 	unsigned long delay;
+	struct clk *pclk;
+	struct clk *osc_clk;
 };
 
 static void rzg2l_wdt_wait_delay(struct rzg2l_wdt_priv *priv)
@@ -118,7 +120,9 @@ static int rzg2l_wdt_restart(struct watchdog_device *wdev,
 
 	/* Reset the module before we modify any register */
 	reset_control_reset(priv->rstc);
-	pm_runtime_get_sync(wdev->parent);
+
+	clk_prepare_enable(priv->pclk);
+	clk_prepare_enable(priv->osc_clk);
 
 	/* smallest counter value to reboot soon */
 	rzg2l_wdt_write(priv, WDTSET_COUNTER_VAL(1), WDTSET);
@@ -165,7 +169,6 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzg2l_wdt_priv *priv;
 	unsigned long pclk_rate;
-	struct clk *wdt_clk;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -177,22 +180,20 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	/* Get watchdog main clock */
-	wdt_clk = clk_get(&pdev->dev, "oscclk");
-	if (IS_ERR(wdt_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(wdt_clk), "no oscclk");
+	priv->osc_clk = devm_clk_get(&pdev->dev, "oscclk");
+	if (IS_ERR(priv->osc_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->osc_clk), "no oscclk");
 
-	priv->osc_clk_rate = clk_get_rate(wdt_clk);
-	clk_put(wdt_clk);
+	priv->osc_clk_rate = clk_get_rate(priv->osc_clk);
 	if (!priv->osc_clk_rate)
 		return dev_err_probe(&pdev->dev, -EINVAL, "oscclk rate is 0");
 
 	/* Get Peripheral clock */
-	wdt_clk = clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(wdt_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(wdt_clk), "no pclk");
+	priv->pclk = devm_clk_get(&pdev->dev, "pclk");
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->pclk), "no pclk");
 
-	pclk_rate = clk_get_rate(wdt_clk);
-	clk_put(wdt_clk);
+	pclk_rate = clk_get_rate(priv->pclk);
 	if (!pclk_rate)
 		return dev_err_probe(&pdev->dev, -EINVAL, "pclk rate is 0");
 
