@@ -1193,7 +1193,11 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		}
 	}
 
-	if (iter.level != fault->goal_level) {
+	/*
+	 * Force the guest to retry the access if the upper level SPTEs aren't
+	 * in place, or if the target leaf SPTE is frozen by another CPU.
+	 */
+	if (iter.level != fault->goal_level || is_removed_spte(iter.old_spte)) {
 		rcu_read_unlock();
 		return RET_PF_RETRY;
 	}
