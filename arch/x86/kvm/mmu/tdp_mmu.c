@@ -844,15 +844,9 @@ bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
  * function cannot yield, it will not release the MMU lock or reschedule and
  * the caller must ensure it does not supply too large a GFN range, or the
  * operation can cause a soft lockup.
- *
- * If shared is true, this thread holds the MMU lock in read mode and must
- * account for the possibility that other threads are modifying the paging
- * structures concurrently. If shared is false, this thread should hold the
- * MMU lock in write mode.
  */
 static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
-			  gfn_t start, gfn_t end, bool can_yield, bool flush,
-			  bool shared)
+			  gfn_t start, gfn_t end, bool can_yield, bool flush)
 {
 	bool zap_all = (start == 0 && end >= tdp_mmu_max_gfn_host());
 	struct tdp_iter iter;
@@ -865,14 +859,13 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 
 	end = min(end, tdp_mmu_max_gfn_host());
 
-	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	rcu_read_lock();
 
 	for_each_tdp_pte_min_level(iter, root, min_level, start, end) {
-retry:
 		if (can_yield &&
-		    tdp_mmu_iter_cond_resched(kvm, &iter, flush, shared)) {
+		    tdp_mmu_iter_cond_resched(kvm, &iter, flush, false)) {
 			flush = false;
 			continue;
 		}
@@ -891,12 +884,8 @@ retry:
 		    !is_last_spte(iter.old_spte, iter.level))
 			continue;
 
-		if (!shared) {
-			tdp_mmu_set_spte(kvm, &iter, 0);
-			flush = true;
-		} else if (tdp_mmu_zap_spte_atomic(kvm, &iter)) {
-			goto retry;
-		}
+		tdp_mmu_set_spte(kvm, &iter, 0);
+		flush = true;
 	}
 
 	rcu_read_unlock();
@@ -915,8 +904,7 @@ bool __kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, int as_id, gfn_t start,
 	struct kvm_mmu_page *root;
 
 	for_each_tdp_mmu_root_yield_safe(kvm, root, as_id)
-		flush = zap_gfn_range(kvm, root, start, end, can_yield, flush,
-				      false);
+		flush = zap_gfn_range(kvm, root, start, end, can_yield, flush);
 
 	return flush;
 }
