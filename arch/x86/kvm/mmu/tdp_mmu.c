@@ -716,10 +716,10 @@ static inline bool __must_check tdp_mmu_iter_cond_resched(struct kvm *kvm,
 		return false;
 
 	if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
-		rcu_read_unlock();
-
 		if (flush)
 			kvm_flush_remote_tlbs(kvm);
+
+		rcu_read_unlock();
 
 		if (shared)
 			cond_resched_rwlock_read(&kvm->mmu_lock);
