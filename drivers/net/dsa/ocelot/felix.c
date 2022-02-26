@@ -778,6 +778,21 @@ static int felix_vlan_del(struct dsa_switch *ds, int port,
 	return ocelot_vlan_del(ocelot, port, vlan->vid);
 }
 
+static void felix_phylink_get_caps(struct dsa_switch *ds, int port,
+				   struct phylink_config *config)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	/* This driver does not make use of the speed, duplex, pause or the
+	 * advertisement in its mac_config, so it is safe to mark this driver
+	 * as non-legacy.
+	 */
+	config->legacy_pre_march2020 = false;
+
+	__set_bit(ocelot->ports[port]->phy_mode,
+		  config->supported_interfaces);
+}
+
 static void felix_phylink_validate(struct dsa_switch *ds, int port,
 				   unsigned long *supported,
 				   struct phylink_link_state *state)
@@ -789,16 +804,18 @@ static void felix_phylink_validate(struct dsa_switch *ds, int port,
 		felix->info->phylink_validate(ocelot, port, supported, state);
 }
 
-static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
-				     unsigned int link_an_mode,
-				     const struct phylink_link_state *state)
+static struct phylink_pcs *felix_phylink_mac_select_pcs(struct dsa_switch *ds,
+							int port,
+							phy_interface_t iface)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct phylink_pcs *pcs = NULL;
 
 	if (felix->pcs && felix->pcs[port])
-		phylink_set_pcs(dp->pl, felix->pcs[port]);
+		pcs = felix->pcs[port];
+
+	return pcs;
 }
 
 static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
@@ -1587,8 +1604,9 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.get_ethtool_stats		= felix_get_ethtool_stats,
 	.get_sset_count			= felix_get_sset_count,
 	.get_ts_info			= felix_get_ts_info,
+	.phylink_get_caps		= felix_phylink_get_caps,
 	.phylink_validate		= felix_phylink_validate,
-	.phylink_mac_config		= felix_phylink_mac_config,
+	.phylink_mac_select_pcs		= felix_phylink_mac_select_pcs,
 	.phylink_mac_link_down		= felix_phylink_mac_link_down,
 	.phylink_mac_link_up		= felix_phylink_mac_link_up,
 	.port_fast_age			= felix_port_fast_age,
