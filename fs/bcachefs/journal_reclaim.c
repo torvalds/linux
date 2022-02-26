@@ -661,7 +661,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 
 		if (nr_flushed)
 			wake_up(&j->reclaim_wait);
-	} while ((min_nr || min_key_cache) && !direct);
+	} while ((min_nr || min_key_cache) && nr_flushed && !direct);
 
 	memalloc_noreclaim_restore(flags);
 
