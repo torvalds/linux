@@ -2120,6 +2120,7 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 	v4l2_dbg(1, debug, v4l2_dev, "%s: plugin:%d\n", __func__, plugin);
 
 	if (plugin) {
+		hdmirx_submodule_init(hdmirx_dev);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
 					POWERPROVIDED);
 		hdmirx_hpd_ctrl(hdmirx_dev, true);
@@ -2143,6 +2144,10 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 				FIFO_OVERFLOW_INT_EN |
 				FIFO_UNDERFLOW_INT_EN |
 				HDMIRX_AXI_ERROR_INT_EN, 0);
+		hdmirx_update_bits(hdmirx_dev, PHY_CONFIG,
+				HDMI_DISABLE | PHY_RESET | PHY_PDDQ,
+				HDMI_DISABLE);
+		hdmirx_writel(hdmirx_dev, PHYCREG_CONFIG0, 0x0);
 		cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 		cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 	}
@@ -2551,6 +2556,7 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 
 static void hdmirx_disable_all_interrupts(struct rk_hdmirx_dev *hdmirx_dev)
 {
+	hdmirx_audio_interrupts_setup(hdmirx_dev, false);
 	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_MASK_N, 0);
 	hdmirx_writel(hdmirx_dev, MAINUNIT_1_INT_MASK_N, 0);
 	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_MASK_N, 0);
@@ -2584,6 +2590,7 @@ static int hdmirx_power_on(struct rk_hdmirx_dev *hdmirx_dev)
 	pm_runtime_get_sync(hdmirx_dev->dev);
 	hdmirx_dev->power_on = true;
 
+	hdmirx_update_bits(hdmirx_dev, PHY_CONFIG, PHY_RESET | PHY_PDDQ, 0);
 	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
 		(HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
 		((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
@@ -2620,13 +2627,18 @@ static int hdmirx_runtime_suspend(struct device *dev)
 	hdmirx_disable_all_interrupts(hdmirx_dev);
 	disable_irq(hdmirx_dev->hdmi_irq);
 	disable_irq(hdmirx_dev->dma_irq);
-	v4l2_dbg(2, debug, v4l2_dev, "%s: suspend!\n", __func__);
 
-	hdmirx_update_bits(hdmirx_dev, PHY_CONFIG, PHY_RESET, PHY_RESET);
-	usleep_range(100, 110);
-	reset_control_assert(hdmirx_dev->reset);
-	usleep_range(100, 110);
+	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_hotplug);
+	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_res_change);
+	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_audio);
+
+	hdmirx_update_bits(hdmirx_dev, PHY_CONFIG,
+			HDMI_DISABLE | PHY_RESET | PHY_PDDQ,
+			HDMI_DISABLE);
+	hdmirx_writel(hdmirx_dev, PHYCREG_CONFIG0, 0x0);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
+
+	v4l2_dbg(2, debug, v4l2_dev, "%s: suspend!\n", __func__);
 
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -2654,6 +2666,12 @@ static int hdmirx_runtime_resume(struct device *dev)
 	usleep_range(150, 160);
 	reset_control_deassert(hdmirx_dev->reset);
 	usleep_range(150, 160);
+
+	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
+		     (HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
+		     ((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
+	schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
+			      msecs_to_jiffies(20));
 
 	return 0;
 }
