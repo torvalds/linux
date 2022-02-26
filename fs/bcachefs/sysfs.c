@@ -174,9 +174,7 @@ read_attribute(reserve_stats);
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
 read_attribute(journal_debug);
-read_attribute(journal_pins);
 read_attribute(btree_updates);
-read_attribute(dirty_btree_nodes);
 read_attribute(btree_cache);
 read_attribute(btree_key_cache);
 read_attribute(btree_transactions);
@@ -402,14 +400,8 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_journal_debug)
 		bch2_journal_debug_to_text(out, &c->journal);
 
-	if (attr == &sysfs_journal_pins)
-		bch2_journal_pins_to_text(out, &c->journal);
-
 	if (attr == &sysfs_btree_updates)
 		bch2_btree_updates_to_text(out, c);
-
-	if (attr == &sysfs_dirty_btree_nodes)
-		bch2_dirty_btree_nodes_to_text(out, c);
 
 	if (attr == &sysfs_btree_cache)
 		bch2_btree_cache_to_text(out, c);
@@ -564,9 +556,7 @@ SYSFS_OPS(bch2_fs_internal);
 
 struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_journal_debug,
-	&sysfs_journal_pins,
 	&sysfs_btree_updates,
-	&sysfs_dirty_btree_nodes,
 	&sysfs_btree_cache,
 	&sysfs_btree_key_cache,
 	&sysfs_btree_transactions,

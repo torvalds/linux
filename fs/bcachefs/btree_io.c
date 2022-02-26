@@ -2106,30 +2106,3 @@ void bch2_btree_flush_all_writes(struct bch_fs *c)
 {
 	__bch2_btree_flush_all(c, BTREE_NODE_write_in_flight);
 }
-
-void bch2_dirty_btree_nodes_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	struct bucket_table *tbl;
-	struct rhash_head *pos;
-	struct btree *b;
-	unsigned i;
-
-	rcu_read_lock();
-	for_each_cached_btree(b, c, tbl, i, pos) {
-		unsigned long flags = READ_ONCE(b->flags);
-
-		if (!(flags & (1 << BTREE_NODE_dirty)))
-			continue;
-
-		pr_buf(out, "%p d %u n %u l %u w %u b %u r %u:%lu\n",
-		       b,
-		       (flags & (1 << BTREE_NODE_dirty)) != 0,
-		       (flags & (1 << BTREE_NODE_need_write)) != 0,
-		       b->c.level,
-		       b->written,
-		       !list_empty_careful(&b->write_blocked),
-		       b->will_make_reachable != 0,
-		       b->will_make_reachable & 1);
-	}
-	rcu_read_unlock();
-}

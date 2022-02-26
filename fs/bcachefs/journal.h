@@ -499,6 +499,7 @@ void bch2_journal_block(struct journal *);
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_pins_to_text(struct printbuf *, struct journal *);
+bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);

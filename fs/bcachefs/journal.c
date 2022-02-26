@@ -1283,35 +1283,59 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	spin_unlock(&j->lock);
 }
 
-void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
+bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 *seq)
 {
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *pin;
-	u64 i;
 
 	spin_lock(&j->lock);
+	*seq = max(*seq, j->pin.front);
+
+	if (*seq >= j->pin.back) {
+		spin_unlock(&j->lock);
+		return true;
+	}
+
 	out->atomic++;
 
-	fifo_for_each_entry_ptr(pin_list, &j->pin, i) {
-		pr_buf(out, "%llu: count %u\n",
-		       i, atomic_read(&pin_list->count));
+	pin_list = journal_seq_pin(j, *seq);
 
-		list_for_each_entry(pin, &pin_list->key_cache_list, list)
-			pr_buf(out, "\t%px %ps\n",
-			       pin, pin->flush);
+	pr_buf(out, "%llu: count %u", *seq, atomic_read(&pin_list->count));
+	pr_newline(out);
+	pr_indent_push(out, 2);
 
-		list_for_each_entry(pin, &pin_list->list, list)
-			pr_buf(out, "\t%px %ps\n",
-			       pin, pin->flush);
-
-		if (!list_empty(&pin_list->flushed))
-			pr_buf(out, "flushed:\n");
-
-		list_for_each_entry(pin, &pin_list->flushed, list)
-			pr_buf(out, "\t%px %ps\n",
-			       pin, pin->flush);
+	list_for_each_entry(pin, &pin_list->list, list) {
+		pr_buf(out, "\t%px %ps", pin, pin->flush);
+		pr_newline(out);
 	}
+
+	list_for_each_entry(pin, &pin_list->key_cache_list, list) {
+		pr_buf(out, "\t%px %ps", pin, pin->flush);
+		pr_newline(out);
+	}
+
+	if (!list_empty(&pin_list->flushed)) {
+		pr_buf(out, "flushed:");
+		pr_newline(out);
+	}
+
+	list_for_each_entry(pin, &pin_list->flushed, list) {
+		pr_buf(out, "\t%px %ps", pin, pin->flush);
+		pr_newline(out);
+	}
+
+	pr_indent_pop(out, 2);
 
 	--out->atomic;
 	spin_unlock(&j->lock);
+
+	return false;
+}
+
+void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
+{
+	u64 seq = 0;
+
+	while (!bch2_journal_seq_pins_to_text(out, j, &seq))
+		seq++;
 }

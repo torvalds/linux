@@ -538,9 +538,6 @@ enum {
 
 struct btree_debug {
 	unsigned		id;
-	struct dentry		*btree;
-	struct dentry		*btree_format;
-	struct dentry		*failed;
 };
 
 struct bch_fs_pcpu {
@@ -885,7 +882,8 @@ mempool_t		bio_bounce_pages;
 	struct bch_memquota_type quotas[QTYP_NR];
 
 	/* DEBUG JUNK */
-	struct dentry		*debug;
+	struct dentry		*fs_debug_dir;
+	struct dentry		*btree_debug_dir;
 	struct btree_debug	btree_debug[BTREE_ID_NR];
 	struct btree		*verify_data;
 	struct btree_node	*verify_ondisk;
