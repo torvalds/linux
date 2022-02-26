@@ -1557,7 +1557,6 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	memset(ihost, 0, sizeof(*ihost));
-	atomic_set(&ihost->nr_scans, 0);
 	mutex_init(&ihost->mutex);
 
 	iscsi_bsg_host_add(shost, ihost);
@@ -1744,25 +1743,6 @@ void iscsi_host_for_each_session(struct Scsi_Host *shost,
 }
 EXPORT_SYMBOL_GPL(iscsi_host_for_each_session);
 
-/**
- * iscsi_scan_finished - helper to report when running scans are done
- * @shost: scsi host
- * @time: scan run time
- *
- * This function can be used by drives like qla4xxx to report to the scsi
- * layer when the scans it kicked off at module load time are done.
- */
-int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time)
-{
-	struct iscsi_cls_host *ihost = shost->shost_data;
-	/*
-	 * qla4xxx will have kicked off some session unblocks before calling
-	 * scsi_scan_host, so just wait for them to complete.
-	 */
-	return !atomic_read(&ihost->nr_scans);
-}
-EXPORT_SYMBOL_GPL(iscsi_scan_finished);
-
 struct iscsi_scan_data {
 	unsigned int channel;
 	unsigned int id;
@@ -1831,8 +1811,6 @@ static void iscsi_scan_session(struct work_struct *work)
 {
 	struct iscsi_cls_session *session =
 			container_of(work, struct iscsi_cls_session, scan_work);
-	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_cls_host *ihost = shost->shost_data;
 	struct iscsi_scan_data scan_data;
 
 	scan_data.channel = 0;
@@ -1841,7 +1819,6 @@ static void iscsi_scan_session(struct work_struct *work)
 	scan_data.rescan = SCSI_SCAN_RESCAN;
 
 	iscsi_user_scan_session(&session->dev, &scan_data);
-	atomic_dec(&ihost->nr_scans);
 }
 
 /**
@@ -1912,8 +1889,6 @@ static void __iscsi_unblock_session(struct work_struct *work)
 	struct iscsi_cls_session *session =
 			container_of(work, struct iscsi_cls_session,
 				     unblock_work);
-	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_cls_host *ihost = shost->shost_data;
 	unsigned long flags;
 
 	ISCSI_DBG_TRANS_SESSION(session, "Unblocking session\n");
@@ -1924,15 +1899,6 @@ static void __iscsi_unblock_session(struct work_struct *work)
 	spin_unlock_irqrestore(&session->lock, flags);
 	/* start IO */
 	scsi_target_unblock(&session->dev, SDEV_RUNNING);
-	/*
-	 * Only do kernel scanning if the driver is properly hooked into
-	 * the async scanning code (drivers like iscsi_tcp do login and
-	 * scanning from userspace).
-	 */
-	if (shost->hostt->scan_finished) {
-		if (scsi_queue_work(shost, &session->scan_work))
-			atomic_inc(&ihost->nr_scans);
-	}
 	ISCSI_DBG_TRANS_SESSION(session, "Completed unblocking session\n");
 }
 
@@ -2192,7 +2158,10 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	spin_unlock_irqrestore(&session->lock, flags);
 
 	scsi_target_unblock(&session->dev, SDEV_TRANSPORT_OFFLINE);
-	/* flush running scans then delete devices */
+	/*
+	 * qla4xxx can perform it's own scans when it runs in kernel only
+	 * mode. Make sure to flush those scans.
+	 */
 	flush_work(&session->scan_work);
 	/* flush running unbind operations */
 	flush_work(&session->unbind_work);
