@@ -4955,10 +4955,34 @@
 			number avoids disturbing real-time workloads,
 			but lengthens grace periods.
 
+	rcupdate.rcu_task_stall_info= [KNL]
+			Set initial timeout in jiffies for RCU task stall
+			informational messages, which give some indication
+			of the problem for those not patient enough to
+			wait for ten minutes.  Informational messages are
+			only printed prior to the stall-warning message
+			for a given grace period. Disable with a value
+			less than or equal to zero.  Defaults to ten
+			seconds.  A change in value does not take effect
+			until the beginning of the next grace period.
+
+	rcupdate.rcu_task_stall_info_mult= [KNL]
+			Multiplier for time interval between successive
+			RCU task stall informational messages for a given
+			RCU tasks grace period.  This value is clamped
+			to one through ten, inclusive.	It defaults to
+			the value three, so that the first informational
+			message is printed 10 seconds into the grace
+			period, the second at 40 seconds, the third at
+			160 seconds, and then the stall warning at 600
+			seconds would prevent a fourth at 640 seconds.
+
 	rcupdate.rcu_task_stall_timeout= [KNL]
-			Set timeout in jiffies for RCU task stall warning
-			messages.  Disable with a value less than or equal
-			to zero.
+			Set timeout in jiffies for RCU task stall
+			warning messages.  Disable with a value less
+			than or equal to zero.	Defaults to ten minutes.
+			A change in value does not take effect until
+			the beginning of the next grace period.
 
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests
