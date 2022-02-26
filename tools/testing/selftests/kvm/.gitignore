@@ -58,6 +58,7 @@
 /hardware_disable_test
 /kvm_create_max_vcpus
 /kvm_page_table_test
+/max_guest_memory_test
 /memslot_modification_stress_test
 /memslot_perf_test
 /rseq_test
