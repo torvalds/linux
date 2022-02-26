@@ -251,6 +251,8 @@ struct iscsi_cls_session {
 	bool recovery_tmo_sysfs_override;
 	struct delayed_work recovery_work;
 
+	struct workqueue_struct *workq;
+
 	unsigned int target_id;
 	bool ida_used;
 

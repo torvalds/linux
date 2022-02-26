@@ -2032,11 +2032,18 @@ EXPORT_SYMBOL_GPL(iscsi_alloc_session);
 
 int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	unsigned long flags;
 	int id = 0;
 	int err;
 
 	session->sid = atomic_add_return(1, &iscsi_session_nr);
+
+	session->workq = alloc_workqueue("iscsi_ctrl_%d:%d",
+			WQ_SYSFS | WQ_MEM_RECLAIM | WQ_UNBOUND, 0,
+			shost->host_no, session->sid);
+	if (!session->workq)
+		return -ENOMEM;
 
 	if (target_id == ISCSI_MAX_TARGET) {
 		id = ida_simple_get(&iscsi_sess_ida, 0, 0, GFP_KERNEL);
@@ -2044,7 +2051,8 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 		if (id < 0) {
 			iscsi_cls_session_printk(KERN_ERR, session,
 					"Failure in Target ID Allocation\n");
-			return id;
+			err = id;
+			goto destroy_wq;
 		}
 		session->target_id = (unsigned int)id;
 		session->ida_used = true;
@@ -2078,7 +2086,8 @@ release_dev:
 release_ida:
 	if (session->ida_used)
 		ida_simple_remove(&iscsi_sess_ida, session->target_id);
-
+destroy_wq:
+	destroy_workqueue(session->workq);
 	return err;
 }
 EXPORT_SYMBOL_GPL(iscsi_add_session);
@@ -2176,6 +2185,8 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 					 "for session. Error %d.\n", err);
 
 	transport_unregister_device(&session->dev);
+
+	destroy_workqueue(session->workq);
 
 	ISCSI_DBG_TRANS_SESSION(session, "Completing session removal\n");
 	device_del(&session->dev);
@@ -3833,8 +3844,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	case ISCSI_UEVENT_UNBIND_SESSION:
 		session = iscsi_session_lookup(ev->u.d_session.sid);
 		if (session)
-			scsi_queue_work(iscsi_session_to_shost(session),
-					&session->unbind_work);
+			queue_work(session->workq, &session->unbind_work);
 		else
 			err = -EINVAL;
 		break;
@@ -4707,7 +4717,6 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	INIT_LIST_HEAD(&priv->list);
 	priv->iscsi_transport = tt;
 	priv->t.user_scan = iscsi_user_scan;
-	priv->t.create_work_queue = 1;
 
 	priv->dev.class = &iscsi_transport_class;
 	dev_set_name(&priv->dev, "%s", tt->name);

@@ -5096,7 +5096,7 @@ int qla4xxx_unblock_flash_ddb(struct iscsi_cls_session *cls_session)
 		ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ddb[%d]"
 			   " start scan\n", ha->host_no, __func__,
 			   ddb_entry->fw_ddb_index);
-		scsi_queue_work(ha->host, &ddb_entry->sess->scan_work);
+		queue_work(ddb_entry->sess->workq, &ddb_entry->sess->scan_work);
 	}
 	return QLA_SUCCESS;
 }
