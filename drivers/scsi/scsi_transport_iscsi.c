@@ -1944,7 +1944,8 @@ static void __iscsi_unblock_session(struct work_struct *work)
  */
 void iscsi_unblock_session(struct iscsi_cls_session *session)
 {
-	flush_work(&session->block_work);
+	if (!cancel_work_sync(&session->block_work))
+		cancel_delayed_work_sync(&session->recovery_work);
 
 	queue_work(iscsi_eh_timer_workq, &session->unblock_work);
 	/*
@@ -2177,9 +2178,9 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 		list_del(&session->sess_list);
 	spin_unlock_irqrestore(&sesslock, flags);
 
-	flush_work(&session->block_work);
-	flush_work(&session->unblock_work);
-	cancel_delayed_work_sync(&session->recovery_work);
+	if (!cancel_work_sync(&session->block_work))
+		cancel_delayed_work_sync(&session->recovery_work);
+	cancel_work_sync(&session->unblock_work);
 	/*
 	 * If we are blocked let commands flow again. The lld or iscsi
 	 * layer should set up the queuecommand to fail commands.
