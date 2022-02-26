@@ -612,16 +612,15 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	u64 *sptep = rcu_dereference(iter->sptep);
 	u64 old_spte;
 
-	WARN_ON_ONCE(iter->yielded);
+	/*
+	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
+	 * SPTE.  KVM should never attempt to zap or manipulate a REMOVED SPTE,
+	 * and pre-checking before inserting a new SPTE is advantageous as it
+	 * avoids unnecessary work.
+	 */
+	WARN_ON_ONCE(iter->yielded || is_removed_spte(iter->old_spte));
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
-
-	/*
-	 * Do not change removed SPTEs. Only the thread that froze the SPTE
-	 * may modify it.
-	 */
-	if (is_removed_spte(iter->old_spte))
-		return -EBUSY;
 
 	/*
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
