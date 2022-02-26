@@ -30,6 +30,8 @@ extern bool dbg;
 #define INVALID_PAE_ROOT	0
 #define IS_VALID_PAE_ROOT(x)	(!!(x))
 
+typedef u64 __rcu *tdp_ptep_t;
+
 struct kvm_mmu_page {
 	/*
 	 * Note, "link" through "spt" fit in a single 64 byte cache line on
@@ -59,7 +61,10 @@ struct kvm_mmu_page {
 		refcount_t tdp_mmu_root_count;
 	};
 	unsigned int unsync_children;
-	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
+	union {
+		struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
+		tdp_ptep_t ptep;
+	};
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 	struct list_head lpage_disallowed_link;

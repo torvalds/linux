@@ -199,13 +199,14 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu)
 	return sp;
 }
 
-static void tdp_mmu_init_sp(struct kvm_mmu_page *sp, gfn_t gfn,
-			      union kvm_mmu_page_role role)
+static void tdp_mmu_init_sp(struct kvm_mmu_page *sp, tdp_ptep_t sptep,
+			    gfn_t gfn, union kvm_mmu_page_role role)
 {
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 
 	sp->role = role;
 	sp->gfn = gfn;
+	sp->ptep = sptep;
 	sp->tdp_mmu_page = true;
 
 	trace_kvm_mmu_get_page(sp, true);
@@ -222,7 +223,7 @@ static void tdp_mmu_init_child_sp(struct kvm_mmu_page *child_sp,
 	role = parent_sp->role;
 	role.level--;
 
-	tdp_mmu_init_sp(child_sp, iter->gfn, role);
+	tdp_mmu_init_sp(child_sp, iter->sptep, iter->gfn, role);
 }
 
 hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
@@ -244,7 +245,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	}
 
 	root = tdp_mmu_alloc_sp(vcpu);
-	tdp_mmu_init_sp(root, 0, role);
+	tdp_mmu_init_sp(root, NULL, 0, role);
 
 	refcount_set(&root->tdp_mmu_root_count, 1);
 
@@ -734,6 +735,33 @@ static inline bool __must_check tdp_mmu_iter_cond_resched(struct kvm *kvm,
 	}
 
 	return iter->yielded;
+}
+
+bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	u64 old_spte;
+
+	/*
+	 * This helper intentionally doesn't allow zapping a root shadow page,
+	 * which doesn't have a parent page table and thus no associated entry.
+	 */
+	if (WARN_ON_ONCE(!sp->ptep))
+		return false;
+
+	rcu_read_lock();
+
+	old_spte = kvm_tdp_mmu_read_spte(sp->ptep);
+	if (WARN_ON_ONCE(!is_shadow_present_pte(old_spte))) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	__tdp_mmu_set_spte(kvm, kvm_mmu_page_as_id(sp), sp->ptep, old_spte, 0,
+			   sp->gfn, sp->role.level + 1, true, true);
+
+	rcu_read_unlock();
+
+	return true;
 }
 
 /*

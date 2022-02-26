@@ -7,8 +7,6 @@
 
 #include "mmu.h"
 
-typedef u64 __rcu *tdp_ptep_t;
-
 /*
  * TDP MMU SPTEs are RCU protected to allow paging structures (non-leaf SPTEs)
  * to be zapped while holding mmu_lock for read.  Holding RCU isn't required for
