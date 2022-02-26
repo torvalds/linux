@@ -1292,6 +1292,7 @@ static const struct freq_tbl clk_tbl_sdc[] = {
 	{  20210000, P_PLL8,  1, 1,  19 },
 	{  24000000, P_PLL8,  4, 1,   4 },
 	{  48000000, P_PLL8,  4, 1,   2 },
+	{  51200000, P_PLL8,  1, 2,  15 },
 	{  64000000, P_PLL8,  3, 1,   2 },
 	{  96000000, P_PLL8,  4, 0,   0 },
 	{ 192000000, P_PLL8,  2, 0,   0 },
@@ -1325,7 +1326,7 @@ static struct clk_rcg sdc1_src = {
 			.name = "sdc1_src",
 			.parent_data = gcc_pxo_pll8,
 			.num_parents = ARRAY_SIZE(gcc_pxo_pll8),
-			.ops = &clk_rcg_ops,
+			.ops = &clk_rcg_floor_ops,
 		},
 	}
 };
