@@ -172,8 +172,7 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 				union display_idle_optimization_u idle_info = { 0 };
 				idle_info.idle_info.df_request_disabled = 1;
 				idle_info.idle_info.phy_ref_clk_off = 1;
-				// Todo DCN316 set this to 1 if any no issue
-				idle_info.idle_info.s0i2_rdy = 0;
+				idle_info.idle_info.s0i2_rdy = 1;
 				dcn316_smu_set_display_idle_optimization(clk_mgr, idle_info.data);
 				/* update power state */
 				clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
