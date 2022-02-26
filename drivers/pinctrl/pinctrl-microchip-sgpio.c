@@ -639,7 +639,14 @@ static void microchip_sgpio_irq_unmask(struct irq_data *data)
 
 static void microchip_sgpio_irq_ack(struct irq_data *data)
 {
-	microchip_sgpio_irq_setreg(data, REG_INT_ACK, false);
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct sgpio_bank *bank = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	struct sgpio_port_addr addr;
+
+	sgpio_pin_to_addr(bank->priv, gpio, &addr);
+
+	sgpio_writel(bank->priv, BIT(addr.port), REG_INT_ACK, addr.bit);
 }
 
 static int microchip_sgpio_irq_set_type(struct irq_data *data, unsigned int type)
