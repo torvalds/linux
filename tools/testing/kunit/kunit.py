@@ -206,8 +206,6 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 			pass
 		elif request.raw_output == 'kunit':
 			output = kunit_parser.extract_tap_lines(output)
-		else:
-			print(f'Unknown --raw_output option "{request.raw_output}"', file=sys.stderr)
 		for line in output:
 			print(line.rstrip())
 
@@ -284,10 +282,10 @@ def add_common_opts(parser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
 			    'directory.',
-			    type=str, default='.kunit', metavar='build_dir')
+			    type=str, default='.kunit', metavar='DIR')
 	parser.add_argument('--make_options',
 			    help='X=Y make option, can be repeated.',
-			    action='append')
+			    action='append', metavar='X=Y')
 	parser.add_argument('--alltests',
 			    help='Run all KUnit tests through allyesconfig',
 			    action='store_true')
@@ -295,11 +293,11 @@ def add_common_opts(parser) -> None:
 			     help='Path to Kconfig fragment that enables KUnit tests.'
 			     ' If given a directory, (e.g. lib/kunit), "/.kunitconfig" '
 			     'will get  automatically appended.',
-			     metavar='kunitconfig')
+			     metavar='PATH')
 	parser.add_argument('--kconfig_add',
 			     help='Additional Kconfig options to append to the '
 			     '.kunitconfig, e.g. CONFIG_KASAN=y. Can be repeated.',
-			    action='append')
+			    action='append', metavar='CONFIG_X=Y')
 
 	parser.add_argument('--arch',
 			    help=('Specifies the architecture to run tests under. '
@@ -307,7 +305,7 @@ def add_common_opts(parser) -> None:
 				  'string passed to the ARCH make param, '
 				  'e.g. i386, x86_64, arm, um, etc. Non-UML '
 				  'architectures run on QEMU.'),
-			    type=str, default='um', metavar='arch')
+			    type=str, default='um', metavar='ARCH')
 
 	parser.add_argument('--cross_compile',
 			    help=('Sets make\'s CROSS_COMPILE variable; it should '
@@ -319,18 +317,18 @@ def add_common_opts(parser) -> None:
 				  'if you have downloaded the microblaze toolchain '
 				  'from the 0-day website to a directory in your '
 				  'home directory called `toolchains`).'),
-			    metavar='cross_compile')
+			    metavar='PREFIX')
 
 	parser.add_argument('--qemu_config',
 			    help=('Takes a path to a path to a file containing '
 				  'a QemuArchParams object.'),
-			    type=str, metavar='qemu_config')
+			    type=str, metavar='FILE')
 
 def add_build_opts(parser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
 			    'jobs (commands) to run simultaneously."',
-			    type=int, default=get_default_jobs(), metavar='jobs')
+			    type=int, default=get_default_jobs(), metavar='N')
 
 def add_exec_opts(parser) -> None:
 	parser.add_argument('--timeout',
@@ -339,7 +337,7 @@ def add_exec_opts(parser) -> None:
 			    'tests.',
 			    type=int,
 			    default=300,
-			    metavar='timeout')
+			    metavar='SECONDS')
 	parser.add_argument('filter_glob',
 			    help='Filter which KUnit test suites/tests run at '
 			    'boot-time, e.g. list* or list*.*del_test',
@@ -349,7 +347,7 @@ def add_exec_opts(parser) -> None:
 			    metavar='filter_glob')
 	parser.add_argument('--kernel_args',
 			    help='Kernel command-line parameters. Maybe be repeated',
-			     action='append')
+			     action='append', metavar='')
 	parser.add_argument('--run_isolated', help='If set, boot the kernel for each '
 			    'individual suite/test. This is can be useful for debugging '
 			    'a non-hermetic test, one that might pass/fail based on '
@@ -360,13 +358,13 @@ def add_exec_opts(parser) -> None:
 def add_parse_opts(parser) -> None:
 	parser.add_argument('--raw_output', help='If set don\'t format output from kernel. '
 			    'If set to --raw_output=kunit, filters to just KUnit output.',
-			    type=str, nargs='?', const='all', default=None)
+			     type=str, nargs='?', const='all', default=None, choices=['all', 'kunit'])
 	parser.add_argument('--json',
 			    nargs='?',
 			    help='Stores test results in a JSON, and either '
 			    'prints to stdout or saves to file if a '
 			    'filename is specified',
-			    type=str, const='stdout', default=None)
+			    type=str, const='stdout', default=None, metavar='FILE')
 
 def main(argv, linux=None):
 	parser = argparse.ArgumentParser(
