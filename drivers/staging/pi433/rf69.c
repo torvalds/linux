@@ -782,7 +782,7 @@ int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 {
 	int i;
 	struct spi_transfer transfer;
-	u8 local_buffer[FIFO_SIZE + 1];
+	u8 local_buffer[FIFO_SIZE + 1] = {};
 	int retval;
 
 	if (size > FIFO_SIZE) {
