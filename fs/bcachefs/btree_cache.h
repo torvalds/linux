@@ -5,6 +5,8 @@
 #include "bcachefs.h"
 #include "btree_types.h"
 
+extern const char * const bch2_btree_node_flags[];
+
 struct btree_iter;
 
 void bch2_recalc_btree_reserve(struct bch_fs *);

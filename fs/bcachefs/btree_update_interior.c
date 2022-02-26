@@ -271,7 +271,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	six_lock_write(&b->c.lock, NULL, NULL);
 
 	set_btree_node_accessed(b);
-	set_btree_node_dirty(c, b);
+	set_btree_node_dirty_acct(c, b);
 	set_btree_node_need_write(b);
 
 	bch2_bset_init_first(b, &b->data->keys);
@@ -868,7 +868,7 @@ static void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 		closure_wake_up(&c->btree_interior_update_wait);
 	}
 
-	clear_btree_node_dirty(c, b);
+	clear_btree_node_dirty_acct(c, b);
 	clear_btree_node_need_write(b);
 
 	/*
@@ -1172,7 +1172,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 		bch2_btree_node_iter_advance(node_iter, b);
 
 	bch2_btree_bset_insert_key(trans, path, b, node_iter, insert);
-	set_btree_node_dirty(c, b);
+	set_btree_node_dirty_acct(c, b);
 	set_btree_node_need_write(b);
 }
 

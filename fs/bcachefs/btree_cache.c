@@ -13,6 +13,13 @@
 #include <linux/prefetch.h>
 #include <linux/sched/mm.h>
 
+const char * const bch2_btree_node_flags[] = {
+#define x(f)	#f,
+	BTREE_FLAGS()
+#undef x
+	NULL
+};
+
 void bch2_recalc_btree_reserve(struct bch_fs *c)
 {
 	unsigned i, reserve = 16;
@@ -413,7 +420,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 		if (btree_node_dirty(b))
 			bch2_btree_complete_write(c, b, btree_current_write(b));
-		clear_btree_node_dirty(c, b);
+		clear_btree_node_dirty_acct(c, b);
 
 		btree_node_data_free(c, b);
 	}

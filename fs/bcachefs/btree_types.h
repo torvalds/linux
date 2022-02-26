@@ -429,7 +429,29 @@ struct btree_trans {
 	struct replicas_delta_list *fs_usage_deltas;
 };
 
-#define BTREE_FLAG(flag)						\
+#define BTREE_FLAGS()							\
+	x(read_in_flight)						\
+	x(read_error)							\
+	x(dirty)							\
+	x(need_write)							\
+	x(noevict)							\
+	x(write_idx)							\
+	x(accessed)							\
+	x(write_in_flight)						\
+	x(write_in_flight_inner)					\
+	x(just_written)							\
+	x(dying)							\
+	x(fake)								\
+	x(need_rewrite)							\
+	x(never_write)
+
+enum btree_flags {
+#define x(flag)	BTREE_NODE_##flag,
+	BTREE_FLAGS()
+#undef x
+};
+
+#define x(flag)								\
 static inline bool btree_node_ ## flag(struct btree *b)			\
 {	return test_bit(BTREE_NODE_ ## flag, &b->flags); }		\
 									\
@@ -439,36 +461,8 @@ static inline void set_btree_node_ ## flag(struct btree *b)		\
 static inline void clear_btree_node_ ## flag(struct btree *b)		\
 {	clear_bit(BTREE_NODE_ ## flag, &b->flags); }
 
-enum btree_flags {
-	BTREE_NODE_read_in_flight,
-	BTREE_NODE_read_error,
-	BTREE_NODE_dirty,
-	BTREE_NODE_need_write,
-	BTREE_NODE_noevict,
-	BTREE_NODE_write_idx,
-	BTREE_NODE_accessed,
-	BTREE_NODE_write_in_flight,
-	BTREE_NODE_write_in_flight_inner,
-	BTREE_NODE_just_written,
-	BTREE_NODE_dying,
-	BTREE_NODE_fake,
-	BTREE_NODE_need_rewrite,
-	BTREE_NODE_never_write,
-};
-
-BTREE_FLAG(read_in_flight);
-BTREE_FLAG(read_error);
-BTREE_FLAG(need_write);
-BTREE_FLAG(noevict);
-BTREE_FLAG(write_idx);
-BTREE_FLAG(accessed);
-BTREE_FLAG(write_in_flight);
-BTREE_FLAG(write_in_flight_inner);
-BTREE_FLAG(just_written);
-BTREE_FLAG(dying);
-BTREE_FLAG(fake);
-BTREE_FLAG(need_rewrite);
-BTREE_FLAG(never_write);
+BTREE_FLAGS()
+#undef x
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {
