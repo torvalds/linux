@@ -759,7 +759,8 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 
 	mutex_lock(&j->reclaim_lock);
 
-	*did_work = journal_flush_pins(j, seq_to_flush, 0, 0) != 0;
+	if (journal_flush_pins(j, seq_to_flush, 0, 0))
+		*did_work = true;
 
 	spin_lock(&j->lock);
 	/*
