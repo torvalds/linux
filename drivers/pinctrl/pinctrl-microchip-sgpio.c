@@ -224,9 +224,9 @@ static inline void sgpio_configure_clock(struct sgpio_priv *priv, u32 clkfrq)
 	sgpio_clrsetbits(priv, REG_SIO_CLOCK, 0, clr, set);
 }
 
-static void sgpio_output_set(struct sgpio_priv *priv,
-			     struct sgpio_port_addr *addr,
-			     int value)
+static int sgpio_output_set(struct sgpio_priv *priv,
+			    struct sgpio_port_addr *addr,
+			    int value)
 {
 	unsigned int bit = SGPIO_SRC_BITS * addr->bit;
 	u32 clr, set;
@@ -245,10 +245,12 @@ static void sgpio_output_set(struct sgpio_priv *priv,
 		set = FIELD_PREP(SGPIO_SPARX5_BIT_SOURCE, value << bit);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	sgpio_clrsetbits(priv, REG_PORT_CONFIG, addr->port, clr, set);
+
+	return 0;
 }
 
 static int sgpio_output_get(struct sgpio_priv *priv,
@@ -334,7 +336,7 @@ static int sgpio_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT:
 			if (bank->is_input)
 				return -EINVAL;
-			sgpio_output_set(priv, &addr, arg);
+			err = sgpio_output_set(priv, &addr, arg);
 			break;
 
 		default:
@@ -474,9 +476,7 @@ static int microchip_sgpio_direction_output(struct gpio_chip *gc,
 
 	sgpio_pin_to_addr(priv, gpio, &addr);
 
-	sgpio_output_set(priv, &addr, value);
-
-	return 0;
+	return sgpio_output_set(priv, &addr, value);
 }
 
 static int microchip_sgpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
