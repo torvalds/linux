@@ -525,20 +525,21 @@ static void rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 	readx_poll_timeout(readl, rkisp1->base_addr + RKISP1_CIF_ISP_RIS,
 			   val, val & RKISP1_CIF_ISP_OFF, 20, 100);
 	rkisp1_write(rkisp1,
-		     RKISP1_CIF_IRCL_MIPI_SW_RST | RKISP1_CIF_IRCL_ISP_SW_RST,
-		     RKISP1_CIF_IRCL);
-	rkisp1_write(rkisp1, 0x0, RKISP1_CIF_IRCL);
+		     RKISP1_CIF_VI_IRCL_MIPI_SW_RST |
+		     RKISP1_CIF_VI_IRCL_ISP_SW_RST,
+		     RKISP1_CIF_VI_IRCL);
+	rkisp1_write(rkisp1, 0x0, RKISP1_CIF_VI_IRCL);
 }
 
 static void rkisp1_config_clk(struct rkisp1_device *rkisp1)
 {
-	u32 val = RKISP1_CIF_ICCL_ISP_CLK | RKISP1_CIF_ICCL_CP_CLK |
-		  RKISP1_CIF_ICCL_MRSZ_CLK | RKISP1_CIF_ICCL_SRSZ_CLK |
-		  RKISP1_CIF_ICCL_JPEG_CLK | RKISP1_CIF_ICCL_MI_CLK |
-		  RKISP1_CIF_ICCL_IE_CLK | RKISP1_CIF_ICCL_MIPI_CLK |
-		  RKISP1_CIF_ICCL_DCROP_CLK;
+	u32 val = RKISP1_CIF_VI_ICCL_ISP_CLK | RKISP1_CIF_VI_ICCL_CP_CLK |
+		  RKISP1_CIF_VI_ICCL_MRSZ_CLK | RKISP1_CIF_VI_ICCL_SRSZ_CLK |
+		  RKISP1_CIF_VI_ICCL_JPEG_CLK | RKISP1_CIF_VI_ICCL_MI_CLK |
+		  RKISP1_CIF_VI_ICCL_IE_CLK | RKISP1_CIF_VI_ICCL_MIPI_CLK |
+		  RKISP1_CIF_VI_ICCL_DCROP_CLK;
 
-	rkisp1_write(rkisp1, val, RKISP1_CIF_ICCL);
+	rkisp1_write(rkisp1, val, RKISP1_CIF_VI_ICCL);
 
 	/* ensure sp and mp can run at the same time in V12 */
 	if (rkisp1->media_dev.hw_revision == RKISP1_V12) {
