@@ -64,11 +64,13 @@ struct sgpio_properties {
 #define SGPIO_LUTON_BIT_SOURCE   GENMASK(11, 0)
 
 #define SGPIO_OCELOT_AUTO_REPEAT BIT(10)
+#define SGPIO_OCELOT_SINGLE_SHOT BIT(11)
 #define SGPIO_OCELOT_PORT_WIDTH  GENMASK(8, 7)
 #define SGPIO_OCELOT_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_OCELOT_BIT_SOURCE  GENMASK(23, 12)
 
 #define SGPIO_SPARX5_AUTO_REPEAT BIT(6)
+#define SGPIO_SPARX5_SINGLE_SHOT BIT(7)
 #define SGPIO_SPARX5_PORT_WIDTH  GENMASK(4, 3)
 #define SGPIO_SPARX5_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_SPARX5_BIT_SOURCE  GENMASK(23, 12)
@@ -118,6 +120,8 @@ struct sgpio_priv {
 	struct regmap *regs;
 	const struct sgpio_properties *properties;
 	spinlock_t lock;
+	/* protects the config register and single shot mode */
+	struct mutex poll_lock;
 };
 
 struct sgpio_port_addr {
@@ -224,12 +228,64 @@ static inline void sgpio_configure_clock(struct sgpio_priv *priv, u32 clkfrq)
 	sgpio_clrsetbits(priv, REG_SIO_CLOCK, 0, clr, set);
 }
 
+static int sgpio_single_shot(struct sgpio_priv *priv)
+{
+	u32 addr = sgpio_get_addr(priv, REG_SIO_CONFIG, 0);
+	int ret, ret2;
+	u32 ctrl;
+	unsigned int single_shot;
+	unsigned int auto_repeat;
+
+	switch (priv->properties->arch) {
+	case SGPIO_ARCH_LUTON:
+		/* not supported for now */
+		return 0;
+	case SGPIO_ARCH_OCELOT:
+		single_shot = SGPIO_OCELOT_SINGLE_SHOT;
+		auto_repeat = SGPIO_OCELOT_AUTO_REPEAT;
+		break;
+	case SGPIO_ARCH_SPARX5:
+		single_shot = SGPIO_SPARX5_SINGLE_SHOT;
+		auto_repeat = SGPIO_SPARX5_AUTO_REPEAT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Trigger immediate burst. This only works when auto repeat is turned
+	 * off. Otherwise, the single shot bit will never be cleared by the
+	 * hardware. Measurements showed that an update might take as long as
+	 * the burst gap. On a LAN9668 this is about 50ms for the largest
+	 * setting.
+	 * After the manual burst, reenable the auto repeat mode again.
+	 */
+	mutex_lock(&priv->poll_lock);
+	ret = regmap_update_bits(priv->regs, addr, single_shot | auto_repeat,
+				 single_shot);
+	if (ret)
+		goto out;
+
+	ret = regmap_read_poll_timeout(priv->regs, addr, ctrl,
+				       !(ctrl & single_shot), 100, 60000);
+
+	/* reenable auto repeat mode even if there was an error */
+	ret2 = regmap_update_bits(priv->regs, addr, auto_repeat, auto_repeat);
+out:
+	mutex_unlock(&priv->poll_lock);
+
+	return ret ?: ret2;
+}
+
 static int sgpio_output_set(struct sgpio_priv *priv,
 			    struct sgpio_port_addr *addr,
 			    int value)
 {
 	unsigned int bit = SGPIO_SRC_BITS * addr->bit;
+	u32 reg = sgpio_get_addr(priv, REG_PORT_CONFIG, addr->port);
+	bool changed;
 	u32 clr, set;
+	int ret;
 
 	switch (priv->properties->arch) {
 	case SGPIO_ARCH_LUTON:
@@ -248,7 +304,16 @@ static int sgpio_output_set(struct sgpio_priv *priv,
 		return -EINVAL;
 	}
 
-	sgpio_clrsetbits(priv, REG_PORT_CONFIG, addr->port, clr, set);
+	ret = regmap_update_bits_check(priv->regs, reg, clr | set, set,
+				       &changed);
+	if (ret)
+		return ret;
+
+	if (changed) {
+		ret = sgpio_single_shot(priv);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -787,6 +852,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc->of_gpio_n_cells     = 3;
 	gc->base		= -1;
 	gc->ngpio		= ngpios;
+	gc->can_sleep		= !bank->is_input;
 
 	if (bank->is_input && priv->properties->flags & SGPIO_FLAGS_HAS_IRQ) {
 		int irq = fwnode_irq_get(fwnode, 0);
@@ -847,6 +913,7 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	spin_lock_init(&priv->lock);
+	mutex_init(&priv->poll_lock);
 
 	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
 	if (IS_ERR(reset))
