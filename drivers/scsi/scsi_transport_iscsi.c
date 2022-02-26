@@ -1917,11 +1917,8 @@ static void __iscsi_unblock_session(struct work_struct *work)
 	unsigned long flags;
 
 	ISCSI_DBG_TRANS_SESSION(session, "Unblocking session\n");
-	/*
-	 * The recovery and unblock work get run from the same workqueue,
-	 * so try to cancel it if it was going to run after this unblock.
-	 */
-	cancel_delayed_work(&session->recovery_work);
+
+	cancel_delayed_work_sync(&session->recovery_work);
 	spin_lock_irqsave(&session->lock, flags);
 	session->state = ISCSI_SESSION_LOGGED_IN;
 	spin_unlock_irqrestore(&session->lock, flags);
