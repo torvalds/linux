@@ -199,20 +199,17 @@ static void nfs_grow_dtsize(struct nfs_readdir_descriptor *desc)
 	nfs_set_dtsize(desc, desc->dtsize << 1);
 }
 
-static void nfs_readdir_array_init(struct nfs_cache_array *array)
-{
-	memset(array, 0, sizeof(struct nfs_cache_array));
-}
-
 static void nfs_readdir_page_init_array(struct page *page, u64 last_cookie,
 					u64 change_attr)
 {
 	struct nfs_cache_array *array;
 
 	array = kmap_atomic(page);
-	nfs_readdir_array_init(array);
 	array->change_attr = change_attr;
 	array->last_cookie = last_cookie;
+	array->size = 0;
+	array->page_full = 0;
+	array->page_is_eof = 0;
 	array->cookies_are_ordered = 1;
 	kunmap_atomic(array);
 }
@@ -220,16 +217,15 @@ static void nfs_readdir_page_init_array(struct page *page, u64 last_cookie,
 /*
  * we are freeing strings created by nfs_add_to_readdir_array()
  */
-static
-void nfs_readdir_clear_array(struct page *page)
+static void nfs_readdir_clear_array(struct page *page)
 {
 	struct nfs_cache_array *array;
-	int i;
+	unsigned int i;
 
 	array = kmap_atomic(page);
 	for (i = 0; i < array->size; i++)
 		kfree(array->array[i].name);
-	nfs_readdir_array_init(array);
+	array->size = 0;
 	kunmap_atomic(array);
 }
 
