@@ -1797,11 +1797,12 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 
 		bch2_bpos_to_text(&buf1, path->pos);
 
-		printk(KERN_ERR "path: idx %u ref %u:%u%s%s btree %s pos %s locks %u %pS\n",
+		printk(KERN_ERR "path: idx %u ref %u:%u%s%s btree=%s l=%u pos %s locks %u %pS\n",
 		       path->idx, path->ref, path->intent_ref,
 		       path->should_be_locked ? " S" : "",
 		       path->preserve ? " P" : "",
 		       bch2_btree_ids[path->btree_id],
+		       path->level,
 		       buf1.buf,
 		       path->nodes_locked,
 #ifdef CONFIG_BCACHEFS_DEBUG
