@@ -410,6 +410,10 @@
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
+				ab8500_fg {
+					line-impedance-micro-ohms = <36000>;
+				};
+
 				/* This is mostly identical to the Codina v0.4 regulators */
 				regulator {
 					ab8500_ldo_aux1 {
