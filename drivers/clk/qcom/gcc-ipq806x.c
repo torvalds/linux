@@ -232,7 +232,9 @@ static struct clk_regmap pll14_vote = {
 
 static struct pll_freq_tbl pll18_freq_tbl[] = {
 	NSS_PLL_RATE(550000000, 44, 0, 1, 0x01495625),
+	NSS_PLL_RATE(600000000, 48, 0, 1, 0x01495625),
 	NSS_PLL_RATE(733000000, 58, 16, 25, 0x014b5625),
+	NSS_PLL_RATE(800000000, 64, 0, 1, 0x01495625),
 };
 
 static struct clk_pll pll18 = {
@@ -2698,11 +2700,19 @@ static struct clk_branch nss_tcm_clk = {
 	},
 };
 
-static const struct freq_tbl clk_tbl_nss[] = {
+static const struct freq_tbl clk_tbl_nss_ipq8064[] = {
 	{ 110000000, P_PLL18, 1, 1, 5 },
 	{ 275000000, P_PLL18, 2, 0, 0 },
 	{ 550000000, P_PLL18, 1, 0, 0 },
 	{ 733000000, P_PLL18, 1, 0, 0 },
+	{ }
+};
+
+static const struct freq_tbl clk_tbl_nss_ipq8065[] = {
+	{ 110000000, P_PLL18, 1, 1, 5 },
+	{ 275000000, P_PLL18, 2, 0, 0 },
+	{ 600000000, P_PLL18, 1, 0, 0 },
+	{ 800000000, P_PLL18, 1, 0, 0 },
 	{ }
 };
 
@@ -2745,7 +2755,7 @@ static struct clk_dyn_rcg ubi32_core1_src_clk = {
 		.pre_div_width = 2,
 	},
 	.mux_sel_bit = 0,
-	.freq_tbl = clk_tbl_nss,
+	/* nss freq table is selected based on the SoC compatible */
 	.clkr = {
 		.enable_reg = 0x3d20,
 		.enable_mask = BIT(1),
@@ -2798,7 +2808,7 @@ static struct clk_dyn_rcg ubi32_core2_src_clk = {
 		.pre_div_width = 2,
 	},
 	.mux_sel_bit = 0,
-	.freq_tbl = clk_tbl_nss,
+	/* nss freq table is selected based on the SoC compatible */
 	.clkr = {
 		.enable_reg = 0x3d40,
 		.enable_mask = BIT(1),
@@ -3130,6 +3140,14 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 	ret = qcom_cc_register_board_clk(dev, "pxo_board", "pxo", 25000000);
 	if (ret)
 		return ret;
+
+	if (of_machine_is_compatible("qcom,ipq8065")) {
+		ubi32_core1_src_clk.freq_tbl = clk_tbl_nss_ipq8065;
+		ubi32_core2_src_clk.freq_tbl = clk_tbl_nss_ipq8065;
+	} else {
+		ubi32_core1_src_clk.freq_tbl = clk_tbl_nss_ipq8064;
+		ubi32_core2_src_clk.freq_tbl = clk_tbl_nss_ipq8064;
+	}
 
 	ret = qcom_cc_probe(pdev, &gcc_ipq806x_desc);
 	if (ret)
