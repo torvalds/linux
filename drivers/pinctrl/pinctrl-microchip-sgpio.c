@@ -167,12 +167,11 @@ static void sgpio_writel(struct sgpio_priv *priv,
 static inline void sgpio_clrsetbits(struct sgpio_priv *priv,
 				    u32 rno, u32 off, u32 clear, u32 set)
 {
-	u32 val = sgpio_readl(priv, rno, off);
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	int ret;
 
-	val &= ~clear;
-	val |= set;
-
-	sgpio_writel(priv, val, rno, off);
+	ret = regmap_update_bits(priv->regs, addr, clear | set, set);
+	WARN_ONCE(ret, "error updating sgpio reg %d\n", ret);
 }
 
 static inline void sgpio_configure_bitstream(struct sgpio_priv *priv)
@@ -230,7 +229,6 @@ static void sgpio_output_set(struct sgpio_priv *priv,
 			     int value)
 {
 	unsigned int bit = SGPIO_SRC_BITS * addr->bit;
-	unsigned long flags;
 	u32 clr, set;
 
 	switch (priv->properties->arch) {
@@ -250,9 +248,7 @@ static void sgpio_output_set(struct sgpio_priv *priv,
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
 	sgpio_clrsetbits(priv, REG_PORT_CONFIG, addr->port, clr, set);
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int sgpio_output_get(struct sgpio_priv *priv,
@@ -615,16 +611,13 @@ static void microchip_sgpio_irq_setreg(struct irq_data *data,
 	struct sgpio_bank *bank = gpiochip_get_data(chip);
 	unsigned int gpio = irqd_to_hwirq(data);
 	struct sgpio_port_addr addr;
-	unsigned long flags;
 
 	sgpio_pin_to_addr(bank->priv, gpio, &addr);
 
-	spin_lock_irqsave(&bank->priv->lock, flags);
 	if (clear)
 		sgpio_clrsetbits(bank->priv, reg, addr.bit, BIT(addr.port), 0);
 	else
 		sgpio_clrsetbits(bank->priv, reg, addr.bit, 0, BIT(addr.port));
-	spin_unlock_irqrestore(&bank->priv->lock, flags);
 }
 
 static void microchip_sgpio_irq_mask(struct irq_data *data)
