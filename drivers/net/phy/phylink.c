@@ -815,8 +815,18 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	/* If we have a new PCS, switch to the new PCS after preparing the MAC
 	 * for the change.
 	 */
-	if (pcs)
-		phylink_set_pcs(pl, pcs);
+	if (pcs) {
+		pl->pcs = pcs;
+		pl->pcs_ops = pcs->ops;
+
+		if (!pl->phylink_disable_state &&
+		    pl->cfg_link_an_mode == MLO_AN_INBAND) {
+			if (pcs->poll)
+				mod_timer(&pl->link_poll, jiffies + HZ);
+			else
+				del_timer(&pl->link_poll);
+		}
+	}
 
 	phylink_mac_config(pl, state);
 
@@ -1285,36 +1295,6 @@ struct phylink *phylink_create(struct phylink_config *config,
 	return pl;
 }
 EXPORT_SYMBOL_GPL(phylink_create);
-
-/**
- * phylink_set_pcs() - set the current PCS for phylink to use
- * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @pcs: a pointer to the &struct phylink_pcs
- *
- * Bind the MAC PCS to phylink.  This may be called after phylink_create().
- * If it is desired to dynamically change the PCS, then the preferred method
- * is to use mac_select_pcs(), but it may also be called in mac_prepare()
- * or mac_config().
- *
- * Please note that there are behavioural changes with the mac_config()
- * callback if a PCS is present (denoting a newer setup) so removing a PCS
- * is not supported, and if a PCS is going to be used, it must be registered
- * by calling phylink_set_pcs() at the latest in the first mac_config() call.
- */
-void phylink_set_pcs(struct phylink *pl, struct phylink_pcs *pcs)
-{
-	pl->pcs = pcs;
-	pl->pcs_ops = pcs->ops;
-
-	if (!pl->phylink_disable_state &&
-	    pl->cfg_link_an_mode == MLO_AN_INBAND) {
-		if (pcs->poll)
-			mod_timer(&pl->link_poll, jiffies + HZ);
-		else
-			del_timer(&pl->link_poll);
-	}
-}
-EXPORT_SYMBOL_GPL(phylink_set_pcs);
 
 /**
  * phylink_destroy() - cleanup and destroy the phylink instance
