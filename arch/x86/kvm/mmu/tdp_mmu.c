@@ -29,13 +29,16 @@ bool kvm_mmu_init_tdp_mmu(struct kvm *kvm)
 	return true;
 }
 
-static __always_inline void kvm_lockdep_assert_mmu_lock_held(struct kvm *kvm,
+/* Arbitrarily returns true so that this may be used in if statements. */
+static __always_inline bool kvm_lockdep_assert_mmu_lock_held(struct kvm *kvm,
 							     bool shared)
 {
 	if (shared)
 		lockdep_assert_held_read(&kvm->mmu_lock);
 	else
 		lockdep_assert_held_write(&kvm->mmu_lock);
+
+	return true;
 }
 
 void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
@@ -172,11 +175,17 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 #define for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared)		\
 	__for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, false)
 
-#define for_each_tdp_mmu_root(_kvm, _root, _as_id)				\
-	list_for_each_entry_rcu(_root, &_kvm->arch.tdp_mmu_roots, link,		\
-				lockdep_is_held_type(&kvm->mmu_lock, 0) ||	\
-				lockdep_is_held(&kvm->arch.tdp_mmu_pages_lock))	\
-		if (kvm_mmu_page_as_id(_root) != _as_id) {		\
+/*
+ * Iterate over all TDP MMU roots.  Requires that mmu_lock be held for write,
+ * the implication being that any flow that holds mmu_lock for read is
+ * inherently yield-friendly and should use the yield-safe variant above.
+ * Holding mmu_lock for write obviates the need for RCU protection as the list
+ * is guaranteed to be stable.
+ */
+#define for_each_tdp_mmu_root(_kvm, _root, _as_id)			\
+	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)	\
+		if (kvm_lockdep_assert_mmu_lock_held(_kvm, false) &&	\
+		    kvm_mmu_page_as_id(_root) != _as_id) {		\
 		} else
 
 static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu)
