@@ -14,10 +14,28 @@
 #include <linux/iopoll.h>
 #include "felix.h"
 
+#define VSC9953_NUM_PORTS			10
+
 #define VSC9953_VCAP_POLICER_BASE		11
 #define VSC9953_VCAP_POLICER_MAX		31
 #define VSC9953_VCAP_POLICER_BASE2		120
 #define VSC9953_VCAP_POLICER_MAX2		161
+
+#define VSC9953_PORT_MODE_SERDES		(OCELOT_PORT_MODE_SGMII | \
+						 OCELOT_PORT_MODE_QSGMII)
+
+static const u32 vsc9953_port_modes[VSC9953_NUM_PORTS] = {
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	VSC9953_PORT_MODE_SERDES,
+	OCELOT_PORT_MODE_INTERNAL,
+	OCELOT_PORT_MODE_INTERNAL,
+};
 
 static const u32 vsc9953_ana_regmap[] = {
 	REG(ANA_ADVLEARN,			0x00b500),
@@ -938,25 +956,6 @@ static void vsc9953_phylink_validate(struct ocelot *ocelot, int port,
 	linkmode_and(state->advertising, state->advertising, mask);
 }
 
-static int vsc9953_prevalidate_phy_mode(struct ocelot *ocelot, int port,
-					phy_interface_t phy_mode)
-{
-	switch (phy_mode) {
-	case PHY_INTERFACE_MODE_INTERNAL:
-		if (port != 8 && port != 9)
-			return -ENOTSUPP;
-		return 0;
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-		/* Not supported on internal to-CPU ports */
-		if (port == 8 || port == 9)
-			return -ENOTSUPP;
-		return 0;
-	default:
-		return -ENOTSUPP;
-	}
-}
-
 /* Watermark encode
  * Bit 9:   Unit; 0:1, 1:16
  * Bit 8-0: Value to be multiplied with unit
@@ -1094,12 +1093,12 @@ static const struct felix_info seville_info_vsc9953 = {
 	.vcap_pol_base2		= VSC9953_VCAP_POLICER_BASE2,
 	.vcap_pol_max2		= VSC9953_VCAP_POLICER_MAX2,
 	.num_mact_rows		= 2048,
-	.num_ports		= 10,
+	.num_ports		= VSC9953_NUM_PORTS,
 	.num_tx_queues		= OCELOT_NUM_TC,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.phylink_validate	= vsc9953_phylink_validate,
-	.prevalidate_phy_mode	= vsc9953_prevalidate_phy_mode,
+	.port_modes		= vsc9953_port_modes,
 	.init_regmap		= ocelot_regmap_init,
 };
 
