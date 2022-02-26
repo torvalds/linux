@@ -2693,8 +2693,23 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	u64 data = msr->data;
 	switch (ecx) {
 	case MSR_AMD64_TSC_RATIO:
-		if (!msr->host_initiated && !svm->tsc_scaling_enabled)
-			return 1;
+
+		if (!svm->tsc_scaling_enabled) {
+
+			if (!msr->host_initiated)
+				return 1;
+			/*
+			 * In case TSC scaling is not enabled, always
+			 * leave this MSR at the default value.
+			 *
+			 * Due to bug in qemu 6.2.0, it would try to set
+			 * this msr to 0 if tsc scaling is not enabled.
+			 * Ignore this value as well.
+			 */
+			if (data != 0 && data != svm->tsc_ratio_msr)
+				return 1;
+			break;
+		}
 
 		if (data & TSC_RATIO_RSVD)
 			return 1;

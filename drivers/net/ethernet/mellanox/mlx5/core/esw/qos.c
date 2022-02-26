@@ -697,7 +697,7 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 }
 
 int mlx5_esw_qos_set_vport_rate(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
-				u32 min_rate, u32 max_rate)
+				u32 max_rate, u32 min_rate)
 {
 	int err;
 
