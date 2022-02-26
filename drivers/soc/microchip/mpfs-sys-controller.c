@@ -73,13 +73,12 @@ static void mpfs_sys_controller_delete(struct kref *kref)
 	kfree(sys_controller);
 }
 
-void mpfs_sys_controller_put(void *data)
+static void mpfs_sys_controller_put(void *data)
 {
 	struct mpfs_sys_controller *sys_controller = data;
 
 	kref_put(&sys_controller->consumers, mpfs_sys_controller_delete);
 }
-EXPORT_SYMBOL(mpfs_sys_controller_put);
 
 static struct platform_device subdevs[] = {
 	{
