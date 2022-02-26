@@ -389,6 +389,11 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_NEIGH_CREATEFAIL,	/* failed to create neigh
 						 * entry
 						 */
+	SKB_DROP_REASON_NEIGH_FAILED,	/* neigh entry in failed state */
+	SKB_DROP_REASON_NEIGH_QUEUEFULL,	/* arp_queue for neigh
+						 * entry is full
+						 */
+	SKB_DROP_REASON_NEIGH_DEAD,	/* neigh entry is dead */
 	SKB_DROP_REASON_MAX,
 };
 
