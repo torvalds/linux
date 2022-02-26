@@ -340,6 +340,15 @@ config COMMON_CLK_OXNAS
 	help
 	  Support for the OXNAS SoC Family clocks.
 
+config COMMON_CLK_RS9_PCIE
+	tristate "Clock driver for Renesas 9-series PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the Renesas 9-series PCIe clock generator
+	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.
+
 config COMMON_CLK_VC5
 	tristate "Clock driver for IDT VersaClock 5,6 devices"
 	depends on I2C
