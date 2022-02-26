@@ -383,7 +383,6 @@ struct iscsi_host {
 	int			state;
 
 	struct workqueue_struct	*workq;
-	char			workq_name[20];
 };
 
 /*
