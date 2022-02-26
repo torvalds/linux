@@ -10,6 +10,22 @@
 typedef u64 __rcu *tdp_ptep_t;
 
 /*
+ * TDP MMU SPTEs are RCU protected to allow paging structures (non-leaf SPTEs)
+ * to be zapped while holding mmu_lock for read.  Holding RCU isn't required for
+ * correctness if mmu_lock is held for write, but plumbing "struct kvm" down to
+ * the lower depths of the TDP MMU just to make lockdep happy is a nightmare, so
+ * all accesses to SPTEs are done under RCU protection.
+ */
+static inline u64 kvm_tdp_mmu_read_spte(tdp_ptep_t sptep)
+{
+	return READ_ONCE(*rcu_dereference(sptep));
+}
+static inline void kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 val)
+{
+	WRITE_ONCE(*rcu_dereference(sptep), val);
+}
+
+/*
  * A TDP iterator performs a pre-order walk over a TDP paging structure.
  */
 struct tdp_iter {
