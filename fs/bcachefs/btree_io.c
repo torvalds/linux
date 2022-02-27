@@ -1772,9 +1772,6 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_sta
 	if (already_started)
 		goto do_write;
 
-	if (test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
-		return;
-
 	/*
 	 * We may only have a read lock on the btree node - the dirty bit is our
 	 * "lock" against racing with other threads that may be trying to start

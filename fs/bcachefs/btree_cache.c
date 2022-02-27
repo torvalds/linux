@@ -223,8 +223,7 @@ wait_on_io:
 		goto out_unlock;
 
 	if (btree_node_dirty(b)) {
-		if (!flush ||
-		    test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
+		if (!flush)
 			goto out_unlock;
 		/*
 		 * Using the underscore version because we don't want to compact
