@@ -3,6 +3,7 @@
 
 #define _RTW_MLME_EXT_C_
 
+#include <linux/ieee80211.h>
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
 #include "../include/wifi.h"
@@ -414,7 +415,7 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	u8 *pframe = precv_frame->rx_data;
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
 
-	if (GetFrameType(pframe) != WIFI_MGT_TYPE)
+	if (GetFrameType(pframe) != IEEE80211_FTYPE_MGMT)
 		return;
 
 	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */

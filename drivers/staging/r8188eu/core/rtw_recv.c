@@ -1094,7 +1094,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	/* Dump rx packets */
 	GetHalDefVar8188EUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 	switch (type) {
-	case WIFI_MGT_TYPE: /* mgnt */
+	case IEEE80211_FTYPE_MGMT:
 		validate_recv_mgnt_frame(adapter, precv_frame);
 		retval = _FAIL; /*  only data frame return _SUCCESS */
 		break;
