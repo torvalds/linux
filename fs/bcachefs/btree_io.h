@@ -143,20 +143,19 @@ int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 void bch2_btree_complete_write(struct bch_fs *, struct btree *,
 			      struct btree_write *);
 
-void __bch2_btree_node_write(struct bch_fs *, struct btree *, bool);
 bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);
 
+#define BTREE_WRITE_ONLY_IF_NEED	(1U << 0)
+#define BTREE_WRITE_ALREADY_STARTED	(1U << 1)
+
+void __bch2_btree_node_write(struct bch_fs *, struct btree *, unsigned);
 void bch2_btree_node_write(struct bch_fs *, struct btree *,
-			  enum six_lock_type);
+			   enum six_lock_type, unsigned);
 
 static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 					    enum six_lock_type lock_held)
 {
-	if (b->written &&
-	    btree_node_need_write(b) &&
-	    btree_node_may_write(b) &&
-	    !btree_node_write_in_flight(b))
-		bch2_btree_node_write(c, b, lock_held);
+	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
 #define bch2_btree_node_write_cond(_c, _b, cond)			\

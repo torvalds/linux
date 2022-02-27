@@ -1393,8 +1393,8 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 		six_unlock_write(&n2->c.lock);
 		six_unlock_write(&n1->c.lock);
 
-		bch2_btree_node_write(c, n1, SIX_LOCK_intent);
-		bch2_btree_node_write(c, n2, SIX_LOCK_intent);
+		bch2_btree_node_write(c, n1, SIX_LOCK_intent, 0);
+		bch2_btree_node_write(c, n2, SIX_LOCK_intent, 0);
 
 		/*
 		 * Note that on recursive parent_keys == keys, so we
@@ -1413,7 +1413,7 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 
 			btree_split_insert_keys(as, trans, path, n3, &as->parent_keys);
 
-			bch2_btree_node_write(c, n3, SIX_LOCK_intent);
+			bch2_btree_node_write(c, n3, SIX_LOCK_intent, 0);
 		}
 	} else {
 		trace_btree_compact(c, b);
@@ -1421,7 +1421,7 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 		bch2_btree_build_aux_trees(n1);
 		six_unlock_write(&n1->c.lock);
 
-		bch2_btree_node_write(c, n1, SIX_LOCK_intent);
+		bch2_btree_node_write(c, n1, SIX_LOCK_intent, 0);
 
 		if (parent)
 			bch2_keylist_add(&as->parent_keys, &n1->key);
@@ -1709,7 +1709,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	bch2_btree_build_aux_trees(n);
 	six_unlock_write(&n->c.lock);
 
-	bch2_btree_node_write(c, n, SIX_LOCK_intent);
+	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
 
 	bkey_init(&delete.k);
 	delete.k.p = prev->key.k.p;
@@ -1783,7 +1783,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	trace_btree_gc_rewrite_node(c, b);
 
-	bch2_btree_node_write(c, n, SIX_LOCK_intent);
+	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
 
 	if (parent) {
 		bch2_keylist_add(&as->parent_keys, &n->key);

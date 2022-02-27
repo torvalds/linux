@@ -471,7 +471,7 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 		};
 
 		if (log_u64s[1] >= (log_u64s[0] + log_u64s[2]) / 2) {
-			bch2_btree_node_write(c, b, SIX_LOCK_write);
+			bch2_btree_node_write(c, b, SIX_LOCK_write, 0);
 			reinit_iter = true;
 		}
 	}
@@ -1620,7 +1620,7 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 	} while ((v = cmpxchg(&b->flags, old, new)) != old);
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
-		__bch2_btree_node_write(c, b, true);
+		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED);
 }
 
 static void btree_node_write_done(struct bch_fs *c, struct btree *b)
@@ -1741,7 +1741,7 @@ static void btree_write_submit(struct work_struct *work)
 	bch2_submit_wbio_replicas(&wbio->wbio, wbio->wbio.c, BCH_DATA_btree, &tmp.k);
 }
 
-void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_started)
+void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 {
 	struct btree_write_bio *wbio;
 	struct bset_tree *t;
@@ -1758,7 +1758,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_sta
 	void *data;
 	int ret;
 
-	if (already_started)
+	if (flags & BTREE_WRITE_ALREADY_STARTED)
 		goto do_write;
 
 	/*
@@ -1774,13 +1774,18 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_sta
 		if (!(old & (1 << BTREE_NODE_dirty)))
 			return;
 
+		if ((flags & BTREE_WRITE_ONLY_IF_NEED) &&
+		    !(old & (1 << BTREE_NODE_need_write)))
+			return;
+
 		if (!btree_node_may_write(b))
 			return;
 
 		if (old & (1 << BTREE_NODE_never_write))
 			return;
 
-		BUG_ON(old & (1 << BTREE_NODE_write_in_flight));
+		if (old & (1 << BTREE_NODE_write_in_flight))
+			return;
 
 		new &= ~(1 << BTREE_NODE_dirty);
 		new &= ~(1 << BTREE_NODE_need_write);
@@ -2044,12 +2049,13 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
  * Use this one if the node is intent locked:
  */
 void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
-			   enum six_lock_type lock_type_held)
+			   enum six_lock_type lock_type_held,
+			   unsigned flags)
 {
 	if (lock_type_held == SIX_LOCK_intent ||
 	    (lock_type_held == SIX_LOCK_read &&
 	     six_lock_tryupgrade(&b->c.lock))) {
-		__bch2_btree_node_write(c, b, false);
+		__bch2_btree_node_write(c, b, flags);
 
 		/* don't cycle lock unnecessarily: */
 		if (btree_node_just_written(b) &&
@@ -2061,7 +2067,7 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		if (lock_type_held == SIX_LOCK_read)
 			six_lock_downgrade(&b->c.lock);
 	} else {
-		__bch2_btree_node_write(c, b, false);
+		__bch2_btree_node_write(c, b, flags);
 		if (lock_type_held == SIX_LOCK_write &&
 		    btree_node_just_written(b))
 			bch2_btree_post_write_cleanup(c, b);
