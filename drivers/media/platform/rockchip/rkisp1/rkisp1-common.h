@@ -313,6 +313,7 @@ struct rkisp1_params {
  * struct rkisp1_resizer - Resizer subdev
  *
  * @sd:	       v4l2_subdev variable
+ * @regs_base: base register address offset
  * @id:	       id of the resizer, one of RKISP1_SELFPATH, RKISP1_MAINPATH
  * @rkisp1:    pointer to the rkisp1 device
  * @pads:      media pads
@@ -323,6 +324,7 @@ struct rkisp1_params {
  */
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
+	u32 regs_base;
 	enum rkisp1_stream_id id;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_RSZ_PAD_MAX];

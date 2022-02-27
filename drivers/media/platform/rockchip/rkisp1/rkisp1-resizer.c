@@ -61,30 +61,6 @@ struct rkisp1_rsz_config {
 	/* registers */
 	struct {
 		u32 ctrl;
-		u32 ctrl_shd;
-		u32 scale_hy;
-		u32 scale_hcr;
-		u32 scale_hcb;
-		u32 scale_vy;
-		u32 scale_vc;
-		u32 scale_lut;
-		u32 scale_lut_addr;
-		u32 scale_hy_shd;
-		u32 scale_hcr_shd;
-		u32 scale_hcb_shd;
-		u32 scale_vy_shd;
-		u32 scale_vc_shd;
-		u32 phase_hy;
-		u32 phase_hc;
-		u32 phase_vy;
-		u32 phase_vc;
-		u32 phase_hy_shd;
-		u32 phase_hc_shd;
-		u32 phase_vy_shd;
-		u32 phase_vc_shd;
-	} rsz;
-	struct {
-		u32 ctrl;
 		u32 yuvmode_mask;
 		u32 rawmode_mask;
 		u32 h_offset;
@@ -101,30 +77,6 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_mp = {
 	.min_rsz_width = RKISP1_RSZ_SRC_MIN_WIDTH,
 	.min_rsz_height = RKISP1_RSZ_SRC_MIN_HEIGHT,
 	/* registers */
-	.rsz = {
-		.ctrl =			RKISP1_CIF_MRSZ_CTRL,
-		.scale_hy =		RKISP1_CIF_MRSZ_SCALE_HY,
-		.scale_hcr =		RKISP1_CIF_MRSZ_SCALE_HCR,
-		.scale_hcb =		RKISP1_CIF_MRSZ_SCALE_HCB,
-		.scale_vy =		RKISP1_CIF_MRSZ_SCALE_VY,
-		.scale_vc =		RKISP1_CIF_MRSZ_SCALE_VC,
-		.scale_lut =		RKISP1_CIF_MRSZ_SCALE_LUT,
-		.scale_lut_addr =	RKISP1_CIF_MRSZ_SCALE_LUT_ADDR,
-		.scale_hy_shd =		RKISP1_CIF_MRSZ_SCALE_HY_SHD,
-		.scale_hcr_shd =	RKISP1_CIF_MRSZ_SCALE_HCR_SHD,
-		.scale_hcb_shd =	RKISP1_CIF_MRSZ_SCALE_HCB_SHD,
-		.scale_vy_shd =		RKISP1_CIF_MRSZ_SCALE_VY_SHD,
-		.scale_vc_shd =		RKISP1_CIF_MRSZ_SCALE_VC_SHD,
-		.phase_hy =		RKISP1_CIF_MRSZ_PHASE_HY,
-		.phase_hc =		RKISP1_CIF_MRSZ_PHASE_HC,
-		.phase_vy =		RKISP1_CIF_MRSZ_PHASE_VY,
-		.phase_vc =		RKISP1_CIF_MRSZ_PHASE_VC,
-		.ctrl_shd =		RKISP1_CIF_MRSZ_CTRL_SHD,
-		.phase_hy_shd =		RKISP1_CIF_MRSZ_PHASE_HY_SHD,
-		.phase_hc_shd =		RKISP1_CIF_MRSZ_PHASE_HC_SHD,
-		.phase_vy_shd =		RKISP1_CIF_MRSZ_PHASE_VY_SHD,
-		.phase_vc_shd =		RKISP1_CIF_MRSZ_PHASE_VC_SHD,
-	},
 	.dual_crop = {
 		.ctrl =			RKISP1_CIF_DUAL_CROP_CTRL,
 		.yuvmode_mask =		RKISP1_CIF_DUAL_CROP_MP_MODE_YUV,
@@ -143,30 +95,6 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_sp = {
 	.min_rsz_width = RKISP1_RSZ_SRC_MIN_WIDTH,
 	.min_rsz_height = RKISP1_RSZ_SRC_MIN_HEIGHT,
 	/* registers */
-	.rsz = {
-		.ctrl =			RKISP1_CIF_SRSZ_CTRL,
-		.scale_hy =		RKISP1_CIF_SRSZ_SCALE_HY,
-		.scale_hcr =		RKISP1_CIF_SRSZ_SCALE_HCR,
-		.scale_hcb =		RKISP1_CIF_SRSZ_SCALE_HCB,
-		.scale_vy =		RKISP1_CIF_SRSZ_SCALE_VY,
-		.scale_vc =		RKISP1_CIF_SRSZ_SCALE_VC,
-		.scale_lut =		RKISP1_CIF_SRSZ_SCALE_LUT,
-		.scale_lut_addr =	RKISP1_CIF_SRSZ_SCALE_LUT_ADDR,
-		.scale_hy_shd =		RKISP1_CIF_SRSZ_SCALE_HY_SHD,
-		.scale_hcr_shd =	RKISP1_CIF_SRSZ_SCALE_HCR_SHD,
-		.scale_hcb_shd =	RKISP1_CIF_SRSZ_SCALE_HCB_SHD,
-		.scale_vy_shd =		RKISP1_CIF_SRSZ_SCALE_VY_SHD,
-		.scale_vc_shd =		RKISP1_CIF_SRSZ_SCALE_VC_SHD,
-		.phase_hy =		RKISP1_CIF_SRSZ_PHASE_HY,
-		.phase_hc =		RKISP1_CIF_SRSZ_PHASE_HC,
-		.phase_vy =		RKISP1_CIF_SRSZ_PHASE_VY,
-		.phase_vc =		RKISP1_CIF_SRSZ_PHASE_VC,
-		.ctrl_shd =		RKISP1_CIF_SRSZ_CTRL_SHD,
-		.phase_hy_shd =		RKISP1_CIF_SRSZ_PHASE_HY_SHD,
-		.phase_hc_shd =		RKISP1_CIF_SRSZ_PHASE_HC_SHD,
-		.phase_vy_shd =		RKISP1_CIF_SRSZ_PHASE_VY_SHD,
-		.phase_vc_shd =		RKISP1_CIF_SRSZ_PHASE_VC_SHD,
-	},
 	.dual_crop = {
 		.ctrl =			RKISP1_CIF_DUAL_CROP_CTRL,
 		.yuvmode_mask =		RKISP1_CIF_DUAL_CROP_SP_MODE_YUV,
@@ -177,6 +105,17 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_sp = {
 		.v_size =		RKISP1_CIF_DUAL_CROP_S_V_SIZE,
 	},
 };
+
+static inline u32 rkisp1_rsz_read(struct rkisp1_resizer *rsz, u32 offset)
+{
+	return rkisp1_read(rsz->rkisp1, rsz->regs_base + offset);
+}
+
+static inline void rkisp1_rsz_write(struct rkisp1_resizer *rsz, u32 offset,
+				    u32 value)
+{
+	rkisp1_write(rsz->rkisp1, rsz->regs_base + offset, value);
+}
 
 static struct v4l2_mbus_framefmt *
 rkisp1_rsz_get_pad_fmt(struct rkisp1_resizer *rsz,
@@ -277,39 +216,39 @@ static void rkisp1_rsz_dump_regs(struct rkisp1_resizer *rsz)
 		"RSZ_PHASE_HC %d/%d\n"
 		"RSZ_PHASE_VY %d/%d\n"
 		"RSZ_PHASE_VC %d/%d\n",
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.ctrl),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.ctrl_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hy),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hy_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hcb),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hcb_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hcr),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_hcr_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_vy),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_vy_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_vc),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.scale_vc_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_hy),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_hy_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_hc),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_hc_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_vy),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_vy_shd),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_vc),
-		rkisp1_read(rsz->rkisp1, rsz->config->rsz.phase_vc_shd));
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_CTRL),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_CTRL_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HY),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HY_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HCB),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HCB_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HCR),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_HCR_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_VY),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_VY_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_VC),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_SCALE_VC_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_HY),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_HY_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_HC),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_HC_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_VY),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_VY_SHD),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_VC),
+		rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_PHASE_VC_SHD));
 }
 
 static void rkisp1_rsz_update_shadow(struct rkisp1_resizer *rsz,
 				     enum rkisp1_shadow_regs_when when)
 {
-	u32 ctrl_cfg = rkisp1_read(rsz->rkisp1, rsz->config->rsz.ctrl);
+	u32 ctrl_cfg = rkisp1_rsz_read(rsz, RKISP1_CIF_RSZ_CTRL);
 
 	if (when == RKISP1_SHADOW_REGS_ASYNC)
 		ctrl_cfg |= RKISP1_CIF_RSZ_CTRL_CFG_UPD_AUTO;
 	else
 		ctrl_cfg |= RKISP1_CIF_RSZ_CTRL_CFG_UPD;
 
-	rkisp1_write(rsz->rkisp1, rsz->config->rsz.ctrl, ctrl_cfg);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_CTRL, ctrl_cfg);
 }
 
 static u32 rkisp1_rsz_calc_ratio(u32 len_sink, u32 len_src)
@@ -325,7 +264,7 @@ static u32 rkisp1_rsz_calc_ratio(u32 len_sink, u32 len_src)
 static void rkisp1_rsz_disable(struct rkisp1_resizer *rsz,
 			       enum rkisp1_shadow_regs_when when)
 {
-	rkisp1_write(rsz->rkisp1, rsz->config->rsz.ctrl, 0);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_CTRL, 0);
 
 	if (when == RKISP1_SHADOW_REGS_SYNC)
 		rkisp1_rsz_update_shadow(rsz, when);
@@ -338,20 +277,19 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 				   struct v4l2_rect *src_c,
 				   enum rkisp1_shadow_regs_when when)
 {
-	struct rkisp1_device *rkisp1 = rsz->rkisp1;
 	u32 ratio, rsz_ctrl = 0;
 	unsigned int i;
 
 	/* No phase offset */
-	rkisp1_write(rkisp1, rsz->config->rsz.phase_hy, 0);
-	rkisp1_write(rkisp1, rsz->config->rsz.phase_hc, 0);
-	rkisp1_write(rkisp1, rsz->config->rsz.phase_vy, 0);
-	rkisp1_write(rkisp1, rsz->config->rsz.phase_vc, 0);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_HY, 0);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_HC, 0);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_VY, 0);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_VC, 0);
 
 	/* Linear interpolation */
 	for (i = 0; i < 64; i++) {
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_lut_addr, i);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_lut, i);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_LUT_ADDR, i);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_LUT, i);
 	}
 
 	if (sink_y->width != src_y->width) {
@@ -359,7 +297,7 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_y->width < src_y->width)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_HY_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_y->width, src_y->width);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_hy, ratio);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_HY, ratio);
 	}
 
 	if (sink_c->width != src_c->width) {
@@ -367,8 +305,8 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_c->width < src_c->width)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_HC_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_c->width, src_c->width);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_hcb, ratio);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_hcr, ratio);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_HCB, ratio);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_HCR, ratio);
 	}
 
 	if (sink_y->height != src_y->height) {
@@ -376,7 +314,7 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_y->height < src_y->height)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_VY_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_y->height, src_y->height);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_vy, ratio);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_VY, ratio);
 	}
 
 	if (sink_c->height != src_c->height) {
@@ -384,10 +322,10 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_c->height < src_c->height)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_VC_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_c->height, src_c->height);
-		rkisp1_write(rkisp1, rsz->config->rsz.scale_vc, ratio);
+		rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_SCALE_VC, ratio);
 	}
 
-	rkisp1_write(rkisp1, rsz->config->rsz.ctrl, rsz_ctrl);
+	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_CTRL, rsz_ctrl);
 
 	rkisp1_rsz_update_shadow(rsz, when);
 }
@@ -803,10 +741,13 @@ static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 	struct v4l2_subdev *sd = &rsz->sd;
 	int ret;
 
-	if (rsz->id == RKISP1_SELFPATH)
+	if (rsz->id == RKISP1_SELFPATH) {
+		rsz->regs_base = RKISP1_CIF_SRSZ_BASE;
 		rsz->config = &rkisp1_rsz_config_sp;
-	else
+	} else {
+		rsz->regs_base = RKISP1_CIF_MRSZ_BASE;
 		rsz->config = &rkisp1_rsz_config_mp;
+	}
 
 	v4l2_subdev_init(sd, &rkisp1_rsz_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
