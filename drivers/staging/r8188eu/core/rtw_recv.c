@@ -1083,7 +1083,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	pattrib->pw_save = GetPwrMgt(ptr);
 	pattrib->mfrag = ieee80211_has_morefrags(fc);
 	pattrib->mdata = ieee80211_has_moredata(fc);
-	pattrib->privacy = GetPrivacy(ptr);
+	pattrib->privacy = ieee80211_has_protected(fc);
 	pattrib->order = GetOrder(ptr);
 
 	/* Dump rx packets */
