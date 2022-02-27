@@ -29,14 +29,14 @@ struct dentry;
  * flags on the 'direction' field in struct 'rkisp1_isp_mbus_info' that indicate
  * on which pad the media bus format is supported
  */
-#define RKISP1_ISP_SD_SRC BIT(0)
-#define RKISP1_ISP_SD_SINK BIT(1)
+#define RKISP1_ISP_SD_SRC			BIT(0)
+#define RKISP1_ISP_SD_SINK			BIT(1)
 
 /* min and max values for the widths and heights of the entities */
-#define RKISP1_ISP_MAX_WIDTH		4032
-#define RKISP1_ISP_MAX_HEIGHT		3024
-#define RKISP1_ISP_MIN_WIDTH		32
-#define RKISP1_ISP_MIN_HEIGHT		32
+#define RKISP1_ISP_MAX_WIDTH			4032
+#define RKISP1_ISP_MAX_HEIGHT			3024
+#define RKISP1_ISP_MIN_WIDTH			32
+#define RKISP1_ISP_MIN_HEIGHT			32
 
 #define RKISP1_RSZ_MP_SRC_MAX_WIDTH		4416
 #define RKISP1_RSZ_MP_SRC_MAX_HEIGHT		3312
@@ -46,20 +46,20 @@ struct dentry;
 #define RKISP1_RSZ_SRC_MIN_HEIGHT		16
 
 /* the default width and height of all the entities */
-#define RKISP1_DEFAULT_WIDTH		800
-#define RKISP1_DEFAULT_HEIGHT		600
+#define RKISP1_DEFAULT_WIDTH			800
+#define RKISP1_DEFAULT_HEIGHT			600
 
-#define RKISP1_DRIVER_NAME	"rkisp1"
-#define RKISP1_BUS_INFO		"platform:" RKISP1_DRIVER_NAME
+#define RKISP1_DRIVER_NAME			"rkisp1"
+#define RKISP1_BUS_INFO				"platform:" RKISP1_DRIVER_NAME
 
 /* maximum number of clocks */
-#define RKISP1_MAX_BUS_CLK	8
+#define RKISP1_MAX_BUS_CLK			8
 
 /* a bitmask of the ready stats */
-#define RKISP1_STATS_MEAS_MASK		(RKISP1_CIF_ISP_AWB_DONE |	\
-					 RKISP1_CIF_ISP_AFM_FIN |	\
-					 RKISP1_CIF_ISP_EXP_END |	\
-					 RKISP1_CIF_ISP_HIST_MEASURE_RDY)
+#define RKISP1_STATS_MEAS_MASK			(RKISP1_CIF_ISP_AWB_DONE |	\
+						 RKISP1_CIF_ISP_AFM_FIN |	\
+						 RKISP1_CIF_ISP_EXP_END |	\
+						 RKISP1_CIF_ISP_HIST_MEASURE_RDY)
 
 /* enum for the resizer pads */
 enum rkisp1_rsz_pad {
