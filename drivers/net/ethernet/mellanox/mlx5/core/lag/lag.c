@@ -164,6 +164,7 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 	if (err)
 		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
 			      err);
+	ldev->ports = MLX5_CAP_GEN(dev, num_lag_ports);
 
 	return ldev;
 }
