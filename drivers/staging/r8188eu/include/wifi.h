@@ -217,9 +217,6 @@ enum WIFI_REG_DOMAIN {
 #define ClearPrivacy(pbuf)	\
 	*(__le16 *)(pbuf) &= (~cpu_to_le16(_PRIVACY_))
 
-#define GetOrder(pbuf)					\
-	(((*(__le16 *)(pbuf)) & cpu_to_le16(_ORDER_)) != 0)
-
 #define GetFrameType(pbuf)				\
 	(le16_to_cpu(*(__le16 *)(pbuf)) & (BIT(3) | BIT(2)))
 
