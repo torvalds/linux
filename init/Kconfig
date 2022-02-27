@@ -2403,4 +2403,6 @@ config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 config ARCH_HAS_SYSCALL_WRAPPER
 	def_bool n
 
+if !ROCKCHIP_MINI_KERNEL
 source "init/Kconfig.gki"
+endif
