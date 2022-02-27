@@ -165,9 +165,9 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	/* recurse over the parent device */
 	parent_dev = __dev_get_by_index((struct net *)parent_net,
 					dev_get_iflink(net_dev));
-	/* if we got a NULL parent_dev there is something broken.. */
 	if (!parent_dev) {
-		pr_err("Cannot find parent device\n");
+		pr_warn("Cannot find parent device. Skipping batadv-on-batadv check for %s\n",
+			net_dev->name);
 		return false;
 	}
 
