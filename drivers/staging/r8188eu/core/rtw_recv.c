@@ -1012,7 +1012,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	pattrib->amsdu = 0;
 	pattrib->ack_policy = 0;
 	/* parsing QC field */
-	if (pattrib->qos == 1) {
+	if (pattrib->qos) {
 		pattrib->priority = GetPriority((ptr + 24));
 		pattrib->ack_policy = GetAckpolicy((ptr + 24));
 		pattrib->amsdu = GetAMsdu((ptr + 24));
@@ -1057,7 +1057,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 
 	/* then call check if rx seq/frag. duplicated. */
 
-	u8 subtype;
 	int retval = _FAIL;
 	u8 bDumpRxPkt;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
@@ -1075,8 +1074,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	/* add version chk */
 	if (ver != 0)
 		return _FAIL;
-
-	subtype = GetFrameSubType(ptr); /* bit(7)~bit(2) */
 
 	pattrib->to_fr_ds = get_tofr_ds(ptr);
 
@@ -1099,7 +1096,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 		validate_recv_ctrl_frame(adapter, precv_frame);
 	else if (ieee80211_is_data(fc)) {
 		rtw_led_control(adapter, LED_CTL_RX);
-		pattrib->qos = (subtype & BIT(7)) ? 1 : 0;
+		pattrib->qos = ieee80211_is_data_qos(fc);
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
 			struct recv_priv *precvpriv = &adapter->recvpriv;
@@ -1599,7 +1596,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, struct recv_frame 
 		/* s1. */
 		wlanhdr_to_ethhdr(prframe);
 
-		if (pattrib->qos != 1) {
+		if (!pattrib->qos) {
 			if (!padapter->bDriverStopped &&
 			    !padapter->bSurpriseRemoved) {
 				rtw_recv_indicatepkt(padapter, prframe);

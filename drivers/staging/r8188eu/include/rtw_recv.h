@@ -82,7 +82,7 @@ struct rx_pkt_attrib {
 	u8	hdrlen; /* the WLAN Header Len */
 	u8	to_fr_ds;
 	u8	amsdu;
-	u8	qos;
+	bool	qos;
 	u8	priority;
 	u8	pw_save;
 	u8	mdata;
