@@ -1606,7 +1606,8 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 		if ((old & (1U << BTREE_NODE_dirty)) &&
 		    (old & (1U << BTREE_NODE_need_write)) &&
 		    !(old & (1U << BTREE_NODE_never_write)) &&
-		    btree_node_may_write(b)) {
+		    !(old & (1U << BTREE_NODE_write_blocked)) &&
+		    !(old & (1U << BTREE_NODE_will_make_reachable))) {
 			new &= ~(1U << BTREE_NODE_dirty);
 			new &= ~(1U << BTREE_NODE_need_write);
 			new |=  (1U << BTREE_NODE_write_in_flight);
@@ -1778,10 +1779,13 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 		    !(old & (1 << BTREE_NODE_need_write)))
 			return;
 
-		if (!btree_node_may_write(b))
+		if (old &
+		    ((1 << BTREE_NODE_never_write)|
+		     (1 << BTREE_NODE_write_blocked)))
 			return;
 
-		if (old & (1 << BTREE_NODE_never_write))
+		if (b->written &&
+		    (old & (1 << BTREE_NODE_will_make_reachable)))
 			return;
 
 		if (old & (1 << BTREE_NODE_write_in_flight))

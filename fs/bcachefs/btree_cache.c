@@ -223,10 +223,9 @@ wait_on_io:
 		goto wait_on_io;
 	}
 
-	if (btree_node_noevict(b))
-		goto out_unlock;
-
-	if (!btree_node_may_write(b))
+	if (btree_node_noevict(b) ||
+	    btree_node_write_blocked(b) ||
+	    btree_node_will_make_reachable(b))
 		goto out_unlock;
 
 	if (btree_node_dirty(b)) {

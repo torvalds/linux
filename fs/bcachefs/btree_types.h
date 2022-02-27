@@ -434,6 +434,8 @@ struct btree_trans {
 	x(read_error)							\
 	x(dirty)							\
 	x(need_write)							\
+	x(write_blocked)						\
+	x(will_make_reachable)						\
 	x(noevict)							\
 	x(write_idx)							\
 	x(accessed)							\

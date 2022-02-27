@@ -62,12 +62,6 @@ void __bch2_btree_node_wait_on_write(struct btree *);
 void bch2_btree_node_wait_on_read(struct btree *);
 void bch2_btree_node_wait_on_write(struct btree *);
 
-static inline bool btree_node_may_write(struct btree *b)
-{
-	return list_empty_careful(&b->write_blocked) &&
-		(!b->written || !b->will_make_reachable);
-}
-
 enum compact_mode {
 	COMPACT_LAZY,
 	COMPACT_ALL,

@@ -606,6 +606,8 @@ err:
 		mutex_lock(&c->btree_interior_update_lock);
 
 		list_del(&as->write_blocked_list);
+		if (list_empty(&b->write_blocked))
+			clear_btree_node_write_blocked(b);
 
 		/*
 		 * Node might have been freed, recheck under
@@ -650,6 +652,7 @@ err:
 
 		BUG_ON(b->will_make_reachable != (unsigned long) as);
 		b->will_make_reachable = 0;
+		clear_btree_node_will_make_reachable(b);
 	}
 	mutex_unlock(&c->btree_interior_update_lock);
 
@@ -716,6 +719,8 @@ static void btree_update_updated_node(struct btree_update *as, struct btree *b)
 
 	as->mode	= BTREE_INTERIOR_UPDATING_NODE;
 	as->b		= b;
+
+	set_btree_node_write_blocked(b);
 	list_add(&as->write_blocked_list, &b->write_blocked);
 
 	mutex_unlock(&c->btree_interior_update_lock);
@@ -781,6 +786,7 @@ static void bch2_btree_update_add_new_node(struct btree_update *as, struct btree
 
 	as->new_nodes[as->nr_new_nodes++] = b;
 	b->will_make_reachable = 1UL|(unsigned long) as;
+	set_btree_node_will_make_reachable(b);
 
 	mutex_unlock(&c->btree_interior_update_lock);
 
@@ -803,6 +809,7 @@ static void btree_update_drop_new_node(struct bch_fs *c, struct btree *b)
 	 * xchg() is for synchronization with bch2_btree_complete_write:
 	 */
 	v = xchg(&b->will_make_reachable, 0);
+	clear_btree_node_will_make_reachable(b);
 	as = (struct btree_update *) (v & ~1UL);
 
 	if (!as) {
