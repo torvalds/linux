@@ -1189,7 +1189,8 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 static int
 rtl8366rb_port_bridge_join(struct dsa_switch *ds, int port,
 			   struct dsa_bridge bridge,
-			   bool *tx_fwd_offload)
+			   bool *tx_fwd_offload,
+			   struct netlink_ext_ack *extack)
 {
 	struct realtek_priv *priv = ds->priv;
 	unsigned int port_bitmap = 0;

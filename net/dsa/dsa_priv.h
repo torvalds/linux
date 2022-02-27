@@ -59,6 +59,7 @@ struct dsa_notifier_bridge_info {
 	int sw_index;
 	int port;
 	bool tx_fwd_offload;
+	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_FDB_* */
@@ -67,6 +68,7 @@ struct dsa_notifier_fdb_info {
 	int port;
 	const unsigned char *addr;
 	u16 vid;
+	struct dsa_db db;
 };
 
 /* DSA_NOTIFIER_LAG_FDB_* */
@@ -74,6 +76,7 @@ struct dsa_notifier_lag_fdb_info {
 	struct dsa_lag *lag;
 	const unsigned char *addr;
 	u16 vid;
+	struct dsa_db db;
 };
 
 /* DSA_NOTIFIER_MDB_* */
@@ -81,6 +84,7 @@ struct dsa_notifier_mdb_info {
 	const struct switchdev_obj_port_mdb *mdb;
 	int sw_index;
 	int port;
+	struct dsa_db db;
 };
 
 /* DSA_NOTIFIER_LAG_* */
@@ -522,10 +526,6 @@ struct dsa_bridge *dsa_tree_bridge_find(struct dsa_switch_tree *dst,
 					const struct net_device *br);
 
 /* tag_8021q.c */
-int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
-			      struct dsa_notifier_bridge_info *info);
-int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
-			       struct dsa_notifier_bridge_info *info);
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 				  struct dsa_notifier_tag_8021q_vlan_info *info);
 int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,

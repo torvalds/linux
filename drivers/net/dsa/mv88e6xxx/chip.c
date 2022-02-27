@@ -2456,7 +2456,8 @@ unlock:
 }
 
 static int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-				  const unsigned char *addr, u16 vid)
+				  const unsigned char *addr, u16 vid,
+				  struct dsa_db db)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -2470,7 +2471,8 @@ static int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-				  const unsigned char *addr, u16 vid)
+				  const unsigned char *addr, u16 vid,
+				  struct dsa_db db)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -2616,7 +2618,8 @@ static int mv88e6xxx_map_virtual_bridge_to_pvt(struct dsa_switch *ds,
 
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct dsa_bridge bridge,
-				      bool *tx_fwd_offload)
+				      bool *tx_fwd_offload,
+				      struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -2682,7 +2685,8 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds,
 					   int tree_index, int sw_index,
-					   int port, struct dsa_bridge bridge)
+					   int port, struct dsa_bridge bridge,
+					   struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -6002,7 +6006,8 @@ static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
-				  const struct switchdev_obj_port_mdb *mdb)
+				  const struct switchdev_obj_port_mdb *mdb,
+				  struct dsa_db db)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -6016,7 +6021,8 @@ static int mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
-				  const struct switchdev_obj_port_mdb *mdb)
+				  const struct switchdev_obj_port_mdb *mdb,
+				  struct dsa_db db)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;

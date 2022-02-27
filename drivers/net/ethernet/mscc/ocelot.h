@@ -26,7 +26,7 @@
 #include "ocelot_rew.h"
 #include "ocelot_qs.h"
 
-#define OCELOT_VLAN_UNAWARE_PVID 0
+#define OCELOT_STANDALONE_PVID 0
 #define OCELOT_BUFFER_CELL_SZ 60
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)
@@ -80,6 +80,9 @@ struct ocelot_multicast {
 	u16 ports;
 	struct ocelot_pgid *pgid;
 };
+
+int ocelot_bridge_num_find(struct ocelot *ocelot,
+			   const struct net_device *bridge);
 
 int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
 			    bool is_static, void *data);

@@ -668,6 +668,7 @@ struct ocelot_port {
 	u16				mrp_ring_id;
 
 	struct net_device		*bridge;
+	int				bridge_num;
 	u8				stp_state;
 
 	int				speed;
@@ -712,6 +713,8 @@ struct ocelot {
 
 	enum ocelot_tag_prefix		npi_inj_prefix;
 	enum ocelot_tag_prefix		npi_xtr_prefix;
+
+	unsigned long			bridges;
 
 	struct list_head		multicast;
 	struct list_head		pgids;
@@ -846,6 +849,9 @@ void ocelot_deinit(struct ocelot *ocelot);
 void ocelot_init_port(struct ocelot *ocelot, int port);
 void ocelot_deinit_port(struct ocelot *ocelot, int port);
 
+void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port);
+void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port);
+
 /* DSA callbacks */
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data);
 void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data);
@@ -863,21 +869,24 @@ int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,
 				 struct switchdev_brport_flags val);
 void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
 			      struct switchdev_brport_flags val);
-void ocelot_port_bridge_join(struct ocelot *ocelot, int port,
-			     struct net_device *bridge);
+int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
+			    struct net_device *bridge, int bridge_num,
+			    struct netlink_ext_ack *extack);
 void ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 			      struct net_device *bridge);
 int ocelot_mact_flush(struct ocelot *ocelot, int port);
 int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 		    dsa_fdb_dump_cb_t *cb, void *data);
-int ocelot_fdb_add(struct ocelot *ocelot, int port,
-		   const unsigned char *addr, u16 vid);
-int ocelot_fdb_del(struct ocelot *ocelot, int port,
-		   const unsigned char *addr, u16 vid);
+int ocelot_fdb_add(struct ocelot *ocelot, int port, const unsigned char *addr,
+		   u16 vid, const struct net_device *bridge);
+int ocelot_fdb_del(struct ocelot *ocelot, int port, const unsigned char *addr,
+		   u16 vid, const struct net_device *bridge);
 int ocelot_lag_fdb_add(struct ocelot *ocelot, struct net_device *bond,
-		       const unsigned char *addr, u16 vid);
+		       const unsigned char *addr, u16 vid,
+		       const struct net_device *bridge);
 int ocelot_lag_fdb_del(struct ocelot *ocelot, struct net_device *bond,
-		       const unsigned char *addr, u16 vid);
+		       const unsigned char *addr, u16 vid,
+		       const struct net_device *bridge);
 int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 			bool untagged, struct netlink_ext_ack *extack);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
@@ -901,9 +910,11 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 			    struct flow_cls_offload *f, bool ingress);
 int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
-			const struct switchdev_obj_port_mdb *mdb);
+			const struct switchdev_obj_port_mdb *mdb,
+			const struct net_device *bridge);
 int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
-			const struct switchdev_obj_port_mdb *mdb);
+			const struct switchdev_obj_port_mdb *mdb,
+			const struct net_device *bridge);
 int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 			 struct net_device *bond,
 			 struct netdev_lag_upper_info *info);

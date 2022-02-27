@@ -1152,7 +1152,8 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 
 static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
 				  struct dsa_bridge bridge,
-				  bool *tx_fwd_offload)
+				  bool *tx_fwd_offload,
+				  struct netlink_ext_ack *extack)
 {
 	struct net_device *br = bridge.dev;
 	struct gswip_priv *priv = ds->priv;
@@ -1389,13 +1390,15 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 }
 
 static int gswip_port_fdb_add(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
 {
 	return gswip_port_fdb(ds, port, addr, vid, true);
 }
 
 static int gswip_port_fdb_del(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
 {
 	return gswip_port_fdb(ds, port, addr, vid, false);
 }
