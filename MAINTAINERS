@@ -20784,7 +20784,8 @@ S:	Supported
 F:	drivers/ptp/ptp_vmw.c
 
 VMWARE VMCI DRIVER
-M:	Jorgen Hansen <jhansen@vmware.com>
+M:	Bryan Tan <bryantan@vmware.com>
+M:	Rajesh Jalisatgi <rjalisatgi@vmware.com>
 M:	Vishnu Dasa <vdasa@vmware.com>
 L:	linux-kernel@vger.kernel.org
 L:	pv-drivers@vmware.com (private)
