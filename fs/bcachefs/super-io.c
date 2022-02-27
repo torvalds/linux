@@ -1423,24 +1423,25 @@ static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
 };
 
 static int bch2_sb_field_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				  struct printbuf *orig_err)
+				  struct printbuf *err)
 {
 	unsigned type = le32_to_cpu(f->type);
-	struct printbuf err = *orig_err;
+	struct printbuf field_err = PRINTBUF;
 	int ret;
 
 	if (type >= BCH_SB_FIELD_NR)
 		return 0;
 
-	pr_buf(&err, "Invalid superblock section %s: ", bch2_sb_fields[type]);
-
-	ret = bch2_sb_field_ops[type]->validate(sb, f, &err);
+	ret = bch2_sb_field_ops[type]->validate(sb, f, &field_err);
 	if (ret) {
-		pr_newline(&err);
-		bch2_sb_field_to_text(&err, sb, f);
-		*orig_err = err;
+		pr_buf(err, "Invalid superblock section %s: %s",
+		       bch2_sb_fields[type],
+		       field_err.buf);
+		pr_newline(err);
+		bch2_sb_field_to_text(err, sb, f);
 	}
 
+	printbuf_exit(&field_err);
 	return ret;
 }
 
