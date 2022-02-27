@@ -301,19 +301,20 @@ static int nfs_readdir_array_can_expand(struct nfs_cache_array *array)
 	return 0;
 }
 
-static
-int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
+static int nfs_readdir_page_array_append(struct page *page,
+					 const struct nfs_entry *entry,
+					 u64 *cookie)
 {
 	struct nfs_cache_array *array;
 	struct nfs_cache_array_entry *cache_entry;
 	const char *name;
-	int ret;
+	int ret = -ENOMEM;
 
 	name = nfs_readdir_copy_name(entry->name, entry->len);
-	if (!name)
-		return -ENOMEM;
 
 	array = kmap_atomic(page);
+	if (!name)
+		goto out;
 	ret = nfs_readdir_array_can_expand(array);
 	if (ret) {
 		kfree(name);
@@ -321,7 +322,7 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 	}
 
 	cache_entry = &array->array[array->size];
-	cache_entry->cookie = entry->prev_cookie;
+	cache_entry->cookie = array->last_cookie;
 	cache_entry->ino = entry->ino;
 	cache_entry->d_type = entry->d_type;
 	cache_entry->name_len = entry->len;
@@ -333,6 +334,7 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 	if (entry->eof != 0)
 		nfs_readdir_array_set_eof(array);
 out:
+	*cookie = array->last_cookie;
 	kunmap_atomic(array);
 	return ret;
 }
@@ -798,6 +800,7 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 	struct xdr_stream stream;
 	struct xdr_buf buf;
 	struct page *scratch, *new, *page = *arrays;
+	u64 cookie;
 	int status;
 
 	scratch = alloc_page(GFP_KERNEL);
@@ -819,22 +822,21 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 			nfs_prime_dcache(file_dentry(desc->file), entry,
 					desc->dir_verifier);
 
-		status = nfs_readdir_add_to_array(entry, page);
+		status = nfs_readdir_page_array_append(page, entry, &cookie);
 		if (status != -ENOSPC)
 			continue;
 
 		if (page->mapping != mapping) {
 			if (!--narrays)
 				break;
-			new = nfs_readdir_page_array_alloc(entry->prev_cookie,
-							   GFP_KERNEL);
+			new = nfs_readdir_page_array_alloc(cookie, GFP_KERNEL);
 			if (!new)
 				break;
 			arrays++;
 			*arrays = page = new;
 		} else {
-			new = nfs_readdir_page_get_next(
-				mapping, entry->prev_cookie, change_attr);
+			new = nfs_readdir_page_get_next(mapping, cookie,
+							change_attr);
 			if (!new)
 				break;
 			if (page != *arrays)
@@ -842,7 +844,7 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 			page = new;
 		}
 		desc->page_index_max++;
-		status = nfs_readdir_add_to_array(entry, page);
+		status = nfs_readdir_page_array_append(page, entry, &cookie);
 	} while (!status && !entry->eof);
 
 	switch (status) {

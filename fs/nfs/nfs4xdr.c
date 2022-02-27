@@ -7508,7 +7508,6 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (entry->fattr->valid & NFS_ATTR_FATTR_TYPE)
 		entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
 
-	entry->prev_cookie = entry->cookie;
 	entry->cookie = new_cookie;
 
 	return 0;
