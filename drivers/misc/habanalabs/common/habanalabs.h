@@ -1450,6 +1450,8 @@ struct hl_asic_funcs {
 	void (*set_pci_memory_regions)(struct hl_device *hdev);
 	u32* (*get_stream_master_qid_arr)(void);
 	bool (*is_valid_dram_page_size)(u32 page_size);
+	int (*mmu_get_real_page_size)(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
+					u32 page_size, u32 *real_page_size, bool is_dram_addr);
 };
 
 
@@ -3109,6 +3111,8 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx);
 void hl_mmu_ctx_fini(struct hl_ctx *ctx);
 int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		u32 page_size, bool flush_pte);
+int hl_mmu_get_real_page_size(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
+				u32 page_size, u32 *real_page_size, bool is_dram_addr);
 int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		bool flush_pte);
 int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,

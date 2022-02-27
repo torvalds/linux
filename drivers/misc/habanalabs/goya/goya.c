@@ -5765,7 +5765,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_sob_addr = &goya_get_sob_addr,
 	.set_pci_memory_regions = goya_set_pci_memory_regions,
 	.get_stream_master_qid_arr = goya_get_stream_master_qid_arr,
-	.is_valid_dram_page_size = NULL
+	.is_valid_dram_page_size = NULL,
+	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 };
 
 /*
