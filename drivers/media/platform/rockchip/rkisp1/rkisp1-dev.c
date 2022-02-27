@@ -486,9 +486,9 @@ static int rkisp1_probe(struct platform_device *pdev)
 		return PTR_ERR(rkisp1->base_addr);
 
 	for (i = 0; i < match_data->isr_size; i++) {
-		irq = (match_data->isrs[i].name) ?
-				platform_get_irq_byname(pdev, match_data->isrs[i].name) :
-				platform_get_irq(pdev, i);
+		irq = match_data->isrs[i].name
+		    ? platform_get_irq_byname(pdev, match_data->isrs[i].name)
+		    : platform_get_irq(pdev, i);
 		if (irq < 0)
 			return irq;
 
