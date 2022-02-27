@@ -27,26 +27,26 @@ config STMMAC_SELFTESTS
 
 config STMMAC_ETHTOOL
 	bool "Ethtool feature for STMMAC"
-	default STMMAC_ETH
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects the ethtool function, default is Y.
 
 config STMMAC_FULL
 	bool "Support full driver for STMMAC"
-	default STMMAC_ETH
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects the full function, default is Y, full-featured version
 	  includes 4.10 and other versions, if it is N, only 4.10 core working.
 
 config STMMAC_MMC
 	bool "Support mmc core for STMMAC"
-	default STMMAC_ETH
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects the stmmac mmc function, default is Y.
 
 config STMMAC_PTP
 	bool "PTP feature for STMMAC"
-	default STMMAC_ETH
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects the ptp timestamp function, default is Y.
 
@@ -166,7 +166,7 @@ config DWMAC_ROCKCHIP
 config DWMAC_ROCKCHIP_TOOL
 	bool "Rockchip dwmac tool support"
 	depends on DWMAC_ROCKCHIP
-	default DWMAC_ROCKCHIP
+	default DWMAC_ROCKCHIP if !ROCKCHIP_MINI_KERNEL
 	help
 	  Support for Ethernet functions on Rockchip SoCs.
 
