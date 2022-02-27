@@ -34,7 +34,7 @@ config DRM_MIPI_DBI
 config DRM_EDID
 	bool "EDID function for DRM"
 	depends on DRM
-	default y if !CPU_RV1106 && !CPU_RV1126
+	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  DRM EDID read and parse function.
 
@@ -51,6 +51,7 @@ config DRM_DP
 	depends on DRM
 	depends on DRM_KMS_HELPER
 	default y if DRM_ANALOGIX_DP
+	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  Choose this option to support DP interface.
 
