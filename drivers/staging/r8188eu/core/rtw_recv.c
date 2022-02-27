@@ -1058,7 +1058,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	/* then call check if rx seq/frag. duplicated. */
 
 	u8 subtype;
-	int retval = _SUCCESS;
+	int retval = _FAIL;
 	u8 bDumpRxPkt;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	u8 *ptr = precv_frame->rx_data;
@@ -1073,10 +1073,8 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	}
 
 	/* add version chk */
-	if (ver != 0) {
-		retval = _FAIL;
-		goto exit;
-	}
+	if (ver != 0)
+		return _FAIL;
 
 	subtype = GetFrameSubType(ptr); /* bit(7)~bit(2) */
 
@@ -1094,13 +1092,12 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	/* Dump rx packets */
 	GetHalDefVar8188EUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 
-	if (ieee80211_is_mgmt(fc)) {
+	/* We return _SUCCESS only for data frames. */
+	if (ieee80211_is_mgmt(fc))
 		validate_recv_mgnt_frame(adapter, precv_frame);
-		retval = _FAIL; /*  only data frame return _SUCCESS */
-	} else if (ieee80211_is_ctl(fc)) {
+	else if (ieee80211_is_ctl(fc))
 		validate_recv_ctrl_frame(adapter, precv_frame);
-		retval = _FAIL; /*  only data frame return _SUCCESS */
-	} else if (ieee80211_is_data(fc)) {
+	else if (ieee80211_is_data(fc)) {
 		rtw_led_control(adapter, LED_CTL_RX);
 		pattrib->qos = (subtype & BIT(7)) ? 1 : 0;
 		retval = validate_recv_data_frame(adapter, precv_frame);
@@ -1108,10 +1105,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 			struct recv_priv *precvpriv = &adapter->recvpriv;
 			precvpriv->rx_drop++;
 		}
-	} else
-		retval = _FAIL;
-
-exit:
+	}
 
 	return retval;
 }
