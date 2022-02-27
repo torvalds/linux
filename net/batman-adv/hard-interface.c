@@ -157,12 +157,14 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 		return true;
 
 	iflink = dev_get_iflink(net_dev);
-
-	/* no more parents..stop recursion */
-	if (iflink == 0 || iflink == net_dev->ifindex)
+	if (iflink == 0)
 		return false;
 
 	parent_net = batadv_getlink_net(net_dev, net);
+
+	/* iflink to itself, most likely physical device */
+	if (net == parent_net && iflink == net_dev->ifindex)
+		return false;
 
 	/* recurse over the parent device */
 	parent_dev = __dev_get_by_index((struct net *)parent_net, iflink);
@@ -223,8 +225,7 @@ static struct net_device *batadv_get_real_netdevice(struct net_device *netdev)
 		return NULL;
 
 	iflink = dev_get_iflink(netdev);
-
-	if (netdev->ifindex == iflink) {
+	if (iflink == 0) {
 		dev_hold(netdev);
 		return netdev;
 	}
@@ -235,6 +236,14 @@ static struct net_device *batadv_get_real_netdevice(struct net_device *netdev)
 
 	net = dev_net(hard_iface->soft_iface);
 	real_net = batadv_getlink_net(netdev, net);
+
+	/* iflink to itself, most likely physical device */
+	if (net == real_net && netdev->ifindex == iflink) {
+		real_netdev = netdev;
+		dev_hold(real_netdev);
+		goto out;
+	}
+
 	real_netdev = dev_get_by_index(real_net, iflink);
 
 out:
