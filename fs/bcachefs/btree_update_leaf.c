@@ -382,7 +382,18 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 
 	ck->u64s	= new_u64s;
 	ck->k		= new_k;
-	return BTREE_INSERT_OK;
+	/*
+	 * Keys returned by peek() are no longer valid pointers, so we need a
+	 * transaction restart:
+	 */
+	trace_trans_restart_key_cache_key_realloced(trans->fn, _RET_IP_,
+					     path->btree_id, &path->pos);
+	/*
+	 * Not using btree_trans_restart() because we can't unlock here, we have
+	 * write locks held:
+	 */
+	trans->restarted = true;
+	return -EINTR;
 }
 
 static inline void do_btree_insert_one(struct btree_trans *trans,

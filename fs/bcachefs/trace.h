@@ -918,6 +918,14 @@ TRACE_EVENT(trans_restart_mem_realloced,
 		  __entry->bytes)
 );
 
+DEFINE_EVENT(transaction_restart_iter,	trans_restart_key_cache_key_realloced,
+	TP_PROTO(const char *trans_fn,
+		 unsigned long caller_ip,
+		 enum btree_id btree_id,
+		 struct bpos *pos),
+	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
+);
+
 #endif /* _TRACE_BCACHEFS_H */
 
 /* This part must be outside protection */
