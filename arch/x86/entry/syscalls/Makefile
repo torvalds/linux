@@ -3,8 +3,7 @@ out := arch/$(SRCARCH)/include/generated/asm
 uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 
 # Create output directory if not already present
-_dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)') \
-	  $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
+$(shell mkdir -p $(out) $(uapi))
 
 syscall32 := $(src)/syscall_32.tbl
 syscall64 := $(src)/syscall_64.tbl
