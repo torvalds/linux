@@ -376,7 +376,7 @@ static void get_ipv6_ext_hdrs(struct sk_buff *skb, struct ipv6hdr *nh,
 			break;
 		next_type = hp->nexthdr;
 		start += ipv6_optlen(hp);
-	};
+	}
 }
 
 static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
