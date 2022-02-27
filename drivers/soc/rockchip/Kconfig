@@ -141,6 +141,14 @@ config ROCKCHIP_DEBUG
 	help
 	  Print dbgpcsr for every cpu when panic.
 
+config ROCKCHIP_MINI_KERNEL
+	bool "Rockchip Mini Kernel support"
+	select NO_GKI
+	default y if CPU_RV1106 || CPU_RV1126
+	help
+	  Say y here to enable Rockchip mini kernel support.
+	  This option make the kernel size smaller.
+
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"
 	depends on NO_GKI
