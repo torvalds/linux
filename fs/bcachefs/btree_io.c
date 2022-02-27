@@ -1592,29 +1592,13 @@ void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
 	bch2_journal_pin_drop(&c->journal, &w->journal);
 }
 
-static void btree_node_write_done(struct bch_fs *c, struct btree *b)
+static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
 	struct btree_write *w = btree_prev_write(b);
 	unsigned long old, new, v;
 
 	bch2_btree_complete_write(c, b, w);
 
-	v = READ_ONCE(b->flags);
-	do {
-		old = new = v;
-
-		if (old & (1U << BTREE_NODE_need_write))
-			goto do_write;
-
-		new &= ~(1U << BTREE_NODE_write_in_flight);
-		new &= ~(1U << BTREE_NODE_write_in_flight_inner);
-	} while ((v = cmpxchg(&b->flags, old, new)) != old);
-
-	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
-	return;
-
-do_write:
-	six_lock_read(&b->c.lock, NULL, NULL);
 	v = READ_ONCE(b->flags);
 	do {
 		old = new = v;
@@ -1637,7 +1621,12 @@ do_write:
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
 		__bch2_btree_node_write(c, b, true);
+}
 
+static void btree_node_write_done(struct bch_fs *c, struct btree *b)
+{
+	six_lock_read(&b->c.lock, NULL, NULL);
+	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
 }
 
@@ -1992,7 +1981,7 @@ err:
 	b->written += sectors_to_write;
 nowrite:
 	btree_bounce_free(c, bytes, used_mempool, data);
-	btree_node_write_done(c, b);
+	__btree_node_write_done(c, b);
 }
 
 /*
