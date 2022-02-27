@@ -158,22 +158,6 @@ static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
-#define bch2_btree_node_write_cond(_c, _b, cond)			\
-do {									\
-	unsigned long old, new, v = READ_ONCE((_b)->flags);		\
-									\
-	do {								\
-		old = new = v;						\
-									\
-		if (!(old & (1 << BTREE_NODE_dirty)) || !(cond))	\
-			break;						\
-									\
-		new |= (1 << BTREE_NODE_need_write);			\
-	} while ((v = cmpxchg(&(_b)->flags, old, new)) != old);		\
-									\
-	btree_node_write_if_need(_c, _b, SIX_LOCK_read);		\
-} while (0)
-
 void bch2_btree_flush_all_reads(struct bch_fs *);
 void bch2_btree_flush_all_writes(struct bch_fs *);
 

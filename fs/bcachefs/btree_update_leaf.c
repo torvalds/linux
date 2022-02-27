@@ -168,10 +168,24 @@ static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct btree_write *w = container_of(pin, struct btree_write, journal);
 	struct btree *b = container_of(w, struct btree, writes[i]);
+	unsigned long old, new, v;
+	unsigned idx = w - b->writes;
 
 	six_lock_read(&b->c.lock, NULL, NULL);
-	bch2_btree_node_write_cond(c, b,
-		(btree_current_write(b) == w && w->journal.seq == seq));
+	v = READ_ONCE(b->flags);
+
+	do {
+		old = new = v;
+
+		if (!(old & (1 << BTREE_NODE_dirty)) ||
+		    !!(old & (1 << BTREE_NODE_write_idx)) != idx ||
+		    w->journal.seq != seq)
+			break;
+
+		new |= 1 << BTREE_NODE_need_write;
+	} while ((v = cmpxchg(&b->flags, old, new)) != old);
+
+	btree_node_write_if_need(c, b, SIX_LOCK_read);
 	six_unlock_read(&b->c.lock);
 	return 0;
 }
