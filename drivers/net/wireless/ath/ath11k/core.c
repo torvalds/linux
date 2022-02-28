@@ -1381,6 +1381,65 @@ static void ath11k_core_restart(struct work_struct *work)
 	complete(&ab->driver_recovery);
 }
 
+static void ath11k_core_reset(struct work_struct *work)
+{
+	struct ath11k_base *ab = container_of(work, struct ath11k_base, reset_work);
+	int reset_count, fail_cont_count;
+	long time_left;
+
+	if (!(test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))) {
+		ath11k_warn(ab, "ignore reset dev flags 0x%lx\n", ab->dev_flags);
+		return;
+	}
+
+	/* Sometimes the recovery will fail and then the next all recovery fail,
+	 * this is to avoid infinite recovery since it can not recovery success.
+	 */
+	fail_cont_count = atomic_read(&ab->fail_cont_count);
+
+	if (fail_cont_count >= ATH11K_RESET_MAX_FAIL_COUNT_FINAL)
+		return;
+
+	if (fail_cont_count >= ATH11K_RESET_MAX_FAIL_COUNT_FIRST &&
+	    time_before(jiffies, ab->reset_fail_timeout))
+		return;
+
+	reset_count = atomic_inc_return(&ab->reset_count);
+
+	if (reset_count > 1) {
+		/* Sometimes it happened another reset worker before the previous one
+		 * completed, then the second reset worker will destroy the previous one,
+		 * thus below is to avoid that.
+		 */
+		ath11k_warn(ab, "already reseting count %d\n", reset_count);
+
+		reinit_completion(&ab->reset_complete);
+		time_left = wait_for_completion_timeout(&ab->reset_complete,
+							ATH11K_RESET_TIMEOUT_HZ);
+
+		if (time_left) {
+			ath11k_dbg(ab, ATH11K_DBG_BOOT, "to skip reset\n");
+			atomic_dec(&ab->reset_count);
+			return;
+		}
+
+		ab->reset_fail_timeout = jiffies + ATH11K_RESET_FAIL_TIMEOUT_HZ;
+		/* Record the continuous recovery fail count when recovery failed*/
+		atomic_inc(&ab->fail_cont_count);
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset starting\n");
+
+	ab->is_reset = true;
+	atomic_set(&ab->recovery_count, 0);
+
+	ath11k_hif_power_down(ab);
+	ath11k_qmi_free_resource(ab);
+	ath11k_hif_power_up(ab);
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset started\n");
+}
+
 static int ath11k_init_hw_params(struct ath11k_base *ab)
 {
 	const struct ath11k_hw_params *hw_params = NULL;
@@ -1450,6 +1509,7 @@ EXPORT_SYMBOL(ath11k_core_deinit);
 
 void ath11k_core_free(struct ath11k_base *ab)
 {
+	destroy_workqueue(ab->workqueue_aux);
 	destroy_workqueue(ab->workqueue);
 
 	kfree(ab);
@@ -1472,9 +1532,14 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	if (!ab->workqueue)
 		goto err_sc_free;
 
+	ab->workqueue_aux = create_singlethread_workqueue("ath11k_aux_wq");
+	if (!ab->workqueue_aux)
+		goto err_free_wq;
+
 	mutex_init(&ab->core_lock);
 	spin_lock_init(&ab->base_lock);
 	mutex_init(&ab->vdev_id_11d_lock);
+	init_completion(&ab->reset_complete);
 
 	INIT_LIST_HEAD(&ab->peers);
 	init_waitqueue_head(&ab->peer_mapping_wq);
@@ -1483,6 +1548,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	INIT_WORK(&ab->update_11d_work, ath11k_update_11d);
 	INIT_WORK(&ab->rfkill_work, ath11k_rfkill_work);
+	INIT_WORK(&ab->reset_work, ath11k_core_reset);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 	init_completion(&ab->wow.wakeup_completed);
@@ -1493,6 +1559,8 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 
 	return ab;
 
+err_free_wq:
+	destroy_workqueue(ab->workqueue);
 err_sc_free:
 	kfree(ab);
 	return NULL;
