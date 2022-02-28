@@ -1847,8 +1847,18 @@ static int sdma_v4_0_sw_init(void *handle)
 			/* paging queue use same doorbell index/routing as gfx queue
 			 * with 0x400 (4096 dwords) offset on second doorbell page
 			 */
-			ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
-			ring->doorbell_index += 0x400;
+			if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(4, 0, 0) &&
+			    adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(4, 2, 0)) {
+				ring->doorbell_index =
+					adev->doorbell_index.sdma_engine[i] << 1;
+				ring->doorbell_index += 0x400;
+			} else {
+				/* From vega20, the sdma_doorbell_range in 1st
+				 * doorbell page is reserved for page queue.
+				 */
+				ring->doorbell_index =
+					(adev->doorbell_index.sdma_engine[i] + 1) << 1;
+			}
 
 			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
 				ring->vm_hub = AMDGPU_MMHUB1(0);

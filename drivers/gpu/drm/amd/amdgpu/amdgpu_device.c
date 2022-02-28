@@ -1091,7 +1091,8 @@ static int amdgpu_device_doorbell_init(struct amdgpu_device *adev)
 		 * doorbells are in the first page. So with paging queue enabled,
 		 * the max num_kernel_doorbells should + 1 page (0x400 in dword)
 		 */
-		if (adev->asic_type >= CHIP_VEGA10)
+		if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(4, 0, 0) &&
+		    adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(4, 2, 0))
 			adev->doorbell.num_kernel_doorbells += 0x400;
 	}
 

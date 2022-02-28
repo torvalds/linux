@@ -1323,11 +1323,10 @@ static int sdma_v4_4_2_sw_init(void *handle)
 			ring->ring_obj = NULL;
 			ring->use_doorbell = true;
 
-			/* paging queue use same doorbell index/routing as gfx queue
-			 * with 0x400 (4096 dwords) offset on second doorbell page
+			/* doorbell index of page queue is assigned right after
+			 * gfx queue on the same instance
 			 */
-			ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
-			ring->doorbell_index += 0x400;
+			ring->doorbell_index = (adev->doorbell_index.sdma_engine[i] + 1) << 1;
 			ring->vm_hub = AMDGPU_MMHUB0(0);
 
 			sprintf(ring->name, "page%d", i);
