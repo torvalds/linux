@@ -26,6 +26,7 @@
 
 static struct vas_all_caps caps_all;
 static bool copypaste_feat;
+static struct hv_vas_cop_feat_caps hv_cop_caps;
 
 static struct vas_caps vascaps[VAS_MAX_FEAT_TYPE];
 static DEFINE_MUTEX(vas_pseries_mutex);
@@ -724,7 +725,6 @@ static int reconfig_close_windows(struct vas_caps *vcap, int excess_creds)
  */
 int vas_reconfig_capabilties(u8 type)
 {
-	struct hv_vas_cop_feat_caps *hv_caps;
 	struct vas_cop_feat_caps *caps;
 	int old_nr_creds, new_nr_creds;
 	struct vas_caps *vcaps;
@@ -738,17 +738,13 @@ int vas_reconfig_capabilties(u8 type)
 	vcaps = &vascaps[type];
 	caps = &vcaps->caps;
 
-	hv_caps = kmalloc(sizeof(*hv_caps), GFP_KERNEL);
-	if (!hv_caps)
-		return -ENOMEM;
-
 	mutex_lock(&vas_pseries_mutex);
 	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES, vcaps->feat,
-				      (u64)virt_to_phys(hv_caps));
+				      (u64)virt_to_phys(&hv_cop_caps));
 	if (rc)
 		goto out;
 
-	new_nr_creds = be16_to_cpu(hv_caps->target_lpar_creds);
+	new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
 
 	old_nr_creds = atomic_read(&caps->nr_total_credits);
 
@@ -780,7 +776,6 @@ int vas_reconfig_capabilties(u8 type)
 
 out:
 	mutex_unlock(&vas_pseries_mutex);
-	kfree(hv_caps);
 	return rc;
 }
 /*
@@ -822,9 +817,8 @@ static struct notifier_block pseries_vas_nb = {
 
 static int __init pseries_vas_init(void)
 {
-	struct hv_vas_cop_feat_caps *hv_cop_caps;
 	struct hv_vas_all_caps *hv_caps;
-	int rc;
+	int rc = 0;
 
 	/*
 	 * Linux supports user space COPY/PASTE only with Radix
@@ -850,38 +844,37 @@ static int __init pseries_vas_init(void)
 
 	sysfs_pseries_vas_init(&caps_all);
 
-	hv_cop_caps = kmalloc(sizeof(*hv_cop_caps), GFP_KERNEL);
-	if (!hv_cop_caps) {
-		rc = -ENOMEM;
-		goto out;
-	}
 	/*
 	 * QOS capabilities available
 	 */
 	if (caps_all.feat_type & VAS_GZIP_QOS_FEAT_BIT) {
 		rc = get_vas_capabilities(VAS_GZIP_QOS_FEAT,
-					  VAS_GZIP_QOS_FEAT_TYPE, hv_cop_caps);
+					  VAS_GZIP_QOS_FEAT_TYPE, &hv_cop_caps);
 
 		if (rc)
-			goto out_cop;
+			goto out;
 	}
 	/*
 	 * Default capabilities available
 	 */
-	if (caps_all.feat_type & VAS_GZIP_DEF_FEAT_BIT) {
+	if (caps_all.feat_type & VAS_GZIP_DEF_FEAT_BIT)
 		rc = get_vas_capabilities(VAS_GZIP_DEF_FEAT,
-					  VAS_GZIP_DEF_FEAT_TYPE, hv_cop_caps);
-		if (rc)
-			goto out_cop;
+					  VAS_GZIP_DEF_FEAT_TYPE, &hv_cop_caps);
+
+	if (!rc && copypaste_feat) {
+		if (firmware_has_feature(FW_FEATURE_LPAR))
+			of_reconfig_notifier_register(&pseries_vas_nb);
+
+		pr_info("GZIP feature is available\n");
+	} else {
+		/*
+		 * Should not happen, but only when get default
+		 * capabilities HCALL failed. So disable copy paste
+		 * feature.
+		 */
+		copypaste_feat = false;
 	}
 
-	if (copypaste_feat && firmware_has_feature(FW_FEATURE_LPAR))
-		of_reconfig_notifier_register(&pseries_vas_nb);
-
-	pr_info("GZIP feature is available\n");
-
-out_cop:
-	kfree(hv_cop_caps);
 out:
 	kfree(hv_caps);
 	return rc;
