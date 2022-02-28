@@ -288,6 +288,17 @@
 		arm,pl330-periph-burst;
 	};
 
+	rng: rng@ff448000 {
+		compatible = "rockchip,trngv1";
+		reg = <0xff448000 0x200>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_TRNG_NS>;
+		clock-names = "hclk_trng";
+		resets = <&cru SRST_H_TRNG_NS>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	i2c2: i2c@ff450000 {
 		compatible = "rockchip,rv1106-i2c", "rockchip,rk3399-i2c";
 		reg = <0xff450000 0x1000>;
