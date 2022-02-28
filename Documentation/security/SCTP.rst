@@ -120,7 +120,7 @@ calls **sctp_peeloff**\(3).
 
 
 security_sctp_assoc_established()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Called when a COOKIE ACK is received, and the peer secid will be
 saved into ``@asoc->peer_secid`` for client::
 
@@ -270,7 +270,7 @@ sockets sid and peer sid to that contained in the ``@asoc sid`` and
 
 
 security_sctp_assoc_established()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Called when a COOKIE ACK is received where it sets the connection's peer sid
 to that in ``@skb``::
 
