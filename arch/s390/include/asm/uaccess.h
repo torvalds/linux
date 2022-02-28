@@ -81,14 +81,10 @@ union oac {
 		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
 		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%[rc],%[retval]\n"			\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%[rc]) EX_TABLE_UA(1b,2b,%[rc])	\
 		: [rc] "=&d" (__rc), [_to] "+Q" (*(to))			\
 		: [_size] "d" (size), [_from] "Q" (*(from)),		\
-		  [retval] "K" (-EFAULT), [spec] "d" (oac_spec.val)	\
+		  [spec] "d" (oac_spec.val)				\
 		: "cc", "0");						\
 	__rc;								\
 })
@@ -295,13 +291,9 @@ int __noreturn __put_kernel_bad(void);
 		"0:   " insn "  %2,%1\n"				\
 		"1:	xr	%0,%0\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%0,%3\n"				\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
 		: "=d" (__rc), "+Q" (*(to))				\
-		: "d" (val), "K" (-EFAULT)				\
+		: "d" (val)						\
 		: "cc");						\
 	__rc;								\
 })
@@ -342,13 +334,9 @@ int __noreturn __get_kernel_bad(void);
 		"0:   " insn "  %1,%2\n"				\
 		"1:	xr	%0,%0\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%0,%3\n"				\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
 		: "=d" (__rc), "+d" (val)				\
-		: "Q" (*(from)), "K" (-EFAULT)				\
+		: "Q" (*(from))						\
 		: "cc");						\
 	__rc;								\
 })
