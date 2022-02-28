@@ -190,6 +190,40 @@ static int otx2_tc_validate_flow(struct otx2_nic *nic,
 	return 0;
 }
 
+static int otx2_policer_validate(const struct flow_action *action,
+				 const struct flow_action_entry *act,
+				 struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int otx2_tc_egress_matchall_install(struct otx2_nic *nic,
 					   struct tc_cls_matchall_offload *cls)
 {
@@ -212,6 +246,10 @@ static int otx2_tc_egress_matchall_install(struct otx2_nic *nic,
 	entry = &cls->rule->action.entries[0];
 	switch (entry->id) {
 	case FLOW_ACTION_POLICE:
+		err = otx2_policer_validate(&cls->rule->action, entry, extack);
+		if (err)
+			return err;
+
 		if (entry->police.rate_pkt_ps) {
 			NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
 			return -EOPNOTSUPP;
@@ -315,6 +353,7 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 	u8 nr_police = 0;
 	bool pps = false;
 	u64 rate;
+	int err;
 	int i;
 
 	if (!flow_action_has_entries(flow_action)) {
@@ -354,6 +393,10 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 					"Ingress policing not supported on this platform");
 				return -EOPNOTSUPP;
 			}
+
+			err = otx2_policer_validate(flow_action, act, extack);
+			if (err)
+				return err;
 
 			if (act->police.rate_bytes_ps > 0) {
 				rate = act->police.rate_bytes_ps * 8;
