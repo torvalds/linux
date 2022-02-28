@@ -622,8 +622,7 @@ static int get_probe_mem_regno(const u8 *insn)
 	return insn[1] >> 4;
 }
 
-static bool ex_handler_bpf(const struct exception_table_entry *x,
-			   struct pt_regs *regs)
+bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 {
 	int regno;
 	u8 *insn;
@@ -678,7 +677,7 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			/* JIT bug - landing pad and extable must be close. */
 			return -1;
 		ex->fixup = delta;
-		ex->handler = (u8 *)ex_handler_bpf - (u8 *)&ex->handler;
+		ex->type = EX_TYPE_BPF;
 		jit->excnt++;
 	}
 	return 0;

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/extable.h>
+#include <linux/panic.h>
+#include <asm/asm-extable.h>
 #include <asm/extable.h>
 
 const struct exception_table_entry *s390_search_extables(unsigned long addr)
@@ -15,17 +17,24 @@ const struct exception_table_entry *s390_search_extables(unsigned long addr)
 	return search_extable(__start_amode31_ex_table, num, addr);
 }
 
+static bool ex_handler_fixup(const struct exception_table_entry *ex, struct pt_regs *regs)
+{
+	regs->psw.addr = extable_fixup(ex);
+	return true;
+}
+
 bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
-	ex_handler_t handler;
 
 	ex = s390_search_extables(instruction_pointer(regs));
 	if (!ex)
 		return false;
-	handler = ex_fixup_handler(ex);
-	if (unlikely(handler))
-		return handler(ex, regs);
-	regs->psw.addr = extable_fixup(ex);
-	return true;
+	switch (ex->type) {
+	case EX_TYPE_FIXUP:
+		return ex_handler_fixup(ex, regs);
+	case EX_TYPE_BPF:
+		return ex_handler_bpf(ex, regs);
+	}
+	panic("invalid exception table entry");
 }
