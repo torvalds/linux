@@ -96,12 +96,15 @@ static void bch2_journal_buf_init(struct journal *j)
 void bch2_journal_halt(struct journal *j)
 {
 	union journal_res_state old, new;
-	u64 v = atomic64_read(&j->reservations.counter);
+	u64 v;
 
+	spin_lock(&j->lock);
+
+	v = atomic64_read(&j->reservations.counter);
 	do {
 		old.v = new.v = v;
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
-			return;
+			goto out;
 
 		new.cur_entry_offset = JOURNAL_ENTRY_ERROR_VAL;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
@@ -115,6 +118,8 @@ void bch2_journal_halt(struct journal *j)
 		j->err_seq = journal_cur_seq(j);
 	journal_wake(j);
 	closure_wake_up(&journal_cur_buf(j)->wait);
+out:
+	spin_unlock(&j->lock);
 }
 
 /* journal entry close/open: */
@@ -266,6 +271,9 @@ static int journal_entry_open(struct journal *j)
 	if (j->cur_entry_error)
 		return j->cur_entry_error;
 
+	if (bch2_journal_error(j))
+		return cur_entry_insufficient_devices; /* -EROFS */
+
 	BUG_ON(!j->cur_entry_sectors);
 
 	/* We used to add things to the first journal entry before opening it,
@@ -296,8 +304,7 @@ static int journal_entry_open(struct journal *j)
 	do {
 		old.v = new.v = v;
 
-		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
-			return cur_entry_insufficient_devices;
+		BUG_ON(old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL);
 
 		EBUG_ON(journal_state_count(new, new.idx));
 		journal_state_inc(&new);
