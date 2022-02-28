@@ -1513,8 +1513,11 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	} else {
 		irq_set_status_flags(state->uart_irq, IRQ_NOAUTOEN);
 
-		ret = request_nmi(state->uart_irq, fiq_debugger_uart_irq,
-				  IRQF_PERCPU, "debug", state);
+		if (IS_ENABLED(CONFIG_NO_GKI))
+			ret = request_nmi(state->uart_irq, fiq_debugger_uart_irq,
+					  IRQF_PERCPU, "debug", state);
+		else
+			ret = -EINVAL;
 		if (ret) {
 			pr_err("%s: could not install nmi irq handler\n", __func__);
 			irq_clear_status_flags(state->uart_irq, IRQ_NOAUTOEN);
