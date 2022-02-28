@@ -895,7 +895,7 @@ static void hdptx_pre_power_up(struct rockchip_hdptx_phy *hdptx)
 	int ret;
 
 	reset_control_assert(hdptx->apb_reset);
-	usleep_range(10, 20);
+	udelay(20);
 	reset_control_deassert(hdptx->apb_reset);
 
 	reset_control_assert(hdptx->lane_reset);
@@ -1130,7 +1130,7 @@ static int hdptx_ropll_cmn_config(struct rockchip_hdptx_phy *hdptx, unsigned lon
 	hdptx_pre_power_up(hdptx);
 
 	reset_control_assert(hdptx->ropll_reset);
-	usleep_range(10, 20);
+	udelay(20);
 	reset_control_deassert(hdptx->ropll_reset);
 
 	hdptx_write(hdptx, CMN_REG0008, 0x00);
