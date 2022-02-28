@@ -88,6 +88,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
+#include <linux/jiffies.h>
 
 #define cas_page_map(x)      kmap_atomic((x))
 #define cas_page_unmap(x)    kunmap_atomic((x))
@@ -4063,8 +4064,8 @@ static void cas_link_timer(struct timer_list *t)
 
 	if (link_transition_timeout != 0 &&
 	    cp->link_transition_jiffies_valid &&
-	    ((jiffies - cp->link_transition_jiffies) >
-	      (link_transition_timeout))) {
+	    time_is_before_jiffies(cp->link_transition_jiffies +
+	      link_transition_timeout)) {
 		/* One-second counter so link-down workaround doesn't
 		 * cause resets to occur so fast as to fool the switch
 		 * into thinking the link is down.
