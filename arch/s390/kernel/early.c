@@ -151,12 +151,8 @@ static __init void setup_topology(void)
 
 static void early_pgm_check_handler(struct pt_regs *regs)
 {
-	const struct exception_table_entry *fixup;
-
-	fixup = s390_search_extables(regs->psw.addr);
-	if (!fixup)
+	if (!fixup_exception(regs))
 		disabled_wait();
-	regs->psw.addr = extable_fixup(fixup);
 }
 
 static noinline __init void setup_lowcore_early(void)

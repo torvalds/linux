@@ -49,17 +49,6 @@ ex_fixup_handler(const struct exception_table_entry *x)
 	return (ex_handler_t)((unsigned long)&x->handler + x->handler);
 }
 
-static inline bool ex_handle(const struct exception_table_entry *x,
-			     struct pt_regs *regs)
-{
-	ex_handler_t handler = ex_fixup_handler(x);
-
-	if (unlikely(handler))
-		return handler(x, regs);
-	regs->psw.addr = extable_fixup(x);
-	return true;
-}
-
 #define ARCH_HAS_RELATIVE_EXTABLE
 
 static inline void swap_ex_entry_fixup(struct exception_table_entry *a,
@@ -77,5 +66,7 @@ static inline void swap_ex_entry_fixup(struct exception_table_entry *a,
 		b->handler -= delta;
 }
 #define swap_ex_entry_fixup swap_ex_entry_fixup
+
+bool fixup_exception(struct pt_regs *regs);
 
 #endif
