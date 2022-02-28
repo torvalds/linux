@@ -876,7 +876,7 @@
 	/*Q0-Q7*/	"","","","","","UID_BUTTON","","",
 	/*R0-R7*/	"","","BMC_EXT_HIGHTEMP_L","OCP_AUX_PWREN",
 			"OCP_MAIN_PWREN","RESET_BUTTON","","",
-	/*S0-S7*/	"","","","","RTC_BAT_SEN_EN","","","",
+	/*S0-S7*/	"","","","","rtc-battery-voltage-read-enable","","","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"","","","","","","","",
