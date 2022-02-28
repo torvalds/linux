@@ -62,35 +62,6 @@ static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 	p->devs.nr = 0;
 }
 
-void bch2_journal_halt(struct journal *j)
-{
-	union journal_res_state old, new;
-	u64 v;
-
-	spin_lock(&j->lock);
-
-	v = atomic64_read(&j->reservations.counter);
-	do {
-		old.v = new.v = v;
-		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
-			goto out;
-
-		new.cur_entry_offset = JOURNAL_ENTRY_ERROR_VAL;
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
-
-	/*
-	 * XXX: we're not using j->lock here because this can be called from
-	 * interrupt context, this can race with journal_write_done()
-	 */
-	if (!j->err_seq)
-		j->err_seq = journal_cur_seq(j);
-	journal_wake(j);
-	closure_wake_up(&journal_cur_buf(j)->wait);
-out:
-	spin_unlock(&j->lock);
-}
-
 /* journal entry close/open: */
 
 void __bch2_journal_buf_put(struct journal *j)
@@ -106,7 +77,7 @@ void __bch2_journal_buf_put(struct journal *j)
  * We don't close a journal_buf until the next journal_buf is finished writing,
  * and can be opened again - this also initializes the next journal_buf:
  */
-static void __journal_entry_close(struct journal *j)
+static void __journal_entry_close(struct journal *j, unsigned closed_val)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf = journal_cur_buf(j);
@@ -114,22 +85,23 @@ static void __journal_entry_close(struct journal *j)
 	u64 v = atomic64_read(&j->reservations.counter);
 	unsigned sectors;
 
+	BUG_ON(closed_val != JOURNAL_ENTRY_CLOSED_VAL &&
+	       closed_val != JOURNAL_ENTRY_ERROR_VAL);
+
 	lockdep_assert_held(&j->lock);
 
 	do {
 		old.v = new.v = v;
-		if (old.cur_entry_offset == JOURNAL_ENTRY_CLOSED_VAL)
-			return;
+		new.cur_entry_offset = closed_val;
 
-		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL) {
-			/* this entry will never be written: */
-			closure_wake_up(&buf->wait);
+		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL ||
+		    old.cur_entry_offset == new.cur_entry_offset)
 			return;
-		}
-
-		new.cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
+
+	if (!__journal_entry_is_open(old))
+		return;
 
 	/* Close out old buffer: */
 	buf->data->u64s		= cpu_to_le32(old.cur_entry_offset);
@@ -171,6 +143,15 @@ static void __journal_entry_close(struct journal *j)
 	bch2_journal_buf_put(j, old.idx);
 }
 
+void bch2_journal_halt(struct journal *j)
+{
+	spin_lock(&j->lock);
+	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL);
+	if (!j->err_seq)
+		j->err_seq = journal_cur_seq(j);
+	spin_unlock(&j->lock);
+}
+
 static bool journal_entry_want_write(struct journal *j)
 {
 	bool ret = !journal_entry_is_open(j) ||
@@ -178,7 +159,7 @@ static bool journal_entry_want_write(struct journal *j)
 
 	/* Don't close it yet if we already have a write in flight: */
 	if (ret)
-		__journal_entry_close(j);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 	else if (nr_unwritten_journal_entries(j)) {
 		struct journal_buf *buf = journal_cur_buf(j);
 
@@ -312,8 +293,7 @@ static int journal_entry_open(struct journal *j)
 
 static bool journal_quiesced(struct journal *j)
 {
-	bool ret = atomic64_read(&j->seq) == j->seq_ondisk ||
-		bch2_journal_error(j);
+	bool ret = atomic64_read(&j->seq) == j->seq_ondisk;
 
 	if (!ret)
 		journal_entry_close(j);
@@ -339,7 +319,7 @@ static void journal_write_work(struct work_struct *work)
 	if (delta > 0)
 		mod_delayed_work(c->io_complete_wq, &j->write_work, delta);
 	else
-		__journal_entry_close(j);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 	spin_unlock(&j->lock);
 }
 
@@ -390,7 +370,7 @@ retry:
 	    buf->buf_size < JOURNAL_ENTRY_SIZE_MAX)
 		j->buf_size_want = max(j->buf_size_want, buf->buf_size << 1);
 
-	__journal_entry_close(j);
+	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 	ret = journal_entry_open(j);
 
 	if (ret == cur_entry_max_in_flight)
@@ -526,7 +506,7 @@ void bch2_journal_entry_res_resize(struct journal *j,
 		/*
 		 * Not enough room in current journal entry, have to flush it:
 		 */
-		__journal_entry_close(j);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 	} else {
 		journal_cur_buf(j)->u64s_reserved += d;
 	}
@@ -578,7 +558,7 @@ recheck_need_open:
 		struct journal_res res = { 0 };
 
 		if (journal_entry_is_open(j))
-			__journal_entry_close(j);
+			__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 
 		spin_unlock(&j->lock);
 

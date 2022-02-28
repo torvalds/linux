@@ -1513,11 +1513,11 @@ void bch2_journal_write(struct closure *cl)
 	j->write_start_time = local_clock();
 
 	spin_lock(&j->lock);
-	if (c->sb.features & (1ULL << BCH_FEATURE_journal_no_flush) &&
-	    (w->noflush ||
-	     (!w->must_flush &&
-	      (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
-	      test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags)))) {
+	if (bch2_journal_error(j) ||
+	    w->noflush ||
+	    (!w->must_flush &&
+	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	     test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(jset, true);
 		jset->last_seq	= 0;
