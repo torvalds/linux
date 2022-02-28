@@ -281,10 +281,7 @@ patternProperties:
       PRUSS INTC Node. Each PRUSS has a single interrupt controller instance
       that is common to all the PRU cores. This should be represented as an
       interrupt-controller node.
-
-    allOf:
-      - $ref: /schemas/interrupt-controller/ti,pruss-intc.yaml#
-
+    $ref: /schemas/interrupt-controller/ti,pruss-intc.yaml#
     type: object
 
   mdio@[a-f0-9]+$:
@@ -292,10 +289,7 @@ patternProperties:
       MDIO Node. Each PRUSS has an MDIO module that can be used to control
       external PHYs. The MDIO module used within the PRU-ICSS is an instance of
       the MDIO Controller used in TI Davinci SoCs.
-
-    allOf:
-      - $ref: /schemas/net/ti,davinci-mdio.yaml#
-
+    $ref: /schemas/net/ti,davinci-mdio.yaml#
     type: object
 
   "^(pru|rtu|txpru)@[0-9a-f]+$":
@@ -305,10 +299,7 @@ patternProperties:
       inactive by using the standard DT string property, "status". The ICSSG IP
       present on K3 SoCs have additional auxiliary PRU cores with slightly
       different IP integration.
-
-    allOf:
-      - $ref: /schemas/remoteproc/ti,pru-rproc.yaml#
-
+    $ref: /schemas/remoteproc/ti,pru-rproc.yaml#
     type: object
 
 required:

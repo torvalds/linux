@@ -95,8 +95,7 @@ patternProperties:
       addresses. Cache and memory access settings are provided through a
       Memory Protection Unit (MPU), programmable only from the R5Fs.
 
-    allOf:
-      - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+    $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
     properties:
       compatible:

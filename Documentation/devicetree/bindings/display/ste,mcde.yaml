@@ -58,8 +58,8 @@ patternProperties:
   "^dsi@[0-9a-f]+$":
     description: subnodes for the three DSI host adapters
     type: object
-    allOf:
-      - $ref: dsi-controller.yaml#
+    $ref: dsi-controller.yaml#
+
     properties:
       compatible:
         const: ste,mcde-dsi

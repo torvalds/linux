@@ -115,8 +115,7 @@ patternProperties:
           By default, custom protocol is assumed, meaning that protocol is
           configured according to protocol defined in related DAI link node,
           such as i2s, left justified, right justified, dsp and pdm protocols.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/flag
+        $ref: /schemas/types.yaml#/definitions/flag
 
       "#clock-cells":
         description: Configure the SAI device as master clock provider.
