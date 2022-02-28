@@ -277,9 +277,9 @@ introduced, i.e.::
                     }
                 }
             }
-
         })
         ...
+    }
 
 In the above example the PWM-based LED driver references to the PWM channel 0
 of \_SB.PCI0.PWM device with initial period setting equal to 600 ms (note that
