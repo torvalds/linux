@@ -10,6 +10,7 @@ struct region {
 	phys_addr_t size;
 };
 
-void reset_memblock(void);
+void reset_memblock_regions(void);
+void reset_memblock_attributes(void);
 
 #endif

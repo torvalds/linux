@@ -8,8 +8,6 @@
 
 static int memblock_initialization_check(void)
 {
-	reset_memblock();
-
 	assert(memblock.memory.regions);
 	assert(memblock.memory.cnt == 1);
 	assert(memblock.memory.max == EXPECTED_MEMBLOCK_REGIONS);
@@ -43,7 +41,7 @@ static int memblock_add_simple_check(void)
 		.size = SZ_4M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r.base, r.size);
 
 	assert(rgn->base == r.base);
@@ -72,7 +70,7 @@ static int memblock_add_node_simple_check(void)
 		.size = SZ_16M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add_node(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
 
 	assert(rgn->base == r.base);
@@ -110,7 +108,7 @@ static int memblock_add_disjoint_check(void)
 		.size = SZ_8K
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
@@ -151,7 +149,7 @@ static int memblock_add_overlap_top_check(void)
 
 	total_size = (r1.base - r2.base) + r1.size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
@@ -190,7 +188,7 @@ static int memblock_add_overlap_bottom_check(void)
 
 	total_size = (r2.base - r1.base) + r2.size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
@@ -225,7 +223,7 @@ static int memblock_add_within_check(void)
 		.size = SZ_1M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
@@ -249,7 +247,7 @@ static int memblock_add_twice_check(void)
 		.size = SZ_2M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 
 	memblock_add(r.base, r.size);
 	memblock_add(r.base, r.size);
@@ -290,7 +288,7 @@ static int memblock_reserve_simple_check(void)
 		.size = SZ_128M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r.base, r.size);
 
 	assert(rgn->base == r.base);
@@ -321,7 +319,7 @@ static int memblock_reserve_disjoint_check(void)
 		.size = SZ_512M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
@@ -364,7 +362,7 @@ static int memblock_reserve_overlap_top_check(void)
 
 	total_size = (r1.base - r2.base) + r1.size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
@@ -404,7 +402,7 @@ static int memblock_reserve_overlap_bottom_check(void)
 
 	total_size = (r2.base - r1.base) + r2.size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
@@ -440,7 +438,7 @@ static int memblock_reserve_within_check(void)
 		.size = SZ_64K
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
@@ -465,7 +463,7 @@ static int memblock_reserve_twice_check(void)
 		.size = SZ_2M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 
 	memblock_reserve(r.base, r.size);
 	memblock_reserve(r.base, r.size);
@@ -511,7 +509,7 @@ static int memblock_remove_simple_check(void)
 		.size = SZ_4M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 	memblock_remove(r1.base, r1.size);
@@ -545,7 +543,7 @@ static int memblock_remove_absent_check(void)
 		.size = SZ_1G
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
@@ -585,7 +583,7 @@ static int memblock_remove_overlap_top_check(void)
 	r2_end = r2.base + r2.size;
 	total_size = r1_end - r2_end;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
@@ -623,7 +621,7 @@ static int memblock_remove_overlap_bottom_check(void)
 
 	total_size = r2.base - r1.base;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
@@ -665,7 +663,7 @@ static int memblock_remove_within_check(void)
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
@@ -715,7 +713,7 @@ static int memblock_free_simple_check(void)
 		.size = SZ_1M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 	memblock_free((void *)r1.base, r1.size);
@@ -749,7 +747,7 @@ static int memblock_free_absent_check(void)
 		.size = SZ_128M
 	};
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
@@ -787,7 +785,7 @@ static int memblock_free_overlap_top_check(void)
 
 	total_size = (r1.size + r1.base) - (r2.base + r2.size);
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
@@ -824,7 +822,7 @@ static int memblock_free_overlap_bottom_check(void)
 
 	total_size = r2.base - r1.base;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
@@ -867,7 +865,7 @@ static int memblock_free_within_check(void)
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
 
-	reset_memblock();
+	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
