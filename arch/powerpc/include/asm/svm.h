@@ -15,8 +15,6 @@ static inline bool is_secure_guest(void)
 	return mfmsr() & MSR_S;
 }
 
-void __init svm_swiotlb_init(void);
-
 void dtl_cache_ctor(void *addr);
 #define get_dtl_cache_ctor()	(is_secure_guest() ? dtl_cache_ctor : NULL)
 
@@ -26,8 +24,6 @@ static inline bool is_secure_guest(void)
 {
 	return false;
 }
-
-static inline void svm_swiotlb_init(void) {}
 
 #define get_dtl_cache_ctor() NULL
 
