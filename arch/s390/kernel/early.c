@@ -293,6 +293,11 @@ static void __init check_image_bootable(void)
 	disabled_wait();
 }
 
+static void __init sort_amode31_extable(void)
+{
+	sort_extable(__start_amode31_ex_table, __stop_amode31_ex_table);
+}
+
 void __init startup_init(void)
 {
 	sclp_early_adjust_va();
@@ -301,6 +306,7 @@ void __init startup_init(void)
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
+	sort_amode31_extable();
 	setup_lowcore_early();
 	setup_facility_list();
 	detect_machine_type();
