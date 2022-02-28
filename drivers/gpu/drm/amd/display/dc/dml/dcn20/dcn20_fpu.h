@@ -73,4 +73,13 @@ void dcn20_fpu_adjust_dppclk(struct vba_vars_st *v,
 			     int pipe_idx,
 			     bool is_validating_bw);
 
+int dcn21_populate_dml_pipes_from_context(struct dc *dc,
+					  struct dc_state *context,
+					  display_e2e_pipe_params_st *pipes,
+					  bool fast_validate);
+bool dcn21_validate_bandwidth_fp(struct dc *dc,
+				 struct dc_state *context,
+				 bool fast_validate);
+void dcn21_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+
 #endif /* __DCN20_FPU_H__ */
