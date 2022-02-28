@@ -272,6 +272,12 @@ static int journal_entry_open(struct journal *j)
 
 	BUG_ON(!j->cur_entry_sectors);
 
+	/* We used to add things to the first journal entry before opening it,
+	 * as a way to deal with a chicken-and-the-egg problem, but we shouldn't
+	 * be anymore:
+	 */
+	BUG_ON(buf->data->u64s);
+
 	buf->u64s_reserved	= j->entry_u64s_reserved;
 	buf->disk_sectors	= j->cur_entry_sectors;
 	buf->sectors		= min(buf->disk_sectors, buf->buf_size >> 9);
@@ -280,7 +286,7 @@ static int journal_entry_open(struct journal *j)
 		journal_entry_overhead(j);
 	u64s  = clamp_t(int, u64s, 0, JOURNAL_ENTRY_CLOSED_VAL - 1);
 
-	if (u64s <= le32_to_cpu(buf->data->u64s))
+	if (u64s <= 0)
 		return cur_entry_journal_full;
 
 	/*
@@ -295,11 +301,9 @@ static int journal_entry_open(struct journal *j)
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
 			return cur_entry_insufficient_devices;
 
-		/* Handle any already added entries */
-		new.cur_entry_offset = le32_to_cpu(buf->data->u64s);
-
 		EBUG_ON(journal_state_count(new, new.idx));
 		journal_state_inc(&new);
+		new.cur_entry_offset = 0;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
