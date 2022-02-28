@@ -10,6 +10,7 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_insn.o = -pg
 CFLAGS_REMOVE_patch.o = -pg
+CFLAGS_REMOVE_unwind.o = -pg
 endif
 
 CFLAGS_REMOVE_return_address.o = -pg
@@ -24,10 +25,7 @@ obj-y		:= elf.o entry-common.o irq.o opcodes.o \
 KASAN_SANITIZE_stacktrace.o := n
 KASAN_SANITIZE_traps.o := n
 
-ifneq ($(CONFIG_ARM_UNWIND),y)
-obj-$(CONFIG_FRAME_POINTER)	+= return_address.o
-endif
-
+obj-y				+= return_address.o
 obj-$(CONFIG_ATAGS)		+= atags_parse.o
 obj-$(CONFIG_ATAGS_PROC)	+= atags_proc.o
 obj-$(CONFIG_DEPRECATED_PARAM_STRUCT) += atags_compat.o

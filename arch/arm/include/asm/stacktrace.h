@@ -14,6 +14,9 @@ struct stackframe {
 	unsigned long sp;
 	unsigned long lr;
 	unsigned long pc;
+
+	/* address of the LR value on the stack */
+	unsigned long *lr_addr;
 #ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
 	struct task_struct *tsk;
