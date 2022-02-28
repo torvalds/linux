@@ -895,6 +895,12 @@ S: 3000 FORE Drive
 S: Warrendale, Pennsylvania 15086
 S: USA
 
+N: Ludovic Desroches
+E: ludovic.desroches@microchip.com
+D: Maintainer for ARM/Microchip (AT91) SoC support
+D: Author of ADC, pinctrl, XDMA and SDHCI drivers for this platform
+S: France
+
 N: Martin Devera
 E: devik@cdi.cz
 W: http://luxik.cdi.cz/~devik/qos/
