@@ -6387,22 +6387,12 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 
 err_peer_del:
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
-		reinit_completion(&ar->peer_delete_done);
-
-		fbret = ath11k_wmi_send_peer_delete_cmd(ar, vif->addr,
-							arvif->vdev_id);
+		fbret = ath11k_peer_delete(ar, arvif->vdev_id, vif->addr);
 		if (fbret) {
-			ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
-				    arvif->vdev_id, vif->addr);
+			ath11k_warn(ar->ab, "fallback fail to delete peer addr %pM vdev_id %d ret %d\n",
+				    vif->addr, arvif->vdev_id, fbret);
 			goto err;
 		}
-
-		fbret = ath11k_wait_for_peer_delete_done(ar, arvif->vdev_id,
-							 vif->addr);
-		if (fbret)
-			goto err;
-
-		ar->num_peers--;
 	}
 
 err_vdev_del:

@@ -217,7 +217,7 @@ int ath11k_wait_for_peer_delete_done(struct ath11k *ar, u32 vdev_id,
 	return 0;
 }
 
-int ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, u8 *addr)
+static int __ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, const u8 *addr)
 {
 	int ret;
 
@@ -234,6 +234,19 @@ int ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, u8 *addr)
 	}
 
 	ret = ath11k_wait_for_peer_delete_done(ar, vdev_id, addr);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, u8 *addr)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	ret = __ath11k_peer_delete(ar, vdev_id, addr);
 	if (ret)
 		return ret;
 
@@ -323,22 +336,10 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	return 0;
 
 cleanup:
-	reinit_completion(&ar->peer_delete_done);
-
-	fbret = ath11k_wmi_send_peer_delete_cmd(ar, param->peer_addr,
-						param->vdev_id);
-	if (fbret) {
-		ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
-			    param->vdev_id, param->peer_addr);
-		goto exit;
-	}
-
-	fbret = ath11k_wait_for_peer_delete_done(ar, param->vdev_id,
-						 param->peer_addr);
+	fbret = __ath11k_peer_delete(ar, param->vdev_id, param->peer_addr);
 	if (fbret)
-		ath11k_warn(ar->ab, "failed wait for peer %pM delete done id %d fallback ret %d\n",
+		ath11k_warn(ar->ab, "failed peer %pM delete vdev_id %d fallback ret %d\n",
 			    param->peer_addr, param->vdev_id, fbret);
 
-exit:
 	return ret;
 }
