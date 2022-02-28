@@ -31,6 +31,19 @@ _LC_BR_R1 = __LC_BR_R1
 	.popsection
 	.endm
 
+#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
+	.macro __THUNK_PROLOG_BR r1,r2
+	__THUNK_PROLOG_NAME __s390_indirect_jump_r\r1
+	.endm
+
+	.macro __THUNK_BR r1,r2
+	jg	__s390_indirect_jump_r\r1
+	.endm
+
+	.macro __THUNK_BRASL r1,r2,r3
+	brasl	\r1,__s390_indirect_jump_r\r2
+	.endm
+#else
 	.macro __THUNK_PROLOG_BR r1,r2
 	__THUNK_PROLOG_NAME __s390_indirect_jump_r\r2\()use_r\r1
 	.endm
@@ -42,6 +55,7 @@ _LC_BR_R1 = __LC_BR_R1
 	.macro __THUNK_BRASL r1,r2,r3
 	brasl	\r1,__s390_indirect_jump_r\r3\()use_r\r2
 	.endm
+#endif
 
 	.macro	__DECODE_RR expand,reg,ruse
 	.set __decode_fail,1
