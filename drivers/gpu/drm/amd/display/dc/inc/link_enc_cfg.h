@@ -40,6 +40,11 @@ void link_enc_cfg_init(
 		struct dc_state *state);
 
 /*
+ * Copies a link encoder assignment from another state.
+ */
+void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx);
+
+/*
  * Algorithm for assigning available DIG link encoders to streams.
  *
  * Update link_enc_assignments table and link_enc_avail list accordingly in
