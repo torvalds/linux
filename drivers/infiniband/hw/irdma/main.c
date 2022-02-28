@@ -242,7 +242,7 @@ static void irdma_fill_device_info(struct irdma_device *iwdev, struct ice_pf *pf
 	rf->gen_ops.request_reset = irdma_request_reset;
 	rf->limits_sel = 7;
 	rf->iwdev = iwdev;
-
+	mutex_init(&iwdev->ah_tbl_lock);
 	iwdev->netdev = vsi->netdev;
 	iwdev->vsi_num = vsi->vsi_num;
 	iwdev->init_state = INITIAL_STATE;

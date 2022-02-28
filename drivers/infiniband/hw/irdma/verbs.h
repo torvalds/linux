@@ -45,6 +45,9 @@ struct irdma_ah {
 	struct irdma_av av;
 	u8 sgid_index;
 	union ib_gid dgid;
+	struct hlist_node list;
+	refcount_t refcnt;
+	struct irdma_ah *parent_ah; /* AH from cached list */
 };
 
 struct irdma_hmc_pble {
