@@ -362,3 +362,13 @@ u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man)
 
 	return bman->visible_size;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+void i915_ttm_buddy_man_force_visible_size(struct ttm_resource_manager *man,
+					   u64 size)
+{
+	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
+
+	bman->visible_size = size;
+}
+#endif
