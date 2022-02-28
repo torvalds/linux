@@ -55,6 +55,7 @@ enum rk_pcie_device_mode {
 
 #define PCIE_DMA_OFFSET			0x380000
 
+#define PCIE_DMA_CTRL_OFF		0x8
 #define PCIE_DMA_WR_ENB			0xc
 #define PCIE_DMA_WR_CTRL_LO		0x200
 #define PCIE_DMA_WR_CTRL_HI		0x204
@@ -791,8 +792,17 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
 }
 
+static bool rk_pcie_udma_enabled(struct rk_pcie *rk_pcie)
+{
+	return dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
+				 PCIE_DMA_CTRL_OFF);
+}
+
 static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
 {
+	if (!rk_pcie_udma_enabled(rk_pcie))
+		return 0;
+
 	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(rk_pcie->pci->dev);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dma object\n");
@@ -1121,6 +1131,9 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 		dev_err(dev, "failed to establish pcie link\n");
 		return ret;
 	}
+
+	if (!rk_pcie_udma_enabled(rk_pcie))
+		return 0;
 
 	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(dev);
 	if (IS_ERR(rk_pcie->dma_obj)) {
