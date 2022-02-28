@@ -1220,7 +1220,6 @@ static int gsc_probe(struct platform_device *pdev)
 	struct gsc_driverdata *driver_data;
 	struct exynos_drm_ipp_formats *formats;
 	struct gsc_context *ctx;
-	struct resource *res;
 	int num_formats, ret, i, j;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1275,13 +1274,10 @@ static int gsc_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->regs);
 
 	/* resource irq */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to request irq resource.\n");
-		return -ENOENT;
-	}
+	ctx->irq = platform_get_irq(pdev, 0);
+	if (ctx->irq < 0)
+		return ctx->irq;
 
-	ctx->irq = res->start;
 	ret = devm_request_irq(dev, ctx->irq, gsc_irq_handler, 0,
 			       dev_name(dev), ctx);
 	if (ret < 0) {
