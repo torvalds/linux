@@ -7,6 +7,7 @@
 #include <linux/clk-provider.h>
 
 extern spinlock_t imx_ccm_lock;
+extern bool mcore_booted;
 
 void imx_check_clocks(struct clk *clks[], unsigned int count);
 void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count);
