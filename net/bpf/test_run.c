@@ -150,6 +150,11 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 	if (data_out) {
 		int len = sinfo ? copy_size - sinfo->xdp_frags_size : copy_size;
 
+		if (len < 0) {
+			err = -ENOSPC;
+			goto out;
+		}
+
 		if (copy_to_user(data_out, data, len))
 			goto out;
 
