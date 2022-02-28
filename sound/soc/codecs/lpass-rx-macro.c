@@ -15,6 +15,8 @@
 #include <linux/of_clk.h>
 #include <linux/clk-provider.h>
 
+#include "lpass-macro-common.h"
+
 #define CDC_RX_TOP_TOP_CFG0		(0x0000)
 #define CDC_RX_TOP_SWR_CTRL		(0x0008)
 #define CDC_RX_TOP_DEBUG		(0x000C)
@@ -607,7 +609,7 @@ struct rx_macro {
 	int is_softclip_on;
 	int is_aux_hpf_on;
 	int softclip_clk_users;
-
+	struct lpass_macro *pds;
 	struct regmap *regmap;
 	struct clk *mclk;
 	struct clk *npl;
@@ -3555,6 +3557,10 @@ static int rx_macro_probe(struct platform_device *pdev)
 	if (IS_ERR(rx->fsgen))
 		return PTR_ERR(rx->fsgen);
 
+	rx->pds = lpass_macro_pds_init(dev);
+	if (IS_ERR(rx->pds))
+		return PTR_ERR(rx->pds);
+
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -3634,6 +3640,8 @@ static int rx_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rx->fsgen);
 	clk_disable_unprepare(rx->macro);
 	clk_disable_unprepare(rx->dcodec);
+
+	lpass_macro_pds_exit(rx->pds);
 
 	return 0;
 }

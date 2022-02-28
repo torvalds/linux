@@ -14,6 +14,8 @@
 #include <linux/of_clk.h>
 #include <linux/clk-provider.h>
 
+#include "lpass-macro-common.h"
+
 #define CDC_TX_CLK_RST_CTRL_MCLK_CONTROL (0x0000)
 #define CDC_TX_MCLK_EN_MASK		BIT(0)
 #define CDC_TX_MCLK_ENABLE		BIT(0)
@@ -271,6 +273,7 @@ struct tx_macro {
 	u16 dmic_clk_div;
 	bool bcs_enable;
 	int dec_mode[NUM_DECIMATORS];
+	struct lpass_macro *pds;
 	bool bcs_clk_en;
 };
 #define to_tx_macro(_hw) container_of(_hw, struct tx_macro, hw)
@@ -1820,6 +1823,10 @@ static int tx_macro_probe(struct platform_device *pdev)
 	if (IS_ERR(tx->fsgen))
 		return PTR_ERR(tx->fsgen);
 
+	tx->pds = lpass_macro_pds_init(dev);
+	if (IS_ERR(tx->pds))
+		return PTR_ERR(tx->pds);
+
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -1956,6 +1963,8 @@ static int __maybe_unused tx_macro_runtime_resume(struct device *dev)
 	regcache_cache_only(tx->regmap, false);
 	regcache_sync(tx->regmap);
 	tx->reset_swr = true;
+
+	lpass_macro_pds_exit(tx->pds);
 
 	return 0;
 err_fsgen:

@@ -16,6 +16,8 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
+#include "lpass-macro-common.h"
+
 /* VA macro registers */
 #define CDC_VA_CLK_RST_CTRL_MCLK_CONTROL	(0x0000)
 #define CDC_VA_MCLK_CONTROL_EN			BIT(0)
@@ -198,6 +200,7 @@ struct va_macro {
 	struct clk *macro;
 	struct clk *dcodec;
 	struct clk_hw hw;
+	struct lpass_macro *pds;
 
 	s32 dmic_0_1_clk_cnt;
 	s32 dmic_2_3_clk_cnt;
@@ -1420,6 +1423,10 @@ static int va_macro_probe(struct platform_device *pdev)
 	if (IS_ERR(va->mclk))
 		return PTR_ERR(va->mclk);
 
+	va->pds = lpass_macro_pds_init(dev);
+	if (IS_ERR(va->pds))
+		return PTR_ERR(va->pds);
+
 	ret = of_property_read_u32(dev->of_node, "qcom,dmic-sample-rate",
 				   &sample_rate);
 	if (ret) {
@@ -1524,6 +1531,9 @@ static int __maybe_unused va_macro_runtime_resume(struct device *dev)
 
 	regcache_cache_only(va->regmap, false);
 	regcache_sync(va->regmap);
+
+	lpass_macro_pds_exit(va->pds);
+
 	return 0;
 }
 
