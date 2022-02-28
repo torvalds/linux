@@ -952,6 +952,7 @@ static int skl_first_init(struct hdac_bus *bus)
 	/* allow 64bit DMA address if supported by H/W */
 	if (dma_set_mask_and_coherent(bus->dev, DMA_BIT_MASK(64)))
 		dma_set_mask_and_coherent(bus->dev, DMA_BIT_MASK(32));
+	dma_set_max_seg_size(bus->dev, UINT_MAX);
 
 	/* initialize streams */
 	snd_hdac_ext_stream_init_all
