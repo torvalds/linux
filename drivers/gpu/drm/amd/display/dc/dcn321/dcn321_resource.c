@@ -333,7 +333,8 @@ static const struct dce110_clk_src_regs clk_src_regs[] = {
 	clk_src_regs(0, A),
 	clk_src_regs(1, B),
 	clk_src_regs(2, C),
-	clk_src_regs(3, D)
+	clk_src_regs(3, D),
+	clk_src_regs(4, E)
 };
 
 static const struct dce110_clk_src_shift cs_shift = {
