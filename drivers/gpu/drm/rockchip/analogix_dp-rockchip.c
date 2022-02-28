@@ -659,7 +659,7 @@ static __maybe_unused int rockchip_dp_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
 	SET_RUNTIME_PM_OPS(rockchip_dp_runtime_suspend,
 			   rockchip_dp_runtime_resume, NULL)
 };

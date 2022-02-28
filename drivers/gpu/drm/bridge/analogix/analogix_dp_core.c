@@ -1991,7 +1991,6 @@ EXPORT_SYMBOL_GPL(analogix_dp_remove);
 
 int analogix_dp_suspend(struct analogix_dp_device *dp)
 {
-	disable_irq(dp->irq);
 	pm_runtime_force_suspend(dp->dev);
 
 	return 0;
@@ -2002,7 +2001,6 @@ int analogix_dp_resume(struct analogix_dp_device *dp)
 {
 	pm_runtime_force_resume(dp->dev);
 	analogix_dp_init(dp);
-	enable_irq(dp->irq);
 
 	return 0;
 }
