@@ -188,43 +188,37 @@ to at25 SPI eeprom driver (this is meant for the above ACPI snippet)::
 	};
 
 Note that this driver actually needs more information like page size of the
-eeprom etc. but at the time writing this there is no standard way of
-passing those. One idea is to return this in _DSM method like::
+eeprom, etc. This information can be passed via _DSD method like::
 
 	Device (EEP0)
 	{
 		...
-		Method (_DSM, 4, NotSerialized)
+		Name (_DSD, Package ()
 		{
-			Store (Package (6)
+			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+			Package ()
 			{
-				"byte-len", 1024,
-				"addr-mode", 2,
-				"page-size, 32
-			}, Local0)
+				Package () { "size", 1024 },
+				Package () { "pagesize", 32 },
+				Package () { "address-width", 16 },
+			}
+		})
+	}
 
-			// Check UUIDs etc.
+Then the at25 SPI driver can get this configuration by calling device property
+APIs during ->probe() phase like::
 
-			Return (Local0)
-		}
+	err = device_property_read_u32(dev, "size", &size);
+	if (err)
+		...error handling...
 
-Then the at25 SPI driver can get this configuration by calling _DSM on its
-ACPI handle like::
+	err = device_property_read_u32(dev, "pagesize", &page_size);
+	if (err)
+		...error handling...
 
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_object_list input;
-	acpi_status status;
-
-	/* Fill in the input buffer */
-
-	status = acpi_evaluate_object(ACPI_HANDLE(&spi->dev), "_DSM",
-				      &input, &output);
-	if (ACPI_FAILURE(status))
-		/* Handle the error */
-
-	/* Extract the data here */
-
-	kfree(output.pointer);
+	err = device_property_read_u32(dev, "address-width", &addr_width);
+	if (err)
+		...error handling...
 
 I2C serial bus support
 ======================
