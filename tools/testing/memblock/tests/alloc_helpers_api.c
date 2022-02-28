@@ -209,16 +209,183 @@ static int alloc_from_top_down_min_addr_cap_check(void)
 	return 0;
 }
 
+/*
+ * A test that tries to allocate a memory region above an address that is too
+ * close to the end of the memory:
+ *
+ *                             +
+ *  |-----------+              +     |
+ *  |    rgn    |              |     |
+ *  +-----------+--------------+-----+
+ *  ^                          ^
+ *  |                          |
+ *  Aligned address            min_addr
+ *  boundary
+ *
+ * Expect to prioritize granting memory over satisfying the minimal address
+ * requirement. Allocation happens at beginning of the available memory.
+ */
+static int alloc_from_bottom_up_high_addr_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	phys_addr_t size = SZ_32;
+	phys_addr_t min_addr;
+
+	setup_memblock();
+
+	/* The address is too close to the end of the memory */
+	min_addr = memblock_end_of_DRAM() - SZ_8;
+
+	allocated_ptr = memblock_alloc_from(size, SMP_CACHE_BYTES, min_addr);
+
+	assert(allocated_ptr);
+	assert(rgn->size == size);
+	assert(rgn->base == memblock_start_of_DRAM());
+
+	assert(memblock.reserved.cnt == 1);
+	assert(memblock.reserved.total_size == size);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate a memory region when there is no space
+ * available above the minimal address above a certain address:
+ *
+ *                   +
+ *  |-----------+    +-------------------|
+ *  |    rgn    |    |                   |
+ *  +-----------+----+-------------------+
+ *                   ^
+ *                   |
+ *                   min_addr
+ *
+ * Expect to prioritize granting memory over satisfying the minimal address
+ * requirement and to allocate at the beginning of the available memory.
+ */
+static int alloc_from_bottom_up_no_space_above_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r1_size = SZ_64;
+	phys_addr_t min_addr;
+	phys_addr_t r2_size;
+
+	setup_memblock();
+
+	min_addr = memblock_start_of_DRAM() + SZ_128;
+	r2_size = memblock_end_of_DRAM() - min_addr;
+
+	/* No space above this address */
+	memblock_reserve(min_addr - SMP_CACHE_BYTES, r2_size);
+
+	allocated_ptr = memblock_alloc_from(r1_size, SMP_CACHE_BYTES, min_addr);
+
+	assert(allocated_ptr);
+	assert(rgn->base == memblock_start_of_DRAM());
+	assert(rgn->size == r1_size);
+
+	assert(memblock.reserved.cnt == 2);
+	assert(memblock.reserved.total_size == r1_size + r2_size);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate a memory region with a minimal address below
+ * the start address of the available memory. Expect to allocate a region
+ * at the beginning of the available memory.
+ */
+static int alloc_from_bottom_up_min_addr_cap_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r1_size = SZ_64;
+	phys_addr_t min_addr;
+	phys_addr_t start_addr;
+
+	setup_memblock();
+
+	start_addr = (phys_addr_t)memblock_start_of_DRAM();
+	min_addr = start_addr - SMP_CACHE_BYTES * 3;
+
+	allocated_ptr = memblock_alloc_from(r1_size, SMP_CACHE_BYTES, min_addr);
+
+	assert(allocated_ptr);
+	assert(rgn->base == start_addr);
+	assert(rgn->size == r1_size);
+
+	assert(memblock.reserved.cnt == 1);
+	assert(memblock.reserved.total_size == r1_size);
+
+	return 0;
+}
+
+/* Test case wrappers */
+static int alloc_from_simple_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_from_simple_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_from_simple_generic_check();
+
+	return 0;
+}
+
+static int alloc_from_misaligned_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_from_misaligned_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_from_misaligned_generic_check();
+
+	return 0;
+}
+
+static int alloc_from_high_addr_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_from_top_down_high_addr_check();
+	memblock_set_bottom_up(true);
+	alloc_from_bottom_up_high_addr_check();
+
+	return 0;
+}
+
+static int alloc_from_no_space_above_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_from_top_down_no_space_above_check();
+	memblock_set_bottom_up(true);
+	alloc_from_bottom_up_no_space_above_check();
+
+	return 0;
+}
+
+static int alloc_from_min_addr_cap_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_from_top_down_min_addr_cap_check();
+	memblock_set_bottom_up(true);
+	alloc_from_bottom_up_min_addr_cap_check();
+
+	return 0;
+}
+
 int memblock_alloc_helpers_checks(void)
 {
 	reset_memblock_attributes();
 	dummy_physical_memory_init();
 
-	alloc_from_simple_generic_check();
-	alloc_from_misaligned_generic_check();
-	alloc_from_top_down_high_addr_check();
-	alloc_from_top_down_min_addr_cap_check();
-	alloc_from_top_down_no_space_above_check();
+	alloc_from_simple_check();
+	alloc_from_misaligned_check();
+	alloc_from_high_addr_check();
+	alloc_from_no_space_above_check();
+	alloc_from_min_addr_cap_check();
 
 	dummy_physical_memory_cleanup();
 
