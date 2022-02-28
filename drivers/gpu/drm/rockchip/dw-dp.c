@@ -2628,12 +2628,16 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_enable(dp->dev);
 	pm_runtime_get_sync(dp->dev);
 
+	enable_irq(dp->irq);
+
 	return 0;
 }
 
 static void dw_dp_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
+
+	disable_irq(dp->irq);
 
 	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dp->dev);
@@ -2835,8 +2839,6 @@ static int __maybe_unused dw_dp_runtime_suspend(struct device *dev)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
 
-	disable_irq(dp->irq);
-
 	clk_disable_unprepare(dp->aux_clk);
 	clk_disable_unprepare(dp->apb_clk);
 	clk_disable_unprepare(dp->hclk);
@@ -2854,15 +2856,13 @@ static int __maybe_unused dw_dp_runtime_resume(struct device *dev)
 
 	dw_dp_init(dp);
 
-	enable_irq(dp->irq);
-
 	return 0;
 }
 
 static const struct dev_pm_ops dw_dp_pm_ops = {
 	SET_RUNTIME_PM_OPS(dw_dp_runtime_suspend, dw_dp_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				      pm_runtime_force_resume)
 };
 
 static const struct of_device_id dw_dp_of_match[] = {
