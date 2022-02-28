@@ -559,6 +559,7 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 				     struct mt76_queue_entry *e);
 int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
+int mt7663u_mcu_power_on(struct mt7615_dev *dev);
 
 /* sdio */
 int mt7663s_mcu_init(struct mt7615_dev *dev);

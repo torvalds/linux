@@ -100,27 +100,15 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
-	if (mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_PWR_ON,
-			   FW_STATE_PWR_ON << 1, 500)) {
-		dev_dbg(dev->mt76.dev, "Usb device already powered on\n");
-		set_bit(MT76_STATE_POWER_OFF, &dev->mphy.state);
-		goto alloc_queues;
-	}
-
-	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
-				   USB_DIR_OUT | USB_TYPE_VENDOR,
-				   0x0, 0x1, NULL, 0);
-	if (ret)
-		goto error;
-
 	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_PWR_ON,
 			    FW_STATE_PWR_ON << 1, 500)) {
-		dev_err(dev->mt76.dev, "Timeout for power on\n");
-		ret = -EIO;
-		goto error;
+		ret = mt7663u_mcu_power_on(dev);
+		if (ret)
+			goto error;
+	} else {
+		set_bit(MT76_STATE_POWER_OFF, &dev->mphy.state);
 	}
 
-alloc_queues:
 	ret = mt76u_alloc_mcu_queue(&dev->mt76);
 	if (ret)
 		goto error;
