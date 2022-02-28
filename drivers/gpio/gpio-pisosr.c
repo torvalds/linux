@@ -163,15 +163,13 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int pisosr_gpio_remove(struct spi_device *spi)
+static void pisosr_gpio_remove(struct spi_device *spi)
 {
 	struct pisosr_gpio *gpio = spi_get_drvdata(spi);
 
 	gpiochip_remove(&gpio->chip);
 
 	mutex_destroy(&gpio->lock);
-
-	return 0;
 }
 
 static const struct spi_device_id pisosr_gpio_id_table[] = {

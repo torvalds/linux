@@ -372,7 +372,7 @@ static int ltc2632_probe(struct spi_device *spi)
 	return iio_device_register(indio_dev);
 }
 
-static int ltc2632_remove(struct spi_device *spi)
+static void ltc2632_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ltc2632_state *st = iio_priv(indio_dev);
@@ -381,8 +381,6 @@ static int ltc2632_remove(struct spi_device *spi)
 
 	if (st->vref_reg)
 		regulator_disable(st->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ltc2632_id[] = {

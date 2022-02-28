@@ -223,12 +223,11 @@ static int l4f00242t03_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int l4f00242t03_remove(struct spi_device *spi)
+static void l4f00242t03_remove(struct spi_device *spi)
 {
 	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 static void l4f00242t03_shutdown(struct spi_device *spi)

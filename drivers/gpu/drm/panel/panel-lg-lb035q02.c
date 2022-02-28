@@ -203,14 +203,12 @@ static int lb035q02_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int lb035q02_remove(struct spi_device *spi)
+static void lb035q02_remove(struct spi_device *spi)
 {
 	struct lb035q02_device *lcd = spi_get_drvdata(spi);
 
 	drm_panel_remove(&lcd->panel);
 	drm_panel_disable(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id lb035q02_of_match[] = {

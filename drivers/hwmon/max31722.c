@@ -100,7 +100,7 @@ static int max31722_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int max31722_remove(struct spi_device *spi)
+static void max31722_remove(struct spi_device *spi)
 {
 	struct max31722_data *data = spi_get_drvdata(spi);
 	int ret;
@@ -111,8 +111,6 @@ static int max31722_remove(struct spi_device *spi)
 	if (ret)
 		/* There is nothing we can do about this ... */
 		dev_warn(&spi->dev, "Failed to put device in stand-by mode\n");
-
-	return 0;
 }
 
 static int __maybe_unused max31722_suspend(struct device *dev)

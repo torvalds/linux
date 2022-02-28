@@ -458,13 +458,11 @@ static int gs_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int gs_remove(struct spi_device *spi)
+static void gs_remove(struct spi_device *spi)
 {
 	struct v4l2_subdev *sd = spi_get_drvdata(spi);
 
 	v4l2_device_unregister_subdev(sd);
-
-	return 0;
 }
 
 static struct spi_driver gs_driver = {

@@ -45,10 +45,9 @@ static int adau1761_spi_probe(struct spi_device *spi)
 		id->driver_data, adau1761_spi_switch_mode);
 }
 
-static int adau1761_spi_remove(struct spi_device *spi)
+static void adau1761_spi_remove(struct spi_device *spi)
 {
 	adau17x1_remove(&spi->dev);
-	return 0;
 }
 
 static const struct spi_device_id adau1761_spi_id[] = {

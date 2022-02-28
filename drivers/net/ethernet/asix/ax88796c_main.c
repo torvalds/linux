@@ -1102,7 +1102,7 @@ err:
 	return ret;
 }
 
-static int ax88796c_remove(struct spi_device *spi)
+static void ax88796c_remove(struct spi_device *spi)
 {
 	struct ax88796c_device *ax_local = dev_get_drvdata(&spi->dev);
 	struct net_device *ndev = ax_local->ndev;
@@ -1112,8 +1112,6 @@ static int ax88796c_remove(struct spi_device *spi)
 	netif_info(ax_local, probe, ndev, "removing network device %s %s\n",
 		   dev_driver_string(&spi->dev),
 		   dev_name(&spi->dev));
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

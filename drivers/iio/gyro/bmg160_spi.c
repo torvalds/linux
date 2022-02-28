@@ -27,11 +27,9 @@ static int bmg160_spi_probe(struct spi_device *spi)
 	return bmg160_core_probe(&spi->dev, regmap, spi->irq, id->name);
 }
 
-static int bmg160_spi_remove(struct spi_device *spi)
+static void bmg160_spi_remove(struct spi_device *spi)
 {
 	bmg160_core_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id bmg160_spi_id[] = {

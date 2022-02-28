@@ -948,7 +948,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 	return dev_err_probe(dev, ret, "Probe failed\n");
 }
 
-static int hi3110_can_remove(struct spi_device *spi)
+static void hi3110_can_remove(struct spi_device *spi)
 {
 	struct hi3110_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
@@ -960,8 +960,6 @@ static int hi3110_can_remove(struct spi_device *spi)
 	clk_disable_unprepare(priv->clk);
 
 	free_candev(net);
-
-	return 0;
 }
 
 static int __maybe_unused hi3110_can_suspend(struct device *dev)

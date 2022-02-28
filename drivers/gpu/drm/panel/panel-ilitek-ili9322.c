@@ -896,14 +896,12 @@ static int ili9322_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ili9322_remove(struct spi_device *spi)
+static void ili9322_remove(struct spi_device *spi)
 {
 	struct ili9322 *ili = spi_get_drvdata(spi);
 
 	ili9322_power_off(ili);
 	drm_panel_remove(&ili->panel);
-
-	return 0;
 }
 
 /*

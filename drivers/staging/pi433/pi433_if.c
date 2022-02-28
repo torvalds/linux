@@ -1264,7 +1264,7 @@ RX_failed:
 	return retval;
 }
 
-static int pi433_remove(struct spi_device *spi)
+static void pi433_remove(struct spi_device *spi)
 {
 	struct pi433_device	*device = spi_get_drvdata(spi);
 
@@ -1284,8 +1284,6 @@ static int pi433_remove(struct spi_device *spi)
 
 	kfree(device->rx_buffer);
 	kfree(device);
-
-	return 0;
 }
 
 static const struct of_device_id pi433_dt_ids[] = {

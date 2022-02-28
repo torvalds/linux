@@ -321,7 +321,7 @@ reg_disable:
 	return ret;
 }
 
-static int mcp3911_remove(struct spi_device *spi)
+static void mcp3911_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp3911 *adc = iio_priv(indio_dev);
@@ -331,8 +331,6 @@ static int mcp3911_remove(struct spi_device *spi)
 	clk_disable_unprepare(adc->clki);
 	if (adc->vref)
 		regulator_disable(adc->vref);
-
-	return 0;
 }
 
 static const struct of_device_id mcp3911_dt_ids[] = {

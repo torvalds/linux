@@ -564,7 +564,7 @@ err_regulator:
 	return r;
 }
 
-static int tpo_td043_remove(struct spi_device *spi)
+static void tpo_td043_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -580,8 +580,6 @@ static int tpo_td043_remove(struct spi_device *spi)
 	omap_dss_put_device(in);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

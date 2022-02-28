@@ -280,7 +280,7 @@ struct spi_message;
 struct spi_driver {
 	const struct spi_device_id *id_table;
 	int			(*probe)(struct spi_device *spi);
-	int			(*remove)(struct spi_device *spi);
+	void			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
 	struct device_driver	driver;
 };

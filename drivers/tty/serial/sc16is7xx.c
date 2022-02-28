@@ -1440,11 +1440,9 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 	return sc16is7xx_probe(&spi->dev, devtype, regmap, spi->irq);
 }
 
-static int sc16is7xx_spi_remove(struct spi_device *spi)
+static void sc16is7xx_spi_remove(struct spi_device *spi)
 {
 	sc16is7xx_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id sc16is7xx_spi_id_table[] = {
