@@ -150,7 +150,20 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		dev_err_ratelimited(hdev->dev,
 			"Can't open %s because it is %s\n",
 			dev_name(hdev->dev), hdev->status[status]);
-		rc = -EPERM;
+
+		if (status == HL_DEVICE_STATUS_IN_RESET)
+			rc = -EAGAIN;
+		else
+			rc = -EPERM;
+
+		goto out_err;
+	}
+
+	if (hdev->compute_ctx_in_release) {
+		dev_dbg_ratelimited(hdev->dev,
+			"Can't open %s because another user is still releasing it\n",
+			dev_name(hdev->dev));
+		rc = -EAGAIN;
 		goto out_err;
 	}
 

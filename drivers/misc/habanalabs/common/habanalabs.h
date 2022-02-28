@@ -2710,6 +2710,7 @@ struct hl_reset_info {
  *                        cases where Linux was not loaded to device CPU
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
  * @is_compute_ctx_active: Whether there is an active compute context executing.
+ * @compute_ctx_in_release: true if the current compute context is being released.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2828,6 +2829,7 @@ struct hl_device {
 	u8				supports_wait_for_multi_cs;
 	u8				stream_master_qid_arr_size;
 	u8				is_compute_ctx_active;
+	u8				compute_ctx_in_release;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

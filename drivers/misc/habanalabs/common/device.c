@@ -107,6 +107,8 @@ static void hpriv_release(struct kref *ref)
 	hdev->is_compute_ctx_active = false;
 	mutex_unlock(&hdev->fpriv_list_lock);
 
+	hdev->compute_ctx_in_release = 0;
+
 	kfree(hpriv);
 }
 
@@ -149,6 +151,8 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
 	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
+
+	hdev->compute_ctx_in_release = 1;
 
 	if (!hl_hpriv_put(hpriv))
 		dev_notice(hdev->dev,
