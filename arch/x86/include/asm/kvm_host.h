@@ -443,14 +443,6 @@ struct kvm_mmu {
 	u8 shadow_root_level;
 	u8 ept_ad;
 	bool direct_map;
-	struct kvm_mmu_root_info prev_roots[KVM_MMU_NUM_PREV_ROOTS];
-
-	/*
-	 * Bitmap; bit set = permission fault
-	 * Byte index: page fault error code [4:1]
-	 * Bit index: pte permissions in ACC_* format
-	 */
-	u8 permissions[16];
 
 	/*
 	* The pkru_mask indicates if protection key checks are needed.  It
@@ -459,6 +451,15 @@ struct kvm_mmu {
 	* Each domain has 2 bits which are ANDed with AD and WD from PKRU.
 	*/
 	u32 pkru_mask;
+
+	struct kvm_mmu_root_info prev_roots[KVM_MMU_NUM_PREV_ROOTS];
+
+	/*
+	 * Bitmap; bit set = permission fault
+	 * Byte index: page fault error code [4:1]
+	 * Bit index: pte permissions in ACC_* format
+	 */
+	u8 permissions[16];
 
 	u64 *pae_root;
 	u64 *pml4_root;
