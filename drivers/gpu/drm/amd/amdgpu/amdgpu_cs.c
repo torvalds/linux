@@ -814,7 +814,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
+	if (fpriv->csa_va) {
 		bo_va = fpriv->csa_va;
 		BUG_ON(!bo_va);
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
@@ -898,13 +898,11 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			continue;
 
 		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
-		    (amdgpu_mcbp || amdgpu_sriov_vf(adev))) {
-			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
-				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
-					ce_preempt++;
-				else
-					de_preempt++;
-			}
+		    chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
+			if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
+				ce_preempt++;
+			else
+				de_preempt++;
 
 			/* each GFX command submit allows 0 or 1 IB preemptible for CE & DE */
 			if (ce_preempt > 1 || de_preempt > 1)
