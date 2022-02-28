@@ -226,8 +226,6 @@ void bch2_journal_space_available(struct journal *j)
 		ret = cur_entry_journal_stuck;
 	} else if (!j->space[journal_space_discarded].next_entry)
 		ret = cur_entry_journal_full;
-	else if (!fifo_free(&j->pin))
-		ret = cur_entry_journal_pin_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
@@ -369,9 +367,6 @@ static inline void __journal_pin_drop(struct journal *j,
 	if (atomic_dec_and_test(&pin_list->count) &&
 	    pin_list == &fifo_peek_front(&j->pin))
 		bch2_journal_reclaim_fast(j);
-	else if (fifo_used(&j->pin) == 1 &&
-		 atomic_read(&pin_list->count) == 1)
-		journal_wake(j);
 }
 
 void bch2_journal_pin_drop(struct journal *j,
@@ -769,8 +764,7 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 	 */
 	ret = !test_bit(JOURNAL_REPLAY_DONE, &j->flags) ||
 		journal_last_seq(j) > seq_to_flush ||
-		(fifo_used(&j->pin) == 1 &&
-		 atomic_read(&fifo_peek_front(&j->pin).count) == 1);
+		!fifo_used(&j->pin);
 
 	spin_unlock(&j->lock);
 	mutex_unlock(&j->reclaim_lock);

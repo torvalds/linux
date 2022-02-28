@@ -781,7 +781,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
-		       k->k->version.lo > journal_cur_seq(&c->journal));
+		       k->k->version.lo > atomic64_read(&c->journal.seq));
 
 		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, k);
 		if (ret)

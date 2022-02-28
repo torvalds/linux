@@ -1344,7 +1344,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 	}
 
 	sb_clean->flags		= 0;
-	sb_clean->journal_seq	= cpu_to_le64(journal_cur_seq(&c->journal) - 1);
+	sb_clean->journal_seq	= cpu_to_le64(atomic64_read(&c->journal.seq));
 
 	/* Trying to catch outstanding bug: */
 	BUG_ON(le64_to_cpu(sb_clean->journal_seq) > S64_MAX);
