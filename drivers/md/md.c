@@ -5869,10 +5869,6 @@ int md_run(struct mddev *mddev)
 		nowait = nowait && blk_queue_nowait(bdev_get_queue(rdev->bdev));
 	}
 
-	/* Set the NOWAIT flags if all underlying devices support it */
-	if (nowait)
-		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, mddev->queue);
-
 	if (!bioset_initialized(&mddev->bio_set)) {
 		err = bioset_init(&mddev->bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 		if (err)
@@ -6010,6 +6006,10 @@ int md_run(struct mddev *mddev)
 		else
 			blk_queue_flag_clear(QUEUE_FLAG_NONROT, mddev->queue);
 		blk_queue_flag_set(QUEUE_FLAG_IO_STAT, mddev->queue);
+
+		/* Set the NOWAIT flags if all underlying devices support it */
+		if (nowait)
+			blk_queue_flag_set(QUEUE_FLAG_NOWAIT, mddev->queue);
 	}
 	if (pers->sync_request) {
 		if (mddev->kobj.sd &&

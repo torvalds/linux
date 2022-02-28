@@ -334,6 +334,7 @@ void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
 		netdev_info(ndev, "\t[%d] %s start..\n", i, st.name);
 		buf[count] = st.st_func(priv);
 		netdev_info(ndev, "\t[%d] %s end: result(%lld)\n", i, st.name, buf[count]);
+		count++;
 	}
 
 	mutex_unlock(&priv->state_lock);

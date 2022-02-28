@@ -127,11 +127,6 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	struct cifs_server_iface *ifaces = NULL;
 	size_t iface_count;
 
-	if (ses->server->dialect < SMB30_PROT_ID) {
-		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
-		return 0;
-	}
-
 	spin_lock(&ses->chan_lock);
 
 	new_chan_count = old_chan_count = ses->chan_count;
@@ -142,6 +137,12 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 		cifs_dbg(FYI,
 			 "ses already at max_channels (%zu), nothing to open\n",
 			 ses->chan_max);
+		return 0;
+	}
+
+	if (ses->server->dialect < SMB30_PROT_ID) {
+		spin_unlock(&ses->chan_lock);
+		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
 
@@ -713,7 +714,11 @@ static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
 	else
 		sz += sizeof(__le16);
 
-	sz += sizeof(__le16) * strnlen(ses->workstation_name, CIFS_MAX_WORKSTATION_LEN);
+	if (ses->workstation_name)
+		sz += sizeof(__le16) * strnlen(ses->workstation_name,
+			CIFS_MAX_WORKSTATION_LEN);
+	else
+		sz += sizeof(__le16);
 
 	return sz;
 }

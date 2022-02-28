@@ -468,6 +468,7 @@ Description:
 			auto:            Charge normally, respect thresholds
 			inhibit-charge:  Do not charge while AC is attached
 			force-discharge: Force discharge while AC is attached
+			================ ====================================
 
 What:		/sys/class/power_supply/<supply_name>/technology
 Date:		May 2007

@@ -43,6 +43,21 @@ static void update_attr(u8 *dst, u8 *src, int attribute,
 	}
 }
 
+static void bit_bmove(struct vc_data *vc, struct fb_info *info, int sy,
+		      int sx, int dy, int dx, int height, int width)
+{
+	struct fb_copyarea area;
+
+	area.sx = sx * vc->vc_font.width;
+	area.sy = sy * vc->vc_font.height;
+	area.dx = dx * vc->vc_font.width;
+	area.dy = dy * vc->vc_font.height;
+	area.height = height * vc->vc_font.height;
+	area.width = width * vc->vc_font.width;
+
+	info->fbops->fb_copyarea(info, &area);
+}
+
 static void bit_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		      int sx, int height, int width)
 {
@@ -378,6 +393,7 @@ static int bit_update_start(struct fb_info *info)
 
 void fbcon_set_bitops(struct fbcon_ops *ops)
 {
+	ops->bmove = bit_bmove;
 	ops->clear = bit_clear;
 	ops->putcs = bit_putcs;
 	ops->clear_margins = bit_clear_margins;

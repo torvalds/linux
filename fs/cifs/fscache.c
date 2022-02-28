@@ -134,37 +134,127 @@ void cifs_fscache_release_inode_cookie(struct inode *inode)
 	}
 }
 
+static inline void fscache_end_operation(struct netfs_cache_resources *cres)
+{
+	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+
+	if (ops)
+		ops->end_operation(cres);
+}
+
+/*
+ * Fallback page reading interface.
+ */
+static int fscache_fallback_read_page(struct inode *inode, struct page *page)
+{
+	struct netfs_cache_resources cres;
+	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct iov_iter iter;
+	struct bio_vec bvec[1];
+	int ret;
+
+	memset(&cres, 0, sizeof(cres));
+	bvec[0].bv_page		= page;
+	bvec[0].bv_offset	= 0;
+	bvec[0].bv_len		= PAGE_SIZE;
+	iov_iter_bvec(&iter, READ, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
+
+	ret = fscache_begin_read_operation(&cres, cookie);
+	if (ret < 0)
+		return ret;
+
+	ret = fscache_read(&cres, page_offset(page), &iter, NETFS_READ_HOLE_FAIL,
+			   NULL, NULL);
+	fscache_end_operation(&cres);
+	return ret;
+}
+
+/*
+ * Fallback page writing interface.
+ */
+static int fscache_fallback_write_page(struct inode *inode, struct page *page,
+				       bool no_space_allocated_yet)
+{
+	struct netfs_cache_resources cres;
+	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct iov_iter iter;
+	struct bio_vec bvec[1];
+	loff_t start = page_offset(page);
+	size_t len = PAGE_SIZE;
+	int ret;
+
+	memset(&cres, 0, sizeof(cres));
+	bvec[0].bv_page		= page;
+	bvec[0].bv_offset	= 0;
+	bvec[0].bv_len		= PAGE_SIZE;
+	iov_iter_bvec(&iter, WRITE, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
+
+	ret = fscache_begin_write_operation(&cres, cookie);
+	if (ret < 0)
+		return ret;
+
+	ret = cres.ops->prepare_write(&cres, &start, &len, i_size_read(inode),
+				      no_space_allocated_yet);
+	if (ret == 0)
+		ret = fscache_write(&cres, page_offset(page), &iter, NULL, NULL);
+	fscache_end_operation(&cres);
+	return ret;
+}
+
 /*
  * Retrieve a page from FS-Cache
  */
 int __cifs_readpage_from_fscache(struct inode *inode, struct page *page)
 {
-	cifs_dbg(FYI, "%s: (fsc:%p, p:%p, i:0x%p\n",
-		 __func__, CIFS_I(inode)->fscache, page, inode);
-	return -ENOBUFS; // Needs conversion to using netfslib
-}
+	int ret;
 
-/*
- * Retrieve a set of pages from FS-Cache
- */
-int __cifs_readpages_from_fscache(struct inode *inode,
-				struct address_space *mapping,
-				struct list_head *pages,
-				unsigned *nr_pages)
-{
-	cifs_dbg(FYI, "%s: (0x%p/%u/0x%p)\n",
-		 __func__, CIFS_I(inode)->fscache, *nr_pages, inode);
-	return -ENOBUFS; // Needs conversion to using netfslib
+	cifs_dbg(FYI, "%s: (fsc:%p, p:%p, i:0x%p\n",
+		 __func__, cifs_inode_cookie(inode), page, inode);
+
+	ret = fscache_fallback_read_page(inode, page);
+	if (ret < 0)
+		return ret;
+
+	/* Read completed synchronously */
+	SetPageUptodate(page);
+	return 0;
 }
 
 void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
 {
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-
-	WARN_ON(!cifsi->fscache);
-
 	cifs_dbg(FYI, "%s: (fsc: %p, p: %p, i: %p)\n",
-		 __func__, cifsi->fscache, page, inode);
+		 __func__, cifs_inode_cookie(inode), page, inode);
 
-	// Needs conversion to using netfslib
+	fscache_fallback_write_page(inode, page, true);
+}
+
+/*
+ * Query the cache occupancy.
+ */
+int __cifs_fscache_query_occupancy(struct inode *inode,
+				   pgoff_t first, unsigned int nr_pages,
+				   pgoff_t *_data_first,
+				   unsigned int *_data_nr_pages)
+{
+	struct netfs_cache_resources cres;
+	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	loff_t start, data_start;
+	size_t len, data_len;
+	int ret;
+
+	ret = fscache_begin_read_operation(&cres, cookie);
+	if (ret < 0)
+		return ret;
+
+	start = first * PAGE_SIZE;
+	len = nr_pages * PAGE_SIZE;
+	ret = cres.ops->query_occupancy(&cres, start, len, PAGE_SIZE,
+					&data_start, &data_len);
+	if (ret == 0) {
+		*_data_first = data_start / PAGE_SIZE;
+		*_data_nr_pages = len / PAGE_SIZE;
+	}
+
+	fscache_end_operation(&cres);
+	return ret;
 }
