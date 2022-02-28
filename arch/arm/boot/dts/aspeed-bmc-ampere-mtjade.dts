@@ -339,17 +339,8 @@
 			<&adc10mux 0>, <&adc10mux 1>,
 			<&adc11mux 0>, <&adc11mux 1>,
 			<&adc12mux 0>, <&adc12mux 1>,
-			<&adc13mux 0>, <&adc13mux 1>;
-	};
-
-	iio-hwmon-adc14 {
-		compatible = "iio-hwmon";
-		io-channels = <&adc 14>;
-	};
-
-	iio-hwmon-battery {
-		compatible = "iio-hwmon";
-		io-channels = <&adc 15>;
+			<&adc13mux 0>, <&adc13mux 1>,
+			<&adc 14>, <&adc 15>;
 	};
 };
 
