@@ -64,7 +64,7 @@
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
 		rockchip,irq-mode-enable = <0>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -85,7 +85,7 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
 	};
 
@@ -141,7 +141,7 @@
 		      <0xff1f2000 0x2000>,
 		      <0xff1f4000 0x2000>,
 		      <0xff1f6000 0x2000>;
-		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	arm-debug@ff200000 {
@@ -505,7 +505,7 @@
 		status = "disabled";
 	};
 
-	sfc: spi@ffac0000  {
+	sfc: spi@ffac0000 {
 		compatible = "rockchip,sfc";
 		reg = <0xffac0000 0x4000>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
