@@ -1266,6 +1266,8 @@ static void r5l_log_flush_endio(struct bio *bio)
 		r5l_io_run_stripes(io);
 	list_splice_tail_init(&log->flushing_ios, &log->finished_ios);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
+
+	bio_uninit(bio);
 }
 
 /*
@@ -1301,7 +1303,7 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
 
 	if (!do_flush)
 		return;
-	bio_reset(&log->flush_bio, log->rdev->bdev,
+	bio_init(&log->flush_bio, log->rdev->bdev, NULL, 0,
 		  REQ_OP_WRITE | REQ_PREFLUSH);
 	log->flush_bio.bi_end_io = r5l_log_flush_endio;
 	submit_bio(&log->flush_bio);
@@ -3105,7 +3107,6 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	INIT_LIST_HEAD(&log->io_end_ios);
 	INIT_LIST_HEAD(&log->flushing_ios);
 	INIT_LIST_HEAD(&log->finished_ios);
-	bio_init(&log->flush_bio, NULL, NULL, 0, 0);
 
 	log->io_kc = KMEM_CACHE(r5l_io_unit, 0);
 	if (!log->io_kc)
