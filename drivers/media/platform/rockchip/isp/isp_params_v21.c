@@ -3363,6 +3363,20 @@ isp_csm_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 }
 
+static void
+isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
+	       const struct isp21_cgc_cfg *arg)
+{
+	u32 val = rkisp_ioread32(params_vdev, ISP_CTRL);
+
+	val &= ~(ISP21_CGC_YUV_LIMIT | ISP21_CGC_RATIO_EN);
+	if (arg->yuv_limit)
+		val |= ISP21_CGC_YUV_LIMIT;
+	if (arg->ratio_en)
+		val |= ISP21_CGC_RATIO_EN;
+	rkisp_iowrite32(params_vdev, val, ISP_CTRL);
+}
+
 struct rkisp_isp_params_v21_ops rkisp_v21_isp_params_ops = {
 	.dpcc_config = isp_dpcc_config,
 	.dpcc_enable = isp_dpcc_enable,
@@ -3427,6 +3441,7 @@ struct rkisp_isp_params_v21_ops rkisp_v21_isp_params_ops = {
 	.bay3d_config = isp_bay3d_config,
 	.bay3d_enable = isp_bay3d_enable,
 	.csm_config = isp_csm_config,
+	.cgc_config = isp_cgc_config,
 };
 
 static __maybe_unused
@@ -3470,6 +3485,9 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if ((module_cfg_update & ISP2X_MODULE_GOC))
 		ops->goc_config(params_vdev, &new_params->others.gammaout_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_CGC))
+		ops->cgc_config(params_vdev, &new_params->others.cgc_cfg);
 
 	if ((module_cfg_update & ISP2X_MODULE_CSM))
 		ops->csm_config(params_vdev, &new_params->others.csm_cfg);

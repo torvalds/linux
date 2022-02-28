@@ -47,6 +47,7 @@
 #define ISP32_MODULE_DRC		ISP3X_MODULE_DRC
 #define ISP32_MODULE_CAC		ISP3X_MODULE_CAC
 #define ISP32_MODULE_CSM		ISP3X_MODULE_CSM
+#define ISP32_MODULE_CGC		ISP3X_MODULE_CGC
 
 /* Measurement types */
 #define ISP32_STAT_RAWAWB		ISP3X_STAT_RAWAWB
@@ -125,10 +126,10 @@
 #define ISP32_CNR_SIGMA_Y_NUM		ISP3X_CNR_SIGMA_Y_NUM
 #define ISP32_CNR_GAUS_COE_NUM		6
 
-#define ISP32_YNR_XY_NUM		ISP21_YNR_XY_NUM
+#define ISP32_YNR_XY_NUM		ISP3X_YNR_XY_NUM
 #define ISP32_YNR_NLM_COE_NUM		6
 
-#define ISP32_BAYNR_XY_NUM		ISP3X_YNR_XY_NUM
+#define ISP32_BAYNR_XY_NUM		ISP3X_BAYNR_XY_NUM
 #define ISP32_BAYNR_GAIN_NUM		16
 
 #define ISP32_BAY3D_XY_NUM		ISP3X_BAY3D_XY_NUM
@@ -1250,6 +1251,7 @@ struct isp32_isp_other_cfg {
 	struct isp32_cac_cfg cac_cfg;
 	struct isp3x_gain_cfg gain_cfg;
 	struct isp21_csm_cfg csm_cfg;
+	struct isp21_cgc_cfg cgc_cfg;
 } __attribute__ ((packed));
 
 struct isp32_isp_meas_cfg {

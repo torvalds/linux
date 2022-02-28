@@ -3677,6 +3677,20 @@ isp_csm_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 }
 
+static void
+isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
+	       const struct isp21_cgc_cfg *arg, u32 id)
+{
+	u32 val = isp3_param_read(params_vdev, ISP3X_ISP_CTRL0, id);
+
+	val &= ~(ISP3X_SW_CGC_YUV_LIMIT | ISP3X_SW_CGC_RATIO_EN);
+	if (arg->yuv_limit)
+		val |= ISP3X_SW_CGC_YUV_LIMIT;
+	if (arg->ratio_en)
+		val |= ISP3X_SW_CGC_RATIO_EN;
+	isp3_param_write(params_vdev, val, ISP3X_ISP_CTRL0, id);
+}
+
 struct rkisp_isp_params_ops_v3x isp_params_ops_v3x = {
 	.dpcc_config = isp_dpcc_config,
 	.dpcc_enable = isp_dpcc_enable,
@@ -3745,6 +3759,7 @@ struct rkisp_isp_params_ops_v3x isp_params_ops_v3x = {
 	.gain_enable = isp_gain_enable,
 	.cac_config = isp_cac_config,
 	.cac_enable = isp_cac_enable,
+	.cgc_config = isp_cgc_config,
 };
 
 static __maybe_unused
@@ -3792,6 +3807,9 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if ((module_cfg_update & ISP3X_MODULE_GOC))
 		ops->goc_config(params_vdev, &new_params->others.gammaout_cfg, id);
+
+	if ((module_cfg_update & ISP3X_MODULE_CGC))
+		ops->cgc_config(params_vdev, &new_params->others.cgc_cfg, id);
 
 	if ((module_cfg_update & ISP3X_MODULE_CSM))
 		ops->csm_config(params_vdev, &new_params->others.csm_cfg, id);

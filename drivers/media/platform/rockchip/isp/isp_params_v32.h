@@ -160,6 +160,8 @@ struct rkisp_isp_params_ops_v32 {
 			     bool en);
 	void (*csm_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp21_csm_cfg *arg);
+	void (*cgc_config)(struct rkisp_isp_params_vdev *params_vdev,
+			   const struct isp21_cgc_cfg *arg);
 };
 
 struct rkisp_isp_params_val_v32 {
