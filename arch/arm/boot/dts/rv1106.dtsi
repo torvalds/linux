@@ -224,6 +224,23 @@
 		status = "disabled";
 	};
 
+	tsadc: tsadc@ff3c8000 {
+		compatible = "rockchip,rv1106-tsadc";
+		reg = <0xff3c8000 0x1000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
+		assigned-clocks = <&cru CLK_TSADC>;
+		assigned-clock-rates = <2000000>;
+		resets = <&cru SRST_TSADC>, <&cru SRST_P_TSADC>;
+		reset-names = "tsadc", "tsadc-apb";
+		#thermal-sensor-cells = <1>;
+		rockchip,hw-tshut-temp = <120000>;
+		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		status = "disabled";
+	};
+
 	u2phy: usb2-phy@ff3e0000 {
 		compatible = "rockchip,rv1106-usb2phy";
 		reg = <0xff3e0000 0x8000>;
