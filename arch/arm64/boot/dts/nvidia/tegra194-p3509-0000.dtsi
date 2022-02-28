@@ -1826,6 +1826,10 @@
 			pads {
 				usb2 {
 					lanes {
+						usb2-0 {
+							status = "okay";
+						};
+
 						usb2-1 {
 							status = "okay";
 						};
@@ -1846,6 +1850,20 @@
 			};
 
 			ports {
+				usb2-0 {
+					mode = "otg";
+					status = "okay";
+					usb-role-switch;
+					connector {
+						compatible = "gpio-usb-b-connector",
+							"usb-b-connector";
+						label = "micro-USB";
+						type = "micro";
+						vbus-gpio = <&gpio TEGRA194_MAIN_GPIO(Z, 1)
+								GPIO_ACTIVE_LOW>;
+					};
+				};
+
 				usb2-1 {
 					mode = "host";
 					status = "okay";
@@ -1872,6 +1890,13 @@
 				<&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-2}>,
 				<&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-2}>;
 			phy-names = "usb2-1", "usb2-2", "usb3-2";
+		};
+
+		usb@3550000 {
+			status = "okay";
+
+			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>;
+			phy-names = "usb2-0";
 		};
 
 		spi@3270000 {
