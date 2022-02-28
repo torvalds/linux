@@ -420,6 +420,7 @@ struct vop2_win {
 };
 
 struct vop2_cluster {
+	bool splice_mode;
 	struct vop2_win *main;
 	struct vop2_win *sub;
 };
@@ -4299,11 +4300,11 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
-	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d, %d)] fmt[%.4s_%s] addr[%pad]\n",
+	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d, %d)] fmt[%.4s%s] addr[%pad]\n",
 		      vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
 		      dsp_stx, dsp_sty,
 		      drm_get_format_name(fb->format->format, &format_name),
-		      vpstate->afbc_en ? "AFBC" : "", &vpstate->yrgb_mst);
+		      vpstate->afbc_en ? "_AFBC" : "", &vpstate->yrgb_mst);
 
 	if (vop2->version != VOP_VERSION_RK3568)
 		rk3588_vop2_win_cfg_axi(win);
@@ -4475,13 +4476,13 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	}
 
 	if (vcstate->splice_mode) {
-		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d,%d)] fmt[%.4s_%s] addr[%pad]\n",
+		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d,%d)] fmt[%.4s%s] addr[%pad]\n",
 			      vp->id, win->name, drm_rect_width(&vpstate->src) >> 16,
 			      drm_rect_height(&vpstate->src) >> 16,
 			      drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
 			      vpstate->dest.x1, vpstate->dest.y1,
 			      drm_get_format_name(fb->format->format, &format_name),
-			      vpstate->afbc_en ? "AFBC" : "", &vpstate->yrgb_mst);
+			      vpstate->afbc_en ? "_AFBC" : "", &vpstate->yrgb_mst);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
 		splice_win = win->splice_win;
@@ -6898,7 +6899,15 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 
 	if (!sub_win) {
 		/* At one win mode, win0 is dst/bottom win, and win1 is a all zero src/top win */
-		plane = &main_win->base;
+
+		/*
+		 * right cluster share the same plane state in splice mode
+		 */
+		if (cluster->splice_mode)
+			plane = &main_win->left_win->base;
+		else
+			plane = &main_win->base;
+
 		top_win_vpstate = NULL;
 		bottom_win_vpstate = to_vop2_plane_state(plane->state);
 		src_glb_alpha_val = 0;
@@ -7413,9 +7422,13 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		win->two_win_mode = false;
 		if (!(win->feature & WIN_FEATURE_CLUSTER_SUB))
 			continue;
+		if (vcstate->splice_mode)
+			DRM_ERROR("vp%d %s not supported two win mode at splice mode\n",
+				  vp->id, win->name);
 		main_win = vop2_find_win_by_phys_id(vop2, win->phys_id);
 		cluster.main = main_win;
 		cluster.sub = win;
+		cluster.splice_mode = false;
 		win->two_win_mode = true;
 		main_win->two_win_mode = true;
 		vop2_setup_cluster_alpha(vop2, &cluster);
@@ -7533,10 +7546,12 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 			continue;
 		cluster.main = win;
 		cluster.sub = NULL;
+		cluster.splice_mode = false;
 		vop2_setup_cluster_alpha(vop2, &cluster);
 		if (vcstate->splice_mode) {
 			splice_win = win->splice_win;
 			cluster.main = splice_win;
+			cluster.splice_mode = true;
 			vop2_setup_cluster_alpha(vop2, &cluster);
 		}
 	}
