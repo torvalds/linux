@@ -2444,7 +2444,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 				&_cpu_based_exec_control) < 0)
 		return -EIO;
 #ifdef CONFIG_X86_64
-	if ((_cpu_based_exec_control & CPU_BASED_TPR_SHADOW))
+	if (_cpu_based_exec_control & CPU_BASED_TPR_SHADOW)
 		_cpu_based_exec_control &= ~CPU_BASED_CR8_LOAD_EXITING &
 					   ~CPU_BASED_CR8_STORE_EXITING;
 #endif
