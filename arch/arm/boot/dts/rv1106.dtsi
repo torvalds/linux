@@ -157,6 +157,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_I2C0>, <&cru PCLK_I2C0>;
 		clock-names = "i2c", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0m0_xfer>;
 		status = "disabled";
 	};
 
@@ -168,6 +170,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_I2C1>, <&cru PCLK_I2C1>;
 		clock-names = "i2c", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1m0_xfer>;
 		status = "disabled";
 	};
 
@@ -181,6 +185,8 @@
 		rockchip,grf = <&peri_grf>;
 		rockchip,pwm-output-mode;
 		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsmaudio_pins>;
 		status = "disabled";
 	};
 
@@ -290,6 +296,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_I2C2>, <&cru PCLK_I2C2>;
 		clock-names = "i2c", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2m0_xfer>;
 		status = "disabled";
 	};
 
@@ -301,6 +309,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_I2C3>, <&cru PCLK_I2C3>;
 		clock-names = "i2c", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3m0_xfer>;
 		status = "disabled";
 	};
 
@@ -312,6 +322,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
 		clock-names = "i2c", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4m0_xfer>;
 		status = "disabled";
 	};
 
@@ -325,6 +337,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0m0_xfer>;
 		status = "disabled";
 	};
 
@@ -338,6 +352,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn &uart1m0_rtsn>;
 		status = "disabled";
 	};
 
@@ -351,6 +367,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m1_xfer>;
 		status = "disabled";
 	};
 
@@ -364,6 +382,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart3m0_xfer>;
 		status = "disabled";
 	};
 
@@ -377,6 +397,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4m0_xfer>;
 		status = "disabled";
 	};
 
@@ -390,6 +412,8 @@
 		clock-frequency = <24000000>;
 		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
 		clock-names = "baudclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5m0_xfer &uart5m0_ctsn &uart5m0_rtsn>;
 		status = "disabled";
 	};
 
