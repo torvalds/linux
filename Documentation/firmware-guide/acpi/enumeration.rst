@@ -243,7 +243,6 @@ input driver::
 	static struct i2c_driver mpu3050_i2c_driver = {
 		.driver	= {
 			.name	= "mpu3050",
-			.owner	= THIS_MODULE,
 			.pm	= &mpu3050_pm,
 			.of_match_table = mpu3050_of_match,
 			.acpi_match_table = ACPI_PTR(mpu3050_acpi_match),
@@ -252,6 +251,7 @@ input driver::
 		.remove		= mpu3050_remove,
 		.id_table	= mpu3050_ids,
 	};
+	module_i2c_driver(mpu3050_i2c_driver);
 
 Reference to PWM device
 =======================
