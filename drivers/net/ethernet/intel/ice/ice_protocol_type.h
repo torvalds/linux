@@ -47,6 +47,7 @@ enum ice_protocol_type {
 
 enum ice_sw_tunnel_type {
 	ICE_NON_TUN = 0,
+	ICE_SW_TUN_AND_NON_TUN,
 	ICE_SW_TUN_VXLAN,
 	ICE_SW_TUN_GENEVE,
 	ICE_SW_TUN_NVGRE,
