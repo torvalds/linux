@@ -389,8 +389,6 @@
 		fsl,pins = <
 			/* CHRG_INT */
 			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3	0x80
-			/* CHG_STATUS_B */
-			MX8MQ_IOMUXC_NAND_ALE_GPIO3_IO0		0x80
 		>;
 	};
 
