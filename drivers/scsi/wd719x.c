@@ -904,7 +904,8 @@ static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
 	if (err)
 		goto fail;
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (err) {
 		dev_warn(&pdev->dev, "Unable to set 32-bit DMA mask\n");
 		goto disable_device;
 	}
