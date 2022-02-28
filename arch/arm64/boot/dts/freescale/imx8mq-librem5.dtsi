@@ -325,14 +325,9 @@
 		};
 
 		partition@30000 {
-			label = "protected1";
-			reg = <0x30000 0x10000>;
+			label = "firmware";
+			reg = <0x30000 0x1d0000>;
 			read-only;
-		};
-
-		partition@40000 {
-			label = "rw";
-			reg = <0x40000 0x1C0000>;
 		};
 	};
 };
