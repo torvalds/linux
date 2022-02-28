@@ -1225,15 +1225,13 @@ static int dm9051_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int dm9051_drv_remove(struct spi_device *spi)
+static void dm9051_drv_remove(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct board_info *db = to_dm9051_board(ndev);
 
 	phy_disconnect(db->phydev);
-
-	return 0;
 }
 
 static const struct of_device_id dm9051_match_table[] = {
