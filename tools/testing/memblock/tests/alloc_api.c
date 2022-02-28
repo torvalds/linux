@@ -411,22 +411,338 @@ static int alloc_no_memory_generic_check(void)
 	return 0;
 }
 
+/*
+ * A simple test that tries to allocate a small memory region.
+ * Expect to allocate an aligned region at the beginning of the available
+ * memory.
+ */
+static int alloc_bottom_up_simple_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	setup_memblock();
+
+	allocated_ptr = memblock_alloc(SZ_2, SMP_CACHE_BYTES);
+
+	assert(allocated_ptr);
+	assert(rgn->size == SZ_2);
+	assert(rgn->base == memblock_start_of_DRAM());
+
+	assert(memblock.reserved.cnt == 1);
+	assert(memblock.reserved.total_size == SZ_2);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate memory next to a reserved region that starts at
+ * the misaligned address. Expect to create two separate entries, with the new
+ * entry aligned to the provided alignment:
+ *
+ *                      +
+ *  |    +----------+   +----------+     |
+ *  |    |   rgn1   |   |   rgn2   |     |
+ *  +----+----------+---+----------+-----+
+ *                      ^
+ *                      |
+ *                      Aligned address boundary
+ *
+ * The allocation direction is bottom-up, so the new region will be the second
+ * entry in memory.reserved array. The previously reserved region does not get
+ * modified. Region counter and total size get updated.
+ */
+static int alloc_bottom_up_disjoint_check(void)
+{
+	struct memblock_region *rgn1 = &memblock.reserved.regions[0];
+	struct memblock_region *rgn2 = &memblock.reserved.regions[1];
+	struct region r1;
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r2_size = SZ_16;
+	/* Use custom alignment */
+	phys_addr_t alignment = SMP_CACHE_BYTES * 2;
+	phys_addr_t total_size;
+	phys_addr_t expected_start;
+
+	setup_memblock();
+
+	r1.base = memblock_start_of_DRAM() + SZ_2;
+	r1.size = SZ_2;
+
+	total_size = r1.size + r2_size;
+	expected_start = memblock_start_of_DRAM() + alignment;
+
+	memblock_reserve(r1.base, r1.size);
+
+	allocated_ptr = memblock_alloc(r2_size, alignment);
+
+	assert(allocated_ptr);
+
+	assert(rgn1->size == r1.size);
+	assert(rgn1->base == r1.base);
+
+	assert(rgn2->size == r2_size);
+	assert(rgn2->base == expected_start);
+
+	assert(memblock.reserved.cnt == 2);
+	assert(memblock.reserved.total_size == total_size);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate memory when there is enough space at
+ * the beginning of the previously reserved block (i.e. first fit):
+ *
+ *  |------------------+--------+         |
+ *  |        r1        |   r2   |         |
+ *  +------------------+--------+---------+
+ *
+ * Expect a merge of both regions. Only the region size gets updated.
+ */
+static int alloc_bottom_up_before_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r1_size = SZ_512;
+	phys_addr_t r2_size = SZ_128;
+	phys_addr_t total_size = r1_size + r2_size;
+
+	setup_memblock();
+
+	memblock_reserve(memblock_start_of_DRAM() + r1_size, r2_size);
+
+	allocated_ptr = memblock_alloc(r1_size, SMP_CACHE_BYTES);
+
+	assert(allocated_ptr);
+	assert(rgn->size == total_size);
+	assert(rgn->base == memblock_start_of_DRAM());
+
+	assert(memblock.reserved.cnt == 1);
+	assert(memblock.reserved.total_size == total_size);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate memory when there is not enough space at
+ * the beginning of the previously reserved block (i.e. second fit):
+ *
+ *  |    +--------+--------------+         |
+ *  |    |   r1   |      r2      |         |
+ *  +----+--------+--------------+---------+
+ *
+ * Expect a merge of both regions. Only the region size gets updated.
+ */
+static int alloc_bottom_up_after_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	struct region r1;
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r2_size = SZ_512;
+	phys_addr_t total_size;
+
+	setup_memblock();
+
+	/*
+	 * The first region starts at the aligned address to test region merging
+	 */
+	r1.base = memblock_start_of_DRAM() + SMP_CACHE_BYTES;
+	r1.size = SZ_64;
+
+	total_size = r1.size + r2_size;
+
+	memblock_reserve(r1.base, r1.size);
+
+	allocated_ptr = memblock_alloc(r2_size, SMP_CACHE_BYTES);
+
+	assert(allocated_ptr);
+	assert(rgn->size == total_size);
+	assert(rgn->base == r1.base);
+
+	assert(memblock.reserved.cnt == 1);
+	assert(memblock.reserved.total_size == total_size);
+
+	return 0;
+}
+
+/*
+ * A test that tries to allocate memory when there are two reserved regions, the
+ * first one starting at the beginning of the available memory, with a gap too
+ * small to fit the new region:
+ *
+ *  |------------+     +--------+--------+  |
+ *  |     r1     |     |   r2   |   r3   |  |
+ *  +------------+-----+--------+--------+--+
+ *
+ * Expect to allocate after the second region, which starts at the higher
+ * address, and merge them into one. The region counter and total size fields
+ * get updated.
+ */
+static int alloc_bottom_up_second_fit_check(void)
+{
+	struct memblock_region *rgn  = &memblock.reserved.regions[1];
+	struct region r1, r2;
+	void *allocated_ptr = NULL;
+
+	phys_addr_t r3_size = SZ_1K;
+	phys_addr_t total_size;
+
+	setup_memblock();
+
+	r1.base = memblock_start_of_DRAM();
+	r1.size = SZ_512;
+
+	r2.base = r1.base + r1.size + SZ_512;
+	r2.size = SZ_256;
+
+	total_size = r1.size + r2.size + r3_size;
+
+	memblock_reserve(r1.base, r1.size);
+	memblock_reserve(r2.base, r2.size);
+
+	allocated_ptr = memblock_alloc(r3_size, SMP_CACHE_BYTES);
+
+	assert(allocated_ptr);
+	assert(rgn->size == r2.size + r3_size);
+	assert(rgn->base == r2.base);
+
+	assert(memblock.reserved.cnt == 2);
+	assert(memblock.reserved.total_size == total_size);
+
+	return 0;
+}
+
+/* Test case wrappers */
+static int alloc_simple_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_top_down_simple_check();
+	memblock_set_bottom_up(true);
+	alloc_bottom_up_simple_check();
+
+	return 0;
+}
+
+static int alloc_disjoint_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_top_down_disjoint_check();
+	memblock_set_bottom_up(true);
+	alloc_bottom_up_disjoint_check();
+
+	return 0;
+}
+
+static int alloc_before_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_top_down_before_check();
+	memblock_set_bottom_up(true);
+	alloc_bottom_up_before_check();
+
+	return 0;
+}
+
+static int alloc_after_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_top_down_after_check();
+	memblock_set_bottom_up(true);
+	alloc_bottom_up_after_check();
+
+	return 0;
+}
+
+static int alloc_in_between_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_in_between_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_in_between_generic_check();
+
+	return 0;
+}
+
+static int alloc_second_fit_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_top_down_second_fit_check();
+	memblock_set_bottom_up(true);
+	alloc_bottom_up_second_fit_check();
+
+	return 0;
+}
+
+static int alloc_small_gaps_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_small_gaps_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_small_gaps_generic_check();
+
+	return 0;
+}
+
+static int alloc_all_reserved_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_all_reserved_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_all_reserved_generic_check();
+
+	return 0;
+}
+
+static int alloc_no_space_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_no_space_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_no_space_generic_check();
+
+	return 0;
+}
+
+static int alloc_limited_space_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_limited_space_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_limited_space_generic_check();
+
+	return 0;
+}
+
+static int alloc_no_memory_check(void)
+{
+	memblock_set_bottom_up(false);
+	alloc_no_memory_generic_check();
+	memblock_set_bottom_up(true);
+	alloc_no_memory_generic_check();
+
+	return 0;
+}
+
 int memblock_alloc_checks(void)
 {
 	reset_memblock_attributes();
 	dummy_physical_memory_init();
 
-	alloc_top_down_simple_check();
-	alloc_top_down_disjoint_check();
-	alloc_top_down_before_check();
-	alloc_top_down_after_check();
-	alloc_top_down_second_fit_check();
-	alloc_in_between_generic_check();
-	alloc_small_gaps_generic_check();
-	alloc_all_reserved_generic_check();
-	alloc_no_space_generic_check();
-	alloc_limited_space_generic_check();
-	alloc_no_memory_generic_check();
+	alloc_simple_check();
+	alloc_disjoint_check();
+	alloc_before_check();
+	alloc_after_check();
+	alloc_second_fit_check();
+	alloc_small_gaps_check();
+	alloc_in_between_check();
+	alloc_all_reserved_check();
+	alloc_no_space_check();
+	alloc_limited_space_check();
+	alloc_no_memory_check();
 
 	dummy_physical_memory_cleanup();
 
