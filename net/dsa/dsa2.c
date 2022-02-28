@@ -1261,7 +1261,7 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 	info.tag_ops = tag_ops;
 	err = dsa_tree_notify(dst, DSA_NOTIFIER_TAG_PROTO, &info);
 	if (err)
-		return err;
+		goto out_unlock;
 
 	err = dsa_tree_bind_tag_proto(dst, tag_ops);
 	if (err)
