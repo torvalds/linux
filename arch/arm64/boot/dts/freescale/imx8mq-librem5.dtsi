@@ -1098,7 +1098,7 @@
 		ti,precharge-current = <130000>; /* uA */
 		ti,minimum-sys-voltage = <3700000>; /* uV */
 		ti,boost-voltage = <5000000>; /* uV */
-		ti,boost-max-current = <500000>; /* uA */
+		ti,boost-max-current = <1500000>; /* uA */
 		ti,use-vinmin-threshold = <1>; /* enable VINDPM */
 		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;
