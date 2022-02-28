@@ -288,6 +288,18 @@
 		arm,pl330-periph-burst;
 	};
 
+	crypto: crypto@ff440000 {
+		compatible = "rockchip,crypto_v3";
+		reg = <0xff440000 0x2000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>,
+			 <&cru CLK_CORE_CRYPTO>, <&cru CLK_PKA_CRYPTO>;
+		clock-names = "aclk", "hclk", "sclk", "pka";
+		resets = <&cru SRST_CORE_CRYPTO>;
+		reset-names = "crypto-rst";
+		status = "disabled";
+	};
+
 	rng: rng@ff448000 {
 		compatible = "rockchip,trngv1";
 		reg = <0xff448000 0x200>;
