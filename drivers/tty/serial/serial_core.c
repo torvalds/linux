@@ -1650,17 +1650,19 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (timeout && timeout < char_time)
 		char_time = timeout;
 
-	/*
-	 * If the transmitter hasn't cleared in twice the approximate
-	 * amount of time to send the entire FIFO, it probably won't
-	 * ever clear.  This assumes the UART isn't doing flow
-	 * control, which is currently the case.  Hence, if it ever
-	 * takes longer than port->timeout, this is probably due to a
-	 * UART bug of some kind.  So, we clamp the timeout parameter at
-	 * 2*port->timeout.
-	 */
-	if (timeout == 0 || timeout > 2 * port->timeout)
-		timeout = 2 * port->timeout;
+	if (!uart_cts_enabled(port)) {
+		/*
+		 * If the transmitter hasn't cleared in twice the approximate
+		 * amount of time to send the entire FIFO, it probably won't
+		 * ever clear.  This assumes the UART isn't doing flow
+		 * control, which is currently the case.  Hence, if it ever
+		 * takes longer than port->timeout, this is probably due to a
+		 * UART bug of some kind.  So, we clamp the timeout parameter at
+		 * 2*port->timeout.
+		 */
+		if (timeout == 0 || timeout > 2 * port->timeout)
+			timeout = 2 * port->timeout;
+	}
 
 	expire = jiffies + timeout;
 
@@ -1676,7 +1678,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 		msleep_interruptible(jiffies_to_msecs(char_time));
 		if (signal_pending(current))
 			break;
-		if (time_after(jiffies, expire))
+		if (timeout && time_after(jiffies, expire))
 			break;
 	}
 	uart_port_deref(port);
