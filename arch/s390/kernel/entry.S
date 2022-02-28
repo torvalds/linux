@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/asm-extable.h>
 #include <asm/alternative-asm.h>
 #include <asm/processor.h>
 #include <asm/cache.h>

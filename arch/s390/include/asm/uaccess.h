@@ -13,6 +13,7 @@
 /*
  * User space memory access functions
  */
+#include <asm/asm-extable.h>
 #include <asm/processor.h>
 #include <asm/ctl_reg.h>
 #include <asm/extable.h>

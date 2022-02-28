@@ -25,6 +25,7 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <asm/cacheflush.h>
+#include <asm/extable.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>

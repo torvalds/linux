@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
-
+#include <asm/asm-extable.h>
 #include <asm/dasd.h>
 #include <asm/debug.h>
 #include <asm/diag.h>

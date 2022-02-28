@@ -10,6 +10,7 @@
 #define _ASM_S390_CPU_MF_H
 
 #include <linux/errno.h>
+#include <asm/asm-extable.h>
 #include <asm/facility.h>
 
 asm(".include \"asm/cpu_mf-insn.h\"\n");

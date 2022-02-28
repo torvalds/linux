@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
+#include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
 #include <asm/stacktrace.h>

@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <asm/asm-extable.h>
 #include <asm/ebcdic.h>
 #include <asm/debug.h>
 #include <asm/sysinfo.h>

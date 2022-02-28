@@ -4,6 +4,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/errno.h>
+#include <asm/asm-extable.h>
 
 typedef struct {
 	spinlock_t lock;

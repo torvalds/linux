@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
+#include <asm/asm-extable.h>
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
 

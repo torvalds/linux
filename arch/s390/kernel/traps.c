@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
+#include <asm/asm-extable.h>
 #include <asm/fpu/api.h>
 #include <asm/vtime.h>
 #include "entry.h"
