@@ -216,6 +216,7 @@ int rfkill_get_wifi_power_state(int *power)
 
 	return 0;
 }
+EXPORT_SYMBOL(rfkill_get_wifi_power_state);
 
 /**************************************************************************
  *
