@@ -212,6 +212,18 @@
 			<200000000>;
 	};
 
+	saradc: saradc@ff3c0000 {
+		compatible = "rockchip,rk3588-saradc";
+		reg = <0xff3c0000 0x100>;
+		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+		#io-channel-cells = <1>;
+		clocks = <&cru CLK_SARADC>, <&cru PCLK_SARADC>;
+		clock-names = "saradc", "apb_pclk";
+		resets = <&cru SRST_P_SARADC>;
+		reset-names = "saradc-apb";
+		status = "disabled";
+	};
+
 	u2phy: usb2-phy@ff3e0000 {
 		compatible = "rockchip,rv1106-usb2phy";
 		reg = <0xff3e0000 0x8000>;
@@ -394,9 +406,28 @@
 		status = "disabled";
 	};
 
+	hw_decompress: decompress@ff520000 {
+		compatible = "rockchip,hw-decompress";
+		reg = <0xff520000 0x1000>;
+		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>;
+		clock-names = "aclk", "dclk", "pclk";
+		resets = <&cru SRST_D_DECOM>;
+		reset-names = "dresetn";
+		status = "disabled";
+	};
+
 	ioc: syscon@ff538000 {
 		compatible = "rockchip,rv1106-ioc", "syscon";
 		reg = <0xff538000 0x40000>;
+	};
+
+	wdt: watchdog@ff5a0000 {
+		compatible = "rockchip,rv1126-wdt", "snps,dw-wdt";
+		reg = <0xff5a0000 0x100>;
+		clocks = <&cru PCLK_WDT_NS>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
 	};
 
 	vop: vop@ff990000 {
