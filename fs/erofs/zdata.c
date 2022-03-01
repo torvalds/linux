@@ -219,13 +219,17 @@ struct z_erofs_decompress_frontend {
 static struct page *z_pagemap_global[Z_EROFS_VMAP_GLOBAL_PAGES];
 static DEFINE_MUTEX(z_pagemap_global_lock);
 
-static void preload_compressed_pages(struct z_erofs_decompress_frontend *fe,
-				     struct address_space *mc,
-				     enum z_erofs_cache_alloctype type,
-				     struct page **pagepool)
+static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe,
+			       enum z_erofs_cache_alloctype type,
+			       struct page **pagepool)
 {
+	struct address_space *mc = MNGD_MAPPING(EROFS_I_SB(fe->inode));
 	struct z_erofs_pcluster *pcl = fe->pcl;
 	bool standalone = true;
+	/*
+	 * optimistic allocation without direct reclaim since inplace I/O
+	 * can be used if low memory otherwise.
+	 */
 	gfp_t gfp = (mapping_gfp_mask(mc) & ~__GFP_DIRECT_RECLAIM) |
 			__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
 	struct page **pages;
@@ -703,17 +707,15 @@ restart_now:
 		WRITE_ONCE(fe->pcl->compressed_pages[0], fe->map.buf.page);
 		fe->mode = COLLECT_PRIMARY_FOLLOWED_NOINPLACE;
 	} else {
-		/* preload all compressed pages (can change mode if needed) */
+		/* bind cache first when cached decompression is preferred */
 		if (should_alloc_managed_pages(fe, sbi->opt.cache_strategy,
 					       map->m_la))
 			cache_strategy = TRYALLOC;
 		else
 			cache_strategy = DONTALLOC;
 
-		preload_compressed_pages(fe, MNGD_MAPPING(sbi),
-					 cache_strategy, pagepool);
+		z_erofs_bind_cache(fe, cache_strategy, pagepool);
 	}
-
 hitted:
 	/*
 	 * Ensure the current partial page belongs to this submit chain rather
