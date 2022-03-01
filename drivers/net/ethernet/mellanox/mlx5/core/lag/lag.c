@@ -31,14 +31,21 @@
  */
 
 #include <linux/netdevice.h>
+#include <net/bonding.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
 #include "lib/devcom.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "esw/acl/ofld.h"
 #include "lag.h"
 #include "mp.h"
+
+enum {
+	MLX5_LAG_EGRESS_PORT_1 = 1,
+	MLX5_LAG_EGRESS_PORT_2,
+};
 
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
@@ -193,15 +200,71 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 	p2en = tracker->netdev_state[MLX5_LAG_P2].tx_enabled &&
 	       tracker->netdev_state[MLX5_LAG_P2].link_up;
 
-	*port1 = 1;
-	*port2 = 2;
+	*port1 = MLX5_LAG_EGRESS_PORT_1;
+	*port2 = MLX5_LAG_EGRESS_PORT_2;
 	if ((!p1en && !p2en) || (p1en && p2en))
 		return;
 
 	if (p1en)
-		*port2 = 1;
+		*port2 = MLX5_LAG_EGRESS_PORT_1;
 	else
-		*port1 = 2;
+		*port1 = MLX5_LAG_EGRESS_PORT_2;
+}
+
+static bool mlx5_lag_has_drop_rule(struct mlx5_lag *ldev)
+{
+	return ldev->pf[MLX5_LAG_P1].has_drop || ldev->pf[MLX5_LAG_P2].has_drop;
+}
+
+static void mlx5_lag_drop_rule_cleanup(struct mlx5_lag *ldev)
+{
+	int i;
+
+	for (i = 0; i < MLX5_MAX_PORTS; i++) {
+		if (!ldev->pf[i].has_drop)
+			continue;
+
+		mlx5_esw_acl_ingress_vport_drop_rule_destroy(ldev->pf[i].dev->priv.eswitch,
+							     MLX5_VPORT_UPLINK);
+		ldev->pf[i].has_drop = false;
+	}
+}
+
+static void mlx5_lag_drop_rule_setup(struct mlx5_lag *ldev,
+				     struct lag_tracker *tracker)
+{
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	struct mlx5_core_dev *inactive;
+	u8 v2p_port1, v2p_port2;
+	int inactive_idx;
+	int err;
+
+	/* First delete the current drop rule so there won't be any dropped
+	 * packets
+	 */
+	mlx5_lag_drop_rule_cleanup(ldev);
+
+	if (!ldev->tracker.has_inactive)
+		return;
+
+	mlx5_infer_tx_affinity_mapping(tracker, &v2p_port1, &v2p_port2);
+
+	if (v2p_port1 == MLX5_LAG_EGRESS_PORT_1) {
+		inactive = dev1;
+		inactive_idx = MLX5_LAG_P2;
+	} else {
+		inactive = dev0;
+		inactive_idx = MLX5_LAG_P1;
+	}
+
+	err = mlx5_esw_acl_ingress_vport_drop_rule_create(inactive->priv.eswitch,
+							  MLX5_VPORT_UPLINK);
+	if (!err)
+		ldev->pf[inactive_idx].has_drop = true;
+	else
+		mlx5_core_err(inactive,
+			      "Failed to create lag drop rule, error: %d", err);
 }
 
 static int _mlx5_modify_lag(struct mlx5_lag *ldev, u8 v2p_port1, u8 v2p_port2)
@@ -238,6 +301,10 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 			       ldev->v2p_map[MLX5_LAG_P1],
 			       ldev->v2p_map[MLX5_LAG_P2]);
 	}
+
+	if (tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP &&
+	    !(ldev->flags & MLX5_LAG_FLAG_ROCE))
+		mlx5_lag_drop_rule_setup(ldev, tracker);
 }
 
 static void mlx5_lag_set_port_sel_mode(struct mlx5_lag *ldev,
@@ -339,6 +406,10 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 		return err;
 	}
 
+	if (tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP &&
+	    !roce_lag)
+		mlx5_lag_drop_rule_setup(ldev, tracker);
+
 	ldev->flags |= flags;
 	ldev->shared_fdb = shared_fdb;
 	return 0;
@@ -347,6 +418,7 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
 	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	bool roce_lag = __mlx5_lag_is_roce(ldev);
 	u8 flags = ldev->flags;
@@ -356,8 +428,8 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 	mlx5_lag_mp_reset(ldev);
 
 	if (ldev->shared_fdb) {
-		mlx5_eswitch_offloads_destroy_single_fdb(ldev->pf[MLX5_LAG_P1].dev->priv.eswitch,
-							 ldev->pf[MLX5_LAG_P2].dev->priv.eswitch);
+		mlx5_eswitch_offloads_destroy_single_fdb(dev0->priv.eswitch,
+							 dev1->priv.eswitch);
 		ldev->shared_fdb = false;
 	}
 
@@ -372,11 +444,15 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 				      "Failed to deactivate VF LAG; driver restart required\n"
 				      "Make sure all VFs are unbound prior to VF LAG activation or deactivation\n");
 		}
-	} else if (flags & MLX5_LAG_FLAG_HASH_BASED) {
-		mlx5_lag_port_sel_destroy(ldev);
+		return err;
 	}
 
-	return err;
+	if (flags & MLX5_LAG_FLAG_HASH_BASED)
+		mlx5_lag_port_sel_destroy(ldev);
+	if (mlx5_lag_has_drop_rule(ldev))
+		mlx5_lag_drop_rule_cleanup(ldev);
+
+	return 0;
 }
 
 static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
@@ -613,6 +689,8 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
 	struct netdev_lag_upper_info *lag_upper_info = NULL;
 	bool is_bonded, is_in_lag, mode_supported;
+	bool has_inactive = 0;
+	struct slave *slave;
 	int bond_status = 0;
 	int num_slaves = 0;
 	int changed = 0;
@@ -632,8 +710,12 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	rcu_read_lock();
 	for_each_netdev_in_bond_rcu(upper, ndev_tmp) {
 		idx = mlx5_lag_dev_get_netdev_idx(ldev, ndev_tmp);
-		if (idx >= 0)
+		if (idx >= 0) {
+			slave = bond_slave_get_rcu(ndev_tmp);
+			if (slave)
+				has_inactive |= bond_is_slave_inactive(slave);
 			bond_status |= (1 << idx);
+		}
 
 		num_slaves++;
 	}
@@ -648,6 +730,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 		tracker->hash_type = lag_upper_info->hash_type;
 	}
 
+	tracker->has_inactive = has_inactive;
 	/* Determine bonding status:
 	 * A device is considered bonded if both its physical ports are slaves
 	 * of the same lag master, and only them.
@@ -704,6 +787,38 @@ static int mlx5_handle_changelowerstate_event(struct mlx5_lag *ldev,
 	return 1;
 }
 
+static int mlx5_handle_changeinfodata_event(struct mlx5_lag *ldev,
+					    struct lag_tracker *tracker,
+					    struct net_device *ndev)
+{
+	struct net_device *ndev_tmp;
+	struct slave *slave;
+	bool has_inactive = 0;
+	int idx;
+
+	if (!netif_is_lag_master(ndev))
+		return 0;
+
+	rcu_read_lock();
+	for_each_netdev_in_bond_rcu(ndev, ndev_tmp) {
+		idx = mlx5_lag_dev_get_netdev_idx(ldev, ndev_tmp);
+		if (idx < 0)
+			continue;
+
+		slave = bond_slave_get_rcu(ndev_tmp);
+		if (slave)
+			has_inactive |= bond_is_slave_inactive(slave);
+	}
+	rcu_read_unlock();
+
+	if (tracker->has_inactive == has_inactive)
+		return 0;
+
+	tracker->has_inactive = has_inactive;
+
+	return 1;
+}
+
 static int mlx5_lag_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
@@ -712,7 +827,9 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	struct mlx5_lag *ldev;
 	int changed = 0;
 
-	if ((event != NETDEV_CHANGEUPPER) && (event != NETDEV_CHANGELOWERSTATE))
+	if (event != NETDEV_CHANGEUPPER &&
+	    event != NETDEV_CHANGELOWERSTATE &&
+	    event != NETDEV_CHANGEINFODATA)
 		return NOTIFY_DONE;
 
 	ldev    = container_of(this, struct mlx5_lag, nb);
@@ -727,6 +844,9 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	case NETDEV_CHANGELOWERSTATE:
 		changed = mlx5_handle_changelowerstate_event(ldev, &tracker,
 							     ndev, ptr);
+		break;
+	case NETDEV_CHANGEINFODATA:
+		changed = mlx5_handle_changeinfodata_event(ldev, &tracker, ndev);
 		break;
 	}
 

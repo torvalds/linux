@@ -113,8 +113,11 @@ struct vport_ingress {
 		 * packet with metadata.
 		 */
 		struct mlx5_flow_group *metadata_allmatch_grp;
+		/* Optional group to add a drop all rule */
+		struct mlx5_flow_group *drop_grp;
 		struct mlx5_modify_hdr *modify_metadata;
 		struct mlx5_flow_handle *modify_metadata_rule;
+		struct mlx5_flow_handle *drop_rule;
 	} offloads;
 };
 
