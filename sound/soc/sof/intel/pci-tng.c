@@ -25,7 +25,6 @@ static struct snd_soc_acpi_mach sof_tng_machines[] = {
 	{
 		.id = "INT343A",
 		.drv_name = "edison",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt.tplg",
 	},
 	{}

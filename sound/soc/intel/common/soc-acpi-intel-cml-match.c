@@ -40,7 +40,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_rt1011_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rt1011_spk_codecs,
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt1011-rt5682.tplg",
 	},
 	{
@@ -48,7 +47,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_rt1015_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rt1015_spk_codecs,
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt1011-rt5682.tplg",
 	},
 	{
@@ -56,13 +54,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "sof_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &max98357a_spk_codecs,
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt5682-max98357a.tplg",
 	},
 	{
 		.id = "10EC5682",
 		.drv_name = "sof_rt5682",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt5682.tplg",
 	},
 	{
@@ -70,7 +66,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_da7219_mx98357a",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &max98357a_spk_codecs,
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-da7219-max98357a.tplg",
 	},
 	{
@@ -78,13 +73,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_da7219_mx98357a",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &max98390_spk_codecs,
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-da7219-max98390.tplg",
 	},
 	{
 		.id = "ESSX8336",
 		.drv_name = "sof-essx8336",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-es8336.tplg",
 	},
 	{},
@@ -283,14 +276,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_sdw_machines[] = {
 		.link_mask = 0xF, /* 4 active links required */
 		.links = cml_3_in_1_default,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt711-rt1308-rt715.tplg",
 	},
 	{
 		.link_mask = 0xF, /* 4 active links required */
 		.links = cml_3_in_1_sdca,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt711-rt1316-rt714.tplg",
 	},
 	{
@@ -302,14 +293,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_sdw_machines[] = {
 		.link_mask = 0xF,
 		.links = cml_3_in_1_mono_amp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt711-rt1308-mono-rt715.tplg",
 	},
 	{
 		.link_mask = 0x2, /* RT700 connected on Link1 */
 		.links = cml_rvp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt700.tplg",
 	},
 	{}
