@@ -294,8 +294,9 @@
 #define SCLK_SDMMC_SAMPLE	288
 #define SCLK_SDIO_DRV		289
 #define SCLK_SDIO_SAMPLE	290
+#define PCLK_MAILBOX		291
 
-#define CLK_NR_CLKS		(SCLK_SDIO_SAMPLE + 1)
+#define CLK_NR_CLKS		(PCLK_MAILBOX + 1)
 
 /********Name=PMUSOFTRST_CON00,Offset=0xA00********/
 #define SRST_P_I2C1		3

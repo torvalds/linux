@@ -267,6 +267,13 @@ static struct rockchip_clk_branch rv1106_clk_branches[] __initdata = {
 	COMPOSITE(CLK_CORE_MCU, "clk_core_mcu", mux_gpll_24m_p, 0,
 			RV1106_CORECLKSEL_CON(3), 11, 1, MFLAGS, 6, 5, DFLAGS,
 			RV1106_CORECLKGATE_CON(1), 1, GFLAGS),
+	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IS_CRITICAL,
+			RV1106_CORECLKSEL_CON(1), 0, 5, DFLAGS | CLK_DIVIDER_READ_ONLY,
+			RV1106_CORECLKGATE_CON(0), 6, GFLAGS),
+	GATE(0, "pclk_cpu_root", "pclk_dbg", CLK_IS_CRITICAL,
+			RV1106_CORECLKGATE_CON(0), 10, GFLAGS),
+	GATE(PCLK_MAILBOX, "pclk_mailbox", "pclk_cpu_root", 0,
+			RV1106_CORECLKGATE_CON(1), 8, GFLAGS),
 
 	/* PD_DDR */
 	COMPOSITE_NODIV(PCLK_DDR_ROOT, "pclk_ddr_root", mux_100m_50m_24m_p, CLK_IS_CRITICAL,
