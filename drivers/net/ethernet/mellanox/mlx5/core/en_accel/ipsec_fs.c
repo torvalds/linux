@@ -605,9 +605,6 @@ int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 				  u32 ipsec_obj_id,
 				  struct mlx5e_ipsec_rule *ipsec_rule)
 {
-	if (!priv->ipsec->rx_fs)
-		return -EOPNOTSUPP;
-
 	if (attrs->action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
 		return rx_add_rule(priv, attrs, ipsec_obj_id, ipsec_rule);
 	else
@@ -618,9 +615,6 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
 				   struct mlx5_accel_esp_xfrm_attrs *attrs,
 				   struct mlx5e_ipsec_rule *ipsec_rule)
 {
-	if (!priv->ipsec->rx_fs)
-		return;
-
 	if (attrs->action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
 		rx_del_rule(priv, attrs, ipsec_rule);
 	else

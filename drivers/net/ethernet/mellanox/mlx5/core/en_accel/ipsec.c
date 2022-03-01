@@ -43,17 +43,7 @@
 
 static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
 {
-	struct mlx5e_ipsec_sa_entry *sa;
-
-	if (!x)
-		return NULL;
-
-	sa = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
-	if (!sa)
-		return NULL;
-
-	WARN_ON(sa->x != x);
-	return sa;
+	return (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
 }
 
 struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
@@ -306,6 +296,8 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	int err;
 
 	priv = netdev_priv(netdev);
+	if (!priv->ipsec)
+		return -EOPNOTSUPP;
 
 	err = mlx5e_xfrm_validate_state(x);
 	if (err)
@@ -375,9 +367,6 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
-	if (!sa_entry)
-		return;
-
 	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
 		mlx5e_ipsec_sadb_rx_del(sa_entry);
 }
@@ -386,9 +375,6 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 	struct mlx5e_priv *priv = netdev_priv(x->xso.dev);
-
-	if (!sa_entry)
-		return;
 
 	if (sa_entry->hw_context) {
 		flush_workqueue(sa_entry->ipsec->wq);
@@ -402,7 +388,8 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 
 int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {
-	struct mlx5e_ipsec *ipsec = NULL;
+	struct mlx5e_ipsec *ipsec;
+	int ret;
 
 	if (!mlx5_ipsec_device_caps(priv->mdev)) {
 		netdev_dbg(priv->netdev, "Not an IPSec offload device\n");
@@ -420,14 +407,23 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	ipsec->wq = alloc_ordered_workqueue("mlx5e_ipsec: %s", 0,
 					    priv->netdev->name);
 	if (!ipsec->wq) {
-		kfree(ipsec);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_wq;
 	}
 
+	ret = mlx5e_accel_ipsec_fs_init(ipsec);
+	if (ret)
+		goto err_fs_init;
+
 	priv->ipsec = ipsec;
-	mlx5e_accel_ipsec_fs_init(ipsec);
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
 	return 0;
+
+err_fs_init:
+	destroy_workqueue(ipsec->wq);
+err_wq:
+	kfree(ipsec);
+	return (ret != -EOPNOTSUPP) ? ret : 0;
 }
 
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
@@ -486,9 +482,6 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 	struct mlx5e_ipsec_modify_state_work *modify_work;
 	bool need_update;
-
-	if (!sa_entry)
-		return;
 
 	need_update = mlx5e_ipsec_update_esn_state(sa_entry);
 	if (!need_update)
