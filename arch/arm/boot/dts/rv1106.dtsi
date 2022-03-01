@@ -190,6 +190,17 @@
 		status = "disabled";
 	};
 
+	pmu_mailbox: mailbox@ff378000 {
+		compatible = "rockchip,rv1106-mailbox",
+			     "rockchip,rk3368-mailbox";
+		reg = <0xff378000 0x200>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_PMU_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
 	pmuioc: syscon@ff388000 {
 		compatible = "rockchip,rv1106-pmuioc", "syscon";
 		reg = <0xff388000 0x1000>;
@@ -491,6 +502,17 @@
 		reg = <0xff5a0000 0x100>;
 		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	mailbox: mailbox@ff5c0000 {
+		compatible = "rockchip,rv1106-mailbox",
+			     "rockchip,rk3368-mailbox";
+		reg = <0xff5c0000 0x200>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
 		status = "disabled";
 	};
 
