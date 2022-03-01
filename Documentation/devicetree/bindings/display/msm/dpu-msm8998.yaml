@@ -155,7 +155,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
-    display-subsystem@c900000 {
+    mdss: display-subsystem@c900000 {
         compatible = "qcom,msm8998-mdss";
         reg = <0x0c900000 0x1000>;
         reg-names = "mdss";
@@ -192,7 +192,7 @@ examples:
             clock-names = "iface", "bus", "mnoc", "core", "vsync";
 
             interrupt-parent = <&mdss>;
-            interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+            interrupts = <0>;
             operating-points-v2 = <&mdp_opp_table>;
             power-domains = <&rpmpd MSM8998_VDDMX>;
 
