@@ -1333,13 +1333,6 @@ struct skl_wrpll_context {
 	unsigned int p;			/* chosen divider */
 };
 
-static void skl_wrpll_context_init(struct skl_wrpll_context *ctx)
-{
-	memset(ctx, 0, sizeof(*ctx));
-
-	ctx->min_deviation = U64_MAX;
-}
-
 /* DCO freq must be within +1%/-6%  of the DCO central freq */
 #define SKL_DCO_MAX_PDEVIATION	100
 #define SKL_DCO_MAX_NDEVIATION	600
@@ -1522,11 +1515,11 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 		{ even_dividers, ARRAY_SIZE(even_dividers) },
 		{ odd_dividers, ARRAY_SIZE(odd_dividers) },
 	};
-	struct skl_wrpll_context ctx;
+	struct skl_wrpll_context ctx = {
+		.min_deviation = U64_MAX,
+	};
 	unsigned int dco, d, i;
 	unsigned int p0, p1, p2;
-
-	skl_wrpll_context_init(&ctx);
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
 		for (dco = 0; dco < ARRAY_SIZE(dco_central_freq); dco++) {
