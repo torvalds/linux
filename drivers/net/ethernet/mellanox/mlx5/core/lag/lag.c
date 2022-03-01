@@ -1050,7 +1050,8 @@ void mlx5_lag_add_mdev(struct mlx5_core_dev *dev)
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(dev, lag_master) ||
-	    MLX5_CAP_GEN(dev, num_lag_ports) != MLX5_MAX_PORTS)
+	    (MLX5_CAP_GEN(dev, num_lag_ports) > MLX5_MAX_PORTS ||
+	     MLX5_CAP_GEN(dev, num_lag_ports) <= 1))
 		return;
 
 recheck:

@@ -84,7 +84,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 2,
+	MLX5_MAX_PORTS	= 4,
 };
 
 enum {

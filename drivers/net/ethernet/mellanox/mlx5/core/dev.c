@@ -586,7 +586,8 @@ static int next_phys_dev_lag(struct device *dev, const void *data)
 
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(mdev, lag_master) ||
-	    MLX5_CAP_GEN(mdev, num_lag_ports) != MLX5_MAX_PORTS)
+	    (MLX5_CAP_GEN(mdev, num_lag_ports) > MLX5_MAX_PORTS ||
+	     MLX5_CAP_GEN(mdev, num_lag_ports) <= 1))
 		return 0;
 
 	return _next_phys_dev(mdev, data);
