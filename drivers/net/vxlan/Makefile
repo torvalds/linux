@@ -4,4 +4,4 @@
 
 obj-$(CONFIG_VXLAN) += vxlan.o
 
-vxlan-objs := vxlan_core.o
+vxlan-objs := vxlan_core.o vxlan_multicast.o

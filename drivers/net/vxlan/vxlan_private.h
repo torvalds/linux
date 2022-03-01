@@ -112,4 +112,11 @@ int vxlan_fdb_update(struct vxlan_dev *vxlan,
 		     __u32 ifindex, __u16 ndm_flags, u32 nhid,
 		     bool swdev_notify, struct netlink_ext_ack *extack);
 
+/* vxlan_multicast.c */
+int vxlan_igmp_join(struct vxlan_dev *vxlan, union vxlan_addr *rip,
+		    int rifindex);
+int vxlan_igmp_leave(struct vxlan_dev *vxlan, union vxlan_addr *rip,
+		     int rifindex);
+bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev,
+		      union vxlan_addr *rip, int rifindex);
 #endif
