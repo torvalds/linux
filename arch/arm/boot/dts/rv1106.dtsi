@@ -97,8 +97,13 @@
 	};
 
 	peri_grf: syscon@ff000000 {
-		compatible = "rockchip,rv1106-peri-grf", "syscon", "simple-mfd";
+		compatible = "rockchip,rv1106-peri-grf", "syscon";
 		reg = <0xff000000 0x1000>;
+	};
+
+	venc_grf: syscon@ff010000 {
+		compatible = "rockchip,rv1106-venc-grf", "syscon", "simple-mfd";
+		reg = <0xff010000 0x1000>;
 
 		rgb: rgb {
 			compatible = "rockchip,rv1106-rgb";
