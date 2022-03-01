@@ -3,15 +3,48 @@
  * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
+#include "rv1106-evb.dtsi"
+
 / {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff4c0000 console=ttyFIQ0 root=/dev/mmcblk0p6 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16";
+	};
 
+	dsm_sound: dsm-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,dsm-sound";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&dsm>;
+		};
+	};
 };
 
-&fiq_debugger {
-	rockchip,irq-mode-enable = <1>;
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
-&rve {
+&dsm {
+	status = "disabled";
+};
+
+&i2c4 {
 	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m2_xfer>;
 };

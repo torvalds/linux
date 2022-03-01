@@ -11,8 +11,4 @@
 / {
 	model = "Rockchip RV1106G EVB2 V10 Board";
 	compatible = "rockchip,rv1106g-evb2-v10", "rockchip,rv1106";
-
-	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff4c0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16";
-	};
 };
