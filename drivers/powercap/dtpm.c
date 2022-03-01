@@ -470,7 +470,7 @@ static struct dtpm *dtpm_setup_dt(const struct dtpm_node *hierarchy,
 
 typedef struct dtpm * (*dtpm_node_callback_t)(const struct dtpm_node *, struct dtpm *);
 
-dtpm_node_callback_t dtpm_node_callback[] = {
+static dtpm_node_callback_t dtpm_node_callback[] = {
 	[DTPM_NODE_VIRTUAL] = dtpm_setup_virtual,
 	[DTPM_NODE_DT] = dtpm_setup_dt,
 };
