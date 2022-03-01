@@ -59,25 +59,13 @@ static void journal_set_remaining(struct journal *j, unsigned u64s_remaining)
 				       old.v, new.v)) != old.v);
 }
 
-static inline unsigned get_unwritten_sectors(struct journal *j, unsigned *idx)
-{
-	unsigned sectors = 0;
-
-	while (!sectors && *idx != j->reservations.idx) {
-		sectors = j->buf[*idx].sectors;
-
-		*idx = (*idx + 1) & JOURNAL_BUF_MASK;
-	}
-
-	return sectors;
-}
-
 static struct journal_space
 journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			    enum journal_space_from from)
 {
 	struct journal_device *ja = &ca->journal;
-	unsigned sectors, buckets, unwritten, idx = j->reservations.unwritten_idx;
+	unsigned sectors, buckets, unwritten;
+	u64 seq;
 
 	if (from == journal_space_total)
 		return (struct journal_space) {
@@ -92,7 +80,14 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 	 * We that we don't allocate the space for a journal entry
 	 * until we write it out - thus, account for it here:
 	 */
-	while ((unwritten = get_unwritten_sectors(j, &idx))) {
+	for (seq = journal_last_unwritten_seq(j);
+	     seq <= journal_cur_seq(j);
+	     seq++) {
+		unwritten = j->buf[seq & JOURNAL_BUF_MASK].sectors;
+
+		if (!unwritten)
+			continue;
+
 		/* entry won't fit on this device, skip: */
 		if (unwritten > ca->mi.bucket_size)
 			continue;
@@ -214,8 +209,7 @@ void bch2_journal_space_available(struct journal *j)
 	total		= j->space[journal_space_total].total;
 
 	if (!clean_ondisk &&
-	    j->reservations.idx ==
-	    j->reservations.unwritten_idx) {
+	    journal_cur_seq(j) == j->seq_ondisk) {
 		struct printbuf buf = PRINTBUF;
 
 		__bch2_journal_debug_to_text(&buf, j);

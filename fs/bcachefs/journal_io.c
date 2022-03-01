@@ -1331,7 +1331,7 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 
 static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)
 {
-	return j->buf + j->reservations.unwritten_idx;
+	return j->buf + (journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK);
 }
 
 static void journal_write_done(struct closure *cl)
@@ -1403,12 +1403,13 @@ static void journal_write_done(struct closure *cl)
 	closure_wake_up(&w->wait);
 	journal_wake(j);
 
-	if (new.unwritten_idx == new.idx) {
+	if (journal_last_unwritten_seq(j) == journal_cur_seq(j)) {
 		struct journal_buf *buf = journal_cur_buf(j);
 		long delta = buf->expires - jiffies;
 
 		mod_delayed_work(c->io_complete_wq, &j->write_work, max(0L, delta));
-	} else if (!journal_state_count(new, new.unwritten_idx))
+	} else if (journal_last_unwritten_seq(j) < journal_cur_seq(j) &&
+		   !journal_state_count(new, new.unwritten_idx))
 		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
 
 	spin_unlock(&j->lock);

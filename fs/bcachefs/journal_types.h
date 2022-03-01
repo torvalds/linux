@@ -25,7 +25,7 @@ struct journal_buf {
 
 	struct closure_waitlist	wait;
 	u64			last_seq;	/* copy of data->last_seq */
-	unsigned long		expires;
+	long			expires;
 	u64			flush_time;
 
 	unsigned		buf_size;	/* size in bytes of @data */
