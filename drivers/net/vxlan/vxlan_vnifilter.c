@@ -116,6 +116,34 @@ void vxlan_vs_del_vnigrp(struct vxlan_dev *vxlan)
 	spin_unlock(&vn->sock_lock);
 }
 
+static void vxlan_vnifilter_stats_get(const struct vxlan_vni_node *vninode,
+				      struct vxlan_vni_stats *dest)
+{
+	int i;
+
+	memset(dest, 0, sizeof(*dest));
+	for_each_possible_cpu(i) {
+		struct vxlan_vni_stats_pcpu *pstats;
+		struct vxlan_vni_stats temp;
+		unsigned int start;
+
+		pstats = per_cpu_ptr(vninode->stats, i);
+		do {
+			start = u64_stats_fetch_begin_irq(&pstats->syncp);
+			memcpy(&temp, &pstats->stats, sizeof(temp));
+		} while (u64_stats_fetch_retry_irq(&pstats->syncp, start));
+
+		dest->rx_packets += temp.rx_packets;
+		dest->rx_bytes += temp.rx_bytes;
+		dest->rx_drops += temp.rx_drops;
+		dest->rx_errors += temp.rx_errors;
+		dest->tx_packets += temp.tx_packets;
+		dest->tx_bytes += temp.tx_bytes;
+		dest->tx_drops += temp.tx_drops;
+		dest->tx_errors += temp.tx_errors;
+	}
+}
+
 static void vxlan_vnifilter_stats_add(struct vxlan_vni_node *vninode,
 				      int type, unsigned int len)
 {
@@ -182,9 +210,48 @@ static size_t vxlan_vnifilter_entry_nlmsg_size(void)
 		+ nla_total_size(sizeof(struct in6_addr));/* VXLAN_VNIFILTER_ENTRY_GROUP{6} */
 }
 
+static int __vnifilter_entry_fill_stats(struct sk_buff *skb,
+					const struct vxlan_vni_node *vbegin)
+{
+	struct vxlan_vni_stats vstats;
+	struct nlattr *vstats_attr;
+
+	vstats_attr = nla_nest_start(skb, VXLAN_VNIFILTER_ENTRY_STATS);
+	if (!vstats_attr)
+		goto out_stats_err;
+
+	vxlan_vnifilter_stats_get(vbegin, &vstats);
+	if (nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_RX_BYTES,
+			      vstats.rx_bytes, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_RX_PKTS,
+			      vstats.rx_packets, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_RX_DROPS,
+			      vstats.rx_drops, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_RX_ERRORS,
+			      vstats.rx_errors, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_TX_BYTES,
+			      vstats.tx_bytes, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_TX_PKTS,
+			      vstats.tx_packets, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_TX_DROPS,
+			      vstats.tx_drops, VNIFILTER_ENTRY_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, VNIFILTER_ENTRY_STATS_TX_ERRORS,
+			      vstats.tx_errors, VNIFILTER_ENTRY_STATS_PAD))
+		goto out_stats_err;
+
+	nla_nest_end(skb, vstats_attr);
+
+	return 0;
+
+out_stats_err:
+	nla_nest_cancel(skb, vstats_attr);
+	return -EMSGSIZE;
+}
+
 static bool vxlan_fill_vni_filter_entry(struct sk_buff *skb,
 					struct vxlan_vni_node *vbegin,
-					struct vxlan_vni_node *vend)
+					struct vxlan_vni_node *vend,
+					bool fill_stats)
 {
 	struct nlattr *ventry;
 	u32 vs = be32_to_cpu(vbegin->vni);
@@ -216,6 +283,9 @@ static bool vxlan_fill_vni_filter_entry(struct sk_buff *skb,
 #endif
 		}
 	}
+
+	if (fill_stats && __vnifilter_entry_fill_stats(skb, vbegin))
+		goto out_err;
 
 	nla_nest_end(skb, ventry);
 
@@ -249,7 +319,7 @@ static void vxlan_vnifilter_notify(const struct vxlan_dev *vxlan,
 	tmsg->family = AF_BRIDGE;
 	tmsg->ifindex = vxlan->dev->ifindex;
 
-	if (!vxlan_fill_vni_filter_entry(skb, vninode, vninode))
+	if (!vxlan_fill_vni_filter_entry(skb, vninode, vninode, false))
 		goto out_err;
 
 	nlmsg_end(skb, nlh);
@@ -269,10 +339,11 @@ static int vxlan_vnifilter_dump_dev(const struct net_device *dev,
 {
 	struct vxlan_vni_node *tmp, *v, *vbegin = NULL, *vend = NULL;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct tunnel_msg *new_tmsg;
+	struct tunnel_msg *new_tmsg, *tmsg;
 	int idx = 0, s_idx = cb->args[1];
 	struct vxlan_vni_group *vg;
 	struct nlmsghdr *nlh;
+	bool dump_stats;
 	int err = 0;
 
 	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
@@ -282,6 +353,9 @@ static int vxlan_vnifilter_dump_dev(const struct net_device *dev,
 	vg = rcu_dereference(vxlan->vnigrp);
 	if (!vg || !vg->num_vnis)
 		return 0;
+
+	tmsg = nlmsg_data(cb->nlh);
+	dump_stats = !!(tmsg->flags & TUNNEL_MSG_FLAG_STATS);
 
 	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			RTM_NEWTUNNEL, sizeof(*new_tmsg), NLM_F_MULTI);
@@ -302,11 +376,12 @@ static int vxlan_vnifilter_dump_dev(const struct net_device *dev,
 			vend = v;
 			continue;
 		}
-		if (vnirange(vend, v) == 1 &&
+		if (!dump_stats && vnirange(vend, v) == 1 &&
 		    vxlan_addr_equal(&v->remote_ip, &vend->remote_ip)) {
 			goto update_end;
 		} else {
-			if (!vxlan_fill_vni_filter_entry(skb, vbegin, vend)) {
+			if (!vxlan_fill_vni_filter_entry(skb, vbegin, vend,
+							 dump_stats)) {
 				err = -EMSGSIZE;
 				break;
 			}
@@ -318,7 +393,7 @@ update_end:
 	}
 
 	if (!err && vbegin) {
-		if (!vxlan_fill_vni_filter_entry(skb, vbegin, vend))
+		if (!vxlan_fill_vni_filter_entry(skb, vbegin, vend, dump_stats))
 			err = -EMSGSIZE;
 	}
 
@@ -337,6 +412,11 @@ static int vxlan_vnifilter_dump(struct sk_buff *skb, struct netlink_callback *cb
 	struct net_device *dev;
 
 	tmsg = nlmsg_data(cb->nlh);
+
+	if (tmsg->flags & ~TUNNEL_MSG_VALID_USER_FLAGS) {
+		NL_SET_ERR_MSG(cb->extack, "Invalid tunnelmsg flags in ancillary header");
+		return -EINVAL;
+	}
 
 	rcu_read_lock();
 	if (tmsg->ifindex) {
