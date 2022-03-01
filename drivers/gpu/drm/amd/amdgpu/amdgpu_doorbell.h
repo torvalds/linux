@@ -85,6 +85,7 @@ struct amdgpu_doorbell_index {
 	uint32_t last_non_cp;
 	uint32_t xcc1_kiq_start;
 	uint32_t xcc1_mec_ring0_start;
+	uint32_t aid1_sdma_start;
 	uint32_t max_assignment;
 	/* Per engine SDMA doorbell size in dword */
 	uint32_t sdma_doorbell_range;
@@ -171,7 +172,10 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 	/* 8 compute rings per GC. Max to 0x1CE */
 	AMDGPU_VEGA20_DOORBELL_XCC1_MEC_RING0_START       = 0x197,
 
-	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x1CE,
+	/* AID1 SDMA: 0x1D0 ~ 0x1F7 */
+	AMDGPU_VEGA20_DOORBELL_AID1_sDMA_START           = 0x1D0,
+
+	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x1F7,
 	AMDGPU_VEGA20_DOORBELL_INVALID                   = 0xFFFF
 } AMDGPU_VEGA20_DOORBELL_ASSIGNMENT;
 
