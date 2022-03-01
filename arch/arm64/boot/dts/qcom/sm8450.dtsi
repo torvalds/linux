@@ -685,9 +685,11 @@
 			#power-domain-cells = <1>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&pcie0_lane>,
+				 <&pcie1_lane>,
 				 <&sleep_clk>;
 			clock-names = "bi_tcxo",
 				      "pcie_0_pipe_clk",
+				      "pcie_1_pipe_clk",
 				      "sleep_clk";
 		};
 
@@ -860,6 +862,42 @@
 				#clock-cells = <0>;
 				#phy-cells = <0>;
 				clock-output-names = "pcie_0_pipe_clk";
+			};
+		};
+
+		pcie1_phy: phy@1c0f000 {
+			compatible = "qcom,sm8450-qmp-gen4x2-pcie-phy";
+			reg = <0 0x01c0f000 0 0x200>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			clocks = <&gcc GCC_PCIE_1_PHY_AUX_CLK>,
+				 <&gcc GCC_PCIE_1_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_1_CLKREF_EN>,
+				 <&gcc GCC_PCIE_1_PHY_RCHNG_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "refgen";
+
+			resets = <&gcc GCC_PCIE_1_PHY_BCR>;
+			reset-names = "phy";
+
+			assigned-clocks = <&gcc GCC_PCIE_1_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			status = "disabled";
+
+			pcie1_lane: lanes@1c0e000 {
+				reg = <0 0x1c0e000 0 0x200>, /* tx */
+				      <0 0x1c0e200 0 0x300>, /* rx */
+				      <0 0x1c0f200 0 0x200>, /* pcs */
+				      <0 0x1c0e800 0 0x200>, /* tx */
+				      <0 0x1c0ea00 0 0x300>, /* rx */
+				      <0 0x1c0f400 0 0xc00>; /* pcs_pcie */
+				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
+				clock-names = "pipe0";
+
+				#clock-cells = <0>;
+				#phy-cells = <0>;
+				clock-output-names = "pcie_1_pipe_clk";
 			};
 		};
 
