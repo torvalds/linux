@@ -1020,7 +1020,6 @@ static void binder_restore_priority_hook(void *data,
  */
 static inline int walt_get_mvp_task_prio(struct task_struct *p)
 {
-#if 0
 	if (per_task_boost(p) == TASK_BOOST_STRICT_MAX)
 		return WALT_TASK_BOOST_MVP;
 
@@ -1030,7 +1029,7 @@ static inline int walt_get_mvp_task_prio(struct task_struct *p)
 	if (task_rtg_high_prio(p) || walt_procfs_low_latency_task(p) ||
 			walt_pipeline_low_latency_task(p))
 		return WALT_RTG_MVP;
-#endif
+
 	return WALT_NOT_MVP;
 }
 
