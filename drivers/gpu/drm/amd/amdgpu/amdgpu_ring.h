@@ -163,8 +163,12 @@ struct amdgpu_ring_funcs {
 	u64 (*get_wptr)(struct amdgpu_ring *ring);
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
-	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
-	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+	int (*parse_cs)(struct amdgpu_cs_parser *p,
+			struct amdgpu_job *job,
+			struct amdgpu_ib *ib);
+	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p,
+				 struct amdgpu_job *job,
+				 struct amdgpu_ib *ib);
 	/* constants to calculate how many DW are needed for an emit */
 	unsigned emit_frame_size;
 	unsigned emit_ib_size;
@@ -264,8 +268,8 @@ struct amdgpu_ring {
 	atomic_t		*sched_score;
 };
 
-#define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
-#define amdgpu_ring_patch_cs_in_place(r, p, ib) ((r)->funcs->patch_cs_in_place((p), (ib)))
+#define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
+#define amdgpu_ring_patch_cs_in_place(r, p, job, ib) ((r)->funcs->patch_cs_in_place((p), (job), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
@@ -363,6 +367,17 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring);
+
+static inline u32 amdgpu_ib_get_value(struct amdgpu_ib *ib, int idx)
+{
+	return ib->ptr[idx];
+}
+
+static inline void amdgpu_ib_set_value(struct amdgpu_ib *ib, int idx,
+				       uint32_t value)
+{
+	ib->ptr[idx] = value;
+}
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size,
