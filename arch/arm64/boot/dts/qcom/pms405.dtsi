@@ -32,7 +32,7 @@
 
 &spmi_bus {
 	pms405_0: pms405@0 {
-		compatible = "qcom,spmi-pmic";
+		compatible = "qcom,pms405", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -139,7 +139,7 @@
 	};
 
 	pms405_1: pms405@1 {
-		compatible = "qcom,spmi-pmic";
+		compatible = "qcom,pms405", "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 
 		pms405_spmi_regulators: regulators {

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Lenovo Yoga C630
+ * Samsung Galaxy Book2
  *
- * Copyright (c) 2019, Linaro Ltd.
+ * Copyright (c) 2022, Xilin Wu <strongtz@yeah.net>
  */
 
 /dts-v1/;
 
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
@@ -18,83 +19,112 @@
 /*
  * Update following upstream (sdm845.dtsi) reserved
  * memory mappings for firmware loading to succeed
- * and enable the IPA device.
  */
+/delete-node/ &qseecom_mem;
+/delete-node/ &wlan_msa_mem;
+/delete-node/ &slpi_mem;
 /delete-node/ &ipa_fw_mem;
 /delete-node/ &ipa_gsi_mem;
 /delete-node/ &gpu_mem;
+/delete-node/ &mpss_region;
 /delete-node/ &adsp_mem;
-/delete-node/ &wlan_msa_mem;
+/delete-node/ &cdsp_mem;
+/delete-node/ &venus_mem;
+/delete-node/ &mba_region;
+/delete-node/ &spss_mem;
 
 / {
-	model = "Lenovo Yoga C630";
-	compatible = "lenovo,yoga-c630", "qcom,sdm845";
+	model = "Samsung Galaxy Book2";
+	compatible = "samsung,w737", "qcom,sdm845";
 	chassis-type = "convertible";
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		// Firmware initialized the display at 1280p instead of 1440p
+		framebuffer0: framebuffer@80400000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x80400000 0 (1920 * 1280 * 4)>;
+			width = <1920>;
+			height = <1280>;
+			stride = <(1920 * 4)>;
+			format = "a8r8g8b8";
+		};
+	};
 
 	aliases {
 		hsuart0 = &uart6;
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&lid_pin_active>, <&mode_pin_active>;
-
-		lid {
-			gpios = <&tlmm 124 GPIO_ACTIVE_HIGH>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			wakeup-source;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
-		};
-
-		mode {
-			gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_TABLET_MODE>;
-		};
-	};
-
-	/* Reserved memory changes for IPA */
+	/* Reserved memory changes */
 	reserved-memory {
+		/* Bootloader display framebuffer region */
+		cont_splash_mem: memory@80400000 {
+			reg = <0x0 0x80400000 0x0 0x960000>;
+			no-map;
+		};
+
+		qseecom_mem: memory@8b500000 {
+			reg = <0 0x8b500000 0 0xa00000>;
+			no-map;
+		};
+
 		wlan_msa_mem: memory@8c400000 {
 			reg = <0 0x8c400000 0 0x100000>;
 			no-map;
 		};
 
-		gpu_mem: memory@8c515000 {
-			reg = <0 0x8c515000 0 0x2000>;
+		slpi_mem: memory@8c500000 {
+			reg = <0 0x8c500000 0 0x1200000>;
 			no-map;
 		};
 
-		ipa_fw_mem: memory@8c517000 {
-			reg = <0 0x8c517000 0 0x5a000>;
+		ipa_fw_mem: memory@8d700000 {
+			reg = <0 0x8d700000 0 0x100000>;
 			no-map;
 		};
 
-		adsp_mem: memory@8c600000 {
-			reg = <0 0x8c600000 0 0x1a00000>;
+		gpu_mem: memory@8d800000 {
+			reg = <0 0x8d800000 0 0x5000>;
 			no-map;
 		};
-	};
 
-	sn65dsi86_refclk: sn65dsi86-refclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
+		mpss_region: memory@8e000000 {
+			reg = <0 0x8e000000 0 0x8000000>;
+			no-map;
+		};
 
-		clock-frequency = <19200000>;
-	};
+		adsp_mem: memory@96000000 {
+			reg = <0 0x96000000 0 0x2000000>;
+			no-map;
+		};
 
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&sn65dsi86 1000000>;
-		enable-gpios = <&tlmm 11 GPIO_ACTIVE_HIGH>;
+		cdsp_mem: memory@98000000 {
+			reg = <0 0x98000000 0 0x800000>;
+			no-map;
+		};
+
+		venus_mem: memory@98800000 {
+			reg = <0 0x98800000 0 0x500000>;
+			no-map;
+		};
+
+		mba_region: memory@98d00000 {
+			reg = <0 0x98d00000 0 0x200000>;
+			no-map;
+		};
+
+		spss_mem: memory@98f00000 {
+			reg = <0 0x98f00000 0 0x100000>;
+			no-map;
+		};
 	};
 };
 
 &adsp_pas {
-	firmware-name = "qcom/LENOVO/81JL/qcadsp850.mbn";
+	firmware-name = "qcom/samsung/w737/qcadsp850.mbn";
 	status = "okay";
 };
 
@@ -235,7 +265,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l18a_2p7: ldo18 {
+		vreg_l18a_1p8: ldo18 {
 		};
 
 		vreg_l19a_3p0: ldo19 {
@@ -306,27 +336,8 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/LENOVO/81JL/qccdsp850.mbn";
+	firmware-name = "qcom/samsung/w737/qccdsp850.mbn";
 	status = "okay";
-};
-
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vreg_l26a_1p2>;
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&sn65dsi86_in_a>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vreg_l1a_0p875>;
 };
 
 &gcc {
@@ -337,150 +348,67 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
-&gmu {
-	status = "okay";
-};
-
-&gpu {
-	status = "okay";
-	zap-shader {
-		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/LENOVO/81JL/qcdxkmsuc850.mbn";
-	};
-};
-
-&i2c1 {
-	status = "okay";
-	clock-frequency = <400000>;
-};
-
-&i2c3 {
-	status = "okay";
-	clock-frequency = <400000>;
-	/* Overwrite pinctrl-0 from sdm845.dtsi */
-	pinctrl-0 = <&qup_i2c3_default &i2c3_hid_active>;
-
-	tsel: hid@15 {
-		compatible = "hid-over-i2c";
-		reg = <0x15>;
-		hid-descr-addr = <0x1>;
-
-		interrupts-extended = <&tlmm 37 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
-	tsc2: hid@2c {
-		compatible = "hid-over-i2c";
-		reg = <0x2c>;
-		hid-descr-addr = <0x20>;
-
-		interrupts-extended = <&tlmm 37 IRQ_TYPE_LEVEL_HIGH>;
-	};
-};
-
-&i2c5 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	tsc1: hid@10 {
-		compatible = "hid-over-i2c";
-		reg = <0x10>;
-		hid-descr-addr = <0x1>;
-
-		interrupts-extended = <&tlmm 125 IRQ_TYPE_LEVEL_LOW>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c5_hid_active>;
-	};
-};
-
 &i2c10 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	sn65dsi86: bridge@2c {
-		compatible = "ti,sn65dsi86";
-		reg = <0x2c>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sn65dsi86_pin_active>;
-
-		enable-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
-
-		vpll-supply = <&vreg_l14a_1p88>;
-		vccio-supply = <&vreg_l14a_1p88>;
-
-		clocks = <&sn65dsi86_refclk>;
-		clock-names = "refclk";
-
-		no-hpd;
-		#pwm-cells = <1>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				sn65dsi86_in_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				sn65dsi86_out: endpoint {
-					remote-endpoint = <&panel_in_edp>;
-				};
-			};
-		};
-
-		aux-bus {
-			panel: panel {
-				compatible = "boe,nv133fhm-n61";
-				backlight = <&backlight>;
-
-				port {
-					panel_in_edp: endpoint {
-						remote-endpoint = <&sn65dsi86_out>;
-					};
-				};
-			};
-		};
-	};
+	/* SN65DSI86 @ 0x2c */
+	/* The panel requires dual DSI, which is not supported by the bridge driver */
 };
 
 &i2c11 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	ecsh: hid@5c {
-		compatible = "hid-over-i2c";
-		reg = <0x5c>;
-		hid-descr-addr = <0x1>;
+	/* HID-I2C Touchscreen @ 0x20 */
+};
 
-		interrupts-extended = <&tlmm 92 IRQ_TYPE_LEVEL_LOW>;
+&i2c15 {
+	status = "okay";
+	clock-frequency = <400000>;
 
+	digitizer@9 {
+		compatible = "wacom,w9013", "hid-over-i2c";
+		reg = <0x9>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2c11_hid_active>;
+		pinctrl-0 = <&pen_irq_l>, <&pen_pdct_l>, <&pen_rst_l>;
+
+		post-power-on-delay-ms = <120>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <119 IRQ_TYPE_LEVEL_LOW>;
+
+		hid-descr-addr = <0x1>;
 	};
 };
 
 &ipa {
 	status = "okay";
 	memory-region = <&ipa_fw_mem>;
+	firmware-name = "qcom/samsung/w737/ipa_fws.elf";
 };
 
-&mdss {
-	status = "okay";
+/* No idea why it causes an SError when enabled */
+&llcc {
+	status = "disabled";
 };
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/LENOVO/81JL/qcdsp2850.mbn";
+	firmware-name = "qcom/samsung/w737/qcdsp1v2850.mbn", "qcom/samsung/w737/qcdsp2850.mbn";
 };
 
 &qup_i2c10_default {
 	pinconf {
 		pins = "gpio55", "gpio56";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&qup_i2c11_default {
+	pinconf {
+		pins = "gpio31", "gpio32";
 		drive-strength = <2>;
 		bias-disable;
 	};
@@ -537,8 +465,8 @@
 };
 
 &sound {
-	compatible = "qcom,db845c-sndcard";
-	model = "Lenovo-YOGA-C630-13Q50";
+	compatible = "qcom,sdm845-sndcard";
+	model = "Samsung-W737";
 
 	audio-routing =
 		"RX_BIAS", "MCLK",
@@ -617,39 +545,58 @@
 };
 
 &tlmm {
-	gpio-reserved-ranges = <0 4>, <81 4>;
+	gpio-reserved-ranges = <0 6>, <85 4>;
 
-	sn65dsi86_pin_active: sn65dsi86-enable {
-		pins = "gpio96";
-		drive-strength = <2>;
-		bias-disable;
+	pen_irq_l: pen-irq-l {
+		pinmux {
+			pins = "gpio119";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio119";
+			bias-disable;
+		};
 	};
 
-	i2c3_hid_active: i2c2-hid-active {
-		pins = "gpio37";
-		function = "gpio";
+	pen_pdct_l: pen-pdct-l {
+		pinmux {
+			pins = "gpio124";
+			function = "gpio";
+		};
 
-		input-enable;
-		bias-pull-up;
-		drive-strength = <2>;
+		pinconf {
+			pins = "gpio124";
+			bias-disable;
+			drive-strength = <2>;
+			output-high;
+		};
 	};
 
-	i2c5_hid_active: i2c5-hid-active {
-		pins = "gpio125";
-		function = "gpio";
+	pen_rst_l: pen-rst-l {
+		pinmux  {
+			pins = "gpio21";
+			function = "gpio";
+		};
 
-		input-enable;
-		bias-pull-up;
-		drive-strength = <2>;
-	};
+		pinconf {
+			pins = "gpio21";
+			bias-disable;
+			drive-strength = <2>;
 
-	i2c11_hid_active: i2c11-hid-active {
-		pins = "gpio92";
-		function = "gpio";
-
-		input-enable;
-		bias-pull-up;
-		drive-strength = <2>;
+			/*
+			 * The pen driver doesn't currently support
+			 * driving this reset line.  By specifying
+			 * output-high here we're relying on the fact
+			 * that this pin has a default pulldown at boot
+			 * (which makes sure the pen was in reset if it
+			 * was powered) and then we set it high here to
+			 * take it out of reset.  Better would be if the
+			 * pen driver could control this and we could
+			 * remove "output-high" here.
+			 */
+			output-high;
+		};
 	};
 
 	wcd_intr_default: wcd_intr_default {
@@ -659,22 +606,6 @@
 		input-enable;
 		bias-pull-down;
 		drive-strength = <2>;
-	};
-
-	lid_pin_active: lid-pin {
-		pins = "gpio124";
-		function = "gpio";
-
-		input-enable;
-		bias-disable;
-	};
-
-	mode_pin_active: mode-pin {
-		pins = "gpio95";
-		function = "gpio";
-
-		input-enable;
-		bias-disable;
 	};
 };
 
@@ -765,6 +696,7 @@
 
 &venus {
 	status = "okay";
+	firmware-name = "qcom/samsung/w737/qcvss850.mbn";
 };
 
 &wcd9340{

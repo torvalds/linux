@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2022, Linaro Limited
  */
 
 /dts-v1/;
@@ -9,8 +9,8 @@
 #include "sm8450.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8450 QRD";
-	compatible = "qcom,sm8450-qrd", "qcom,sm8450";
+	model = "Qualcomm Technologies, Inc. SM8450 HDK";
+	compatible = "qcom,sm8450-hdk", "qcom,sm8450";
 
 	aliases {
 		serial0 = &uart7;
@@ -63,13 +63,13 @@
 
 		vreg_s11b_0p95: smps11 {
 			regulator-name = "vreg_s11b_0p95";
-			regulator-min-microvolt = <848000>;
+			regulator-min-microvolt = <966000>;
 			regulator-max-microvolt = <1104000>;
 		};
 
 		vreg_s12b_1p25: smps12 {
 			regulator-name = "vreg_s12b_1p25";
-			regulator-min-microvolt = <1224000>;
+			regulator-min-microvolt = <1350000>;
 			regulator-max-microvolt = <1400000>;
 		};
 
@@ -142,6 +142,7 @@
 		vdd-l2-l8-supply = <&vreg_bob>;
 		vdd-l3-l4-l5-l7-l13-supply = <&vreg_bob>;
 		vdd-l6-l9-l11-supply = <&vreg_bob>;
+		vdd-l10-supply = <&vreg_s12b_1p25>;
 
 		vdd-bob-supply = <&vph_pwr>;
 
@@ -339,31 +340,17 @@
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
+		vreg_l7e_2p8: ldo7 {
+			regulator-name = "vreg_l7e_2p8";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+		};
 	};
 };
 
 &qupv3_id_0 {
 	status = "okay";
-};
-
-&remoteproc_adsp {
-	status = "okay";
-	firmware-name = "qcom/sm8450/adsp.mbn";
-};
-
-&remoteproc_cdsp {
-	status = "okay";
-	firmware-name = "qcom/sm8450/cdsp.mbn";
-};
-
-&remoteproc_mpss {
-	status = "okay";
-	firmware-name = "qcom/sm8450/modem.mbn";
-};
-
-&remoteproc_slpi {
-	status = "okay";
-	firmware-name = "qcom/sm8450/slpi.mbn";
 };
 
 &tlmm {

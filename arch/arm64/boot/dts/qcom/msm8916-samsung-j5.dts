@@ -41,7 +41,7 @@
 		};
 
 		home-key {
-			lable = "Home Key";
+			label = "Home Key";
 			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};

@@ -151,6 +151,21 @@
 		vddio-supply = <&pm8916_l6>;
 	};
 
+	light-sensor@23 {
+		compatible = "liteon,ltr559";
+		reg = <0x23>;
+		proximity-near-level = <75>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <115 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&light_int_default>;
+
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+	};
+
 	gyroscope@68 {
 		compatible = "bosch,bmg160";
 		reg = <0x68>;
@@ -386,6 +401,14 @@
 
 	gyro_int_default: gyro-int-default {
 		pins = "gpio22", "gpio23";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	light_int_default: light-int-default {
+		pins = "gpio115";
 		function = "gpio";
 
 		drive-strength = <2>;
