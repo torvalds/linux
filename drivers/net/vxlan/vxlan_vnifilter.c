@@ -116,6 +116,57 @@ void vxlan_vs_del_vnigrp(struct vxlan_dev *vxlan)
 	spin_unlock(&vn->sock_lock);
 }
 
+static void vxlan_vnifilter_stats_add(struct vxlan_vni_node *vninode,
+				      int type, unsigned int len)
+{
+	struct vxlan_vni_stats_pcpu *pstats = this_cpu_ptr(vninode->stats);
+
+	u64_stats_update_begin(&pstats->syncp);
+	switch (type) {
+	case VXLAN_VNI_STATS_RX:
+		pstats->stats.rx_bytes += len;
+		pstats->stats.rx_packets++;
+		break;
+	case VXLAN_VNI_STATS_RX_DROPS:
+		pstats->stats.rx_drops++;
+		break;
+	case VXLAN_VNI_STATS_RX_ERRORS:
+		pstats->stats.rx_errors++;
+		break;
+	case VXLAN_VNI_STATS_TX:
+		pstats->stats.tx_bytes += len;
+		pstats->stats.tx_packets++;
+		break;
+	case VXLAN_VNI_STATS_TX_DROPS:
+		pstats->stats.tx_drops++;
+		break;
+	case VXLAN_VNI_STATS_TX_ERRORS:
+		pstats->stats.tx_errors++;
+		break;
+	}
+	u64_stats_update_end(&pstats->syncp);
+}
+
+void vxlan_vnifilter_count(struct vxlan_dev *vxlan, __be32 vni,
+			   struct vxlan_vni_node *vninode,
+			   int type, unsigned int len)
+{
+	struct vxlan_vni_node *vnode;
+
+	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
+		return;
+
+	if (vninode) {
+		vnode = vninode;
+	} else {
+		vnode = vxlan_vnifilter_lookup(vxlan, vni);
+		if (!vnode)
+			return;
+	}
+
+	vxlan_vnifilter_stats_add(vnode, type, len);
+}
+
 static u32 vnirange(struct vxlan_vni_node *vbegin,
 		    struct vxlan_vni_node *vend)
 {
@@ -562,6 +613,11 @@ static struct vxlan_vni_node *vxlan_vni_alloc(struct vxlan_dev *vxlan,
 	vninode = kzalloc(sizeof(*vninode), GFP_ATOMIC);
 	if (!vninode)
 		return NULL;
+	vninode->stats = netdev_alloc_pcpu_stats(struct vxlan_vni_stats_pcpu);
+	if (!vninode->stats) {
+		kfree(vninode);
+		return NULL;
+	}
 	vninode->vni = vni;
 	vninode->hlist4.vxlan = vxlan;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -621,6 +677,7 @@ static void vxlan_vni_node_rcu_free(struct rcu_head *rcu)
 	struct vxlan_vni_node *v;
 
 	v = container_of(rcu, struct vxlan_vni_node, rcu);
+	free_percpu(v->stats);
 	kfree(v);
 }
 
