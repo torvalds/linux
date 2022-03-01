@@ -137,25 +137,28 @@ static void smc_wr_tx_tasklet_fn(struct tasklet_struct *t)
 {
 	struct smc_ib_device *dev = from_tasklet(dev, t, send_tasklet);
 	struct ib_wc wc[SMC_WR_MAX_POLL_CQE];
-	int i = 0, rc;
-	int polled = 0;
+	int i, rc;
 
 again:
-	polled++;
 	do {
 		memset(&wc, 0, sizeof(wc));
 		rc = ib_poll_cq(dev->roce_cq_send, SMC_WR_MAX_POLL_CQE, wc);
-		if (polled == 1) {
-			ib_req_notify_cq(dev->roce_cq_send,
-					 IB_CQ_NEXT_COMP |
-					 IB_CQ_REPORT_MISSED_EVENTS);
-		}
-		if (!rc)
-			break;
 		for (i = 0; i < rc; i++)
 			smc_wr_tx_process_cqe(&wc[i]);
+		if (rc < SMC_WR_MAX_POLL_CQE)
+			/* If < SMC_WR_MAX_POLL_CQE, the CQ should have been
+			 * drained, no need to poll again. --Guangguan Wang
+			 */
+			break;
 	} while (rc > 0);
-	if (polled == 1)
+
+	/* IB_CQ_REPORT_MISSED_EVENTS make sure if ib_req_notify_cq() returns
+	 * 0, it is safe to wait for the next event.
+	 * Else we must poll the CQ again to make sure we won't miss any event
+	 */
+	if (ib_req_notify_cq(dev->roce_cq_send,
+			     IB_CQ_NEXT_COMP |
+			     IB_CQ_REPORT_MISSED_EVENTS))
 		goto again;
 }
 
@@ -478,24 +481,28 @@ static void smc_wr_rx_tasklet_fn(struct tasklet_struct *t)
 {
 	struct smc_ib_device *dev = from_tasklet(dev, t, recv_tasklet);
 	struct ib_wc wc[SMC_WR_MAX_POLL_CQE];
-	int polled = 0;
 	int rc;
 
 again:
-	polled++;
 	do {
 		memset(&wc, 0, sizeof(wc));
 		rc = ib_poll_cq(dev->roce_cq_recv, SMC_WR_MAX_POLL_CQE, wc);
-		if (polled == 1) {
-			ib_req_notify_cq(dev->roce_cq_recv,
-					 IB_CQ_SOLICITED_MASK
-					 | IB_CQ_REPORT_MISSED_EVENTS);
-		}
-		if (!rc)
+		if (rc > 0)
+			smc_wr_rx_process_cqes(&wc[0], rc);
+		if (rc < SMC_WR_MAX_POLL_CQE)
+			/* If < SMC_WR_MAX_POLL_CQE, the CQ should have been
+			 * drained, no need to poll again. --Guangguan Wang
+			 */
 			break;
-		smc_wr_rx_process_cqes(&wc[0], rc);
 	} while (rc > 0);
-	if (polled == 1)
+
+	/* IB_CQ_REPORT_MISSED_EVENTS make sure if ib_req_notify_cq() returns
+	 * 0, it is safe to wait for the next event.
+	 * Else we must poll the CQ again to make sure we won't miss any event
+	 */
+	if (ib_req_notify_cq(dev->roce_cq_recv,
+			     IB_CQ_SOLICITED_MASK |
+			     IB_CQ_REPORT_MISSED_EVENTS))
 		goto again;
 }
 
