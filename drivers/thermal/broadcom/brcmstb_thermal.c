@@ -351,7 +351,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 
 	priv->thermal = thermal;
 
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq >= 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						brcmstb_tmon_irq_thread,
