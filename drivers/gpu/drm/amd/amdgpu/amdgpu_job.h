@@ -25,6 +25,7 @@
 
 #include <drm/gpu_scheduler.h>
 #include "amdgpu_sync.h"
+#include "amdgpu_ring.h"
 
 /* bit set means command submit involves a preamble IB */
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0)
@@ -48,12 +49,10 @@ struct amdgpu_job {
 	struct amdgpu_vm	*vm;
 	struct amdgpu_sync	sync;
 	struct amdgpu_sync	sched_sync;
-	struct amdgpu_ib	*ibs;
 	struct dma_fence	hw_fence;
 	struct dma_fence	*external_hw_fence;
 	uint32_t		preamble_status;
 	uint32_t                preemption_status;
-	uint32_t		num_ibs;
 	bool                    vm_needs_flush;
 	uint64_t		vm_pd_addr;
 	unsigned		vmid;
@@ -69,6 +68,9 @@ struct amdgpu_job {
 
 	/* job_run_counter >= 1 means a resubmit job */
 	uint32_t		job_run_counter;
+
+	uint32_t		num_ibs;
+	struct amdgpu_ib	ibs[];
 };
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
