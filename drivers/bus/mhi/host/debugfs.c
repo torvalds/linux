@@ -61,9 +61,9 @@ static int mhi_debugfs_events_show(struct seq_file *m, void *d)
 
 		seq_printf(m, "Index: %d intmod count: %lu time: %lu",
 			   i, (le32_to_cpu(er_ctxt->intmod) & EV_CTX_INTMODC_MASK) >>
-			   EV_CTX_INTMODC_SHIFT,
+			   __ffs(EV_CTX_INTMODC_MASK),
 			   (le32_to_cpu(er_ctxt->intmod) & EV_CTX_INTMODT_MASK) >>
-			   EV_CTX_INTMODT_SHIFT);
+			   __ffs(EV_CTX_INTMODT_MASK));
 
 		seq_printf(m, " base: 0x%0llx len: 0x%llx", le64_to_cpu(er_ctxt->rbase),
 			   le64_to_cpu(er_ctxt->rlen));
@@ -107,10 +107,10 @@ static int mhi_debugfs_channels_show(struct seq_file *m, void *d)
 		seq_printf(m,
 			   "%s(%u) state: 0x%lx brstmode: 0x%lx pollcfg: 0x%lx",
 			   mhi_chan->name, mhi_chan->chan, (le32_to_cpu(chan_ctxt->chcfg) &
-			   CHAN_CTX_CHSTATE_MASK) >> CHAN_CTX_CHSTATE_SHIFT,
+			   CHAN_CTX_CHSTATE_MASK) >> __ffs(CHAN_CTX_CHSTATE_MASK),
 			   (le32_to_cpu(chan_ctxt->chcfg) & CHAN_CTX_BRSTMODE_MASK) >>
-			   CHAN_CTX_BRSTMODE_SHIFT, (le32_to_cpu(chan_ctxt->chcfg) &
-			   CHAN_CTX_POLLCFG_MASK) >> CHAN_CTX_POLLCFG_SHIFT);
+			   __ffs(CHAN_CTX_BRSTMODE_MASK), (le32_to_cpu(chan_ctxt->chcfg) &
+			   CHAN_CTX_POLLCFG_MASK) >> __ffs(CHAN_CTX_POLLCFG_MASK));
 
 		seq_printf(m, " type: 0x%x event ring: %u", le32_to_cpu(chan_ctxt->chtype),
 			   le32_to_cpu(chan_ctxt->erindex));
