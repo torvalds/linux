@@ -188,7 +188,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R0 invalid mem access 'inv'",
+	.errstr = "R0 invalid mem access 'scalar'",
 },
 {
 	"calls: multiple ret types in subprog 2",
@@ -491,7 +491,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "R6 invalid mem access 'inv'",
+	.errstr = "R6 invalid mem access 'scalar'",
 	.prog_type = BPF_PROG_TYPE_XDP,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
@@ -1697,7 +1697,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_hash_8b = { 12, 22 },
 	.result = REJECT,
-	.errstr = "R0 invalid mem access 'inv'",
+	.errstr = "R0 invalid mem access 'scalar'",
 },
 {
 	"calls: pkt_ptr spill into caller stack",

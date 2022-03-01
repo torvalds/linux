@@ -502,7 +502,7 @@
 	.fixup_sk_storage_map = { 11 },
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R3 type=inv expected=fp",
+	.errstr = "R3 type=scalar expected=fp",
 },
 {
 	"sk_storage_get(map, skb->sk, &stack_value, 1): stack_value",
