@@ -114,6 +114,7 @@ TODOList:
    filesystems/index
    scheduler/index
    vm/index
+   peci/index
 
 TODOList:
 
