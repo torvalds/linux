@@ -30,6 +30,12 @@
 #define VAS_THRESH_FIFO_GT_EIGHTH_FULL	3
 
 /*
+ * VAS window Linux status bits
+ */
+#define VAS_WIN_ACTIVE		0x0	/* Used in platform independent */
+					/* vas mmap() */
+
+/*
  * Get/Set bit fields
  */
 #define GET_FIELD(m, v)                (((v) & (m)) >> MASK_LSH(m))
@@ -59,6 +65,9 @@ struct vas_user_win_ref {
 	struct pid *pid;	/* PID of owner */
 	struct pid *tgid;	/* Thread group ID of owner */
 	struct mm_struct *mm;	/* Linux process mm_struct */
+	struct mutex mmap_mutex;	/* protects paste address mmap() */
+					/* with DLPAR close/open windows */
+	struct vm_area_struct *vma;	/* Save VMA and used in DLPAR ops */
 };
 
 /*
@@ -67,6 +76,7 @@ struct vas_user_win_ref {
 struct vas_window {
 	u32 winid;
 	u32 wcreds_max;	/* Window credits */
+	u32 status;	/* Window status used in OS */
 	enum vas_cop_type cop;
 	struct vas_user_win_ref task_ref;
 	char *dbgname;
