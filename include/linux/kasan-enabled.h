@@ -2,6 +2,8 @@
 #ifndef _LINUX_KASAN_ENABLED_H
 #define _LINUX_KASAN_ENABLED_H
 
+#include <linux/static_key.h>
+
 #ifdef CONFIG_KASAN_HW_TAGS
 
 DECLARE_STATIC_KEY_FALSE(kasan_flag_enabled);
