@@ -560,6 +560,10 @@ static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 		}
 	}
 
+	rc = sysfs_add_vas_caps(caps);
+	if (rc)
+		return rc;
+
 	copypaste_feat = true;
 
 	return 0;
@@ -843,6 +847,8 @@ static int __init pseries_vas_init(void)
 
 	caps_all.descriptor = be64_to_cpu(hv_caps->descriptor);
 	caps_all.feat_type = be64_to_cpu(hv_caps->feat_type);
+
+	sysfs_pseries_vas_init(&caps_all);
 
 	hv_cop_caps = kmalloc(sizeof(*hv_cop_caps), GFP_KERNEL);
 	if (!hv_cop_caps) {
