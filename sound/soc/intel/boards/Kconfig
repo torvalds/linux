@@ -606,16 +606,20 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 
 endif ## SND_SOC_SOF_JASPERLAKE
 
-config SND_SOC_INTEL_SOF_RT1308_MACH
-	tristate "SOF with RT1308 in I2S Mode"
+config SND_SOC_INTEL_SOF_SSP_AMP_MACH
+	tristate "SOF with amplifiers in I2S Mode"
 	depends on I2C && ACPI && GPIOLIB
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT1308
+	select SND_SOC_CS35L41_I2C
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
 	select SND_SOC_INTEL_SOF_REALTEK_COMMON
+	select SND_SOC_INTEL_SOF_CIRRUS_COMMON
 	help
-	   This adds support for ASoC machine driver for Tigerlake platforms
-	   with RT1308 I2S audio codec.
+	   This adds support for ASoC machine driver for SOF platforms
+	   with RT1308/CS35L41 I2S audio codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
