@@ -59,7 +59,7 @@ static inline void arch_decomp_setup(void)
 	uart_is_pxa = 1;
 
 	if (machine_is_littleton() ||  machine_is_csb726() ||
-	    || machine_is_cm_x300() || machine_is_balloon3())
+	    machine_is_cm_x300() || machine_is_balloon3())
 		uart_base = STUART_BASE;
 
 	if (machine_is_arcom_zeus()) {
