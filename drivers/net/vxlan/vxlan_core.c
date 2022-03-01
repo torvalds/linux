@@ -419,7 +419,7 @@ static u32 eth_hash(const unsigned char *addr)
 	return hash_64(value, FDB_HASH_BITS);
 }
 
-static u32 eth_vni_hash(const unsigned char *addr, __be32 vni)
+u32 eth_vni_hash(const unsigned char *addr, __be32 vni)
 {
 	/* use 1 byte of OUI and 3 bytes of NIC */
 	u32 key = get_unaligned((u32 *)(addr + 2));
@@ -427,7 +427,7 @@ static u32 eth_vni_hash(const unsigned char *addr, __be32 vni)
 	return jhash_2words(key, vni, vxlan_salt) & (FDB_HASH_SIZE - 1);
 }
 
-static u32 fdb_head_index(struct vxlan_dev *vxlan, const u8 *mac, __be32 vni)
+u32 fdb_head_index(struct vxlan_dev *vxlan, const u8 *mac, __be32 vni)
 {
 	if (vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA)
 		return eth_vni_hash(mac, vni);
@@ -846,12 +846,12 @@ err_inval:
 	return err;
 }
 
-static int vxlan_fdb_create(struct vxlan_dev *vxlan,
-			    const u8 *mac, union vxlan_addr *ip,
-			    __u16 state, __be16 port, __be32 src_vni,
-			    __be32 vni, __u32 ifindex, __u16 ndm_flags,
-			    u32 nhid, struct vxlan_fdb **fdb,
-			    struct netlink_ext_ack *extack)
+int vxlan_fdb_create(struct vxlan_dev *vxlan,
+		     const u8 *mac, union vxlan_addr *ip,
+		     __u16 state, __be16 port, __be32 src_vni,
+		     __be32 vni, __u32 ifindex, __u16 ndm_flags,
+		     u32 nhid, struct vxlan_fdb **fdb,
+		     struct netlink_ext_ack *extack)
 {
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
@@ -1076,13 +1076,13 @@ err_notify:
 }
 
 /* Add new entry to forwarding table -- assumes lock held */
-static int vxlan_fdb_update(struct vxlan_dev *vxlan,
-			    const u8 *mac, union vxlan_addr *ip,
-			    __u16 state, __u16 flags,
-			    __be16 port, __be32 src_vni, __be32 vni,
-			    __u32 ifindex, __u16 ndm_flags, u32 nhid,
-			    bool swdev_notify,
-			    struct netlink_ext_ack *extack)
+int vxlan_fdb_update(struct vxlan_dev *vxlan,
+		     const u8 *mac, union vxlan_addr *ip,
+		     __u16 state, __u16 flags,
+		     __be16 port, __be32 src_vni, __be32 vni,
+		     __u32 ifindex, __u16 ndm_flags, u32 nhid,
+		     bool swdev_notify,
+		     struct netlink_ext_ack *extack)
 {
 	struct vxlan_fdb *f;
 
@@ -1233,10 +1233,10 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return err;
 }
 
-static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
-			      const unsigned char *addr, union vxlan_addr ip,
-			      __be16 port, __be32 src_vni, __be32 vni,
-			      u32 ifindex, bool swdev_notify)
+int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
+		       const unsigned char *addr, union vxlan_addr ip,
+		       __be16 port, __be32 src_vni, __be32 vni,
+		       u32 ifindex, bool swdev_notify)
 {
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
