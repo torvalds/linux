@@ -702,13 +702,19 @@ static int __init iscsi_target_init_module(void)
 	if (!iscsit_global->ts_bitmap)
 		goto configfs_out;
 
+	if (!zalloc_cpumask_var(&iscsit_global->allowed_cpumask, GFP_KERNEL)) {
+		pr_err("Unable to allocate iscsit_global->allowed_cpumask\n");
+		goto bitmap_out;
+	}
+	cpumask_setall(iscsit_global->allowed_cpumask);
+
 	lio_qr_cache = kmem_cache_create("lio_qr_cache",
 			sizeof(struct iscsi_queue_req),
 			__alignof__(struct iscsi_queue_req), 0, NULL);
 	if (!lio_qr_cache) {
 		pr_err("Unable to kmem_cache_create() for"
 				" lio_qr_cache\n");
-		goto bitmap_out;
+		goto cpumask_out;
 	}
 
 	lio_dr_cache = kmem_cache_create("lio_dr_cache",
@@ -753,6 +759,8 @@ dr_out:
 	kmem_cache_destroy(lio_dr_cache);
 qr_out:
 	kmem_cache_destroy(lio_qr_cache);
+cpumask_out:
+	free_cpumask_var(iscsit_global->allowed_cpumask);
 bitmap_out:
 	vfree(iscsit_global->ts_bitmap);
 configfs_out:
@@ -782,6 +790,7 @@ static void __exit iscsi_target_cleanup_module(void)
 
 	target_unregister_template(&iscsi_ops);
 
+	free_cpumask_var(iscsit_global->allowed_cpumask);
 	vfree(iscsit_global->ts_bitmap);
 	kfree(iscsit_global);
 }
@@ -3587,6 +3596,11 @@ static int iscsit_send_reject(
 void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
 {
 	int ord, cpu;
+	cpumask_t conn_allowed_cpumask;
+
+	cpumask_and(&conn_allowed_cpumask, iscsit_global->allowed_cpumask,
+		    cpu_online_mask);
+
 	/*
 	 * bitmap_id is assigned from iscsit_global->ts_bitmap from
 	 * within iscsit_start_kthreads()
@@ -3595,8 +3609,9 @@ void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
 	 * iSCSI connection's RX/TX threads will be scheduled to
 	 * execute upon.
 	 */
-	ord = conn->bitmap_id % cpumask_weight(cpu_online_mask);
-	for_each_online_cpu(cpu) {
+	cpumask_clear(conn->conn_cpumask);
+	ord = conn->bitmap_id % cpumask_weight(&conn_allowed_cpumask);
+	for_each_cpu(cpu, &conn_allowed_cpumask) {
 		if (ord-- == 0) {
 			cpumask_set_cpu(cpu, conn->conn_cpumask);
 			return;
@@ -3608,6 +3623,62 @@ void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
 	dump_stack();
 	cpumask_setall(conn->conn_cpumask);
 }
+
+static void iscsit_thread_reschedule(struct iscsi_conn *conn)
+{
+	/*
+	 * If iscsit_global->allowed_cpumask modified, reschedule iSCSI
+	 * connection's RX/TX threads update conn->allowed_cpumask.
+	 */
+	if (!cpumask_equal(iscsit_global->allowed_cpumask,
+			   conn->allowed_cpumask)) {
+		iscsit_thread_get_cpumask(conn);
+		conn->conn_tx_reset_cpumask = 1;
+		conn->conn_rx_reset_cpumask = 1;
+		cpumask_copy(conn->allowed_cpumask,
+			     iscsit_global->allowed_cpumask);
+	}
+}
+
+void iscsit_thread_check_cpumask(
+	struct iscsi_conn *conn,
+	struct task_struct *p,
+	int mode)
+{
+	/*
+	 * The TX and RX threads maybe call iscsit_thread_check_cpumask()
+	 * at the same time. The RX thread might be faster and return from
+	 * iscsit_thread_reschedule() with conn_rx_reset_cpumask set to 0.
+	 * Then the TX thread sets it back to 1.
+	 * The next time the RX thread loops, it sees conn_rx_reset_cpumask
+	 * set to 1 and calls set_cpus_allowed_ptr() again and set it to 0.
+	 */
+	iscsit_thread_reschedule(conn);
+
+	/*
+	 * mode == 1 signals iscsi_target_tx_thread() usage.
+	 * mode == 0 signals iscsi_target_rx_thread() usage.
+	 */
+	if (mode == 1) {
+		if (!conn->conn_tx_reset_cpumask)
+			return;
+	} else {
+		if (!conn->conn_rx_reset_cpumask)
+			return;
+	}
+
+	/*
+	 * Update the CPU mask for this single kthread so that
+	 * both TX and RX kthreads are scheduled to run on the
+	 * same CPU.
+	 */
+	set_cpus_allowed_ptr(p, conn->conn_cpumask);
+	if (mode == 1)
+		conn->conn_tx_reset_cpumask = 0;
+	else
+		conn->conn_rx_reset_cpumask = 0;
+}
+EXPORT_SYMBOL(iscsit_thread_check_cpumask);
 
 int
 iscsit_immediate_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state)
