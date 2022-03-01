@@ -1382,8 +1382,8 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 	 */
 	uart_clock_base->reg1 = devm_ioremap(dev, res->start,
 					     resource_size(res));
-	if (IS_ERR(uart_clock_base->reg1))
-		return PTR_ERR(uart_clock_base->reg1);
+	if (!uart_clock_base->reg1)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
@@ -1401,8 +1401,8 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 	 */
 	uart_clock_base->reg2 = devm_ioremap(dev, res->start,
 					     resource_size(res));
-	if (IS_ERR(uart_clock_base->reg2))
-		return PTR_ERR(uart_clock_base->reg2);
+	if (!uart_clock_base->reg2)
+		return -ENOMEM;
 
 	hw_clk_data = devm_kzalloc(dev,
 				   struct_size(hw_clk_data, hws,
