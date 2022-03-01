@@ -213,6 +213,10 @@ struct smc_connection {
 						 * data still pending
 						 */
 	char			urg_rx_byte;	/* urgent byte */
+	bool			tx_in_release_sock;
+						/* flush pending tx data in
+						 * sock release_cb()
+						 */
 	atomic_t		bytes_to_rcv;	/* arrived data,
 						 * not yet received
 						 */
