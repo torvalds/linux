@@ -38,7 +38,7 @@ static bool __init mt7621_addr_wraparound_test(phys_addr_t size)
 	__raw_writel(MT7621_MEM_TEST_PATTERN, dm);
 	if (__raw_readl(dm) != __raw_readl(dm + size))
 		return false;
-	__raw_writel(!MT7621_MEM_TEST_PATTERN, dm);
+	__raw_writel(~MT7621_MEM_TEST_PATTERN, dm);
 	return __raw_readl(dm) == __raw_readl(dm + size);
 }
 
