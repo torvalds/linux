@@ -200,7 +200,7 @@ static void __flush_svm_range_dev(struct intel_svm *svm,
 				  unsigned long address,
 				  unsigned long pages, int ih)
 {
-	struct device_domain_info *info = get_domain_info(sdev->dev);
+	struct device_domain_info *info = dev_iommu_priv_get(sdev->dev);
 
 	if (WARN_ON(!pages))
 		return;
@@ -337,7 +337,7 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 					   struct mm_struct *mm,
 					   unsigned int flags)
 {
-	struct device_domain_info *info = get_domain_info(dev);
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	unsigned long iflags, sflags;
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm;
@@ -545,7 +545,7 @@ static void intel_svm_drain_prq(struct device *dev, u32 pasid)
 	u16 sid, did;
 	int qdep;
 
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (WARN_ON(!info || !dev_is_pci(dev)))
 		return;
 
