@@ -275,9 +275,30 @@ struct mhi_ring_element {
 	__le32 dword[2];
 };
 
-extern const char * const mhi_state_str[MHI_STATE_MAX];
-#define TO_MHI_STATE_STR(state) ((state >= MHI_STATE_MAX || \
-				  !mhi_state_str[state]) ? \
-				"INVALID_STATE" : mhi_state_str[state])
+static inline const char *mhi_state_str(enum mhi_state state)
+{
+	switch (state) {
+	case MHI_STATE_RESET:
+		return "RESET";
+	case MHI_STATE_READY:
+		return "READY";
+	case MHI_STATE_M0:
+		return "M0";
+	case MHI_STATE_M1:
+		return "M1";
+	case MHI_STATE_M2:
+		return "M2";
+	case MHI_STATE_M3:
+		return "M3";
+	case MHI_STATE_M3_FAST:
+		return "M3 FAST";
+	case MHI_STATE_BHI:
+		return "BHI";
+	case MHI_STATE_SYS_ERR:
+		return "SYS ERROR";
+	default:
+		return "Unknown state";
+	}
+};
 
 #endif /* _MHI_COMMON_H */
