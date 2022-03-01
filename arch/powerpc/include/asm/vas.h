@@ -34,6 +34,8 @@
  */
 #define VAS_WIN_ACTIVE		0x0	/* Used in platform independent */
 					/* vas mmap() */
+/* Window is closed in the hypervisor due to lost credit */
+#define VAS_WIN_NO_CRED_CLOSE	0x00000001
 
 /*
  * Get/Set bit fields
