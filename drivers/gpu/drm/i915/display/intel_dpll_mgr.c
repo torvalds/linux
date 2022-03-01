@@ -2090,7 +2090,6 @@ struct bxt_clk_div {
 	u32 p2;
 	u32 m2_int;
 	u32 m2_frac;
-	bool m2_frac_en;
 	u32 n;
 
 	int vco;
@@ -2098,13 +2097,13 @@ struct bxt_clk_div {
 
 /* pre-calculated values for DP linkrates */
 static const struct bxt_clk_div bxt_dp_clk_val[] = {
-	{ 162000, 4, 2, 32, 1677722, 1, 1 },
-	{ 270000, 4, 1, 27,       0, 0, 1 },
-	{ 540000, 2, 1, 27,       0, 0, 1 },
-	{ 216000, 3, 2, 32, 1677722, 1, 1 },
-	{ 243000, 4, 1, 24, 1258291, 1, 1 },
-	{ 324000, 4, 1, 32, 1677722, 1, 1 },
-	{ 432000, 3, 1, 32, 1677722, 1, 1 }
+	{ 162000, 4, 2, 32, 1677722, 1 },
+	{ 270000, 4, 1, 27,       0, 1 },
+	{ 540000, 2, 1, 27,       0, 1 },
+	{ 216000, 3, 2, 32, 1677722, 1 },
+	{ 243000, 4, 1, 24, 1258291, 1 },
+	{ 324000, 4, 1, 32, 1677722, 1 },
+	{ 432000, 3, 1, 32, 1677722, 1 }
 };
 
 static bool
@@ -2133,7 +2132,6 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 	clk_div->n = best_clock.n;
 	clk_div->m2_int = best_clock.m2 >> 22;
 	clk_div->m2_frac = best_clock.m2 & ((1 << 22) - 1);
-	clk_div->m2_frac_en = clk_div->m2_frac != 0;
 
 	clk_div->vco = best_clock.vco;
 
@@ -2206,7 +2204,7 @@ static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 	dpll_hw_state->pll1 = PORT_PLL_N(clk_div->n);
 	dpll_hw_state->pll2 = clk_div->m2_frac;
 
-	if (clk_div->m2_frac_en)
+	if (clk_div->m2_frac)
 		dpll_hw_state->pll3 = PORT_PLL_M2_FRAC_ENABLE;
 
 	dpll_hw_state->pll6 = prop_coef | PORT_PLL_INT_COEFF(int_coef);
