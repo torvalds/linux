@@ -497,10 +497,29 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -EACCES;
 	}
 
+	/*
+	 * The initial mmap is done after the window is opened
+	 * with ioctl. But before mmap(), this window can be closed in
+	 * the hypervisor due to lost credit (core removal on pseries).
+	 * So if the window is not active, return mmap() failure with
+	 * -EACCES and expects the user space reissue mmap() when it
+	 * is active again or open new window when the credit is available.
+	 * mmap_mutex protects the paste address mmap() with DLPAR
+	 * close/open event and allows mmap() only when the window is
+	 * active.
+	 */
+	mutex_lock(&txwin->task_ref.mmap_mutex);
+	if (txwin->status != VAS_WIN_ACTIVE) {
+		pr_err("%s(): Window is not active\n", __func__);
+		rc = -EACCES;
+		goto out;
+	}
+
 	paste_addr = cp_inst->coproc->vops->paste_addr(txwin);
 	if (!paste_addr) {
 		pr_err("%s(): Window paste address failed\n", __func__);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	pfn = paste_addr >> PAGE_SHIFT;
@@ -520,6 +539,8 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	txwin->task_ref.vma = vma;
 	vma->vm_ops = &vas_vm_ops;
 
+out:
+	mutex_unlock(&txwin->task_ref.mmap_mutex);
 	return rc;
 }
 
