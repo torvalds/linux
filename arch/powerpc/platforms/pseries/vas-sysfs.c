@@ -25,6 +25,27 @@ struct vas_caps_entry {
 
 #define to_caps_entry(entry) container_of(entry, struct vas_caps_entry, kobj)
 
+/*
+ * This function is used to get the notification from the drmgr when
+ * QoS credits are changed. Though receiving the target total QoS
+ * credits here, get the official QoS capabilities from the hypervisor.
+ */
+static ssize_t update_total_credits_trigger(struct vas_cop_feat_caps *caps,
+						const char *buf, size_t count)
+{
+	int err;
+	u16 creds;
+
+	err = kstrtou16(buf, 0, &creds);
+	if (!err)
+		err = vas_reconfig_capabilties(caps->win_type);
+
+	if (err)
+		return -EINVAL;
+
+	return count;
+}
+
 #define sysfs_caps_entry_read(_name)					\
 static ssize_t _name##_show(struct vas_cop_feat_caps *caps, char *buf) 	\
 {									\
@@ -63,14 +84,26 @@ struct vas_sysfs_entry {
  *	changed dynamically by the user.
  * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_used_credits
  *	Number of credits used by the user space.
+ * /sys/devices/vas/vas0/gzip/qos_capabilities/update_total_credits
+ *	Update total QoS credits dynamically
  */
 
 VAS_ATTR_RO(nr_total_credits);
 VAS_ATTR_RO(nr_used_credits);
 
-static struct attribute *vas_capab_attrs[] = {
+static struct vas_sysfs_entry update_total_credits_attribute =
+	__ATTR(update_total_credits, 0200, NULL, update_total_credits_trigger);
+
+static struct attribute *vas_def_capab_attrs[] = {
 	&nr_total_credits_attribute.attr,
 	&nr_used_credits_attribute.attr,
+	NULL,
+};
+
+static struct attribute *vas_qos_capab_attrs[] = {
+	&nr_total_credits_attribute.attr,
+	&nr_used_credits_attribute.attr,
+	&update_total_credits_attribute.attr,
 	NULL,
 };
 
@@ -118,19 +151,29 @@ static const struct sysfs_ops vas_sysfs_ops = {
 	.store	=	vas_type_store,
 };
 
-static struct kobj_type vas_attr_type = {
+static struct kobj_type vas_def_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops      =       &vas_sysfs_ops,
-		.default_attrs  =       vas_capab_attrs,
+		.default_attrs  =       vas_def_capab_attrs,
 };
 
-static char *vas_caps_kobj_name(struct vas_cop_feat_caps *caps,
+static struct kobj_type vas_qos_attr_type = {
+		.release	=	vas_type_release,
+		.sysfs_ops	=	&vas_sysfs_ops,
+		.default_attrs	=	vas_qos_capab_attrs,
+};
+
+static char *vas_caps_kobj_name(struct vas_caps_entry *centry,
 				struct kobject **kobj)
 {
+	struct vas_cop_feat_caps *caps = centry->caps;
+
 	if (caps->descriptor == VAS_GZIP_QOS_CAPABILITIES) {
+		kobject_init(&centry->kobj, &vas_qos_attr_type);
 		*kobj = gzip_caps_kobj;
 		return "qos_capabilities";
 	} else if (caps->descriptor == VAS_GZIP_DEFAULT_CAPABILITIES) {
+		kobject_init(&centry->kobj, &vas_def_attr_type);
 		*kobj = gzip_caps_kobj;
 		return "default_capabilities";
 	} else
@@ -152,9 +195,8 @@ int sysfs_add_vas_caps(struct vas_cop_feat_caps *caps)
 	if (!centry)
 		return -ENOMEM;
 
-	kobject_init(&centry->kobj, &vas_attr_type);
 	centry->caps = caps;
-	name  = vas_caps_kobj_name(caps, &kobj);
+	name  = vas_caps_kobj_name(centry, &kobj);
 
 	if (kobj) {
 		ret = kobject_add(&centry->kobj, kobj, "%s", name);
