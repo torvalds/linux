@@ -317,7 +317,7 @@ static int fscache_fallback_write_page(struct inode *inode, struct page *page,
 /*
  * Retrieve a page from fscache
  */
-int __nfs_readpage_from_fscache(struct inode *inode, struct page *page)
+int __nfs_fscache_read_page(struct inode *inode, struct page *page)
 {
 	int ret;
 
@@ -351,7 +351,7 @@ int __nfs_readpage_from_fscache(struct inode *inode, struct page *page)
  * Store a newly fetched page in fscache.  We can be certain there's no page
  * stored in the cache as yet otherwise we would've read it from there.
  */
-void __nfs_readpage_to_fscache(struct inode *inode, struct page *page)
+void __nfs_fscache_write_page(struct inode *inode, struct page *page)
 {
 	int ret;
 
@@ -362,7 +362,7 @@ void __nfs_readpage_to_fscache(struct inode *inode, struct page *page)
 	ret = fscache_fallback_write_page(inode, page, true);
 
 	dfprintk(FSCACHE,
-		 "NFS:     readpage_to_fscache: p:%p(i:%lu f:%lx) ret %d\n",
+		 "NFS:     nfs_fscache_write_page: p:%p(i:%lu f:%lx) ret %d\n",
 		 page, page->index, page->flags, ret);
 
 	if (ret != 0) {
