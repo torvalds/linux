@@ -72,9 +72,8 @@ struct vas_cop_feat_caps {
 	};
 	/* Total LPAR available credits. Can be different from max LPAR */
 	/* credits due to DLPAR operation */
-	atomic_t	target_lpar_creds;
-	atomic_t	used_lpar_creds; /* Used credits so far */
-	u16		avail_lpar_creds; /* Remaining available credits */
+	atomic_t	nr_total_credits;	/* Total credits assigned to LPAR */
+	atomic_t	nr_used_credits;	/* Used credits so far */
 };
 
 /*
