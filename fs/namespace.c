@@ -82,7 +82,6 @@ struct mount_kattr {
 	unsigned int lookup_flags;
 	bool recurse;
 	struct user_namespace *mnt_userns;
-	struct mount *revert;
 };
 
 /* /sys/fs */
@@ -4014,32 +4013,39 @@ static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
 
 static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct mount *m = mnt;
+	struct mount *m;
+	int err;
 
-	do {
-		int err = -EPERM;
-		unsigned int flags;
-
-		kattr->revert = m;
-
-		flags = recalc_flags(kattr, m);
-		if (!can_change_locked_flags(m, flags))
-			return err;
+	for (m = mnt; m; m = next_mnt(m, mnt)) {
+		if (!can_change_locked_flags(m, recalc_flags(kattr, m))) {
+			err = -EPERM;
+			break;
+		}
 
 		err = can_idmap_mount(kattr, m);
 		if (err)
-			return err;
+			break;
 
-		if (mnt_allow_writers(kattr, m))
-			continue;
+		if (!mnt_allow_writers(kattr, m)) {
+			err = mnt_hold_writers(m);
+			if (err)
+				break;
+		}
 
-		err = mnt_hold_writers(m);
-		if (err)
-			return err;
-	} while (kattr->recurse && (m = next_mnt(m, mnt)));
+		if (!kattr->recurse)
+			return 0;
+	}
 
-	kattr->revert = NULL;
-	return 0;
+	if (err) {
+		struct mount *p;
+
+		for (p = mnt; p != m; p = next_mnt(p, mnt)) {
+			/* If we had to hold writers unblock them. */
+			if (p->mnt.mnt_flags & MNT_WRITE_HOLD)
+				mnt_unhold_writers(p);
+		}
+	}
+	return err;
 }
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
@@ -4067,36 +4073,27 @@ static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 		put_user_ns(old_mnt_userns);
 }
 
-static void mount_setattr_finish(struct mount_kattr *kattr, struct mount *mnt)
+static void mount_setattr_commit(struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct mount *m = mnt;
+	struct mount *m;
 
-	do {
-		if (!kattr->revert) {
-			unsigned int flags;
+	for (m = mnt; m; m = next_mnt(m, mnt)) {
+		unsigned int flags;
 
-			do_idmap_mount(kattr, m);
-			flags = recalc_flags(kattr, m);
-			WRITE_ONCE(m->mnt.mnt_flags, flags);
-		}
+		do_idmap_mount(kattr, m);
+		flags = recalc_flags(kattr, m);
+		WRITE_ONCE(m->mnt.mnt_flags, flags);
 
 		/* If we had to hold writers unblock them. */
 		if (m->mnt.mnt_flags & MNT_WRITE_HOLD)
 			mnt_unhold_writers(m);
 
-		if (!kattr->revert && kattr->propagation)
+		if (kattr->propagation)
 			change_mnt_propagation(m, kattr->propagation);
-
-		/*
-		 * On failure, only cleanup until we found the first mount
-		 * we failed to handle.
-		 */
-		if (kattr->revert == m)
-			return;
-	} while (kattr->recurse && (m = next_mnt(m, mnt)));
-
-	if (!kattr->revert)
-		touch_mnt_namespace(mnt->mnt_ns);
+		if (!kattr->recurse)
+			break;
+	}
+	touch_mnt_namespace(mnt->mnt_ns);
 }
 
 static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
@@ -4144,7 +4141,8 @@ static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 	 * changes and if we failed we clean up.
 	 */
 	err = mount_setattr_prepare(kattr, mnt);
-	mount_setattr_finish(kattr, mnt);
+	if (!err)
+		mount_setattr_commit(kattr, mnt);
 
 out:
 	unlock_mount_hash();
