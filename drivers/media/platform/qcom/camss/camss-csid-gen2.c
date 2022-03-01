@@ -405,7 +405,7 @@ static void csid_configure_stream(struct csid_device *csid, u8 enable)
 		writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PERIOD(0));
 
 		val = 0;
-		writel_relaxed(0, csid->base + CSID_RDI_FRM_DROP_PATTERN(0));
+		writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PATTERN(0));
 
 		val = 1;
 		writel_relaxed(val, csid->base + CSID_RDI_IRQ_SUBSAMPLE_PERIOD(0));
