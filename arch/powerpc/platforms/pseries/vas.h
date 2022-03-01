@@ -114,6 +114,7 @@ struct pseries_vas_window {
 	u64 domain[6];		/* Associativity domain Ids */
 				/* this window is allocated */
 	u64 util;
+	u32 pid;		/* PID associated with this window */
 
 	/* List of windows opened which is used for LPM */
 	struct list_head win_list;

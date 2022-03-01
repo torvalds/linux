@@ -107,7 +107,6 @@ static int h_deallocate_vas_window(u64 winid)
 static int h_modify_vas_window(struct pseries_vas_window *win)
 {
 	long rc;
-	u32 lpid = mfspr(SPRN_PID);
 
 	/*
 	 * AMR value is not supported in Linux VAS implementation.
@@ -115,7 +114,7 @@ static int h_modify_vas_window(struct pseries_vas_window *win)
 	 */
 	do {
 		rc = plpar_hcall_norets(H_MODIFY_VAS_WINDOW,
-					win->vas_win.winid, lpid, 0,
+					win->vas_win.winid, win->pid, 0,
 					VAS_MOD_WIN_FLAGS, 0);
 
 		rc = hcall_return_busy_check(rc);
@@ -124,8 +123,8 @@ static int h_modify_vas_window(struct pseries_vas_window *win)
 	if (rc == H_SUCCESS)
 		return 0;
 
-	pr_err("H_MODIFY_VAS_WINDOW error: %ld, winid %u lpid %u\n",
-			rc, win->vas_win.winid, lpid);
+	pr_err("H_MODIFY_VAS_WINDOW error: %ld, winid %u pid %u\n",
+			rc, win->vas_win.winid, win->pid);
 	return -EIO;
 }
 
@@ -337,6 +336,8 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 			goto out;
 		}
 	}
+
+	txwin->pid = mfspr(SPRN_PID);
 
 	/*
 	 * Allocate / Deallocate window hcalls and setup / free IRQs
