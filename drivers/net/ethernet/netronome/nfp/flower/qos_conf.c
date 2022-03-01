@@ -747,7 +747,7 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	meter_entry = nfp_flower_search_meter_entry(app, meter_id);
 	if (!meter_entry) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "no meter entry when delete the action index.\n");
+				   "no meter entry when delete the action index.");
 		return -ENOENT;
 	}
 	pps = !meter_entry->bps;
