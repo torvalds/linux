@@ -957,6 +957,29 @@ static void sc16is7xx_start_tx(struct uart_port *port)
 	kthread_queue_work(&s->kworker, &one->tx_work);
 }
 
+static void sc16is7xx_throttle(struct uart_port *port)
+{
+	unsigned long flags;
+
+	/*
+	 * Hardware flow control is enabled and thus the device ignores RTS
+	 * value set in MCR register. Stop reading data from RX FIFO so the
+	 * AutoRTS feature will de-activate RTS output.
+	 */
+	spin_lock_irqsave(&port->lock, flags);
+	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void sc16is7xx_unthrottle(struct uart_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	sc16is7xx_ier_set(port, SC16IS7XX_IER_RDI_BIT);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
 static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
 {
 	unsigned int lsr;
@@ -1062,9 +1085,13 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	regcache_cache_bypass(s->regmap, true);
 	sc16is7xx_port_write(port, SC16IS7XX_XON1_REG, termios->c_cc[VSTART]);
 	sc16is7xx_port_write(port, SC16IS7XX_XOFF1_REG, termios->c_cc[VSTOP]);
-	if (termios->c_cflag & CRTSCTS)
+
+	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
+	if (termios->c_cflag & CRTSCTS) {
 		flow |= SC16IS7XX_EFR_AUTOCTS_BIT |
 			SC16IS7XX_EFR_AUTORTS_BIT;
+		port->status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
+	}
 	if (termios->c_iflag & IXON)
 		flow |= SC16IS7XX_EFR_SWFLOW3_BIT;
 	if (termios->c_iflag & IXOFF)
@@ -1270,6 +1297,8 @@ static const struct uart_ops sc16is7xx_ops = {
 	.get_mctrl	= sc16is7xx_get_mctrl,
 	.stop_tx	= sc16is7xx_stop_tx,
 	.start_tx	= sc16is7xx_start_tx,
+	.throttle	= sc16is7xx_throttle,
+	.unthrottle	= sc16is7xx_unthrottle,
 	.stop_rx	= sc16is7xx_stop_rx,
 	.enable_ms	= sc16is7xx_enable_ms,
 	.break_ctl	= sc16is7xx_break_ctl,
