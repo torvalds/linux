@@ -146,13 +146,22 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 
 		/* Find suitable destination for @next */
 		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
-		rq = __migrate_task(rq, rf, next, dest_cpu);
-		if (rq != dead_rq) {
-			rq_unlock(rq, rf);
-			rq = dead_rq;
-			*rf = orf;
-			rq_relock(rq, rf);
+
+		if (cpu_of(rq) != dest_cpu) {
+			/* only perform a required migration */
+			rq = __migrate_task(rq, rf, next, dest_cpu);
+
+			if (rq != dead_rq) {
+				rq_unlock(rq, rf);
+				rq = dead_rq;
+				*rf = orf;
+				rq_relock(rq, rf);
+			}
+		} else {
+			detach_one_task_core(next, rq, &percpu_kthreads);
+			num_pinned_kthreads += 1;
 		}
+
 		raw_spin_unlock(&next->pi_lock);
 	}
 
