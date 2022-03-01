@@ -48,9 +48,19 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 		conn->tx_cdc_seq_fin = cdcpend->ctrl_seq;
 	}
 
-	if (atomic_dec_and_test(&conn->cdc_pend_tx_wr) &&
-	    unlikely(wq_has_sleeper(&conn->cdc_pend_tx_wq)))
-		wake_up(&conn->cdc_pend_tx_wq);
+	if (atomic_dec_and_test(&conn->cdc_pend_tx_wr)) {
+		/* If user owns the sock_lock, mark the connection need sending.
+		 * User context will later try to send when it release sock_lock
+		 * in smc_release_cb()
+		 */
+		if (sock_owned_by_user(&smc->sk))
+			conn->tx_in_release_sock = true;
+		else
+			smc_tx_pending(conn);
+
+		if (unlikely(wq_has_sleeper(&conn->cdc_pend_tx_wq)))
+			wake_up(&conn->cdc_pend_tx_wq);
+	}
 	WARN_ON(atomic_read(&conn->cdc_pend_tx_wr) < 0);
 
 	smc_tx_sndbuf_nonfull(smc);
@@ -350,8 +360,12 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
 	if ((diff_cons && smc_tx_prepared_sends(conn)) ||
 	    conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
-	    conn->local_rx_ctrl.prod_flags.urg_data_pending)
-		smc_tx_sndbuf_nonempty(conn);
+	    conn->local_rx_ctrl.prod_flags.urg_data_pending) {
+		if (!sock_owned_by_user(&smc->sk))
+			smc_tx_pending(conn);
+		else
+			conn->tx_in_release_sock = true;
+	}
 
 	if (diff_cons && conn->urg_tx_pend &&
 	    atomic_read(&conn->peer_rmbe_space) == conn->peer_rmbe_size) {
