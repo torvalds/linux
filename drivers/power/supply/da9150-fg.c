@@ -520,10 +520,8 @@ static int da9150_fg_probe(struct platform_device *pdev)
 
 	/* Register IRQ */
 	irq = platform_get_irq_byname(pdev, "FG");
-	if (irq < 0) {
-		dev_err(dev, "Failed to get IRQ FG: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, da9150_fg_irq,
 					IRQF_ONESHOT, "FG", fg);
