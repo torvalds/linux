@@ -1921,6 +1921,11 @@ static void dg2_whitelist_build(struct intel_engine_cs *engine)
 					  RING_FORCE_TO_NONPRIV_RANGE_4);
 
 		break;
+	case COMPUTE_CLASS:
+		/* Wa_16011157294:dg2_g10 */
+		if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0))
+			whitelist_reg(w, GEN9_CTX_PREEMPT_REG);
+		break;
 	default:
 		break;
 	}
@@ -2581,6 +2586,40 @@ xcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 }
 
+/*
+ * The workarounds in this function apply to shared registers in
+ * the general render reset domain that aren't tied to a
+ * specific engine.  Since all render+compute engines get reset
+ * together, and the contents of these registers are lost during
+ * the shared render domain reset, we'll define such workarounds
+ * here and then add them to just a single RCS or CCS engine's
+ * workaround list (whichever engine has the XXXX flag).
+ */
+static void
+general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	if (IS_XEHPSDV(i915)) {
+		/* Wa_1409954639 */
+		wa_masked_en(wal,
+			     GEN8_ROW_CHICKEN,
+			     SYSTOLIC_DOP_CLOCK_GATING_DIS);
+
+		/* Wa_1607196519 */
+		wa_masked_en(wal,
+			     GEN9_ROW_CHICKEN4,
+			     GEN12_DISABLE_GRF_CLEAR);
+
+		/* Wa_14010670810:xehpsdv */
+		wa_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
+
+		/* Wa_14010449647:xehpsdv */
+		wa_masked_en(wal, GEN7_HALF_SLICE_CHICKEN1,
+			     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
+	}
+}
+
 static void
 engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
@@ -2588,6 +2627,14 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 		return;
 
 	engine_fake_wa_init(engine, wal);
+
+	/*
+	 * These are common workarounds that just need to applied
+	 * to a single RCS/CCS engine's workaround list since
+	 * they're reset as part of the general render domain reset.
+	 */
+	if (engine->class == RENDER_CLASS)
+		general_render_compute_wa_init(engine, wal);
 
 	if (engine->class == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
