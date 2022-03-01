@@ -4363,6 +4363,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = enable_pmu ? KVM_CAP_PMU_VALID_MASK : 0;
 		break;
 	}
+	case KVM_CAP_DISABLE_QUIRKS2:
+		r = KVM_X86_VALID_QUIRKS;
+		break;
 	default:
 		break;
 	}
@@ -5909,6 +5912,11 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		return -EINVAL;
 
 	switch (cap->cap) {
+	case KVM_CAP_DISABLE_QUIRKS2:
+		r = -EINVAL;
+		if (cap->args[0] & ~KVM_X86_VALID_QUIRKS)
+			break;
+		fallthrough;
 	case KVM_CAP_DISABLE_QUIRKS:
 		kvm->arch.disabled_quirks = cap->args[0];
 		r = 0;
