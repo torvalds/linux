@@ -5377,6 +5377,17 @@
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
 
+	smp.csd_lock_timeout= [KNL]
+			Specify the period of time in milliseconds
+			that smp_call_function() and friends will wait
+			for a CPU to release the CSD lock.  This is
+			useful when diagnosing bugs involving CPUs
+			disabling interrupts for extended periods
+			of time.  Defaults to 5,000 milliseconds, and
+			setting a value of zero disables this feature.
+			This feature may be more efficiently disabled
+			using the csdlock_debug- kernel parameter.
+
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
 	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
 	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port
