@@ -352,6 +352,41 @@ static int coproc_release(struct inode *inode, struct file *fp)
 }
 
 /*
+ * If the executed instruction that caused the fault was a paste, then
+ * clear regs CR0[EQ], advance NIP, and return 0. Else return error code.
+ */
+static int do_fail_paste(void)
+{
+	struct pt_regs *regs = current->thread.regs;
+	u32 instword;
+
+	if (WARN_ON_ONCE(!regs))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(!user_mode(regs)))
+		return -EINVAL;
+
+	/*
+	 * If we couldn't translate the instruction, the driver should
+	 * return success without handling the fault, it will be retried
+	 * or the instruction fetch will fault.
+	 */
+	if (get_user(instword, (u32 __user *)(regs->nip)))
+		return -EAGAIN;
+
+	/*
+	 * Not a paste instruction, driver may fail the fault.
+	 */
+	if ((instword & PPC_INST_PASTE_MASK) != PPC_INST_PASTE)
+		return -ENOENT;
+
+	regs->ccr &= ~0xe0000000;	/* Clear CR0[0-2] to fail paste */
+	regs_add_return_ip(regs, 4);	/* Emulate the paste */
+
+	return 0;
+}
+
+/*
  * This fault handler is invoked when the core generates page fault on
  * the paste address. Happens if the kernel closes window in hypervisor
  * (on pseries) due to lost credit or the paste address is not mapped.
@@ -364,6 +399,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	struct vas_window *txwin;
 	vm_fault_t fault;
 	u64 paste_addr;
+	int ret;
 
 	/*
 	 * window is not opened. Shouldn't expect this error.
@@ -407,6 +443,24 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 		}
 	}
 	mutex_unlock(&txwin->task_ref.mmap_mutex);
+
+	/*
+	 * Received this fault due to closing the actual window.
+	 * It can happen during migration or lost credits.
+	 * Since no mapping, return the paste instruction failure
+	 * to the user space.
+	 */
+	ret = do_fail_paste();
+	/*
+	 * The user space can retry several times until success (needed
+	 * for migration) or should fallback to SW compression or
+	 * manage with the existing open windows if available.
+	 * Looking at sysfs interface, it can determine whether these
+	 * failures are coming during migration or core removal:
+	 * nr_used_credits > nr_total_credits when lost credits
+	 */
+	if (!ret || (ret == -EAGAIN))
+		return VM_FAULT_NOPAGE;
 
 	return VM_FAULT_SIGBUS;
 }
