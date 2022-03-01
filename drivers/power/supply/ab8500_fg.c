@@ -213,6 +213,7 @@ struct ab8500_fg {
 	int init_cnt;
 	int low_bat_cnt;
 	int nbr_cceoc_irq_cnt;
+	u32 line_impedance_uohm;
 	bool recovery_needed;
 	bool high_curr_mode;
 	bool init_capacity;
@@ -909,6 +910,9 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di, int vbat_uncomp_uv
 		/* Last fallback */
 		resistance = bi->factory_internal_resistance_uohm / 1000;
 	}
+
+	/* Compensate for line impedance */
+	resistance += (di->line_impedance_uohm / 1000);
 
 	dev_dbg(di->dev, "%s Temp: %d battery internal resistance: %d"
 	    " fg resistance %d, total: %d (mOhm)\n",
@@ -3097,6 +3101,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 				    "failed to get main battery ADC channel\n");
 		return ret;
 	}
+
+	if (!of_property_read_u32(dev->of_node, "line-impedance-micro-ohms",
+				  &di->line_impedance_uohm))
+		dev_info(dev, "line impedance: %u uOhm\n",
+			 di->line_impedance_uohm);
 
 	psy_cfg.supplied_to = supply_interface;
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
