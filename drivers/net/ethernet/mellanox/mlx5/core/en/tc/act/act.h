@@ -13,7 +13,7 @@
 struct mlx5_flow_attr;
 
 struct mlx5e_tc_act_parse_state {
-	unsigned int num_actions;
+	struct flow_action *flow_action;
 	struct mlx5e_tc_flow *flow;
 	struct netlink_ext_ack *extack;
 	u32 actions;

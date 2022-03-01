@@ -106,8 +106,8 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	memset(parse_state, 0, sizeof(*parse_state));
 	parse_state->flow = flow;
-	parse_state->num_actions = flow_action->num_entries;
 	parse_state->extack = extack;
+	parse_state->flow_action = flow_action;
 }
 
 void
