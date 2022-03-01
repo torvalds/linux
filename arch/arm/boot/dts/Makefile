@@ -285,6 +285,7 @@ dtb-$(CONFIG_ARCH_KEYSTONE) += \
 dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-b3.dtb \
 	kirkwood-blackarmor-nas220.dtb \
+	kirkwood-c200-v1.dtb \
 	kirkwood-cloudbox.dtb \
 	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
@@ -1424,6 +1425,7 @@ dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-zybo.dtb \
 	zynq-zybo-z7.dtb
 dtb-$(CONFIG_MACH_ARMADA_370) += \
+	armada-370-c200-v2.dtb \
 	armada-370-db.dtb \
 	armada-370-dlink-dns327l.dtb \
 	armada-370-mirabox.dtb \
