@@ -1498,18 +1498,17 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 			int ref_clock,
 			struct skl_wrpll_params *wrpll_params)
 {
-	u64 afe_clock = clock * 5; /* AFE Clock is 5x Pixel clock */
-	u64 dco_central_freq[3] = { 8400000000ULL,
-				    9000000000ULL,
-				    9600000000ULL };
-	static const int even_dividers[] = {  4,  6,  8, 10, 12, 14, 16, 18, 20,
-					     24, 28, 30, 32, 36, 40, 42, 44,
-					     48, 52, 54, 56, 60, 64, 66, 68,
-					     70, 72, 76, 78, 80, 84, 88, 90,
-					     92, 96, 98 };
-	static const int odd_dividers[] = { 3, 5, 7, 9, 15, 21, 35 };
+	static const u64 dco_central_freq[3] = { 8400000000ULL,
+						 9000000000ULL,
+						 9600000000ULL };
+	static const u8 even_dividers[] = {  4,  6,  8, 10, 12, 14, 16, 18, 20,
+					    24, 28, 30, 32, 36, 40, 42, 44,
+					    48, 52, 54, 56, 60, 64, 66, 68,
+					    70, 72, 76, 78, 80, 84, 88, 90,
+					    92, 96, 98 };
+	static const u8 odd_dividers[] = { 3, 5, 7, 9, 15, 21, 35 };
 	static const struct {
-		const int *list;
+		const u8 *list;
 		int n_dividers;
 	} dividers[] = {
 		{ even_dividers, ARRAY_SIZE(even_dividers) },
@@ -1520,6 +1519,7 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 	};
 	unsigned int dco, d, i;
 	unsigned int p0, p1, p2;
+	u64 afe_clock = clock * 5; /* AFE Clock is 5x Pixel clock */
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
 		for (dco = 0; dco < ARRAY_SIZE(dco_central_freq); dco++) {
@@ -2754,8 +2754,8 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     struct intel_dpll_hw_state *state,
 				     bool is_dkl)
 {
+	static const u8 div1_vals[] = { 7, 5, 3, 2 };
 	u32 dco_min_freq, dco_max_freq;
-	int div1_vals[] = {7, 5, 3, 2};
 	unsigned int i;
 	int div2;
 
