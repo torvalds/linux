@@ -544,8 +544,6 @@ static void btree_update_nodes_written(struct btree_update *as)
 	if (ret)
 		goto err;
 
-	BUG_ON(!journal_pin_active(&as->journal));
-
 	/*
 	 * Wait for any in flight writes to finish before we free the old nodes
 	 * on disk:
@@ -1044,10 +1042,6 @@ retry:
 	ret = bch2_btree_reserve_get(as, nr_nodes, flags, &cl);
 	if (ret)
 		goto err;
-
-	bch2_journal_pin_add(&c->journal,
-			     atomic64_read(&c->journal.seq),
-			     &as->journal, NULL);
 
 	return as;
 err:
