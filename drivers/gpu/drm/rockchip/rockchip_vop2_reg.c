@@ -2060,7 +2060,7 @@ const struct vop2_power_domain_regs rk3588_dsc_4k_pd_regs = {
  * that means PD_CLUSTER0 should turn on first before
  * PD_CLUSTER1/2/3 turn on.
  *
- * Esmart0/1/2/3 share one pd PD_ESMART0.
+ * Esmart1/2/3 share one pd PD_ESMART, and Esmart0 has no PD
  * DSC_8K/DSC_4K each have on pd.
  */
 static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
@@ -2088,7 +2088,7 @@ static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
 	},
 
 	{
-	  .id = VOP2_PD_ESMART0,
+	  .id = VOP2_PD_ESMART,
 	  .regs = &rk3588_esmart_pd_regs,
 	},
 
@@ -2427,7 +2427,6 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart0-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART0,
-	  .pd_id = VOP2_PD_ESMART0,
 	  .splice_win_id = ROCKCHIP_VOP2_ESMART1,
 	  .formats = formats_for_esmart,
 	  .nformats = ARRAY_SIZE(formats_for_esmart),
@@ -2455,7 +2454,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart2-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART2,
-	  .pd_id = VOP2_PD_ESMART0,
+	  .pd_id = VOP2_PD_ESMART,
 	  .splice_win_id = ROCKCHIP_VOP2_ESMART3,
 	  .base = 0x400,
 	  .formats = formats_for_esmart,
@@ -2483,7 +2482,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart1-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART1,
-	  .pd_id = VOP2_PD_ESMART0,
+	  .pd_id = VOP2_PD_ESMART,
 	  .formats = formats_for_esmart,
 	  .nformats = ARRAY_SIZE(formats_for_esmart),
 	  .format_modifiers = format_modifiers,
@@ -2510,7 +2509,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart3-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART3,
-	  .pd_id = VOP2_PD_ESMART0,
+	  .pd_id = VOP2_PD_ESMART,
 	  .formats = formats_for_esmart,
 	  .nformats = ARRAY_SIZE(formats_for_esmart),
 	  .format_modifiers = format_modifiers,
