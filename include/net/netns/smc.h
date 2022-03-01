@@ -17,5 +17,6 @@ struct netns_smc {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header		*smc_hdr;
 #endif
+	unsigned int			sysctl_autocorking_size;
 };
 #endif

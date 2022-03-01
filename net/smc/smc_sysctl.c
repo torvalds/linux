@@ -14,9 +14,17 @@
 #include <linux/sysctl.h>
 #include <net/net_namespace.h>
 
+#include "smc.h"
 #include "smc_sysctl.h"
 
 static struct ctl_table smc_table[] = {
+	{
+		.procname       = "autocorking_size",
+		.data           = &init_net.smc.sysctl_autocorking_size,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler	= proc_douintvec,
+	},
 	{  }
 };
 
@@ -39,6 +47,8 @@ static __net_init int smc_sysctl_init_net(struct net *net)
 	net->smc.smc_hdr = register_net_sysctl(net, "net/smc", table);
 	if (!net->smc.smc_hdr)
 		goto err_reg;
+
+	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
 
 	return 0;
 
