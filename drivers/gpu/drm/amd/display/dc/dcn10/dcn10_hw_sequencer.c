@@ -2056,7 +2056,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, master = -1, embedded = -1;
-	struct dc_crtc_timing hw_crtc_timing[MAX_PIPES] = {0};
+	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
 	unsigned int pclk;
@@ -2066,6 +2066,10 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint16_t embedded_v_total;
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
+
+	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	if (!hw_crtc_timing)
+		return master;
 
 	if (dc->config.vblank_alignment_dto_params &&
 		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
@@ -2130,6 +2134,8 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 		}
 
 	}
+
+	kfree(hw_crtc_timing);
 	return master;
 }
 
