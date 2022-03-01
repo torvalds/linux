@@ -147,8 +147,8 @@ static bool smc_should_autocork(struct smc_sock *smc)
 	struct smc_connection *conn = &smc->conn;
 	int corking_size;
 
-	corking_size = min(sock_net(&smc->sk)->smc.sysctl_autocorking_size,
-			   conn->sndbuf_desc->len >> 1);
+	corking_size = min_t(unsigned int, conn->sndbuf_desc->len >> 1,
+			     sock_net(&smc->sk)->smc.sysctl_autocorking_size);
 
 	if (atomic_read(&conn->cdc_pend_tx_wr) == 0 ||
 	    smc_tx_prepared_sends(conn) > corking_size)
