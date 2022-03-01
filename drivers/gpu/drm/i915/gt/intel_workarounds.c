@@ -1343,12 +1343,6 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_1409757795:xehpsdv */
 	wa_write_or(wal, SCCGCTL94DC, CG3DDISURB);
 
-	/* Wa_18011725039:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
-		wa_masked_dis(wal, MLTICTXCTL, TDONRENDER);
-		wa_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
-	}
-
 	/* Wa_16011155590:xehpsdv */
 	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
@@ -1385,19 +1379,12 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 			    GAMTLBVEBOX0_CLKGATE_DIS);
 	}
 
-	/* Wa_14012362059:xehpsdv */
-	wa_write_or(wal, GEN12_MERT_MOD_CTRL, FORCE_MISS_FTLB);
-
 	/* Wa_16012725990:xehpsdv */
 	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_FOREVER))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE, VFUNIT_CLKGATE_DIS);
 
 	/* Wa_14011060649:xehpsdv */
 	wa_14011060649(gt, wal);
-
-	/* Wa_14014368820:xehpsdv */
-	wa_write_or(wal, GEN12_GAMCNTRL_CTRL, INVALIDATION_BROADCAST_MODE_DIS |
-		    GLOBAL_INVALIDATION_MODE);
 }
 
 static void
@@ -2617,6 +2604,19 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 		/* Wa_14010449647:xehpsdv */
 		wa_masked_en(wal, GEN7_HALF_SLICE_CHICKEN1,
 			     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
+
+		/* Wa_18011725039:xehpsdv */
+		if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
+			wa_masked_dis(wal, MLTICTXCTL, TDONRENDER);
+			wa_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
+		}
+
+		/* Wa_14012362059:xehpsdv */
+		wa_write_or(wal, GEN12_MERT_MOD_CTRL, FORCE_MISS_FTLB);
+
+		/* Wa_14014368820:xehpsdv */
+		wa_write_or(wal, GEN12_GAMCNTRL_CTRL, INVALIDATION_BROADCAST_MODE_DIS |
+				GLOBAL_INVALIDATION_MODE);
 	}
 }
 
