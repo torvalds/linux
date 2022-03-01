@@ -800,12 +800,9 @@ static void init_maxim_chg_curr(struct ab8500_chargalg *di)
  */
 static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 {
-	int delta_i_ua;
 
 	if (!di->bm->maxi->ena_maxi)
 		return MAXIM_RET_NOACTION;
-
-	delta_i_ua = di->ccm.original_iset_ua - di->batt_data.inst_curr_ua;
 
 	if (di->events.vbus_collapsed) {
 		dev_dbg(di->dev, "Charger voltage has collapsed %d\n",
