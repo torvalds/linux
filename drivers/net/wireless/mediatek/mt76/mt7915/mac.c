@@ -2364,10 +2364,23 @@ static void mt7915_dfs_stop_radar_detector(struct mt7915_phy *phy)
 
 static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
 {
-	int err;
+	int err, region;
+
+	switch (dev->mt76.region) {
+	case NL80211_DFS_ETSI:
+		region = 0;
+		break;
+	case NL80211_DFS_JP:
+		region = 2;
+		break;
+	case NL80211_DFS_FCC:
+	default:
+		region = 1;
+		break;
+	}
 
 	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, chain,
-				      MT_RX_SEL0, 0);
+				      MT_RX_SEL0, region);
 	if (err < 0)
 		return err;
 
