@@ -155,8 +155,6 @@ extern int amdgpu_vis_vram_limit;
 extern int amdgpu_gart_size;
 extern int amdgpu_gtt_size;
 extern int amdgpu_moverate;
-extern int amdgpu_benchmarking;
-extern int amdgpu_testing;
 extern int amdgpu_audio;
 extern int amdgpu_disp_priority;
 extern int amdgpu_hw_i2c;
@@ -213,6 +211,7 @@ extern int amdgpu_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
+extern int amdgpu_use_xgmi_p2p;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
@@ -586,13 +585,7 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 /*
  * Benchmarking
  */
-void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
-
-
-/*
- * Testing
- */
-void amdgpu_test_moves(struct amdgpu_device *adev);
+int amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
 
 /*
  * ASIC specific register table accessible by UMD
@@ -1102,6 +1095,12 @@ struct amdgpu_device {
 	struct ip_discovery_top         *ip_top;
 
 	struct amdgpu_reset_domain	*reset_domain;
+
+	struct mutex			benchmark_mutex;
+
+	/* reset dump register */
+	uint32_t                        *reset_dump_reg_list;
+	int                             num_regs;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)

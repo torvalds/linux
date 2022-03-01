@@ -57,10 +57,19 @@ typedef enum {
   WM_COUNT,
 } WM_CLOCK_e;
 
+typedef enum{
+  WCK_RATIO_1_1 = 0,  // DDR5, Wck:ck is always 1:1;
+  WCK_RATIO_1_2,
+  WCK_RATIO_1_4,
+  WCK_RATIO_MAX
+} WCK_RATIO_e;
+
 typedef struct {
   uint32_t FClk;
   uint32_t MemClk;
   uint32_t Voltage;
+  uint8_t  WckRatio;
+  uint8_t  Spare[3];
 } DfPstateTable_t;
 
 //Freq in MHz

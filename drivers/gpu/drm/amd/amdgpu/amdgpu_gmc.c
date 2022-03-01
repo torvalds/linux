@@ -537,6 +537,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 	case CHIP_VANGOGH:
 	case CHIP_YELLOW_CARP:
+	case CHIP_IP_DISCOVERY:
 		/* Don't enable it by default yet.
 		 */
 		if (amdgpu_tmz < 1) {

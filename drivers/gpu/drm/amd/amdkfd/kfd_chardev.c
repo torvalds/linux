@@ -104,11 +104,6 @@ void kfd_chardev_exit(void)
 	kfd_device = NULL;
 }
 
-struct device *kfd_chardev(void)
-{
-	return kfd_device;
-}
-
 
 static int kfd_open(struct inode *inode, struct file *filep)
 {
@@ -1215,8 +1210,15 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 			peer_pdd->dev->adev, (struct kgd_mem *)mem,
 			peer_pdd->drm_priv, &table_freed);
 		if (err) {
-			pr_err("Failed to map to gpu %d/%d\n",
-			       i, args->n_devices);
+			struct pci_dev *pdev = peer_pdd->dev->adev->pdev;
+
+			dev_err(dev->adev->dev,
+			       "Failed to map peer:%04x:%02x:%02x.%d mem_domain:%d\n",
+			       pci_domain_nr(pdev->bus),
+			       pdev->bus->number,
+			       PCI_SLOT(pdev->devfn),
+			       PCI_FUNC(pdev->devfn),
+			       ((struct kgd_mem *)mem)->domain);
 			goto map_memory_to_gpu_failed;
 		}
 		args->n_success = i+1;
@@ -2097,8 +2099,8 @@ static int criu_restore_bos(struct kfd_process *p,
 			    uint64_t *priv_offset,
 			    uint64_t max_priv_data_size)
 {
-	struct kfd_criu_bo_bucket *bo_buckets;
-	struct kfd_criu_bo_priv_data *bo_privs;
+	struct kfd_criu_bo_bucket *bo_buckets = NULL;
+	struct kfd_criu_bo_priv_data *bo_privs = NULL;
 	const bool criu_resume = true;
 	bool flush_tlbs = false;
 	int ret = 0, j = 0;

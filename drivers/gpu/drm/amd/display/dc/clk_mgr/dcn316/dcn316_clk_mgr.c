@@ -485,7 +485,7 @@ static unsigned int find_clk_for_voltage(
 	return clock;
 }
 
-void dcn316_clk_mgr_helper_populate_bw_params(
+static void dcn316_clk_mgr_helper_populate_bw_params(
 		struct clk_mgr_internal *clk_mgr,
 		struct integrated_info *bios_info,
 		const DpmClocks_316_t *clock_table)
@@ -530,7 +530,16 @@ void dcn316_clk_mgr_helper_populate_bw_params(
 		bw_params->clk_table.entries[i].fclk_mhz = clock_table->DfPstateTable[j].FClk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[j].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[j].Voltage;
-		bw_params->clk_table.entries[i].wck_ratio = 1;
+		switch (clock_table->DfPstateTable[j].WckRatio) {
+		case WCK_RATIO_1_2:
+			bw_params->clk_table.entries[i].wck_ratio = 2;
+			break;
+		case WCK_RATIO_1_4:
+			bw_params->clk_table.entries[i].wck_ratio = 4;
+			break;
+		default:
+			bw_params->clk_table.entries[i].wck_ratio = 1;
+		}
 		temp = find_clk_for_voltage(clock_table, clock_table->DcfClocks, clock_table->DfPstateTable[j].Voltage);
 		if (temp)
 			bw_params->clk_table.entries[i].dcfclk_mhz = temp;

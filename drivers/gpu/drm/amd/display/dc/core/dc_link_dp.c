@@ -51,6 +51,13 @@ static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
 #include "link_dpcd.h"
 
+#ifndef MAX
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#endif
+#ifndef MIN
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
+
 	/* maximum pre emphasis level allowed for each voltage swing level*/
 	static const enum dc_pre_emphasis
 	voltage_swing_to_pre_emphasis[] = { PRE_EMPHASIS_LEVEL3,
@@ -2294,7 +2301,96 @@ static enum link_training_result dp_perform_128b_132b_link_training(
 	return result;
 }
 
-static enum link_training_result dc_link_dp_perform_fixed_vs_pe_training_sequence(
+static enum link_training_result perform_fixed_vs_pe_nontransparent_training_sequence(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		struct link_training_settings *lt_settings)
+{
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	uint8_t lane = 0;
+	uint8_t toggle_rate = 0x6;
+	uint8_t target_rate = 0x6;
+	bool apply_toggle_rate_wa = false;
+	uint8_t repeater_cnt;
+	uint8_t repeater_id;
+
+	/* Fixed VS/PE specific: Force CR AUX RD Interval to at least 16ms */
+	if (lt_settings->cr_pattern_time < 16000)
+		lt_settings->cr_pattern_time = 16000;
+
+	/* Fixed VS/PE specific: Toggle link rate */
+	apply_toggle_rate_wa = (link->vendor_specific_lttpr_link_rate_wa == target_rate);
+	target_rate = get_dpcd_link_rate(&lt_settings->link_settings);
+	toggle_rate = (target_rate == 0x6) ? 0xA : 0x6;
+
+	if (apply_toggle_rate_wa)
+		lt_settings->link_settings.link_rate = toggle_rate;
+
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, link_res, lt_settings, DPRX);
+
+	/* 1. set link rate, lane count and spread. */
+	dpcd_set_link_settings(link, lt_settings);
+
+	/* Fixed VS/PE specific: Toggle link rate back*/
+	if (apply_toggle_rate_wa) {
+		core_link_write_dpcd(
+				link,
+				DP_LINK_BW_SET,
+				&target_rate,
+				1);
+	}
+
+	link->vendor_specific_lttpr_link_rate_wa = target_rate;
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+
+		/* 2. perform link training (set link training done
+		 *  to false is done as well)
+		 */
+		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
+				repeater_id--) {
+			status = perform_clock_recovery_sequence(link, link_res, lt_settings, repeater_id);
+
+			if (status != LINK_TRAINING_SUCCESS) {
+				repeater_training_done(link, repeater_id);
+				break;
+			}
+
+			status = perform_channel_equalization_sequence(link,
+					link_res,
+					lt_settings,
+					repeater_id);
+
+			repeater_training_done(link, repeater_id);
+
+			if (status != LINK_TRAINING_SUCCESS)
+				break;
+
+			for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+				lt_settings->dpcd_lane_settings[lane].raw = 0;
+				lt_settings->hw_lane_settings[lane].VOLTAGE_SWING = 0;
+				lt_settings->hw_lane_settings[lane].PRE_EMPHASIS = 0;
+			}
+		}
+	}
+
+	if (status == LINK_TRAINING_SUCCESS) {
+		status = perform_clock_recovery_sequence(link, link_res, lt_settings, DPRX);
+		if (status == LINK_TRAINING_SUCCESS) {
+			status = perform_channel_equalization_sequence(link,
+								       link_res,
+								       lt_settings,
+								       DPRX);
+		}
+	}
+
+	return status;
+}
+
+static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	struct dc_link *link,
 	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings)
@@ -2317,6 +2413,11 @@ static enum link_training_result dc_link_dp_perform_fixed_vs_pe_training_sequenc
 	/* Only 8b/10b is supported */
 	ASSERT(dp_get_link_encoding_format(&lt_settings->link_settings) ==
 			DP_8b_10b_ENCODING);
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+		status = perform_fixed_vs_pe_nontransparent_training_sequence(link, link_res, lt_settings);
+		return status;
+	}
 
 	if (offset != 0xFF) {
 		vendor_lttpr_write_address +=
@@ -2664,10 +2765,8 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 * Per DP specs starting from here, DPTX device shall not issue
 	 * Non-LT AUX transactions inside training mode.
 	 */
-	if (!link->dc->debug.apply_vendor_specific_lttpr_wa &&
-			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
-		status = dc_link_dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
+	if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)
+		status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
 	else if (encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_8b_10b_link_training(link, link_res, &lt_settings);
 	else if (encoding == DP_128b_132b_ENCODING)
@@ -2986,11 +3085,11 @@ static enum dc_link_rate get_cable_max_link_rate(struct dc_link *link)
 {
 	enum dc_link_rate cable_max_link_rate = LINK_RATE_HIGH3;
 
-	if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
+	if (link->dpcd_caps.cable_id.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
 		cable_max_link_rate = LINK_RATE_UHBR20;
-	else if (link->dpcd_caps.cable_attributes.bits.UHBR13_5_CAPABILITY)
+	else if (link->dpcd_caps.cable_id.bits.UHBR13_5_CAPABILITY)
 		cable_max_link_rate = LINK_RATE_UHBR13_5;
-	else if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR10)
+	else if (link->dpcd_caps.cable_id.bits.UHBR10_20_CAPABILITY & DP_UHBR10)
 		cable_max_link_rate = LINK_RATE_UHBR10;
 
 	return cable_max_link_rate;
@@ -5051,11 +5150,52 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	return is_lttpr_present;
 }
 
-
-static bool is_usbc_connector(struct dc_link *link)
+static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 {
-	return link->link_enc &&
-			link->link_enc->features.flags.bits.DP_IS_USB_C;
+	union dmub_rb_cmd cmd;
+
+	if (!link->ctx->dmub_srv ||
+			link->ep_type != DISPLAY_ENDPOINT_PHY ||
+			link->link_enc->features.flags.bits.DP_IS_USB_C == 0)
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cable_id.header.type = DMUB_CMD_GET_USBC_CABLE_ID;
+	cmd.cable_id.header.payload_bytes = sizeof(cmd.cable_id.data);
+	cmd.cable_id.data.input.phy_inst = resource_transmitter_to_phy_idx(
+			link->dc, link->link_enc->transmitter);
+	if (dc_dmub_srv_cmd_with_reply_data(link->ctx->dmub_srv, &cmd) &&
+			cmd.cable_id.header.ret_status == 1)
+		cable_id->raw = cmd.cable_id.data.output_raw;
+
+	return cmd.cable_id.header.ret_status == 1;
+}
+
+static union dp_cable_id intersect_cable_id(
+		union dp_cable_id *a, union dp_cable_id *b)
+{
+	union dp_cable_id out;
+
+	out.bits.UHBR10_20_CAPABILITY = MIN(a->bits.UHBR10_20_CAPABILITY,
+			b->bits.UHBR10_20_CAPABILITY);
+	out.bits.UHBR13_5_CAPABILITY = MIN(a->bits.UHBR13_5_CAPABILITY,
+			b->bits.UHBR13_5_CAPABILITY);
+	out.bits.CABLE_TYPE = MAX(a->bits.CABLE_TYPE, b->bits.CABLE_TYPE);
+
+	return out;
+}
+
+static void retrieve_cable_id(struct dc_link *link)
+{
+	union dp_cable_id usbc_cable_id;
+
+	link->dpcd_caps.cable_id.raw = 0;
+	core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
+			&link->dpcd_caps.cable_id.raw, sizeof(uint8_t));
+
+	if (get_usbc_cable_id(link, &usbc_cable_id))
+		link->dpcd_caps.cable_id = intersect_cable_id(
+				&link->dpcd_caps.cable_id, &usbc_cable_id);
 }
 
 static bool retrieve_link_cap(struct dc_link *link)
@@ -5113,9 +5253,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 * time before proceeding with possibly vendor specific transactions
 	 */
 	msleep(post_oui_delay);
-
-	/* Read cable ID and update receiver */
-	dpcd_update_cable_id(link);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(
@@ -5236,7 +5373,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
 	link->dpcd_caps.dpcd_display_control_capable =
 		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
-
+	link->dpcd_caps.channel_coding_cap.raw =
+			dpcd_data[DP_MAIN_LINK_CHANNEL_CODING - DP_DPCD_REV];
 	link->test_pattern_enabled = false;
 	link->compliance_test_state.raw = 0;
 
@@ -5363,8 +5501,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	if (!dpcd_read_sink_ext_caps(link))
 		link->dpcd_sink_ext_caps.raw = 0;
 
-	link->dpcd_caps.channel_coding_cap.raw = dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_CAP - DP_DPCD_REV];
-
 	if (link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
 		DC_LOG_DP2("128b/132b encoding is supported at link %d", link->link_index);
 
@@ -5409,6 +5545,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 		if (link->dpcd_caps.fec_cap1.bits.AGGREGATED_ERROR_COUNTERS_CAPABLE)
 			DC_LOG_DP2("\tFEC aggregated error counters are supported");
 	}
+
+	retrieve_cable_id(link);
+	dpcd_write_cable_id_to_dprx(link);
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
@@ -5565,6 +5704,34 @@ void detect_edp_sink_caps(struct dc_link *link)
 				(backlight_adj_cap & DP_EDP_DYNAMIC_BACKLIGHT_CAP) ? true:false;
 
 	dc_link_set_default_brightness_aux(link);
+
+	core_link_read_dpcd(link, DP_EDP_DPCD_REV,
+		&link->dpcd_caps.edp_rev,
+		sizeof(link->dpcd_caps.edp_rev));
+	/*
+	 * PSR is only valid for eDP v1.3 or higher.
+	 */
+	if (link->dpcd_caps.edp_rev >= DP_EDP_13) {
+		core_link_read_dpcd(link, DP_PSR_SUPPORT,
+			&link->dpcd_caps.psr_info.psr_version,
+			sizeof(link->dpcd_caps.psr_info.psr_version));
+		core_link_read_dpcd(link, DP_PSR_CAPS,
+			&link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
+			sizeof(link->dpcd_caps.psr_info.psr_dpcd_caps.raw));
+		if (link->dpcd_caps.psr_info.psr_dpcd_caps.bits.Y_COORDINATE_REQUIRED) {
+			core_link_read_dpcd(link, DP_PSR2_SU_Y_GRANULARITY,
+				&link->dpcd_caps.psr_info.psr2_su_y_granularity_cap,
+				sizeof(link->dpcd_caps.psr_info.psr2_su_y_granularity_cap));
+		}
+	}
+
+	/*
+	 * ALPM is only valid for eDP v1.4 or higher.
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw >= DP_EDP_14)
+		core_link_read_dpcd(link, DP_RECEIVER_ALPM_CAP,
+			&link->dpcd_caps.alpm_caps.raw,
+			sizeof(link->dpcd_caps.alpm_caps.raw));
 }
 
 void dc_link_dp_enable_hpd(const struct dc_link *link)
@@ -6314,29 +6481,18 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 	}
 }
 
-void dpcd_update_cable_id(struct dc_link *link)
+void dpcd_write_cable_id_to_dprx(struct dc_link *link)
 {
-	struct link_encoder *link_enc = NULL;
-
-	link_enc = link_enc_cfg_get_link_enc(link);
-
-	if (!link_enc ||
-			!link_enc->features.flags.bits.IS_UHBR10_CAPABLE ||
-			link->dprx_status.cable_id_updated)
+	if (!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED ||
+			link->dpcd_caps.cable_id.raw == 0 ||
+			link->dprx_states.cable_id_written)
 		return;
 
-	/* Retrieve cable attributes */
-	if (!is_usbc_connector(link))
-		core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
-				&link->dpcd_caps.cable_attributes.raw,
-				sizeof(uint8_t));
-
-	/* Update receiver with cable attributes */
 	core_link_write_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX,
-			&link->dpcd_caps.cable_attributes.raw,
-			sizeof(link->dpcd_caps.cable_attributes.raw));
+			&link->dpcd_caps.cable_id.raw,
+			sizeof(link->dpcd_caps.cable_id.raw));
 
-	link->dprx_status.cable_id_updated = 1;
+	link->dprx_states.cable_id_written = 1;
 }
 
 bool dc_link_set_backlight_level_nits(struct dc_link *link,
@@ -6737,9 +6893,9 @@ void edp_panel_backlight_power_on(struct dc_link *link)
 		link->dc->hwss.edp_backlight_control(link, true);
 }
 
-void dc_link_dp_clear_rx_status(struct dc_link *link)
+void dc_link_clear_dprx_states(struct dc_link *link)
 {
-	memset(&link->dprx_status, 0, sizeof(link->dprx_status));
+	memset(&link->dprx_states, 0, sizeof(link->dprx_states));
 }
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on)

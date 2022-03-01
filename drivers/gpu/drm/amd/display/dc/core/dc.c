@@ -3737,8 +3737,8 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	return dc->debug.enable_dmub_aux_for_legacy_ddc;
 }
 
-/**
- * dc_process_dmub_aux_transfer_async - Submits aux command to dmub via inbox message
+/*
+ *****************************************************************************
  *  Function: dc_enable_dmub_notifications
  *
  *  @brief
@@ -3780,7 +3780,7 @@ void dc_enable_dmub_outbox(struct dc *dc)
 }
 
 /**
- *****************************************************************************
+ * dc_process_dmub_aux_transfer_async - Submits aux command to dmub via inbox message
  *                                      Sets port index appropriately for legacy DDC
  * @dc: dc structure
  * @link_index: link index

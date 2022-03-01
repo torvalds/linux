@@ -155,6 +155,15 @@ AMD_DAL_CLK_MGR_DCN31 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn31/,$(CLK_MGR_DC
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN31)
 
 ###############################################################################
+# DCN315
+###############################################################################
+CLK_MGR_DCN315 = dcn315_smu.o dcn315_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN315 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn315/,$(CLK_MGR_DCN315))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN315)
+
+###############################################################################
 # DCN316
 ###############################################################################
 CLK_MGR_DCN316 = dcn316_smu.o dcn316_clk_mgr.o

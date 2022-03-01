@@ -110,8 +110,6 @@ int amdgpu_vis_vram_limit;
 int amdgpu_gart_size = -1; /* auto */
 int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
-int amdgpu_benchmarking;
-int amdgpu_testing;
 int amdgpu_audio = -1;
 int amdgpu_disp_priority;
 int amdgpu_hw_i2c;
@@ -178,6 +176,7 @@ int amdgpu_tmz = -1; /* auto */
 int amdgpu_reset_method = -1; /* auto */
 int amdgpu_num_kcq = -1;
 int amdgpu_smartshift_bias;
+int amdgpu_use_xgmi_p2p = 1;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -230,20 +229,6 @@ module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
  */
 MODULE_PARM_DESC(moverate, "Maximum buffer migration rate in MB/s. (32, 64, etc., -1=auto, 0=1=disabled)");
 module_param_named(moverate, amdgpu_moverate, int, 0600);
-
-/**
- * DOC: benchmark (int)
- * Run benchmarks. The default is 0 (Skip benchmarks).
- */
-MODULE_PARM_DESC(benchmark, "Run benchmark");
-module_param_named(benchmark, amdgpu_benchmarking, int, 0444);
-
-/**
- * DOC: test (int)
- * Test BO GTT->VRAM and VRAM->GTT GPU copies. The default is 0 (Skip test, only set 1 to run test).
- */
-MODULE_PARM_DESC(test, "Run tests");
-module_param_named(test, amdgpu_testing, int, 0444);
 
 /**
  * DOC: audio (int)
@@ -667,6 +652,13 @@ MODULE_PARM_DESC(force_asic_type,
 	"A non negative value used to specify the asic type for all supported GPUs");
 module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
 
+/**
+ * DOC: use_xgmi_p2p (int)
+ * Enables/disables XGMI P2P interface (0 = disable, 1 = enable).
+ */
+MODULE_PARM_DESC(use_xgmi_p2p,
+	"Enable XGMI P2P interface (0 = disable; 1 = enable (default))");
+module_param_named(use_xgmi_p2p, amdgpu_use_xgmi_p2p, int, 0444);
 
 
 #ifdef CONFIG_HSA_AMD
@@ -740,7 +732,7 @@ MODULE_PARM_DESC(debug_largebar,
  * systems with a broken CRAT table.
  *
  * Default is auto (according to asic type, iommu_v2, and crat table, to decide
- * whehter use CRAT)
+ * whether use CRAT)
  */
 int ignore_crat;
 module_param(ignore_crat, int, 0444);
@@ -845,9 +837,9 @@ module_param_named(tmz, amdgpu_tmz, int, 0444);
 
 /**
  * DOC: reset_method (int)
- * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco, 5 = pci)
+ * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
  */
-MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco/bamaco, 5 = pci)");
+MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco/bamaco)");
 module_param_named(reset_method, amdgpu_reset_method, int, 0444);
 
 /**

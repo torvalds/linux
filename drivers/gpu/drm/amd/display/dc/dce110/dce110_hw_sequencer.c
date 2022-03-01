@@ -1585,7 +1585,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 	}
 
-	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != NULL;
 
 	pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 
@@ -2722,7 +2722,7 @@ static void dce110_program_front_end_for_pipe(
 
 	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 
-	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != NULL;
 
 	program_scaler(dc, pipe_ctx);
 

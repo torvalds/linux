@@ -273,6 +273,8 @@ static void program_cursor_attributes(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 			dc->hwss.cursor_lock(dc, pipe_to_program, true);
+			if (pipe_to_program->next_odm_pipe)
+				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -280,8 +282,11 @@ static void program_cursor_attributes(
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
-	if (pipe_to_program)
+	if (pipe_to_program) {
 		dc->hwss.cursor_lock(dc, pipe_to_program, false);
+		if (pipe_to_program->next_odm_pipe)
+			dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+	}
 }
 
 #ifndef TRIM_FSFT

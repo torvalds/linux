@@ -1197,6 +1197,22 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 				return false;
 			}
+
+			if (link->type == dc_connection_sst_branch &&
+					link->dpcd_caps.dongle_type ==
+						DISPLAY_DONGLE_DP_VGA_CONVERTER &&
+					reason == DETECT_REASON_HPDRX) {
+				/* Abort detection for DP-VGA adapters when EDID
+				 * can't be read and detection reason is VGA-side
+				 * hotplug
+				 */
+				if (prev_sink)
+					dc_sink_release(prev_sink);
+				link_disconnect_sink(link);
+
+				return true;
+			}
+
 			break;
 		default:
 			break;
@@ -1289,7 +1305,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		 */
 		link->dongle_max_pix_clk = 0;
 
-		dc_link_dp_clear_rx_status(link);
+		dc_link_clear_dprx_states(link);
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
@@ -1970,7 +1986,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		msleep(post_oui_delay);
 
 	// similarly, mode switch can cause loss of cable ID
-	dpcd_update_cable_id(link);
+	dpcd_write_cable_id_to_dprx(link);
 
 	skip_video_pattern = true;
 
@@ -3236,9 +3252,16 @@ bool dc_link_setup_psr(struct dc_link *link,
 	/*skip power down the single pipe since it blocks the cstate*/
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
-		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-		if (link->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP && !dc->debug.disable_z10)
-			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+		switch(link->ctx->asic_id.chip_family) {
+		case FAMILY_YELLOW_CARP:
+		case AMDGPU_FAMILY_GC_10_3_6:
+			if(!dc->debug.disable_z10)
+				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+			break;
+		default:
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+			break;
+		}
 	}
 #else
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
@@ -3905,7 +3928,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				&link->mst_stream_alloc_table);
 		break;
 	case DP_UNKNOWN_ENCODING:
-		DC_LOG_ERROR("Failure: unknown encoding format\n");
+		DC_LOG_DEBUG("Unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
 
