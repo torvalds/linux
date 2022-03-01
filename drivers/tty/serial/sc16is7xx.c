@@ -324,8 +324,10 @@ struct sc16is7xx_one {
 	u8				line;
 	struct kthread_work		tx_work;
 	struct kthread_work		reg_work;
+	struct kthread_delayed_work	ms_work;
 	struct sc16is7xx_one_config	config;
 	bool				irda_mode;
+	unsigned int			old_mctrl;
 };
 
 struct sc16is7xx_port {
@@ -705,12 +707,56 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+static unsigned int sc16is7xx_get_hwmctrl(struct uart_port *port)
+{
+	u8 msr = sc16is7xx_port_read(port, SC16IS7XX_MSR_REG);
+	unsigned int mctrl = 0;
+
+	mctrl |= (msr & SC16IS7XX_MSR_CTS_BIT) ? TIOCM_CTS : 0;
+	mctrl |= (msr & SC16IS7XX_MSR_DSR_BIT) ? TIOCM_DSR : 0;
+	mctrl |= (msr & SC16IS7XX_MSR_CD_BIT)  ? TIOCM_CAR : 0;
+	mctrl |= (msr & SC16IS7XX_MSR_RI_BIT)  ? TIOCM_RNG : 0;
+	return mctrl;
+}
+
+static void sc16is7xx_update_mlines(struct sc16is7xx_one *one)
+{
+	struct uart_port *port = &one->port;
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	unsigned long flags;
+	unsigned int status, changed;
+
+	lockdep_assert_held_once(&s->efr_lock);
+
+	status = sc16is7xx_get_hwmctrl(port);
+	changed = status ^ one->old_mctrl;
+
+	if (changed == 0)
+		return;
+
+	one->old_mctrl = status;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if ((changed & TIOCM_RNG) && (status & TIOCM_RNG))
+		port->icount.rng++;
+	if (changed & TIOCM_DSR)
+		port->icount.dsr++;
+	if (changed & TIOCM_CAR)
+		uart_handle_dcd_change(port, status & TIOCM_CAR);
+	if (changed & TIOCM_CTS)
+		uart_handle_cts_change(port, status & TIOCM_CTS);
+
+	wake_up_interruptible(&port->state->port.delta_msr_wait);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
 static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 {
 	struct uart_port *port = &s->p[portno].port;
 
 	do {
 		unsigned int iir, rxlen;
+		struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 		iir = sc16is7xx_port_read(port, SC16IS7XX_IIR_REG);
 		if (iir & SC16IS7XX_IIR_NO_INT_BIT)
@@ -726,6 +772,11 @@ static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 			rxlen = sc16is7xx_port_read(port, SC16IS7XX_RXLVL_REG);
 			if (rxlen)
 				sc16is7xx_handle_rx(port, rxlen, iir);
+			break;
+		/* CTSRTS interrupt comes only when CTS goes inactive */
+		case SC16IS7XX_IIR_CTSRTS_SRC:
+		case SC16IS7XX_IIR_MSI_SRC:
+			sc16is7xx_update_mlines(one);
 			break;
 		case SC16IS7XX_IIR_THRI_SRC:
 			sc16is7xx_handle_tx(port);
@@ -874,6 +925,30 @@ static void sc16is7xx_stop_rx(struct uart_port *port)
 	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
 }
 
+static void sc16is7xx_ms_proc(struct kthread_work *ws)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, ms_work.work);
+	struct sc16is7xx_port *s = dev_get_drvdata(one->port.dev);
+
+	if (one->port.state) {
+		mutex_lock(&s->efr_lock);
+		sc16is7xx_update_mlines(one);
+		mutex_unlock(&s->efr_lock);
+
+		kthread_queue_delayed_work(&s->kworker, &one->ms_work, HZ);
+	}
+}
+
+static void sc16is7xx_enable_ms(struct uart_port *port)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+
+	lockdep_assert_held_once(&port->lock);
+
+	kthread_queue_delayed_work(&s->kworker, &one->ms_work, 0);
+}
+
 static void sc16is7xx_start_tx(struct uart_port *port)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
@@ -893,10 +968,10 @@ static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
 
 static unsigned int sc16is7xx_get_mctrl(struct uart_port *port)
 {
-	/* DCD and DSR are not wired and CTS/RTS is handled automatically
-	 * so just indicate DSR and CAR asserted
-	 */
-	return TIOCM_DSR | TIOCM_CAR;
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	/* Called with port lock taken so we can only return cached value */
+	return one->old_mctrl;
 }
 
 static void sc16is7xx_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -920,8 +995,12 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 				  struct ktermios *old)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 	unsigned int lcr, flow = 0;
 	int baud;
+	unsigned long flags;
+
+	kthread_cancel_delayed_work_sync(&one->ms_work);
 
 	/* Mask termios capabilities we don't support */
 	termios->c_cflag &= ~CMSPAR;
@@ -1010,8 +1089,15 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	/* Setup baudrate generator */
 	baud = sc16is7xx_set_baud(port, baud);
 
+	spin_lock_irqsave(&port->lock, flags);
+
 	/* Update timeout according to new baud rate */
 	uart_update_timeout(port, termios->c_cflag, baud);
+
+	if (UART_ENABLE_MS(port, termios->c_cflag))
+		sc16is7xx_enable_ms(port);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int sc16is7xx_config_rs485(struct uart_port *port,
@@ -1052,6 +1138,7 @@ static int sc16is7xx_startup(struct uart_port *port)
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	unsigned int val;
+	unsigned long flags;
 
 	sc16is7xx_power(port, 1);
 
@@ -1102,9 +1189,15 @@ static int sc16is7xx_startup(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT,
 			      0);
 
-	/* Enable RX interrupt */
-	val = SC16IS7XX_IER_RDI_BIT;
+	/* Enable RX, CTS change and modem lines interrupts */
+	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_CTSI_BIT |
+	      SC16IS7XX_IER_MSI_BIT;
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, val);
+
+	/* Enable modem status polling */
+	spin_lock_irqsave(&port->lock, flags);
+	sc16is7xx_enable_ms(port);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	return 0;
 }
@@ -1112,6 +1205,9 @@ static int sc16is7xx_startup(struct uart_port *port)
 static void sc16is7xx_shutdown(struct uart_port *port)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	kthread_cancel_delayed_work_sync(&one->ms_work);
 
 	/* Disable all interrupts */
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, 0);
@@ -1175,6 +1271,7 @@ static const struct uart_ops sc16is7xx_ops = {
 	.stop_tx	= sc16is7xx_stop_tx,
 	.start_tx	= sc16is7xx_start_tx,
 	.stop_rx	= sc16is7xx_stop_rx,
+	.enable_ms	= sc16is7xx_enable_ms,
 	.break_ctl	= sc16is7xx_break_ctl,
 	.startup	= sc16is7xx_startup,
 	.shutdown	= sc16is7xx_shutdown,
@@ -1341,7 +1438,9 @@ static int sc16is7xx_probe(struct device *dev,
 		s->p[i].port.uartclk	= freq;
 		s->p[i].port.rs485_config = sc16is7xx_config_rs485;
 		s->p[i].port.ops	= &sc16is7xx_ops;
+		s->p[i].old_mctrl	= 0;
 		s->p[i].port.line	= sc16is7xx_alloc_line();
+
 		if (s->p[i].port.line >= SC16IS7XX_MAX_DEVS) {
 			ret = -ENOMEM;
 			goto out_ports;
@@ -1353,9 +1452,17 @@ static int sc16is7xx_probe(struct device *dev,
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_EFCR_REG,
 				     SC16IS7XX_EFCR_RXDISABLE_BIT |
 				     SC16IS7XX_EFCR_TXDISABLE_BIT);
+
+		/* Use GPIO lines as modem status registers */
+		if (devtype->has_mctrl)
+			sc16is7xx_port_write(&s->p[i].port,
+					     SC16IS7XX_IOCONTROL_REG,
+					     SC16IS7XX_IOCONTROL_MODEM_BIT);
+
 		/* Initialize kthread work structs */
 		kthread_init_work(&s->p[i].tx_work, sc16is7xx_tx_proc);
 		kthread_init_work(&s->p[i].reg_work, sc16is7xx_reg_proc);
+		kthread_init_delayed_work(&s->p[i].ms_work, sc16is7xx_ms_proc);
 		/* Register port */
 		uart_add_one_port(&sc16is7xx_uart, &s->p[i].port);
 
@@ -1439,6 +1546,7 @@ static void sc16is7xx_remove(struct device *dev)
 #endif
 
 	for (i = 0; i < s->devtype->nr_uart; i++) {
+		kthread_cancel_delayed_work_sync(&s->p[i].ms_work);
 		uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 		clear_bit(s->p[i].port.line, &sc16is7xx_lines);
 		sc16is7xx_power(&s->p[i].port, 0);
