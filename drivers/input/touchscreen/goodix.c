@@ -297,14 +297,14 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 	return -ENOMSG;
 }
 
-static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
+static int goodix_create_pen_input(struct goodix_ts_data *ts)
 {
 	struct device *dev = &ts->client->dev;
 	struct input_dev *input;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return NULL;
+		return -ENOMEM;
 
 	input_copy_abs(input, ABS_X, ts->input_dev, ABS_MT_POSITION_X);
 	input_copy_abs(input, ABS_Y, ts->input_dev, ABS_MT_POSITION_Y);
@@ -331,24 +331,22 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 		input->id.product = 0x1001;
 	input->id.version = ts->version;
 
-	if (input_register_device(input) != 0) {
-		input_free_device(input);
-		return NULL;
-	}
-
-	return input;
+	ts->input_pen = input;
+	return 0;
 }
 
 static void goodix_ts_report_pen_down(struct goodix_ts_data *ts, u8 *data)
 {
-	int input_x, input_y, input_w;
+	int input_x, input_y, input_w, error;
 	u8 key_value;
 
-	if (!ts->input_pen) {
-		ts->input_pen = goodix_create_pen_input(ts);
-		if (!ts->input_pen)
-			return;
+	if (!ts->pen_input_registered) {
+		error = input_register_device(ts->input_pen);
+		ts->pen_input_registered = (error == 0) ? 1 : error;
 	}
+
+	if (ts->pen_input_registered < 0)
+		return;
 
 	if (ts->contact_size == 9) {
 		input_x = get_unaligned_le16(&data[4]);
@@ -1206,6 +1204,17 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 			"Failed to register input device: %d", error);
 		return error;
 	}
+
+	/*
+	 * Create the input_pen device before goodix_request_irq() calls
+	 * devm_request_threaded_irq() so that the devm framework frees
+	 * it after disabling the irq.
+	 * Unfortunately there is no way to detect if the touchscreen has pen
+	 * support, so registering the dev is delayed till the first pen event.
+	 */
+	error = goodix_create_pen_input(ts);
+	if (error)
+		return error;
 
 	ts->irq_flags = goodix_irq_flags[ts->int_trigger_type] | IRQF_ONESHOT;
 	error = goodix_request_irq(ts);
