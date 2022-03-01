@@ -290,17 +290,17 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 		if (mhi_chan->offload_ch)
 			continue;
 
-		tmp = chan_ctxt->chcfg;
+		tmp = le32_to_cpu(chan_ctxt->chcfg);
 		tmp &= ~CHAN_CTX_CHSTATE_MASK;
 		tmp |= (MHI_CH_STATE_DISABLED << CHAN_CTX_CHSTATE_SHIFT);
 		tmp &= ~CHAN_CTX_BRSTMODE_MASK;
 		tmp |= (mhi_chan->db_cfg.brstmode << CHAN_CTX_BRSTMODE_SHIFT);
 		tmp &= ~CHAN_CTX_POLLCFG_MASK;
 		tmp |= (mhi_chan->db_cfg.pollcfg << CHAN_CTX_POLLCFG_SHIFT);
-		chan_ctxt->chcfg = tmp;
+		chan_ctxt->chcfg = cpu_to_le32(tmp);
 
-		chan_ctxt->chtype = mhi_chan->type;
-		chan_ctxt->erindex = mhi_chan->er_index;
+		chan_ctxt->chtype = cpu_to_le32(mhi_chan->type);
+		chan_ctxt->erindex = cpu_to_le32(mhi_chan->er_index);
 
 		mhi_chan->ch_state = MHI_CH_STATE_DISABLED;
 		mhi_chan->tre_ring.db_addr = (void __iomem *)&chan_ctxt->wp;
@@ -325,14 +325,14 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 		if (mhi_event->offload_ev)
 			continue;
 
-		tmp = er_ctxt->intmod;
+		tmp = le32_to_cpu(er_ctxt->intmod);
 		tmp &= ~EV_CTX_INTMODC_MASK;
 		tmp &= ~EV_CTX_INTMODT_MASK;
 		tmp |= (mhi_event->intmod << EV_CTX_INTMODT_SHIFT);
-		er_ctxt->intmod = tmp;
+		er_ctxt->intmod = cpu_to_le32(tmp);
 
-		er_ctxt->ertype = MHI_ER_TYPE_VALID;
-		er_ctxt->msivec = mhi_event->irq;
+		er_ctxt->ertype = cpu_to_le32(MHI_ER_TYPE_VALID);
+		er_ctxt->msivec = cpu_to_le32(mhi_event->irq);
 		mhi_event->db_cfg.db_mode = true;
 
 		ring->el_size = sizeof(struct mhi_tre);
@@ -346,9 +346,9 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 		 * ring is empty
 		 */
 		ring->rp = ring->wp = ring->base;
-		er_ctxt->rbase = ring->iommu_base;
+		er_ctxt->rbase = cpu_to_le64(ring->iommu_base);
 		er_ctxt->rp = er_ctxt->wp = er_ctxt->rbase;
-		er_ctxt->rlen = ring->len;
+		er_ctxt->rlen = cpu_to_le64(ring->len);
 		ring->ctxt_wp = &er_ctxt->wp;
 	}
 
@@ -375,9 +375,9 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 			goto error_alloc_cmd;
 
 		ring->rp = ring->wp = ring->base;
-		cmd_ctxt->rbase = ring->iommu_base;
+		cmd_ctxt->rbase = cpu_to_le64(ring->iommu_base);
 		cmd_ctxt->rp = cmd_ctxt->wp = cmd_ctxt->rbase;
-		cmd_ctxt->rlen = ring->len;
+		cmd_ctxt->rlen = cpu_to_le64(ring->len);
 		ring->ctxt_wp = &cmd_ctxt->wp;
 	}
 
@@ -578,10 +578,10 @@ void mhi_deinit_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	chan_ctxt->rp = 0;
 	chan_ctxt->wp = 0;
 
-	tmp = chan_ctxt->chcfg;
+	tmp = le32_to_cpu(chan_ctxt->chcfg);
 	tmp &= ~CHAN_CTX_CHSTATE_MASK;
 	tmp |= (MHI_CH_STATE_DISABLED << CHAN_CTX_CHSTATE_SHIFT);
-	chan_ctxt->chcfg = tmp;
+	chan_ctxt->chcfg = cpu_to_le32(tmp);
 
 	/* Update to all cores */
 	smp_wmb();
@@ -615,14 +615,14 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 		return -ENOMEM;
 	}
 
-	tmp = chan_ctxt->chcfg;
+	tmp = le32_to_cpu(chan_ctxt->chcfg);
 	tmp &= ~CHAN_CTX_CHSTATE_MASK;
 	tmp |= (MHI_CH_STATE_ENABLED << CHAN_CTX_CHSTATE_SHIFT);
-	chan_ctxt->chcfg = tmp;
+	chan_ctxt->chcfg = cpu_to_le32(tmp);
 
-	chan_ctxt->rbase = tre_ring->iommu_base;
+	chan_ctxt->rbase = cpu_to_le64(tre_ring->iommu_base);
 	chan_ctxt->rp = chan_ctxt->wp = chan_ctxt->rbase;
-	chan_ctxt->rlen = tre_ring->len;
+	chan_ctxt->rlen = cpu_to_le64(tre_ring->len);
 	tre_ring->ctxt_wp = &chan_ctxt->wp;
 
 	tre_ring->rp = tre_ring->wp = tre_ring->base;
