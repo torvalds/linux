@@ -51,6 +51,7 @@
 #include "smc_close.h"
 #include "smc_stats.h"
 #include "smc_tracepoint.h"
+#include "smc_sysctl.h"
 
 static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
 						 * creation on server
@@ -3273,9 +3274,17 @@ static int __init smc_init(void)
 		goto out_sock;
 	}
 
+	rc = smc_sysctl_init();
+	if (rc) {
+		pr_err("%s: sysctl_init fails with %d\n", __func__, rc);
+		goto out_ulp;
+	}
+
 	static_branch_enable(&tcp_have_smc);
 	return 0;
 
+out_ulp:
+	tcp_unregister_ulp(&smc_ulp_ops);
 out_sock:
 	sock_unregister(PF_SMC);
 out_proto6:
@@ -3303,6 +3312,7 @@ out_pernet_subsys:
 static void __exit smc_exit(void)
 {
 	static_branch_disable(&tcp_have_smc);
+	smc_sysctl_exit();
 	tcp_unregister_ulp(&smc_ulp_ops);
 	sock_unregister(PF_SMC);
 	smc_core_exit();
