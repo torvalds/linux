@@ -13,6 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 struct virtual_consumer_data {
 	struct mutex lock;
@@ -281,6 +282,14 @@ static const struct attribute_group regulator_virtual_attr_group = {
 	.attrs	= regulator_virtual_attributes,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id regulator_virtual_consumer_of_match[] = {
+	{ .compatible = "regulator-virtual-consumer" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, regulator_virtual_consumer_of_match);
+#endif
+
 static int regulator_virtual_probe(struct platform_device *pdev)
 {
 	char *reg_id = dev_get_platdata(&pdev->dev);
@@ -304,6 +313,14 @@ static int regulator_virtual_probe(struct platform_device *pdev)
 			       GFP_KERNEL);
 	if (drvdata == NULL)
 		return -ENOMEM;
+
+	/*
+	 * This virtual consumer does not have any hardware-defined supply
+	 * name, so just allow the regulator to be specified in a property
+	 * named "default-supply" when we're being probed from devicetree.
+	 */
+	if (!reg_id && pdev->dev.of_node)
+		reg_id = "default";
 
 	mutex_init(&drvdata->lock);
 
@@ -345,6 +362,7 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
+		.of_match_table = of_match_ptr(regulator_virtual_consumer_of_match),
 	},
 };
 
