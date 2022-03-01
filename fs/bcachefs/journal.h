@@ -264,9 +264,6 @@ static inline void bch2_journal_buf_put(struct journal *j, unsigned idx)
 				    .buf3_count = idx == 3,
 				    }).v, &j->reservations.counter);
 
-	EBUG_ON(((s.idx - idx) & 3) >
-		((s.idx - s.unwritten_idx) & 3));
-
 	if (!journal_state_count(s, idx) && idx == s.unwritten_idx)
 		__bch2_journal_buf_put(j);
 }

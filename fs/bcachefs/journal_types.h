@@ -176,6 +176,7 @@ struct journal {
 	enum {
 		cur_entry_ok,
 		cur_entry_blocked,
+		cur_entry_max_in_flight,
 		cur_entry_journal_full,
 		cur_entry_journal_pin_full,
 		cur_entry_journal_stuck,

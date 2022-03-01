@@ -1392,7 +1392,7 @@ static void journal_write_done(struct closure *cl)
 	v = atomic64_read(&j->reservations.counter);
 	do {
 		old.v = new.v = v;
-		BUG_ON(new.idx == new.unwritten_idx);
+		BUG_ON(journal_state_count(new, new.unwritten_idx));
 
 		new.unwritten_idx++;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
@@ -1403,14 +1403,22 @@ static void journal_write_done(struct closure *cl)
 	closure_wake_up(&w->wait);
 	journal_wake(j);
 
-	if (journal_last_unwritten_seq(j) == journal_cur_seq(j)) {
+	if (!journal_state_count(new, new.unwritten_idx) &&
+	    journal_last_unwritten_seq(j) <= journal_cur_seq(j)) {
+		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+	} else if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
+		   new.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL) {
 		struct journal_buf *buf = journal_cur_buf(j);
 		long delta = buf->expires - jiffies;
 
+		/*
+		 * We don't close a journal entry to write it while there's
+		 * previous entries still in flight - the current journal entry
+		 * might want to be written now:
+		 */
+
 		mod_delayed_work(c->io_complete_wq, &j->write_work, max(0L, delta));
-	} else if (journal_last_unwritten_seq(j) < journal_cur_seq(j) &&
-		   !journal_state_count(new, new.unwritten_idx))
-		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+	}
 
 	spin_unlock(&j->lock);
 }

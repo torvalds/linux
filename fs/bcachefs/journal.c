@@ -106,7 +106,7 @@ void __bch2_journal_buf_put(struct journal *j)
  * We don't close a journal_buf until the next journal_buf is finished writing,
  * and can be opened again - this also initializes the next journal_buf:
  */
-static bool __journal_entry_close(struct journal *j)
+static void __journal_entry_close(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf = journal_cur_buf(j);
@@ -119,21 +119,15 @@ static bool __journal_entry_close(struct journal *j)
 	do {
 		old.v = new.v = v;
 		if (old.cur_entry_offset == JOURNAL_ENTRY_CLOSED_VAL)
-			return true;
+			return;
 
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL) {
 			/* this entry will never be written: */
 			closure_wake_up(&buf->wait);
-			return true;
+			return;
 		}
 
 		new.cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL;
-		new.idx++;
-
-		if (new.idx == new.unwritten_idx)
-			return false;
-
-		BUG_ON(journal_state_count(new, new.idx));
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
@@ -175,17 +169,17 @@ static bool __journal_entry_close(struct journal *j)
 	bch2_journal_space_available(j);
 
 	bch2_journal_buf_put(j, old.idx);
-	return true;
 }
 
 static bool journal_entry_want_write(struct journal *j)
 {
 	bool ret = !journal_entry_is_open(j) ||
-		(journal_cur_seq(j) == journal_last_unwritten_seq(j) &&
-		 __journal_entry_close(j));
+		journal_cur_seq(j) == journal_last_unwritten_seq(j);
 
 	/* Don't close it yet if we already have a write in flight: */
-	if (!ret && nr_unwritten_journal_entries(j)) {
+	if (ret)
+		__journal_entry_close(j);
+	else if (nr_unwritten_journal_entries(j)) {
 		struct journal_buf *buf = journal_cur_buf(j);
 
 		if (!buf->flush_time) {
@@ -221,15 +215,15 @@ static bool journal_entry_close(struct journal *j)
 static int journal_entry_open(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_buf *buf = journal_cur_buf(j);
+	struct journal_buf *buf = j->buf +
+		((journal_cur_seq(j) + 1) & JOURNAL_BUF_MASK);
 	union journal_res_state old, new;
 	int u64s;
 	u64 v;
 
-	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
-
 	lockdep_assert_held(&j->lock);
 	BUG_ON(journal_entry_is_open(j));
+	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
 
 	if (j->blocked)
 		return cur_entry_blocked;
@@ -242,6 +236,9 @@ static int journal_entry_open(struct journal *j)
 
 	if (!fifo_free(&j->pin))
 		return cur_entry_journal_pin_full;
+
+	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf))
+		return cur_entry_max_in_flight;
 
 	BUG_ON(!j->cur_entry_sectors);
 
@@ -291,7 +288,10 @@ static int journal_entry_open(struct journal *j)
 		old.v = new.v = v;
 
 		BUG_ON(old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL);
+
+		new.idx++;
 		BUG_ON(journal_state_count(new, new.idx));
+		BUG_ON(new.idx != (journal_cur_seq(j) & JOURNAL_BUF_MASK));
 
 		journal_state_inc(&new);
 		new.cur_entry_offset = 0;
@@ -390,18 +390,11 @@ retry:
 	    buf->buf_size < JOURNAL_ENTRY_SIZE_MAX)
 		j->buf_size_want = max(j->buf_size_want, buf->buf_size << 1);
 
-	if (journal_entry_is_open(j) &&
-	    !__journal_entry_close(j)) {
-		/*
-		 * We failed to get a reservation on the current open journal
-		 * entry because it's full, and we can't close it because
-		 * there's still a previous one in flight:
-		 */
+	__journal_entry_close(j);
+	ret = journal_entry_open(j);
+
+	if (ret == cur_entry_max_in_flight)
 		trace_journal_entry_full(c);
-		ret = cur_entry_blocked;
-	} else {
-		ret = journal_entry_open(j);
-	}
 unlock:
 	if ((ret && ret != cur_entry_insufficient_devices) &&
 	    !j->res_get_blocked_start) {
@@ -1051,7 +1044,8 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	set_bit(JOURNAL_STARTED, &j->flags);
 	j->last_flush_write = jiffies;
 
-	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j) + 1;
+	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j);
+	j->reservations.unwritten_idx++;
 
 	c->last_bucket_seq_cleanup = journal_cur_seq(j);
 
