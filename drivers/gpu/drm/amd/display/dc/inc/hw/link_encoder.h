@@ -200,6 +200,8 @@ struct link_encoder_funcs {
 		struct link_encoder *enc,
 		enum encoder_type_select sel,
 		uint32_t hpo_inst);
+	void (*set_dig_output_mode)(
+			struct link_encoder *enc, uint8_t pix_per_container);
 };
 
 /*

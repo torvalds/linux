@@ -62,6 +62,7 @@
 #include "dcn31/dcn31_apg.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
 #include "dcn32/dcn32_dio_link_encoder.h"
+#include "dcn321_dio_link_encoder.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
@@ -1253,7 +1254,7 @@ static struct link_encoder *dcn321_link_encoder_create(
 	if (!enc20)
 		return NULL;
 
-	dcn32_link_encoder_construct(enc20,
+	dcn321_link_encoder_construct(enc20,
 			enc_init_data,
 			&link_enc_feature,
 			&link_enc_regs[enc_init_data->transmitter],

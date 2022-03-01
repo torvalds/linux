@@ -3224,6 +3224,7 @@ static enum bp_result update_slot_layout_info_v2(
 		break;
 
 	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_USBC:
 		if (record->mini_type == MINI_TYPE_NORMAL) {
 			slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_DP;
 			slot_layout_info->connectors[i].length = CONNECTOR_SIZE_DP;

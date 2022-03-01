@@ -10,7 +10,7 @@
 #
 # Makefile for dcn321.
 
-DCN321 = dcn321_resource.o
+DCN321 = dcn321_resource.o dcn321_dio_link_encoder.o
 
 CFLAGS_$(AMDDALPATH)/dc/dcn321/dcn321_resource.o := -mhard-float -msse
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,11 @@
 
 #include "core_types.h"
 #include "link_encoder.h"
+#include "dcn321_dio_link_encoder.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
-#include "dcn32_dio_link_encoder.h"
 #include "stream_encoder.h"
 #include "i2caux_interface.h"
 #include "dc_bios_types.h"
-#include "link_enc_cfg.h"
 
 #include "gpio_service_interface.h"
 
@@ -62,101 +61,7 @@
 #define AUX_REG_WRITE(reg_name, val) \
 			dm_write_reg(CTX, AUX_REG(reg_name), val)
 
-
-void enc32_hw_init(struct link_encoder *enc)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-
-/*
-	00 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__1to2 : 1/2
-	01 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__3to4 : 3/4
-	02 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__7to8 : 7/8
-	03 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__15to16 : 15/16
-	04 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__31to32 : 31/32
-	05 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__63to64 : 63/64
-	06 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__127to128 : 127/128
-	07 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__255to256 : 255/256
-*/
-
-/*
-	AUX_REG_UPDATE_5(AUX_DPHY_RX_CONTROL0,
-	AUX_RX_START_WINDOW = 1 [6:4]
-	AUX_RX_RECEIVE_WINDOW = 1 default is 2 [10:8]
-	AUX_RX_HALF_SYM_DETECT_LEN  = 1 [13:12] default is 1
-	AUX_RX_TRANSITION_FILTER_EN = 1 [16] default is 1
-	AUX_RX_ALLOW_BELOW_THRESHOLD_PHASE_DETECT [17] is 0  default is 0
-	AUX_RX_ALLOW_BELOW_THRESHOLD_START [18] is 1  default is 1
-	AUX_RX_ALLOW_BELOW_THRESHOLD_STOP [19] is 1  default is 1
-	AUX_RX_PHASE_DETECT_LEN,  [21,20] = 0x3 default is 3
-	AUX_RX_DETECTION_THRESHOLD [30:28] = 1
-*/
-	AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
-
-	AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c7a);
-
-	//AUX_DPHY_TX_REF_CONTROL'AUX_TX_REF_DIV HW default is 0x32;
-	// Set AUX_TX_REF_DIV Divider to generate 2 MHz reference from refclk
-	// 27MHz -> 0xd
-	// 100MHz -> 0x32
-	// 48MHz -> 0x18
-
-	// Set TMDS_CTL0 to 1.  This is a legacy setting.
-	REG_UPDATE(TMDS_CTL_BITS, TMDS_CTL0, 1);
-
-	dcn10_aux_initialize(enc10);
-}
-
-
-void dcn32_link_encoder_enable_dp_output(
-	struct link_encoder *enc,
-	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source)
-{
-	if (!enc->ctx->dc->debug.avoid_vbios_exec_table) {
-		dcn10_link_encoder_enable_dp_output(enc, link_settings, clock_source);
-		return;
-	}
-}
-
-bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	uint32_t dp_alt_mode_disable = 0;
-	bool is_usb_c_alt_mode = false;
-
-	if (enc->features.flags.bits.DP_IS_USB_C) {
-		/* if value == 1 alt mode is disabled, otherwise it is enabled */
-		REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
-		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
-	}
-
-	return is_usb_c_alt_mode;
-}
-
-void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
-	struct dc_link_settings *link_settings)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	uint32_t is_in_usb_c_dp4_mode = 0;
-
-	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
-
-	/* in usb c dp2 mode, max lane count is 2 */
-	if (enc->funcs->is_in_alt_mode && enc->funcs->is_in_alt_mode(enc)) {
-		REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
-		if (!is_in_usb_c_dp4_mode)
-			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
-	}
-
-}
-
-void enc32_set_dig_output_mode(struct link_encoder *enc, uint8_t pix_per_container)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, pix_per_container);
-}
- 
-static const struct link_encoder_funcs dcn32_link_enc_funcs = {
+static const struct link_encoder_funcs dcn321_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
 			dcn30_link_encoder_validate_output_with_stream,
@@ -183,13 +88,13 @@ static const struct link_encoder_funcs dcn32_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.is_in_alt_mode = dcn32_link_encoder_is_in_alt_mode,
-	.get_max_link_cap = dcn32_link_encoder_get_max_link_cap,
+	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 	.set_dig_output_mode = enc32_set_dig_output_mode,
 };
 
-void dcn32_link_encoder_construct(
+void dcn321_link_encoder_construct(
 	struct dcn20_link_encoder *enc20,
 	const struct encoder_init_data *init_data,
 	const struct encoder_feature_support *enc_features,
@@ -204,7 +109,7 @@ void dcn32_link_encoder_construct(
 	enum bp_result result = BP_RESULT_OK;
 	struct dcn10_link_encoder *enc10 = &enc20->enc10;
 
-	enc10->base.funcs = &dcn32_link_enc_funcs;
+	enc10->base.funcs = &dcn321_link_enc_funcs;
 	enc10->base.ctx = init_data->ctx;
 	enc10->base.id = init_data->encoder;
 

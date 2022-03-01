@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,20 +23,12 @@
  *
  */
 
-#ifndef __DC_LINK_ENCODER__DCN32_H__
-#define __DC_LINK_ENCODER__DCN32_H__
+#ifndef __DC_LINK_ENCODER__DCN321_H__
+#define __DC_LINK_ENCODER__DCN321_H__
 
-#include "dcn31/dcn31_dio_link_encoder.h"
+#include "dcn32/dcn32_dio_link_encoder.h"
 
-#define LE_DCN32_REG_LIST(id)\
-	LE_DCN31_REG_LIST(id),\
-	SRI(DIG_FIFO_CTRL0, DIG, id)
-
-#define LINK_ENCODER_MASK_SH_LIST_DCN32(mask_sh) \
-	LINK_ENCODER_MASK_SH_LIST_DCN31(mask_sh),\
-	LE_SF(DIG0_DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, mask_sh)
-
-void dcn32_link_encoder_construct(
+void dcn321_link_encoder_construct(
 	struct dcn20_link_encoder *enc20,
 	const struct encoder_init_data *init_data,
 	const struct encoder_feature_support *enc_features,
@@ -46,15 +38,5 @@ void dcn32_link_encoder_construct(
 	const struct dcn10_link_enc_shift *link_shift,
 	const struct dcn10_link_enc_mask *link_mask);
 
-void enc32_hw_init(struct link_encoder *enc);
 
-void dcn32_link_encoder_enable_dp_output(
-	struct link_encoder *enc,
-	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source);
-
-void enc32_set_dig_output_mode(
-		struct link_encoder *enc,
-		uint8_t pix_per_container);
-
-#endif /* __DC_LINK_ENCODER__DCN32_H__ */
+#endif /* __DC_LINK_ENCODER__DCN321_H__ */

@@ -342,7 +342,8 @@ struct bp_connector_speed_cap_info {
 	uint32_t DP_UHBR10_EN:1;
 	uint32_t DP_UHBR13_5_EN:1;
 	uint32_t DP_UHBR20_EN:1;
-	uint32_t RESERVED:29;
+	uint32_t DP_IS_USB_C:1;
+	uint32_t RESERVED:28;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */
