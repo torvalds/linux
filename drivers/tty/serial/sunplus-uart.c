@@ -441,7 +441,7 @@ static int sunplus_verify_port(struct uart_port *port, struct serial_struct *ser
 	return 0;
 }
 
-#ifdef CONFIG_SERIAL_SUNPLUS_CONSOLE
+#if defined(CONFIG_SERIAL_SUNPLUS_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 static void wait_for_xmitr(struct uart_port *port)
 {
 	unsigned int val;
@@ -562,6 +562,10 @@ static struct console sunplus_uart_console = {
 	.index		= -1,
 	.data		= &sunplus_uart_driver
 };
+
+#define	SERIAL_SUNPLUS_CONSOLE	(&sunplus_uart_console)
+#else
+#define	SERIAL_SUNPLUS_CONSOLE	NULL
 #endif
 
 static struct uart_driver sunplus_uart_driver = {
@@ -571,7 +575,7 @@ static struct uart_driver sunplus_uart_driver = {
 	.major		= TTY_MAJOR,
 	.minor		= 64,
 	.nr		= SUP_UART_NR,
-	.cons		= &sunplus_uart_console,
+	.cons		= SERIAL_SUNPLUS_CONSOLE,
 };
 
 static void sunplus_uart_disable_unprepare(void *data)
