@@ -8445,6 +8445,7 @@ static int gfx_v10_0_set_clockgating_state(void *handle,
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		gfx_v10_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE);
 		break;
