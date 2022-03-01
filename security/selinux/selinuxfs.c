@@ -293,6 +293,8 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	 *       kernel releases until eventually it is removed
 	 */
 	pr_err("SELinux:  Runtime disable is deprecated, use selinux=0 on the kernel cmdline.\n");
+	pr_err("SELinux:  https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
+	ssleep(5);
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
