@@ -730,7 +730,6 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path,
 	}
 	dev->bdev = bdev;
 	dev->dev_idx = idx;
-	(void)bdevname(dev->bdev, dev->name);
 
 	dev->capacity = bdev_nr_sectors(bdev);
 	if (ti->begin) {
