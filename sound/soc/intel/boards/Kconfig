@@ -609,6 +609,7 @@ config SND_SOC_INTEL_SOF_RT1308_MACH
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT1308
 	select SND_SOC_DMIC
+	select SND_SOC_INTEL_SOF_REALTEK_COMMON
 	help
 	   This adds support for ASoC machine driver for Tigerlake platforms
 	   with RT1308 I2S audio codec.

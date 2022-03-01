@@ -16,7 +16,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/sof.h>
-#include "../../codecs/rt1308.h"
+#include "sof_realtek_common.h"
 
 #define SOF_RT1308_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_RT1308_SSP_CODEC_MASK			(GENMASK(3, 0))
@@ -38,22 +38,16 @@
 #define SOF_HDMI_CAPTURE_2_SSP(quirk)	\
 	(((quirk) << SOF_HDMI_CAPTURE_2_SSP_SHIFT) & SOF_HDMI_CAPTURE_2_SSP_MASK)
 
+#define SOF_RT1308_SPEAKER_AMP_PRESENT		BIT(13)
+
 /* Default: SSP2  */
 static unsigned long sof_rt1308_quirk = SOF_RT1308_SSP_CODEC(2);
 
 static const struct snd_soc_dapm_widget sof_rt1308_dapm_widgets[] = {
-	SND_SOC_DAPM_SPK("Speakers", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 };
 
-static const struct snd_kcontrol_new sof_rt1308_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Speakers"),
-};
-
 static const struct snd_soc_dapm_route sof_rt1308_dapm_routes[] = {
-	{ "Speakers", NULL, "SPOL" },
-	{ "Speakers", NULL, "SPOR" },
-
 	/* digital mics */
 	{"DMic", NULL, "SoC DMIC"},
 };
@@ -61,8 +55,6 @@ static const struct snd_soc_dapm_route sof_rt1308_dapm_routes[] = {
 static struct snd_soc_card sof_rt1308_card = {
 	.name         = "rt1308",
 	.owner        = THIS_MODULE,
-	.controls = sof_rt1308_controls,
-	.num_controls = ARRAY_SIZE(sof_rt1308_controls),
 	.dapm_widgets = sof_rt1308_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(sof_rt1308_dapm_widgets),
 	.dapm_routes = sof_rt1308_dapm_routes,
@@ -70,48 +62,10 @@ static struct snd_soc_card sof_rt1308_card = {
 	.fully_routed = true,
 };
 
-static int sof_rt1308_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	int clk_id, clk_freq, pll_out;
-	int ret;
-
-	clk_id = RT1308_PLL_S_MCLK;
-	/* get the tplg configured mclk. */
-	clk_freq = sof_dai_get_mclk(rtd);
-
-	pll_out = params_rate(params) * 512;
-
-	/* Set rt1308 pll */
-	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, pll_out);
-	if (ret < 0) {
-		dev_err(card->dev, "Failed to set RT1308 PLL: %d\n", ret);
-		return ret;
-	}
-
-	/* Set rt1308 sysclk */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT1308_FS_SYS_S_PLL, pll_out,
-				     SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		dev_err(card->dev, "Failed to set RT1308 SYSCLK: %d\n", ret);
-
-	return ret;
-}
-
 static struct snd_soc_dai_link_component platform_component[] = {
 	{
 		/* name might be overridden during probe */
 		.name = "0000:00:1f.3"
-	}
-};
-
-static struct snd_soc_dai_link_component rt1308_component[] = {
-	{
-		.name = "i2c-10EC1308:00",
-		.dai_name = "rt1308-aif",
 	}
 };
 
@@ -127,11 +81,6 @@ static struct snd_soc_dai_link_component dummy_component[] = {
 		.name = "snd-soc-dummy",
 		.dai_name = "snd-soc-dummy-dai",
 	}
-};
-
-/* machine stream operations */
-static const struct snd_soc_ops sof_rt1308_ops = {
-	.hw_params = sof_rt1308_hw_params,
 };
 
 static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
@@ -186,11 +135,11 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		return NULL;
 
 	links[id].id = id;
-	links[id].codecs = rt1308_component;
-	links[id].num_codecs = ARRAY_SIZE(rt1308_component);
+	if (sof_rt1308_quirk & SOF_RT1308_SPEAKER_AMP_PRESENT) {
+		sof_rt1308_dai_link(&links[id]);
+	}
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
-	links[id].ops = &sof_rt1308_ops;
 	links[id].dpcm_playback = 1;
 	links[id].no_pcm = 1;
 	links[id].cpus = &cpus[id];
@@ -284,7 +233,8 @@ static const struct platform_device_id board_ids[] = {
 					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(1) |
 					SOF_HDMI_CAPTURE_2_SSP(5) |
-					SOF_SSP_HDMI_CAPTURE_PRESENT),
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_RT1308_SPEAKER_AMP_PRESENT),
 	},
 	{ }
 };
@@ -301,5 +251,7 @@ static struct platform_driver sof_rt1308_driver = {
 module_platform_driver(sof_rt1308_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF + RT1308 Machine driver");
+MODULE_AUTHOR("balamurugan.c <balamurugan.c@intel.com>");
+MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sof_rt1308");
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
