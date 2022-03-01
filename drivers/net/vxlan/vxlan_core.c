@@ -2603,13 +2603,16 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	struct vxlan_metadata *md = &_md;
 	__be16 src_port = 0, dst_port;
 	struct dst_entry *ndst = NULL;
-	__be32 vni, label;
 	__u8 tos, ttl;
 	int ifindex;
 	int err;
 	u32 flags = vxlan->cfg.flags;
 	bool udp_sum = false;
 	bool xnet = !net_eq(vxlan->net, dev_net(vxlan->dev));
+	__be32 vni = 0;
+#if IS_ENABLED(CONFIG_IPV6)
+	__be32 label;
+#endif
 
 	info = skb_tunnel_info(skb);
 
@@ -2647,7 +2650,9 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM_TX);
 		else
 			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
+#if IS_ENABLED(CONFIG_IPV6)
 		label = vxlan->cfg.label;
+#endif
 	} else {
 		if (!info) {
 			WARN_ONCE(1, "%s: Missing encapsulation instructions\n",
@@ -2674,7 +2679,9 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 		ttl = info->key.ttl;
 		tos = info->key.tos;
+#if IS_ENABLED(CONFIG_IPV6)
 		label = info->key.label;
+#endif
 		udp_sum = !!(info->key.tun_flags & TUNNEL_CSUM);
 	}
 	src_port = udp_flow_src_port(dev_net(dev), skb, vxlan->cfg.port_min,
