@@ -171,6 +171,8 @@
 
 			anx7625_in: endpoint {
 				remote-endpoint = <&dsi_out>;
+				bus-type = <5>;
+				data-lanes = <0 1 2 3>;
 			};
 		};
 
