@@ -15,8 +15,8 @@ Linux PECI 子系统
 
 .. toctree::
 
-TODOList
-*   peci
+
+   peci
 
 .. only::  subproject and html
 
