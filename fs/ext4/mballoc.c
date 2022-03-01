@@ -5884,7 +5884,6 @@ static void ext4_free_blocks_simple(struct inode *inode, ext4_fsblk_t block,
  *			Used by ext4_free_blocks()
  * @handle:		handle for this transaction
  * @inode:		inode
- * @bh:			optional buffer of the block to be freed
  * @block:		starting physical block to be freed
  * @count:		number of blocks to be freed
  * @flags:		flags used by ext4_free_blocks
