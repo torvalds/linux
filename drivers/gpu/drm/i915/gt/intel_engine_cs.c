@@ -435,8 +435,10 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 		engine->props.preempt_timeout_ms = 0;
 
 	/* features common between engines sharing EUs */
-	if (engine->class == RENDER_CLASS || engine->class == COMPUTE_CLASS)
+	if (engine->class == RENDER_CLASS || engine->class == COMPUTE_CLASS) {
 		engine->flags |= I915_ENGINE_HAS_RCS_REG_STATE;
+		engine->flags |= I915_ENGINE_HAS_EU_PRIORITY;
+	}
 
 	engine->defaults = engine->props; /* never to change again */
 

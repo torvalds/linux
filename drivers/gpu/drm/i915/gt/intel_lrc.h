@@ -6,6 +6,9 @@
 #ifndef __INTEL_LRC_H__
 #define __INTEL_LRC_H__
 
+#include "i915_priolist_types.h"
+
+#include <linux/bitfield.h>
 #include <linux/types.h>
 
 struct drm_i915_gem_object;
@@ -90,6 +93,10 @@ enum {
 #define GEN8_CTX_L3LLC_COHERENT			(1 << 5)
 #define GEN8_CTX_PRIVILEGE			(1 << 8)
 #define GEN8_CTX_ADDRESSING_MODE_SHIFT		3
+#define GEN12_CTX_PRIORITY_MASK			GENMASK(10, 9)
+#define GEN12_CTX_PRIORITY_HIGH			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 2)
+#define GEN12_CTX_PRIORITY_NORMAL		FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 1)
+#define GEN12_CTX_PRIORITY_LOW			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 0)
 #define GEN8_CTX_ID_SHIFT			32
 #define GEN8_CTX_ID_WIDTH			21
 #define GEN11_SW_CTX_ID_SHIFT			37
@@ -102,5 +109,15 @@ enum {
 #define XEHP_SW_CTX_ID_WIDTH			16
 #define XEHP_SW_COUNTER_SHIFT			58
 #define XEHP_SW_COUNTER_WIDTH			6
+
+static inline u32 lrc_desc_priority(int prio)
+{
+	if (prio > I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_HIGH;
+	else if (prio < I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_LOW;
+	else
+		return GEN12_CTX_PRIORITY_NORMAL;
+}
 
 #endif /* __INTEL_LRC_H__ */
