@@ -62,6 +62,7 @@ properties:
 
   mediatek,pad-select:
     $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
     maxItems: 4
     items:
       enum: [0, 1, 2, 3]
