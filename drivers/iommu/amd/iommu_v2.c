@@ -71,7 +71,6 @@ struct fault {
 	struct pasid_state *state;
 	struct mm_struct *mm;
 	u64 address;
-	u16 devid;
 	u32 pasid;
 	u16 tag;
 	u16 finish;
