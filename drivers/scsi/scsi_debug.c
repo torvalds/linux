@@ -3167,45 +3167,65 @@ static int prot_verify_read(struct scsi_cmnd *scp, sector_t start_sec,
 static inline void
 sdeb_read_lock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock)
-		return;
-	if (sip)
-		read_lock(&sip->macc_lck);
-	else
-		read_lock(&sdeb_fake_rw_lck);
+	if (sdebug_no_rwlock) {
+		if (sip)
+			__acquire(&sip->macc_lck);
+		else
+			__acquire(&sdeb_fake_rw_lck);
+	} else {
+		if (sip)
+			read_lock(&sip->macc_lck);
+		else
+			read_lock(&sdeb_fake_rw_lck);
+	}
 }
 
 static inline void
 sdeb_read_unlock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock)
-		return;
-	if (sip)
-		read_unlock(&sip->macc_lck);
-	else
-		read_unlock(&sdeb_fake_rw_lck);
+	if (sdebug_no_rwlock) {
+		if (sip)
+			__release(&sip->macc_lck);
+		else
+			__release(&sdeb_fake_rw_lck);
+	} else {
+		if (sip)
+			read_unlock(&sip->macc_lck);
+		else
+			read_unlock(&sdeb_fake_rw_lck);
+	}
 }
 
 static inline void
 sdeb_write_lock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock)
-		return;
-	if (sip)
-		write_lock(&sip->macc_lck);
-	else
-		write_lock(&sdeb_fake_rw_lck);
+	if (sdebug_no_rwlock) {
+		if (sip)
+			__acquire(&sip->macc_lck);
+		else
+			__acquire(&sdeb_fake_rw_lck);
+	} else {
+		if (sip)
+			write_lock(&sip->macc_lck);
+		else
+			write_lock(&sdeb_fake_rw_lck);
+	}
 }
 
 static inline void
 sdeb_write_unlock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock)
-		return;
-	if (sip)
-		write_unlock(&sip->macc_lck);
-	else
-		write_unlock(&sdeb_fake_rw_lck);
+	if (sdebug_no_rwlock) {
+		if (sip)
+			__release(&sip->macc_lck);
+		else
+			__release(&sdeb_fake_rw_lck);
+	} else {
+		if (sip)
+			write_unlock(&sip->macc_lck);
+		else
+			write_unlock(&sdeb_fake_rw_lck);
+	}
 }
 
 static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
