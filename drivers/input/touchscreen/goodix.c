@@ -306,23 +306,8 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 	if (!input)
 		return NULL;
 
-	input_alloc_absinfo(input);
-	if (!input->absinfo) {
-		input_free_device(input);
-		return NULL;
-	}
-
-	input->absinfo[ABS_X] = ts->input_dev->absinfo[ABS_MT_POSITION_X];
-	input->absinfo[ABS_Y] = ts->input_dev->absinfo[ABS_MT_POSITION_Y];
-	__set_bit(ABS_X, input->absbit);
-	__set_bit(ABS_Y, input->absbit);
-	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
-
-	input_set_capability(input, EV_KEY, BTN_TOUCH);
-	input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
-	input_set_capability(input, EV_KEY, BTN_STYLUS);
-	input_set_capability(input, EV_KEY, BTN_STYLUS2);
-	__set_bit(INPUT_PROP_DIRECT, input->propbit);
+	input_copy_abs(input, ABS_X, ts->input_dev, ABS_MT_POSITION_X);
+	input_copy_abs(input, ABS_Y, ts->input_dev, ABS_MT_POSITION_Y);
 	/*
 	 * The resolution of these touchscreens is about 10 units/mm, the actual
 	 * resolution does not matter much since we set INPUT_PROP_DIRECT.
@@ -330,6 +315,13 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 	 */
 	input_abs_set_res(input, ABS_X, 10);
 	input_abs_set_res(input, ABS_Y, 10);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
+
+	input_set_capability(input, EV_KEY, BTN_TOUCH);
+	input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+	input_set_capability(input, EV_KEY, BTN_STYLUS);
+	input_set_capability(input, EV_KEY, BTN_STYLUS2);
+	__set_bit(INPUT_PROP_DIRECT, input->propbit);
 
 	input->name = "Goodix Active Pen";
 	input->phys = "input/pen";
