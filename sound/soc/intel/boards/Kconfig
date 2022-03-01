@@ -32,6 +32,9 @@ config SND_SOC_INTEL_HDA_DSP_COMMON
 config SND_SOC_INTEL_SOF_MAXIM_COMMON
 	tristate
 
+config SND_SOC_INTEL_SOF_REALTEK_COMMON
+	tristate
+
 if SND_SOC_INTEL_CATPT
 
 config SND_SOC_INTEL_HASWELL_MACH
@@ -477,6 +480,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_INTEL_SOF_REALTEK_COMMON
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with rt5682 codec.
