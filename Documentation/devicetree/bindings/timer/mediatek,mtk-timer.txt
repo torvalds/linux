@@ -12,6 +12,7 @@ Required properties:
 	For those SoCs that use GPT
 	* "mediatek,mt2701-timer" for MT2701 compatible timers (GPT)
 	* "mediatek,mt6580-timer" for MT6580 compatible timers (GPT)
+	* "mediatek,mt6582-timer" for MT6582 compatible timers (GPT)
 	* "mediatek,mt6589-timer" for MT6589 compatible timers (GPT)
 	* "mediatek,mt7623-timer" for MT7623 compatible timers (GPT)
 	* "mediatek,mt8127-timer" for MT8127 compatible timers (GPT)
