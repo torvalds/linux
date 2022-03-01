@@ -1185,6 +1185,12 @@ unlock:
 }
 EXPORT_SYMBOL(mlx5_lag_get_slave_port);
 
+u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev)
+{
+	return MLX5_MAX_PORTS;
+}
+EXPORT_SYMBOL(mlx5_lag_get_num_ports);
+
 struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_dev *peer_dev = NULL;
