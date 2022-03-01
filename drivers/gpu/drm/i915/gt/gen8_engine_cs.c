@@ -236,7 +236,7 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 	if (mode & EMIT_INVALIDATE) {
 		u32 flags = 0;
-		u32 *cs;
+		u32 *cs, count;
 
 		flags |= PIPE_CONTROL_COMMAND_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -254,7 +254,12 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		if (engine->class == COMPUTE_CLASS)
 			flags &= ~PIPE_CONTROL_3D_FLAGS;
 
-		cs = intel_ring_begin(rq, 8 + 4);
+		if (!HAS_FLAT_CCS(rq->engine->i915))
+			count = 8 + 4;
+		else
+			count = 8;
+
+		cs = intel_ring_begin(rq, count);
 		if (IS_ERR(cs))
 			return PTR_ERR(cs);
 
@@ -267,8 +272,10 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 		cs = gen8_emit_pipe_control(cs, flags, LRC_PPHWSP_SCRATCH_ADDR);
 
-		/* hsdes: 1809175790 */
-		cs = gen12_emit_aux_table_inv(GEN12_GFX_CCS_AUX_NV, cs);
+		if (!HAS_FLAT_CCS(rq->engine->i915)) {
+			/* hsdes: 1809175790 */
+			cs = gen12_emit_aux_table_inv(GEN12_GFX_CCS_AUX_NV, cs);
+		}
 
 		*cs++ = preparser_disable(false);
 		intel_ring_advance(rq, cs);
@@ -283,12 +290,15 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	u32 cmd, *cs;
 
 	cmd = 4;
-	if (mode & EMIT_INVALIDATE)
+	if (mode & EMIT_INVALIDATE) {
 		cmd += 2;
-	if (mode & EMIT_INVALIDATE)
-		aux_inv = rq->engine->mask & ~BIT(BCS0);
-	if (aux_inv)
-		cmd += 2 * hweight32(aux_inv) + 2;
+
+		if (!HAS_FLAT_CCS(rq->engine->i915)) {
+			aux_inv = rq->engine->mask & ~BIT(BCS0);
+			if (aux_inv)
+				cmd += 2 * hweight32(aux_inv) + 2;
+		}
+	}
 
 	cs = intel_ring_begin(rq, cmd);
 	if (IS_ERR(cs))
