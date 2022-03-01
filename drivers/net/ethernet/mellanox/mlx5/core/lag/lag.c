@@ -458,6 +458,7 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 	return 0;
 }
 
+#define MLX5_LAG_OFFLOADS_SUPPORTED_PORTS 2
 static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 {
 #ifdef CONFIG_MLX5_ESWITCH
@@ -469,6 +470,9 @@ static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 
 #ifdef CONFIG_MLX5_ESWITCH
 	mode = mlx5_eswitch_mode(ldev->pf[MLX5_LAG_P1].dev);
+
+	if (mode == MLX5_ESWITCH_OFFLOADS && ldev->ports != MLX5_LAG_OFFLOADS_SUPPORTED_PORTS)
+		return false;
 
 	return (mode == MLX5_ESWITCH_NONE || mode == MLX5_ESWITCH_OFFLOADS) &&
 		(mlx5_eswitch_mode(ldev->pf[MLX5_LAG_P1].dev) ==
