@@ -23,9 +23,12 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq);
 /*
  * io.c
  */
-extern unsigned int netfs_debug;
-
 int netfs_begin_read(struct netfs_io_request *rreq, bool sync);
+
+/*
+ * main.c
+ */
+extern unsigned int netfs_debug;
 
 /*
  * objects.c
