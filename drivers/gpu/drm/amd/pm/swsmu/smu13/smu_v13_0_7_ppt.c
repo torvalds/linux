@@ -457,6 +457,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.system_features_control = smu_v13_0_system_features_control,
 	.set_allowed_mask = smu_v13_0_set_allowed_mask,
+	.get_enabled_mask = smu_cmn_get_enabled_mask,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
