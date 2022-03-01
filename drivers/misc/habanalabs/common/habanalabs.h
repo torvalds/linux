@@ -394,18 +394,8 @@ enum hl_device_hw_state {
  * struct hl_mmu_properties - ASIC specific MMU address translation properties.
  * @start_addr: virtual start address of the memory region.
  * @end_addr: virtual end address of the memory region.
- * @hop0_shift: shift of hop 0 mask.
- * @hop1_shift: shift of hop 1 mask.
- * @hop2_shift: shift of hop 2 mask.
- * @hop3_shift: shift of hop 3 mask.
- * @hop4_shift: shift of hop 4 mask.
- * @hop5_shift: shift of hop 5 mask.
- * @hop0_mask: mask to get the PTE address in hop 0.
- * @hop1_mask: mask to get the PTE address in hop 1.
- * @hop2_mask: mask to get the PTE address in hop 2.
- * @hop3_mask: mask to get the PTE address in hop 3.
- * @hop4_mask: mask to get the PTE address in hop 4.
- * @hop5_mask: mask to get the PTE address in hop 5.
+ * @hop_shifts: array holds HOPs shifts.
+ * @hop_masks: array holds HOPs masks.
  * @last_mask: mask to get the bit indicating this is the last hop.
  * @pgt_size: size for page tables.
  * @page_size: default page size used to allocate memory.
@@ -418,18 +408,8 @@ enum hl_device_hw_state {
 struct hl_mmu_properties {
 	u64	start_addr;
 	u64	end_addr;
-	u64	hop0_shift;
-	u64	hop1_shift;
-	u64	hop2_shift;
-	u64	hop3_shift;
-	u64	hop4_shift;
-	u64	hop5_shift;
-	u64	hop0_mask;
-	u64	hop1_mask;
-	u64	hop2_mask;
-	u64	hop3_mask;
-	u64	hop4_mask;
-	u64	hop5_mask;
+	u64	hop_shifts[MMU_HOP_MAX];
+	u64	hop_masks[MMU_HOP_MAX];
 	u64	last_mask;
 	u64	pgt_size;
 	u32	page_size;

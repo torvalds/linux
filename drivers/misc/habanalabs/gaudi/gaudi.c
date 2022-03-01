@@ -598,16 +598,16 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->device_mem_alloc_default_page_size = prop->dram_page_size;
 	prop->dram_supports_virtual_memory = false;
 
-	prop->pmmu.hop0_shift = MMU_V1_1_HOP0_SHIFT;
-	prop->pmmu.hop1_shift = MMU_V1_1_HOP1_SHIFT;
-	prop->pmmu.hop2_shift = MMU_V1_1_HOP2_SHIFT;
-	prop->pmmu.hop3_shift = MMU_V1_1_HOP3_SHIFT;
-	prop->pmmu.hop4_shift = MMU_V1_1_HOP4_SHIFT;
-	prop->pmmu.hop0_mask = MMU_V1_1_HOP0_MASK;
-	prop->pmmu.hop1_mask = MMU_V1_1_HOP1_MASK;
-	prop->pmmu.hop2_mask = MMU_V1_1_HOP2_MASK;
-	prop->pmmu.hop3_mask = MMU_V1_1_HOP3_MASK;
-	prop->pmmu.hop4_mask = MMU_V1_1_HOP4_MASK;
+	prop->pmmu.hop_shifts[MMU_HOP0] = MMU_V1_1_HOP0_SHIFT;
+	prop->pmmu.hop_shifts[MMU_HOP1] = MMU_V1_1_HOP1_SHIFT;
+	prop->pmmu.hop_shifts[MMU_HOP2] = MMU_V1_1_HOP2_SHIFT;
+	prop->pmmu.hop_shifts[MMU_HOP3] = MMU_V1_1_HOP3_SHIFT;
+	prop->pmmu.hop_shifts[MMU_HOP4] = MMU_V1_1_HOP4_SHIFT;
+	prop->pmmu.hop_masks[MMU_HOP0] = MMU_V1_1_HOP0_MASK;
+	prop->pmmu.hop_masks[MMU_HOP1] = MMU_V1_1_HOP1_MASK;
+	prop->pmmu.hop_masks[MMU_HOP2] = MMU_V1_1_HOP2_MASK;
+	prop->pmmu.hop_masks[MMU_HOP3] = MMU_V1_1_HOP3_MASK;
+	prop->pmmu.hop_masks[MMU_HOP4] = MMU_V1_1_HOP4_MASK;
 	prop->pmmu.start_addr = VA_HOST_SPACE_START;
 	prop->pmmu.end_addr =
 			(VA_HOST_SPACE_START + VA_HOST_SPACE_SIZE / 2) - 1;

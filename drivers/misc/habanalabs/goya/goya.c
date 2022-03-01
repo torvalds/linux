@@ -416,16 +416,16 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->device_mem_alloc_default_page_size = prop->dram_page_size;
 	prop->dram_supports_virtual_memory = true;
 
-	prop->dmmu.hop0_shift = MMU_V1_0_HOP0_SHIFT;
-	prop->dmmu.hop1_shift = MMU_V1_0_HOP1_SHIFT;
-	prop->dmmu.hop2_shift = MMU_V1_0_HOP2_SHIFT;
-	prop->dmmu.hop3_shift = MMU_V1_0_HOP3_SHIFT;
-	prop->dmmu.hop4_shift = MMU_V1_0_HOP4_SHIFT;
-	prop->dmmu.hop0_mask = MMU_V1_0_HOP0_MASK;
-	prop->dmmu.hop1_mask = MMU_V1_0_HOP1_MASK;
-	prop->dmmu.hop2_mask = MMU_V1_0_HOP2_MASK;
-	prop->dmmu.hop3_mask = MMU_V1_0_HOP3_MASK;
-	prop->dmmu.hop4_mask = MMU_V1_0_HOP4_MASK;
+	prop->dmmu.hop_shifts[MMU_HOP0] = MMU_V1_0_HOP0_SHIFT;
+	prop->dmmu.hop_shifts[MMU_HOP1] = MMU_V1_0_HOP1_SHIFT;
+	prop->dmmu.hop_shifts[MMU_HOP2] = MMU_V1_0_HOP2_SHIFT;
+	prop->dmmu.hop_shifts[MMU_HOP3] = MMU_V1_0_HOP3_SHIFT;
+	prop->dmmu.hop_shifts[MMU_HOP4] = MMU_V1_0_HOP4_SHIFT;
+	prop->dmmu.hop_masks[MMU_HOP0] = MMU_V1_0_HOP0_MASK;
+	prop->dmmu.hop_masks[MMU_HOP1] = MMU_V1_0_HOP1_MASK;
+	prop->dmmu.hop_masks[MMU_HOP2] = MMU_V1_0_HOP2_MASK;
+	prop->dmmu.hop_masks[MMU_HOP3] = MMU_V1_0_HOP3_MASK;
+	prop->dmmu.hop_masks[MMU_HOP4] = MMU_V1_0_HOP4_MASK;
 	prop->dmmu.start_addr = VA_DDR_SPACE_START;
 	prop->dmmu.end_addr = VA_DDR_SPACE_END;
 	prop->dmmu.page_size = PAGE_SIZE_2MB;

@@ -181,40 +181,40 @@ static inline u64 get_hop0_pte_addr(struct hl_ctx *ctx,
 					struct hl_mmu_properties *mmu_prop,
 					u64 hop_addr, u64 vaddr)
 {
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop0_mask,
-					mmu_prop->hop0_shift);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop_masks[MMU_HOP0],
+					mmu_prop->hop_shifts[MMU_HOP0]);
 }
 
 static inline u64 get_hop1_pte_addr(struct hl_ctx *ctx,
 					struct hl_mmu_properties *mmu_prop,
 					u64 hop_addr, u64 vaddr)
 {
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop1_mask,
-					mmu_prop->hop1_shift);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop_masks[MMU_HOP1],
+					mmu_prop->hop_shifts[MMU_HOP1]);
 }
 
 static inline u64 get_hop2_pte_addr(struct hl_ctx *ctx,
 					struct hl_mmu_properties *mmu_prop,
 					u64 hop_addr, u64 vaddr)
 {
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop2_mask,
-					mmu_prop->hop2_shift);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop_masks[MMU_HOP2],
+					mmu_prop->hop_shifts[MMU_HOP2]);
 }
 
 static inline u64 get_hop3_pte_addr(struct hl_ctx *ctx,
 					struct hl_mmu_properties *mmu_prop,
 					u64 hop_addr, u64 vaddr)
 {
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop3_mask,
-					mmu_prop->hop3_shift);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop_masks[MMU_HOP3],
+					mmu_prop->hop_shifts[MMU_HOP3]);
 }
 
 static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
 					struct hl_mmu_properties *mmu_prop,
 					u64 hop_addr, u64 vaddr)
 {
-	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop4_mask,
-					mmu_prop->hop4_shift);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_prop->hop_masks[MMU_HOP4],
+					mmu_prop->hop_shifts[MMU_HOP4]);
 }
 
 static inline u64 get_alloc_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte,

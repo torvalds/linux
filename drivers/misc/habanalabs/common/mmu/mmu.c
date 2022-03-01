@@ -489,11 +489,9 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 						struct hl_mmu_hop_info *hops,
 						u64 *phys_addr)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct asic_fixed_properties *prop = &ctx->hdev->asic_prop;
 	u64 offset_mask, addr_mask, hop_shift, tmp_phys_addr;
-	u32 hop0_shift_off;
-	void *p;
+	struct hl_mmu_properties *mmu_prop;
 
 	/* last hop holds the phys address and flags */
 	if (hops->unscrambled_paddr)
@@ -502,11 +500,11 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		tmp_phys_addr = hops->hop_info[hops->used_hops - 1].hop_pte_val;
 
 	if (hops->range_type == HL_VA_RANGE_TYPE_HOST_HUGE)
-		p = &prop->pmmu_huge;
+		mmu_prop = &prop->pmmu_huge;
 	else if (hops->range_type == HL_VA_RANGE_TYPE_HOST)
-		p = &prop->pmmu;
+		mmu_prop = &prop->pmmu;
 	else /* HL_VA_RANGE_TYPE_DRAM */
-		p = &prop->dmmu;
+		mmu_prop = &prop->dmmu;
 
 	if ((hops->range_type == HL_VA_RANGE_TYPE_DRAM) &&
 			!is_power_of_2(prop->dram_page_size)) {
@@ -535,10 +533,7 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		 * structure in order to determine the right masks
 		 * for the page offset.
 		 */
-		hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
-		p = (char *)p + hop0_shift_off;
-		p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
-		hop_shift = *(u64 *)p;
+		hop_shift = mmu_prop->hop_shifts[hops->used_hops - 1];
 		offset_mask = (1ull << hop_shift) - 1;
 		addr_mask = ~(offset_mask);
 		*phys_addr = (tmp_phys_addr & addr_mask) |
@@ -694,33 +689,8 @@ u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *m
 		return U64_MAX;
 	}
 
-	/* currently max number of HOPs is 6 */
-	switch (hop_idx) {
-	case 0:
-		mask = mmu_prop->hop0_mask;
-		shift = mmu_prop->hop0_shift;
-		break;
-	case 1:
-		mask = mmu_prop->hop1_mask;
-		shift = mmu_prop->hop1_shift;
-		break;
-	case 2:
-		mask = mmu_prop->hop2_mask;
-		shift = mmu_prop->hop2_shift;
-		break;
-	case 3:
-		mask = mmu_prop->hop3_mask;
-		shift = mmu_prop->hop3_shift;
-		break;
-	case 4:
-		mask = mmu_prop->hop4_mask;
-		shift = mmu_prop->hop4_shift;
-		break;
-	default:
-		mask = mmu_prop->hop5_mask;
-		shift = mmu_prop->hop5_shift;
-		break;
-	}
+	shift = mmu_prop->hop_shifts[hop_idx];
+	mask = mmu_prop->hop_masks[hop_idx];
 
 	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size * ((virt_addr & mask) >> shift);
 }
