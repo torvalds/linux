@@ -899,10 +899,8 @@ retain:
 	if (m->hw_handler_name) {
 		r = scsi_dh_attach(q, m->hw_handler_name);
 		if (r == -EBUSY) {
-			char b[BDEVNAME_SIZE];
-
-			printk(KERN_INFO "dm-mpath: retaining handler on device %s\n",
-			       bdevname(bdev, b));
+			printk(KERN_INFO "dm-mpath: retaining handler on device %pg\n",
+			       bdev);
 			goto retain;
 		}
 		if (r < 0) {
