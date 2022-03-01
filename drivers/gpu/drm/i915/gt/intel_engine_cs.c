@@ -341,6 +341,10 @@ static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
 			[VECS1] = GEN11_GRDOM_VECS2,
 			[VECS2] = GEN11_GRDOM_VECS3,
 			[VECS3] = GEN11_GRDOM_VECS4,
+			[CCS0]  = GEN11_GRDOM_RENDER,
+			[CCS1]  = GEN11_GRDOM_RENDER,
+			[CCS2]  = GEN11_GRDOM_RENDER,
+			[CCS3]  = GEN11_GRDOM_RENDER,
 		};
 		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
 			   !engine_reset_domains[id]);
