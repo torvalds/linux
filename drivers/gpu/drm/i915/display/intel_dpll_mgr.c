@@ -835,7 +835,7 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 {
 	u64 freq2k;
 	unsigned p, n2, r2;
-	struct hsw_wrpll_rnp best = { 0, 0, 0 };
+	struct hsw_wrpll_rnp best = {};
 	unsigned budget;
 
 	freq2k = clock / 100;
@@ -1570,8 +1570,8 @@ skip_remaining_dividers:
 static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct skl_wrpll_params wrpll_params = {};
 	u32 ctrl1, cfgcr1, cfgcr2;
-	struct skl_wrpll_params wrpll_params = { 0, };
 
 	/*
 	 * See comment in intel_dpll_hw_state to understand why we always use 0
@@ -2098,13 +2098,13 @@ struct bxt_clk_div {
 
 /* pre-calculated values for DP linkrates */
 static const struct bxt_clk_div bxt_dp_clk_val[] = {
-	{162000, 4, 2, 32, 1677722, 1, 1},
-	{270000, 4, 1, 27,       0, 0, 1},
-	{540000, 2, 1, 27,       0, 0, 1},
-	{216000, 3, 2, 32, 1677722, 1, 1},
-	{243000, 4, 1, 24, 1258291, 1, 1},
-	{324000, 4, 1, 32, 1677722, 1, 1},
-	{432000, 3, 1, 32, 1677722, 1, 1}
+	{ 162000, 4, 2, 32, 1677722, 1, 1 },
+	{ 270000, 4, 1, 27,       0, 0, 1 },
+	{ 540000, 2, 1, 27,       0, 0, 1 },
+	{ 216000, 3, 2, 32, 1677722, 1, 1 },
+	{ 243000, 4, 1, 24, 1258291, 1, 1 },
+	{ 324000, 4, 1, 32, 1677722, 1, 1 },
+	{ 432000, 3, 1, 32, 1677722, 1, 1 }
 };
 
 static bool
