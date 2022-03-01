@@ -1140,6 +1140,8 @@ void add_bootloader_randomness(const void *buf, size_t size)
 EXPORT_SYMBOL_GPL(add_bootloader_randomness);
 
 #if IS_ENABLED(CONFIG_VMGENID)
+static BLOCKING_NOTIFIER_HEAD(vmfork_chain);
+
 /*
  * Handle a new unique VM ID, which is unique, not secret, so we
  * don't credit it, but we do immediately force a reseed after so
@@ -1152,10 +1154,23 @@ void add_vmfork_randomness(const void *unique_vm_id, size_t size)
 		crng_reseed(true);
 		pr_notice("crng reseeded due to virtual machine fork\n");
 	}
+	blocking_notifier_call_chain(&vmfork_chain, 0, NULL);
 }
 #if IS_MODULE(CONFIG_VMGENID)
 EXPORT_SYMBOL_GPL(add_vmfork_randomness);
 #endif
+
+int register_random_vmfork_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&vmfork_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_random_vmfork_notifier);
+
+int unregister_random_vmfork_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&vmfork_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_random_vmfork_notifier);
 #endif
 
 struct fast_pool {
