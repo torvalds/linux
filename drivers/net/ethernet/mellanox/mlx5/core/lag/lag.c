@@ -310,17 +310,41 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 		mlx5_lag_drop_rule_setup(ldev, tracker);
 }
 
-static void mlx5_lag_set_port_sel_mode(struct mlx5_lag *ldev,
-				       struct lag_tracker *tracker, u8 *flags)
+#define MLX5_LAG_ROCE_HASH_PORTS_SUPPORTED 4
+static int mlx5_lag_set_port_sel_mode_roce(struct mlx5_lag *ldev,
+					   struct lag_tracker *tracker, u8 *flags)
 {
-	bool roce_lag = !!(*flags & MLX5_LAG_FLAG_ROCE);
 	struct lag_func *dev0 = &ldev->pf[MLX5_LAG_P1];
 
-	if (roce_lag ||
-	    !MLX5_CAP_PORT_SELECTION(dev0->dev, port_select_flow_table) ||
-	    tracker->tx_type != NETDEV_LAG_TX_TYPE_HASH)
-		return;
-	*flags |= MLX5_LAG_FLAG_HASH_BASED;
+	if (ldev->ports == MLX5_LAG_ROCE_HASH_PORTS_SUPPORTED) {
+		/* Four ports are support only in hash mode */
+		if (!MLX5_CAP_PORT_SELECTION(dev0->dev, port_select_flow_table))
+			return -EINVAL;
+		*flags |= MLX5_LAG_FLAG_HASH_BASED;
+	}
+
+	return 0;
+}
+
+static int mlx5_lag_set_port_sel_mode_offloads(struct mlx5_lag *ldev,
+					       struct lag_tracker *tracker, u8 *flags)
+{
+	struct lag_func *dev0 = &ldev->pf[MLX5_LAG_P1];
+
+	if (MLX5_CAP_PORT_SELECTION(dev0->dev, port_select_flow_table) &&
+	    tracker->tx_type == NETDEV_LAG_TX_TYPE_HASH)
+		*flags |= MLX5_LAG_FLAG_HASH_BASED;
+	return 0;
+}
+
+static int mlx5_lag_set_port_sel_mode(struct mlx5_lag *ldev,
+				      struct lag_tracker *tracker, u8 *flags)
+{
+	bool roce_lag = !!(*flags & MLX5_LAG_FLAG_ROCE);
+
+	if (roce_lag)
+		return mlx5_lag_set_port_sel_mode_roce(ldev, tracker, flags);
+	return mlx5_lag_set_port_sel_mode_offloads(ldev, tracker, flags);
 }
 
 static char *get_str_port_sel_mode(u8 flags)
@@ -382,7 +406,10 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 
 	mlx5_infer_tx_affinity_mapping(tracker, &ldev->v2p_map[MLX5_LAG_P1],
 				       &ldev->v2p_map[MLX5_LAG_P2]);
-	mlx5_lag_set_port_sel_mode(ldev, tracker, &flags);
+	err = mlx5_lag_set_port_sel_mode(ldev, tracker, &flags);
+	if (err)
+		return err;
+
 	if (flags & MLX5_LAG_FLAG_HASH_BASED) {
 		err = mlx5_lag_port_sel_create(ldev, tracker->hash_type,
 					       ldev->v2p_map[MLX5_LAG_P1],
