@@ -315,7 +315,8 @@ struct sc16is7xx_devtype {
 
 struct sc16is7xx_one_config {
 	unsigned int			flags;
-	u8				ier_clear;
+	u8				ier_mask;
+	u8				ier_val;
 };
 
 struct sc16is7xx_one {
@@ -348,6 +349,9 @@ static struct uart_driver sc16is7xx_uart = {
 	.dev_name	= "ttySC",
 	.nr		= SC16IS7XX_MAX_DEVS,
 };
+
+static void sc16is7xx_ier_set(struct uart_port *port, u8 bit);
+static void sc16is7xx_stop_tx(struct uart_port *port);
 
 #define to_sc16is7xx_port(p,e)	((container_of((p), struct sc16is7xx_port, e)))
 #define to_sc16is7xx_one(p,e)	((container_of((p), struct sc16is7xx_one, e)))
@@ -651,6 +655,7 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int txlen, to_send, i;
+	unsigned long flags;
 
 	if (unlikely(port->x_char)) {
 		sc16is7xx_port_write(port, SC16IS7XX_THR_REG, port->x_char);
@@ -659,8 +664,12 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
+	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+		spin_lock_irqsave(&port->lock, flags);
+		sc16is7xx_stop_tx(port);
+		spin_unlock_irqrestore(&port->lock, flags);
 		return;
+	}
 
 	/* Get length of data pending in circular buffer */
 	to_send = uart_circ_chars_pending(xmit);
@@ -687,8 +696,13 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 		sc16is7xx_fifo_write(port, to_send);
 	}
 
+	spin_lock_irqsave(&port->lock, flags);
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
+
+	if (uart_circ_empty(xmit))
+		sc16is7xx_stop_tx(port);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
@@ -751,6 +765,7 @@ static void sc16is7xx_tx_proc(struct kthread_work *ws)
 {
 	struct uart_port *port = &(to_sc16is7xx_one(ws, tx_work)->port);
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	unsigned long flags;
 
 	if ((port->rs485.flags & SER_RS485_ENABLED) &&
 	    (port->rs485.delay_rts_before_send > 0))
@@ -759,6 +774,10 @@ static void sc16is7xx_tx_proc(struct kthread_work *ws)
 	mutex_lock(&s->efr_lock);
 	sc16is7xx_handle_tx(port);
 	mutex_unlock(&s->efr_lock);
+
+	spin_lock_irqsave(&port->lock, flags);
+	sc16is7xx_ier_set(port, SC16IS7XX_IER_THRI_BIT);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void sc16is7xx_reconf_rs485(struct uart_port *port)
@@ -813,7 +832,7 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 
 	if (config.flags & SC16IS7XX_RECONF_IER)
 		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
-				      config.ier_clear, 0);
+				      config.ier_mask, config.ier_val);
 
 	if (config.flags & SC16IS7XX_RECONF_RS485)
 		sc16is7xx_reconf_rs485(&one->port);
@@ -824,8 +843,24 @@ static void sc16is7xx_ier_clear(struct uart_port *port, u8 bit)
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
+	lockdep_assert_held_once(&port->lock);
+
 	one->config.flags |= SC16IS7XX_RECONF_IER;
-	one->config.ier_clear |= bit;
+	one->config.ier_mask |= bit;
+	one->config.ier_val &= ~bit;
+	kthread_queue_work(&s->kworker, &one->reg_work);
+}
+
+static void sc16is7xx_ier_set(struct uart_port *port, u8 bit)
+{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	lockdep_assert_held_once(&port->lock);
+
+	one->config.flags |= SC16IS7XX_RECONF_IER;
+	one->config.ier_mask |= bit;
+	one->config.ier_val |= bit;
 	kthread_queue_work(&s->kworker, &one->reg_work);
 }
 
@@ -1067,8 +1102,8 @@ static int sc16is7xx_startup(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT,
 			      0);
 
-	/* Enable RX, TX interrupts */
-	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_THRI_BIT;
+	/* Enable RX interrupt */
+	val = SC16IS7XX_IER_RDI_BIT;
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, val);
 
 	return 0;
