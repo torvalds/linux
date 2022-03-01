@@ -216,6 +216,30 @@ DEFINE_EVENT(ice_xmit_template, name, \
 DEFINE_XMIT_TEMPLATE_OP_EVENT(ice_xmit_frame_ring);
 DEFINE_XMIT_TEMPLATE_OP_EVENT(ice_xmit_frame_ring_drop);
 
+DECLARE_EVENT_CLASS(ice_tx_tstamp_template,
+		    TP_PROTO(struct sk_buff *skb, int idx),
+
+		    TP_ARGS(skb, idx),
+
+		    TP_STRUCT__entry(__field(void *, skb)
+				     __field(int, idx)),
+
+		    TP_fast_assign(__entry->skb = skb;
+				   __entry->idx = idx;),
+
+		    TP_printk("skb %pK idx %d",
+			      __entry->skb, __entry->idx)
+);
+#define DEFINE_TX_TSTAMP_OP_EVENT(name) \
+DEFINE_EVENT(ice_tx_tstamp_template, name, \
+	     TP_PROTO(struct sk_buff *skb, int idx), \
+	     TP_ARGS(skb, idx))
+
+DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_request);
+DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_req);
+DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_done);
+DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_complete);
+
 /* End tracepoints */
 
 #endif /* _ICE_TRACE_H_ */
