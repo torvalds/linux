@@ -12,7 +12,8 @@ enum {
 
 static struct mlx5_flow_group *
 mlx5_create_hash_flow_group(struct mlx5_flow_table *ft,
-			    struct mlx5_flow_definer *definer)
+			    struct mlx5_flow_definer *definer,
+			    u8 ports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *fg;
@@ -25,7 +26,7 @@ mlx5_create_hash_flow_group(struct mlx5_flow_table *ft,
 	MLX5_SET(create_flow_group_in, in, match_definer_id,
 		 mlx5_get_match_definer_id(definer));
 	MLX5_SET(create_flow_group_in, in, start_flow_index, 0);
-	MLX5_SET(create_flow_group_in, in, end_flow_index, MLX5_MAX_PORTS - 1);
+	MLX5_SET(create_flow_group_in, in, end_flow_index, ports - 1);
 	MLX5_SET(create_flow_group_in, in, group_type,
 		 MLX5_CREATE_FLOW_GROUP_IN_GROUP_TYPE_HASH_SPLIT);
 
@@ -36,7 +37,7 @@ mlx5_create_hash_flow_group(struct mlx5_flow_table *ft,
 
 static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 					  struct mlx5_lag_definer *lag_definer,
-					  u8 port1, u8 port2)
+					  u8 *ports)
 {
 	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_flow_table_attr ft_attr = {};
@@ -45,7 +46,7 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 	struct mlx5_flow_namespace *ns;
 	int err, i;
 
-	ft_attr.max_fte = MLX5_MAX_PORTS;
+	ft_attr.max_fte = ldev->ports;
 	ft_attr.level = MLX5_LAG_FT_LEVEL_DEFINER;
 
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_PORT_SEL);
@@ -61,7 +62,8 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 	}
 
 	lag_definer->fg = mlx5_create_hash_flow_group(lag_definer->ft,
-						      lag_definer->definer);
+						      lag_definer->definer,
+						      ldev->ports);
 	if (IS_ERR(lag_definer->fg)) {
 		err = PTR_ERR(lag_definer->fg);
 		goto destroy_ft;
@@ -70,8 +72,8 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_UPLINK;
 	dest.vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	for (i = 0; i < MLX5_MAX_PORTS; i++) {
-		u8 affinity = i == 0 ? port1 : port2;
+	for (i = 0; i < ldev->ports; i++) {
+		u8 affinity = ports[i];
 
 		dest.vport.vhca_id = MLX5_CAP_GEN(ldev->pf[affinity - 1].dev,
 						  vhca_id);
@@ -279,8 +281,7 @@ static int mlx5_lag_set_definer(u32 *match_definer_mask,
 
 static struct mlx5_lag_definer *
 mlx5_lag_create_definer(struct mlx5_lag *ldev, enum netdev_lag_hash hash,
-			enum mlx5_traffic_types tt, bool tunnel, u8 port1,
-			u8 port2)
+			enum mlx5_traffic_types tt, bool tunnel, u8 *ports)
 {
 	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_lag_definer *lag_definer;
@@ -308,7 +309,7 @@ mlx5_lag_create_definer(struct mlx5_lag *ldev, enum netdev_lag_hash hash,
 		goto free_mask;
 	}
 
-	err = mlx5_lag_create_port_sel_table(ldev, lag_definer, port1, port2);
+	err = mlx5_lag_create_port_sel_table(ldev, lag_definer, ports);
 	if (err)
 		goto destroy_match_definer;
 
@@ -331,7 +332,7 @@ static void mlx5_lag_destroy_definer(struct mlx5_lag *ldev,
 	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	int i;
 
-	for (i = 0; i < MLX5_MAX_PORTS; i++)
+	for (i = 0; i < ldev->ports; i++)
 		mlx5_del_flow_rules(lag_definer->rules[i]);
 	mlx5_destroy_flow_group(lag_definer->fg);
 	mlx5_destroy_flow_table(lag_definer->ft);
@@ -356,7 +357,7 @@ static void mlx5_lag_destroy_definers(struct mlx5_lag *ldev)
 
 static int mlx5_lag_create_definers(struct mlx5_lag *ldev,
 				    enum netdev_lag_hash hash_type,
-				    u8 port1, u8 port2)
+				    u8 *ports)
 {
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	struct mlx5_lag_definer *lag_definer;
@@ -364,7 +365,7 @@ static int mlx5_lag_create_definers(struct mlx5_lag *ldev,
 
 	for_each_set_bit(tt, port_sel->tt_map, MLX5_NUM_TT) {
 		lag_definer = mlx5_lag_create_definer(ldev, hash_type, tt,
-						      false, port1, port2);
+						      false, ports);
 		if (IS_ERR(lag_definer)) {
 			err = PTR_ERR(lag_definer);
 			goto destroy_definers;
@@ -376,7 +377,7 @@ static int mlx5_lag_create_definers(struct mlx5_lag *ldev,
 
 		lag_definer =
 			mlx5_lag_create_definer(ldev, hash_type, tt,
-						true, port1, port2);
+						true, ports);
 		if (IS_ERR(lag_definer)) {
 			err = PTR_ERR(lag_definer);
 			goto destroy_definers;
@@ -513,13 +514,13 @@ static int mlx5_lag_create_inner_ttc_table(struct mlx5_lag *ldev)
 }
 
 int mlx5_lag_port_sel_create(struct mlx5_lag *ldev,
-			     enum netdev_lag_hash hash_type, u8 port1, u8 port2)
+			     enum netdev_lag_hash hash_type, u8 *ports)
 {
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	int err;
 
 	set_tt_map(port_sel, hash_type);
-	err = mlx5_lag_create_definers(ldev, hash_type, port1, port2);
+	err = mlx5_lag_create_definers(ldev, hash_type, ports);
 	if (err)
 		return err;
 
@@ -546,12 +547,13 @@ destroy_definers:
 static int
 mlx5_lag_modify_definers_destinations(struct mlx5_lag *ldev,
 				      struct mlx5_lag_definer **definers,
-				      u8 port1, u8 port2)
+				      u8 *ports)
 {
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	struct mlx5_flow_destination dest = {};
 	int err;
 	int tt;
+	int i;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_UPLINK;
 	dest.vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
@@ -559,19 +561,13 @@ mlx5_lag_modify_definers_destinations(struct mlx5_lag *ldev,
 	for_each_set_bit(tt, port_sel->tt_map, MLX5_NUM_TT) {
 		struct mlx5_flow_handle **rules = definers[tt]->rules;
 
-		if (ldev->v2p_map[MLX5_LAG_P1] != port1) {
+		for (i = 0; i < ldev->ports; i++) {
+			if (ldev->v2p_map[i] == ports[i])
+				continue;
 			dest.vport.vhca_id =
-				MLX5_CAP_GEN(ldev->pf[port1 - 1].dev, vhca_id);
-			err = mlx5_modify_rule_destination(rules[MLX5_LAG_P1],
-							   &dest, NULL);
-			if (err)
-				return err;
-		}
-
-		if (ldev->v2p_map[MLX5_LAG_P2] != port2) {
-			dest.vport.vhca_id =
-				MLX5_CAP_GEN(ldev->pf[port2 - 1].dev, vhca_id);
-			err = mlx5_modify_rule_destination(rules[MLX5_LAG_P2],
+				MLX5_CAP_GEN(ldev->pf[ports[i] - 1].dev,
+					     vhca_id);
+			err = mlx5_modify_rule_destination(rules[i],
 							   &dest, NULL);
 			if (err)
 				return err;
@@ -581,14 +577,14 @@ mlx5_lag_modify_definers_destinations(struct mlx5_lag *ldev,
 	return 0;
 }
 
-int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 port1, u8 port2)
+int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 *ports)
 {
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	int err;
 
 	err = mlx5_lag_modify_definers_destinations(ldev,
 						    port_sel->outer.definers,
-						    port1, port2);
+						    ports);
 	if (err)
 		return err;
 
@@ -597,7 +593,7 @@ int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 port1, u8 port2)
 
 	return mlx5_lag_modify_definers_destinations(ldev,
 						     port_sel->inner.definers,
-						     port1, port2);
+						     ports);
 }
 
 void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev)
