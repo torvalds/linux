@@ -731,3 +731,67 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
 
 	return fw_reserved_fb_size;
 }
+
+/*
+ * Helper function to execute asic_init table
+ *
+ * @adev: amdgpu_device pointer
+ * @fb_reset: flag to indicate whether fb is reset or not
+ *
+ * Return 0 if succeed, otherwise failed
+ */
+int amdgpu_atomfirmware_asic_init(struct amdgpu_device *adev, bool fb_reset)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	struct atom_context *ctx;
+	uint8_t frev, crev;
+	uint16_t data_offset;
+	uint32_t bootup_sclk_in10khz, bootup_mclk_in10khz;
+	struct asic_init_ps_allocation_v2_1 asic_init_ps_v2_1;
+	int index;
+
+	if (!mode_info)
+		return -EINVAL;
+
+	ctx = mode_info->atom_context;
+	if (!ctx)
+		return -EINVAL;
+
+	/* query bootup sclk/mclk from firmware_info table */
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    firmwareinfo);
+	if (amdgpu_atom_parse_data_header(ctx, index, NULL,
+				&frev, &crev, &data_offset)) {
+		union firmware_info *firmware_info =
+			(union firmware_info *)(ctx->bios +
+						data_offset);
+
+		bootup_sclk_in10khz =
+			le32_to_cpu(firmware_info->v31.bootup_sclk_in10khz);
+		bootup_mclk_in10khz =
+			le32_to_cpu(firmware_info->v31.bootup_mclk_in10khz);
+	} else {
+		return -EINVAL;
+	}
+
+	index = get_index_into_master_table(atom_master_list_of_command_functions_v2_1,
+                                            asic_init);
+	if (amdgpu_atom_parse_cmd_header(mode_info->atom_context, index, &frev, &crev)) {
+		if (frev == 2 && crev >= 1) {
+			memset(&asic_init_ps_v2_1, 0, sizeof(asic_init_ps_v2_1));
+			asic_init_ps_v2_1.param.engineparam.sclkfreqin10khz = bootup_sclk_in10khz;
+			asic_init_ps_v2_1.param.memparam.mclkfreqin10khz = bootup_mclk_in10khz;
+			asic_init_ps_v2_1.param.engineparam.engineflag = b3NORMAL_ENGINE_INIT;
+			if (!fb_reset)
+				asic_init_ps_v2_1.param.memparam.memflag = b3DRAM_SELF_REFRESH_EXIT;
+			else
+				asic_init_ps_v2_1.param.memparam.memflag = 0;
+		} else {
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1);
+}
