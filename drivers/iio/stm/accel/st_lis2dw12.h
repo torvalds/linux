@@ -17,6 +17,7 @@
 
 #define ST_LIS2DW12_DEV_NAME		"lis2dw12"
 #define ST_IIS2DLPC_DEV_NAME		"iis2dlpc"
+#define ST_AIS2IH_DEV_NAME		"ais2ih"
 #define ST_LIS2DW12_MAX_WATERMARK	31
 #define ST_LIS2DW12_DATA_SIZE		6
 
