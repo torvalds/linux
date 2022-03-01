@@ -41,15 +41,14 @@ static struct pll_vco trion_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 
-/* 600MHz configuration */
+/* 576MHz configuration */
 static struct alpha_pll_config scc_pll_config = {
-	.l = 0x1F,
-	.alpha = 0x4000,
+	.l = 0x1E,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000100,
 	.user_ctl_hi_val = 0x00000805,
@@ -126,11 +125,6 @@ static const struct clk_parent_data scc_parent_data_0[] = {
 };
 
 static const struct freq_tbl ftbl_scc_main_rcg_clk_src[] = {
-	F(100000000, P_SCC_PLL_OUT_EVEN, 3, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_scc_main_rcg_clk_src_sm8150_v2[] = {
 	F(96000000, P_SCC_PLL_OUT_EVEN, 3, 0, 0),
 	{ }
 };
@@ -151,31 +145,13 @@ static struct clk_rcg2 scc_main_rcg_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 100000000,
-			[VDD_NOMINAL] = 200000000},
+			[VDD_MIN] = 96000000,
+			[VDD_LOW] = 576000000,
+			[VDD_NOMINAL] = 576000000},
 	},
 };
 
 static const struct freq_tbl ftbl_scc_qupv3_se0_clk_src[] = {
-	F(7372800, P_SCC_PLL_OUT_EVEN, 1, 384, 15625),
-	F(14745600, P_SCC_PLL_OUT_EVEN, 1, 768, 15625),
-	F(19200000, P_SSC_BI_TCXO, 1, 0, 0),
-	F(29491200, P_SCC_PLL_OUT_EVEN, 1, 1536, 15625),
-	F(32000000, P_SCC_PLL_OUT_EVEN, 1, 8, 75),
-	F(48000000, P_SCC_PLL_OUT_EVEN, 1, 4, 25),
-	F(64000000, P_SCC_PLL_OUT_EVEN, 1, 16, 75),
-	F(80000000, P_SCC_PLL_OUT_MAIN, 7.5, 0, 0),
-	F(96000000, P_SCC_PLL_OUT_EVEN, 1, 8, 25),
-	F(100000000, P_SCC_PLL_OUT_EVEN, 3, 0, 0),
-	F(102400000, P_SCC_PLL_OUT_EVEN, 1, 128, 375),
-	F(112000000, P_SCC_PLL_OUT_EVEN, 1, 28, 75),
-	F(117964800, P_SCC_PLL_OUT_EVEN, 1, 6144, 15625),
-	F(120000000, P_SCC_PLL_OUT_EVEN, 2.5, 0, 0),
-	F(128000000, P_SCC_PLL_OUT_EVEN, 1, 32, 75),
-	{ }
-};
-
-static const struct freq_tbl ftbl_scc_qupv3_se0_clk_src_sm8150_v2[] = {
 	F(7372800, P_SCC_PLL_OUT_EVEN, 1, 16, 625),
 	F(14745600, P_SCC_PLL_OUT_EVEN, 1, 32, 625),
 	F(19200000, P_SSC_BI_TCXO, 1, 0, 0),
@@ -213,10 +189,11 @@ static struct clk_rcg2 scc_qupv3_se0_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -238,10 +215,11 @@ static struct clk_rcg2 scc_qupv3_se1_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -263,10 +241,11 @@ static struct clk_rcg2 scc_qupv3_se2_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -288,10 +267,11 @@ static struct clk_rcg2 scc_qupv3_se3_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -313,10 +293,11 @@ static struct clk_rcg2 scc_qupv3_se4_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -338,10 +319,11 @@ static struct clk_rcg2 scc_qupv3_se5_clk_src = {
 		.vdd_class = &vdd_scc_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 50000000,
-			[VDD_LOWER] = 80000000,
-			[VDD_LOW] = 120000000,
-			[VDD_NOMINAL] = 150000000},
+			[VDD_MIN] = 48000000,
+			[VDD_LOWER] = 96000000,
+			[VDD_LOW] = 128000000,
+			[VDD_LOW_L1] = 144000000,
+			[VDD_NOMINAL] = 192000000},
 	},
 };
 
@@ -580,83 +562,10 @@ static const struct qcom_cc_desc scc_sm8150_desc = {
 
 static const struct of_device_id scc_sm8150_match_table[] = {
 	{ .compatible = "qcom,sm8150-scc" },
-	{ .compatible = "qcom,sm8150-scc-v2" },
 	{ .compatible = "qcom,sa8155-scc" },
-	{ .compatible = "qcom,sa8155-scc-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, scc_sm8150_match_table);
-
-static void scc_sm8150_fixup_sm8150v2(struct regmap *regmap)
-{
-	/* 576 MHz Configuration */
-	scc_pll.config->l = 0x1E;
-	scc_pll.config->alpha = 0x0;
-	scc_pll.config->test_ctl_hi_val = 0x00000000;
-
-	scc_main_rcg_clk_src.freq_tbl = ftbl_scc_main_rcg_clk_src_sm8150_v2;
-	scc_main_rcg_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 96000000;
-	scc_main_rcg_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 576000000;
-	scc_main_rcg_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 576000000;
-
-	scc_qupv3_se0_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se0_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se0_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se0_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se0_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se0_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-
-	scc_qupv3_se1_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se1_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se1_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se1_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se1_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se1_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-
-	scc_qupv3_se2_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se2_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se2_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se2_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se2_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se2_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-
-	scc_qupv3_se3_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se3_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se3_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se3_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se3_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se3_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-
-	scc_qupv3_se4_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se4_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se4_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se4_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se4_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se4_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-
-	scc_qupv3_se5_clk_src.freq_tbl = ftbl_scc_qupv3_se0_clk_src_sm8150_v2;
-	scc_qupv3_se5_clk_src.clkr.vdd_data.rate_max[VDD_MIN] = 48000000;
-	scc_qupv3_se5_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 96000000;
-	scc_qupv3_se5_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 128000000;
-	scc_qupv3_se5_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 144000000;
-	scc_qupv3_se5_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 192000000;
-}
-
-static int scc_sm8150_fixup(struct platform_device *pdev, struct regmap *regmap)
-{
-	const char *compat = NULL;
-	int compatlen = 0;
-
-	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
-	if (!compat || (compatlen <= 0))
-		return -EINVAL;
-
-	if (!strcmp(compat, "qcom,sm8150-scc-v2") ||
-			!strcmp(compat, "qcom,sa8155-scc-v2"))
-		scc_sm8150_fixup_sm8150v2(regmap);
-
-	return 0;
-}
 
 static int scc_sm8150_probe(struct platform_device *pdev)
 {
@@ -668,10 +577,6 @@ static int scc_sm8150_probe(struct platform_device *pdev)
 		pr_err("Failed to map the scc registers\n");
 		return PTR_ERR(regmap);
 	}
-
-	ret = scc_sm8150_fixup(pdev, regmap);
-	if (ret)
-		return ret;
 
 	ret = qcom_cc_register_rcg_dfs(regmap, scc_dfs_clocks,
 			ARRAY_SIZE(scc_dfs_clocks));

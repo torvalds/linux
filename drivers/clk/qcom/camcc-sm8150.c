@@ -58,7 +58,7 @@ static struct alpha_pll_config cam_cc_pll0_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00003100,
 	.user_ctl_hi_val = 0x00000805,
@@ -144,7 +144,7 @@ static struct alpha_pll_config cam_cc_pll1_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000100,
 	.user_ctl_hi_val = 0x00000805,
@@ -274,7 +274,7 @@ static struct alpha_pll_config cam_cc_pll3_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000100,
 	.user_ctl_hi_val = 0x00000805,
@@ -339,7 +339,7 @@ static struct alpha_pll_config cam_cc_pll4_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
+	.test_ctl_hi_val = 0x00000000,
 	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000100,
 	.user_ctl_hi_val = 0x00000805,
@@ -797,15 +797,6 @@ static const struct freq_tbl ftbl_cam_cc_ife_0_clk_src[] = {
 	F(400000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(558000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
-	F(760000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_cam_cc_ife_0_clk_src_sm8150_v2[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	F(400000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
-	F(558000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
-	F(637000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(847000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(950000000, P_CAM_CC_PLL3_OUT_EVEN, 1, 0, 0),
 	{ }
@@ -833,7 +824,8 @@ static struct clk_rcg2 cam_cc_ife_0_clk_src = {
 			[VDD_LOWER] = 400000000,
 			[VDD_LOW] = 558000000,
 			[VDD_LOW_L1] = 637000000,
-			[VDD_NOMINAL] = 760000000},
+			[VDD_NOMINAL] = 847000000,
+			[VDD_HIGH] = 950000000},
 	},
 };
 
@@ -875,15 +867,6 @@ static const struct freq_tbl ftbl_cam_cc_ife_1_clk_src[] = {
 	F(400000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(558000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
-	F(760000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_cam_cc_ife_1_clk_src_sm8150_v2[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	F(400000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
-	F(558000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
-	F(637000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(847000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(950000000, P_CAM_CC_PLL4_OUT_EVEN, 1, 0, 0),
 	{ }
@@ -911,7 +894,8 @@ static struct clk_rcg2 cam_cc_ife_1_clk_src = {
 			[VDD_LOWER] = 400000000,
 			[VDD_LOW] = 558000000,
 			[VDD_LOW_L1] = 637000000,
-			[VDD_NOMINAL] = 760000000},
+			[VDD_NOMINAL] = 847000000,
+			[VDD_HIGH] = 950000000},
 	},
 };
 
@@ -1049,15 +1033,6 @@ static struct clk_rcg2 cam_cc_ife_lite_1_csid_clk_src = {
 static const struct freq_tbl ftbl_cam_cc_ipe_0_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(300000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
-	F(450000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
-	F(520000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
-	F(600000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
-	{ }
-};
-
-static const struct freq_tbl ftbl_cam_cc_ipe_0_clk_src_sm8150_v2[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	F(300000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(475000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(520000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAM_CC_PLL1_OUT_EVEN, 1, 0, 0),
@@ -1084,7 +1059,7 @@ static struct clk_rcg2 cam_cc_ipe_0_clk_src = {
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_MIN] = 19200000,
 			[VDD_LOWER] = 300000000,
-			[VDD_LOW] = 450000000,
+			[VDD_LOW] = 475000000,
 			[VDD_LOW_L1] = 520000000,
 			[VDD_NOMINAL] = 600000000},
 	},
@@ -2344,48 +2319,10 @@ static struct qcom_cc_desc cam_cc_sm8150_desc = {
 
 static const struct of_device_id cam_cc_sm8150_match_table[] = {
 	{ .compatible = "qcom,sm8150-camcc" },
-	{ .compatible = "qcom,sm8150-camcc-v2" },
 	{ .compatible = "qcom,sa8155-camcc" },
-	{ .compatible = "qcom,sa8155-camcc-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cam_cc_sm8150_match_table);
-
-static void cam_cc_sm8150_fixup_sm8150v2(struct regmap *regmap)
-{
-	cam_cc_pll0.config->test_ctl_hi_val = 0x00000000;
-	cam_cc_pll1.config->test_ctl_hi_val = 0x00000000;
-	cam_cc_pll3.config->test_ctl_hi_val = 0x00000000;
-	cam_cc_pll4.config->test_ctl_hi_val = 0x00000000;
-
-	cam_cc_ife_0_clk_src.freq_tbl = ftbl_cam_cc_ife_0_clk_src_sm8150_v2;
-	cam_cc_ife_0_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 847000000;
-	cam_cc_ife_0_clk_src.clkr.vdd_data.rate_max[VDD_HIGH] = 950000000;
-
-	cam_cc_ife_1_clk_src.freq_tbl = ftbl_cam_cc_ife_1_clk_src_sm8150_v2;
-	cam_cc_ife_1_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 847000000;
-	cam_cc_ife_1_clk_src.clkr.vdd_data.rate_max[VDD_HIGH] = 950000000;
-
-	cam_cc_ipe_0_clk_src.freq_tbl = ftbl_cam_cc_ipe_0_clk_src_sm8150_v2;
-	cam_cc_ipe_0_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 475000000;
-}
-
-static int cam_cc_sm8150_fixup(struct platform_device *pdev,
-	struct regmap *regmap)
-{
-	const char *compat = NULL;
-	int compatlen = 0;
-
-	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
-	if (!compat || (compatlen <= 0))
-		return -EINVAL;
-
-	if (!strcmp(compat, "qcom,sm8150-camcc-v2") ||
-			!strcmp(compat, "qcom,sa8155-camcc-v2"))
-		cam_cc_sm8150_fixup_sm8150v2(regmap);
-
-	return 0;
-}
 
 static int cam_cc_sm8150_probe(struct platform_device *pdev)
 {
@@ -2397,10 +2334,6 @@ static int cam_cc_sm8150_probe(struct platform_device *pdev)
 		pr_err("Failed to map the cam CC registers\n");
 		return PTR_ERR(regmap);
 	}
-
-	ret = cam_cc_sm8150_fixup(pdev, regmap);
-	if (ret)
-		return ret;
 
 	clk_trion_pll_configure(&cam_cc_pll0, regmap, cam_cc_pll0.config);
 	clk_trion_pll_configure(&cam_cc_pll1, regmap, cam_cc_pll1.config);
