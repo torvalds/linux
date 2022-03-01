@@ -187,4 +187,4 @@ L(done):
 	ret
 
 SYM_FUNC_END_PI(strcmp)
-EXPORT_SYMBOL_NOHWKASAN(strcmp)
+EXPORT_SYMBOL_NOKASAN(strcmp)
