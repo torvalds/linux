@@ -35,7 +35,9 @@
 #define RK1808_RGB_DATA_SYNC_BYPASS(v)	HIWORD_UPDATE(v, 3, 3)
 
 #define RV1106_VENC_GRF_VOP_IO_WRAPPER	0x1000c
-#define RV1106_IO_BYPASS_SEL(v)		HIWORD_UPDATE(v, 0, 0)
+#define RV1106_IO_BYPASS_SEL(v)		HIWORD_UPDATE(v, 0, 1)
+#define RV1106_VOGRF_VOP_PIPE_BYPASS	0x60034
+#define RV1106_VOP_PIPE_BYPASS(v)	HIWORD_UPDATE(v, 0, 1)
 
 #define RV1126_GRF_IOFUNC_CON3		0x1026c
 #define RV1126_LCDC_IO_BYPASS(v)	HIWORD_UPDATE(v, 0, 0)
@@ -469,7 +471,9 @@ static const struct rockchip_rgb_funcs rv1126_rgb_funcs = {
 static void rv1106_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RV1106_VENC_GRF_VOP_IO_WRAPPER,
-		     RV1106_IO_BYPASS_SEL(rgb->data_sync_bypass));
+		     RV1106_IO_BYPASS_SEL(rgb->data_sync_bypass) ? 0x3 : 0x0);
+	regmap_write(rgb->grf, RV1106_VOGRF_VOP_PIPE_BYPASS,
+		     RV1106_VOP_PIPE_BYPASS(rgb->data_sync_bypass) ? 0x3 : 0x0);
 }
 
 static const struct rockchip_rgb_funcs rv1106_rgb_funcs = {
