@@ -682,8 +682,8 @@
 			compatible = "mediatek,mt8183-m4u";
 			reg = <0 0x10205000 0 0x1000>;
 			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_LOW>;
-			mediatek,larbs = <&larb0 &larb1 &larb2 &larb3
-					  &larb4 &larb5 &larb6>;
+			mediatek,larbs = <&larb0>, <&larb1>, <&larb2>, <&larb3>,
+					 <&larb4>, <&larb5>, <&larb6>;
 			#iommu-cells = <1>;
 		};
 
