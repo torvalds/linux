@@ -1229,15 +1229,19 @@ static int lpass_platform_copy(struct snd_soc_component *component,
 				channel * (rt->dma_bytes / rt->channels));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (is_cdc_dma_port(dai_id))
+		if (is_cdc_dma_port(dai_id)) {
 			ret = copy_from_user_toio(dma_buf, buf, bytes);
-		else
-			ret = copy_from_user((void __force *)dma_buf, buf, bytes);
+		} else {
+			if (copy_from_user((void __force *)dma_buf, buf, bytes))
+				ret = -EFAULT;
+		}
 	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (is_cdc_dma_port(dai_id))
+		if (is_cdc_dma_port(dai_id)) {
 			ret = copy_to_user_fromio(buf, dma_buf, bytes);
-		else
-			ret = copy_to_user(buf, (void __force *)dma_buf, bytes);
+		} else {
+			if (copy_to_user(buf, (void __force *)dma_buf, bytes))
+				ret = -EFAULT;
+		}
 	}
 
 	return ret;
