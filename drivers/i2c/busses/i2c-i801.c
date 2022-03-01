@@ -792,7 +792,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 {
 	int hwpec;
 	int block = 0;
-	int ret = 0, xact = 0;
+	int ret, xact;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
 
 	mutex_lock(&priv->acpi_lock);
@@ -904,7 +904,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	if ((read_write == I2C_SMBUS_WRITE) || (xact == I801_QUICK))
 		goto out;
 
-	switch (xact & 0x7f) {
+	switch (xact) {
 	case I801_BYTE:	/* Result put in SMBHSTDAT0 */
 	case I801_BYTE_DATA:
 		data->byte = inb_p(SMBHSTDAT0(priv));
