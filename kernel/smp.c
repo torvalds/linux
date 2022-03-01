@@ -1170,14 +1170,12 @@ void wake_up_all_idle_cpus(void)
 {
 	int cpu;
 
-	preempt_disable();
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-
-		wake_up_if_idle(cpu);
+	for_each_possible_cpu(cpu) {
+		preempt_disable();
+		if (cpu != smp_processor_id() && cpu_online(cpu))
+			wake_up_if_idle(cpu);
+		preempt_enable();
 	}
-	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(wake_up_all_idle_cpus);
 

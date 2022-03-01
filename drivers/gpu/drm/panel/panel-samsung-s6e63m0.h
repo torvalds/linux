@@ -35,6 +35,6 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 				   const u8 *data,
 				   size_t len),
 		  bool dsi_mode);
-int s6e63m0_remove(struct device *dev);
+void s6e63m0_remove(struct device *dev);
 
 #endif /* _PANEL_SAMSUNG_S6E63M0_H */

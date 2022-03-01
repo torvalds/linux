@@ -368,6 +368,7 @@ static int __init atp_probe1(long ioaddr)
 static void __init get_node_ID(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
+	__be16 addr[ETH_ALEN / 2];
 	int sa_offset = 0;
 	int i;
 
@@ -379,8 +380,9 @@ static void __init get_node_ID(struct net_device *dev)
 		sa_offset = 15;
 
 	for (i = 0; i < 3; i++)
-		((__be16 *)dev->dev_addr)[i] =
+		addr[i] =
 			cpu_to_be16(eeprom_op(ioaddr, EE_READ(sa_offset + i)));
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	write_reg(ioaddr, CMR2, CMR2_NULL);
 }

@@ -2425,17 +2425,17 @@ static int s5p_jpeg_job_ready(void *priv)
 	return 1;
 }
 
-static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.device_run	= s5p_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
 	.device_run	= exynos3250_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
@@ -2850,7 +2850,6 @@ static void *jpeg_get_drv_data(struct device *dev);
 static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
-	struct resource *res;
 	int i, ret;
 
 	/* JPEG IP abstraction struct */
@@ -2867,9 +2866,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->dev = &pdev->dev;
 
 	/* memory-mapped registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	jpeg->regs = devm_ioremap_resource(&pdev->dev, res);
+	jpeg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpeg->regs))
 		return PTR_ERR(jpeg->regs);
 

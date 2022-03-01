@@ -358,7 +358,7 @@ __be32 nfs4_callback_devicenotify(void *argp, void *resp,
 				  struct cb_process_state *cps)
 {
 	struct cb_devicenotifyargs *args = argp;
-	int i;
+	uint32_t i;
 	__be32 res = 0;
 	struct nfs_client *clp = cps->clp;
 	struct nfs_server *server = NULL;
@@ -739,6 +739,9 @@ out:
 		kfree(copy);
 	spin_unlock(&cps->clp->cl_lock);
 
+	trace_nfs4_cb_offload(&args->coa_fh, &args->coa_stateid,
+			args->wr_count, args->error,
+			args->wr_writeverf.committed);
 	return 0;
 }
 #endif /* CONFIG_NFS_V4_2 */

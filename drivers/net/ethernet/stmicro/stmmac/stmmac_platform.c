@@ -816,7 +816,7 @@ static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
 		if (ret)
 			return ret;
 
-		clk_prepare_enable(priv->plat->clk_ptp_ref);
+		stmmac_init_tstamp_counter(priv, priv->systime_flags);
 	}
 
 	return 0;

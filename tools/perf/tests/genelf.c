@@ -16,8 +16,8 @@
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 
-int test__jit_write_elf(struct test *test __maybe_unused,
-			int subtest __maybe_unused)
+static int test__jit_write_elf(struct test_suite *test __maybe_unused,
+			       int subtest __maybe_unused)
 {
 #ifdef HAVE_JITDUMP
 	static unsigned char x86_code[] = {
@@ -49,3 +49,5 @@ int test__jit_write_elf(struct test *test __maybe_unused,
 	return TEST_SKIP;
 #endif
 }
+
+DEFINE_SUITE("Test jit_write_elf", jit_write_elf);

@@ -634,7 +634,7 @@ static void sun8i_dwmac_set_mac(void __iomem *ioaddr, bool enable)
  * If addr is NULL, clear the slot
  */
 static void sun8i_dwmac_set_umac_addr(struct mac_device_info *hw,
-				      unsigned char *addr,
+				      const unsigned char *addr,
 				      unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -756,7 +756,7 @@ static int sun8i_dwmac_reset(struct stmmac_priv *priv)
 
 	if (err) {
 		dev_err(priv->device, "EMAC reset timeout\n");
-		return -EFAULT;
+		return err;
 	}
 	return 0;
 }

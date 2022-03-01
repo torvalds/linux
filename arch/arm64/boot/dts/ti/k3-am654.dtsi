@@ -112,4 +112,8 @@
 		compatible = "cache";
 		cache-level = <3>;
 	};
+
+	thermal_zones: thermal-zones {
+		#include "k3-am654-industrial-thermal.dtsi"
+	};
 };

@@ -18,6 +18,12 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 {
 	/* 32-bit keeps track of the current PGDIR in the thread struct */
 	tsk->thread.pgdir = mm->pgd;
+#ifdef CONFIG_PPC_BOOK3S_32
+	tsk->thread.sr0 = mm->context.sr0;
+#endif
+#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+	tsk->thread.pid = mm->context.id;
+#endif
 }
 #elif defined(CONFIG_PPC_BOOK3E_64)
 static inline void switch_mm_pgdir(struct task_struct *tsk,
@@ -25,6 +31,9 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 {
 	/* 64-bit Book3E keeps track of current PGD in the PACA */
 	get_paca()->pgd = mm->pgd;
+#ifdef CONFIG_PPC_KUAP
+	tsk->thread.pid = mm->context.id;
+#endif
 }
 #else
 static inline void switch_mm_pgdir(struct task_struct *tsk,
@@ -81,7 +90,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * context
 	 */
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		asm volatile ("dssall");
+		asm volatile (PPC_DSSALL);
 
 	if (!new_on_cpu)
 		membarrier_arch_switch_mm(prev, next, tsk);

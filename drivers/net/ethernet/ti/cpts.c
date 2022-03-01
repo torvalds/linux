@@ -669,10 +669,10 @@ static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
 		goto mux_fail;
 	}
 
-	parent_names = devm_kzalloc(cpts->dev, (sizeof(char *) * num_parents),
-				    GFP_KERNEL);
+	parent_names = devm_kcalloc(cpts->dev, num_parents,
+				    sizeof(*parent_names), GFP_KERNEL);
 
-	mux_table = devm_kzalloc(cpts->dev, sizeof(*mux_table) * num_parents,
+	mux_table = devm_kcalloc(cpts->dev, num_parents, sizeof(*mux_table),
 				 GFP_KERNEL);
 	if (!mux_table || !parent_names) {
 		ret = -ENOMEM;

@@ -28,7 +28,7 @@
 
 #include "../i915_selftest.h"
 
-static int __i915_sw_fence_call
+static int
 fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
 	switch (state) {

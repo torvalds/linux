@@ -153,6 +153,10 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 			ar5523_err(ar, "Invalid reply to WDCMSG_TARGET_START");
 			return;
 		}
+		if (!cmd->odata) {
+			ar5523_err(ar, "Unexpected WDCMSG_TARGET_START reply");
+			return;
+		}
 		memcpy(cmd->odata, hdr + 1, sizeof(u32));
 		cmd->olen = sizeof(u32);
 		cmd->res = 0;
@@ -1772,9 +1776,8 @@ static const struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UG(0x0846, 0x5f00),	/* Netgear / WPN111 */
 	AR5523_DEVICE_UG(0x083a, 0x4506),	/* SMC / EZ Connect
 						   SMCWUSBT-G2 */
-	AR5523_DEVICE_UG(0x157e, 0x3006),	/* Umedia / AR5523_1 */
+	AR5523_DEVICE_UG(0x157e, 0x3006),	/* Umedia / AR5523_1, TEW444UBEU*/
 	AR5523_DEVICE_UX(0x157e, 0x3205),	/* Umedia / AR5523_2 */
-	AR5523_DEVICE_UG(0x157e, 0x3006),	/* Umedia / TEW444UBEU */
 	AR5523_DEVICE_UG(0x1435, 0x0826),	/* Wistronneweb / AR5523_1 */
 	AR5523_DEVICE_UX(0x1435, 0x0828),	/* Wistronneweb / AR5523_2 */
 	AR5523_DEVICE_UG(0x0cde, 0x0012),	/* Zcom / AR5523 */

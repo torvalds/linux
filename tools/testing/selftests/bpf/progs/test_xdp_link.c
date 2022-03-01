@@ -5,8 +5,14 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-SEC("xdp/handler")
+SEC("xdp")
 int xdp_handler(struct xdp_md *xdp)
+{
+	return 0;
+}
+
+SEC("tc")
+int tc_handler(struct __sk_buff *skb)
 {
 	return 0;
 }

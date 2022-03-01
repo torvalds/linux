@@ -37,6 +37,7 @@
 
 /* Bank and ring configuration */
 #define ADF_4XXX_NUM_RINGS_PER_BANK	2
+#define ADF_4XXX_NUM_BANKS_PER_VF	4
 
 /* Error source registers */
 #define ADF_4XXX_ERRSOU0	(0x41A200)
@@ -62,10 +63,21 @@
 #define ADF_4XXX_ADMINMSGLR_OFFSET	(0x500578)
 #define ADF_4XXX_MAILBOX_BASE_OFFSET	(0x600970)
 
+/* Power management */
+#define ADF_4XXX_PM_POLL_DELAY_US	20
+#define ADF_4XXX_PM_POLL_TIMEOUT_US	USEC_PER_SEC
+#define ADF_4XXX_PM_STATUS		(0x50A00C)
+#define ADF_4XXX_PM_INTERRUPT		(0x50A028)
+#define ADF_4XXX_PM_DRV_ACTIVE		BIT(20)
+#define ADF_4XXX_PM_INIT_STATE		BIT(21)
+/* Power management source in ERRSOU2 and ERRMSK2 */
+#define ADF_4XXX_PM_SOU			BIT(18)
+
 /* Firmware Binaries */
 #define ADF_4XXX_FW		"qat_4xxx.bin"
 #define ADF_4XXX_MMP		"qat_4xxx_mmp.bin"
 #define ADF_4XXX_SYM_OBJ	"qat_4xxx_sym.bin"
+#define ADF_4XXX_DC_OBJ		"qat_4xxx_dc.bin"
 #define ADF_4XXX_ASYM_OBJ	"qat_4xxx_asym.bin"
 #define ADF_4XXX_ADMIN_OBJ	"qat_4xxx_admin.bin"
 

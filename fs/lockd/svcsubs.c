@@ -179,19 +179,21 @@ nlm_delete_file(struct nlm_file *file)
 static int nlm_unlock_files(struct nlm_file *file)
 {
 	struct file_lock lock;
-	struct file *f;
 
+	locks_init_lock(&lock);
 	lock.fl_type  = F_UNLCK;
 	lock.fl_start = 0;
 	lock.fl_end   = OFFSET_MAX;
-	for (f = file->f_file[0]; f <= file->f_file[1]; f++) {
-		if (f && vfs_lock_file(f, F_SETLK, &lock, NULL) < 0) {
-			pr_warn("lockd: unlock failure in %s:%d\n",
-				__FILE__, __LINE__);
-			return 1;
-		}
-	}
+	if (file->f_file[O_RDONLY] &&
+	    vfs_lock_file(file->f_file[O_RDONLY], F_SETLK, &lock, NULL))
+		goto out_err;
+	if (file->f_file[O_WRONLY] &&
+	    vfs_lock_file(file->f_file[O_WRONLY], F_SETLK, &lock, NULL))
+		goto out_err;
 	return 0;
+out_err:
+	pr_warn("lockd: unlock failure in %s:%d\n", __FILE__, __LINE__);
+	return 1;
 }
 
 /*

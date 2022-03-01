@@ -345,7 +345,7 @@ err_map_common:
 EXPORT_SYMBOL_GPL(vp_modern_probe);
 
 /*
- * vp_modern_probe: remove and cleanup the modern virtio pci device
+ * vp_modern_remove: remove and cleanup the modern virtio pci device
  * @mdev: the modern virtio-pci device
  */
 void vp_modern_remove(struct virtio_pci_modern_device *mdev)

@@ -2,27 +2,25 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
 	__uint(max_entries, 20);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } sock_map_rx SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
 	__uint(max_entries, 20);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } sock_map_tx SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
 	__uint(max_entries, 20);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } sock_map_msg SEC(".maps");
 
 struct {

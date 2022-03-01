@@ -229,13 +229,17 @@ struct ctl_table;
 
 typedef struct ax25_dev {
 	struct ax25_dev		*next;
+
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	struct net_device	*forward;
 	struct ctl_table_header *sysheader;
 	int			values[AX25_MAX_VALUES];
 #if defined(CONFIG_AX25_DAMA_SLAVE) || defined(CONFIG_AX25_DAMA_MASTER)
 	ax25_dama_info		dama;
 #endif
+	refcount_t		refcount;
 } ax25_dev;
 
 typedef struct ax25_cb {
@@ -290,6 +294,17 @@ static __inline__ void ax25_cb_put(ax25_cb *ax25)
 	}
 }
 
+static inline void ax25_dev_hold(ax25_dev *ax25_dev)
+{
+	refcount_inc(&ax25_dev->refcount);
+}
+
+static inline void ax25_dev_put(ax25_dev *ax25_dev)
+{
+	if (refcount_dec_and_test(&ax25_dev->refcount)) {
+		kfree(ax25_dev);
+	}
+}
 static inline __be16 ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev      = dev;
@@ -304,7 +319,7 @@ extern spinlock_t ax25_list_lock;
 void ax25_cb_add(ax25_cb *);
 struct sock *ax25_find_listener(ax25_address *, int, struct net_device *, int);
 struct sock *ax25_get_socket(ax25_address *, ax25_address *, int);
-ax25_cb *ax25_find_cb(ax25_address *, ax25_address *, ax25_digi *,
+ax25_cb *ax25_find_cb(const ax25_address *, ax25_address *, ax25_digi *,
 		      struct net_device *);
 void ax25_send_to_raw(ax25_address *, struct sk_buff *, int);
 void ax25_destroy_socket(ax25_cb *);
@@ -384,10 +399,11 @@ struct ax25_linkfail {
 
 void ax25_linkfail_register(struct ax25_linkfail *lf);
 void ax25_linkfail_release(struct ax25_linkfail *lf);
-int __must_check ax25_listen_register(ax25_address *, struct net_device *);
-void ax25_listen_release(ax25_address *, struct net_device *);
+int __must_check ax25_listen_register(const ax25_address *,
+				      struct net_device *);
+void ax25_listen_release(const ax25_address *, struct net_device *);
 int(*ax25_protocol_function(unsigned int))(struct sk_buff *, ax25_cb *);
-int ax25_listen_mine(ax25_address *, struct net_device *);
+int ax25_listen_mine(const ax25_address *, struct net_device *);
 void ax25_link_failed(ax25_cb *, int);
 int ax25_protocol_is_registered(unsigned int);
 
@@ -401,8 +417,8 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb);
 extern const struct header_ops ax25_header_ops;
 
 /* ax25_out.c */
-ax25_cb *ax25_send_frame(struct sk_buff *, int, ax25_address *, ax25_address *,
-			 ax25_digi *, struct net_device *);
+ax25_cb *ax25_send_frame(struct sk_buff *, int, const ax25_address *,
+			 ax25_address *, ax25_digi *, struct net_device *);
 void ax25_output(ax25_cb *, int, struct sk_buff *);
 void ax25_kick(ax25_cb *);
 void ax25_transmit_buffer(ax25_cb *, struct sk_buff *, int);

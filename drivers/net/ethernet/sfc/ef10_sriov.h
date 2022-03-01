@@ -39,7 +39,7 @@ static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
 void efx_ef10_sriov_fini(struct efx_nic *efx);
 static inline void efx_ef10_sriov_flr(struct efx_nic *efx, unsigned vf_i) {}
 
-int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf, u8 *mac);
+int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf, const u8 *mac);
 
 int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i,
 			       u16 vlan, u8 qos);
@@ -60,9 +60,9 @@ int efx_ef10_vswitching_restore_vf(struct efx_nic *efx);
 void efx_ef10_vswitching_remove_pf(struct efx_nic *efx);
 void efx_ef10_vswitching_remove_vf(struct efx_nic *efx);
 int efx_ef10_vport_add_mac(struct efx_nic *efx,
-			   unsigned int port_id, u8 *mac);
+			   unsigned int port_id, const u8 *mac);
 int efx_ef10_vport_del_mac(struct efx_nic *efx,
-			   unsigned int port_id, u8 *mac);
+			   unsigned int port_id, const u8 *mac);
 int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id);
 int efx_ef10_vadaptor_query(struct efx_nic *efx, unsigned int port_id,
 			    u32 *port_flags, u32 *vadaptor_flags,

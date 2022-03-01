@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
+#include <asm/asm-extable.h>
 
 /* We don't even really need the extable code, but for now keep it simple */
 #ifndef CONFIG_MMU
@@ -20,23 +21,14 @@
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
 {								\
-	uintptr_t tmp;						\
 	__enable_user_access();					\
 	__asm__ __volatile__ (					\
 	"1:	" insn "				\n"	\
 	"2:						\n"	\
-	"	.section .fixup,\"ax\"			\n"	\
-	"	.balign 4				\n"	\
-	"3:	li %[r],%[e]				\n"	\
-	"	jump 2b,%[t]				\n"	\
-	"	.previous				\n"	\
-	"	.section __ex_table,\"a\"		\n"	\
-	"	.balign " RISCV_SZPTR "			\n"	\
-	"	" RISCV_PTR " 1b, 3b			\n"	\
-	"	.previous				\n"	\
+	_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %[r])			\
 	: [r] "+r" (ret), [ov] "=&r" (oldval),			\
-	  [u] "+m" (*uaddr), [t] "=&r" (tmp)			\
-	: [op] "Jr" (oparg), [e] "i" (-EFAULT)			\
+	  [u] "+m" (*uaddr)					\
+	: [op] "Jr" (oparg)					\
 	: "memory");						\
 	__disable_user_access();				\
 }
@@ -98,18 +90,10 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	"2:	sc.w.aqrl %[t],%z[nv],%[u]		\n"
 	"	bnez %[t],1b				\n"
 	"3:						\n"
-	"	.section .fixup,\"ax\"			\n"
-	"	.balign 4				\n"
-	"4:	li %[r],%[e]				\n"
-	"	jump 3b,%[t]				\n"
-	"	.previous				\n"
-	"	.section __ex_table,\"a\"		\n"
-	"	.balign " RISCV_SZPTR "			\n"
-	"	" RISCV_PTR " 1b, 4b			\n"
-	"	" RISCV_PTR " 2b, 4b			\n"
-	"	.previous				\n"
+		_ASM_EXTABLE_UACCESS_ERR(1b, 3b, %[r])	\
+		_ASM_EXTABLE_UACCESS_ERR(2b, 3b, %[r])	\
 	: [r] "+r" (ret), [v] "=&r" (val), [u] "+m" (*uaddr), [t] "=&r" (tmp)
-	: [ov] "Jr" (oldval), [nv] "Jr" (newval), [e] "i" (-EFAULT)
+	: [ov] "Jr" (oldval), [nv] "Jr" (newval)
 	: "memory");
 	__disable_user_access();
 

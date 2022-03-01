@@ -32,8 +32,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "amplc_pc236.h"
 

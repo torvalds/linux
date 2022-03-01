@@ -39,8 +39,6 @@ static __always_inline void boot_init_stack_canary(void)
 	current->stack_canary = canary;
 #ifndef CONFIG_STACKPROTECTOR_PER_TASK
 	__stack_chk_guard = current->stack_canary;
-#else
-	current_thread_info()->stack_canary = current->stack_canary;
 #endif
 }
 

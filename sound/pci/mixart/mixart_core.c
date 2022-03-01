@@ -23,8 +23,6 @@
 #define MSG_DESCRIPTOR_SIZE         0x24
 #define MSG_HEADER_SIZE             (MSG_DESCRIPTOR_SIZE + 4)
 
-#define MSG_DEFAULT_SIZE            512
-
 #define MSG_TYPE_MASK               0x00000003    /* mask for following types */
 #define MSG_TYPE_NOTIFY             0             /* embedded -> driver (only notification, do not get_msg() !) */
 #define MSG_TYPE_COMMAND            1             /* driver <-> embedded (a command has no answer) */
@@ -444,6 +442,9 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 				struct mixart_timer_notify *notify;
 				notify = (struct mixart_timer_notify *)mixart_msg_data;
 
+				BUILD_BUG_ON(sizeof(notify) > sizeof(mixart_msg_data));
+				if (snd_BUG_ON(notify->stream_count > ARRAY_SIZE(notify->streams)))
+					break;
 				for(i=0; i<notify->stream_count; i++) {
 
 					u32 buffer_id = notify->streams[i].buffer_id;

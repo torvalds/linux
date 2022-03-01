@@ -151,22 +151,10 @@ static int __sigp_stop_and_store_status(struct kvm_vcpu *vcpu,
 static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter,
 			   u64 *status_reg)
 {
-	unsigned int i;
-	struct kvm_vcpu *v;
-	bool all_stopped = true;
-
-	kvm_for_each_vcpu(i, v, vcpu->kvm) {
-		if (v == vcpu)
-			continue;
-		if (!is_vcpu_stopped(v))
-			all_stopped = false;
-	}
-
 	*status_reg &= 0xffffffff00000000UL;
 
 	/* Reject set arch order, with czam we're always in z/Arch mode. */
-	*status_reg |= (all_stopped ? SIGP_STATUS_INVALID_PARAMETER :
-					SIGP_STATUS_INCORRECT_STATE);
+	*status_reg |= SIGP_STATUS_INVALID_PARAMETER;
 	return SIGP_CC_STATUS_STORED;
 }
 
@@ -287,6 +275,34 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
+
+	/*
+	 * SIGP RESTART, SIGP STOP, and SIGP STOP AND STORE STATUS orders
+	 * are processed asynchronously. Until the affected VCPU finishes
+	 * its work and calls back into KVM to clear the (RESTART or STOP)
+	 * interrupt, we need to return any new non-reset orders "busy".
+	 *
+	 * This is important because a single VCPU could issue:
+	 *  1) SIGP STOP $DESTINATION
+	 *  2) SIGP SENSE $DESTINATION
+	 *
+	 * If the SIGP SENSE would not be rejected as "busy", it could
+	 * return an incorrect answer as to whether the VCPU is STOPPED
+	 * or OPERATING.
+	 */
+	if (order_code != SIGP_INITIAL_CPU_RESET &&
+	    order_code != SIGP_CPU_RESET) {
+		/*
+		 * Lockless check. Both SIGP STOP and SIGP (RE)START
+		 * properly synchronize everything while processing
+		 * their orders, while the guest cannot observe a
+		 * difference when issuing other orders from two
+		 * different VCPUs.
+		 */
+		if (kvm_s390_is_stop_irq_pending(dst_vcpu) ||
+		    kvm_s390_is_restart_irq_pending(dst_vcpu))
+			return SIGP_CC_BUSY;
+	}
 
 	switch (order_code) {
 	case SIGP_SENSE:

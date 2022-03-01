@@ -123,7 +123,7 @@ src-wlib-y := string.S crt0.S stdio.c decompress.c main.c \
 		oflib.c ofconsole.c cuboot.c
 
 src-wlib-$(CONFIG_PPC_MPC52xx) += mpc52xx-psc.c
-src-wlib-$(CONFIG_PPC64_BOOT_WRAPPER) += opal-calls.S opal.c
+src-wlib-$(CONFIG_PPC_POWERNV) += opal-calls.S opal.c
 ifndef CONFIG_PPC64_BOOT_WRAPPER
 src-wlib-y += crtsavres.S
 endif
@@ -365,7 +365,7 @@ image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
 
 # Allow extra targets to be added to the defconfig
-image-y	+= $(subst ",,$(CONFIG_EXTRA_TARGETS))
+image-y	+= $(CONFIG_EXTRA_TARGETS)
 
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, \

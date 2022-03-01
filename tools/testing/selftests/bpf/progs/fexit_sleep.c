@@ -13,7 +13,7 @@ int fexit_cnt = 0;
 SEC("fentry/__x64_sys_nanosleep")
 int BPF_PROG(nanosleep_fentry, const struct pt_regs *regs)
 {
-	if ((int)bpf_get_current_pid_tgid() != pid)
+	if (bpf_get_current_pid_tgid() >> 32 != pid)
 		return 0;
 
 	fentry_cnt++;
@@ -23,7 +23,7 @@ int BPF_PROG(nanosleep_fentry, const struct pt_regs *regs)
 SEC("fexit/__x64_sys_nanosleep")
 int BPF_PROG(nanosleep_fexit, const struct pt_regs *regs, int ret)
 {
-	if ((int)bpf_get_current_pid_tgid() != pid)
+	if (bpf_get_current_pid_tgid() >> 32 != pid)
 		return 0;
 
 	fexit_cnt++;

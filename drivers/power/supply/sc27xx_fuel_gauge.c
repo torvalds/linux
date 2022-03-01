@@ -998,7 +998,7 @@ static int sc27xx_fgu_calibration(struct sc27xx_fgu_data *data)
 
 static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 {
-	struct power_supply_battery_info info = { };
+	struct power_supply_battery_info *info;
 	struct power_supply_battery_ocv_table *table;
 	int ret, delta_clbcnt, alarm_adc;
 
@@ -1008,16 +1008,16 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 		return ret;
 	}
 
-	data->total_cap = info.charge_full_design_uah / 1000;
-	data->max_volt = info.constant_charge_voltage_max_uv / 1000;
-	data->internal_resist = info.factory_internal_resistance_uohm / 1000;
-	data->min_volt = info.voltage_min_design_uv;
+	data->total_cap = info->charge_full_design_uah / 1000;
+	data->max_volt = info->constant_charge_voltage_max_uv / 1000;
+	data->internal_resist = info->factory_internal_resistance_uohm / 1000;
+	data->min_volt = info->voltage_min_design_uv;
 
 	/*
 	 * For SC27XX fuel gauge device, we only use one ocv-capacity
 	 * table in normal temperature 20 Celsius.
 	 */
-	table = power_supply_find_ocv2cap_table(&info, 20, &data->table_len);
+	table = power_supply_find_ocv2cap_table(info, 20, &data->table_len);
 	if (!table)
 		return -EINVAL;
 
@@ -1025,7 +1025,7 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 				       data->table_len * sizeof(*table),
 				       GFP_KERNEL);
 	if (!data->cap_table) {
-		power_supply_put_battery_info(data->battery, &info);
+		power_supply_put_battery_info(data->battery, info);
 		return -ENOMEM;
 	}
 
@@ -1035,19 +1035,19 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 	if (!data->alarm_cap)
 		data->alarm_cap += 1;
 
-	data->resist_table_len = info.resist_table_size;
+	data->resist_table_len = info->resist_table_size;
 	if (data->resist_table_len > 0) {
-		data->resist_table = devm_kmemdup(data->dev, info.resist_table,
+		data->resist_table = devm_kmemdup(data->dev, info->resist_table,
 						  data->resist_table_len *
 						  sizeof(struct power_supply_resistance_temp_table),
 						  GFP_KERNEL);
 		if (!data->resist_table) {
-			power_supply_put_battery_info(data->battery, &info);
+			power_supply_put_battery_info(data->battery, info);
 			return -ENOMEM;
 		}
 	}
 
-	power_supply_put_battery_info(data->battery, &info);
+	power_supply_put_battery_info(data->battery, info);
 
 	ret = sc27xx_fgu_calibration(data);
 	if (ret)

@@ -280,13 +280,21 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_send_ctxt *ctxt =
 		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
-	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
-
 	svc_rdma_wake_send_waiters(rdma, 1);
 	complete(&ctxt->sc_done);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
-		svc_xprt_deferred_close(&rdma->sc_xprt);
+		goto flushed;
+
+	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
+	return;
+
+flushed:
+	if (wc->status != IB_WC_WR_FLUSH_ERR)
+		trace_svcrdma_wc_send_err(wc, &ctxt->sc_cid);
+	else
+		trace_svcrdma_wc_send_flush(wc, &ctxt->sc_cid);
+	svc_xprt_deferred_close(&rdma->sc_xprt);
 }
 
 /**

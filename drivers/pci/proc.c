@@ -21,14 +21,14 @@ static int proc_initialized;	/* = 0 */
 
 static loff_t proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	return fixed_size_llseek(file, off, whence, dev->cfg_size);
 }
 
 static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 				 size_t nbytes, loff_t *ppos)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	unsigned int pos = *ppos;
 	unsigned int cnt, size;
 
@@ -114,7 +114,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 				  size_t nbytes, loff_t *ppos)
 {
 	struct inode *ino = file_inode(file);
-	struct pci_dev *dev = PDE_DATA(ino);
+	struct pci_dev *dev = pde_data(ino);
 	int pos = *ppos;
 	int size = dev->cfg_size;
 	int cnt, ret;
@@ -196,7 +196,7 @@ struct pci_filp_private {
 static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 #ifdef HAVE_PCI_MMAP
 	struct pci_filp_private *fpriv = file->private_data;
 #endif /* HAVE_PCI_MMAP */
@@ -244,7 +244,7 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #ifdef HAVE_PCI_MMAP
 static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	struct pci_filp_private *fpriv = file->private_data;
 	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
 

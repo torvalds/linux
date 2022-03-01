@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "../include/odm_precomp.h"
 #include "../include/rtw_iol.h"
 
 #define read_next_pair(array, v1, v2, i)		\
@@ -13,17 +12,12 @@
 
 static bool CheckCondition(const u32  condition, const u32  hex)
 {
-	u32 _board     = (hex & 0x000000FF);
 	u32 _interface = (hex & 0x0000FF00) >> 8;
 	u32 _platform  = (hex & 0x00FF0000) >> 16;
 	u32 cond = condition;
 
 	if (condition == 0xCDCDCDCD)
 		return true;
-
-	cond = condition & 0x000000FF;
-	if ((_board == cond) && cond != 0x00)
-		return false;
 
 	cond = condition & 0x0000FF00;
 	cond = cond >> 8;
@@ -176,9 +170,6 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = dm_odm->SupportPlatform;
-	u8     interfaceValue   = dm_odm->SupportInterface;
-	u8     board       = dm_odm->BoardType;
 	u32     arraylen    = sizeof(array_agc_tab_1t_8188e) / sizeof(u32);
 	u32    *array       = array_agc_tab_1t_8188e;
 	bool		biol = false;
@@ -187,9 +178,8 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 	u8 bndy_cnt = 1;
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 
-	hex += board;
-	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_ITRF_USB << 8;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(adapter);
 
@@ -246,7 +236,7 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 		}
 	}
 	if (biol) {
-		if (!rtw_IOL_exec_cmds_sync(dm_odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
+		if (!rtl8188e_IOL_exec_cmds_sync(dm_odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
 			printk("~~~ %s IOL_exec_cmds Failed !!!\n", __func__);
 			rst = HAL_STATUS_FAILURE;
 		}
@@ -456,9 +446,6 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = dm_odm->SupportPlatform;
-	u8     interfaceValue   = dm_odm->SupportInterface;
-	u8     board       = dm_odm->BoardType;
 	u32     arraylen    = sizeof(array_phy_reg_1t_8188e) / sizeof(u32);
 	u32    *array       = array_phy_reg_1t_8188e;
 	bool	biol = false;
@@ -466,9 +453,8 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 	struct xmit_frame *pxmit_frame = NULL;
 	u8 bndy_cnt = 1;
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
-	hex += board;
-	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_ITRF_USB << 8;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(adapter);
 
@@ -557,7 +543,7 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 		}
 	}
 	if (biol) {
-		if (!rtw_IOL_exec_cmds_sync(dm_odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
+		if (!rtl8188e_IOL_exec_cmds_sync(dm_odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
 			rst = HAL_STATUS_FAILURE;
 			pr_info("~~~ IOL Config %s Failed !!!\n", __func__);
 		}
@@ -665,14 +651,11 @@ void ODM_ReadAndConfig_PHY_REG_PG_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32  hex;
 	u32  i           = 0;
-	u8  platform    = dm_odm->SupportPlatform;
-	u8  interfaceValue   = dm_odm->SupportInterface;
-	u8  board       = dm_odm->BoardType;
 	u32  arraylen    = sizeof(array_phy_reg_pg_8188e) / sizeof(u32);
 	u32 *array       = array_phy_reg_pg_8188e;
 
-	hex = board + (interfaceValue << 8);
-	hex += (platform << 16) + 0xFF000000;
+	hex = ODM_ITRF_USB << 8;
+	hex += (ODM_CE << 16) + 0xFF000000;
 
 	for (i = 0; i < arraylen; i += 3) {
 		u32 v1 = array[i];

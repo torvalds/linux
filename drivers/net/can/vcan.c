@@ -87,13 +87,14 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	struct net_device_stats *stats = &dev->stats;
-	int loop;
+	int loop, len;
 
 	if (can_dropped_invalid_skb(dev, skb))
 		return NETDEV_TX_OK;
 
+	len = cfd->can_id & CAN_RTR_FLAG ? 0 : cfd->len;
 	stats->tx_packets++;
-	stats->tx_bytes += cfd->len;
+	stats->tx_bytes += len;
 
 	/* set flag whether this packet has to be looped back */
 	loop = skb->pkt_type == PACKET_LOOPBACK;
@@ -105,7 +106,7 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 			 * CAN core already did the echo for us
 			 */
 			stats->rx_packets++;
-			stats->rx_bytes += cfd->len;
+			stats->rx_bytes += len;
 		}
 		consume_skb(skb);
 		return NETDEV_TX_OK;

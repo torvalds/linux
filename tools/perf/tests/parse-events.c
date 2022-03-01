@@ -605,7 +605,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 10);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 
 	/* config1 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -614,7 +614,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config1"));
 
 	/* config2=3 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -623,7 +623,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 3);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config2"));
 
 	/* umask=1*/
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -661,7 +661,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 0xead);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 	return 0;
 }
 
@@ -2045,7 +2045,6 @@ static int test_event(struct evlist_test *e)
 	struct evlist *evlist;
 	int ret;
 
-	bzero(&err, sizeof(err));
 	if (e->valid && !e->valid()) {
 		pr_debug("... SKIP");
 		return 0;
@@ -2055,15 +2054,41 @@ static int test_event(struct evlist_test *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, e->name, &err);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 e->name, ret, err.str);
-		parse_events_print_error(&err, e->name);
+		parse_events_error__print(&err, e->name);
 	} else {
 		ret = e->check(evlist);
 	}
+	parse_events_error__exit(&err);
+	evlist__delete(evlist);
 
+	return ret;
+}
+
+static int test_event_fake_pmu(const char *str)
+{
+	struct parse_events_error err;
+	struct evlist *evlist;
+	int ret;
+
+	evlist = evlist__new();
+	if (!evlist)
+		return -ENOMEM;
+
+	parse_events_error__init(&err);
+	perf_pmu__test_parse_init();
+	ret = __parse_events(evlist, str, &err, &perf_pmu__fake);
+	if (ret) {
+		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
+			 str, ret, err.str);
+		parse_events_error__print(&err, str);
+	}
+
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 
 	return ret;
@@ -2276,7 +2301,27 @@ static int test_pmu_events_alias(char *event, char *alias)
 	return test_event(&e);
 }
 
-int test__parse_events(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test_pmu_events_alias2(void)
+{
+	static const char events[][30] = {
+			"event-hyphen",
+			"event-two-hyph",
+	};
+	unsigned long i;
+	int ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(events); i++) {
+		ret = test_event_fake_pmu(&events[i][0]);
+		if (ret) {
+			pr_err("check_parse_fake %s failed\n", &events[i][0]);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int test__parse_events(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
 	char *event, *alias;
@@ -2313,9 +2358,15 @@ do {							\
 			return ret;
 	}
 
+	ret1 = test_pmu_events_alias2();
+	if (!ret2)
+		ret2 = ret1;
+
 	ret1 = test_terms(test__terms, ARRAY_SIZE(test__terms));
 	if (!ret2)
 		ret2 = ret1;
 
 	return ret2;
 }
+
+DEFINE_SUITE("Parse event definition strings", parse_events);

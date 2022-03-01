@@ -1187,7 +1187,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	 * PCI slot and func to indicate the uncore box.
 	 */
 	if (id->driver_data & ~0xffff) {
-		struct pci_driver *pci_drv = pdev->driver;
+		struct pci_driver *pci_drv = to_pci_driver(pdev->dev.driver);
 
 		pmu = uncore_pci_find_dev_pmu(pdev, pci_drv->id_table);
 		if (pmu == NULL)
@@ -1762,7 +1762,7 @@ static const struct intel_uncore_init_fun rkl_uncore_init __initconst = {
 
 static const struct intel_uncore_init_fun adl_uncore_init __initconst = {
 	.cpu_init = adl_uncore_cpu_init,
-	.mmio_init = tgl_uncore_mmio_init,
+	.mmio_init = adl_uncore_mmio_init,
 };
 
 static const struct intel_uncore_init_fun icx_uncore_init __initconst = {

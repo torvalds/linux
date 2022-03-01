@@ -919,6 +919,7 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 }
 
 static void dce110_stream_encoder_dp_blank(
+	struct dc_link *link,
 	struct stream_encoder *enc)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
@@ -967,6 +968,7 @@ static void dce110_stream_encoder_dp_blank(
 
 /* output video stream to link encoder */
 static void dce110_stream_encoder_dp_unblank(
+	struct dc_link *link,
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param)
 {

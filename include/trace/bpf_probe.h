@@ -21,6 +21,22 @@
 #undef __get_bitmask
 #define __get_bitmask(field) (char *)__get_dynamic_array(field)
 
+#undef __get_rel_dynamic_array
+#define __get_rel_dynamic_array(field)	\
+		((void *)(&__entry->__rel_loc_##field) +	\
+		 sizeof(__entry->__rel_loc_##field) +		\
+		 (__entry->__rel_loc_##field & 0xffff))
+
+#undef __get_rel_dynamic_array_len
+#define __get_rel_dynamic_array_len(field)	\
+		((__entry->__rel_loc_##field >> 16) & 0xffff)
+
+#undef __get_rel_str
+#define __get_rel_str(field) ((char *)__get_rel_dynamic_array(field))
+
+#undef __get_rel_bitmask
+#define __get_rel_bitmask(field) (char *)__get_rel_dynamic_array(field)
+
 #undef __perf_count
 #define __perf_count(c)	(c)
 
@@ -93,8 +109,7 @@ __section("__bpf_raw_tp_map") = {					\
 
 #define FIRST(x, ...) x
 
-#undef DEFINE_EVENT_WRITABLE
-#define DEFINE_EVENT_WRITABLE(template, call, proto, args, size)	\
+#define __CHECK_WRITABLE_BUF_SIZE(call, proto, args, size)		\
 static inline void bpf_test_buffer_##call(void)				\
 {									\
 	/* BUILD_BUG_ON() is ignored if the code is completely eliminated, but \
@@ -103,8 +118,12 @@ static inline void bpf_test_buffer_##call(void)				\
 	 */								\
 	FIRST(proto);							\
 	(void)BUILD_BUG_ON_ZERO(size != sizeof(*FIRST(args)));		\
-}									\
-__DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args), size)
+}
+
+#undef DEFINE_EVENT_WRITABLE
+#define DEFINE_EVENT_WRITABLE(template, call, proto, args, size) \
+	__CHECK_WRITABLE_BUF_SIZE(call, PARAMS(proto), PARAMS(args), size) \
+	__DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args), size)
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
@@ -119,9 +138,17 @@ __DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args), size)
 	__BPF_DECLARE_TRACE(call, PARAMS(proto), PARAMS(args))		\
 	__DEFINE_EVENT(call, call, PARAMS(proto), PARAMS(args), 0)
 
+#undef DECLARE_TRACE_WRITABLE
+#define DECLARE_TRACE_WRITABLE(call, proto, args, size) \
+	__CHECK_WRITABLE_BUF_SIZE(call, PARAMS(proto), PARAMS(args), size) \
+	__BPF_DECLARE_TRACE(call, PARAMS(proto), PARAMS(args)) \
+	__DEFINE_EVENT(call, call, PARAMS(proto), PARAMS(args), size)
+
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+#undef DECLARE_TRACE_WRITABLE
 #undef DEFINE_EVENT_WRITABLE
+#undef __CHECK_WRITABLE_BUF_SIZE
 #undef __DEFINE_EVENT
 #undef FIRST
 

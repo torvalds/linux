@@ -94,7 +94,6 @@ static struct ltc2952_poweroff *ltc2952_data;
  */
 static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 {
-	ktime_t now;
 	int state;
 	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_wde);
 
@@ -104,8 +103,7 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 	state = gpiod_get_value(data->gpio_watchdog);
 	gpiod_set_value(data->gpio_watchdog, !state);
 
-	now = hrtimer_cb_get_time(timer);
-	hrtimer_forward(timer, now, data->wde_interval);
+	hrtimer_forward_now(timer, data->wde_interval);
 
 	return HRTIMER_RESTART;
 }
@@ -161,8 +159,8 @@ static void ltc2952_poweroff_kill(void)
 
 static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 {
-	data->wde_interval = 300L * 1E6L;
-	data->trigger_delay = ktime_set(2, 500L*1E6L);
+	data->wde_interval = 300L * NSEC_PER_MSEC;
+	data->trigger_delay = ktime_set(2, 500L * NSEC_PER_MSEC);
 
 	hrtimer_init(&data->timer_trigger, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	data->timer_trigger.function = ltc2952_poweroff_timer_trigger;

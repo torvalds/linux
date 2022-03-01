@@ -829,14 +829,17 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	hdmi_ddc: i2c@7000c700 {
@@ -1047,9 +1050,6 @@
 			regulator-max-microvolt = <1400000>;
 			regulator-boot-on;
 			regulator-always-on;
-			ti,vsel0-state-low;
-			/* VSEL1: EN_CORE_DVFS_N low for DVFS */
-			ti,vsel1-state-low;
 		};
 	};
 

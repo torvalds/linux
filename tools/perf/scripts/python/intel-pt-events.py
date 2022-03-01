@@ -32,8 +32,7 @@ try:
 except:
 	broken_pipe_exception = IOError
 
-glb_switch_str		= None
-glb_switch_printed	= True
+glb_switch_str		= {}
 glb_insn		= False
 glb_disassembler	= None
 glb_src			= False
@@ -70,6 +69,7 @@ def trace_begin():
 	ap = argparse.ArgumentParser(usage = "", add_help = False)
 	ap.add_argument("--insn-trace", action='store_true')
 	ap.add_argument("--src-trace", action='store_true')
+	ap.add_argument("--all-switch-events", action='store_true')
 	global glb_args
 	global glb_insn
 	global glb_src
@@ -256,10 +256,6 @@ def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 	print(start_str, src_str)
 
 def do_process_event(param_dict):
-	global glb_switch_printed
-	if not glb_switch_printed:
-		print(glb_switch_str)
-		glb_switch_printed = True
 	event_attr = param_dict["attr"]
 	sample	   = param_dict["sample"]
 	raw_buf	   = param_dict["raw_buf"]
@@ -273,6 +269,11 @@ def do_process_event(param_dict):
 	# Symbol and dso info are not always resolved
 	dso    = get_optional(param_dict, "dso")
 	symbol = get_optional(param_dict, "symbol")
+
+	cpu = sample["cpu"]
+	if cpu in glb_switch_str:
+		print(glb_switch_str[cpu])
+		del glb_switch_str[cpu]
 
 	if name[0:12] == "instructions":
 		if glb_src:
@@ -336,8 +337,6 @@ def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
 		sys.exit(1)
 
 def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_preempt, *x):
-	global glb_switch_printed
-	global glb_switch_str
 	if out:
 		out_str = "Switch out "
 	else:
@@ -350,6 +349,10 @@ def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_pree
 		machine_str = ""
 	else:
 		machine_str = "machine PID %d" % machine_pid
-	glb_switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
+	switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
 		(out_str, pid, tid, cpu, ts / 1000000000, ts %1000000000, np_pid, np_tid, machine_str, preempt_str)
-	glb_switch_printed = False
+	if glb_args.all_switch_events:
+		print(switch_str);
+	else:
+		global glb_switch_str
+		glb_switch_str[cpu] = switch_str

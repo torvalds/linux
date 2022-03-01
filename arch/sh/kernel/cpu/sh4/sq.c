@@ -324,6 +324,7 @@ static struct attribute *sq_sysfs_attrs[] = {
 	&mapping_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(sq_sysfs);
 
 static const struct sysfs_ops sq_sysfs_ops = {
 	.show	= sq_sysfs_show,
@@ -332,7 +333,7 @@ static const struct sysfs_ops sq_sysfs_ops = {
 
 static struct kobj_type ktype_percpu_entry = {
 	.sysfs_ops	= &sq_sysfs_ops,
-	.default_attrs	= sq_sysfs_attrs,
+	.default_groups	= sq_sysfs_groups,
 };
 
 static int sq_dev_add(struct device *dev, struct subsys_interface *sif)

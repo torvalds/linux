@@ -100,8 +100,4 @@
 		power-domains = <&k3_pds 80 TI_SCI_PD_EXCLUSIVE>;
 		#thermal-sensor-cells = <1>;
 	};
-
-	thermal_zones: thermal-zones {
-		#include "k3-am654-industrial-thermal.dtsi"
-	};
 };

@@ -35,6 +35,7 @@ static inline struct intel_gt *huc_to_gt(struct intel_huc *huc)
 }
 
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
+void __intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
 void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt);
 int intel_gt_probe_lmem(struct intel_gt *gt);
 int intel_gt_init_mmio(struct intel_gt *gt);
@@ -89,5 +90,7 @@ void intel_gt_info_print(const struct intel_gt_info *info,
 			 struct drm_printer *p);
 
 void intel_gt_watchdog_work(struct work_struct *work);
+
+void intel_gt_invalidate_tlbs(struct intel_gt *gt);
 
 #endif /* __INTEL_GT_H__ */

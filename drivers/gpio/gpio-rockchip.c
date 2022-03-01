@@ -465,6 +465,22 @@ out:
 	return ret;
 }
 
+static int rockchip_irq_reqres(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	return gpiochip_reqres_irq(&bank->gpio_chip, d->hwirq);
+}
+
+static void rockchip_irq_relres(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	gpiochip_relres_irq(&bank->gpio_chip, d->hwirq);
+}
+
 static void rockchip_irq_suspend(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
@@ -536,6 +552,8 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
 	gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;
 	gc->chip_types[0].chip.irq_set_type = rockchip_irq_set_type;
+	gc->chip_types[0].chip.irq_request_resources = rockchip_irq_reqres;
+	gc->chip_types[0].chip.irq_release_resources = rockchip_irq_relres;
 	gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 
 	/*
@@ -566,9 +584,6 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 	gc->ngpio = bank->nr_pins;
 	gc->label = bank->name;
 	gc->parent = bank->dev;
-#ifdef CONFIG_OF_GPIO
-	gc->of_node = of_node_get(bank->of_node);
-#endif
 
 	ret = gpiochip_add_data(gc, bank);
 	if (ret) {

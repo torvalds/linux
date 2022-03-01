@@ -1474,7 +1474,7 @@ int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
 	struct xen_netif_tx_sring *txs;
 	struct xen_netif_rx_sring *rxs;
 	RING_IDX rsp_prod, req_prod;
-	int err = -ENOMEM;
+	int err;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
 				     &tx_ring_ref, 1, &addr);

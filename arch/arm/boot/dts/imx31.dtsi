@@ -166,7 +166,7 @@
 			};
 		};
 
-		spba@50000000 {
+		spba-bus@50000000 {
 			compatible = "fsl,spba-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

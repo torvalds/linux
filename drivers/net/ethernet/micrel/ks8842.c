@@ -348,13 +348,15 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 	ks8842_write16(adapter, 32, 0x1, REG_SW_ID_AND_ENABLE);
 }
 
-static void ks8842_read_mac_addr(struct ks8842_adapter *adapter, u8 *dest)
+static void ks8842_init_mac_addr(struct ks8842_adapter *adapter)
 {
+	u8 addr[ETH_ALEN];
 	int i;
 	u16 mac;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		dest[ETH_ALEN - i - 1] = ks8842_read8(adapter, 2, REG_MARL + i);
+		addr[ETH_ALEN - i - 1] = ks8842_read8(adapter, 2, REG_MARL + i);
+	eth_hw_addr_set(adapter->netdev, addr);
 
 	if (adapter->conf_flags & MICREL_KS884X) {
 		/*
@@ -380,7 +382,7 @@ static void ks8842_read_mac_addr(struct ks8842_adapter *adapter, u8 *dest)
 	}
 }
 
-static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, u8 *mac)
+static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, const u8 *mac)
 {
 	unsigned long flags;
 	unsigned i;
@@ -1064,7 +1066,7 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, mac, netdev->addr_len);
+	eth_hw_addr_set(netdev, mac);
 
 	ks8842_write_mac_addr(adapter, mac);
 	return 0;
@@ -1191,12 +1193,11 @@ static int ks8842_probe(struct platform_device *pdev)
 
 		if (i < netdev->addr_len)
 			/* an address was passed, use it */
-			memcpy(netdev->dev_addr, pdata->macaddr,
-				netdev->addr_len);
+			eth_hw_addr_set(netdev, pdata->macaddr);
 	}
 
 	if (i == netdev->addr_len) {
-		ks8842_read_mac_addr(adapter, netdev->dev_addr);
+		ks8842_init_mac_addr(adapter);
 
 		if (!is_valid_ether_addr(netdev->dev_addr))
 			eth_hw_addr_random(netdev);

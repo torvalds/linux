@@ -1942,6 +1942,10 @@ struct tunertype tuners[] = {
 		.params = tuner_sony_btf_pg463z_params,
 		.count  = ARRAY_SIZE(tuner_sony_btf_pg463z_params),
 	},
+	[TUNER_SI2157] = {
+		.name   = "Silicon Labs Si2157 tuner",
+		/* see si2157.c for details */
+	},
 };
 EXPORT_SYMBOL(tuners);
 

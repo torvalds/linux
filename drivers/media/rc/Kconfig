@@ -175,7 +175,7 @@ config IR_ENE
 
 config IR_HIX5HD2
 	tristate "Hisilicon hix5hd2 IR remote control"
-	depends on OF || COMPILE_TEST
+	depends on (OF && HAS_IOMEM) || COMPILE_TEST
 	help
 	   Say Y here if you want to use hisilicon hix5hd2 remote control.
 	   To compile this driver as a module, choose M here: the module will be
@@ -452,14 +452,6 @@ config IR_SERIAL_TRANSMITTER
 	depends on IR_SERIAL
 	help
 	   Serial Port Transmitter support
-
-config IR_SIR
-	tristate "Built-in SIR IrDA port"
-	help
-	   Say Y if you want to use a IrDA SIR port Transceivers.
-
-	   To compile this driver as a module, choose M here: the module will
-	   be called sir-ir.
 
 config RC_XBOX_DVD
 	tristate "Xbox DVD Movie Playback Kit"

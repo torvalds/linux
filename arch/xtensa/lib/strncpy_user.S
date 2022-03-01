@@ -45,7 +45,6 @@
 #   a9/ tmp
 #   a10/ tmp
 #   a11/ dst
-#   a12/ tmp
 
 .text
 ENTRY(__strncpy_user)
@@ -61,7 +60,7 @@ ENTRY(__strncpy_user)
 	bbsi.l	a3, 0, .Lsrc1mod2 # if only  8-bit aligned
 	bbsi.l	a3, 1, .Lsrc2mod4 # if only 16-bit aligned
 .Lsrcaligned:	# return here when src is word-aligned
-	srli	a12, a4, 2	# number of loop iterations with 4B per loop
+	srli	a10, a4, 2	# number of loop iterations with 4B per loop
 	movi	a9, 3
 	bnone	a11, a9, .Laligned
 	j	.Ldstunaligned
@@ -102,11 +101,11 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 	.byte	0		# (0 mod 4 alignment for LBEG)
 .Laligned:
 #if XCHAL_HAVE_LOOPS
-	loopnez	a12, .Loop1done
+	loopnez	a10, .Loop1done
 #else
-	beqz	a12, .Loop1done
-	slli	a12, a12, 2
-	add	a12, a12, a11	# a12 = end of last 4B chunck
+	beqz	a10, .Loop1done
+	slli	a10, a10, 2
+	add	a10, a10, a11	# a10 = end of last 4B chunck
 #endif
 .Loop1:
 EX(11f)	l32i	a9, a3, 0		# get word from src
@@ -118,7 +117,7 @@ EX(10f)	s32i	a9, a11, 0		# store word to dst
 	bnone	a9, a8, .Lz3		# if byte 3 is zero
 	addi	a11, a11, 4		# advance dst pointer
 #if !XCHAL_HAVE_LOOPS
-	blt	a11, a12, .Loop1
+	blt	a11, a10, .Loop1
 #endif
 
 .Loop1done:
@@ -185,7 +184,7 @@ EX(10f)	s8i	a9, a11, 2
 	loopnez	a4, .Lunalignedend
 #else
 	beqz	a4, .Lunalignedend
-	add	a12, a11, a4		# a12 = ending address
+	add	a10, a11, a4		# a10 = ending address
 #endif /* XCHAL_HAVE_LOOPS */
 .Lnextbyte:
 EX(11f)	l8ui	a9, a3, 0
@@ -194,7 +193,7 @@ EX(10f)	s8i	a9, a11, 0
 	beqz	a9, .Lunalignedend
 	addi	a11, a11, 1
 #if !XCHAL_HAVE_LOOPS
-	blt	a11, a12, .Lnextbyte
+	blt	a11, a10, .Lnextbyte
 #endif
 
 .Lunalignedend:

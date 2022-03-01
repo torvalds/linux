@@ -32,6 +32,32 @@ This infrastructure was ported from grsecurity [6]_ and PaX [7]_.
 .. [7] https://pax.grsecurity.net/
 
 
+Purpose
+=======
+
+GCC plugins are designed to provide a place to experiment with potential
+compiler features that are neither in GCC nor Clang upstream. Once
+their utility is proven, the goal is to upstream the feature into GCC
+(and Clang), and then to finally remove them from the kernel once the
+feature is available in all supported versions of GCC.
+
+Specifically, new plugins should implement only features that have no
+upstream compiler support (in either GCC or Clang).
+
+When a feature exists in Clang but not GCC, effort should be made to
+bring the feature to upstream GCC (rather than just as a kernel-specific
+GCC plugin), so the entire ecosystem can benefit from it.
+
+Similarly, even if a feature provided by a GCC plugin does *not* exist
+in Clang, but the feature is proven to be useful, effort should be spent
+to upstream the feature to GCC (and Clang).
+
+After a feature is available in upstream GCC, the plugin will be made
+unbuildable for the corresponding GCC version (and later). Once all
+kernel-supported versions of GCC provide the feature, the plugin will
+be removed from the kernel.
+
+
 Files
 =====
 
@@ -70,7 +96,6 @@ Enable the GCC plugin infrastructure and some plugin(s) you want to use
 in the kernel config::
 
 	CONFIG_GCC_PLUGINS=y
-	CONFIG_GCC_PLUGIN_CYC_COMPLEXITY=y
 	CONFIG_GCC_PLUGIN_LATENT_ENTROPY=y
 	...
 
@@ -89,4 +114,3 @@ The GCC plugins are in scripts/gcc-plugins/. You need to put plugin source files
 right under scripts/gcc-plugins/. Creating subdirectories is not supported.
 It must be added to scripts/gcc-plugins/Makefile, scripts/Makefile.gcc-plugins
 and a relevant Kconfig file.
-See the cyc_complexity_plugin.c (CONFIG_GCC_PLUGIN_CYC_COMPLEXITY) GCC plugin.

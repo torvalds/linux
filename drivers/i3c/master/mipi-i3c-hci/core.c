@@ -662,7 +662,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 
 	/* Make sure our data ordering fits the host's */
 	regval = reg_read(HC_CONTROL);
-	if (IS_ENABLED(CONFIG_BIG_ENDIAN)) {
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
 		if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
 			regval |= HC_CONTROL_DATA_BIG_ENDIAN;
 			reg_write(HC_CONTROL, regval);

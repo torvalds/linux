@@ -300,21 +300,12 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	return 0;
 }
 
-/* Common capabilities of RK3288 SoC */
-static unsigned long dw_mci_rk3288_dwmmc_caps[4] = {
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-};
-
 static const struct dw_mci_drv_data rk2928_drv_data = {
 	.init			= dw_mci_rockchip_init,
 };
 
 static const struct dw_mci_drv_data rk3288_drv_data = {
-	.caps			= dw_mci_rk3288_dwmmc_caps,
-	.num_caps		= ARRAY_SIZE(dw_mci_rk3288_dwmmc_caps),
+	.common_caps		= MMC_CAP_CMD23,
 	.set_ios		= dw_mci_rk3288_set_ios,
 	.execute_tuning		= dw_mci_rk3288_execute_tuning,
 	.parse_dt		= dw_mci_rk3288_parse_dt,

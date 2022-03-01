@@ -321,7 +321,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 
 	/* device reports out of range channel id */
 	if (hf->channel >= GS_MAX_INTF)
-		goto resubmit_urb;
+		goto device_detach;
 
 	dev = usbcan->canch[hf->channel];
 
@@ -352,25 +352,24 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	} else { /* echo_id == hf->echo_id */
 		if (hf->echo_id >= GS_MAX_TX_URBS) {
 			netdev_err(netdev,
-				   "Unexpected out of range echo id %d\n",
+				   "Unexpected out of range echo id %u\n",
 				   hf->echo_id);
 			goto resubmit_urb;
 		}
-
-		netdev->stats.tx_packets++;
-		netdev->stats.tx_bytes += hf->can_dlc;
 
 		txc = gs_get_tx_context(dev, hf->echo_id);
 
 		/* bad devices send bad echo_ids. */
 		if (!txc) {
 			netdev_err(netdev,
-				   "Unexpected unused echo id %d\n",
+				   "Unexpected unused echo id %u\n",
 				   hf->echo_id);
 			goto resubmit_urb;
 		}
 
-		can_get_echo_skb(netdev, hf->echo_id, NULL);
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += can_get_echo_skb(netdev, hf->echo_id,
+							   NULL);
 
 		gs_free_tx_context(txc);
 
@@ -406,6 +405,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 
 	/* USB failure take down all interfaces */
 	if (rc == -ENODEV) {
+ device_detach:
 		for (rc = 0; rc < GS_MAX_INTF; rc++) {
 			if (usbcan->canch[rc])
 				netif_device_detach(usbcan->canch[rc]->netdev);
@@ -458,7 +458,7 @@ static void gs_usb_xmit_callback(struct urb *urb)
 	struct net_device *netdev = dev->netdev;
 
 	if (urb->status)
-		netdev_info(netdev, "usb xmit fail %d\n", txc->echo_id);
+		netdev_info(netdev, "usb xmit fail %u\n", txc->echo_id);
 
 	usb_free_coherent(urb->dev,
 			  urb->transfer_buffer_length,
@@ -501,12 +501,14 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	idx = txc->echo_id;
 
 	if (idx >= GS_MAX_TX_URBS) {
-		netdev_err(netdev, "Invalid tx context %d\n", idx);
+		netdev_err(netdev, "Invalid tx context %u\n", idx);
 		goto badidx;
 	}
 
 	hf->echo_id = idx;
 	hf->channel = dev->channel;
+	hf->flags = 0;
+	hf->reserved = 0;
 
 	cf = (struct can_frame *)skb->data;
 
@@ -964,11 +966,11 @@ static int gs_usb_probe(struct usb_interface *intf,
 	}
 
 	icount = dconf->icount + 1;
-	dev_info(&intf->dev, "Configuring for %d interfaces\n", icount);
+	dev_info(&intf->dev, "Configuring for %u interfaces\n", icount);
 
 	if (icount > GS_MAX_INTF) {
 		dev_err(&intf->dev,
-			"Driver cannot handle more that %d CAN interfaces\n",
+			"Driver cannot handle more that %u CAN interfaces\n",
 			GS_MAX_INTF);
 		kfree(dconf);
 		return -EINVAL;

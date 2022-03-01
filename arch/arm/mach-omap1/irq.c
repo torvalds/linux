@@ -165,7 +165,7 @@ asmlinkage void __exception_irq_entry omap1_handle_irq(struct pt_regs *regs)
 		}
 irq:
 		if (irqnr)
-			handle_domain_irq(domain, irqnr, regs);
+			generic_handle_domain_irq(domain, irqnr);
 		else
 			break;
 	} while (irqnr);

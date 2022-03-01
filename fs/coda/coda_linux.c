@@ -87,28 +87,27 @@ static struct coda_timespec timespec64_to_coda(struct timespec64 ts64)
 }
 
 /* utility functions below */
+umode_t coda_inode_type(struct coda_vattr *attr)
+{
+	switch (attr->va_type) {
+	case C_VREG:
+		return S_IFREG;
+	case C_VDIR:
+		return S_IFDIR;
+	case C_VLNK:
+		return S_IFLNK;
+	case C_VNON:
+	default:
+		return 0;
+	}
+}
+
 void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 {
-        int inode_type;
-        /* inode's i_flags, i_ino are set by iget 
-           XXX: is this all we need ??
-           */
-        switch (attr->va_type) {
-        case C_VNON:
-                inode_type  = 0;
-                break;
-        case C_VREG:
-                inode_type = S_IFREG;
-                break;
-        case C_VDIR:
-                inode_type = S_IFDIR;
-                break;
-        case C_VLNK:
-                inode_type = S_IFLNK;
-                break;
-        default:
-                inode_type = 0;
-        }
+	/* inode's i_flags, i_ino are set by iget
+	 * XXX: is this all we need ??
+	 */
+	umode_t inode_type = coda_inode_type(attr);
 	inode->i_mode |= inode_type;
 
 	if (attr->va_mode != (u_short) -1)

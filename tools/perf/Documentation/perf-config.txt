@@ -587,6 +587,15 @@ record.*::
 		Use 'n' control blocks in asynchronous (Posix AIO) trace writing
 		mode ('n' default: 1, max: 4).
 
+	record.debuginfod::
+		Specify debuginfod URL to be used when cacheing perf.data binaries,
+		it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+		  http://192.168.122.174:8002
+
+		If the URLs is 'system', the value of DEBUGINFOD_URLS system environment
+		variable is used.
+
 diff.*::
 	diff.order::
 		This option sets the number of columns to sort the result.

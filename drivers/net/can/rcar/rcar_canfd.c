@@ -502,7 +502,6 @@ struct rcar_canfd_channel {
 	struct rcar_canfd_global *gpriv;	/* Controller reference */
 	void __iomem *base;			/* Register base address */
 	struct napi_struct napi;
-	u8  tx_len[RCANFD_FIFO_DEPTH];		/* For net stats */
 	u32 tx_head;				/* Incremented on xmit */
 	u32 tx_tail;				/* Incremented on xmit done */
 	u32 channel;				/* Channel number */
@@ -1033,8 +1032,6 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 	/* Clear channel error interrupts that are handled */
 	rcar_canfd_write(priv->base, RCANFD_CERFL(ch),
 			 RCANFD_CERFL_ERR(~cerfl));
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 }
 
@@ -1051,9 +1048,7 @@ static void rcar_canfd_tx_done(struct net_device *ndev)
 
 		sent = priv->tx_tail % RCANFD_FIFO_DEPTH;
 		stats->tx_packets++;
-		stats->tx_bytes += priv->tx_len[sent];
-		priv->tx_len[sent] = 0;
-		can_get_echo_skb(ndev, sent, NULL);
+		stats->tx_bytes += can_get_echo_skb(ndev, sent, NULL);
 
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		priv->tx_tail++;
@@ -1174,8 +1169,6 @@ static void rcar_canfd_state_change(struct net_device *ndev,
 		rx_state = txerr <= rxerr ? state : 0;
 
 		can_change_state(ndev, cf, tx_state, rx_state);
-		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
 		netif_rx(skb);
 	}
 }
@@ -1465,7 +1458,6 @@ static netdev_tx_t rcar_canfd_start_xmit(struct sk_buff *skb,
 				    RCANFD_C_CFDF(ch, RCANFD_CFFIFO_IDX, 0));
 	}
 
-	priv->tx_len[priv->tx_head % RCANFD_FIFO_DEPTH] = cf->len;
 	can_put_echo_skb(skb, ndev, priv->tx_head % RCANFD_FIFO_DEPTH, 0);
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
@@ -1554,7 +1546,8 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 
 	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
-	stats->rx_bytes += cf->len;
+	if (!(cf->can_id & CAN_RTR_FLAG))
+		stats->rx_bytes += cf->len;
 	stats->rx_packets++;
 	netif_receive_skb(skb);
 }
@@ -1640,8 +1633,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	ndev = alloc_candev(sizeof(*priv), RCANFD_FIFO_DEPTH);
 	if (!ndev) {
 		dev_err(&pdev->dev, "alloc_candev() failed\n");
-		err = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 	priv = netdev_priv(ndev);
 
@@ -1706,7 +1698,9 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 			&rcar_canfd_data_bittiming_const;
 
 		/* Controller starts in CAN FD only mode */
-		can_set_static_ctrlmode(ndev, CAN_CTRLMODE_FD);
+		err = can_set_static_ctrlmode(ndev, CAN_CTRLMODE_FD);
+		if (err)
+			goto fail;
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING;
 	} else {
 		/* Controller starts in Classical CAN only mode */
@@ -1735,8 +1729,8 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 
 fail_candev:
 	netif_napi_del(&priv->napi);
-	free_candev(ndev);
 fail:
+	free_candev(ndev);
 	return err;
 }
 

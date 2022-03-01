@@ -87,11 +87,9 @@ struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev)
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	err = devm_add_action(dev, tegra_mc_devm_action_put_device, mc);
-	if (err) {
-		put_device(mc->dev);
+	err = devm_add_action_or_reset(dev, tegra_mc_devm_action_put_device, mc);
+	if (err)
 		return ERR_PTR(err);
-	}
 
 	return mc;
 }
@@ -706,15 +704,6 @@ static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 			goto remove_nodes;
 	}
 
-	/*
-	 * MC driver is registered too early, so early that generic driver
-	 * syncing doesn't work for the MC. But it doesn't really matter
-	 * since syncing works for the EMC drivers, hence we can sync the
-	 * MC driver by ourselves and then EMC will complete syncing of
-	 * the whole ICC state.
-	 */
-	icc_sync_state(mc->dev);
-
 	return 0;
 
 remove_nodes:
@@ -835,6 +824,15 @@ static int __maybe_unused tegra_mc_resume(struct device *dev)
 	return 0;
 }
 
+static void tegra_mc_sync_state(struct device *dev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(dev);
+
+	/* check whether ICC provider is registered */
+	if (mc->provider.dev == dev)
+		icc_sync_state(dev);
+}
+
 static const struct dev_pm_ops tegra_mc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_mc_suspend, tegra_mc_resume)
 };
@@ -845,6 +843,7 @@ static struct platform_driver tegra_mc_driver = {
 		.of_match_table = tegra_mc_of_match,
 		.pm = &tegra_mc_pm_ops,
 		.suppress_bind_attrs = true,
+		.sync_state = tegra_mc_sync_state,
 	},
 	.prevent_deferred_probe = true,
 	.probe = tegra_mc_probe,

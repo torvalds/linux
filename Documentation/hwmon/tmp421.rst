@@ -64,3 +64,13 @@ the temperature values via the following sysfs files:
 **temp[1-4]_input**
 
 **temp[2-4]_fault**
+
+Each sensor can be individually disabled via Devicetree or from sysfs
+via:
+
+**temp[1-4]_enable**
+
+If labels were specified in Devicetree, additional sysfs files will
+be present:
+
+**temp[1-4]_label**

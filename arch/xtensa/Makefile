@@ -7,14 +7,12 @@
 # Copyright (C) 2014 Cadence Design Systems Inc.
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# architecture-specific flags and dependencies.
 
 # Core configuration.
 # (Use VAR=<xtensa_config> to use another default compiler.)
 
-variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
+variant-y := $(CONFIG_XTENSA_VARIANT_NAME)
 
 VARIANT = $(variant-y)
 

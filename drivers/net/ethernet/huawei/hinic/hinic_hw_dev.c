@@ -162,7 +162,6 @@ static int init_msix(struct hinic_hwdev *hwdev)
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	int nr_irqs, num_aeqs, num_ceqs;
-	size_t msix_entries_size;
 	int i, err;
 
 	num_aeqs = HINIC_HWIF_NUM_AEQS(hwif);
@@ -171,8 +170,8 @@ static int init_msix(struct hinic_hwdev *hwdev)
 	if (nr_irqs > HINIC_HWIF_NUM_IRQS(hwif))
 		nr_irqs = HINIC_HWIF_NUM_IRQS(hwif);
 
-	msix_entries_size = nr_irqs * sizeof(*hwdev->msix_entries);
-	hwdev->msix_entries = devm_kzalloc(&pdev->dev, msix_entries_size,
+	hwdev->msix_entries = devm_kcalloc(&pdev->dev, nr_irqs,
+					   sizeof(*hwdev->msix_entries),
 					   GFP_KERNEL);
 	if (!hwdev->msix_entries)
 		return -ENOMEM;
@@ -754,17 +753,9 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	err = hinic_devlink_register(hwdev->devlink_dev);
-	if (err) {
-		dev_err(&hwif->pdev->dev, "Failed to register devlink\n");
-		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
-		return err;
-	}
-
 	err = hinic_func_to_func_init(hwdev);
 	if (err) {
 		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
-		hinic_devlink_unregister(hwdev->devlink_dev);
 		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 		return err;
 	}
@@ -787,7 +778,7 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 	}
 
 	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
-
+	hinic_devlink_register(hwdev->devlink_dev);
 	return 0;
 }
 
@@ -799,6 +790,7 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 {
 	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
 
+	hinic_devlink_unregister(hwdev->devlink_dev);
 	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
 
 	if (!HINIC_IS_VF(hwdev->hwif)) {
@@ -815,8 +807,6 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 	}
 
 	hinic_func_to_func_free(hwdev);
-
-	hinic_devlink_unregister(hwdev->devlink_dev);
 
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }

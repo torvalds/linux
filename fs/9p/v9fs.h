@@ -89,7 +89,7 @@ struct v9fs_session_info {
 	unsigned int cache;
 #ifdef CONFIG_9P_FSCACHE
 	char *cachetag;
-	struct fscache_cookie *fscache;
+	struct fscache_volume *fscache;
 #endif
 
 	char *uname;		/* user name to mount as */
@@ -109,7 +109,6 @@ struct v9fs_session_info {
 
 struct v9fs_inode {
 #ifdef CONFIG_9P_FSCACHE
-	struct mutex fscache_lock;
 	struct fscache_cookie *fscache;
 #endif
 	struct p9_qid qid;
@@ -124,15 +123,34 @@ static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
 	return container_of(inode, struct v9fs_inode, vfs_inode);
 }
 
+static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inode)
+{
+#ifdef CONFIG_9P_FSCACHE
+	return v9inode->fscache;
+#else
+	return NULL;
+#endif
+}
+
+static inline struct fscache_volume *v9fs_session_cache(struct v9fs_session_info *v9ses)
+{
+#ifdef CONFIG_9P_FSCACHE
+	return v9ses->fscache;
+#else
+	return NULL;
+#endif
+}
+
+
 extern int v9fs_show_options(struct seq_file *m, struct dentry *root);
 
-struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
-									char *);
+struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
+				 const char *dev_name, char *data);
 extern void v9fs_session_close(struct v9fs_session_info *v9ses);
 extern void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 extern void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);
 extern struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
-			unsigned int flags);
+				      unsigned int flags);
 extern int v9fs_vfs_unlink(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rmdir(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rename(struct user_namespace *mnt_userns,
@@ -158,7 +176,7 @@ extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
 
 static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 {
-	return (inode->i_sb->s_fs_info);
+	return inode->i_sb->s_fs_info;
 }
 
 static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)

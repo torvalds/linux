@@ -87,8 +87,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#include "../comedi_usb.h"
+#include <linux/comedi/comedi_usb.h>
 
 #define	NI6501_TIMEOUT	1000
 
@@ -143,6 +142,10 @@ static const u8 READ_COUNTER_RESPONSE[]	= {0x00, 0x01, 0x00, 0x10,
 					   0x00, 0x0C, 0x01, 0x00,
 					   0x00, 0x00, 0x00, 0x02,
 					   0x00, 0x00, 0x00, 0x00};
+
+/* Largest supported packets */
+static const size_t TX_MAX_SIZE	= sizeof(SET_PORT_DIR_REQUEST);
+static const size_t RX_MAX_SIZE	= sizeof(READ_PORT_RESPONSE);
 
 enum commands {
 	READ_PORT,
@@ -499,6 +502,12 @@ static int ni6501_find_endpoints(struct comedi_device *dev)
 	}
 
 	if (!devpriv->ep_rx || !devpriv->ep_tx)
+		return -ENODEV;
+
+	if (usb_endpoint_maxp(devpriv->ep_rx) < RX_MAX_SIZE)
+		return -ENODEV;
+
+	if (usb_endpoint_maxp(devpriv->ep_tx) < TX_MAX_SIZE)
 		return -ENODEV;
 
 	return 0;

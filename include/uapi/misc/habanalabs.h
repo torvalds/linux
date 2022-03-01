@@ -272,6 +272,16 @@ enum hl_gaudi_pll_index {
 	HL_GAUDI_PLL_MAX
 };
 
+/**
+ * enum hl_device_status - Device status information.
+ * @HL_DEVICE_STATUS_OPERATIONAL: Device is operational.
+ * @HL_DEVICE_STATUS_IN_RESET: Device is currently during reset.
+ * @HL_DEVICE_STATUS_MALFUNCTION: Device is unusable.
+ * @HL_DEVICE_STATUS_NEEDS_RESET: Device needs reset because auto reset was disabled.
+ * @HL_DEVICE_STATUS_IN_DEVICE_CREATION: Device is operational but its creation is still in
+ *                                       progress.
+ * @HL_DEVICE_STATUS_LAST: Last status.
+ */
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
@@ -323,7 +333,18 @@ enum hl_server_type {
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
+ * HL_INFO_POWER         - Retrieve power information
  * HL_INFO_OPEN_STATS    - Retrieve info regarding recent device open calls
+ * HL_INFO_DRAM_REPLACED_ROWS - Retrieve DRAM replaced rows info
+ * HL_INFO_DRAM_PENDING_ROWS - Retrieve DRAM pending rows num
+ * HL_INFO_LAST_ERR_OPEN_DEV_TIME - Retrieve timestamp of the last time the device was opened
+ *                                  and CS timeout or razwi error occurred.
+ * HL_INFO_CS_TIMEOUT_EVENT - Retrieve CS timeout timestamp and its related CS sequence number.
+ * HL_INFO_RAZWI_EVENT - Retrieve parameters of razwi:
+ *                            Timestamp of razwi.
+ *                            The address which accessing it caused the razwi.
+ *                            Razwi initiator.
+ *                            Razwi cause, was it a page fault or MMU access error.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -343,8 +364,13 @@ enum hl_server_type {
 #define HL_INFO_PLL_FREQUENCY		16
 #define HL_INFO_POWER			17
 #define HL_INFO_OPEN_STATS		18
+#define HL_INFO_DRAM_REPLACED_ROWS	21
+#define HL_INFO_DRAM_PENDING_ROWS	22
+#define HL_INFO_LAST_ERR_OPEN_DEV_TIME	23
+#define HL_INFO_CS_TIMEOUT_EVENT	24
+#define HL_INFO_RAZWI_EVENT		25
 
-#define HL_INFO_VERSION_MAX_LEN	128
+#define HL_INFO_VERSION_MAX_LEN		128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
 
 /**
@@ -463,15 +489,27 @@ struct hl_info_pci_counters {
 	__u64 replay_cnt;
 };
 
-#define HL_CLK_THROTTLE_POWER	0x1
-#define HL_CLK_THROTTLE_THERMAL	0x2
+enum hl_clk_throttling_type {
+	HL_CLK_THROTTLE_TYPE_POWER,
+	HL_CLK_THROTTLE_TYPE_THERMAL,
+	HL_CLK_THROTTLE_TYPE_MAX
+};
+
+/* clk_throttling_reason masks */
+#define HL_CLK_THROTTLE_POWER		(1 << HL_CLK_THROTTLE_TYPE_POWER)
+#define HL_CLK_THROTTLE_THERMAL		(1 << HL_CLK_THROTTLE_TYPE_THERMAL)
 
 /**
  * struct hl_info_clk_throttle - clock throttling reason
  * @clk_throttling_reason: each bit represents a clk throttling reason
+ * @clk_throttling_timestamp_us: represents CPU timestamp in microseconds of the start-event
+ * @clk_throttling_duration_ns: the clock throttle time in nanosec
  */
 struct hl_info_clk_throttle {
 	__u32 clk_throttling_reason;
+	__u32 pad;
+	__u64 clk_throttling_timestamp_us[HL_CLK_THROTTLE_TYPE_MAX];
+	__u64 clk_throttling_duration_ns[HL_CLK_THROTTLE_TYPE_MAX];
 };
 
 /**
@@ -549,6 +587,51 @@ struct hl_info_cs_counters {
 	__u64 ctx_validation_drop_cnt;
 };
 
+/**
+ * struct hl_info_last_err_open_dev_time - last error boot information.
+ * @timestamp: timestamp of last time the device was opened and error occurred.
+ */
+struct hl_info_last_err_open_dev_time {
+	__s64 timestamp;
+};
+
+/**
+ * struct hl_info_cs_timeout_event - last CS timeout information.
+ * @timestamp: timestamp when last CS timeout event occurred.
+ * @seq: sequence number of last CS timeout event.
+ */
+struct hl_info_cs_timeout_event {
+	__s64 timestamp;
+	__u64 seq;
+};
+
+#define HL_RAZWI_PAGE_FAULT 0
+#define HL_RAZWI_MMU_ACCESS_ERROR 1
+
+/**
+ * struct hl_info_razwi_event - razwi information.
+ * @timestamp: timestamp of razwi.
+ * @addr: address which accessing it caused razwi.
+ * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does not
+ *               have engine id it will be set to U16_MAX.
+ * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
+ *               engines which one them caused the razwi. In that case, it will contain the
+ *               second possible engine id, otherwise it will be set to U16_MAX.
+ * @no_engine_id: if razwi initiator does not have engine id, this field will be set to 1,
+ *                otherwise 0.
+ * @error_type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
+ * @pad: padding to 64 bit.
+ */
+struct hl_info_razwi_event {
+	__s64 timestamp;
+	__u64 addr;
+	__u16 engine_id_1;
+	__u16 engine_id_2;
+	__u8 no_engine_id;
+	__u8 error_type;
+	__u8 pad[2];
+};
+
 enum gaudi_dcores {
 	HL_GAUDI_WS_DCORE,
 	HL_GAUDI_WN_DCORE,
@@ -556,33 +639,30 @@ enum gaudi_dcores {
 	HL_GAUDI_ES_DCORE
 };
 
+/**
+ * struct hl_info_args - Main structure to retrieve device related information.
+ * @return_pointer: User space address of the relevant structure related to HL_INFO_* operation
+ *                  mentioned in @op.
+ * @return_size: Size of the structure used in @return_pointer, just like "size" in "snprintf", it
+ *               limits how many bytes the kernel can write. For hw_events array, the size should be
+ *               hl_info_hw_ip_info.num_of_events * sizeof(__u32).
+ * @op: Defines which type of information to be retrieved. Refer HL_INFO_* for details.
+ * @dcore_id: DCORE id for which the information is relevant (for Gaudi refer to enum gaudi_dcores).
+ * @ctx_id: Context ID of the user. Currently not in use.
+ * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
+ *             resolution. Currently not in use.
+ * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
+ * @pad: Padding to 64 bit.
+ */
 struct hl_info_args {
-	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
-	/*
-	 * The size of the return value. Just like "size" in "snprintf",
-	 * it limits how many bytes the kernel can write
-	 *
-	 * For hw_events array, the size should be
-	 * hl_info_hw_ip_info.num_of_events * sizeof(__u32)
-	 */
 	__u32 return_size;
-
-	/* HL_INFO_* */
 	__u32 op;
 
 	union {
-		/* Dcore id for which the information is relevant.
-		 * For Gaudi refer to 'enum gaudi_dcores'
-		 */
 		__u32 dcore_id;
-		/* Context ID - Currently not in use */
 		__u32 ctx_id;
-		/* Period value for utilization rate (100ms - 1000ms, in 100ms
-		 * resolution.
-		 */
 		__u32 period_ms;
-		/* PLL frequency retrieval */
 		__u32 pll_index;
 	};
 
@@ -600,7 +680,10 @@ struct hl_info_args {
 #define HL_MAX_CB_SIZE		(0x200000 - 32)
 
 /* Indicates whether the command buffer should be mapped to the device's MMU */
-#define HL_CB_FLAGS_MAP		0x1
+#define HL_CB_FLAGS_MAP			0x1
+
+/* Used with HL_CB_OP_INFO opcode to get the device va address for kernel mapped CB */
+#define HL_CB_FLAGS_GET_DEVICE_VA	0x2
 
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
@@ -622,11 +705,16 @@ struct hl_cb_out {
 		/* Handle of CB */
 		__u64 cb_handle;
 
-		/* Information about CB */
-		struct {
-			/* Usage count of CB */
-			__u32 usage_cnt;
-			__u32 pad;
+		union {
+			/* Information about CB */
+			struct {
+				/* Usage count of CB */
+				__u32 usage_cnt;
+				__u32 pad;
+			};
+
+			/* CB mapped address to device MMU */
+			__u64 device_va;
 		};
 	};
 };
@@ -849,9 +937,17 @@ struct hl_cs_out {
 
 	/*
 	 * SOB base address offset
-	 * Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set
+	 * Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY or HL_CS_FLAGS_SIGNAL is set
 	 */
 	__u32 sob_base_addr_offset;
+
+	/*
+	 * Count of completed signals in SOB before current signal submission.
+	 * Valid only when (HL_CS_FLAGS_ENCAP_SIGNALS & HL_CS_FLAGS_STAGED_SUBMISSION)
+	 * or HL_CS_FLAGS_SIGNAL is set
+	 */
+	__u16 sob_count_before_submission;
+	__u16 pad[3];
 };
 
 union hl_cs_args {
@@ -859,9 +955,10 @@ union hl_cs_args {
 	struct hl_cs_out out;
 };
 
-#define HL_WAIT_CS_FLAGS_INTERRUPT	0x2
-#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK 0xFFF00000
-#define HL_WAIT_CS_FLAGS_MULTI_CS	0x4
+#define HL_WAIT_CS_FLAGS_INTERRUPT		0x2
+#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
+#define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
+#define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
 
 #define HL_WAIT_MULTI_CS_LIST_MAX_LEN	32
 
@@ -881,20 +978,25 @@ struct hl_wait_cs_in {
 		};
 
 		struct {
-			/* User address for completion comparison.
-			 * upon interrupt, driver will compare the value pointed
-			 * by this address with the supplied target value.
-			 * in order not to perform any comparison, set address
-			 * to all 1s.
-			 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
-			 */
-			__u64 addr;
+			union {
+				/* User address for completion comparison.
+				 * upon interrupt, driver will compare the value pointed
+				 * by this address with the supplied target value.
+				 * in order not to perform any comparison, set address
+				 * to all 1s.
+				 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+				 */
+				__u64 addr;
+
+				/* cq_counters_handle to a kernel mapped cb which contains
+				 * cq counters.
+				 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
+				 */
+				__u64 cq_counters_handle;
+			};
+
 			/* Target value for completion comparison */
-			__u32 target;
-			/* Absolute timeout to wait for interrupt
-			 * in microseconds
-			 */
-			__u32 interrupt_timeout_us;
+			__u64 target;
 		};
 	};
 
@@ -908,9 +1010,27 @@ struct hl_wait_cs_in {
 	 */
 	__u32 flags;
 
-	/* Multi CS API info- valid entries in multi-CS array */
-	__u8 seq_arr_len;
-	__u8 pad[7];
+	union {
+		struct {
+			/* Multi CS API info- valid entries in multi-CS array */
+			__u8 seq_arr_len;
+			__u8 pad[7];
+		};
+
+		/* Absolute timeout to wait for an interrupt in microseconds.
+		 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+		 */
+		__u64 interrupt_timeout_us;
+	};
+
+	/*
+	 * cq counter offset inside the counters cb pointed by cq_counters_handle above.
+	 * upon interrupt, driver will compare the value pointed
+	 * by this address (cq_counters_handle + cq_counters_offset)
+	 * with the supplied target value.
+	 * relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
+	 */
+	__u64 cq_counters_offset;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -952,6 +1072,10 @@ union hl_wait_cs_args {
 #define HL_MEM_OP_UNMAP			3
 /* Opcode to map a hw block */
 #define HL_MEM_OP_MAP_BLOCK		4
+/* Opcode to create DMA-BUF object for an existing device memory allocation
+ * and to export an FD of that DMA-BUF back to the caller
+ */
+#define HL_MEM_OP_EXPORT_DMABUF_FD	5
 
 /* Memory flags */
 #define HL_MEM_CONTIGUOUS	0x1
@@ -1023,11 +1147,26 @@ struct hl_mem_in {
 			/* Virtual address returned from HL_MEM_OP_MAP */
 			__u64 device_virt_addr;
 		} unmap;
+
+		/* HL_MEM_OP_EXPORT_DMABUF_FD */
+		struct {
+			/* Handle returned from HL_MEM_OP_ALLOC. In Gaudi,
+			 * where we don't have MMU for the device memory, the
+			 * driver expects a physical address (instead of
+			 * a handle) in the device memory space.
+			 */
+			__u64 handle;
+			/* Size of memory allocation. Relevant only for GAUDI */
+			__u64 mem_size;
+		} export_dmabuf_fd;
 	};
 
 	/* HL_MEM_OP_* */
 	__u32 op;
-	/* HL_MEM_* flags */
+	/* HL_MEM_* flags.
+	 * For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the
+	 * DMA-BUF file/FD flags.
+	 */
 	__u32 flags;
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
@@ -1064,6 +1203,13 @@ struct hl_mem_out {
 
 			__u32 pad;
 		};
+
+		/* Returned in HL_MEM_OP_EXPORT_DMABUF_FD. Represents the
+		 * DMA-BUF object that was created to describe a memory
+		 * allocation on the device's memory space. The FD should be
+		 * passed to the importer driver
+		 */
+		__s32 fd;
 	};
 };
 

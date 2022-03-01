@@ -1082,6 +1082,8 @@ static inline int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t p
 	return hash__map_kernel_page(ea, pa, prot);
 }
 
+void unmap_kernel_page(unsigned long va);
+
 static inline int __meminit vmemmap_create_mapping(unsigned long start,
 						   unsigned long page_size,
 						   unsigned long phys)
@@ -1098,6 +1100,16 @@ static inline void vmemmap_remove_mapping(unsigned long start,
 	if (radix_enabled())
 		return radix__vmemmap_remove_mapping(start, page_size);
 	return hash__vmemmap_remove_mapping(start, page_size);
+}
+#endif
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+static inline void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (radix_enabled())
+		radix__kernel_map_pages(page, numpages, enable);
+	else
+		hash__kernel_map_pages(page, numpages, enable);
 }
 #endif
 

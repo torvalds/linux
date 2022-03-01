@@ -31,10 +31,7 @@ u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
 static bool
-Efuse_Read1ByteFromFakeContent(
-	struct adapter *padapter,
-	u16 	Offset,
-	u8 *Value)
+Efuse_Read1ByteFromFakeContent(u16 Offset, u8 *Value)
 {
 	if (Offset >= EFUSE_MAX_HW_SIZE)
 		return false;
@@ -46,10 +43,7 @@ Efuse_Read1ByteFromFakeContent(
 }
 
 static bool
-Efuse_Write1ByteToFakeContent(
-	struct adapter *padapter,
-	u16 	Offset,
-	u8 Value)
+Efuse_Write1ByteToFakeContent(u16 Offset, u8 Value)
 {
 	if (Offset >= EFUSE_MAX_HW_SIZE)
 		return false;
@@ -250,7 +244,7 @@ bool		bPseudoTest)
 	u8 readbyte;
 
 	if (bPseudoTest)
-		return Efuse_Read1ByteFromFakeContent(padapter, addr, data);
+		return Efuse_Read1ByteFromFakeContent(addr, data);
 
 	/*  <20130121, Kordan> For SMIC EFUSE specificatoin. */
 	/* 0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8]) */
@@ -291,7 +285,7 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	u32 efuseValue = 0;
 
 	if (bPseudoTest)
-		return Efuse_Write1ByteToFakeContent(padapter, addr, data);
+		return Efuse_Write1ByteToFakeContent(addr, data);
 
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */

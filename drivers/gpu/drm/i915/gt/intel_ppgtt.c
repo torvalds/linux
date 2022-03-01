@@ -155,19 +155,20 @@ int i915_ppgtt_init_hw(struct intel_gt *gt)
 }
 
 static struct i915_ppgtt *
-__ppgtt_create(struct intel_gt *gt)
+__ppgtt_create(struct intel_gt *gt, unsigned long lmem_pt_obj_flags)
 {
 	if (GRAPHICS_VER(gt->i915) < 8)
 		return gen6_ppgtt_create(gt);
 	else
-		return gen8_ppgtt_create(gt);
+		return gen8_ppgtt_create(gt, lmem_pt_obj_flags);
 }
 
-struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt)
+struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt,
+				     unsigned long lmem_pt_obj_flags)
 {
 	struct i915_ppgtt *ppgtt;
 
-	ppgtt = __ppgtt_create(gt);
+	ppgtt = __ppgtt_create(gt, lmem_pt_obj_flags);
 	if (IS_ERR(ppgtt))
 		return ppgtt;
 
@@ -288,17 +289,8 @@ void i915_vm_free_pt_stash(struct i915_address_space *vm,
 	}
 }
 
-int ppgtt_set_pages(struct i915_vma *vma)
-{
-	GEM_BUG_ON(vma->pages);
-
-	vma->pages = vma->obj->mm.pages;
-	vma->page_sizes = vma->obj->mm.page_sizes;
-
-	return 0;
-}
-
-void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
+void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt,
+		unsigned long lmem_pt_obj_flags)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
@@ -306,12 +298,11 @@ void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.dma = i915->drm.dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
+	ppgtt->vm.lmem_pt_obj_flags = lmem_pt_obj_flags;
 
 	dma_resv_init(&ppgtt->vm._resv);
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;
 	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
-	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
-	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 }

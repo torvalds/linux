@@ -433,13 +433,11 @@ static const struct v4l2_subdev_ops csi2tx_subdev_ops = {
 static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 				struct platform_device *pdev)
 {
-	struct resource *res;
 	unsigned int i;
 	u32 dev_cfg;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi2tx->base = devm_ioremap_resource(&pdev->dev, res);
+	csi2tx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2tx->base))
 		return PTR_ERR(csi2tx->base);
 

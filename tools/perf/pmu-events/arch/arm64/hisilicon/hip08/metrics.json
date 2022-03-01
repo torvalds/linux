@@ -229,5 +229,5 @@
         "BriefDescription": "Store bound L3 topdown metric",
         "MetricGroup": "TopDownL3",
         "MetricName": "store_bound"
-    },
+    }
 ]

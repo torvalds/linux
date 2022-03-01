@@ -502,8 +502,8 @@ static void test_lookup_32_bit_value(int family, int sotype, int mapfd)
 	if (s < 0)
 		return;
 
-	mapfd = bpf_create_map(BPF_MAP_TYPE_SOCKMAP, sizeof(key),
-			       sizeof(value32), 1, 0);
+	mapfd = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(key),
+			       sizeof(value32), 1, NULL);
 	if (mapfd < 0) {
 		FAIL_ERRNO("map_create");
 		goto close;
@@ -2002,7 +2002,7 @@ static void run_tests(struct test_sockmap_listen *skel, struct bpf_map *map,
 	test_udp_unix_redir(skel, map, family);
 }
 
-void test_sockmap_listen(void)
+void serial_test_sockmap_listen(void)
 {
 	struct test_sockmap_listen *skel;
 

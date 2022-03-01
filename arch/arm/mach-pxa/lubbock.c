@@ -211,16 +211,17 @@ static struct ads7846_platform_data ads_info = {
 	// .y_plate_ohms		= 500,	/* GUESS! */
 };
 
-static void ads7846_cs(u32 command)
-{
-	static const unsigned	TS_nCS = 1 << 11;
-	lubbock_set_misc_wr(TS_nCS, (command == PXA2XX_CS_ASSERT) ? 0 : TS_nCS);
-}
+static struct gpiod_lookup_table ads7846_cs_gpios = {
+	.dev_id		= "ads7846",
+	.table		= {
+		GPIO_LOOKUP("lubbock", 11, "cs", GPIO_ACTIVE_LOW),
+		{}
+	},
+};
 
 static struct pxa2xx_spi_chip ads_hw = {
 	.tx_threshold		= 1,
 	.rx_threshold		= 2,
-	.cs_control		= ads7846_cs,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = { {
@@ -511,6 +512,8 @@ static void __init lubbock_init(void)
 	lubbock_flash_data[flashboot^1].name = "application-flash";
 	lubbock_flash_data[flashboot].name = "boot-rom";
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	gpiod_add_lookup_table(&ads7846_cs_gpios);
 
 	pxa2xx_set_spi_info(1, &pxa_ssp_master_info);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));

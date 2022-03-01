@@ -589,8 +589,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 	}
 	ap->name = dev->name;
 
-	if (ap->pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -869,6 +868,7 @@ static int ace_init(struct net_device *dev)
 	int board_idx, ecode = 0;
 	short i;
 	unsigned char cache_size;
+	u8 addr[ETH_ALEN];
 
 	ap = netdev_priv(dev);
 	regs = ap->regs;
@@ -988,12 +988,13 @@ static int ace_init(struct net_device *dev)
 	writel(mac1, &regs->MacAddrHi);
 	writel(mac2, &regs->MacAddrLo);
 
-	dev->dev_addr[0] = (mac1 >> 8) & 0xff;
-	dev->dev_addr[1] = mac1 & 0xff;
-	dev->dev_addr[2] = (mac2 >> 24) & 0xff;
-	dev->dev_addr[3] = (mac2 >> 16) & 0xff;
-	dev->dev_addr[4] = (mac2 >> 8) & 0xff;
-	dev->dev_addr[5] = mac2 & 0xff;
+	addr[0] = (mac1 >> 8) & 0xff;
+	addr[1] = mac1 & 0xff;
+	addr[2] = (mac2 >> 24) & 0xff;
+	addr[3] = (mac2 >> 16) & 0xff;
+	addr[4] = (mac2 >> 8) & 0xff;
+	addr[5] = mac2 & 0xff;
+	eth_hw_addr_set(dev, addr);
 
 	printk("MAC: %pM\n", dev->dev_addr);
 
@@ -1128,11 +1129,7 @@ static int ace_init(struct net_device *dev)
 	/*
 	 * Configure DMA attributes.
 	 */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		ap->pci_using_dac = 1;
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		ap->pci_using_dac = 0;
-	} else {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		ecode = -ENODEV;
 		goto init_error;
 	}
@@ -2712,15 +2709,15 @@ static int ace_set_mac_addr(struct net_device *dev, void *p)
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	struct sockaddr *addr=p;
-	u8 *da;
+	const u8 *da;
 	struct cmd cmd;
 
 	if(netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data,dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
-	da = (u8 *)dev->dev_addr;
+	da = (const u8 *)dev->dev_addr;
 
 	writel(da[0] << 8 | da[1], &regs->MacAddrHi);
 	writel((da[2] << 24) | (da[3] << 16) | (da[4] << 8) | da[5],

@@ -105,7 +105,7 @@ static struct aligninfo spe_aligninfo[32] = {
  * so we don't need the address swizzling.
  */
 static int emulate_spe(struct pt_regs *regs, unsigned int reg,
-		       struct ppc_inst ppc_instr)
+		       ppc_inst_t ppc_instr)
 {
 	union {
 		u64 ll;
@@ -300,7 +300,7 @@ Efault_write:
 
 int fix_alignment(struct pt_regs *regs)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	struct instruction_op op;
 	int r, type;
 
@@ -349,6 +349,7 @@ int fix_alignment(struct pt_regs *regs)
 		if (op.type != CACHEOP + DCBZ)
 			return -EINVAL;
 		PPC_WARN_ALIGNMENT(dcbz, regs);
+		WARN_ON_ONCE(!user_mode(regs));
 		r = emulate_dcbz(op.ea, regs);
 	} else {
 		if (type == LARX || type == STCX)

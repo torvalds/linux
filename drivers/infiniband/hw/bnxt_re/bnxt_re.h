@@ -39,22 +39,13 @@
 
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
+#include "hw_counters.h"
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
 
 #define BNXT_RE_DESC	"Broadcom NetXtreme-C/E RoCE Driver"
-#define BNXT_RE_PAGE_SHIFT_4K		(12)
-#define BNXT_RE_PAGE_SHIFT_8K		(13)
-#define BNXT_RE_PAGE_SHIFT_64K		(16)
-#define BNXT_RE_PAGE_SHIFT_2M		(21)
-#define BNXT_RE_PAGE_SHIFT_8M		(23)
-#define BNXT_RE_PAGE_SHIFT_1G		(30)
 
-#define BNXT_RE_PAGE_SIZE_4K		BIT(BNXT_RE_PAGE_SHIFT_4K)
-#define BNXT_RE_PAGE_SIZE_8K		BIT(BNXT_RE_PAGE_SHIFT_8K)
-#define BNXT_RE_PAGE_SIZE_64K		BIT(BNXT_RE_PAGE_SHIFT_64K)
-#define BNXT_RE_PAGE_SIZE_2M		BIT(BNXT_RE_PAGE_SHIFT_2M)
-#define BNXT_RE_PAGE_SIZE_8M		BIT(BNXT_RE_PAGE_SHIFT_8M)
-#define BNXT_RE_PAGE_SIZE_1G		BIT(BNXT_RE_PAGE_SHIFT_1G)
+#define BNXT_RE_PAGE_SHIFT_1G		(30)
+#define BNXT_RE_PAGE_SIZE_SUPPORTED	0x7FFFF000 /* 4kb - 1G */
 
 #define BNXT_RE_MAX_MR_SIZE_LOW		BIT_ULL(BNXT_RE_PAGE_SHIFT_1G)
 #define BNXT_RE_MAX_MR_SIZE_HIGH	BIT_ULL(39)
@@ -177,15 +168,17 @@ struct bnxt_re_dev {
 	atomic_t			srq_count;
 	atomic_t			mr_count;
 	atomic_t			mw_count;
+	atomic_t			ah_count;
+	atomic_t			pd_count;
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
 	/* QP for for handling QP1 packets */
 	struct bnxt_re_gsi_context	gsi_ctx;
+	struct bnxt_re_stats		stats;
 	atomic_t nq_alloc_cnt;
 	u32 is_virtfn;
 	u32 num_vfs;
-	struct bnxt_qplib_roce_stats	stats;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\

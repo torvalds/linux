@@ -5,3 +5,4 @@ obj-$(CONFIG_VDPA_USER) += vdpa_user/
 obj-$(CONFIG_IFCVF)    += ifcvf/
 obj-$(CONFIG_MLX5_VDPA) += mlx5/
 obj-$(CONFIG_VP_VDPA)    += virtio_pci/
+obj-$(CONFIG_ALIBABA_ENI_VDPA) += alibaba/

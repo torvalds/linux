@@ -27,10 +27,8 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-
-#include "../comedi_pcmcia.h"
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_pcmcia.h>
+#include <linux/comedi/comedi_8254.h>
 
 /*
  * Register I/O map

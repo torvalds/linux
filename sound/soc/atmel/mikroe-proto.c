@@ -129,9 +129,9 @@ static int snd_proto_probe(struct platform_device *pdev)
 	}
 	if (bitclkmaster) {
 		if (codec_np == bitclkmaster)
-			dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+			dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		else
-			dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+			dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
 	} else {
 		dai_fmt |= snd_soc_daifmt_parse_clock_provider_as_flag(np, NULL);
 	}
@@ -144,9 +144,9 @@ static int snd_proto_probe(struct platform_device *pdev)
 	of_node_put(cpu_np);
 
 	ret = snd_soc_register_card(&snd_proto);
-	if (ret && ret != -EPROBE_DEFER)
-		dev_err(&pdev->dev,
-			"snd_soc_register_card() failed: %d\n", ret);
+	if (ret)
+		dev_err_probe(&pdev->dev, ret,
+			"snd_soc_register_card() failed\n");
 
 	return ret;
 }

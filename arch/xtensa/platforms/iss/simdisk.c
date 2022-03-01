@@ -100,7 +100,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	spin_unlock(&dev->lock);
 }
 
-static blk_qc_t simdisk_submit_bio(struct bio *bio)
+static void simdisk_submit_bio(struct bio *bio)
 {
 	struct simdisk *dev = bio->bi_bdev->bd_disk->private_data;
 	struct bio_vec bvec;
@@ -118,7 +118,6 @@ static blk_qc_t simdisk_submit_bio(struct bio *bio)
 	}
 
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
 }
 
 static int simdisk_open(struct block_device *bdev, fmode_t mode)
@@ -209,7 +208,7 @@ static int simdisk_detach(struct simdisk *dev)
 static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = pde_data(file_inode(file));
 	const char *s = dev->filename;
 	if (s) {
 		ssize_t n = simple_read_from_buffer(buf, size, ppos,
@@ -226,7 +225,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	char *tmp = memdup_user_nul(buf, count);
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = pde_data(file_inode(file));
 	int err;
 
 	if (IS_ERR(tmp))
@@ -259,6 +258,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
 {
 	char tmp[2] = { '0' + which, 0 };
+	int err = -ENOMEM;
 
 	dev->fd = -1;
 	dev->filename = NULL;
@@ -267,7 +267,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 
 	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
 	if (!dev->gd)
-		return -ENOMEM;
+		goto out;
 	dev->gd->major = simdisk_major;
 	dev->gd->first_minor = which;
 	dev->gd->minors = SIMDISK_MINORS;
@@ -275,10 +275,18 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	dev->gd->private_data = dev;
 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
 	set_capacity(dev->gd, 0);
-	add_disk(dev->gd);
+	err = add_disk(dev->gd);
+	if (err)
+		goto out_cleanup_disk;
 
 	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
+
 	return 0;
+
+out_cleanup_disk:
+	blk_cleanup_disk(dev->gd);
+out:
+	return err;
 }
 
 static int __init simdisk_init(void)

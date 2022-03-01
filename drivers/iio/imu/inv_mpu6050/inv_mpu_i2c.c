@@ -110,7 +110,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	match = device_get_match_data(&client->dev);
 	if (match) {
-		chip_type = (enum inv_devices)match;
+		chip_type = (uintptr_t)match;
 		name = client->name;
 	} else if (id) {
 		chip_type = (enum inv_devices)
@@ -249,7 +249,7 @@ static const struct of_device_id inv_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, inv_of_match);
 
-static const struct acpi_device_id inv_acpi_match[] = {
+static const struct acpi_device_id __maybe_unused inv_acpi_match[] = {
 	{"INVN6500", INV_MPU6500},
 	{ },
 };

@@ -8,8 +8,11 @@
 #ifndef __NAL_H264_H__
 #define __NAL_H264_H__
 
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/v4l2-controls.h>
+#include <linux/videodev2.h>
 
 /*
  * struct nal_h264_hrd_parameters - HRD parameters
@@ -187,8 +190,201 @@ struct nal_h264_pps {
 	};
 };
 
-int nal_h264_profile_from_v4l2(enum v4l2_mpeg_video_h264_profile profile);
-int nal_h264_level_from_v4l2(enum v4l2_mpeg_video_h264_level level);
+/**
+ * nal_h264_profile() - Get profile_idc for v4l2 h264 profile
+ * @profile: the profile as &enum v4l2_mpeg_video_h264_profile
+ *
+ * Convert the &enum v4l2_mpeg_video_h264_profile to profile_idc as specified
+ * in Rec. ITU-T H.264 (04/2017) A.2.
+ *
+ * Return: the profile_idc for the passed level
+ */
+static inline int nal_h264_profile(enum v4l2_mpeg_video_h264_profile profile)
+{
+	switch (profile) {
+	case V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE:
+		return 66;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_MAIN:
+		return 77;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED:
+		return 88;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_HIGH:
+		return 100;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * nal_h264_level() - Get level_idc for v4l2 h264 level
+ * @level: the level as &enum v4l2_mpeg_video_h264_level
+ *
+ * Convert the &enum v4l2_mpeg_video_h264_level to level_idc as specified in
+ * Rec. ITU-T H.264 (04/2017) A.3.2.
+ *
+ * Return: the level_idc for the passed level
+ */
+static inline int nal_h264_level(enum v4l2_mpeg_video_h264_level level)
+{
+	switch (level) {
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_0:
+		return 10;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1B:
+		return 9;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_1:
+		return 11;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_2:
+		return 12;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_3:
+		return 13;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_0:
+		return 20;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_1:
+		return 21;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_2:
+		return 22;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_0:
+		return 30;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_1:
+		return 31;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_2:
+		return 32;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_0:
+		return 40;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_1:
+		return 41;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_2:
+		return 42;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_5_0:
+		return 50;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_5_1:
+		return 51;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * nal_h264_full_range() - Get video_full_range_flag for v4l2 quantization
+ * @quantization: the quantization type as &enum v4l2_quantization
+ *
+ * Convert the &enum v4l2_quantization to video_full_range_flag as specified in
+ * Rec. ITU-T H.264 (04/2017) E.2.1.
+ *
+ * Return: the video_full_range_flag value for the passed quantization
+ */
+static inline int nal_h264_full_range(enum v4l2_quantization quantization)
+{
+	switch (quantization) {
+	case V4L2_QUANTIZATION_FULL_RANGE:
+		return 1;
+	case V4L2_QUANTIZATION_LIM_RANGE:
+		return 0;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/**
+ * nal_h264_color_primaries() - Get color_primaries for v4l2 colorspace
+ * @colorspace: the color space as &enum v4l2_colorspace
+ *
+ * Convert the &enum v4l2_colorspace to color_primaries as specified in
+ * Rec. ITU-T H.264 (04/2017) E.2.1.
+ *
+ * Return: the color_primaries value for the passed colorspace
+ */
+static inline int nal_h264_color_primaries(enum v4l2_colorspace colorspace)
+{
+	switch (colorspace) {
+	case V4L2_COLORSPACE_SMPTE170M:
+		return 6;
+	case V4L2_COLORSPACE_SMPTE240M:
+		return 7;
+	case V4L2_COLORSPACE_REC709:
+		return 1;
+	case V4L2_COLORSPACE_470_SYSTEM_M:
+		return 4;
+	case V4L2_COLORSPACE_JPEG:
+	case V4L2_COLORSPACE_SRGB:
+	case V4L2_COLORSPACE_470_SYSTEM_BG:
+		return 5;
+	case V4L2_COLORSPACE_BT2020:
+		return 9;
+	case V4L2_COLORSPACE_DEFAULT:
+	case V4L2_COLORSPACE_OPRGB:
+	case V4L2_COLORSPACE_RAW:
+	case V4L2_COLORSPACE_DCI_P3:
+	default:
+		return 2;
+	}
+}
+
+/**
+ * nal_h264_transfer_characteristics() - Get transfer_characteristics for v4l2 xfer_func
+ * @colorspace: the color space as &enum v4l2_colorspace
+ * @xfer_func: the transfer function as &enum v4l2_xfer_func
+ *
+ * Convert the &enum v4l2_xfer_func to transfer_characteristics as specified in
+ * Rec. ITU-T H.264 (04/2017) E.2.1.
+ *
+ * Return: the transfer_characteristics value for the passed transfer function
+ */
+static inline int nal_h264_transfer_characteristics(enum v4l2_colorspace colorspace,
+						    enum v4l2_xfer_func xfer_func)
+{
+	if (xfer_func == V4L2_XFER_FUNC_DEFAULT)
+		xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(colorspace);
+
+	switch (xfer_func) {
+	case V4L2_XFER_FUNC_709:
+		return 6;
+	case V4L2_XFER_FUNC_SMPTE2084:
+		return 16;
+	case V4L2_XFER_FUNC_SRGB:
+	case V4L2_XFER_FUNC_OPRGB:
+	case V4L2_XFER_FUNC_NONE:
+	case V4L2_XFER_FUNC_DCI_P3:
+	case V4L2_XFER_FUNC_SMPTE240M:
+	default:
+		return 2;
+	}
+}
+
+/**
+ * nal_h264_matrix_coeffs() - Get matrix_coefficients for v4l2 v4l2_ycbcr_encoding
+ * @colorspace: the color space as &enum v4l2_colorspace
+ * @ycbcr_encoding: the ycbcr encoding as &enum v4l2_ycbcr_encoding
+ *
+ * Convert the &enum v4l2_ycbcr_encoding to matrix_coefficients as specified in
+ * Rec. ITU-T H.264 (04/2017) E.2.1.
+ *
+ * Return: the matrix_coefficients value for the passed encoding
+ */
+static inline int nal_h264_matrix_coeffs(enum v4l2_colorspace colorspace,
+					 enum v4l2_ycbcr_encoding ycbcr_encoding)
+{
+	if (ycbcr_encoding == V4L2_YCBCR_ENC_DEFAULT)
+		ycbcr_encoding = V4L2_MAP_YCBCR_ENC_DEFAULT(colorspace);
+
+	switch (ycbcr_encoding) {
+	case V4L2_YCBCR_ENC_601:
+	case V4L2_YCBCR_ENC_XV601:
+		return 5;
+	case V4L2_YCBCR_ENC_709:
+	case V4L2_YCBCR_ENC_XV709:
+		return 1;
+	case V4L2_YCBCR_ENC_BT2020:
+		return 9;
+	case V4L2_YCBCR_ENC_BT2020_CONST_LUM:
+		return 10;
+	case V4L2_YCBCR_ENC_SMPTE240M:
+	default:
+		return 2;
+	}
+}
 
 ssize_t nal_h264_write_sps(const struct device *dev,
 			   void *dest, size_t n, struct nal_h264_sps *sps);

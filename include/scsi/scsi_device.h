@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <scsi/scsi.h>
 #include <linux/atomic.h>
 #include <linux/sbitmap.h>
@@ -207,6 +207,7 @@ struct scsi_device {
 					 * creation time */
 	unsigned ignore_media_change:1; /* Ignore MEDIA CHANGE on resume */
 
+	unsigned int queue_stopped;	/* request queue is quiesced */
 	bool offline_already;		/* Device offline message logged */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
@@ -274,9 +275,9 @@ scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
 	do {								\
 		struct request *__rq = scsi_cmd_to_rq((scmd));		\
 									\
-		if (__rq->rq_disk)					\
+		if (__rq->q->disk)					\
 			sdev_dbg((scmd)->device, "[%s] " fmt,		\
-				 __rq->rq_disk->disk_name, ##a);	\
+				 __rq->q->disk->disk_name, ##a);	\
 		else							\
 			sdev_dbg((scmd)->device, fmt, ##a);		\
 	} while (0)
@@ -414,9 +415,8 @@ extern int scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			   int retries, struct scsi_mode_data *data,
 			   struct scsi_sense_hdr *);
 extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
-			    int modepage, unsigned char *buffer, int len,
-			    int timeout, int retries,
-			    struct scsi_mode_data *data,
+			    unsigned char *buffer, int len, int timeout,
+			    int retries, struct scsi_mode_data *data,
 			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries, struct scsi_sense_hdr *sshdr);

@@ -27,4 +27,3 @@ workloads and systems.
    faq
    design
    api
-   plans

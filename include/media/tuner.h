@@ -132,6 +132,7 @@
 #define TUNER_SONY_BTF_PG472Z		89	/* PAL+SECAM */
 #define TUNER_SONY_BTF_PK467Z		90	/* NTSC_JP */
 #define TUNER_SONY_BTF_PB463Z		91	/* NTSC */
+#define TUNER_SI2157			92
 
 /* tv card specific */
 #define TDA9887_PRESENT			(1<<0)

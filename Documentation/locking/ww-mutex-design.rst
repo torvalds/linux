@@ -60,7 +60,7 @@ Concepts
 Compared to normal mutexes two additional concepts/objects show up in the lock
 interface for w/w mutexes:
 
-Acquire context: To ensure eventual forward progress it is important the a task
+Acquire context: To ensure eventual forward progress it is important that a task
 trying to acquire locks doesn't grab a new reservation id, but keeps the one it
 acquired when starting the lock acquisition. This ticket is stored in the
 acquire context. Furthermore the acquire context keeps track of debugging state

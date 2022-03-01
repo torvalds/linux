@@ -2442,11 +2442,10 @@ Or this simple script!
   #!/bin/bash
 
   tracefs=`sed -ne 's/^tracefs \(.*\) tracefs.*/\1/p' /proc/mounts`
-  echo nop > $tracefs/tracing/current_tracer
-  echo 0 > $tracefs/tracing/tracing_on
-  echo $$ > $tracefs/tracing/set_ftrace_pid
-  echo function > $tracefs/tracing/current_tracer
-  echo 1 > $tracefs/tracing/tracing_on
+  echo 0 > $tracefs/tracing_on
+  echo $$ > $tracefs/set_ftrace_pid
+  echo function > $tracefs/current_tracer
+  echo 1 > $tracefs/tracing_on
   exec "$@"
 
 
@@ -3371,7 +3370,7 @@ one of the latency tracers, you will get the following results.
 
 Instances
 ---------
-In the tracefs tracing directory is a directory called "instances".
+In the tracefs tracing directory, there is a directory called "instances".
 This directory can have new directories created inside of it using
 mkdir, and removing directories with rmdir. The directory created
 with mkdir in this directory will already contain files and other

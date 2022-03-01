@@ -230,3 +230,4 @@ const struct clk_ops ccu_nkmp_ops = {
 	.round_rate	= ccu_nkmp_round_rate,
 	.set_rate	= ccu_nkmp_set_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_nkmp_ops, SUNXI_CCU);

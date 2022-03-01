@@ -682,7 +682,7 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->tstamp   = &priv->tstamp;
 	c->pdev     = mlx5_core_dma_dev(priv->mdev);
 	c->netdev   = priv->netdev;
-	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey.key);
+	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);
 	c->num_tc   = mlx5e_get_dcb_num_tc(params);
 	c->stats    = &priv->ptp_stats.ch;
 	c->lag_port = lag_port;
@@ -768,7 +768,7 @@ int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv)
 {
 	struct mlx5e_ptp_fs *ptp_fs;
 
-	if (!priv->profile->rx_ptp_support)
+	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		return 0;
 
 	ptp_fs = kzalloc(sizeof(*ptp_fs), GFP_KERNEL);
@@ -783,7 +783,7 @@ void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv)
 {
 	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
 
-	if (!priv->profile->rx_ptp_support)
+	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		return;
 
 	mlx5e_ptp_rx_unset_fs(priv);
@@ -794,7 +794,7 @@ int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set)
 {
 	struct mlx5e_ptp *c = priv->channels.ptp;
 
-	if (!priv->profile->rx_ptp_support)
+	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		return 0;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))

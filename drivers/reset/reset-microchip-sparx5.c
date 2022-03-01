@@ -13,15 +13,18 @@
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 
-#define PROTECT_REG    0x84
-#define PROTECT_BIT    BIT(10)
-#define SOFT_RESET_REG 0x00
-#define SOFT_RESET_BIT BIT(1)
+struct reset_props {
+	u32 protect_reg;
+	u32 protect_bit;
+	u32 reset_reg;
+	u32 reset_bit;
+};
 
 struct mchp_reset_context {
 	struct regmap *cpu_ctrl;
 	struct regmap *gcb_ctrl;
 	struct reset_controller_dev rcdev;
+	const struct reset_props *props;
 };
 
 static struct regmap_config sparx5_reset_regmap_config = {
@@ -38,14 +41,16 @@ static int sparx5_switch_reset(struct reset_controller_dev *rcdev,
 	u32 val;
 
 	/* Make sure the core is PROTECTED from reset */
-	regmap_update_bits(ctx->cpu_ctrl, PROTECT_REG, PROTECT_BIT, PROTECT_BIT);
+	regmap_update_bits(ctx->cpu_ctrl, ctx->props->protect_reg,
+			   ctx->props->protect_bit, ctx->props->protect_bit);
 
 	/* Start soft reset */
-	regmap_write(ctx->gcb_ctrl, SOFT_RESET_REG, SOFT_RESET_BIT);
+	regmap_write(ctx->gcb_ctrl, ctx->props->reset_reg,
+		     ctx->props->reset_bit);
 
 	/* Wait for soft reset done */
-	return regmap_read_poll_timeout(ctx->gcb_ctrl, SOFT_RESET_REG, val,
-					(val & SOFT_RESET_BIT) == 0,
+	return regmap_read_poll_timeout(ctx->gcb_ctrl, ctx->props->reset_reg, val,
+					(val & ctx->props->reset_bit) == 0,
 					1, 100);
 }
 
@@ -115,13 +120,32 @@ static int mchp_sparx5_reset_probe(struct platform_device *pdev)
 	ctx->rcdev.nr_resets = 1;
 	ctx->rcdev.ops = &sparx5_reset_ops;
 	ctx->rcdev.of_node = dn;
+	ctx->props = device_get_match_data(&pdev->dev);
 
 	return devm_reset_controller_register(&pdev->dev, &ctx->rcdev);
 }
 
+static const struct reset_props reset_props_sparx5 = {
+	.protect_reg    = 0x84,
+	.protect_bit    = BIT(10),
+	.reset_reg      = 0x0,
+	.reset_bit      = BIT(1),
+};
+
+static const struct reset_props reset_props_lan966x = {
+	.protect_reg    = 0x88,
+	.protect_bit    = BIT(5),
+	.reset_reg      = 0x0,
+	.reset_bit      = BIT(1),
+};
+
 static const struct of_device_id mchp_sparx5_reset_of_match[] = {
 	{
 		.compatible = "microchip,sparx5-switch-reset",
+		.data = &reset_props_sparx5,
+	}, {
+		.compatible = "microchip,lan966x-switch-reset",
+		.data = &reset_props_lan966x,
 	},
 	{ }
 };

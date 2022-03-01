@@ -36,6 +36,9 @@ properties:
           - const: mediatek,mt8195-mmc
           - const: mediatek,mt8183-mmc
 
+  reg:
+    maxItems: 1
+
   clocks:
     description:
       Should contain phandle for the clock feeding the MMC controller.
@@ -61,6 +64,9 @@ properties:
       - const: pclk_cg
       - const: axi_cg
       - const: ahb_cg
+
+  interrupts:
+    maxItems: 1
 
   pinctrl-names:
     items:
@@ -118,6 +124,18 @@ properties:
       HS400 command response sample selection.
       If present, HS400 command responses are sampled on rising edges.
       If not present, HS400 command responses are sampled on falling edges.
+
+  mediatek,hs400-ds-dly3:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Gear of the third delay line for DS for input data latch in data
+      pad macro, there are 32 stages from 0 to 31.
+      For different corner IC, the time is different about one step, it is
+      about 100ps.
+      The value is confirmed by doing scan and calibration to find a best
+      value with corner IC and it is valid only for HS400 mode.
+    minimum: 0
+    maximum: 31
 
   mediatek,latch-ck:
     $ref: /schemas/types.yaml#/definitions/uint32

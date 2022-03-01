@@ -38,6 +38,10 @@ enum ath11k_dbg_htt_ext_stats_type {
 	ATH11K_DBG_HTT_EXT_STATS_TX_SOUNDING_INFO           =  22,
 	ATH11K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	    =  23,
 	ATH11K_DBG_HTT_EXT_STATS_RING_BACKPRESSURE_STATS    =  24,
+	ATH11K_DBG_HTT_EXT_STATS_PEER_CTRL_PATH_TXRX_STATS  =  29,
+	ATH11K_DBG_HTT_EXT_STATS_PDEV_TX_RATE_TXBF_STATS    =  31,
+	ATH11K_DBG_HTT_EXT_STATS_TXBF_OFDMA		    =  32,
+	ATH11K_DBG_HTT_EXT_PHY_COUNTERS_AND_PHY_STATS	    =  37,
 
 	/* keep this last */
 	ATH11K_DBG_HTT_NUM_EXT_STATS,
@@ -113,6 +117,8 @@ void ath11k_debugfs_unregister(struct ath11k *ar);
 void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
 
 void ath11k_debugfs_fw_stats_init(struct ath11k *ar);
+int ath11k_debugfs_get_fw_stats(struct ath11k *ar, u32 pdev_id,
+				u32 vdev_id, u32 stats_id);
 
 static inline bool ath11k_debugfs_is_pktlog_lite_mode_enabled(struct ath11k *ar)
 {
@@ -208,6 +214,12 @@ static inline bool ath11k_debugfs_is_pktlog_peer_valid(struct ath11k *ar, u8 *ad
 }
 
 static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
+{
+	return 0;
+}
+
+static inline int ath11k_debugfs_get_fw_stats(struct ath11k *ar,
+					      u32 pdev_id, u32 vdev_id, u32 stats_id)
 {
 	return 0;
 }

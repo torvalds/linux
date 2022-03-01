@@ -19,6 +19,8 @@
  */
 #define CREATE_TRACE_POINTS
 #include "ice_trace.h"
+#include "ice_eswitch.h"
+#include "ice_tc_lib.h"
 
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -42,15 +44,25 @@ MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
 #endif /* !CONFIG_DYNAMIC_DEBUG */
 
 static DEFINE_IDA(ice_aux_ida);
+DEFINE_STATIC_KEY_FALSE(ice_xdp_locking_key);
+EXPORT_SYMBOL(ice_xdp_locking_key);
 
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_safe_mode_ops;
 static const struct net_device_ops ice_netdev_ops;
-static int ice_vsi_open(struct ice_vsi *vsi);
 
 static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type);
 
 static void ice_vsi_release_all(struct ice_pf *pf);
+
+static int ice_rebuild_channels(struct ice_pf *pf);
+static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_adv_fltr);
+
+static int
+ice_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch,
+		     void *cb_priv, enum tc_setup_type type, void *type_data,
+		     void *data,
+		     void (*cleanup)(struct flow_block_cb *block_cb));
 
 bool netif_is_ice(struct net_device *dev)
 {
@@ -61,7 +73,7 @@ bool netif_is_ice(struct net_device *dev)
  * ice_get_tx_pending - returns number of Tx descriptors not processed
  * @ring: the ring of descriptors
  */
-static u16 ice_get_tx_pending(struct ice_ring *ring)
+static u16 ice_get_tx_pending(struct ice_tx_ring *ring)
 {
 	u16 head, tail;
 
@@ -100,10 +112,15 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 
 	hw = &vsi->back->hw;
 
-	for (i = 0; i < vsi->num_txq; i++) {
-		struct ice_ring *tx_ring = vsi->tx_rings[i];
+	ice_for_each_txq(vsi, i) {
+		struct ice_tx_ring *tx_ring = vsi->tx_rings[i];
 
-		if (tx_ring && tx_ring->desc) {
+		if (!tx_ring)
+			continue;
+		if (ice_ring_ch_enabled(tx_ring))
+			continue;
+
+		if (tx_ring->desc) {
 			/* If packet counter has not changed the queue is
 			 * likely stalled, so force an interrupt for this
 			 * queue.
@@ -138,7 +155,6 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
  */
 static int ice_init_mac_fltr(struct ice_pf *pf)
 {
-	enum ice_status status;
 	struct ice_vsi *vsi;
 	u8 *perm_addr;
 
@@ -147,11 +163,7 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 		return -EINVAL;
 
 	perm_addr = vsi->port_info->mac.perm_addr;
-	status = ice_fltr_add_mac_and_broadcast(vsi, perm_addr, ICE_FWD_TO_VSI);
-	if (status)
-		return -EIO;
-
-	return 0;
+	return ice_fltr_add_mac_and_broadcast(vsi, perm_addr, ICE_FWD_TO_VSI);
 }
 
 /**
@@ -220,36 +232,43 @@ static bool ice_vsi_fltr_changed(struct ice_vsi *vsi)
 }
 
 /**
- * ice_cfg_promisc - Enable or disable promiscuous mode for a given PF
+ * ice_set_promisc - Enable promiscuous mode for a given PF
  * @vsi: the VSI being configured
  * @promisc_m: mask of promiscuous config bits
- * @set_promisc: enable or disable promisc flag request
  *
  */
-static int ice_cfg_promisc(struct ice_vsi *vsi, u8 promisc_m, bool set_promisc)
+static int ice_set_promisc(struct ice_vsi *vsi, u8 promisc_m)
 {
-	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status = 0;
+	int status;
 
 	if (vsi->type != ICE_VSI_PF)
 		return 0;
 
-	if (vsi->num_vlan > 1) {
-		status = ice_set_vlan_vsi_promisc(hw, vsi->idx, promisc_m,
-						  set_promisc);
-	} else {
-		if (set_promisc)
-			status = ice_set_vsi_promisc(hw, vsi->idx, promisc_m,
-						     0);
-		else
-			status = ice_clear_vsi_promisc(hw, vsi->idx, promisc_m,
-						       0);
-	}
+	if (vsi->num_vlan > 1)
+		status = ice_fltr_set_vlan_vsi_promisc(&vsi->back->hw, vsi, promisc_m);
+	else
+		status = ice_fltr_set_vsi_promisc(&vsi->back->hw, vsi->idx, promisc_m, 0);
+	return status;
+}
 
-	if (status)
-		return -EIO;
+/**
+ * ice_clear_promisc - Disable promiscuous mode for a given PF
+ * @vsi: the VSI being configured
+ * @promisc_m: mask of promiscuous config bits
+ *
+ */
+static int ice_clear_promisc(struct ice_vsi *vsi, u8 promisc_m)
+{
+	int status;
 
-	return 0;
+	if (vsi->type != ICE_VSI_PF)
+		return 0;
+
+	if (vsi->num_vlan > 1)
+		status = ice_fltr_clear_vlan_vsi_promisc(&vsi->back->hw, vsi, promisc_m);
+	else
+		status = ice_fltr_clear_vsi_promisc(&vsi->back->hw, vsi->idx, promisc_m, 0);
+	return status;
 }
 
 /**
@@ -265,10 +284,9 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	bool promisc_forced_on = false;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status = 0;
 	u32 changed_flags = 0;
 	u8 promisc_m;
-	int err = 0;
+	int err;
 
 	if (!vsi->netdev)
 		return -EINVAL;
@@ -298,25 +316,23 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	}
 
 	/* Remove MAC addresses in the unsync list */
-	status = ice_fltr_remove_mac_list(vsi, &vsi->tmp_unsync_list);
+	err = ice_fltr_remove_mac_list(vsi, &vsi->tmp_unsync_list);
 	ice_fltr_free_list(dev, &vsi->tmp_unsync_list);
-	if (status) {
+	if (err) {
 		netdev_err(netdev, "Failed to delete MAC filters\n");
 		/* if we failed because of alloc failures, just bail */
-		if (status == ICE_ERR_NO_MEMORY) {
-			err = -ENOMEM;
+		if (err == -ENOMEM)
 			goto out;
-		}
 	}
 
 	/* Add MAC addresses in the sync list */
-	status = ice_fltr_add_mac_list(vsi, &vsi->tmp_sync_list);
+	err = ice_fltr_add_mac_list(vsi, &vsi->tmp_sync_list);
 	ice_fltr_free_list(dev, &vsi->tmp_sync_list);
 	/* If filter is added successfully or already exists, do not go into
 	 * 'if' condition and report it as error. Instead continue processing
 	 * rest of the function.
 	 */
-	if (status && status != ICE_ERR_ALREADY_EXISTS) {
+	if (err && err != -EEXIST) {
 		netdev_err(netdev, "Failed to add MAC filters\n");
 		/* If there is no more space for new umac filters, VSI
 		 * should go into promiscuous mode. There should be some
@@ -329,10 +345,10 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			netdev_warn(netdev, "Reached MAC filter limit, forcing promisc mode on VSI %d\n",
 				    vsi->vsi_num);
 		} else {
-			err = -EIO;
 			goto out;
 		}
 	}
+	err = 0;
 	/* check for changes in promiscuous modes */
 	if (changed_flags & IFF_ALLMULTI) {
 		if (vsi->current_netdev_flags & IFF_ALLMULTI) {
@@ -341,7 +357,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
 
-			err = ice_cfg_promisc(vsi, promisc_m, true);
+			err = ice_set_promisc(vsi, promisc_m);
 			if (err) {
 				netdev_err(netdev, "Error setting Multicast promiscuous mode on VSI %i\n",
 					   vsi->vsi_num);
@@ -355,7 +371,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
 
-			err = ice_cfg_promisc(vsi, promisc_m, false);
+			err = ice_clear_promisc(vsi, promisc_m);
 			if (err) {
 				netdev_err(netdev, "Error clearing Multicast promiscuous mode on VSI %i\n",
 					   vsi->vsi_num);
@@ -379,7 +395,8 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 						~IFF_PROMISC;
 					goto out_promisc;
 				}
-				ice_cfg_vlan_pruning(vsi, false, false);
+				err = 0;
+				ice_cfg_vlan_pruning(vsi, false);
 			}
 		} else {
 			/* Clear Rx filter to remove traffic from wire */
@@ -393,7 +410,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 					goto out_promisc;
 				}
 				if (vsi->num_vlan > 1)
-					ice_cfg_vlan_pruning(vsi, true, false);
+					ice_cfg_vlan_pruning(vsi, true);
 			}
 		}
 	}
@@ -455,16 +472,39 @@ static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
 }
 
 /**
- * ice_prepare_for_reset - prep for the core to reset
+ * ice_clear_sw_switch_recipes - clear switch recipes
  * @pf: board private structure
+ *
+ * Mark switch recipes as not created in sw structures. There are cases where
+ * rules (especially advanced rules) need to be restored, either re-read from
+ * hardware or added again. For example after the reset. 'recp_created' flag
+ * prevents from doing that and need to be cleared upfront.
+ */
+static void ice_clear_sw_switch_recipes(struct ice_pf *pf)
+{
+	struct ice_sw_recipe *recp;
+	u8 i;
+
+	recp = pf->hw.switch_info->recp_list;
+	for (i = 0; i < ICE_MAX_NUM_RECIPES; i++)
+		recp[i].recp_created = false;
+}
+
+/**
+ * ice_prepare_for_reset - prep for reset
+ * @pf: board private structure
+ * @reset_type: reset type requested
  *
  * Inform or close all dependent features in prep for reset.
  */
 static void
-ice_prepare_for_reset(struct ice_pf *pf)
+ice_prepare_for_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
 	struct ice_hw *hw = &pf->hw;
+	struct ice_vsi *vsi;
 	unsigned int i;
+
+	dev_dbg(ice_pf_to_dev(pf), "reset_type=%d\n", reset_type);
 
 	/* already prepared for reset */
 	if (test_bit(ICE_PREPARED_FOR_RESET, pf->state))
@@ -480,13 +520,50 @@ ice_prepare_for_reset(struct ice_pf *pf)
 	ice_for_each_vf(pf, i)
 		ice_set_vf_state_qs_dis(&pf->vf[i]);
 
+	if (ice_is_eswitch_mode_switchdev(pf)) {
+		if (reset_type != ICE_RESET_PFR)
+			ice_clear_sw_switch_recipes(pf);
+	}
+
+	/* release ADQ specific HW and SW resources */
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		goto skip;
+
+	/* to be on safe side, reset orig_rss_size so that normal flow
+	 * of deciding rss_size can take precedence
+	 */
+	vsi->orig_rss_size = 0;
+
+	if (test_bit(ICE_FLAG_TC_MQPRIO, pf->flags)) {
+		if (reset_type == ICE_RESET_PFR) {
+			vsi->old_ena_tc = vsi->all_enatc;
+			vsi->old_numtc = vsi->all_numtc;
+		} else {
+			ice_remove_q_channels(vsi, true);
+
+			/* for other reset type, do not support channel rebuild
+			 * hence reset needed info
+			 */
+			vsi->old_ena_tc = 0;
+			vsi->all_enatc = 0;
+			vsi->old_numtc = 0;
+			vsi->all_numtc = 0;
+			vsi->req_txq = 0;
+			vsi->req_rxq = 0;
+			clear_bit(ICE_FLAG_TC_MQPRIO, pf->flags);
+			memset(&vsi->mqprio_qopt, 0, sizeof(vsi->mqprio_qopt));
+		}
+	}
+skip:
+
 	/* clear SW filtering DB */
 	ice_clear_hw_tbls(hw);
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf, false);
 
 	if (test_bit(ICE_FLAG_PTP_SUPPORTED, pf->flags))
-		ice_ptp_release(pf);
+		ice_ptp_prepare_for_reset(pf);
 
 	if (hw->port_info)
 		ice_sched_clear_port(hw->port_info);
@@ -499,8 +576,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 /**
  * ice_do_reset - Initiate one of many types of resets
  * @pf: board private structure
- * @reset_type: reset type requested
- * before this function was called.
+ * @reset_type: reset type requested before this function was called.
  */
 static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
@@ -509,7 +585,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 
 	dev_dbg(dev, "reset_type 0x%x requested\n", reset_type);
 
-	ice_prepare_for_reset(pf);
+	ice_prepare_for_reset(pf, reset_type);
 
 	/* trigger the reset */
 	if (ice_reset(hw, reset_type)) {
@@ -567,7 +643,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 		/* return if no valid reset type requested */
 		if (reset_type == ICE_RESET_INVAL)
 			return;
-		ice_prepare_for_reset(pf);
+		ice_prepare_for_reset(pf, reset_type);
 
 		/* make sure we are ready to rebuild */
 		if (ice_check_reset(&pf->hw)) {
@@ -624,7 +700,10 @@ static void ice_print_topo_conflict(struct ice_vsi *vsi)
 		netdev_info(vsi->netdev, "Potential misconfiguration of the Ethernet port detected. If it was not intended, please use the Intel (R) Ethernet Port Configuration Tool to address the issue.\n");
 		break;
 	case ICE_AQ_LINK_TOPO_UNSUPP_MEDIA:
-		netdev_info(vsi->netdev, "Rx/Tx is disabled on this device because an unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
+		if (test_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, vsi->back->flags))
+			netdev_warn(vsi->netdev, "An unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules\n");
+		else
+			netdev_err(vsi->netdev, "Rx/Tx is disabled on this device because an unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
 		break;
 	default:
 		break;
@@ -640,12 +719,12 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 {
 	struct ice_aqc_get_phy_caps_data *caps;
 	const char *an_advertised;
-	enum ice_status status;
 	const char *fec_req;
 	const char *speed;
 	const char *fec;
 	const char *fc;
 	const char *an;
+	int status;
 
 	if (!vsi)
 		return;
@@ -882,6 +961,29 @@ static void ice_set_dflt_mib(struct ice_pf *pf)
 }
 
 /**
+ * ice_check_phy_fw_load - check if PHY FW load failed
+ * @pf: pointer to PF struct
+ * @link_cfg_err: bitmap from the link info structure
+ *
+ * check if external PHY FW load failed and print an error message if it did
+ */
+static void ice_check_phy_fw_load(struct ice_pf *pf, u8 link_cfg_err)
+{
+	if (!(link_cfg_err & ICE_AQ_LINK_EXTERNAL_PHY_LOAD_FAILURE)) {
+		clear_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags);
+		return;
+	}
+
+	if (test_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags))
+		return;
+
+	if (link_cfg_err & ICE_AQ_LINK_EXTERNAL_PHY_LOAD_FAILURE) {
+		dev_err(ice_pf_to_dev(pf), "Device failed to load the FW for the external PHY. Please download and install the latest NVM for your device and try again\n");
+		set_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags);
+	}
+}
+
+/**
  * ice_check_module_power
  * @pf: pointer to PF struct
  * @link_cfg_err: bitmap from the link info structure
@@ -914,6 +1016,20 @@ static void ice_check_module_power(struct ice_pf *pf, u8 link_cfg_err)
 }
 
 /**
+ * ice_check_link_cfg_err - check if link configuration failed
+ * @pf: pointer to the PF struct
+ * @link_cfg_err: bitmap from the link info structure
+ *
+ * print if any link configuration failure happens due to the value in the
+ * link_cfg_err parameter in the link info structure
+ */
+static void ice_check_link_cfg_err(struct ice_pf *pf, u8 link_cfg_err)
+{
+	ice_check_module_power(pf, link_cfg_err);
+	ice_check_phy_fw_load(pf, link_cfg_err);
+}
+
+/**
  * ice_link_event - process the link event
  * @pf: PF that the link event is associated with
  * @pi: port_info for the port that the link event is associated with
@@ -928,10 +1044,10 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_phy_info *phy_info;
-	enum ice_status status;
 	struct ice_vsi *vsi;
 	u16 old_link_speed;
 	bool old_link;
+	int status;
 
 	phy_info = &pi->phy;
 	phy_info->link_info_old = phy_info->link_info;
@@ -944,11 +1060,11 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	 */
 	status = ice_update_link_info(pi);
 	if (status)
-		dev_dbg(dev, "Failed to update link status on port %d, err %s aq_err %s\n",
-			pi->lport, ice_stat_str(status),
+		dev_dbg(dev, "Failed to update link status on port %d, err %d aq_err %s\n",
+			pi->lport, status,
 			ice_aq_str(pi->hw->adminq.sq_last_status));
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	/* Check if the link state is up after updating link info, and treat
 	 * this event as an UP event since the link is actually UP now.
@@ -970,6 +1086,9 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	/* if the old link up/down and speed is the same as the new */
 	if (link_up == old_link && link_speed == old_link_speed)
 		return 0;
+
+	if (!ice_is_e810(&pf->hw))
+		ice_ptp_link_change(pf, pf->hw.pf_id, link_up);
 
 	if (ice_is_dcb_active(pf)) {
 		if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
@@ -1026,7 +1145,8 @@ static int ice_init_link_events(struct ice_port_info *pi)
 	u16 mask;
 
 	mask = ~((u16)(ICE_AQ_LINK_EVENT_UPDOWN | ICE_AQ_LINK_EVENT_MEDIA_NA |
-		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL));
+		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL |
+		       ICE_AQ_LINK_EVENT_PHY_FW_LOAD_FAIL));
 
 	if (ice_aq_set_event_mask(pi->hw, pi->lport, mask, NULL)) {
 		dev_dbg(ice_hw_to_dev(pi->hw), "Failed to set link event mask for port %d\n",
@@ -1314,15 +1434,15 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		return 0;
 
 	do {
-		enum ice_status ret;
 		u16 opcode;
+		int ret;
 
 		ret = ice_clean_rq_elem(hw, cq, &event, &pending);
-		if (ret == ICE_ERR_AQ_NO_WORK)
+		if (ret == -EALREADY)
 			break;
 		if (ret) {
-			dev_err(dev, "%s Receive Queue event error %s\n", qtype,
-				ice_stat_str(ret));
+			dev_err(dev, "%s Receive Queue event error %d\n", qtype,
+				ret);
 			break;
 		}
 
@@ -1773,19 +1893,17 @@ static int ice_init_nvm_phy_type(struct ice_port_info *pi)
 {
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_pf *pf = pi->hw->back;
-	enum ice_status status;
-	int err = 0;
+	int err;
 
 	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
 		return -ENOMEM;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA, pcaps,
-				     NULL);
+	err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA,
+				  pcaps, NULL);
 
-	if (status) {
+	if (err) {
 		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
-		err = -EIO;
 		goto out;
 	}
 
@@ -1884,8 +2002,7 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_phy_info *phy = &pi->phy;
 	struct ice_pf *pf = pi->hw->back;
-	enum ice_status status;
-	int err = 0;
+	int err;
 
 	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
 		return -EIO;
@@ -1895,14 +2012,13 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 		return -ENOMEM;
 
 	if (ice_fw_supports_report_dflt_cfg(pi->hw))
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
-					     pcaps, NULL);
+		err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					  pcaps, NULL);
 	else
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
-					     pcaps, NULL);
-	if (status) {
+		err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					  pcaps, NULL);
+	if (err) {
 		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
-		err = -EIO;
 		goto err_out;
 	}
 
@@ -1956,8 +2072,7 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	struct ice_aqc_set_phy_cfg_data *cfg;
 	struct ice_phy_info *phy = &pi->phy;
 	struct ice_pf *pf = vsi->back;
-	enum ice_status status;
-	int err = 0;
+	int err;
 
 	/* Ensure we have media as we cannot configure a medialess port */
 	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
@@ -1965,7 +2080,8 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 
 	ice_print_topo_conflict(vsi);
 
-	if (phy->link_info.topo_media_conflict == ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
+	if (!test_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags) &&
+	    phy->link_info.topo_media_conflict == ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
 		return -EPERM;
 
 	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags))
@@ -1976,12 +2092,11 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 		return -ENOMEM;
 
 	/* Get current PHY config */
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG, pcaps,
-				     NULL);
-	if (status) {
-		dev_err(dev, "Failed to get PHY configuration, VSI %d error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
-		err = -EIO;
+	err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG, pcaps,
+				  NULL);
+	if (err) {
+		dev_err(dev, "Failed to get PHY configuration, VSI %d error %d\n",
+			vsi->vsi_num, err);
 		goto done;
 	}
 
@@ -1995,15 +2110,14 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	/* Use PHY topology as baseline for configuration */
 	memset(pcaps, 0, sizeof(*pcaps));
 	if (ice_fw_supports_report_dflt_cfg(pi->hw))
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
-					     pcaps, NULL);
+		err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					  pcaps, NULL);
 	else
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
-					     pcaps, NULL);
-	if (status) {
-		dev_err(dev, "Failed to get PHY caps, VSI %d error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
-		err = -EIO;
+		err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					  pcaps, NULL);
+	if (err) {
+		dev_err(dev, "Failed to get PHY caps, VSI %d error %d\n",
+			vsi->vsi_num, err);
 		goto done;
 	}
 
@@ -2056,12 +2170,10 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	/* Enable link and link update */
 	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
 
-	status = ice_aq_set_phy_cfg(&pf->hw, pi, cfg, NULL);
-	if (status) {
-		dev_err(dev, "Failed to set phy config, VSI %d error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
-		err = -EIO;
-	}
+	err = ice_aq_set_phy_cfg(&pf->hw, pi, cfg, NULL);
+	if (err)
+		dev_err(dev, "Failed to set phy config, VSI %d error %d\n",
+			vsi->vsi_num, err);
 
 	kfree(cfg);
 done:
@@ -2096,7 +2208,7 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 	if (err)
 		return;
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		if (!test_bit(ICE_PHY_INIT_COMPLETE, pf->state))
@@ -2140,6 +2252,9 @@ static void ice_service_task(struct work_struct *work)
 		ice_service_task_complete(pf);
 		return;
 	}
+
+	if (test_and_clear_bit(ICE_FLAG_PLUG_AUX_DEV, pf->flags))
+		ice_plug_aux_dev(pf);
 
 	ice_clean_adminq_subtask(pf);
 	ice_check_media_subtask(pf);
@@ -2302,14 +2417,14 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 
 		irq_num = pf->msix_entries[base + vector].vector;
 
-		if (q_vector->tx.ring && q_vector->rx.ring) {
+		if (q_vector->tx.tx_ring && q_vector->rx.rx_ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "TxRx", rx_int_idx++);
 			tx_int_idx++;
-		} else if (q_vector->rx.ring) {
+		} else if (q_vector->rx.rx_ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "rx", rx_int_idx++);
-		} else if (q_vector->tx.ring) {
+		} else if (q_vector->tx.tx_ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "tx", tx_int_idx++);
 		} else {
@@ -2367,11 +2482,12 @@ free_q_irqs:
 static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
-	int i;
+	struct ice_tx_desc *tx_desc;
+	int i, j;
 
-	for (i = 0; i < vsi->num_xdp_txq; i++) {
+	ice_for_each_xdp_txq(vsi, i) {
 		u16 xdp_q_idx = vsi->alloc_txq + i;
-		struct ice_ring *xdp_ring;
+		struct ice_tx_ring *xdp_ring;
 
 		xdp_ring = kzalloc(sizeof(*xdp_ring), GFP_KERNEL);
 
@@ -2380,16 +2496,29 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 
 		xdp_ring->q_index = xdp_q_idx;
 		xdp_ring->reg_idx = vsi->txq_map[xdp_q_idx];
-		xdp_ring->ring_active = false;
 		xdp_ring->vsi = vsi;
 		xdp_ring->netdev = NULL;
+		xdp_ring->next_dd = ICE_TX_THRESH - 1;
+		xdp_ring->next_rs = ICE_TX_THRESH - 1;
 		xdp_ring->dev = dev;
 		xdp_ring->count = vsi->num_tx_desc;
 		WRITE_ONCE(vsi->xdp_rings[i], xdp_ring);
 		if (ice_setup_tx_ring(xdp_ring))
 			goto free_xdp_rings;
 		ice_set_ring_xdp(xdp_ring);
-		xdp_ring->xsk_pool = ice_xsk_pool(xdp_ring);
+		xdp_ring->xsk_pool = ice_tx_xsk_pool(xdp_ring);
+		spin_lock_init(&xdp_ring->tx_lock);
+		for (j = 0; j < xdp_ring->count; j++) {
+			tx_desc = ICE_TX_DESC(xdp_ring, j);
+			tx_desc->cmd_type_offset_bsz = cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE);
+		}
+	}
+
+	ice_for_each_rxq(vsi, i) {
+		if (static_key_enabled(&ice_xdp_locking_key))
+			vsi->rx_rings[i]->xdp_ring = vsi->xdp_rings[i % vsi->num_xdp_txq];
+		else
+			vsi->rx_rings[i]->xdp_ring = vsi->xdp_rings[i];
 	}
 
 	return 0;
@@ -2441,9 +2570,9 @@ int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog)
 		.vsi_map_offset = vsi->alloc_txq,
 		.mapping_mode = ICE_VSI_MAP_CONTIG
 	};
-	enum ice_status status;
 	struct device *dev;
 	int i, v_idx;
+	int status;
 
 	dev = ice_pf_to_dev(pf);
 	vsi->xdp_rings = devm_kcalloc(dev, vsi->num_xdp_txq,
@@ -2454,6 +2583,10 @@ int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog)
 	vsi->xdp_mapping_mode = xdp_qs_cfg.mapping_mode;
 	if (__ice_vsi_get_qs(&xdp_qs_cfg))
 		goto err_map_xdp;
+
+	if (static_key_enabled(&ice_xdp_locking_key))
+		netdev_warn(vsi->netdev,
+			    "Could not allocate one XDP Tx ring per CPU, XDP_TX/XDP_REDIRECT actions will be slower\n");
 
 	if (ice_xdp_alloc_setup_rings(vsi))
 		goto clear_xdp_rings;
@@ -2468,11 +2601,11 @@ int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog)
 		q_base = vsi->num_xdp_txq - xdp_rings_rem;
 
 		for (q_id = q_base; q_id < (q_base + xdp_rings_per_v); q_id++) {
-			struct ice_ring *xdp_ring = vsi->xdp_rings[q_id];
+			struct ice_tx_ring *xdp_ring = vsi->xdp_rings[q_id];
 
 			xdp_ring->q_vector = q_vector;
-			xdp_ring->next = q_vector->tx.ring;
-			q_vector->tx.ring = xdp_ring;
+			xdp_ring->next = q_vector->tx.tx_ring;
+			q_vector->tx.tx_ring = xdp_ring;
 		}
 		xdp_rings_rem -= xdp_rings_per_v;
 	}
@@ -2493,15 +2626,26 @@ int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog)
 	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 				 max_txqs);
 	if (status) {
-		dev_err(dev, "Failed VSI LAN queue config for XDP, error: %s\n",
-			ice_stat_str(status));
+		dev_err(dev, "Failed VSI LAN queue config for XDP, error: %d\n",
+			status);
 		goto clear_xdp_rings;
 	}
-	ice_vsi_assign_bpf_prog(vsi, prog);
+
+	/* assign the prog only when it's not already present on VSI;
+	 * this flow is a subject of both ethtool -L and ndo_bpf flows;
+	 * VSI rebuild that happens under ethtool -L can expose us to
+	 * the bpf_prog refcount issues as we would be swapping same
+	 * bpf_prog pointers from vsi->xdp_prog and calling bpf_prog_put
+	 * on it as it would be treated as an 'old_prog'; for ndo_bpf
+	 * this is not harmful as dev_xdp_install bumps the refcount
+	 * before calling the op exposed by the driver;
+	 */
+	if (!ice_is_xdp_ena_vsi(vsi))
+		ice_vsi_assign_bpf_prog(vsi, prog);
 
 	return 0;
 clear_xdp_rings:
-	for (i = 0; i < vsi->num_xdp_txq; i++)
+	ice_for_each_xdp_txq(vsi, i)
 		if (vsi->xdp_rings[i]) {
 			kfree_rcu(vsi->xdp_rings[i], rcu);
 			vsi->xdp_rings[i] = NULL;
@@ -2509,7 +2653,7 @@ clear_xdp_rings:
 
 err_map_xdp:
 	mutex_lock(&pf->avail_q_mutex);
-	for (i = 0; i < vsi->num_xdp_txq; i++) {
+	ice_for_each_xdp_txq(vsi, i) {
 		clear_bit(vsi->txq_map[i + vsi->alloc_txq], pf->avail_txqs);
 		vsi->txq_map[i + vsi->alloc_txq] = ICE_INVAL_Q_INDEX;
 	}
@@ -2542,25 +2686,25 @@ int ice_destroy_xdp_rings(struct ice_vsi *vsi)
 
 	ice_for_each_q_vector(vsi, v_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[v_idx];
-		struct ice_ring *ring;
+		struct ice_tx_ring *ring;
 
-		ice_for_each_ring(ring, q_vector->tx)
+		ice_for_each_tx_ring(ring, q_vector->tx)
 			if (!ring->tx_buf || !ice_ring_is_xdp(ring))
 				break;
 
 		/* restore the value of last node prior to XDP setup */
-		q_vector->tx.ring = ring;
+		q_vector->tx.tx_ring = ring;
 	}
 
 free_qmap:
 	mutex_lock(&pf->avail_q_mutex);
-	for (i = 0; i < vsi->num_xdp_txq; i++) {
+	ice_for_each_xdp_txq(vsi, i) {
 		clear_bit(vsi->txq_map[i + vsi->alloc_txq], pf->avail_txqs);
 		vsi->txq_map[i + vsi->alloc_txq] = ICE_INVAL_Q_INDEX;
 	}
 	mutex_unlock(&pf->avail_q_mutex);
 
-	for (i = 0; i < vsi->num_xdp_txq; i++)
+	ice_for_each_xdp_txq(vsi, i)
 		if (vsi->xdp_rings[i]) {
 			if (vsi->xdp_rings[i]->desc)
 				ice_free_tx_ring(vsi->xdp_rings[i]);
@@ -2570,6 +2714,9 @@ free_qmap:
 
 	devm_kfree(ice_pf_to_dev(pf), vsi->xdp_rings);
 	vsi->xdp_rings = NULL;
+
+	if (static_key_enabled(&ice_xdp_locking_key))
+		static_branch_dec(&ice_xdp_locking_key);
 
 	if (ice_is_reset_in_progress(pf->state) || !vsi->q_vectors[0])
 		return 0;
@@ -2598,11 +2745,34 @@ static void ice_vsi_rx_napi_schedule(struct ice_vsi *vsi)
 	int i;
 
 	ice_for_each_rxq(vsi, i) {
-		struct ice_ring *rx_ring = vsi->rx_rings[i];
+		struct ice_rx_ring *rx_ring = vsi->rx_rings[i];
 
 		if (rx_ring->xsk_pool)
 			napi_schedule(&rx_ring->q_vector->napi);
 	}
+}
+
+/**
+ * ice_vsi_determine_xdp_res - figure out how many Tx qs can XDP have
+ * @vsi: VSI to determine the count of XDP Tx qs
+ *
+ * returns 0 if Tx qs count is higher than at least half of CPU count,
+ * -ENOMEM otherwise
+ */
+int ice_vsi_determine_xdp_res(struct ice_vsi *vsi)
+{
+	u16 avail = ice_get_avail_txq_count(vsi->back);
+	u16 cpus = num_possible_cpus();
+
+	if (avail < cpus / 2)
+		return -ENOMEM;
+
+	vsi->num_xdp_txq = min_t(u16, avail, cpus);
+
+	if (vsi->num_xdp_txq < cpus)
+		static_branch_inc(&ice_xdp_locking_key);
+
+	return 0;
 }
 
 /**
@@ -2634,15 +2804,24 @@ ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
 	}
 
 	if (!ice_is_xdp_ena_vsi(vsi) && prog) {
-		vsi->num_xdp_txq = vsi->alloc_rxq;
-		xdp_ring_err = ice_prepare_xdp_rings(vsi, prog);
-		if (xdp_ring_err)
-			NL_SET_ERR_MSG_MOD(extack, "Setting up XDP Tx resources failed");
+		xdp_ring_err = ice_vsi_determine_xdp_res(vsi);
+		if (xdp_ring_err) {
+			NL_SET_ERR_MSG_MOD(extack, "Not enough Tx resources for XDP");
+		} else {
+			xdp_ring_err = ice_prepare_xdp_rings(vsi, prog);
+			if (xdp_ring_err)
+				NL_SET_ERR_MSG_MOD(extack, "Setting up XDP Tx resources failed");
+		}
 	} else if (ice_is_xdp_ena_vsi(vsi) && !prog) {
 		xdp_ring_err = ice_destroy_xdp_rings(vsi);
 		if (xdp_ring_err)
 			NL_SET_ERR_MSG_MOD(extack, "Freeing XDP Tx resources failed");
 	} else {
+		/* safe to call even when prog == vsi->xdp_prog as
+		 * dev_xdp_install in net/core/dev.c incremented prog's
+		 * refcount so corresponding bpf_prog_put won't cause
+		 * underflow
+		 */
 		ice_vsi_assign_bpf_prog(vsi, prog);
 	}
 
@@ -3103,6 +3282,9 @@ static void ice_set_netdev_features(struct net_device *netdev)
 
 	/* enable features */
 	netdev->features |= netdev->hw_features;
+
+	netdev->hw_features |= NETIF_F_HW_TC;
+
 	/* encap and VLAN devices inherit default, csumo and tso features */
 	netdev->hw_enc_features |= dflt_features | csumo_features |
 				   tso_features;
@@ -3139,7 +3321,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	if (vsi->type == ICE_VSI_PF) {
 		SET_NETDEV_DEV(netdev, ice_pf_to_dev(vsi->back));
 		ether_addr_copy(mac_addr, vsi->port_info->mac.perm_addr);
-		ether_addr_copy(netdev->dev_addr, mac_addr);
+		eth_hw_addr_set(netdev, mac_addr);
 		ether_addr_copy(netdev->perm_addr, mac_addr);
 	}
 
@@ -3182,7 +3364,14 @@ void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
 static struct ice_vsi *
 ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_PF, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_PF, ICE_INVAL_VFID, NULL);
+}
+
+static struct ice_vsi *
+ice_chnl_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
+		   struct ice_channel *ch)
+{
+	return ice_vsi_setup(pf, pi, ICE_VSI_CHNL, ICE_INVAL_VFID, ch);
 }
 
 /**
@@ -3196,7 +3385,7 @@ ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 static struct ice_vsi *
 ice_ctrl_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_CTRL, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_CTRL, ICE_INVAL_VFID, NULL);
 }
 
 /**
@@ -3210,7 +3399,7 @@ ice_ctrl_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 struct ice_vsi *
 ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_LB, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_LB, ICE_INVAL_VFID, NULL);
 }
 
 /**
@@ -3235,7 +3424,7 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 
 	/* Enable VLAN pruning when a VLAN other than 0 is added */
 	if (!ice_vsi_is_vlan_pruning_ena(vsi)) {
-		ret = ice_cfg_vlan_pruning(vsi, true, false);
+		ret = ice_cfg_vlan_pruning(vsi, true);
 		if (ret)
 			return ret;
 	}
@@ -3279,10 +3468,67 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 
 	/* Disable pruning when VLAN 0 is the only VLAN rule */
 	if (vsi->num_vlan == 1 && ice_vsi_is_vlan_pruning_ena(vsi))
-		ret = ice_cfg_vlan_pruning(vsi, false, false);
+		ret = ice_cfg_vlan_pruning(vsi, false);
 
 	set_bit(ICE_VSI_VLAN_FLTR_CHANGED, vsi->state);
 	return ret;
+}
+
+/**
+ * ice_rep_indr_tc_block_unbind
+ * @cb_priv: indirection block private data
+ */
+static void ice_rep_indr_tc_block_unbind(void *cb_priv)
+{
+	struct ice_indr_block_priv *indr_priv = cb_priv;
+
+	list_del(&indr_priv->list);
+	kfree(indr_priv);
+}
+
+/**
+ * ice_tc_indir_block_unregister - Unregister TC indirect block notifications
+ * @vsi: VSI struct which has the netdev
+ */
+static void ice_tc_indir_block_unregister(struct ice_vsi *vsi)
+{
+	struct ice_netdev_priv *np = netdev_priv(vsi->netdev);
+
+	flow_indr_dev_unregister(ice_indr_setup_tc_cb, np,
+				 ice_rep_indr_tc_block_unbind);
+}
+
+/**
+ * ice_tc_indir_block_remove - clean indirect TC block notifications
+ * @pf: PF structure
+ */
+static void ice_tc_indir_block_remove(struct ice_pf *pf)
+{
+	struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+
+	if (!pf_vsi)
+		return;
+
+	ice_tc_indir_block_unregister(pf_vsi);
+}
+
+/**
+ * ice_tc_indir_block_register - Register TC indirect block notifications
+ * @vsi: VSI struct which has the netdev
+ *
+ * Returns 0 on success, negative value on failure
+ */
+static int ice_tc_indir_block_register(struct ice_vsi *vsi)
+{
+	struct ice_netdev_priv *np;
+
+	if (!vsi || !vsi->netdev)
+		return -EINVAL;
+
+	np = netdev_priv(vsi->netdev);
+
+	INIT_LIST_HEAD(&np->tc_indr_block_priv_list);
+	return flow_indr_dev_register(ice_indr_setup_tc_cb, np);
 }
 
 /**
@@ -3293,8 +3539,9 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
  */
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
+	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi;
-	int status = 0;
+	int status;
 
 	if (ice_is_reset_in_progress(pf->state))
 		return -EBUSY;
@@ -3303,13 +3550,21 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	if (!vsi)
 		return -ENOMEM;
 
+	/* init channel list */
+	INIT_LIST_HEAD(&vsi->ch_list);
+
 	status = ice_cfg_netdev(vsi);
-	if (status) {
-		status = -ENODEV;
+	if (status)
 		goto unroll_vsi_setup;
-	}
 	/* netdev has to be configured before setting frame size */
 	ice_vsi_cfg_frame_size(vsi);
+
+	/* init indirect block notifications */
+	status = ice_tc_indir_block_register(vsi);
+	if (status) {
+		dev_err(dev, "Failed to register netdev notifier\n");
+		goto unroll_cfg_netdev;
+	}
 
 	/* Setup DCB netlink interface */
 	ice_dcbnl_setup(vsi);
@@ -3322,21 +3577,21 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 
 	status = ice_set_cpu_rx_rmap(vsi);
 	if (status) {
-		dev_err(ice_pf_to_dev(pf), "Failed to set CPU Rx map VSI %d error %d\n",
+		dev_err(dev, "Failed to set CPU Rx map VSI %d error %d\n",
 			vsi->vsi_num, status);
-		status = -EINVAL;
 		goto unroll_napi_add;
 	}
 	status = ice_init_mac_fltr(pf);
 	if (status)
 		goto free_cpu_rx_map;
 
-	return status;
+	return 0;
 
 free_cpu_rx_map:
 	ice_free_cpu_rx_rmap(vsi);
-
 unroll_napi_add:
+	ice_tc_indir_block_unregister(vsi);
+unroll_cfg_netdev:
 	if (vsi) {
 		ice_napi_del(vsi);
 		if (vsi->netdev) {
@@ -3537,6 +3792,13 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 		v_budget += needed;
 		v_left -= needed;
 	}
+
+	/* reserve for switchdev */
+	needed = ICE_ESWITCH_MSIX;
+	if (v_left < needed)
+		goto no_hw_vecs_left_err;
+	v_budget += needed;
+	v_left -= needed;
 
 	/* total used for non-traffic vectors */
 	v_other = v_budget;
@@ -3779,8 +4041,8 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
 	struct ice_vsi_ctx *ctxt;
-	enum ice_status status;
 	struct ice_hw *hw;
+	int status;
 
 	if (!vsi)
 		return;
@@ -3810,9 +4072,8 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "Failed to update VSI for safe mode VLANs, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+		dev_err(ice_pf_to_dev(vsi->back), "Failed to update VSI for safe mode VLANs, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 	} else {
 		vsi->info.sec_flags = ctxt->info.sec_flags;
 		vsi->info.sw_flags2 = ctxt->info.sw_flags2;
@@ -3825,108 +4086,80 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 /**
  * ice_log_pkg_init - log result of DDP package load
  * @hw: pointer to hardware info
- * @status: status of package load
+ * @state: state of package load
  */
-static void
-ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
+static void ice_log_pkg_init(struct ice_hw *hw, enum ice_ddp_state state)
 {
-	struct ice_pf *pf = (struct ice_pf *)hw->back;
-	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_pf *pf = hw->back;
+	struct device *dev;
 
-	switch (*status) {
-	case ICE_SUCCESS:
-		/* The package download AdminQ command returned success because
-		 * this download succeeded or ICE_ERR_AQ_NO_WORK since there is
-		 * already a package loaded on the device.
-		 */
-		if (hw->pkg_ver.major == hw->active_pkg_ver.major &&
-		    hw->pkg_ver.minor == hw->active_pkg_ver.minor &&
-		    hw->pkg_ver.update == hw->active_pkg_ver.update &&
-		    hw->pkg_ver.draft == hw->active_pkg_ver.draft &&
-		    !memcmp(hw->pkg_name, hw->active_pkg_name,
-			    sizeof(hw->pkg_name))) {
-			if (hw->pkg_dwnld_status == ICE_AQ_RC_EEXIST)
-				dev_info(dev, "DDP package already present on device: %s version %d.%d.%d.%d\n",
-					 hw->active_pkg_name,
-					 hw->active_pkg_ver.major,
-					 hw->active_pkg_ver.minor,
-					 hw->active_pkg_ver.update,
-					 hw->active_pkg_ver.draft);
-			else
-				dev_info(dev, "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
-					 hw->active_pkg_name,
-					 hw->active_pkg_ver.major,
-					 hw->active_pkg_ver.minor,
-					 hw->active_pkg_ver.update,
-					 hw->active_pkg_ver.draft);
-		} else if (hw->active_pkg_ver.major != ICE_PKG_SUPP_VER_MAJ ||
-			   hw->active_pkg_ver.minor != ICE_PKG_SUPP_VER_MNR) {
-			dev_err(dev, "The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
-				hw->active_pkg_name,
-				hw->active_pkg_ver.major,
-				hw->active_pkg_ver.minor,
-				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
-			*status = ICE_ERR_NOT_SUPPORTED;
-		} else if (hw->active_pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-			   hw->active_pkg_ver.minor == ICE_PKG_SUPP_VER_MNR) {
-			dev_info(dev, "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
-				 hw->active_pkg_name,
-				 hw->active_pkg_ver.major,
-				 hw->active_pkg_ver.minor,
-				 hw->active_pkg_ver.update,
-				 hw->active_pkg_ver.draft,
-				 hw->pkg_name,
-				 hw->pkg_ver.major,
-				 hw->pkg_ver.minor,
-				 hw->pkg_ver.update,
-				 hw->pkg_ver.draft);
-		} else {
-			dev_err(dev, "An unknown error occurred when loading the DDP package, please reboot the system.  If the problem persists, update the NVM.  Entering Safe Mode.\n");
-			*status = ICE_ERR_NOT_SUPPORTED;
-		}
+	dev = ice_pf_to_dev(pf);
+
+	switch (state) {
+	case ICE_DDP_PKG_SUCCESS:
+		dev_info(dev, "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft);
 		break;
-	case ICE_ERR_FW_DDP_MISMATCH:
+	case ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED:
+		dev_info(dev, "DDP package already present on device: %s version %d.%d.%d.%d\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft);
+		break;
+	case ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED:
+		dev_err(dev, "The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
+			hw->active_pkg_name,
+			hw->active_pkg_ver.major,
+			hw->active_pkg_ver.minor,
+			ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+		break;
+	case ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED:
+		dev_info(dev, "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft,
+			 hw->pkg_name,
+			 hw->pkg_ver.major,
+			 hw->pkg_ver.minor,
+			 hw->pkg_ver.update,
+			 hw->pkg_ver.draft);
+		break;
+	case ICE_DDP_PKG_FW_MISMATCH:
 		dev_err(dev, "The firmware loaded on the device is not compatible with the DDP package.  Please update the device's NVM.  Entering safe mode.\n");
 		break;
-	case ICE_ERR_BUF_TOO_SHORT:
-	case ICE_ERR_CFG:
+	case ICE_DDP_PKG_INVALID_FILE:
 		dev_err(dev, "The DDP package file is invalid. Entering Safe Mode.\n");
 		break;
-	case ICE_ERR_NOT_SUPPORTED:
-		/* Package File version not supported */
-		if (hw->pkg_ver.major > ICE_PKG_SUPP_VER_MAJ ||
-		    (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-		     hw->pkg_ver.minor > ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev, "The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
-		else if (hw->pkg_ver.major < ICE_PKG_SUPP_VER_MAJ ||
-			 (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-			  hw->pkg_ver.minor < ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev, "The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
-				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+	case ICE_DDP_PKG_FILE_VERSION_TOO_HIGH:
+		dev_err(dev, "The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
 		break;
-	case ICE_ERR_AQ_ERROR:
-		switch (hw->pkg_dwnld_status) {
-		case ICE_AQ_RC_ENOSEC:
-		case ICE_AQ_RC_EBADSIG:
-			dev_err(dev, "The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
-			return;
-		case ICE_AQ_RC_ESVN:
-			dev_err(dev, "The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
-			return;
-		case ICE_AQ_RC_EBADMAN:
-		case ICE_AQ_RC_EBADBUF:
-			dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
-			/* poll for reset to complete */
-			if (ice_check_reset(hw))
-				dev_err(dev, "Error resetting device. Please reload the driver\n");
-			return;
-		default:
-			break;
-		}
-		fallthrough;
+	case ICE_DDP_PKG_FILE_VERSION_TOO_LOW:
+		dev_err(dev, "The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
+			ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+		break;
+	case ICE_DDP_PKG_FILE_SIGNATURE_INVALID:
+		dev_err(dev, "The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
+		break;
+	case ICE_DDP_PKG_FILE_REVISION_TOO_LOW:
+		dev_err(dev, "The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
+		break;
+	case ICE_DDP_PKG_LOAD_ERROR:
+		dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
+		/* poll for reset to complete */
+		if (ice_check_reset(hw))
+			dev_err(dev, "Error resetting device. Please reload the driver\n");
+		break;
+	case ICE_DDP_PKG_ERR:
 	default:
-		dev_err(dev, "An unknown error (%d) occurred when loading the DDP package.  Entering Safe Mode.\n",
-			*status);
+		dev_err(dev, "An unknown error occurred when loading the DDP package.  Entering Safe Mode.\n");
 		break;
 	}
 }
@@ -3942,24 +4175,24 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 static void
 ice_load_pkg(const struct firmware *firmware, struct ice_pf *pf)
 {
-	enum ice_status status = ICE_ERR_PARAM;
+	enum ice_ddp_state state = ICE_DDP_PKG_ERR;
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
 
 	/* Load DDP Package */
 	if (firmware && !hw->pkg_copy) {
-		status = ice_copy_and_init_pkg(hw, firmware->data,
-					       firmware->size);
-		ice_log_pkg_init(hw, &status);
+		state = ice_copy_and_init_pkg(hw, firmware->data,
+					      firmware->size);
+		ice_log_pkg_init(hw, state);
 	} else if (!firmware && hw->pkg_copy) {
 		/* Reload package during rebuild after CORER/GLOBR reset */
-		status = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
-		ice_log_pkg_init(hw, &status);
+		state = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
+		ice_log_pkg_init(hw, state);
 	} else {
 		dev_err(dev, "The DDP package file failed to load. Entering Safe Mode.\n");
 	}
 
-	if (status) {
+	if (!ice_is_init_pkg_successful(state)) {
 		/* Safe Mode */
 		clear_bit(ICE_FLAG_ADV_FEATURES, pf->flags);
 		return;
@@ -3990,9 +4223,9 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
  * ice_send_version - update firmware with driver version
  * @pf: PF struct
  *
- * Returns ICE_SUCCESS on success, else error code
+ * Returns 0 on success, else error code
  */
-static enum ice_status ice_send_version(struct ice_pf *pf)
+static int ice_send_version(struct ice_pf *pf)
 {
 	struct ice_driver_ver dv;
 
@@ -4170,11 +4403,11 @@ static int ice_register_netdev(struct ice_pf *pf)
 	set_bit(ICE_VSI_NETDEV_REGISTERED, vsi->state);
 	netif_carrier_off(vsi->netdev);
 	netif_tx_stop_all_queues(vsi->netdev);
-	err = ice_devlink_create_port(vsi);
+	err = ice_devlink_create_pf_port(pf);
 	if (err)
 		goto err_devlink_create;
 
-	devlink_port_type_eth_set(&vsi->devlink_port, vsi->netdev);
+	devlink_port_type_eth_set(&pf->devlink_port, vsi->netdev);
 
 	return 0;
 err_devlink_create:
@@ -4261,12 +4494,6 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	pf->msg_enable = netif_msg_init(debug, ICE_DFLT_NETIF_M);
 
-	err = ice_devlink_register(pf);
-	if (err) {
-		dev_err(dev, "ice_devlink_register failed: %d\n", err);
-		goto err_exit_unroll;
-	}
-
 #ifndef CONFIG_DYNAMIC_DEBUG
 	if (debug < -1)
 		hw->debug_mask = debug;
@@ -4279,6 +4506,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		goto err_exit_unroll;
 	}
 
+	ice_init_feature_support(pf);
+
 	ice_request_fw(pf);
 
 	/* if ice_request_fw fails, ICE_FLAG_ADV_FEATURES bit won't be
@@ -4286,7 +4515,6 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	 * true
 	 */
 	if (ice_is_safe_mode(pf)) {
-		dev_err(dev, "Package download failed. Advanced features disabled - Device now in Safe Mode\n");
 		/* we already got function/device capabilities but these don't
 		 * reflect what the driver needs to do in safe mode. Instead of
 		 * adding conditional logic everywhere to ignore these
@@ -4414,7 +4642,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_init_link_dflt_override(pf->hw.port_info);
 
-	ice_check_module_power(pf, pf->hw.port_info->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf,
+			       pf->hw.port_info->phy.link_info.link_cfg_err);
 
 	/* if media available, initialize PHY settings */
 	if (pf->hw.port_info->phy.link_info.link_info &
@@ -4480,6 +4709,10 @@ probe_done:
 	if (err)
 		goto err_netdev_reg;
 
+	err = ice_devlink_register_params(pf);
+	if (err)
+		goto err_netdev_reg;
+
 	/* ready to go, so clear down state bit */
 	clear_bit(ICE_DOWN, pf->state);
 	if (ice_is_aux_ena(pf)) {
@@ -4487,7 +4720,7 @@ probe_done:
 		if (pf->aux_idx < 0) {
 			dev_err(dev, "Failed to allocate device ID for AUX driver\n");
 			err = -ENOMEM;
-			goto err_netdev_reg;
+			goto err_devlink_reg_param;
 		}
 
 		err = ice_init_rdma(pf);
@@ -4500,11 +4733,14 @@ probe_done:
 		dev_warn(dev, "RDMA is not supported on this device\n");
 	}
 
+	ice_devlink_register(pf);
 	return 0;
 
 err_init_aux_unroll:
 	pf->adev = NULL;
 	ida_free(&ice_aux_ida, pf->aux_idx);
+err_devlink_reg_param:
+	ice_devlink_unregister_params(pf);
 err_netdev_reg:
 err_send_version_unroll:
 	ice_vsi_release_all(pf);
@@ -4523,7 +4759,6 @@ err_init_pf_unroll:
 	ice_devlink_destroy_regions(pf);
 	ice_deinit_hw(hw);
 err_exit_unroll:
-	ice_devlink_unregister(pf);
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	return err;
@@ -4562,9 +4797,9 @@ static void ice_setup_mc_magic_wake(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	u8 mac_addr[ETH_ALEN];
 	struct ice_vsi *vsi;
+	int status;
 	u8 flags;
 
 	if (!pf->wol_ena)
@@ -4586,9 +4821,8 @@ static void ice_setup_mc_magic_wake(struct ice_pf *pf)
 
 	status = ice_aq_manage_mac_write(hw, mac_addr, flags, NULL);
 	if (status)
-		dev_err(dev, "Failed to enable Multicast Magic Packet wake, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+		dev_err(dev, "Failed to enable Multicast Magic Packet wake, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 }
 
 /**
@@ -4600,14 +4834,14 @@ static void ice_remove(struct pci_dev *pdev)
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 	int i;
 
-	if (!pf)
-		return;
-
+	ice_devlink_unregister(pf);
 	for (i = 0; i < ICE_MAX_RESET_WAIT; i++) {
 		if (!ice_is_reset_in_progress(pf->state))
 			break;
 		msleep(100);
 	}
+
+	ice_tc_indir_block_remove(pf);
 
 	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags)) {
 		set_bit(ICE_VF_RESETS_DISABLED, pf->state);
@@ -4620,6 +4854,7 @@ static void ice_remove(struct pci_dev *pdev)
 	ice_unplug_aux_dev(pf);
 	if (pf->aux_idx >= 0)
 		ida_free(&ice_aux_ida, pf->aux_idx);
+	ice_devlink_unregister_params(pf);
 	set_bit(ICE_DOWN, pf->state);
 
 	mutex_destroy(&(&pf->hw)->fdir_fltr_lock);
@@ -4640,7 +4875,6 @@ static void ice_remove(struct pci_dev *pdev)
 	ice_deinit_pf(pf);
 	ice_devlink_destroy_regions(pf);
 	ice_deinit_hw(&pf->hw);
-	ice_devlink_unregister(pf);
 
 	/* Issue a PFR as part of the prescribed driver unload flow.  Do not
 	 * do it via ice_schedule_reset() since there is no need to rebuild
@@ -4902,7 +5136,7 @@ ice_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t err)
 
 		if (!test_bit(ICE_PREPARED_FOR_RESET, pf->state)) {
 			set_bit(ICE_PFR_REQ, pf->state);
-			ice_prepare_for_reset(pf);
+			ice_prepare_for_reset(pf, ICE_RESET_PFR);
 		}
 	}
 
@@ -4994,7 +5228,7 @@ static void ice_pci_err_reset_prepare(struct pci_dev *pdev)
 
 		if (!test_bit(ICE_PREPARED_FOR_RESET, pf->state)) {
 			set_bit(ICE_PFR_REQ, pf->state);
-			ice_prepare_for_reset(pf);
+			ice_prepare_for_reset(pf, ICE_RESET_PFR);
 		}
 	}
 }
@@ -5127,11 +5361,10 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	struct sockaddr *addr = pi;
-	enum ice_status status;
 	u8 old_mac[ETH_ALEN];
 	u8 flags = 0;
-	int err = 0;
 	u8 *mac;
+	int err;
 
 	mac = (u8 *)addr->sa_data;
 
@@ -5150,29 +5383,35 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EBUSY;
 	}
 
+	if (ice_chnl_dmac_fltr_cnt(pf)) {
+		netdev_err(netdev, "can't set mac %pM. Device has tc-flower filters, delete all of them and try again\n",
+			   mac);
+		return -EAGAIN;
+	}
+
 	netif_addr_lock_bh(netdev);
 	ether_addr_copy(old_mac, netdev->dev_addr);
 	/* change the netdev's MAC address */
-	memcpy(netdev->dev_addr, mac, netdev->addr_len);
+	eth_hw_addr_set(netdev, mac);
 	netif_addr_unlock_bh(netdev);
 
 	/* Clean up old MAC filter. Not an error if old filter doesn't exist */
-	status = ice_fltr_remove_mac(vsi, old_mac, ICE_FWD_TO_VSI);
-	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
+	err = ice_fltr_remove_mac(vsi, old_mac, ICE_FWD_TO_VSI);
+	if (err && err != -ENOENT) {
 		err = -EADDRNOTAVAIL;
 		goto err_update_filters;
 	}
 
 	/* Add filter for new MAC. If filter exists, return success */
-	status = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
-	if (status == ICE_ERR_ALREADY_EXISTS)
+	err = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
+	if (err == -EEXIST)
 		/* Although this MAC filter is already present in hardware it's
 		 * possible in some cases (e.g. bonding) that dev_addr was
 		 * modified outside of the driver and needs to be restored back
 		 * to this value.
 		 */
 		netdev_dbg(netdev, "filter for MAC %pM already exists\n", mac);
-	else if (status)
+	else if (err)
 		/* error if the new filter addition failed */
 		err = -EADDRNOTAVAIL;
 
@@ -5181,7 +5420,7 @@ err_update_filters:
 		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
 		netif_addr_lock_bh(netdev);
-		ether_addr_copy(netdev->dev_addr, old_mac);
+		eth_hw_addr_set(netdev, old_mac);
 		netif_addr_unlock_bh(netdev);
 		return err;
 	}
@@ -5191,10 +5430,10 @@ err_update_filters:
 
 	/* write new MAC address to the firmware */
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
-	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
-	if (status) {
-		netdev_err(netdev, "can't set MAC %pM. write to firmware failed error %s\n",
-			   mac, ice_stat_str(status));
+	err = ice_aq_manage_mac_write(hw, mac, flags, NULL);
+	if (err) {
+		netdev_err(netdev, "can't set MAC %pM. write to firmware failed error %d\n",
+			   mac, err);
 	}
 	return 0;
 }
@@ -5236,8 +5475,8 @@ ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
-	enum ice_status status;
 	u16 q_handle;
+	int status;
 	u8 tc;
 
 	/* Validate maxrate requested is within permitted range */
@@ -5257,13 +5496,11 @@ ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
 	else
 		status = ice_cfg_q_bw_lmt(vsi->port_info, vsi->idx, tc,
 					  q_handle, ICE_MAX_BW, maxrate * 1000);
-	if (status) {
-		netdev_err(netdev, "Unable to set Tx max rate, error %s\n",
-			   ice_stat_str(status));
-		return -EIO;
-	}
+	if (status)
+		netdev_err(netdev, "Unable to set Tx max rate, error %d\n",
+			   status);
 
-	return 0;
+	return status;
 }
 
 /**
@@ -5386,10 +5623,10 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 
 	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ret = ice_cfg_vlan_pruning(vsi, true, false);
+		ret = ice_cfg_vlan_pruning(vsi, true);
 	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 		 (netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ret = ice_cfg_vlan_pruning(vsi, false, false);
+		ret = ice_cfg_vlan_pruning(vsi, false);
 
 	if ((features & NETIF_F_NTUPLE) &&
 	    !(netdev->features & NETIF_F_NTUPLE)) {
@@ -5400,6 +5637,18 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 		ice_vsi_manage_fdir(vsi, false);
 		ice_clear_arfs(vsi);
 	}
+
+	/* don't turn off hw_tc_offload when ADQ is already enabled */
+	if (!(features & NETIF_F_HW_TC) && ice_is_adq_active(pf)) {
+		dev_err(ice_pf_to_dev(pf), "ADQ is active, can't turn hw_tc_offload off\n");
+		return -EACCES;
+	}
+
+	if ((features & NETIF_F_HW_TC) &&
+	    !(netdev->features & NETIF_F_HW_TC))
+		set_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
+	else
+		clear_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
 
 	return ret;
 }
@@ -5450,77 +5699,59 @@ int ice_vsi_cfg(struct ice_vsi *vsi)
 }
 
 /* THEORY OF MODERATION:
- * The below code creates custom DIM profiles for use by this driver, because
- * the ice driver hardware works differently than the hardware that DIMLIB was
+ * The ice driver hardware works differently than the hardware that DIMLIB was
  * originally made for. ice hardware doesn't have packet count limits that
  * can trigger an interrupt, but it *does* have interrupt rate limit support,
- * and this code adds that capability to be used by the driver when it's using
- * DIMLIB. The DIMLIB code was always designed to be a suggestion to the driver
- * for how to "respond" to traffic and interrupts, so this driver uses a
- * slightly different set of moderation parameters to get best performance.
+ * which is hard-coded to a limit of 250,000 ints/second.
+ * If not using dynamic moderation, the INTRL value can be modified
+ * by ethtool rx-usecs-high.
  */
 struct ice_dim {
 	/* the throttle rate for interrupts, basically worst case delay before
 	 * an initial interrupt fires, value is stored in microseconds.
 	 */
 	u16 itr;
-	/* the rate limit for interrupts, which can cap a delay from a small
-	 * ITR at a certain amount of interrupts per second. f.e. a 2us ITR
-	 * could yield as much as 500,000 interrupts per second, but with a
-	 * 10us rate limit, it limits to 100,000 interrupts per second. Value
-	 * is stored in microseconds.
-	 */
-	u16 intrl;
 };
 
 /* Make a different profile for Rx that doesn't allow quite so aggressive
- * moderation at the high end (it maxes out at 128us or about 8k interrupts a
- * second. The INTRL/rate parameters here are only useful to cap small ITR
- * values, which is why for larger ITR's - like 128, which can only generate
- * 8k interrupts per second, there is no point to rate limit and the values
- * are set to zero. The rate limit values do affect latency, and so must
- * be reasonably small so to not impact latency sensitive tests.
+ * moderation at the high end (it maxes out at 126us or about 8k interrupts a
+ * second.
  */
 static const struct ice_dim rx_profile[] = {
-	{2, 10},
-	{8, 16},
-	{32, 0},
-	{96, 0},
-	{128, 0}
+	{2},    /* 500,000 ints/s, capped at 250K by INTRL */
+	{8},    /* 125,000 ints/s */
+	{16},   /*  62,500 ints/s */
+	{62},   /*  16,129 ints/s */
+	{126}   /*   7,936 ints/s */
 };
 
 /* The transmit profile, which has the same sorts of values
  * as the previous struct
  */
 static const struct ice_dim tx_profile[] = {
-	{2, 10},
-	{8, 16},
-	{64, 0},
-	{128, 0},
-	{256, 0}
+	{2},    /* 500,000 ints/s, capped at 250K by INTRL */
+	{8},    /* 125,000 ints/s */
+	{40},   /*  16,125 ints/s */
+	{128},  /*   7,812 ints/s */
+	{256}   /*   3,906 ints/s */
 };
 
 static void ice_tx_dim_work(struct work_struct *work)
 {
 	struct ice_ring_container *rc;
-	struct ice_q_vector *q_vector;
 	struct dim *dim;
-	u16 itr, intrl;
+	u16 itr;
 
 	dim = container_of(work, struct dim, work);
-	rc = container_of(dim, struct ice_ring_container, dim);
-	q_vector = container_of(rc, struct ice_q_vector, tx);
+	rc = (struct ice_ring_container *)dim->priv;
 
-	if (dim->profile_ix >= ARRAY_SIZE(tx_profile))
-		dim->profile_ix = ARRAY_SIZE(tx_profile) - 1;
+	WARN_ON(dim->profile_ix >= ARRAY_SIZE(tx_profile));
 
 	/* look up the values in our local table */
 	itr = tx_profile[dim->profile_ix].itr;
-	intrl = tx_profile[dim->profile_ix].intrl;
 
-	ice_trace(tx_dim_work, q_vector, dim);
+	ice_trace(tx_dim_work, container_of(rc, struct ice_q_vector, tx), dim);
 	ice_write_itr(rc, itr);
-	ice_write_intrl(q_vector, intrl);
 
 	dim->state = DIM_START_MEASURE;
 }
@@ -5528,26 +5759,63 @@ static void ice_tx_dim_work(struct work_struct *work)
 static void ice_rx_dim_work(struct work_struct *work)
 {
 	struct ice_ring_container *rc;
-	struct ice_q_vector *q_vector;
 	struct dim *dim;
-	u16 itr, intrl;
+	u16 itr;
 
 	dim = container_of(work, struct dim, work);
-	rc = container_of(dim, struct ice_ring_container, dim);
-	q_vector = container_of(rc, struct ice_q_vector, rx);
+	rc = (struct ice_ring_container *)dim->priv;
 
-	if (dim->profile_ix >= ARRAY_SIZE(rx_profile))
-		dim->profile_ix = ARRAY_SIZE(rx_profile) - 1;
+	WARN_ON(dim->profile_ix >= ARRAY_SIZE(rx_profile));
 
 	/* look up the values in our local table */
 	itr = rx_profile[dim->profile_ix].itr;
-	intrl = rx_profile[dim->profile_ix].intrl;
 
-	ice_trace(rx_dim_work, q_vector, dim);
+	ice_trace(rx_dim_work, container_of(rc, struct ice_q_vector, rx), dim);
 	ice_write_itr(rc, itr);
-	ice_write_intrl(q_vector, intrl);
 
 	dim->state = DIM_START_MEASURE;
+}
+
+#define ICE_DIM_DEFAULT_PROFILE_IX 1
+
+/**
+ * ice_init_moderation - set up interrupt moderation
+ * @q_vector: the vector containing rings to be configured
+ *
+ * Set up interrupt moderation registers, with the intent to do the right thing
+ * when called from reset or from probe, and whether or not dynamic moderation
+ * is enabled or not. Take special care to write all the registers in both
+ * dynamic moderation mode or not in order to make sure hardware is in a known
+ * state.
+ */
+static void ice_init_moderation(struct ice_q_vector *q_vector)
+{
+	struct ice_ring_container *rc;
+	bool tx_dynamic, rx_dynamic;
+
+	rc = &q_vector->tx;
+	INIT_WORK(&rc->dim.work, ice_tx_dim_work);
+	rc->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	rc->dim.profile_ix = ICE_DIM_DEFAULT_PROFILE_IX;
+	rc->dim.priv = rc;
+	tx_dynamic = ITR_IS_DYNAMIC(rc);
+
+	/* set the initial TX ITR to match the above */
+	ice_write_itr(rc, tx_dynamic ?
+		      tx_profile[rc->dim.profile_ix].itr : rc->itr_setting);
+
+	rc = &q_vector->rx;
+	INIT_WORK(&rc->dim.work, ice_rx_dim_work);
+	rc->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	rc->dim.profile_ix = ICE_DIM_DEFAULT_PROFILE_IX;
+	rc->dim.priv = rc;
+	rx_dynamic = ITR_IS_DYNAMIC(rc);
+
+	/* set the initial RX ITR to match the above */
+	ice_write_itr(rc, rx_dynamic ? rx_profile[rc->dim.profile_ix].itr :
+				       rc->itr_setting);
+
+	ice_set_q_vector_intrl(q_vector);
 }
 
 /**
@@ -5564,13 +5832,9 @@ static void ice_napi_enable_all(struct ice_vsi *vsi)
 	ice_for_each_q_vector(vsi, q_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[q_idx];
 
-		INIT_WORK(&q_vector->tx.dim.work, ice_tx_dim_work);
-		q_vector->tx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+		ice_init_moderation(q_vector);
 
-		INIT_WORK(&q_vector->rx.dim.work, ice_rx_dim_work);
-		q_vector->rx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
-
-		if (q_vector->rx.ring || q_vector->tx.ring)
+		if (q_vector->rx.rx_ring || q_vector->tx.tx_ring)
 			napi_enable(&q_vector->napi);
 	}
 }
@@ -5606,7 +5870,12 @@ static int ice_up_complete(struct ice_vsi *vsi)
 		ice_print_link_msg(vsi, true);
 		netif_tx_start_all_queues(vsi->netdev);
 		netif_carrier_on(vsi->netdev);
+		if (!ice_is_e810(&pf->hw))
+			ice_ptp_link_change(pf, pf->hw.pf_id, true);
 	}
+
+	/* clear this now, and the first stats read will be used as baseline */
+	vsi->stat_offsets_loaded = false;
 
 	ice_service_task_schedule(pf);
 
@@ -5630,7 +5899,8 @@ int ice_up(struct ice_vsi *vsi)
 
 /**
  * ice_fetch_u64_stats_per_ring - get packets and bytes stats per ring
- * @ring: Tx or Rx ring to read stats from
+ * @syncp: pointer to u64_stats_sync
+ * @stats: stats that pkts and bytes count will be taken from
  * @pkts: packets stats counter
  * @bytes: bytes stats counter
  *
@@ -5638,40 +5908,39 @@ int ice_up(struct ice_vsi *vsi)
  * that needs to be performed to read u64 values in 32 bit machine.
  */
 static void
-ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts, u64 *bytes)
+ice_fetch_u64_stats_per_ring(struct u64_stats_sync *syncp, struct ice_q_stats stats,
+			     u64 *pkts, u64 *bytes)
 {
 	unsigned int start;
-	*pkts = 0;
-	*bytes = 0;
 
-	if (!ring)
-		return;
 	do {
-		start = u64_stats_fetch_begin_irq(&ring->syncp);
-		*pkts = ring->stats.pkts;
-		*bytes = ring->stats.bytes;
-	} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+		start = u64_stats_fetch_begin_irq(syncp);
+		*pkts = stats.pkts;
+		*bytes = stats.bytes;
+	} while (u64_stats_fetch_retry_irq(syncp, start));
 }
 
 /**
  * ice_update_vsi_tx_ring_stats - Update VSI Tx ring stats counters
  * @vsi: the VSI to be updated
+ * @vsi_stats: the stats struct to be updated
  * @rings: rings to work on
  * @count: number of rings
  */
 static void
-ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi, struct ice_ring **rings,
-			     u16 count)
+ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi,
+			     struct rtnl_link_stats64 *vsi_stats,
+			     struct ice_tx_ring **rings, u16 count)
 {
-	struct rtnl_link_stats64 *vsi_stats = &vsi->net_stats;
 	u16 i;
 
 	for (i = 0; i < count; i++) {
-		struct ice_ring *ring;
-		u64 pkts, bytes;
+		struct ice_tx_ring *ring;
+		u64 pkts = 0, bytes = 0;
 
 		ring = READ_ONCE(rings[i]);
-		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
+		if (ring)
+			ice_fetch_u64_stats_per_ring(&ring->syncp, ring->stats, &pkts, &bytes);
 		vsi_stats->tx_packets += pkts;
 		vsi_stats->tx_bytes += bytes;
 		vsi->tx_restart += ring->tx_stats.restart_q;
@@ -5686,15 +5955,13 @@ ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi, struct ice_ring **rings,
  */
 static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 {
-	struct rtnl_link_stats64 *vsi_stats = &vsi->net_stats;
+	struct rtnl_link_stats64 *vsi_stats;
 	u64 pkts, bytes;
 	int i;
 
-	/* reset netdev stats */
-	vsi_stats->tx_packets = 0;
-	vsi_stats->tx_bytes = 0;
-	vsi_stats->rx_packets = 0;
-	vsi_stats->rx_bytes = 0;
+	vsi_stats = kzalloc(sizeof(*vsi_stats), GFP_ATOMIC);
+	if (!vsi_stats)
+		return;
 
 	/* reset non-netdev (extended) stats */
 	vsi->tx_restart = 0;
@@ -5706,13 +5973,14 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 	rcu_read_lock();
 
 	/* update Tx rings counters */
-	ice_update_vsi_tx_ring_stats(vsi, vsi->tx_rings, vsi->num_txq);
+	ice_update_vsi_tx_ring_stats(vsi, vsi_stats, vsi->tx_rings,
+				     vsi->num_txq);
 
 	/* update Rx rings counters */
 	ice_for_each_rxq(vsi, i) {
-		struct ice_ring *ring = READ_ONCE(vsi->rx_rings[i]);
+		struct ice_rx_ring *ring = READ_ONCE(vsi->rx_rings[i]);
 
-		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
+		ice_fetch_u64_stats_per_ring(&ring->syncp, ring->stats, &pkts, &bytes);
 		vsi_stats->rx_packets += pkts;
 		vsi_stats->rx_bytes += bytes;
 		vsi->rx_buf_failed += ring->rx_stats.alloc_buf_failed;
@@ -5721,10 +5989,17 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 
 	/* update XDP Tx rings counters */
 	if (ice_is_xdp_ena_vsi(vsi))
-		ice_update_vsi_tx_ring_stats(vsi, vsi->xdp_rings,
+		ice_update_vsi_tx_ring_stats(vsi, vsi_stats, vsi->xdp_rings,
 					     vsi->num_xdp_txq);
 
 	rcu_read_unlock();
+
+	vsi->net_stats.tx_packets = vsi_stats->tx_packets;
+	vsi->net_stats.tx_bytes = vsi_stats->tx_bytes;
+	vsi->net_stats.rx_packets = vsi_stats->rx_packets;
+	vsi->net_stats.rx_bytes = vsi_stats->rx_bytes;
+
+	kfree(vsi_stats);
 }
 
 /**
@@ -5976,7 +6251,7 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 	ice_for_each_q_vector(vsi, q_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[q_idx];
 
-		if (q_vector->rx.ring || q_vector->tx.ring)
+		if (q_vector->rx.rx_ring || q_vector->tx.tx_ring)
 			napi_disable(&q_vector->napi);
 
 		cancel_work_sync(&q_vector->tx.dim.work);
@@ -5987,17 +6262,22 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 /**
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
+ *
+ * Caller of this function is expected to set the vsi->state ICE_DOWN bit
  */
 int ice_down(struct ice_vsi *vsi)
 {
 	int i, tx_err, rx_err, link_err = 0;
 
-	/* Caller of this function is expected to set the
-	 * vsi->state ICE_DOWN bit
-	 */
-	if (vsi->netdev) {
+	WARN_ON(!test_bit(ICE_VSI_DOWN, vsi->state));
+
+	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
+		if (!ice_is_e810(&vsi->back->hw))
+			ice_ptp_link_change(vsi->back, vsi->back->hw.pf_id, false);
 		netif_carrier_off(vsi->netdev);
 		netif_tx_disable(vsi->netdev);
+	} else if (vsi->type == ICE_VSI_SWITCHDEV_CTRL) {
+		ice_eswitch_stop_all_tx_queues(vsi->back);
 	}
 
 	ice_vsi_dis_irq(vsi);
@@ -6059,12 +6339,13 @@ int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
 	}
 
 	ice_for_each_txq(vsi, i) {
-		struct ice_ring *ring = vsi->tx_rings[i];
+		struct ice_tx_ring *ring = vsi->tx_rings[i];
 
 		if (!ring)
 			return -EINVAL;
 
-		ring->netdev = vsi->netdev;
+		if (vsi->netdev)
+			ring->netdev = vsi->netdev;
 		err = ice_setup_tx_ring(ring);
 		if (err)
 			break;
@@ -6090,12 +6371,13 @@ int ice_vsi_setup_rx_rings(struct ice_vsi *vsi)
 	}
 
 	ice_for_each_rxq(vsi, i) {
-		struct ice_ring *ring = vsi->rx_rings[i];
+		struct ice_rx_ring *ring = vsi->rx_rings[i];
 
 		if (!ring)
 			return -EINVAL;
 
-		ring->netdev = vsi->netdev;
+		if (vsi->netdev)
+			ring->netdev = vsi->netdev;
 		err = ice_setup_rx_ring(ring);
 		if (err)
 			break;
@@ -6168,7 +6450,7 @@ err_setup_tx:
  *
  * Returns 0 on success, negative value on error
  */
-static int ice_vsi_open(struct ice_vsi *vsi)
+int ice_vsi_open(struct ice_vsi *vsi)
 {
 	char int_name[ICE_INT_NAME_STR_LEN];
 	struct ice_pf *pf = vsi->back;
@@ -6193,14 +6475,16 @@ static int ice_vsi_open(struct ice_vsi *vsi)
 	if (err)
 		goto err_setup_rx;
 
-	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_txq);
-	if (err)
-		goto err_set_qs;
+	if (vsi->type == ICE_VSI_PF) {
+		/* Notify the stack of the actual queue counts. */
+		err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_txq);
+		if (err)
+			goto err_set_qs;
 
-	err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_rxq);
-	if (err)
-		goto err_set_qs;
+		err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_rxq);
+		if (err)
+			goto err_set_qs;
+	}
 
 	err = ice_up_complete(vsi);
 	if (err)
@@ -6235,6 +6519,9 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 		if (!pf->vsi[i])
 			continue;
 
+		if (pf->vsi[i]->type == ICE_VSI_CHNL)
+			continue;
+
 		err = ice_vsi_release(pf->vsi[i]);
 		if (err)
 			dev_dbg(ice_pf_to_dev(pf), "Failed to release pf->vsi[%d], err %d, vsi_num = %d\n",
@@ -6252,7 +6539,6 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 {
 	struct device *dev = ice_pf_to_dev(pf);
-	enum ice_status status;
 	int i, err;
 
 	ice_for_each_vsi(pf, i) {
@@ -6270,12 +6556,11 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		}
 
 		/* replay filters for the VSI */
-		status = ice_replay_vsi(&pf->hw, vsi->idx);
-		if (status) {
-			dev_err(dev, "replay VSI failed, status %s, VSI index %d, type %s\n",
-				ice_stat_str(status), vsi->idx,
-				ice_vsi_type_str(type));
-			return -EIO;
+		err = ice_replay_vsi(&pf->hw, vsi->idx);
+		if (err) {
+			dev_err(dev, "replay VSI failed, error %d, VSI index %d, type %s\n",
+				err, vsi->idx, ice_vsi_type_str(type));
+			return err;
 		}
 
 		/* Re-map HW VSI number, using VSI handle that has been
@@ -6338,7 +6623,6 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status ret;
 	int err;
 
 	if (test_bit(ICE_DOWN, pf->state))
@@ -6346,10 +6630,17 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 
 	dev_dbg(dev, "rebuilding PF after reset_type=%d\n", reset_type);
 
-	ret = ice_init_all_ctrlq(hw);
-	if (ret) {
-		dev_err(dev, "control queues init failed %s\n",
-			ice_stat_str(ret));
+	if (reset_type == ICE_RESET_EMPR) {
+		/* If an EMP reset has occurred, any previously pending flash
+		 * update will have completed. We no longer know whether or
+		 * not the NVM update EMP reset is restricted.
+		 */
+		pf->fw_emp_reset_disabled = false;
+	}
+
+	err = ice_init_all_ctrlq(hw);
+	if (err) {
+		dev_err(dev, "control queues init failed %d\n", err);
 		goto err_init_ctrlq;
 	}
 
@@ -6363,10 +6654,9 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 			ice_load_pkg(NULL, pf);
 	}
 
-	ret = ice_clear_pf_cfg(hw);
-	if (ret) {
-		dev_err(dev, "clear PF configuration failed %s\n",
-			ice_stat_str(ret));
+	err = ice_clear_pf_cfg(hw);
+	if (err) {
+		dev_err(dev, "clear PF configuration failed %d\n", err);
 		goto err_init_ctrlq;
 	}
 
@@ -6378,21 +6668,21 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 
 	ice_clear_pxe_mode(hw);
 
-	ret = ice_init_nvm(hw);
-	if (ret) {
-		dev_err(dev, "ice_init_nvm failed %s\n", ice_stat_str(ret));
+	err = ice_init_nvm(hw);
+	if (err) {
+		dev_err(dev, "ice_init_nvm failed %d\n", err);
 		goto err_init_ctrlq;
 	}
 
-	ret = ice_get_caps(hw);
-	if (ret) {
-		dev_err(dev, "ice_get_caps failed %s\n", ice_stat_str(ret));
+	err = ice_get_caps(hw);
+	if (err) {
+		dev_err(dev, "ice_get_caps failed %d\n", err);
 		goto err_init_ctrlq;
 	}
 
-	ret = ice_aq_set_mac_cfg(hw, ICE_AQ_SET_MAC_FRAME_SIZE_MAX, NULL);
-	if (ret) {
-		dev_err(dev, "set_mac_cfg failed %s\n", ice_stat_str(ret));
+	err = ice_aq_set_mac_cfg(hw, ICE_AQ_SET_MAC_FRAME_SIZE_MAX, NULL);
+	if (err) {
+		dev_err(dev, "set_mac_cfg failed %d\n", err);
 		goto err_init_ctrlq;
 	}
 
@@ -6430,13 +6720,32 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	 * fail.
 	 */
 	if (test_bit(ICE_FLAG_PTP_SUPPORTED, pf->flags))
-		ice_ptp_init(pf);
+		ice_ptp_reset(pf);
 
 	/* rebuild PF VSI */
 	err = ice_vsi_rebuild_by_type(pf, ICE_VSI_PF);
 	if (err) {
 		dev_err(dev, "PF VSI rebuild failed: %d\n", err);
 		goto err_vsi_rebuild;
+	}
+
+	/* configure PTP timestamping after VSI rebuild */
+	if (test_bit(ICE_FLAG_PTP_SUPPORTED, pf->flags))
+		ice_ptp_cfg_timestamp(pf, false);
+
+	err = ice_vsi_rebuild_by_type(pf, ICE_VSI_SWITCHDEV_CTRL);
+	if (err) {
+		dev_err(dev, "Switchdev CTRL VSI rebuild failed: %d\n", err);
+		goto err_vsi_rebuild;
+	}
+
+	if (reset_type == ICE_RESET_PFR) {
+		err = ice_rebuild_channels(pf);
+		if (err) {
+			dev_err(dev, "failed to rebuild and replay ADQ VSIs, err %d\n",
+				err);
+			goto err_vsi_rebuild;
+		}
 	}
 
 	/* If Flow Director is active */
@@ -6460,10 +6769,10 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	ice_update_pf_netdev_link(pf);
 
 	/* tell the firmware we are up */
-	ret = ice_send_version(pf);
-	if (ret) {
-		dev_err(dev, "Rebuild failed due to error sending driver version: %s\n",
-			ice_stat_str(ret));
+	err = ice_send_version(pf);
+	if (err) {
+		dev_err(dev, "Rebuild failed due to error sending driver version: %d\n",
+			err);
 		goto err_vsi_rebuild;
 	}
 
@@ -6644,78 +6953,6 @@ const char *ice_aq_str(enum ice_aq_err aq_err)
 }
 
 /**
- * ice_stat_str - convert status err code to a string
- * @stat_err: the status error code to convert
- */
-const char *ice_stat_str(enum ice_status stat_err)
-{
-	switch (stat_err) {
-	case ICE_SUCCESS:
-		return "OK";
-	case ICE_ERR_PARAM:
-		return "ICE_ERR_PARAM";
-	case ICE_ERR_NOT_IMPL:
-		return "ICE_ERR_NOT_IMPL";
-	case ICE_ERR_NOT_READY:
-		return "ICE_ERR_NOT_READY";
-	case ICE_ERR_NOT_SUPPORTED:
-		return "ICE_ERR_NOT_SUPPORTED";
-	case ICE_ERR_BAD_PTR:
-		return "ICE_ERR_BAD_PTR";
-	case ICE_ERR_INVAL_SIZE:
-		return "ICE_ERR_INVAL_SIZE";
-	case ICE_ERR_DEVICE_NOT_SUPPORTED:
-		return "ICE_ERR_DEVICE_NOT_SUPPORTED";
-	case ICE_ERR_RESET_FAILED:
-		return "ICE_ERR_RESET_FAILED";
-	case ICE_ERR_FW_API_VER:
-		return "ICE_ERR_FW_API_VER";
-	case ICE_ERR_NO_MEMORY:
-		return "ICE_ERR_NO_MEMORY";
-	case ICE_ERR_CFG:
-		return "ICE_ERR_CFG";
-	case ICE_ERR_OUT_OF_RANGE:
-		return "ICE_ERR_OUT_OF_RANGE";
-	case ICE_ERR_ALREADY_EXISTS:
-		return "ICE_ERR_ALREADY_EXISTS";
-	case ICE_ERR_NVM:
-		return "ICE_ERR_NVM";
-	case ICE_ERR_NVM_CHECKSUM:
-		return "ICE_ERR_NVM_CHECKSUM";
-	case ICE_ERR_BUF_TOO_SHORT:
-		return "ICE_ERR_BUF_TOO_SHORT";
-	case ICE_ERR_NVM_BLANK_MODE:
-		return "ICE_ERR_NVM_BLANK_MODE";
-	case ICE_ERR_IN_USE:
-		return "ICE_ERR_IN_USE";
-	case ICE_ERR_MAX_LIMIT:
-		return "ICE_ERR_MAX_LIMIT";
-	case ICE_ERR_RESET_ONGOING:
-		return "ICE_ERR_RESET_ONGOING";
-	case ICE_ERR_HW_TABLE:
-		return "ICE_ERR_HW_TABLE";
-	case ICE_ERR_DOES_NOT_EXIST:
-		return "ICE_ERR_DOES_NOT_EXIST";
-	case ICE_ERR_FW_DDP_MISMATCH:
-		return "ICE_ERR_FW_DDP_MISMATCH";
-	case ICE_ERR_AQ_ERROR:
-		return "ICE_ERR_AQ_ERROR";
-	case ICE_ERR_AQ_TIMEOUT:
-		return "ICE_ERR_AQ_TIMEOUT";
-	case ICE_ERR_AQ_FULL:
-		return "ICE_ERR_AQ_FULL";
-	case ICE_ERR_AQ_NO_WORK:
-		return "ICE_ERR_AQ_NO_WORK";
-	case ICE_ERR_AQ_EMPTY:
-		return "ICE_ERR_AQ_EMPTY";
-	case ICE_ERR_AQ_FW_CRITICAL:
-		return "ICE_ERR_AQ_FW_CRITICAL";
-	}
-
-	return "ICE_ERR_UNKNOWN";
-}
-
-/**
  * ice_set_rss_lut - Set RSS LUT
  * @vsi: Pointer to VSI structure
  * @lut: Lookup table
@@ -6727,7 +6964,7 @@ int ice_set_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 {
 	struct ice_aq_get_set_rss_lut_params params = {};
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (!lut)
 		return -EINVAL;
@@ -6738,14 +6975,11 @@ int ice_set_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 	params.lut = lut;
 
 	status = ice_aq_set_rss_lut(hw, &params);
-	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "Cannot set RSS lut, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		return -EIO;
-	}
+	if (status)
+		dev_err(ice_pf_to_dev(vsi->back), "Cannot set RSS lut, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 
-	return 0;
+	return status;
 }
 
 /**
@@ -6758,20 +6992,17 @@ int ice_set_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 int ice_set_rss_key(struct ice_vsi *vsi, u8 *seed)
 {
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (!seed)
 		return -EINVAL;
 
 	status = ice_aq_set_rss_key(hw, vsi->idx, (struct ice_aqc_get_set_rss_keys *)seed);
-	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "Cannot set RSS key, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		return -EIO;
-	}
+	if (status)
+		dev_err(ice_pf_to_dev(vsi->back), "Cannot set RSS key, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 
-	return 0;
+	return status;
 }
 
 /**
@@ -6786,7 +7017,7 @@ int ice_get_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 {
 	struct ice_aq_get_set_rss_lut_params params = {};
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (!lut)
 		return -EINVAL;
@@ -6797,14 +7028,11 @@ int ice_get_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 	params.lut = lut;
 
 	status = ice_aq_get_rss_lut(hw, &params);
-	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "Cannot get RSS lut, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		return -EIO;
-	}
+	if (status)
+		dev_err(ice_pf_to_dev(vsi->back), "Cannot get RSS lut, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 
-	return 0;
+	return status;
 }
 
 /**
@@ -6817,20 +7045,17 @@ int ice_get_rss_lut(struct ice_vsi *vsi, u8 *lut, u16 lut_size)
 int ice_get_rss_key(struct ice_vsi *vsi, u8 *seed)
 {
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (!seed)
 		return -EINVAL;
 
 	status = ice_aq_get_rss_key(hw, vsi->idx, (struct ice_aqc_get_set_rss_keys *)seed);
-	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "Cannot get RSS key, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		return -EIO;
-	}
+	if (status)
+		dev_err(ice_pf_to_dev(vsi->back), "Cannot get RSS key, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 
-	return 0;
+	return status;
 }
 
 /**
@@ -6871,8 +7096,7 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	struct ice_aqc_vsi_props *vsi_props;
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_vsi_ctx *ctxt;
-	enum ice_status status;
-	int ret = 0;
+	int ret;
 
 	vsi_props = &vsi->info;
 
@@ -6890,12 +7114,10 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 		ctxt->info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
 	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
 
-	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
-	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "update VSI for bridge mode failed, bmode = %d err %s aq_err %s\n",
-			bmode, ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
+	ret = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
+	if (ret) {
+		dev_err(ice_pf_to_dev(vsi->back), "update VSI for bridge mode failed, bmode = %d err %d aq_err %s\n",
+			bmode, ret, ice_aq_str(hw->adminq.sq_last_status));
 		goto out;
 	}
 	/* Update sw flags for book keeping */
@@ -6927,7 +7149,6 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	struct ice_pf *pf = np->vsi->back;
 	struct nlattr *attr, *br_spec;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	struct ice_sw *pf_sw;
 	int rem, v, err = 0;
 
@@ -6961,14 +7182,14 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		/* Update the unicast switch filter rules for the corresponding
 		 * switch of the netdev
 		 */
-		status = ice_update_sw_rule_bridge_mode(hw);
-		if (status) {
-			netdev_err(dev, "switch rule update failed, mode = %d err %s aq_err %s\n",
-				   mode, ice_stat_str(status),
+		err = ice_update_sw_rule_bridge_mode(hw);
+		if (err) {
+			netdev_err(dev, "switch rule update failed, mode = %d err %d aq_err %s\n",
+				   mode, err,
 				   ice_aq_str(hw->adminq.sq_last_status));
 			/* revert hw->evb_veb */
 			hw->evb_veb = (pf_sw->bridge_mode == BRIDGE_MODE_VEB);
-			return -EIO;
+			return err;
 		}
 
 		pf_sw->bridge_mode = mode;
@@ -6985,7 +7206,7 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_ring *tx_ring = NULL;
+	struct ice_tx_ring *tx_ring = NULL;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	u32 i;
@@ -7003,7 +7224,7 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	}
 
 	/* now that we have an index, find the tx_ring struct */
-	for (i = 0; i < vsi->num_txq; i++)
+	ice_for_each_txq(vsi, i)
 		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
 			if (txqueue == vsi->tx_rings[i]->q_index) {
 				tx_ring = vsi->tx_rings[i];
@@ -7060,6 +7281,1125 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 }
 
 /**
+ * ice_setup_tc_cls_flower - flower classifier offloads
+ * @np: net device to configure
+ * @filter_dev: device on which filter is added
+ * @cls_flower: offload data
+ */
+static int
+ice_setup_tc_cls_flower(struct ice_netdev_priv *np,
+			struct net_device *filter_dev,
+			struct flow_cls_offload *cls_flower)
+{
+	struct ice_vsi *vsi = np->vsi;
+
+	if (cls_flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_flower->command) {
+	case FLOW_CLS_REPLACE:
+		return ice_add_cls_flower(filter_dev, vsi, cls_flower);
+	case FLOW_CLS_DESTROY:
+		return ice_del_cls_flower(vsi, cls_flower);
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * ice_setup_tc_block_cb - callback handler registered for TC block
+ * @type: TC SETUP type
+ * @type_data: TC flower offload data that contains user input
+ * @cb_priv: netdev private data
+ */
+static int
+ice_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+{
+	struct ice_netdev_priv *np = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return ice_setup_tc_cls_flower(np, np->vsi->netdev,
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
+ * ice_validate_mqprio_qopt - Validate TCF input parameters
+ * @vsi: Pointer to VSI
+ * @mqprio_qopt: input parameters for mqprio queue configuration
+ *
+ * This function validates MQPRIO params, such as qcount (power of 2 wherever
+ * needed), and make sure user doesn't specify qcount and BW rate limit
+ * for TCs, which are more than "num_tc"
+ */
+static int
+ice_validate_mqprio_qopt(struct ice_vsi *vsi,
+			 struct tc_mqprio_qopt_offload *mqprio_qopt)
+{
+	u64 sum_max_rate = 0, sum_min_rate = 0;
+	int non_power_of_2_qcount = 0;
+	struct ice_pf *pf = vsi->back;
+	int max_rss_q_cnt = 0;
+	struct device *dev;
+	int i, speed;
+	u8 num_tc;
+
+	if (vsi->type != ICE_VSI_PF)
+		return -EINVAL;
+
+	if (mqprio_qopt->qopt.offset[0] != 0 ||
+	    mqprio_qopt->qopt.num_tc < 1 ||
+	    mqprio_qopt->qopt.num_tc > ICE_CHNL_MAX_TC)
+		return -EINVAL;
+
+	dev = ice_pf_to_dev(pf);
+	vsi->ch_rss_size = 0;
+	num_tc = mqprio_qopt->qopt.num_tc;
+
+	for (i = 0; num_tc; i++) {
+		int qcount = mqprio_qopt->qopt.count[i];
+		u64 max_rate, min_rate, rem;
+
+		if (!qcount)
+			return -EINVAL;
+
+		if (is_power_of_2(qcount)) {
+			if (non_power_of_2_qcount &&
+			    qcount > non_power_of_2_qcount) {
+				dev_err(dev, "qcount[%d] cannot be greater than non power of 2 qcount[%d]\n",
+					qcount, non_power_of_2_qcount);
+				return -EINVAL;
+			}
+			if (qcount > max_rss_q_cnt)
+				max_rss_q_cnt = qcount;
+		} else {
+			if (non_power_of_2_qcount &&
+			    qcount != non_power_of_2_qcount) {
+				dev_err(dev, "Only one non power of 2 qcount allowed[%d,%d]\n",
+					qcount, non_power_of_2_qcount);
+				return -EINVAL;
+			}
+			if (qcount < max_rss_q_cnt) {
+				dev_err(dev, "non power of 2 qcount[%d] cannot be less than other qcount[%d]\n",
+					qcount, max_rss_q_cnt);
+				return -EINVAL;
+			}
+			max_rss_q_cnt = qcount;
+			non_power_of_2_qcount = qcount;
+		}
+
+		/* TC command takes input in K/N/Gbps or K/M/Gbit etc but
+		 * converts the bandwidth rate limit into Bytes/s when
+		 * passing it down to the driver. So convert input bandwidth
+		 * from Bytes/s to Kbps
+		 */
+		max_rate = mqprio_qopt->max_rate[i];
+		max_rate = div_u64(max_rate, ICE_BW_KBPS_DIVISOR);
+		sum_max_rate += max_rate;
+
+		/* min_rate is minimum guaranteed rate and it can't be zero */
+		min_rate = mqprio_qopt->min_rate[i];
+		min_rate = div_u64(min_rate, ICE_BW_KBPS_DIVISOR);
+		sum_min_rate += min_rate;
+
+		if (min_rate && min_rate < ICE_MIN_BW_LIMIT) {
+			dev_err(dev, "TC%d: min_rate(%llu Kbps) < %u Kbps\n", i,
+				min_rate, ICE_MIN_BW_LIMIT);
+			return -EINVAL;
+		}
+
+		iter_div_u64_rem(min_rate, ICE_MIN_BW_LIMIT, &rem);
+		if (rem) {
+			dev_err(dev, "TC%d: Min Rate not multiple of %u Kbps",
+				i, ICE_MIN_BW_LIMIT);
+			return -EINVAL;
+		}
+
+		iter_div_u64_rem(max_rate, ICE_MIN_BW_LIMIT, &rem);
+		if (rem) {
+			dev_err(dev, "TC%d: Max Rate not multiple of %u Kbps",
+				i, ICE_MIN_BW_LIMIT);
+			return -EINVAL;
+		}
+
+		/* min_rate can't be more than max_rate, except when max_rate
+		 * is zero (implies max_rate sought is max line rate). In such
+		 * a case min_rate can be more than max.
+		 */
+		if (max_rate && min_rate > max_rate) {
+			dev_err(dev, "min_rate %llu Kbps can't be more than max_rate %llu Kbps\n",
+				min_rate, max_rate);
+			return -EINVAL;
+		}
+
+		if (i >= mqprio_qopt->qopt.num_tc - 1)
+			break;
+		if (mqprio_qopt->qopt.offset[i + 1] !=
+		    (mqprio_qopt->qopt.offset[i] + qcount))
+			return -EINVAL;
+	}
+	if (vsi->num_rxq <
+	    (mqprio_qopt->qopt.offset[i] + mqprio_qopt->qopt.count[i]))
+		return -EINVAL;
+	if (vsi->num_txq <
+	    (mqprio_qopt->qopt.offset[i] + mqprio_qopt->qopt.count[i]))
+		return -EINVAL;
+
+	speed = ice_get_link_speed_kbps(vsi);
+	if (sum_max_rate && sum_max_rate > (u64)speed) {
+		dev_err(dev, "Invalid max Tx rate(%llu) Kbps > speed(%u) Kbps specified\n",
+			sum_max_rate, speed);
+		return -EINVAL;
+	}
+	if (sum_min_rate && sum_min_rate > (u64)speed) {
+		dev_err(dev, "Invalid min Tx rate(%llu) Kbps > speed (%u) Kbps specified\n",
+			sum_min_rate, speed);
+		return -EINVAL;
+	}
+
+	/* make sure vsi->ch_rss_size is set correctly based on TC's qcount */
+	vsi->ch_rss_size = max_rss_q_cnt;
+
+	return 0;
+}
+
+/**
+ * ice_add_vsi_to_fdir - add a VSI to the flow director group for PF
+ * @pf: ptr to PF device
+ * @vsi: ptr to VSI
+ */
+static int ice_add_vsi_to_fdir(struct ice_pf *pf, struct ice_vsi *vsi)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	bool added = false;
+	struct ice_hw *hw;
+	int flow;
+
+	if (!(vsi->num_gfltr || vsi->num_bfltr))
+		return -EINVAL;
+
+	hw = &pf->hw;
+	for (flow = 0; flow < ICE_FLTR_PTYPE_MAX; flow++) {
+		struct ice_fd_hw_prof *prof;
+		int tun, status;
+		u64 entry_h;
+
+		if (!(hw->fdir_prof && hw->fdir_prof[flow] &&
+		      hw->fdir_prof[flow]->cnt))
+			continue;
+
+		for (tun = 0; tun < ICE_FD_HW_SEG_MAX; tun++) {
+			enum ice_flow_priority prio;
+			u64 prof_id;
+
+			/* add this VSI to FDir profile for this flow */
+			prio = ICE_FLOW_PRIO_NORMAL;
+			prof = hw->fdir_prof[flow];
+			prof_id = flow + tun * ICE_FLTR_PTYPE_MAX;
+			status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id,
+						    prof->vsi_h[0], vsi->idx,
+						    prio, prof->fdir_seg[tun],
+						    &entry_h);
+			if (status) {
+				dev_err(dev, "channel VSI idx %d, not able to add to group %d\n",
+					vsi->idx, flow);
+				continue;
+			}
+
+			prof->entry_h[prof->cnt][tun] = entry_h;
+		}
+
+		/* store VSI for filter replay and delete */
+		prof->vsi_h[prof->cnt] = vsi->idx;
+		prof->cnt++;
+
+		added = true;
+		dev_dbg(dev, "VSI idx %d added to fdir group %d\n", vsi->idx,
+			flow);
+	}
+
+	if (!added)
+		dev_dbg(dev, "VSI idx %d not added to fdir groups\n", vsi->idx);
+
+	return 0;
+}
+
+/**
+ * ice_add_channel - add a channel by adding VSI
+ * @pf: ptr to PF device
+ * @sw_id: underlying HW switching element ID
+ * @ch: ptr to channel structure
+ *
+ * Add a channel (VSI) using add_vsi and queue_map
+ */
+static int ice_add_channel(struct ice_pf *pf, u16 sw_id, struct ice_channel *ch)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_vsi *vsi;
+
+	if (ch->type != ICE_VSI_CHNL) {
+		dev_err(dev, "add new VSI failed, ch->type %d\n", ch->type);
+		return -EINVAL;
+	}
+
+	vsi = ice_chnl_vsi_setup(pf, pf->hw.port_info, ch);
+	if (!vsi || vsi->type != ICE_VSI_CHNL) {
+		dev_err(dev, "create chnl VSI failure\n");
+		return -EINVAL;
+	}
+
+	ice_add_vsi_to_fdir(pf, vsi);
+
+	ch->sw_id = sw_id;
+	ch->vsi_num = vsi->vsi_num;
+	ch->info.mapping_flags = vsi->info.mapping_flags;
+	ch->ch_vsi = vsi;
+	/* set the back pointer of channel for newly created VSI */
+	vsi->ch = ch;
+
+	memcpy(&ch->info.q_mapping, &vsi->info.q_mapping,
+	       sizeof(vsi->info.q_mapping));
+	memcpy(&ch->info.tc_mapping, vsi->info.tc_mapping,
+	       sizeof(vsi->info.tc_mapping));
+
+	return 0;
+}
+
+/**
+ * ice_chnl_cfg_res
+ * @vsi: the VSI being setup
+ * @ch: ptr to channel structure
+ *
+ * Configure channel specific resources such as rings, vector.
+ */
+static void ice_chnl_cfg_res(struct ice_vsi *vsi, struct ice_channel *ch)
+{
+	int i;
+
+	for (i = 0; i < ch->num_txq; i++) {
+		struct ice_q_vector *tx_q_vector, *rx_q_vector;
+		struct ice_ring_container *rc;
+		struct ice_tx_ring *tx_ring;
+		struct ice_rx_ring *rx_ring;
+
+		tx_ring = vsi->tx_rings[ch->base_q + i];
+		rx_ring = vsi->rx_rings[ch->base_q + i];
+		if (!tx_ring || !rx_ring)
+			continue;
+
+		/* setup ring being channel enabled */
+		tx_ring->ch = ch;
+		rx_ring->ch = ch;
+
+		/* following code block sets up vector specific attributes */
+		tx_q_vector = tx_ring->q_vector;
+		rx_q_vector = rx_ring->q_vector;
+		if (!tx_q_vector && !rx_q_vector)
+			continue;
+
+		if (tx_q_vector) {
+			tx_q_vector->ch = ch;
+			/* setup Tx and Rx ITR setting if DIM is off */
+			rc = &tx_q_vector->tx;
+			if (!ITR_IS_DYNAMIC(rc))
+				ice_write_itr(rc, rc->itr_setting);
+		}
+		if (rx_q_vector) {
+			rx_q_vector->ch = ch;
+			/* setup Tx and Rx ITR setting if DIM is off */
+			rc = &rx_q_vector->rx;
+			if (!ITR_IS_DYNAMIC(rc))
+				ice_write_itr(rc, rc->itr_setting);
+		}
+	}
+
+	/* it is safe to assume that, if channel has non-zero num_t[r]xq, then
+	 * GLINT_ITR register would have written to perform in-context
+	 * update, hence perform flush
+	 */
+	if (ch->num_txq || ch->num_rxq)
+		ice_flush(&vsi->back->hw);
+}
+
+/**
+ * ice_cfg_chnl_all_res - configure channel resources
+ * @vsi: pte to main_vsi
+ * @ch: ptr to channel structure
+ *
+ * This function configures channel specific resources such as flow-director
+ * counter index, and other resources such as queues, vectors, ITR settings
+ */
+static void
+ice_cfg_chnl_all_res(struct ice_vsi *vsi, struct ice_channel *ch)
+{
+	/* configure channel (aka ADQ) resources such as queues, vectors,
+	 * ITR settings for channel specific vectors and anything else
+	 */
+	ice_chnl_cfg_res(vsi, ch);
+}
+
+/**
+ * ice_setup_hw_channel - setup new channel
+ * @pf: ptr to PF device
+ * @vsi: the VSI being setup
+ * @ch: ptr to channel structure
+ * @sw_id: underlying HW switching element ID
+ * @type: type of channel to be created (VMDq2/VF)
+ *
+ * Setup new channel (VSI) based on specified type (VMDq2/VF)
+ * and configures Tx rings accordingly
+ */
+static int
+ice_setup_hw_channel(struct ice_pf *pf, struct ice_vsi *vsi,
+		     struct ice_channel *ch, u16 sw_id, u8 type)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	int ret;
+
+	ch->base_q = vsi->next_base_q;
+	ch->type = type;
+
+	ret = ice_add_channel(pf, sw_id, ch);
+	if (ret) {
+		dev_err(dev, "failed to add_channel using sw_id %u\n", sw_id);
+		return ret;
+	}
+
+	/* configure/setup ADQ specific resources */
+	ice_cfg_chnl_all_res(vsi, ch);
+
+	/* make sure to update the next_base_q so that subsequent channel's
+	 * (aka ADQ) VSI queue map is correct
+	 */
+	vsi->next_base_q = vsi->next_base_q + ch->num_rxq;
+	dev_dbg(dev, "added channel: vsi_num %u, num_rxq %u\n", ch->vsi_num,
+		ch->num_rxq);
+
+	return 0;
+}
+
+/**
+ * ice_setup_channel - setup new channel using uplink element
+ * @pf: ptr to PF device
+ * @vsi: the VSI being setup
+ * @ch: ptr to channel structure
+ *
+ * Setup new channel (VSI) based on specified type (VMDq2/VF)
+ * and uplink switching element
+ */
+static bool
+ice_setup_channel(struct ice_pf *pf, struct ice_vsi *vsi,
+		  struct ice_channel *ch)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	u16 sw_id;
+	int ret;
+
+	if (vsi->type != ICE_VSI_PF) {
+		dev_err(dev, "unsupported parent VSI type(%d)\n", vsi->type);
+		return false;
+	}
+
+	sw_id = pf->first_sw->sw_id;
+
+	/* create channel (VSI) */
+	ret = ice_setup_hw_channel(pf, vsi, ch, sw_id, ICE_VSI_CHNL);
+	if (ret) {
+		dev_err(dev, "failed to setup hw_channel\n");
+		return false;
+	}
+	dev_dbg(dev, "successfully created channel()\n");
+
+	return ch->ch_vsi ? true : false;
+}
+
+/**
+ * ice_set_bw_limit - setup BW limit for Tx traffic based on max_tx_rate
+ * @vsi: VSI to be configured
+ * @max_tx_rate: max Tx rate in Kbps to be configured as maximum BW limit
+ * @min_tx_rate: min Tx rate in Kbps to be configured as minimum BW limit
+ */
+static int
+ice_set_bw_limit(struct ice_vsi *vsi, u64 max_tx_rate, u64 min_tx_rate)
+{
+	int err;
+
+	err = ice_set_min_bw_limit(vsi, min_tx_rate);
+	if (err)
+		return err;
+
+	return ice_set_max_bw_limit(vsi, max_tx_rate);
+}
+
+/**
+ * ice_create_q_channel - function to create channel
+ * @vsi: VSI to be configured
+ * @ch: ptr to channel (it contains channel specific params)
+ *
+ * This function creates channel (VSI) using num_queues specified by user,
+ * reconfigs RSS if needed.
+ */
+static int ice_create_q_channel(struct ice_vsi *vsi, struct ice_channel *ch)
+{
+	struct ice_pf *pf = vsi->back;
+	struct device *dev;
+
+	if (!ch)
+		return -EINVAL;
+
+	dev = ice_pf_to_dev(pf);
+	if (!ch->num_txq || !ch->num_rxq) {
+		dev_err(dev, "Invalid num_queues requested: %d\n", ch->num_rxq);
+		return -EINVAL;
+	}
+
+	if (!vsi->cnt_q_avail || vsi->cnt_q_avail < ch->num_txq) {
+		dev_err(dev, "cnt_q_avail (%u) less than num_queues %d\n",
+			vsi->cnt_q_avail, ch->num_txq);
+		return -EINVAL;
+	}
+
+	if (!ice_setup_channel(pf, vsi, ch)) {
+		dev_info(dev, "Failed to setup channel\n");
+		return -EINVAL;
+	}
+	/* configure BW rate limit */
+	if (ch->ch_vsi && (ch->max_tx_rate || ch->min_tx_rate)) {
+		int ret;
+
+		ret = ice_set_bw_limit(ch->ch_vsi, ch->max_tx_rate,
+				       ch->min_tx_rate);
+		if (ret)
+			dev_err(dev, "failed to set Tx rate of %llu Kbps for VSI(%u)\n",
+				ch->max_tx_rate, ch->ch_vsi->vsi_num);
+		else
+			dev_dbg(dev, "set Tx rate of %llu Kbps for VSI(%u)\n",
+				ch->max_tx_rate, ch->ch_vsi->vsi_num);
+	}
+
+	vsi->cnt_q_avail -= ch->num_txq;
+
+	return 0;
+}
+
+/**
+ * ice_rem_all_chnl_fltrs - removes all channel filters
+ * @pf: ptr to PF, TC-flower based filter are tracked at PF level
+ *
+ * Remove all advanced switch filters only if they are channel specific
+ * tc-flower based filter
+ */
+static void ice_rem_all_chnl_fltrs(struct ice_pf *pf)
+{
+	struct ice_tc_flower_fltr *fltr;
+	struct hlist_node *node;
+
+	/* to remove all channel filters, iterate an ordered list of filters */
+	hlist_for_each_entry_safe(fltr, node,
+				  &pf->tc_flower_fltr_list,
+				  tc_flower_node) {
+		struct ice_rule_query_data rule;
+		int status;
+
+		/* for now process only channel specific filters */
+		if (!ice_is_chnl_fltr(fltr))
+			continue;
+
+		rule.rid = fltr->rid;
+		rule.rule_id = fltr->rule_id;
+		rule.vsi_handle = fltr->dest_id;
+		status = ice_rem_adv_rule_by_id(&pf->hw, &rule);
+		if (status) {
+			if (status == -ENOENT)
+				dev_dbg(ice_pf_to_dev(pf), "TC flower filter (rule_id %u) does not exist\n",
+					rule.rule_id);
+			else
+				dev_err(ice_pf_to_dev(pf), "failed to delete TC flower filter, status %d\n",
+					status);
+		} else if (fltr->dest_vsi) {
+			/* update advanced switch filter count */
+			if (fltr->dest_vsi->type == ICE_VSI_CHNL) {
+				u32 flags = fltr->flags;
+
+				fltr->dest_vsi->num_chnl_fltr--;
+				if (flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+					     ICE_TC_FLWR_FIELD_ENC_DST_MAC))
+					pf->num_dmac_chnl_fltrs--;
+			}
+		}
+
+		hlist_del(&fltr->tc_flower_node);
+		kfree(fltr);
+	}
+}
+
+/**
+ * ice_remove_q_channels - Remove queue channels for the TCs
+ * @vsi: VSI to be configured
+ * @rem_fltr: delete advanced switch filter or not
+ *
+ * Remove queue channels for the TCs
+ */
+static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_fltr)
+{
+	struct ice_channel *ch, *ch_tmp;
+	struct ice_pf *pf = vsi->back;
+	int i;
+
+	/* remove all tc-flower based filter if they are channel filters only */
+	if (rem_fltr)
+		ice_rem_all_chnl_fltrs(pf);
+
+	/* remove ntuple filters since queue configuration is being changed */
+	if  (vsi->netdev->features & NETIF_F_NTUPLE) {
+		struct ice_hw *hw = &pf->hw;
+
+		mutex_lock(&hw->fdir_fltr_lock);
+		ice_fdir_del_all_fltrs(vsi);
+		mutex_unlock(&hw->fdir_fltr_lock);
+	}
+
+	/* perform cleanup for channels if they exist */
+	list_for_each_entry_safe(ch, ch_tmp, &vsi->ch_list, list) {
+		struct ice_vsi *ch_vsi;
+
+		list_del(&ch->list);
+		ch_vsi = ch->ch_vsi;
+		if (!ch_vsi) {
+			kfree(ch);
+			continue;
+		}
+
+		/* Reset queue contexts */
+		for (i = 0; i < ch->num_rxq; i++) {
+			struct ice_tx_ring *tx_ring;
+			struct ice_rx_ring *rx_ring;
+
+			tx_ring = vsi->tx_rings[ch->base_q + i];
+			rx_ring = vsi->rx_rings[ch->base_q + i];
+			if (tx_ring) {
+				tx_ring->ch = NULL;
+				if (tx_ring->q_vector)
+					tx_ring->q_vector->ch = NULL;
+			}
+			if (rx_ring) {
+				rx_ring->ch = NULL;
+				if (rx_ring->q_vector)
+					rx_ring->q_vector->ch = NULL;
+			}
+		}
+
+		/* Release FD resources for the channel VSI */
+		ice_fdir_rem_adq_chnl(&pf->hw, ch->ch_vsi->idx);
+
+		/* clear the VSI from scheduler tree */
+		ice_rm_vsi_lan_cfg(ch->ch_vsi->port_info, ch->ch_vsi->idx);
+
+		/* Delete VSI from FW */
+		ice_vsi_delete(ch->ch_vsi);
+
+		/* Delete VSI from PF and HW VSI arrays */
+		ice_vsi_clear(ch->ch_vsi);
+
+		/* free the channel */
+		kfree(ch);
+	}
+
+	/* clear the channel VSI map which is stored in main VSI */
+	ice_for_each_chnl_tc(i)
+		vsi->tc_map_vsi[i] = NULL;
+
+	/* reset main VSI's all TC information */
+	vsi->all_enatc = 0;
+	vsi->all_numtc = 0;
+}
+
+/**
+ * ice_rebuild_channels - rebuild channel
+ * @pf: ptr to PF
+ *
+ * Recreate channel VSIs and replay filters
+ */
+static int ice_rebuild_channels(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_vsi *main_vsi;
+	bool rem_adv_fltr = true;
+	struct ice_channel *ch;
+	struct ice_vsi *vsi;
+	int tc_idx = 1;
+	int i, err;
+
+	main_vsi = ice_get_main_vsi(pf);
+	if (!main_vsi)
+		return 0;
+
+	if (!test_bit(ICE_FLAG_TC_MQPRIO, pf->flags) ||
+	    main_vsi->old_numtc == 1)
+		return 0; /* nothing to be done */
+
+	/* reconfigure main VSI based on old value of TC and cached values
+	 * for MQPRIO opts
+	 */
+	err = ice_vsi_cfg_tc(main_vsi, main_vsi->old_ena_tc);
+	if (err) {
+		dev_err(dev, "failed configuring TC(ena_tc:0x%02x) for HW VSI=%u\n",
+			main_vsi->old_ena_tc, main_vsi->vsi_num);
+		return err;
+	}
+
+	/* rebuild ADQ VSIs */
+	ice_for_each_vsi(pf, i) {
+		enum ice_vsi_type type;
+
+		vsi = pf->vsi[i];
+		if (!vsi || vsi->type != ICE_VSI_CHNL)
+			continue;
+
+		type = vsi->type;
+
+		/* rebuild ADQ VSI */
+		err = ice_vsi_rebuild(vsi, true);
+		if (err) {
+			dev_err(dev, "VSI (type:%s) at index %d rebuild failed, err %d\n",
+				ice_vsi_type_str(type), vsi->idx, err);
+			goto cleanup;
+		}
+
+		/* Re-map HW VSI number, using VSI handle that has been
+		 * previously validated in ice_replay_vsi() call above
+		 */
+		vsi->vsi_num = ice_get_hw_vsi_num(&pf->hw, vsi->idx);
+
+		/* replay filters for the VSI */
+		err = ice_replay_vsi(&pf->hw, vsi->idx);
+		if (err) {
+			dev_err(dev, "VSI (type:%s) replay failed, err %d, VSI index %d\n",
+				ice_vsi_type_str(type), err, vsi->idx);
+			rem_adv_fltr = false;
+			goto cleanup;
+		}
+		dev_info(dev, "VSI (type:%s) at index %d rebuilt successfully\n",
+			 ice_vsi_type_str(type), vsi->idx);
+
+		/* store ADQ VSI at correct TC index in main VSI's
+		 * map of TC to VSI
+		 */
+		main_vsi->tc_map_vsi[tc_idx++] = vsi;
+	}
+
+	/* ADQ VSI(s) has been rebuilt successfully, so setup
+	 * channel for main VSI's Tx and Rx rings
+	 */
+	list_for_each_entry(ch, &main_vsi->ch_list, list) {
+		struct ice_vsi *ch_vsi;
+
+		ch_vsi = ch->ch_vsi;
+		if (!ch_vsi)
+			continue;
+
+		/* reconfig channel resources */
+		ice_cfg_chnl_all_res(main_vsi, ch);
+
+		/* replay BW rate limit if it is non-zero */
+		if (!ch->max_tx_rate && !ch->min_tx_rate)
+			continue;
+
+		err = ice_set_bw_limit(ch_vsi, ch->max_tx_rate,
+				       ch->min_tx_rate);
+		if (err)
+			dev_err(dev, "failed (err:%d) to rebuild BW rate limit, max_tx_rate: %llu Kbps, min_tx_rate: %llu Kbps for VSI(%u)\n",
+				err, ch->max_tx_rate, ch->min_tx_rate,
+				ch_vsi->vsi_num);
+		else
+			dev_dbg(dev, "successfully rebuild BW rate limit, max_tx_rate: %llu Kbps, min_tx_rate: %llu Kbps for VSI(%u)\n",
+				ch->max_tx_rate, ch->min_tx_rate,
+				ch_vsi->vsi_num);
+	}
+
+	/* reconfig RSS for main VSI */
+	if (main_vsi->ch_rss_size)
+		ice_vsi_cfg_rss_lut_key(main_vsi);
+
+	return 0;
+
+cleanup:
+	ice_remove_q_channels(main_vsi, rem_adv_fltr);
+	return err;
+}
+
+/**
+ * ice_create_q_channels - Add queue channel for the given TCs
+ * @vsi: VSI to be configured
+ *
+ * Configures queue channel mapping to the given TCs
+ */
+static int ice_create_q_channels(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_channel *ch;
+	int ret = 0, i;
+
+	ice_for_each_chnl_tc(i) {
+		if (!(vsi->all_enatc & BIT(i)))
+			continue;
+
+		ch = kzalloc(sizeof(*ch), GFP_KERNEL);
+		if (!ch) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+		INIT_LIST_HEAD(&ch->list);
+		ch->num_rxq = vsi->mqprio_qopt.qopt.count[i];
+		ch->num_txq = vsi->mqprio_qopt.qopt.count[i];
+		ch->base_q = vsi->mqprio_qopt.qopt.offset[i];
+		ch->max_tx_rate = vsi->mqprio_qopt.max_rate[i];
+		ch->min_tx_rate = vsi->mqprio_qopt.min_rate[i];
+
+		/* convert to Kbits/s */
+		if (ch->max_tx_rate)
+			ch->max_tx_rate = div_u64(ch->max_tx_rate,
+						  ICE_BW_KBPS_DIVISOR);
+		if (ch->min_tx_rate)
+			ch->min_tx_rate = div_u64(ch->min_tx_rate,
+						  ICE_BW_KBPS_DIVISOR);
+
+		ret = ice_create_q_channel(vsi, ch);
+		if (ret) {
+			dev_err(ice_pf_to_dev(pf),
+				"failed creating channel TC:%d\n", i);
+			kfree(ch);
+			goto err_free;
+		}
+		list_add_tail(&ch->list, &vsi->ch_list);
+		vsi->tc_map_vsi[i] = ch->ch_vsi;
+		dev_dbg(ice_pf_to_dev(pf),
+			"successfully created channel: VSI %pK\n", ch->ch_vsi);
+	}
+	return 0;
+
+err_free:
+	ice_remove_q_channels(vsi, false);
+
+	return ret;
+}
+
+/**
+ * ice_setup_tc_mqprio_qdisc - configure multiple traffic classes
+ * @netdev: net device to configure
+ * @type_data: TC offload data
+ */
+static int ice_setup_tc_mqprio_qdisc(struct net_device *netdev, void *type_data)
+{
+	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u16 mode, ena_tc_qdisc = 0;
+	int cur_txq, cur_rxq;
+	u8 hw = 0, num_tcf;
+	struct device *dev;
+	int ret, i;
+
+	dev = ice_pf_to_dev(pf);
+	num_tcf = mqprio_qopt->qopt.num_tc;
+	hw = mqprio_qopt->qopt.hw;
+	mode = mqprio_qopt->mode;
+	if (!hw) {
+		clear_bit(ICE_FLAG_TC_MQPRIO, pf->flags);
+		vsi->ch_rss_size = 0;
+		memcpy(&vsi->mqprio_qopt, mqprio_qopt, sizeof(*mqprio_qopt));
+		goto config_tcf;
+	}
+
+	/* Generate queue region map for number of TCF requested */
+	for (i = 0; i < num_tcf; i++)
+		ena_tc_qdisc |= BIT(i);
+
+	switch (mode) {
+	case TC_MQPRIO_MODE_CHANNEL:
+
+		ret = ice_validate_mqprio_qopt(vsi, mqprio_qopt);
+		if (ret) {
+			netdev_err(netdev, "failed to validate_mqprio_qopt(), ret %d\n",
+				   ret);
+			return ret;
+		}
+		memcpy(&vsi->mqprio_qopt, mqprio_qopt, sizeof(*mqprio_qopt));
+		set_bit(ICE_FLAG_TC_MQPRIO, pf->flags);
+		/* don't assume state of hw_tc_offload during driver load
+		 * and set the flag for TC flower filter if hw_tc_offload
+		 * already ON
+		 */
+		if (vsi->netdev->features & NETIF_F_HW_TC)
+			set_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+config_tcf:
+
+	/* Requesting same TCF configuration as already enabled */
+	if (ena_tc_qdisc == vsi->tc_cfg.ena_tc &&
+	    mode != TC_MQPRIO_MODE_CHANNEL)
+		return 0;
+
+	/* Pause VSI queues */
+	ice_dis_vsi(vsi, true);
+
+	if (!hw && !test_bit(ICE_FLAG_TC_MQPRIO, pf->flags))
+		ice_remove_q_channels(vsi, true);
+
+	if (!hw && !test_bit(ICE_FLAG_TC_MQPRIO, pf->flags)) {
+		vsi->req_txq = min_t(int, ice_get_avail_txq_count(pf),
+				     num_online_cpus());
+		vsi->req_rxq = min_t(int, ice_get_avail_rxq_count(pf),
+				     num_online_cpus());
+	} else {
+		/* logic to rebuild VSI, same like ethtool -L */
+		u16 offset = 0, qcount_tx = 0, qcount_rx = 0;
+
+		for (i = 0; i < num_tcf; i++) {
+			if (!(ena_tc_qdisc & BIT(i)))
+				continue;
+
+			offset = vsi->mqprio_qopt.qopt.offset[i];
+			qcount_rx = vsi->mqprio_qopt.qopt.count[i];
+			qcount_tx = vsi->mqprio_qopt.qopt.count[i];
+		}
+		vsi->req_txq = offset + qcount_tx;
+		vsi->req_rxq = offset + qcount_rx;
+
+		/* store away original rss_size info, so that it gets reused
+		 * form ice_vsi_rebuild during tc-qdisc delete stage - to
+		 * determine, what should be the rss_sizefor main VSI
+		 */
+		vsi->orig_rss_size = vsi->rss_size;
+	}
+
+	/* save current values of Tx and Rx queues before calling VSI rebuild
+	 * for fallback option
+	 */
+	cur_txq = vsi->num_txq;
+	cur_rxq = vsi->num_rxq;
+
+	/* proceed with rebuild main VSI using correct number of queues */
+	ret = ice_vsi_rebuild(vsi, false);
+	if (ret) {
+		/* fallback to current number of queues */
+		dev_info(dev, "Rebuild failed with new queues, try with current number of queues\n");
+		vsi->req_txq = cur_txq;
+		vsi->req_rxq = cur_rxq;
+		clear_bit(ICE_RESET_FAILED, pf->state);
+		if (ice_vsi_rebuild(vsi, false)) {
+			dev_err(dev, "Rebuild of main VSI failed again\n");
+			return ret;
+		}
+	}
+
+	vsi->all_numtc = num_tcf;
+	vsi->all_enatc = ena_tc_qdisc;
+	ret = ice_vsi_cfg_tc(vsi, ena_tc_qdisc);
+	if (ret) {
+		netdev_err(netdev, "failed configuring TC for VSI id=%d\n",
+			   vsi->vsi_num);
+		goto exit;
+	}
+
+	if (test_bit(ICE_FLAG_TC_MQPRIO, pf->flags)) {
+		u64 max_tx_rate = vsi->mqprio_qopt.max_rate[0];
+		u64 min_tx_rate = vsi->mqprio_qopt.min_rate[0];
+
+		/* set TC0 rate limit if specified */
+		if (max_tx_rate || min_tx_rate) {
+			/* convert to Kbits/s */
+			if (max_tx_rate)
+				max_tx_rate = div_u64(max_tx_rate, ICE_BW_KBPS_DIVISOR);
+			if (min_tx_rate)
+				min_tx_rate = div_u64(min_tx_rate, ICE_BW_KBPS_DIVISOR);
+
+			ret = ice_set_bw_limit(vsi, max_tx_rate, min_tx_rate);
+			if (!ret) {
+				dev_dbg(dev, "set Tx rate max %llu min %llu for VSI(%u)\n",
+					max_tx_rate, min_tx_rate, vsi->vsi_num);
+			} else {
+				dev_err(dev, "failed to set Tx rate max %llu min %llu for VSI(%u)\n",
+					max_tx_rate, min_tx_rate, vsi->vsi_num);
+				goto exit;
+			}
+		}
+		ret = ice_create_q_channels(vsi);
+		if (ret) {
+			netdev_err(netdev, "failed configuring queue channels\n");
+			goto exit;
+		} else {
+			netdev_dbg(netdev, "successfully configured channels\n");
+		}
+	}
+
+	if (vsi->ch_rss_size)
+		ice_vsi_cfg_rss_lut_key(vsi);
+
+exit:
+	/* if error, reset the all_numtc and all_enatc */
+	if (ret) {
+		vsi->all_numtc = 0;
+		vsi->all_enatc = 0;
+	}
+	/* resume VSI */
+	ice_ena_vsi(vsi, true);
+
+	return ret;
+}
+
+static LIST_HEAD(ice_block_cb_list);
+
+static int
+ice_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+	     void *type_data)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+	int err;
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return flow_block_cb_setup_simple(type_data,
+						  &ice_block_cb_list,
+						  ice_setup_tc_block_cb,
+						  np, np, true);
+	case TC_SETUP_QDISC_MQPRIO:
+		/* setup traffic classifier for receive side */
+		mutex_lock(&pf->tc_mutex);
+		err = ice_setup_tc_mqprio_qdisc(netdev, type_data);
+		mutex_unlock(&pf->tc_mutex);
+		return err;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return -EOPNOTSUPP;
+}
+
+static struct ice_indr_block_priv *
+ice_indr_block_priv_lookup(struct ice_netdev_priv *np,
+			   struct net_device *netdev)
+{
+	struct ice_indr_block_priv *cb_priv;
+
+	list_for_each_entry(cb_priv, &np->tc_indr_block_priv_list, list) {
+		if (!cb_priv->netdev)
+			return NULL;
+		if (cb_priv->netdev == netdev)
+			return cb_priv;
+	}
+	return NULL;
+}
+
+static int
+ice_indr_setup_block_cb(enum tc_setup_type type, void *type_data,
+			void *indr_priv)
+{
+	struct ice_indr_block_priv *priv = indr_priv;
+	struct ice_netdev_priv *np = priv->np;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return ice_setup_tc_cls_flower(np, priv->netdev,
+					       (struct flow_cls_offload *)
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+ice_indr_setup_tc_block(struct net_device *netdev, struct Qdisc *sch,
+			struct ice_netdev_priv *np,
+			struct flow_block_offload *f, void *data,
+			void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	struct ice_indr_block_priv *indr_priv;
+	struct flow_block_cb *block_cb;
+
+	if (!ice_is_tunnel_supported(netdev) &&
+	    !(is_vlan_dev(netdev) &&
+	      vlan_dev_real_dev(netdev) == np->vsi->netdev))
+		return -EOPNOTSUPP;
+
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case FLOW_BLOCK_BIND:
+		indr_priv = ice_indr_block_priv_lookup(np, netdev);
+		if (indr_priv)
+			return -EEXIST;
+
+		indr_priv = kzalloc(sizeof(*indr_priv), GFP_KERNEL);
+		if (!indr_priv)
+			return -ENOMEM;
+
+		indr_priv->netdev = netdev;
+		indr_priv->np = np;
+		list_add(&indr_priv->list, &np->tc_indr_block_priv_list);
+
+		block_cb =
+			flow_indr_block_cb_alloc(ice_indr_setup_block_cb,
+						 indr_priv, indr_priv,
+						 ice_rep_indr_tc_block_unbind,
+						 f, netdev, sch, data, np,
+						 cleanup);
+
+		if (IS_ERR(block_cb)) {
+			list_del(&indr_priv->list);
+			kfree(indr_priv);
+			return PTR_ERR(block_cb);
+		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &ice_block_cb_list);
+		break;
+	case FLOW_BLOCK_UNBIND:
+		indr_priv = ice_indr_block_priv_lookup(np, netdev);
+		if (!indr_priv)
+			return -ENOENT;
+
+		block_cb = flow_block_cb_lookup(f->block,
+						ice_indr_setup_block_cb,
+						indr_priv);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_indr_block_cb_remove(block_cb, f);
+
+		list_del(&block_cb->driver_list);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int
+ice_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch,
+		     void *cb_priv, enum tc_setup_type type, void *type_data,
+		     void *data,
+		     void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return ice_indr_setup_tc_block(netdev, sch, cb_priv, type_data,
+					       data, cleanup);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -7099,7 +8439,6 @@ int ice_open_internal(struct net_device *netdev)
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_port_info *pi;
-	enum ice_status status;
 	int err;
 
 	if (test_bit(ICE_NEEDS_RESTART, pf->state)) {
@@ -7110,14 +8449,13 @@ int ice_open_internal(struct net_device *netdev)
 	netif_carrier_off(netdev);
 
 	pi = vsi->port_info;
-	status = ice_update_link_info(pi);
-	if (status) {
-		netdev_err(netdev, "Failed to get link info, error %s\n",
-			   ice_stat_str(status));
-		return -EIO;
+	err = ice_update_link_info(pi);
+	if (err) {
+		netdev_err(netdev, "Failed to get link info, error %d\n", err);
+		return err;
 	}
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
@@ -7190,6 +8528,7 @@ ice_features_check(struct sk_buff *skb,
 		   struct net_device __always_unused *netdev,
 		   netdev_features_t features)
 {
+	bool gso = skb_is_gso(skb);
 	size_t len;
 
 	/* No point in doing any of this if neither checksum nor GSO are
@@ -7202,24 +8541,32 @@ ice_features_check(struct sk_buff *skb,
 	/* We cannot support GSO if the MSS is going to be less than
 	 * 64 bytes. If it is then we need to drop support for GSO.
 	 */
-	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_size < 64))
+	if (gso && (skb_shinfo(skb)->gso_size < ICE_TXD_CTX_MIN_MSS))
 		features &= ~NETIF_F_GSO_MASK;
 
-	len = skb_network_header(skb) - skb->data;
+	len = skb_network_offset(skb);
 	if (len > ICE_TXD_MACLEN_MAX || len & 0x1)
 		goto out_rm_features;
 
-	len = skb_transport_header(skb) - skb_network_header(skb);
+	len = skb_network_header_len(skb);
 	if (len > ICE_TXD_IPLEN_MAX || len & 0x1)
 		goto out_rm_features;
 
 	if (skb->encapsulation) {
-		len = skb_inner_network_header(skb) - skb_transport_header(skb);
-		if (len > ICE_TXD_L4LEN_MAX || len & 0x1)
-			goto out_rm_features;
+		/* this must work for VXLAN frames AND IPIP/SIT frames, and in
+		 * the case of IPIP frames, the transport header pointer is
+		 * after the inner header! So check to make sure that this
+		 * is a GRE or UDP_TUNNEL frame before doing that math.
+		 */
+		if (gso && (skb_shinfo(skb)->gso_type &
+			    (SKB_GSO_GRE | SKB_GSO_UDP_TUNNEL))) {
+			len = skb_inner_network_header(skb) -
+			      skb_transport_header(skb);
+			if (len > ICE_TXD_L4LEN_MAX || len & 0x1)
+				goto out_rm_features;
+		}
 
-		len = skb_inner_transport_header(skb) -
-		      skb_inner_network_header(skb);
+		len = skb_inner_network_header_len(skb);
 		if (len > ICE_TXD_IPLEN_MAX || len & 0x1)
 			goto out_rm_features;
 	}
@@ -7245,6 +8592,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_open = ice_open,
 	.ndo_stop = ice_stop,
 	.ndo_start_xmit = ice_start_xmit,
+	.ndo_select_queue = ice_select_queue,
 	.ndo_features_check = ice_features_check,
 	.ndo_set_rx_mode = ice_set_rx_mode,
 	.ndo_set_mac_address = ice_set_mac_address,
@@ -7260,8 +8608,10 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_set_vf_vlan = ice_set_vf_port_vlan,
 	.ndo_set_vf_link_state = ice_set_vf_link_state,
 	.ndo_get_vf_stats = ice_get_vf_stats,
+	.ndo_set_vf_rate = ice_set_vf_bw,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
+	.ndo_setup_tc = ice_setup_tc,
 	.ndo_set_features = ice_set_features,
 	.ndo_bridge_getlink = ice_bridge_getlink,
 	.ndo_bridge_setlink = ice_bridge_setlink,

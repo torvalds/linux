@@ -44,10 +44,10 @@ EXPORT_SYMBOL_GPL(hv_vp_index);
 u32 hv_max_vp_index;
 EXPORT_SYMBOL_GPL(hv_max_vp_index);
 
-void  __percpu **hyperv_pcpu_input_arg;
+void * __percpu *hyperv_pcpu_input_arg;
 EXPORT_SYMBOL_GPL(hyperv_pcpu_input_arg);
 
-void  __percpu **hyperv_pcpu_output_arg;
+void * __percpu *hyperv_pcpu_output_arg;
 EXPORT_SYMBOL_GPL(hyperv_pcpu_output_arg);
 
 /*
@@ -249,6 +249,12 @@ bool __weak hv_is_isolation_supported(void)
 }
 EXPORT_SYMBOL_GPL(hv_is_isolation_supported);
 
+bool __weak hv_isolation_type_snp(void)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(hv_isolation_type_snp);
+
 void __weak hv_setup_vmbus_handler(void (*handler)(void))
 {
 }
@@ -283,3 +289,20 @@ void __weak hyperv_cleanup(void)
 {
 }
 EXPORT_SYMBOL_GPL(hyperv_cleanup);
+
+u64 __weak hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size)
+{
+	return HV_STATUS_INVALID_PARAMETER;
+}
+EXPORT_SYMBOL_GPL(hv_ghcb_hypercall);
+
+void __weak *hv_map_memory(void *addr, unsigned long size)
+{
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(hv_map_memory);
+
+void __weak hv_unmap_memory(void *addr)
+{
+}
+EXPORT_SYMBOL_GPL(hv_unmap_memory);

@@ -130,15 +130,25 @@ mlxsw_sp_nve_mc_record_ipv6_entry_add(struct mlxsw_sp_nve_mc_record *mc_record,
 				      struct mlxsw_sp_nve_mc_entry *mc_entry,
 				      const union mlxsw_sp_l3addr *addr)
 {
-	WARN_ON(1);
+	u32 kvdl_index;
+	int err;
 
-	return -EINVAL;
+	err = mlxsw_sp_ipv6_addr_kvdl_index_get(mc_record->mlxsw_sp,
+						&addr->addr6, &kvdl_index);
+	if (err)
+		return err;
+
+	mc_entry->ipv6_entry.addr6 = addr->addr6;
+	mc_entry->ipv6_entry.addr6_kvdl_index = kvdl_index;
+	return 0;
 }
 
 static void
 mlxsw_sp_nve_mc_record_ipv6_entry_del(const struct mlxsw_sp_nve_mc_record *mc_record,
 				      const struct mlxsw_sp_nve_mc_entry *mc_entry)
 {
+	mlxsw_sp_ipv6_addr_put(mc_record->mlxsw_sp,
+			       &mc_entry->ipv6_entry.addr6);
 }
 
 static void
@@ -787,6 +797,142 @@ static void mlxsw_sp_nve_fdb_clear_offload(struct mlxsw_sp *mlxsw_sp,
 	ops->fdb_clear_offload(nve_dev, vni);
 }
 
+struct mlxsw_sp_nve_ipv6_ht_key {
+	u8 mac[ETH_ALEN];
+	u16 fid_index;
+};
+
+struct mlxsw_sp_nve_ipv6_ht_node {
+	struct rhash_head ht_node;
+	struct list_head list;
+	struct mlxsw_sp_nve_ipv6_ht_key key;
+	struct in6_addr addr6;
+};
+
+static const struct rhashtable_params mlxsw_sp_nve_ipv6_ht_params = {
+	.key_len = sizeof(struct mlxsw_sp_nve_ipv6_ht_key),
+	.key_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_node, key),
+	.head_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_node, ht_node),
+};
+
+int mlxsw_sp_nve_ipv6_addr_kvdl_set(struct mlxsw_sp *mlxsw_sp,
+				    const struct in6_addr *addr6,
+				    u32 *p_kvdl_index)
+{
+	return mlxsw_sp_ipv6_addr_kvdl_index_get(mlxsw_sp, addr6, p_kvdl_index);
+}
+
+void mlxsw_sp_nve_ipv6_addr_kvdl_unset(struct mlxsw_sp *mlxsw_sp,
+				       const struct in6_addr *addr6)
+{
+	mlxsw_sp_ipv6_addr_put(mlxsw_sp, addr6);
+}
+
+static struct mlxsw_sp_nve_ipv6_ht_node *
+mlxsw_sp_nve_ipv6_ht_node_lookup(struct mlxsw_sp *mlxsw_sp, const char *mac,
+				 u16 fid_index)
+{
+	struct mlxsw_sp_nve_ipv6_ht_key key = {};
+
+	ether_addr_copy(key.mac, mac);
+	key.fid_index = fid_index;
+	return rhashtable_lookup_fast(&mlxsw_sp->nve->ipv6_ht, &key,
+				      mlxsw_sp_nve_ipv6_ht_params);
+}
+
+static int mlxsw_sp_nve_ipv6_ht_insert(struct mlxsw_sp *mlxsw_sp,
+				       const char *mac, u16 fid_index,
+				       const struct in6_addr *addr6)
+{
+	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
+	int err;
+
+	ipv6_ht_node = kzalloc(sizeof(*ipv6_ht_node), GFP_KERNEL);
+	if (!ipv6_ht_node)
+		return -ENOMEM;
+
+	ether_addr_copy(ipv6_ht_node->key.mac, mac);
+	ipv6_ht_node->key.fid_index = fid_index;
+	ipv6_ht_node->addr6 = *addr6;
+
+	err = rhashtable_insert_fast(&nve->ipv6_ht, &ipv6_ht_node->ht_node,
+				     mlxsw_sp_nve_ipv6_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	list_add(&ipv6_ht_node->list, &nve->ipv6_addr_list);
+
+	return 0;
+
+err_rhashtable_insert:
+	kfree(ipv6_ht_node);
+	return err;
+}
+
+static void
+mlxsw_sp_nve_ipv6_ht_remove(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node)
+{
+	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
+
+	list_del(&ipv6_ht_node->list);
+	rhashtable_remove_fast(&nve->ipv6_ht, &ipv6_ht_node->ht_node,
+			       mlxsw_sp_nve_ipv6_ht_params);
+	kfree(ipv6_ht_node);
+}
+
+int
+mlxsw_sp_nve_ipv6_addr_map_replace(struct mlxsw_sp *mlxsw_sp, const char *mac,
+				   u16 fid_index,
+				   const struct in6_addr *new_addr6)
+{
+	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+
+	ASSERT_RTNL();
+
+	ipv6_ht_node = mlxsw_sp_nve_ipv6_ht_node_lookup(mlxsw_sp, mac,
+							fid_index);
+	if (!ipv6_ht_node)
+		return mlxsw_sp_nve_ipv6_ht_insert(mlxsw_sp, mac, fid_index,
+						   new_addr6);
+
+	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_node->addr6);
+	ipv6_ht_node->addr6 = *new_addr6;
+	return 0;
+}
+
+void mlxsw_sp_nve_ipv6_addr_map_del(struct mlxsw_sp *mlxsw_sp, const char *mac,
+				    u16 fid_index)
+{
+	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+
+	ASSERT_RTNL();
+
+	ipv6_ht_node = mlxsw_sp_nve_ipv6_ht_node_lookup(mlxsw_sp, mac,
+							fid_index);
+	if (WARN_ON(!ipv6_ht_node))
+		return;
+
+	mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_node);
+}
+
+static void mlxsw_sp_nve_ipv6_addr_flush_by_fid(struct mlxsw_sp *mlxsw_sp,
+						u16 fid_index)
+{
+	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node, *tmp;
+	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
+
+	list_for_each_entry_safe(ipv6_ht_node, tmp, &nve->ipv6_addr_list,
+				 list) {
+		if (ipv6_ht_node->key.fid_index != fid_index)
+			continue;
+
+		mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_node->addr6);
+		mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_node);
+	}
+}
+
 int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 			    struct mlxsw_sp_nve_params *params,
 			    struct netlink_ext_ack *extack)
@@ -845,6 +991,7 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_nve_flood_ip_flush(mlxsw_sp, fid);
 	mlxsw_sp_nve_fdb_flush_by_fid(mlxsw_sp, fid_index);
+	mlxsw_sp_nve_ipv6_addr_flush_by_fid(mlxsw_sp, fid_index);
 
 	if (WARN_ON(mlxsw_sp_fid_nve_ifindex(fid, &nve_ifindex) ||
 		    mlxsw_sp_fid_vni(fid, &vni)))
@@ -981,7 +1128,13 @@ int mlxsw_sp_nve_init(struct mlxsw_sp *mlxsw_sp)
 	err = rhashtable_init(&nve->mc_list_ht,
 			      &mlxsw_sp_nve_mc_list_ht_params);
 	if (err)
-		goto err_rhashtable_init;
+		goto err_mc_rhashtable_init;
+
+	err = rhashtable_init(&nve->ipv6_ht, &mlxsw_sp_nve_ipv6_ht_params);
+	if (err)
+		goto err_ipv6_rhashtable_init;
+
+	INIT_LIST_HEAD(&nve->ipv6_addr_list);
 
 	err = mlxsw_sp_nve_qos_init(mlxsw_sp);
 	if (err)
@@ -1000,8 +1153,10 @@ int mlxsw_sp_nve_init(struct mlxsw_sp *mlxsw_sp)
 err_nve_resources_query:
 err_nve_ecn_init:
 err_nve_qos_init:
+	rhashtable_destroy(&nve->ipv6_ht);
+err_ipv6_rhashtable_init:
 	rhashtable_destroy(&nve->mc_list_ht);
-err_rhashtable_init:
+err_mc_rhashtable_init:
 	mlxsw_sp->nve = NULL;
 	kfree(nve);
 	return err;
@@ -1010,6 +1165,8 @@ err_rhashtable_init:
 void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	WARN_ON(mlxsw_sp->nve->num_nve_tunnels);
+	WARN_ON(!list_empty(&mlxsw_sp->nve->ipv6_addr_list));
+	rhashtable_destroy(&mlxsw_sp->nve->ipv6_ht);
 	rhashtable_destroy(&mlxsw_sp->nve->mc_list_ht);
 	kfree(mlxsw_sp->nve);
 	mlxsw_sp->nve = NULL;

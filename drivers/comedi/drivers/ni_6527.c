@@ -20,8 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 /*
  * PCI BAR1 - Register memory map

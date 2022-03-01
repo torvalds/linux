@@ -13,6 +13,8 @@ config PARISC
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
+	select ARCH_STACKWALK
+	select HAVE_RELIABLE_STACKTRACE
 	select DMA_OPS
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
@@ -46,6 +48,7 @@ config PARISC
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_REGS_AND_STACK_ACCESS_API
@@ -53,6 +56,7 @@ config PARISC
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select LEGACY_TIMER_TICK
 	select CPU_NO_EFFICIENT_FFS
+	select THREAD_INFO_IN_TASK
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select HAVE_ARCH_KGDB
@@ -80,11 +84,6 @@ config MMU
 
 config STACK_GROWSUP
 	def_bool y
-
-config ARCH_DEFCONFIG
-	string
-	default "arch/parisc/configs/generic-32bit_defconfig" if !64BIT
-	default "arch/parisc/configs/generic-64bit_defconfig" if 64BIT
 
 config GENERIC_LOCKBREAK
 	bool
@@ -252,11 +251,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00 && BROKEN
+	depends on PA8X00 && BROKEN && !KFENCE
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00 && BROKEN
+	depends on PA8X00 && BROKEN && !KFENCE
 
 endchoice
 
@@ -357,7 +356,8 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "4"
+	default "4" if 64BIT
+	default "16"
 
 config KEXEC
 	bool "Kexec system call"

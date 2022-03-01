@@ -107,7 +107,7 @@ comportamento.
 Se la patch corregge un baco conosciuto, fare riferimento a quel baco inserendo
 il suo numero o il suo URL.  Se la patch è la conseguenza di una discussione
 su una lista di discussione, allora fornite l'URL all'archivio di quella
-discussione;  usate i collegamenti a https://lkml.kernel.org/ con il
+discussione;  usate i collegamenti a https://lore.kernel.org/ con il
 ``Message-Id``, in questo modo vi assicurerete che il collegamento non diventi
 invalido nel tempo.
 
@@ -275,25 +275,6 @@ nel file MAINTAINERS), o almeno una notifica circa la vostra modifica,
 cosicché l'informazione possa trovare la sua strada nel manuale.  Le modifiche
 all'API dello spazio utente dovrebbero essere inviate in copia anche a
 linux-api@vger.kernel.org.
-
-Per le piccole patch potreste aggiungere in CC l'indirizzo
-*Trivial Patch Monkey trivial@kernel.org* che ha lo scopo di raccogliere
-le patch "banali".  Date uno sguardo al file MAINTAINERS per vedere chi
-è l'attuale amministratore.
-
-Le patch banali devono rientrare in una delle seguenti categorie:
-
-- errori grammaticali nella documentazione
-- errori grammaticali negli errori che potrebbero rompere :manpage:`grep(1)`
-- correzione di avvisi di compilazione (riempirsi di avvisi inutili è negativo)
-- correzione di errori di compilazione (solo se correggono qualcosa sul serio)
-- rimozione di funzioni/macro deprecate
-- sostituzione di codice non potabile con uno portabile (anche in codice
-  specifico per un'architettura, dato che le persone copiano, fintanto che
-  la modifica sia banale)
-- qualsiasi modifica dell'autore/manutentore di un file (in pratica
-  "patch monkey" in modalità ritrasmissione)
-
 
 Niente: MIME, links, compressione, allegati.  Solo puro testo
 -------------------------------------------------------------
@@ -772,7 +753,7 @@ che lo riportava.  Tuttavia, per serie di patch multiple è generalmente
 sconsigliato l'uso di In-Reply-To: per collegare precedenti versioni.
 In questo modo versioni multiple di una patch non diventeranno un'ingestibile
 giungla di riferimenti all'interno dei programmi di posta.  Se un collegamento
-è utile, potete usare https://lkml.kernel.org/ per ottenere i collegamenti
+è utile, potete usare https://lore.kernel.org/ per ottenere i collegamenti
 ad una versione precedente di una serie di patch (per esempio, potete usarlo
 per l'email introduttiva alla serie).
 

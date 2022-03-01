@@ -19,7 +19,7 @@ description: |
   Select. The FMC2 performs only one access at a time to an external device.
 
 maintainers:
-  - Christophe Kerello <christophe.kerello@st.com>
+  - Christophe Kerello <christophe.kerello@foss.st.com>
 
 properties:
   compatible:

@@ -1016,6 +1016,8 @@ All time durations are in microseconds.
 	- nr_periods
 	- nr_throttled
 	- throttled_usec
+	- nr_bursts
+	- burst_usec
 
   cpu.weight
 	A read-write single value file which exists on non-root
@@ -1046,6 +1048,12 @@ All time durations are in microseconds.
 	which indicates that the group may consume upto $MAX in each
 	$PERIOD duration.  "max" for $MAX indicates no limit.  If only
 	one number is written, $MAX is updated.
+
+  cpu.max.burst
+	A read-write single value file which exists on non-root
+	cgroups.  The default is "0".
+
+	The burst in the range [0, $MAX].
 
   cpu.pressure
 	A read-write nested-keyed file.
@@ -1260,6 +1268,9 @@ PAGE_SIZE multiple when read back.
 		The number of processes belonging to this cgroup
 		killed by any kind of OOM killer.
 
+          oom_group_kill
+                The number of times a group OOM has occurred.
+
   memory.events.local
 	Similar to memory.events but the fields in the file are local
 	to the cgroup i.e. not hierarchical. The file modified event
@@ -1302,6 +1313,9 @@ PAGE_SIZE multiple when read back.
 
 	  sock (npn)
 		Amount of memory used in network transmission buffers
+
+	  vmalloc (npn)
+		Amount of memory used for vmap backed memory.
 
 	  shmem
 		Amount of cached filesystem data that is swap-backed,
@@ -2252,6 +2266,11 @@ HugeTLB Interface Files
 	are local to the cgroup i.e. not hierarchical. The file modified event
 	generated on this file reflects only the local events.
 
+  hugetlb.<hugepagesize>.numa_stat
+	Similar to memory.numa_stat, it shows the numa information of the
+        hugetlb pages of <hugepagesize> in this cgroup.  Only active in
+        use hugetlb pages are included.  The per-node values are in bytes.
+
 Misc
 ----
 
@@ -2309,6 +2328,16 @@ Miscellaneous controller provides 3 interface files. If two misc resources (res_
 
         Limits can be set higher than the capacity value in the misc.capacity
         file.
+
+  misc.events
+	A read-only flat-keyed file which exists on non-root cgroups. The
+	following entries are defined. Unless specified otherwise, a value
+	change in this file generates a file modified event. All fields in
+	this file are hierarchical.
+
+	  max
+		The number of times the cgroup's resource usage was
+		about to go over the max boundary.
 
 Migration and Ownership
 ~~~~~~~~~~~~~~~~~~~~~~~

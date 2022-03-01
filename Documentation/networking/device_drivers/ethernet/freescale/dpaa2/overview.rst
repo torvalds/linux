@@ -183,6 +183,7 @@ PHY and allows physical transmission and reception of Ethernet frames.
   IRQ config, enable, reset
 
 DPNI (Datapath Network Interface)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Contains TX/RX queues, network interface configuration, and RX buffer pool
 configuration mechanisms.  The TX/RX queues are in memory and are identified
 by queue number.

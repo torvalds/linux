@@ -486,14 +486,16 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	data_size = sizeof(struct streamid_data);
 	si_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
+	if (!si_data)
+		return -ENOMEM;
 	cbd.length = cpu_to_le16(data_size);
 
 	dma = dma_map_single(&priv->si->pdev->dev, si_data,
 			     data_size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
 		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(si_data);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 
 	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
@@ -512,12 +514,10 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	err = enetc_send_cmd(priv->si, &cbd);
 	if (err)
-		return -EINVAL;
+		goto out;
 
-	if (!enable) {
-		kfree(si_data);
-		return 0;
-	}
+	if (!enable)
+		goto out;
 
 	/* Enable the entry overwrite again incase space flushed by hardware */
 	memset(&cbd, 0, sizeof(cbd));
@@ -560,6 +560,10 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);
+out:
+	if (!dma_mapping_error(&priv->si->pdev->dev, dma))
+		dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_FROM_DEVICE);
+
 	kfree(si_data);
 
 	return err;
@@ -1178,7 +1182,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	/* parsing gate action */
-	if (entryg->gate.index >= priv->psfp_cap.max_psfp_gate) {
+	if (entryg->hw_index >= priv->psfp_cap.max_psfp_gate) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
@@ -1198,7 +1202,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	refcount_set(&sgi->refcount, 1);
-	sgi->index = entryg->gate.index;
+	sgi->index = entryg->hw_index;
 	sgi->init_ipv = entryg->gate.prio;
 	sgi->basetime = entryg->gate.basetime;
 	sgi->cycletime = entryg->gate.cycletime;
@@ -1240,7 +1244,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			refcount_set(&fmi->refcount, 1);
 			fmi->cir = entryp->police.rate_bytes_ps;
 			fmi->cbs = entryp->police.burst;
-			fmi->index = entryp->police.index;
+			fmi->index = entryp->hw_index;
 			filter->flags |= ENETC_PSFP_FLAGS_FMI;
 			filter->fmi_index = fmi->index;
 			sfi->meter_id = fmi->index;

@@ -12,6 +12,7 @@
 #include "dm-ima.h"
 
 #include <linux/ima.h>
+#include <linux/sched/mm.h>
 #include <crypto/hash.h>
 #include <linux/crypto.h>
 #include <crypto/hash_info.h>

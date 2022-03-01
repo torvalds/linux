@@ -163,7 +163,7 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 
 	/*
 	 * Try to reverse the lock attempt but if the count has changed
-	 * so that reversing fails, check if there are are no waiters,
+	 * so that reversing fails, check if there are no waiters,
 	 * and early-out if not
 	 */
 	do {

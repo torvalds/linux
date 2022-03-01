@@ -14,6 +14,8 @@
 / {
 	model = "Xiaomi Mi 4C";
 	compatible = "xiaomi,libra", "qcom,msm8992";
+	chassis-type = "handset";
+
 	/* required for bootloader to select correct board */
 	qcom,msm-id = <251 0 252 0>;
 	qcom,pmic-id = <65545 65546 0 0>;
@@ -40,7 +42,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		autorepeat;

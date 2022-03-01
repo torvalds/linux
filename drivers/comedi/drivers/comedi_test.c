@@ -45,10 +45,8 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
+#include <linux/comedi/comedidev.h>
 #include <asm/div64.h>
-
 #include <linux/timer.h>
 #include <linux/ktime.h>
 #include <linux/jiffies.h>

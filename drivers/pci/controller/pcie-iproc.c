@@ -249,7 +249,7 @@ enum iproc_pcie_reg {
 
 	/*
 	 * To hold the address of the register where the MSI writes are
-	 * programed.  When ARM GICv3 ITS is used, this should be programmed
+	 * programmed.  When ARM GICv3 ITS is used, this should be programmed
 	 * with the address of the GITS_TRANSLATER register.
 	 */
 	IPROC_PCIE_MSI_ADDR_LO,
@@ -659,10 +659,8 @@ static int iproc_pci_raw_config_read32(struct iproc_pcie *pcie,
 	void __iomem *addr;
 
 	addr = iproc_pcie_map_cfg_bus(pcie, 0, devfn, where & ~0x3);
-	if (!addr) {
-		*val = ~0;
+	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
 
 	*val = readl(addr);
 

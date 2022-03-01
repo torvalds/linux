@@ -34,6 +34,7 @@
 #include <linux/sched.h>
 #include <linux/shmem_fs.h>
 #include <linux/file.h>
+#include <linux/module.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
@@ -68,12 +69,12 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	switch (bo->type) {
 	case ttm_bo_type_device:
 		if (zero_alloc)
-			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+			page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 		break;
 	case ttm_bo_type_kernel:
 		break;
 	case ttm_bo_type_sg:
-		page_flags |= TTM_PAGE_FLAG_SG;
+		page_flags |= TTM_TT_FLAG_EXTERNAL;
 		break;
 	default:
 		pr_err("Illegal buffer object type\n");
@@ -83,6 +84,9 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	bo->ttm = bdev->funcs->ttm_tt_create(bo, page_flags);
 	if (unlikely(bo->ttm == NULL))
 		return -ENOMEM;
+
+	WARN_ON(bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL_MAPPABLE &&
+		!(bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL));
 
 	return 0;
 }
@@ -122,17 +126,6 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 	return 0;
 }
 
-void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm)
-{
-	ttm_tt_unpopulate(bdev, ttm);
-
-	if (ttm->swap_storage)
-		fput(ttm->swap_storage);
-
-	ttm->swap_storage = NULL;
-}
-EXPORT_SYMBOL(ttm_tt_destroy_common);
-
 void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	bdev->funcs->ttm_tt_destroy(bdev, ttm);
@@ -167,6 +160,12 @@ EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
+	WARN_ON(ttm->page_flags & TTM_TT_FLAG_PRIV_POPULATED);
+
+	if (ttm->swap_storage)
+		fput(ttm->swap_storage);
+	ttm->swap_storage = NULL;
+
 	if (ttm->pages)
 		kvfree(ttm->pages);
 	else
@@ -183,7 +182,7 @@ int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 
 	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
-	if (page_flags & TTM_PAGE_FLAG_SG)
+	if (page_flags & TTM_TT_FLAG_EXTERNAL)
 		ret = ttm_sg_tt_alloc_page_directory(ttm);
 	else
 		ret = ttm_dma_tt_alloc_page_directory(ttm);
@@ -229,7 +228,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	fput(swap_storage);
 	ttm->swap_storage = NULL;
-	ttm->page_flags &= ~TTM_PAGE_FLAG_SWAPPED;
+	ttm->page_flags &= ~TTM_TT_FLAG_SWAPPED;
 
 	return 0;
 
@@ -284,7 +283,7 @@ int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
 
 	ttm_tt_unpopulate(bdev, ttm);
 	ttm->swap_storage = swap_storage;
-	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
+	ttm->page_flags |= TTM_TT_FLAG_SWAPPED;
 
 	return ttm->num_pages;
 
@@ -292,17 +291,6 @@ out_err:
 	fput(swap_storage);
 
 	return ret;
-}
-
-static void ttm_tt_add_mapping(struct ttm_device *bdev, struct ttm_tt *ttm)
-{
-	pgoff_t i;
-
-	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
-		return;
-
-	for (i = 0; i < ttm->num_pages; ++i)
-		ttm->pages[i]->mapping = bdev->dev_mapping;
 }
 
 int ttm_tt_populate(struct ttm_device *bdev,
@@ -316,7 +304,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_add(ttm->num_pages, &ttm_pages_allocated);
 		if (bdev->pool.use_dma32)
 			atomic_long_add(ttm->num_pages,
@@ -341,9 +329,8 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	if (ret)
 		goto error;
 
-	ttm_tt_add_mapping(bdev, ttm);
-	ttm->page_flags |= TTM_PAGE_FLAG_PRIV_POPULATED;
-	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
+	ttm->page_flags |= TTM_TT_FLAG_PRIV_POPULATED;
+	if (unlikely(ttm->page_flags & TTM_TT_FLAG_SWAPPED)) {
 		ret = ttm_tt_swapin(ttm);
 		if (unlikely(ret != 0)) {
 			ttm_tt_unpopulate(bdev, ttm);
@@ -354,7 +341,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	return 0;
 
 error:
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
 		if (bdev->pool.use_dma32)
 			atomic_long_sub(ttm->num_pages,
@@ -364,39 +351,24 @@ error:
 }
 EXPORT_SYMBOL(ttm_tt_populate);
 
-static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
-{
-	pgoff_t i;
-	struct page **page = ttm->pages;
-
-	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
-		return;
-
-	for (i = 0; i < ttm->num_pages; ++i) {
-		(*page)->mapping = NULL;
-		(*page++)->index = 0;
-	}
-}
-
 void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	if (!ttm_tt_is_populated(ttm))
 		return;
 
-	ttm_tt_clear_mapping(ttm);
 	if (bdev->funcs->ttm_tt_unpopulate)
 		bdev->funcs->ttm_tt_unpopulate(bdev, ttm);
 	else
 		ttm_pool_free(&bdev->pool, ttm);
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
 		if (bdev->pool.use_dma32)
 			atomic_long_sub(ttm->num_pages,
 					&ttm_dma32_pages_allocated);
 	}
 
-	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
+	ttm->page_flags &= ~TTM_TT_FLAG_PRIV_POPULATED;
 }
 
 #ifdef CONFIG_DEBUG_FS

@@ -361,5 +361,4 @@ int bpf_prog10(struct sk_msg_md *msg)
 	return SK_DROP;
 }
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";

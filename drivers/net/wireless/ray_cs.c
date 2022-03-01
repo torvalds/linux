@@ -791,7 +791,7 @@ static int ray_dev_init(struct net_device *dev)
 #endif /* RAY_IMMEDIATE_INIT */
 
 	/* copy mac and broadcast addresses to linux device */
-	memcpy(dev->dev_addr, &local->sparm.b4.a_mac_addr, ADDRLEN);
+	eth_hw_addr_set(dev, local->sparm.b4.a_mac_addr);
 	eth_broadcast_addr(dev->broadcast);
 
 	dev_dbg(&link->dev, "ray_dev_init ending\n");
@@ -2746,7 +2746,7 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 		nr = nr * 10 + c;
 		p++;
 	} while (--len);
-	*(int *)PDE_DATA(file_inode(file)) = nr;
+	*(int *)pde_data(file_inode(file)) = nr;
 	return count;
 }
 

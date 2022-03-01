@@ -19,8 +19,8 @@
 #include <linux/in6.h>
 #include <net/tcp.h>
 
-static siphash_key_t net_secret __read_mostly;
-static siphash_key_t ts_secret __read_mostly;
+static siphash_aligned_key_t net_secret;
+static siphash_aligned_key_t ts_secret;
 
 static __always_inline void net_secret_init(void)
 {

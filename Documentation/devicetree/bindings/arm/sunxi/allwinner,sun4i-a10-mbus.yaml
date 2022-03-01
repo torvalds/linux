@@ -30,13 +30,40 @@ properties:
     enum:
       - allwinner,sun5i-a13-mbus
       - allwinner,sun8i-h3-mbus
+      - allwinner,sun8i-r40-mbus
       - allwinner,sun50i-a64-mbus
+      - allwinner,sun50i-h5-mbus
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: MBUS interconnect/bandwidth limit/PMU registers
+      - description: DRAM controller/PHY registers
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: mbus
+      - const: dram
 
   clocks:
+    minItems: 1
+    items:
+      - description: MBUS interconnect module clock
+      - description: DRAM controller/PHY module clock
+      - description: Register bus clock, shared by MBUS and DRAM
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: mbus
+      - const: dram
+      - const: bus
+
+  interrupts:
     maxItems: 1
+    description:
+      MBUS PMU activity interrupt.
 
   dma-ranges:
     description:
@@ -53,19 +80,78 @@ required:
   - clocks
   - dma-ranges
 
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - allwinner,sun8i-h3-mbus
+          - allwinner,sun50i-a64-mbus
+          - allwinner,sun50i-h5-mbus
+
+then:
+  properties:
+    reg:
+      minItems: 2
+
+    reg-names:
+      minItems: 2
+
+    clocks:
+      minItems: 3
+
+    clock-names:
+      minItems: 3
+
+  required:
+    - reg-names
+    - clock-names
+
+else:
+  properties:
+    reg:
+      maxItems: 1
+
+    reg-names:
+      maxItems: 1
+
+    clocks:
+      maxItems: 1
+
+    clock-names:
+      maxItems: 1
+
 additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/sun5i-ccu.h>
+    #include <dt-bindings/clock/sun50i-a64-ccu.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    mbus: dram-controller@1c01000 {
+    dram-controller@1c01000 {
         compatible = "allwinner,sun5i-a13-mbus";
         reg = <0x01c01000 0x1000>;
         clocks = <&ccu CLK_MBUS>;
         #address-cells = <1>;
         #size-cells = <1>;
         dma-ranges = <0x00000000 0x40000000 0x20000000>;
+        #interconnect-cells = <1>;
+    };
+
+  - |
+    dram-controller@1c62000 {
+        compatible = "allwinner,sun50i-a64-mbus";
+        reg = <0x01c62000 0x1000>,
+              <0x01c63000 0x1000>;
+        reg-names = "mbus", "dram";
+        clocks = <&ccu CLK_MBUS>,
+                 <&ccu CLK_DRAM>,
+                 <&ccu CLK_BUS_DRAM>;
+        clock-names = "mbus", "dram", "bus";
+        interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        dma-ranges = <0x00000000 0x40000000 0xc0000000>;
         #interconnect-cells = <1>;
     };
 

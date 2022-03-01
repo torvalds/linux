@@ -40,6 +40,18 @@
 #include "ttm_module.h"
 
 /**
+ * DOC: TTM
+ *
+ * TTM is a memory manager for accelerator devices with dedicated memory.
+ *
+ * The basic idea is that resources are grouped together in buffer objects of
+ * certain size and TTM handles lifetime, movement and CPU mappings of those
+ * objects.
+ *
+ * TODO: Add more design background and information here.
+ */
+
+/**
  * ttm_prot_from_caching - Modify the page protection according to the
  * ttm cacing mode
  * @caching: The ttm caching mode
@@ -56,9 +68,11 @@ pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp)
 #if defined(__i386__) || defined(__x86_64__)
 	if (caching == ttm_write_combined)
 		tmp = pgprot_writecombine(tmp);
+#ifndef CONFIG_UML
 	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
-#endif
+#endif /* CONFIG_UML */
+#endif /* __i386__ || __x86_64__ */
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
 	defined(__powerpc__) || defined(__mips__)
 	if (caching == ttm_write_combined)

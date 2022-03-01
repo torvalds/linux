@@ -25,8 +25,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
-kmem_zone_t	*xfs_bui_zone;
-kmem_zone_t	*xfs_bud_zone;
+struct kmem_cache	*xfs_bui_cache;
+struct kmem_cache	*xfs_bud_cache;
 
 static const struct xfs_item_ops xfs_bui_item_ops;
 
@@ -39,7 +39,7 @@ STATIC void
 xfs_bui_item_free(
 	struct xfs_bui_log_item	*buip)
 {
-	kmem_cache_free(xfs_bui_zone, buip);
+	kmem_cache_free(xfs_bui_cache, buip);
 }
 
 /*
@@ -138,7 +138,7 @@ xfs_bui_init(
 {
 	struct xfs_bui_log_item		*buip;
 
-	buip = kmem_cache_zalloc(xfs_bui_zone, GFP_KERNEL | __GFP_NOFAIL);
+	buip = kmem_cache_zalloc(xfs_bui_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(mp, &buip->bui_item, XFS_LI_BUI, &xfs_bui_item_ops);
 	buip->bui_format.bui_nextents = XFS_BUI_MAX_FAST_EXTENTS;
@@ -198,7 +198,7 @@ xfs_bud_item_release(
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
 	xfs_bui_release(budp->bud_buip);
-	kmem_cache_free(xfs_bud_zone, budp);
+	kmem_cache_free(xfs_bud_cache, budp);
 }
 
 static const struct xfs_item_ops xfs_bud_item_ops = {
@@ -215,7 +215,7 @@ xfs_trans_get_bud(
 {
 	struct xfs_bud_log_item		*budp;
 
-	budp = kmem_cache_zalloc(xfs_bud_zone, GFP_KERNEL | __GFP_NOFAIL);
+	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_NOFAIL);
 	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
 			  &xfs_bud_item_ops);
 	budp->bud_buip = buip;
@@ -384,7 +384,7 @@ xfs_bmap_update_finish_item(
 		bmap->bi_bmap.br_blockcount = count;
 		return -EAGAIN;
 	}
-	kmem_free(bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bmap);
 	return error;
 }
 
@@ -404,7 +404,7 @@ xfs_bmap_update_cancel_item(
 	struct xfs_bmap_intent		*bmap;
 
 	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
-	kmem_free(bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bmap);
 }
 
 const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
@@ -532,7 +532,7 @@ xfs_bui_item_recover(
 	 * Commit transaction, which frees the transaction and saves the inode
 	 * for later replay activities.
 	 */
-	error = xfs_defer_ops_capture_and_commit(tp, ip, capture_list);
+	error = xfs_defer_ops_capture_and_commit(tp, capture_list);
 	if (error)
 		goto err_unlock;
 

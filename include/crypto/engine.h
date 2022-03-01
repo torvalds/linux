@@ -9,13 +9,18 @@
 
 #include <linux/crypto.h>
 #include <linux/list.h>
-#include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
 #include <crypto/algapi.h>
 #include <crypto/aead.h>
 #include <crypto/akcipher.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
+#include <crypto/kpp.h>
+
+struct device;
 
 #define ENGINE_NAME_LEN	30
 /*
@@ -96,6 +101,8 @@ int crypto_transfer_akcipher_request_to_engine(struct crypto_engine *engine,
 					       struct akcipher_request *req);
 int crypto_transfer_hash_request_to_engine(struct crypto_engine *engine,
 					       struct ahash_request *req);
+int crypto_transfer_kpp_request_to_engine(struct crypto_engine *engine,
+					  struct kpp_request *req);
 int crypto_transfer_skcipher_request_to_engine(struct crypto_engine *engine,
 					       struct skcipher_request *req);
 void crypto_finalize_aead_request(struct crypto_engine *engine,
@@ -104,6 +111,8 @@ void crypto_finalize_akcipher_request(struct crypto_engine *engine,
 				      struct akcipher_request *req, int err);
 void crypto_finalize_hash_request(struct crypto_engine *engine,
 				  struct ahash_request *req, int err);
+void crypto_finalize_kpp_request(struct crypto_engine *engine,
+				 struct kpp_request *req, int err);
 void crypto_finalize_skcipher_request(struct crypto_engine *engine,
 				      struct skcipher_request *req, int err);
 int crypto_engine_start(struct crypto_engine *engine);

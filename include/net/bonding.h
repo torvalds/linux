@@ -121,6 +121,7 @@ struct bond_params {
 	int xmit_policy;
 	int miimon;
 	u8 num_peer_notif;
+	u8 missed_max;
 	int arp_interval;
 	int arp_validate;
 	int arp_all_targets;
@@ -345,7 +346,7 @@ static inline bool bond_uses_primary(struct bonding *bond)
 
 static inline struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
 {
-	struct slave *slave = rcu_dereference(bond->curr_active_slave);
+	struct slave *slave = rcu_dereference_rtnl(bond->curr_active_slave);
 
 	return bond_uses_primary(bond) && slave ? slave->dev : NULL;
 }

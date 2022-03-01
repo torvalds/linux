@@ -179,7 +179,7 @@ efc_nport_alloc_read_sparm64(struct efc *efc, struct efc_nport *nport)
 	nport->dma.size = EFC_SPARAM_DMA_SZ;
 	nport->dma.virt = dma_alloc_coherent(&efc->pci->dev,
 					     nport->dma.size, &nport->dma.phys,
-					     GFP_DMA);
+					     GFP_KERNEL);
 	if (!nport->dma.virt) {
 		efc_log_err(efc, "Failed to allocate DMA memory\n");
 		efc_nport_free_resources(nport, EFC_EVT_NPORT_ALLOC_FAIL, data);
@@ -249,6 +249,7 @@ efc_nport_attach_reg_vpi_cb(struct efc *efc, int status, u8 *mqe,
 {
 	struct efc_nport *nport = arg;
 
+	nport->attaching = false;
 	if (efc_nport_get_mbox_status(nport, mqe, status)) {
 		efc_nport_free_resources(nport, EFC_EVT_NPORT_ATTACH_FAIL, mqe);
 		return -EIO;
@@ -286,6 +287,8 @@ efc_cmd_nport_attach(struct efc *efc, struct efc_nport *nport, u32 fc_id)
 	if (rc) {
 		efc_log_err(efc, "REG_VPI command failure\n");
 		efc_nport_free_resources(nport, EFC_EVT_NPORT_ATTACH_FAIL, buf);
+	} else {
+		nport->attaching = true;
 	}
 
 	return rc;
@@ -302,8 +305,10 @@ efc_cmd_nport_free(struct efc *efc, struct efc_nport *nport)
 	/* Issue the UNREG_VPI command to free the assigned VPI context */
 	if (nport->attached)
 		efc_nport_free_unreg_vpi(nport);
-	else
+	else if (nport->attaching)
 		nport->free_req_pending = true;
+	else
+		efc_sm_post_event(&nport->sm, EFC_EVT_NPORT_FREE_OK, NULL);
 
 	return 0;
 }
@@ -461,7 +466,7 @@ efc_cmd_domain_alloc(struct efc *efc, struct efc_domain *domain, u32 fcf)
 	domain->dma.size = EFC_SPARAM_DMA_SZ;
 	domain->dma.virt = dma_alloc_coherent(&efc->pci->dev,
 					      domain->dma.size,
-					      &domain->dma.phys, GFP_DMA);
+					      &domain->dma.phys, GFP_KERNEL);
 	if (!domain->dma.virt) {
 		efc_log_err(efc, "Failed to allocate DMA memory\n");
 		return -EIO;

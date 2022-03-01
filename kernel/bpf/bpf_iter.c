@@ -714,3 +714,38 @@ const struct bpf_func_proto bpf_for_each_map_elem_proto = {
 	.arg3_type	= ARG_PTR_TO_STACK_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
 };
+
+/* maximum number of loops */
+#define MAX_LOOPS	BIT(23)
+
+BPF_CALL_4(bpf_loop, u32, nr_loops, void *, callback_fn, void *, callback_ctx,
+	   u64, flags)
+{
+	bpf_callback_t callback = (bpf_callback_t)callback_fn;
+	u64 ret;
+	u32 i;
+
+	if (flags)
+		return -EINVAL;
+	if (nr_loops > MAX_LOOPS)
+		return -E2BIG;
+
+	for (i = 0; i < nr_loops; i++) {
+		ret = callback((u64)i, (u64)(long)callback_ctx, 0, 0, 0);
+		/* return value: 0 - continue, 1 - stop and return */
+		if (ret)
+			return i + 1;
+	}
+
+	return i;
+}
+
+const struct bpf_func_proto bpf_loop_proto = {
+	.func		= bpf_loop,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_ANYTHING,
+	.arg2_type	= ARG_PTR_TO_FUNC,
+	.arg3_type	= ARG_PTR_TO_STACK_OR_NULL,
+	.arg4_type	= ARG_ANYTHING,
+};

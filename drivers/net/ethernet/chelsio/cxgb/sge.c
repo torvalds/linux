@@ -1359,7 +1359,7 @@ static void restart_sched(struct tasklet_struct *t)
  *	@fl: the free list that contains the packet buffer
  *	@len: the packet length
  *
- *	Process an ingress ethernet pakcet and deliver it to the stack.
+ *	Process an ingress ethernet packet and deliver it to the stack.
  */
 static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 {

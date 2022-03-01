@@ -58,7 +58,7 @@ SYM_FUNC_START(get_sev_encryption_bit)
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
-	ret
+	RET
 SYM_FUNC_END(get_sev_encryption_bit)
 
 /**
@@ -92,7 +92,7 @@ SYM_CODE_START_LOCAL(sev_es_req_cpuid)
 	/* All good - return success */
 	xorl	%eax, %eax
 1:
-	ret
+	RET
 2:
 	movl	$-1, %eax
 	jmp	1b
@@ -221,7 +221,7 @@ SYM_FUNC_START(set_sev_encryption_mask)
 #endif
 
 	xor	%rax, %rax
-	ret
+	RET
 SYM_FUNC_END(set_sev_encryption_mask)
 
 	.data

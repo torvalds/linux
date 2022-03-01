@@ -372,7 +372,7 @@ static bool inode_do_switch_wbs(struct inode *inode,
 {
 	struct address_space *mapping = inode->i_mapping;
 	XA_STATE(xas, &mapping->i_pages, 0);
-	struct page *page;
+	struct folio *folio;
 	bool switched = false;
 
 	spin_lock(&inode->i_lock);
@@ -389,21 +389,23 @@ static bool inode_do_switch_wbs(struct inode *inode,
 
 	/*
 	 * Count and transfer stats.  Note that PAGECACHE_TAG_DIRTY points
-	 * to possibly dirty pages while PAGECACHE_TAG_WRITEBACK points to
-	 * pages actually under writeback.
+	 * to possibly dirty folios while PAGECACHE_TAG_WRITEBACK points to
+	 * folios actually under writeback.
 	 */
-	xas_for_each_marked(&xas, page, ULONG_MAX, PAGECACHE_TAG_DIRTY) {
-		if (PageDirty(page)) {
-			dec_wb_stat(old_wb, WB_RECLAIMABLE);
-			inc_wb_stat(new_wb, WB_RECLAIMABLE);
+	xas_for_each_marked(&xas, folio, ULONG_MAX, PAGECACHE_TAG_DIRTY) {
+		if (folio_test_dirty(folio)) {
+			long nr = folio_nr_pages(folio);
+			wb_stat_mod(old_wb, WB_RECLAIMABLE, -nr);
+			wb_stat_mod(new_wb, WB_RECLAIMABLE, nr);
 		}
 	}
 
 	xas_set(&xas, 0);
-	xas_for_each_marked(&xas, page, ULONG_MAX, PAGECACHE_TAG_WRITEBACK) {
-		WARN_ON_ONCE(!PageWriteback(page));
-		dec_wb_stat(old_wb, WB_WRITEBACK);
-		inc_wb_stat(new_wb, WB_WRITEBACK);
+	xas_for_each_marked(&xas, folio, ULONG_MAX, PAGECACHE_TAG_WRITEBACK) {
+		long nr = folio_nr_pages(folio);
+		WARN_ON_ONCE(!folio_test_writeback(folio));
+		wb_stat_mod(old_wb, WB_WRITEBACK, -nr);
+		wb_stat_mod(new_wb, WB_WRITEBACK, nr);
 	}
 
 	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
@@ -566,7 +568,7 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	if (atomic_read(&isw_nr_in_flight) > WB_FRN_MAX_IN_FLIGHT)
 		return;
 
-	isw = kzalloc(sizeof(*isw) + 2 * sizeof(struct inode *), GFP_ATOMIC);
+	isw = kzalloc(struct_size(isw, inodes, 2), GFP_ATOMIC);
 	if (!isw)
 		return;
 
@@ -624,8 +626,8 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
 	int nr;
 	bool restart = false;
 
-	isw = kzalloc(sizeof(*isw) + WB_MAX_INODES_PER_ISW *
-		      sizeof(struct inode *), GFP_KERNEL);
+	isw = kzalloc(struct_size(isw, inodes, WB_MAX_INODES_PER_ISW),
+		      GFP_KERNEL);
 	if (!isw)
 		return restart;
 
@@ -1666,6 +1668,13 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		inode->i_state |= I_DIRTY_PAGES;
+	else if (unlikely(inode->i_state & I_PINNING_FSCACHE_WB)) {
+		if (!(inode->i_state & I_DIRTY_PAGES)) {
+			inode->i_state &= ~I_PINNING_FSCACHE_WB;
+			wbc->unpinned_fscache_wb = true;
+			dirty |= I_PINNING_FSCACHE_WB; /* Cause write_inode */
+		}
+	}
 
 	spin_unlock(&inode->i_lock);
 
@@ -1675,6 +1684,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		if (ret == 0)
 			ret = err;
 	}
+	wbc->unpinned_fscache_wb = false;
 	trace_writeback_single_inode(inode, wbc, nr_to_write);
 	return ret;
 }
@@ -1893,7 +1903,8 @@ static long writeback_sb_inodes(struct super_block *sb,
 			 * unplug, so get our IOs out the door before we
 			 * give up the CPU.
 			 */
-			blk_flush_plug(current);
+			if (current->plug)
+				blk_flush_plug(current->plug, false);
 			cond_resched();
 		}
 
@@ -2291,7 +2302,7 @@ void wakeup_flusher_threads(enum wb_reason reason)
 	 * If we are expecting writeback progress we must submit plugged IO.
 	 */
 	if (blk_needs_flush_plug(current))
-		blk_schedule_flush_plug(current);
+		blk_flush_plug(current->plug, true);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)

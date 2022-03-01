@@ -8,6 +8,7 @@
 
 #include <linux/indirect_call_wrapper.h>
 #include <linux/skbuff.h>
+#include <net/gro.h>
 #include <net/tcp.h>
 #include <net/protocol.h>
 

@@ -283,7 +283,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 {
 	struct page *new_page, *page = token;
 	void *pa = page_address(page);
-	int headroom = CPSW_HEADROOM;
+	int headroom = CPSW_HEADROOM_NA;
 	struct cpsw_meta_xdp *xmeta;
 	struct cpsw_common *cpsw;
 	struct net_device *ndev;
@@ -336,7 +336,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 	if (priv->xdp_prog) {
-		int headroom = CPSW_HEADROOM, size = len;
+		int size = len;
 
 		xdp_init_buff(&xdp, PAGE_SIZE, &priv->xdp_rxq[ch]);
 		if (status & CPDMA_RX_VLAN_ENCAP) {
@@ -386,7 +386,7 @@ requeue:
 	xmeta->ndev = ndev;
 	xmeta->ch = ch;
 
-	dma = page_pool_get_dma_addr(new_page) + CPSW_HEADROOM;
+	dma = page_pool_get_dma_addr(new_page) + CPSW_HEADROOM_NA;
 	ret = cpdma_chan_submit_mapped(cpsw->rxv[ch].ch, new_page, dma,
 				       pkt_size, 0);
 	if (ret < 0) {
@@ -1000,7 +1000,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 			   flags, vid);
 
 	ether_addr_copy(priv->mac_addr, addr->sa_data);
-	ether_addr_copy(ndev->dev_addr, priv->mac_addr);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 	cpsw_set_slave_mac(&cpsw->slaves[slave_no], priv);
 
 	pm_runtime_put(cpsw->dev);
@@ -1401,7 +1401,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 			dev_info(cpsw->dev, "Random MACID = %pM\n",
 				 priv->mac_addr);
 		}
-		ether_addr_copy(ndev->dev_addr, slave_data->mac_addr);
+		eth_hw_addr_set(ndev, slave_data->mac_addr);
 		ether_addr_copy(priv->mac_addr, slave_data->mac_addr);
 
 		cpsw->slaves[i].ndev = ndev;
@@ -1810,12 +1810,6 @@ static int cpsw_register_devlink(struct cpsw_common *cpsw)
 	dl_priv = devlink_priv(cpsw->devlink);
 	dl_priv->cpsw = cpsw;
 
-	ret = devlink_register(cpsw->devlink);
-	if (ret) {
-		dev_err(dev, "DL reg fail ret:%d\n", ret);
-		goto dl_free;
-	}
-
 	ret = devlink_params_register(cpsw->devlink, cpsw_devlink_params,
 				      ARRAY_SIZE(cpsw_devlink_params));
 	if (ret) {
@@ -1823,22 +1817,19 @@ static int cpsw_register_devlink(struct cpsw_common *cpsw)
 		goto dl_unreg;
 	}
 
-	devlink_params_publish(cpsw->devlink);
+	devlink_register(cpsw->devlink);
 	return ret;
 
 dl_unreg:
-	devlink_unregister(cpsw->devlink);
-dl_free:
 	devlink_free(cpsw->devlink);
 	return ret;
 }
 
 static void cpsw_unregister_devlink(struct cpsw_common *cpsw)
 {
-	devlink_params_unpublish(cpsw->devlink);
+	devlink_unregister(cpsw->devlink);
 	devlink_params_unregister(cpsw->devlink, cpsw_devlink_params,
 				  ARRAY_SIZE(cpsw_devlink_params));
-	devlink_unregister(cpsw->devlink);
 	devlink_free(cpsw->devlink);
 }
 

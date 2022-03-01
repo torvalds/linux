@@ -174,7 +174,7 @@ static int __ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff 
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
 	if (skb_dst(skb)->xfrm) {
-		IPCB(skb)->flags |= IPSKB_REROUTED;
+		IP6CB(skb)->flags |= IP6SKB_REROUTED;
 		return dst_output(net, sk, skb);
 	}
 #endif
@@ -977,7 +977,7 @@ slow_path:
 
 fail_toobig:
 	if (skb->sk && dst_allfrag(skb_dst(skb)))
-		sk_nocaps_add(skb->sk, NETIF_F_GSO_MASK);
+		sk_gso_disable(skb->sk);
 
 	icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 	err = -EMSGSIZE;

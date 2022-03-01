@@ -723,11 +723,13 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 	ndev = vif_to_ndev(vif);
 	ether_addr_copy(ndev->perm_addr, ndev_main->perm_addr);
 	if (is_valid_ether_addr(params->macaddr)) {
-		ether_addr_copy(ndev->dev_addr, params->macaddr);
+		eth_hw_addr_set(ndev, params->macaddr);
 	} else {
-		ether_addr_copy(ndev->dev_addr, ndev_main->perm_addr);
-		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << vif->mid)) |
-			0x2; /* locally administered */
+		u8 addr[ETH_ALEN];
+
+		ether_addr_copy(addr, ndev_main->perm_addr);
+		addr[0] = (addr[0] ^ (1 << vif->mid)) |	0x2; /* locally administered */
+		eth_hw_addr_set(ndev, addr);
 	}
 	wdev = vif_to_wdev(vif);
 	ether_addr_copy(wdev->address, ndev->dev_addr);

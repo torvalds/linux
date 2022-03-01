@@ -278,9 +278,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "clock\t\t: %lu.%06luMHz\n",
 			   proc_freq / 1000000, proc_freq % 1000000);
 
-	if (ppc_md.show_percpuinfo != NULL)
-		ppc_md.show_percpuinfo(m, cpu_id);
-
 	/* If we are a Freescale core do a simple check so
 	 * we dont have to keep adding cases in the future */
 	if (PVR_VER(pvr) & 0x8000) {
@@ -585,7 +582,7 @@ static __init int add_pcspkr(void)
 device_initcall(add_pcspkr);
 #endif	/* CONFIG_PCSPKR_PLATFORM */
 
-void probe_machine(void)
+static __init void probe_machine(void)
 {
 	extern struct machdep_calls __machine_desc_start;
 	extern struct machdep_calls __machine_desc_end;
@@ -825,7 +822,7 @@ static void __init smp_setup_pacas(void)
 		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
 	}
 
-	memblock_free(__pa(cpu_to_phys_id), nr_cpu_ids * sizeof(u32));
+	memblock_free(cpu_to_phys_id, nr_cpu_ids * sizeof(u32));
 	cpu_to_phys_id = NULL;
 }
 #endif

@@ -1795,6 +1795,8 @@ static pci_ers_result_t cxl_vphb_error_detected(struct cxl_afu *afu,
 						pci_channel_state_t state)
 {
 	struct pci_dev *afu_dev;
+	struct pci_driver *afu_drv;
+	const struct pci_error_handlers *err_handler;
 	pci_ers_result_t result = PCI_ERS_RESULT_NEED_RESET;
 	pci_ers_result_t afu_result = PCI_ERS_RESULT_NEED_RESET;
 
@@ -1805,14 +1807,16 @@ static pci_ers_result_t cxl_vphb_error_detected(struct cxl_afu *afu,
 		return result;
 
 	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-		if (!afu_dev->driver)
+		afu_drv = to_pci_driver(afu_dev->dev.driver);
+		if (!afu_drv)
 			continue;
 
 		afu_dev->error_state = state;
 
-		if (afu_dev->driver->err_handler)
-			afu_result = afu_dev->driver->err_handler->error_detected(afu_dev,
-										  state);
+		err_handler = afu_drv->err_handler;
+		if (err_handler)
+			afu_result = err_handler->error_detected(afu_dev,
+								 state);
 		/* Disconnect trumps all, NONE trumps NEED_RESET */
 		if (afu_result == PCI_ERS_RESULT_DISCONNECT)
 			result = PCI_ERS_RESULT_DISCONNECT;
@@ -1972,6 +1976,8 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 	struct cxl_afu *afu;
 	struct cxl_context *ctx;
 	struct pci_dev *afu_dev;
+	struct pci_driver *afu_drv;
+	const struct pci_error_handlers *err_handler;
 	pci_ers_result_t afu_result = PCI_ERS_RESULT_RECOVERED;
 	pci_ers_result_t result = PCI_ERS_RESULT_RECOVERED;
 	int i;
@@ -2028,12 +2034,13 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 			 * shouldn't start new work until we call
 			 * their resume function.
 			 */
-			if (!afu_dev->driver)
+			afu_drv = to_pci_driver(afu_dev->dev.driver);
+			if (!afu_drv)
 				continue;
 
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->slot_reset)
-				afu_result = afu_dev->driver->err_handler->slot_reset(afu_dev);
+			err_handler = afu_drv->err_handler;
+			if (err_handler && err_handler->slot_reset)
+				afu_result = err_handler->slot_reset(afu_dev);
 
 			if (afu_result == PCI_ERS_RESULT_DISCONNECT)
 				result = PCI_ERS_RESULT_DISCONNECT;
@@ -2060,6 +2067,8 @@ static void cxl_pci_resume(struct pci_dev *pdev)
 	struct cxl *adapter = pci_get_drvdata(pdev);
 	struct cxl_afu *afu;
 	struct pci_dev *afu_dev;
+	struct pci_driver *afu_drv;
+	const struct pci_error_handlers *err_handler;
 	int i;
 
 	/* Everything is back now. Drivers should restart work now.
@@ -2074,9 +2083,13 @@ static void cxl_pci_resume(struct pci_dev *pdev)
 			continue;
 
 		list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-			if (afu_dev->driver && afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->resume)
-				afu_dev->driver->err_handler->resume(afu_dev);
+			afu_drv = to_pci_driver(afu_dev->dev.driver);
+			if (!afu_drv)
+				continue;
+
+			err_handler = afu_drv->err_handler;
+			if (err_handler && err_handler->resume)
+				err_handler->resume(afu_dev);
 		}
 	}
 	spin_unlock(&adapter->afu_list_lock);

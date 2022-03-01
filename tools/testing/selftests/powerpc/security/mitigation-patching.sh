@@ -13,7 +13,7 @@ function do_one
 
     orig=$(cat "$mitigation")
 
-    start=$EPOCHSECONDS
+    start=$(date +%s)
     now=$start
 
     while [[ $((now-start)) -lt "$TIMEOUT" ]]
@@ -21,7 +21,7 @@ function do_one
         echo 0 > "$mitigation"
         echo 1 > "$mitigation"
 
-        now=$EPOCHSECONDS
+        now=$(date +%s)
     done
 
     echo "$orig" > "$mitigation"
@@ -44,7 +44,10 @@ mitigations="barrier_nospec stf_barrier count_cache_flush rfi_flush entry_flush 
 
 for m in $mitigations
 do
-    do_one "$m" &
+    if [[ -f /sys/kernel/debug/powerpc/$m ]]
+    then
+        do_one "$m" &
+    fi
 done
 
 echo "Spawned threads enabling/disabling mitigations ..."

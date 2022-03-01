@@ -44,8 +44,8 @@ example usage
 
     # Show all of the exposed regions with region sizes:
     $ devlink region show
-    pci/0000:00:05.0/cr-space: size 1048576 snapshot [1 2]
-    pci/0000:00:05.0/fw-health: size 64 snapshot [1 2]
+    pci/0000:00:05.0/cr-space: size 1048576 snapshot [1 2] max 8
+    pci/0000:00:05.0/fw-health: size 64 snapshot [1 2] max 8
 
     # Delete a snapshot using:
     $ devlink region del pci/0000:00:05.0/cr-space snapshot 1

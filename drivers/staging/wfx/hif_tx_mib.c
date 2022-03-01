@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Implementation of host-to-chip MIBs of WFxxx Split Mac (WSM) API.
+ * Implementation of the host-to-chip MIBs of the hardware API.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -68,25 +68,25 @@ int hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
 			   struct hif_mib_extended_count_table *arg)
 {
 	if (wfx_api_older_than(wdev, 1, 3)) {
-		// extended_count_table is wider than count_table
+		/* extended_count_table is wider than count_table */
 		memset(arg, 0xFF, sizeof(*arg));
 		return hif_read_mib(wdev, vif_id, HIF_MIB_ID_COUNTERS_TABLE,
 				    arg, sizeof(struct hif_mib_count_table));
 	} else {
 		return hif_read_mib(wdev, vif_id,
 				    HIF_MIB_ID_EXTENDED_COUNTERS_TABLE, arg,
-				sizeof(struct hif_mib_extended_count_table));
+				    sizeof(struct hif_mib_extended_count_table));
 	}
 }
 
 int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 {
-	struct hif_mib_mac_address msg = { };
+	struct hif_mib_mac_address arg = { };
 
 	if (mac)
-		ether_addr_copy(msg.mac_addr, mac);
+		ether_addr_copy(arg.mac_addr, mac);
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_DOT11_MAC_ADDRESS,
-			     &msg, sizeof(msg));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_rx_filter(struct wfx_vif *wvif,
@@ -246,7 +246,7 @@ int hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx, __be32 *addr)
 	};
 
 	if (addr) {
-		// Caution: type of addr is __be32
+		/* Caution: type of addr is __be32 */
 		memcpy(arg.ipv4_address, addr, sizeof(arg.ipv4_address));
 		arg.arp_enable = HIF_ARP_NS_FILTERING_ENABLE;
 	}

@@ -30,7 +30,7 @@
 
 
 #define uncore_discovery_invalid_unit(unit)			\
-	(!unit.table1 || !unit.ctl || !unit.table3 ||	\
+	(!unit.table1 || !unit.ctl || \
 	 unit.table1 == -1ULL || unit.ctl == -1ULL ||	\
 	 unit.table3 == -1ULL)
 
@@ -139,6 +139,8 @@ void intel_generic_uncore_mmio_disable_box(struct intel_uncore_box *box);
 void intel_generic_uncore_mmio_enable_box(struct intel_uncore_box *box);
 void intel_generic_uncore_mmio_disable_event(struct intel_uncore_box *box,
 					     struct perf_event *event);
+void intel_generic_uncore_mmio_enable_event(struct intel_uncore_box *box,
+					    struct perf_event *event);
 
 void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box);
 void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box);

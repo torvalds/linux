@@ -77,7 +77,7 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
-	mpcore@19000000 {
+	mpcore-bus@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -166,7 +166,7 @@
 		};
 	};
 
-	axi@18000000 {
+	axi: axi@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x0011c40c>;
 		#address-cells = <1>;
@@ -219,7 +219,7 @@
 			status = "disabled";
 		};
 
-		sdio: sdhci@21000 {
+		sdio: mmc@21000 {
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x21000 0x100>;
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
@@ -310,6 +310,7 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		xhci: usb@29000 {
@@ -360,6 +361,42 @@
 			clocks = <&osc>;
 			#pwm-cells = <3>;
 			status = "disabled";
+		};
+
+		mdio: mdio@32000 {
+			compatible = "brcm,iproc-mdio";
+			reg = <0x32000 0x8>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+		};
+
+		mdio-mux@32000 {
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
+			reg = <0x32000 0x4>;
+			mux-mask = <0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mdio-parent-bus = <&mdio>;
+
+			mdio_int: mdio@0 {
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb3_phy: usb3-phy@10 {
+					compatible = "brcm,ns-bx-usb3-phy";
+					reg = <0x10>;
+					usb3-dmp-syscon = <&usb3_dmp>;
+					#phy-cells = <0>;
+					status = "disabled";
+				};
+			};
+
+			mdio_ext: mdio@200 {
+				reg = <0x200>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		rng: rng@33000 {
@@ -497,7 +534,7 @@
 			};
 		};
 
-		sata: ahci@41000 {
+		sata: sata@41000 {
 			compatible = "brcm,bcm-nsp-ahci";
 			reg-names = "ahci", "top-ctrl";
 			reg = <0x41000 0x1000>, <0x40020 0x1c>;
@@ -520,13 +557,8 @@
 			};
 		};
 
-		usb3_phy: usb3-phy@104000 {
-			compatible = "brcm,ns-bx-usb3-phy";
-			reg = <0x104000 0x1000>,
-			      <0x032000 0x1000>;
-			reg-names = "dmp", "ccb-mii";
-			#phy-cells = <0>;
-			status = "disabled";
+		usb3_dmp: syscon@104000 {
+			reg = <0x104000 0x1000>;
 		};
 	};
 
@@ -555,7 +587,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi0>;
-		msi0: msi-controller {
+		msi0: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -592,7 +624,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi1>;
-		msi1: msi-controller {
+		msi1: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -629,7 +661,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi2>;
-		msi2: msi-controller {
+		msi2: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;

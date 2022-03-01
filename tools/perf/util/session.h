@@ -20,6 +20,12 @@ struct thread;
 struct auxtrace;
 struct itrace_synth_opts;
 
+struct decomp_data {
+	struct decomp	 *decomp;
+	struct decomp	 *decomp_last;
+	struct zstd_data *zstd_decomp;
+};
+
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
@@ -39,8 +45,8 @@ struct perf_session {
 	u64			bytes_transferred;
 	u64			bytes_compressed;
 	struct zstd_data	zstd_data;
-	struct decomp		*decomp;
-	struct decomp		*decomp_last;
+	struct decomp_data	decomp_data;
+	struct decomp_data	*active_decomp;
 };
 
 struct decomp {

@@ -119,14 +119,6 @@ void dpp_read_state(struct dpp *dpp_base,
 	}
 }
 
-/* Program gamut remap in bypass mode */
-void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
-{
-	REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
-			CM_GAMUT_REMAP_MODE, 0);
-	/* Gamut remap in bypass */
-}
-
 #define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
 bool dpp1_get_optimal_number_of_taps(

@@ -40,7 +40,7 @@
 #include <linux/input.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include "../comedi_usb.h"
+#include <linux/comedi/comedi_usb.h>
 
 /*
  * timeout for the USB-transfer

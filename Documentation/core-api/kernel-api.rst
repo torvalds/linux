@@ -279,6 +279,7 @@ Accounting Framework
 Block Devices
 =============
 
+.. kernel-doc:: include/linux/bio.h
 .. kernel-doc:: block/blk-core.c
    :export:
 
@@ -292,9 +293,6 @@ Block Devices
    :internal:
 
 .. kernel-doc:: block/blk-settings.c
-   :export:
-
-.. kernel-doc:: block/blk-exec.c
    :export:
 
 .. kernel-doc:: block/blk-flush.c

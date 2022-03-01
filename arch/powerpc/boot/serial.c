@@ -132,7 +132,7 @@ int serial_console_init(void)
 	else if (dt_is_compatible(devp, "fsl,mpc5200-psc-uart"))
 		rc = mpc5200_psc_console_init(devp, &serial_cd);
 #endif
-#ifdef CONFIG_PPC64_BOOT_WRAPPER
+#ifdef CONFIG_PPC_POWERNV
 	else if (dt_is_compatible(devp, "ibm,opal-console-raw"))
 		rc = opal_console_init(devp, &serial_cd);
 #endif

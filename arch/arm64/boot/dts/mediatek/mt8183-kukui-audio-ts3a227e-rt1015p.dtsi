@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Google Kukui (and derivatives) mt6358-ts3a227-rt1015p sound card.
+ *
+ * Copyright 2021 Google LLC.
+ */
+
+#include "mt8183-kukui-audio-ts3a227e.dtsi"
+#include "mt8183-kukui-audio-rt1015p.dtsi"
+
+&sound {
+	compatible = "mediatek,mt8183_mt6358_ts3a227_rt1015p";
+};

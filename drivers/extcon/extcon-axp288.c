@@ -24,6 +24,7 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/iosf_mbi.h>
 
 /* Power source status register */
 #define PS_STAT_VBUS_TRIGGER		BIT(0)
@@ -215,6 +216,10 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	unsigned int cable = info->previous_cable;
 	bool vbus_attach = false;
 
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	vbus_attach = axp288_get_vbus_attach(info);
 	if (!vbus_attach)
 		goto no_vbus;
@@ -253,6 +258,8 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	}
 
 no_vbus:
+	iosf_mbi_unblock_punit_i2c_access();
+
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
 	if (info->previous_cable == EXTCON_CHG_USB_SDP)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
@@ -275,6 +282,8 @@ no_vbus:
 	return 0;
 
 dev_det_ret:
+	iosf_mbi_unblock_punit_i2c_access();
+
 	if (ret < 0)
 		dev_err(info->dev, "failed to detect BC Mod\n");
 
@@ -305,13 +314,23 @@ static irqreturn_t axp288_extcon_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void axp288_extcon_enable(struct axp288_extcon_info *info)
+static int axp288_extcon_enable(struct axp288_extcon_info *info)
 {
+	int ret = 0;
+
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 						BC_GLOBAL_RUN, 0);
 	/* Enable the charger detection logic */
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 					BC_GLOBAL_RUN, BC_GLOBAL_RUN);
+
+	iosf_mbi_unblock_punit_i2c_access();
+
+	return ret;
 }
 
 static void axp288_put_role_sw(void *data)
@@ -384,9 +403,15 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	info->vbus_attach = axp288_get_vbus_attach(info);
 
 	axp288_extcon_log_rsi(info);
+
+	iosf_mbi_unblock_punit_i2c_access();
 
 	/* Initialize extcon device */
 	info->edev = devm_extcon_dev_allocate(&pdev->dev,
@@ -441,7 +466,9 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Start charger cable type detection */
-	axp288_extcon_enable(info);
+	ret = axp288_extcon_enable(info);
+	if (ret < 0)
+		return ret;
 
 	device_init_wakeup(dev, true);
 	platform_set_drvdata(pdev, info);

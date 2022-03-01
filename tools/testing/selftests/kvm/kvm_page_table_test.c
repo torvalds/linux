@@ -280,7 +280,7 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 #ifdef __s390x__
 	alignment = max(0x100000, alignment);
 #endif
-	guest_test_phys_mem &= ~(alignment - 1);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, alignment);
 
 	/* Set up the shared data structure test_args */
 	test_args.vm = vm;

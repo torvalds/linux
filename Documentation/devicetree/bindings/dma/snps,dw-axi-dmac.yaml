@@ -53,6 +53,9 @@ properties:
     minimum: 1
     maximum: 8
 
+  resets:
+    maxItems: 1
+
   snps,dma-masters:
     description: |
       Number of AXI masters supported by the hardware.

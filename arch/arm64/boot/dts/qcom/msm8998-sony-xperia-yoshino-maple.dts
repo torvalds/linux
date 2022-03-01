@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, AngeloGioacchino Del Regno
+ *                     <angelogioacchino.delregno@somainline.org>
+ */
+
+/dts-v1/;
+
+#include "msm8998-sony-xperia-yoshino.dtsi"
+
+/ {
+	model = "Sony Xperia XZ Premium";
+	compatible = "sony,xperia-maple", "qcom,msm8998";
+	chassis-type = "handset";
+
+	disp_dvdd_vreg: disp-dvdd-vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_dvdd_en";
+		regulator-min-microvolt = <1350000>;
+		regulator-max-microvolt = <1350000>;
+		startup-delay-us = <0>;
+		enable-active-high;
+		gpio = <&pmi8998_gpio 10 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&disp_dvdd_en>;
+	};
+};
+
+&ibb {
+	regulator-min-microvolt = <5600000>;
+	regulator-max-microvolt = <5600000>;
+};
+
+&lab {
+	regulator-min-microvolt = <5800000>;
+	regulator-max-microvolt = <5800000>;
+	qcom,soft-start-us = <200>;
+};
+
+&pmi8998_gpio {
+	disp_dvdd_en: disp-dvdd-en-active {
+		pins = "gpio10";
+		function = "normal";
+		bias-disable;
+		drive-push-pull;
+		output-high;
+		power-source = <0>;
+		qcom,drive-strength = <1>;
+	};
+};
+
+&vreg_l22a_2p85 {
+	regulator-min-microvolt = <2704000>;
+	regulator-max-microvolt = <2704000>;
+};

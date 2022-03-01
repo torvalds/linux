@@ -42,12 +42,10 @@ static int riscv_gpr_set(struct task_struct *target,
 			 unsigned int pos, unsigned int count,
 			 const void *kbuf, const void __user *ubuf)
 {
-	int ret;
 	struct pt_regs *regs;
 
 	regs = task_pt_regs(target);
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
-	return ret;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
 }
 
 #ifdef CONFIG_FPU

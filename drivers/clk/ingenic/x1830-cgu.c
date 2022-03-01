@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include <dt-bindings/clock/x1830-cgu.h>
+#include <dt-bindings/clock/ingenic,x1830-cgu.h>
 
 #include "cgu.h"
 #include "pm.h"

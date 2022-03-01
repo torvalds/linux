@@ -481,7 +481,7 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 		return -EINVAL;
 	}
 	if (num_rmems < 2) {
-		dev_err(dev, "device needs atleast two memory regions to be defined, num = %d\n",
+		dev_err(dev, "device needs at least two memory regions to be defined, num = %d\n",
 			num_rmems);
 		return -EINVAL;
 	}
@@ -767,6 +767,7 @@ static const struct k3_dsp_dev_data c71_data = {
 static const struct of_device_id k3_dsp_of_match[] = {
 	{ .compatible = "ti,j721e-c66-dsp", .data = &c66_data, },
 	{ .compatible = "ti,j721e-c71-dsp", .data = &c71_data, },
+	{ .compatible = "ti,j721s2-c71-dsp", .data = &c71_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, k3_dsp_of_match);

@@ -502,6 +502,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 
 static int rr_init(struct net_device *dev)
 {
+	u8 addr[HIPPI_ALEN] __aligned(4);
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
 	u32 sram_size, rev;
@@ -537,10 +538,11 @@ static int rr_init(struct net_device *dev)
 	 * other method I've seen.  -VAL
 	 */
 
-	*(__be16 *)(dev->dev_addr) =
+	*(__be16 *)(addr) =
 	  htons(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA)));
-	*(__be32 *)(dev->dev_addr+2) =
+	*(__be32 *)(addr+2) =
 	  htonl(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA[4])));
+	dev_addr_set(dev, addr);
 
 	printk("  MAC: %pM\n", dev->dev_addr);
 

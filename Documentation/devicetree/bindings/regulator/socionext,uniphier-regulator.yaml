@@ -27,6 +27,7 @@ properties:
       - socionext,uniphier-pxs2-usb3-regulator
       - socionext,uniphier-ld20-usb3-regulator
       - socionext,uniphier-pxs3-usb3-regulator
+      - socionext,uniphier-nx1-usb3-regulator
 
   reg:
     maxItems: 1

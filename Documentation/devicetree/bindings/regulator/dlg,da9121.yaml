@@ -17,27 +17,39 @@ description: |
   Dialog Semiconductor DA9130 Single-channel 10A double-phase buck converter
   Dialog Semiconductor DA9131 Double-channel  5A single-phase buck converter
   Dialog Semiconductor DA9132 Double-channel  3A single-phase buck converter
+  Dialog Semiconductor DA9141 Single-channel 40A   quad-phase buck converter
+  Dialog Semiconductor DA9142 Single-channel 20A double-phase buck converter
 
-  Current limits
+  Device parameter ranges
 
-  This is PER PHASE, and the current limit setting in the devices reflect
-  that with a maximum 10A limit. Allowing for transients at/near double
-  the rated current, this translates across the device range to per
-  channel figures as so...
+  The current limits can be set to at/near double the rated current per channel
+  to allow for transient peaks.
+  Current limit changes when the output is enabled are not supported, as a
+  precaution against undefined behaviour.
 
-                               | DA9121    DA9122     DA9220    DA9217   DA9140
-                               | /DA9130   /DA9131    /DA9132
-    -----------------------------------------------------------------------------
-    Output current / channel   | 10000000   5000000   3000000   6000000  40000000
-    Output current / phase     |  5000000   5000000   3000000   3000000   9500000
-    -----------------------------------------------------------------------------
-    Min regulator-min-microvolt|   300000    300000    300000    300000    500000
-    Max regulator-max-microvolt|  1900000   1900000   1900000   1900000   1000000
-    Device hardware default    |  1000000   1000000   1000000   1000000   1000000
-    -----------------------------------------------------------------------------
-    Min regulator-min-microamp |  7000000   3500000   3500000   7000000  26000000
-    Max regulator-max-microamp | 20000000  10000000   6000000  12000000  78000000
-    Device hardware default    | 15000000   7500000   5500000  11000000  58000000
+  |----------------------------------------------|
+  |               | range & reset default value  |
+  | Device        |------------------------------|
+  |               | microvolt    | microamp      |
+  |----------------------------------------------|
+  | DA9121/DA9130 | Min:  300000 | Min:  7000000 |
+  |               | Max: 1900000 | Max: 20000000 |
+  |----------------------------------------------|
+  | DA9121/DA9131 | Min:  300000 | Min:  3500000 |
+  |               | Max: 1900000 | Max: 10000000 |
+  |----------------------------------------------|
+  | DA9121/DA9131 | Min:  300000 | Min:  3500000 |
+  |               | Max: 1900000 | Max:  6000000 |
+  |----------------------------------------------|
+  | DA9217        | Min:  300000 | Min:  7000000 |
+  |               | Max: 1900000 | Max: 12000000 |
+  |----------------------------------------------|
+  | DA9141        | Min:  300000 | Min: 26000000 |
+  |               | Max: 1300000 | Max: 78000000 |
+  |----------------------------------------------|
+  | DA9142        | Min:  300000 | Min: 13000000 |
+  |               | Max: 1300000 | Max: 39000000 |
+  |----------------------------------------------|
 
 properties:
   $nodename:
@@ -51,7 +63,8 @@ properties:
       - dlg,da9130
       - dlg,da9131
       - dlg,da9132
-      - dlg,da9140
+      - dlg,da9141
+      - dlg,da9142
 
   reg:
     maxItems: 1
@@ -70,26 +83,24 @@ properties:
 
   regulators:
     type: object
-    $ref: regulator.yaml#
     description: |
-      This node defines the settings for the BUCK. The content of the
-      sub-node is defined by the standard binding for regulators; see regulator.yaml.
-      The DA9121 regulator is bound using their names listed below
-      buck1 - BUCK1
-      buck2 - BUCK2       //DA9122, DA9220, DA9131, DA9132 only
+      List of regulators provided by the device
 
     patternProperties:
       "^buck([1-2])$":
         type: object
         $ref: regulator.yaml#
+        description: |
+          Properties for a single BUCK regulator
 
         properties:
-          regulator-mode:
-            maxItems: 1
-            description: Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
+          regulator-name:
+            pattern: "^BUCK([1-2])$"
+            description: |
+              BUCK2 present in DA9122, DA9220, DA9131, DA9132 only
 
           regulator-initial-mode:
-            maxItems: 1
+            enum: [ 0, 1, 2, 3 ]
             description: Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
 
           enable-gpios:
@@ -98,6 +109,7 @@ properties:
 
           dlg,ripple-cancel:
             $ref: "/schemas/types.yaml#/definitions/uint32"
+            enum: [ 0, 1, 2, 3 ]
             description: |
               Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
               Only present on multi-channel devices (DA9122, DA9220, DA9131, DA9132)

@@ -686,7 +686,6 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int accept_source_route = net->ipv6.devconf_all->accept_source_route;
 
-	idev = __in6_dev_get(skb->dev);
 	if (idev && accept_source_route > idev->cnf.accept_source_route)
 		accept_source_route = idev->cnf.accept_source_route;
 
@@ -979,7 +978,7 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 		if (!skb_valid_dst(skb))
 			ip6_route_input(skb);
 
-		ioam6_fill_trace_data(skb, ns, trace);
+		ioam6_fill_trace_data(skb, ns, trace, true);
 		break;
 	default:
 		break;

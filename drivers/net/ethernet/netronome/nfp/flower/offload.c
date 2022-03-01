@@ -360,7 +360,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
 			/* check if GRE, which has no enc_ports */
-			if (!netif_is_gretap(netdev)) {
+			if (!netif_is_gretap(netdev) && !netif_is_ip6gretap(netdev)) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
 				return -EOPNOTSUPP;
 			}
@@ -1867,6 +1867,9 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *
 			    void *data,
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
+	if (!netdev)
+		return -EOPNOTSUPP;
+
 	if (!nfp_fl_is_netdev_to_offload(netdev))
 		return -EOPNOTSUPP;
 

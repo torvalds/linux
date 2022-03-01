@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * PCIe SERDES driver for AM654x SoC
  *
  * Copyright (C) 2018 - 2019 Texas Instruments Incorporated - http://www.ti.com/

@@ -20,6 +20,7 @@ properties:
       - socionext,uniphier-pxs2-thermal
       - socionext,uniphier-ld20-thermal
       - socionext,uniphier-pxs3-thermal
+      - socionext,uniphier-nx1-thermal
 
   interrupts:
     maxItems: 1

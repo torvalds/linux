@@ -201,7 +201,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 	t->stbc[6] = t->stbc[7] = s6_to_s8(val >> 8);
 
 	/* vht mcs 8, 9 5GHz */
-	val = mt76x02_eeprom_get(dev, 0x132);
+	val = mt76x02_eeprom_get(dev, 0x12c);
 	t->vht[8] = s6_to_s8(val);
 	t->vht[9] = s6_to_s8(val >> 8);
 

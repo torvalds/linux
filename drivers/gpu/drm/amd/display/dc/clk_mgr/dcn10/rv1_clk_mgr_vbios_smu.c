@@ -28,6 +28,8 @@
 #include "reg_helper.h"
 #include <linux/delay.h>
 
+#include "rv1_clk_mgr_vbios_smu.h"
+
 #define MAX_INSTANCE	5
 #define MAX_SEGMENT		5
 

@@ -9,6 +9,7 @@
 / {
 	model = "Alcatel OneTouch Idol 3 (4.7)";
 	compatible = "alcatel,idol347", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

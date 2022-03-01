@@ -876,7 +876,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 		return -EINVAL;
 	}
 	if (num_rmems < 2) {
-		dev_err(dev, "device needs atleast two memory regions to be defined, num = %d\n",
+		dev_err(dev, "device needs at least two memory regions to be defined, num = %d\n",
 			num_rmems);
 		return -EINVAL;
 	}
@@ -1535,7 +1535,7 @@ static const struct k3_r5_soc_data am65_j721e_soc_data = {
 	.single_cpu_mode = false,
 };
 
-static const struct k3_r5_soc_data j7200_soc_data = {
+static const struct k3_r5_soc_data j7200_j721s2_soc_data = {
 	.tcm_is_double = true,
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = false,
@@ -1550,8 +1550,9 @@ static const struct k3_r5_soc_data am64_soc_data = {
 static const struct of_device_id k3_r5_of_match[] = {
 	{ .compatible = "ti,am654-r5fss", .data = &am65_j721e_soc_data, },
 	{ .compatible = "ti,j721e-r5fss", .data = &am65_j721e_soc_data, },
-	{ .compatible = "ti,j7200-r5fss", .data = &j7200_soc_data, },
+	{ .compatible = "ti,j7200-r5fss", .data = &j7200_j721s2_soc_data, },
 	{ .compatible = "ti,am64-r5fss",  .data = &am64_soc_data, },
+	{ .compatible = "ti,j721s2-r5fss",  .data = &j7200_j721s2_soc_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, k3_r5_of_match);

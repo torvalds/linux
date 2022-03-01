@@ -799,11 +799,10 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 	emit_bcc(BPF_JGE, lo(idx_reg), RV_REG_T1, off, ctx);
 
 	/*
-	 * temp_tcc = tcc - 1;
-	 * if (tcc < 0)
+	 * if (--tcc < 0)
 	 *   goto out;
 	 */
-	emit(rv_addi(RV_REG_T1, RV_REG_TCC, -1), ctx);
+	emit(rv_addi(RV_REG_TCC, RV_REG_TCC, -1), ctx);
 	off = ninsns_rvoff(tc_ninsn - (ctx->ninsns - start_insn));
 	emit_bcc(BPF_JSLT, RV_REG_TCC, RV_REG_ZERO, off, ctx);
 
@@ -829,7 +828,6 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 	if (is_12b_check(off, insn))
 		return -1;
 	emit(rv_lw(RV_REG_T0, off, RV_REG_T0), ctx);
-	emit(rv_addi(RV_REG_TCC, RV_REG_T1, 0), ctx);
 	/* Epilogue jumps to *(t0 + 4). */
 	__build_epilogue(true, ctx);
 	return 0;

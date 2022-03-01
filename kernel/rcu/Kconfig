@@ -112,7 +112,7 @@ config RCU_STALL_COMMON
 	  making these warnings mandatory for the tree variants.
 
 config RCU_NEED_SEGCBLIST
-	def_bool ( TREE_RCU || TREE_SRCU )
+	def_bool ( TREE_RCU || TREE_SRCU || TASKS_RCU_GENERIC )
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
@@ -168,24 +168,6 @@ config RCU_FANOUT_LEAF
 	  structure's locks.
 
 	  Take the default if unsure.
-
-config RCU_FAST_NO_HZ
-	bool "Accelerate last non-dyntick-idle CPU's grace periods"
-	depends on NO_HZ_COMMON && SMP && RCU_EXPERT
-	default n
-	help
-	  This option permits CPUs to enter dynticks-idle state even if
-	  they have RCU callbacks queued, and prevents RCU from waking
-	  these CPUs up more than roughly once every four jiffies (by
-	  default, you can adjust this using the rcutree.rcu_idle_gp_delay
-	  parameter), thus improving energy efficiency.  On the other
-	  hand, this option increases the duration of RCU grace periods,
-	  for example, slowing down synchronize_rcu().
-
-	  Say Y if energy efficiency is critically important, and you
-	  	don't care about increased grace-period durations.
-
-	  Say N if you are unsure.
 
 config RCU_BOOST
 	bool "Enable RCU priority boosting"

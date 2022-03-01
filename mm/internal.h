@@ -12,6 +12,8 @@
 #include <linux/pagemap.h>
 #include <linux/tracepoint-defs.h>
 
+struct folio_batch;
+
 /*
  * The set of flags that only affect watermark checking and reclaim
  * behaviour. This is used by the MM to obey the caller constraints
@@ -21,7 +23,7 @@
 #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
 			__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NOFAIL|\
 			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
-			__GFP_ATOMIC)
+			__GFP_ATOMIC|__GFP_NOLOCKDEP)
 
 /* The GFP flags allowed during early boot */
 #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
@@ -34,16 +36,47 @@
 
 void page_writeback_init(void);
 
+static inline void *folio_raw_mapping(struct folio *folio)
+{
+	unsigned long mapping = (unsigned long)folio->mapping;
+
+	return (void *)(mapping & ~PAGE_MAPPING_FLAGS);
+}
+
+void __acct_reclaim_writeback(pg_data_t *pgdat, struct folio *folio,
+						int nr_throttled);
+static inline void acct_reclaim_writeback(struct folio *folio)
+{
+	pg_data_t *pgdat = folio_pgdat(folio);
+	int nr_throttled = atomic_read(&pgdat->nr_writeback_throttled);
+
+	if (nr_throttled)
+		__acct_reclaim_writeback(pgdat, folio, nr_throttled);
+}
+
+static inline void wake_throttle_isolated(pg_data_t *pgdat)
+{
+	wait_queue_head_t *wqh;
+
+	wqh = &pgdat->reclaim_wait[VMSCAN_THROTTLE_ISOLATED];
+	if (waitqueue_active(wqh))
+		wake_up(wqh);
+}
+
 vm_fault_t do_swap_page(struct vm_fault *vmf);
+void folio_rotate_reclaimable(struct folio *folio);
+bool __folio_end_writeback(struct folio *folio);
 
 void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
 		unsigned long floor, unsigned long ceiling);
+void pmd_install(struct mm_struct *mm, pmd_t *pmd, pgtable_t *pte);
 
 static inline bool can_madv_lru_vma(struct vm_area_struct *vma)
 {
 	return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
 }
 
+struct zap_details;
 void unmap_page_range(struct mmu_gather *tlb,
 			     struct vm_area_struct *vma,
 			     unsigned long addr, unsigned long end,
@@ -60,20 +93,37 @@ static inline void force_page_cache_readahead(struct address_space *mapping,
 }
 
 unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
-		pgoff_t end, struct pagevec *pvec, pgoff_t *indices);
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
+unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
+void filemap_free_folio(struct address_space *mapping, struct folio *folio);
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
+bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
+		loff_t end);
 
 /**
- * page_evictable - test whether a page is evictable
- * @page: the page to test
+ * folio_evictable - Test whether a folio is evictable.
+ * @folio: The folio to test.
  *
- * Test whether page is evictable--i.e., should be placed on active/inactive
- * lists vs unevictable list.
+ * Test whether @folio is evictable -- i.e., should be placed on
+ * active/inactive lists vs unevictable list.
  *
- * Reasons page might not be evictable:
- * (1) page's mapping marked unevictable
- * (2) page is part of an mlocked VMA
- *
+ * Reasons folio might not be evictable:
+ * 1. folio's mapping marked unevictable
+ * 2. One of the pages in the folio is part of an mlocked VMA
  */
+static inline bool folio_evictable(struct folio *folio)
+{
+	bool ret;
+
+	/* Prevent address_space of inode and swap cache from being freed */
+	rcu_read_lock();
+	ret = !mapping_unevictable(folio_mapping(folio)) &&
+			!folio_test_mlocked(folio);
+	rcu_read_unlock();
+	return ret;
+}
+
 static inline bool page_evictable(struct page *page)
 {
 	bool ret;
@@ -109,16 +159,12 @@ extern unsigned long highest_memmap_pfn;
  */
 extern int isolate_lru_page(struct page *page);
 extern void putback_lru_page(struct page *page);
+extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason);
 
 /*
  * in mm/rmap.c:
  */
 extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-
-/*
- * in mm/memcontrol.c:
- */
-extern bool cgroup_memory_nokmem;
 
 /*
  * in mm/page_alloc.c
@@ -346,6 +392,7 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma);
 
 #ifdef CONFIG_MMU
+void unmap_mapping_folio(struct folio *folio);
 extern long populate_vma_page_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, int *locked);
 extern long faultin_vma_page_range(struct vm_area_struct *vma,
@@ -449,8 +496,8 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 	}
 	return fpin;
 }
-
 #else /* !CONFIG_MMU */
+static inline void unmap_mapping_folio(struct folio *folio) { }
 static inline void clear_page_mlock(struct page *page) { }
 static inline void mlock_vma_page(struct page *page) { }
 static inline void vunmap_range_noflush(unsigned long start, unsigned long end)

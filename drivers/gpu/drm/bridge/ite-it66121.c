@@ -889,7 +889,7 @@ unlock:
 static int it66121_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	u32 vendor_ids[2], device_ids[2], revision_id;
+	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
 	struct device_node *ep;
 	int ret;
 	struct it66121_ctx *ctx;
@@ -918,11 +918,26 @@ static int it66121_probe(struct i2c_client *client,
 		return -EINVAL;
 
 	ep = of_graph_get_remote_node(dev->of_node, 1, -1);
-	if (!ep)
-		return -EPROBE_DEFER;
+	if (!ep) {
+		dev_err(ctx->dev, "The endpoint is unconnected\n");
+		return -EINVAL;
+	}
+
+	if (!of_device_is_available(ep)) {
+		of_node_put(ep);
+		dev_err(ctx->dev, "The remote device is disabled\n");
+		return -ENODEV;
+	}
 
 	ctx->next_bridge = of_drm_find_bridge(ep);
 	of_node_put(ep);
+	if (!ctx->next_bridge) {
+		dev_dbg(ctx->dev, "Next bridge not found, deferring probe\n");
+		return -EPROBE_DEFER;
+	}
+
+	if (!ctx->next_bridge)
+		return -EPROBE_DEFER;
 
 	i2c_set_clientdata(client, ctx);
 	mutex_init(&ctx->lock);

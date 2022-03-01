@@ -309,6 +309,7 @@ struct nvmet_fabrics_ops {
 	u16 (*install_queue)(struct nvmet_sq *nvme_sq);
 	void (*discovery_chg)(struct nvmet_port *port);
 	u8 (*get_mdts)(const struct nvmet_ctrl *ctrl);
+	u16 (*get_max_queue_size)(const struct nvmet_ctrl *ctrl);
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
@@ -574,6 +575,11 @@ static inline u32 nvmet_dsm_len(struct nvmet_req *req)
 static inline struct nvmet_subsys *nvmet_req_subsys(struct nvmet_req *req)
 {
 	return req->sq->ctrl->subsys;
+}
+
+static inline bool nvmet_is_disc_subsys(struct nvmet_subsys *subsys)
+{
+    return subsys->type != NVME_NQN_NVME;
 }
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU

@@ -74,5 +74,13 @@
 			queue-rx = <&qmgr 0>;
 			queue-txready = <&qmgr 0>;
 		};
+
+		ptp-timer@c8010000 {
+			compatible = "intel,ixp46x-ptp-timer";
+			reg = <0xc8010000 0x1000>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <8 IRQ_TYPE_EDGE_FALLING>, <7 IRQ_TYPE_EDGE_FALLING>;
+			interrupt-names = "master", "slave";
+		};
 	};
 };

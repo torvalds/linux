@@ -14,6 +14,7 @@
 
 #include <linux/perf_event.h>
 
+#include <asm/fpu/xstate.h>
 #include <asm/intel_ds.h>
 #include <asm/cpu.h>
 
@@ -73,7 +74,7 @@ static inline bool constraint_match(struct event_constraint *c, u64 ecode)
 #define PERF_X86_EVENT_PEBS_NA_HSW	0x0010 /* haswell style datala, unknown */
 #define PERF_X86_EVENT_EXCL		0x0020 /* HT exclusivity on counter */
 #define PERF_X86_EVENT_DYNAMIC		0x0040 /* dynamic alloc'd constraint */
-#define PERF_X86_EVENT_RDPMC_ALLOWED	0x0080 /* grant rdpmc permission */
+
 #define PERF_X86_EVENT_EXCL_ACCT	0x0100 /* accounted EXCL event */
 #define PERF_X86_EVENT_AUTO_RELOAD	0x0200 /* use PEBS auto-reload */
 #define PERF_X86_EVENT_LARGE_PEBS	0x0400 /* use large PEBS */
@@ -214,7 +215,8 @@ enum {
 	LBR_FORMAT_EIP_FLAGS2	= 0x04,
 	LBR_FORMAT_INFO		= 0x05,
 	LBR_FORMAT_TIME		= 0x06,
-	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_TIME,
+	LBR_FORMAT_INFO2	= 0x07,
+	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_INFO2,
 };
 
 enum {
@@ -726,6 +728,7 @@ struct x86_pmu {
 	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
+	void		(*assign)(struct perf_event *event, int idx);
 	void		(*add)(struct perf_event *);
 	void		(*del)(struct perf_event *);
 	void		(*read)(struct perf_event *event);
@@ -837,6 +840,11 @@ struct x86_pmu {
 	};
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
 	bool		lbr_pt_coexist;		   /* (LBR|BTS) may coexist with PT */
+
+	unsigned int	lbr_has_info:1;
+	unsigned int	lbr_has_tsx:1;
+	unsigned int	lbr_from_flags:1;
+	unsigned int	lbr_to_cycles:1;
 
 	/*
 	 * Intel Architectural LBR CPUID Enumeration
@@ -1240,6 +1248,25 @@ static inline bool intel_pmu_has_bts(struct perf_event *event)
 	return intel_pmu_has_bts_period(event, hwc->sample_period);
 }
 
+static __always_inline void __intel_pmu_pebs_disable_all(void)
+{
+	wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
+}
+
+static __always_inline void __intel_pmu_arch_lbr_disable(void)
+{
+	wrmsrl(MSR_ARCH_LBR_CTL, 0);
+}
+
+static __always_inline void __intel_pmu_lbr_disable(void)
+{
+	u64 debugctl;
+
+	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
+	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+}
+
 int intel_pmu_save_and_restart(struct perf_event *event);
 
 struct event_constraint *
@@ -1370,6 +1397,8 @@ void intel_pmu_lbr_init_hsw(void);
 void intel_pmu_lbr_init_skl(void);
 
 void intel_pmu_lbr_init_knl(void);
+
+void intel_pmu_lbr_init(void);
 
 void intel_pmu_arch_lbr_init(void);
 

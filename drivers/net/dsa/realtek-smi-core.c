@@ -456,7 +456,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	smi->ds->ops = var->ds_ops;
 	ret = dsa_register_switch(smi->ds);
 	if (ret) {
-		dev_err(dev, "unable to register switch ret = %d\n", ret);
+		dev_err_probe(dev, ret, "unable to register switch\n");
 		return ret;
 	}
 	return 0;
@@ -500,6 +500,10 @@ static const struct of_device_id realtek_smi_of_match[] = {
 		/* FIXME: add support for RTL8366S and more */
 		.compatible = "realtek,rtl8366s",
 		.data = NULL,
+	},
+	{
+		.compatible = "realtek,rtl8365mb",
+		.data = &rtl8365mb_variant,
 	},
 	{ /* sentinel */ },
 };

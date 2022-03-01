@@ -873,7 +873,6 @@ struct s2io_nic {
 	struct mac_addr def_mac_addr[256];
 
 	struct net_device_stats stats;
-	int high_dma_flag;
 	int device_enabled_once;
 
 	char name[60];
@@ -1073,7 +1072,7 @@ static void s2io_reset(struct s2io_nic * sp);
 static int s2io_poll_msix(struct napi_struct *napi, int budget);
 static int s2io_poll_inta(struct napi_struct *napi, int budget);
 static void s2io_init_pci(struct s2io_nic * sp);
-static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr);
+static int do_s2io_prog_unicast(struct net_device *dev, const u8 *addr);
 static void s2io_alarm_handle(struct timer_list *t);
 static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id);

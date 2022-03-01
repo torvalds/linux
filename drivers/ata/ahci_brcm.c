@@ -246,7 +246,7 @@ static void brcm_sata_init(struct brcm_ahci_priv *priv)
 }
 
 static unsigned int brcm_ahci_read_id(struct ata_device *dev,
-				      struct ata_taskfile *tf, u16 *id)
+				      struct ata_taskfile *tf, __le16 *id)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_host *host = ap->host;
@@ -333,7 +333,7 @@ static struct ata_port_operations ahci_brcm_platform_ops = {
 
 static const struct ata_port_info ahci_brcm_port_info = {
 	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
-	.link_flags	= ATA_LFLAG_NO_DB_DELAY,
+	.link_flags	= ATA_LFLAG_NO_DEBOUNCE_DELAY,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_brcm_platform_ops,

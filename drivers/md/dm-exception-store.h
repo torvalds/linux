@@ -168,7 +168,7 @@ static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
  */
 static inline sector_t get_dev_size(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	return bdev_nr_sectors(bdev);
 }
 
 static inline chunk_t sector_to_chunk(struct dm_exception_store *store,

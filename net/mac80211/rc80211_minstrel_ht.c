@@ -18,8 +18,6 @@
 #define AVG_AMPDU_SIZE	16
 #define AVG_PKT_SIZE	1200
 
-#define SAMPLE_SWITCH_THR	100
-
 /* Number of bits for an average sized packet */
 #define MCS_NBITS ((AVG_PKT_SIZE * AVG_AMPDU_SIZE) << 3)
 

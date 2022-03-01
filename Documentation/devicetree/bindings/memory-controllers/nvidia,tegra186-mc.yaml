@@ -31,12 +31,15 @@ properties:
       - enum:
           - nvidia,tegra186-mc
           - nvidia,tegra194-mc
+          - nvidia,tegra234-mc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: MC general interrupt
 
   "#address-cells":
     const: 2
@@ -47,6 +50,9 @@ properties:
   ranges: true
 
   dma-ranges: true
+
+  "#interconnect-cells":
+    const: 1
 
 patternProperties:
   "^external-memory-controller@[0-9a-f]+$":
@@ -63,12 +69,15 @@ patternProperties:
           - enum:
               - nvidia,tegra186-emc
               - nvidia,tegra194-emc
+              - nvidia,tegra234-emc
 
       reg:
-        maxItems: 1
+        minItems: 1
+        maxItems: 2
 
       interrupts:
-        maxItems: 1
+        items:
+          - description: EMC general interrupt
 
       clocks:
         items:
@@ -78,10 +87,82 @@ patternProperties:
         items:
           - const: emc
 
+      "#interconnect-cells":
+        const: 0
+
       nvidia,bpmp:
         $ref: /schemas/types.yaml#/definitions/phandle
         description:
           phandle of the node representing the BPMP
+
+    allOf:
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra186-emc
+        then:
+          properties:
+            reg:
+              maxItems: 1
+
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra194-emc
+        then:
+          properties:
+            reg:
+              minItems: 2
+
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra234-emc
+        then:
+          properties:
+            reg:
+              minItems: 2
+
+    additionalProperties: false
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - "#interconnect-cells"
+      - nvidia,bpmp
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra186-mc
+    then:
+      properties:
+        reg:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra194-mc
+    then:
+      properties:
+        reg:
+          minItems: 3
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra234-mc
+    then:
+      properties:
+        reg:
+          minItems: 3
+
+additionalProperties: false
 
 required:
   - compatible
@@ -89,8 +170,6 @@ required:
   - interrupts
   - "#address-cells"
   - "#size-cells"
-
-additionalProperties: false
 
 examples:
   - |
@@ -124,12 +203,9 @@ examples:
                 clocks = <&bpmp TEGRA186_CLK_EMC>;
                 clock-names = "emc";
 
+                #interconnect-cells = <0>;
+
                 nvidia,bpmp = <&bpmp>;
             };
         };
-    };
-
-    bpmp: bpmp {
-        compatible = "nvidia,tegra186-bpmp";
-        #clock-cells = <1>;
     };

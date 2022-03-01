@@ -10,9 +10,7 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
-	rif_set_addr_test
 	rif_vrf_set_addr_test
-	rif_inherit_bridge_addr_test
 	rif_non_inherit_bridge_addr_test
 	vlan_interface_deletion_test
 	bridge_deletion_test
@@ -60,55 +58,6 @@ cleanup()
 	ip link set dev $swp1 down
 }
 
-rif_set_addr_test()
-{
-	local swp1_mac=$(mac_get $swp1)
-	local swp2_mac=$(mac_get $swp2)
-
-	RET=0
-
-	# $swp1 and $swp2 likely got their IPv6 local addresses already, but
-	# here we need to test the transition to RIF.
-	ip addr flush dev $swp1
-	ip addr flush dev $swp2
-	sleep .1
-
-	ip addr add dev $swp1 192.0.2.1/28
-	check_err $?
-
-	ip link set dev $swp1 addr 00:11:22:33:44:55
-	check_err $?
-
-	# IP address enablement should be rejected if the MAC address prefix
-	# doesn't match other RIFs.
-	ip addr add dev $swp2 192.0.2.2/28 &>/dev/null
-	check_fail $? "IP address addition passed for a device with a wrong MAC"
-	ip addr add dev $swp2 192.0.2.2/28 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for IP address addition"
-
-	ip link set dev $swp2 addr 00:11:22:33:44:66
-	check_err $?
-	ip addr add dev $swp2 192.0.2.2/28 &>/dev/null
-	check_err $?
-
-	# Change of MAC address of a RIF should be forbidden if the new MAC
-	# doesn't share the prefix with other MAC addresses.
-	ip link set dev $swp2 addr 00:11:22:33:00:66 &>/dev/null
-	check_fail $? "change of MAC address passed for a wrong MAC"
-	ip link set dev $swp2 addr 00:11:22:33:00:66 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for MAC address change"
-
-	log_test "RIF - bad MAC change"
-
-	ip addr del dev $swp2 192.0.2.2/28
-	ip addr del dev $swp1 192.0.2.1/28
-
-	ip link set dev $swp2 addr $swp2_mac
-	ip link set dev $swp1 addr $swp1_mac
-}
-
 rif_vrf_set_addr_test()
 {
 	# Test that it is possible to set an IP address on a VRF upper despite
@@ -126,45 +75,6 @@ rif_vrf_set_addr_test()
 	log_test "RIF - setting IP address on VRF"
 
 	ip link del dev vrf-test
-}
-
-rif_inherit_bridge_addr_test()
-{
-	RET=0
-
-	# Create first RIF
-	ip addr add dev $swp1 192.0.2.1/28
-	check_err $?
-
-	# Create a FID RIF
-	ip link add name br1 up type bridge vlan_filtering 0
-	ip link set dev $swp2 master br1
-	ip addr add dev br1 192.0.2.17/28
-	check_err $?
-
-	# Prepare a device with a low MAC address
-	ip link add name d up type dummy
-	ip link set dev d addr 00:11:22:33:44:55
-
-	# Attach the device to br1. That prompts bridge address change, which
-	# should be vetoed, thus preventing the attachment.
-	ip link set dev d master br1 &>/dev/null
-	check_fail $? "Device with low MAC was permitted to attach a bridge with RIF"
-	ip link set dev d master br1 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge attach rejection"
-
-	ip link set dev $swp2 addr 00:11:22:33:44:55 &>/dev/null
-	check_fail $? "Changing swp2's MAC address permitted"
-	ip link set dev $swp2 addr 00:11:22:33:44:55 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge port MAC address change rejection"
-
-	log_test "RIF - attach port with bad MAC to bridge"
-
-	ip link del dev d
-	ip link del dev br1
-	ip addr del dev $swp1 192.0.2.1/28
 }
 
 rif_non_inherit_bridge_addr_test()
@@ -779,7 +689,7 @@ nexthop_obj_offload_test()
 	setup_wait
 
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -791,7 +701,7 @@ nexthop_obj_offload_test()
 		ip nexthop show id 1
 	check_err $? "nexthop marked as offloaded after setting neigh to failed state"
 
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 	busywait "$TIMEOUT" wait_for_offload \
 		ip nexthop show id 1
@@ -828,11 +738,11 @@ nexthop_obj_group_offload_test()
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
 	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
 	ip nexthop add id 10 group 1/2
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -888,11 +798,11 @@ nexthop_obj_bucket_offload_test()
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
 	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
 	ip nexthop add id 10 group 1/2 type resilient buckets 32 idle_timer 0
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -921,7 +831,7 @@ nexthop_obj_bucket_offload_test()
 	check_err $? "nexthop bucket not marked as offloaded after revalidating nexthop"
 
 	# Revalidate nexthop id 2 by changing its neighbour
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 	busywait "$TIMEOUT" wait_for_offload \
 		ip nexthop bucket show nhid 2
@@ -971,9 +881,9 @@ nexthop_obj_route_offload_test()
 	setup_wait
 
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	ip route replace 198.51.100.0/24 nhid 1

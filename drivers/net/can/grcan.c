@@ -255,7 +255,6 @@ struct grcan_priv {
 	struct grcan_dma dma;
 
 	struct sk_buff **echo_skb;	/* We allocate this on our own */
-	u8 *txdlc;			/* Length of queued frames */
 
 	/* The echo skb pointer, pointing into echo_skb and indicating which
 	 * frames can be echoed back. See the "Notes on the tx cyclic buffer
@@ -515,9 +514,7 @@ static int catch_up_echo_skb(struct net_device *dev, int budget, bool echo)
 		if (echo) {
 			/* Normal echo of messages */
 			stats->tx_packets++;
-			stats->tx_bytes += priv->txdlc[i];
-			priv->txdlc[i] = 0;
-			can_get_echo_skb(dev, i, NULL);
+			stats->tx_bytes += can_get_echo_skb(dev, i, NULL);
 		} else {
 			/* For cleanup of untransmitted messages */
 			can_free_echo_skb(dev, i, NULL);
@@ -1062,16 +1059,10 @@ static int grcan_open(struct net_device *dev)
 	priv->can.echo_skb_max = dma->tx.size;
 	priv->can.echo_skb = priv->echo_skb;
 
-	priv->txdlc = kcalloc(dma->tx.size, sizeof(*priv->txdlc), GFP_KERNEL);
-	if (!priv->txdlc) {
-		err = -ENOMEM;
-		goto exit_free_echo_skb;
-	}
-
 	/* Get can device up */
 	err = open_candev(dev);
 	if (err)
-		goto exit_free_txdlc;
+		goto exit_free_echo_skb;
 
 	err = request_irq(dev->irq, grcan_interrupt, IRQF_SHARED,
 			  dev->name, dev);
@@ -1093,8 +1084,6 @@ static int grcan_open(struct net_device *dev)
 
 exit_close_candev:
 	close_candev(dev);
-exit_free_txdlc:
-	kfree(priv->txdlc);
 exit_free_echo_skb:
 	kfree(priv->echo_skb);
 exit_free_dma_buffers:
@@ -1129,7 +1118,6 @@ static int grcan_close(struct net_device *dev)
 	priv->can.echo_skb_max = 0;
 	priv->can.echo_skb = NULL;
 	kfree(priv->echo_skb);
-	kfree(priv->txdlc);
 
 	return 0;
 }
@@ -1211,11 +1199,11 @@ static int grcan_receive(struct net_device *dev, int budget)
 				shift = GRCAN_MSG_DATA_SHIFT(i);
 				cf->data[i] = (u8)(slot[j] >> shift);
 			}
-		}
 
-		/* Update statistics and read pointer */
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
+
 		netif_receive_skb(skb);
 
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
@@ -1447,7 +1435,6 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	 * can_put_echo_skb would be an error unless other measures are
 	 * taken.
 	 */
-	priv->txdlc[slotindex] = cf->len; /* Store dlc for statistics */
 	can_put_echo_skb(skb, dev, slotindex, 0);
 
 	/* Make sure everything is written before allowing hardware to

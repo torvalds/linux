@@ -39,6 +39,10 @@ Required properties:
 		"ehci_clk" for the peripheral clock
 		"usb_clk" for the UTMI clock
 
+Optional properties:
+ - phy_type : For multi port host USB controllers, should be one of
+   "utmi", or "hsic".
+
 usb1: ehci@800000 {
 	compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 	reg = <0x00800000 0x100000>;

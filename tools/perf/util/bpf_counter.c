@@ -13,6 +13,7 @@
 #include <perf/bpf_perf.h>
 
 #include "bpf_counter.h"
+#include "bpf-utils.h"
 #include "counts.h"
 #include "debug.h"
 #include "evsel.h"
@@ -61,14 +62,13 @@ static int bpf_program_profiler__destroy(struct evsel *evsel)
 
 static char *bpf_target_prog_name(int tgt_fd)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_func_info *func_info;
+	struct perf_bpil *info_linear;
 	const struct btf_type *t;
 	struct btf *btf = NULL;
 	char *name = NULL;
 
-	info_linear = bpf_program__get_prog_info_linear(
-		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
+	info_linear = get_bpf_prog_info_linear(tgt_fd, 1UL << PERF_BPIL_FUNC_INFO);
 	if (IS_ERR_OR_NULL(info_linear)) {
 		pr_debug("failed to get info_linear for prog FD %d\n", tgt_fd);
 		return NULL;
@@ -127,9 +127,9 @@ static int bpf_program_profiler_load_one(struct evsel *evsel, u32 prog_id)
 
 	skel->rodata->num_cpu = evsel__nr_cpus(evsel);
 
-	bpf_map__resize(skel->maps.events, evsel__nr_cpus(evsel));
-	bpf_map__resize(skel->maps.fentry_readings, 1);
-	bpf_map__resize(skel->maps.accum_readings, 1);
+	bpf_map__set_max_entries(skel->maps.events, evsel__nr_cpus(evsel));
+	bpf_map__set_max_entries(skel->maps.fentry_readings, 1);
+	bpf_map__set_max_entries(skel->maps.accum_readings, 1);
 
 	prog_name = bpf_target_prog_name(prog_fd);
 	if (!prog_name) {
@@ -265,7 +265,7 @@ static int bpf_program_profiler__read(struct evsel *evsel)
 	return 0;
 }
 
-static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu,
+static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu_map_idx,
 					    int fd)
 {
 	struct bpf_prog_profiler_bpf *skel;
@@ -277,7 +277,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu,
 		assert(skel != NULL);
 
 		ret = bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-					  &cpu, &fd, BPF_ANY);
+					  &cpu_map_idx, &fd, BPF_ANY);
 		if (ret)
 			return ret;
 	}
@@ -307,6 +307,20 @@ static bool bperf_attr_map_compatible(int attr_map_fd)
 		(map_info.value_size == sizeof(struct perf_event_attr_map_entry));
 }
 
+int __weak
+bpf_map_create(enum bpf_map_type map_type,
+	       const char *map_name __maybe_unused,
+	       __u32 key_size,
+	       __u32 value_size,
+	       __u32 max_entries,
+	       const struct bpf_map_create_opts *opts __maybe_unused)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	return bpf_create_map(map_type, key_size, value_size, max_entries, 0);
+#pragma GCC diagnostic pop
+}
+
 static int bperf_lock_attr_map(struct target *target)
 {
 	char path[PATH_MAX];
@@ -320,10 +334,10 @@ static int bperf_lock_attr_map(struct target *target)
 	}
 
 	if (access(path, F_OK)) {
-		map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
+		map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL,
 					sizeof(struct perf_event_attr),
 					sizeof(struct perf_event_attr_map_entry),
-					ATTR_MAP_SIZE, 0);
+					ATTR_MAP_SIZE, NULL);
 		if (map_fd < 0)
 			return -1;
 
@@ -399,7 +413,7 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 		return -1;
 	}
 
-	bpf_map__resize(skel->maps.events, libbpf_num_possible_cpus());
+	bpf_map__set_max_entries(skel->maps.events, libbpf_num_possible_cpus());
 	err = bperf_leader_bpf__load(skel);
 	if (err) {
 		pr_err("Failed to load leader skeleton\n");
@@ -540,7 +554,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 		    filter_type == BPERF_FILTER_TGID)
 			key = evsel->core.threads->map[i].pid;
 		else if (filter_type == BPERF_FILTER_CPU)
-			key = evsel->core.cpus->map[i];
+			key = evsel->core.cpus->map[i].cpu;
 		else
 			break;
 
@@ -566,12 +580,12 @@ out:
 	return err;
 }
 
-static int bperf__install_pe(struct evsel *evsel, int cpu, int fd)
+static int bperf__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
 {
 	struct bperf_leader_bpf *skel = evsel->leader_skel;
 
 	return bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-				   &cpu, &fd, BPF_ANY);
+				   &cpu_map_idx, &fd, BPF_ANY);
 }
 
 /*
@@ -584,7 +598,7 @@ static int bperf_sync_counters(struct evsel *evsel)
 
 	num_cpu = all_cpu_map->nr;
 	for (i = 0; i < num_cpu; i++) {
-		cpu = all_cpu_map->map[i];
+		cpu = all_cpu_map->map[i].cpu;
 		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu);
 	}
 	return 0;
@@ -605,15 +619,17 @@ static int bperf__disable(struct evsel *evsel)
 static int bperf__read(struct evsel *evsel)
 {
 	struct bperf_follower_bpf *skel = evsel->follower_skel;
-	__u32 num_cpu_bpf = cpu__max_cpu();
+	__u32 num_cpu_bpf = cpu__max_cpu().cpu;
 	struct bpf_perf_event_value values[num_cpu_bpf];
 	int reading_map_fd, err = 0;
-	__u32 i, j, num_cpu;
+	__u32 i;
+	int j;
 
 	bperf_sync_counters(evsel);
 	reading_map_fd = bpf_map__fd(skel->maps.accum_readings);
 
 	for (i = 0; i < bpf_map__max_entries(skel->maps.accum_readings); i++) {
+		struct perf_cpu entry;
 		__u32 cpu;
 
 		err = bpf_map_lookup_elem(reading_map_fd, &i, values);
@@ -623,16 +639,15 @@ static int bperf__read(struct evsel *evsel)
 		case BPERF_FILTER_GLOBAL:
 			assert(i == 0);
 
-			num_cpu = all_cpu_map->nr;
-			for (j = 0; j < num_cpu; j++) {
-				cpu = all_cpu_map->map[j];
+			perf_cpu_map__for_each_cpu(entry, j, all_cpu_map) {
+				cpu = entry.cpu;
 				perf_counts(evsel->counts, cpu, 0)->val = values[cpu].counter;
 				perf_counts(evsel->counts, cpu, 0)->ena = values[cpu].enabled;
 				perf_counts(evsel->counts, cpu, 0)->run = values[cpu].running;
 			}
 			break;
 		case BPERF_FILTER_CPU:
-			cpu = evsel->core.cpus->map[i];
+			cpu = evsel->core.cpus->map[i].cpu;
 			perf_counts(evsel->counts, i, 0)->val = values[cpu].counter;
 			perf_counts(evsel->counts, i, 0)->ena = values[cpu].enabled;
 			perf_counts(evsel->counts, i, 0)->run = values[cpu].running;
@@ -757,11 +772,11 @@ static inline bool bpf_counter_skip(struct evsel *evsel)
 		evsel->follower_skel == NULL;
 }
 
-int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd)
+int bpf_counter__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
 {
 	if (bpf_counter_skip(evsel))
 		return 0;
-	return evsel->bpf_counter_ops->install_pe(evsel, cpu, fd);
+	return evsel->bpf_counter_ops->install_pe(evsel, cpu_map_idx, fd);
 }
 
 int bpf_counter__load(struct evsel *evsel, struct target *target)

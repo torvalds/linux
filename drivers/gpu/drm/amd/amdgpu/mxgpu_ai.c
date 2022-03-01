@@ -180,6 +180,11 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 				RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
 					mmBIF_BX_PF0_MAILBOX_MSGBUF_RCV_DW2));
 		}
+	} else if (req == IDH_REQ_GPU_INIT_DATA){
+		/* Dummy REQ_GPU_INIT_DATA handling */
+		r = xgpu_ai_poll_msg(adev, IDH_REQ_GPU_INIT_DATA_READY);
+		/* version set to 0 since dummy */
+		adev->virt.req_init_data_ver = 0;	
 	}
 
 	return 0;
@@ -252,11 +257,12 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	 * otherwise the mailbox msg will be ruined/reseted by
 	 * the VF FLR.
 	 */
-	if (!down_write_trylock(&adev->reset_sem))
+	if (atomic_cmpxchg(&adev->in_gpu_reset, 0, 1) != 0)
 		return;
 
+	down_write(&adev->reset_sem);
+
 	amdgpu_virt_fini_data_exchange(adev);
-	atomic_set(&adev->in_gpu_reset, 1);
 
 	xgpu_ai_mailbox_trans_msg(adev, IDH_READY_TO_RESET, 0, 0, 0);
 
@@ -380,10 +386,16 @@ void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }
 
+static int xgpu_ai_request_init_data(struct amdgpu_device *adev)
+{
+	return xgpu_ai_send_access_requests(adev, IDH_REQ_GPU_INIT_DATA);
+}
+
 const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
 	.reset_gpu = xgpu_ai_request_reset,
 	.wait_reset = NULL,
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
+	.req_init_data  = xgpu_ai_request_init_data,
 };

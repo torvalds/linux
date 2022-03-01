@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include <dt-bindings/clock/jz4770-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4770-cgu.h>
 
 #include "cgu.h"
 #include "pm.h"
@@ -328,6 +328,11 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"dma", CGU_CLK_GATE,
 		.parents = { JZ4770_CLK_H2CLK, },
 		.gate = { CGU_REG_CLKGR0, 21 },
+	},
+	[JZ4770_CLK_BDMA] = {
+		"bdma", CGU_CLK_GATE,
+		.parents = { JZ4770_CLK_H2CLK, },
+		.gate = { CGU_REG_CLKGR1, 0 },
 	},
 	[JZ4770_CLK_I2C0] = {
 		"i2c0", CGU_CLK_GATE,

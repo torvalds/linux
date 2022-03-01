@@ -264,7 +264,7 @@ struct fschmd_data {
 	unsigned long watchdog_is_open;
 	char watchdog_expect_close;
 	char watchdog_name[10]; /* must be unique to avoid sysfs conflict */
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* register values */
@@ -1356,7 +1356,7 @@ static struct fschmd_data *fschmd_update_device(struct device *dev)
 					       FSCHMD_REG_VOLT[data->kind][i]);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

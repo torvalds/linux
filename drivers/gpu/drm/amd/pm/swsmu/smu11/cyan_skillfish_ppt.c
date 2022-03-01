@@ -47,7 +47,6 @@
 /* unit: MHz */
 #define CYAN_SKILLFISH_SCLK_MIN			1000
 #define CYAN_SKILLFISH_SCLK_MAX			2000
-#define CYAN_SKILLFISH_SCLK_DEFAULT			1800
 
 /* unit: mV */
 #define CYAN_SKILLFISH_VDDC_MIN			700
@@ -58,6 +57,8 @@ static struct gfx_user_settings {
 	uint32_t sclk;
 	uint32_t vddc;
 } cyan_skillfish_user_settings;
+
+static uint32_t cyan_skillfish_sclk_default;
 
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
@@ -308,6 +309,7 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 {
 	int ret = 0, size = 0;
 	uint32_t cur_value = 0;
+	int i;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
@@ -333,8 +335,6 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 		size += sysfs_emit_at(buf, size, "VDDC: %7umV  %10umV\n",
 						CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
 		break;
-	case SMU_GFXCLK:
-	case SMU_SCLK:
 	case SMU_FCLK:
 	case SMU_MCLK:
 	case SMU_SOCCLK:
@@ -344,6 +344,25 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 		if (ret)
 			return ret;
 		size += sysfs_emit_at(buf, size, "0: %uMhz *\n", cur_value);
+		break;
+	case SMU_SCLK:
+	case SMU_GFXCLK:
+		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &cur_value);
+		if (ret)
+			return ret;
+		if (cur_value  == CYAN_SKILLFISH_SCLK_MAX)
+			i = 2;
+		else if (cur_value == CYAN_SKILLFISH_SCLK_MIN)
+			i = 0;
+		else
+			i = 1;
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", CYAN_SKILLFISH_SCLK_MIN,
+				i == 0 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+				i == 1 ? cur_value : cyan_skillfish_sclk_default,
+				i == 1 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", CYAN_SKILLFISH_SCLK_MAX,
+				i == 2 ? "*" : "");
 		break;
 	default:
 		dev_warn(smu->adev->dev, "Unsupported clock type\n");
@@ -365,12 +384,18 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 		return false;
 
 	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
-
 	if (ret)
 		return false;
 
 	feature_enabled = (uint64_t)feature_mask[0] |
 				((uint64_t)feature_mask[1] << 32);
+
+	/*
+	 * cyan_skillfish specific, query default sclk inseted of hard code.
+	 */
+	if (!cyan_skillfish_sclk_default)
+		cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK,
+			&cyan_skillfish_sclk_default);
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
@@ -444,14 +469,14 @@ static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		if (input[1] <= CYAN_SKILLFISH_SCLK_MIN ||
+		if (input[1] < CYAN_SKILLFISH_SCLK_MIN ||
 			input[1] > CYAN_SKILLFISH_SCLK_MAX) {
 			dev_err(smu->adev->dev, "Invalid sclk! Valid sclk range: %uMHz - %uMhz\n",
 					CYAN_SKILLFISH_SCLK_MIN, CYAN_SKILLFISH_SCLK_MAX);
 			return -EINVAL;
 		}
 
-		if (input[2] <= CYAN_SKILLFISH_VDDC_MIN ||
+		if (input[2] < CYAN_SKILLFISH_VDDC_MIN ||
 			input[2] > CYAN_SKILLFISH_VDDC_MAX) {
 			dev_err(smu->adev->dev, "Invalid vddc! Valid vddc range: %umV - %umV\n",
 					CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
@@ -468,7 +493,7 @@ static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		cyan_skillfish_user_settings.sclk = CYAN_SKILLFISH_SCLK_DEFAULT;
+		cyan_skillfish_user_settings.sclk = cyan_skillfish_sclk_default;
 		cyan_skillfish_user_settings.vddc = CYAN_SKILLFISH_VDDC_MAGIC;
 
 		break;

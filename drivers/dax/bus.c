@@ -10,8 +10,6 @@
 #include "dax-private.h"
 #include "bus.h"
 
-static struct class *dax_class;
-
 static DEFINE_MUTEX(dax_bus_lock);
 
 #define DAX_NAME_LEN 30
@@ -129,10 +127,34 @@ ATTRIBUTE_GROUPS(dax_drv);
 
 static int dax_bus_match(struct device *dev, struct device_driver *drv);
 
+/*
+ * Static dax regions are regions created by an external subsystem
+ * nvdimm where a single range is assigned. Its boundaries are by the external
+ * subsystem and are usually limited to one physical memory range. For example,
+ * for PMEM it is usually defined by NVDIMM Namespace boundaries (i.e. a
+ * single contiguous range)
+ *
+ * On dynamic dax regions, the assigned region can be partitioned by dax core
+ * into multiple subdivisions. A subdivision is represented into one
+ * /dev/daxN.M device composed by one or more potentially discontiguous ranges.
+ *
+ * When allocating a dax region, drivers must set whether it's static
+ * (IORESOURCE_DAX_STATIC).  On static dax devices, the @pgmap is pre-assigned
+ * to dax core when calling devm_create_dev_dax(), whereas in dynamic dax
+ * devices it is NULL but afterwards allocated by dax core on device ->probe().
+ * Care is needed to make sure that dynamic dax devices are torn down with a
+ * cleared @pgmap field (see kill_dev_dax()).
+ */
 static bool is_static(struct dax_region *dax_region)
 {
 	return (dax_region->res.flags & IORESOURCE_DAX_STATIC) != 0;
 }
+
+bool static_dev_dax(struct dev_dax *dev_dax)
+{
+	return is_static(dev_dax->region);
+}
+EXPORT_SYMBOL_GPL(static_dev_dax);
 
 static u64 dev_dax_size(struct dev_dax *dev_dax)
 {
@@ -363,6 +385,14 @@ void kill_dev_dax(struct dev_dax *dev_dax)
 
 	kill_dax(dax_dev);
 	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+
+	/*
+	 * Dynamic dax region have the pgmap allocated via dev_kzalloc()
+	 * and thus freed by devm. Clear the pgmap to not have stale pgmap
+	 * ranges on probe() from previous reconfigurations of region devices.
+	 */
+	if (!static_dev_dax(dev_dax))
+		dev_dax->pgmap = NULL;
 }
 EXPORT_SYMBOL_GPL(kill_dev_dax);
 
@@ -1323,14 +1353,17 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 	}
 
 	/*
-	 * No 'host' or dax_operations since there is no access to this
-	 * device outside of mmap of the resulting character device.
+	 * No dax_operations since there is no access to this device outside of
+	 * mmap of the resulting character device.
 	 */
-	dax_dev = alloc_dax(dev_dax, NULL, NULL, DAXDEV_F_SYNC);
+	dax_dev = alloc_dax(dev_dax, NULL);
 	if (IS_ERR(dax_dev)) {
 		rc = PTR_ERR(dax_dev);
 		goto err_alloc_dax;
 	}
+	set_dax_synchronous(dax_dev);
+	set_dax_nocache(dax_dev);
+	set_dax_nomc(dax_dev);
 
 	/* a device_dax instance is dead while the driver is not attached */
 	kill_dax(dax_dev);
@@ -1343,10 +1376,7 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 
 	inode = dax_inode(dax_dev);
 	dev->devt = inode->i_rdev;
-	if (data->subsys == DEV_DAX_BUS)
-		dev->bus = &dax_bus_type;
-	else
-		dev->class = dax_class;
+	dev->bus = &dax_bus_type;
 	dev->parent = parent;
 	dev->type = &dev_dax_type;
 
@@ -1445,22 +1475,10 @@ EXPORT_SYMBOL_GPL(dax_driver_unregister);
 
 int __init dax_bus_init(void)
 {
-	int rc;
-
-	if (IS_ENABLED(CONFIG_DEV_DAX_PMEM_COMPAT)) {
-		dax_class = class_create(THIS_MODULE, "dax");
-		if (IS_ERR(dax_class))
-			return PTR_ERR(dax_class);
-	}
-
-	rc = bus_register(&dax_bus_type);
-	if (rc)
-		class_destroy(dax_class);
-	return rc;
+	return bus_register(&dax_bus_type);
 }
 
 void __exit dax_bus_exit(void)
 {
 	bus_unregister(&dax_bus_type);
-	class_destroy(dax_class);
 }

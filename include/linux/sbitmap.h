@@ -9,8 +9,17 @@
 #ifndef __LINUX_SCALE_BITMAP_H
 #define __LINUX_SCALE_BITMAP_H
 
-#include <linux/kernel.h>
+#include <linux/atomic.h>
+#include <linux/bitops.h>
+#include <linux/cache.h>
+#include <linux/list.h>
+#include <linux/log2.h>
+#include <linux/minmax.h>
+#include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/types.h>
+#include <linux/wait.h>
 
 struct seq_file;
 
@@ -407,6 +416,17 @@ static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
 }
 
 /**
+ * sbitmap_queue_recalculate_wake_batch() - Recalculate wake batch
+ * @sbq: Bitmap queue to recalculate wake batch.
+ * @users: Number of shares.
+ *
+ * Like sbitmap_queue_update_wake_batch(), this will calculate wake batch
+ * by depth. This interface is for HCTX shared tags or queue shared tags.
+ */
+void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
+					    unsigned int users);
+
+/**
  * sbitmap_queue_resize() - Resize a &struct sbitmap_queue.
  * @sbq: Bitmap queue to resize.
  * @depth: New number of bits to resize to.
@@ -425,6 +445,19 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
 int __sbitmap_queue_get(struct sbitmap_queue *sbq);
+
+/**
+ * __sbitmap_queue_get_batch() - Try to allocate a batch of free bits
+ * @sbq: Bitmap queue to allocate from.
+ * @nr_tags: number of tags requested
+ * @offset: offset to add to returned bits
+ *
+ * Return: Mask of allocated tags, 0 if none are found. Each tag allocated is
+ * a bit in the mask returned, and the caller must add @offset to the value to
+ * get the absolute tag value.
+ */
+unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
+					unsigned int *offset);
 
 /**
  * __sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
@@ -514,6 +547,17 @@ void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
  */
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 			 unsigned int cpu);
+
+/**
+ * sbitmap_queue_clear_batch() - Free a batch of allocated bits
+ * &struct sbitmap_queue.
+ * @sbq: Bitmap to free from.
+ * @offset: offset for each tag in array
+ * @tags: array of tags
+ * @nr_tags: number of tags in array
+ */
+void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
+				int *tags, int nr_tags);
 
 static inline int sbq_index_inc(int index)
 {

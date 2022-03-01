@@ -301,12 +301,25 @@ static const char * const mem_lvlnum[] = {
 	[PERF_MEM_LVLNUM_NA] = "N/A",
 };
 
+static const char * const mem_hops[] = {
+	"N/A",
+	/*
+	 * While printing, 'Remote' will be added to represent
+	 * 'Remote core, same node' accesses as remote field need
+	 * to be set with mem_hops field.
+	 */
+	"core, same node",
+	"node, same socket",
+	"socket, same board",
+	"board",
+};
+
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m =  PERF_MEM_LVL_NA;
 	u64 hit, miss;
-	int printed;
+	int printed = 0;
 
 	if (mem_info)
 		m  = mem_info->data_src.mem_lvl;
@@ -320,21 +333,27 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	/* already taken care of */
 	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
 
-
 	if (mem_info && mem_info->data_src.mem_remote) {
 		strcat(out, "Remote ");
 		l += 7;
 	}
 
-	printed = 0;
-	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (printed++) {
-			strcat(out, " or ");
-			l += 4;
+	/*
+	 * Incase mem_hops field is set, we can skip printing data source via
+	 * PERF_MEM_LVL namespace.
+	 */
+	if (mem_info && mem_info->data_src.mem_hops) {
+		l += scnprintf(out + l, sz - l, "%s ", mem_hops[mem_info->data_src.mem_hops]);
+	} else {
+		for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
+			if (!(m & 0x1))
+				continue;
+			if (printed++) {
+				strcat(out, " or ");
+				l += 4;
+			}
+			l += scnprintf(out + l, sz - l, mem_lvl[i]);
 		}
-		l += scnprintf(out + l, sz - l, mem_lvl[i]);
 	}
 
 	if (mem_info && mem_info->data_src.mem_lvl_num) {
@@ -472,8 +491,12 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	/*
 	 * Skylake might report unknown remote level via this
 	 * bit, consider it when evaluating remote HITMs.
+	 *
+	 * Incase of power, remote field can also be used to denote cache
+	 * accesses from the another core of same node. Hence, setting
+	 * mrem only when HOPS is zero along with set remote field.
 	 */
-	bool mrem  = data_src->mem_remote;
+	bool mrem  = (data_src->mem_remote && !data_src->mem_hops);
 	int err = 0;
 
 #define HITM_INC(__f)		\

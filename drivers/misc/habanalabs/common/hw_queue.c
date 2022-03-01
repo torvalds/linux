@@ -429,6 +429,9 @@ static int init_signal_cs(struct hl_device *hdev,
 	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, 1,
 								false);
 
+	job->cs->sob_addr_offset = hw_sob->sob_addr;
+	job->cs->initial_sob_count = prop->next_sob_val - 1;
+
 	return rc;
 }
 
@@ -571,7 +574,7 @@ static int encaps_sig_first_staged_cs_handler
 	struct hl_encaps_signals_mgr *mgr;
 	int rc = 0;
 
-	mgr = &hdev->compute_ctx->sig_mgr;
+	mgr = &cs->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
 	encaps_sig_hdl = idr_find(&mgr->handles, cs->encaps_sig_hdl_id);

@@ -1771,6 +1771,7 @@ static int ca8210_async_xmit_complete(
 			status
 		);
 		if (status != MAC_TRANSACTION_OVERFLOW) {
+			dev_kfree_skb_any(priv->tx_skb);
 			ieee802154_wake_queue(priv->hw);
 			return 0;
 		}
@@ -2938,9 +2939,7 @@ static int ca8210_dev_com_init(struct ca8210_priv *priv)
  */
 static void ca8210_dev_com_clear(struct ca8210_priv *priv)
 {
-	flush_workqueue(priv->mlme_workqueue);
 	destroy_workqueue(priv->mlme_workqueue);
-	flush_workqueue(priv->irq_workqueue);
 	destroy_workqueue(priv->irq_workqueue);
 }
 

@@ -665,7 +665,7 @@ static void ppa_interrupt(struct work_struct *work)
 
 	dev->cur_cmd = NULL;
 
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 }
 
 static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
@@ -786,8 +786,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 	return 0;
 }
 
-static int ppa_queuecommand_lck(struct scsi_cmnd *cmd,
-		void (*done) (struct scsi_cmnd *))
+static int ppa_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	ppa_struct *dev = ppa_dev(cmd->device->host);
 
@@ -798,7 +797,6 @@ static int ppa_queuecommand_lck(struct scsi_cmnd *cmd,
 	dev->failed = 0;
 	dev->jstart = jiffies;
 	dev->cur_cmd = cmd;
-	cmd->scsi_done = done;
 	cmd->result = DID_ERROR << 16;	/* default return code */
 	cmd->SCp.phase = 0;	/* bus free */
 

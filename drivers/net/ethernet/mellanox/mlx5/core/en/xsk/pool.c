@@ -11,13 +11,13 @@ static int mlx5e_xsk_map_pool(struct mlx5e_priv *priv,
 {
 	struct device *dev = mlx5_core_dma_dev(priv->mdev);
 
-	return xsk_pool_dma_map(pool, dev, 0);
+	return xsk_pool_dma_map(pool, dev, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static void mlx5e_xsk_unmap_pool(struct mlx5e_priv *priv,
 				 struct xsk_buff_pool *pool)
 {
-	return xsk_pool_dma_unmap(pool, 0);
+	return xsk_pool_dma_unmap(pool, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)

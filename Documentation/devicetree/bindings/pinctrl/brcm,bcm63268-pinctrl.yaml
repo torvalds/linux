@@ -41,6 +41,9 @@ patternProperties:
                 vdsl_phy_override_1_grp, vdsl_phy_override_2_grp,
                 vdsl_phy_override_3_grp, dsl_gpio8, dsl_gpio9 ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

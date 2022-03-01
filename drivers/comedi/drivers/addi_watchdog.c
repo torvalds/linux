@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 #include "addi_tcw.h"
 #include "addi_watchdog.h"
 

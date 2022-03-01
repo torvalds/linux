@@ -134,6 +134,13 @@
 		#clock-cells = <0>;
 	};
 
+	clk25mhz: clk25mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+		clock-output-names = "clk25mhz";
+	};
+
 	clk125mhz: clk125mhz {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -141,11 +148,32 @@
 		clock-output-names = "clk125mhz";
 	};
 
+	clk150mhz: clk150mhz {
+		compatible = "fixed-clock";
+		clock-frequency = <150000000>;
+		#clock-cells = <0>;
+		clock-output-names = "clk150mhz";
+	};
+
 	clk300mhz: clk300mhz {
 		compatible = "fixed-clock";
 		clock-frequency = <300000000>;
 		#clock-cells = <0>;
 		clock-output-names = "clk300mhz";
+	};
+
+	clk600mhz: clk600mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <600000000>;
+		clock-output-names = "clk600mhz";
+	};
+
+	extclk100mhz: extclk100mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "extclk100mhz";
 	};
 
 	wdt_clk: wdt-clk {
@@ -439,6 +467,37 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwm_mux>;
 			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pcie: pcie@28400000 {
+			compatible = "toshiba,visconti-pcie";
+			reg = <0x0 0x28400000 0x0 0x00400000>,
+			      <0x0 0x70000000 0x0 0x10000000>,
+			      <0x0 0x28050000 0x0 0x00010000>,
+			      <0x0 0x24200000 0x0 0x00002000>,
+			      <0x0 0x24162000 0x0 0x00001000>;
+			reg-names  = "dbi", "config", "ulreg", "smu", "mpu";
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			num-lanes = <2>;
+			num-viewport = <8>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			ranges = <0x81000000 0 0x40000000 0 0x40000000 0 0x00010000
+				  0x82000000 0 0x50000000 0 0x50000000 0 0x20000000>;
+			interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi", "intr";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map =
+				<0 0 0 1 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH
+				 0 0 0 2 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH
+				 0 0 0 3 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH
+				 0 0 0 4 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
+			max-link-speed = <2>;
 			status = "disabled";
 		};
 	};

@@ -684,18 +684,6 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      void *priv);
 int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine);
 
-static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
-{
-	return container_of(vdev->dev.parent, struct rproc_vdev, dev);
-}
-
-static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
-{
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-
-	return rvdev->rproc;
-}
-
 void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);

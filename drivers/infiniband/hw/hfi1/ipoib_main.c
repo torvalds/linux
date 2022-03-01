@@ -11,7 +11,7 @@
 #include "ipoib.h"
 #include "hfi.h"
 
-static u32 qpn_from_mac(u8 *mac_arr)
+static u32 qpn_from_mac(const u8 *mac_arr)
 {
 	return (u32)mac_arr[1] << 16 | mac_arr[2] << 8 | mac_arr[3];
 }
@@ -22,25 +22,34 @@ static int hfi1_ipoib_dev_init(struct net_device *dev)
 	int ret;
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	if (!dev->tstats)
+		return -ENOMEM;
 
 	ret = priv->netdev_ops->ndo_init(dev);
 	if (ret)
-		return ret;
+		goto out_ret;
 
 	ret = hfi1_netdev_add_data(priv->dd,
 				   qpn_from_mac(priv->netdev->dev_addr),
 				   dev);
 	if (ret < 0) {
 		priv->netdev_ops->ndo_uninit(dev);
-		return ret;
+		goto out_ret;
 	}
 
 	return 0;
+out_ret:
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
+	return ret;
 }
 
 static void hfi1_ipoib_dev_uninit(struct net_device *dev)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
+
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
 
 	hfi1_netdev_remove_data(priv->dd, qpn_from_mac(priv->netdev->dev_addr));
 
@@ -166,12 +175,7 @@ static void hfi1_ipoib_netdev_dtor(struct net_device *dev)
 	hfi1_ipoib_rxq_deinit(priv->netdev);
 
 	free_percpu(dev->tstats);
-}
-
-static void hfi1_ipoib_free_rdma_netdev(struct net_device *dev)
-{
-	hfi1_ipoib_netdev_dtor(dev);
-	free_netdev(dev);
+	dev->tstats = NULL;
 }
 
 static void hfi1_ipoib_set_id(struct net_device *dev, int id)
@@ -211,23 +215,22 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 	priv->port_num = port_num;
 	priv->netdev_ops = netdev->netdev_ops;
 
-	netdev->netdev_ops = &hfi1_ipoib_netdev_ops;
-
 	ib_query_pkey(device, port_num, priv->pkey_index, &priv->pkey);
 
 	rc = hfi1_ipoib_txreq_init(priv);
 	if (rc) {
 		dd_dev_err(dd, "IPoIB netdev TX init - failed(%d)\n", rc);
-		hfi1_ipoib_free_rdma_netdev(netdev);
 		return rc;
 	}
 
 	rc = hfi1_ipoib_rxq_init(netdev);
 	if (rc) {
 		dd_dev_err(dd, "IPoIB netdev RX init - failed(%d)\n", rc);
-		hfi1_ipoib_free_rdma_netdev(netdev);
+		hfi1_ipoib_txreq_deinit(priv);
 		return rc;
 	}
+
+	netdev->netdev_ops = &hfi1_ipoib_netdev_ops;
 
 	netdev->priv_destructor = hfi1_ipoib_netdev_dtor;
 	netdev->needs_free_netdev = true;

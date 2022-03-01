@@ -4,6 +4,7 @@
  * Author: Wendell Lin <wendell.lin@mediatek.com>
  */
 
+#include <linux/module.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -114,4 +115,5 @@ static struct platform_driver clk_mt6779_aud_drv = {
 	},
 };
 
-builtin_platform_driver(clk_mt6779_aud_drv);
+module_platform_driver(clk_mt6779_aud_drv);
+MODULE_LICENSE("GPL");

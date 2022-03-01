@@ -100,8 +100,7 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
  */
 static int
 nfs3_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr, struct nfs4_label *label,
-		struct inode *inode)
+		struct nfs_fattr *fattr, struct inode *inode)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_GETATTR],
@@ -193,8 +192,7 @@ __nfs3_proc_lookup(struct inode *dir, const char *name, size_t len,
 
 static int
 nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
-		 struct nfs_fh *fhandle, struct nfs_fattr *fattr,
-		 struct nfs4_label *label)
+		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	unsigned short task_flags = 0;
 
@@ -209,7 +207,7 @@ nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 static int nfs3_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
-			     struct nfs_fattr *fattr, struct nfs4_label *label)
+			     struct nfs_fattr *fattr)
 {
 	const char dotdot[] = "..";
 	const size_t len = strlen(dotdot);
@@ -222,7 +220,8 @@ static int nfs3_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
 				  task_flags);
 }
 
-static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
+static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry,
+			    const struct cred *cred)
 {
 	struct nfs3_accessargs	arg = {
 		.fh		= NFS_FH(inode),
@@ -233,7 +232,7 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_ACCESS],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
-		.rpc_cred	= entry->cred,
+		.rpc_cred	= cred,
 	};
 	int status = -ENOMEM;
 
@@ -323,7 +322,7 @@ nfs3_do_create(struct inode *dir, struct dentry *dentry, struct nfs3_createdata 
 	if (status != 0)
 		return ERR_PTR(status);
 
-	return nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr, NULL);
+	return nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr);
 }
 
 static void nfs3_free_createdata(struct nfs3_createdata *data)

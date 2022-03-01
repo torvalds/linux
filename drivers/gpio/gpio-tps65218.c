@@ -196,9 +196,6 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	tps65218_gpio->tps65218 = tps65218;
 	tps65218_gpio->gpio_chip = template_chip;
 	tps65218_gpio->gpio_chip.parent = &pdev->dev;
-#ifdef CONFIG_OF_GPIO
-	tps65218_gpio->gpio_chip.of_node = pdev->dev.of_node;
-#endif
 
 	return devm_gpiochip_add_data(&pdev->dev, &tps65218_gpio->gpio_chip,
 				      tps65218_gpio);
@@ -230,4 +227,3 @@ module_platform_driver(tps65218_gpio_driver);
 MODULE_AUTHOR("Nicolas Saenz Julienne <nicolassaenzj@gmail.com>");
 MODULE_DESCRIPTION("GPO interface for TPS65218 PMICs");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:tps65218-gpio");

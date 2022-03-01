@@ -5,10 +5,10 @@ UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 
 # What CPU version are we building for, and crack it open
 # as major.minor.rev
-CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
-CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)
-CPU_MINOR := $(shell echo $(CPU_VER) | cut -d '.' -f 2)
-CPU_REV   := $(shell echo $(CPU_VER) | cut -d '.' -f 3)
+CPU_VER   := $(CONFIG_XILINX_MICROBLAZE0_HW_VER)
+CPU_MAJOR := $(word 1, $(subst ., , $(CPU_VER)))
+CPU_MINOR := $(word 2, $(subst ., , $(CPU_VER)))
+CPU_REV   := $(word 3, $(subst ., , $(CPU_VER)))
 
 export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 
@@ -59,9 +59,6 @@ DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
 export DTB
 
 all: linux.bin
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/microblaze/kernel/syscalls all

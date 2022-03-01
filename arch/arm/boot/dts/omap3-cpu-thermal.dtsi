@@ -10,7 +10,7 @@
 
 #include <dt-bindings/thermal/thermal.h>
 
-cpu_thermal: cpu_thermal {
+cpu_thermal: cpu-thermal {
 	polling-delay-passive = <250>; /* milliseconds */
 	polling-delay = <1000>; /* milliseconds */
 	coefficients = <0 20000>;

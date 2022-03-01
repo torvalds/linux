@@ -32,14 +32,6 @@ static const struct xt_table packet_raw_before_defrag = {
 	.priority = NF_IP_PRI_RAW_BEFORE_DEFRAG,
 };
 
-/* The work comes in here from netfilter.c. */
-static unsigned int
-iptable_raw_hook(void *priv, struct sk_buff *skb,
-		 const struct nf_hook_state *state)
-{
-	return ipt_do_table(skb, state, priv);
-}
-
 static struct nf_hook_ops *rawtable_ops __read_mostly;
 
 static int iptable_raw_table_init(struct net *net)
@@ -90,7 +82,7 @@ static int __init iptable_raw_init(void)
 	if (ret < 0)
 		return ret;
 
-	rawtable_ops = xt_hook_ops_alloc(table, iptable_raw_hook);
+	rawtable_ops = xt_hook_ops_alloc(table, ipt_do_table);
 	if (IS_ERR(rawtable_ops)) {
 		xt_unregister_template(table);
 		return PTR_ERR(rawtable_ops);

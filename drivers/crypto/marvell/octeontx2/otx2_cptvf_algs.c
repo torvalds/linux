@@ -1274,6 +1274,7 @@ static int aead_do_fallback(struct aead_request *req, bool is_enc)
 					  req->base.complete, req->base.data);
 		aead_request_set_crypt(&rctx->fbk_req, req->src,
 				       req->dst, req->cryptlen, req->iv);
+		aead_request_set_ad(&rctx->fbk_req, req->assoclen);
 		ret = is_enc ? crypto_aead_encrypt(&rctx->fbk_req) :
 			       crypto_aead_decrypt(&rctx->fbk_req);
 	} else {
@@ -1681,11 +1682,8 @@ static void swap_func(void *lptr, void *rptr, int size)
 {
 	struct cpt_device_desc *ldesc = lptr;
 	struct cpt_device_desc *rdesc = rptr;
-	struct cpt_device_desc desc;
 
-	desc = *ldesc;
-	*ldesc = *rdesc;
-	*rdesc = desc;
+	swap(*ldesc, *rdesc);
 }
 
 int otx2_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,

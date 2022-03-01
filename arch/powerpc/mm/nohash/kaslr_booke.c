@@ -44,9 +44,7 @@ struct regions __initdata regions;
 
 static __init void kaslr_get_cmdline(void *fdt)
 {
-	int node = fdt_path_offset(fdt, "/chosen");
-
-	early_init_dt_scan_chosen(node, "chosen", 1, boot_command_line);
+	early_init_dt_scan_chosen(boot_command_line);
 }
 
 static unsigned long __init rotate_xor(unsigned long hash, const void *area,
@@ -314,7 +312,7 @@ static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size
 		pr_warn("KASLR: No safe seed for randomizing the kernel base.\n");
 
 	ram = min_t(phys_addr_t, __max_low_memory, size);
-	ram = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, true);
+	ram = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, true, true);
 	linear_sz = min_t(unsigned long, ram, SZ_512M);
 
 	/* If the linear size is smaller than 64M, do not randmize */

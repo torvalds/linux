@@ -64,7 +64,8 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 
 static int s6e63m0_spi_remove(struct spi_device *spi)
 {
-	return s6e63m0_remove(&spi->dev);
+	s6e63m0_remove(&spi->dev);
+	return 0;
 }
 
 static const struct of_device_id s6e63m0_spi_of_match[] = {

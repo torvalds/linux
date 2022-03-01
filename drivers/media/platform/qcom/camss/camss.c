@@ -886,9 +886,9 @@ static int camss_of_parse_ports(struct camss *camss)
 			goto err_cleanup;
 		}
 
-		csd = v4l2_async_notifier_add_fwnode_subdev(
-			&camss->notifier, of_fwnode_handle(remote),
-			struct camss_async_subdev);
+		csd = v4l2_async_nf_add_fwnode(&camss->notifier,
+					       of_fwnode_handle(remote),
+					       struct camss_async_subdev);
 		of_node_put(remote);
 		if (IS_ERR(csd)) {
 			ret = PTR_ERR(csd);
@@ -1361,7 +1361,7 @@ static int camss_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	v4l2_async_notifier_init(&camss->notifier);
+	v4l2_async_nf_init(&camss->notifier);
 
 	num_subdevs = camss_of_parse_ports(camss);
 	if (num_subdevs < 0) {
@@ -1397,8 +1397,8 @@ static int camss_probe(struct platform_device *pdev)
 	if (num_subdevs) {
 		camss->notifier.ops = &camss_subdev_notifier_ops;
 
-		ret = v4l2_async_notifier_register(&camss->v4l2_dev,
-						   &camss->notifier);
+		ret = v4l2_async_nf_register(&camss->v4l2_dev,
+					     &camss->notifier);
 		if (ret) {
 			dev_err(dev,
 				"Failed to register async subdev nodes: %d\n",
@@ -1436,7 +1436,7 @@ err_register_subdevs:
 err_register_entities:
 	v4l2_device_unregister(&camss->v4l2_dev);
 err_cleanup:
-	v4l2_async_notifier_cleanup(&camss->notifier);
+	v4l2_async_nf_cleanup(&camss->notifier);
 err_free:
 	kfree(camss);
 
@@ -1478,8 +1478,8 @@ static int camss_remove(struct platform_device *pdev)
 {
 	struct camss *camss = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&camss->notifier);
-	v4l2_async_notifier_cleanup(&camss->notifier);
+	v4l2_async_nf_unregister(&camss->notifier);
+	v4l2_async_nf_cleanup(&camss->notifier);
 	camss_unregister_entities(camss);
 
 	if (atomic_read(&camss->ref_count) == 0)

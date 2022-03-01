@@ -266,6 +266,7 @@ enum bq25890_table_ids {
 	/* lookup tables */
 	TBL_TREG,
 	TBL_BOOSTI,
+	TBL_TSPCT,
 };
 
 /* Thermal Regulation Threshold lookup table, in degrees Celsius */
@@ -279,6 +280,28 @@ static const u32 bq25890_boosti_tbl[] = {
 };
 
 #define BQ25890_BOOSTI_TBL_SIZE		ARRAY_SIZE(bq25890_boosti_tbl)
+
+/* NTC 10K temperature lookup table in tenths of a degree */
+static const u32 bq25890_tspct_tbl[] = {
+	850, 840, 830, 820, 810, 800, 790, 780,
+	770, 760, 750, 740, 730, 720, 710, 700,
+	690, 685, 680, 675, 670, 660, 650, 645,
+	640, 630, 620, 615, 610, 600, 590, 585,
+	580, 570, 565, 560, 550, 540, 535, 530,
+	520, 515, 510, 500, 495, 490, 480, 475,
+	470, 460, 455, 450, 440, 435, 430, 425,
+	420, 410, 405, 400, 390, 385, 380, 370,
+	365, 360, 355, 350, 340, 335, 330, 320,
+	310, 305, 300, 290, 285, 280, 275, 270,
+	260, 250, 245, 240, 230, 225, 220, 210,
+	205, 200, 190, 180, 175, 170, 160, 150,
+	145, 140, 130, 120, 115, 110, 100, 90,
+	80, 70, 60, 50, 40, 30, 20, 10,
+	0, -10, -20, -30, -40, -60, -70, -80,
+	-90, -10, -120, -140, -150, -170, -190, -210,
+};
+
+#define BQ25890_TSPCT_TBL_SIZE		ARRAY_SIZE(bq25890_tspct_tbl)
 
 struct bq25890_range {
 	u32 min;
@@ -308,7 +331,8 @@ static const union {
 
 	/* lookup tables */
 	[TBL_TREG] =	{ .lt = {bq25890_treg_tbl, BQ25890_TREG_TBL_SIZE} },
-	[TBL_BOOSTI] =	{ .lt = {bq25890_boosti_tbl, BQ25890_BOOSTI_TBL_SIZE} }
+	[TBL_BOOSTI] =	{ .lt = {bq25890_boosti_tbl, BQ25890_BOOSTI_TBL_SIZE} },
+	[TBL_TSPCT] =	{ .lt = {bq25890_tspct_tbl, BQ25890_TSPCT_TBL_SIZE} }
 };
 
 static int bq25890_field_read(struct bq25890_device *bq,
@@ -388,6 +412,7 @@ static bool bq25890_is_adc_property(enum power_supply_property psp)
 	switch (psp) {
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_TEMP:
 		return true;
 
 	default:
@@ -528,6 +553,15 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		val->intval = ret * -50000;
 		break;
 
+	case POWER_SUPPLY_PROP_TEMP:
+		ret = bq25890_field_read(bq, F_TSPCT);
+		if (ret < 0)
+			return ret;
+
+		/* convert TS percentage into rough temperature */
+		val->intval = bq25890_find_val(ret, TBL_TSPCT);
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -581,12 +615,12 @@ static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 
 	if (!new_state.online && bq->state.online) {	    /* power removed */
 		/* disable ADC */
-		ret = bq25890_field_write(bq, F_CONV_START, 0);
+		ret = bq25890_field_write(bq, F_CONV_RATE, 0);
 		if (ret < 0)
 			goto error;
 	} else if (new_state.online && !bq->state.online) { /* power inserted */
 		/* enable ADC, to have control of charge current/voltage */
-		ret = bq25890_field_write(bq, F_CONV_START, 1);
+		ret = bq25890_field_write(bq, F_CONV_RATE, 1);
 		if (ret < 0)
 			goto error;
 	}
@@ -682,16 +716,16 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		}
 	}
 
+	ret = bq25890_get_chip_state(bq, &bq->state);
+	if (ret < 0) {
+		dev_dbg(bq->dev, "Get state failed %d\n", ret);
+		return ret;
+	}
+
 	/* Configure ADC for continuous conversions when charging */
 	ret = bq25890_field_write(bq, F_CONV_RATE, !!bq->state.online);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
-		return ret;
-	}
-
-	ret = bq25890_get_chip_state(bq, &bq->state);
-	if (ret < 0) {
-		dev_dbg(bq->dev, "Get state failed %d\n", ret);
 		return ret;
 	}
 
@@ -713,6 +747,7 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static char *bq25890_charger_supplied_to[] = {
@@ -734,8 +769,9 @@ static int bq25890_power_supply_init(struct bq25890_device *bq)
 	psy_cfg.supplied_to = bq25890_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25890_charger_supplied_to);
 
-	bq->charger = power_supply_register(bq->dev, &bq25890_power_supply_desc,
-					    &psy_cfg);
+	bq->charger = devm_power_supply_register(bq->dev,
+						 &bq25890_power_supply_desc,
+						 &psy_cfg);
 
 	return PTR_ERR_OR_ZERO(bq->charger);
 }
@@ -788,13 +824,13 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 
 	id = bq25890_field_read(bq, F_PN);
 	if (id < 0) {
-		dev_err(bq->dev, "Cannot read chip ID.\n");
+		dev_err(bq->dev, "Cannot read chip ID: %d\n", id);
 		return id;
 	}
 
 	rev = bq25890_field_read(bq, F_DEV_REV);
 	if (rev < 0) {
-		dev_err(bq->dev, "Cannot read chip revision.\n");
+		dev_err(bq->dev, "Cannot read chip revision: %d\n", rev);
 		return rev;
 	}
 
@@ -837,10 +873,9 @@ static int bq25890_irq_probe(struct bq25890_device *bq)
 	struct gpio_desc *irq;
 
 	irq = devm_gpiod_get(bq->dev, BQ25890_IRQ_PIN, GPIOD_IN);
-	if (IS_ERR(irq)) {
-		dev_err(bq->dev, "Could not probe irq pin.\n");
-		return PTR_ERR(irq);
-	}
+	if (IS_ERR(irq))
+		return dev_err_probe(bq->dev, PTR_ERR(irq),
+				     "Could not probe irq pin.\n");
 
 	return gpiod_to_irq(irq);
 }
@@ -929,34 +964,33 @@ static int bq25890_probe(struct i2c_client *client,
 	mutex_init(&bq->lock);
 
 	bq->rmap = devm_regmap_init_i2c(client, &bq25890_regmap_config);
-	if (IS_ERR(bq->rmap)) {
-		dev_err(dev, "failed to allocate register map\n");
-		return PTR_ERR(bq->rmap);
-	}
+	if (IS_ERR(bq->rmap))
+		return dev_err_probe(dev, PTR_ERR(bq->rmap),
+				     "failed to allocate register map\n");
 
 	for (i = 0; i < ARRAY_SIZE(bq25890_reg_fields); i++) {
 		const struct reg_field *reg_fields = bq25890_reg_fields;
 
 		bq->rmap_fields[i] = devm_regmap_field_alloc(dev, bq->rmap,
 							     reg_fields[i]);
-		if (IS_ERR(bq->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
-			return PTR_ERR(bq->rmap_fields[i]);
-		}
+		if (IS_ERR(bq->rmap_fields[i]))
+			return dev_err_probe(dev, PTR_ERR(bq->rmap_fields[i]),
+					     "cannot allocate regmap field\n");
 	}
 
 	i2c_set_clientdata(client, bq);
 
 	ret = bq25890_get_chip_version(bq);
 	if (ret) {
-		dev_err(dev, "Cannot read chip ID or unknown chip.\n");
+		dev_err(dev, "Cannot read chip ID or unknown chip: %d\n", ret);
 		return ret;
 	}
 
 	if (!dev->platform_data) {
 		ret = bq25890_fw_probe(bq);
 		if (ret < 0) {
-			dev_err(dev, "Cannot read device properties.\n");
+			dev_err(dev, "Cannot read device properties: %d\n",
+				ret);
 			return ret;
 		}
 	} else {
@@ -965,7 +999,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 	ret = bq25890_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cannot initialize the chip: %d\n", ret);
 		return ret;
 	}
 
@@ -985,22 +1019,22 @@ static int bq25890_probe(struct i2c_client *client,
 		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
 	}
 
+	ret = bq25890_power_supply_init(bq);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register power supply\n");
+		goto err_unregister_usb_notifier;
+	}
+
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq25890_irq_handler_thread,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					BQ25890_IRQ_PIN, bq);
 	if (ret)
-		goto irq_fail;
-
-	ret = bq25890_power_supply_init(bq);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register power supply\n");
-		goto irq_fail;
-	}
+		goto err_unregister_usb_notifier;
 
 	return 0;
 
-irq_fail:
+err_unregister_usb_notifier:
 	if (!IS_ERR_OR_NULL(bq->usb_phy))
 		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
 
@@ -1010,8 +1044,6 @@ irq_fail:
 static int bq25890_remove(struct i2c_client *client)
 {
 	struct bq25890_device *bq = i2c_get_clientdata(client);
-
-	power_supply_unregister(bq->charger);
 
 	if (!IS_ERR_OR_NULL(bq->usb_phy))
 		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);

@@ -127,7 +127,7 @@ ipq8064_mdio_probe(struct platform_device *pdev)
 	if (of_address_to_resource(np, 0, &res))
 		return -ENOMEM;
 
-	base = ioremap(res.start, resource_size(&res));
+	base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
 	if (!base)
 		return -ENOMEM;
 

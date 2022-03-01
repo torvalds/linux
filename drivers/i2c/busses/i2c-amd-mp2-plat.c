@@ -246,12 +246,11 @@ static int i2c_amd_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct amd_i2c_dev *i2c_dev;
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	struct amd_mp2_dev *mp2_dev;
 	const char *uid;
 
-	if (acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return -ENODEV;
 
 	/* The ACPI namespace doesn't contain information about which MP2 PCI

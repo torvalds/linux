@@ -26,6 +26,8 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_pch_refclk.h"
+#include "intel_tc.h"
 
 /**
  * DOC: Display PLLs
@@ -182,34 +184,6 @@ intel_tc_pll_enable_reg(struct drm_i915_private *i915,
 		return ADLP_PORTTC_PLL_ENABLE(tc_port);
 
 	return MG_PLL_ENABLE(tc_port);
-}
-
-/**
- * intel_prepare_shared_dpll - call a dpll's prepare hook
- * @crtc_state: CRTC, and its state, which has a shared dpll
- *
- * This calls the PLL's prepare hook if it has one and if the PLL is not
- * already enabled. The prepare hook is platform specific.
- */
-void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-
-	if (drm_WARN_ON(&dev_priv->drm, pll == NULL))
-		return;
-
-	mutex_lock(&dev_priv->dpll.lock);
-	drm_WARN_ON(&dev_priv->drm, !pll->state.pipe_mask);
-	if (!pll->active_mask) {
-		drm_dbg(&dev_priv->drm, "setting up %s\n", pll->info->name);
-		drm_WARN_ON(&dev_priv->drm, pll->on);
-		assert_shared_dpll_disabled(dev_priv, pll);
-
-		pll->info->funcs->prepare(dev_priv, pll);
-	}
-	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 /**
@@ -451,15 +425,6 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & DPLL_VCO_ENABLE;
 }
 
-static void ibx_pch_dpll_prepare(struct drm_i915_private *dev_priv,
-				 struct intel_shared_dpll *pll)
-{
-	const enum intel_dpll_id id = pll->info->id;
-
-	intel_de_write(dev_priv, PCH_FP0(id), pll->state.hw_state.fp0);
-	intel_de_write(dev_priv, PCH_FP1(id), pll->state.hw_state.fp1);
-}
-
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
@@ -480,6 +445,9 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 
 	/* PCH refclock must be enabled first */
 	ibx_assert_pch_refclk_enabled(dev_priv);
+
+	intel_de_write(dev_priv, PCH_FP0(id), pll->state.hw_state.fp0);
+	intel_de_write(dev_priv, PCH_FP1(id), pll->state.hw_state.fp1);
 
 	intel_de_write(dev_priv, PCH_DPLL(id), pll->state.hw_state.dpll);
 
@@ -558,7 +526,6 @@ static void ibx_dump_hw_state(struct drm_i915_private *dev_priv,
 }
 
 static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
-	.prepare = ibx_pch_dpll_prepare,
 	.enable = ibx_pch_dpll_enable,
 	.disable = ibx_pch_dpll_disable,
 	.get_hw_state = ibx_pch_dpll_get_hw_state,
@@ -3136,8 +3103,8 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 		enc_to_dig_port(encoder);
 
 	if (primary_port &&
-	    (primary_port->tc_mode == TC_PORT_DP_ALT ||
-	     primary_port->tc_mode == TC_PORT_LEGACY))
+	    (intel_tc_port_in_dp_alt_mode(primary_port) ||
+	     intel_tc_port_in_legacy_mode(primary_port)))
 		port_dpll_id = ICL_PORT_DPLL_MG_PHY;
 
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
@@ -3774,7 +3741,7 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 		 * domain.
 		 */
 		pll->wakeref = intel_display_power_get(dev_priv,
-						       POWER_DOMAIN_DPLL_DC_OFF);
+						       POWER_DOMAIN_DC_OFF);
 	}
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
@@ -3881,7 +3848,7 @@ static void combo_pll_disable(struct drm_i915_private *dev_priv,
 
 	if (IS_JSL_EHL(dev_priv) &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_DPLL_DC_OFF,
+		intel_display_power_put(dev_priv, POWER_DOMAIN_DC_OFF,
 					pll->wakeref);
 }
 
@@ -4265,7 +4232,7 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 	if (IS_JSL_EHL(i915) && pll->on &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4) {
 		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DPLL_DC_OFF);
+						       POWER_DOMAIN_DC_OFF);
 	}
 
 	pll->state.pipe_mask = 0;

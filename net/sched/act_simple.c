@@ -36,7 +36,8 @@ static int tcf_simp_act(struct sk_buff *skb, const struct tc_action *a,
 	 * then it would look like "hello_3" (without quotes)
 	 */
 	pr_info("simple: %s_%llu\n",
-	       (char *)d->tcfd_defdata, d->tcf_bstats.packets);
+		(char *)d->tcfd_defdata,
+		u64_stats_read(&d->tcf_bstats.packets));
 	spin_unlock(&d->tcf_lock);
 	return d->tcf_action;
 }
@@ -128,7 +129,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_simp_ops, bind, false, 0);
+				     &act_simp_ops, bind, false, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

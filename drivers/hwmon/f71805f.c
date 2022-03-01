@@ -165,7 +165,7 @@ struct f71805f_data {
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	unsigned long last_limits;	/* In jiffies */
 
@@ -404,7 +404,7 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 			+ (f71805f_read8(data, F71805F_REG_STATUS(2)) << 16);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
