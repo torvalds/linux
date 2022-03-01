@@ -156,6 +156,34 @@ static const struct engine_info intel_engines[] = {
 			{ .graphics_ver = 12, .base = XEHP_VEBOX4_RING_BASE }
 		},
 	},
+	[CCS0] = {
+		.class = COMPUTE_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE0_RING_BASE }
+		}
+	},
+	[CCS1] = {
+		.class = COMPUTE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE1_RING_BASE }
+		}
+	},
+	[CCS2] = {
+		.class = COMPUTE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE2_RING_BASE }
+		}
+	},
+	[CCS3] = {
+		.class = COMPUTE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE3_RING_BASE }
+		}
+	},
 };
 
 /**
