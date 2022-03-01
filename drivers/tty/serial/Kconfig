@@ -200,7 +200,6 @@ config SERIAL_KGDB_NMI
 config SERIAL_MESON
 	tristate "Meson serial port support"
 	depends on ARCH_MESON || COMPILE_TEST
-	depends on COMMON_CLK
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Amlogic
