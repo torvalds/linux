@@ -944,7 +944,8 @@ static int eeprom_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&eeprom_dev->sd,
 		client, &eeprom_ops);
 	eeprom_dev->client = client;
-	sprintf(eeprom_dev->name, "%s", DEVICE_NAME);
+	snprintf(eeprom_dev->name, sizeof(eeprom_dev->name), "%s-%d-%02x",
+		 DEVICE_NAME, i2c_adapter_id(client->adapter), client->addr);
 	eeprom_proc_init(eeprom_dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
