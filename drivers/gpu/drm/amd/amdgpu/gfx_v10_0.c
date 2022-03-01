@@ -250,13 +250,6 @@ MODULE_FIRMWARE("amdgpu/yellow_carp_mec.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_mec2.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_rlc.bin");
 
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_ce.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_pfp.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_me.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec2.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_rlc.bin");
-
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_ce.bin");
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_pfp.bin");
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_me.bin");
@@ -4043,10 +4036,7 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(10, 1, 3):
 	case IP_VERSION(10, 1, 4):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
-			chip_name = "cyan_skillfish2";
-		else
-			chip_name = "cyan_skillfish";
+		chip_name = "cyan_skillfish2";
 		break;
 	case IP_VERSION(10, 3, 7):
 		chip_name = "gc_10_3_7";
