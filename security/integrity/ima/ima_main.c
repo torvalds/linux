@@ -520,19 +520,37 @@ int ima_file_check(struct file *file, int mask)
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
-static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
+static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
+			    size_t buf_size)
 {
-	struct integrity_iint_cache *iint;
-	int hash_algo;
+	struct integrity_iint_cache *iint = NULL, tmp_iint;
+	int rc, hash_algo;
 
-	if (!ima_policy_flag)
-		return -EOPNOTSUPP;
+	if (ima_policy_flag) {
+		iint = integrity_iint_find(inode);
+		if (iint)
+			mutex_lock(&iint->mutex);
+	}
 
-	iint = integrity_iint_find(inode);
+	if ((!iint || !(iint->flags & IMA_COLLECTED)) && file) {
+		if (iint)
+			mutex_unlock(&iint->mutex);
+
+		memset(&tmp_iint, 0, sizeof(tmp_iint));
+		tmp_iint.inode = inode;
+		mutex_init(&tmp_iint.mutex);
+
+		rc = ima_collect_measurement(&tmp_iint, file, NULL, 0,
+					     ima_hash_algo, NULL);
+		if (rc < 0)
+			return -EOPNOTSUPP;
+
+		iint = &tmp_iint;
+		mutex_lock(&iint->mutex);
+	}
+
 	if (!iint)
 		return -EOPNOTSUPP;
-
-	mutex_lock(&iint->mutex);
 
 	/*
 	 * ima_file_hash can be called when ima_collect_measurement has still
@@ -552,12 +570,14 @@ static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
 	hash_algo = iint->ima_hash->algo;
 	mutex_unlock(&iint->mutex);
 
+	if (iint == &tmp_iint)
+		kfree(iint->ima_hash);
+
 	return hash_algo;
 }
 
 /**
- * ima_file_hash - return the stored measurement if a file has been hashed and
- * is in the iint cache.
+ * ima_file_hash - return a measurement of the file
  * @file: pointer to the file
  * @buf: buffer in which to store the hash
  * @buf_size: length of the buffer
@@ -570,7 +590,7 @@ static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
  * The file hash returned is based on the entire file, including the appended
  * signature.
  *
- * If IMA is disabled or if no measurement is available, return -EOPNOTSUPP.
+ * If the measurement cannot be performed, return -EOPNOTSUPP.
  * If the parameters are incorrect, return -EINVAL.
  */
 int ima_file_hash(struct file *file, char *buf, size_t buf_size)
@@ -578,7 +598,7 @@ int ima_file_hash(struct file *file, char *buf, size_t buf_size)
 	if (!file)
 		return -EINVAL;
 
-	return __ima_inode_hash(file_inode(file), buf, buf_size);
+	return __ima_inode_hash(file_inode(file), file, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(ima_file_hash);
 
@@ -605,7 +625,7 @@ int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
 	if (!inode)
 		return -EINVAL;
 
-	return __ima_inode_hash(inode, buf, buf_size);
+	return __ima_inode_hash(inode, NULL, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(ima_inode_hash);
 
