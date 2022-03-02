@@ -138,6 +138,11 @@ static void vmw_stdu_destroy(struct vmw_screen_target_display_unit *stdu);
  * Screen Target Display Unit CRTC Functions
  *****************************************************************************/
 
+static bool vmw_stdu_use_cpu_blit(const struct vmw_private *vmw)
+{
+	return !(vmw->capabilities & SVGA_CAP_3D) || vmw->vram_size < (32 * 1024 * 1024);
+}
+
 
 /**
  * vmw_stdu_crtc_destroy - cleans up the STDU
@@ -689,7 +694,7 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_stdu_dirty ddirty;
 	int ret;
-	bool cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
+	bool cpu_blit = vmw_stdu_use_cpu_blit(dev_priv);
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 
 	/*
@@ -1164,7 +1169,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * so cache these mappings
 	 */
 	if (vps->content_fb_type == SEPARATE_BO &&
-	    !(dev_priv->capabilities & SVGA_CAP_3D))
+	    vmw_stdu_use_cpu_blit(dev_priv))
 		vps->cpp = new_fb->pitches[0] / new_fb->width;
 
 	return 0;
@@ -1368,7 +1373,7 @@ static int vmw_stdu_plane_update_bo(struct vmw_private *dev_priv,
 	bo_update.base.vfb = vfb;
 	bo_update.base.out_fence = out_fence;
 	bo_update.base.mutex = NULL;
-	bo_update.base.cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
+	bo_update.base.cpu_blit = vmw_stdu_use_cpu_blit(dev_priv);
 	bo_update.base.intr = false;
 
 	/*
