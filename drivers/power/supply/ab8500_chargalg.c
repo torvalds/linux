@@ -287,7 +287,7 @@ ab8500_chargalg_safety_timer_expired(struct hrtimer *timer)
  * the maintenance timer
  * @timer:     pointer to the timer structure
  *
- * This function gets called when the maintenence timer
+ * This function gets called when the maintenance timer
  * expires
  */
 static enum hrtimer_restart
@@ -431,7 +431,7 @@ static void ab8500_chargalg_stop_safety_timer(struct ab8500_chargalg *di)
 /**
  * ab8500_chargalg_start_maintenance_timer() - Start charging maintenance timer
  * @di:		pointer to the ab8500_chargalg structure
- * @duration:	duration of ther maintenance timer in minutes
+ * @duration:	duration of the maintenance timer in minutes
  *
  * The maintenance timer is used to maintain the charge in the battery once
  * the battery is considered full. These timers are chosen to match the
@@ -1271,7 +1271,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 				STATE_SAFETY_TIMER_EXPIRED_INIT);
 	}
 	/*
-	 * Check if any interrupts has occured
+	 * Check if any interrupts has occurred
 	 * that will prevent us from charging
 	 */
 
@@ -1525,7 +1525,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 				       bi->alert_high_temp_charge_voltage_uv,
 				       bi->alert_high_temp_charge_current_ua);
 		} else {
-			dev_err(di->dev, "neither low or high temp event occured\n");
+			dev_err(di->dev, "neither low or high temp event occurred\n");
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
 			break;
 		}
