@@ -343,11 +343,10 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(dai);
 	unsigned int reg, ofs = sai->soc_data->reg_offset;
 	unsigned long clk_rate;
-	u32 savediv = 0, ratio, savesub = freq;
+	u32 savediv = 0, ratio, bestdiff = freq;
 	int adir = tx ? RX : TX;
 	int dir = tx ? TX : RX;
 	u32 id;
-	int ret = 0;
 
 	/* Don't apply to consumer mode */
 	if (sai->is_consumer_mode)
@@ -361,19 +360,21 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	id = sai->soc_data->mclk0_is_mclk1 ? 1 : 0;
 
 	for (; id < FSL_SAI_MCLK_MAX; id++) {
+		int diff;
+
 		clk_rate = clk_get_rate(sai->mclk_clk[id]);
 		if (!clk_rate)
 			continue;
 
 		ratio = clk_rate / freq;
 
-		ret = clk_rate - ratio * freq;
+		diff = clk_rate - ratio * freq;
 
 		/*
 		 * Drop the source that can not be
 		 * divided into the required rate.
 		 */
-		if (ret != 0 && clk_rate / ret < 1000)
+		if (diff != 0 && clk_rate / diff < 1000)
 			continue;
 
 		dev_dbg(dai->dev,
@@ -385,13 +386,13 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		else
 			continue;
 
-		if (ret < savesub) {
+		if (diff < bestdiff) {
 			savediv = ratio;
 			sai->mclk_id[tx] = id;
-			savesub = ret;
+			bestdiff = diff;
 		}
 
-		if (ret == 0)
+		if (diff == 0)
 			break;
 	}
 
@@ -402,7 +403,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	}
 
 	dev_dbg(dai->dev, "best fit: clock id=%d, div=%d, deviation =%d\n",
-			sai->mclk_id[tx], savediv, savesub);
+			sai->mclk_id[tx], savediv, bestdiff);
 
 	/*
 	 * 1) For Asynchronous mode, we must set RCR2 register for capture, and
