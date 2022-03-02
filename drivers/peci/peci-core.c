@@ -385,7 +385,7 @@ static int peci_check_cmd_support(struct peci_adapter *adapter,
 	return 0;
 }
 
-static int peci_cmd_xfer(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_xfer(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_xfer_msg *msg = vmsg;
 	u8 aw_fcs;
@@ -426,7 +426,7 @@ static int peci_cmd_xfer(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_ping(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_ping(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_ping_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
@@ -445,7 +445,7 @@ static int peci_cmd_ping(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_get_dib(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_get_dib(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_get_dib_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
@@ -470,7 +470,7 @@ out:
 	return ret;
 }
 
-static int peci_cmd_get_temp(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_get_temp(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_get_temp_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
@@ -495,11 +495,19 @@ out:
 	return ret;
 }
 
-static int peci_cmd_rd_pkg_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_pkg_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_pkg_cfg_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the PECI spec, the read length must be a byte, word, or dword */
 	if (umsg->rx_len != 1 && umsg->rx_len != 2 && umsg->rx_len != 4) {
@@ -515,8 +523,7 @@ static int peci_cmd_rd_pkg_cfg(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_RDPKGCFG_CMD;
-	msg->tx_buf[1] = 0;         /* request byte for Host ID | Retry bit */
-				    /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1;         /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = umsg->index;            /* RdPkgConfig index */
 	msg->tx_buf[3] = (u8)umsg->param;        /* LSB - Config parameter */
 	msg->tx_buf[4] = (u8)(umsg->param >> 8); /* MSB - Config parameter */
@@ -531,12 +538,19 @@ static int peci_cmd_rd_pkg_cfg(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_wr_pkg_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_wr_pkg_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_wr_pkg_cfg_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 aw_fcs, domain_id;
 	int ret, i;
-	u8 aw_fcs;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the PECI spec, the write length must be a dword */
 	if (umsg->tx_len != 4) {
@@ -552,8 +566,7 @@ static int peci_cmd_wr_pkg_cfg(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_WRPKGCFG_CMD;
-	msg->tx_buf[1] = 0;         /* request byte for Host ID | Retry bit */
-				   /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1;         /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = umsg->index;            /* RdPkgConfig index */
 	msg->tx_buf[3] = (u8)umsg->param;        /* LSB - Config parameter */
 	msg->tx_buf[4] = (u8)(umsg->param >> 8); /* MSB - Config parameter */
@@ -576,11 +589,19 @@ out:
 	return ret;
 }
 
-static int peci_cmd_rd_ia_msr(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_ia_msr(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_ia_msr_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	msg = peci_get_xfer_msg(PECI_RDIAMSR_WRITE_LEN, PECI_RDIAMSR_READ_LEN);
 	if (!msg)
@@ -588,7 +609,7 @@ static int peci_cmd_rd_ia_msr(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_RDIAMSR_CMD;
-	msg->tx_buf[1] = 0;
+	msg->tx_buf[1] = domain_id << 1; /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = umsg->thread_id;
 	msg->tx_buf[3] = (u8)umsg->address;
 	msg->tx_buf[4] = (u8)(umsg->address >> 8);
@@ -603,11 +624,19 @@ static int peci_cmd_rd_ia_msr(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_rd_ia_msrex(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_ia_msrex(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_ia_msrex_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	msg = peci_get_xfer_msg(PECI_RDIAMSREX_WRITE_LEN,
 				PECI_RDIAMSREX_READ_LEN);
@@ -616,7 +645,7 @@ static int peci_cmd_rd_ia_msrex(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_RDIAMSREX_CMD;
-	msg->tx_buf[1] = 0;
+	msg->tx_buf[1] = domain_id << 1; /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = (u8)umsg->thread_id;
 	msg->tx_buf[3] = (u8)(umsg->thread_id >> 8);
 	msg->tx_buf[4] = (u8)umsg->address;
@@ -632,17 +661,25 @@ static int peci_cmd_rd_ia_msrex(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_wr_ia_msr(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_wr_ia_msr(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	return -ENOSYS; /* Not implemented yet */
 }
 
-static int peci_cmd_rd_pci_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_pci_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_pci_cfg_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	u32 address;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	msg = peci_get_xfer_msg(PECI_RDPCICFG_WRITE_LEN,
 				PECI_RDPCICFG_READ_LEN);
@@ -656,8 +693,7 @@ static int peci_cmd_rd_pci_cfg(struct peci_adapter *adapter, void *vmsg)
 					      /* [31:28] - Reserved */
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_RDPCICFG_CMD;
-	msg->tx_buf[1] = 0;         /* request byte for Host ID | Retry bit */
-				   /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1;      /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = (u8)address;         /* LSB - PCI Config Address */
 	msg->tx_buf[3] = (u8)(address >> 8);  /* PCI Config Address */
 	msg->tx_buf[4] = (u8)(address >> 16); /* PCI Config Address */
@@ -673,17 +709,25 @@ static int peci_cmd_rd_pci_cfg(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_wr_pci_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_wr_pci_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	return -ENOSYS; /* Not implemented yet */
 }
 
-static int peci_cmd_rd_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_pci_cfg_local(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_pci_cfg_local_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	u32 address;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the PECI spec, the read length must be a byte, word, or dword */
 	if (umsg->rx_len != 1 && umsg->rx_len != 2 && umsg->rx_len != 4) {
@@ -705,8 +749,7 @@ static int peci_cmd_rd_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_RDPCICFGLOCAL_CMD;
-	msg->tx_buf[1] = 0;         /* request byte for Host ID | Retry bit */
-				    /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1;   /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = (u8)address;      /* LSB - PCI Configuration Address */
 	msg->tx_buf[3] = (u8)(address >> 8);  /* PCI Configuration Address */
 	msg->tx_buf[4] = (u8)(address >> 16); /* PCI Configuration Address */
@@ -721,13 +764,20 @@ static int peci_cmd_rd_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_wr_pci_cfg_local_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 aw_fcs, domain_id;
 	u32 address;
 	int ret, i;
-	u8 aw_fcs;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the PECI spec, the write length must be a byte, word, or dword */
 	if (umsg->tx_len != 1 && umsg->tx_len != 2 && umsg->tx_len != 4) {
@@ -748,8 +798,7 @@ static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_WRPCICFGLOCAL_CMD;
-	msg->tx_buf[1] = 0;         /* request byte for Host ID | Retry bit */
-				    /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1;   /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = (u8)address;      /* LSB - PCI Configuration Address */
 	msg->tx_buf[3] = (u8)(address >> 8);  /* PCI Configuration Address */
 	msg->tx_buf[4] = (u8)(address >> 16); /* PCI Configuration Address */
@@ -772,13 +821,20 @@ out:
 	return ret;
 }
 
-static int peci_cmd_rd_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_rd_end_pt_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_rd_end_pt_cfg_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg = NULL;
+	u8 tx_size, domain_id;
 	u32 address;
-	u8 tx_size;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	switch (umsg->msg_type) {
 	case PECI_ENDPTCFG_TYPE_LOCAL_PCI:
@@ -811,7 +867,7 @@ static int peci_cmd_rd_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
 				  /* [31:28] - Reserved */
 		msg->addr = umsg->addr;
 		msg->tx_buf[0] = PECI_RDENDPTCFG_CMD;
-		msg->tx_buf[1] = 0x00; /* request byte for Host ID|Retry bit */
+		msg->tx_buf[1] = domain_id << 1;	   /* Domain ID [7:1] | Retry bit [0] */
 		msg->tx_buf[2] = umsg->msg_type;	   /* Message Type */
 		msg->tx_buf[3] = 0x00;			   /* Endpoint ID */
 		msg->tx_buf[4] = 0x00;			   /* Reserved */
@@ -868,7 +924,7 @@ static int peci_cmd_rd_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
 
 		msg->addr = umsg->addr;
 		msg->tx_buf[0] = PECI_RDENDPTCFG_CMD;
-		msg->tx_buf[1] = 0x00; /* request byte for Host ID|Retry bit */
+		msg->tx_buf[1] = domain_id << 1;	      /* Domain ID [7:1] | Retry bit [0] */
 		msg->tx_buf[2] = umsg->msg_type;	      /* Message Type */
 		msg->tx_buf[3] = 0x00;			      /* Endpoint ID */
 		msg->tx_buf[4] = 0x00;			      /* Reserved */
@@ -913,13 +969,20 @@ static int peci_cmd_rd_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_wr_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_wr_end_pt_cfg(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_wr_end_pt_cfg_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg = NULL;
-	u8 tx_size, aw_fcs;
+	u8 tx_size, aw_fcs, domain_id;
 	int ret, i, idx;
 	u32 address;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	switch (umsg->msg_type) {
 	case PECI_ENDPTCFG_TYPE_LOCAL_PCI:
@@ -951,7 +1014,7 @@ static int peci_cmd_wr_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
 				  /* [31:28] - Reserved */
 		msg->addr = umsg->addr;
 		msg->tx_buf[0] = PECI_WRENDPTCFG_CMD;
-		msg->tx_buf[1] = 0x00; /* request byte for Host ID|Retry bit */
+		msg->tx_buf[1] = domain_id << 1;	   /* Domain ID [7:1] | Retry bit [0] */
 		msg->tx_buf[2] = umsg->msg_type;	   /* Message Type */
 		msg->tx_buf[3] = 0x00;			   /* Endpoint ID */
 		msg->tx_buf[4] = 0x00;			   /* Reserved */
@@ -1017,7 +1080,7 @@ static int peci_cmd_wr_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
 
 		msg->addr = umsg->addr;
 		msg->tx_buf[0] = PECI_WRENDPTCFG_CMD;
-		msg->tx_buf[1] = 0x00; /* request byte for Host ID|Retry bit */
+		msg->tx_buf[1] = domain_id << 1;	      /* Domain ID [7:1] | Retry bit [0] */
 		msg->tx_buf[2] = umsg->msg_type;	      /* Message Type */
 		msg->tx_buf[3] = 0x00;			      /* Endpoint ID */
 		msg->tx_buf[4] = 0x00;			      /* Reserved */
@@ -1073,11 +1136,19 @@ out:
 	return ret;
 }
 
-static int peci_cmd_crashdump_disc(struct peci_adapter *adapter, void *vmsg)
+static int peci_cmd_crashdump_disc(struct peci_adapter *adapter, uint msg_len, void *vmsg)
 {
 	struct peci_crashdump_disc_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the EDS, the read length must be a byte, word, or qword */
 	if (umsg->rx_len != 1 && umsg->rx_len != 2 && umsg->rx_len != 8) {
@@ -1094,8 +1165,7 @@ static int peci_cmd_crashdump_disc(struct peci_adapter *adapter, void *vmsg)
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_CRASHDUMP_CMD;
-	msg->tx_buf[1] = 0x00;        /* request byte for Host ID | Retry bit */
-				      /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1; /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = PECI_CRASHDUMP_DISC_VERSION;
 	msg->tx_buf[3] = PECI_CRASHDUMP_DISC_OPCODE;
 	msg->tx_buf[4] = umsg->subopcode;
@@ -1114,12 +1184,20 @@ static int peci_cmd_crashdump_disc(struct peci_adapter *adapter, void *vmsg)
 	return ret;
 }
 
-static int peci_cmd_crashdump_get_frame(struct peci_adapter *adapter,
+static int peci_cmd_crashdump_get_frame(struct peci_adapter *adapter, uint msg_len,
 					void *vmsg)
 {
 	struct peci_crashdump_get_frame_msg *umsg = vmsg;
 	struct peci_xfer_msg *msg;
+	u8 domain_id;
 	int ret;
+
+	/*
+	 * vmsg may not have a domain ID defined, so we need to check the msg_len.
+	 * If the msg_len is the same size as the struct, then domain ID is provided.
+	 * Otherwise the domain ID is 0.
+	 */
+	domain_id = (msg_len == sizeof(*umsg)) ? umsg->domain_id : 0;
 
 	/* Per the EDS, the read length must be a qword or dqword */
 	if (umsg->rx_len != 8 && umsg->rx_len != 16) {
@@ -1136,8 +1214,7 @@ static int peci_cmd_crashdump_get_frame(struct peci_adapter *adapter,
 
 	msg->addr = umsg->addr;
 	msg->tx_buf[0] = PECI_CRASHDUMP_CMD;
-	msg->tx_buf[1] = 0x00;        /* request byte for Host ID | Retry bit */
-				      /* Host ID is 0 for PECI 3.0 */
+	msg->tx_buf[1] = domain_id << 1; /* Domain ID [7:1] | Retry bit [0] */
 	msg->tx_buf[2] = PECI_CRASHDUMP_GET_FRAME_VERSION;
 	msg->tx_buf[3] = PECI_CRASHDUMP_GET_FRAME_OPCODE;
 	msg->tx_buf[4] = (u8)umsg->param0;
@@ -1157,7 +1234,7 @@ static int peci_cmd_crashdump_get_frame(struct peci_adapter *adapter,
 	return ret;
 }
 
-typedef int (*peci_cmd_fn_type)(struct peci_adapter *, void *);
+typedef int (*peci_cmd_fn_type)(struct peci_adapter *, uint, void *);
 
 static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
 	peci_cmd_xfer,
@@ -1206,7 +1283,7 @@ int peci_command(struct peci_adapter *adapter, enum peci_cmd cmd, uint msg_len, 
 
 	ret = peci_check_cmd_support(adapter, cmd);
 	if (!ret)
-		ret = peci_cmd_fn[cmd](adapter, vmsg);
+		ret = peci_cmd_fn[cmd](adapter, msg_len, vmsg);
 
 	mutex_unlock(&adapter->bus_lock);
 
