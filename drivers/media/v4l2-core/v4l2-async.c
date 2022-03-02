@@ -275,6 +275,24 @@ v4l2_async_nf_try_complete(struct v4l2_async_notifier *notifier)
 static int
 v4l2_async_nf_try_all_subdevs(struct v4l2_async_notifier *notifier);
 
+static int v4l2_async_create_ancillary_links(struct v4l2_async_notifier *n,
+					     struct v4l2_subdev *sd)
+{
+	struct media_link *link = NULL;
+
+#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
+
+	if (sd->entity.function != MEDIA_ENT_F_LENS &&
+	    sd->entity.function != MEDIA_ENT_F_FLASH)
+		return 0;
+
+	link = media_create_ancillary_link(&n->sd->entity, &sd->entity);
+
+#endif
+
+	return IS_ERR(link) ? PTR_ERR(link) : 0;
+}
+
 static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 				   struct v4l2_device *v4l2_dev,
 				   struct v4l2_subdev *sd,
@@ -289,6 +307,19 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 
 	ret = v4l2_async_nf_call_bound(notifier, sd, asd);
 	if (ret < 0) {
+		v4l2_device_unregister_subdev(sd);
+		return ret;
+	}
+
+	/*
+	 * Depending of the function of the entities involved, we may want to
+	 * create links between them (for example between a sensor and its lens
+	 * or between a sensor's source pad and the connected device's sink
+	 * pad).
+	 */
+	ret = v4l2_async_create_ancillary_links(notifier, sd);
+	if (ret) {
+		v4l2_async_nf_call_unbind(notifier, sd, asd);
 		v4l2_device_unregister_subdev(sd);
 		return ret;
 	}
