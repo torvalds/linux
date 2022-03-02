@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config I3C_MCTP
+    tristate "I3C MCTP driver"
+    depends on I3C
+help
+    Say yes here to enable the I3C MCTP driver.

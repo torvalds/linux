@@ -21,6 +21,8 @@ menuconfig I3C
 
 if I3C
 
+source "drivers/i3c/mctp/Kconfig"
+
 config I3CDEV
 	tristate "I3C device interface"
 	depends on I3C
