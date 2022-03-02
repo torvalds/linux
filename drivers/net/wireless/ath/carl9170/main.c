@@ -1916,7 +1916,8 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!bands)
 		return -EINVAL;
 
-	ar->survey = kcalloc(chans, sizeof(struct survey_info), GFP_KERNEL);
+	ar->survey = devm_kcalloc(&ar->udev->dev, chans,
+				  sizeof(struct survey_info), GFP_KERNEL);
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
@@ -2045,9 +2046,6 @@ void carl9170_free(struct ar9170 *ar)
 
 	kfree_skb(ar->rx_failover);
 	ar->rx_failover = NULL;
-
-	kfree(ar->survey);
-	ar->survey = NULL;
 
 	mutex_destroy(&ar->mutex);
 
