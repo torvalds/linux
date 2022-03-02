@@ -1121,4 +1121,23 @@ void media_remove_intf_links(struct media_interface *intf);
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
 
+/**
+ * media_create_ancillary_link() - create an ancillary link between two
+ *				   instances of &media_entity
+ *
+ * @primary:	pointer to the primary &media_entity
+ * @ancillary:	pointer to the ancillary &media_entity
+ *
+ * Create an ancillary link between two entities, indicating that they
+ * represent two connected pieces of hardware that form a single logical unit.
+ * A typical example is a camera lens controller being linked to the sensor that
+ * it is supporting.
+ *
+ * The function sets both MEDIA_LNK_FL_ENABLED and MEDIA_LNK_FL_IMMUTABLE for
+ * the new link.
+ */
+struct media_link *
+media_create_ancillary_link(struct media_entity *primary,
+			    struct media_entity *ancillary);
+
 #endif
