@@ -561,6 +561,15 @@ struct hns_roce_cmd_mailbox {
 	dma_addr_t		dma;
 };
 
+struct hns_roce_mbox_msg {
+	u64 in_param;
+	u64 out_param;
+	u8 cmd;
+	u32 tag;
+	u16 token;
+	u8 event_en;
+};
+
 struct hns_roce_dev;
 
 struct hns_roce_rinl_sge {
@@ -851,9 +860,8 @@ struct hns_roce_hw {
 	int (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
-	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
-			 u64 out_param, u32 in_modifier, u8 op,
-			 u16 token, int event);
+	int (*post_mbox)(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_mbox_msg *mbox_msg);
 	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev);
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, int gid_index,

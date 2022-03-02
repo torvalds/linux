@@ -1344,16 +1344,17 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
-static int config_hem_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
-			       dma_addr_t base_addr, u8 op)
+static int config_hem_ba_to_hw(struct hns_roce_dev *hr_dev,
+			       dma_addr_t base_addr, u8 cmd, unsigned long tag)
 {
-	struct hns_roce_cmd_mailbox *mbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	struct hns_roce_cmd_mailbox *mbox;
 	int ret;
 
+	mbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mbox))
 		return PTR_ERR(mbox);
 
-	ret = hns_roce_cmd_mbox(hr_dev, base_addr, mbox->dma, obj, op);
+	ret = hns_roce_cmd_mbox(hr_dev, base_addr, mbox->dma, cmd, tag);
 	hns_roce_free_cmd_mailbox(hr_dev, mbox);
 	return ret;
 }
@@ -2779,21 +2780,21 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 		free_dip_list(hr_dev);
 }
 
-static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev, u64 in_param,
-			      u64 out_param, u32 in_modifier,
-			      u8 op, u16 token, int event)
+static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mbox_msg *mbox_msg)
 {
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_post_mbox *mb = (struct hns_roce_post_mbox *)desc.data;
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_POST_MB, false);
 
-	mb->in_param_l = cpu_to_le32(in_param);
-	mb->in_param_h = cpu_to_le32(in_param >> 32);
-	mb->out_param_l = cpu_to_le32(out_param);
-	mb->out_param_h = cpu_to_le32(out_param >> 32);
-	mb->cmd_tag = cpu_to_le32(in_modifier << 8 | op);
-	mb->token_event_en = cpu_to_le32(event << 16 | token);
+	mb->in_param_l = cpu_to_le32(mbox_msg->in_param);
+	mb->in_param_h = cpu_to_le32(mbox_msg->in_param >> 32);
+	mb->out_param_l = cpu_to_le32(mbox_msg->out_param);
+	mb->out_param_h = cpu_to_le32(mbox_msg->out_param >> 32);
+	mb->cmd_tag = cpu_to_le32(mbox_msg->tag << 8 | mbox_msg->cmd);
+	mb->token_event_en = cpu_to_le32(mbox_msg->event_en << 16 |
+					 mbox_msg->token);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
@@ -2846,9 +2847,8 @@ static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
 	return ret;
 }
 
-static int v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
-			u64 out_param, u32 in_modifier,
-			u8 op, u16 token, int event)
+static int v2_post_mbox(struct hns_roce_dev *hr_dev,
+			struct hns_roce_mbox_msg *mbox_msg)
 {
 	u8 status = 0;
 	int ret;
@@ -2864,8 +2864,7 @@ static int v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 	}
 
 	/* Post new message to mbox */
-	ret = hns_roce_mbox_post(hr_dev, in_param, out_param, in_modifier,
-				 op, token, event);
+	ret = hns_roce_mbox_post(hr_dev, mbox_msg);
 	if (ret)
 		dev_err_ratelimited(hr_dev->dev,
 				    "failed to post mailbox, ret = %d.\n", ret);
@@ -3818,38 +3817,38 @@ out:
 }
 
 static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
-			      u32 step_idx, u8 *mbox_op)
+			      u32 step_idx, u8 *mbox_cmd)
 {
-	u8 op;
+	u8 cmd;
 
 	switch (type) {
 	case HEM_TYPE_QPC:
-		op = HNS_ROCE_CMD_WRITE_QPC_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_QPC_BT0;
 		break;
 	case HEM_TYPE_MTPT:
-		op = HNS_ROCE_CMD_WRITE_MPT_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_MPT_BT0;
 		break;
 	case HEM_TYPE_CQC:
-		op = HNS_ROCE_CMD_WRITE_CQC_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_CQC_BT0;
 		break;
 	case HEM_TYPE_SRQC:
-		op = HNS_ROCE_CMD_WRITE_SRQC_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_SRQC_BT0;
 		break;
 	case HEM_TYPE_SCCC:
-		op = HNS_ROCE_CMD_WRITE_SCCC_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_SCCC_BT0;
 		break;
 	case HEM_TYPE_QPC_TIMER:
-		op = HNS_ROCE_CMD_WRITE_QPC_TIMER_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_QPC_TIMER_BT0;
 		break;
 	case HEM_TYPE_CQC_TIMER:
-		op = HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0;
+		cmd = HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0;
 		break;
 	default:
 		dev_warn(hr_dev->dev, "failed to check hem type %u.\n", type);
 		return -EINVAL;
 	}
 
-	*mbox_op = op + step_idx;
+	*mbox_cmd = cmd + step_idx;
 
 	return 0;
 }
@@ -3875,7 +3874,7 @@ static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj,
 			 dma_addr_t base_addr, u32 hem_type, u32 step_idx)
 {
 	int ret;
-	u8 op;
+	u8 cmd;
 
 	if (unlikely(hem_type == HEM_TYPE_GMV))
 		return config_gmv_ba_to_hw(hr_dev, obj, base_addr);
@@ -3883,11 +3882,11 @@ static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj,
 	if (unlikely(hem_type == HEM_TYPE_SCCC && step_idx))
 		return 0;
 
-	ret = get_op_for_set_hem(hr_dev, hem_type, step_idx, &op);
+	ret = get_op_for_set_hem(hr_dev, hem_type, step_idx, &cmd);
 	if (ret < 0)
 		return ret;
 
-	return config_hem_ba_to_hw(hr_dev, obj, base_addr, op);
+	return config_hem_ba_to_hw(hr_dev, base_addr, cmd, obj);
 }
 
 static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
@@ -3950,12 +3949,12 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 }
 
 static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
-				 struct hns_roce_hem_table *table, int obj,
-				 u32 step_idx)
+				 struct hns_roce_hem_table *table,
+				 int tag, u32 step_idx)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
 	struct device *dev = hr_dev->dev;
-	u8 op = 0xff;
+	u8 cmd = 0xff;
 	int ret;
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
@@ -3963,16 +3962,16 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 
 	switch (table->type) {
 	case HEM_TYPE_QPC:
-		op = HNS_ROCE_CMD_DESTROY_QPC_BT0;
+		cmd = HNS_ROCE_CMD_DESTROY_QPC_BT0;
 		break;
 	case HEM_TYPE_MTPT:
-		op = HNS_ROCE_CMD_DESTROY_MPT_BT0;
+		cmd = HNS_ROCE_CMD_DESTROY_MPT_BT0;
 		break;
 	case HEM_TYPE_CQC:
-		op = HNS_ROCE_CMD_DESTROY_CQC_BT0;
+		cmd = HNS_ROCE_CMD_DESTROY_CQC_BT0;
 		break;
 	case HEM_TYPE_SRQC:
-		op = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
+		cmd = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
 		break;
 	case HEM_TYPE_SCCC:
 	case HEM_TYPE_QPC_TIMER:
@@ -3985,14 +3984,13 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 		return 0;
 	}
 
-	op += step_idx;
+	cmd += step_idx;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	/* configure the tag and op */
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, obj, op);
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, cmd, tag);
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	return ret;
@@ -4016,8 +4014,8 @@ static int hns_roce_v2_qp_modify(struct hns_roce_dev *hr_dev,
 	memcpy(mailbox->buf, context, qpc_size);
 	memcpy(mailbox->buf + qpc_size, qpc_mask, qpc_size);
 
-	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_qp->qpn,
-				HNS_ROCE_CMD_MODIFY_QPC);
+	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0,
+				HNS_ROCE_CMD_MODIFY_QPC, hr_qp->qpn);
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
@@ -5090,8 +5088,8 @@ static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, hr_qp->qpn,
-				HNS_ROCE_CMD_QUERY_QPC);
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, HNS_ROCE_CMD_QUERY_QPC,
+				hr_qp->qpn);
 	if (ret)
 		goto out;
 
@@ -5457,8 +5455,8 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 		hr_reg_write(srq_context, SRQC_LIMIT_WL, srq_attr->srq_limit);
 		hr_reg_clear(srqc_mask, SRQC_LIMIT_WL);
 
-		ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, srq->srqn,
-					HNS_ROCE_CMD_MODIFY_SRQC);
+		ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0,
+					HNS_ROCE_CMD_MODIFY_SRQC, srq->srqn);
 		hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 		if (ret) {
 			ibdev_err(&hr_dev->ib_dev,
@@ -5484,8 +5482,8 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 		return PTR_ERR(mailbox);
 
 	srq_context = mailbox->buf;
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, srq->srqn,
-				HNS_ROCE_CMD_QUERY_SRQC);
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma,
+				HNS_ROCE_CMD_QUERY_SRQC, srq->srqn);
 	if (ret) {
 		ibdev_err(&hr_dev->ib_dev,
 			  "failed to process cmd of querying SRQ, ret = %d.\n",
@@ -5535,8 +5533,8 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	hr_reg_write(cq_context, CQC_CQ_PERIOD, cq_period);
 	hr_reg_clear(cqc_mask, CQC_CQ_PERIOD);
 
-	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn,
-				HNS_ROCE_CMD_MODIFY_CQC);
+	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0,
+				HNS_ROCE_CMD_MODIFY_CQC, hr_cq->cqn);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret)
 		ibdev_err(&hr_dev->ib_dev,
@@ -5863,13 +5861,14 @@ static void hns_roce_v2_destroy_eqc(struct hns_roce_dev *hr_dev, u32 eqn)
 {
 	struct device *dev = hr_dev->dev;
 	int ret;
+	u8 cmd;
 
 	if (eqn < hr_dev->caps.num_comp_vectors)
-		ret = hns_roce_cmd_mbox(hr_dev, 0, 0, eqn & HNS_ROCE_V2_EQN_M,
-					HNS_ROCE_CMD_DESTROY_CEQC);
+		cmd = HNS_ROCE_CMD_DESTROY_CEQC;
 	else
-		ret = hns_roce_cmd_mbox(hr_dev, 0, 0, eqn & HNS_ROCE_V2_EQN_M,
-					HNS_ROCE_CMD_DESTROY_AEQC);
+		cmd = HNS_ROCE_CMD_DESTROY_AEQC;
+
+	ret = hns_roce_cmd_mbox(hr_dev, 0, 0, cmd, eqn & HNS_ROCE_V2_EQN_M);
 	if (ret)
 		dev_err(dev, "[mailbox cmd] destroy eqc(%u) failed.\n", eqn);
 }
@@ -5993,7 +5992,7 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 	if (ret)
 		goto err_cmd_mbox;
 
-	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, eq->eqn, eq_cmd);
+	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, eq_cmd, eq->eqn);
 	if (ret) {
 		dev_err(hr_dev->dev, "[mailbox cmd] create eqc failed.\n");
 		goto err_cmd_mbox;
