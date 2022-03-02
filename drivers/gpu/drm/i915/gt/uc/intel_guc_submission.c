@@ -2140,6 +2140,8 @@ static int __guc_action_register_context(struct intel_guc *guc,
 					     0, loop);
 }
 
+static void prepare_context_registration_info(struct intel_context *ce);
+
 static int register_context(struct intel_context *ce, bool loop)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
@@ -2149,6 +2151,8 @@ static int register_context(struct intel_context *ce, bool loop)
 
 	GEM_BUG_ON(intel_context_is_child(ce));
 	trace_intel_context_register(ce);
+
+	prepare_context_registration_info(ce);
 
 	if (intel_context_is_parent(ce))
 		ret = __guc_action_register_multi_lrc(guc, ce, ce->guc_id.id,
@@ -2303,8 +2307,6 @@ static int try_context_registration(struct intel_context *ce, bool loop)
 
 	clr_ctx_id_mapping(guc, desc_idx);
 	set_ctx_id_mapping(guc, desc_idx, ce);
-
-	prepare_context_registration_info(ce);
 
 	/*
 	 * The context_lookup xarray is used to determine if the hardware
