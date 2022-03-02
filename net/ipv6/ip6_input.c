@@ -459,6 +459,7 @@ discard:
 
 static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	skb_clear_delivery_time(skb);
 	rcu_read_lock();
 	ip6_protocol_deliver_rcu(net, skb, 0, false);
 	rcu_read_unlock();

@@ -226,6 +226,7 @@ resubmit:
 
 static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	skb_clear_delivery_time(skb);
 	__skb_pull(skb, skb_network_header_len(skb));
 
 	rcu_read_lock();
