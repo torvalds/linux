@@ -1345,7 +1345,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 }
 
 static int config_hem_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
-			       dma_addr_t base_addr, u16 op)
+			       dma_addr_t base_addr, u8 op)
 {
 	struct hns_roce_cmd_mailbox *mbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	int ret;
@@ -2781,7 +2781,7 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev, u64 in_param,
 			      u64 out_param, u32 in_modifier,
-			      u16 op, u16 token, int event)
+			      u8 op, u16 token, int event)
 {
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_post_mbox *mb = (struct hns_roce_post_mbox *)desc.data;
@@ -2848,7 +2848,7 @@ static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
 
 static int v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 			u64 out_param, u32 in_modifier,
-			u16 op, u16 token, int event)
+			u8 op, u16 token, int event)
 {
 	u8 status = 0;
 	int ret;
@@ -3818,9 +3818,9 @@ out:
 }
 
 static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
-			      int step_idx, u16 *mbox_op)
+			      u32 step_idx, u8 *mbox_op)
 {
-	u16 op;
+	u8 op;
 
 	switch (type) {
 	case HEM_TYPE_QPC:
@@ -3872,10 +3872,10 @@ static int config_gmv_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
 }
 
 static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj,
-			 dma_addr_t base_addr, u32 hem_type, int step_idx)
+			 dma_addr_t base_addr, u32 hem_type, u32 step_idx)
 {
 	int ret;
-	u16 op;
+	u8 op;
 
 	if (unlikely(hem_type == HEM_TYPE_GMV))
 		return config_gmv_ba_to_hw(hr_dev, obj, base_addr);
@@ -3892,7 +3892,7 @@ static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj,
 
 static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_hem_table *table, int obj,
-			       int step_idx)
+			       u32 step_idx)
 {
 	struct hns_roce_hem_iter iter;
 	struct hns_roce_hem_mhop mhop;
@@ -3951,12 +3951,12 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 				 struct hns_roce_hem_table *table, int obj,
-				 int step_idx)
+				 u32 step_idx)
 {
-	struct device *dev = hr_dev->dev;
 	struct hns_roce_cmd_mailbox *mailbox;
+	struct device *dev = hr_dev->dev;
+	u8 op = 0xff;
 	int ret;
-	u16 op = 0xff;
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
 		return 0;
@@ -5975,8 +5975,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 }
 
 static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
-				 struct hns_roce_eq *eq,
-				 unsigned int eq_cmd)
+				 struct hns_roce_eq *eq, u8 eq_cmd)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
 	int ret;
@@ -6105,14 +6104,14 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 	struct hns_roce_eq_table *eq_table = &hr_dev->eq_table;
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_eq *eq;
-	unsigned int eq_cmd;
-	int irq_num;
-	int eq_num;
 	int other_num;
 	int comp_num;
 	int aeq_num;
-	int i;
+	int irq_num;
+	int eq_num;
+	u8 eq_cmd;
 	int ret;
+	int i;
 
 	other_num = hr_dev->caps.num_other_vectors;
 	comp_num = hr_dev->caps.num_comp_vectors;
