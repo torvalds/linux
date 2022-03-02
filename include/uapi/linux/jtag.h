@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (c) 2018 Mellanox Technologies. All rights reserved. */
 /* Copyright (c) 2018 Oleksandr Shamray <oleksandrs@mellanox.com> */
 /* Copyright (c) 2019 Intel Corporation */
