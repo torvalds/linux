@@ -20,6 +20,7 @@ char _license[] SEC("license") = "GPL";
 
 bool use_ima_file_hash;
 bool enable_bprm_creds_for_exec;
+bool enable_kernel_read_file;
 
 static void ima_test_common(struct file *file)
 {
@@ -63,5 +64,22 @@ int BPF_PROG(bprm_creds_for_exec, struct linux_binprm *bprm)
 		return 0;
 
 	ima_test_common(bprm->file);
+	return 0;
+}
+
+SEC("lsm.s/kernel_read_file")
+int BPF_PROG(kernel_read_file, struct file *file, enum kernel_read_file_id id,
+	     bool contents)
+{
+	if (!enable_kernel_read_file)
+		return 0;
+
+	if (!contents)
+		return 0;
+
+	if (id != READING_POLICY)
+		return 0;
+
+	ima_test_common(file);
 	return 0;
 }

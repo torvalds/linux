@@ -58,6 +58,7 @@ static void test_init(struct ima__bss *bss)
 
 	bss->use_ima_file_hash = false;
 	bss->enable_bprm_creds_for_exec = false;
+	bss->enable_kernel_read_file = false;
 }
 
 void test_test_ima(void)
@@ -180,6 +181,24 @@ void test_test_ima(void)
 				    "restore-bin");
 	if (CHECK(err, "restore-bin #3", "err = %d\n", err))
 		goto close_clean;
+
+	/*
+	 * Test #5
+	 * - Goal: obtain a sample from the kernel_read_file hook
+	 * - Expected result: 2 samples (./ima_setup.sh, policy_test)
+	 */
+	test_init(skel->bss);
+	skel->bss->use_ima_file_hash = true;
+	skel->bss->enable_kernel_read_file = true;
+	err = _run_measured_process(measured_dir, &skel->bss->monitored_pid,
+				    "load-policy");
+	if (CHECK(err, "run_measured_process #5", "err = %d\n", err))
+		goto close_clean;
+
+	err = ring_buffer__consume(ringbuf);
+	ASSERT_EQ(err, 2, "num_samples_or_err");
+	ASSERT_NEQ(ima_hash_from_bpf[0], 0, "ima_hash");
+	ASSERT_NEQ(ima_hash_from_bpf[1], 0, "ima_hash");
 
 close_clean:
 	snprintf(cmd, sizeof(cmd), "./ima_setup.sh cleanup %s", measured_dir);
