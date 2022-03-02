@@ -443,6 +443,10 @@ static void dw_mipi_dsi2_post_disable(struct dw_mipi_dsi2 *dsi2)
 static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+
+	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 
 	if (dsi2->panel)
 		drm_panel_disable(dsi2->panel);
@@ -873,7 +877,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
-	s->output_if = dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
+	s->output_if |= dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
 	s->bus_flags = info->bus_flags;
 
 	s->tv_state = &conn_state->tv;
