@@ -12,7 +12,7 @@ LOG_FILE="$(mktemp /tmp/ima_setup.XXXX.log)"
 
 usage()
 {
-	echo "Usage: $0 <setup|cleanup|run> <existing_tmp_dir>"
+	echo "Usage: $0 <setup|cleanup|run|modify-bin|restore-bin> <existing_tmp_dir>"
 	exit 1
 }
 
@@ -77,6 +77,24 @@ run()
 	exec "${copied_bin_path}"
 }
 
+modify_bin()
+{
+	local tmp_dir="$1"
+	local mount_dir="${tmp_dir}/mnt"
+	local copied_bin_path="${mount_dir}/$(basename ${TEST_BINARY})"
+
+	echo "mod" >> "${copied_bin_path}"
+}
+
+restore_bin()
+{
+	local tmp_dir="$1"
+	local mount_dir="${tmp_dir}/mnt"
+	local copied_bin_path="${mount_dir}/$(basename ${TEST_BINARY})"
+
+	truncate -s -4 "${copied_bin_path}"
+}
+
 catch()
 {
 	local exit_code="$1"
@@ -105,6 +123,10 @@ main()
 		cleanup "${tmp_dir}"
 	elif [[ "${action}" == "run" ]]; then
 		run "${tmp_dir}"
+	elif [[ "${action}" == "modify-bin" ]]; then
+		modify_bin "${tmp_dir}"
+	elif [[ "${action}" == "restore-bin" ]]; then
+		restore_bin "${tmp_dir}"
 	else
 		echo "Unknown action: ${action}"
 		exit 1

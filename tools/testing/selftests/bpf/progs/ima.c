@@ -19,6 +19,7 @@ struct {
 char _license[] SEC("license") = "GPL";
 
 bool use_ima_file_hash;
+bool enable_bprm_creds_for_exec;
 
 static void ima_test_common(struct file *file)
 {
@@ -53,4 +54,14 @@ SEC("lsm.s/bprm_committed_creds")
 void BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
 {
 	ima_test_common(bprm->file);
+}
+
+SEC("lsm.s/bprm_creds_for_exec")
+int BPF_PROG(bprm_creds_for_exec, struct linux_binprm *bprm)
+{
+	if (!enable_bprm_creds_for_exec)
+		return 0;
+
+	ima_test_common(bprm->file);
+	return 0;
 }
