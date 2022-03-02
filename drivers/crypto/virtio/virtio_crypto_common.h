@@ -130,8 +130,8 @@ static inline int virtio_crypto_get_current_node(void)
 	return node;
 }
 
-int virtio_crypto_algs_register(struct virtio_crypto *vcrypto);
-void virtio_crypto_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_skcipher_algs_register(struct virtio_crypto *vcrypto);
+void virtio_crypto_skcipher_algs_unregister(struct virtio_crypto *vcrypto);
 int virtio_crypto_akcipher_algs_register(struct virtio_crypto *vcrypto);
 void virtio_crypto_akcipher_algs_unregister(struct virtio_crypto *vcrypto);
 
