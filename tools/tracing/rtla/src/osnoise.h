@@ -23,6 +23,10 @@ struct osnoise_context {
 	long long		orig_timerlat_period_us;
 	long long		timerlat_period_us;
 
+	/* 0 as init value */
+	long long		orig_tracing_thresh;
+	long long		tracing_thresh;
+
 	/* -1 as init value because 0 is disabled */
 	long long		orig_stop_us;
 	long long		stop_us;
@@ -66,6 +70,10 @@ void osnoise_restore_stop_total_us(struct osnoise_context *context);
 int osnoise_set_timerlat_period_us(struct osnoise_context *context,
 				   long long timerlat_period_us);
 void osnoise_restore_timerlat_period_us(struct osnoise_context *context);
+
+int osnoise_set_tracing_thresh(struct osnoise_context *context,
+			       long long tracing_thresh);
+void osnoise_restore_tracing_thresh(struct osnoise_context *context);
 
 void osnoise_restore_print_stack(struct osnoise_context *context);
 int osnoise_set_print_stack(struct osnoise_context *context,
