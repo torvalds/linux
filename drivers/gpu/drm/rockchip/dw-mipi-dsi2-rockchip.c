@@ -564,7 +564,7 @@ static void dw_mipi_dsi2_phy_clk_mode_cfg(struct dw_mipi_dsi2 *dsi2)
 static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 {
 	struct drm_display_mode *mode = &dsi2->mode;
-	u32 sys_clk = clk_get_rate(dsi2->sys_clk) / MSEC_PER_SEC;
+	u64 sys_clk = clk_get_rate(dsi2->sys_clk);
 	u64 pixel_clk, ipi_clk, phy_hsclk;
 	u64 tmp;
 
@@ -574,12 +574,12 @@ static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 	 * high speed symbol rate.
 	 */
 	if (dsi2->c_option)
-		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * MSEC_PER_SEC, 7);
+		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * USEC_PER_SEC, 7);
 	else
-		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * MSEC_PER_SEC, 16);
+		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * USEC_PER_SEC, 16);
 
 	/* IPI_RATIO_MAN_CFG = PHY_HSTX_CLK / IPI_CLK */
-	pixel_clk = mode->clock;
+	pixel_clk = mode->clock * MSEC_PER_SEC;
 	ipi_clk = pixel_clk / 4;
 
 	tmp = DIV_ROUND_CLOSEST_ULL(phy_hsclk << 16, ipi_clk);
@@ -689,8 +689,8 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	struct drm_display_mode *mode = &dsi2->mode;
 	u32 hline, hsa, hbp, hact;
 	u64 hline_time, hsa_time, hbp_time, hact_time, tmp;
+	u64 pixel_clk, phy_hs_clk;
 	u32 vact, vsa, vfp, vbp;
-	u32 pixel_clk, phy_hs_clk;
 	u16 val;
 
 	if (dsi2->slave || dsi2->master)
@@ -718,12 +718,12 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	hbp = mode->htotal - mode->hsync_end;
 	hline = mode->htotal;
 
-	pixel_clk = mode->clock / 1000;
+	pixel_clk = mode->clock * MSEC_PER_SEC;
 
 	if (dsi2->c_option)
-		phy_hs_clk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate, 7);
+		phy_hs_clk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * USEC_PER_SEC, 7);
 	else
-		phy_hs_clk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate, 16);
+		phy_hs_clk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * USEC_PER_SEC, 16);
 
 	tmp = hsa * phy_hs_clk;
 	hsa_time = DIV_ROUND_CLOSEST_ULL(tmp << 16, pixel_clk);
