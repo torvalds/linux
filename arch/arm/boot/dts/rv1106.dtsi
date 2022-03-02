@@ -719,7 +719,7 @@
 		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA2E>, <&cru HCLK_RGA2E>, <&cru CLK_CORE_RGA2E>;
 		clock-names = "aclk_rga2", "hclk_rga2", "clk_rga2";
-		status = "disable";
+		status = "disabled";
 	};
 
 	vop: vop@ff990000 {
