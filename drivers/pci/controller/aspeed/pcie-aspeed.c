@@ -3,34 +3,20 @@
  * PCIe host controller driver for ASPEED PCIe Bridge
  *
  */
-
-#include <linux/irqdomain.h>
-#include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
-#include <linux/of_pci.h>
-
-#include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
-
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/msi.h>
-
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
-#include <linux/pci.h>
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-
-#include "h2x-ast2600.h"
+#include <linux/kernel.h>
+#include <linux/msi.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/of_pci.h>
+#include <linux/pci.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
 
 /*	PCI Host Controller registers */
 #define ASPEED_PCIE_CLASS_CODE		0x04
@@ -63,55 +49,496 @@
 #define PCIE_LINK_5G			BIT(17)
 #define PCIE_LINK_2_5G			BIT(16)
 
-static DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
+/*	H2X Controller registers */
+/* reg 0x08 */
+#define PCIE_TX_IDLE_CLEAR		BIT(0)
 
-static int aspeed_wait_for_link(struct aspeed_pcie *pcie)
+/* reg 0x24 */
+#define PCIE_TX_IDLE			BIT(31)
+
+#define PCIE_STATUS_OF_TX		GENMASK(25, 24)
+#define	PCIE_RC_TX_COMPLETE		0
+#define	PCIE_RC_L_TX_COMPLETE	BIT(24)
+#define	PCIE_RC_H_TX_COMPLETE	BIT(25)
+
+#define PCIE_TRIGGER_TX			BIT(0)
+
+/* reg 0x80, 0xC0 */
+#define PCIE_RX_TAG_MASK		GENMASK(23, 16)
+#define PCIE_RX_DMA_EN			BIT(9)
+#define PCIE_RX_LINEAR			BIT(8)
+#define PCIE_RX_MSI_SEL			BIT(7)
+#define PCIE_RX_MSI_EN			BIT(6)
+#define PCIE_1M_ADDRESS_EN		BIT(5)
+#define PCIE_UNLOCK_RX_BUFF		BIT(4)
+#define PCIE_RX_TLP_TAG_MATCH	BIT(3)
+#define PCIE_Wait_RX_TLP_CLR	BIT(2)
+#define PCIE_RC_RX_ENABLE		BIT(1)
+#define PCIE_RC_ENABLE			BIT(0)
+
+/* reg 0x88, 0xC8 : RC ISR */
+#define PCIE_RC_CPLCA_ISR		BIT(6)
+#define PCIE_RC_CPLUR_ISR		BIT(5)
+#define PCIE_RC_RX_DONE_ISR		BIT(4)
+
+#define PCIE_RC_INTD_ISR		BIT(3)
+#define PCIE_RC_INTC_ISR		BIT(2)
+#define PCIE_RC_INTB_ISR		BIT(1)
+#define PCIE_RC_INTA_ISR		BIT(0)
+
+#define MAX_MSI_HOST_IRQS		64
+
+struct aspeed_pcie {
+	struct device *dev;
+	void __iomem *reg;	//rc slot base
+	int domain;
+	char name[10];
+	u32 msi_address;
+	int	irq;
+	u8 txTag;
+	struct regmap *cfg;	//pciecfg
+	struct regmap *pciephy; //pcie_phy
+	struct reset_control *phy_rst;
+	/* INTx */
+	struct irq_domain *irq_domain;	//irq_domain
+	// msi
+	struct irq_domain *dev_domain;	//inner_domain
+	struct irq_domain *msi_domain;
+	struct mutex lock;
+	int link;
+	int hotplug_event;
+	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
+};
+
+static void aspeed_pcie_intx_ack_irq(struct irq_data *d)
 {
-	/* Don't register host if link is down */
-	if (readl(pcie->pciereg_base + ASPEED_PCIE_LINK) & PCIE_LINK_STS) {
-		aspeed_h2x_set_slot_power_limit(pcie);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
-		if (readl(pcie->pciereg_base
-				+ ASPEED_PCIE_LINK_STS) & PCIE_LINK_5G)
-			dev_info(pcie->dev, "PCIE- Link up : 5G\n");
-		if (readl(pcie->pciereg_base
-				+ ASPEED_PCIE_LINK_STS) & PCIE_LINK_2_5G)
-			dev_info(pcie->dev, "PCIE- Link up : 2.5G\n");
-	} else {
-		dev_info(pcie->dev, "PCIE- Link down\n");
-	}
-	return 0;
+	writel(readl(pcie->reg + 0x04) | BIT(d->hwirq), pcie->reg + 0x04);
 }
 
-static struct irq_chip aspeed_leg_irq_chip = {
+static void aspeed_pcie_intx_mask_irq(struct irq_data *d)
+{
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
+
+	writel(readl(pcie->reg + 0x04) & ~BIT(d->hwirq), pcie->reg + 0x04);
+}
+
+static void aspeed_pcie_intx_unmask_irq(struct irq_data *d)
+{
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
+
+	writel(readl(pcie->reg + 0x04) | BIT(d->hwirq), pcie->reg + 0x04);
+}
+
+static struct irq_chip aspeed_intx_irq_chip = {
 	.name = "ASPEED:IntX",
-	.irq_ack = aspeed_h2x_intx_ack_irq,
-	.irq_mask = aspeed_h2x_intx_mask_irq,
-	.irq_unmask = aspeed_h2x_intx_unmask_irq,
+	.irq_ack = aspeed_pcie_intx_ack_irq,
+	.irq_mask = aspeed_pcie_intx_mask_irq,
+	.irq_unmask = aspeed_pcie_intx_unmask_irq,
 };
 
 static int aspeed_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 			  irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &aspeed_leg_irq_chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, &aspeed_intx_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_status_flags(irq, IRQ_LEVEL);
 
 	return 0;
 }
 
-
 /* INTx IRQ Domain operations */
 static const struct irq_domain_ops aspeed_intx_domain_ops = {
 	.map = aspeed_pcie_intx_map,
 };
 
-static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
+static void aspeed_pcie_intr_handler(struct irq_desc *desc)
 {
-	struct aspeed_pcie *pcie = (struct aspeed_pcie *)data;
+	struct aspeed_pcie *pcie = irq_desc_get_handler_data(desc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
+	unsigned long status;
+	unsigned long intx;
+	u32 bit;
+	int i;
 
-	aspeed_h2x_rc_intr_handler(pcie);
-	return IRQ_HANDLED;
+	chained_irq_enter(irqchip, desc);
+
+	intx = readl(pcie->reg + 0x08) & 0xf;
+	if (intx) {
+		for_each_set_bit(bit, &intx, PCI_NUM_INTX)
+			generic_handle_domain_irq(pcie->irq_domain, bit);
+	}
+
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		for (i = 0; i < 2; i++) {
+			status = readl(pcie->reg + 0x28 + (i * 4));
+			writel(status, pcie->reg + 0x28 + (i * 4));
+			if (!status)
+				continue;
+
+			for_each_set_bit(bit, &status, 32) {
+				if (i)
+					bit += 32;
+				generic_handle_domain_irq(pcie->dev_domain, bit);
+			}
+		}
+	}
+	chained_irq_exit(irqchip, desc);
+
+}
+
+//optional : set_slot_power_limit
+void aspeed_pcie_set_slot_power_limit(struct aspeed_pcie *pcie)
+{
+	u32 cfg_val, isr;
+	int ret;
+
+	writel(BIT(4) | readl(pcie->reg), pcie->reg);
+
+	pcie->txTag %= 0x7;
+	regmap_write(pcie->cfg, 0x10, 0x74000001);
+	switch (pcie->domain) {
+	case 0: //write for 0.8.0
+		regmap_write(pcie->cfg, 0x14, 0x00400050 | (pcie->txTag << 8));
+	break;
+	case 1: //write for 0.4.0
+		regmap_write(pcie->cfg, 0x14, 0x00200050 | (pcie->txTag << 8));
+	break;
+	}
+
+	regmap_write(pcie->cfg, 0x18, 0);
+	regmap_write(pcie->cfg, 0x1C, 0);
+	regmap_write(pcie->cfg, 0x20, 0x1a);
+
+	//trigger tx
+	regmap_write_bits(pcie->cfg, 0x24, PCIE_TRIGGER_TX, PCIE_TRIGGER_TX);
+
+	//wait tx idle
+	ret = regmap_read_poll_timeout(
+							pcie->cfg, 0x24, cfg_val,
+							(cfg_val & PCIE_TX_IDLE),
+							0, 10);
+	if (ret)
+		goto out;
+
+	//write clr tx idle
+	regmap_write_bits(pcie->cfg, 0x08, PCIE_TX_IDLE_CLEAR, PCIE_TX_IDLE_CLEAR);
+
+	//check tx status
+	regmap_read(pcie->cfg, 0x24, &cfg_val);
+	switch (cfg_val & PCIE_STATUS_OF_TX) {
+	case PCIE_RC_L_TX_COMPLETE:
+	case PCIE_RC_H_TX_COMPLETE:
+		ret = readl_poll_timeout(
+					pcie->reg + 0x08, isr,
+					(isr & PCIE_RC_RX_DONE_ISR),
+					0, 10);
+		if (ret)
+			dev_err(pcie->dev, "[%d] : tx timeout [%x]\n", pcie->domain, isr);
+
+		writel(readl(pcie->reg + 0x08), pcie->reg + 0x08);
+	break;
+	}
+out:
+	pcie->txTag++;
+}
+
+static int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
+				int where, int size, u32 *val)
+{
+	struct aspeed_pcie *pcie = bus->sysdata;
+	u32 bdf_offset;
+	int rx_done_fail = 0;
+	u32 cfg_val, isr, type = 0;
+	int ret;
+
+	//H2X80[4] (unlock) is write-only.
+	//Driver may set H2X80[4]=1 before triggering next TX config.
+	writel(BIT(4) | readl(pcie->reg), pcie->reg);
+
+	switch (pcie->domain) {
+	case 0:
+		if (!bus->number) {
+			switch (PCI_SLOT(devfn)) {
+			case 0:
+				break;
+			case 4:
+				if (!pcie->link) {
+					*val = 0xffffffff;
+					return PCIBIOS_SUCCESSFUL;
+				}
+				break;
+			default:
+				*val = 0xffffffff;
+				return PCIBIOS_SUCCESSFUL;
+			}
+		}
+
+		if (bus->number)
+			type = 1;
+		else
+			type = 0;
+		break;
+	case 1:
+		if (bus->number == 128) {
+			switch (PCI_SLOT(devfn)) {
+			case 0:
+				break;
+			case 8:
+				if (!pcie->link) {
+					*val = 0xffffffff;
+					return PCIBIOS_SUCCESSFUL;
+				}
+				break;
+			default:
+				*val = 0xffffffff;
+				return PCIBIOS_SUCCESSFUL;
+			}
+		}
+
+		if (bus->number > 128)
+			type = 1;
+		else
+			type = 0;
+		break;
+	}
+
+//	printk("[%d]R:b d f [%d:%d:%d] devfn %x\n", pcie->domain, bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), devfn);
+
+	bdf_offset = ((bus->number) << 24) |
+					(PCI_SLOT(devfn) << 19) |
+					(PCI_FUNC(devfn) << 16) |
+					(where & ~3);
+
+	pcie->txTag %= 0x7;
+
+	regmap_write(pcie->cfg, 0x10, 0x04000001 | (type << 24));
+	regmap_write(pcie->cfg, 0x14, 0x0000200f | (pcie->txTag << 8));
+	regmap_write(pcie->cfg, 0x18, bdf_offset);
+	regmap_write(pcie->cfg, 0x1C, 0x00000000);
+
+	//trigger tx
+	regmap_write_bits(pcie->cfg, 0x24, PCIE_TRIGGER_TX, PCIE_TRIGGER_TX);
+
+	//wait tx idle
+	//todo find timeout and time period
+	ret = regmap_read_poll_timeout(pcie->cfg, 0x24, cfg_val, (cfg_val & PCIE_TX_IDLE),
+									0, 10);
+	if (ret) {
+		dev_err(pcie->dev, "[%d] : tx idle timeout [%x]\n", pcie->domain, cfg_val);
+		*val = 0xffffffff;
+		goto out;
+	}
+
+	//write clr tx idle
+	regmap_write_bits(pcie->cfg, 0x08, PCIE_TX_IDLE_CLEAR, PCIE_TX_IDLE_CLEAR);
+
+	//check tx status
+	regmap_read(pcie->cfg, 0x24, &cfg_val);
+
+	switch (cfg_val & PCIE_STATUS_OF_TX) {
+	case PCIE_RC_L_TX_COMPLETE:		//domain 0
+		if (pcie->domain != 0)
+			dev_err(pcie->dev, "[%d] : tx complete no correct\n", pcie->domain);
+		fallthrough;
+	case PCIE_RC_H_TX_COMPLETE:		//domain 1
+		ret = readl_poll_timeout(pcie->reg + 0x08, isr, (isr & PCIE_RC_RX_DONE_ISR),
+					 0,
+					 10);
+		if (ret) {
+			dev_err(pcie->dev, "[%d] : rx done timeout\n", pcie->domain);
+			rx_done_fail = 1;
+			*val = 0xffffffff;
+		}
+		if (!rx_done_fail) {
+			if (readl(pcie->reg + 0x14) & BIT(13))
+				*val = 0xffffffff;
+			else
+				*val = readl(pcie->reg + 0x0C);
+		}
+
+		writel(BIT(4) | readl(pcie->reg), pcie->reg);
+		writel(readl(pcie->reg + 0x08), pcie->reg + 0x08);
+		break;
+	case PCIE_STATUS_OF_TX:
+		*val = 0xffffffff;
+		break;
+	default:	//read rc data
+		regmap_read(pcie->cfg, 0x0C, &cfg_val);
+		*val = cfg_val;
+		break;
+	}
+
+	switch (size) {
+	case 1:
+		*val = (*val >> ((where & 3) * 8)) & 0xff;
+		break;
+	case 2:
+		*val = (*val >> ((where & 2) * 8)) & 0xffff;
+		break;
+	}
+//	printk("R:b d f [%d:%d:%d] where:%x : %x\n", bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), where, *val);
+
+#ifdef CONFIG_HOTPLUG_PCI
+	switch (pcie->domain) {
+	case 0:
+		if ((where == 0x9a) && (bus->number == 0x0) &&
+			(PCI_SLOT(devfn) == 0x4) && (PCI_FUNC(devfn) == 0x0) &&
+			pcie->hotplug_event)
+			*val |= PCI_EXP_SLTSTA_ABP;
+		break;
+	case 1:
+		if ((where == 0x9a) && (bus->number == 128) &&
+			(PCI_SLOT(devfn) == 0x8) && (PCI_FUNC(devfn) == 0x0) &&
+			pcie->hotplug_event)
+			*val |= PCI_EXP_SLTSTA_ABP;
+		break;
+	}
+#endif
+out:
+	pcie->txTag++;
+	return PCIBIOS_SUCCESSFUL;
+
+}
+
+static int
+aspeed_h2x_wr_conf(struct pci_bus *bus, unsigned int devfn,
+				int where, int size, u32 val)
+{
+	u32 type = 0;
+	u32 shift = 8 * (where & 3);
+	u32 bdf_offset;
+	u8 byte_en = 0;
+	struct aspeed_pcie *pcie = bus->sysdata;
+	u32 isr, cfg_val;
+	int ret;
+
+#ifdef CONFIG_HOTPLUG_PCI
+	switch (pcie->domain) {
+	case 0:
+		if ((where == 0x9a) && (bus->number == 0x0) &&
+			(PCI_SLOT(devfn) == 0x4) && (PCI_FUNC(devfn) == 0x0) &&
+			pcie->hotplug_event && (val & PCI_EXP_SLTSTA_ABP)) {
+			pcie->hotplug_event = 0;
+			return PCIBIOS_SUCCESSFUL;
+		}
+		break;
+	case 1:
+		if ((where == 0x9a) && (bus->number == 128) &&
+			(PCI_SLOT(devfn) == 0x8) && (PCI_FUNC(devfn) == 0x0) &&
+			pcie->hotplug_event && (val & PCI_EXP_SLTSTA_ABP)) {
+			pcie->hotplug_event = 0;
+			return PCIBIOS_SUCCESSFUL;
+		}
+		break;
+	}
+#endif
+
+	if (!pcie->link)
+		return PCIBIOS_SUCCESSFUL;
+
+	//printk("W b d f [%d:%d:%d] : where %x : val %x\n", bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), where, val);
+
+	//H2X80[4] (unlock) is write-only.
+	//Driver may set H2X80[4]=1 before triggering next TX config.
+	writel(BIT(4) | readl(pcie->reg), pcie->reg);
+
+	switch (size) {
+	case 1:
+		switch (where % 4) {
+		case 0:
+			byte_en = 0x1;
+			break;
+		case 1:
+			byte_en = 0x2;
+			break;
+		case 2:
+			byte_en = 0x4;
+			break;
+		case 3:
+			byte_en = 0x8;
+			break;
+		}
+		val = (val & 0xff) << shift;
+		break;
+	case 2:
+		switch ((where >> 1) % 2) {
+		case 0:
+			byte_en = 0x3;
+			break;
+		case 1:
+			byte_en = 0xc;
+			break;
+		}
+		val = (val & 0xffff) << shift;
+		break;
+	default:
+		byte_en = 0xf;
+		break;
+	}
+
+	switch (pcie->domain) {
+	case 0:
+		if (bus->number)
+			type = 1;
+		else
+			type = 0;
+		break;
+	case 1:
+		if (bus->number > 128)
+			type = 1;
+		else
+			type = 0;
+		break;
+	}
+
+	bdf_offset = (bus->number << 24) | (PCI_SLOT(devfn) << 19) |
+					(PCI_FUNC(devfn) << 16) | (where & ~3);
+	pcie->txTag %= 0x7;
+
+	regmap_write(pcie->cfg, 0x10, 0x44000001 | (type << 24));
+	regmap_write(pcie->cfg, 0x14, 0x00002000 | (pcie->txTag << 8) | byte_en);
+	regmap_write(pcie->cfg, 0x18, bdf_offset);
+	regmap_write(pcie->cfg, 0x1C, 0x00000000);
+	regmap_write(pcie->cfg, 0x20, val);
+
+	//trigger tx
+	regmap_write_bits(pcie->cfg, 0x24, PCIE_TRIGGER_TX, PCIE_TRIGGER_TX);
+
+	//wait tx idle
+	//todo find timeout and time period
+	ret = regmap_read_poll_timeout(pcie->cfg, 0x24, cfg_val, (cfg_val & PCIE_TX_IDLE),
+									0, 10);
+	if (ret) {
+		dev_err(pcie->dev, "[%d] : tx idle timeout [%x]\n", pcie->domain, cfg_val);
+		goto out;
+	}
+
+	//write clr tx idle
+	regmap_write_bits(pcie->cfg, 0x08, PCIE_TX_IDLE_CLEAR, PCIE_TX_IDLE_CLEAR);
+
+	//check tx status
+	regmap_read(pcie->cfg, 0x24, &cfg_val);
+
+	switch (cfg_val & PCIE_STATUS_OF_TX) {
+	case PCIE_RC_L_TX_COMPLETE:
+	case PCIE_RC_H_TX_COMPLETE:
+		ret = readl_poll_timeout(
+							pcie->reg + 0x08, isr,
+							(isr & PCIE_RC_RX_DONE_ISR),
+							0, 10);
+		if (ret)
+			dev_err(pcie->dev, "[%d] : tx timeout\n", pcie->domain);
+
+		writel(readl(pcie->reg + 0x08), pcie->reg + 0x08);
+		break;
+	}
+
+out:
+	pcie->txTag++;
+	return PCIBIOS_SUCCESSFUL;
+
 }
 
 /* PCIe operations */
@@ -151,7 +578,7 @@ static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int v
 
 	mutex_lock(&pcie->lock);
 
-	bit = bitmap_find_free_region(msi_irq_in_use, MAX_MSI_HOST_IRQS,
+	bit = bitmap_find_free_region(pcie->msi_irq_in_use, MAX_MSI_HOST_IRQS,
 				      get_count_order(nr_irqs));
 	if (bit < 0)
 		return -ENOSPC;
@@ -161,7 +588,6 @@ static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int v
 				domain->host_data, handle_simple_irq,
 				NULL, NULL);
 	}
-
 
 	mutex_unlock(&pcie->lock);
 
@@ -176,11 +602,17 @@ static void aspeed_irq_msi_domain_free(struct irq_domain *domain, unsigned int v
 
 	mutex_lock(&pcie->lock);
 
-	bitmap_release_region(msi_irq_in_use, data->hwirq,
+	bitmap_release_region(pcie->msi_irq_in_use, data->hwirq,
 			      get_count_order(nr_irqs));
 
 	mutex_unlock(&pcie->lock);
 
+}
+
+static void aspeed_pcie_msi_enable(struct aspeed_pcie *pcie)
+{
+	writel(0xffffffff, pcie->reg + 0x20);
+	writel(0xffffffff, pcie->reg + 0x24);
 }
 
 static const struct irq_domain_ops aspeed_msi_domain_ops = {
@@ -201,7 +633,6 @@ static struct msi_domain_info aspeed_msi_domain_info = {
 				MSI_FLAG_MULTI_PCI_MSI),
 	.chip = &aspeed_msi_irq_chip,
 };
-
 #endif
 
 static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
@@ -221,14 +652,18 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 		return -ENODEV;
 	}
 
-	pcie->leg_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX, &aspeed_intx_domain_ops, pcie);
+	pcie->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX, &aspeed_intx_domain_ops, pcie);
 
-	if (!pcie->leg_domain) {
+	if (!pcie->irq_domain) {
 		dev_err(dev, "failed to get an INTx IRQ domain\n");
 		return -ENOMEM;
 	}
 
 	of_node_put(pcie_intc_node);
+
+	//080 can't config for msi
+	if (pcie->domain)
+		return 0;
 
 #ifdef CONFIG_PCI_MSI
 	pcie->dev_domain = irq_domain_add_linear(NULL, MAX_MSI_HOST_IRQS, &aspeed_msi_domain_ops, pcie);
@@ -243,159 +678,171 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 		irq_domain_remove(parent);
 		return -ENOMEM;
 	}
-	aspeed_h2x_msi_enable(pcie);
+	aspeed_pcie_msi_enable(pcie);
 #endif
 
 	return 0;
 }
 
-#define AHBC_UNLOCK	0xAEED1A03
-static int aspeed_pcie_bridge_init(struct aspeed_pcie *pcie)
+static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 {
-	//scu init
-	reset_control_assert(pcie->h2x_reset);
-	reset_control_deassert(pcie->h2x_reset);
+	u32 link_sts = 0;
 
-	//init
-	writel(0x1, pcie->h2xreg_base + 0x00);
-
-	//ahb to pcie rc
-	writel(0xe0006000, pcie->h2xreg_base + 0x60);
-	writel(0x00000000, pcie->h2xreg_base + 0x64);
-	writel(0xFFFFFFFF, pcie->h2xreg_base + 0x68);
-
-	reset_control_assert(pcie->reset);
-	mdelay(50);
-	reset_control_deassert(pcie->reset);
-	mdelay(50);
-
-	//ahbc remap enable
-	regmap_write(pcie->ahbc, 0x00, AHBC_UNLOCK);
-	regmap_update_bits(pcie->ahbc, 0x8C, BIT(5), BIT(5));
-	regmap_write(pcie->ahbc, 0x00, 0x1);
-
-	aspeed_h2x_rc_init(pcie);
-
+	//reset rc bridge
+	reset_control_assert(pcie->phy_rst);
+	ndelay(300);
 	//plda init
-	writel(PCIE_UNLOCK, pcie->pciereg_base + ASPEED_PCIE_LOCK);
-//	writel(PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4),
-//				pcie->pciereg_base + ASPEED_PCIE_CLASS_CODE);
+	regmap_write(pcie->pciephy, ASPEED_PCIE_LOCK, PCIE_UNLOCK);
+//	regmap_write(pcie->pciephy, ASPEED_PCIE_CLASS_CODE, PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4));
 #ifdef CONFIG_HOTPLUG_PCI
-	writel(RC_SYNC_RESET_DISABLE | ROOT_COMPLEX_ID(0x3) | PCIE_RC_SLOT_ENABLE, pcie->pciereg_base + ASPEED_PCIE_GLOBAL);
-	writel(0xd7040022 | DATALINK_REPORT_CAPABLE, pcie->pciereg_base + 0x10);
-	writel(HOTPLUG_CAPABLE_ENABLE | HOTPLUG_SURPRISE_ENABLE | ATTENTION_BUTTON_ENALBE, pcie->pciereg_base + 0x14);
+	regmap_write(pcie->pciephy, ASPEED_PCIE_GLOBAL, RC_SYNC_RESET_DISABLE | ROOT_COMPLEX_ID(0x3) | PCIE_RC_SLOT_ENABLE);
+	regmap_write(pcie->pciephy, 0x10, 0xd7040022 | DATALINK_REPORT_CAPABLE);
+	regmap_write(pcie->pciephy, 0x14, HOTPLUG_CAPABLE_ENABLE | HOTPLUG_SURPRISE_ENABLE | ATTENTION_BUTTON_ENALBE);
 #else
-	writel(ROOT_COMPLEX_ID(0x3), pcie->pciereg_base + ASPEED_PCIE_GLOBAL);
+	regmap_write(pcie->pciephy, ASPEED_PCIE_GLOBAL, ROOT_COMPLEX_ID(0x3));
 #endif
 
-	aspeed_wait_for_link(pcie);
+	reset_control_deassert(pcie->phy_rst);
+	mdelay(10);
 
 
-	return 0;
+	//clr intx isr
+	writel(0x0, pcie->reg + 0x04);
+
+	//clr msi isr
+	writel(0xFFFFFFFF, pcie->reg + 0x28);
+	writel(0xFFFFFFFF, pcie->reg + 0x2c);
+
+	//rc_l
+//	0x80: 040 set bit7 0
+//	0xC0: 080 set bit7 1
+	if (pcie->domain)
+		writel(PCIE_RX_DMA_EN | PCIE_RX_LINEAR | PCIE_RX_MSI_SEL | PCIE_RX_MSI_EN |
+				PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE, pcie->reg);
+	else
+		writel(PCIE_RX_DMA_EN | PCIE_RX_LINEAR | PCIE_RX_MSI_EN |
+				PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE, pcie->reg);
+
+	//assign debug tx tag
+	writel(0x28, pcie->reg + 0x3C);
+
+	regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
+	if (link_sts & PCIE_LINK_STS) {
+		pcie->link = 1;
+//		aspeed_pcie_set_slot_power_limit(pcie);
+		dev_info(pcie->dev, "PCIE- Link up\n");
+//		if (readl(pcie->pciereg_base
+//				+ ASPEED_PCIE_LINK_STS) & PCIE_LINK_2_5G)
+//			dev_info(pcie->dev, "PCIE- Link up : 2.5G\n");
+	} else {
+		dev_info(pcie->dev, "PCIE- Link down\n");
+		pcie->link = 0;
+	}
 }
 
-static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie,
-			     struct platform_device *pdev)
+static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *node = dev->of_node;
-	struct resource *res;
+	struct device_node *cfg_node;
+	int err;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pciereg");
-	pcie->pciereg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pcie->pciereg_base))
-		return PTR_ERR(pcie->pciereg_base);
+	pcie->reg = devm_platform_ioremap_resource(pdev, 0);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "h2xreg");
-	pcie->h2xreg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pcie->h2xreg_base))
-		return PTR_ERR(pcie->h2xreg_base);
+	cfg_node = of_find_compatible_node(NULL, NULL,
+					   "aspeed,ast2600-pciecfg");
+	if (cfg_node) {
+		pcie->cfg = syscon_node_to_regmap(cfg_node);
+		if (IS_ERR(pcie->cfg))
+			return PTR_ERR(pcie->cfg);
+	}
 
-	pcie->ahbc = syscon_regmap_lookup_by_compatible("aspeed,aspeed-ahbc");
-	if (IS_ERR(pcie->ahbc))
-		return IS_ERR(pcie->ahbc);
-
-	pcie->irq_pcie = platform_get_irq_byname(pdev, "pcie");
-	if (pcie->irq_pcie < 0)
-		return pcie->irq_pcie;
-
-	pcie->irq_h2x = platform_get_irq_byname(pdev, "h2x");
-	if (pcie->irq_h2x < 0)
-		return pcie->irq_h2x;
-
-	of_property_read_u32(node, "rc_offset", &pcie->rc_offset);
-	pcie->h2x_rc_base = (void *)((u32)pcie->h2xreg_base + pcie->rc_offset);
+	pcie->pciephy = syscon_regmap_lookup_by_phandle(node, "pciephy");
+	if (IS_ERR(pcie->pciephy)) {
+		dev_err(dev, "failed to map pciephy base\n");
+		return PTR_ERR(pcie->pciephy);
+	}
 
 	of_property_read_u32(node, "msi_address", &pcie->msi_address);
+	of_property_read_u32(node, "linux,pci-domain", &pcie->domain);
 
-	pcie->reset = reset_control_get_exclusive(dev, "pcie");
-	if (IS_ERR(pcie->reset)) {
-		dev_err(&pdev->dev, "can't get pcie reset\n");
-		return PTR_ERR(pcie->reset);
+	pcie->irq = irq_of_parse_and_map(node, 0);
+	if (pcie->irq < 0)
+		return pcie->irq;
+
+	pcie->phy_rst = devm_reset_control_get_exclusive(pcie->dev, NULL);
+	if (IS_ERR(pcie->phy_rst)) {
+		dev_err(&pdev->dev, "can't get pcie phy reset\n");
+		return PTR_ERR(pcie->phy_rst);
 	}
 
-	pcie->h2x_reset = reset_control_get_exclusive(dev, "h2x");
-	if (IS_ERR(pcie->h2x_reset)) {
-		dev_err(&pdev->dev, "can't get h2x reset\n");
-		return PTR_ERR(pcie->h2x_reset);
+	aspeed_pcie_port_init(pcie);
+
+	err = aspeed_pcie_init_irq_domain(pcie);
+	if (err) {
+		dev_err(dev, "failed to init PCIe IRQ domain\n");
+		return err;
 	}
+
+	irq_set_chained_handler_and_data(pcie->irq,
+					 aspeed_pcie_intr_handler, pcie);
 
 	return 0;
+
+}
+
+static ssize_t hotplug_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct aspeed_pcie *pcie = dev_get_drvdata(dev);
+
+	pcie->hotplug_event = 1;
+
+	return len;
+}
+
+static DEVICE_ATTR_WO(hotplug);
+
+static int aspeed_pcie_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct pci_host_bridge *host;
+	struct aspeed_pcie *pcie;
+	int err;
+
+	host = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!host)
+		return -ENODEV;
+
+	pcie = pci_host_bridge_priv(host);
+	pcie->dev = dev;
+	pcie->txTag = 0;
+	platform_set_drvdata(pdev, pcie);
+
+	err = aspeed_pcie_setup(pcie);
+	if (err) {
+		dev_err(dev, "Parsing DT failed\n");
+		return err;
+	}
+
+	host->ops = &aspeed_pcie_ops;
+	host->sysdata = pcie;
+
+	err = sysfs_create_file(&pdev->dev.kobj, &dev_attr_hotplug.attr);
+	if (err) {
+		dev_err(&pdev->dev, "unable to create sysfs interface\n");
+		return err;
+	}
+
+
+	return pci_host_probe(host);
 }
 
 static const struct of_device_id aspeed_pcie_of_match[] = {
 	{ .compatible = "aspeed,ast2600-pcie", },
 	{}
 };
-
-static int aspeed_pcie_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct pci_host_bridge *bridge;
-	struct aspeed_pcie *pcie;
-	int err;
-
-	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
-	if (!bridge)
-		return -ENODEV;
-
-	pcie = pci_host_bridge_priv(bridge);
-	pcie->dev = dev;
-	pcie->txTag = 0;
-
-	err = aspeed_pcie_parse_dt(pcie, pdev);
-	if (err) {
-		dev_err(dev, "Parsing DT failed\n");
-		return err;
-	}
-
-
-	err = aspeed_pcie_bridge_init(pcie);
-	if (err) {
-		dev_err(dev, "HW Initialization failed\n");
-		return err;
-	}
-
-	mutex_init(&pcie->lock);
-	err = aspeed_pcie_init_irq_domain(pcie);
-	if (err) {
-		dev_err(dev, "Failed creating IRQ Domain\n");
-		return err;
-	}
-
-	bridge->sysdata = pcie;
-	bridge->ops = &aspeed_pcie_ops;
-
-	err = devm_request_irq(dev, pcie->irq_pcie, aspeed_pcie_intr_handler,
-						   0,
-						   "aspeed-pcie", pcie);
-	if (err) {
-		dev_err(dev, "unable to request irq %d\n", pcie->irq_pcie);
-		return err;
-	}
-
-	return pci_host_probe(bridge);
-}
 
 static struct platform_driver aspeed_pcie_driver = {
 	.driver = {
@@ -405,4 +852,6 @@ static struct platform_driver aspeed_pcie_driver = {
 	},
 	.probe = aspeed_pcie_probe,
 };
-builtin_platform_driver(aspeed_pcie_driver);
+
+module_platform_driver(aspeed_pcie_driver);
+MODULE_LICENSE("GPL v2");

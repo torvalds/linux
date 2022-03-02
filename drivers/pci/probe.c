@@ -367,7 +367,7 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 	if (bridge->vendor == PCI_VENDOR_ID_DEC && bridge->device == 0x0001)
 		return;
 
-	if ((bridge->vendor == 0x1a03 && bridge->device == 0x1150) && (!bridge->bus->number)) {
+	if ((bridge->vendor == 0x1a03 && bridge->device == 0x1150)) {
 		dev_info(&bridge->dev, "ASPEED Bridge Gen2 re-training\n");
 		pci_write_config_byte(bridge, 0x90, 0x20);
 	}

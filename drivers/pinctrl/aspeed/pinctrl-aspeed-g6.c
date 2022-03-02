@@ -56,6 +56,7 @@
 #define SCU69C		0x69C /* Multi-function Pin Control #27 */
 #define SCU6D0		0x6D0 /* Multi-function Pin Control #29 */
 #define SCUC20		0xC20 /* PCIE configuration Setting Control */
+#define SCUC24		0xC24 /* BMC MMIO Decode Setting */
 
 #define ASPEED_G6_NR_PINS 258
 
@@ -1721,9 +1722,14 @@ FUNC_DECL_1(USB11BHID, USBB);
 FUNC_DECL_1(USB2BD, USBB);
 FUNC_DECL_1(USB2BH, USBB);
 
+/* bit19: Enable RC-L DMA mode
+ * bit23: Enable RC-L DMA decode
+ */
+#define PCIERC0_DESC    { ASPEED_IP_SCU, SCUC24, GENMASK(23, 19), 0x1f, 0 }
+
 #define A7 256
 SIG_EXPR_LIST_DECL_SESG(A7, PERST, PCIERC0, SIG_DESC_SET(SCU040, 21),
-	   SIG_DESC_CLEAR(SCU0C8, 6));
+	   SIG_DESC_CLEAR(SCU0C8, 6), PCIERC0_DESC);
 PIN_DECL_(A7, SIG_EXPR_LIST_PTR(A7, PERST));
 FUNC_GROUP_DECL(PCIERC0, A7);
 
