@@ -81,29 +81,12 @@ static int dsa_slave_open(struct net_device *dev)
 			goto out;
 	}
 
-	if (dev->flags & IFF_ALLMULTI) {
-		err = dev_set_allmulti(master, 1);
-		if (err < 0)
-			goto del_unicast;
-	}
-	if (dev->flags & IFF_PROMISC) {
-		err = dev_set_promiscuity(master, 1);
-		if (err < 0)
-			goto clear_allmulti;
-	}
-
 	err = dsa_port_enable_rt(dp, dev->phydev);
 	if (err)
-		goto clear_promisc;
+		goto del_unicast;
 
 	return 0;
 
-clear_promisc:
-	if (dev->flags & IFF_PROMISC)
-		dev_set_promiscuity(master, -1);
-clear_allmulti:
-	if (dev->flags & IFF_ALLMULTI)
-		dev_set_allmulti(master, -1);
 del_unicast:
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr))
 		dev_uc_del(master, dev->dev_addr);
@@ -118,13 +101,6 @@ static int dsa_slave_close(struct net_device *dev)
 
 	dsa_port_disable_rt(dp);
 
-	dev_mc_unsync(master, dev);
-	dev_uc_unsync(master, dev);
-	if (dev->flags & IFF_ALLMULTI)
-		dev_set_allmulti(master, -1);
-	if (dev->flags & IFF_PROMISC)
-		dev_set_promiscuity(master, -1);
-
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr))
 		dev_uc_del(master, dev->dev_addr);
 
@@ -134,14 +110,13 @@ static int dsa_slave_close(struct net_device *dev)
 static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 {
 	struct net_device *master = dsa_slave_to_master(dev);
-	if (dev->flags & IFF_UP) {
-		if (change & IFF_ALLMULTI)
-			dev_set_allmulti(master,
-					 dev->flags & IFF_ALLMULTI ? 1 : -1);
-		if (change & IFF_PROMISC)
-			dev_set_promiscuity(master,
-					    dev->flags & IFF_PROMISC ? 1 : -1);
-	}
+
+	if (change & IFF_ALLMULTI)
+		dev_set_allmulti(master,
+				 dev->flags & IFF_ALLMULTI ? 1 : -1);
+	if (change & IFF_PROMISC)
+		dev_set_promiscuity(master,
+				    dev->flags & IFF_PROMISC ? 1 : -1);
 }
 
 static void dsa_slave_set_rx_mode(struct net_device *dev)
@@ -161,9 +136,6 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	if (!(dev->flags & IFF_UP))
-		goto out;
-
 	if (!ether_addr_equal(addr->sa_data, master->dev_addr)) {
 		err = dev_uc_add(master, addr->sa_data);
 		if (err < 0)
@@ -173,7 +145,6 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr))
 		dev_uc_del(master, dev->dev_addr);
 
-out:
 	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
