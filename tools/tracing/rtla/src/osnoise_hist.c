@@ -29,6 +29,7 @@ struct osnoise_hist_params {
 	int			set_sched;
 	int			output_divisor;
 	struct sched_attr	sched_param;
+	struct trace_events	*events;
 
 	char			no_header;
 	char			no_summary;
@@ -427,8 +428,8 @@ static void osnoise_hist_usage(char *usage)
 	static const char * const msg[] = {
 		"",
 		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
-		"	  [-T us] [-t[=file]] [-c cpu-list] [-P priority] [-b N] [-E N] [--no-header] \\",
-		"	  [--no-summary] [--no-index] [--with-zeros]",
+		"	  [-T us] [-t[=file]] [-e sys[:event]] [-c cpu-list] [-P priority] [-b N] [-E N] \\",
+		"	  [--no-header] [--no-summary] [--no-index] [--with-zeros]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -441,6 +442,7 @@ static void osnoise_hist_usage(char *usage)
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
+		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	  -b/--bucket-size N: set the histogram bucket size (default 1)",
 		"	  -E/--entries N: set the number of entries of the histogram (default 256)",
 		"	     --no-header: do not print header",
@@ -474,6 +476,7 @@ static struct osnoise_hist_params
 *osnoise_hist_parse_args(int argc, char *argv[])
 {
 	struct osnoise_hist_params *params;
+	struct trace_events *tevent;
 	int retval;
 	int c;
 
@@ -501,6 +504,7 @@ static struct osnoise_hist_params
 			{"stop",		required_argument,	0, 's'},
 			{"stop-total",		required_argument,	0, 'S'},
 			{"trace",		optional_argument,	0, 't'},
+			{"event",		required_argument,	0, 'e'},
 			{"threshold",		required_argument,	0, 'T'},
 			{"no-header",		no_argument,		0, '0'},
 			{"no-summary",		no_argument,		0, '1'},
@@ -512,7 +516,7 @@ static struct osnoise_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:b:d:E:Dhp:P:r:s:S:t::T:0123",
+		c = getopt_long(argc, argv, "a:c:b:d:e:E:Dhp:P:r:s:S:t::T:0123",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -549,6 +553,18 @@ static struct osnoise_hist_params
 			params->duration = parse_seconds_duration(optarg);
 			if (!params->duration)
 				osnoise_hist_usage("Invalid -D duration\n");
+			break;
+		case 'e':
+			tevent = trace_event_alloc(optarg);
+			if (!tevent) {
+				err_msg("Error alloc trace event");
+				exit(EXIT_FAILURE);
+			}
+
+			if (params->events)
+				tevent->next = params->events;
+
+			params->events = tevent;
 			break;
 		case 'E':
 			params->entries = get_llong_from_str(optarg);
@@ -778,6 +794,13 @@ int osnoise_hist_main(int argc, char *argv[])
 			err_msg("Failed to enable the trace instance\n");
 			goto out_hist;
 		}
+
+		if (params->events) {
+			retval = trace_events_enable(&record->trace, params->events);
+			if (retval)
+				goto out_hist;
+		}
+
 		trace_instance_start(&record->trace);
 	}
 
@@ -817,6 +840,8 @@ int osnoise_hist_main(int argc, char *argv[])
 	}
 
 out_hist:
+	trace_events_destroy(&record->trace, params->events);
+	params->events = NULL;
 	osnoise_free_histogram(tool->data);
 out_destroy:
 	osnoise_destroy_tool(record);
