@@ -28,6 +28,7 @@ struct timerlat_hist_params {
 	int			output_divisor;
 	int			duration;
 	int			set_sched;
+	int			dma_latency;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 
@@ -432,7 +433,7 @@ static void timerlat_hist_usage(char *usage)
 		"  usage: [rtla] timerlat hist [-h] [-q] [-d s] [-D] [-n] [-a us] [-p us] [-i us] [-T us] [-s us] \\",
 		"         [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] \\",
 		"	  [-P priority] [-E N] [-b N] [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros]",
+		"	  [--no-index] [--with-zeros] [--dma-latency us]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
@@ -456,6 +457,7 @@ static void timerlat_hist_usage(char *usage)
 		"	     --no-summary: do not print summary",
 		"	     --no-index: do not print index",
 		"	     --with-zeros: print zero only entries",
+		"	     --dma-latency us: set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
 		"		o:prio - use SCHED_OTHER with prio",
 		"		r:prio - use SCHED_RR with prio",
@@ -492,6 +494,9 @@ static struct timerlat_hist_params
 	if (!params)
 		exit(1);
 
+	/* disabled by default */
+	params->dma_latency = -1;
+
 	/* display data in microseconds */
 	params->output_divisor = 1000;
 	params->bucket_size = 1;
@@ -522,13 +527,14 @@ static struct timerlat_hist_params
 			{"with-zeros",		no_argument,		0, '5'},
 			{"trigger",		required_argument,	0, '6'},
 			{"filter",		required_argument,	0, '7'},
+			{"dma-latency",		required_argument,	0, '8'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:b:d:e:E:Dhi:np:P:s:t::T:0123456:7:",
+		c = getopt_long(argc, argv, "a:c:b:d:e:E:Dhi:np:P:s:t::T:0123456:7:8:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -657,6 +663,13 @@ static struct timerlat_hist_params
 				}
 			} else {
 				timerlat_hist_usage("--filter requires a previous -e\n");
+			}
+			break;
+		case '8':
+			params->dma_latency = get_llong_from_str(optarg);
+			if (params->dma_latency < 0 || params->dma_latency > 10000) {
+				err_msg("--dma-latency needs to be >= 0 and < 10000");
+				exit(EXIT_FAILURE);
 			}
 			break;
 		default:
@@ -791,6 +804,7 @@ int timerlat_hist_main(int argc, char *argv[])
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
+	int dma_latency_fd = -1;
 	int return_value = 1;
 	int retval;
 
@@ -822,6 +836,14 @@ int timerlat_hist_main(int argc, char *argv[])
 		retval = set_comm_sched_attr("timerlat/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
+			goto out_hist;
+		}
+	}
+
+	if (params->dma_latency >= 0) {
+		dma_latency_fd = set_cpu_dma_latency(params->dma_latency);
+		if (dma_latency_fd < 0) {
+			err_msg("Could not set /dev/cpu_dma_latency.\n");
 			goto out_hist;
 		}
 	}
@@ -878,6 +900,8 @@ int timerlat_hist_main(int argc, char *argv[])
 	}
 
 out_hist:
+	if (dma_latency_fd >= 0)
+		close(dma_latency_fd);
 	trace_events_destroy(&record->trace, params->events);
 	params->events = NULL;
 	timerlat_free_histogram(tool->data);
