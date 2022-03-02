@@ -503,21 +503,30 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 {
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
-	int result;
+	int result, request_len;
 
 	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
 		return -EINVAL;
+
+	/* RSOC header + size of command we are asking about */
+	request_len = 4 + COMMAND_SIZE(opcode);
+	if (request_len > len) {
+		dev_warn_once(&sdev->sdev_gendev,
+			      "%s: len %u bytes, opcode 0x%02x needs %u\n",
+			      __func__, len, opcode, request_len);
+		return -EINVAL;
+	}
 
 	memset(cmd, 0, 16);
 	cmd[0] = MAINTENANCE_IN;
 	cmd[1] = MI_REPORT_SUPPORTED_OPERATION_CODES;
 	cmd[2] = 1;		/* One command format */
 	cmd[3] = opcode;
-	put_unaligned_be32(len, &cmd[6]);
+	put_unaligned_be32(request_len, &cmd[6]);
 	memset(buffer, 0, len);
 
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer, len,
-				  &sshdr, 30 * HZ, 3, NULL);
+	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
+				  request_len, &sshdr, 30 * HZ, 3, NULL);
 
 	if (result < 0)
 		return result;
