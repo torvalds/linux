@@ -138,6 +138,8 @@ struct intel_guc {
 	bool submission_supported;
 	/** @submission_selected: tracks whether the user enabled GuC submission */
 	bool submission_selected;
+	/** @submission_initialized: tracks whether GuC submission has been initialised */
+	bool submission_initialized;
 	/**
 	 * @rc_supported: tracks whether we support GuC rc on the current platform
 	 */
