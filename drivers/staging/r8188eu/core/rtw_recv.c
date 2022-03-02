@@ -1525,7 +1525,7 @@ static bool enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, s
 	return true;
 }
 
-static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced)
+static bool recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced)
 {
 	struct list_head *phead, *plist;
 	struct recv_frame *prframe;
