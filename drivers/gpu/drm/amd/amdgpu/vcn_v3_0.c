@@ -298,6 +298,7 @@ static int vcn_v3_0_hw_init(void *handle)
 			ring = &adev->vcn.inst[i].ring_dec;
 			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_DECODE_RING, i)) {
 				ring->sched.ready = false;
+				ring->no_scheduler = true;
 				dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
 			} else {
 				ring->wptr = 0;
@@ -310,6 +311,7 @@ static int vcn_v3_0_hw_init(void *handle)
 				ring = &adev->vcn.inst[i].ring_enc[j];
 				if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
 					ring->sched.ready = false;
+					ring->no_scheduler = true;
 					dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
 				} else {
 					ring->wptr = 0;
