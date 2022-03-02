@@ -5119,6 +5119,16 @@ union bpf_attr {
  *		0 on success.
  *		**-EINVAL** for invalid input
  *		**-EOPNOTSUPP** for unsupported protocol
+ *
+ * long bpf_ima_file_hash(struct file *file, void *dst, u32 size)
+ *	Description
+ *		Returns a calculated IMA hash of the *file*.
+ *		If the hash is larger than *size*, then only *size*
+ *		bytes will be copied to *dst*
+ *	Return
+ *		The **hash_algo** is returned on success,
+ *		**-EOPNOTSUP** if the hash calculation failed or **-EINVAL** if
+ *		invalid arguments are passed.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5314,6 +5324,7 @@ union bpf_attr {
 	FN(xdp_store_bytes),		\
 	FN(copy_from_user_task),	\
 	FN(skb_set_tstamp),		\
+	FN(ima_file_hash),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
