@@ -35,5 +35,6 @@ config I3CDEV
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
+source "drivers/i3c/mctp/Kconfig"
 source "drivers/i3c/master/Kconfig"
 endif # I3C
