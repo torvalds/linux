@@ -341,7 +341,7 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(dai);
-	unsigned int ofs = sai->soc_data->reg_offset;
+	unsigned int reg, ofs = sai->soc_data->reg_offset;
 	unsigned long clk_rate;
 	u32 savediv = 0, ratio, savesub = freq;
 	int adir = tx ? RX : TX;
@@ -401,6 +401,9 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return -EINVAL;
 	}
 
+	dev_dbg(dai->dev, "best fit: clock id=%d, div=%d, deviation =%d\n",
+			sai->mclk_id[tx], savediv, savesub);
+
 	/*
 	 * 1) For Asynchronous mode, we must set RCR2 register for capture, and
 	 *    set TCR2 register for playback.
@@ -411,22 +414,16 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	 * 4) For Tx and Rx are both Synchronous with another SAI, we just
 	 *    ignore it.
 	 */
-	if (fsl_sai_dir_is_synced(sai, adir)) {
-		regmap_update_bits(sai->regmap, FSL_SAI_xCR2(!tx, ofs),
-				   FSL_SAI_CR2_MSEL_MASK,
-				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
-		regmap_update_bits(sai->regmap, FSL_SAI_xCR2(!tx, ofs),
-				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
-	} else if (!sai->synchronous[dir]) {
-		regmap_update_bits(sai->regmap, FSL_SAI_xCR2(tx, ofs),
-				   FSL_SAI_CR2_MSEL_MASK,
-				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
-		regmap_update_bits(sai->regmap, FSL_SAI_xCR2(tx, ofs),
-				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
-	}
+	if (fsl_sai_dir_is_synced(sai, adir))
+		reg = FSL_SAI_xCR2(!tx, ofs);
+	else if (!sai->synchronous[dir])
+		reg = FSL_SAI_xCR2(tx, ofs);
+	else
+		return 0;
 
-	dev_dbg(dai->dev, "best fit: clock id=%d, div=%d, deviation =%d\n",
-			sai->mclk_id[tx], savediv, savesub);
+	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR2_MSEL_MASK,
+			   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
+	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR2_DIV_MASK, savediv - 1);
 
 	return 0;
 }
