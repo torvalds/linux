@@ -574,3 +574,68 @@ out:
 	dev_err(&chip->dev, "%s: error %d\n", __func__, rc);
 	return rc;
 }
+
+/*
+ * Put the reference to the main device.
+ */
+static void tpm_devs_release(struct device *dev)
+{
+	struct tpm_chip *chip = container_of(dev, struct tpm_chip, devs);
+
+	/* release the master device reference */
+	put_device(&chip->dev);
+}
+
+/*
+ * Remove the device file for exposed TPM spaces and release the device
+ * reference. This may also release the reference to the master device.
+ */
+void tpm_devs_remove(struct tpm_chip *chip)
+{
+	cdev_device_del(&chip->cdevs, &chip->devs);
+	put_device(&chip->devs);
+}
+
+/*
+ * Add a device file to expose TPM spaces. Also take a reference to the
+ * main device.
+ */
+int tpm_devs_add(struct tpm_chip *chip)
+{
+	int rc;
+
+	device_initialize(&chip->devs);
+	chip->devs.parent = chip->dev.parent;
+	chip->devs.class = tpmrm_class;
+
+	/*
+	 * Get extra reference on main device to hold on behalf of devs.
+	 * This holds the chip structure while cdevs is in use. The
+	 * corresponding put is in the tpm_devs_release.
+	 */
+	get_device(&chip->dev);
+	chip->devs.release = tpm_devs_release;
+	chip->devs.devt = MKDEV(MAJOR(tpm_devt), chip->dev_num + TPM_NUM_DEVICES);
+	cdev_init(&chip->cdevs, &tpmrm_fops);
+	chip->cdevs.owner = THIS_MODULE;
+
+	rc = dev_set_name(&chip->devs, "tpmrm%d", chip->dev_num);
+	if (rc)
+		goto err_put_devs;
+
+	rc = cdev_device_add(&chip->cdevs, &chip->devs);
+	if (rc) {
+		dev_err(&chip->devs,
+			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+			dev_name(&chip->devs), MAJOR(chip->devs.devt),
+			MINOR(chip->devs.devt), rc);
+		goto err_put_devs;
+	}
+
+	return 0;
+
+err_put_devs:
+	put_device(&chip->devs);
+
+	return rc;
+}
