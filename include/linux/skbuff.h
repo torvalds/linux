@@ -3996,12 +3996,36 @@ static inline void skb_set_delivery_time(struct sk_buff *skb, ktime_t kt,
 	skb->mono_delivery_time = 0;
 }
 
+DECLARE_STATIC_KEY_FALSE(netstamp_needed_key);
+
+/* It is used in the ingress path to clear the delivery_time.
+ * If needed, set the skb->tstamp to the (rcv) timestamp.
+ */
+static inline void skb_clear_delivery_time(struct sk_buff *skb)
+{
+	if (skb->mono_delivery_time) {
+		skb->mono_delivery_time = 0;
+		if (static_branch_unlikely(&netstamp_needed_key))
+			skb->tstamp = ktime_get_real();
+		else
+			skb->tstamp = 0;
+	}
+}
+
 static inline void skb_clear_tstamp(struct sk_buff *skb)
 {
 	if (skb->mono_delivery_time)
 		return;
 
 	skb->tstamp = 0;
+}
+
+static inline ktime_t skb_tstamp(const struct sk_buff *skb)
+{
+	if (skb->mono_delivery_time)
+		return 0;
+
+	return skb->tstamp;
 }
 
 static inline u8 skb_metadata_len(const struct sk_buff *skb)
