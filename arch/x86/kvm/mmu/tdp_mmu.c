@@ -1464,7 +1464,7 @@ void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 
 	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, shared) {
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, shared) {
 		r = tdp_mmu_split_huge_pages_root(kvm, root, start, end, target_level, shared);
 		if (r) {
 			kvm_tdp_mmu_put_root(kvm, root, shared);
