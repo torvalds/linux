@@ -814,7 +814,11 @@
 	memory-region = <&bmc_dev_memory>;
 };
 
-&pcie {
+&pciecfg {
+	status = "okay";
+};
+
+&pcie1 {
 	status = "okay";
 };
 
