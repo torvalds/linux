@@ -159,5 +159,11 @@ x509.genkey
 # Clang's compilation database file
 /compile_commands.json
 
+# generated defconfigs
+arch/*/configs/vendor/*_defconfig
+
+# vendor device tree directories
+arch/*/boot/dts/vendor
+
 # Documentation toolchain
 sphinx_*/
