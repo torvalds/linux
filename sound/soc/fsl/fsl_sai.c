@@ -62,7 +62,7 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	unsigned int ofs = sai->soc_data->reg_offset;
 	struct device *dev = &sai->pdev->dev;
 	u32 flags, xcsr, mask;
-	bool irq_none = true;
+	irqreturn_t iret = IRQ_NONE;
 
 	/*
 	 * Both IRQ status bits and IRQ mask bits are in the xCSR but
@@ -76,7 +76,7 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	flags = xcsr & mask;
 
 	if (flags)
-		irq_none = false;
+		iret = IRQ_HANDLED;
 	else
 		goto irq_rx;
 
@@ -110,7 +110,7 @@ irq_rx:
 	flags = xcsr & mask;
 
 	if (flags)
-		irq_none = false;
+		iret = IRQ_HANDLED;
 	else
 		goto out;
 
@@ -139,10 +139,7 @@ irq_rx:
 		regmap_write(sai->regmap, FSL_SAI_RCSR(ofs), flags | xcsr);
 
 out:
-	if (irq_none)
-		return IRQ_NONE;
-	else
-		return IRQ_HANDLED;
+	return iret;
 }
 
 static int fsl_sai_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
