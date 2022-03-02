@@ -1013,7 +1013,7 @@ void update_beacon_info(struct adapter *padapter, u8 *pframe, uint pkt_len, stru
 	}
 }
 
-unsigned int is_ap_in_tkip(struct adapter *padapter)
+bool is_ap_in_tkip(struct adapter *padapter)
 {
 	u32 i;
 	struct ndis_802_11_var_ie *pIE;
