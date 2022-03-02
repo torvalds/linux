@@ -497,7 +497,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	byt_cht_es8316_card.dev = dev;
 	platform_name = mach->mach_params.platform;
 

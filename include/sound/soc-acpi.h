@@ -142,7 +142,6 @@ struct snd_soc_acpi_link_adr {
  * audio codecs whose presence if checked with ACPI
  * @pdata: intended for platform data or machine specific-ops. This structure
  *  is not constant since this field may be updated at run-time
- * @sof_fw_filename: Sound Open Firmware file name, if enabled
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
  */
 /* Descriptor for SST ASoC machine driver */
@@ -158,7 +157,6 @@ struct snd_soc_acpi_mach {
 	const void *quirk_data;
 	void *pdata;
 	struct snd_soc_acpi_mach_params mach_params;
-	const char *sof_fw_filename;
 	const char *sof_tplg_filename;
 };
 
