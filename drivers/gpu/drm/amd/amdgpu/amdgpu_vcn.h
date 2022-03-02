@@ -205,6 +205,13 @@ struct amdgpu_vcn_reg{
 	unsigned	scratch9;
 };
 
+struct amdgpu_vcn_fw_shared {
+	void        *cpu_addr;
+	uint64_t    gpu_addr;
+	uint32_t    mem_size;
+	uint32_t    log_offset;
+};
+
 struct amdgpu_vcn_inst {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -221,8 +228,7 @@ struct amdgpu_vcn_inst {
 	uint64_t		dpg_sram_gpu_addr;
 	uint32_t		*dpg_sram_curr_addr;
 	atomic_t		dpg_enc_submission_cnt;
-	void			*fw_shared_cpu_addr;
-	uint64_t		fw_shared_gpu_addr;
+	struct amdgpu_vcn_fw_shared fw_shared;
 };
 
 struct amdgpu_vcn {
@@ -265,6 +271,13 @@ struct amdgpu_fw_shared_sw_ring {
 	uint8_t padding[3];
 };
 
+struct amdgpu_fw_shared_fw_logging {
+	uint8_t is_enabled;
+	uint32_t addr_lo;
+	uint32_t addr_hi;
+	uint32_t size;
+};
+
 struct amdgpu_fw_shared {
 	uint32_t present_flag_0;
 	uint8_t pad[44];
@@ -272,6 +285,15 @@ struct amdgpu_fw_shared {
 	uint8_t pad1[1];
 	struct amdgpu_fw_shared_multi_queue multi_queue;
 	struct amdgpu_fw_shared_sw_ring sw_ring;
+	struct amdgpu_fw_shared_fw_logging fw_log;
+};
+
+struct amdgpu_vcn_fwlog {
+	uint32_t rptr;
+	uint32_t wptr;
+	uint32_t buffer_size;
+	uint32_t header_size;
+	uint8_t wrapped;
 };
 
 struct amdgpu_vcn_decode_buffer {
