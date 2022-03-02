@@ -5092,7 +5092,8 @@ rtnl_offload_xstats_fill_ndo(struct net_device *dev, int attr_id,
 }
 
 static int rtnl_offload_xstats_fill(struct sk_buff *skb, struct net_device *dev,
-				    int *prividx, u32 off_filter_mask)
+				    int *prividx, u32 off_filter_mask,
+				    struct netlink_ext_ack *extack)
 {
 	int attr_id_cpu_hit = IFLA_OFFLOAD_XSTATS_CPU_HIT;
 	bool have_data = false;
@@ -5147,7 +5148,8 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 			       int type, u32 pid, u32 seq, u32 change,
 			       unsigned int flags,
 			       const struct rtnl_stats_dump_filters *filters,
-			       int *idxattr, int *prividx)
+			       int *idxattr, int *prividx,
+			       struct netlink_ext_ack *extack)
 {
 	unsigned int filter_mask = filters->mask[0];
 	struct if_stats_msg *ifsm;
@@ -5235,7 +5237,7 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 			goto nla_put_failure;
 
 		err = rtnl_offload_xstats_fill(skb, dev, prividx,
-					       off_filter_mask);
+					       off_filter_mask, extack);
 		if (err == -ENODATA)
 			nla_nest_cancel(skb, attr);
 		else
@@ -5506,7 +5508,7 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = rtnl_fill_statsinfo(nskb, dev, RTM_NEWSTATS,
 				  NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-				  0, &filters, &idxattr, &prividx);
+				  0, &filters, &idxattr, &prividx, extack);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_stats_size */
 		WARN_ON(err == -EMSGSIZE);
@@ -5562,7 +5564,8 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 						  NETLINK_CB(cb->skb).portid,
 						  cb->nlh->nlmsg_seq, 0,
 						  flags, &filters,
-						  &s_idxattr, &s_prividx);
+						  &s_idxattr, &s_prividx,
+						  extack);
 			/* If we ran out of room on the first message,
 			 * we're in trouble
 			 */
