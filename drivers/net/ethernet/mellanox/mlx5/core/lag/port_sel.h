@@ -10,7 +10,10 @@ struct mlx5_lag_definer {
 	struct mlx5_flow_definer *definer;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
-	struct mlx5_flow_handle *rules[MLX5_MAX_PORTS];
+	/* Each port has ldev->buckets number of rules and they are arrange in
+	 * [port * buckets .. port * buckets + buckets) locations
+	 */
+	struct mlx5_flow_handle *rules[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 };
 
 struct mlx5_lag_ttc {

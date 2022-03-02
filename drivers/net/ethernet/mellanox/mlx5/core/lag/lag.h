@@ -4,6 +4,7 @@
 #ifndef __MLX5_LAG_H__
 #define __MLX5_LAG_H__
 
+#define MLX5_LAG_MAX_HASH_BUCKETS 16
 #include "mlx5_core.h"
 #include "mp.h"
 #include "port_sel.h"
@@ -46,9 +47,10 @@ struct lag_tracker {
 struct mlx5_lag {
 	u8                        flags;
 	u8			  ports;
+	u8			  buckets;
 	int			  mode_changes_in_progress;
 	bool			  shared_fdb;
-	u8                        v2p_map[MLX5_MAX_PORTS];
+	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 	struct kref               ref;
 	struct lag_func           pf[MLX5_MAX_PORTS];
 	struct lag_tracker        tracker;
