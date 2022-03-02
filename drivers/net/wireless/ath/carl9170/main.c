@@ -1494,7 +1494,7 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 	if (!(ar->features & CARL9170_WPS_BUTTON))
 		return 0;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&ar->udev->dev);
 	if (!input)
 		return -ENOMEM;
 
@@ -1512,10 +1512,8 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 	input_set_capability(input, EV_KEY, KEY_WPS_BUTTON);
 
 	err = input_register_device(input);
-	if (err) {
-		input_free_device(input);
+	if (err)
 		return err;
-	}
 
 	ar->wps.pbc = input;
 	return 0;
@@ -2037,13 +2035,6 @@ void carl9170_unregister(struct ar9170 *ar)
 #ifdef CONFIG_CARL9170_DEBUGFS
 	carl9170_debugfs_unregister(ar);
 #endif /* CONFIG_CARL9170_DEBUGFS */
-
-#ifdef CONFIG_CARL9170_WPC
-	if (ar->wps.pbc) {
-		input_unregister_device(ar->wps.pbc);
-		ar->wps.pbc = NULL;
-	}
-#endif /* CONFIG_CARL9170_WPC */
 
 	carl9170_cancel_worker(ar);
 	cancel_work_sync(&ar->restart_work);
