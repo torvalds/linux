@@ -561,12 +561,13 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 3, 0):
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
-	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 3):
-	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
