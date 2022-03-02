@@ -742,11 +742,30 @@ __ptp_ocp_clear_drift_locked(struct ptp_ocp *bp)
 }
 
 static void
+ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->lock, flags);
+
+	bp->utc_tai_offset = val;
+
+	if (bp->irig_out)
+		iowrite32(val, &bp->irig_out->adj_sec);
+	if (bp->dcf_out)
+		iowrite32(val, &bp->dcf_out->adj_sec);
+	if (bp->nmea_out)
+		iowrite32(val, &bp->nmea_out->adj_sec);
+
+	spin_unlock_irqrestore(&bp->lock, flags);
+}
+
+static void
 ptp_ocp_watchdog(struct timer_list *t)
 {
 	struct ptp_ocp *bp = from_timer(bp, t, watchdog);
 	unsigned long flags;
-	u32 status;
+	u32 status, utc_offset;
 
 	status = ioread32(&bp->pps_to_clk->status);
 
@@ -761,6 +780,17 @@ ptp_ocp_watchdog(struct timer_list *t)
 
 	} else if (bp->gnss_lost) {
 		bp->gnss_lost = 0;
+	}
+
+	/* if GNSS provides correct data we can rely on
+	 * it to get leap second information
+	 */
+	if (bp->tod) {
+		status = ioread32(&bp->tod->utc_status);
+		utc_offset = status & TOD_STATUS_UTC_MASK;
+		if (status & TOD_STATUS_UTC_VALID &&
+		    utc_offset != bp->utc_tai_offset)
+			ptp_ocp_utc_distribute(bp, utc_offset);
 	}
 
 	mod_timer(&bp->watchdog, jiffies + HZ);
@@ -829,25 +859,6 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 	}
 
 	return 0;
-}
-
-static void
-ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&bp->lock, flags);
-
-	bp->utc_tai_offset = val;
-
-	if (bp->irig_out)
-		iowrite32(val, &bp->irig_out->adj_sec);
-	if (bp->dcf_out)
-		iowrite32(val, &bp->dcf_out->adj_sec);
-	if (bp->nmea_out)
-		iowrite32(val, &bp->nmea_out->adj_sec);
-
-	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
 static void
