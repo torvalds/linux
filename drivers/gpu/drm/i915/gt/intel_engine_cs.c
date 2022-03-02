@@ -592,6 +592,29 @@ bool gen11_vdbox_has_sfc(struct intel_gt *gt,
 	return false;
 }
 
+static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_gt_info *info = &gt->info;
+	int ss_per_ccs = info->sseu.max_subslices / I915_MAX_CCS;
+	unsigned long ccs_mask;
+	unsigned int i;
+
+	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
+		return;
+
+	ccs_mask = intel_slicemask_from_dssmask(intel_sseu_get_compute_subslices(&info->sseu),
+						ss_per_ccs);
+	/*
+	 * If all DSS in a quadrant are fused off, the corresponding CCS
+	 * engine is not available for use.
+	 */
+	for_each_clear_bit(i, &ccs_mask, I915_MAX_CCS) {
+		info->engine_mask &= ~BIT(_CCS(i));
+		drm_dbg(&i915->drm, "ccs%u fused off\n", i);
+	}
+}
+
 /*
  * Determine which engines are fused off in our particular hardware.
  * Note that we have a catch-22 situation where we need to be able to access
@@ -672,6 +695,8 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	drm_dbg(&i915->drm, "vebox enable: %04x, instances: %04lx\n",
 		vebox_mask, VEBOX_MASK(gt));
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
+
+	engine_mask_apply_compute_fuses(gt);
 
 	return info->engine_mask;
 }
