@@ -649,6 +649,13 @@ struct drm_bridge_funcs {
 	 * the DRM_BRIDGE_OP_HPD flag in their &drm_bridge->ops.
 	 */
 	void (*hpd_disable)(struct drm_bridge *bridge);
+
+	/**
+	 * @debugfs_init:
+	 *
+	 * Allows bridges to create bridge-specific debugfs files.
+	 */
+	void (*debugfs_init)(struct drm_bridge *bridge, struct dentry *root);
 };
 
 /**

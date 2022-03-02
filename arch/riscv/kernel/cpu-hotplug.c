@@ -12,6 +12,7 @@
 #include <linux/sched/hotplug.h>
 #include <asm/irq.h>
 #include <asm/cpu_ops.h>
+#include <asm/numa.h>
 #include <asm/sbi.h>
 
 bool cpu_has_hotplug(unsigned int cpu)
@@ -40,6 +41,7 @@ int __cpu_disable(void)
 		return ret;
 
 	remove_cpu_topology(cpu);
+	numa_remove_cpu(cpu);
 	set_cpu_online(cpu, false);
 	irq_migrate_all_off_this_cpu();
 

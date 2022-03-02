@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -295,7 +296,7 @@ static struct platform_driver shmob_drm_platform_driver = {
 	},
 };
 
-module_platform_driver(shmob_drm_platform_driver);
+drm_module_platform_driver(shmob_drm_platform_driver);
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
 MODULE_DESCRIPTION("Renesas SH Mobile DRM Driver");

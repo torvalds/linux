@@ -71,6 +71,7 @@ config DRM_DEBUG_SELFTEST
 	select DRM_DP_HELPER
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
+	select DRM_BUDDY
 	select DRM_EXPORT_FOR_TESTS if m
 	default n
 	help
@@ -402,6 +403,8 @@ source "drivers/gpu/drm/tidss/Kconfig"
 source "drivers/gpu/drm/xlnx/Kconfig"
 
 source "drivers/gpu/drm/gud/Kconfig"
+
+source "drivers/gpu/drm/solomon/Kconfig"
 
 source "drivers/gpu/drm/sprd/Kconfig"
 

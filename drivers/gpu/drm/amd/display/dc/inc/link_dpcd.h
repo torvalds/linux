@@ -27,7 +27,7 @@
 #define __LINK_DPCD_H__
 #include <inc/core_status.h>
 #include <dc_link.h>
-#include <inc/link_hwss.h>
+#include <dc_link_dp.h>
 
 enum dc_status core_link_read_dpcd(
 		struct dc_link *link,

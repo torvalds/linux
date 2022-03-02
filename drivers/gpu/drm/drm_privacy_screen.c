@@ -269,7 +269,7 @@ EXPORT_SYMBOL(drm_privacy_screen_get_state);
  *
  * The notifier is called with no locks held. The new hw_state and sw_state
  * can be retrieved using the drm_privacy_screen_get_state() function.
- * A pointer to the drm_privacy_screen's struct is passed as the void *data
+ * A pointer to the drm_privacy_screen's struct is passed as the ``void *data``
  * argument of the notifier_block's notifier_call.
  *
  * The notifier will NOT be called when changes are made through
@@ -379,6 +379,7 @@ static void drm_privacy_screen_device_release(struct device *dev)
  * drm_privacy_screen_register - register a privacy-screen
  * @parent: parent-device for the privacy-screen
  * @ops: &struct drm_privacy_screen_ops pointer with ops for the privacy-screen
+ * @data: Private data owned by the privacy screen provider
  *
  * Create and register a privacy-screen.
  *

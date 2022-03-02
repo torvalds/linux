@@ -195,8 +195,7 @@ static bool iwl_mei_rx_filter_ipv4(struct sk_buff *skb,
 	bool match;
 
 	if (!pskb_may_pull(skb, skb_network_offset(skb) + sizeof(*iphdr)) ||
-	    !pskb_may_pull(skb, skb_network_offset(skb) +
-			   sizeof(ip_hdrlen(skb) - sizeof(*iphdr))))
+	    !pskb_may_pull(skb, skb_network_offset(skb) + ip_hdrlen(skb)))
 		return false;
 
 	iphdrlen = ip_hdrlen(skb);

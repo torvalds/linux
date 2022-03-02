@@ -145,6 +145,9 @@ static void panfrost_gpu_init_quirks(struct panfrost_device *pfdev)
 		quirks |= (COHERENCY_ACE_LITE | COHERENCY_ACE) <<
 			   JM_FORCE_COHERENCY_FEATURES_SHIFT;
 
+	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_IDVS_GROUP_SIZE))
+		quirks |= JM_DEFAULT_IDVS_GROUP_SIZE << JM_IDVS_GROUP_SIZE_SHIFT;
+
 	if (quirks)
 		gpu_write(pfdev, GPU_JM_CONFIG, quirks);
 

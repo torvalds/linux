@@ -22,20 +22,23 @@
  * Authors: AMD
  */
 
-#include "dmub_outbox.h"
+#include "dc.h"
 #include "dc_dmub_srv.h"
+#include "dmub_outbox.h"
 #include "dmub/inc/dmub_cmd.h"
 
-/**
- *  dmub_enable_outbox_notification - Sends inbox cmd to dmub to enable outbox1
- *                                    messages with interrupt. Dmub sends outbox1
- *                                    message and triggers outbox1 interrupt.
- * @dc: dc structure
+/*
+ *  Function: dmub_enable_outbox_notification
+ *
+ *  @brief
+ *		Sends inbox cmd to dmub for enabling outbox notifications to x86.
+ *
+ *  @param
+ *		[in] dmub_srv: dmub_srv structure
  */
-void dmub_enable_outbox_notification(struct dc *dc)
+void dmub_enable_outbox_notification(struct dc_dmub_srv *dmub_srv)
 {
 	union dmub_rb_cmd cmd;
-	struct dc_context *dc_ctx = dc->ctx;
 
 	memset(&cmd, 0x0, sizeof(cmd));
 	cmd.outbox1_enable.header.type = DMUB_CMD__OUTBOX1_ENABLE;
@@ -45,7 +48,7 @@ void dmub_enable_outbox_notification(struct dc *dc)
 		sizeof(cmd.outbox1_enable.header);
 	cmd.outbox1_enable.enable = true;
 
-	dc_dmub_srv_cmd_queue(dc_ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc_ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc_ctx->dmub_srv);
+	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
+	dc_dmub_srv_wait_idle(dmub_srv);
 }

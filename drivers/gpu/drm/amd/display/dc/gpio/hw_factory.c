@@ -53,6 +53,7 @@
 #include "dcn20/hw_factory_dcn20.h"
 #include "dcn21/hw_factory_dcn21.h"
 #include "dcn30/hw_factory_dcn30.h"
+#include "dcn315/hw_factory_dcn315.h"
 #endif
 
 #include "diagnostics/hw_factory_diag.h"
@@ -114,7 +115,11 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
 	case DCN_VERSION_3_1:
+	case DCN_VERSION_3_16:
 		dal_hw_factory_dcn30_init(factory);
+		return true;
+	case DCN_VERSION_3_15:
+		dal_hw_factory_dcn315_init(factory);
 		return true;
 #endif
 	default:

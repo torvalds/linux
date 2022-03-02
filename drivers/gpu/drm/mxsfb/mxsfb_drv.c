@@ -25,6 +25,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mode_config.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -258,8 +259,7 @@ static int mxsfb_load(struct drm_device *drm,
 
 	ret = mxsfb_attach_bridge(mxsfb);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
+		dev_err_probe(drm->dev, ret, "Cannot connect bridge\n");
 		goto err_vblank;
 	}
 
@@ -419,7 +419,7 @@ static struct platform_driver mxsfb_platform_driver = {
 	},
 };
 
-module_platform_driver(mxsfb_platform_driver);
+drm_module_platform_driver(mxsfb_platform_driver);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_DESCRIPTION("Freescale MXS DRM/KMS driver");

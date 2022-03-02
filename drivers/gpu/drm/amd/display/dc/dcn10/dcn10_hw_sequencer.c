@@ -1500,13 +1500,8 @@ void dcn10_init_hw(struct dc *dc)
 				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 	}
 
-	/* Enable outbox notification feature of dmub */
-	if (dc->debug.enable_dmub_aux_for_legacy_ddc)
-		dmub_enable_outbox_notification(dc);
-
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot)
-		dc_link_blank_all_dp_displays(dc);
+	dc_link_blank_all_dp_displays(dc);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -1514,7 +1509,7 @@ void dcn10_init_hw(struct dc *dc)
 	 * Otherwise, if taking control is not possible, we need to power
 	 * everything down.
 	 */
-	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
+	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 		if (!is_optimized_init_done) {
 			hws->funcs.init_pipes(dc, dc->current_state);
 			if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
@@ -2065,14 +2060,11 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint32_t embedded_pix_clk_100hz;
 	uint16_t embedded_h_total;
 	uint16_t embedded_v_total;
-	bool clamshell_closed = false;
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
 
 	if (dc->config.vblank_alignment_dto_params &&
 		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
-		clamshell_closed =
-			(dc->config.vblank_alignment_dto_params >> 63);
 		embedded_h_total =
 			(dc->config.vblank_alignment_dto_params >> 32) & 0x7FFF;
 		embedded_v_total =
