@@ -418,6 +418,7 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 
 /**
  * ima_file_mprotect - based on policy, limit mprotect change
+ * @vma: vm_area_struct protection is set to
  * @prot: contains the protection that will be applied by the kernel.
  *
  * Files can be mmap'ed read/write and later changed to execute to circumvent
@@ -610,8 +611,8 @@ EXPORT_SYMBOL_GPL(ima_inode_hash);
 
 /**
  * ima_post_create_tmpfile - mark newly created tmpfile as new
- * @mnt_userns:	user namespace of the mount the inode was found from
- * @file : newly created tmpfile
+ * @mnt_userns: user namespace of the mount the inode was found from
+ * @inode: inode of the newly created tmpfile
  *
  * No measuring, appraising or auditing of newly created tmpfiles is needed.
  * Skip calling process_measurement(), but indicate which newly, created
@@ -643,7 +644,7 @@ void ima_post_create_tmpfile(struct user_namespace *mnt_userns,
 
 /**
  * ima_post_path_mknod - mark as a new inode
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @mnt_userns: user namespace of the mount the inode was found from
  * @dentry: newly created dentry
  *
  * Mark files created via the mknodat syscall as new, so that the
@@ -814,8 +815,8 @@ int ima_load_data(enum kernel_load_data_id id, bool contents)
  * ima_post_load_data - appraise decision based on policy
  * @buf: pointer to in memory file contents
  * @size: size of in memory file contents
- * @id: kernel load data caller identifier
- * @description: @id-specific description of contents
+ * @load_id: kernel load data caller identifier
+ * @description: @load_id-specific description of contents
  *
  * Measure/appraise/audit in memory buffer based on policy.  Policy rules
  * are written in terms of a policy identifier.
