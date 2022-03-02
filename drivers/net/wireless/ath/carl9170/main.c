@@ -1943,11 +1943,7 @@ int carl9170_register(struct ar9170 *ar)
 	struct ath_regulatory *regulatory = &ar->common.regulatory;
 	int err = 0, i;
 
-	if (WARN_ON(ar->mem_bitmap))
-		return -EINVAL;
-
-	ar->mem_bitmap = bitmap_zalloc(ar->fw.mem_blocks, GFP_KERNEL);
-
+	ar->mem_bitmap = devm_bitmap_zalloc(&ar->udev->dev, ar->fw.mem_blocks, GFP_KERNEL);
 	if (!ar->mem_bitmap)
 		return -ENOMEM;
 
@@ -2049,9 +2045,6 @@ void carl9170_free(struct ar9170 *ar)
 
 	kfree_skb(ar->rx_failover);
 	ar->rx_failover = NULL;
-
-	bitmap_free(ar->mem_bitmap);
-	ar->mem_bitmap = NULL;
 
 	kfree(ar->survey);
 	ar->survey = NULL;
