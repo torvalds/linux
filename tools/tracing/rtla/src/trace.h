@@ -6,7 +6,9 @@ struct trace_events {
 	struct trace_events *next;
 	char *system;
 	char *event;
+	char *trigger;
 	char enabled;
+	char trigger_enabled;
 };
 
 struct trace_instance {
@@ -40,3 +42,5 @@ void trace_events_destroy(struct trace_instance *instance,
 			  struct trace_events *events);
 int trace_events_enable(struct trace_instance *instance,
 			  struct trace_events *events);
+
+int trace_event_add_trigger(struct trace_events *event, char *trigger);

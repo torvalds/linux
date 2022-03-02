@@ -204,6 +204,8 @@ static void trace_events_free(struct trace_events *events)
 
 		tevent = tevent->next;
 
+		if (free_event->trigger)
+			free(free_event->trigger);
 		free(free_event->system);
 		free(free_event);
 	}
@@ -236,6 +238,48 @@ struct trace_events *trace_event_alloc(const char *event_string)
 }
 
 /*
+ * trace_event_add_trigger - record an event trigger action
+ */
+int trace_event_add_trigger(struct trace_events *event, char *trigger)
+{
+	if (event->trigger)
+		free(event->trigger);
+
+	event->trigger = strdup(trigger);
+	if (!event->trigger)
+		return 1;
+
+	return 0;
+}
+
+/*
+ * trace_event_disable_trigger - disable an event trigger
+ */
+static void trace_event_disable_trigger(struct trace_instance *instance,
+					struct trace_events *tevent)
+{
+	char trigger[1024];
+	int retval;
+
+	if (!tevent->trigger)
+		return;
+
+	if (!tevent->trigger_enabled)
+		return;
+
+	debug_msg("Disabling %s:%s trigger %s\n", tevent->system,
+		  tevent->event ? : "*", tevent->trigger);
+
+	snprintf(trigger, 1024, "!%s\n", tevent->trigger);
+
+	retval = tracefs_event_file_write(instance->inst, tevent->system,
+					  tevent->event, "trigger", trigger);
+	if (retval < 0)
+		err_msg("Error disabling %s:%s trigger %s\n", tevent->system,
+			tevent->event ? : "*", tevent->trigger);
+}
+
+/*
  * trace_events_disable - disable all trace events
  */
 void trace_events_disable(struct trace_instance *instance,
@@ -248,12 +292,50 @@ void trace_events_disable(struct trace_instance *instance,
 
 	while (tevent) {
 		debug_msg("Disabling event %s:%s\n", tevent->system, tevent->event ? : "*");
-		if (tevent->enabled)
+		if (tevent->enabled) {
+			trace_event_disable_trigger(instance, tevent);
 			tracefs_event_disable(instance->inst, tevent->system, tevent->event);
+		}
 
 		tevent->enabled = 0;
 		tevent = tevent->next;
 	}
+}
+
+/*
+ * trace_event_enable_trigger - enable an event trigger associated with an event
+ */
+static int trace_event_enable_trigger(struct trace_instance *instance,
+				      struct trace_events *tevent)
+{
+	char trigger[1024];
+	int retval;
+
+	if (!tevent->trigger)
+		return 0;
+
+	if (!tevent->event) {
+		err_msg("Trigger %s applies only for single events, not for all %s:* events\n",
+			tevent->trigger, tevent->system);
+		return 1;
+	}
+
+	snprintf(trigger, 1024, "%s\n", tevent->trigger);
+
+	debug_msg("Enabling %s:%s trigger %s\n", tevent->system,
+		  tevent->event ? : "*", tevent->trigger);
+
+	retval = tracefs_event_file_write(instance->inst, tevent->system,
+					  tevent->event, "trigger", trigger);
+	if (retval < 0) {
+		err_msg("Error enabling %s:%s trigger %s\n", tevent->system,
+			tevent->event ? : "*", tevent->trigger);
+		return 1;
+	}
+
+	tevent->trigger_enabled = 1;
+
+	return 0;
 }
 
 /*
@@ -274,6 +356,10 @@ int trace_events_enable(struct trace_instance *instance,
 			return 1;
 		}
 
+
+		retval = trace_event_enable_trigger(instance, tevent);
+		if (retval)
+			return 1;
 
 		tevent->enabled = 1;
 		tevent = tevent->next;
