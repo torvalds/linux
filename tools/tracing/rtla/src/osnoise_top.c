@@ -629,7 +629,7 @@ int osnoise_top_main(int argc, char **argv)
 		if (!params->quiet)
 			osnoise_print_stats(params, tool);
 
-		if (!tracefs_trace_is_on(trace->inst))
+		if (trace_is_off(&tool->trace, &record->trace))
 			break;
 
 	} while (!stop_tracing);
@@ -638,7 +638,7 @@ int osnoise_top_main(int argc, char **argv)
 
 	return_value = 0;
 
-	if (!tracefs_trace_is_on(trace->inst)) {
+	if (trace_is_off(&tool->trace, &record->trace)) {
 		printf("osnoise hit stop tracing\n");
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);

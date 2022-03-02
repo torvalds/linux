@@ -47,3 +47,4 @@ int trace_events_enable(struct trace_instance *instance,
 
 int trace_event_add_filter(struct trace_events *event, char *filter);
 int trace_event_add_trigger(struct trace_events *event, char *trigger);
+int trace_is_off(struct trace_instance *tool, struct trace_instance *trace);

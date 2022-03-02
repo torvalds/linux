@@ -516,3 +516,22 @@ void trace_events_destroy(struct trace_instance *instance,
 	trace_events_disable(instance, events);
 	trace_events_free(events);
 }
+
+int trace_is_off(struct trace_instance *tool, struct trace_instance *trace)
+{
+	/*
+	 * The tool instance is always present, it is the one used to collect
+	 * data.
+	 */
+	if (!tracefs_trace_is_on(tool->inst))
+		return 1;
+
+	/*
+	 * The trace instance is only enabled when -t is set. IOW, when the system
+	 * is tracing.
+	 */
+	if (trace && !tracefs_trace_is_on(trace->inst))
+		return 1;
+
+	return 0;
+}

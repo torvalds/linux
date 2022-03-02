@@ -655,7 +655,7 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->quiet)
 			timerlat_print_stats(params, top);
 
-		if (!tracefs_trace_is_on(trace->inst))
+		if (trace_is_off(&top->trace, &record->trace))
 			break;
 
 	};
@@ -664,7 +664,7 @@ int timerlat_top_main(int argc, char *argv[])
 
 	return_value = 0;
 
-	if (!tracefs_trace_is_on(trace->inst)) {
+	if (trace_is_off(&top->trace, &record->trace)) {
 		printf("rtla timelat hit stop tracing\n");
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
