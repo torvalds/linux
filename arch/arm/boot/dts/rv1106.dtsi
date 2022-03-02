@@ -912,6 +912,14 @@
 		status = "disabled";
 	};
 
+	system_sram: sram@ff6c0000 {
+		compatible = "mmio-sram";
+		reg = <0xff6c0000 0x40000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xff6c0000 0x40000>;
+	};
+
 	rga2: rga@ff980000 {
 		compatible = "rockchip,rga2_core0";
 		reg = <0xff980000 0x1000>;
