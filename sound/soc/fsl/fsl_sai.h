@@ -227,15 +227,13 @@ struct fsl_sai_soc_data {
 
 /**
  * struct fsl_sai_verid - version id data
- * @major: major version number
- * @minor: minor version number
+ * @version: version number
  * @feature: feature specification number
  *           0000000000000000b - Standard feature set
  *           0000000000000000b - Standard feature set
  */
 struct fsl_sai_verid {
-	u32 major;
-	u32 minor;
+	u32 version;
 	u32 feature;
 };
 

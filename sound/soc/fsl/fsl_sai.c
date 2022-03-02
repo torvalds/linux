@@ -962,10 +962,8 @@ static int fsl_sai_check_version(struct device *dev)
 
 	dev_dbg(dev, "VERID: 0x%016X\n", val);
 
-	sai->verid.major = (val & FSL_SAI_VERID_MAJOR_MASK) >>
-			   FSL_SAI_VERID_MAJOR_SHIFT;
-	sai->verid.minor = (val & FSL_SAI_VERID_MINOR_MASK) >>
-			   FSL_SAI_VERID_MINOR_SHIFT;
+	sai->verid.version = val &
+		(FSL_SAI_VERID_MAJOR_MASK | FSL_SAI_VERID_MINOR_MASK);
 	sai->verid.feature = val & FSL_SAI_VERID_FEATURE_MASK;
 
 	ret = regmap_read(sai->regmap, FSL_SAI_PARAM, &val);
@@ -1137,7 +1135,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	/* Select MCLK direction */
 	if (of_find_property(np, "fsl,sai-mclk-direction-output", NULL) &&
-	    sai->verid.major >= 3 && sai->verid.minor >= 1) {
+	    sai->verid.version >= 0x0301) {
 		regmap_update_bits(sai->regmap, FSL_SAI_MCTL,
 				   FSL_SAI_MCTL_MCLK_EN, FSL_SAI_MCTL_MCLK_EN);
 	}
