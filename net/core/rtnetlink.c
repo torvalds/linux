@@ -5059,8 +5059,8 @@ static int rtnl_get_offload_stats_attr_size(int attr_id)
 	return 0;
 }
 
-static int rtnl_get_offload_stats(struct sk_buff *skb, struct net_device *dev,
-				  int *prividx)
+static int rtnl_offload_xstats_fill(struct sk_buff *skb, struct net_device *dev,
+				    int *prividx)
 {
 	struct nlattr *attr = NULL;
 	int attr_id, size;
@@ -5109,7 +5109,7 @@ get_offload_stats_failure:
 	return err;
 }
 
-static int rtnl_get_offload_stats_size(const struct net_device *dev)
+static int rtnl_offload_xstats_get_size(const struct net_device *dev)
 {
 	int nla_size = 0;
 	int attr_id;
@@ -5219,7 +5219,7 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 		if (!attr)
 			goto nla_put_failure;
 
-		err = rtnl_get_offload_stats(skb, dev, prividx);
+		err = rtnl_offload_xstats_fill(skb, dev, prividx);
 		if (err == -ENODATA)
 			nla_nest_cancel(skb, attr);
 		else
@@ -5323,7 +5323,7 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 	}
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_OFFLOAD_XSTATS, 0))
-		size += rtnl_get_offload_stats_size(dev);
+		size += rtnl_offload_xstats_get_size(dev);
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_AF_SPEC, 0)) {
 		struct rtnl_af_ops *af_ops;
