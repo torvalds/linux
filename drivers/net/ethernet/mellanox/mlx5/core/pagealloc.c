@@ -327,11 +327,12 @@ static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id,
 }
 
 static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
-		      int notify_fail, bool ec_function)
+		      int event, bool ec_function)
 {
 	u32 function = get_function(func_id, ec_function);
 	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
 	int inlen = MLX5_ST_SZ_BYTES(manage_pages_in);
+	int notify_fail = event;
 	u64 addr;
 	int err;
 	u32 *in;
@@ -366,10 +367,15 @@ retry:
 	MLX5_SET(manage_pages_in, in, embedded_cpu_function, ec_function);
 
 	err = mlx5_cmd_do(dev, in, inlen, out, sizeof(out));
+	if (err == -EREMOTEIO) {
+		notify_fail = 0;
+		/* if triggered by FW and failed by FW ignore */
+		if (event) {
+			err = 0;
+			goto out_4k;
+		}
+	}
 	if (err) {
-		if (err == -EREMOTEIO)
-			notify_fail = 0;
-
 		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
