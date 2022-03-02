@@ -1539,7 +1539,7 @@ static int carl9170_rng_get(struct ar9170 *ar)
 
 	BUILD_BUG_ON(RB > CARL9170_MAX_CMD_PAYLOAD_LEN);
 
-	if (!IS_ACCEPTING_CMD(ar) || !ar->rng.initialized)
+	if (!IS_ACCEPTING_CMD(ar))
 		return -EAGAIN;
 
 	count = ARRAY_SIZE(ar->rng.cache);
@@ -1585,14 +1585,6 @@ static int carl9170_rng_read(struct hwrng *rng, u32 *data)
 	return sizeof(u16);
 }
 
-static void carl9170_unregister_hwrng(struct ar9170 *ar)
-{
-	if (ar->rng.initialized) {
-		hwrng_unregister(&ar->rng.rng);
-		ar->rng.initialized = false;
-	}
-}
-
 static int carl9170_register_hwrng(struct ar9170 *ar)
 {
 	int err;
@@ -1603,25 +1595,14 @@ static int carl9170_register_hwrng(struct ar9170 *ar)
 	ar->rng.rng.data_read = carl9170_rng_read;
 	ar->rng.rng.priv = (unsigned long)ar;
 
-	if (WARN_ON(ar->rng.initialized))
-		return -EALREADY;
-
-	err = hwrng_register(&ar->rng.rng);
+	err = devm_hwrng_register(&ar->udev->dev, &ar->rng.rng);
 	if (err) {
 		dev_err(&ar->udev->dev, "Failed to register the random "
 			"number generator (%d)\n", err);
 		return err;
 	}
 
-	ar->rng.initialized = true;
-
-	err = carl9170_rng_get(ar);
-	if (err) {
-		carl9170_unregister_hwrng(ar);
-		return err;
-	}
-
-	return 0;
+	return carl9170_rng_get(ar);
 }
 #endif /* CONFIG_CARL9170_HWRNG */
 
@@ -2063,10 +2044,6 @@ void carl9170_unregister(struct ar9170 *ar)
 		ar->wps.pbc = NULL;
 	}
 #endif /* CONFIG_CARL9170_WPC */
-
-#ifdef CONFIG_CARL9170_HWRNG
-	carl9170_unregister_hwrng(ar);
-#endif /* CONFIG_CARL9170_HWRNG */
 
 	carl9170_cancel_worker(ar);
 	cancel_work_sync(&ar->restart_work);
