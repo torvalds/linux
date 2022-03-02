@@ -8859,6 +8859,65 @@ static struct bpf_insn *bpf_convert_shinfo_access(const struct bpf_insn *si,
 	return insn;
 }
 
+static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_insn *si,
+						struct bpf_insn *insn)
+{
+	__u8 value_reg = si->dst_reg;
+	__u8 skb_reg = si->src_reg;
+
+#ifdef CONFIG_NET_CLS_ACT
+	__u8 tmp_reg = BPF_REG_AX;
+
+	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
+	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
+	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 5);
+	/* @ingress, read __sk_buff->tstamp as the (rcv) timestamp,
+	 * so check the skb->mono_delivery_time.
+	 */
+	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
+			      SKB_MONO_DELIVERY_TIME_OFFSET);
+	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
+				SKB_MONO_DELIVERY_TIME_MASK);
+	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
+	/* skb->mono_delivery_time is set, read 0 as the (rcv) timestamp. */
+	*insn++ = BPF_MOV64_IMM(value_reg, 0);
+	*insn++ = BPF_JMP_A(1);
+#endif
+
+	*insn++ = BPF_LDX_MEM(BPF_DW, value_reg, skb_reg,
+			      offsetof(struct sk_buff, tstamp));
+	return insn;
+}
+
+static struct bpf_insn *bpf_convert_tstamp_write(const struct bpf_insn *si,
+						 struct bpf_insn *insn)
+{
+	__u8 value_reg = si->src_reg;
+	__u8 skb_reg = si->dst_reg;
+
+#ifdef CONFIG_NET_CLS_ACT
+	__u8 tmp_reg = BPF_REG_AX;
+
+	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
+	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
+	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 3);
+	/* Writing __sk_buff->tstamp at ingress as the (rcv) timestamp.
+	 * Clear the skb->mono_delivery_time.
+	 */
+	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
+			      SKB_MONO_DELIVERY_TIME_OFFSET);
+	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
+				~SKB_MONO_DELIVERY_TIME_MASK);
+	*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg,
+			      SKB_MONO_DELIVERY_TIME_OFFSET);
+#endif
+
+	/* skb->tstamp = tstamp */
+	*insn++ = BPF_STX_MEM(BPF_DW, skb_reg, value_reg,
+			      offsetof(struct sk_buff, tstamp));
+	return insn;
+}
+
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 				  const struct bpf_insn *si,
 				  struct bpf_insn *insn_buf,
@@ -9167,17 +9226,9 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		BUILD_BUG_ON(sizeof_field(struct sk_buff, tstamp) != 8);
 
 		if (type == BPF_WRITE)
-			*insn++ = BPF_STX_MEM(BPF_DW,
-					      si->dst_reg, si->src_reg,
-					      bpf_target_off(struct sk_buff,
-							     tstamp, 8,
-							     target_size));
+			insn = bpf_convert_tstamp_write(si, insn);
 		else
-			*insn++ = BPF_LDX_MEM(BPF_DW,
-					      si->dst_reg, si->src_reg,
-					      bpf_target_off(struct sk_buff,
-							     tstamp, 8,
-							     target_size));
+			insn = bpf_convert_tstamp_read(si, insn);
 		break;
 
 	case offsetof(struct __sk_buff, gso_segs):
