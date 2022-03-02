@@ -52,6 +52,8 @@ struct ocp_reg {
 	u32	servo_offset_i;
 	u32	servo_drift_p;
 	u32	servo_drift_i;
+	u32	status_offset;
+	u32	status_drift;
 };
 
 #define OCP_CTRL_ENABLE		BIT(0)
@@ -1935,6 +1937,36 @@ available_clock_sources_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(available_clock_sources);
 
+static ssize_t
+clock_status_drift_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->reg->status_drift);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+static DEVICE_ATTR_RO(clock_status_drift);
+
+static ssize_t
+clock_status_offset_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->reg->status_offset);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+static DEVICE_ATTR_RO(clock_status_offset);
+
 static struct attribute *timecard_attrs[] = {
 	&dev_attr_serialnum.attr,
 	&dev_attr_gnss_sync.attr,
@@ -1946,6 +1978,8 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_sma4.attr,
 	&dev_attr_available_sma_inputs.attr,
 	&dev_attr_available_sma_outputs.attr,
+	&dev_attr_clock_status_drift.attr,
+	&dev_attr_clock_status_offset.attr,
 	&dev_attr_irig_b_mode.attr,
 	&dev_attr_utc_tai_offset.attr,
 	&dev_attr_ts_window_adjust.attr,
