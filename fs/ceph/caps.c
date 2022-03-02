@@ -4166,7 +4166,6 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	/* lookup ino */
 	inode = ceph_find_inode(mdsc->fsc->sb, vino);
-	ci = ceph_inode(inode);
 	dout(" op %s ino %llx.%llx inode %p\n", ceph_cap_op_name(op), vino.ino,
 	     vino.snap, inode);
 
@@ -4192,6 +4191,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		}
 		goto flush_cap_releases;
 	}
+	ci = ceph_inode(inode);
 
 	/* these will work even if we don't have a cap yet */
 	switch (op) {
