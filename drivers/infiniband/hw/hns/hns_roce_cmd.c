@@ -262,3 +262,15 @@ void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 	dma_pool_free(hr_dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
+
+int hns_roce_create_hw_ctx(struct hns_roce_dev *dev,
+			   struct hns_roce_cmd_mailbox *mailbox,
+			   u8 cmd, unsigned long idx)
+{
+	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cmd, idx);
+}
+
+int hns_roce_destroy_hw_ctx(struct hns_roce_dev *dev, u8 cmd, unsigned long idx)
+{
+	return hns_roce_cmd_mbox(dev, 0, 0, cmd, idx);
+}
