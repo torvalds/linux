@@ -1227,6 +1227,7 @@ enum {
 	IFLA_STATS_GET_FILTERS, /* Nest of IFLA_STATS_LINK_xxx, each a u32 with
 				 * a filter mask for the corresponding group.
 				 */
+	IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS, /* 0 or 1 as u8 */
 	__IFLA_STATS_GETSET_MAX,
 };
 
