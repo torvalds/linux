@@ -247,7 +247,7 @@ void osnoise_top_usage(char *usage)
 
 	static const char * const msg[] = {
 		"  usage: rtla osnoise [top] [-h] [-q] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
-		"	  [-T us] [-t[=file]] [-e sys[:event]] [-c cpu-list] [-P priority]",
+		"	  [-T us] [-t[=file]] [-e sys[:event]] [--trigger <trigger>] [-c cpu-list] [-P priority]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -261,6 +261,7 @@ void osnoise_top_usage(char *usage)
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
+		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
 		"	  -q/--quiet print only a summary at the end",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
 		"		o:prio - use SCHED_OTHER with prio",
@@ -312,13 +313,14 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			{"stop-total",		required_argument,	0, 'S'},
 			{"threshold",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
+			{"trigger",		required_argument,	0, '0'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:d:De:hp:P:qr:s:S:t::T:",
+		c = getopt_long(argc, argv, "a:c:d:De:hp:P:qr:s:S:t::T:0:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -401,6 +403,17 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			break;
 		case 'T':
 			params->threshold = get_llong_from_str(optarg);
+			break;
+		case '0': /* trigger */
+			if (params->events) {
+				retval = trace_event_add_trigger(params->events, optarg);
+				if (retval) {
+					err_msg("Error adding trigger %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				osnoise_top_usage("--trigger requires a previous -e\n");
+			}
 			break;
 		default:
 			osnoise_top_usage("Invalid option");
