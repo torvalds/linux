@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (c) 2020 Intel Corporation */
 
 #ifndef _UAPI_LINUX_ASPEED_MCTP_H
