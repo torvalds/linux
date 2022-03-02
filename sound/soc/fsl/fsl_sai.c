@@ -366,9 +366,11 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		if (!clk_rate)
 			continue;
 
-		ratio = clk_rate / freq;
+		ratio = DIV_ROUND_CLOSEST(clk_rate, freq);
+		if (!ratio || ratio > 512 || ratio & 1)
+			continue;
 
-		diff = clk_rate - ratio * freq;
+		diff = abs((long)clk_rate - ratio * freq);
 
 		/*
 		 * Drop the source that can not be
@@ -381,10 +383,6 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 			"ratio %d for freq %dHz based on clock %ldHz\n",
 			ratio, freq, clk_rate);
 
-		if (ratio % 2 == 0 && ratio >= 2 && ratio <= 512)
-			ratio /= 2;
-		else
-			continue;
 
 		if (diff < bestdiff) {
 			savediv = ratio;
@@ -424,7 +422,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 
 	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR2_MSEL_MASK,
 			   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
-	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR2_DIV_MASK, savediv - 1);
+	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR2_DIV_MASK, savediv / 2 - 1);
 
 	return 0;
 }
