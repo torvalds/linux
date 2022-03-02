@@ -2949,6 +2949,7 @@ static void wr_reg_barrier(struct uart_port *port, u32 reg, u32 val)
 
 struct samsung_early_console_data {
 	u32 txfull_mask;
+	u32 rxfifo_mask;
 };
 
 static void samsung_early_busyuart(struct uart_port *port)
@@ -2983,6 +2984,26 @@ static void samsung_early_write(struct console *con, const char *s,
 	uart_console_write(&dev->port, s, n, samsung_early_putc);
 }
 
+static int samsung_early_read(struct console *con, char *s, unsigned int n)
+{
+	struct earlycon_device *dev = con->data;
+	const struct samsung_early_console_data *data = dev->port.private_data;
+	int ch, ufstat, num_read = 0;
+
+	while (num_read < n) {
+		ufstat = rd_regl(&dev->port, S3C2410_UFSTAT);
+		if (!(ufstat & data->rxfifo_mask))
+			break;
+		ch = rd_reg(&dev->port, S3C2410_URXH);
+		if (ch == NO_POLL_CHAR)
+			break;
+
+		s[num_read++] = ch;
+	}
+
+	return num_read;
+}
+
 static int __init samsung_early_console_setup(struct earlycon_device *device,
 					      const char *opt)
 {
@@ -2990,12 +3011,14 @@ static int __init samsung_early_console_setup(struct earlycon_device *device,
 		return -ENODEV;
 
 	device->con->write = samsung_early_write;
+	device->con->read = samsung_early_read;
 	return 0;
 }
 
 /* S3C2410 */
 static struct samsung_early_console_data s3c2410_early_console_data = {
 	.txfull_mask = S3C2410_UFSTAT_TXFULL,
+	.rxfifo_mask = S3C2410_UFSTAT_RXFULL | S3C2410_UFSTAT_RXMASK,
 };
 
 static int __init s3c2410_early_console_setup(struct earlycon_device *device,
@@ -3011,6 +3034,7 @@ OF_EARLYCON_DECLARE(s3c2410, "samsung,s3c2410-uart",
 /* S3C2412, S3C2440, S3C64xx */
 static struct samsung_early_console_data s3c2440_early_console_data = {
 	.txfull_mask = S3C2440_UFSTAT_TXFULL,
+	.rxfifo_mask = S3C2440_UFSTAT_RXFULL | S3C2440_UFSTAT_RXMASK,
 };
 
 static int __init s3c2440_early_console_setup(struct earlycon_device *device,
@@ -3030,6 +3054,7 @@ OF_EARLYCON_DECLARE(s3c6400, "samsung,s3c6400-uart",
 /* S5PV210, Exynos */
 static struct samsung_early_console_data s5pv210_early_console_data = {
 	.txfull_mask = S5PV210_UFSTAT_TXFULL,
+	.rxfifo_mask = S5PV210_UFSTAT_RXFULL | S5PV210_UFSTAT_RXMASK,
 };
 
 static int __init s5pv210_early_console_setup(struct earlycon_device *device,
