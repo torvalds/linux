@@ -899,7 +899,7 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_wtbl_smps_tlv);
 
 void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				 struct ieee80211_sta *sta, void *sta_wtbl,
-				 void *wtbl_tlv, bool ldpc)
+				 void *wtbl_tlv, bool ht_ldpc, bool vht_ldpc)
 {
 	struct wtbl_ht *ht = NULL;
 	struct tlv *tlv;
@@ -909,7 +909,7 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 		tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_HT, sizeof(*ht),
 						     wtbl_tlv, sta_wtbl);
 		ht = (struct wtbl_ht *)tlv;
-		ht->ldpc = ldpc &&
+		ht->ldpc = ht_ldpc &&
 			   !!(sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING);
 		ht->af = sta->ht_cap.ampdu_factor;
 		ht->mm = sta->ht_cap.ampdu_density;
@@ -924,7 +924,7 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 						     sizeof(*vht), wtbl_tlv,
 						     sta_wtbl);
 		vht = (struct wtbl_vht *)tlv;
-		vht->ldpc = ldpc &&
+		vht->ldpc = vht_ldpc &&
 			    !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC);
 		vht->vht = true;
 
@@ -1004,7 +1004,8 @@ int mt76_connac_mcu_sta_cmd(struct mt76_phy *phy,
 						   sta_wtbl, wtbl_hdr);
 		if (info->sta)
 			mt76_connac_mcu_wtbl_ht_tlv(dev, skb, info->sta,
-						    sta_wtbl, wtbl_hdr, true);
+						    sta_wtbl, wtbl_hdr,
+						    true, true);
 	}
 
 	return mt76_mcu_skb_send_msg(dev, skb, info->cmd, true);

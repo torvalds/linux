@@ -880,7 +880,7 @@ mt7615_mcu_wtbl_sta_add(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 						 NULL, wtbl_hdr);
 		if (sta)
 			mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, wskb, sta,
-						    NULL, wtbl_hdr, true);
+						    NULL, wtbl_hdr, true, true);
 		mt76_connac_mcu_wtbl_hdr_trans_tlv(wskb, vif, &msta->wcid,
 						   NULL, wtbl_hdr);
 	}

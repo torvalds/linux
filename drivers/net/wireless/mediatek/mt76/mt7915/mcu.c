@@ -821,8 +821,9 @@ mt7915_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 	     IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G))
 		cap |= STA_REC_HE_CAP_BW20_RU242_SUPPORT;
 
-	if (mvif->cap.ldpc && (elem->phy_cap_info[1] &
-			       IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+	if (mvif->cap.he_ldpc &&
+	    (elem->phy_cap_info[1] &
+	     IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
 		cap |= STA_REC_HE_CAP_LDPC;
 
 	if (elem->phy_cap_info[1] &
@@ -1073,7 +1074,8 @@ mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, vif, wcid, tlv, wtbl_hdr);
 	if (sta)
 		mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, skb, sta, tlv,
-					    wtbl_hdr, mvif->cap.ldpc);
+					    wtbl_hdr, mvif->cap.ht_ldpc,
+					    mvif->cap.vht_ldpc);
 
 	return 0;
 }
@@ -1582,7 +1584,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 			cap |= STA_CAP_TX_STBC;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			cap |= STA_CAP_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.ht_ldpc &&
 		    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 			cap |= STA_CAP_LDPC;
 
@@ -1608,7 +1610,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 			cap |= STA_CAP_VHT_TX_STBC;
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_1)
 			cap |= STA_CAP_VHT_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.vht_ldpc &&
 		    (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC))
 			cap |= STA_CAP_VHT_LDPC;
 
@@ -1872,8 +1874,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			      len);
 	if (ie && ie[1] >= sizeof(*ht)) {
 		ht = (void *)(ie + 2);
-		vc->ldpc |= !!(le16_to_cpu(ht->cap_info) &
-			       IEEE80211_HT_CAP_LDPC_CODING);
+		vc->ht_ldpc = !!(le16_to_cpu(ht->cap_info) &
+				 IEEE80211_HT_CAP_LDPC_CODING);
 	}
 
 	ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, mgmt->u.beacon.variable,
@@ -1884,7 +1886,7 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		vht = (void *)(ie + 2);
 		bc = le32_to_cpu(vht->vht_cap_info);
 
-		vc->ldpc |= !!(bc & IEEE80211_VHT_CAP_RXLDPC);
+		vc->vht_ldpc = !!(bc & IEEE80211_VHT_CAP_RXLDPC);
 		vc->vht_su_ebfer =
 			(bc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) &&
 			(pc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
@@ -1908,6 +1910,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 
 		he = (void *)(ie + 3);
 
+		vc->he_ldpc =
+			HE_PHY(CAP1_LDPC_CODING_IN_PAYLOAD, pe->phy_cap_info[1]);
 		vc->he_su_ebfer =
 			HE_PHY(CAP3_SU_BEAMFORMER, he->phy_cap_info[3]) &&
 			HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]);
