@@ -5981,8 +5981,8 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 
 	/* Allocate mailbox memory */
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR_OR_NULL(mailbox))
-		return -ENOMEM;
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
 
 	ret = alloc_eq_buf(hr_dev, eq);
 	if (ret)

@@ -89,9 +89,9 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	}
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR_OR_NULL(mailbox)) {
+	if (IS_ERR(mailbox)) {
 		ibdev_err(ibdev, "failed to alloc mailbox for SRQC.\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(mailbox);
 		goto err_xa;
 	}
 
