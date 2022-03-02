@@ -96,9 +96,23 @@
 		#clock-cells = <0>;
 	};
 
-	peri_grf: syscon@ff000000 {
-		compatible = "rockchip,rv1106-peri-grf", "syscon", "simple-mfd";
-		reg = <0xff000000 0x1000>;
+	grf: syscon@ff000000 {
+		compatible = "rockchip,rv1106-grf", "syscon", "simple-mfd";
+		reg = <0xff000000 0x68000>;
+
+		reboot_mode: reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x20200>;
+			mode-bootloader = <BOOT_BL_DOWNLOAD>;
+			mode-charge = <BOOT_CHARGING>;
+			mode-fastboot = <BOOT_FASTBOOT>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-ums = <BOOT_UMS>;
+			mode-panic = <BOOT_PANIC>;
+			mode-watchdog = <BOOT_WATCHDOG>;
+		};
 
 		rgb: rgb {
 			compatible = "rockchip,rv1106-rgb";
@@ -182,7 +196,7 @@
 		clock-names = "dac", "pclk";
 		resets = <&cru SRST_M_DSM>;
 		reset-names = "reset" ;
-		rockchip,grf = <&peri_grf>;
+		rockchip,grf = <&grf>;
 		rockchip,pwm-output-mode;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
@@ -301,7 +315,7 @@
 	cru: clock-controller@ff3a0000 {
 		compatible = "rockchip,rv1106-cru";
 		reg = <0xff3a0000 0x20000>;
-		rockchip,grf = <&peri_grf>;
+		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
@@ -353,7 +367,7 @@
 	u2phy: usb2-phy@ff3e0000 {
 		compatible = "rockchip,rv1106-usb2phy";
 		reg = <0xff3e0000 0x8000>;
-		rockchip,grf = <&peri_grf>;
+		rockchip,grf = <&grf>;
 		clocks = <&cru CLK_REF_USBPHY>, <&cru PCLK_USBPHY>;
 		clock-names = "phyclk", "pclk";
 		resets = <&cru SRST_USBPHY_POR>, <&cru SRST_P_USBPHY>;
@@ -667,7 +681,7 @@
 		compatible = "rockchip,rv1106-vop";
 		reg = <0xff990000 0x200>;
 		reg-names = "regs";
-		rockchip,grf = <&peri_grf>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
