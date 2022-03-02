@@ -107,6 +107,16 @@ int mlx5_cmd_destroy_vport_lag(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_cmd_destroy_vport_lag);
 
+static void mlx5_lag_print_mapping(struct mlx5_core_dev *dev,
+				   struct mlx5_lag *ldev)
+{
+	int i;
+
+	mlx5_core_info(dev, "lag map:\n");
+	for (i = 0; i < ldev->ports; i++)
+		mlx5_core_info(dev, "\tport %d:%d\n", i + 1, ldev->v2p_map[i]);
+}
+
 static int mlx5_lag_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr);
 static void mlx5_do_bond_work(struct work_struct *work);
@@ -311,7 +321,6 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 	u8 ports[MLX5_MAX_PORTS] = {};
 	int err;
 	int i;
-	int j;
 
 	mlx5_infer_tx_affinity_mapping(tracker, ldev->ports, ports);
 
@@ -328,11 +337,7 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 		memcpy(ldev->v2p_map, ports, sizeof(ports[0]) *
 		       ldev->ports);
 
-		mlx5_core_info(dev0, "modify lag map\n");
-		for (j = 0; j < ldev->ports; j++)
-			mlx5_core_info(dev0, "\tmap port %d:%d\n",
-				       j + 1,
-				       ldev->v2p_map[j]);
+		mlx5_lag_print_mapping(dev0, ldev);
 		break;
 	}
 
@@ -393,11 +398,8 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
 	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	int err;
-	int i;
 
-	mlx5_core_info(dev0, "lag map:\n");
-	for (i = 0; i < ldev->ports; i++)
-		mlx5_core_info(dev0, "\tport %d:%d\n", i + 1, ldev->v2p_map[i]);
+	mlx5_lag_print_mapping(dev0, ldev);
 	mlx5_core_info(dev0, "shared_fdb:%d mode:%s\n",
 		       shared_fdb, get_str_port_sel_mode(flags));
 
