@@ -89,6 +89,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.function = 1;
 		re_msg.params.pci_cfg.reg = 0x94;
 		re_msg.rx_len = 4;
+		re_msg.domain_id = 0;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
@@ -121,6 +122,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.device = 0;
 		re_msg.params.pci_cfg.function = 2;
 		re_msg.params.pci_cfg.reg = 0xd4;
+		re_msg.domain_id = 0;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);

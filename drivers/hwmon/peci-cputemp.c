@@ -113,6 +113,7 @@ static int get_temp_targets(struct peci_cputemp *priv)
 		re_msg.params.pci_cfg.function = 1;
 		re_msg.params.pci_cfg.reg = 0x94;
 		re_msg.rx_len = 4;
+		re_msg.domain_id = 0;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
@@ -379,6 +380,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.bus = 14;
 		msg.reg = 0xd4;
 		msg.rx_len = 4;
+		msg.domain_id = 0;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
@@ -411,6 +413,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.bus = 1;
 		msg.reg = 0xb4;
 		msg.rx_len = 4;
+		msg.domain_id = 0;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
