@@ -167,11 +167,10 @@ static int fsl_sai_set_dai_bclk_ratio(struct snd_soc_dai *dai,
 }
 
 static int fsl_sai_set_dai_sysclk_tr(struct snd_soc_dai *cpu_dai,
-		int clk_id, unsigned int freq, int fsl_dir)
+		int clk_id, unsigned int freq, bool tx)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int ofs = sai->soc_data->reg_offset;
-	bool tx = fsl_dir == FSL_FMT_TRANSMITTER;
 	u32 val_cr2 = 0;
 
 	switch (clk_id) {
@@ -205,15 +204,13 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
 
-	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
-					FSL_FMT_TRANSMITTER);
+	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq, true);
 	if (ret) {
 		dev_err(cpu_dai->dev, "Cannot set tx sysclk: %d\n", ret);
 		return ret;
 	}
 
-	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
-					FSL_FMT_RECEIVER);
+	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq, false);
 	if (ret)
 		dev_err(cpu_dai->dev, "Cannot set rx sysclk: %d\n", ret);
 
@@ -221,11 +218,10 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 }
 
 static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
-				unsigned int fmt, int fsl_dir)
+				unsigned int fmt, bool tx)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int ofs = sai->soc_data->reg_offset;
-	bool tx = fsl_dir == FSL_FMT_TRANSMITTER;
 	u32 val_cr2 = 0, val_cr4 = 0;
 
 	if (!sai->is_lsb_first)
@@ -332,13 +328,13 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	int ret;
 
-	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_TRANSMITTER);
+	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, true);
 	if (ret) {
 		dev_err(cpu_dai->dev, "Cannot set tx format: %d\n", ret);
 		return ret;
 	}
 
-	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_RECEIVER);
+	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, false);
 	if (ret)
 		dev_err(cpu_dai->dev, "Cannot set rx format: %d\n", ret);
 
