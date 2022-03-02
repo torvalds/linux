@@ -21,6 +21,7 @@ struct osnoise_hist_params {
 	char			*trace_output;
 	unsigned long long	runtime;
 	unsigned long long	period;
+	long long		threshold;
 	long long		stop_us;
 	long long		stop_total_us;
 	int			sleep_time;
@@ -425,15 +426,16 @@ static void osnoise_hist_usage(char *usage)
 
 	static const char * const msg[] = {
 		"",
-		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-t[=file]] \\",
-		"	  [-c cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros]",
+		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-T us] \\",
+		"	  [-t[=file]] [-c cpu-list] [-P priority] [-b N] [-E N] [--no-header] \\",
+		"	  [--no-summary] [--no-index] [--with-zeros]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -p/--period us: osnoise period in us",
 		"	  -r/--runtime us: osnoise runtime in us",
 		"	  -s/--stop us: stop trace if a single sample is higher than the argument in us",
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
+		"	  -T/--threshold us: the minimum delta to be considered a noise",
 		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
@@ -497,6 +499,7 @@ static struct osnoise_hist_params
 			{"stop",		required_argument,	0, 's'},
 			{"stop-total",		required_argument,	0, 'S'},
 			{"trace",		optional_argument,	0, 't'},
+			{"threshold",		required_argument,	0, 'T'},
 			{"no-header",		no_argument,		0, '0'},
 			{"no-summary",		no_argument,		0, '1'},
 			{"no-index",		no_argument,		0, '2'},
@@ -507,7 +510,7 @@ static struct osnoise_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:b:d:E:Dhp:P:r:s:S:t::0123",
+		c = getopt_long(argc, argv, "c:b:d:E:Dhp:P:r:s:S:t::T:0123",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -564,6 +567,9 @@ static struct osnoise_hist_params
 			break;
 		case 'S':
 			params->stop_total_us = get_llong_from_str(optarg);
+			break;
+		case 'T':
+			params->threshold = get_llong_from_str(optarg);
 			break;
 		case 't':
 			if (optarg)
@@ -641,6 +647,14 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
 		if (retval) {
 			err_msg("Failed to set stop total us\n");
+			goto out_err;
+		}
+	}
+
+	if (params->threshold) {
+		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
+		if (retval) {
+			err_msg("Failed to set tracing_thresh\n");
 			goto out_err;
 		}
 	}

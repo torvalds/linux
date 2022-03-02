@@ -15,3 +15,8 @@
 
         Stop the trace if the total sample is higher than the argument in microseconds.
         If **-T** is set, it will also save the trace to the output.
+
+**-T**, **--threshold** *us*
+
+        Specify the minimum delta between two time reads to be considered noise.
+        The default threshold is *5 us*.

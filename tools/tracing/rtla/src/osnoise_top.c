@@ -23,6 +23,7 @@ struct osnoise_top_params {
 	char			*trace_output;
 	unsigned long long	runtime;
 	unsigned long long	period;
+	long long		threshold;
 	long long		stop_us;
 	long long		stop_total_us;
 	int			sleep_time;
@@ -244,14 +245,15 @@ void osnoise_top_usage(char *usage)
 	int i;
 
 	static const char * const msg[] = {
-		"  usage: rtla osnoise [top] [-h] [-q] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-t[=file]] \\",
-		"	  [-c cpu-list] [-P priority]",
+		"  usage: rtla osnoise [top] [-h] [-q] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-T us] \\",
+		"	  [-t[=file]] [-c cpu-list] [-P priority]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -p/--period us: osnoise period in us",
 		"	  -r/--runtime us: osnoise runtime in us",
 		"	  -s/--stop us: stop trace if a single sample is higher than the argument in us",
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
+		"	  -T/--threshold us: the minimum delta to be considered a noise",
 		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
@@ -302,6 +304,7 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			{"runtime",		required_argument,	0, 'r'},
 			{"stop",		required_argument,	0, 's'},
 			{"stop-total",		required_argument,	0, 'S'},
+			{"threshold",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
 			{0, 0, 0, 0}
 		};
@@ -309,7 +312,7 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:d:Dhp:P:qr:s:S:t::",
+		c = getopt_long(argc, argv, "c:d:Dhp:P:qr:s:S:t::T:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -367,6 +370,9 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			else
 				params->trace_output = "osnoise_trace.txt";
 			break;
+		case 'T':
+			params->threshold = get_llong_from_str(optarg);
+			break;
 		default:
 			osnoise_top_usage("Invalid option");
 		}
@@ -421,6 +427,14 @@ osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_top_params *p
 		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
 		if (retval) {
 			err_msg("Failed to set stop total us\n");
+			goto out_err;
+		}
+	}
+
+	if (params->threshold) {
+		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
+		if (retval) {
+			err_msg("Failed to set tracing_thresh\n");
 			goto out_err;
 		}
 	}
