@@ -578,6 +578,7 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 #define CIF_SCALE_CH3_VDEV_NAME CIF_DRIVER_NAME	"_scale_ch3"
 
 #define RKCIF_SCALE_ENUM_SIZE_MAX	3
+#define RKCIF_MAX_SDITF			4
 
 enum scale_ch_sw {
 	SCALE_MIPI0_ID0,
@@ -708,7 +709,7 @@ struct rkcif_device {
 	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
 	int inf_id;
 
-	struct sditf_priv		*sditf;
+	struct sditf_priv		*sditf[RKCIF_MAX_SDITF];
 	struct proc_dir_entry		*proc_dir;
 	struct rkcif_irq_stats		irq_stats;
 	spinlock_t			hdr_lock; /* lock for hdr buf sync */
@@ -728,6 +729,7 @@ struct rkcif_device {
 	bool				iommu_en;
 	bool				is_use_dummybuf;
 	int				sync_type;
+	int				sditf_cnt;
 };
 
 extern struct platform_driver rkcif_plat_drv;

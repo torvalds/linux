@@ -112,7 +112,7 @@ static ssize_t rkcif_store_line_int_num(struct device *dev,
 					       const char *buf, size_t len)
 {
 	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
-	struct sditf_priv *priv = cif_dev->sditf;
+	struct sditf_priv *priv = cif_dev->sditf[0];
 	int val = 0;
 	int ret = 0;
 
@@ -987,6 +987,18 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
+
+		if (cif_dev->sditf_cnt > 1) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd,
+						       video,
+						       s_stream,
+						       on);
+				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+					goto err_stream_off;
+			}
+		}
+
 		if (on)
 			rkcif_set_sensor_streamon_in_sync_mode(cif_dev);
 	} else {
@@ -1039,6 +1051,16 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 
 				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 					goto err_stream_off;
+			}
+			if (cif_dev->sditf_cnt > 1) {
+				for (i = 0; i < cif_dev->sditf_cnt; i++) {
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd,
+							       video,
+							       s_stream,
+							       on);
+					if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+						goto err_stream_off;
+				}
 			}
 
 			if (on)
@@ -1231,8 +1253,9 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 
 static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
-	struct sditf_priv *sditf = dev->sditf;
+	struct sditf_priv *sditf = NULL;
 	int ret = 0;
+	int i = 0;
 
 	ret = rkcif_update_sensor_info(&dev->stream[0]);
 	if (ret) {
@@ -1240,8 +1263,12 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 			 "There is not terminal subdev, not synchronized with ISP\n");
 		return 0;
 	}
-	if (sditf)
-		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+
+	for (i = 0; i < dev->sditf_cnt; i++) {
+		sditf = dev->sditf[i];
+		if (sditf && (!sditf->is_combine_mode))
+			ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+	}
 
 	return ret;
 }
@@ -1700,6 +1727,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->isr_hdl = rkcif_irq_handler;
 	cif_dev->id_use_cnt = 0;
 	cif_dev->sync_type = NO_SYNC_MODE;
+	cif_dev->sditf_cnt = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 

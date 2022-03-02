@@ -1357,9 +1357,17 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 
 static void rkcif_s_rx_buffer(struct rkcif_device *dev, struct rkisp_rx_buf *dbufs)
 {
-	struct media_pad *pad = media_entity_remote_pad(&dev->sditf->pads);
+	struct media_pad *pad = NULL;
 	struct v4l2_subdev *sd;
 
+	if (dev->sditf[0]) {
+		if (dev->sditf[0]->is_combine_mode)
+			pad = media_entity_remote_pad(&dev->sditf[0]->pads[1]);
+		else
+			pad = media_entity_remote_pad(&dev->sditf[0]->pads[0]);
+	} else {
+		return;
+	}
 	if (pad)
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 	else
@@ -2091,6 +2099,8 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 			channel->crop_st_x = stream->crop[CROP_SRC_ACT].left;
 
 		channel->crop_st_y = stream->crop[CROP_SRC_ACT].top;
+		if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
+			channel->crop_st_y *= dev->sditf_cnt;
 		channel->width = stream->crop[CROP_SRC_ACT].width;
 		channel->height = stream->crop[CROP_SRC_ACT].height;
 	} else {
@@ -2098,6 +2108,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->height = stream->pixm.height;
 		channel->crop_en = 0;
 	}
+
+	if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
+		channel->height *= dev->sditf_cnt;
 
 	fmt = find_output_fmt(stream, stream->pixm.pixelformat);
 	if (!fmt) {
@@ -2483,7 +2496,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	unsigned int val = 0x0;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_stream *detect_stream = &dev->stream[0];
-	struct sditf_priv *priv = dev->sditf;
+	struct sditf_priv *priv = dev->sditf[0];
 	unsigned int wait_line = 0x3fff;
 	unsigned int dma_en = 0;
 
@@ -3065,10 +3078,19 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
 	int ret = 0;
+	u32 height = 0;
+
+	if (stream->crop_enable)
+		height = stream->crop[CROP_SRC_ACT].height;
+	else
+		height = stream->pixm.height;
+
+	if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
+		height *= dev->sditf_cnt;
 
 	/* get a maximum plane size */
 	dummy_buf->size = max3(stream->pixm.plane_fmt[0].bytesperline *
-		stream->pixm.height,
+		height,
 		stream->pixm.plane_fmt[1].sizeimage,
 		stream->pixm.plane_fmt[2].sizeimage);
 	/*
@@ -3325,6 +3347,16 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 		pm_runtime_put_sync(dev->dev);
 		v4l2_pipeline_pm_put(&node->vdev.entity);
+		if (dev->sditf_cnt > 1) {
+			for (i = 0; i < dev->sditf_cnt; i++)
+				ret |= v4l2_subdev_call(dev->sditf[i]->sensor_sd,
+							core,
+							s_power,
+							0);
+			if (ret < 0)
+				v4l2_err(v4l2_dev, "set power off fail, ret %d\n",
+					 ret);
+		}
 		if (dev->hdr.hdr_mode == HDR_X2) {
 			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
 			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
@@ -4230,6 +4262,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	struct rkmodule_hdr_cfg hdr_cfg;
 	int rkmodule_stream_seq = RKMODULE_START_STREAM_DEFAULT;
 	int ret;
+	int i = 0;
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
@@ -4309,6 +4342,16 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 			v4l2_err(v4l2_dev, "cif pipeline_pm_get fail %d\n",
 				 ret);
 			goto destroy_buf;
+		}
+		if (dev->sditf_cnt > 1) {
+			for (i = 0; i < dev->sditf_cnt; i++)
+				ret |= v4l2_subdev_call(dev->sditf[i]->sensor_sd,
+							core,
+							s_power,
+							1);
+			if (ret < 0)
+				v4l2_err(v4l2_dev, "set power on fail, ret %d\n",
+					 ret);
 		}
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
@@ -4546,6 +4589,9 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 				height = pixm->height / ysubs;
 			}
 		}
+
+		if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
+			height *= dev->sditf_cnt;
 
 		extend_line->pixm.height = height + RKMODULE_EXTEND_LINE;
 
@@ -7261,7 +7307,7 @@ static void rkcif_modify_line_int(struct rkcif_stream *stream, bool en)
 static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
-	struct sditf_priv *priv = cif_dev->sditf;
+	struct sditf_priv *priv = cif_dev->sditf[0];
 
 	if (!priv || priv->toisp_inf.link_mode != TOISP_NONE)
 		return;
@@ -7561,7 +7607,7 @@ void rkcif_irq_handle_toisp(struct rkcif_device *cif_dev, unsigned int intstat_g
 {
 	int i = 0;
 	bool to_check = false;
-	struct sditf_priv *priv = cif_dev->sditf;
+	struct sditf_priv *priv = cif_dev->sditf[0];
 
 	if (!priv || priv->toisp_inf.link_mode == TOISP_NONE)
 		return;
@@ -8454,7 +8500,7 @@ int rkcif_sditf_disconnect(struct video_device *vdev)
 	struct media_link *link;
 	int ret;
 
-	link = list_first_entry(&cifdev->sditf->sd.entity.links, struct media_link, list);
+	link = list_first_entry(&cifdev->sditf[0]->sd.entity.links, struct media_link, list);
 	ret = media_entity_setup_link(link, 0);
 	if (ret)
 		dev_err(cifdev->dev, "failed to disable link of sditf with isp");
