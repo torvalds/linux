@@ -174,6 +174,10 @@ static int vcn_v2_0_sw_init(void *handle)
 
 	fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
 	fw_shared->present_flag_0 = cpu_to_le32(AMDGPU_VCN_MULTI_QUEUE_FLAG);
+
+	if (amdgpu_vcnfw_log)
+		amdgpu_vcn_fwlog_init(adev->vcn.inst);
+
 	return 0;
 }
 

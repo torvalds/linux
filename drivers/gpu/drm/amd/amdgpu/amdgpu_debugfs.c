@@ -1778,6 +1778,16 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		amdgpu_debugfs_ring_init(adev, ring);
 	}
 
+	for ( i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (!amdgpu_vcnfw_log)
+			break;
+
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
+		amdgpu_debugfs_vcn_fwlog_init(adev, i, &adev->vcn.inst[i]);
+	}
+
 	amdgpu_ras_debugfs_create_all(adev);
 	amdgpu_rap_debugfs_init(adev);
 	amdgpu_securedisplay_debugfs_init(adev);

@@ -158,6 +158,7 @@
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
+#define AMDGPU_VCN_FW_LOGGING_FLAG	(1 << 10)
 
 #define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
 #define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
@@ -335,4 +336,7 @@ enum amdgpu_ring_priority_level amdgpu_vcn_get_enc_ring_prio(int ring);
 
 void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
 
+void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn);
+void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
+                                   uint8_t i, struct amdgpu_vcn_inst *vcn);
 #endif

@@ -233,6 +233,9 @@ extern int amdgpu_cik_support;
 #endif
 extern int amdgpu_num_kcq;
 
+#define AMDGPU_VCNFW_LOG_SIZE (32 * 1024)
+extern int amdgpu_vcnfw_log;
+
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
 #define AMDGPU_DEFAULT_GTT_SIZE_MB		3072ULL /* 3GB by default */
