@@ -2729,6 +2729,48 @@ static int kfd_ioctl_criu(struct file *filep, struct kfd_process *p, void *data)
 	return ret;
 }
 
+static int kfd_ioctl_runtime_enable(struct file *filep, struct kfd_process *p, void *data)
+{
+	return 0;
+}
+
+static int kfd_ioctl_set_debug_trap(struct file *filep, struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_dbg_trap_args *args = data;
+	int r = 0;
+
+	if (sched_policy == KFD_SCHED_POLICY_NO_HWS) {
+		pr_err("Debugging does not support sched_policy %i", sched_policy);
+		return -EINVAL;
+	}
+
+	switch (args->op) {
+	case KFD_IOC_DBG_TRAP_ENABLE:
+	case KFD_IOC_DBG_TRAP_DISABLE:
+	case KFD_IOC_DBG_TRAP_SEND_RUNTIME_EVENT:
+	case KFD_IOC_DBG_TRAP_SET_EXCEPTIONS_ENABLED:
+	case KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_OVERRIDE:
+	case KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_MODE:
+	case KFD_IOC_DBG_TRAP_SUSPEND_QUEUES:
+	case KFD_IOC_DBG_TRAP_RESUME_QUEUES:
+	case KFD_IOC_DBG_TRAP_SET_NODE_ADDRESS_WATCH:
+	case KFD_IOC_DBG_TRAP_CLEAR_NODE_ADDRESS_WATCH:
+	case KFD_IOC_DBG_TRAP_SET_FLAGS:
+	case KFD_IOC_DBG_TRAP_QUERY_DEBUG_EVENT:
+	case KFD_IOC_DBG_TRAP_QUERY_EXCEPTION_INFO:
+	case KFD_IOC_DBG_TRAP_GET_QUEUE_SNAPSHOT:
+	case KFD_IOC_DBG_TRAP_GET_DEVICE_SNAPSHOT:
+		pr_warn("Debugging not supported yet\n");
+		r = -EACCES;
+		break;
+	default:
+		pr_err("Invalid option: %i\n", args->op);
+		r = -EINVAL;
+	}
+
+	return r;
+}
+
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
 			    .cmd_drv = 0, .name = #ioctl}
@@ -2841,6 +2883,12 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_EXPORT_DMABUF,
 				kfd_ioctl_export_dmabuf, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_RUNTIME_ENABLE,
+			kfd_ioctl_runtime_enable, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_TRAP,
+			kfd_ioctl_set_debug_trap, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
