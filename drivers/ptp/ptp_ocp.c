@@ -1967,6 +1967,46 @@ clock_status_offset_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(clock_status_offset);
 
+static ssize_t
+tod_correction_show(struct device *dev,
+		    struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->tod->adj_sec);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+
+static ssize_t
+tod_correction_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	unsigned long flags;
+	int err, res;
+	u32 val = 0;
+
+	err = kstrtos32(buf, 0, &res);
+	if (err)
+		return err;
+	if (res < 0) {
+		res *= -1;
+		val |= BIT(31);
+	}
+	val |= res;
+
+	spin_lock_irqsave(&bp->lock, flags);
+	iowrite32(val, &bp->tod->adj_sec);
+	spin_unlock_irqrestore(&bp->lock, flags);
+
+	return count;
+}
+static DEVICE_ATTR_RW(tod_correction);
+
 static struct attribute *timecard_attrs[] = {
 	&dev_attr_serialnum.attr,
 	&dev_attr_gnss_sync.attr,
@@ -1983,6 +2023,7 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_irig_b_mode.attr,
 	&dev_attr_utc_tai_offset.attr,
 	&dev_attr_ts_window_adjust.attr,
+	&dev_attr_tod_correction.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(timecard);
