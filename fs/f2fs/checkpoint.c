@@ -98,6 +98,13 @@ repeat:
 	}
 
 	if (unlikely(!PageUptodate(page))) {
+		if (page->index == sbi->metapage_eio_ofs &&
+			sbi->metapage_eio_cnt++ == MAX_RETRY_META_PAGE_EIO) {
+			set_ckpt_flags(sbi, CP_ERROR_FLAG);
+		} else {
+			sbi->metapage_eio_ofs = page->index;
+			sbi->metapage_eio_cnt = 0;
+		}
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
