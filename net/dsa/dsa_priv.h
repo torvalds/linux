@@ -144,6 +144,21 @@ struct dsa_switchdev_event_work {
 	bool host_addr;
 };
 
+enum dsa_standalone_event {
+	DSA_UC_ADD,
+	DSA_UC_DEL,
+	DSA_MC_ADD,
+	DSA_MC_DEL,
+};
+
+struct dsa_standalone_event_work {
+	struct work_struct work;
+	struct net_device *dev;
+	enum dsa_standalone_event event;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+};
+
 struct dsa_slave_priv {
 	/* Copy of CPU port xmit for faster access in slave transmit hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
@@ -223,6 +238,10 @@ int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
+int dsa_port_standalone_host_fdb_add(struct dsa_port *dp,
+				     const unsigned char *addr, u16 vid);
+int dsa_port_standalone_host_fdb_del(struct dsa_port *dp,
+				     const unsigned char *addr, u16 vid);
 int dsa_port_bridge_host_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 				 u16 vid);
 int dsa_port_bridge_host_fdb_del(struct dsa_port *dp, const unsigned char *addr,
@@ -236,6 +255,10 @@ int dsa_port_mdb_add(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb);
 int dsa_port_mdb_del(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb);
+int dsa_port_standalone_host_mdb_add(const struct dsa_port *dp,
+				     const struct switchdev_obj_port_mdb *mdb);
+int dsa_port_standalone_host_mdb_del(const struct dsa_port *dp,
+				     const struct switchdev_obj_port_mdb *mdb);
 int dsa_port_bridge_host_mdb_add(const struct dsa_port *dp,
 				 const struct switchdev_obj_port_mdb *mdb);
 int dsa_port_bridge_host_mdb_del(const struct dsa_port *dp,
@@ -501,6 +524,20 @@ static inline void *dsa_etype_header_pos_tx(struct sk_buff *skb)
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
+
+static inline bool dsa_switch_supports_uc_filtering(struct dsa_switch *ds)
+{
+	return ds->ops->port_fdb_add && ds->ops->port_fdb_del &&
+	       ds->fdb_isolation && !ds->vlan_filtering_is_global &&
+	       !ds->needs_standalone_vlan_filtering;
+}
+
+static inline bool dsa_switch_supports_mc_filtering(struct dsa_switch *ds)
+{
+	return ds->ops->port_mdb_add && ds->ops->port_mdb_del &&
+	       ds->fdb_isolation && !ds->vlan_filtering_is_global &&
+	       !ds->needs_standalone_vlan_filtering;
+}
 
 /* dsa2.c */
 void dsa_lag_map(struct dsa_switch_tree *dst, struct dsa_lag *lag);

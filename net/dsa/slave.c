@@ -23,6 +23,114 @@
 
 #include "dsa_priv.h"
 
+static void dsa_slave_standalone_event_work(struct work_struct *work)
+{
+	struct dsa_standalone_event_work *standalone_work =
+		container_of(work, struct dsa_standalone_event_work, work);
+	const unsigned char *addr = standalone_work->addr;
+	struct net_device *dev = standalone_work->dev;
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_mdb mdb;
+	struct dsa_switch *ds = dp->ds;
+	u16 vid = standalone_work->vid;
+	int err;
+
+	switch (standalone_work->event) {
+	case DSA_UC_ADD:
+		err = dsa_port_standalone_host_fdb_add(dp, addr, vid);
+		if (err) {
+			dev_err(ds->dev,
+				"port %d failed to add %pM vid %d to fdb: %d\n",
+				dp->index, addr, vid, err);
+			break;
+		}
+		break;
+
+	case DSA_UC_DEL:
+		err = dsa_port_standalone_host_fdb_del(dp, addr, vid);
+		if (err) {
+			dev_err(ds->dev,
+				"port %d failed to delete %pM vid %d from fdb: %d\n",
+				dp->index, addr, vid, err);
+		}
+
+		break;
+	case DSA_MC_ADD:
+		ether_addr_copy(mdb.addr, addr);
+		mdb.vid = vid;
+
+		err = dsa_port_standalone_host_mdb_add(dp, &mdb);
+		if (err) {
+			dev_err(ds->dev,
+				"port %d failed to add %pM vid %d to mdb: %d\n",
+				dp->index, addr, vid, err);
+			break;
+		}
+		break;
+	case DSA_MC_DEL:
+		ether_addr_copy(mdb.addr, addr);
+		mdb.vid = vid;
+
+		err = dsa_port_standalone_host_mdb_del(dp, &mdb);
+		if (err) {
+			dev_err(ds->dev,
+				"port %d failed to delete %pM vid %d from mdb: %d\n",
+				dp->index, addr, vid, err);
+		}
+
+		break;
+	}
+
+	kfree(standalone_work);
+}
+
+static int dsa_slave_schedule_standalone_work(struct net_device *dev,
+					      enum dsa_standalone_event event,
+					      const unsigned char *addr,
+					      u16 vid)
+{
+	struct dsa_standalone_event_work *standalone_work;
+
+	standalone_work = kzalloc(sizeof(*standalone_work), GFP_ATOMIC);
+	if (!standalone_work)
+		return -ENOMEM;
+
+	INIT_WORK(&standalone_work->work, dsa_slave_standalone_event_work);
+	standalone_work->event = event;
+	standalone_work->dev = dev;
+
+	ether_addr_copy(standalone_work->addr, addr);
+	standalone_work->vid = vid;
+
+	dsa_schedule_work(&standalone_work->work);
+
+	return 0;
+}
+
+static int dsa_slave_sync_uc(struct net_device *dev,
+			     const unsigned char *addr)
+{
+	return dsa_slave_schedule_standalone_work(dev, DSA_UC_ADD, addr, 0);
+}
+
+static int dsa_slave_unsync_uc(struct net_device *dev,
+			       const unsigned char *addr)
+{
+	return dsa_slave_schedule_standalone_work(dev, DSA_UC_DEL, addr, 0);
+}
+
+static int dsa_slave_sync_mc(struct net_device *dev,
+			     const unsigned char *addr)
+{
+	return dsa_slave_schedule_standalone_work(dev, DSA_MC_ADD, addr, 0);
+}
+
+static int dsa_slave_unsync_mc(struct net_device *dev,
+			       const unsigned char *addr)
+{
+	return dsa_slave_schedule_standalone_work(dev, DSA_MC_DEL, addr, 0);
+}
+
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -122,9 +230,15 @@ static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 static void dsa_slave_set_rx_mode(struct net_device *dev)
 {
 	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
 
 	dev_mc_sync(master, dev);
 	dev_uc_sync(master, dev);
+	if (dsa_switch_supports_mc_filtering(ds))
+		__dev_mc_sync(dev, dsa_slave_sync_mc, dsa_slave_unsync_mc);
+	if (dsa_switch_supports_uc_filtering(ds))
+		__dev_uc_sync(dev, dsa_slave_sync_uc, dsa_slave_unsync_uc);
 }
 
 static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
@@ -1919,6 +2033,8 @@ int dsa_slave_create(struct dsa_port *port)
 	else
 		eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
+	if (dsa_switch_supports_uc_filtering(ds))
+		slave_dev->priv_flags |= IFF_UNICAST_FLT;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 	if (ds->ops->port_max_mtu)
 		slave_dev->max_mtu = ds->ops->port_max_mtu(ds, port->index);
