@@ -105,6 +105,47 @@ a page will cause no race conditions is enough.
   Please note the caller must not use data area after running
   page_pool_put_page_bulk(), as this function overwrites it.
 
+* page_pool_get_stats(): Retrieve statistics about the page_pool. This API
+  is only available if the kernel has been configured with
+  ``CONFIG_PAGE_POOL_STATS=y``. A pointer to a caller allocated ``struct
+  page_pool_stats`` structure is passed to this API which is filled in. The
+  caller can then report those stats to the user (perhaps via ethtool,
+  debugfs, etc.). See below for an example usage of this API.
+
+Stats API and structures
+------------------------
+If the kernel is configured with ``CONFIG_PAGE_POOL_STATS=y``, the API
+``page_pool_get_stats()`` and structures described below are available. It
+takes a  pointer to a ``struct page_pool`` and a pointer to a ``struct
+page_pool_stats`` allocated by the caller.
+
+The API will fill in the provided ``struct page_pool_stats`` with
+statistics about the page_pool.
+
+The stats structure has the following fields::
+
+    struct page_pool_stats {
+        struct page_pool_alloc_stats alloc_stats;
+        struct page_pool_recycle_stats recycle_stats;
+    };
+
+
+The ``struct page_pool_alloc_stats`` has the following fields:
+  * ``fast``: successful fast path allocations
+  * ``slow``: slow path order-0 allocations
+  * ``slow_high_order``: slow path high order allocations
+  * ``empty``: ptr ring is empty, so a slow path allocation was forced.
+  * ``refill``: an allocation which triggered a refill of the cache
+  * ``waive``: pages obtained from the ptr ring that cannot be added to
+    the cache due to a NUMA mismatch.
+
+The ``struct page_pool_recycle_stats`` has the following fields:
+  * ``cached``: recycling placed page in the page pool cache
+  * ``cache_full``: page pool cache was full
+  * ``ring``: page placed into the ptr ring
+  * ``ring_full``: page released from page pool because the ptr ring was full
+  * ``released_refcnt``: page released (and not recycled) because refcnt > 1
+
 Coding examples
 ===============
 
@@ -156,6 +197,21 @@ NAPI poller
             new_page = page_pool_dev_alloc_pages(page_pool);
         }
     }
+
+Stats
+-----
+
+.. code-block:: c
+
+	#ifdef CONFIG_PAGE_POOL_STATS
+	/* retrieve stats */
+	struct page_pool_stats stats = { 0 };
+	if (page_pool_get_stats(page_pool, &stats)) {
+		/* perhaps the driver reports statistics with ethool */
+		ethtool_print_allocation_stats(&stats.alloc_stats);
+		ethtool_print_recycle_stats(&stats.recycle_stats);
+	}
+	#endif
 
 Driver unload
 -------------
