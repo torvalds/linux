@@ -1928,15 +1928,12 @@ int mpp_task_dump_reg(struct mpp_dev *mpp,
 	return 0;
 }
 
-int mpp_task_dump_hw_reg(struct mpp_dev *mpp, struct mpp_task *task)
+int mpp_task_dump_hw_reg(struct mpp_dev *mpp)
 {
-	if (!task)
-		return -EIO;
-
 	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
 		u32 i;
-		u32 s = task->hw_info->reg_start;
-		u32 e = task->hw_info->reg_end;
+		u32 s = mpp->var->hw_info->reg_start;
+		u32 e = mpp->var->hw_info->reg_end;
 
 		mpp_err("--- dump hardware register ---\n");
 		for (i = s; i <= e; i++) {
@@ -1955,22 +1952,10 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 			    unsigned long iova,
 			    int status, void *arg)
 {
-	struct mpp_taskqueue *queue = (struct mpp_taskqueue *)arg;
-	struct mpp_task *task = mpp_taskqueue_get_running_task(queue);
-	struct mpp_dev *mpp;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
 
-	/*
-	 * NOTE: In link mode, this task may not be the task of the current
-	 * hardware processing error
-	 */
-	if (!task || !task->session)
-		return -EIO;
-	/* get mpp from cur task */
-	mpp = mpp_get_task_used_device(task, task->session);
 	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
-
-	mpp_task_dump_mem_region(mpp, task);
-	mpp_task_dump_hw_reg(mpp, task);
+	mpp_task_dump_hw_reg(mpp);
 
 	if (mpp->iommu_info->hdl)
 		mpp->iommu_info->hdl(iommu, iommu_dev, iova, status, arg);
@@ -2075,7 +2060,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	/* set iommu fault handler */
 	if (mpp->iommu_info)
 		iommu_set_fault_handler(mpp->iommu_info->domain,
-					mpp_iommu_handle, mpp->queue);
+					mpp_iommu_handle, mpp);
 
 	/* read hardware id */
 	if (hw_info->reg_id >= 0) {

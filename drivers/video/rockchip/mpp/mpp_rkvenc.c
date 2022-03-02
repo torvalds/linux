@@ -524,11 +524,8 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	if (task->irq_status & RKVENC_INT_ERROR_BITS) {
 		atomic_inc(&mpp->reset_request);
 		/* dump register */
-		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
-			mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n",
-				  task->irq_status);
-			mpp_task_dump_hw_reg(mpp, mpp_task);
-		}
+		mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n", task->irq_status);
+		mpp_task_dump_hw_reg(mpp);
 	}
 
 	/* unmap reserve buffer */

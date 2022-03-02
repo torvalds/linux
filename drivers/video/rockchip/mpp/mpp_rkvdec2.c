@@ -384,9 +384,8 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 		   RKVDEC_TIMEOUT_STA | RKVDEC_ERROR_STA;
 	if (err_mask & task->irq_status) {
 		atomic_inc(&mpp->reset_request);
-		mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n",
-			  task->irq_status);
-		mpp_task_dump_hw_reg(mpp, mpp_task);
+		mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n", task->irq_status);
+		mpp_task_dump_hw_reg(mpp);
 	}
 
 	mpp_task_finish(mpp_task->session, mpp_task);
@@ -1111,6 +1110,7 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 	mpp->dev_ops->task_worker = rkvdec2_soft_ccu_worker;
 	kthread_init_work(&mpp->work, rkvdec2_soft_ccu_worker);
 
+	mpp->iommu_info->hdl = rkvdec2_ccu_iommu_fault_handle;
 	/* get irq request */
 	ret = devm_request_threaded_irq(dev, mpp->irq, rkvdec2_soft_ccu_irq, NULL,
 					IRQF_SHARED, dev_name(dev), mpp);

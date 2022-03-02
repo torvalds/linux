@@ -1672,8 +1672,11 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			task->irq_status = irq_status;
 			mpp_debug(DEBUG_IRQ_CHECK, "irq_status=%08x, timeout=%u, abort=%u\n",
 				  irq_status, timeout_flag, abort_flag);
-			if (mpp->dev_ops->finish)
+			if (irq_status && mpp->dev_ops->finish)
 				mpp->dev_ops->finish(mpp, mpp_task);
+			else
+				task->reg[RKVDEC_REG_INT_EN_INDEX] = RKVDEC_TIMEOUT_STA;
+
 			set_bit(TASK_STATE_FINISH, &mpp_task->state);
 			set_bit(TASK_STATE_DONE, &mpp_task->state);
 
@@ -1769,6 +1772,26 @@ void *rkvdec2_ccu_alloc_task(struct mpp_session *session,
 	}
 
 	return &task->mpp_task;
+}
+
+int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+				   struct device *iommu_dev,
+				   unsigned long iova, int status, void *arg)
+{
+	u32 i = 0;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+
+	mpp_debug_enter();
+
+	atomic_inc(&mpp->queue->reset_request);
+	for (i = 0; i < mpp->queue->core_count; i++)
+		rk_iommu_mask_irq(mpp->queue->cores[i]->dev);
+
+	kthread_queue_work(&mpp->queue->worker, &mpp->work);
+
+	mpp_debug_leave();
+
+	return 0;
 }
 
 irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param)
