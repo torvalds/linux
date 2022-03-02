@@ -1578,6 +1578,8 @@ static void __init skx_idle_state_table_update(void)
  */
 static void __init spr_idle_state_table_update(void)
 {
+	unsigned long long msr;
+
 	/* Check if user prefers C1E over C1. */
 	if (preferred_states_mask & BIT(2)) {
 		if (preferred_states_mask & BIT(1))
@@ -1590,6 +1592,19 @@ static void __init spr_idle_state_table_update(void)
 		/* Enable C1E using the "C1E promotion" bit. */
 		c1e_promotion_enable();
 		disable_promotion_to_c1e = false;
+	}
+
+	/*
+	 * By default, the C6 state assumes the worst-case scenario of package
+	 * C6. However, if PC6 is disabled, we update the numbers to match
+	 * core C6.
+	 */
+	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
+
+	/* Limit value 2 and above allow for PC6. */
+	if ((msr & 0x7) < 2) {
+		spr_cstates[2].exit_latency = 190;
+		spr_cstates[2].target_residency = 600;
 	}
 }
 
