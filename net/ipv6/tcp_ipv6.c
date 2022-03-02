@@ -940,7 +940,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 		} else {
 			mark = sk->sk_mark;
 		}
-		buff->tstamp = tcp_transmit_time(sk);
+		skb_set_delivery_time(buff, tcp_transmit_time(sk), true);
 	}
 	fl6.flowi6_mark = IP6_REPLY_MARK(net, skb->mark) ?: mark;
 	fl6.fl6_dport = t1->dest;
