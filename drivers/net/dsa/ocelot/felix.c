@@ -80,6 +80,43 @@ static int felix_migrate_mdbs_to_npi_port(struct dsa_switch *ds, int port,
 	return ocelot_port_mdb_add(ocelot, cpu, &mdb, bridge_dev);
 }
 
+static void felix_migrate_pgid_bit(struct dsa_switch *ds, int from, int to,
+				   int pgid)
+{
+	struct ocelot *ocelot = ds->priv;
+	bool on;
+	u32 val;
+
+	val = ocelot_read_rix(ocelot, ANA_PGID_PGID, pgid);
+	on = !!(val & BIT(from));
+	val &= ~BIT(from);
+	if (on)
+		val |= BIT(to);
+	else
+		val &= ~BIT(to);
+
+	ocelot_write_rix(ocelot, val, ANA_PGID_PGID, pgid);
+}
+
+static void felix_migrate_flood_to_npi_port(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_UC);
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_MC);
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_BC);
+}
+
+static void
+felix_migrate_flood_to_tag_8021q_port(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_UC);
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_MC);
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_BC);
+}
+
 /* ocelot->npi was already set to -1 by felix_npi_port_deinit, so
  * ocelot_fdb_add() will not redirect FDB entries towards the
  * CPU port module here, which is what we want.
@@ -473,11 +510,13 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 					 felix_migrate_mdbs_to_tag_8021q_port);
 		if (err)
 			goto out_migrate_fdbs;
+
+		felix_migrate_flood_to_tag_8021q_port(ds, cpu);
 	}
 
 	err = felix_update_trapping_destinations(ds, true);
 	if (err)
-		goto out_migrate_mdbs;
+		goto out_migrate_flood;
 
 	/* The ownership of the CPU port module's queues might have just been
 	 * transferred to the tag_8021q tagger from the NPI-based tagger.
@@ -490,7 +529,9 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 
 	return 0;
 
-out_migrate_mdbs:
+out_migrate_flood:
+	if (change)
+		felix_migrate_flood_to_npi_port(ds, cpu);
 	if (change)
 		dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
 out_migrate_fdbs:
@@ -586,6 +627,8 @@ static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu, bool change)
 					 felix_migrate_mdbs_to_npi_port);
 		if (err)
 			goto out_migrate_fdbs;
+
+		felix_migrate_flood_to_npi_port(ds, cpu);
 	}
 
 	felix_npi_port_init(ocelot, cpu);
