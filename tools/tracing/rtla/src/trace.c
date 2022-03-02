@@ -190,3 +190,107 @@ int trace_instance_start(struct trace_instance *trace)
 {
 	return tracefs_trace_on(trace->inst);
 }
+
+/*
+ * trace_events_free - free a list of trace events
+ */
+static void trace_events_free(struct trace_events *events)
+{
+	struct trace_events *tevent = events;
+	struct trace_events *free_event;
+
+	while (tevent) {
+		free_event = tevent;
+
+		tevent = tevent->next;
+
+		free(free_event->system);
+		free(free_event);
+	}
+}
+
+/*
+ * trace_event_alloc - alloc and parse a single trace event
+ */
+struct trace_events *trace_event_alloc(const char *event_string)
+{
+	struct trace_events *tevent;
+
+	tevent = calloc(1, sizeof(*tevent));
+	if (!tevent)
+		return NULL;
+
+	tevent->system = strdup(event_string);
+	if (!tevent->system) {
+		free(tevent);
+		return NULL;
+	}
+
+	tevent->event = strstr(tevent->system, ":");
+	if (tevent->event) {
+		*tevent->event = '\0';
+		tevent->event = &tevent->event[1];
+	}
+
+	return tevent;
+}
+
+/*
+ * trace_events_disable - disable all trace events
+ */
+void trace_events_disable(struct trace_instance *instance,
+			  struct trace_events *events)
+{
+	struct trace_events *tevent = events;
+
+	if (!events)
+		return;
+
+	while (tevent) {
+		debug_msg("Disabling event %s:%s\n", tevent->system, tevent->event ? : "*");
+		if (tevent->enabled)
+			tracefs_event_disable(instance->inst, tevent->system, tevent->event);
+
+		tevent->enabled = 0;
+		tevent = tevent->next;
+	}
+}
+
+/*
+ * trace_events_enable - enable all events
+ */
+int trace_events_enable(struct trace_instance *instance,
+			struct trace_events *events)
+{
+	struct trace_events *tevent = events;
+	int retval;
+
+	while (tevent) {
+		debug_msg("Enabling event %s:%s\n", tevent->system, tevent->event ? : "*");
+		retval = tracefs_event_enable(instance->inst, tevent->system, tevent->event);
+		if (retval < 0) {
+			err_msg("Error enabling event %s:%s\n", tevent->system,
+				tevent->event ? : "*");
+			return 1;
+		}
+
+
+		tevent->enabled = 1;
+		tevent = tevent->next;
+	}
+
+	return 0;
+}
+
+/*
+ * trace_events_destroy - disable and free all trace events
+ */
+void trace_events_destroy(struct trace_instance *instance,
+			  struct trace_events *events)
+{
+	if (!events)
+		return;
+
+	trace_events_disable(instance, events);
+	trace_events_free(events);
+}

@@ -2,6 +2,13 @@
 #include <tracefs.h>
 #include <stddef.h>
 
+struct trace_events {
+	struct trace_events *next;
+	char *system;
+	char *event;
+	char enabled;
+};
+
 struct trace_instance {
 	struct tracefs_instance		*inst;
 	struct tep_handle		*tep;
@@ -25,3 +32,11 @@ void destroy_instance(struct tracefs_instance *inst);
 int save_trace_to_file(struct tracefs_instance *inst, const char *filename);
 int collect_registered_events(struct tep_event *tep, struct tep_record *record,
 			      int cpu, void *context);
+
+struct trace_events *trace_event_alloc(const char *event_string);
+void trace_events_disable(struct trace_instance *instance,
+			  struct trace_events *events);
+void trace_events_destroy(struct trace_instance *instance,
+			  struct trace_events *events);
+int trace_events_enable(struct trace_instance *instance,
+			  struct trace_events *events);
