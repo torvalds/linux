@@ -1,3 +1,8 @@
+**-a**, **--auto** *us*
+
+        Set the automatic trace mode. This mode sets some commonly used options
+        while debugging the system. It is equivalent to use **-s** *us* **-T 1 -t**.
+
 **-p**, **--period** *us*
 
         Set the *osnoise* tracer period in microseconds.
