@@ -1327,6 +1327,9 @@
 #define   ECOBITS_PPGTT_CACHE64B		(3 << 8)
 #define   ECOBITS_PPGTT_CACHE4B			(0 << 8)
 
+#define GEN12_RCU_MODE				_MMIO(0x14800)
+#define   GEN12_RCU_MODE_CCS_ENABLE		REG_BIT(0)
+
 #define CHV_FUSE_GT				_MMIO(VLV_DISPLAY_BASE + 0x2168)
 #define   CHV_FGT_DISABLE_SS0			(1 << 10)
 #define   CHV_FGT_DISABLE_SS1			(1 << 11)
