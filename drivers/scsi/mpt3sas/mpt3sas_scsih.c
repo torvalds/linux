@@ -12588,20 +12588,18 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
  */
 bool scsih_ncq_prio_supp(struct scsi_device *sdev)
 {
-	unsigned char *buf;
+	struct scsi_vpd *vpd;
 	bool ncq_prio_supp = false;
 
-	if (!scsi_device_supports_vpd(sdev))
-		return ncq_prio_supp;
+	rcu_read_lock();
+	vpd = rcu_dereference(sdev->vpd_pg89);
+	if (!vpd || vpd->len < 214)
+		goto out;
 
-	buf = kmalloc(SCSI_VPD_PG_LEN, GFP_KERNEL);
-	if (!buf)
-		return ncq_prio_supp;
+	ncq_prio_supp = (vpd->data[213] >> 4) & 1;
+out:
+	rcu_read_unlock();
 
-	if (!scsi_get_vpd_page(sdev, 0x89, buf, SCSI_VPD_PG_LEN))
-		ncq_prio_supp = (buf[213] >> 4) & 1;
-
-	kfree(buf);
 	return ncq_prio_supp;
 }
 /*
