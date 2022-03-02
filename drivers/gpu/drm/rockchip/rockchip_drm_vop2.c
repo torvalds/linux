@@ -5789,14 +5789,13 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		dclk_out_rate = dclk_out_rate / K;
 		if_pixclk->rate = dclk_out_rate;
 	} else if (output_if_is_mipi(conn_id)) {
-		if (vcstate->dsc_enable) {
-			dclk_out_rate = dclk_core_rate / K;
+		if (vcstate->dsc_enable)
 			/* dsc output is 96bit, dsi input is 192 bit */
 			mipi_pixclk = vcstate->dsc_cds_clk_rate >> 1;
-		} else {
+		else
 			mipi_pixclk = dclk_core_rate / K;
-		}
 
+		dclk_out_rate = dclk_core_rate / K;
 		if_pixclk->rate = mipi_pixclk;
 	} else if (output_if_is_dpi(conn_id)) {
 		if_pixclk->rate = v_pixclk;
@@ -5835,7 +5834,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	 * When used for HDMI, the input freq and v_pixclk must
 	 * keep 1:1 for rgb/yuv444, 1:2 for yuv420
 	 */
-	if (output_if_is_hdmi(conn_id) || output_if_is_dp(conn_id)) {
+	if (output_if_is_hdmi(conn_id) || output_if_is_dp(conn_id) || output_if_is_mipi(conn_id)) {
 		snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 		dclk = vop2_clk_get(vop2, clk_name);
 		if (v_pixclk <= (VOP2_MAX_DCLK_RATE * 1000)) {
@@ -5847,14 +5846,14 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 
 	if (dclk_core_rate > if_pixclk->rate) {
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
-		if (output_if_is_mipi(conn_id) && vcstate->dsc_enable)
+		if (output_if_is_mipi(conn_id))
 			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
 	} else {
+		if (output_if_is_mipi(conn_id))
+			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
-		if (output_if_is_mipi(conn_id) && vcstate->dsc_enable)
-			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 	}
 
 	if (!dsc_txp_clk_is_biggest && vcstate->dsc_enable) {
