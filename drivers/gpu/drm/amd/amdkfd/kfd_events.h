@@ -59,6 +59,7 @@ struct kfd_event {
 
 	int type;
 
+	spinlock_t lock;
 	wait_queue_head_t wq; /* List of event waiters. */
 
 	/* Only for signal events. */
