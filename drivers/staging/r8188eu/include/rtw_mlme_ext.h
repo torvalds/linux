@@ -632,7 +632,7 @@ void addba_timer_hdl(struct sta_info *psta);
 		_set_timer(&(mlmeext)->link_timer, (ms)); \
 	} while (0)
 
-int cckrates_included(unsigned char *rate, int ratelen);
+bool cckrates_included(unsigned char *rate, int ratelen);
 int cckratesonly_included(unsigned char *rate, int ratelen);
 
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);

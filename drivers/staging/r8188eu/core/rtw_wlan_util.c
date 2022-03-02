@@ -45,7 +45,7 @@ static u8 rtw_basic_rate_mix[7] = {
 	IEEE80211_OFDM_RATE_24MB | IEEE80211_BASIC_RATE_MASK
 };
 
-int cckrates_included(unsigned char *rate, int ratelen)
+bool cckrates_included(unsigned char *rate, int ratelen)
 {
 	int	i;
 
