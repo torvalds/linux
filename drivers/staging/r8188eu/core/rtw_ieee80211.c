@@ -81,7 +81,7 @@ bool	rtw_is_cckrates_included(u8 *rate)
 	return false;
 }
 
-uint	rtw_is_cckratesonly_included(u8 *rate)
+bool	rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
