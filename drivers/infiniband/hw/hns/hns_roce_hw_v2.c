@@ -1353,8 +1353,7 @@ static int config_hem_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
 	if (IS_ERR(mbox))
 		return PTR_ERR(mbox);
 
-	ret = hns_roce_cmd_mbox(hr_dev, base_addr, mbox->dma, obj, op,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+	ret = hns_roce_cmd_mbox(hr_dev, base_addr, mbox->dma, obj, op);
 	hns_roce_free_cmd_mailbox(hr_dev, mbox);
 	return ret;
 }
@@ -2874,12 +2873,13 @@ static int v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 	return ret;
 }
 
-static int v2_poll_mbox_done(struct hns_roce_dev *hr_dev, unsigned int timeout)
+static int v2_poll_mbox_done(struct hns_roce_dev *hr_dev)
 {
 	u8 status = 0;
 	int ret;
 
-	ret = v2_wait_mbox_complete(hr_dev, timeout, &status);
+	ret = v2_wait_mbox_complete(hr_dev, HNS_ROCE_CMD_TIMEOUT_MSECS,
+				    &status);
 	if (!ret) {
 		if (status != MB_ST_COMPLETE_SUCC)
 			return -EBUSY;
@@ -3992,8 +3992,7 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 		return PTR_ERR(mailbox);
 
 	/* configure the tag and op */
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, obj, op,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, obj, op);
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	return ret;
@@ -4018,8 +4017,7 @@ static int hns_roce_v2_qp_modify(struct hns_roce_dev *hr_dev,
 	memcpy(mailbox->buf + qpc_size, qpc_mask, qpc_size);
 
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_qp->qpn,
-				HNS_ROCE_CMD_MODIFY_QPC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_MODIFY_QPC);
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
@@ -5093,8 +5091,7 @@ static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
 		return PTR_ERR(mailbox);
 
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, hr_qp->qpn,
-				HNS_ROCE_CMD_QUERY_QPC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_QUERY_QPC);
 	if (ret)
 		goto out;
 
@@ -5461,8 +5458,7 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 		hr_reg_clear(srqc_mask, SRQC_LIMIT_WL);
 
 		ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, srq->srqn,
-					HNS_ROCE_CMD_MODIFY_SRQC,
-					HNS_ROCE_CMD_TIMEOUT_MSECS);
+					HNS_ROCE_CMD_MODIFY_SRQC);
 		hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 		if (ret) {
 			ibdev_err(&hr_dev->ib_dev,
@@ -5489,8 +5485,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 
 	srq_context = mailbox->buf;
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, srq->srqn,
-				HNS_ROCE_CMD_QUERY_SRQC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_QUERY_SRQC);
 	if (ret) {
 		ibdev_err(&hr_dev->ib_dev,
 			  "failed to process cmd of querying SRQ, ret = %d.\n",
@@ -5541,8 +5536,7 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	hr_reg_clear(cqc_mask, CQC_CQ_PERIOD);
 
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn,
-				HNS_ROCE_CMD_MODIFY_CQC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_MODIFY_CQC);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret)
 		ibdev_err(&hr_dev->ib_dev,
@@ -5872,12 +5866,10 @@ static void hns_roce_v2_destroy_eqc(struct hns_roce_dev *hr_dev, u32 eqn)
 
 	if (eqn < hr_dev->caps.num_comp_vectors)
 		ret = hns_roce_cmd_mbox(hr_dev, 0, 0, eqn & HNS_ROCE_V2_EQN_M,
-					HNS_ROCE_CMD_DESTROY_CEQC,
-					HNS_ROCE_CMD_TIMEOUT_MSECS);
+					HNS_ROCE_CMD_DESTROY_CEQC);
 	else
 		ret = hns_roce_cmd_mbox(hr_dev, 0, 0, eqn & HNS_ROCE_V2_EQN_M,
-					HNS_ROCE_CMD_DESTROY_AEQC,
-					HNS_ROCE_CMD_TIMEOUT_MSECS);
+					HNS_ROCE_CMD_DESTROY_AEQC);
 	if (ret)
 		dev_err(dev, "[mailbox cmd] destroy eqc(%u) failed.\n", eqn);
 }
@@ -6002,8 +5994,7 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 	if (ret)
 		goto err_cmd_mbox;
 
-	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, eq->eqn,
-				eq_cmd, HNS_ROCE_CMD_TIMEOUT_MSECS);
+	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, eq->eqn, eq_cmd);
 	if (ret) {
 		dev_err(hr_dev->dev, "[mailbox cmd] create eqc failed.\n");
 		goto err_cmd_mbox;

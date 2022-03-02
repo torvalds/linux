@@ -141,7 +141,7 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 
 	/* Send mailbox to hw */
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn,
-			HNS_ROCE_CMD_CREATE_CQC, HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_CREATE_CQC);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret) {
 		ibdev_err(ibdev,
@@ -175,8 +175,7 @@ static void free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	int ret;
 
 	ret = hns_roce_cmd_mbox(hr_dev, 0, 0, hr_cq->cqn,
-				HNS_ROCE_CMD_DESTROY_CQC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_DESTROY_CQC);
 	if (ret)
 		dev_err(dev, "DESTROY_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);

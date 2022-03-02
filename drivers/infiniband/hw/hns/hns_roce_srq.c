@@ -64,8 +64,7 @@ static int hns_roce_hw_create_srq(struct hns_roce_dev *dev,
 				  unsigned long srq_num)
 {
 	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, srq_num,
-				 HNS_ROCE_CMD_CREATE_SRQ,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+				 HNS_ROCE_CMD_CREATE_SRQ);
 }
 
 static int hns_roce_hw_destroy_srq(struct hns_roce_dev *dev,
@@ -73,8 +72,7 @@ static int hns_roce_hw_destroy_srq(struct hns_roce_dev *dev,
 				   unsigned long srq_num)
 {
 	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, srq_num,
-				 HNS_ROCE_CMD_DESTROY_SRQ,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+				 HNS_ROCE_CMD_DESTROY_SRQ);
 }
 
 static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)

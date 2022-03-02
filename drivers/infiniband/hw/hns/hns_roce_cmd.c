@@ -49,7 +49,7 @@ static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev, u64 in_param,
 /* this should be called with "poll_sem" */
 static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
-				    u16 op, unsigned int timeout)
+				    u16 op)
 {
 	int ret;
 
@@ -62,18 +62,18 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 		return ret;
 	}
 
-	return hr_dev->hw->poll_mbox_done(hr_dev, timeout);
+	return hr_dev->hw->poll_mbox_done(hr_dev);
 }
 
 static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u16 op, unsigned int timeout)
+				  u16 op)
 {
 	int ret;
 
 	down(&hr_dev->cmd.poll_sem);
 	ret = __hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param, in_modifier,
-				       op, timeout);
+				       op);
 	up(&hr_dev->cmd.poll_sem);
 
 	return ret;
@@ -99,7 +99,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
-				    u16 op, unsigned int timeout)
+				    u16 op)
 {
 	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
 	struct hns_roce_cmd_context *context;
@@ -130,7 +130,7 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 	}
 
 	if (!wait_for_completion_timeout(&context->done,
-					 msecs_to_jiffies(timeout))) {
+				msecs_to_jiffies(HNS_ROCE_CMD_TIMEOUT_MSECS))) {
 		dev_err_ratelimited(dev, "[cmd] token 0x%x mailbox 0x%x timeout.\n",
 				    context->token, op);
 		ret = -EBUSY;
@@ -149,20 +149,20 @@ out:
 
 static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u16 op, unsigned int timeout)
+				  u16 op)
 {
 	int ret;
 
 	down(&hr_dev->cmd.event_sem);
 	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param, in_modifier,
-				       op, timeout);
+				       op);
 	up(&hr_dev->cmd.event_sem);
 
 	return ret;
 }
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
-		      unsigned long in_modifier, u16 op, unsigned int timeout)
+		      unsigned long in_modifier, u16 op)
 {
 	bool is_busy;
 
@@ -172,10 +172,10 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 
 	if (hr_dev->cmd.use_events)
 		return hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-					      in_modifier, op, timeout);
+					      in_modifier, op);
 	else
 		return hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
-					      in_modifier, op, timeout);
+					      in_modifier, op);
 }
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)

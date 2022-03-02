@@ -854,8 +854,7 @@ struct hns_roce_hw {
 	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
 			 u64 out_param, u32 in_modifier, u16 op,
 			 u16 token, int event);
-	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev,
-			      unsigned int timeout);
+	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev);
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);

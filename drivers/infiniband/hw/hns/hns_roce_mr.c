@@ -52,8 +52,7 @@ static int hns_roce_hw_create_mpt(struct hns_roce_dev *hr_dev,
 				  unsigned long mpt_index)
 {
 	return hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, mpt_index,
-				 HNS_ROCE_CMD_CREATE_MPT,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+				 HNS_ROCE_CMD_CREATE_MPT);
 }
 
 int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
@@ -61,8 +60,7 @@ int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
 			    unsigned long mpt_index)
 {
 	return hns_roce_cmd_mbox(hr_dev, 0, mailbox ? mailbox->dma : 0,
-				 mpt_index, HNS_ROCE_CMD_DESTROY_MPT,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+				 mpt_index, HNS_ROCE_CMD_DESTROY_MPT);
 }
 
 static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
@@ -304,8 +302,7 @@ struct ib_mr *hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start,
 
 	mtpt_idx = key_to_hw_index(mr->key) & (hr_dev->caps.num_mtpts - 1);
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, mtpt_idx,
-				HNS_ROCE_CMD_QUERY_MPT,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+				HNS_ROCE_CMD_QUERY_MPT);
 	if (ret)
 		goto free_cmd_mbox;
 
