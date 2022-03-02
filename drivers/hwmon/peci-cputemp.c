@@ -115,7 +115,7 @@ static int get_temp_targets(struct peci_cputemp *priv)
 		re_msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
 		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
 		if (ret)
@@ -164,7 +164,7 @@ static int get_die_temp(struct peci_cputemp *priv)
 
 	msg.addr = priv->mgr->client->addr;
 
-	ret = peci_command(priv->mgr->client->adapter, PECI_CMD_GET_TEMP, &msg);
+	ret = peci_command(priv->mgr->client->adapter, PECI_CMD_GET_TEMP, sizeof(msg), &msg);
 	if (ret)
 		return ret;
 
@@ -381,7 +381,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
 		if (msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
 		if (ret)
@@ -393,7 +393,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.reg = 0xd0;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
 
 		if (msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
@@ -413,7 +413,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
 		if (msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
 		if (ret)

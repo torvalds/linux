@@ -145,7 +145,7 @@ struct peci_adapter *peci_verify_adapter(struct device *dev);
 int  peci_for_each_dev(void *data, int (*fn)(struct device *, void *));
 struct peci_xfer_msg *peci_get_xfer_msg(u8 tx_len, u8 rx_len);
 void peci_put_xfer_msg(struct peci_xfer_msg *msg);
-int  peci_command(struct peci_adapter *adpater, enum peci_cmd cmd, void *vmsg);
+int  peci_command(struct peci_adapter *adpater, enum peci_cmd cmd, uint msg_len, void *vmsg);
 int  peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u32 *cpu_id);
 
 #endif /* __LINUX_PECI_H */

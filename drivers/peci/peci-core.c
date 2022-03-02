@@ -1190,7 +1190,7 @@ static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
  *
  * Return: zero on success, else a negative error code.
  */
-int peci_command(struct peci_adapter *adapter, enum peci_cmd cmd, void *vmsg)
+int peci_command(struct peci_adapter *adapter, enum peci_cmd cmd, uint msg_len, void *vmsg)
 {
 	int ret;
 
@@ -1220,7 +1220,7 @@ static int peci_detect(struct peci_adapter *adapter, u8 addr)
 
 	msg.addr = addr;
 
-	return peci_command(adapter, PECI_CMD_PING, &msg);
+	return peci_command(adapter, PECI_CMD_PING, sizeof(msg), &msg);
 }
 
 static const struct of_device_id *
@@ -1386,7 +1386,7 @@ int peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u32 *cpu_id)
 	msg.param = PECI_PKG_ID_CPU_ID;
 	msg.rx_len = 4;
 
-	ret = peci_command(adapter, PECI_CMD_RD_PKG_CFG, &msg);
+	ret = peci_command(adapter, PECI_CMD_RD_PKG_CFG, sizeof(msg), &msg);
 	if (msg.cc != PECI_DEV_CC_SUCCESS)
 		ret = -EAGAIN;
 	if (ret)

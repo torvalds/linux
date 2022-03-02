@@ -143,7 +143,7 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
 		 * either success or timeout to provide the completion code to
 		 * the caller.
 		 */
-		ret = peci_command(peci_dev->adapter, cmd, xmsg);
+		ret = peci_command(peci_dev->adapter, cmd, msg_len, xmsg);
 		if ((!ret || ret == -ETIMEDOUT) && xmsg->rx_len &&
 		    copy_to_user((__u8 __user *)uxmsg.rx_buf, xmsg->rx_buf,
 				 xmsg->rx_len))
@@ -163,7 +163,7 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
 		 * either success or timeout to provide the completion code to
 		 * the caller.
 		 */
-		ret = peci_command(peci_dev->adapter, cmd, msg);
+		ret = peci_command(peci_dev->adapter, cmd, msg_len, msg);
 		if ((!ret || ret == -ETIMEDOUT) &&
 		    copy_to_user(umsg, msg, msg_len))
 			ret = -EFAULT;

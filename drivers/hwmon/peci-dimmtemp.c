@@ -91,7 +91,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
 		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
 		if (ret)
@@ -123,7 +123,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.reg = 0xd4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
 		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS ||
 		    !(re_msg.data[3] & BIT(7))) {
 			/* Use default or previous value */
@@ -135,7 +135,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.reg = 0xd0;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
 		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS) {
 			/* Use default or previous value */
 			ret = 0;
@@ -168,7 +168,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 			re_msg.params.mmio.offset += 0x4000;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
 		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS ||
 		    re_msg.data[1] == 0 || re_msg.data[2] == 0) {
 			/* Use default or previous value */
@@ -197,7 +197,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		rp_msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(rp_msg), &rp_msg);
 		if (ret || rp_msg.cc != PECI_DEV_CC_SUCCESS ||
 		    rp_msg.pci_config[1] == 0 || rp_msg.pci_config[2] == 0) {
 			/* Use default or previous value */
@@ -223,7 +223,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		rp_msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(rp_msg), &rp_msg);
 		if (ret || rp_msg.cc != PECI_DEV_CC_SUCCESS ||
 		    rp_msg.pci_config[1] == 0 || rp_msg.pci_config[2] == 0) {
 			/* Use default or previous value */
@@ -254,7 +254,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		rp_msg.rx_len = 4;
 
 		ret = peci_command(priv->mgr->client->adapter,
-				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
+				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(rp_msg), &rp_msg);
 		if (ret || rp_msg.cc != PECI_DEV_CC_SUCCESS ||
 		    rp_msg.pci_config[1] == 0 || rp_msg.pci_config[2] == 0) {
 			/* Use default or previous value */

@@ -115,7 +115,7 @@ peci_client_read_package_config(struct peci_client_manager *priv,
 	msg.param = param;
 	msg.rx_len = 4;
 
-	ret = peci_command(priv->client->adapter, PECI_CMD_RD_PKG_CFG, &msg);
+	ret = peci_command(priv->client->adapter, PECI_CMD_RD_PKG_CFG, sizeof(msg), &msg);
 	if (msg.cc != PECI_DEV_CC_SUCCESS)
 		ret = -EAGAIN;
 	if (ret)
@@ -149,7 +149,7 @@ peci_client_write_package_config(struct peci_client_manager *priv,
 	msg.tx_len = 4u;
 	msg.value = data;
 
-	ret = peci_command(priv->client->adapter, PECI_CMD_WR_PKG_CFG, &msg);
+	ret = peci_command(priv->client->adapter, PECI_CMD_WR_PKG_CFG, sizeof(msg), &msg);
 	if (!ret) {
 		if (msg.cc != PECI_DEV_CC_SUCCESS)
 			ret = -EAGAIN;
