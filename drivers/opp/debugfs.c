@@ -100,6 +100,9 @@ static void opp_debug_create_supplies(struct dev_pm_opp *opp,
 
 		debugfs_create_ulong("u_amp", S_IRUGO, d,
 				     &opp->supplies[i].u_amp);
+
+		debugfs_create_ulong("u_watt", S_IRUGO, d,
+				     &opp->supplies[i].u_watt);
 	}
 }
 
