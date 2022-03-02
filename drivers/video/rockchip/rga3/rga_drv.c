@@ -792,6 +792,11 @@ static irqreturn_t rga2_irq_thread(int irq, void *data)
 			rga_read(RGA2_INT, rga_scheduler), rga_read(RGA2_STATUS,
 								 rga_scheduler));
 
+	job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0_OFFSET,
+							     rga_scheduler);
+	job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1_OFFSET,
+							     rga_scheduler);
+
 	rga_job_done(rga_scheduler, 0);
 
 	return IRQ_HANDLED;

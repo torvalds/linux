@@ -90,7 +90,7 @@
 #define m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP		(0x1 << 4)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP		(0x1 << 5)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP		(0x1 << 6)
-#define m_RGA2_SRC_INFO_SW_SW_CP_ENDAIN			(0x1 << 7)
+#define m_RGA2_SRC_INFO_SW_SW_CP_ENDIAN			(0x1 << 7)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE		(0x3 << 8)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_ROT_MODE		(0x3 << 10)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_MIR_MODE		(0x3 << 12)
@@ -139,6 +139,43 @@
 #define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH(x)		((x & 0x1fff) << 0)
 #define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT(x)	((x & 0x1fff) << 16)
 
+/* RGA2_OSD_CTRL0 */
+#define m_RGA2_OSD_CTRL0_SW_OSD_MODE			(0x3 << 0)
+#define m_RGA2_OSD_CTRL0_SW_OSD_VER_MODE		(0x1 << 2)
+#define m_RGA2_OSD_CTRL0_SW_OSD_WIDTH_MODE		(0x1 << 3)
+#define m_RGA2_OSD_CTRL0_SW_OSD_BLK_NUM			(0x1f << 4)
+#define m_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX		(0x3f << 10)
+#define m_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH		(0x3f << 20)
+#define m_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE		(0x1 << 30)
+
+#define s_RGA2_OSD_CTRL0_SW_OSD_MODE(x)			((x & 0x3) << 0)
+#define s_RGA2_OSD_CTRL0_SW_OSD_VER_MODE(x)		((x & 0x1) << 2)
+#define s_RGA2_OSD_CTRL0_SW_OSD_WIDTH_MODE(x)		((x & 0x1) << 3)
+#define s_RGA2_OSD_CTRL0_SW_OSD_BLK_NUM(x)		((x & 0x1f) << 4)
+#define s_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX(x)		((x & 0x3f) << 10)
+#define s_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH(x)		((x & 0x3f) << 20)
+#define s_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE(x)		((x & 0x1) << 30)
+
+/* RGA2_OSD_CTRL1 */
+#define m_RGA2_OSD_CTRL1_SW_OSD_COLOR_SEL		(0x1 << 0)
+#define m_RGA2_OSD_CTRL1_SW_OSD_FLAG_SEL		(0x1 << 1)
+#define m_RGA2_OSD_CTRL1_SW_OSD_DEFAULT_COLOR		(0x1 << 2)
+#define m_RGA2_OSD_CTRL1_SW_OSD_AUTO_INVERST_MODE	(0x1 << 3)
+#define m_RGA2_OSD_CTRL1_SW_OSD_THRESH			(0xff << 4)
+#define m_RGA2_OSD_CTRL1_SW_OSD_INVERT_A_EN		(0x1 << 12)
+#define m_RGA2_OSD_CTRL1_SW_OSD_INVERT_Y_DIS		(0x1 << 13)
+#define m_RGA2_OSD_CTRL1_SW_OSD_INVERT_C_DIS		(0x1 << 14)
+#define m_RGA2_OSD_CTRL1_SW_OSD_UNFIX_INDEX		(0xf << 16)
+
+#define s_RGA2_OSD_CTRL1_SW_OSD_COLOR_SEL(x)		((x & 0x1) << 0)
+#define s_RGA2_OSD_CTRL1_SW_OSD_FLAG_SEL(x)		((x & 0x1) << 1)
+#define s_RGA2_OSD_CTRL1_SW_OSD_DEFAULT_COLOR(x)	((x & 0x1) << 2)
+#define s_RGA2_OSD_CTRL1_SW_OSD_AUTO_INVERST_MODE(x)	((x & 0x1) << 3)
+#define s_RGA2_OSD_CTRL1_SW_OSD_THRESH(x)		((x & 0xff) << 4)
+#define s_RGA2_OSD_CTRL1_SW_OSD_INVERT_A_EN(x)		((x & 0x1) << 12)
+#define s_RGA2_OSD_CTRL1_SW_OSD_INVERT_Y_DIS(x)		((x & 0x1) << 13)
+#define s_RGA2_OSD_CTRL1_SW_OSD_INVERT_C_DIS(x)		((x & 0x1) << 14)
+#define s_RGA2_OSD_CTRL1_SW_OSD_UNFIX_INDEX(x)		((x & 0xf) << 16)
 
 /* RGA_DST_INFO */
 #define m_RGA2_DST_INFO_SW_DST_FMT			(0xf << 0)
@@ -285,8 +322,8 @@
 #define RGA2_WRITE_LINE_CNT_OFFSET			0x34
 #define RGA2_LINE_CNT_OFFSET				0x38
 #define RGA2_PERF_CTRL0_OFFSET				0x40
-#define RGA2_OSD_CUR_FLAGS0				0x90
-#define RGA2_OSD_CUR_FLAGS1				0x9c
+#define RGA2_OSD_CUR_FLAGS0_OFFSET			0x90
+#define RGA2_OSD_CUR_FLAGS1_OFFSET			0x9c
 
 /* dst full csc */
 #define RGA2_DST_CSC_00_OFFSET				0x0

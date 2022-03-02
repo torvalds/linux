@@ -177,6 +177,8 @@ enum rga_surf_format {
 	RGA_FORMAT_ABGR_5551		= 0x2e,
 	RGA_FORMAT_ABGR_4444		= 0x2f,
 
+	RGA_FORMAT_RGBA_2BPP		= 0x30,
+
 	RGA_FORMAT_UNKNOWN		= 0x100,
 };
 
@@ -309,6 +311,99 @@ struct rga_full_csc_t {
 struct rga_mosaic_info {
 	uint8_t enable;
 	uint8_t mode;
+};
+
+/* MAX(min, (max - channel_value)) */
+struct rga_osd_invert_factor {
+	uint8_t alpha_max;
+	uint8_t alpha_min;
+	uint8_t yg_max;
+	uint8_t yg_min;
+	uint8_t crb_max;
+	uint8_t crb_min;
+};
+
+struct rga_color {
+	union {
+		struct {
+			uint8_t red;
+			uint8_t green;
+			uint8_t blue;
+			uint8_t alpha;
+		};
+		uint32_t value;
+	};
+};
+
+struct rga_osd_bpp2 {
+	uint8_t  ac_swap;		// ac swap flag
+					// 0: CA
+					// 1: AC
+	uint8_t  endian_swap;		// rgba2bpp endian swap
+					// 0: Big endian
+					// 1: Little endian
+	struct rga_color color0;
+	struct rga_color color1;
+};
+
+struct rga_osd_mode_ctrl {
+	uint8_t mode;			// OSD cal mode:
+					//   0b'1: statistics mode
+					//   1b'1: auto inversion overlap mode
+	uint8_t direction_mode;		// horizontal or vertical
+					//   0: horizontal
+					//   1: vertical
+	uint8_t width_mode;		// using @fix_width or LUT width
+					//   0: fix width
+					//   1: LUT width
+	uint16_t block_fix_width;	// OSD block fixed width
+					//   real width = (fix_width + 1) * 2
+	uint8_t block_num;		// OSD block num
+	uint16_t flags_index;		// auto invert flags index
+
+	/* invertion config */
+	uint8_t color_mode;		// selete color
+					//   0: src1 color
+					//   1: config data color
+	uint8_t invert_flags_mode;	// invert flag selete
+					//   0: use RAM flag
+					//   1: usr last result
+	uint8_t default_color_sel;	// default color mode
+					//   0: default is bright
+					//   1: default is dark
+	uint8_t invert_enable;		// invert channel enable
+					//   1 << 0: alpha enable
+					//   1 << 1: Y/G disable
+					//   1 << 3: C/RB disable
+	uint8_t invert_mode;		// invert cal mode
+					//   0: normal(max-data)
+					//   1: swap
+	uint8_t invert_thresh;		// if luma > thresh, osd_flag to be 1
+	uint8_t unfix_index;		// OSD width config index
+};
+
+struct rga_osd_info {
+	uint8_t  enable;
+
+	struct rga_osd_mode_ctrl mode_ctrl;
+	struct rga_osd_invert_factor cal_factor;
+	struct rga_osd_bpp2 bpp2_info;
+
+	union {
+		struct {
+			uint32_t last_flags0;
+			uint32_t last_flags1;
+		};
+		uint64_t last_flags;
+	};
+
+	union {
+		struct {
+			uint32_t cur_flags0;
+			uint32_t cur_flags1;
+		};
+		uint64_t cur_flags;
+	};
 };
 
 struct rga_win_info_t {
@@ -492,7 +587,9 @@ struct rga_req {
 	uint8_t uvhds_mode;
 	uint8_t uvvds_mode;
 
-	uint8_t reservr[123];
+	struct rga_osd_info osd_info;
+
+	uint8_t reservr[75];
 };
 
 struct rga2_req {
@@ -632,6 +729,8 @@ struct rga2_req {
 
 	uint8_t uvhds_mode;
 	uint8_t uvvds_mode;
+
+	struct rga_osd_info osd_info;
 };
 
 struct rga3_req {

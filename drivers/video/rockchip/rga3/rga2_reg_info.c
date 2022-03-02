@@ -193,6 +193,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN)) |
 	       (s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(msg->yin_yout_en)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_OSD_E)) |
+	       (s_RGA2_MODE_CTRL_SW_OSD_E(msg->osd_info.enable)));
+
 	*bRGA_MODE_CTL = reg;
 }
 
@@ -519,6 +522,11 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP)) |
 		 (s_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP(src0_cbcr_swp)));
+
+	if (msg->src1.format == RGA_FORMAT_RGBA_2BPP)
+		reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_CP_ENDIAN)) |
+		       (s_RGA2_SRC_INFO_SW_SW_CP_ENDAIN(msg->osd_info.bpp2_info.endian_swap & 1)));
+
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE)) |
 		 (s_RGA2_SRC_INFO_SW_SW_SRC_CSC_MODE(msg->yuv2rgb_mode)));
@@ -646,6 +654,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	u32 reg = 0;
 	u8 spw, dpw;
+	u8 bbp_shift = 0;
 	u32 s_stride, d_stride;
 	u32 x_mirr, y_mirr, rot_90_flag;
 	u32 yrgb_addr, u_addr, v_addr, s_yrgb_addr;
@@ -776,6 +785,13 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		spw = 2;
 		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
+		break;
+	case RGA_FORMAT_RGBA_2BPP:
+		src1_format = 0x0;
+		spw = 1;
+		/* 2BPP = 8 >> 2 = 2bit */
+		bbp_shift = 2;
+		src1_alpha_swp = msg->osd_info.bpp2_info.ac_swap;
 		break;
 	default:
 		spw = 4;
@@ -1054,7 +1070,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	*bRGA_DST_INFO = reg;
 
-	s_stride = ((msg->src1.vir_w * spw + 3) & ~3) >> 2;
+	s_stride = (((msg->src1.vir_w * spw >> bbp_shift) + 3) & ~3) >> 2;
 	d_stride = ((msg->dst.vir_w * dpw + 3) & ~3) >> 2;
 
 	if (dst_fmt_y4_en) {
@@ -1122,7 +1138,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	s_yrgb_addr =
 		(u32) msg->src1.yrgb_addr + (msg->src1.y_offset * s_stride) +
-		(msg->src1.x_offset * spw);
+		(msg->src1.x_offset * spw >> bbp_shift);
 
 	*bRGA_SRC_BASE3 = s_yrgb_addr;
 
@@ -1403,6 +1419,96 @@ static void RGA_set_reg_mosaic(u8 *base, struct rga2_req *msg)
 	*bRGA_MOSAIC_MODE = (u32)(msg->mosaic_info.mode & 0x7);
 }
 
+static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
+{
+	u32 *bRGA_OSD_CTRL0;
+	u32 *bRGA_OSD_CTRL1;
+	u32 *bRGA_OSD_INVERTSION_CAL0;
+	u32 *bRGA_OSD_INVERTSION_CAL1;
+	u32 *bRGA_OSD_COLOR0;
+	u32 *bRGA_OSD_COLOR1;
+	u32 *bRGA_OSD_LAST_FLAGS0;
+	u32 *bRGA_OSD_LAST_FLAGS1;
+	u32 reg;
+	u8 rgba2bpp_en = 0;
+	u8 block_num;
+	u16 fix_width;
+
+
+	bRGA_OSD_CTRL0 = (u32 *)(base + RGA2_OSD_CTRL0_OFFSET);
+	bRGA_OSD_CTRL1 = (u32 *)(base + RGA2_OSD_CTRL1_OFFSET);
+	bRGA_OSD_INVERTSION_CAL0 = (u32 *)(base + RGA2_OSD_INVERTSION_CAL0_OFFSET);
+	bRGA_OSD_INVERTSION_CAL1 = (u32 *)(base + RGA2_OSD_INVERTSION_CAL1_OFFSET);
+	bRGA_OSD_COLOR0 = (u32 *)(base + RGA2_OSD_COLOR0_OFFSET);
+	bRGA_OSD_COLOR1 = (u32 *)(base + RGA2_OSD_COLOR1_OFFSET);
+	bRGA_OSD_LAST_FLAGS0 = (u32 *)(base + RGA2_OSD_LAST_FLAGS0_OFFSET);
+	bRGA_OSD_LAST_FLAGS1 = (u32 *)(base + RGA2_OSD_LAST_FLAGS1_OFFSET);
+
+	/* To save the number of register bits. */
+	fix_width = msg->osd_info.mode_ctrl.block_fix_width / 2 - 1;
+
+	/* The register is '0' as the first. */
+	block_num = msg->osd_info.mode_ctrl.block_num - 1;
+
+	reg = 0;
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_MODE)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_MODE(msg->osd_info.mode_ctrl.mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_VER_MODE)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_VER_MODE(msg->osd_info.mode_ctrl.direction_mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_WIDTH_MODE)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_WIDTH_MODE(msg->osd_info.mode_ctrl.width_mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_BLK_NUM)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_BLK_NUM(block_num)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX(msg->osd_info.mode_ctrl.flags_index)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH(fix_width)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE)) |
+	       (s_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE(rgba2bpp_en)));
+	*bRGA_OSD_CTRL0 = reg;
+
+	reg = 0;
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_COLOR_SEL)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_COLOR_SEL(msg->osd_info.mode_ctrl.color_mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_FLAG_SEL)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_FLAG_SEL(msg->osd_info.mode_ctrl.invert_flags_mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_DEFAULT_COLOR)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_DEFAULT_COLOR(msg->osd_info.mode_ctrl.default_color_sel)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_AUTO_INVERST_MODE)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_AUTO_INVERST_MODE(msg->osd_info.mode_ctrl.invert_mode)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_THRESH)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_THRESH(msg->osd_info.mode_ctrl.invert_thresh)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_INVERT_A_EN)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_INVERT_A_EN(msg->osd_info.mode_ctrl.invert_enable)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_INVERT_Y_DIS)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_INVERT_Y_DIS(msg->osd_info.mode_ctrl.invert_enable >> 1)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_INVERT_C_DIS)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_INVERT_C_DIS(msg->osd_info.mode_ctrl.invert_enable >> 2)));
+	reg = ((reg & (~m_RGA2_OSD_CTRL1_SW_OSD_UNFIX_INDEX)) |
+	       (s_RGA2_OSD_CTRL1_SW_OSD_UNFIX_INDEX(msg->osd_info.mode_ctrl.unfix_index)));
+	*bRGA_OSD_CTRL1 = reg;
+
+	*bRGA_OSD_INVERTSION_CAL0 = ((msg->osd_info.cal_factor.crb_max) << 24) |
+				    ((msg->osd_info.cal_factor.crb_min) << 16) |
+				    ((msg->osd_info.cal_factor.yg_max) << 8) |
+				    ((msg->osd_info.cal_factor.yg_min) << 0);
+	*bRGA_OSD_INVERTSION_CAL1 = ((msg->osd_info.cal_factor.alpha_max) << 8) |
+				    ((msg->osd_info.cal_factor.alpha_min) << 0);
+
+	*bRGA_OSD_LAST_FLAGS0 = (msg->osd_info.last_flags0);
+	*bRGA_OSD_LAST_FLAGS1 = (msg->osd_info.last_flags1);
+
+	if (msg->osd_info.mode_ctrl.color_mode == 1) {
+		*bRGA_OSD_COLOR0 = (msg->osd_info.bpp2_info.color0.value & 0xffffff);
+		*bRGA_OSD_COLOR1 = (msg->osd_info.bpp2_info.color1.value & 0xffffff);
+	}
+
+	if (rgba2bpp_en) {
+		*bRGA_OSD_COLOR0 = msg->osd_info.bpp2_info.color0.value;
+		*bRGA_OSD_COLOR1 = msg->osd_info.bpp2_info.color1.value;
+	}
+}
+
 static void RGA2_set_reg_full_csc(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA2_DST_CSC_00;
@@ -1494,7 +1600,7 @@ static void RGA2_set_reg_color_palette(u8 *base, struct rga2_req *msg)
 		((reg & (~m_RGA2_SRC_INFO_SW_SRC_FMT)) |
 		 (s_RGA2_SRC_INFO_SW_SRC_FMT((msg->palette_mode | 0xc))));
 	reg =
-		((reg & (~m_RGA2_SRC_INFO_SW_SW_CP_ENDAIN)) |
+		((reg & (~m_RGA2_SRC_INFO_SW_SW_CP_ENDIAN)) |
 		 (s_RGA2_SRC_INFO_SW_SW_CP_ENDAIN(msg->endian_mode & 1)));
 	*bRGA_SRC_VIR_INFO = src_stride >> 2;
 	*bRGA_SRC_ACT_INFO =
@@ -1677,6 +1783,8 @@ int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
 		}
 		if (msg->mosaic_info.enable)
 			RGA_set_reg_mosaic(base, msg);
+		if (msg->osd_info.enable)
+			RGA2_set_reg_osd(base, msg);
 
 		break;
 	case COLOR_FILL_MODE:
@@ -1848,6 +1956,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	req->uvhds_mode = req_rga->uvhds_mode;
 	req->uvvds_mode = req_rga->uvvds_mode;
+
+	memcpy(&req->osd_info, &req_rga->osd_info, sizeof(req_rga->osd_info));
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
