@@ -1412,7 +1412,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 			return -EOPNOTSUPP;
 
 		tid_info = kzalloc(sizeof(struct carl9170_sta_tid),
-				   GFP_ATOMIC);
+				   GFP_KERNEL);
 		if (!tid_info)
 			return -ENOMEM;
 
