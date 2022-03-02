@@ -25,7 +25,10 @@ obj-y		:= elf.o entry-common.o irq.o opcodes.o \
 KASAN_SANITIZE_stacktrace.o := n
 KASAN_SANITIZE_traps.o := n
 
-obj-y				+= return_address.o
+ifneq ($(CONFIG_ARM_UNWIND),y)
+obj-$(CONFIG_FRAME_POINTER)	+= return_address.o
+endif
+
 obj-$(CONFIG_ATAGS)		+= atags_parse.o
 obj-$(CONFIG_ATAGS_PROC)	+= atags_proc.o
 obj-$(CONFIG_DEPRECATED_PARAM_STRUCT) += atags_compat.o
