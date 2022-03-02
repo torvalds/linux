@@ -5564,6 +5564,10 @@ rtnl_stats_get_policy[IFLA_STATS_GETSET_MAX + 1] = {
 		    NLA_POLICY_NESTED(rtnl_stats_get_policy_filters),
 };
 
+static const struct nla_policy
+ifla_stats_set_policy[IFLA_STATS_GETSET_MAX + 1] = {
+};
+
 static int rtnl_stats_get_parse_filters(struct nlattr *ifla_filters,
 					struct rtnl_stats_dump_filters *filters,
 					struct netlink_ext_ack *extack)
@@ -5767,6 +5771,67 @@ out:
 	cb->args[0] = h;
 
 	return skb->len;
+}
+
+static int rtnl_stats_set(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
+{
+	struct rtnl_stats_dump_filters response_filters = {};
+	struct nlattr *tb[IFLA_STATS_GETSET_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev = NULL;
+	int idxattr = 0, prividx = 0;
+	struct if_stats_msg *ifsm;
+	struct sk_buff *nskb;
+	int err;
+
+	err = rtnl_valid_stats_req(nlh, netlink_strict_get_check(skb),
+				   false, extack);
+	if (err)
+		return err;
+
+	ifsm = nlmsg_data(nlh);
+	if (ifsm->family != AF_UNSPEC) {
+		NL_SET_ERR_MSG(extack, "Address family should be AF_UNSPEC");
+		return -EINVAL;
+	}
+
+	if (ifsm->ifindex > 0)
+		dev = __dev_get_by_index(net, ifsm->ifindex);
+	else
+		return -EINVAL;
+
+	if (!dev)
+		return -ENODEV;
+
+	if (ifsm->filter_mask) {
+		NL_SET_ERR_MSG(extack, "Filter mask must be 0 for stats set");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse(nlh, sizeof(*ifsm), tb, IFLA_STATS_GETSET_MAX,
+			  ifla_stats_set_policy, extack);
+	if (err < 0)
+		return err;
+
+	nskb = nlmsg_new(if_nlmsg_stats_size(dev, &response_filters),
+			 GFP_KERNEL);
+	if (!nskb)
+		return -ENOBUFS;
+
+	err = rtnl_fill_statsinfo(nskb, dev, RTM_NEWSTATS,
+				  NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
+				  0, &response_filters, &idxattr, &prividx,
+				  extack);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in if_nlmsg_stats_size */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(nskb);
+	} else {
+		err = rtnl_unicast(nskb, net, NETLINK_CB(skb).portid);
+	}
+
+	return err;
 }
 
 /* Process one rtnetlink message. */
@@ -5994,4 +6059,5 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_UNSPEC, RTM_GETSTATS, rtnl_stats_get, rtnl_stats_dump,
 		      0);
+	rtnl_register(PF_UNSPEC, RTM_SETSTATS, rtnl_stats_set, NULL, 0);
 }
