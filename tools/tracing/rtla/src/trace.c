@@ -297,6 +297,57 @@ static void trace_event_disable_filter(struct trace_instance *instance,
 }
 
 /*
+ * trace_event_save_hist - save the content of an event hist
+ *
+ * If the trigger is a hist: one, save the content of the hist file.
+ */
+static void trace_event_save_hist(struct trace_instance *instance,
+				  struct trace_events *tevent)
+{
+	int retval, index, out_fd;
+	mode_t mode = 0644;
+	char path[1024];
+	char *hist;
+
+	if (!tevent)
+		return;
+
+	/* trigger enables hist */
+	if (!tevent->trigger)
+		return;
+
+	/* is this a hist: trigger? */
+	retval = strncmp(tevent->trigger, "hist:", strlen("hist:"));
+	if (retval)
+		return;
+
+	snprintf(path, 1024, "%s_%s_hist.txt", tevent->system, tevent->event);
+
+	printf("  Saving event %s:%s hist to %s\n", tevent->system, tevent->event, path);
+
+	out_fd = creat(path, mode);
+	if (out_fd < 0) {
+		err_msg("  Failed to create %s output file\n", path);
+		return;
+	}
+
+	hist = tracefs_event_file_read(instance->inst, tevent->system, tevent->event, "hist", 0);
+	if (!hist) {
+		err_msg("  Failed to read %s:%s hist file\n", tevent->system, tevent->event);
+		goto out_close;
+	}
+
+	index = 0;
+	do {
+		index += write(out_fd, &hist[index], strlen(hist) - index);
+	} while (index < strlen(hist));
+
+	free(hist);
+out_close:
+	close(out_fd);
+}
+
+/*
  * trace_event_disable_trigger - disable an event trigger
  */
 static void trace_event_disable_trigger(struct trace_instance *instance,
@@ -313,6 +364,8 @@ static void trace_event_disable_trigger(struct trace_instance *instance,
 
 	debug_msg("Disabling %s:%s trigger %s\n", tevent->system,
 		  tevent->event ? : "*", tevent->trigger);
+
+	trace_event_save_hist(instance, tevent);
 
 	snprintf(trigger, 1024, "!%s\n", tevent->trigger);
 

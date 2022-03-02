@@ -23,7 +23,15 @@
         Filter the previous **-e** *sys:event* event with *<filter>*. For further information about event filtering see https://www.kernel.org/doc/html/latest/trace/events.html#event-filtering.
 
 **--trigger** *<trigger>*
-        Enable a trace event trigger to the previous **-e** *sys:event*. For further information about event trigger see https://www.kernel.org/doc/html/latest/trace/events.html#event-triggers.
+        Enable a trace event trigger to the previous **-e** *sys:event*.
+        If the *hist:* trigger is activated, the output histogram will be automatically saved to a file named *system_event_hist.txt*.
+        For example, the command:
+
+        rtla <command> <mode> -t -e osnoise:irq_noise --trigger="hist:key=desc,duration/1000:sort=desc,duration/1000:vals=hitcount"
+
+        Will automatically save the content of the histogram associated to *osnoise:irq_noise* event in *osnoise_irq_noise_hist.txt*.
+
+        For further information about event trigger see https://www.kernel.org/doc/html/latest/trace/events.html#event-triggers.
 
 **-P**, **--priority** *o:prio|r:prio|f:prio|d:runtime:period*
 
