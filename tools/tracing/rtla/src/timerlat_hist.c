@@ -885,7 +885,7 @@ int timerlat_hist_main(int argc, char *argv[])
 
 		if (trace_is_off(&tool->trace, &record->trace))
 			break;
-	};
+	}
 
 	timerlat_print_stats(params, tool);
 

@@ -612,7 +612,7 @@ int osnoise_top_main(int argc, char **argv)
 	tool->start_time = time(NULL);
 	osnoise_top_set_signals(params);
 
-	do {
+	while (!stop_tracing) {
 		sleep(params->sleep_time);
 
 		retval = tracefs_iterate_raw_events(trace->tep,
@@ -632,7 +632,7 @@ int osnoise_top_main(int argc, char **argv)
 		if (trace_is_off(&tool->trace, &record->trace))
 			break;
 
-	} while (!stop_tracing);
+	}
 
 	osnoise_print_stats(params, tool);
 

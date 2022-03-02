@@ -850,7 +850,7 @@ int osnoise_hist_main(int argc, char *argv[])
 
 		if (trace_is_off(&tool->trace, &record->trace))
 			break;
-	};
+	}
 
 	osnoise_read_trace_hist(tool);
 

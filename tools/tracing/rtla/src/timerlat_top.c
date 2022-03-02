@@ -680,7 +680,7 @@ int timerlat_top_main(int argc, char *argv[])
 		if (trace_is_off(&top->trace, &record->trace))
 			break;
 
-	};
+	}
 
 	timerlat_print_stats(params, top);
 
