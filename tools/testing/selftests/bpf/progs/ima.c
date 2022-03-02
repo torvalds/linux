@@ -21,6 +21,7 @@ char _license[] SEC("license") = "GPL";
 bool use_ima_file_hash;
 bool enable_bprm_creds_for_exec;
 bool enable_kernel_read_file;
+bool test_deny;
 
 static void ima_test_common(struct file *file)
 {
@@ -51,6 +52,17 @@ static void ima_test_common(struct file *file)
 	return;
 }
 
+static int ima_test_deny(void)
+{
+	u32 pid;
+
+	pid = bpf_get_current_pid_tgid() >> 32;
+	if (pid == monitored_pid && test_deny)
+		return -EPERM;
+
+	return 0;
+}
+
 SEC("lsm.s/bprm_committed_creds")
 void BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
 {
@@ -71,6 +83,8 @@ SEC("lsm.s/kernel_read_file")
 int BPF_PROG(kernel_read_file, struct file *file, enum kernel_read_file_id id,
 	     bool contents)
 {
+	int ret;
+
 	if (!enable_kernel_read_file)
 		return 0;
 
@@ -79,6 +93,10 @@ int BPF_PROG(kernel_read_file, struct file *file, enum kernel_read_file_id id,
 
 	if (id != READING_POLICY)
 		return 0;
+
+	ret = ima_test_deny();
+	if (ret < 0)
+		return ret;
 
 	ima_test_common(file);
 	return 0;

@@ -59,6 +59,7 @@ static void test_init(struct ima__bss *bss)
 	bss->use_ima_file_hash = false;
 	bss->enable_bprm_creds_for_exec = false;
 	bss->enable_kernel_read_file = false;
+	bss->test_deny = false;
 }
 
 void test_test_ima(void)
@@ -199,6 +200,22 @@ void test_test_ima(void)
 	ASSERT_EQ(err, 2, "num_samples_or_err");
 	ASSERT_NEQ(ima_hash_from_bpf[0], 0, "ima_hash");
 	ASSERT_NEQ(ima_hash_from_bpf[1], 0, "ima_hash");
+
+	/*
+	 * Test #6
+	 * - Goal: ensure that the kernel_read_file hook denies an operation
+	 * - Expected result: 0 samples
+	 */
+	test_init(skel->bss);
+	skel->bss->enable_kernel_read_file = true;
+	skel->bss->test_deny = true;
+	err = _run_measured_process(measured_dir, &skel->bss->monitored_pid,
+				    "load-policy");
+	if (CHECK(!err, "run_measured_process #6", "err = %d\n", err))
+		goto close_clean;
+
+	err = ring_buffer__consume(ringbuf);
+	ASSERT_EQ(err, 0, "num_samples_or_err");
 
 close_clean:
 	snprintf(cmd, sizeof(cmd), "./ima_setup.sh cleanup %s", measured_dir);
