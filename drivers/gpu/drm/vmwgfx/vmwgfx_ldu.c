@@ -492,6 +492,8 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
+	int num_display_units = (dev_priv->capabilities & SVGA_CAP_MULTIMON) ?
+					VMWGFX_NUM_DISPLAY_UNITS : 1;
 
 	if (unlikely(dev_priv->ldu_priv)) {
 		return -EINVAL;
@@ -506,21 +508,17 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 	dev_priv->ldu_priv->last_num_active = 0;
 	dev_priv->ldu_priv->fb = NULL;
 
-	/* for old hardware without multimon only enable one display */
-	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
-		ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
-	else
-		ret = drm_vblank_init(dev, 1);
+	ret = drm_vblank_init(dev, num_display_units);
 	if (ret != 0)
 		goto err_free;
 
 	vmw_kms_create_implicit_placement_property(dev_priv);
 
-	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
-		for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
-			vmw_ldu_init(dev_priv, i);
-	else
-		vmw_ldu_init(dev_priv, 0);
+	for (i = 0; i < num_display_units; ++i) {
+		ret = vmw_ldu_init(dev_priv, i);
+		if (ret != 0)
+			goto err_free;
+	}
 
 	dev_priv->active_display_unit = vmw_du_legacy;
 
