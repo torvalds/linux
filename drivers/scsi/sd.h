@@ -114,6 +114,7 @@ struct scsi_disk {
 	atomic_t	openers;
 	sector_t	capacity;	/* size in logical blocks */
 	int		max_retries;
+	u32		min_xfer_blocks;
 	u32		max_xfer_blocks;
 	u32		opt_xfer_blocks;
 	u32		max_ws_blocks;
