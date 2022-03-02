@@ -181,12 +181,12 @@ struct qcom_swrm_data {
 	u32 default_rows;
 };
 
-static struct qcom_swrm_data swrm_v1_3_data = {
+static const struct qcom_swrm_data swrm_v1_3_data = {
 	.default_rows = 48,
 	.default_cols = 16,
 };
 
-static struct qcom_swrm_data swrm_v1_5_data = {
+static const struct qcom_swrm_data swrm_v1_5_data = {
 	.default_rows = 50,
 	.default_cols = 16,
 };
