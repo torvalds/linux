@@ -13,6 +13,8 @@
 
 #include "ima.skel.h"
 
+#define MAX_SAMPLES 2
+
 static int run_measured_process(const char *measured_dir, u32 *monitored_pid)
 {
 	int child_pid, child_status;
@@ -32,12 +34,23 @@ static int run_measured_process(const char *measured_dir, u32 *monitored_pid)
 	return -EINVAL;
 }
 
-static u64 ima_hash_from_bpf;
+static u64 ima_hash_from_bpf[MAX_SAMPLES];
+static int ima_hash_from_bpf_idx;
 
 static int process_sample(void *ctx, void *data, size_t len)
 {
-	ima_hash_from_bpf = *((u64 *)data);
+	if (ima_hash_from_bpf_idx >= MAX_SAMPLES)
+		return -ENOSPC;
+
+	ima_hash_from_bpf[ima_hash_from_bpf_idx++] = *((u64 *)data);
 	return 0;
+}
+
+static void test_init(struct ima__bss *bss)
+{
+	ima_hash_from_bpf_idx = 0;
+
+	bss->use_ima_file_hash = false;
 }
 
 void test_test_ima(void)
@@ -72,13 +85,35 @@ void test_test_ima(void)
 	if (CHECK(err, "failed to run command", "%s, errno = %d\n", cmd, errno))
 		goto close_clean;
 
+	/*
+	 * Test #1
+	 * - Goal: obtain a sample with the bpf_ima_inode_hash() helper
+	 * - Expected result:  1 sample (/bin/true)
+	 */
+	test_init(skel->bss);
 	err = run_measured_process(measured_dir, &skel->bss->monitored_pid);
-	if (CHECK(err, "run_measured_process", "err = %d\n", err))
+	if (CHECK(err, "run_measured_process #1", "err = %d\n", err))
 		goto close_clean;
 
 	err = ring_buffer__consume(ringbuf);
 	ASSERT_EQ(err, 1, "num_samples_or_err");
-	ASSERT_NEQ(ima_hash_from_bpf, 0, "ima_hash");
+	ASSERT_NEQ(ima_hash_from_bpf[0], 0, "ima_hash");
+
+	/*
+	 * Test #2
+	 * - Goal: obtain samples with the bpf_ima_file_hash() helper
+	 * - Expected result: 2 samples (./ima_setup.sh, /bin/true)
+	 */
+	test_init(skel->bss);
+	skel->bss->use_ima_file_hash = true;
+	err = run_measured_process(measured_dir, &skel->bss->monitored_pid);
+	if (CHECK(err, "run_measured_process #2", "err = %d\n", err))
+		goto close_clean;
+
+	err = ring_buffer__consume(ringbuf);
+	ASSERT_EQ(err, 2, "num_samples_or_err");
+	ASSERT_NEQ(ima_hash_from_bpf[0], 0, "ima_hash");
+	ASSERT_NEQ(ima_hash_from_bpf[1], 0, "ima_hash");
 
 close_clean:
 	snprintf(cmd, sizeof(cmd), "./ima_setup.sh cleanup %s", measured_dir);
