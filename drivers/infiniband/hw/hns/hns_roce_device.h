@@ -852,7 +852,7 @@ struct hns_roce_hw {
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
 	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
-			 u64 out_param, u32 in_modifier, u8 op_modifier, u16 op,
+			 u64 out_param, u32 in_modifier, u16 op,
 			 u16 token, int event);
 	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev,
 			      unsigned int timeout);

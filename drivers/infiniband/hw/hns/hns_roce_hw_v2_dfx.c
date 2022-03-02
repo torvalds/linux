@@ -18,7 +18,7 @@ int hns_roce_v2_query_cqc_info(struct hns_roce_dev *hr_dev, u32 cqn,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, cqn, 0,
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, cqn,
 				HNS_ROCE_CMD_QUERY_CQC,
 				HNS_ROCE_CMD_TIMEOUT_MSECS);
 	if (ret) {

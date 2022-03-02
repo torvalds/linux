@@ -39,25 +39,22 @@
 #define CMD_MAX_NUM 32
 
 static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev, u64 in_param,
-				     u64 out_param, u32 in_modifier,
-				     u8 op_modifier, u16 op, u16 token,
-				     int event)
+				     u64 out_param, u32 in_modifier, u16 op,
+				     u16 token, int event)
 {
 	return hr_dev->hw->post_mbox(hr_dev, in_param, out_param, in_modifier,
-				     op_modifier, op, token, event);
+				     op, token, event);
 }
 
 /* this should be called with "poll_sem" */
 static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
-				    u8 op_modifier, u16 op,
-				    unsigned int timeout)
+				    u16 op, unsigned int timeout)
 {
 	int ret;
 
 	ret = hns_roce_cmd_mbox_post_hw(hr_dev, in_param, out_param,
-					in_modifier, op_modifier, op,
-					CMD_POLL_TOKEN, 0);
+					in_modifier, op, CMD_POLL_TOKEN, 0);
 	if (ret) {
 		dev_err_ratelimited(hr_dev->dev,
 				    "failed to post mailbox 0x%x in poll mode, ret = %d.\n",
@@ -70,13 +67,13 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 
 static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned int timeout)
+				  u16 op, unsigned int timeout)
 {
 	int ret;
 
 	down(&hr_dev->cmd.poll_sem);
 	ret = __hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param, in_modifier,
-				       op_modifier, op, timeout);
+				       op, timeout);
 	up(&hr_dev->cmd.poll_sem);
 
 	return ret;
@@ -102,8 +99,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
-				    u8 op_modifier, u16 op,
-				    unsigned int timeout)
+				    u16 op, unsigned int timeout)
 {
 	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
 	struct hns_roce_cmd_context *context;
@@ -125,8 +121,7 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 	reinit_completion(&context->done);
 
 	ret = hns_roce_cmd_mbox_post_hw(hr_dev, in_param, out_param,
-					in_modifier, op_modifier, op,
-					context->token, 1);
+					in_modifier, op, context->token, 1);
 	if (ret) {
 		dev_err_ratelimited(dev,
 				    "failed to post mailbox 0x%x in event mode, ret = %d.\n",
@@ -154,21 +149,20 @@ out:
 
 static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned int timeout)
+				  u16 op, unsigned int timeout)
 {
 	int ret;
 
 	down(&hr_dev->cmd.event_sem);
 	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param, in_modifier,
-				       op_modifier, op, timeout);
+				       op, timeout);
 	up(&hr_dev->cmd.event_sem);
 
 	return ret;
 }
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
-		      unsigned long in_modifier, u8 op_modifier, u16 op,
-		      unsigned int timeout)
+		      unsigned long in_modifier, u16 op, unsigned int timeout)
 {
 	bool is_busy;
 
@@ -178,12 +172,10 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 
 	if (hr_dev->cmd.use_events)
 		return hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-					      in_modifier, op_modifier, op,
-					      timeout);
+					      in_modifier, op, timeout);
 	else
 		return hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
-					      in_modifier, op_modifier, op,
-					      timeout);
+					      in_modifier, op, timeout);
 }
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
