@@ -63,6 +63,24 @@
 		status = "disabled";
 	};
 
+	rkcif_mipi_lvds4_sditf_vir1: rkcif-mipi-lvds4-sditf-vir1 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds4_sditf_vir2: rkcif-mipi-lvds4-sditf-vir2 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds4_sditf_vir3: rkcif-mipi-lvds4-sditf-vir3 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
 	rkcif_mipi_lvds5: rkcif-mipi-lvds5 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
@@ -71,6 +89,24 @@
 	};
 
 	rkcif_mipi_lvds5_sditf: rkcif-mipi-lvds5-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir1: rkcif-mipi-lvds5-sditf-vir1 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir2: rkcif-mipi-lvds5-sditf-vir2 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir3: rkcif-mipi-lvds5-sditf-vir3 {
 		compatible = "rockchip,rkcif-sditf";
 		rockchip,cif = <&rkcif_mipi_lvds5>;
 		status = "disabled";
