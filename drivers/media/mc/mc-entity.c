@@ -44,6 +44,20 @@ static inline const char *intf_type(struct media_interface *intf)
 	}
 };
 
+static inline const char *link_type_name(struct media_link *link)
+{
+	switch (link->flags & MEDIA_LNK_FL_LINK_TYPE) {
+	case MEDIA_LNK_FL_DATA_LINK:
+		return "data";
+	case MEDIA_LNK_FL_INTERFACE_LINK:
+		return "interface";
+	case MEDIA_LNK_FL_ANCILLARY_LINK:
+		return "ancillary";
+	default:
+		return "unknown";
+	}
+}
+
 __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
@@ -89,9 +103,7 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 
 		dev_dbg(gobj->mdev->dev,
 			"%s id %u: %s link id %u ==> id %u\n",
-			event_name, media_id(gobj),
-			media_type(link->gobj0) == MEDIA_GRAPH_PAD ?
-				"data" : "interface",
+			event_name, media_id(gobj), link_type_name(link),
 			media_id(link->gobj0),
 			media_id(link->gobj1));
 		break;
