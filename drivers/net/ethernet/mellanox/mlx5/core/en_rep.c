@@ -399,7 +399,9 @@ out_err:
 
 int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 {
+	int sqs_per_channel = mlx5e_get_dcb_num_tc(&priv->channels.params);
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	bool is_uplink_rep = mlx5e_is_uplink_rep(priv);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	int n, tc, nch, num_sqs = 0;
@@ -411,9 +413,13 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	ptp_sq = !!(priv->channels.ptp &&
 		    MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_TX_PORT_TS));
 	nch = priv->channels.num + ptp_sq;
+	/* +2 for xdpsqs, they don't exist on the ptp channel but will not be
+	 * counted for by num_sqs.
+	 */
+	if (is_uplink_rep)
+		sqs_per_channel += 2;
 
-	sqs = kvcalloc(nch * mlx5e_get_dcb_num_tc(&priv->channels.params), sizeof(*sqs),
-		       GFP_KERNEL);
+	sqs = kvcalloc(nch * sqs_per_channel, sizeof(*sqs), GFP_KERNEL);
 	if (!sqs)
 		goto out;
 
@@ -421,6 +427,13 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 		c = priv->channels.c[n];
 		for (tc = 0; tc < c->num_tc; tc++)
 			sqs[num_sqs++] = c->sq[tc].sqn;
+
+		if (is_uplink_rep) {
+			if (c->xdp)
+				sqs[num_sqs++] = c->rq_xdpsq.sqn;
+
+			sqs[num_sqs++] = c->xdpsq.sqn;
+		}
 	}
 	if (ptp_sq) {
 		struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
