@@ -465,7 +465,6 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 {
 	struct ocelot *ocelot = ds->priv;
-	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
 
@@ -486,15 +485,6 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0),
 				 ANA_PORT_CPU_FWD_BPDU_CFG, dp->index);
 	}
-
-	/* In tag_8021q mode, the CPU port module is unused, except for PTP
-	 * frames. So we want to disable flooding of any kind to the CPU port
-	 * module, since packets going there will end in a black hole.
-	 */
-	cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_BC);
 
 	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
 	if (err)
