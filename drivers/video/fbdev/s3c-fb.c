@@ -1418,7 +1418,6 @@ static int s3c_fb_probe(struct platform_device *pdev)
 
 	sfb->irq_no = platform_get_irq(pdev, 0);
 	if (sfb->irq_no < 0) {
-		dev_err(dev, "failed to acquire irq resource\n");
 		ret = -ENOENT;
 		goto err_lcd_clk;
 	}
