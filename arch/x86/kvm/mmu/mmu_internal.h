@@ -65,7 +65,13 @@ struct kvm_mmu_page {
 		struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
 		tdp_ptep_t ptep;
 	};
-	DECLARE_BITMAP(unsync_child_bitmap, 512);
+	union {
+		DECLARE_BITMAP(unsync_child_bitmap, 512);
+		struct {
+			struct work_struct tdp_mmu_async_work;
+			void *tdp_mmu_async_data;
+		};
+	};
 
 	struct list_head lpage_disallowed_link;
 #ifdef CONFIG_X86_32

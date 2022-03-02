@@ -25,6 +25,8 @@ bool kvm_mmu_init_tdp_mmu(struct kvm *kvm)
 	INIT_LIST_HEAD(&kvm->arch.tdp_mmu_roots);
 	spin_lock_init(&kvm->arch.tdp_mmu_pages_lock);
 	INIT_LIST_HEAD(&kvm->arch.tdp_mmu_pages);
+	kvm->arch.tdp_mmu_zap_wq =
+		alloc_workqueue("kvm", WQ_UNBOUND|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 0);
 
 	return true;
 }
@@ -46,12 +48,16 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 	if (!kvm->arch.tdp_mmu_enabled)
 		return;
 
+	flush_workqueue(kvm->arch.tdp_mmu_zap_wq);
+	destroy_workqueue(kvm->arch.tdp_mmu_zap_wq);
+
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_pages));
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_roots));
 
 	/*
 	 * Ensure that all the outstanding RCU callbacks to free shadow pages
-	 * can run before the VM is torn down.
+	 * can run before the VM is torn down.  Work items on tdp_mmu_zap_wq
+	 * can call kvm_tdp_mmu_put_root and create new callbacks.
 	 */
 	rcu_barrier();
 }
@@ -80,6 +86,43 @@ static void tdp_mmu_free_sp_rcu_callback(struct rcu_head *head)
 
 static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 			     bool shared);
+
+static void tdp_mmu_zap_root_work(struct work_struct *work)
+{
+	struct kvm_mmu_page *root = container_of(work, struct kvm_mmu_page,
+						 tdp_mmu_async_work);
+	struct kvm *kvm = root->tdp_mmu_async_data;
+
+	read_lock(&kvm->mmu_lock);
+
+	/*
+	 * A TLB flush is not necessary as KVM performs a local TLB flush when
+	 * allocating a new root (see kvm_mmu_load()), and when migrating vCPU
+	 * to a different pCPU.  Note, the local TLB flush on reuse also
+	 * invalidates any paging-structure-cache entries, i.e. TLB entries for
+	 * intermediate paging structures, that may be zapped, as such entries
+	 * are associated with the ASID on both VMX and SVM.
+	 */
+	tdp_mmu_zap_root(kvm, root, true);
+
+	/*
+	 * Drop the refcount using kvm_tdp_mmu_put_root() to test its logic for
+	 * avoiding an infinite loop.  By design, the root is reachable while
+	 * it's being asynchronously zapped, thus a different task can put its
+	 * last reference, i.e. flowing through kvm_tdp_mmu_put_root() for an
+	 * asynchronously zapped root is unavoidable.
+	 */
+	kvm_tdp_mmu_put_root(kvm, root, true);
+
+	read_unlock(&kvm->mmu_lock);
+}
+
+static void tdp_mmu_schedule_zap_root(struct kvm *kvm, struct kvm_mmu_page *root)
+{
+	root->tdp_mmu_async_data = kvm;
+	INIT_WORK(&root->tdp_mmu_async_work, tdp_mmu_zap_root_work);
+	queue_work(kvm->arch.tdp_mmu_zap_wq, &root->tdp_mmu_async_work);
+}
 
 void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
 			  bool shared)
@@ -892,6 +935,13 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	int i;
 
 	/*
+	 * Zap all roots, including invalid roots, as all SPTEs must be dropped
+	 * before returning to the caller.  Zap directly even if the root is
+	 * also being zapped by a worker.  Walking zapped top-level SPTEs isn't
+	 * all that expensive and mmu_lock is already held, which means the
+	 * worker has yielded, i.e. flushing the work instead of zapping here
+	 * isn't guaranteed to be any faster.
+	 *
 	 * A TLB flush is unnecessary, KVM zaps everything if and only the VM
 	 * is being destroyed or the userspace VMM has exited.  In both cases,
 	 * KVM_RUN is unreachable, i.e. no vCPUs will ever service the request.
@@ -902,96 +952,28 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	}
 }
 
-static struct kvm_mmu_page *next_invalidated_root(struct kvm *kvm,
-						  struct kvm_mmu_page *prev_root)
-{
-	struct kvm_mmu_page *next_root;
-
-	if (prev_root)
-		next_root = list_next_or_null_rcu(&kvm->arch.tdp_mmu_roots,
-						  &prev_root->link,
-						  typeof(*prev_root), link);
-	else
-		next_root = list_first_or_null_rcu(&kvm->arch.tdp_mmu_roots,
-						   typeof(*next_root), link);
-
-	while (next_root && !(next_root->role.invalid &&
-			      refcount_read(&next_root->tdp_mmu_root_count)))
-		next_root = list_next_or_null_rcu(&kvm->arch.tdp_mmu_roots,
-						  &next_root->link,
-						  typeof(*next_root), link);
-
-	return next_root;
-}
-
 /*
  * Zap all invalidated roots to ensure all SPTEs are dropped before the "fast
- * zap" completes.  Since kvm_tdp_mmu_invalidate_all_roots() has acquired a
- * reference to each invalidated root, roots will not be freed until after this
- * function drops the gifted reference, e.g. so that vCPUs don't get stuck with
- * tearing down paging structures.
+ * zap" completes.
  */
 void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
 {
-	struct kvm_mmu_page *next_root;
-	struct kvm_mmu_page *root;
-
-	lockdep_assert_held_read(&kvm->mmu_lock);
-
-	rcu_read_lock();
-
-	root = next_invalidated_root(kvm, NULL);
-
-	while (root) {
-		next_root = next_invalidated_root(kvm, root);
-
-		rcu_read_unlock();
-
-		/*
-		 * A TLB flush is unnecessary, invalidated roots are guaranteed
-		 * to be unreachable by the guest (see kvm_tdp_mmu_put_root()
-		 * for more details), and unlike the legacy MMU, no vCPU kick
-		 * is needed to play nice with lockless shadow walks as the TDP
-		 * MMU protects its paging structures via RCU.  Note, zapping
-		 * will still flush on yield, but that's a minor performance
-		 * blip and not a functional issue.
-		 */
-		tdp_mmu_zap_root(kvm, root, true);
-
-		/*
-		 * Put the reference acquired in
-		 * kvm_tdp_mmu_invalidate_roots
-		 */
-		kvm_tdp_mmu_put_root(kvm, root, true);
-
-		root = next_root;
-
-		rcu_read_lock();
-	}
-
-	rcu_read_unlock();
+	flush_workqueue(kvm->arch.tdp_mmu_zap_wq);
 }
 
 /*
  * Mark each TDP MMU root as invalid to prevent vCPUs from reusing a root that
- * is about to be zapped, e.g. in response to a memslots update.  The caller is
- * responsible for invoking kvm_tdp_mmu_zap_invalidated_roots() to do the actual
- * zapping.
+ * is about to be zapped, e.g. in response to a memslots update.  The actual
+ * zapping is performed asynchronously, so a reference is taken on all roots.
+ * Using a separate workqueue makes it easy to ensure that the destruction is
+ * performed before the "fast zap" completes, without keeping a separate list
+ * of invalidated roots; the list is effectively the list of work items in
+ * the workqueue.
  *
- * Take a reference on all roots to prevent the root from being freed before it
- * is zapped by this thread.  Freeing a root is not a correctness issue, but if
- * a vCPU drops the last reference to a root prior to the root being zapped, it
- * will get stuck with tearing down the entire paging structure.
- *
- * Get a reference even if the root is already invalid,
- * kvm_tdp_mmu_zap_invalidated_roots() assumes it was gifted a reference to all
- * invalid roots, e.g. there's no epoch to identify roots that were invalidated
- * by a previous call.  Roots stay on the list until the last reference is
- * dropped, so even though all invalid roots are zapped, a root may not go away
- * for quite some time, e.g. if a vCPU blocks across multiple memslot updates.
- *
- * Because mmu_lock is held for write, it should be impossible to observe a
- * root with zero refcount, i.e. the list of roots cannot be stale.
+ * Get a reference even if the root is already invalid, the asynchronous worker
+ * assumes it was gifted a reference to the root it processes.  Because mmu_lock
+ * is held for write, it should be impossible to observe a root with zero refcount,
+ * i.e. the list of roots cannot be stale.
  *
  * This has essentially the same effect for the TDP MMU
  * as updating mmu_valid_gen does for the shadow MMU.
@@ -1002,8 +984,10 @@ void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link) {
-		if (!WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root)))
+		if (!WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root))) {
 			root->role.invalid = true;
+			tdp_mmu_schedule_zap_root(kvm, root);
+		}
 	}
 }
 
