@@ -1728,8 +1728,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 			  arg->csumoffset) = csum_fold(csum_add(nskb->csum,
 								arg->csum));
 		nskb->ip_summed = CHECKSUM_NONE;
-		/* Setting mono_delivery_time will be enabled later */
-		nskb->mono_delivery_time = 0;
+		nskb->mono_delivery_time = !!transmit_time;
 		ip_push_pending_frames(sk, &fl4);
 	}
 out:

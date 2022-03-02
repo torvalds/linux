@@ -3993,8 +3993,7 @@ static inline void skb_set_delivery_time(struct sk_buff *skb, ktime_t kt,
 					 bool mono)
 {
 	skb->tstamp = kt;
-	/* Setting mono_delivery_time will be enabled later */
-	skb->mono_delivery_time = 0;
+	skb->mono_delivery_time = kt && mono;
 }
 
 DECLARE_STATIC_KEY_FALSE(netstamp_needed_key);

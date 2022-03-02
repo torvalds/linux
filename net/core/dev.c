@@ -5220,8 +5220,10 @@ another_round:
 			goto out;
 	}
 
-	if (skb_skip_tc_classify(skb))
+	if (skb_skip_tc_classify(skb)) {
+		skb_clear_delivery_time(skb);
 		goto skip_classify;
+	}
 
 	if (pfmemalloc)
 		goto skip_taps;
@@ -5250,12 +5252,14 @@ skip_taps:
 			goto another_round;
 		if (!skb)
 			goto out;
+		skb_clear_delivery_time(skb);
 
 		nf_skip_egress(skb, false);
 		if (nf_ingress(skb, &pt_prev, &ret, orig_dev) < 0)
 			goto out;
-	}
+	} else
 #endif
+		skb_clear_delivery_time(skb);
 	skb_reset_redirect(skb);
 skip_classify:
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
