@@ -848,11 +848,15 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
-
+	vmw_print_bitmap(&dev_priv->drm, "Capabilities",
+			 dev_priv->capabilities,
+			 cap1_names, ARRAY_SIZE(cap1_names));
 	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER) {
 		dev_priv->capabilities2 = vmw_read(dev_priv, SVGA_REG_CAP2);
+		vmw_print_bitmap(&dev_priv->drm, "Capabilities2",
+				 dev_priv->capabilities2,
+				 cap2_names, ARRAY_SIZE(cap2_names));
 	}
-
 
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
@@ -938,14 +942,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	drm_info(&dev_priv->drm,
 		 "MOB limits: max mob size = %u kB, max mob pages = %u\n",
 		 dev_priv->max_mob_size / 1024, dev_priv->max_mob_pages);
-
-	vmw_print_bitmap(&dev_priv->drm, "Capabilities",
-			 dev_priv->capabilities,
-			 cap1_names, ARRAY_SIZE(cap1_names));
-	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER)
-		vmw_print_bitmap(&dev_priv->drm, "Capabilities2",
-				 dev_priv->capabilities2,
-				 cap2_names, ARRAY_SIZE(cap2_names));
 
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
