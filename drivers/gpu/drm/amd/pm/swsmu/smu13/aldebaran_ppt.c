@@ -82,6 +82,12 @@
  */
 #define SUPPORT_ECCTABLE_SMU_VERSION 0x00442a00
 
+/*
+ * SMU support BAD CHENNEL info MSG since version 68.51.00,
+ * use this to check ECCTALE feature whether support
+ */
+#define SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION 0x00443300
+
 static const struct smu_temperature_range smu13_thermal_policy[] =
 {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
@@ -140,6 +146,7 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 	MSG_MAP(BoardPowerCalibration,		     PPSMC_MSG_BoardPowerCalibration,		0),
 	MSG_MAP(HeavySBR,                            PPSMC_MSG_HeavySBR,                        0),
+	MSG_MAP(SetBadHBMPagesRetiredFlagsPerChannel,	PPSMC_MSG_SetBadHBMPagesRetiredFlagsPerChannel,	0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -1997,6 +2004,41 @@ static int aldebaran_smu_send_hbm_bad_page_num(struct smu_context *smu,
 	return ret;
 }
 
+static int aldebaran_check_bad_channel_info_support(struct smu_context *smu)
+{
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret) {
+		/* return not support if failed get smu_version */
+		ret = -EOPNOTSUPP;
+	}
+
+	if (smu_version < SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION)
+		ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
+static int aldebaran_send_hbm_bad_channel_flag(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	ret = aldebaran_check_bad_channel_info_support(smu);
+	if (ret)
+		return ret;
+
+	/* message SMU to update the bad channel info on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetBadHBMPagesRetiredFlagsPerChannel, size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "[%s] failed to message SMU to update HBM bad channel info\n",
+				__func__);
+
+	return ret;
+}
+
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
@@ -2062,6 +2104,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.i2c_fini = aldebaran_i2c_control_fini,
 	.send_hbm_bad_pages_num = aldebaran_smu_send_hbm_bad_page_num,
 	.get_ecc_info = aldebaran_get_ecc_info,
+	.send_hbm_bad_channel_flag = aldebaran_send_hbm_bad_channel_flag,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

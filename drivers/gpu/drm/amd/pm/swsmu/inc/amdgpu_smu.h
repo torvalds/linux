@@ -1292,6 +1292,12 @@ struct pptable_funcs {
 	 * @set_config_table: Apply the input DriverSmuConfig table settings.
 	 */
 	int (*set_config_table)(struct smu_context *smu, struct config_table_setting *table);
+
+	/**
+	 * @sned_hbm_bad_channel_flag:  message SMU to update bad channel info
+	 *										of SMUBUS table.
+	 */
+	int (*send_hbm_bad_channel_flag)(struct smu_context *smu, uint32_t size);
 };
 
 typedef enum {
@@ -1428,5 +1434,6 @@ int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc);
 int smu_stb_collect_info(struct smu_context *smu, void *buff, uint32_t size);
 void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev);
 int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size);
+int smu_send_hbm_bad_channel_flag(struct smu_context *smu, uint32_t size);
 #endif
 #endif

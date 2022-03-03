@@ -3052,3 +3052,13 @@ int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size)
 
 	return ret;
 }
+
+int smu_send_hbm_bad_channel_flag(struct smu_context *smu, uint32_t size)
+{
+	int ret = 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->send_hbm_bad_channel_flag)
+		ret = smu->ppt_funcs->send_hbm_bad_channel_flag(smu, size);
+
+	return ret;
+}
