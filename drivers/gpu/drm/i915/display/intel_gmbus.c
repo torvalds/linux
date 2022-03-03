@@ -876,7 +876,10 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
+		const struct gmbus_pin *gmbus_pin;
+
+		gmbus_pin = get_gmbus_pin(dev_priv, pin);
+		if (!gmbus_pin)
 			continue;
 
 		bus = &dev_priv->gmbus[pin];
@@ -885,8 +888,7 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		bus->adapter.class = I2C_CLASS_DDC;
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
-			 "i915 gmbus %s",
-			 get_gmbus_pin(dev_priv, pin)->name);
+			 "i915 gmbus %s", gmbus_pin->name);
 
 		bus->adapter.dev.parent = &pdev->dev;
 		bus->dev_priv = dev_priv;
