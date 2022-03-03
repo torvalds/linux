@@ -285,7 +285,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 		if (likely(nskb))
 			err = macvlan_broadcast_one(nskb, vlan, eth,
 					mode == MACVLAN_MODE_BRIDGE) ?:
-			      netif_rx_ni(nskb);
+			      netif_rx(nskb);
 		macvlan_count_rx(vlan, skb->len + ETH_HLEN,
 				 err == NET_RX_SUCCESS, true);
 	}
