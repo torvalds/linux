@@ -3158,9 +3158,9 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 
 	if (vcpu->pv_time.active)
 		kvm_setup_guest_pvclock(v, &vcpu->pv_time, 0);
-	if (vcpu->xen.vcpu_info_set)
-		kvm_setup_pvclock_page(v, &vcpu->xen.vcpu_info_cache,
-				       offsetof(struct compat_vcpu_info, time));
+	if (vcpu->xen.vcpu_info_cache.active)
+		kvm_setup_guest_pvclock(v, &vcpu->xen.vcpu_info_cache,
+					offsetof(struct compat_vcpu_info, time));
 	if (vcpu->xen.vcpu_time_info_set)
 		kvm_setup_pvclock_page(v, &vcpu->xen.vcpu_time_info_cache, 0);
 	if (!v->vcpu_idx)
@@ -10424,6 +10424,9 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
 			break;
 
 		kvm_clear_request(KVM_REQ_UNBLOCK, vcpu);
+		if (kvm_xen_has_pending_events(vcpu))
+			kvm_xen_inject_pending_events(vcpu);
+
 		if (kvm_cpu_has_pending_timer(vcpu))
 			kvm_inject_pending_timer_irqs(vcpu);
 
@@ -12234,6 +12237,9 @@ static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 	if (is_guest_mode(vcpu) &&
 	    kvm_x86_ops.nested_ops->hv_timer_pending &&
 	    kvm_x86_ops.nested_ops->hv_timer_pending(vcpu))
+		return true;
+
+	if (kvm_xen_has_pending_events(vcpu))
 		return true;
 
 	return false;

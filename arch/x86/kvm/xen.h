@@ -15,6 +15,7 @@
 extern struct static_key_false_deferred kvm_xen_enabled;
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *vcpu);
+void kvm_xen_inject_pending_events(struct kvm_vcpu *vcpu);
 int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
@@ -46,11 +47,19 @@ static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_xen_enabled.key) &&
-	    vcpu->arch.xen.vcpu_info_set && vcpu->kvm->arch.xen.upcall_vector)
+	    vcpu->arch.xen.vcpu_info_cache.active &&
+	    vcpu->kvm->arch.xen.upcall_vector)
 		return __kvm_xen_has_interrupt(vcpu);
 
 	return 0;
 }
+
+static inline bool kvm_xen_has_pending_events(struct kvm_vcpu *vcpu)
+{
+	return static_branch_unlikely(&kvm_xen_enabled.key) &&
+		vcpu->arch.xen.evtchn_pending_sel;
+}
+
 #else
 static inline int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 {
@@ -82,6 +91,15 @@ static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	return 0;
+}
+
+static inline void kvm_xen_inject_pending_events(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline bool kvm_xen_has_pending_events(struct kvm_vcpu *vcpu)
+{
+	return false;
 }
 #endif
 
