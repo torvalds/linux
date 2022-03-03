@@ -603,6 +603,15 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		r = 0;
 		break;
 
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID:
+		if (data->u.vcpu_id >= KVM_MAX_VCPUS)
+			r = -EINVAL;
+		else {
+			vcpu->arch.xen.vcpu_id = data->u.vcpu_id;
+			r = 0;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -676,6 +685,11 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST:
 		r = -EINVAL;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID:
+		data->u.vcpu_id = vcpu->arch.xen.vcpu_id;
+		r = 0;
 		break;
 
 	default:
@@ -1375,6 +1389,11 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 
 	*r = 0;
 	return true;
+}
+
+void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.xen.vcpu_id = vcpu->vcpu_idx;
 }
 
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)

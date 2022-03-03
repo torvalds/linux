@@ -613,6 +613,7 @@ struct kvm_vcpu_xen {
 	u64 runstate_entry_time;
 	u64 runstate_times[4];
 	unsigned long evtchn_pending_sel;
+	u32 vcpu_id; /* The Xen / ACPI vCPU ID */
 };
 
 struct kvm_vcpu_arch {
