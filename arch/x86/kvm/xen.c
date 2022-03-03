@@ -1086,6 +1086,38 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	return 0;
 }
 
+/*
+ * Explicit event sending from userspace with KVM_XEN_HVM_EVTCHN_SEND ioctl.
+ */
+int kvm_xen_hvm_evtchn_send(struct kvm *kvm, struct kvm_irq_routing_xen_evtchn *uxe)
+{
+	struct kvm_xen_evtchn e;
+	int ret;
+
+	if (!uxe->port || uxe->port >= max_evtchn_port(kvm))
+		return -EINVAL;
+
+	/* We only support 2 level event channels for now */
+	if (uxe->priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
+		return -EINVAL;
+
+	e.port = uxe->port;
+	e.vcpu_id = uxe->vcpu;
+	e.vcpu_idx = -1;
+	e.priority = uxe->priority;
+
+	ret = kvm_xen_set_evtchn(&e, kvm);
+
+	/*
+	 * None of that 'return 1 if it actually got delivered' nonsense.
+	 * We don't care if it was masked (-ENOTCONN) either.
+	 */
+	if (ret > 0 || ret == -ENOTCONN)
+		ret = 0;
+
+	return ret;
+}
+
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 {
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
