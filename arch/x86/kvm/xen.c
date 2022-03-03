@@ -859,13 +859,16 @@ static inline int max_evtchn_port(struct kvm *kvm)
 }
 
 /*
- * This follows the kvm_set_irq() API, so it returns:
+ * The return value from this function is propagated to kvm_set_irq() API,
+ * so it returns:
  *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
+ *
+ * It is also called directly from kvm_arch_set_irq_inatomic(), where the
+ * only check on its return value is a comparison with -EWOULDBLOCK'.
  */
-int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
-			    struct kvm *kvm)
+int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 {
 	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
 	struct kvm_vcpu *vcpu;
@@ -873,18 +876,23 @@ int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
 	unsigned long flags;
 	int port_word_bit;
 	bool kick_vcpu = false;
-	int idx;
-	int rc;
+	int vcpu_idx, idx, rc;
 
-	vcpu = kvm_get_vcpu_by_id(kvm, e->xen_evtchn.vcpu);
-	if (!vcpu)
-		return -1;
+	vcpu_idx = READ_ONCE(xe->vcpu_idx);
+	if (vcpu_idx >= 0)
+		vcpu = kvm_get_vcpu(kvm, vcpu_idx);
+	else {
+		vcpu = kvm_get_vcpu_by_id(kvm, xe->vcpu_id);
+		if (!vcpu)
+			return -EINVAL;
+		WRITE_ONCE(xe->vcpu_idx, kvm_vcpu_get_idx(vcpu));
+	}
 
 	if (!vcpu->arch.xen.vcpu_info_cache.active)
-		return -1;
+		return -EINVAL;
 
-	if (e->xen_evtchn.port >= max_evtchn_port(kvm))
-		return -1;
+	if (xe->port >= max_evtchn_port(kvm))
+		return -EINVAL;
 
 	rc = -EWOULDBLOCK;
 
@@ -898,12 +906,12 @@ int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
 		struct shared_info *shinfo = gpc->khva;
 		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
 		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
-		port_word_bit = e->xen_evtchn.port / 64;
+		port_word_bit = xe->port / 64;
 	} else {
 		struct compat_shared_info *shinfo = gpc->khva;
 		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
 		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
-		port_word_bit = e->xen_evtchn.port / 32;
+		port_word_bit = xe->port / 32;
 	}
 
 	/*
@@ -913,10 +921,10 @@ int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
 	 * already set, then we kick the vCPU in question to write to the
 	 * *real* evtchn_pending_sel in its own guest vcpu_info struct.
 	 */
-	if (test_and_set_bit(e->xen_evtchn.port, pending_bits)) {
+	if (test_and_set_bit(xe->port, pending_bits)) {
 		rc = 0; /* It was already raised */
-	} else if (test_bit(e->xen_evtchn.port, mask_bits)) {
-		rc = -1; /* Masked */
+	} else if (test_bit(xe->port, mask_bits)) {
+		rc = -ENOTCONN; /* Masked */
 	} else {
 		rc = 1; /* Delivered to the bitmap in shared_info. */
 		/* Now switch to the vCPU's vcpu_info to set the index and pending_sel */
@@ -962,17 +970,12 @@ int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
 	return rc;
 }
 
-/* This is the version called from kvm_set_irq() as the .set function */
-static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
-			 int irq_source_id, int level, bool line_status)
+static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 {
 	bool mm_borrowed = false;
 	int rc;
 
-	if (!level)
-		return -1;
-
-	rc = kvm_xen_set_evtchn_fast(e, kvm);
+	rc = kvm_xen_set_evtchn_fast(xe, kvm);
 	if (rc != -EWOULDBLOCK)
 		return rc;
 
@@ -1016,7 +1019,7 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 		struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
 		int idx;
 
-		rc = kvm_xen_set_evtchn_fast(e, kvm);
+		rc = kvm_xen_set_evtchn_fast(xe, kvm);
 		if (rc != -EWOULDBLOCK)
 			break;
 
@@ -1033,11 +1036,27 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 	return rc;
 }
 
+/* This is the version called from kvm_set_irq() as the .set function */
+static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+			 int irq_source_id, int level, bool line_status)
+{
+	if (!level)
+		return -EINVAL;
+
+	return kvm_xen_set_evtchn(&e->xen_evtchn, kvm);
+}
+
+/*
+ * Set up an event channel interrupt from the KVM IRQ routing table.
+ * Used for e.g. PIRQ from passed through physical devices.
+ */
 int kvm_xen_setup_evtchn(struct kvm *kvm,
 			 struct kvm_kernel_irq_routing_entry *e,
 			 const struct kvm_irq_routing_entry *ue)
 
 {
+	struct kvm_vcpu *vcpu;
+
 	if (ue->u.xen_evtchn.port >= max_evtchn_port(kvm))
 		return -EINVAL;
 
@@ -1045,8 +1064,22 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	if (ue->u.xen_evtchn.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
 		return -EINVAL;
 
+	/*
+	 * Xen gives us interesting mappings from vCPU index to APIC ID,
+	 * which means kvm_get_vcpu_by_id() has to iterate over all vCPUs
+	 * to find it. Do that once at setup time, instead of every time.
+	 * But beware that on live update / live migration, the routing
+	 * table might be reinstated before the vCPU threads have finished
+	 * recreating their vCPUs.
+	 */
+	vcpu = kvm_get_vcpu_by_id(kvm, ue->u.xen_evtchn.vcpu);
+	if (vcpu)
+		e->xen_evtchn.vcpu_idx = kvm_vcpu_get_idx(vcpu);
+	else
+		e->xen_evtchn.vcpu_idx = -1;
+
 	e->xen_evtchn.port = ue->u.xen_evtchn.port;
-	e->xen_evtchn.vcpu = ue->u.xen_evtchn.vcpu;
+	e->xen_evtchn.vcpu_id = ue->u.xen_evtchn.vcpu;
 	e->xen_evtchn.priority = ue->u.xen_evtchn.priority;
 	e->set = evtchn_set_fn;
 
