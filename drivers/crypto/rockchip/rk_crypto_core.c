@@ -22,6 +22,7 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_v1.h"
 #include "rk_crypto_v2.h"
+#include "rk_crypto_v3.h"
 #include "cryptodev_linux/rk_cryptodev.h"
 
 static struct rk_alg_ctx *rk_alg_ctx_cast(struct crypto_async_request *async_req)
@@ -574,6 +575,15 @@ static char *crypto_full_algs_name[] = {
 	"rsa"
 };
 
+static char *crypto_rv1106_algs_name[] = {
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
+	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
+	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
+	"sha1", "sha224", "sha256", "md5",
+	"hmac(sha1)", "hmac(sha256)", "hmac(md5)",
+	"rsa"
+};
+
 static const struct rk_crypto_soc_data px30_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_no_sm_algs_name, false);
 
@@ -582,6 +592,9 @@ static const struct rk_crypto_soc_data rv1126_soc_data =
 
 static const struct rk_crypto_soc_data full_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, false);
+
+static const struct rk_crypto_soc_data cryto_v3_soc_data =
+	RK_CRYPTO_V3_SOC_DATA_INIT(crypto_rv1106_algs_name);
 
 static char *rk3288_cipher_algs[] = {
 	"ecb(aes)", "cbc(aes)",
@@ -594,6 +607,14 @@ static const struct rk_crypto_soc_data rk3288_soc_data =
 	RK_CRYPTO_V1_SOC_DATA_INIT(rk3288_cipher_algs);
 
 static const struct of_device_id crypto_of_id_table[] = {
+
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V3)
+	/* crypto v3 in belows */
+	{
+		.compatible = "rockchip,crypto-v3",
+		.data = (void *)&cryto_v3_soc_data,
+	},
+#endif
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V2)
 	/* crypto v2 in belows */
