@@ -11,6 +11,7 @@
 #include "lapic.h"
 #include "hyperv.h"
 
+#include <linux/eventfd.h>
 #include <linux/kvm_host.h>
 #include <linux/sched/stat.h>
 
@@ -20,6 +21,9 @@
 #include <xen/interface/event_channel.h>
 
 #include "trace.h"
+
+static int kvm_xen_setattr_evtchn(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
+static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r);
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
 
@@ -365,36 +369,44 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 {
 	int r = -ENOENT;
 
-	mutex_lock(&kvm->lock);
 
 	switch (data->type) {
 	case KVM_XEN_ATTR_TYPE_LONG_MODE:
 		if (!IS_ENABLED(CONFIG_64BIT) && data->u.long_mode) {
 			r = -EINVAL;
 		} else {
+			mutex_lock(&kvm->lock);
 			kvm->arch.xen.long_mode = !!data->u.long_mode;
+			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
+		mutex_lock(&kvm->lock);
 		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
+		mutex_unlock(&kvm->lock);
 		break;
 
 	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
 		if (data->u.vector && data->u.vector < 0x10)
 			r = -EINVAL;
 		else {
+			mutex_lock(&kvm->lock);
 			kvm->arch.xen.upcall_vector = data->u.vector;
+			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
+		break;
+
+	case KVM_XEN_ATTR_TYPE_EVTCHN:
+		r = kvm_xen_setattr_evtchn(kvm, data);
 		break;
 
 	default:
 		break;
 	}
 
-	mutex_unlock(&kvm->lock);
 	return r;
 }
 
@@ -770,18 +782,6 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 	return 0;
 }
 
-void kvm_xen_init_vm(struct kvm *kvm)
-{
-}
-
-void kvm_xen_destroy_vm(struct kvm *kvm)
-{
-	kvm_gfn_to_pfn_cache_destroy(kvm, &kvm->arch.xen.shinfo_cache);
-
-	if (kvm->arch.xen_hvm_config.msr)
-		static_branch_slow_dec_deferred(&kvm_xen_enabled);
-}
-
 static int kvm_xen_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 {
 	kvm_rax_write(vcpu, result);
@@ -801,7 +801,8 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
-	u64 input, params[6];
+	u64 input, params[6], r = -ENOSYS;
+	bool handled = false;
 
 	input = (u64)kvm_register_read(vcpu, VCPU_REGS_RAX);
 
@@ -831,6 +832,19 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 #endif
 	trace_kvm_xen_hypercall(input, params[0], params[1], params[2],
 				params[3], params[4], params[5]);
+
+	switch (input) {
+	case __HYPERVISOR_event_channel_op:
+		if (params[0] == EVTCHNOP_send)
+			handled = kvm_xen_hcall_evtchn_send(vcpu, params[1], &r);
+		break;
+
+	default:
+		break;
+	}
+
+	if (handled)
+		return kvm_xen_hypercall_set_result(vcpu, r);
 
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
@@ -1118,6 +1132,234 @@ int kvm_xen_hvm_evtchn_send(struct kvm *kvm, struct kvm_irq_routing_xen_evtchn *
 	return ret;
 }
 
+/*
+ * Support for *outbound* event channel events via the EVTCHNOP_send hypercall.
+ */
+struct evtchnfd {
+	u32 send_port;
+	u32 type;
+	union {
+		struct kvm_xen_evtchn port;
+		struct {
+			u32 port; /* zero */
+			struct eventfd_ctx *ctx;
+		} eventfd;
+	} deliver;
+};
+
+/*
+ * Update target vCPU or priority for a registered sending channel.
+ */
+static int kvm_xen_eventfd_update(struct kvm *kvm,
+				  struct kvm_xen_hvm_attr *data)
+{
+	u32 port = data->u.evtchn.send_port;
+	struct evtchnfd *evtchnfd;
+
+	if (!port || port >= max_evtchn_port(kvm))
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
+	mutex_unlock(&kvm->lock);
+
+	if (!evtchnfd)
+		return -ENOENT;
+
+	/* For an UPDATE, nothing may change except the priority/vcpu */
+	if (evtchnfd->type != data->u.evtchn.type)
+		return -EINVAL;
+
+	/*
+	 * Port cannot change, and if it's zero that was an eventfd
+	 * which can't be changed either.
+	 */
+	if (!evtchnfd->deliver.port.port ||
+	    evtchnfd->deliver.port.port != data->u.evtchn.deliver.port.port)
+		return -EINVAL;
+
+	/* We only support 2 level event channels for now */
+	if (data->u.evtchn.deliver.port.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+	evtchnfd->deliver.port.priority = data->u.evtchn.deliver.port.priority;
+	if (evtchnfd->deliver.port.vcpu_id != data->u.evtchn.deliver.port.vcpu) {
+		evtchnfd->deliver.port.vcpu_id = data->u.evtchn.deliver.port.vcpu;
+		evtchnfd->deliver.port.vcpu_idx = -1;
+	}
+	mutex_unlock(&kvm->lock);
+	return 0;
+}
+
+/*
+ * Configure the target (eventfd or local port delivery) for sending on
+ * a given event channel.
+ */
+static int kvm_xen_eventfd_assign(struct kvm *kvm,
+				  struct kvm_xen_hvm_attr *data)
+{
+	u32 port = data->u.evtchn.send_port;
+	struct eventfd_ctx *eventfd = NULL;
+	struct evtchnfd *evtchnfd = NULL;
+	int ret = -EINVAL;
+
+	if (!port || port >= max_evtchn_port(kvm))
+		return -EINVAL;
+
+	evtchnfd = kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
+	if (!evtchnfd)
+		return -ENOMEM;
+
+	switch(data->u.evtchn.type) {
+	case EVTCHNSTAT_ipi:
+		/* IPI  must map back to the same port# */
+		if (data->u.evtchn.deliver.port.port != data->u.evtchn.send_port)
+			goto out; /* -EINVAL */
+		break;
+
+	case EVTCHNSTAT_interdomain:
+		if (data->u.evtchn.deliver.port.port) {
+			if (data->u.evtchn.deliver.port.port >= max_evtchn_port(kvm))
+				goto out; /* -EINVAL */
+		} else {
+			eventfd = eventfd_ctx_fdget(data->u.evtchn.deliver.eventfd.fd);
+			if (IS_ERR(eventfd)) {
+				ret = PTR_ERR(eventfd);
+				goto out;
+			}
+		}
+		break;
+
+	case EVTCHNSTAT_virq:
+	case EVTCHNSTAT_closed:
+	case EVTCHNSTAT_unbound:
+	case EVTCHNSTAT_pirq:
+	default: /* Unknown event channel type */
+		goto out; /* -EINVAL */
+	}
+
+	evtchnfd->send_port = data->u.evtchn.send_port;
+	evtchnfd->type = data->u.evtchn.type;
+	if (eventfd) {
+		evtchnfd->deliver.eventfd.ctx = eventfd;
+	} else {
+		/* We only support 2 level event channels for now */
+		if (data->u.evtchn.deliver.port.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
+			goto out; /* -EINVAL; */
+
+		evtchnfd->deliver.port.port = data->u.evtchn.deliver.port.port;
+		evtchnfd->deliver.port.vcpu_id = data->u.evtchn.deliver.port.vcpu;
+		evtchnfd->deliver.port.vcpu_idx = -1;
+		evtchnfd->deliver.port.priority = data->u.evtchn.deliver.port.priority;
+	}
+
+	mutex_lock(&kvm->lock);
+	ret = idr_alloc(&kvm->arch.xen.evtchn_ports, evtchnfd, port, port + 1,
+			GFP_KERNEL);
+	mutex_unlock(&kvm->lock);
+	if (ret >= 0)
+		return 0;
+
+	if (ret == -ENOSPC)
+		ret = -EEXIST;
+out:
+	if (eventfd)
+		eventfd_ctx_put(eventfd);
+	kfree(evtchnfd);
+	return ret;
+}
+
+static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
+{
+	struct evtchnfd *evtchnfd;
+
+	mutex_lock(&kvm->lock);
+	evtchnfd = idr_remove(&kvm->arch.xen.evtchn_ports, port);
+	mutex_unlock(&kvm->lock);
+
+	if (!evtchnfd)
+		return -ENOENT;
+
+	if (kvm)
+		synchronize_srcu(&kvm->srcu);
+	if (!evtchnfd->deliver.port.port)
+		eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
+	kfree(evtchnfd);
+	return 0;
+}
+
+static int kvm_xen_eventfd_reset(struct kvm *kvm)
+{
+	struct evtchnfd *evtchnfd;
+	int i;
+
+	mutex_lock(&kvm->lock);
+	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
+		idr_remove(&kvm->arch.xen.evtchn_ports, evtchnfd->send_port);
+		synchronize_srcu(&kvm->srcu);
+		if (!evtchnfd->deliver.port.port)
+			eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
+		kfree(evtchnfd);
+	}
+	mutex_unlock(&kvm->lock);
+
+	return 0;
+}
+
+static int kvm_xen_setattr_evtchn(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
+{
+	u32 port = data->u.evtchn.send_port;
+
+	if (data->u.evtchn.flags == KVM_XEN_EVTCHN_RESET)
+		return kvm_xen_eventfd_reset(kvm);
+
+	if (!port || port >= max_evtchn_port(kvm))
+		return -EINVAL;
+
+	if (data->u.evtchn.flags == KVM_XEN_EVTCHN_DEASSIGN)
+		return kvm_xen_eventfd_deassign(kvm, port);
+	if (data->u.evtchn.flags == KVM_XEN_EVTCHN_UPDATE)
+		return kvm_xen_eventfd_update(kvm, data);
+	if (data->u.evtchn.flags)
+		return -EINVAL;
+
+	return kvm_xen_eventfd_assign(kvm, data);
+}
+
+static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
+{
+	struct evtchnfd *evtchnfd;
+	struct evtchn_send send;
+	gpa_t gpa;
+	int idx;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &send, sizeof(send))) {
+		*r = -EFAULT;
+		return true;
+	}
+
+	/* The evtchn_ports idr is protected by vcpu->kvm->srcu */
+	evtchnfd = idr_find(&vcpu->kvm->arch.xen.evtchn_ports, send.port);
+	if (!evtchnfd)
+		return false;
+
+	if (evtchnfd->deliver.port.port) {
+		int ret = kvm_xen_set_evtchn(&evtchnfd->deliver.port, vcpu->kvm);
+		if (ret < 0 && ret != -ENOTCONN)
+			return false;
+	} else {
+		eventfd_signal(evtchnfd->deliver.eventfd.ctx, 1);
+	}
+
+	*r = 0;
+	return true;
+}
+
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 {
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
@@ -1126,4 +1368,27 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 				     &vcpu->arch.xen.vcpu_info_cache);
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
 				     &vcpu->arch.xen.vcpu_time_info_cache);
+}
+
+void kvm_xen_init_vm(struct kvm *kvm)
+{
+	idr_init(&kvm->arch.xen.evtchn_ports);
+}
+
+void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+	struct evtchnfd *evtchnfd;
+	int i;
+
+	kvm_gfn_to_pfn_cache_destroy(kvm, &kvm->arch.xen.shinfo_cache);
+
+	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
+		if (!evtchnfd->deliver.port.port)
+			eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
+		kfree(evtchnfd);
+	}
+	idr_destroy(&kvm->arch.xen.evtchn_ports);
+
+	if (kvm->arch.xen_hvm_config.msr)
+		static_branch_slow_dec_deferred(&kvm_xen_enabled);
 }
