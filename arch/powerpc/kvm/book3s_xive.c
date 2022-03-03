@@ -241,7 +241,7 @@ static irqreturn_t xive_esc_irq(int irq, void *data)
 
 	vcpu->arch.irq_pending = 1;
 	smp_mb();
-	if (vcpu->arch.ceded)
+	if (vcpu->arch.ceded || vcpu->arch.nested)
 		kvmppc_fast_vcpu_kick(vcpu);
 
 	/* Since we have the no-EOI flag, the interrupt is effectively
