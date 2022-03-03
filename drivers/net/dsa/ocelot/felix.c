@@ -370,7 +370,6 @@ static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
 	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
-	ocelot->npi = -1;
 
 	/* Overwrite PGID_CPU with the non-tagging port */
 	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
