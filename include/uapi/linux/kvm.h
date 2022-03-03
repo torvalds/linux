@@ -1711,7 +1711,7 @@ struct kvm_xen_hvm_attr {
 				__u32 padding[4];
 			} deliver;
 		} evtchn;
-
+		__u32 xen_version;
 		__u64 pad[8];
 	} u;
 };
@@ -1722,6 +1722,7 @@ struct kvm_xen_hvm_attr {
 #define KVM_XEN_ATTR_TYPE_UPCALL_VECTOR		0x2
 /* Available with KVM_CAP_XEN_HVM / KVM_XEN_HVM_CONFIG_EVTCHN_SEND */
 #define KVM_XEN_ATTR_TYPE_EVTCHN		0x3
+#define KVM_XEN_ATTR_TYPE_XEN_VERSION		0x4
 
 /* Per-vCPU Xen attributes */
 #define KVM_XEN_VCPU_GET_ATTR	_IOWR(KVMIO, 0xca, struct kvm_xen_vcpu_attr)

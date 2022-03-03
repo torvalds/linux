@@ -18,6 +18,7 @@
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
+#include <xen/interface/version.h>
 #include <xen/interface/event_channel.h>
 #include <xen/interface/sched.h>
 
@@ -465,6 +466,13 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = kvm_xen_setattr_evtchn(kvm, data);
 		break;
 
+	case KVM_XEN_ATTR_TYPE_XEN_VERSION:
+		mutex_lock(&kvm->lock);
+		kvm->arch.xen.xen_version = data->u.xen_version;
+		mutex_unlock(&kvm->lock);
+		r = 0;
+		break;
+
 	default:
 		break;
 	}
@@ -494,6 +502,11 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 
 	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
 		data->u.vector = kvm->arch.xen.upcall_vector;
+		r = 0;
+		break;
+
+	case KVM_XEN_ATTR_TYPE_XEN_VERSION:
+		data->u.xen_version = kvm->arch.xen.xen_version;
 		r = 0;
 		break;
 
@@ -1059,6 +1072,12 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 				params[3], params[4], params[5]);
 
 	switch (input) {
+	case __HYPERVISOR_xen_version:
+		if (params[0] == XENVER_version && vcpu->kvm->arch.xen.xen_version) {
+			r = vcpu->kvm->arch.xen.xen_version;
+			handled = true;
+		}
+		break;
 	case __HYPERVISOR_event_channel_op:
 		if (params[0] == EVTCHNOP_send)
 			handled = kvm_xen_hcall_evtchn_send(vcpu, params[1], &r);
