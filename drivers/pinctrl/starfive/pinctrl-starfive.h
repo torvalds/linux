@@ -26,13 +26,7 @@
 
 #define MAX_GPIO				64
 
-/************vic7100 reg**************/ 
 #define STARFIVE_PINS_SIZE 			4
-//pinmux
-#define PINMUX_GPIO_NUM_MASK			0xFF
-#define PINMUX_GPIO_FUNC_MASK			0xF00
-#define PINMUX_GPIO_FUNC			0x100
-/************vic7100 reg**************/ 
 
 #define STARFIVE_USE_SCU			BIT(0)
 
@@ -106,8 +100,9 @@ struct starfive_pinctrl_soc_info {
 	unsigned int din_reg_offset;
 	
 	/* sel-function */
-	int (*starfive_iopad_sel_func)(struct starfive_pinctrl *ipctl, 
-				unsigned int func_id);
+	int (*starfive_iopad_sel_func)(struct platform_device *pdev,
+					struct starfive_pinctrl *ipctl,
+					unsigned int func_id);
 	/* generic pinconf */
 	int (*starfive_pinconf_get)(struct pinctrl_dev *pctldev, unsigned int pin_id,
 			       unsigned long *config);
@@ -115,8 +110,10 @@ struct starfive_pinctrl_soc_info {
 				unsigned pin_id, unsigned long *configs,
 				unsigned num_configs);
 	
+	/* generic pinmux */
 	int (*starfive_pmx_set_one_pin_mux)(struct starfive_pinctrl *ipctl,
 				struct starfive_pin *pin);
+	/* gpio chip */
 	int (*starfive_gpio_register)(struct platform_device *pdev,
 				struct starfive_pinctrl *ipctl);
 	void (*starfive_pinctrl_parse_pin)(struct starfive_pinctrl *ipctl,

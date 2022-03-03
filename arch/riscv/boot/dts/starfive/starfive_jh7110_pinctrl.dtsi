@@ -11,6 +11,14 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
+	
+	gmac1_pins: gmac1-pins {
+		gmac1-pins0 {
+			sf,pins = <PAD_GMAC1_MDC>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_SMT(1)|GPIO_DS(3))>;
+			sf,pin-syscon = <PADCFG_PAD_GMAC1_MDC_SYSCON IO_3_3V>;
+		};
+	};
 
 	i2c0_pins: i2c0-pins {
 		i2c0-pins-scl {

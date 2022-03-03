@@ -1091,6 +1091,11 @@
 #define IO(config)			((config) & 0xFF)
 #define DOUT(dout)			((dout) & 0xFF)
 #define DOEN(doen)			((doen) & 0xFF) 
-#define DIN(din_reg)		((din_reg) & 0xFF)
+#define DIN(din_reg)			((din_reg) & 0xFF)
+
+//syscon value
+#define IO_3_3V				0 /*00:3.3v*/
+#define IO_2_5V				1 /*01:2.5v*/
+#define IO_1_8V				2 /*10:1.8v*/
 
 #endif

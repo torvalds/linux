@@ -74,10 +74,6 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int map_num = 1;
 	int i, j;	
 
-	/*
-	 * first find the group of this node and check if we need create
-	 * config maps for pins
-	 */
 	grp = starfive_pinctrl_find_group_by_name(pctldev, np->name);
 	if (!grp) {
 		dev_err(pctl->dev, "unable to find group for node %pOFn\n", np);
@@ -93,7 +89,6 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*map = new_map;
 	*num_maps = map_num;
 
-	/* create mux map */
 	parent = of_get_parent(np);
 	if (!parent) {
 		kfree(new_map);
@@ -104,7 +99,6 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].data.mux.group = np->name;
 	of_node_put(parent);
 
-	/* create config map */
 	new_map++;
 	for (i = j = 0; i < grp->num_pins; i++) {
 		pin = &((struct starfive_pin *)(grp->data))[i];
@@ -115,7 +109,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		new_map[j].data.configs.configs =
 					&pin->pin_config.io_config;
 		new_map[j].data.configs.num_configs = 1;
- 		j++;
+		j++;
 	}
 
 	return 0;
@@ -262,73 +256,6 @@ static const struct pinconf_ops starfive_pinconf_ops = {
 };
 
 
-static void starfive_pinctrl_parse_pin_config(struct starfive_pinctrl *pctl,
-				unsigned int *pins_id, struct starfive_pin *pin_data,
-				const __be32 *list_p,
-				struct device_node *np)
-{
-	const struct starfive_pinctrl_soc_info *info = pctl->info;
-	struct starfive_pin_reg *pin_reg;
-	const __be32 *list = list_p;
-	const __be32 *list_din;
-	int size_din;
-	int pin_size;
-	u32 value;
-	int i;
-
-	*pins_id = be32_to_cpu(*list++);
-	pin_data->pin = *pins_id;
-	
-	pin_reg = &pctl->pin_regs[*pins_id];
-	pin_reg->io_conf_reg = *pins_id;
-
-	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value)) {
-		pin_data->pin_config.io_config = value;
-	}
-
-	if (!of_property_read_u32(np, "sf,pinmux", &value)) {
-			pin_data->pin_config.pinmux_func = value & PINMUX_GPIO_FUNC_MASK;
-		
-		if(pin_data->pin_config.pinmux_func == PINMUX_GPIO_FUNC){
-			pin_data->pin_config.gpio_num = value & PINMUX_GPIO_NUM_MASK;
-
-			if (!of_property_read_u32(np, "sf,pin-gpio-dout", &value)) {
-				pin_data->pin_config.gpio_dout = value;
-				pin_reg->gpo_dout_reg = info->dout_reg_base + \
-							(pin_data->pin_config.gpio_num * info->dout_reg_offset);
-			}
-			
-			if (!of_property_read_u32(np, "sf,pin-gpio-doen", &value)) {
-				pin_data->pin_config.gpio_doen = value;
-				pin_reg->gpo_doen_reg = info->doen_reg_base + \
-							(pin_data->pin_config.gpio_num * info->doen_reg_offset);
-			}
-
-			list_din = of_get_property(np, "sf,pin-gpio-din", &size_din);
-			if (list_din) {
-				if (!size_din || size_din % pin_size) {
-					dev_err(pctl->dev, 
-						"Invalid sf,pin-gpio-din or pins property in node %pOF\n", np);
-					return;
-				}
-				
-				pin_data->pin_config.gpio_din_num = size_din / pin_size;
-				pin_data->pin_config.gpio_din_reg = devm_kcalloc(pctl->dev,
-							 pin_data->pin_config.gpio_din_num, sizeof(s32),
-							 GFP_KERNEL);
-				
-				for(i = 0; i < pin_data->pin_config.gpio_din_num; i++){
-					value = be32_to_cpu(*list_din++);
-					pin_data->pin_config.gpio_din_reg[i] = info->din_reg_base + \
-									       value*info->din_reg_offset;
-				}
-			}
-		}
-	}
-	return;
-}
-
-
 static int starfive_pinctrl_parse_groups(struct device_node *np,
 					struct group_desc *grp,
 					struct starfive_pinctrl *pctl,
@@ -360,7 +287,7 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 	}
 
 	if (!size || size % pin_size) {
-		dev_err(pctl->dev, 
+		dev_err(pctl->dev,
 			"Invalid sf,pins or pins property in node %pOF\n", np);
 		return -EINVAL;
 	}
@@ -384,25 +311,25 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 		}
 		
 		child_num_pins = psize / pin_size;
-		
+
 		for (j = 0; j < child_num_pins; j++) {
 			pin_data = &((struct starfive_pin *)(grp->data))[j + offset];
 			pins_id =  &(grp->pins)[j + offset];
 			
-			if (info->flags & STARFIVE_USE_SCU)
-				info->starfive_pinctrl_parse_pin(pctl, pins_id,
-							  pin_data, list, child);
-			else
-				starfive_pinctrl_parse_pin_config(pctl, pins_id,
-							   pin_data, list, child);
-			*list++;
+			if (!info->starfive_pinctrl_parse_pin){
+				dev_err(pctl->dev, "pinmux ops lacks necessary functions\n");
+				return -EINVAL;
+			}
+				
+			info->starfive_pinctrl_parse_pin(pctl, pins_id,pin_data, list, child);
+			list++;
 		}
 		offset += j;
 	}
 	
 	return 0;
 }
-					
+
 static int starfive_pinctrl_parse_functions(struct device_node *np,
 					struct starfive_pinctrl *pctl,
 					u32 index)
@@ -412,12 +339,12 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 	struct function_desc *func;
 	struct group_desc *grp;
 	u32 i = 0;	
+	int ret;
 
 	func = pinmux_generic_get_function(pctldev, index);
 	if (!func)
 		return -EINVAL;
 
-	/* Initialise function */
 	func->name = np->name;
 	func->num_group_names = of_get_child_count(np);
 	if (func->num_group_names == 0) {
@@ -431,7 +358,7 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 	
 	for_each_child_of_node(np, child) {
 		func->group_names[i] = child->name;
- 		grp = devm_kzalloc(pctl->dev, sizeof(struct group_desc),
+		grp = devm_kzalloc(pctl->dev, sizeof(struct group_desc),
 				   GFP_KERNEL);
 		if (!grp) {
 			of_node_put(child);
@@ -443,7 +370,11 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 				  pctl->group_index++, grp);
 		mutex_unlock(&pctl->mutex);
 
-		starfive_pinctrl_parse_groups(child, grp, pctl, i++);
+		ret = starfive_pinctrl_parse_groups(child, grp, pctl, i++);
+		if (ret < 0){
+			dev_err(pctl->dev, "parse groups failed\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -487,6 +418,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct pinctrl_desc *starfive_pinctrl_desc;
 	struct starfive_pinctrl *pctl;
+	struct resource *res;
 	int ret, i;
 	u32 value;
 
@@ -495,7 +427,6 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	/* Create state holders etc for this driver */
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
 		return -ENOMEM;
@@ -517,9 +448,16 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 	pctl->padctl_base = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(pctl->padctl_base))
 		return PTR_ERR(pctl->padctl_base);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpio");
+	if (res) {
+		pctl->gpio_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pctl->gpio_base))
+			return PTR_ERR(pctl->gpio_base);
+	}
 	
 	if (info->starfive_iopad_sel_func) {
-		ret = info->starfive_iopad_sel_func(pctl,value);
+		ret = info->starfive_iopad_sel_func(pdev,pctl,value);
 		if (ret) 
 			return ret;
 	}

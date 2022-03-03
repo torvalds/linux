@@ -18,6 +18,12 @@ config PINCTRL_STARFIVE
 	  
 config PINCTRL_STARFIVE_JH7110
 	bool "Pinctrl and GPIO driver for the StarFive jh7100 SoC"
-	depends on PINCTRL_STARFIVE
+	depends on SOC_STARFIVE_JH7110 || PINCTRL_STARFIVE
 	help
 	  This selects the pinctrl driver for jh7100 starfive.
+
+config PINCTRL_STARFIVE_VIC7100
+	bool "Pinctrl and GPIO driver for the StarFive vic7100 SoC"
+	depends on SOC_STARFIVE_VIC7100 || PINCTRL_STARFIVE
+	help
+	  This selects the pinctrl driver for vic7100 starfive.
