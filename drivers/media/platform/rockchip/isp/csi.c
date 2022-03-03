@@ -571,10 +571,11 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		memset(&hdr_cfg, 0, sizeof(hdr_cfg));
 		ret = rkisp_csi_get_hdr_cfg(dev, &hdr_cfg);
 		if (dev->isp_inp & INP_CIF) {
-			struct rkisp_vicap_mode mode = {
-				.name = dev->name,
-				.is_rdbk = true,
-			};
+			struct rkisp_vicap_mode mode;
+
+			memset(&mode, 0, sizeof(mode));
+			mode.name = dev->name;
+			mode.is_rdbk = true;
 
 			get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 			dev->hdr.op_mode = HDR_NORMAL;
@@ -593,6 +594,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				mode.is_rdbk = false;
 			v4l2_subdev_call(mipi_sensor, core, ioctl,
 					 RKISP_VICAP_CMD_MODE, &mode);
+			dev->vicap_in = mode.input;
 			/* vicap direct to isp */
 			if ((dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) &&
 			    !mode.is_rdbk) {

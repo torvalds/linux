@@ -2925,6 +2925,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		struct v4l2_subdev *remote = get_remote_sensor(sd);
 		struct rkisp_vicap_mode mode;
 
+		memset(&mode, 0, sizeof(mode));
 		mode.name = dev->name;
 		mode.is_rdbk = !!(dev->isp_inp & rawrd);
 		/* read back mode only */
@@ -2932,6 +2933,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 			mode.is_rdbk = true;
 		v4l2_subdev_call(remote, core, ioctl,
 				 RKISP_VICAP_CMD_MODE, &mode);
+		dev->vicap_in = mode.input;
 	}
 
 	if (!dev->isp_inp)

@@ -303,14 +303,21 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 			goto err;
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; ++i) {
+			if ((dev->vicap_in.merge_num > 1) &&
+			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+				continue;
 			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
 	} else {
 		/* sensor -> phy */
-		for (i = p->num_subdevs - 1; i >= 0; --i)
+		for (i = p->num_subdevs - 1; i >= 0; --i) {
+			if ((dev->vicap_in.merge_num > 1) &&
+			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+				continue;
 			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+		}
 		if (dev->vs_irq >= 0)
 			disable_irq(dev->vs_irq);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
