@@ -1489,7 +1489,7 @@ static const struct soc_device_attribute r8a7795[] = {
 		.soc_id = "r8a7795", .revision = "ES2.*",
 		.data = &rcar_csi2_info_r8a7795es2,
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static int rcsi2_probe(struct platform_device *pdev)
