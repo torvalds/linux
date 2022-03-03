@@ -364,9 +364,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 
 	/*
 	 * If the SMBus is still busy, we give up
-	 * Note: This timeout condition only happens when using polling
-	 * transactions.  For interrupt operation, NAK/timeout is indicated by
-	 * DEV_ERR.
 	 */
 	if (unlikely(status < 0)) {
 		dev_err(&priv->pci_dev->dev, "Transaction timeout\n");
@@ -475,8 +472,6 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 		return i801_check_post(priv, result ? priv->status : -ETIMEDOUT);
 	}
 
-	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
-	 * SMBSCMD are passed in xact */
 	outb_p(xact | SMBHSTCNT_START, SMBHSTCNT(priv));
 
 	status = i801_wait_intr(priv);
