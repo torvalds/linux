@@ -123,10 +123,32 @@ struct uclogic_params_frame {
 	/*
 	 * Offset of the Wacom-style device ID byte in the report, to be set
 	 * to pad device ID (0xf), for compatibility with Wacom drivers. Zero
-	 * if no changes to the report should be made. Only valid if "id" is
-	 * not zero.
+	 * if no changes to the report should be made. The ID byte will be set
+	 * to zero whenever the byte pointed by "touch_ring_byte" is zero, if
+	 * the latter is valid. Only valid if "id" is not zero.
 	 */
 	unsigned int dev_id_byte;
+	/*
+	 * Offset of the touch ring state byte, in the report.
+	 * Zero if not present. If dev_id_byte is also valid and non-zero,
+	 * then the device ID byte will be cleared when the byte pointed to by
+	 * this offset is zero. Only valid if "id" is not zero.
+	 */
+	unsigned int touch_ring_byte;
+
+	/*
+	 * Maximum value of the touch ring report.
+	 * The minimum valid value is considered to be one,
+	 * with zero being out-of-proximity (finger lift) value.
+	 */
+	__s8 touch_ring_max;
+
+	/*
+	 * The value to anchor the reversed reports at.
+	 * I.e. one, if the reports should be flipped without offset.
+	 * Zero if no reversal should be done.
+	 */
+	__s8 touch_ring_flip_at;
 };
 
 /*
@@ -191,7 +213,10 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".frame_list[0].desc_size = %u\n"               \
 		".frame_list[0].id = %u\n"                      \
 		".frame_list[0].re_lsb = %u\n"                  \
-		".frame_list[0].dev_id_byte = %u\n"
+		".frame_list[0].dev_id_byte = %u\n"             \
+		".frame_list[0].touch_ring_byte = %u\n"         \
+		".frame_list[0].touch_ring_max = %hhd\n"        \
+		".frame_list[0].touch_ring_flip_at = %hhd\n"
 
 /* Tablet interface parameters *printf format arguments */
 #define UCLOGIC_PARAMS_FMT_ARGS(_params) \
@@ -210,7 +235,10 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->frame_list[0].desc_size,                         \
 		(_params)->frame_list[0].id,                                \
 		(_params)->frame_list[0].re_lsb,                            \
-		(_params)->frame_list[0].dev_id_byte
+		(_params)->frame_list[0].dev_id_byte,                       \
+		(_params)->frame_list[0].touch_ring_byte,                   \
+		(_params)->frame_list[0].touch_ring_max,                    \
+		(_params)->frame_list[0].touch_ring_flip_at
 
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,
