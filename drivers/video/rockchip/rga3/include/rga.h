@@ -624,6 +624,8 @@ struct rga2_req {
 
 	/* RGA2 1106 add */
 	struct rga_mosaic_info mosaic_info;
+
+	uint8_t yin_yout_en;
 };
 
 struct rga3_req {

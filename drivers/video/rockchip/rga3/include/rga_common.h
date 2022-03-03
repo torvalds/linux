@@ -17,6 +17,7 @@ bool rga_is_yuv422_packed_format(uint32_t format);
 bool rga_is_yuv8bit_format(uint32_t format);
 bool rga_is_yuv10bit_format(uint32_t format);
 bool rga_is_yuv422p_format(uint32_t format);
+bool rga_is_only_y_format(uint32_t format);
 
 int rga_get_format_bits(uint32_t format);
 

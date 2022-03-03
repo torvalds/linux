@@ -356,8 +356,6 @@
 int rga2_gen_reg_info(unsigned char *base,
 	unsigned char *csc_base, struct rga2_req *msg);
 
-void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req);
-
 void rga2_soft_reset(struct rga_scheduler_t *scheduler);
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
 int rga2_init_reg(struct rga_job *job);

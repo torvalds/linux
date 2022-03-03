@@ -11,6 +11,7 @@
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
 #include "rga_common.h"
+#include "rga_hw_config.h"
 
 extern struct rga2_mmu_info_t rga2_mmu_info;
 
@@ -189,6 +190,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_MOSAIC_EN)) |
 	       (s_RGA2_MODE_CTRL_SW_MOSAIC_EN(msg->mosaic_info.enable)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN)) |
+	       (s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(msg->yin_yout_en)));
+
 	*bRGA_MODE_CTL = reg;
 }
 
@@ -201,7 +205,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_MASK_ADDR;
 	u32 *bRGA_SRC_TR_COLOR0, *bRGA_SRC_TR_COLOR1;
 
-	u8 src_fmt_yuv400_en = 0;
+	u8 disable_uv_channel_en = 0;
 
 	u32 reg = 0;
 	u8 src0_format = 0;
@@ -492,7 +496,8 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_400:
 		src0_format = 0x8;
-		src_fmt_yuv400_en = 1;
+		/* When Yin_Yout is enabled, no need to go through the software. */
+		disable_uv_channel_en = msg->yin_yout_en ? false : true;
 		xdiv = 1;
 		ydiv = 1;
 		break;
@@ -558,7 +563,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	stride = (((msg->src.vir_w * pixel_width) + 3) & ~3) >> 2;
 	uv_stride = ((msg->src.vir_w / xdiv + 3) & ~3);
 
-	if (src_fmt_yuv400_en == 1) {
+	if (disable_uv_channel_en == 1) {
 		/*
 		 * When Y400 as the input format, because the current
 		 * RGA does not support closing
@@ -1690,7 +1695,8 @@ int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
 	return 0;
 }
 
-void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req)
+static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
+				struct rga_req *req_rga, struct rga2_req *req)
 {
 	u16 alpha_mode_0, alpha_mode_1;
 
@@ -1825,6 +1831,11 @@ void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req)
 
 	/* RGA2 1106 add */
 	memcpy(&req->mosaic_info, &req_rga->mosaic_info, sizeof(req_rga->mosaic_info));
+
+	if ((scheduler->data->feature & RGA_YIN_YOUT) &&
+	    rga_is_only_y_format(req->src.format) &&
+	    rga_is_only_y_format(req->dst.format))
+		req->yin_yout_en = true;
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
@@ -2137,7 +2148,7 @@ int rga2_init_reg(struct rga_job *job)
 
 	memset(&req, 0x0, sizeof(req));
 
-	rga_cmd_to_rga2_cmd(&job->rga_command_base, &req);
+	rga_cmd_to_rga2_cmd(scheduler, &job->rga_command_base, &req);
 
 	/* check value if legal */
 	ret = rga2_check_param(&req);

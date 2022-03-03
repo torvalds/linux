@@ -173,6 +173,17 @@ bool rga_is_yuv422p_format(uint32_t format)
 	}
 }
 
+bool rga_is_only_y_format(uint32_t format)
+{
+	switch (format) {
+	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_Y4:
+		return true;
+	default:
+		return false;
+	}
+}
+
 int rga_get_format_bits(uint32_t format)
 {
 	int bits = 0;
