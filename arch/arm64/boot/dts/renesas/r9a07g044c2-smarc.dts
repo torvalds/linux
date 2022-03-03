@@ -19,9 +19,3 @@
 	/delete-property/ pinctrl-names;
 	status = "disabled";
 };
-
-&ssi0 {
-	/delete-property/ pinctrl-0;
-	/delete-property/ pinctrl-names;
-	status = "disabled";
-};
