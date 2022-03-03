@@ -1129,7 +1129,10 @@ struct intel_crtc_state {
 
 	int min_cdclk[I915_MAX_PLANES];
 
+	/* for packed/planar CbCr */
 	u32 data_rate[I915_MAX_PLANES];
+	/* for planar Y */
+	u32 data_rate_y[I915_MAX_PLANES];
 
 	/* FIXME unify with data_rate[] */
 	u64 plane_data_rate[I915_MAX_PLANES];

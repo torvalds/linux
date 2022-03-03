@@ -181,29 +181,16 @@ unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 }
 
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
-				   const struct intel_plane_state *plane_state)
+				   const struct intel_plane_state *plane_state,
+				   int color_plane)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	unsigned int cpp;
-	unsigned int pixel_rate;
 
 	if (!plane_state->uapi.visible)
 		return 0;
 
-	pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
-
-	cpp = fb->format->cpp[0];
-
-	/*
-	 * Based on HSD#:1408715493
-	 * NV12 cpp == 4, P010 cpp == 8
-	 *
-	 * FIXME what is the logic behind this?
-	 */
-	if (fb->format->is_yuv && fb->format->num_planes > 1)
-		cpp *= 4;
-
-	return pixel_rate * cpp;
+	return intel_plane_pixel_rate(crtc_state, plane_state) *
+		fb->format->cpp[color_plane];
 }
 
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
@@ -326,6 +313,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	crtc_state->nv12_planes &= ~BIT(plane->id);
 	crtc_state->c8_planes &= ~BIT(plane->id);
 	crtc_state->data_rate[plane->id] = 0;
+	crtc_state->data_rate_y[plane->id] = 0;
 	crtc_state->min_cdclk[plane->id] = 0;
 
 	plane_state->uapi.visible = false;
@@ -551,8 +539,16 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (new_plane_state->uapi.visible || old_plane_state->uapi.visible)
 		new_crtc_state->update_planes |= BIT(plane->id);
 
-	new_crtc_state->data_rate[plane->id] =
-		intel_plane_data_rate(new_crtc_state, new_plane_state);
+	if (new_plane_state->uapi.visible &&
+	    intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier)) {
+		new_crtc_state->data_rate_y[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 0);
+		new_crtc_state->data_rate[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 1);
+	} else if (new_plane_state->uapi.visible) {
+		new_crtc_state->data_rate[plane->id] =
+			intel_plane_data_rate(new_crtc_state, new_plane_state, 0);
+	}
 
 	return intel_plane_atomic_calc_changes(old_crtc_state, new_crtc_state,
 					       old_plane_state, new_plane_state);

@@ -578,6 +578,7 @@ static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_stat
 static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	unsigned int data_rate = 0;
 	enum plane_id plane_id;
 
@@ -590,6 +591,9 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 			continue;
 
 		data_rate += crtc_state->data_rate[plane_id];
+
+		if (DISPLAY_VER(i915) < 11)
+			data_rate += crtc_state->data_rate_y[plane_id];
 	}
 
 	return data_rate;
@@ -690,28 +694,24 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_ddb_entry *ddb =
 			&crtc_state->wm.skl.plane_ddb[plane_id];
-		const struct skl_ddb_entry *ddb_y =
-			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		unsigned int data_rate = crtc_state->data_rate[plane_id];
-		unsigned int dbuf_mask = 0;
+		unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
 		enum dbuf_slice slice;
 
-		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb);
-		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_y);
+		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
+			crtc_bw->used_bw[slice] += data_rate;
+	}
 
-		/*
-		 * FIXME: To calculate that more properly we probably
-		 * need to split per plane data_rate into data_rate_y
-		 * and data_rate_uv for multiplanar formats in order not
-		 * to get accounted those twice if they happen to reside
-		 * on different slices.
-		 * However for pre-icl this would work anyway because
-		 * we have only single slice and for icl+ uv plane has
-		 * non-zero data rate.
-		 * So in worst case those calculation are a bit
-		 * pessimistic, which shouldn't pose any significant
-		 * problem anyway.
-		 */
+	if (DISPLAY_VER(i915) >= 11)
+		return;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_ddb_entry *ddb =
+			&crtc_state->wm.skl.plane_ddb_y[plane_id];
+		unsigned int data_rate = crtc_state->data_rate_y[plane_id];
+		unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
+		enum dbuf_slice slice;
+
 		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
 			crtc_bw->used_bw[slice] += data_rate;
 	}
