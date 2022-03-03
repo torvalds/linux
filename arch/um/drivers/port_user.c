@@ -167,9 +167,13 @@ static void port_pre_exec(void *arg)
 int port_connection(int fd, int *socket, int *pid_out)
 {
 	int new, err;
+	char *env;
 	char *argv[] = { "in.telnetd", "-L",
 			 OS_LIB_PATH "/uml/port-helper", NULL };
 	struct port_pre_exec_data data;
+
+	if ((env = getenv("UML_PORT_HELPER")))
+		argv[2] = env;
 
 	new = accept(fd, NULL, 0);
 	if (new < 0)
