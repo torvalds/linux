@@ -6,6 +6,7 @@
 
 #include <linux/prime_numbers.h>
 #include <linux/string_helpers.h>
+#include <linux/swap.h>
 
 #include "i915_selftest.h"
 

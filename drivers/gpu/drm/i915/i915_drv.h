@@ -34,7 +34,6 @@
 
 #include <asm/hypervisor.h>
 
-#include <linux/i2c.h>
 #include <linux/intel-iommu.h>
 #include <linux/pm_qos.h>
 

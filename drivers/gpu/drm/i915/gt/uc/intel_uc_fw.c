@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/firmware.h>
+#include <linux/highmem.h>
 
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>

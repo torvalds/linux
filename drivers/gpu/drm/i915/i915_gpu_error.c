@@ -28,6 +28,7 @@
  */
 
 #include <linux/ascii85.h>
+#include <linux/highmem.h>
 #include <linux/nmi.h>
 #include <linux/pagevec.h>
 #include <linux/scatterlist.h>
