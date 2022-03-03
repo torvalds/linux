@@ -96,6 +96,7 @@ enum flow_offload_xmit_type {
 	FLOW_OFFLOAD_XMIT_NEIGH,
 	FLOW_OFFLOAD_XMIT_XFRM,
 	FLOW_OFFLOAD_XMIT_DIRECT,
+	FLOW_OFFLOAD_XMIT_TC,
 };
 
 #define NF_FLOW_TABLE_ENCAP_MAX		2
@@ -127,7 +128,7 @@ struct flow_offload_tuple {
 	struct { }			__hash;
 
 	u8				dir:2,
-					xmit_type:2,
+					xmit_type:3,
 					encap_num:2,
 					in_vlan_ingress:2;
 	u16				mtu;
@@ -142,6 +143,9 @@ struct flow_offload_tuple {
 			u8		h_source[ETH_ALEN];
 			u8		h_dest[ETH_ALEN];
 		} out;
+		struct {
+			u32		iifidx;
+		} tc;
 	};
 };
 

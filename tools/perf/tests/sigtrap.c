@@ -22,19 +22,6 @@
 #include "tests.h"
 #include "../perf-sys.h"
 
-/*
- * PowerPC and S390 do not support creation of instruction breakpoints using the
- * perf_event interface.
- *
- * Just disable the test for these architectures until these issues are
- * resolved.
- */
-#if defined(__powerpc__) || defined(__s390x__)
-#define BP_ACCOUNT_IS_SUPPORTED 0
-#else
-#define BP_ACCOUNT_IS_SUPPORTED 1
-#endif
-
 #define NUM_THREADS 5
 
 static struct {
@@ -135,7 +122,7 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 	char sbuf[STRERR_BUFSIZE];
 	int i, fd, ret = TEST_FAIL;
 
-	if (!BP_ACCOUNT_IS_SUPPORTED) {
+	if (!BP_SIGNAL_IS_SUPPORTED) {
 		pr_debug("Test not supported on this architecture");
 		return TEST_SKIP;
 	}

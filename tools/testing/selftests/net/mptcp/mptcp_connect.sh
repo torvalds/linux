@@ -782,8 +782,8 @@ run_tests_disconnect()
 	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-I 3 -i $old_cin"
 
 	# restore previous status
-	cout=$old_cout
-	cout_disconnect="$cout".disconnect
+	sin=$old_sin
+	sin_disconnect="$cout".disconnect
 	cin=$old_cin
 	cin_disconnect="$cin".disconnect
 	connect_per_transfer=1

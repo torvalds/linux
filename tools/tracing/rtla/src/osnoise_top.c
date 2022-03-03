@@ -573,6 +573,7 @@ out_top:
 	osnoise_free_top(tool->data);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
+	free(params);
 out_exit:
 	exit(return_value);
 }
