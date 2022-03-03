@@ -157,15 +157,14 @@ static int ntfs_extend_initialized_size(struct file *file,
 		if (pos + len > new_valid)
 			len = new_valid - pos;
 
-		err = pagecache_write_begin(file, mapping, pos, len, 0, &page,
-					    &fsdata);
+		err = ntfs_write_begin(file, mapping, pos, len, &page, &fsdata);
 		if (err)
 			goto out;
 
 		zero_user_segment(page, zerofrom, PAGE_SIZE);
 
 		/* This function in any case puts page. */
-		err = pagecache_write_end(file, mapping, pos, len, len, page,
+		err = ntfs_write_end(file, mapping, pos, len, len, page,
 					  fsdata);
 		if (err < 0)
 			goto out;
