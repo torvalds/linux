@@ -4519,9 +4519,14 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	if (!nested) {
 		kvmppc_core_prepare_to_enter(vcpu);
-		if (test_bit(BOOK3S_IRQPRIO_EXTERNAL,
-			     &vcpu->arch.pending_exceptions))
+		if (vcpu->arch.shregs.msr & MSR_EE) {
+			if (xive_interrupt_pending(vcpu))
+				kvmppc_inject_interrupt_hv(vcpu,
+						BOOK3S_INTERRUPT_EXTERNAL, 0);
+		} else if (test_bit(BOOK3S_IRQPRIO_EXTERNAL,
+			     &vcpu->arch.pending_exceptions)) {
 			lpcr |= LPCR_MER;
+		}
 	} else if (vcpu->arch.pending_exceptions ||
 		   vcpu->arch.doorbell_request ||
 		   xive_interrupt_pending(vcpu)) {
