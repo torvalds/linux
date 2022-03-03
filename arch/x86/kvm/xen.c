@@ -314,6 +314,22 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	mark_page_dirty_in_slot(v->kvm, gpc->memslot, gpc->gpa >> PAGE_SHIFT);
 }
 
+static void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
+{
+	struct kvm_lapic_irq irq = { };
+	int r;
+
+	irq.dest_id = v->vcpu_id;
+	irq.vector = v->arch.xen.upcall_vector;
+	irq.dest_mode = APIC_DEST_PHYSICAL;
+	irq.shorthand = APIC_DEST_NOSHORT;
+	irq.delivery_mode = APIC_DM_FIXED;
+	irq.level = 1;
+
+	/* The fast version will always work for physical unicast */
+	WARN_ON_ONCE(!kvm_irq_delivery_to_apic_fast(v->kvm, NULL, &irq, &r, NULL));
+}
+
 /*
  * On event channel delivery, the vcpu_info may not have been accessible.
  * In that case, there are bits in vcpu->arch.xen.evtchn_pending_sel which
@@ -373,6 +389,10 @@ void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 		WRITE_ONCE(vi->evtchn_upcall_pending, 1);
 	}
 	read_unlock_irqrestore(&gpc->lock, flags);
+
+	/* For the per-vCPU lapic vector, deliver it as MSI. */
+	if (v->arch.xen.upcall_vector)
+		kvm_xen_inject_vcpu_vector(v);
 
 	mark_page_dirty_in_slot(v->kvm, gpc->memslot, gpc->gpa >> PAGE_SHIFT);
 }
@@ -708,6 +728,15 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		r = 0;
 		break;
 
+	case KVM_XEN_VCPU_ATTR_TYPE_UPCALL_VECTOR:
+		if (data->u.vector && data->u.vector < 0x10)
+			r = -EINVAL;
+		else {
+			vcpu->arch.xen.upcall_vector = data->u.vector;
+			r = 0;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -792,6 +821,11 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		data->u.timer.port = vcpu->arch.xen.timer_virq;
 		data->u.timer.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
 		data->u.timer.expires_ns = vcpu->arch.xen.timer_expires;
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_UPCALL_VECTOR:
+		data->u.vector = vcpu->arch.xen.upcall_vector;
 		r = 0;
 		break;
 
@@ -1227,6 +1261,12 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 				WRITE_ONCE(vcpu_info->evtchn_upcall_pending, 1);
 				kick_vcpu = true;
 			}
+		}
+
+		/* For the per-vCPU lapic vector, deliver it as MSI. */
+		if (kick_vcpu && vcpu->arch.xen.upcall_vector) {
+			kvm_xen_inject_vcpu_vector(vcpu);
+			kick_vcpu = false;
 		}
 	}
 

@@ -1754,6 +1754,7 @@ struct kvm_xen_vcpu_attr {
 			__u32 priority;
 			__u64 expires_ns;
 		} timer;
+		__u8 vector;
 	} u;
 };
 
@@ -1767,6 +1768,7 @@ struct kvm_xen_vcpu_attr {
 /* Available with KVM_CAP_XEN_HVM / KVM_XEN_HVM_CONFIG_EVTCHN_SEND */
 #define KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID		0x6
 #define KVM_XEN_VCPU_ATTR_TYPE_TIMER		0x7
+#define KVM_XEN_VCPU_ATTR_TYPE_UPCALL_VECTOR	0x8
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {
