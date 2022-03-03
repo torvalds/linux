@@ -19,6 +19,7 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/event_channel.h>
+#include <xen/interface/sched.h>
 
 #include "trace.h"
 
@@ -798,6 +799,20 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return kvm_xen_hypercall_set_result(vcpu, run->xen.u.hcall.result);
 }
 
+static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param, u64 *r)
+{
+	switch (cmd) {
+	case SCHEDOP_yield:
+		kvm_vcpu_on_spin(vcpu, true);
+		*r = 0;
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
@@ -838,7 +853,9 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		if (params[0] == EVTCHNOP_send)
 			handled = kvm_xen_hcall_evtchn_send(vcpu, params[1], &r);
 		break;
-
+	case __HYPERVISOR_sched_op:
+		handled = kvm_xen_hcall_sched_op(vcpu, params[0], params[1], &r);
+		break;
 	default:
 		break;
 	}
