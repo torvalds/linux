@@ -293,7 +293,7 @@ static void ks8851_wrfifo_spi(struct ks8851_net *ks, struct sk_buff *txp,
  */
 static void ks8851_rx_skb_spi(struct ks8851_net *ks, struct sk_buff *skb)
 {
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 /**
