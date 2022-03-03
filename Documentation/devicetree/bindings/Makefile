@@ -3,7 +3,8 @@ DT_DOC_CHECKER ?= dt-doc-validate
 DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
 
-DT_SCHEMA_LINT = $(shell which yamllint)
+DT_SCHEMA_LINT := $(shell which yamllint || \
+  echo "warning: python package 'yamllint' not installed, skipping" >&2)
 
 DT_SCHEMA_MIN_VERSION = 2021.2.1
 
