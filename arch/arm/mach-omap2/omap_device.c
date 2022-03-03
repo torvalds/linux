@@ -96,9 +96,6 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
  * omap_device, this function adds an entry in the clkdev table of the
  * form <dev-id=dev_name, con-id=role> if it does not exist already.
  *
- * The function is called from inside omap_device_build_ss(), after
- * omap_device_register.
- *
  * This allows drivers to get a pointer to its optional clocks based on its role
  * by calling clk_get(<dev*>, <role>).
  * In the case of the main clock, a "fck" alias is used.
