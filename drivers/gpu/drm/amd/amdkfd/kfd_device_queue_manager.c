@@ -505,14 +505,16 @@ static int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process 
 	 * to check which VMID the current process is mapped to.
 	 */
 
-	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
-		status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
-				(dev->adev, vmid, &queried_pasid);
+	if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_info) {
+		for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
+			status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
+					(dev->adev, vmid, &queried_pasid);
 
-		if (status && queried_pasid == p->pasid) {
-			pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
-					vmid, p->pasid);
-			break;
+			if (status && queried_pasid == p->pasid) {
+				pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
+						vmid, p->pasid);
+				break;
+			}
 		}
 	}
 
