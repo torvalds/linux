@@ -91,6 +91,18 @@ config EFI_SOFT_RESERVE
 
 	  If unsure, say Y.
 
+config EFI_DXE_MEM_ATTRIBUTES
+	bool "Adjust memory attributes in EFISTUB"
+	depends on EFI && EFI_STUB && X86
+	default y
+	help
+	  UEFI specification does not guarantee all memory to be
+	  accessible for both write and execute as the kernel expects
+	  it to be.
+	  Use DXE services to check and alter memory protection
+	  attributes during boot via EFISTUB to ensure that memory
+	  ranges used by the kernel are writable and executable.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help
