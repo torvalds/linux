@@ -62,6 +62,20 @@ static inline bool kvm_xen_has_pending_events(struct kvm_vcpu *vcpu)
 		vcpu->arch.xen.evtchn_pending_sel;
 }
 
+static inline bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu)
+{
+	return !!vcpu->arch.xen.timer_virq;
+}
+
+static inline int kvm_xen_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	if (kvm_xen_hypercall_enabled(vcpu->kvm) && kvm_xen_timer_enabled(vcpu))
+		return atomic_read(&vcpu->arch.xen.timer_pending);
+
+	return 0;
+}
+
+void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu);
 #else
 static inline int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 {
@@ -104,6 +118,20 @@ static inline void kvm_xen_inject_pending_events(struct kvm_vcpu *vcpu)
 }
 
 static inline bool kvm_xen_has_pending_events(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+
+static inline int kvm_xen_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+static inline void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu)
 {
 	return false;
 }

@@ -614,6 +614,10 @@ struct kvm_vcpu_xen {
 	u64 runstate_times[4];
 	unsigned long evtchn_pending_sel;
 	u32 vcpu_id; /* The Xen / ACPI vCPU ID */
+	u32 timer_virq;
+	u64 timer_expires; /* In guest epoch */
+	atomic_t timer_pending;
+	struct hrtimer timer;
 };
 
 struct kvm_vcpu_arch {

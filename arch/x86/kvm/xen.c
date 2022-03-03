@@ -23,6 +23,7 @@
 
 #include "trace.h"
 
+static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm);
 static int kvm_xen_setattr_evtchn(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r);
 
@@ -106,6 +107,66 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 out:
 	srcu_read_unlock(&kvm->srcu, idx);
 	return ret;
+}
+
+void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu)
+{
+	if (atomic_read(&vcpu->arch.xen.timer_pending) > 0) {
+		struct kvm_xen_evtchn e;
+
+		e.vcpu_id = vcpu->vcpu_id;
+		e.vcpu_idx = vcpu->vcpu_idx;
+		e.port = vcpu->arch.xen.timer_virq;
+		e.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+
+		kvm_xen_set_evtchn(&e, vcpu->kvm);
+
+		vcpu->arch.xen.timer_expires = 0;
+		atomic_set(&vcpu->arch.xen.timer_pending, 0);
+	}
+}
+
+static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu = container_of(timer, struct kvm_vcpu,
+					     arch.xen.timer);
+	if (atomic_read(&vcpu->arch.xen.timer_pending))
+		return HRTIMER_NORESTART;
+
+	atomic_inc(&vcpu->arch.xen.timer_pending);
+	kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
+	kvm_vcpu_kick(vcpu);
+
+	return HRTIMER_NORESTART;
+}
+
+static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs, s64 delta_ns)
+{
+	atomic_set(&vcpu->arch.xen.timer_pending, 0);
+	vcpu->arch.xen.timer_expires = guest_abs;
+
+	if (delta_ns <= 0) {
+		xen_timer_callback(&vcpu->arch.xen.timer);
+	} else {
+		ktime_t ktime_now = ktime_get();
+		hrtimer_start(&vcpu->arch.xen.timer,
+			      ktime_add_ns(ktime_now, delta_ns),
+			      HRTIMER_MODE_ABS_HARD);
+	}
+}
+
+static void kvm_xen_stop_timer(struct kvm_vcpu *vcpu)
+{
+	hrtimer_cancel(&vcpu->arch.xen.timer);
+	vcpu->arch.xen.timer_expires = 0;
+	atomic_set(&vcpu->arch.xen.timer_pending, 0);
+}
+
+static void kvm_xen_init_timer(struct kvm_vcpu *vcpu)
+{
+	hrtimer_init(&vcpu->arch.xen.timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_ABS_HARD);
+	vcpu->arch.xen.timer.function = xen_timer_callback;
 }
 
 static void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
@@ -612,6 +673,28 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		}
 		break;
 
+	case KVM_XEN_VCPU_ATTR_TYPE_TIMER:
+		if (data->u.timer.port) {
+			if (data->u.timer.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL) {
+				r = -EINVAL;
+				break;
+			}
+			vcpu->arch.xen.timer_virq = data->u.timer.port;
+			kvm_xen_init_timer(vcpu);
+
+			/* Restart the timer if it's set */
+			if (data->u.timer.expires_ns)
+				kvm_xen_start_timer(vcpu, data->u.timer.expires_ns,
+						    data->u.timer.expires_ns -
+						    get_kvmclock_ns(vcpu->kvm));
+		} else if (kvm_xen_timer_enabled(vcpu)) {
+			kvm_xen_stop_timer(vcpu);
+			vcpu->arch.xen.timer_virq = 0;
+		}
+
+		r = 0;
+		break;
+
 	default:
 		break;
 	}
@@ -689,6 +772,13 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID:
 		data->u.vcpu_id = vcpu->arch.xen.vcpu_id;
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_TIMER:
+		data->u.timer.port = vcpu->arch.xen.timer_virq;
+		data->u.timer.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+		data->u.timer.expires_ns = vcpu->arch.xen.timer_expires;
 		r = 0;
 		break;
 
@@ -827,6 +917,112 @@ static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param, u6
 	return false;
 }
 
+struct compat_vcpu_set_singleshot_timer {
+    uint64_t timeout_abs_ns;
+    uint32_t flags;
+} __attribute__((packed));
+
+static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
+				  int vcpu_id, u64 param, u64 *r)
+{
+	struct vcpu_set_singleshot_timer oneshot;
+	s64 delta;
+	gpa_t gpa;
+	int idx;
+
+	if (!kvm_xen_timer_enabled(vcpu))
+		return false;
+
+	switch (cmd) {
+	case VCPUOP_set_singleshot_timer:
+		if (vcpu->arch.xen.vcpu_id != vcpu_id) {
+			*r = -EINVAL;
+			return true;
+		}
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+		gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+		/*
+		 * The only difference for 32-bit compat is the 4 bytes of
+		 * padding after the interesting part of the structure. So
+		 * for a faithful emulation of Xen we have to *try* to copy
+		 * the padding and return -EFAULT if we can't. Otherwise we
+		 * might as well just have copied the 12-byte 32-bit struct.
+		 */
+		BUILD_BUG_ON(offsetof(struct compat_vcpu_set_singleshot_timer, timeout_abs_ns) !=
+			     offsetof(struct vcpu_set_singleshot_timer, timeout_abs_ns));
+		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, timeout_abs_ns) !=
+			     sizeof_field(struct vcpu_set_singleshot_timer, timeout_abs_ns));
+		BUILD_BUG_ON(offsetof(struct compat_vcpu_set_singleshot_timer, flags) !=
+			     offsetof(struct vcpu_set_singleshot_timer, flags));
+		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, flags) !=
+			     sizeof_field(struct vcpu_set_singleshot_timer, flags));
+
+		if (!gpa ||
+		    kvm_vcpu_read_guest(vcpu, gpa, &oneshot, longmode ? sizeof(oneshot) :
+					sizeof(struct compat_vcpu_set_singleshot_timer))) {
+			*r = -EFAULT;
+			return true;
+		}
+
+		delta = oneshot.timeout_abs_ns - get_kvmclock_ns(vcpu->kvm);
+		if ((oneshot.flags & VCPU_SSHOTTMR_future) && delta < 0) {
+			*r = -ETIME;
+			return true;
+		}
+
+		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, delta);
+		*r = 0;
+		return true;
+
+	case VCPUOP_stop_singleshot_timer:
+		if (vcpu->arch.xen.vcpu_id != vcpu_id) {
+			*r = -EINVAL;
+			return true;
+		}
+		kvm_xen_stop_timer(vcpu);
+		*r = 0;
+		return true;
+	}
+
+	return false;
+}
+
+static bool kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout,
+				       u64 *r)
+{
+	if (!kvm_xen_timer_enabled(vcpu))
+		return false;
+
+	if (timeout) {
+		uint64_t guest_now = get_kvmclock_ns(vcpu->kvm);
+		int64_t delta = timeout - guest_now;
+
+		/* Xen has a 'Linux workaround' in do_set_timer_op() which
+		 * checks for negative absolute timeout values (caused by
+		 * integer overflow), and for values about 13 days in the
+		 * future (2^50ns) which would be caused by jiffies
+		 * overflow. For those cases, it sets the timeout 100ms in
+		 * the future (not *too* soon, since if a guest really did
+		 * set a long timeout on purpose we don't want to keep
+		 * churning CPU time by waking it up).
+		 */
+		if (unlikely((int64_t)timeout < 0 ||
+			     (delta > 0 && (uint32_t) (delta >> 50) != 0))) {
+			delta = 100 * NSEC_PER_MSEC;
+			timeout = guest_now + delta;
+		}
+
+		kvm_xen_start_timer(vcpu, timeout, delta);
+	} else {
+		kvm_xen_stop_timer(vcpu);
+	}
+
+	*r = 0;
+	return true;
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
@@ -870,6 +1066,18 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	case __HYPERVISOR_sched_op:
 		handled = kvm_xen_hcall_sched_op(vcpu, params[0], params[1], &r);
 		break;
+	case __HYPERVISOR_vcpu_op:
+		handled = kvm_xen_hcall_vcpu_op(vcpu, longmode, params[0], params[1],
+						params[2], &r);
+		break;
+	case __HYPERVISOR_set_timer_op: {
+		u64 timeout = params[0];
+		/* In 32-bit mode, the 64-bit timeout is in two 32-bit params. */
+		if (!longmode)
+			timeout |= params[1] << 32;
+		handled = kvm_xen_hcall_set_timer_op(vcpu, timeout, &r);
+		break;
+	}
 	default:
 		break;
 	}
@@ -1398,6 +1606,9 @@ void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
 
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 {
+	if (kvm_xen_timer_enabled(vcpu))
+		kvm_xen_stop_timer(vcpu);
+
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
 				     &vcpu->arch.xen.runstate_cache);
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
