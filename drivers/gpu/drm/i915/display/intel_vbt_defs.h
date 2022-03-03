@@ -289,6 +289,9 @@ struct bdb_general_features {
 #define HDMI_MAX_DATA_RATE_PLATFORM	0			/* 204 */
 #define HDMI_MAX_DATA_RATE_297		1			/* 204 */
 #define HDMI_MAX_DATA_RATE_165		2			/* 204 */
+#define HDMI_MAX_DATA_RATE_594		3			/* 249 */
+#define HDMI_MAX_DATA_RATE_340		4			/* 249 */
+#define HDMI_MAX_DATA_RATE_300		5			/* 249 */
 
 #define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
 

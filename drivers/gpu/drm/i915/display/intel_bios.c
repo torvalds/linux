@@ -1955,6 +1955,12 @@ static int _intel_bios_max_tmds_clock(const struct intel_bios_encoder_data *devd
 		fallthrough;
 	case HDMI_MAX_DATA_RATE_PLATFORM:
 		return 0;
+	case HDMI_MAX_DATA_RATE_594:
+		return 594000;
+	case HDMI_MAX_DATA_RATE_340:
+		return 340000;
+	case HDMI_MAX_DATA_RATE_300:
+		return 300000;
 	case HDMI_MAX_DATA_RATE_297:
 		return 297000;
 	case HDMI_MAX_DATA_RATE_165:
