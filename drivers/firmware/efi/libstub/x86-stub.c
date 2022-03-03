@@ -22,6 +22,7 @@
 #define MAXMEM_X86_64_4LEVEL (1ull << 46)
 
 const efi_system_table_t *efi_system_table;
+const efi_dxe_services_table_t *efi_dxe_table;
 extern u32 image_offset;
 static efi_loaded_image_t *image = NULL;
 
@@ -677,10 +678,16 @@ unsigned long efi_main(efi_handle_t handle,
 	efi_status_t status;
 
 	efi_system_table = sys_table_arg;
-
 	/* Check if we were booted by the EFI firmware */
 	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		efi_exit(handle, EFI_INVALID_PARAMETER);
+
+	efi_dxe_table = get_efi_config_table(EFI_DXE_SERVICES_TABLE_GUID);
+	if (efi_dxe_table &&
+	    efi_dxe_table->hdr.signature != EFI_DXE_SERVICES_TABLE_SIGNATURE) {
+		efi_warn("Ignoring DXE services table: invalid signature\n");
+		efi_dxe_table = NULL;
+	}
 
 	/*
 	 * If the kernel isn't already loaded at a suitable address,
