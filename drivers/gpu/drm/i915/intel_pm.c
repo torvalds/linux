@@ -4988,18 +4988,18 @@ skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
  * So this is actually safe to do.
  */
 static void
-skl_check_wm_level(struct skl_wm_level *wm, u64 total)
+skl_check_wm_level(struct skl_wm_level *wm, const struct skl_ddb_entry *ddb)
 {
-	if (wm->min_ddb_alloc > total)
+	if (wm->min_ddb_alloc > skl_ddb_entry_size(ddb))
 		memset(wm, 0, sizeof(*wm));
 }
 
 static void
 skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
-			u64 total, u64 uv_total)
+			const struct skl_ddb_entry *ddb_y, const struct skl_ddb_entry *ddb)
 {
-	if (wm->min_ddb_alloc > total ||
-	    uv_wm->min_ddb_alloc > uv_total) {
+	if (wm->min_ddb_alloc > skl_ddb_entry_size(ddb_y) ||
+	    uv_wm->min_ddb_alloc > skl_ddb_entry_size(ddb)) {
 		memset(wm, 0, sizeof(*wm));
 		memset(uv_wm, 0, sizeof(*uv_wm));
 	}
@@ -5019,17 +5019,16 @@ static bool icl_need_wm1_wa(struct drm_i915_private *i915,
 
 struct skl_plane_ddb_iter {
 	u64 data_rate;
-	u16 total[I915_MAX_PLANES];
-	u16 uv_total[I915_MAX_PLANES];
 	u16 start, size;
 };
 
-static u16
+static void
 skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+		       struct skl_ddb_entry *ddb,
 		       const struct skl_wm_level *wm,
 		       u64 data_rate)
 {
-	u16 extra = 0;
+	u16 size, extra = 0;
 
 	if (data_rate) {
 		extra = min_t(u16, iter->size,
@@ -5039,7 +5038,15 @@ skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
 		iter->data_rate -= data_rate;
 	}
 
-	return wm->min_ddb_alloc + extra;
+	/*
+	 * Keep ddb entry of all disabled planes explicitly zeroed
+	 * to avoid skl_ddb_add_affected_planes() adding them to
+	 * the state when other planes change their allocations.
+	 */
+	size = wm->min_ddb_alloc + extra;
+	if (size)
+		iter->start = skl_ddb_entry_init(ddb, iter->start,
+						 iter->start + size);
 }
 
 static int
@@ -5053,8 +5060,9 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		intel_atomic_get_new_dbuf_state(state);
 	const struct skl_ddb_entry *alloc = &dbuf_state->ddb[crtc->pipe];
 	int num_active = hweight8(dbuf_state->active_pipes);
-	struct skl_plane_ddb_iter iter = {};
+	struct skl_plane_ddb_iter iter;
 	enum plane_id plane_id;
+	u16 cursor_size;
 	u32 blocks;
 	int level;
 
@@ -5065,15 +5073,16 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	if (!crtc_state->hw.active)
 		return 0;
 
+	iter.start = alloc->start;
 	iter.size = skl_ddb_entry_size(alloc);
 	if (iter.size == 0)
 		return 0;
 
 	/* Allocate fixed number of blocks for cursor. */
-	iter.total[PLANE_CURSOR] = skl_cursor_allocation(crtc_state, num_active);
-	iter.size -= iter.total[PLANE_CURSOR];
+	cursor_size = skl_cursor_allocation(crtc_state, num_active);
+	iter.size -= cursor_size;
 	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[PLANE_CURSOR],
-			   alloc->end - iter.total[PLANE_CURSOR], alloc->end);
+			   alloc->end - cursor_size, alloc->end);
 
 	iter.data_rate = skl_total_relative_data_rate(crtc_state);
 
@@ -5088,7 +5097,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
 			if (plane_id == PLANE_CURSOR) {
-				if (wm->wm[level].min_ddb_alloc > iter.total[PLANE_CURSOR]) {
+				const struct skl_ddb_entry *ddb =
+					&crtc_state->wm.skl.plane_ddb[plane_id];
+
+				if (wm->wm[level].min_ddb_alloc > skl_ddb_entry_size(ddb)) {
 					drm_WARN_ON(&dev_priv->drm,
 						    wm->wm[level].min_ddb_alloc != U16_MAX);
 					blocks = U32_MAX;
@@ -5125,6 +5137,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	 * proportional to its relative data rate.
 	 */
 	for_each_plane_id_on_crtc(crtc, plane_id) {
+		struct skl_ddb_entry *ddb =
+			&crtc_state->wm.skl.plane_ddb[plane_id];
+		struct skl_ddb_entry *ddb_y =
+			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
@@ -5133,50 +5149,16 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 		if (DISPLAY_VER(dev_priv) < 11 &&
 		    crtc_state->nv12_planes & BIT(plane_id)) {
-			iter.total[plane_id] =
-				skl_allocate_plane_ddb(&iter, &wm->wm[level],
-						       crtc_state->rel_data_rate_y[plane_id]);
-			iter.uv_total[plane_id] =
-				skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
-						       crtc_state->rel_data_rate[plane_id]);
+			skl_allocate_plane_ddb(&iter, ddb_y, &wm->wm[level],
+					       crtc_state->rel_data_rate_y[plane_id]);
+			skl_allocate_plane_ddb(&iter, ddb, &wm->uv_wm[level],
+					       crtc_state->rel_data_rate[plane_id]);
 		} else {
-			iter.total[plane_id] =
-				skl_allocate_plane_ddb(&iter, &wm->wm[level],
-						       crtc_state->rel_data_rate[plane_id]);
+			skl_allocate_plane_ddb(&iter, ddb, &wm->wm[level],
+					       crtc_state->rel_data_rate[plane_id]);
 		}
 	}
 	drm_WARN_ON(&dev_priv->drm, iter.size != 0 || iter.data_rate != 0);
-
-	/* Set the actual DDB start/end points for each plane */
-	iter.start = alloc->start;
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		struct skl_ddb_entry *ddb =
-			&crtc_state->wm.skl.plane_ddb[plane_id];
-		struct skl_ddb_entry *ddb_y =
-			&crtc_state->wm.skl.plane_ddb_y[plane_id];
-
-		if (plane_id == PLANE_CURSOR)
-			continue;
-
-		/* Gen11+ uses a separate plane for UV watermarks */
-		drm_WARN_ON(&dev_priv->drm,
-			    DISPLAY_VER(dev_priv) >= 11 && iter.uv_total[plane_id]);
-
-		/* Leave disabled planes at (0,0) */
-		if (DISPLAY_VER(dev_priv) < 11 &&
-		    crtc_state->nv12_planes & BIT(plane_id)) {
-			if (iter.total[plane_id])
-				iter.start = skl_ddb_entry_init(ddb_y, iter.start,
-								iter.start + iter.total[plane_id]);
-			if (iter.uv_total[plane_id])
-				iter.start = skl_ddb_entry_init(ddb, iter.start,
-								iter.start + iter.uv_total[plane_id]);
-		} else {
-			if (iter.total[plane_id])
-				iter.start = skl_ddb_entry_init(ddb, iter.start,
-								iter.start + iter.total[plane_id]);
-		}
-	}
 
 	/*
 	 * When we calculated watermark values we didn't know how high
@@ -5186,12 +5168,20 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	 */
 	for (level++; level <= ilk_wm_max_level(dev_priv); level++) {
 		for_each_plane_id_on_crtc(crtc, plane_id) {
+			const struct skl_ddb_entry *ddb =
+				&crtc_state->wm.skl.plane_ddb[plane_id];
+			const struct skl_ddb_entry *ddb_y =
+				&crtc_state->wm.skl.plane_ddb_y[plane_id];
 			struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
-			skl_check_nv12_wm_level(&wm->wm[level], &wm->uv_wm[level],
-						iter.total[plane_id],
-						iter.uv_total[plane_id]);
+			if (DISPLAY_VER(dev_priv) < 11 &&
+			    crtc_state->nv12_planes & BIT(plane_id))
+				skl_check_nv12_wm_level(&wm->wm[level],
+							&wm->uv_wm[level],
+							ddb_y, ddb);
+			else
+				skl_check_wm_level(&wm->wm[level], ddb);
 
 			if (icl_need_wm1_wa(dev_priv, plane_id) &&
 			    level == 1 && wm->wm[0].enable) {
@@ -5207,12 +5197,24 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	 * if it turns out we don't have enough DDB blocks for them.
 	 */
 	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_ddb_entry *ddb =
+			&crtc_state->wm.skl.plane_ddb[plane_id];
+		const struct skl_ddb_entry *ddb_y =
+			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		skl_check_wm_level(&wm->trans_wm, iter.total[plane_id]);
-		skl_check_wm_level(&wm->sagv.wm0, iter.total[plane_id]);
-		skl_check_wm_level(&wm->sagv.trans_wm, iter.total[plane_id]);
+		if (DISPLAY_VER(dev_priv) < 11 &&
+		    crtc_state->nv12_planes & BIT(plane_id)) {
+			skl_check_wm_level(&wm->trans_wm, ddb_y);
+		} else {
+			WARN_ON(skl_ddb_entry_size(ddb_y));
+
+			skl_check_wm_level(&wm->trans_wm, ddb);
+		}
+
+		skl_check_wm_level(&wm->sagv.wm0, ddb);
+		skl_check_wm_level(&wm->sagv.trans_wm, ddb);
 	}
 
 	return 0;
