@@ -13436,8 +13436,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np->vsi = vsi;
 
 	hw_enc_features = NETIF_F_SG			|
-			  NETIF_F_IP_CSUM		|
-			  NETIF_F_IPV6_CSUM		|
+			  NETIF_F_HW_CSUM		|
 			  NETIF_F_HIGHDMA		|
 			  NETIF_F_SOFT_FEATURES		|
 			  NETIF_F_TSO			|
@@ -13467,6 +13466,23 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	/* record features VLANs can make use of */
 	netdev->vlan_features |= hw_enc_features | NETIF_F_TSO_MANGLEID;
+
+#define I40E_GSO_PARTIAL_FEATURES (NETIF_F_GSO_GRE |		\
+				   NETIF_F_GSO_GRE_CSUM |	\
+				   NETIF_F_GSO_IPXIP4 |		\
+				   NETIF_F_GSO_IPXIP6 |		\
+				   NETIF_F_GSO_UDP_TUNNEL |	\
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM)
+
+	netdev->gso_partial_features = I40E_GSO_PARTIAL_FEATURES;
+	netdev->features |= NETIF_F_GSO_PARTIAL |
+			    I40E_GSO_PARTIAL_FEATURES;
+
+	netdev->mpls_features |= NETIF_F_SG;
+	netdev->mpls_features |= NETIF_F_HW_CSUM;
+	netdev->mpls_features |= NETIF_F_TSO;
+	netdev->mpls_features |= NETIF_F_TSO6;
+	netdev->mpls_features |= I40E_GSO_PARTIAL_FEATURES;
 
 	/* enable macvlan offloads */
 	netdev->hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
