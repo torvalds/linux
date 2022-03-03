@@ -25,6 +25,141 @@
 #include <net/dsa.h>
 #include "felix.h"
 
+/* Translate the DSA database API into the ocelot switch library API,
+ * which uses VID 0 for all ports that aren't part of a bridge,
+ * and expects the bridge_dev to be NULL in that case.
+ */
+static struct net_device *felix_classify_db(struct dsa_db db)
+{
+	switch (db.type) {
+	case DSA_DB_PORT:
+	case DSA_DB_LAG:
+		return NULL;
+	case DSA_DB_BRIDGE:
+		return db.bridge.dev;
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+}
+
+/* We are called before felix_npi_port_init(), so ocelot->npi is -1. */
+static int felix_migrate_fdbs_to_npi_port(struct dsa_switch *ds, int port,
+					  const unsigned char *addr, u16 vid,
+					  struct dsa_db db)
+{
+	struct net_device *bridge_dev = felix_classify_db(db);
+	struct ocelot *ocelot = ds->priv;
+	int cpu = ocelot->num_phys_ports;
+	int err;
+
+	err = ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
+	if (err)
+		return err;
+
+	return ocelot_fdb_add(ocelot, cpu, addr, vid, bridge_dev);
+}
+
+static int felix_migrate_mdbs_to_npi_port(struct dsa_switch *ds, int port,
+					  const unsigned char *addr, u16 vid,
+					  struct dsa_db db)
+{
+	struct net_device *bridge_dev = felix_classify_db(db);
+	struct switchdev_obj_port_mdb mdb;
+	struct ocelot *ocelot = ds->priv;
+	int cpu = ocelot->num_phys_ports;
+	int err;
+
+	memset(&mdb, 0, sizeof(mdb));
+	ether_addr_copy(mdb.addr, addr);
+	mdb.vid = vid;
+
+	err = ocelot_port_mdb_del(ocelot, port, &mdb, bridge_dev);
+	if (err)
+		return err;
+
+	return ocelot_port_mdb_add(ocelot, cpu, &mdb, bridge_dev);
+}
+
+static void felix_migrate_pgid_bit(struct dsa_switch *ds, int from, int to,
+				   int pgid)
+{
+	struct ocelot *ocelot = ds->priv;
+	bool on;
+	u32 val;
+
+	val = ocelot_read_rix(ocelot, ANA_PGID_PGID, pgid);
+	on = !!(val & BIT(from));
+	val &= ~BIT(from);
+	if (on)
+		val |= BIT(to);
+	else
+		val &= ~BIT(to);
+
+	ocelot_write_rix(ocelot, val, ANA_PGID_PGID, pgid);
+}
+
+static void felix_migrate_flood_to_npi_port(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_UC);
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_MC);
+	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_BC);
+}
+
+static void
+felix_migrate_flood_to_tag_8021q_port(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_UC);
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_MC);
+	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_BC);
+}
+
+/* ocelot->npi was already set to -1 by felix_npi_port_deinit, so
+ * ocelot_fdb_add() will not redirect FDB entries towards the
+ * CPU port module here, which is what we want.
+ */
+static int
+felix_migrate_fdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
+				     const unsigned char *addr, u16 vid,
+				     struct dsa_db db)
+{
+	struct net_device *bridge_dev = felix_classify_db(db);
+	struct ocelot *ocelot = ds->priv;
+	int cpu = ocelot->num_phys_ports;
+	int err;
+
+	err = ocelot_fdb_del(ocelot, cpu, addr, vid, bridge_dev);
+	if (err)
+		return err;
+
+	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
+}
+
+static int
+felix_migrate_mdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
+				     const unsigned char *addr, u16 vid,
+				     struct dsa_db db)
+{
+	struct net_device *bridge_dev = felix_classify_db(db);
+	struct switchdev_obj_port_mdb mdb;
+	struct ocelot *ocelot = ds->priv;
+	int cpu = ocelot->num_phys_ports;
+	int err;
+
+	memset(&mdb, 0, sizeof(mdb));
+	ether_addr_copy(mdb.addr, addr);
+	mdb.vid = vid;
+
+	err = ocelot_port_mdb_del(ocelot, cpu, &mdb, bridge_dev);
+	if (err)
+		return err;
+
+	return ocelot_port_mdb_add(ocelot, port, &mdb, bridge_dev);
+}
+
 /* Set up VCAP ES0 rules for pushing a tag_8021q VLAN towards the CPU such that
  * the tagger can perform RX source port identification.
  */
@@ -327,10 +462,9 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	return 0;
 }
 
-static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
+static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 {
 	struct ocelot *ocelot = ds->priv;
-	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
 
@@ -352,22 +486,27 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 				 ANA_PORT_CPU_FWD_BPDU_CFG, dp->index);
 	}
 
-	/* In tag_8021q mode, the CPU port module is unused, except for PTP
-	 * frames. So we want to disable flooding of any kind to the CPU port
-	 * module, since packets going there will end in a black hole.
-	 */
-	cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
-	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_BC);
-
 	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
 	if (err)
 		return err;
 
+	if (change) {
+		err = dsa_port_walk_fdbs(ds, cpu,
+					 felix_migrate_fdbs_to_tag_8021q_port);
+		if (err)
+			goto out_tag_8021q_unregister;
+
+		err = dsa_port_walk_mdbs(ds, cpu,
+					 felix_migrate_mdbs_to_tag_8021q_port);
+		if (err)
+			goto out_migrate_fdbs;
+
+		felix_migrate_flood_to_tag_8021q_port(ds, cpu);
+	}
+
 	err = felix_update_trapping_destinations(ds, true);
 	if (err)
-		goto out_tag_8021q_unregister;
+		goto out_migrate_flood;
 
 	/* The ownership of the CPU port module's queues might have just been
 	 * transferred to the tag_8021q tagger from the NPI-based tagger.
@@ -380,6 +519,14 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 
 	return 0;
 
+out_migrate_flood:
+	if (change)
+		felix_migrate_flood_to_npi_port(ds, cpu);
+	if (change)
+		dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
+out_migrate_fdbs:
+	if (change)
+		dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
 out_tag_8021q_unregister:
 	dsa_tag_8021q_unregister(ds);
 	return err;
@@ -454,30 +601,35 @@ static void felix_npi_port_deinit(struct ocelot *ocelot, int port)
 	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, 1);
 }
 
-static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu)
+static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu, bool change)
 {
 	struct ocelot *ocelot = ds->priv;
-	unsigned long cpu_flood;
+	int err;
+
+	if (change) {
+		err = dsa_port_walk_fdbs(ds, cpu,
+					 felix_migrate_fdbs_to_npi_port);
+		if (err)
+			return err;
+
+		err = dsa_port_walk_mdbs(ds, cpu,
+					 felix_migrate_mdbs_to_npi_port);
+		if (err)
+			goto out_migrate_fdbs;
+
+		felix_migrate_flood_to_npi_port(ds, cpu);
+	}
 
 	felix_npi_port_init(ocelot, cpu);
 
-	/* Include the CPU port module (and indirectly, the NPI port)
-	 * in the forwarding mask for unknown unicast - the hardware
-	 * default value for ANA_FLOODING_FLD_UNICAST excludes
-	 * BIT(ocelot->num_phys_ports), and so does ocelot_init,
-	 * since Ocelot relies on whitelisting MAC addresses towards
-	 * PGID_CPU.
-	 * We do this because DSA does not yet perform RX filtering,
-	 * and the NPI port does not perform source address learning,
-	 * so traffic sent to Linux is effectively unknown from the
-	 * switch's perspective.
-	 */
-	cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
-	ocelot_rmw_rix(ocelot, cpu_flood, cpu_flood, ANA_PGID_PGID, PGID_UC);
-	ocelot_rmw_rix(ocelot, cpu_flood, cpu_flood, ANA_PGID_PGID, PGID_MC);
-	ocelot_rmw_rix(ocelot, cpu_flood, cpu_flood, ANA_PGID_PGID, PGID_BC);
-
 	return 0;
+
+out_migrate_fdbs:
+	if (change)
+		dsa_port_walk_fdbs(ds, cpu,
+				   felix_migrate_fdbs_to_tag_8021q_port);
+
+	return err;
 }
 
 static void felix_teardown_tag_npi(struct dsa_switch *ds, int cpu)
@@ -488,17 +640,17 @@ static void felix_teardown_tag_npi(struct dsa_switch *ds, int cpu)
 }
 
 static int felix_set_tag_protocol(struct dsa_switch *ds, int cpu,
-				  enum dsa_tag_protocol proto)
+				  enum dsa_tag_protocol proto, bool change)
 {
 	int err;
 
 	switch (proto) {
 	case DSA_TAG_PROTO_SEVILLE:
 	case DSA_TAG_PROTO_OCELOT:
-		err = felix_setup_tag_npi(ds, cpu);
+		err = felix_setup_tag_npi(ds, cpu, change);
 		break;
 	case DSA_TAG_PROTO_OCELOT_8021Q:
-		err = felix_setup_tag_8021q(ds, cpu);
+		err = felix_setup_tag_8021q(ds, cpu, change);
 		break;
 	default:
 		err = -EPROTONOSUPPORT;
@@ -542,9 +694,9 @@ static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
 
 	felix_del_tag_protocol(ds, cpu, old_proto);
 
-	err = felix_set_tag_protocol(ds, cpu, proto);
+	err = felix_set_tag_protocol(ds, cpu, proto, true);
 	if (err) {
-		felix_set_tag_protocol(ds, cpu, old_proto);
+		felix_set_tag_protocol(ds, cpu, old_proto, true);
 		return err;
 	}
 
@@ -590,23 +742,6 @@ static int felix_fdb_dump(struct dsa_switch *ds, int port,
 	struct ocelot *ocelot = ds->priv;
 
 	return ocelot_fdb_dump(ocelot, port, cb, data);
-}
-
-/* Translate the DSA database API into the ocelot switch library API,
- * which uses VID 0 for all ports that aren't part of a bridge,
- * and expects the bridge_dev to be NULL in that case.
- */
-static struct net_device *felix_classify_db(struct dsa_db db)
-{
-	switch (db.type) {
-	case DSA_DB_PORT:
-	case DSA_DB_LAG:
-		return NULL;
-	case DSA_DB_BRIDGE:
-		return db.bridge.dev;
-	default:
-		return ERR_PTR(-EOPNOTSUPP);
-	}
 }
 
 static int felix_fdb_add(struct dsa_switch *ds, int port,
@@ -1260,7 +1395,7 @@ static int felix_setup(struct dsa_switch *ds)
 		/* The initial tag protocol is NPI which always returns 0, so
 		 * there's no real point in checking for errors.
 		 */
-		felix_set_tag_protocol(ds, dp->index, felix->tag_proto);
+		felix_set_tag_protocol(ds, dp->index, felix->tag_proto, false);
 		break;
 	}
 
