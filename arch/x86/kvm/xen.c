@@ -463,25 +463,18 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
 		if (data->u.gpa == GPA_INVALID) {
-			vcpu->arch.xen.vcpu_time_info_set = false;
+			kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
+						     &vcpu->arch.xen.vcpu_time_info_cache);
 			r = 0;
 			break;
 		}
 
-		/* It must fit within a single page */
-		if ((data->u.gpa & ~PAGE_MASK) + sizeof(struct pvclock_vcpu_time_info) > PAGE_SIZE) {
-			r = -EINVAL;
-			break;
-		}
-
-		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
+		r = kvm_gfn_to_pfn_cache_init(vcpu->kvm,
 					      &vcpu->arch.xen.vcpu_time_info_cache,
-					      data->u.gpa,
+					      NULL, KVM_HOST_USES_PFN, data->u.gpa,
 					      sizeof(struct pvclock_vcpu_time_info));
-		if (!r) {
-			vcpu->arch.xen.vcpu_time_info_set = true;
+		if (!r)
 			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
-		}
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR:
@@ -622,7 +615,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
-		if (vcpu->arch.xen.vcpu_time_info_set)
+		if (vcpu->arch.xen.vcpu_time_info_cache.active)
 			data->u.gpa = vcpu->arch.xen.vcpu_time_info_cache.gpa;
 		else
 			data->u.gpa = GPA_INVALID;
@@ -1066,4 +1059,6 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 				     &vcpu->arch.xen.runstate_cache);
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
 				     &vcpu->arch.xen.vcpu_info_cache);
+	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
+				     &vcpu->arch.xen.vcpu_time_info_cache);
 }

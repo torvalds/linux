@@ -3011,65 +3011,6 @@ static void kvm_setup_guest_pvclock(struct kvm_vcpu *v,
 	trace_kvm_pvclock_update(v->vcpu_id, &vcpu->hv_clock);
 }
 
-static void kvm_setup_pvclock_page(struct kvm_vcpu *v,
-				   struct gfn_to_hva_cache *cache,
-				   unsigned int offset)
-{
-	struct kvm_vcpu_arch *vcpu = &v->arch;
-	struct pvclock_vcpu_time_info guest_hv_clock;
-
-	if (unlikely(kvm_read_guest_offset_cached(v->kvm, cache,
-		&guest_hv_clock, offset, sizeof(guest_hv_clock))))
-		return;
-
-	/* This VCPU is paused, but it's legal for a guest to read another
-	 * VCPU's kvmclock, so we really have to follow the specification where
-	 * it says that version is odd if data is being modified, and even after
-	 * it is consistent.
-	 *
-	 * Version field updates must be kept separate.  This is because
-	 * kvm_write_guest_cached might use a "rep movs" instruction, and
-	 * writes within a string instruction are weakly ordered.  So there
-	 * are three writes overall.
-	 *
-	 * As a small optimization, only write the version field in the first
-	 * and third write.  The vcpu->pv_time cache is still valid, because the
-	 * version field is the first in the struct.
-	 */
-	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
-
-	if (guest_hv_clock.version & 1)
-		++guest_hv_clock.version;  /* first time write, random junk */
-
-	vcpu->hv_clock.version = guest_hv_clock.version + 1;
-	kvm_write_guest_offset_cached(v->kvm, cache,
-				      &vcpu->hv_clock, offset,
-				      sizeof(vcpu->hv_clock.version));
-
-	smp_wmb();
-
-	/* retain PVCLOCK_GUEST_STOPPED if set in guest copy */
-	vcpu->hv_clock.flags |= (guest_hv_clock.flags & PVCLOCK_GUEST_STOPPED);
-
-	if (vcpu->pvclock_set_guest_stopped_request) {
-		vcpu->hv_clock.flags |= PVCLOCK_GUEST_STOPPED;
-		vcpu->pvclock_set_guest_stopped_request = false;
-	}
-
-	trace_kvm_pvclock_update(v->vcpu_id, &vcpu->hv_clock);
-
-	kvm_write_guest_offset_cached(v->kvm, cache,
-				      &vcpu->hv_clock, offset,
-				      sizeof(vcpu->hv_clock));
-
-	smp_wmb();
-
-	vcpu->hv_clock.version++;
-	kvm_write_guest_offset_cached(v->kvm, cache,
-				     &vcpu->hv_clock, offset,
-				     sizeof(vcpu->hv_clock.version));
-}
-
 static int kvm_guest_time_update(struct kvm_vcpu *v)
 {
 	unsigned long flags, tgt_tsc_khz;
@@ -3161,8 +3102,8 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (vcpu->xen.vcpu_info_cache.active)
 		kvm_setup_guest_pvclock(v, &vcpu->xen.vcpu_info_cache,
 					offsetof(struct compat_vcpu_info, time));
-	if (vcpu->xen.vcpu_time_info_set)
-		kvm_setup_pvclock_page(v, &vcpu->xen.vcpu_time_info_cache, 0);
+	if (vcpu->xen.vcpu_time_info_cache.active)
+		kvm_setup_guest_pvclock(v, &vcpu->xen.vcpu_time_info_cache, 0);
 	if (!v->vcpu_idx)
 		kvm_hv_setup_tsc_page(v->kvm, &vcpu->hv_clock);
 	return 0;
