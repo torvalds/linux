@@ -1358,7 +1358,8 @@ static void exynos_dsi_unregister_te_irq(struct exynos_dsi *dsi)
 	}
 }
 
-static void exynos_dsi_pre_enable(struct drm_bridge *bridge)
+static void exynos_dsi_atomic_pre_enable(struct drm_bridge *bridge,
+					 struct drm_bridge_state *old_bridge_state)
 {
 	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
 	int ret;
@@ -1375,7 +1376,8 @@ static void exynos_dsi_pre_enable(struct drm_bridge *bridge)
 	dsi->state |= DSIM_STATE_ENABLED;
 }
 
-static void exynos_dsi_enable(struct drm_bridge *bridge)
+static void exynos_dsi_atomic_enable(struct drm_bridge *bridge,
+				     struct drm_bridge_state *old_bridge_state)
 {
 	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -1387,7 +1389,8 @@ static void exynos_dsi_enable(struct drm_bridge *bridge)
 	return;
 }
 
-static void exynos_dsi_disable(struct drm_bridge *bridge)
+static void exynos_dsi_atomic_disable(struct drm_bridge *bridge,
+				      struct drm_bridge_state *old_bridge_state)
 {
 	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -1397,7 +1400,8 @@ static void exynos_dsi_disable(struct drm_bridge *bridge)
 	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
 }
 
-static void exynos_dsi_post_disable(struct drm_bridge *bridge)
+static void exynos_dsi_atomic_post_disable(struct drm_bridge *bridge,
+					   struct drm_bridge_state *old_bridge_state)
 {
 	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -1425,10 +1429,13 @@ static int exynos_dsi_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs exynos_dsi_bridge_funcs = {
-	.pre_enable			= exynos_dsi_pre_enable,
-	.enable				= exynos_dsi_enable,
-	.disable			= exynos_dsi_disable,
-	.post_disable			= exynos_dsi_post_disable,
+	.atomic_duplicate_state		= drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state		= drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset			= drm_atomic_helper_bridge_reset,
+	.atomic_pre_enable		= exynos_dsi_atomic_pre_enable,
+	.atomic_enable			= exynos_dsi_atomic_enable,
+	.atomic_disable			= exynos_dsi_atomic_disable,
+	.atomic_post_disable		= exynos_dsi_atomic_post_disable,
 	.mode_set			= exynos_dsi_mode_set,
 	.attach				= exynos_dsi_attach,
 };
@@ -1597,7 +1604,7 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 {
 	struct exynos_dsi *dsi = dev_get_drvdata(dev);
 
-	exynos_dsi_disable(&dsi->bridge);
+	exynos_dsi_atomic_disable(&dsi->bridge, NULL);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
