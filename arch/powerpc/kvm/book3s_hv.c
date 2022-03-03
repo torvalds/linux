@@ -4068,10 +4068,16 @@ static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
 			unsigned long req = kvmppc_get_gpr(vcpu, 3);
 
-			/* H_CEDE has to be handled now, not later */
+			/* H_CEDE has to be handled now */
 			if (req == H_CEDE) {
 				kvmppc_cede(vcpu);
-				kvmppc_xive_rearm_escalation(vcpu); /* may un-cede */
+				if (!kvmppc_xive_rearm_escalation(vcpu)) {
+					/*
+					 * Pending escalation so abort
+					 * the cede.
+					 */
+					vcpu->arch.ceded = 0;
+				}
 				kvmppc_set_gpr(vcpu, 3, 0);
 				trap = 0;
 

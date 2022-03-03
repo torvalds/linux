@@ -179,12 +179,13 @@ void kvmppc_xive_pull_vcpu(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_xive_pull_vcpu);
 
-void kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu)
+bool kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu)
 {
 	void __iomem *esc_vaddr = (void __iomem *)vcpu->arch.xive_esc_vaddr;
+	bool ret = true;
 
 	if (!esc_vaddr)
-		return;
+		return ret;
 
 	/* we are using XIVE with single escalation */
 
@@ -197,7 +198,7 @@ void kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu)
 		 * we also don't want to set xive_esc_on to 1 here in
 		 * case we race with xive_esc_irq().
 		 */
-		vcpu->arch.ceded = 0;
+		ret = false;
 		/*
 		 * The escalation interrupts are special as we don't EOI them.
 		 * There is no need to use the load-after-store ordering offset
@@ -210,6 +211,8 @@ void kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu)
 		__raw_readq(esc_vaddr + XIVE_ESB_SET_PQ_00);
 	}
 	mb();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvmppc_xive_rearm_escalation);
 
