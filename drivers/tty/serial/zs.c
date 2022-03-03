@@ -1124,7 +1124,7 @@ static int __init zs_probe_sccs(void)
 
 
 #ifdef CONFIG_SERIAL_ZS_CONSOLE
-static void zs_console_putchar(struct uart_port *uport, int ch)
+static void zs_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct zs_port *zport = to_zport(uport);
 	struct zs_scc *scc = zport->scc;

@@ -681,7 +681,7 @@ static void wait_for_xmitr(struct uart_port *port)
 /*
  * output given char
  */
-static void bcm_console_putchar(struct uart_port *port, int ch)
+static void bcm_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	wait_for_xmitr(port);
 	bcm_uart_writel(port, ch, UART_FIFO_REG);

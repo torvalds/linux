@@ -676,7 +676,7 @@ static const struct uart_ops mvebu_uart_ops = {
 
 #ifdef CONFIG_SERIAL_MVEBU_CONSOLE
 /* Early Console */
-static void mvebu_uart_putc(struct uart_port *port, int c)
+static void mvebu_uart_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned int st;
 
@@ -737,7 +737,7 @@ static void wait_for_xmite(struct uart_port *port)
 				  (val & STAT_TX_EMP), 1, 10000);
 }
 
-static void mvebu_uart_console_putchar(struct uart_port *port, int ch)
+static void mvebu_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	wait_for_xmitr(port);
 	writel(ch, port->membase + UART_TSH(port));

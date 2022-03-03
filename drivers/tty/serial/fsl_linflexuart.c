@@ -553,7 +553,7 @@ static const struct uart_ops linflex_pops = {
 static struct uart_port *linflex_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE
-static void linflex_console_putchar(struct uart_port *port, int ch)
+static void linflex_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned long cr;
 
@@ -578,7 +578,7 @@ static void linflex_console_putchar(struct uart_port *port, int ch)
 	}
 }
 
-static void linflex_earlycon_putchar(struct uart_port *port, int ch)
+static void linflex_earlycon_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned long flags;
 	char *ret;

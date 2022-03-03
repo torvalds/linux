@@ -876,7 +876,7 @@ static void __init serial_txx9_register_ports(struct uart_driver *drv,
 
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 
-static void serial_txx9_console_putchar(struct uart_port *port, int ch)
+static void serial_txx9_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_txx9_port *up = to_uart_txx9_port(port);
 

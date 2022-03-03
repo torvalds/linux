@@ -403,7 +403,7 @@ static void serial21285_setup_ports(void)
 }
 
 #ifdef CONFIG_SERIAL_21285_CONSOLE
-static void serial21285_console_putchar(struct uart_port *port, int ch)
+static void serial21285_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (*CSR_UARTFLG & 0x20)
 		barrier();

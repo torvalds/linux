@@ -730,7 +730,7 @@ static void wait_for_xmitr(struct uart_port *port)
 	}
 }
 
-static void siu_console_putchar(struct uart_port *port, int ch)
+static void siu_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	wait_for_xmitr(port);
 	siu_write(port, UART_TX, ch);

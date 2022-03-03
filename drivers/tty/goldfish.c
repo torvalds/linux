@@ -434,7 +434,7 @@ static int goldfish_tty_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_GOLDFISH_TTY_EARLY_CONSOLE
-static void gf_early_console_putchar(struct uart_port *port, int ch)
+static void gf_early_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	__raw_writel(ch, port->membase);
 }

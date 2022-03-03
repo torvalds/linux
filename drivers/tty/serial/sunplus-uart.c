@@ -500,7 +500,8 @@ static const struct uart_ops sunplus_uart_ops = {
 #ifdef CONFIG_SERIAL_SUNPLUS_CONSOLE
 struct sunplus_uart_port *sunplus_console_ports[SUP_UART_NR];
 
-static void sunplus_uart_console_putchar(struct uart_port *port, int ch)
+static void sunplus_uart_console_putchar(struct uart_port *port,
+					 unsigned char ch)
 {
 	wait_for_xmitr(port);
 	sp_uart_put_char(port, ch);
@@ -736,7 +737,7 @@ static void __exit sunplus_uart_exit(void)
 module_exit(sunplus_uart_exit);
 
 #ifdef CONFIG_SERIAL_EARLYCON
-static void sunplus_uart_putc(struct uart_port *port, int c)
+static void sunplus_uart_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned int val;
 	int ret;
