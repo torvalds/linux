@@ -1794,39 +1794,15 @@ free:
 }
 
 noinline __cold
-void bch2_dump_trans_paths_updates(struct btree_trans *trans)
+void bch2_dump_trans_updates(struct btree_trans *trans)
 {
-	struct btree_path *path;
 	struct btree_insert_entry *i;
 	struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
-	unsigned idx;
 
-	btree_trans_sort_paths(trans);
-
-	trans_for_each_path_inorder(trans, path, idx) {
-		printbuf_reset(&buf1);
-
-		bch2_bpos_to_text(&buf1, path->pos);
-
-		printk(KERN_ERR "path: idx %u ref %u:%u%s%s btree=%s l=%u pos %s locks %u %pS\n",
-		       path->idx, path->ref, path->intent_ref,
-		       path->should_be_locked ? " S" : "",
-		       path->preserve ? " P" : "",
-		       bch2_btree_ids[path->btree_id],
-		       path->level,
-		       buf1.buf,
-		       path->nodes_locked,
-#ifdef CONFIG_BCACHEFS_DEBUG
-		       (void *) path->ip_allocated
-#else
-		       NULL
-#endif
-		       );
-	}
+	bch_err(trans->c, "transaction updates:");
 
 	trans_for_each_update(trans, i) {
-		struct bkey u;
-		struct bkey_s_c old = bch2_btree_path_peek_slot(i->path, &u);
+		struct bkey_s_c old = { &i->old_k, i->old_v };
 
 		printbuf_reset(&buf1);
 		printbuf_reset(&buf2);
@@ -1841,6 +1817,41 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 
 	printbuf_exit(&buf2);
 	printbuf_exit(&buf1);
+}
+
+noinline __cold
+void bch2_dump_trans_paths_updates(struct btree_trans *trans)
+{
+	struct btree_path *path;
+	struct printbuf buf = PRINTBUF;
+	unsigned idx;
+
+	btree_trans_sort_paths(trans);
+
+	trans_for_each_path_inorder(trans, path, idx) {
+		printbuf_reset(&buf);
+
+		bch2_bpos_to_text(&buf, path->pos);
+
+		printk(KERN_ERR "path: idx %u ref %u:%u%s%s btree=%s l=%u pos %s locks %u %pS\n",
+		       path->idx, path->ref, path->intent_ref,
+		       path->should_be_locked ? " S" : "",
+		       path->preserve ? " P" : "",
+		       bch2_btree_ids[path->btree_id],
+		       path->level,
+		       buf.buf,
+		       path->nodes_locked,
+#ifdef CONFIG_BCACHEFS_DEBUG
+		       (void *) path->ip_allocated
+#else
+		       NULL
+#endif
+		       );
+	}
+
+	printbuf_exit(&buf);
+
+	bch2_dump_trans_updates(trans);
 }
 
 static struct btree_path *btree_path_alloc(struct btree_trans *trans,

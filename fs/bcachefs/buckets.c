@@ -510,10 +510,15 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bkey_alloc_unpacked old_u = bch2_alloc_unpack(old);
 	struct bkey_alloc_unpacked new_u = bch2_alloc_unpack(new);
-	struct bch_dev *ca;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, new_u.dev);
 	struct bucket *g;
 	struct bucket_mark old_m, m;
 	int ret = 0;
+
+	if (bch2_trans_inconsistent_on(new_u.bucket < ca->mi.first_bucket ||
+				       new_u.bucket >= ca->mi.nbuckets, trans,
+				       "alloc key outside range of device's buckets"))
+		return -EIO;
 
 	/*
 	 * alloc btree is read in by bch2_alloc_read, not gc:
@@ -553,11 +558,6 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 			return ret;
 		}
 	}
-
-	ca = bch_dev_bkey_exists(c, new_u.dev);
-
-	if (new_u.bucket >= ca->mi.nbuckets)
-		return 0;
 
 	percpu_down_read(&c->mark_lock);
 	if (!gc && new_u.gen != old_u.gen)
@@ -1466,7 +1466,6 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			struct extent_ptr_decoded p,
 			s64 sectors, enum bch_data_type data_type)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_i_stripe *s;
@@ -1482,16 +1481,15 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		goto err;
 
 	if (k.k->type != KEY_TYPE_stripe) {
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"pointer to nonexistent stripe %llu",
 			(u64) p.ec.idx);
-		bch2_inconsistent_error(c);
 		ret = -EIO;
 		goto err;
 	}
 
 	if (!bch2_ptr_matches_stripe(bkey_s_c_to_stripe(k).v, p)) {
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"stripe pointer doesn't match stripe %llu",
 			(u64) p.ec.idx);
 		ret = -EIO;
@@ -1605,8 +1603,8 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 		goto err;
 
 	if (!deleting) {
-		if (bch2_fs_inconsistent_on(u.stripe ||
-					    u.stripe_redundancy, c,
+		if (bch2_trans_inconsistent_on(u.stripe ||
+					    u.stripe_redundancy, trans,
 				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: multiple stripes using same bucket (%u, %llu)",
 				iter.pos.inode, iter.pos.offset, u.gen,
 				bch2_data_types[u.data_type],
@@ -1616,7 +1614,7 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 			goto err;
 		}
 
-		if (bch2_fs_inconsistent_on(data_type && u.dirty_sectors, c,
+		if (bch2_trans_inconsistent_on(data_type && u.dirty_sectors, trans,
 				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: data already in stripe bucket %llu",
 				iter.pos.inode, iter.pos.offset, u.gen,
 				bch2_data_types[u.data_type],
@@ -1629,8 +1627,8 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 		u.stripe		= s.k->p.offset;
 		u.stripe_redundancy	= s.v->nr_redundant;
 	} else {
-		if (bch2_fs_inconsistent_on(u.stripe != s.k->p.offset ||
-					    u.stripe_redundancy != s.v->nr_redundant, c,
+		if (bch2_trans_inconsistent_on(u.stripe != s.k->p.offset ||
+					    u.stripe_redundancy != s.v->nr_redundant, trans,
 				"bucket %llu:%llu gen %u: not marked as stripe when deleting stripe %llu (got %u)",
 				iter.pos.inode, iter.pos.offset, u.gen,
 				s.k->p.offset, u.stripe)) {
@@ -1791,7 +1789,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	refcount = bkey_refcount(n);
 	if (!refcount) {
 		bch2_bkey_val_to_text(&buf, c, p.s_c);
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"nonexistent indirect extent at %llu while marking\n  %s",
 			*idx, buf.buf);
 		ret = -EIO;
@@ -1800,7 +1798,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 
 	if (!*refcount && (flags & BTREE_TRIGGER_OVERWRITE)) {
 		bch2_bkey_val_to_text(&buf, c, p.s_c);
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"indirect extent refcount underflow at %llu while marking\n  %s",
 			*idx, buf.buf);
 		ret = -EIO;

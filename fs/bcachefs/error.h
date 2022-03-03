@@ -67,6 +67,26 @@ do {									\
 })
 
 /*
+ * When a transaction update discovers or is causing a fs inconsistency, it's
+ * helpful to also dump the pending updates:
+ */
+#define bch2_trans_inconsistent(trans, ...)				\
+({									\
+	bch_err(trans->c, __VA_ARGS__);					\
+	bch2_inconsistent_error(trans->c);				\
+	bch2_dump_trans_updates(trans);					\
+})
+
+#define bch2_trans_inconsistent_on(cond, trans, ...)			\
+({									\
+	bool _ret = unlikely(!!(cond));					\
+									\
+	if (_ret)							\
+		bch2_trans_inconsistent(trans, __VA_ARGS__);		\
+	_ret;								\
+})
+
+/*
  * Fsck errors: inconsistency errors we detect at mount time, and should ideally
  * be able to repair:
  */
