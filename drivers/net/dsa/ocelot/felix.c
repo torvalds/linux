@@ -383,7 +383,6 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 {
 	mutex_lock(&ocelot->fwd_domain_lock);
 
-	ocelot->ports[port]->is_dsa_8021q_cpu = false;
 	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
 
 	/* Restore PGID_CPU */
