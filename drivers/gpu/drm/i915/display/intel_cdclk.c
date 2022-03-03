@@ -2318,13 +2318,6 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 					dev_priv->max_cdclk_freq));
 	}
 
-	if (min_cdclk > dev_priv->max_cdclk_freq) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "required cdclk (%d kHz) exceeds max (%d kHz)\n",
-			    min_cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
-	}
-
 	return min_cdclk;
 }
 
@@ -2332,7 +2325,7 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 {
 	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_bw_state *bw_state = NULL;
+	const struct intel_bw_state *bw_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
@@ -2345,10 +2338,6 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 		if (min_cdclk < 0)
 			return min_cdclk;
 
-		bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(bw_state))
-			return PTR_ERR(bw_state);
-
 		if (cdclk_state->min_cdclk[crtc->pipe] == min_cdclk)
 			continue;
 
@@ -2359,14 +2348,31 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 			return ret;
 	}
 
-	min_cdclk = cdclk_state->force_min_cdclk;
-	for_each_pipe(dev_priv, pipe) {
+	bw_state = intel_atomic_get_new_bw_state(state);
+	if (bw_state) {
+		min_cdclk = intel_bw_min_cdclk(dev_priv, bw_state);
+
+		if (cdclk_state->bw_min_cdclk != min_cdclk) {
+			int ret;
+
+			cdclk_state->bw_min_cdclk = min_cdclk;
+
+			ret = intel_atomic_lock_global_state(&cdclk_state->base);
+			if (ret)
+				return ret;
+		}
+	}
+
+	min_cdclk = max(cdclk_state->force_min_cdclk,
+			cdclk_state->bw_min_cdclk);
+	for_each_pipe(dev_priv, pipe)
 		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
 
-		if (!bw_state)
-			continue;
-
-		min_cdclk = max(bw_state->min_cdclk, min_cdclk);
+	if (min_cdclk > dev_priv->max_cdclk_freq) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "required cdclk (%d kHz) exceeds max (%d kHz)\n",
+			    min_cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
 	}
 
 	return min_cdclk;
@@ -2647,14 +2653,10 @@ intel_atomic_get_cdclk_state(struct intel_atomic_state *state)
 int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 			     bool *need_cdclk_calc)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_cdclk_state *old_cdclk_state;
 	const struct intel_cdclk_state *new_cdclk_state;
 	struct intel_plane_state *plane_state;
-	struct intel_bw_state *new_bw_state;
 	struct intel_plane *plane;
-	int min_cdclk = 0;
-	enum pipe pipe;
 	int ret;
 	int i;
 
@@ -2669,29 +2671,16 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 			return ret;
 	}
 
+	ret = intel_bw_calc_min_cdclk(state, need_cdclk_calc);
+	if (ret)
+		return ret;
+
 	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
 	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
 
 	if (new_cdclk_state &&
 	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk)
 		*need_cdclk_calc = true;
-
-	ret = intel_bw_calc_min_cdclk(state);
-	if (ret)
-		return ret;
-
-	new_bw_state = intel_atomic_get_new_bw_state(state);
-
-	if (!new_cdclk_state || !new_bw_state)
-		return 0;
-
-	for_each_pipe(i915, pipe) {
-		min_cdclk = max(new_cdclk_state->min_cdclk[pipe], min_cdclk);
-
-		/* Currently do this change only if we need to increase */
-		if (new_bw_state->min_cdclk > min_cdclk)
-			*need_cdclk_calc = true;
-	}
 
 	return 0;
 }

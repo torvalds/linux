@@ -692,12 +692,34 @@ static bool intel_bw_state_changed(struct drm_i915_private *i915,
 		enum dbuf_slice slice;
 
 		for_each_dbuf_slice(i915, slice) {
-			if (old_crtc_bw->used_bw[slice] != new_crtc_bw->used_bw[slice])
+			if (old_crtc_bw->max_bw[slice] != new_crtc_bw->max_bw[slice] ||
+			    old_crtc_bw->active_planes[slice] != new_crtc_bw->active_planes[slice])
 				return true;
 		}
 	}
 
-	return old_bw_state->min_cdclk != new_bw_state->min_cdclk;
+	return false;
+}
+
+static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
+				   struct intel_crtc *crtc,
+				   enum plane_id plane_id,
+				   const struct skl_ddb_entry *ddb,
+				   unsigned int data_rate)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
+	enum dbuf_slice slice;
+
+	/*
+	 * The arbiter can only really guarantee an
+	 * equal share of the total bw to each plane.
+	 */
+	for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask) {
+		crtc_bw->max_bw[slice] = max(crtc_bw->max_bw[slice], data_rate);
+		crtc_bw->active_planes[slice] |= BIT(plane_id);
+	}
 }
 
 static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
@@ -708,46 +730,77 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
 	enum plane_id plane_id;
 
-	memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
+	memset(crtc_bw, 0, sizeof(*crtc_bw));
 
 	if (!crtc_state->hw.active)
 		return;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		const struct skl_ddb_entry *ddb =
-			&crtc_state->wm.skl.plane_ddb[plane_id];
-		unsigned int data_rate = crtc_state->data_rate[plane_id];
-		unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
-		enum dbuf_slice slice;
+		/*
+		 * We assume cursors are small enough
+		 * to not cause bandwidth problems.
+		 */
+		if (plane_id == PLANE_CURSOR)
+			continue;
 
-		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
-			crtc_bw->used_bw[slice] += data_rate;
-	}
+		skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+				       &crtc_state->wm.skl.plane_ddb[plane_id],
+				       crtc_state->data_rate[plane_id]);
 
-	if (DISPLAY_VER(i915) >= 11)
-		return;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		const struct skl_ddb_entry *ddb =
-			&crtc_state->wm.skl.plane_ddb_y[plane_id];
-		unsigned int data_rate = crtc_state->data_rate_y[plane_id];
-		unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
-		enum dbuf_slice slice;
-
-		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
-			crtc_bw->used_bw[slice] += data_rate;
+		if (DISPLAY_VER(i915) < 11)
+			skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+					       &crtc_state->wm.skl.plane_ddb_y[plane_id],
+					       crtc_state->data_rate[plane_id]);
 	}
 }
 
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
+/* "Maximum Data Buffer Bandwidth" */
+static int
+intel_bw_dbuf_min_cdclk(struct drm_i915_private *i915,
+			const struct intel_bw_state *bw_state)
+{
+	unsigned int total_max_bw = 0;
+	enum dbuf_slice slice;
+
+	for_each_dbuf_slice(i915, slice) {
+		int num_active_planes = 0;
+		unsigned int max_bw = 0;
+		enum pipe pipe;
+
+		/*
+		 * The arbiter can only really guarantee an
+		 * equal share of the total bw to each plane.
+		 */
+		for_each_pipe(i915, pipe) {
+			const struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[pipe];
+
+			max_bw = max(crtc_bw->max_bw[slice], max_bw);
+			num_active_planes += hweight8(crtc_bw->active_planes[slice]);
+		}
+		max_bw *= num_active_planes;
+
+		total_max_bw = max(total_max_bw, max_bw);
+	}
+
+	return DIV_ROUND_UP(total_max_bw, 64);
+}
+
+int intel_bw_min_cdclk(struct drm_i915_private *i915,
+		       const struct intel_bw_state *bw_state)
+{
+	return intel_bw_dbuf_min_cdclk(i915, bw_state);
+}
+
+int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
+			    bool *need_cdclk_calc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_bw_state *new_bw_state = NULL;
-	struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_bw_state *old_bw_state = NULL;
+	const struct intel_cdclk_state *cdclk_state;
 	const struct intel_crtc_state *crtc_state;
+	int old_min_cdclk, new_min_cdclk;
 	struct intel_crtc *crtc;
-	int max_bw = 0;
-	enum pipe pipe;
 	int i;
 
 	if (DISPLAY_VER(dev_priv) < 9)
@@ -766,33 +819,45 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	if (!old_bw_state)
 		return 0;
 
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_dbuf_bw *crtc_bw;
-		enum dbuf_slice slice;
-
-		crtc_bw = &new_bw_state->dbuf_bw[pipe];
-
-		for_each_dbuf_slice(dev_priv, slice) {
-			/*
-			 * Current experimental observations show that contrary
-			 * to BSpec we get underruns once we exceed 64 * CDCLK
-			 * for slices in total.
-			 * As a temporary measure in order not to keep CDCLK
-			 * bumped up all the time we calculate CDCLK according
-			 * to this formula for  overall bw consumed by slices.
-			 */
-			max_bw += crtc_bw->used_bw[slice];
-		}
-	}
-
-	new_bw_state->min_cdclk = DIV_ROUND_UP(max_bw, 64);
-
 	if (intel_bw_state_changed(dev_priv, old_bw_state, new_bw_state)) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
-
 		if (ret)
 			return ret;
 	}
+
+	old_min_cdclk = intel_bw_min_cdclk(dev_priv, old_bw_state);
+	new_min_cdclk = intel_bw_min_cdclk(dev_priv, new_bw_state);
+
+	/*
+	 * No need to check against the cdclk state if
+	 * the min cdclk for the dbuf doesn't increase.
+	 *
+	 * Ie. we only ever increase the cdclk due to dbuf
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
+	 */
+	if (new_min_cdclk <= old_min_cdclk)
+		return 0;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	/*
+	 * No need to recalculate the cdclk state if
+	 * the min cdclk for the dbuf doesn't increase.
+	 *
+	 * Ie. we only ever increase the cdclk due to dbuf
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
+	 */
+	if (new_min_cdclk <= cdclk_state->bw_min_cdclk)
+		return 0;
+
+	drm_dbg_kms(&dev_priv->drm,
+		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
+		    new_min_cdclk, cdclk_state->bw_min_cdclk);
+	*need_cdclk_calc = true;
 
 	return 0;
 }
