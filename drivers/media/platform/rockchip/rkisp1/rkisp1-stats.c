@@ -408,7 +408,7 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 
 	spin_lock(&stats->lock);
 
-	rkisp1_write(rkisp1, RKISP1_STATS_MEAS_MASK, RKISP1_CIF_ISP_ICR);
+	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ICR, RKISP1_STATS_MEAS_MASK);
 
 	isp_mis_tmp = rkisp1_read(rkisp1, RKISP1_CIF_ISP_MIS);
 	if (isp_mis_tmp & RKISP1_STATS_MEAS_MASK)

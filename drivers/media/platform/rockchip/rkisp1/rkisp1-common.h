@@ -425,7 +425,7 @@ struct rkisp1_isp_mbus_info {
 };
 
 static inline void
-rkisp1_write(struct rkisp1_device *rkisp1, u32 val, unsigned int addr)
+rkisp1_write(struct rkisp1_device *rkisp1, unsigned int addr, u32 val)
 {
 	writel(val, rkisp1->base_addr + addr);
 }

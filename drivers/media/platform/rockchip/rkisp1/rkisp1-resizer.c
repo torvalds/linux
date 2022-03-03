@@ -222,7 +222,7 @@ static void rkisp1_dcrop_disable(struct rkisp1_resizer *rsz,
 		dc_ctrl |= RKISP1_CIF_DUAL_CROP_GEN_CFG_UPD;
 	else
 		dc_ctrl |= RKISP1_CIF_DUAL_CROP_CFG_UPD;
-	rkisp1_write(rsz->rkisp1, dc_ctrl, rsz->config->dual_crop.ctrl);
+	rkisp1_write(rsz->rkisp1, rsz->config->dual_crop.ctrl, dc_ctrl);
 }
 
 /* configure dual-crop unit */
@@ -247,13 +247,13 @@ static void rkisp1_dcrop_config(struct rkisp1_resizer *rsz)
 	}
 
 	dc_ctrl = rkisp1_read(rkisp1, rsz->config->dual_crop.ctrl);
-	rkisp1_write(rkisp1, sink_crop->left, rsz->config->dual_crop.h_offset);
-	rkisp1_write(rkisp1, sink_crop->top, rsz->config->dual_crop.v_offset);
-	rkisp1_write(rkisp1, sink_crop->width, rsz->config->dual_crop.h_size);
-	rkisp1_write(rkisp1, sink_crop->height, rsz->config->dual_crop.v_size);
+	rkisp1_write(rkisp1, rsz->config->dual_crop.h_offset, sink_crop->left);
+	rkisp1_write(rkisp1, rsz->config->dual_crop.v_offset, sink_crop->top);
+	rkisp1_write(rkisp1, rsz->config->dual_crop.h_size, sink_crop->width);
+	rkisp1_write(rkisp1, rsz->config->dual_crop.v_size, sink_crop->height);
 	dc_ctrl |= rsz->config->dual_crop.yuvmode_mask;
 	dc_ctrl |= RKISP1_CIF_DUAL_CROP_CFG_UPD;
-	rkisp1_write(rkisp1, dc_ctrl, rsz->config->dual_crop.ctrl);
+	rkisp1_write(rkisp1, rsz->config->dual_crop.ctrl, dc_ctrl);
 
 	dev_dbg(rkisp1->dev, "stream %d crop: %dx%d -> %dx%d\n", rsz->id,
 		sink_fmt->width, sink_fmt->height,
@@ -309,7 +309,7 @@ static void rkisp1_rsz_update_shadow(struct rkisp1_resizer *rsz,
 	else
 		ctrl_cfg |= RKISP1_CIF_RSZ_CTRL_CFG_UPD;
 
-	rkisp1_write(rsz->rkisp1, ctrl_cfg, rsz->config->rsz.ctrl);
+	rkisp1_write(rsz->rkisp1, rsz->config->rsz.ctrl, ctrl_cfg);
 }
 
 static u32 rkisp1_rsz_calc_ratio(u32 len_sink, u32 len_src)
@@ -325,7 +325,7 @@ static u32 rkisp1_rsz_calc_ratio(u32 len_sink, u32 len_src)
 static void rkisp1_rsz_disable(struct rkisp1_resizer *rsz,
 			       enum rkisp1_shadow_regs_when when)
 {
-	rkisp1_write(rsz->rkisp1, 0, rsz->config->rsz.ctrl);
+	rkisp1_write(rsz->rkisp1, rsz->config->rsz.ctrl, 0);
 
 	if (when == RKISP1_SHADOW_REGS_SYNC)
 		rkisp1_rsz_update_shadow(rsz, when);
@@ -343,15 +343,15 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 	unsigned int i;
 
 	/* No phase offset */
-	rkisp1_write(rkisp1, 0, rsz->config->rsz.phase_hy);
-	rkisp1_write(rkisp1, 0, rsz->config->rsz.phase_hc);
-	rkisp1_write(rkisp1, 0, rsz->config->rsz.phase_vy);
-	rkisp1_write(rkisp1, 0, rsz->config->rsz.phase_vc);
+	rkisp1_write(rkisp1, rsz->config->rsz.phase_hy, 0);
+	rkisp1_write(rkisp1, rsz->config->rsz.phase_hc, 0);
+	rkisp1_write(rkisp1, rsz->config->rsz.phase_vy, 0);
+	rkisp1_write(rkisp1, rsz->config->rsz.phase_vc, 0);
 
 	/* Linear interpolation */
 	for (i = 0; i < 64; i++) {
-		rkisp1_write(rkisp1, i, rsz->config->rsz.scale_lut_addr);
-		rkisp1_write(rkisp1, i, rsz->config->rsz.scale_lut);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_lut_addr, i);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_lut, i);
 	}
 
 	if (sink_y->width != src_y->width) {
@@ -359,7 +359,7 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_y->width < src_y->width)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_HY_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_y->width, src_y->width);
-		rkisp1_write(rkisp1, ratio, rsz->config->rsz.scale_hy);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_hy, ratio);
 	}
 
 	if (sink_c->width != src_c->width) {
@@ -367,8 +367,8 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_c->width < src_c->width)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_HC_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_c->width, src_c->width);
-		rkisp1_write(rkisp1, ratio, rsz->config->rsz.scale_hcb);
-		rkisp1_write(rkisp1, ratio, rsz->config->rsz.scale_hcr);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_hcb, ratio);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_hcr, ratio);
 	}
 
 	if (sink_y->height != src_y->height) {
@@ -376,7 +376,7 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_y->height < src_y->height)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_VY_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_y->height, src_y->height);
-		rkisp1_write(rkisp1, ratio, rsz->config->rsz.scale_vy);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_vy, ratio);
 	}
 
 	if (sink_c->height != src_c->height) {
@@ -384,10 +384,10 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 		if (sink_c->height < src_c->height)
 			rsz_ctrl |= RKISP1_CIF_RSZ_CTRL_SCALE_VC_UP;
 		ratio = rkisp1_rsz_calc_ratio(sink_c->height, src_c->height);
-		rkisp1_write(rkisp1, ratio, rsz->config->rsz.scale_vc);
+		rkisp1_write(rkisp1, rsz->config->rsz.scale_vc, ratio);
 	}
 
-	rkisp1_write(rkisp1, rsz_ctrl, rsz->config->rsz.ctrl);
+	rkisp1_write(rkisp1, rsz->config->rsz.ctrl, rsz_ctrl);
 
 	rkisp1_rsz_update_shadow(rsz, when);
 }
