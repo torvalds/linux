@@ -1239,7 +1239,7 @@ config HW_PERF_EVENTS
 config ARCH_HAS_FILTER_PGPROT
 	def_bool y
 
-# Supported by clang >= 7.0
+# Supported by clang >= 7.0 or GCC >= 12.0.0
 config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 
