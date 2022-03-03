@@ -473,13 +473,75 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 			pix_fmt_str[hdmirx_dev->pix_fmt]);
 }
 
+static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
+			       struct v4l2_bt_timings *bt, bool from_dma)
+{
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	u32 hact, vact, htotal, vtotal, fps;
+	u32 hfp, hs, hbp, vfp, vs, vbp;
+	u32 val;
+
+	if (from_dma) {
+		val = hdmirx_readl(hdmirx_dev, DMA_STATUS2);
+		hact = (val >> 16) & 0xffff;
+		vact = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, DMA_STATUS3);
+		htotal = (val >> 16) & 0xffff;
+		vtotal = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, DMA_STATUS4);
+		hs = (val >> 16) & 0xffff;
+		vs = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, DMA_STATUS5);
+		hbp = (val >> 16) & 0xffff;
+		vbp = val & 0xffff;
+		hfp = htotal - hact - hs - hbp;
+		vfp = vtotal - vact - vs - vbp;
+	} else {
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS1);
+		hs = (val >> 16) & 0xffff;
+		hfp = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS2);
+		hbp = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS3);
+		htotal = (val >> 16) & 0xffff;
+		hact = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS4);
+		vs = (val >> 16) & 0xffff;
+		vfp = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS5);
+		vbp = val & 0xffff;
+		val = hdmirx_readl(hdmirx_dev, VMON_STATUS6);
+		vtotal = (val >> 16) & 0xffff;
+		vact = val & 0xffff;
+	}
+	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+		htotal *= 2;
+	fps = (bt->pixelclock + (htotal * vtotal) / 2) / (htotal * vtotal);
+	bt->width = hact;
+	bt->height = vact;
+	bt->hfrontporch = hfp;
+	bt->hsync = hs;
+	bt->hbackporch = hbp;
+	bt->vfrontporch = vfp;
+	bt->vsync = vs;
+	bt->vbackporch = vbp;
+
+	v4l2_dbg(1, debug, v4l2_dev, "get timings from %s\n", from_dma ? "dma" : "ctrl");
+	v4l2_dbg(1, debug, v4l2_dev,
+		 "act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
+		 bt->width, bt->height, htotal, vtotal, fps, bt->pixelclock);
+
+	v4l2_dbg(2, debug, v4l2_dev,
+		 "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d\n",
+		 bt->hfrontporch, bt->hsync, bt->hbackporch,
+		 bt->vfrontporch, bt->vsync, bt->vbackporch);
+}
+
 static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
-		struct v4l2_dv_timings *timings)
+		struct v4l2_dv_timings *timings, bool from_dma)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 hact, vact, htotal, vtotal, fps;
-	u32 hfp, hs, hbp, vfp, vs, vbp;
 	u32 field_type, color_depth, deframer_st;
 	u32 val, tmdsqpclk_freq, pix_clk;
 	u64 tmp_data, tmds_clk;
@@ -503,59 +565,92 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	tmp_data = tmds_clk * 24;
 	do_div(tmp_data, color_depth);
 	pix_clk = tmp_data;
-
-	val = hdmirx_readl(hdmirx_dev, DMA_STATUS2);
-	hact = (val >> 16) & 0xffff;
-	vact = val & 0xffff;
-	val = hdmirx_readl(hdmirx_dev, DMA_STATUS3);
-	htotal = (val >> 16) & 0xffff;
-	vtotal = val & 0xffff;
-	val = hdmirx_readl(hdmirx_dev, DMA_STATUS4);
-	hs = (val >> 16) & 0xffff;
-	vs = val & 0xffff;
-	val = hdmirx_readl(hdmirx_dev, DMA_STATUS5);
-	hbp = (val >> 16) & 0xffff;
-	vbp = val & 0xffff;
-
-	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
-		htotal *= 2;
-
-	hfp = htotal - hact - hs - hbp;
-	vfp = vtotal - vact - vs - vbp;
-	fps = (pix_clk + (htotal * vtotal) / 2) / (htotal * vtotal);
-
-	bt->width = hact;
-	bt->height = vact;
-	bt->hfrontporch = hfp;
-	bt->hsync = hs;
-	bt->hbackporch = hbp;
-	bt->vfrontporch = vfp;
-	bt->vsync = vs;
-	bt->vbackporch = vbp;
 	bt->pixelclock = pix_clk;
 
+	hdmirx_get_timings(hdmirx_dev, bt, from_dma);
 	if (bt->interlaced == V4L2_DV_INTERLACED) {
 		bt->height *= 2;
 		bt->il_vsync = bt->vsync + 1;
 		bt->pixelclock /= 2;
 	}
 
-	v4l2_dbg(1, debug, v4l2_dev,
-			"act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
-			hact, bt->height, htotal, vtotal, fps, bt->pixelclock);
-	v4l2_dbg(2, debug, v4l2_dev,
-			"hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d\n",
-			bt->hfrontporch, bt->hsync, bt->hbackporch,
-			bt->vfrontporch, bt->vsync, bt->vbackporch);
 	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%lld\n", tmds_clk);
-	v4l2_dbg(1, debug, v4l2_dev,
-			"interlace:%d, fmt:%d, vic:%d, color:%d, mode:%s\n",
-			bt->interlaced, hdmirx_dev->pix_fmt,
-			hdmirx_dev->cur_vic, hdmirx_dev->color_depth,
-			hdmirx_dev->is_dvi_mode ? "dvi" : "hdmi");
+	v4l2_dbg(1, debug, v4l2_dev, "interlace:%d, fmt:%d, vic:%d, color:%d, mode:%s\n",
+		 bt->interlaced, hdmirx_dev->pix_fmt,
+		 hdmirx_dev->cur_vic, hdmirx_dev->color_depth,
+		 hdmirx_dev->is_dvi_mode ? "dvi" : "hdmi");
 	v4l2_dbg(2, debug, v4l2_dev, "deframer_st:%#x\n", deframer_st);
 
+	if (bt->hsync > 200 || bt->vsync > 100 ||
+	    bt->hbackporch > 1000 || bt->vbackporch > 1000 ||
+	    bt->width < 100 || bt->height < 100)
+		return -EINVAL;
+
 	return 0;
+}
+
+static void hdmirx_set_negative_pol(struct rk_hdmirx_dev *hdmirx_dev, bool en)
+{
+	if (en) {
+		hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6,
+				VSYNC_TOGGLE_EN|
+				HSYNC_TOGGLE_EN,
+				VSYNC_TOGGLE_EN|
+				HSYNC_TOGGLE_EN);
+		hdmirx_update_bits(hdmirx_dev, VIDEO_CONFIG2,
+				VPROC_VSYNC_POL_OVR_VALUE|
+				VPROC_VSYNC_POL_OVR_EN|
+				VPROC_HSYNC_POL_OVR_VALUE|
+				VPROC_HSYNC_POL_OVR_EN,
+				VPROC_VSYNC_POL_OVR_EN|
+				VPROC_HSYNC_POL_OVR_EN);
+		return;
+	}
+
+	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6,
+				VSYNC_TOGGLE_EN|
+				HSYNC_TOGGLE_EN,
+				0);
+
+	hdmirx_update_bits(hdmirx_dev, VIDEO_CONFIG2,
+				VPROC_VSYNC_POL_OVR_VALUE|
+				VPROC_VSYNC_POL_OVR_EN|
+				VPROC_HSYNC_POL_OVR_VALUE|
+				VPROC_HSYNC_POL_OVR_EN,
+				0);
+}
+
+static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
+		struct v4l2_dv_timings *timings, int try_cnt)
+{
+	int i, cnt = 0, fail_cnt = 0, ret = 0;
+	bool from_dma = false;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	hdmirx_set_negative_pol(hdmirx_dev, false);
+	for (i = 0; i < try_cnt; i++) {
+		ret = hdmirx_get_detected_timings(hdmirx_dev, timings, from_dma);
+		if (ret) {
+			cnt = 0;
+			fail_cnt++;
+			if (fail_cnt > 3) {
+				hdmirx_set_negative_pol(hdmirx_dev, true);
+				from_dma = true;
+			}
+		} else {
+			cnt++;
+		}
+
+		if (cnt >= 5)
+			break;
+
+		usleep_range(10*1000, 10*1100);
+	}
+
+	if (try_cnt > 8 && cnt < 5)
+		v4l2_dbg(1, debug, v4l2_dev, "%s: res not stable!\n", __func__);
+
+	return ret;
 }
 
 static int hdmirx_query_dv_timings(struct file *file, void *_fh,
@@ -576,7 +671,7 @@ static int hdmirx_query_dv_timings(struct file *file, void *_fh,
 		return -ENOLCK;
 	}
 
-	ret = hdmirx_get_detected_timings(hdmirx_dev, timings);
+	ret = hdmirx_try_to_get_timings(hdmirx_dev, timings, 1);
 	if (ret)
 		return ret;
 
@@ -921,28 +1016,11 @@ static void hdmirx_controller_init(struct rk_hdmirx_dev *hdmirx_dev)
 			   CED_GBCHECKEN_QST |
 			   CED_CTRLCHECKEN_QST |
 			   CED_CHLOCKMAXER_QST(0x10));
-
-	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6,
-				VSYNC_TOGGLE_EN|
-				HSYNC_TOGGLE_EN,
-				VSYNC_TOGGLE_EN|
-				HSYNC_TOGGLE_EN);
-
-	hdmirx_update_bits(hdmirx_dev, VIDEO_CONFIG2,
-				VPROC_VSYNC_POL_OVR_VALUE|
-				VPROC_VSYNC_POL_OVR_EN|
-				VPROC_HSYNC_POL_OVR_VALUE|
-				VPROC_HSYNC_POL_OVR_EN,
-				VPROC_VSYNC_POL_OVR_EN|
-				VPROC_HSYNC_POL_OVR_EN);
 }
 
 static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 {
-	int i, cnt;
-	u32 width, height;
 	struct v4l2_dv_timings timings;
-	struct v4l2_bt_timings *bt = &timings.bt;
 	struct hdmirx_stream *stream = &hdmirx_dev->stream;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	const struct v4l2_event ev_src_chg = {
@@ -950,28 +1028,11 @@ static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
 
-	cnt = 0;
-	width = 0;
-	height = 0;
-	for (i = 0; i < 20; i++) {
-		hdmirx_get_detected_timings(hdmirx_dev, &timings);
-
-		if ((width != bt->width) || (height != bt->height)) {
-			width = bt->width;
-			height = bt->height;
-			cnt = 0;
-		} else {
-			cnt++;
-		}
-
-		if (cnt >= 8)
-			break;
-
-		usleep_range(10*1000, 10*1100);
+	if (hdmirx_try_to_get_timings(hdmirx_dev, &timings, 20)) {
+		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
+			msecs_to_jiffies(20));
+		return;
 	}
-
-	if (cnt < 8)
-		v4l2_dbg(1, debug, v4l2_dev, "%s: res not stable!\n", __func__);
 
 	if (!v4l2_match_dv_timings(&hdmirx_dev->timings, &timings, 0, false)) {
 		/* automatically set timing rather than set by userspace */
