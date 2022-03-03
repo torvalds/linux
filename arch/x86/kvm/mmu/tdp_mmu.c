@@ -124,6 +124,16 @@ static void tdp_mmu_schedule_zap_root(struct kvm *kvm, struct kvm_mmu_page *root
 	queue_work(kvm->arch.tdp_mmu_zap_wq, &root->tdp_mmu_async_work);
 }
 
+static inline bool kvm_tdp_root_mark_invalid(struct kvm_mmu_page *page)
+{
+	union kvm_mmu_page_role role = page->role;
+	role.invalid = true;
+
+	/* No need to use cmpxchg, only the invalid bit can change.  */
+	role.word = xchg(&page->role.word, role.word);
+	return role.invalid;
+}
+
 void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
 			  bool shared)
 {
@@ -134,20 +144,46 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
 
 	WARN_ON(!root->tdp_mmu_page);
 
+	/*
+	 * The root now has refcount=0.  It is valid, but readers already
+	 * cannot acquire a reference to it because kvm_tdp_mmu_get_root()
+	 * rejects it.  This remains true for the rest of the execution
+	 * of this function, because readers visit valid roots only
+	 * (except for tdp_mmu_zap_root_work(), which however
+	 * does not acquire any reference itself).
+	 *
+	 * Even though there are flows that need to visit all roots for
+	 * correctness, they all take mmu_lock for write, so they cannot yet
+	 * run concurrently. The same is true after kvm_tdp_root_mark_invalid,
+	 * since the root still has refcount=0.
+	 *
+	 * However, tdp_mmu_zap_root can yield, and writers do not expect to
+	 * see refcount=0 (see for example kvm_tdp_mmu_invalidate_all_roots()).
+	 * So the root temporarily gets an extra reference, going to refcount=1
+	 * while staying invalid.  Readers still cannot acquire any reference;
+	 * but writers are now allowed to run if tdp_mmu_zap_root yields and
+	 * they might take an extra reference if they themselves yield.  Therefore,
+	 * when the reference is given back after tdp_mmu_zap_root terminates,
+	 * there is no guarantee that the refcount is still 1.  If not, whoever
+	 * puts the last reference will free the page, but they will not have to
+	 * zap the root because a root cannot go from invalid to valid.
+	 */
+	if (!kvm_tdp_root_mark_invalid(root)) {
+		refcount_set(&root->tdp_mmu_root_count, 1);
+		tdp_mmu_zap_root(kvm, root, shared);
+
+		/*
+		 * Give back the reference that was added back above.  We now
+		 * know that the root is invalid, so go ahead and free it if
+		 * no one has taken a reference in the meanwhile.
+		 */
+		if (!refcount_dec_and_test(&root->tdp_mmu_root_count))
+			return;
+	}
+
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	list_del_rcu(&root->link);
 	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
-
-	/*
-	 * A TLB flush is not necessary as KVM performs a local TLB flush when
-	 * allocating a new root (see kvm_mmu_load()), and when migrating vCPU
-	 * to a different pCPU.  Note, the local TLB flush on reuse also
-	 * invalidates any paging-structure-cache entries, i.e. TLB entries for
-	 * intermediate paging structures, that may be zapped, as such entries
-	 * are associated with the ASID on both VMX and SVM.
-	 */
-	tdp_mmu_zap_root(kvm, root, shared);
-
 	call_rcu(&root->rcu_head, tdp_mmu_free_sp_rcu_callback);
 }
 
@@ -789,11 +825,22 @@ static inline gfn_t tdp_mmu_max_gfn_host(void)
 static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 			     bool shared)
 {
-	bool root_is_unreachable = !refcount_read(&root->tdp_mmu_root_count);
 	struct tdp_iter iter;
 
 	gfn_t end = tdp_mmu_max_gfn_host();
 	gfn_t start = 0;
+
+	/*
+	 * The root must have an elevated refcount so that it's reachable via
+	 * mmu_notifier callbacks, which allows this path to yield and drop
+	 * mmu_lock.  When handling an unmap/release mmu_notifier command, KVM
+	 * must drop all references to relevant pages prior to completing the
+	 * callback.  Dropping mmu_lock with an unreachable root would result
+	 * in zapping SPTEs after a relevant mmu_notifier callback completes
+	 * and lead to use-after-free as zapping a SPTE triggers "writeback" of
+	 * dirty accessed bits to the SPTE's associated struct page.
+	 */
+	WARN_ON_ONCE(!refcount_read(&root->tdp_mmu_root_count));
 
 	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
 
@@ -805,42 +852,16 @@ static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 	 */
 	for_each_tdp_pte_min_level(iter, root, root->role.level, start, end) {
 retry:
-		/*
-		 * Yielding isn't allowed when zapping an unreachable root as
-		 * the root won't be processed by mmu_notifier callbacks.  When
-		 * handling an unmap/release mmu_notifier command, KVM must
-		 * drop all references to relevant pages prior to completing
-		 * the callback.  Dropping mmu_lock can result in zapping SPTEs
-		 * for an unreachable root after a relevant callback completes,
-		 * which leads to use-after-free as zapping a SPTE triggers
-		 * "writeback" of dirty/accessed bits to the SPTE's associated
-		 * struct page.
-		 */
-		if (!root_is_unreachable &&
-		    tdp_mmu_iter_cond_resched(kvm, &iter, false, shared))
+		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, shared))
 			continue;
 
 		if (!is_shadow_present_pte(iter.old_spte))
 			continue;
 
-		if (!shared) {
+		if (!shared)
 			tdp_mmu_set_spte(kvm, &iter, 0);
-		} else if (tdp_mmu_set_spte_atomic(kvm, &iter, 0)) {
-			/*
-			 * cmpxchg() shouldn't fail if the root is unreachable.
-			 * Retry so as not to leak the page and its children.
-			 */
-			WARN_ONCE(root_is_unreachable,
-				  "Contended TDP MMU SPTE in unreachable root.");
+		else if (tdp_mmu_set_spte_atomic(kvm, &iter, 0))
 			goto retry;
-		}
-
-		/*
-		 * WARN if the root is invalid and is unreachable, all SPTEs
-		 * should've been zapped by kvm_tdp_mmu_zap_invalidated_roots(),
-		 * and inserting new SPTEs under an invalid root is a KVM bug.
-		 */
-		WARN_ON_ONCE(root_is_unreachable && root->role.invalid);
 	}
 
 	rcu_read_unlock();
