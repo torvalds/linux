@@ -1723,6 +1723,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			}
 			w = mode->hts_def - imx415->cur_mode->width;
 			h = mode->vts_def - mode->height;
+			mutex_lock(&imx415->mutex);
 			__v4l2_ctrl_modify_range(imx415->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(imx415->vblank, h,
 				IMX415_VTS_MAX - mode->height,
@@ -1731,6 +1732,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
 			__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 						 pixel_rate);
+			mutex_unlock(&imx415->mutex);
 		}
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
@@ -2374,7 +2376,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_items) - 1, 0,
 				link_freq_items);
-	__v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
+	v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
 
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
