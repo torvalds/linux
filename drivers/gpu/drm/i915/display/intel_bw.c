@@ -638,7 +638,7 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 		data_rate += bw_state->data_rate[pipe];
 
 	if (DISPLAY_VER(dev_priv) >= 13 && intel_vtd_active(dev_priv))
-		data_rate = data_rate * 105 / 100;
+		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;
 }
@@ -763,7 +763,7 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 		}
 	}
 
-	new_bw_state->min_cdclk = max_bw / 64;
+	new_bw_state->min_cdclk = DIV_ROUND_UP(max_bw, 64);
 
 	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
