@@ -413,8 +413,15 @@ void mlock_page(struct page *page);
 static inline void mlock_vma_page(struct page *page,
 			struct vm_area_struct *vma, bool compound)
 {
-	/* VM_IO check prevents migration from double-counting during mlock */
-	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_IO)) == VM_LOCKED) &&
+	/*
+	 * The VM_SPECIAL check here serves two purposes.
+	 * 1) VM_IO check prevents migration from double-counting during mlock.
+	 * 2) Although mmap_region() and mlock_fixup() take care that VM_LOCKED
+	 *    is never left set on a VM_SPECIAL vma, there is an interval while
+	 *    file->f_op->mmap() is using vm_insert_page(s), when VM_LOCKED may
+	 *    still be set while VM_SPECIAL bits are added: so ignore it then.
+	 */
+	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_SPECIAL)) == VM_LOCKED) &&
 	    (compound || !PageTransCompound(page)))
 		mlock_page(page);
 }
