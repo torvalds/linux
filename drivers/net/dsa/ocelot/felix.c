@@ -1466,7 +1466,7 @@ static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
 	return felix_update_trapping_destinations(ds, using_tag_8021q);
 }
 
-static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
+static bool felix_check_xtr_pkt(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int err, grp = 0;
@@ -1475,9 +1475,6 @@ static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
 		return false;
 
 	if (!felix->info->quirk_no_xtr_irq)
-		return false;
-
-	if (ptp_type == PTP_CLASS_NONE)
 		return false;
 
 	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
@@ -1530,7 +1527,7 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 	 * MMIO in the CPU port module, and inject that into the stack from
 	 * ocelot_xtr_poll().
 	 */
-	if (felix_check_xtr_pkt(ocelot, type)) {
+	if (felix_check_xtr_pkt(ocelot)) {
 		kfree_skb(skb);
 		return true;
 	}
