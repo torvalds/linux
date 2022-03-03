@@ -210,7 +210,6 @@ struct recv_buf {
 	struct adapter *adapter;
 	u8	*pbuf;
 	u8	*pallocated_buf;
-	u8	*phead;
 	u8	*pdata;
 	u8	*ptail;
 	u8	*pend;
