@@ -2610,7 +2610,7 @@
 		assigned-clocks = <&cru ACLK_VPU>;
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
-		reset-names = "video_a", "video_h";
+		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
 		iommus = <&vdpu_mmu>;
 		rockchip,srv = <&mpp_srv>;
@@ -2628,6 +2628,22 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3588_PD_VDPU>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	avsd: avsd-plus@fdb51000 {
+		compatible = "rockchip,avs-plus-decoder";
+		reg = <0x0 0xfdb51000 0x0 0x200>;
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_avsd";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		reset-names = "shared_video_a", "shared_video_h";
+		iommus = <&vdpu_mmu>;
+		power-domains = <&power RK3588_PD_VDPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
 		status = "disabled";
 	};
 
