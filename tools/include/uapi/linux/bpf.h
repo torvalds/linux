@@ -5086,6 +5086,37 @@ union bpf_attr {
  *	Return
  *		0 on success, or a negative error in case of failure. On error
  *		*dst* buffer is zeroed out.
+ *
+ * long bpf_skb_set_delivery_time(struct sk_buff *skb, u64 dtime, u32 dtime_type)
+ *	Description
+ *		Set a *dtime* (delivery time) to the __sk_buff->tstamp and also
+ *		change the __sk_buff->delivery_time_type to *dtime_type*.
+ *
+ *		When setting a delivery time (non zero *dtime*) to
+ *		__sk_buff->tstamp, only BPF_SKB_DELIVERY_TIME_MONO *dtime_type*
+ *		is supported.  It is the only delivery_time_type that will be
+ *		kept after bpf_redirect_*().
+ *
+ *		If there is no need to change the __sk_buff->delivery_time_type,
+ *		the delivery time can be directly written to __sk_buff->tstamp
+ *		instead.
+ *
+ *		*dtime* 0 and *dtime_type* BPF_SKB_DELIVERY_TIME_NONE
+ *		can be used to clear any delivery time stored in
+ *		__sk_buff->tstamp.
+ *
+ *		Only IPv4 and IPv6 skb->protocol are supported.
+ *
+ *		This function is most useful when it needs to set a
+ *		mono delivery time to __sk_buff->tstamp and then
+ *		bpf_redirect_*() to the egress of an iface.  For example,
+ *		changing the (rcv) timestamp in __sk_buff->tstamp at
+ *		ingress to a mono delivery time and then bpf_redirect_*()
+ *		to sch_fq@phy-dev.
+ *	Return
+ *		0 on success.
+ *		**-EINVAL** for invalid input
+ *		**-EOPNOTSUPP** for unsupported delivery_time_type and protocol
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5280,6 +5311,7 @@ union bpf_attr {
 	FN(xdp_load_bytes),		\
 	FN(xdp_store_bytes),		\
 	FN(copy_from_user_task),	\
+	FN(skb_set_delivery_time),      \
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5469,6 +5501,12 @@ union {					\
 	__u64 :64;			\
 } __attribute__((aligned(8)))
 
+enum {
+	BPF_SKB_DELIVERY_TIME_NONE,
+	BPF_SKB_DELIVERY_TIME_UNSPEC,
+	BPF_SKB_DELIVERY_TIME_MONO,
+};
+
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
  */
@@ -5509,7 +5547,8 @@ struct __sk_buff {
 	__u32 gso_segs;
 	__bpf_md_ptr(struct bpf_sock *, sk);
 	__u32 gso_size;
-	__u32 :32;		/* Padding, future use. */
+	__u8  delivery_time_type;
+	__u32 :24;		/* Padding, future use. */
 	__u64 hwtstamp;
 };
 
