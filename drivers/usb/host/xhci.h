@@ -2458,6 +2458,8 @@ static inline const char *xhci_decode_ctrl_ctx(char *str,
 	unsigned int	bit;
 	int		ret = 0;
 
+	str[0] = '\0';
+
 	if (drop) {
 		ret = sprintf(str, "Drop:");
 		for_each_set_bit(bit, &drop, 32)
