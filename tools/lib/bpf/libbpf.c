@@ -10951,7 +10951,7 @@ struct perf_buffer *perf_buffer__new_raw_v0_6_0(int map_fd, size_t page_cnt,
 {
 	struct perf_buffer_params p = {};
 
-	if (page_cnt == 0 || !attr)
+	if (!attr)
 		return libbpf_err_ptr(-EINVAL);
 
 	if (!OPTS_VALID(opts, perf_buffer_raw_opts))
@@ -10992,7 +10992,7 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 	__u32 map_info_len;
 	int err, i, j, n;
 
-	if (page_cnt & (page_cnt - 1)) {
+	if (page_cnt == 0 || (page_cnt & (page_cnt - 1))) {
 		pr_warn("page count should be power of two, but is %zu\n",
 			page_cnt);
 		return ERR_PTR(-EINVAL);
