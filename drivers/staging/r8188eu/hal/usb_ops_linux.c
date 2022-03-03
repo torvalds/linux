@@ -441,11 +441,9 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 
 		precvbuf->pdata = precvbuf->pskb->data;
-		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
 		precvbuf->pbuf = precvbuf->pskb->data;
 	} else { /* reuse skb */
 		precvbuf->pdata = precvbuf->pskb->data;
-		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
 		precvbuf->pbuf = precvbuf->pskb->data;
 
 		precvbuf->reuse = false;
