@@ -1660,11 +1660,6 @@ static int exynos_dsi_of_read_u32(const struct device_node *np,
 	return ret;
 }
 
-enum {
-	DSI_PORT_IN,
-	DSI_PORT_OUT
-};
-
 static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 {
 	struct device *dev = dsi->dev;
@@ -1695,8 +1690,6 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	struct exynos_dsi *dsi = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &dsi->encoder;
 	struct drm_device *drm_dev = data;
-	struct device_node *in_bridge_node;
-	struct drm_bridge *in_bridge;
 	int ret;
 
 	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
@@ -1706,14 +1699,6 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
 	if (ret < 0)
 		return ret;
-
-	in_bridge_node = of_graph_get_remote_node(dev->of_node, DSI_PORT_IN, 0);
-	if (in_bridge_node) {
-		in_bridge = of_drm_find_bridge(in_bridge_node);
-		if (in_bridge)
-			drm_bridge_attach(encoder, in_bridge, NULL, 0);
-		of_node_put(in_bridge_node);
-	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }
