@@ -10,6 +10,7 @@
 #include "xen.h"
 #include "lapic.h"
 #include "hyperv.h"
+#include "lapic.h"
 
 #include <linux/eventfd.h>
 #include <linux/kvm_host.h>
@@ -954,9 +955,146 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return kvm_xen_hypercall_set_result(vcpu, run->xen.u.hcall.result);
 }
 
-static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param, u64 *r)
+static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
+			       evtchn_port_t *ports)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
+	unsigned long *pending_bits;
+	unsigned long flags;
+	bool ret = true;
+	int idx, i;
+
+	read_lock_irqsave(&gpc->lock, flags);
+	idx = srcu_read_lock(&kvm->srcu);
+	if (!kvm_gfn_to_pfn_cache_check(kvm, gpc, gpc->gpa, PAGE_SIZE))
+		goto out_rcu;
+
+	ret = false;
+	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+		struct shared_info *shinfo = gpc->khva;
+		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
+	} else {
+		struct compat_shared_info *shinfo = gpc->khva;
+		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
+	}
+
+	for (i = 0; i < nr_ports; i++) {
+		if (test_bit(ports[i], pending_bits)) {
+			ret = true;
+			break;
+		}
+	}
+
+ out_rcu:
+	srcu_read_unlock(&kvm->srcu, idx);
+	read_unlock_irqrestore(&gpc->lock, flags);
+
+	return ret;
+}
+
+static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
+				 u64 param, u64 *r)
+{
+	int idx, i;
+	struct sched_poll sched_poll;
+	evtchn_port_t port, *ports;
+	gpa_t gpa;
+
+	if (!longmode || !lapic_in_kernel(vcpu) ||
+	    !(vcpu->kvm->arch.xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
+		return false;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &sched_poll,
+					sizeof(sched_poll))) {
+		*r = -EFAULT;
+		return true;
+	}
+
+	if (unlikely(sched_poll.nr_ports > 1)) {
+		/* Xen (unofficially) limits number of pollers to 128 */
+		if (sched_poll.nr_ports > 128) {
+			*r = -EINVAL;
+			return true;
+		}
+
+		ports = kmalloc_array(sched_poll.nr_ports,
+				      sizeof(*ports), GFP_KERNEL);
+		if (!ports) {
+			*r = -ENOMEM;
+			return true;
+		}
+	} else
+		ports = &port;
+
+	for (i = 0; i < sched_poll.nr_ports; i++) {
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+		gpa = kvm_mmu_gva_to_gpa_system(vcpu,
+						(gva_t)(sched_poll.ports + i),
+						NULL);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+		if (!gpa || kvm_vcpu_read_guest(vcpu, gpa,
+						&ports[i], sizeof(port))) {
+			*r = -EFAULT;
+			goto out;
+		}
+	}
+
+	if (sched_poll.nr_ports == 1)
+		vcpu->arch.xen.poll_evtchn = port;
+	else
+		vcpu->arch.xen.poll_evtchn = -1;
+
+	set_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+
+	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports)) {
+		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+
+		if (sched_poll.timeout)
+			mod_timer(&vcpu->arch.xen.poll_timer,
+				  jiffies + nsecs_to_jiffies(sched_poll.timeout));
+
+		kvm_vcpu_halt(vcpu);
+
+		if (sched_poll.timeout)
+			del_timer(&vcpu->arch.xen.poll_timer);
+
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
+	}
+
+	vcpu->arch.xen.poll_evtchn = 0;
+	*r = 0;
+out:
+	/* Really, this is only needed in case of timeout */
+	clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+
+	if (unlikely(sched_poll.nr_ports > 1))
+		kfree(ports);
+	return true;
+}
+
+static void cancel_evtchn_poll(struct timer_list *t)
+{
+	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.xen.poll_timer);
+
+	kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
+	kvm_vcpu_kick(vcpu);
+}
+
+static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, bool longmode,
+				   int cmd, u64 param, u64 *r)
 {
 	switch (cmd) {
+	case SCHEDOP_poll:
+		if (kvm_xen_schedop_poll(vcpu, longmode, param, r))
+			return true;
+		fallthrough;
 	case SCHEDOP_yield:
 		kvm_vcpu_on_spin(vcpu, true);
 		*r = 0;
@@ -1121,7 +1259,8 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 			handled = kvm_xen_hcall_evtchn_send(vcpu, params[1], &r);
 		break;
 	case __HYPERVISOR_sched_op:
-		handled = kvm_xen_hcall_sched_op(vcpu, params[0], params[1], &r);
+		handled = kvm_xen_hcall_sched_op(vcpu, longmode, params[0],
+						 params[1], &r);
 		break;
 	case __HYPERVISOR_vcpu_op:
 		handled = kvm_xen_hcall_vcpu_op(vcpu, longmode, params[0], params[1],
@@ -1166,6 +1305,17 @@ static inline int max_evtchn_port(struct kvm *kvm)
 		return EVTCHN_2L_NR_CHANNELS;
 	else
 		return COMPAT_EVTCHN_2L_NR_CHANNELS;
+}
+
+static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
+{
+	int poll_evtchn = vcpu->arch.xen.poll_evtchn;
+
+	if ((poll_evtchn == port || poll_evtchn == -1) &&
+	    test_and_clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask)) {
+		kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
+		kvm_vcpu_kick(vcpu);
+	}
 }
 
 /*
@@ -1235,6 +1385,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		rc = 0; /* It was already raised */
 	} else if (test_bit(xe->port, mask_bits)) {
 		rc = -ENOTCONN; /* Masked */
+		kvm_xen_check_poller(vcpu, xe->port);
 	} else {
 		rc = 1; /* Delivered to the bitmap in shared_info. */
 		/* Now switch to the vCPU's vcpu_info to set the index and pending_sel */
@@ -1665,6 +1816,8 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.xen.vcpu_id = vcpu->vcpu_idx;
+	vcpu->arch.xen.poll_evtchn = 0;
+	timer_setup(&vcpu->arch.xen.poll_timer, cancel_evtchn_poll, 0);
 }
 
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
@@ -1678,6 +1831,7 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 				     &vcpu->arch.xen.vcpu_info_cache);
 	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
 				     &vcpu->arch.xen.vcpu_time_info_cache);
+	del_timer_sync(&vcpu->arch.xen.poll_timer);
 }
 
 void kvm_xen_init_vm(struct kvm *kvm)

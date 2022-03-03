@@ -233,6 +233,12 @@ int main(int argc, char *argv[])
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
 		.msr = XEN_HYPERCALL_MSR,
 	};
+
+	/* Let the kernel know that we *will* use it for sending all
+	 * event channels, which lets it intercept SCHEDOP_poll */
+	if (xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_SEND)
+		hvmc.flags |= KVM_XEN_HVM_CONFIG_EVTCHN_SEND;
+
 	vm_ioctl(vm, KVM_XEN_HVM_CONFIG, &hvmc);
 
 	struct kvm_xen_hvm_attr lm = {

@@ -619,6 +619,8 @@ struct kvm_vcpu_xen {
 	u64 timer_expires; /* In guest epoch */
 	atomic_t timer_pending;
 	struct hrtimer timer;
+	int poll_evtchn;
+	struct timer_list poll_timer;
 };
 
 struct kvm_vcpu_arch {
@@ -1032,6 +1034,7 @@ struct kvm_xen {
 	u8 upcall_vector;
 	struct gfn_to_pfn_cache shinfo_cache;
 	struct idr evtchn_ports;
+	unsigned long poll_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 };
 
 enum kvm_irqchip_mode {
