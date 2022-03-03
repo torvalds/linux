@@ -28,6 +28,19 @@
 
 #define ISP2X_RAWAF_INT_LINE0_EN	BIT(27)
 
+static void isp3_module_done(struct rkisp_isp_stats_vdev *stats_vdev,
+			     u32 reg, u32 value, u32 id)
+{
+	void __iomem *base;
+
+	if (id == ISP3_LEFT)
+		base = stats_vdev->dev->hw_dev->base_addr;
+	else
+		base = stats_vdev->dev->hw_dev->base_next_addr;
+
+	writel(value, base + reg);
+}
+
 static u32 isp3_stats_read(struct rkisp_isp_stats_vdev *stats_vdev,
 			   u32 addr, u32 id)
 {
@@ -132,7 +145,7 @@ rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAWB_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAWB_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -168,7 +181,7 @@ rkisp_stats_get_rawaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAF_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -225,7 +238,7 @@ rkisp_stats_get_rawaebig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, addr + ISP3X_RAWAE_BIG_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, addr + ISP3X_RAWAE_BIG_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -266,7 +279,7 @@ rkisp_stats_get_rawhstbig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 					addr + ISP3X_RAWHIST_BIG_RO_BASE_BIN, id);
 
 out:
-	isp3_stats_write(stats_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -406,7 +419,7 @@ rkisp_stats_get_rawaelite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAE_LITE_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAE_LITE_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -435,7 +448,7 @@ rkisp_stats_get_rawhstlite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 					ISP3X_RAWHIST_LITE_RO_BASE_BIN, id);
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWHIST_LITE_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWHIST_LITE_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -618,7 +631,7 @@ rkisp_stats_get_rawawb_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAWB_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAWB_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -659,7 +672,7 @@ rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAF_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -720,7 +733,7 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, addr + ISP3X_RAWAE_BIG_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, addr + ISP3X_RAWAE_BIG_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -765,7 +778,7 @@ rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		hst->hist_bin[i] = ddr_addr[i];
 
 out:
-	isp3_stats_write(stats_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -907,7 +920,7 @@ rkisp_stats_get_rawaelite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWAE_LITE_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWAE_LITE_CTRL, ctrl, id);
 	return 0;
 }
 
@@ -938,7 +951,7 @@ rkisp_stats_get_rawhstlite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		hst->hist_bin[i] = ddr_addr[i];
 
 out:
-	isp3_stats_write(stats_vdev, ISP3X_RAWHIST_LITE_CTRL, ctrl, id);
+	isp3_module_done(stats_vdev, ISP3X_RAWHIST_LITE_CTRL, ctrl, id);
 	return 0;
 }
 

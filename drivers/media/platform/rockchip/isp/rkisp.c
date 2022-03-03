@@ -597,11 +597,26 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			u32 mode = hw->dev_link_num >= 3 ? 2 : hw->dev_link_num - 1;
 			u32 index = dev->dev_id;
 
-			if (index >= hw->dev_link_num)
-				index = hw->dev_link_num - 1;
+			if (index >= hw->dev_link_num) {
+				int i, num = 0, off[4] = { 0 };
+				struct rkisp_device *isp;
+
+				for (i = 0; i < hw->dev_link_num; i++) {
+					isp = hw->isp[i];
+					if (isp && isp->is_hw_link)
+						continue;
+					off[num++] = i;
+				}
+				if (num == 1)
+					index = off[0];
+				else
+					index = off[index - hw->dev_link_num];
+			}
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
 			val |= ISP21_SENSOR_MODE(mode) | ISP21_SENSOR_INDEX(index);
 			writel(val, hw->base_addr + ISP_ACQ_H_OFFS);
+			v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
+				 "sensor mode:%d index:%d | 0x%x\n", mode, index, val);
 		}
 		is_upd = true;
 	}

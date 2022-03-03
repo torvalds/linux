@@ -33,6 +33,14 @@
 
 #define ISP2X_RAWAF_INT_LINE0_EN	BIT(27)
 
+static void isp_module_done(struct rkisp_isp_stats_vdev *stats_vdev,
+			    u32 reg, u32 value)
+{
+	void __iomem *base = stats_vdev->dev->hw_dev->base_addr;
+
+	writel(value, base + reg);
+}
+
 static int
 rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp_isp21_stat_buffer *pbuf)
@@ -789,7 +797,7 @@ rkisp_stats_restart_rawawb_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 
 	value = rkisp_read(stats_vdev->dev, ISP21_RAWAWB_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE)
-		rkisp_write(stats_vdev->dev, ISP21_RAWAWB_CTRL, value, true);
+		isp_module_done(stats_vdev, ISP21_RAWAWB_CTRL, value);
 	return 0;
 }
 
@@ -800,8 +808,8 @@ rkisp_stats_restart_rawaf_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 
 	value = rkisp_read(stats_vdev->dev, ISP_RAWAF_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE) {
-		rkisp_write(stats_vdev->dev, ISP_RAWAF_CTRL, value, true);
 		rkisp_write(stats_vdev->dev, ISP_RAWAF_INT_STATE, 0, true);
+		isp_module_done(stats_vdev, ISP_RAWAF_CTRL, value);
 	}
 	return 0;
 }
@@ -828,7 +836,7 @@ rkisp_stats_restart_rawaebig_meas(struct rkisp_isp_stats_vdev *stats_vdev, u32 b
 
 	value = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE)
-		rkisp_write(stats_vdev->dev, addr + RAWAE_BIG_CTRL, value, true);
+		isp_module_done(stats_vdev, addr + RAWAE_BIG_CTRL, value);
 	return 0;
 }
 
@@ -854,7 +862,7 @@ rkisp_stats_restart_rawhstbig_meas(struct rkisp_isp_stats_vdev *stats_vdev, u32 
 
 	value = rkisp_read(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE)
-		rkisp_write(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, value, true);
+		isp_module_done(stats_vdev, addr + ISP_RAWHIST_BIG_CTRL, value);
 	return 0;
 }
 
@@ -901,7 +909,7 @@ rkisp_stats_restart_rawae0_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 
 	value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE)
-		rkisp_write(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, value, true);
+		isp_module_done(stats_vdev, ISP_RAWAE_LITE_CTRL, value);
 	return 0;
 }
 
@@ -912,7 +920,7 @@ rkisp_stats_restart_rawhst0_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 
 	value = rkisp_read(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, true);
 	if (value & ISP2X_3A_MEAS_DONE)
-		rkisp_write(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, value, true);
+		isp_module_done(stats_vdev, ISP_RAWHIST_LITE_CTRL, value);
 	return 0;
 }
 
