@@ -61,7 +61,11 @@
 #endif
 
 &i2c2 {
-	status = "disabled";
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+
+	status = "okay";
 
 	wm8978: codec@1a {
 		compatible = "wlf,wm8978";
