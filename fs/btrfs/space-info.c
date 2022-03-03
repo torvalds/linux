@@ -737,6 +737,8 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	u64 thresh = div_factor_fine(space_info->total_bytes, 90);
 	u64 used;
 
+	lockdep_assert_held(&space_info->lock);
+
 	/* If we're just plain full then async reclaim just slows us down. */
 	if ((space_info->bytes_used + space_info->bytes_reserved +
 	     global_rsv_size) >= thresh)
