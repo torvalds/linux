@@ -133,27 +133,36 @@ static void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 {
 	struct kvm_vcpu_xen *vx = &v->arch.xen;
-	struct gfn_to_hva_cache *ghc = &vx->runstate_cache;
-	struct kvm_memslots *slots = kvm_memslots(v->kvm);
-	bool atomic = (state == RUNSTATE_runnable);
-	uint64_t state_entry_time;
-	int __user *user_state;
-	uint64_t __user *user_times;
+	struct gfn_to_pfn_cache *gpc = &vx->runstate_cache;
+	uint64_t *user_times;
+	unsigned long flags;
+	size_t user_len;
+	int *user_state;
 
 	kvm_xen_update_runstate(v, state);
 
-	if (!vx->runstate_set)
+	if (!vx->runstate_cache.active)
 		return;
 
-	if (unlikely(slots->generation != ghc->generation || kvm_is_error_hva(ghc->hva)) &&
-	    kvm_gfn_to_hva_cache_init(v->kvm, ghc, ghc->gpa, ghc->len))
-		return;
+	if (IS_ENABLED(CONFIG_64BIT) && v->kvm->arch.xen.long_mode)
+		user_len = sizeof(struct vcpu_runstate_info);
+	else
+		user_len = sizeof(struct compat_vcpu_runstate_info);
 
-	/* We made sure it fits in a single page */
-	BUG_ON(!ghc->memslot);
+	read_lock_irqsave(&gpc->lock, flags);
+	while (!kvm_gfn_to_pfn_cache_check(v->kvm, gpc, gpc->gpa,
+					   user_len)) {
+		read_unlock_irqrestore(&gpc->lock, flags);
 
-	if (atomic)
-		pagefault_disable();
+		/* When invoked from kvm_sched_out() we cannot sleep */
+		if (state == RUNSTATE_runnable)
+			return;
+
+		if (kvm_gfn_to_pfn_cache_refresh(v->kvm, gpc, gpc->gpa, user_len))
+			return;
+
+		read_lock_irqsave(&gpc->lock, flags);
+	}
 
 	/*
 	 * The only difference between 32-bit and 64-bit versions of the
@@ -167,38 +176,33 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) != 0);
 	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state) != 0);
-	user_state = (int __user *)ghc->hva;
-
 	BUILD_BUG_ON(sizeof(struct compat_vcpu_runstate_info) != 0x2c);
-
-	user_times = (uint64_t __user *)(ghc->hva +
-					 offsetof(struct compat_vcpu_runstate_info,
-						  state_entry_time));
 #ifdef CONFIG_X86_64
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state_entry_time) !=
 		     offsetof(struct compat_vcpu_runstate_info, state_entry_time) + 4);
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, time) !=
 		     offsetof(struct compat_vcpu_runstate_info, time) + 4);
-
-	if (v->kvm->arch.xen.long_mode)
-		user_times = (uint64_t __user *)(ghc->hva +
-						 offsetof(struct vcpu_runstate_info,
-							  state_entry_time));
 #endif
+
+	user_state = gpc->khva;
+
+	if (IS_ENABLED(CONFIG_64BIT) && v->kvm->arch.xen.long_mode)
+		user_times = gpc->khva + offsetof(struct vcpu_runstate_info,
+						  state_entry_time);
+	else
+		user_times = gpc->khva + offsetof(struct compat_vcpu_runstate_info,
+						  state_entry_time);
+
 	/*
 	 * First write the updated state_entry_time at the appropriate
 	 * location determined by 'offset'.
 	 */
-	state_entry_time = vx->runstate_entry_time;
-	state_entry_time |= XEN_RUNSTATE_UPDATE;
-
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, state_entry_time) !=
-		     sizeof(state_entry_time));
+		     sizeof(user_times[0]));
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state_entry_time) !=
-		     sizeof(state_entry_time));
+		     sizeof(user_times[0]));
 
-	if (__put_user(state_entry_time, user_times))
-		goto out;
+	user_times[0] = vx->runstate_entry_time | XEN_RUNSTATE_UPDATE;
 	smp_wmb();
 
 	/*
@@ -212,8 +216,7 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state) !=
 		     sizeof(vx->current_runstate));
 
-	if (__put_user(vx->current_runstate, user_state))
-		goto out;
+	*user_state = vx->current_runstate;
 
 	/*
 	 * Write the actual runstate times immediately after the
@@ -228,23 +231,19 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, time) !=
 		     sizeof(vx->runstate_times));
 
-	if (__copy_to_user(user_times + 1, vx->runstate_times, sizeof(vx->runstate_times)))
-		goto out;
+	memcpy(user_times + 1, vx->runstate_times, sizeof(vx->runstate_times));
 	smp_wmb();
 
 	/*
 	 * Finally, clear the XEN_RUNSTATE_UPDATE bit in the guest's
 	 * runstate_entry_time field.
 	 */
-	state_entry_time &= ~XEN_RUNSTATE_UPDATE;
-	__put_user(state_entry_time, user_times);
+	user_times[0] &= ~XEN_RUNSTATE_UPDATE;
 	smp_wmb();
 
- out:
-	mark_page_dirty_in_slot(v->kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
+	read_unlock_irqrestore(&gpc->lock, flags);
 
-	if (atomic)
-		pagefault_enable();
+	mark_page_dirty_in_slot(v->kvm, gpc->memslot, gpc->gpa >> PAGE_SHIFT);
 }
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
@@ -507,24 +506,16 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			break;
 		}
 		if (data->u.gpa == GPA_INVALID) {
-			vcpu->arch.xen.runstate_set = false;
+			kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
+						     &vcpu->arch.xen.runstate_cache);
 			r = 0;
 			break;
 		}
 
-		/* It must fit within a single page */
-		if ((data->u.gpa & ~PAGE_MASK) + sizeof(struct vcpu_runstate_info) > PAGE_SIZE) {
-			r = -EINVAL;
-			break;
-		}
-
-		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
+		r = kvm_gfn_to_pfn_cache_init(vcpu->kvm,
 					      &vcpu->arch.xen.runstate_cache,
-					      data->u.gpa,
+					      NULL, KVM_HOST_USES_PFN, data->u.gpa,
 					      sizeof(struct vcpu_runstate_info));
-		if (!r) {
-			vcpu->arch.xen.runstate_set = true;
-		}
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_CURRENT:
@@ -659,7 +650,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			r = -EOPNOTSUPP;
 			break;
 		}
-		if (vcpu->arch.xen.runstate_set) {
+		if (vcpu->arch.xen.runstate_cache.active) {
 			data->u.gpa = vcpu->arch.xen.runstate_cache.gpa;
 			r = 0;
 		}
@@ -1055,4 +1046,10 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	e->set = evtchn_set_fn;
 
 	return 0;
+}
+
+void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
+{
+	kvm_gfn_to_pfn_cache_destroy(vcpu->kvm,
+				     &vcpu->arch.xen.runstate_cache);
 }

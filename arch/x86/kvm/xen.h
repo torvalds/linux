@@ -23,7 +23,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
 int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
 void kvm_xen_init_vm(struct kvm *kvm);
 void kvm_xen_destroy_vm(struct kvm *kvm);
-
+void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu);
 int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
 			    struct kvm *kvm);
 int kvm_xen_setup_evtchn(struct kvm *kvm,
@@ -62,6 +62,10 @@ static inline void kvm_xen_init_vm(struct kvm *kvm)
 }
 
 static inline void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+}
+
+static inline void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 {
 }
 
