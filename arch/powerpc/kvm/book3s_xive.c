@@ -2362,7 +2362,7 @@ static void xive_debugfs_init(struct kvmppc_xive *xive)
 
 static void kvmppc_xive_init(struct kvm_device *dev)
 {
-	struct kvmppc_xive *xive = (struct kvmppc_xive *)dev->private;
+	struct kvmppc_xive *xive = dev->private;
 
 	/* Register some debug interfaces */
 	xive_debugfs_init(xive);

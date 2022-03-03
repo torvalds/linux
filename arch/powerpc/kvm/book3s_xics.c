@@ -1431,7 +1431,7 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 
 static void kvmppc_xics_init(struct kvm_device *dev)
 {
-	struct kvmppc_xics *xics = (struct kvmppc_xics *)dev->private;
+	struct kvmppc_xics *xics = dev->private;
 
 	xics_debugfs_init(xics);
 }
