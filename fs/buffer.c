@@ -2344,6 +2344,7 @@ EXPORT_SYMBOL(block_read_full_page);
 int generic_cont_expand_simple(struct inode *inode, loff_t size)
 {
 	struct address_space *mapping = inode->i_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
 	struct page *page;
 	void *fsdata;
 	int err;
@@ -2352,11 +2353,11 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 	if (err)
 		goto out;
 
-	err = pagecache_write_begin(NULL, mapping, size, 0, 0, &page, &fsdata);
+	err = aops->write_begin(NULL, mapping, size, 0, &page, &fsdata);
 	if (err)
 		goto out;
 
-	err = pagecache_write_end(NULL, mapping, size, 0, 0, page, fsdata);
+	err = aops->write_end(NULL, mapping, size, 0, 0, page, fsdata);
 	BUG_ON(err > 0);
 
 out:
@@ -2368,6 +2369,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 			    loff_t pos, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
+	const struct address_space_operations *aops = mapping->a_ops;
 	unsigned int blocksize = i_blocksize(inode);
 	struct page *page;
 	void *fsdata;
@@ -2387,12 +2389,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = PAGE_SIZE - zerofrom;
 
-		err = pagecache_write_begin(file, mapping, curpos, len, 0,
+		err = aops->write_begin(file, mapping, curpos, len,
 					    &page, &fsdata);
 		if (err)
 			goto out;
 		zero_user(page, zerofrom, len);
-		err = pagecache_write_end(file, mapping, curpos, len, len,
+		err = aops->write_end(file, mapping, curpos, len, len,
 						page, fsdata);
 		if (err < 0)
 			goto out;
@@ -2420,12 +2422,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = offset - zerofrom;
 
-		err = pagecache_write_begin(file, mapping, curpos, len, 0,
+		err = aops->write_begin(file, mapping, curpos, len,
 					    &page, &fsdata);
 		if (err)
 			goto out;
 		zero_user(page, zerofrom, len);
-		err = pagecache_write_end(file, mapping, curpos, len, len,
+		err = aops->write_end(file, mapping, curpos, len, len,
 						page, fsdata);
 		if (err < 0)
 			goto out;
