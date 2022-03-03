@@ -39,7 +39,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	}
 
 	do {
-		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, false, true,
+		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, KVM_HOST_USES_PFN,
 						gpa, PAGE_SIZE, false);
 		if (ret)
 			goto out;
