@@ -1355,11 +1355,6 @@ static int mmc_select_hs400es(struct mmc_card *card)
 	int err = -EINVAL;
 	u8 val;
 
-	if (!(host->caps & MMC_CAP_8_BIT_DATA)) {
-		err = -ENOTSUPP;
-		goto out_err;
-	}
-
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_2V)
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
