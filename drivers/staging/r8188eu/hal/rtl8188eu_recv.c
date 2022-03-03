@@ -12,13 +12,6 @@
 
 #include "../include/rtl8188e_hal.h"
 
-void rtl8188eu_init_recvbuf(struct recv_buf *precvbuf)
-{
-	if (precvbuf->pbuf) {
-		precvbuf->pdata = precvbuf->pbuf;
-	}
-}
-
 int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 {
 	struct recv_priv	*precvpriv = &padapter->recvpriv;

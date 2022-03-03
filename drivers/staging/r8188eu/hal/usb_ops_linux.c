@@ -428,8 +428,6 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 			precvbuf->reuse = true;
 	}
 
-	rtl8188eu_init_recvbuf(precvbuf);
-
 	/* re-assign for linux based on skb */
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
@@ -440,10 +438,8 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 
-		precvbuf->pdata = precvbuf->pskb->data;
 		precvbuf->pbuf = precvbuf->pskb->data;
 	} else { /* reuse skb */
-		precvbuf->pdata = precvbuf->pskb->data;
 		precvbuf->pbuf = precvbuf->pskb->data;
 
 		precvbuf->reuse = false;
