@@ -472,8 +472,6 @@
 		vcc10-supply = <&vcc_sysin>;
 		vcc11-supply = <&vcc_sysin>;
 		vcc12-supply = <&vcc3v3_sys>;
-		vcc13-supply = <&vcc_sysin>;
-		vcc14-supply = <&vcc_sysin>;
 
 		regulators {
 			/* rk3399 center logic supply */
