@@ -425,11 +425,7 @@ static inline bool rga_dev_is_dma_coherent(struct device *dev)
 
 static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-	return iommu_get_dma_domain(dev);
-#else
 	return iommu_get_domain_for_dev(dev);
-#endif
 }
 
 static inline void rga_dma_flush_cache_by_sgt(struct sg_table *sgt)
