@@ -8,6 +8,7 @@
 #include <linux/pci-acpi.h>
 #include <asm/numa.h>
 #include <asm/pci_x86.h>
+#include <asm/e820/api.h>
 
 struct pci_root_info {
 	struct acpi_pci_root_info common;
@@ -299,6 +300,10 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 	int status;
 
 	status = acpi_pci_probe_root_resources(ci);
+
+	resource_list_for_each_entry(entry, &ci->resources)
+		remove_e820_regions(&device->dev, entry->res);
+
 	if (pci_use_crs) {
 		resource_list_for_each_entry_safe(entry, tmp, &ci->resources)
 			if (resource_is_pcicfg_ioport(entry->res))
