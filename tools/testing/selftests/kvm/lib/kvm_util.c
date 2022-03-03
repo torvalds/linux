@@ -1610,7 +1610,7 @@ void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg
  * Device Ioctl
  */
 
-int _kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
+int __kvm_has_device_attr(int dev_fd, uint32_t group, uint64_t attr)
 {
 	struct kvm_device_attr attribute = {
 		.group = group,
@@ -1621,9 +1621,9 @@ int _kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
 	return ioctl(dev_fd, KVM_HAS_DEVICE_ATTR, &attribute);
 }
 
-int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
+int kvm_has_device_attr(int dev_fd, uint32_t group, uint64_t attr)
 {
-	int ret = _kvm_device_check_attr(dev_fd, group, attr);
+	int ret = __kvm_has_device_attr(dev_fd, group, attr);
 
 	TEST_ASSERT(!ret, "KVM_HAS_DEVICE_ATTR failed, rc: %i errno: %i", ret, errno);
 	return ret;
@@ -1686,18 +1686,18 @@ int kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 	return ret;
 }
 
-int _vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
+int __vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			  uint64_t attr)
 {
 	struct vcpu *vcpu = vcpu_get(vm, vcpuid);
 
-	return _kvm_device_check_attr(vcpu->fd, group, attr);
+	return __kvm_has_device_attr(vcpu->fd, group, attr);
 }
 
 int vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 				 uint64_t attr)
 {
-	int ret = _vcpu_has_device_attr(vm, vcpuid, group, attr);
+	int ret = __vcpu_has_device_attr(vm, vcpuid, group, attr);
 
 	TEST_ASSERT(!ret, "KVM_HAS_DEVICE_ATTR IOCTL failed, rc: %i errno: %i", ret, errno);
 	return ret;
