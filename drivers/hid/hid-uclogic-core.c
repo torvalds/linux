@@ -110,6 +110,8 @@ static int uclogic_input_configured(struct hid_device *hdev,
 	for (i = 0; i < ARRAY_SIZE(params->frame_list); i++) {
 		frame = &params->frame_list[i];
 		if (hi->report->id == frame->id) {
+			/* Assign custom suffix, if any */
+			suffix = frame->suffix;
 			/*
 			 * Disable EV_MSC reports for touch ring interfaces to
 			 * make the Wacom driver pickup touch ring extents
@@ -119,27 +121,29 @@ static int uclogic_input_configured(struct hid_device *hdev,
 		}
 	}
 
-	field = hi->report->field[0];
+	if (!suffix) {
+		field = hi->report->field[0];
 
-	switch (field->application) {
-	case HID_GD_KEYBOARD:
-		suffix = "Keyboard";
-		break;
-	case HID_GD_MOUSE:
-		suffix = "Mouse";
-		break;
-	case HID_GD_KEYPAD:
-		suffix = "Pad";
-		break;
-	case HID_DG_PEN:
-		suffix = "Pen";
-		break;
-	case HID_CP_CONSUMER_CONTROL:
-		suffix = "Consumer Control";
-		break;
-	case HID_GD_SYSTEM_CONTROL:
-		suffix = "System Control";
-		break;
+		switch (field->application) {
+		case HID_GD_KEYBOARD:
+			suffix = "Keyboard";
+			break;
+		case HID_GD_MOUSE:
+			suffix = "Mouse";
+			break;
+		case HID_GD_KEYPAD:
+			suffix = "Pad";
+			break;
+		case HID_DG_PEN:
+			suffix = "Pen";
+			break;
+		case HID_CP_CONSUMER_CONTROL:
+			suffix = "Consumer Control";
+			break;
+		case HID_GD_SYSTEM_CONTROL:
+			suffix = "System Control";
+			break;
+		}
 	}
 
 	if (suffix) {

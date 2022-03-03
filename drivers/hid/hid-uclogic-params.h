@@ -115,6 +115,10 @@ struct uclogic_params_frame {
 	 */
 	unsigned int id;
 	/*
+	 * The suffix to add to the input device name, if not NULL.
+	 */
+	const char *suffix;
+	/*
 	 * Number of the least-significant bit of the 2-bit state of a rotary
 	 * encoder, in the report. Cannot point to a 2-bit field crossing a
 	 * byte boundary. Zero if not present. Only valid if "id" is not zero.
@@ -212,6 +216,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".frame_list[0].desc_ptr = %p\n"                \
 		".frame_list[0].desc_size = %u\n"               \
 		".frame_list[0].id = %u\n"                      \
+		".frame_list[0].suffix = %s\n"                  \
 		".frame_list[0].re_lsb = %u\n"                  \
 		".frame_list[0].dev_id_byte = %u\n"             \
 		".frame_list[0].touch_ring_byte = %u\n"         \
@@ -234,6 +239,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->frame_list[0].desc_ptr,                          \
 		(_params)->frame_list[0].desc_size,                         \
 		(_params)->frame_list[0].id,                                \
+		(_params)->frame_list[0].suffix,                            \
 		(_params)->frame_list[0].re_lsb,                            \
 		(_params)->frame_list[0].dev_id_byte,                       \
 		(_params)->frame_list[0].touch_ring_byte,                   \
