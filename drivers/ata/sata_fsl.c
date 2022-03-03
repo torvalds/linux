@@ -1581,13 +1581,9 @@ static int sata_fsl_resume(struct platform_device *op)
 #endif
 
 static const struct of_device_id fsl_sata_match[] = {
-	{
-		.compatible = "fsl,pq-sata",
-	},
-	{
-		.compatible = "fsl,pq-sata-v2",
-	},
-	{},
+	{ .compatible = "fsl,pq-sata", },
+	{ .compatible = "fsl,pq-sata-v2", },
+	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, fsl_sata_match);

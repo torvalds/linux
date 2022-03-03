@@ -427,7 +427,7 @@ static const struct of_device_id ahci_of_match[] = {
 	{.compatible = "brcm,bcm63138-ahci", .data = (void *)BRCM_SATA_BCM7445},
 	{.compatible = "brcm,bcm-nsp-ahci", .data = (void *)BRCM_SATA_NSP},
 	{.compatible = "brcm,bcm7216-ahci", .data = (void *)BRCM_SATA_BCM7216},
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 

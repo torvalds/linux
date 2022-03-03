@@ -852,7 +852,7 @@ static const struct of_device_id sata_rcar_match[] = {
 		.compatible = "renesas,rcar-gen3-sata",
 		.data = (void *)RCAR_GEN3_SATA
 	},
-	{ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sata_rcar_match);
 

@@ -4277,7 +4277,7 @@ static int mv_platform_resume(struct platform_device *pdev)
 static const struct of_device_id mv_sata_dt_ids[] = {
 	{ .compatible = "marvell,armada-370-sata", },
 	{ .compatible = "marvell,orion-sata", },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mv_sata_dt_ids);
 #endif

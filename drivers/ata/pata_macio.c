@@ -1329,19 +1329,11 @@ static int pata_macio_pci_resume(struct pci_dev *pdev)
 
 static const struct of_device_id pata_macio_match[] =
 {
-	{
-	.name 		= "IDE",
-	},
-	{
-	.name 		= "ATA",
-	},
-	{
-	.type		= "ide",
-	},
-	{
-	.type		= "ata",
-	},
-	{},
+	{ .name = "IDE", },
+	{ .name = "ATA", },
+	{ .type = "ide", },
+	{ .type = "ata", },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pata_macio_match);
 

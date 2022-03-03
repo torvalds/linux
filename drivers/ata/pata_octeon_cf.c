@@ -1006,10 +1006,8 @@ static void octeon_cf_shutdown(struct device *dev)
 }
 
 static const struct of_device_id octeon_cf_match[] = {
-	{
-		.compatible = "cavium,ebt3000-compact-flash",
-	},
-	{},
+	{ .compatible = "cavium,ebt3000-compact-flash", },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, octeon_cf_match);
 

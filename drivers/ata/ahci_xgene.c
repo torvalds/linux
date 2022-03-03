@@ -726,7 +726,7 @@ MODULE_DEVICE_TABLE(acpi, xgene_ahci_acpi_match);
 static const struct of_device_id xgene_ahci_of_match[] = {
 	{.compatible = "apm,xgene-ahci", .data = (void *) XGENE_AHCI_V1},
 	{.compatible = "apm,xgene-ahci-v2", .data = (void *) XGENE_AHCI_V2},
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, xgene_ahci_of_match);
 
