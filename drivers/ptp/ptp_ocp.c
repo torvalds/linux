@@ -52,6 +52,8 @@ struct ocp_reg {
 	u32	servo_offset_i;
 	u32	servo_drift_p;
 	u32	servo_drift_i;
+	u32	status_offset;
+	u32	status_drift;
 };
 
 #define OCP_CTRL_ENABLE		BIT(0)
@@ -88,9 +90,10 @@ struct tod_reg {
 #define TOD_CTRL_GNSS_MASK	((1U << 4) - 1)
 #define TOD_CTRL_GNSS_SHIFT	24
 
-#define TOD_STATUS_UTC_MASK	0xff
-#define TOD_STATUS_UTC_VALID	BIT(8)
-#define TOD_STATUS_LEAP_VALID	BIT(16)
+#define TOD_STATUS_UTC_MASK		0xff
+#define TOD_STATUS_UTC_VALID		BIT(8)
+#define TOD_STATUS_LEAP_ANNOUNCE	BIT(12)
+#define TOD_STATUS_LEAP_VALID		BIT(16)
 
 struct ts_reg {
 	u32	enable;
@@ -739,11 +742,30 @@ __ptp_ocp_clear_drift_locked(struct ptp_ocp *bp)
 }
 
 static void
+ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->lock, flags);
+
+	bp->utc_tai_offset = val;
+
+	if (bp->irig_out)
+		iowrite32(val, &bp->irig_out->adj_sec);
+	if (bp->dcf_out)
+		iowrite32(val, &bp->dcf_out->adj_sec);
+	if (bp->nmea_out)
+		iowrite32(val, &bp->nmea_out->adj_sec);
+
+	spin_unlock_irqrestore(&bp->lock, flags);
+}
+
+static void
 ptp_ocp_watchdog(struct timer_list *t)
 {
 	struct ptp_ocp *bp = from_timer(bp, t, watchdog);
 	unsigned long flags;
-	u32 status;
+	u32 status, utc_offset;
 
 	status = ioread32(&bp->pps_to_clk->status);
 
@@ -758,6 +780,17 @@ ptp_ocp_watchdog(struct timer_list *t)
 
 	} else if (bp->gnss_lost) {
 		bp->gnss_lost = 0;
+	}
+
+	/* if GNSS provides correct data we can rely on
+	 * it to get leap second information
+	 */
+	if (bp->tod) {
+		status = ioread32(&bp->tod->utc_status);
+		utc_offset = status & TOD_STATUS_UTC_MASK;
+		if (status & TOD_STATUS_UTC_VALID &&
+		    utc_offset != bp->utc_tai_offset)
+			ptp_ocp_utc_distribute(bp, utc_offset);
 	}
 
 	mod_timer(&bp->watchdog, jiffies + HZ);
@@ -829,25 +862,6 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 }
 
 static void
-ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&bp->lock, flags);
-
-	bp->utc_tai_offset = val;
-
-	if (bp->irig_out)
-		iowrite32(val, &bp->irig_out->adj_sec);
-	if (bp->dcf_out)
-		iowrite32(val, &bp->dcf_out->adj_sec);
-	if (bp->nmea_out)
-		iowrite32(val, &bp->nmea_out->adj_sec);
-
-	spin_unlock_irqrestore(&bp->lock, flags);
-}
-
-static void
 ptp_ocp_tod_init(struct ptp_ocp *bp)
 {
 	u32 ctrl, reg;
@@ -862,45 +876,26 @@ ptp_ocp_tod_init(struct ptp_ocp *bp)
 		ptp_ocp_utc_distribute(bp, reg & TOD_STATUS_UTC_MASK);
 }
 
-static void
-ptp_ocp_tod_info(struct ptp_ocp *bp)
+static const char *
+ptp_ocp_tod_proto_name(const int idx)
 {
 	static const char * const proto_name[] = {
 		"NMEA", "NMEA_ZDA", "NMEA_RMC", "NMEA_none",
 		"UBX", "UBX_UTC", "UBX_LS", "UBX_none"
 	};
+	return proto_name[idx];
+}
+
+static const char *
+ptp_ocp_tod_gnss_name(int idx)
+{
 	static const char * const gnss_name[] = {
 		"ALL", "COMBINED", "GPS", "GLONASS", "GALILEO", "BEIDOU",
+		"Unknown"
 	};
-	u32 version, ctrl, reg;
-	int idx;
-
-	version = ioread32(&bp->tod->version);
-	dev_info(&bp->pdev->dev, "TOD Version %d.%d.%d\n",
-		 version >> 24, (version >> 16) & 0xff, version & 0xffff);
-
-	ctrl = ioread32(&bp->tod->ctrl);
-	idx = ctrl & TOD_CTRL_PROTOCOL ? 4 : 0;
-	idx += (ctrl >> 16) & 3;
-	dev_info(&bp->pdev->dev, "control: %x\n", ctrl);
-	dev_info(&bp->pdev->dev, "TOD Protocol %s %s\n", proto_name[idx],
-		 ctrl & TOD_CTRL_ENABLE ? "enabled" : "");
-
-	idx = (ctrl >> TOD_CTRL_GNSS_SHIFT) & TOD_CTRL_GNSS_MASK;
-	if (idx < ARRAY_SIZE(gnss_name))
-		dev_info(&bp->pdev->dev, "GNSS %s\n", gnss_name[idx]);
-
-	reg = ioread32(&bp->tod->status);
-	dev_info(&bp->pdev->dev, "status: %x\n", reg);
-
-	reg = ioread32(&bp->tod->adj_sec);
-	dev_info(&bp->pdev->dev, "correction: %d\n", reg);
-
-	reg = ioread32(&bp->tod->utc_status);
-	dev_info(&bp->pdev->dev, "utc_status: %x\n", reg);
-	dev_info(&bp->pdev->dev, "utc_offset: %d  valid:%d  leap_valid:%d\n",
-		 reg & TOD_STATUS_UTC_MASK, reg & TOD_STATUS_UTC_VALID ? 1 : 0,
-		 reg & TOD_STATUS_LEAP_VALID ? 1 : 0);
+	if (idx > ARRAY_SIZE(gnss_name))
+		idx = ARRAY_SIZE(gnss_name) - 1;
+	return gnss_name[idx];
 }
 
 static int
@@ -1953,6 +1948,76 @@ available_clock_sources_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(available_clock_sources);
 
+static ssize_t
+clock_status_drift_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->reg->status_drift);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+static DEVICE_ATTR_RO(clock_status_drift);
+
+static ssize_t
+clock_status_offset_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->reg->status_offset);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+static DEVICE_ATTR_RO(clock_status_offset);
+
+static ssize_t
+tod_correction_show(struct device *dev,
+		    struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+	int res;
+
+	val = ioread32(&bp->tod->adj_sec);
+	res = (val & ~INT_MAX) ? -1 : 1;
+	res *= (val & INT_MAX);
+	return sysfs_emit(buf, "%d\n", res);
+}
+
+static ssize_t
+tod_correction_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	unsigned long flags;
+	int err, res;
+	u32 val = 0;
+
+	err = kstrtos32(buf, 0, &res);
+	if (err)
+		return err;
+	if (res < 0) {
+		res *= -1;
+		val |= BIT(31);
+	}
+	val |= res;
+
+	spin_lock_irqsave(&bp->lock, flags);
+	iowrite32(val, &bp->tod->adj_sec);
+	spin_unlock_irqrestore(&bp->lock, flags);
+
+	return count;
+}
+static DEVICE_ATTR_RW(tod_correction);
+
 static struct attribute *timecard_attrs[] = {
 	&dev_attr_serialnum.attr,
 	&dev_attr_gnss_sync.attr,
@@ -1964,9 +2029,12 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_sma4.attr,
 	&dev_attr_available_sma_inputs.attr,
 	&dev_attr_available_sma_outputs.attr,
+	&dev_attr_clock_status_drift.attr,
+	&dev_attr_clock_status_offset.attr,
 	&dev_attr_irig_b_mode.attr,
 	&dev_attr_utc_tai_offset.attr,
 	&dev_attr_ts_window_adjust.attr,
+	&dev_attr_tod_correction.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(timecard);
@@ -2179,6 +2247,57 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ptp_ocp_summary);
 
+static int
+ptp_ocp_tod_status_show(struct seq_file *s, void *data)
+{
+	struct device *dev = s->private;
+	struct ptp_ocp *bp;
+	u32 val;
+	int idx;
+
+	bp = dev_get_drvdata(dev);
+
+	val = ioread32(&bp->tod->ctrl);
+	if (!(val & TOD_CTRL_ENABLE)) {
+		seq_printf(s, "TOD Slave disabled\n");
+		return 0;
+	}
+	seq_printf(s, "TOD Slave enabled, Control Register 0x%08X\n", val);
+
+	idx = val & TOD_CTRL_PROTOCOL ? 4 : 0;
+	idx += (val >> 16) & 3;
+	seq_printf(s, "Protocol %s\n", ptp_ocp_tod_proto_name(idx));
+
+	idx = (val >> TOD_CTRL_GNSS_SHIFT) & TOD_CTRL_GNSS_MASK;
+	seq_printf(s, "GNSS %s\n", ptp_ocp_tod_gnss_name(idx));
+
+	val = ioread32(&bp->tod->version);
+	seq_printf(s, "TOD Version %d.%d.%d\n",
+		val >> 24, (val >> 16) & 0xff, val & 0xffff);
+
+	val = ioread32(&bp->tod->status);
+	seq_printf(s, "Status register: 0x%08X\n", val);
+
+	val = ioread32(&bp->tod->adj_sec);
+	idx = (val & ~INT_MAX) ? -1 : 1;
+	idx *= (val & INT_MAX);
+	seq_printf(s, "Correction seconds: %d\n", idx);
+
+	val = ioread32(&bp->tod->utc_status);
+	seq_printf(s, "UTC status register: 0x%08X\n", val);
+	seq_printf(s, "UTC offset: %d  valid:%d\n",
+		val & TOD_STATUS_UTC_MASK, val & TOD_STATUS_UTC_VALID ? 1 : 0);
+	seq_printf(s, "Leap second info valid:%d, Leap second announce %d\n",
+		val & TOD_STATUS_LEAP_VALID ? 1 : 0,
+		val & TOD_STATUS_LEAP_ANNOUNCE ? 1 : 0);
+
+	val = ioread32(&bp->tod->leap);
+	seq_printf(s, "Time to next leap second (in sec): %d\n", (s32) val);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ptp_ocp_tod_status);
+
 static struct dentry *ptp_ocp_debugfs_root;
 
 static void
@@ -2190,6 +2309,9 @@ ptp_ocp_debugfs_add_device(struct ptp_ocp *bp)
 	bp->debug_root = d;
 	debugfs_create_file("summary", 0444, bp->debug_root,
 			    &bp->dev, &ptp_ocp_summary_fops);
+	if (bp->tod)
+		debugfs_create_file("tod_status", 0444, bp->debug_root,
+				    &bp->dev, &ptp_ocp_tod_status_fops);
 }
 
 static void
@@ -2368,8 +2490,6 @@ ptp_ocp_info(struct ptp_ocp *bp)
 	u32 reg;
 
 	ptp_ocp_phc_info(bp);
-	if (bp->tod)
-		ptp_ocp_tod_info(bp);
 
 	if (bp->image) {
 		u32 ver = ioread32(&bp->image->version);

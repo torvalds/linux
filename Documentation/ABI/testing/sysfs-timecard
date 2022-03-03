@@ -63,6 +63,18 @@ Description:	(RW) Contains the current synchronization source used by
 		the PHC.  May be changed by writing one of the listed
 		values from the available_clock_sources attribute set.
 
+What:		/sys/class/timecard/ocpN/clock_status_drift
+Date:		March 2022
+Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
+Description:	(RO) Contains the current drift value used by the firmware
+		for internal disciplining of the atomic clock.
+
+What:		/sys/class/timecard/ocpN/clock_status_offset
+Date:		March 2022
+Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
+Description:	(RO) Contains the current offset value used by the firmware
+		for internal disciplining of the atomic clock.
+
 What:		/sys/class/timecard/ocpN/gnss_sync
 Date:		September 2021
 Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
@@ -125,6 +137,16 @@ Description:	(RW) These attributes specify the direction of the signal
 
 		The 10Mhz reference clock input is currently only valid
 		on SMA1 and may not be combined with other destination sinks.
+
+What:		/sys/class/timecard/ocpN/tod_correction
+Date:		March 2022
+Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
+Description:	(RW) The incoming GNSS signal is in UTC time, and the NMEA
+		format messages do not provide a TAI offset.  This sets the
+		correction value for the incoming time.
+
+		If UBX_LS is enabled, this should be 0, and the offset is
+		taken from the UBX-NAV-TIMELS message.
 
 What:		/sys/class/timecard/ocpN/ts_window_adjust
 Date:		September 2021
