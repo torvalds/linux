@@ -35,7 +35,6 @@
 #include <asm/hypervisor.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/intel-iommu.h>
 #include <linux/pm_qos.h>
 
@@ -99,6 +98,7 @@ struct intel_dpll_funcs;
 struct intel_encoder;
 struct intel_fbdev;
 struct intel_fdi_funcs;
+struct intel_gmbus;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_limit;
@@ -230,16 +230,6 @@ struct i915_drrs {
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
 #define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
 #define QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK (1<<8)
-
-struct intel_gmbus {
-	struct i2c_adapter adapter;
-#define GMBUS_FORCE_BIT_RETRY (1U << 31)
-	u32 force_bit;
-	u32 reg0;
-	i915_reg_t gpio_reg;
-	struct i2c_algo_bit_data bit_algo;
-	struct drm_i915_private *dev_priv;
-};
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
@@ -510,7 +500,7 @@ struct drm_i915_private {
 
 	struct intel_dmc dmc;
 
-	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
+	struct intel_gmbus *gmbus[GMBUS_NUM_PINS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */

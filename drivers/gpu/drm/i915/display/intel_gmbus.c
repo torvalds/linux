@@ -38,6 +38,16 @@
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
 
+struct intel_gmbus {
+	struct i2c_adapter adapter;
+#define GMBUS_FORCE_BIT_RETRY (1U << 31)
+	u32 force_bit;
+	u32 reg0;
+	i915_reg_t gpio_reg;
+	struct i2c_algo_bit_data bit_algo;
+	struct drm_i915_private *dev_priv;
+};
+
 struct gmbus_pin {
 	const char *name;
 	enum i915_gpio gpio;
@@ -881,7 +891,11 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		if (!gmbus_pin)
 			continue;
 
-		bus = &dev_priv->gmbus[pin];
+		bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+		if (!bus) {
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		bus->adapter.owner = THIS_MODULE;
 		bus->adapter.class = I2C_CLASS_DDC;
@@ -911,8 +925,12 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		intel_gpio_setup(bus, GPIO(gmbus_pin->gpio));
 
 		ret = i2c_add_adapter(&bus->adapter);
-		if (ret)
+		if (ret) {
+			kfree(bus);
 			goto err;
+		}
+
+		dev_priv->gmbus[pin] = bus;
 	}
 
 	intel_gmbus_reset(dev_priv);
@@ -920,24 +938,19 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 	return 0;
 
 err:
-	while (pin--) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
-			continue;
+	intel_gmbus_teardown(dev_priv);
 
-		bus = &dev_priv->gmbus[pin];
-		i2c_del_adapter(&bus->adapter);
-	}
 	return ret;
 }
 
 struct i2c_adapter *intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned int pin)
 {
-	if (drm_WARN_ON(&dev_priv->drm,
-			!intel_gmbus_is_valid_pin(dev_priv, pin)))
+	if (drm_WARN_ON(&dev_priv->drm, pin >= ARRAY_SIZE(dev_priv->gmbus) ||
+			!dev_priv->gmbus[pin]))
 		return NULL;
 
-	return &dev_priv->gmbus[pin].adapter;
+	return &dev_priv->gmbus[pin]->adapter;
 }
 
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
@@ -969,10 +982,13 @@ void intel_gmbus_teardown(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
+		bus = dev_priv->gmbus[pin];
+		if (!bus)
 			continue;
 
-		bus = &dev_priv->gmbus[pin];
 		i2c_del_adapter(&bus->adapter);
+
+		kfree(bus);
+		dev_priv->gmbus[pin] = NULL;
 	}
 }
