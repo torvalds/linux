@@ -3860,7 +3860,7 @@ int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	WARN_ON(!skb_dst(skb));
 	skb_dst_force(skb);
-	netif_rx_ni(skb);
+	netif_rx(skb);
 	return 0;
 }
 EXPORT_SYMBOL(dev_loopback_xmit);
@@ -10949,11 +10949,11 @@ static int dev_cpu_dead(unsigned int oldcpu)
 
 	/* Process offline CPU's input_pkt_queue */
 	while ((skb = __skb_dequeue(&oldsd->process_queue))) {
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		input_queue_head_incr(oldsd);
 	}
 	while ((skb = skb_dequeue(&oldsd->input_pkt_queue))) {
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		input_queue_head_incr(oldsd);
 	}
 
