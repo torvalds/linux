@@ -2745,6 +2745,40 @@
 		status = "disabled";
 	};
 
+	av1d: av1d@fdc70000 {
+		compatible = "rockchip,av1-decoder";
+		reg = <0x0 0xfdc70000 0x0 0x800>,  <0x0 0xfdc80000 0x0 0x400>,
+		      <0x0 0xfdc90000 0x0 0x400>;
+		reg-names = "vcd", "cache", "afbc";
+		interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_av1d", "irq_cache", "irq_afbc";
+		clocks = <&cru ACLK_AV1>, <&cru PCLK_AV1>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <400000000>, <400000000>;
+		assigned-clocks = <&cru ACLK_AV1>, <&cru PCLK_AV1>;
+		assigned-clock-rates = <400000000>, <400000000>;
+		resets = <&cru SRST_A_AV1>, <&cru SRST_P_AV1>;
+		reset-names = "video_a", "video_h";
+		iommus = <&av1d_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <11>;
+		power-domains = <&power RK3588_PD_AV1>;
+		status = "disabled";
+	};
+
+	av1d_mmu: iommu@fdca0000 {
+		compatible = "rockchip,iommu-av1";
+		reg = <0x0 0xfdca0000 0x0 0x600>;
+		interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_av1d_mmu";
+		clocks = <&cru ACLK_AV1>, <&cru PCLK_AV1>;
+		clock-names = "aclk", "iface";
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_AV1>;
+		status = "disabled";
+	};
+
 	rkisp_unite: rkisp-unite@fdcb0000 {
 		compatible = "rockchip,rk3588-rkisp-unite";
 		reg = <0x0 0xfdcb0000 0x0 0x10000>,
