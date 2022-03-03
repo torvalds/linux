@@ -51,6 +51,8 @@ properties:
       - edsa
       - ocelot
       - ocelot-8021q
+      - rtl8_4
+      - rtl8_4t
       - seville
 
   phy-handle: true
