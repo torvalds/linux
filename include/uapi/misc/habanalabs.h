@@ -543,10 +543,15 @@ struct hl_pll_frequency_info {
  * struct hl_open_stats_info - device open statistics information
  * @open_counter: ever growing counter, increased on each successful dev open
  * @last_open_period_ms: duration (ms) device was open last time
+ * @is_compute_ctx_active: Whether there is an active compute context executing
+ * @compute_ctx_in_release: true if the current compute context is being released
  */
 struct hl_open_stats_info {
 	__u64 open_counter;
 	__u64 last_open_period_ms;
+	__u8 is_compute_ctx_active;
+	__u8 compute_ctx_in_release;
+	__u8 pad[6];
 };
 
 /**

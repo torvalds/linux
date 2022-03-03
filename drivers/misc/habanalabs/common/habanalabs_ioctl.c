@@ -498,6 +498,8 @@ static int open_stats_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	open_stats_info.last_open_period_ms = jiffies64_to_msecs(
 		hdev->last_open_session_duration_jif);
 	open_stats_info.open_counter = hdev->open_counter;
+	open_stats_info.is_compute_ctx_active = hdev->is_compute_ctx_active;
+	open_stats_info.compute_ctx_in_release = hdev->compute_ctx_in_release;
 
 	return copy_to_user(out, &open_stats_info,
 		min((size_t) max_size, sizeof(open_stats_info))) ? -EFAULT : 0;
