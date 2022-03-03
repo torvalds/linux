@@ -42,12 +42,6 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-enum pixel_rate_div {
-	PIXEL_RATE_DIV_BY_1 = 0,
-	PIXEL_RATE_DIV_BY_2 = 1,
-	PIXEL_RATE_DIV_BY_4 = 3
-};
-
 static void dccg32_set_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
@@ -183,6 +177,19 @@ void dccg32_set_dtbclk_dto(
 	}
 }
 
+void dccg32_set_valid_pixel_rate(
+		struct dccg *dccg,
+		int otg_inst,
+		int pixclk_khz)
+{
+	struct dtbclk_dto_params dto_params = {0};
+
+	dto_params.otg_inst = otg_inst;
+	dto_params.pixclk_khz = pixclk_khz;
+
+	dccg32_set_dtbclk_dto(dccg, &dto_params);
+}
+
 static void dccg32_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
@@ -260,6 +267,7 @@ static const struct dccg_funcs dccg32_funcs = {
 	.disable_symclk32_le = dccg31_disable_symclk32_le,
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg32_set_dtbclk_dto,
+	.set_valid_pixel_rate = dccg32_set_valid_pixel_rate,
 	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
 	.otg_add_pixel = dccg32_otg_add_pixel,

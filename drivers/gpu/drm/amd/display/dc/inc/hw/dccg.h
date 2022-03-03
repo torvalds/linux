@@ -56,6 +56,12 @@ enum dentist_dispclk_change_mode {
 	DISPCLK_CHANGE_MODE_RAMPING,
 };
 
+enum pixel_rate_div {
+   PIXEL_RATE_DIV_BY_1 = 0,
+   PIXEL_RATE_DIV_BY_2 = 1,
+   PIXEL_RATE_DIV_BY_4 = 3
+};
+
 struct dccg {
 	struct dc_context *ctx;
 	const struct dccg_funcs *funcs;
@@ -138,6 +144,17 @@ struct dccg_funcs {
 	void (*enable_dsc)(
 		struct dccg *dccg,
 		int inst);
+
+void (*set_pixel_rate_div)(
+        struct dccg *dccg,
+        uint32_t otg_inst,
+        enum pixel_rate_div k1,
+        enum pixel_rate_div k2);
+
+void (*set_valid_pixel_rate)(
+        struct dccg *dccg,
+        int otg_inst,
+        int pixclk_khz);
 
 };
 
