@@ -2980,6 +2980,10 @@ int tb_switch_resume(struct tb_switch *sw)
 			return err;
 		}
 
+		/* We don't have any way to confirm this was the same device */
+		if (!sw->uid)
+			return -ENODEV;
+
 		if (tb_switch_is_usb4(sw))
 			err = usb4_switch_read_uid(sw, &uid);
 		else
