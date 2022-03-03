@@ -678,6 +678,28 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state)
 	return to_intel_bw_state(bw_state);
 }
 
+static bool intel_bw_state_changed(struct drm_i915_private *i915,
+				   const struct intel_bw_state *old_bw_state,
+				   const struct intel_bw_state *new_bw_state)
+{
+	enum pipe pipe;
+
+	for_each_pipe(i915, pipe) {
+		const struct intel_dbuf_bw *old_crtc_bw =
+			&old_bw_state->dbuf_bw[pipe];
+		const struct intel_dbuf_bw *new_crtc_bw =
+			&new_bw_state->dbuf_bw[pipe];
+		enum dbuf_slice slice;
+
+		for_each_dbuf_slice(i915, slice) {
+			if (old_crtc_bw->used_bw[slice] != new_crtc_bw->used_bw[slice])
+				return true;
+		}
+	}
+
+	return old_bw_state->min_cdclk != new_bw_state->min_cdclk;
+}
+
 static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 				  const struct intel_crtc_state *crtc_state)
 {
@@ -765,7 +787,7 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 
 	new_bw_state->min_cdclk = DIV_ROUND_UP(max_bw, 64);
 
-	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
+	if (intel_bw_state_changed(dev_priv, old_bw_state, new_bw_state)) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
 
 		if (ret)
