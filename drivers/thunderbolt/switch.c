@@ -2784,10 +2784,8 @@ int tb_switch_add(struct tb_switch *sw)
 
 		/* read drom */
 		ret = tb_drom_read(sw);
-		if (ret) {
-			dev_err(&sw->dev, "reading DROM failed\n");
-			return ret;
-		}
+		if (ret)
+			dev_warn(&sw->dev, "reading DROM failed: %d\n", ret);
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
 		tb_check_quirks(sw);
