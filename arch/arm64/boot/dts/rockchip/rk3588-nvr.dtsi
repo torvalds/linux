@@ -63,6 +63,10 @@
 	};
 };
 
+&av1d_mmu {
+	status = "okay";
+};
+
 &CPU_SLEEP {
 	status = "disabled";
 };
