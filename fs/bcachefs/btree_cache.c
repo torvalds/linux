@@ -327,17 +327,13 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	}
 restart:
 	list_for_each_entry_safe(b, t, &bc->live, list) {
-		touched++;
-
-		if (touched >= nr) {
-			/* Save position */
-			if (&t->list != &bc->live)
-				list_move_tail(&bc->live, &t->list);
-			break;
+		/* tweak this */
+		if (btree_node_accessed(b)) {
+			clear_btree_node_accessed(b);
+			goto touched;
 		}
 
-		if (!btree_node_accessed(b) &&
-		    !btree_node_reclaim(c, b)) {
+		if (!btree_node_reclaim(c, b)) {
 			/* can't call bch2_btree_node_hash_remove under lock  */
 			freed++;
 			if (&t->list != &bc->live)
@@ -358,8 +354,18 @@ restart:
 			else if (!mutex_trylock(&bc->lock))
 				goto out;
 			goto restart;
-		} else
-			clear_btree_node_accessed(b);
+		} else {
+			continue;
+		}
+touched:
+		touched++;
+
+		if (touched >= nr) {
+			/* Save position */
+			if (&t->list != &bc->live)
+				list_move_tail(&bc->live, &t->list);
+			break;
+		}
 	}
 
 	mutex_unlock(&bc->lock);
