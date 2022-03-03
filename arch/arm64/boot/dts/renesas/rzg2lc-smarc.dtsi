@@ -43,6 +43,7 @@
 / {
 	aliases {
 		serial1 = &scif1;
+		i2c2 = &i2c2;
 	};
 };
 
@@ -58,6 +59,16 @@
 	status = "disabled";
 };
 #endif
+
+&i2c2 {
+	status = "disabled";
+
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+	};
+};
 
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board
