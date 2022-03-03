@@ -846,8 +846,13 @@ struct intel_crtc_wm_state {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
+			/*
+			 * pre-icl: for packed/planar CbCr
+			 * icl+: for everything
+			 */
+			struct skl_ddb_entry plane_ddb[I915_MAX_PLANES];
+			/* pre-icl: for planar Y */
 			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
-			struct skl_ddb_entry plane_ddb_uv[I915_MAX_PLANES];
 		} skl;
 
 		struct {

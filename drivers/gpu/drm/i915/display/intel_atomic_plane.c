@@ -616,8 +616,8 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 static struct intel_plane *
 skl_next_plane_to_commit(struct intel_atomic_state *state,
 			 struct intel_crtc *crtc,
-			 struct skl_ddb_entry entries_y[I915_MAX_PLANES],
-			 struct skl_ddb_entry entries_uv[I915_MAX_PLANES],
+			 struct skl_ddb_entry ddb[I915_MAX_PLANES],
+			 struct skl_ddb_entry ddb_y[I915_MAX_PLANES],
 			 unsigned int *update_mask)
 {
 	struct intel_crtc_state *crtc_state =
@@ -636,17 +636,15 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 		    !(*update_mask & BIT(plane_id)))
 			continue;
 
-		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
-						entries_y,
-						I915_MAX_PLANES, plane_id) ||
-		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_uv[plane_id],
-						entries_uv,
-						I915_MAX_PLANES, plane_id))
+		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb[plane_id],
+						ddb, I915_MAX_PLANES, plane_id) ||
+		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
+						ddb_y, I915_MAX_PLANES, plane_id))
 			continue;
 
 		*update_mask &= ~BIT(plane_id);
-		entries_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
-		entries_uv[plane_id] = crtc_state->wm.skl.plane_ddb_uv[plane_id];
+		ddb[plane_id] = crtc_state->wm.skl.plane_ddb[plane_id];
+		ddb_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
 
 		return plane;
 	}
@@ -728,19 +726,17 @@ static void skl_crtc_planes_update_arm(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct skl_ddb_entry entries_y[I915_MAX_PLANES];
-	struct skl_ddb_entry entries_uv[I915_MAX_PLANES];
+	struct skl_ddb_entry ddb[I915_MAX_PLANES];
+	struct skl_ddb_entry ddb_y[I915_MAX_PLANES];
 	u32 update_mask = new_crtc_state->update_planes;
 	struct intel_plane *plane;
 
-	memcpy(entries_y, old_crtc_state->wm.skl.plane_ddb_y,
+	memcpy(ddb, old_crtc_state->wm.skl.plane_ddb,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb));
+	memcpy(ddb_y, old_crtc_state->wm.skl.plane_ddb_y,
 	       sizeof(old_crtc_state->wm.skl.plane_ddb_y));
-	memcpy(entries_uv, old_crtc_state->wm.skl.plane_ddb_uv,
-	       sizeof(old_crtc_state->wm.skl.plane_ddb_uv));
 
-	while ((plane = skl_next_plane_to_commit(state, crtc,
-						 entries_y, entries_uv,
-						 &update_mask))) {
+	while ((plane = skl_next_plane_to_commit(state, crtc, ddb, ddb_y, &update_mask))) {
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 

@@ -688,16 +688,16 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 		return;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_ddb_entry *ddb =
+			&crtc_state->wm.skl.plane_ddb[plane_id];
 		const struct skl_ddb_entry *ddb_y =
 			&crtc_state->wm.skl.plane_ddb_y[plane_id];
-		const struct skl_ddb_entry *ddb_uv =
-			&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 		unsigned int data_rate = crtc_state->data_rate[plane_id];
 		unsigned int dbuf_mask = 0;
 		enum dbuf_slice slice;
 
+		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb);
 		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_y);
-		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_uv);
 
 		/*
 		 * FIXME: To calculate that more properly we probably

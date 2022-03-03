@@ -1125,13 +1125,13 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Pipe %c\n", pipe_name(pipe));
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
-			entry = &crtc_state->wm.skl.plane_ddb_y[plane_id];
+			entry = &crtc_state->wm.skl.plane_ddb[plane_id];
 			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane_id + 1,
 				   entry->start, entry->end,
 				   skl_ddb_entry_size(entry));
 		}
 
-		entry = &crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR];
+		entry = &crtc_state->wm.skl.plane_ddb[PLANE_CURSOR];
 		seq_printf(m, "  %-13s%8u%8u%8u\n", "Cursor", entry->start,
 			   entry->end, skl_ddb_entry_size(entry));
 	}

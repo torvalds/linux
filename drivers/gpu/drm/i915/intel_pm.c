@@ -4346,46 +4346,31 @@ static void
 skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 			   const enum pipe pipe,
 			   const enum plane_id plane_id,
-			   struct skl_ddb_entry *ddb_y,
-			   struct skl_ddb_entry *ddb_uv)
+			   struct skl_ddb_entry *ddb,
+			   struct skl_ddb_entry *ddb_y)
 {
-	u32 val, val2;
-	u32 fourcc = 0;
+	u32 val;
 
 	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = intel_uncore_read(&dev_priv->uncore, CUR_BUF_CFG(pipe));
-		skl_ddb_entry_init_from_hw(ddb_y, val);
+		skl_ddb_entry_init_from_hw(ddb, val);
 		return;
 	}
 
-	val = intel_uncore_read(&dev_priv->uncore, PLANE_CTL(pipe, plane_id));
+	val = intel_uncore_read(&dev_priv->uncore, PLANE_BUF_CFG(pipe, plane_id));
+	skl_ddb_entry_init_from_hw(ddb, val);
 
-	/* No DDB allocated for disabled planes */
-	if (val & PLANE_CTL_ENABLE)
-		fourcc = skl_format_to_fourcc(val & PLANE_CTL_FORMAT_MASK_SKL,
-					      val & PLANE_CTL_ORDER_RGBX,
-					      val & PLANE_CTL_ALPHA_MASK);
+	if (DISPLAY_VER(dev_priv) >= 11)
+		return;
 
-	if (DISPLAY_VER(dev_priv) >= 11) {
-		val = intel_uncore_read(&dev_priv->uncore, PLANE_BUF_CFG(pipe, plane_id));
-		skl_ddb_entry_init_from_hw(ddb_y, val);
-	} else {
-		val = intel_uncore_read(&dev_priv->uncore, PLANE_BUF_CFG(pipe, plane_id));
-		val2 = intel_uncore_read(&dev_priv->uncore, PLANE_NV12_BUF_CFG(pipe, plane_id));
-
-		if (fourcc &&
-		    drm_format_info_is_yuv_semiplanar(drm_format_info(fourcc)))
-			swap(val, val2);
-
-		skl_ddb_entry_init_from_hw(ddb_y, val);
-		skl_ddb_entry_init_from_hw(ddb_uv, val2);
-	}
+	val = intel_uncore_read(&dev_priv->uncore, PLANE_NV12_BUF_CFG(pipe, plane_id));
+	skl_ddb_entry_init_from_hw(ddb_y, val);
 }
 
 void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
-			       struct skl_ddb_entry *ddb_y,
-			       struct skl_ddb_entry *ddb_uv)
+			       struct skl_ddb_entry *ddb,
+			       struct skl_ddb_entry *ddb_y)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -4401,8 +4386,8 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	for_each_plane_id_on_crtc(crtc, plane_id)
 		skl_ddb_get_hw_plane_state(dev_priv, pipe,
 					   plane_id,
-					   &ddb_y[plane_id],
-					   &ddb_uv[plane_id]);
+					   &ddb[plane_id],
+					   &ddb_y[plane_id]);
 
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
@@ -5195,8 +5180,8 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	int level;
 
 	/* Clear the partitioning for disabled planes. */
+	memset(crtc_state->wm.skl.plane_ddb, 0, sizeof(crtc_state->wm.skl.plane_ddb));
 	memset(crtc_state->wm.skl.plane_ddb_y, 0, sizeof(crtc_state->wm.skl.plane_ddb_y));
-	memset(crtc_state->wm.skl.plane_ddb_uv, 0, sizeof(crtc_state->wm.skl.plane_ddb_uv));
 
 	if (!crtc_state->hw.active)
 		return 0;
@@ -5213,7 +5198,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	/* Allocate fixed number of blocks for cursor. */
 	iter.total[PLANE_CURSOR] = skl_cursor_allocation(crtc_state, num_active);
 	iter.size -= iter.total[PLANE_CURSOR];
-	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR],
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[PLANE_CURSOR],
 			   alloc->end - iter.total[PLANE_CURSOR], alloc->end);
 
 	/*
@@ -5283,10 +5268,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	/* Set the actual DDB start/end points for each plane */
 	iter.start = alloc->start;
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		struct skl_ddb_entry *plane_alloc =
+		struct skl_ddb_entry *ddb =
+			&crtc_state->wm.skl.plane_ddb[plane_id];
+		struct skl_ddb_entry *ddb_y =
 			&crtc_state->wm.skl.plane_ddb_y[plane_id];
-		struct skl_ddb_entry *uv_plane_alloc =
-			&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 
 		if (plane_id == PLANE_CURSOR)
 			continue;
@@ -5297,12 +5282,15 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 		/* Leave disabled planes at (0,0) */
 		if (iter.total[plane_id])
-			iter.start = skl_ddb_entry_init(plane_alloc, iter.start,
+			iter.start = skl_ddb_entry_init(ddb, iter.start,
 							iter.start + iter.total[plane_id]);
 
-		if (iter.uv_total[plane_id])
-			iter.start = skl_ddb_entry_init(uv_plane_alloc, iter.start,
+		if (iter.uv_total[plane_id]) {
+			/* hardware wants these swapped */
+			*ddb_y = *ddb;
+			iter.start = skl_ddb_entry_init(ddb, iter.start,
 							iter.start + iter.uv_total[plane_id]);
+		}
 	}
 
 	/*
@@ -5962,11 +5950,10 @@ void skl_write_plane_wm(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+	const struct skl_ddb_entry *ddb =
+		&crtc_state->wm.skl.plane_ddb[plane_id];
 	const struct skl_ddb_entry *ddb_y =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
-	const struct skl_ddb_entry *ddb_uv =
-		&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 
 	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, PLANE_WM(pipe, plane_id, level),
@@ -5976,25 +5963,20 @@ void skl_write_plane_wm(struct intel_plane *plane,
 			   skl_plane_trans_wm(pipe_wm, plane_id));
 
 	if (HAS_HW_SAGV_WM(dev_priv)) {
+		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+
 		skl_write_wm_level(dev_priv, PLANE_WM_SAGV(pipe, plane_id),
 				   &wm->sagv.wm0);
 		skl_write_wm_level(dev_priv, PLANE_WM_SAGV_TRANS(pipe, plane_id),
 				   &wm->sagv.trans_wm);
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 11) {
+	skl_ddb_entry_write(dev_priv,
+			    PLANE_BUF_CFG(pipe, plane_id), ddb);
+
+	if (DISPLAY_VER(dev_priv) < 11)
 		skl_ddb_entry_write(dev_priv,
-				    PLANE_BUF_CFG(pipe, plane_id), ddb_y);
-		return;
-	}
-
-	if (wm->is_planar)
-		swap(ddb_y, ddb_uv);
-
-	skl_ddb_entry_write(dev_priv,
-			    PLANE_BUF_CFG(pipe, plane_id), ddb_y);
-	skl_ddb_entry_write(dev_priv,
-			    PLANE_NV12_BUF_CFG(pipe, plane_id), ddb_uv);
+				    PLANE_NV12_BUF_CFG(pipe, plane_id), ddb_y);
 }
 
 void skl_write_cursor_wm(struct intel_plane *plane,
@@ -6006,7 +5988,7 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 	enum pipe pipe = plane->pipe;
 	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb_y[plane_id];
+		&crtc_state->wm.skl.plane_ddb[plane_id];
 
 	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, CUR_WM(pipe, level),
@@ -6103,10 +6085,10 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 		struct intel_plane_state *plane_state;
 		enum plane_id plane_id = plane->id;
 
-		if (skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb_y[plane_id],
-					&new_crtc_state->wm.skl.plane_ddb_y[plane_id]) &&
-		    skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb_uv[plane_id],
-					&new_crtc_state->wm.skl.plane_ddb_uv[plane_id]))
+		if (skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb[plane_id],
+					&new_crtc_state->wm.skl.plane_ddb[plane_id]) &&
+		    skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb_y[plane_id],
+					&new_crtc_state->wm.skl.plane_ddb_y[plane_id]))
 			continue;
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
@@ -6275,8 +6257,8 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			enum plane_id plane_id = plane->id;
 			const struct skl_ddb_entry *old, *new;
 
-			old = &old_crtc_state->wm.skl.plane_ddb_y[plane_id];
-			new = &new_crtc_state->wm.skl.plane_ddb_y[plane_id];
+			old = &old_crtc_state->wm.skl.plane_ddb[plane_id];
+			new = &new_crtc_state->wm.skl.plane_ddb[plane_id];
 
 			if (skl_ddb_entry_equal(old, new))
 				continue;
@@ -6678,16 +6660,16 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
+			struct skl_ddb_entry *ddb =
+				&crtc_state->wm.skl.plane_ddb[plane_id];
 			struct skl_ddb_entry *ddb_y =
 				&crtc_state->wm.skl.plane_ddb_y[plane_id];
-			struct skl_ddb_entry *ddb_uv =
-				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 
 			skl_ddb_get_hw_plane_state(dev_priv, crtc->pipe,
-						   plane_id, ddb_y, ddb_uv);
+						   plane_id, ddb, ddb_y);
 
+			skl_ddb_entry_union(&dbuf_state->ddb[pipe], ddb);
 			skl_ddb_entry_union(&dbuf_state->ddb[pipe], ddb_y);
-			skl_ddb_entry_union(&dbuf_state->ddb[pipe], ddb_uv);
 		}
 
 		dbuf_state->weight[pipe] = intel_crtc_ddb_weight(crtc_state);

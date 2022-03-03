@@ -6508,8 +6508,8 @@ static void verify_wm_state(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_hw_state {
+		struct skl_ddb_entry ddb[I915_MAX_PLANES];
 		struct skl_ddb_entry ddb_y[I915_MAX_PLANES];
-		struct skl_ddb_entry ddb_uv[I915_MAX_PLANES];
 		struct skl_pipe_wm wm;
 	} *hw;
 	const struct skl_pipe_wm *sw_wm = &new_crtc_state->wm.skl.optimal;
@@ -6526,7 +6526,7 @@ static void verify_wm_state(struct intel_crtc *crtc,
 
 	skl_pipe_wm_get_hw_state(crtc, &hw->wm);
 
-	skl_pipe_ddb_get_hw_state(crtc, hw->ddb_y, hw->ddb_uv);
+	skl_pipe_ddb_get_hw_state(crtc, hw->ddb, hw->ddb_y);
 
 	hw_enabled_slices = intel_enabled_dbuf_slices_mask(dev_priv);
 
@@ -6608,8 +6608,8 @@ static void verify_wm_state(struct intel_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw->ddb_y[plane->id];
-		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[plane->id];
+		hw_ddb_entry = &hw->ddb[PLANE_CURSOR];
+		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb[PLANE_CURSOR];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			drm_err(&dev_priv->drm,
