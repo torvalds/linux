@@ -1159,6 +1159,7 @@ svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange,
 	uint64_t pte_flags;
 	bool snoop = (domain != SVM_RANGE_VRAM_DOMAIN);
 	bool coherent = flags & KFD_IOCTL_SVM_FLAG_COHERENT;
+	bool uncached = flags & KFD_IOCTL_SVM_FLAG_UNCACHED;
 
 	if (domain == SVM_RANGE_VRAM_DOMAIN)
 		bo_adev = amdgpu_ttm_adev(prange->svm_bo->bo->tbo.bdev);
@@ -1197,6 +1198,22 @@ svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange,
 			mapping_flags |= coherent ?
 				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 		}
+		break;
+	case IP_VERSION(9, 4, 3):
+		//TODO: Need more work for handling multiple memory partitions
+		//e.g. NPS4. Current approch is only applicable without memory
+		//partitions.
+		snoop = true;
+		if (uncached)
+			mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		/* local HBM region close to partition*/
+		else if (bo_adev == adev)
+			mapping_flags |= AMDGPU_VM_MTYPE_RW;
+		/* local HBM region far from partition or remote XGMI GPU or
+		 * system memory
+		 */
+		else
+			mapping_flags |= AMDGPU_VM_MTYPE_NC;
 		break;
 	default:
 		mapping_flags |= coherent ?
