@@ -17,7 +17,7 @@
  */
 static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
 {
-	return tb_sw_write(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + 4, 1);
+	return tb_sw_write(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + ROUTER_CS_4, 1);
 }
 
 /*
@@ -25,7 +25,7 @@ static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
  */
 static int tb_eeprom_ctl_read(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
 {
-	return tb_sw_read(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + 4, 1);
+	return tb_sw_read(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + ROUTER_CS_4, 1);
 }
 
 enum tb_eeprom_transfer {
@@ -46,18 +46,18 @@ static int tb_eeprom_active(struct tb_switch *sw, bool enable)
 	if (res)
 		return res;
 	if (enable) {
-		ctl.access_high = 1;
+		ctl.bit_banging_enable = 1;
 		res = tb_eeprom_ctl_write(sw, &ctl);
 		if (res)
 			return res;
-		ctl.access_low = 0;
+		ctl.fl_cs = 0;
 		return tb_eeprom_ctl_write(sw, &ctl);
 	} else {
-		ctl.access_low = 1;
+		ctl.fl_cs = 1;
 		res = tb_eeprom_ctl_write(sw, &ctl);
 		if (res)
 			return res;
-		ctl.access_high = 0;
+		ctl.bit_banging_enable = 0;
 		return tb_eeprom_ctl_write(sw, &ctl);
 	}
 }
@@ -65,8 +65,8 @@ static int tb_eeprom_active(struct tb_switch *sw, bool enable)
 /*
  * tb_eeprom_transfer - transfer one bit
  *
- * If TB_EEPROM_IN is passed, then the bit can be retrieved from ctl->data_in.
- * If TB_EEPROM_OUT is passed, then ctl->data_out will be written.
+ * If TB_EEPROM_IN is passed, then the bit can be retrieved from ctl->fl_do.
+ * If TB_EEPROM_OUT is passed, then ctl->fl_di will be written.
  */
 static int tb_eeprom_transfer(struct tb_switch *sw, struct tb_eeprom_ctl *ctl,
 			      enum tb_eeprom_transfer direction)
@@ -77,7 +77,7 @@ static int tb_eeprom_transfer(struct tb_switch *sw, struct tb_eeprom_ctl *ctl,
 		if (res)
 			return res;
 	}
-	ctl->clock = 1;
+	ctl->fl_sk = 1;
 	res = tb_eeprom_ctl_write(sw, ctl);
 	if (res)
 		return res;
@@ -86,7 +86,7 @@ static int tb_eeprom_transfer(struct tb_switch *sw, struct tb_eeprom_ctl *ctl,
 		if (res)
 			return res;
 	}
-	ctl->clock = 0;
+	ctl->fl_sk = 0;
 	return tb_eeprom_ctl_write(sw, ctl);
 }
 
@@ -101,7 +101,7 @@ static int tb_eeprom_out(struct tb_switch *sw, u8 val)
 	if (res)
 		return res;
 	for (i = 0; i < 8; i++) {
-		ctl.data_out = val & 0x80;
+		ctl.fl_di = val & 0x80;
 		res = tb_eeprom_transfer(sw, &ctl, TB_EEPROM_OUT);
 		if (res)
 			return res;
@@ -126,7 +126,7 @@ static int tb_eeprom_in(struct tb_switch *sw, u8 *val)
 		res = tb_eeprom_transfer(sw, &ctl, TB_EEPROM_IN);
 		if (res)
 			return res;
-		*val |= ctl.data_in;
+		*val |= ctl.fl_do;
 	}
 	return 0;
 }
