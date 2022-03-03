@@ -322,14 +322,13 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 }
 
 static void
-intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
+intel_gpio_setup(struct intel_gmbus *bus, i915_reg_t gpio_reg)
 {
-	struct drm_i915_private *dev_priv = bus->dev_priv;
 	struct i2c_algo_bit_data *algo;
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = GPIO(get_gmbus_pin(dev_priv, pin)->gpio);
+	bus->gpio_reg = gpio_reg;
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -909,7 +908,7 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		if (IS_I830(dev_priv))
 			bus->force_bit = 1;
 
-		intel_gpio_setup(bus, pin);
+		intel_gpio_setup(bus, GPIO(gmbus_pin->gpio));
 
 		ret = i2c_add_adapter(&bus->adapter);
 		if (ret)
