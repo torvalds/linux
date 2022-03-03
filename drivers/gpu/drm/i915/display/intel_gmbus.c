@@ -106,51 +106,47 @@ static const struct gmbus_pin gmbus_pins_dg2[] = {
 	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
 };
 
-/* pin is expected to be valid */
-static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
+static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *i915,
 					     unsigned int pin)
 {
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG2)
-		return &gmbus_pins_dg2[pin];
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
-		return &gmbus_pins_dg1[pin];
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		return &gmbus_pins_icp[pin];
-	else if (HAS_PCH_CNP(dev_priv))
-		return &gmbus_pins_cnp[pin];
-	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		return &gmbus_pins_bxt[pin];
-	else if (DISPLAY_VER(dev_priv) == 9)
-		return &gmbus_pins_skl[pin];
-	else if (IS_BROADWELL(dev_priv))
-		return &gmbus_pins_bdw[pin];
-	else
-		return &gmbus_pins[pin];
+	const struct gmbus_pin *pins;
+	size_t size;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_DG2) {
+		pins = gmbus_pins_dg2;
+		size = ARRAY_SIZE(gmbus_pins_dg2);
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
+		pins = gmbus_pins_dg1;
+		size = ARRAY_SIZE(gmbus_pins_dg1);
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
+		pins = gmbus_pins_icp;
+		size = ARRAY_SIZE(gmbus_pins_icp);
+	} else if (HAS_PCH_CNP(i915)) {
+		pins = gmbus_pins_cnp;
+		size = ARRAY_SIZE(gmbus_pins_cnp);
+	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
+		pins = gmbus_pins_bxt;
+		size = ARRAY_SIZE(gmbus_pins_bxt);
+	} else if (DISPLAY_VER(i915) == 9) {
+		pins = gmbus_pins_skl;
+		size = ARRAY_SIZE(gmbus_pins_skl);
+	} else if (IS_BROADWELL(i915)) {
+		pins = gmbus_pins_bdw;
+		size = ARRAY_SIZE(gmbus_pins_bdw);
+	} else {
+		pins = gmbus_pins;
+		size = ARRAY_SIZE(gmbus_pins);
+	}
+
+	if (pin >= size || !pins[pin].name)
+		return NULL;
+
+	return &pins[pin];
 }
 
-bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
-			      unsigned int pin)
+bool intel_gmbus_is_valid_pin(struct drm_i915_private *i915, unsigned int pin)
 {
-	unsigned int size;
-
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG2)
-		size = ARRAY_SIZE(gmbus_pins_dg2);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
-		size = ARRAY_SIZE(gmbus_pins_dg1);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		size = ARRAY_SIZE(gmbus_pins_icp);
-	else if (HAS_PCH_CNP(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_cnp);
-	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_bxt);
-	else if (DISPLAY_VER(dev_priv) == 9)
-		size = ARRAY_SIZE(gmbus_pins_skl);
-	else if (IS_BROADWELL(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_bdw);
-	else
-		size = ARRAY_SIZE(gmbus_pins);
-
-	return pin < size && get_gmbus_pin(dev_priv, pin)->name;
+	return get_gmbus_pin(i915, pin);
 }
 
 /* Intel GPIO access functions */
