@@ -150,7 +150,7 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 		/* Find suitable destination for @next */
 		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
 
-		if (cpu_of(rq) != dest_cpu) {
+		if (cpu_of(rq) != dest_cpu && !is_migration_disabled(next)) {
 			/* only perform a required migration */
 			rq = __migrate_task(rq, rf, next, dest_cpu);
 
