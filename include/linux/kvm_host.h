@@ -1239,7 +1239,6 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
  *		   by KVM (and thus needs a kernel virtual mapping).
  * @gpa:	   guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
@@ -1252,7 +1251,7 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
  */
 int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 			      struct kvm_vcpu *vcpu, enum pfn_cache_usage usage,
-			      gpa_t gpa, unsigned long len, bool dirty);
+			      gpa_t gpa, unsigned long len);
 
 /**
  * kvm_gfn_to_pfn_cache_check - check validity of a gfn_to_pfn_cache.
@@ -1261,7 +1260,6 @@ int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @gpc:	   struct gfn_to_pfn_cache object.
  * @gpa:	   current guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   %true if the cache is still valid and the address matches.
  *		   %false if the cache is not valid.
@@ -1283,7 +1281,6 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @gpc:	   struct gfn_to_pfn_cache object.
  * @gpa:	   updated guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
@@ -1296,7 +1293,7 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * with the lock still held to permit access.
  */
 int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-				 gpa_t gpa, unsigned long len, bool dirty);
+				 gpa_t gpa, unsigned long len);
 
 /**
  * kvm_gfn_to_pfn_cache_unmap - temporarily unmap a gfn_to_pfn_cache.
@@ -1304,10 +1301,9 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @kvm:	   pointer to kvm instance.
  * @gpc:	   struct gfn_to_pfn_cache object.
  *
- * This unmaps the referenced page and marks it dirty, if appropriate. The
- * cache is left in the invalid state but at least the mapping from GPA to
- * userspace HVA will remain cached and can be reused on a subsequent
- * refresh.
+ * This unmaps the referenced page. The cache is left in the invalid state
+ * but at least the mapping from GPA to userspace HVA will remain cached
+ * and can be reused on a subsequent refresh.
  */
 void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
 

@@ -5293,6 +5293,10 @@ type values:
 
 KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO
   Sets the guest physical address of the vcpu_info for a given vCPU.
+  As with the shared_info page for the VM, the corresponding page may be
+  dirtied at any time if event channel interrupt delivery is enabled, so
+  userspace should always assume that the page is dirty without relying
+  on dirty logging.
 
 KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO
   Sets the guest physical address of an additional pvclock structure

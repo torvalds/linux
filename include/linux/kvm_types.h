@@ -74,7 +74,6 @@ struct gfn_to_pfn_cache {
 	enum pfn_cache_usage usage;
 	bool active;
 	bool valid;
-	bool dirty;
 };
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
