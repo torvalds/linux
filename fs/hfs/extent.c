@@ -491,10 +491,10 @@ void hfs_file_truncate(struct inode *inode)
 
 		/* XXX: Can use generic_cont_expand? */
 		size = inode->i_size - 1;
-		res = pagecache_write_begin(NULL, mapping, size+1, 0, 0,
-					    &page, &fsdata);
+		res = hfs_write_begin(NULL, mapping, size + 1, 0, &page,
+				&fsdata);
 		if (!res) {
-			res = pagecache_write_end(NULL, mapping, size+1, 0, 0,
+			res = generic_write_end(NULL, mapping, size + 1, 0, 0,
 					page, fsdata);
 		}
 		if (res)
