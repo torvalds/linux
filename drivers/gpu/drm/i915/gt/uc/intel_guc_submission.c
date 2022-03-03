@@ -3616,7 +3616,7 @@ static int guc_resume(struct intel_engine_cs *engine)
 	setup_hwsp(engine);
 	start_engine(engine);
 
-	if (engine->class == RENDER_CLASS)
+	if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE)
 		xehp_enable_ccs_engines(engine);
 
 	return 0;

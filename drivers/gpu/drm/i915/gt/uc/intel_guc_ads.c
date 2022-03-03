@@ -335,7 +335,7 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 	ret |= GUC_MMIO_REG_ADD(regset, RING_HWS_PGA(base), false);
 	ret |= GUC_MMIO_REG_ADD(regset, RING_IMR(base), false);
 
-	if (engine->class == RENDER_CLASS &&
+	if ((engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) &&
 	    CCS_MASK(engine->gt))
 		ret |= GUC_MMIO_REG_ADD(regset, GEN12_RCU_MODE, true);
 
