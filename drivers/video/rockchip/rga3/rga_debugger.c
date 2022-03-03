@@ -31,6 +31,7 @@ int RGA_DEBUG_TIME;
 int RGA_DEBUG_CHECK_MODE;
 int RGA_DEBUG_NONUSE;
 int RGA_DEBUG_INT_FLAG;
+int RGA_DEBUG_DEBUG_MODE;
 
 static int rga_debug_show(struct seq_file *m, void *data)
 {
@@ -43,9 +44,9 @@ static int rga_debug_show(struct seq_file *m, void *data)
 		 STR_ENABLE(RGA_DEBUG_REG),
 		 STR_ENABLE(RGA_DEBUG_MSG),
 		 STR_ENABLE(RGA_DEBUG_TIME),
+		 STR_ENABLE(RGA_DEBUG_INT_FLAG),
 		 STR_ENABLE(RGA_DEBUG_CHECK_MODE),
-		 STR_ENABLE(RGA_DEBUG_NONUSE),
-		 STR_ENABLE(RGA_DEBUG_INT_FLAG));
+		 STR_ENABLE(RGA_DEBUG_NONUSE));
 
 	seq_puts(m, "\nhelp:\n");
 	seq_puts(m,
@@ -121,6 +122,24 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 		} else {
 			RGA_DEBUG_INT_FLAG = 1;
 			pr_info("open inturrupt MSG!\n");
+		}
+	} else if (strncmp(buf, "debug", 3) == 0) {
+		if (RGA_DEBUG_DEBUG_MODE) {
+			RGA_DEBUG_REG = 0;
+			RGA_DEBUG_MSG = 0;
+			RGA_DEBUG_TIME = 0;
+			RGA_DEBUG_INT_FLAG = 0;
+
+			RGA_DEBUG_DEBUG_MODE = 0;
+			pr_info("close debug mode!\n");
+		} else {
+			RGA_DEBUG_REG = 1;
+			RGA_DEBUG_MSG = 1;
+			RGA_DEBUG_TIME = 1;
+			RGA_DEBUG_INT_FLAG = 1;
+
+			RGA_DEBUG_DEBUG_MODE = 1;
+			pr_info("open debug mode!\n");
 		}
 	} else if (strncmp(buf, "slt", 3) == 0) {
 		pr_err("Null");
@@ -447,7 +466,7 @@ CREATE_FAIL:
 }
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_DEBUG_FS */
 
-#ifdef CONFIG_ROCKCHIP_RGA2_PROC_FS
+#ifdef CONFIG_ROCKCHIP_RGA_PROC_FS
 static int rga_procfs_open(struct inode *inode, struct file *file)
 {
 	struct rga_debugger_node *node = PDE_DATA(inode);
@@ -455,13 +474,12 @@ static int rga_procfs_open(struct inode *inode, struct file *file)
 	return single_open(file, node->info_ent->show, node);
 }
 
-static const struct file_operations rga_procfs_fops = {
-	.owner = THIS_MODULE,
-	.open = rga_procfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = rga_debugger_write,
+static const struct proc_ops rga_procfs_fops = {
+	.proc_open = rga_procfs_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_write = rga_debugger_write,
 };
 
 static int rga_procfs_remove_files(struct rga_debugger *debugger)
