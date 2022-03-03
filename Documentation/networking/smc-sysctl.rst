@@ -1,11 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========
+==========
 SMC Sysctl
-=========
+==========
 
 /proc/sys/net/smc/* Variables
-==============================
+=============================
 
 autocorking_size - INTEGER
 	Setting SMC auto corking size:
