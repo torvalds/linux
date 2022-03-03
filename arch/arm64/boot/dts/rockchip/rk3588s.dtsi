@@ -571,13 +571,13 @@
 		opp-shared;
 
 		rockchip,pvtm-voltage-sel = <
-			0	1417	0
-			1418	1437	1
-			1438	1457	2
-			1458	1482	3
-			1483	1507	4
-			1508	1534	5
-			1535	9999	6
+			0	1410	0
+			1411	1434	1
+			1435	1458	2
+			1459	1482	3
+			1483	1506	4
+			1507	1530	5
+			1531	9999	6
 		>;
 		rockchip,pvtm-pvtpll;
 		rockchip,pvtm-offset = <0x64>;
@@ -585,7 +585,7 @@
 		rockchip,pvtm-freq = <1416000>;
 		rockchip,pvtm-volt = <750000>;
 		rockchip,pvtm-ref-temp = <25>;
-		rockchip,pvtm-temp-prop = <(-175) (-300)>;
+		rockchip,pvtm-temp-prop = <244 244>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 
 		rockchip,grf = <&litcore_grf>;
@@ -620,7 +620,11 @@
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <700000 700000 950000>,
 					<700000 700000 950000>;
-			opp-microvolt-L3 = <687500 675500 950000>,
+			opp-microvolt-L1 = <687500 687500 950000>,
+					   <687500 687500 950000>;
+			opp-microvolt-L2 = <687500 687500 950000>,
+					   <687500 687500 950000>;
+			opp-microvolt-L3 = <687500 687500 950000>,
 					   <687500 687500 950000>;
 			opp-microvolt-L4 = <675000 675000 950000>,
 					   <675000 675000 950000>;
@@ -640,8 +644,8 @@
 					   <737500 737500 950000>;
 			opp-microvolt-L3 = <725000 725000 950000>,
 					   <725000 725000 950000>;
-			opp-microvolt-L4 = <712500 712500 950000>,
-					   <712500 712500 950000>;
+			opp-microvolt-L4 = <725000 725000 950000>,
+					   <725000 725000 950000>;
 			opp-microvolt-L5 = <712500 712500 950000>,
 					   <712500 712500 950000>;
 			opp-microvolt-L6 = <712500 712500 950000>,
@@ -705,7 +709,7 @@
 		rockchip,pvtm-freq = <1608000>;
 		rockchip,pvtm-volt = <750000>;
 		rockchip,pvtm-ref-temp = <25>;
-		rockchip,pvtm-temp-prop = <(-148) (-287)>;
+		rockchip,pvtm-temp-prop = <270 270>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 
 		rockchip,grf = <&bigcore0_grf>;
@@ -860,7 +864,7 @@
 		rockchip,pvtm-freq = <1608000>;
 		rockchip,pvtm-volt = <750000>;
 		rockchip,pvtm-ref-temp = <25>;
-		rockchip,pvtm-temp-prop = <(-148) (-287)>;
+		rockchip,pvtm-temp-prop = <270 270>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 
 		rockchip,grf = <&bigcore1_grf>;
@@ -1493,12 +1497,12 @@
 		compatible = "operating-points-v2";
 
 		rockchip,pvtm-voltage-sel = <
-			0	840	0
-			841	865	1
-			866	890	2
-			891	915	3
-			916	940	4
-			941	9999	5
+			0	830	0
+			831	855	1
+			856	880	2
+			881	905	3
+			906	930	4
+			931	9999	5
 		>;
 		rockchip,pvtm-pvtpll;
 		rockchip,pvtm-offset = <0x1c>;
@@ -1506,7 +1510,7 @@
 		rockchip,pvtm-freq = <800000>;
 		rockchip,pvtm-volt = <750000>;
 		rockchip,pvtm-ref-temp = <25>;
-		rockchip,pvtm-temp-prop = <250 170>;
+		rockchip,pvtm-temp-prop = <(-135) (-135)>;
 		rockchip,pvtm-thermal-zone = "gpu-thermal";
 
 		clocks = <&cru CLK_GPU>;
@@ -2488,7 +2492,7 @@
 		rockchip,pvtm-freq = <800000>;
 		rockchip,pvtm-volt = <750000>;
 		rockchip,pvtm-ref-temp = <25>;
-		rockchip,pvtm-temp-prop = <175 81>;
+		rockchip,pvtm-temp-prop = <(-113) (-113)>;
 		rockchip,pvtm-thermal-zone = "npu-thermal";
 
 		clocks = <&cru PCLK_NPU_GRF>;
