@@ -210,19 +210,18 @@ static noinline int test_unwind_ftraced_func(struct unwindme *u)
 
 static int test_unwind_ftrace(struct unwindme *u)
 {
-	struct ftrace_ops *fops;
 	int ret;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct ftrace_ops *fops;
 
-#ifndef CONFIG_DYNAMIC_FTRACE
-	kunit_skip(current_test, "requires CONFIG_DYNAMIC_FTRACE");
-	fops = NULL; /* used */
-#else
 	fops = kunit_kzalloc(current_test, sizeof(*fops), GFP_KERNEL);
 	fops->func = test_unwind_ftrace_handler;
 	fops->flags = FTRACE_OPS_FL_DYNAMIC |
 		     FTRACE_OPS_FL_RECURSION |
 		     FTRACE_OPS_FL_SAVE_REGS |
 		     FTRACE_OPS_FL_PERMANENT;
+#else
+	kunit_skip(current_test, "requires CONFIG_DYNAMIC_FTRACE");
 #endif
 
 	ret = ftrace_set_filter_ip(fops, (unsigned long)test_unwind_ftraced_func, 0, 0);
