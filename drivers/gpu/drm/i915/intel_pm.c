@@ -4919,17 +4919,6 @@ static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes, bool
 }
 
 static bool
-use_min_ddb(const struct intel_crtc_state *crtc_state,
-	    struct intel_plane *plane)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-
-	return DISPLAY_VER(i915) >= 13 &&
-	       crtc_state->uapi.async_flip &&
-	       plane->async_flip;
-}
-
-static bool
 use_minimal_wm0_only(const struct intel_crtc_state *crtc_state,
 		     struct intel_plane *plane)
 {
@@ -4941,134 +4930,24 @@ use_minimal_wm0_only(const struct intel_crtc_state *crtc_state,
 }
 
 static u64
-skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
-			     const struct intel_plane_state *plane_state,
-			     int color_plane)
+skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int width, height;
-
-	if (!plane_state->uapi.visible)
-		return 0;
-
-	if (plane->id == PLANE_CURSOR)
-		return 0;
-
-	/*
-	 * We calculate extra ddb based on ratio plane rate/total data rate
-	 * in case, in some cases we should not allocate extra ddb for the plane,
-	 * so do not count its data rate, if this is the case.
-	 */
-	if (use_min_ddb(crtc_state, plane))
-		return 0;
-
-	if (color_plane == 1 &&
-	    !intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
-		return 0;
-
-	/*
-	 * Src coordinates are already rotated by 270 degrees for
-	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
-	 */
-	width = drm_rect_width(&plane_state->uapi.src) >> 16;
-	height = drm_rect_height(&plane_state->uapi.src) >> 16;
-
-	/* UV plane does 1/2 pixel sub-sampling */
-	if (color_plane == 1) {
-		width /= 2;
-		height /= 2;
-	}
-
-	return width * height * fb->format->cpp[color_plane];
-}
-
-static u64
-skl_get_total_relative_data_rate(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *plane_state;
-	struct intel_plane *plane;
-	u64 total_data_rate = 0;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum plane_id plane_id;
-	int i;
-
-	/* Calculate and cache data rate for each plane */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe != crtc->pipe)
-			continue;
-
-		plane_id = plane->id;
-
-		/* packed/y */
-		crtc_state->plane_data_rate[plane_id] =
-			skl_plane_relative_data_rate(crtc_state, plane_state, 0);
-
-		/* uv-plane */
-		crtc_state->uv_plane_data_rate[plane_id] =
-			skl_plane_relative_data_rate(crtc_state, plane_state, 1);
-	}
+	u64 data_rate = 0;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		total_data_rate += crtc_state->plane_data_rate[plane_id];
-		total_data_rate += crtc_state->uv_plane_data_rate[plane_id];
-	}
-
-	return total_data_rate;
-}
-
-static u64
-icl_get_total_relative_data_rate(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *plane_state;
-	struct intel_plane *plane;
-	u64 total_data_rate = 0;
-	enum plane_id plane_id;
-	int i;
-
-	/* Calculate and cache data rate for each plane */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe != crtc->pipe)
+		if (plane_id == PLANE_CURSOR)
 			continue;
 
-		plane_id = plane->id;
+		data_rate += crtc_state->rel_data_rate[plane_id];
 
-		if (!plane_state->planar_linked_plane) {
-			crtc_state->plane_data_rate[plane_id] =
-				skl_plane_relative_data_rate(crtc_state, plane_state, 0);
-		} else {
-			enum plane_id y_plane_id;
-
-			/*
-			 * The slave plane might not iterate in
-			 * intel_atomic_crtc_state_for_each_plane_state(),
-			 * and needs the master plane state which may be
-			 * NULL if we try get_new_plane_state(), so we
-			 * always calculate from the master.
-			 */
-			if (plane_state->planar_slave)
-				continue;
-
-			/* Y plane rate is calculated on the slave */
-			y_plane_id = plane_state->planar_linked_plane->id;
-			crtc_state->plane_data_rate[y_plane_id] =
-				skl_plane_relative_data_rate(crtc_state, plane_state, 0);
-
-			crtc_state->plane_data_rate[plane_id] =
-				skl_plane_relative_data_rate(crtc_state, plane_state, 1);
-		}
+		if (DISPLAY_VER(i915) < 11)
+			data_rate += crtc_state->rel_data_rate_y[plane_id];
 	}
 
-	for_each_plane_id_on_crtc(crtc, plane_id)
-		total_data_rate += crtc_state->plane_data_rate[plane_id];
-
-	return total_data_rate;
+	return data_rate;
 }
 
 const struct skl_wm_level *
@@ -5186,11 +5065,6 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	if (!crtc_state->hw.active)
 		return 0;
 
-	if (DISPLAY_VER(dev_priv) >= 11)
-		iter.data_rate = icl_get_total_relative_data_rate(state, crtc);
-	else
-		iter.data_rate = skl_get_total_relative_data_rate(state, crtc);
-
 	iter.size = skl_ddb_entry_size(alloc);
 	if (iter.size == 0)
 		return 0;
@@ -5200,6 +5074,8 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	iter.size -= iter.total[PLANE_CURSOR];
 	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[PLANE_CURSOR],
 			   alloc->end - iter.total[PLANE_CURSOR], alloc->end);
+
+	iter.data_rate = skl_total_relative_data_rate(crtc_state);
 
 	/*
 	 * Find the highest watermark level for which we can satisfy the block
@@ -5255,13 +5131,19 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		if (plane_id == PLANE_CURSOR)
 			continue;
 
-		iter.total[plane_id] =
-			skl_allocate_plane_ddb(&iter, &wm->wm[level],
-					       crtc_state->plane_data_rate[plane_id]);
-
-		iter.uv_total[plane_id] =
-			skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
-					       crtc_state->uv_plane_data_rate[plane_id]);
+		if (DISPLAY_VER(dev_priv) < 11 &&
+		    crtc_state->nv12_planes & BIT(plane_id)) {
+			iter.total[plane_id] =
+				skl_allocate_plane_ddb(&iter, &wm->wm[level],
+						       crtc_state->rel_data_rate_y[plane_id]);
+			iter.uv_total[plane_id] =
+				skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
+						       crtc_state->rel_data_rate[plane_id]);
+		} else {
+			iter.total[plane_id] =
+				skl_allocate_plane_ddb(&iter, &wm->wm[level],
+						       crtc_state->rel_data_rate[plane_id]);
+		}
 	}
 	drm_WARN_ON(&dev_priv->drm, iter.size != 0 || iter.data_rate != 0);
 
@@ -5281,15 +5163,18 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			    DISPLAY_VER(dev_priv) >= 11 && iter.uv_total[plane_id]);
 
 		/* Leave disabled planes at (0,0) */
-		if (iter.total[plane_id])
-			iter.start = skl_ddb_entry_init(ddb, iter.start,
-							iter.start + iter.total[plane_id]);
-
-		if (iter.uv_total[plane_id]) {
-			/* hardware wants these swapped */
-			*ddb_y = *ddb;
-			iter.start = skl_ddb_entry_init(ddb, iter.start,
-							iter.start + iter.uv_total[plane_id]);
+		if (DISPLAY_VER(dev_priv) < 11 &&
+		    crtc_state->nv12_planes & BIT(plane_id)) {
+			if (iter.total[plane_id])
+				iter.start = skl_ddb_entry_init(ddb_y, iter.start,
+								iter.start + iter.total[plane_id]);
+			if (iter.uv_total[plane_id])
+				iter.start = skl_ddb_entry_init(ddb, iter.start,
+								iter.start + iter.uv_total[plane_id]);
+		} else {
+			if (iter.total[plane_id])
+				iter.start = skl_ddb_entry_init(ddb, iter.start,
+								iter.start + iter.total[plane_id]);
 		}
 	}
 

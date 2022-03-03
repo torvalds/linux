@@ -1134,9 +1134,9 @@ struct intel_crtc_state {
 	/* for planar Y */
 	u32 data_rate_y[I915_MAX_PLANES];
 
-	/* FIXME unify with data_rate[] */
-	u64 plane_data_rate[I915_MAX_PLANES];
-	u64 uv_plane_data_rate[I915_MAX_PLANES];
+	/* FIXME unify with data_rate[]? */
+	u64 rel_data_rate[I915_MAX_PLANES];
+	u64 rel_data_rate_y[I915_MAX_PLANES];
 
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
