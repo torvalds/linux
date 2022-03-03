@@ -487,6 +487,8 @@ static int do_parent(pid_t child)
 	unsigned int vq, vl;
 	bool vl_supported;
 
+	ksft_print_msg("Parent is %d, child is %d\n", getpid(), child);
+
 	/* Attach to the child */
 	while (1) {
 		int sig;
