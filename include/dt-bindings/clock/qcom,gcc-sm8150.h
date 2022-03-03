@@ -243,6 +243,8 @@
 /* GCC GDSCRs */
 #define PCIE_0_GDSC						0
 #define PCIE_1_GDSC						1
+#define UFS_CARD_GDSC						2
+#define UFS_PHY_GDSC						3
 #define USB30_PRIM_GDSC                     4
 #define USB30_SEC_GDSC						5
 
