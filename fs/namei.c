@@ -5005,6 +5005,7 @@ EXPORT_SYMBOL(page_readlink);
 int page_symlink(struct inode *inode, const char *symname, int len)
 {
 	struct address_space *mapping = inode->i_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
 	bool nofs = !mapping_gfp_constraint(mapping, __GFP_FS);
 	struct page *page;
 	void *fsdata;
@@ -5014,8 +5015,7 @@ int page_symlink(struct inode *inode, const char *symname, int len)
 retry:
 	if (nofs)
 		flags = memalloc_nofs_save();
-	err = pagecache_write_begin(NULL, mapping, 0, len-1,
-				0, &page, &fsdata);
+	err = aops->write_begin(NULL, mapping, 0, len-1, &page, &fsdata);
 	if (nofs)
 		memalloc_nofs_restore(flags);
 	if (err)
@@ -5023,7 +5023,7 @@ retry:
 
 	memcpy(page_address(page), symname, len-1);
 
-	err = pagecache_write_end(NULL, mapping, 0, len-1, len-1,
+	err = aops->write_end(NULL, mapping, 0, len-1, len-1,
 							page, fsdata);
 	if (err < 0)
 		goto fail;
