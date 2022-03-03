@@ -491,7 +491,7 @@ static int rts5228_extra_init_hw(struct rtsx_pcr *pcr)
 
 	if (pcr->rtd3_en) {
 		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x01);
-	rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
+		rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
 				FORCE_PM_CONTROL | FORCE_PM_VALUE,
 				FORCE_PM_CONTROL | FORCE_PM_VALUE);
 	} else {
