@@ -1195,18 +1195,16 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 					    struct ocelot_vcap_block *block,
 					    struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *q;
+	struct ocelot_vcap_filter *tmp, *n;
 
-	list_for_each_safe(pos, q, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
+	list_for_each_entry_safe(tmp, n, &block->rules, list) {
 		if (ocelot_vcap_filter_equal(filter, tmp)) {
 			if (tmp->block_id == VCAP_IS2 &&
 			    tmp->action.police_ena)
 				ocelot_vcap_policer_del(ocelot,
 							tmp->action.pol_ix);
 
-			list_del(pos);
+			list_del(&tmp->list);
 			kfree(tmp);
 		}
 	}
