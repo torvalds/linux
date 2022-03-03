@@ -978,6 +978,7 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 	case IMX8MM:
 		if (phy_power_off(imx6_pcie->phy))
 			dev_err(dev, "unable to power off PHY\n");
+		phy_exit(imx6_pcie->phy);
 		break;
 	default:
 		break;
