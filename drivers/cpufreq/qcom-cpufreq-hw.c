@@ -17,6 +17,9 @@
 #include <linux/spinlock.h>
 #include <linux/qcom-cpufreq-hw.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/dcvsh.h>
+
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
 #define LUT_L_VAL			GENMASK(7, 0)
@@ -379,6 +382,8 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	} else {
 		throttled_freq = freq_hz / HZ_PER_KHZ;
 
+		trace_dcvsh_freq(cpu, qcom_cpufreq_hw_get(cpu), throttled_freq);
+
 		/* Update thermal pressure (the boost frequencies are accepted) */
 		arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
 
@@ -397,11 +402,13 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	 * If h/w throttled frequency is higher than what cpufreq has requested
 	 * for, then stop polling and switch back to interrupt mechanism.
 	 */
-	if (throttled_freq >= qcom_cpufreq_hw_get(cpu))
+	if (throttled_freq >= qcom_cpufreq_hw_get(cpu)) {
 		enable_irq(data->throttle_irq);
-	else
+		trace_dcvsh_throttle(cpu, 0);
+	} else {
 		mod_delayed_work(system_highpri_wq, &data->throttle_work,
 				 msecs_to_jiffies(10));
+	}
 
 out:
 	mutex_unlock(&data->throttle_lock);
@@ -418,9 +425,11 @@ static void qcom_lmh_dcvs_poll(struct work_struct *work)
 static irqreturn_t qcom_lmh_dcvs_handle_irq(int irq, void *data)
 {
 	struct qcom_cpufreq_data *c_data = data;
+	struct cpufreq_policy *policy = c_data->policy;
 
 	/* Disable interrupt and enable polling */
 	disable_irq_nosync(c_data->throttle_irq);
+	trace_dcvsh_throttle(cpumask_first(policy->cpus), 1);
 	schedule_delayed_work(&c_data->throttle_work, 0);
 
 	if (c_data->soc_data->reg_intr_clr)
@@ -532,6 +541,7 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 	irq_set_affinity_hint(data->throttle_irq, NULL);
 
 	arch_update_thermal_pressure(policy->related_cpus, U32_MAX);
+	trace_dcvsh_throttle(cpumask_first(policy->related_cpus), 0);
 
 	return 0;
 }
