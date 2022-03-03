@@ -210,7 +210,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	void __iomem *io_addr;
 	resource_size_t addr;
 	unsigned long size;
-	u32 val, val2;
+	u32 val;
 	int i;
 
 	pci_read_config_dword(dev, bar_offset, &val);
@@ -221,6 +221,8 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	addr = (resource_size_t)(val & PCI_BASE_ADDRESS_MEM_MASK);
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if ((val & PCI_BASE_ADDRESS_MEM_TYPE_MASK) == PCI_BASE_ADDRESS_MEM_TYPE_64) {
+		u32 val2;
+
 		pci_read_config_dword(dev, bar_offset + 4, &val2);
 		addr |= ((resource_size_t)val2) << 32;
 	}
