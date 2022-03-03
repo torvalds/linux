@@ -207,11 +207,9 @@ struct sta_recv_priv {
 };
 
 struct recv_buf {
-	u32	ref_cnt;
 	struct adapter *adapter;
 	u8	*pbuf;
 	u8	*pallocated_buf;
-	u32	len;
 	u8	*phead;
 	u8	*pdata;
 	u8	*ptail;
@@ -220,7 +218,6 @@ struct recv_buf {
 	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
 	u32 alloc_sz;
 	u8  irp_pending;
-	int  transfer_len;
 	struct sk_buff *pskb;
 	u8	reuse;
 };
