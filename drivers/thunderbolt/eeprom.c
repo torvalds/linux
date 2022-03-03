@@ -553,9 +553,9 @@ static int tb_drom_parse(struct tb_switch *sw)
 	crc = tb_crc8((u8 *) &header->uid, 8);
 	if (crc != header->uid_crc8) {
 		tb_sw_warn(sw,
-			"DROM UID CRC8 mismatch (expected: %#x, got: %#x), aborting\n",
+			"DROM UID CRC8 mismatch (expected: %#x, got: %#x)\n",
 			header->uid_crc8, crc);
-		return -EINVAL;
+		return -EILSEQ;
 	}
 	if (!sw->uid)
 		sw->uid = header->uid;
@@ -654,6 +654,7 @@ int tb_drom_read(struct tb_switch *sw)
 	sw->drom = kzalloc(size, GFP_KERNEL);
 	if (!sw->drom)
 		return -ENOMEM;
+read:
 	res = tb_drom_read_n(sw, 0, sw->drom, size);
 	if (res)
 		goto err;
@@ -662,7 +663,11 @@ parse:
 	header = (void *) sw->drom;
 
 	if (header->data_len + TB_DROM_DATA_START != size) {
-		tb_sw_warn(sw, "drom size mismatch, aborting\n");
+		tb_sw_warn(sw, "drom size mismatch\n");
+		if (retries--) {
+			msleep(100);
+			goto read;
+		}
 		goto err;
 	}
 
@@ -683,11 +688,9 @@ parse:
 
 	/* If the DROM parsing fails, wait a moment and retry once */
 	if (res == -EILSEQ && retries--) {
-		tb_sw_warn(sw, "parsing DROM failed, retrying\n");
+		tb_sw_warn(sw, "parsing DROM failed\n");
 		msleep(100);
-		res = tb_drom_read_n(sw, 0, sw->drom, size);
-		if (!res)
-			goto parse;
+		goto read;
 	}
 
 	if (!res)
