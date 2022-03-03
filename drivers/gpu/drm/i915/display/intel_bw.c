@@ -599,6 +599,18 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 	return data_rate;
 }
 
+/* "Maximum Pipe Read Bandwidth" */
+static int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (DISPLAY_VER(i915) < 12)
+		return 0;
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
+}
+
 void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state)
 {
@@ -696,6 +708,9 @@ static bool intel_bw_state_changed(struct drm_i915_private *i915,
 			    old_crtc_bw->active_planes[slice] != new_crtc_bw->active_planes[slice])
 				return true;
 		}
+
+		if (old_bw_state->min_cdclk[pipe] != new_bw_state->min_cdclk[pipe])
+			return true;
 	}
 
 	return false;
@@ -788,7 +803,15 @@ intel_bw_dbuf_min_cdclk(struct drm_i915_private *i915,
 int intel_bw_min_cdclk(struct drm_i915_private *i915,
 		       const struct intel_bw_state *bw_state)
 {
-	return intel_bw_dbuf_min_cdclk(i915, bw_state);
+	enum pipe pipe;
+	int min_cdclk;
+
+	min_cdclk = intel_bw_dbuf_min_cdclk(i915, bw_state);
+
+	for_each_pipe(i915, pipe)
+		min_cdclk = max(bw_state->min_cdclk[pipe], min_cdclk);
+
+	return min_cdclk;
 }
 
 int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
@@ -814,6 +837,9 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
 		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
+
+		new_bw_state->min_cdclk[crtc->pipe] =
+			intel_bw_crtc_min_cdclk(crtc_state);
 	}
 
 	if (!old_bw_state)
@@ -830,9 +856,9 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 
 	/*
 	 * No need to check against the cdclk state if
-	 * the min cdclk for the dbuf doesn't increase.
+	 * the min cdclk doesn't increase.
 	 *
-	 * Ie. we only ever increase the cdclk due to dbuf
+	 * Ie. we only ever increase the cdclk due to bandwidth
 	 * requirements. This can reduce back and forth
 	 * display blinking due to constant cdclk changes.
 	 */
@@ -845,9 +871,9 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 
 	/*
 	 * No need to recalculate the cdclk state if
-	 * the min cdclk for the dbuf doesn't increase.
+	 * the min cdclk doesn't increase.
 	 *
-	 * Ie. we only ever increase the cdclk due to dbuf
+	 * Ie. we only ever increase the cdclk due to bandwidth
 	 * requirements. This can reduce back and forth
 	 * display blinking due to constant cdclk changes.
 	 */
