@@ -1,4 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
+if CRYPTO_DEV_ROCKCHIP
+
+config CRYPTO_DEV_ROCKCHIP_V1
+	bool "crypto v1 for RV1108 RK3288 RK3368 RK3399"
+	default y if CPU_RV1108 || CPU_RK3288 || CPU_RK3368 || CPU_RK3399
+
+config CRYPTO_DEV_ROCKCHIP_V2
+	bool "crypto v2 for RV1109/RV1126 RK1808 RK3308 PX30/RK3326 RK356X RK3588"
+	default y if CPU_RV1126 || CPU_RK1808 || CPU_RK3308 || CPU_PX30 || CPU_RK3568 || CPU_RK3588
+
+endif
+
 config CRYPTO_DEV_ROCKCHIP_DEV
 	tristate "Export rockchip crypto device for user space"
 	depends on CRYPTO_DEV_ROCKCHIP

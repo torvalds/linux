@@ -407,16 +407,6 @@ static void rk_ablk_exit_tfm(struct crypto_skcipher *tfm)
 	ctx->rk_dev->release_crypto(ctx->rk_dev, alg_name);
 }
 
-int rk_hw_crypto_v1_init(struct device *dev, void *hw_info)
-{
-	return 0;
-}
-
-void rk_hw_crypto_v1_deinit(struct device *dev, void *hw_info)
-{
-
-}
-
 struct rk_crypto_algt rk_v1_ecb_aes_alg =
 	RK_CIPHER_ALGO_INIT(AES, ECB, ecb(aes), ecb-aes-rk);
 

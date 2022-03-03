@@ -14,6 +14,7 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v2_reg.h"
+#include "rk_crypto_v2_pka.h"
 
 #define BG_WORDS2BYTES(words)	((words) * sizeof(u32))
 #define BG_BYTES2WORDS(bytes)	(((bytes) + sizeof(u32) - 1) / sizeof(u32))

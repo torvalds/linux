@@ -11,6 +11,21 @@ struct rk_hw_crypto_v1_info {
 	int	reserved;
 };
 
+#define RK_CRYPTO_V1_SOC_DATA_INIT(names) {\
+	.crypto_ver		= "CRYPTO V1.0.0.0",\
+	.use_soft_aes192	= false,\
+	.valid_algs_name	= (names),\
+	.valid_algs_num		= ARRAY_SIZE(names),\
+	.hw_init		= rk_hw_crypto_v1_init,\
+	.hw_deinit		= rk_hw_crypto_v1_deinit,\
+	.hw_get_rsts		= rk_hw_crypto_v1_get_rsts,\
+	.hw_get_algts		= rk_hw_crypto_v1_get_algts,\
+	.hw_info_size		= sizeof(struct rk_hw_crypto_v1_info),\
+	.default_pka_offset	= 0,\
+}
+
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V1)
+
 extern struct rk_crypto_algt rk_v1_ecb_aes_alg;
 extern struct rk_crypto_algt rk_v1_cbc_aes_alg;
 
@@ -26,5 +41,17 @@ extern struct rk_crypto_algt rk_v1_ahash_md5;
 
 int rk_hw_crypto_v1_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v1_deinit(struct device *dev, void *hw_info);
-#endif
+const char * const *rk_hw_crypto_v1_get_rsts(uint32_t *num);
+struct rk_crypto_algt **rk_hw_crypto_v1_get_algts(uint32_t *num);
+
+#else
+
+static inline int rk_hw_crypto_v1_init(struct device *dev, void *hw_info) { return -EINVAL; }
+static inline void rk_hw_crypto_v1_deinit(struct device *dev, void *hw_info) {}
+static inline const char * const *rk_hw_crypto_v1_get_rsts(uint32_t *num) { return NULL; }
+static inline struct rk_crypto_algt **rk_hw_crypto_v1_get_algts(uint32_t *num) { return NULL; }
+
+#endif /* end of IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V1) */
+
+#endif /* end of __RK_CRYPTO_V1_H__ */
 
