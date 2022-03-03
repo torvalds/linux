@@ -564,9 +564,9 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		val = proto.value[0];
 		msk = proto.mask[0];
 		type = IS2_TYPE_IP_UDP_TCP;
-		if (msk == 0xff && (val == 6 || val == 17)) {
+		if (msk == 0xff && (val == IPPROTO_TCP || val == IPPROTO_UDP)) {
 			/* UDP/TCP protocol match */
-			tcp = (val == 6 ?
+			tcp = (val == IPPROTO_TCP ?
 			       OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
 			vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_TCP, tcp);
 			vcap_key_l4_port_set(vcap, &data,
