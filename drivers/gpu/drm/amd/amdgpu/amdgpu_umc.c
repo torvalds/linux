@@ -97,6 +97,11 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			amdgpu_ras_save_bad_pages(adev);
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+
+			if (con->update_channel_flag == true) {
+				amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
+				con->update_channel_flag = false;
+			}
 		}
 
 		if (reset)

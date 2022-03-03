@@ -374,6 +374,9 @@ struct amdgpu_ras {
 
 	/* record umc error info queried from smu */
 	struct umc_ecc_info umc_ecc;
+
+	/* Indicates smu whether need update bad channel info */
+	bool update_channel_flag;
 };
 
 struct ras_fs_data {
