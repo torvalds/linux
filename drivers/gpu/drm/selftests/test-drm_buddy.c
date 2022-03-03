@@ -902,14 +902,13 @@ err_fini:
 
 static int igt_buddy_alloc_limit(void *arg)
 {
-	u64 end, size = U64_MAX, start = 0;
+	u64 size = U64_MAX, start = 0;
 	struct drm_buddy_block *block;
 	unsigned long flags = 0;
 	LIST_HEAD(allocated);
 	struct drm_buddy mm;
 	int err;
 
-	size = end = round_down(size, 4096);
 	err = drm_buddy_init(&mm, size, PAGE_SIZE);
 	if (err)
 		return err;
@@ -921,7 +920,8 @@ static int igt_buddy_alloc_limit(void *arg)
 		goto out_fini;
 	}
 
-	err = drm_buddy_alloc_blocks(&mm, start, end, size,
+	size = mm.chunk_size << mm.max_order;
+	err = drm_buddy_alloc_blocks(&mm, start, size, size,
 				     PAGE_SIZE, &allocated, flags);
 
 	if (unlikely(err))
