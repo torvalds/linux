@@ -4527,6 +4527,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(crc32c_tv_template)
 		}
 	}, {
+		.alg = "crc64-rocksoft",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = __VECS(crc64_rocksoft_tv_template)
+		}
+	}, {
 		.alg = "crct10dif",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
