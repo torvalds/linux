@@ -2272,7 +2272,49 @@ static void rga_dma_flush_range(void *pstart, void *pend,
 				 pend - pstart, DMA_TO_DEVICE);
 }
 
-static void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
+static void rga2_dump_read_back_sys_reg(struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t sys_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		sys_reg[i] = rga_read(RGA2_SYS_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	pr_info("SYS_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		pr_info("0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_SYS_REG_BASE + i * 0x10,
+			sys_reg[0 + i * 4], sys_reg[1 + i * 4],
+			sys_reg[2 + i * 4], sys_reg[3 + i * 4]);
+}
+
+static void rga2_dump_read_back_csc_reg(struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t csc_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		csc_reg[i] = rga_read(RGA2_CSC_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	pr_info("CSC_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		pr_info("0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_CSC_REG_BASE + i * 0x10,
+			csc_reg[0 + i * 4], csc_reg[1 + i * 4],
+			csc_reg[2 + i * 4], csc_reg[3 + i * 4]);
+}
+
+static void rga2_dump_read_back_cmd_reg(struct rga_scheduler_t *scheduler)
 {
 	int i;
 	unsigned long flags;
@@ -2390,6 +2432,9 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(REG)) {
 		int32_t *p;
 
+		rga2_dump_read_back_sys_reg(scheduler);
+		rga2_dump_read_back_csc_reg(scheduler);
+
 		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
 		for (i = 0; i < 8; i++)
@@ -2424,8 +2469,11 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	rga_write(1, RGA2_CMD_CTRL, scheduler);
 
-	if (DEBUGGER_EN(REG))
-		rga2_dump_read_back_reg(scheduler);
+	if (DEBUGGER_EN(REG)) {
+		rga2_dump_read_back_sys_reg(scheduler);
+		rga2_dump_read_back_csc_reg(scheduler);
+		rga2_dump_read_back_cmd_reg(scheduler);
+	}
 
 	return 0;
 }
