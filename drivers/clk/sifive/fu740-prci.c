@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020 SiFive, Inc.
- * Copyright (C) 2020 Zong Li
+ * Copyright (C) 2020-2022 SiFive, Inc.
+ * Copyright (C) 2020-2022 Zong Li
  */
 
 #include <linux/module.h>
@@ -10,50 +10,40 @@
 
 #include "sifive-prci.h"
 
-#define PRCI_CLK_COREPLL	0
-#define PRCI_CLK_DDRPLL		1
-#define PRCI_CLK_GEMGXLPLL	2
-#define PRCI_CLK_DVFSCOREPLL	3
-#define PRCI_CLK_HFPCLKPLL	4
-#define PRCI_CLK_CLTXPLL	5
-#define PRCI_CLK_TLCLK		6
-#define PRCI_CLK_PCLK		7
-#define PRCI_CLK_PCIE_AUX	8
-
 /* PRCI integration data for each WRPLL instance */
 
-static struct __prci_wrpll_data __prci_corepll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_corepll_data = {
 	.cfg0_offs = PRCI_COREPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_COREPLLCFG1_OFFSET,
 	.enable_bypass = sifive_prci_coreclksel_use_hfclk,
 	.disable_bypass = sifive_prci_coreclksel_use_final_corepll,
 };
 
-static struct __prci_wrpll_data __prci_ddrpll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_ddrpll_data = {
 	.cfg0_offs = PRCI_DDRPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_DDRPLLCFG1_OFFSET,
 };
 
-static struct __prci_wrpll_data __prci_gemgxlpll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_gemgxlpll_data = {
 	.cfg0_offs = PRCI_GEMGXLPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_GEMGXLPLLCFG1_OFFSET,
 };
 
-static struct __prci_wrpll_data __prci_dvfscorepll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_dvfscorepll_data = {
 	.cfg0_offs = PRCI_DVFSCOREPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_DVFSCOREPLLCFG1_OFFSET,
 	.enable_bypass = sifive_prci_corepllsel_use_corepll,
 	.disable_bypass = sifive_prci_corepllsel_use_dvfscorepll,
 };
 
-static struct __prci_wrpll_data __prci_hfpclkpll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_hfpclkpll_data = {
 	.cfg0_offs = PRCI_HFPCLKPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_HFPCLKPLLCFG1_OFFSET,
 	.enable_bypass = sifive_prci_hfpclkpllsel_use_hfclk,
 	.disable_bypass = sifive_prci_hfpclkpllsel_use_hfpclkpll,
 };
 
-static struct __prci_wrpll_data __prci_cltxpll_data = {
+static struct __prci_wrpll_data sifive_fu740_prci_cltxpll_data = {
 	.cfg0_offs = PRCI_CLTXPLLCFG0_OFFSET,
 	.cfg1_offs = PRCI_CLTXPLLCFG1_OFFSET,
 };
@@ -89,53 +79,53 @@ static const struct clk_ops sifive_fu740_prci_pcie_aux_clk_ops = {
 
 /* List of clock controls provided by the PRCI */
 struct __prci_clock __prci_init_clocks_fu740[] = {
-	[PRCI_CLK_COREPLL] = {
+	[FU740_PRCI_CLK_COREPLL] = {
 		.name = "corepll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_clk_ops,
-		.pwd = &__prci_corepll_data,
+		.pwd = &sifive_fu740_prci_corepll_data,
 	},
-	[PRCI_CLK_DDRPLL] = {
+	[FU740_PRCI_CLK_DDRPLL] = {
 		.name = "ddrpll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_ro_clk_ops,
-		.pwd = &__prci_ddrpll_data,
+		.pwd = &sifive_fu740_prci_ddrpll_data,
 	},
-	[PRCI_CLK_GEMGXLPLL] = {
+	[FU740_PRCI_CLK_GEMGXLPLL] = {
 		.name = "gemgxlpll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_clk_ops,
-		.pwd = &__prci_gemgxlpll_data,
+		.pwd = &sifive_fu740_prci_gemgxlpll_data,
 	},
-	[PRCI_CLK_DVFSCOREPLL] = {
+	[FU740_PRCI_CLK_DVFSCOREPLL] = {
 		.name = "dvfscorepll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_clk_ops,
-		.pwd = &__prci_dvfscorepll_data,
+		.pwd = &sifive_fu740_prci_dvfscorepll_data,
 	},
-	[PRCI_CLK_HFPCLKPLL] = {
+	[FU740_PRCI_CLK_HFPCLKPLL] = {
 		.name = "hfpclkpll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_clk_ops,
-		.pwd = &__prci_hfpclkpll_data,
+		.pwd = &sifive_fu740_prci_hfpclkpll_data,
 	},
-	[PRCI_CLK_CLTXPLL] = {
+	[FU740_PRCI_CLK_CLTXPLL] = {
 		.name = "cltxpll",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_wrpll_clk_ops,
-		.pwd = &__prci_cltxpll_data,
+		.pwd = &sifive_fu740_prci_cltxpll_data,
 	},
-	[PRCI_CLK_TLCLK] = {
+	[FU740_PRCI_CLK_TLCLK] = {
 		.name = "tlclk",
 		.parent_name = "corepll",
 		.ops = &sifive_fu740_prci_tlclksel_clk_ops,
 	},
-	[PRCI_CLK_PCLK] = {
+	[FU740_PRCI_CLK_PCLK] = {
 		.name = "pclk",
 		.parent_name = "hfpclkpll",
 		.ops = &sifive_fu740_prci_hfpclkplldiv_clk_ops,
 	},
-	[PRCI_CLK_PCIE_AUX] = {
+	[FU740_PRCI_CLK_PCIE_AUX] = {
 		.name = "pcie_aux",
 		.parent_name = "hfclk",
 		.ops = &sifive_fu740_prci_pcie_aux_clk_ops,
