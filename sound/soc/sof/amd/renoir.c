@@ -150,7 +150,6 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	/*IPC */
 	.send_msg		= acp_sof_ipc_send_msg,
 	.ipc_msg_data		= acp_sof_ipc_msg_data,
-	.ipc_pcm_params		= acp_sof_ipc_pcm_params,
 	.get_mailbox_offset	= acp_sof_ipc_get_mailbox_offset,
 	.irq_thread		= acp_sof_ipc_irq_thread,
 	.fw_ready		= sof_fw_ready,

@@ -170,14 +170,6 @@ int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_pcm_substream *sub
 }
 EXPORT_SYMBOL_NS(acp_sof_ipc_msg_data, SND_SOC_SOF_AMD_COMMON);
 
-int acp_sof_ipc_pcm_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-			   const struct sof_ipc_pcm_params_reply *reply)
-{
-	/* TODO: Implement stream hw params to validate stream offset */
-	return 0;
-}
-EXPORT_SYMBOL_NS(acp_sof_ipc_pcm_params, SND_SOC_SOF_AMD_COMMON);
-
 int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return ACP_SCRATCH_MEMORY_ADDRESS;
