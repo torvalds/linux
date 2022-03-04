@@ -2159,16 +2159,14 @@ static void build_r4000_tlb_load_handler(void)
 		uasm_i_tlbr(&p);
 
 		switch (current_cpu_type()) {
-		default:
-			if (cpu_has_mips_r2_exec_hazard) {
-				uasm_i_ehb(&p);
-			fallthrough;
-
 		case CPU_CAVIUM_OCTEON:
 		case CPU_CAVIUM_OCTEON_PLUS:
 		case CPU_CAVIUM_OCTEON2:
-				break;
-			}
+			break;
+		default:
+			if (cpu_has_mips_r2_exec_hazard)
+				uasm_i_ehb(&p);
+			break;
 		}
 
 		/* Examine  entrylo 0 or 1 based on ptr. */
@@ -2235,15 +2233,14 @@ static void build_r4000_tlb_load_handler(void)
 		uasm_i_tlbr(&p);
 
 		switch (current_cpu_type()) {
-		default:
-			if (cpu_has_mips_r2_exec_hazard) {
-				uasm_i_ehb(&p);
-
 		case CPU_CAVIUM_OCTEON:
 		case CPU_CAVIUM_OCTEON_PLUS:
 		case CPU_CAVIUM_OCTEON2:
-				break;
-			}
+			break;
+		default:
+			if (cpu_has_mips_r2_exec_hazard)
+				uasm_i_ehb(&p);
+			break;
 		}
 
 		/* Examine  entrylo 0 or 1 based on ptr. */
