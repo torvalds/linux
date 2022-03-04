@@ -283,6 +283,16 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 	}
 }
 
+int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
+		     uint32_t param, uint64_t value)
+{
+	switch (param) {
+	default:
+		DBG("%s: invalid param: %u", gpu->name, param);
+		return -EINVAL;
+	}
+}
+
 const struct firmware *
 adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 {
