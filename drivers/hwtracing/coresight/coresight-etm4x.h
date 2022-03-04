@@ -143,6 +143,10 @@
 #define TRCIDR0_QSUPP_MASK			GENMASK(16, 15)
 #define TRCIDR0_TSSIZE_MASK			GENMASK(28, 24)
 
+#define TRCIDR2_CIDSIZE_MASK			GENMASK(9, 5)
+#define TRCIDR2_VMIDSIZE_MASK			GENMASK(14, 10)
+#define TRCIDR2_CCSIZE_MASK			GENMASK(28, 25)
+
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions
