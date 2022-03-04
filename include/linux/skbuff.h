@@ -395,6 +395,10 @@ enum skb_drop_reason {
 						 */
 	SKB_DROP_REASON_NEIGH_DEAD,	/* neigh entry is dead */
 	SKB_DROP_REASON_TC_EGRESS,	/* dropped in TC egress HOOK */
+	SKB_DROP_REASON_QDISC_DROP,	/* dropped by qdisc when packet
+					 * outputting (failed to enqueue to
+					 * current qdisc)
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
