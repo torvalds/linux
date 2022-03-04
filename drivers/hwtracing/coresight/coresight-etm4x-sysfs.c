@@ -22,7 +22,7 @@ static int etm4_set_mode_exclude(struct etmv4_drvdata *drvdata, bool exclude)
 	 * TRCACATRn.TYPE bit[1:0]: type of comparison
 	 * the trace unit performs
 	 */
-	if (BMVAL(config->addr_acc[idx], 0, 1) == ETM_INSTR_ADDR) {
+	if (FIELD_GET(TRCACATRn_TYPE_MASK, config->addr_acc[idx]) == TRCACATRn_TYPE_ADDR) {
 		if (idx % 2 != 0)
 			return -EINVAL;
 
@@ -863,11 +863,11 @@ static ssize_t addr_instdatatype_show(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
-	val = BMVAL(config->addr_acc[idx], 0, 1);
+	val = FIELD_GET(TRCACATRn_TYPE_MASK, config->addr_acc[idx]);
 	len = scnprintf(buf, PAGE_SIZE, "%s\n",
-			val == ETM_INSTR_ADDR ? "instr" :
-			(val == ETM_DATA_LOAD_ADDR ? "data_load" :
-			(val == ETM_DATA_STORE_ADDR ? "data_store" :
+			val == TRCACATRn_TYPE_ADDR ? "instr" :
+			(val == TRCACATRn_TYPE_DATA_LOAD_ADDR ? "data_load" :
+			(val == TRCACATRn_TYPE_DATA_STORE_ADDR ? "data_store" :
 			"data_load_store")));
 	spin_unlock(&drvdata->spinlock);
 	return len;
@@ -891,7 +891,7 @@ static ssize_t addr_instdatatype_store(struct device *dev,
 	idx = config->addr_idx;
 	if (!strcmp(str, "instr"))
 		/* TYPE, bits[1:0] */
-		config->addr_acc[idx] &= ~(BIT(0) | BIT(1));
+		config->addr_acc[idx] &= ~TRCACATRn_TYPE_MASK;
 
 	spin_unlock(&drvdata->spinlock);
 	return size;
@@ -1149,7 +1149,7 @@ static ssize_t addr_ctxtype_show(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 	/* CONTEXTTYPE, bits[3:2] */
-	val = BMVAL(config->addr_acc[idx], 2, 3);
+	val = FIELD_GET(TRCACATRn_CONTEXTTYPE_MASK, config->addr_acc[idx]);
 	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_NONE ? "none" :
 			(val == ETM_CTX_CTXID ? "ctxid" :
 			(val == ETM_CTX_VMID ? "vmid" : "all")));
@@ -1175,18 +1175,18 @@ static ssize_t addr_ctxtype_store(struct device *dev,
 	idx = config->addr_idx;
 	if (!strcmp(str, "none"))
 		/* start by clearing context type bits */
-		config->addr_acc[idx] &= ~(BIT(2) | BIT(3));
+		config->addr_acc[idx] &= ~TRCACATRn_CONTEXTTYPE_MASK;
 	else if (!strcmp(str, "ctxid")) {
 		/* 0b01 The trace unit performs a Context ID */
 		if (drvdata->numcidc) {
-			config->addr_acc[idx] |= BIT(2);
-			config->addr_acc[idx] &= ~BIT(3);
+			config->addr_acc[idx] |= TRCACATRn_CONTEXTTYPE_CTXID;
+			config->addr_acc[idx] &= ~TRCACATRn_CONTEXTTYPE_VMID;
 		}
 	} else if (!strcmp(str, "vmid")) {
 		/* 0b10 The trace unit performs a VMID */
 		if (drvdata->numvmidc) {
-			config->addr_acc[idx] &= ~BIT(2);
-			config->addr_acc[idx] |= BIT(3);
+			config->addr_acc[idx] &= ~TRCACATRn_CONTEXTTYPE_CTXID;
+			config->addr_acc[idx] |= TRCACATRn_CONTEXTTYPE_VMID;
 		}
 	} else if (!strcmp(str, "all")) {
 		/*
@@ -1194,9 +1194,9 @@ static ssize_t addr_ctxtype_store(struct device *dev,
 		 * comparison and a VMID
 		 */
 		if (drvdata->numcidc)
-			config->addr_acc[idx] |= BIT(2);
+			config->addr_acc[idx] |= TRCACATRn_CONTEXTTYPE_CTXID;
 		if (drvdata->numvmidc)
-			config->addr_acc[idx] |= BIT(3);
+			config->addr_acc[idx] |= TRCACATRn_CONTEXTTYPE_VMID;
 	}
 	spin_unlock(&drvdata->spinlock);
 	return size;
@@ -1215,7 +1215,7 @@ static ssize_t addr_context_show(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 	/* context ID comparator bits[6:4] */
-	val = BMVAL(config->addr_acc[idx], 4, 6);
+	val = FIELD_GET(TRCACATRn_CONTEXT_MASK, config->addr_acc[idx]);
 	spin_unlock(&drvdata->spinlock);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
@@ -1240,8 +1240,8 @@ static ssize_t addr_context_store(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 	/* clear context ID comparator bits[6:4] */
-	config->addr_acc[idx] &= ~(BIT(4) | BIT(5) | BIT(6));
-	config->addr_acc[idx] |= (val << 4);
+	config->addr_acc[idx] &= ~TRCACATRn_CONTEXT_MASK;
+	config->addr_acc[idx] |= val << __bf_shf(TRCACATRn_CONTEXT_MASK);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -1258,7 +1258,7 @@ static ssize_t addr_exlevel_s_ns_show(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
-	val = BMVAL(config->addr_acc[idx], 8, 14);
+	val = FIELD_GET(TRCACATRn_EXLEVEL_MASK, config->addr_acc[idx]);
 	spin_unlock(&drvdata->spinlock);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
@@ -1275,14 +1275,14 @@ static ssize_t addr_exlevel_s_ns_store(struct device *dev,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val & ~((GENMASK(14, 8) >> 8)))
+	if (val & ~(TRCACATRn_EXLEVEL_MASK >> __bf_shf(TRCACATRn_EXLEVEL_MASK)))
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 	/* clear Exlevel_ns & Exlevel_s bits[14:12, 11:8], bit[15] is res0 */
-	config->addr_acc[idx] &= ~(GENMASK(14, 8));
-	config->addr_acc[idx] |= (val << 8);
+	config->addr_acc[idx] &= ~TRCACATRn_EXLEVEL_MASK;
+	config->addr_acc[idx] |= val << __bf_shf(TRCACATRn_EXLEVEL_MASK);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }

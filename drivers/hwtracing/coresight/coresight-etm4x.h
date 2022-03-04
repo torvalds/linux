@@ -208,6 +208,12 @@
 #define TRCVICTLR_EXLEVEL_S_MASK		GENMASK(19, 16)
 #define TRCVICTLR_EXLEVEL_NS_MASK		GENMASK(22, 20)
 
+#define TRCACATRn_TYPE_MASK			GENMASK(1, 0)
+#define TRCACATRn_CONTEXTTYPE_MASK		GENMASK(3, 2)
+#define TRCACATRn_CONTEXTTYPE_CTXID		BIT(2)
+#define TRCACATRn_CONTEXTTYPE_VMID		BIT(3)
+#define TRCACATRn_CONTEXT_MASK			GENMASK(6, 4)
+#define TRCACATRn_EXLEVEL_MASK			GENMASK(14, 8)
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions
@@ -1050,10 +1056,10 @@ struct etmv4_drvdata {
 
 /* Address comparator access types */
 enum etm_addr_acctype {
-	ETM_INSTR_ADDR,
-	ETM_DATA_LOAD_ADDR,
-	ETM_DATA_STORE_ADDR,
-	ETM_DATA_LOAD_STORE_ADDR,
+	TRCACATRn_TYPE_ADDR,
+	TRCACATRn_TYPE_DATA_LOAD_ADDR,
+	TRCACATRn_TYPE_DATA_STORE_ADDR,
+	TRCACATRn_TYPE_DATA_LOAD_STORE_ADDR,
 };
 
 /* Address comparator context types */
