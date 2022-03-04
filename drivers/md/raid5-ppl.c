@@ -416,12 +416,10 @@ static void ppl_log_endio(struct bio *bio)
 
 static void ppl_submit_iounit_bio(struct ppl_io_unit *io, struct bio *bio)
 {
-	char b[BDEVNAME_SIZE];
-
-	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %s\n",
+	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %pg\n",
 		 __func__, io->seq, bio->bi_iter.bi_size,
 		 (unsigned long long)bio->bi_iter.bi_sector,
-		 bio_devname(bio, b));
+		 bio->bi_bdev);
 
 	submit_bio(bio);
 }
@@ -589,9 +587,8 @@ static void ppl_flush_endio(struct bio *bio)
 	struct ppl_log *log = io->log;
 	struct ppl_conf *ppl_conf = log->ppl_conf;
 	struct r5conf *conf = ppl_conf->mddev->private;
-	char b[BDEVNAME_SIZE];
 
-	pr_debug("%s: dev: %s\n", __func__, bio_devname(bio, b));
+	pr_debug("%s: dev: %pg\n", __func__, bio->bi_bdev);
 
 	if (bio->bi_status) {
 		struct md_rdev *rdev;
@@ -634,7 +631,6 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 
 		if (bdev) {
 			struct bio *bio;
-			char b[BDEVNAME_SIZE];
 
 			bio = bio_alloc_bioset(bdev, 0, GFP_NOIO,
 					       REQ_OP_WRITE | REQ_PREFLUSH,
@@ -642,8 +638,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 			bio->bi_private = io;
 			bio->bi_end_io = ppl_flush_endio;
 
-			pr_debug("%s: dev: %s\n", __func__,
-				 bio_devname(bio, b));
+			pr_debug("%s: dev: %ps\n", __func__, bio->bi_bdev);
 
 			submit_bio(bio);
 			flushed_disks++;
