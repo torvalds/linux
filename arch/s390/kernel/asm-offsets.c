@@ -50,9 +50,7 @@ int main(void)
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
-	OFFSET(__CLOCK_IDLE_EXIT, s390_idle_data, clock_idle_exit);
 	OFFSET(__TIMER_IDLE_ENTER, s390_idle_data, timer_idle_enter);
-	OFFSET(__TIMER_IDLE_EXIT, s390_idle_data, timer_idle_exit);
 	OFFSET(__MT_CYCLES_ENTER, s390_idle_data, mt_cycles_enter);
 	BLANK();
 	/* hardware defined lowcore locations 0x000 - 0x1ff */
@@ -123,9 +121,6 @@ int main(void)
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
-	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
-	OFFSET(__LC_MACHINE_FLAGS, lowcore, machine_flags);
-	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_BR_R1, lowcore, br_r1_trampoline);
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
