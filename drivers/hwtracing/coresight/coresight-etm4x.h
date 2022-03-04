@@ -220,6 +220,9 @@
 
 #define TRCSSPCICRn_PC_MASK			GENMASK(7, 0)
 
+#define TRCBBCTLR_MODE				BIT(8)
+#define TRCBBCTLR_RANGE_MASK			GENMASK(7, 0)
+
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions
