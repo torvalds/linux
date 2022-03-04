@@ -162,23 +162,24 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
 	 * So the root temporarily gets an extra reference, going to refcount=1
 	 * while staying invalid.  Readers still cannot acquire any reference;
 	 * but writers are now allowed to run if tdp_mmu_zap_root yields and
-	 * they might take an extra reference if they themselves yield.  Therefore,
-	 * when the reference is given back after tdp_mmu_zap_root terminates,
+	 * they might take an extra reference if they themselves yield.
+	 * Therefore, when the reference is given back by the worker,
 	 * there is no guarantee that the refcount is still 1.  If not, whoever
 	 * puts the last reference will free the page, but they will not have to
 	 * zap the root because a root cannot go from invalid to valid.
 	 */
 	if (!kvm_tdp_root_mark_invalid(root)) {
 		refcount_set(&root->tdp_mmu_root_count, 1);
-		tdp_mmu_zap_root(kvm, root, shared);
 
 		/*
-		 * Give back the reference that was added back above.  We now
-		 * know that the root is invalid, so go ahead and free it if
-		 * no one has taken a reference in the meanwhile.
+		 * Zapping the root in a worker is not just "nice to have";
+		 * it is required because kvm_tdp_mmu_invalidate_all_roots()
+		 * skips already-invalid roots.  If kvm_tdp_mmu_put_root() did
+		 * not add the root to the workqueue, kvm_tdp_mmu_zap_all_fast()
+		 * might return with some roots not zapped yet.
 		 */
-		if (!refcount_dec_and_test(&root->tdp_mmu_root_count))
-			return;
+		tdp_mmu_schedule_zap_root(kvm, root);
+		return;
 	}
 
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
@@ -1022,7 +1023,8 @@ void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link) {
-		if (!WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root))) {
+		if (!root->role.invalid &&
+		    !WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root))) {
 			root->role.invalid = true;
 			tdp_mmu_schedule_zap_root(kvm, root);
 		}
