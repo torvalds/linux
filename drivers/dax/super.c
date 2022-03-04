@@ -21,6 +21,7 @@
  * @cdev: optional character interface for "device dax"
  * @private: dax driver private data
  * @flags: state and boolean properties
+ * @ops: operations for this device
  */
 struct dax_device {
 	struct inode inode;
