@@ -176,6 +176,7 @@ static void add_event_to_kfifo(struct kfd_dev *dev, unsigned int smi_event,
 	rcu_read_unlock();
 }
 
+__printf(3, 4)
 static void kfd_smi_event_add(struct kfd_dev *dev, unsigned int event,
 			      char *fmt, ...)
 {
