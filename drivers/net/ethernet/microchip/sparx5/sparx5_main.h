@@ -167,7 +167,6 @@ struct sparx5_port {
 	enum sparx5_port_max_tags max_vlan_tags;
 	enum sparx5_vlan_port_type vlan_type;
 	u32 custom_etype;
-	u32 ifh[IFH_LEN];
 	bool vlan_aware;
 	struct hrtimer inj_timer;
 };
@@ -288,6 +287,7 @@ void sparx5_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *stats
 int sparx_stats_init(struct sparx5 *sparx5);
 
 /* sparx5_netdev.c */
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portno);
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
 int sparx5_register_netdevs(struct sparx5 *sparx5);

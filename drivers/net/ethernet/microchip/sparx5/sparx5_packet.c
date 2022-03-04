@@ -218,12 +218,16 @@ int sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = &dev->stats;
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
+	u32 ifh[IFH_LEN];
 	int ret;
 
+	memset(ifh, 0, IFH_LEN * 4);
+	sparx5_set_port_ifh(ifh, port->portno);
+
 	if (sparx5->fdma_irq > 0)
-		ret = sparx5_fdma_xmit(sparx5, port->ifh, skb);
+		ret = sparx5_fdma_xmit(sparx5, ifh, skb);
 	else
-		ret = sparx5_inject(sparx5, port->ifh, skb, dev);
+		ret = sparx5_inject(sparx5, ifh, skb, dev);
 
 	if (ret == NETDEV_TX_OK) {
 		stats->tx_bytes += skb->len;
