@@ -394,6 +394,7 @@ enum skb_drop_reason {
 						 * entry is full
 						 */
 	SKB_DROP_REASON_NEIGH_DEAD,	/* neigh entry is dead */
+	SKB_DROP_REASON_TC_EGRESS,	/* dropped in TC egress HOOK */
 	SKB_DROP_REASON_MAX,
 };
 
