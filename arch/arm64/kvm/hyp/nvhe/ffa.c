@@ -677,7 +677,7 @@ int hyp_ffa_init(void *pages)
 	size_t min_rxtx_sz;
 	void *tx, *rx;
 
-	if (kvm_host_psci_config.smccc_version < ARM_SMCCC_VERSION_1_2)
+	if (kvm_host_psci_config.smccc_version < ARM_SMCCC_VERSION_1_1)
 		return 0;
 
 	arm_smccc_1_1_smc(FFA_VERSION, FFA_VERSION_1_0, 0, 0, 0, 0, 0, 0, &res);
