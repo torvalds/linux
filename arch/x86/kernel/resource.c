@@ -27,12 +27,14 @@ static void remove_e820_regions(struct resource *avail)
 {
 	int i;
 	struct e820_entry *entry;
+	u64 e820_start, e820_end;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		entry = &e820_table->entries[i];
+		e820_start = entry->addr;
+		e820_end = entry->addr + entry->size - 1;
 
-		resource_clip(avail, entry->addr,
-			      entry->addr + entry->size - 1);
+		resource_clip(avail, e820_start, e820_end);
 	}
 }
 
