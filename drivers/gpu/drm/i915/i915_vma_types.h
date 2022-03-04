@@ -272,6 +272,13 @@ struct i915_vma {
 	atomic_t pages_count; /* number of active binds to the pages */
 
 	/**
+	 * Whether we hold a reference on the vm dma_resv lock to temporarily
+	 * block vm freeing until the vma is destroyed.
+	 * Protected by the vm mutex.
+	 */
+	bool vm_ddestroy;
+
+	/**
 	 * Support different GGTT views into the same object.
 	 * This means there can be multiple VMA mappings per object and per VM.
 	 * i915_ggtt_view_type is used to distinguish between those entries.

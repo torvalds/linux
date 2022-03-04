@@ -1466,8 +1466,6 @@ static void set_closed_name(struct i915_gem_context *ctx)
 
 static void context_close(struct i915_gem_context *ctx)
 {
-	struct i915_address_space *vm;
-
 	/* Flush any concurrent set_engines() */
 	mutex_lock(&ctx->engines_mutex);
 	unpin_engines(__context_engines_static(ctx));
@@ -1479,25 +1477,14 @@ static void context_close(struct i915_gem_context *ctx)
 
 	set_closed_name(ctx);
 
-	vm = ctx->vm;
-	if (vm) {
-		/* i915_vm_close drops the final reference, which is a bit too
-		 * early and could result in surprises with concurrent
-		 * operations racing with thist ctx close. Keep a full reference
-		 * until the end.
-		 */
-		i915_vm_get(vm);
-		i915_vm_close(vm);
-	}
-
-	ctx->file_priv = ERR_PTR(-EBADF);
-
 	/*
 	 * The LUT uses the VMA as a backpointer to unref the object,
 	 * so we need to clear the LUT before we close all the VMA (inside
 	 * the ppgtt).
 	 */
 	lut_close(ctx);
+
+	ctx->file_priv = ERR_PTR(-EBADF);
 
 	spin_lock(&ctx->i915->gem.contexts.lock);
 	list_del(&ctx->link);
@@ -1597,12 +1584,8 @@ i915_gem_create_context(struct drm_i915_private *i915,
 		}
 		vm = &ppgtt->vm;
 	}
-	if (vm) {
-		ctx->vm = i915_vm_open(vm);
-
-		/* i915_vm_open() takes a reference */
-		i915_vm_put(vm);
-	}
+	if (vm)
+		ctx->vm = vm;
 
 	mutex_init(&ctx->engines_mutex);
 	if (pc->num_user_engines >= 0) {
@@ -1652,7 +1635,7 @@ err_engines:
 	free_engines(e);
 err_vm:
 	if (ctx->vm)
-		i915_vm_close(ctx->vm);
+		i915_vm_put(ctx->vm);
 err_ctx:
 	kfree(ctx);
 	return ERR_PTR(err);
@@ -1836,7 +1819,7 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	if (err)
 		return err;
 
-	i915_vm_open(vm);
+	i915_vm_get(vm);
 
 	GEM_BUG_ON(id == 0); /* reserved for invalid/unassigned ppgtt */
 	args->value = id;

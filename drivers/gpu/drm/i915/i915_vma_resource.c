@@ -178,7 +178,7 @@ static void i915_vma_resource_unbind_work(struct work_struct *work)
 	bool lockdep_cookie;
 
 	lockdep_cookie = dma_fence_begin_signalling();
-	if (likely(atomic_read(&vm->open)))
+	if (likely(!vma_res->skip_pte_rewrite))
 		vma_res->ops->unbind_vma(vm, vma_res);
 
 	dma_fence_end_signalling(lockdep_cookie);

@@ -300,5 +300,5 @@ void intel_dpt_destroy(struct i915_address_space *vm)
 {
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
 
-	i915_vm_close(&dpt->vm);
+	i915_vm_put(&dpt->vm);
 }

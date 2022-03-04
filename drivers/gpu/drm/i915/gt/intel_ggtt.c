@@ -126,7 +126,7 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 void i915_ggtt_suspend_vm(struct i915_address_space *vm)
 {
 	struct i915_vma *vma, *vn;
-	int open;
+	int save_skip_rewrite;
 
 	drm_WARN_ON(&vm->i915->drm, !vm->is_ggtt && !vm->is_dpt);
 
@@ -135,8 +135,12 @@ retry:
 
 	mutex_lock(&vm->mutex);
 
-	/* Skip rewriting PTE on VMA unbind. */
-	open = atomic_xchg(&vm->open, 0);
+	/*
+	 * Skip rewriting PTE on VMA unbind.
+	 * FIXME: Use an argument to i915_vma_unbind() instead?
+	 */
+	save_skip_rewrite = vm->skip_pte_rewrite;
+	vm->skip_pte_rewrite = true;
 
 	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -154,16 +158,14 @@ retry:
 			 */
 			i915_gem_object_get(obj);
 
-			atomic_set(&vm->open, open);
 			mutex_unlock(&vm->mutex);
 
 			i915_gem_object_lock(obj, NULL);
-			open = i915_vma_unbind(vma);
+			GEM_WARN_ON(i915_vma_unbind(vma));
 			i915_gem_object_unlock(obj);
-
-			GEM_WARN_ON(open);
-
 			i915_gem_object_put(obj);
+
+			vm->skip_pte_rewrite = save_skip_rewrite;
 			goto retry;
 		}
 
@@ -179,7 +181,7 @@ retry:
 
 	vm->clear_range(vm, 0, vm->total);
 
-	atomic_set(&vm->open, open);
+	vm->skip_pte_rewrite = save_skip_rewrite;
 
 	mutex_unlock(&vm->mutex);
 }
@@ -773,12 +775,12 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 {
 	struct i915_vma *vma, *vn;
 
-	atomic_set(&ggtt->vm.open, 0);
-
 	flush_workqueue(ggtt->vm.i915->wq);
 	i915_gem_drain_freed_objects(ggtt->vm.i915);
 
 	mutex_lock(&ggtt->vm.mutex);
+
+	ggtt->vm.skip_pte_rewrite = true;
 
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -1307,15 +1309,11 @@ bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
 	bool write_domain_objs = false;
-	int open;
 
 	drm_WARN_ON(&vm->i915->drm, !vm->is_ggtt && !vm->is_dpt);
 
 	/* First fill our portion of the GTT with scratch pages */
 	vm->clear_range(vm, 0, vm->total);
-
-	/* Skip rewriting PTE on VMA unbind. */
-	open = atomic_xchg(&vm->open, 0);
 
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry(vma, &vm->bound_list, vm_link) {
@@ -1332,8 +1330,6 @@ bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;
 		}
 	}
-
-	atomic_set(&vm->open, open);
 
 	return write_domain_objs;
 }

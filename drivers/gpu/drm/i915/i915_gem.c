@@ -142,8 +142,6 @@ try_again:
 	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
 						       struct i915_vma,
 						       obj_link))) {
-		struct i915_address_space *vm = vma->vm;
-
 		list_move_tail(&vma->obj_link, &still_in_list);
 		if (!i915_vma_is_bound(vma, I915_VMA_BIND_MASK))
 			continue;
@@ -154,7 +152,7 @@ try_again:
 		}
 
 		ret = -EAGAIN;
-		if (!i915_vm_tryopen(vm))
+		if (!i915_vm_tryget(vma->vm))
 			break;
 
 		/* Prevent vma being freed by i915_vma_parked as we unbind */
@@ -186,7 +184,7 @@ try_again:
 			__i915_vma_put(vma);
 		}
 
-		i915_vm_close(vm);
+		i915_vm_put(vma->vm);
 		spin_lock(&obj->vma.lock);
 	}
 	list_splice_init(&still_in_list, &obj->vma.list);

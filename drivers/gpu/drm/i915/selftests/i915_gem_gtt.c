@@ -1205,7 +1205,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 		goto out_free;
 	}
 	GEM_BUG_ON(offset_in_page(ppgtt->vm.total));
-	GEM_BUG_ON(!atomic_read(&ppgtt->vm.open));
+	assert_vm_alive(&ppgtt->vm);
 
 	err = func(&ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
@@ -1438,7 +1438,7 @@ static void track_vma_bind(struct i915_vma *vma)
 	vma->resource->bi.pages = vma->pages;
 
 	mutex_lock(&vma->vm->mutex);
-	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
+	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	mutex_unlock(&vma->vm->mutex);
 }
 
