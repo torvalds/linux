@@ -179,7 +179,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			     sg_src->length);
 		alg_ctx->left_bytes -= count;
 
-		if (!dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
+		if (!alg_ctx->is_dma && !dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
 			dev_err(dev, "[%s:%d] dma_map_sg(src)  error\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
