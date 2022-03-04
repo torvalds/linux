@@ -452,6 +452,12 @@ do_transfer()
 		extra_args="-r ${speed:6}"
 	fi
 
+	if [[ "${addr_nr_ns2}" = "fastclose_"* ]]; then
+		# disconnect
+		extra_args="$extra_args -I ${addr_nr_ns2:10}"
+		addr_nr_ns2=0
+	fi
+
 	local local_addr
 	if is_v6 "${connect_addr}"; then
 		local_addr="::"
@@ -2196,6 +2202,15 @@ fullmesh_tests()
 	chk_rm_nr 0 1
 }
 
+fastclose_tests()
+{
+	reset
+	run_tests $ns1 $ns2 10.0.1.1 1024 0 fastclose_2
+	chk_join_nr "fastclose test" 0 0 0
+	chk_fclose_nr 1 1
+	chk_rst_nr 1 1 invert
+}
+
 all_tests()
 {
 	subflows_tests
@@ -2213,6 +2228,7 @@ all_tests()
 	checksum_tests
 	deny_join_id0_tests
 	fullmesh_tests
+	fastclose_tests
 }
 
 # [$1: error message]
@@ -2239,6 +2255,7 @@ usage()
 	echo "  -S checksum_tests"
 	echo "  -d deny_join_id0_tests"
 	echo "  -m fullmesh_tests"
+	echo "  -z fastclose_tests"
 	echo "  -c capture pcap files"
 	echo "  -C enable data checksum"
 	echo "  -i use ip mptcp"
@@ -2270,7 +2287,7 @@ if [ $do_all_tests -eq 1 ]; then
 	exit $ret
 fi
 
-while getopts 'fesltra64bpkdmchCSi' opt; do
+while getopts 'fesltra64bpkdmchzCSi' opt; do
 	case $opt in
 		f)
 			subflows_tests
@@ -2316,6 +2333,9 @@ while getopts 'fesltra64bpkdmchCSi' opt; do
 			;;
 		m)
 			fullmesh_tests
+			;;
+		z)
+			fastclose_tests
 			;;
 		c)
 			;;
