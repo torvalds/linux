@@ -24,9 +24,7 @@ extern struct task_struct *secondary_current;
 void start_secondary(void *unused);
 
 /* kexec */
-struct paca_struct;
 struct kimage;
-extern struct paca_struct kexec_paca;
 void kexec_copy_flush(struct kimage *image);
 
 /* pseries hcall tracing */
