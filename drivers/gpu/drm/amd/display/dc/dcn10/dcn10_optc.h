@@ -514,7 +514,6 @@ struct dcn_optc_registers {
 	type DIG_UPDATE_POSITION_X;\
 	type DIG_UPDATE_POSITION_Y;\
 	type OTG_H_TIMING_DIV_MODE;\
-	type OTG_H_TIMING_DIV_MODE_MANUAL;\
 	type OTG_DRR_TIMING_DBUF_UPDATE_MODE;\
 	type OTG_CRC_DSC_MODE;\
 	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
@@ -522,13 +521,17 @@ struct dcn_optc_registers {
 	type OTG_CRC_DATA_FORMAT;\
 	type OTG_V_TOTAL_LAST_USED_BY_DRR;
 
+#define TG_REG_FIELD_LIST_DCN3_2(type) \
+	type OTG_H_TIMING_DIV_MODE_MANUAL;
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 };
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 };
 
 struct optc {
