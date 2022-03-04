@@ -311,7 +311,7 @@ int vmx_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 			continue;
 		}
 
-		vcpu_info.pi_desc_addr = __pa(&to_vmx(vcpu)->pi_desc);
+		vcpu_info.pi_desc_addr = __pa(vcpu_to_pi_desc(vcpu));
 		vcpu_info.vector = irq.vector;
 
 		trace_kvm_pi_irte_update(host_irq, vcpu->vcpu_id, e->gsi,
