@@ -284,6 +284,8 @@ static int ice_repr_add(struct ice_vf *vf)
 
 	devlink_port_type_eth_set(&vf->devlink_port, repr->netdev);
 
+	ice_vc_change_ops_to_repr(&vf->vc_ops);
+
 	return 0;
 
 err_netdev:
@@ -311,6 +313,9 @@ err_alloc_rule:
  */
 static void ice_repr_rem(struct ice_vf *vf)
 {
+	if (!vf->repr)
+		return;
+
 	ice_devlink_destroy_vf_port(vf);
 	kfree(vf->repr->q_vector);
 	vf->repr->q_vector = NULL;
@@ -323,38 +328,8 @@ static void ice_repr_rem(struct ice_vf *vf)
 #endif
 	kfree(vf->repr);
 	vf->repr = NULL;
-}
 
-/**
- * ice_repr_add_for_all_vfs - add port representor for all VFs
- * @pf: pointer to PF structure
- */
-int ice_repr_add_for_all_vfs(struct ice_pf *pf)
-{
-	int err;
-	int i;
-
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
-		err = ice_repr_add(vf);
-		if (err)
-			goto err;
-
-		ice_vc_change_ops_to_repr(&vf->vc_ops);
-	}
-
-	return 0;
-
-err:
-	for (i = i - 1; i >= 0; i--) {
-		struct ice_vf *vf = &pf->vf[i];
-
-		ice_repr_rem(vf);
-		ice_vc_set_dflt_vf_ops(&vf->vc_ops);
-	}
-
-	return err;
+	ice_vc_set_dflt_vf_ops(&vf->vc_ops);
 }
 
 /**
@@ -363,14 +338,39 @@ err:
  */
 void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
+	lockdep_assert_held(&pf->vfs.table_lock);
 
+	ice_for_each_vf(pf, bkt, vf)
 		ice_repr_rem(vf);
-		ice_vc_set_dflt_vf_ops(&vf->vc_ops);
+}
+
+/**
+ * ice_repr_add_for_all_vfs - add port representor for all VFs
+ * @pf: pointer to PF structure
+ */
+int ice_repr_add_for_all_vfs(struct ice_pf *pf)
+{
+	struct ice_vf *vf;
+	unsigned int bkt;
+	int err;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
+
+	ice_for_each_vf(pf, bkt, vf) {
+		err = ice_repr_add(vf);
+		if (err)
+			goto err;
 	}
+
+	return 0;
+
+err:
+	ice_repr_rem_from_all_vfs(pf);
+
+	return err;
 }
 
 /**
