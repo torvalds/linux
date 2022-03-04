@@ -868,7 +868,6 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
 int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
 
@@ -886,6 +885,7 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
 		const struct gmbus_pin *gmbus_pin;
+		struct intel_gmbus *bus;
 
 		gmbus_pin = get_gmbus_pin(dev_priv, pin);
 		if (!gmbus_pin)
@@ -978,10 +978,11 @@ bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 
 void intel_gmbus_teardown(struct drm_i915_private *dev_priv)
 {
-	struct intel_gmbus *bus;
 	unsigned int pin;
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
+		struct intel_gmbus *bus;
+
 		bus = dev_priv->gmbus[pin];
 		if (!bus)
 			continue;
