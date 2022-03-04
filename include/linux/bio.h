@@ -491,8 +491,6 @@ static inline void bio_release_pages(struct bio *bio, bool mark_dirty)
 		__bio_release_pages(bio, mark_dirty);
 }
 
-extern const char *bio_devname(struct bio *bio, char *buffer);
-
 #define bio_dev(bio) \
 	disk_devt((bio)->bi_bdev->bd_disk)
 

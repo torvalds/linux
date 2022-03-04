@@ -807,12 +807,6 @@ int bio_init_clone(struct block_device *bdev, struct bio *bio,
 }
 EXPORT_SYMBOL(bio_init_clone);
 
-const char *bio_devname(struct bio *bio, char *buf)
-{
-	return bdevname(bio->bi_bdev, buf);
-}
-EXPORT_SYMBOL(bio_devname);
-
 /**
  * bio_full - check if the bio is full
  * @bio:	bio to check
