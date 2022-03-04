@@ -445,6 +445,14 @@ static inline uint8_t is_in_hdcp2_dp_states(struct mod_hdcp *hdcp)
 			current_state(hdcp) <= HDCP2_DP_STATE_END);
 }
 
+static inline uint8_t is_in_authenticated_states(struct mod_hdcp *hdcp)
+{
+	return (current_state(hdcp) == D1_A4_AUTHENTICATED ||
+	current_state(hdcp) == H1_A45_AUTHENTICATED ||
+	current_state(hdcp) == D2_A5_AUTHENTICATED ||
+	current_state(hdcp) == H2_A5_AUTHENTICATED);
+}
+
 static inline uint8_t is_hdcp1(struct mod_hdcp *hdcp)
 {
 	return (is_in_hdcp1_states(hdcp) || is_in_hdcp1_dp_states(hdcp));
