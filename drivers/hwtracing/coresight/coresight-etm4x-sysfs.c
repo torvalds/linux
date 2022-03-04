@@ -1792,9 +1792,9 @@ static ssize_t sshot_ctrl_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->ss_idx;
-	config->ss_ctrl[idx] = val & GENMASK(24, 0);
+	config->ss_ctrl[idx] = FIELD_PREP(TRCSSCCRn_SAC_ARC_RST_MASK, val);
 	/* must clear bit 31 in related status register on programming */
-	config->ss_status[idx] &= ~BIT(31);
+	config->ss_status[idx] &= ~TRCSSCSRn_STATUS;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -1844,7 +1844,7 @@ static ssize_t sshot_pe_ctrl_store(struct device *dev,
 	idx = config->ss_idx;
 	config->ss_pe_cmp[idx] = val & GENMASK(7, 0);
 	/* must clear bit 31 in related status register on programming */
-	config->ss_status[idx] &= ~BIT(31);
+	config->ss_status[idx] &= ~TRCSSCSRn_STATUS;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
