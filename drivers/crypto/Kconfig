@@ -810,7 +810,7 @@ config CRYPTO_DEV_ZYNQMP_AES
 
 config CRYPTO_DEV_ZYNQMP_SHA3
 	bool "Support for Xilinx ZynqMP SHA3 hardware accelerator"
-	depends on ARCH_ZYNQMP
+	depends on ZYNQMP_FIRMWARE
 	select CRYPTO_SHA3
 	help
 	  Xilinx ZynqMP has SHA3 engine used for secure hash calculation.

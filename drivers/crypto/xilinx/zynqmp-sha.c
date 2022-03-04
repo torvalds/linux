@@ -193,6 +193,13 @@ static int zynqmp_sha_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int err;
+	u32 v;
+
+	/* Verify the hardware is present */
+	err = zynqmp_pm_get_api_version(&v);
+	if (err)
+		return err;
+
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(ZYNQMP_DMA_BIT_MASK));
 	if (err < 0) {
@@ -251,33 +258,7 @@ static struct platform_driver zynqmp_sha_driver = {
 	},
 };
 
-static int __init sha_driver_init(void)
-{
-	struct platform_device *pdev;
-	int ret;
-
-	ret = platform_driver_register(&zynqmp_sha_driver);
-	if (ret)
-		return ret;
-
-	pdev = platform_device_register_simple(zynqmp_sha_driver.driver.name,
-					       0, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		platform_driver_unregister(&zynqmp_sha_driver);
-		pr_info("Failed to register ZynqMP SHA3 dvixe %d\n", ret);
-	}
-
-	return ret;
-}
-
-device_initcall(sha_driver_init);
-
-static void __exit sha_driver_exit(void)
-{
-	platform_driver_unregister(&zynqmp_sha_driver);
-}
-
+module_platform_driver(zynqmp_sha_driver);
 MODULE_DESCRIPTION("ZynqMP SHA3 hardware acceleration support.");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Harsha <harsha.harsha@xilinx.com>");
