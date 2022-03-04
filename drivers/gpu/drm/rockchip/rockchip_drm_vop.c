@@ -625,6 +625,29 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	}
 }
 
+static int vop_convert_afbc_format(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return AFBDC_FMT_U8U8U8U8;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		return AFBDC_FMT_U8U8U8;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		return AFBDC_FMT_RGB565;
+	/* either of the below should not be reachable */
+	default:
+		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
 static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
 {
 	/*
@@ -1677,6 +1700,21 @@ static void vop_plane_cleanup_fb(struct drm_plane *plane,
 		drm_framebuffer_put(old_state->fb);
 }
 
+static bool rockchip_vop_mod_supported(struct drm_plane *plane,
+				       u32 format, u64 modifier)
+{
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (!rockchip_afbc(plane, modifier)) {
+		DRM_DEBUG_KMS("Unsupported format modifier 0x%llx\n", modifier);
+
+		return false;
+	}
+
+	return vop_convert_afbc_format(format) >= 0;
+}
+
 static int vop_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -2309,6 +2347,7 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.atomic_destroy_state = vop_atomic_plane_destroy_state,
 	.atomic_set_property = vop_atomic_plane_set_property,
 	.atomic_get_property = vop_atomic_plane_get_property,
+	.format_mod_supported = rockchip_vop_mod_supported,
 };
 
 static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
