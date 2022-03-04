@@ -190,6 +190,7 @@ static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
 	{ TARGET_ASM,                0x10600000, 1 }, /* 0x610600000 */
 	{ TARGET_GCB,                0x11010000, 2 }, /* 0x611010000 */
 	{ TARGET_QS,                 0x11030000, 2 }, /* 0x611030000 */
+	{ TARGET_PTP,                0x11040000, 2 }, /* 0x611040000 */
 	{ TARGET_ANA_ACL,            0x11050000, 2 }, /* 0x611050000 */
 	{ TARGET_LRN,                0x11060000, 2 }, /* 0x611060000 */
 	{ TARGET_VCAP_SUPER,         0x11080000, 2 }, /* 0x611080000 */
