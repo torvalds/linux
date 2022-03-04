@@ -270,9 +270,14 @@ struct sock * noinline bpf_kfunc_call_test3(struct sock *sk)
 	return sk;
 }
 
+struct prog_test_member {
+	u64 c;
+};
+
 struct prog_test_ref_kfunc {
 	int a;
 	int b;
+	struct prog_test_member memb;
 	struct prog_test_ref_kfunc *next;
 };
 
@@ -292,6 +297,10 @@ bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 }
 
 noinline void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
+{
+}
+
+noinline void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
 }
 
@@ -379,6 +388,7 @@ BTF_ID(func, bpf_kfunc_call_test2)
 BTF_ID(func, bpf_kfunc_call_test3)
 BTF_ID(func, bpf_kfunc_call_test_acquire)
 BTF_ID(func, bpf_kfunc_call_test_release)
+BTF_ID(func, bpf_kfunc_call_memb_release)
 BTF_ID(func, bpf_kfunc_call_test_pass_ctx)
 BTF_ID(func, bpf_kfunc_call_test_pass1)
 BTF_ID(func, bpf_kfunc_call_test_pass2)
@@ -396,6 +406,7 @@ BTF_SET_END(test_sk_acquire_kfunc_ids)
 
 BTF_SET_START(test_sk_release_kfunc_ids)
 BTF_ID(func, bpf_kfunc_call_test_release)
+BTF_ID(func, bpf_kfunc_call_memb_release)
 BTF_SET_END(test_sk_release_kfunc_ids)
 
 BTF_SET_START(test_sk_ret_null_kfunc_ids)
