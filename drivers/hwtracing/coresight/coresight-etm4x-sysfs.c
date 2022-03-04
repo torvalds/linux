@@ -206,11 +206,11 @@ static ssize_t reset_store(struct device *dev,
 	 * started state. ARM recommends start-stop logic is set before
 	 * each trace run.
 	 */
-	config->vinst_ctrl = BIT(0);
+	config->vinst_ctrl = FIELD_PREP(TRCVICTLR_EVENT_MASK, 0x01);
 	if (drvdata->nr_addr_cmp > 0) {
 		config->mode |= ETM_MODE_VIEWINST_STARTSTOP;
 		/* SSSTATUS, bit[9] */
-		config->vinst_ctrl |= BIT(9);
+		config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 	}
 
 	/* No address range filtering for ViewInst */
@@ -416,22 +416,22 @@ static ssize_t mode_store(struct device *dev,
 
 	/* bit[9] Start/stop logic control bit */
 	if (config->mode & ETM_MODE_VIEWINST_STARTSTOP)
-		config->vinst_ctrl |= BIT(9);
+		config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 	else
-		config->vinst_ctrl &= ~BIT(9);
+		config->vinst_ctrl &= ~TRCVICTLR_SSSTATUS;
 
 	/* bit[10], Whether a trace unit must trace a Reset exception */
 	if (config->mode & ETM_MODE_TRACE_RESET)
-		config->vinst_ctrl |= BIT(10);
+		config->vinst_ctrl |= TRCVICTLR_TRCRESET;
 	else
-		config->vinst_ctrl &= ~BIT(10);
+		config->vinst_ctrl &= ~TRCVICTLR_TRCRESET;
 
 	/* bit[11], Whether a trace unit must trace a system error exception */
 	if ((config->mode & ETM_MODE_TRACE_ERR) &&
 		(drvdata->trc_error == true))
-		config->vinst_ctrl |= BIT(11);
+		config->vinst_ctrl |= TRCVICTLR_TRCERR;
 	else
-		config->vinst_ctrl &= ~BIT(11);
+		config->vinst_ctrl &= ~TRCVICTLR_TRCERR;
 
 	if (config->mode & (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		etm4_config_trace_mode(config);
@@ -723,7 +723,7 @@ static ssize_t event_vinst_show(struct device *dev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
 
-	val = config->vinst_ctrl & ETMv4_EVENT_MASK;
+	val = FIELD_GET(TRCVICTLR_EVENT_MASK, config->vinst_ctrl);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -739,9 +739,9 @@ static ssize_t event_vinst_store(struct device *dev,
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
-	val &= ETMv4_EVENT_MASK;
-	config->vinst_ctrl &= ~ETMv4_EVENT_MASK;
-	config->vinst_ctrl |= val;
+	val &= TRCVICTLR_EVENT_MASK >> __bf_shf(TRCVICTLR_EVENT_MASK);
+	config->vinst_ctrl &= ~TRCVICTLR_EVENT_MASK;
+	config->vinst_ctrl |= FIELD_PREP(TRCVICTLR_EVENT_MASK, val);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -755,7 +755,7 @@ static ssize_t s_exlevel_vinst_show(struct device *dev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
 
-	val = (config->vinst_ctrl & TRCVICTLR_EXLEVEL_S_MASK) >> TRCVICTLR_EXLEVEL_S_SHIFT;
+	val = FIELD_GET(TRCVICTLR_EXLEVEL_S_MASK, config->vinst_ctrl);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -772,10 +772,10 @@ static ssize_t s_exlevel_vinst_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	/* clear all EXLEVEL_S bits  */
-	config->vinst_ctrl &= ~(TRCVICTLR_EXLEVEL_S_MASK);
+	config->vinst_ctrl &= ~TRCVICTLR_EXLEVEL_S_MASK;
 	/* enable instruction tracing for corresponding exception level */
 	val &= drvdata->s_ex_level;
-	config->vinst_ctrl |= (val << TRCVICTLR_EXLEVEL_S_SHIFT);
+	config->vinst_ctrl |= val << __bf_shf(TRCVICTLR_EXLEVEL_S_MASK);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -790,7 +790,7 @@ static ssize_t ns_exlevel_vinst_show(struct device *dev,
 	struct etmv4_config *config = &drvdata->config;
 
 	/* EXLEVEL_NS, bits[23:20] */
-	val = (config->vinst_ctrl & TRCVICTLR_EXLEVEL_NS_MASK) >> TRCVICTLR_EXLEVEL_NS_SHIFT;
+	val = FIELD_GET(TRCVICTLR_EXLEVEL_NS_MASK, config->vinst_ctrl);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -807,10 +807,10 @@ static ssize_t ns_exlevel_vinst_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	/* clear EXLEVEL_NS bits  */
-	config->vinst_ctrl &= ~(TRCVICTLR_EXLEVEL_NS_MASK);
+	config->vinst_ctrl &= ~TRCVICTLR_EXLEVEL_NS_MASK;
 	/* enable instruction tracing for corresponding exception level */
 	val &= drvdata->ns_ex_level;
-	config->vinst_ctrl |= (val << TRCVICTLR_EXLEVEL_NS_SHIFT);
+	config->vinst_ctrl |= val << __bf_shf(TRCVICTLR_EXLEVEL_NS_MASK);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
