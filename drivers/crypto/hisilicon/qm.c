@@ -3840,7 +3840,7 @@ static void qm_clear_queues(struct hisi_qm *qm)
 
 	for (i = 0; i < qm->qp_num; i++) {
 		qp = &qm->qp_array[i];
-		if (qp->is_resetting)
+		if (qp->is_in_kernel && qp->is_resetting)
 			memset(qp->qdma.va, 0, qp->qdma.size);
 	}
 
