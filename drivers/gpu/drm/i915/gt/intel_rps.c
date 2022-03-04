@@ -1486,7 +1486,7 @@ void intel_rps_enable(struct intel_rps *rps)
 
 	if (has_busy_stats(rps))
 		intel_rps_set_timer(rps);
-	else if (GRAPHICS_VER(i915) >= 6)
+	else if (GRAPHICS_VER(i915) >= 6 && GRAPHICS_VER(i915) <= 11)
 		intel_rps_set_interrupts(rps);
 	else
 		/* Ironlake currently uses intel_ips.ko */ {}

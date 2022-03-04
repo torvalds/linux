@@ -971,6 +971,10 @@
 #define GEN11_VEBOX2_RING_BASE		0x1d8000
 #define XEHP_VEBOX3_RING_BASE		0x1e8000
 #define XEHP_VEBOX4_RING_BASE		0x1f8000
+#define GEN12_COMPUTE0_RING_BASE	0x1a000
+#define GEN12_COMPUTE1_RING_BASE	0x1c000
+#define GEN12_COMPUTE2_RING_BASE	0x1e000
+#define GEN12_COMPUTE3_RING_BASE	0x26000
 #define BLT_RING_BASE		0x22000
 
 
@@ -8460,6 +8464,20 @@ enum skl_power_gate {
 #define   SGGI_DIS			REG_BIT(15)
 #define   SGR_DIS			REG_BIT(13)
 
+#define XEHPSDV_FLAT_CCS_BASE_ADDR	_MMIO(0x4910)
+#define   XEHPSDV_CCS_BASE_SHIFT	8
+
+/* gamt regs */
+#define GEN8_L3_LRA_1_GPGPU _MMIO(0x4dd4)
+#define   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW  0x67F1427F /* max/min for LRA1/2 */
+#define   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV  0x5FF101FF /* max/min for LRA1/2 */
+#define   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL  0x67F1427F /*    "        " */
+#define   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT  0x5FF101FF /*    "        " */
+
+#define MMCD_MISC_CTRL		_MMIO(0x4ddc) /* skl+ */
+#define  MMCD_PCLA		(1 << 31)
+#define  MMCD_HOTSPOT_EN	(1 << 27)
+
 #define _ICL_PHY_MISC_A		0x64C00
 #define _ICL_PHY_MISC_B		0x64C04
 #define _DG2_PHY_MISC_TC1	0x64C14 /* TC1="PHY E" but offset as if "PHY F" */
@@ -8822,12 +8840,6 @@ enum skl_power_gate {
 #define DSB_CTRL(pipe, id)		_MMIO(DSBSL_INSTANCE(pipe, id) + 0x8)
 #define   DSB_ENABLE			(1 << 31)
 #define   DSB_STATUS			(1 << 0)
-
-#define TGL_ROOT_DEVICE_ID		0x9A00
-#define TGL_ROOT_DEVICE_MASK		0xFF00
-#define TGL_ROOT_DEVICE_SKU_MASK	0xF
-#define TGL_ROOT_DEVICE_SKU_ULX		0x2
-#define TGL_ROOT_DEVICE_SKU_ULT		0x4
 
 #define CLKREQ_POLICY			_MMIO(0x101038)
 #define  CLKREQ_POLICY_MEM_UP_OVRD	REG_BIT(1)

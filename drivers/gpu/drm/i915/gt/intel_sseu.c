@@ -32,7 +32,9 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 	return total;
 }
 
-u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+static u32
+_intel_sseu_get_subslices(const struct sseu_dev_info *sseu,
+			  const u8 *subslice_mask, u8 slice)
 {
 	int i, offset = slice * sseu->ss_stride;
 	u32 mask = 0;
@@ -40,10 +42,19 @@ u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
 	GEM_BUG_ON(slice >= sseu->max_slices);
 
 	for (i = 0; i < sseu->ss_stride; i++)
-		mask |= (u32)sseu->subslice_mask[offset + i] <<
-			i * BITS_PER_BYTE;
+		mask |= (u32)subslice_mask[offset + i] << i * BITS_PER_BYTE;
 
 	return mask;
+}
+
+u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+{
+	return _intel_sseu_get_subslices(sseu, sseu->subslice_mask, slice);
+}
+
+u32 intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu)
+{
+	return _intel_sseu_get_subslices(sseu, sseu->compute_subslice_mask, 0);
 }
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,

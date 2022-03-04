@@ -106,6 +106,9 @@ enum intel_platform {
 /* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
 
+/* TGL */
+#define INTEL_SUBPLATFORM_UY	(0)
+
 /* DG2 */
 #define INTEL_SUBPLATFORM_G10	0
 #define INTEL_SUBPLATFORM_G11	1
@@ -131,8 +134,10 @@ enum intel_ppgtt_type {
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(has_64k_pages); \
+	func(needs_compact_pt); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
+	func(has_flat_ccs); \
 	func(has_global_mocs); \
 	func(has_gt_uc); \
 	func(has_guc_deprivilege); \

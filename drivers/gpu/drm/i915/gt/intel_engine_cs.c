@@ -21,6 +21,7 @@
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
 #include "intel_gt_pm.h"
+#include "intel_lrc.h"
 #include "intel_lrc_reg.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
@@ -156,6 +157,34 @@ static const struct engine_info intel_engines[] = {
 			{ .graphics_ver = 12, .base = XEHP_VEBOX4_RING_BASE }
 		},
 	},
+	[CCS0] = {
+		.class = COMPUTE_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE0_RING_BASE }
+		}
+	},
+	[CCS1] = {
+		.class = COMPUTE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE1_RING_BASE }
+		}
+	},
+	[CCS2] = {
+		.class = COMPUTE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE2_RING_BASE }
+		}
+	},
+	[CCS3] = {
+		.class = COMPUTE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE3_RING_BASE }
+		}
+	},
 };
 
 /**
@@ -180,6 +209,8 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 	BUILD_BUG_ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
 
 	switch (class) {
+	case COMPUTE_CLASS:
+		fallthrough;
 	case RENDER_CLASS:
 		switch (GRAPHICS_VER(gt->i915)) {
 		default:
@@ -293,6 +324,50 @@ static void nop_irq_handler(struct intel_engine_cs *engine, u16 iir)
 	GEM_DEBUG_WARN_ON(iir);
 }
 
+static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
+{
+	u32 reset_domain;
+
+	if (ver >= 11) {
+		static const u32 engine_reset_domains[] = {
+			[RCS0]  = GEN11_GRDOM_RENDER,
+			[BCS0]  = GEN11_GRDOM_BLT,
+			[VCS0]  = GEN11_GRDOM_MEDIA,
+			[VCS1]  = GEN11_GRDOM_MEDIA2,
+			[VCS2]  = GEN11_GRDOM_MEDIA3,
+			[VCS3]  = GEN11_GRDOM_MEDIA4,
+			[VCS4]  = GEN11_GRDOM_MEDIA5,
+			[VCS5]  = GEN11_GRDOM_MEDIA6,
+			[VCS6]  = GEN11_GRDOM_MEDIA7,
+			[VCS7]  = GEN11_GRDOM_MEDIA8,
+			[VECS0] = GEN11_GRDOM_VECS,
+			[VECS1] = GEN11_GRDOM_VECS2,
+			[VECS2] = GEN11_GRDOM_VECS3,
+			[VECS3] = GEN11_GRDOM_VECS4,
+			[CCS0]  = GEN11_GRDOM_RENDER,
+			[CCS1]  = GEN11_GRDOM_RENDER,
+			[CCS2]  = GEN11_GRDOM_RENDER,
+			[CCS3]  = GEN11_GRDOM_RENDER,
+		};
+		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
+			   !engine_reset_domains[id]);
+		reset_domain = engine_reset_domains[id];
+	} else {
+		static const u32 engine_reset_domains[] = {
+			[RCS0]  = GEN6_GRDOM_RENDER,
+			[BCS0]  = GEN6_GRDOM_BLT,
+			[VCS0]  = GEN6_GRDOM_MEDIA,
+			[VCS1]  = GEN8_GRDOM_MEDIA2,
+			[VECS0] = GEN6_GRDOM_VECS,
+		};
+		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
+			   !engine_reset_domains[id]);
+		reset_domain = engine_reset_domains[id];
+	}
+
+	return reset_domain;
+}
+
 static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 			      u8 logical_instance)
 {
@@ -328,38 +403,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 	engine->id = id;
 	engine->legacy_idx = INVALID_ENGINE;
 	engine->mask = BIT(id);
-	if (GRAPHICS_VER(gt->i915) >= 11) {
-		static const u32 engine_reset_domains[] = {
-			[RCS0]  = GEN11_GRDOM_RENDER,
-			[BCS0]  = GEN11_GRDOM_BLT,
-			[VCS0]  = GEN11_GRDOM_MEDIA,
-			[VCS1]  = GEN11_GRDOM_MEDIA2,
-			[VCS2]  = GEN11_GRDOM_MEDIA3,
-			[VCS3]  = GEN11_GRDOM_MEDIA4,
-			[VCS4]  = GEN11_GRDOM_MEDIA5,
-			[VCS5]  = GEN11_GRDOM_MEDIA6,
-			[VCS6]  = GEN11_GRDOM_MEDIA7,
-			[VCS7]  = GEN11_GRDOM_MEDIA8,
-			[VECS0] = GEN11_GRDOM_VECS,
-			[VECS1] = GEN11_GRDOM_VECS2,
-			[VECS2] = GEN11_GRDOM_VECS3,
-			[VECS3] = GEN11_GRDOM_VECS4,
-		};
-		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
-			   !engine_reset_domains[id]);
-		engine->reset_domain = engine_reset_domains[id];
-	} else {
-		static const u32 engine_reset_domains[] = {
-			[RCS0]  = GEN6_GRDOM_RENDER,
-			[BCS0]  = GEN6_GRDOM_BLT,
-			[VCS0]  = GEN6_GRDOM_MEDIA,
-			[VCS1]  = GEN8_GRDOM_MEDIA2,
-			[VECS0] = GEN6_GRDOM_VECS,
-		};
-		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
-			   !engine_reset_domains[id]);
-		engine->reset_domain = engine_reset_domains[id];
-	}
+	engine->reset_domain = get_reset_domain(GRAPHICS_VER(gt->i915),
+						id);
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
@@ -388,6 +433,12 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 	/* Override to uninterruptible for OpenCL workloads. */
 	if (GRAPHICS_VER(i915) == 12 && engine->class == RENDER_CLASS)
 		engine->props.preempt_timeout_ms = 0;
+
+	/* features common between engines sharing EUs */
+	if (engine->class == RENDER_CLASS || engine->class == COMPUTE_CLASS) {
+		engine->flags |= I915_ENGINE_HAS_RCS_REG_STATE;
+		engine->flags |= I915_ENGINE_HAS_EU_PRIORITY;
+	}
 
 	engine->defaults = engine->props; /* never to change again */
 
@@ -541,6 +592,29 @@ bool gen11_vdbox_has_sfc(struct intel_gt *gt,
 	return false;
 }
 
+static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_gt_info *info = &gt->info;
+	int ss_per_ccs = info->sseu.max_subslices / I915_MAX_CCS;
+	unsigned long ccs_mask;
+	unsigned int i;
+
+	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
+		return;
+
+	ccs_mask = intel_slicemask_from_dssmask(intel_sseu_get_compute_subslices(&info->sseu),
+						ss_per_ccs);
+	/*
+	 * If all DSS in a quadrant are fused off, the corresponding CCS
+	 * engine is not available for use.
+	 */
+	for_each_clear_bit(i, &ccs_mask, I915_MAX_CCS) {
+		info->engine_mask &= ~BIT(_CCS(i));
+		drm_dbg(&i915->drm, "ccs%u fused off\n", i);
+	}
+}
+
 /*
  * Determine which engines are fused off in our particular hardware.
  * Note that we have a catch-22 situation where we need to be able to access
@@ -621,6 +695,8 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	drm_dbg(&i915->drm, "vebox enable: %04x, instances: %04lx\n",
 		vebox_mask, VEBOX_MASK(gt));
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
+
+	engine_mask_apply_compute_fuses(gt);
 
 	return info->engine_mask;
 }
@@ -2017,6 +2093,23 @@ intel_engine_execlist_find_hung_request(struct intel_engine_cs *engine)
 	}
 
 	return active;
+}
+
+void xehp_enable_ccs_engines(struct intel_engine_cs *engine)
+{
+	/*
+	 * If there are any non-fused-off CCS engines, we need to enable CCS
+	 * support in the RCU_MODE register.  This only needs to be done once,
+	 * so for simplicity we'll take care of this in the RCS engine's
+	 * resume handler; since the RCS and all CCS engines belong to the
+	 * same reset domain and are reset together, this will also take care
+	 * of re-applying the setting after i915-triggered resets.
+	 */
+	if (!CCS_MASK(engine->gt))
+		return;
+
+	intel_uncore_write(engine->uncore, GEN12_RCU_MODE,
+			   _MASKED_BIT_ENABLE(GEN12_RCU_MODE_CCS_ENABLE));
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

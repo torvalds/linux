@@ -670,6 +670,16 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 				goto out_err;
 			}
 
+			/*
+			 * We don't support breadcrumb handshake on these
+			 * classes
+			 */
+			if (siblings[n]->class == RENDER_CLASS ||
+			    siblings[n]->class == COMPUTE_CLASS) {
+				err = -EINVAL;
+				goto out_err;
+			}
+
 			if (n) {
 				if (prev_engine.engine_class !=
 				    ci.engine_class) {

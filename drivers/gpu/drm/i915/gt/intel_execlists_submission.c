@@ -665,8 +665,12 @@ static inline void execlists_schedule_out(struct i915_request *rq)
 static u64 execlists_update_context(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
-	u64 desc = ce->lrc.desc;
+	u64 desc;
 	u32 tail, prev;
+
+	desc = ce->lrc.desc;
+	if (rq->engine->flags & I915_ENGINE_HAS_EU_PRIORITY)
+		desc |= lrc_desc_priority(rq_prio(rq));
 
 	/*
 	 * WaIdleLiteRestore:bdw,skl
@@ -2907,6 +2911,9 @@ static int execlists_resume(struct intel_engine_cs *engine)
 
 	enable_execlists(engine);
 
+	if (engine->class == RENDER_CLASS)
+		xehp_enable_ccs_engines(engine);
+
 	return 0;
 }
 
@@ -3480,7 +3487,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
-	if (engine->class == RENDER_CLASS)
+	if (engine->flags & I915_ENGINE_HAS_RCS_REG_STATE)
 		rcs_submission_override(engine);
 
 	lrc_init_wa_ctx(engine);

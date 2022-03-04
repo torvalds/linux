@@ -10,7 +10,4 @@ struct intel_gt;
 
 struct intel_memory_region *intel_gt_setup_lmem(struct intel_gt *gt);
 
-struct intel_memory_region *
-intel_gt_setup_fake_lmem(struct intel_gt *gt);
-
 #endif /* !__INTEL_REGION_LMEM_H */
