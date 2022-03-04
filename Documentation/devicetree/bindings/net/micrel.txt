@@ -45,3 +45,20 @@ Optional properties:
 
 	In fiber mode, auto-negotiation is disabled and the PHY can only work in
 	100base-fx (full and half duplex) modes.
+
+ - lan8814,ignore-ts: If present the PHY will not support timestamping.
+
+	This option acts as check whether Timestamping is supported by
+	hardware or not. LAN8814 phy support hardware tmestamping.
+
+ - lan8814,latency_rx_10: Configures Latency value of phy in ingress at 10 Mbps.
+
+ - lan8814,latency_tx_10: Configures Latency value of phy in egress at 10 Mbps.
+
+ - lan8814,latency_rx_100: Configures Latency value of phy in ingress at 100 Mbps.
+
+ - lan8814,latency_tx_100: Configures Latency value of phy in egress at 100 Mbps.
+
+ - lan8814,latency_rx_1000: Configures Latency value of phy in ingress at 1000 Mbps.
+
+ - lan8814,latency_tx_1000: Configures Latency value of phy in egress at 1000 Mbps.
