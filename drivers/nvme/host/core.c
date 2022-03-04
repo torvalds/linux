@@ -77,10 +77,6 @@ module_param(apst_secondary_latency_tol_us, ulong, 0644);
 MODULE_PARM_DESC(apst_secondary_latency_tol_us,
 	"secondary APST latency tolerance in us");
 
-static bool streams;
-module_param(streams, bool, 0644);
-MODULE_PARM_DESC(streams, "turn on support for Streams write directives");
-
 /*
  * nvme_wq - hosts nvme related works that are not reset or delete
  * nvme_reset_wq - hosts nvme reset works
@@ -748,108 +744,6 @@ bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(__nvme_check_ready);
 
-static int nvme_toggle_streams(struct nvme_ctrl *ctrl, bool enable)
-{
-	struct nvme_command c = { };
-
-	c.directive.opcode = nvme_admin_directive_send;
-	c.directive.nsid = cpu_to_le32(NVME_NSID_ALL);
-	c.directive.doper = NVME_DIR_SND_ID_OP_ENABLE;
-	c.directive.dtype = NVME_DIR_IDENTIFY;
-	c.directive.tdtype = NVME_DIR_STREAMS;
-	c.directive.endir = enable ? NVME_DIR_ENDIR : 0;
-
-	return nvme_submit_sync_cmd(ctrl->admin_q, &c, NULL, 0);
-}
-
-static int nvme_disable_streams(struct nvme_ctrl *ctrl)
-{
-	return nvme_toggle_streams(ctrl, false);
-}
-
-static int nvme_enable_streams(struct nvme_ctrl *ctrl)
-{
-	return nvme_toggle_streams(ctrl, true);
-}
-
-static int nvme_get_stream_params(struct nvme_ctrl *ctrl,
-				  struct streams_directive_params *s, u32 nsid)
-{
-	struct nvme_command c = { };
-
-	memset(s, 0, sizeof(*s));
-
-	c.directive.opcode = nvme_admin_directive_recv;
-	c.directive.nsid = cpu_to_le32(nsid);
-	c.directive.numd = cpu_to_le32(nvme_bytes_to_numd(sizeof(*s)));
-	c.directive.doper = NVME_DIR_RCV_ST_OP_PARAM;
-	c.directive.dtype = NVME_DIR_STREAMS;
-
-	return nvme_submit_sync_cmd(ctrl->admin_q, &c, s, sizeof(*s));
-}
-
-static int nvme_configure_directives(struct nvme_ctrl *ctrl)
-{
-	struct streams_directive_params s;
-	u16 nssa;
-	int ret;
-
-	if (!(ctrl->oacs & NVME_CTRL_OACS_DIRECTIVES))
-		return 0;
-	if (!streams)
-		return 0;
-
-	ret = nvme_enable_streams(ctrl);
-	if (ret)
-		return ret;
-
-	ret = nvme_get_stream_params(ctrl, &s, NVME_NSID_ALL);
-	if (ret)
-		goto out_disable_stream;
-
-	nssa = le16_to_cpu(s.nssa);
-	if (nssa < BLK_MAX_WRITE_HINTS - 1) {
-		dev_info(ctrl->device, "too few streams (%u) available\n",
-					nssa);
-		/* this condition is not an error: streams are optional */
-		ret = 0;
-		goto out_disable_stream;
-	}
-
-	ctrl->nr_streams = min_t(u16, nssa, BLK_MAX_WRITE_HINTS - 1);
-	dev_info(ctrl->device, "Using %u streams\n", ctrl->nr_streams);
-	return 0;
-
-out_disable_stream:
-	nvme_disable_streams(ctrl);
-	return ret;
-}
-
-/*
- * Check if 'req' has a write hint associated with it. If it does, assign
- * a valid namespace stream to the write.
- */
-static void nvme_assign_write_stream(struct nvme_ctrl *ctrl,
-				     struct request *req, u16 *control,
-				     u32 *dsmgmt)
-{
-	enum rw_hint streamid = req->write_hint;
-
-	if (streamid == WRITE_LIFE_NOT_SET || streamid == WRITE_LIFE_NONE)
-		streamid = 0;
-	else {
-		streamid--;
-		if (WARN_ON_ONCE(streamid > ctrl->nr_streams))
-			return;
-
-		*control |= NVME_RW_DTYPE_STREAMS;
-		*dsmgmt |= streamid << 16;
-	}
-
-	if (streamid < ARRAY_SIZE(req->q->write_hints))
-		req->q->write_hints[streamid] += blk_rq_bytes(req) >> 9;
-}
-
 static inline void nvme_setup_flush(struct nvme_ns *ns,
 		struct nvme_command *cmnd)
 {
@@ -953,7 +847,6 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 		struct request *req, struct nvme_command *cmnd,
 		enum nvme_opcode op)
 {
-	struct nvme_ctrl *ctrl = ns->ctrl;
 	u16 control = 0;
 	u32 dsmgmt = 0;
 
@@ -975,9 +868,6 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 	cmnd->rw.reftag = 0;
 	cmnd->rw.apptag = 0;
 	cmnd->rw.appmask = 0;
-
-	if (req_op(req) == REQ_OP_WRITE && ctrl->nr_streams)
-		nvme_assign_write_stream(ctrl, req, &control, &dsmgmt);
 
 	if (ns->ms) {
 		/*
@@ -1697,9 +1587,6 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 		return;
 	}
 
-	if (ctrl->nr_streams && ns->sws && ns->sgs)
-		size *= ns->sws * ns->sgs;
-
 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
 			NVME_DSM_MAX_RANGES);
 
@@ -1723,31 +1610,6 @@ static bool nvme_ns_ids_equal(struct nvme_ns_ids *a, struct nvme_ns_ids *b)
 		memcmp(&a->nguid, &b->nguid, sizeof(a->nguid)) == 0 &&
 		memcmp(&a->eui64, &b->eui64, sizeof(a->eui64)) == 0 &&
 		a->csi == b->csi;
-}
-
-static int nvme_setup_streams_ns(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
-				 u32 *phys_bs, u32 *io_opt)
-{
-	struct streams_directive_params s;
-	int ret;
-
-	if (!ctrl->nr_streams)
-		return 0;
-
-	ret = nvme_get_stream_params(ctrl, &s, ns->head->ns_id);
-	if (ret)
-		return ret;
-
-	ns->sws = le32_to_cpu(s.sws);
-	ns->sgs = le16_to_cpu(s.sgs);
-
-	if (ns->sws) {
-		*phys_bs = ns->sws * (1 << ns->lba_shift);
-		if (ns->sgs)
-			*io_opt = *phys_bs * ns->sgs;
-	}
-
-	return 0;
 }
 
 static void nvme_configure_metadata(struct nvme_ns *ns, struct nvme_id_ns *id)
@@ -1841,7 +1703,6 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	blk_integrity_unregister(disk);
 
 	atomic_bs = phys_bs = bs;
-	nvme_setup_streams_ns(ns->ctrl, ns, &phys_bs, &io_opt);
 	if (id->nabo == 0) {
 		/*
 		 * Bit 1 indicates whether NAWUPF is defined for this namespace
@@ -3128,10 +2989,6 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 		return ret;
 
 	ret = nvme_configure_timestamp(ctrl);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_configure_directives(ctrl);
 	if (ret < 0)
 		return ret;
 
