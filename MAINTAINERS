@@ -2739,7 +2739,7 @@ N:	stm32
 N:	stm
 
 ARM/Synaptics SoC support
-M:	Jisheng Zhang <Jisheng.Zhang@synaptics.com>
+M:	Jisheng Zhang <jszhang@kernel.org>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
