@@ -21,6 +21,10 @@ properties:
       - items:
           - const: microchip,sam9x60-rtt
           - const: atmel,at91sam9260-rtt
+      - items:
+          - const: microchip,sama7g5-rtt
+          - const: microchip,sam9x60-rtt
+          - const: atmel,at91sam9260-rtt
 
   reg:
     maxItems: 1
