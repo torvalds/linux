@@ -122,7 +122,6 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&vma->ref);
 	vma->ops = &vm->vma_ops;
 	vma->obj = obj;
 	vma->size = obj->base.size;
@@ -1628,15 +1627,6 @@ void i915_vma_reopen(struct i915_vma *vma)
 		__i915_vma_remove_closed(vma);
 }
 
-void i915_vma_release(struct kref *ref)
-{
-	struct i915_vma *vma = container_of(ref, typeof(*vma), ref);
-
-	i915_active_fini(&vma->active);
-	GEM_WARN_ON(vma->resource);
-	i915_vma_free(vma);
-}
-
 static void force_unbind(struct i915_vma *vma)
 {
 	if (!drm_mm_node_allocated(&vma->node))
@@ -1665,7 +1655,9 @@ static void release_references(struct i915_vma *vma, bool vm_ddestroy)
 	if (vm_ddestroy)
 		i915_vm_resv_put(vma->vm);
 
-	__i915_vma_put(vma);
+	i915_active_fini(&vma->active);
+	GEM_WARN_ON(vma->resource);
+	i915_vma_free(vma);
 }
 
 /**
@@ -1693,9 +1685,6 @@ static void release_references(struct i915_vma *vma, bool vm_ddestroy)
  * - vm->mutex
  * - obj->vma.lock
  * - gt->closed_lock
- *
- * A vma user can also temporarily keep the vma alive while holding a vma
- * reference.
  */
 void i915_vma_destroy_locked(struct i915_vma *vma)
 {
