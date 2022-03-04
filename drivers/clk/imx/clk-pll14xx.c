@@ -238,7 +238,7 @@ static int clk_pll1443x_set_rate(struct clk_hw *hw, unsigned long drate,
 {
 	struct clk_pll14xx *pll = to_clk_pll14xx(hw);
 	const struct imx_pll14xx_rate_table *rate;
-	u32 tmp, div_val;
+	u32 gnrl_ctl, div_ctl0;
 	int ret;
 
 	rate = imx_get_pll_settings(pll, drate);
@@ -248,32 +248,32 @@ static int clk_pll1443x_set_rate(struct clk_hw *hw, unsigned long drate,
 		return -EINVAL;
 	}
 
-	tmp = readl_relaxed(pll->base + DIV_CTL0);
+	div_ctl0 = readl_relaxed(pll->base + DIV_CTL0);
 
-	if (!clk_pll14xx_mp_change(rate, tmp)) {
-		tmp &= ~SDIV_MASK;
-		tmp |= FIELD_PREP(SDIV_MASK, rate->sdiv);
-		writel_relaxed(tmp, pll->base + DIV_CTL0);
+	if (!clk_pll14xx_mp_change(rate, div_ctl0)) {
+		div_ctl0 &= ~SDIV_MASK;
+		div_ctl0 |= FIELD_PREP(SDIV_MASK, rate->sdiv);
+		writel_relaxed(div_ctl0, pll->base + DIV_CTL0);
 
-		tmp = FIELD_PREP(KDIV_MASK, rate->kdiv);
-		writel_relaxed(tmp, pll->base + DIV_CTL1);
+		writel_relaxed(FIELD_PREP(KDIV_MASK, rate->kdiv),
+			       pll->base + DIV_CTL1);
 
 		return 0;
 	}
 
 	/* Enable RST */
-	tmp = readl_relaxed(pll->base + GNRL_CTL);
-	tmp &= ~RST_MASK;
-	writel_relaxed(tmp, pll->base + GNRL_CTL);
+	gnrl_ctl = readl_relaxed(pll->base + GNRL_CTL);
+	gnrl_ctl &= ~RST_MASK;
+	writel_relaxed(gnrl_ctl, pll->base + GNRL_CTL);
 
 	/* Enable BYPASS */
-	tmp |= BYPASS_MASK;
-	writel_relaxed(tmp, pll->base + GNRL_CTL);
+	gnrl_ctl |= BYPASS_MASK;
+	writel_relaxed(gnrl_ctl, pll->base + GNRL_CTL);
 
-	div_val = FIELD_PREP(MDIV_MASK, rate->mdiv) |
-		  FIELD_PREP(PDIV_MASK, rate->pdiv) |
-		  FIELD_PREP(SDIV_MASK, rate->sdiv);
-	writel_relaxed(div_val, pll->base + DIV_CTL0);
+	div_ctl0 = FIELD_PREP(MDIV_MASK, rate->mdiv) |
+		   FIELD_PREP(PDIV_MASK, rate->pdiv) |
+		   FIELD_PREP(SDIV_MASK, rate->sdiv);
+	writel_relaxed(div_ctl0, pll->base + DIV_CTL0);
 	writel_relaxed(FIELD_PREP(KDIV_MASK, rate->kdiv), pll->base + DIV_CTL1);
 
 	/*
@@ -285,8 +285,8 @@ static int clk_pll1443x_set_rate(struct clk_hw *hw, unsigned long drate,
 	udelay(3);
 
 	/* Disable RST */
-	tmp |= RST_MASK;
-	writel_relaxed(tmp, pll->base + GNRL_CTL);
+	gnrl_ctl |= RST_MASK;
+	writel_relaxed(gnrl_ctl, pll->base + GNRL_CTL);
 
 	/* Wait Lock*/
 	ret = clk_pll14xx_wait_lock(pll);
@@ -294,8 +294,8 @@ static int clk_pll1443x_set_rate(struct clk_hw *hw, unsigned long drate,
 		return ret;
 
 	/* Bypass */
-	tmp &= ~BYPASS_MASK;
-	writel_relaxed(tmp, pll->base + GNRL_CTL);
+	gnrl_ctl &= ~BYPASS_MASK;
+	writel_relaxed(gnrl_ctl, pll->base + GNRL_CTL);
 
 	return 0;
 }
