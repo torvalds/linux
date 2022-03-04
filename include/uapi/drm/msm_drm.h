@@ -81,6 +81,7 @@ struct drm_msm_timespec {
 #define MSM_PARAM_PP_PGTABLE 0x08  /* RO: Deprecated, always returns zero */
 #define MSM_PARAM_FAULTS     0x09  /* RO */
 #define MSM_PARAM_SUSPENDS   0x0a  /* RO */
+#define MSM_PARAM_SYSPROF    0x0b  /* WO: 1 preserves perfcntrs, 2 also disables suspend */
 
 /* For backwards compat.  The original support for preemption was based on
  * a single ring per priority level so # of priority levels equals the #

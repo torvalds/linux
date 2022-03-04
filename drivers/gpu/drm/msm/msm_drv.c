@@ -558,7 +558,15 @@ static void context_close(struct msm_file_private *ctx)
 
 static void msm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_file_private *ctx = file->driver_priv;
+
+	/*
+	 * It is not possible to set sysprof param to non-zero if gpu
+	 * is not initialized:
+	 */
+	if (priv->gpu)
+		msm_file_private_set_sysprof(ctx, priv->gpu, 0);
 
 	context_close(ctx);
 }
