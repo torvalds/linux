@@ -42,13 +42,19 @@ static int nfp_rx_q_show(struct seq_file *file, void *data)
 		seq_printf(file, "%04d: 0x%08x 0x%08x", i,
 			   rxd->vals[0], rxd->vals[1]);
 
-		frag = READ_ONCE(rx_ring->rxbufs[i].frag);
-		if (frag)
-			seq_printf(file, " frag=%p", frag);
+		if (!r_vec->xsk_pool) {
+			frag = READ_ONCE(rx_ring->rxbufs[i].frag);
+			if (frag)
+				seq_printf(file, " frag=%p", frag);
 
-		if (rx_ring->rxbufs[i].dma_addr)
-			seq_printf(file, " dma_addr=%pad",
-				   &rx_ring->rxbufs[i].dma_addr);
+			if (rx_ring->rxbufs[i].dma_addr)
+				seq_printf(file, " dma_addr=%pad",
+					   &rx_ring->rxbufs[i].dma_addr);
+		} else {
+			if (rx_ring->xsk_rxbufs[i].dma_addr)
+				seq_printf(file, " dma_addr=%pad",
+					   &rx_ring->xsk_rxbufs[i].dma_addr);
+		}
 
 		if (i == rx_ring->rd_p % rxd_cnt)
 			seq_puts(file, " H_RD ");
@@ -103,20 +109,23 @@ static int nfp_tx_q_show(struct seq_file *file, void *data)
 		   tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
 
 	for (i = 0; i < txd_cnt; i++) {
+		struct xdp_buff *xdp;
+		struct sk_buff *skb;
+
 		txd = &tx_ring->txds[i];
 		seq_printf(file, "%04d: 0x%08x 0x%08x 0x%08x 0x%08x", i,
 			   txd->vals[0], txd->vals[1],
 			   txd->vals[2], txd->vals[3]);
 
-		if (tx_ring == r_vec->tx_ring) {
-			struct sk_buff *skb = READ_ONCE(tx_ring->txbufs[i].skb);
-
+		if (!tx_ring->is_xdp) {
+			skb = READ_ONCE(tx_ring->txbufs[i].skb);
 			if (skb)
 				seq_printf(file, " skb->head=%p skb->data=%p",
 					   skb->head, skb->data);
 		} else {
-			seq_printf(file, " frag=%p",
-				   READ_ONCE(tx_ring->txbufs[i].frag));
+			xdp = READ_ONCE(tx_ring->txbufs[i].xdp);
+			if (xdp)
+				seq_printf(file, " xdp->data=%p", xdp->data);
 		}
 
 		if (tx_ring->txbufs[i].dma_addr)
