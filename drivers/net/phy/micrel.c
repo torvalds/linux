@@ -1596,11 +1596,13 @@ static int lanphy_read_page_reg(struct phy_device *phydev, int page, u32 addr)
 {
 	u32 data;
 
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL, page);
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, addr);
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL,
-		  (page | LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC));
-	data = phy_read(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA);
+	phy_lock_mdio_bus(phydev);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL, page);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, addr);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL,
+		    (page | LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC));
+	data = __phy_read(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA);
+	phy_unlock_mdio_bus(phydev);
 
 	return data;
 }
@@ -1608,18 +1610,18 @@ static int lanphy_read_page_reg(struct phy_device *phydev, int page, u32 addr)
 static int lanphy_write_page_reg(struct phy_device *phydev, int page, u16 addr,
 				 u16 val)
 {
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL, page);
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, addr);
-	phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL,
-		  (page | LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC));
+	phy_lock_mdio_bus(phydev);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL, page);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, addr);
+	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL,
+		    page | LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC);
 
-	val = phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, val);
-	if (val) {
+	val = __phy_write(phydev, LAN_EXT_PAGE_ACCESS_ADDRESS_DATA, val);
+	if (val != 0)
 		phydev_err(phydev, "Error: phy_write has returned error %d\n",
 			   val);
-		return val;
-	}
-	return 0;
+	phy_unlock_mdio_bus(phydev);
+	return val;
 }
 
 static int lan8814_config_init(struct phy_device *phydev)
