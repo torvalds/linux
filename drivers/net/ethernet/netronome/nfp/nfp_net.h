@@ -109,6 +109,7 @@ struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 struct nfp_port;
+struct xsk_buff_pool;
 
 /* Convenience macro for wrapping descriptor index on ring size */
 #define D_IDX(ring, idx)	((idx) & ((ring)->cnt - 1))
@@ -501,6 +502,7 @@ struct nfp_stat_pair {
  * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
  * @num_rx_rings:	Currently configured number of RX rings
  * @mtu:		Device MTU
+ * @xsk_pools:		AF_XDP UMEM table (@num_r_vecs in size)
  */
 struct nfp_net_dp {
 	struct device *dev;
@@ -537,6 +539,8 @@ struct nfp_net_dp {
 	unsigned int num_rx_rings;
 
 	unsigned int mtu;
+
+	struct xsk_buff_pool **xsk_pools;
 };
 
 /**
