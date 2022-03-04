@@ -74,6 +74,26 @@ void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 	ifh_encode_bitfield(ifh_hdr, 1,        67, 1);
 }
 
+void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
+{
+	ifh_encode_bitfield(ifh_hdr, rew_op, VSTAX + 32,  10);
+}
+
+void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_type, 191, 4);
+}
+
+void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_w16_offset, 195, 6);
+}
+
+void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp)
+{
+	ifh_encode_bitfield(ifh_hdr, timestamp, 232,  40);
+}
+
 static int sparx5_port_open(struct net_device *ndev)
 {
 	struct sparx5_port *port = netdev_priv(ndev);

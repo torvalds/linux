@@ -88,6 +88,11 @@ enum sparx5_vlan_port_type {
 #define IFH_REW_OP_ONE_STEP_PTP		0x3
 #define IFH_REW_OP_TWO_STEP_PTP		0x4
 
+#define IFH_PDU_TYPE_NONE		0x0
+#define IFH_PDU_TYPE_PTP		0x5
+#define IFH_PDU_TYPE_IPV4_UDP_PTP	0x6
+#define IFH_PDU_TYPE_IPV6_UDP_PTP	0x7
+
 struct sparx5;
 
 struct sparx5_db_hw {
@@ -180,6 +185,8 @@ struct sparx5_port {
 	struct hrtimer inj_timer;
 	/* ptp */
 	u8 ptp_cmd;
+	u16 ts_id;
+	struct sk_buff_head tx_skbs;
 };
 
 enum sparx5_core_clockfreq {
@@ -196,6 +203,18 @@ struct sparx5_phc {
 	struct sparx5 *sparx5;
 	u8 index;
 };
+
+struct sparx5_skb_cb {
+	u8 rew_op;
+	u8 pdu_type;
+	u8 pdu_w16_offset;
+	u16 ts_id;
+	unsigned long jiffies;
+};
+
+#define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
+#define SPARX5_SKB_CB(skb) \
+	((struct sparx5_skb_cb *)((skb)->cb))
 
 struct sparx5 {
 	struct platform_device *pdev;
@@ -248,7 +267,9 @@ struct sparx5 {
 	bool ptp;
 	struct sparx5_phc phc[SPARX5_PHC_COUNT];
 	spinlock_t ptp_clock_lock; /* lock for phc */
+	spinlock_t ptp_ts_id_lock; /* lock for ts_id */
 	struct mutex ptp_lock; /* lock for ptp interface state */
+	u16 ptp_skbs;
 };
 
 /* sparx5_switchdev.c */
@@ -258,6 +279,7 @@ void sparx5_unregister_notifier_blocks(struct sparx5 *sparx5);
 /* sparx5_packet.c */
 struct frame_info {
 	int src_port;
+	u32 timestamp;
 };
 
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
@@ -311,6 +333,10 @@ void sparx5_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *stats
 int sparx_stats_init(struct sparx5 *sparx5);
 
 /* sparx5_netdev.c */
+void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
+void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
+void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type);
+void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset);
 void sparx5_set_port_ifh(void *ifh_hdr, u16 portno);
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
@@ -323,6 +349,12 @@ int sparx5_ptp_init(struct sparx5 *sparx5);
 void sparx5_ptp_deinit(struct sparx5 *sparx5);
 int sparx5_ptp_hwtstamp_set(struct sparx5_port *port, struct ifreq *ifr);
 int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr);
+void sparx5_ptp_rxtstamp(struct sparx5 *sparx5, struct sk_buff *skb,
+			 u64 timestamp);
+int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
+				struct sk_buff *skb);
+void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
+				 struct sk_buff *skb);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

@@ -147,6 +147,130 @@ int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr)
 			    sizeof(phc->hwtstamp_config)) ? -EFAULT : 0;
 }
 
+static void sparx5_ptp_classify(struct sparx5_port *port, struct sk_buff *skb,
+				u8 *rew_op, u8 *pdu_type, u8 *pdu_w16_offset)
+{
+	struct ptp_header *header;
+	u8 msgtype;
+	int type;
+
+	if (port->ptp_cmd == IFH_REW_OP_NOOP) {
+		*rew_op = IFH_REW_OP_NOOP;
+		*pdu_type = IFH_PDU_TYPE_NONE;
+		*pdu_w16_offset = 0;
+		return;
+	}
+
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE) {
+		*rew_op = IFH_REW_OP_NOOP;
+		*pdu_type = IFH_PDU_TYPE_NONE;
+		*pdu_w16_offset = 0;
+		return;
+	}
+
+	header = ptp_parse_header(skb, type);
+	if (!header) {
+		*rew_op = IFH_REW_OP_NOOP;
+		*pdu_type = IFH_PDU_TYPE_NONE;
+		*pdu_w16_offset = 0;
+		return;
+	}
+
+	*pdu_w16_offset = 7;
+	if (type & PTP_CLASS_L2)
+		*pdu_type = IFH_PDU_TYPE_PTP;
+	if (type & PTP_CLASS_IPV4)
+		*pdu_type = IFH_PDU_TYPE_IPV4_UDP_PTP;
+	if (type & PTP_CLASS_IPV6)
+		*pdu_type = IFH_PDU_TYPE_IPV6_UDP_PTP;
+
+	if (port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+		*rew_op = IFH_REW_OP_TWO_STEP_PTP;
+		return;
+	}
+
+	/* If it is sync and run 1 step then set the correct operation,
+	 * otherwise run as 2 step
+	 */
+	msgtype = ptp_get_msgtype(header, type);
+	if ((msgtype & 0xf) == 0) {
+		*rew_op = IFH_REW_OP_ONE_STEP_PTP;
+		return;
+	}
+
+	*rew_op = IFH_REW_OP_TWO_STEP_PTP;
+}
+
+static void sparx5_ptp_txtstamp_old_release(struct sparx5_port *port)
+{
+	struct sk_buff *skb, *skb_tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->tx_skbs.lock, flags);
+	skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
+		if time_after(SPARX5_SKB_CB(skb)->jiffies + SPARX5_PTP_TIMEOUT,
+			      jiffies)
+			break;
+
+		__skb_unlink(skb, &port->tx_skbs);
+		dev_kfree_skb_any(skb);
+	}
+	spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+}
+
+int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
+				struct sk_buff *skb)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	u8 rew_op, pdu_type, pdu_w16_offset;
+	unsigned long flags;
+
+	sparx5_ptp_classify(port, skb, &rew_op, &pdu_type, &pdu_w16_offset);
+	SPARX5_SKB_CB(skb)->rew_op = rew_op;
+	SPARX5_SKB_CB(skb)->pdu_type = pdu_type;
+	SPARX5_SKB_CB(skb)->pdu_w16_offset = pdu_w16_offset;
+
+	if (rew_op != IFH_REW_OP_TWO_STEP_PTP)
+		return 0;
+
+	sparx5_ptp_txtstamp_old_release(port);
+
+	spin_lock_irqsave(&sparx5->ptp_ts_id_lock, flags);
+	if (sparx5->ptp_skbs == SPARX5_MAX_PTP_ID) {
+		spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
+		return -EBUSY;
+	}
+
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	skb_queue_tail(&port->tx_skbs, skb);
+	SPARX5_SKB_CB(skb)->ts_id = port->ts_id;
+	SPARX5_SKB_CB(skb)->jiffies = jiffies;
+
+	sparx5->ptp_skbs++;
+	port->ts_id++;
+	if (port->ts_id == SPARX5_MAX_PTP_ID)
+		port->ts_id = 0;
+
+	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
+
+	return 0;
+}
+
+void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
+				 struct sk_buff *skb)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sparx5->ptp_ts_id_lock, flags);
+	port->ts_id--;
+	sparx5->ptp_skbs--;
+	skb_unlink(skb, &port->tx_skbs);
+	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
+}
+
 static int sparx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct sparx5_phc *phc = container_of(ptp, struct sparx5_phc, info);
@@ -352,6 +476,7 @@ static int sparx5_ptp_phc_init(struct sparx5 *sparx5,
 int sparx5_ptp_init(struct sparx5 *sparx5)
 {
 	u64 tod_adj = sparx5_ptp_get_nominal_value(sparx5);
+	struct sparx5_port *port;
 	int err, i;
 
 	if (!sparx5->ptp)
@@ -364,6 +489,7 @@ int sparx5_ptp_init(struct sparx5 *sparx5)
 	}
 
 	spin_lock_init(&sparx5->ptp_clock_lock);
+	spin_lock_init(&sparx5->ptp_ts_id_lock);
 	mutex_init(&sparx5->ptp_lock);
 
 	/* Disable master counters */
@@ -388,13 +514,53 @@ int sparx5_ptp_init(struct sparx5 *sparx5)
 	/* Enable master counters */
 	spx5_wr(PTP_PTP_DOM_CFG_PTP_ENA_SET(0x7), sparx5, PTP_PTP_DOM_CFG);
 
+	for (i = 0; i < sparx5->port_count; i++) {
+		port = sparx5->ports[i];
+		if (!port)
+			continue;
+
+		skb_queue_head_init(&port->tx_skbs);
+	}
+
 	return 0;
 }
 
 void sparx5_ptp_deinit(struct sparx5 *sparx5)
 {
+	struct sparx5_port *port;
 	int i;
+
+	for (i = 0; i < sparx5->port_count; i++) {
+		port = sparx5->ports[i];
+		if (!port)
+			continue;
+
+		skb_queue_purge(&port->tx_skbs);
+	}
 
 	for (i = 0; i < SPARX5_PHC_COUNT; ++i)
 		ptp_clock_unregister(sparx5->phc[i].clock);
+}
+
+void sparx5_ptp_rxtstamp(struct sparx5 *sparx5, struct sk_buff *skb,
+			 u64 timestamp)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct sparx5_phc *phc;
+	struct timespec64 ts;
+	u64 full_ts_in_ns;
+
+	if (!sparx5->ptp)
+		return;
+
+	phc = &sparx5->phc[SPARX5_PHC_PORT];
+	sparx5_ptp_gettime64(&phc->info, &ts);
+
+	if (ts.tv_nsec < timestamp)
+		ts.tv_sec--;
+	ts.tv_nsec = timestamp;
+	full_ts_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
+
+	shhwtstamps = skb_hwtstamps(skb);
+	shhwtstamps->hwtstamp = full_ts_in_ns;
 }
