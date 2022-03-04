@@ -46,19 +46,6 @@
 #define RK_FLAG_FINAL			BIT(0)
 #define RK_FLAG_UPDATE			BIT(1)
 
-struct rk_crypto_soc_data {
-	const char			*crypto_ver;
-	char				**valid_algs_name;
-	int				valid_algs_num;
-	unsigned int			hw_info_size;
-	bool				use_soft_aes192;
-	int				default_pka_offset;
-	int (*hw_init)(struct device *dev, void *hw_info);
-	void (*hw_deinit)(struct device *dev, void *hw_info);
-	const char * const *(*hw_get_rsts)(uint32_t *num);
-	struct rk_crypto_algt **(*hw_get_algts)(uint32_t *num);
-};
-
 struct rk_crypto_dev {
 	struct device			*dev;
 	struct reset_control		*rst;
@@ -92,6 +79,21 @@ struct rk_crypto_dev {
 	int (*unload_data)(struct rk_crypto_dev *rk_dev);
 	int (*enqueue)(struct rk_crypto_dev *rk_dev,
 		       struct crypto_async_request *async_req);
+};
+
+struct rk_crypto_soc_data {
+	const char			*crypto_ver;
+	char				**valid_algs_name;
+	int				valid_algs_num;
+	unsigned int			hw_info_size;
+	bool				use_soft_aes192;
+	int				default_pka_offset;
+	int (*hw_init)(struct device *dev, void *hw_info);
+	void (*hw_deinit)(struct device *dev, void *hw_info);
+	const char * const *(*hw_get_rsts)(uint32_t *num);
+	struct rk_crypto_algt **(*hw_get_algts)(uint32_t *num);
+	bool (*hw_is_algo_valid)(struct rk_crypto_dev *rk_dev,
+				 struct rk_crypto_algt *aglt);
 };
 
 struct rk_alg_ops {
@@ -213,6 +215,8 @@ enum rk_hash_algo {
 	HASH_ALGO_SHA384,
 	HASH_ALGO_SHA512,
 	HASH_ALGO_SM3,
+	HASH_ALGO_SHA512_224,
+	HASH_ALGO_SHA512_256,
 };
 
 enum rk_cipher_algo {
@@ -229,6 +233,11 @@ enum rk_cipher_mode {
 	CIPHER_MODE_OFB,
 	CIPHER_MODE_CTR,
 	CIPHER_MODE_XTS,
+	CIPHER_MODE_CTS,
+	CIPHER_MODE_CCM,
+	CIPHER_MODE_GCM,
+	CIPHER_MODE_CMAC,
+	CIPHER_MODE_CBCMAC,
 };
 
 #define DES_MIN_KEY_SIZE	DES_KEY_SIZE

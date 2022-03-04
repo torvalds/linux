@@ -32,6 +32,7 @@ struct rk_hw_crypto_v2_info {
 	.hw_deinit		= rk_hw_crypto_v2_deinit,\
 	.hw_get_rsts		= rk_hw_crypto_v2_get_rsts,\
 	.hw_get_algts		= rk_hw_crypto_v2_get_algts,\
+	.hw_is_algo_valid	= rk_hw_crypto_v2_algo_valid,\
 	.hw_info_size		= sizeof(struct rk_hw_crypto_v2_info),\
 	.default_pka_offset	= 0x0480,\
 }
@@ -82,6 +83,7 @@ int rk_hw_crypto_v2_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info);
 const char * const *rk_hw_crypto_v2_get_rsts(uint32_t *num);
 struct rk_crypto_algt **rk_hw_crypto_v2_get_algts(uint32_t *num);
+bool rk_hw_crypto_v2_algo_valid(struct rk_crypto_dev *rk_dev, struct rk_crypto_algt *aglt);
 
 #else
 
@@ -89,6 +91,11 @@ static inline int rk_hw_crypto_v2_init(struct device *dev, void *hw_info) { retu
 static inline void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info) {}
 static inline const char * const *rk_hw_crypto_v2_get_rsts(uint32_t *num) { return NULL; }
 static inline struct rk_crypto_algt **rk_hw_crypto_v2_get_algts(uint32_t *num) { return NULL; }
+static inline bool rk_hw_crypto_v2_algo_valid(struct rk_crypto_dev *rk_dev,
+					      struct rk_crypto_algt *aglt)
+{
+	return false;
+}
 
 #endif /* end of IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V2) */
 

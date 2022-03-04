@@ -100,3 +100,8 @@ struct rk_crypto_algt **rk_hw_crypto_v2_get_algts(uint32_t *num)
 	return crypto_v2_algs;
 }
 
+bool rk_hw_crypto_v2_algo_valid(struct rk_crypto_dev *rk_dev, struct rk_crypto_algt *aglt)
+{
+	return true;
+}
+

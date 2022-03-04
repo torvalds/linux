@@ -443,10 +443,17 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 
 	algs_name = soc_data->valid_algs_name;
 
+	rk_dev->request_crypto(rk_dev, __func__);
+
 	for (i = 0; i < soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (!tmp_algs) {
 			CRYPTO_TRACE("%s not matched!!!\n", *algs_name);
+			continue;
+		}
+
+		if (soc_data->hw_is_algo_valid && !soc_data->hw_is_algo_valid(rk_dev, tmp_algs)) {
+			CRYPTO_TRACE("%s skipped!!!\n", *algs_name);
 			continue;
 		}
 
@@ -482,6 +489,9 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 
 		CRYPTO_TRACE("%s register OK!!!\n", *algs_name);
 	}
+
+	rk_dev->release_crypto(rk_dev, __func__);
+
 	return 0;
 
 err_cipher_algs:
@@ -499,6 +509,9 @@ err_cipher_algs:
 		else if (tmp_algs->type == ALG_TYPE_ASYM)
 			crypto_unregister_akcipher(&tmp_algs->alg.asym);
 	}
+
+	rk_dev->release_crypto(rk_dev, __func__);
+
 	return err;
 }
 
@@ -509,6 +522,8 @@ static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 	struct rk_crypto_algt *tmp_algs;
 
 	algs_name = rk_dev->soc_data->valid_algs_name;
+
+	rk_dev->request_crypto(rk_dev, __func__);
 
 	for (i = 0; i < rk_dev->soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
@@ -522,6 +537,8 @@ static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 		else if (tmp_algs->type == ALG_TYPE_ASYM)
 			crypto_unregister_akcipher(&tmp_algs->alg.asym);
 	}
+
+	rk_dev->release_crypto(rk_dev, __func__);
 }
 
 static void rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
@@ -575,15 +592,6 @@ static char *crypto_full_algs_name[] = {
 	"rsa"
 };
 
-static char *crypto_rv1106_algs_name[] = {
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
-	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
-	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
-	"sha1", "sha224", "sha256", "md5",
-	"hmac(sha1)", "hmac(sha256)", "hmac(md5)",
-	"rsa"
-};
-
 static const struct rk_crypto_soc_data px30_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_no_sm_algs_name, false);
 
@@ -594,7 +602,7 @@ static const struct rk_crypto_soc_data full_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, false);
 
 static const struct rk_crypto_soc_data cryto_v3_soc_data =
-	RK_CRYPTO_V3_SOC_DATA_INIT(crypto_rv1106_algs_name);
+	RK_CRYPTO_V3_SOC_DATA_INIT(crypto_full_algs_name);
 
 static char *rk3288_cipher_algs[] = {
 	"ecb(aes)", "cbc(aes)",
