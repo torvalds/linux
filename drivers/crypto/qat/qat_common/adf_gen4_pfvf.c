@@ -43,7 +43,7 @@ static u32 adf_gen4_get_vf2pf_sources(void __iomem *pmisc_addr)
 	sou = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_SOU);
 	mask = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK);
 
-	return sou &= ~mask;
+	return sou & ~mask;
 }
 
 static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
