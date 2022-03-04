@@ -103,6 +103,7 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	tristate "Baytrail and Baytrail-CR with RT5640 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5640
 	help
@@ -115,6 +116,7 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	tristate "Baytrail and Baytrail-CR with RT5651 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5651
 	help
@@ -127,6 +129,7 @@ config SND_SOC_INTEL_BYTCR_WM5102_MACH
 	tristate "Baytrail and Baytrail-CR with WM5102 codec"
 	depends on MFD_ARIZONA && MFD_WM5102 && SPI_MASTER && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_WM5102
 	help
@@ -139,6 +142,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	tristate "Cherrytrail & Braswell with RT5672 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5670
 	help
@@ -163,6 +167,7 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	tristate "Cherrytrail & Braswell with MAX98090 & TI codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
 	help
@@ -187,6 +192,7 @@ config SND_SOC_INTEL_BYT_CHT_CX2072X_MACH
 	tristate "Baytrail & Cherrytrail with CX2072X codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_CX2072X
 	help
@@ -211,6 +217,7 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	tristate "Baytrail & Cherrytrail with ES8316 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_ES8316
 	help
@@ -332,6 +339,7 @@ config SND_SOC_INTEL_SOF_WM8804_MACH
 	tristate "SOF with Wolfson/Cirrus WM8804 codec"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_WM8804_I2C
 	help
 	  This adds support for ASoC machine driver for Intel platforms
@@ -404,6 +412,7 @@ config SND_SOC_INTEL_KBL_RT5660_MACH
 	tristate "KBL with RT5660 in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_RT5660
 	select SND_SOC_HDAC_HDMI
 	help
@@ -522,8 +531,9 @@ config SND_SOC_INTEL_SOF_PCM512x_MACH
 
 config SND_SOC_INTEL_SOF_ES8336_MACH
 	tristate "SOF with ES8336 codec in I2S mode"
-	depends on I2C && ACPI && GPIOLIB
+	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
 	select SND_SOC_ES8316
 	select SND_SOC_DMIC
