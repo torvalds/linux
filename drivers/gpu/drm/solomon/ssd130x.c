@@ -579,7 +579,7 @@ static const struct drm_simple_display_pipe_funcs ssd130x_pipe_funcs = {
 static int ssd130x_connector_get_modes(struct drm_connector *connector)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(connector->dev);
-	struct drm_display_mode *mode = &ssd130x->mode;
+	struct drm_display_mode *mode;
 	struct device *dev = ssd130x->dev;
 
 	mode = drm_mode_duplicate(connector->dev, &ssd130x->mode);

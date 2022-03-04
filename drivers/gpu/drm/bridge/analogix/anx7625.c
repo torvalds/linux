@@ -253,6 +253,8 @@ static int anx7625_aux_trans(struct anx7625_data *ctx, u8 op, u32 address,
 	addrm = (address >> 8) & 0xFF;
 	addrh = (address >> 16) & 0xFF;
 
+	if (!is_write)
+		op &= ~DP_AUX_I2C_MOT;
 	cmd = DPCD_CMD(len, op);
 
 	/* Set command and length */
@@ -2736,8 +2738,8 @@ static int anx7625_i2c_remove(struct i2c_client *client)
 
 	if (platform->hdcp_workqueue) {
 		cancel_delayed_work(&platform->hdcp_work);
-		flush_workqueue(platform->workqueue);
-		destroy_workqueue(platform->workqueue);
+		flush_workqueue(platform->hdcp_workqueue);
+		destroy_workqueue(platform->hdcp_workqueue);
 	}
 
 	if (!platform->pdata.low_power_mode)

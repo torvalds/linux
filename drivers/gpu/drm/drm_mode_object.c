@@ -297,11 +297,26 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_set_value);
 
+static int __drm_object_property_get_prop_value(struct drm_mode_object *obj,
+						struct drm_property *property,
+						uint64_t *val)
+{
+	int i;
+
+	for (i = 0; i < obj->properties->count; i++) {
+		if (obj->properties->properties[i] == property) {
+			*val = obj->properties->values[i];
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int __drm_object_property_get_value(struct drm_mode_object *obj,
 					   struct drm_property *property,
 					   uint64_t *val)
 {
-	int i;
 
 	/* read-only properties bypass atomic mechanism and still store
 	 * their value in obj->properties->values[].. mostly to avoid
@@ -311,15 +326,7 @@ static int __drm_object_property_get_value(struct drm_mode_object *obj,
 			!(property->flags & DRM_MODE_PROP_IMMUTABLE))
 		return drm_atomic_get_property(obj, property, val);
 
-	for (i = 0; i < obj->properties->count; i++) {
-		if (obj->properties->properties[i] == property) {
-			*val = obj->properties->values[i];
-			return 0;
-		}
-
-	}
-
-	return -EINVAL;
+	return __drm_object_property_get_prop_value(obj, property, val);
 }
 
 /**
@@ -347,6 +354,32 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 	return __drm_object_property_get_value(obj, property, val);
 }
 EXPORT_SYMBOL(drm_object_property_get_value);
+
+/**
+ * drm_object_property_get_default_value - retrieve the default value of a
+ * property when in atomic mode.
+ * @obj: drm mode object to get property value from
+ * @property: property to retrieve
+ * @val: storage for the property value
+ *
+ * This function retrieves the default state of the given property as passed in
+ * to drm_object_attach_property
+ *
+ * Only atomic drivers should call this function directly, as for non-atomic
+ * drivers it will return the current value.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_object_property_get_default_value(struct drm_mode_object *obj,
+					  struct drm_property *property,
+					  uint64_t *val)
+{
+	WARN_ON(!drm_drv_uses_atomic_modeset(property->dev));
+
+	return __drm_object_property_get_prop_value(obj, property, val);
+}
+EXPORT_SYMBOL(drm_object_property_get_default_value);
 
 /* helper for getconnector and getproperties ioctls */
 int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,

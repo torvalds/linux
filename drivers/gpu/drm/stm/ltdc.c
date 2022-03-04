@@ -77,6 +77,7 @@
 #define LTDC_CPSR	0x0044		/* Current Position Status */
 #define LTDC_CDSR	0x0048		/* Current Display Status */
 #define LTDC_EDCR	0x0060		/* External Display Control */
+#define LTDC_CCRCR	0x007C		/* Computed CRC value */
 #define LTDC_FUT	0x0090		/* Fifo underrun Threshold */
 
 /* Layer register offsets */
@@ -121,6 +122,7 @@
 
 #define GCR_LTDCEN	BIT(0)		/* LTDC ENable */
 #define GCR_DEN		BIT(16)		/* Dither ENable */
+#define GCR_CRCEN	BIT(19)		/* CRC ENable */
 #define GCR_PCPOL	BIT(28)		/* Pixel Clock POLarity-Inverted */
 #define GCR_DEPOL	BIT(29)		/* Data Enable POLarity-High */
 #define GCR_VSPOL	BIT(30)		/* Vertical Synchro POLarity-High */
@@ -226,6 +228,13 @@
 #define BF2_1CA		0x005		/* 1 - Constant Alpha */
 
 #define NB_PF		8		/* Max nb of HW pixel format */
+
+/*
+ * Skip the first value and the second in case CRC was enabled during
+ * the thread irq. This is to be sure CRC value is relevant for the
+ * frame.
+ */
+#define CRC_SKIP_FRAMES 2
 
 enum ltdc_pix_fmt {
 	PF_NONE,
@@ -624,7 +633,8 @@ static inline void ltdc_set_ycbcr_config(struct drm_plane *plane, u32 drm_pix_fm
 		break;
 	default:
 		/* RGB or not a YCbCr supported format */
-		break;
+		DRM_ERROR("Unsupported pixel format: %u\n", drm_pix_fmt);
+		return;
 	}
 
 	/* Enable limited range */
@@ -664,6 +674,26 @@ static inline void ltdc_set_ycbcr_coeffs(struct drm_plane *plane)
 		     ltdc_ycbcr2rgb_coeffs[enc][ran][1]);
 }
 
+static inline void ltdc_irq_crc_handle(struct ltdc_device *ldev,
+				       struct drm_crtc *crtc)
+{
+	u32 crc;
+	int ret;
+
+	if (ldev->crc_skip_count < CRC_SKIP_FRAMES) {
+		ldev->crc_skip_count++;
+		return;
+	}
+
+	/* Get the CRC of the frame */
+	ret = regmap_read(ldev->regmap, LTDC_CCRCR, &crc);
+	if (ret)
+		return;
+
+	/* Report to DRM the CRC (hw dependent feature) */
+	drm_crtc_add_crc_entry(crtc, true, drm_crtc_accurate_vblank_count(crtc), &crc);
+}
+
 static irqreturn_t ltdc_irq_thread(int irq, void *arg)
 {
 	struct drm_device *ddev = arg;
@@ -671,8 +701,13 @@ static irqreturn_t ltdc_irq_thread(int irq, void *arg)
 	struct drm_crtc *crtc = drm_crtc_from_index(ddev, 0);
 
 	/* Line IRQ : trigger the vblank event */
-	if (ldev->irq_status & ISR_LIF)
+	if (ldev->irq_status & ISR_LIF) {
 		drm_crtc_handle_vblank(crtc);
+
+		/* Early return if CRC is not active */
+		if (ldev->crc_active)
+			ltdc_irq_crc_handle(ldev, crtc);
+	}
 
 	/* Save FIFO Underrun & Transfer Error status */
 	mutex_lock(&ldev->err_lock);
@@ -1079,6 +1114,48 @@ static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 	regmap_clear_bits(ldev->regmap, LTDC_IER, IER_LIE);
 }
 
+static int ltdc_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	int ret;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	if (!crtc)
+		return -ENODEV;
+
+	if (source && strcmp(source, "auto") == 0) {
+		ldev->crc_active = true;
+		ret = regmap_set_bits(ldev->regmap, LTDC_GCR, GCR_CRCEN);
+	} else if (!source) {
+		ldev->crc_active = false;
+		ret = regmap_clear_bits(ldev->regmap, LTDC_GCR, GCR_CRCEN);
+	} else {
+		ret = -EINVAL;
+	}
+
+	ldev->crc_skip_count = 0;
+	return ret;
+}
+
+static int ltdc_crtc_verify_crc_source(struct drm_crtc *crtc,
+				       const char *source, size_t *values_cnt)
+{
+	DRM_DEBUG_DRIVER("\n");
+
+	if (!crtc)
+		return -ENODEV;
+
+	if (source && strcmp(source, "auto") != 0) {
+		DRM_DEBUG_DRIVER("Unknown CRC source %s for %s\n",
+				 source, crtc->name);
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+	return 0;
+}
+
 static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -1089,6 +1166,20 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.enable_vblank = ltdc_crtc_enable_vblank,
 	.disable_vblank = ltdc_crtc_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+};
+
+static const struct drm_crtc_funcs ltdc_crtc_with_crc_support_funcs = {
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = ltdc_crtc_enable_vblank,
+	.disable_vblank = ltdc_crtc_disable_vblank,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+	.set_crc_source = ltdc_crtc_set_crc_source,
+	.verify_crc_source = ltdc_crtc_verify_crc_source,
 };
 
 /*
@@ -1478,8 +1569,13 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 
 	drm_plane_create_zpos_immutable_property(primary, 0);
 
-	ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
-					&ltdc_crtc_funcs, NULL);
+	/* Init CRTC according to its hardware features */
+	if (ldev->caps.crc)
+		ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
+						&ltdc_crtc_with_crc_support_funcs, NULL);
+	else
+		ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
+						&ltdc_crtc_funcs, NULL);
 	if (ret) {
 		DRM_ERROR("Can not initialize CRTC\n");
 		goto cleanup;
@@ -1629,6 +1725,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_input = false;
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
+		ldev->caps.crc = false;
 		break;
 	case HWVER_20101:
 		ldev->caps.layer_ofs = LAY_OFS_0;
@@ -1643,6 +1740,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_input = false;
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
+		ldev->caps.crc = false;
 		break;
 	case HWVER_40100:
 		ldev->caps.layer_ofs = LAY_OFS_1;
@@ -1657,6 +1755,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_input = true;
 		ldev->caps.ycbcr_output = true;
 		ldev->caps.plane_reg_shadow = true;
+		ldev->caps.crc = true;
 		break;
 	default:
 		return -ENODEV;
