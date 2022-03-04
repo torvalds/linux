@@ -6745,6 +6745,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 				prev_delta = compute_energy(p, prev_cpu, pd);
 				prev_delta -= base_energy_pd;
 				best_delta = min(best_delta, prev_delta);
+				if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+					if (prev_delta == best_delta)
+						best_energy_cpu = prev_cpu;
+				}
 			}
 
 			/*
@@ -6803,6 +6807,11 @@ unlock:
 	 */
 	if (prev_delta == ULONG_MAX)
 		return best_energy_cpu;
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+		if (rockchip_perf_get_level() == 0)
+			return best_energy_cpu;
+	}
 
 	if ((prev_delta - best_delta) > ((prev_delta + base_energy) >> 4))
 		return best_energy_cpu;

@@ -1098,6 +1098,14 @@ static void uclamp_sync_util_min_rt_default(void)
 	rcu_read_unlock();
 }
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)
+void rockchip_perf_uclamp_sync_util_min_rt_default(void)
+{
+	uclamp_sync_util_min_rt_default();
+}
+EXPORT_SYMBOL(rockchip_perf_uclamp_sync_util_min_rt_default);
+#endif
+
 static inline struct uclamp_se
 uclamp_tg_restrict(struct task_struct *p, enum uclamp_id clamp_id)
 {

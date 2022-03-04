@@ -14,6 +14,7 @@ obj-$(CONFIG_ROCKCHIP_FLASH_VENDOR_STORAGE) += flash_vendor_storage.o
 obj-$(CONFIG_ROCKCHIP_MTD_VENDOR_STORAGE) += mtd_vendor_storage.o
 obj-$(CONFIG_ROCKCHIP_IPA) += rockchip_ipa.o
 obj-$(CONFIG_ROCKCHIP_OPP) += rockchip_opp_select.o
+obj-$(CONFIG_ROCKCHIP_PERFORMANCE) += rockchip_performance.o
 obj-$(CONFIG_ROCKCHIP_PVTM) += rockchip_pvtm.o
 obj-$(CONFIG_ROCKCHIP_RAMDISK) += rockchip_ramdisk.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o

@@ -1546,6 +1546,8 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 			 (unlikely(rt_task(curr)) &&
 			  (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio))));
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE))
+		test |= rockchip_perf_misfit_rt(cpu);
 	/*
 	 * Respect the sync flag as long as the task can run on this CPU.
 	 */
@@ -1815,6 +1817,8 @@ static int find_lowest_rq(struct task_struct *task)
 
 	cpu = task_cpu(task);
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE))
+		cpu = rockchip_perf_select_rt_cpu(cpu, lowest_mask);
 	/*
 	 * At this point we have built a mask of CPUs representing the
 	 * lowest priority tasks in the system.  Now we want to elect

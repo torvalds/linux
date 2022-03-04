@@ -70,6 +70,7 @@
 
 #include <asm/tlb.h>
 #include <asm-generic/vmlinux.lds.h>
+#include <soc/rockchip/rockchip_performance.h>
 
 #ifdef CONFIG_PARAVIRT
 # include <asm/paravirt.h>
