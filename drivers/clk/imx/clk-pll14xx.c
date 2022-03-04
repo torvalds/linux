@@ -118,13 +118,13 @@ static long clk_pll14xx_round_rate(struct clk_hw *hw, unsigned long rate,
 	const struct imx_pll14xx_rate_table *rate_table = pll->rate_table;
 	int i;
 
-	/* Assumming rate_table is in descending order */
+	/* Assuming rate_table is in descending order */
 	for (i = 0; i < pll->rate_count; i++)
 		if (rate >= rate_table[i].rate)
 			return rate_table[i].rate;
 
 	/* return minimum supported value */
-	return rate_table[i - 1].rate;
+	return rate_table[pll->rate_count - 1].rate;
 }
 
 static unsigned long clk_pll14xx_recalc_rate(struct clk_hw *hw,
