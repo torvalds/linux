@@ -291,18 +291,18 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 	mutex_lock(&wq->wq_lock);
 	wq->type = IDXD_WQT_KERNEL;
 
-	rc = idxd_wq_request_irq(wq);
-	if (rc < 0) {
-		idxd->cmd_status = IDXD_SCMD_WQ_IRQ_ERR;
-		dev_dbg(dev, "WQ %d irq setup failed: %d\n", wq->id, rc);
-		goto err_irq;
-	}
-
 	rc = __drv_enable_wq(wq);
 	if (rc < 0) {
 		dev_dbg(dev, "Enable wq %d failed: %d\n", wq->id, rc);
 		rc = -ENXIO;
 		goto err;
+	}
+
+	rc = idxd_wq_request_irq(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_IRQ_ERR;
+		dev_dbg(dev, "WQ %d irq setup failed: %d\n", wq->id, rc);
+		goto err_irq;
 	}
 
 	rc = idxd_wq_alloc_resources(wq);
@@ -336,10 +336,10 @@ err_dma:
 err_ref:
 	idxd_wq_free_resources(wq);
 err_res_alloc:
-	__drv_disable_wq(wq);
-err:
 	idxd_wq_free_irq(wq);
 err_irq:
+	__drv_disable_wq(wq);
+err:
 	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 	return rc;
