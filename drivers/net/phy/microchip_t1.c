@@ -501,14 +501,10 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 		PHY_ID_MATCH_MODEL(PHY_ID_LAN87XX),
 		.name           = "Microchip LAN87xx T1",
 		.flags          = PHY_POLL_CABLE_TEST,
-
 		.features       = PHY_BASIC_T1_FEATURES,
-
 		.config_init	= lan87xx_config_init,
-
 		.config_intr    = lan87xx_phy_config_intr,
 		.handle_interrupt = lan87xx_handle_interrupt,
-
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 		.cable_test_start = lan87xx_cable_test_start,
