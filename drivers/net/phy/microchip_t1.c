@@ -8,13 +8,17 @@
 #include <linux/phy.h>
 #include <linux/ethtool.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/bitfield.h>
 
 #define PHY_ID_LAN87XX				0x0007c150
+#define PHY_ID_LAN937X				0x0007c180
 
 /* External Register Control Register */
 #define LAN87XX_EXT_REG_CTL                     (0x14)
 #define LAN87XX_EXT_REG_CTL_RD_CTL              (0x1000)
 #define LAN87XX_EXT_REG_CTL_WR_CTL              (0x0800)
+#define LAN87XX_REG_BANK_SEL_MASK		GENMASK(10, 8)
+#define LAN87XX_REG_ADDR_MASK			GENMASK(7, 0)
 
 /* External Register Read Data Register */
 #define LAN87XX_EXT_REG_RD_DATA                 (0x15)
@@ -76,7 +80,7 @@
 #define T1_PST_EQ_LCK_STG1_FRZ_CFG	0x6E
 
 #define DRIVER_AUTHOR	"Nisar Sayed <nisar.sayed@microchip.com>"
-#define DRIVER_DESC	"Microchip LAN87XX T1 PHY driver"
+#define DRIVER_DESC	"Microchip LAN87XX/LAN937x T1 PHY driver"
 
 struct access_ereg_val {
 	u8  mode;
@@ -85,6 +89,37 @@ struct access_ereg_val {
 	u16 val;
 	u16 mask;
 };
+
+static int lan937x_dsp_workaround(struct phy_device *phydev, u16 ereg, u8 bank)
+{
+	u8 prev_bank;
+	int rc = 0;
+	u16 val;
+
+	mutex_lock(&phydev->lock);
+	/* Read previous selected bank */
+	rc = phy_read(phydev, LAN87XX_EXT_REG_CTL);
+	if (rc < 0)
+		goto out_unlock;
+
+	/* store the prev_bank */
+	prev_bank = FIELD_GET(LAN87XX_REG_BANK_SEL_MASK, rc);
+
+	if (bank != prev_bank && bank == PHYACC_ATTR_BANK_DSP) {
+		val = ereg & ~LAN87XX_REG_ADDR_MASK;
+
+		val &= ~LAN87XX_EXT_REG_CTL_WR_CTL;
+		val |= LAN87XX_EXT_REG_CTL_RD_CTL;
+
+		/* access twice for DSP bank change,dummy access */
+		rc = phy_write(phydev, LAN87XX_EXT_REG_CTL, val);
+	}
+
+out_unlock:
+	mutex_unlock(&phydev->lock);
+
+	return rc;
+}
 
 static int access_ereg(struct phy_device *phydev, u8 mode, u8 bank,
 		       u8 offset, u16 val)
@@ -113,6 +148,13 @@ static int access_ereg(struct phy_device *phydev, u8 mode, u8 bank,
 	}
 
 	ereg |= (bank << 8) | offset;
+
+	/* DSP bank access workaround for lan937x */
+	if (phydev->phy_id == PHY_ID_LAN937X) {
+		rc = lan937x_dsp_workaround(phydev, ereg, bank);
+		if (rc < 0)
+			return rc;
+	}
 
 	rc = phy_write(phydev, LAN87XX_EXT_REG_CTL, ereg);
 	if (rc < 0)
@@ -642,6 +684,16 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 		.resume         = genphy_resume,
 		.cable_test_start = lan87xx_cable_test_start,
 		.cable_test_get_status = lan87xx_cable_test_get_status,
+	},
+	{
+		PHY_ID_MATCH_MODEL(PHY_ID_LAN937X),
+		.name		= "Microchip LAN937x T1",
+		.features	= PHY_BASIC_T1_FEATURES,
+		.config_init	= lan87xx_config_init,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.cable_test_start = lan87xx_cable_test_start,
+		.cable_test_get_status = lan87xx_cable_test_get_status,
 	}
 };
 
@@ -649,6 +701,7 @@ module_phy_driver(microchip_t1_phy_driver);
 
 static struct mdio_device_id __maybe_unused microchip_t1_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN87XX) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN937X) },
 	{ }
 };
 
