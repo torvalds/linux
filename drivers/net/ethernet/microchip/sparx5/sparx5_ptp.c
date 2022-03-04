@@ -32,7 +32,7 @@ static u64 sparx5_ptp_get_1ppm(struct sparx5 *sparx5)
 	 * (1/1000000)/((2^-59)/X)
 	 */
 
-	u64 res;
+	u64 res = 0;
 
 	switch (sparx5->coreclock) {
 	case SPX5_CORE_CLOCK_250MHZ:
@@ -54,7 +54,7 @@ static u64 sparx5_ptp_get_1ppm(struct sparx5 *sparx5)
 
 static u64 sparx5_ptp_get_nominal_value(struct sparx5 *sparx5)
 {
-	u64 res;
+	u64 res = 0;
 
 	switch (sparx5->coreclock) {
 	case SPX5_CORE_CLOCK_250MHZ:
