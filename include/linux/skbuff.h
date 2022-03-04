@@ -405,6 +405,7 @@ enum skb_drop_reason {
 					 * full (see netdev_max_backlog in
 					 * net.rst) or RPS flow limit
 					 */
+	SKB_DROP_REASON_XDP,		/* dropped by XDP in input path */
 	SKB_DROP_REASON_MAX,
 };
 
