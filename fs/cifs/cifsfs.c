@@ -254,6 +254,9 @@ static void cifs_kill_sb(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct cached_fid *cfid;
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node;
+	struct tcon_link *tlink;
 
 	/*
 	 * We ned to release all dentries for the cached directories
@@ -263,17 +266,21 @@ static void cifs_kill_sb(struct super_block *sb)
 		dput(cifs_sb->root);
 		cifs_sb->root = NULL;
 	}
-	tcon = cifs_sb_master_tcon(cifs_sb);
-	if (tcon) {
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	node = rb_first(root);
+	while (node != NULL) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+		tcon = tlink_tcon(tlink);
 		cfid = &tcon->crfid;
 		mutex_lock(&cfid->fid_mutex);
 		if (cfid->dentry) {
-
 			dput(cfid->dentry);
 			cfid->dentry = NULL;
 		}
 		mutex_unlock(&cfid->fid_mutex);
+		node = rb_next(node);
 	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
