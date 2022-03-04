@@ -304,7 +304,7 @@ static int iss_net_rx(struct net_device *dev)
 
 		lp->stats.rx_bytes += skb->len;
 		lp->stats.rx_packets++;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		return pkt_len;
 	}
 	kfree_skb(skb);

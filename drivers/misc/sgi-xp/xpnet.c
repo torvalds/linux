@@ -247,7 +247,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	xpnet_device->stats.rx_packets++;
 	xpnet_device->stats.rx_bytes += skb->len + ETH_HLEN;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 	xpc_received(partid, channel, (void *)msg);
 }
 
