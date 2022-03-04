@@ -2639,6 +2639,25 @@ static void nfp_net_rx_rings_free(struct nfp_net_dp *dp)
 }
 
 static void
+nfp_net_napi_add(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec)
+{
+	if (dp->netdev)
+		netif_napi_add(dp->netdev, &r_vec->napi,
+			       nfp_net_poll, NAPI_POLL_WEIGHT);
+	else
+		tasklet_enable(&r_vec->tasklet);
+}
+
+static void
+nfp_net_napi_del(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec)
+{
+	if (dp->netdev)
+		netif_napi_del(&r_vec->napi);
+	else
+		tasklet_disable(&r_vec->tasklet);
+}
+
+static void
 nfp_net_vector_assign_rings(struct nfp_net_dp *dp,
 			    struct nfp_net_r_vector *r_vec, int idx)
 {
@@ -2656,23 +2675,14 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 {
 	int err;
 
-	/* Setup NAPI */
-	if (nn->dp.netdev)
-		netif_napi_add(nn->dp.netdev, &r_vec->napi,
-			       nfp_net_poll, NAPI_POLL_WEIGHT);
-	else
-		tasklet_enable(&r_vec->tasklet);
+	nfp_net_napi_add(&nn->dp, r_vec);
 
 	snprintf(r_vec->name, sizeof(r_vec->name),
 		 "%s-rxtx-%d", nfp_net_name(nn), idx);
 	err = request_irq(r_vec->irq_vector, r_vec->handler, 0, r_vec->name,
 			  r_vec);
 	if (err) {
-		if (nn->dp.netdev)
-			netif_napi_del(&r_vec->napi);
-		else
-			tasklet_disable(&r_vec->tasklet);
-
+		nfp_net_napi_del(&nn->dp, r_vec);
 		nn_err(nn, "Error requesting IRQ %d\n", r_vec->irq_vector);
 		return err;
 	}
@@ -2690,11 +2700,7 @@ static void
 nfp_net_cleanup_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec)
 {
 	irq_set_affinity_hint(r_vec->irq_vector, NULL);
-	if (nn->dp.netdev)
-		netif_napi_del(&r_vec->napi);
-	else
-		tasklet_disable(&r_vec->tasklet);
-
+	nfp_net_napi_del(&nn->dp, r_vec);
 	free_irq(r_vec->irq_vector, r_vec);
 }
 
