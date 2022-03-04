@@ -188,6 +188,14 @@
 #define TRCCONFIGR_DA				BIT(16)
 #define TRCCONFIGR_DV				BIT(17)
 
+#define TRCEVENTCTL1R_INSTEN_MASK		GENMASK(3, 0)
+#define TRCEVENTCTL1R_INSTEN_0			BIT(0)
+#define TRCEVENTCTL1R_INSTEN_1			BIT(1)
+#define TRCEVENTCTL1R_INSTEN_2			BIT(2)
+#define TRCEVENTCTL1R_INSTEN_3			BIT(3)
+#define TRCEVENTCTL1R_ATB			BIT(11)
+#define TRCEVENTCTL1R_LPOVERRIDE		BIT(12)
+
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions

@@ -384,16 +384,16 @@ static ssize_t mode_store(struct device *dev,
 	/* bit[11], AMBA Trace Bus (ATB) trigger enable bit */
 	if ((config->mode & ETM_MODE_ATB_TRIGGER) &&
 	    (drvdata->atbtrig == true))
-		config->eventctrl1 |= BIT(11);
+		config->eventctrl1 |= TRCEVENTCTL1R_ATB;
 	else
-		config->eventctrl1 &= ~BIT(11);
+		config->eventctrl1 &= ~TRCEVENTCTL1R_ATB;
 
 	/* bit[12], Low-power state behavior override bit */
 	if ((config->mode & ETM_MODE_LPOVERRIDE) &&
 	    (drvdata->lpoverride == true))
-		config->eventctrl1 |= BIT(12);
+		config->eventctrl1 |= TRCEVENTCTL1R_LPOVERRIDE;
 	else
-		config->eventctrl1 &= ~BIT(12);
+		config->eventctrl1 &= ~TRCEVENTCTL1R_LPOVERRIDE;
 
 	/* bit[8], Instruction stall bit */
 	if ((config->mode & ETM_MODE_ISTALL_EN) && (drvdata->stallctl == true))
@@ -534,7 +534,7 @@ static ssize_t event_instren_show(struct device *dev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
 
-	val = BMVAL(config->eventctrl1, 0, 3);
+	val = FIELD_GET(TRCEVENTCTL1R_INSTEN_MASK, config->eventctrl1);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -551,23 +551,28 @@ static ssize_t event_instren_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	/* start by clearing all instruction event enable bits */
-	config->eventctrl1 &= ~(BIT(0) | BIT(1) | BIT(2) | BIT(3));
+	config->eventctrl1 &= ~TRCEVENTCTL1R_INSTEN_MASK;
 	switch (drvdata->nr_event) {
 	case 0x0:
 		/* generate Event element for event 1 */
-		config->eventctrl1 |= val & BIT(1);
+		config->eventctrl1 |= val & TRCEVENTCTL1R_INSTEN_1;
 		break;
 	case 0x1:
 		/* generate Event element for event 1 and 2 */
-		config->eventctrl1 |= val & (BIT(0) | BIT(1));
+		config->eventctrl1 |= val & (TRCEVENTCTL1R_INSTEN_0 | TRCEVENTCTL1R_INSTEN_1);
 		break;
 	case 0x2:
 		/* generate Event element for event 1, 2 and 3 */
-		config->eventctrl1 |= val & (BIT(0) | BIT(1) | BIT(2));
+		config->eventctrl1 |= val & (TRCEVENTCTL1R_INSTEN_0 |
+					     TRCEVENTCTL1R_INSTEN_1 |
+					     TRCEVENTCTL1R_INSTEN_2);
 		break;
 	case 0x3:
 		/* generate Event element for all 4 events */
-		config->eventctrl1 |= val & 0xF;
+		config->eventctrl1 |= val & (TRCEVENTCTL1R_INSTEN_0 |
+					     TRCEVENTCTL1R_INSTEN_1 |
+					     TRCEVENTCTL1R_INSTEN_2 |
+					     TRCEVENTCTL1R_INSTEN_3);
 		break;
 	default:
 		break;
