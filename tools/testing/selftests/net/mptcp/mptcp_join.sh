@@ -20,6 +20,7 @@ do_all_tests=1
 init=0
 
 TEST_COUNT=0
+nr_blank=40
 
 # generated using "nfbpf_compile '(ip && (ip[54] & 0xf0) == 0x30) ||
 #				  (ip6 && (ip6[74] & 0xf0) == 0x30)'"
@@ -732,9 +733,9 @@ chk_csum_nr()
 	local dump_stats
 
 	if [ ! -z "$msg" ]; then
-		printf "%02u" "$TEST_COUNT"
+		printf "%03u" "$TEST_COUNT"
 	else
-		echo -n "  "
+		echo -n "   "
 	fi
 	printf " %-36s %s" "$msg" "sum"
 	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}'`
@@ -766,7 +767,7 @@ chk_fail_nr()
 	local count
 	local dump_stats
 
-	printf "%-39s %s" " " "ftx"
+	printf "%-${nr_blank}s %s" " " "ftx"
 	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPFailTx | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$mp_fail_nr_tx" ]; then
@@ -801,7 +802,7 @@ chk_join_nr()
 	local dump_stats
 	local with_cookie
 
-	printf "%02u %-36s %s" "$TEST_COUNT" "$msg" "syn"
+	printf "%03u %-36s %s" "$TEST_COUNT" "$msg" "syn"
 	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPJoinSynRx | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$syn_nr" ]; then
@@ -863,7 +864,7 @@ chk_stale_nr()
 	local stale_nr
 	local recover_nr
 
-	printf "%-39s %-18s" " " "stale"
+	printf "%-${nr_blank}s %-18s" " " "stale"
 	stale_nr=`ip netns exec $ns nstat -as | grep MPTcpExtSubflowStale | awk '{print $2}'`
 	[ -z "$stale_nr" ] && stale_nr=0
 	recover_nr=`ip netns exec $ns nstat -as | grep MPTcpExtSubflowRecover | awk '{print $2}'`
@@ -904,7 +905,7 @@ chk_add_nr()
 
 	timeout=`ip netns exec $ns1 sysctl -n net.mptcp.add_addr_timeout`
 
-	printf "%-39s %s" " " "add"
+	printf "%-${nr_blank}s %s" " " "add"
 	count=`ip netns exec $ns2 nstat -as MPTcpExtAddAddr | grep MPTcpExtAddAddr | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 
@@ -941,7 +942,7 @@ chk_add_nr()
 			echo "[ ok ]"
 		fi
 
-		printf "%-39s %s" " " "syn"
+		printf "%-${nr_blank}s %s" " " "syn"
 		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPJoinPortSynRx |
 			awk '{print $2}'`
 		[ -z "$count" ] && count=0
@@ -980,7 +981,7 @@ chk_add_nr()
 			echo "[ ok ]"
 		fi
 
-		printf "%-39s %s" " " "syn"
+		printf "%-${nr_blank}s %s" " " "syn"
 		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMismatchPortSynRx |
 			awk '{print $2}'`
 		[ -z "$count" ] && count=0
@@ -1030,7 +1031,7 @@ chk_rm_nr()
 		subflow_ns=$ns1
 	fi
 
-	printf "%-39s %s" " " "rm "
+	printf "%-${nr_blank}s %s" " " "rm "
 	count=`ip netns exec $addr_ns nstat -as | grep MPTcpExtRmAddr | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$rm_addr_nr" ]; then
@@ -1062,7 +1063,7 @@ chk_prio_nr()
 	local count
 	local dump_stats
 
-	printf "%-39s %s" " " "ptx"
+	printf "%-${nr_blank}s %s" " " "ptx"
 	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPPrioTx | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$mp_prio_nr_tx" ]; then
@@ -1098,7 +1099,7 @@ chk_link_usage()
 	local tx_rate=$((tx_link * 100 / $tx_total))
 	local tolerance=5
 
-	printf "%-39s %-18s" " " "link usage"
+	printf "%-${nr_blank}s %-18s" " " "link usage"
 	if [ $tx_rate -lt $((expected_rate - $tolerance)) -o \
 	     $tx_rate -gt $((expected_rate + $tolerance)) ]; then
 		echo "[fail] got $tx_rate% usage, expected $expected_rate%"
