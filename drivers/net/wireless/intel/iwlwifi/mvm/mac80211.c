@@ -448,28 +448,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->n_cipher_suites++;
 	}
 
-	/* currently FW API supports only one optional cipher scheme */
-	if (mvm->fw->cs[0].cipher) {
-		const struct iwl_fw_cipher_scheme *fwcs = &mvm->fw->cs[0];
-		struct ieee80211_cipher_scheme *cs = &mvm->cs[0];
-
-		mvm->hw->n_cipher_schemes = 1;
-
-		cs->cipher = le32_to_cpu(fwcs->cipher);
-		cs->iftype = BIT(NL80211_IFTYPE_STATION);
-		cs->hdr_len = fwcs->hdr_len;
-		cs->pn_len = fwcs->pn_len;
-		cs->pn_off = fwcs->pn_off;
-		cs->key_idx_off = fwcs->key_idx_off;
-		cs->key_idx_mask = fwcs->key_idx_mask;
-		cs->key_idx_shift = fwcs->key_idx_shift;
-		cs->mic_len = fwcs->mic_len;
-
-		mvm->hw->cipher_schemes = mvm->cs;
-		mvm->ciphers[hw->wiphy->n_cipher_suites] = cs->cipher;
-		hw->wiphy->n_cipher_suites++;
-	}
-
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_FTM_CALIBRATED)) {
 		wiphy_ext_feature_set(hw->wiphy,
@@ -3744,12 +3722,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		/* support HW crypto on TX */
 		return 0;
 	default:
-		/* currently FW supports only one optional cipher scheme */
-		if (hw->n_cipher_schemes &&
-		    hw->cipher_schemes->cipher == key->cipher)
-			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
-		else
-			return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	switch (cmd) {

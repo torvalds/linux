@@ -324,30 +324,6 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 	pieces->img[type].sec[sec].offset = offset;
 }
 
-static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
-{
-	int i, j;
-	const struct iwl_fw_cscheme_list *l =
-		(const struct iwl_fw_cscheme_list *)data;
-	const struct iwl_fw_cipher_scheme *fwcs;
-
-	if (len < sizeof(*l) ||
-	    len < sizeof(l->size) + l->size * sizeof(l->cs[0]))
-		return -EINVAL;
-
-	for (i = 0, j = 0; i < IWL_UCODE_MAX_CS && i < l->size; i++) {
-		fwcs = &l->cs[j];
-
-		/* we skip schemes with zero cipher suite selector */
-		if (!fwcs->cipher)
-			continue;
-
-		fw->cs[j++] = *fwcs;
-	}
-
-	return 0;
-}
-
 /*
  * Gets uCode section from tlv.
  */
@@ -925,10 +901,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				IWL_ERR(drv, "Driver support upto 2 CPUs\n");
 				return -EINVAL;
 			}
-			break;
-		case IWL_UCODE_TLV_CSCHEME:
-			if (iwl_store_cscheme(&drv->fw, tlv_data, tlv_len))
-				goto invalid_tlv_len;
 			break;
 		case IWL_UCODE_TLV_N_SCAN_CHANNELS:
 			if (tlv_len != sizeof(u32))
