@@ -363,16 +363,18 @@ void zpci_destroy_iommu(struct zpci_dev *zdev)
 static const struct iommu_ops s390_iommu_ops = {
 	.capable = s390_iommu_capable,
 	.domain_alloc = s390_domain_alloc,
-	.domain_free = s390_domain_free,
-	.attach_dev = s390_iommu_attach_device,
-	.detach_dev = s390_iommu_detach_device,
-	.map = s390_iommu_map,
-	.unmap = s390_iommu_unmap,
-	.iova_to_phys = s390_iommu_iova_to_phys,
 	.probe_device = s390_iommu_probe_device,
 	.release_device = s390_iommu_release_device,
 	.device_group = generic_device_group,
 	.pgsize_bitmap = S390_IOMMU_PGSIZES,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= s390_iommu_attach_device,
+		.detach_dev	= s390_iommu_detach_device,
+		.map		= s390_iommu_map,
+		.unmap		= s390_iommu_unmap,
+		.iova_to_phys	= s390_iommu_iova_to_phys,
+		.free		= s390_domain_free,
+	}
 };
 
 static int __init s390_iommu_init(void)
