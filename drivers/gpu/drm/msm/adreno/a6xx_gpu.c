@@ -101,6 +101,7 @@ static void get_stats_counter(struct msm_ringbuffer *ring, u32 counter,
 static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 		struct msm_ringbuffer *ring, struct msm_file_private *ctx)
 {
+	bool sysprof = refcount_read(&a6xx_gpu->base.base.sysprof_active) > 1;
 	phys_addr_t ttbr;
 	u32 asid;
 	u64 memptr = rbmemptr(ring, ttbr0);
@@ -110,6 +111,15 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 
 	if (msm_iommu_pagetable_params(ctx->aspace->mmu, &ttbr, &asid))
 		return;
+
+	if (!sysprof) {
+		/* Turn off protected mode to write to special registers */
+		OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+		OUT_RING(ring, 0);
+
+		OUT_PKT4(ring, REG_A6XX_RBBM_PERFCTR_SRAM_INIT_CMD, 1);
+		OUT_RING(ring, 1);
+	}
 
 	/* Execute the table update */
 	OUT_PKT7(ring, CP_SMMU_TABLE_UPDATE, 4);
@@ -137,6 +147,25 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 
 	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
 	OUT_RING(ring, 0x31);
+
+	if (!sysprof) {
+		/*
+		 * Wait for SRAM clear after the pgtable update, so the
+		 * two can happen in parallel:
+		 */
+		OUT_PKT7(ring, CP_WAIT_REG_MEM, 6);
+		OUT_RING(ring, CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ));
+		OUT_RING(ring, CP_WAIT_REG_MEM_1_POLL_ADDR_LO(
+				REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS));
+		OUT_RING(ring, CP_WAIT_REG_MEM_2_POLL_ADDR_HI(0));
+		OUT_RING(ring, CP_WAIT_REG_MEM_3_REF(0x1));
+		OUT_RING(ring, CP_WAIT_REG_MEM_4_MASK(0x1));
+		OUT_RING(ring, CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(0));
+
+		/* Re-enable protected mode: */
+		OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+		OUT_RING(ring, 1);
+	}
 }
 
 static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
