@@ -69,7 +69,6 @@
 #include <asm/smp.h>
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
-#include <asm/asm-prototypes.h>
 #include <asm/mce.h>
 
 /* powerpc clocksource/clockevent code */

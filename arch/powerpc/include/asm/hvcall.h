@@ -501,6 +501,11 @@ long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9_raw(unsigned long opcode, unsigned long *retbuf, ...);
 
+/* pseries hcall tracing */
+extern struct static_key hcall_tracepoint_key;
+void __trace_hcall_entry(unsigned long opcode, unsigned long *args);
+void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
+
 struct hvcall_mpp_data {
 	unsigned long entitled_mem;
 	unsigned long mapped_mem;

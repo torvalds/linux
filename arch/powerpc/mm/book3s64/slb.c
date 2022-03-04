@@ -9,7 +9,6 @@
  * Copyright (C) 2002 Anton Blanchard <anton@au.ibm.com>, IBM
  */
 
-#include <asm/asm-prototypes.h>
 #include <asm/interrupt.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>

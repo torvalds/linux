@@ -35,7 +35,6 @@
 #include <linux/kfence.h>
 #include <linux/pkeys.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/firmware.h>
 #include <asm/interrupt.h>
 #include <asm/page.h>

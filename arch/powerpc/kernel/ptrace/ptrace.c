@@ -22,7 +22,6 @@
 #include <linux/syscalls.h>
 
 #include <asm/switch_to.h>
-#include <asm/asm-prototypes.h>
 #include <asm/debug.h>
 
 #define CREATE_TRACE_POINTS

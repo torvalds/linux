@@ -24,7 +24,6 @@
 #include <asm/machdep.h>
 #include <asm/mce.h>
 #include <asm/nmi.h>
-#include <asm/asm-prototypes.h>
 
 #include "setup.h"
 

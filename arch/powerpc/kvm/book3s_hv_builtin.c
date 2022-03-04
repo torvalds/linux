@@ -15,7 +15,6 @@
 #include <linux/cma.h>
 #include <linux/bitops.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/cputable.h>
 #include <asm/interrupt.h>
 #include <asm/kvm_ppc.h>

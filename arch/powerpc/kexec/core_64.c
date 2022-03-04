@@ -28,7 +28,6 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/hw_breakpoint.h>
-#include <asm/asm-prototypes.h>
 #include <asm/svm.h>
 #include <asm/ultravisor.h>
 

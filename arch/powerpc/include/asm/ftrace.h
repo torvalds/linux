@@ -19,6 +19,9 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
        return addr;
 }
 
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
+				    unsigned long sp);
+
 struct dyn_arch_ftrace {
 	struct module *mod;
 };

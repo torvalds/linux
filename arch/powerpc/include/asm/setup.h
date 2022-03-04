@@ -76,6 +76,13 @@ static inline void setup_spectre_v2(void) {}
 #endif
 void __init do_btb_flush_fixups(void);
 
+#ifdef CONFIG_PPC32
+unsigned long __init early_init(unsigned long dt_ptr);
+void __init machine_init(u64 dt_ptr);
+#endif
+void __init early_setup(unsigned long dt_ptr);
+void early_setup_secondary(void);
+
 #endif /* !__ASSEMBLY__ */
 
 #endif	/* _ASM_POWERPC_SETUP_H */
