@@ -11,3 +11,7 @@
 	rockchip,irq-mode-enable = <1>;
 	status = "okay";
 };
+
+&rve {
+	status = "okay";
+};
