@@ -381,7 +381,7 @@ int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd)
  *
  * Clear the ICR for the IRQ entry.
  */
-static void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr)
+void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr)
 {
 	nn_writeb(nn, NFP_NET_CFG_ICR(entry_nr), NFP_NET_CFG_ICR_UNMASKED);
 	nn_pci_flush(nn);
@@ -923,7 +923,7 @@ static void nfp_net_tls_tx_undo(struct sk_buff *skb, u64 tls_handle)
 #endif
 }
 
-static void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring)
+void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring)
 {
 	wmb();
 	nfp_qcp_wr_ptr_add(tx_ring->qcp_q, tx_ring->wr_ptr_add);
@@ -1142,7 +1142,7 @@ err_flush:
  * @tx_ring:	TX ring structure
  * @budget:	NAPI budget (only used as bool to determine if in NAPI context)
  */
-static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
+void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
@@ -1587,10 +1587,10 @@ static int nfp_net_rx_csum_has_errors(u16 flags)
  * @meta: Parsed metadata prepend
  * @skb: Pointer to SKB
  */
-static void nfp_net_rx_csum(struct nfp_net_dp *dp,
-			    struct nfp_net_r_vector *r_vec,
-			    struct nfp_net_rx_desc *rxd,
-			    struct nfp_meta_parsed *meta, struct sk_buff *skb)
+void nfp_net_rx_csum(const struct nfp_net_dp *dp,
+		     struct nfp_net_r_vector *r_vec,
+		     const struct nfp_net_rx_desc *rxd,
+		     const struct nfp_meta_parsed *meta, struct sk_buff *skb)
 {
 	skb_checksum_none_assert(skb);
 
@@ -1668,7 +1668,7 @@ nfp_net_set_hash_desc(struct net_device *netdev, struct nfp_meta_parsed *meta,
 			 &rx_hash->hash);
 }
 
-static bool
+bool
 nfp_net_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 		   void *data, void *pkt, unsigned int pkt_len, int meta_len)
 {

@@ -965,6 +965,7 @@ int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd);
 void nfp_net_mbox_reconfig_post(struct nfp_net *nn, u32 update);
 int nfp_net_mbox_reconfig_wait_posted(struct nfp_net *nn);
 
+void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr);
 unsigned int
 nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
 		   unsigned int min_irqs, unsigned int want_irqs);
@@ -972,6 +973,19 @@ void nfp_net_irqs_disable(struct pci_dev *pdev);
 void
 nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 		    unsigned int n);
+
+void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring);
+void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget);
+
+bool
+nfp_net_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
+		   void *data, void *pkt, unsigned int pkt_len, int meta_len);
+
+void nfp_net_rx_csum(const struct nfp_net_dp *dp,
+		     struct nfp_net_r_vector *r_vec,
+		     const struct nfp_net_rx_desc *rxd,
+		     const struct nfp_meta_parsed *meta,
+		     struct sk_buff *skb);
 
 struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
