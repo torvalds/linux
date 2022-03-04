@@ -22,7 +22,7 @@ static noinline int lkdtm_increment_int(int *counter)
 /*
  * This tries to call an indirect function with a mismatched prototype.
  */
-void lkdtm_CFI_FORWARD_PROTO(void)
+static void lkdtm_CFI_FORWARD_PROTO(void)
 {
 	/*
 	 * Matches lkdtm_increment_void()'s prototype, but not
@@ -41,3 +41,12 @@ void lkdtm_CFI_FORWARD_PROTO(void)
 	pr_err("FAIL: survived mismatched prototype function call!\n");
 	pr_expected_config(CONFIG_CFI_CLANG);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(CFI_FORWARD_PROTO),
+};
+
+struct crashtype_category cfi_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

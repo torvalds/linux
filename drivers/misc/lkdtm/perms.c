@@ -103,7 +103,7 @@ static void execute_user_location(void *dst)
 	pr_err("FAIL: func returned\n");
 }
 
-void lkdtm_WRITE_RO(void)
+static void lkdtm_WRITE_RO(void)
 {
 	/* Explicitly cast away "const" for the test and make volatile. */
 	volatile unsigned long *ptr = (unsigned long *)&rodata;
@@ -113,7 +113,7 @@ void lkdtm_WRITE_RO(void)
 	pr_err("FAIL: survived bad write\n");
 }
 
-void lkdtm_WRITE_RO_AFTER_INIT(void)
+static void lkdtm_WRITE_RO_AFTER_INIT(void)
 {
 	volatile unsigned long *ptr = &ro_after_init;
 
@@ -132,7 +132,7 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
 	pr_err("FAIL: survived bad write\n");
 }
 
-void lkdtm_WRITE_KERN(void)
+static void lkdtm_WRITE_KERN(void)
 {
 	size_t size;
 	volatile unsigned char *ptr;
@@ -149,7 +149,7 @@ void lkdtm_WRITE_KERN(void)
 	do_overwritten();
 }
 
-void lkdtm_WRITE_OPD(void)
+static void lkdtm_WRITE_OPD(void)
 {
 	size_t size = sizeof(func_desc_t);
 	void (*func)(void) = do_nothing;
@@ -166,38 +166,38 @@ void lkdtm_WRITE_OPD(void)
 	func();
 }
 
-void lkdtm_EXEC_DATA(void)
+static void lkdtm_EXEC_DATA(void)
 {
 	execute_location(data_area, CODE_WRITE);
 }
 
-void lkdtm_EXEC_STACK(void)
+static void lkdtm_EXEC_STACK(void)
 {
 	u8 stack_area[EXEC_SIZE];
 	execute_location(stack_area, CODE_WRITE);
 }
 
-void lkdtm_EXEC_KMALLOC(void)
+static void lkdtm_EXEC_KMALLOC(void)
 {
 	u32 *kmalloc_area = kmalloc(EXEC_SIZE, GFP_KERNEL);
 	execute_location(kmalloc_area, CODE_WRITE);
 	kfree(kmalloc_area);
 }
 
-void lkdtm_EXEC_VMALLOC(void)
+static void lkdtm_EXEC_VMALLOC(void)
 {
 	u32 *vmalloc_area = vmalloc(EXEC_SIZE);
 	execute_location(vmalloc_area, CODE_WRITE);
 	vfree(vmalloc_area);
 }
 
-void lkdtm_EXEC_RODATA(void)
+static void lkdtm_EXEC_RODATA(void)
 {
 	execute_location(dereference_function_descriptor(lkdtm_rodata_do_nothing),
 			 CODE_AS_IS);
 }
 
-void lkdtm_EXEC_USERSPACE(void)
+static void lkdtm_EXEC_USERSPACE(void)
 {
 	unsigned long user_addr;
 
@@ -212,12 +212,12 @@ void lkdtm_EXEC_USERSPACE(void)
 	vm_munmap(user_addr, PAGE_SIZE);
 }
 
-void lkdtm_EXEC_NULL(void)
+static void lkdtm_EXEC_NULL(void)
 {
 	execute_location(NULL, CODE_AS_IS);
 }
 
-void lkdtm_ACCESS_USERSPACE(void)
+static void lkdtm_ACCESS_USERSPACE(void)
 {
 	unsigned long user_addr, tmp = 0;
 	unsigned long *ptr;
@@ -250,7 +250,7 @@ void lkdtm_ACCESS_USERSPACE(void)
 	vm_munmap(user_addr, PAGE_SIZE);
 }
 
-void lkdtm_ACCESS_NULL(void)
+static void lkdtm_ACCESS_NULL(void)
 {
 	unsigned long tmp;
 	volatile unsigned long *ptr = (unsigned long *)NULL;
@@ -270,3 +270,24 @@ void __init lkdtm_perms_init(void)
 	/* Make sure we can write to __ro_after_init values during __init */
 	ro_after_init |= 0xAA;
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(WRITE_RO),
+	CRASHTYPE(WRITE_RO_AFTER_INIT),
+	CRASHTYPE(WRITE_KERN),
+	CRASHTYPE(WRITE_OPD),
+	CRASHTYPE(EXEC_DATA),
+	CRASHTYPE(EXEC_STACK),
+	CRASHTYPE(EXEC_KMALLOC),
+	CRASHTYPE(EXEC_VMALLOC),
+	CRASHTYPE(EXEC_RODATA),
+	CRASHTYPE(EXEC_USERSPACE),
+	CRASHTYPE(EXEC_NULL),
+	CRASHTYPE(ACCESS_USERSPACE),
+	CRASHTYPE(ACCESS_NULL),
+};
+
+struct crashtype_category perms_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

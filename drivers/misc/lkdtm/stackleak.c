@@ -11,7 +11,7 @@
 #include "lkdtm.h"
 #include <linux/stackleak.h>
 
-void lkdtm_STACKLEAK_ERASING(void)
+static void lkdtm_STACKLEAK_ERASING(void)
 {
 	unsigned long *sp, left, found, i;
 	const unsigned long check_depth =
@@ -80,3 +80,12 @@ end:
 		pr_info("OK: the rest of the thread stack is properly erased\n");
 	}
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(STACKLEAK_ERASING),
+};
+
+struct crashtype_category stackleak_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

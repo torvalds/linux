@@ -272,42 +272,42 @@ free_alloc:
 }
 
 /* Callable tests. */
-void lkdtm_USERCOPY_HEAP_SIZE_TO(void)
+static void lkdtm_USERCOPY_HEAP_SIZE_TO(void)
 {
 	do_usercopy_heap_size(true);
 }
 
-void lkdtm_USERCOPY_HEAP_SIZE_FROM(void)
+static void lkdtm_USERCOPY_HEAP_SIZE_FROM(void)
 {
 	do_usercopy_heap_size(false);
 }
 
-void lkdtm_USERCOPY_HEAP_WHITELIST_TO(void)
+static void lkdtm_USERCOPY_HEAP_WHITELIST_TO(void)
 {
 	do_usercopy_heap_whitelist(true);
 }
 
-void lkdtm_USERCOPY_HEAP_WHITELIST_FROM(void)
+static void lkdtm_USERCOPY_HEAP_WHITELIST_FROM(void)
 {
 	do_usercopy_heap_whitelist(false);
 }
 
-void lkdtm_USERCOPY_STACK_FRAME_TO(void)
+static void lkdtm_USERCOPY_STACK_FRAME_TO(void)
 {
 	do_usercopy_stack(true, true);
 }
 
-void lkdtm_USERCOPY_STACK_FRAME_FROM(void)
+static void lkdtm_USERCOPY_STACK_FRAME_FROM(void)
 {
 	do_usercopy_stack(false, true);
 }
 
-void lkdtm_USERCOPY_STACK_BEYOND(void)
+static void lkdtm_USERCOPY_STACK_BEYOND(void)
 {
 	do_usercopy_stack(true, false);
 }
 
-void lkdtm_USERCOPY_KERNEL(void)
+static void lkdtm_USERCOPY_KERNEL(void)
 {
 	unsigned long user_addr;
 
@@ -356,3 +356,19 @@ void __exit lkdtm_usercopy_exit(void)
 {
 	kmem_cache_destroy(whitelist_cache);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(USERCOPY_HEAP_SIZE_TO),
+	CRASHTYPE(USERCOPY_HEAP_SIZE_FROM),
+	CRASHTYPE(USERCOPY_HEAP_WHITELIST_TO),
+	CRASHTYPE(USERCOPY_HEAP_WHITELIST_FROM),
+	CRASHTYPE(USERCOPY_STACK_FRAME_TO),
+	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
+	CRASHTYPE(USERCOPY_STACK_BEYOND),
+	CRASHTYPE(USERCOPY_KERNEL),
+};
+
+struct crashtype_category usercopy_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};
