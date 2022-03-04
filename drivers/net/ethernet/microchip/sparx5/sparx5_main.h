@@ -84,6 +84,10 @@ enum sparx5_vlan_port_type {
 #define SPARX5_PHC_COUNT		3
 #define SPARX5_PHC_PORT			0
 
+#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ONE_STEP_PTP		0x3
+#define IFH_REW_OP_TWO_STEP_PTP		0x4
+
 struct sparx5;
 
 struct sparx5_db_hw {
@@ -174,6 +178,8 @@ struct sparx5_port {
 	u32 custom_etype;
 	bool vlan_aware;
 	struct hrtimer inj_timer;
+	/* ptp */
+	u8 ptp_cmd;
 };
 
 enum sparx5_core_clockfreq {
@@ -242,6 +248,7 @@ struct sparx5 {
 	bool ptp;
 	struct sparx5_phc phc[SPARX5_PHC_COUNT];
 	spinlock_t ptp_clock_lock; /* lock for phc */
+	struct mutex ptp_lock; /* lock for ptp interface state */
 };
 
 /* sparx5_switchdev.c */
@@ -314,6 +321,8 @@ void sparx5_unregister_netdevs(struct sparx5 *sparx5);
 /* sparx5_ptp.c */
 int sparx5_ptp_init(struct sparx5 *sparx5);
 void sparx5_ptp_deinit(struct sparx5 *sparx5);
+int sparx5_ptp_hwtstamp_set(struct sparx5_port *port, struct ifreq *ifr);
+int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

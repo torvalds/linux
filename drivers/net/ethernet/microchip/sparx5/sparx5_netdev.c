@@ -179,6 +179,24 @@ static int sparx5_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int sparx5_port_ioctl(struct net_device *dev, struct ifreq *ifr,
+			     int cmd)
+{
+	struct sparx5_port *sparx5_port = netdev_priv(dev);
+	struct sparx5 *sparx5 = sparx5_port->sparx5;
+
+	if (!phy_has_hwtstamp(dev->phydev) && sparx5->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return sparx5_ptp_hwtstamp_set(sparx5_port, ifr);
+		case SIOCGHWTSTAMP:
+			return sparx5_ptp_hwtstamp_get(sparx5_port, ifr);
+		}
+	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
 static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_open               = sparx5_port_open,
 	.ndo_stop               = sparx5_port_stop,
@@ -189,6 +207,7 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
+	.ndo_eth_ioctl          = sparx5_port_ioctl,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)
