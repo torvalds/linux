@@ -76,7 +76,6 @@ struct sd_hw_data {
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
- * @notifiers: Notifier chain to save/restore clock state for system resume
  * @info: Pointer to platform data
  */
 struct rzg2l_cpg_priv {
@@ -91,7 +90,6 @@ struct rzg2l_cpg_priv {
 	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
 
-	struct raw_notifier_head notifiers;
 	const struct rzg2l_cpg_info *info;
 };
 
