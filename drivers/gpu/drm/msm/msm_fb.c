@@ -37,7 +37,7 @@ static int msm_framebuffer_dirtyfb(struct drm_framebuffer *fb,
 	/* If this fb is not used on any display requiring pixel data to be
 	 * flushed, then skip dirtyfb
 	 */
-	if (refcount_read(&msm_fb->dirtyfb) == 0)
+	if (refcount_read(&msm_fb->dirtyfb) == 1)
 		return 0;
 
 	return drm_atomic_helper_dirtyfb(fb, file_priv, flags, color,
@@ -220,6 +220,8 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		DRM_DEV_ERROR(dev->dev, "framebuffer init failed: %d\n", ret);
 		goto fail;
 	}
+
+	refcount_set(&msm_fb->dirtyfb, 1);
 
 	drm_dbg_state(dev, "create: FB ID: %d (%p)", fb->base.id, fb);
 
