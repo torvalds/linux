@@ -633,7 +633,7 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 
 	/* Go from generic option to ETMv4 specifics */
 	if (attr->config & BIT(ETM_OPT_CYCACC)) {
-		config->cfg |= BIT(4);
+		config->cfg |= TRCCONFIGR_CCI;
 		/* TRM: Must program this for cycacc to work */
 		config->ccctlr = ETM_CYC_THRESHOLD_DEFAULT;
 	}
@@ -653,14 +653,14 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 			goto out;
 
 		/* bit[11], Global timestamp tracing bit */
-		config->cfg |= BIT(11);
+		config->cfg |= TRCCONFIGR_TS;
 	}
 
 	/* Only trace contextID when runs in root PID namespace */
 	if ((attr->config & BIT(ETM_OPT_CTXTID)) &&
 	    task_is_in_init_pid_ns(current))
 		/* bit[6], Context ID tracing bit */
-		config->cfg |= BIT(ETM4_CFG_BIT_CTXTID);
+		config->cfg |= TRCCONFIGR_CID;
 
 	/*
 	 * If set bit ETM_OPT_CTXTID2 in perf config, this asks to trace VMID
@@ -672,17 +672,15 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 			ret = -EINVAL;
 			goto out;
 		}
-
 		/* Only trace virtual contextID when runs in root PID namespace */
 		if (task_is_in_init_pid_ns(current))
-			config->cfg |= BIT(ETM4_CFG_BIT_VMID) |
-				       BIT(ETM4_CFG_BIT_VMID_OPT);
+			config->cfg |= TRCCONFIGR_VMID | TRCCONFIGR_VMIDOPT;
 	}
 
 	/* return stack - enable if selected and supported */
 	if ((attr->config & BIT(ETM_OPT_RETSTK)) && drvdata->retstack)
 		/* bit[12], Return stack enable bit */
-		config->cfg |= BIT(12);
+		config->cfg |= TRCCONFIGR_RS;
 
 	/*
 	 * Set any selected configuration and preset.

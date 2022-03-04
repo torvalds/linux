@@ -180,12 +180,12 @@ static ssize_t reset_store(struct device *dev,
 
 	/* Disable data tracing: do not trace load and store data transfers */
 	config->mode &= ~(ETM_MODE_LOAD | ETM_MODE_STORE);
-	config->cfg &= ~(BIT(1) | BIT(2));
+	config->cfg &= ~(TRCCONFIGR_INSTP0_LOAD | TRCCONFIGR_INSTP0_STORE);
 
 	/* Disable data value and data address tracing */
 	config->mode &= ~(ETM_MODE_DATA_TRACE_ADDR |
 			   ETM_MODE_DATA_TRACE_VAL);
-	config->cfg &= ~(BIT(16) | BIT(17));
+	config->cfg &= ~(TRCCONFIGR_DA | TRCCONFIGR_DV);
 
 	/* Disable all events tracing */
 	config->eventctrl0 = 0x0;
@@ -304,82 +304,82 @@ static ssize_t mode_store(struct device *dev,
 
 	if (drvdata->instrp0 == true) {
 		/* start by clearing instruction P0 field */
-		config->cfg  &= ~(BIT(1) | BIT(2));
+		config->cfg  &= ~TRCCONFIGR_INSTP0_LOAD_STORE;
 		if (config->mode & ETM_MODE_LOAD)
 			/* 0b01 Trace load instructions as P0 instructions */
-			config->cfg  |= BIT(1);
+			config->cfg  |= TRCCONFIGR_INSTP0_LOAD;
 		if (config->mode & ETM_MODE_STORE)
 			/* 0b10 Trace store instructions as P0 instructions */
-			config->cfg  |= BIT(2);
+			config->cfg  |= TRCCONFIGR_INSTP0_STORE;
 		if (config->mode & ETM_MODE_LOAD_STORE)
 			/*
 			 * 0b11 Trace load and store instructions
 			 * as P0 instructions
 			 */
-			config->cfg  |= BIT(1) | BIT(2);
+			config->cfg  |= TRCCONFIGR_INSTP0_LOAD_STORE;
 	}
 
 	/* bit[3], Branch broadcast mode */
 	if ((config->mode & ETM_MODE_BB) && (drvdata->trcbb == true))
-		config->cfg |= BIT(3);
+		config->cfg |= TRCCONFIGR_BB;
 	else
-		config->cfg &= ~BIT(3);
+		config->cfg &= ~TRCCONFIGR_BB;
 
 	/* bit[4], Cycle counting instruction trace bit */
 	if ((config->mode & ETMv4_MODE_CYCACC) &&
 		(drvdata->trccci == true))
-		config->cfg |= BIT(4);
+		config->cfg |= TRCCONFIGR_CCI;
 	else
-		config->cfg &= ~BIT(4);
+		config->cfg &= ~TRCCONFIGR_CCI;
 
 	/* bit[6], Context ID tracing bit */
 	if ((config->mode & ETMv4_MODE_CTXID) && (drvdata->ctxid_size))
-		config->cfg |= BIT(6);
+		config->cfg |= TRCCONFIGR_CID;
 	else
-		config->cfg &= ~BIT(6);
+		config->cfg &= ~TRCCONFIGR_CID;
 
 	if ((config->mode & ETM_MODE_VMID) && (drvdata->vmid_size))
-		config->cfg |= BIT(7);
+		config->cfg |= TRCCONFIGR_VMID;
 	else
-		config->cfg &= ~BIT(7);
+		config->cfg &= ~TRCCONFIGR_VMID;
 
 	/* bits[10:8], Conditional instruction tracing bit */
 	mode = ETM_MODE_COND(config->mode);
 	if (drvdata->trccond == true) {
-		config->cfg &= ~(BIT(8) | BIT(9) | BIT(10));
-		config->cfg |= mode << 8;
+		config->cfg &= ~TRCCONFIGR_COND_MASK;
+		config->cfg |= mode << __bf_shf(TRCCONFIGR_COND_MASK);
 	}
 
 	/* bit[11], Global timestamp tracing bit */
 	if ((config->mode & ETMv4_MODE_TIMESTAMP) && (drvdata->ts_size))
-		config->cfg |= BIT(11);
+		config->cfg |= TRCCONFIGR_TS;
 	else
-		config->cfg &= ~BIT(11);
+		config->cfg &= ~TRCCONFIGR_TS;
 
 	/* bit[12], Return stack enable bit */
 	if ((config->mode & ETM_MODE_RETURNSTACK) &&
 					(drvdata->retstack == true))
-		config->cfg |= BIT(12);
+		config->cfg |= TRCCONFIGR_RS;
 	else
-		config->cfg &= ~BIT(12);
+		config->cfg &= ~TRCCONFIGR_RS;
 
 	/* bits[14:13], Q element enable field */
 	mode = ETM_MODE_QELEM(config->mode);
 	/* start by clearing QE bits */
-	config->cfg &= ~(BIT(13) | BIT(14));
+	config->cfg &= ~(TRCCONFIGR_QE_W_COUNTS | TRCCONFIGR_QE_WO_COUNTS);
 	/*
 	 * if supported, Q elements with instruction counts are enabled.
 	 * Always set the low bit for any requested mode. Valid combos are
 	 * 0b00, 0b01 and 0b11.
 	 */
 	if (mode && drvdata->q_support)
-		config->cfg |= BIT(13);
+		config->cfg |= TRCCONFIGR_QE_W_COUNTS;
 	/*
 	 * if supported, Q elements with and without instruction
 	 * counts are enabled
 	 */
 	if ((mode & BIT(1)) && (drvdata->q_support & BIT(1)))
-		config->cfg |= BIT(14);
+		config->cfg |= TRCCONFIGR_QE_WO_COUNTS;
 
 	/* bit[11], AMBA Trace Bus (ATB) trigger enable bit */
 	if ((config->mode & ETM_MODE_ATB_TRIGGER) &&
