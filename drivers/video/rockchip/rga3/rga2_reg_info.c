@@ -1047,7 +1047,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	/* full csc enable */
 	reg =
 		((reg & (~m_RGA2_DST_INFO_SW_DST_CSC_MODE_2)) |
-		 (s_RGA2_DST_INFO_SW_DST_CSC_MODE_2(msg->full_csc.flag)));
+		 (s_RGA2_DST_INFO_SW_DST_CSC_MODE_2(msg->full_csc_en)));
 	/*
 	 * Some older chips do not support src1 csc mode,
 	 * they do not have these two registers.
@@ -1509,56 +1509,6 @@ static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
 	}
 }
 
-static void RGA2_set_reg_full_csc(u8 *base, struct rga2_req *msg)
-{
-	u32 *bRGA2_DST_CSC_00;
-	u32 *bRGA2_DST_CSC_01;
-	u32 *bRGA2_DST_CSC_02;
-	u32 *bRGA2_DST_CSC_OFF0;
-
-	u32 *bRGA2_DST_CSC_10;
-	u32 *bRGA2_DST_CSC_11;
-	u32 *bRGA2_DST_CSC_12;
-	u32 *bRGA2_DST_CSC_OFF1;
-
-	u32 *bRGA2_DST_CSC_20;
-	u32 *bRGA2_DST_CSC_21;
-	u32 *bRGA2_DST_CSC_22;
-	u32 *bRGA2_DST_CSC_OFF2;
-
-	bRGA2_DST_CSC_00 = (u32 *) (base + RGA2_DST_CSC_00_OFFSET);
-	bRGA2_DST_CSC_01 = (u32 *) (base + RGA2_DST_CSC_01_OFFSET);
-	bRGA2_DST_CSC_02 = (u32 *) (base + RGA2_DST_CSC_02_OFFSET);
-	bRGA2_DST_CSC_OFF0 = (u32 *) (base + RGA2_DST_CSC_OFF0_OFFSET);
-
-	bRGA2_DST_CSC_10 = (u32 *) (base + RGA2_DST_CSC_10_OFFSET);
-	bRGA2_DST_CSC_11 = (u32 *) (base + RGA2_DST_CSC_11_OFFSET);
-	bRGA2_DST_CSC_12 = (u32 *) (base + RGA2_DST_CSC_12_OFFSET);
-	bRGA2_DST_CSC_OFF1 = (u32 *) (base + RGA2_DST_CSC_OFF1_OFFSET);
-
-	bRGA2_DST_CSC_20 = (u32 *) (base + RGA2_DST_CSC_20_OFFSET);
-	bRGA2_DST_CSC_21 = (u32 *) (base + RGA2_DST_CSC_21_OFFSET);
-	bRGA2_DST_CSC_22 = (u32 *) (base + RGA2_DST_CSC_22_OFFSET);
-	bRGA2_DST_CSC_OFF2 = (u32 *) (base + RGA2_DST_CSC_OFF2_OFFSET);
-
-	/* full csc coefficient */
-	/* Y coefficient */
-	*bRGA2_DST_CSC_00 = msg->full_csc.coe_y.r_v;
-	*bRGA2_DST_CSC_01 = msg->full_csc.coe_y.g_y;
-	*bRGA2_DST_CSC_02 = msg->full_csc.coe_y.b_u;
-	*bRGA2_DST_CSC_OFF0 = msg->full_csc.coe_y.off;
-	/* U coefficient */
-	*bRGA2_DST_CSC_10 = msg->full_csc.coe_u.r_v;
-	*bRGA2_DST_CSC_11 = msg->full_csc.coe_u.g_y;
-	*bRGA2_DST_CSC_12 = msg->full_csc.coe_u.b_u;
-	*bRGA2_DST_CSC_OFF1 = msg->full_csc.coe_u.off;
-	/* V coefficient */
-	*bRGA2_DST_CSC_20 = msg->full_csc.coe_v.r_v;
-	*bRGA2_DST_CSC_21 = msg->full_csc.coe_v.g_y;
-	*bRGA2_DST_CSC_22 = msg->full_csc.coe_v.b_u;
-	*bRGA2_DST_CSC_OFF2 = msg->full_csc.coe_v.off;
-}
-
 static void RGA2_set_reg_color_palette(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA_SRC_BASE0, *bRGA_SRC_INFO, *bRGA_SRC_VIR_INFO,
@@ -1758,7 +1708,7 @@ static void RGA2_set_mmu_reg_info(u8 *base, struct rga2_req *msg)
 	*bRGA_MMU_ELS_BASE = (u32) (msg->mmu_info.els_base_addr) >> 4;
 }
 
-int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
+int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
 {
 	u8 dst_nn_quantize_en = 0;
 
@@ -1777,9 +1727,6 @@ int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
 				RGA2_set_reg_alpha_info(base, msg);
 				RGA2_set_reg_rop_info(base, msg);
 			}
-
-			if (msg->full_csc.flag)
-				RGA2_set_reg_full_csc(csc_base, msg);
 		}
 		if (msg->mosaic_info.enable)
 			RGA_set_reg_mosaic(base, msg);
@@ -1916,7 +1863,6 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	req->fg_color = req_rga->fg_color;
 	req->bg_color = req_rga->bg_color;
 	memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
-	memcpy(&req->full_csc, &req_rga->full_csc, sizeof(req_rga->full_csc));
 
 	req->palette_mode = req_rga->palette_mode;
 	req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
@@ -2271,6 +2217,7 @@ int rga2_init_reg(struct rga_job *job)
 	memset(&req, 0x0, sizeof(req));
 
 	rga_cmd_to_rga2_cmd(scheduler, &job->rga_command_base, &req);
+	memcpy(&job->full_csc, &job->rga_command_base.full_csc, sizeof(job->full_csc));
 	memcpy(&job->pre_intr_info, &job->rga_command_base.pre_intr_info,
 	       sizeof(job->pre_intr_info));
 
@@ -2310,8 +2257,7 @@ int rga2_init_reg(struct rga_job *job)
 
 	mutex_unlock(&rga_drvdata->lock);
 
-	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg,
-			(uint8_t *)job->csc_reg, &req) == -1) {
+	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg, &req) == -1) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
 	}
@@ -2331,29 +2277,20 @@ static void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 	int i;
 	unsigned long flags;
 	uint32_t cmd_reg[32] = {0};
-	uint32_t csc_reg[12] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	for (i = 0; i < 32; i++)
-		cmd_reg[i] = rga_read(0x100 + i * 4, scheduler);
-
-	for (i = 0; i < 12; i++)
-		csc_reg[i] = rga_read(RGA2_CSC_COE_BASE + i * 4, scheduler);
+		cmd_reg[i] = rga_read(RGA2_CMD_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	pr_info("CMD_READ_BACK_REG\n");
 	for (i = 0; i < 8; i++)
-		pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
+		pr_info("0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_CMD_REG_BASE + i * 0x10,
 			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
-
-	pr_info("CSC_READ_BACK_REG\n");
-	for (i = 0; i < 3; i++)
-		pr_info("%.8x %.8x %.8x %.8x\n",
-			csc_reg[0 + i * 4], csc_reg[1 + i * 4],
-			csc_reg[2 + i * 4], csc_reg[3 + i * 4]);
 }
 
 static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
@@ -2386,6 +2323,38 @@ static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *s
 	rga_write(reg, RGA2_INT_OFFSET, scheduler);
 }
 
+static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	uint8_t clip_y_max, clip_y_min;
+	uint8_t clip_uv_max, clip_uv_min;
+
+	clip_y_max = 0xff;
+	clip_y_min = 0x0;
+	clip_uv_max = 0xff;
+	clip_uv_min = 0;
+
+	/* full csc coefficient */
+	/* Y coefficient */
+	rga_write(job->full_csc.coe_y.r_v | (clip_y_max << 16) | (clip_y_min << 24),
+		  RGA2_DST_CSC_00_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_y.g_y | (clip_uv_max << 16) | (clip_uv_min << 24),
+		  RGA2_DST_CSC_01_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_y.b_u, RGA2_DST_CSC_02_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_y.off, RGA2_DST_CSC_OFF0_OFFSET, scheduler);
+
+	/* U coefficient */
+	rga_write(job->full_csc.coe_u.r_v, RGA2_DST_CSC_10_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_u.g_y, RGA2_DST_CSC_11_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_u.b_u, RGA2_DST_CSC_12_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_u.off, RGA2_DST_CSC_OFF1_OFFSET, scheduler);
+
+	/* V coefficient */
+	rga_write(job->full_csc.coe_v.r_v, RGA2_DST_CSC_20_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_v.g_y, RGA2_DST_CSC_21_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_v.b_u, RGA2_DST_CSC_22_OFFSET, scheduler);
+	rga_write(job->full_csc.coe_v.off, RGA2_DST_CSC_OFF2_OFFSET, scheduler);
+}
+
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	ktime_t now = ktime_get();
@@ -2412,15 +2381,11 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 #endif
 
-	/* full csc reg */
-	for (i = 0; i < 12; i++) {
-		rga_write(job->csc_reg[i], RGA2_CSC_COE_BASE + i * 4,
-			 scheduler);
-	}
-
-	if (job->pre_intr_info.enable) {
+	if (job->pre_intr_info.enable)
 		rga2_set_pre_intr_reg(job, scheduler);
-	}
+
+	if (job->full_csc.flag)
+		rga2_set_reg_full_csc(job, scheduler);
 
 	if (DEBUGGER_EN(REG)) {
 		int32_t *p;
@@ -2429,13 +2394,6 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		pr_info("CMD_REG\n");
 		for (i = 0; i < 8; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				p[0 + i * 4], p[1 + i * 4],
-				p[2 + i * 4], p[3 + i * 4]);
-
-		p = job->csc_reg;
-		pr_info("CSC_REG\n");
-		for (i = 0; i < 3; i++)
-			pr_info("%.8x %.8x %.8x %.8x\n",
 				p[0 + i * 4], p[1 + i * 4],
 				p[2 + i * 4], p[3 + i * 4]);
 	}

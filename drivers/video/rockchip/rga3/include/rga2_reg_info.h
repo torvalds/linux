@@ -14,9 +14,6 @@
 #define RGA2_MMU_CMD_BASE		0x01c
 #define RGA2_VERSION_NUM		0x028
 
-/* Full Csc Coefficient */
-#define RGA2_CSC_COE_BASE		0x60
-
 #define rRGA_SYS_CTRL		(*(volatile u32 *)(RGA2_BASE + RGA2_SYS_CTRL_OFFSET))
 #define rRGA_CMD_CTRL		(*(volatile u32 *)(RGA2_BASE + RGA2_CMD_CTRL_OFFSET))
 #define rRGA_CMD_BASE		(*(volatile u32 *)(RGA2_BASE + RGA2_CMD_BASE_OFFSET))
@@ -338,22 +335,20 @@
 #define RGA2_WRITE_LINE_CNT_OFFSET			0x34
 #define RGA2_LINE_CNT_OFFSET				0x38
 #define RGA2_PERF_CTRL0_OFFSET				0x40
+#define RGA2_DST_CSC_00_OFFSET				0x60
+#define RGA2_DST_CSC_01_OFFSET				0x64
+#define RGA2_DST_CSC_02_OFFSET				0x68
+#define RGA2_DST_CSC_OFF0_OFFSET			0x6c
+#define RGA2_DST_CSC_10_OFFSET				0x70
+#define RGA2_DST_CSC_11_OFFSET				0x74
+#define RGA2_DST_CSC_12_OFFSET				0x78
+#define RGA2_DST_CSC_OFF1_OFFSET			0x7c
+#define RGA2_DST_CSC_20_OFFSET				0x80
+#define RGA2_DST_CSC_21_OFFSET				0x84
+#define RGA2_DST_CSC_22_OFFSET				0x88
+#define RGA2_DST_CSC_OFF2_OFFSET			0x8c
 #define RGA2_OSD_CUR_FLAGS0_OFFSET			0x90
 #define RGA2_OSD_CUR_FLAGS1_OFFSET			0x9c
-
-/* dst full csc */
-#define RGA2_DST_CSC_00_OFFSET				0x0
-#define RGA2_DST_CSC_01_OFFSET				0x4
-#define RGA2_DST_CSC_02_OFFSET				0x8
-#define RGA2_DST_CSC_OFF0_OFFSET			0xc
-#define RGA2_DST_CSC_10_OFFSET				0x10
-#define RGA2_DST_CSC_11_OFFSET				0x14
-#define RGA2_DST_CSC_12_OFFSET				0x18
-#define RGA2_DST_CSC_OFF1_OFFSET			0x1c
-#define RGA2_DST_CSC_20_OFFSET				0x20
-#define RGA2_DST_CSC_21_OFFSET				0x24
-#define RGA2_DST_CSC_22_OFFSET				0x28
-#define RGA2_DST_CSC_OFF2_OFFSET			0x2c
 
 /* mode ctrl */
 #define RGA2_MODE_CTRL_OFFSET				0x00
@@ -406,8 +401,11 @@
 #define RGA2_MMU_DST_BASE_OFFSET			0x78
 #define RGA2_MMU_ELS_BASE_OFFSET			0x7c
 
-int rga2_gen_reg_info(unsigned char *base,
-	unsigned char *csc_base, struct rga2_req *msg);
+#define RGA2_SYS_REG_BASE				0x0
+#define RGA2_CSC_REG_BASE				0x60
+#define RGA2_CMD_REG_BASE				0x100
+
+int rga2_gen_reg_info(unsigned char *base, struct rga2_req *msg);
 
 void rga2_soft_reset(struct rga_scheduler_t *scheduler);
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);

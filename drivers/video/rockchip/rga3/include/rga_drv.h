@@ -256,7 +256,7 @@ struct rga_job {
 	struct list_head head;
 	struct rga_req rga_command_base;
 	uint32_t cmd_reg[32 * 8];
-	uint32_t csc_reg[12];
+	struct rga_full_csc full_csc;
 	struct rga_pre_intr_info pre_intr_info;
 
 	struct rga_dma_buffer_t *rga_dma_buffer_src0;

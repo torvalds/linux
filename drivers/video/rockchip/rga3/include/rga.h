@@ -294,18 +294,18 @@ struct rga_line_draw_t {
 };
 
 /* color space convert coefficient. */
-struct rga_csc_coe_t {
+struct rga_csc_coe {
 	int16_t r_v;
 	int16_t g_y;
 	int16_t b_u;
 	int32_t off;
 };
 
-struct rga_full_csc_t {
+struct rga_full_csc {
 	uint8_t flag;
-	struct rga_csc_coe_t coe_y;
-	struct rga_csc_coe_t coe_u;
-	struct rga_csc_coe_t coe_v;
+	struct rga_csc_coe coe_y;
+	struct rga_csc_coe coe_u;
+	struct rga_csc_coe coe_v;
 };
 
 struct rga_mosaic_info {
@@ -583,7 +583,7 @@ struct rga_req {
 	uint8_t dither_mode;
 
 	/* full color space convert */
-	struct rga_full_csc_t full_csc;
+	struct rga_full_csc full_csc;
 
 	int32_t in_fence_fd;
 	uint8_t core;
@@ -710,13 +710,7 @@ struct rga2_req {
 	/* (enum) BT.601 MPEG / BT.601 JPEG / BT.709 */
 	u8 yuv2rgb_mode;
 
-	/* [1:0] src0 csc mode		*/
-	/* [3:2] dst csc mode		 */
-	/* [4]	 dst csc clip enable */
-	/* [6:5] src1 csc mdoe		*/
-	/* [7]	 src1 csc clip enable */
-	/* full color space convert */
-	struct rga_full_csc_t full_csc;
+	u8 full_csc_en;
 
 	/* 0/little endian 1/big endian */
 	u8 endian_mode;
