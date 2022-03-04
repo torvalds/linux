@@ -370,7 +370,6 @@ static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
 	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
-	ocelot->npi = -1;
 
 	/* Overwrite PGID_CPU with the non-tagging port */
 	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
@@ -384,7 +383,6 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 {
 	mutex_lock(&ocelot->fwd_domain_lock);
 
-	ocelot->ports[port]->is_dsa_8021q_cpu = false;
 	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
 
 	/* Restore PGID_CPU */
@@ -1467,18 +1465,15 @@ static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
 	return felix_update_trapping_destinations(ds, using_tag_8021q);
 }
 
-static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
+static bool felix_check_xtr_pkt(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
-	int err, grp = 0;
+	int err = 0, grp = 0;
 
 	if (felix->tag_proto != DSA_TAG_PROTO_OCELOT_8021Q)
 		return false;
 
 	if (!felix->info->quirk_no_xtr_irq)
-		return false;
-
-	if (ptp_type == PTP_CLASS_NONE)
 		return false;
 
 	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
@@ -1510,8 +1505,12 @@ static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
 	}
 
 out:
-	if (err < 0)
+	if (err < 0) {
+		dev_err_ratelimited(ocelot->dev,
+				    "Error during packet extraction: %pe\n",
+				    ERR_PTR(err));
 		ocelot_drain_cpu_queue(ocelot, 0);
+	}
 
 	return true;
 }
@@ -1531,7 +1530,7 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 	 * MMIO in the CPU port module, and inject that into the stack from
 	 * ocelot_xtr_poll().
 	 */
-	if (felix_check_xtr_pkt(ocelot, type)) {
+	if (felix_check_xtr_pkt(ocelot)) {
 		kfree_skb(skb);
 		return true;
 	}
