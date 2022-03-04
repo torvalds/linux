@@ -525,21 +525,18 @@ int i915_vma_bind(struct i915_vma *vma,
 		if (!work->vma_res->bi.pages_rsgt)
 			work->pinned = i915_gem_object_get(vma->obj);
 	} else {
-		if (vma->obj) {
-			ret = i915_gem_object_wait_moving_fence(vma->obj, true);
-			if (ret) {
-				i915_vma_resource_free(vma->resource);
-				vma->resource = NULL;
+		ret = i915_gem_object_wait_moving_fence(vma->obj, true);
+		if (ret) {
+			i915_vma_resource_free(vma->resource);
+			vma->resource = NULL;
 
-				return ret;
-			}
+			return ret;
 		}
 		vma->ops->bind_vma(vma->vm, NULL, vma->resource, cache_level,
 				   bind_flags);
 	}
 
-	if (vma->obj)
-		set_bit(I915_BO_WAS_BOUND_BIT, &vma->obj->flags);
+	set_bit(I915_BO_WAS_BOUND_BIT, &vma->obj->flags);
 
 	atomic_or(bind_flags, &vma->flags);
 	return 0;
@@ -1384,7 +1381,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 
 		work->vm = vma->vm;
 
-		moving = vma->obj ? i915_gem_object_get_moving_fence(vma->obj) : NULL;
+		moving = i915_gem_object_get_moving_fence(vma->obj);
 		dma_fence_work_chain(&work->base, moving);
 
 		/* Allocate enough page directories to used PTE */
