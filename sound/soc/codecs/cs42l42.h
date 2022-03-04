@@ -491,7 +491,10 @@
 #define CS42L42_TS_UNPLUG		0
 #define CS42L42_TS_TRANS		1
 
-/* Page 0x15 Fractional-N PLL Registers */
+/*
+ * NOTE: PLL_START must be 0 while both ADC_PDN=1 and HP_PDN=1.
+ * Otherwise it will prevent FILT+ from charging properly.
+ */
 #define CS42L42_PLL_CTL1		(CS42L42_PAGE_15 + 0x01)
 #define CS42L42_PLL_START_SHIFT		0
 #define CS42L42_PLL_START_MASK		(1 << CS42L42_PLL_START_SHIFT)
@@ -574,6 +577,10 @@
 #define CS42L42_TIP_SENSE_CTRL_MASK		(3 << \
 					CS42L42_TIP_SENSE_CTRL_SHIFT)
 
+/*
+ * NOTE: DETECT_MODE must be 0 while both ADC_PDN=1 and HP_PDN=1.
+ * Otherwise it will prevent FILT+ from charging properly.
+ */
 #define CS42L42_MISC_DET_CTL		(CS42L42_PAGE_1B + 0x74)
 #define CS42L42_PDN_MIC_LVL_DET_SHIFT	0
 #define CS42L42_PDN_MIC_LVL_DET_MASK	(1 << CS42L42_PDN_MIC_LVL_DET_SHIFT)

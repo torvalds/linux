@@ -1012,7 +1012,14 @@ static int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 		}
 	} else {
 		if (!cs42l42->stream_use) {
-			/* SCLK must be running before codec unmute */
+			/* SCLK must be running before codec unmute.
+			 *
+			 * PLL must not be started with ADC and HP both off
+			 * otherwise the FILT+ supply will not charge properly.
+			 * DAPM widgets power-up before stream unmute so at least
+			 * one of the "DAC" or "ADC" widgets will already have
+			 * powered-up.
+			 */
 			if (pll_ratio_table[cs42l42->pll_config].mclk_src_sel) {
 				snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
 							      CS42L42_PLL_START_MASK, 1);
@@ -1830,6 +1837,10 @@ static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
 
 	cs42l42->hs_type = CS42L42_PLUG_INVALID;
 
+	/*
+	 * DETECT_MODE must always be 0 with ADC and HP both off otherwise the
+	 * FILT+ supply will not charge properly.
+	 */
 	regmap_update_bits(cs42l42->regmap, CS42L42_MISC_DET_CTL,
 			   CS42L42_DETECT_MODE_MASK, 0);
 
