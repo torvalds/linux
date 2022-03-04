@@ -32,6 +32,8 @@
 #define MER_ME (1<<0)
 #define MER_HIE (1<<1)
 
+#define SPURIOUS_IRQ	(-1U)
+
 static DEFINE_STATIC_KEY_FALSE(xintc_is_be);
 
 struct xintc_irq_chip {
@@ -110,20 +112,6 @@ static struct irq_chip intc_dev = {
 	.irq_mask_ack = intc_mask_ack,
 };
 
-unsigned int xintc_get_irq(void)
-{
-	unsigned int irq = -1;
-	u32 hwirq;
-
-	hwirq = xintc_read(primary_intc, IVR);
-	if (hwirq != -1U)
-		irq = irq_find_mapping(primary_intc->root_domain, hwirq);
-
-	pr_debug("irq-xilinx: hwirq=%d, irq=%d\n", hwirq, irq);
-
-	return irq;
-}
-
 static int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 {
 	struct xintc_irq_chip *irqc = d->host_data;
@@ -162,6 +150,19 @@ static void xil_intc_irq_handler(struct irq_desc *desc)
 		generic_handle_domain_irq(irqc->root_domain, hwirq);
 	} while (true);
 	chained_irq_exit(chip, desc);
+}
+
+static void xil_intc_handle_irq(struct pt_regs *regs)
+{
+	u32 hwirq;
+
+	do {
+		hwirq = xintc_read(primary_intc, IVR);
+		if (unlikely(hwirq == SPURIOUS_IRQ))
+			break;
+
+		generic_handle_domain_irq(primary_intc->root_domain, hwirq);
+	} while (true);
 }
 
 static int __init xilinx_intc_of_init(struct device_node *intc,
@@ -233,6 +234,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	} else {
 		primary_intc = irqc;
 		irq_set_default_host(primary_intc->root_domain);
+		set_handle_irq(xil_intc_handle_irq);
 	}
 
 	return 0;
