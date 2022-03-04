@@ -8,8 +8,17 @@
 
 #include <dt-bindings/clock/sifive-fu740-prci.h>
 
-#include "fu540-prci.h"
 #include "sifive-prci.h"
+
+#define PRCI_CLK_COREPLL	0
+#define PRCI_CLK_DDRPLL		1
+#define PRCI_CLK_GEMGXLPLL	2
+#define PRCI_CLK_DVFSCOREPLL	3
+#define PRCI_CLK_HFPCLKPLL	4
+#define PRCI_CLK_CLTXPLL	5
+#define PRCI_CLK_TLCLK		6
+#define PRCI_CLK_PCLK		7
+#define PRCI_CLK_PCIE_AUX	8
 
 /* PRCI integration data for each WRPLL instance */
 
