@@ -1183,6 +1183,39 @@ static void sparx5_config_port_stats(struct sparx5 *sparx5, int portno)
 		 sparx5, ANA_AC_PORT_STAT_CFG(portno, SPX5_PORT_POLICER_DROPS));
 }
 
+static int sparx5_get_ts_info(struct net_device *dev,
+			      struct ethtool_ts_info *info)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *sparx5 = port->sparx5;
+	struct sparx5_phc *phc;
+
+	if (!sparx5->ptp)
+		return ethtool_op_get_ts_info(dev, info);
+
+	phc = &sparx5->phc[SPARX5_PHC_PORT];
+
+	info->phc_index = phc->clock ? ptp_clock_index(phc->clock) : -1;
+	if (info->phc_index == -1) {
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
+					 SOF_TIMESTAMPING_RX_SOFTWARE |
+					 SOF_TIMESTAMPING_SOFTWARE;
+		return 0;
+	}
+	info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
+				 SOF_TIMESTAMPING_RX_SOFTWARE |
+				 SOF_TIMESTAMPING_SOFTWARE |
+				 SOF_TIMESTAMPING_TX_HARDWARE |
+				 SOF_TIMESTAMPING_RX_HARDWARE |
+				 SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON) |
+			 BIT(HWTSTAMP_TX_ONESTEP_SYNC);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 const struct ethtool_ops sparx5_ethtool_ops = {
 	.get_sset_count         = sparx5_get_sset_count,
 	.get_strings            = sparx5_get_sset_strings,
@@ -1194,6 +1227,7 @@ const struct ethtool_ops sparx5_ethtool_ops = {
 	.get_eth_mac_stats      = sparx5_get_eth_mac_stats,
 	.get_eth_ctrl_stats     = sparx5_get_eth_mac_ctrl_stats,
 	.get_rmon_stats         = sparx5_get_eth_rmon_stats,
+	.get_ts_info            = sparx5_get_ts_info,
 };
 
 int sparx_stats_init(struct sparx5 *sparx5)
