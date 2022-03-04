@@ -14,6 +14,8 @@
 #include <linux/if_vlan.h>
 #include <linux/bitmap.h>
 #include <linux/phylink.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
 
 #include "sparx5_main_regs.h"
@@ -78,6 +80,9 @@ enum sparx5_vlan_port_type {
 #define FDMA_DCB_MAX			64
 #define FDMA_RX_DCB_MAX_DBS		15
 #define FDMA_TX_DCB_MAX_DBS		1
+
+#define SPARX5_PHC_COUNT		3
+#define SPARX5_PHC_PORT			0
 
 struct sparx5;
 
@@ -178,6 +183,14 @@ enum sparx5_core_clockfreq {
 	SPX5_CORE_CLOCK_625MHZ,   /* 625MHZ core clock frequency */
 };
 
+struct sparx5_phc {
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	struct hwtstamp_config hwtstamp_config;
+	struct sparx5 *sparx5;
+	u8 index;
+};
+
 struct sparx5 {
 	struct platform_device *pdev;
 	struct device *dev;
@@ -225,6 +238,10 @@ struct sparx5 {
 	int fdma_irq;
 	struct sparx5_rx rx;
 	struct sparx5_tx tx;
+	/* PTP */
+	bool ptp;
+	struct sparx5_phc phc[SPARX5_PHC_COUNT];
+	spinlock_t ptp_clock_lock; /* lock for phc */
 };
 
 /* sparx5_switchdev.c */
@@ -293,6 +310,10 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
 int sparx5_register_netdevs(struct sparx5 *sparx5);
 void sparx5_destroy_netdevs(struct sparx5 *sparx5);
 void sparx5_unregister_netdevs(struct sparx5 *sparx5);
+
+/* sparx5_ptp.c */
+int sparx5_ptp_init(struct sparx5 *sparx5);
+void sparx5_ptp_deinit(struct sparx5 *sparx5);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

@@ -847,6 +847,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		dev_err(sparx5->dev, "Start failed\n");
 		goto cleanup_ports;
 	}
+
+	err = sparx5_ptp_init(sparx5);
+	if (err) {
+		dev_err(sparx5->dev, "PTP failed\n");
+		goto cleanup_ports;
+	}
 	goto cleanup_config;
 
 cleanup_ports:
@@ -870,6 +876,7 @@ static int mchp_sparx5_remove(struct platform_device *pdev)
 		disable_irq(sparx5->fdma_irq);
 		sparx5->fdma_irq = -ENXIO;
 	}
+	sparx5_ptp_deinit(sparx5);
 	sparx5_fdma_stop(sparx5);
 	sparx5_cleanup_ports(sparx5);
 	/* Unregister netdevs */
