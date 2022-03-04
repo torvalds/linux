@@ -63,7 +63,7 @@ struct rxe_pool {
  * pool elements will be allocated out of a slab cache
  */
 int rxe_pool_init(struct rxe_dev *rxe, struct rxe_pool *pool,
-		  enum rxe_elem_type type, u32 max_elem);
+		  enum rxe_elem_type type);
 
 /* free resources from object pool */
 void rxe_pool_cleanup(struct rxe_pool *pool);

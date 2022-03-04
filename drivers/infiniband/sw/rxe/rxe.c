@@ -118,43 +118,35 @@ static int rxe_init_pools(struct rxe_dev *rxe)
 {
 	int err;
 
-	err = rxe_pool_init(rxe, &rxe->uc_pool, RXE_TYPE_UC,
-			    rxe->max_ucontext);
+	err = rxe_pool_init(rxe, &rxe->uc_pool, RXE_TYPE_UC);
 	if (err)
 		goto err1;
 
-	err = rxe_pool_init(rxe, &rxe->pd_pool, RXE_TYPE_PD,
-			    rxe->attr.max_pd);
+	err = rxe_pool_init(rxe, &rxe->pd_pool, RXE_TYPE_PD);
 	if (err)
 		goto err2;
 
-	err = rxe_pool_init(rxe, &rxe->ah_pool, RXE_TYPE_AH,
-			    rxe->attr.max_ah);
+	err = rxe_pool_init(rxe, &rxe->ah_pool, RXE_TYPE_AH);
 	if (err)
 		goto err3;
 
-	err = rxe_pool_init(rxe, &rxe->srq_pool, RXE_TYPE_SRQ,
-			    rxe->attr.max_srq);
+	err = rxe_pool_init(rxe, &rxe->srq_pool, RXE_TYPE_SRQ);
 	if (err)
 		goto err4;
 
-	err = rxe_pool_init(rxe, &rxe->qp_pool, RXE_TYPE_QP,
-			    rxe->attr.max_qp);
+	err = rxe_pool_init(rxe, &rxe->qp_pool, RXE_TYPE_QP);
 	if (err)
 		goto err5;
 
-	err = rxe_pool_init(rxe, &rxe->cq_pool, RXE_TYPE_CQ,
-			    rxe->attr.max_cq);
+	err = rxe_pool_init(rxe, &rxe->cq_pool, RXE_TYPE_CQ);
 	if (err)
 		goto err6;
 
-	err = rxe_pool_init(rxe, &rxe->mr_pool, RXE_TYPE_MR,
-			    rxe->attr.max_mr);
+	err = rxe_pool_init(rxe, &rxe->mr_pool, RXE_TYPE_MR);
 	if (err)
 		goto err7;
 
-	err = rxe_pool_init(rxe, &rxe->mw_pool, RXE_TYPE_MW,
-			    rxe->attr.max_mw);
+	err = rxe_pool_init(rxe, &rxe->mw_pool, RXE_TYPE_MW);
 	if (err)
 		goto err8;
 
