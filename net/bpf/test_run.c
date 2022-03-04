@@ -201,8 +201,8 @@ out:
  * future.
  */
 __diag_push();
-__diag_ignore(GCC, 8, "-Wmissing-prototypes",
-	      "Global functions as their definitions will be in vmlinux BTF");
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in vmlinux BTF");
 int noinline bpf_fentry_test1(int a)
 {
 	return a + 1;
