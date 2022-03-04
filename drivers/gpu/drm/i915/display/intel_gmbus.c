@@ -300,9 +300,7 @@ static void set_data(void *data, int state_high)
 static int
 intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	intel_gmbus_reset(dev_priv);
@@ -319,9 +317,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 static void
 intel_gpio_post_xfer(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	set_data(bus, 1);
@@ -619,9 +615,7 @@ static int
 do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 	      u32 gmbus0_source)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	int i = 0, inc, try = 0;
 	int ret = 0;
@@ -751,8 +745,7 @@ out:
 static int
 gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	struct intel_gmbus *bus =
-		container_of(adapter, struct intel_gmbus, adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	intel_wakeref_t wakeref;
 	int ret;
@@ -776,8 +769,7 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus =
-		container_of(adapter, struct intel_gmbus, adapter);
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	u8 cmd = DRM_HDCP_DDC_AKSV;
 	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
