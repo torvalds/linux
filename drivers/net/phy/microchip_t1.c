@@ -9,6 +9,8 @@
 #include <linux/ethtool.h>
 #include <linux/ethtool_netlink.h>
 
+#define PHY_ID_LAN87XX				0x0007c150
+
 /* External Register Control Register */
 #define LAN87XX_EXT_REG_CTL                     (0x14)
 #define LAN87XX_EXT_REG_CTL_RD_CTL              (0x1000)
@@ -496,8 +498,7 @@ static int lan87xx_cable_test_get_status(struct phy_device *phydev,
 
 static struct phy_driver microchip_t1_phy_driver[] = {
 	{
-		.phy_id         = 0x0007c150,
-		.phy_id_mask    = 0xfffffff0,
+		PHY_ID_MATCH_MODEL(PHY_ID_LAN87XX),
 		.name           = "Microchip LAN87xx T1",
 		.flags          = PHY_POLL_CABLE_TEST,
 
@@ -518,7 +519,7 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 module_phy_driver(microchip_t1_phy_driver);
 
 static struct mdio_device_id __maybe_unused microchip_t1_tbl[] = {
-	{ 0x0007c150, 0xfffffff0 },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN87XX) },
 	{ }
 };
 
