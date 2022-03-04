@@ -165,6 +165,13 @@
 #define TRCIDR4_NUMCIDC_MASK			GENMASK(27, 24)
 #define TRCIDR4_NUMVMIDC_MASK			GENMASK(31, 28)
 
+#define TRCIDR5_NUMEXTIN_MASK			GENMASK(8, 0)
+#define TRCIDR5_TRACEIDSIZE_MASK		GENMASK(21, 16)
+#define TRCIDR5_ATBTRIG				BIT(22)
+#define TRCIDR5_LPOVERRIDE			BIT(23)
+#define TRCIDR5_NUMSEQSTATE_MASK		GENMASK(27, 25)
+#define TRCIDR5_NUMCNTR_MASK			GENMASK(30, 28)
+
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions
