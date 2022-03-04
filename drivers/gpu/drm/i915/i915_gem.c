@@ -118,6 +118,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags)
 {
 	struct intel_runtime_pm *rpm = &to_i915(obj->base.dev)->runtime_pm;
+	bool vm_trylock = !!(flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK);
 	LIST_HEAD(still_in_list);
 	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
@@ -170,26 +171,21 @@ try_again:
 		 * and destroy the vma from under us.
 		 */
 
-		if (vma) {
-			bool vm_trylock = !!(flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK);
-			ret = -EBUSY;
-			if (flags & I915_GEM_OBJECT_UNBIND_ASYNC) {
-				assert_object_held(vma->obj);
-				ret = i915_vma_unbind_async(vma, vm_trylock);
-			}
+		ret = -EBUSY;
+		if (flags & I915_GEM_OBJECT_UNBIND_ASYNC) {
+			assert_object_held(vma->obj);
+			ret = i915_vma_unbind_async(vma, vm_trylock);
+		}
 
-			if (ret == -EBUSY && (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-					      !i915_vma_is_active(vma))) {
-				if (vm_trylock) {
-					if (mutex_trylock(&vma->vm->mutex)) {
-						ret = __i915_vma_unbind(vma);
-						mutex_unlock(&vma->vm->mutex);
-					} else {
-						ret = -EBUSY;
-					}
-				} else {
-					ret = i915_vma_unbind(vma);
+		if (ret == -EBUSY && (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
+				      !i915_vma_is_active(vma))) {
+			if (vm_trylock) {
+				if (mutex_trylock(&vma->vm->mutex)) {
+					ret = __i915_vma_unbind(vma);
+					mutex_unlock(&vma->vm->mutex);
 				}
+			} else {
+				ret = i915_vma_unbind(vma);
 			}
 		}
 
