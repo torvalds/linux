@@ -391,6 +391,21 @@ const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
+const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_AX210,
+	.base_params = &iwl_ax210_base_params,
+	.umac_prph_offset = 0x300000,
+	.integrated = true,
+	.low_latency_xtal = true,
+	.xtal_latency = 12000,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
+	.imr_enabled = true,
+};
+
 /*
  * If the device doesn't support HE, no need to have that many buffers.
  * 22000 devices can split multiple frames into a single RB, so fewer are
