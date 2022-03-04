@@ -537,8 +537,8 @@ IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
 int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *table, *data;
-	bool enabled;
 	int ret, tbl_rev;
+	u32 flags;
 	u8 num_chains, num_sub_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WRDS_METHOD);
@@ -604,7 +604,8 @@ read_table:
 
 	IWL_DEBUG_RADIO(fwrt, "Reading WRDS tbl_rev=%d\n", tbl_rev);
 
-	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	flags = wifi_pkg->package.elements[1].integer.value;
+	fwrt->reduced_power_flags = flags >> IWL_REDUCE_POWER_FLAGS_POS;
 
 	/* position of the actual table */
 	table = &wifi_pkg->package.elements[2];
@@ -612,7 +613,8 @@ read_table:
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled,
+	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0],
+				  flags & IWL_SAR_ENABLE_MSK,
 				  num_chains, num_sub_bands);
 out_free:
 	kfree(data);
