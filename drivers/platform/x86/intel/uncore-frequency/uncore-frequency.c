@@ -225,7 +225,7 @@ static int __init intel_uncore_init(void)
 
 	ret = uncore_freq_common_init(uncore_read_control_freq, uncore_write_control_freq,
 				      uncore_read_freq);
-	if (!ret)
+	if (ret)
 		goto err_free;
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,

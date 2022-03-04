@@ -231,7 +231,7 @@ int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, u
 		++uncore_instance_count;
 	mutex_unlock(&uncore_lock);
 
-	return (!!uncore_root_kobj);
+	return uncore_root_kobj ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL_NS_GPL(uncore_freq_common_init, INTEL_UNCORE_FREQUENCY);
 
