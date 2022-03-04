@@ -282,9 +282,10 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	if (!adata->acp_base)
 		return -ENOMEM;
 
-	adata->i2s_irq = platform_get_irq_byname(pdev, "acp_dai_irq");
-	if (adata->i2s_irq < 0)
-		return -ENODEV;
+	ret = platform_get_irq_byname(pdev, "acp_dai_irq");
+	if (ret < 0)
+		return ret;
+	adata->i2s_irq = ret;
 
 	adata->dev = dev;
 	adata->dai_driver = acp_renoir_dai;
