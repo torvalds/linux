@@ -1796,6 +1796,7 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	kfree(drv);
 }
 
+#define ENABLE_INI	(IWL_DBG_TLV_MAX_PRESET + 1)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
@@ -1803,7 +1804,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.uapsd_disable = IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT,
-	.enable_ini = true,
+	.enable_ini = ENABLE_INI,
 	/* the rest are 0 by default */
 };
 IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
@@ -1915,10 +1916,42 @@ MODULE_PARM_DESC(nvm_file, "NVM file name");
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
-module_param_named(enable_ini, iwlwifi_mod_params.enable_ini,
-		   bool, S_IRUGO | S_IWUSR);
+
+static int enable_ini_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret = 0;
+	bool res;
+	__u32 new_enable_ini;
+
+	/* in case the argument type is a number */
+	ret = kstrtou32(arg, 0, &new_enable_ini);
+	if (!ret) {
+		if (new_enable_ini > ENABLE_INI) {
+			pr_err("enable_ini cannot be %d, in range 0-16\n", new_enable_ini);
+			return -EINVAL;
+		}
+		goto out;
+	}
+
+	/* in case the argument type is boolean */
+	ret = kstrtobool(arg, &res);
+	if (ret)
+		return ret;
+	new_enable_ini = (res ? ENABLE_INI : 0);
+
+out:
+	iwlwifi_mod_params.enable_ini = new_enable_ini;
+	return 0;
+}
+
+static const struct kernel_param_ops enable_ini_ops = {
+	.set = enable_ini_set
+};
+
+module_param_cb(enable_ini, &enable_ini_ops, &iwlwifi_mod_params.enable_ini, 0644);
 MODULE_PARM_DESC(enable_ini,
-		 "Enable debug INI TLV FW debug infrastructure (default: true");
+		 "0:disable, 1-15:FW_DBG_PRESET Values, 16:enabled without preset value defined,"
+		 "Debug INI TLV FW debug infrastructure (default: 16)");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
