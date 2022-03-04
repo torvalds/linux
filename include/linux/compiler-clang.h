@@ -90,3 +90,6 @@
 #else
 #define __diag_clang_11(s)
 #endif
+
+#define __diag_ignore_all(option, comment) \
+	__diag_clang(11, ignore, option)
