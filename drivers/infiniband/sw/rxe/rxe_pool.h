@@ -39,7 +39,7 @@ struct rxe_pool {
 	struct rxe_dev		*rxe;
 	const char		*name;
 	rwlock_t		pool_lock; /* protects pool add/del/search */
-	void			(*cleanup)(struct rxe_pool_elem *obj);
+	void			(*cleanup)(struct rxe_pool_elem *elem);
 	enum rxe_pool_flags	flags;
 	enum rxe_elem_type	type;
 
