@@ -1364,11 +1364,10 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	}
 
 	if (r == -EBADMSG) {
-		char b[BDEVNAME_SIZE];
 		sector_t s = le64_to_cpu(*sector);
 
-		DMERR_LIMIT("%s: INTEGRITY AEAD ERROR, sector %llu",
-			    bio_devname(ctx->bio_in, b), s);
+		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+			    ctx->bio_in->bi_bdev, s);
 		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
 				 ctx->bio_in, s, 0);
 	}
@@ -2169,11 +2168,10 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 		error = cc->iv_gen_ops->post(cc, org_iv_of_dmreq(cc, dmreq), dmreq);
 
 	if (error == -EBADMSG) {
-		char b[BDEVNAME_SIZE];
 		sector_t s = le64_to_cpu(*org_sector_of_dmreq(cc, dmreq));
 
-		DMERR_LIMIT("%s: INTEGRITY AEAD ERROR, sector %llu",
-			    bio_devname(ctx->bio_in, b), s);
+		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+			    ctx->bio_in->bi_bdev, s);
 		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
 				 ctx->bio_in, s, 0);
 		io->error = BLK_STS_PROTECTION;
