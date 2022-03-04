@@ -189,17 +189,6 @@ static int rxe_insert_index(struct rxe_pool *pool, struct rxe_pool_elem *new)
 	return 0;
 }
 
-int __rxe_add_index_locked(struct rxe_pool_elem *elem)
-{
-	struct rxe_pool *pool = elem->pool;
-	int err;
-
-	elem->index = alloc_index(pool);
-	err = rxe_insert_index(pool, elem);
-
-	return err;
-}
-
 int __rxe_add_index(struct rxe_pool_elem *elem)
 {
 	struct rxe_pool *pool = elem->pool;
@@ -207,18 +196,11 @@ int __rxe_add_index(struct rxe_pool_elem *elem)
 	int err;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	err = __rxe_add_index_locked(elem);
+	elem->index = alloc_index(pool);
+	err = rxe_insert_index(pool, elem);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return err;
-}
-
-void __rxe_drop_index_locked(struct rxe_pool_elem *elem)
-{
-	struct rxe_pool *pool = elem->pool;
-
-	clear_bit(elem->index - pool->index.min_index, pool->index.table);
-	rb_erase(&elem->index_node, &pool->index.tree);
 }
 
 void __rxe_drop_index(struct rxe_pool_elem *elem)
@@ -227,33 +209,9 @@ void __rxe_drop_index(struct rxe_pool_elem *elem)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	__rxe_drop_index_locked(elem);
+	clear_bit(elem->index - pool->index.min_index, pool->index.table);
+	rb_erase(&elem->index_node, &pool->index.tree);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
-}
-
-void *rxe_alloc_locked(struct rxe_pool *pool)
-{
-	struct rxe_pool_elem *elem;
-	void *obj;
-
-	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
-		goto out_cnt;
-
-	obj = kzalloc(pool->elem_size, GFP_ATOMIC);
-	if (!obj)
-		goto out_cnt;
-
-	elem = (struct rxe_pool_elem *)((u8 *)obj + pool->elem_offset);
-
-	elem->pool = pool;
-	elem->obj = obj;
-	kref_init(&elem->ref_cnt);
-
-	return obj;
-
-out_cnt:
-	atomic_dec(&pool->num_elem);
-	return NULL;
 }
 
 void *rxe_alloc(struct rxe_pool *pool)
@@ -321,12 +279,14 @@ void rxe_elem_release(struct kref *kref)
 	atomic_dec(&pool->num_elem);
 }
 
-void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
+void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 {
-	struct rb_node *node;
 	struct rxe_pool_elem *elem;
+	struct rb_node *node;
+	unsigned long flags;
 	void *obj;
 
+	read_lock_irqsave(&pool->pool_lock, flags);
 	node = pool->index.tree.rb_node;
 
 	while (node) {
@@ -346,17 +306,6 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 	} else {
 		obj = NULL;
 	}
-
-	return obj;
-}
-
-void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
-{
-	unsigned long flags;
-	void *obj;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
-	obj = rxe_pool_get_index_locked(pool, index);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return obj;
