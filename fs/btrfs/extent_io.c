@@ -3321,7 +3321,6 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	bio_ctrl->bio_flags = bio_flags;
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = &inode->io_tree;
-	bio->bi_write_hint = inode->vfs_inode.i_write_hint;
 	bio->bi_opf = opf;
 	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
 	if (ret < 0)
