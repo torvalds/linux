@@ -197,20 +197,10 @@ static int lan87xx_phy_init(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	/* Soft Reset the SMI block */
-	rc = access_ereg_modify_changed(phydev, PHYACC_ATTR_BANK_SMI,
-					0x00, 0x8000, 0x8000);
+	/* phy Soft reset */
+	rc = genphy_soft_reset(phydev);
 	if (rc < 0)
 		return rc;
-
-	/* Check to see if the self-clearing bit is cleared */
-	usleep_range(1000, 2000);
-	rc = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
-			 PHYACC_ATTR_BANK_SMI, 0x00, 0);
-	if (rc < 0)
-		return rc;
-	if ((rc & 0x8000) != 0)
-		return -ETIMEDOUT;
 
 	/* PHY Initialization */
 	for (i = 0; i < ARRAY_SIZE(init); i++) {
