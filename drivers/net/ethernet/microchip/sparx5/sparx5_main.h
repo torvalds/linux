@@ -270,6 +270,7 @@ struct sparx5 {
 	spinlock_t ptp_ts_id_lock; /* lock for ts_id */
 	struct mutex ptp_lock; /* lock for ptp interface state */
 	u16 ptp_skbs;
+	int ptp_irq;
 };
 
 /* sparx5_switchdev.c */
@@ -355,6 +356,7 @@ int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
 				struct sk_buff *skb);
 void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
+irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

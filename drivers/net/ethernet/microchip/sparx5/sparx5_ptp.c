@@ -271,6 +271,125 @@ void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
 }
 
+static void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
+				   struct timespec64 *ts,
+				   u32 nsec)
+{
+	/* Read current PTP time to get seconds */
+	unsigned long flags;
+	u32 curr_nsec;
+
+	spin_lock_irqsave(&sparx5->ptp_clock_lock, flags);
+
+	spx5_rmw(PTP_PTP_PIN_CFG_PTP_PIN_ACTION_SET(PTP_PIN_ACTION_SAVE) |
+		 PTP_PTP_PIN_CFG_PTP_PIN_DOM_SET(SPARX5_PHC_PORT) |
+		 PTP_PTP_PIN_CFG_PTP_PIN_SYNC_SET(0),
+		 PTP_PTP_PIN_CFG_PTP_PIN_ACTION |
+		 PTP_PTP_PIN_CFG_PTP_PIN_DOM |
+		 PTP_PTP_PIN_CFG_PTP_PIN_SYNC,
+		 sparx5, PTP_PTP_PIN_CFG(TOD_ACC_PIN));
+
+	ts->tv_sec = spx5_rd(sparx5, PTP_PTP_TOD_SEC_LSB(TOD_ACC_PIN));
+	curr_nsec = spx5_rd(sparx5, PTP_PTP_TOD_NSEC(TOD_ACC_PIN));
+
+	ts->tv_nsec = nsec;
+
+	/* Sec has incremented since the ts was registered */
+	if (curr_nsec < nsec)
+		ts->tv_sec--;
+
+	spin_unlock_irqrestore(&sparx5->ptp_clock_lock, flags);
+}
+
+irqreturn_t sparx5_ptp_irq_handler(int irq, void *args)
+{
+	int budget = SPARX5_MAX_PTP_ID;
+	struct sparx5 *sparx5 = args;
+
+	while (budget--) {
+		struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
+		struct skb_shared_hwtstamps shhwtstamps;
+		struct sparx5_port *port;
+		struct timespec64 ts;
+		unsigned long flags;
+		u32 val, id, txport;
+		u32 delay;
+
+		val = spx5_rd(sparx5, REW_PTP_TWOSTEP_CTRL);
+
+		/* Check if a timestamp can be retrieved */
+		if (!(val & REW_PTP_TWOSTEP_CTRL_PTP_VLD))
+			break;
+
+		WARN_ON(val & REW_PTP_TWOSTEP_CTRL_PTP_OVFL);
+
+		if (!(val & REW_PTP_TWOSTEP_CTRL_STAMP_TX))
+			continue;
+
+		/* Retrieve the ts Tx port */
+		txport = REW_PTP_TWOSTEP_CTRL_STAMP_PORT_GET(val);
+
+		/* Retrieve its associated skb */
+		port = sparx5->ports[txport];
+
+		/* Retrieve the delay */
+		delay = spx5_rd(sparx5, REW_PTP_TWOSTEP_STAMP);
+		delay = REW_PTP_TWOSTEP_STAMP_STAMP_NSEC_GET(delay);
+
+		/* Get next timestamp from fifo, which needs to be the
+		 * rx timestamp which represents the id of the frame
+		 */
+		spx5_rmw(REW_PTP_TWOSTEP_CTRL_PTP_NXT_SET(1),
+			 REW_PTP_TWOSTEP_CTRL_PTP_NXT,
+			 sparx5, REW_PTP_TWOSTEP_CTRL);
+
+		val = spx5_rd(sparx5, REW_PTP_TWOSTEP_CTRL);
+
+		/* Check if a timestamp can be retried */
+		if (!(val & REW_PTP_TWOSTEP_CTRL_PTP_VLD))
+			break;
+
+		/* Read RX timestamping to get the ID */
+		id = spx5_rd(sparx5, REW_PTP_TWOSTEP_STAMP);
+		id <<= 8;
+		id |= spx5_rd(sparx5, REW_PTP_TWOSTEP_STAMP_SUBNS);
+
+		spin_lock_irqsave(&port->tx_skbs.lock, flags);
+		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
+			if (SPARX5_SKB_CB(skb)->ts_id != id)
+				continue;
+
+			__skb_unlink(skb, &port->tx_skbs);
+			skb_match = skb;
+			break;
+		}
+		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+
+		/* Next ts */
+		spx5_rmw(REW_PTP_TWOSTEP_CTRL_PTP_NXT_SET(1),
+			 REW_PTP_TWOSTEP_CTRL_PTP_NXT,
+			 sparx5, REW_PTP_TWOSTEP_CTRL);
+
+		if (WARN_ON(!skb_match))
+			continue;
+
+		spin_lock(&sparx5->ptp_ts_id_lock);
+		sparx5->ptp_skbs--;
+		spin_unlock(&sparx5->ptp_ts_id_lock);
+
+		/* Get the h/w timestamp */
+		sparx5_get_hwtimestamp(sparx5, &ts, delay);
+
+		/* Set the timestamp into the skb */
+		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+		skb_tstamp_tx(skb_match, &shhwtstamps);
+
+		dev_kfree_skb_any(skb_match);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int sparx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct sparx5_phc *phc = container_of(ptp, struct sparx5_phc, info);

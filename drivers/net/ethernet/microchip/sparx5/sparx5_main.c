@@ -693,6 +693,18 @@ static int sparx5_start(struct sparx5 *sparx5)
 	} else {
 		sparx5->xtr_irq = -ENXIO;
 	}
+
+	if (sparx5->ptp_irq >= 0) {
+		err = devm_request_threaded_irq(sparx5->dev, sparx5->ptp_irq,
+						NULL, sparx5_ptp_irq_handler,
+						IRQF_ONESHOT, "sparx5-ptp",
+						sparx5);
+		if (err)
+			sparx5->ptp_irq = -ENXIO;
+
+		sparx5->ptp = 1;
+	}
+
 	return err;
 }
 
@@ -809,6 +821,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 
 	sparx5->fdma_irq = platform_get_irq_byname(sparx5->pdev, "fdma");
 	sparx5->xtr_irq = platform_get_irq_byname(sparx5->pdev, "xtr");
+	sparx5->ptp_irq = platform_get_irq_byname(sparx5->pdev, "ptp");
 
 	/* Read chip ID to check CPU interface */
 	sparx5->chip_id = spx5_rd(sparx5, GCB_CHIP_ID);
