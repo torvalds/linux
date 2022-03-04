@@ -716,7 +716,7 @@ void smp_send_stop(void)
 }
 #endif /* CONFIG_NMI_IPI */
 
-struct task_struct *current_set[NR_CPUS];
+static struct task_struct *current_set[NR_CPUS];
 
 static void smp_store_cpu_info(int id)
 {

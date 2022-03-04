@@ -20,7 +20,6 @@
 #include <uapi/asm/ucontext.h>
 
 /* SMP */
-extern struct task_struct *current_set[NR_CPUS];
 extern struct task_struct *secondary_current;
 void start_secondary(void *unused);
 
