@@ -399,6 +399,12 @@ enum skb_drop_reason {
 					 * outputting (failed to enqueue to
 					 * current qdisc)
 					 */
+	SKB_DROP_REASON_CPU_BACKLOG,	/* failed to enqueue the skb to
+					 * the per CPU backlog queue. This
+					 * can be caused by backlog queue
+					 * full (see netdev_max_backlog in
+					 * net.rst) or RPS flow limit
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
