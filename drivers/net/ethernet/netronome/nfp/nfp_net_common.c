@@ -38,6 +38,7 @@
 
 #include <net/tls.h>
 #include <net/vxlan.h>
+#include <net/xdp_sock_drv.h>
 
 #include "nfpcore/nfp_nsp.h"
 #include "ccm.h"
@@ -1338,20 +1339,39 @@ static void nfp_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 /* Receive processing
  */
 static unsigned int
-nfp_net_calc_fl_bufsz(struct nfp_net_dp *dp)
+nfp_net_calc_fl_bufsz_data(struct nfp_net_dp *dp)
 {
-	unsigned int fl_bufsz;
+	unsigned int fl_bufsz = 0;
 
-	fl_bufsz = NFP_NET_RX_BUF_HEADROOM;
-	fl_bufsz += dp->rx_dma_off;
 	if (dp->rx_offset == NFP_NET_CFG_RX_OFFSET_DYNAMIC)
 		fl_bufsz += NFP_NET_MAX_PREPEND;
 	else
 		fl_bufsz += dp->rx_offset;
 	fl_bufsz += ETH_HLEN + VLAN_HLEN * 2 + dp->mtu;
 
+	return fl_bufsz;
+}
+
+static unsigned int nfp_net_calc_fl_bufsz(struct nfp_net_dp *dp)
+{
+	unsigned int fl_bufsz;
+
+	fl_bufsz = NFP_NET_RX_BUF_HEADROOM;
+	fl_bufsz += dp->rx_dma_off;
+	fl_bufsz += nfp_net_calc_fl_bufsz_data(dp);
+
 	fl_bufsz = SKB_DATA_ALIGN(fl_bufsz);
 	fl_bufsz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+	return fl_bufsz;
+}
+
+static unsigned int nfp_net_calc_fl_bufsz_xsk(struct nfp_net_dp *dp)
+{
+	unsigned int fl_bufsz;
+
+	fl_bufsz = XDP_PACKET_HEADROOM;
+	fl_bufsz += nfp_net_calc_fl_bufsz_data(dp);
 
 	return fl_bufsz;
 }
@@ -3331,6 +3351,8 @@ static int
 nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp,
 		     struct netlink_ext_ack *extack)
 {
+	unsigned int r, xsk_min_fl_bufsz;
+
 	/* XDP-enabled tests */
 	if (!dp->xdp_prog)
 		return 0;
@@ -3341,6 +3363,18 @@ nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp,
 	if (dp->num_tx_rings > nn->max_tx_rings) {
 		NL_SET_ERR_MSG_MOD(extack, "Insufficient number of TX rings w/ XDP enabled");
 		return -EINVAL;
+	}
+
+	xsk_min_fl_bufsz = nfp_net_calc_fl_bufsz_xsk(dp);
+	for (r = 0; r < nn->max_r_vecs; r++) {
+		if (!dp->xsk_pools[r])
+			continue;
+
+		if (xsk_pool_get_rx_frame_size(dp->xsk_pools[r]) < xsk_min_fl_bufsz) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "XSK buffer pool chunk size too small\n");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
