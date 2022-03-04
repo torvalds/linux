@@ -124,6 +124,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 lmac_error_event_table, umac_error_table;
 	u32 version = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
+	u32 i;
 
 	if (version == 6) {
 		struct iwl_alive_ntf_v6 *palive;
@@ -146,6 +147,28 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			     mvm->trans->dbg.imr_data.imr_enable,
 			     mvm->trans->dbg.imr_data.imr_size,
 			     le64_to_cpu(mvm->trans->dbg.imr_data.imr_base_addr));
+
+		if (!mvm->trans->dbg.imr_data.imr_enable) {
+			for (i = 0; i < ARRAY_SIZE(mvm->trans->dbg.active_regions); i++) {
+				struct iwl_ucode_tlv *reg_tlv;
+				struct iwl_fw_ini_region_tlv *reg;
+
+				reg_tlv = mvm->trans->dbg.active_regions[i];
+				if (!reg_tlv)
+					continue;
+
+				reg = (void *)reg_tlv->data;
+				/*
+				 * We have only one DRAM IMR region, so we
+				 * can break as soon as we find the first
+				 * one.
+				 */
+				if (reg->type == IWL_FW_INI_REGION_DRAM_IMR) {
+					mvm->trans->dbg.unsupported_region_msk |= BIT(i);
+					break;
+				}
+			}
+		}
 	}
 
 	if (version >= 5) {
