@@ -349,7 +349,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l0>;
 			#cooling-cells = <2>;
-			dynamic-power-coefficient = <228>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l1: cpu@100 {
@@ -423,7 +423,7 @@
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b0>;
 			#cooling-cells = <2>;
-			dynamic-power-coefficient = <416>;
+			dynamic-power-coefficient = <300>;
 		};
 
 		cpu_b1: cpu@500 {
@@ -461,7 +461,7 @@
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b2>;
 			#cooling-cells = <2>;
-			dynamic-power-coefficient = <416>;
+			dynamic-power-coefficient = <300>;
 		};
 
 		cpu_b3: cpu@700 {
