@@ -62,6 +62,13 @@ config ASPEED_XDMA
 	  SoCs. The XDMA engine can perform PCIe DMA operations between the BMC
 	  and a host processor.
 
+config ASPEED_SBC
+	bool "ASPEED Secure Boot Controller driver"
+	default MACH_ASPEED_G6
+	help
+	  Say yes to provide information about the secure boot controller in
+	  debugfs.
+
 endmenu
 
 endif
