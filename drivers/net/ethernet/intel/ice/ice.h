@@ -51,6 +51,7 @@
 #include <net/gre.h>
 #include <net/udp_tunnel.h>
 #include <net/vxlan.h>
+#include <net/gtp.h>
 #if IS_ENABLED(CONFIG_DCB)
 #include <scsi/iscsi_proto.h>
 #endif /* CONFIG_DCB */
