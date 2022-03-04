@@ -848,6 +848,15 @@
 		status = "disabled";
 	};
 
+	rve: rve@ffad0000 {
+		compatible = "rockchip,rve";
+		reg = <0xffad0000 0x1000>;
+		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_IVE>, <&cru HCLK_IVE>;
+		clock-names = "aclk_rve", "hclk_rve";
+		status = "disabled";
+	};
+
 	i2s0_8ch: i2s@ffae0000 {
 		compatible = "rockchip,rv1106-i2s-tdm";
 		reg = <0xffae0000 0x1000>;
