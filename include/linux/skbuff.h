@@ -406,6 +406,7 @@ enum skb_drop_reason {
 					 * net.rst) or RPS flow limit
 					 */
 	SKB_DROP_REASON_XDP,		/* dropped by XDP in input path */
+	SKB_DROP_REASON_TC_INGRESS,	/* dropped in TC ingress HOOK */
 	SKB_DROP_REASON_MAX,
 };
 
