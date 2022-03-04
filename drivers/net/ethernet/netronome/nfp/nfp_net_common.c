@@ -46,6 +46,7 @@
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_net_sriov.h"
+#include "nfp_net_xsk.h"
 #include "nfp_port.h"
 #include "crypto/crypto.h"
 #include "crypto/fw.h"
@@ -1316,6 +1317,9 @@ nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 		tx_ring->rd_p++;
 	}
 
+	if (tx_ring->is_xdp)
+		nfp_net_xsk_tx_bufs_free(tx_ring);
+
 	memset(tx_ring->txds, 0, tx_ring->size);
 	tx_ring->wr_p = 0;
 	tx_ring->rd_p = 0;
@@ -1504,10 +1508,14 @@ static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 	/* Move the empty entry to the end of the list */
 	wr_idx = D_IDX(rx_ring, rx_ring->wr_p);
 	last_idx = rx_ring->cnt - 1;
-	rx_ring->rxbufs[wr_idx].dma_addr = rx_ring->rxbufs[last_idx].dma_addr;
-	rx_ring->rxbufs[wr_idx].frag = rx_ring->rxbufs[last_idx].frag;
-	rx_ring->rxbufs[last_idx].dma_addr = 0;
-	rx_ring->rxbufs[last_idx].frag = NULL;
+	if (rx_ring->r_vec->xsk_pool) {
+		rx_ring->xsk_rxbufs[wr_idx] = rx_ring->xsk_rxbufs[last_idx];
+		memset(&rx_ring->xsk_rxbufs[last_idx], 0,
+		       sizeof(*rx_ring->xsk_rxbufs));
+	} else {
+		rx_ring->rxbufs[wr_idx] = rx_ring->rxbufs[last_idx];
+		memset(&rx_ring->rxbufs[last_idx], 0, sizeof(*rx_ring->rxbufs));
+	}
 
 	memset(rx_ring->rxds, 0, rx_ring->size);
 	rx_ring->wr_p = 0;
@@ -1528,6 +1536,9 @@ nfp_net_rx_ring_bufs_free(struct nfp_net_dp *dp,
 			  struct nfp_net_rx_ring *rx_ring)
 {
 	unsigned int i;
+
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx))
+		return;
 
 	for (i = 0; i < rx_ring->cnt - 1; i++) {
 		/* NULL skb can only happen when initial filling of the ring
@@ -1556,6 +1567,9 @@ nfp_net_rx_ring_bufs_alloc(struct nfp_net_dp *dp,
 	struct nfp_net_rx_buf *rxbufs;
 	unsigned int i;
 
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx))
+		return 0;
+
 	rxbufs = rx_ring->rxbufs;
 
 	for (i = 0; i < rx_ring->cnt - 1; i++) {
@@ -1579,6 +1593,9 @@ nfp_net_rx_ring_fill_freelist(struct nfp_net_dp *dp,
 			      struct nfp_net_rx_ring *rx_ring)
 {
 	unsigned int i;
+
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx))
+		return nfp_net_xsk_rx_ring_fill_freelist(rx_ring);
 
 	for (i = 0; i < rx_ring->cnt - 1; i++)
 		nfp_net_rx_give_one(dp, rx_ring, rx_ring->rxbufs[i].frag,
@@ -2560,7 +2577,11 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 
 	if (dp->netdev)
 		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
-	kvfree(rx_ring->rxbufs);
+
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx))
+		kvfree(rx_ring->xsk_rxbufs);
+	else
+		kvfree(rx_ring->rxbufs);
 
 	if (rx_ring->rxds)
 		dma_free_coherent(dp->dev, rx_ring->size,
@@ -2568,6 +2589,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 
 	rx_ring->cnt = 0;
 	rx_ring->rxbufs = NULL;
+	rx_ring->xsk_rxbufs = NULL;
 	rx_ring->rxds = NULL;
 	rx_ring->dma = 0;
 	rx_ring->size = 0;
@@ -2583,7 +2605,17 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 static int
 nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 {
+	enum xdp_mem_type mem_type;
+	size_t rxbuf_sw_desc_sz;
 	int err;
+
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx)) {
+		mem_type = MEM_TYPE_XSK_BUFF_POOL;
+		rxbuf_sw_desc_sz = sizeof(*rx_ring->xsk_rxbufs);
+	} else {
+		mem_type = MEM_TYPE_PAGE_ORDER0;
+		rxbuf_sw_desc_sz = sizeof(*rx_ring->rxbufs);
+	}
 
 	if (dp->netdev) {
 		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev,
@@ -2591,6 +2623,10 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 		if (err < 0)
 			return err;
 	}
+
+	err = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, mem_type, NULL);
+	if (err)
+		goto err_alloc;
 
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
@@ -2603,10 +2639,17 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 		goto err_alloc;
 	}
 
-	rx_ring->rxbufs = kvcalloc(rx_ring->cnt, sizeof(*rx_ring->rxbufs),
-				   GFP_KERNEL);
-	if (!rx_ring->rxbufs)
-		goto err_alloc;
+	if (nfp_net_has_xsk_pool_slow(dp, rx_ring->idx)) {
+		rx_ring->xsk_rxbufs = kvcalloc(rx_ring->cnt, rxbuf_sw_desc_sz,
+					       GFP_KERNEL);
+		if (!rx_ring->xsk_rxbufs)
+			goto err_alloc;
+	} else {
+		rx_ring->rxbufs = kvcalloc(rx_ring->cnt, rxbuf_sw_desc_sz,
+					   GFP_KERNEL);
+		if (!rx_ring->rxbufs)
+			goto err_alloc;
+	}
 
 	return 0;
 
@@ -2659,11 +2702,13 @@ static void nfp_net_rx_rings_free(struct nfp_net_dp *dp)
 }
 
 static void
-nfp_net_napi_add(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec)
+nfp_net_napi_add(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec, int idx)
 {
 	if (dp->netdev)
 		netif_napi_add(dp->netdev, &r_vec->napi,
-			       nfp_net_poll, NAPI_POLL_WEIGHT);
+			       nfp_net_has_xsk_pool_slow(dp, idx) ?
+			       nfp_net_xsk_poll : nfp_net_poll,
+			       NAPI_POLL_WEIGHT);
 	else
 		tasklet_enable(&r_vec->tasklet);
 }
@@ -2687,6 +2732,17 @@ nfp_net_vector_assign_rings(struct nfp_net_dp *dp,
 
 	r_vec->xdp_ring = idx < dp->num_tx_rings - dp->num_stack_tx_rings ?
 		&dp->tx_rings[dp->num_stack_tx_rings + idx] : NULL;
+
+	if (nfp_net_has_xsk_pool_slow(dp, idx) || r_vec->xsk_pool) {
+		r_vec->xsk_pool = dp->xdp_prog ? dp->xsk_pools[idx] : NULL;
+
+		if (r_vec->xsk_pool)
+			xsk_pool_set_rxq_info(r_vec->xsk_pool,
+					      &r_vec->rx_ring->xdp_rxq);
+
+		nfp_net_napi_del(dp, r_vec);
+		nfp_net_napi_add(dp, r_vec, idx);
+	}
 }
 
 static int
@@ -2695,7 +2751,7 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 {
 	int err;
 
-	nfp_net_napi_add(&nn->dp, r_vec);
+	nfp_net_napi_add(&nn->dp, r_vec, idx);
 
 	snprintf(r_vec->name, sizeof(r_vec->name),
 		 "%s-rxtx-%d", nfp_net_name(nn), idx);
@@ -2834,8 +2890,11 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 	if (err)
 		nn_err(nn, "Could not disable device: %d\n", err);
 
-	for (r = 0; r < nn->dp.num_rx_rings; r++)
+	for (r = 0; r < nn->dp.num_rx_rings; r++) {
 		nfp_net_rx_ring_reset(&nn->dp.rx_rings[r]);
+		if (nfp_net_has_xsk_pool_slow(&nn->dp, nn->dp.rx_rings[r].idx))
+			nfp_net_xsk_rx_bufs_free(&nn->dp.rx_rings[r]);
+	}
 	for (r = 0; r < nn->dp.num_tx_rings; r++)
 		nfp_net_tx_ring_reset(&nn->dp, &nn->dp.tx_rings[r]);
 	for (r = 0; r < nn->dp.num_r_vecs; r++)
@@ -3771,6 +3830,9 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 		return nfp_net_xdp_setup_drv(nn, xdp);
 	case XDP_SETUP_PROG_HW:
 		return nfp_net_xdp_setup_hw(nn, xdp);
+	case XDP_SETUP_XSK_POOL:
+		return nfp_net_xsk_setup_pool(netdev, xdp->xsk.pool,
+					      xdp->xsk.queue_id);
 	default:
 		return nfp_app_bpf(nn->app, nn, xdp);
 	}
@@ -3821,6 +3883,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_bpf		= nfp_net_xdp,
+	.ndo_xsk_wakeup		= nfp_net_xsk_wakeup,
 	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
@@ -3948,6 +4011,14 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 	nn->dp.num_r_vecs = max(nn->dp.num_tx_rings, nn->dp.num_rx_rings);
 	nn->dp.num_r_vecs = min_t(unsigned int,
 				  nn->dp.num_r_vecs, num_online_cpus());
+	nn->max_r_vecs = nn->dp.num_r_vecs;
+
+	nn->dp.xsk_pools = kcalloc(nn->max_r_vecs, sizeof(nn->dp.xsk_pools),
+				   GFP_KERNEL);
+	if (!nn->dp.xsk_pools) {
+		err = -ENOMEM;
+		goto err_free_nn;
+	}
 
 	nn->dp.txd_cnt = NFP_NET_TX_DESCS_DEFAULT;
 	nn->dp.rxd_cnt = NFP_NET_RX_DESCS_DEFAULT;
@@ -3987,6 +4058,7 @@ void nfp_net_free(struct nfp_net *nn)
 	WARN_ON(timer_pending(&nn->reconfig_timer) || nn->reconfig_posted);
 	nfp_ccm_mbox_free(nn);
 
+	kfree(nn->dp.xsk_pools);
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
 	else
