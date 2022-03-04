@@ -19,19 +19,19 @@ static const struct rxe_type_info {
 	u32 max_elem;
 } rxe_type_info[RXE_NUM_TYPES] = {
 	[RXE_TYPE_UC] = {
-		.name		= "rxe-uc",
+		.name		= "uc",
 		.size		= sizeof(struct rxe_ucontext),
 		.elem_offset	= offsetof(struct rxe_ucontext, elem),
 		.max_elem	= UINT_MAX,
 	},
 	[RXE_TYPE_PD] = {
-		.name		= "rxe-pd",
+		.name		= "pd",
 		.size		= sizeof(struct rxe_pd),
 		.elem_offset	= offsetof(struct rxe_pd, elem),
 		.max_elem	= UINT_MAX,
 	},
 	[RXE_TYPE_AH] = {
-		.name		= "rxe-ah",
+		.name		= "ah",
 		.size		= sizeof(struct rxe_ah),
 		.elem_offset	= offsetof(struct rxe_ah, elem),
 		.flags		= RXE_POOL_INDEX,
@@ -40,7 +40,7 @@ static const struct rxe_type_info {
 		.max_elem	= RXE_MAX_AH_INDEX - RXE_MIN_AH_INDEX + 1,
 	},
 	[RXE_TYPE_SRQ] = {
-		.name		= "rxe-srq",
+		.name		= "srq",
 		.size		= sizeof(struct rxe_srq),
 		.elem_offset	= offsetof(struct rxe_srq, elem),
 		.flags		= RXE_POOL_INDEX,
@@ -49,7 +49,7 @@ static const struct rxe_type_info {
 		.max_elem	= RXE_MAX_SRQ_INDEX - RXE_MIN_SRQ_INDEX + 1,
 	},
 	[RXE_TYPE_QP] = {
-		.name		= "rxe-qp",
+		.name		= "qp",
 		.size		= sizeof(struct rxe_qp),
 		.elem_offset	= offsetof(struct rxe_qp, elem),
 		.cleanup	= rxe_qp_cleanup,
@@ -59,14 +59,14 @@ static const struct rxe_type_info {
 		.max_elem	= RXE_MAX_QP_INDEX - RXE_MIN_QP_INDEX + 1,
 	},
 	[RXE_TYPE_CQ] = {
-		.name		= "rxe-cq",
+		.name		= "cq",
 		.size		= sizeof(struct rxe_cq),
 		.elem_offset	= offsetof(struct rxe_cq, elem),
 		.cleanup	= rxe_cq_cleanup,
 		.max_elem	= UINT_MAX,
 	},
 	[RXE_TYPE_MR] = {
-		.name		= "rxe-mr",
+		.name		= "mr",
 		.size		= sizeof(struct rxe_mr),
 		.elem_offset	= offsetof(struct rxe_mr, elem),
 		.cleanup	= rxe_mr_cleanup,
@@ -76,7 +76,7 @@ static const struct rxe_type_info {
 		.max_elem	= RXE_MAX_MR_INDEX - RXE_MIN_MR_INDEX + 1,
 	},
 	[RXE_TYPE_MW] = {
-		.name		= "rxe-mw",
+		.name		= "mw",
 		.size		= sizeof(struct rxe_mw),
 		.elem_offset	= offsetof(struct rxe_mw, elem),
 		.cleanup	= rxe_mw_cleanup,
