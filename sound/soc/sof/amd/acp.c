@@ -273,7 +273,7 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
-	unsigned int val;
+	unsigned int val, count = ACP_HW_SEM_RETRY_COUNT;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_EXTERNAL_INTR_STAT);
 	if (val & ACP_SHA_STAT) {
@@ -284,9 +284,22 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT);
 	if (val & ACP_DSP_TO_HOST_IRQ) {
+		while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0)) {
+			/* Wait until acquired HW Semaphore lock or timeout */
+			count--;
+			if (!count) {
+				dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+				return IRQ_NONE;
+			}
+		};
+
 		sof_ops(sdev)->irq_thread(irq, sdev);
 		val |= ACP_DSP_TO_HOST_IRQ;
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT, val);
+
+		/* Unlock or Release HW Semaphore */
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0, 0x0);
+
 		return IRQ_HANDLED;
 	}
 

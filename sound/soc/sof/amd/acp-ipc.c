@@ -62,12 +62,26 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	unsigned int offset = offsetof(struct scratch_ipc_conf, sof_in_box);
+	unsigned int count = ACP_HW_SEM_RETRY_COUNT;
+
+	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0)) {
+		/* Wait until acquired HW Semaphore Lock or timeout*/
+		count--;
+		if (!count) {
+			dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+			return -EINVAL;
+		}
+	};
 
 	acp_mailbox_write(sdev, offset, msg->msg_data, msg->msg_size);
 	acp_ipc_host_msg_set(sdev);
 
 	/* Trigger host to dsp interrupt for the msg */
 	acpbus_trigger_host_to_dsp_swintr(adata);
+
+	/* Unlock or Release HW Semaphore */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0, 0x0);
+
 	return 0;
 }
 EXPORT_SYMBOL_NS(acp_sof_ipc_send_msg, SND_SOC_SOF_AMD_COMMON);

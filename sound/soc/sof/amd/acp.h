@@ -17,6 +17,7 @@
 
 #define ACP_DSP_BAR	0
 
+#define ACP_HW_SEM_RETRY_COUNT			10
 #define ACP_REG_POLL_INTERVAL                   500
 #define ACP_REG_POLL_TIMEOUT_US                 2000
 #define ACP_DMA_COMPLETE_TIMEOUT_US		5000
