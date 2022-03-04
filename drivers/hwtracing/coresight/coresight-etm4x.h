@@ -196,6 +196,10 @@
 #define TRCEVENTCTL1R_ATB			BIT(11)
 #define TRCEVENTCTL1R_LPOVERRIDE		BIT(12)
 
+#define TRCSTALLCTLR_ISTALL			BIT(8)
+#define TRCSTALLCTLR_INSTPRIORITY		BIT(10)
+#define TRCSTALLCTLR_NOOVERFLOW			BIT(13)
+
 /*
  * System instructions to access ETM registers.
  * See ETMv4.4 spec ARM IHI0064F section 4.3.6 System instructions

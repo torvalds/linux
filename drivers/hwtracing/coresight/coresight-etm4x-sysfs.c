@@ -397,22 +397,22 @@ static ssize_t mode_store(struct device *dev,
 
 	/* bit[8], Instruction stall bit */
 	if ((config->mode & ETM_MODE_ISTALL_EN) && (drvdata->stallctl == true))
-		config->stall_ctrl |= BIT(8);
+		config->stall_ctrl |= TRCSTALLCTLR_ISTALL;
 	else
-		config->stall_ctrl &= ~BIT(8);
+		config->stall_ctrl &= ~TRCSTALLCTLR_ISTALL;
 
 	/* bit[10], Prioritize instruction trace bit */
 	if (config->mode & ETM_MODE_INSTPRIO)
-		config->stall_ctrl |= BIT(10);
+		config->stall_ctrl |= TRCSTALLCTLR_INSTPRIORITY;
 	else
-		config->stall_ctrl &= ~BIT(10);
+		config->stall_ctrl &= ~TRCSTALLCTLR_INSTPRIORITY;
 
 	/* bit[13], Trace overflow prevention bit */
 	if ((config->mode & ETM_MODE_NOOVERFLOW) &&
 		(drvdata->nooverflow == true))
-		config->stall_ctrl |= BIT(13);
+		config->stall_ctrl |= TRCSTALLCTLR_NOOVERFLOW;
 	else
-		config->stall_ctrl &= ~BIT(13);
+		config->stall_ctrl &= ~TRCSTALLCTLR_NOOVERFLOW;
 
 	/* bit[9] Start/stop logic control bit */
 	if (config->mode & ETM_MODE_VIEWINST_STARTSTOP)
