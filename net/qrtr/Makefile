@@ -10,3 +10,5 @@ obj-$(CONFIG_QRTR_MHI) += qrtr-mhi.o
 qrtr-mhi-y	:= mhi.o
 obj-$(CONFIG_QRTR_GUNYAH) += qrtr-gunyah.o
 qrtr-gunyah-y	:= gunyah.o
+obj-$(CONFIG_QRTR_GENPOOL) += qrtr-genpool.o
+qrtr-genpool-y	:= genpool.o
