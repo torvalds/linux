@@ -839,6 +839,7 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 		if (mptcp_established_options_rst(sk, skb, &opt_size, remaining, opts)) {
 			*size += opt_size;
 			remaining -= opt_size;
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPRSTTX);
 		}
 		return true;
 	}
@@ -1161,6 +1162,7 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 			subflow->reset_seen = 1;
 			subflow->reset_reason = mp_opt.reset_reason;
 			subflow->reset_transient = mp_opt.reset_transient;
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPRSTRX);
 		}
 
 		if (!(mp_opt.suboptions & OPTION_MPTCP_DSS))
