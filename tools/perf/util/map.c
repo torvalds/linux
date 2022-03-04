@@ -127,7 +127,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 	if (map != NULL) {
 		char newfilename[PATH_MAX];
-		struct dso *dso;
+		struct dso *dso, *header_bid_dso;
 		int anon, no_dso, vdso, android;
 
 		android = is_android_lib(filename);
@@ -183,9 +183,23 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		}
 		dso->nsinfo = nsi;
 
-		if (build_id__is_defined(bid))
+		if (build_id__is_defined(bid)) {
 			dso__set_build_id(dso, bid);
-
+		} else {
+			/*
+			 * If the mmap event had no build ID, search for an existing dso from the
+			 * build ID header by name. Otherwise only the dso loaded at the time of
+			 * reading the header will have the build ID set and all future mmaps will
+			 * have it missing.
+			 */
+			down_read(&machine->dsos.lock);
+			header_bid_dso = __dsos__find(&machine->dsos, filename, false);
+			up_read(&machine->dsos.lock);
+			if (header_bid_dso && header_bid_dso->header_build_id) {
+				dso__set_build_id(dso, &header_bid_dso->bid);
+				dso->header_build_id = 1;
+			}
+		}
 		dso__put(dso);
 	}
 	return map;
