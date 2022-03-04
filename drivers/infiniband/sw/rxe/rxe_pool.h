@@ -69,16 +69,14 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem);
 /* lookup an indexed object from index. takes a reference on object */
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index);
 
-/* take a reference on an object */
 int __rxe_get(struct rxe_pool_elem *elem);
 
-#define rxe_add_ref(obj) __rxe_get(&(obj)->elem)
+#define rxe_get(obj) __rxe_get(&(obj)->elem)
 
-/* drop a reference on an object */
 int __rxe_put(struct rxe_pool_elem *elem);
 
-#define rxe_drop_ref(obj) __rxe_put(&(obj)->elem)
+#define rxe_put(obj) __rxe_put(&(obj)->elem)
 
-#define rxe_read_ref(obj) kref_read(&(obj)->elem.ref_cnt)
+#define rxe_read(obj) kref_read(&(obj)->elem.ref_cnt)
 
 #endif /* RXE_POOL_H */

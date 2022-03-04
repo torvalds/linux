@@ -127,14 +127,14 @@ struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt, struct rxe_ah **ahp)
 
 		if (rxe_ah_pd(ah) != pkt->qp->pd) {
 			pr_warn("PDs don't match for AH and QP\n");
-			rxe_drop_ref(ah);
+			rxe_put(ah);
 			return NULL;
 		}
 
 		if (ahp)
 			*ahp = ah;
 		else
-			rxe_drop_ref(ah);
+			rxe_put(ah);
 
 		return &ah->av;
 	}

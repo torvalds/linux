@@ -319,7 +319,7 @@ static int __rxe_init_mca(struct rxe_qp *qp, struct rxe_mcg *mcg,
 
 	atomic_inc(&qp->mcg_num);
 
-	rxe_add_ref(qp);
+	rxe_get(qp);
 	mca->qp = qp;
 
 	list_add_tail(&mca->qp_list, &mcg->qp_list);
@@ -389,7 +389,7 @@ static void __rxe_cleanup_mca(struct rxe_mca *mca, struct rxe_mcg *mcg)
 	atomic_dec(&mcg->qp_num);
 	atomic_dec(&mcg->rxe->mcg_attach);
 	atomic_dec(&mca->qp->mcg_num);
-	rxe_drop_ref(mca->qp);
+	rxe_put(mca->qp);
 
 	kfree(mca);
 }

@@ -323,11 +323,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
 
-	rxe_add_ref(pd);
-	rxe_add_ref(rcq);
-	rxe_add_ref(scq);
+	rxe_get(pd);
+	rxe_get(rcq);
+	rxe_get(scq);
 	if (srq)
-		rxe_add_ref(srq);
+		rxe_get(srq);
 
 	qp->pd			= pd;
 	qp->rcq			= rcq;
@@ -359,10 +359,10 @@ err1:
 	qp->srq = NULL;
 
 	if (srq)
-		rxe_drop_ref(srq);
-	rxe_drop_ref(scq);
-	rxe_drop_ref(rcq);
-	rxe_drop_ref(pd);
+		rxe_put(srq);
+	rxe_put(scq);
+	rxe_put(rcq);
+	rxe_put(pd);
 
 	return err;
 }
@@ -521,7 +521,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	qp->resp.sent_psn_nak = 0;
 
 	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 		qp->resp.mr = NULL;
 	}
 
@@ -809,20 +809,20 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 		rxe_queue_cleanup(qp->sq.queue);
 
 	if (qp->srq)
-		rxe_drop_ref(qp->srq);
+		rxe_put(qp->srq);
 
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
 	if (qp->scq)
-		rxe_drop_ref(qp->scq);
+		rxe_put(qp->scq);
 	if (qp->rcq)
-		rxe_drop_ref(qp->rcq);
+		rxe_put(qp->rcq);
 	if (qp->pd)
-		rxe_drop_ref(qp->pd);
+		rxe_put(qp->pd);
 
 	if (qp->resp.mr)
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 
 	if (qp_type(qp) == IB_QPT_RC)
 		sk_dst_reset(qp->sk->sk);

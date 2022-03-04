@@ -99,7 +99,7 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 
 	if (qp->resp.state == QP_STATE_ERROR) {
 		while ((skb = skb_dequeue(&qp->req_pkts))) {
-			rxe_drop_ref(qp);
+			rxe_put(qp);
 			kfree_skb(skb);
 			ib_device_put(qp->ibqp.device);
 		}
@@ -464,8 +464,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		if (mw->access & IB_ZERO_BASED)
 			qp->resp.offset = mw->addr;
 
-		rxe_drop_ref(mw);
-		rxe_add_ref(mr);
+		rxe_put(mw);
+		rxe_get(mr);
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
@@ -508,9 +508,9 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 
 err:
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 	if (mw)
-		rxe_drop_ref(mw);
+		rxe_put(mw);
 
 	return state;
 }
@@ -694,12 +694,12 @@ static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
 			return NULL;
 
 		if (mw->state != RXE_MW_STATE_VALID) {
-			rxe_drop_ref(mw);
+			rxe_put(mw);
 			return NULL;
 		}
 
 		mr = mw->mr;
-		rxe_drop_ref(mw);
+		rxe_put(mw);
 	} else {
 		mr = rxe_pool_get_index(&rxe->mr_pool, rkey >> 8);
 		if (!mr || mr->rkey != rkey)
@@ -707,7 +707,7 @@ static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
 	}
 
 	if (mr->state != RXE_MR_STATE_VALID) {
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 		return NULL;
 	}
 
@@ -768,7 +768,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	if (err)
 		pr_err("Failed copying memory\n");
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 
 	if (bth_pad(&ack_pkt)) {
 		u8 *pad = payload_addr(&ack_pkt) + payload;
@@ -1037,7 +1037,7 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	rc = rxe_xmit_packet(qp, &ack_pkt, skb);
 	if (rc) {
 		pr_err_ratelimited("Failed sending ack\n");
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 	}
 out:
 	return rc;
@@ -1066,13 +1066,13 @@ static enum resp_states cleanup(struct rxe_qp *qp,
 
 	if (pkt) {
 		skb = skb_dequeue(&qp->req_pkts);
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
 
 	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 		qp->resp.mr = NULL;
 	}
 
@@ -1216,7 +1216,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 		}
 
 		if (qp->resp.mr) {
-			rxe_drop_ref(qp->resp.mr);
+			rxe_put(qp->resp.mr);
 			qp->resp.mr = NULL;
 		}
 
@@ -1230,7 +1230,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 	struct rxe_queue *q = qp->rq.queue;
 
 	while ((skb = skb_dequeue(&qp->req_pkts))) {
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
@@ -1250,7 +1250,7 @@ int rxe_responder(void *arg)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret = 0;
 
-	rxe_add_ref(qp);
+	rxe_get(qp);
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
@@ -1437,6 +1437,6 @@ int rxe_responder(void *arg)
 exit:
 	ret = -EAGAIN;
 done:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	return ret;
 }

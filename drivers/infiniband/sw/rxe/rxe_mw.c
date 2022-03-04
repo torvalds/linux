@@ -12,11 +12,11 @@ int rxe_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 	struct rxe_dev *rxe = to_rdev(ibmw->device);
 	int ret;
 
-	rxe_add_ref(pd);
+	rxe_get(pd);
 
 	ret = rxe_add_to_pool(&rxe->mw_pool, mw);
 	if (ret) {
-		rxe_drop_ref(pd);
+		rxe_put(pd);
 		return ret;
 	}
 
@@ -35,14 +35,14 @@ static void rxe_do_dealloc_mw(struct rxe_mw *mw)
 
 		mw->mr = NULL;
 		atomic_dec(&mr->num_mw);
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 	}
 
 	if (mw->qp) {
 		struct rxe_qp *qp = mw->qp;
 
 		mw->qp = NULL;
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 	}
 
 	mw->access = 0;
@@ -60,8 +60,8 @@ int rxe_dealloc_mw(struct ib_mw *ibmw)
 	rxe_do_dealloc_mw(mw);
 	spin_unlock_bh(&mw->lock);
 
-	rxe_drop_ref(mw);
-	rxe_drop_ref(pd);
+	rxe_put(mw);
+	rxe_put(pd);
 
 	return 0;
 }
@@ -170,7 +170,7 @@ static void rxe_do_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	mw->length = wqe->wr.wr.mw.length;
 
 	if (mw->mr) {
-		rxe_drop_ref(mw->mr);
+		rxe_put(mw->mr);
 		atomic_dec(&mw->mr->num_mw);
 		mw->mr = NULL;
 	}
@@ -178,11 +178,11 @@ static void rxe_do_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	if (mw->length) {
 		mw->mr = mr;
 		atomic_inc(&mr->num_mw);
-		rxe_add_ref(mr);
+		rxe_get(mr);
 	}
 
 	if (mw->ibmw.type == IB_MW_TYPE_2) {
-		rxe_add_ref(qp);
+		rxe_get(qp);
 		mw->qp = qp;
 	}
 }
@@ -233,9 +233,9 @@ err_unlock:
 	spin_unlock_bh(&mw->lock);
 err_drop_mr:
 	if (mr)
-		rxe_drop_ref(mr);
+		rxe_put(mr);
 err_drop_mw:
-	rxe_drop_ref(mw);
+	rxe_put(mw);
 err:
 	return ret;
 }
@@ -260,13 +260,13 @@ static void rxe_do_invalidate_mw(struct rxe_mw *mw)
 	/* valid type 2 MW will always have a QP pointer */
 	qp = mw->qp;
 	mw->qp = NULL;
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 
 	/* valid type 2 MW will always have an MR pointer */
 	mr = mw->mr;
 	mw->mr = NULL;
 	atomic_dec(&mr->num_mw);
-	rxe_drop_ref(mr);
+	rxe_put(mr);
 
 	mw->access = 0;
 	mw->addr = 0;
@@ -301,7 +301,7 @@ int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey)
 err_unlock:
 	spin_unlock_bh(&mw->lock);
 err_drop_ref:
-	rxe_drop_ref(mw);
+	rxe_put(mw);
 err:
 	return ret;
 }
@@ -322,7 +322,7 @@ struct rxe_mw *rxe_lookup_mw(struct rxe_qp *qp, int access, u32 rkey)
 		     (mw->length == 0) ||
 		     (access && !(access & mw->access)) ||
 		     mw->state != RXE_MW_STATE_VALID)) {
-		rxe_drop_ref(mw);
+		rxe_put(mw);
 		return NULL;
 	}
 
