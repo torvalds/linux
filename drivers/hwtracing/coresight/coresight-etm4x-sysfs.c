@@ -1726,8 +1726,11 @@ static ssize_t res_ctrl_store(struct device *dev,
 	/* For odd idx pair inversal bit is RES0 */
 	if (idx % 2 != 0)
 		/* PAIRINV, bit[21] */
-		val &= ~BIT(21);
-	config->res_ctrl[idx] = val & GENMASK(21, 0);
+		val &= ~TRCRSCTLRn_PAIRINV;
+	config->res_ctrl[idx] = val & (TRCRSCTLRn_PAIRINV |
+				       TRCRSCTLRn_INV |
+				       TRCRSCTLRn_GROUP_MASK |
+				       TRCRSCTLRn_SELECT_MASK);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
