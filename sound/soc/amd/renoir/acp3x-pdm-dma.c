@@ -399,9 +399,10 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 	if (!adata->acp_base)
 		return -ENOMEM;
 
-	adata->pdm_irq = platform_get_irq(pdev, 0);
-	if (adata->pdm_irq < 0)
-		return -ENODEV;
+	status = platform_get_irq(pdev, 0);
+	if (status < 0)
+		return status;
+	adata->pdm_irq = status;
 
 	adata->capture_stream = NULL;
 
