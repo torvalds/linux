@@ -49,6 +49,7 @@ Other guides to the community that are of interest to most developers are:
    deprecated
    embargoed-hardware-issues
    maintainers
+   researcher-guidelines
 
 These are some overall technical guides that have been put here for now for
 lack of a better place.
