@@ -3139,7 +3139,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR "happymeal(PCI): Cannot register net device, "
 		       "aborting.\n");
-		goto err_out_iounmap;
+		goto err_out_free_coherent;
 	}
 
 	pci_set_drvdata(pdev, hp);
@@ -3171,6 +3171,10 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	printk("%pM\n", dev->dev_addr);
 
 	return 0;
+
+err_out_free_coherent:
+	dma_free_coherent(hp->dma_dev, PAGE_SIZE,
+			  hp->happy_block, hp->hblock_dvma);
 
 err_out_iounmap:
 	iounmap(hp->gregs);
