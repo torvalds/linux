@@ -91,10 +91,8 @@ void update_recvframe_attrib_88e(struct recv_frame *precvframe, struct recv_stat
 		pattrib->shift_sz = (u8)((le32_to_cpu(prxstat->rxdw0) >> 24) & 0x3);
 	} else if (pattrib->pkt_rpt_type == TX_REPORT1) { /* CCX */
 		pattrib->pkt_len = TX_RPT1_PKT_LEN;
-		pattrib->drvinfo_sz = 0;
 	} else if (pattrib->pkt_rpt_type == TX_REPORT2) { /*  TX RPT */
 		pattrib->pkt_len = (u16)(le32_to_cpu(prxstat->rxdw0) & 0x3FF);/* Rx length[9:0] */
-		pattrib->drvinfo_sz = 0;
 
 		/*  */
 		/*  Get TX report MAC ID valid. */
