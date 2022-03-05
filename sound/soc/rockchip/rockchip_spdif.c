@@ -203,6 +203,9 @@ static int rk_spdif_set_sysclk(struct snd_soc_dai *dai,
 	struct rk_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
 
+	if (!freq)
+		return 0;
+
 	ret = clk_set_rate(spdif->mclk, freq);
 	if (ret)
 		dev_err(spdif->dev, "Failed to set mclk: %d\n", ret);
