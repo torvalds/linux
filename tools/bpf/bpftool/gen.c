@@ -209,15 +209,36 @@ static int codegen_datasec_def(struct bpf_object *obj,
 	return 0;
 }
 
+static const struct btf_type *find_type_for_map(struct btf *btf, const char *map_ident)
+{
+	int n = btf__type_cnt(btf), i;
+	char sec_ident[256];
+
+	for (i = 1; i < n; i++) {
+		const struct btf_type *t = btf__type_by_id(btf, i);
+		const char *name;
+
+		if (!btf_is_datasec(t))
+			continue;
+
+		name = btf__str_by_offset(btf, t->name_off);
+		if (!get_datasec_ident(name, sec_ident, sizeof(sec_ident)))
+			continue;
+
+		if (strcmp(sec_ident, map_ident) == 0)
+			return t;
+	}
+	return NULL;
+}
+
 static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 {
 	struct btf *btf = bpf_object__btf(obj);
-	int n = btf__type_cnt(btf);
 	struct btf_dump *d;
 	struct bpf_map *map;
 	const struct btf_type *sec;
-	char sec_ident[256], map_ident[256];
-	int i, err = 0;
+	char map_ident[256];
+	int err = 0;
 
 	d = btf_dump__new(btf, codegen_btf_dump_printf, NULL, NULL);
 	err = libbpf_get_error(d);
@@ -234,23 +255,7 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 		if (!get_map_ident(map, map_ident, sizeof(map_ident)))
 			continue;
 
-		sec = NULL;
-		for (i = 1; i < n; i++) {
-			const struct btf_type *t = btf__type_by_id(btf, i);
-			const char *name;
-
-			if (!btf_is_datasec(t))
-				continue;
-
-			name = btf__str_by_offset(btf, t->name_off);
-			if (!get_datasec_ident(name, sec_ident, sizeof(sec_ident)))
-				continue;
-
-			if (strcmp(sec_ident, map_ident) == 0) {
-				sec = t;
-				break;
-			}
-		}
+		sec = find_type_for_map(btf, map_ident);
 
 		/* In some cases (e.g., sections like .rodata.cst16 containing
 		 * compiler allocated string constants only) there will be
@@ -361,6 +366,73 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 	map_sz = (size_t)roundup(bpf_map__value_size(map), 8) * bpf_map__max_entries(map);
 	map_sz = roundup(map_sz, page_sz);
 	return map_sz;
+}
+
+/* Emit type size asserts for all top-level fields in memory-mapped internal maps. */
+static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
+{
+	struct btf *btf = bpf_object__btf(obj);
+	struct bpf_map *map;
+	struct btf_var_secinfo *sec_var;
+	int i, vlen;
+	const struct btf_type *sec;
+	char map_ident[256], var_ident[256];
+
+	codegen("\
+		\n\
+		__attribute__((unused)) static void			    \n\
+		%1$s__assert(struct %1$s *s)				    \n\
+		{							    \n\
+		#ifdef __cplusplus					    \n\
+		#define _Static_assert static_assert			    \n\
+		#endif							    \n\
+		", obj_name);
+
+	bpf_object__for_each_map(map, obj) {
+		if (!bpf_map__is_internal(map))
+			continue;
+		if (!(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
+			continue;
+		if (!get_map_ident(map, map_ident, sizeof(map_ident)))
+			continue;
+
+		sec = find_type_for_map(btf, map_ident);
+		if (!sec) {
+			/* best effort, couldn't find the type for this map */
+			continue;
+		}
+
+		sec_var = btf_var_secinfos(sec);
+		vlen =  btf_vlen(sec);
+
+		for (i = 0; i < vlen; i++, sec_var++) {
+			const struct btf_type *var = btf__type_by_id(btf, sec_var->type);
+			const char *var_name = btf__name_by_offset(btf, var->name_off);
+			long var_size;
+
+			/* static variables are not exposed through BPF skeleton */
+			if (btf_var(var)->linkage == BTF_VAR_STATIC)
+				continue;
+
+			var_size = btf__resolve_size(btf, var->type);
+			if (var_size < 0)
+				continue;
+
+			var_ident[0] = '\0';
+			strncat(var_ident, var_name, sizeof(var_ident) - 1);
+			sanitize_identifier(var_ident);
+
+			printf("\t_Static_assert(sizeof(s->%s->%s) == %ld, \"unexpected size of '%s'\");\n",
+			       map_ident, var_ident, var_size, var_ident);
+		}
+	}
+	codegen("\
+		\n\
+		#ifdef __cplusplus					    \n\
+		#undef _Static_assert					    \n\
+		#endif							    \n\
+		}							    \n\
+		");
 }
 
 static void codegen_attach_detach(struct bpf_object *obj, const char *obj_name)
@@ -639,7 +711,10 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 			}						    \n\
 			return skel;					    \n\
 		}							    \n\
+									    \n\
 		", obj_name);
+
+	codegen_asserts(obj, obj_name);
 
 	codegen("\
 		\n\
@@ -1046,9 +1121,17 @@ static int do_skeleton(int argc, char **argv)
 		const void *%1$s::elf_bytes(size_t *sz) { return %1$s__elf_bytes(sz); } \n\
 		#endif /* __cplusplus */				    \n\
 									    \n\
-		#endif /* %2$s */					    \n\
 		",
-		obj_name, header_guard);
+		obj_name);
+
+	codegen_asserts(obj, obj_name);
+
+	codegen("\
+		\n\
+									    \n\
+		#endif /* %1$s */					    \n\
+		",
+		header_guard);
 	err = 0;
 out:
 	bpf_object__close(obj);

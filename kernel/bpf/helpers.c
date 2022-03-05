@@ -1093,7 +1093,7 @@ struct bpf_hrtimer {
 struct bpf_timer_kern {
 	struct bpf_hrtimer *timer;
 	/* bpf_spin_lock is used here instead of spinlock_t to make
-	 * sure that it always fits into space resereved by struct bpf_timer
+	 * sure that it always fits into space reserved by struct bpf_timer
 	 * regardless of LOCKDEP and spinlock debug flags.
 	 */
 	struct bpf_spin_lock lock;

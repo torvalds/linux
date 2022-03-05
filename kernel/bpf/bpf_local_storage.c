@@ -136,7 +136,7 @@ bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 		 * will be done by the caller.
 		 *
 		 * Although the unlock will be done under
-		 * rcu_read_lock(),  it is more intutivie to
+		 * rcu_read_lock(),  it is more intuitive to
 		 * read if the freeing of the storage is done
 		 * after the raw_spin_unlock_bh(&local_storage->lock).
 		 *

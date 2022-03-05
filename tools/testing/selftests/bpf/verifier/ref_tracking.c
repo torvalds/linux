@@ -162,7 +162,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
@@ -178,7 +178,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
@@ -274,7 +274,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "type=inv expected=sock",
+	.errstr = "type=scalar expected=sock",
 	.result = REJECT,
 },
 {
