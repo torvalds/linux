@@ -442,7 +442,7 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 		rkisp_bridge_update_mi(dev, isp_mis);
 
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
-		if (i == RKISP_STREAM_VIR)
+		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA)
 			continue;
 		stream = &dev->cap_dev.stream[i];
 		if (stream->streaming &&
@@ -1032,6 +1032,13 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			pixm->width = t->out_fmt.width / 4;
 			pixm->height = t->out_fmt.height / 4;
 		}
+	} else if (stream->id == RKISP_STREAM_LUMA) {
+		struct v4l2_rect *out_crop = &dev->isp_sdev.out_crop;
+		bool bigmode = rkisp_params_check_bigmode(&dev->params_vdev);
+		u32 div = bigmode ? 32 : 16;
+
+		pixm->width = out_crop->width / div;
+		pixm->height = out_crop->height / div;
 	}
 
 	pixm->num_planes = fmt->mplanes;

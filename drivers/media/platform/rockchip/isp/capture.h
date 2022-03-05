@@ -35,6 +35,8 @@
 #ifndef _RKISP_PATH_VIDEO_H
 #define _RKISP_PATH_VIDEO_H
 
+#include <linux/interrupt.h>
+
 #include "common.h"
 #include "capture_v1x.h"
 #include "capture_v2x.h"
@@ -47,6 +49,7 @@
 #define BP_VDEV_NAME DRIVER_NAME	"_bypasspath"
 #define MPDS_VDEV_NAME DRIVER_NAME	"_mainpath_4x4sampling"
 #define BPDS_VDEV_NAME DRIVER_NAME	"_bypasspath_4x4sampling"
+#define LUMA_VDEV_NAME DRIVER_NAME	"_lumapath"
 #define VIR_VDEV_NAME DRIVER_NAME	"_iqtool"
 
 #define DMATX0_VDEV_NAME DRIVER_NAME	"_rawwr0"
@@ -74,6 +77,7 @@ enum {
 	RKISP_STREAM_BP,
 	RKISP_STREAM_MPDS,
 	RKISP_STREAM_BPDS,
+	RKISP_STREAM_LUMA,
 	RKISP_STREAM_VIR,
 	RKISP_MAX_STREAM,
 };
@@ -284,6 +288,7 @@ struct rkisp_capture_device {
 	struct rkisp_stream stream[RKISP_MAX_STREAM];
 	struct rkisp_buffer *rdbk_buf[RDBK_MAX];
 	struct rkisp_vir_cpy vir_cpy;
+	struct tasklet_struct rd_tasklet;
 	atomic_t refcnt;
 	u32 wait_line;
 	u32 wrap_line;

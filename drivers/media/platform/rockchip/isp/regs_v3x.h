@@ -1872,6 +1872,10 @@
 
 #define ISP3X_ISP_OUT_LINE(a)		((a) & 0x3fff)
 
+#define ISP32_YNR_LUMA_RDBK_ST		BIT(0)
+#define ISP32_YNR_LUMA_RDBK_OFFS(a)	(((a) & 0x3fff) << 16)
+#define ISP32_YNR_LUMA_RDBK_RDY		BIT(31)
+
 /* DUAL CROP */
 #define ISP3X_DUAL_CROP_FBC_MODE	BIT(8)
 
@@ -2052,6 +2056,7 @@
 #define ISP3X_CNR_GLOBAL_GAIN_ALPHA_MAX	GENMASK(15, 12)
 
 /* YNR */
+#define ISP3X_YNR_EN_SHD		BIT(31)
 
 /* BLS */
 #define ISP32_BLS_BLS2_EN		BIT(5)

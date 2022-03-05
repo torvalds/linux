@@ -2564,6 +2564,9 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 	if (dev->hw_dev->is_single) {
 		for (i = 0; i < RKISP_MAX_STREAM; i++) {
 			stream = &dev->cap_dev.stream[i];
+			if (stream->id == RKISP_STREAM_VIR ||
+			    stream->id == RKISP_STREAM_LUMA)
+				continue;
 			if (stream->streaming)
 				stream->ops->frame_end(stream);
 		}
@@ -3647,6 +3650,14 @@ vs_skip:
 
 		if (!IS_HDR_RDBK(dev->hdr.op_mode))
 			rkisp_config_cmsk(dev);
+	}
+
+	if (isp_mis & CIF_ISP_FRAME) {
+		if (dev->hw_dev->isp_ver == ISP_V32) {
+			struct rkisp_stream *s = &dev->cap_dev.stream[RKISP_STREAM_LUMA];
+
+			s->ops->frame_end(s);
+		}
 	}
 
 	/*

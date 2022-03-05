@@ -19,6 +19,7 @@
  *output->|->bypasspath----------------->ddr
  *        |   |->bypasspath_4x4sampling->ddr
  *        |->selfpath------------------->ddr
+ *        |->lumapath------------------->ddr
  */
 
 #define CIF_ISP_REQ_BUFS_MIN 0
@@ -60,6 +61,22 @@ static const struct capture_fmt bp_fmts[] = {
 		.write_format = ISP3X_BP_FORMAT_SPLA,
 		.output_format = ISP3X_BP_OUTPUT_YUV420,
 	}
+};
+
+static const struct capture_fmt luma_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8 },
+		.cplanes = 1,
+		.mplanes = 1,
+	},
+};
+
+static struct stream_config rkisp_luma_stream_config = {
+	.fmts = luma_fmts,
+	.fmt_size = ARRAY_SIZE(luma_fmts),
+	.frame_end_id = 0,
 };
 
 static struct stream_config rkisp_bp_stream_config = {
@@ -832,6 +849,89 @@ static int set_mirror_flip(struct rkisp_stream *stream)
 	return 0;
 }
 
+static void luma_frame_readout(unsigned long arg)
+{
+	struct rkisp_stream *stream =
+		(struct rkisp_stream *)arg;
+	struct rkisp_device *dev = stream->ispdev;
+	unsigned long lock_flags = 0;
+	int timeout = 8;
+	u32 i, val, *data, seq;
+	u64 ns = 0;
+
+	stream->frame_end = false;
+	if (stream->stopping)
+		goto end;
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (!stream->curr_buf && !list_empty(&stream->buf_queue)) {
+		stream->curr_buf = list_first_entry(&stream->buf_queue,
+						    struct rkisp_buffer, queue);
+		list_del(&stream->curr_buf->queue);
+	}
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
+	if (!stream->curr_buf) {
+		v4l2_warn(&dev->v4l2_dev, "%s no buf\n", __func__);
+		return;
+	}
+
+	rkisp_write(dev, ISP32_YNR_LUMA_RCTRL, ISP32_YNR_LUMA_RDBK_ST, true);
+	rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
+	while (timeout--) {
+		val = rkisp_read(dev, ISP32_YNR_LUMA_RCTRL, true);
+		if (val & ISP32_YNR_LUMA_RDBK_RDY)
+			break;
+	}
+	if (!timeout) {
+		v4l2_err(&dev->v4l2_dev, "%s no ready\n", __func__);
+		return;
+	}
+
+	val = stream->out_fmt.width * stream->out_fmt.height / 4;
+	data = stream->curr_buf->vaddr[0];
+	for (i = 0; i < val; i++) {
+		*data = rkisp_read(dev, ISP32_YNR_LUMA_RDATA, true);
+		data++;
+	}
+	if (!ns)
+		ns = ktime_get_ns();
+	stream->curr_buf->vb.vb2_buf.timestamp = ns;
+	stream->curr_buf->vb.sequence = seq;
+	vb2_set_plane_payload(&stream->curr_buf->vb.vb2_buf, 0, val * 4);
+	vb2_buffer_done(&stream->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	stream->curr_buf = NULL;
+end:
+	stream->frame_end = true;
+	if (stream->stopping) {
+		stream->stopping = false;
+		stream->streaming = false;
+		wake_up(&stream->done);
+	}
+}
+
+static int luma_frame_end(struct rkisp_stream *stream)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	u32 val;
+
+	if (!stream->streaming)
+		return 0;
+
+	val = rkisp_read(dev, ISP3X_YNR_GLOBAL_CTRL, true);
+	if (!(val & ISP3X_YNR_EN_SHD)) {
+		v4l2_warn(&dev->v4l2_dev, "%s YNR(0x%x) is off\n", __func__, val);
+		return -EINVAL;
+	}
+
+	if (IS_HDR_RDBK(dev->rd_mode))
+		luma_frame_readout((unsigned long)stream);
+	else
+		tasklet_schedule(&dev->cap_dev.rd_tasklet);
+
+	return 0;
+}
+
 static struct streams_ops rkisp_mp_streams_ops = {
 	.config_mi = mp_config_mi,
 	.enable_mi = mp_enable_mi,
@@ -882,6 +982,10 @@ static struct streams_ops rkisp_mpds_streams_ops = {
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
 	.frame_start = mi_frame_start,
+};
+
+static struct streams_ops rkisp_luma_streams_ops = {
+	.frame_end = luma_frame_end,
 };
 
 static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
@@ -975,7 +1079,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 
 	stream->stopping = true;
 	stream->is_pause = false;
-	if (dev->hw_dev->is_single)
+	if (dev->hw_dev->is_single && stream->ops->disable_mi)
 		stream->ops->disable_mi(stream);
 	if (dev->isp_state & ISP_START &&
 	    !stream->ops->is_stream_stopped(stream)) {
@@ -989,7 +1093,8 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 
 	stream->stopping = false;
 	stream->streaming = false;
-	stream->ops->disable_mi(stream);
+	if (stream->ops->disable_mi)
+		stream->ops->disable_mi(stream);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP ||
 	    stream->id == RKISP_STREAM_BP) {
@@ -1019,11 +1124,13 @@ static int rkisp_start(struct rkisp_stream *stream)
 
 	if (stream->ops->set_data_path)
 		stream->ops->set_data_path(stream);
-	ret = stream->ops->config_mi(stream);
-	if (ret)
-		return ret;
-
-	stream->ops->enable_mi(stream);
+	if (stream->ops->config_mi) {
+		ret = stream->ops->config_mi(stream);
+		if (ret)
+			return ret;
+	}
+	if (stream->ops->enable_mi)
+		stream->ops->enable_mi(stream);
 	if (is_update)
 		dev->irq_ends_mask |= get_stream_irq_mask(stream);
 	stream->streaming = true;
@@ -1090,7 +1197,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
-		vb2_plane_vaddr(vb, i);
+		ispbuf->vaddr[i] = vb2_plane_vaddr(vb, i);
 
 		if (stream->ispdev->hw_dev->is_dma_sg_ops) {
 			sgt = vb2_dma_sg_plane_desc(vb, i);
@@ -1124,6 +1231,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	/* single sensor with pingpong buf, update next if need */
 	if (stream->ispdev->hw_dev->is_single &&
 	    stream->id != RKISP_STREAM_VIR &&
+	    stream->id != RKISP_STREAM_LUMA &&
 	    stream->streaming && !stream->next_buf) {
 		stream->next_buf = ispbuf;
 		stream->ops->update_mi(stream);
@@ -1197,6 +1305,18 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 
 	if (!stream->streaming)
 		goto end;
+
+	if (stream->id == RKISP_STREAM_LUMA) {
+		stream->stopping = true;
+		wait_event_timeout(stream->done,
+				   stream->frame_end,
+				   msecs_to_jiffies(500));
+		stream->streaming = false;
+		stream->stopping = false;
+		destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
+		tasklet_disable(&dev->cap_dev.rd_tasklet);
+		goto end;
+	}
 
 	rkisp_stream_stop(stream);
 	if (!dev->cap_dev.wrap_line || atomic_read(&dev->cap_dev.refcnt) == 1) {
@@ -1278,6 +1398,13 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
+
+	if (stream->id == RKISP_STREAM_LUMA) {
+		tasklet_enable(&dev->cap_dev.rd_tasklet);
+		stream->streaming = true;
+		goto end;
+	}
+
 	atomic_inc(&dev->cap_dev.refcnt);
 	if (!dev->isp_inp || !stream->linked) {
 		v4l2_err(v4l2_dev, "check %s link or isp input\n", node->vdev.name);
@@ -1340,7 +1467,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 			goto pipe_stream_off;
 		}
 	}
-
+end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
 	return 0;
 
@@ -1433,6 +1560,16 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		stream->config = &rkisp_mpds_stream_config;
 		stream->conn_id = RKISP_STREAM_MP;
 		break;
+	case RKISP_STREAM_LUMA:
+		strscpy(vdev->name, LUMA_VDEV_NAME, sizeof(vdev->name));
+		stream->ops = &rkisp_luma_streams_ops;
+		stream->config = &rkisp_luma_stream_config;
+		stream->conn_id = RKISP_STREAM_LUMA;
+		tasklet_init(&cap_dev->rd_tasklet,
+			     luma_frame_readout,
+			     (unsigned long)stream);
+		tasklet_disable(&cap_dev->rd_tasklet);
+		break;
 	default:
 		strscpy(vdev->name, MP_VDEV_NAME, sizeof(vdev->name));
 		stream->ops = &rkisp_mp_streams_ops;
@@ -1476,7 +1613,12 @@ int rkisp_register_stream_v32(struct rkisp_device *dev)
 	ret = rkisp_stream_init(dev, RKISP_STREAM_BPDS);
 	if (ret < 0)
 		goto err_free_mpds;
+	ret = rkisp_stream_init(dev, RKISP_STREAM_LUMA);
+	if (ret < 0)
+		goto err_free_bpds;
 	return 0;
+err_free_bpds:
+	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_BPDS]);
 err_free_mpds:
 	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_MPDS]);
 err_free_bp:
@@ -1503,6 +1645,8 @@ void rkisp_unregister_stream_v32(struct rkisp_device *dev)
 	stream = &cap_dev->stream[RKISP_STREAM_MPDS];
 	rkisp_unregister_stream_vdev(stream);
 	stream = &cap_dev->stream[RKISP_STREAM_BPDS];
+	rkisp_unregister_stream_vdev(stream);
+	stream = &cap_dev->stream[RKISP_STREAM_LUMA];
 	rkisp_unregister_stream_vdev(stream);
 }
 
