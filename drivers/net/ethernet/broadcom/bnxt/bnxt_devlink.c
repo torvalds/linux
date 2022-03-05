@@ -20,6 +20,7 @@
 #include "bnxt_ulp.h"
 #include "bnxt_ptp.h"
 #include "bnxt_coredump.h"
+#include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 
 static void __bnxt_fw_recover(struct bnxt *bp)
 {
@@ -263,9 +264,64 @@ static const char *hw_err_str(u8 synd)
 		return "nvm erase error";
 	case BNXT_HW_STATUS_NVM_UNKNOWN_ERR:
 		return "unrecognized nvm error";
+	case BNXT_HW_STATUS_NVM_TEST_VPD_ENT_ERR:
+		return "nvm test vpd entry error";
+	case BNXT_HW_STATUS_NVM_TEST_VPD_READ_ERR:
+		return "nvm test vpd read error";
+	case BNXT_HW_STATUS_NVM_TEST_VPD_WRITE_ERR:
+		return "nvm test vpd write error";
+	case BNXT_HW_STATUS_NVM_TEST_INCMPL_ERR:
+		return "nvm test incomplete error";
 	default:
 		return "unknown hw error";
 	}
+}
+
+static void bnxt_nvm_test(struct bnxt *bp)
+{
+	struct bnxt_hw_health *h = &bp->hw_health;
+	u32 datalen;
+	u16 index;
+	u8 *buf;
+
+	if (!h->nvm_test_result) {
+		if (!h->nvm_test_timestamp ||
+		    time_after(jiffies, h->nvm_test_timestamp +
+					msecs_to_jiffies(HW_RETEST_MIN_TIME)))
+			h->nvm_test_timestamp = jiffies;
+		else
+			return;
+	}
+
+	if (bnxt_find_nvram_item(bp->dev, BNX_DIR_TYPE_VPD,
+				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				 &index, NULL, &datalen) || !datalen) {
+		h->nvm_test_result = BNXT_HW_STATUS_NVM_TEST_VPD_ENT_ERR;
+		h->nvm_test_vpd_ent_errors++;
+		return;
+	}
+
+	buf = kzalloc(datalen, GFP_KERNEL);
+	if (!buf) {
+		h->nvm_test_result = BNXT_HW_STATUS_NVM_TEST_INCMPL_ERR;
+		h->nvm_test_incmpl_errors++;
+		return;
+	}
+
+	if (bnxt_get_nvram_item(bp->dev, index, 0, datalen, buf)) {
+		h->nvm_test_result = BNXT_HW_STATUS_NVM_TEST_VPD_READ_ERR;
+		h->nvm_test_vpd_read_errors++;
+		goto err;
+	}
+
+	if (bnxt_flash_nvram(bp->dev, BNX_DIR_TYPE_VPD, BNX_DIR_ORDINAL_FIRST,
+			     BNX_DIR_EXT_NONE, 0, 0, buf, datalen)) {
+		h->nvm_test_result = BNXT_HW_STATUS_NVM_TEST_VPD_WRITE_ERR;
+		h->nvm_test_vpd_write_errors++;
+	}
+
+err:
+	kfree(buf);
 }
 
 static int bnxt_hw_diagnose(struct devlink_health_reporter *reporter,
@@ -274,9 +330,16 @@ static int bnxt_hw_diagnose(struct devlink_health_reporter *reporter,
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
 	struct bnxt_hw_health *h = &bp->hw_health;
+	u8 synd = h->synd;
 	int rc;
 
-	rc = devlink_fmsg_string_pair_put(fmsg, "Status", hw_err_str(h->synd));
+	bnxt_nvm_test(bp);
+	if (h->nvm_test_result) {
+		synd = h->nvm_test_result;
+		devlink_health_report(h->hw_reporter, hw_err_str(synd), NULL);
+	}
+
+	rc = devlink_fmsg_string_pair_put(fmsg, "Status", hw_err_str(synd));
 	if (rc)
 		return rc;
 	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_write_errors", h->nvm_write_errors);
@@ -285,6 +348,23 @@ static int bnxt_hw_diagnose(struct devlink_health_reporter *reporter,
 	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_erase_errors", h->nvm_erase_errors);
 	if (rc)
 		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_test_vpd_ent_errors",
+				       h->nvm_test_vpd_ent_errors);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_test_vpd_read_errors",
+				       h->nvm_test_vpd_read_errors);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_test_vpd_write_errors",
+				       h->nvm_test_vpd_write_errors);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_test_incomplete_errors",
+				       h->nvm_test_incmpl_errors);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 

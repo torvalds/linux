@@ -1544,17 +1544,29 @@ struct bnxt_ctx_mem_info {
 };
 
 enum bnxt_hw_err {
-	BNXT_HW_STATUS_HEALTHY		= 0x0,
-	BNXT_HW_STATUS_NVM_WRITE_ERR	= 0x1,
-	BNXT_HW_STATUS_NVM_ERASE_ERR	= 0x2,
-	BNXT_HW_STATUS_NVM_UNKNOWN_ERR	= 0x3,
+	BNXT_HW_STATUS_HEALTHY			= 0x0,
+	BNXT_HW_STATUS_NVM_WRITE_ERR		= 0x1,
+	BNXT_HW_STATUS_NVM_ERASE_ERR		= 0x2,
+	BNXT_HW_STATUS_NVM_UNKNOWN_ERR		= 0x3,
+	BNXT_HW_STATUS_NVM_TEST_VPD_ENT_ERR	= 0x4,
+	BNXT_HW_STATUS_NVM_TEST_VPD_READ_ERR	= 0x5,
+	BNXT_HW_STATUS_NVM_TEST_VPD_WRITE_ERR	= 0x6,
+	BNXT_HW_STATUS_NVM_TEST_INCMPL_ERR	= 0x7,
 };
 
 struct bnxt_hw_health {
 	u32 nvm_err_address;
 	u32 nvm_write_errors;
 	u32 nvm_erase_errors;
+	u32 nvm_test_vpd_ent_errors;
+	u32 nvm_test_vpd_read_errors;
+	u32 nvm_test_vpd_write_errors;
+	u32 nvm_test_incmpl_errors;
 	u8 synd;
+	/* max a test in a day if previous test was successful */
+#define HW_RETEST_MIN_TIME	(1000 * 3600 * 24)
+	u8 nvm_test_result;
+	unsigned long nvm_test_timestamp;
 	struct devlink_health_reporter *hw_reporter;
 };
 
