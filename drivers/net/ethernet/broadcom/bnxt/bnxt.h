@@ -1175,7 +1175,11 @@ struct bnxt_link_info {
 #define BNXT_PHY_STATE_ENABLED		0
 #define BNXT_PHY_STATE_DISABLED		1
 
-	u8			link_up;
+	u8			link_state;
+#define BNXT_LINK_STATE_UNKNOWN	0
+#define BNXT_LINK_STATE_DOWN	1
+#define BNXT_LINK_STATE_UP	2
+#define BNXT_LINK_IS_UP(bp)	((bp)->link_info.link_state == BNXT_LINK_STATE_UP)
 	u8			duplex;
 #define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF
 #define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL

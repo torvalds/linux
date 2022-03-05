@@ -9300,7 +9300,7 @@ void bnxt_tx_enable(struct bnxt *bp)
 	/* Make sure napi polls see @dev_state change */
 	synchronize_net();
 	netif_tx_wake_all_queues(bp->dev);
-	if (bp->link_info.link_up)
+	if (BNXT_LINK_IS_UP(bp))
 		netif_carrier_on(bp->dev);
 }
 
@@ -9330,7 +9330,7 @@ static char *bnxt_report_fec(struct bnxt_link_info *link_info)
 
 void bnxt_report_link(struct bnxt *bp)
 {
-	if (bp->link_info.link_up) {
+	if (BNXT_LINK_IS_UP(bp)) {
 		const char *signal = "";
 		const char *flow_ctrl;
 		const char *duplex;
@@ -9466,7 +9466,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	struct bnxt_link_info *link_info = &bp->link_info;
 	struct hwrm_port_phy_qcfg_output *resp;
 	struct hwrm_port_phy_qcfg_input *req;
-	u8 link_up = link_info->link_up;
+	u8 link_state = link_info->link_state;
 	bool support_changed = false;
 	int rc;
 
@@ -9567,14 +9567,14 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
-			link_info->link_up = 1;
+			link_info->link_state = BNXT_LINK_STATE_UP;
 		else
-			link_info->link_up = 0;
-		if (link_up != link_info->link_up)
+			link_info->link_state = BNXT_LINK_STATE_DOWN;
+		if (link_state != link_info->link_state)
 			bnxt_report_link(bp);
 	} else {
-		/* alwasy link down if not require to update link state */
-		link_info->link_up = 0;
+		/* always link down if not require to update link state */
+		link_info->link_state = BNXT_LINK_STATE_DOWN;
 	}
 	hwrm_req_drop(bp, req);
 
@@ -9774,7 +9774,18 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 		return rc;
 
 	req->flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN);
-	return hwrm_req_send(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc) {
+		mutex_lock(&bp->link_lock);
+		/* Device is not obliged link down in certain scenarios, even
+		 * when forced. Setting the state unknown is consistent with
+		 * driver startup and will force link state to be reported
+		 * during subsequent open based on PORT_PHY_QCFG.
+		 */
+		bp->link_info.link_state = BNXT_LINK_STATE_UNKNOWN;
+		mutex_unlock(&bp->link_lock);
+	}
+	return rc;
 }
 
 static int bnxt_fw_reset_via_optee(struct bnxt *bp)
@@ -10205,7 +10216,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	/* The last close may have shutdown the link, so need to call
 	 * PHY_CFG to bring it back up.
 	 */
-	if (!bp->link_info.link_up)
+	if (!BNXT_LINK_IS_UP(bp))
 		update_link = true;
 
 	if (!bnxt_eee_config_ok(bp))
@@ -11437,7 +11448,7 @@ static void bnxt_timer(struct timer_list *t)
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 		bnxt_fw_health_check(bp);
 
-	if (bp->link_info.link_up && bp->stats_coal_ticks) {
+	if (BNXT_LINK_IS_UP(bp) && bp->stats_coal_ticks) {
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
