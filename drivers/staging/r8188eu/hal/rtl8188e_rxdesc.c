@@ -57,9 +57,7 @@ void rtl8188e_process_phy_info(struct adapter *padapter, void *prframe)
 
 void update_recvframe_attrib_88e(struct recv_frame *precvframe, struct recv_stat *prxstat)
 {
-	struct rx_pkt_attrib	*pattrib;
-
-	pattrib = &precvframe->attrib;
+	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
 	pattrib->crc_err = (u8)((le32_to_cpu(prxstat->rxdw0) >> 14) & 0x1);/* u8)prxreport->crc32; */
