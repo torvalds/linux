@@ -286,7 +286,7 @@ static void mctp_serial_rx(struct mctp_serial *dev)
 	cb = __mctp_cb(skb);
 	cb->halen = 0;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 	dev->netdev->stats.rx_packets++;
 	dev->netdev->stats.rx_bytes += dev->rxlen;
 }
