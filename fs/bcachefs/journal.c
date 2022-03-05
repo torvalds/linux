@@ -309,17 +309,19 @@ static void journal_write_work(struct work_struct *work)
 {
 	struct journal *j = container_of(work, struct journal, write_work.work);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_buf *buf;
 	long delta;
 
 	spin_lock(&j->lock);
-	buf = journal_cur_buf(j);
-	delta = buf->expires - jiffies;
+	if (!__journal_entry_is_open(j->reservations))
+		goto unlock;
+
+	delta = journal_cur_buf(j)->expires - jiffies;
 
 	if (delta > 0)
 		mod_delayed_work(c->io_complete_wq, &j->write_work, delta);
 	else
 		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+unlock:
 	spin_unlock(&j->lock);
 }
 
@@ -939,6 +941,7 @@ void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 
 void bch2_fs_journal_stop(struct journal *j)
 {
+	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 
 	wait_event(j->wait, journal_entry_close(j));
@@ -956,7 +959,6 @@ void bch2_fs_journal_stop(struct journal *j)
 	       j->last_empty_seq != journal_cur_seq(j));
 
 	cancel_delayed_work_sync(&j->write_work);
-	bch2_journal_reclaim_stop(j);
 }
 
 int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
