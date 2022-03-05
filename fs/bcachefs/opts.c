@@ -96,6 +96,16 @@ const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_SUBVOL]	= "subvol",
 };
 
+u64 BCH2_NO_SB_OPT(const struct bch_sb *sb)
+{
+	BUG();
+}
+
+void SET_BCH2_NO_SB_OPT(struct bch_sb *sb, u64 v)
+{
+	BUG();
+}
+
 void bch2_opts_apply(struct bch_opts *dst, struct bch_opts src)
 {
 #define x(_name, ...)						\
@@ -280,7 +290,8 @@ int bch2_opt_parse(struct bch_fs *c, const char *msg,
 	return bch2_opt_validate(opt, msg, *res);
 }
 
-void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
+void bch2_opt_to_text(struct printbuf *out,
+		      struct bch_fs *c, struct bch_sb *sb,
 		      const struct bch_option *opt, u64 v,
 		      unsigned flags)
 {
@@ -310,7 +321,7 @@ void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
 			pr_buf(out, opt->choices[v]);
 		break;
 	case BCH_OPT_FN:
-		opt->to_text(out, c, v);
+		opt->to_text(out, c, sb, v);
 		break;
 	default:
 		BUG();
@@ -431,6 +442,22 @@ out:
 	return ret;
 }
 
+u64 bch2_opt_from_sb(struct bch_sb *sb, enum bch_opt_id id)
+{
+	const struct bch_option *opt = bch2_opt_table + id;
+	u64 v;
+
+	v = opt->get_sb(sb);
+
+	if (opt->flags & OPT_SB_FIELD_ILOG2)
+		v = 1ULL << v;
+
+	if (opt->flags & OPT_SB_FIELD_SECTORS)
+		v <<= 9;
+
+	return v;
+}
+
 /*
  * Initial options from superblock - here we don't want any options undefined,
  * any options the superblock doesn't specify are set to 0:
@@ -444,16 +471,10 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 		const struct bch_option *opt = bch2_opt_table + id;
 		u64 v;
 
-		if (opt->get_sb == NO_SB_OPT)
+		if (opt->get_sb == BCH2_NO_SB_OPT)
 			continue;
 
-		v = opt->get_sb(sb);
-
-		if (opt->flags & OPT_SB_FIELD_ILOG2)
-			v = 1ULL << v;
-
-		if (opt->flags & OPT_SB_FIELD_SECTORS)
-			v <<= 9;
+		v = bch2_opt_from_sb(sb, id);
 
 		ret = bch2_opt_validate(opt, "superblock option ", v);
 		if (ret)
@@ -467,7 +488,7 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 
 void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_NO_SB_OPT)
+	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
 		return;
 
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
@@ -481,7 +502,7 @@ void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 
 void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_NO_SB_OPT)
+	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
 		return;
 
 	mutex_lock(&c->sb_lock);

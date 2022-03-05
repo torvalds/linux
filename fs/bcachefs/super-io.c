@@ -1047,45 +1047,56 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 		if (!bch2_member_exists(m))
 			continue;
 
-		pr_buf(out, "Device:                  %u", i);
+		pr_buf(out, "Device:");
+		pr_tab(out);
+		pr_buf(out, "%u", i);
 		pr_newline(out);
 
 		pr_indent_push(out, 2);
 
-		pr_buf(out, "UUID:                  ");
+		pr_buf(out, "UUID:");
+		pr_tab(out);
 		pr_uuid(out, m->uuid.b);
 		pr_newline(out);
 
-		pr_buf(out, "Size:                  ");
+		pr_buf(out, "Size:");
+		pr_tab(out);
 		pr_units(out, device_size, device_size << 9);
 		pr_newline(out);
 
-		pr_buf(out, "Bucket size:           ");
+		pr_buf(out, "Bucket size:");
+		pr_tab(out);
 		pr_units(out, bucket_size, bucket_size << 9);
 		pr_newline(out);
 
-		pr_buf(out, "First bucket:          %u",
-		       le16_to_cpu(m->first_bucket));
+		pr_buf(out, "First bucket:");
+		pr_tab(out);
+		pr_buf(out, "%u", le16_to_cpu(m->first_bucket));
 		pr_newline(out);
 
-		pr_buf(out, "Buckets:               %llu",
-		       le64_to_cpu(m->nbuckets));
+		pr_buf(out, "Buckets:");
+		pr_tab(out);
+		pr_buf(out, "%llu", le64_to_cpu(m->nbuckets));
 		pr_newline(out);
 
-		pr_buf(out, "Last mount:            ");
+		pr_buf(out, "Last mount:");
+		pr_tab(out);
 		if (m->last_mount)
 			pr_time(out, le64_to_cpu(m->last_mount));
 		else
 			pr_buf(out, "(never)");
 		pr_newline(out);
 
-		pr_buf(out, "State:                 %s",
+		pr_buf(out, "State:");
+		pr_tab(out);
+		pr_buf(out, "%s",
 		       BCH_MEMBER_STATE(m) < BCH_MEMBER_STATE_NR
 		       ? bch2_member_states[BCH_MEMBER_STATE(m)]
 		       : "unknown");
 		pr_newline(out);
 
-		pr_buf(out, "Group:                 ");
+		pr_buf(out, "Group:");
+		pr_tab(out);
 		if (BCH_MEMBER_GROUP(m)) {
 			unsigned idx = BCH_MEMBER_GROUP(m) - 1;
 
@@ -1099,7 +1110,8 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 		}
 		pr_newline(out);
 
-		pr_buf(out, "Data allowed:          ");
+		pr_buf(out, "Data allowed:");
+		pr_tab(out);
 		if (BCH_MEMBER_DATA_ALLOWED(m))
 			bch2_flags_to_text(out, bch2_data_types,
 					   BCH_MEMBER_DATA_ALLOWED(m));
@@ -1107,15 +1119,17 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 			pr_buf(out, "(none)");
 		pr_newline(out);
 
-		pr_buf(out, "Has data:              ");
+		pr_buf(out, "Has data:");
+		pr_tab(out);
 		if (data_have)
 			bch2_flags_to_text(out, bch2_data_types, data_have);
 		else
 			pr_buf(out, "(none)");
 		pr_newline(out);
 
-		pr_buf(out, "Discard:               %llu",
-		       BCH_MEMBER_DISCARD(m));
+		pr_buf(out, "Discard:");
+		pr_tab(out);
+		pr_buf(out, "%llu", BCH_MEMBER_DISCARD(m));
 		pr_newline(out);
 
 		pr_indent_pop(out, 2);
@@ -1452,6 +1466,9 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	const struct bch_sb_field_ops *ops = type < BCH_SB_FIELD_NR
 		? bch2_sb_field_ops[type] : NULL;
 
+	if (!out->tabstops[0])
+		out->tabstops[0] = 32;
+
 	if (ops)
 		pr_buf(out, "%s", bch2_sb_fields[type]);
 	else
@@ -1500,6 +1517,9 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	u64 fields_have = 0;
 	unsigned nr_devices = 0;
 
+	if (!out->tabstops[0])
+		out->tabstops[0] = 32;
+
 	mi = bch2_sb_get_members(sb);
 	if (mi) {
 		struct bch_member *m;
@@ -1510,137 +1530,106 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 			nr_devices += bch2_member_exists(m);
 	}
 
-	pr_buf(out, "External UUID:             ");
+	pr_buf(out, "External UUID:");
+	pr_tab(out);
 	pr_uuid(out, sb->user_uuid.b);
 	pr_newline(out);
 
-	pr_buf(out, "Internal UUID:             ");
+	pr_buf(out, "Internal UUID:");
+	pr_tab(out);
 	pr_uuid(out, sb->uuid.b);
 	pr_newline(out);
 
-	pr_buf(out, "Device index:              %u", sb->dev_idx);
+	pr_buf(out, "Device index:");
+	pr_tab(out);
+	pr_buf(out, "%u", sb->dev_idx);
 	pr_newline(out);
 
-	pr_buf(out, "Label:                     ");
+	pr_buf(out, "Label:");
+	pr_tab(out);
 	pr_buf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	pr_newline(out);
 
-	pr_buf(out, "Version:                   %u", le16_to_cpu(sb->version));
+	pr_buf(out, "Version:");
+	pr_tab(out);
+	pr_buf(out, "%u", le16_to_cpu(sb->version));
 	pr_newline(out);
 
-	pr_buf(out, "Oldest version on disk:    %u", le16_to_cpu(sb->version_min));
+	pr_buf(out, "Oldest version on disk:");
+	pr_tab(out);
+	pr_buf(out, "%u", le16_to_cpu(sb->version_min));
 	pr_newline(out);
 
-	pr_buf(out, "Created:                   ");
+	pr_buf(out, "Created:");
+	pr_tab(out);
 	if (sb->time_base_lo)
 		pr_time(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
 	else
 		pr_buf(out, "(not set)");
 	pr_newline(out);
 
-	pr_buf(out, "Squence number:            %llu", le64_to_cpu(sb->seq));
+	pr_buf(out, "Sequence number:");
+	pr_tab(out);
+	pr_buf(out, "%llu", le64_to_cpu(sb->seq));
 	pr_newline(out);
 
-	pr_buf(out, "Block_size:                ");
-	pr_units(out, le16_to_cpu(sb->block_size),
-		 (u32) le16_to_cpu(sb->block_size) << 9);
+	pr_buf(out, "Superblock size:");
+	pr_tab(out);
+	pr_buf(out, "%zu", vstruct_bytes(sb));
 	pr_newline(out);
 
-	pr_buf(out, "Btree node size:           ");
-	pr_units(out, BCH_SB_BTREE_NODE_SIZE(sb),
-		 BCH_SB_BTREE_NODE_SIZE(sb) << 9);
+	pr_buf(out, "Clean:");
+	pr_tab(out);
+	pr_buf(out, "%llu", BCH_SB_CLEAN(sb));
 	pr_newline(out);
 
-	pr_buf(out, "Error action:              %s",
-	       BCH_SB_ERROR_ACTION(sb) < BCH_ON_ERROR_NR
-	       ? bch2_error_actions[BCH_SB_ERROR_ACTION(sb)]
-	       : "unknown");
+	pr_buf(out, "Devices:");
+	pr_tab(out);
+	pr_buf(out, "%u", nr_devices);
 	pr_newline(out);
 
-	pr_buf(out, "Clean:                     %llu", BCH_SB_CLEAN(sb));
+	pr_buf(out, "Sections:");
+	vstruct_for_each(sb, f)
+		fields_have |= 1 << le32_to_cpu(f->type);
+	pr_tab(out);
+	bch2_flags_to_text(out, bch2_sb_fields, fields_have);
 	pr_newline(out);
 
-	pr_buf(out, "Features:                  ");
+	pr_buf(out, "Features:");
+	pr_tab(out);
 	bch2_flags_to_text(out, bch2_sb_features,
 			   le64_to_cpu(sb->features[0]));
 	pr_newline(out);
 
-	pr_buf(out, "Compat features:           ");
+	pr_buf(out, "Compat features:");
+	pr_tab(out);
 	bch2_flags_to_text(out, bch2_sb_compat,
 			   le64_to_cpu(sb->compat[0]));
 	pr_newline(out);
 
-	pr_buf(out, "Metadata replicas:         %llu", BCH_SB_META_REPLICAS_WANT(sb));
 	pr_newline(out);
+	pr_buf(out, "Options:");
+	pr_newline(out);
+	pr_indent_push(out, 2);
+	{
+		enum bch_opt_id id;
 
-	pr_buf(out, "Data replicas:             %llu", BCH_SB_DATA_REPLICAS_WANT(sb));
-	pr_newline(out);
+		for (id = 0; id < bch2_opts_nr; id++) {
+			const struct bch_option *opt = bch2_opt_table + id;
 
-	pr_buf(out, "Metadata checksum type:    %s (%llu)",
-	       BCH_SB_META_CSUM_TYPE(sb) < BCH_CSUM_OPT_NR
-	       ? bch2_csum_opts[BCH_SB_META_CSUM_TYPE(sb)]
-	       : "unknown",
-	       BCH_SB_META_CSUM_TYPE(sb));
-	pr_newline(out);
+			if (opt->get_sb != BCH2_NO_SB_OPT) {
+				u64 v = bch2_opt_from_sb(sb, id);
 
-	pr_buf(out, "Data checksum type:        %s (%llu)",
-	       BCH_SB_DATA_CSUM_TYPE(sb) < BCH_CSUM_OPT_NR
-	       ? bch2_csum_opts[BCH_SB_DATA_CSUM_TYPE(sb)]
-	       : "unknown",
-	       BCH_SB_DATA_CSUM_TYPE(sb));
-	pr_newline(out);
+				pr_buf(out, "%s:", opt->attr.name);
+				pr_tab(out);
+				bch2_opt_to_text(out, NULL, sb, opt, v,
+						 OPT_HUMAN_READABLE|OPT_SHOW_FULL_LIST);
+				pr_newline(out);
+			}
+		}
+	}
 
-	pr_buf(out, "Compression type:          %s (%llu)",
-	       BCH_SB_COMPRESSION_TYPE(sb) < BCH_COMPRESSION_OPT_NR
-	       ? bch2_compression_opts[BCH_SB_COMPRESSION_TYPE(sb)]
-	       : "unknown",
-	       BCH_SB_COMPRESSION_TYPE(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Foreground write target:   ");
-	bch2_sb_target_to_text(out, sb, BCH_SB_FOREGROUND_TARGET(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Background write target:   ");
-	bch2_sb_target_to_text(out, sb, BCH_SB_BACKGROUND_TARGET(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Promote target:            ");
-	bch2_sb_target_to_text(out, sb, BCH_SB_PROMOTE_TARGET(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Metadata target:           ");
-	bch2_sb_target_to_text(out, sb, BCH_SB_METADATA_TARGET(sb));
-	pr_newline(out);
-
-	pr_buf(out, "String hash type:          %s (%llu)",
-	       BCH_SB_STR_HASH_TYPE(sb) < BCH_STR_HASH_NR
-	       ? bch2_str_hash_types[BCH_SB_STR_HASH_TYPE(sb)]
-	       : "unknown",
-	       BCH_SB_STR_HASH_TYPE(sb));
-	pr_newline(out);
-
-	pr_buf(out, "32 bit inodes:             %llu", BCH_SB_INODE_32BIT(sb));
-	pr_newline(out);
-
-	pr_buf(out, "GC reserve percentage:     %llu%%", BCH_SB_GC_RESERVE(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Root reserve percentage:   %llu%%", BCH_SB_ROOT_RESERVE(sb));
-	pr_newline(out);
-
-	pr_buf(out, "Devices:                   %u live, %u total",
-	       nr_devices, sb->nr_devices);
-	pr_newline(out);
-
-	pr_buf(out, "Sections:                  ");
-	vstruct_for_each(sb, f)
-		fields_have |= 1 << le32_to_cpu(f->type);
-	bch2_flags_to_text(out, bch2_sb_fields, fields_have);
-	pr_newline(out);
-
-	pr_buf(out, "Superblock size:           %zu", vstruct_bytes(sb));
-	pr_newline(out);
+	pr_indent_pop(out, 2);
 
 	if (print_layout) {
 		pr_newline(out);

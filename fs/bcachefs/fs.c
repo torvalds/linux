@@ -1691,7 +1691,7 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 			continue;
 
 		printbuf_reset(&buf);
-		bch2_opt_to_text(&buf, c, opt, v,
+		bch2_opt_to_text(&buf, c, c->disk_sb.sb, opt, v,
 				 OPT_SHOW_MOUNT_STYLE);
 		seq_putc(seq, ',');
 		seq_puts(seq, buf.buf);

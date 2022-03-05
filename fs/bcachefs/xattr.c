@@ -448,7 +448,7 @@ static int __bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 		return -ENODATA;
 
 	v = bch2_opt_get_by_id(&opts, id);
-	bch2_opt_to_text(&out, c, opt, v, 0);
+	bch2_opt_to_text(&out, c, c->disk_sb.sb, opt, v, 0);
 
 	ret = out.pos;
 

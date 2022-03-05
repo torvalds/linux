@@ -77,10 +77,8 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *, const char *);
 
 void bch2_disk_path_to_text(struct printbuf *, struct bch_sb *, unsigned);
 
-void bch2_sb_target_to_text(struct printbuf *, struct bch_sb *, u64);
-
 int bch2_opt_target_parse(struct bch_fs *, const char *, u64 *);
-void bch2_opt_target_to_text(struct printbuf *, struct bch_fs *, u64);
+void bch2_opt_target_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
 
 int bch2_sb_disk_groups_to_cpu(struct bch_fs *);
 

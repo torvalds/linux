@@ -891,7 +891,7 @@ static void print_mount_opts(struct bch_fs *c)
 		if (!first)
 			pr_buf(&p, ",");
 		first = false;
-		bch2_opt_to_text(&p, c, opt, v, OPT_SHOW_MOUNT_STYLE);
+		bch2_opt_to_text(&p, c, c->disk_sb.sb, opt, v, OPT_SHOW_MOUNT_STYLE);
 	}
 
 	if (!p.pos)

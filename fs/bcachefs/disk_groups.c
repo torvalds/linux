@@ -445,7 +445,10 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *buf, u64 *v)
 	return -EINVAL;
 }
 
-void bch2_sb_target_to_text(struct printbuf *out, struct bch_sb *sb, u64 v)
+void bch2_opt_target_to_text(struct printbuf *out,
+			     struct bch_fs *c,
+			     struct bch_sb *sb,
+			     u64 v)
 {
 	struct target t = target_decode(v);
 
@@ -453,60 +456,46 @@ void bch2_sb_target_to_text(struct printbuf *out, struct bch_sb *sb, u64 v)
 	case TARGET_NULL:
 		pr_buf(out, "none");
 		break;
-	case TARGET_DEV: {
-		struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-		struct bch_member *m = mi->members + t.dev;
+	case TARGET_DEV:
+		if (c) {
+			struct bch_dev *ca;
 
-		if (bch2_dev_exists(sb, mi, t.dev)) {
-			pr_buf(out, "Device ");
-			pr_uuid(out, m->uuid.b);
-			pr_buf(out, " (%u)", t.dev);
+			rcu_read_lock();
+			ca = t.dev < c->sb.nr_devices
+				? rcu_dereference(c->devs[t.dev])
+				: NULL;
+
+			if (ca && percpu_ref_tryget(&ca->io_ref)) {
+				pr_buf(out, "/dev/%pg", ca->disk_sb.bdev);
+				percpu_ref_put(&ca->io_ref);
+			} else if (ca) {
+				pr_buf(out, "offline device %u", t.dev);
+			} else {
+				pr_buf(out, "invalid device %u", t.dev);
+			}
+
+			rcu_read_unlock();
 		} else {
-			pr_buf(out, "Bad device %u", t.dev);
+			struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
+			struct bch_member *m = mi->members + t.dev;
+
+			if (bch2_dev_exists(sb, mi, t.dev)) {
+				pr_buf(out, "Device ");
+				pr_uuid(out, m->uuid.b);
+				pr_buf(out, " (%u)", t.dev);
+			} else {
+				pr_buf(out, "Bad device %u", t.dev);
+			}
 		}
-
 		break;
-	}
 	case TARGET_GROUP:
-		bch2_disk_path_to_text(out, sb, t.group);
-		break;
-	default:
-		BUG();
-	}
-}
-
-void bch2_opt_target_to_text(struct printbuf *out, struct bch_fs *c, u64 v)
-{
-	struct target t = target_decode(v);
-
-	switch (t.type) {
-	case TARGET_NULL:
-		pr_buf(out, "none");
-		break;
-	case TARGET_DEV: {
-		struct bch_dev *ca;
-
-		rcu_read_lock();
-		ca = t.dev < c->sb.nr_devices
-			? rcu_dereference(c->devs[t.dev])
-			: NULL;
-
-		if (ca && percpu_ref_tryget(&ca->io_ref)) {
-			pr_buf(out, "/dev/%pg", ca->disk_sb.bdev);
-			percpu_ref_put(&ca->io_ref);
-		} else if (ca) {
-			pr_buf(out, "offline device %u", t.dev);
+		if (c) {
+			mutex_lock(&c->sb_lock);
+			bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
+			mutex_unlock(&c->sb_lock);
 		} else {
-			pr_buf(out, "invalid device %u", t.dev);
+			bch2_disk_path_to_text(out, sb, t.group);
 		}
-
-		rcu_read_unlock();
-		break;
-	}
-	case TARGET_GROUP:
-		mutex_lock(&c->sb_lock);
-		bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
-		mutex_unlock(&c->sb_lock);
 		break;
 	default:
 		BUG();

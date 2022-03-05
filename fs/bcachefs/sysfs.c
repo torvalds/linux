@@ -597,7 +597,7 @@ SHOW(bch2_fs_opts_dir)
 	int id = opt - bch2_opt_table;
 	u64 v = bch2_opt_get_by_id(&c->opts, id);
 
-	bch2_opt_to_text(out, c, opt, v, OPT_SHOW_FULL_LIST);
+	bch2_opt_to_text(out, c, c->disk_sb.sb, opt, v, OPT_SHOW_FULL_LIST);
 	pr_char(out, '\n');
 
 	return 0;
