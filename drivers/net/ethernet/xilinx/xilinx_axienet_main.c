@@ -7,7 +7,7 @@
  * Copyright (c) 2008-2009 Secret Lab Technologies Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
- * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
+ * Copyright (c) 2019 - 2022 Calian Advanced Technologies
  * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  *
  * This is a driver for the Xilinx Axi Ethernet which is used in the Virtex6
@@ -232,18 +232,18 @@ static void axienet_dma_bd_release(struct net_device *ndev)
  */
 static void axienet_dma_start(struct axienet_local *lp)
 {
-	u32 rx_cr, tx_cr;
+	u32 tx_cr;
 
 	/* Start updating the Rx channel control register */
-	rx_cr = (lp->coalesce_count_rx << XAXIDMA_COALESCE_SHIFT) |
-		XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK;
+	lp->rx_dma_cr = (lp->coalesce_count_rx << XAXIDMA_COALESCE_SHIFT) |
+			XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK;
 	/* Only set interrupt delay timer if not generating an interrupt on
 	 * the first RX packet. Otherwise leave at 0 to disable delay interrupt.
 	 */
 	if (lp->coalesce_count_rx > 1)
-		rx_cr |= (XAXIDMA_DFT_RX_WAITBOUND << XAXIDMA_DELAY_SHIFT) |
-			 XAXIDMA_IRQ_DELAY_MASK;
-	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, rx_cr);
+		lp->rx_dma_cr |= (XAXIDMA_DFT_RX_WAITBOUND << XAXIDMA_DELAY_SHIFT) |
+				 XAXIDMA_IRQ_DELAY_MASK;
+	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
 
 	/* Start updating the Tx channel control register */
 	tx_cr = (lp->coalesce_count_tx << XAXIDMA_COALESCE_SHIFT) |
@@ -260,8 +260,8 @@ static void axienet_dma_start(struct axienet_local *lp)
 	 * halted state. This will make the Rx side ready for reception.
 	 */
 	axienet_dma_out_addr(lp, XAXIDMA_RX_CDESC_OFFSET, lp->rx_bd_p);
-	rx_cr |= XAXIDMA_CR_RUNSTOP_MASK;
-	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, rx_cr);
+	lp->rx_dma_cr |= XAXIDMA_CR_RUNSTOP_MASK;
+	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
 	axienet_dma_out_addr(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
 			     (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
@@ -875,28 +875,26 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 }
 
 /**
- * axienet_recv - Is called from Axi DMA Rx Isr to complete the received
- *		  BD processing.
- * @ndev:	Pointer to net_device structure.
+ * axienet_poll - Triggered by RX ISR to complete the received BD processing.
+ * @napi:	Pointer to NAPI structure.
+ * @budget:	Max number of packets to process.
  *
- * This function is invoked from the Axi DMA Rx isr to process the Rx BDs. It
- * does minimal processing and invokes "netif_rx" to complete further
- * processing.
+ * Return: Number of RX packets processed.
  */
-static void axienet_recv(struct net_device *ndev)
+static int axienet_poll(struct napi_struct *napi, int budget)
 {
 	u32 length;
 	u32 csumstatus;
 	u32 size = 0;
-	u32 packets = 0;
+	int packets = 0;
 	dma_addr_t tail_p = 0;
-	struct axienet_local *lp = netdev_priv(ndev);
-	struct sk_buff *skb, *new_skb;
 	struct axidma_bd *cur_p;
+	struct sk_buff *skb, *new_skb;
+	struct axienet_local *lp = container_of(napi, struct axienet_local, napi);
 
 	cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 
-	while ((cur_p->status & XAXIDMA_BD_STS_COMPLETE_MASK)) {
+	while (packets < budget && (cur_p->status & XAXIDMA_BD_STS_COMPLETE_MASK)) {
 		dma_addr_t phys;
 
 		/* Ensure we see complete descriptor update */
@@ -918,7 +916,7 @@ static void axienet_recv(struct net_device *ndev)
 					 DMA_FROM_DEVICE);
 
 			skb_put(skb, length);
-			skb->protocol = eth_type_trans(skb, ndev);
+			skb->protocol = eth_type_trans(skb, lp->ndev);
 			/*skb_checksum_none_assert(skb);*/
 			skb->ip_summed = CHECKSUM_NONE;
 
@@ -937,13 +935,13 @@ static void axienet_recv(struct net_device *ndev)
 				skb->ip_summed = CHECKSUM_COMPLETE;
 			}
 
-			netif_rx(skb);
+			napi_gro_receive(napi, skb);
 
 			size += length;
 			packets++;
 		}
 
-		new_skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
+		new_skb = netdev_alloc_skb_ip_align(lp->ndev, lp->max_frm_size);
 		if (!new_skb)
 			break;
 
@@ -952,7 +950,7 @@ static void axienet_recv(struct net_device *ndev)
 				      DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(lp->dev, phys))) {
 			if (net_ratelimit())
-				netdev_err(ndev, "RX DMA mapping error\n");
+				netdev_err(lp->ndev, "RX DMA mapping error\n");
 			dev_kfree_skb(new_skb);
 			break;
 		}
@@ -972,11 +970,20 @@ static void axienet_recv(struct net_device *ndev)
 		cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 	}
 
-	ndev->stats.rx_packets += packets;
-	ndev->stats.rx_bytes += size;
+	lp->ndev->stats.rx_packets += packets;
+	lp->ndev->stats.rx_bytes += size;
 
 	if (tail_p)
 		axienet_dma_out_addr(lp, XAXIDMA_RX_TDESC_OFFSET, tail_p);
+
+	if (packets < budget && napi_complete_done(napi, packets)) {
+		/* Re-enable RX completion interrupts. This should
+		 * cause an immediate interrupt if any RX packets are
+		 * already pending.
+		 */
+		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
+	}
+	return packets;
 }
 
 /**
@@ -1022,7 +1029,7 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
  *
  * Return: IRQ_HANDLED if device generated a RX interrupt, IRQ_NONE otherwise.
  *
- * This is the Axi DMA Rx Isr. It invokes "axienet_recv" to complete the BD
+ * This is the Axi DMA Rx Isr. It invokes NAPI polling to complete the RX BD
  * processing.
  */
 static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
@@ -1045,7 +1052,15 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 			   (lp->rx_bd_v[lp->rx_bd_ci]).phys);
 		schedule_work(&lp->dma_err_task);
 	} else {
-		axienet_recv(lp->ndev);
+		/* Disable further RX completion interrupts and schedule
+		 * NAPI receive.
+		 */
+		u32 cr = lp->rx_dma_cr;
+
+		cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
+		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
+
+		napi_schedule(&lp->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -1121,6 +1136,8 @@ static int axienet_open(struct net_device *ndev)
 	/* Enable worker thread for Axi DMA error handling */
 	INIT_WORK(&lp->dma_err_task, axienet_dma_err_handler);
 
+	napi_enable(&lp->napi);
+
 	/* Enable interrupts for Axi DMA Tx */
 	ret = request_irq(lp->tx_irq, axienet_tx_irq, IRQF_SHARED,
 			  ndev->name, ndev);
@@ -1146,6 +1163,7 @@ err_eth_irq:
 err_rx_irq:
 	free_irq(lp->tx_irq, ndev);
 err_tx_irq:
+	napi_disable(&lp->napi);
 	phylink_stop(lp->phylink);
 	phylink_disconnect_phy(lp->phylink);
 	cancel_work_sync(&lp->dma_err_task);
@@ -1168,6 +1186,8 @@ static int axienet_stop(struct net_device *ndev)
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	dev_dbg(&ndev->dev, "axienet_close()\n");
+
+	napi_disable(&lp->napi);
 
 	phylink_stop(lp->phylink);
 	phylink_disconnect_phy(lp->phylink);
@@ -1685,6 +1705,8 @@ static void axienet_dma_err_handler(struct work_struct *work)
 						dma_err_task);
 	struct net_device *ndev = lp->ndev;
 
+	napi_disable(&lp->napi);
+
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
 
@@ -1749,6 +1771,7 @@ static void axienet_dma_err_handler(struct work_struct *work)
 	axienet_set_mac_address(ndev, NULL);
 	axienet_set_multicast_list(ndev);
 	axienet_setoptions(ndev, lp->options);
+	napi_enable(&lp->napi);
 }
 
 /**
@@ -1796,6 +1819,8 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->options = XAE_OPTION_DEFAULTS;
 	lp->rx_bd_num = RX_BD_NUM_DEFAULT;
 	lp->tx_bd_num = TX_BD_NUM_DEFAULT;
+
+	netif_napi_add(ndev, &lp->napi, axienet_poll, NAPI_POLL_WEIGHT);
 
 	lp->axi_clk = devm_clk_get_optional(&pdev->dev, "s_axi_lite_clk");
 	if (!lp->axi_clk) {
