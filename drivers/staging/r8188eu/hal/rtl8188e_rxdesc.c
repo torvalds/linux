@@ -60,48 +60,44 @@ void update_recvframe_attrib_88e(struct recv_frame *precvframe, struct recv_stat
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
-	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) >> 14) & 0x1;/* u8)prxreport->crc32; */
+	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) >> 14) & 0x1;
 
-	/*  update rx report to recv_frame attribute */
-	pattrib->pkt_rpt_type = (le32_to_cpu(prxstat->rxdw3) >> 14) & 0x3;/* prxreport->rpt_sel; */
+	pattrib->pkt_rpt_type = (le32_to_cpu(prxstat->rxdw3) >> 14) & 0x3;
 
-	if (pattrib->pkt_rpt_type == NORMAL_RX) { /* Normal rx packet */
-		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x00003fff;/* u16)prxreport->pktlen; */
-		pattrib->drvinfo_sz = ((le32_to_cpu(prxstat->rxdw0) >> 16) & 0xf) * 8;/* u8)(prxreport->drvinfosize << 3); */
+	if (pattrib->pkt_rpt_type == NORMAL_RX) {
+		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
+		pattrib->drvinfo_sz = ((le32_to_cpu(prxstat->rxdw0) >> 16) & 0xf) * 8;
 
-		pattrib->physt = (le32_to_cpu(prxstat->rxdw0) >> 26) & 0x1;/* u8)prxreport->physt; */
+		pattrib->physt = (le32_to_cpu(prxstat->rxdw0) >> 26) & 0x1;
 
-		pattrib->bdecrypted = (le32_to_cpu(prxstat->rxdw0) & BIT(27)) ? 0 : 1;/* u8)(prxreport->swdec ? 0 : 1); */
-		pattrib->encrypt = (le32_to_cpu(prxstat->rxdw0) >> 20) & 0x7;/* u8)prxreport->security; */
+		pattrib->bdecrypted = (le32_to_cpu(prxstat->rxdw0) & BIT(27)) ? 0 : 1;
+		pattrib->encrypt = (le32_to_cpu(prxstat->rxdw0) >> 20) & 0x7;
 
-		pattrib->qos = (le32_to_cpu(prxstat->rxdw0) >> 23) & 0x1;/* prxreport->qos; */
-		pattrib->priority = (le32_to_cpu(prxstat->rxdw1) >> 8) & 0xf;/* u8)prxreport->tid; */
+		pattrib->qos = (le32_to_cpu(prxstat->rxdw0) >> 23) & 0x1;
+		pattrib->priority = (le32_to_cpu(prxstat->rxdw1) >> 8) & 0xf;
 
-		pattrib->amsdu = (le32_to_cpu(prxstat->rxdw1) >> 13) & 0x1;/* u8)prxreport->amsdu; */
+		pattrib->amsdu = (le32_to_cpu(prxstat->rxdw1) >> 13) & 0x1;
 
-		pattrib->seq_num = le32_to_cpu(prxstat->rxdw2) & 0x00000fff;/* u16)prxreport->seq; */
-		pattrib->frag_num = (le32_to_cpu(prxstat->rxdw2) >> 12) & 0xf;/* u8)prxreport->frag; */
-		pattrib->mfrag = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;/* u8)prxreport->mf; */
-		pattrib->mdata = (le32_to_cpu(prxstat->rxdw1) >> 26) & 0x1;/* u8)prxreport->md; */
+		pattrib->seq_num = le32_to_cpu(prxstat->rxdw2) & 0x00000fff;
+		pattrib->frag_num = (le32_to_cpu(prxstat->rxdw2) >> 12) & 0xf;
+		pattrib->mfrag = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;
+		pattrib->mdata = (le32_to_cpu(prxstat->rxdw1) >> 26) & 0x1;
 
-		pattrib->mcs_rate = le32_to_cpu(prxstat->rxdw3) & 0x3f;/* u8)prxreport->rxmcs; */
-		pattrib->rxht = (le32_to_cpu(prxstat->rxdw3) >> 6) & 0x1;/* u8)prxreport->rxht; */
+		pattrib->mcs_rate = le32_to_cpu(prxstat->rxdw3) & 0x3f;
+		pattrib->rxht = (le32_to_cpu(prxstat->rxdw3) >> 6) & 0x1;
 
-		pattrib->icv_err = (le32_to_cpu(prxstat->rxdw0) >> 15) & 0x1;/* u8)prxreport->icverr; */
+		pattrib->icv_err = (le32_to_cpu(prxstat->rxdw0) >> 15) & 0x1;
 		pattrib->shift_sz = (le32_to_cpu(prxstat->rxdw0) >> 24) & 0x3;
 	} else if (pattrib->pkt_rpt_type == TX_REPORT1) { /* CCX */
 		pattrib->pkt_len = TX_RPT1_PKT_LEN;
-	} else if (pattrib->pkt_rpt_type == TX_REPORT2) { /*  TX RPT */
-		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x3FF;/* Rx length[9:0] */
+	} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
+		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x3FF;
 
-		/*  */
-		/*  Get TX report MAC ID valid. */
-		/*  */
 		pattrib->MacIDValidEntry[0] = le32_to_cpu(prxstat->rxdw4);
 		pattrib->MacIDValidEntry[1] = le32_to_cpu(prxstat->rxdw5);
 
-	} else if (pattrib->pkt_rpt_type == HIS_REPORT) { /*  USB HISR RPT */
-		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x00003fff;/* u16)prxreport->pktlen; */
+	} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
+		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 	}
 }
 
