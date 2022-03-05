@@ -410,6 +410,10 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	struct device *ddev = disk_to_dev(disk);
 	int ret;
 
+	/* Only makes sense for bio-based to set ->poll_bio */
+	if (queue_is_mq(disk->queue) && disk->fops->poll_bio)
+		return -EINVAL;
+
 	/*
 	 * The disk queue should now be all set with enough information about
 	 * the device for the elevator code to pick an adequate default
