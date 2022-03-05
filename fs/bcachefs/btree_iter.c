@@ -3013,6 +3013,14 @@ void bch2_trans_begin(struct btree_trans *trans)
 		path->should_be_locked = false;
 
 		/*
+		 * If the transaction wasn't restarted, we're presuming to be
+		 * doing something new: dont keep iterators excpt the ones that
+		 * are in use - except for the subvolumes btree:
+		 */
+		if (!trans->restarted && path->btree_id != BTREE_ID_subvolumes)
+			path->preserve = false;
+
+		/*
 		 * XXX: we probably shouldn't be doing this if the transaction
 		 * was restarted, but currently we still overflow transaction
 		 * iterators if we do that
