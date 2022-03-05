@@ -2609,6 +2609,10 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 		cmd_err = ((struct hwrm_err_output *)resp)->cmd_err;
 
 		switch (cmd_err) {
+		case NVM_INSTALL_UPDATE_CMD_ERR_CODE_ANTI_ROLLBACK:
+			netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure Anti-rollback detected\n");
+			rc = -EALREADY;
+			break;
 		case NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR:
 			install->flags =
 				cpu_to_le16(NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
