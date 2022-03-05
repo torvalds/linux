@@ -471,7 +471,7 @@ int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct dsa_mac_addr *a;
-	int err;
+	int err = 0;
 
 	mutex_lock(&dp->addr_lists_lock);
 
@@ -491,7 +491,7 @@ int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct dsa_mac_addr *a;
-	int err;
+	int err = 0;
 
 	mutex_lock(&dp->addr_lists_lock);
 
