@@ -47,7 +47,7 @@ static void print_backtrace(char *bt)
 static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 				unsigned long sp)
 {
-	int frame_count, prev_is_func2, seen_func2_func1;
+	int frame_count, prev_is_func2, seen_func2_func1, seen_kretprobe_trampoline;
 	const int max_frames = 128;
 	struct unwind_state state;
 	size_t bt_pos = 0;
@@ -63,6 +63,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	frame_count = 0;
 	prev_is_func2 = 0;
 	seen_func2_func1 = 0;
+	seen_kretprobe_trampoline = 0;
 	unwind_for_each_frame(&state, task, regs, sp) {
 		unsigned long addr = unwind_get_return_address(&state);
 		char sym[KSYM_SYMBOL_LEN];
@@ -88,6 +89,8 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		if (prev_is_func2 && str_has_prefix(sym, "unwindme_func1"))
 			seen_func2_func1 = 1;
 		prev_is_func2 = str_has_prefix(sym, "unwindme_func2");
+		if (str_has_prefix(sym, "__kretprobe_trampoline+0x0/"))
+			seen_kretprobe_trampoline = 1;
 	}
 
 	/* Check the results. */
@@ -101,6 +104,10 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	}
 	if (frame_count == max_frames) {
 		kunit_err(current_test, "Maximum number of frames exceeded\n");
+		ret = -EINVAL;
+	}
+	if (seen_kretprobe_trampoline) {
+		kunit_err(current_test, "__kretprobe_trampoline+0x0 in unwinding results\n");
 		ret = -EINVAL;
 	}
 	if (ret || force_bt)
