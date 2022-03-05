@@ -934,7 +934,7 @@ static void bch2_btree_update_done(struct btree_update *as)
 
 static struct btree_update *
 bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
-			unsigned level, unsigned nr_nodes, unsigned flags)
+			unsigned level, bool split, unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_update *as;
@@ -942,6 +942,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	u64 start_time = local_clock();
 	int disk_res_flags = (flags & BTREE_INSERT_NOFAIL)
 		? BCH_DISK_RESERVATION_NOFAIL : 0;
+	unsigned nr_nodes;
+	unsigned update_level = level;
 	int journal_flags = 0;
 	int ret = 0;
 
@@ -952,11 +954,26 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 
 	closure_init_stack(&cl);
 retry:
+	nr_nodes = 0;
 
-	/*
-	 * XXX: figure out how far we might need to split,
-	 * instead of locking/reserving all the way to the root:
-	 */
+	while (1) {
+		nr_nodes += 1 + split;
+		update_level++;
+
+		if (!btree_path_node(path, update_level))
+			break;
+
+		/*
+		 * XXX: figure out how far we might need to split,
+		 * instead of locking/reserving all the way to the root:
+		 */
+		split = update_level + 1 < BTREE_MAX_DEPTH;
+	}
+
+	/* Might have to allocate a new root: */
+	if (update_level < BTREE_MAX_DEPTH)
+		nr_nodes += 1;
+
 	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
 		trace_trans_restart_iter_upgrade(trans->fn, _RET_IP_,
 						 path->btree_id, &path->pos);
@@ -1559,14 +1576,13 @@ int bch2_btree_split_leaf(struct btree_trans *trans,
 			  struct btree_path *path,
 			  unsigned flags)
 {
-	struct bch_fs *c = trans->c;
 	struct btree *b = path_l(path)->b;
 	struct btree_update *as;
 	unsigned l;
 	int ret = 0;
 
 	as = bch2_btree_update_start(trans, path, path->level,
-		btree_update_reserve_required(c, b), flags);
+				     true, flags);
 	if (IS_ERR(as))
 		return PTR_ERR(as);
 
@@ -1677,11 +1693,10 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		goto out;
 
 	parent = btree_node_parent(path, b);
-	as = bch2_btree_update_start(trans, path, level,
-			 btree_update_reserve_required(c, parent) + 1,
-			 flags|
+	as = bch2_btree_update_start(trans, path, level, false,
 			 BTREE_INSERT_NOFAIL|
-			 BTREE_INSERT_USE_RESERVE);
+			 BTREE_INSERT_USE_RESERVE|
+			 flags);
 	ret = PTR_ERR_OR_ZERO(as);
 	if (ret)
 		goto err;
@@ -1764,10 +1779,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	parent = btree_node_parent(iter->path, b);
 	as = bch2_btree_update_start(trans, iter->path, b->c.level,
-		(parent
-		 ? btree_update_reserve_required(c, parent)
-		 : 0) + 1,
-		flags);
+				     false, flags);
 	ret = PTR_ERR_OR_ZERO(as);
 	if (ret) {
 		trace_btree_gc_rewrite_node_fail(c, b);
