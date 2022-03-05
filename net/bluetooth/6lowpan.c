@@ -641,7 +641,6 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 		return NULL;
 
 	peer->chan = chan;
-	memset(&peer->peer_addr, 0, sizeof(struct in6_addr));
 
 	baswap((void *)peer->lladdr, &chan->dst);
 

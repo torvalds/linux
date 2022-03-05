@@ -36,33 +36,33 @@ static bool reset = true;
 
 static struct usb_driver btusb_driver;
 
-#define BTUSB_IGNORE		0x01
-#define BTUSB_DIGIANSWER	0x02
-#define BTUSB_CSR		0x04
-#define BTUSB_SNIFFER		0x08
-#define BTUSB_BCM92035		0x10
-#define BTUSB_BROKEN_ISOC	0x20
-#define BTUSB_WRONG_SCO_MTU	0x40
-#define BTUSB_ATH3012		0x80
-#define BTUSB_INTEL_COMBINED	0x100
-#define BTUSB_INTEL_BOOT	0x200
-#define BTUSB_BCM_PATCHRAM	0x400
-#define BTUSB_MARVELL		0x800
-#define BTUSB_SWAVE		0x1000
-#define BTUSB_AMP		0x4000
-#define BTUSB_QCA_ROME		0x8000
-#define BTUSB_BCM_APPLE		0x10000
-#define BTUSB_REALTEK		0x20000
-#define BTUSB_BCM2045		0x40000
-#define BTUSB_IFNUM_2		0x80000
-#define BTUSB_CW6622		0x100000
-#define BTUSB_MEDIATEK		0x200000
-#define BTUSB_WIDEBAND_SPEECH	0x400000
-#define BTUSB_VALID_LE_STATES   0x800000
-#define BTUSB_QCA_WCN6855	0x1000000
-#define BTUSB_INTEL_BROKEN_SHUTDOWN_LED	0x2000000
-#define BTUSB_INTEL_BROKEN_INITIAL_NCMD 0x4000000
-#define BTUSB_INTEL_NO_WBS_SUPPORT	0x8000000
+#define BTUSB_IGNORE			BIT(0)
+#define BTUSB_DIGIANSWER		BIT(1)
+#define BTUSB_CSR			BIT(2)
+#define BTUSB_SNIFFER			BIT(3)
+#define BTUSB_BCM92035			BIT(4)
+#define BTUSB_BROKEN_ISOC		BIT(5)
+#define BTUSB_WRONG_SCO_MTU		BIT(6)
+#define BTUSB_ATH3012			BIT(7)
+#define BTUSB_INTEL_COMBINED		BIT(8)
+#define BTUSB_INTEL_BOOT		BIT(9)
+#define BTUSB_BCM_PATCHRAM		BIT(10)
+#define BTUSB_MARVELL			BIT(11)
+#define BTUSB_SWAVE			BIT(12)
+#define BTUSB_AMP			BIT(13)
+#define BTUSB_QCA_ROME			BIT(14)
+#define BTUSB_BCM_APPLE			BIT(15)
+#define BTUSB_REALTEK			BIT(16)
+#define BTUSB_BCM2045			BIT(17)
+#define BTUSB_IFNUM_2			BIT(18)
+#define BTUSB_CW6622			BIT(19)
+#define BTUSB_MEDIATEK			BIT(20)
+#define BTUSB_WIDEBAND_SPEECH		BIT(21)
+#define BTUSB_VALID_LE_STATES		BIT(22)
+#define BTUSB_QCA_WCN6855		BIT(23)
+#define BTUSB_INTEL_BROKEN_SHUTDOWN_LED	BIT(24)
+#define BTUSB_INTEL_BROKEN_INITIAL_NCMD BIT(25)
+#define BTUSB_INTEL_NO_WBS_SUPPORT	BIT(26)
 
 static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -384,6 +384,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x8087, 0x0029), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x0032), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x0033), .driver_info = BTUSB_INTEL_COMBINED },
+	{ USB_DEVICE(0x8087, 0x0035), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x07da), .driver_info = BTUSB_CSR },
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL_COMBINED |
 						     BTUSB_INTEL_NO_WBS_SUPPORT |
@@ -434,6 +435,11 @@ static const struct usb_device_id blacklist_table[] = {
 	/* Additional MediaTek MT7615E Bluetooth devices */
 	{ USB_DEVICE(0x13d3, 0x3560), .driver_info = BTUSB_MEDIATEK},
 
+	/* Additional MediaTek MT7663 Bluetooth devices */
+	{ USB_DEVICE(0x043e, 0x310c), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH |
+						     BTUSB_VALID_LE_STATES },
+
 	/* Additional MediaTek MT7668 Bluetooth devices */
 	{ USB_DEVICE(0x043e, 0x3109), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH |
@@ -447,6 +453,9 @@ static const struct usb_device_id blacklist_table[] = {
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 	{ USB_DEVICE(0x13d3, 0x3564), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH |
+						     BTUSB_VALID_LE_STATES },
+	{ USB_DEVICE(0x13d3, 0x3567), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 	{ USB_DEVICE(0x0489, 0xe0cd), .driver_info = BTUSB_MEDIATEK |
@@ -487,6 +496,8 @@ static const struct usb_device_id blacklist_table[] = {
 	/* Additional Realtek 8761BU Bluetooth devices */
 	{ USB_DEVICE(0x0b05, 0x190e), .driver_info = BTUSB_REALTEK |
 	  					     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x2550, 0x8761), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Additional Realtek 8821AE Bluetooth devices */
 	{ USB_DEVICE(0x0b05, 0x17dc), .driver_info = BTUSB_REALTEK },
@@ -2250,7 +2261,6 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
 	struct btusb_data *data = hci_get_drvdata(hdev);
-	struct hci_event_hdr *hdr;
 	struct sk_buff *skb;
 	int err;
 
@@ -2269,13 +2279,6 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 
 		hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 		skb_put_data(skb, urb->transfer_buffer, urb->actual_length);
-
-		hdr = (void *)skb->data;
-		/* Fix up the vendor event id with 0xff for vendor specific
-		 * instead of 0xe4 so that event send via monitoring socket can
-		 * be parsed properly.
-		 */
-		hdr->evt = 0xff;
 
 		/* When someone waits for the WMT event, the skb is being cloned
 		 * and being processed the events from there then.
@@ -2993,6 +2996,7 @@ static int btusb_set_bdaddr_wcn6855(struct hci_dev *hdev,
 #define QCA_PATCH_UPDATED	0x80
 #define QCA_DFU_TIMEOUT		3000
 #define QCA_FLAG_MULTI_NVM      0x80
+#define QCA_BT_RESET_WAIT_MS    100
 
 #define WCN6855_2_0_RAM_VERSION_GF 0x400c1200
 #define WCN6855_2_1_RAM_VERSION_GF 0x400c1211
@@ -3319,6 +3323,13 @@ static int btusb_setup_qca(struct hci_dev *hdev)
 		err = btusb_setup_qca_load_nvm(hdev, &ver, info);
 		if (err < 0)
 			return err;
+
+		/* WCN6855 2.1 will reset to apply firmware downloaded here, so
+		 * wait ~100ms for reset Done then go ahead, otherwise, it maybe
+		 * cause potential enable failure.
+		 */
+		if (info->rom_version == 0x00130201)
+			msleep(QCA_BT_RESET_WAIT_MS);
 	}
 
 	return 0;

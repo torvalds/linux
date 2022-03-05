@@ -15,6 +15,11 @@ u8 eir_create_scan_rsp(struct hci_dev *hdev, u8 instance, u8 *ptr);
 u8 eir_append_local_name(struct hci_dev *hdev, u8 *eir, u8 ad_len);
 u8 eir_append_appearance(struct hci_dev *hdev, u8 *ptr, u8 ad_len);
 
+static inline u16 eir_precalc_len(u8 data_len)
+{
+	return sizeof(u8) * 2 + data_len;
+}
+
 static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type,
 				  u8 *data, u8 data_len)
 {
@@ -32,6 +37,21 @@ static inline u16 eir_append_le16(u8 *eir, u16 eir_len, u8 type, u16 data)
 	eir[eir_len++] = type;
 	put_unaligned_le16(data, &eir[eir_len]);
 	eir_len += sizeof(data);
+
+	return eir_len;
+}
+
+static inline u16 eir_skb_put_data(struct sk_buff *skb, u8 type, u8 *data, u8 data_len)
+{
+	u8 *eir;
+	u16 eir_len;
+
+	eir_len	= eir_precalc_len(data_len);
+	eir = skb_put(skb, eir_len);
+	WARN_ON(sizeof(type) + data_len > U8_MAX);
+	eir[0] = sizeof(type) + data_len;
+	eir[1] = type;
+	memcpy(&eir[2], data, data_len);
 
 	return eir_len;
 }
