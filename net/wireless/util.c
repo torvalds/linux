@@ -2153,7 +2153,7 @@ void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr)
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	memset(skb->cb, 0, sizeof(skb->cb));
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 EXPORT_SYMBOL(cfg80211_send_layer2_update);
 
