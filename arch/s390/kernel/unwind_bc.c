@@ -64,8 +64,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
 		regs = NULL;
-		if (!__kernel_text_address(ip)) {
-			/* skip bogus %r14 */
+		/* skip bogus %r14 or if is the same as regs->psw.addr */
+		if (!__kernel_text_address(ip) || state->ip == unwind_recover_ret_addr(state, ip)) {
 			state->regs = NULL;
 			return unwind_next_frame(state);
 		}
