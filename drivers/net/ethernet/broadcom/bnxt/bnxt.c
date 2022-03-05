@@ -12149,11 +12149,6 @@ int bnxt_fw_init_one(struct bnxt *bp)
 	if (rc)
 		return rc;
 
-	/* In case fw capabilities have changed, destroy the unneeded
-	 * reporters and create newly capable ones.
-	 */
-	bnxt_dl_fw_reporters_destroy(bp, false);
-	bnxt_dl_fw_reporters_create(bp);
 	bnxt_fw_init_one_p3(bp);
 	return 0;
 }
@@ -12982,7 +12977,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	cancel_delayed_work_sync(&bp->fw_reset_task);
 	bp->sp_event = 0;
 
-	bnxt_dl_fw_reporters_destroy(bp, true);
+	bnxt_dl_fw_reporters_destroy(bp);
 	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 
