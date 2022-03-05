@@ -201,13 +201,6 @@ struct reloc_desc {
 	};
 };
 
-typedef int (*libbpf_prog_setup_fn_t)(struct bpf_program *prog, long cookie);
-typedef int (*libbpf_prog_prepare_load_fn_t)(struct bpf_program *prog,
-					     struct bpf_prog_load_opts *opts, long cookie);
-/* If auto-attach is not supported, callback should return 0 and set link to NULL */
-typedef int (*libbpf_prog_attach_fn_t)(const struct bpf_program *prog, long cookie,
-				       struct bpf_link **link);
-
 /* stored as sec_def->cookie for all libbpf-supported SEC()s */
 enum sec_def_flags {
 	SEC_NONE = 0,
@@ -235,10 +228,11 @@ enum sec_def_flags {
 };
 
 struct bpf_sec_def {
-	const char *sec;
+	char *sec;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
 	long cookie;
+	int handler_id;
 
 	libbpf_prog_setup_fn_t prog_setup_fn;
 	libbpf_prog_prepare_load_fn_t prog_prepare_load_fn;
@@ -8590,7 +8584,7 @@ int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log
 }
 
 #define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
-	.sec = sec_pfx,							    \
+	.sec = (char *)sec_pfx,						    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
 	.expected_attach_type = atype,					    \
 	.cookie = (long)(flags),					    \
@@ -8683,60 +8677,166 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("sk_lookup",		SK_LOOKUP, BPF_SK_LOOKUP, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 };
 
-#define MAX_TYPE_NAME_SIZE 32
+static size_t custom_sec_def_cnt;
+static struct bpf_sec_def *custom_sec_defs;
+static struct bpf_sec_def custom_fallback_def;
+static bool has_custom_fallback_def;
+
+static int last_custom_sec_def_handler_id;
+
+int libbpf_register_prog_handler(const char *sec,
+				 enum bpf_prog_type prog_type,
+				 enum bpf_attach_type exp_attach_type,
+				 const struct libbpf_prog_handler_opts *opts)
+{
+	struct bpf_sec_def *sec_def;
+
+	if (!OPTS_VALID(opts, libbpf_prog_handler_opts))
+		return libbpf_err(-EINVAL);
+
+	if (last_custom_sec_def_handler_id == INT_MAX) /* prevent overflow */
+		return libbpf_err(-E2BIG);
+
+	if (sec) {
+		sec_def = libbpf_reallocarray(custom_sec_defs, custom_sec_def_cnt + 1,
+					      sizeof(*sec_def));
+		if (!sec_def)
+			return libbpf_err(-ENOMEM);
+
+		custom_sec_defs = sec_def;
+		sec_def = &custom_sec_defs[custom_sec_def_cnt];
+	} else {
+		if (has_custom_fallback_def)
+			return libbpf_err(-EBUSY);
+
+		sec_def = &custom_fallback_def;
+	}
+
+	sec_def->sec = sec ? strdup(sec) : NULL;
+	if (sec && !sec_def->sec)
+		return libbpf_err(-ENOMEM);
+
+	sec_def->prog_type = prog_type;
+	sec_def->expected_attach_type = exp_attach_type;
+	sec_def->cookie = OPTS_GET(opts, cookie, 0);
+
+	sec_def->prog_setup_fn = OPTS_GET(opts, prog_setup_fn, NULL);
+	sec_def->prog_prepare_load_fn = OPTS_GET(opts, prog_prepare_load_fn, NULL);
+	sec_def->prog_attach_fn = OPTS_GET(opts, prog_attach_fn, NULL);
+
+	sec_def->handler_id = ++last_custom_sec_def_handler_id;
+
+	if (sec)
+		custom_sec_def_cnt++;
+	else
+		has_custom_fallback_def = true;
+
+	return sec_def->handler_id;
+}
+
+int libbpf_unregister_prog_handler(int handler_id)
+{
+	struct bpf_sec_def *sec_defs;
+	int i;
+
+	if (handler_id <= 0)
+		return libbpf_err(-EINVAL);
+
+	if (has_custom_fallback_def && custom_fallback_def.handler_id == handler_id) {
+		memset(&custom_fallback_def, 0, sizeof(custom_fallback_def));
+		has_custom_fallback_def = false;
+		return 0;
+	}
+
+	for (i = 0; i < custom_sec_def_cnt; i++) {
+		if (custom_sec_defs[i].handler_id == handler_id)
+			break;
+	}
+
+	if (i == custom_sec_def_cnt)
+		return libbpf_err(-ENOENT);
+
+	free(custom_sec_defs[i].sec);
+	for (i = i + 1; i < custom_sec_def_cnt; i++)
+		custom_sec_defs[i - 1] = custom_sec_defs[i];
+	custom_sec_def_cnt--;
+
+	/* try to shrink the array, but it's ok if we couldn't */
+	sec_defs = libbpf_reallocarray(custom_sec_defs, custom_sec_def_cnt, sizeof(*sec_defs));
+	if (sec_defs)
+		custom_sec_defs = sec_defs;
+
+	return 0;
+}
+
+static bool sec_def_matches(const struct bpf_sec_def *sec_def, const char *sec_name,
+			    bool allow_sloppy)
+{
+	size_t len = strlen(sec_def->sec);
+
+	/* "type/" always has to have proper SEC("type/extras") form */
+	if (sec_def->sec[len - 1] == '/') {
+		if (str_has_pfx(sec_name, sec_def->sec))
+			return true;
+		return false;
+	}
+
+	/* "type+" means it can be either exact SEC("type") or
+	 * well-formed SEC("type/extras") with proper '/' separator
+	 */
+	if (sec_def->sec[len - 1] == '+') {
+		len--;
+		/* not even a prefix */
+		if (strncmp(sec_name, sec_def->sec, len) != 0)
+			return false;
+		/* exact match or has '/' separator */
+		if (sec_name[len] == '\0' || sec_name[len] == '/')
+			return true;
+		return false;
+	}
+
+	/* SEC_SLOPPY_PFX definitions are allowed to be just prefix
+	 * matches, unless strict section name mode
+	 * (LIBBPF_STRICT_SEC_NAME) is enabled, in which case the
+	 * match has to be exact.
+	 */
+	if (allow_sloppy && str_has_pfx(sec_name, sec_def->sec))
+		return true;
+
+	/* Definitions not marked SEC_SLOPPY_PFX (e.g.,
+	 * SEC("syscall")) are exact matches in both modes.
+	 */
+	return strcmp(sec_name, sec_def->sec) == 0;
+}
 
 static const struct bpf_sec_def *find_sec_def(const char *sec_name)
 {
 	const struct bpf_sec_def *sec_def;
-	enum sec_def_flags sec_flags;
-	int i, n = ARRAY_SIZE(section_defs), len;
-	bool strict = libbpf_mode & LIBBPF_STRICT_SEC_NAME;
+	int i, n;
+	bool strict = libbpf_mode & LIBBPF_STRICT_SEC_NAME, allow_sloppy;
 
+	n = custom_sec_def_cnt;
 	for (i = 0; i < n; i++) {
-		sec_def = &section_defs[i];
-		sec_flags = sec_def->cookie;
-		len = strlen(sec_def->sec);
-
-		/* "type/" always has to have proper SEC("type/extras") form */
-		if (sec_def->sec[len - 1] == '/') {
-			if (str_has_pfx(sec_name, sec_def->sec))
-				return sec_def;
-			continue;
-		}
-
-		/* "type+" means it can be either exact SEC("type") or
-		 * well-formed SEC("type/extras") with proper '/' separator
-		 */
-		if (sec_def->sec[len - 1] == '+') {
-			len--;
-			/* not even a prefix */
-			if (strncmp(sec_name, sec_def->sec, len) != 0)
-				continue;
-			/* exact match or has '/' separator */
-			if (sec_name[len] == '\0' || sec_name[len] == '/')
-				return sec_def;
-			continue;
-		}
-
-		/* SEC_SLOPPY_PFX definitions are allowed to be just prefix
-		 * matches, unless strict section name mode
-		 * (LIBBPF_STRICT_SEC_NAME) is enabled, in which case the
-		 * match has to be exact.
-		 */
-		if ((sec_flags & SEC_SLOPPY_PFX) && !strict)  {
-			if (str_has_pfx(sec_name, sec_def->sec))
-				return sec_def;
-			continue;
-		}
-
-		/* Definitions not marked SEC_SLOPPY_PFX (e.g.,
-		 * SEC("syscall")) are exact matches in both modes.
-		 */
-		if (strcmp(sec_name, sec_def->sec) == 0)
+		sec_def = &custom_sec_defs[i];
+		if (sec_def_matches(sec_def, sec_name, false))
 			return sec_def;
 	}
+
+	n = ARRAY_SIZE(section_defs);
+	for (i = 0; i < n; i++) {
+		sec_def = &section_defs[i];
+		allow_sloppy = (sec_def->cookie & SEC_SLOPPY_PFX) && !strict;
+		if (sec_def_matches(sec_def, sec_name, allow_sloppy))
+			return sec_def;
+	}
+
+	if (has_custom_fallback_def)
+		return &custom_fallback_def;
+
 	return NULL;
 }
+
+#define MAX_TYPE_NAME_SIZE 32
 
 static char *libbpf_get_type_names(bool attach_type)
 {

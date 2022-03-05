@@ -439,3 +439,9 @@ LIBBPF_0.7.0 {
 		libbpf_probe_bpf_prog_type;
 		libbpf_set_memlock_rlim_max;
 } LIBBPF_0.6.0;
+
+LIBBPF_0.8.0 {
+	global:
+		libbpf_register_prog_handler;
+		libbpf_unregister_prog_handler;
+} LIBBPF_0.7.0;
