@@ -241,6 +241,69 @@ static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.recover = bnxt_fw_recover,
 };
 
+static int bnxt_hw_recover(struct devlink_health_reporter *reporter,
+			   void *priv_ctx,
+			   struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = devlink_health_reporter_priv(reporter);
+	struct bnxt_hw_health *hw_health = &bp->hw_health;
+
+	hw_health->synd = BNXT_HW_STATUS_HEALTHY;
+	return 0;
+}
+
+static const char *hw_err_str(u8 synd)
+{
+	switch (synd) {
+	case BNXT_HW_STATUS_HEALTHY:
+		return "healthy";
+	case BNXT_HW_STATUS_NVM_WRITE_ERR:
+		return "nvm write error";
+	case BNXT_HW_STATUS_NVM_ERASE_ERR:
+		return "nvm erase error";
+	case BNXT_HW_STATUS_NVM_UNKNOWN_ERR:
+		return "unrecognized nvm error";
+	default:
+		return "unknown hw error";
+	}
+}
+
+static int bnxt_hw_diagnose(struct devlink_health_reporter *reporter,
+			    struct devlink_fmsg *fmsg,
+			    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = devlink_health_reporter_priv(reporter);
+	struct bnxt_hw_health *h = &bp->hw_health;
+	int rc;
+
+	rc = devlink_fmsg_string_pair_put(fmsg, "Status", hw_err_str(h->synd));
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_write_errors", h->nvm_write_errors);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "nvm_erase_errors", h->nvm_erase_errors);
+	if (rc)
+		return rc;
+	return 0;
+}
+
+void bnxt_devlink_health_hw_report(struct bnxt *bp)
+{
+	struct bnxt_hw_health *hw_health = &bp->hw_health;
+
+	netdev_warn(bp->dev, "%s reported at address 0x%x\n", hw_err_str(hw_health->synd),
+		    hw_health->nvm_err_address);
+
+	devlink_health_report(hw_health->hw_reporter, hw_err_str(hw_health->synd), NULL);
+}
+
+static const struct devlink_health_reporter_ops bnxt_dl_hw_reporter_ops = {
+	.name = "hw",
+	.diagnose = bnxt_hw_diagnose,
+	.recover = bnxt_hw_recover,
+};
+
 static struct devlink_health_reporter *
 __bnxt_dl_reporter_create(struct bnxt *bp,
 			  const struct devlink_health_reporter_ops *ops)
@@ -260,6 +323,10 @@ __bnxt_dl_reporter_create(struct bnxt *bp,
 void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct bnxt_hw_health *hw_health = &bp->hw_health;
+
+	if (!hw_health->hw_reporter)
+		hw_health->hw_reporter = __bnxt_dl_reporter_create(bp, &bnxt_dl_hw_reporter_ops);
 
 	if (fw_health && !fw_health->fw_reporter)
 		fw_health->fw_reporter = __bnxt_dl_reporter_create(bp, &bnxt_dl_fw_reporter_ops);
@@ -268,6 +335,12 @@ void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 void bnxt_dl_fw_reporters_destroy(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct bnxt_hw_health *hw_health = &bp->hw_health;
+
+	if (hw_health->hw_reporter) {
+		devlink_health_reporter_destroy(hw_health->hw_reporter);
+		hw_health->hw_reporter = NULL;
+	}
 
 	if (fw_health && fw_health->fw_reporter) {
 		devlink_health_reporter_destroy(fw_health->fw_reporter);

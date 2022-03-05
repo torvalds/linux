@@ -2061,6 +2061,22 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DOORBELL_DROP_THRESHOLD:
 		netdev_warn(bp->dev, "One or more MMIO doorbells dropped by the device!\n");
 		break;
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_NVM: {
+		struct bnxt_hw_health *hw_health = &bp->hw_health;
+
+		hw_health->nvm_err_address = EVENT_DATA2_NVM_ERR_ADDR(data2);
+		if (EVENT_DATA1_NVM_ERR_TYPE_WRITE(data1)) {
+			hw_health->synd = BNXT_HW_STATUS_NVM_WRITE_ERR;
+			hw_health->nvm_write_errors++;
+		} else if (EVENT_DATA1_NVM_ERR_TYPE_ERASE(data1)) {
+			hw_health->synd = BNXT_HW_STATUS_NVM_ERASE_ERR;
+			hw_health->nvm_erase_errors++;
+		} else {
+			hw_health->synd = BNXT_HW_STATUS_NVM_UNKNOWN_ERR;
+		}
+		set_bit(BNXT_FW_NVM_ERR_SP_EVENT, &bp->sp_event);
+		break;
+	}
 	default:
 		netdev_err(bp->dev, "FW reported unknown error type %u\n",
 			   err_type);
@@ -11886,6 +11902,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event))
 		bnxt_fw_echo_reply(bp);
+
+	if (test_and_clear_bit(BNXT_FW_NVM_ERR_SP_EVENT, &bp->sp_event))
+		bnxt_devlink_health_hw_report(bp);
 
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
