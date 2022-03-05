@@ -565,7 +565,7 @@ static struct btree *btree_node_cannibalize(struct bch_fs *c)
 struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
-	struct btree *b;
+	struct btree *b, *b2;
 	u64 start_time = local_clock();
 	unsigned flags;
 
@@ -573,44 +573,46 @@ struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
 	mutex_lock(&bc->lock);
 
 	/*
-	 * btree_free() doesn't free memory; it sticks the node on the end of
-	 * the list. Check if there's any freed nodes there:
-	 */
-	list_for_each_entry(b, &bc->freeable, list)
-		if (!btree_node_reclaim(c, b))
-			goto got_node;
-
-	/*
 	 * We never free struct btree itself, just the memory that holds the on
 	 * disk node. Check the freed list before allocating a new one:
 	 */
 	list_for_each_entry(b, &bc->freed, list)
-		if (!btree_node_reclaim(c, b))
+		if (!btree_node_reclaim(c, b)) {
+			list_del_init(&b->list);
 			goto got_node;
+		}
 
-	b = NULL;
+	b = __btree_node_mem_alloc(c);
+	if (!b)
+		goto err_locked;
+
+	BUG_ON(!six_trylock_intent(&b->c.lock));
+	BUG_ON(!six_trylock_write(&b->c.lock));
 got_node:
-	if (b)
-		list_del_init(&b->list);
+
+	/*
+	 * btree_free() doesn't free memory; it sticks the node on the end of
+	 * the list. Check if there's any freed nodes there:
+	 */
+	list_for_each_entry(b2, &bc->freeable, list)
+		if (!btree_node_reclaim(c, b2)) {
+			swap(b->data, b2->data);
+			swap(b->aux_data, b2->aux_data);
+			list_move(&b2->list, &bc->freed);
+			six_unlock_write(&b2->c.lock);
+			six_unlock_intent(&b2->c.lock);
+			goto got_mem;
+		}
+
 	mutex_unlock(&bc->lock);
 
-	if (!b) {
-		b = __btree_node_mem_alloc(c);
-		if (!b)
-			goto err;
+	if (btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_KERNEL))
+		goto err;
 
-		BUG_ON(!six_trylock_intent(&b->c.lock));
-		BUG_ON(!six_trylock_write(&b->c.lock));
-	}
-
-	if (!b->data) {
-		if (btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_KERNEL))
-			goto err;
-
-		mutex_lock(&bc->lock);
-		bc->used++;
-		mutex_unlock(&bc->lock);
-	}
+	mutex_lock(&bc->lock);
+	bc->used++;
+got_mem:
+	mutex_unlock(&bc->lock);
 
 	BUG_ON(btree_node_hashed(b));
 	BUG_ON(btree_node_dirty(b));
@@ -632,20 +634,24 @@ out:
 	return b;
 err:
 	mutex_lock(&bc->lock);
-
-	if (b) {
-		list_add(&b->list, &bc->freed);
-		six_unlock_write(&b->c.lock);
-		six_unlock_intent(&b->c.lock);
-	}
-
+err_locked:
 	/* Try to cannibalize another cached btree node: */
 	if (bc->alloc_lock == current) {
-		b = btree_node_cannibalize(c);
-		list_del_init(&b->list);
-		mutex_unlock(&bc->lock);
+		b2 = btree_node_cannibalize(c);
+		bch2_btree_node_hash_remove(bc, b2);
 
-		bch2_btree_node_hash_remove(bc, b);
+		if (b) {
+			swap(b->data, b2->data);
+			swap(b->aux_data, b2->aux_data);
+			list_move(&b2->list, &bc->freed);
+			six_unlock_write(&b2->c.lock);
+			six_unlock_intent(&b2->c.lock);
+		} else {
+			b = b2;
+			list_del_init(&b->list);
+		}
+
+		mutex_unlock(&bc->lock);
 
 		trace_btree_node_cannibalize(c);
 		goto out;
