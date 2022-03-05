@@ -586,22 +586,30 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy)
 	return 0;
 }
 
-static struct dphy_drv_data r3568_dphy_drv_data = {
+static struct dphy_drv_data rk3568_dphy_drv_data = {
 	.dev_name = "csi2dphy",
 };
 
-static struct dphy_drv_data r3588_dcphy_drv_data = {
+static struct dphy_drv_data rk3588_dcphy_drv_data = {
 	.dev_name = "csi2dcphy",
+};
+
+static struct dphy_drv_data rv1106_dphy_drv_data = {
+	.dev_name = "csi2dphy",
 };
 
 static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3568-csi2-dphy",
-		.data = &r3568_dphy_drv_data,
+		.data = &rk3568_dphy_drv_data,
 	},
 	{
 		.compatible = "rockchip,rk3588-csi2-dcphy",
-		.data = &r3588_dcphy_drv_data,
+		.data = &rk3588_dcphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rv1106-csi2-dphy",
+		.data = &rv1106_dphy_drv_data,
 	},
 	{}
 };
