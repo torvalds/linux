@@ -166,12 +166,12 @@ btree_key_cache_create(struct bch_fs *c,
 		}
 
 		was_new = false;
+	} else {
+		if (btree_id == BTREE_ID_subvolumes)
+			six_lock_pcpu_alloc(&ck->c.lock);
+		else
+			six_lock_pcpu_free(&ck->c.lock);
 	}
-
-	if (btree_id == BTREE_ID_subvolumes)
-		six_lock_pcpu_alloc(&ck->c.lock);
-	else
-		six_lock_pcpu_free(&ck->c.lock);
 
 	ck->c.level		= 0;
 	ck->c.btree_id		= btree_id;

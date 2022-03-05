@@ -1542,7 +1542,7 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 		closure_sync(&cl);
 	} while (ret);
 
-	b = bch2_btree_node_mem_alloc(c);
+	b = bch2_btree_node_mem_alloc(c, level != 0);
 	bch2_btree_cache_cannibalize_unlock(c);
 
 	BUG_ON(IS_ERR(b));

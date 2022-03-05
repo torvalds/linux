@@ -40,6 +40,14 @@ static inline unsigned btree_cache_can_free(struct btree_cache *bc)
 	return max_t(int, 0, bc->used - bc->reserve);
 }
 
+static void btree_node_to_freedlist(struct btree_cache *bc, struct btree *b)
+{
+	if (b->c.lock.readers)
+		list_move(&b->list, &bc->freed_pcpu);
+	else
+		list_move(&b->list, &bc->freed_nonpcpu);
+}
+
 static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 {
 	struct btree_cache *bc = &c->btree_cache;
@@ -56,7 +64,8 @@ static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 	b->aux_data = NULL;
 
 	bc->used--;
-	list_move(&b->list, &bc->freed);
+
+	btree_node_to_freedlist(bc, b);
 }
 
 static int bch2_btree_cache_cmp_fn(struct rhashtable_compare_arg *arg,
@@ -161,11 +170,6 @@ int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
 
 	b->c.level	= level;
 	b->c.btree_id	= id;
-
-	if (level)
-		six_lock_pcpu_alloc(&b->c.lock);
-	else
-		six_lock_pcpu_free_rcu(&b->c.lock);
 
 	mutex_lock(&bc->lock);
 	ret = __bch2_btree_node_hash_insert(bc, b);
@@ -432,8 +436,10 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 	BUG_ON(atomic_read(&c->btree_cache.dirty));
 
-	while (!list_empty(&bc->freed)) {
-		b = list_first_entry(&bc->freed, struct btree, list);
+	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
+
+	while (!list_empty(&bc->freed_nonpcpu)) {
+		b = list_first_entry(&bc->freed_nonpcpu, struct btree, list);
 		list_del(&b->list);
 		six_lock_pcpu_free(&b->c.lock);
 		kfree(b);
@@ -487,7 +493,8 @@ void bch2_fs_btree_cache_init_early(struct btree_cache *bc)
 	mutex_init(&bc->lock);
 	INIT_LIST_HEAD(&bc->live);
 	INIT_LIST_HEAD(&bc->freeable);
-	INIT_LIST_HEAD(&bc->freed);
+	INIT_LIST_HEAD(&bc->freed_pcpu);
+	INIT_LIST_HEAD(&bc->freed_nonpcpu);
 }
 
 /*
@@ -562,9 +569,12 @@ static struct btree *btree_node_cannibalize(struct bch_fs *c)
 	}
 }
 
-struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
+struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c, bool pcpu_read_locks)
 {
 	struct btree_cache *bc = &c->btree_cache;
+	struct list_head *freed = pcpu_read_locks
+		? &bc->freed_pcpu
+		: &bc->freed_nonpcpu;
 	struct btree *b, *b2;
 	u64 start_time = local_clock();
 	unsigned flags;
@@ -576,7 +586,7 @@ struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
 	 * We never free struct btree itself, just the memory that holds the on
 	 * disk node. Check the freed list before allocating a new one:
 	 */
-	list_for_each_entry(b, &bc->freed, list)
+	list_for_each_entry(b, freed, list)
 		if (!btree_node_reclaim(c, b)) {
 			list_del_init(&b->list);
 			goto got_node;
@@ -585,6 +595,9 @@ struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
 	b = __btree_node_mem_alloc(c);
 	if (!b)
 		goto err_locked;
+
+	if (pcpu_read_locks)
+		six_lock_pcpu_alloc(&b->c.lock);
 
 	BUG_ON(!six_trylock_intent(&b->c.lock));
 	BUG_ON(!six_trylock_write(&b->c.lock));
@@ -598,7 +611,7 @@ got_node:
 		if (!btree_node_reclaim(c, b2)) {
 			swap(b->data, b2->data);
 			swap(b->aux_data, b2->aux_data);
-			list_move(&b2->list, &bc->freed);
+			btree_node_to_freedlist(bc, b2);
 			six_unlock_write(&b2->c.lock);
 			six_unlock_intent(&b2->c.lock);
 			goto got_mem;
@@ -643,7 +656,7 @@ err_locked:
 		if (b) {
 			swap(b->data, b2->data);
 			swap(b->aux_data, b2->aux_data);
-			list_move(&b2->list, &bc->freed);
+			btree_node_to_freedlist(bc, b2);
 			six_unlock_write(&b2->c.lock);
 			six_unlock_intent(&b2->c.lock);
 		} else {
@@ -688,7 +701,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 		return ERR_PTR(-EINTR);
 	}
 
-	b = bch2_btree_node_mem_alloc(c);
+	b = bch2_btree_node_mem_alloc(c, level != 0);
 
 	if (trans && b == ERR_PTR(-ENOMEM)) {
 		trans->memory_allocation_failure = true;

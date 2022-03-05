@@ -443,6 +443,11 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	bch2_flags_to_text(out, bch2_btree_node_flags, b->flags);
 	pr_newline(out);
 
+	pr_buf(out, "pcpu read locks: ");
+	pr_tab(out);
+	pr_buf(out, "%u", b->c.lock.readers != NULL);
+	pr_newline(out);
+
 	pr_buf(out, "written:");
 	pr_tab(out);
 	pr_buf(out, "%u", b->written);

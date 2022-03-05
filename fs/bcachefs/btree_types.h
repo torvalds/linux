@@ -152,7 +152,8 @@ struct btree_cache {
 	struct mutex		lock;
 	struct list_head	live;
 	struct list_head	freeable;
-	struct list_head	freed;
+	struct list_head	freed_pcpu;
+	struct list_head	freed_nonpcpu;
 
 	/* Number of elements in live + freeable lists */
 	unsigned		used;
