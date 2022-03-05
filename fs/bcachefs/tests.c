@@ -15,15 +15,14 @@ static void delete_test_keys(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_extents,
-				      POS_MIN, SPOS_MAX,
-				      BTREE_ITER_ALL_SNAPSHOTS,
+				      SPOS(0, 0, U32_MAX), SPOS_MAX,
+				      0,
 				      NULL);
 	BUG_ON(ret);
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_xattrs,
-				      POS_MIN, SPOS_MAX,
-				      BTREE_ITER_ALL_SNAPSHOTS,
-				      NULL);
+				      SPOS(0, 0, U32_MAX), SPOS_MAX,
+				      0, NULL);
 	BUG_ON(ret);
 }
 
@@ -814,9 +813,8 @@ static int seq_delete(struct bch_fs *c, u64 nr)
 	int ret;
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_xattrs,
-				      POS_MIN, SPOS_MAX,
-				      BTREE_ITER_ALL_SNAPSHOTS,
-				      NULL);
+				      SPOS(0, 0, U32_MAX), SPOS_MAX,
+				      0, NULL);
 	if (ret)
 		bch_err(c, "error in seq_delete: %i", ret);
 	return ret;

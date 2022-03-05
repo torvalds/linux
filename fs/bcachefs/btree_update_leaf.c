@@ -1692,14 +1692,14 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 				  struct bpos start, struct bpos end,
-				  unsigned iter_flags,
+				  unsigned update_flags,
 				  u64 *journal_seq)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT|iter_flags);
+	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT);
 retry:
 	while ((bch2_trans_begin(trans),
 	       (k = bch2_btree_iter_peek(&iter)).k) &&
@@ -1740,9 +1740,9 @@ retry:
 				break;
 		}
 
-		ret   = bch2_trans_update(trans, &iter, &delete, 0) ?:
+		ret   = bch2_trans_update(trans, &iter, &delete, update_flags) ?:
 			bch2_trans_commit(trans, &disk_res, journal_seq,
-					BTREE_INSERT_NOFAIL);
+					  BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(trans->c, &disk_res);
 		if (ret)
 			break;
@@ -1764,10 +1764,10 @@ retry:
  */
 int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    struct bpos start, struct bpos end,
-			    unsigned iter_flags,
+			    unsigned update_flags,
 			    u64 *journal_seq)
 {
 	return bch2_trans_do(c, NULL, journal_seq, 0,
 			     bch2_btree_delete_range_trans(&trans, id, start, end,
-							   iter_flags, journal_seq));
+							   update_flags, journal_seq));
 }
