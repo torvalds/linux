@@ -627,7 +627,8 @@ static int bnxt_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 	int rc;
 
 	if (!(bp->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
-	    !(bp->dcbx_cap & DCB_CAP_DCBX_HOST))
+	    !(bp->dcbx_cap & DCB_CAP_DCBX_HOST) ||
+	    (bp->phy_flags & BNXT_PHY_FL_NO_PAUSE))
 		return -EINVAL;
 
 	if (!my_pfc) {
