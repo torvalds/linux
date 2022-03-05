@@ -2512,6 +2512,7 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 	u8 *kmem = NULL;
 	u32 modify_len;
 	u32 item_len;
+	u8 cmd_err;
 	u16 index;
 	int rc;
 
@@ -2595,6 +2596,8 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 		}
 
 		rc = hwrm_req_send_silent(bp, install);
+		if (!rc)
+			break;
 
 		if (defrag_attempted) {
 			/* We have tried to defragment already in the previous
@@ -2603,15 +2606,20 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 			break;
 		}
 
-		if (rc && ((struct hwrm_err_output *)resp)->cmd_err ==
-		    NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
+		cmd_err = ((struct hwrm_err_output *)resp)->cmd_err;
+
+		switch (cmd_err) {
+		case NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR:
 			install->flags =
 				cpu_to_le16(NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
 
 			rc = hwrm_req_send_silent(bp, install);
+			if (!rc)
+				break;
 
-			if (rc && ((struct hwrm_err_output *)resp)->cmd_err ==
-			    NVM_INSTALL_UPDATE_CMD_ERR_CODE_NO_SPACE) {
+			cmd_err = ((struct hwrm_err_output *)resp)->cmd_err;
+
+			if (cmd_err == NVM_INSTALL_UPDATE_CMD_ERR_CODE_NO_SPACE) {
 				/* FW has cleared NVM area, driver will create
 				 * UPDATE directory and try the flash again
 				 */
@@ -2621,11 +2629,13 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 						      BNX_DIR_TYPE_UPDATE,
 						      BNX_DIR_ORDINAL_FIRST,
 						      0, 0, item_len, NULL, 0);
-			} else if (rc) {
-				netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure rc :%x\n", rc);
+				if (!rc)
+					break;
 			}
-		} else if (rc) {
-			netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure rc :%x\n", rc);
+			fallthrough;
+		default:
+			netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure rc :%x cmd_err :%x\n",
+				   rc, cmd_err);
 		}
 	} while (defrag_attempted && !rc);
 
