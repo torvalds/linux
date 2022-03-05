@@ -2496,6 +2496,48 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	return rc;
 }
 
+static int nvm_update_err_to_stderr(struct net_device *dev, u8 result)
+{
+	switch (result) {
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_TYPE_PARAMETER:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_INDEX_PARAMETER:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INSTALL_DATA_ERROR:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INSTALL_CHECKSUM_ERROR:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_ITEM_NOT_FOUND:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_ITEM_LOCKED:
+		netdev_err(dev, "PKG install error : Data integrity on NVM\n");
+		return -EINVAL;
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_PREREQUISITE:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_FILE_HEADER:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_SIGNATURE:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_PROP_STREAM:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_PROP_LENGTH:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_MANIFEST:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_TRAILER:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_CHECKSUM:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_ITEM_CHECKSUM:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_DATA_LENGTH:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INVALID_DIRECTIVE:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_DUPLICATE_ITEM:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_ZERO_LENGTH_ITEM:
+		netdev_err(dev, "PKG install error : Invalid package\n");
+		return -ENOPKG;
+	case NVM_INSTALL_UPDATE_RESP_RESULT_INSTALL_AUTHENTICATION_ERROR:
+		netdev_err(dev, "PKG install error : Authentication error\n");
+		return -EPERM;
+	case NVM_INSTALL_UPDATE_RESP_RESULT_UNSUPPORTED_CHIP_REV:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_UNSUPPORTED_DEVICE_ID:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_UNSUPPORTED_SUBSYS_VENDOR:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_UNSUPPORTED_SUBSYS_ID:
+	case NVM_INSTALL_UPDATE_RESP_RESULT_UNSUPPORTED_PLATFORM:
+		netdev_err(dev, "PKG install error : Invalid device\n");
+		return -EOPNOTSUPP;
+	default:
+		netdev_err(dev, "PKG install error : Internal error\n");
+		return -EIO;
+	}
+}
+
 #define BNXT_PKG_DMA_SIZE	0x40000
 #define BNXT_NVM_MORE_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_MODE))
 #define BNXT_NVM_LAST_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_LAST))
@@ -2650,7 +2692,7 @@ pkg_abort:
 	if (resp->result) {
 		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
 			   (s8)resp->result, (int)resp->problem_item);
-		rc = -ENOPKG;
+		rc = nvm_update_err_to_stderr(dev, resp->result);
 	}
 	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
