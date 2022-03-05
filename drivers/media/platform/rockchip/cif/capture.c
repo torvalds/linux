@@ -2372,6 +2372,11 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 						       channel->id);
 	if (mbus_type  == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_type  == V4L2_MBUS_CSI2_CPHY) {
+
+		if (stream->cifdev->hdr.esp.mode == HDR_LINE_CNT ||
+		    stream->cifdev->hdr.esp.mode == HDR_ID_CODE)
+			channel->vc = 0;
+
 		val = CSI_ENABLE_CAPTURE | dma_en |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
 		      channel->vc << 8 | channel->data_type << 10 |
@@ -7305,8 +7310,12 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 	unsigned int intstat_glb = 0;
 
 	intstat_glb = rkcif_read_register(cif_dev, CIF_REG_GLB_INTST);
-	if (intstat_glb)
+	if (intstat_glb) {
 		rkcif_write_register(cif_dev, CIF_REG_GLB_INTST, intstat_glb);
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+			 "intstat_glb 0x%x\n",
+			 intstat_glb);
+	}
 
 	if (intstat_glb & SCALE_TOISP_AXI0_ERR) {
 		v4l2_err(&cif_dev->v4l2_dev,
@@ -7321,9 +7330,6 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 		return 0;
 	}
 	rkcif_irq_handle_scale(cif_dev, intstat_glb);
-	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
-		 "intstat_glb 0x%x\n",
-		 intstat_glb);
 	return intstat_glb;
 }
 
