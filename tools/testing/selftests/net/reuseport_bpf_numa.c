@@ -86,7 +86,7 @@ static void attach_bpf(int fd)
 
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	attr.insn_cnt = sizeof(prog) / sizeof(prog[0]);
+	attr.insn_cnt = ARRAY_SIZE(prog);
 	attr.insns = (unsigned long) &prog;
 	attr.license = (unsigned long) &bpf_license;
 	attr.log_buf = (unsigned long) &bpf_log_buf;
