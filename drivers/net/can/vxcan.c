@@ -63,7 +63,7 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->ip_summed  = CHECKSUM_UNNECESSARY;
 
 	len = cfd->can_id & CAN_RTR_FLAG ? 0 : cfd->len;
-	if (netif_rx_ni(skb) == NET_RX_SUCCESS) {
+	if (netif_rx(skb) == NET_RX_SUCCESS) {
 		srcstats->tx_packets++;
 		srcstats->tx_bytes += len;
 		peerstats = &peer->stats;

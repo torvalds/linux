@@ -284,7 +284,7 @@ int can_send(struct sk_buff *skb, int loop)
 	}
 
 	if (newskb)
-		netif_rx_ni(newskb);
+		netif_rx(newskb);
 
 	/* update statistics */
 	pkg_stats->tx_frames++;

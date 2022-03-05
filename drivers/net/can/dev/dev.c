@@ -154,7 +154,7 @@ static void can_restart(struct net_device *dev)
 
 	cf->can_id |= CAN_ERR_RESTARTED;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 restart:
 	netdev_dbg(dev, "restarted\n");
