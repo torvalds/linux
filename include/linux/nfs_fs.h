@@ -46,11 +46,6 @@
 #define NFS_MAX_TRANSPORTS 16
 
 /*
- * These are the default flags for swap requests
- */
-#define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
-
-/*
  * Size of the NFS directory verifier
  */
 #define NFS_DIR_VERIFIER_SIZE		2
