@@ -718,6 +718,11 @@ int intel_gt_init(struct intel_gt *gt)
 	if (err)
 		goto err_uc_init;
 
+	err = intel_gt_init_hwconfig(gt);
+	if (err)
+		drm_err(&gt->i915->drm, "Failed to retrieve hwconfig table: %pe\n",
+			ERR_PTR(err));
+
 	err = __engines_record_defaults(gt);
 	if (err)
 		goto err_gt;
@@ -799,6 +804,7 @@ void intel_gt_driver_release(struct intel_gt *gt)
 	intel_gt_pm_fini(gt);
 	intel_gt_fini_scratch(gt);
 	intel_gt_fini_buffer_pool(gt);
+	intel_gt_fini_hwconfig(gt);
 }
 
 void intel_gt_driver_late_release(struct intel_gt *gt)

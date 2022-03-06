@@ -187,6 +187,7 @@ i915-y += gt/uc/intel_uc.o \
 	  gt/uc/intel_guc_ct.o \
 	  gt/uc/intel_guc_debugfs.o \
 	  gt/uc/intel_guc_fw.o \
+	  gt/uc/intel_guc_hwconfig.o \
 	  gt/uc/intel_guc_log.o \
 	  gt/uc/intel_guc_log_debugfs.o \
 	  gt/uc/intel_guc_rc.o \

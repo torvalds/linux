@@ -20,6 +20,7 @@
 #include "i915_vma.h"
 #include "intel_engine_types.h"
 #include "intel_gt_buffer_pool_types.h"
+#include "intel_hwconfig.h"
 #include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
@@ -204,6 +205,9 @@ struct intel_gt {
 		struct sseu_dev_info sseu;
 
 		unsigned long mslice_mask;
+
+		/** @hwconfig: hardware configuration data */
+		struct intel_hwconfig hwconfig;
 	} info;
 
 	struct {
