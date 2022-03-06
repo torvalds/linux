@@ -424,7 +424,7 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	}
 
 	priv->ipsec = ipsec;
-	mlx5e_accel_ipsec_fs_init(priv);
+	mlx5e_accel_ipsec_fs_init(ipsec);
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
 	return 0;
 }
@@ -436,7 +436,7 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 	if (!ipsec)
 		return;
 
-	mlx5e_accel_ipsec_fs_cleanup(priv);
+	mlx5e_accel_ipsec_fs_cleanup(ipsec);
 	destroy_workqueue(ipsec->wq);
 
 	kfree(ipsec);

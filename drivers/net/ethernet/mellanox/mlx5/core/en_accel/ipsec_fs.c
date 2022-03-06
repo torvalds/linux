@@ -632,81 +632,54 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
 		tx_del_rule(priv, ipsec_rule);
 }
 
-static void fs_cleanup_tx(struct mlx5e_priv *priv)
-{
-	mutex_destroy(&priv->ipsec->tx_fs->mutex);
-	WARN_ON(priv->ipsec->tx_fs->refcnt);
-	kfree(priv->ipsec->tx_fs);
-	priv->ipsec->tx_fs = NULL;
-}
-
-static void fs_cleanup_rx(struct mlx5e_priv *priv)
+void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
 {
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5e_accel_fs_esp *accel_esp;
 	enum accel_fs_esp_type i;
 
-	accel_esp = priv->ipsec->rx_fs;
+	if (!ipsec->rx_fs)
+		return;
+
+	mutex_destroy(&ipsec->tx_fs->mutex);
+	WARN_ON(ipsec->tx_fs->refcnt);
+	kfree(ipsec->tx_fs);
+
+	accel_esp = ipsec->rx_fs;
 	for (i = 0; i < ACCEL_FS_ESP_NUM_TYPES; i++) {
 		fs_prot = &accel_esp->fs_prot[i];
 		mutex_destroy(&fs_prot->prot_mutex);
 		WARN_ON(fs_prot->refcnt);
 	}
-	kfree(priv->ipsec->rx_fs);
-	priv->ipsec->rx_fs = NULL;
+	kfree(ipsec->rx_fs);
 }
 
-static int fs_init_tx(struct mlx5e_priv *priv)
-{
-	priv->ipsec->tx_fs =
-		kzalloc(sizeof(struct mlx5e_ipsec_tx), GFP_KERNEL);
-	if (!priv->ipsec->tx_fs)
-		return -ENOMEM;
-
-	mutex_init(&priv->ipsec->tx_fs->mutex);
-	return 0;
-}
-
-static int fs_init_rx(struct mlx5e_priv *priv)
+int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 {
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5e_accel_fs_esp *accel_esp;
 	enum accel_fs_esp_type i;
+	int err = -ENOMEM;
 
-	priv->ipsec->rx_fs =
-		kzalloc(sizeof(struct mlx5e_accel_fs_esp), GFP_KERNEL);
-	if (!priv->ipsec->rx_fs)
+	ipsec->tx_fs = kzalloc(sizeof(*ipsec->tx_fs), GFP_KERNEL);
+	if (!ipsec->tx_fs)
 		return -ENOMEM;
 
-	accel_esp = priv->ipsec->rx_fs;
+	ipsec->rx_fs = kzalloc(sizeof(*ipsec->rx_fs), GFP_KERNEL);
+	if (!ipsec->rx_fs)
+		goto err_rx;
+
+	mutex_init(&ipsec->tx_fs->mutex);
+
+	accel_esp = ipsec->rx_fs;
 	for (i = 0; i < ACCEL_FS_ESP_NUM_TYPES; i++) {
 		fs_prot = &accel_esp->fs_prot[i];
 		mutex_init(&fs_prot->prot_mutex);
 	}
 
 	return 0;
-}
 
-void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv)
-{
-	if (!priv->ipsec->rx_fs)
-		return;
-
-	fs_cleanup_tx(priv);
-	fs_cleanup_rx(priv);
-}
-
-int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv)
-{
-	int err;
-
-	err = fs_init_tx(priv);
-	if (err)
-		return err;
-
-	err = fs_init_rx(priv);
-	if (err)
-		fs_cleanup_tx(priv);
-
+err_rx:
+	kfree(ipsec->tx_fs);
 	return err;
 }

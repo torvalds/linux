@@ -9,8 +9,8 @@
 #include "ipsec_offload.h"
 #include "en/fs.h"
 
-void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv);
-int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv);
+void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec);
+int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 				  struct mlx5_accel_esp_xfrm_attrs *attrs,
 				  u32 ipsec_obj_id,
