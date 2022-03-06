@@ -11,8 +11,10 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/minmax.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
+#include <linux/string.h>
 
 #include "rkisp1-common.h"
 #include "rkisp1-regs.h"
@@ -28,10 +30,14 @@ struct rkisp1_debug_register {
 	RKISP1_CIF_##name, RKISP1_CIF_##name##_SHD, #name \
 }
 
+/* Keep this up-to-date when adding new registers. */
+#define RKISP1_MAX_REG_LENGTH		21
+
 static int rkisp1_debug_dump_regs(struct rkisp1_device *rkisp1,
 				  struct seq_file *m, unsigned int offset,
 				  const struct rkisp1_debug_register *regs)
 {
+	const int width = RKISP1_MAX_REG_LENGTH;
 	u32 val, shd;
 	int ret;
 
@@ -39,15 +45,15 @@ static int rkisp1_debug_dump_regs(struct rkisp1_device *rkisp1,
 	if (ret <= 0)
 		return ret ? : -ENODATA;
 
-	for ( ; regs->name; ++regs) {
+	for (; regs->name; ++regs) {
 		val = rkisp1_read(rkisp1, offset + regs->reg);
 
 		if (regs->shd) {
 			shd = rkisp1_read(rkisp1, offset + regs->shd);
-			seq_printf(m, "%14s: 0x%08x/0x%08x\n", regs->name,
+			seq_printf(m, "%*s: 0x%08x/0x%08x\n", width, regs->name,
 				   val, shd);
 		} else {
-			seq_printf(m, "%14s: 0x%08x\n", regs->name, val);
+			seq_printf(m, "%*s: 0x%08x\n", width, regs->name, val);
 		}
 	}
 
