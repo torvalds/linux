@@ -81,14 +81,18 @@ ifneq ($(call cc-option,-mstack-size=8192 -mstack-guard=128),)
 endif
 
 ifdef CONFIG_EXPOLINE
-  ifneq ($(call cc-option,$(CC_FLAGS_MARCH) -mindirect-branch=thunk),)
+  ifdef CONFIG_EXPOLINE_EXTERN
+    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline.o
+    CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern
+    CC_FLAGS_EXPOLINE += -mfunction-return=thunk-extern
+  else
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk
-    CC_FLAGS_EXPOLINE += -mindirect-branch-table
-    export CC_FLAGS_EXPOLINE
-    cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
-    aflags-y += -DCC_USING_EXPOLINE
   endif
+  CC_FLAGS_EXPOLINE += -mindirect-branch-table
+  export CC_FLAGS_EXPOLINE
+  cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
+  aflags-y += -DCC_USING_EXPOLINE
 endif
 
 ifdef CONFIG_FUNCTION_TRACER

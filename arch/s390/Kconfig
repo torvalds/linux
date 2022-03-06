@@ -585,6 +585,7 @@ config KERNEL_NOBP
 
 config EXPOLINE
 	def_bool n
+	depends on $(cc-option,-mindirect-branch=thunk)
 	prompt "Avoid speculative indirect branches in the kernel"
 	help
 	  Compile the kernel with the expoline compiler options to guard
@@ -592,6 +593,20 @@ config EXPOLINE
 	  branches.
 	  Requires a compiler with -mindirect-branch=thunk support for full
 	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+config EXPOLINE_EXTERN
+	def_bool n
+	depends on EXPOLINE
+	depends on HAVE_MARCH_Z10_FEATURES
+	depends on CC_IS_GCC && GCC_VERSION >= 110200
+	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
+	prompt "Generate expolines as extern functions."
+	help
+	  This option is required for some tooling like kpatch. The kernel is
+	  compiled with -mindirect-branch=thunk-extern and requires a newer
+	  compiler.
 
 	  If unsure, say N.
 

@@ -18,7 +18,11 @@ _LC_BR_R1 = __LC_BR_R1
  * the various thunks are merged into a single copy.
  */
 	.macro __THUNK_PROLOG_NAME name
+#ifdef CONFIG_EXPOLINE_EXTERN
+	.pushsection .text,"ax",@progbits
+#else
 	.pushsection .text.\name,"axG",@progbits,\name,comdat
+#endif
 	.globl \name
 	.hidden \name
 	.type \name,@function
@@ -115,7 +119,13 @@ _LC_BR_R1 = __LC_BR_R1
 555:	br	\reg
 	.endm
 
+#ifdef CONFIG_EXPOLINE_EXTERN
 	.macro GEN_BR_THUNK reg,ruse=%r1
+	.endm
+	.macro GEN_BR_THUNK_EXTERN reg,ruse=%r1
+#else
+	.macro GEN_BR_THUNK reg,ruse=%r1
+#endif
 	__DECODE_RR __THUNK_PROLOG_BR,\reg,\ruse
 	__THUNK_EX_BR \reg,\ruse
 	__THUNK_EPILOG
