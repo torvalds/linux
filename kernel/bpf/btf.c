@@ -5057,6 +5057,8 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		tag_value = __btf_name_by_offset(btf, t->name_off);
 		if (strcmp(tag_value, "user") == 0)
 			info->reg_type |= MEM_USER;
+		if (strcmp(tag_value, "percpu") == 0)
+			info->reg_type |= MEM_PERCPU;
 	}
 
 	/* skip modifiers */
@@ -5285,12 +5287,16 @@ error:
 				return -EACCES;
 			}
 
-			/* check __user tag */
+			/* check type tag */
 			t = btf_type_by_id(btf, mtype->type);
 			if (btf_type_is_type_tag(t)) {
 				tag_value = __btf_name_by_offset(btf, t->name_off);
+				/* check __user tag */
 				if (strcmp(tag_value, "user") == 0)
 					tmp_flag = MEM_USER;
+				/* check __percpu tag */
+				if (strcmp(tag_value, "percpu") == 0)
+					tmp_flag = MEM_PERCPU;
 			}
 
 			stype = btf_type_skip_modifiers(btf, mtype->type, &id);
