@@ -78,7 +78,7 @@ static int gdm_lte_rx(struct sk_buff *skb, struct nic *nic, int nic_type)
 {
 	int ret;
 
-	ret = netif_rx_ni(skb);
+	ret = netif_rx(skb);
 	if (ret == NET_RX_DROP) {
 		nic->stats.rx_dropped++;
 	} else {
