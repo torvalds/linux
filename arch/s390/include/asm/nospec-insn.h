@@ -20,6 +20,7 @@ _LC_BR_R1 = __LC_BR_R1
 	.macro __THUNK_PROLOG_NAME name
 #ifdef CONFIG_EXPOLINE_EXTERN
 	.pushsection .text,"ax",@progbits
+	.align 16,0x07
 #else
 	.pushsection .text.\name,"axG",@progbits,\name,comdat
 #endif
@@ -30,14 +31,21 @@ _LC_BR_R1 = __LC_BR_R1
 	CFI_STARTPROC
 	.endm
 
-	.macro __THUNK_EPILOG
+	.macro __THUNK_EPILOG_NAME name
 	CFI_ENDPROC
+#ifdef CONFIG_EXPOLINE_EXTERN
+	.size \name, .-\name
+#endif
 	.popsection
 	.endm
 
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	.macro __THUNK_PROLOG_BR r1,r2
 	__THUNK_PROLOG_NAME __s390_indirect_jump_r\r1
+	.endm
+
+	.macro __THUNK_EPILOG_BR r1,r2
+	__THUNK_EPILOG_NAME __s390_indirect_jump_r\r1
 	.endm
 
 	.macro __THUNK_BR r1,r2
@@ -50,6 +58,10 @@ _LC_BR_R1 = __LC_BR_R1
 #else
 	.macro __THUNK_PROLOG_BR r1,r2
 	__THUNK_PROLOG_NAME __s390_indirect_jump_r\r2\()use_r\r1
+	.endm
+
+	.macro __THUNK_EPILOG_BR r1,r2
+	__THUNK_EPILOG_NAME __s390_indirect_jump_r\r2\()use_r\r1
 	.endm
 
 	.macro __THUNK_BR r1,r2
@@ -128,7 +140,7 @@ _LC_BR_R1 = __LC_BR_R1
 #endif
 	__DECODE_RR __THUNK_PROLOG_BR,\reg,\ruse
 	__THUNK_EX_BR \reg,\ruse
-	__THUNK_EPILOG
+	__DECODE_RR __THUNK_EPILOG_BR,\reg,\ruse
 	.endm
 
 	.macro BR_EX reg,ruse=%r1
