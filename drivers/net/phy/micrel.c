@@ -2034,8 +2034,6 @@ static bool lan8814_match_rx_ts(struct kszphy_ptp_priv *ptp_priv,
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 		shhwtstamps->hwtstamp = ktime_set(rx_ts->seconds,
 						  rx_ts->nsec);
-		netif_rx(skb);
-
 		list_del(&rx_ts->list);
 		kfree(rx_ts);
 
@@ -2044,6 +2042,8 @@ static bool lan8814_match_rx_ts(struct kszphy_ptp_priv *ptp_priv,
 	}
 	spin_unlock_irqrestore(&ptp_priv->rx_ts_lock, flags);
 
+	if (ret)
+		netif_rx(skb);
 	return ret;
 }
 
