@@ -126,6 +126,7 @@ struct rockchip_dmcfreq {
 	unsigned long *nocp_bw;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
+	unsigned long sleep_volt;
 	unsigned long auto_min_rate;
 	unsigned long status_rate;
 	unsigned long normal_rate;
@@ -1804,6 +1805,8 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
+	struct dev_pm_opp *opp;
+	unsigned long opp_rate;
 	int ret;
 	int complt_irq;
 
@@ -1862,6 +1865,16 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 		return ret;
 	}
 	dmcfreq->is_set_rate_direct = true;
+
+	/* Config the dmcfreq->sleep_volt for deepsleep */
+	opp_rate = dmcfreq->freq_info_rate[dmcfreq->freq_count - 1];
+	opp = devfreq_recommended_opp(&pdev->dev, &opp_rate, 0);
+	if (IS_ERR(opp)) {
+		dev_err(&pdev->dev, "Failed to find opp for %lu Hz\n", opp_rate);
+		return PTR_ERR(opp);
+	}
+	dmcfreq->sleep_volt = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
@@ -2963,7 +2976,7 @@ static void rockchip_dmcfreq_input_event(struct input_handle *handle,
 		return;
 	dmcfreq->touchboostpulse_endtime = endtime;
 
-	schedule_work(&dmcfreq->boost_work);
+	queue_work(system_freezable_wq, &dmcfreq->boost_work);
 }
 
 static int rockchip_dmcfreq_input_connect(struct input_handler *handler,
@@ -3243,6 +3256,15 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 		return ret;
 	}
 
+	/* set vdd_center voltage to sleep_volt if need */
+	if (dmcfreq->sleep_volt && dmcfreq->sleep_volt != dmcfreq->volt) {
+		ret = regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->sleep_volt, INT_MAX);
+		if (ret) {
+			dev_err(dev, "Cannot set voltage %lu uV\n", dmcfreq->sleep_volt);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -3253,6 +3275,15 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 
 	if (!dmcfreq)
 		return 0;
+
+	/* restore vdd_center voltage if it is sleep_volt */
+	if (dmcfreq->sleep_volt && dmcfreq->sleep_volt != dmcfreq->volt) {
+		ret = regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt, INT_MAX);
+		if (ret) {
+			dev_err(dev, "Cannot set voltage %lu uV\n", dmcfreq->volt);
+			return ret;
+		}
+	}
 
 	ret = rockchip_dmcfreq_enable_event(dmcfreq);
 	if (ret)
