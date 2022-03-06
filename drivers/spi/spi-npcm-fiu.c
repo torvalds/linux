@@ -201,7 +201,7 @@ struct fiu_data {
 	int fiu_max;
 };
 
-static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
+static const struct npcm_fiu_info npcm7xx_fiu_info[] = {
 	{.name = "FIU0", .fiu_id = FIU0,
 		.max_map_size = MAP_SIZE_128MB, .max_cs = 2},
 	{.name = "FIU3", .fiu_id = FIU3,
@@ -209,8 +209,8 @@ static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
 	{.name = "FIUX", .fiu_id = FIUX,
 		.max_map_size = MAP_SIZE_16MB, .max_cs = 2} };
 
-static const struct fiu_data npxm7xx_fiu_data = {
-	.npcm_fiu_data_info = npxm7xx_fiu_info,
+static const struct fiu_data npcm7xx_fiu_data = {
+	.npcm_fiu_data_info = npcm7xx_fiu_info,
 	.fiu_max = 3,
 };
 
@@ -664,7 +664,7 @@ static const struct spi_controller_mem_ops npcm_fiu_mem_ops = {
 };
 
 static const struct of_device_id npcm_fiu_dt_ids[] = {
-	{ .compatible = "nuvoton,npcm750-fiu", .data = &npxm7xx_fiu_data  },
+	{ .compatible = "nuvoton,npcm750-fiu", .data = &npcm7xx_fiu_data  },
 	{ /* sentinel */ }
 };
 
