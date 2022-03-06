@@ -1341,7 +1341,11 @@ gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 static struct rpc_cred *
 gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	return rpcauth_lookup_credcache(auth, acred, flags, GFP_KERNEL);
+	gfp_t gfp = GFP_KERNEL;
+
+	if (flags & RPCAUTH_LOOKUP_ASYNC)
+		gfp = GFP_NOWAIT | __GFP_NOWARN;
+	return rpcauth_lookup_credcache(auth, acred, flags, gfp);
 }
 
 static struct rpc_cred *

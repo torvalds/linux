@@ -43,8 +43,14 @@ unx_destroy(struct rpc_auth *auth)
 static struct rpc_cred *
 unx_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	struct rpc_cred *ret = mempool_alloc(unix_pool, GFP_KERNEL);
+	gfp_t gfp = GFP_KERNEL;
+	struct rpc_cred *ret;
 
+	if (flags & RPCAUTH_LOOKUP_ASYNC)
+		gfp = GFP_NOWAIT | __GFP_NOWARN;
+	ret = mempool_alloc(unix_pool, gfp);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
 	rpcauth_init_cred(ret, acred, auth, &unix_credops);
 	ret->cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 	return ret;
