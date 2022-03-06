@@ -101,8 +101,14 @@ STRTO_H(strtou64, u64)
 
 static int bch2_printbuf_realloc(struct printbuf *out, unsigned extra)
 {
-	unsigned new_size = roundup_pow_of_two(out->size + extra);
-	char *buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_ATOMIC);
+	unsigned new_size;
+	char *buf;
+
+	if (out->pos + extra + 1 < out->size)
+		return 0;
+
+	new_size = roundup_pow_of_two(out->size + extra);
+	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_ATOMIC);
 
 	if (!buf) {
 		out->allocation_failure = true;
@@ -129,6 +135,33 @@ void bch2_pr_buf(struct printbuf *out, const char *fmt, ...)
 	len = min_t(size_t, len,
 		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
 	out->pos += len;
+}
+
+void bch2_pr_tab_rjust(struct printbuf *buf)
+{
+	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
+
+	if (printbuf_linelen(buf) < buf->tabstops[buf->tabstop]) {
+		unsigned move = buf->pos - buf->last_field;
+		unsigned shift = buf->tabstops[buf->tabstop] -
+			printbuf_linelen(buf);
+
+		bch2_printbuf_realloc(buf, shift);
+
+		if (buf->last_field + shift + 1 < buf->size) {
+			move = min(move, buf->size - 1 - buf->last_field - shift);
+
+			memmove(buf->buf + buf->last_field + shift,
+				buf->buf + buf->last_field,
+				move);
+			memset(buf->buf + buf->last_field, ' ', shift);
+			buf->pos += shift;
+			buf->buf[buf->pos] = 0;
+		}
+	}
+
+	buf->last_field = buf->pos;
+	buf->tabstop++;
 }
 
 void bch2_hprint(struct printbuf *buf, s64 v)

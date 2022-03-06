@@ -334,27 +334,11 @@ static inline void pr_tab(struct printbuf *buf)
 	buf->tabstop++;
 }
 
+void bch2_pr_tab_rjust(struct printbuf *);
+
 static inline void pr_tab_rjust(struct printbuf *buf)
 {
-	ssize_t shift = min_t(ssize_t, buf->tabstops[buf->tabstop] -
-			      printbuf_linelen(buf),
-			      printbuf_remaining(buf));
-	ssize_t move = min_t(ssize_t, buf->pos - buf->last_field,
-			     printbuf_remaining(buf) - shift);
-
-	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
-
-	if (shift > 0) {
-		memmove(buf->buf + buf->last_field + shift,
-			buf->buf + buf->last_field,
-			move);
-		memset(buf->buf + buf->last_field, ' ', shift);
-		buf->pos += shift;
-		buf->buf[buf->pos] = 0;
-	}
-
-	buf->last_field = buf->pos;
-	buf->tabstop++;
+	bch2_pr_tab_rjust(buf);
 }
 
 void bch2_pr_units(struct printbuf *, s64, s64);
