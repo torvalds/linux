@@ -341,8 +341,8 @@ KABI_W	_bbsi.l	a2, 3, 1f
 	/* Copy spill slots of a0 and a1 to imitate movsp
 	 * in order to keep exception stack continuous
 	 */
-	l32i	a3, a1, PT_SIZE
-	l32i	a0, a1, PT_SIZE + 4
+	l32i	a3, a1, PT_KERNEL_SIZE
+	l32i	a0, a1, PT_KERNEL_SIZE + 4
 	s32e	a3, a1, -16
 	s32e	a0, a1, -12
 #endif
@@ -706,12 +706,12 @@ kernel_exception_exit:
 	addi    a0, a1, -16
 	l32i    a3, a0, 0
 	l32i    a4, a0, 4
-	s32i    a3, a1, PT_SIZE+0
-	s32i    a4, a1, PT_SIZE+4
+	s32i    a3, a1, PT_KERNEL_SIZE + 0
+	s32i    a4, a1, PT_KERNEL_SIZE + 4
 	l32i    a3, a0, 8
 	l32i    a4, a0, 12
-	s32i    a3, a1, PT_SIZE+8
-	s32i    a4, a1, PT_SIZE+12
+	s32i    a3, a1, PT_KERNEL_SIZE + 8
+	s32i    a4, a1, PT_KERNEL_SIZE + 12
 
 	/* Common exception exit.
 	 * We restore the special register and the current window frame, and
@@ -821,7 +821,7 @@ ENTRY(debug_exception)
 
 	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
-	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
+	addi	a2, a1, -16 - PT_KERNEL_SIZE	# assume kernel stack
 3:
 	l32i	a0, a3, DT_DEBUG_SAVE
 	s32i	a1, a2, PT_AREG1
