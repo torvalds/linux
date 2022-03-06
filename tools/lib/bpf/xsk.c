@@ -481,8 +481,8 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt[] = {sizeof(prog) / sizeof(struct bpf_insn),
-			      sizeof(prog_redirect_flags) / sizeof(struct bpf_insn),
+	size_t insns_cnt[] = {ARRAY_SIZE(prog),
+			      ARRAY_SIZE(prog_redirect_flags),
 	};
 	struct bpf_insn *progs[] = {prog, prog_redirect_flags};
 	enum xsk_prog option = get_xsk_prog();

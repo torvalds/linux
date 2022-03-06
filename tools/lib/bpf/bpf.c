@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
 #include <limits.h>
 #include <sys/resource.h>
 #include "bpf.h"
@@ -111,7 +112,7 @@ int probe_memcg_account(void)
 		BPF_EMIT_CALL(BPF_FUNC_ktime_get_coarse_ns),
 		BPF_EXIT_INSN(),
 	};
-	size_t insn_cnt = sizeof(insns) / sizeof(insns[0]);
+	size_t insn_cnt = ARRAY_SIZE(insns);
 	union bpf_attr attr;
 	int prog_fd;
 
