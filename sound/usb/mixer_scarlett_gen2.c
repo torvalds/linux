@@ -60,6 +60,7 @@
  *  - phantom power, direct monitor, speaker switching, and talkback
  *    controls
  *  - disable/enable MSD mode
+ *  - disable/enable standalone mode
  *
  * <ditaa>
  *    /--------------\    18chn            20chn     /--------------\
@@ -411,6 +412,7 @@ struct scarlett2_data {
 	u8 talkback_switch;
 	u8 talkback_map[SCARLETT2_OUTPUT_MIX_MAX];
 	u8 msd_switch;
+	u8 standalone_switch;
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
 	struct snd_kcontrol *vol_ctls[SCARLETT2_ANALOGUE_MAX];
@@ -936,13 +938,14 @@ enum {
 	SCARLETT2_CONFIG_PAD_SWITCH = 5,
 	SCARLETT2_CONFIG_MSD_SWITCH = 6,
 	SCARLETT2_CONFIG_AIR_SWITCH = 7,
-	SCARLETT2_CONFIG_PHANTOM_SWITCH = 8,
-	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 9,
-	SCARLETT2_CONFIG_DIRECT_MONITOR = 10,
-	SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH = 11,
-	SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE = 12,
-	SCARLETT2_CONFIG_TALKBACK_MAP = 13,
-	SCARLETT2_CONFIG_COUNT = 14
+	SCARLETT2_CONFIG_STANDALONE_SWITCH = 8,
+	SCARLETT2_CONFIG_PHANTOM_SWITCH = 9,
+	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 10,
+	SCARLETT2_CONFIG_DIRECT_MONITOR = 11,
+	SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH = 12,
+	SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE = 13,
+	SCARLETT2_CONFIG_TALKBACK_MAP = 14,
+	SCARLETT2_CONFIG_COUNT = 15
 };
 
 /* Location, size, and activation command number for the configuration
@@ -998,6 +1001,9 @@ static const struct scarlett2_config
 	[SCARLETT2_CONFIG_PAD_SWITCH] = {
 		.offset = 0x84, .size = 8, .activate = 8 },
 
+	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
+		.offset = 0x8d, .size = 8, .activate = 6 },
+
 /* Gen 3 devices: 4i4, 8i6, 18i8, 18i20 */
 }, {
 	[SCARLETT2_CONFIG_DIM_MUTE] = {
@@ -1020,6 +1026,9 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_AIR_SWITCH] = {
 		.offset = 0x8c, .size = 8, .activate = 8 },
+
+	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
+		.offset = 0x95, .size = 8, .activate = 6 },
 
 	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
 		.offset = 0x9c, .size = 1, .activate = 8 },
@@ -3502,6 +3511,69 @@ static int scarlett2_add_msd_ctl(struct usb_mixer_interface *mixer)
 				     0, 1, "MSD Mode Switch", NULL);
 }
 
+/*** Standalone Control ***/
+
+static int scarlett2_standalone_ctl_get(struct snd_kcontrol *kctl,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.integer.value[0] = private->standalone_switch;
+	return 0;
+}
+
+static int scarlett2_standalone_ctl_put(struct snd_kcontrol *kctl,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->standalone_switch;
+	val = !!ucontrol->value.integer.value[0];
+
+	if (oval == val)
+		goto unlock;
+
+	private->standalone_switch = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(mixer,
+				       SCARLETT2_CONFIG_STANDALONE_SWITCH,
+				       0, val);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_standalone_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = snd_ctl_boolean_mono_info,
+	.get  = scarlett2_standalone_ctl_get,
+	.put  = scarlett2_standalone_ctl_put,
+};
+
+static int scarlett2_add_standalone_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+		return 0;
+
+	/* Add standalone control */
+	return scarlett2_add_new_ctl(mixer, &scarlett2_standalone_ctl,
+				     0, 1, "Standalone Switch", NULL);
+}
+
 /*** Cleanup/Suspend Callbacks ***/
 
 static void scarlett2_private_free(struct usb_mixer_interface *mixer)
@@ -3662,6 +3734,12 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	/* the rest of the configuration is for devices with a mixer */
 	if (info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
 		return 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_STANDALONE_SWITCH,
+		1, &private->standalone_switch);
+	if (err < 0)
+		return err;
 
 	err = scarlett2_update_sync(mixer);
 	if (err < 0)
@@ -3982,6 +4060,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 
 	/* Create the talkback controls */
 	err = scarlett2_add_talkback_ctls(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the standalone control */
+	err = scarlett2_add_standalone_ctl(mixer);
 	if (err < 0)
 		return err;
 
