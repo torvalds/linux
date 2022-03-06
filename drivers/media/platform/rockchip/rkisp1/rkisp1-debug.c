@@ -19,16 +19,20 @@
 
 struct rkisp1_debug_register {
 	u32 reg;
+	u32 shd;
 	const char * const name;
 };
 
-#define RKISP1_DEBUG_REG(name)	{ RKISP1_CIF_##name, #name }
+#define RKISP1_DEBUG_REG(name)		{ RKISP1_CIF_##name, 0, #name }
+#define RKISP1_DEBUG_SHD_REG(name) { \
+	RKISP1_CIF_##name, RKISP1_CIF_##name##_SHD, #name \
+}
 
-static int rkisp1_debug_dump_regs(struct seq_file *m,
+static int rkisp1_debug_dump_regs(struct rkisp1_device *rkisp1,
+				  struct seq_file *m, unsigned int offset,
 				  const struct rkisp1_debug_register *regs)
 {
-	struct rkisp1_device *rkisp1 = m->private;
-	u32 val;
+	u32 val, shd;
 	int ret;
 
 	ret = pm_runtime_get_if_in_use(rkisp1->dev);
@@ -36,8 +40,15 @@ static int rkisp1_debug_dump_regs(struct seq_file *m,
 		return ret ? : -ENODATA;
 
 	for ( ; regs->name; ++regs) {
-		val = rkisp1_read(rkisp1, regs->reg);
-		seq_printf(m, "%14s: 0x%08x\n", regs->name, val);
+		val = rkisp1_read(rkisp1, offset + regs->reg);
+
+		if (regs->shd) {
+			shd = rkisp1_read(rkisp1, offset + regs->shd);
+			seq_printf(m, "%14s: 0x%08x/0x%08x\n", regs->name,
+				   val, shd);
+		} else {
+			seq_printf(m, "%14s: 0x%08x\n", regs->name, val);
+		}
 	}
 
 	pm_runtime_put(rkisp1->dev);
@@ -61,8 +72,9 @@ static int rkisp1_debug_dump_core_regs_show(struct seq_file *m, void *p)
 		RKISP1_DEBUG_REG(MI_DMA_STATUS),
 		{ /* Sentinel */ },
 	};
+	struct rkisp1_device *rkisp1 = m->private;
 
-	return rkisp1_debug_dump_regs(m, registers);
+	return rkisp1_debug_dump_regs(rkisp1, m, 0, registers);
 }
 DEFINE_SHOW_ATTRIBUTE(rkisp1_debug_dump_core_regs);
 
@@ -76,59 +88,30 @@ static int rkisp1_debug_dump_isp_regs_show(struct seq_file *m, void *p)
 		RKISP1_DEBUG_REG(ISP_ERR),
 		{ /* Sentinel */ },
 	};
+	struct rkisp1_device *rkisp1 = m->private;
 
-	return rkisp1_debug_dump_regs(m, registers);
+	return rkisp1_debug_dump_regs(rkisp1, m, 0, registers);
 }
 DEFINE_SHOW_ATTRIBUTE(rkisp1_debug_dump_isp_regs);
 
-#define RKISP1_DEBUG_RSZ_REG_DEC(name) { \
-	RKISP1_CIF_##name, RKISP1_CIF_##name##_SHD, #name, false \
-}
-
-#define RKISP1_DEBUG_RSZ_REG_HEX(name) { \
-	RKISP1_CIF_##name, RKISP1_CIF_##name##_SHD, #name, true \
-}
-
 static int rkisp1_debug_dump_rsz_regs_show(struct seq_file *m, void *p)
 {
-	static const struct {
-		u32 reg;
-		u32 shadow;
-		const char * const name;
-		bool hex;
-	} registers[] = {
-		RKISP1_DEBUG_RSZ_REG_HEX(RSZ_CTRL),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_SCALE_HY),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_SCALE_HCB),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_SCALE_HCR),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_SCALE_VY),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_SCALE_VC),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_PHASE_HY),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_PHASE_HC),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_PHASE_VY),
-		RKISP1_DEBUG_RSZ_REG_DEC(RSZ_PHASE_VC),
+	static const struct rkisp1_debug_register registers[] = {
+		RKISP1_DEBUG_SHD_REG(RSZ_CTRL),
+		RKISP1_DEBUG_SHD_REG(RSZ_SCALE_HY),
+		RKISP1_DEBUG_SHD_REG(RSZ_SCALE_HCB),
+		RKISP1_DEBUG_SHD_REG(RSZ_SCALE_HCR),
+		RKISP1_DEBUG_SHD_REG(RSZ_SCALE_VY),
+		RKISP1_DEBUG_SHD_REG(RSZ_SCALE_VC),
+		RKISP1_DEBUG_SHD_REG(RSZ_PHASE_HY),
+		RKISP1_DEBUG_SHD_REG(RSZ_PHASE_HC),
+		RKISP1_DEBUG_SHD_REG(RSZ_PHASE_VY),
+		RKISP1_DEBUG_SHD_REG(RSZ_PHASE_VC),
 		{ /* Sentinel */ },
 	};
-
 	struct rkisp1_resizer *rsz = m->private;
-	typeof(registers[0]) *reg;
-	u32 val, shd;
-	int ret;
 
-	ret = pm_runtime_get_if_in_use(rsz->rkisp1->dev);
-	if (ret <= 0)
-		return ret ? : -ENODATA;
-
-	for (reg = registers; reg->name; ++reg) {
-		val = rkisp1_read(rsz->rkisp1, rsz->regs_base + reg->reg);
-		shd = rkisp1_read(rsz->rkisp1, rsz->regs_base + reg->shadow);
-		seq_printf(m, reg->hex ? "%14s: 0x%08x/0x%08x\n" : "%14s: %u/%u\n",
-			   reg->name, val, shd);
-	}
-
-	pm_runtime_put(rsz->rkisp1->dev);
-
-	return 0;
+	return rkisp1_debug_dump_regs(rsz->rkisp1, m, rsz->regs_base, registers);
 }
 DEFINE_SHOW_ATTRIBUTE(rkisp1_debug_dump_rsz_regs);
 
