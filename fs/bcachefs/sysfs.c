@@ -611,19 +611,28 @@ STORE(bch2_fs_opts_dir)
 	char *tmp;
 	u64 v;
 
+	/*
+	 * We don't need to take c->writes for correctness, but it eliminates an
+	 * unsightly error message in the dmesg log when we're RO:
+	 */
+	if (unlikely(!percpu_ref_tryget(&c->writes)))
+		return -EROFS;
+
 	tmp = kstrdup(buf, GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
+	if (!tmp) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ret = bch2_opt_parse(c, NULL, opt, strim(tmp), &v);
 	kfree(tmp);
 
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	ret = bch2_opt_check_may_set(c, id, v);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	bch2_opt_set_sb(c, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
@@ -634,7 +643,10 @@ STORE(bch2_fs_opts_dir)
 		rebalance_wakeup(c);
 	}
 
-	return size;
+	ret = size;
+err:
+	percpu_ref_put(&c->writes);
+	return ret;
 }
 SYSFS_OPS(bch2_fs_opts_dir);
 
