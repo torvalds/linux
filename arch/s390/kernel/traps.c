@@ -297,7 +297,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	unsigned int trapnr;
 	irqentry_state_t state;
 
-	regs->int_code = *(u32 *)&S390_lowcore.pgm_ilc;
+	regs->int_code = S390_lowcore.pgm_int_code;
 	regs->int_parm_long = S390_lowcore.trans_exc_code;
 
 	state = irqentry_enter(regs);
