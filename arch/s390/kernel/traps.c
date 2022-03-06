@@ -322,7 +322,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 
 			set_thread_flag(TIF_PER_TRAP);
 			ev->address = S390_lowcore.per_address;
-			ev->cause = *(u16 *)&S390_lowcore.per_code;
+			ev->cause = S390_lowcore.per_code_combined;
 			ev->paid = S390_lowcore.per_access_id;
 		} else {
 			/* PER event in kernel is kprobes */

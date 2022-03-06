@@ -43,8 +43,13 @@ struct lowcore {
 	};
 	__u32	data_exc_code;			/* 0x0090 */
 	__u16	mon_class_num;			/* 0x0094 */
-	__u8	per_code;			/* 0x0096 */
-	__u8	per_atmid;			/* 0x0097 */
+	union {
+		struct {
+			__u8	per_code;	/* 0x0096 */
+			__u8	per_atmid;	/* 0x0097 */
+		};
+		__u16 per_code_combined;
+	};
 	__u64	per_address;			/* 0x0098 */
 	__u8	exc_access_id;			/* 0x00a0 */
 	__u8	per_access_id;			/* 0x00a1 */
