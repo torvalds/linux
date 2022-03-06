@@ -240,6 +240,9 @@ static int journal_entry_open(struct journal *j)
 	if (u64s <= 0)
 		return cur_entry_journal_full;
 
+	if (fifo_empty(&j->pin) && j->reclaim_thread)
+		wake_up_process(j->reclaim_thread);
+
 	/*
 	 * The fifo_push() needs to happen at the same time as j->seq is
 	 * incremented for journal_last_seq() to be calculated correctly
