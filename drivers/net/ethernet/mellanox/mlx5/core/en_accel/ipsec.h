@@ -61,6 +61,7 @@ struct mlx5e_accel_fs_esp;
 struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec {
+	struct mlx5_core_dev *mdev;
 	struct mlx5e_priv *en_priv;
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx */

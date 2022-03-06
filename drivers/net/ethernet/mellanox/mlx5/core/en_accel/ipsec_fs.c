@@ -35,6 +35,7 @@ struct mlx5e_accel_fs_esp {
 };
 
 struct mlx5e_ipsec_tx {
+	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table *ft;
 	struct mutex mutex; /* Protect IPsec TX steering */
 	u32 refcnt;
@@ -338,15 +339,9 @@ static int tx_create(struct mlx5e_priv *priv)
 	struct mlx5_flow_table *ft;
 	int err;
 
-	priv->fs.egress_ns =
-		mlx5_get_flow_namespace(priv->mdev,
-					MLX5_FLOW_NAMESPACE_EGRESS_KERNEL);
-	if (!priv->fs.egress_ns)
-		return -EOPNOTSUPP;
-
 	ft_attr.max_fte = NUM_IPSEC_FTE;
 	ft_attr.autogroup.max_num_groups = 1;
-	ft = mlx5_create_auto_grouped_flow_table(priv->fs.egress_ns, &ft_attr);
+	ft = mlx5_create_auto_grouped_flow_table(ipsec->tx_fs->ns, &ft_attr);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		netdev_err(priv->netdev, "fail to create ipsec tx ft err=%d\n", err);
@@ -658,8 +653,14 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 {
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5e_accel_fs_esp *accel_esp;
+	struct mlx5_flow_namespace *ns;
 	enum accel_fs_esp_type i;
 	int err = -ENOMEM;
+
+	ns = mlx5_get_flow_namespace(ipsec->mdev,
+				     MLX5_FLOW_NAMESPACE_EGRESS_KERNEL);
+	if (!ns)
+		return -EOPNOTSUPP;
 
 	ipsec->tx_fs = kzalloc(sizeof(*ipsec->tx_fs), GFP_KERNEL);
 	if (!ipsec->tx_fs)
@@ -670,6 +671,7 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 		goto err_rx;
 
 	mutex_init(&ipsec->tx_fs->mutex);
+	ipsec->tx_fs->ns = ns;
 
 	accel_esp = ipsec->rx_fs;
 	for (i = 0; i < ACCEL_FS_ESP_NUM_TYPES; i++) {
