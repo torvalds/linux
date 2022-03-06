@@ -396,36 +396,6 @@ void _rtl92ce_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	}
 }
 
-static void _rtl92ce_phy_set_rf_sleep(struct ieee80211_hw *hw)
-{
-	u32 u4b_tmp;
-	u8 delay = 5;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_byte(rtlpriv, REG_TXPAUSE, 0xFF);
-	rtl_set_rfreg(hw, RF90_PATH_A, 0x00, RFREG_OFFSET_MASK, 0x00);
-	rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x40);
-	u4b_tmp = rtl_get_rfreg(hw, RF90_PATH_A, 0, RFREG_OFFSET_MASK);
-	while (u4b_tmp != 0 && delay > 0) {
-		rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x0);
-		rtl_set_rfreg(hw, RF90_PATH_A, 0x00, RFREG_OFFSET_MASK, 0x00);
-		rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x40);
-		u4b_tmp = rtl_get_rfreg(hw, RF90_PATH_A, 0, RFREG_OFFSET_MASK);
-		delay--;
-	}
-	if (delay == 0) {
-		rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x00);
-		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE2);
-		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE3);
-		rtl_write_byte(rtlpriv, REG_TXPAUSE, 0x00);
-		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Switch RF timeout !!!\n");
-		return;
-	}
-	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE2);
-	rtl_write_byte(rtlpriv, REG_SPS0_CTRL, 0x22);
-}
-
 static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					    enum rf_pwrstate rfpwr_state)
 {
@@ -519,7 +489,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				jiffies_to_msecs(jiffies -
 						 ppsc->last_awake_jiffies));
 			ppsc->last_sleep_jiffies = jiffies;
-			_rtl92ce_phy_set_rf_sleep(hw);
+			_rtl92c_phy_set_rf_sleep(hw);
 			break;
 		}
 	default:
