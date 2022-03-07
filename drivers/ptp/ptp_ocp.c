@@ -914,7 +914,7 @@ ptp_ocp_tod_gnss_name(int idx)
 		"ALL", "COMBINED", "GPS", "GLONASS", "GALILEO", "BEIDOU",
 		"Unknown"
 	};
-	if (idx > ARRAY_SIZE(gnss_name))
+	if (idx >= ARRAY_SIZE(gnss_name))
 		idx = ARRAY_SIZE(gnss_name) - 1;
 	return gnss_name[idx];
 }
