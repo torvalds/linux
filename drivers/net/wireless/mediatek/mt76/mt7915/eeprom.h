@@ -103,8 +103,20 @@ enum mt7915_sku_rate_group {
 };
 
 static inline int
-mt7915_get_channel_group(int channel)
+mt7915_get_channel_group(int channel, bool is_7976)
 {
+	if (is_7976) {
+		if (channel <= 64)
+			return 0;
+		if (channel <= 96)
+			return 1;
+		if (channel <= 128)
+			return 2;
+		if (channel <= 144)
+			return 3;
+		return 4;
+	}
+
 	if (channel >= 184 && channel <= 196)
 		return 0;
 	if (channel <= 48)
