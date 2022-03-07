@@ -56,6 +56,7 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	struct dw_hdmi_qp_i2s_audio_data *audio = data;
 	struct dw_hdmi_qp *hdmi = audio->hdmi;
 	u32 conf0 = 0;
+	bool ref2stream = false;
 
 	if (is_dw_hdmi_qp_clk_off(audio))
 		return 0;
@@ -100,9 +101,11 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
 		conf0 = (hparms->channels == 8) ? AUD_HBR : AUD_ASP;
 		conf0 |= I2S_BPCUV_RCV_EN;
+		ref2stream = true;
 		break;
 	default:
 		conf0 = AUD_ASP | I2S_BPCUV_RCV_DIS;
+		ref2stream = false;
 		break;
 	}
 
@@ -114,7 +117,7 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 		 AUDIO_INTERFACE_CONFIG0);
 
 	dw_hdmi_qp_set_sample_rate(hdmi, hparms->sample_rate);
-	dw_hdmi_qp_set_channel_status(hdmi, hparms->iec.status);
+	dw_hdmi_qp_set_channel_status(hdmi, hparms->iec.status, ref2stream);
 	dw_hdmi_qp_set_channel_count(hdmi, hparms->channels);
 	dw_hdmi_qp_set_channel_allocation(hdmi, hparms->cea.channel_allocation);
 	dw_hdmi_qp_set_audio_infoframe(hdmi);

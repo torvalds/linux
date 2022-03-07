@@ -298,7 +298,8 @@ void dw_hdmi_qp_set_cec_adap(struct dw_hdmi_qp *hdmi, struct cec_adapter *adap);
 int dw_hdmi_qp_set_earc(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_set_sample_rate(struct dw_hdmi_qp *hdmi, unsigned int rate);
 void dw_hdmi_qp_set_channel_count(struct dw_hdmi_qp *hdmi, unsigned int cnt);
-void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi, u8 *channel_status);
+void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi, u8 *channel_status,
+				   bool ref2stream);
 void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca);
 void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);

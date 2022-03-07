@@ -391,6 +391,8 @@
 #define PKT5_EMP_CVTEM_CONTENTS7			0xddc
 /* Audio Packetizer Registers */
 #define AUDPKT_CONTROL0					0xe20
+#define AUDPKT_PBIT_FORCE_EN_MASK			BIT(12)
+#define AUDPKT_PBIT_FORCE_EN				BIT(12)
 #define AUDPKT_CHSTATUS_OVR_EN_MASK			BIT(0)
 #define AUDPKT_CHSTATUS_OVR_EN				BIT(0)
 #define AUDPKT_CONTROL1					0xe24
