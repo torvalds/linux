@@ -60,6 +60,14 @@ struct kernel_crypt_fd_map_op {
 	struct crypt_fd_map_op mop;
 };
 
+/* kernel-internal extension to struct crypt_op */
+struct kernel_crypt_rsa_op {
+	struct crypt_rsa_op rop;
+
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_DEV)
 int rk_cryptodev_register_dev(struct device *dev, const char *name);
 int rk_cryptodev_unregister_dev(struct device *dev);

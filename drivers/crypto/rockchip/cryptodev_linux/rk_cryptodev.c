@@ -7,6 +7,8 @@
  * Author: Lin Jinhan <troy.lin@rock-chips.com>
  *
  */
+#include <crypto/internal/akcipher.h>
+#include <crypto/internal/rsa.h>
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
 #include <linux/rtnetlink.h>
@@ -381,7 +383,7 @@ exit:
 	return ret;
 }
 
-int crypto_fd_run(struct fcrypt *fcr, struct kernel_crypt_fd_op *kcop)
+static int crypto_fd_run(struct fcrypt *fcr, struct kernel_crypt_fd_op *kcop)
 {
 	struct csession *ses_ptr;
 	struct crypt_fd_op *cop = &kcop->cop;
@@ -595,11 +597,148 @@ static int dma_fd_end_cpu_access(struct fcrypt *fcr, struct kernel_crypt_fd_map_
 	return dma_buf_end_cpu_access(map_node->dmabuf, DMA_BIDIRECTIONAL);
 }
 
+static int kcop_rsa_from_user(struct kernel_crypt_rsa_op *kcop,
+			struct fcrypt *fcr, void __user *arg)
+{
+	if (unlikely(copy_from_user(&kcop->rop, arg, sizeof(kcop->rop))))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kcop_rsa_to_user(struct kernel_crypt_rsa_op *kcop,
+			   struct fcrypt *fcr, void __user *arg)
+{
+	if (unlikely(copy_to_user(arg, &kcop->rop, sizeof(kcop->rop)))) {
+		derr(1, "Cannot copy to userspace");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int crypto_rsa_run(struct fcrypt *fcr, struct kernel_crypt_rsa_op *krop)
+{
+	int ret;
+	u8 *key = NULL, *in = NULL, *out = NULL;
+	u32 out_len_max;
+	struct crypt_rsa_op *rop = &krop->rop;
+	const char *driver = "rsa-rk";
+	struct crypto_akcipher *tfm = NULL;
+	struct akcipher_request *req = NULL;
+	struct crypto_wait wait;
+	struct scatterlist src, dst;
+	bool is_priv_key = (rop->flags & COP_FLAG_RSA_PRIV) == COP_FLAG_RSA_PRIV;
+
+	/* The key size cannot exceed RK_RSA_BER_KEY_MAX Byte */
+	if (rop->key_len > RK_RSA_BER_KEY_MAX)
+		return -ENOKEY;
+
+	if (rop->in_len  > RK_RSA_KEY_MAX_BYTES ||
+	    rop->out_len > RK_RSA_KEY_MAX_BYTES)
+		return -EINVAL;
+
+	tfm = crypto_alloc_akcipher(driver, 0, 0);
+	if (IS_ERR(tfm)) {
+		ddebug(2, "alg: akcipher: Failed to load tfm for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		ddebug(2, "akcipher_request_alloc failed\n");
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	key = kzalloc(rop->key_len, GFP_KERNEL);
+	if (!key) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (unlikely(copy_from_user(key, u64_to_user_ptr(rop->key), rop->key_len))) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	in = kzalloc(rop->in_len, GFP_KERNEL);
+	if (!in) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (unlikely(copy_from_user(in, u64_to_user_ptr(rop->in), rop->in_len))) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (is_priv_key)
+		ret = crypto_akcipher_set_priv_key(tfm, key, rop->key_len);
+	else
+		ret = crypto_akcipher_set_pub_key(tfm, key, rop->key_len);
+	if (ret) {
+		derr(1, "crypto_akcipher_set_%s_key error[%d]",
+		     is_priv_key ? "priv" : "pub", ret);
+		ret = -ENOKEY;
+		goto exit;
+	}
+
+	out_len_max = crypto_akcipher_maxsize(tfm);
+	out = kzalloc(out_len_max, GFP_KERNEL);
+	if (!out) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	sg_init_one(&src, in, rop->in_len);
+	sg_init_one(&dst, out, out_len_max);
+
+	crypto_init_wait(&wait);
+	akcipher_request_set_crypt(req, &src, &dst, rop->in_len, out_len_max);
+
+	switch (rop->op) {
+	case AOP_ENCRYPT:
+		ret = crypto_wait_req(crypto_akcipher_encrypt(req), &wait);
+		break;
+	case AOP_DECRYPT:
+		ret = crypto_wait_req(crypto_akcipher_decrypt(req), &wait);
+		break;
+	default:
+		derr(1, "unknown ops %x", rop->op);
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret) {
+		derr(1, "alg: akcipher: failed %d\n", ret);
+		goto exit;
+	}
+
+	if (unlikely(copy_to_user(u64_to_user_ptr(rop->out), out, req->dst_len))) {
+		derr(1, "Cannot copy to userspace");
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	rop->out_len = req->dst_len;
+exit:
+	kfree(out);
+	kfree(in);
+	kfree(key);
+	akcipher_request_free(req);
+	crypto_free_akcipher(tfm);
+
+	return ret;
+}
+
 long
 rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_)
 {
 	struct kernel_crypt_fd_op kcop;
 	struct kernel_crypt_fd_map_op kmop;
+	struct kernel_crypt_rsa_op krop;
 	void __user *arg = (void __user *)arg_;
 	int ret;
 
@@ -668,6 +807,20 @@ rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_)
 			dwarning(1, "Error in dma_fd_end_cpu_access");
 
 		return ret;
+	case RIOCCRYPT_RSA_CRYPT:
+		ret = kcop_rsa_from_user(&krop, fcr, arg);
+		if (unlikely(ret)) {
+			dwarning(1, "Error copying from user");
+			return ret;
+		}
+
+		ret = crypto_rsa_run(fcr, &krop);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in rsa_run");
+			return ret;
+		}
+
+		return kcop_rsa_to_user(&krop, fcr, arg);
 	default:
 		return -EINVAL;
 	}
@@ -853,7 +1006,7 @@ rk_compat_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long ar
 
 		return ret;
 	default:
-		return -EINVAL;
+		return rk_cryptodev_ioctl(fcr, cmd, arg_);
 	}
 }
 
