@@ -1149,14 +1149,25 @@ chk_rm_nr()
 {
 	local rm_addr_nr=$1
 	local rm_subflow_nr=$2
-	local invert=${3:-""}
+	local invert
+	local simult
 	local count
 	local dump_stats
 	local addr_ns=$ns1
 	local subflow_ns=$ns2
 	local extra_msg=""
 
-	if [[ $invert = "invert" ]]; then
+	shift 2
+	while [ -n "$1" ]; do
+		[ "$1" = "invert" ] && invert=true
+		[ "$1" = "simult" ] && simult=true
+		shift
+	done
+
+	if [ -z $invert ]; then
+		addr_ns=$ns1
+		subflow_ns=$ns2
+	elif [ $invert = "true" ]; then
 		addr_ns=$ns2
 		subflow_ns=$ns1
 		extra_msg="   invert"
@@ -1176,6 +1187,25 @@ chk_rm_nr()
 	echo -n " - rmsf  "
 	count=`ip netns exec $subflow_ns nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}'`
 	[ -z "$count" ] && count=0
+	if [ -n "$simult" ]; then
+		local cnt=$(ip netns exec $addr_ns nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}')
+		local suffix
+
+		# in case of simult flush, the subflow removal count on each side is
+		# unreliable
+		[ -z "$cnt" ] && cnt=0
+		count=$((count + cnt))
+		[ "$count" != "$rm_subflow_nr" ] && suffix="$count in [$rm_subflow_nr:$((rm_subflow_nr*2))]"
+		if [ $count -ge "$rm_subflow_nr" ] && \
+		   [ "$count" -le "$((rm_subflow_nr *2 ))" ]; then
+			echo "[ ok ] $suffix"
+		else
+			echo "[fail] got $count RM_SUBFLOW[s] expected in range [$rm_subflow_nr:$((rm_subflow_nr*2))]"
+			ret=1
+			dump_stats=1
+		fi
+		return
+	fi
 	if [ "$count" != "$rm_subflow_nr" ]; then
 		echo "[fail] got $count RM_SUBFLOW[s] expected $rm_subflow_nr"
 		ret=1
@@ -1666,7 +1696,7 @@ remove_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush subflows and signal" 3 3 3
 	chk_add_nr 1 1
-	chk_rm_nr 2 2
+	chk_rm_nr 1 3 invert simult
 
 	# subflows flush
 	reset
@@ -1677,7 +1707,7 @@ remove_tests()
 	pm_nl_add_endpoint $ns2 10.0.4.2 flags subflow
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush subflows" 3 3 3
-	chk_rm_nr 3 3
+	chk_rm_nr 0 3 simult
 
 	# addresses flush
 	reset
@@ -1689,7 +1719,7 @@ remove_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush addresses" 3 3 3
 	chk_add_nr 3 3
-	chk_rm_nr 3 3 invert
+	chk_rm_nr 3 3 invert simult
 
 	# invalid addresses flush
 	reset
@@ -1973,7 +2003,7 @@ add_addr_ports_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -2 slow
 	chk_join_nr "flush subflows and signal with port" 3 3 3
 	chk_add_nr 1 1
-	chk_rm_nr 2 2
+	chk_rm_nr 1 3 invert simult
 
 	# multiple addresses with port
 	reset
