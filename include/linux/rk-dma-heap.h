@@ -36,6 +36,7 @@ struct rk_cma_heap_buffer {
 	struct mutex lock;
 	unsigned long len;
 	struct page *cma_pages;
+	struct page **pages;
 	pgoff_t pagecount;
 	int vmap_cnt;
 	void *vaddr;

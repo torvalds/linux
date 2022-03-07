@@ -185,9 +185,8 @@ static void *rk_cma_heap_do_vmap(struct rk_cma_heap_buffer *buffer)
 {
 	void *vaddr;
 	pgprot_t pgprot = PAGE_KERNEL;
-	unsigned long pfn = page_to_pfn(buffer->cma_pages);
 
-	vaddr = rk_vmap_contig_pfn(pfn, buffer->pagecount, pgprot);
+	vaddr = vmap(buffer->pages, buffer->pagecount, VM_MAP, pgprot);
 	if (!vaddr)
 		return ERR_PTR(-ENOMEM);
 
@@ -362,6 +361,8 @@ static void rk_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 
 	rk_cma_heap_remove_dmabuf_list(dmabuf);
 
+	/* free page list */
+	kfree(buffer->pages);
 	/* release memory */
 	cma_release(cma_heap->cma, buffer->cma_pages, buffer->pagecount);
 	kfree(buffer);
@@ -394,6 +395,7 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 	unsigned long align = get_order(size);
 	struct page *cma_pages;
 	struct dma_buf *dmabuf;
+	pgoff_t pg;
 	int ret = -ENOMEM;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -434,6 +436,16 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 		memset(page_address(cma_pages), 0, size);
 	}
 
+	buffer->pages = kmalloc_array(pagecount, sizeof(*buffer->pages),
+				      GFP_KERNEL);
+	if (!buffer->pages) {
+		ret = -ENOMEM;
+		goto free_cma;
+	}
+
+	for (pg = 0; pg < pagecount; pg++)
+		buffer->pages[pg] = &cma_pages[pg];
+
 	buffer->cma_pages = cma_pages;
 	buffer->heap = cma_heap;
 	buffer->pagecount = pagecount;
@@ -447,7 +459,7 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 	dmabuf = dma_buf_export(&exp_info);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
-		goto free_cma;
+		goto free_pages;
 	}
 
 	buffer->phys = page_to_phys(cma_pages);
@@ -463,6 +475,8 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 
 fail_dma_buf:
 	dma_buf_put(dmabuf);
+free_pages:
+	kfree(buffer->pages);
 free_cma:
 	cma_release(cma_heap->cma, cma_pages, pagecount);
 free_buffer:
