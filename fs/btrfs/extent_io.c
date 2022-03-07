@@ -4786,11 +4786,12 @@ static int submit_eb_page(struct page *page, struct writeback_control *wbc,
 		return ret;
 	}
 	if (cache) {
-		/* Impiles write in zoned mode */
-		btrfs_put_block_group(cache);
-		/* Mark the last eb in a block group */
+		/*
+		 * Implies write in zoned mode. Mark the last eb in a block group.
+		 */
 		if (cache->seq_zone && eb->start + eb->len == cache->zone_capacity)
 			set_bit(EXTENT_BUFFER_ZONE_FINISH, &eb->bflags);
+		btrfs_put_block_group(cache);
 	}
 	ret = write_one_eb(eb, wbc, epd);
 	free_extent_buffer(eb);
