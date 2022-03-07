@@ -92,3 +92,5 @@ obj-y					+= sunxi/
 obj-$(CONFIG_VIDEO_MESON_GE2D)		+= meson/ge2d/
 
 obj-$(CONFIG_VIDEO_TEGRA_VDE)		+= tegra/vde/
+
+obj-$(CONFIG_VIDEO_AMPHION_VPU)		+= amphion/
