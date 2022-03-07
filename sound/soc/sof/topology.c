@@ -1478,7 +1478,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
-		goto finish;
+		return ret;
 	}
 
 	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
@@ -1487,7 +1487,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
-		goto finish;
+		return ret;
 	}
 
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
@@ -1496,17 +1496,9 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 
 	if (dai) {
 		dai->scomp = scomp;
-
-		/*
-		 * copy only the sof_ipc_comp_dai to avoid collapsing
-		 * the snd_sof_dai, the extended data is kept in the
-		 * snd_sof_widget.
-		 */
-		memcpy(&dai->comp_dai, comp_dai, sizeof(*comp_dai));
+		dai->comp_dai = comp_dai;
 	}
 
-finish:
-	kfree(comp_dai);
 	return ret;
 }
 
@@ -2429,6 +2421,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		dai = swidget->private;
 
 		if (dai) {
+			kfree(dai->comp_dai);
 			/* free dai config */
 			kfree(dai->dai_config);
 			list_del(&dai->list);
@@ -2668,7 +2661,7 @@ static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
 			 * dai_index.
 			 */
 			for (i = 0; i < num_conf; i++)
-				config[i].dai_index = dai->comp_dai.dai_index;
+				config[i].dai_index = dai->comp_dai->dai_index;
 
 			dev_dbg(sdev->dev, "set DAI config for %s index %d\n",
 				dai->name, config[curr_conf].dai_index);
