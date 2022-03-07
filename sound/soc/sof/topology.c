@@ -507,28 +507,25 @@ static int get_token_uuid(void *elem, void *object, u32 offset)
 
 static int get_token_comp_format(void *elem, void *object, u32 offset)
 {
-	struct snd_soc_tplg_vendor_string_elem *velem = elem;
 	u32 *val = (u32 *)((u8 *)object + offset);
 
-	*val = find_format(velem->string);
+	*val = find_format((const char *)elem);
 	return 0;
 }
 
 static int get_token_dai_type(void *elem, void *object, u32 offset)
 {
-	struct snd_soc_tplg_vendor_string_elem *velem = elem;
 	u32 *val = (u32 *)((u8 *)object + offset);
 
-	*val = find_dai(velem->string);
+	*val = find_dai((const char *)elem);
 	return 0;
 }
 
 static int get_token_process_type(void *elem, void *object, u32 offset)
 {
-	struct snd_soc_tplg_vendor_string_elem *velem = elem;
 	u32 *val = (u32 *)((u8 *)object + offset);
 
-	*val = find_process(velem->string);
+	*val = find_process((const char *)elem);
 	return 0;
 }
 
@@ -872,8 +869,7 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 				continue;
 
 			/* matched - now load token */
-			tokens[j].get_token(elem, object,
-					    offset + tokens[j].offset);
+			tokens[j].get_token(elem->string, object, offset + tokens[j].offset);
 
 			found++;
 		}
