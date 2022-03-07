@@ -29,6 +29,7 @@
 #define DCN3_1_DEFAULT_DET_SIZE 384
 #define DCN3_15_DEFAULT_DET_SIZE 192
 #define DCN3_15_MIN_COMPBUF_SIZE_KB 128
+#define DCN3_16_DEFAULT_DET_SIZE 192
 
 void dcn31_calculate_wm_and_dlg_fp(
 		struct dc *dc, struct dc_state *context,
@@ -38,5 +39,6 @@ void dcn31_calculate_wm_and_dlg_fp(
 
 void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
 #endif /* __DCN31_FPU_H__*/
