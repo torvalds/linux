@@ -7,6 +7,8 @@
 
 #include "core.h"
 
+#define RF_PATH_NUM_8852C 2
+
 extern const struct rtw89_chip_info rtw8852c_chip_info;
 
 #endif

@@ -2666,18 +2666,22 @@ struct rtw89_cfo_tracking_info {
 
 /* 2GL, 2GH, 5GL1, 5GH1, 5GM1, 5GM2, 5GH1, 5GH2 */
 #define TSSI_TRIM_CH_GROUP_NUM 8
+#define TSSI_TRIM_CH_GROUP_NUM_6G 16
 
 #define TSSI_CCK_CH_GROUP_NUM 6
 #define TSSI_MCS_2G_CH_GROUP_NUM 5
 #define TSSI_MCS_5G_CH_GROUP_NUM 14
+#define TSSI_MCS_6G_CH_GROUP_NUM 32
 #define TSSI_MCS_CH_GROUP_NUM \
 	(TSSI_MCS_2G_CH_GROUP_NUM + TSSI_MCS_5G_CH_GROUP_NUM)
 
 struct rtw89_tssi_info {
 	u8 thermal[RF_PATH_MAX];
 	s8 tssi_trim[RF_PATH_MAX][TSSI_TRIM_CH_GROUP_NUM];
+	s8 tssi_trim_6g[RF_PATH_MAX][TSSI_TRIM_CH_GROUP_NUM_6G];
 	s8 tssi_cck[RF_PATH_MAX][TSSI_CCK_CH_GROUP_NUM];
 	s8 tssi_mcs[RF_PATH_MAX][TSSI_MCS_CH_GROUP_NUM];
+	s8 tssi_6g_mcs[RF_PATH_MAX][TSSI_MCS_6G_CH_GROUP_NUM];
 	s8 extra_ofst[RF_PATH_MAX];
 	bool tssi_tracking_check[RF_PATH_MAX];
 	u8 default_txagc_offset[RF_PATH_MAX];
