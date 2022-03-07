@@ -1144,14 +1144,10 @@ static int max9286_poc_enable(struct max9286_priv *priv, bool enable)
 	return ret;
 }
 
-static int max9286_init(struct device *dev)
+static int max9286_init(struct max9286_priv *priv)
 {
-	struct max9286_priv *priv;
-	struct i2c_client *client;
+	struct i2c_client *client = priv->client;
 	int ret;
-
-	client = to_i2c_client(dev);
-	priv = i2c_get_clientdata(client);
 
 	ret = max9286_poc_enable(priv, true);
 	if (ret)
@@ -1159,7 +1155,7 @@ static int max9286_init(struct device *dev)
 
 	ret = max9286_setup(priv);
 	if (ret) {
-		dev_err(dev, "Unable to setup max9286\n");
+		dev_err(&client->dev, "Unable to setup max9286\n");
 		goto err_poc_disable;
 	}
 
@@ -1169,13 +1165,13 @@ static int max9286_init(struct device *dev)
 	 */
 	ret = max9286_v4l2_register(priv);
 	if (ret) {
-		dev_err(dev, "Failed to register with V4L2\n");
+		dev_err(&client->dev, "Failed to register with V4L2\n");
 		goto err_poc_disable;
 	}
 
 	ret = max9286_i2c_mux_init(priv);
 	if (ret) {
-		dev_err(dev, "Unable to initialize I2C multiplexer\n");
+		dev_err(&client->dev, "Unable to initialize I2C multiplexer\n");
 		goto err_v4l2_register;
 	}
 
@@ -1330,7 +1326,6 @@ static int max9286_probe(struct i2c_client *client)
 	mutex_init(&priv->mutex);
 
 	priv->client = client;
-	i2c_set_clientdata(client, priv);
 
 	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
 						   GPIOD_OUT_HIGH);
@@ -1366,7 +1361,7 @@ static int max9286_probe(struct i2c_client *client)
 	if (ret)
 		goto err_powerdown;
 
-	ret = max9286_init(&client->dev);
+	ret = max9286_init(priv);
 	if (ret < 0)
 		goto err_cleanup_dt;
 
@@ -1382,7 +1377,7 @@ err_powerdown:
 
 static int max9286_remove(struct i2c_client *client)
 {
-	struct max9286_priv *priv = i2c_get_clientdata(client);
+	struct max9286_priv *priv = sd_to_max9286(i2c_get_clientdata(client));
 
 	i2c_mux_del_adapters(priv->mux);
 
