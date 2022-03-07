@@ -91,7 +91,7 @@ static const struct rhashtable_params __prestera_acl_rule_entry_ht_params = {
 
 int prestera_acl_chain_to_client(u32 chain_index, u32 *client)
 {
-	u32 client_map[] = {
+	static const u32 client_map[] = {
 		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0,
 		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1,
 		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2
