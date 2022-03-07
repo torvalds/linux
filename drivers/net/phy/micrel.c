@@ -1976,17 +1976,6 @@ static int lan8814_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
 }
 
-static bool is_sync(struct sk_buff *skb, int type)
-{
-	struct ptp_header *hdr;
-
-	hdr = ptp_parse_header(skb, type);
-	if (!hdr)
-		return false;
-
-	return ((ptp_get_msgtype(hdr, type) & 0xf) == 0);
-}
-
 static void lan8814_txtstamp(struct mii_timestamper *mii_ts,
 			     struct sk_buff *skb, int type)
 {
@@ -1994,7 +1983,7 @@ static void lan8814_txtstamp(struct mii_timestamper *mii_ts,
 
 	switch (ptp_priv->hwts_tx_type) {
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		if (is_sync(skb, type)) {
+		if (ptp_msg_is_sync(skb, type)) {
 			kfree_skb(skb);
 			return;
 		}
