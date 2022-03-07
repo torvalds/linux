@@ -2309,6 +2309,10 @@ struct rtw89_chip_info {
 	u8 ps_mode_supported;
 
 	u32 hci_func_en_addr;
+	u32 h2c_ctrl_reg;
+	const u32 *h2c_regs;
+	u32 c2h_ctrl_reg;
+	const u32 *c2h_regs;
 };
 
 union rtw89_bus_info {

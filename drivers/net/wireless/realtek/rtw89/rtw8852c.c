@@ -2,9 +2,20 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "fw.h"
 #include "mac.h"
 #include "reg.h"
 #include "rtw8852c.h"
+
+static const u32 rtw8852c_h2c_regs[RTW89_H2CREG_MAX] = {
+	R_AX_H2CREG_DATA0_V1, R_AX_H2CREG_DATA1_V1, R_AX_H2CREG_DATA2_V1,
+	R_AX_H2CREG_DATA3_V1
+};
+
+static const u32 rtw8852c_c2h_regs[RTW89_H2CREG_MAX] = {
+	R_AX_C2HREG_DATA0_V1, R_AX_C2HREG_DATA1_V1, R_AX_C2HREG_DATA2_V1,
+	R_AX_C2HREG_DATA3_V1
+};
 
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
@@ -195,6 +206,10 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN_V1,
+	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL_V1,
+	.h2c_regs		= rtw8852c_h2c_regs,
+	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL_V1,
+	.c2h_regs		= rtw8852c_c2h_regs,
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

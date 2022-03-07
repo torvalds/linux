@@ -1832,15 +1832,13 @@ void rtw89_fw_c2h_work(struct work_struct *work)
 static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 				  struct rtw89_mac_h2c_info *info)
 {
-	static const u32 h2c_reg[RTW89_H2CREG_MAX] = {
-		R_AX_H2CREG_DATA0, R_AX_H2CREG_DATA1,
-		R_AX_H2CREG_DATA2, R_AX_H2CREG_DATA3
-	};
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const u32 *h2c_reg = chip->h2c_regs;
 	u8 i, val, len;
 	int ret;
 
 	ret = read_poll_timeout(rtw89_read8, val, val == 0, 1000, 5000, false,
-				rtwdev, R_AX_H2CREG_CTRL);
+				rtwdev, chip->h2c_ctrl_reg);
 	if (ret) {
 		rtw89_warn(rtwdev, "FW does not process h2c registers\n");
 		return ret;
@@ -1854,7 +1852,7 @@ static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 	for (i = 0; i < RTW89_H2CREG_MAX; i++)
 		rtw89_write32(rtwdev, h2c_reg[i], info->h2creg[i]);
 
-	rtw89_write8(rtwdev, R_AX_H2CREG_CTRL, B_AX_H2CREG_TRIGGER);
+	rtw89_write8(rtwdev, chip->h2c_ctrl_reg, B_AX_H2CREG_TRIGGER);
 
 	return 0;
 }
@@ -1862,10 +1860,8 @@ static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_c2h_info *info)
 {
-	static const u32 c2h_reg[RTW89_C2HREG_MAX] = {
-		R_AX_C2HREG_DATA0, R_AX_C2HREG_DATA1,
-		R_AX_C2HREG_DATA2, R_AX_C2HREG_DATA3
-	};
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const u32 *c2h_reg = chip->c2h_regs;
 	u32 ret;
 	u8 i, val;
 
@@ -1873,7 +1869,7 @@ static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 
 	ret = read_poll_timeout_atomic(rtw89_read8, val, val, 1,
 				       RTW89_C2H_TIMEOUT, false, rtwdev,
-				       R_AX_C2HREG_CTRL);
+				       chip->c2h_ctrl_reg);
 	if (ret) {
 		rtw89_warn(rtwdev, "c2h reg timeout\n");
 		return ret;
@@ -1882,7 +1878,7 @@ static int rtw89_fw_read_c2h_reg(struct rtw89_dev *rtwdev,
 	for (i = 0; i < RTW89_C2HREG_MAX; i++)
 		info->c2hreg[i] = rtw89_read32(rtwdev, c2h_reg[i]);
 
-	rtw89_write8(rtwdev, R_AX_C2HREG_CTRL, 0);
+	rtw89_write8(rtwdev, chip->c2h_ctrl_reg, 0);
 
 	info->id = RTW89_GET_C2H_HDR_FUNC(*info->c2hreg);
 	info->content_len = (RTW89_GET_C2H_HDR_LEN(*info->c2hreg) << 2) -
