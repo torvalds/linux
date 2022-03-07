@@ -276,6 +276,8 @@
 #define I3C_BUS_SDR2_SCL_RATE		6000000
 #define I3C_BUS_SDR3_SCL_RATE		4000000
 #define I3C_BUS_SDR4_SCL_RATE		2000000
+#define I3C_BUS_I2C_STD_TLOW_MIN_NS	4700
+#define I3C_BUS_I2C_STD_THIGH_MIN_NS	4000
 #define I3C_BUS_I2C_FM_TLOW_MIN_NS	1300
 #define I3C_BUS_I2C_FM_THIGH_MIN_NS	600
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
@@ -872,6 +874,37 @@ struct i3c_scl_timing_cfg *ast2600_i3c_jesd403_scl_search(unsigned long fscl)
 	return &jesd403_timing_cfg[0];
 }
 
+static int aspeed_i2c_fm_clk(struct aspeed_i3c_master *master)
+{
+	unsigned long core_rate, core_period;
+	unsigned long tlow;
+	u32 scl_timing;
+	u16 hcnt, lcnt;
+
+	core_rate = clk_get_rate(master->core_clk);
+	if (!core_rate)
+		return -EINVAL;
+
+	core_period = DIV_ROUND_UP(1000000000, core_rate);
+
+	if (!master->base.bus.scl_rate.i2c)
+		master->base.bus.scl_rate.i2c = I3C_BUS_I2C_FM_PLUS_SCL_RATE;
+
+	if (master->base.bus.scl_rate.i2c <= 100000)
+		tlow = I3C_BUS_I2C_STD_TLOW_MIN_NS;
+	else if (master->base.bus.scl_rate.i2c <= 400000)
+		tlow = I3C_BUS_I2C_FM_TLOW_MIN_NS;
+	else
+		tlow = I3C_BUS_I2C_FMP_TLOW_MIN_NS;
+
+	lcnt = DIV_ROUND_UP(tlow, core_period);
+	hcnt = DIV_ROUND_UP(core_rate, master->base.bus.scl_rate.i2c) - lcnt;
+	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) | SCL_I2C_FM_TIMING_LCNT(lcnt);
+	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+
+	return 0;
+}
+
 static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 {
 	unsigned long core_rate, core_period;
@@ -935,12 +968,7 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
 
 	/* I2C FM mode */
-	hcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_THIGH_MIN_NS, core_period);
-	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - hcnt;
-	if (lcnt * core_period < I3C_BUS_I2C_FM_TLOW_MIN_NS)
-		lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
-	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) | SCL_I2C_FM_TIMING_LCNT(lcnt);
-	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+	aspeed_i2c_fm_clk(master);
 
 	/* Extend SDR: use PP mode hcnt */
 	scl_timing = readl(master->regs + SCL_I3C_PP_TIMING);
@@ -979,11 +1007,8 @@ static int aspeed_i2c_clk_cfg(struct aspeed_i3c_master *master)
 		     SCL_I2C_FMP_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
 
-	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
-	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
-	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) |
-		     SCL_I2C_FM_TIMING_LCNT(lcnt);
-	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+	aspeed_i2c_fm_clk(master);
+	lcnt = SCL_I2C_FM_TIMING_LCNT(readl(master->regs + SCL_I2C_FM_TIMING));
 
 	scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
 	scl_timing |= BUS_I3C_MST_FREE(lcnt);
