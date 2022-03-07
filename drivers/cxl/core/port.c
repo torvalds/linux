@@ -911,7 +911,10 @@ static void cxl_detach_ep(void *data)
 			break;
 
 		port = find_cxl_port(dport_dev);
-		if (!port || is_cxl_root(port)) {
+		if (!port)
+			continue;
+
+		if (is_cxl_root(port)) {
 			put_device(&port->dev);
 			continue;
 		}
