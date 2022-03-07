@@ -43,31 +43,13 @@ static const struct gpiod_lookup arizona_soc_gpios[] = {
 	{ "arizona", 4, "wlf,micd-pol", 0, GPIO_ACTIVE_LOW },
 };
 
-/*
- * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
- * Function A Play/Pause:           0 ohm
- * Function D Voice assistant:    135 ohm
- * Function B Volume Up           240 ohm
- * Function C Volume Down         470 ohm
- * Minimum Mic DC resistance     1000 ohm
- * Minimum Ear speaker impedance   16 ohm
- * Note the first max value below must be less then the min. speaker impedance,
- * to allow CTIA/OMTP detection to work. The other max values are the closest
- * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
- */
-static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
-	{ .max =  11, .key = KEY_PLAYPAUSE },
-	{ .max = 186, .key = KEY_VOICECOMMAND },
-	{ .max = 348, .key = KEY_VOLUMEUP },
-	{ .max = 752, .key = KEY_VOLUMEDOWN },
-};
-
 static void arizona_spi_acpi_remove_lookup(void *lookup)
 {
 	gpiod_remove_lookup_table(lookup);
 }
 
-static int arizona_spi_acpi_probe(struct arizona *arizona)
+/* For ACPI tables from boards which ship with Windows as factory OS */
+static int arizona_spi_acpi_windows_probe(struct arizona *arizona)
 {
 	struct gpiod_lookup_table *lookup;
 	acpi_status status;
@@ -95,6 +77,36 @@ static int arizona_spi_acpi_probe(struct arizona *arizona)
 	status = acpi_evaluate_object(ACPI_HANDLE(arizona->dev), "CLKE", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		dev_warn(arizona->dev, "Failed to enable 32KHz clk ACPI error %d\n", status);
+
+	return 0;
+}
+
+/*
+ * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
+ * Function A Play/Pause:           0 ohm
+ * Function D Voice assistant:    135 ohm
+ * Function B Volume Up           240 ohm
+ * Function C Volume Down         470 ohm
+ * Minimum Mic DC resistance     1000 ohm
+ * Minimum Ear speaker impedance   16 ohm
+ * Note the first max value below must be less then the min. speaker impedance,
+ * to allow CTIA/OMTP detection to work. The other max values are the closest
+ * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
+ */
+static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
+	{ .max =  11, .key = KEY_PLAYPAUSE },
+	{ .max = 186, .key = KEY_VOICECOMMAND },
+	{ .max = 348, .key = KEY_VOLUMEUP },
+	{ .max = 752, .key = KEY_VOLUMEDOWN },
+};
+
+static int arizona_spi_acpi_probe(struct arizona *arizona)
+{
+	int ret;
+
+	ret = arizona_spi_acpi_windows_probe(arizona);
+	if (ret)
+		return ret;
 
 	/*
 	 * Some DSDTs wrongly declare the IRQ trigger-type as IRQF_TRIGGER_FALLING
