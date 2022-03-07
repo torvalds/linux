@@ -931,6 +931,7 @@ static const struct file_operations acc_fops = {
 	.read = acc_read,
 	.write = acc_write,
 	.unlocked_ioctl = acc_ioctl,
+	.compat_ioctl = acc_ioctl,
 	.open = acc_open,
 	.release = acc_release,
 };
