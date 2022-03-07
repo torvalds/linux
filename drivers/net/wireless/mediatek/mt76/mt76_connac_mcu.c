@@ -1054,7 +1054,7 @@ void mt76_connac_mcu_wtbl_ba_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 	}
 
 	if (enable && tx) {
-		u8 ba_range[] = { 4, 8, 12, 24, 36, 48, 54, 64 };
+		static const u8 ba_range[] = { 4, 8, 12, 24, 36, 48, 54, 64 };
 		int i;
 
 		for (i = 7; i > 0; i--) {
