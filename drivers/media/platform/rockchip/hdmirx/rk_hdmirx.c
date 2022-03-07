@@ -133,7 +133,7 @@ struct hdmirx_stream {
 	bool stopping;
 	wait_queue_head_t wq_stopped;
 	u32 frame_idx;
-	u32 dma_idle_cnt;
+	u32 line_flag_int_cnt;
 	u32 irq_stat;
 };
 
@@ -571,7 +571,6 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	if (bt->interlaced == V4L2_DV_INTERLACED) {
 		bt->height *= 2;
 		bt->il_vsync = bt->vsync + 1;
-		bt->pixelclock /= 2;
 	}
 
 	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%lld\n", tmds_clk);
@@ -1553,10 +1552,11 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	unsigned long lock_flags = 0;
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
+	int line_flag;
 
 	mutex_lock(&hdmirx_dev->stream_lock);
 	stream->frame_idx = 0;
-	stream->dma_idle_cnt = 0;
+	stream->line_flag_int_cnt = 0;
 	stream->curr_buf = NULL;
 	stream->next_buf = NULL;
 	stream->irq_stat = 0;
@@ -1588,12 +1588,17 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	hdmirx_writel(hdmirx_dev, DMA_CONFIG3,
 			stream->curr_buf->buff_addr[HDMIRX_PLANE_CBCR]);
 
-	if (bt->height)
+	if (bt->height) {
+		if (bt->interlaced == V4L2_DV_INTERLACED)
+			line_flag = bt->height / 4;
+		else
+			line_flag = bt->height / 2;
 		hdmirx_update_bits(hdmirx_dev, DMA_CONFIG7,
 				LINE_FLAG_NUM_MASK,
-				LINE_FLAG_NUM(bt->height / 2));
-	else
+				LINE_FLAG_NUM(line_flag));
+	} else {
 		v4l2_err(v4l2_dev, "height err: %d\n", bt->height);
+	}
 
 	hdmirx_writel(hdmirx_dev, DMA_CONFIG5, 0xffffffff);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG4,
@@ -1933,13 +1938,12 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 	struct v4l2_bt_timings *bt = &timings.bt;
 	struct vb2_v4l2_buffer *vb_done = NULL;
 
-	stream->dma_idle_cnt++;
 	if (!(stream->irq_stat) && !(stream->irq_stat & LINE_FLAG_INT_EN))
 		v4l2_dbg(1, debug, v4l2_dev,
 			 "%s: last time have no line_flag_irq\n", __func__);
 
 	if ((bt->interlaced != V4L2_DV_INTERLACED) ||
-			(stream->dma_idle_cnt % 2 == 0)) {
+			(stream->line_flag_int_cnt % 2 == 0)) {
 		if (stream->next_buf) {
 			if (stream->curr_buf)
 				vb_done = &stream->curr_buf->vb;
@@ -1973,6 +1977,7 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 	struct v4l2_bt_timings *bt = &timings.bt;
 	u32 dma_cfg6;
 
+	stream->line_flag_int_cnt++;
 	if (!(stream->irq_stat) && !(stream->irq_stat & HDMIRX_DMA_IDLE_INT))
 		v4l2_dbg(1, debug, v4l2_dev,
 			 "%s: last have no dma_idle_irq\n", __func__);
@@ -1983,7 +1988,7 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 	}
 
 	if ((bt->interlaced != V4L2_DV_INTERLACED) ||
-			(stream->dma_idle_cnt % 2 == 0)) {
+			(stream->line_flag_int_cnt % 2 == 0)) {
 		if (!stream->next_buf) {
 			spin_lock(&stream->vbq_lock);
 			if (!list_empty(&stream->buf_head)) {
@@ -2006,8 +2011,8 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 			}
 		}
 	} else {
-		v4l2_dbg(3, debug, v4l2_dev, "%s: interlace:%d, dma_idle_cnt:%d\n",
-			 __func__, bt->interlaced, stream->dma_idle_cnt);
+		v4l2_dbg(3, debug, v4l2_dev, "%s: interlace:%d, line_flag_int_cnt:%d\n",
+			 __func__, bt->interlaced, stream->line_flag_int_cnt);
 	}
 
 LINE_FLAG_OUT:
