@@ -436,6 +436,13 @@ static void print_addr(struct rtattr *attrs, int len)
 					printf(",");
 			}
 
+			if (flags & MPTCP_PM_ADDR_FLAG_IMPLICIT) {
+				printf("implicit");
+				flags &= ~MPTCP_PM_ADDR_FLAG_IMPLICIT;
+				if (flags)
+					printf(",");
+			}
+
 			/* bump unknown flags, if any */
 			if (flags)
 				printf("0x%x", flags);

@@ -310,6 +310,21 @@ wait_rm_addr()
 	done
 }
 
+wait_mpj()
+{
+	local ns="${1}"
+	local cnt old_cnt
+
+	old_cnt=$(ip netns exec ${ns} nstat -as | grep MPJoinAckRx | awk '{print $2}')
+
+	local i
+	for i in $(seq 10); do
+		cnt=$(ip netns exec ${ns} nstat -as | grep MPJoinAckRx | awk '{print $2}')
+		[ "$cnt" = "${old_cnt}" ] || break
+		sleep 0.1
+	done
+}
+
 pm_nl_set_limits()
 {
 	local ns=$1
@@ -407,6 +422,80 @@ pm_nl_change_endpoint()
 		ip -n $ns mptcp endpoint change id $id ${flags//","/" "}
 	else
 		ip netns exec $ns ./pm_nl_ctl set id $id flags $flags
+	fi
+}
+
+pm_nl_check_endpoint()
+{
+	local line expected_line
+	local title="$1"
+	local msg="$2"
+	local ns=$3
+	local addr=$4
+	local _flags=""
+	local flags
+	local _port
+	local port
+	local dev
+	local _id
+	local id
+
+	if [ -n "${title}" ]; then
+		printf "%03u %-36s %s" "${TEST_COUNT}" "${title}" "${msg}"
+	else
+		printf "%-${nr_blank}s %s" " " "${msg}"
+	fi
+
+	shift 4
+	while [ -n "$1" ]; do
+		if [ $1 = "flags" ]; then
+			_flags=$2
+			[ ! -z $_flags ]; flags="flags $_flags"
+			shift
+		elif [ $1 = "dev" ]; then
+			[ ! -z $2 ]; dev="dev $1"
+			shift
+		elif [ $1 = "id" ]; then
+			_id=$2
+			[ ! -z $_id ]; id="id $_id"
+			shift
+		elif [ $1 = "port" ]; then
+			_port=$2
+			[ ! -z $_port ]; port=" port $_port"
+			shift
+		fi
+
+		shift
+	done
+
+	if [ -z "$id" ]; then
+		echo "[skip] bad test - missing endpoint id"
+		return
+	fi
+
+	if [ $ip_mptcp -eq 1 ]; then
+		line=$(ip -n $ns mptcp endpoint show $id)
+		# the dump order is: address id flags port dev
+		expected_line="$addr"
+		[ -n "$addr" ] && expected_line="$expected_line $addr"
+		expected_line="$expected_line $id"
+		[ -n "$_flags" ] && expected_line="$expected_line ${_flags//","/" "}"
+		[ -n "$dev" ] && expected_line="$expected_line $dev"
+		[ -n "$port" ] && expected_line="$expected_line $port"
+	else
+		line=$(ip netns exec $ns ./pm_nl_ctl get $_id)
+		# the dump order is: id flags dev address port
+		expected_line="$id"
+		[ -n "$flags" ] && expected_line="$expected_line $flags"
+		[ -n "$dev" ] && expected_line="$expected_line $dev"
+		[ -n "$addr" ] && expected_line="$expected_line $addr"
+		[ -n "$_port" ] && expected_line="$expected_line $_port"
+	fi
+	if [ "$line" = "$expected_line" ]; then
+		echo "[ ok ]"
+	else
+		echo "[fail] expected '$expected_line' found '$line'"
+		ret=1
 	fi
 }
 
@@ -2269,6 +2358,30 @@ fastclose_tests()
 	chk_rst_nr 1 1 invert
 }
 
+implicit_tests()
+{
+	# userspace pm type prevents add_addr
+	reset
+	pm_nl_set_limits $ns1 2 2
+	pm_nl_set_limits $ns2 2 2
+	pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+	run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow &
+
+	wait_mpj $ns1
+	TEST_COUNT=$((TEST_COUNT + 1))
+	pm_nl_check_endpoint "implicit EP" "creation" \
+		$ns2 10.0.2.2 id 1 flags implicit
+
+	pm_nl_add_endpoint $ns2 10.0.2.2 id 33
+	pm_nl_check_endpoint "" "ID change is prevented" \
+		$ns2 10.0.2.2 id 1 flags implicit
+
+	pm_nl_add_endpoint $ns2 10.0.2.2 flags signal
+	pm_nl_check_endpoint "" "modif is allowed" \
+		$ns2 10.0.2.2 id 1 flags signal
+	wait
+}
+
 all_tests()
 {
 	subflows_tests
@@ -2287,6 +2400,7 @@ all_tests()
 	deny_join_id0_tests
 	fullmesh_tests
 	fastclose_tests
+	implicit_tests
 }
 
 # [$1: error message]
@@ -2314,6 +2428,7 @@ usage()
 	echo "  -d deny_join_id0_tests"
 	echo "  -m fullmesh_tests"
 	echo "  -z fastclose_tests"
+	echo "  -I implicit_tests"
 	echo "  -c capture pcap files"
 	echo "  -C enable data checksum"
 	echo "  -i use ip mptcp"
@@ -2324,7 +2439,7 @@ usage()
 
 
 tests=()
-while getopts 'fesltra64bpkdmchzCSi' opt; do
+while getopts 'fesltra64bpkdmchzICSi' opt; do
 	case $opt in
 		f)
 			tests+=(subflows_tests)
@@ -2373,6 +2488,9 @@ while getopts 'fesltra64bpkdmchzCSi' opt; do
 			;;
 		z)
 			tests+=(fastclose_tests)
+			;;
+		I)
+			tests+=(implicit_tests)
 			;;
 		c)
 			capture=1
