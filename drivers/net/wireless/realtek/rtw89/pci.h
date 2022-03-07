@@ -537,11 +537,7 @@ struct rtw89_pci_dma_ring {
 	u8 desc_size;
 	dma_addr_t dma;
 
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_bdram;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
+	struct rtw89_pci_ch_dma_addr addr;
 
 	u32 len;
 	u32 wp; /* host idx */

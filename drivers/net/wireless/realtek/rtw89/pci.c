@@ -62,7 +62,7 @@ static u32 rtw89_pci_txbd_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_pci_tx_ring *tx_ring)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &tx_ring->bd_ring;
-	u32 addr_idx = bd_ring->addr_idx;
+	u32 addr_idx = bd_ring->addr.idx;
 	u32 cnt, idx;
 
 	idx = rtw89_read32(rtwdev, addr_idx);
@@ -121,7 +121,7 @@ static u32 rtw89_pci_rxbd_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_pci_rx_ring *rx_ring)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
-	u32 addr_idx = bd_ring->addr_idx;
+	u32 addr_idx = bd_ring->addr.idx;
 	u32 cnt, idx;
 
 	idx = rtw89_read32(rtwdev, addr_idx);
@@ -304,7 +304,7 @@ static void rtw89_pci_rxbd_deliver(struct rtw89_dev *rtwdev,
 		cnt -= rx_cnt;
 	}
 
-	rtw89_write16(rtwdev, bd_ring->addr_idx, bd_ring->wp);
+	rtw89_write16(rtwdev, bd_ring->addr.idx, bd_ring->wp);
 }
 
 static int rtw89_pci_poll_rxq_dma(struct rtw89_dev *rtwdev,
@@ -555,7 +555,7 @@ static void rtw89_pci_release_tx(struct rtw89_dev *rtwdev,
 		cnt -= release_cnt;
 	}
 
-	rtw89_write16(rtwdev, bd_ring->addr_idx, bd_ring->wp);
+	rtw89_write16(rtwdev, bd_ring->addr.idx, bd_ring->wp);
 }
 
 static int rtw89_pci_poll_rpq_dma(struct rtw89_dev *rtwdev,
@@ -598,7 +598,7 @@ static void rtw89_pci_isr_rxd_unavail(struct rtw89_dev *rtwdev,
 		rx_ring = &rtwpci->rx_rings[i];
 		bd_ring = &rx_ring->bd_ring;
 
-		reg_idx = rtw89_read32(rtwdev, bd_ring->addr_idx);
+		reg_idx = rtw89_read32(rtwdev, bd_ring->addr.idx);
 		hw_idx = FIELD_GET(TXBD_HW_IDX_MASK, reg_idx);
 		host_idx = FIELD_GET(TXBD_HOST_IDX_MASK, reg_idx);
 		hw_idx_next = (hw_idx + 1) % bd_ring->len;
@@ -876,7 +876,7 @@ static void __rtw89_pci_tx_kick_off(struct rtw89_dev *rtwdev, struct rtw89_pci_t
 	struct rtw89_pci_dma_ring *bd_ring = &tx_ring->bd_ring;
 	u32 host_idx, addr;
 
-	addr = bd_ring->addr_idx;
+	addr = bd_ring->addr.idx;
 	host_idx = bd_ring->wp;
 	rtw89_write16(rtwdev, addr, host_idx);
 }
@@ -918,7 +918,7 @@ static void __pci_flush_txch(struct rtw89_dev *rtwdev, u8 txch, bool drop)
 	 * just use for loop with udelay here.
 	 */
 	for (i = 0; i < 60; i++) {
-		cur_idx = rtw89_read32(rtwdev, bd_ring->addr_idx);
+		cur_idx = rtw89_read32(rtwdev, bd_ring->addr.idx);
 		cur_rp = FIELD_GET(TXBD_HW_IDX_MASK, cur_idx);
 		if (cur_rp == bd_ring->wp)
 			return;
@@ -1179,9 +1179,9 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 		tx_ring = &rtwpci->tx_rings[i];
 		bd_ring = &tx_ring->bd_ring;
 		bd_ram = &bd_ram_table[i];
-		addr_num = bd_ring->addr_num;
-		addr_bdram = bd_ring->addr_bdram;
-		addr_desa_l = bd_ring->addr_desa_l;
+		addr_num = bd_ring->addr.num;
+		addr_bdram = bd_ring->addr.bdram;
+		addr_desa_l = bd_ring->addr.desa_l;
 		bd_ring->wp = 0;
 		bd_ring->rp = 0;
 
@@ -1197,8 +1197,8 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 	for (i = 0; i < RTW89_RXCH_NUM; i++) {
 		rx_ring = &rtwpci->rx_rings[i];
 		bd_ring = &rx_ring->bd_ring;
-		addr_num = bd_ring->addr_num;
-		addr_desa_l = bd_ring->addr_desa_l;
+		addr_num = bd_ring->addr.num;
+		addr_desa_l = bd_ring->addr.desa_l;
 		bd_ring->wp = 0;
 		bd_ring->rp = 0;
 		rx_ring->diliver_skb = NULL;
@@ -2256,11 +2256,7 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 	tx_ring->bd_ring.dma = dma;
 	tx_ring->bd_ring.len = len;
 	tx_ring->bd_ring.desc_size = desc_size;
-	tx_ring->bd_ring.addr_num = txch_addr->num;
-	tx_ring->bd_ring.addr_idx = txch_addr->idx;
-	tx_ring->bd_ring.addr_bdram = txch_addr->bdram;
-	tx_ring->bd_ring.addr_desa_l = txch_addr->desa_l;
-	tx_ring->bd_ring.addr_desa_h = txch_addr->desa_h;
+	tx_ring->bd_ring.addr = *txch_addr;
 	tx_ring->bd_ring.wp = 0;
 	tx_ring->bd_ring.rp = 0;
 	tx_ring->txch = txch;
@@ -2337,10 +2333,7 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	rx_ring->bd_ring.dma = dma;
 	rx_ring->bd_ring.len = len;
 	rx_ring->bd_ring.desc_size = desc_size;
-	rx_ring->bd_ring.addr_num = rxch_addr->num;
-	rx_ring->bd_ring.addr_idx = rxch_addr->idx;
-	rx_ring->bd_ring.addr_desa_l = rxch_addr->desa_l;
-	rx_ring->bd_ring.addr_desa_h = rxch_addr->desa_h;
+	rx_ring->bd_ring.addr = *rxch_addr;
 	rx_ring->bd_ring.wp = 0;
 	rx_ring->bd_ring.rp = 0;
 	rx_ring->buf_sz = buf_sz;
