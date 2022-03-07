@@ -115,6 +115,9 @@ int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *strea
 		offset += 8;
 	}
 
+	/* Flush ATU Cache after PTE Update */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
+
 	return 0;
 }
 

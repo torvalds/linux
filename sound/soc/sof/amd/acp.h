@@ -17,6 +17,7 @@
 
 #define ACP_DSP_BAR	0
 
+#define ACP_HW_SEM_RETRY_COUNT			10000
 #define ACP_REG_POLL_INTERVAL                   500
 #define ACP_REG_POLL_TIMEOUT_US                 2000
 #define ACP_DMA_COMPLETE_TIMEOUT_US		5000
@@ -185,8 +186,6 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
 int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
 int acp_sof_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
-int acp_sof_ipc_pcm_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-			   const struct sof_ipc_pcm_params_reply *reply);
 void acp_mailbox_write(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
 void acp_mailbox_read(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
 
