@@ -1022,14 +1022,18 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 #define PWR_ACT 1
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_pwr_cfg * const *cfg_seq;
+	int (*cfg_func)(struct rtw89_dev *rtwdev);
 	struct rtw89_hal *hal = &rtwdev->hal;
 	int ret;
 	u8 val;
 
-	if (on)
+	if (on) {
 		cfg_seq = chip->pwr_on_seq;
-	else
+		cfg_func = chip->ops->pwr_on_func;
+	} else {
 		cfg_seq = chip->pwr_off_seq;
+		cfg_func = chip->ops->pwr_off_func;
+	}
 
 	if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		__rtw89_leave_ps_mode(rtwdev);
@@ -1040,7 +1044,7 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		return -EBUSY;
 	}
 
-	ret = rtw89_mac_pwr_seq(rtwdev, cfg_seq);
+	ret = cfg_func ? cfg_func(rtwdev) : rtw89_mac_pwr_seq(rtwdev, cfg_seq);
 	if (ret)
 		return ret;
 
@@ -3968,3 +3972,27 @@ int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,
 
 	return 0;
 }
+
+int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask)
+{
+	u32 val32;
+	int ret;
+
+	val32 = FIELD_PREP(B_AX_WL_XTAL_SI_ADDR_MASK, offset) |
+		FIELD_PREP(B_AX_WL_XTAL_SI_DATA_MASK, val) |
+		FIELD_PREP(B_AX_WL_XTAL_SI_BITMASK_MASK, mask) |
+		FIELD_PREP(B_AX_WL_XTAL_SI_MODE_MASK, XTAL_SI_NORMAL_WRITE) |
+		FIELD_PREP(B_AX_WL_XTAL_SI_CMD_POLL, 1);
+	rtw89_write32(rtwdev, R_AX_WLAN_XTAL_SI_CTRL, val32);
+
+	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_AX_WL_XTAL_SI_CMD_POLL),
+				50, 50000, false, rtwdev, R_AX_WLAN_XTAL_SI_CTRL);
+	if (ret) {
+		rtw89_warn(rtwdev, "xtal si not ready(W): offset=%x val=%x mask=%x\n",
+			   offset, val, mask);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_mac_write_xtal_si);

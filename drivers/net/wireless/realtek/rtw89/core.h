@@ -2066,6 +2066,8 @@ struct rtw89_chip_ops {
 	void (*bb_ctrl_btc_preagc)(struct rtw89_dev *rtwdev, bool bt_en);
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
 				       s16 pw_ofst, enum rtw89_mac_idx mac_idx);
+	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
+	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);

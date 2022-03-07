@@ -872,4 +872,30 @@ int rtw89_mac_set_tx_retry_limit(struct rtw89_dev *rtwdev,
 int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta, u8 *tx_retry);
 
+enum rtw89_mac_xtal_si_offset {
+	XTAL_SI_XTAL_SC_XI = 0x04,
+	XTAL_SI_XTAL_SC_XO = 0x05,
+	XTAL_SI_XTAL_XMD_2 = 0x24,
+#define XTAL_SI_LDO_LPS		GENMASK(6, 4)
+	XTAL_SI_XTAL_XMD_4 = 0x26,
+#define XTAL_SI_LPS_CAP		GENMASK(3, 0)
+	XTAL_SI_CV = 0x41,
+	XTAL_SI_WL_RFC_S0 = 0x80,
+#define XTAL_SI_RF00		BIT(0)
+	XTAL_SI_WL_RFC_S1 = 0x81,
+#define XTAL_SI_RF10		BIT(0)
+	XTAL_SI_ANAPAR_WL = 0x90,
+#define XTAL_SI_SRAM2RFC	BIT(7)
+#define XTAL_SI_GND_SHDN_WL	BIT(6)
+#define XTAL_SI_SHDN_WL		BIT(5)
+#define XTAL_SI_RFC2RF		BIT(4)
+#define XTAL_SI_OFF_EI		BIT(3)
+#define XTAL_SI_OFF_WEI		BIT(2)
+#define XTAL_SI_PON_EI		BIT(1)
+#define XTAL_SI_PON_WEI		BIT(0)
+	XTAL_SI_SRAM_CTRL = 0xA1,
+};
+
+int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
+
 #endif
