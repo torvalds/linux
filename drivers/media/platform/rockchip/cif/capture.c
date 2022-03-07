@@ -7340,6 +7340,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
 	struct v4l2_mbus_config *mbus;
 	unsigned int intstat, i = 0xff, bak_intstat = 0;
+	unsigned long flags;
 
 	if (!cif_dev->active_sensor)
 		return;
@@ -7396,10 +7397,17 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			return;
 		}
 
-		if (intstat & CSI_FRAME0_START_ID0 || intstat & CSI_FRAME1_START_ID0)
-			rkcif_deal_sof(cif_dev);
-
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
+			if (intstat & CSI_START_INTSTAT(i)) {
+				stream = &cif_dev->stream[i];
+				if (i == 0) {
+					rkcif_deal_sof(cif_dev);
+				} else {
+					spin_lock_irqsave(&stream->fps_lock, flags);
+					stream->readout.fs_timestamp = ktime_get_ns();
+					spin_unlock_irqrestore(&stream->fps_lock, flags);
+				}
+			}
 			if (intstat & CSI_LINE_INTSTAT(i)) {
 				stream = &cif_dev->stream[i];
 				if (stream->is_line_inten) {
