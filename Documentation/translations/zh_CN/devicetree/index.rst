@@ -23,11 +23,10 @@ Open Firmware 和 Devicetree
    :maxdepth: 1
 
    usage-model
+   of_unittest
 
 Todolist:
 
-
-*   of_unittest
 *   kernel-api
 
 Devicetree Overlays
