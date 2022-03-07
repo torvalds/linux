@@ -3014,7 +3014,6 @@ static int sof_link_afe_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct snd_soc_dai *dai;
 	u32 size = sizeof(*config);
 	int ret;
 
@@ -3032,12 +3031,6 @@ static int sof_link_afe_load(struct snd_soc_component *scomp, int index,
 
 	dev_dbg(scomp->dev, "AFE config rate %d channels %d format:%d\n",
 		config->afe.rate, config->afe.channels, config->afe.format);
-
-	dai = snd_soc_find_dai(link->cpus);
-	if (!dai) {
-		dev_err(scomp->dev, "%s: failed to find dai %s", __func__, link->cpus->dai_name);
-		return -EINVAL;
-	}
 
 	config->afe.stream_id = DMA_CHAN_INVALID;
 
