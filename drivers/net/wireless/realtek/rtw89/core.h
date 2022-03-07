@@ -2188,6 +2188,7 @@ struct rtw89_ple_quota {
 	u16 bb_rpt;
 	u16 wd_rel;
 	u16 cpu_io;
+	u16 tx_rpt;
 };
 
 struct rtw89_dle_mem {

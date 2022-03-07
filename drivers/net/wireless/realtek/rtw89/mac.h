@@ -675,13 +675,23 @@ enum mac_ax_err_info {
 extern const struct rtw89_hfc_prec_cfg rtw89_hfc_preccfg_pcie;
 extern const struct rtw89_dle_size rtw89_wde_size0;
 extern const struct rtw89_dle_size rtw89_wde_size4;
+extern const struct rtw89_dle_size rtw89_wde_size18;
+extern const struct rtw89_dle_size rtw89_wde_size19;
 extern const struct rtw89_dle_size rtw89_ple_size0;
 extern const struct rtw89_dle_size rtw89_ple_size4;
+extern const struct rtw89_dle_size rtw89_ple_size18;
+extern const struct rtw89_dle_size rtw89_ple_size19;
 extern const struct rtw89_wde_quota rtw89_wde_qt0;
 extern const struct rtw89_wde_quota rtw89_wde_qt4;
+extern const struct rtw89_wde_quota rtw89_wde_qt17;
+extern const struct rtw89_wde_quota rtw89_wde_qt18;
 extern const struct rtw89_ple_quota rtw89_ple_qt4;
 extern const struct rtw89_ple_quota rtw89_ple_qt5;
 extern const struct rtw89_ple_quota rtw89_ple_qt13;
+extern const struct rtw89_ple_quota rtw89_ple_qt44;
+extern const struct rtw89_ple_quota rtw89_ple_qt45;
+extern const struct rtw89_ple_quota rtw89_ple_qt46;
+extern const struct rtw89_ple_quota rtw89_ple_qt47;
 
 static inline u32 rtw89_mac_reg_by_idx(u32 reg_base, u8 band)
 {

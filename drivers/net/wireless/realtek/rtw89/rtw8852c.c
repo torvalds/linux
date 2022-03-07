@@ -7,6 +7,17 @@
 #include "reg.h"
 #include "rtw8852c.h"
 
+static const struct rtw89_dle_mem rtw8852c_dle_mem_pcie[] = {
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_wde_size19, &rtw89_ple_size19,
+			   &rtw89_wde_qt18, &rtw89_wde_qt18, &rtw89_ple_qt46,
+			   &rtw89_ple_qt47},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_wde_size18,
+			    &rtw89_ple_size18, &rtw89_wde_qt17, &rtw89_wde_qt17,
+			    &rtw89_ple_qt44, &rtw89_ple_qt45},
+	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
+			       NULL},
+};
+
 static const u32 rtw8852c_h2c_regs[RTW89_H2CREG_MAX] = {
 	R_AX_H2CREG_DATA0_V1, R_AX_H2CREG_DATA1_V1, R_AX_H2CREG_DATA2_V1,
 	R_AX_H2CREG_DATA3_V1
@@ -218,6 +229,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.chip_id		= RTL8852C,
 	.ops			= &rtw8852c_chip_ops,
 	.fw_name		= "rtw89/rtw8852c_fw.bin",
+	.dle_mem		= rtw8852c_dle_mem_pcie,
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN_V1,
