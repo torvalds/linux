@@ -76,6 +76,13 @@ enum mt7915_eeprom_band {
 	MT_EE_BAND_SEL_DUAL,
 };
 
+enum {
+	MT_EE_V2_BAND_SEL_2GHZ,
+	MT_EE_V2_BAND_SEL_5GHZ,
+	MT_EE_V2_BAND_SEL_6GHZ,
+	MT_EE_V2_BAND_SEL_5GHZ_6GHZ,
+};
+
 enum mt7915_sku_rate_group {
 	SKU_CCK,
 	SKU_OFDM,

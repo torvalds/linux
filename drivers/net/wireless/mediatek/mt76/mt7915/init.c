@@ -872,7 +872,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
-		else if (band == NL80211_BAND_5GHZ)
+		else
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
@@ -911,7 +911,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 			if (band == NL80211_BAND_2GHZ)
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
-			else if (band == NL80211_BAND_5GHZ)
+			else
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
 
@@ -961,6 +961,21 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 				u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
 					       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
 		}
+
+		if (band == NL80211_BAND_6GHZ) {
+			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
+				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+
+			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_8,
+					       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
+			       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
+					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
+			       u16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+					       IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+
+			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
+		}
+
 		idx++;
 	}
 
@@ -987,6 +1002,15 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 		n = mt7915_init_he_caps(phy, NL80211_BAND_5GHZ, data);
 
 		band = &phy->mt76->sband_5g.sband;
+		band->iftype_data = data;
+		band->n_iftype_data = n;
+	}
+
+	if (phy->mt76->cap.has_6ghz) {
+		data = phy->iftype[NL80211_BAND_6GHZ];
+		n = mt7915_init_he_caps(phy, NL80211_BAND_6GHZ, data);
+
+		band = &phy->mt76->sband_6g.sband;
 		band->iftype_data = data;
 		band->n_iftype_data = n;
 	}

@@ -638,6 +638,8 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	status->band = mphy->chandef.chan->band;
 	if (status->band == NL80211_BAND_5GHZ)
 		sband = &mphy->sband_5g.sband;
+	else if (status->band == NL80211_BAND_6GHZ)
+		sband = &mphy->sband_6g.sband;
 	else
 		sband = &mphy->sband_2g.sband;
 
@@ -1351,7 +1353,7 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	u16 fc, tid;
 	u32 val;
 
-	if (!sta || !sta->ht_cap.ht_supported)
+	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
 		return;
 
 	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
@@ -1559,6 +1561,8 @@ mt7915_mac_add_txs_skb(struct mt7915_dev *dev, struct mt76_wcid *wcid, int pid,
 
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
@@ -1804,7 +1808,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
 	int offset;
-	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
+	bool a_band = !(phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ);
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
@@ -1824,7 +1828,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 	mt76_wr(dev, MT_TMAC_CDTR(phy->band_idx), cck + reg_offset);
 	mt76_wr(dev, MT_TMAC_ODTR(phy->band_idx), ofdm + reg_offset);
 	mt76_wr(dev, MT_TMAC_ICR0(phy->band_idx),
-		FIELD_PREP(MT_IFS_EIFS_OFDM, is_5ghz ? 84 : 78) |
+		FIELD_PREP(MT_IFS_EIFS_OFDM, a_band ? 84 : 78) |
 		FIELD_PREP(MT_IFS_RIFS, 2) |
 		FIELD_PREP(MT_IFS_SIFS, 10) |
 		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
@@ -1832,7 +1836,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 	mt76_wr(dev, MT_TMAC_ICR1(phy->band_idx),
 		FIELD_PREP(MT_IFS_EIFS_CCK, 314));
 
-	if (phy->slottime < 20 || is_5ghz)
+	if (phy->slottime < 20 || a_band)
 		val = MT7915_CFEND_RATE_DEFAULT;
 	else
 		val = MT7915_CFEND_RATE_11B;
