@@ -15,17 +15,18 @@
 
 #ifdef CONFIG_SYSCTL
 
-int smc_sysctl_init(void);
-void smc_sysctl_exit(void);
+int __net_init smc_sysctl_net_init(struct net *net);
+void __net_exit smc_sysctl_net_exit(struct net *net);
 
 #else
 
-int smc_sysctl_init(void)
+int __net_init smc_sysctl_net_init(struct net *net)
 {
+	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
 	return 0;
 }
 
-void smc_sysctl_exit(void) { }
+void __net_exit smc_sysctl_net_exit(struct net *net) { }
 
 #endif /* CONFIG_SYSCTL */
 

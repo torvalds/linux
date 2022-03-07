@@ -28,7 +28,7 @@ static struct ctl_table smc_table[] = {
 	{  }
 };
 
-static __net_init int smc_sysctl_init_net(struct net *net)
+int __net_init smc_sysctl_net_init(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -59,22 +59,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static __net_exit void smc_sysctl_exit_net(struct net *net)
+void __net_exit smc_sysctl_net_exit(struct net *net)
 {
 	unregister_net_sysctl_table(net->smc.smc_hdr);
-}
-
-static struct pernet_operations smc_sysctl_ops __net_initdata = {
-	.init = smc_sysctl_init_net,
-	.exit = smc_sysctl_exit_net,
-};
-
-int __init smc_sysctl_init(void)
-{
-	return register_pernet_subsys(&smc_sysctl_ops);
-}
-
-void smc_sysctl_exit(void)
-{
-	unregister_pernet_subsys(&smc_sysctl_ops);
 }

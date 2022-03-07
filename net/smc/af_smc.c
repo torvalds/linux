@@ -3179,11 +3179,17 @@ unsigned int smc_net_id;
 
 static __net_init int smc_net_init(struct net *net)
 {
+	int rc;
+
+	rc = smc_sysctl_net_init(net);
+	if (rc)
+		return rc;
 	return smc_pnet_net_init(net);
 }
 
 static void __net_exit smc_net_exit(struct net *net)
 {
+	smc_sysctl_net_exit(net);
 	smc_pnet_net_exit(net);
 }
 
@@ -3296,17 +3302,9 @@ static int __init smc_init(void)
 		goto out_ib;
 	}
 
-	rc = smc_sysctl_init();
-	if (rc) {
-		pr_err("%s: sysctl_init fails with %d\n", __func__, rc);
-		goto out_ulp;
-	}
-
 	static_branch_enable(&tcp_have_smc);
 	return 0;
 
-out_ulp:
-	tcp_unregister_ulp(&smc_ulp_ops);
 out_ib:
 	smc_ib_unregister_client();
 out_sock:
@@ -3336,7 +3334,6 @@ out_pernet_subsys:
 static void __exit smc_exit(void)
 {
 	static_branch_disable(&tcp_have_smc);
-	smc_sysctl_exit();
 	tcp_unregister_ulp(&smc_ulp_ops);
 	sock_unregister(PF_SMC);
 	smc_core_exit();
