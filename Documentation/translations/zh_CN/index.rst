@@ -56,10 +56,14 @@ TODOList:
 
 下列文档描述了内核需要的平台固件相关信息。
 
+.. toctree::
+   :maxdepth: 2
+
+   devicetree/index
+
 TODOList:
 
 * firmware-guide/index
-* devicetree/index
 
 应用程序开发人员文档
 --------------------
