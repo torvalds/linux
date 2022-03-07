@@ -4062,9 +4062,9 @@ static int check_buffer_access(struct bpf_verifier_env *env,
 			       const struct bpf_reg_state *reg,
 			       int regno, int off, int size,
 			       bool zero_size_allowed,
-			       const char *buf_info,
 			       u32 *max_access)
 {
+	const char *buf_info = type_is_rdonly_mem(reg->type) ? "rdonly" : "rdwr";
 	int err;
 
 	err = __check_buffer_access(env, buf_info, reg, regno, off, size);
@@ -4576,7 +4576,6 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 					      value_regno);
 	} else if (base_type(reg->type) == PTR_TO_BUF) {
 		bool rdonly_mem = type_is_rdonly_mem(reg->type);
-		const char *buf_info;
 		u32 *max_access;
 
 		if (rdonly_mem) {
@@ -4585,15 +4584,13 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 					regno, reg_type_str(env, reg->type));
 				return -EACCES;
 			}
-			buf_info = "rdonly";
 			max_access = &env->prog->aux->max_rdonly_access;
 		} else {
-			buf_info = "rdwr";
 			max_access = &env->prog->aux->max_rdwr_access;
 		}
 
 		err = check_buffer_access(env, reg, regno, off, size, false,
-					  buf_info, max_access);
+					  max_access);
 
 		if (!err && value_regno >= 0 && (rdonly_mem || t == BPF_READ))
 			mark_reg_unknown(env, regs, value_regno);
@@ -4856,7 +4853,6 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 				   struct bpf_call_arg_meta *meta)
 {
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
-	const char *buf_info;
 	u32 *max_access;
 
 	switch (base_type(reg->type)) {
@@ -4883,15 +4879,13 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 			if (meta && meta->raw_mode)
 				return -EACCES;
 
-			buf_info = "rdonly";
 			max_access = &env->prog->aux->max_rdonly_access;
 		} else {
-			buf_info = "rdwr";
 			max_access = &env->prog->aux->max_rdwr_access;
 		}
 		return check_buffer_access(env, reg, regno, reg->off,
 					   access_size, zero_size_allowed,
-					   buf_info, max_access);
+					   max_access);
 	case PTR_TO_STACK:
 		return check_stack_range_initialized(
 				env,
