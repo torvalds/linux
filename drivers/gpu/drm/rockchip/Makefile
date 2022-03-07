@@ -12,6 +12,8 @@ rockchipdrm-$(CONFIG_ROCKCHIP_VOP2) += rockchip_drm_vop2.o rockchip_vop2_reg.o
 rockchipdrm-$(CONFIG_DRM_FBDEV_EMULATION) += rockchip_drm_fbdev.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DRM_DEBUG) += rockchip_drm_debugfs.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DRM_DIRECT_SHOW) += rockchip_drm_direct_show.o
+rockchipdrm-$(CONFIG_ROCKCHIP_DRM_SELF_TEST) += rockchip_drm_display_pattern.o	\
+						rockchip_drm_self_test.o
 
 rockchipdrm-$(CONFIG_ROCKCHIP_ANALOGIX_DP) += analogix_dp-rockchip.o
 rockchipdrm-$(CONFIG_ROCKCHIP_CDN_DP) += cdn-dp-core.o cdn-dp-reg.o

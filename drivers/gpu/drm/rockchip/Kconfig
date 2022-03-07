@@ -42,6 +42,12 @@ config ROCKCHIP_DRM_DIRECT_SHOW
 	help
 	  This is a quick display scheme api in kernel space.
 
+config ROCKCHIP_DRM_SELF_TEST
+	bool "Rockchip DRM self test case"
+	depends on ROCKCHIP_DRM_DIRECT_SHOW
+	help
+	  This offer setf test demo to display image at kernel space.
+
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
 	default y if (CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
