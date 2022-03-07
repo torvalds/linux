@@ -14,7 +14,6 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
-#include <linux/blk-cgroup.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>
@@ -24,6 +23,7 @@
 
 #include <trace/events/block.h>
 #include "blk.h"
+#include "blk-cgroup.h"
 
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16
@@ -162,15 +162,12 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    that does not own the bio - reason being drivers don't use it for
 	 *    iterating over the biovec anymore, so expecting it to be kept up
 	 *    to date (i.e. for clones that share the parent biovec) is just
-	 *    asking for trouble and would force extra work on
-	 *    __bio_clone_fast() anyways.
+	 *    asking for trouble and would force extra work.
 	 */
-	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
-			       &bounce_bio_set);
-	bio->bi_bdev		= bio_src->bi_bdev;
+	bio = bio_alloc_bioset(bio_src->bi_bdev, bio_segments(bio_src),
+			       bio_src->bi_opf, GFP_NOIO, &bounce_bio_set);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
-	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
 	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;

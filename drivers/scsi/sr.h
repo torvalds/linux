@@ -18,7 +18,6 @@
 #ifndef _SR_H
 #define _SR_H
 
-#include <linux/genhd.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 
