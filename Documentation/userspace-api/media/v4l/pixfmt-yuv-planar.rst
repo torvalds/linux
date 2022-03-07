@@ -76,7 +76,7 @@ All components are stored with the same number of bits per component.
       - 'NV21'
       - 8
       - 4:2:0
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
     * - V4L2_PIX_FMT_NV12M
@@ -90,7 +90,7 @@ All components are stored with the same number of bits per component.
       - 'NM21'
       - 8
       - 4:2:0
-      - Cr, Cr
+      - Cr, Cb
       - No
       - Linear
     * - V4L2_PIX_FMT_NV12MT
@@ -120,7 +120,7 @@ All components are stored with the same number of bits per component.
       - 'NV61'
       - 8
       - 4:2:2
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
     * - V4L2_PIX_FMT_NV16M
@@ -134,7 +134,7 @@ All components are stored with the same number of bits per component.
       - 'NM61'
       - 8
       - 4:2:2
-      - Cr, Cr
+      - Cr, Cb
       - No
       - Linear
     * - V4L2_PIX_FMT_NV24
@@ -148,7 +148,7 @@ All components are stored with the same number of bits per component.
       - 'NV42'
       - 8
       - 4:4:4
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
 

@@ -439,6 +439,8 @@ static int cedrus_probe(struct platform_device *pdev)
 
 	mutex_init(&dev->dev_mutex);
 
+	INIT_DELAYED_WORK(&dev->watchdog_work, cedrus_watchdog);
+
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register V4L2 device\n");

@@ -954,7 +954,6 @@ static void mxc_jpeg_device_run(void *priv)
 		jpeg_src_buf->jpeg_parse_error = true;
 	}
 	if (jpeg_src_buf->jpeg_parse_error) {
-		jpeg->slot_data[ctx->slot].used = false;
 		v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
@@ -998,6 +997,20 @@ end:
 	spin_unlock_irqrestore(&ctx->mxc_jpeg->hw_lock, flags);
 }
 
+static void mxc_jpeg_set_last_buffer_dequeued(struct mxc_jpeg_ctx *ctx)
+{
+	struct vb2_queue *q;
+
+	ctx->stopped = 1;
+	q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
+	if (!list_empty(&q->done_list))
+		return;
+
+	q->last_buffer_dequeued = true;
+	wake_up(&q->done_wq);
+	ctx->stopped = 0;
+}
+
 static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 				struct v4l2_decoder_cmd *cmd)
 {
@@ -1015,6 +1028,7 @@ static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
 			/* No more src bufs, notify app EOS */
 			notify_eos(ctx);
+			mxc_jpeg_set_last_buffer_dequeued(ctx);
 		} else {
 			/* will send EOS later*/
 			ctx->stopping = 1;
@@ -1041,6 +1055,7 @@ static int mxc_jpeg_encoder_cmd(struct file *file, void *priv,
 		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
 			/* No more src bufs, notify app EOS */
 			notify_eos(ctx);
+			mxc_jpeg_set_last_buffer_dequeued(ctx);
 		} else {
 			/* will send EOS later*/
 			ctx->stopping = 1;
@@ -1117,6 +1132,10 @@ static void mxc_jpeg_stop_streaming(struct vb2_queue *q)
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 	}
 	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
+	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		ctx->stopping = 0;
+		ctx->stopped = 0;
+	}
 }
 
 static int mxc_jpeg_valid_comp_id(struct device *dev,
@@ -1408,12 +1427,29 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
+static void mxc_jpeg_buf_finish(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_queue *q = vb->vb2_queue;
+
+	if (V4L2_TYPE_IS_OUTPUT(vb->type))
+		return;
+	if (!ctx->stopped)
+		return;
+	if (list_empty(&q->done_list)) {
+		vbuf->flags |= V4L2_BUF_FLAG_LAST;
+		ctx->stopped = 0;
+	}
+}
+
 static const struct vb2_ops mxc_jpeg_qops = {
 	.queue_setup		= mxc_jpeg_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
 	.buf_out_validate	= mxc_jpeg_buf_out_validate,
 	.buf_prepare		= mxc_jpeg_buf_prepare,
+	.buf_finish             = mxc_jpeg_buf_finish,
 	.start_streaming	= mxc_jpeg_start_streaming,
 	.stop_streaming		= mxc_jpeg_stop_streaming,
 	.buf_queue		= mxc_jpeg_buf_queue,
@@ -1849,14 +1885,14 @@ static int mxc_jpeg_dqbuf(struct file *file, void *priv,
 	int ret;
 
 	dev_dbg(dev, "DQBUF type=%d, index=%d", buf->type, buf->index);
-	if (ctx->stopping == 1	&& num_src_ready == 0) {
+	if (ctx->stopping == 1 && num_src_ready == 0) {
 		/* No more src bufs, notify app EOS */
 		notify_eos(ctx);
 		ctx->stopping = 0;
+		mxc_jpeg_set_last_buffer_dequeued(ctx);
 	}
 
 	ret = v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
-
 	return ret;
 }
 
@@ -2022,7 +2058,6 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	for (slot = 0; slot < MXC_MAX_SLOTS; slot++) {
 		dec_irq = platform_get_irq(pdev, slot);
 		if (dec_irq < 0) {
-			dev_err(&pdev->dev, "Failed to get irq %d\n", dec_irq);
 			ret = dec_irq;
 			goto err_irq;
 		}

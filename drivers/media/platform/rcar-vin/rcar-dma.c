@@ -1507,7 +1507,7 @@ int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 	 * register. IFMD_DES1 controls data expansion mode for CSI20/21,
 	 * IFMD_DES0 controls data expansion mode for CSI40/41.
 	 */
-	for (route = vin->info->routes; route->mask; route++) {
+	for (route = vin->info->routes; route->chsel; route++) {
 		if (route->csi == RVIN_CSI20 || route->csi == RVIN_CSI21)
 			ifmd |= VNCSI_IFMD_DES1;
 		else

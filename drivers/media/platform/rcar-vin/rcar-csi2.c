@@ -503,6 +503,8 @@ struct rcar_csi2 {
 	struct v4l2_subdev *remote;
 	unsigned int remote_pad;
 
+	int channel_vc[4];
+
 	struct mutex lock; /* Protects mf and stream_count. */
 	struct v4l2_mbus_framefmt mf;
 	int stream_count;
@@ -700,8 +702,11 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	for (i = 0; i < priv->info->num_channels; i++) {
 		u32 vcdt_part;
 
-		vcdt_part = VCDT_SEL_VC(i) | VCDT_VCDTN_EN | VCDT_SEL_DTN_ON |
-			VCDT_SEL_DT(format->datatype);
+		if (priv->channel_vc[i] < 0)
+			continue;
+
+		vcdt_part = VCDT_SEL_VC(priv->channel_vc[i]) | VCDT_VCDTN_EN |
+			VCDT_SEL_DTN_ON | VCDT_SEL_DT(format->datatype);
 
 		/* Store in correct reg and offset. */
 		if (i < 2)
@@ -1283,7 +1288,52 @@ static int rcsi2_init_phtw_v3u(struct rcar_csi2 *priv,
  * Platform Device Driver.
  */
 
+static int rcsi2_link_setup(struct media_entity *entity,
+			    const struct media_pad *local,
+			    const struct media_pad *remote, u32 flags)
+{
+	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
+	struct rcar_csi2 *priv = sd_to_csi2(sd);
+	struct video_device *vdev;
+	int channel, vc;
+	u32 id;
+
+	if (!is_media_entity_v4l2_video_device(remote->entity)) {
+		dev_err(priv->dev, "Remote is not a video device\n");
+		return -EINVAL;
+	}
+
+	vdev = media_entity_to_video_device(remote->entity);
+
+	if (of_property_read_u32(vdev->dev_parent->of_node, "renesas,id", &id)) {
+		dev_err(priv->dev, "No renesas,id, can't configure routing\n");
+		return -EINVAL;
+	}
+
+	channel = id % 4;
+
+	if (flags & MEDIA_LNK_FL_ENABLED) {
+		if (media_entity_remote_pad(local)) {
+			dev_dbg(priv->dev,
+				"Each VC can only be routed to one output channel\n");
+			return -EINVAL;
+		}
+
+		vc = local->index - 1;
+
+		dev_dbg(priv->dev, "Route VC%d to VIN%u on output channel %d\n",
+			vc, id, channel);
+	} else {
+		vc = -1;
+	}
+
+	priv->channel_vc[channel] = vc;
+
+	return 0;
+}
+
 static const struct media_entity_operations rcar_csi2_entity_ops = {
+	.link_setup = rcsi2_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
 };
 
@@ -1501,6 +1551,9 @@ static int rcsi2_probe(struct platform_device *pdev)
 				     priv->pads);
 	if (ret)
 		goto error_async;
+
+	for (i = 0; i < ARRAY_SIZE(priv->channel_vc); i++)
+		priv->channel_vc[i] = -1;
 
 	pm_runtime_enable(&pdev->dev);
 

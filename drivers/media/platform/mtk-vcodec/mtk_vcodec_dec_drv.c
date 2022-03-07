@@ -374,7 +374,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	if (IS_ERR((__force void *)dev->m2m_dev_dec)) {
 		mtk_v4l2_err("Failed to init mem2mem dec device");
 		ret = PTR_ERR((__force void *)dev->m2m_dev_dec);
-		goto err_dec_mem_init;
+		goto err_dec_alloc;
 	}
 
 	dev->decode_workqueue =
@@ -391,8 +391,14 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 					   &pdev->dev);
 		if (ret) {
 			mtk_v4l2_err("Main device of_platform_populate failed.");
-			goto err_event_workq;
+			goto err_reg_cont;
 		}
+	}
+
+	ret = video_register_device(vfd_dec, VFL_TYPE_VIDEO, -1);
+	if (ret) {
+		mtk_v4l2_err("Failed to register video device");
+		goto err_reg_cont;
 	}
 
 	if (dev->vdec_pdata->uses_stateless_api) {
@@ -408,7 +414,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 							 MEDIA_ENT_F_PROC_VIDEO_DECODER);
 		if (ret) {
 			mtk_v4l2_err("Failed to register media controller");
-			goto err_reg_cont;
+			goto err_dec_mem_init;
 		}
 
 		ret = media_device_register(&dev->mdev_dec);
@@ -419,30 +425,21 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 		mtk_v4l2_debug(0, "media registered as /dev/media%d", vfd_dec->minor);
 	}
-	ret = video_register_device(vfd_dec, VFL_TYPE_VIDEO, 0);
-	if (ret) {
-		mtk_v4l2_err("Failed to register video device");
-		goto err_dec_reg;
-	}
 
 	mtk_v4l2_debug(0, "decoder registered as /dev/video%d", vfd_dec->minor);
 
 	return 0;
 
-err_dec_reg:
-	if (dev->vdec_pdata->uses_stateless_api)
-		media_device_unregister(&dev->mdev_dec);
 err_media_reg:
-	if (dev->vdec_pdata->uses_stateless_api)
-		v4l2_m2m_unregister_media_controller(dev->m2m_dev_dec);
+	v4l2_m2m_unregister_media_controller(dev->m2m_dev_dec);
+err_dec_mem_init:
+	video_unregister_device(vfd_dec);
 err_reg_cont:
 	if (dev->vdec_pdata->uses_stateless_api)
 		media_device_cleanup(&dev->mdev_dec);
 	destroy_workqueue(dev->decode_workqueue);
 err_event_workq:
 	v4l2_m2m_release(dev->m2m_dev_dec);
-err_dec_mem_init:
-	video_unregister_device(vfd_dec);
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_core_workq:

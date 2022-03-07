@@ -1535,8 +1535,6 @@ int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 			return -EINVAL;
 	}
 
-	id = tvnorms[i].id;
-
 	if (!is_empress(file) && fh == dev->overlay_owner) {
 		spin_lock_irqsave(&dev->slock, flags);
 		stop_preview(dev);
