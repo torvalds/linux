@@ -81,6 +81,30 @@ static int arizona_spi_acpi_windows_probe(struct arizona *arizona)
 	return 0;
 }
 
+/* For ACPI tables from boards which ship with Android as factory OS */
+static int arizona_spi_acpi_android_probe(struct arizona *arizona)
+{
+	int ret;
+
+	/*
+	 * Get the reset GPIO, treating -ENOENT as -EPROBE_DEFER to wait for
+	 * the x86-android-tablets module to register the board specific GPIO
+	 * lookup table.
+	 */
+	arizona->pdata.reset = devm_gpiod_get(arizona->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(arizona->pdata.reset)) {
+		ret = PTR_ERR(arizona->pdata.reset);
+		if (ret == -ENOENT) {
+			dev_info_once(arizona->dev,
+				      "Deferring probe till GPIO lookup is registered\n");
+			ret = -EPROBE_DEFER;
+		}
+		return dev_err_probe(arizona->dev, ret, "getting reset GPIO\n");
+	}
+
+	return 0;
+}
+
 /*
  * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
  * Function A Play/Pause:           0 ohm
@@ -102,9 +126,14 @@ static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
 
 static int arizona_spi_acpi_probe(struct arizona *arizona)
 {
+	struct acpi_device *adev = ACPI_COMPANION(arizona->dev);
 	int ret;
 
-	ret = arizona_spi_acpi_windows_probe(arizona);
+	if (acpi_dev_hid_uid_match(adev, "10WM5102", NULL))
+		ret = arizona_spi_acpi_android_probe(arizona);
+	else
+		ret = arizona_spi_acpi_windows_probe(arizona);
+
 	if (ret)
 		return ret;
 
@@ -140,6 +169,10 @@ static const struct acpi_device_id arizona_acpi_match[] = {
 	},
 	{
 		.id = "WM510205",
+		.driver_data = WM5102,
+	},
+	{
+		.id = "10WM5102",
 		.driver_data = WM5102,
 	},
 	{ }
