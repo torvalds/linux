@@ -600,7 +600,9 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 				skb->offload_fwd_mark = 0;
 		}
 
-		netif_rx(skb);
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(skb);
+
 		dev->stats.rx_bytes += len;
 		dev->stats.rx_packets++;
 
