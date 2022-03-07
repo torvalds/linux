@@ -1,0 +1,14 @@
+config SEV_GUEST
+	tristate "AMD SEV Guest driver"
+	default m
+	depends on AMD_MEM_ENCRYPT
+	select CRYPTO_AEAD2
+	select CRYPTO_GCM
+	help
+	  SEV-SNP firmware provides the guest a mechanism to communicate with
+	  the PSP without risk from a malicious hypervisor who wishes to read,
+	  alter, drop or replay the messages sent. The driver provides
+	  userspace interface to communicate with the PSP to request the
+	  attestation report and more.
+
+	  If you choose 'M' here, this module will be called sevguest.
