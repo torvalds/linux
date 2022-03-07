@@ -280,7 +280,6 @@ struct nvme_ctrl {
 	u16 crdt[3];
 	u16 oncs;
 	u16 oacs;
-	u16 nssa;
 	u16 nr_streams;
 	u16 sqsize;
 	u32 max_namespaces;
@@ -349,6 +348,9 @@ struct nvme_ctrl {
 	unsigned long discard_page_busy;
 
 	struct nvme_fault_inject fault_inject;
+
+	enum nvme_ctrl_type cntrltype;
+	enum nvme_dctype dctype;
 };
 
 enum nvme_iopolicy {
@@ -894,6 +896,14 @@ static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 }
 #endif
 
+static inline int nvme_ctrl_init_connect_q(struct nvme_ctrl *ctrl)
+{
+	ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
+	if (IS_ERR(ctrl->connect_q))
+		return PTR_ERR(ctrl->connect_q);
+	return 0;
+}
+
 static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
 {
 	return dev_to_disk(dev)->private_data;
@@ -929,5 +939,24 @@ static inline bool nvme_multi_css(struct nvme_ctrl *ctrl)
 {
 	return (ctrl->ctrl_config & NVME_CC_CSS_MASK) == NVME_CC_CSS_CSI;
 }
+
+#ifdef CONFIG_NVME_VERBOSE_ERRORS
+const unsigned char *nvme_get_error_status_str(u16 status);
+const unsigned char *nvme_get_opcode_str(u8 opcode);
+const unsigned char *nvme_get_admin_opcode_str(u8 opcode);
+#else /* CONFIG_NVME_VERBOSE_ERRORS */
+static inline const unsigned char *nvme_get_error_status_str(u16 status)
+{
+	return "I/O Error";
+}
+static inline const unsigned char *nvme_get_opcode_str(u8 opcode)
+{
+	return "I/O Cmd";
+}
+static inline const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
+{
+	return "Admin Cmd";
+}
+#endif /* CONFIG_NVME_VERBOSE_ERRORS */
 
 #endif /* _NVME_H */
