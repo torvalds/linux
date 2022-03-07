@@ -125,7 +125,7 @@
 	_IOW('V', BASE_VIDIOC_PRIVATE + 22, __u32)
 
 #define RKMODULE_SET_MCLK       \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 23, __u32)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 23, struct rkmodule_mclk_data)
 
 #define RKMODULE_SET_LINK_FREQ       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 24, __s64)
@@ -144,6 +144,20 @@
 
 #define RKMODULE_SYNC_I2CDEV_COMPLETE       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 29, __u8)
+
+#define RKMODULE_SET_DEV_INFO       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 30, struct rkmodule_dev_info)
+
+struct rkmodule_i2cdev_info {
+	u8 slave_addr;
+} __attribute__ ((packed));
+
+struct rkmodule_dev_info {
+	union {
+		struct rkmodule_i2cdev_info i2c_dev;
+		u32 reserved[8];
+	};
+} __attribute__ ((packed));
 
 /* csi0/csi1 phy support full/split mode */
 enum rkmodule_phy_mode {
@@ -634,4 +648,12 @@ enum rkmodule_sync_mode {
 	INTERNAL_MASTER_MODE,
 	SLAVE_MODE,
 };
+
+struct rkmodule_mclk_data {
+	u32 enable;
+	u32 mclk_index;
+	u32 mclk_rate;
+	u32 reserved[8];
+};
+
 #endif /* _UAPI_RKMODULE_CAMERA_H */
