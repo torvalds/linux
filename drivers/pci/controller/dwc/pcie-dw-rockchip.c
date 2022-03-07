@@ -1037,17 +1037,25 @@ static int rk_pcie_host_init(struct pcie_port *pp)
 	return ret;
 }
 
-static const struct dw_pcie_host_ops rk_pcie_host_ops = {
+static struct dw_pcie_host_ops rk_pcie_host_ops = {
 	.host_init = rk_pcie_host_init,
-	.msi_host_init = rk_pcie_msi_host_init,
 };
 
-static int rk_add_pcie_port(struct rk_pcie *rk_pcie)
+static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pdev)
 {
 	int ret;
 	struct dw_pcie *pci = rk_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	struct device *dev = pci->dev;
+
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
+		/* If msi_irq is invalid, use outband msi routine */
+		if (pp->msi_irq < 0) {
+			dev_info(dev, "use outband MSI support");
+			rk_pcie_host_ops.msi_host_init = rk_pcie_msi_host_init;
+		}
+	}
 
 	pp->ops = &rk_pcie_host_ops;
 
@@ -1853,7 +1861,7 @@ retry_regulator:
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
-		ret = rk_add_pcie_port(rk_pcie);
+		ret = rk_add_pcie_port(rk_pcie, pdev);
 		break;
 	case RK_PCIE_EP_TYPE:
 		ret = rk_pcie_add_ep(rk_pcie);
