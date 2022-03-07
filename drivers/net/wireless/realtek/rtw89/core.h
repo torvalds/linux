@@ -2276,6 +2276,8 @@ struct rtw89_chip_info {
 	u32 physical_efuse_size;
 	u32 logical_efuse_size;
 	u32 limit_efuse_size;
+	u32 dav_phy_efuse_size;
+	u32 dav_log_efuse_size;
 	u32 phycap_addr;
 	u32 phycap_size;
 

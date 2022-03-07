@@ -885,11 +885,21 @@ int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
 enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_XTAL_SC_XI = 0x04,
 	XTAL_SI_XTAL_SC_XO = 0x05,
+	XTAL_SI_PWR_CUT = 0x10,
+#define XTAL_SI_SMALL_PWR_CUT	BIT(0)
+#define XTAL_SI_BIG_PWR_CUT	BIT(1)
 	XTAL_SI_XTAL_XMD_2 = 0x24,
 #define XTAL_SI_LDO_LPS		GENMASK(6, 4)
 	XTAL_SI_XTAL_XMD_4 = 0x26,
 #define XTAL_SI_LPS_CAP		GENMASK(3, 0)
 	XTAL_SI_CV = 0x41,
+	XTAL_SI_LOW_ADDR = 0x62,
+#define XTAL_SI_LOW_ADDR_MASK	GENMASK(7, 0)
+	XTAL_SI_CTRL = 0x63,
+#define XTAL_SI_MODE_SEL_MASK	GENMASK(7, 6)
+#define XTAL_SI_RDY		BIT(5)
+#define XTAL_SI_HIGH_ADDR_MASK	GENMASK(2, 0)
+	XTAL_SI_READ_VAL = 0x7A,
 	XTAL_SI_WL_RFC_S0 = 0x80,
 #define XTAL_SI_RF00		BIT(0)
 	XTAL_SI_WL_RFC_S1 = 0x81,
@@ -904,8 +914,10 @@ enum rtw89_mac_xtal_si_offset {
 #define XTAL_SI_PON_EI		BIT(1)
 #define XTAL_SI_PON_WEI		BIT(0)
 	XTAL_SI_SRAM_CTRL = 0xA1,
+#define FULL_BIT_MASK		GENMASK(7, 0)
 };
 
 int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
+int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val);
 
 #endif
