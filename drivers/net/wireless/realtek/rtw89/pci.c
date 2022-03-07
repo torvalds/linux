@@ -697,70 +697,109 @@ exit:
 	return irqret;
 }
 
-#define case_TXCHADDRS(txch) \
-	case RTW89_TXCH_##txch: \
-		*addr_num = R_AX_##txch##_TXBD_NUM; \
-		*addr_idx = R_AX_##txch##_TXBD_IDX; \
-		*addr_bdram = R_AX_##txch##_BDRAM_CTRL; \
-		*addr_desa_l = R_AX_##txch##_TXBD_DESA_L; \
-		*addr_desa_h = R_AX_##txch##_TXBD_DESA_H; \
-		break
-
-static int rtw89_pci_get_txch_addrs(enum rtw89_tx_channel txch,
-				    u32 *addr_num,
-				    u32 *addr_idx,
-				    u32 *addr_bdram,
-				    u32 *addr_desa_l,
-				    u32 *addr_desa_h)
-{
-	switch (txch) {
-	case_TXCHADDRS(ACH0);
-	case_TXCHADDRS(ACH1);
-	case_TXCHADDRS(ACH2);
-	case_TXCHADDRS(ACH3);
-	case_TXCHADDRS(ACH4);
-	case_TXCHADDRS(ACH5);
-	case_TXCHADDRS(ACH6);
-	case_TXCHADDRS(ACH7);
-	case_TXCHADDRS(CH8);
-	case_TXCHADDRS(CH9);
-	case_TXCHADDRS(CH10);
-	case_TXCHADDRS(CH11);
-	case_TXCHADDRS(CH12);
-	default:
-		return -EINVAL;
+#define DEF_TXCHADDRS_TYPE1(info, txch, v...) \
+	[RTW89_TXCH_##txch] = { \
+		.num = R_AX_##txch##_TXBD_NUM ##v, \
+		.idx = R_AX_##txch##_TXBD_IDX ##v, \
+		.bdram = R_AX_##txch##_BDRAM_CTRL ##v, \
+		.desa_l = R_AX_##txch##_TXBD_DESA_L ##v, \
+		.desa_h = R_AX_##txch##_TXBD_DESA_H ##v, \
 	}
+
+#define DEF_TXCHADDRS(info, txch, v...) \
+	[RTW89_TXCH_##txch] = { \
+		.num = R_AX_##txch##_TXBD_NUM, \
+		.idx = R_AX_##txch##_TXBD_IDX, \
+		.bdram = R_AX_##txch##_BDRAM_CTRL ##v, \
+		.desa_l = R_AX_##txch##_TXBD_DESA_L ##v, \
+		.desa_h = R_AX_##txch##_TXBD_DESA_H ##v, \
+	}
+
+#define DEF_RXCHADDRS(info, rxch, v...) \
+	[RTW89_RXCH_##rxch] = { \
+		.num = R_AX_##rxch##_RXBD_NUM ##v, \
+		.idx = R_AX_##rxch##_RXBD_IDX ##v, \
+		.desa_l = R_AX_##rxch##_RXBD_DESA_L ##v, \
+		.desa_h = R_AX_##rxch##_RXBD_DESA_H ##v, \
+	}
+
+const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set = {
+	.tx = {
+		DEF_TXCHADDRS(info, ACH0),
+		DEF_TXCHADDRS(info, ACH1),
+		DEF_TXCHADDRS(info, ACH2),
+		DEF_TXCHADDRS(info, ACH3),
+		DEF_TXCHADDRS(info, ACH4),
+		DEF_TXCHADDRS(info, ACH5),
+		DEF_TXCHADDRS(info, ACH6),
+		DEF_TXCHADDRS(info, ACH7),
+		DEF_TXCHADDRS(info, CH8),
+		DEF_TXCHADDRS(info, CH9),
+		DEF_TXCHADDRS_TYPE1(info, CH10),
+		DEF_TXCHADDRS_TYPE1(info, CH11),
+		DEF_TXCHADDRS(info, CH12),
+	},
+	.rx = {
+		DEF_RXCHADDRS(info, RXQ),
+		DEF_RXCHADDRS(info, RPQ),
+	},
+};
+EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set);
+
+const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1 = {
+	.tx = {
+		DEF_TXCHADDRS(info, ACH0, _V1),
+		DEF_TXCHADDRS(info, ACH1, _V1),
+		DEF_TXCHADDRS(info, ACH2, _V1),
+		DEF_TXCHADDRS(info, ACH3, _V1),
+		DEF_TXCHADDRS(info, ACH4, _V1),
+		DEF_TXCHADDRS(info, ACH5, _V1),
+		DEF_TXCHADDRS(info, ACH6, _V1),
+		DEF_TXCHADDRS(info, ACH7, _V1),
+		DEF_TXCHADDRS(info, CH8, _V1),
+		DEF_TXCHADDRS(info, CH9, _V1),
+		DEF_TXCHADDRS_TYPE1(info, CH10, _V1),
+		DEF_TXCHADDRS_TYPE1(info, CH11, _V1),
+		DEF_TXCHADDRS(info, CH12, _V1),
+	},
+	.rx = {
+		DEF_RXCHADDRS(info, RXQ, _V1),
+		DEF_RXCHADDRS(info, RPQ, _V1),
+	},
+};
+EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set_v1);
+
+#undef DEF_TXCHADDRS_TYPE1
+#undef DEF_TXCHADDRS
+#undef DEF_RXCHADDRS
+
+static int rtw89_pci_get_txch_addrs(struct rtw89_dev *rtwdev,
+				    enum rtw89_tx_channel txch,
+				    const struct rtw89_pci_ch_dma_addr **addr)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+
+	if (txch >= RTW89_TXCH_NUM)
+		return -EINVAL;
+
+	*addr = &info->dma_addr_set->tx[txch];
 
 	return 0;
 }
 
-#undef case_TXCHADDRS
-
-#define case_RXCHADDRS(rxch) \
-	case RTW89_RXCH_##rxch: \
-		*addr_num = R_AX_##rxch##_RXBD_NUM; \
-		*addr_idx = R_AX_##rxch##_RXBD_IDX; \
-		*addr_desa_l = R_AX_##rxch##_RXBD_DESA_L; \
-		*addr_desa_h = R_AX_##rxch##_RXBD_DESA_H; \
-		break
-
-static int rtw89_pci_get_rxch_addrs(enum rtw89_rx_channel rxch,
-				    u32 *addr_num,
-				    u32 *addr_idx,
-				    u32 *addr_desa_l,
-				    u32 *addr_desa_h)
+static int rtw89_pci_get_rxch_addrs(struct rtw89_dev *rtwdev,
+				    enum rtw89_rx_channel rxch,
+				    const struct rtw89_pci_ch_dma_addr **addr)
 {
-	switch (rxch) {
-	case_RXCHADDRS(RXQ);
-	case_RXCHADDRS(RPQ);
-	default:
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+
+	if (rxch >= RTW89_RXCH_NUM)
 		return -EINVAL;
-	}
+
+	*addr = &info->dma_addr_set->rx[rxch];
 
 	return 0;
 }
-
-#undef case_RXCHADDRS
 
 static u32 rtw89_pci_get_avail_txbd_num(struct rtw89_pci_tx_ring *ring)
 {
@@ -2188,14 +2227,10 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 				   u32 desc_size, u32 len,
 				   enum rtw89_tx_channel txch)
 {
+	const struct rtw89_pci_ch_dma_addr *txch_addr;
 	int ring_sz = desc_size * len;
 	u8 *head;
 	dma_addr_t dma;
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_bdram;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
 	int ret;
 
 	ret = rtw89_pci_alloc_tx_wd_ring(rtwdev, pdev, tx_ring, txch);
@@ -2204,8 +2239,7 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 		goto err;
 	}
 
-	ret = rtw89_pci_get_txch_addrs(txch, &addr_num, &addr_idx, &addr_bdram,
-				       &addr_desa_l, &addr_desa_h);
+	ret = rtw89_pci_get_txch_addrs(rtwdev, txch, &txch_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of txch %d", txch);
 		goto err_free_wd_ring;
@@ -2222,11 +2256,11 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 	tx_ring->bd_ring.dma = dma;
 	tx_ring->bd_ring.len = len;
 	tx_ring->bd_ring.desc_size = desc_size;
-	tx_ring->bd_ring.addr_num = addr_num;
-	tx_ring->bd_ring.addr_idx = addr_idx;
-	tx_ring->bd_ring.addr_bdram = addr_bdram;
-	tx_ring->bd_ring.addr_desa_l = addr_desa_l;
-	tx_ring->bd_ring.addr_desa_h = addr_desa_h;
+	tx_ring->bd_ring.addr_num = txch_addr->num;
+	tx_ring->bd_ring.addr_idx = txch_addr->idx;
+	tx_ring->bd_ring.addr_bdram = txch_addr->bdram;
+	tx_ring->bd_ring.addr_desa_l = txch_addr->desa_l;
+	tx_ring->bd_ring.addr_desa_h = txch_addr->desa_h;
 	tx_ring->bd_ring.wp = 0;
 	tx_ring->bd_ring.rp = 0;
 	tx_ring->txch = txch;
@@ -2278,20 +2312,16 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 				   struct rtw89_pci_rx_ring *rx_ring,
 				   u32 desc_size, u32 len, u32 rxch)
 {
+	const struct rtw89_pci_ch_dma_addr *rxch_addr;
 	struct sk_buff *skb;
 	u8 *head;
 	dma_addr_t dma;
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
 	int ring_sz = desc_size * len;
 	int buf_sz = RTW89_PCI_RX_BUF_SIZE;
 	int i, allocated;
 	int ret;
 
-	ret = rtw89_pci_get_rxch_addrs(rxch, &addr_num, &addr_idx,
-				       &addr_desa_l, &addr_desa_h);
+	ret = rtw89_pci_get_rxch_addrs(rtwdev, rxch, &rxch_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of rxch %d", rxch);
 		return ret;
@@ -2307,10 +2337,10 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	rx_ring->bd_ring.dma = dma;
 	rx_ring->bd_ring.len = len;
 	rx_ring->bd_ring.desc_size = desc_size;
-	rx_ring->bd_ring.addr_num = addr_num;
-	rx_ring->bd_ring.addr_idx = addr_idx;
-	rx_ring->bd_ring.addr_desa_l = addr_desa_l;
-	rx_ring->bd_ring.addr_desa_h = addr_desa_h;
+	rx_ring->bd_ring.addr_num = rxch_addr->num;
+	rx_ring->bd_ring.addr_idx = rxch_addr->idx;
+	rx_ring->bd_ring.addr_desa_l = rxch_addr->desa_l;
+	rx_ring->bd_ring.addr_desa_h = rxch_addr->desa_h;
 	rx_ring->bd_ring.wp = 0;
 	rx_ring->bd_ring.rp = 0;
 	rx_ring->buf_sz = buf_sz;
