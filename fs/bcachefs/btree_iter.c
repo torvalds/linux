@@ -473,14 +473,15 @@ bool __bch2_btree_path_upgrade(struct btree_trans *trans,
 	 * before interior nodes - now that's handled by
 	 * bch2_btree_path_traverse_all().
 	 */
-	trans_for_each_path(trans, linked)
-		if (linked != path &&
-		    linked->cached == path->cached &&
-		    linked->btree_id == path->btree_id &&
-		    linked->locks_want < new_locks_want) {
-			linked->locks_want = new_locks_want;
-			btree_path_get_locks(trans, linked, true);
-		}
+	if (!path->cached && !trans->in_traverse_all)
+		trans_for_each_path(trans, linked)
+			if (linked != path &&
+			    linked->cached == path->cached &&
+			    linked->btree_id == path->btree_id &&
+			    linked->locks_want < new_locks_want) {
+				linked->locks_want = new_locks_want;
+				btree_path_get_locks(trans, linked, true);
+			}
 
 	return false;
 }
