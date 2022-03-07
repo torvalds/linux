@@ -160,4 +160,20 @@ config SND_MCHP_SOC_SPDIFRX
 
 	  This S/PDIF RX driver is compliant with IEC-60958 standard and
 	  includes programmable User Data and Channel Status fields.
+
+config SND_MCHP_SOC_PDMC
+	tristate "Microchip ASoC driver for boards using PDMC"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Microchip ASoC PDMC driver on the
+	  following Microchip platforms:
+	  - sama7g5
+
+	  The Pulse Density Microphone Controller (PDMC) interfaces up to 4 digital
+	  microphones PDM outputs. It generates a single clock line and samples 1 or
+	  2 data lines. The signal path includes an audio grade programmable
+	  decimation filter and outputs 24-bit audio words.
+
 endif
