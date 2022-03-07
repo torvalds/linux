@@ -13,6 +13,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/iopoll.h>
 #include "sdhci.h"
 #include "sdhci-pci.h"
 #include "cqhci.h"
@@ -951,6 +952,47 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
 }
 
+#ifdef CONFIG_PM
+static int gl9763e_runtime_suspend(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+	struct sdhci_host *host = slot->host;
+	u16 clock;
+
+	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clock &= ~(SDHCI_CLOCK_PLL_EN | SDHCI_CLOCK_CARD_EN);
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	return 0;
+}
+
+static int gl9763e_runtime_resume(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+	struct sdhci_host *host = slot->host;
+	u16 clock;
+
+	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+
+	clock |= SDHCI_CLOCK_PLL_EN;
+	clock &= ~SDHCI_CLOCK_INT_STABLE;
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	/* Wait max 150 ms */
+	if (read_poll_timeout(sdhci_readw, clock, (clock & SDHCI_CLOCK_INT_STABLE),
+			      1000, 150000, false, host, SDHCI_CLOCK_CONTROL)) {
+		pr_err("%s: PLL clock never stabilised.\n",
+		       mmc_hostname(host->mmc));
+		sdhci_dumpregs(host);
+	}
+
+	clock |= SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	return 0;
+}
+#endif
+
 static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
 {
 	struct pci_dev *pdev = slot->chip->pdev;
@@ -1060,6 +1102,11 @@ const struct sdhci_pci_fixes sdhci_gl9763e = {
 #ifdef CONFIG_PM_SLEEP
 	.resume		= sdhci_cqhci_gli_resume,
 	.suspend	= sdhci_cqhci_gli_suspend,
+#endif
+#ifdef CONFIG_PM
+	.runtime_suspend = gl9763e_runtime_suspend,
+	.runtime_resume  = gl9763e_runtime_resume,
+	.allow_runtime_pm = true,
 #endif
 	.add_host       = gl9763e_add_host,
 };
