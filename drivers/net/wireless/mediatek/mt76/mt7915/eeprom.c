@@ -282,8 +282,8 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 			if (!tssi_on)
 				target_power += eeprom[index + 1];
 		}
-	} else {
-		int group = mt7915_get_channel_group(chan->hw_value, is_7976);
+	} else if (chan->band == NL80211_BAND_5GHZ) {
+		int group = mt7915_get_channel_group_5g(chan->hw_value, is_7976);
 
 		if (is_7976) {
 			index = MT_EE_TX0_POWER_5G_V2 + chain_idx * 5;
@@ -295,6 +295,11 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 			if (!tssi_on)
 				target_power += eeprom[index + 8];
 		}
+	} else {
+		int group = mt7915_get_channel_group_6g(chan->hw_value);
+
+		index = MT_EE_TX0_POWER_6G_V2 + chain_idx * 8;
+		target_power = is_7976 ? eeprom[index + group] : 0;
 	}
 
 	return target_power;
@@ -309,12 +314,14 @@ s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band)
 
 	if (band == NL80211_BAND_2GHZ)
 		offs = is_7976 ? MT_EE_RATE_DELTA_2G_V2 : MT_EE_RATE_DELTA_2G;
-	else
+	else if (band == NL80211_BAND_5GHZ)
 		offs = is_7976 ? MT_EE_RATE_DELTA_5G_V2 : MT_EE_RATE_DELTA_5G;
+	else
+		offs = is_7976 ? MT_EE_RATE_DELTA_6G_V2 : 0;
 
 	val = eeprom[offs];
 
-	if (!(val & MT_EE_RATE_DELTA_EN))
+	if (!offs || !(val & MT_EE_RATE_DELTA_EN))
 		return 0;
 
 	delta = FIELD_GET(MT_EE_RATE_DELTA_MASK, val);
