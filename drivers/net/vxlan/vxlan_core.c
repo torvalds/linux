@@ -1877,7 +1877,7 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 		reply->ip_summed = CHECKSUM_UNNECESSARY;
 		reply->pkt_type = PACKET_HOST;
 
-		if (netif_rx_ni(reply) == NET_RX_DROP) {
+		if (netif_rx(reply) == NET_RX_DROP) {
 			dev->stats.rx_dropped++;
 			vxlan_vnifilter_count(vxlan, vni, NULL,
 					      VXLAN_VNI_STATS_RX_DROPS, 0);
@@ -2036,7 +2036,7 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 		if (reply == NULL)
 			goto out;
 
-		if (netif_rx_ni(reply) == NET_RX_DROP) {
+		if (netif_rx(reply) == NET_RX_DROP) {
 			dev->stats.rx_dropped++;
 			vxlan_vnifilter_count(vxlan, vni, NULL,
 					      VXLAN_VNI_STATS_RX_DROPS, 0);
