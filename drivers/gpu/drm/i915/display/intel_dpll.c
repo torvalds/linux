@@ -285,8 +285,7 @@ static const struct intel_limit intel_limits_chv = {
 };
 
 static const struct intel_limit intel_limits_bxt = {
-	/* FIXME: find real dot limits */
-	.dot = { .min = 0, .max = INT_MAX },
+	.dot = { .min = 25000, .max = 594000 },
 	.vco = { .min = 4800000, .max = 6700000 },
 	.n = { .min = 1, .max = 1 },
 	.m1 = { .min = 2, .max = 2 },
