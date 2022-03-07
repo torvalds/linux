@@ -576,12 +576,17 @@ static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 	}
 
 	clock.m1 = 2;
-	clock.m2 = (vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 0)) & PORT_PLL_M2_MASK) << 22;
+	clock.m2 = REG_FIELD_GET(PORT_PLL_M2_INT_MASK,
+				 vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 0))) << 22;
 	if (vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 3)) & PORT_PLL_M2_FRAC_ENABLE)
-		clock.m2 |= vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 2)) & PORT_PLL_M2_FRAC_MASK;
-	clock.n = (vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 1)) & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
-	clock.p1 = (vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)) & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
-	clock.p2 = (vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)) & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
+		clock.m2 |= REG_FIELD_GET(PORT_PLL_M2_FRAC_MASK,
+					  vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 2)));
+	clock.n = REG_FIELD_GET(PORT_PLL_N_MASK,
+				vgpu_vreg_t(vgpu, BXT_PORT_PLL(phy, ch, 1)));
+	clock.p1 = REG_FIELD_GET(PORT_PLL_P1_MASK,
+				 vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)));
+	clock.p2 = REG_FIELD_GET(PORT_PLL_P2_MASK,
+				 vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)));
 	clock.m = clock.m1 * clock.m2;
 	clock.p = clock.p1 * clock.p2 * 5;
 

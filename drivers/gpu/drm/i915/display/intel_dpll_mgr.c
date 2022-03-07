@@ -1898,7 +1898,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	/* Write M2 integer */
 	temp = intel_de_read(dev_priv, BXT_PORT_PLL(phy, ch, 0));
-	temp &= ~PORT_PLL_M2_MASK;
+	temp &= ~PORT_PLL_M2_INT_MASK;
 	temp |= pll->state.hw_state.pll0;
 	intel_de_write(dev_priv, BXT_PORT_PLL(phy, ch, 0), temp);
 
@@ -2034,7 +2034,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	hw_state->ebb4 &= PORT_PLL_10BIT_CLK_ENABLE;
 
 	hw_state->pll0 = intel_de_read(dev_priv, BXT_PORT_PLL(phy, ch, 0));
-	hw_state->pll0 &= PORT_PLL_M2_MASK;
+	hw_state->pll0 &= PORT_PLL_M2_INT_MASK;
 
 	hw_state->pll1 = intel_de_read(dev_priv, BXT_PORT_PLL(phy, ch, 1));
 	hw_state->pll1 &= PORT_PLL_N_MASK;
@@ -2200,23 +2200,23 @@ static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 		lanestagger = 0x02;
 
 	dpll_hw_state->ebb0 = PORT_PLL_P1(clk_div->p1) | PORT_PLL_P2(clk_div->p2);
-	dpll_hw_state->pll0 = clk_div->m2_int;
+	dpll_hw_state->pll0 = PORT_PLL_M2_INT(clk_div->m2_int);
 	dpll_hw_state->pll1 = PORT_PLL_N(clk_div->n);
-	dpll_hw_state->pll2 = clk_div->m2_frac;
+	dpll_hw_state->pll2 = PORT_PLL_M2_FRAC(clk_div->m2_frac);
 
 	if (clk_div->m2_frac)
 		dpll_hw_state->pll3 = PORT_PLL_M2_FRAC_ENABLE;
 
-	dpll_hw_state->pll6 = prop_coef | PORT_PLL_INT_COEFF(int_coef);
-	dpll_hw_state->pll6 |= PORT_PLL_GAIN_CTL(gain_ctl);
+	dpll_hw_state->pll6 = PORT_PLL_PROP_COEFF(prop_coef) |
+		PORT_PLL_INT_COEFF(int_coef) |
+		PORT_PLL_GAIN_CTL(gain_ctl);
 
-	dpll_hw_state->pll8 = targ_cnt;
+	dpll_hw_state->pll8 = PORT_PLL_TARGET_CNT(targ_cnt);
 
-	dpll_hw_state->pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
+	dpll_hw_state->pll9 = PORT_PLL_LOCK_THRESHOLD(5);
 
-	dpll_hw_state->pll10 =
-		PORT_PLL_DCO_AMP(PORT_PLL_DCO_AMP_DEFAULT)
-		| PORT_PLL_DCO_AMP_OVR_EN_H;
+	dpll_hw_state->pll10 = PORT_PLL_DCO_AMP(15) |
+		PORT_PLL_DCO_AMP_OVR_EN_H;
 
 	dpll_hw_state->ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
 
@@ -2252,12 +2252,12 @@ static int bxt_ddi_pll_get_freq(struct drm_i915_private *i915,
 	struct dpll clock;
 
 	clock.m1 = 2;
-	clock.m2 = (pll_state->pll0 & PORT_PLL_M2_MASK) << 22;
+	clock.m2 = REG_FIELD_GET(PORT_PLL_M2_INT_MASK, pll_state->pll0) << 22;
 	if (pll_state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
-		clock.m2 |= pll_state->pll2 & PORT_PLL_M2_FRAC_MASK;
-	clock.n = (pll_state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
-	clock.p1 = (pll_state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
-	clock.p2 = (pll_state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
+		clock.m2 |= REG_FIELD_GET(PORT_PLL_M2_FRAC_MASK, pll_state->pll2);
+	clock.n = REG_FIELD_GET(PORT_PLL_N_MASK, pll_state->pll1);
+	clock.p1 = REG_FIELD_GET(PORT_PLL_P1_MASK, pll_state->ebb0);
+	clock.p2 = REG_FIELD_GET(PORT_PLL_P2_MASK, pll_state->ebb0);
 
 	return chv_calc_dpll_params(i915->dpll.ref_clks.nssc, &clock);
 }
