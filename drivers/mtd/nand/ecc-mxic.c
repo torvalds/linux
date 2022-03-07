@@ -224,8 +224,8 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 	struct nand_ecc_props *user = &nand->ecc.user_conf;
 	struct mtd_info *mtd = nanddev_to_mtd(nand);
 	int step_size = 0, strength = 0, desired_correction = 0, steps, idx;
-	int possible_strength[] = {4, 8, 40, 48};
-	int spare_size[] = {32, 32, 96, 96};
+	static const int possible_strength[] = {4, 8, 40, 48};
+	static const int spare_size[] = {32, 32, 96, 96};
 	struct mxic_ecc_ctx *ctx;
 	u32 spare_reg;
 	int ret;
