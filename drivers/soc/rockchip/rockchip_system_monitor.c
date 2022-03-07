@@ -518,6 +518,8 @@ static int rockchip_init_temp_opp_table(struct monitor_dev_info *info)
 	}
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
 		info->opp_table[i].rate = opp->rate;
 		info->opp_table[i].volt = opp->supplies[0].u_volt;
 		info->opp_table[i].max_volt = opp->supplies[0].u_volt_max;
@@ -802,6 +804,8 @@ static int rockchip_adjust_low_temp_opp_volt(struct monitor_dev_info *info,
 
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
 		if (is_low_temp) {
 			if (opp->supplies[0].u_volt_max <
 			    info->opp_table[i].low_temp_volt)
