@@ -708,8 +708,9 @@ static const struct pci_device_id pmc_pci_ids[] = {
 
 static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 {
-	u32 size, phys_addr_low, phys_addr_hi;
+	u32 phys_addr_low, phys_addr_hi;
 	u64 stb_phys_addr;
+	u32 size = 0;
 
 	/* Spill to DRAM feature uses separate SMU message port */
 	dev->msg_port = 1;
