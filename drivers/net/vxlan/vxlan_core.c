@@ -811,37 +811,35 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 		goto err_inval;
 	}
 
-	if (nh) {
-		if (!nexthop_get(nh)) {
-			NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
-			nh = NULL;
-			goto err_inval;
-		}
-		if (!nexthop_is_fdb(nh)) {
-			NL_SET_ERR_MSG(extack, "Nexthop is not a fdb nexthop");
-			goto err_inval;
-		}
+	if (!nexthop_get(nh)) {
+		NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
+		nh = NULL;
+		goto err_inval;
+	}
+	if (!nexthop_is_fdb(nh)) {
+		NL_SET_ERR_MSG(extack, "Nexthop is not a fdb nexthop");
+		goto err_inval;
+	}
 
-		if (!nexthop_is_multipath(nh)) {
-			NL_SET_ERR_MSG(extack, "Nexthop is not a multipath group");
+	if (!nexthop_is_multipath(nh)) {
+		NL_SET_ERR_MSG(extack, "Nexthop is not a multipath group");
+		goto err_inval;
+	}
+
+	/* check nexthop group family */
+	switch (vxlan->default_dst.remote_ip.sa.sa_family) {
+	case AF_INET:
+		if (!nexthop_has_v4(nh)) {
+			err = -EAFNOSUPPORT;
+			NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
 			goto err_inval;
 		}
-
-		/* check nexthop group family */
-		switch (vxlan->default_dst.remote_ip.sa.sa_family) {
-		case AF_INET:
-			if (!nexthop_has_v4(nh)) {
-				err = -EAFNOSUPPORT;
-				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
-				goto err_inval;
-			}
-			break;
-		case AF_INET6:
-			if (nexthop_has_v4(nh)) {
-				err = -EAFNOSUPPORT;
-				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
-				goto err_inval;
-			}
+		break;
+	case AF_INET6:
+		if (nexthop_has_v4(nh)) {
+			err = -EAFNOSUPPORT;
+			NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
+			goto err_inval;
 		}
 	}
 
