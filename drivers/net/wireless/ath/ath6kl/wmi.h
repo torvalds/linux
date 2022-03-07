@@ -1957,7 +1957,7 @@ union wmi_ap_info {
 struct wmi_aplist_event {
 	u8 ap_list_ver;
 	u8 num_ap;
-	union wmi_ap_info ap_list[1];
+	union wmi_ap_info ap_list[];
 } __packed;
 
 /* Developer Commands */
