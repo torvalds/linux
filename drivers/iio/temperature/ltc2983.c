@@ -653,8 +653,6 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 
 	phandle = of_parse_phandle(child, "adi,cold-junction-handle", 0);
 	if (phandle) {
-		int ret;
-
 		ret = of_property_read_u32(phandle, "reg",
 					   &thermo->cold_junction_chan);
 		if (ret) {
@@ -663,8 +661,7 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 			 * the error right away.
 			 */
 			dev_err(&st->spi->dev, "Property reg must be given\n");
-			of_node_put(phandle);
-			return ERR_PTR(-EINVAL);
+			goto fail;
 		}
 	}
 
@@ -676,8 +673,8 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 							     propname, false,
 							     16384, true);
 		if (IS_ERR(thermo->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(thermo->custom);
+			ret = PTR_ERR(thermo->custom);
+			goto fail;
 		}
 	}
 
@@ -687,6 +684,10 @@ static struct ltc2983_sensor *ltc2983_thermocouple_new(
 
 	of_node_put(phandle);
 	return &thermo->sensor;
+
+fail:
+	of_node_put(phandle);
+	return ERR_PTR(ret);
 }
 
 static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
@@ -803,8 +804,8 @@ static struct ltc2983_sensor *ltc2983_rtd_new(const struct device_node *child,
 							  "adi,custom-rtd",
 							  false, 2048, false);
 		if (IS_ERR(rtd->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(rtd->custom);
+			ret = PTR_ERR(rtd->custom);
+			goto fail;
 		}
 	}
 
@@ -926,8 +927,8 @@ static struct ltc2983_sensor *ltc2983_thermistor_new(
 								 steinhart,
 								 64, false);
 		if (IS_ERR(thermistor->custom)) {
-			of_node_put(phandle);
-			return ERR_CAST(thermistor->custom);
+			ret = PTR_ERR(thermistor->custom);
+			goto fail;
 		}
 	}
 	/* set common parameters */
