@@ -775,8 +775,7 @@ static inline bool should_fault_in_pages(ssize_t ret, struct iov_iter *i,
 					 size_t *window_size)
 {
 	size_t count = iov_iter_count(i);
-	char __user *p;
-	int pages = 1;
+	size_t size, offs;
 
 	if (likely(!count))
 		return false;
@@ -785,18 +784,20 @@ static inline bool should_fault_in_pages(ssize_t ret, struct iov_iter *i,
 	if (!iter_is_iovec(i))
 		return false;
 
+	size = PAGE_SIZE;
+	offs = offset_in_page(i->iov[0].iov_base + i->iov_offset);
 	if (*prev_count != count || !*window_size) {
-		int pages, nr_dirtied;
+		size_t nr_dirtied;
 
-		pages = min_t(int, BIO_MAX_VECS, DIV_ROUND_UP(count, PAGE_SIZE));
+		size = ALIGN(offs + count, PAGE_SIZE);
+		size = min_t(size_t, size, SZ_1M);
 		nr_dirtied = max(current->nr_dirtied_pause -
-				 current->nr_dirtied, 1);
-		pages = min(pages, nr_dirtied);
+				 current->nr_dirtied, 8);
+		size = min(size, nr_dirtied << PAGE_SHIFT);
 	}
 
 	*prev_count = count;
-	p = i->iov[0].iov_base + i->iov_offset;
-	*window_size = (size_t)PAGE_SIZE * pages - offset_in_page(p);
+	*window_size = size - offs;
 	return true;
 }
 
