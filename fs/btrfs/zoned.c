@@ -1801,7 +1801,6 @@ struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
 
 	map = em->map_lookup;
 	/* We only support single profile for now */
-	ASSERT(map->num_stripes == 1);
 	device = map->stripes[0].dev;
 
 	free_extent_map(em);
@@ -1982,9 +1981,6 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 
 	if (!btrfs_is_zoned(fs_info))
 		return true;
-
-	/* Non-single profiles are not supported yet */
-	ASSERT((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0);
 
 	/* Check if there is a device with active zones left */
 	mutex_lock(&fs_info->chunk_mutex);
