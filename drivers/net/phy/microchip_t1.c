@@ -674,34 +674,6 @@ static int lan87xx_cable_test_get_status(struct phy_device *phydev,
 	return 0;
 }
 
-static int lan87xx_read_master_slave(struct phy_device *phydev)
-{
-	int rc = 0;
-
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
-
-	rc = phy_read(phydev, MII_CTRL1000);
-	if (rc < 0)
-		return rc;
-
-	if (rc & CTL1000_AS_MASTER)
-		phydev->master_slave_get = MASTER_SLAVE_CFG_MASTER_FORCE;
-	else
-		phydev->master_slave_get = MASTER_SLAVE_CFG_SLAVE_FORCE;
-
-	rc = phy_read(phydev, MII_STAT1000);
-	if (rc < 0)
-		return rc;
-
-	if (rc & LPA_1000MSRES)
-		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
-	else
-		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
-
-	return rc;
-}
-
 static int lan87xx_read_status(struct phy_device *phydev)
 {
 	int rc = 0;
@@ -720,7 +692,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
-	rc = lan87xx_read_master_slave(phydev);
+	rc = genphy_read_master_slave(phydev);
 	if (rc < 0)
 		return rc;
 
