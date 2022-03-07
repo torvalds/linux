@@ -217,6 +217,8 @@
 #define B_AX_ASFF_FULL_NO_STK BIT(1)
 #define B_AX_EN_STUCK_DBG BIT(0)
 
+#define R_AX_HCI_FUNC_EN_V1 0x7880
+
 #define R_AX_PHYREG_SET 0x8040
 #define PHYREG_SET_ALL_CYCLE 0x8
 

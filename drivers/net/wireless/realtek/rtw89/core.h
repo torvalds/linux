@@ -2307,6 +2307,8 @@ struct rtw89_chip_info {
 	u8 rf_para_dlink_num;
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
 	u8 ps_mode_supported;
+
+	u32 hci_func_en_addr;
 };
 
 union rtw89_bus_info {

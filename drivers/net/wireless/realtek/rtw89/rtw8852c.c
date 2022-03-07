@@ -194,6 +194,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.fw_name		= "rtw89/rtw8852c_fw.bin",
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
+	.hci_func_en_addr	= R_AX_HCI_FUNC_EN_V1,
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

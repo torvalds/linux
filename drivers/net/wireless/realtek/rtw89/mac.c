@@ -2619,7 +2619,9 @@ static int rtw89_mac_fw_dl_pre_init(struct rtw89_dev *rtwdev)
 
 static void rtw89_mac_hci_func_en(struct rtw89_dev *rtwdev)
 {
-	rtw89_write32_set(rtwdev, R_AX_HCI_FUNC_EN,
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	rtw89_write32_set(rtwdev, chip->hci_func_en_addr,
 			  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
 }
 

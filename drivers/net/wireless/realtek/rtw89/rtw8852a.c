@@ -2057,6 +2057,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED) |
 				  BIT(RTW89_PS_MODE_PWR_GATED),
+	.hci_func_en_addr	= R_AX_HCI_FUNC_EN,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 
