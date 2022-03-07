@@ -1647,9 +1647,10 @@ int ceph_uninline_data(struct file *file)
 	struct ceph_osd_request *req;
 	struct ceph_cap_flush *prealloc_cf;
 	struct folio *folio = NULL;
+	u64 inline_version = CEPH_INLINE_NONE;
 	struct page *pages[1];
-	u64 len, inline_version;
 	int err = 0;
+	u64 len;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
