@@ -38,7 +38,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/bio.h>
-#include <linux/genhd.h>
 #include <linux/hdreg.h>
 #include <linux/errno.h>
 #include <linux/idr.h>

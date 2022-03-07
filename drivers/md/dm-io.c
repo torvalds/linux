@@ -345,11 +345,10 @@ static void do_region(int op, int op_flags, unsigned region,
 						(PAGE_SIZE >> SECTOR_SHIFT)));
 		}
 
-		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, &io->client->bios);
+		bio = bio_alloc_bioset(where->bdev, num_bvecs, op | op_flags,
+				       GFP_NOIO, &io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
-		bio_set_dev(bio, where->bdev);
 		bio->bi_end_io = endio;
-		bio_set_op_attrs(bio, op, op_flags);
 		store_io_and_region_in_bio(bio, io, region);
 
 		if (op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) {

@@ -6,7 +6,6 @@
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/genhd.h>
 #include <linux/list.h>
 
 #include <asm/debug.h>
