@@ -262,6 +262,7 @@ struct rkisp_stream {
 	bool is_mf_upd;
 	bool is_flip;
 	bool is_pause;
+	bool is_crop_upd;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;

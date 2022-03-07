@@ -322,7 +322,5 @@ void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 	bool is_unite = stream->ispdev->hw_dev->is_unite;
 
 	rkisp_unite_write(stream->ispdev, stream->config->rsz.ctrl, 0, false, is_unite);
-
-	if (!async)
-		update_rsz_shadow(stream, async);
+	update_rsz_shadow(stream, async);
 }

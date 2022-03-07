@@ -995,6 +995,12 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 	/* readback start to update stream buf if null */
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->streaming) {
+		/* only dynamic clipping and scaling at readback */
+		if (!mis && stream->is_crop_upd) {
+			rkisp_stream_config_dcrop(stream, false);
+			rkisp_stream_config_rsz(stream, false);
+			stream->is_crop_upd = false;
+		}
 		/* update buf for mulit sensor at readback */
 		if (!mis && !stream->ispdev->hw_dev->is_single &&
 		    !stream->curr_buf &&
