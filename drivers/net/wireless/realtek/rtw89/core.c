@@ -2732,10 +2732,11 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 
 static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 cv;
 
 	cv = rtw89_read32_mask(rtwdev, R_AX_SYS_CFG1, B_AX_CHIP_VER_MASK);
-	if (cv <= CHIP_CBV) {
+	if (chip->chip_id == RTL8852A && cv <= CHIP_CBV) {
 		if (rtw89_read32(rtwdev, R_AX_GPIO0_7_FUNC_SEL) == RTW89_R32_DEAD)
 			cv = CHIP_CAV;
 		else
