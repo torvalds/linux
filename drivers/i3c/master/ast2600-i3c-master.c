@@ -1620,7 +1620,7 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct aspeed_i3c_xfer *xfer;
-	int speed, i, ret = 0;
+	int i, ret = 0;
 
 	if (!i2c_nxfers)
 		return 0;
@@ -1645,8 +1645,6 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	data->index = aspeed_i3c_master_sync_hw_dat(master, dev->addr);
 
-	speed = (master->base.bus.scl_rate.i2c == I3C_BUS_I2C_FM_PLUS_SCL_RATE) ? 1 : 0;
-
 	for (i = 0; i < i2c_nxfers; i++) {
 		struct aspeed_i3c_cmd *cmd = &xfer->cmds[i];
 
@@ -1655,7 +1653,6 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 		cmd->cmd_lo = COMMAND_PORT_TID(i) |
 			      COMMAND_PORT_DEV_INDEX(data->index) |
-			      COMMAND_PORT_SPEED(speed) |
 			      COMMAND_PORT_ROC;
 
 		if (i2c_xfers[i].flags & I2C_M_RD) {
@@ -1669,6 +1666,11 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 		if (i == (i2c_nxfers - 1))
 			cmd->cmd_lo |= COMMAND_PORT_TOC;
+
+		dev_dbg(master->dev,
+			"%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d rx_len=%d\n",
+			__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len,
+			cmd->rx_len);
 	}
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
