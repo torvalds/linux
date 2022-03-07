@@ -382,6 +382,9 @@ enum rtw89_pcie_clkdly_hw {
 	PCIE_CLKDLY_HW_200US = 0x5,
 };
 
+struct rtw89_pci_info {
+};
+
 struct rtw89_pci_bd_ram {
 	u8 start_idx;
 	u8 max_num;

@@ -2937,6 +2937,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	info = (const struct rtw89_driver_info *)id->driver_data;
 	rtwdev->chip = info->chip;
+	rtwdev->pci_info = info->bus.pci;
 
 	ret = rtw89_core_init(rtwdev);
 	if (ret) {

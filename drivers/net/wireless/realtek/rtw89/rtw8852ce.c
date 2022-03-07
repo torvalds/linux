@@ -9,8 +9,14 @@
 #include "reg.h"
 #include "rtw8852c.h"
 
+static const struct rtw89_pci_info rtw8852c_pci_info = {
+};
+
 static const struct rtw89_driver_info rtw89_8852ce_info = {
 	.chip = &rtw8852c_chip_info,
+	.bus = {
+		.pci = &rtw8852c_pci_info,
+	},
 };
 
 static const struct pci_device_id rtw89_8852ce_id_table[] = {

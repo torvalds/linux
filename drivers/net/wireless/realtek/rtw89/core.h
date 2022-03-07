@@ -13,6 +13,7 @@
 #include <net/mac80211.h>
 
 struct rtw89_dev;
+struct rtw89_pci_info;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -2306,8 +2307,13 @@ struct rtw89_chip_info {
 	u8 ps_mode_supported;
 };
 
+union rtw89_bus_info {
+	const struct rtw89_pci_info *pci;
+};
+
 struct rtw89_driver_info {
 	const struct rtw89_chip_info *chip;
+	union rtw89_bus_info bus;
 };
 
 enum rtw89_hcifc_mode {
@@ -2858,6 +2864,7 @@ struct rtw89_dev {
 	bool dbcc_en;
 	struct rtw89_hw_scan_info scan_info;
 	const struct rtw89_chip_info *chip;
+	const struct rtw89_pci_info *pci_info;
 	struct rtw89_hal hal;
 	struct rtw89_mac_info mac;
 	struct rtw89_fw_info fw;
