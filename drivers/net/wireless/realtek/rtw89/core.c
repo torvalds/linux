@@ -2434,6 +2434,18 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 			he_cap->he_mcs_nss_supp.tx_mcs_160 = cpu_to_le16(mcs_map);
 		}
 
+		if (band == NL80211_BAND_6GHZ) {
+			__le16 capa;
+
+			capa = le16_encode_bits(IEEE80211_HT_MPDU_DENSITY_NONE,
+						IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
+			       le16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
+						IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
+			       le16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+						IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+			iftype_data[idx].he_6ghz_capa.capa = capa;
+		}
+
 		idx++;
 	}
 
