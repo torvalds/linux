@@ -23,6 +23,7 @@ struct halt_cpu_state {
 };
 
 static DEFINE_PER_CPU(struct halt_cpu_state, halt_state);
+static DEFINE_RAW_SPINLOCK(walt_drain_pending_lock);
 
 /* the amount of time allowed for enqueue operations that happen
  * just after a halt operation.
@@ -191,6 +192,10 @@ static int cpu_drain_rq(unsigned int cpu)
 	if (available_idle_cpu(cpu))
 		return 0;
 
+	if (!cpu_online(cpu))
+		return 0;
+
+	/* this will schedule, must not be in atomic context */
 	return stop_one_cpu(cpu, drain_rq_cpu_stop, NULL);
 }
 
@@ -209,10 +214,49 @@ bool walt_halt_check_last(int cpu)
 	return true;
 }
 
+struct drain_thread_data {
+	cpumask_t cpus_to_drain;
+};
+
+static struct drain_thread_data drain_data = {
+	.cpus_to_drain = { CPU_BITS_NONE }
+};
+
+static int __ref try_drain_rqs(void *data)
+{
+	cpumask_t *cpus_ptr = &((struct drain_thread_data *)data)->cpus_to_drain;
+	int cpu;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&walt_drain_pending_lock, flags);
+
+	/* continue while there are cpus to drain
+	 * assume at least one cpu to start.
+	 */
+	do {
+		cpumask_t local_cpus;
+
+		cpumask_copy(&local_cpus, cpus_ptr);
+		raw_spin_unlock_irqrestore(&walt_drain_pending_lock, flags);
+
+		for_each_cpu(cpu, &local_cpus)
+			cpu_drain_rq(cpu);
+
+		raw_spin_lock_irqsave(&walt_drain_pending_lock, flags);
+		cpumask_andnot(cpus_ptr, cpus_ptr, &local_cpus);
+
+	} while (cpumask_weight(cpus_ptr));
+
+	raw_spin_unlock_irqrestore(&walt_drain_pending_lock, flags);
+
+	return 0;
+}
+
+struct task_struct *walt_drain_thread;
+
 /*
  * 1) add the cpus to the halt mask
  * 2) migrate tasks off the cpu
- *
  */
 static int halt_cpus(struct cpumask *cpus)
 {
@@ -220,6 +264,7 @@ static int halt_cpus(struct cpumask *cpus)
 	int ret = 0;
 	u64 start_time = sched_clock();
 	struct halt_cpu_state *halt_cpu_state;
+	unsigned long flags;
 
 	trace_halt_cpus_start(cpus, 1);
 
@@ -234,19 +279,13 @@ static int halt_cpus(struct cpumask *cpus)
 		wmb();
 
 		halt_cpu_state->last_halt = start_time;
-
-		/* only drain online cpus */
-		if (cpu_online(cpu)) {
-			/* drain the online CPU */
-			ret = cpu_drain_rq(cpu);
-		}
-
-		if (ret < 0) {
-			/* cpu failed to drain, do not mark as halted */
-			cpumask_clear_cpu(cpu, cpu_halt_mask);
-			break;
-		}
 	}
+
+	/* signal and wakeup the drain kthread */
+	raw_spin_lock_irqsave(&walt_drain_pending_lock, flags);
+	cpumask_or(&drain_data.cpus_to_drain, &drain_data.cpus_to_drain, cpus);
+	raw_spin_unlock_irqrestore(&walt_drain_pending_lock, flags);
+	wake_up_process(walt_drain_thread);
 
 	trace_halt_cpus(cpus, start_time, 1, ret);
 
@@ -481,6 +520,8 @@ static void android_rvh_is_cpu_allowed(void *unused, int cpu, bool *allowed)
 
 void walt_halt_init(void)
 {
+	walt_drain_thread = kthread_run(try_drain_rqs, &drain_data, "halt_drain_rqs");
+
 	register_trace_android_rvh_get_nohz_timer_target(android_rvh_get_nohz_timer_target, NULL);
 	register_trace_android_rvh_set_cpus_allowed_ptr_locked(
 						android_rvh_set_cpus_allowed_ptr_locked, NULL);
