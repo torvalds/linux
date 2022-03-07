@@ -2083,69 +2083,51 @@ out:
 	return ret;
 }
 
-/* bxt clock parameters */
-struct bxt_clk_div {
-	int clock;
-	u32 p1;
-	u32 p2;
-	u32 m2;
-	u32 n;
-
-	int vco;
-};
-
 /* pre-calculated values for DP linkrates */
-static const struct bxt_clk_div bxt_dp_clk_val[] = {
+static const struct dpll bxt_dp_clk_val[] = {
 	/* m2 is .22 binary fixed point */
-	{ .clock = 162000, .p1 = 4, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .clock = 270000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
-	{ .clock = 540000, .p1 = 2, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
-	{ .clock = 216000, .p1 = 3, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .clock = 243000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6133333 /* 24.3 */ },
-	{ .clock = 324000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .clock = 432000, .p1 = 3, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 162000, .p1 = 4, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 270000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
+	{ .dot = 540000, .p1 = 2, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
+	{ .dot = 216000, .p1 = 3, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 243000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6133333 /* 24.3 */ },
+	{ .dot = 324000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 432000, .p1 = 3, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
 };
 
 static bool
 bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
-			  struct bxt_clk_div *clk_div)
+			  struct dpll *clk_div)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct dpll best_clock;
 
 	/* Calculate HDMI div */
 	/*
 	 * FIXME: tie the following calculation into
 	 * i9xx_crtc_compute_clock
 	 */
-	if (!bxt_find_best_dpll(crtc_state, &best_clock)) {
+	if (!bxt_find_best_dpll(crtc_state, clk_div)) {
 		drm_dbg(&i915->drm, "no PLL dividers found for clock %d pipe %c\n",
 			crtc_state->port_clock,
 			pipe_name(crtc->pipe));
 		return false;
 	}
 
-	clk_div->p1 = best_clock.p1;
-	clk_div->p2 = best_clock.p2;
-	drm_WARN_ON(&i915->drm, best_clock.m1 != 2);
-	clk_div->n = best_clock.n;
-	clk_div->m2 = best_clock.m2;
-
-	clk_div->vco = best_clock.vco;
+	drm_WARN_ON(&i915->drm, clk_div->m1 != 2);
 
 	return true;
 }
 
 static void bxt_ddi_dp_pll_dividers(struct intel_crtc_state *crtc_state,
-				    struct bxt_clk_div *clk_div)
+				    struct dpll *clk_div)
 {
 	int clock = crtc_state->port_clock;
 	int i;
 
 	*clk_div = bxt_dp_clk_val[0];
 	for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
-		if (bxt_dp_clk_val[i].clock == clock) {
+		if (bxt_dp_clk_val[i].dot == clock) {
 			*clk_div = bxt_dp_clk_val[i];
 			break;
 		}
@@ -2155,7 +2137,7 @@ static void bxt_ddi_dp_pll_dividers(struct intel_crtc_state *crtc_state,
 }
 
 static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
-				      const struct bxt_clk_div *clk_div)
+				      const struct dpll *clk_div)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	struct intel_dpll_hw_state *dpll_hw_state = &crtc_state->dpll_hw_state;
@@ -2227,7 +2209,7 @@ static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 static bool
 bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 {
-	struct bxt_clk_div clk_div = {};
+	struct dpll clk_div = {};
 
 	bxt_ddi_dp_pll_dividers(crtc_state, &clk_div);
 
@@ -2237,7 +2219,7 @@ bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 static bool
 bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 {
-	struct bxt_clk_div clk_div = {};
+	struct dpll clk_div = {};
 
 	bxt_ddi_hdmi_pll_dividers(crtc_state, &clk_div);
 
