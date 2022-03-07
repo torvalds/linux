@@ -101,6 +101,10 @@ static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GetMinDpmFreq,			PPSMC_MSG_GetMinDpmFreq,               1),
 	MSG_MAP(GetMaxDpmFreq,			PPSMC_MSG_GetMaxDpmFreq,               1),
 	MSG_MAP(GetDpmFreqByIndex,		PPSMC_MSG_GetDpmFreqByIndex,           1),
+	MSG_MAP(PowerUpVcn,				PPSMC_MSG_PowerUpVcn,                  0),
+	MSG_MAP(PowerDownVcn,			PPSMC_MSG_PowerDownVcn,                0),
+	MSG_MAP(PowerUpJpeg,			PPSMC_MSG_PowerUpJpeg,                 0),
+	MSG_MAP(PowerDownJpeg,			PPSMC_MSG_PowerDownJpeg,               0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_7_clk_map[SMU_CLK_COUNT] = {
@@ -458,6 +462,8 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.system_features_control = smu_v13_0_system_features_control,
 	.set_allowed_mask = smu_v13_0_set_allowed_mask,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
+	.dpm_set_vcn_enable = smu_v13_0_set_vcn_enable,
+	.dpm_set_jpeg_enable = smu_v13_0_set_jpeg_enable,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
