@@ -1911,7 +1911,7 @@ static int hl_fw_dynamic_request_descriptor(struct hl_device *hdev,
  * @fwc: the firmware component
  * @fw_version: fw component's version string
  */
-static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
+static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc,
 					const char *fw_version)
 {
@@ -1935,23 +1935,33 @@ static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 						VERSION_MAX_LEN);
 		if (preboot_ver && preboot_ver != prop->preboot_ver) {
 			strscpy(btl_ver, prop->preboot_ver,
-				min((int) (preboot_ver - prop->preboot_ver),
-									31));
+				min((int) (preboot_ver - prop->preboot_ver), 31));
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			dev_info(hdev->dev, "preboot version %s\n",
-								preboot_ver);
+			char major[8];
+			int rc;
+
+			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
+			sprintf(major, "%.2s", preboot_ver);
 			kfree(preboot_ver);
+
+			rc = kstrtou32(major, 10, &hdev->fw_major_version);
+			if (rc) {
+				dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+				return rc;
+			}
 		}
 
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /**
@@ -2123,9 +2133,10 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 		goto release_fw;
 
 	/* read preboot version */
-	hl_fw_dynamic_read_device_fw_version(hdev, cur_fwc,
+	rc = hl_fw_dynamic_read_device_fw_version(hdev, cur_fwc,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
-
+	if (rc)
+		goto release_fw;
 
 	/* update state according to boot stage */
 	if (cur_fwc == FW_COMP_BOOT_FIT) {
@@ -2392,9 +2403,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 			goto protocol_err;
 
 		/* read preboot version */
-		hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
+		return hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
-		return 0;
 	}
 
 	/* load boot fit to FW */

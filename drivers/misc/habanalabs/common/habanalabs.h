@@ -2647,6 +2647,7 @@ struct hl_reset_info {
  * @reset_info: holds current device reset information.
  * @last_error: holds information about last session in which CS timeout or razwi error occurred.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
+ * @fw_major_version: major version of current loaded preboot
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2785,6 +2786,7 @@ struct hl_device {
 	struct hl_reset_info		reset_info;
 
 	u32				*stream_master_qid_arr;
+	u32				fw_major_version;
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
