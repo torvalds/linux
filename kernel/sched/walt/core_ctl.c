@@ -85,6 +85,7 @@ ATOMIC_NOTIFIER_HEAD(core_ctl_notifier);
 static unsigned int last_nr_big;
 
 static unsigned int get_active_cpu_count(const struct cluster_data *cluster);
+static void __ref do_core_ctl(void);
 
 /* ========================= sysfs interface =========================== */
 
@@ -995,7 +996,7 @@ void core_ctl_check(u64 window_start)
 		wakeup |= eval_need(cluster);
 
 	if (wakeup)
-		wake_up_core_ctl_thread();
+		do_core_ctl();
 	core_ctl_call_notifier();
 }
 

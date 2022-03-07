@@ -15,7 +15,8 @@
 /* if a cpu is halting */
 struct cpumask __cpu_halt_mask;
 
-static DEFINE_MUTEX(halt_lock);
+/* spin lock to allow calling from non-preemptible context */
+static DEFINE_RAW_SPINLOCK(halt_lock);
 
 struct halt_cpu_state {
 	u64		last_halt;
@@ -359,8 +360,9 @@ int walt_halt_cpus(struct cpumask *cpus)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
+	unsigned long flags;
 
-	mutex_lock(&halt_lock);
+	raw_spin_lock_irqsave(&halt_lock, flags);
 
 	cpumask_copy(&requested_cpus, cpus);
 
@@ -380,7 +382,7 @@ int walt_halt_cpus(struct cpumask *cpus)
 	else
 		update_ref_counts(&requested_cpus, true);
 unlock:
-	mutex_unlock(&halt_lock);
+	raw_spin_unlock_irqrestore(&halt_lock, flags);
 
 	return ret;
 }
@@ -397,8 +399,9 @@ int walt_start_cpus(struct cpumask *cpus)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
+	unsigned long flags;
 
-	mutex_lock(&halt_lock);
+	raw_spin_lock_irqsave(&halt_lock, flags);
 	cpumask_copy(&requested_cpus, cpus);
 	update_ref_counts(&requested_cpus, false);
 
@@ -414,7 +417,7 @@ int walt_start_cpus(struct cpumask *cpus)
 		update_ref_counts(&requested_cpus, true);
 	}
 
-	mutex_unlock(&halt_lock);
+	raw_spin_unlock_irqrestore(&halt_lock, flags);
 
 	return ret;
 }
