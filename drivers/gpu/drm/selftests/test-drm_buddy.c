@@ -488,8 +488,10 @@ static int igt_buddy_alloc_smoke(void *arg)
 	}
 
 	order = drm_random_order(mm.max_order + 1, &prng);
-	if (!order)
+	if (!order) {
+		err = -ENOMEM;
 		goto out_fini;
+	}
 
 	for (i = 0; i <= mm.max_order; ++i) {
 		struct drm_buddy_block *block;
