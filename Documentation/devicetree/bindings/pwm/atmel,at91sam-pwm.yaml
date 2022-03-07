@@ -15,11 +15,16 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - atmel,at91sam9rl-pwm
-      - atmel,sama5d3-pwm
-      - atmel,sama5d2-pwm
-      - microchip,sam9x60-pwm
+    oneOf:
+      - items:
+          - enum:
+              - atmel,at91sam9rl-pwm
+              - atmel,sama5d3-pwm
+              - atmel,sama5d2-pwm
+              - microchip,sam9x60-pwm
+      - items:
+          - const: microchip,sama7g5-pwm
+          - const: atmel,sama5d2-pwm
 
   reg:
     maxItems: 1
