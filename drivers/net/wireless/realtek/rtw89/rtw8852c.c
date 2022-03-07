@@ -17,6 +17,21 @@ static const u32 rtw8852c_c2h_regs[RTW89_H2CREG_MAX] = {
 	R_AX_C2HREG_DATA3_V1
 };
 
+static const struct rtw89_page_regs rtw8852c_page_regs = {
+	.hci_fc_ctrl	= R_AX_HCI_FC_CTRL_V1,
+	.ch_page_ctrl	= R_AX_CH_PAGE_CTRL_V1,
+	.ach_page_ctrl	= R_AX_ACH0_PAGE_CTRL_V1,
+	.ach_page_info	= R_AX_ACH0_PAGE_INFO_V1,
+	.pub_page_info3	= R_AX_PUB_PAGE_INFO3_V1,
+	.pub_page_ctrl1	= R_AX_PUB_PAGE_CTRL1_V1,
+	.pub_page_ctrl2	= R_AX_PUB_PAGE_CTRL2_V1,
+	.pub_page_info1	= R_AX_PUB_PAGE_INFO1_V1,
+	.pub_page_info2 = R_AX_PUB_PAGE_INFO2_V1,
+	.wp_page_ctrl1	= R_AX_WP_PAGE_CTRL1_V1,
+	.wp_page_ctrl2	= R_AX_WP_PAGE_CTRL2_V1,
+	.wp_page_info1	= R_AX_WP_PAGE_INFO1_V1,
+};
+
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -210,6 +225,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.h2c_regs		= rtw8852c_h2c_regs,
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL_V1,
 	.c2h_regs		= rtw8852c_c2h_regs,
+	.page_regs		= &rtw8852c_page_regs,
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

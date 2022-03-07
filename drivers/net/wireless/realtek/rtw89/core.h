@@ -2237,6 +2237,21 @@ struct rtw89_txpwr_table {
 		     const struct rtw89_txpwr_table *tbl);
 };
 
+struct rtw89_page_regs {
+	u32 hci_fc_ctrl;
+	u32 ch_page_ctrl;
+	u32 ach_page_ctrl;
+	u32 ach_page_info;
+	u32 pub_page_info3;
+	u32 pub_page_ctrl1;
+	u32 pub_page_ctrl2;
+	u32 pub_page_info1;
+	u32 pub_page_info2;
+	u32 wp_page_ctrl1;
+	u32 wp_page_ctrl2;
+	u32 wp_page_info1;
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
@@ -2313,6 +2328,7 @@ struct rtw89_chip_info {
 	const u32 *h2c_regs;
 	u32 c2h_ctrl_reg;
 	const u32 *c2h_regs;
+	const struct rtw89_page_regs *page_regs;
 };
 
 union rtw89_bus_info {
