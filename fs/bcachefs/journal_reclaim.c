@@ -831,10 +831,12 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 	seq = 0;
 
 	spin_lock(&j->lock);
-	while (!ret && seq < j->pin.back) {
+	while (!ret) {
 		struct bch_replicas_padded replicas;
 
 		seq = max(seq, journal_last_seq(j));
+		if (seq >= j->pin.back)
+			break;
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
 					 journal_seq_pin(j, seq)->devs);
 		seq++;
