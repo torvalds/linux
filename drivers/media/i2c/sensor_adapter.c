@@ -46,12 +46,6 @@
 #define MAX_SENSOR_NUM			8
 #define MAX_MIPICLK_NUM			5
 
-struct mclk_data {
-	u32 mclk_index;
-	u32 mclk_rate;
-	u32 reserved[8];
-};
-
 struct sensor_crop {
 	bool is_enable;
 	u32 top;
@@ -150,6 +144,38 @@ static struct sensor_mode supported_modes[] = {
 		},
 	},
 };
+
+static int sensor_write_reg(struct i2c_client *client, u16 reg,
+			    u32 reg_len, u32 val, u32 val_len)
+{
+	u32 buf_i, val_i;
+	u8 buf[8];
+	u8 *val_p;
+	u8 *reg_p;
+	__be32 val_be;
+	__be32 reg_be;
+
+	if (reg_len > 4 || val_len > 4)
+		return -EINVAL;
+
+	reg_be = cpu_to_be32(reg);
+	reg_p = (u8 *)&reg_be;
+	for (buf_i = 0; buf_i < reg_len; buf_i++)
+		buf[buf_i] = reg_p[4 - reg_len + buf_i];
+
+	val_be = cpu_to_be32(val);
+	val_p = (u8 *)&val_be;
+	buf_i = reg_len;
+	val_i = 4 - val_len;
+
+	while (val_i < 4)
+		buf[buf_i++] = val_p[val_i++];
+
+	if (i2c_master_send(client, buf, reg_len + val_len) != reg_len + val_len)
+		return -EIO;
+
+	return 0;
+}
 
 static int sensor_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
@@ -447,6 +473,8 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u8 dev_num = 0;
 	u32 stream = 0;
 	u32 *sync_mode = NULL;
+	struct rkmodule_mclk_data *mclk;
+	struct rkmodule_dev_info *dev_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -546,7 +574,6 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < reg_s->num_regs; i++) {
 			dev_dbg(&sensor->client->dev, "sensor reg 0x%x, reg_bytes %u, val 0x%x, val_bytes %u\n",
 				preg_addr[i], preg_addr_bytes[i], preg_value[i], preg_value_bytes[i]);
-			//custom todo
 			if (g_rkcam_bus_callback[sensor->i2cdev].prkcam_write_i2c_data) {
 				ret = g_rkcam_bus_callback[sensor->i2cdev].prkcam_write_i2c_data(sensor->i2cdev,
 					0,
@@ -555,8 +582,13 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				if (ret)
 					dev_err(&sensor->client->dev, "failed to write sensor reg\n");
 			} else {
-				dev_err(&sensor->client->dev,
-					"The callback function of sensor write reg is not exist\n");
+				ret = sensor_write_reg(sensor->client,
+						       (u32)preg_addr[i],
+						       (u32)preg_addr_bytes[i],
+						       (u32)preg_value[i],
+						       (u32)preg_value_bytes[i]);
+				if (ret)
+					dev_err(&sensor->client->dev, "failed to write sensor by sensor_write_reg\n");
 			}
 		}
 end_set_reg:
@@ -606,6 +638,26 @@ end_set_reg:
 			 "sensor set sync_mode %d\n",
 			 *sync_mode);
 		break;
+	case RKMODULE_SET_MCLK:
+		mclk = (struct rkmodule_mclk_data *)arg;
+		if (mclk->enable)
+			rkcam_sensor_enable_mclk(0, mclk->mclk_index, mclk->mclk_rate);
+		else
+			rkcam_sensor_disable_mclk(0, mclk->mclk_index);
+
+		dev_info(&sensor->client->dev,
+			 "sensor set mclk, enable %u, index %u, rate %u\n",
+			 mclk->enable, mclk->mclk_index, mclk->mclk_rate);
+		break;
+	case RKMODULE_SET_DEV_INFO:
+		dev_info = (struct rkmodule_dev_info *)arg;
+		if (dev_info->i2c_dev.slave_addr)
+			sensor->client->addr = dev_info->i2c_dev.slave_addr;
+		dev_info(&sensor->client->dev,
+			 "sensor set dev info ,slave addr 0x%x\n",
+			 dev_info->i2c_dev.slave_addr);
+		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -629,6 +681,8 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 	u8 i2cdev = 0;
 	u8 dev_num = 0;
 	u32 *sync_mode = NULL;
+	struct rkmodule_mclk_data *mclk;
+	struct rkmodule_dev_info *dev_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -766,6 +820,35 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 		else
 			ret = -EFAULT;
 		break;
+	case RKMODULE_SET_MCLK:
+		mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
+		if (!mclk) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(mclk, up, sizeof(*mclk));
+		if (!ret)
+			ret = sensor_ioctl(sd, cmd, mclk);
+		else
+			ret = -EFAULT;
+		kfree(mclk);
+		break;
+	case RKMODULE_SET_DEV_INFO:
+		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+		if (!dev_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dev_info, up, sizeof(*dev_info));
+		if (!ret)
+			ret = sensor_ioctl(sd, cmd, dev_info);
+		else
+			ret = -EFAULT;
+		kfree(dev_info);
+		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
