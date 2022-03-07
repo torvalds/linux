@@ -10298,12 +10298,17 @@ static int dytc_cql_command(int command, int *output)
 static int dytc_profile_set(struct platform_profile_handler *pprof,
 			    enum platform_profile_option profile)
 {
+	int perfmode;
 	int output;
 	int err;
 
 	err = mutex_lock_interruptible(&dytc_mutex);
 	if (err)
 		return err;
+
+	err = convert_profile_to_dytc(profile, &perfmode);
+	if (err)
+		goto unlock;
 
 	if (dytc_profile_available == DYTC_FUNCMODE_MMC) {
 		if (profile == PLATFORM_PROFILE_BALANCED) {
@@ -10317,12 +10322,6 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 			if (err)
 				goto unlock;
 		} else {
-			int perfmode;
-
-			err = convert_profile_to_dytc(profile, &perfmode);
-			if (err)
-				goto unlock;
-
 			/* Determine if we are in CQL mode. This alters the commands we do */
 			err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
 						&output);
@@ -10331,12 +10330,6 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		}
 	}
 	if (dytc_profile_available == DYTC_FUNCMODE_PSC) {
-		int perfmode;
-
-		err = convert_profile_to_dytc(profile, &perfmode);
-		if (err)
-			goto unlock;
-
 		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
 			goto unlock;
