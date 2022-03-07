@@ -736,7 +736,7 @@ void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
 	 * Since we own the page lock, no one else could touch subpage::writers
 	 * and we are safe to do several atomic operations without spinlock.
 	 */
-	if (atomic_read(&subpage->writers))
+	if (atomic_read(&subpage->writers) == 0)
 		/* No writers, locked by plain lock_page() */
 		return unlock_page(page);
 
