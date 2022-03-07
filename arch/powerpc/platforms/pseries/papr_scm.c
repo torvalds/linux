@@ -1039,7 +1039,7 @@ static struct attribute *papr_nd_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group papr_nd_attribute_group = {
+static const struct attribute_group papr_nd_attribute_group = {
 	.name = "papr",
 	.is_visible = papr_nd_attribute_visible,
 	.attrs = papr_nd_attributes,
