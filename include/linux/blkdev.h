@@ -518,9 +518,6 @@ struct request_queue {
 
 	bool			mq_sysfs_init_done;
 
-#define BLK_MAX_WRITE_HINTS	5
-	u64			write_hints[BLK_MAX_WRITE_HINTS];
-
 	/*
 	 * Independent sector access ranges. This is always NULL for
 	 * devices that do not have multiple independent access ranges.

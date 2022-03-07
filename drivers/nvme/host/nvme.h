@@ -280,7 +280,6 @@ struct nvme_ctrl {
 	u16 crdt[3];
 	u16 oncs;
 	u16 oacs;
-	u16 nr_streams;
 	u16 sqsize;
 	u32 max_namespaces;
 	atomic_t abort_limit;
