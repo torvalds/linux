@@ -3431,7 +3431,7 @@ nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp,
 
 		if (xsk_pool_get_rx_frame_size(dp->xsk_pools[r]) < xsk_min_fl_bufsz) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "XSK buffer pool chunk size too small\n");
+					   "XSK buffer pool chunk size too small");
 			return -EINVAL;
 		}
 	}
