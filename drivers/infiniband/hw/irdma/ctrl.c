@@ -454,7 +454,7 @@ int irdma_sc_qp_create(struct irdma_sc_qp *qp, struct irdma_create_qp_info *info
 
 	cqp = qp->dev->cqp;
 	if (qp->qp_uk.qp_id < cqp->dev->hw_attrs.min_hw_qp_id ||
-	    qp->qp_uk.qp_id > (cqp->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_QP].max_cnt - 1))
+	    qp->qp_uk.qp_id >= cqp->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_QP].max_cnt)
 		return -EINVAL;
 
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, scratch);
@@ -2504,10 +2504,10 @@ static int irdma_sc_cq_create(struct irdma_sc_cq *cq, u64 scratch,
 	int ret_code = 0;
 
 	cqp = cq->dev->cqp;
-	if (cq->cq_uk.cq_id > (cqp->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_CQ].max_cnt - 1))
+	if (cq->cq_uk.cq_id >= cqp->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_CQ].max_cnt)
 		return -EINVAL;
 
-	if (cq->ceq_id > (cq->dev->hmc_fpm_misc.max_ceqs - 1))
+	if (cq->ceq_id >= cq->dev->hmc_fpm_misc.max_ceqs)
 		return -EINVAL;
 
 	ceq = cq->dev->ceq[cq->ceq_id];
@@ -3602,7 +3602,7 @@ int irdma_sc_ceq_init(struct irdma_sc_ceq *ceq,
 	    info->elem_cnt > info->dev->hw_attrs.max_hw_ceq_size)
 		return -EINVAL;
 
-	if (info->ceq_id > (info->dev->hmc_fpm_misc.max_ceqs - 1))
+	if (info->ceq_id >= info->dev->hmc_fpm_misc.max_ceqs)
 		return -EINVAL;
 	pble_obj_cnt = info->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].cnt;
 
@@ -4148,7 +4148,7 @@ int irdma_sc_ccq_init(struct irdma_sc_cq *cq, struct irdma_ccq_init_info *info)
 	    info->num_elem > info->dev->hw_attrs.uk_attrs.max_hw_cq_size)
 		return -EINVAL;
 
-	if (info->ceq_id > (info->dev->hmc_fpm_misc.max_ceqs - 1))
+	if (info->ceq_id >= info->dev->hmc_fpm_misc.max_ceqs)
 		return -EINVAL;
 
 	pble_obj_cnt = info->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].cnt;
