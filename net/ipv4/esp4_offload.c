@@ -110,8 +110,7 @@ static struct sk_buff *xfrm4_tunnel_gso_segment(struct xfrm_state *x,
 						struct sk_buff *skb,
 						netdev_features_t features)
 {
-	__skb_push(skb, skb->mac_len);
-	return skb_mac_gso_segment(skb, features);
+	return skb_eth_gso_segment(skb, features, htons(ETH_P_IP));
 }
 
 static struct sk_buff *xfrm4_transport_gso_segment(struct xfrm_state *x,
