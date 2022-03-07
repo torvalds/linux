@@ -128,7 +128,7 @@ enum rnbd_cache_policy {
  * @logical_block_size: logical block size device supports in bytes
  * @max_segments:	max segments hardware support in one transfer
  * @secure_discard:	supports secure discard
- * @rotation:		is a rotational disc?
+ * @obsolete_rotational: obsolete, not in used.
  * @cache_policy: 	support write-back caching or FUA?
  */
 struct rnbd_msg_open_rsp {
@@ -144,7 +144,7 @@ struct rnbd_msg_open_rsp {
 	__le16			logical_block_size;
 	__le16			max_segments;
 	__le16			secure_discard;
-	u8			rotational;
+	u8			obsolete_rotational;
 	u8			cache_policy;
 	u8			reserved[10];
 };
