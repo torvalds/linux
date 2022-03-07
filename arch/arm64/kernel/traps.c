@@ -9,7 +9,6 @@
 #include <linux/bug.h>
 #include <linux/context_tracking.h>
 #include <linux/signal.h>
-#include <linux/personality.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/spinlock.h>
