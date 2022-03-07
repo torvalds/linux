@@ -1264,6 +1264,12 @@ static int mptcp_nl_cmd_add_addr(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	if (addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL &&
+	    addr.flags & MPTCP_PM_ADDR_FLAG_FULLMESH) {
+		GENL_SET_ERR_MSG(info, "flags mustn't have both signal and fullmesh");
+		return -EINVAL;
+	}
+
 	if (addr.flags & MPTCP_PM_ADDR_FLAG_IMPLICIT) {
 		GENL_SET_ERR_MSG(info, "can't create IMPLICIT endpoint");
 		return -EINVAL;
