@@ -2008,7 +2008,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct wmi_begin_scan_cmd *sc;
-	s8 size, *supp_rates;
+	s8 *supp_rates;
 	int i, band, ret;
 	struct ath6kl *ar = wmi->parent_dev;
 	int num_rates;
@@ -2023,18 +2023,13 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 						num_chan, ch_list);
 	}
 
-	size = sizeof(struct wmi_begin_scan_cmd);
-
 	if ((scan_type != WMI_LONG_SCAN) && (scan_type != WMI_SHORT_SCAN))
 		return -EINVAL;
 
 	if (num_chan > WMI_MAX_CHANNELS)
 		return -EINVAL;
 
-	if (num_chan)
-		size += sizeof(u16) * (num_chan - 1);
-
-	skb = ath6kl_wmi_get_new_buf(size);
+	skb = ath6kl_wmi_get_new_buf(struct_size(sc, ch_list, num_chan));
 	if (!skb)
 		return -ENOMEM;
 

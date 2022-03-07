@@ -863,7 +863,7 @@ struct wmi_begin_scan_cmd {
 	u8 num_ch;
 
 	/* channels in Mhz */
-	__le16 ch_list[1];
+	__le16 ch_list[];
 } __packed;
 
 /* wmi_start_scan_cmd is to be deprecated. Use
