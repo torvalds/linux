@@ -12,6 +12,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <sound/jack.h>
+#include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
@@ -86,6 +87,51 @@ int asoc_simple_parse_daifmt(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_parse_daifmt);
+
+int asoc_simple_parse_tdm_width_map(struct device *dev, struct device_node *np,
+				    struct asoc_simple_dai *dai)
+{
+	u32 *array_values, *p;
+	int n, i, ret;
+
+	if (!of_property_read_bool(np, "dai-tdm-slot-width-map"))
+		return 0;
+
+	n = of_property_count_elems_of_size(np, "dai-tdm-slot-width-map", sizeof(u32));
+	if (n % 3) {
+		dev_err(dev, "Invalid number of cells for dai-tdm-slot-width-map\n");
+		return -EINVAL;
+	}
+
+	dai->tdm_width_map = devm_kcalloc(dev, n, sizeof(*dai->tdm_width_map), GFP_KERNEL);
+	if (!dai->tdm_width_map)
+		return -ENOMEM;
+
+	array_values = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
+	if (!array_values)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, "dai-tdm-slot-width-map", array_values, n);
+	if (ret < 0) {
+		dev_err(dev, "Could not read dai-tdm-slot-width-map: %d\n", ret);
+		goto out;
+	}
+
+	p = array_values;
+	for (i = 0; i < n / 3; ++i) {
+		dai->tdm_width_map[i].sample_bits = *p++;
+		dai->tdm_width_map[i].slot_width = *p++;
+		dai->tdm_width_map[i].slot_count = *p++;
+	}
+
+	dai->n_tdm_widths = i;
+	ret = 0;
+out:
+	kfree(array_values);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_parse_tdm_width_map);
 
 int asoc_simple_set_dailink_name(struct device *dev,
 				 struct snd_soc_dai_link *dai_link,
@@ -309,6 +355,42 @@ static int asoc_simple_set_clk_rate(struct device *dev,
 	return clk_set_rate(simple_dai->clk, rate);
 }
 
+static int asoc_simple_set_tdm(struct snd_soc_dai *dai,
+				struct asoc_simple_dai *simple_dai,
+				struct snd_pcm_hw_params *params)
+{
+	int sample_bits = params_width(params);
+	int slot_width = simple_dai->slot_width;
+	int slot_count = simple_dai->slots;
+	int i, ret;
+
+	if (!simple_dai || !simple_dai->tdm_width_map)
+		return 0;
+
+	if (slot_width == 0)
+		slot_width = sample_bits;
+
+	for (i = 0; i < simple_dai->n_tdm_widths; ++i) {
+		if (simple_dai->tdm_width_map[i].sample_bits == sample_bits) {
+			slot_width = simple_dai->tdm_width_map[i].slot_width;
+			slot_count = simple_dai->tdm_width_map[i].slot_count;
+			break;
+		}
+	}
+
+	ret = snd_soc_dai_set_tdm_slot(dai,
+				       simple_dai->tx_slot_mask,
+				       simple_dai->rx_slot_mask,
+				       slot_count,
+				       slot_width);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(dai->dev, "simple-card: set_tdm_slot error: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
@@ -362,6 +444,21 @@ int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 				return ret;
 		}
 	}
+
+	for_each_prop_dai_codec(props, i, pdai) {
+		sdai = asoc_rtd_to_codec(rtd, i);
+		ret = asoc_simple_set_tdm(sdai, pdai, params);
+		if (ret < 0)
+			return ret;
+	}
+
+	for_each_prop_dai_cpu(props, i, pdai) {
+		sdai = asoc_rtd_to_cpu(rtd, i);
+		ret = asoc_simple_set_tdm(sdai, pdai, params);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_hw_params);
