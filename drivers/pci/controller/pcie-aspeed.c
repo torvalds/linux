@@ -17,6 +17,10 @@
 #include <linux/pci.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <linux/workqueue.h>
+#include <linux/gpio/consumer.h>
 
 /*	PCI Host Controller registers */
 #define ASPEED_PCIE_CLASS_CODE		0x04
@@ -106,6 +110,9 @@ struct aspeed_pcie {
 	struct irq_domain *msi_domain;
 	struct mutex lock;
 	int hotplug_event;
+	struct gpio_desc *perst_ep_in;
+	struct gpio_desc *perst_rc_out;
+	struct delayed_work rst_dwork;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 };
 
@@ -694,6 +701,14 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 #else
 	regmap_write(pcie->pciephy, ASPEED_PCIE_GLOBAL, ROOT_COMPLEX_ID(0x3));
 #endif
+	/* Toggle the gpio to reset the devices on RC bus */
+	pcie->perst_rc_out = devm_gpiod_get_optional(
+		pcie->dev, "perst-rc-out",
+		GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (pcie->perst_rc_out) {
+		mdelay(100);
+		gpiod_set_value(pcie->perst_rc_out, 1);
+	}
 
 	reset_control_deassert(pcie->phy_rst);
 	mdelay(500);
@@ -794,6 +809,82 @@ static ssize_t hotplug_store(struct device *dev,
 
 static DEVICE_ATTR_WO(hotplug);
 
+static void aspeed_pcie_reset_work(struct work_struct *work)
+{
+	struct aspeed_pcie *pcie = container_of(work, typeof(*pcie), rst_dwork.work);
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
+	struct pci_dev *dev;
+	u16 command;
+	u32 link_sts = 0;
+
+	pci_lock_rescan_remove();
+
+	dev = pci_get_domain_bus_and_slot(pcie->domain, 130, 0);
+	if (dev) {
+		pci_stop_and_remove_bus_device(dev);
+
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
+		command |= PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word(dev, PCI_COMMAND, command);
+
+		pci_dev_put(dev);
+	}
+
+	dev = pci_get_domain_bus_and_slot(pcie->domain, 129, 0);
+	if (dev) {
+		pci_stop_and_remove_bus_device(dev);
+
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
+		command |= PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word(dev, PCI_COMMAND, command);
+
+		pci_dev_put(dev);
+	}
+
+	dev = pci_get_domain_bus_and_slot(pcie->domain, 128, PCI_DEVFN(8, 0));
+	if (dev) {
+		pci_stop_and_remove_bus_device(dev);
+
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
+		command |= PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word(dev, PCI_COMMAND, command);
+
+		pci_dev_put(dev);
+	}
+	if (pcie->perst_rc_out)
+		gpiod_set_value(pcie->perst_rc_out, 0);
+	reset_control_assert(pcie->phy_rst);
+	ndelay(300);
+	if (pcie->perst_rc_out)
+		gpiod_set_value(pcie->perst_rc_out, 1);
+	reset_control_deassert(pcie->phy_rst);
+	mdelay(10);
+
+
+	regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
+	if (link_sts & PCIE_LINK_STS)
+		dev_info(pcie->dev, "PCIE- Link up\n");
+	else
+		dev_info(pcie->dev, "PCIE- Link down\n");
+
+	pci_rescan_bus(host->bus);
+	pci_unlock_rescan_remove();
+
+}
+
+static irqreturn_t pcie_rst_irq_handler(int irq, void *dev_id)
+{
+	struct aspeed_pcie *pcie = dev_id;
+
+	schedule_delayed_work(&pcie->rst_dwork,
+				  msecs_to_jiffies(1));
+
+	return IRQ_HANDLED;
+}
+
 static int aspeed_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -825,6 +916,27 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	if (pcie->domain) {
+		pcie->perst_ep_in = devm_gpiod_get_optional(
+			pcie->dev, "perst-ep-in", GPIOD_IN);
+		if (pcie->perst_ep_in) {
+			gpiod_set_debounce(pcie->perst_ep_in, 100);
+			irq_set_irq_type(gpiod_to_irq(pcie->perst_ep_in),
+					 IRQ_TYPE_EDGE_FALLING);
+			err = devm_request_irq(pcie->dev,
+					       gpiod_to_irq(pcie->perst_ep_in),
+					       pcie_rst_irq_handler,
+					       IRQF_SHARED, "PERST monitor",
+					       pcie);
+			if (err) {
+				dev_err(pcie->dev,
+					"Failed to request gpio irq %d\n", err);
+				return err;
+			}
+			INIT_DELAYED_WORK(&pcie->rst_dwork,
+					  aspeed_pcie_reset_work);
+		}
+	}
 
 	return pci_host_probe(host);
 }

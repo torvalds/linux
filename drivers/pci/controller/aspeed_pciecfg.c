@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/gpio/consumer.h>
 
 struct aspeed_pciecfg {
 	void __iomem *reg;
@@ -19,6 +20,8 @@ struct aspeed_pciecfg {
 	struct reset_control *rst;
 	struct reset_control *rc_low_rst;
 	struct reset_control *rc_high_rst;
+	struct gpio_desc *rc_low_rst_gpio;
+	struct gpio_desc *rc_high_rst_gpio;
 };
 
 static const struct of_device_id aspeed_pciecfg_of_match[] = {
@@ -31,12 +34,18 @@ static void aspeed_pciecfg_init(struct aspeed_pciecfg *pciecfg)
 {
 	reset_control_assert(pciecfg->rst);
 
-	if (pciecfg->rc_low_rst) {
+	if (pciecfg->rc_low_rst_gpio) {
+		gpiod_set_value(pciecfg->rc_low_rst_gpio, 1);
+		gpiod_set_value(pciecfg->rc_low_rst_gpio, 0);
+	} else if (pciecfg->rc_low_rst) {
 		reset_control_deassert(pciecfg->rc_low_rst);
 		reset_control_assert(pciecfg->rc_low_rst);
 	}
 
-	if (pciecfg->rc_high_rst) {
+	if (pciecfg->rc_high_rst_gpio) {
+		gpiod_set_value(pciecfg->rc_high_rst_gpio, 1);
+		gpiod_set_value(pciecfg->rc_high_rst_gpio, 0);
+	} else if (pciecfg->rc_high_rst) {
 		reset_control_deassert(pciecfg->rc_high_rst);
 		reset_control_assert(pciecfg->rc_high_rst);
 	}
@@ -83,24 +92,31 @@ static int aspeed_pciecfg_probe(struct platform_device *pdev)
 		return PTR_ERR(pciecfg->rst);
 	}
 
+	pciecfg->rc_low_rst = NULL;
 	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie0", 0))) {
-		pciecfg->rc_low_rst = devm_reset_control_get_shared(&pdev->dev, "rc_low");
-		if (IS_ERR(pciecfg->rc_low_rst)) {
-			dev_info(&pdev->dev, "No RC low reset\n");
-			pciecfg->rc_low_rst = NULL;
+		pciecfg->rc_low_rst_gpio = devm_gpiod_get_optional(
+			dev, "pcei0-perst",
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+		if (!pciecfg->rc_low_rst_gpio) {
+			pciecfg->rc_low_rst = devm_reset_control_get_shared(
+				&pdev->dev, "rc_low");
+			if (IS_ERR(pciecfg->rc_low_rst))
+				dev_info(&pdev->dev, "No RC low reset\n");
 		}
-	} else
-		pciecfg->rc_low_rst = NULL;
+	}
 
-
+	pciecfg->rc_high_rst = NULL;
 	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie1", 0))) {
-		pciecfg->rc_high_rst = devm_reset_control_get_shared(&pdev->dev, "rc_high");
-		if (IS_ERR(pciecfg->rc_high_rst)) {
-			dev_info(&pdev->dev, "No RC high reset\n");
-			pciecfg->rc_high_rst = NULL;
+		pciecfg->rc_high_rst_gpio = devm_gpiod_get_optional(
+			dev, "pcei1-perst",
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+		if (!pciecfg->rc_high_rst_gpio) {
+			pciecfg->rc_low_rst = devm_reset_control_get_shared(
+				&pdev->dev, "rc_high");
+			if (IS_ERR(pciecfg->rc_high_rst))
+				dev_info(&pdev->dev, "No RC high reset\n");
 		}
-	} else
-		pciecfg->rc_high_rst = NULL;
+	}
 
 	pciecfg->ahbc = syscon_regmap_lookup_by_compatible("aspeed,aspeed-ahbc");
 	if (IS_ERR(pciecfg->ahbc))
