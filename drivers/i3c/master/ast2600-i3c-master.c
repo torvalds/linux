@@ -1276,7 +1276,8 @@ static int aspeed_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	else
 		ret = aspeed_i3c_ccc_set(master, ccc);
 
-	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID))
+	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID) ||
+	    (ccc->id == I3C_CCC_DEVCTRL))
 		writel(i3c_pp_timing, master->regs + SCL_I3C_PP_TIMING);
 
 	return ret;
