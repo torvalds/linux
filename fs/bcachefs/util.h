@@ -372,7 +372,7 @@ static inline void pr_time(struct printbuf *out, u64 _time)
 #ifdef __KERNEL__
 static inline void uuid_unparse_lower(u8 *uuid, char *out)
 {
-	sprintf(out, "%plU", uuid);
+	sprintf(out, "%pUb", uuid);
 }
 #else
 #include <uuid/uuid.h>
