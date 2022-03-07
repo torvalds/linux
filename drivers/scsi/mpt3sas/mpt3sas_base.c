@@ -3692,10 +3692,11 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		}
 
 		for (i = 0; i < ioc->combined_reply_index_count; i++) {
-			ioc->replyPostRegisterIndex[i] = (resource_size_t *)
-			     ((u8 __force *)&ioc->chip->Doorbell +
-			     MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET +
-			     (i * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET));
+			ioc->replyPostRegisterIndex[i] =
+				(resource_size_t __iomem *)
+				((u8 __force *)&ioc->chip->Doorbell +
+				 MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET +
+				 (i * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET));
 		}
 	}
 

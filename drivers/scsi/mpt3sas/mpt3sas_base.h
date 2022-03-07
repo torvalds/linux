@@ -1588,7 +1588,7 @@ struct MPT3SAS_ADAPTER {
 	u8		combined_reply_index_count;
 	u8		smp_affinity_enable;
 	/* reply post register index */
-	resource_size_t	**replyPostRegisterIndex;
+	resource_size_t	__iomem **replyPostRegisterIndex;
 
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;
