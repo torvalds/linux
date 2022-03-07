@@ -523,6 +523,8 @@ static int rockchip_init_temp_opp_table(struct monitor_dev_info *info)
 		info->opp_table[i].rate = opp->rate;
 		info->opp_table[i].volt = opp->supplies[0].u_volt;
 		info->opp_table[i].max_volt = opp->supplies[0].u_volt_max;
+		if (opp_table->regulator_count > 1)
+			info->opp_table[i].mem_volt = opp->supplies[1].u_volt;
 
 		if (opp->supplies[0].u_volt <= info->high_temp_max_volt) {
 			if (!reach_high_temp_max_volt)
@@ -814,11 +816,27 @@ static int rockchip_adjust_low_temp_opp_volt(struct monitor_dev_info *info,
 			opp->supplies[0].u_volt =
 				info->opp_table[i].low_temp_volt;
 			opp->supplies[0].u_volt_min = opp->supplies[0].u_volt;
+			if (opp_table->regulator_count > 1) {
+				opp->supplies[1].u_volt_max =
+					opp->supplies[0].u_volt_max;
+				opp->supplies[1].u_volt =
+					opp->supplies[0].u_volt;
+				opp->supplies[1].u_volt_min =
+					opp->supplies[0].u_volt_min;
+			}
 		} else {
 			opp->supplies[0].u_volt_min = info->opp_table[i].volt;
 			opp->supplies[0].u_volt = opp->supplies[0].u_volt_min;
 			opp->supplies[0].u_volt_max =
 				info->opp_table[i].max_volt;
+			if (opp_table->regulator_count > 1) {
+				opp->supplies[1].u_volt_min =
+					info->opp_table[i].mem_volt;
+				opp->supplies[1].u_volt =
+					opp->supplies[1].u_volt_min;
+				opp->supplies[1].u_volt_max =
+					info->opp_table[i].max_volt;
+			}
 		}
 		i++;
 	}
