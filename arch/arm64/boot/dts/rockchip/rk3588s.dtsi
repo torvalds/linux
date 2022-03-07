@@ -3788,8 +3788,21 @@
 			 <&cru CLK_HDMITX0_EARC>,
 			 <&cru CLK_HDMITX0_REF>,
 			 <&cru MCLK_I2S5_8CH_TX>,
+			 <&cru DCLK_VOP0>,
+			 <&cru DCLK_VOP1>,
+			 <&cru DCLK_VOP2>,
+			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>;
-		clock-names = "pclk", "hpd", "earc", "hdmitx_ref", "aud", "hclk_vo1";
+		clock-names = "pclk",
+			      "hpd",
+			      "earc",
+			      "hdmitx_ref",
+			      "aud",
+			      "dclk_vp0",
+			      "dclk_vp1",
+			      "dclk_vp2",
+			      "dclk_vp3",
+			      "hclk_vo1";
 		resets = <&cru SRST_HDMITX0_REF>, <&cru SRST_HDMIHDP0>;
 		reset-names = "ref", "hdp";
 		power-domains = <&power RK3588_PD_VO1>;
