@@ -1698,7 +1698,12 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
     * - __u8
       - ``reference_mode``
       - Specifies the type of inter prediction to be used. See
-        :ref:`Reference Mode<vp9_reference_mode>` for more details.
+        :ref:`Reference Mode<vp9_reference_mode>` for more details. Note that
+	this is derived as part of the compressed header parsing process and
+	for this reason should have been part of
+	:c:type: `v4l2_ctrl_vp9_compressed_hdr` optional control. It is safe to
+	set this value to zero if the driver does not require compressed
+	headers.
     * - __u8
       - ``reserved[7]``
       - Applications and drivers must set this to zero.
