@@ -118,7 +118,7 @@ static inline unsigned long ppc_function_entry(void *func)
 	 * function's descriptor. The first entry in the descriptor is the
 	 * address of the function text.
 	 */
-	return ((func_descr_t *)func)->entry;
+	return ((struct func_desc *)func)->addr;
 #else
 	return (unsigned long)func;
 #endif

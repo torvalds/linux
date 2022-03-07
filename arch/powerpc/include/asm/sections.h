@@ -6,6 +6,10 @@
 #include <linux/elf.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_HAVE_FUNCTION_DESCRIPTORS
+typedef struct func_desc func_desc_t;
+#endif
+
 #include <asm-generic/sections.h>
 
 extern char __head_end[];
@@ -53,31 +57,6 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 	return start < (unsigned long)__init_end &&
 		(unsigned long)_stext < end;
 }
-
-#ifdef PPC64_ELF_ABI_v1
-
-#define HAVE_DEREFERENCE_FUNCTION_DESCRIPTOR 1
-
-#undef dereference_function_descriptor
-static inline void *dereference_function_descriptor(void *ptr)
-{
-	struct ppc64_opd_entry *desc = ptr;
-	void *p;
-
-	if (!get_kernel_nofault(p, (void *)&desc->funcaddr))
-		ptr = p;
-	return ptr;
-}
-
-#undef dereference_kernel_function_descriptor
-static inline void *dereference_kernel_function_descriptor(void *ptr)
-{
-	if (ptr < (void *)__start_opd || ptr >= (void *)__end_opd)
-		return ptr;
-
-	return dereference_function_descriptor(ptr);
-}
-#endif /* PPC64_ELF_ABI_v1 */
 
 #endif
 
