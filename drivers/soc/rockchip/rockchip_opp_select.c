@@ -1042,6 +1042,8 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
 		if (!irdrop_table) {
 			delta_irdrop = 0;
 		} else {
@@ -1110,6 +1112,8 @@ static void rockchip_adjust_opp_by_mbist_vmin(struct device *dev,
 
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
 		if (opp->supplies->u_volt < vmin) {
 			opp->supplies->u_volt = vmin;
 			opp->supplies->u_volt_min = vmin;
