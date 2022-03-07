@@ -477,7 +477,7 @@ struct sof_topology_token {
 	u32 offset;
 };
 
-static int get_token_u32(void *elem, void *object, u32 offset)
+int get_token_u32(void *elem, void *object, u32 offset)
 {
 	struct snd_soc_tplg_vendor_value_elem *velem = elem;
 	u32 *val = (u32 *)((u8 *)object + offset);
@@ -486,7 +486,7 @@ static int get_token_u32(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-static int get_token_u16(void *elem, void *object, u32 offset)
+int get_token_u16(void *elem, void *object, u32 offset)
 {
 	struct snd_soc_tplg_vendor_value_elem *velem = elem;
 	u16 *val = (u16 *)((u8 *)object + offset);
@@ -495,7 +495,7 @@ static int get_token_u16(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-static int get_token_uuid(void *elem, void *object, u32 offset)
+int get_token_uuid(void *elem, void *object, u32 offset)
 {
 	struct snd_soc_tplg_vendor_uuid_elem *velem = elem;
 	u8 *dst = (u8 *)object + offset;
@@ -505,7 +505,7 @@ static int get_token_uuid(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-static int get_token_comp_format(void *elem, void *object, u32 offset)
+int get_token_comp_format(void *elem, void *object, u32 offset)
 {
 	u32 *val = (u32 *)((u8 *)object + offset);
 
@@ -513,7 +513,7 @@ static int get_token_comp_format(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-static int get_token_dai_type(void *elem, void *object, u32 offset)
+int get_token_dai_type(void *elem, void *object, u32 offset)
 {
 	u32 *val = (u32 *)((u8 *)object + offset);
 

@@ -260,4 +260,9 @@ int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev
 			 struct snd_sof_pcm *spcm);
 int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
 			struct snd_sof_pcm *spcm, int dir, bool free_widget_list);
+int get_token_u32(void *elem, void *object, u32 offset);
+int get_token_u16(void *elem, void *object, u32 offset);
+int get_token_comp_format(void *elem, void *object, u32 offset);
+int get_token_dai_type(void *elem, void *object, u32 offset);
+int get_token_uuid(void *elem, void *object, u32 offset);
 #endif
