@@ -1707,6 +1707,7 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched,
 		swidget->dynamic_pipeline_widget);
 
+	swidget->core = pipeline->core;
 	swidget->private = pipeline;
 
 	return 0;

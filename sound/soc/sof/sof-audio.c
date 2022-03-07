@@ -103,7 +103,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		.id = swidget->comp_id,
 	};
 	struct sof_ipc_reply reply;
-	int ret, ret1, core;
+	int ret, ret1;
 
 	if (!swidget->private)
 		return 0;
@@ -112,14 +112,9 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (--swidget->use_count)
 		return 0;
 
-	core = swidget->core;
-
 	switch (swidget->id) {
 	case snd_soc_dapm_scheduler:
 	{
-		const struct sof_ipc_pipe_new *pipeline = swidget->private;
-
-		core = pipeline->core;
 		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
 		break;
 	}
@@ -149,10 +144,10 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	 * disable widget core. continue to route setup status and complete flag
 	 * even if this fails and return the appropriate error
 	 */
-	ret1 = snd_sof_dsp_core_put(sdev, core);
+	ret1 = snd_sof_dsp_core_put(sdev, swidget->core);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: failed to disable target core: %d for widget %s\n",
-			core, swidget->widget->name);
+			swidget->core, swidget->widget->name);
 		if (!ret)
 			ret = ret1;
 	}
@@ -177,7 +172,6 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	struct snd_sof_dai *dai;
 	size_t ipc_size;
 	int ret;
-	int core;
 
 	/* skip if there is no private data */
 	if (!swidget->private)
@@ -187,15 +181,8 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (++swidget->use_count > 1)
 		return 0;
 
-	/* set core ID */
-	core = swidget->core;
-	if (swidget->id == snd_soc_dapm_scheduler) {
-		pipeline = swidget->private;
-		core = pipeline->core;
-	}
-
 	/* enable widget core */
-	ret = snd_sof_dsp_core_get(sdev, core);
+	ret = snd_sof_dsp_core_get(sdev, swidget->core);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to enable target core for widget %s\n",
 			swidget->widget->name);
@@ -275,7 +262,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	return 0;
 
 core_put:
-	snd_sof_dsp_core_put(sdev, core);
+	snd_sof_dsp_core_put(sdev, swidget->core);
 use_count_dec:
 	swidget->use_count--;
 	return ret;
