@@ -3625,7 +3625,7 @@ static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
 
 	msr_data = (u32)reg_read(ctxt, VCPU_REGS_RAX)
 		| ((u64)reg_read(ctxt, VCPU_REGS_RDX) << 32);
-	r = ctxt->ops->set_msr(ctxt, msr_index, msr_data);
+	r = ctxt->ops->set_msr_with_filter(ctxt, msr_index, msr_data);
 
 	if (r == X86EMUL_IO_NEEDED)
 		return r;
@@ -3642,7 +3642,7 @@ static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
 	u64 msr_data;
 	int r;
 
-	r = ctxt->ops->get_msr(ctxt, msr_index, &msr_data);
+	r = ctxt->ops->get_msr_with_filter(ctxt, msr_index, &msr_data);
 
 	if (r == X86EMUL_IO_NEEDED)
 		return r;

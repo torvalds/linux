@@ -1748,9 +1748,6 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 {
 	struct msr_data msr;
 
-	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
-		return KVM_MSR_RET_FILTERED;
-
 	switch (index) {
 	case MSR_FS_BASE:
 	case MSR_GS_BASE:
@@ -1832,9 +1829,6 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	struct msr_data msr;
 	int ret;
 
-	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
-		return KVM_MSR_RET_FILTERED;
-
 	switch (index) {
 	case MSR_TSC_AUX:
 		if (!kvm_is_supported_user_return_msr(MSR_TSC_AUX))
@@ -1869,6 +1863,20 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 	}
 
 	return ret;
+}
+
+static int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+{
+	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
+		return KVM_MSR_RET_FILTERED;
+	return kvm_get_msr_ignored_check(vcpu, index, data, false);
+}
+
+static int kvm_set_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 data)
+{
+	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
+		return KVM_MSR_RET_FILTERED;
+	return kvm_set_msr_ignored_check(vcpu, index, data, false);
 }
 
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
@@ -1953,7 +1961,7 @@ int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 	u64 data;
 	int r;
 
-	r = kvm_get_msr(vcpu, ecx, &data);
+	r = kvm_get_msr_with_filter(vcpu, ecx, &data);
 
 	if (!r) {
 		trace_kvm_msr_read(ecx, data);
@@ -1978,7 +1986,7 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 	u64 data = kvm_read_edx_eax(vcpu);
 	int r;
 
-	r = kvm_set_msr(vcpu, ecx, data);
+	r = kvm_set_msr_with_filter(vcpu, ecx, data);
 
 	if (!r) {
 		trace_kvm_msr_write(ecx, data);
@@ -7631,13 +7639,13 @@ static void emulator_set_segment(struct x86_emulate_ctxt *ctxt, u16 selector,
 	return;
 }
 
-static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
-			    u32 msr_index, u64 *pdata)
+static int emulator_get_msr_with_filter(struct x86_emulate_ctxt *ctxt,
+					u32 msr_index, u64 *pdata)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	int r;
 
-	r = kvm_get_msr(vcpu, msr_index, pdata);
+	r = kvm_get_msr_with_filter(vcpu, msr_index, pdata);
 
 	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_RDMSR, 0,
 				    complete_emulated_rdmsr, r)) {
@@ -7648,13 +7656,13 @@ static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 	return r;
 }
 
-static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
-			    u32 msr_index, u64 data)
+static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
+					u32 msr_index, u64 data)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	int r;
 
-	r = kvm_set_msr(vcpu, msr_index, data);
+	r = kvm_set_msr_with_filter(vcpu, msr_index, data);
 
 	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_WRMSR, data,
 				    complete_emulated_msr_access, r)) {
@@ -7663,6 +7671,18 @@ static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 	}
 
 	return r;
+}
+
+static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
+			    u32 msr_index, u64 *pdata)
+{
+	return kvm_get_msr(emul_to_vcpu(ctxt), msr_index, pdata);
+}
+
+static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
+			    u32 msr_index, u64 data)
+{
+	return kvm_set_msr(emul_to_vcpu(ctxt), msr_index, data);
 }
 
 static u64 emulator_get_smbase(struct x86_emulate_ctxt *ctxt)
@@ -7803,6 +7823,8 @@ static const struct x86_emulate_ops emulate_ops = {
 	.set_dr              = emulator_set_dr,
 	.get_smbase          = emulator_get_smbase,
 	.set_smbase          = emulator_set_smbase,
+	.set_msr_with_filter = emulator_set_msr_with_filter,
+	.get_msr_with_filter = emulator_get_msr_with_filter,
 	.set_msr             = emulator_set_msr,
 	.get_msr             = emulator_get_msr,
 	.check_pmc	     = emulator_check_pmc,
