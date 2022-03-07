@@ -10,7 +10,10 @@
 #include <media/drv-intf/exynos-fimc.h>
 #include "common.h"
 
-/* Called with the media graph mutex held or entity->stream_count > 0. */
+/*
+ * Called with the media graph mutex held or media_entity_is_streaming(entity)
+ * true.
+ */
 struct v4l2_subdev *fimc_find_remote_sensor(struct media_entity *entity)
 {
 	struct media_pad *pad = &entity->pads[0];

@@ -17,7 +17,6 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
-#include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/hdmi.h>
 #include <linux/v4l2-dv-timings.h>

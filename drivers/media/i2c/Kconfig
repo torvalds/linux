@@ -325,6 +325,16 @@ config VIDEO_BT866
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt866.
 
+config VIDEO_ISL7998X
+	tristate "Intersil ISL7998x video decoder"
+	depends on VIDEO_V4L2 && I2C
+	depends on OF_GPIO
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for Intersil ISL7998x analog to MIPI-CSI2 or
+	  BT.656 decoder.
+
 config VIDEO_KS0127
 	tristate "KS0127 video decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -911,6 +921,19 @@ config VIDEO_IMX412
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx412.
+
+config VIDEO_OG01A1B
+	tristate "OmniVision OG01A1B sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OG01A1B camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called og01a1b.
 
 config VIDEO_OV02A10
 	tristate "OmniVision OV02A10 sensor support"

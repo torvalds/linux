@@ -10006,6 +10006,14 @@ L:	linux-iio@vger.kernel.org
 F:	Documentation/devicetree/bindings/counter/interrupt-counter.yaml
 F:	drivers/counter/interrupt-cnt.c
 
+INTERSIL ISL7998X VIDEO DECODER DRIVER
+M:	Michael Tretter <m.tretter@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/isil,isl79987.yaml
+F:	drivers/media/i2c/isl7998x.c
+
 INVENSENSE ICM-426xx IMU DRIVER
 M:	Jean-Baptiste Maneyrol <jmaneyrol@invensense.com>
 L:	linux-iio@vger.kernel.org
@@ -14184,6 +14192,12 @@ OMNIKEY CARDMAN 4040 DRIVER
 M:	Harald Welte <laforge@gnumonks.org>
 S:	Maintained
 F:	drivers/char/pcmcia/cm4040_cs.*
+
+OMNIVISION OG01A1B SENSOR DRIVER
+M:	Shawn Tu <shawnx.tu@intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/og01a1b.c
 
 OMNIVISION OV02A10 SENSOR DRIVER
 M:	Dongchun Zhu <dongchun.zhu@mediatek.com>

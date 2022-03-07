@@ -7,7 +7,7 @@
 
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -28,8 +28,8 @@ struct adv7183 {
 	v4l2_std_id std; /* Current set standard */
 	u32 input;
 	u32 output;
-	unsigned reset_pin;
-	unsigned oe_pin;
+	struct gpio_desc *reset_pin;
+	struct gpio_desc *oe_pin;
 	struct v4l2_mbus_framefmt fmt;
 };
 
@@ -465,9 +465,9 @@ static int adv7183_s_stream(struct v4l2_subdev *sd, int enable)
 	struct adv7183 *decoder = to_adv7183(sd);
 
 	if (enable)
-		gpio_set_value(decoder->oe_pin, 0);
+		gpiod_set_value(decoder->oe_pin, 1);
 	else
-		gpio_set_value(decoder->oe_pin, 1);
+		gpiod_set_value(decoder->oe_pin, 0);
 	udelay(1);
 	return 0;
 }
@@ -531,7 +531,6 @@ static int adv7183_probe(struct i2c_client *client,
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	const unsigned *pin_array;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -540,29 +539,28 @@ static int adv7183_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	pin_array = client->dev.platform_data;
-	if (pin_array == NULL)
-		return -EINVAL;
-
 	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (decoder == NULL)
 		return -ENOMEM;
 
-	decoder->reset_pin = pin_array[0];
-	decoder->oe_pin = pin_array[1];
-
-	if (devm_gpio_request_one(&client->dev, decoder->reset_pin,
-				  GPIOF_OUT_INIT_LOW, "ADV7183 Reset")) {
-		v4l_err(client, "failed to request GPIO %d\n", decoder->reset_pin);
-		return -EBUSY;
-	}
-
-	if (devm_gpio_request_one(&client->dev, decoder->oe_pin,
-				  GPIOF_OUT_INIT_HIGH,
-				  "ADV7183 Output Enable")) {
-		v4l_err(client, "failed to request GPIO %d\n", decoder->oe_pin);
-		return -EBUSY;
-	}
+	/*
+	 * Requesting high will assert reset, the line should be
+	 * flagged as active low in descriptor table or machine description.
+	 */
+	decoder->reset_pin = devm_gpiod_get(&client->dev, "reset",
+					    GPIOD_OUT_HIGH);
+	if (IS_ERR(decoder->reset_pin))
+		return PTR_ERR(decoder->reset_pin);
+	gpiod_set_consumer_name(decoder->reset_pin, "ADV7183 Reset");
+	/*
+	 * Requesting low will start with output disabled, the line should be
+	 * flagged as active low in descriptor table or machine description.
+	 */
+	decoder->oe_pin = devm_gpiod_get(&client->dev, "oe",
+					 GPIOD_OUT_LOW);
+	if (IS_ERR(decoder->oe_pin))
+		return PTR_ERR(decoder->oe_pin);
+	gpiod_set_consumer_name(decoder->reset_pin, "ADV7183 Output Enable");
 
 	sd = &decoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7183_ops);
@@ -594,7 +592,8 @@ static int adv7183_probe(struct i2c_client *client,
 	/* reset chip */
 	/* reset pulse width at least 5ms */
 	mdelay(10);
-	gpio_set_value(decoder->reset_pin, 1);
+	/* De-assert reset line (descriptor tagged active low) */
+	gpiod_set_value(decoder->reset_pin, 0);
 	/* wait 5ms before any further i2c writes are performed */
 	mdelay(5);
 
