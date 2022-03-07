@@ -22,9 +22,11 @@ Open Firmware 和 Devicetree
 .. toctree::
    :maxdepth: 1
 
+   usage-model
+
 Todolist:
 
-*   usage-model
+
 *   of_unittest
 *   kernel-api
 
