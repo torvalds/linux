@@ -66,6 +66,11 @@
 #define VMWGFX_PCI_ID_SVGA3              0x0406
 
 /*
+ * This has to match get_count_order(SVGA_IRQFLAG_MAX)
+ */
+#define VMWGFX_MAX_NUM_IRQS 6
+
+/*
  * Perhaps we should have sysfs entries for these.
  */
 #define VMWGFX_NUM_GB_CONTEXT 256
@@ -532,6 +537,8 @@ struct vmw_private {
 	bool has_mob;
 	spinlock_t hw_lock;
 	bool assume_16bpp;
+	u32 irqs[VMWGFX_MAX_NUM_IRQS];
+	u32 num_irq_vectors;
 
 	enum vmw_sm_type sm_type;
 
@@ -1158,7 +1165,7 @@ bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern int vmw_irq_install(struct drm_device *dev, int irq);
+extern int vmw_irq_install(struct vmw_private *dev_priv);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
 				uint32_t seqno);
