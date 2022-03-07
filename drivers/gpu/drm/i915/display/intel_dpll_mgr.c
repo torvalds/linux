@@ -2086,13 +2086,13 @@ out:
 /* pre-calculated values for DP linkrates */
 static const struct dpll bxt_dp_clk_val[] = {
 	/* m2 is .22 binary fixed point */
-	{ .dot = 162000, .p1 = 4, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .dot = 270000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
-	{ .dot = 540000, .p1 = 2, .p2 = 1, .n = 1, .m2 = 0x6c00000 /* 27.0 */ },
-	{ .dot = 216000, .p1 = 3, .p2 = 2, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .dot = 243000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x6133333 /* 24.3 */ },
-	{ .dot = 324000, .p1 = 4, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
-	{ .dot = 432000, .p1 = 3, .p2 = 1, .n = 1, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 162000, .p1 = 4, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 270000, .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 /* 27.0 */ },
+	{ .dot = 540000, .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 /* 27.0 */ },
+	{ .dot = 216000, .p1 = 3, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 243000, .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6133333 /* 24.3 */ },
+	{ .dot = 324000, .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x819999a /* 32.4 */ },
+	{ .dot = 432000, .p1 = 3, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x819999a /* 32.4 */ },
 };
 
 static bool
@@ -2122,18 +2122,21 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 static void bxt_ddi_dp_pll_dividers(struct intel_crtc_state *crtc_state,
 				    struct dpll *clk_div)
 {
-	int clock = crtc_state->port_clock;
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	int i;
 
 	*clk_div = bxt_dp_clk_val[0];
 	for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
-		if (bxt_dp_clk_val[i].dot == clock) {
+		if (crtc_state->port_clock == bxt_dp_clk_val[i].dot) {
 			*clk_div = bxt_dp_clk_val[i];
 			break;
 		}
 	}
 
-	clk_div->vco = clock * 10 / 2 * clk_div->p1 * clk_div->p2;
+	chv_calc_dpll_params(i915->dpll.ref_clks.nssc, clk_div);
+
+	drm_WARN_ON(&i915->drm, clk_div->vco == 0 ||
+		    clk_div->dot != crtc_state->port_clock);
 }
 
 static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
