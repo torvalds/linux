@@ -1373,7 +1373,7 @@ struct wmi_channel_list_reply {
 	u8 num_ch;
 
 	/* channel in Mhz */
-	__le16 ch_list[1];
+	__le16 ch_list[];
 } __packed;
 
 /* List of Events (target to host) */
