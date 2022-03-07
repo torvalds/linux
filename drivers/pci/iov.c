@@ -49,8 +49,8 @@ EXPORT_SYMBOL_GPL(pci_iov_vf_id);
 
 /**
  * pci_iov_get_pf_drvdata - Return the drvdata of a PF
- * @dev - VF pci_dev
- * @pf_driver - Device driver required to own the PF
+ * @dev: VF pci_dev
+ * @pf_driver: Device driver required to own the PF
  *
  * This must be called from a context that ensures that a VF driver is attached.
  * The value returned is invalid once the VF driver completes its remove()
