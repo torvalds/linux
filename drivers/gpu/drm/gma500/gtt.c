@@ -182,12 +182,80 @@ static void psb_gtt_clear(struct drm_psb_private *pdev)
 	(void)ioread32(pdev->gtt_map + i - 1);
 }
 
+static void psb_gtt_init_ranges(struct drm_psb_private *dev_priv)
+{
+	struct drm_device *dev = &dev_priv->dev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct psb_gtt *pg = &dev_priv->gtt;
+	resource_size_t gtt_phys_start, mmu_gatt_start, gtt_start, gtt_pages,
+			gatt_start, gatt_pages;
+	struct resource *gtt_mem;
+
+	/* The root resource we allocate address space from */
+	gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
+
+	/*
+	 * The video MMU has a HW bug when accessing 0x0d0000000. Make
+	 * GATT start at 0x0e0000000. This doesn't actually matter for
+	 * us now, but maybe will if the video acceleration ever gets
+	 * opened up.
+	 */
+	mmu_gatt_start = 0xe0000000;
+
+	gtt_start = pci_resource_start(pdev, PSB_GTT_RESOURCE);
+	gtt_pages = pci_resource_len(pdev, PSB_GTT_RESOURCE) >> PAGE_SHIFT;
+
+	/* CDV doesn't report this. In which case the system has 64 gtt pages */
+	if (!gtt_start || !gtt_pages) {
+		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
+		gtt_pages = 64;
+		gtt_start = dev_priv->pge_ctl;
+	}
+
+	gatt_start = pci_resource_start(pdev, PSB_GATT_RESOURCE);
+	gatt_pages = pci_resource_len(pdev, PSB_GATT_RESOURCE) >> PAGE_SHIFT;
+
+	if (!gatt_pages || !gatt_start) {
+		static struct resource fudge;	/* Preferably peppermint */
+
+		/*
+		 * This can occur on CDV systems. Fudge it in this case. We
+		 * really don't care what imaginary space is being allocated
+		 * at this point.
+		 */
+		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
+		gatt_start = 0x40000000;
+		gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
+
+		/*
+		 * This is a little confusing but in fact the GTT is providing
+		 * a view from the GPU into memory and not vice versa. As such
+		 * this is really allocating space that is not the same as the
+		 * CPU address space on CDV.
+		 */
+		fudge.start = 0x40000000;
+		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
+		fudge.name = "fudge";
+		fudge.flags = IORESOURCE_MEM;
+
+		gtt_mem = &fudge;
+	} else {
+		gtt_mem = &pdev->resource[PSB_GATT_RESOURCE];
+	}
+
+	pg->gtt_phys_start = gtt_phys_start;
+	pg->mmu_gatt_start = mmu_gatt_start;
+	pg->gtt_start = gtt_start;
+	pg->gtt_pages = gtt_pages;
+	pg->gatt_start = gatt_start;
+	pg->gatt_pages = gatt_pages;
+	dev_priv->gtt_mem = gtt_mem;
+}
+
 int psb_gtt_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_gtt *pg = &dev_priv->gtt;
-	unsigned gtt_pages;
 	int ret;
 
 	mutex_init(&dev_priv->gtt_mutex);
@@ -196,54 +264,9 @@ int psb_gtt_init(struct drm_device *dev)
 	if (ret)
 		goto err_mutex_destroy;
 
-	/* The root resource we allocate address space from */
-	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
+	psb_gtt_init_ranges(dev_priv);
 
-	/*
-	 *	The video mmu has a hw bug when accessing 0x0D0000000.
-	 *	Make gatt start at 0x0e000,0000. This doesn't actually
-	 *	matter for us but may do if the video acceleration ever
-	 *	gets opened up.
-	 */
-	pg->mmu_gatt_start = 0xE0000000;
-
-	pg->gtt_start = pci_resource_start(pdev, PSB_GTT_RESOURCE);
-	gtt_pages = pci_resource_len(pdev, PSB_GTT_RESOURCE)
-								>> PAGE_SHIFT;
-	/* CDV doesn't report this. In which case the system has 64 gtt pages */
-	if (pg->gtt_start == 0 || gtt_pages == 0) {
-		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
-		gtt_pages = 64;
-		pg->gtt_start = dev_priv->pge_ctl;
-	}
-
-	pg->gatt_start = pci_resource_start(pdev, PSB_GATT_RESOURCE);
-	pg->gatt_pages = pci_resource_len(pdev, PSB_GATT_RESOURCE)
-								>> PAGE_SHIFT;
-	dev_priv->gtt_mem = &pdev->resource[PSB_GATT_RESOURCE];
-
-	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
-		static struct resource fudge;	/* Preferably peppermint */
-		/* This can occur on CDV systems. Fudge it in this case.
-		   We really don't care what imaginary space is being allocated
-		   at this point */
-		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
-		pg->gatt_start = 0x40000000;
-		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
-		/* This is a little confusing but in fact the GTT is providing
-		   a view from the GPU into memory and not vice versa. As such
-		   this is really allocating space that is not the same as the
-		   CPU address space on CDV */
-		fudge.start = 0x40000000;
-		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
-		fudge.name = "fudge";
-		fudge.flags = IORESOURCE_MEM;
-		dev_priv->gtt_mem = &fudge;
-	}
-
-	pg->gtt_pages = gtt_pages;
-
-	dev_priv->gtt_map = ioremap(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
+	dev_priv->gtt_map = ioremap(pg->gtt_phys_start, pg->gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;
@@ -264,9 +287,8 @@ err_mutex_destroy:
 int psb_gtt_resume(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_gtt *pg = &dev_priv->gtt;
-	unsigned int gtt_pages;
+	unsigned int old_gtt_pages = pg->gtt_pages;
 	int ret;
 
 	/* Enable the GTT */
@@ -274,60 +296,13 @@ int psb_gtt_resume(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* The root resource we allocate address space from */
-	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
+	psb_gtt_init_ranges(dev_priv);
 
-	/*
-	 *	The video mmu has a hw bug when accessing 0x0D0000000.
-	 *	Make gatt start at 0x0e000,0000. This doesn't actually
-	 *	matter for us but may do if the video acceleration ever
-	 *	gets opened up.
-	 */
-	pg->mmu_gatt_start = 0xE0000000;
-
-	pg->gtt_start = pci_resource_start(pdev, PSB_GTT_RESOURCE);
-	gtt_pages = pci_resource_len(pdev, PSB_GTT_RESOURCE) >> PAGE_SHIFT;
-	/* CDV doesn't report this. In which case the system has 64 gtt pages */
-	if (pg->gtt_start == 0 || gtt_pages == 0) {
-		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
-		gtt_pages = 64;
-		pg->gtt_start = dev_priv->pge_ctl;
-	}
-
-	pg->gatt_start = pci_resource_start(pdev, PSB_GATT_RESOURCE);
-	pg->gatt_pages = pci_resource_len(pdev, PSB_GATT_RESOURCE) >> PAGE_SHIFT;
-	dev_priv->gtt_mem = &pdev->resource[PSB_GATT_RESOURCE];
-
-	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
-		static struct resource fudge;	/* Preferably peppermint */
-		/*
-		 * This can occur on CDV systems. Fudge it in this case. We
-		 * really don't care what imaginary space is being allocated
-		 * at this point.
-		 */
-		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
-		pg->gatt_start = 0x40000000;
-		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
-		/*
-		 * This is a little confusing but in fact the GTT is providing
-		 * a view from the GPU into memory and not vice versa. As such
-		 *  this is really allocating space that is not the same as the
-		 *  CPU address space on CDV.
-		 */
-		fudge.start = 0x40000000;
-		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
-		fudge.name = "fudge";
-		fudge.flags = IORESOURCE_MEM;
-		dev_priv->gtt_mem = &fudge;
-	}
-
-	if (gtt_pages != pg->gtt_pages) {
+	if (old_gtt_pages != pg->gtt_pages) {
 		dev_err(dev->dev, "GTT resume error.\n");
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto err_psb_gtt_disable;
 	}
-
-	pg->gtt_pages = gtt_pages;
 
 	psb_gtt_clear(dev_priv);
 
