@@ -189,6 +189,7 @@ hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
  */
 SYM_CODE_START(xen_iret)
 	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
 	pushq $0
 	jmp hypercall_iret
 SYM_CODE_END(xen_iret)

@@ -345,7 +345,6 @@ SYM_CODE_START_NOALIGN(vc_boot_ghcb)
 	/* Remove Error Code */
 	addq    $8, %rsp
 
-	/* Pure iret required here - don't use INTERRUPT_RETURN */
 	iretq
 SYM_CODE_END(vc_boot_ghcb)
 #endif
@@ -425,6 +424,8 @@ SYM_CODE_END(early_idt_handler_common)
  * VC Exception handler used during very early boot. The
  * early_idt_handler_array can't be used because it returns via the
  * paravirtualized INTERRUPT_RETURN and pv-ops don't work that early.
+ *
+ * XXX it does, fix this.
  *
  * This handler will end up in the .init.text section and not be
  * available to boot secondary CPUs.
