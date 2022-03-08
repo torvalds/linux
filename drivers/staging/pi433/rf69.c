@@ -741,7 +741,7 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 	int retval;
 
 	/* check input value */
-	if (threshold & 0x80) {
+	if (threshold & ~MASK_FIFO_THRESH_VALUE) {
 		dev_dbg(&spi->dev, "set: illegal fifo threshold %u\n", threshold);
 		return -EINVAL;
 	}
