@@ -60,9 +60,10 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @acpi_ipc_irq_index: used for BYT-CR detection
  * @platform: string used for HDAudio codec support
  * @codec_mask: used for HDAudio support
+ * @dmic_num: number of SoC- or chipset-attached PDM digital microphones
  * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
- * @link_mask: links enabled on the board
- * @links: array of link _ADR descriptors, null terminated
+ * @link_mask: SoundWire links enabled on the board
+ * @links: array of SoundWire link _ADR descriptors, null terminated
  * @num_dai_drivers: number of elements in @dai_drivers
  * @dai_drivers: pointer to dai_drivers, used e.g. in nocodec mode
  */
