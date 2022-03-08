@@ -516,21 +516,6 @@ struct rx_tpa_end_cmp_ext {
 	  ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_MASK) >>\
 	 ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_SFT)
 
-#define EVENT_DATA2_NVM_ERR_ADDR(data2)					\
-	(((data2) &							\
-	  ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA2_ERR_ADDR_MASK) >>\
-	 ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA2_ERR_ADDR_SFT)
-
-#define EVENT_DATA1_NVM_ERR_TYPE_WRITE(data1)				\
-	(((data1) &							\
-	  ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_MASK) ==\
-	 ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_WRITE)
-
-#define EVENT_DATA1_NVM_ERR_TYPE_ERASE(data1)				\
-	(((data1) &							\
-	  ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_MASK) ==\
-	 ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_ERASE)
-
 struct nqe_cn {
 	__le16	type;
 	#define NQ_CN_TYPE_MASK           0x3fUL
@@ -1543,33 +1528,6 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_mem_init	mem_init[BNXT_CTX_MEM_INIT_MAX];
 };
 
-enum bnxt_hw_err {
-	BNXT_HW_STATUS_HEALTHY			= 0x0,
-	BNXT_HW_STATUS_NVM_WRITE_ERR		= 0x1,
-	BNXT_HW_STATUS_NVM_ERASE_ERR		= 0x2,
-	BNXT_HW_STATUS_NVM_UNKNOWN_ERR		= 0x3,
-	BNXT_HW_STATUS_NVM_TEST_VPD_ENT_ERR	= 0x4,
-	BNXT_HW_STATUS_NVM_TEST_VPD_READ_ERR	= 0x5,
-	BNXT_HW_STATUS_NVM_TEST_VPD_WRITE_ERR	= 0x6,
-	BNXT_HW_STATUS_NVM_TEST_INCMPL_ERR	= 0x7,
-};
-
-struct bnxt_hw_health {
-	u32 nvm_err_address;
-	u32 nvm_write_errors;
-	u32 nvm_erase_errors;
-	u32 nvm_test_vpd_ent_errors;
-	u32 nvm_test_vpd_read_errors;
-	u32 nvm_test_vpd_write_errors;
-	u32 nvm_test_incmpl_errors;
-	u8 synd;
-	/* max a test in a day if previous test was successful */
-#define HW_RETEST_MIN_TIME	(1000 * 3600 * 24)
-	u8 nvm_test_result;
-	unsigned long nvm_test_timestamp;
-	struct devlink_health_reporter *hw_reporter;
-};
-
 enum bnxt_health_severity {
 	SEVERITY_NORMAL = 0,
 	SEVERITY_WARNING,
@@ -2087,7 +2045,6 @@ struct bnxt {
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
-#define BNXT_FW_NVM_ERR_SP_EVENT	25
 
 	struct delayed_work	fw_reset_task;
 	int			fw_reset_state;
@@ -2188,8 +2145,6 @@ struct bnxt {
 	struct dentry		*debugfs_pdev;
 	struct device		*hwmon_dev;
 	enum board_idx		board_idx;
-
-	struct bnxt_hw_health	hw_health;
 };
 
 #define BNXT_NUM_RX_RING_STATS			8
