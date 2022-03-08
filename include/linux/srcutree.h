@@ -71,9 +71,11 @@ struct srcu_struct {
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
 	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
+	unsigned long srcu_gp_start;		/* Last GP start timestamp (jiffies) */
 	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
 	unsigned long srcu_size_jiffies;	/* Current contention-measurement interval. */
 	unsigned long srcu_n_lock_retries;	/* Contention events in current interval. */
+	unsigned long srcu_n_exp_nodelay;	/* # expedited no-delays in current GP phase. */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
 	bool sda_is_static;			/* May ->sda be passed to free_percpu()? */
 	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
@@ -83,6 +85,8 @@ struct srcu_struct {
 	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
 						/*  callback for the barrier */
 						/*  operation. */
+	unsigned long reschedule_jiffies;
+	unsigned long reschedule_count;
 	struct delayed_work work;
 	struct lockdep_map dep_map;
 };
