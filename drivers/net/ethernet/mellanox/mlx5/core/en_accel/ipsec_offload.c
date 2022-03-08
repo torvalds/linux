@@ -62,55 +62,11 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_ipsec_device_caps);
 
-static int
-mlx5_ipsec_offload_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
-					   const struct mlx5_accel_esp_xfrm_attrs *attrs)
-{
-	if (attrs->replay_type != MLX5_ACCEL_ESP_REPLAY_NONE) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with anti replay (replay_type = %d)\n",
-			      attrs->replay_type);
-		return -EOPNOTSUPP;
-	}
-
-	if (attrs->keymat_type != MLX5_ACCEL_ESP_KEYMAT_AES_GCM) {
-		mlx5_core_err(mdev, "Only aes gcm keymat is supported (keymat_type = %d)\n",
-			      attrs->keymat_type);
-		return -EOPNOTSUPP;
-	}
-
-	if (attrs->keymat.aes_gcm.iv_algo !=
-	    MLX5_ACCEL_ESP_AES_GCM_IV_ALGO_SEQ) {
-		mlx5_core_err(mdev, "Only iv sequence algo is supported (iv_algo = %d)\n",
-			      attrs->keymat.aes_gcm.iv_algo);
-		return -EOPNOTSUPP;
-	}
-
-	if (attrs->keymat.aes_gcm.key_len != 128 &&
-	    attrs->keymat.aes_gcm.key_len != 256) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with key length other than 128/256 bit (key length = %d)\n",
-			      attrs->keymat.aes_gcm.key_len);
-		return -EOPNOTSUPP;
-	}
-
-	if ((attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED) &&
-	    !MLX5_CAP_IPSEC(mdev, ipsec_esn)) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with ESN triggered\n");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
 static struct mlx5_accel_esp_xfrm *
 mlx5_ipsec_offload_esp_create_xfrm(struct mlx5_core_dev *mdev,
 				   const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_ipsec_esp_xfrm *mxfrm;
-	int err = 0;
-
-	err = mlx5_ipsec_offload_esp_validate_xfrm_attrs(mdev, attrs);
-	if (err)
-		return ERR_PTR(err);
 
 	mxfrm = kzalloc(sizeof(*mxfrm), GFP_KERNEL);
 	if (!mxfrm)

@@ -36,10 +36,6 @@
 
 #include <linux/mlx5/driver.h>
 
-enum mlx5_accel_esp_aes_gcm_keymat_iv_algo {
-	MLX5_ACCEL_ESP_AES_GCM_IV_ALGO_SEQ,
-};
-
 enum mlx5_accel_esp_flags {
 	MLX5_ACCEL_ESP_FLAGS_TUNNEL            = 0,    /* Default */
 	MLX5_ACCEL_ESP_FLAGS_TRANSPORT         = 1UL << 0,
@@ -57,14 +53,9 @@ enum mlx5_accel_esp_keymats {
 	MLX5_ACCEL_ESP_KEYMAT_AES_GCM,
 };
 
-enum mlx5_accel_esp_replay {
-	MLX5_ACCEL_ESP_REPLAY_NONE,
-	MLX5_ACCEL_ESP_REPLAY_BMP,
-};
 
 struct aes_gcm_keymat {
 	u64   seq_iv;
-	enum mlx5_accel_esp_aes_gcm_keymat_iv_algo iv_algo;
 
 	u32   salt;
 	u32   icv_len;
@@ -81,7 +72,6 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u32   tfc_pad;
 	u32   flags;
 	u32   sa_handle;
-	enum mlx5_accel_esp_replay replay_type;
 	union {
 		struct {
 			u32 size;
