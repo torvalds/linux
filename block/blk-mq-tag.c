@@ -515,7 +515,7 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,
 		bt_for_each(NULL, q, btags, fn, priv, false);
 	} else {
 		struct blk_mq_hw_ctx *hctx;
-		int i;
+		unsigned long i;
 
 		queue_for_each_hw_ctx(q, hctx, i) {
 			struct blk_mq_tags *tags = hctx->tags;

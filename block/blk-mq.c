@@ -312,7 +312,7 @@ EXPORT_SYMBOL_GPL(blk_mq_unquiesce_queue);
 void blk_mq_wake_waiters(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		if (blk_mq_hw_queue_mapped(hctx))
@@ -1442,7 +1442,7 @@ static void blk_mq_timeout_work(struct work_struct *work)
 		container_of(work, struct request_queue, timeout_work);
 	unsigned long next = 0;
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	/* A deadlock might occur if a request is stuck requiring a
 	 * timeout at the same time a queue freeze is waiting
@@ -2143,7 +2143,7 @@ static struct blk_mq_hw_ctx *blk_mq_get_sq_hctx(struct request_queue *q)
 void blk_mq_run_hw_queues(struct request_queue *q, bool async)
 {
 	struct blk_mq_hw_ctx *hctx, *sq_hctx;
-	int i;
+	unsigned long i;
 
 	sq_hctx = NULL;
 	if (blk_mq_has_sqsched(q))
@@ -2171,7 +2171,7 @@ EXPORT_SYMBOL(blk_mq_run_hw_queues);
 void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
 {
 	struct blk_mq_hw_ctx *hctx, *sq_hctx;
-	int i;
+	unsigned long i;
 
 	sq_hctx = NULL;
 	if (blk_mq_has_sqsched(q))
@@ -2209,7 +2209,7 @@ EXPORT_SYMBOL(blk_mq_delay_run_hw_queues);
 bool blk_mq_queue_stopped(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		if (blk_mq_hctx_stopped(hctx))
@@ -2248,7 +2248,7 @@ EXPORT_SYMBOL(blk_mq_stop_hw_queue);
 void blk_mq_stop_hw_queues(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_stop_hw_queue(hctx);
@@ -2266,7 +2266,7 @@ EXPORT_SYMBOL(blk_mq_start_hw_queue);
 void blk_mq_start_hw_queues(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_start_hw_queue(hctx);
@@ -2286,7 +2286,7 @@ EXPORT_SYMBOL_GPL(blk_mq_start_stopped_hw_queue);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_start_stopped_hw_queue(hctx, async);
@@ -3446,7 +3446,7 @@ static void blk_mq_exit_hw_queues(struct request_queue *q,
 		struct blk_mq_tag_set *set, int nr_queue)
 {
 	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (i == nr_queue)
@@ -3637,7 +3637,8 @@ static void __blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 
 static void blk_mq_map_swqueue(struct request_queue *q)
 {
-	unsigned int i, j, hctx_idx;
+	unsigned int j, hctx_idx;
+	unsigned long i;
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
 	struct blk_mq_tag_set *set = q->tag_set;
@@ -3744,7 +3745,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (shared) {
@@ -3844,7 +3845,7 @@ static int blk_mq_alloc_ctxs(struct request_queue *q)
 void blk_mq_release(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx, *next;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		WARN_ON_ONCE(hctx && list_empty(&hctx->hctx_list));
@@ -4362,7 +4363,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
-	int i, ret;
+	int ret;
+	unsigned long i;
 
 	if (!set)
 		return -EINVAL;
@@ -4738,7 +4740,7 @@ void blk_mq_cancel_work_sync(struct request_queue *q)
 {
 	if (queue_is_mq(q)) {
 		struct blk_mq_hw_ctx *hctx;
-		int i;
+		unsigned long i;
 
 		cancel_delayed_work_sync(&q->requeue_work);
 

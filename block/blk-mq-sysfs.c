@@ -206,7 +206,7 @@ static int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
 void blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	lockdep_assert_held(&q->sysfs_dir_lock);
 
@@ -255,7 +255,8 @@ void blk_mq_sysfs_init(struct request_queue *q)
 int __blk_mq_register_dev(struct device *dev, struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int ret, i;
+	unsigned long i, j;
+	int ret;
 
 	WARN_ON_ONCE(!q->kobj.parent);
 	lockdep_assert_held(&q->sysfs_dir_lock);
@@ -278,8 +279,10 @@ out:
 	return ret;
 
 unreg:
-	while (--i >= 0)
-		blk_mq_unregister_hctx(q->queue_hw_ctx[i]);
+	queue_for_each_hw_ctx(q, hctx, j) {
+		if (j < i)
+			blk_mq_unregister_hctx(hctx);
+	}
 
 	kobject_uevent(q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(q->mq_kobj);
@@ -290,7 +293,7 @@ unreg:
 void blk_mq_sysfs_unregister(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	mutex_lock(&q->sysfs_dir_lock);
 	if (!q->mq_sysfs_init_done)
@@ -306,7 +309,8 @@ unlock:
 int blk_mq_sysfs_register(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i, ret = 0;
+	unsigned long i;
+	int ret = 0;
 
 	mutex_lock(&q->sysfs_dir_lock);
 	if (!q->mq_sysfs_init_done)

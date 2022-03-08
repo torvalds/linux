@@ -707,7 +707,7 @@ static void debugfs_create_files(struct dentry *parent, void *data,
 void blk_mq_debugfs_register(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	debugfs_create_files(q->debugfs_dir, q, blk_mq_debugfs_queue_attrs);
 
@@ -780,7 +780,7 @@ void blk_mq_debugfs_unregister_hctx(struct blk_mq_hw_ctx *hctx)
 void blk_mq_debugfs_register_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_register_hctx(q, hctx);
@@ -789,7 +789,7 @@ void blk_mq_debugfs_register_hctxs(struct request_queue *q)
 void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_unregister_hctx(hctx);
