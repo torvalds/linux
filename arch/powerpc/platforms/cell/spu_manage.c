@@ -16,11 +16,12 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/firmware.h>
-#include <asm/prom.h>
 
 #include "spufs/spufs.h"
 #include "interrupt.h"

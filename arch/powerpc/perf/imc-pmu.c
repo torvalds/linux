@@ -6,6 +6,7 @@
  *           (C) 2017 Anju T Sudhakar, IBM Corporation.
  *           (C) 2017 Hemant K Shaw, IBM Corporation.
  */
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <asm/opal.h>

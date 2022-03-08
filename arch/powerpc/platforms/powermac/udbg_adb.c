@@ -7,6 +7,7 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/cuda.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/page.h>

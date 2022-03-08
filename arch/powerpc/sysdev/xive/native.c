@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
@@ -21,7 +22,6 @@
 #include <linux/kmemleak.h>
 
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/irq.h>

@@ -42,6 +42,7 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/of.h>
+#include <linux/irqdomain.h>
 
 #include <asm/ftrace.h>
 #include <asm/reg.h>

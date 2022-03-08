@@ -22,6 +22,7 @@
 #include <linux/sched/hotplug.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -39,7 +40,6 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>

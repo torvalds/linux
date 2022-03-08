@@ -20,11 +20,13 @@
 #include <linux/adb.h>
 #include <linux/minmax.h>
 #include <linux/pmu.h>
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/time.h>
 #include <asm/pmac_feature.h>

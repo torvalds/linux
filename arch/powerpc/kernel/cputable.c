@@ -12,9 +12,9 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/jump_label.h>
+#include <linux/of.h>
 
 #include <asm/cputable.h>
-#include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 #include <asm/mce.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>

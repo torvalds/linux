@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/fsl-diu-fb.h>
 #include <linux/memblock.h>
@@ -20,7 +21,6 @@
 #include <asm/cacheflush.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc5121.h>
 #include <asm/mpc52xx_psc.h>

@@ -10,6 +10,7 @@
 #include <linux/jump_label.h>
 #include <linux/libfdt.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -19,7 +20,6 @@
 #include <asm/dt_cpu_ftrs.h>
 #include <asm/mce.h>
 #include <asm/mmu.h>
-#include <asm/prom.h>
 #include <asm/setup.h>
 
 

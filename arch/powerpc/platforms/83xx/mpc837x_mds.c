@@ -9,12 +9,12 @@
 
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>
-#include <asm/prom.h>
 #include <sysdev/fsl_pci.h>
 
 #include "mpc83xx.h"

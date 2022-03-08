@@ -28,6 +28,8 @@
 #include <linux/bitops.h>
 #include <linux/pgtable.h>
 #include <linux/printk.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>

@@ -11,11 +11,12 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 #include <asm/time.h>
 

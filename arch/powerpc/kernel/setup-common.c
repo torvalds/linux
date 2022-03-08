@@ -30,12 +30,13 @@
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/paca.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/vdso_datapage.h>
 #include <asm/smp.h>

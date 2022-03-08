@@ -32,9 +32,11 @@
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/timer.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>

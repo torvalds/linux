@@ -13,9 +13,10 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/crash_dump.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/page.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/fadump.h>
 #include <asm/fadump-internal.h>

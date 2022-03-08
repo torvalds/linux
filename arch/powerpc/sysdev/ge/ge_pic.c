@@ -14,12 +14,14 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/irq.h>
 
 #include "ge_pic.h"

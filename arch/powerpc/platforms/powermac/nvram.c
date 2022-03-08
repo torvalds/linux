@@ -17,9 +17,9 @@
 #include <linux/memblock.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/nvram.h>
 

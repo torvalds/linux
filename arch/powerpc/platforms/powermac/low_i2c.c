@@ -40,10 +40,10 @@
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smu.h>
 #include <asm/pmac_pfunc.h>

@@ -24,9 +24,10 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/interrupt.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>

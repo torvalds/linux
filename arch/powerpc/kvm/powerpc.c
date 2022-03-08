@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/irqbypass.h>
 #include <linux/kvm_irqfd.h>
+#include <linux/of.h>
 #include <asm/cputable.h>
 #include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>

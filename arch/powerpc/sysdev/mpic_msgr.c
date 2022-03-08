@@ -7,12 +7,13 @@
  */
 
 #include <linux/list.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/mpic_msgr.h>

@@ -18,13 +18,14 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
 #include <linux/syscore_ops.h>
-#include <asm/prom.h>
 #include <asm/fsl_lbc.h>
 
 static DEFINE_SPINLOCK(fsl_lbc_lock);

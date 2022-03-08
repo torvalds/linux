@@ -4,7 +4,8 @@
 #include <linux/signal.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <asm/prom.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>

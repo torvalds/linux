@@ -39,6 +39,7 @@
 #include <linux/debugfs.h>
 #include <linux/random.h>
 #include <linux/elf-randomize.h>
+#include <linux/of_fdt.h>
 
 #include <asm/interrupt.h>
 #include <asm/processor.h>
@@ -48,7 +49,6 @@
 #include <asm/types.h>
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/eeh.h>
 #include <asm/tlb.h>

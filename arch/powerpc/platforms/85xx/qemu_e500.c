@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/pgtable.h>
 #include <asm/machdep.h>

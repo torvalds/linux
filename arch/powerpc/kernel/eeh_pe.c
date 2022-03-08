@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 

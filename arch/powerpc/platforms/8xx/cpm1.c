@@ -33,12 +33,12 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 #include <asm/page.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm1.h>
 #include <asm/io.h>
 #include <asm/rheap.h>
-#include <asm/prom.h>
 #include <asm/cpm.h>
 
 #include <asm/fs_pd.h>

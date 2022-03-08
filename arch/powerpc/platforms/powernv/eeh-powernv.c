@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/msi.h>
 #include <linux/of.h>

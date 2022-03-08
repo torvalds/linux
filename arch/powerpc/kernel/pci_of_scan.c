@@ -13,8 +13,8 @@
 
 #include <linux/pci.h>
 #include <linux/export.h>
+#include <linux/of.h>
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 
 /**
  * get_int_prop - Decode a u32 from a device tree property

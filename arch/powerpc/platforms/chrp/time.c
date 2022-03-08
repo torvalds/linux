@@ -21,10 +21,10 @@
 #include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/ioport.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
 #include <asm/nvram.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/time.h>
 

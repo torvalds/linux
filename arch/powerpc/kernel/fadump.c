@@ -25,9 +25,10 @@
 #include <linux/cma.h>
 #include <linux/hugetlb.h>
 #include <linux/debugfs.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/page.h>
-#include <asm/prom.h>
 #include <asm/fadump.h>
 #include <asm/fadump-internal.h>
 #include <asm/setup.h>

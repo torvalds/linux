@@ -31,11 +31,12 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 #include <linux/pgtable.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
 #include <asm/elf.h>

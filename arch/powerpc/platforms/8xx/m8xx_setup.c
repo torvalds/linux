@@ -17,10 +17,11 @@
 #include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/fsl_devices.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
-#include <asm/prom.h>
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 

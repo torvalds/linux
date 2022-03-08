@@ -6,6 +6,7 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/debugfs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -17,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>

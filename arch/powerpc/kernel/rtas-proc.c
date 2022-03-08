@@ -24,11 +24,11 @@
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 #include <linux/rtc.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/machdep.h> /* for ppc_md */
 #include <asm/time.h>
