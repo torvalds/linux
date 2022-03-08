@@ -52,6 +52,9 @@ static inline bool is_endbr(u32 val)
 	return val == gen_endbr();
 }
 
+extern __noendbr u64 ibt_save(void);
+extern __noendbr void ibt_restore(u64 save);
+
 #else /* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_64
@@ -73,6 +76,9 @@ static inline bool is_endbr(u32 val)
 #define __noendbr
 
 static inline bool is_endbr(u32 val) { return false; }
+
+static inline u64 ibt_save(void) { return 0; }
+static inline void ibt_restore(u64 save) { }
 
 #else /* __ASSEMBLY__ */
 
