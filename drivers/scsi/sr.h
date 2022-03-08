@@ -18,7 +18,6 @@
 #ifndef _SR_H
 #define _SR_H
 
-#include <linux/kref.h>
 #include <linux/mutex.h>
 
 #define MAX_RETRIES	3
@@ -51,9 +50,6 @@ typedef struct scsi_cd {
 
 	struct cdrom_device_info cdi;
 	struct mutex lock;
-	/* We hold gendisk and scsi_device references on probe and use
-	 * the refs on this kref to decide when to release them */
-	struct kref kref;
 	struct gendisk *disk;
 } Scsi_CD;
 
