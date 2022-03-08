@@ -33,9 +33,10 @@
  * - 1.5 - Add SVM API
  * - 1.6 - Query clear flags in SVM get_attr API
  * - 1.7 - Checkpoint Restore (CRIU) API
+ * - 1.8 - CRIU - Support for SDMA transfers with GTT BOs
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 7
+#define KFD_IOCTL_MINOR_VERSION 8
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -194,6 +195,8 @@ struct kfd_ioctl_dbg_wave_control_args {
 	__u32 gpu_id;		/* to KFD */
 	__u32 buf_size_in_bytes;	/*including gpu_id and buf_size */
 };
+
+#define KFD_INVALID_FD     0xffffffff
 
 /* Matching HSA_EVENTTYPE */
 #define KFD_IOC_EVENT_SIGNAL			0
