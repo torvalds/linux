@@ -21,11 +21,15 @@
 #include <sound/soc-acpi.h>
 #include "hda_dsp_common.h"
 
+/* jd-inv + terminating entry */
+#define MAX_NO_PROPS 2
+
 #define SOF_ES8336_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_ES8336_SSP_CODEC_MASK		(GENMASK(3, 0))
 
 #define SOF_ES8336_TGL_GPIO_QUIRK		BIT(4)
 #define SOF_ES8336_ENABLE_DMIC			BIT(5)
+#define SOF_ES8336_JD_INVERTED			BIT(6)
 
 static unsigned long quirk;
 
@@ -69,6 +73,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk DMIC enabled\n");
 	if (quirk & SOF_ES8336_TGL_GPIO_QUIRK)
 		dev_info(dev, "quirk TGL GPIO enabled\n");
+	if (quirk & SOF_ES8336_JD_INVERTED)
+		dev_info(dev, "quirk JD inverted enabled\n");
 }
 
 static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
@@ -461,10 +467,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
+	struct property_entry props[MAX_NO_PROPS] = {};
 	struct sof_es8336_private *priv;
+	struct fwnode_handle *fwnode;
 	struct acpi_device *adev;
 	struct snd_soc_dai_link *dai_links;
 	struct device *codec_dev;
+	unsigned int cnt = 0;
 	int dmic_be_num = 0;
 	int hdmi_num = 3;
 	int ret;
@@ -530,6 +539,9 @@ static int sof_es8336_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		put_device(&adev->dev);
 		dai_links[0].codecs->name = codec_name;
+	} else {
+		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
+		return -ENXIO;
 	}
 
 	ret = snd_soc_fixup_dai_links_platform_name(&sof_es8336_card,
@@ -542,6 +554,26 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	priv->codec_dev = get_device(codec_dev);
 
+	if (quirk & SOF_ES8336_JD_INVERTED)
+		props[cnt++] = PROPERTY_ENTRY_BOOL("everest,jack-detect-inverted");
+
+	if (cnt) {
+		fwnode = fwnode_create_software_node(props, NULL);
+		if (IS_ERR(fwnode)) {
+			put_device(codec_dev);
+			return PTR_ERR(fwnode);
+		}
+
+		ret = device_add_software_node(codec_dev, to_software_node(fwnode));
+
+		fwnode_handle_put(fwnode);
+
+		if (ret) {
+			put_device(codec_dev);
+			return ret;
+		}
+	}
+
 	/* get speaker enable GPIO */
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, gpio_mapping);
 	if (ret)
@@ -551,7 +583,7 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->gpio_pa)) {
 		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_pa),
 				    "could not get pa-enable GPIO\n");
-		goto err;
+		goto err_put_codec;
 	}
 
 	INIT_LIST_HEAD(&priv->hdmi_pcm_list);
@@ -562,12 +594,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (ret) {
 		gpiod_put(priv->gpio_pa);
 		dev_err(dev, "snd_soc_register_card failed: %d\n", ret);
-		goto err;
+		goto err_put_codec;
 	}
 	platform_set_drvdata(pdev, &sof_es8336_card);
 	return 0;
 
-err:
+err_put_codec:
+	device_remove_software_node(priv->codec_dev);
 	put_device(codec_dev);
 	return ret;
 }
@@ -578,6 +611,7 @@ static int sof_es8336_remove(struct platform_device *pdev)
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
 
 	gpiod_put(priv->gpio_pa);
+	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
 
 	return 0;
