@@ -501,7 +501,7 @@ struct vidtv_encoder
 	return e;
 
 out_kfree_buf:
-	kfree(e->encoder_buf);
+	vfree(e->encoder_buf);
 
 out_kfree_e:
 	kfree(e->name);
