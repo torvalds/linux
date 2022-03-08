@@ -48,7 +48,7 @@
 #define SSD130X_CONTRAST			0x81
 #define SSD130X_SET_LOOKUP_TABLE		0x91
 #define SSD130X_CHARGE_PUMP			0x8d
-#define SSD130X_SEG_REMAP_ON			0xa1
+#define SSD130X_SET_SEG_REMAP			0xa0
 #define SSD130X_DISPLAY_OFF			0xae
 #define SSD130X_SET_MULTIPLEX_RATIO		0xa8
 #define SSD130X_DISPLAY_ON			0xaf
@@ -61,6 +61,8 @@
 #define SSD130X_SET_COM_PINS_CONFIG		0xda
 #define SSD130X_SET_VCOMH			0xdb
 
+#define SSD130X_SET_SEG_REMAP_MASK		GENMASK(0, 0)
+#define SSD130X_SET_SEG_REMAP_SET(val)		FIELD_PREP(SSD130X_SET_SEG_REMAP_MASK, (val))
 #define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 3)
 #define SSD130X_SET_COM_SCAN_DIR_SET(val)	FIELD_PREP(SSD130X_SET_COM_SCAN_DIR_MASK, (val))
 #define SSD130X_SET_CLOCK_DIV_MASK		GENMASK(3, 0)
@@ -235,7 +237,7 @@ static void ssd130x_power_off(struct ssd130x_device *ssd130x)
 
 static int ssd130x_init(struct ssd130x_device *ssd130x)
 {
-	u32 precharge, dclk, com_invdir, compins, chargepump;
+	u32 precharge, dclk, com_invdir, compins, chargepump, seg_remap;
 	int ret;
 
 	/* Set initial contrast */
@@ -244,11 +246,11 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 		return ret;
 
 	/* Set segment re-map */
-	if (ssd130x->seg_remap) {
-		ret = ssd130x_write_cmd(ssd130x, 1, SSD130X_SEG_REMAP_ON);
-		if (ret < 0)
-			return ret;
-	}
+	seg_remap = (SSD130X_SET_SEG_REMAP |
+		     SSD130X_SET_SEG_REMAP_SET(ssd130x->seg_remap));
+	ret = ssd130x_write_cmd(ssd130x, 1, seg_remap);
+	if (ret < 0)
+		return ret;
 
 	/* Set COM direction */
 	com_invdir = (SSD130X_SET_COM_SCAN_DIR |
