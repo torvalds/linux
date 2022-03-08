@@ -2102,7 +2102,6 @@ static int criu_restore_bos(struct kfd_process *p,
 	struct kfd_criu_bo_bucket *bo_buckets = NULL;
 	struct kfd_criu_bo_priv_data *bo_privs = NULL;
 	const bool criu_resume = true;
-	bool flush_tlbs = false;
 	int ret = 0, j = 0;
 	uint32_t i = 0;
 
@@ -2248,7 +2247,6 @@ static int criu_restore_bos(struct kfd_process *p,
 		for (j = 0; j < p->n_pdds; j++) {
 			struct kfd_dev *peer;
 			struct kfd_process_device *peer_pdd;
-			bool table_freed = false;
 
 			if (!bo_priv->mapped_gpuids[j])
 				break;
@@ -2268,20 +2266,11 @@ static int criu_restore_bos(struct kfd_process *p,
 			pr_debug("map mem in restore ioctl -> 0x%llx\n",
 				 ((struct kgd_mem *)mem)->va);
 			ret = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(peer->adev,
-				(struct kgd_mem *)mem, peer_pdd->drm_priv, &table_freed);
+				(struct kgd_mem *)mem, peer_pdd->drm_priv, NULL);
 			if (ret) {
 				pr_err("Failed to map to gpu %d/%d\n", j, p->n_pdds);
 				goto exit;
 			}
-			if (table_freed)
-				flush_tlbs = true;
-		}
-
-		ret = amdgpu_amdkfd_gpuvm_sync_memory(dev->adev,
-						      (struct kgd_mem *) mem, true);
-		if (ret) {
-			pr_debug("Sync memory failed, wait interrupted by user signal\n");
-			goto exit;
 		}
 
 		pr_debug("map memory was successful for the BO\n");
@@ -2295,23 +2284,6 @@ static int criu_restore_bos(struct kfd_process *p,
 				goto exit;
 		}
 	} /* done */
-
-	if (flush_tlbs) {
-		/* Flush TLBs after waiting for the page table updates to complete */
-		for (j = 0; j < p->n_pdds; j++) {
-			struct kfd_dev *peer;
-			struct kfd_process_device *pdd = p->pdds[j];
-			struct kfd_process_device *peer_pdd;
-
-			peer = kfd_device_by_id(pdd->dev->id);
-			if (WARN_ON_ONCE(!peer))
-				continue;
-			peer_pdd = kfd_get_process_device_data(peer, p);
-			if (WARN_ON_ONCE(!peer_pdd))
-				continue;
-			kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
-		}
-	}
 
 	/* Copy only the buckets back so user can read bo_buckets[N].restored_offset */
 	ret = copy_to_user((void __user *)args->bos,
