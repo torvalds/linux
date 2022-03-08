@@ -719,7 +719,7 @@ asm (
 "	.popsection\n"
 );
 
-extern __initdata unsigned long int3_selftest_ip; /* defined in asm below */
+extern void int3_selftest_ip(void); /* defined in asm below */
 
 static int __init
 int3_exception_notify(struct notifier_block *self, unsigned long val, void *data)
@@ -733,14 +733,15 @@ int3_exception_notify(struct notifier_block *self, unsigned long val, void *data
 	if (val != DIE_INT3)
 		return NOTIFY_DONE;
 
-	if (regs->ip - INT3_INSN_SIZE != int3_selftest_ip)
+	if (regs->ip - INT3_INSN_SIZE != (unsigned long)&int3_selftest_ip)
 		return NOTIFY_DONE;
 
 	int3_emulate_call(regs, (unsigned long)&int3_magic);
 	return NOTIFY_STOP;
 }
 
-static void __init int3_selftest(void)
+/* Must be noinline to ensure uniqueness of int3_selftest_ip. */
+static noinline void __init int3_selftest(void)
 {
 	static __initdata struct notifier_block int3_exception_nb = {
 		.notifier_call	= int3_exception_notify,
@@ -753,18 +754,10 @@ static void __init int3_selftest(void)
 	/*
 	 * Basically: int3_magic(&val); but really complicated :-)
 	 *
-	 * Stick the address of the INT3 instruction into int3_selftest_ip,
-	 * then trigger the INT3, padded with NOPs to match a CALL instruction
-	 * length.
+	 * INT3 padded with NOP to CALL_INSN_SIZE. The int3_exception_nb
+	 * notifier above will emulate CALL for us.
 	 */
-	asm volatile ("1: int3; nop; nop; nop; nop\n\t"
-		      ".pushsection .init.data,\"aw\"\n\t"
-		      ".align " __ASM_SEL(4, 8) "\n\t"
-		      ".type int3_selftest_ip, @object\n\t"
-		      ".size int3_selftest_ip, " __ASM_SEL(4, 8) "\n\t"
-		      "int3_selftest_ip:\n\t"
-		      __ASM_SEL(.long, .quad) " 1b\n\t"
-		      ".popsection\n\t"
+	asm volatile ("int3_selftest_ip: int3; nop; nop; nop; nop\n\t"
 		      : ASM_CALL_CONSTRAINT
 		      : __ASM_SEL_RAW(a, D) (&val)
 		      : "memory");
