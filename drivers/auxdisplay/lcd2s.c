@@ -106,7 +106,7 @@ static int lcd2s_print(struct charlcd *lcd, int c)
 static int lcd2s_gotoxy(struct charlcd *lcd, unsigned int x, unsigned int y)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
-	u8 buf[] = { LCD2S_CMD_CUR_POS, y + 1, x + 1};
+	u8 buf[3] = { LCD2S_CMD_CUR_POS, y + 1, x + 1 };
 
 	lcd2s_i2c_master_send(lcd2s->i2c, buf, sizeof(buf));
 
