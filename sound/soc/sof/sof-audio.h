@@ -134,7 +134,7 @@ struct snd_sof_dai {
 	struct snd_soc_component *scomp;
 	const char *name;
 
-	struct sof_ipc_comp_dai comp_dai;
+	struct sof_ipc_comp_dai *comp_dai;
 	int number_configs;
 	int current_config;
 	bool configured; /* DAI configured during BE hw_params */
@@ -220,10 +220,6 @@ struct snd_sof_pcm *snd_sof_find_spcm_name(struct snd_soc_component *scomp,
 struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_soc_component *scomp,
 					   unsigned int comp_id,
 					   int *direction);
-struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_soc_component *scomp,
-					     unsigned int pcm_id);
-const struct sof_ipc_pipe_new *snd_sof_pipeline_find(struct snd_sof_dev *sdev,
-						     int pipeline_id);
 void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream);
 void snd_sof_pcm_init_elapsed_work(struct work_struct *work);
 
@@ -264,4 +260,9 @@ int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev
 			 struct snd_sof_pcm *spcm);
 int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
 			struct snd_sof_pcm *spcm, int dir, bool free_widget_list);
+int get_token_u32(void *elem, void *object, u32 offset);
+int get_token_u16(void *elem, void *object, u32 offset);
+int get_token_comp_format(void *elem, void *object, u32 offset);
+int get_token_dai_type(void *elem, void *object, u32 offset);
+int get_token_uuid(void *elem, void *object, u32 offset);
 #endif

@@ -717,7 +717,7 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 	/* read format from topology */
 	snd_mask_none(fmt);
 
-	switch (dai->comp_dai.config.frame_fmt) {
+	switch (dai->comp_dai->config.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
 		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 		break;
@@ -752,10 +752,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 		break;
 	case SOF_DAI_INTEL_DMIC:
 		/* DMIC only supports 16 or 32 bit formats */
-		if (dai->comp_dai.config.frame_fmt == SOF_IPC_FRAME_S24_4LE) {
+		if (dai->comp_dai->config.frame_fmt == SOF_IPC_FRAME_S24_4LE) {
 			dev_err(component->dev,
 				"error: invalid fmt %d for DAI type %d\n",
-				dai->comp_dai.config.frame_fmt,
+				dai->comp_dai->config.frame_fmt,
 				dai->dai_config->type);
 		}
 		break;

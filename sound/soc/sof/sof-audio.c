@@ -103,7 +103,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		.id = swidget->comp_id,
 	};
 	struct sof_ipc_reply reply;
-	int ret, ret1, core;
+	int ret, ret1;
 
 	if (!swidget->private)
 		return 0;
@@ -112,14 +112,9 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (--swidget->use_count)
 		return 0;
 
-	core = swidget->core;
-
 	switch (swidget->id) {
 	case snd_soc_dapm_scheduler:
 	{
-		const struct sof_ipc_pipe_new *pipeline = swidget->private;
-
-		core = pipeline->core;
 		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
 		break;
 	}
@@ -149,10 +144,10 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	 * disable widget core. continue to route setup status and complete flag
 	 * even if this fails and return the appropriate error
 	 */
-	ret1 = snd_sof_dsp_core_put(sdev, core);
+	ret1 = snd_sof_dsp_core_put(sdev, swidget->core);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: failed to disable target core: %d for widget %s\n",
-			core, swidget->widget->name);
+			swidget->core, swidget->widget->name);
 		if (!ret)
 			ret = ret1;
 	}
@@ -175,9 +170,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	struct sof_ipc_cmd_hdr *hdr;
 	struct sof_ipc_comp *comp;
 	struct snd_sof_dai *dai;
-	size_t ipc_size;
 	int ret;
-	int core;
 
 	/* skip if there is no private data */
 	if (!swidget->private)
@@ -187,15 +180,8 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (++swidget->use_count > 1)
 		return 0;
 
-	/* set core ID */
-	core = swidget->core;
-	if (swidget->id == snd_soc_dapm_scheduler) {
-		pipeline = swidget->private;
-		core = pipeline->core;
-	}
-
 	/* enable widget core */
-	ret = snd_sof_dsp_core_get(sdev, core);
+	ret = snd_sof_dsp_core_get(sdev, swidget->core);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to enable target core for widget %s\n",
 			swidget->widget->name);
@@ -205,23 +191,12 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
-		ipc_size = sizeof(struct sof_ipc_comp_dai) + sizeof(struct sof_ipc_comp_ext);
-		comp = kzalloc(ipc_size, GFP_KERNEL);
-		if (!comp) {
-			ret = -ENOMEM;
-			goto core_put;
-		}
-
 		dai = swidget->private;
+		comp = &dai->comp_dai->comp;
 		dai->configured = false;
-		memcpy(comp, &dai->comp_dai, sizeof(struct sof_ipc_comp_dai));
 
-		/* append extended data to the end of the component */
-		memcpy((u8 *)comp + sizeof(struct sof_ipc_comp_dai), &swidget->comp_ext,
-		       sizeof(swidget->comp_ext));
-
-		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, comp, ipc_size, &r, sizeof(r));
-		kfree(comp);
+		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai->comp_dai, comp->hdr.size,
+					 &r, sizeof(r));
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to load widget %s\n",
 				swidget->widget->name);
@@ -275,7 +250,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	return 0;
 
 core_put:
-	snd_sof_dsp_core_put(sdev, core);
+	snd_sof_dsp_core_put(sdev, swidget->core);
 use_count_dec:
 	swidget->use_count--;
 	return ret;
@@ -624,22 +599,6 @@ int sof_set_hw_params_upon_resume(struct device *dev)
 	return snd_sof_dsp_hw_params_upon_resume(sdev);
 }
 
-const struct sof_ipc_pipe_new *snd_sof_pipeline_find(struct snd_sof_dev *sdev,
-						     int pipeline_id)
-{
-	const struct snd_sof_widget *swidget;
-
-	list_for_each_entry(swidget, &sdev->widget_list, list)
-		if (swidget->id == snd_soc_dapm_scheduler) {
-			const struct sof_ipc_pipe_new *pipeline =
-				swidget->private;
-			if (pipeline->pipeline_id == pipeline_id)
-				return pipeline;
-		}
-
-	return NULL;
-}
-
 int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 {
 	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
@@ -890,20 +849,6 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_soc_component *scomp,
 				return spcm;
 			}
 		}
-	}
-
-	return NULL;
-}
-
-struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_soc_component *scomp,
-					     unsigned int pcm_id)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_sof_pcm *spcm;
-
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (le32_to_cpu(spcm->pcm.pcm_id) == pcm_id)
-			return spcm;
 	}
 
 	return NULL;
