@@ -62,7 +62,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_IN, false);
 	if (err) {
 		iser_err("Failed to set up Data-IN RDMA\n");
-		return err;
+		goto out_err;
 	}
 	mem_reg = &iser_task->rdma_reg[ISER_DIR_IN];
 
@@ -75,6 +75,10 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 		 (unsigned long long)mem_reg->sge.addr);
 
 	return 0;
+
+out_err:
+	iser_dma_unmap_task_data(iser_task, ISER_DIR_IN, DMA_FROM_DEVICE);
+	return err;
 }
 
 /* Register user buffer memory and initialize passive rdma
@@ -100,9 +104,9 @@ static int iser_prepare_write_cmd(struct iscsi_task *task, unsigned int imm_sz,
 
 	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_OUT,
 				   buf_out->data_len == imm_sz);
-	if (err != 0) {
+	if (err) {
 		iser_err("Failed to register write cmd RDMA mem\n");
-		return err;
+		goto out_err;
 	}
 
 	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
@@ -129,6 +133,10 @@ static int iser_prepare_write_cmd(struct iscsi_task *task, unsigned int imm_sz,
 	}
 
 	return 0;
+
+out_err:
+	iser_dma_unmap_task_data(iser_task, ISER_DIR_OUT, DMA_TO_DEVICE);
+	return err;
 }
 
 /* creates a new tx descriptor and adds header regd buffer */
