@@ -125,17 +125,44 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 	mutex_unlock(&pdev->gtt_mutex);
 }
 
-void psb_gtt_fini(struct drm_device *dev)
+static int psb_gtt_enable(struct drm_psb_private *dev_priv)
 {
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct drm_device *dev = &dev_priv->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	int ret;
 
-	iounmap(dev_priv->gtt_map);
+	ret = pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
+	if (ret)
+		return pcibios_err_to_errno(ret);
+	ret = pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
+	if (ret)
+		return pcibios_err_to_errno(ret);
+
+	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
+	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
+
+	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+
+	return 0;
+}
+
+static void psb_gtt_disable(struct drm_psb_private *dev_priv)
+{
+	struct drm_device *dev = &dev_priv->dev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
 	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
-	(void)PSB_RVDC32(PSB_PGETBL_CTL);
 
+	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+}
+
+void psb_gtt_fini(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+
+	iounmap(dev_priv->gtt_map);
+	psb_gtt_disable(dev_priv);
 	mutex_destroy(&dev_priv->gtt_mutex);
 }
 
@@ -159,22 +186,15 @@ int psb_gtt_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct psb_gtt *pg = &dev_priv->gtt;
 	unsigned gtt_pages;
-	struct psb_gtt *pg;
-	int ret = 0;
+	int ret;
 
 	mutex_init(&dev_priv->gtt_mutex);
 
-	pg = &dev_priv->gtt;
-
-	/* Enable the GTT */
-	pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
-	pci_write_config_word(pdev, PSB_GMCH_CTRL,
-			      dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
-
-	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
-	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
-	(void) PSB_RVDC32(PSB_PGETBL_CTL);
+	ret = psb_gtt_enable(dev_priv);
+	if (ret)
+		goto err_mutex_destroy;
 
 	/* The root resource we allocate address space from */
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
@@ -227,17 +247,16 @@ int psb_gtt_init(struct drm_device *dev)
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;
-		goto err_gtt_disable;
+		goto err_psb_gtt_disable;
 	}
 
 	psb_gtt_clear(dev_priv);
 
 	return 0;
 
-err_gtt_disable:
-	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
-	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
-	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+err_psb_gtt_disable:
+	psb_gtt_disable(dev_priv);
+err_mutex_destroy:
 	mutex_destroy(&dev_priv->gtt_mutex);
 	return ret;
 }
@@ -246,20 +265,14 @@ int psb_gtt_resume(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct psb_gtt *pg = &dev_priv->gtt;
 	unsigned int gtt_pages;
-	struct psb_gtt *pg;
 	int ret;
 
-	pg = &dev_priv->gtt;
-
 	/* Enable the GTT */
-	pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
-	pci_write_config_word(pdev, PSB_GMCH_CTRL,
-			      dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
-
-	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
-	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
-	(void) PSB_RVDC32(PSB_PGETBL_CTL);
+	ret = psb_gtt_enable(dev_priv);
+	if (ret)
+		return ret;
 
 	/* The root resource we allocate address space from */
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
@@ -311,16 +324,14 @@ int psb_gtt_resume(struct drm_device *dev)
 	if (gtt_pages != pg->gtt_pages) {
 		dev_err(dev->dev, "GTT resume error.\n");
 		ret = -EINVAL;
-		goto err_gtt_disable;
+		goto err_psb_gtt_disable;
 	}
 
 	pg->gtt_pages = gtt_pages;
 
 	psb_gtt_clear(dev_priv);
 
-err_gtt_disable:
-	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
-	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
-	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+err_psb_gtt_disable:
+	psb_gtt_disable(dev_priv);
 	return ret;
 }
