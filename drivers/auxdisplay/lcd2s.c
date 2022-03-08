@@ -12,7 +12,9 @@
  *  All rights reserved.
  */
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -354,20 +356,16 @@ static const struct i2c_device_id lcd2s_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lcd2s_i2c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id lcd2s_of_table[] = {
 	{ .compatible = "modtronix,lcd2s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lcd2s_of_table);
-#endif
 
 static struct i2c_driver lcd2s_i2c_driver = {
 	.driver = {
 		.name = "lcd2s",
-#ifdef CONFIG_OF
-		.of_match_table = of_match_ptr(lcd2s_of_table),
-#endif
+		.of_match_table = lcd2s_of_table,
 	},
 	.probe = lcd2s_i2c_probe,
 	.remove = lcd2s_i2c_remove,
