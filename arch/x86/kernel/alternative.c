@@ -713,6 +713,7 @@ asm (
 "	.pushsection	.init.text, \"ax\", @progbits\n"
 "	.type		int3_magic, @function\n"
 "int3_magic:\n"
+	ANNOTATE_NOENDBR
 "	movl	$1, (%" _ASM_ARG1 ")\n"
 	ASM_RET
 "	.size		int3_magic, .-int3_magic\n"
@@ -724,8 +725,11 @@ extern void int3_selftest_ip(void); /* defined in asm below */
 static int __init
 int3_exception_notify(struct notifier_block *self, unsigned long val, void *data)
 {
+	unsigned long selftest = (unsigned long)&int3_selftest_ip;
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
+
+	OPTIMIZER_HIDE_VAR(selftest);
 
 	if (!regs || user_mode(regs))
 		return NOTIFY_DONE;
@@ -733,7 +737,7 @@ int3_exception_notify(struct notifier_block *self, unsigned long val, void *data
 	if (val != DIE_INT3)
 		return NOTIFY_DONE;
 
-	if (regs->ip - INT3_INSN_SIZE != (unsigned long)&int3_selftest_ip)
+	if (regs->ip - INT3_INSN_SIZE != selftest)
 		return NOTIFY_DONE;
 
 	int3_emulate_call(regs, (unsigned long)&int3_magic);
@@ -757,7 +761,9 @@ static noinline void __init int3_selftest(void)
 	 * INT3 padded with NOP to CALL_INSN_SIZE. The int3_exception_nb
 	 * notifier above will emulate CALL for us.
 	 */
-	asm volatile ("int3_selftest_ip: int3; nop; nop; nop; nop\n\t"
+	asm volatile ("int3_selftest_ip:\n\t"
+		      ANNOTATE_NOENDBR
+		      "    int3; nop; nop; nop; nop\n\t"
 		      : ASM_CALL_CONSTRAINT
 		      : __ASM_SEL_RAW(a, D) (&val)
 		      : "memory");
