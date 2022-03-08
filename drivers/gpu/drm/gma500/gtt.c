@@ -209,7 +209,7 @@ static void psb_gtt_populate_resources(struct drm_psb_private *pdev)
 	drm_dbg(dev, "Restored %u of %u gtt ranges (%u KB)", restored, total, (size / 1024));
 }
 
-int psb_gtt_init(struct drm_device *dev, int resume)
+int psb_gtt_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -218,10 +218,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	struct psb_gtt *pg;
 	int ret = 0;
 
-	if (!resume) {
-		mutex_init(&dev_priv->gtt_mutex);
-		mutex_init(&dev_priv->mmap_mutex);
-	}
+	mutex_init(&dev_priv->gtt_mutex);
+	mutex_init(&dev_priv->mmap_mutex);
 
 	pg = &dev_priv->gtt;
 
@@ -290,13 +288,6 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
 			dev_priv->stolen_base, vram_stolen_size / 1024);
 
-	if (resume && (gtt_pages != pg->gtt_pages) &&
-	    (stolen_size != pg->stolen_size)) {
-		dev_err(dev->dev, "GTT resume error.\n");
-		ret = -EINVAL;
-		goto out_err;
-	}
-
 	pg->gtt_pages = gtt_pages;
 	pg->stolen_size = stolen_size;
 	dev_priv->vram_stolen_size = vram_stolen_size;
@@ -304,19 +295,14 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	/*
 	 *	Map the GTT and the stolen memory area
 	 */
-	if (!resume)
-		dev_priv->gtt_map = ioremap(pg->gtt_phys_start,
-						gtt_pages << PAGE_SHIFT);
+	dev_priv->gtt_map = ioremap(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	if (!resume)
-		dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base,
-						 stolen_size);
-
+	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
 	if (!dev_priv->vram_addr) {
 		dev_err(dev->dev, "Failure to map stolen base.\n");
 		ret = -ENOMEM;
@@ -333,11 +319,107 @@ out_err:
 	return ret;
 }
 
+static int psb_gtt_resume(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	unsigned int gtt_pages;
+	unsigned long stolen_size, vram_stolen_size;
+	struct psb_gtt *pg;
+	int ret = 0;
+
+	pg = &dev_priv->gtt;
+
+	/* Enable the GTT */
+	pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
+	pci_write_config_word(pdev, PSB_GMCH_CTRL,
+			      dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
+
+	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
+	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
+	(void) PSB_RVDC32(PSB_PGETBL_CTL);
+
+	/* The root resource we allocate address space from */
+	dev_priv->gtt_initialized = 1;
+
+	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
+
+	/*
+	 *	The video mmu has a hw bug when accessing 0x0D0000000.
+	 *	Make gatt start at 0x0e000,0000. This doesn't actually
+	 *	matter for us but may do if the video acceleration ever
+	 *	gets opened up.
+	 */
+	pg->mmu_gatt_start = 0xE0000000;
+
+	pg->gtt_start = pci_resource_start(pdev, PSB_GTT_RESOURCE);
+	gtt_pages = pci_resource_len(pdev, PSB_GTT_RESOURCE) >> PAGE_SHIFT;
+	/* CDV doesn't report this. In which case the system has 64 gtt pages */
+	if (pg->gtt_start == 0 || gtt_pages == 0) {
+		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
+		gtt_pages = 64;
+		pg->gtt_start = dev_priv->pge_ctl;
+	}
+
+	pg->gatt_start = pci_resource_start(pdev, PSB_GATT_RESOURCE);
+	pg->gatt_pages = pci_resource_len(pdev, PSB_GATT_RESOURCE) >> PAGE_SHIFT;
+	dev_priv->gtt_mem = &pdev->resource[PSB_GATT_RESOURCE];
+
+	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
+		static struct resource fudge;	/* Preferably peppermint */
+		/*
+		 * This can occur on CDV systems. Fudge it in this case. We
+		 * really don't care what imaginary space is being allocated
+		 * at this point.
+		 */
+		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
+		pg->gatt_start = 0x40000000;
+		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
+		/*
+		 * This is a little confusing but in fact the GTT is providing
+		 * a view from the GPU into memory and not vice versa. As such
+		 *  this is really allocating space that is not the same as the
+		 *  CPU address space on CDV.
+		 */
+		fudge.start = 0x40000000;
+		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
+		fudge.name = "fudge";
+		fudge.flags = IORESOURCE_MEM;
+		dev_priv->gtt_mem = &fudge;
+	}
+
+	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
+	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base - PAGE_SIZE;
+	stolen_size = vram_stolen_size;
+
+	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
+			dev_priv->stolen_base, vram_stolen_size / 1024);
+
+	if ((gtt_pages != pg->gtt_pages) && (stolen_size != pg->stolen_size)) {
+		dev_err(dev->dev, "GTT resume error.\n");
+		ret = -EINVAL;
+		goto out_err;
+	}
+
+	pg->gtt_pages = gtt_pages;
+	pg->stolen_size = stolen_size;
+	dev_priv->vram_stolen_size = vram_stolen_size;
+
+	psb_gtt_clear(dev_priv);
+	psb_gtt_populate_stolen(dev_priv);
+
+	return 0;
+
+out_err:
+	psb_gtt_takedown(dev);
+	return ret;
+}
+
 int psb_gtt_restore(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
-	psb_gtt_init(dev, 1);
+	psb_gtt_resume(dev);
 
 	psb_gtt_populate_resources(dev_priv);
 

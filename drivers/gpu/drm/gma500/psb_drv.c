@@ -324,7 +324,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 
 	set_pages_uc(dev_priv->scratch_page, 1);
 
-	ret = psb_gtt_init(dev, 0);
+	ret = psb_gtt_init(dev);
 	if (ret)
 		goto out_err;
 
