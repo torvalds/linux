@@ -965,7 +965,7 @@ static int axienet_poll(struct napi_struct *napi, int budget)
 			packets++;
 		}
 
-		new_skb = netdev_alloc_skb_ip_align(lp->ndev, lp->max_frm_size);
+		new_skb = napi_alloc_skb(napi, lp->max_frm_size);
 		if (!new_skb)
 			break;
 
