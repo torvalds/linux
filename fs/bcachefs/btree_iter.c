@@ -1468,8 +1468,10 @@ retry_all:
 		 */
 		if (path->uptodate) {
 			ret = btree_path_traverse_one(trans, path, 0, _THIS_IP_);
-			if (ret)
+			if (ret == -EINTR || ret == -ENOMEM)
 				goto retry_all;
+			if (ret)
+				goto err;
 		} else {
 			i++;
 		}
@@ -1482,7 +1484,7 @@ retry_all:
 	 */
 	trans_for_each_path(trans, path)
 		BUG_ON(path->uptodate >= BTREE_ITER_NEED_TRAVERSE);
-
+err:
 	bch2_btree_cache_cannibalize_unlock(c);
 
 	trans->in_traverse_all = false;
