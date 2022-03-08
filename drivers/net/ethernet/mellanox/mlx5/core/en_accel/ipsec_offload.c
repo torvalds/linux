@@ -18,7 +18,6 @@ struct mlx5_ipsec_sa_ctx {
 struct mlx5_ipsec_esp_xfrm {
 	/* reference counter of SA ctx */
 	struct mlx5_ipsec_sa_ctx *sa_ctx;
-	struct mutex lock; /* protects mlx5_ipsec_esp_xfrm */
 	struct mlx5_accel_esp_xfrm accel_xfrm;
 };
 
@@ -117,7 +116,6 @@ mlx5_ipsec_offload_esp_create_xfrm(struct mlx5_core_dev *mdev,
 	if (!mxfrm)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&mxfrm->lock);
 	memcpy(&mxfrm->accel_xfrm.attrs, attrs,
 	       sizeof(mxfrm->accel_xfrm.attrs));
 
@@ -129,8 +127,6 @@ static void mlx5_ipsec_offload_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm
 	struct mlx5_ipsec_esp_xfrm *mxfrm = container_of(xfrm, struct mlx5_ipsec_esp_xfrm,
 							 accel_xfrm);
 
-	/* assuming no sa_ctx are connected to this xfrm_ctx */
-	WARN_ON(mxfrm->sa_ctx);
 	kfree(mxfrm);
 }
 
@@ -232,7 +228,6 @@ static void *mlx5_ipsec_offload_create_sa_ctx(struct mlx5_core_dev *mdev,
 	sa_ctx->dev = mdev;
 
 	mxfrm = container_of(accel_xfrm, struct mlx5_ipsec_esp_xfrm, accel_xfrm);
-	mutex_lock(&mxfrm->lock);
 	sa_ctx->mxfrm = mxfrm;
 
 	/* key */
@@ -258,14 +253,12 @@ static void *mlx5_ipsec_offload_create_sa_ctx(struct mlx5_core_dev *mdev,
 
 	*hw_handle = sa_ctx->ipsec_obj_id;
 	mxfrm->sa_ctx = sa_ctx;
-	mutex_unlock(&mxfrm->lock);
 
 	return sa_ctx;
 
 err_enc_key:
 	mlx5_destroy_encryption_key(mdev, sa_ctx->enc_key_id);
 err_sa_ctx:
-	mutex_unlock(&mxfrm->lock);
 	kfree(sa_ctx);
 	return ERR_PTR(err);
 }
@@ -273,14 +266,10 @@ err_sa_ctx:
 static void mlx5_ipsec_offload_delete_sa_ctx(void *context)
 {
 	struct mlx5_ipsec_sa_ctx *sa_ctx = (struct mlx5_ipsec_sa_ctx *)context;
-	struct mlx5_ipsec_esp_xfrm *mxfrm = sa_ctx->mxfrm;
 
-	mutex_lock(&mxfrm->lock);
 	mlx5_destroy_ipsec_obj(sa_ctx->dev, sa_ctx->ipsec_obj_id);
 	mlx5_destroy_encryption_key(sa_ctx->dev, sa_ctx->enc_key_id);
 	kfree(sa_ctx);
-	mxfrm->sa_ctx = NULL;
-	mutex_unlock(&mxfrm->lock);
 }
 
 static int mlx5_modify_ipsec_obj(struct mlx5_core_dev *mdev,
@@ -331,28 +320,16 @@ static int mlx5_modify_ipsec_obj(struct mlx5_core_dev *mdev,
 	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
-static int mlx5_ipsec_offload_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
-					      const struct mlx5_accel_esp_xfrm_attrs *attrs)
+static void mlx5_ipsec_offload_esp_modify_xfrm(
+	struct mlx5_accel_esp_xfrm *xfrm,
+	const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_ipsec_obj_attrs ipsec_attrs = {};
 	struct mlx5_core_dev *mdev = xfrm->mdev;
 	struct mlx5_ipsec_esp_xfrm *mxfrm;
-
 	int err = 0;
 
-	if (!memcmp(&xfrm->attrs, attrs, sizeof(xfrm->attrs)))
-		return 0;
-
-	if (mlx5_ipsec_offload_esp_validate_xfrm_attrs(mdev, attrs))
-		return -EOPNOTSUPP;
-
 	mxfrm = container_of(xfrm, struct mlx5_ipsec_esp_xfrm, accel_xfrm);
-
-	mutex_lock(&mxfrm->lock);
-
-	if (!mxfrm->sa_ctx)
-		/* Not bound xfrm, change only sw attrs */
-		goto change_sw_xfrm_attrs;
 
 	/* need to add find and replace in ipsec_rhash_sa the sa_ctx */
 	/* modify device with new hw_sa */
@@ -362,12 +339,8 @@ static int mlx5_ipsec_offload_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 				    &ipsec_attrs,
 				    mxfrm->sa_ctx->ipsec_obj_id);
 
-change_sw_xfrm_attrs:
 	if (!err)
 		memcpy(&xfrm->attrs, attrs, sizeof(xfrm->attrs));
-
-	mutex_unlock(&mxfrm->lock);
-	return err;
 }
 
 void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
@@ -413,8 +386,8 @@ void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 	mlx5_ipsec_offload_esp_destroy_xfrm(xfrm);
 }
 
-int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
-			       const struct mlx5_accel_esp_xfrm_attrs *attrs)
+void mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+				const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
-	return mlx5_ipsec_offload_esp_modify_xfrm(xfrm, attrs);
+	mlx5_ipsec_offload_esp_modify_xfrm(xfrm, attrs);
 }

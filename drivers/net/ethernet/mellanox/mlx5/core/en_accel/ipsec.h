@@ -62,7 +62,6 @@ struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
-	struct mlx5e_priv *en_priv;
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
 	struct mlx5e_ipsec_sw_stats sw_stats;
@@ -82,6 +81,11 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_modify_hdr *set_modify_hdr;
 };
 
+struct mlx5e_ipsec_modify_state_work {
+	struct work_struct		work;
+	struct mlx5_accel_esp_xfrm_attrs attrs;
+};
+
 struct mlx5e_ipsec_sa_entry {
 	struct hlist_node hlist; /* Item in SADB_RX hashtable */
 	struct mlx5e_ipsec_esn_state esn_state;
@@ -94,6 +98,7 @@ struct mlx5e_ipsec_sa_entry {
 			  struct xfrm_offload *xo);
 	u32 ipsec_obj_id;
 	struct mlx5e_ipsec_rule ipsec_rule;
+	struct mlx5e_ipsec_modify_state_work modify_work;
 };
 
 int mlx5e_ipsec_init(struct mlx5e_priv *priv);
