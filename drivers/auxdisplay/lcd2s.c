@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  console driver for LCD2S 4x20 character displays connected through i2c.
- *  The display also has a spi interface, but the driver does not support
+ *  Console driver for LCD2S 4x20 character displays connected through i2c.
+ *  The display also has a SPI interface, but the driver does not support
  *  this yet.
  *
- *  This is a driver allowing you to use a LCD2S 4x20 from modtronix
+ *  This is a driver allowing you to use a LCD2S 4x20 from Modtronix
  *  engineering as auxdisplay character device.
  *
  *  (C) 2019 by Lemonage Software GmbH
@@ -214,16 +214,15 @@ static int lcd2s_lines(struct charlcd *lcd, enum charlcd_lines lines)
 	return 0;
 }
 
+/*
+ * Generator: LGcxxxxx...xx; must have <c> between '0' and '7',
+ * representing the numerical ASCII code of the redefined character,
+ * and <xx...xx> a sequence of 16 hex digits representing 8 bytes
+ * for each character. Most LCDs will only use 5 lower bits of
+ * the 7 first bytes.
+ */
 static int lcd2s_redefine_char(struct charlcd *lcd, char *esc)
 {
-	/* Generator : LGcxxxxx...xx; must have <c> between '0'
-	 * and '7', representing the numerical ASCII code of the
-	 * redefined character, and <xx...xx> a sequence of 16
-	 * hex digits representing 8 bytes for each character.
-	 * Most LCDs will only use 5 lower bits of the 7 first
-	 * bytes.
-	 */
-
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 	u8 buf[LCD2S_CHARACTER_SIZE + 2] = { LCD2S_CMD_DEF_CUSTOM_CHAR };
 	u8 value;
