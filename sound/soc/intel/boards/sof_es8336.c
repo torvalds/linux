@@ -515,9 +515,10 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		return ret;
 
 	/* get speaker enable GPIO */
-	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL, codec_name);
+	codec_dev = acpi_get_first_physical_node(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
+	priv->codec_dev = get_device(codec_dev);
 
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, gpio_mapping);
 	if (ret)
@@ -530,7 +531,6 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	priv->codec_dev = codec_dev;
 	INIT_LIST_HEAD(&priv->hdmi_pcm_list);
 
 	snd_soc_card_set_drvdata(card, priv);
