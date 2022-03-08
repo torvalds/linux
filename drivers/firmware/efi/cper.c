@@ -211,6 +211,32 @@ const char *cper_mem_err_type_str(unsigned int etype)
 }
 EXPORT_SYMBOL_GPL(cper_mem_err_type_str);
 
+const char *cper_mem_err_status_str(u64 status)
+{
+	switch ((status >> 8) & 0xff) {
+	case  1:	return "Error detected internal to the component";
+	case  4:	return "Storage error in DRAM memory";
+	case  5:	return "Storage error in TLB";
+	case  6:	return "Storage error in cache";
+	case  7:	return "Error in one or more functional units";
+	case  8:	return "Component failed self test";
+	case  9:	return "Overflow or undervalue of internal queue";
+	case 16:	return "Error detected in the bus";
+	case 17:	return "Virtual address not found on IO-TLB or IO-PDIR";
+	case 18:	return "Improper access error";
+	case 19:	return "Access to a memory address which is not mapped to any component";
+	case 20:	return "Loss of Lockstep";
+	case 21:	return "Response not associated with a request";
+	case 22:	return "Bus parity error - must also set the A, C, or D Bits";
+	case 23:	return "Detection of a protocol error";
+	case 24:	return "Detection of a PATH_ERROR";
+	case 25:	return "Bus operation timeout";
+	case 26:	return "A read was issued to data that has been poisoned";
+	default:	return "Reserved";
+	}
+}
+EXPORT_SYMBOL_GPL(cper_mem_err_status_str);
+
 static int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
 	u32 len, n;
@@ -334,7 +360,9 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem,
 		return;
 	}
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_STATUS)
-		printk("%s""error_status: 0x%016llx\n", pfx, mem->error_status);
+		printk("%s error_status: %s (0x%016llx)\n",
+		       pfx, cper_mem_err_status_str(mem->error_status),
+		       mem->error_status);
 	if (mem->validation_bits & CPER_MEM_VALID_PA)
 		printk("%s""physical_address: 0x%016llx\n",
 		       pfx, mem->physical_addr);
