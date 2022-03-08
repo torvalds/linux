@@ -6,6 +6,8 @@
 
 #include <linux/seq_file.h>
 
+struct blk_mq_hw_ctx;
+
 struct blk_mq_debugfs_attr {
 	const char *name;
 	umode_t mode;

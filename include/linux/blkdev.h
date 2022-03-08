@@ -355,7 +355,7 @@ struct request_queue {
 	unsigned int		queue_depth;
 
 	/* hw dispatch queues */
-	struct blk_mq_hw_ctx	**queue_hw_ctx;
+	struct xarray		hctx_table;
 	unsigned int		nr_hw_queues;
 
 	/*
