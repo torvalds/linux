@@ -1495,14 +1495,21 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       struct snd_sof_dai *dai)
 {
 	struct snd_soc_tplg_private *private = &tw->priv;
+	struct sof_dai_private_data *dai_data;
 	struct sof_ipc_comp_dai *comp_dai;
 	size_t ipc_size = sizeof(*comp_dai);
 	int ret;
 
+	dai_data = kzalloc(sizeof(*dai_data), GFP_KERNEL);
+	if (!dai_data)
+		return -ENOMEM;
+
 	comp_dai = (struct sof_ipc_comp_dai *)
 		   sof_comp_alloc(swidget, &ipc_size, index);
-	if (!comp_dai)
-		return -ENOMEM;
+	if (!comp_dai) {
+		ret = -ENOMEM;
+		goto free;
+	}
 
 	/* configure dai IPC message */
 	comp_dai->comp.type = SOF_COMP_DAI;
@@ -1514,7 +1521,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
-		return ret;
+		goto free;
 	}
 
 	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
@@ -1523,7 +1530,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
-		return ret;
+		goto free;
 	}
 
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
@@ -1532,9 +1539,14 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 
 	if (dai) {
 		dai->scomp = scomp;
-		dai->comp_dai = comp_dai;
+		dai_data->comp_dai = comp_dai;
+		dai->private = dai_data;
 	}
 
+	return 0;
+
+free:
+	kfree(dai_data);
 	return ret;
 }
 
@@ -2456,9 +2468,11 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		dai = swidget->private;
 
 		if (dai) {
-			kfree(dai->comp_dai);
-			/* free dai config */
-			kfree(dai->dai_config);
+			struct sof_dai_private_data *dai_data = dai->private;
+
+			kfree(dai_data->comp_dai);
+			kfree(dai_data->dai_config);
+			kfree(dai_data);
 			list_del(&dai->list);
 		}
 		break;
@@ -2680,11 +2694,13 @@ static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
 				    struct sof_ipc_dai_config *config,
 				    int num_conf, int curr_conf)
 {
+	struct sof_dai_private_data *dai_data;
 	struct snd_sof_dai *dai;
 	int found = 0;
 	int i;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
+		dai_data = dai->private;
 		if (!dai->name)
 			continue;
 
@@ -2696,15 +2712,15 @@ static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
 			 * dai_index.
 			 */
 			for (i = 0; i < num_conf; i++)
-				config[i].dai_index = dai->comp_dai->dai_index;
+				config[i].dai_index = dai_data->comp_dai->dai_index;
 
 			dev_dbg(sdev->dev, "set DAI config for %s index %d\n",
 				dai->name, config[curr_conf].dai_index);
 
 			dai->number_configs = num_conf;
 			dai->current_config = curr_conf;
-			dai->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
-			if (!dai->dai_config)
+			dai_data->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
+			if (!dai_data->dai_config)
 				return -ENOMEM;
 
 			found = 1;

@@ -29,11 +29,12 @@ static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *
 
 static int sof_dai_config_setup(struct snd_sof_dev *sdev, struct snd_sof_dai *dai)
 {
+	struct sof_dai_private_data *private = dai->private;
 	struct sof_ipc_dai_config *config;
 	struct sof_ipc_reply reply;
 	int ret;
 
-	config = &dai->dai_config[dai->current_config];
+	config = &private->dai_config[dai->current_config];
 	if (!config) {
 		dev_err(sdev->dev, "error: no config for DAI %s\n", dai->name);
 		return -EINVAL;
@@ -191,12 +192,16 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
+	{
+		struct sof_dai_private_data *dai_data;
+
 		dai = swidget->private;
-		comp = &dai->comp_dai->comp;
+		dai_data = dai->private;
+		comp = &dai_data->comp_dai->comp;
 		dai->configured = false;
 
-		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai->comp_dai, comp->hdr.size,
-					 &r, sizeof(r));
+		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai_data->comp_dai,
+					 comp->hdr.size, &r, sizeof(r));
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to load widget %s\n",
 				swidget->widget->name);
@@ -216,6 +221,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 			return ret;
 		}
 		break;
+	}
 	case snd_soc_dapm_scheduler:
 		pipeline = swidget->private;
 		ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
@@ -620,12 +626,13 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 		/* update DAI config. The IPC will be sent in sof_widget_setup() */
 		if (WIDGET_IS_DAI(swidget->id)) {
 			struct snd_sof_dai *dai = swidget->private;
+			struct sof_dai_private_data *private = dai->private;
 			struct sof_ipc_dai_config *config;
 
-			if (!dai || !dai->dai_config)
+			if (!dai || !private || !private->dai_config)
 				continue;
 
-			config = dai->dai_config;
+			config = private->dai_config;
 			/*
 			 * The link DMA channel would be invalidated for running
 			 * streams but not for streams that were in the PAUSED
@@ -911,18 +918,19 @@ static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
 		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 	struct snd_sof_dai *dai =
 		snd_sof_find_dai(component, (char *)rtd->dai_link->name);
+	struct sof_dai_private_data *private = dai->private;
 
 	/* use the tplg configured mclk if existed */
-	if (!dai || !dai->dai_config)
+	if (!dai || !private || !private->dai_config)
 		return 0;
 
-	switch (dai->dai_config->type) {
+	switch (private->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
 		switch (clk_type) {
 		case SOF_DAI_CLK_INTEL_SSP_MCLK:
-			return dai->dai_config->ssp.mclk_rate;
+			return private->dai_config->ssp.mclk_rate;
 		case SOF_DAI_CLK_INTEL_SSP_BCLK:
-			return dai->dai_config->ssp.bclk_rate;
+			return private->dai_config->ssp.bclk_rate;
 		default:
 			dev_err(rtd->dev, "fail to get SSP clk %d rate\n",
 				clk_type);
@@ -932,7 +940,7 @@ static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
 	default:
 		/* not yet implemented for platforms other than the above */
 		dev_err(rtd->dev, "DAI type %d not supported yet!\n",
-			dai->dai_config->type);
+			private->dai_config->type);
 		return -EINVAL;
 	}
 }

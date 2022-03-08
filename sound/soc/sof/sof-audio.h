@@ -148,12 +148,11 @@ struct snd_sof_dai {
 	struct snd_soc_component *scomp;
 	const char *name;
 
-	struct sof_ipc_comp_dai *comp_dai;
 	int number_configs;
 	int current_config;
 	bool configured; /* DAI configured during BE hw_params */
-	struct sof_ipc_dai_config *dai_config;
 	struct list_head list;	/* list in sdev dai list */
+	void *private;
 };
 
 /*
