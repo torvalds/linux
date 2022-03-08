@@ -3664,8 +3664,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				vop2_clk_set_parent(vp->dclk, hdmi1_phy_pll->clk);
 				hdmi1_phy_pll->vp_mask |= BIT(vp->id);
 			} else {
-				DRM_ERROR("No free hdmi phy pll for DP\n");
-				return -EBUSY;
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+				DRM_INFO("No free hdmi phy pll for DP, use default parent\n");
 			}
 		}
 	} else {
