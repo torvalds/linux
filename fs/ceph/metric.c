@@ -249,6 +249,7 @@ int ceph_metric_init(struct ceph_client_metric *m)
 		metric->size_max = 0;
 		metric->total = 0;
 		metric->latency_sum = 0;
+		metric->latency_avg = 0;
 		metric->latency_sq_sum = 0;
 		metric->latency_min = KTIME_MAX;
 		metric->latency_max = 0;
@@ -306,20 +307,19 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 		max = new;			\
 }
 
-static inline void __update_stdev(ktime_t total, ktime_t lsum,
-				  ktime_t *sq_sump, ktime_t lat)
+static inline void __update_mean_and_stdev(ktime_t total, ktime_t *lavg,
+					   ktime_t *sq_sump, ktime_t lat)
 {
-	ktime_t avg, sq;
+	ktime_t avg;
 
-	if (unlikely(total == 1))
-		return;
-
-	/* the sq is (lat - old_avg) * (lat - new_avg) */
-	avg = DIV64_U64_ROUND_CLOSEST((lsum - lat), (total - 1));
-	sq = lat - avg;
-	avg = DIV64_U64_ROUND_CLOSEST(lsum, total);
-	sq = sq * (lat - avg);
-	*sq_sump += sq;
+	if (unlikely(total == 1)) {
+		*lavg = lat;
+	} else {
+		/* the sq is (lat - old_avg) * (lat - new_avg) */
+		avg = *lavg + div64_s64(lat - *lavg, total);
+		*sq_sump += (lat - *lavg)*(lat - avg);
+		*lavg = avg;
+	}
 }
 
 void ceph_update_metrics(struct ceph_metric *m,
@@ -338,6 +338,7 @@ void ceph_update_metrics(struct ceph_metric *m,
 	METRIC_UPDATE_MIN_MAX(m->size_min, m->size_max, size);
 	m->latency_sum += lat;
 	METRIC_UPDATE_MIN_MAX(m->latency_min, m->latency_max, lat);
-	__update_stdev(total, m->latency_sum, &m->latency_sq_sum, lat);
+	__update_mean_and_stdev(total, &m->latency_avg,	&m->latency_sq_sum,
+				lat);
 	spin_unlock(&m->lock);
 }

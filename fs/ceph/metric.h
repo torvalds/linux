@@ -137,6 +137,7 @@ struct ceph_metric {
 	u64 size_min;
 	u64 size_max;
 	ktime_t latency_sum;
+	ktime_t latency_avg;
 	ktime_t latency_sq_sum;
 	ktime_t latency_min;
 	ktime_t latency_max;
