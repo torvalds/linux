@@ -254,6 +254,8 @@ static int opp_summary_show(struct seq_file *s, void *data)
 		seq_printf(s, " %s\n", opp_table->dentry_name);
 		mutex_lock(&opp_table->lock);
 		list_for_each_entry(opp, &opp_table->opp_list, node) {
+			if (!opp->available)
+				continue;
 			seq_printf(s, "%31lu %12lu %11lu %11lu\n",
 				   opp->rate,
 				   opp->supplies[0].u_volt,
