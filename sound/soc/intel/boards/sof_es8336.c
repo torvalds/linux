@@ -292,7 +292,7 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-SND_SOC_DAILINK_DEF(ssp1_codec,
+SND_SOC_DAILINK_DEF(es8336_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ESSX8336:00", "ES8316 HiFi")));
 
 static struct snd_soc_dai_link_component dmic_component[] = {
@@ -356,8 +356,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		goto devm_err;
 
 	links[id].id = id;
-	links[id].codecs = ssp1_codec;
-	links[id].num_codecs = ARRAY_SIZE(ssp1_codec);
+	links[id].codecs = es8336_codec;
+	links[id].num_codecs = ARRAY_SIZE(es8336_codec);
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_es8316_init;
@@ -539,6 +539,10 @@ static int sof_es8336_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		put_device(&adev->dev);
 		dai_links[0].codecs->name = codec_name;
+
+		/* also fixup codec dai name if relevant */
+		if (!strncmp(mach->id, "ESSX8326", SND_ACPI_I2C_ID_LEN))
+			dai_links[0].codecs->dai_name = "ES8326 HiFi";
 	} else {
 		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
 		return -ENXIO;
