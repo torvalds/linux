@@ -589,6 +589,16 @@
 			};
 		};
 
+		tsu: thermal@10059400 {
+			compatible = "renesas,r9a07g054-tsu",
+				     "renesas,rzg2l-tsu";
+			reg = <0 0x10059400 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G054_TSU_PCLK>;
+			resets = <&cpg R9A07G054_TSU_PRESETN>;
+			power-domains = <&cpg>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		sbc: spi@10060000 {
 			compatible = "renesas,r9a07g054-rpc-if",
 				     "renesas,rzg2l-rpc-if";
@@ -971,6 +981,37 @@
 			resets = <&cpg R9A07G054_OSTM2_PRESETZ>;
 			power-domains = <&cpg>;
 			status = "disabled";
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu 0>;
+			sustainable-power = <717>;
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 0 2>;
+					contribution = <1024>;
+				};
+			};
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+
+				target: trip-point {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+			};
 		};
 	};
 
