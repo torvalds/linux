@@ -949,27 +949,26 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
  * @object: target ipc struct for parsed values
  * @tokens: token definition array describing what tokens to parse
  * @count: number of tokens in definition array
- * @array: source pointer to consecutive vendor arrays to be parsed
- * @priv_size: total size of the consecutive source arrays
- * @sets: number of similar token sets to be parsed, 1 set has count elements
+ * @array: source pointer to consecutive vendor arrays in topology
+ * @array_size: total size of @array
+ * @token_instance_num: number of times the same tokens needs to be parsed i.e. the function
+ *			looks for @token_instance_num of each token in the @tokens
  * @object_size: offset to next target ipc struct with multiple sets
  *
  * This function parses multiple sets of tokens in vendor arrays into
  * consecutive ipc structs.
  */
 static int sof_parse_token_sets(struct snd_soc_component *scomp,
-				void *object,
-				const struct sof_topology_token *tokens,
-				int count,
-				struct snd_soc_tplg_vendor_array *array,
-				int priv_size, int sets, size_t object_size)
+				void *object, const struct sof_topology_token *tokens,
+				int count, struct snd_soc_tplg_vendor_array *array,
+				int array_size, int token_instance_num, size_t object_size)
 {
 	size_t offset = 0;
 	int found = 0;
 	int total = 0;
 	int asize;
 
-	while (priv_size > 0 && total < count * sets) {
+	while (array_size > 0 && total < count * token_instance_num) {
 		asize = le32_to_cpu(array->size);
 
 		/* validate asize */
@@ -980,8 +979,8 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 		}
 
 		/* make sure there is enough data before parsing */
-		priv_size -= asize;
-		if (priv_size < 0) {
+		array_size -= asize;
+		if (array_size < 0) {
 			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
