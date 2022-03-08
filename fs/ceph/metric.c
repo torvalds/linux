@@ -64,31 +64,40 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	/* encode the read latency metric */
 	read = (struct ceph_metric_read_latency *)(cap + 1);
 	read->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
-	read->header.ver = 1;
+	read->header.ver = 2;
 	read->header.compat = 1;
 	read->header.data_len = cpu_to_le32(sizeof(*read) - header_len);
 	sum = m->metric[METRIC_READ].latency_sum;
 	ktime_to_ceph_timespec(&read->lat, sum);
+	ktime_to_ceph_timespec(&read->avg, m->metric[METRIC_READ].latency_avg);
+	read->sq_sum = cpu_to_le64(m->metric[METRIC_READ].latency_sq_sum);
+	read->count = cpu_to_le64(m->metric[METRIC_READ].total);
 	items++;
 
 	/* encode the write latency metric */
 	write = (struct ceph_metric_write_latency *)(read + 1);
 	write->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
-	write->header.ver = 1;
+	write->header.ver = 2;
 	write->header.compat = 1;
 	write->header.data_len = cpu_to_le32(sizeof(*write) - header_len);
 	sum = m->metric[METRIC_WRITE].latency_sum;
 	ktime_to_ceph_timespec(&write->lat, sum);
+	ktime_to_ceph_timespec(&write->avg, m->metric[METRIC_WRITE].latency_avg);
+	write->sq_sum = cpu_to_le64(m->metric[METRIC_WRITE].latency_sq_sum);
+	write->count = cpu_to_le64(m->metric[METRIC_WRITE].total);
 	items++;
 
 	/* encode the metadata latency metric */
 	meta = (struct ceph_metric_metadata_latency *)(write + 1);
 	meta->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
-	meta->header.ver = 1;
+	meta->header.ver = 2;
 	meta->header.compat = 1;
 	meta->header.data_len = cpu_to_le32(sizeof(*meta) - header_len);
 	sum = m->metric[METRIC_METADATA].latency_sum;
 	ktime_to_ceph_timespec(&meta->lat, sum);
+	ktime_to_ceph_timespec(&meta->avg, m->metric[METRIC_METADATA].latency_avg);
+	meta->sq_sum = cpu_to_le64(m->metric[METRIC_METADATA].latency_sq_sum);
+	meta->count = cpu_to_le64(m->metric[METRIC_METADATA].total);
 	items++;
 
 	/* encode the dentry lease metric */
