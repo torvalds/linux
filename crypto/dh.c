@@ -308,12 +308,6 @@ static inline struct dh_safe_prime_instance_ctx *dh_safe_prime_instance_ctx(
 	return kpp_instance_ctx(kpp_alg_instance(tfm));
 }
 
-static inline struct kpp_alg *dh_safe_prime_dh_alg(
-	struct dh_safe_prime_tfm_ctx *ctx)
-{
-	return crypto_kpp_alg(ctx->dh_tfm);
-}
-
 static int dh_safe_prime_init_tfm(struct crypto_kpp *tfm)
 {
 	struct dh_safe_prime_instance_ctx *inst_ctx =
