@@ -175,7 +175,7 @@ static int metrics_latency_show(struct seq_file *s, void *p)
 	struct ceph_fs_client *fsc = s->private;
 	struct ceph_client_metric *cm = &fsc->mdsc->metric;
 	struct ceph_metric *m;
-	s64 total, sum, avg, min, max, sq;
+	s64 total, avg, min, max, sq;
 	int i;
 
 	seq_printf(s, "item          total       avg_lat(us)     min_lat(us)     max_lat(us)     stdev(us)\n");
@@ -185,8 +185,7 @@ static int metrics_latency_show(struct seq_file *s, void *p)
 		m = &cm->metric[i];
 		spin_lock(&m->lock);
 		total = m->total;
-		sum = m->latency_sum;
-		avg = total > 0 ? DIV64_U64_ROUND_CLOSEST(sum, total) : 0;
+		avg = m->latency_avg;
 		min = m->latency_min;
 		max = m->latency_max;
 		sq = m->latency_sq_sum;
