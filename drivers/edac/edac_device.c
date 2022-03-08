@@ -47,18 +47,19 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 }
 #endif				/* CONFIG_EDAC_DEBUG */
 
-struct edac_device_ctl_info *edac_device_alloc_ctl_info(
-	unsigned sz_private,
-	char *edac_device_name, unsigned nr_instances,
-	char *edac_block_name, unsigned nr_blocks,
-	unsigned offset_value,		/* zero, 1, or other based offset */
-	struct edac_dev_sysfs_block_attribute *attrib_spec, unsigned nr_attrib,
-	int device_index)
+/*
+ * @off_val: zero, 1, or other based offset
+ */
+struct edac_device_ctl_info *
+edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instances,
+			   char *blk_name, unsigned nr_blocks, unsigned off_val,
+			   struct edac_dev_sysfs_block_attribute *attrib_spec,
+			   unsigned nr_attrib, int device_index)
 {
-	struct edac_device_ctl_info *dev_ctl;
-	struct edac_device_instance *dev_inst, *inst;
-	struct edac_device_block *dev_blk, *blk_p, *blk;
 	struct edac_dev_sysfs_block_attribute *dev_attrib, *attrib_p, *attrib;
+	struct edac_device_block *dev_blk, *blk_p, *blk;
+	struct edac_device_instance *dev_inst, *inst;
+	struct edac_device_ctl_info *dev_ctl;
 	unsigned instance, block, attr;
 	void *pvt;
 	int err;
@@ -95,8 +96,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		dev_ctl->attribs = dev_attrib;
 	}
 
-	if (sz_private) {
-		pvt = kzalloc(sz_private, GFP_KERNEL);
+	if (pvt_sz) {
+		pvt = kzalloc(pvt_sz, GFP_KERNEL);
 		if (!pvt)
 			goto free;
 
@@ -111,7 +112,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	dev_ctl->log_ue = 1;
 
 	/* Name of this edac device */
-	snprintf(dev_ctl->name, sizeof(dev_ctl->name),"%s", edac_device_name);
+	snprintf(dev_ctl->name, sizeof(dev_ctl->name),"%s", dev_name);
 
 	/* Initialize every Instance */
 	for (instance = 0; instance < nr_instances; instance++) {
@@ -122,15 +123,14 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		inst->blocks = blk_p;
 
 		/* name of this instance */
-		snprintf(inst->name, sizeof(inst->name),
-			 "%s%u", edac_device_name, instance);
+		snprintf(inst->name, sizeof(inst->name), "%s%u", dev_name, instance);
 
 		/* Initialize every block in each instance */
 		for (block = 0; block < nr_blocks; block++) {
 			blk = &blk_p[block];
 			blk->instance = inst;
 			snprintf(blk->name, sizeof(blk->name),
-				 "%s%d", edac_block_name, block+offset_value);
+				 "%s%d", blk_name, block + off_val);
 
 			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
 				 instance, inst, block, blk, blk->name);
