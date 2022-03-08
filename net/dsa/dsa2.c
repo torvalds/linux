@@ -457,12 +457,6 @@ static int dsa_port_setup(struct dsa_port *dp)
 	if (dp->setup)
 		return 0;
 
-	mutex_init(&dp->addr_lists_lock);
-	mutex_init(&dp->vlans_lock);
-	INIT_LIST_HEAD(&dp->fdbs);
-	INIT_LIST_HEAD(&dp->mdbs);
-	INIT_LIST_HEAD(&dp->vlans);
-
 	if (ds->ops->port_setup) {
 		err = ds->ops->port_setup(ds, dp->index);
 		if (err)
@@ -598,10 +592,6 @@ static void dsa_port_teardown(struct dsa_port *dp)
 		}
 		break;
 	}
-
-	WARN_ON(!list_empty(&dp->fdbs));
-	WARN_ON(!list_empty(&dp->mdbs));
-	WARN_ON(!list_empty(&dp->vlans));
 
 	dp->setup = false;
 }
@@ -1361,6 +1351,11 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 	dp->ds = ds;
 	dp->index = index;
 
+	mutex_init(&dp->addr_lists_lock);
+	mutex_init(&dp->vlans_lock);
+	INIT_LIST_HEAD(&dp->fdbs);
+	INIT_LIST_HEAD(&dp->mdbs);
+	INIT_LIST_HEAD(&dp->vlans);
 	INIT_LIST_HEAD(&dp->list);
 	list_add_tail(&dp->list, &dst->ports);
 
@@ -1699,6 +1694,9 @@ static void dsa_switch_release_ports(struct dsa_switch *ds)
 	struct dsa_port *dp, *next;
 
 	dsa_switch_for_each_port_safe(dp, next, ds) {
+		WARN_ON(!list_empty(&dp->fdbs));
+		WARN_ON(!list_empty(&dp->mdbs));
+		WARN_ON(!list_empty(&dp->vlans));
 		list_del(&dp->list);
 		kfree(dp);
 	}
