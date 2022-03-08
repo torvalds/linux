@@ -159,7 +159,7 @@ sr_ena_1:
 
 	/* Switch to self-refresh. */
 	ldr	tmp1, [r2, #UDDRC_PWRCTL]
-	orr	tmp1, tmp1, #UDDRC_PWRCTRL_SELFREF_SW
+	orr	tmp1, tmp1, #UDDRC_PWRCTL_SELFREF_SW
 	str	tmp1, [r2, #UDDRC_PWRCTL]
 
 sr_ena_2:
@@ -276,7 +276,7 @@ sr_dis_5:
 
 	/* Trigger self-refresh exit. */
 	ldr	tmp1, [r2, #UDDRC_PWRCTL]
-	bic	tmp1, tmp1, #UDDRC_PWRCTRL_SELFREF_SW
+	bic	tmp1, tmp1, #UDDRC_PWRCTL_SELFREF_SW
 	str	tmp1, [r2, #UDDRC_PWRCTL]
 
 sr_dis_6:
