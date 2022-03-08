@@ -779,6 +779,13 @@
 	status = "okay";
 };
 
+&vdd_log_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
+};
+
 &vdd_vdenc_s0 {
 	regulator-init-microvolt = <750000>;
 };
