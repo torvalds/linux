@@ -749,14 +749,16 @@ static void last_cmd_set(struct trace_event_file *file, char *str)
 	if (!str)
 		return;
 
-	len = sizeof(HIST_PREFIX) + strlen(str) + 1;
+	/* sizeof() contains the nul byte */
+	len = sizeof(HIST_PREFIX) + strlen(str);
 	kfree(last_cmd);
 	last_cmd = kzalloc(len, GFP_KERNEL);
 	if (!last_cmd)
 		return;
 
 	strcpy(last_cmd, HIST_PREFIX);
-	len -= sizeof(HIST_PREFIX) + 1;
+	/* Again, sizeof() contains the nul byte */
+	len -= sizeof(HIST_PREFIX);
 	strncat(last_cmd, str, len);
 
 	if (file) {
