@@ -125,19 +125,26 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 	mutex_unlock(&pdev->gtt_mutex);
 }
 
+void psb_gem_mm_fini(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+
+	iounmap(dev_priv->vram_addr);
+
+	mutex_destroy(&dev_priv->mmap_mutex);
+}
+
 void psb_gtt_fini(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
-	iounmap(dev_priv->vram_addr);
 	iounmap(dev_priv->gtt_map);
 
 	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
 	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
 	(void)PSB_RVDC32(PSB_PGETBL_CTL);
 
-	mutex_destroy(&dev_priv->mmap_mutex);
 	mutex_destroy(&dev_priv->gtt_mutex);
 }
 
@@ -211,12 +218,10 @@ int psb_gtt_init(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned gtt_pages;
-	unsigned long stolen_size, vram_stolen_size;
 	struct psb_gtt *pg;
 	int ret = 0;
 
 	mutex_init(&dev_priv->gtt_mutex);
-	mutex_init(&dev_priv->mmap_mutex);
 
 	pg = &dev_priv->gtt;
 
@@ -274,22 +279,8 @@ int psb_gtt_init(struct drm_device *dev)
 		dev_priv->gtt_mem = &fudge;
 	}
 
-	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
-	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base
-								- PAGE_SIZE;
-
-	stolen_size = vram_stolen_size;
-
-	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
-			dev_priv->stolen_base, vram_stolen_size / 1024);
-
 	pg->gtt_pages = gtt_pages;
-	pg->stolen_size = stolen_size;
-	dev_priv->vram_stolen_size = vram_stolen_size;
 
-	/*
-	 *	Map the GTT and the stolen memory area
-	 */
 	dev_priv->gtt_map = ioremap(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
@@ -297,26 +288,54 @@ int psb_gtt_init(struct drm_device *dev)
 		goto err_gtt_disable;
 	}
 
-	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
-	if (!dev_priv->vram_addr) {
-		dev_err(dev->dev, "Failure to map stolen base.\n");
-		ret = -ENOMEM;
-		goto err_iounmap;
-	}
-
 	psb_gtt_clear(dev_priv);
-	psb_gtt_populate_stolen(dev_priv);
 
 	return 0;
 
-err_iounmap:
-	iounmap(dev_priv->gtt_map);
 err_gtt_disable:
 	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
 	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
 	(void)PSB_RVDC32(PSB_PGETBL_CTL);
-	mutex_destroy(&dev_priv->mmap_mutex);
 	mutex_destroy(&dev_priv->gtt_mutex);
+	return ret;
+}
+
+int psb_gem_mm_init(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	unsigned long stolen_size, vram_stolen_size;
+	struct psb_gtt *pg;
+	int ret;
+
+	mutex_init(&dev_priv->mmap_mutex);
+
+	pg = &dev_priv->gtt;
+
+	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
+	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base - PAGE_SIZE;
+
+	stolen_size = vram_stolen_size;
+
+	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
+		dev_priv->stolen_base, vram_stolen_size / 1024);
+
+	pg->stolen_size = stolen_size;
+	dev_priv->vram_stolen_size = vram_stolen_size;
+
+	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
+	if (!dev_priv->vram_addr) {
+		dev_err(dev->dev, "Failure to map stolen base.\n");
+		ret = -ENOMEM;
+		goto err_mutex_destroy;
+	}
+
+	psb_gtt_populate_stolen(dev_priv);
+
+	return 0;
+
+err_mutex_destroy:
+	mutex_destroy(&dev_priv->mmap_mutex);
 	return ret;
 }
 
@@ -325,9 +344,8 @@ static int psb_gtt_resume(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned int gtt_pages;
-	unsigned long stolen_size, vram_stolen_size;
 	struct psb_gtt *pg;
-	int ret = 0;
+	int ret;
 
 	pg = &dev_priv->gtt;
 
@@ -387,27 +405,15 @@ static int psb_gtt_resume(struct drm_device *dev)
 		dev_priv->gtt_mem = &fudge;
 	}
 
-	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
-	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base - PAGE_SIZE;
-	stolen_size = vram_stolen_size;
-
-	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
-			dev_priv->stolen_base, vram_stolen_size / 1024);
-
-	if ((gtt_pages != pg->gtt_pages) && (stolen_size != pg->stolen_size)) {
+	if (gtt_pages != pg->gtt_pages) {
 		dev_err(dev->dev, "GTT resume error.\n");
 		ret = -EINVAL;
 		goto err_gtt_disable;
 	}
 
 	pg->gtt_pages = gtt_pages;
-	pg->stolen_size = stolen_size;
-	dev_priv->vram_stolen_size = vram_stolen_size;
 
 	psb_gtt_clear(dev_priv);
-	psb_gtt_populate_stolen(dev_priv);
-
-	return 0;
 
 err_gtt_disable:
 	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
@@ -416,11 +422,39 @@ err_gtt_disable:
 	return ret;
 }
 
+static int psb_gem_mm_resume(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	unsigned long stolen_size, vram_stolen_size;
+	struct psb_gtt *pg;
+
+	pg = &dev_priv->gtt;
+
+	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
+	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base - PAGE_SIZE;
+
+	stolen_size = vram_stolen_size;
+
+	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n", dev_priv->stolen_base,
+		vram_stolen_size / 1024);
+
+	if (stolen_size != pg->stolen_size) {
+		dev_err(dev->dev, "GTT resume error.\n");
+		return -EINVAL;
+	}
+
+	psb_gtt_populate_stolen(dev_priv);
+
+	return 0;
+}
+
 int psb_gtt_restore(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	psb_gtt_resume(dev);
+	psb_gem_mm_resume(dev);
 
 	psb_gtt_populate_resources(dev_priv);
 

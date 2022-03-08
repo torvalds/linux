@@ -37,4 +37,7 @@ void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *r
 			  struct page **pages);
 void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *res);
 
+int psb_gem_mm_init(struct drm_device *dev);
+void psb_gem_mm_fini(struct drm_device *dev);
+
 #endif

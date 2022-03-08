@@ -192,6 +192,7 @@ static void psb_driver_unload(struct drm_device *dev)
 		psb_mmu_driver_takedown(dev_priv->mmu);
 		dev_priv->mmu = NULL;
 	}
+	psb_gem_mm_fini(dev);
 	psb_gtt_fini(dev);
 	if (dev_priv->scratch_page) {
 		set_pages_wb(dev_priv->scratch_page, 1);
@@ -325,6 +326,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	set_pages_uc(dev_priv->scratch_page, 1);
 
 	ret = psb_gtt_init(dev);
+	if (ret)
+		goto out_err;
+	ret = psb_gem_mm_init(dev);
 	if (ret)
 		goto out_err;
 
