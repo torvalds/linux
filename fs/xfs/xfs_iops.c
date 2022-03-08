@@ -647,10 +647,10 @@ xfs_setattr_nonsize(
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			error;
-	kuid_t			uid = GLOBAL_ROOT_UID, iuid = GLOBAL_ROOT_UID;
-	kgid_t			gid = GLOBAL_ROOT_GID, igid = GLOBAL_ROOT_GID;
+	kuid_t			uid = GLOBAL_ROOT_UID;
+	kgid_t			gid = GLOBAL_ROOT_GID;
 	struct xfs_dquot	*udqp = NULL, *gdqp = NULL;
-	struct xfs_dquot	*olddquot1 = NULL, *olddquot2 = NULL;
+	struct xfs_dquot	*old_udqp = NULL, *old_gdqp = NULL;
 
 	ASSERT((mask & ATTR_SIZE) == 0);
 
@@ -697,42 +697,22 @@ xfs_setattr_nonsize(
 		goto out_dqrele;
 
 	/*
-	 * Change file ownership.  Must be the owner or privileged.
+	 * Register quota modifications in the transaction.  Must be the owner
+	 * or privileged.  These IDs could have changed since we last looked at
+	 * them.  But, we're assured that if the ownership did change while we
+	 * didn't have the inode locked, inode's dquot(s) would have changed
+	 * also.
 	 */
-	if (mask & (ATTR_UID|ATTR_GID)) {
-		/*
-		 * These IDs could have changed since we last looked at them.
-		 * But, we're assured that if the ownership did change
-		 * while we didn't have the inode locked, inode's dquot(s)
-		 * would have changed also.
-		 */
-		iuid = inode->i_uid;
-		igid = inode->i_gid;
-		gid = (mask & ATTR_GID) ? iattr->ia_gid : igid;
-		uid = (mask & ATTR_UID) ? iattr->ia_uid : iuid;
-
-		/*
-		 * Change the ownerships and register quota modifications
-		 * in the transaction.
-		 */
-		if (!uid_eq(iuid, uid)) {
-			if (XFS_IS_UQUOTA_ON(mp)) {
-				ASSERT(mask & ATTR_UID);
-				ASSERT(udqp);
-				olddquot1 = xfs_qm_vop_chown(tp, ip,
-							&ip->i_udquot, udqp);
-			}
-		}
-		if (!gid_eq(igid, gid)) {
-			if (XFS_IS_GQUOTA_ON(mp)) {
-				ASSERT(xfs_has_pquotino(mp) ||
-				       !XFS_IS_PQUOTA_ON(mp));
-				ASSERT(mask & ATTR_GID);
-				ASSERT(gdqp);
-				olddquot2 = xfs_qm_vop_chown(tp, ip,
-							&ip->i_gdquot, gdqp);
-			}
-		}
+	if ((mask & ATTR_UID) && XFS_IS_UQUOTA_ON(mp) &&
+	    !uid_eq(inode->i_uid, iattr->ia_uid)) {
+		ASSERT(udqp);
+		old_udqp = xfs_qm_vop_chown(tp, ip, &ip->i_udquot, udqp);
+	}
+	if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp) &&
+	    !gid_eq(inode->i_gid, iattr->ia_gid)) {
+		ASSERT(xfs_has_pquotino(mp) || !XFS_IS_PQUOTA_ON(mp));
+		ASSERT(gdqp);
+		old_gdqp = xfs_qm_vop_chown(tp, ip, &ip->i_gdquot, gdqp);
 	}
 
 	setattr_copy(mnt_userns, inode, iattr);
@@ -747,8 +727,8 @@ xfs_setattr_nonsize(
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
 	 */
-	xfs_qm_dqrele(olddquot1);
-	xfs_qm_dqrele(olddquot2);
+	xfs_qm_dqrele(old_udqp);
+	xfs_qm_dqrele(old_gdqp);
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 
