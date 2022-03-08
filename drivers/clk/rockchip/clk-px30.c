@@ -259,7 +259,7 @@ static struct rockchip_clk_branch px30_dclk_vopl_fracmux __initdata =
 			PX30_CLKSEL_CON(8), 14, 2, MFLAGS);
 
 static struct rockchip_clk_branch px30_rtc32k_pmu_fracmux __initdata =
-	MUX(SCLK_RTC32K_PMU, "clk_rtc32k_pmu", mux_rtc32k_pmu_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_RTC32K_PMU, "clk_rtc32k_pmu", mux_rtc32k_pmu_p, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			PX30_PMU_CLKSEL_CON(0), 14, 2, MFLAGS);
 
 static struct rockchip_clk_branch px30_uart0_pmu_fracmux __initdata =
