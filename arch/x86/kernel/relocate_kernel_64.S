@@ -115,6 +115,14 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	pushq   %rdx
 
 	/*
+	 * Clear X86_CR4_CET (if it was set) such that we can clear CR0_WP
+	 * below.
+	 */
+	movq	%cr4, %rax
+	andq	$~(X86_CR4_CET), %rax
+	movq	%rax, %cr4
+
+	/*
 	 * Set cr0 to a known state:
 	 *  - Paging enabled
 	 *  - Alignment check disabled
