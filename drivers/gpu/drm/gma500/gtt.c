@@ -339,7 +339,7 @@ err_mutex_destroy:
 	return ret;
 }
 
-static int psb_gtt_resume(struct drm_device *dev)
+int psb_gtt_resume(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -422,7 +422,7 @@ err_gtt_disable:
 	return ret;
 }
 
-static int psb_gem_mm_resume(struct drm_device *dev)
+int psb_gem_mm_resume(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -445,17 +445,6 @@ static int psb_gem_mm_resume(struct drm_device *dev)
 	}
 
 	psb_gtt_populate_stolen(dev_priv);
-
-	return 0;
-}
-
-int psb_gtt_restore(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-
-	psb_gtt_resume(dev);
-	psb_gem_mm_resume(dev);
-
 	psb_gtt_populate_resources(dev_priv);
 
 	return 0;

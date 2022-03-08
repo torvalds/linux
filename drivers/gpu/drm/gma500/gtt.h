@@ -27,7 +27,7 @@ struct psb_gtt {
 /* Exported functions */
 int psb_gtt_init(struct drm_device *dev);
 void psb_gtt_fini(struct drm_device *dev);
-extern int psb_gtt_restore(struct drm_device *dev);
+int psb_gtt_resume(struct drm_device *dev);
 
 int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res,
 			      const char *name, resource_size_t size, resource_size_t align,
@@ -39,5 +39,6 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 
 int psb_gem_mm_init(struct drm_device *dev);
 void psb_gem_mm_fini(struct drm_device *dev);
+int psb_gem_mm_resume(struct drm_device *dev);
 
 #endif

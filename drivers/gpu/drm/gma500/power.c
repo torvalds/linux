@@ -112,7 +112,9 @@ static void gma_resume_display(struct pci_dev *pdev)
 	pci_write_config_word(pdev, PSB_GMCH_CTRL,
 			dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
 
-	psb_gtt_restore(dev); /* Rebuild our GTT mappings */
+	/* Rebuild our GTT mappings */
+	psb_gtt_resume(dev);
+	psb_gem_mm_resume(dev);
 	dev_priv->ops->restore_regs(dev);
 }
 
