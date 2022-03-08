@@ -1024,12 +1024,23 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 	return 0;
 }
 
-static int sof_parse_tokens(struct snd_soc_component *scomp,
-			    void *object,
-			    const struct sof_topology_token *tokens,
-			    int count,
+/**
+ * sof_parse_tokens - Parse one set of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @tokens: token definition array describing what tokens to parse
+ * @num_tokens: number of tokens in definition array
+ * @array: source pointer to consecutive vendor arrays in topology
+ * @array_size: total size of @array
+ *
+ * This function parses a single set of tokens in vendor arrays into
+ * consecutive ipc structs.
+ */
+static int sof_parse_tokens(struct snd_soc_component *scomp,  void *object,
+			    const struct sof_topology_token *tokens, int num_tokens,
 			    struct snd_soc_tplg_vendor_array *array,
-			    int priv_size)
+			    int array_size)
+
 {
 	/*
 	 * sof_parse_tokens is used when topology contains only a single set of
@@ -1037,8 +1048,8 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 	 * sof_parse_token_sets are sets = 1 (only 1 set) and
 	 * object_size = 0 (irrelevant).
 	 */
-	return sof_parse_token_sets(scomp, object, tokens, count, array,
-				    priv_size, 1, 0);
+	return sof_parse_token_sets(scomp, object, tokens, num_tokens, array,
+				    array_size, 1, 0);
 }
 
 static void sof_dbg_comp_config(struct snd_soc_component *scomp,
