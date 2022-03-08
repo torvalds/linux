@@ -74,17 +74,15 @@ static u32 __iomem *psb_gtt_entry(struct drm_psb_private *pdev, const struct res
 	return pdev->gtt_map + (offset >> PAGE_SHIFT);
 }
 
-/*
- * Take our preallocated GTT range and insert the GEM object into
- * the GTT. This is protected via the gtt mutex which the caller
- * must hold.
- */
+/* Acquires GTT mutex internally. */
 void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *res,
 			  struct page **pages)
 {
 	resource_size_t npages, i;
 	u32 __iomem *gtt_slot;
 	u32 pte;
+
+	mutex_lock(&pdev->gtt_mutex);
 
 	/* Write our page entries into the GTT itself */
 
@@ -98,18 +96,18 @@ void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *r
 
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
+
+	mutex_unlock(&pdev->gtt_mutex);
 }
 
-/*
- * Remove a preallocated GTT range from the GTT. Overwrite all the
- * page table entries with the dummy page. This is protected via the gtt
- * mutex which the caller must hold.
- */
+/* Acquires GTT mutex internally. */
 void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *res)
 {
 	resource_size_t npages, i;
 	u32 __iomem *gtt_slot;
 	u32 pte;
+
+	mutex_lock(&pdev->gtt_mutex);
 
 	/* Install scratch page for the resource */
 
@@ -123,6 +121,8 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
+
+	mutex_unlock(&pdev->gtt_mutex);
 }
 
 static void psb_gtt_alloc(struct drm_device *dev)
@@ -306,8 +306,6 @@ int psb_gtt_restore(struct drm_device *dev)
 	struct psb_gem_object *pobj;
 	unsigned int restored = 0, total = 0, size = 0;
 
-	/* On resume, the gtt_mutex is already initialized */
-	mutex_lock(&dev_priv->gtt_mutex);
 	psb_gtt_init(dev, 1);
 
 	while (r != NULL) {
@@ -325,7 +323,7 @@ int psb_gtt_restore(struct drm_device *dev)
 		r = r->sibling;
 		total++;
 	}
-	mutex_unlock(&dev_priv->gtt_mutex);
+
 	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
 			 total, (size / 1024));
 

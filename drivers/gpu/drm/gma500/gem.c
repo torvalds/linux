@@ -35,15 +35,13 @@ int psb_gem_pin(struct psb_gem_object *pobj)
 	if (drm_WARN_ONCE(dev, ret, "dma_resv_lock() failed, ret=%d\n", ret))
 		return ret;
 
-	mutex_lock(&dev_priv->gtt_mutex);
-
 	if (pobj->in_gart || pobj->stolen)
 		goto out; /* already mapped */
 
 	pages = drm_gem_get_pages(obj);
 	if (IS_ERR(pages)) {
 		ret = PTR_ERR(pages);
-		goto err_mutex_unlock;
+		goto err_dma_resv_unlock;
 	}
 
 	npages = obj->size / PAGE_SIZE;
@@ -59,13 +57,11 @@ int psb_gem_pin(struct psb_gem_object *pobj)
 
 out:
 	++pobj->in_gart;
-	mutex_unlock(&dev_priv->gtt_mutex);
 	dma_resv_unlock(obj->resv);
 
 	return 0;
 
-err_mutex_unlock:
-	mutex_unlock(&dev_priv->gtt_mutex);
+err_dma_resv_unlock:
 	dma_resv_unlock(obj->resv);
 	return ret;
 }
@@ -82,8 +78,6 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 	ret = dma_resv_lock(obj->resv, NULL);
 	if (drm_WARN_ONCE(dev, ret, "dma_resv_lock() failed, ret=%d\n", ret))
 		return;
-
-	mutex_lock(&dev_priv->gtt_mutex);
 
 	WARN_ON(!pobj->in_gart);
 
@@ -105,7 +99,6 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 	pobj->pages = NULL;
 
 out:
-	mutex_unlock(&dev_priv->gtt_mutex);
 	dma_resv_unlock(obj->resv);
 }
 
