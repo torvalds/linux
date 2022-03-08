@@ -31,6 +31,10 @@ int psb_gem_pin(struct psb_gem_object *pobj)
 	unsigned int npages;
 	int ret;
 
+	ret = dma_resv_lock(obj->resv, NULL);
+	if (drm_WARN_ONCE(dev, ret, "dma_resv_lock() failed, ret=%d\n", ret))
+		return ret;
+
 	mutex_lock(&dev_priv->gtt_mutex);
 
 	if (pobj->in_gart || pobj->stolen)
@@ -56,11 +60,13 @@ int psb_gem_pin(struct psb_gem_object *pobj)
 out:
 	++pobj->in_gart;
 	mutex_unlock(&dev_priv->gtt_mutex);
+	dma_resv_unlock(obj->resv);
 
 	return 0;
 
 err_mutex_unlock:
 	mutex_unlock(&dev_priv->gtt_mutex);
+	dma_resv_unlock(obj->resv);
 	return ret;
 }
 
@@ -71,6 +77,11 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 	unsigned long npages;
+	int ret;
+
+	ret = dma_resv_lock(obj->resv, NULL);
+	if (drm_WARN_ONCE(dev, ret, "dma_resv_lock() failed, ret=%d\n", ret))
+		return;
 
 	mutex_lock(&dev_priv->gtt_mutex);
 
@@ -95,6 +106,7 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 
 out:
 	mutex_unlock(&dev_priv->gtt_mutex);
+	dma_resv_unlock(obj->resv);
 }
 
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
