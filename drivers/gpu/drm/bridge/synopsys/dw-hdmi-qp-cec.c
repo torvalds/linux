@@ -196,12 +196,12 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 	} else {
 		unsigned int irqs;
 
+		cec->ops->enable(cec->hdmi);
+
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		dw_hdmi_qp_write(cec, 1, CEC_LOCK_CONTROL);
 
 		dw_hdmi_qp_cec_log_addr(cec->adap, CEC_LOG_ADDR_INVALID);
-
-		cec->ops->enable(cec->hdmi);
 
 		irqs = CEC_STAT_LINE_ERR | CEC_STAT_NACK | CEC_STAT_EOM |
 		       CEC_STAT_DONE;
