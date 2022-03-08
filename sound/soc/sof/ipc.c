@@ -27,18 +27,6 @@ static void ipc_stream_message(struct snd_sof_dev *sdev, void *msg_buf);
  * IPC message Tx/Rx message handling.
  */
 
-/* SOF generic IPC data */
-struct snd_sof_ipc {
-	struct snd_sof_dev *sdev;
-
-	/* protects messages and the disable flag */
-	struct mutex tx_mutex;
-	/* disables further sending of ipc's */
-	bool disable_ipc_tx;
-
-	struct snd_sof_ipc_msg msg;
-};
-
 struct sof_ipc_ctrl_data_params {
 	size_t msg_bytes;
 	size_t hdr_bytes;
