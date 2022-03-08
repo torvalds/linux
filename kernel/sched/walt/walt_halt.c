@@ -268,11 +268,16 @@ static int start_cpus(struct cpumask *cpus)
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
 		halt_cpu_state->last_halt = 0;
-
-		/* guarantee zero'd last_halt before clearing from the mask */
 		wmb();
 
+		/* wmb to guarantee zero'd last_halt before clearing from the mask */
+
 		cpumask_clear_cpu(cpu, cpu_halt_mask);
+
+		/* kick the cpu so it can pull tasks
+		 * after the mask has been cleared.
+		 */
+		walt_kick_cpu(cpu);
 	}
 
 	trace_halt_cpus(cpus, start_time, 0, 0);

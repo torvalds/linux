@@ -3078,6 +3078,30 @@ static void walt_update_tg_pointer(struct cgroup_subsys_state *css)
 		walt_init_tg(css_tg(css));
 }
 
+void walt_kick_cpu(int cpu)
+{
+	unsigned int flags = NOHZ_KICK_MASK;
+
+	if (cpu == -1)
+		return;
+
+	/*
+	 * Access to rq::nohz_csd is serialized by NOHZ_KICK_MASK; he who sets
+	 * the first flag owns it; cleared by nohz_csd_func().
+	 */
+	flags = atomic_fetch_or(flags, nohz_flags(cpu));
+	if (flags & NOHZ_KICK_MASK)
+		return;
+
+	/*
+	 * This way we generate an IPI on the target CPU which
+	 * is idle. And the softirq performing nohz idle load balance
+	 * will be run before returning from the IPI.
+	 */
+	smp_call_function_single_async(cpu, &cpu_rq(cpu)->nohz_csd);
+}
+
+
 static void android_rvh_cpu_cgroup_online(void *unused, struct cgroup_subsys_state *css)
 {
 	if (unlikely(walt_disabled))

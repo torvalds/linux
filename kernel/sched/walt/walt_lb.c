@@ -758,29 +758,6 @@ static bool should_help_min_cap(int this_cpu)
 	return false;
 }
 
-static void kick_first_idle(int first_idle)
-{
-	unsigned int flags = NOHZ_KICK_MASK;
-
-	if (first_idle == -1)
-		return;
-
-	/*
-	 * Access to rq::nohz_csd is serialized by NOHZ_KICK_MASK; he who sets
-	 * the first flag owns it; cleared by nohz_csd_func().
-	 */
-	flags = atomic_fetch_or(flags, nohz_flags(first_idle));
-	if (flags & NOHZ_KICK_MASK)
-		return;
-
-	/*
-	 * This way we generate an IPI on the target CPU which
-	 * is idle. And the softirq performing nohz idle load balance
-	 * will be run before returning from the IPI.
-	 */
-	smp_call_function_single_async(first_idle, &cpu_rq(first_idle)->nohz_csd);
-}
-
 /* similar to sysctl_sched_migration_cost */
 #define NEWIDLE_BALANCE_THRESHOLD	500000
 static void walt_newidle_balance(void *unused, struct rq *this_rq,
@@ -866,7 +843,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			kick_first_idle(first_idle);
+			walt_kick_cpu(first_idle);
 		}
 	} else if (order_index == 2) {
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
@@ -887,7 +864,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			kick_first_idle(first_idle);
+			walt_kick_cpu(first_idle);
 		}
 	} else {
 		busy_cpu =
