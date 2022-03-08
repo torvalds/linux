@@ -394,10 +394,7 @@ static void glk_dsi_program_esc_clock(struct drm_device *dev,
 	/* Calculate TXESC2 divider */
 	div2_value = DIV_ROUND_UP(div1_value, txesc1_div);
 
-	if (div2_value < 10)
-		txesc2_div = div2_value;
-	else
-		txesc2_div = 10;
+	txesc2_div = min_t(u32, div2_value, 10);
 
 	intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1,
 		       (1 << (txesc1_div - 1)) & GLK_TX_ESC_CLK_DIV1_MASK);
