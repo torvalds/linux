@@ -218,10 +218,32 @@ static struct test_default test_default_init(void *guest_code)
 	return t;
 }
 
+enum stage {
+	/* Synced state set by host, e.g. DAT */
+	STAGE_INITED,
+	/* Guest did nothing */
+	STAGE_IDLED,
+	/* Guest copied memory (locations up to test case) */
+	STAGE_COPIED,
+};
+
+#define HOST_SYNC(vcpu_p, stage)					\
+({									\
+	struct test_vcpu __vcpu = (vcpu_p);				\
+	struct ucall uc;						\
+	int __stage = (stage);						\
+									\
+	vcpu_run(__vcpu.vm, __vcpu.id);					\
+	get_ucall(__vcpu.vm, __vcpu.id, &uc);				\
+	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
+	ASSERT_EQ(uc.args[1], __stage);					\
+})									\
+
 static void guest_copy(void)
 {
+	GUEST_SYNC(STAGE_INITED);
 	memcpy(&mem2, &mem1, sizeof(mem2));
-	GUEST_SYNC(0);
+	GUEST_SYNC(STAGE_COPIED);
 }
 
 static void test_copy(void)
@@ -232,16 +254,13 @@ static void test_copy(void)
 	for (i = 0; i < sizeof(mem1); i++)
 		mem1[i] = i * i + i;
 
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+
 	/* Set the first array */
-	MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size,
-	    GADDR(addr_gva2gpa(t.kvm_vm, (uintptr_t)mem1)));
+	MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR_V(mem1));
 
 	/* Let the guest code copy the first array to the second */
-	vcpu_run(t.kvm_vm, VCPU_ID);
-	TEST_ASSERT(t.run->exit_reason == KVM_EXIT_S390_SIEIC,
-		    "Unexpected exit reason: %u (%s)\n",
-		    t.run->exit_reason,
-		    exit_reason_str(t.run->exit_reason));
+	HOST_SYNC(t.vcpu, STAGE_COPIED);
 
 	memset(mem2, 0xaa, sizeof(mem2));
 
@@ -256,14 +275,17 @@ static void test_copy(void)
 
 static void guest_idle(void)
 {
+	GUEST_SYNC(STAGE_INITED); /* for consistency's sake */
 	for (;;)
-		GUEST_SYNC(0);
+		GUEST_SYNC(STAGE_IDLED);
 }
 
 static void test_errors(void)
 {
 	struct test_default t = test_default_init(guest_idle);
 	int rv;
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
 
 	/* Bad size: */
 	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, -1, GADDR_V(mem1));
@@ -294,11 +316,11 @@ static void test_errors(void)
 	/* Bad access register: */
 	t.run->psw_mask &= ~(3UL << (63 - 17));
 	t.run->psw_mask |= 1UL << (63 - 17);  /* Enable AR mode */
-	vcpu_run(t.kvm_vm, VCPU_ID);              /* To sync new state to SIE block */
+	HOST_SYNC(t.vcpu, STAGE_IDLED); /* To sync new state to SIE block */
 	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR_V(mem1), AR(17));
 	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows ARs > 15");
 	t.run->psw_mask &= ~(3UL << (63 - 17));   /* Disable AR mode */
-	vcpu_run(t.kvm_vm, VCPU_ID);                  /* Run to sync new state */
+	HOST_SYNC(t.vcpu, STAGE_IDLED); /* Run to sync new state */
 
 	/* Check that the SIDA calls are rejected for non-protected guests */
 	rv = ERR_MOP(t.vcpu, SIDA, READ, mem1, 8, GADDR(0), SIDA_OFFSET(0x1c0));
