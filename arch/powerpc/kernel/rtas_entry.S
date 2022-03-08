@@ -122,15 +122,8 @@ __enter_rtas:
 rtas_return_loc:
 	FIXUP_ENDIAN
 
-	/*
-	 * Clear RI and set SF before anything.
-	 */
-	mfmsr	r6
-	li	r0,MSR_RI
-	andc	r6,r6,r0
-	sldi	r0,r0,(MSR_SF_LG - MSR_RI_LG)
-	or	r6,r6,r0
-	sync
+	/* Set SF before anything. */
+	LOAD_REG_IMMEDIATE(r6, MSR_KERNEL & ~(MSR_IR|MSR_DR))
 	mtmsrd	r6
 
 	/* relocation is off at this point */
