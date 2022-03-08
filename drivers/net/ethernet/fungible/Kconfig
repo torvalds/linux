@@ -18,6 +18,7 @@ if NET_VENDOR_FUNGIBLE
 
 config FUN_CORE
 	tristate
+	select SBITMAP
 	help
 	  A service module offering basic common services to Fungible
 	  device drivers.
