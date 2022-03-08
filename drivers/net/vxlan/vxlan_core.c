@@ -2990,7 +2990,6 @@ static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 static int vxlan_stop(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	int ret = 0;
 
 	vxlan_multicast_leave(vxlan);
 
@@ -2999,7 +2998,7 @@ static int vxlan_stop(struct net_device *dev)
 	vxlan_flush(vxlan, false);
 	vxlan_sock_release(vxlan);
 
-	return ret;
+	return 0;
 }
 
 /* Stub, nothing needs to be done. */
