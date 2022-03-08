@@ -562,6 +562,41 @@ static struct trace_event_functions user_event_funcs = {
 	.trace = user_event_print_trace,
 };
 
+static int user_event_set_call_visible(struct user_event *user, bool visible)
+{
+	int ret;
+	const struct cred *old_cred;
+	struct cred *cred;
+
+	cred = prepare_creds();
+
+	if (!cred)
+		return -ENOMEM;
+
+	/*
+	 * While by default tracefs is locked down, systems can be configured
+	 * to allow user_event files to be less locked down. The extreme case
+	 * being "other" has read/write access to user_events_data/status.
+	 *
+	 * When not locked down, processes may not have have permissions to
+	 * add/remove calls themselves to tracefs. We need to temporarily
+	 * switch to root file permission to allow for this scenario.
+	 */
+	cred->fsuid = GLOBAL_ROOT_UID;
+
+	old_cred = override_creds(cred);
+
+	if (visible)
+		ret = trace_add_event_call(&user->call);
+	else
+		ret = trace_remove_event_call(&user->call);
+
+	revert_creds(old_cred);
+	put_cred(cred);
+
+	return ret;
+}
+
 static int destroy_user_event(struct user_event *user)
 {
 	int ret = 0;
@@ -569,7 +604,7 @@ static int destroy_user_event(struct user_event *user)
 	/* Must destroy fields before call removal */
 	user_event_destroy_fields(user);
 
-	ret = trace_remove_event_call(&user->call);
+	ret = user_event_set_call_visible(user, false);
 
 	if (ret)
 		return ret;
@@ -1049,7 +1084,7 @@ static int user_event_trace_register(struct user_event *user)
 	if (!ret)
 		return -ENODEV;
 
-	ret = trace_add_event_call(&user->call);
+	ret = user_event_set_call_visible(user, true);
 
 	if (ret)
 		unregister_trace_event(&user->call.event);
