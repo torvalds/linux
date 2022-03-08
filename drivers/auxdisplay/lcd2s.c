@@ -287,8 +287,7 @@ static const struct charlcd_ops lcd2s_ops = {
 	.redefine_char	= lcd2s_redefine_char,
 };
 
-static int lcd2s_i2c_probe(struct i2c_client *i2c,
-				const struct i2c_device_id *id)
+static int lcd2s_i2c_probe(struct i2c_client *i2c)
 {
 	struct charlcd *lcd;
 	struct lcd2s_data *lcd2s;
@@ -367,7 +366,7 @@ static struct i2c_driver lcd2s_i2c_driver = {
 		.name = "lcd2s",
 		.of_match_table = lcd2s_of_table,
 	},
-	.probe = lcd2s_i2c_probe,
+	.probe_new = lcd2s_i2c_probe,
 	.remove = lcd2s_i2c_remove,
 	.id_table = lcd2s_i2c_id,
 };
