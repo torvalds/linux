@@ -30,7 +30,7 @@ static int open_pe(void)
 	attr.type = PERF_TYPE_HARDWARE;
 	attr.config = PERF_COUNT_HW_CPU_CYCLES;
 	attr.freq = 1;
-	attr.sample_freq = 4000;
+	attr.sample_freq = 1000;
 	pfd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
 
 	return pfd >= 0 ? pfd : -errno;
