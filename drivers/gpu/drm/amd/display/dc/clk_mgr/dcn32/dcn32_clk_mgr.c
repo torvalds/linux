@@ -346,7 +346,8 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
 	}
 
-	if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
+	if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support) &&
+			clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21) {
 		clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
 
 		/* To disable FCLK P-state switching, send FCLK_PSTATE_NOTSUPPORTED message to PMFW */
