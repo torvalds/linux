@@ -4,6 +4,7 @@
 
 #include <linux/const.h>
 #include <asm/alternative.h>
+#include <asm/ibt.h>
 
 /*
  * Constructor for a conventional segment GDT (or LDT) entry.
@@ -275,7 +276,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * vector has no error code (two bytes), a 'push $vector_number' (two
  * bytes), and a jump to the common entry code (up to five bytes).
  */
-#define EARLY_IDT_HANDLER_SIZE 9
+#define EARLY_IDT_HANDLER_SIZE (9 + ENDBR_INSN_SIZE)
 
 /*
  * xen_early_idt_handler_array is for Xen pv guests: for each entry in
