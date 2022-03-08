@@ -276,19 +276,15 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
 	uint64_t fence_context = adev->fence_context + ring->idx;
-	struct dma_fence *updates = sync->last_vm_update;
 	bool needs_flush = vm->use_cpu_for_update;
-	int r = 0;
+	uint64_t updates = sync->last_vm_update;
+	int r;
 
 	*id = vm->reserved_vmid[vmhub];
-	if (updates && (*id)->flushed_updates &&
-	    updates->context == (*id)->flushed_updates->context &&
-	    !dma_fence_is_later(updates, (*id)->flushed_updates))
-		updates = NULL;
-
 	if ((*id)->owner != vm->immediate.fence_context ||
-	    job->vm_pd_addr != (*id)->pd_gpu_addr ||
-	    updates || !(*id)->last_flush ||
+	    (*id)->pd_gpu_addr != job->vm_pd_addr ||
+	    (*id)->flushed_updates < updates ||
+	    !(*id)->last_flush ||
 	    ((*id)->last_flush->context != fence_context &&
 	     !dma_fence_is_signaled((*id)->last_flush))) {
 		struct dma_fence *tmp;
@@ -302,8 +298,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
 			*id = NULL;
-			r = amdgpu_sync_fence(sync, tmp);
-			return r;
+			return amdgpu_sync_fence(sync, tmp);
 		}
 		needs_flush = true;
 	}
@@ -315,10 +310,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	if (r)
 		return r;
 
-	if (updates) {
-		dma_fence_put((*id)->flushed_updates);
-		(*id)->flushed_updates = dma_fence_get(updates);
-	}
+	(*id)->flushed_updates = updates;
 	job->vm_needs_flush = needs_flush;
 	return 0;
 }
@@ -346,7 +338,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	uint64_t fence_context = adev->fence_context + ring->idx;
-	struct dma_fence *updates = sync->last_vm_update;
+	uint64_t updates = sync->last_vm_update;
 	int r;
 
 	job->vm_needs_flush = vm->use_cpu_for_update;
@@ -354,7 +346,6 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 	/* Check if we can use a VMID already assigned to this VM */
 	list_for_each_entry_reverse((*id), &id_mgr->ids_lru, list) {
 		bool needs_flush = vm->use_cpu_for_update;
-		struct dma_fence *flushed;
 
 		/* Check all the prerequisites to using this VMID */
 		if ((*id)->owner != vm->immediate.fence_context)
@@ -368,8 +359,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		     !dma_fence_is_signaled((*id)->last_flush)))
 			needs_flush = true;
 
-		flushed  = (*id)->flushed_updates;
-		if (updates && (!flushed || dma_fence_is_later(updates, flushed)))
+		if ((*id)->flushed_updates < updates)
 			needs_flush = true;
 
 		if (needs_flush && !adev->vm_manager.concurrent_flush)
@@ -382,11 +372,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		if (r)
 			return r;
 
-		if (updates && (!flushed || dma_fence_is_later(updates, flushed))) {
-			dma_fence_put((*id)->flushed_updates);
-			(*id)->flushed_updates = dma_fence_get(updates);
-		}
-
+		(*id)->flushed_updates = updates;
 		job->vm_needs_flush |= needs_flush;
 		return 0;
 	}
@@ -432,8 +418,6 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			goto error;
 
 		if (!id) {
-			struct dma_fence *updates = sync->last_vm_update;
-
 			/* Still no ID to use? Then use the idle one found earlier */
 			id = idle;
 
@@ -442,8 +426,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			if (r)
 				goto error;
 
-			dma_fence_put(id->flushed_updates);
-			id->flushed_updates = dma_fence_get(updates);
+			id->flushed_updates = sync->last_vm_update;
 			job->vm_needs_flush = true;
 		}
 
@@ -610,7 +593,6 @@ void amdgpu_vmid_mgr_fini(struct amdgpu_device *adev)
 			struct amdgpu_vmid *id = &id_mgr->ids[j];
 
 			amdgpu_sync_free(&id->active);
-			dma_fence_put(id->flushed_updates);
 			dma_fence_put(id->last_flush);
 			dma_fence_put(id->pasid_mapping);
 		}
