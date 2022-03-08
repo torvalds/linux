@@ -391,11 +391,9 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			goto unref_cursor;
 		}
 
-		/* Prevent overflow */
-		if (pobj->npage > 4)
-			cursor_pages = 4;
-		else
-			cursor_pages = pobj->npage;
+		cursor_pages = obj->size / PAGE_SIZE;
+		if (cursor_pages > 4)
+			cursor_pages = 4; /* Prevent overflow */
 
 		/* Copy the cursor to cursor mem */
 		tmp_dst = dev_priv->vram_addr + cursor_pobj->offset;

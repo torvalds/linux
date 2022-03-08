@@ -51,7 +51,6 @@ int psb_gem_pin(struct psb_gem_object *pobj)
 			     (gpu_base + pobj->offset), npages, 0, 0,
 			     PSB_MMU_CACHED_MEMORY);
 
-	pobj->npage = npages;
 	pobj->pages = pages;
 
 out:
@@ -71,6 +70,7 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 	struct drm_device *dev = obj->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
+	unsigned long npages;
 
 	mutex_lock(&dev_priv->gtt_mutex);
 
@@ -81,16 +81,17 @@ void psb_gem_unpin(struct psb_gem_object *pobj)
 	if (pobj->in_gart || pobj->stolen)
 		goto out;
 
+	npages = obj->size / PAGE_SIZE;
+
 	psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
-			     (gpu_base + pobj->offset), pobj->npage, 0, 0);
+			     (gpu_base + pobj->offset), npages, 0, 0);
 	psb_gtt_remove_pages(dev_priv, &pobj->resource);
 
 	/* Reset caching flags */
-	set_pages_array_wb(pobj->pages, pobj->npage);
+	set_pages_array_wb(pobj->pages, npages);
 
 	drm_gem_put_pages(obj, pobj->pages, true, false);
 	pobj->pages = NULL;
-	pobj->npage = 0;
 
 out:
 	mutex_unlock(&dev_priv->gtt_mutex);
