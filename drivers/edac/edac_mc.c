@@ -170,61 +170,6 @@ const char * const edac_mem_types[] = {
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
-/**
- * edac_align_ptr - Prepares the pointer offsets for a single-shot allocation
- * @p:		pointer to a pointer with the memory offset to be used. At
- *		return, this will be incremented to point to the next offset
- * @size:	Size of the data structure to be reserved
- * @n_elems:	Number of elements that should be reserved
- *
- * If 'size' is a constant, the compiler will optimize this whole function
- * down to either a no-op or the addition of a constant to the value of '*p'.
- *
- * The 'p' pointer is absolutely needed to keep the proper advancing
- * further in memory to the proper offsets when allocating the struct along
- * with its embedded structs, as edac_device_alloc_ctl_info() does it
- * above, for example.
- *
- * At return, the pointer 'p' will be incremented to be used on a next call
- * to this function.
- */
-void *edac_align_ptr(void **p, unsigned int size, int n_elems)
-{
-	unsigned int align, r;
-	void *ptr = *p;
-
-	*p += size * n_elems;
-
-	/*
-	 * 'p' can possibly be an unaligned item X such that sizeof(X) is
-	 * 'size'.  Adjust 'p' so that its alignment is at least as
-	 * stringent as what the compiler would provide for X and return
-	 * the aligned result.
-	 * Here we assume that the alignment of a "long long" is the most
-	 * stringent alignment that the compiler will ever provide by default.
-	 * As far as I know, this is a reasonable assumption.
-	 */
-	if (size > sizeof(long))
-		align = sizeof(long long);
-	else if (size > sizeof(int))
-		align = sizeof(long);
-	else if (size > sizeof(short))
-		align = sizeof(int);
-	else if (size > sizeof(char))
-		align = sizeof(short);
-	else
-		return ptr;
-
-	r = (unsigned long)ptr % align;
-
-	if (r == 0)
-		return ptr;
-
-	*p += align - r;
-
-	return (void *)(((unsigned long)ptr) + align - r);
-}
-
 static void _edac_mc_free(struct mem_ctl_info *mci)
 {
 	put_device(&mci->dev);
