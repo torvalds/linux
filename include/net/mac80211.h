@@ -6071,6 +6071,16 @@ void ieee80211_disconnect(struct ieee80211_vif *vif, bool reconnect);
 void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_hw_restart_disconnect - disconnect from AP after
+ * hardware restart
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Instructs mac80211 to disconnect from the AP after
+ * hardware restart.
+ */
+void ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif);
+
+/**
  * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
  *	rssi threshold triggered
  *
