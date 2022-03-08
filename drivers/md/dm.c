@@ -541,7 +541,7 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 	 * Expect no possibility for race unless is_duplicate_bio.
 	 */
 	if (!clone || likely(!clone_to_tio(clone)->is_duplicate_bio)) {
-		if (WARN_ON(io->was_accounted))
+		if (WARN_ON_ONCE(io->was_accounted))
 			return;
 		io->was_accounted = 1;
 	} else if (xchg(&io->was_accounted, 1) == 1)
@@ -1201,6 +1201,8 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone,
 {
 	struct dm_target_io *tio = clone_to_tio(clone);
 	struct dm_io *io = tio->io;
+
+	WARN_ON_ONCE(!tio->ti->accounts_remapped_io);
 
 	/* establish bio that will get submitted */
 	if (!tgt_clone)
