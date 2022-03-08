@@ -60,12 +60,12 @@ _ASM_NOKPROBE_SYMBOL(enter_rtas)
 _GLOBAL(enter_rtas)
 	mflr	r0
 	std	r0,16(r1)
-        stdu	r1,-SWITCH_FRAME_SIZE(r1) /* Save SP and create stack space. */
+	stdu	r1,-SWITCH_FRAME_SIZE(r1) /* Save SP and create stack space. */
 
 	/* Because RTAS is running in 32b mode, it clobbers the high order half
 	 * of all registers that it saves.  We therefore save those registers
 	 * RTAS might touch to the stack.  (r0, r3-r13 are caller saved)
-   	 */
+	 */
 	SAVE_GPR(2, r1)			/* Save the TOC */
 	SAVE_GPR(13, r1)		/* Save paca */
 	SAVE_NVGPRS(r1)			/* Save the non-volatiles */
@@ -105,14 +105,14 @@ _GLOBAL(enter_rtas)
 	/* Unfortunately, the stack pointer and the MSR are also clobbered,
 	 * so they are saved in the PACA which allows us to restore
 	 * our original state after RTAS returns.
-         */
+	 */
 	std	r1,PACAR1(r13)
-        std	r6,PACASAVEDMSR(r13)
+	std	r6,PACASAVEDMSR(r13)
 
-	/* Setup our real return addr */	
+	/* Setup our real return addr */
 	LOAD_REG_ADDR(r4,rtas_return_loc)
 	clrldi	r4,r4,2			/* convert to realmode address */
-       	mtlr	r4
+	mtlr	r4
 
 __enter_rtas:
 	LOAD_REG_ADDR(r4, rtas)
@@ -141,13 +141,13 @@ rtas_return_loc:
 	/*
 	 * Clear RI and set SF before anything.
 	 */
-	mfmsr   r6
+	mfmsr	r6
 	li	r0,MSR_RI
 	andc	r6,r6,r0
 	sldi	r0,r0,(MSR_SF_LG - MSR_RI_LG)
 	or	r6,r6,r0
 	sync
-	mtmsrd  r6
+	mtmsrd	r6
 
 	/* relocation is off at this point */
 	GET_PACA(r4)
@@ -157,8 +157,8 @@ rtas_return_loc:
 0:	mflr	r3
 	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
-        ld	r1,PACAR1(r4)           /* Restore our SP */
-        ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
+	ld	r1,PACAR1(r4)		/* Restore our SP */
+	ld	r4,PACASAVEDMSR(r4)	/* Restore our MSR */
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -190,10 +190,10 @@ rtas_restore_regs:
 	ld	r8,_DSISR(r1)
 	mtdsisr	r8
 
-        addi	r1,r1,SWITCH_FRAME_SIZE	/* Unstack our frame */
+	addi	r1,r1,SWITCH_FRAME_SIZE	/* Unstack our frame */
 	ld	r0,16(r1)		/* get return address */
 
-	mtlr    r0
-        blr				/* return to caller */
+	mtlr	r0
+	blr				/* return to caller */
 
 #endif /* CONFIG_PPC32 */
