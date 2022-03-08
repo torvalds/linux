@@ -1866,6 +1866,29 @@ static int read_unwind_hints(struct objtool_file *file)
 	return 0;
 }
 
+static int read_noendbr_hints(struct objtool_file *file)
+{
+	struct section *sec;
+	struct instruction *insn;
+	struct reloc *reloc;
+
+	sec = find_section_by_name(file->elf, ".rela.discard.noendbr");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		insn = find_insn(file, reloc->sym->sec, reloc->sym->offset + reloc->addend);
+		if (!insn) {
+			WARN("bad .discard.noendbr entry");
+			return -1;
+		}
+
+		insn->noendbr = 1;
+	}
+
+	return 0;
+}
+
 static int read_retpoline_hints(struct objtool_file *file)
 {
 	struct section *sec;
@@ -2096,6 +2119,10 @@ static int decode_sections(struct objtool_file *file)
 	add_uaccess_safe(file);
 
 	ret = add_ignore_alternatives(file);
+	if (ret)
+		return ret;
+
+	ret = read_noendbr_hints(file);
 	if (ret)
 		return ret;
 
