@@ -523,11 +523,10 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(codec_dev, "unable to add GPIO mapping table\n");
 
-	priv->gpio_pa = gpiod_get(codec_dev, "pa-enable", GPIOD_OUT_LOW);
+	priv->gpio_pa = gpiod_get_optional(codec_dev, "pa-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpio_pa)) {
-		ret = PTR_ERR(priv->gpio_pa);
-		dev_err(codec_dev, "%s, could not get pa-enable: %d\n",
-			__func__, ret);
+		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_pa),
+				    "could not get pa-enable GPIO\n");
 		goto err;
 	}
 
