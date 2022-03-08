@@ -125,12 +125,6 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 	mutex_unlock(&pdev->gtt_mutex);
 }
 
-static void psb_gtt_alloc(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	init_rwsem(&dev_priv->gtt.sem);
-}
-
 void psb_gtt_takedown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -166,7 +160,6 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	if (!resume) {
 		mutex_init(&dev_priv->gtt_mutex);
 		mutex_init(&dev_priv->mmap_mutex);
-		psb_gtt_alloc(dev);
 	}
 
 	pg = &dev_priv->gtt;

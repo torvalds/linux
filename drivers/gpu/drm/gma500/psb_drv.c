@@ -184,13 +184,11 @@ static void psb_driver_unload(struct drm_device *dev)
 	if (dev_priv->mmu) {
 		struct psb_gtt *pg = &dev_priv->gtt;
 
-		down_read(&pg->sem);
 		psb_mmu_remove_pfn_sequence(
 			psb_mmu_get_default_pd
 			(dev_priv->mmu),
 			pg->mmu_gatt_start,
 			dev_priv->vram_stolen_size >> PAGE_SHIFT);
-		up_read(&pg->sem);
 		psb_mmu_driver_takedown(dev_priv->mmu);
 		dev_priv->mmu = NULL;
 	}
@@ -345,12 +343,10 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 
 	/* Add stolen memory to SGX MMU */
-	down_read(&pg->sem);
 	ret = psb_mmu_insert_pfn_sequence(psb_mmu_get_default_pd(dev_priv->mmu),
 					  dev_priv->stolen_base >> PAGE_SHIFT,
 					  pg->gatt_start,
 					  pg->stolen_size >> PAGE_SHIFT, 0);
-	up_read(&pg->sem);
 
 	psb_mmu_set_pd_context(psb_mmu_get_default_pd(dev_priv->mmu), 0);
 	psb_mmu_set_pd_context(dev_priv->pf_pd, 1);

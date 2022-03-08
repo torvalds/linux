@@ -22,7 +22,6 @@ struct psb_gtt {
 	unsigned gatt_pages;
 	unsigned long stolen_size;
 	unsigned long vram_stolen_size;
-	struct rw_semaphore sem;
 };
 
 /* Exported functions */
