@@ -634,14 +634,10 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 			pullen,
 			pullup);
 
-	if (r1 != -1) {
-		len += scnprintf(buf + len, buf_len - len, " (%1d %1d)\n",
-			r1, r0);
-	} else if (rsel != -1) {
-		len += scnprintf(buf + len, buf_len - len, " (%1d)\n", rsel);
-	} else {
-		len += scnprintf(buf + len, buf_len - len, "\n");
-	}
+	if (r1 != -1)
+		len += scnprintf(buf + len, buf_len - len, " (%1d %1d)", r1, r0);
+	else if (rsel != -1)
+		len += scnprintf(buf + len, buf_len - len, " (%1d)", rsel);
 
 	return len;
 }
