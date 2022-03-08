@@ -109,6 +109,7 @@
 	rkisp_vir0: rkisp-vir0 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
+		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
