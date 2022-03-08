@@ -318,11 +318,10 @@ struct arm_smmu_device {
 	unsigned long			pa_size;
 	unsigned long			pgsize_bitmap;
 
-	u32				num_global_irqs;
-	u32				num_context_irqs;
+	int				num_context_irqs;
+	int				num_clks;
 	unsigned int			*irqs;
 	struct clk_bulk_data		*clks;
-	int				num_clks;
 
 	spinlock_t			global_sync_lock;
 

@@ -807,7 +807,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	 * Request context fault interrupt. Do this last to avoid the
 	 * handler seeing a half-initialised domain state.
 	 */
-	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
+	irq = smmu->irqs[cfg->irptndx];
 
 	if (smmu->impl && smmu->impl->context_fault)
 		context_fault = smmu->impl->context_fault;
@@ -858,7 +858,7 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	arm_smmu_write_context_bank(smmu, cfg->cbndx);
 
 	if (cfg->irptndx != ARM_SMMU_INVALID_IRPTNDX) {
-		irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
+		irq = smmu->irqs[cfg->irptndx];
 		devm_free_irq(smmu->dev, irq, domain);
 	}
 
@@ -1583,25 +1583,27 @@ static int arm_smmu_def_domain_type(struct device *dev)
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
-	.domain_free		= arm_smmu_domain_free,
-	.attach_dev		= arm_smmu_attach_dev,
-	.map_pages		= arm_smmu_map_pages,
-	.unmap_pages		= arm_smmu_unmap_pages,
-	.flush_iotlb_all	= arm_smmu_flush_iotlb_all,
-	.iotlb_sync		= arm_smmu_iotlb_sync,
-	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.probe_finalize		= arm_smmu_probe_finalize,
 	.device_group		= arm_smmu_device_group,
-	.enable_nesting		= arm_smmu_enable_nesting,
-	.set_pgtable_quirks	= arm_smmu_set_pgtable_quirks,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
 	.put_resv_regions	= generic_iommu_put_resv_regions,
 	.def_domain_type	= arm_smmu_def_domain_type,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 	.owner			= THIS_MODULE,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev		= arm_smmu_attach_dev,
+		.map_pages		= arm_smmu_map_pages,
+		.unmap_pages		= arm_smmu_unmap_pages,
+		.flush_iotlb_all	= arm_smmu_flush_iotlb_all,
+		.iotlb_sync		= arm_smmu_iotlb_sync,
+		.iova_to_phys		= arm_smmu_iova_to_phys,
+		.enable_nesting		= arm_smmu_enable_nesting,
+		.set_pgtable_quirks	= arm_smmu_set_pgtable_quirks,
+		.free			= arm_smmu_domain_free,
+	}
 };
 
 static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
@@ -1951,8 +1953,8 @@ static int acpi_smmu_get_data(u32 model, struct arm_smmu_device *smmu)
 	return ret;
 }
 
-static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
-				      struct arm_smmu_device *smmu)
+static int arm_smmu_device_acpi_probe(struct arm_smmu_device *smmu,
+				      u32 *global_irqs, u32 *pmu_irqs)
 {
 	struct device *dev = smmu->dev;
 	struct acpi_iort_node *node =
@@ -1968,7 +1970,8 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 		return ret;
 
 	/* Ignore the configuration access interrupt */
-	smmu->num_global_irqs = 1;
+	*global_irqs = 1;
+	*pmu_irqs = 0;
 
 	if (iort_smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK)
 		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
@@ -1976,25 +1979,24 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 	return 0;
 }
 #else
-static inline int arm_smmu_device_acpi_probe(struct platform_device *pdev,
-					     struct arm_smmu_device *smmu)
+static inline int arm_smmu_device_acpi_probe(struct arm_smmu_device *smmu,
+					     u32 *global_irqs, u32 *pmu_irqs)
 {
 	return -ENODEV;
 }
 #endif
 
-static int arm_smmu_device_dt_probe(struct platform_device *pdev,
-				    struct arm_smmu_device *smmu)
+static int arm_smmu_device_dt_probe(struct arm_smmu_device *smmu,
+				    u32 *global_irqs, u32 *pmu_irqs)
 {
 	const struct arm_smmu_match_data *data;
-	struct device *dev = &pdev->dev;
+	struct device *dev = smmu->dev;
 	bool legacy_binding;
 
-	if (of_property_read_u32(dev->of_node, "#global-interrupts",
-				 &smmu->num_global_irqs)) {
-		dev_err(dev, "missing #global-interrupts property\n");
-		return -ENODEV;
-	}
+	if (of_property_read_u32(dev->of_node, "#global-interrupts", global_irqs))
+		return dev_err_probe(dev, -ENODEV,
+				     "missing #global-interrupts property\n");
+	*pmu_irqs = 0;
 
 	data = of_device_get_match_data(dev);
 	smmu->version = data->version;
@@ -2073,6 +2075,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
+	u32 global_irqs, pmu_irqs;
 	irqreturn_t (*global_fault)(int irq, void *dev);
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -2083,10 +2086,9 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	smmu->dev = dev;
 
 	if (dev->of_node)
-		err = arm_smmu_device_dt_probe(pdev, smmu);
+		err = arm_smmu_device_dt_probe(smmu, &global_irqs, &pmu_irqs);
 	else
-		err = arm_smmu_device_acpi_probe(pdev, smmu);
-
+		err = arm_smmu_device_acpi_probe(smmu, &global_irqs, &pmu_irqs);
 	if (err)
 		return err;
 
@@ -2105,31 +2107,25 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (IS_ERR(smmu))
 		return PTR_ERR(smmu);
 
-	num_irqs = 0;
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, num_irqs))) {
-		num_irqs++;
-		if (num_irqs > smmu->num_global_irqs)
-			smmu->num_context_irqs++;
-	}
+	num_irqs = platform_irq_count(pdev);
 
-	if (!smmu->num_context_irqs) {
-		dev_err(dev, "found %d interrupts but expected at least %d\n",
-			num_irqs, smmu->num_global_irqs + 1);
-		return -ENODEV;
-	}
+	smmu->num_context_irqs = num_irqs - global_irqs - pmu_irqs;
+	if (smmu->num_context_irqs <= 0)
+		return dev_err_probe(dev, -ENODEV,
+				"found %d interrupts but expected at least %d\n",
+				num_irqs, global_irqs + pmu_irqs + 1);
 
-	smmu->irqs = devm_kcalloc(dev, num_irqs, sizeof(*smmu->irqs),
-				  GFP_KERNEL);
-	if (!smmu->irqs) {
-		dev_err(dev, "failed to allocate %d irqs\n", num_irqs);
-		return -ENOMEM;
-	}
+	smmu->irqs = devm_kcalloc(dev, smmu->num_context_irqs,
+				  sizeof(*smmu->irqs), GFP_KERNEL);
+	if (!smmu->irqs)
+		return dev_err_probe(dev, -ENOMEM, "failed to allocate %d irqs\n",
+				     smmu->num_context_irqs);
 
-	for (i = 0; i < num_irqs; ++i) {
-		int irq = platform_get_irq(pdev, i);
+	for (i = 0; i < smmu->num_context_irqs; i++) {
+		int irq = platform_get_irq(pdev, global_irqs + pmu_irqs + i);
 
 		if (irq < 0)
-			return -ENODEV;
+			return irq;
 		smmu->irqs[i] = irq;
 	}
 
@@ -2165,17 +2161,18 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	else
 		global_fault = arm_smmu_global_fault;
 
-	for (i = 0; i < smmu->num_global_irqs; ++i) {
-		err = devm_request_irq(smmu->dev, smmu->irqs[i],
-				       global_fault,
-				       IRQF_SHARED,
-				       "arm-smmu global fault",
-				       smmu);
-		if (err) {
-			dev_err(dev, "failed to request global IRQ %d (%u)\n",
-				i, smmu->irqs[i]);
-			return err;
-		}
+	for (i = 0; i < global_irqs; i++) {
+		int irq = platform_get_irq(pdev, i);
+
+		if (irq < 0)
+			return irq;
+
+		err = devm_request_irq(dev, irq, global_fault, IRQF_SHARED,
+				       "arm-smmu global fault", smmu);
+		if (err)
+			return dev_err_probe(dev, err,
+					"failed to request global IRQ %d (%u)\n",
+					i, irq);
 	}
 
 	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
