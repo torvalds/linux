@@ -476,6 +476,11 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
 
+	if ((mfmsr() & (MSR_IR|MSR_DR)) != (MSR_IR|MSR_DR)) {
+		WARN_ON_ONCE(1);
+		return -1;
+	}
+
 	s = lock_rtas();
 
 	/* We use the global rtas args buffer */
