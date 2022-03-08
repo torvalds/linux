@@ -743,7 +743,7 @@ static const struct sof_topology_token core_tokens[] = {
 static const struct sof_topology_token comp_ext_tokens[] = {
 	{SOF_TKN_COMP_UUID,
 		SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
-		offsetof(struct sof_ipc_comp_ext, uuid)},
+		offsetof(struct snd_sof_widget, uuid)},
 };
 
 /*
@@ -1419,16 +1419,16 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
  *
  * Return: The pointer to the new allocated component, NULL if failed.
  */
-static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
-					   size_t *ipc_size, int index)
+static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget, size_t *ipc_size,
+					   int index)
 {
-	u8 nil_uuid[SOF_UUID_SIZE] = {0};
 	struct sof_ipc_comp *comp;
 	size_t total_size = *ipc_size;
+	size_t ext_size = sizeof(swidget->uuid);
 
 	/* only non-zero UUID is valid */
-	if (memcmp(&swidget->comp_ext, nil_uuid, SOF_UUID_SIZE))
-		total_size += sizeof(swidget->comp_ext);
+	if (!guid_is_null(&swidget->uuid))
+		total_size += ext_size;
 
 	comp = kzalloc(total_size, GFP_KERNEL);
 	if (!comp)
@@ -1444,8 +1444,8 @@ static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
 	/* handle the extended data if needed */
 	if (total_size > *ipc_size) {
 		/* append extended data to the end of the component */
-		memcpy((u8 *)comp + *ipc_size, &swidget->comp_ext, sizeof(swidget->comp_ext));
-		comp->ext_data_length = sizeof(swidget->comp_ext);
+		memcpy((u8 *)comp + *ipc_size, &swidget->uuid, ext_size);
+		comp->ext_data_length = ext_size;
 	}
 
 	/* update ipc_size and return */
@@ -2276,9 +2276,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	swidget->core = comp.core;
 
-	ret = sof_parse_tokens(scomp, &swidget->comp_ext, comp_ext_tokens,
-			       ARRAY_SIZE(comp_ext_tokens), tw->priv.array,
-			       le32_to_cpu(tw->priv.size));
+	ret = sof_parse_tokens(scomp, swidget, comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens),
+			       tw->priv.array, le32_to_cpu(tw->priv.size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parsing comp_ext_tokens failed %d\n",
 			ret);
