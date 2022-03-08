@@ -31,7 +31,6 @@
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 #include <asm/string.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/xmon.h>
 #include <asm/processor.h>

@@ -19,7 +19,6 @@
 #include "of_helpers.h"
 #include "pseries.h"
 
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <linux/uaccess.h>
 #include <asm/rtas.h>

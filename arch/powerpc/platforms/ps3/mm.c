@@ -14,7 +14,6 @@
 
 #include <asm/cell-regs.h>
 #include <asm/firmware.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/setup.h>

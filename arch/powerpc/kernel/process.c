@@ -43,7 +43,6 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
 #include <asm/runlatch.h>

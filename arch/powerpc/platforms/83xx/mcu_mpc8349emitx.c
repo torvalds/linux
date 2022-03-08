@@ -18,7 +18,6 @@
 #include <linux/kthread.h>
 #include <linux/property.h>
 #include <linux/reboot.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 
 /*

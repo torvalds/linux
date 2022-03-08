@@ -50,7 +50,6 @@
 
 #include <asm/reg.h>
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/pci-bridge.h>
 #include <asm/ohare.h>

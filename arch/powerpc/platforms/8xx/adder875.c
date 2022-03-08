@@ -15,7 +15,6 @@
 #include <asm/cpm1.h>
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
-#include <asm/prom.h>
 
 #include "mpc8xx.h"
 

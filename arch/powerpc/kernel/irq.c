@@ -58,7 +58,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/cache.h>
-#include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>

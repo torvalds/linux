@@ -19,7 +19,6 @@
 #include <linux/msi.h>
 #include <linux/list.h>
 
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>

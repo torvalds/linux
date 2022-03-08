@@ -17,8 +17,6 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-#include <asm/prom.h>
-
 #include "platform.h"
 
 enum {

@@ -27,7 +27,6 @@
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>

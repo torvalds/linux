@@ -11,7 +11,6 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/xmon.h>
-#include <asm/prom.h>
 #include <asm/bootx.h>
 #include <asm/errno.h>
 #include <asm/pmac_feature.h>
