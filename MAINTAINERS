@@ -12375,7 +12375,7 @@ MEDIATEK JPEG DRIVER
 M:	Rick Chang <rick.chang@mediatek.com>
 M:	Bin Liu <bin.liu@mediatek.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/media/mediatek-jpeg-decoder.txt
+F:	Documentation/devicetree/bindings/media/mediatek-jpeg-*.yaml
 F:	drivers/media/platform/mediatek/jpeg/
 
 MEDIATEK MDP DRIVER
