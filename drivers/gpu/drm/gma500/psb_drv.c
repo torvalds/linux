@@ -28,6 +28,7 @@
 #include <drm/drm_vblank.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "intel_bios.h"
 #include "mid_bios.h"
 #include "power.h"

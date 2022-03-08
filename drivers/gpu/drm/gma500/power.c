@@ -28,6 +28,7 @@
  *    Alan Cox <alan@linux.intel.com>
  */
 
+#include "gem.h"
 #include "power.h"
 #include "psb_drv.h"
 #include "psb_reg.h"

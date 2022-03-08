@@ -14,6 +14,10 @@
 
 struct drm_device;
 
+/*
+ * PSB GEM object
+ */
+
 struct psb_gem_object {
 	struct drm_gem_object base;
 
@@ -35,5 +39,13 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 int psb_gem_pin(struct psb_gem_object *pobj);
 void psb_gem_unpin(struct psb_gem_object *pobj);
+
+/*
+ * Memory management
+ */
+
+int psb_gem_mm_init(struct drm_device *dev);
+void psb_gem_mm_fini(struct drm_device *dev);
+int psb_gem_mm_resume(struct drm_device *dev);
 
 #endif
