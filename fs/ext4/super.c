@@ -2021,12 +2021,12 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb, char *arg)
 #define EXT4_SPEC_s_commit_interval		(1 << 16)
 #define EXT4_SPEC_s_fc_debug_max_replay		(1 << 17)
 #define EXT4_SPEC_s_sb_block			(1 << 18)
+#define EXT4_SPEC_mb_optimize_scan		(1 << 19)
 
 struct ext4_fs_context {
 	char		*s_qf_names[EXT4_MAXQUOTAS];
 	char		*test_dummy_enc_arg;
 	int		s_jquota_fmt;	/* Format of quota to use */
-	int		mb_optimize_scan;
 #ifdef CONFIG_EXT4_DEBUG
 	int s_fc_debug_max_replay;
 #endif
@@ -2464,12 +2464,17 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx_clear_mount_opt(ctx, m->mount_opt);
 		return 0;
 	case Opt_mb_optimize_scan:
-		if (result.int_32 != 0 && result.int_32 != 1) {
+		if (result.int_32 == 1) {
+			ctx_set_mount_opt2(ctx, EXT4_MOUNT2_MB_OPTIMIZE_SCAN);
+			ctx->spec |= EXT4_SPEC_mb_optimize_scan;
+		} else if (result.int_32 == 0) {
+			ctx_clear_mount_opt2(ctx, EXT4_MOUNT2_MB_OPTIMIZE_SCAN);
+			ctx->spec |= EXT4_SPEC_mb_optimize_scan;
+		} else {
 			ext4_msg(NULL, KERN_WARNING,
 				 "mb_optimize_scan should be set to 0 or 1.");
 			return -EINVAL;
 		}
-		ctx->mb_optimize_scan = result.int_32;
 		return 0;
 	}
 
@@ -4398,7 +4403,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	/* Set defaults for the variables that will be set during parsing */
 	ctx->journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
-	ctx->mb_optimize_scan = DEFAULT_MB_OPTIMIZE_SCAN;
 
 	sbi->s_inode_readahead_blks = EXT4_DEF_INODE_READAHEAD_BLKS;
 	sbi->s_sectors_written_start =
@@ -5349,12 +5353,12 @@ no_journal:
 	 * turned off by passing "mb_optimize_scan=0". This can also be
 	 * turned on forcefully by passing "mb_optimize_scan=1".
 	 */
-	if (ctx->mb_optimize_scan == 1)
-		set_opt2(sb, MB_OPTIMIZE_SCAN);
-	else if (ctx->mb_optimize_scan == 0)
-		clear_opt2(sb, MB_OPTIMIZE_SCAN);
-	else if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD)
-		set_opt2(sb, MB_OPTIMIZE_SCAN);
+	if (!(ctx->spec & EXT4_SPEC_mb_optimize_scan)) {
+		if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD)
+			set_opt2(sb, MB_OPTIMIZE_SCAN);
+		else
+			clear_opt2(sb, MB_OPTIMIZE_SCAN);
+	}
 
 	err = ext4_mb_init(sb);
 	if (err) {
