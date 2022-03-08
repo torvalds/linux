@@ -3015,13 +3015,30 @@ int dcn32_populate_dml_pipes_from_context(
 		}
 		pipe_cnt++;
 	}
-	context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE;
 
-	if (pipe_cnt == 1 && pipe->plane_state && !dc->debug.disable_z9_mpc) {
-		if (!is_dual_plane(pipe->plane_state->format)) {
-			context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
-			pipes[0].pipe.src.unbounded_req_mode = true;
+	switch (pipe_cnt) {
+	case 1:
+		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE;
+		if (pipe->plane_state && !dc->debug.disable_z9_mpc) {
+			if (!is_dual_plane(pipe->plane_state->format)) {
+				context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE;
+				pipes[0].pipe.src.unbounded_req_mode = true;
+				if (pipe->plane_state->src_rect.width >= 5120 &&
+					pipe->plane_state->src_rect.height >= 2880)
+					context->bw_ctx.dml.ip.det_buffer_size_kbytes = 320; // 5K or higher
+			}
 		}
+		break;
+	case 2:
+		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 2; // 576 KB (9 segments)
+		break;
+	case 3:
+		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 3; // 384 KB (6 segments)
+		break;
+	case 4:
+	default:
+		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE; // 256 KB (4 segments)
+		break;
 	}
 
 	return pipe_cnt;
@@ -3283,7 +3300,6 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	 * possible with firmware driven vertical blank stretching.
 	 */
 	// context->bw_ctx.bw.dcn.clk.p_state_change_support |= context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
-
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
 	if (context->bw_ctx.dml.vba.FCLKChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] == dm_fclock_change_unsupported)
@@ -3338,11 +3354,6 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-
-		/* cstate disabled on 201 */
-//		if (dc->ctx->dce_version == DCN_VERSION_2_01)
-//			cstate_en = false;
-
 
 		context->bw_ctx.dml.funcs.rq_dlg_get_dlg_reg_v2(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].dlg_regs, &context->res_ctx.pipe_ctx[i].ttu_regs, pipes,

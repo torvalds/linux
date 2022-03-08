@@ -65,7 +65,7 @@ static void dcn32_init_crb(struct hubbub *hubbub)
 	REG_SET_2(COMPBUF_RESERVED_SPACE, 0,
 			COMPBUF_RESERVED_SPACE_64B, hubbub2->pixel_chunk_size / 32,
 			COMPBUF_RESERVED_SPACE_ZS, hubbub2->pixel_chunk_size / 128);
-	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x17F);
+	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x47F);
 }
 
 static void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int det_buffer_size_in_kbyte)
@@ -119,8 +119,8 @@ static void dcn32_program_compbuf_size(struct hubbub *hubbub, unsigned int compb
 		ASSERT(hubbub2->det0_size + hubbub2->det1_size + hubbub2->det2_size
 				+ hubbub2->det3_size + compbuf_size_segments <= hubbub2->crb_size_segs);
 		REG_UPDATE(DCHUBBUB_COMPBUF_CTRL, COMPBUF_SIZE, compbuf_size_segments);
-		REG_WAIT(DCHUBBUB_COMPBUF_CTRL, COMPBUF_SIZE_CURRENT, compbuf_size_segments, 1, 100);
 		hubbub2->compbuf_size_segments = compbuf_size_segments;
+		ASSERT(REG_GET(DCHUBBUB_COMPBUF_CTRL, CONFIG_ERROR, &compbuf_size_segments) && !compbuf_size_segments);
 	}
 }
 

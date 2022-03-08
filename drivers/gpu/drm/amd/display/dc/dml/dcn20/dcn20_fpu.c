@@ -1018,31 +1018,8 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.dest.pixel_rate_mhz *= 2;
 		pipes[pipe_cnt].pipe.dest.otg_inst = res_ctx->pipe_ctx[i].stream_res.tg->inst;
 		pipes[pipe_cnt].dout.dp_lanes = 4;
-		if (res_ctx->pipe_ctx[i].stream->link) {
-			switch (res_ctx->pipe_ctx[i].stream->link->cur_link_settings.link_rate) {
-			case LINK_RATE_HIGH:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr;
-				break;
-			case LINK_RATE_HIGH2:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr2;
-				break;
-			case LINK_RATE_HIGH3:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_hbr3;
-				break;
-			case LINK_RATE_UHBR10:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr10;
-				break;
-			case LINK_RATE_UHBR13_5:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr13p5;
-				break;
-			case LINK_RATE_UHBR20:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_uhbr20;
-				break;
-			default:
-				pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_na;
-				break;
-			}
-		}
+		if (res_ctx->pipe_ctx[i].stream->link)
+			pipes[pipe_cnt].dout.dp_rate = dm_dp_rate_na;
 		pipes[pipe_cnt].dout.is_virtual = 0;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
