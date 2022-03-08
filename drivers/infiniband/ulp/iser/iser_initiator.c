@@ -52,25 +52,12 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 	struct iser_mem_reg *mem_reg;
 	int err;
 	struct iser_ctrl *hdr = &iser_task->desc.iser_header;
-	struct iser_data_buf *buf_in = &iser_task->data[ISER_DIR_IN];
 
 	err = iser_dma_map_task_data(iser_task,
-				     buf_in,
 				     ISER_DIR_IN,
 				     DMA_FROM_DEVICE);
 	if (err)
 		return err;
-
-	if (scsi_prot_sg_count(iser_task->sc)) {
-		struct iser_data_buf *pbuf_in = &iser_task->prot[ISER_DIR_IN];
-
-		err = iser_dma_map_task_data(iser_task,
-					     pbuf_in,
-					     ISER_DIR_IN,
-					     DMA_FROM_DEVICE);
-		if (err)
-			return err;
-	}
 
 	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_IN, false);
 	if (err) {
@@ -106,22 +93,10 @@ static int iser_prepare_write_cmd(struct iscsi_task *task, unsigned int imm_sz,
 	struct ib_sge *tx_dsg = &iser_task->desc.tx_sg[1];
 
 	err = iser_dma_map_task_data(iser_task,
-				     buf_out,
 				     ISER_DIR_OUT,
 				     DMA_TO_DEVICE);
 	if (err)
 		return err;
-
-	if (scsi_prot_sg_count(iser_task->sc)) {
-		struct iser_data_buf *pbuf_out = &iser_task->prot[ISER_DIR_OUT];
-
-		err = iser_dma_map_task_data(iser_task,
-					     pbuf_out,
-					     ISER_DIR_OUT,
-					     DMA_TO_DEVICE);
-		if (err)
-			return err;
-	}
 
 	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_OUT,
 				   buf_out->data_len == imm_sz);
@@ -740,27 +715,16 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
-	int prot_count = scsi_prot_sg_count(iser_task->sc);
 
 	if (iser_task->dir[ISER_DIR_IN]) {
 		iser_unreg_mem_fastreg(iser_task, ISER_DIR_IN);
-		iser_dma_unmap_task_data(iser_task,
-					 &iser_task->data[ISER_DIR_IN],
+		iser_dma_unmap_task_data(iser_task, ISER_DIR_IN,
 					 DMA_FROM_DEVICE);
-		if (prot_count)
-			iser_dma_unmap_task_data(iser_task,
-						 &iser_task->prot[ISER_DIR_IN],
-						 DMA_FROM_DEVICE);
 	}
 
 	if (iser_task->dir[ISER_DIR_OUT]) {
 		iser_unreg_mem_fastreg(iser_task, ISER_DIR_OUT);
-		iser_dma_unmap_task_data(iser_task,
-					 &iser_task->data[ISER_DIR_OUT],
+		iser_dma_unmap_task_data(iser_task, ISER_DIR_OUT,
 					 DMA_TO_DEVICE);
-		if (prot_count)
-			iser_dma_unmap_task_data(iser_task,
-						 &iser_task->prot[ISER_DIR_OUT],
-						 DMA_TO_DEVICE);
 	}
 }

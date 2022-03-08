@@ -70,10 +70,10 @@ static void iser_reg_desc_put_fr(struct ib_conn *ib_conn,
 }
 
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
-			   struct iser_data_buf *data,
 			   enum iser_data_dir iser_dir,
 			   enum dma_data_direction dma_dir)
 {
+	struct iser_data_buf *data = &iser_task->data[iser_dir];
 	struct ib_device *dev;
 
 	iser_task->dir[iser_dir] = 1;
@@ -84,17 +84,40 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 		iser_err("dma_map_sg failed!!!\n");
 		return -EINVAL;
 	}
+
+	if (scsi_prot_sg_count(iser_task->sc)) {
+		struct iser_data_buf *pdata = &iser_task->prot[iser_dir];
+
+		pdata->dma_nents = ib_dma_map_sg(dev, pdata->sg, pdata->size, dma_dir);
+		if (unlikely(pdata->dma_nents == 0)) {
+			iser_err("protection dma_map_sg failed!!!\n");
+			goto out_unmap;
+		}
+	}
+
 	return 0;
+
+out_unmap:
+	ib_dma_unmap_sg(dev, data->sg, data->size, dma_dir);
+	return -EINVAL;
 }
 
+
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
-			      struct iser_data_buf *data,
-			      enum dma_data_direction dir)
+			      enum iser_data_dir iser_dir,
+			      enum dma_data_direction dma_dir)
 {
+	struct iser_data_buf *data = &iser_task->data[iser_dir];
 	struct ib_device *dev;
 
 	dev = iser_task->iser_conn->ib_conn.device->ib_device;
-	ib_dma_unmap_sg(dev, data->sg, data->size, dir);
+	ib_dma_unmap_sg(dev, data->sg, data->size, dma_dir);
+
+	if (scsi_prot_sg_count(iser_task->sc)) {
+		struct iser_data_buf *pdata = &iser_task->prot[iser_dir];
+
+		ib_dma_unmap_sg(dev, pdata->sg, pdata->size, dma_dir);
+	}
 }
 
 static int iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
