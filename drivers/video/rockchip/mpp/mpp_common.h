@@ -442,7 +442,8 @@ struct mpp_task {
 	struct kref ref;
 
 	/* record context running start time */
-	struct timespec64 start;
+	ktime_t start;
+	ktime_t part;
 	/* hardware info for current task */
 	struct mpp_hw_info *hw_info;
 	u32 task_index;
@@ -655,6 +656,7 @@ int mpp_set_grf(struct mpp_grf_info *grf_info);
 
 int mpp_time_record(struct mpp_task *task);
 int mpp_time_diff(struct mpp_task *task);
+int mpp_time_part_diff(struct mpp_task *task);
 
 int mpp_write_req(struct mpp_dev *mpp, u32 *regs,
 		  u32 start_idx, u32 end_idx, u32 en_idx);

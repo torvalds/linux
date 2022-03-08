@@ -2213,22 +2213,37 @@ int mpp_set_grf(struct mpp_grf_info *grf_info)
 
 int mpp_time_record(struct mpp_task *task)
 {
-	if (mpp_debug_unlikely(DEBUG_TIMING) && task)
-		ktime_get_real_ts64(&task->start);
+	if (mpp_debug_unlikely(DEBUG_TIMING) && task) {
+		task->start = ktime_get();
+		task->part = task->start;
+	}
+
+	return 0;
+}
+
+int mpp_time_part_diff(struct mpp_task *task)
+{
+	ktime_t end;
+	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+
+	end = ktime_get();
+	mpp_debug(DEBUG_PART_TIMING, "%s: session %d:%d part time: %lld us\n",
+		  dev_name(mpp->dev), task->session->pid, task->session->index,
+		  ktime_us_delta(end, task->part));
+	task->part = end;
 
 	return 0;
 }
 
 int mpp_time_diff(struct mpp_task *task)
 {
-	struct timespec64 end;
+	ktime_t end;
 	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
-	ktime_get_real_ts64(&end);
-	mpp_debug(DEBUG_TIMING, "%s: pid: %d, session: %p, time: %lld us\n",
-		  dev_name(mpp->dev), task->session->pid, task->session,
-		  (end.tv_sec  - task->start.tv_sec)  * 1000000 +
-		  (end.tv_nsec - task->start.tv_nsec)/1000);
+	end = ktime_get();
+	mpp_debug(DEBUG_TIMING, "%s: session %d:%d task time: %lld us\n",
+		  dev_name(mpp->dev), task->session->pid, task->session->index,
+		  ktime_us_delta(end, task->start));
 
 	return 0;
 }
