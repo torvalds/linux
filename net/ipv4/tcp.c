@@ -1322,10 +1322,13 @@ new_segment:
 
 			/* skb changing from pure zc to mixed, must charge zc */
 			if (unlikely(skb_zcopy_pure(skb))) {
-				if (!sk_wmem_schedule(sk, skb->data_len))
+				u32 extra = skb->truesize -
+					    SKB_TRUESIZE(skb_end_offset(skb));
+
+				if (!sk_wmem_schedule(sk, extra))
 					goto wait_for_space;
 
-				sk_mem_charge(sk, skb->data_len);
+				sk_mem_charge(sk, extra);
 				skb_shinfo(skb)->flags &= ~SKBFL_PURE_ZEROCOPY;
 			}
 

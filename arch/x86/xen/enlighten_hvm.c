@@ -9,6 +9,7 @@
 #include <xen/events.h>
 #include <xen/interface/memory.h>
 
+#include <asm/apic.h>
 #include <asm/cpu.h>
 #include <asm/smp.h>
 #include <asm/io_apic.h>
@@ -242,15 +243,9 @@ static __init int xen_parse_no_vector_callback(char *arg)
 }
 early_param("xen_no_vector_callback", xen_parse_no_vector_callback);
 
-bool __init xen_hvm_need_lapic(void)
+static __init bool xen_x2apic_available(void)
 {
-	if (xen_pv_domain())
-		return false;
-	if (!xen_hvm_domain())
-		return false;
-	if (xen_feature(XENFEAT_hvm_pirqs) && xen_have_vector_callback)
-		return false;
-	return true;
+	return x2apic_supported();
 }
 
 static __init void xen_hvm_guest_late_init(void)
@@ -312,7 +307,7 @@ struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.detect                 = xen_platform_hvm,
 	.type			= X86_HYPER_XEN_HVM,
 	.init.init_platform     = xen_hvm_guest_init,
-	.init.x2apic_available  = xen_x2apic_para_available,
+	.init.x2apic_available  = xen_x2apic_available,
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
 	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.runtime.pin_vcpu       = xen_pin_vcpu,

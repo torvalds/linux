@@ -139,7 +139,7 @@ fail:
 /*
  * Inode operation get_posix_acl().
  *
- * inode->i_mutex: don't care
+ * inode->i_rwsem: don't care
  */
 struct posix_acl *
 ext4_get_acl(struct inode *inode, int type, bool rcu)
@@ -183,7 +183,7 @@ ext4_get_acl(struct inode *inode, int type, bool rcu)
 /*
  * Set the access or default ACL of an inode.
  *
- * inode->i_mutex: down unless called from ext4_new_inode
+ * inode->i_rwsem: down unless called from ext4_new_inode
  */
 static int
 __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
@@ -271,8 +271,8 @@ out_stop:
 /*
  * Initialize the ACLs of a new inode. Called from ext4_new_inode.
  *
- * dir->i_mutex: down
- * inode->i_mutex: up (access to inode is still exclusive)
+ * dir->i_rwsem: down
+ * inode->i_rwsem: up (access to inode is still exclusive)
  */
 int
 ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)

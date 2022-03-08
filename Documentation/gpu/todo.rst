@@ -300,30 +300,6 @@ Contact: Daniel Vetter, Noralf Tronnes
 
 Level: Advanced
 
-Garbage collect fbdev scrolling acceleration
---------------------------------------------
-
-Scroll acceleration has been disabled in fbcon. Now it works as the old
-SCROLL_REDRAW mode. A ton of code was removed in fbcon.c and the hook bmove was
-removed from fbcon_ops.
-Remaining tasks:
-
-- a bunch of the hooks in fbcon_ops could be removed or simplified by calling
-  directly instead of the function table (with a switch on p->rotate)
-
-- fb_copyarea is unused after this, and can be deleted from all drivers
-
-- after that, fb_copyarea can be deleted from fb_ops in include/linux/fb.h as
-  well as cfb_copyarea
-
-Note that not all acceleration code can be deleted, since clearing and cursor
-support is still accelerated, which might be good candidates for further
-deletion projects.
-
-Contact: Daniel Vetter
-
-Level: Intermediate
-
 idr_init_base()
 ---------------
 

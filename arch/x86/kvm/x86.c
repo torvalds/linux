@@ -90,6 +90,8 @@
 u64 __read_mostly kvm_mce_cap_supported = MCG_CTL_P | MCG_SER_P;
 EXPORT_SYMBOL_GPL(kvm_mce_cap_supported);
 
+#define  ERR_PTR_USR(e)  ((void __user *)ERR_PTR(e))
+
 #define emul_to_vcpu(ctxt) \
 	((struct kvm_vcpu *)(ctxt)->vcpu)
 
@@ -4340,7 +4342,7 @@ static inline void __user *kvm_get_attr_addr(struct kvm_device_attr *attr)
 	void __user *uaddr = (void __user*)(unsigned long)attr->addr;
 
 	if ((u64)(unsigned long)uaddr != attr->addr)
-		return ERR_PTR(-EFAULT);
+		return ERR_PTR_USR(-EFAULT);
 	return uaddr;
 }
 
@@ -9981,7 +9983,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	 * result in virtual interrupt delivery.
 	 */
 	local_irq_disable();
-	vcpu->mode = IN_GUEST_MODE;
+
+	/* Store vcpu->apicv_active before vcpu->mode.  */
+	smp_store_release(&vcpu->mode, IN_GUEST_MODE);
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
@@ -10040,6 +10044,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	} else if (unlikely(hw_breakpoint_active())) {
 		set_debugreg(0, 7);
 	}
+
+	guest_timing_enter_irqoff();
 
 	for (;;) {
 		/*
@@ -10125,7 +10131,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	 * of accounting via context tracking, but the loss of accuracy is
 	 * acceptable for all known use cases.
 	 */
-	vtime_account_guest_exit();
+	guest_timing_exit_irqoff();
 
 	if (lapic_in_kernel(vcpu)) {
 		s64 delta = vcpu->arch.apic->lapic_timer.advance_expire_delta;
@@ -11638,8 +11644,6 @@ void kvm_arch_sync_events(struct kvm *kvm)
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_update_work);
 	kvm_free_pit(kvm);
 }
-
-#define  ERR_PTR_USR(e)  ((void __user *)ERR_PTR(e))
 
 /**
  * __x86_set_memory_region: Setup KVM internal memory slot

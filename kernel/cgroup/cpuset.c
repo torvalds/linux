@@ -591,6 +591,35 @@ static inline void free_cpuset(struct cpuset *cs)
 }
 
 /*
+ * validate_change_legacy() - Validate conditions specific to legacy (v1)
+ *                            behavior.
+ */
+static int validate_change_legacy(struct cpuset *cur, struct cpuset *trial)
+{
+	struct cgroup_subsys_state *css;
+	struct cpuset *c, *par;
+	int ret;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	/* Each of our child cpusets must be a subset of us */
+	ret = -EBUSY;
+	cpuset_for_each_child(c, css, cur)
+		if (!is_cpuset_subset(c, trial))
+			goto out;
+
+	/* On legacy hierarchy, we must be a subset of our parent cpuset. */
+	ret = -EACCES;
+	par = parent_cs(cur);
+	if (par && !is_cpuset_subset(trial, par))
+		goto out;
+
+	ret = 0;
+out:
+	return ret;
+}
+
+/*
  * validate_change() - Used to validate that any proposed cpuset change
  *		       follows the structural rules for cpusets.
  *
@@ -614,19 +643,20 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 {
 	struct cgroup_subsys_state *css;
 	struct cpuset *c, *par;
-	int ret;
-
-	/* The checks don't apply to root cpuset */
-	if (cur == &top_cpuset)
-		return 0;
+	int ret = 0;
 
 	rcu_read_lock();
-	par = parent_cs(cur);
 
-	/* On legacy hierarchy, we must be a subset of our parent cpuset. */
-	ret = -EACCES;
-	if (!is_in_v2_mode() && !is_cpuset_subset(trial, par))
+	if (!is_in_v2_mode())
+		ret = validate_change_legacy(cur, trial);
+	if (ret)
 		goto out;
+
+	/* Remaining checks don't apply to root cpuset */
+	if (cur == &top_cpuset)
+		goto out;
+
+	par = parent_cs(cur);
 
 	/*
 	 * If either I or some sibling (!= me) is exclusive, we can't
@@ -1175,9 +1205,7 @@ enum subparts_cmd {
  *
  * Because of the implicit cpu exclusive nature of a partition root,
  * cpumask changes that violates the cpu exclusivity rule will not be
- * permitted when checked by validate_change(). The validate_change()
- * function will also prevent any changes to the cpu list if it is not
- * a superset of children's cpu lists.
+ * permitted when checked by validate_change().
  */
 static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 					  struct cpumask *newmask,
@@ -1522,10 +1550,15 @@ static void update_sibling_cpumasks(struct cpuset *parent, struct cpuset *cs,
 	struct cpuset *sibling;
 	struct cgroup_subsys_state *pos_css;
 
+	percpu_rwsem_assert_held(&cpuset_rwsem);
+
 	/*
 	 * Check all its siblings and call update_cpumasks_hier()
 	 * if their use_parent_ecpus flag is set in order for them
 	 * to use the right effective_cpus value.
+	 *
+	 * The update_cpumasks_hier() function may sleep. So we have to
+	 * release the RCU read lock before calling it.
 	 */
 	rcu_read_lock();
 	cpuset_for_each_child(sibling, pos_css, parent) {
@@ -1533,8 +1566,13 @@ static void update_sibling_cpumasks(struct cpuset *parent, struct cpuset *cs,
 			continue;
 		if (!sibling->use_parent_ecpus)
 			continue;
+		if (!css_tryget_online(&sibling->css))
+			continue;
 
+		rcu_read_unlock();
 		update_cpumasks_hier(sibling, tmp);
+		rcu_read_lock();
+		css_put(&sibling->css);
 	}
 	rcu_read_unlock();
 }
@@ -1607,8 +1645,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	 * Make sure that subparts_cpus is a subset of cpus_allowed.
 	 */
 	if (cs->nr_subparts_cpus) {
-		cpumask_andnot(cs->subparts_cpus, cs->subparts_cpus,
-			       cs->cpus_allowed);
+		cpumask_and(cs->subparts_cpus, cs->subparts_cpus, cs->cpus_allowed);
 		cs->nr_subparts_cpus = cpumask_weight(cs->subparts_cpus);
 	}
 	spin_unlock_irq(&callback_lock);

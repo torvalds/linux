@@ -680,6 +680,22 @@ config ARM64_ERRATUM_2051678
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_2077057
+	bool "Cortex-A510: 2077057: workaround software-step corrupting SPSR_EL2"
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2077057.
+	  Affected Cortex-A510 may corrupt SPSR_EL2 when the a step exception is
+	  expected, but a Pointer Authentication trap is taken instead. The
+	  erratum causes SPSR_EL1 to be copied to SPSR_EL2, which could allow
+	  EL1 to cause a return to EL2 with a guest controlled ELR_EL2.
+
+	  This can only happen when EL2 is stepping EL1.
+
+	  When these conditions occur, the SPSR_EL2 value is unchanged from the
+	  previous guest entry, and can be restored from the in-memory copy.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_2119858
 	bool "Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode"
 	default y
