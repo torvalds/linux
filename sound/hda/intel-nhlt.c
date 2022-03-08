@@ -130,6 +130,28 @@ bool intel_nhlt_has_endpoint_type(struct nhlt_acpi_table *nhlt, u8 link_type)
 }
 EXPORT_SYMBOL(intel_nhlt_has_endpoint_type);
 
+int intel_nhlt_ssp_endpoint_mask(struct nhlt_acpi_table *nhlt, u8 device_type)
+{
+	struct nhlt_endpoint *epnt;
+	int ssp_mask = 0;
+	int i;
+
+	if (!nhlt || (device_type != NHLT_DEVICE_BT && device_type != NHLT_DEVICE_I2S))
+		return 0;
+
+	epnt = (struct nhlt_endpoint *)nhlt->desc;
+	for (i = 0; i < nhlt->endpoint_count; i++) {
+		if (epnt->linktype == NHLT_LINK_SSP && epnt->device_type == device_type) {
+			/* for SSP the virtual bus id is the SSP port */
+			ssp_mask |= BIT(epnt->virtual_bus_id);
+		}
+		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
+	}
+
+	return ssp_mask;
+}
+EXPORT_SYMBOL(intel_nhlt_ssp_endpoint_mask);
+
 static struct nhlt_specific_cfg *
 nhlt_get_specific_cfg(struct device *dev, struct nhlt_fmt *fmt, u8 num_ch,
 		      u32 rate, u8 vbps, u8 bps)
