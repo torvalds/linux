@@ -10,7 +10,7 @@ static bool _unprivileged_ebpf_enabled(void)
 #ifdef CONFIG_BPF_SYSCALL
 	return !sysctl_unprivileged_bpf_disabled;
 #else
-	return false
+	return false;
 #endif
 }
 
