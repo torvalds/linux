@@ -62,10 +62,9 @@ _GLOBAL(enter_rtas)
 
 	/* Because RTAS is running in 32b mode, it clobbers the high order half
 	 * of all registers that it saves.  We therefore save those registers
-	 * RTAS might touch to the stack.  (r0, r3-r13 are caller saved)
+	 * RTAS might touch to the stack.  (r0, r3-r12 are caller saved)
 	 */
 	SAVE_GPR(2, r1)			/* Save the TOC */
-	SAVE_GPR(13, r1)		/* Save paca */
 	SAVE_NVGPRS(r1)			/* Save the non-volatiles */
 
 	mfcr	r4
@@ -135,15 +134,14 @@ rtas_return_loc:
 	mtmsrd	r6
 
 	/* relocation is off at this point */
-	GET_PACA(r4)
-	clrldi	r4,r4,2			/* convert to realmode address */
+	GET_PACA(r13)
 
 	bcl	20,31,$+4
 0:	mflr	r3
 	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
-	ld	r1,PACAR1(r4)		/* Restore our SP */
-	ld	r4,PACASAVEDMSR(r4)	/* Restore our MSR */
+	ld	r1,PACAR1(r13)		/* Restore our SP */
+	ld	r4,PACASAVEDMSR(r13)	/* Restore our MSR */
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -159,10 +157,7 @@ _ASM_NOKPROBE_SYMBOL(rtas_return_loc)
 rtas_restore_regs:
 	/* relocation is on at this point */
 	REST_GPR(2, r1)			/* Restore the TOC */
-	REST_GPR(13, r1)		/* Restore paca */
 	REST_NVGPRS(r1)			/* Restore the non-volatiles */
-
-	GET_PACA(r13)
 
 	ld	r4,_CCR(r1)
 	mtcr	r4
