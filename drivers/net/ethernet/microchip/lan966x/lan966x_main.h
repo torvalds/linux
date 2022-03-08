@@ -108,6 +108,8 @@ struct lan966x {
 
 	u8 base_mac[ETH_ALEN];
 
+	spinlock_t tx_lock; /* lock for frame transmition */
+
 	struct net_device *bridge;
 	u16 bridge_mask;
 	u16 bridge_fwd_mask;

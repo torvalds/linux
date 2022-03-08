@@ -318,6 +318,7 @@ static void lan966x_ifh_set_timestamp(void *ifh, u64 timestamp)
 static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct lan966x_port *port = netdev_priv(dev);
+	struct lan966x *lan966x = port->lan966x;
 	__be32 ifh[IFH_LEN];
 	int err;
 
@@ -338,7 +339,11 @@ static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 		lan966x_ifh_set_timestamp(ifh, LAN966X_SKB_CB(skb)->ts_id);
 	}
 
-	return lan966x_port_ifh_xmit(skb, ifh, dev);
+	spin_lock(&lan966x->tx_lock);
+	err = lan966x_port_ifh_xmit(skb, ifh, dev);
+	spin_unlock(&lan966x->tx_lock);
+
+	return err;
 }
 
 static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
@@ -885,6 +890,8 @@ static void lan966x_init(struct lan966x *lan966x)
 	lan_rmw(ANA_ANAINTR_INTR_ENA_SET(1),
 		ANA_ANAINTR_INTR_ENA,
 		lan966x, ANA_ANAINTR);
+
+	spin_lock_init(&lan966x->tx_lock);
 }
 
 static int lan966x_ram_init(struct lan966x *lan966x)
