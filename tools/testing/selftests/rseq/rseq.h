@@ -79,6 +79,8 @@ extern int __rseq_handled;
 #include <rseq-mips.h>
 #elif defined(__s390__)
 #include <rseq-s390.h>
+#elif defined(__riscv)
+#include <rseq-riscv.h>
 #else
 #error unsupported target
 #endif
