@@ -371,24 +371,7 @@ static struct i2c_driver lcd2s_i2c_driver = {
 	.remove = lcd2s_i2c_remove,
 	.id_table = lcd2s_i2c_id,
 };
-
-static int __init lcd2s_modinit(void)
-{
-	int ret = 0;
-
-	ret = i2c_add_driver(&lcd2s_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register lcd2s driver\n");
-
-	return ret;
-}
-module_init(lcd2s_modinit)
-
-static void __exit lcd2s_exit(void)
-{
-	i2c_del_driver(&lcd2s_i2c_driver);
-}
-module_exit(lcd2s_exit)
+module_i2c_driver(lcd2s_i2c_driver);
 
 MODULE_DESCRIPTION("LCD2S character display driver");
 MODULE_AUTHOR("Lars Poeschel");
