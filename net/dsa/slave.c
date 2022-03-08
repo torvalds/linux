@@ -305,6 +305,12 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	/* If the port is down, the address isn't synced yet to hardware or
+	 * to the DSA master, so there is nothing to change.
+	 */
+	if (!(dev->flags & IFF_UP))
+		goto out_change_dev_addr;
+
 	if (dsa_switch_supports_uc_filtering(ds)) {
 		err = dsa_port_standalone_host_fdb_add(dp, addr->sa_data, 0);
 		if (err)
@@ -323,6 +329,7 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 	if (dsa_switch_supports_uc_filtering(ds))
 		dsa_port_standalone_host_fdb_del(dp, dev->dev_addr, 0);
 
+out_change_dev_addr:
 	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
