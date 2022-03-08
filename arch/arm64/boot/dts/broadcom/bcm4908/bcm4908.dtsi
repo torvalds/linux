@@ -273,9 +273,18 @@
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0xff800000 0x3000>;
 
-		timer: timer@400 {
-			compatible = "brcm,bcm6328-timer", "syscon";
-			reg = <0x400 0x3c>;
+		twd: timer-mfd@400 {
+			compatible = "brcm,bcm4908-twd", "simple-mfd", "syscon";
+			reg = <0x400 0x4c>;
+			ranges = <0x0 0x400 0x4c>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			watchdog@28 {
+				compatible = "brcm,bcm6345-wdt";
+				reg = <0x28 0x8>;
+			};
 		};
 
 		gpio0: gpio-controller@500 {
@@ -285,6 +294,141 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+		};
+
+		pinctrl@560 {
+			compatible = "brcm,bcm4908-pinctrl";
+			reg = <0x560 0x10>;
+
+			pins_led_0_a: led_0-a-pins {
+				function = "led_0";
+				groups = "led_0_grp_a";
+			};
+
+			pins_led_1_a: led_1-a-pins {
+				function = "led_1";
+				groups = "led_1_grp_a";
+			};
+
+			pins_led_2_a: led_2-a-pins {
+				function = "led_2";
+				groups = "led_2_grp_a";
+			};
+
+			pins_led_3_a: led_3-a-pins {
+				function = "led_3";
+				groups = "led_3_grp_a";
+			};
+
+			pins_led_4_a: led_4-a-pins {
+				function = "led_4";
+				groups = "led_4_grp_a";
+			};
+
+			pins_led_5_a: led_5-a-pins {
+				function = "led_5";
+				groups = "led_5_grp_a";
+			};
+
+			pins_led_6_a: led_6-a-pins {
+				function = "led_6";
+				groups = "led_6_grp_a";
+			};
+
+			pins_led_7_a: led_7-a-pins {
+				function = "led_7";
+				groups = "led_7_grp_a";
+			};
+
+			pins_led_8_a: led_8-a-pins {
+				function = "led_8";
+				groups = "led_8_grp_a";
+			};
+
+			pins_led_9_a: led_9-a-pins {
+				function = "led_9";
+				groups = "led_9_grp_a";
+			};
+
+			pins_led_21_a: led_21-a-pins {
+				function = "led_21";
+				groups = "led_21_grp_a";
+			};
+
+			pins_led_22_a: led_22-a-pins {
+				function = "led_22";
+				groups = "led_22_grp_a";
+			};
+
+			pins_led_26_a: led_26-a-pins {
+				function = "led_26";
+				groups = "led_26_grp_a";
+			};
+
+			pins_led_27_a: led_27-a-pins {
+				function = "led_27";
+				groups = "led_27_grp_a";
+			};
+
+			pins_led_28_a: led_28-a-pins {
+				function = "led_28";
+				groups = "led_28_grp_a";
+			};
+
+			pins_led_29_a: led_29-a-pins {
+				function = "led_29";
+				groups = "led_29_grp_a";
+			};
+
+			pins_led_30_a: led_30-a-pins {
+				function = "led_30";
+				groups = "led_30_grp_a";
+			};
+
+			pins_hs_uart: hs_uart-pins {
+				function = "hs_uart";
+				groups = "hs_uart_grp";
+			};
+
+			pins_i2c_a: i2c-a-pins {
+				function = "i2c";
+				groups = "i2c_grp_a";
+			};
+
+			pins_i2c_b: i2c-b-pins {
+				function = "i2c";
+				groups = "i2c_grp_b";
+			};
+
+			pins_i2s: i2s-pins {
+				function = "i2s";
+				groups = "i2s_grp";
+			};
+
+			pins_nand_ctrl: nand_ctrl-pins {
+				function = "nand_ctrl";
+				groups = "nand_ctrl_grp";
+			};
+
+			pins_nand_data: nand_data-pins {
+				function = "nand_data";
+				groups = "nand_data_grp";
+			};
+
+			pins_emmc_ctrl: emmc_ctrl-pins {
+				function = "emmc_ctrl";
+				groups = "emmc_ctrl_grp";
+			};
+
+			pins_usb0_pwr: usb0_pwr-pins {
+				function = "usb0_pwr";
+				groups = "usb0_pwr_grp";
+			};
+
+			pins_usb1_pwr: usb1_pwr-pins {
+				function = "usb1_pwr";
+				groups = "usb1_pwr_grp";
+			};
 		};
 
 		uart0: serial@640 {
@@ -312,6 +456,15 @@
 			};
 		};
 
+		i2c@2100 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x2100 0x58>;
+			clock-frequency = <97500>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_i2c_a>;
+			status = "disabled";
+		};
+
 		misc@2600 {
 			compatible = "brcm,misc", "simple-mfd";
 			reg = <0x2600 0xe4>;
@@ -330,7 +483,7 @@
 
 	reboot {
 		compatible = "syscon-reboot";
-		regmap = <&timer>;
+		regmap = <&twd>;
 		offset = <0x34>;
 		mask = <1>;
 	};
