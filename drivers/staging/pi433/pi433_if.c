@@ -442,8 +442,8 @@ static int pi433_receive(void *data)
 		/* wait for RSSI level to become high */
 		dev_dbg(dev->dev, "rx: going to wait for high RSSI level\n");
 		retval = wait_event_interruptible(dev->rx_wait_queue,
-						  rf69_read_reg(spi, REG_IRQFLAGS1)
-						  & MASK_IRQFLAGS1_RSSI);
+						  rf69_read_reg(spi, REG_IRQFLAGS1) &
+						  MASK_IRQFLAGS1_RSSI);
 		if (retval) /* wait was interrupted */
 			goto abort;
 		dev->interrupt_rx_allowed = false;
