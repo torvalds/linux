@@ -24,8 +24,6 @@ _GLOBAL(enter_rtas)
 	lwz	r4,RTASBASE(r4)
 	mfmsr	r9
 	stw	r9,8(r1)
-	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
-	mtmsr	r0	/* disable interrupts so SRR0/1 don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
 	stw	r1, THREAD + RTAS_SP(r2)
@@ -87,20 +85,7 @@ _GLOBAL(enter_rtas)
 	li	r0,0
 	mtcr	r0
 
-#ifdef CONFIG_BUG
-	/* There is no way it is acceptable to get here with interrupts enabled,
-	 * check it with the asm equivalent of WARN_ON
-	 */
-	lbz	r0,PACAIRQSOFTMASK(r13)
-1:	tdeqi	r0,IRQS_ENABLED
-	EMIT_WARN_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
-#endif
-
-	/* Hard-disable interrupts */
 	mfmsr	r6
-	rldicl	r7,r6,48,1
-	rotldi	r7,r7,16
-	mtmsrd	r7,1
 
 	/* Unfortunately, the stack pointer and the MSR are also clobbered,
 	 * so they are saved in the PACA which allows us to restore
