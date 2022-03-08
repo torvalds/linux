@@ -216,6 +216,8 @@ struct edac_device_ctl_info {
 	 */
 	u32 nr_instances;
 	struct edac_device_instance *instances;
+	struct edac_device_block *blocks;
+	struct edac_dev_sysfs_block_attribute *attribs;
 
 	/* Event counters for the this whole EDAC Device */
 	struct edac_device_counter counters;
@@ -348,4 +350,16 @@ edac_device_handle_ue(struct edac_device_ctl_info *edac_dev, int inst_nr,
  */
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
+
+/* Free the actual struct */
+static inline void __edac_device_free_ctl_info(struct edac_device_ctl_info *ci)
+{
+	if (ci) {
+		kfree(ci->pvt_info);
+		kfree(ci->attribs);
+		kfree(ci->blocks);
+		kfree(ci->instances);
+		kfree(ci);
+	}
+}
 #endif
