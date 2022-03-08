@@ -422,6 +422,46 @@ static void test_copy_key_fetch_prot(void)
 	kvm_vm_free(t.kvm_vm);
 }
 
+#define ERR_PROT_MOP(...)							\
+({										\
+	int rv;									\
+										\
+	rv = ERR_MOP(__VA_ARGS__);						\
+	TEST_ASSERT(rv == 4, "Should result in protection exception");		\
+})
+
+static void test_errors_key(void)
+{
+	struct test_default t = test_default_init(guest_copy_key_fetch_prot);
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
+
+	/* vm/vcpu, mismatching keys, fetch protection in effect */
+	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR_V(mem1), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, t.size, GADDR_V(mem2), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, WRITE, mem1, t.size, GADDR_V(mem1), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, READ, mem2, t.size, GADDR_V(mem2), KEY(2));
+
+	kvm_vm_free(t.kvm_vm);
+}
+
+static void test_errors_key_storage_prot_override(void)
+{
+	struct test_default t = test_default_init(guest_copy_key_fetch_prot);
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+	t.run->s.regs.crs[0] |= CR0_STORAGE_PROTECTION_OVERRIDE;
+	t.run->kvm_dirty_regs = KVM_SYNC_CRS;
+	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
+
+	/* vm, mismatching keys, storage protection override not applicable to vm */
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, WRITE, mem1, t.size, GADDR_V(mem1), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, READ, mem2, t.size, GADDR_V(mem2), KEY(2));
+
+	kvm_vm_free(t.kvm_vm);
+}
+
 const uint64_t last_page_addr = -PAGE_SIZE;
 
 static void guest_copy_key_fetch_prot_override(void)
@@ -481,11 +521,94 @@ out:
 	kvm_vm_free(t.kvm_vm);
 }
 
+static void test_errors_key_fetch_prot_override_not_enabled(void)
+{
+	struct test_default t = test_default_init(guest_copy_key_fetch_prot_override);
+	vm_vaddr_t guest_0_page, guest_last_page;
+
+	guest_0_page = vm_vaddr_alloc(t.kvm_vm, PAGE_SIZE, 0);
+	guest_last_page = vm_vaddr_alloc(t.kvm_vm, PAGE_SIZE, last_page_addr);
+	if (guest_0_page != 0 || guest_last_page != last_page_addr) {
+		print_skip("did not allocate guest pages at required positions");
+		goto out;
+	}
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
+
+	/* vcpu, mismatching keys on fetch, fetch protection override not enabled */
+	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, 2048, GADDR_V(0), KEY(2));
+
+out:
+	kvm_vm_free(t.kvm_vm);
+}
+
+static void test_errors_key_fetch_prot_override_enabled(void)
+{
+	struct test_default t = test_default_init(guest_copy_key_fetch_prot_override);
+	vm_vaddr_t guest_0_page, guest_last_page;
+
+	guest_0_page = vm_vaddr_alloc(t.kvm_vm, PAGE_SIZE, 0);
+	guest_last_page = vm_vaddr_alloc(t.kvm_vm, PAGE_SIZE, last_page_addr);
+	if (guest_0_page != 0 || guest_last_page != last_page_addr) {
+		print_skip("did not allocate guest pages at required positions");
+		goto out;
+	}
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+	t.run->s.regs.crs[0] |= CR0_FETCH_PROTECTION_OVERRIDE;
+	t.run->kvm_dirty_regs = KVM_SYNC_CRS;
+	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
+
+	/*
+	 * vcpu, mismatching keys on fetch,
+	 * fetch protection override does not apply because memory range acceeded
+	 */
+	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, 2048 + 1, GADDR_V(0), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, PAGE_SIZE + 2048 + 1,
+		   GADDR_V(guest_last_page), KEY(2));
+	/* vm, fetch protected override does not apply */
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, READ, mem2, 2048, GADDR(0), KEY(2));
+	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, READ, mem2, 2048, GADDR_V(guest_0_page), KEY(2));
+
+out:
+	kvm_vm_free(t.kvm_vm);
+}
+
 static void guest_idle(void)
 {
 	GUEST_SYNC(STAGE_INITED); /* for consistency's sake */
 	for (;;)
 		GUEST_SYNC(STAGE_IDLED);
+}
+
+static void _test_errors_common(struct test_vcpu vcpu, enum mop_target target, int size)
+{
+	int rv;
+
+	/* Bad size: */
+	rv = ERR_MOP(vcpu, target, WRITE, mem1, -1, GADDR_V(mem1));
+	TEST_ASSERT(rv == -1 && errno == E2BIG, "ioctl allows insane sizes");
+
+	/* Zero size: */
+	rv = ERR_MOP(vcpu, target, WRITE, mem1, 0, GADDR_V(mem1));
+	TEST_ASSERT(rv == -1 && (errno == EINVAL || errno == ENOMEM),
+		    "ioctl allows 0 as size");
+
+	/* Bad flags: */
+	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR_V(mem1), SET_FLAGS(-1));
+	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows all flags");
+
+	/* Bad guest address: */
+	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR((void *)~0xfffUL), CHECK_ONLY);
+	TEST_ASSERT(rv > 0, "ioctl does not report bad guest memory access");
+
+	/* Bad host address: */
+	rv = ERR_MOP(vcpu, target, WRITE, 0, size, GADDR_V(mem1));
+	TEST_ASSERT(rv == -1 && errno == EFAULT,
+		    "ioctl does not report bad host memory address");
+
+	/* Bad key: */
+	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR_V(mem1), KEY(17));
+	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows invalid key");
 }
 
 static void test_errors(void)
@@ -495,31 +618,15 @@ static void test_errors(void)
 
 	HOST_SYNC(t.vcpu, STAGE_INITED);
 
-	/* Bad size: */
-	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, -1, GADDR_V(mem1));
-	TEST_ASSERT(rv == -1 && errno == E2BIG, "ioctl allows insane sizes");
-
-	/* Zero size: */
-	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, 0, GADDR_V(mem1));
-	TEST_ASSERT(rv == -1 && (errno == EINVAL || errno == ENOMEM),
-		    "ioctl allows 0 as size");
-
-	/* Bad flags: */
-	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR_V(mem1), SET_FLAGS(-1));
-	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows all flags");
+	_test_errors_common(t.vcpu, LOGICAL, t.size);
+	_test_errors_common(t.vm, ABSOLUTE, t.size);
 
 	/* Bad operation: */
 	rv = ERR_MOP(t.vcpu, INVALID, WRITE, mem1, t.size, GADDR_V(mem1));
 	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows bad operations");
-
-	/* Bad guest address: */
-	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR((void *)~0xfffUL), CHECK_ONLY);
-	TEST_ASSERT(rv > 0, "ioctl does not report bad guest memory access");
-
-	/* Bad host address: */
-	rv = ERR_MOP(t.vcpu, LOGICAL, WRITE, 0, t.size, GADDR_V(mem1));
-	TEST_ASSERT(rv == -1 && errno == EFAULT,
-		    "ioctl does not report bad host memory address");
+	/* virtual addresses are not translated when passing INVALID */
+	rv = ERR_MOP(t.vm, INVALID, WRITE, mem1, PAGE_SIZE, GADDR(0));
+	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows bad operations");
 
 	/* Bad access register: */
 	t.run->psw_mask &= ~(3UL << (63 - 17));
@@ -560,6 +667,10 @@ int main(int argc, char *argv[])
 		test_copy_key_storage_prot_override();
 		test_copy_key_fetch_prot();
 		test_copy_key_fetch_prot_override();
+		test_errors_key();
+		test_errors_key_storage_prot_override();
+		test_errors_key_fetch_prot_override_not_enabled();
+		test_errors_key_fetch_prot_override_enabled();
 	} else {
 		print_skip("storage key memop extension not supported");
 	}
