@@ -4664,7 +4664,7 @@ static void cas_set_msglevel(struct net_device *dev, u32 value)
 static int cas_get_regs_len(struct net_device *dev)
 {
 	struct cas *cp = netdev_priv(dev);
-	return cp->casreg_len < CAS_MAX_REGS ? cp->casreg_len: CAS_MAX_REGS;
+	return min_t(int, cp->casreg_len, CAS_MAX_REGS);
 }
 
 static void cas_get_regs(struct net_device *dev, struct ethtool_regs *regs,
