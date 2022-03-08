@@ -67,6 +67,7 @@
 #define QM_DB_RAND_SHIFT_V2		16
 #define QM_DB_INDEX_SHIFT_V2		32
 #define QM_DB_PRIORITY_SHIFT_V2		48
+#define QM_VF_STATE			0x60
 
 /* qm cache */
 #define QM_CACHE_CTL			0x100050
@@ -160,6 +161,11 @@ enum qm_debug_file {
 	CURRENT_Q,
 	CLEAR_ENABLE,
 	DEBUG_FILE_NUM,
+};
+
+enum qm_vf_state {
+	QM_READY = 0,
+	QM_NOT_READY,
 };
 
 struct qm_dfx {
