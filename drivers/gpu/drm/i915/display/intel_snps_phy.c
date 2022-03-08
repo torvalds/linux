@@ -32,7 +32,7 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv)
 		if (intel_de_wait_for_clear(dev_priv, ICL_PHY_MISC(phy),
 					    DG2_PHY_DP_TX_ACK_MASK, 25))
 			DRM_ERROR("SNPS PHY %c failed to calibrate after 25ms.\n",
-				  phy);
+				  phy_name(phy));
 	}
 }
 

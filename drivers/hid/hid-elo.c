@@ -262,6 +262,7 @@ static int elo_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	return 0;
 err_free:
+	usb_put_dev(udev);
 	kfree(priv);
 	return ret;
 }

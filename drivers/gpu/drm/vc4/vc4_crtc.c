@@ -538,9 +538,11 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_put(&vc4_hdmi->pdev->dev);
-	if (ret)
-		return ret;
+	/*
+	 * post_crtc_powerdown will have called pm_runtime_put, so we
+	 * don't need it here otherwise we'll get the reference counting
+	 * wrong.
+	 */
 
 	return 0;
 }

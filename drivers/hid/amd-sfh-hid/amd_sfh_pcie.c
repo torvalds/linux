@@ -36,11 +36,11 @@ static int amd_sfh_wait_response_v2(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_
 {
 	union cmd_response cmd_resp;
 
-	/* Get response with status within a max of 800 ms timeout */
+	/* Get response with status within a max of 1600 ms timeout */
 	if (!readl_poll_timeout(mp2->mmio + AMD_P2C_MSG(0), cmd_resp.resp,
 				(cmd_resp.response_v2.response == sensor_sts &&
 				cmd_resp.response_v2.status == 0 && (sid == 0xff ||
-				cmd_resp.response_v2.sensor_id == sid)), 500, 800000))
+				cmd_resp.response_v2.sensor_id == sid)), 500, 1600000))
 		return cmd_resp.response_v2.response;
 
 	return SENSOR_DISABLED;
