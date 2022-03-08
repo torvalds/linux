@@ -125,6 +125,24 @@ struct snd_soc_acpi_link_adr {
 	const struct snd_soc_acpi_adr_device *adr_d;
 };
 
+/*
+ * when set the topology uses the -ssp<N> suffix, where N is determined based on
+ * BIOS or DMI information
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER BIT(0)
+
+/*
+ * when more than one SSP is reported in the link mask, use the most significant.
+ * This choice was found to be valid on platforms with ES8336 codecs.
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_SSP_MSB BIT(1)
+
+/*
+ * when set the topology uses the -dmic<N>ch suffix, where N is determined based on
+ * BIOS or DMI information
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER BIT(2)
+
 /**
  * snd_soc_acpi_mach: ACPI-based machine descriptor. Most of the fields are
  * related to the hardware, except for the firmware and topology file names.
@@ -146,6 +164,7 @@ struct snd_soc_acpi_link_adr {
  * @pdata: intended for platform data or machine specific-ops. This structure
  *  is not constant since this field may be updated at run-time
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
+ * @tplg_quirk_mask: quirks to select different topology files dynamically
  */
 /* Descriptor for SST ASoC machine driver */
 struct snd_soc_acpi_mach {
@@ -161,6 +180,7 @@ struct snd_soc_acpi_mach {
 	void *pdata;
 	struct snd_soc_acpi_mach_params mach_params;
 	const char *sof_tplg_filename;
+	const u32 tplg_quirk_mask;
 };
 
 #define SND_SOC_ACPI_MAX_CODECS 3
