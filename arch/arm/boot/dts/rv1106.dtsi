@@ -370,6 +370,39 @@
 		status = "disabled";
 	};
 
+	otp: otp@ff3d0000 {
+		compatible = "rockchip,rv1106-otp";
+		reg = <0xff3d0000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru CLK_USER_OTPC_NS>, <&cru CLK_SBPI_OTPC_NS>,
+			 <&cru PCLK_OTPC_NS>, <&cru PCLK_OTP_MASK>,
+			 <&cru CLK_OTPC_ARB>, <&cru CLK_PMC_OTP>;
+		clock-names = "usr", "sbpi", "apb", "phy", "arb", "pmc";
+		resets = <&cru SRST_USER_OTPC_NS>, <&cru SRST_SBPI_OTPC_NS>,
+			 <&cru SRST_P_OTPC_NS>, <&cru SRST_P_OTP_MASK>,
+			 <&cru SRST_OTPC_ARB>, <&cru SRST_PMC_OTP>;
+		reset-names = "usr", "sbpi", "apb", "phy", "arb", "pmc";
+
+		/* Data cells */
+		cpu_code: cpu-code@2 {
+			reg = <0x02 0x2>;
+		};
+		otp_cpu_version: cpu-version@8 {
+			reg = <0x08 0x1>;
+			bits = <3 3>;
+		};
+		otp_id: id@a {
+			reg = <0x0a 0x10>;
+		};
+		cpu_leakage: cpu-leakage@1a {
+			reg = <0x1a 0x1>;
+		};
+		log_leakage: log-leakage@1b {
+			reg = <0x1b 0x1>;
+		};
+	};
+
 	u2phy: usb2-phy@ff3e0000 {
 		compatible = "rockchip,rv1106-usb2phy";
 		reg = <0xff3e0000 0x8000>;
