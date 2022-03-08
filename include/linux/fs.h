@@ -966,7 +966,6 @@ struct file {
 	 * Must not be taken from IRQ context.
 	 */
 	spinlock_t		f_lock;
-	enum rw_hint		f_write_hint;
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	fmode_t			f_mode;
@@ -2212,14 +2211,6 @@ static inline bool HAS_UNMAPPED_ID(struct user_namespace *mnt_userns,
 {
 	return !uid_valid(i_uid_into_mnt(mnt_userns, inode)) ||
 	       !gid_valid(i_gid_into_mnt(mnt_userns, inode));
-}
-
-static inline enum rw_hint file_write_hint(struct file *file)
-{
-	if (file->f_write_hint != WRITE_LIFE_NOT_SET)
-		return file->f_write_hint;
-
-	return file_inode(file)->i_write_hint;
 }
 
 static inline int iocb_flags(struct file *file);
