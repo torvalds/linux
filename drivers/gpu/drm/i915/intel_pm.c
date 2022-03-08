@@ -3689,9 +3689,6 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 	} else if (DISPLAY_VER(dev_priv) == 11) {
 		dev_priv->sagv_block_time_us = 10;
 		return;
-	} else if (DISPLAY_VER(dev_priv) == 10) {
-		dev_priv->sagv_block_time_us = 20;
-		return;
 	} else if (DISPLAY_VER(dev_priv) == 9) {
 		dev_priv->sagv_block_time_us = 30;
 		return;
