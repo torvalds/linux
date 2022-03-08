@@ -3275,7 +3275,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool ptp_register)
 
 	ret = stmmac_init_ptp(priv);
 	if (ret == -EOPNOTSUPP)
-		netdev_warn(priv->dev, "PTP not supported by HW\n");
+		netdev_info(priv->dev, "PTP not supported by HW\n");
 	else if (ret)
 		netdev_warn(priv->dev, "PTP init failed\n");
 	else if (ptp_register)
