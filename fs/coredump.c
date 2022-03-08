@@ -1128,12 +1128,6 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 
 	mmap_write_unlock(mm);
 
-	if (WARN_ON(i != cprm->vma_count)) {
-		kvfree(cprm->vma_meta);
-		return false;
-	}
-
-
 	for (i = 0; i < cprm->vma_count; i++) {
 		struct core_vma_metadata *m = cprm->vma_meta + i;
 
