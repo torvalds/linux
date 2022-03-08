@@ -807,12 +807,21 @@ static const struct sof_topology_token afe_tokens[] = {
 		offsetof(struct sof_ipc_dai_mtk_afe_params, format)},
 };
 
+/**
+ * sof_parse_uuid_tokens - Parse multiple sets of UUID tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of string type tokens in vendor arrays
+ */
 static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
-				 void *object,
-				 const struct sof_topology_token *tokens,
-				 int count,
-				 struct snd_soc_tplg_vendor_array *array,
-				 size_t offset)
+				  void *object, size_t offset,
+				  const struct sof_topology_token *tokens, int num_tokens,
+				  struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_uuid_elem *elem;
 	int found = 0;
@@ -823,7 +832,7 @@ static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 		elem = &array->uuid[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (tokens[j].type != SND_SOC_TPLG_TUPLE_TYPE_UUID)
 				continue;
@@ -843,12 +852,21 @@ static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 	return found;
 }
 
+/**
+ * sof_parse_string_tokens - Parse multiple sets of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of string type tokens in vendor arrays
+ */
 static int sof_parse_string_tokens(struct snd_soc_component *scomp,
-				   void *object,
-				   const struct sof_topology_token *tokens,
-				   int count,
-				   struct snd_soc_tplg_vendor_array *array,
-				   size_t offset)
+				   void *object, int offset,
+				   const struct sof_topology_token *tokens, int num_tokens,
+				   struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_string_elem *elem;
 	int found = 0;
@@ -859,7 +877,7 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 		elem = &array->string[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (tokens[j].type != SND_SOC_TPLG_TUPLE_TYPE_STRING)
 				continue;
@@ -878,12 +896,21 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 	return found;
 }
 
+/**
+ * sof_parse_word_tokens - Parse multiple sets of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of word type tokens in vendor arrays
+ */
 static int sof_parse_word_tokens(struct snd_soc_component *scomp,
-				 void *object,
-				 const struct sof_topology_token *tokens,
-				 int count,
-				 struct snd_soc_tplg_vendor_array *array,
-				 size_t offset)
+				  void *object, int offset,
+				  const struct sof_topology_token *tokens, int num_tokens,
+				  struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_value_elem *elem;
 	int found = 0;
@@ -894,7 +921,7 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
 		elem = &array->value[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (!(tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_WORD ||
 			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_SHORT ||
@@ -907,8 +934,7 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
 				continue;
 
 			/* load token */
-			tokens[j].get_token(elem, object,
-					    offset + tokens[j].offset);
+			tokens[j].get_token(elem, object, offset + tokens[j].offset);
 
 			found++;
 		}
@@ -964,19 +990,19 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 		/* call correct parser depending on type */
 		switch (le32_to_cpu(array->type)) {
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
-			found += sof_parse_uuid_tokens(scomp, object, tokens,
-						       count, array, offset);
+			found += sof_parse_uuid_tokens(scomp, object, offset, tokens, count,
+						       array);
 			break;
 		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
-			found += sof_parse_string_tokens(scomp, object, tokens,
-							 count, array, offset);
+			found += sof_parse_string_tokens(scomp, object, offset, tokens, count,
+							 array);
 			break;
 		case SND_SOC_TPLG_TUPLE_TYPE_BOOL:
 		case SND_SOC_TPLG_TUPLE_TYPE_BYTE:
 		case SND_SOC_TPLG_TUPLE_TYPE_WORD:
 		case SND_SOC_TPLG_TUPLE_TYPE_SHORT:
-			found += sof_parse_word_tokens(scomp, object, tokens,
-						       count, array, offset);
+			found += sof_parse_word_tokens(scomp, object, offset, tokens, count,
+						       array);
 			break;
 		default:
 			dev_err(scomp->dev, "error: unknown token type %d\n",
