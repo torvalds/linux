@@ -1343,6 +1343,7 @@ static int felix_setup(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
 
@@ -1381,6 +1382,14 @@ static int felix_setup(struct dsa_switch *ds)
 		 * there's no real point in checking for errors.
 		 */
 		felix_set_tag_protocol(ds, dp->index, felix->tag_proto);
+
+		/* Start off with flooding disabled towards the NPI port
+		 * (actually CPU port module).
+		 */
+		cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
+		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
+		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
+
 		break;
 	}
 
