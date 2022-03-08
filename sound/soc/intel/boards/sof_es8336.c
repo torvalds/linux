@@ -228,24 +228,25 @@ static int sof_es8336_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
+/*
+ * this table should only be used to add GPIO or jack-detection quirks
+ * that cannot be detected from ACPI tables. The SSP and DMIC
+ * information are providing by the platform driver and are aligned
+ * with the topology used.
+ *
+ * If the GPIO support is missing, the quirk parameter can be used to
+ * enable speakers. In that case it's recommended to keep the SSP and DMIC
+ * information consistent, overriding the SSP and DMIC can only be done
+ * if the topology file is modified as well.
+ */
 static const struct dmi_system_id sof_es8336_quirk_table[] = {
-	{
-		.callback = sof_es8336_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "CHUWI Innovation And Technology"),
-			DMI_MATCH(DMI_BOARD_NAME, "Hi10 X"),
-		},
-		.driver_data = (void *)SOF_ES8336_SSP_CODEC(2)
-	},
 	{
 		.callback = sof_es8336_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "IP3 tech"),
 			DMI_MATCH(DMI_BOARD_NAME, "WN1"),
 		},
-		.driver_data = (void *)(SOF_ES8336_SSP_CODEC(0) |
-					SOF_ES8336_TGL_GPIO_QUIRK |
-					SOF_ES8336_ENABLE_DMIC)
+		.driver_data = (void *)(SOF_ES8336_TGL_GPIO_QUIRK)
 	},
 	{}
 };
@@ -470,11 +471,33 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	card = &sof_es8336_card;
 	card->dev = dev;
 
-	if (!dmi_check_system(sof_es8336_quirk_table))
-		quirk = SOF_ES8336_SSP_CODEC(2);
+	/* check GPIO DMI quirks */
+	dmi_check_system(sof_es8336_quirk_table);
 
-	if (quirk & SOF_ES8336_ENABLE_DMIC)
-		dmic_be_num = 2;
+	if (!mach->mach_params.i2s_link_mask) {
+		dev_warn(dev, "No I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
+	} else {
+		/*
+		 * Set configuration based on platform NHLT.
+		 * In this machine driver, we can only support one SSP for the
+		 * ES8336 link, the else-if below are intentional.
+		 * In some cases multiple SSPs can be reported by NHLT, starting MSB-first
+		 * seems to pick the right connection.
+		 */
+		unsigned long ssp = 0;
+
+		if (mach->mach_params.i2s_link_mask & BIT(2))
+			ssp = SOF_ES8336_SSP_CODEC(2);
+		else if (mach->mach_params.i2s_link_mask & BIT(1))
+			ssp = SOF_ES8336_SSP_CODEC(1);
+		else  if (mach->mach_params.i2s_link_mask & BIT(0))
+			ssp = SOF_ES8336_SSP_CODEC(0);
+
+		quirk |= ssp;
+	}
+
+	if (mach->mach_params.dmic_num)
+		quirk |= SOF_ES8336_ENABLE_DMIC;
 
 	if (quirk_override != -1) {
 		dev_info(dev, "Overriding quirk 0x%lx => 0x%x\n",
@@ -482,6 +505,9 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		quirk = quirk_override;
 	}
 	log_quirks(dev);
+
+	if (quirk & SOF_ES8336_ENABLE_DMIC)
+		dmic_be_num = 2;
 
 	sof_es8336_card.num_links += dmic_be_num + hdmi_num;
 	dai_links = sof_card_dai_links_create(dev,
