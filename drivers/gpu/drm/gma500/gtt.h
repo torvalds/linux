@@ -26,7 +26,7 @@ struct psb_gtt {
 
 /* Exported functions */
 int psb_gtt_init(struct drm_device *dev);
-extern void psb_gtt_takedown(struct drm_device *dev);
+void psb_gtt_fini(struct drm_device *dev);
 extern int psb_gtt_restore(struct drm_device *dev);
 
 int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res,

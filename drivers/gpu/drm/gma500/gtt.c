@@ -125,23 +125,20 @@ void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *r
 	mutex_unlock(&pdev->gtt_mutex);
 }
 
-void psb_gtt_takedown(struct drm_device *dev)
+void psb_gtt_fini(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
-	if (dev_priv->gtt_map) {
-		iounmap(dev_priv->gtt_map);
-		dev_priv->gtt_map = NULL;
-	}
-	if (dev_priv->gtt_initialized) {
-		pci_write_config_word(pdev, PSB_GMCH_CTRL,
-				      dev_priv->gmch_ctrl);
-		PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
-		(void) PSB_RVDC32(PSB_PGETBL_CTL);
-	}
-	if (dev_priv->vram_addr)
-		iounmap(dev_priv->gtt_map);
+	iounmap(dev_priv->vram_addr);
+	iounmap(dev_priv->gtt_map);
+
+	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
+	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
+	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+
+	mutex_destroy(&dev_priv->mmap_mutex);
+	mutex_destroy(&dev_priv->gtt_mutex);
 }
 
 /* Clear GTT. Use a scratch page to avoid accidents or scribbles. */
@@ -233,8 +230,6 @@ int psb_gtt_init(struct drm_device *dev)
 	(void) PSB_RVDC32(PSB_PGETBL_CTL);
 
 	/* The root resource we allocate address space from */
-	dev_priv->gtt_initialized = 1;
-
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
 
 	/*
@@ -299,14 +294,14 @@ int psb_gtt_init(struct drm_device *dev)
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;
-		goto out_err;
+		goto err_gtt_disable;
 	}
 
 	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
 	if (!dev_priv->vram_addr) {
 		dev_err(dev->dev, "Failure to map stolen base.\n");
 		ret = -ENOMEM;
-		goto out_err;
+		goto err_iounmap;
 	}
 
 	psb_gtt_clear(dev_priv);
@@ -314,8 +309,14 @@ int psb_gtt_init(struct drm_device *dev)
 
 	return 0;
 
-out_err:
-	psb_gtt_takedown(dev);
+err_iounmap:
+	iounmap(dev_priv->gtt_map);
+err_gtt_disable:
+	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
+	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
+	(void)PSB_RVDC32(PSB_PGETBL_CTL);
+	mutex_destroy(&dev_priv->mmap_mutex);
+	mutex_destroy(&dev_priv->gtt_mutex);
 	return ret;
 }
 
@@ -340,8 +341,6 @@ static int psb_gtt_resume(struct drm_device *dev)
 	(void) PSB_RVDC32(PSB_PGETBL_CTL);
 
 	/* The root resource we allocate address space from */
-	dev_priv->gtt_initialized = 1;
-
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
 
 	/*
@@ -398,7 +397,7 @@ static int psb_gtt_resume(struct drm_device *dev)
 	if ((gtt_pages != pg->gtt_pages) && (stolen_size != pg->stolen_size)) {
 		dev_err(dev->dev, "GTT resume error.\n");
 		ret = -EINVAL;
-		goto out_err;
+		goto err_gtt_disable;
 	}
 
 	pg->gtt_pages = gtt_pages;
@@ -410,8 +409,10 @@ static int psb_gtt_resume(struct drm_device *dev)
 
 	return 0;
 
-out_err:
-	psb_gtt_takedown(dev);
+err_gtt_disable:
+	pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl);
+	PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
+	(void)PSB_RVDC32(PSB_PGETBL_CTL);
 	return ret;
 }
 

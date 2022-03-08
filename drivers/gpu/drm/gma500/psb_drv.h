@@ -408,7 +408,6 @@ struct drm_psb_private {
 	uint32_t stolen_base;
 	u8 __iomem *vram_addr;
 	unsigned long vram_stolen_size;
-	int gtt_initialized;
 	u16 gmch_ctrl;		/* Saved GTT setup */
 	u32 pge_ctl;
 
