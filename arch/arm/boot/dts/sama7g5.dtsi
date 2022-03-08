@@ -113,6 +113,45 @@
 		#size-cells = <1>;
 		ranges;
 
+		nfc_sram: sram@600000 {
+			compatible = "mmio-sram";
+			no-memory-wc;
+			reg = <0x00600000 0x2400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x00600000 0x2400>;
+		};
+
+		nfc_io: nfc-io@10000000 {
+			compatible = "atmel,sama5d3-nfc-io", "syscon";
+			reg = <0x10000000 0x8000000>;
+		};
+
+		ebi: ebi@40000000 {
+			compatible = "atmel,sama5d3-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&hsmc>;
+			reg = <0x40000000 0x20000000>;
+			ranges = <0x0 0x0 0x40000000 0x8000000
+				  0x1 0x0 0x48000000 0x8000000
+				  0x2 0x0 0x50000000 0x8000000
+				  0x3 0x0 0x58000000 0x8000000>;
+			clocks = <&pmc PMC_TYPE_CORE PMC_MCK1>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,sama5d3-nand-controller";
+				atmel,nfc-sram = <&nfc_sram>;
+				atmel,nfc-io = <&nfc_io>;
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
+		};
+
 		securam: securam@e0000000 {
 			compatible = "microchip,sama7g5-securam", "atmel,sama5d2-securam", "mmio-sram";
 			reg = <0xe0000000 0x4000>;
@@ -216,6 +255,22 @@
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 91>, <&pmc PMC_TYPE_PERIPHERAL 92>, <&pmc PMC_TYPE_PERIPHERAL 93>, <&clk32k 1>;
 			clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
+		};
+
+		hsmc: hsmc@e0808000 {
+			compatible = "atmel,sama5d2-smc", "syscon", "simple-mfd";
+			reg = <0xe0808000 0x1000>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			pmecc: ecc-engine@e0808070 {
+				compatible = "atmel,sama5d2-pmecc";
+				reg = <0xe0808070 0x490>,
+				      <0xe0808500 0x200>;
+			};
 		};
 
 		qspi0: spi@e080c000 {
@@ -455,6 +510,19 @@
 			status = "disabled";
 		};
 
+		eic: interrupt-controller@e1628000 {
+			compatible = "microchip,sama7g5-eic";
+			reg = <0xe1628000 0xec>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 37>;
+			clock-names = "pclk";
+			status = "disabled";
+		};
+
 		pit64b0: timer@e1800000 {
 			compatible = "microchip,sama7g5-pit64b", "microchip,sam9x60-pit64b";
 			reg = <0xe1800000 0x4000>;
@@ -536,8 +604,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(7)>,
 					<&dma0 AT91_XDMAC_DT_PERID(8)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
@@ -723,8 +789,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(21)>,
 					<&dma0 AT91_XDMAC_DT_PERID(22)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
@@ -749,8 +813,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(23)>,
 					<&dma0 AT91_XDMAC_DT_PERID(24)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
