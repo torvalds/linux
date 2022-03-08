@@ -41,6 +41,7 @@ struct ksz_port {
 
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
+	u16 max_frame;
 };
 
 struct ksz_device {

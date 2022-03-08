@@ -11,6 +11,7 @@
 #include <linux/platform_data/microchip-ksz.h>
 #include <linux/phy.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
@@ -180,6 +181,29 @@ static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 {
 	regmap_update_bits(dev->regmap[2], PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
+}
+
+static int ksz9477_change_mtu(struct dsa_switch *ds, int port, int mtu)
+{
+	struct ksz_device *dev = ds->priv;
+	u16 frame_size, max_frame = 0;
+	int i;
+
+	frame_size = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	/* Cache the per-port MTU setting */
+	dev->ports[port].max_frame = frame_size;
+
+	for (i = 0; i < dev->port_cnt; i++)
+		max_frame = max(max_frame, dev->ports[i].max_frame);
+
+	return regmap_update_bits(dev->regmap[1], REG_SW_MTU__2,
+				  REG_SW_MTU_MASK, max_frame);
+}
+
+static int ksz9477_max_mtu(struct dsa_switch *ds, int port)
+{
+	return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
 }
 
 static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
@@ -1416,8 +1440,14 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	/* Do not work correctly with tail tagging. */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_0, SW_CHECK_LENGTH, false);
 
-	/* accept packet up to 2000bytes */
-	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_LEGAL_PACKET_DISABLE, true);
+	/* Enable REG_SW_MTU__2 reg by setting SW_JUMBO_PACKET */
+	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_JUMBO_PACKET, true);
+
+	/* Now we can configure default MTU value */
+	ret = regmap_update_bits(dev->regmap[1], REG_SW_MTU__2, REG_SW_MTU_MASK,
+				 VLAN_ETH_FRAME_LEN + ETH_FCS_LEN);
+	if (ret)
+		return ret;
 
 	ksz9477_config_cpu_port(ds);
 
@@ -1464,6 +1494,8 @@ static const struct dsa_switch_ops ksz9477_switch_ops = {
 	.port_mirror_add	= ksz9477_port_mirror_add,
 	.port_mirror_del	= ksz9477_port_mirror_del,
 	.get_stats64		= ksz9477_get_stats64,
+	.port_change_mtu	= ksz9477_change_mtu,
+	.port_max_mtu		= ksz9477_max_mtu,
 };
 
 static u32 ksz9477_get_port_addr(int port, int offset)
