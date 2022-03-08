@@ -612,6 +612,17 @@ static const struct rockchip_data rk3588_data = {
 	.reg_read = rk3588_otp_read,
 };
 
+static const char * const rv1106_otp_clocks[] = {
+	"usr", "sbpi", "apb", "phy", "arb", "pmc",
+};
+
+static const struct rockchip_data rv1106_data = {
+	.size = 0x80,
+	.clocks = rv1106_otp_clocks,
+	.num_clks = ARRAY_SIZE(rv1106_otp_clocks),
+	.reg_read = rk3568_otp_read,
+};
+
 static const char * const rv1126_otp_clocks[] = {
 	"otp", "apb_pclk",
 };
@@ -641,6 +652,10 @@ static const struct of_device_id rockchip_otp_match[] = {
 	{
 		.compatible = "rockchip,rk3588-otp",
 		.data = (void *)&rk3588_data,
+	},
+	{
+		.compatible = "rockchip,rv1106-otp",
+		.data = (void *)&rv1106_data,
 	},
 	{
 		.compatible = "rockchip,rv1126-otp",
