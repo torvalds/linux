@@ -147,7 +147,7 @@ static void sr_kref_release(struct kref *kref);
 
 static inline struct scsi_cd *scsi_cd(struct gendisk *disk)
 {
-	return container_of(disk->private_data, struct scsi_cd, driver);
+	return disk->private_data;
 }
 
 static int sr_runtime_suspend(struct device *dev)
@@ -692,7 +692,6 @@ static int sr_probe(struct device *dev)
 
 	cd->device = sdev;
 	cd->disk = disk;
-	cd->driver = &sr_template;
 	cd->capacity = 0x1fffff;
 	cd->device->changed = 1;	/* force recheck CD type */
 	cd->media_present = 1;
@@ -713,7 +712,7 @@ static int sr_probe(struct device *dev)
 	sr_vendor_init(cd);
 
 	set_capacity(disk, cd->capacity);
-	disk->private_data = &cd->driver;
+	disk->private_data = cd;
 
 	if (register_cdrom(disk, &cd->cdi))
 		goto fail_minor;
