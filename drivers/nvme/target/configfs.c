@@ -60,10 +60,11 @@ static ssize_t nvmet_addr_adrfam_show(struct config_item *item, char *page)
 
 	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
 		if (nvmet_addr_family[i].type == adrfam)
-			return sprintf(page, "%s\n", nvmet_addr_family[i].name);
+			return snprintf(page, PAGE_SIZE, "%s\n",
+					nvmet_addr_family[i].name);
 	}
 
-	return sprintf(page, "\n");
+	return snprintf(page, PAGE_SIZE, "\n");
 }
 
 static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
@@ -160,10 +161,11 @@ static ssize_t nvmet_addr_treq_show(struct config_item *item, char *page)
 
 	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
 		if (treq == nvmet_addr_treq[i].type)
-			return sprintf(page, "%s\n", nvmet_addr_treq[i].name);
+			return snprintf(page, PAGE_SIZE, "%s\n",
+					nvmet_addr_treq[i].name);
 	}
 
-	return sprintf(page, "\n");
+	return snprintf(page, PAGE_SIZE, "\n");
 }
 
 static ssize_t nvmet_addr_treq_store(struct config_item *item,
@@ -281,7 +283,8 @@ static ssize_t nvmet_addr_trtype_show(struct config_item *item,
 
 	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
 		if (port->disc_addr.trtype == nvmet_transport[i].type)
-			return sprintf(page, "%s\n", nvmet_transport[i].name);
+			return snprintf(page, PAGE_SIZE,
+					"%s\n", nvmet_transport[i].name);
 	}
 
 	return sprintf(page, "\n");
