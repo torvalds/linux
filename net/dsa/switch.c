@@ -212,24 +212,6 @@ static bool dsa_port_host_address_match(struct dsa_port *dp,
 	return false;
 }
 
-static bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
-{
-	if (a->type != b->type)
-		return false;
-
-	switch (a->type) {
-	case DSA_DB_PORT:
-		return a->dp == b->dp;
-	case DSA_DB_LAG:
-		return a->lag.dev == b->lag.dev;
-	case DSA_DB_BRIDGE:
-		return a->bridge.num == b->bridge.num;
-	default:
-		WARN_ON(1);
-		return false;
-	}
-}
-
 static struct dsa_mac_addr *dsa_mac_addr_find(struct list_head *addr_list,
 					      const unsigned char *addr, u16 vid,
 					      struct dsa_db db)

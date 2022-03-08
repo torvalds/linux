@@ -1227,6 +1227,12 @@ typedef int dsa_fdb_walk_cb_t(struct dsa_switch *ds, int port,
 
 int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
 int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
+bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const unsigned char *addr, u16 vid,
+				 struct dsa_db db);
+bool dsa_mdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_mdb *mdb,
+				 struct dsa_db db);
 
 /* Keep inline for faster access in hot path */
 static inline bool netdev_uses_dsa(const struct net_device *dev)

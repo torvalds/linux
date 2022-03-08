@@ -739,6 +739,10 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
+		return 0;
+
 	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
 }
 
@@ -751,6 +755,10 @@ static int felix_fdb_del(struct dsa_switch *ds, int port,
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
+
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
+		return 0;
 
 	return ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
 }
@@ -791,6 +799,10 @@ static int felix_mdb_add(struct dsa_switch *ds, int port,
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
+		return 0;
+
 	return ocelot_port_mdb_add(ocelot, port, mdb, bridge_dev);
 }
 
@@ -803,6 +815,10 @@ static int felix_mdb_del(struct dsa_switch *ds, int port,
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
+
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
+		return 0;
 
 	return ocelot_port_mdb_del(ocelot, port, mdb, bridge_dev);
 }
