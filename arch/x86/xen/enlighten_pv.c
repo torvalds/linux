@@ -624,6 +624,9 @@ static struct trap_array_entry trap_array[] = {
 	TRAP_ENTRY(exc_coprocessor_error,		false ),
 	TRAP_ENTRY(exc_alignment_check,			false ),
 	TRAP_ENTRY(exc_simd_coprocessor_error,		false ),
+#ifdef CONFIG_X86_KERNEL_IBT
+	TRAP_ENTRY(exc_control_protection,		false ),
+#endif
 };
 
 static bool __ref get_trap_addr(void **addr, unsigned int ist)

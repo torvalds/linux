@@ -283,7 +283,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * pop %rcx; pop %r11; jmp early_idt_handler_array[i]; summing up to
  * max 8 bytes.
  */
-#define XEN_EARLY_IDT_HANDLER_SIZE 8
+#define XEN_EARLY_IDT_HANDLER_SIZE (8 + ENDBR_INSN_SIZE)
 
 #ifndef __ASSEMBLY__
 
