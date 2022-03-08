@@ -182,6 +182,7 @@ struct m5mols_version {
  * @stabilization: image stabilization control
  * @jpeg_quality: JPEG compression quality control
  * @set_power: optional power callback to the board code
+ * @reset: GPIO driving the reset pin of M-5MOLS
  * @lock: mutex protecting the structure fields below
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
