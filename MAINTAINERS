@@ -16674,7 +16674,7 @@ M:	Marek Vasut <marek.vasut+renesas@gmail.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/mfd/bd9571mwv.txt
+F:	Documentation/devicetree/bindings/mfd/rohm,bd9571mwv.yaml
 F:	drivers/gpio/gpio-bd9571mwv.c
 F:	drivers/mfd/bd9571mwv.c
 F:	drivers/regulator/bd9571mwv-regulator.c
