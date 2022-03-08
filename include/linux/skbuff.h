@@ -314,6 +314,7 @@ struct sk_buff;
  * used to translate the reason to string.
  */
 enum skb_drop_reason {
+	SKB_NOT_DROPPED_YET = 0,
 	SKB_DROP_REASON_NOT_SPECIFIED,	/* drop reason is not specified */
 	SKB_DROP_REASON_NO_SOCKET,	/* socket not found */
 	SKB_DROP_REASON_PKT_TOO_SMALL,	/* packet size is too small */

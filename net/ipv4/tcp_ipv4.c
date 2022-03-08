@@ -1965,9 +1965,10 @@ process:
 		struct sock *nsk;
 
 		sk = req->rsk_listener;
-		if (unlikely(tcp_inbound_md5_hash(sk, skb, &drop_reason,
-						  &iph->saddr, &iph->daddr,
-						  AF_INET, dif, sdif))) {
+		drop_reason = tcp_inbound_md5_hash(sk, skb,
+						   &iph->saddr, &iph->daddr,
+						   AF_INET, dif, sdif);
+		if (unlikely(drop_reason)) {
 			sk_drops_add(sk, skb);
 			reqsk_put(req);
 			goto discard_it;
@@ -2041,8 +2042,9 @@ process:
 		goto discard_and_relse;
 	}
 
-	if (tcp_inbound_md5_hash(sk, skb, &drop_reason, &iph->saddr,
-				 &iph->daddr, AF_INET, dif, sdif))
+	drop_reason = tcp_inbound_md5_hash(sk, skb, &iph->saddr,
+					   &iph->daddr, AF_INET, dif, sdif);
+	if (drop_reason)
 		goto discard_and_relse;
 
 	nf_reset_ct(skb);

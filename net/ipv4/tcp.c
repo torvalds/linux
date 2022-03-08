@@ -4434,10 +4434,10 @@ int tcp_md5_hash_key(struct tcp_md5sig_pool *hp, const struct tcp_md5sig_key *ke
 EXPORT_SYMBOL(tcp_md5_hash_key);
 
 /* Called with rcu_read_lock() */
-bool tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
-			  enum skb_drop_reason *reason,
-			  const void *saddr, const void *daddr,
-			  int family, int dif, int sdif)
+enum skb_drop_reason
+tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
+		     const void *saddr, const void *daddr,
+		     int family, int dif, int sdif)
 {
 	/*
 	 * This gets called for each TCP segment that arrives
@@ -4464,18 +4464,16 @@ bool tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 
 	/* We've parsed the options - do we have a hash? */
 	if (!hash_expected && !hash_location)
-		return false;
+		return SKB_NOT_DROPPED_YET;
 
 	if (hash_expected && !hash_location) {
-		*reason = SKB_DROP_REASON_TCP_MD5NOTFOUND;
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
-		return true;
+		return SKB_DROP_REASON_TCP_MD5NOTFOUND;
 	}
 
 	if (!hash_expected && hash_location) {
-		*reason = SKB_DROP_REASON_TCP_MD5UNEXPECTED;
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
-		return true;
+		return SKB_DROP_REASON_TCP_MD5UNEXPECTED;
 	}
 
 	/* check the signature */
@@ -4483,7 +4481,6 @@ bool tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 						 NULL, skb);
 
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
-		*reason = SKB_DROP_REASON_TCP_MD5FAILURE;
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5FAILURE);
 		if (family == AF_INET) {
 			net_info_ratelimited("MD5 Hash failed for (%pI4, %d)->(%pI4, %d)%s L3 index %d\n",
@@ -4497,9 +4494,9 @@ bool tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 					saddr, ntohs(th->source),
 					daddr, ntohs(th->dest), l3index);
 		}
-		return true;
+		return SKB_DROP_REASON_TCP_MD5FAILURE;
 	}
-	return false;
+	return SKB_NOT_DROPPED_YET;
 }
 EXPORT_SYMBOL(tcp_inbound_md5_hash);
 

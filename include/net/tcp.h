@@ -1674,10 +1674,11 @@ tcp_md5_do_lookup(const struct sock *sk, int l3index,
 		return NULL;
 	return __tcp_md5_do_lookup(sk, l3index, addr, family);
 }
-bool tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
-			  enum skb_drop_reason *reason,
-			  const void *saddr, const void *daddr,
-			  int family, int dif, int sdif);
+
+enum skb_drop_reason
+tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
+		     const void *saddr, const void *daddr,
+		     int family, int dif, int sdif);
 
 
 #define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_key)
@@ -1688,13 +1689,13 @@ tcp_md5_do_lookup(const struct sock *sk, int l3index,
 {
 	return NULL;
 }
-static inline bool tcp_inbound_md5_hash(const struct sock *sk,
-					const struct sk_buff *skb,
-					enum skb_drop_reason *reason,
-					const void *saddr, const void *daddr,
-					int family, int dif, int sdif)
+
+static inline enum skb_drop_reason
+tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
+		     const void *saddr, const void *daddr,
+		     int family, int dif, int sdif);
 {
-	return false;
+	return SKB_NOT_DROPPED_YET;
 }
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
