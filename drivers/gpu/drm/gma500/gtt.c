@@ -144,18 +144,79 @@ void psb_gtt_takedown(struct drm_device *dev)
 		iounmap(dev_priv->gtt_map);
 }
 
+/* Clear GTT. Use a scratch page to avoid accidents or scribbles. */
+static void psb_gtt_clear(struct drm_psb_private *pdev)
+{
+	resource_size_t pfn_base;
+	unsigned long i;
+	uint32_t pte;
+
+	pfn_base = page_to_pfn(pdev->scratch_page);
+	pte = psb_gtt_mask_pte(pfn_base, PSB_MMU_CACHED_MEMORY);
+
+	for (i = 0; i < pdev->gtt.gtt_pages; ++i)
+		iowrite32(pte, pdev->gtt_map + i);
+
+	(void)ioread32(pdev->gtt_map + i - 1);
+}
+
+/* Insert vram stolen pages into the GTT. */
+static void psb_gtt_populate_stolen(struct drm_psb_private *pdev)
+{
+	struct drm_device *dev = &pdev->dev;
+	unsigned int pfn_base;
+	unsigned int i, num_pages;
+	uint32_t pte;
+
+	pfn_base = pdev->stolen_base >> PAGE_SHIFT;
+	num_pages = pdev->vram_stolen_size >> PAGE_SHIFT;
+
+	drm_dbg(dev, "Set up %u stolen pages starting at 0x%08x, GTT offset %dK\n",
+		num_pages, pfn_base << PAGE_SHIFT, 0);
+
+	for (i = 0; i < num_pages; ++i) {
+		pte = psb_gtt_mask_pte(pfn_base + i, PSB_MMU_CACHED_MEMORY);
+		iowrite32(pte, pdev->gtt_map + i);
+	}
+
+	(void)ioread32(pdev->gtt_map + i - 1);
+}
+
+/* Re-insert all pinned GEM objects into GTT. */
+static void psb_gtt_populate_resources(struct drm_psb_private *pdev)
+{
+	unsigned int restored = 0, total = 0, size = 0;
+	struct resource *r = pdev->gtt_mem->child;
+	struct drm_device *dev = &pdev->dev;
+	struct psb_gem_object *pobj;
+
+	while (r) {
+		/*
+		 * TODO: GTT restoration needs a refactoring, so that we don't have to touch
+		 *       struct psb_gem_object here. The type represents a GEM object and is
+		 *       not related to the GTT itself.
+		 */
+		pobj = container_of(r, struct psb_gem_object, resource);
+		if (pobj->pages) {
+			psb_gtt_insert_pages(pdev, &pobj->resource, pobj->pages);
+			size += resource_size(&pobj->resource);
+			++restored;
+		}
+		r = r->sibling;
+		++total;
+	}
+
+	drm_dbg(dev, "Restored %u of %u gtt ranges (%u KB)", restored, total, (size / 1024));
+}
+
 int psb_gtt_init(struct drm_device *dev, int resume)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned gtt_pages;
 	unsigned long stolen_size, vram_stolen_size;
-	unsigned i, num_pages;
-	unsigned pfn_base;
 	struct psb_gtt *pg;
-
 	int ret = 0;
-	uint32_t pte;
 
 	if (!resume) {
 		mutex_init(&dev_priv->gtt_mutex);
@@ -262,29 +323,9 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 		goto out_err;
 	}
 
-	/*
-	 * Insert vram stolen pages into the GTT
-	 */
+	psb_gtt_clear(dev_priv);
+	psb_gtt_populate_stolen(dev_priv);
 
-	pfn_base = dev_priv->stolen_base >> PAGE_SHIFT;
-	num_pages = vram_stolen_size >> PAGE_SHIFT;
-	dev_dbg(dev->dev, "Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
-		num_pages, pfn_base << PAGE_SHIFT, 0);
-	for (i = 0; i < num_pages; ++i) {
-		pte = psb_gtt_mask_pte(pfn_base + i, PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, dev_priv->gtt_map + i);
-	}
-
-	/*
-	 * Init rest of GTT to the scratch page to avoid accidents or scribbles
-	 */
-
-	pfn_base = page_to_pfn(dev_priv->scratch_page);
-	pte = psb_gtt_mask_pte(pfn_base, PSB_MMU_CACHED_MEMORY);
-	for (; i < gtt_pages; ++i)
-		iowrite32(pte, dev_priv->gtt_map + i);
-
-	(void) ioread32(dev_priv->gtt_map + i - 1);
 	return 0;
 
 out_err:
@@ -295,30 +336,10 @@ out_err:
 int psb_gtt_restore(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct resource *r = dev_priv->gtt_mem->child;
-	struct psb_gem_object *pobj;
-	unsigned int restored = 0, total = 0, size = 0;
 
 	psb_gtt_init(dev, 1);
 
-	while (r != NULL) {
-		/*
-		 * TODO: GTT restoration needs a refactoring, so that we don't have to touch
-		 *       struct psb_gem_object here. The type represents a GEM object and is
-		 *       not related to the GTT itself.
-		 */
-		pobj = container_of(r, struct psb_gem_object, resource);
-		if (pobj->pages) {
-			psb_gtt_insert_pages(dev_priv, &pobj->resource, pobj->pages);
-			size += pobj->resource.end - pobj->resource.start;
-			restored++;
-		}
-		r = r->sibling;
-		total++;
-	}
-
-	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
-			 total, (size / 1024));
+	psb_gtt_populate_resources(dev_priv);
 
 	return 0;
 }
