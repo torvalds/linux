@@ -4479,10 +4479,8 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	const bool do_opu = f2fs_lfs_mode(sbi);
-	const int whint_mode = F2FS_OPTION(sbi).whint_mode;
 	const loff_t pos = iocb->ki_pos;
 	const ssize_t count = iov_iter_count(from);
-	const enum rw_hint hint = iocb->ki_hint;
 	unsigned int dio_flags;
 	struct iomap_dio *dio;
 	ssize_t ret;
@@ -4515,8 +4513,6 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 		if (do_opu)
 			down_read(&fi->i_gc_rwsem[READ]);
 	}
-	if (whint_mode == WHINT_MODE_OFF)
-		iocb->ki_hint = WRITE_LIFE_NOT_SET;
 
 	/*
 	 * We have to use __iomap_dio_rw() and iomap_dio_complete() instead of
@@ -4539,8 +4535,6 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 		ret = iomap_dio_complete(dio);
 	}
 
-	if (whint_mode == WHINT_MODE_OFF)
-		iocb->ki_hint = hint;
 	if (do_opu)
 		up_read(&fi->i_gc_rwsem[READ]);
 	up_read(&fi->i_gc_rwsem[WRITE]);
