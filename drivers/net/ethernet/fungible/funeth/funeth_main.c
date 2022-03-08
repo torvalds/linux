@@ -253,7 +253,7 @@ static struct fun_irq *fun_alloc_qirq(struct funeth_priv *fp, unsigned int idx,
 	int cpu, res;
 
 	cpu = cpumask_local_spread(idx, node);
-	node = local_memory_node(cpu_to_node(cpu));
+	node = cpu_to_mem(cpu);
 
 	irq = kzalloc_node(sizeof(*irq), GFP_KERNEL, node);
 	if (!irq)

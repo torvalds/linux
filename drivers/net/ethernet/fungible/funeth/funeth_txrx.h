@@ -239,7 +239,7 @@ static inline void fun_txq_wr_db(const struct funeth_txq *q)
 
 static inline int fun_irq_node(const struct fun_irq *p)
 {
-	return local_memory_node(cpu_to_node(cpumask_first(&p->affinity_mask)));
+	return cpu_to_mem(cpumask_first(&p->affinity_mask));
 }
 
 int fun_rxq_napi_poll(struct napi_struct *napi, int budget);
