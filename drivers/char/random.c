@@ -127,10 +127,11 @@ int wait_for_random_bytes(void)
 {
 	while (!crng_ready()) {
 		int ret;
+
+		try_to_generate_entropy();
 		ret = wait_event_interruptible_timeout(crng_init_wait, crng_ready(), HZ);
 		if (ret)
 			return ret > 0 ? 0 : ret;
-		try_to_generate_entropy();
 	}
 	return 0;
 }
@@ -1371,7 +1372,7 @@ static void try_to_generate_entropy(void)
 		return;
 
 	timer_setup_on_stack(&stack.timer, entropy_timer, 0);
-	while (!crng_ready()) {
+	while (!crng_ready() && !signal_pending(current)) {
 		if (!timer_pending(&stack.timer))
 			mod_timer(&stack.timer, jiffies + 1);
 		mix_pool_bytes(&stack.cycles, sizeof(stack.cycles));
