@@ -129,7 +129,7 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 	struct iser_fr_desc *desc;
 	struct ib_mr_status mr_status;
 
-	desc = reg->mem_h;
+	desc = reg->desc;
 	if (!desc)
 		return;
 
@@ -146,8 +146,8 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 		ib_check_mr_status(desc->rsc.sig_mr, IB_MR_CHECK_SIG_STATUS,
 				   &mr_status);
 	}
-	iser_reg_desc_put_fr(&iser_task->iser_conn->ib_conn, reg->mem_h);
-	reg->mem_h = NULL;
+	iser_reg_desc_put_fr(&iser_task->iser_conn->ib_conn, reg->desc);
+	reg->desc = NULL;
 }
 
 static void iser_set_dif_domain(struct scsi_cmnd *sc,
@@ -357,7 +357,7 @@ int iser_reg_mem_fastreg(struct iscsi_iser_task *task,
 		desc->sig_protected = true;
 	}
 
-	reg->mem_h = desc;
+	reg->desc = desc;
 
 	return 0;
 

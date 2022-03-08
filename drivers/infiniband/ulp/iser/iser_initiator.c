@@ -619,13 +619,13 @@ static int iser_check_remote_inv(struct iser_conn *iser_conn, struct ib_wc *wc,
 			struct iser_fr_desc *desc;
 
 			if (iser_task->dir[ISER_DIR_IN]) {
-				desc = iser_task->rdma_reg[ISER_DIR_IN].mem_h;
+				desc = iser_task->rdma_reg[ISER_DIR_IN].desc;
 				if (unlikely(iser_inv_desc(desc, rkey)))
 					return -EINVAL;
 			}
 
 			if (iser_task->dir[ISER_DIR_OUT]) {
-				desc = iser_task->rdma_reg[ISER_DIR_OUT].mem_h;
+				desc = iser_task->rdma_reg[ISER_DIR_OUT].desc;
 				if (unlikely(iser_inv_desc(desc, rkey)))
 					return -EINVAL;
 			}
