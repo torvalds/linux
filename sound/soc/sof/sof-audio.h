@@ -30,6 +30,18 @@
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
 
+/** struct snd_sof_tuple - Tuple info
+ * @token:	Token ID
+ * @value:	union of a string or a u32 values
+ */
+struct snd_sof_tuple {
+	u32 token;
+	union {
+		u32 v;
+		const char *s;
+	} value;
+};
+
 /* PCM stream, mapped to FW component  */
 struct snd_sof_pcm_stream {
 	u32 comp_id;
@@ -111,6 +123,9 @@ struct snd_sof_widget {
 	struct snd_sof_widget *pipe_widget;
 
 	const guid_t uuid;
+
+	int num_tuples;
+	struct snd_sof_tuple *tuples;
 
 	void *private;		/* core does not touch this */
 };
