@@ -48,6 +48,53 @@ static const char * const mtk_gpio_functions[] = {
 	"func12", "func13", "func14", "func15",
 };
 
+/*
+ * This section supports converting to/from custom MTK_PIN_CONFIG_DRV_ADV
+ * and standard PIN_CONFIG_DRIVE_STRENGTH_UA pin configs.
+ *
+ * The custom value encodes three hardware bits as follows:
+ *
+ *   |           Bits           |
+ *   | 2 (E1) | 1 (E0) | 0 (EN) | drive strength (uA)
+ *   ------------------------------------------------
+ *   |    x   |    x   |    0   | disabled, use standard drive strength
+ *   -------------------------------------
+ *   |    0   |    0   |    1   |  125 uA
+ *   |    0   |    1   |    1   |  250 uA
+ *   |    1   |    0   |    1   |  500 uA
+ *   |    1   |    1   |    1   | 1000 uA
+ */
+static const int mtk_drv_adv_uA[] = { 125, 250, 500, 1000 };
+
+static int mtk_drv_adv_to_uA(int val)
+{
+	/* This should never happen. */
+	if (WARN_ON_ONCE(val < 0 || val > 7))
+		return -EINVAL;
+
+	/* Bit 0 simply enables this hardware part */
+	if (!(val & BIT(0)))
+		return -EINVAL;
+
+	return mtk_drv_adv_uA[(val >> 1)];
+}
+
+static int mtk_drv_uA_to_adv(int val)
+{
+	switch (val) {
+	case 125:
+		return 0x1;
+	case 250:
+		return 0x3;
+	case 500:
+		return 0x5;
+	case 1000:
+		return 0x7;
+	}
+
+	return -EINVAL;
+}
+
 static int mtk_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 					  struct pinctrl_gpio_range *range,
 					  unsigned int pin)
@@ -145,7 +192,34 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		if (!hw->soc->drive_get)
 			break;
+
+		if (hw->soc->adv_drive_get) {
+			err = hw->soc->adv_drive_get(hw, desc, &ret);
+			if (!err) {
+				err = mtk_drv_adv_to_uA(ret);
+				if (err > 0) {
+					/* PIN_CONFIG_DRIVE_STRENGTH_UA used */
+					err = -EINVAL;
+					break;
+				}
+			}
+		}
+
 		err = hw->soc->drive_get(hw, desc, &ret);
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH_UA:
+		if (!hw->soc->adv_drive_get)
+			break;
+
+		err = hw->soc->adv_drive_get(hw, desc, &ret);
+		if (err)
+			break;
+		err = mtk_drv_adv_to_uA(ret);
+		if (err < 0)
+			break;
+
+		ret = err;
+		err = 0;
 		break;
 	case MTK_PIN_CONFIG_TDSEL:
 	case MTK_PIN_CONFIG_RDSEL:
@@ -251,6 +325,15 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (!hw->soc->drive_set)
 			break;
 		err = hw->soc->drive_set(hw, desc, arg);
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH_UA:
+		if (!hw->soc->adv_drive_set)
+			break;
+
+		err = mtk_drv_uA_to_adv(arg);
+		if (err < 0)
+			break;
+		err = hw->soc->adv_drive_set(hw, desc, err);
 		break;
 	case MTK_PIN_CONFIG_TDSEL:
 	case MTK_PIN_CONFIG_RDSEL:
@@ -720,6 +803,8 @@ static int mtk_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 {
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
 	struct mtk_pinctrl_group *grp = &hw->groups[group];
+	bool drive_strength_uA_found = false;
+	bool adv_drve_strength_found = false;
 	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
@@ -728,7 +813,21 @@ static int mtk_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 				      pinconf_to_config_argument(configs[i]));
 		if (ret < 0)
 			return ret;
+
+		if (pinconf_to_config_param(configs[i]) == PIN_CONFIG_DRIVE_STRENGTH_UA)
+			drive_strength_uA_found = true;
+		if (pinconf_to_config_param(configs[i]) == MTK_PIN_CONFIG_DRV_ADV)
+			adv_drve_strength_found = true;
 	}
+
+	/*
+	 * Disable advanced drive strength mode if drive-strength-microamp
+	 * is not set. However, mediatek,drive-strength-adv takes precedence
+	 * as its value can explicitly request the mode be enabled or not.
+	 */
+	if (hw->soc->adv_drive_set && !drive_strength_uA_found &&
+	    !adv_drve_strength_found)
+		hw->soc->adv_drive_set(hw, &hw->soc->pins[grp->pin], 0);
 
 	return 0;
 }
