@@ -459,6 +459,8 @@ devm_err:
 	return NULL;
 }
 
+static char soc_components[30];
+
  /* i2c-<HID>:00 with HID being 8 chars */
 static char codec_name[SND_ACPI_I2C_ID_LEN];
 
@@ -593,6 +595,12 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&priv->hdmi_pcm_list);
 
 	snd_soc_card_set_drvdata(card, priv);
+
+	if (mach->mach_params.dmic_num > 0) {
+		snprintf(soc_components, sizeof(soc_components),
+			 "cfg-dmics:%d", mach->mach_params.dmic_num);
+		card->components = soc_components;
+	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret) {
