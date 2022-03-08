@@ -259,28 +259,25 @@ EXPORT_SYMBOL(sof_widget_setup);
 
 static int sof_route_setup_ipc(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
 {
-	struct sof_ipc_pipe_comp_connect *connect;
+	struct sof_ipc_pipe_comp_connect connect;
 	struct sof_ipc_reply reply;
 	int ret;
-
-	/* skip if there's no private data */
-	if (!sroute->private)
-		return 0;
 
 	/* nothing to do if route is already set up */
 	if (sroute->setup)
 		return 0;
 
-	connect = sroute->private;
+	connect.hdr.size = sizeof(connect);
+	connect.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_CONNECT;
+	connect.source_id = sroute->src_widget->comp_id;
+	connect.sink_id = sroute->sink_widget->comp_id;
 
 	dev_dbg(sdev->dev, "setting up route %s -> %s\n",
 		sroute->src_widget->widget->name,
 		sroute->sink_widget->widget->name);
 
 	/* send ipc */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 connect->hdr.cmd,
-				 connect, sizeof(*connect),
+	ret = sof_ipc_tx_message(sdev->ipc, connect.hdr.cmd, &connect, sizeof(connect),
 				 &reply, sizeof(reply));
 	if (ret < 0) {
 		dev_err(sdev->dev, "%s: route setup failed %d\n", __func__, ret);
