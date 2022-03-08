@@ -755,7 +755,7 @@ static void issue(struct thin_c *tc, struct bio *bio)
 	struct pool *pool = tc->pool;
 
 	if (!bio_triggers_commit(tc, bio)) {
-		submit_bio_noacct(bio);
+		dm_submit_bio_remap(bio, NULL, true);
 		return;
 	}
 
@@ -2383,7 +2383,7 @@ static void process_deferred_bios(struct pool *pool)
 		if (bio->bi_opf & REQ_PREFLUSH)
 			bio_endio(bio);
 		else
-			submit_bio_noacct(bio);
+			dm_submit_bio_remap(bio, NULL, true);
 	}
 }
 
@@ -4231,6 +4231,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ti->num_flush_bios = 1;
 	ti->flush_supported = true;
+	ti->accounts_remapped_io = true;
 	ti->per_io_data_size = sizeof(struct dm_thin_endio_hook);
 
 	/* In case the pool supports discards, pass them on. */
