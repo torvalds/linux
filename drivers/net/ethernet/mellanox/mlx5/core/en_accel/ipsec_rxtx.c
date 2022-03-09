@@ -34,9 +34,8 @@
 #include <crypto/aead.h>
 #include <net/xfrm.h>
 #include <net/esp.h>
-#include "ipsec_offload.h"
-#include "en_accel/ipsec_rxtx.h"
-#include "en_accel/ipsec.h"
+#include "ipsec.h"
+#include "ipsec_rxtx.h"
 #include "en.h"
 
 enum {

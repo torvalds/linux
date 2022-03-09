@@ -2,8 +2,9 @@
 /* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
 
 #include <linux/netdevice.h>
-#include "ipsec_offload.h"
-#include "ipsec_fs.h"
+#include "en.h"
+#include "en/fs.h"
+#include "ipsec.h"
 #include "fs_core.h"
 
 #define NUM_IPSEC_FTE BIT(15)
@@ -565,7 +566,7 @@ static int tx_add_rule(struct mlx5e_priv *priv,
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "fail to add ipsec rule attrs->action=0x%x, err=%d\n",
-			   attrs->action, err);
+				attrs->action, err);
 		goto out;
 	}
 
@@ -579,8 +580,8 @@ out:
 }
 
 static void rx_del_rule(struct mlx5e_priv *priv,
-			struct mlx5_accel_esp_xfrm_attrs *attrs,
-			struct mlx5e_ipsec_rule *ipsec_rule)
+		struct mlx5_accel_esp_xfrm_attrs *attrs,
+		struct mlx5e_ipsec_rule *ipsec_rule)
 {
 	mlx5_del_flow_rules(ipsec_rule->rule);
 	ipsec_rule->rule = NULL;
@@ -592,7 +593,7 @@ static void rx_del_rule(struct mlx5e_priv *priv,
 }
 
 static void tx_del_rule(struct mlx5e_priv *priv,
-			struct mlx5e_ipsec_rule *ipsec_rule)
+		struct mlx5e_ipsec_rule *ipsec_rule)
 {
 	mlx5_del_flow_rules(ipsec_rule->rule);
 	ipsec_rule->rule = NULL;
@@ -612,8 +613,8 @@ int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 }
 
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
-			     struct mlx5_accel_esp_xfrm_attrs *attrs,
-			     struct mlx5e_ipsec_rule *ipsec_rule)
+		struct mlx5_accel_esp_xfrm_attrs *attrs,
+		struct mlx5e_ipsec_rule *ipsec_rule)
 {
 	if (attrs->action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
 		rx_del_rule(priv, attrs, ipsec_rule);

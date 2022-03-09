@@ -37,9 +37,8 @@
 #include <linux/netdevice.h>
 
 #include "en.h"
-#include "en_accel/ipsec.h"
-#include "en_accel/ipsec_rxtx.h"
-#include "en_accel/ipsec_fs.h"
+#include "ipsec.h"
+#include "ipsec_rxtx.h"
 
 static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
 {

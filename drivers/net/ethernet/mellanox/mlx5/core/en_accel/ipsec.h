@@ -40,10 +40,80 @@
 #include <net/xfrm.h>
 #include <linux/idr.h>
 
-#include "ipsec_offload.h"
-
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
+
+enum mlx5_accel_esp_flags {
+	MLX5_ACCEL_ESP_FLAGS_TUNNEL            = 0,    /* Default */
+	MLX5_ACCEL_ESP_FLAGS_TRANSPORT         = 1UL << 0,
+	MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED     = 1UL << 1,
+	MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP = 1UL << 2,
+};
+
+enum mlx5_accel_esp_action {
+	MLX5_ACCEL_ESP_ACTION_DECRYPT,
+	MLX5_ACCEL_ESP_ACTION_ENCRYPT,
+};
+
+enum mlx5_accel_esp_keymats {
+	MLX5_ACCEL_ESP_KEYMAT_AES_NONE,
+	MLX5_ACCEL_ESP_KEYMAT_AES_GCM,
+};
+
+struct aes_gcm_keymat {
+	u64   seq_iv;
+
+	u32   salt;
+	u32   icv_len;
+
+	u32   key_len;
+	u32   aes_key[256 / 32];
+};
+
+struct mlx5_accel_esp_xfrm_attrs {
+	enum mlx5_accel_esp_action action;
+	u32   esn;
+	__be32 spi;
+	u32   seq;
+	u32   tfc_pad;
+	u32   flags;
+	u32   sa_handle;
+	union {
+		struct {
+			u32 size;
+
+		} bmp;
+	} replay;
+	enum mlx5_accel_esp_keymats keymat_type;
+	union {
+		struct aes_gcm_keymat aes_gcm;
+	} keymat;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} saddr;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} daddr;
+
+	u8 is_ipv6;
+};
+
+struct mlx5_accel_esp_xfrm {
+	struct mlx5_core_dev  *mdev;
+	struct mlx5_accel_esp_xfrm_attrs attrs;
+};
+
+enum mlx5_accel_ipsec_cap {
+	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
+	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 1,
+	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 2,
+	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 3,
+	MLX5_ACCEL_IPSEC_CAP_ESN		= 1 << 4,
+};
 
 struct mlx5e_priv;
 
@@ -108,6 +178,29 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
 struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *dev,
 					      unsigned int handle);
 
+void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec);
+int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec);
+int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
+				  struct mlx5_accel_esp_xfrm_attrs *attrs,
+				  u32 ipsec_obj_id,
+				  struct mlx5e_ipsec_rule *ipsec_rule);
+void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
+				   struct mlx5_accel_esp_xfrm_attrs *attrs,
+				   struct mlx5e_ipsec_rule *ipsec_rule);
+
+void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
+				       struct mlx5_accel_esp_xfrm *xfrm,
+				       u32 *sa_handle);
+void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context);
+
+u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev);
+
+struct mlx5_accel_esp_xfrm *
+mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs);
+void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm);
+void mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+				const struct mlx5_accel_esp_xfrm_attrs *attrs);
 #else
 static inline int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {
@@ -122,6 +215,10 @@ static inline void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 {
 }
 
+static inline u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
+{
+	return 0;
+}
 #endif
 
 #endif	/* __MLX5E_IPSEC_H__ */

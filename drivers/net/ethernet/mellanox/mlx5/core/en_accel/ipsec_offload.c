@@ -2,9 +2,8 @@
 /* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
 
 #include "mlx5_core.h"
-#include "ipsec_offload.h"
+#include "ipsec.h"
 #include "lib/mlx5.h"
-#include "en_accel/ipsec_fs.h"
 
 struct mlx5_ipsec_sa_ctx {
 	struct rhash_head hash;
