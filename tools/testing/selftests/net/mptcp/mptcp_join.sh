@@ -16,7 +16,6 @@ capture=0
 checksum=0
 ip_mptcp=0
 check_invert=0
-do_all_tests=1
 init=0
 
 TEST_COUNT=0
@@ -311,6 +310,21 @@ wait_rm_addr()
 	done
 }
 
+wait_mpj()
+{
+	local ns="${1}"
+	local cnt old_cnt
+
+	old_cnt=$(ip netns exec ${ns} nstat -as | grep MPJoinAckRx | awk '{print $2}')
+
+	local i
+	for i in $(seq 10); do
+		cnt=$(ip netns exec ${ns} nstat -as | grep MPJoinAckRx | awk '{print $2}')
+		[ "$cnt" = "${old_cnt}" ] || break
+		sleep 0.1
+	done
+}
+
 pm_nl_set_limits()
 {
 	local ns=$1
@@ -408,6 +422,80 @@ pm_nl_change_endpoint()
 		ip -n $ns mptcp endpoint change id $id ${flags//","/" "}
 	else
 		ip netns exec $ns ./pm_nl_ctl set id $id flags $flags
+	fi
+}
+
+pm_nl_check_endpoint()
+{
+	local line expected_line
+	local title="$1"
+	local msg="$2"
+	local ns=$3
+	local addr=$4
+	local _flags=""
+	local flags
+	local _port
+	local port
+	local dev
+	local _id
+	local id
+
+	if [ -n "${title}" ]; then
+		printf "%03u %-36s %s" "${TEST_COUNT}" "${title}" "${msg}"
+	else
+		printf "%-${nr_blank}s %s" " " "${msg}"
+	fi
+
+	shift 4
+	while [ -n "$1" ]; do
+		if [ $1 = "flags" ]; then
+			_flags=$2
+			[ ! -z $_flags ]; flags="flags $_flags"
+			shift
+		elif [ $1 = "dev" ]; then
+			[ ! -z $2 ]; dev="dev $1"
+			shift
+		elif [ $1 = "id" ]; then
+			_id=$2
+			[ ! -z $_id ]; id="id $_id"
+			shift
+		elif [ $1 = "port" ]; then
+			_port=$2
+			[ ! -z $_port ]; port=" port $_port"
+			shift
+		fi
+
+		shift
+	done
+
+	if [ -z "$id" ]; then
+		echo "[skip] bad test - missing endpoint id"
+		return
+	fi
+
+	if [ $ip_mptcp -eq 1 ]; then
+		line=$(ip -n $ns mptcp endpoint show $id)
+		# the dump order is: address id flags port dev
+		expected_line="$addr"
+		[ -n "$addr" ] && expected_line="$expected_line $addr"
+		expected_line="$expected_line $id"
+		[ -n "$_flags" ] && expected_line="$expected_line ${_flags//","/" "}"
+		[ -n "$dev" ] && expected_line="$expected_line $dev"
+		[ -n "$port" ] && expected_line="$expected_line $port"
+	else
+		line=$(ip netns exec $ns ./pm_nl_ctl get $_id)
+		# the dump order is: id flags dev address port
+		expected_line="$id"
+		[ -n "$flags" ] && expected_line="$expected_line $flags"
+		[ -n "$dev" ] && expected_line="$expected_line $dev"
+		[ -n "$addr" ] && expected_line="$expected_line $addr"
+		[ -n "$_port" ] && expected_line="$expected_line $_port"
+	fi
+	if [ "$line" = "$expected_line" ]; then
+		echo "[ ok ]"
+	else
+		echo "[fail] expected '$expected_line' found '$line'"
+		ret=1
 	fi
 }
 
@@ -1150,14 +1238,25 @@ chk_rm_nr()
 {
 	local rm_addr_nr=$1
 	local rm_subflow_nr=$2
-	local invert=${3:-""}
+	local invert
+	local simult
 	local count
 	local dump_stats
 	local addr_ns=$ns1
 	local subflow_ns=$ns2
 	local extra_msg=""
 
-	if [[ $invert = "invert" ]]; then
+	shift 2
+	while [ -n "$1" ]; do
+		[ "$1" = "invert" ] && invert=true
+		[ "$1" = "simult" ] && simult=true
+		shift
+	done
+
+	if [ -z $invert ]; then
+		addr_ns=$ns1
+		subflow_ns=$ns2
+	elif [ $invert = "true" ]; then
 		addr_ns=$ns2
 		subflow_ns=$ns1
 		extra_msg="   invert"
@@ -1177,6 +1276,25 @@ chk_rm_nr()
 	echo -n " - rmsf  "
 	count=`ip netns exec $subflow_ns nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}'`
 	[ -z "$count" ] && count=0
+	if [ -n "$simult" ]; then
+		local cnt=$(ip netns exec $addr_ns nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}')
+		local suffix
+
+		# in case of simult flush, the subflow removal count on each side is
+		# unreliable
+		[ -z "$cnt" ] && cnt=0
+		count=$((count + cnt))
+		[ "$count" != "$rm_subflow_nr" ] && suffix="$count in [$rm_subflow_nr:$((rm_subflow_nr*2))]"
+		if [ $count -ge "$rm_subflow_nr" ] && \
+		   [ "$count" -le "$((rm_subflow_nr *2 ))" ]; then
+			echo "[ ok ] $suffix"
+		else
+			echo "[fail] got $count RM_SUBFLOW[s] expected in range [$rm_subflow_nr:$((rm_subflow_nr*2))]"
+			ret=1
+			dump_stats=1
+		fi
+		return
+	fi
 	if [ "$count" != "$rm_subflow_nr" ]; then
 		echo "[fail] got $count RM_SUBFLOW[s] expected $rm_subflow_nr"
 		ret=1
@@ -1243,7 +1361,7 @@ chk_link_usage()
 	fi
 }
 
-wait_for_tw()
+wait_attempt_fail()
 {
 	local timeout_ms=$((timeout_poll * 1000))
 	local time=0
@@ -1362,7 +1480,7 @@ subflows_error_tests()
 	TEST_COUNT=$((TEST_COUNT+1))
 
 	# mpj subflow will be in TW after the reset
-	wait_for_tw $ns2
+	wait_attempt_fail $ns2
 	pm_nl_add_endpoint $ns2 10.0.2.2 flags subflow
 	wait
 
@@ -1667,7 +1785,7 @@ remove_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush subflows and signal" 3 3 3
 	chk_add_nr 1 1
-	chk_rm_nr 2 2
+	chk_rm_nr 1 3 invert simult
 
 	# subflows flush
 	reset
@@ -1678,7 +1796,7 @@ remove_tests()
 	pm_nl_add_endpoint $ns2 10.0.4.2 flags subflow
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush subflows" 3 3 3
-	chk_rm_nr 3 3
+	chk_rm_nr 0 3 simult
 
 	# addresses flush
 	reset
@@ -1690,7 +1808,7 @@ remove_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 	chk_join_nr "flush addresses" 3 3 3
 	chk_add_nr 3 3
-	chk_rm_nr 3 3 invert
+	chk_rm_nr 3 3 invert simult
 
 	# invalid addresses flush
 	reset
@@ -1909,7 +2027,7 @@ backup_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
 	chk_join_nr "single address, backup" 1 1 1
 	chk_add_nr 1 1
-	chk_prio_nr 1 0
+	chk_prio_nr 1 1
 
 	# single address with port, backup
 	reset
@@ -1919,7 +2037,7 @@ backup_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
 	chk_join_nr "single address with port, backup" 1 1 1
 	chk_add_nr 1 1
-	chk_prio_nr 1 0
+	chk_prio_nr 1 1
 }
 
 add_addr_ports_tests()
@@ -1974,7 +2092,7 @@ add_addr_ports_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -8 -2 slow
 	chk_join_nr "flush subflows and signal with port" 3 3 3
 	chk_add_nr 1 1
-	chk_rm_nr 2 2
+	chk_rm_nr 1 3 invert simult
 
 	# multiple addresses with port
 	reset
@@ -2240,6 +2358,30 @@ fastclose_tests()
 	chk_rst_nr 1 1 invert
 }
 
+implicit_tests()
+{
+	# userspace pm type prevents add_addr
+	reset
+	pm_nl_set_limits $ns1 2 2
+	pm_nl_set_limits $ns2 2 2
+	pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+	run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow &
+
+	wait_mpj $ns1
+	TEST_COUNT=$((TEST_COUNT + 1))
+	pm_nl_check_endpoint "implicit EP" "creation" \
+		$ns2 10.0.2.2 id 1 flags implicit
+
+	pm_nl_add_endpoint $ns2 10.0.2.2 id 33
+	pm_nl_check_endpoint "" "ID change is prevented" \
+		$ns2 10.0.2.2 id 1 flags implicit
+
+	pm_nl_add_endpoint $ns2 10.0.2.2 flags signal
+	pm_nl_check_endpoint "" "modif is allowed" \
+		$ns2 10.0.2.2 id 1 flags signal
+	wait
+}
+
 all_tests()
 {
 	subflows_tests
@@ -2258,6 +2400,7 @@ all_tests()
 	deny_join_id0_tests
 	fullmesh_tests
 	fastclose_tests
+	implicit_tests
 }
 
 # [$1: error message]
@@ -2285,6 +2428,7 @@ usage()
 	echo "  -d deny_join_id0_tests"
 	echo "  -m fullmesh_tests"
 	echo "  -z fastclose_tests"
+	echo "  -I implicit_tests"
 	echo "  -c capture pcap files"
 	echo "  -C enable data checksum"
 	echo "  -i use ip mptcp"
@@ -2293,84 +2437,69 @@ usage()
 	exit ${ret}
 }
 
-for arg in "$@"; do
-	# check for "capture/checksum" args before launching tests
-	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"c"[0-9a-zA-Z]*$ ]]; then
-		capture=1
-	fi
-	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"C"[0-9a-zA-Z]*$ ]]; then
-		checksum=1
-	fi
-	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"i"[0-9a-zA-Z]*$ ]]; then
-		ip_mptcp=1
-	fi
 
-	# exception for the capture/checksum/ip_mptcp options, the rest means: a part of the tests
-	if [ "${arg}" != "-c" ] && [ "${arg}" != "-C" ] && [ "${arg}" != "-i" ]; then
-		do_all_tests=0
-	fi
-done
-
-if [ $do_all_tests -eq 1 ]; then
-	all_tests
-	exit $ret
-fi
-
-while getopts 'fesltra64bpkdmchzCSi' opt; do
+tests=()
+while getopts 'fesltra64bpkdmchzICSi' opt; do
 	case $opt in
 		f)
-			subflows_tests
+			tests+=(subflows_tests)
 			;;
 		e)
-			subflows_error_tests
+			tests+=(subflows_error_tests)
 			;;
 		s)
-			signal_address_tests
+			tests+=(signal_address_tests)
 			;;
 		l)
-			link_failure_tests
+			tests+=(link_failure_tests)
 			;;
 		t)
-			add_addr_timeout_tests
+			tests+=(add_addr_timeout_tests)
 			;;
 		r)
-			remove_tests
+			tests+=(remove_tests)
 			;;
 		a)
-			add_tests
+			tests+=(add_tests)
 			;;
 		6)
-			ipv6_tests
+			tests+=(ipv6_tests)
 			;;
 		4)
-			v4mapped_tests
+			tests+=(v4mapped_tests)
 			;;
 		b)
-			backup_tests
+			tests+=(backup_tests)
 			;;
 		p)
-			add_addr_ports_tests
+			tests+=(add_addr_ports_tests)
 			;;
 		k)
-			syncookies_tests
+			tests+=(syncookies_tests)
 			;;
 		S)
-			checksum_tests
+			tests+=(checksum_tests)
 			;;
 		d)
-			deny_join_id0_tests
+			tests+=(deny_join_id0_tests)
 			;;
 		m)
-			fullmesh_tests
+			tests+=(fullmesh_tests)
 			;;
 		z)
-			fastclose_tests
+			tests+=(fastclose_tests)
+			;;
+		I)
+			tests+=(implicit_tests)
 			;;
 		c)
+			capture=1
 			;;
 		C)
+			checksum=1
 			;;
 		i)
+			ip_mptcp=1
 			;;
 		h)
 			usage
@@ -2380,5 +2509,13 @@ while getopts 'fesltra64bpkdmchzCSi' opt; do
 			;;
 	esac
 done
+
+if [ ${#tests[@]} -eq 0 ]; then
+	all_tests
+else
+	for subtests in "${tests[@]}"; do
+		"${subtests}"
+	done
+fi
 
 exit $ret
