@@ -501,7 +501,12 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_stack_pointer;
 		frame.lr = (unsigned long)__builtin_return_address(0);
-		frame.pc = (unsigned long)unwind_backtrace;
+		/* We are saving the stack and execution state at this
+		 * point, so we should ensure that frame.pc is within
+		 * this block of code.
+		 */
+here:
+		frame.pc = (unsigned long)&&here;
 	} else {
 		/* task blocked in __switch_to */
 		frame.fp = thread_saved_fp(tsk);

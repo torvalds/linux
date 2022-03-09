@@ -41,7 +41,8 @@ void *return_address(unsigned int level)
 	frame.fp = (unsigned long)__builtin_frame_address(0);
 	frame.sp = current_stack_pointer;
 	frame.lr = (unsigned long)__builtin_return_address(0);
-	frame.pc = (unsigned long)return_address;
+here:
+	frame.pc = (unsigned long)&&here;
 #ifdef CONFIG_KRETPROBES
 	frame.kr_cur = NULL;
 	frame.tsk = current;
