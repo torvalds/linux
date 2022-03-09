@@ -105,7 +105,6 @@ config VIRTIO_BALLOON
 
 config VIRTIO_MEM
 	tristate "Virtio mem driver"
-	default m
 	depends on X86_64
 	depends on VIRTIO
 	depends on MEMORY_HOTPLUG
