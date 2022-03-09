@@ -220,24 +220,6 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	u8 buf[4];
 	int ret;
 
-	/*
-	 * The alarm has no seconds so deal with it
-	 */
-	if (alm_tm->tm_sec) {
-		alm_tm->tm_sec = 0;
-		alm_tm->tm_min++;
-		if (alm_tm->tm_min >= 60) {
-			alm_tm->tm_min = 0;
-			alm_tm->tm_hour++;
-			if (alm_tm->tm_hour >= 24) {
-				alm_tm->tm_hour = 0;
-				alm_tm->tm_mday++;
-				if (alm_tm->tm_mday > 31)
-					alm_tm->tm_mday = 0;
-			}
-		}
-	}
-
 	ret = i2c_smbus_read_byte_data(client, HYM8563_CTL2);
 	if (ret < 0)
 		return ret;
@@ -562,6 +544,7 @@ static int hym8563_probe(struct i2c_client *client,
 		(ret & HYM8563_SEC_VL) ? "invalid" : "valid");
 
 	hym8563->rtc->ops = &hym8563_rtc_ops;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, hym8563->rtc->features);
 	/* the hym8563 alarm only supports a minute accuracy */
 	hym8563->rtc->uie_unsupported = 1;
 
