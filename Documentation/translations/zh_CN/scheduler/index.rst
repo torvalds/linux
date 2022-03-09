@@ -25,14 +25,13 @@ Linux调度器
     sched-domains
     sched-capacity
     sched-energy
-
+    sched-stats
 
 TODOList:
 
     sched-deadline
     sched-nice-design
     sched-rt-group
-    sched-stats
 
     text_files
 
