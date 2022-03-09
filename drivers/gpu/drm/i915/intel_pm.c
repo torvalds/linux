@@ -57,6 +57,8 @@
 #include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
+static int intel_disable_sagv(struct drm_i915_private *dev_priv);
+
 struct drm_i915_clock_gating_funcs {
 	void (*init_clock_gating)(struct drm_i915_private *i915);
 };
@@ -3697,6 +3699,18 @@ intel_sagv_block_time(struct drm_i915_private *dev_priv)
 
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
+	if (!intel_has_sagv(i915))
+		i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+
+	/*
+	 * Probe to see if we have working SAGV control.
+	 * For icl+ this was already determined by intel_bw_init_hw().
+	 */
+	if (DISPLAY_VER(i915) < 11)
+		intel_disable_sagv(i915);
+
+	drm_WARN_ON(&i915->drm, i915->sagv_status == I915_SAGV_UNKNOWN);
+
 	i915->sagv_block_time_us = intel_sagv_block_time(i915);
 
 	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
