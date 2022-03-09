@@ -1004,13 +1004,13 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
 
+		if (i != 0 || plane_fmt->bytesperline < bytesperline)
+			plane_fmt->bytesperline = bytesperline;
+
 		/* 128bit AXI, 16byte align for bytesperline */
 		if ((dev->isp_ver == ISP_V20 && stream->id == RKISP_STREAM_SP) ||
 		    dev->isp_ver == ISP_V30)
-			bytesperline = ALIGN(bytesperline, 16);
-
-		if (i != 0 || plane_fmt->bytesperline < bytesperline)
-			plane_fmt->bytesperline = bytesperline;
+			plane_fmt->bytesperline = ALIGN(plane_fmt->bytesperline, 16);
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
 
