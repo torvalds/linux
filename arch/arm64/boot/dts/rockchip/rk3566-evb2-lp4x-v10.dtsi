@@ -59,7 +59,7 @@
 };
 
 &csi2_dphy0 {
-	status = "disabled";
+	status = "okay";
 	/*
 	 * dphy0 only used for full mode,
 	 * full mode and split mode are mutually exclusive
@@ -87,14 +87,14 @@
 
 			dphy0_out: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&isp0_in>;
+				remote-endpoint = <&isp0_in_dphy0>;
 			};
 		};
 	};
 };
 
 &csi2_dphy1 {
-	status = "okay";
+	status = "disabled";
 
 	/*
 	 * dphy1 only used for split mode,
@@ -131,7 +131,7 @@
 };
 
 &csi2_dphy2 {
-	status = "okay";
+	status = "disabled";
 
 	/*
 	 * dphy2 only used for split mode,
@@ -518,6 +518,10 @@
 		isp0_in: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&dphy1_out>;
+		};
+		isp0_in_dphy0: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dphy0_out>;
 		};
 	};
 };
