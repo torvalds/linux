@@ -325,6 +325,11 @@ static void guest_code(void)
 	guest_wait_for_irq();
 
 	GUEST_SYNC(20);
+
+	/* Timer should have fired already */
+	guest_wait_for_irq();
+
+	GUEST_SYNC(21);
 }
 
 static int cmp_timespec(struct timespec *a, struct timespec *b)
@@ -746,6 +751,7 @@ int main(int argc, char *argv[])
 
 				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000,
 				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &tmr);
+				alarm(1);
 				break;
 
 			case 19:
@@ -753,15 +759,38 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Testing SCHEDOP_poll wake on unmasked event\n");
 
-				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000,
-				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &tmr);
 				evtchn_irq_expected = true;
+				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000;
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &tmr);
+
+				/* Read it back and check the pending time is reported correctly */
+				tmr.u.timer.expires_ns = 0;
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_GET_ATTR, &tmr);
+				TEST_ASSERT(tmr.u.timer.expires_ns == rs->state_entry_time + 100000000,
+					    "Timer not reported pending");
+				alarm(1);
 				break;
 
 			case 20:
 				TEST_ASSERT(!evtchn_irq_expected,
 					    "Expected event channel IRQ but it didn't happen");
-				shinfo->evtchn_pending[1] = 0;
+				/* Read timer and check it is no longer pending */
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_GET_ATTR, &tmr);
+				TEST_ASSERT(!tmr.u.timer.expires_ns, "Timer still reported pending");
+
+				shinfo->evtchn_pending[0] = 0;
+				if (verbose)
+					printf("Testing timer in the past\n");
+
+				evtchn_irq_expected = true;
+				tmr.u.timer.expires_ns = rs->state_entry_time - 100000000ULL;
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &tmr);
+				alarm(1);
+				break;
+
+			case 21:
+				TEST_ASSERT(!evtchn_irq_expected,
+					    "Expected event channel IRQ but it didn't happen");
 				goto done;
 
 			case 0x20:
