@@ -67,7 +67,7 @@ struct ipa_power {
 	spinlock_t spinlock;	/* used with STOPPED/STARTED power flags */
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
-	struct icc_bulk_data *interconnect;
+	struct icc_bulk_data interconnect[];
 };
 
 /* Initialize interconnects required for IPA operation */
@@ -75,17 +75,12 @@ static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 				 const struct ipa_interconnect_data *data)
 {
 	struct icc_bulk_data *interconnect;
-	u32 count;
 	int ret;
-
-	count = power->interconnect_count;
-	interconnect = kcalloc(count, sizeof(*interconnect), GFP_KERNEL);
-	if (!interconnect)
-		return -ENOMEM;
-	power->interconnect = interconnect;
+	u32 i;
 
 	/* Initialize our interconnect data array for bulk operations */
-	while (count--) {
+	interconnect = &power->interconnect[0];
+	for (i = 0; i < power->interconnect_count; i++) {
 		/* interconnect->path is filled in by of_icc_bulk_get() */
 		interconnect->name = data->name;
 		interconnect->avg_bw = data->average_bandwidth;
@@ -97,7 +92,7 @@ static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 	ret = of_icc_bulk_get(dev, power->interconnect_count,
 			      power->interconnect);
 	if (ret)
-		goto err_free;
+		return ret;
 
 	/* All interconnects are initially disabled */
 	icc_bulk_disable(power->interconnect_count, power->interconnect);
@@ -105,15 +100,7 @@ static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 	/* Set the bandwidth values to be used when enabled */
 	ret = icc_bulk_set_bw(power->interconnect_count, power->interconnect);
 	if (ret)
-		goto err_bulk_put;
-
-	return 0;
-
-err_bulk_put:
-	icc_bulk_put(power->interconnect_count, power->interconnect);
-err_free:
-	kfree(power->interconnect);
-	power->interconnect = NULL;
+		icc_bulk_put(power->interconnect_count, power->interconnect);
 
 	return ret;
 }
@@ -122,8 +109,6 @@ err_free:
 static void ipa_interconnect_exit(struct ipa_power *power)
 {
 	icc_bulk_put(power->interconnect_count, power->interconnect);
-	kfree(power->interconnect);
-	power->interconnect = NULL;
 }
 
 /* Enable IPA power, enabling interconnects and the core clock */
@@ -372,6 +357,7 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 {
 	struct ipa_power *power;
 	struct clk *clk;
+	size_t size;
 	int ret;
 
 	clk = clk_get(dev, "core");
@@ -388,7 +374,8 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 		goto err_clk_put;
 	}
 
-	power = kzalloc(sizeof(*power), GFP_KERNEL);
+	size = data->interconnect_count * sizeof(power->interconnect[0]);
+	power = kzalloc(sizeof(*power) + size, GFP_KERNEL);
 	if (!power) {
 		ret = -ENOMEM;
 		goto err_clk_put;
