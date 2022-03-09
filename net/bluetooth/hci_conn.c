@@ -30,10 +30,13 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
+#include <net/bluetooth/iso.h>
+#include <net/bluetooth/mgmt.h>
 
 #include "hci_request.h"
 #include "smp.h"
 #include "a2mp.h"
+#include "eir.h"
 
 struct sco_param {
 	u16 pkt_type;
@@ -684,6 +687,199 @@ static void le_conn_timeout(struct work_struct *work)
 	hci_abort_conn(conn, HCI_ERROR_REMOTE_USER_TERM);
 }
 
+struct iso_list_data {
+	union {
+		u8  cig;
+		u8  big;
+	};
+	union {
+		u8  cis;
+		u8  bis;
+		u16 sync_handle;
+	};
+	int count;
+	struct {
+		struct hci_cp_le_set_cig_params cp;
+		struct hci_cis_params cis[0x11];
+	} pdu;
+};
+
+static void bis_list(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	/* Skip if not broadcast/ANY address */
+	if (bacmp(&conn->dst, BDADDR_ANY))
+		return;
+
+	if (d->big != conn->iso_qos.big || d->bis == BT_ISO_QOS_BIS_UNSET ||
+	    d->bis != conn->iso_qos.bis)
+		return;
+
+	d->count++;
+}
+
+static void find_bis(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	/* Ignore unicast */
+	if (bacmp(&conn->dst, BDADDR_ANY))
+		return;
+
+	d->count++;
+}
+
+static int terminate_big_sync(struct hci_dev *hdev, void *data)
+{
+	struct iso_list_data *d = data;
+
+	bt_dev_dbg(hdev, "big 0x%2.2x bis 0x%2.2x", d->big, d->bis);
+
+	hci_remove_ext_adv_instance_sync(hdev, d->bis, NULL);
+
+	/* Check if ISO connection is a BIS and terminate BIG if there are
+	 * no other connections using it.
+	 */
+	hci_conn_hash_list_state(hdev, find_bis, ISO_LINK, BT_CONNECTED, d);
+	if (d->count)
+		return 0;
+
+	return hci_le_terminate_big_sync(hdev, d->big,
+					 HCI_ERROR_LOCAL_HOST_TERM);
+}
+
+static void terminate_big_destroy(struct hci_dev *hdev, void *data, int err)
+{
+	kfree(data);
+}
+
+static int hci_le_terminate_big(struct hci_dev *hdev, u8 big, u8 bis)
+{
+	struct iso_list_data *d;
+
+	bt_dev_dbg(hdev, "big 0x%2.2x bis 0x%2.2x", big, bis);
+
+	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
+
+	memset(d, 0, sizeof(*d));
+	d->big = big;
+	d->bis = bis;
+
+	return hci_cmd_sync_queue(hdev, terminate_big_sync, d,
+				  terminate_big_destroy);
+}
+
+static int big_terminate_sync(struct hci_dev *hdev, void *data)
+{
+	struct iso_list_data *d = data;
+
+	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", d->big,
+		   d->sync_handle);
+
+	/* Check if ISO connection is a BIS and terminate BIG if there are
+	 * no other connections using it.
+	 */
+	hci_conn_hash_list_state(hdev, find_bis, ISO_LINK, BT_CONNECTED, d);
+	if (d->count)
+		return 0;
+
+	hci_le_big_terminate_sync(hdev, d->big);
+
+	return hci_le_pa_terminate_sync(hdev, d->sync_handle);
+}
+
+static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, u16 sync_handle)
+{
+	struct iso_list_data *d;
+
+	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", big, sync_handle);
+
+	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
+
+	memset(d, 0, sizeof(*d));
+	d->big = big;
+	d->sync_handle = sync_handle;
+
+	return hci_cmd_sync_queue(hdev, big_terminate_sync, d,
+				  terminate_big_destroy);
+}
+
+/* Cleanup BIS connection
+ *
+ * Detects if there any BIS left connected in a BIG
+ * broadcaster: Remove advertising instance and terminate BIG.
+ * broadcaster receiver: Teminate BIG sync and terminate PA sync.
+ */
+static void bis_cleanup(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	bt_dev_dbg(hdev, "conn %p", conn);
+
+	if (conn->role == HCI_ROLE_MASTER) {
+		if (!test_and_clear_bit(HCI_CONN_PER_ADV, &conn->flags))
+			return;
+
+		hci_le_terminate_big(hdev, conn->iso_qos.big,
+				     conn->iso_qos.bis);
+	} else {
+		hci_le_big_terminate(hdev, conn->iso_qos.big,
+				     conn->sync_handle);
+	}
+}
+
+static int remove_cig_sync(struct hci_dev *hdev, void *data)
+{
+	u8 handle = PTR_ERR(data);
+
+	return hci_le_remove_cig_sync(hdev, handle);
+}
+
+static int hci_le_remove_cig(struct hci_dev *hdev, u8 handle)
+{
+	bt_dev_dbg(hdev, "handle 0x%2.2x", handle);
+
+	return hci_cmd_sync_queue(hdev, remove_cig_sync, ERR_PTR(handle), NULL);
+}
+
+static void find_cis(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	/* Ignore broadcast */
+	if (!bacmp(&conn->dst, BDADDR_ANY))
+		return;
+
+	d->count++;
+}
+
+/* Cleanup CIS connection:
+ *
+ * Detects if there any CIS left connected in a CIG and remove it.
+ */
+static void cis_cleanup(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct iso_list_data d;
+
+	memset(&d, 0, sizeof(d));
+	d.cig = conn->iso_qos.cig;
+
+	/* Check if ISO connection is a CIS and remove CIG if there are
+	 * no other connections using it.
+	 */
+	hci_conn_hash_list_state(hdev, find_cis, ISO_LINK, BT_CONNECTED, &d);
+	if (d.count)
+		return;
+
+	hci_le_remove_cig(hdev, conn->iso_qos.cig);
+}
+
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 			      u8 role)
 {
@@ -725,9 +921,19 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
 		break;
 	case LE_LINK:
+		/* conn->src should reflect the local identity address */
+		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
+		break;
 	case ISO_LINK:
 		/* conn->src should reflect the local identity address */
 		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
+
+		/* set proper cleanup function */
+		if (!bacmp(dst, BDADDR_ANY))
+			conn->cleanup = bis_cleanup;
+		else if (conn->role == HCI_ROLE_MASTER)
+			conn->cleanup = cis_cleanup;
+
 		break;
 	case SCO_LINK:
 		if (lmp_esco_capable(hdev))
@@ -1100,6 +1306,108 @@ static int hci_explicit_conn_params_set(struct hci_dev *hdev,
 	return 0;
 }
 
+static int qos_set_big(struct hci_dev *hdev, struct bt_iso_qos *qos)
+{
+	struct iso_list_data data;
+
+	/* Allocate a BIG if not set */
+	if (qos->big == BT_ISO_QOS_BIG_UNSET) {
+		for (data.big = 0x00; data.big < 0xef; data.big++) {
+			data.count = 0;
+			data.bis = 0xff;
+
+			hci_conn_hash_list_state(hdev, bis_list, ISO_LINK,
+						 BT_BOUND, &data);
+			if (!data.count)
+				break;
+		}
+
+		if (data.big == 0xef)
+			return -EADDRNOTAVAIL;
+
+		/* Update BIG */
+		qos->big = data.big;
+	}
+
+	return 0;
+}
+
+static int qos_set_bis(struct hci_dev *hdev, struct bt_iso_qos *qos)
+{
+	struct iso_list_data data;
+
+	/* Allocate BIS if not set */
+	if (qos->bis == BT_ISO_QOS_BIS_UNSET) {
+		/* Find an unused adv set to advertise BIS, skip instance 0x00
+		 * since it is reserved as general purpose set.
+		 */
+		for (data.bis = 0x01; data.bis < hdev->le_num_of_adv_sets;
+		     data.bis++) {
+			data.count = 0;
+
+			hci_conn_hash_list_state(hdev, bis_list, ISO_LINK,
+						 BT_BOUND, &data);
+			if (!data.count)
+				break;
+		}
+
+		if (data.bis == hdev->le_num_of_adv_sets)
+			return -EADDRNOTAVAIL;
+
+		/* Update BIS */
+		qos->bis = data.bis;
+	}
+
+	return 0;
+}
+
+/* This function requires the caller holds hdev->lock */
+static struct hci_conn *hci_add_bis(struct hci_dev *hdev, bdaddr_t *dst,
+				    struct bt_iso_qos *qos)
+{
+	struct hci_conn *conn;
+	struct iso_list_data data;
+	int err;
+
+	/* Let's make sure that le is enabled.*/
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
+		if (lmp_le_capable(hdev))
+			return ERR_PTR(-ECONNREFUSED);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	err = qos_set_big(hdev, qos);
+	if (err)
+		return ERR_PTR(err);
+
+	err = qos_set_bis(hdev, qos);
+	if (err)
+		return ERR_PTR(err);
+
+	data.big = qos->big;
+	data.bis = qos->bis;
+	data.count = 0;
+
+	/* Check if there is already a matching BIG/BIS */
+	hci_conn_hash_list_state(hdev, bis_list, ISO_LINK, BT_BOUND, &data);
+	if (data.count)
+		return ERR_PTR(-EADDRINUSE);
+
+	conn = hci_conn_hash_lookup_bis(hdev, dst, qos->big, qos->bis);
+	if (conn)
+		return ERR_PTR(-EADDRINUSE);
+
+	conn = hci_conn_add(hdev, ISO_LINK, dst, HCI_ROLE_MASTER);
+	if (!conn)
+		return ERR_PTR(-ENOMEM);
+
+	set_bit(HCI_CONN_PER_ADV, &conn->flags);
+	conn->state = BT_CONNECT;
+
+	hci_conn_hold(conn);
+	return conn;
+}
+
 /* This function requires the caller holds hdev->lock */
 struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 				     u8 dst_type, u8 sec_level,
@@ -1236,16 +1544,6 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	return sco;
 }
 
-struct iso_list_data {
-	u8  cig;
-	u8  cis;
-	int count;
-	struct {
-		struct hci_cp_le_set_cig_params cp;
-		struct hci_cis_params cis[0x11];
-	} pdu;
-};
-
 static void cis_add(struct iso_list_data *d, struct bt_iso_qos *qos)
 {
 	struct hci_cis_params *cis = &d->pdu.cis[d->pdu.cp.num_cis];
@@ -1265,6 +1563,10 @@ static void cis_list(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
+	/* Skip if broadcast/ANY address */
+	if (!bacmp(&conn->dst, BDADDR_ANY))
+		return;
+
 	if (d->cig != conn->iso_qos.cig || d->cis == BT_ISO_QOS_CIS_UNSET ||
 	    d->cis != conn->iso_qos.cis)
 		return;
@@ -1276,6 +1578,29 @@ static void cis_list(struct hci_conn *conn, void *data)
 		return;
 
 	cis_add(d, &conn->iso_qos);
+}
+
+static int hci_le_create_big(struct hci_conn *conn, struct bt_iso_qos *qos)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_create_big cp;
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.handle = qos->big;
+	cp.adv_handle = qos->bis;
+	cp.num_bis  = 0x01;
+	hci_cpu_to_le24(qos->out.interval, cp.bis.sdu_interval);
+	cp.bis.sdu = cpu_to_le16(qos->out.sdu);
+	cp.bis.latency =  cpu_to_le16(qos->out.latency);
+	cp.bis.rtn  = qos->out.rtn;
+	cp.bis.phy  = qos->out.phy;
+	cp.bis.packing = qos->packing;
+	cp.bis.framing = qos->framing;
+	cp.bis.encryption = 0x00;
+	memset(&cp.bis.bcode, 0, sizeof(cp.bis.bcode));
+
+	return hci_send_cmd(hdev, HCI_OP_LE_CREATE_BIG, sizeof(cp), &cp);
 }
 
 static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
@@ -1359,49 +1684,6 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 		return false;
 
 	return true;
-}
-
-static void find_cis(struct hci_conn *conn, void *data)
-{
-	struct iso_list_data *d = data;
-
-	/* Ignore broadcast */
-	if (!bacmp(&conn->dst, BDADDR_ANY))
-		return;
-
-	d->count++;
-}
-
-static int remove_cig_sync(struct hci_dev *hdev, void *data)
-{
-	u8 handle = PTR_ERR(data);
-
-	return hci_le_remove_cig_sync(hdev, handle);
-}
-
-int hci_le_remove_cig(struct hci_dev *hdev, u8 handle)
-{
-	bt_dev_dbg(hdev, "handle 0x%2.2x", handle);
-
-	return hci_cmd_sync_queue(hdev, remove_cig_sync, ERR_PTR(handle), NULL);
-}
-
-static void cis_cleanup(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-	struct iso_list_data d;
-
-	memset(&d, 0, sizeof(d));
-	d.cig = conn->iso_qos.cig;
-
-	/* Check if ISO connection is a CIS and remove CIG if there are
-	 * no other connections using it.
-	 */
-	hci_conn_hash_list_state(hdev, find_cis, ISO_LINK, BT_CONNECTED, &d);
-	if (d.count)
-		return;
-
-	hci_le_remove_cig(hdev, conn->iso_qos.cig);
 }
 
 struct hci_conn *hci_bind_cis(struct hci_dev *hdev, bdaddr_t *dst,
@@ -1620,6 +1902,179 @@ static void hci_iso_qos_setup(struct hci_dev *hdev, struct hci_conn *conn,
 	/* Use LE ACL connection latency if not set */
 	if (!qos->latency)
 		qos->latency = conn->le_conn_latency;
+}
+
+static struct hci_conn *hci_bind_bis(struct hci_conn *conn,
+				     struct bt_iso_qos *qos)
+{
+	/* Update LINK PHYs according to QoS preference */
+	conn->le_tx_phy = qos->out.phy;
+	conn->le_tx_phy = qos->out.phy;
+	conn->iso_qos = *qos;
+	conn->state = BT_BOUND;
+
+	return conn;
+}
+
+static int create_big_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_conn *conn = data;
+	struct bt_iso_qos *qos = &conn->iso_qos;
+	u16 interval, sync_interval = 0;
+	u32 flags = 0;
+	int err;
+
+	if (qos->out.phy == 0x02)
+		flags |= MGMT_ADV_FLAG_SEC_2M;
+
+	/* Align intervals */
+	interval = qos->out.interval / 1250;
+
+	if (qos->bis)
+		sync_interval = qos->sync_interval * 1600;
+
+	err = hci_start_per_adv_sync(hdev, qos->bis, conn->le_per_adv_data_len,
+				     conn->le_per_adv_data, flags, interval,
+				     interval, sync_interval);
+	if (err)
+		return err;
+
+	return hci_le_create_big(conn, &conn->iso_qos);
+}
+
+static void create_pa_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct hci_cp_le_pa_create_sync *cp = data;
+
+	bt_dev_dbg(hdev, "");
+
+	if (err)
+		bt_dev_err(hdev, "Unable to create PA: %d", err);
+
+	kfree(cp);
+}
+
+static int create_pa_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_cp_le_pa_create_sync *cp = data;
+	int err;
+
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_PA_CREATE_SYNC,
+				    sizeof(*cp), cp, HCI_CMD_TIMEOUT);
+	if (err) {
+		hci_dev_clear_flag(hdev, HCI_PA_SYNC);
+		return err;
+	}
+
+	return hci_update_passive_scan_sync(hdev);
+}
+
+int hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst, __u8 dst_type,
+		       __u8 sid)
+{
+	struct hci_cp_le_pa_create_sync *cp;
+
+	if (hci_dev_test_and_set_flag(hdev, HCI_PA_SYNC))
+		return -EBUSY;
+
+	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp) {
+		hci_dev_clear_flag(hdev, HCI_PA_SYNC);
+		return -ENOMEM;
+	}
+
+	/* Convert from ISO socket address type to HCI address type  */
+	if (dst_type == BDADDR_LE_PUBLIC)
+		dst_type = ADDR_LE_DEV_PUBLIC;
+	else
+		dst_type = ADDR_LE_DEV_RANDOM;
+
+	memset(cp, 0, sizeof(*cp));
+	cp->sid = sid;
+	cp->addr_type = dst_type;
+	bacpy(&cp->addr, dst);
+
+	/* Queue start pa_create_sync and scan */
+	return hci_cmd_sync_queue(hdev, create_pa_sync, cp, create_pa_complete);
+}
+
+int hci_le_big_create_sync(struct hci_dev *hdev, struct bt_iso_qos *qos,
+			   __u16 sync_handle, __u8 num_bis, __u8 bis[])
+{
+	struct _packed {
+		struct hci_cp_le_big_create_sync cp;
+		__u8  bis[0x11];
+	} pdu;
+	int err;
+
+	if (num_bis > sizeof(pdu.bis))
+		return -EINVAL;
+
+	err = qos_set_big(hdev, qos);
+	if (err)
+		return err;
+
+	memset(&pdu, 0, sizeof(pdu));
+	pdu.cp.handle = qos->big;
+	pdu.cp.sync_handle = cpu_to_le16(sync_handle);
+	pdu.cp.num_bis = num_bis;
+	memcpy(pdu.bis, bis, num_bis);
+
+	return hci_send_cmd(hdev, HCI_OP_LE_BIG_CREATE_SYNC,
+			    sizeof(pdu.cp) + num_bis, &pdu);
+}
+
+static void create_big_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct hci_conn *conn = data;
+
+	bt_dev_dbg(hdev, "conn %p", conn);
+
+	if (err) {
+		bt_dev_err(hdev, "Unable to create BIG: %d", err);
+		hci_connect_cfm(conn, err);
+		hci_conn_del(conn);
+	}
+}
+
+struct hci_conn *hci_connect_bis(struct hci_dev *hdev, bdaddr_t *dst,
+				 __u8 dst_type, struct bt_iso_qos *qos,
+				 __u8 base_len, __u8 *base)
+{
+	struct hci_conn *conn;
+	int err;
+
+	/* We need hci_conn object using the BDADDR_ANY as dst */
+	conn = hci_add_bis(hdev, dst, qos);
+	if (IS_ERR(conn))
+		return conn;
+
+	conn = hci_bind_bis(conn, qos);
+	if (!conn) {
+		hci_conn_drop(conn);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/* Add Basic Announcement into Peridic Adv Data if BASE is set */
+	if (base_len && base) {
+		base_len = eir_append_service_data(conn->le_per_adv_data, 0,
+						   0x1851, base, base_len);
+		conn->le_per_adv_data_len = base_len;
+	}
+
+	/* Queue start periodic advertising and create BIG */
+	err = hci_cmd_sync_queue(hdev, create_big_sync, conn,
+				 create_big_complete);
+	if (err < 0) {
+		hci_conn_drop(conn);
+		return ERR_PTR(err);
+	}
+
+	hci_iso_qos_setup(hdev, conn, &qos->out,
+			  conn->le_tx_phy ? conn->le_tx_phy :
+			  hdev->le_tx_def_phys);
+
+	return conn;
 }
 
 struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,

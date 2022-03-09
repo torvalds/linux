@@ -827,7 +827,6 @@ void __hci_req_disable_advertising(struct hci_request *req)
 {
 	if (ext_adv_capable(req->hdev)) {
 		__hci_req_disable_ext_adv_instance(req, 0x00);
-
 	} else {
 		u8 enable = 0x00;
 
@@ -1338,15 +1337,15 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	bdaddr_t random_addr;
 	u8 own_addr_type;
 	int err;
-	struct adv_info *adv_instance;
-	bool secondary_adv;
+	struct adv_info *adv;
+	bool secondary_adv, require_privacy;
 
 	if (instance > 0) {
-		adv_instance = hci_find_adv_instance(hdev, instance);
-		if (!adv_instance)
+		adv = hci_find_adv_instance(hdev, instance);
+		if (!adv)
 			return -EINVAL;
 	} else {
-		adv_instance = NULL;
+		adv = NULL;
 	}
 
 	flags = hci_adv_instance_flags(hdev, instance);
@@ -1364,18 +1363,24 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	 * advertising is used. In that case it is fine to use a
 	 * non-resolvable private address.
 	 */
-	err = hci_get_random_address(hdev, !connectable,
-				     adv_use_rpa(hdev, flags), adv_instance,
+	require_privacy = !connectable;
+
+	/* Don't require privacy for periodic adv? */
+	if (adv && adv->periodic)
+		require_privacy = false;
+
+	err = hci_get_random_address(hdev, require_privacy,
+				     adv_use_rpa(hdev, flags), adv,
 				     &own_addr_type, &random_addr);
 	if (err < 0)
 		return err;
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (adv_instance) {
-		hci_cpu_to_le24(adv_instance->min_interval, cp.min_interval);
-		hci_cpu_to_le24(adv_instance->max_interval, cp.max_interval);
-		cp.tx_power = adv_instance->tx_power;
+	if (adv) {
+		hci_cpu_to_le24(adv->min_interval, cp.min_interval);
+		hci_cpu_to_le24(adv->max_interval, cp.max_interval);
+		cp.tx_power = adv->tx_power;
 	} else {
 		hci_cpu_to_le24(hdev->le_adv_min_interval, cp.min_interval);
 		hci_cpu_to_le24(hdev->le_adv_max_interval, cp.max_interval);
@@ -1396,7 +1401,8 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 		else
 			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
 	} else {
-		if (secondary_adv)
+		/* Secondary and periodic cannot use legacy PDUs */
+		if (secondary_adv || (adv && adv->periodic))
 			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_NON_CONN_IND);
 		else
 			cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
@@ -1426,8 +1432,8 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 		struct hci_cp_le_set_adv_set_rand_addr cp;
 
 		/* Check if random address need to be updated */
-		if (adv_instance) {
-			if (!bacmp(&random_addr, &adv_instance->random_addr))
+		if (adv) {
+			if (!bacmp(&random_addr, &adv->random_addr))
 				return 0;
 		} else {
 			if (!bacmp(&random_addr, &hdev->random_addr))

@@ -236,6 +236,27 @@ void eir_create(struct hci_dev *hdev, u8 *data)
 	ptr = create_uuid128_list(hdev, ptr, HCI_MAX_EIR_LENGTH - (ptr - data));
 }
 
+u8 eir_create_per_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
+{
+	struct adv_info *adv = NULL;
+	u8 ad_len = 0;
+
+	/* Return 0 when the current instance identifier is invalid. */
+	if (instance) {
+		adv = hci_find_adv_instance(hdev, instance);
+		if (!adv)
+			return 0;
+	}
+
+	if (adv) {
+		memcpy(ptr, adv->per_adv_data, adv->per_adv_data_len);
+		ad_len += adv->per_adv_data_len;
+		ptr += adv->per_adv_data_len;
+	}
+
+	return ad_len;
+}
+
 u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 {
 	struct adv_info *adv = NULL;

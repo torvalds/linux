@@ -3893,6 +3893,57 @@ unlock:
 	return rp->status;
 }
 
+static void hci_cs_le_create_big(struct hci_dev *hdev, u8 status)
+{
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
+}
+
+static u8 hci_cc_set_per_adv_param(struct hci_dev *hdev, void *data,
+				   struct sk_buff *skb)
+{
+	struct hci_ev_status *rp = data;
+	struct hci_cp_le_set_per_adv_params *cp;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
+
+	if (rp->status)
+		return rp->status;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_PER_ADV_PARAMS);
+	if (!cp)
+		return rp->status;
+
+	/* TODO: set the conn state */
+	return rp->status;
+}
+
+static u8 hci_cc_le_set_per_adv_enable(struct hci_dev *hdev, void *data,
+				       struct sk_buff *skb)
+{
+	struct hci_ev_status *rp = data;
+	__u8 *sent;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
+
+	if (rp->status)
+		return rp->status;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE);
+	if (!sent)
+		return rp->status;
+
+	hci_dev_lock(hdev);
+
+	if (*sent)
+		hci_dev_set_flag(hdev, HCI_LE_PER_ADV);
+	else
+		hci_dev_clear_flag(hdev, HCI_LE_PER_ADV);
+
+	hci_dev_unlock(hdev);
+
+	return rp->status;
+}
+
 #define HCI_CC_VL(_op, _func, _min, _max) \
 { \
 	.op = _op, \
@@ -4066,6 +4117,9 @@ static const struct hci_cc {
 		      hci_cc_le_set_adv_set_random_addr),
 	HCI_CC_STATUS(HCI_OP_LE_REMOVE_ADV_SET, hci_cc_le_remove_adv_set),
 	HCI_CC_STATUS(HCI_OP_LE_CLEAR_ADV_SETS, hci_cc_le_clear_adv_sets),
+	HCI_CC_STATUS(HCI_OP_LE_SET_PER_ADV_PARAMS, hci_cc_set_per_adv_param),
+	HCI_CC_STATUS(HCI_OP_LE_SET_PER_ADV_ENABLE,
+		      hci_cc_le_set_per_adv_enable),
 	HCI_CC(HCI_OP_LE_READ_TRANSMIT_POWER, hci_cc_le_read_transmit_power,
 	       sizeof(struct hci_rp_le_read_transmit_power)),
 	HCI_CC_STATUS(HCI_OP_LE_SET_PRIVACY_MODE, hci_cc_le_set_privacy_mode),
@@ -4202,6 +4256,7 @@ static const struct hci_cs {
 	HCI_CS(HCI_OP_LE_START_ENC, hci_cs_le_start_enc),
 	HCI_CS(HCI_OP_LE_EXT_CREATE_CONN, hci_cs_le_ext_create_conn),
 	HCI_CS(HCI_OP_LE_CREATE_CIS, hci_cs_le_create_cis),
+	HCI_CS(HCI_OP_LE_CREATE_BIG, hci_cs_le_create_big),
 };
 
 static void hci_cmd_status_evt(struct hci_dev *hdev, void *data,
@@ -6425,6 +6480,39 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, void *data,
 	hci_dev_unlock(hdev);
 }
 
+static int hci_le_pa_term_sync(struct hci_dev *hdev, __le16 handle)
+{
+	struct hci_cp_le_pa_term_sync cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = handle;
+
+	return hci_send_cmd(hdev, HCI_OP_LE_PA_TERM_SYNC, sizeof(cp), &cp);
+}
+
+static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
+					    struct sk_buff *skb)
+{
+	struct hci_ev_le_pa_sync_established *ev = data;
+	int mask = hdev->link_mode;
+	__u8 flags = 0;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
+
+	if (ev->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	hci_dev_clear_flag(hdev, HCI_PA_SYNC);
+
+	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ISO_LINK, &flags);
+	if (!(mask & HCI_LM_ACCEPT))
+		hci_le_pa_term_sync(hdev, ev->handle);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev, void *data,
 					    struct sk_buff *skb)
 {
@@ -6776,6 +6864,105 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_le_create_big_complete_evt(struct hci_dev *hdev, void *data,
+					   struct sk_buff *skb)
+{
+	struct hci_evt_le_create_big_complete *ev = data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+
+	if (!hci_le_ev_skb_pull(hdev, skb, HCI_EVT_LE_CREATE_BIG_COMPLETE,
+				flex_array_size(ev, bis_handle, ev->num_bis)))
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_big(hdev, ev->handle);
+	if (!conn)
+		goto unlock;
+
+	if (ev->num_bis)
+		conn->handle = __le16_to_cpu(ev->bis_handle[0]);
+
+	if (!ev->status) {
+		conn->state = BT_CONNECTED;
+		hci_debugfs_create_conn(conn);
+		hci_conn_add_sysfs(conn);
+		hci_iso_setup_path(conn);
+		goto unlock;
+	}
+
+	hci_connect_cfm(conn, ev->status);
+	hci_conn_del(conn);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
+					    struct sk_buff *skb)
+{
+	struct hci_evt_le_big_sync_estabilished *ev = data;
+	struct hci_conn *bis;
+	int i;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
+
+	if (!hci_le_ev_skb_pull(hdev, skb, HCI_EVT_LE_BIG_SYNC_ESTABILISHED,
+				flex_array_size(ev, bis, ev->num_bis)))
+		return;
+
+	if (ev->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	for (i = 0; i < ev->num_bis; i++) {
+		u16 handle = le16_to_cpu(ev->bis[i]);
+		__le32 interval;
+
+		bis = hci_conn_hash_lookup_handle(hdev, handle);
+		if (!bis) {
+			bis = hci_conn_add(hdev, ISO_LINK, BDADDR_ANY,
+					   HCI_ROLE_SLAVE);
+			if (!bis)
+				continue;
+			bis->handle = handle;
+		}
+
+		bis->iso_qos.big = ev->handle;
+		memset(&interval, 0, sizeof(interval));
+		memcpy(&interval, ev->latency, sizeof(ev->latency));
+		bis->iso_qos.in.interval = le32_to_cpu(interval);
+		/* Convert ISO Interval (1.25 ms slots) to latency (ms) */
+		bis->iso_qos.in.latency = le16_to_cpu(ev->interval) * 125 / 100;
+		bis->iso_qos.in.sdu = le16_to_cpu(ev->max_pdu);
+
+		hci_connect_cfm(bis, ev->status);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_le_big_info_adv_report_evt(struct hci_dev *hdev, void *data,
+					   struct sk_buff *skb)
+{
+	struct hci_evt_le_big_info_adv_report *ev = data;
+	int mask = hdev->link_mode;
+	__u8 flags = 0;
+
+	bt_dev_dbg(hdev, "sync_handle 0x%4.4x", le16_to_cpu(ev->sync_handle));
+
+	hci_dev_lock(hdev);
+
+	mask |= hci_proto_connect_ind(hdev, BDADDR_ANY, ISO_LINK, &flags);
+	if (!(mask & HCI_LM_ACCEPT))
+		hci_le_pa_term_sync(hdev, ev->sync_handle);
+
+	hci_dev_unlock(hdev);
+}
+
 #define HCI_LE_EV_VL(_op, _func, _min_len, _max_len) \
 [_op] = { \
 	.func = _func, \
@@ -6836,6 +7023,10 @@ static const struct hci_le_ev {
 	HCI_LE_EV_VL(HCI_EV_LE_EXT_ADV_REPORT, hci_le_ext_adv_report_evt,
 		     sizeof(struct hci_ev_le_ext_adv_report),
 		     HCI_MAX_EVENT_SIZE),
+	/* [0x0e = HCI_EV_LE_PA_SYNC_ESTABLISHED] */
+	HCI_LE_EV(HCI_EV_LE_PA_SYNC_ESTABLISHED,
+		  hci_le_pa_sync_estabilished_evt,
+		  sizeof(struct hci_ev_le_pa_sync_established)),
 	/* [0x12 = HCI_EV_LE_EXT_ADV_SET_TERM] */
 	HCI_LE_EV(HCI_EV_LE_EXT_ADV_SET_TERM, hci_le_ext_adv_term_evt,
 		  sizeof(struct hci_evt_le_ext_adv_set_term)),
@@ -6845,6 +7036,21 @@ static const struct hci_le_ev {
 	/* [0x1a = HCI_EVT_LE_CIS_REQ] */
 	HCI_LE_EV(HCI_EVT_LE_CIS_REQ, hci_le_cis_req_evt,
 		  sizeof(struct hci_evt_le_cis_req)),
+	/* [0x1b = HCI_EVT_LE_CREATE_BIG_COMPLETE] */
+	HCI_LE_EV_VL(HCI_EVT_LE_CREATE_BIG_COMPLETE,
+		     hci_le_create_big_complete_evt,
+		     sizeof(struct hci_evt_le_create_big_complete),
+		     HCI_MAX_EVENT_SIZE),
+	/* [0x1d = HCI_EV_LE_BIG_SYNC_ESTABILISHED] */
+	HCI_LE_EV_VL(HCI_EVT_LE_BIG_SYNC_ESTABILISHED,
+		     hci_le_big_sync_established_evt,
+		     sizeof(struct hci_evt_le_big_sync_estabilished),
+		     HCI_MAX_EVENT_SIZE),
+	/* [0x22 = HCI_EVT_LE_BIG_INFO_ADV_REPORT] */
+	HCI_LE_EV_VL(HCI_EVT_LE_BIG_INFO_ADV_REPORT,
+		     hci_le_big_info_adv_report_evt,
+		     sizeof(struct hci_evt_le_big_info_adv_report),
+		     HCI_MAX_EVENT_SIZE),
 };
 
 static void hci_le_meta_evt(struct hci_dev *hdev, void *data,

@@ -160,6 +160,9 @@ struct bt_voice {
 #define BT_ISO_QOS_CIG_UNSET	0xff
 #define BT_ISO_QOS_CIS_UNSET	0xff
 
+#define BT_ISO_QOS_BIG_UNSET	0xff
+#define BT_ISO_QOS_BIS_UNSET	0xff
+
 struct bt_iso_io_qos {
 	__u32 interval;
 	__u16 latency;
@@ -169,9 +172,18 @@ struct bt_iso_io_qos {
 };
 
 struct bt_iso_qos {
-	__u8  cig;
-	__u8  cis;
-	__u8  sca;
+	union {
+		__u8  cig;
+		__u8  big;
+	};
+	union {
+		__u8  cis;
+		__u8  bis;
+	};
+	union {
+		__u8  sca;
+		__u8  sync_interval;
+	};
 	__u8  packing;
 	__u8  framing;
 	struct bt_iso_io_qos in;

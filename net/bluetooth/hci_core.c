@@ -1702,57 +1702,77 @@ static void adv_instance_rpa_expired(struct work_struct *work)
 }
 
 /* This function requires the caller holds hdev->lock */
-int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
-			 u16 adv_data_len, u8 *adv_data,
-			 u16 scan_rsp_len, u8 *scan_rsp_data,
-			 u16 timeout, u16 duration, s8 tx_power,
-			 u32 min_interval, u32 max_interval)
+struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
+				      u32 flags, u16 adv_data_len, u8 *adv_data,
+				      u16 scan_rsp_len, u8 *scan_rsp_data,
+				      u16 timeout, u16 duration, s8 tx_power,
+				      u32 min_interval, u32 max_interval)
 {
-	struct adv_info *adv_instance;
+	struct adv_info *adv;
 
-	adv_instance = hci_find_adv_instance(hdev, instance);
-	if (adv_instance) {
-		memset(adv_instance->adv_data, 0,
-		       sizeof(adv_instance->adv_data));
-		memset(adv_instance->scan_rsp_data, 0,
-		       sizeof(adv_instance->scan_rsp_data));
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv) {
+		memset(adv->adv_data, 0, sizeof(adv->adv_data));
+		memset(adv->scan_rsp_data, 0, sizeof(adv->scan_rsp_data));
+		memset(adv->per_adv_data, 0, sizeof(adv->per_adv_data));
 	} else {
 		if (hdev->adv_instance_cnt >= hdev->le_num_of_adv_sets ||
 		    instance < 1 || instance > hdev->le_num_of_adv_sets)
-			return -EOVERFLOW;
+			return ERR_PTR(-EOVERFLOW);
 
-		adv_instance = kzalloc(sizeof(*adv_instance), GFP_KERNEL);
-		if (!adv_instance)
-			return -ENOMEM;
+		adv = kzalloc(sizeof(*adv), GFP_KERNEL);
+		if (!adv)
+			return ERR_PTR(-ENOMEM);
 
-		adv_instance->pending = true;
-		adv_instance->instance = instance;
-		list_add(&adv_instance->list, &hdev->adv_instances);
+		adv->pending = true;
+		adv->instance = instance;
+		list_add(&adv->list, &hdev->adv_instances);
 		hdev->adv_instance_cnt++;
 	}
 
-	adv_instance->flags = flags;
-	adv_instance->min_interval = min_interval;
-	adv_instance->max_interval = max_interval;
-	adv_instance->tx_power = tx_power;
+	adv->flags = flags;
+	adv->min_interval = min_interval;
+	adv->max_interval = max_interval;
+	adv->tx_power = tx_power;
 
 	hci_set_adv_instance_data(hdev, instance, adv_data_len, adv_data,
 				  scan_rsp_len, scan_rsp_data);
 
-	adv_instance->timeout = timeout;
-	adv_instance->remaining_time = timeout;
+	adv->timeout = timeout;
+	adv->remaining_time = timeout;
 
 	if (duration == 0)
-		adv_instance->duration = hdev->def_multi_adv_rotation_duration;
+		adv->duration = hdev->def_multi_adv_rotation_duration;
 	else
-		adv_instance->duration = duration;
+		adv->duration = duration;
 
-	INIT_DELAYED_WORK(&adv_instance->rpa_expired_cb,
-			  adv_instance_rpa_expired);
+	INIT_DELAYED_WORK(&adv->rpa_expired_cb, adv_instance_rpa_expired);
 
 	BT_DBG("%s for %dMR", hdev->name, instance);
 
-	return 0;
+	return adv;
+}
+
+/* This function requires the caller holds hdev->lock */
+struct adv_info *hci_add_per_instance(struct hci_dev *hdev, u8 instance,
+				      u32 flags, u8 data_len, u8 *data,
+				      u32 min_interval, u32 max_interval)
+{
+	struct adv_info *adv;
+
+	adv = hci_add_adv_instance(hdev, instance, flags, 0, NULL, 0, NULL,
+				   0, 0, HCI_ADV_TX_POWER_NO_PREFERENCE,
+				   min_interval, max_interval);
+	if (IS_ERR(adv))
+		return adv;
+
+	adv->periodic = true;
+	adv->per_adv_data_len = data_len;
+
+	if (data)
+		memcpy(adv->per_adv_data, data, data_len);
+
+	return adv;
 }
 
 /* This function requires the caller holds hdev->lock */
