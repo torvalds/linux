@@ -1273,7 +1273,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 
 	/* See if the platform doesn't support UIE. */
 	if (pdata->uie_unsupported)
-		rtc_dev->uie_unsupported = 1;
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc_dev->features);
 
 	rtc->dev = rtc_dev;
 
