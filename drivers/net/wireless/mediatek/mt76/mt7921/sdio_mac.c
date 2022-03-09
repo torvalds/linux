@@ -202,7 +202,7 @@ void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 	struct mt76_wcid *wcid;
 	u16 idx;
 
-	idx = FIELD_GET(MT_TXD1_WLAN_IDX, le32_to_cpu(txwi[1]));
+	idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
 	wcid = rcu_dereference(mdev->wcid[idx]);
 	sta = wcid_to_sta(wcid);
 

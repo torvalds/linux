@@ -176,8 +176,8 @@ mt7921_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 	u32 ru_h, ru_l;
 	u8 ru, offs = 0;
 
-	ru_l = FIELD_GET(MT_PRXV_HE_RU_ALLOC_L, le32_to_cpu(rxv[0]));
-	ru_h = FIELD_GET(MT_PRXV_HE_RU_ALLOC_H, le32_to_cpu(rxv[1]));
+	ru_l = le32_get_bits(rxv[0], MT_PRXV_HE_RU_ALLOC_L);
+	ru_h = le32_get_bits(rxv[1], MT_PRXV_HE_RU_ALLOC_H);
 	ru = (u8)(ru_l | ru_h << 4);
 
 	status->bw = RATE_INFO_BW_HE_RU;
@@ -247,19 +247,19 @@ mt7921_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 			 MU_PREP(FLAGS2_SIG_B_SYMS_USERS,
 				 le32_get_bits(rxv[2], MT_CRXV_HE_NUM_USER));
 
-	he_mu->ru_ch1[0] = FIELD_GET(MT_CRXV_HE_RU0, le32_to_cpu(rxv[3]));
+	he_mu->ru_ch1[0] = le32_get_bits(rxv[3], MT_CRXV_HE_RU0);
 
 	if (status->bw >= RATE_INFO_BW_40) {
 		he_mu->flags1 |= HE_BITS(MU_FLAGS1_CH2_RU_KNOWN);
 		he_mu->ru_ch2[0] =
-			FIELD_GET(MT_CRXV_HE_RU1, le32_to_cpu(rxv[3]));
+			le32_get_bits(rxv[3], MT_CRXV_HE_RU1);
 	}
 
 	if (status->bw >= RATE_INFO_BW_80) {
 		he_mu->ru_ch1[1] =
-			FIELD_GET(MT_CRXV_HE_RU2, le32_to_cpu(rxv[3]));
+			le32_get_bits(rxv[3], MT_CRXV_HE_RU2);
 		he_mu->ru_ch2[1] =
-			FIELD_GET(MT_CRXV_HE_RU3, le32_to_cpu(rxv[3]));
+			le32_get_bits(rxv[3], MT_CRXV_HE_RU3);
 	}
 }
 
@@ -409,7 +409,7 @@ static int mt7921_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	struct ieee80211_hdr hdr;
 	u16 frame_control;
 
-	if (FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, le32_to_cpu(rxd[3])) !=
+	if (le32_get_bits(rxd[3], MT_RXD3_NORMAL_ADDR_TYPE) !=
 	    MT_RXD3_NORMAL_U2M)
 		return -EINVAL;
 
@@ -1024,7 +1024,7 @@ void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
 		return;
 
-	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
+	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
 	if (tid >= 6) /* skip VO queue */
 		return;
 
@@ -1163,18 +1163,13 @@ void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data)
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
-	u32 txs;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[0]);
-	if (FIELD_GET(MT_TXS0_TXS_FORMAT, txs) > 1)
+	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) > 1)
 		return;
 
-	txs = le32_to_cpu(txs_data[2]);
-	wcidx = FIELD_GET(MT_TXS2_WCID, txs);
-
-	txs = le32_to_cpu(txs_data[3]);
-	pid = FIELD_GET(MT_TXS3_PID, txs);
+	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
+	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return;
@@ -1213,8 +1208,8 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	enum rx_pkt_type type;
 	u16 flag;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
-	flag = FIELD_GET(MT_RXD0_PKT_FLAG, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+	flag = le32_get_bits(rxd[0], MT_RXD0_PKT_FLAG);
 
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
 		type = PKT_TYPE_NORMAL_MCU;

@@ -226,8 +226,8 @@ mt7915_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 	u32 ru_h, ru_l;
 	u8 ru, offs = 0;
 
-	ru_l = FIELD_GET(MT_PRXV_HE_RU_ALLOC_L, le32_to_cpu(rxv[0]));
-	ru_h = FIELD_GET(MT_PRXV_HE_RU_ALLOC_H, le32_to_cpu(rxv[1]));
+	ru_l = le32_get_bits(rxv[0], MT_PRXV_HE_RU_ALLOC_L);
+	ru_h = le32_get_bits(rxv[1], MT_PRXV_HE_RU_ALLOC_H);
 	ru = (u8)(ru_l | ru_h << 4);
 
 	status->bw = RATE_INFO_BW_HE_RU;
@@ -400,7 +400,7 @@ static int mt7915_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	struct ieee80211_hdr hdr;
 	u16 frame_control;
 
-	if (FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, le32_to_cpu(rxd[3])) !=
+	if (le32_get_bits(rxd[3], MT_RXD3_NORMAL_ADDR_TYPE) !=
 	    MT_RXD3_NORMAL_U2M)
 		return -EINVAL;
 
@@ -861,7 +861,7 @@ mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 	u8 snr;
 	int i;
 
-	band_idx = FIELD_GET(MT_RXV_HDR_BAND_IDX, le32_to_cpu(rxv_hdr[1]));
+	band_idx = le32_get_bits(rxv_hdr[1], MT_RXV_HDR_BAND_IDX);
 	if (band_idx && !phy->band_idx)
 		phy = mt7915_ext_phy(dev);
 
@@ -1356,7 +1356,7 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
 		return;
 
-	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
+	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
 	if (tid >= 6) /* skip VO queue */
 		return;
 
@@ -1404,7 +1404,7 @@ mt7915_txwi_free(struct mt7915_dev *dev, struct mt76_txwi_cache *t,
 		if (likely(t->skb->protocol != cpu_to_be16(ETH_P_PAE)))
 			mt7915_tx_check_aggr(sta, txwi);
 	} else {
-		wcid_idx = FIELD_GET(MT_TXD1_WLAN_IDX, le32_to_cpu(txwi[1]));
+		wcid_idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
 	}
 
 	__mt76_tx_complete_skb(mdev, wcid_idx, t->skb, free_list);
@@ -1438,12 +1438,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 		mt76_queue_tx_cleanup(dev, mphy_ext->q_tx[MT_TXQ_BE], false);
 	}
 
-	/*
-	 * TODO: MT_TX_FREE_LATENCY is msdu time from the TXD is queued into PLE,
-	 * to the time ack is received or dropped by hw (air + hw queue time).
-	 * Should avoid accessing WTBL to get Tx airtime, and use it instead.
-	 */
-	total = FIELD_GET(MT_TX_FREE_MSDU_CNT, le16_to_cpu(free->ctrl));
+	total = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
 	v3 = (FIELD_GET(MT_TX_FREE_VER, txd) == 0x4);
 	if (WARN_ON_ONCE((void *)&free->info[total >> v3] > end))
 		return;
@@ -1636,18 +1631,13 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
-	u32 txs;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[0]);
-	if (FIELD_GET(MT_TXS0_TXS_FORMAT, txs) > 1)
+	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) > 1)
 		return;
 
-	txs = le32_to_cpu(txs_data[2]);
-	wcidx = FIELD_GET(MT_TXS2_WCID, txs);
-
-	txs = le32_to_cpu(txs_data[3]);
-	pid = FIELD_GET(MT_TXS3_PID, txs);
+	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
+	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return;
@@ -1684,7 +1674,8 @@ bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
 		mt7915_mac_tx_free(dev, data, len);
@@ -1709,7 +1700,7 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:

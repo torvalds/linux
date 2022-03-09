@@ -261,7 +261,7 @@ static int mt7615_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	struct ieee80211_hdr hdr;
 	u16 frame_control;
 
-	if (FIELD_GET(MT_RXD1_NORMAL_ADDR_TYPE, le32_to_cpu(rxd[1])) !=
+	if (le32_get_bits(rxd[1], MT_RXD1_NORMAL_ADDR_TYPE) !=
 	    MT_RXD1_NORMAL_U2M)
 		return -EINVAL;
 
@@ -1427,7 +1427,7 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 	}
 
 	rate_set_tsf = READ_ONCE(sta->rate_set_tsf);
-	rs_idx = !((u32)(FIELD_GET(MT_TXS4_F0_TIMESTAMP, le32_to_cpu(txs_data[4])) -
+	rs_idx = !((u32)(le32_get_bits(txs_data[4], MT_TXS4_F0_TIMESTAMP) -
 			 rate_set_tsf) < 1000000);
 	rs_idx ^= rate_set_tsf & BIT(0);
 	rs = &sta->rateset[rs_idx];
@@ -1558,14 +1558,11 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	struct mt76_wcid *wcid;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	__le32 *txs_data = data;
-	u32 txs;
 	u8 wcidx;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[0]);
-	pid = FIELD_GET(MT_TXS0_PID, txs);
-	txs = le32_to_cpu(txs_data[2]);
-	wcidx = FIELD_GET(MT_TXS2_WCID, txs);
+	pid = le32_get_bits(txs_data[0], MT_TXS0_PID);
+	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
 
 	if (pid == MT_PACKET_ID_NO_ACK)
 		return;
@@ -1653,7 +1650,7 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
 			mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
 	}
 
-	count = FIELD_GET(MT_TX_FREE_MSDU_ID_CNT, le16_to_cpu(free->ctrl));
+	count = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_ID_CNT);
 	if (is_mt7615(&dev->mt76)) {
 		__le16 *token = &free->token[0];
 
@@ -1686,7 +1683,8 @@ bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len)
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
 		mt7615_mac_tx_free(dev, data, len);
@@ -1710,8 +1708,8 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	enum rx_pkt_type type;
 	u16 flag;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
-	flag = FIELD_GET(MT_RXD0_PKT_FLAG, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+	flag = le32_get_bits(rxd[0], MT_RXD0_PKT_FLAG);
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
 		type = PKT_TYPE_NORMAL_MCU;
 
