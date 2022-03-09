@@ -114,8 +114,11 @@ static void rk_cma_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	dma_unmap_sgtable(attachment->dev, table, direction, attrs);
 }
 
-static int rk_cma_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-						enum dma_data_direction direction)
+static int
+rk_cma_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+					     enum dma_data_direction direction,
+					     unsigned int offset,
+					     unsigned int len)
 {
 	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
 	struct rk_dma_heap_attachment *a;
@@ -133,16 +136,19 @@ static int rk_cma_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	/* For userspace that not attach yet */
 	if (buffer->phys && !buffer->attached)
 		dma_sync_single_for_cpu(rk_dma_heap_get_dev(buffer->heap->heap),
-					buffer->phys,
-					buffer->pagecount * PAGE_SIZE,
+					buffer->phys + offset,
+					len,
 					direction);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
 }
 
-static int rk_cma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-					      enum dma_data_direction direction)
+static int
+rk_cma_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+					   enum dma_data_direction direction,
+					   unsigned int offset,
+					   unsigned int len)
 {
 	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
 	struct rk_dma_heap_attachment *a;
@@ -160,12 +166,30 @@ static int rk_cma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	/* For userspace that not attach yet */
 	if (buffer->phys && !buffer->attached)
 		dma_sync_single_for_device(rk_dma_heap_get_dev(buffer->heap->heap),
-					   buffer->phys,
-					   buffer->pagecount * PAGE_SIZE,
+					   buffer->phys + offset,
+					   len,
 					   direction);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
+}
+
+static int rk_cma_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+						enum dma_data_direction dir)
+{
+	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
+	unsigned int len = buffer->pagecount * PAGE_SIZE;
+
+	return rk_cma_heap_dma_buf_begin_cpu_access_partial(dmabuf, dir, 0, len);
+}
+
+static int rk_cma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+					      enum dma_data_direction dir)
+{
+	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
+	unsigned int len = buffer->pagecount * PAGE_SIZE;
+
+	return rk_cma_heap_dma_buf_end_cpu_access_partial(dmabuf, dir, 0, len);
 }
 
 static int rk_cma_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
@@ -379,6 +403,8 @@ static const struct dma_buf_ops rk_cma_heap_buf_ops = {
 	.unmap_dma_buf = rk_cma_heap_unmap_dma_buf,
 	.begin_cpu_access = rk_cma_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = rk_cma_heap_dma_buf_end_cpu_access,
+	.begin_cpu_access_partial = rk_cma_heap_dma_buf_begin_cpu_access_partial,
+	.end_cpu_access_partial = rk_cma_heap_dma_buf_end_cpu_access_partial,
 	.mmap = rk_cma_heap_mmap,
 	.vmap = rk_cma_heap_vmap,
 	.vunmap = rk_cma_heap_vunmap,
