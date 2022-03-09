@@ -500,21 +500,24 @@ static int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process 
 
 	pr_debug("Killing all process wavefronts\n");
 
+	if (!dev->kfd2kgd->get_atc_vmid_pasid_mapping_info) {
+		pr_err("no vmid pasid mapping supported \n");
+		return -EOPNOTSUPP;
+	}
+
 	/* Scan all registers in the range ATC_VMID8_PASID_MAPPING ..
 	 * ATC_VMID15_PASID_MAPPING
 	 * to check which VMID the current process is mapped to.
 	 */
 
-	if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_info) {
-		for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
-			status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
-					(dev->adev, vmid, &queried_pasid);
+	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
+		status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
+				(dev->adev, vmid, &queried_pasid);
 
-			if (status && queried_pasid == p->pasid) {
-				pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
-						vmid, p->pasid);
-				break;
-			}
+		if (status && queried_pasid == p->pasid) {
+			pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
+					vmid, p->pasid);
+			break;
 		}
 	}
 
