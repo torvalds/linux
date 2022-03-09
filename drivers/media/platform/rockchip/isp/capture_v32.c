@@ -1055,7 +1055,10 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		stream->dbg.id = seq;
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
-		vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+		if (vb2_buf->memory)
+			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+		else
+			rkisp_rockit_buf_done(stream);
 	}
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
@@ -1300,8 +1303,10 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 		buf = list_first_entry(&stream->buf_queue,
 			struct rkisp_buffer, queue);
 		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb.vb2_buf, state);
+		if (buf->vb.vb2_buf.memory)
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
+	rkisp_rockit_buf_free(stream);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
@@ -1450,7 +1455,8 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret < 0)
 		goto buffer_done;
 
-	if (count == 0 && !stream->dummy_buf.mem_priv) {
+	if (count == 0 && !stream->dummy_buf.mem_priv &&
+	    list_empty(&stream->buf_queue)) {
 		v4l2_err(v4l2_dev, "no buf for %s\n", node->vdev.name);
 		ret = -EINVAL;
 		goto buffer_done;
@@ -1614,6 +1620,8 @@ int rkisp_register_stream_v32(struct rkisp_device *dev)
 	int ret;
 
 	rkisp_dvbm_get(dev);
+
+	rkisp_rockit_dev_init(dev);
 
 	ret = rkisp_stream_init(dev, RKISP_STREAM_MP);
 	if (ret < 0)

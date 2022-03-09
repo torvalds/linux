@@ -41,7 +41,8 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30) += \
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32) += \
 		capture_v32.o \
 		isp_params_v32.o \
-		isp_stats_v32.o
+		isp_stats_v32.o \
+		isp_rockit.o
 
 video_rkisp-$(CONFIG_ROCKCHIP_DVBM) += \
 		isp_dvbm.o
