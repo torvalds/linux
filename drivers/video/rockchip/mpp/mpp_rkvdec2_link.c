@@ -498,6 +498,8 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		n = part[i].reg_num;
 		memcpy(&task->reg[s], &tb_reg[off], n * sizeof(u32));
 	}
+	/* revert hack for irq status */
+	task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
 
 	mpp_debug_leave();
 
@@ -574,7 +576,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		mpp_dbg_link_flow("slot %d rd task %d\n", idx,
 				  mpp_task->task_id);
 
-		task->irq_status = irq_status;
+		task->irq_status = irq_status ? irq_status : mpp->irq_status;
 
 		cancel_delayed_work_sync(&mpp_task->timeout_work);
 		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
