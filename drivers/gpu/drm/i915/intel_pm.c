@@ -57,7 +57,7 @@
 #include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
-static int intel_disable_sagv(struct drm_i915_private *dev_priv);
+static void skl_sagv_disable(struct drm_i915_private *dev_priv);
 
 struct drm_i915_clock_gating_funcs {
 	void (*init_clock_gating)(struct drm_i915_private *i915);
@@ -3707,7 +3707,7 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	 * For icl+ this was already determined by intel_bw_init_hw().
 	 */
 	if (DISPLAY_VER(i915) < 11)
-		intel_disable_sagv(i915);
+		skl_sagv_disable(i915);
 
 	drm_WARN_ON(&i915->drm, i915->sagv_status == I915_SAGV_UNKNOWN);
 
@@ -3737,16 +3737,15 @@ static void intel_sagv_init(struct drm_i915_private *i915)
  *  - All planes can enable watermarks for latencies >= SAGV engine block time
  *  - We're not using an interlaced display configuration
  */
-static int
-intel_enable_sagv(struct drm_i915_private *dev_priv)
+static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
 	if (!intel_has_sagv(dev_priv))
-		return 0;
+		return;
 
 	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
-		return 0;
+		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling SAGV\n");
 	ret = snb_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
@@ -3761,26 +3760,24 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
-		return 0;
+		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to enable SAGV\n");
-		return ret;
+		return;
 	}
 
 	dev_priv->sagv_status = I915_SAGV_ENABLED;
-	return 0;
 }
 
-static int
-intel_disable_sagv(struct drm_i915_private *dev_priv)
+static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
 	if (!intel_has_sagv(dev_priv))
-		return 0;
+		return;
 
 	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
-		return 0;
+		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Disabling SAGV\n");
 	/* bspec says to keep retrying for at least 1 ms */
@@ -3795,14 +3792,13 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
-		return 0;
+		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to disable SAGV (%d)\n", ret);
-		return ret;
+		return;
 	}
 
 	dev_priv->sagv_status = I915_SAGV_DISABLED;
-	return 0;
 }
 
 static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
@@ -3815,7 +3811,7 @@ static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
 		return;
 
 	if (!intel_can_enable_sagv(i915, new_bw_state))
-		intel_disable_sagv(i915);
+		skl_sagv_disable(i915);
 }
 
 static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
@@ -3828,7 +3824,7 @@ static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
 		return;
 
 	if (intel_can_enable_sagv(i915, new_bw_state))
-		intel_enable_sagv(i915);
+		skl_sagv_enable(i915);
 }
 
 static void icl_sagv_pre_plane_update(struct intel_atomic_state *state)
