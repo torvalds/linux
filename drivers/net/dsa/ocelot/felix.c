@@ -460,7 +460,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	return 0;
 }
 
-static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
+static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct dsa_port *dp;
@@ -488,19 +488,15 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 	if (err)
 		return err;
 
-	if (change) {
-		err = dsa_port_walk_fdbs(ds, cpu,
-					 felix_migrate_fdbs_to_tag_8021q_port);
-		if (err)
-			goto out_tag_8021q_unregister;
+	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
+	if (err)
+		goto out_tag_8021q_unregister;
 
-		err = dsa_port_walk_mdbs(ds, cpu,
-					 felix_migrate_mdbs_to_tag_8021q_port);
-		if (err)
-			goto out_migrate_fdbs;
+	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_tag_8021q_port);
+	if (err)
+		goto out_migrate_fdbs;
 
-		felix_migrate_flood_to_tag_8021q_port(ds, cpu);
-	}
+	felix_migrate_flood_to_tag_8021q_port(ds, cpu);
 
 	err = felix_update_trapping_destinations(ds, true);
 	if (err)
@@ -518,13 +514,10 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu, bool change)
 	return 0;
 
 out_migrate_flood:
-	if (change)
-		felix_migrate_flood_to_npi_port(ds, cpu);
-	if (change)
-		dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
+	felix_migrate_flood_to_npi_port(ds, cpu);
+	dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
 out_migrate_fdbs:
-	if (change)
-		dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
+	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
 out_tag_8021q_unregister:
 	dsa_tag_8021q_unregister(ds);
 	return err;
@@ -599,33 +592,27 @@ static void felix_npi_port_deinit(struct ocelot *ocelot, int port)
 	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, 1);
 }
 
-static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu, bool change)
+static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu)
 {
 	struct ocelot *ocelot = ds->priv;
 	int err;
 
-	if (change) {
-		err = dsa_port_walk_fdbs(ds, cpu,
-					 felix_migrate_fdbs_to_npi_port);
-		if (err)
-			return err;
+	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
+	if (err)
+		return err;
 
-		err = dsa_port_walk_mdbs(ds, cpu,
-					 felix_migrate_mdbs_to_npi_port);
-		if (err)
-			goto out_migrate_fdbs;
+	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
+	if (err)
+		goto out_migrate_fdbs;
 
-		felix_migrate_flood_to_npi_port(ds, cpu);
-	}
+	felix_migrate_flood_to_npi_port(ds, cpu);
 
 	felix_npi_port_init(ocelot, cpu);
 
 	return 0;
 
 out_migrate_fdbs:
-	if (change)
-		dsa_port_walk_fdbs(ds, cpu,
-				   felix_migrate_fdbs_to_tag_8021q_port);
+	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
 
 	return err;
 }
@@ -638,17 +625,17 @@ static void felix_teardown_tag_npi(struct dsa_switch *ds, int cpu)
 }
 
 static int felix_set_tag_protocol(struct dsa_switch *ds, int cpu,
-				  enum dsa_tag_protocol proto, bool change)
+				  enum dsa_tag_protocol proto)
 {
 	int err;
 
 	switch (proto) {
 	case DSA_TAG_PROTO_SEVILLE:
 	case DSA_TAG_PROTO_OCELOT:
-		err = felix_setup_tag_npi(ds, cpu, change);
+		err = felix_setup_tag_npi(ds, cpu);
 		break;
 	case DSA_TAG_PROTO_OCELOT_8021Q:
-		err = felix_setup_tag_8021q(ds, cpu, change);
+		err = felix_setup_tag_8021q(ds, cpu);
 		break;
 	default:
 		err = -EPROTONOSUPPORT;
@@ -692,9 +679,9 @@ static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
 
 	felix_del_tag_protocol(ds, cpu, old_proto);
 
-	err = felix_set_tag_protocol(ds, cpu, proto, true);
+	err = felix_set_tag_protocol(ds, cpu, proto);
 	if (err) {
-		felix_set_tag_protocol(ds, cpu, old_proto, true);
+		felix_set_tag_protocol(ds, cpu, old_proto);
 		return err;
 	}
 
@@ -752,6 +739,10 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
+		return 0;
+
 	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
 }
 
@@ -764,6 +755,10 @@ static int felix_fdb_del(struct dsa_switch *ds, int port,
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
+
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
+		return 0;
 
 	return ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
 }
@@ -804,6 +799,10 @@ static int felix_mdb_add(struct dsa_switch *ds, int port,
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
+		return 0;
+
 	return ocelot_port_mdb_add(ocelot, port, mdb, bridge_dev);
 }
 
@@ -816,6 +815,10 @@ static int felix_mdb_del(struct dsa_switch *ds, int port,
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
+
+	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
+		return 0;
 
 	return ocelot_port_mdb_del(ocelot, port, mdb, bridge_dev);
 }
@@ -1356,6 +1359,7 @@ static int felix_setup(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
 
@@ -1393,7 +1397,15 @@ static int felix_setup(struct dsa_switch *ds)
 		/* The initial tag protocol is NPI which always returns 0, so
 		 * there's no real point in checking for errors.
 		 */
-		felix_set_tag_protocol(ds, dp->index, felix->tag_proto, false);
+		felix_set_tag_protocol(ds, dp->index, felix->tag_proto);
+
+		/* Start off with flooding disabled towards the NPI port
+		 * (actually CPU port module).
+		 */
+		cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
+		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
+		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
+
 		break;
 	}
 
