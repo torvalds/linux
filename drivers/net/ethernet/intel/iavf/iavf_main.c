@@ -2120,7 +2120,7 @@ int iavf_parse_vf_resource_msg(struct iavf_adapter *adapter)
 			"Requested %d queues, but PF only gave us %d.\n",
 			num_req_queues,
 			adapter->vsi_res->num_queue_pairs);
-		adapter->flags |= IAVF_FLAG_REINIT_ITR_NEEDED;
+		adapter->flags |= IAVF_FLAG_REINIT_MSIX_NEEDED;
 		adapter->num_req_queues = adapter->vsi_res->num_queue_pairs;
 		iavf_schedule_reset(adapter);
 
@@ -2727,7 +2727,8 @@ continue_reset:
 			 err);
 	adapter->aq_required = 0;
 
-	if (adapter->flags & IAVF_FLAG_REINIT_ITR_NEEDED) {
+	if ((adapter->flags & IAVF_FLAG_REINIT_MSIX_NEEDED) ||
+	    (adapter->flags & IAVF_FLAG_REINIT_ITR_NEEDED)) {
 		err = iavf_reinit_interrupt_scheme(adapter);
 		if (err)
 			goto reset_err;
@@ -2799,12 +2800,13 @@ continue_reset:
 		if (err)
 			goto reset_err;
 
-		if (adapter->flags & IAVF_FLAG_REINIT_ITR_NEEDED) {
+		if ((adapter->flags & IAVF_FLAG_REINIT_MSIX_NEEDED) ||
+		    (adapter->flags & IAVF_FLAG_REINIT_ITR_NEEDED)) {
 			err = iavf_request_traffic_irqs(adapter, netdev->name);
 			if (err)
 				goto reset_err;
 
-			adapter->flags &= ~IAVF_FLAG_REINIT_ITR_NEEDED;
+			adapter->flags &= ~IAVF_FLAG_REINIT_MSIX_NEEDED;
 		}
 
 		iavf_configure(adapter);
@@ -2819,6 +2821,9 @@ continue_reset:
 		iavf_change_state(adapter, __IAVF_DOWN);
 		wake_up(&adapter->down_waitqueue);
 	}
+
+	adapter->flags &= ~IAVF_FLAG_REINIT_ITR_NEEDED;
+
 	mutex_unlock(&adapter->client_lock);
 	mutex_unlock(&adapter->crit_lock);
 
