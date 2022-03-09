@@ -75,8 +75,9 @@ void __init init_IRQ(void)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 static inline void check_stack_overflow(void)
 {
-	unsigned long sp = current_stack_pointer;
+	unsigned long sp;
 
+	__asm__ __volatile__("move %0, $sp" : "=r" (sp));
 	sp &= THREAD_MASK;
 
 	/*
