@@ -8896,7 +8896,7 @@ static struct bpf_insn *bpf_convert_dtime_type_read(const struct bpf_insn *si,
 	__u8 tmp_reg = BPF_REG_AX;
 
 	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-			      SKB_MONO_DELIVERY_TIME_OFFSET);
+			      PKT_VLAN_PRESENT_OFFSET);
 	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
 				SKB_MONO_DELIVERY_TIME_MASK);
 	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
@@ -8912,7 +8912,7 @@ static struct bpf_insn *bpf_convert_dtime_type_read(const struct bpf_insn *si,
 	*insn++ = BPF_JMP_A(IS_ENABLED(CONFIG_NET_CLS_ACT) ? 6 : 1);
 
 #ifdef CONFIG_NET_CLS_ACT
-	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
+	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
 	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
 	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
 	/* At ingress, value_reg = 0 */
@@ -8959,14 +8959,14 @@ static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_prog *prog,
 	if (!prog->delivery_time_access) {
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
 		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 5);
 		/* @ingress, read __sk_buff->tstamp as the (rcv) timestamp,
 		 * so check the skb->mono_delivery_time.
 		 */
 		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
+				      PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
 					SKB_MONO_DELIVERY_TIME_MASK);
 		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
@@ -8992,18 +8992,18 @@ static struct bpf_insn *bpf_convert_tstamp_write(const struct bpf_prog *prog,
 	if (!prog->delivery_time_access) {
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
 		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 3);
 		/* Writing __sk_buff->tstamp at ingress as the (rcv) timestamp.
 		 * Clear the skb->mono_delivery_time.
 		 */
 		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
+				      PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
 					~SKB_MONO_DELIVERY_TIME_MASK);
 		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
+				      PKT_VLAN_PRESENT_OFFSET);
 	}
 #endif
 
