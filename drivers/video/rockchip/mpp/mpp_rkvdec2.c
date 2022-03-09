@@ -51,6 +51,13 @@ static const u16 trans_tbl_vp9d[] = {
 	184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197
 };
 
+static const u16 trans_tbl_avs2d[] = {
+	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
+	161, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176,
+	177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	192, 193, 194, 195, 196, 197
+};
+
 static struct mpp_trans_info rkvdec_v2_trans[] = {
 	[RKVDEC_FMT_H265D] = {
 		.count = ARRAY_SIZE(trans_tbl_h265d),
@@ -64,6 +71,10 @@ static struct mpp_trans_info rkvdec_v2_trans[] = {
 		.count = ARRAY_SIZE(trans_tbl_vp9d),
 		.table = trans_tbl_vp9d,
 	},
+	[RKVDEC_FMT_AVS2] = {
+		.count = ARRAY_SIZE(trans_tbl_avs2d),
+		.table = trans_tbl_avs2d,
+	}
 };
 
 static int mpp_extract_rcb_info(struct rkvdec2_rcb_info *rcb_inf,
