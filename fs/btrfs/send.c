@@ -6110,8 +6110,11 @@ static int btrfs_unlink_all_paths(struct send_ctx *sctx)
 {
 	LIST_HEAD(deleted_refs);
 	struct btrfs_path *path;
+	struct btrfs_root *root = sctx->parent_root;
 	struct btrfs_key key;
+	struct btrfs_key found_key;
 	struct parent_paths_ctx ctx;
+	int iter_ret = 0;
 	int ret;
 
 	path = alloc_path_for_send();
@@ -6121,39 +6124,26 @@ static int btrfs_unlink_all_paths(struct send_ctx *sctx)
 	key.objectid = sctx->cur_ino;
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = 0;
-	ret = btrfs_search_slot(NULL, sctx->parent_root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
 
 	ctx.refs = &deleted_refs;
 	ctx.sctx = sctx;
 
-	while (true) {
-		struct extent_buffer *eb = path->nodes[0];
-		int slot = path->slots[0];
-
-		if (slot >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(sctx->parent_root, path);
-			if (ret < 0)
-				goto out;
-			else if (ret > 0)
-				break;
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(eb, &key, slot);
-		if (key.objectid != sctx->cur_ino)
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
+		if (found_key.objectid != key.objectid)
 			break;
-		if (key.type != BTRFS_INODE_REF_KEY &&
-		    key.type != BTRFS_INODE_EXTREF_KEY)
+		if (found_key.type != key.type &&
+		    found_key.type != BTRFS_INODE_EXTREF_KEY)
 			break;
 
-		ret = iterate_inode_ref(sctx->parent_root, path, &key, 1,
+		ret = iterate_inode_ref(root, path, &found_key, 1,
 					record_parent_ref, &ctx);
 		if (ret < 0)
 			goto out;
-
-		path->slots[0]++;
+	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0) {
+		ret = iter_ret;
+		goto out;
 	}
 
 	while (!list_empty(&deleted_refs)) {
