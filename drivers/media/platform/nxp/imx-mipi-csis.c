@@ -470,6 +470,34 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 		.output = MEDIA_BUS_FMT_SRGGB14_1X14,
 		.data_type = MIPI_CSI2_DATA_TYPE_RAW14,
 		.width = 14,
+	},
+	/* JPEG */
+	{
+		.code = MEDIA_BUS_FMT_JPEG_1X8,
+		.output = MEDIA_BUS_FMT_JPEG_1X8,
+		/*
+		 * Map JPEG_1X8 to the RAW8 datatype.
+		 *
+		 * The CSI-2 specification suggests in Annex A "JPEG8 Data
+		 * Format (informative)" to transmit JPEG data using one of the
+		 * Data Types aimed to represent arbitrary data, such as the
+		 * "User Defined Data Type 1" (0x30).
+		 *
+		 * However, when configured with a User Defined Data Type, the
+		 * CSIS outputs data in quad pixel mode regardless of the mode
+		 * selected in the MIPI_CSIS_ISP_CONFIG_CH register. Neither of
+		 * the IP cores connected to the CSIS in i.MX SoCs (CSI bridge
+		 * or ISI) support quad pixel mode, so this will never work in
+		 * practice.
+		 *
+		 * Some sensors (such as the OV5640) send JPEG data using the
+		 * RAW8 data type. This is usable and works, so map the JPEG
+		 * format to RAW8. If the CSIS ends up being integrated in an
+		 * SoC that can support quad pixel mode, this will have to be
+		 * revisited.
+		 */
+		.data_type = MIPI_CSI2_DATA_TYPE_RAW8,
+		.width = 8,
 	}
 };
 
