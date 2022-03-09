@@ -552,6 +552,7 @@ struct hl_hints_range {
  * @configurable_stop_on_err: is stop-on-error option configurable via debugfs.
  * @set_max_power_on_device_init: true if need to set max power in F/W on device init.
  * @supports_user_set_page_size: true if user can set the allocation page size.
+ * @dma_mask: the dma mask to be set for this device
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -639,6 +640,7 @@ struct asic_fixed_properties {
 	u8				configurable_stop_on_err;
 	u8				set_max_power_on_device_init;
 	u8				supports_user_set_page_size;
+	u8				dma_mask;
 };
 
 /**
@@ -1274,8 +1276,6 @@ struct fw_load_mgr {
  * @gen_wait_cb: Generate a wait CB.
  * @reset_sob: Reset a SOB.
  * @reset_sob_group: Reset SOB group
- * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
- *                        firmware configuration
  * @get_device_time: Get the device time.
  * @collective_wait_init_cs: Generate collective master/slave packets
  *                           and place them in the relevant cs jobs
@@ -1407,7 +1407,6 @@ struct hl_asic_funcs {
 			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);
 	void (*reset_sob_group)(struct hl_device *hdev, u16 sob_group);
-	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);
 	int (*collective_wait_init_cs)(struct hl_cs *cs);
 	int (*collective_wait_create_jobs)(struct hl_device *hdev,
@@ -2688,7 +2687,6 @@ struct hl_reset_info {
  *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
- * @dma_mask: the dma mask that was set for this device
  * @in_debug: whether the device is in a state where the profiling/tracing infrastructure
  *            can be used. This indication is needed because in some ASICs we need to do
  *            specific operations to enable that infrastructure.
@@ -2813,7 +2811,6 @@ struct hl_device {
 	u8				pmmu_huge_range;
 	u8				init_done;
 	u8				device_cpu_disabled;
-	u8				dma_mask;
 	u8				in_debug;
 	u8				cdev_sysfs_created;
 	u8				stop_on_err;

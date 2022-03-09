@@ -309,9 +309,6 @@ static int fixup_device_params(struct hl_device *hdev)
 	/* Enable only after the initialization of the device */
 	hdev->disabled = true;
 
-	/* Set default DMA mask to 32 bits */
-	hdev->dma_mask = 32;
-
 	return 0;
 }
 

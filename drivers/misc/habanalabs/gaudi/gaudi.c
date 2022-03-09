@@ -674,6 +674,8 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 
 	prop->set_max_power_on_device_init = true;
 
+	prop->dma_mask = 48;
+
 	return 0;
 }
 
@@ -754,8 +756,6 @@ static int gaudi_init_iatu(struct hl_device *hdev)
 	rc = hl_pci_set_inbound_region(hdev, 2, &inbound_region);
 	if (rc)
 		goto done;
-
-	hdev->asic_funcs->set_dma_mask_from_fw(hdev);
 
 	/* Outbound Region 0 - Point to Host */
 	outbound_region.addr = HOST_PHYS_BASE;
@@ -9065,11 +9065,6 @@ static void gaudi_reset_sob(struct hl_device *hdev, void *data)
 	kref_init(&hw_sob->kref);
 }
 
-static void gaudi_set_dma_mask_from_fw(struct hl_device *hdev)
-{
-	hdev->dma_mask = 48;
-}
-
 static u64 gaudi_get_device_time(struct hl_device *hdev)
 {
 	u64 device_time = ((u64) RREG32(mmPSOC_TIMESTAMP_CNTCVU)) << 32;
@@ -9474,7 +9469,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.gen_wait_cb = gaudi_gen_wait_cb,
 	.reset_sob = gaudi_reset_sob,
 	.reset_sob_group = gaudi_reset_sob_group,
-	.set_dma_mask_from_fw = gaudi_set_dma_mask_from_fw,
 	.get_device_time = gaudi_get_device_time,
 	.collective_wait_init_cs = gaudi_collective_wait_init_cs,
 	.collective_wait_create_jobs = gaudi_collective_wait_create_jobs,
