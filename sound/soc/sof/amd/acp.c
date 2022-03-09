@@ -277,7 +277,7 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 				dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
 				return IRQ_NONE;
 			}
-		};
+		}
 
 		sof_ops(sdev)->irq_thread(irq, sdev);
 		val |= ACP_DSP_TO_HOST_IRQ;
