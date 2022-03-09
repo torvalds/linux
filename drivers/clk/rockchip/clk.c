@@ -180,6 +180,7 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 		unsigned long rate, unsigned long *parent_rate,
 		unsigned long *m, unsigned long *n)
 {
+	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned long p_rate, p_parent_rate;
 	struct clk_hw *p_parent;
 
@@ -189,6 +190,8 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 		p_parent_rate = clk_hw_get_rate(p_parent);
 		*parent_rate = p_parent_rate;
 	}
+
+	fd->flags |= CLK_FRAC_DIVIDER_POWER_OF_TWO_PS;
 
 	clk_fractional_divider_general_approximation(hw, rate, parent_rate, m, n);
 }
