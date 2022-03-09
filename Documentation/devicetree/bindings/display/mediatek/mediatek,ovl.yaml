@@ -75,7 +75,7 @@ required:
   - interrupts
   - power-domains
   - clocks
-  - iommu
+  - iommus
 
 additionalProperties: false
 
