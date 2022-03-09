@@ -29,7 +29,7 @@ static int __init aspeed_sbc_init(void)
 {
 	struct device_node *np;
 	void __iomem *base;
-	struct dentry *debugfs_root;
+	struct dentry *sbc_dir;
 	u32 security_status;
 
 	/* AST2600 only */
@@ -55,17 +55,19 @@ static int __init aspeed_sbc_init(void)
 	/* Invert the bit, as 1 is boot from SPI/eMMC */
 	sbe.uart_boot =  !(security_status & UART_BOOT);
 
-	debugfs_root = debugfs_create_dir("aspeed", NULL);
-	debugfs_create_u8("abr_image", 0444, debugfs_root, &sbe.abr_image);
-	debugfs_create_u8("low_security_key", 0444, debugfs_root, &sbe.low_security_key);
-	debugfs_create_u8("otp_protected", 0444, debugfs_root, &sbe.otp_protected);
-	debugfs_create_u8("uart_boot", 0444, debugfs_root, &sbe.uart_boot);
-	debugfs_create_u8("secure_boot", 0444, debugfs_root, &sbe.secure_boot);
-
 	pr_info("AST2600 secure boot %s\n", sbe.secure_boot ? "enabled" : "disabled");
+
+	sbc_dir = debugfs_create_dir("sbc", arch_debugfs_dir);
+	if (IS_ERR(sbc_dir))
+		return PTR_ERR(sbc_dir);
+
+	debugfs_create_u8("abr_image", 0444, sbc_dir, &sbe.abr_image);
+	debugfs_create_u8("low_security_key", 0444, sbc_dir, &sbe.low_security_key);
+	debugfs_create_u8("otp_protected", 0444, sbc_dir, &sbe.otp_protected);
+	debugfs_create_u8("uart_boot", 0444, sbc_dir, &sbe.uart_boot);
+	debugfs_create_u8("secure_boot", 0444, sbc_dir, &sbe.secure_boot);
 
 	return 0;
 }
-
 
 subsys_initcall(aspeed_sbc_init);
