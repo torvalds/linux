@@ -151,6 +151,7 @@ obj-$(CONFIG_VIDEO_GC5025)	+= gc5025.o
 obj-$(CONFIG_VIDEO_GC8034)	+= gc8034.o
 obj-$(CONFIG_VIDEO_HI556)	+= hi556.o
 obj-$(CONFIG_VIDEO_IMX214)	+= imx214.o
+obj-$(CONFIG_VIDEO_IMX214_EEPROM)	+= imx214_eeprom.o
 obj-$(CONFIG_VIDEO_IMX219)	+= imx219.o
 obj-$(CONFIG_VIDEO_IMX258)	+= imx258.o
 obj-$(CONFIG_VIDEO_IMX258_EEPROM)	+= imx258_eeprom.o
