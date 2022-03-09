@@ -17,7 +17,7 @@ struct xfs_ibulk {
 };
 
 /* Only iterate within the same AG as startino */
-#define XFS_IBULK_SAME_AG	(XFS_IWALK_SAME_AG)
+#define XFS_IBULK_SAME_AG	(1U << 0)
 
 /*
  * Advance the user buffer pointer by one record of the given size.  If the
