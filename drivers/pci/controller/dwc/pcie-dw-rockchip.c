@@ -1129,49 +1129,18 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
-static void rk_pcie_clk_deinit(struct rk_pcie *rk_pcie)
-{
-	clk_bulk_disable(rk_pcie->clk_cnt, rk_pcie->clks);
-	clk_bulk_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
-}
-
 static int rk_pcie_clk_init(struct rk_pcie *rk_pcie)
 {
 	struct device *dev = rk_pcie->pci->dev;
-	struct property *prop;
-	const char *name;
-	int i = 0, ret, count;
+	int ret;
 
-	count = of_property_count_strings(dev->of_node, "clock-names");
-	if (count < 1)
+	rk_pcie->clk_cnt = devm_clk_bulk_get_all(dev, &rk_pcie->clks);
+	if (rk_pcie->clk_cnt < 1)
 		return -ENODEV;
 
-	rk_pcie->clks = devm_kcalloc(dev, count,
-				     sizeof(struct clk_bulk_data),
-				     GFP_KERNEL);
-	if (!rk_pcie->clks)
-		return -ENOMEM;
-
-	rk_pcie->clk_cnt = count;
-
-	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
-		rk_pcie->clks[i].id = name;
-		if (!rk_pcie->clks[i].id)
-			return -ENOMEM;
-		i++;
-	}
-
-	ret = devm_clk_bulk_get(dev, count, rk_pcie->clks);
-	if (ret)
-		return ret;
-
-	ret = clk_bulk_prepare(count, rk_pcie->clks);
-	if (ret)
-		return ret;
-
-	ret = clk_bulk_enable(count, rk_pcie->clks);
+	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
-		clk_bulk_unprepare(count, rk_pcie->clks);
+		dev_err(dev, "failed to prepare enable pcie bulk clks: %d\n", ret);
 		return ret;
 	}
 
@@ -1902,7 +1871,7 @@ disable_phy:
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
 deinit_clk:
-	rk_pcie_clk_deinit(rk_pcie);
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
 release_driver:
@@ -2053,7 +2022,7 @@ no_l2:
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
 
-	clk_bulk_disable(rk_pcie->clk_cnt, rk_pcie->clks);
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 
 	rk_pcie->in_suspend = true;
 
@@ -2077,9 +2046,9 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = clk_bulk_enable(rk_pcie->clk_cnt, rk_pcie->clks);
+	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
-		clk_bulk_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
+		dev_err(dev, "failed to prepare enable pcie bulk clks: %d\n", ret);
 		return ret;
 	}
 
