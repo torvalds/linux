@@ -21049,7 +21049,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/tuners/tuner-xc2028.*
+F:	drivers/media/tuners/xc2028.*
 
 XDP (eXpress Data Path)
 M:	Alexei Starovoitov <ast@kernel.org>

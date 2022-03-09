@@ -23,7 +23,7 @@
 #include "cx18-mailbox.h"
 #include "cx18-ioctl.h"
 #include "cx18-controls.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 

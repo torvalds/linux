@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// tuner-xc2028
+// xc2028
 //
 // Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
@@ -16,8 +16,8 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "tuner-i2c.h"
-#include "tuner-xc2028.h"
-#include "tuner-xc2028-types.h"
+#include "xc2028.h"
+#include "xc2028-types.h"
 
 #include <linux/dvb/frontend.h>
 #include <media/dvb_frontend.h>

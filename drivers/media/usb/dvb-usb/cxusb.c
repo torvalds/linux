@@ -35,7 +35,7 @@
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "tuner-simple.h"
 #include "mxl5005s.h"
 #include "max2165.h"

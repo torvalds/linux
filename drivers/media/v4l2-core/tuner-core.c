@@ -35,7 +35,7 @@
 #include "tda8290.h"
 #include "tea5761.h"
 #include "tea5767.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
 #include "xc5000.h"
