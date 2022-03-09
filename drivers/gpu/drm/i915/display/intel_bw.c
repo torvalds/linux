@@ -124,8 +124,8 @@ int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 	/* bspec says to keep retrying for at least 1 ms */
 	ret = skl_pcode_request(dev_priv, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
 				points_mask,
-				ICL_PCODE_POINTS_RESTRICTED_MASK,
-				ICL_PCODE_POINTS_RESTRICTED,
+				ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
+				ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
 				1);
 
 	if (ret < 0) {
@@ -833,7 +833,7 @@ static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
 	if (num_psf_gv_points > 0)
 		psf_points = GENMASK(num_psf_gv_points - 1, 0);
 
-	return ADLS_QGV_PT(qgv_points) | ADLS_PSF_PT(psf_points);
+	return ICL_PCODE_REQ_QGV_PT(qgv_points) | ADLS_PCODE_REQ_PSF_PT(psf_points);
 }
 
 static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
@@ -1000,7 +1000,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * actually accepts as a parameter.
 	 */
 	new_bw_state->qgv_points_mask =
-		~(ADLS_QGV_PT(qgv_points) | ADLS_PSF_PT(psf_points)) &
+		~(ICL_PCODE_REQ_QGV_PT(qgv_points) |
+		  ADLS_PCODE_REQ_PSF_PT(psf_points)) &
 		icl_qgv_points_mask(dev_priv);
 
 	/*
