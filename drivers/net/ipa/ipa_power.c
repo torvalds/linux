@@ -70,38 +70,6 @@ struct ipa_power {
 	struct icc_bulk_data *interconnect;
 };
 
-static int ipa_interconnect_init_one(struct device *dev,
-				     struct icc_bulk_data *interconnect,
-				     const struct ipa_interconnect_data *data)
-{
-	int ret;
-
-	/* interconnect->path is filled in by of_icc_bulk_get() */
-	interconnect->name = data->name;
-	interconnect->avg_bw = data->average_bandwidth;
-	interconnect->peak_bw = data->peak_bandwidth;
-
-	ret = of_icc_bulk_get(dev, 1, interconnect);
-	if (ret)
-		return ret;
-
-	/* All interconnects are initially disabled */
-	icc_bulk_disable(1, interconnect);
-
-	/* Set the bandwidth values to be used when enabled */
-	ret = icc_bulk_set_bw(1, interconnect);
-	if (ret)
-		icc_bulk_put(1, interconnect);
-
-	return ret;
-}
-
-static void ipa_interconnect_exit_one(struct icc_bulk_data *interconnect)
-{
-	icc_bulk_put(1, interconnect);
-	memset(interconnect, 0, sizeof(*interconnect));
-}
-
 /* Initialize interconnects required for IPA operation */
 static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 				 const struct ipa_interconnect_data *data)
@@ -116,18 +84,34 @@ static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 		return -ENOMEM;
 	power->interconnect = interconnect;
 
+	/* Initialize our interconnect data array for bulk operations */
 	while (count--) {
-		ret = ipa_interconnect_init_one(dev, interconnect, data++);
-		if (ret)
-			goto out_unwind;
+		/* interconnect->path is filled in by of_icc_bulk_get() */
+		interconnect->name = data->name;
+		interconnect->avg_bw = data->average_bandwidth;
+		interconnect->peak_bw = data->peak_bandwidth;
+		data++;
 		interconnect++;
 	}
 
+	ret = of_icc_bulk_get(dev, power->interconnect_count,
+			      power->interconnect);
+	if (ret)
+		goto err_free;
+
+	/* All interconnects are initially disabled */
+	icc_bulk_disable(power->interconnect_count, power->interconnect);
+
+	/* Set the bandwidth values to be used when enabled */
+	ret = icc_bulk_set_bw(power->interconnect_count, power->interconnect);
+	if (ret)
+		goto err_bulk_put;
+
 	return 0;
 
-out_unwind:
-	while (interconnect-- > power->interconnect)
-		ipa_interconnect_exit_one(interconnect);
+err_bulk_put:
+	icc_bulk_put(power->interconnect_count, power->interconnect);
+err_free:
 	kfree(power->interconnect);
 	power->interconnect = NULL;
 
@@ -137,11 +121,7 @@ out_unwind:
 /* Inverse of ipa_interconnect_init() */
 static void ipa_interconnect_exit(struct ipa_power *power)
 {
-	struct icc_bulk_data *interconnect;
-
-	interconnect = power->interconnect + power->interconnect_count;
-	while (interconnect-- > power->interconnect)
-		ipa_interconnect_exit_one(interconnect);
+	icc_bulk_put(power->interconnect_count, power->interconnect);
 	kfree(power->interconnect);
 	power->interconnect = NULL;
 }
