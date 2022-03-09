@@ -195,8 +195,8 @@ config SND_SOC_SC7280
 	select SND_SOC_MAX98357A
 	select SND_SOC_WCD938X_SDW
 	select SND_SOC_LPASS_MACRO_COMMON
-	select SND_SOC_LPASS_RX_MACRO
-	select SND_SOC_LPASS_TX_MACRO
+	imply SND_SOC_LPASS_RX_MACRO
+	imply SND_SOC_LPASS_TX_MACRO
 	help
 	  Add support for audio on Qualcomm Technologies Inc.
 	  SC7280 SoC-based systems.
