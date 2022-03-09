@@ -54,10 +54,10 @@ xfs_mode_to_ftype(
  */
 xfs_dahash_t
 xfs_ascii_ci_hashname(
-	struct xfs_name	*name)
+	const struct xfs_name	*name)
 {
-	xfs_dahash_t	hash;
-	int		i;
+	xfs_dahash_t		hash;
+	int			i;
 
 	for (i = 0, hash = 0; i < name->len; i++)
 		hash = tolower(name->name[i]) ^ rol32(hash, 7);
@@ -243,7 +243,7 @@ int
 xfs_dir_createname(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
-	struct xfs_name		*name,
+	const struct xfs_name	*name,
 	xfs_ino_t		inum,		/* new entry inode number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
@@ -337,16 +337,16 @@ xfs_dir_cilookup_result(
 
 int
 xfs_dir_lookup(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,
-	xfs_ino_t	*inum,		/* out: inode number */
-	struct xfs_name *ci_name)	/* out: actual name if CI match */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	const struct xfs_name	*name,
+	xfs_ino_t		*inum,	  /* out: inode number */
+	struct xfs_name		*ci_name) /* out: actual name if CI match */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
-	int		lock_mode;
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;	  /* type-checking value */
+	int			lock_mode;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
@@ -475,7 +475,7 @@ int
 xfs_dir_replace(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
-	struct xfs_name		*name,		/* name of entry to replace */
+	const struct xfs_name	*name,		/* name of entry to replace */
 	xfs_ino_t		inum,		/* new inode number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
@@ -728,7 +728,7 @@ xfs_dir2_namecheck(
 xfs_dahash_t
 xfs_dir2_hashname(
 	struct xfs_mount	*mp,
-	struct xfs_name		*name)
+	const struct xfs_name	*name)
 {
 	if (unlikely(xfs_has_asciici(mp)))
 		return xfs_ascii_ci_hashname(name);

@@ -402,7 +402,7 @@ enum layout_break_reason {
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);
-int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
+int		xfs_lookup(struct xfs_inode *dp, const struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct user_namespace *mnt_userns,
 			   struct xfs_inode *dp, struct xfs_name *name,

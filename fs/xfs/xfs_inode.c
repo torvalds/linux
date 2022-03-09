@@ -658,9 +658,9 @@ xfs_ip2xflags(
  */
 int
 xfs_lookup(
-	xfs_inode_t		*dp,
-	struct xfs_name		*name,
-	xfs_inode_t		**ipp,
+	struct xfs_inode	*dp,
+	const struct xfs_name	*name,
+	struct xfs_inode	**ipp,
 	struct xfs_name		*ci_name)
 {
 	xfs_ino_t		inum;

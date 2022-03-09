@@ -933,7 +933,7 @@ DEFINE_IREF_EVENT(xfs_inode_unpin);
 DEFINE_IREF_EVENT(xfs_inode_unpin_nowait);
 
 DECLARE_EVENT_CLASS(xfs_namespace_class,
-	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name),
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name),
 	TP_ARGS(dp, name),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -956,7 +956,7 @@ DECLARE_EVENT_CLASS(xfs_namespace_class,
 
 #define DEFINE_NAMESPACE_EVENT(name) \
 DEFINE_EVENT(xfs_namespace_class, name, \
-	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name), \
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name), \
 	TP_ARGS(dp, name))
 DEFINE_NAMESPACE_EVENT(xfs_remove);
 DEFINE_NAMESPACE_EVENT(xfs_link);
