@@ -923,11 +923,22 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	if (rc)
 		goto out;
 
+	tdom = *domain;
+	if (perms != &ap_perms && tdom < AP_DOMAINS) {
+		if (ap_msg.flags & AP_MSG_FLAG_ADMIN) {
+			if (!test_bit_inv(tdom, perms->adm)) {
+				rc = -ENODEV;
+				goto out;
+			}
+		} else if ((ap_msg.flags & AP_MSG_FLAG_USAGE) == 0) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+	}
 	/*
 	 * If a valid target domain is set and this domain is NOT a usage
 	 * domain but a control only domain, autoselect target domain.
 	 */
-	tdom = *domain;
 	if (tdom < AP_DOMAINS &&
 	    !ap_test_config_usage_domain(tdom) &&
 	    ap_test_config_ctrl_domain(tdom))
@@ -1104,6 +1115,18 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out_free;
+
+	if (perms != &ap_perms && domain < AUTOSEL_DOM) {
+		if (ap_msg.flags & AP_MSG_FLAG_ADMIN) {
+			if (!test_bit_inv(domain, perms->adm)) {
+				rc = -ENODEV;
+				goto out_free;
+			}
+		} else if ((ap_msg.flags & AP_MSG_FLAG_USAGE) == 0) {
+			rc = -EOPNOTSUPP;
+			goto out_free;
+		}
+	}
 
 	pref_zc = NULL;
 	pref_zq = NULL;
