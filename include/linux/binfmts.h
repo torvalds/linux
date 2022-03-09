@@ -8,6 +8,7 @@
 #include <uapi/linux/binfmts.h>
 
 struct filename;
+struct coredump_params;
 
 #define CORENAME_MAX_SIZE 128
 
@@ -76,18 +77,6 @@ struct linux_binprm {
 /* preserve argv0 for the interpreter  */
 #define BINPRM_FLAGS_PRESERVE_ARGV0_BIT 3
 #define BINPRM_FLAGS_PRESERVE_ARGV0 (1 << BINPRM_FLAGS_PRESERVE_ARGV0_BIT)
-
-/* Function parameter for binfmt->coredump */
-struct coredump_params {
-	const kernel_siginfo_t *siginfo;
-	struct pt_regs *regs;
-	struct file *file;
-	unsigned long limit;
-	unsigned long mm_flags;
-	loff_t written;
-	loff_t pos;
-	loff_t to_skip;
-};
 
 /*
  * This structure defines the functions that are used to load the binary formats that
