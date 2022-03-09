@@ -21,7 +21,7 @@ struct xfs_dir2_data_unused;
 struct xfs_dir3_icfree_hdr;
 struct xfs_dir3_icleaf_hdr;
 
-extern struct xfs_name	xfs_name_dotdot;
+extern const struct xfs_name	xfs_name_dotdot;
 
 /*
  * Convert inode mode to directory entry filetype
