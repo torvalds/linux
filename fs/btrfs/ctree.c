@@ -2298,6 +2298,43 @@ int btrfs_search_backwards(struct btrfs_root *root, struct btrfs_key *key,
 	return ret;
 }
 
+/**
+ * Search for a valid slot for the given path.
+ *
+ * @root:	The root node of the tree.
+ * @key:	Will contain a valid item if found.
+ * @path:	The starting point to validate the slot.
+ *
+ * Return: 0  if the item is valid
+ *         1  if not found
+ *         <0 if error.
+ */
+int btrfs_get_next_valid_item(struct btrfs_root *root, struct btrfs_key *key,
+			      struct btrfs_path *path)
+{
+	while (1) {
+		int ret;
+		const int slot = path->slots[0];
+		const struct extent_buffer *leaf = path->nodes[0];
+
+		/* This is where we start walking the path. */
+		if (slot >= btrfs_header_nritems(leaf)) {
+			/*
+			 * If we've reached the last slot in this leaf we need
+			 * to go to the next leaf and reset the path.
+			 */
+			ret = btrfs_next_leaf(root, path);
+			if (ret)
+				return ret;
+			continue;
+		}
+		/* Store the found, valid item in @key. */
+		btrfs_item_key_to_cpu(leaf, key, slot);
+		break;
+	}
+	return 0;
+}
+
 /*
  * adjust the pointers going up the tree, starting at level
  * making sure the right key of each node is points to 'key'.
