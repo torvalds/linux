@@ -892,7 +892,7 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 
 	dd->mic_no /= 2;
 
-	dev_info(dd->dev, "%d PDM microchopnes declared\n", dd->mic_no);
+	dev_info(dd->dev, "%d PDM microphones declared\n", dd->mic_no);
 
 	/* by default, we consider the order of microphones in mchp,mic-pos to
 	 * be the same with the channel mapping; 1st microphone channel 0, 2nd
