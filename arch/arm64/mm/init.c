@@ -87,7 +87,7 @@ EXPORT_SYMBOL(memstart_addr);
 #if IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32)
 phys_addr_t __ro_after_init arm64_dma_phys_limit;
 #else
-const phys_addr_t arm64_dma_phys_limit = PHYS_MASK + 1;
+phys_addr_t __ro_after_init arm64_dma_phys_limit = PHYS_MASK + 1;
 #endif
 
 #ifdef CONFIG_KEXEC_CORE
