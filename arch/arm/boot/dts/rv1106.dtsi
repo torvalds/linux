@@ -20,6 +20,9 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		csi2dphy0 = &csi2_dphy0;
+		csi2dphy1 = &csi2_dphy1;
+		csi2dphy2 = &csi2_dphy2;
 		ethernet0 = &gmac;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
@@ -65,6 +68,27 @@
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
 		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+	};
+
+	/* dphy0 full mode */
+	csi2_dphy0: csi2-dphy0 {
+		compatible = "rockchip,rv1106-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 split mode 01 */
+	csi2_dphy1: csi2-dphy1 {
+		compatible = "rockchip,rv1106-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
+		status = "disabled";
+	};
+
+	/* dphy2 split mode 23 */
+	csi2_dphy2: csi2-dphy2 {
+		compatible = "rockchip,rv1106-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
+		status = "disabled";
 	};
 
 	display_subsystem: display-subsystem {
@@ -504,6 +528,17 @@
 					  "linestate", "disconnect";
 			status = "disabled";
 		};
+	};
+
+	csi2_dphy_hw: csi2-dphy-hw@ff3e8000 {
+		compatible = "rockchip,rv1106-csi2-dphy-hw";
+		reg = <0xff3e8000 0x8000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "pclk";
+		resets = <&cru SRST_P_MIPICSIPHY>;
+		reset-names = "srst_p_csiphy";
+		rockchip,grf = <&grf>;
+		status = "disabled";
 	};
 
 	dmac: dma-controller@ff420000 {
