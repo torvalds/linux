@@ -161,10 +161,9 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		param_x = 0;
 	else if (x_up == 1 && x_by == 0) {
 		param_x = FACTOR_MAX * (sw - 1) / (dw - 1);
-		if ((sw - 1) % (dw - 1) == 0) {
-			pr_err("hor_up_fac modify xxxx\n");
+		/* even multiples of 128 require a scaling factor -1 */
+		if ((FACTOR_MAX * (sw - 1)) % (dw - 1) == 0)
 			param_x = param_x - 1;
-		}
 	} else
 		param_x = FACTOR_MAX * (dw - 1) / (sw - 1) + 1;
 
@@ -172,10 +171,9 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		param_y = 0;
 	else if (y_up == 1 && y_by == 0) {
 		param_y = FACTOR_MAX * (sh - 1) / (dh - 1);
-		if ((sh - 1) % (dh - 1) == 0) {
-			pr_err("ver_up_fac modify yyyy\n");
+		/* even multiples of 128 require a scaling factor -1 */
+		if ((FACTOR_MAX * (sh - 1)) % (dh - 1) == 0)
 			param_y = param_y - 1;
-		}
 	} else
 		param_y = FACTOR_MAX * (dh - 1) / (sh - 1) + 1;
 
