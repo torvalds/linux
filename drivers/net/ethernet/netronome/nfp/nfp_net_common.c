@@ -2622,11 +2622,12 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 				       rx_ring->idx, rx_ring->r_vec->napi.napi_id);
 		if (err < 0)
 			return err;
-	}
 
-	err = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, mem_type, NULL);
-	if (err)
-		goto err_alloc;
+		err = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq,
+						 mem_type, NULL);
+		if (err)
+			goto err_alloc;
+	}
 
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
