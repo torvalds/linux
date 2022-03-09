@@ -64,7 +64,7 @@
 #include <dt-bindings/interrupt-controller/apple-aic.h>
 
 /*
- * AIC registers (MMIO)
+ * AIC v1 registers (MMIO)
  */
 
 #define AIC_INFO		0x0004
@@ -94,15 +94,13 @@
 #define AIC_IPI_SELF		BIT(31)
 
 #define AIC_TARGET_CPU		0x3000
-#define AIC_SW_SET		0x4000
-#define AIC_SW_CLR		0x4080
-#define AIC_MASK_SET		0x4100
-#define AIC_MASK_CLR		0x4180
 
 #define AIC_CPU_IPI_SET(cpu)	(0x5008 + ((cpu) << 7))
 #define AIC_CPU_IPI_CLR(cpu)	(0x500c + ((cpu) << 7))
 #define AIC_CPU_IPI_MASK_SET(cpu) (0x5024 + ((cpu) << 7))
 #define AIC_CPU_IPI_MASK_CLR(cpu) (0x5028 + ((cpu) << 7))
+
+#define AIC_MAX_IRQ		0x400
 
 #define MASK_REG(x)		(4 * ((x) >> 5))
 #define MASK_BIT(x)		BIT((x) & GENMASK(4, 0))
@@ -189,16 +187,30 @@ DEFINE_STATIC_KEY_TRUE(use_fast_ipi);
 struct aic_info {
 	int version;
 
+	/* Register offsets */
+	u32 event;
+	u32 target_cpu;
+	u32 sw_set;
+	u32 sw_clr;
+	u32 mask_set;
+	u32 mask_clr;
+
 	/* Features */
 	bool fast_ipi;
 };
 
 static const struct aic_info aic1_info = {
 	.version	= 1,
+
+	.event		= AIC_EVENT,
+	.target_cpu	= AIC_TARGET_CPU,
 };
 
 static const struct aic_info aic1_fipi_info = {
 	.version	= 1,
+
+	.event		= AIC_EVENT,
+	.target_cpu	= AIC_TARGET_CPU,
 
 	.fast_ipi	= true,
 };
@@ -219,7 +231,9 @@ struct aic_irq_chip {
 	void __iomem *base;
 	struct irq_domain *hw_domain;
 	struct irq_domain *ipi_domain;
+
 	int nr_irq;
+	int max_irq;
 
 	struct aic_info info;
 };
@@ -254,7 +268,7 @@ static void aic_irq_mask(struct irq_data *d)
 
 	u32 irq = AIC_HWIRQ_IRQ(hwirq);
 
-	aic_ic_write(ic, AIC_MASK_SET + MASK_REG(irq), MASK_BIT(irq));
+	aic_ic_write(ic, ic->info.mask_set + MASK_REG(irq), MASK_BIT(irq));
 }
 
 static void aic_irq_unmask(struct irq_data *d)
@@ -264,7 +278,7 @@ static void aic_irq_unmask(struct irq_data *d)
 
 	u32 irq = AIC_HWIRQ_IRQ(hwirq);
 
-	aic_ic_write(ic, AIC_MASK_CLR + MASK_REG(irq), MASK_BIT(irq));
+	aic_ic_write(ic, ic->info.mask_clr + MASK_REG(irq), MASK_BIT(irq));
 }
 
 static void aic_irq_eoi(struct irq_data *d)
@@ -287,7 +301,7 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 		 * We cannot use a relaxed read here, as reads from DMA buffers
 		 * need to be ordered after the IRQ fires.
 		 */
-		event = readl(ic->base + AIC_EVENT);
+		event = readl(ic->base + ic->info.event);
 		type = FIELD_GET(AIC_EVENT_TYPE, event);
 		irq = FIELD_GET(AIC_EVENT_NUM, event);
 
@@ -319,12 +333,14 @@ static int aic_irq_set_affinity(struct irq_data *d,
 	struct aic_irq_chip *ic = irq_data_get_irq_chip_data(d);
 	int cpu;
 
+	BUG_ON(!ic->info.target_cpu);
+
 	if (force)
 		cpu = cpumask_first(mask_val);
 	else
 		cpu = cpumask_any_and(mask_val, cpu_online_mask);
 
-	aic_ic_write(ic, AIC_TARGET_CPU + AIC_HWIRQ_IRQ(hwirq) * 4, BIT(cpu));
+	aic_ic_write(ic, ic->info.target_cpu + AIC_HWIRQ_IRQ(hwirq) * 4, BIT(cpu));
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
 	return IRQ_SET_MASK_OK;
@@ -884,8 +900,8 @@ static struct gic_kvm_info vgic_info __initdata = {
 static int __init aic_of_ic_init(struct device_node *node, struct device_node *parent)
 {
 	int i;
+	u32 off;
 	void __iomem *regs;
-	u32 info;
 	struct aic_irq_chip *irqc;
 	const struct of_device_id *match;
 
@@ -907,8 +923,30 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 
 	aic_irqc = irqc;
 
-	info = aic_ic_read(irqc, AIC_INFO);
-	irqc->nr_irq = FIELD_GET(AIC_INFO_NR_IRQ, info);
+	switch (irqc->info.version) {
+	case 1: {
+		u32 info;
+
+		info = aic_ic_read(irqc, AIC_INFO);
+		irqc->nr_irq = FIELD_GET(AIC_INFO_NR_IRQ, info);
+		irqc->max_irq = AIC_MAX_IRQ;
+
+		off = irqc->info.target_cpu;
+		off += sizeof(u32) * irqc->max_irq; /* TARGET_CPU */
+
+		break;
+	}
+	}
+
+	irqc->info.sw_set = off;
+	off += sizeof(u32) * (irqc->max_irq >> 5); /* SW_SET */
+	irqc->info.sw_clr = off;
+	off += sizeof(u32) * (irqc->max_irq >> 5); /* SW_CLR */
+	irqc->info.mask_set = off;
+	off += sizeof(u32) * (irqc->max_irq >> 5); /* MASK_SET */
+	irqc->info.mask_clr = off;
+	off += sizeof(u32) * (irqc->max_irq >> 5); /* MASK_CLR */
+	off += sizeof(u32) * (irqc->max_irq >> 5); /* HW_STATE */
 
 	if (irqc->info.fast_ipi)
 		static_branch_enable(&use_fast_ipi);
@@ -936,11 +974,11 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 	set_handle_fiq(aic_handle_fiq);
 
 	for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
-		aic_ic_write(irqc, AIC_MASK_SET + i * 4, U32_MAX);
+		aic_ic_write(irqc, irqc->info.mask_set + i * 4, U32_MAX);
 	for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
-		aic_ic_write(irqc, AIC_SW_CLR + i * 4, U32_MAX);
+		aic_ic_write(irqc, irqc->info.sw_clr + i * 4, U32_MAX);
 	for (i = 0; i < irqc->nr_irq; i++)
-		aic_ic_write(irqc, AIC_TARGET_CPU + i * 4, 1);
+		aic_ic_write(irqc, irqc->info.target_cpu + i * 4, 1);
 
 	if (!is_kernel_in_hyp_mode())
 		pr_info("Kernel running in EL1, mapping interrupts");
@@ -954,8 +992,8 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 
 	vgic_set_kvm_info(&vgic_info);
 
-	pr_info("Initialized with %d IRQs, %d FIQs, %d vIPIs\n",
-		irqc->nr_irq, AIC_NR_FIQ, AIC_NR_SWIPI);
+	pr_info("Initialized with %d/%d IRQs, %d FIQs, %d vIPIs",
+		irqc->nr_irq, irqc->max_irq, AIC_NR_FIQ, AIC_NR_SWIPI);
 
 	return 0;
 }
