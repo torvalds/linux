@@ -505,16 +505,23 @@ static void vendor_specific_lttpr_wa_four(
 	}
 }
 
-static void vendor_specific_lttpr_wa_five(
+static void dp_fixed_vs_pe_set_retimer_lane_settings(
 	struct dc_link *link,
 	const union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX],
 	uint8_t lane_count)
 {
-	const uint32_t vendor_lttpr_write_address = 0xF004F;
+	const uint8_t offset = dp_convert_to_count(
+			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_reset[4] = {0x1, 0x50, 0x63, 0xFF};
+	uint32_t vendor_lttpr_write_address = 0xF004F;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
 	uint8_t lane = 0;
+
+	if (offset != 0xFF) {
+		vendor_lttpr_write_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+	}
 
 	for (lane = 0; lane < lane_count; lane++) {
 		vendor_lttpr_write_data_vs[3] |=
@@ -5989,15 +5996,14 @@ bool dc_link_dp_set_test_pattern(
 			if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 					(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 					link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
-				dpcd_set_lane_settings(link, p_link_settings, DPRX);
-				vendor_specific_lttpr_wa_five(
+				dp_fixed_vs_pe_set_retimer_lane_settings(
 						link,
 						p_link_settings->dpcd_lane_settings,
 						p_link_settings->link_settings.lane_count);
 			} else {
 				dp_set_hw_lane_settings(link, &pipe_ctx->link_res, p_link_settings, DPRX);
-				dpcd_set_lane_settings(link, p_link_settings, DPRX);
 			}
+			dpcd_set_lane_settings(link, p_link_settings, DPRX);
 		}
 
 		/* Blank stream if running test pattern */

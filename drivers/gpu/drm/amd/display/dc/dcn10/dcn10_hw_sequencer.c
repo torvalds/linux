@@ -107,7 +107,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 * (un)locking. Also skip if pipe is disabled.
 		 */
 		if (pipe_ctx->top_pipe ||
-		    !pipe_ctx->stream || !pipe_ctx->plane_state ||
+		    !pipe_ctx->stream ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 
@@ -3093,7 +3093,8 @@ static void dcn10_config_stereo_parameters(
 
 		flags->PROGRAM_STEREO         = 1;
 		flags->PROGRAM_POLARITY       = 1;
-		if (timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
+		if (timing_3d_format == TIMING_3D_FORMAT_FRAME_ALTERNATE ||
+			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \

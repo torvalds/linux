@@ -981,7 +981,8 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 				destrictive = false;
 			}
 		}
-	}
+	} else if (dc_is_hdmi_signal(link->local_sink->sink_signal))
+		destrictive = true;
 
 	return destrictive;
 }
@@ -2798,6 +2799,17 @@ static bool dp_active_dongle_validate_timing(
 		case COLOR_DEPTH_161616:
 		default:
 			/* These color depths are currently not supported */
+			return false;
+		}
+
+		/* Check 3D format */
+		switch (timing->timing_3d_format) {
+		case TIMING_3D_FORMAT_NONE:
+		case TIMING_3D_FORMAT_FRAME_ALTERNATE:
+			/*Only frame alternate 3D is supported on active dongle*/
+			break;
+		default:
+			/*other 3D formats are not supported due to bad infoframe translation */
 			return false;
 		}
 

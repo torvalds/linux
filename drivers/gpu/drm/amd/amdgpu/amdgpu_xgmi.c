@@ -768,13 +768,6 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, struct ras_comm
 	return amdgpu_ras_block_late_init(adev, ras_block);
 }
 
-static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
-			adev->gmc.xgmi.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->gmc.xgmi.ras_if);
-}
-
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr)
 {
@@ -982,6 +975,5 @@ struct amdgpu_xgmi_ras xgmi_ras = {
 		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
-		.ras_fini = amdgpu_xgmi_ras_fini,
 	},
 };

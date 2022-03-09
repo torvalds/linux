@@ -1035,6 +1035,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 	.optimize_edp_link_rate = true,
 	.enable_sw_cntl_psr = true,
+	.psr_power_use_phy_fsm = 0,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

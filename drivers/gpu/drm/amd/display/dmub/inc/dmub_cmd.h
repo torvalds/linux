@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x1422ef84
+#define DMUB_FW_VERSION_GIT_HASH 0x082bd4c8
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 104
+#define DMUB_FW_VERSION_REVISION 106
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -1560,10 +1560,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * DSC enable status in driver
 	 */
 	uint8_t dsc_enable_status;
-	/**
-	 * Explicit padding to 3 byte boundary.
+	/*
+	 * Use FSM state for PSR power up/down
 	 */
-	uint8_t pad3[3];
+	uint8_t use_phy_fsm;
+	/**
+	 * Explicit padding to 2 byte boundary.
+	 */
+	uint8_t pad3[2];
 };
 
 /**

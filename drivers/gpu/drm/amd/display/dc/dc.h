@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.174"
+#define DC_VER "3.2.175"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -354,6 +354,7 @@ enum dc_psr_power_opts {
 	psr_power_opt_invalid = 0x0,
 	psr_power_opt_smu_opt_static_screen = 0x1,
 	psr_power_opt_z10_static_screen = 0x10,
+	psr_power_opt_ds_disable_allow = 0x100,
 };
 
 enum dcc_option {
@@ -710,6 +711,7 @@ struct dc_debug_options {
 #endif
 	bool apply_vendor_specific_lttpr_wa;
 	bool ignore_dpref_ss;
+	uint8_t psr_power_use_phy_fsm;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

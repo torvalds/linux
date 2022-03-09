@@ -148,6 +148,13 @@ static int vcn_v1_0_sw_init(void *handle)
 
 	adev->vcn.pause_dpg_mode = vcn_v1_0_pause_dpg_mode;
 
+	if (amdgpu_vcnfw_log) {
+		volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
+
+		fw_shared->present_flag_0 = 0;
+		amdgpu_vcn_fwlog_init(adev->vcn.inst);
+	}
+
 	r = jpeg_v1_0_sw_init(handle);
 
 	return r;

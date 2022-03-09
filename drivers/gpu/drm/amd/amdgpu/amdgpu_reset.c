@@ -36,8 +36,8 @@ int amdgpu_reset_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_init(adev);
 		break;
 	default:
@@ -51,8 +51,8 @@ int amdgpu_reset_fini(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_fini(adev);
 		break;
 	default:

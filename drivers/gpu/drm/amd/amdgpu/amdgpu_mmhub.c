@@ -24,9 +24,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 
-void amdgpu_mmhub_ras_fini(struct amdgpu_device *adev)
+void amdgpu_mmhub_ras_fini(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB) &&
-			adev->mmhub.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->mmhub.ras_if);
+
 }

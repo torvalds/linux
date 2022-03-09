@@ -683,10 +683,6 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		if (!adev->umc.ras->ras_block.ras_late_init)
 				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
 
-		/* If don't define special ras_fini function, use default ras_fini */
-		if (!adev->umc.ras->ras_block.ras_fini)
-				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
-
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->umc.ras->ras_block.ras_cb)
 			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;

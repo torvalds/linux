@@ -1214,9 +1214,6 @@ static int soc15_common_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->nbio.ras && adev->nbio.ras->ras_block.ras_fini)
-		adev->nbio.ras->ras_block.ras_fini(adev);
-
 	if (adev->df.funcs &&
 	    adev->df.funcs->sw_fini)
 		adev->df.funcs->sw_fini(adev);

@@ -454,17 +454,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 {
-	if (adev->umc.ras && adev->umc.ras->ras_block.ras_fini)
-		adev->umc.ras->ras_block.ras_fini(adev);
 
-	if (adev->mmhub.ras && adev->mmhub.ras->ras_block.ras_fini)
-		adev->mmhub.ras->ras_block.ras_fini(adev);
-
-	if (adev->gmc.xgmi.ras && adev->gmc.xgmi.ras->ras_block.ras_fini)
-		adev->gmc.xgmi.ras->ras_block.ras_fini(adev);
-
-	if (adev->hdp.ras && adev->hdp.ras->ras_block.ras_fini)
-		adev->hdp.ras->ras_block.ras_fini(adev);
 }
 
 	/*
@@ -569,11 +559,11 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
 		 * for some ASICs, so set default to 1 for these ASICs.
@@ -583,7 +573,6 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 		else
 			gmc->noretry = amdgpu_noretry;
 		break;
-	case CHIP_RAVEN:
 	default:
 		/* Raven currently has issues with noretry
 		 * regardless of what we decide for other
