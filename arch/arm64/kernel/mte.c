@@ -311,7 +311,16 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 		mte_ctrl |= MTE_CTRL_TCF_ASYNC;
 	if (arg & PR_MTE_TCF_SYNC)
 		mte_ctrl |= MTE_CTRL_TCF_SYNC;
-	if (arg & PR_MTE_TCF_ASYMM)
+
+	/*
+	 * If the system supports it and both sync and async modes are
+	 * specified then implicitly enable asymmetric mode.
+	 * Userspace could see a mix of both sync and async anyway due
+	 * to differing or changing defaults on CPUs.
+	 */
+	if (cpus_have_cap(ARM64_MTE_ASYMM) &&
+	    (arg & PR_MTE_TCF_ASYNC) &&
+	    (arg & PR_MTE_TCF_SYNC))
 		mte_ctrl |= MTE_CTRL_TCF_ASYMM;
 
 	task->thread.mte_ctrl = mte_ctrl;
@@ -341,8 +350,6 @@ long get_mte_ctrl(struct task_struct *task)
 		ret |= PR_MTE_TCF_ASYNC;
 	if (mte_ctrl & MTE_CTRL_TCF_SYNC)
 		ret |= PR_MTE_TCF_SYNC;
-	if (mte_ctrl & MTE_CTRL_TCF_ASYMM)
-		ret |= PR_MTE_TCF_ASYMM;
 
 	return ret;
 }

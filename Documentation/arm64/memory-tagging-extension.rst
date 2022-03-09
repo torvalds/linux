@@ -88,7 +88,6 @@ bit-field:
                          (ignored if combined with other options)
 - ``PR_MTE_TCF_SYNC``  - *Synchronous* tag check fault mode
 - ``PR_MTE_TCF_ASYNC`` - *Asynchronous* tag check fault mode
-- ``PR_MTE_TCF_ASYMM`` - *Asymmetric* tag check fault mode
 
 If no modes are specified, tag check faults are ignored. If a single
 mode is specified, the program will run in that mode. If multiple
@@ -149,17 +148,19 @@ default preferred mode for each CPU is ``async``.
 To allow a program to potentially run in the CPU's preferred tag
 checking mode, the user program may set multiple tag check fault mode
 bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
-flags, 0, 0, 0)`` system call. If the CPU's preferred tag checking
-mode is in the task's set of provided tag checking modes, that
-mode will be selected. Otherwise, one of the modes in the task's mode
-selected by the kernel using the preference order:
+flags, 0, 0, 0)`` system call. If both synchronous and asynchronous
+modes are requested then asymmetric mode may also be selected by the
+kernel. If the CPU's preferred tag checking mode is in the task's set
+of provided tag checking modes, that mode will be selected. Otherwise,
+one of the modes in the task's mode will be selected by the kernel
+from the task's mode set using the preference order:
 
 	1. Asynchronous
 	2. Asymmetric
 	3. Synchronous
 
-If asymmetric mode is specified by the program but not supported by
-either the system or the kernel then an error will be returned.
+Note that there is no way for userspace to request multiple modes and
+also disable asymmetric mode.
 
 Initial process state
 ---------------------
