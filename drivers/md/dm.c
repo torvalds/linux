@@ -841,89 +841,94 @@ static int __noflush_suspending(struct mapped_device *md)
 	return test_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
 }
 
+static void dm_io_complete(struct dm_io *io)
+{
+	blk_status_t io_error;
+	struct mapped_device *md = io->md;
+	struct bio *bio = io->orig_bio;
+
+	if (io->status == BLK_STS_DM_REQUEUE) {
+		unsigned long flags;
+		/*
+		 * Target requested pushing back the I/O.
+		 */
+		spin_lock_irqsave(&md->deferred_lock, flags);
+		if (__noflush_suspending(md) &&
+		    !WARN_ON_ONCE(dm_is_zone_write(md, bio))) {
+			/* NOTE early return due to BLK_STS_DM_REQUEUE below */
+			bio_list_add_head(&md->deferred, bio);
+		} else {
+			/*
+			 * noflush suspend was interrupted or this is
+			 * a write to a zoned target.
+			 */
+			io->status = BLK_STS_IOERR;
+		}
+		spin_unlock_irqrestore(&md->deferred_lock, flags);
+	}
+
+	io_error = io->status;
+	if (io->was_accounted)
+		dm_end_io_acct(io, bio);
+	else if (!io_error) {
+		/*
+		 * Must handle target that DM_MAPIO_SUBMITTED only to
+		 * then bio_endio() rather than dm_submit_bio_remap()
+		 */
+		__dm_start_io_acct(io, bio);
+		dm_end_io_acct(io, bio);
+	}
+	free_io(io);
+	smp_wmb();
+	this_cpu_dec(*md->pending_io);
+
+	/* nudge anyone waiting on suspend queue */
+	if (unlikely(wq_has_sleeper(&md->wait)))
+		wake_up(&md->wait);
+
+	if (io_error == BLK_STS_DM_REQUEUE) {
+		/*
+		 * Upper layer won't help us poll split bio, io->orig_bio
+		 * may only reflect a subset of the pre-split original,
+		 * so clear REQ_POLLED in case of requeue
+		 */
+		bio->bi_opf &= ~REQ_POLLED;
+		return;
+	}
+
+	if (bio_is_flush_with_data(bio)) {
+		/*
+		 * Preflush done for flush with data, reissue
+		 * without REQ_PREFLUSH.
+		 */
+		bio->bi_opf &= ~REQ_PREFLUSH;
+		queue_io(md, bio);
+	} else {
+		/* done with normal IO or empty flush */
+		if (io_error)
+			bio->bi_status = io_error;
+		bio_endio(bio);
+	}
+}
+
 /*
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
 void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
 {
-	unsigned long flags;
-	blk_status_t io_error;
-	struct bio *bio;
-	struct mapped_device *md = io->md;
-
 	/* Push-back supersedes any I/O errors */
 	if (unlikely(error)) {
+		unsigned long flags;
 		spin_lock_irqsave(&io->endio_lock, flags);
-		if (!(io->status == BLK_STS_DM_REQUEUE && __noflush_suspending(md)))
+		if (!(io->status == BLK_STS_DM_REQUEUE &&
+		      __noflush_suspending(io->md)))
 			io->status = error;
 		spin_unlock_irqrestore(&io->endio_lock, flags);
 	}
 
-	if (atomic_dec_and_test(&io->io_count)) {
-		bio = io->orig_bio;
-		if (io->status == BLK_STS_DM_REQUEUE) {
-			/*
-			 * Target requested pushing back the I/O.
-			 */
-			spin_lock_irqsave(&md->deferred_lock, flags);
-			if (__noflush_suspending(md) &&
-			    !WARN_ON_ONCE(dm_is_zone_write(md, bio))) {
-				/* NOTE early return due to BLK_STS_DM_REQUEUE below */
-				bio_list_add_head(&md->deferred, bio);
-			} else {
-				/*
-				 * noflush suspend was interrupted or this is
-				 * a write to a zoned target.
-				 */
-				io->status = BLK_STS_IOERR;
-			}
-			spin_unlock_irqrestore(&md->deferred_lock, flags);
-		}
-
-		io_error = io->status;
-		if (io->was_accounted)
-			dm_end_io_acct(io, bio);
-		else if (!io_error) {
-			/*
-			 * Must handle target that DM_MAPIO_SUBMITTED only to
-			 * then bio_endio() rather than dm_submit_bio_remap()
-			 */
-			__dm_start_io_acct(io, bio);
-			dm_end_io_acct(io, bio);
-		}
-		free_io(io);
-		smp_wmb();
-		this_cpu_dec(*md->pending_io);
-
-		/* nudge anyone waiting on suspend queue */
-		if (unlikely(wq_has_sleeper(&md->wait)))
-			wake_up(&md->wait);
-
-		if (io_error == BLK_STS_DM_REQUEUE) {
-			/*
-			 * Upper layer won't help us poll split bio, io->orig_bio
-			 * may only reflect a subset of the pre-split original,
-			 * so clear REQ_POLLED in case of requeue
-			 */
-			bio->bi_opf &= ~REQ_POLLED;
-			return;
-		}
-
-		if (bio_is_flush_with_data(bio)) {
-			/*
-			 * Preflush done for flush with data, reissue
-			 * without REQ_PREFLUSH.
-			 */
-			bio->bi_opf &= ~REQ_PREFLUSH;
-			queue_io(md, bio);
-		} else {
-			/* done with normal IO or empty flush */
-			if (io_error)
-				bio->bi_status = io_error;
-			bio_endio(bio);
-		}
-	}
+	if (atomic_dec_and_test(&io->io_count))
+		dm_io_complete(io);
 }
 
 void disable_discard(struct mapped_device *md)
@@ -1562,7 +1567,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		error = __send_empty_flush(&ci);
-		/* dm_io_dec_pending submits any data associated with flush */
+		/* dm_io_complete submits any data associated with flush */
 		goto out;
 	}
 
@@ -1575,7 +1580,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
 	 * We take a clone of the original to store in ci.io->orig_bio to be
-	 * used by dm_end_io_acct() and for dm_io_dec_pending() to use for
+	 * used by dm_end_io_acct() and for dm_io_complete() to use for
 	 * completion handling.
 	 */
 	orig_bio = bio_split(bio, bio_sectors(bio) - ci.sector_count,
