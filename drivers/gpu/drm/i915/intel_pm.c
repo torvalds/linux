@@ -3670,8 +3670,8 @@ intel_has_sagv(struct drm_i915_private *dev_priv)
 		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
 }
 
-static void
-skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
+static u32
+intel_sagv_block_time(struct drm_i915_private *dev_priv)
 {
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		u32 val = 0;
@@ -3680,23 +3680,30 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 		ret = snb_pcode_read(dev_priv,
 				     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
 				     &val, NULL);
-		if (!ret) {
-			dev_priv->sagv_block_time_us = val;
-			return;
+		if (ret) {
+			drm_dbg_kms(&dev_priv->drm, "Couldn't read SAGV block time!\n");
+			return 0;
 		}
 
-		drm_dbg(&dev_priv->drm, "Couldn't read SAGV block time!\n");
+		return val;
 	} else if (DISPLAY_VER(dev_priv) == 11) {
-		dev_priv->sagv_block_time_us = 10;
-		return;
-	} else if (DISPLAY_VER(dev_priv) == 9) {
-		dev_priv->sagv_block_time_us = 30;
-		return;
+		return 10;
+	} else if (DISPLAY_VER(dev_priv) == 9 && !IS_LP(dev_priv)) {
+		return 30;
 	} else {
-		MISSING_CASE(DISPLAY_VER(dev_priv));
+		return 0;
 	}
+}
 
-	dev_priv->sagv_block_time_us = 0;
+static void intel_sagv_init(struct drm_i915_private *i915)
+{
+	i915->sagv_block_time_us = intel_sagv_block_time(i915);
+
+	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
+		    str_yes_no(intel_has_sagv(i915)), i915->sagv_block_time_us);
+
+	if (!intel_has_sagv(i915))
+		i915->sagv_block_time_us = 0;
 }
 
 /*
@@ -8175,8 +8182,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	else if (GRAPHICS_VER(dev_priv) == 5)
 		ilk_get_mem_freq(dev_priv);
 
-	if (intel_has_sagv(dev_priv))
-		skl_setup_sagv_block_time(dev_priv);
+	intel_sagv_init(dev_priv);
 
 	/* For FIFO watermark updates */
 	if (DISPLAY_VER(dev_priv) >= 9) {
