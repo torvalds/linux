@@ -3,3 +3,4 @@
 # Copyright IBM Corp.
 
 obj-$(CONFIG_SMP) += platsmp.o
+obj-$(CONFIG_DEBUG_FS) += debugfs.o
