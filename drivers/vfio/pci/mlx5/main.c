@@ -409,7 +409,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 
 	if ((cur == VFIO_DEVICE_STATE_STOP_COPY && new == VFIO_DEVICE_STATE_STOP)) {
 		mlx5vf_disable_fds(mvdev);
-		return 0;
+		return NULL;
 	}
 
 	if (cur == VFIO_DEVICE_STATE_STOP && new == VFIO_DEVICE_STATE_RESUMING) {
@@ -430,7 +430,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		if (ret)
 			return ERR_PTR(ret);
 		mlx5vf_disable_fds(mvdev);
-		return 0;
+		return NULL;
 	}
 
 	/*
