@@ -720,7 +720,7 @@ MODULE_DEVICE_TABLE(of, cn10k_ddr_pmu_of_match);
 static struct platform_driver cn10k_ddr_pmu_driver = {
 	.driver	= {
 		.name   = "cn10k-ddr-pmu",
-		.of_match_table = cn10k_ddr_pmu_of_match,
+		.of_match_table = of_match_ptr(cn10k_ddr_pmu_of_match),
 		.suppress_bind_attrs = true,
 	},
 	.probe		= cn10k_ddr_perf_probe,
