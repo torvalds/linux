@@ -35,18 +35,6 @@
 #define IPA_AUTOSUSPEND_DELAY	500	/* milliseconds */
 
 /**
- * struct ipa_interconnect - IPA interconnect information
- * @path:		Interconnect path
- * @average_bandwidth:	Average interconnect bandwidth (KB/second)
- * @peak_bandwidth:	Peak interconnect bandwidth (KB/second)
- */
-struct ipa_interconnect {
-	struct icc_path *path;
-	u32 average_bandwidth;
-	u32 peak_bandwidth;
-};
-
-/**
  * enum ipa_power_flag - IPA power flags
  * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
  * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
@@ -79,11 +67,11 @@ struct ipa_power {
 	spinlock_t spinlock;	/* used with STOPPED/STARTED power flags */
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
-	struct ipa_interconnect *interconnect;
+	struct icc_bulk_data *interconnect;
 };
 
 static int ipa_interconnect_init_one(struct device *dev,
-				     struct ipa_interconnect *interconnect,
+				     struct icc_bulk_data *interconnect,
 				     const struct ipa_interconnect_data *data)
 {
 	struct icc_path *path;
@@ -99,13 +87,14 @@ static int ipa_interconnect_init_one(struct device *dev,
 	}
 
 	interconnect->path = path;
-	interconnect->average_bandwidth = data->average_bandwidth;
-	interconnect->peak_bandwidth = data->peak_bandwidth;
+	interconnect->name = data->name;
+	interconnect->avg_bw = data->average_bandwidth;
+	interconnect->peak_bw = data->peak_bandwidth;
 
 	return 0;
 }
 
-static void ipa_interconnect_exit_one(struct ipa_interconnect *interconnect)
+static void ipa_interconnect_exit_one(struct icc_bulk_data *interconnect)
 {
 	icc_put(interconnect->path);
 	memset(interconnect, 0, sizeof(*interconnect));
@@ -115,7 +104,7 @@ static void ipa_interconnect_exit_one(struct ipa_interconnect *interconnect)
 static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 				 const struct ipa_interconnect_data *data)
 {
-	struct ipa_interconnect *interconnect;
+	struct icc_bulk_data *interconnect;
 	u32 count;
 	int ret;
 
@@ -146,7 +135,7 @@ out_unwind:
 /* Inverse of ipa_interconnect_init() */
 static void ipa_interconnect_exit(struct ipa_power *power)
 {
-	struct ipa_interconnect *interconnect;
+	struct icc_bulk_data *interconnect;
 
 	interconnect = power->interconnect + power->interconnect_count;
 	while (interconnect-- > power->interconnect)
@@ -158,7 +147,7 @@ static void ipa_interconnect_exit(struct ipa_power *power)
 /* Currently we only use one bandwidth level, so just "enable" interconnects */
 static int ipa_interconnect_enable(struct ipa *ipa)
 {
-	struct ipa_interconnect *interconnect;
+	struct icc_bulk_data *interconnect;
 	struct ipa_power *power = ipa->power;
 	int ret;
 	u32 i;
@@ -166,12 +155,12 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 	interconnect = power->interconnect;
 	for (i = 0; i < power->interconnect_count; i++) {
 		ret = icc_set_bw(interconnect->path,
-				 interconnect->average_bandwidth,
-				 interconnect->peak_bandwidth);
+				 interconnect->avg_bw,
+				 interconnect->peak_bw);
 		if (ret) {
 			dev_err(&ipa->pdev->dev,
 				"error %d enabling %s interconnect\n",
-				ret, icc_get_name(interconnect->path));
+				ret, interconnect->name);
 			goto out_unwind;
 		}
 		interconnect++;
@@ -189,9 +178,9 @@ out_unwind:
 /* To disable an interconnect, we just its bandwidth to 0 */
 static int ipa_interconnect_disable(struct ipa *ipa)
 {
-	struct ipa_interconnect *interconnect;
 	struct ipa_power *power = ipa->power;
 	struct device *dev = &ipa->pdev->dev;
+	struct icc_bulk_data *interconnect;
 	int result = 0;
 	u32 count;
 	int ret;
@@ -203,7 +192,7 @@ static int ipa_interconnect_disable(struct ipa *ipa)
 		ret = icc_set_bw(interconnect->path, 0, 0);
 		if (ret) {
 			dev_err(dev, "error %d disabling %s interconnect\n",
-				ret, icc_get_name(interconnect->path));
+				ret, interconnect->name);
 			/* Try to disable all; record only the first error */
 			if (!result)
 				result = ret;
