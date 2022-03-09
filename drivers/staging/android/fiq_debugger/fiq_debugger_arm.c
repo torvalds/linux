@@ -189,7 +189,7 @@ static int report_trace(struct stackframe *frame, void *d)
 
 	if (sts->depth) {
 		sts->output->printf(sts->output,
-			"  pc: %px (%pF), lr %px (%pF), sp %px, fp %px\n",
+			"  pc: %px (%pS), lr %px (%pS), sp %px, fp %px\n",
 			frame->pc, frame->pc, frame->lr, frame->lr,
 			frame->sp, frame->fp);
 		sts->depth--;
@@ -258,10 +258,7 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		frame.sp = regs->ARM_sp;
 		frame.lr = regs->ARM_lr;
 		frame.pc = regs->ARM_pc;
-		output->printf(output,
-			"  pc: %px (%pF), lr %px (%pF), sp %px, fp %px\n",
-			regs->ARM_pc, regs->ARM_pc, regs->ARM_lr, regs->ARM_lr,
-			regs->ARM_sp, regs->ARM_fp);
+		output->printf(output, "\n");
 		walk_stackframe(&frame, report_trace, &sts);
 		return;
 	}
