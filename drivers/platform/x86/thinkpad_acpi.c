@@ -10399,7 +10399,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (err)
 		return err;
 
-	if (test_bit(DYTC_FC_MMC, (void *)&output)) { /* MMC MODE */
+	if (output & BIT(DYTC_FC_MMC)) { /* MMC MODE */
 		dytc_profile_available = DYTC_FUNCMODE_MMC;
 
 		/*
@@ -10412,7 +10412,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
 				dytc_mmc_get_available = true;
 		}
-	} else if (test_bit(DYTC_FC_PSC, (void *)&output)) { /*PSC MODE */
+	} else if (output & BIT(DYTC_FC_PSC)) { /* PSC MODE */
 		dytc_profile_available = DYTC_FUNCMODE_PSC;
 	} else {
 		dbg_printk(TPACPI_DBG_INIT, "No DYTC support available\n");
