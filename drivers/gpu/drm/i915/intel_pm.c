@@ -3716,6 +3716,12 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
 		    str_yes_no(intel_has_sagv(i915)), i915->sagv_block_time_us);
 
+	/* avoid overflow when adding with wm0 latency/etc. */
+	if (drm_WARN(&i915->drm, i915->sagv_block_time_us > U16_MAX,
+		     "Excessive SAGV block time %u, ignoring\n",
+		     i915->sagv_block_time_us))
+		i915->sagv_block_time_us = 0;
+
 	if (!intel_has_sagv(i915))
 		i915->sagv_block_time_us = 0;
 }
