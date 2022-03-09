@@ -225,6 +225,7 @@ const struct midr_range cavium_erratum_23154_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXN),
 	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXMM),
 	MIDR_ALL_VERSIONS(MIDR_OCTX2_95XXO),
+	{},
 };
 #endif
 
