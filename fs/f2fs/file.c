@@ -812,7 +812,7 @@ int f2fs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_inode *ri;
+	struct f2fs_inode *ri = NULL;
 	unsigned int flags;
 
 	if (f2fs_has_extra_attr(inode) &&
@@ -2999,7 +2999,7 @@ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *ipage;
+	struct f2fs_inode *ri = NULL;
 	kprojid_t kprojid;
 	int err;
 
@@ -3023,17 +3023,8 @@ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
 	if (IS_NOQUOTA(inode))
 		return err;
 
-	ipage = f2fs_get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(ipage))
-		return PTR_ERR(ipage);
-
-	if (!F2FS_FITS_IN_INODE(F2FS_INODE(ipage), fi->i_extra_isize,
-								i_projid)) {
-		err = -EOVERFLOW;
-		f2fs_put_page(ipage, 1);
-		return err;
-	}
-	f2fs_put_page(ipage, 1);
+	if (!F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_projid))
+		return -EOVERFLOW;
 
 	err = f2fs_dquot_initialize(inode);
 	if (err)
