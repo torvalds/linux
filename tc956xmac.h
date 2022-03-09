@@ -137,6 +137,8 @@
  *  VERSION     : 01-00-43
  *  25 Feb 2022 : 1. Version update.
  *  VERSION     : 01-00-44
+ *  09 Mar 2022 : 1. Version update 
+ *  VERSION     : 01-00-45
  */
 
 #ifndef __TC956XMAC_H__
@@ -192,7 +194,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-44"
+#define DRV_MODULE_VERSION	"V_01-00-45"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800

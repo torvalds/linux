@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 25 Feb 2022
+Release Date: 09 Mar 2022
 
-Release Version: V_01-00-44 : Limited-tested version
+Release Version: V_01-00-45 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -472,3 +472,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. XPCS module is re-initialized after link-up as MACxPONRST is asserted during link-down.
 2. Disable Rx side EEE LPI before configuring Rx Parser (FRP). Enable the same after Rx Parser configuration.
+
+## TC956X_Host_Driver_20220309_V_01-00-45:
+1. Handling of Non S/W path DMA channel abnormal interrupts in Driver and only TI & RI interrupts handled in FW.
+2. Reading MSI status for checking interrupt status of SW MSI.

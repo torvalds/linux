@@ -112,6 +112,9 @@
  *  25 Feb 2022 : 1. XPCS module is re-initialized after link-up as MACxPONRST is asserted during link-down.
  *		  2. Disable Rx side EEE LPI before configuring Rx Parser (FRP). Enable the same after Rx Parser configuration.
  *  VERSION     : 01-00-44
+ *  09 Mar 2022 : 1. Handling of Non S/W path DMA channel abnormal interrupts in Driver and only TI & RI interrupts handled in FW.
+ *		  2. Reading MSI status for checking interrupt status of SW MSI.
+ *  VERSION     : 01-00-45
 */
 
 #include <linux/clk.h>
@@ -6683,12 +6686,28 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	/* Checking if any RBUs occurred and updating the statistics corresponding to channel */
 
 	for (queue = 0; queue < queues_count; queue++) {
-		uiIntSts = readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(queue));
-		if(uiIntSts & XGMAC_RBU) {
-			priv->xstats.rx_buf_unav_irq[queue]++;
-			uiIntclr |= XGMAC_RBU;
+		/* Assuming DMA Tx and Rx channels are used as pairs */
+		if ((priv->plat->tx_dma_ch_owner[queue] != USE_IN_TC956X_SW) ||
+		    (priv->plat->rx_dma_ch_owner[queue] != USE_IN_TC956X_SW)) {
+			uiIntSts = readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(queue));
+			/* Handling Abnormal interrupts of NON S/W path, TI & RI are handled in FW */
+			if (unlikely(uiIntSts & XGMAC_AIS)) {
+				if (unlikely(uiIntSts & XGMAC_RBU)) {
+					priv->xstats.rx_buf_unav_irq[queue]++;
+					uiIntclr |= XGMAC_RBU;
+				}
+				if (unlikely(uiIntSts & XGMAC_TPS)) {
+					priv->xstats.tx_process_stopped_irq[queue]++;
+					uiIntclr |= XGMAC_TPS;
+				}
+				if (unlikely(uiIntSts & XGMAC_FBE)) {
+					priv->xstats.fatal_bus_error_irq[queue]++;
+					uiIntclr |= XGMAC_FBE;
+				}
+				uiIntclr |= XGMAC_AIS;
+			}
+			writel(uiIntclr, (priv->ioaddr + XGMAC_DMA_CH_STATUS(queue)));
 		}
-		writel(uiIntclr, (priv->ioaddr + XGMAC_DMA_CH_STATUS(queue)));
 	}
 
 	/* To handle GMAC own interrupts */
@@ -6751,6 +6770,7 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 		writel(val, priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num)); /* MSI_OUT_EN: Writing to disable MAC Ext Interrupt*/
 	}
 #ifdef TC956X_SW_MSI
+	val = readl(priv->ioaddr + TC956X_MSI_INT_STS_OFFSET(priv->port_num));
 	if (val & TC956X_SW_MSI_INT) {
 		//DBGPR_FUNC(priv->device, "%s SW MSI INT STS[%08x]\n", __func__, val);
 
