@@ -506,6 +506,8 @@ xfs_bui_item_recover(
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
 	error = xfs_iext_count_may_overflow(ip, whichfork, iext_delta);
+	if (error == -EFBIG)
+		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
 	if (error)
 		goto err_cancel;
 

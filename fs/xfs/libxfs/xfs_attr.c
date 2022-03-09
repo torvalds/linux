@@ -776,6 +776,9 @@ xfs_attr_set(
 	if (args->value || xfs_inode_hasattr(dp)) {
 		error = xfs_iext_count_may_overflow(dp, XFS_ATTR_FORK,
 				XFS_IEXT_ATTR_MANIP_CNT(rmt_blks));
+		if (error == -EFBIG)
+			error = xfs_iext_count_upgrade(args->trans, dp,
+					XFS_IEXT_ATTR_MANIP_CNT(rmt_blks));
 		if (error)
 			goto out_trans_cancel;
 	}

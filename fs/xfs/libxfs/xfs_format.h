@@ -935,6 +935,17 @@ enum xfs_dinode_fmt {
 #define XFS_MAX_EXTCNT_ATTR_FORK_SMALL	((xfs_extnum_t)((1ULL << 15) - 1))
 
 /*
+ * When we upgrade an inode to the large extent counts, the maximum value by
+ * which the extent count can increase is bound by the change in size of the
+ * on-disk field. No upgrade operation should ever be adding more than a few
+ * tens of extents, so if we get a really large value it is a sign of a code bug
+ * or corruption.
+ */
+#define XFS_MAX_EXTCNT_UPGRADE_NR	\
+	min(XFS_MAX_EXTCNT_ATTR_FORK_LARGE - XFS_MAX_EXTCNT_ATTR_FORK_SMALL,	\
+	    XFS_MAX_EXTCNT_DATA_FORK_LARGE - XFS_MAX_EXTCNT_DATA_FORK_SMALL)
+
+/*
  * Inode minimum and maximum sizes.
  */
 #define	XFS_DINODE_MIN_LOG	8
