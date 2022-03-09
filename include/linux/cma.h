@@ -12,10 +12,6 @@
  */
 #ifdef CONFIG_CMA_AREAS
 #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
-
-#else
-#define MAX_CMA_AREAS	(0)
-
 #endif
 
 #define CMA_MAX_NAME 64
