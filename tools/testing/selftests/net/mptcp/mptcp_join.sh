@@ -16,6 +16,7 @@ capture=0
 checksum=0
 ip_mptcp=0
 check_invert=0
+validate_checksum=0
 init=0
 
 TEST_COUNT=0
@@ -60,6 +61,7 @@ init_partial()
 	done
 
 	check_invert=0
+	validate_checksum=$checksum
 
 	#  ns1              ns2
 	# ns1eth1    ns2eth1
@@ -192,6 +194,8 @@ reset_with_checksum()
 
 	ip netns exec $ns1 sysctl -q net.mptcp.checksum_enabled=$ns1_enable
 	ip netns exec $ns2 sysctl -q net.mptcp.checksum_enabled=$ns2_enable
+
+	validate_checksum=1
 }
 
 reset_with_allow_join_id0()
@@ -853,9 +857,8 @@ dump_stats()
 
 chk_csum_nr()
 {
-	local msg=${1:-""}
-	local csum_ns1=${2:-0}
-	local csum_ns2=${3:-0}
+	local csum_ns1=${1:-0}
+	local csum_ns2=${2:-0}
 	local count
 	local dump_stats
 	local allow_multi_errors_ns1=0
@@ -870,12 +873,7 @@ chk_csum_nr()
 		csum_ns2=${csum_ns2:1}
 	fi
 
-	if [ ! -z "$msg" ]; then
-		printf "%03u" "$TEST_COUNT"
-	else
-		echo -n "   "
-	fi
-	printf " %-36s %s" "$msg" "sum"
+	printf "%-${nr_blank}s %s" " " "sum"
 	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != $csum_ns1 -a $allow_multi_errors_ns1 -eq 0 ] ||
@@ -1064,7 +1062,7 @@ chk_join_nr()
 	fi
 	[ "${dump_stats}" = 1 ] && dump_stats
 	if [ $checksum -eq 1 ]; then
-		chk_csum_nr "" $csum_ns1 $csum_ns2
+		chk_csum_nr $csum_ns1 $csum_ns2
 		chk_fail_nr $fail_nr $fail_nr
 		chk_rst_nr $rst_nr $rst_nr
 	fi
@@ -2181,28 +2179,28 @@ checksum_tests()
 	pm_nl_set_limits $ns1 0 1
 	pm_nl_set_limits $ns2 0 1
 	run_tests $ns1 $ns2 10.0.1.1
-	chk_csum_nr "checksum test 0 0"
+	chk_join_nr "checksum test 0 0" 0 0 0
 
 	# checksum test 1 1
 	reset_with_checksum 1 1
 	pm_nl_set_limits $ns1 0 1
 	pm_nl_set_limits $ns2 0 1
 	run_tests $ns1 $ns2 10.0.1.1
-	chk_csum_nr "checksum test 1 1"
+	chk_join_nr "checksum test 1 1" 0 0 0
 
 	# checksum test 0 1
 	reset_with_checksum 0 1
 	pm_nl_set_limits $ns1 0 1
 	pm_nl_set_limits $ns2 0 1
 	run_tests $ns1 $ns2 10.0.1.1
-	chk_csum_nr "checksum test 0 1"
+	chk_join_nr "checksum test 0 1" 0 0 0
 
 	# checksum test 1 0
 	reset_with_checksum 1 0
 	pm_nl_set_limits $ns1 0 1
 	pm_nl_set_limits $ns2 0 1
 	run_tests $ns1 $ns2 10.0.1.1
-	chk_csum_nr "checksum test 1 0"
+	chk_join_nr "checksum test 1 0" 0 0 0
 }
 
 deny_join_id0_tests()
