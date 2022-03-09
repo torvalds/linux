@@ -552,8 +552,8 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	pcf8563->rtc->ops = &pcf8563_rtc_ops;
 	/* the pcf8563 alarm only supports a minute accuracy */
-	pcf8563->rtc->uie_unsupported = 1;
 	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, pcf8563->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf8563->rtc->features);
 	pcf8563->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf8563->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf8563->rtc->set_start_time = true;
