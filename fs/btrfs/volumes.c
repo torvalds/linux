@@ -7572,6 +7572,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	struct btrfs_key found_key;
 	int ret;
 	int slot;
+	int iter_ret = 0;
 	u64 total_dev = 0;
 	u64 last_ra_node = 0;
 
@@ -7615,30 +7616,18 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	key.objectid = BTRFS_DEV_ITEMS_OBJECTID;
 	key.offset = 0;
 	key.type = 0;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto error;
-	while (1) {
-		struct extent_buffer *node;
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
+		struct extent_buffer *node = path->nodes[1];
 
 		leaf = path->nodes[0];
 		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(leaf)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret == 0)
-				continue;
-			if (ret < 0)
-				goto error;
-			break;
-		}
-		node = path->nodes[1];
+
 		if (node) {
 			if (last_ra_node != node->start) {
 				readahead_tree_node_children(node);
 				last_ra_node = node->start;
 			}
 		}
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 		if (found_key.type == BTRFS_DEV_ITEM_KEY) {
 			struct btrfs_dev_item *dev_item;
 			dev_item = btrfs_item_ptr(leaf, slot,
@@ -7663,7 +7652,11 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 			if (ret)
 				goto error;
 		}
-		path->slots[0]++;
+	}
+	/* Catch error found during iteration */
+	if (iter_ret < 0) {
+		ret = iter_ret;
+		goto error;
 	}
 
 	/*
