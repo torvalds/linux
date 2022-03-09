@@ -140,7 +140,7 @@ the cpu field to the processor id.
 2. GROUP: KVM_ARM_VCPU_TIMER_CTRL
 =================================
 
-:Architectures: ARM, ARM64
+:Architectures: ARM64
 
 2.1. ATTRIBUTES: KVM_ARM_VCPU_TIMER_IRQ_VTIMER, KVM_ARM_VCPU_TIMER_IRQ_PTIMER
 -----------------------------------------------------------------------------
