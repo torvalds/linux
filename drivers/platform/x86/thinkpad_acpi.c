@@ -10344,7 +10344,7 @@ unlock:
 static void dytc_profile_refresh(void)
 {
 	enum platform_profile_option profile;
-	int output, err;
+	int output, err = 0;
 	int perfmode;
 
 	mutex_lock(&dytc_mutex);
