@@ -31,6 +31,9 @@ properties:
       - const: fsl,imx8-mu-seco
       - const: fsl,imx8ulp-mu-s4
       - items:
+          - const: fsl,imx93-mu
+          - const: fsl,imx8ulp-mu
+      - items:
           - enum:
               - fsl,imx7s-mu
               - fsl,imx8mq-mu
