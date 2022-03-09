@@ -352,6 +352,10 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	if (!config)
 		return -ENOMEM;
 
+	config->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(config->rtc))
+		return PTR_ERR(config->rtc);
+
 	/* alarm irqs */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -380,16 +384,12 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&config->lock);
 	platform_set_drvdata(pdev, config);
 
-	config->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&spear_rtc_ops, THIS_MODULE);
-	if (IS_ERR(config->rtc)) {
-		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
-				PTR_ERR(config->rtc));
-		status = PTR_ERR(config->rtc);
-		goto err_disable_clock;
-	}
-
+	config->rtc->ops = &spear_rtc_ops;
 	config->rtc->uie_unsupported = 1;
+
+	status = devm_rtc_register_device(config->rtc);
+	if (status)
+		goto err_disable_clock;
 
 	if (!device_can_wakeup(&pdev->dev))
 		device_init_wakeup(&pdev->dev, 1);
