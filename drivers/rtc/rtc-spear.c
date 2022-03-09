@@ -204,8 +204,10 @@ static int spear_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* we don't report wday/yday/isdst ... */
 	rtc_wait_not_busy(config);
 
-	time = readl(config->ioaddr + TIME_REG);
-	date = readl(config->ioaddr + DATE_REG);
+	do {
+		time = readl(config->ioaddr + TIME_REG);
+		date = readl(config->ioaddr + DATE_REG);
+	} while (time == readl(config->ioaddr + TIME_REG));
 	tm->tm_sec = (time >> SECOND_SHIFT) & SECOND_MASK;
 	tm->tm_min = (time >> MINUTE_SHIFT) & MIN_MASK;
 	tm->tm_hour = (time >> HOUR_SHIFT) & HOUR_MASK;
