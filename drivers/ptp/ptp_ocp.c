@@ -1410,7 +1410,7 @@ ptp_ocp_serial_line(struct ptp_ocp *bp, struct ocp_resource *r)
 	uart.port.mapbase = pci_resource_start(pdev, 0) + r->offset;
 	uart.port.irq = pci_irq_vector(pdev, r->irq_vec);
 	uart.port.uartclk = 50000000;
-	uart.port.flags = UPF_FIXED_TYPE | UPF_IOREMAP;
+	uart.port.flags = UPF_FIXED_TYPE | UPF_IOREMAP | UPF_NO_THRE_TEST;
 	uart.port.type = PORT_16550A;
 
 	return serial8250_register_8250_port(&uart);
