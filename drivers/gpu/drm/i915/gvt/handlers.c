@@ -583,7 +583,7 @@ static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 	clock.p1 = (vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)) & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
 	clock.p2 = (vgpu_vreg_t(vgpu, BXT_PORT_PLL_EBB_0(phy, ch)) & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
 	clock.m = clock.m1 * clock.m2;
-	clock.p = clock.p1 * clock.p2;
+	clock.p = clock.p1 * clock.p2 * 5;
 
 	if (clock.n == 0 || clock.p == 0) {
 		gvt_dbg_dpy("vgpu-%d PORT_%c PLL has invalid divider\n", vgpu->id, port_name(port));
@@ -593,7 +593,7 @@ static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 	clock.vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, clock.m), clock.n << 22);
 	clock.dot = DIV_ROUND_CLOSEST(clock.vco, clock.p);
 
-	dp_br = clock.dot / 5;
+	dp_br = clock.dot;
 
 out:
 	return dp_br;
