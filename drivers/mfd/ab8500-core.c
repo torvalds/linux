@@ -1022,9 +1022,9 @@ static int ab8500_probe(struct platform_device *pdev)
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
 	struct device_node *np = pdev->dev.of_node;
 	struct ab8500 *ab8500;
-	struct resource *resource;
 	int ret;
 	int i;
+	int irq;
 	u8 value;
 
 	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
@@ -1033,13 +1033,11 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	ab8500->dev = &pdev->dev;
 
-	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!resource) {
-		dev_err(&pdev->dev, "no IRQ resource\n");
-		return -ENODEV;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
-	ab8500->irq = resource->start;
+	ab8500->irq = irq;
 
 	ab8500->read = ab8500_prcmu_read;
 	ab8500->write = ab8500_prcmu_write;
