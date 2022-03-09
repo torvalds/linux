@@ -367,14 +367,14 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 		if (minor >= 1) {
 			arg = smccc_get_arg1(vcpu);
 
-			if (arg > PSCI_1_1_RESET_TYPE_SYSTEM_WARM_RESET &&
-			    arg < PSCI_1_1_RESET_TYPE_VENDOR_START) {
-				val = PSCI_RET_INVALID_PARAMS;
-			} else {
+			if (arg <= PSCI_1_1_RESET_TYPE_SYSTEM_WARM_RESET ||
+			    arg >= PSCI_1_1_RESET_TYPE_VENDOR_START) {
 				kvm_psci_system_reset2(vcpu);
-				val = PSCI_RET_INTERNAL_FAILURE;
-				ret = 0;
+				vcpu_set_reg(vcpu, 0, PSCI_RET_INTERNAL_FAILURE);
+				return 0;
 			}
+
+			val = PSCI_RET_INVALID_PARAMS;
 			break;
 		}
 		fallthrough;
