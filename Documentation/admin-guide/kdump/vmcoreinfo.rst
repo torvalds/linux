@@ -495,7 +495,7 @@ addresses in the higher VA range (refer to ARMv8 ARM document for
 more details).
 
 MODULES_VADDR|MODULES_END|VMALLOC_START|VMALLOC_END|VMEMMAP_START|VMEMMAP_END
--------------
+-----------------------------------------------------------------------------
 
 Used to get the correct ranges:
 	MODULES_VADDR ~ MODULES_END-1 : Kernel module space.
