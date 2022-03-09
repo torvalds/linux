@@ -12,7 +12,6 @@ config ALPHA
 	select FORCE_PCI if !ALPHA_JENSEN
 	select PCI_DOMAINS if PCI
 	select PCI_SYSCALL if PCI
-	select HAVE_AOUT
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
