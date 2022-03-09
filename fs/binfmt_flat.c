@@ -98,7 +98,9 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 #endif
 
 static int load_flat_binary(struct linux_binprm *);
+#ifdef CONFIG_COREDUMP
 static int flat_core_dump(struct coredump_params *cprm);
+#endif
 
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
@@ -115,12 +117,14 @@ static struct linux_binfmt flat_format = {
  * Currently only a stub-function.
  */
 
+#ifdef CONFIG_COREDUMP
 static int flat_core_dump(struct coredump_params *cprm)
 {
 	pr_warn("Process %s:%d received signr %d and should have core dumped\n",
 		current->comm, current->pid, cprm->siginfo->si_signo);
 	return 1;
 }
+#endif
 
 /****************************************************************************/
 /*
