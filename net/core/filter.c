@@ -8956,21 +8956,22 @@ static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_prog *prog,
 	__u8 skb_reg = si->src_reg;
 
 #ifdef CONFIG_NET_CLS_ACT
+	/* If the delivery_time_type is read,
+	 * the bpf prog is aware the tstamp could have delivery time.
+	 * Thus, read skb->tstamp as is if delivery_time_access is true.
+	 */
 	if (!prog->delivery_time_access) {
+		/* AX is needed because src_reg and dst_reg could be the same */
 		__u8 tmp_reg = BPF_REG_AX;
 
 		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
-		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 5);
-		/* @ingress, read __sk_buff->tstamp as the (rcv) timestamp,
-		 * so check the skb->mono_delivery_time.
-		 */
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-				      PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
-					SKB_MONO_DELIVERY_TIME_MASK);
-		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
-		/* skb->mono_delivery_time is set, read 0 as the (rcv) timestamp. */
+					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK);
+		*insn++ = BPF_JMP32_IMM(BPF_JNE, tmp_reg,
+					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK, 2);
+		/* skb->tc_at_ingress && skb->mono_delivery_time,
+		 * read 0 as the (rcv) timestamp.
+		 */
 		*insn++ = BPF_MOV64_IMM(value_reg, 0);
 		*insn++ = BPF_JMP_A(1);
 	}
