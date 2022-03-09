@@ -1581,7 +1581,7 @@ static int rkisp_querycap(struct file *file, void *priv,
 		 stream->ispdev->isp_ver >> 4);
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", dev_name(dev));
-
+	cap->version = RKISP_DRIVER_VERSION;
 	return 0;
 }
 

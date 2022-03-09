@@ -46,6 +46,7 @@
 #include "isp_mipi_luma.h"
 #include "procfs.h"
 #include "isp_external.h"
+#include "version.h"
 
 #define DRIVER_NAME "rkisp"
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
