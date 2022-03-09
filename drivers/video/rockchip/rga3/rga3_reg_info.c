@@ -1338,6 +1338,18 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	if (rga_is_alpha_format(req_rga->src.format))
 		req->alpha_mode_1 = 0x0a00;
 
+	req->win0_a_global_val = req_rga->alpha_global_value;
+	req->win1_a_global_val = req_rga->alpha_global_value;
+
+	/* fixup yuv/rgb convert to rgba missing alpha channel */
+	if (!(req_rga->alpha_rop_flag & 1)) {
+		if (!rga_is_alpha_format(req_rga->src.format) &&
+		    rga_is_alpha_format(req_rga->dst.format)) {
+			req->win0_a_global_val = 0xff;
+			req->win1_a_global_val = 0xff;
+		}
+	}
+
 	/*
 	 * Layer binding:
 	 *     src => win1
@@ -1532,9 +1544,6 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			}
 		}
 	}
-
-	req->win0_a_global_val = req_rga->alpha_global_value;
-	req->win1_a_global_val = req_rga->alpha_global_value;
 
 	/* yuv to rgb */
 	/* 601 limit */
