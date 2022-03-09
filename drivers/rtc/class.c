@@ -399,9 +399,6 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	if (!rtc->ops->set_alarm)
 		clear_bit(RTC_FEATURE_ALARM, rtc->features);
 
-	if (rtc->uie_unsupported)
-		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
-
 	if (rtc->ops->set_offset)
 		set_bit(RTC_FEATURE_CORRECTION, rtc->features);
 
