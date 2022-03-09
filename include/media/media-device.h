@@ -249,28 +249,28 @@ void media_device_cleanup(struct media_device *mdev);
  * The caller is responsible for initializing the &media_device structure
  * before registration. The following fields of &media_device must be set:
  *
- *  - &media_entity.dev must point to the parent device (usually a &pci_dev,
+ *  - &media_device.dev must point to the parent device (usually a &pci_dev,
  *    &usb_interface or &platform_device instance).
  *
- *  - &media_entity.model must be filled with the device model name as a
+ *  - &media_device.model must be filled with the device model name as a
  *    NUL-terminated UTF-8 string. The device/model revision must not be
  *    stored in this field.
  *
  * The following fields are optional:
  *
- *  - &media_entity.serial is a unique serial number stored as a
+ *  - &media_device.serial is a unique serial number stored as a
  *    NUL-terminated ASCII string. The field is big enough to store a GUID
  *    in text form. If the hardware doesn't provide a unique serial number
  *    this field must be left empty.
  *
- *  - &media_entity.bus_info represents the location of the device in the
+ *  - &media_device.bus_info represents the location of the device in the
  *    system as a NUL-terminated ASCII string. For PCI/PCIe devices
- *    &media_entity.bus_info must be set to "PCI:" (or "PCIe:") followed by
+ *    &media_device.bus_info must be set to "PCI:" (or "PCIe:") followed by
  *    the value of pci_name(). For USB devices,the usb_make_path() function
  *    must be used. This field is used by applications to distinguish between
  *    otherwise identical devices that don't provide a serial number.
  *
- *  - &media_entity.hw_revision is the hardware device revision in a
+ *  - &media_device.hw_revision is the hardware device revision in a
  *    driver-specific format. When possible the revision should be formatted
  *    with the KERNEL_VERSION() macro.
  *
