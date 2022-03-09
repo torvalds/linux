@@ -345,6 +345,9 @@ struct vop_ctrl {
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt1120_en;
 
+	/* bt656 */
+	struct vop_reg bt656_en;
+
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };

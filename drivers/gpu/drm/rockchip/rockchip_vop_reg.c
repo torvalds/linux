@@ -1904,6 +1904,7 @@ static const struct vop_ctrl rv1106_ctrl_data = {
 				      0xffffffff, 0),
 	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
 	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
+	.bt656_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 6),
 };
 
 static const struct vop_win_data rv1106_vop_win_data[] = {
