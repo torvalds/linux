@@ -1693,7 +1693,7 @@ tcp_md5_do_lookup(const struct sock *sk, int l3index,
 static inline enum skb_drop_reason
 tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 		     const void *saddr, const void *daddr,
-		     int family, int dif, int sdif);
+		     int family, int dif, int sdif)
 {
 	return SKB_NOT_DROPPED_YET;
 }
