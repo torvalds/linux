@@ -74,7 +74,8 @@
 
 #define AIC_WHOAMI		0x2000
 #define AIC_EVENT		0x2004
-#define AIC_EVENT_TYPE		GENMASK(31, 16)
+#define AIC_EVENT_DIE		GENMASK(31, 24)
+#define AIC_EVENT_TYPE		GENMASK(23, 16)
 #define AIC_EVENT_NUM		GENMASK(15, 0)
 
 #define AIC_EVENT_TYPE_FIQ	0 /* Software use */
@@ -159,11 +160,13 @@
 #define MPIDR_CPU(x)			MPIDR_AFFINITY_LEVEL(x, 0)
 #define MPIDR_CLUSTER(x)		MPIDR_AFFINITY_LEVEL(x, 1)
 
-#define AIC_IRQ_HWIRQ(x)	(FIELD_PREP(AIC_EVENT_TYPE, AIC_EVENT_TYPE_IRQ) | \
-				 FIELD_PREP(AIC_EVENT_NUM, x))
+#define AIC_IRQ_HWIRQ(die, irq)	(FIELD_PREP(AIC_EVENT_DIE, die) | \
+				 FIELD_PREP(AIC_EVENT_TYPE, AIC_EVENT_TYPE_IRQ) | \
+				 FIELD_PREP(AIC_EVENT_NUM, irq))
 #define AIC_FIQ_HWIRQ(x)	(FIELD_PREP(AIC_EVENT_TYPE, AIC_EVENT_TYPE_FIQ) | \
 				 FIELD_PREP(AIC_EVENT_NUM, x))
 #define AIC_HWIRQ_IRQ(x)	FIELD_GET(AIC_EVENT_NUM, x)
+#define AIC_HWIRQ_DIE(x)	FIELD_GET(AIC_EVENT_DIE, x)
 #define AIC_NR_FIQ		4
 #define AIC_NR_SWIPI		32
 
@@ -194,6 +197,8 @@ struct aic_info {
 	u32 sw_clr;
 	u32 mask_set;
 	u32 mask_clr;
+
+	u32 die_stride;
 
 	/* Features */
 	bool fast_ipi;
@@ -234,6 +239,8 @@ struct aic_irq_chip {
 
 	int nr_irq;
 	int max_irq;
+	int nr_die;
+	int max_die;
 
 	struct aic_info info;
 };
@@ -266,9 +273,10 @@ static void aic_irq_mask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	struct aic_irq_chip *ic = irq_data_get_irq_chip_data(d);
 
+	u32 off = AIC_HWIRQ_DIE(hwirq) * ic->info.die_stride;
 	u32 irq = AIC_HWIRQ_IRQ(hwirq);
 
-	aic_ic_write(ic, ic->info.mask_set + MASK_REG(irq), MASK_BIT(irq));
+	aic_ic_write(ic, ic->info.mask_set + off + MASK_REG(irq), MASK_BIT(irq));
 }
 
 static void aic_irq_unmask(struct irq_data *d)
@@ -276,9 +284,10 @@ static void aic_irq_unmask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	struct aic_irq_chip *ic = irq_data_get_irq_chip_data(d);
 
+	u32 off = AIC_HWIRQ_DIE(hwirq) * ic->info.die_stride;
 	u32 irq = AIC_HWIRQ_IRQ(hwirq);
 
-	aic_ic_write(ic, ic->info.mask_clr + MASK_REG(irq), MASK_BIT(irq));
+	aic_ic_write(ic, ic->info.mask_clr + off + MASK_REG(irq), MASK_BIT(irq));
 }
 
 static void aic_irq_eoi(struct irq_data *d)
@@ -541,27 +550,41 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 				    unsigned int *type)
 {
 	struct aic_irq_chip *ic = id->host_data;
+	u32 *args;
+	u32 die = 0;
 
-	if (fwspec->param_count != 3 || !is_of_node(fwspec->fwnode))
+	if (fwspec->param_count < 3 || fwspec->param_count > 4 ||
+	    !is_of_node(fwspec->fwnode))
 		return -EINVAL;
+
+	args = &fwspec->param[1];
+
+	if (fwspec->param_count == 4) {
+		die = args[0];
+		args++;
+	}
 
 	switch (fwspec->param[0]) {
 	case AIC_IRQ:
-		if (fwspec->param[1] >= ic->nr_irq)
+		if (die >= ic->nr_die)
 			return -EINVAL;
-		*hwirq = AIC_IRQ_HWIRQ(fwspec->param[1]);
+		if (args[0] >= ic->nr_irq)
+			return -EINVAL;
+		*hwirq = AIC_IRQ_HWIRQ(die, args[0]);
 		break;
 	case AIC_FIQ:
-		if (fwspec->param[1] >= AIC_NR_FIQ)
+		if (die != 0)
 			return -EINVAL;
-		*hwirq = AIC_FIQ_HWIRQ(fwspec->param[1]);
+		if (args[0] >= AIC_NR_FIQ)
+			return -EINVAL;
+		*hwirq = AIC_FIQ_HWIRQ(args[0]);
 
 		/*
 		 * In EL1 the non-redirected registers are the guest's,
 		 * not EL2's, so remap the hwirqs to match.
 		 */
 		if (!is_kernel_in_hyp_mode()) {
-			switch (fwspec->param[1]) {
+			switch (args[0]) {
 			case AIC_TMR_GUEST_PHYS:
 				*hwirq = AIC_FIQ_HWIRQ(AIC_TMR_EL0_PHYS);
 				break;
@@ -580,7 +603,7 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 		return -EINVAL;
 	}
 
-	*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+	*type = args[1] & IRQ_TYPE_SENSE_MASK;
 
 	return 0;
 }
@@ -899,8 +922,8 @@ static struct gic_kvm_info vgic_info __initdata = {
 
 static int __init aic_of_ic_init(struct device_node *node, struct device_node *parent)
 {
-	int i;
-	u32 off;
+	int i, die;
+	u32 off, start_off;
 	void __iomem *regs;
 	struct aic_irq_chip *irqc;
 	const struct of_device_id *match;
@@ -930,8 +953,9 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 		info = aic_ic_read(irqc, AIC_INFO);
 		irqc->nr_irq = FIELD_GET(AIC_INFO_NR_IRQ, info);
 		irqc->max_irq = AIC_MAX_IRQ;
+		irqc->nr_die = irqc->max_die = 1;
 
-		off = irqc->info.target_cpu;
+		off = start_off = irqc->info.target_cpu;
 		off += sizeof(u32) * irqc->max_irq; /* TARGET_CPU */
 
 		break;
@@ -953,6 +977,8 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 	else
 		static_branch_disable(&use_fast_ipi);
 
+	irqc->info.die_stride = off - start_off;
+
 	irqc->hw_domain = irq_domain_create_tree(of_node_to_fwnode(node),
 						 &aic_irq_domain_ops, irqc);
 	if (WARN_ON(!irqc->hw_domain)) {
@@ -973,12 +999,17 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 	set_handle_irq(aic_handle_irq);
 	set_handle_fiq(aic_handle_fiq);
 
-	for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
-		aic_ic_write(irqc, irqc->info.mask_set + i * 4, U32_MAX);
-	for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
-		aic_ic_write(irqc, irqc->info.sw_clr + i * 4, U32_MAX);
-	for (i = 0; i < irqc->nr_irq; i++)
-		aic_ic_write(irqc, irqc->info.target_cpu + i * 4, 1);
+	off = 0;
+	for (die = 0; die < irqc->nr_die; die++) {
+		for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
+			aic_ic_write(irqc, irqc->info.mask_set + off + i * 4, U32_MAX);
+		for (i = 0; i < BITS_TO_U32(irqc->nr_irq); i++)
+			aic_ic_write(irqc, irqc->info.sw_clr + off + i * 4, U32_MAX);
+		if (irqc->info.target_cpu)
+			for (i = 0; i < irqc->nr_irq; i++)
+				aic_ic_write(irqc, irqc->info.target_cpu + off + i * 4, 1);
+		off += irqc->info.die_stride;
+	}
 
 	if (!is_kernel_in_hyp_mode())
 		pr_info("Kernel running in EL1, mapping interrupts");
@@ -992,8 +1023,8 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 
 	vgic_set_kvm_info(&vgic_info);
 
-	pr_info("Initialized with %d/%d IRQs, %d FIQs, %d vIPIs",
-		irqc->nr_irq, irqc->max_irq, AIC_NR_FIQ, AIC_NR_SWIPI);
+	pr_info("Initialized with %d/%d IRQs * %d/%d die(s), %d FIQs, %d vIPIs",
+		irqc->nr_irq, irqc->max_irq, irqc->nr_die, irqc->max_die, AIC_NR_FIQ, AIC_NR_SWIPI);
 
 	return 0;
 }
