@@ -197,7 +197,7 @@ examples:
                 power-domains = <&rpmpd QCM2290_VDDCX>;
 
                 interrupt-parent = <&mdss>;
-                interrupts = <0 IRQ_TYPE_NONE>;
+                interrupts = <0>;
 
                 ports {
                         #address-cells = <1>;
@@ -209,6 +209,7 @@ examples:
                                         remote-endpoint = <&dsi0_in>;
                                 };
                         };
-                 };
+                };
          };
+    };
 ...
