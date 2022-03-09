@@ -45,9 +45,15 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/mt8173-clk.h>
 
-    od@14023000 {
-        compatible = "mediatek,mt8173-disp-od";
-        reg = <0 0x14023000 0 0x1000>;
-        clocks = <&mmsys CLK_MM_DISP_OD>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        od@14023000 {
+            compatible = "mediatek,mt8173-disp-od";
+            reg = <0 0x14023000 0 0x1000>;
+            clocks = <&mmsys CLK_MM_DISP_OD>;
+        };
     };

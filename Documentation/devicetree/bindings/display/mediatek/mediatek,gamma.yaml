@@ -66,12 +66,21 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/power/mt8173-power.h>
+    #include <dt-bindings/gce/mt8173-gce.h>
 
-    gamma@14016000 {
-        compatible = "mediatek,mt8173-disp-gamma";
-        reg = <0 0x14016000 0 0x1000>;
-        interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_LOW>;
-        power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-        clocks = <&mmsys CLK_MM_DISP_GAMMA>;
-        mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x6000 0x1000>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        gamma@14016000 {
+            compatible = "mediatek,mt8173-disp-gamma";
+            reg = <0 0x14016000 0 0x1000>;
+            interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_GAMMA>;
+            mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x6000 0x1000>;
+        };
     };

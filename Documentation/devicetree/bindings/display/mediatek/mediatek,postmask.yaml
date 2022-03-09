@@ -58,12 +58,21 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8192-clk.h>
+    #include <dt-bindings/power/mt8192-power.h>
+    #include <dt-bindings/gce/mt8192-gce.h>
 
-    postmask0: postmask@1400d000 {
-        compatible = "mediatek,mt8192-disp-postmask";
-        reg = <0 0x1400d000 0 0x1000>;
-        interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH 0>;
-        power-domains = <&scpsys MT8192_POWER_DOMAIN_DISP>;
-        clocks = <&mmsys CLK_MM_DISP_POSTMASK0>;
-        mediatek,gce-client-reg = <&gce SUBSYS_1400XXXX 0xd000 0x1000>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        postmask0: postmask@1400d000 {
+            compatible = "mediatek,mt8192-disp-postmask";
+            reg = <0 0x1400d000 0 0x1000>;
+            interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH 0>;
+            power-domains = <&scpsys MT8192_POWER_DOMAIN_DISP>;
+            clocks = <&mmsys CLK_MM_DISP_POSTMASK0>;
+            mediatek,gce-client-reg = <&gce SUBSYS_1400XXXX 0xd000 0x1000>;
+        };
     };
