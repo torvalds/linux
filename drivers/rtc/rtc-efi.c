@@ -268,7 +268,8 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, rtc);
 
 	rtc->ops = &efi_rtc_ops;
-	rtc->uie_unsupported = 1;
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
+	set_bit(RTC_FEATURE_ALARM_WAKEUP_ONLY, rtc->features);
 
 	return devm_rtc_register_device(rtc);
 }
