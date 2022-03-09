@@ -387,7 +387,6 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	config->rtc->ops = &spear_rtc_ops;
 	config->rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
 	config->rtc->range_min = RTC_TIMESTAMP_END_9999;
-	config->rtc->uie_unsupported = 1;
 
 	status = devm_rtc_register_device(config->rtc);
 	if (status)
