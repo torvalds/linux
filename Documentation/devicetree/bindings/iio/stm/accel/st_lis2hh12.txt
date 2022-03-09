@@ -1,0 +1,34 @@
+* lis2hh12 driver for accel MEMS sensors
+
+Required properties for all bus drivers:
+- compatible: must be one of:
+              "st,lis2hh12"
+
+Required properties for the i2c bindings:
+- reg: i2c slave address
+
+Required properties for the spi bindings:
+- reg:               the chipselect index
+- spi-max-frequency: maximal bus speed, should be set to 1000000 unless
+                     constrained by external circuitry
+
+Optional properties for all bus drivers:
+- st,drdy-int-pin: the pin on the package that will be used to signal
+                   "data ready" (valid values: 1 or 2, default: 1).
+
+- interrupts:      interrupt mapping for IRQ. It should be configured with
+                   flags IRQ_TYPE_LEVEL_HIGH.
+
+                   Refer to interrupt-controller/interrupts.txt for generic
+                   interrupt client node bindings.
+
+Example for an spi device node:
+
+lis2hh12-accel@0 {
+	compatible = "st,lis2hh12";
+	reg = <0x0>;
+	spi-max-frequency = <1000000>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	st,drdy-int-pin = <1>;
+};

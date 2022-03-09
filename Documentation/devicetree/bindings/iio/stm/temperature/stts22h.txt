@@ -1,0 +1,12 @@
+* stts22h driver for temperature MEMS sensors
+
+Required properties for the i2c bindings:
+- compatible: must be one of:
+              "st,stts22h"
+
+Example for an i2c device node:
+
+stts22h-temperature@38 {
+	compatible = "st,stts22h";
+	reg = <0x38>;
+};
