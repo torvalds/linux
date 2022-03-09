@@ -864,7 +864,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
 	rst->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
 	fib->hbacmd_size = sizeof(*rst);
 
-       return HBA_IU_TYPE_SATA_REQ;
+	return HBA_IU_TYPE_SATA_REQ;
 }
 
 static void aac_tmf_callback(void *context, struct fib *fibptr)
