@@ -46,6 +46,14 @@
 		status = "okay";
 	};
 
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			//status = "disabled";
+		};
+	};
+
 	ramoops: ramoops@110000 {
 		compatible = "ramoops";
 		reg = <0x0 0x110000 0x0 0xf0000>;
