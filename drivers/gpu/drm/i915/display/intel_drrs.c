@@ -432,26 +432,32 @@ intel_drrs_init(struct intel_connector *connector,
 
 	if (DISPLAY_VER(dev_priv) <= 6) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "DRRS supported for Gen7 and above\n");
+			    "[CONNECTOR:%d:%s] DRRS not supported on platform\n",
+			    connector->base.base.id, connector->base.name);
 		return NULL;
 	}
 
 	if ((DISPLAY_VER(dev_priv) < 8 && !HAS_GMCH(dev_priv)) &&
 	    encoder->port != PORT_A) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "DRRS only supported on eDP port A\n");
+			    "[CONNECTOR:%d:%s] DRRS not supported on [ENCODER:%d:%s]\n",
+			    connector->base.base.id, connector->base.name,
+			    encoder->base.base.id, encoder->base.name);
 		return NULL;
 	}
 
 	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
-		drm_dbg_kms(&dev_priv->drm, "VBT doesn't support DRRS\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "[CONNECTOR:%d:%s] DRRS not supported according to VBT\n",
+			    connector->base.base.id, connector->base.name);
 		return NULL;
 	}
 
 	downclock_mode = intel_panel_edid_downclock_mode(connector, fixed_mode);
 	if (!downclock_mode) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Downclock mode is not found. DRRS not supported\n");
+			    "[CONNECTOR:%d:%s] DRRS not supported due to lack of downclock mode\n",
+			    connector->base.base.id, connector->base.name);
 		return NULL;
 	}
 
@@ -459,6 +465,8 @@ intel_drrs_init(struct intel_connector *connector,
 
 	dev_priv->drrs.refresh_rate_type = DRRS_HIGH_RR;
 	drm_dbg_kms(&dev_priv->drm,
-		    "seamless DRRS supported for eDP panel.\n");
+		    "[CONNECTOR:%d:%s] seamless DRRS supported\n",
+		    connector->base.base.id, connector->base.name);
+
 	return downclock_mode;
 }
