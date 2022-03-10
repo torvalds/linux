@@ -3737,6 +3737,16 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		if (unlikely(ret < 0))
 			return ret;
 	} else {
+		/*
+		 * Safe and required to re-import if we're using provided
+		 * buffers, as we dropped the selected one before retry.
+		 */
+		if (req->flags & REQ_F_BUFFER_SELECT) {
+			ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+			if (unlikely(ret < 0))
+				return ret;
+		}
+
 		rw = req->async_data;
 		s = &rw->s;
 		/*
