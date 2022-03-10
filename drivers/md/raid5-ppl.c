@@ -250,7 +250,8 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	INIT_LIST_HEAD(&io->stripe_list);
 	atomic_set(&io->pending_stripes, 0);
 	atomic_set(&io->pending_flushes, 0);
-	bio_init(&io->bio, NULL, io->biovec, PPL_IO_INLINE_BVECS, 0);
+	bio_init(&io->bio, log->rdev->bdev, io->biovec, PPL_IO_INLINE_BVECS,
+		 REQ_OP_WRITE | REQ_FUA);
 
 	pplhdr = page_address(io->header_page);
 	clear_page(pplhdr);
@@ -465,8 +466,6 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 
 
 	bio->bi_end_io = ppl_log_endio;
-	bio->bi_opf = REQ_OP_WRITE | REQ_FUA;
-	bio_set_dev(bio, log->rdev->bdev);
 	bio->bi_iter.bi_sector = log->next_io_sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
 	bio->bi_write_hint = ppl_conf->write_hint;
