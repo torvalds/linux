@@ -40,13 +40,3 @@ config IIO_ST_LSM6DSOX_MAY_WAKEUP
 
 	  By default during suspend mode all enabled sensors are set in power down
 	  mode to reduce the power consumption.
-
-config IIO_ST_LSM6DSOX_EN_REGULATOR
-	bool "Enable support to voltage regulator"
-	depends on IIO_ST_LSM6DSOX
-	help
-	  Select yes if you want to enable support to voltage regulator to power up/down
-	  the sensor.
-	  Add the vdd-supply and vddio-supply entries into device tree to
-	  automatically manage the sensor power supply.
-

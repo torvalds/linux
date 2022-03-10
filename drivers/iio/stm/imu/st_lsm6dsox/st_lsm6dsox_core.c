@@ -1961,7 +1961,6 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 	return iio_dev;
 }
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_EN_REGULATOR
 static void st_lsm6dsox_disable_regulator_action(void *_data)
 {
 	struct st_lsm6dsox_hw *hw = _data;
@@ -1969,7 +1968,53 @@ static void st_lsm6dsox_disable_regulator_action(void *_data)
 	regulator_disable(hw->vddio_supply);
 	regulator_disable(hw->vdd_supply);
 }
-#endif /* CONFIG_IIO_ST_LSM6DSOX_EN_REGULATOR */
+
+static int st_lsm6dsox_power_enable(struct st_lsm6dsox_hw *hw)
+{
+	int err;
+
+	hw->vdd_supply = devm_regulator_get(hw->dev, "vdd");
+	if (IS_ERR(hw->vdd_supply)) {
+		if (PTR_ERR(hw->vdd_supply) != -EPROBE_DEFER)
+			dev_err(hw->dev, "Failed to get vdd regulator %d\n",
+				(int)PTR_ERR(hw->vdd_supply));
+
+		return PTR_ERR(hw->vdd_supply);
+	}
+
+	hw->vddio_supply = devm_regulator_get(hw->dev, "vddio");
+	if (IS_ERR(hw->vddio_supply)) {
+		if (PTR_ERR(hw->vddio_supply) != -EPROBE_DEFER)
+			dev_err(hw->dev, "Failed to get vddio regulator %d\n",
+				(int)PTR_ERR(hw->vddio_supply));
+
+		return PTR_ERR(hw->vddio_supply);
+	}
+
+	err = regulator_enable(hw->vdd_supply);
+	if (err) {
+		dev_err(hw->dev, "Failed to enable vdd regulator: %d\n", err);
+		return err;
+	}
+
+	err = regulator_enable(hw->vddio_supply);
+	if (err) {
+		regulator_disable(hw->vdd_supply);
+		return err;
+	}
+
+	err = devm_add_action_or_reset(hw->dev,
+				       st_lsm6dsox_disable_regulator_action,
+				       hw);
+	if (err) {
+		dev_err(hw->dev,
+			"Failed to setup regulator cleanup action %d\n",
+			err);
+		return err;
+	}
+
+	return 0;
+}
 
 /**
  * Probe device function
@@ -2001,47 +2046,9 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 	hw->dev = dev;
 	hw->irq = irq;
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_EN_REGULATOR
-	hw->vdd_supply = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(hw->vdd_supply)) {
-		if (PTR_ERR(hw->vdd_supply) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get vdd regulator %d\n",
-				(int)PTR_ERR(hw->vdd_supply));
-
-		return PTR_ERR(hw->vdd_supply);
-	}
-
-	hw->vddio_supply = devm_regulator_get(dev, "vddio");
-	if (IS_ERR(hw->vddio_supply)) {
-		if (PTR_ERR(hw->vddio_supply) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get vddio regulator %d\n",
-				(int)PTR_ERR(hw->vddio_supply));
-
-		return PTR_ERR(hw->vddio_supply);
-	}
-
-	err = regulator_enable(hw->vdd_supply);
-	if (err) {
-		dev_err(dev, "Failed to enable vdd regulator: %d\n", err);
+	err = st_lsm6dsox_power_enable(hw);
+	if (err != 0)
 		return err;
-	}
-
-	err = regulator_enable(hw->vddio_supply);
-	if (err) {
-		regulator_disable(hw->vdd_supply);
-		return err;
-	}
-
-	err = devm_add_action_or_reset(dev,
-				       st_lsm6dsox_disable_regulator_action,
-				       hw);
-	if (err) {
-		dev_err(dev,
-			"Failed to setup regulator cleanup action %d\n",
-			err);
-		return err;
-	}
-#endif /* CONFIG_IIO_ST_LSM6DSOX_EN_REGULATOR */
 
 	err = st_lsm6dsox_set_page_0(hw);
 	if (err < 0)
