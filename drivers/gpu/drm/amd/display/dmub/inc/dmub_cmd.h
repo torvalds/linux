@@ -1450,6 +1450,80 @@ enum dmub_cmd_mall_type {
 	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
 };
 
+/**
+ * PHY Link rate for DP.
+ */
+enum phy_link_rate {
+	/**
+	 * not supported.
+	 */
+	PHY_RATE_UNKNOWN = 0,
+	/**
+	 * Rate_1 (RBR)	- 1.62 Gbps/Lane
+	 */
+	PHY_RATE_162 = 1,
+	/**
+	 * Rate_2		- 2.16 Gbps/Lane
+	 */
+	PHY_RATE_216 = 2,
+	/**
+	 * Rate_3		- 2.43 Gbps/Lane
+	 */
+	PHY_RATE_243 = 3,
+	/**
+	 * Rate_4 (HBR)	- 2.70 Gbps/Lane
+	 */
+	PHY_RATE_270 = 4,
+	/**
+	 * Rate_5 (RBR2)- 3.24 Gbps/Lane
+	 */
+	PHY_RATE_324 = 5,
+	/**
+	 * Rate_6		- 4.32 Gbps/Lane
+	 */
+	PHY_RATE_432 = 6,
+	/**
+	 * Rate_7 (HBR2)- 5.40 Gbps/Lane
+	 */
+	PHY_RATE_540 = 7,
+	/**
+	 * Rate_8 (HBR3)- 8.10 Gbps/Lane
+	 */
+	PHY_RATE_810 = 8,
+	/**
+	 * UHBR10 - 10.0 Gbps/Lane
+	 */
+	PHY_RATE_1000 = 9,
+	/**
+	 * UHBR13.5 - 13.5 Gbps/Lane
+	 */
+	PHY_RATE_1350 = 10,
+	/**
+	 * UHBR10 - 20.0 Gbps/Lane
+	 */
+	PHY_RATE_2000 = 11,
+};
+
+/**
+ * enum dmub_phy_fsm_state - PHY FSM states.
+ * PHY FSM state to transit to during PSR enable/disable.
+ */
+enum dmub_phy_fsm_state {
+	DMUB_PHY_FSM_POWER_UP_DEFAULT = 0,
+	DMUB_PHY_FSM_RESET,
+	DMUB_PHY_FSM_RESET_RELEASED,
+	DMUB_PHY_FSM_SRAM_LOAD_DONE,
+	DMUB_PHY_FSM_INITIALIZED,
+	DMUB_PHY_FSM_CALIBRATED,
+	DMUB_PHY_FSM_CALIBRATED_LP,
+	DMUB_PHY_FSM_CALIBRATED_PG,
+	DMUB_PHY_FSM_POWER_DOWN,
+	DMUB_PHY_FSM_PLL_EN,
+	DMUB_PHY_FSM_TX_EN,
+	DMUB_PHY_FSM_FAST_LP,
+};
+
+
 
 /**
  * Data passed from driver to FW in a DMUB_CMD__PSR_COPY_SETTINGS command.
@@ -1698,9 +1772,16 @@ struct dmub_cmd_psr_force_static_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * Phy state to enter.
+	 * Values to use are defined in dmub_phy_fsm_state
 	 */
-	uint8_t pad[2];
+	uint8_t phy_fsm_state;
+	/**
+	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
+	 * Set this using enum phy_link_rate.
+	 * This does not support HDMI/DP2 for now.
+	 */
+	uint8_t phy_rate;
 };
 
 /**
@@ -2377,6 +2458,9 @@ struct dmub_cmd_panel_cntl_data {
 	uint32_t bl_pwm_ref_div1; /* in/out */
 	uint8_t is_backlight_on : 1; /* in/out */
 	uint8_t is_powered_on : 1; /* in/out */
+	uint8_t padding[3];
+	uint32_t bl_pwm_ref_div2; /* in/out */
+	uint8_t reserved[4];
 };
 
 /**
