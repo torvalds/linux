@@ -6202,7 +6202,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		goto fail_unlock;
 
 	inode_init_owner(mnt_userns, inode, dir, mode);
-	inode_set_bytes(inode, 0);
 
 	inode->i_mtime = current_time(inode);
 	inode->i_atime = inode->i_mtime;
