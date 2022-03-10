@@ -941,6 +941,9 @@ struct task_struct {
 #ifdef CONFIG_IOMMU_SVA
 	unsigned			pasid_activated:1;
 #endif
+#ifdef	CONFIG_CPU_SUP_INTEL
+	unsigned			reported_split_lock:1;
+#endif
 
 	unsigned long			atomic_flags; /* Flags requiring atomic access. */
 
