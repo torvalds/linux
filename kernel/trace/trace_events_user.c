@@ -135,6 +135,8 @@ static struct list_head *user_event_get_fields(struct trace_event_call *call)
  * NOTE: Offsets are from the user data perspective, they are not from the
  * trace_entry/buffer perspective. We automatically add the common properties
  * sizes to the offset for the user.
+ *
+ * Upon success user_event has its ref count increased by 1.
  */
 static int user_event_parse_cmd(char *raw_command, struct user_event **newuser)
 {
@@ -593,8 +595,10 @@ static struct user_event *find_user_event(char *name, u32 *outkey)
 	*outkey = key;
 
 	hash_for_each_possible(register_table, user, node, key)
-		if (!strcmp(EVENT_NAME(user), name))
+		if (!strcmp(EVENT_NAME(user), name)) {
+			atomic_inc(&user->refcnt);
 			return user;
+		}
 
 	return NULL;
 }
@@ -883,7 +887,12 @@ static int user_event_create(const char *raw_command)
 		return -ENOMEM;
 
 	mutex_lock(&reg_mutex);
+
 	ret = user_event_parse_cmd(name, &user);
+
+	if (!ret)
+		atomic_dec(&user->refcnt);
+
 	mutex_unlock(&reg_mutex);
 
 	if (ret)
@@ -1050,6 +1059,7 @@ static int user_event_trace_register(struct user_event *user)
 /*
  * Parses the event name, arguments and flags then registers if successful.
  * The name buffer lifetime is owned by this method for success cases only.
+ * Upon success the returned user_event has its ref count increased by 1.
  */
 static int user_event_parse(char *name, char *args, char *flags,
 			    struct user_event **newuser)
@@ -1057,7 +1067,12 @@ static int user_event_parse(char *name, char *args, char *flags,
 	int ret;
 	int index;
 	u32 key;
-	struct user_event *user = find_user_event(name, &key);
+	struct user_event *user;
+
+	/* Prevent dyn_event from racing */
+	mutex_lock(&event_mutex);
+	user = find_user_event(name, &key);
+	mutex_unlock(&event_mutex);
 
 	if (user) {
 		*newuser = user;
@@ -1121,6 +1136,10 @@ static int user_event_parse(char *name, char *args, char *flags,
 		goto put_user;
 
 	user->index = index;
+
+	/* Ensure we track ref */
+	atomic_inc(&user->refcnt);
+
 	dyn_event_init(&user->devent, &user_event_dops);
 	dyn_event_add(&user->devent, &user->call);
 	set_bit(user->index, page_bitmap);
@@ -1147,12 +1166,21 @@ static int delete_user_event(char *name)
 	if (!user)
 		return -ENOENT;
 
-	if (atomic_read(&user->refcnt) != 0)
-		return -EBUSY;
+	/* Ensure we are the last ref */
+	if (atomic_read(&user->refcnt) != 1) {
+		ret = -EBUSY;
+		goto put_ref;
+	}
 
-	mutex_lock(&event_mutex);
 	ret = destroy_user_event(user);
-	mutex_unlock(&event_mutex);
+
+	if (ret)
+		goto put_ref;
+
+	return ret;
+put_ref:
+	/* No longer have this ref */
+	atomic_dec(&user->refcnt);
 
 	return ret;
 }
@@ -1340,6 +1368,9 @@ static long user_events_ioctl_reg(struct file *file, unsigned long uarg)
 
 	ret = user_events_ref_add(file, user);
 
+	/* No longer need parse ref, ref_add either worked or not */
+	atomic_dec(&user->refcnt);
+
 	/* Positive number is index and valid */
 	if (ret < 0)
 		return ret;
@@ -1364,7 +1395,10 @@ static long user_events_ioctl_del(struct file *file, unsigned long uarg)
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
+	/* event_mutex prevents dyn_event from racing */
+	mutex_lock(&event_mutex);
 	ret = delete_user_event(name);
+	mutex_unlock(&event_mutex);
 
 	kfree(name);
 
