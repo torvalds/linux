@@ -12,16 +12,21 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - atmel,at91rm9200-i2c
-      - atmel,at91sam9261-i2c
-      - atmel,at91sam9260-i2c
-      - atmel,at91sam9g20-i2c
-      - atmel,at91sam9g10-i2c
-      - atmel,at91sam9x5-i2c
-      - atmel,sama5d4-i2c
-      - atmel,sama5d2-i2c
-      - microchip,sam9x60-i2c
+    oneOf:
+      - items:
+          - enum:
+              - atmel,at91rm9200-i2c
+              - atmel,at91sam9261-i2c
+              - atmel,at91sam9260-i2c
+              - atmel,at91sam9g20-i2c
+              - atmel,at91sam9g10-i2c
+              - atmel,at91sam9x5-i2c
+              - atmel,sama5d4-i2c
+              - atmel,sama5d2-i2c
+              - microchip,sam9x60-i2c
+      - items:
+          - const: microchip,sama7g5-i2c
+          - const: microchip,sam9x60-i2c
 
   reg:
     maxItems: 1
@@ -79,6 +84,7 @@ allOf:
               - atmel,sama5d4-i2c
               - atmel,sama5d2-i2c
               - microchip,sam9x60-i2c
+              - microchip,sama7g5-i2c
     then:
       properties:
         i2c-sda-hold-time-ns:
