@@ -81,6 +81,16 @@ int mount_fs(const char *mount_dir, const char *backing_dir,
 	return result;
 }
 
+int umount_fs(const char *mount_dir)
+{
+	int result;
+
+	result = umount(mount_dir);
+	if (result != 0)
+		perror("Error unmounting fs.");
+	return result;
+}
+
 int mount_fs_opt(const char *mount_dir, const char *backing_dir,
 		 const char *opt, bool remount)
 {

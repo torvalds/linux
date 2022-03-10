@@ -29,6 +29,8 @@ int drop_caches(void);
 int mount_fs(const char *mount_dir, const char *backing_dir,
 	     int read_timeout_ms);
 
+int umount_fs(const char *mount_dir);
+
 int mount_fs_opt(const char *mount_dir, const char *backing_dir,
 		 const char *opt, bool remount);
 
