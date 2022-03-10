@@ -545,6 +545,11 @@ properties:
           - const: radxa,rock2-square
           - const: rockchip,rk3288
 
+      - description: Radxa ROCK3 Model A
+        items:
+          - const: radxa,rock3a
+          - const: rockchip,rk3568
+
       - description: Rikomagic MK808 v1
         items:
           - const: rikomagic,mk808
