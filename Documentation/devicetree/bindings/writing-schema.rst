@@ -120,20 +120,13 @@ project can be installed with pip::
 
     pip3 install dtschema
 
+Note that 'dtschema' installation requires 'swig' and Python development files
+installed first. On Debian/Ubuntu systems::
+
+    apt install swig python3-dev
+
 Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
 installed. Ensure they are in your PATH (~/.local/bin by default).
-
-dtc must also be built with YAML output support enabled. This requires that
-libyaml and its headers be installed on the host system. For some distributions
-that involves installing the development package, such as:
-
-Debian::
-
-  apt-get install libyaml-dev
-
-Fedora::
-
-  dnf -y install libyaml-devel
 
 Running checks
 ~~~~~~~~~~~~~~
