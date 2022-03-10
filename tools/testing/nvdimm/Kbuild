@@ -27,7 +27,6 @@ ccflags-y += -I$(srctree)/drivers/acpi/nfit/
 obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
 obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
 obj-$(CONFIG_ND_BTT) += nd_btt.o
-obj-$(CONFIG_ND_BLK) += nd_blk.o
 obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
 obj-$(CONFIG_ACPI_NFIT) += nfit.o
 ifeq ($(CONFIG_DAX),m)
@@ -49,9 +48,6 @@ nd_pmem-y += config_check.o
 
 nd_btt-y := $(NVDIMM_SRC)/btt.o
 nd_btt-y += config_check.o
-
-nd_blk-y := $(NVDIMM_SRC)/blk.o
-nd_blk-y += config_check.o
 
 nd_e820-y := $(NVDIMM_SRC)/e820.o
 nd_e820-y += config_check.o
