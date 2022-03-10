@@ -38,6 +38,7 @@
 #include "rk_hdmirx.h"
 #include "rk_hdmirx_cec.h"
 
+static struct class *hdmirx_class;
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-3)");
@@ -139,6 +140,7 @@ struct hdmirx_stream {
 
 struct rk_hdmirx_dev {
 	struct device *dev;
+	struct device *classdev;
 	struct device_node *of_node;
 	struct hdmirx_stream stream;
 	struct v4l2_device v4l2_dev;
@@ -2360,6 +2362,14 @@ static void hdmirx_unregister_audio_device(void *data)
 	}
 }
 
+static void hdmirx_unregister_class_device(void *data)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = data;
+	struct device *dev = hdmirx_dev->classdev;
+
+	device_unregister(dev);
+}
+
 static const char *audio_fifo_err(u32 fifo_status)
 {
 	switch (fifo_status & (AFIFO_UNDERFLOW_ST | AFIFO_OVERFLOW_ST)) {
@@ -2682,6 +2692,32 @@ static const struct dev_pm_ops rk_hdmirx_pm_ops = {
 	SET_RUNTIME_PM_OPS(hdmirx_runtime_suspend, hdmirx_runtime_resume, NULL)
 };
 
+static ssize_t audio_rate_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d", hdmirx_dev->audio_state.fs_audio);
+}
+
+static ssize_t audio_present_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d", hdmirx_dev->audio_present);
+}
+
+static DEVICE_ATTR_RO(audio_rate);
+static DEVICE_ATTR_RO(audio_present);
+
+static struct attribute *hdmirx_attrs[] = {
+	&dev_attr_audio_rate.attr,
+	&dev_attr_audio_present.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(hdmirx);
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	const struct v4l2_dv_timings timings_def = HDMIRX_DEFAULT_TIMING;
@@ -2800,6 +2836,17 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unreg_video_dev;
 
+	hdmirx_dev->classdev = device_create_with_groups(hdmirx_class,
+							 dev, MKDEV(0, 0),
+							 hdmirx_dev,
+							 hdmirx_groups,
+							 "hdmirx");
+	if (IS_ERR(hdmirx_dev->classdev))
+		goto err_unreg_video_dev;
+	ret = devm_add_action_or_reset(dev, hdmirx_unregister_class_device, hdmirx_dev);
+	if (ret)
+		goto err_unreg_video_dev;
+
 	irq = gpiod_to_irq(hdmirx_dev->hdmirx_det_gpio);
 	if (irq < 0) {
 		dev_err(dev, "failed to get hdmirx-det gpio irq\n");
@@ -2905,7 +2952,22 @@ static struct platform_driver hdmirx_driver = {
 		.pm = &rk_hdmirx_pm_ops,
 	}
 };
-module_platform_driver(hdmirx_driver);
+
+static int __init hdmirx_init(void)
+{
+	hdmirx_class = class_create(THIS_MODULE, "hdmirx");
+	if (IS_ERR(hdmirx_class))
+		return PTR_ERR(hdmirx_class);
+	return platform_driver_register(&hdmirx_driver);
+}
+module_init(hdmirx_init);
+
+static void __exit hdmirx_exit(void)
+{
+	platform_driver_unregister(&hdmirx_driver);
+	class_destroy(hdmirx_class);
+}
+module_exit(hdmirx_exit);
 
 MODULE_DESCRIPTION("Rockchip HDMI Receiver Driver");
 MODULE_AUTHOR("Dingxian Wen <shawn.wen@rock-chips.com>");
