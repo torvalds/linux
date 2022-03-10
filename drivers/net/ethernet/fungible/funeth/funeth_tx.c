@@ -7,6 +7,7 @@
 #include <linux/tcp.h>
 #include <uapi/linux/udp.h>
 #include "funeth.h"
+#include "funeth_ktls.h"
 #include "funeth_txrx.h"
 #include "funeth_trace.h"
 #include "fun_queue.h"
@@ -75,12 +76,10 @@ static __be16 tcp_hdr_doff_flags(const struct tcphdr *th)
 	return *(__be16 *)&tcp_flag_word(th);
 }
 
-#if IS_ENABLED(CONFIG_TLS_DEVICE)
-#include "funeth_ktls.h"
-
 static struct sk_buff *fun_tls_tx(struct sk_buff *skb, struct funeth_txq *q,
 				  unsigned int *tls_len)
 {
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
 	const struct fun_ktls_tx_ctx *tls_ctx;
 	u32 datalen, seq;
 
@@ -108,8 +107,10 @@ static struct sk_buff *fun_tls_tx(struct sk_buff *skb, struct funeth_txq *q,
 		FUN_QSTAT_INC(q, tx_tls_drops);
 
 	return skb;
-}
+#else
+	return NULL;
 #endif
+}
 
 /* Write as many descriptors as needed for the supplied skb starting at the
  * current producer location. The caller has made certain enough descriptors
