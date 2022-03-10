@@ -544,6 +544,8 @@ static struct ocp_selector ptp_ocp_sma_out[] = {
 	{ .name = "GNSS2",	.value = 0x08 },
 	{ .name = "IRIG",	.value = 0x10 },
 	{ .name = "DCF",	.value = 0x20 },
+	{ .name = "GND",        .value = 0x2000 },
+	{ .name = "VCC",        .value = 0x4000 },
 	{ }
 };
 
