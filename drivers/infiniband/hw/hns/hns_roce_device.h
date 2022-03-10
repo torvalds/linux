@@ -633,6 +633,7 @@ struct hns_roce_qp {
 	u32			next_sge;
 	enum ib_mtu		path_mtu;
 	u32			max_inline_data;
+	u8			free_mr_en;
 
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
@@ -889,6 +890,7 @@ struct hns_roce_hw {
 			 enum ib_qp_state new_state);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
+	void (*dereg_mr)(struct hns_roce_dev *hr_dev);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);

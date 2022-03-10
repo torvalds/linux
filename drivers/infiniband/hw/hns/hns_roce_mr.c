@@ -119,8 +119,7 @@ static void free_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 	hns_roce_mtr_destroy(hr_dev, &mr->pbl_mtr);
 }
 
-static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_mr *mr)
+static void hns_roce_mr_free(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
@@ -342,6 +341,9 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	int ret = 0;
+
+	if (hr_dev->hw->dereg_mr)
+		hr_dev->hw->dereg_mr(hr_dev);
 
 	hns_roce_mr_free(hr_dev, mr);
 	kfree(mr);
