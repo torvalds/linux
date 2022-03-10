@@ -340,7 +340,6 @@ int netdev_name_node_alt_create(struct net_device *dev, const char *name)
 
 	return 0;
 }
-EXPORT_SYMBOL(netdev_name_node_alt_create);
 
 static void __netdev_name_node_alt_destroy(struct netdev_name_node *name_node)
 {
@@ -368,7 +367,6 @@ int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
 
 	return 0;
 }
-EXPORT_SYMBOL(netdev_name_node_alt_destroy);
 
 static void netdev_name_node_alt_flush(struct net_device *dev)
 {
