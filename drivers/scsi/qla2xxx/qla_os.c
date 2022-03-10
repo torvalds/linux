@@ -344,7 +344,6 @@ MODULE_PARM_DESC(ql2xnvme_queues,
 	"Number of NVMe Queues that can be configured.\n"
 	"Final value will be min(ql2xnvme_queues, num_cpus,num_chip_queues)\n"
 	"1 - Minimum number of queues supported\n"
-	"128 - Maximum number of queues supported\n"
 	"8 - Default value");
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
