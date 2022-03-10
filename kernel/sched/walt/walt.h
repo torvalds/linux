@@ -273,7 +273,6 @@ extern unsigned int sysctl_sched_task_unfilter_period;
 extern unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 extern unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 extern unsigned int sysctl_sched_sync_hint_enable;
-extern unsigned int sysctl_sched_bug_on_rt_throttle;
 extern unsigned int sysctl_sched_suppress_region2;
 extern unsigned int sysctl_sched_skip_sp_newly_idle_lb;
 extern unsigned int sysctl_sched_asymcap_boost;

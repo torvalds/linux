@@ -64,7 +64,6 @@ unsigned int sysctl_sched_many_wakeup_threshold = WALT_MANY_WAKEUP_DEFAULT;
 const int sched_user_hint_max = 1000;
 unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 unsigned int sysctl_sched_sync_hint_enable = 1;
-unsigned int sysctl_sched_bug_on_rt_throttle;
 unsigned int sysctl_panic_on_walt_bug = walt_debug_initial_values();
 unsigned int sysctl_sched_suppress_region2;
 unsigned int sysctl_sched_skip_sp_newly_idle_lb = 1;
@@ -726,15 +725,6 @@ struct ctl_table walt_table[] = {
 	{
 		.procname       = "sched_sync_hint_enable",
 		.data           = &sysctl_sched_sync_hint_enable,
-		.maxlen         = sizeof(unsigned int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{
-		.procname       = "sched_bug_on_rt_throttle",
-		.data           = &sysctl_sched_bug_on_rt_throttle,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec_minmax,
