@@ -486,7 +486,7 @@
 		rockchip,grf = <&sys_grf>;
 		rockchip,vo1_grf = <&vo1_grf>;
 		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cec", "hdmi", "dma";
 		clocks = <&cru ACLK_HDMIRX>, <&cru CLK_HDMIRX_AUD>,
@@ -494,8 +494,8 @@
 			 <&cru CLK_HDMIRX_REF>, <&hclk_vo1>;
 		clock-names = "aclk", "audio", "cr_para", "pclk", "ref", "hclk_vo1";
 		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
-			 <&cru SRST_HDMIRX_REF>;
-		reset-names = "rst_a", "rst_p", "rst_ref";
+			 <&cru SRST_HDMIRX_REF>, <&cru SRST_A_HDMIRX_BIU>;
+		reset-names = "rst_a", "rst_p", "rst_ref", "rst_biu";
 		pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
 		pinctrl-names = "default";
 		status = "disabled";
