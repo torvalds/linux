@@ -185,6 +185,9 @@ static int lan966x_port_inj_ready(struct lan966x *lan966x, u8 grp)
 {
 	u32 val;
 
+	if (lan_rd(lan966x, QS_INJ_STATUS) & QS_INJ_STATUS_FIFO_RDY_SET(BIT(grp)))
+		return 0;
+
 	return readx_poll_timeout_atomic(lan966x_port_inj_status, lan966x, val,
 					 QS_INJ_STATUS_FIFO_RDY_GET(val) & BIT(grp),
 					 READL_SLEEP_US, READL_TIMEOUT_US);
