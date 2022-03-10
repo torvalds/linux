@@ -196,9 +196,9 @@ static int xdp_test_run_setup(struct xdp_test_data *xdp, struct xdp_buff *orig_c
 err_mmodel:
 	page_pool_destroy(pp);
 err_pp:
-	kfree(xdp->skbs);
+	kvfree(xdp->skbs);
 err_skbs:
-	kfree(xdp->frames);
+	kvfree(xdp->frames);
 	return err;
 }
 
