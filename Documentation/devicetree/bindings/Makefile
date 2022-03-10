@@ -6,7 +6,7 @@ DT_MK_SCHEMA ?= dt-mk-schema
 DT_SCHEMA_LINT := $(shell which yamllint || \
   echo "warning: python package 'yamllint' not installed, skipping" >&2)
 
-DT_SCHEMA_MIN_VERSION = 2021.2.1
+DT_SCHEMA_MIN_VERSION = 2022.3
 
 PHONY += check_dtschema_version
 check_dtschema_version:
@@ -24,9 +24,6 @@ quiet_cmd_extract_ex = DTEX    $@
 
 $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 	$(call if_changed,extract_ex)
-
-# Use full schemas when checking %.example.dts
-DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
 
 find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' ! \
@@ -70,29 +67,10 @@ override DTC_FLAGS := \
 # Disable undocumented compatible checks until warning free
 override DT_CHECKER_FLAGS ?=
 
-$(obj)/processed-schema-examples.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
+$(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)
 
-ifeq ($(DT_SCHEMA_FILES),)
-
-# Unless DT_SCHEMA_FILES is specified, use the full schema for dtbs_check too.
-# Just copy processed-schema-examples.json
-
-$(obj)/processed-schema.json: $(obj)/processed-schema-examples.json FORCE
-	$(call if_changed,copy)
-
-else
-
-# If DT_SCHEMA_FILES is specified, use it for processed-schema.json
-
-$(obj)/processed-schema.json: DT_MK_SCHEMA_FLAGS := -u
-$(obj)/processed-schema.json: $(CHK_DT_DOCS) check_dtschema_version FORCE
-	$(call if_changed,mk_schema)
-
-endif
-
-always-$(CHECK_DT_BINDING) += processed-schema-examples.json
-always-$(CHECK_DTBS)       += processed-schema.json
+always-y += processed-schema.json
 always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dts, $(CHK_DT_DOCS))
 always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dt.yaml, $(CHK_DT_DOCS))
 
