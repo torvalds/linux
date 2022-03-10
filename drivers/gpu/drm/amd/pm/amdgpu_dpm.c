@@ -643,11 +643,16 @@ int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
 			    void *umc_ecc)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = 0;
 
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	return smu_get_ecc_info(smu, umc_ecc);
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_get_ecc_info(smu, umc_ecc);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
 }
 
 struct amd_vce_state *amdgpu_dpm_get_vce_clock_state(struct amdgpu_device *adev,
