@@ -267,14 +267,12 @@ int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
+int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_stream *hda_stream;
-	/* validate offset */
-	size_t posn_offset = reply->posn_offset;
 
 	hda_stream = container_of(hstream, struct sof_intel_hda_stream,
 				  hext_stream.hstream);
@@ -290,4 +288,11 @@ int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
 		substream->stream, hda_stream->sof_intel_stream.posn_offset);
 
 	return 0;
+}
+
+int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply)
+{
+	return hda_set_stream_data_offset(sdev, substream, reply->posn_offset);
 }
