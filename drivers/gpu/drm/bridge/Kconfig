@@ -155,10 +155,10 @@ config DRM_SII902X
 	tristate "Silicon Image sii902x RGB/HDMI bridge"
 	depends on OF
 	select DRM_KMS_HELPER
-	select DRM_MIPI_DSI
+	select DRM_MIPI_DSI if !ROCKCHIP_MINI_KERNEL
 	select REGMAP_I2C
 	select I2C_MUX
-	select SND_SOC_HDMI_CODEC if SND_SOC
+	select SND_SOC_HDMI_CODEC if (SND_SOC && !ROCKCHIP_MINI_KERNEL)
 	help
 	  Silicon Image sii902x bridge chip driver.
 
