@@ -62,6 +62,28 @@ static int attach_tc_prog(struct bpf_tc_hook *hook, int fd)
 	return 0;
 }
 
+/* The maximum permissible size is: PAGE_SIZE - sizeof(struct xdp_page_head) -
+ * sizeof(struct skb_shared_info) - XDP_PACKET_HEADROOM = 3368 bytes
+ */
+#define MAX_PKT_SIZE 3368
+static void test_max_pkt_size(int fd)
+{
+	char data[MAX_PKT_SIZE + 1] = {};
+	int err;
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
+			    .data_in = &data,
+			    .data_size_in = MAX_PKT_SIZE,
+			    .flags = BPF_F_TEST_XDP_LIVE_FRAMES,
+			    .repeat = 1,
+		);
+	err = bpf_prog_test_run_opts(fd, &opts);
+	ASSERT_OK(err, "prog_run_max_size");
+
+	opts.data_size_in += 1;
+	err = bpf_prog_test_run_opts(fd, &opts);
+	ASSERT_EQ(err, -EINVAL, "prog_run_too_big");
+}
+
 #define NUM_PKTS 10000
 void test_xdp_do_redirect(void)
 {
@@ -166,6 +188,8 @@ void test_xdp_do_redirect(void)
 	ASSERT_EQ(skel->bss->pkts_seen_xdp, 2, "pkt_count_xdp");
 	ASSERT_EQ(skel->bss->pkts_seen_zero, 2, "pkt_count_zero");
 	ASSERT_EQ(skel->bss->pkts_seen_tc, NUM_PKTS - 2, "pkt_count_tc");
+
+	test_max_pkt_size(bpf_program__fd(skel->progs.xdp_count_pkts));
 
 out_tc:
 	bpf_tc_hook_destroy(&tc_hook);
