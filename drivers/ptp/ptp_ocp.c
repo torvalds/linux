@@ -332,6 +332,8 @@ static int ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r);
 static irqreturn_t ptp_ocp_ts_irq(int irq, void *priv);
 static irqreturn_t ptp_ocp_signal_irq(int irq, void *priv);
 static int ptp_ocp_ts_enable(void *priv, u32 req, bool enable);
+static int ptp_ocp_signal_from_perout(struct ptp_ocp *bp, int gen,
+				      struct ptp_perout_request *req);
 static int ptp_ocp_signal_enable(void *priv, u32 req, bool enable);
 static int ptp_ocp_sma_store(struct ptp_ocp *bp, const char *buf, int sma_nr);
 
@@ -867,13 +869,27 @@ ptp_ocp_enable(struct ptp_clock_info *ptp_info, struct ptp_clock_request *rq,
 		ext = bp->pps;
 		break;
 	case PTP_CLK_REQ_PEROUT:
-		if (on &&
-		    (rq->perout.period.sec != 1 || rq->perout.period.nsec != 0))
-			return -EINVAL;
-		/* This is a request for 1PPS on an output SMA.
-		 * Allow, but assume manual configuration.
-		 */
-		return 0;
+		switch (rq->perout.index) {
+		case 0:
+			/* This is a request for 1PPS on an output SMA.
+			 * Allow, but assume manual configuration.
+			 */
+			if (on && (rq->perout.period.sec != 1 ||
+				   rq->perout.period.nsec != 0))
+				return -EINVAL;
+			return 0;
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			req = rq->perout.index - 1;
+			ext = bp->signal_out[req];
+			err = ptp_ocp_signal_from_perout(bp, req, &rq->perout);
+			if (err)
+				return err;
+			break;
+		}
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -883,6 +899,24 @@ ptp_ocp_enable(struct ptp_clock_info *ptp_info, struct ptp_clock_request *rq,
 		err = ext->info->enable(ext, req, on);
 
 	return err;
+}
+
+static int
+ptp_ocp_verify(struct ptp_clock_info *ptp_info, unsigned pin,
+	       enum ptp_pin_function func, unsigned chan)
+{
+	struct ptp_ocp *bp = container_of(ptp_info, struct ptp_ocp, ptp_info);
+	char buf[16];
+
+	if (func != PTP_PF_PEROUT)
+		return -EOPNOTSUPP;
+
+	if (chan)
+		sprintf(buf, "OUT: GEN%d", chan);
+	else
+		sprintf(buf, "OUT: PHC");
+
+	return ptp_ocp_sma_store(bp, buf, pin + 1);
 }
 
 static const struct ptp_clock_info ptp_ocp_clock_info = {
@@ -895,9 +929,10 @@ static const struct ptp_clock_info ptp_ocp_clock_info = {
 	.adjfine	= ptp_ocp_null_adjfine,
 	.adjphase	= ptp_ocp_null_adjphase,
 	.enable		= ptp_ocp_enable,
+	.verify		= ptp_ocp_verify,
 	.pps		= true,
 	.n_ext_ts	= 4,
-	.n_per_out	= 1,
+	.n_per_out	= 5,
 };
 
 static void
@@ -1466,6 +1501,30 @@ ptp_ocp_signal_set(struct ptp_ocp *bp, int gen, struct ptp_ocp_signal *s)
 }
 
 static int
+ptp_ocp_signal_from_perout(struct ptp_ocp *bp, int gen,
+			   struct ptp_perout_request *req)
+{
+	struct ptp_ocp_signal s = { };
+
+	s.polarity = bp->signal[gen].polarity;
+	s.period = ktime_set(req->period.sec, req->period.nsec);
+	if (!s.period)
+		return 0;
+
+	if (req->flags & PTP_PEROUT_DUTY_CYCLE) {
+		s.pulse = ktime_set(req->on.sec, req->on.nsec);
+		s.duty = ktime_divns(s.pulse * 100, s.period);
+	}
+
+	if (req->flags & PTP_PEROUT_PHASE)
+		s.phase = ktime_set(req->phase.sec, req->phase.nsec);
+	else
+		s.start = ktime_set(req->start.sec, req->start.nsec);
+
+	return ptp_ocp_signal_set(bp, gen, &s);
+}
+
+static int
 ptp_ocp_signal_enable(void *priv, u32 req, bool enable)
 {
 	struct ptp_ocp_ext_src *ext = priv;
@@ -1740,11 +1799,32 @@ ptp_ocp_sma_init(struct ptp_ocp *bp)
 	}
 }
 
+static int
+ptp_ocp_fb_set_pins(struct ptp_ocp *bp)
+{
+	struct ptp_pin_desc *config;
+	int i;
+
+	config = kzalloc(sizeof(*config) * 4, GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
+
+	for (i = 0; i < 4; i++) {
+		sprintf(config[i].name, "sma%d", i + 1);
+		config[i].index = i;
+	}
+
+	bp->ptp_info.n_pins = 4;
+	bp->ptp_info.pin_config = config;
+
+	return 0;
+}
+
 /* FB specific board initializers; last "resource" registered. */
 static int
 ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 {
-	int ver;
+	int ver, err;
 
 	bp->flash_start = 1024 * 4096;
 	bp->eeprom_map = fb_eeprom_map;
@@ -1760,6 +1840,10 @@ ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 	ptp_ocp_nmea_out_init(bp);
 	ptp_ocp_sma_init(bp);
 	ptp_ocp_signal_init(bp);
+
+	err = ptp_ocp_fb_set_pins(bp);
+	if (err)
+		return err;
 
 	return ptp_ocp_init_clock(bp);
 }
@@ -3238,6 +3322,7 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		pci_free_irq_vectors(bp->pdev);
 	if (bp->ptp)
 		ptp_clock_unregister(bp->ptp);
+	kfree(bp->ptp_info.pin_config);
 	device_unregister(&bp->dev);
 }
 
