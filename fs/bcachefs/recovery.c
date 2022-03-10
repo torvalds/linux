@@ -578,6 +578,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 	bch2_journal_set_replay_done(j);
 	bch2_journal_flush_all_pins(j);
 	ret = bch2_journal_error(j);
+
+	if (keys->nr && !ret)
+		bch2_journal_log_msg(&c->journal, "journal replay finished");
 err:
 	kvfree(keys_sorted);
 	return ret;
