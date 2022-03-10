@@ -466,6 +466,11 @@ const struct dc_link_settings *dc_link_get_link_cap(
 void dc_link_overwrite_extended_receiver_cap(
 		struct dc_link *link);
 
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address
+);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
