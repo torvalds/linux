@@ -4631,6 +4631,29 @@ out:
 	return result;
 }
 
+static int stacked_mount_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+
+	/* Mount with no node */
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	/* Try mounting another instance with same name */
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	/* Try unmounting the first instance */
+	TESTEQUAL(umount_fs(mount_dir), 0);
+	/* Try unmounting the second instance */
+	TESTEQUAL(umount_fs(mount_dir), 0);
+	result = TEST_SUCCESS;
+out:
+	/* Cleanup */
+	rmdir(mount_dir);
+	rmdir(backing_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -4758,6 +4781,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(stat_test),
 		MAKE_TEST(sysfs_test),
 		MAKE_TEST(sysfs_rename_test),
+		MAKE_TEST(stacked_mount_test),
 	};
 #undef MAKE_TEST
 
