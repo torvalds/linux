@@ -152,7 +152,7 @@ static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (dev_priv->drrs.type < SEAMLESS_DRRS_SUPPORT) {
+	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT) {
 		drm_dbg_kms(&dev_priv->drm, "Only Seamless DRRS supported.\n");
 		return;
 	}
@@ -326,7 +326,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
+	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT)
 		return;
 
 	cancel_delayed_work(&dev_priv->drrs.work);
