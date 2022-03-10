@@ -730,18 +730,22 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 	}
 
 	/*
-	 * Zstate is allowed in following scenarios:
-	 * 	1. Single eDP with PSR enabled
-	 * 	2. 0 planes (No memory requests)
-	 * 	3. Single eDP without PSR but > 5ms stutter period
+	 * Z9 and Z10 allowed cases:
+	 * 	1. 0 Planes enabled
+	 * 	2. single eDP, on link 0, 1 plane and stutter period > 5ms
+	 * Z10 only cases:
+	 * 	1. single eDP, on link 0, 1 plane and stutter period >= 5ms
+	 * Zstate not allowed cases:
+	 * 	1. Everything else
 	 */
 	if (plane_count == 0)
 		return DCN_ZSTATE_SUPPORT_ALLOW;
 	else if (context->stream_count == 1 &&  context->streams[0]->signal == SIGNAL_TYPE_EDP) {
 		struct dc_link *link = context->streams[0]->sink->link;
+		struct dc_stream_status *stream_status = &context->stream_status[0];
 
-		/* zstate only supported on PWRSEQ0 */
-		if (link->link_index != 0)
+		/* zstate only supported on PWRSEQ0  and when there's <2 planes*/
+		if (link->link_index != 0 || stream_status->plane_count > 1)
 			return DCN_ZSTATE_SUPPORT_DISALLOW;
 
 		if (context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
