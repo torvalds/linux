@@ -56,7 +56,6 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 }
 
 static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
-			   struct user_namespace *mnt_userns,
 			   struct inode *inode, struct posix_acl *acl, int type)
 {
 	int ret, size = 0;
@@ -123,7 +122,7 @@ int btrfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		if (ret)
 			return ret;
 	}
-	ret = __btrfs_set_acl(NULL, mnt_userns, inode, acl, type);
+	ret = __btrfs_set_acl(NULL, inode, acl, type);
 	if (ret)
 		inode->i_mode = old_mode;
 	return ret;
@@ -144,14 +143,14 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		return ret;
 
 	if (default_acl) {
-		ret = __btrfs_set_acl(trans, &init_user_ns, inode, default_acl,
+		ret = __btrfs_set_acl(trans, inode, default_acl,
 				      ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 
 	if (acl) {
 		if (!ret)
-			ret = __btrfs_set_acl(trans, &init_user_ns, inode, acl,
+			ret = __btrfs_set_acl(trans, inode, acl,
 					      ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
