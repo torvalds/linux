@@ -473,7 +473,10 @@ snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
 		       struct snd_pcm_substream *substream,
 		       const struct sof_ipc_pcm_params_reply *reply)
 {
-	return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
+	if (sof_ops(sdev) && sof_ops(sdev)->ipc_pcm_params)
+		return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
+
+	return 0;
 }
 
 /* host side configuration of the stream's data offset in stream mailbox area */

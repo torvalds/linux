@@ -224,7 +224,7 @@ struct snd_sof_dsp_ops {
 	/* host configure DSP HW parameters */
 	int (*ipc_pcm_params)(struct snd_sof_dev *sdev,
 			      struct snd_pcm_substream *substream,
-			      const struct sof_ipc_pcm_params_reply *reply); /* mandatory */
+			      const struct sof_ipc_pcm_params_reply *reply); /* optional */
 
 	/* host side configuration of the stream's data offset in stream mailbox area */
 	int (*set_stream_data_offset)(struct snd_sof_dev *sdev,
