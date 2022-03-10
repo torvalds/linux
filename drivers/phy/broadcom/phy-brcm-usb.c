@@ -283,6 +283,15 @@ static const struct attribute_group brcm_usb_phy_group = {
 	.attrs = brcm_usb_phy_attrs,
 };
 
+static const struct match_chip_info chip_info_4908 = {
+	.init_func = &brcm_usb_dvr_init_4908,
+	.required_regs = {
+		BRCM_REGS_CTRL,
+		BRCM_REGS_XHCI_EC,
+		-1,
+	},
+};
+
 static const struct match_chip_info chip_info_7216 = {
 	.init_func = &brcm_usb_dvr_init_7216,
 	.required_regs = {
@@ -318,7 +327,7 @@ static const struct match_chip_info chip_info_7445 = {
 static const struct of_device_id brcm_usb_dt_ids[] = {
 	{
 		.compatible = "brcm,bcm4908-usb-phy",
-		.data = &chip_info_7445,
+		.data = &chip_info_4908,
 	},
 	{
 		.compatible = "brcm,bcm7216-usb-phy",
