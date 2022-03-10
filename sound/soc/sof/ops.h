@@ -476,6 +476,19 @@ snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
 	return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
 }
 
+/* host side configuration of the stream's data offset in stream mailbox area */
+static inline int
+snd_sof_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->set_stream_data_offset)
+		return sof_ops(sdev)->set_stream_data_offset(sdev, substream,
+							     posn_offset);
+
+	return 0;
+}
+
 /* host stream pointer */
 static inline snd_pcm_uframes_t
 snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
