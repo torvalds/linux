@@ -20,9 +20,9 @@
    :maxdepth: 2
 
    start
+   usage
 
 Todolist:
 
 
-*   usage
 *   reclaim
