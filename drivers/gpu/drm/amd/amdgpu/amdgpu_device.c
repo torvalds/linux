@@ -942,7 +942,8 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 {
 	amdgpu_asic_pre_asic_init(adev);
 
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3) ||
+	    adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return amdgpu_atomfirmware_asic_init(adev, true);
 	else
 		return amdgpu_atom_asic_init(adev->mode_info.atom_context);
