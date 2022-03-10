@@ -91,6 +91,7 @@ enum mlx5dr_ste_ctx_action_cap {
 	DR_STE_CTX_ACTION_CAP_TX_POP   = 1 << 0,
 	DR_STE_CTX_ACTION_CAP_RX_PUSH  = 1 << 1,
 	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 2,
+	DR_STE_CTX_ACTION_CAP_POP_MDFY = 1 << 3,
 };
 
 enum {
@@ -555,7 +556,9 @@ struct mlx5dr_match_spec {
 	 */
 	u32 tcp_dport:16;
 
-	u32 reserved_auto1:24;
+	u32 reserved_auto1:16;
+	u32 ipv4_ihl:4;
+	u32 reserved_auto2:4;
 	u32 ttl_hoplimit:8;
 
 	/* UDP source port.;tcp and udp sport/dport are mutually exclusive */

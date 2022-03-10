@@ -3410,7 +3410,7 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 	if (!attr2 || !parse_attr) {
 		kvfree(parse_attr);
 		kfree(attr2);
-		return attr2;
+		return NULL;
 	}
 
 	memcpy(attr2, attr, attr_sz);

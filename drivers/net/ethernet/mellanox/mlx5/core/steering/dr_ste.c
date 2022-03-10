@@ -523,8 +523,8 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes)
 {
-	ste_ctx->set_actions_tx(dmn, action_type_set, hw_ste_arr,
-				attr, added_stes);
+	ste_ctx->set_actions_tx(dmn, action_type_set, ste_ctx->actions_caps,
+				hw_ste_arr, attr, added_stes);
 }
 
 void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
@@ -534,8 +534,8 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes)
 {
-	ste_ctx->set_actions_rx(dmn, action_type_set, hw_ste_arr,
-				attr, added_stes);
+	ste_ctx->set_actions_rx(dmn, action_type_set, ste_ctx->actions_caps,
+				hw_ste_arr, attr, added_stes);
 }
 
 const struct mlx5dr_ste_action_modify_field *
@@ -793,6 +793,7 @@ static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec, bo
 	spec->tcp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_sport, clr);
 	spec->tcp_dport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_dport, clr);
 
+	spec->ipv4_ihl = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ipv4_ihl, clr);
 	spec->ttl_hoplimit = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ttl_hoplimit, clr);
 
 	spec->udp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, udp_sport, clr);
@@ -1360,15 +1361,14 @@ void mlx5dr_ste_build_tnl_header_0_1(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_header_0_1_init(sb, mask);
 }
 
-static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {
-	[MLX5_STEERING_FORMAT_CONNECTX_5] = &ste_ctx_v0,
-	[MLX5_STEERING_FORMAT_CONNECTX_6DX] = &ste_ctx_v1,
-};
-
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version)
 {
-	if (version > MLX5_STEERING_FORMAT_CONNECTX_6DX)
-		return NULL;
+	if (version == MLX5_STEERING_FORMAT_CONNECTX_5)
+		return mlx5dr_ste_get_ctx_v0();
+	else if (version == MLX5_STEERING_FORMAT_CONNECTX_6DX)
+		return mlx5dr_ste_get_ctx_v1();
+	else if (version == MLX5_STEERING_FORMAT_CONNECTX_7)
+		return mlx5dr_ste_get_ctx_v2();
 
-	return mlx5dr_ste_ctx_arr[version];
+	return NULL;
 }

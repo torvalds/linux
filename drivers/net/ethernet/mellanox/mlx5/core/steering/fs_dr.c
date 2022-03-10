@@ -758,7 +758,7 @@ static u32 mlx5_cmd_dr_get_capabilities(struct mlx5_flow_root_namespace *ns,
 					enum fs_flow_table_type ft_type)
 {
 	if (ft_type != FS_FT_FDB ||
-	    MLX5_CAP_GEN(ns->dev, steering_format_version) != MLX5_STEERING_FORMAT_CONNECTX_6DX)
+	    MLX5_CAP_GEN(ns->dev, steering_format_version) == MLX5_STEERING_FORMAT_CONNECTX_5)
 		return 0;
 
 	return MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX | MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX;
