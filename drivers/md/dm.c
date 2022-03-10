@@ -1369,7 +1369,7 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 	}
 }
 
-static int __send_empty_flush(struct clone_info *ci)
+static void __send_empty_flush(struct clone_info *ci)
 {
 	unsigned target_nr = 0;
 	struct dm_target *ti;
@@ -1390,7 +1390,6 @@ static int __send_empty_flush(struct clone_info *ci)
 		__send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
 
 	bio_uninit(ci->bio);
-	return 0;
 }
 
 static void __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
@@ -1566,7 +1565,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	init_clone_info(&ci, md, map, bio);
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
-		error = __send_empty_flush(&ci);
+		__send_empty_flush(&ci);
 		/* dm_io_complete submits any data associated with flush */
 		goto out;
 	}
