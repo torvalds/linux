@@ -127,7 +127,7 @@ static const struct snd_soc_acpi_codecs rt5640_comp_ids = {
 
 static const struct snd_soc_acpi_codecs wm5102_comp_ids = {
 	.num_codecs = 2,
-	.codecs = { "WM510204", "WM510205"},
+	.codecs = { "10WM5102", "WM510204", "WM510205"},
 };
 
 static const struct snd_soc_acpi_codecs da7213_comp_ids = {
