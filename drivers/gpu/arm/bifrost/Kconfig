@@ -22,8 +22,6 @@ menuconfig MALI_BIFROST
 	tristate "Mali Bifrost series support"
 	select GPU_TRACEPOINTS if ANDROID
 	select DMA_SHARED_BUFFER
-	select PM_DEVFREQ
-	select DEVFREQ_THERMAL
 	select FW_LOADER
 	default n
 	help
