@@ -695,7 +695,7 @@
 	};
 
 	wdt: watchdog@ff5a0000 {
-		compatible = "rockchip,rv1126-wdt", "snps,dw-wdt";
+		compatible = "rockchip,rv1106-wdt", "snps,dw-wdt";
 		reg = <0xff5a0000 0x100>;
 		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -756,7 +756,7 @@
 	};
 
 	gmac: ethernet@ffa80000 {
-		compatible = "rockchip,rv1126-gmac", "snps,dwmac-4.20a";
+		compatible = "rockchip,rv1106-gmac", "snps,dwmac-4.20a";
 		reg = <0xffa80000 010000>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
