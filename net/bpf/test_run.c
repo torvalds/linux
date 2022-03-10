@@ -112,8 +112,7 @@ struct xdp_test_data {
 	u32 frame_cnt;
 };
 
-#define TEST_XDP_FRAME_SIZE (PAGE_SIZE - sizeof(struct xdp_page_head)	\
-			     - sizeof(struct skb_shared_info))
+#define TEST_XDP_FRAME_SIZE (PAGE_SIZE - sizeof(struct xdp_page_head))
 #define TEST_XDP_MAX_BATCH 256
 
 static void xdp_test_run_init_page(struct page *page, void *arg)
@@ -156,7 +155,6 @@ static int xdp_test_run_setup(struct xdp_test_data *xdp, struct xdp_buff *orig_c
 		.flags = 0,
 		.pool_size = xdp->batch_size,
 		.nid = NUMA_NO_NODE,
-		.max_len = TEST_XDP_FRAME_SIZE,
 		.init_callback = xdp_test_run_init_page,
 		.init_arg = xdp,
 	};
@@ -1230,6 +1228,8 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			batch_size = NAPI_POLL_WEIGHT;
 		else if (batch_size > TEST_XDP_MAX_BATCH)
 			return -E2BIG;
+
+		headroom += sizeof(struct xdp_page_head);
 	} else if (batch_size) {
 		return -EINVAL;
 	}
