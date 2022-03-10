@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2020 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -29,6 +29,9 @@
  * 8 monitors reserved for sync stream
  */
 #define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		72
+
+/* Max number of elements in timestamps registration buffers */
+#define	TS_MAX_ELEMENTS_NUM				(1 << 20) /* 1MB */
 
 /*
  * Goya queue Numbering
@@ -404,6 +407,8 @@ enum hl_server_type {
  * @cpucp_version: The CPUCP f/w version.
  * @card_name: The card name as passed by the f/w.
  * @dram_page_size: The DRAM physical page size.
+ * @number_of_user_interrupts: The number of interrupts that are available to the userspace
+ *                             application to use. Relevant for Gaudi2 and later.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -428,6 +433,9 @@ struct hl_info_hw_ip_info {
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 	__u64 reserved2;
 	__u64 dram_page_size;
+	__u32 reserved3;
+	__u16 number_of_user_interrupts;
+	__u16 pad2;
 };
 
 struct hl_info_dram_usage {
@@ -690,10 +698,12 @@ struct hl_cb_in {
 	__u64 cb_handle;
 	/* HL_CB_OP_* */
 	__u32 op;
+
 	/* Size of CB. Maximum size is HL_MAX_CB_SIZE. The minimum size that
 	 * will be allocated, regardless of this parameter's value, is PAGE_SIZE
 	 */
 	__u32 cb_size;
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 	/* HL_CB_FLAGS_* */
@@ -959,6 +969,7 @@ union hl_cs_args {
 #define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
 #define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
 #define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
+#define HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT	0x20
 
 #define HL_WAIT_MULTI_CS_LIST_MAX_LEN	32
 
@@ -1031,6 +1042,20 @@ struct hl_wait_cs_in {
 	 * relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
 	 */
 	__u64 cq_counters_offset;
+
+	/*
+	 * Timestamp_handle timestamps buffer handle.
+	 * relevant only when HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT is set
+	 */
+	__u64 timestamp_handle;
+
+	/*
+	 * Timestamp_offset is offset inside the timestamp buffer pointed by timestamp_handle above.
+	 * upon interrupt, if the cq reached the target value then driver will write
+	 * timestamp to this offset.
+	 * relevant only when HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT is set
+	 */
+	__u64 timestamp_offset;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -1077,100 +1102,119 @@ union hl_wait_cs_args {
  */
 #define HL_MEM_OP_EXPORT_DMABUF_FD	5
 
+/* Opcode to create timestamps pool for user interrupts registration support
+ * The memory will be allocated by the kernel driver, A timestamp buffer which the user
+ * will get handle to it for mmap, and another internal buffer used by the
+ * driver for registration management
+ * The memory will be freed when the user closes the file descriptor(ctx close)
+ */
+#define HL_MEM_OP_TS_ALLOC		6
+
 /* Memory flags */
 #define HL_MEM_CONTIGUOUS	0x1
 #define HL_MEM_SHARED		0x2
 #define HL_MEM_USERPTR		0x4
 #define HL_MEM_FORCE_HINT	0x8
 
+/**
+ * structure hl_mem_in - structure that handle input args for memory IOCTL
+ * @union arg: union of structures to be used based on the input operation
+ * @op: specify the requested memory operation (one of the HL_MEM_OP_* definitions).
+ * @flags: flags for the memory operation (one of the HL_MEM_* definitions).
+ *         For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the DMA-BUF file/FD flags.
+ * @ctx_id: context ID - currently not in use.
+ * @num_of_elements: number of timestamp elements used only with HL_MEM_OP_TS_ALLOC opcode.
+ */
 struct hl_mem_in {
 	union {
-		/* HL_MEM_OP_ALLOC- allocate device memory */
+		/**
+		 * structure for device memory allocation (used with the HL_MEM_OP_ALLOC op)
+		 * @mem_size: memory size to allocate
+		 * @page_size: page size to use on allocation. when the value is 0 the default page
+		 *             size will be taken.
+		 */
 		struct {
-			/* Size to alloc */
 			__u64 mem_size;
+			__u64 page_size;
 		} alloc;
 
-		/* HL_MEM_OP_FREE - free device memory */
+		/**
+		 * structure for free-ing device memory (used with the HL_MEM_OP_FREE op)
+		 * @handle: handle returned from HL_MEM_OP_ALLOC
+		 */
 		struct {
-			/* Handle returned from HL_MEM_OP_ALLOC */
 			__u64 handle;
 		} free;
 
-		/* HL_MEM_OP_MAP - map device memory */
+		/**
+		 * structure for mapping device memory (used with the HL_MEM_OP_MAP op)
+		 * @hint_addr: requested virtual address of mapped memory.
+		 *             the driver will try to map the requested region to this hint
+		 *             address, as long as the address is valid and not already mapped.
+		 *             the user should check the returned address of the IOCTL to make
+		 *             sure he got the hint address.
+		 *             passing 0 here means that the driver will choose the address itself.
+		 * @handle: handle returned from HL_MEM_OP_ALLOC.
+		 */
 		struct {
-			/*
-			 * Requested virtual address of mapped memory.
-			 * The driver will try to map the requested region to
-			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
-			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that the
-			 * driver will choose the address itself.
-			 */
 			__u64 hint_addr;
-			/* Handle returned from HL_MEM_OP_ALLOC */
 			__u64 handle;
 		} map_device;
 
-		/* HL_MEM_OP_MAP - map host memory */
+		/**
+		 * structure for mapping host memory (used with the HL_MEM_OP_MAP op)
+		 * @host_virt_addr: address of allocated host memory.
+		 * @hint_addr: requested virtual address of mapped memory.
+		 *             the driver will try to map the requested region to this hint
+		 *             address, as long as the address is valid and not already mapped.
+		 *             the user should check the returned address of the IOCTL to make
+		 *             sure he got the hint address.
+		 *             passing 0 here means that the driver will choose the address itself.
+		 * @size: size of allocated host memory.
+		 */
 		struct {
-			/* Address of allocated host memory */
 			__u64 host_virt_addr;
-			/*
-			 * Requested virtual address of mapped memory.
-			 * The driver will try to map the requested region to
-			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
-			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that the
-			 * driver will choose the address itself.
-			 */
 			__u64 hint_addr;
-			/* Size of allocated host memory */
 			__u64 mem_size;
 		} map_host;
 
-		/* HL_MEM_OP_MAP_BLOCK - map a hw block */
+		/**
+		 * structure for mapping hw block (used with the HL_MEM_OP_MAP_BLOCK op)
+		 * @block_addr:HW block address to map, a handle and size will be returned
+		 *             to the user and will be used to mmap the relevant block.
+		 *             only addresses from configuration space are allowed.
+		 */
 		struct {
-			/*
-			 * HW block address to map, a handle and size will be
-			 * returned to the user and will be used to mmap the
-			 * relevant block. Only addresses from configuration
-			 * space are allowed.
-			 */
 			__u64 block_addr;
 		} map_block;
 
-		/* HL_MEM_OP_UNMAP - unmap host memory */
+		/**
+		 * structure for unmapping host memory (used with the HL_MEM_OP_UNMAP op)
+		 * @device_virt_addr: virtual address returned from HL_MEM_OP_MAP
+		 */
 		struct {
-			/* Virtual address returned from HL_MEM_OP_MAP */
 			__u64 device_virt_addr;
 		} unmap;
 
-		/* HL_MEM_OP_EXPORT_DMABUF_FD */
+		/**
+		 * structure for exporting DMABUF object (used with
+		 * the HL_MEM_OP_EXPORT_DMABUF_FD op)
+		 * @handle: handle returned from HL_MEM_OP_ALLOC.
+		 *          in Gaudi, where we don't have MMU for the device memory, the
+		 *          driver expects a physical address (instead of a handle) in the
+		 *          device memory space.
+		 * @mem_size: size of memory allocation. Relevant only for GAUDI
+		 */
 		struct {
-			/* Handle returned from HL_MEM_OP_ALLOC. In Gaudi,
-			 * where we don't have MMU for the device memory, the
-			 * driver expects a physical address (instead of
-			 * a handle) in the device memory space.
-			 */
 			__u64 handle;
-			/* Size of memory allocation. Relevant only for GAUDI */
 			__u64 mem_size;
 		} export_dmabuf_fd;
 	};
 
-	/* HL_MEM_OP_* */
 	__u32 op;
-	/* HL_MEM_* flags.
-	 * For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the
-	 * DMA-BUF file/FD flags.
-	 */
 	__u32 flags;
-	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+	__u32 num_of_elements;
 };
 
 struct hl_mem_out {
