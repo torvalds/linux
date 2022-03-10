@@ -2036,10 +2036,6 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 			cmd_mask |= nfit_mem->dsm_mask & NVDIMM_STANDARD_CMDMASK;
 		}
 
-		/* Quirk to ignore LOCAL for labels on HYPERV DIMMs */
-		if (nfit_mem->family == NVDIMM_FAMILY_HYPERV)
-			set_bit(NDD_NOBLK, &flags);
-
 		if (test_bit(NFIT_MEM_LSR, &nfit_mem->flags)) {
 			set_bit(ND_CMD_GET_CONFIG_SIZE, &cmd_mask);
 			set_bit(ND_CMD_GET_CONFIG_DATA, &cmd_mask);
@@ -2602,8 +2598,7 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 {
 	static struct nd_mapping_desc mappings[ND_MAX_MAPPINGS];
 	struct acpi_nfit_system_address *spa = nfit_spa->spa;
-	struct nd_blk_region_desc ndbr_desc;
-	struct nd_region_desc *ndr_desc;
+	struct nd_region_desc *ndr_desc, _ndr_desc;
 	struct nfit_memdev *nfit_memdev;
 	struct nvdimm_bus *nvdimm_bus;
 	struct resource res;
@@ -2619,10 +2614,10 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 
 	memset(&res, 0, sizeof(res));
 	memset(&mappings, 0, sizeof(mappings));
-	memset(&ndbr_desc, 0, sizeof(ndbr_desc));
+	memset(&_ndr_desc, 0, sizeof(_ndr_desc));
 	res.start = spa->address;
 	res.end = res.start + spa->length - 1;
-	ndr_desc = &ndbr_desc.ndr_desc;
+	ndr_desc = &_ndr_desc;
 	ndr_desc->res = &res;
 	ndr_desc->provider_data = nfit_spa;
 	ndr_desc->attr_groups = acpi_nfit_region_attribute_groups;

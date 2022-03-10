@@ -193,7 +193,7 @@ struct nd_namespace_label {
 
 /**
  * struct nd_label_id - identifier string for dpa allocation
- * @id: "{blk|pmem}-<namespace uuid>"
+ * @id: "pmem-<namespace uuid>"
  */
 struct nd_label_id {
 	char id[ND_LABEL_ID_SIZE];

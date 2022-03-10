@@ -334,8 +334,7 @@ char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
 {
 	if (!label_id || !uuid)
 		return NULL;
-	snprintf(label_id->id, ND_LABEL_ID_SIZE, "%s-%pUb",
-			flags & NSLABEL_FLAG_LOCAL ? "blk" : "pmem", uuid);
+	snprintf(label_id->id, ND_LABEL_ID_SIZE, "pmem-%pUb", uuid);
 	return label_id->id;
 }
 
@@ -406,7 +405,6 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		return 0; /* no label, nothing to reserve */
 
 	for_each_clear_bit_le(slot, free, nslot) {
-		struct nvdimm *nvdimm = to_nvdimm(ndd->dev);
 		struct nd_namespace_label *nd_label;
 		struct nd_region *nd_region = NULL;
 		struct nd_label_id label_id;
@@ -421,8 +419,6 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 
 		nsl_get_uuid(ndd, nd_label, &label_uuid);
 		flags = nsl_get_flags(ndd, nd_label);
-		if (test_bit(NDD_NOBLK, &nvdimm->flags))
-			flags &= ~NSLABEL_FLAG_LOCAL;
 		nd_label_gen_id(&label_id, &label_uuid, flags);
 		res = nvdimm_allocate_dpa(ndd, &label_id,
 					  nsl_get_dpa(ndd, nd_label),

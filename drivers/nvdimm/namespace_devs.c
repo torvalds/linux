@@ -297,13 +297,11 @@ static int scan_free(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_label_id *label_id,
 		resource_size_t n)
 {
-	bool is_blk = strncmp(label_id->id, "blk", 3) == 0;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	int rc = 0;
 
 	while (n) {
 		struct resource *res, *last;
-		resource_size_t new_start;
 
 		last = NULL;
 		for_each_dpa_resource(ndd, res)
@@ -321,16 +319,7 @@ static int scan_free(struct nd_region *nd_region,
 			continue;
 		}
 
-		/*
-		 * Keep BLK allocations relegated to high DPA as much as
-		 * possible
-		 */
-		if (is_blk)
-			new_start = res->start + n;
-		else
-			new_start = res->start;
-
-		rc = adjust_resource(res, new_start, resource_size(res) - n);
+		rc = adjust_resource(res, res->start, resource_size(res) - n);
 		if (rc == 0)
 			res->flags |= DPA_RESOURCE_ADJUSTED;
 		nd_dbg_dpa(nd_region, ndd, res, "shrink %d\n", rc);
@@ -372,20 +361,12 @@ static resource_size_t init_dpa_allocation(struct nd_label_id *label_id,
 		struct nd_region *nd_region, struct nd_mapping *nd_mapping,
 		resource_size_t n)
 {
-	bool is_blk = strncmp(label_id->id, "blk", 3) == 0;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	resource_size_t first_dpa;
 	struct resource *res;
 	int rc = 0;
 
-	/* allocate blk from highest dpa first */
-	if (is_blk)
-		first_dpa = nd_mapping->start + nd_mapping->size - n;
-	else
-		first_dpa = nd_mapping->start;
-
 	/* first resource allocation for this label-id or dimm */
-	res = nvdimm_allocate_dpa(ndd, label_id, first_dpa, n);
+	res = nvdimm_allocate_dpa(ndd, label_id, nd_mapping->start, n);
 	if (!res)
 		rc = -EBUSY;
 
@@ -416,7 +397,6 @@ static void space_valid(struct nd_region *nd_region, struct nvdimm_drvdata *ndd,
 		resource_size_t n, struct resource *valid)
 {
 	bool is_reserve = strcmp(label_id->id, "pmem-reserve") == 0;
-	bool is_pmem = strncmp(label_id->id, "pmem", 4) == 0;
 	unsigned long align;
 
 	align = nd_region->align / nd_region->ndr_mappings;
@@ -428,21 +408,6 @@ static void space_valid(struct nd_region *nd_region, struct nvdimm_drvdata *ndd,
 
 	if (is_reserve)
 		return;
-
-	if (!is_pmem) {
-		struct nd_mapping *nd_mapping = &nd_region->mapping[0];
-		struct nvdimm_bus *nvdimm_bus;
-		struct blk_alloc_info info = {
-			.nd_mapping = nd_mapping,
-			.available = nd_mapping->size,
-			.res = valid,
-		};
-
-		WARN_ON(!is_nd_blk(&nd_region->dev));
-		nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
-		device_for_each_child(&nvdimm_bus->dev, &info, alias_dpa_busy);
-		return;
-	}
 
 	/* allocation needs to be contiguous, so this is all or nothing */
 	if (resource_size(valid) < n)
@@ -471,7 +436,6 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		resource_size_t n)
 {
 	resource_size_t mapping_end = nd_mapping->start + nd_mapping->size - 1;
-	bool is_pmem = strncmp(label_id->id, "pmem", 4) == 0;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct resource *res, *exist = NULL, valid;
 	const resource_size_t to_allocate = n;
@@ -569,10 +533,6 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		}
 
 		if (strcmp(action, "allocate") == 0) {
-			/* BLK allocate bottom up */
-			if (!is_pmem)
-				valid.start += available - allocate;
-
 			new_res = nvdimm_allocate_dpa(ndd, label_id,
 					valid.start, allocate);
 			if (!new_res)
@@ -608,12 +568,7 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 			return 0;
 	}
 
-	/*
-	 * If we allocated nothing in the BLK case it may be because we are in
-	 * an initial "pmem-reserve pass".  Only do an initial BLK allocation
-	 * when none of the DPA space is reserved.
-	 */
-	if ((is_pmem || !ndd->dpa.child) && n == to_allocate)
+	if (n == to_allocate)
 		return init_dpa_allocation(label_id, nd_region, nd_mapping, n);
 	return n;
 }
@@ -672,7 +627,7 @@ int __reserve_free_pmem(struct device *dev, void *data)
 		if (nd_mapping->nvdimm != nvdimm)
 			continue;
 
-		n = nd_pmem_available_dpa(nd_region, nd_mapping, &rem);
+		n = nd_pmem_available_dpa(nd_region, nd_mapping);
 		if (n == 0)
 			return 0;
 		rem = scan_allocate(nd_region, nd_mapping, &label_id, n);
@@ -697,19 +652,6 @@ void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
 			nvdimm_free_dpa(ndd, res);
 }
 
-static int reserve_free_pmem(struct nvdimm_bus *nvdimm_bus,
-		struct nd_mapping *nd_mapping)
-{
-	struct nvdimm *nvdimm = nd_mapping->nvdimm;
-	int rc;
-
-	rc = device_for_each_child(&nvdimm_bus->dev, nvdimm,
-			__reserve_free_pmem);
-	if (rc)
-		release_free_pmem(nvdimm_bus, nd_mapping);
-	return rc;
-}
-
 /**
  * grow_dpa_allocation - for each dimm allocate n bytes for @label_id
  * @nd_region: the set of dimms to allocate @n more bytes from
@@ -726,37 +668,14 @@ static int reserve_free_pmem(struct nvdimm_bus *nvdimm_bus,
 static int grow_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
 {
-	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
-	bool is_pmem = strncmp(label_id->id, "pmem", 4) == 0;
 	int i;
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		resource_size_t rem = n;
-		int rc, j;
+		int rc;
 
-		/*
-		 * In the BLK case try once with all unallocated PMEM
-		 * reserved, and once without
-		 */
-		for (j = is_pmem; j < 2; j++) {
-			bool blk_only = j == 0;
-
-			if (blk_only) {
-				rc = reserve_free_pmem(nvdimm_bus, nd_mapping);
-				if (rc)
-					return rc;
-			}
-			rem = scan_allocate(nd_region, nd_mapping,
-					label_id, rem);
-			if (blk_only)
-				release_free_pmem(nvdimm_bus, nd_mapping);
-
-			/* try again and allow encroachments into PMEM */
-			if (rem == 0)
-				break;
-		}
-
+		rem = scan_allocate(nd_region, nd_mapping, label_id, rem);
 		dev_WARN_ONCE(&nd_region->dev, rem,
 				"allocation underrun: %#llx of %#llx bytes\n",
 				(unsigned long long) n - rem,
@@ -869,8 +788,8 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 		ndd = to_ndd(nd_mapping);
 
 		/*
-		 * All dimms in an interleave set, or the base dimm for a blk
-		 * region, need to be enabled for the size to be changed.
+		 * All dimms in an interleave set, need to be enabled
+		 * for the size to be changed.
 		 */
 		if (!ndd)
 			return -ENXIO;
@@ -1168,9 +1087,6 @@ static ssize_t resource_show(struct device *dev,
 	return sprintf(buf, "%#llx\n", (unsigned long long) res->start);
 }
 static DEVICE_ATTR_ADMIN_RO(resource);
-
-static const unsigned long blk_lbasize_supported[] = { 512, 520, 528,
-	4096, 4104, 4160, 4224, 0 };
 
 static const unsigned long pmem_lbasize_supported[] = { 512, 4096, 0 };
 
@@ -1823,10 +1739,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	/*
 	 * Fix up each mapping's 'labels' to have the validated pmem label for
 	 * that position at labels[0], and NULL at labels[1].  In the process,
-	 * check that the namespace aligns with interleave-set.  We know
-	 * that it does not overlap with any blk namespaces by virtue of
-	 * the dimm being enabled (i.e. nd_label_reserve_dpa()
-	 * succeeded).
+	 * check that the namespace aligns with interleave-set.
 	 */
 	nsl_get_uuid(ndd, nd_label, &uuid);
 	rc = select_pmem_id(nd_region, &uuid);
@@ -1931,8 +1844,7 @@ void nd_region_create_ns_seed(struct nd_region *nd_region)
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->ns_seed)
-		dev_err(&nd_region->dev, "failed to create %s namespace\n",
-				is_nd_blk(&nd_region->dev) ? "blk" : "pmem");
+		dev_err(&nd_region->dev, "failed to create namespace\n");
 	else
 		nd_device_register(nd_region->ns_seed);
 }
@@ -2028,15 +1940,8 @@ static struct device **scan_labels(struct nd_region *nd_region)
 	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
 		struct nd_namespace_label *nd_label = label_ent->label;
 		struct device **__devs;
-		u32 flags;
 
 		if (!nd_label)
-			continue;
-		flags = nsl_get_flags(ndd, nd_label);
-		if (is_nd_blk(&nd_region->dev)
-				== !!(flags & NSLABEL_FLAG_LOCAL))
-			/* pass, region matches label type */;
-		else
 			continue;
 
 		/* skip labels that describe extents outside of the region */
@@ -2073,9 +1978,8 @@ static struct device **scan_labels(struct nd_region *nd_region)
 
 	}
 
-	dev_dbg(&nd_region->dev, "discovered %d %s namespace%s\n",
-			count, is_nd_blk(&nd_region->dev)
-			? "blk" : "pmem", count == 1 ? "" : "s");
+	dev_dbg(&nd_region->dev, "discovered %d namespace%s\n", count,
+		count == 1 ? "" : "s");
 
 	if (count == 0) {
 		struct nd_namespace_pmem *nspm;
@@ -2226,12 +2130,6 @@ static int init_active_labels(struct nd_region *nd_region)
 			if (!label_ent)
 				break;
 			label = nd_label_active(ndd, j);
-			if (test_bit(NDD_NOBLK, &nvdimm->flags)) {
-				u32 flags = nsl_get_flags(ndd, label);
-
-				flags &= ~NSLABEL_FLAG_LOCAL;
-				nsl_set_flags(ndd, label, flags);
-			}
 			label_ent->label = label;
 
 			mutex_lock(&nd_mapping->lock);
@@ -2275,7 +2173,6 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 		devs = create_namespace_io(nd_region);
 		break;
 	case ND_DEVICE_NAMESPACE_PMEM:
-	case ND_DEVICE_NAMESPACE_BLK:
 		devs = create_namespaces(nd_region);
 		break;
 	default:
