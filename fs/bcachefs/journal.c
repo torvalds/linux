@@ -837,7 +837,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		 * superblock before inserting into the journal array
 		 */
 
-		pos = ja->nr ? (ja->cur_idx + 1) % ja->nr : 0;
+		pos = ja->discard_idx ?: ja->nr;
 		__array_insert_item(ja->buckets,		ja->nr, pos);
 		__array_insert_item(ja->bucket_seq,		ja->nr, pos);
 		__array_insert_item(journal_buckets->buckets,	ja->nr, pos);
