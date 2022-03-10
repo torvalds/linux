@@ -33,58 +33,29 @@
  * Interrupt handling.
  */
 	.macro	irq_handler, from_user:req
-	mov	r0, sp
-#ifdef CONFIG_IRQSTACKS
-#ifdef CONFIG_UNWINDER_ARM
-	mov	fpreg, sp		@ Preserve original SP
-#else
-	mov	r7, fp			@ Preserve original FP
-	mov	r8, sp			@ Preserve original SP
-#endif
-	ldr_this_cpu sp, irq_stack_ptr, r2, r3
+	mov	r1, sp
+	ldr_this_cpu r2, irq_stack_ptr, r2, r3
 	.if	\from_user == 0
-UNWIND(	.setfp	fpreg, sp		)
 	@
 	@ If we took the interrupt while running in the kernel, we may already
 	@ be using the IRQ stack, so revert to the original value in that case.
 	@
-	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
-	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
+	subs	r3, r2, r1		@ SP above bottom of IRQ stack?
+	rsbscs	r3, r3, #THREAD_SIZE	@ ... and below the top?
 #ifdef CONFIG_VMAP_STACK
-	ldr_va	r2, high_memory, cc	@ End of the linear region
-	cmpcc	r2, r0			@ Stack pointer was below it?
+	ldr_va	r3, high_memory, cc	@ End of the linear region
+	cmpcc	r3, r1			@ Stack pointer was below it?
 #endif
-	movcs	sp, r0			@ If so, revert to incoming SP
-
-#ifndef CONFIG_UNWINDER_ARM
-	@
-	@ Inform the frame pointer unwinder where the next frame lives
-	@
-	movcc	lr, pc			@ Make LR point into .entry.text so
-					@ that we will get a dump of the
-					@ exception stack for this frame.
-#ifdef CONFIG_CC_IS_GCC
-	movcc	ip, r0			@ Store the old SP in the frame record.
-	stmdbcc	sp!, {fp, ip, lr, pc}	@ Push frame record
-	addcc	fp, sp, #12
-#else
-	stmdbcc	sp!, {fp, lr}		@ Push frame record
-	movcc	fp, sp
-#endif // CONFIG_CC_IS_GCC
-#endif // CONFIG_UNWINDER_ARM
-	.endif
-#endif // CONFIG_IRQSTACKS
-
+	bcc	0f			@ If not, switch to the IRQ stack
+	mov	r0, r1
 	bl	generic_handle_arch_irq
+	b	1f
+0:
+	.endif
 
-#ifdef CONFIG_IRQSTACKS
-#ifdef CONFIG_UNWINDER_ARM
-	mov	sp, fpreg		@ Restore original SP
-#else
-	mov	fp, r7			@ Restore original FP
-	mov	sp, r8			@ Restore original SP
-#endif // CONFIG_UNWINDER_ARM
-#endif // CONFIG_IRQSTACKS
+	mov_l	r0, generic_handle_arch_irq
+	bl	call_with_stack
+1:
 	.endm
 
 	.macro	pabt_helper
