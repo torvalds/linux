@@ -83,6 +83,9 @@ intel_drrs_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
+	if (IS_IRONLAKE(i915) || IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915))
+		pipe_config->msa_timing_delay = i915->vbt.edp.drrs_msa_timing_delay;
+
 	pipe_config->has_drrs = true;
 
 	pixel_clock = connector->panel.downclock_mode->clock;

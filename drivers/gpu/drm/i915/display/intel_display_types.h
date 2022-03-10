@@ -1155,6 +1155,7 @@ struct intel_crtc_state {
 	u8 update_planes;
 
 	u8 framestart_delay; /* 1-4 */
+	u8 msa_timing_delay; /* 0-3 */
 
 	struct {
 		u32 enable;

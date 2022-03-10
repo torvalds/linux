@@ -3596,6 +3596,7 @@ static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
 	val |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
+	val |= PIPECONF_MSA_TIMING_DELAY(crtc_state->msa_timing_delay);
 
 	intel_de_write(dev_priv, PIPECONF(pipe), val);
 	intel_de_posting_read(dev_priv, PIPECONF(pipe));
@@ -3883,6 +3884,8 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->gamma_mode = REG_FIELD_GET(PIPECONF_GAMMA_MODE_MASK_ILK, tmp);
 
 	pipe_config->framestart_delay = REG_FIELD_GET(PIPECONF_FRAME_START_DELAY_MASK, tmp) + 1;
+
+	pipe_config->msa_timing_delay = REG_FIELD_GET(PIPECONF_MSA_TIMING_DELAY_MASK, tmp);
 
 	pipe_config->csc_mode = intel_de_read(dev_priv,
 					      PIPE_CSC_MODE(crtc->pipe));
@@ -5364,8 +5367,8 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 				      &pipe_config->dp_m2_n2);
 	}
 
-	drm_dbg_kms(&dev_priv->drm, "framestart delay: %d\n",
-		    pipe_config->framestart_delay);
+	drm_dbg_kms(&dev_priv->drm, "framestart delay: %d, MSA timing delay: %d\n",
+		    pipe_config->framestart_delay, pipe_config->msa_timing_delay);
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
@@ -6264,6 +6267,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_X(output_types);
 
 	PIPE_CONF_CHECK_I(framestart_delay);
+	PIPE_CONF_CHECK_I(msa_timing_delay);
 
 	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
 	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
