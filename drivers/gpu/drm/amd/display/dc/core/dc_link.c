@@ -1183,6 +1183,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		case EDID_BAD_CHECKSUM:
 			DC_LOG_ERROR("EDID checksum invalid.\n");
 			break;
+		case EDID_PARTIAL_VALID:
+			DC_LOG_ERROR("Partial EDID valid, abandon invalid blocks.\n");
+			break;
 		case EDID_NO_RESPONSE:
 			DC_LOG_ERROR("No EDID read.\n");
 			/*
