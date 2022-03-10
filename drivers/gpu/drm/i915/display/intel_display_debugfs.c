@@ -1149,7 +1149,6 @@ static void drrs_status_per_crtc(struct seq_file *m,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_drrs *drrs = &dev_priv->drrs;
-	int vrefresh = 0;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
@@ -1191,21 +1190,12 @@ static void drrs_status_per_crtc(struct seq_file *m,
 					drrs->busy_frontbuffer_bits);
 
 		seq_puts(m, "\n\t\t");
-		if (drrs->refresh_rate_type == DRRS_HIGH_RR) {
-			seq_puts(m, "DRRS_State: DRRS_HIGH_RR\n");
-			vrefresh = drm_mode_vrefresh(panel->fixed_mode);
-		} else if (drrs->refresh_rate_type == DRRS_LOW_RR) {
-			seq_puts(m, "DRRS_State: DRRS_LOW_RR\n");
-			vrefresh = drm_mode_vrefresh(panel->downclock_mode);
-		} else {
-			seq_printf(m, "DRRS_State: Unknown(%d)\n",
-						drrs->refresh_rate_type);
-			mutex_unlock(&drrs->mutex);
-			return;
-		}
-		seq_printf(m, "\t\tVrefresh: %d", vrefresh);
 
+		seq_printf(m, "DRRS refresh rate: %s\n",
+			   drrs->refresh_rate == DRRS_REFRESH_RATE_LOW ?
+			   "low" : "high");
 		seq_puts(m, "\n\t\t");
+
 		mutex_unlock(&drrs->mutex);
 	} else {
 		/* DRRS not supported. Print the VBT parameter*/

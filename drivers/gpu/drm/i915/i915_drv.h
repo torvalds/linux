@@ -196,15 +196,9 @@ struct drm_i915_display_funcs {
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
-/*
- * HIGH_RR is the highest eDP panel refresh rate read from EDID
- * LOW_RR is the lowest eDP panel refresh rate found from EDID
- * parsing for same resolution.
- */
-enum drrs_refresh_rate_type {
-	DRRS_HIGH_RR,
-	DRRS_LOW_RR,
-	DRRS_MAX_RR, /* RR count */
+enum drrs_refresh_rate {
+	DRRS_REFRESH_RATE_HIGH,
+	DRRS_REFRESH_RATE_LOW,
 };
 
 enum drrs_type {
@@ -218,7 +212,7 @@ struct i915_drrs {
 	struct delayed_work work;
 	struct intel_dp *dp;
 	unsigned busy_frontbuffer_bits;
-	enum drrs_refresh_rate_type refresh_rate_type;
+	enum drrs_refresh_rate refresh_rate;
 	enum drrs_type type;
 };
 
