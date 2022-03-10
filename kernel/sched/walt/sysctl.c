@@ -69,7 +69,7 @@ unsigned int sysctl_sched_suppress_region2;
 unsigned int sysctl_sched_skip_sp_newly_idle_lb = 1;
 unsigned int sysctl_sched_hyst_min_coloc_ns = 80000000;
 unsigned int sysctl_sched_asymcap_boost;
-unsigned int sysctl_sched_long_running_rt_task_ms = 1200;
+unsigned int sysctl_sched_long_running_rt_task_ms;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
