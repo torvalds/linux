@@ -888,6 +888,9 @@ parse_edp(struct drm_i915_private *i915, const struct bdb_header *bdb)
 			i915->vbt.edp.low_vswing = vswing == 0;
 		}
 	}
+
+	i915->vbt.edp.drrs_msa_timing_delay =
+		(edp->sdrrs_msa_timing_delay >> (panel_type * 2)) & 3;
 }
 
 static void

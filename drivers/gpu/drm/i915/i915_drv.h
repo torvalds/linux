@@ -356,10 +356,11 @@ struct intel_vbt_data {
 		int lanes;
 		int preemphasis;
 		int vswing;
-		bool low_vswing;
-		bool initialized;
 		int bpp;
 		struct edp_power_seq pps;
+		u8 drrs_msa_timing_delay;
+		bool low_vswing;
+		bool initialized;
 		bool hobl;
 	} edp;
 
