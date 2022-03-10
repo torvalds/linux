@@ -46,8 +46,8 @@ void snd_sof_compr_init_elapsed_work(struct work_struct *work)
  */
 void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream)
 {
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_compr_runtime *crtd = cstream->runtime;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_compr_runtime *crtd;
 	struct snd_soc_component *component;
 	struct snd_compr_tstamp *tstamp;
 	struct snd_sof_pcm *spcm;
@@ -55,6 +55,8 @@ void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream)
 	if (!cstream)
 		return;
 
+	rtd = cstream->private_data;
+	crtd = cstream->runtime;
 	tstamp = crtd->private_data;
 	component = snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 
