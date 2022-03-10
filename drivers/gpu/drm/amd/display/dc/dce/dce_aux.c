@@ -413,6 +413,7 @@ static bool acquire(
 		return false;
 
 	if (!acquire_engine(engine)) {
+		engine->ddc = ddc;
 		release_engine(engine);
 		return false;
 	}
