@@ -31,6 +31,6 @@ void intel_drrs_compute_config(struct intel_dp *intel_dp,
 			       struct intel_crtc_state *pipe_config,
 			       int output_bpp, bool constant_n);
 struct drm_display_mode *intel_drrs_init(struct intel_connector *connector,
-					 struct drm_display_mode *fixed_mode);
+					 const struct drm_display_mode *fixed_mode);
 
 #endif /* __INTEL_DRRS_H__ */

@@ -421,7 +421,7 @@ void intel_drrs_page_flip(struct intel_atomic_state *state,
  */
 struct drm_display_mode *
 intel_drrs_init(struct intel_connector *connector,
-		struct drm_display_mode *fixed_mode)
+		const struct drm_display_mode *fixed_mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_encoder *encoder = connector->encoder;
