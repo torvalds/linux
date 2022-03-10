@@ -528,10 +528,6 @@ static const struct vnt_table_info vnt_table_seq[][3] = {
 		{&al2230_init_table[0][0], CB_AL2230_INIT_SEQ * 3},
 		{&al2230_channel_table0[0][0], CB_MAX_CHANNEL_24G * 3},
 		{&al2230_channel_table1[0][0], CB_MAX_CHANNEL_24G * 3}
-	}, {	/* RF_AIROHA7230 init table, channel table 0 and 1 */
-		{&al7230_init_table[0][0], CB_AL7230_INIT_SEQ * 3},
-		{&al7230_channel_table0[0][0], CB_MAX_CHANNEL * 3},
-		{&al7230_channel_table1[0][0], CB_MAX_CHANNEL * 3}
 	}, {	/* RF_VT3226 init table, channel table 0 and 1 */
 		{&vt3226_init_table[0][0], CB_VT3226_INIT_SEQ * 3},
 		{&vt3226_channel_table0[0][0], CB_MAX_CHANNEL_24G * 3},
@@ -540,14 +536,6 @@ static const struct vnt_table_info vnt_table_seq[][3] = {
 		{&vt3226d0_init_table[0][0], CB_VT3226_INIT_SEQ * 3},
 		{&vt3226_channel_table0[0][0], CB_MAX_CHANNEL_24G * 3},
 		{&vt3226_channel_table1[0][0], CB_MAX_CHANNEL_24G * 3}
-	}, {	/* RF_VT3342A0 init table, channel table 0 and 1 */
-		{&vt3342a0_init_table[0][0], CB_VT3342_INIT_SEQ * 3},
-		{&vt3342_channel_table0[0][0], CB_MAX_CHANNEL * 3},
-		{&vt3342_channel_table1[0][0], CB_MAX_CHANNEL * 3}
-	}, {	/* RF_AIROHA7230 init table 2 and channel table 2 */
-		{&al7230_init_table_amode[0][0], CB_AL7230_INIT_SEQ * 3},
-		{&al7230_channel_table2[0][0], CB_MAX_CHANNEL * 3},
-		{NULL, 0}
 	}
 };
 
@@ -641,24 +629,6 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 
 		break;
 
-	case RF_AIROHA7230:
-		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
-			ret = vnt_rf_write_embedded(priv, 0x111bb900);
-		else
-			ret = vnt_rf_write_embedded(priv, 0x221bb900);
-
-		if (ret)
-			return ret;
-
-		/*
-		 * 0x080F1B00 for 3 wire control TxGain(D10)
-		 * and 0x31 as TX Gain value
-		 */
-		power_setting = 0x080c0b00 | (power << 12);
-
-		ret = vnt_rf_write_embedded(priv, power_setting);
-		break;
-
 	case RF_VT3226:
 		power_setting = ((0x3f - power) << 20) | (0x17 << 8);
 
@@ -714,11 +684,6 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 
 		break;
 
-	case RF_VT3342A0:
-		power_setting =  ((0x3f - power) << 20) | (0x27 << 8);
-
-		ret = vnt_rf_write_embedded(priv, power_setting);
-		break;
 	default:
 		break;
 	}
@@ -766,10 +731,8 @@ void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 	case RF_VT3226:
 	case RF_VT3226D0:
-	case RF_VT3342A0:
 		a = airoharf[idx];
 		break;
 	default:
@@ -790,17 +753,11 @@ int vnt_rf_table_download(struct vnt_private *priv)
 	case RF_AL2230S:
 		idx = 0;
 		break;
-	case RF_AIROHA7230:
+	case RF_VT3226:
 		idx = 1;
 		break;
-	case RF_VT3226:
-		idx = 2;
-		break;
 	case RF_VT3226D0:
-		idx = 3;
-		break;
-	case RF_VT3342A0:
-		idx = 4;
+		idx = 2;
 		break;
 	}
 
@@ -830,24 +787,6 @@ int vnt_rf_table_download(struct vnt_private *priv)
 				     MESSAGE_REQUEST_RF_CH1,
 				     table_seq[VNT_TABLE_1].length,
 				     table_seq[VNT_TABLE_1].addr);
-
-	if (priv->rf_type == RF_AIROHA7230) {
-		table_seq = &vnt_table_seq[5][0];
-
-		/* Init Table 2 */
-		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-				      MESSAGE_REQUEST_RF_INIT2,
-				      table_seq[VNT_TABLE_INIT_2].length,
-				      table_seq[VNT_TABLE_INIT_2].addr);
-		if (ret)
-			return ret;
-
-		/* Channel Table 2 */
-		ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
-					     MESSAGE_REQUEST_RF_CH2,
-					     table_seq[VNT_TABLE_2].length,
-					     table_seq[VNT_TABLE_2].addr);
-	}
 
 	return ret;
 }
