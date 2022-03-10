@@ -118,11 +118,6 @@ static int vpu_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret)
-		goto err_runtime_disable;
-
-	pm_runtime_put_sync(dev);
 
 	ret = v4l2_device_register(dev, &vpu->v4l2_dev);
 	if (ret)
@@ -149,7 +144,6 @@ err_vpu_media:
 	vpu_remove_func(&vpu->decoder);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_vpu_deinit:
-err_runtime_disable:
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
 

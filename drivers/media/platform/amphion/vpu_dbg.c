@@ -344,7 +344,7 @@ static ssize_t vpu_dbg_core_write(struct file *file,
 	struct seq_file *s = file->private_data;
 	struct vpu_core *core = s->private;
 
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_resume_and_get(core->dev);
 	mutex_lock(&core->lock);
 	if (core->state != VPU_CORE_DEINIT && !core->instance_mask) {
 		dev_info(core->dev, "reset\n");
