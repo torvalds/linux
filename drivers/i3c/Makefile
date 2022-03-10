@@ -8,3 +8,4 @@ obj-$(CONFIG_I3C_SLAVE_MQUEUE) 	+= i3c-slave-mqueue.o
 obj-$(CONFIG_I3C_SLAVE_EEPROM) 	+= i3c-slave-eeprom.o
 obj-$(CONFIG_I3C_MUX_IMX3102) 	+= i3c-mux-imx3102.o
 obj-$(CONFIG_I3C)		+= mctp/
+obj-$(CONFIG_I3C_HUB)		+= i3c-hub.o

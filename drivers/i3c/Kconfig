@@ -37,6 +37,18 @@ config I3CDEV
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
+config I3C_HUB
+	tristate "I3C HUB support"
+	depends on I3C
+	select REGMAP_I3C
+	help
+	  This enables support for I3C HUB. Say Y here to use I3C HUB driver to
+	  configure I3C HUB device.
+
+	  I3C HUB drivers will be loaded automatically when I3C device with BCR
+	  equals to 0xC2 (HUB device) is detected on the bus.
+
+
 if I3CDEV
 config I3CDEV_FORCE_CREATE
 	bool "force create I3C device interface"
@@ -86,4 +98,5 @@ config I3C_SLAVE_EEPROM
 endchoice
 
 source "drivers/i3c/master/Kconfig"
+
 endif # I3C
