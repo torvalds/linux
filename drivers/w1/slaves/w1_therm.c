@@ -1512,7 +1512,7 @@ static int trigger_bulk_read(struct w1_master *dev_master)
 		if (bulk_read_support(sl)) {
 			int t_cur = conversion_time(sl);
 
-			t_conv = t_cur > t_conv ? t_cur : t_conv;
+			t_conv = max(t_cur, t_conv);
 			strong_pullup = strong_pullup ||
 					(w1_strong_pullup == 2 ||
 					(!SLAVE_POWERMODE(sl) &&
