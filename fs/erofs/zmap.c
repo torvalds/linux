@@ -494,7 +494,7 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 	     !(vi->z_advise & Z_EROFS_ADVISE_BIG_PCLUSTER_1)) ||
 	    ((m->headtype == Z_EROFS_VLE_CLUSTER_TYPE_HEAD2) &&
 	     !(vi->z_advise & Z_EROFS_ADVISE_BIG_PCLUSTER_2))) {
-		map->m_plen = 1 << lclusterbits;
+		map->m_plen = 1ULL << lclusterbits;
 		return 0;
 	}
 	lcn = m->lcn + 1;
@@ -540,7 +540,7 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 		return -EFSCORRUPTED;
 	}
 out:
-	map->m_plen = m->compressedlcs << lclusterbits;
+	map->m_plen = (u64)m->compressedlcs << lclusterbits;
 	return 0;
 err_bonus_cblkcnt:
 	erofs_err(m->inode->i_sb,
