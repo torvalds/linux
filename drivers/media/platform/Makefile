@@ -27,7 +27,7 @@ obj-y += omap/
 obj-y += omap3isp/
 obj-y += qcom/camss/
 obj-y += qcom/venus/
-obj-y += rcar-vin/
+obj-y += renesas/
 obj-y += rockchip/rga/
 obj-y += rockchip/rkisp1/
 obj-y += s3c-camif/
@@ -43,7 +43,6 @@ obj-y += sunxi/
 obj-y += tegra/vde/
 obj-y += ti-vpe/
 obj-y += via/
-obj-y += vsp1/
 obj-y += xilinx/
 
 # Please place here only ancillary drivers that aren't SoC-specific
@@ -51,10 +50,3 @@ obj-y += xilinx/
 # (e. g. LC_ALL=C sort Makefile)
 obj-$(CONFIG_VIDEO_MEM2MEM_DEINTERLACE)	+= m2m-deinterlace.o
 obj-$(CONFIG_VIDEO_MUX)			+= video-mux.o
-obj-$(CONFIG_VIDEO_RCAR_DRIF)		+= rcar_drif.o
-obj-$(CONFIG_VIDEO_RCAR_ISP)		+= rcar-isp.o
-obj-$(CONFIG_VIDEO_RENESAS_CEU)		+= renesas-ceu.o
-obj-$(CONFIG_VIDEO_RENESAS_FCP)		+= rcar-fcp.o
-obj-$(CONFIG_VIDEO_RENESAS_FDP1)	+= rcar_fdp1.o
-obj-$(CONFIG_VIDEO_RENESAS_JPU)		+= rcar_jpu.o
-obj-$(CONFIG_VIDEO_SH_VOU)		+= sh_vou.o
