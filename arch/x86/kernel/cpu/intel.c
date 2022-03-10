@@ -722,6 +722,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 	else if (tsx_ctrl_state == TSX_CTRL_DISABLE)
 		tsx_disable();
 	else if (tsx_ctrl_state == TSX_CTRL_RTM_ALWAYS_ABORT)
+		/* See comment over that function for more details. */
 		tsx_clear_cpuid();
 
 	split_lock_init();
