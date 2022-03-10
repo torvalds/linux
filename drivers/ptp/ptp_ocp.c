@@ -291,6 +291,8 @@ struct ptp_ocp {
 	struct ptp_ocp_ext_src	*ts0;
 	struct ptp_ocp_ext_src	*ts1;
 	struct ptp_ocp_ext_src	*ts2;
+	struct ptp_ocp_ext_src	*ts3;
+	struct ptp_ocp_ext_src	*ts4;
 	struct img_reg __iomem	*image;
 	struct ptp_clock	*ptp;
 	struct ptp_clock_info	ptp_info;
@@ -396,7 +398,7 @@ static struct ptp_ocp_eeprom_map fb_eeprom_map[] = {
 	OCP_RES_LOCATION(member), .setup = ptp_ocp_register_ext
 
 /* This is the MSI vector mapping used.
- * 0: TS3 (and PPS)
+ * 0: PPS (TS5)
  * 1: TS0
  * 2: TS1
  * 3: GNSS1
@@ -411,6 +413,8 @@ static struct ptp_ocp_eeprom_map fb_eeprom_map[] = {
  * 12: Signal Generator 2
  * 13: Signal Generator 3
  * 14: Signal Generator 4
+ * 15: TS3
+ * 16: TS4
  */
 
 static struct ocp_resource ocp_fb_resource[] = {
@@ -446,10 +450,29 @@ static struct ocp_resource ocp_fb_resource[] = {
 		},
 	},
 	{
+		OCP_EXT_RESOURCE(ts3),
+		.offset = 0x01110000, .size = 0x10000, .irq_vec = 15,
+		.extra = &(struct ptp_ocp_ext_info) {
+			.index = 3,
+			.irq_fcn = ptp_ocp_ts_irq,
+			.enable = ptp_ocp_ts_enable,
+		},
+	},
+	{
+		OCP_EXT_RESOURCE(ts4),
+		.offset = 0x01120000, .size = 0x10000, .irq_vec = 16,
+		.extra = &(struct ptp_ocp_ext_info) {
+			.index = 4,
+			.irq_fcn = ptp_ocp_ts_irq,
+			.enable = ptp_ocp_ts_enable,
+		},
+	},
+	/* Timestamp for PHC and/or PPS generator */
+	{
 		OCP_EXT_RESOURCE(pps),
 		.offset = 0x010C0000, .size = 0x10000, .irq_vec = 0,
 		.extra = &(struct ptp_ocp_ext_info) {
-			.index = 3,
+			.index = 5,
 			.irq_fcn = ptp_ocp_ts_irq,
 			.enable = ptp_ocp_ts_enable,
 		},
@@ -648,6 +671,8 @@ static struct ocp_selector ptp_ocp_sma_in[] = {
 	{ .name = "TS2",	.value = 0x0008 },
 	{ .name = "IRIG",	.value = 0x0010 },
 	{ .name = "DCF",	.value = 0x0020 },
+	{ .name = "TS3",	.value = 0x0040 },
+	{ .name = "TS4",	.value = 0x0080 },
 	{ .name = "FREQ1",	.value = 0x0100 },
 	{ .name = "FREQ2",	.value = 0x0200 },
 	{ .name = "FREQ3",	.value = 0x0400 },
@@ -891,6 +916,12 @@ ptp_ocp_enable(struct ptp_clock_info *ptp_info, struct ptp_clock_request *rq,
 			ext = bp->ts2;
 			break;
 		case 3:
+			ext = bp->ts3;
+			break;
+		case 4:
+			ext = bp->ts4;
+			break;
+		case 5:
 			ext = bp->pps;
 			break;
 		}
@@ -962,7 +993,7 @@ static const struct ptp_clock_info ptp_ocp_clock_info = {
 	.enable		= ptp_ocp_enable,
 	.verify		= ptp_ocp_verify,
 	.pps		= true,
-	.n_ext_ts	= 4,
+	.n_ext_ts	= 6,
 	.n_per_out	= 5,
 };
 
@@ -3025,12 +3056,28 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 			   on ? " ON" : "OFF", buf);
 	}
 
+	if (bp->ts3) {
+		ts_reg = bp->ts3->mem;
+		on = ioread32(&ts_reg->enable);
+		gpio_input_map(buf, bp, sma_val, 6, NULL);
+		seq_printf(s, "%7s: %s, src: %s\n", "TS3",
+			   on ? " ON" : "OFF", buf);
+	}
+
+	if (bp->ts4) {
+		ts_reg = bp->ts4->mem;
+		on = ioread32(&ts_reg->enable);
+		gpio_input_map(buf, bp, sma_val, 7, NULL);
+		seq_printf(s, "%7s: %s, src: %s\n", "TS4",
+			   on ? " ON" : "OFF", buf);
+	}
+
 	if (bp->pps) {
 		ts_reg = bp->pps->mem;
 		src = "PHC";
 		on = ioread32(&ts_reg->enable);
 		map = !!(bp->pps_req_map & OCP_REQ_TIMESTAMP);
-		seq_printf(s, "%7s: %s, src: %s\n", "TS3",
+		seq_printf(s, "%7s: %s, src: %s\n", "TS5",
 			   on && map ? " ON" : "OFF", src);
 
 		map = !!(bp->pps_req_map & OCP_REQ_PPS);
@@ -3457,6 +3504,10 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		ptp_ocp_unregister_ext(bp->ts1);
 	if (bp->ts2)
 		ptp_ocp_unregister_ext(bp->ts2);
+	if (bp->ts3)
+		ptp_ocp_unregister_ext(bp->ts3);
+	if (bp->ts4)
+		ptp_ocp_unregister_ext(bp->ts4);
 	if (bp->pps)
 		ptp_ocp_unregister_ext(bp->pps);
 	for (i = 0; i < 4; i++)
@@ -3513,7 +3564,7 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * allow this - if not all of the IRQ's are returned, skip the
 	 * extra devices and just register the clock.
 	 */
-	err = pci_alloc_irq_vectors(pdev, 1, 15, PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	err = pci_alloc_irq_vectors(pdev, 1, 17, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (err < 0) {
 		dev_err(&pdev->dev, "alloc_irq_vectors err: %d\n", err);
 		goto out;
