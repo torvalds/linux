@@ -1622,6 +1622,8 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
 		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED);
+	else
+		wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
 }
 
 static void btree_node_write_done(struct bch_fs *c, struct btree *b)
@@ -2091,7 +2093,6 @@ restart:
 			rcu_read_unlock();
 			wait_on_bit_io(&b->flags, flag, TASK_UNINTERRUPTIBLE);
 			goto restart;
-
 		}
 	rcu_read_unlock();
 }
