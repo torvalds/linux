@@ -111,9 +111,9 @@ intel_drrs_set_refresh_rate_pipeconf(const struct intel_crtc_state *crtc_state,
 	u32 val, bit;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		bit = PIPECONF_EDP_RR_MODE_SWITCH_VLV;
+		bit = PIPECONF_REFRESH_RATE_ALT_VLV;
 	else
-		bit = PIPECONF_EDP_RR_MODE_SWITCH;
+		bit = PIPECONF_REFRESH_RATE_ALT_ILK;
 
 	val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
 
