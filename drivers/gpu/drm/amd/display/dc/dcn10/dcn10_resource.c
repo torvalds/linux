@@ -863,6 +863,21 @@ static struct dce_hwseq *dcn10_hwseq_create(
 		hws->wa.DEGVIDCN10_253 = true;
 		hws->wa.false_optc_underflow = true;
 		hws->wa.DEGVIDCN10_254 = true;
+
+		if ((ctx->asic_id.chip_family == FAMILY_RV) &&
+			ASICREV_IS_RAVEN2(ctx->asic_id.hw_internal_rev))
+			switch (ctx->asic_id.pci_revision_id) {
+			case PRID_POLLOCK_94:
+			case PRID_POLLOCK_95:
+			case PRID_POLLOCK_E9:
+			case PRID_POLLOCK_EA:
+			case PRID_POLLOCK_EB:
+				hws->wa.wait_hubpret_read_start_during_mpo_transition = true;
+				break;
+			default:
+				hws->wa.wait_hubpret_read_start_during_mpo_transition = false;
+				break;
+			}
 	}
 	return hws;
 }
