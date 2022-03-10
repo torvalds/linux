@@ -2318,6 +2318,103 @@ void iscsi_free_session(struct iscsi_cls_session *session)
 EXPORT_SYMBOL_GPL(iscsi_free_session);
 
 /**
+ * iscsi_alloc_conn - alloc iscsi class connection
+ * @session: iscsi cls session
+ * @dd_size: private driver data size
+ * @cid: connection id
+ */
+struct iscsi_cls_conn *
+iscsi_alloc_conn(struct iscsi_cls_session *session, int dd_size, uint32_t cid)
+{
+	struct iscsi_transport *transport = session->transport;
+	struct iscsi_cls_conn *conn;
+
+	conn = kzalloc(sizeof(*conn) + dd_size, GFP_KERNEL);
+	if (!conn)
+		return NULL;
+	if (dd_size)
+		conn->dd_data = &conn[1];
+
+	mutex_init(&conn->ep_mutex);
+	INIT_LIST_HEAD(&conn->conn_list);
+	INIT_WORK(&conn->cleanup_work, iscsi_cleanup_conn_work_fn);
+	conn->transport = transport;
+	conn->cid = cid;
+	conn->state = ISCSI_CONN_DOWN;
+
+	/* this is released in the dev's release function */
+	if (!get_device(&session->dev))
+		goto free_conn;
+
+	dev_set_name(&conn->dev, "connection%d:%u", session->sid, cid);
+	device_initialize(&conn->dev);
+	conn->dev.parent = &session->dev;
+	conn->dev.release = iscsi_conn_release;
+
+	return conn;
+
+free_conn:
+	kfree(conn);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(iscsi_alloc_conn);
+
+/**
+ * iscsi_add_conn - add iscsi class connection
+ * @conn: iscsi cls connection
+ *
+ * This will expose iscsi_cls_conn to sysfs so make sure the related
+ * resources for sysfs attributes are initialized before calling this.
+ */
+int iscsi_add_conn(struct iscsi_cls_conn *conn)
+{
+	int err;
+	unsigned long flags;
+	struct iscsi_cls_session *session = iscsi_dev_to_session(conn->dev.parent);
+
+	err = device_add(&conn->dev);
+	if (err) {
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "could not register connection's dev\n");
+		return err;
+	}
+	err = transport_register_device(&conn->dev);
+	if (err) {
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "could not register transport's dev\n");
+		device_del(&conn->dev);
+		return err;
+	}
+
+	spin_lock_irqsave(&connlock, flags);
+	list_add(&conn->conn_list, &connlist);
+	spin_unlock_irqrestore(&connlock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iscsi_add_conn);
+
+/**
+ * iscsi_remove_conn - remove iscsi class connection from sysfs
+ * @conn: iscsi cls connection
+ *
+ * Remove iscsi_cls_conn from sysfs, and wait for previous
+ * read/write of iscsi_cls_conn's attributes in sysfs to finish.
+ */
+void iscsi_remove_conn(struct iscsi_cls_conn *conn)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&connlock, flags);
+	list_del(&conn->conn_list);
+	spin_unlock_irqrestore(&connlock, flags);
+
+	transport_unregister_device(&conn->dev);
+	device_del(&conn->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_remove_conn);
+
+/**
  * iscsi_create_conn - create iscsi class connection
  * @session: iscsi cls session
  * @dd_size: private driver data size
