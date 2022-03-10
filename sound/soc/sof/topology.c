@@ -743,7 +743,7 @@ static const struct sof_topology_token core_tokens[] = {
 static const struct sof_topology_token comp_ext_tokens[] = {
 	{SOF_TKN_COMP_UUID,
 		SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
-		offsetof(struct sof_ipc_comp_ext, uuid)},
+		offsetof(struct snd_sof_widget, uuid)},
 };
 
 /*
@@ -807,12 +807,21 @@ static const struct sof_topology_token afe_tokens[] = {
 		offsetof(struct sof_ipc_dai_mtk_afe_params, format)},
 };
 
+/**
+ * sof_parse_uuid_tokens - Parse multiple sets of UUID tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of string type tokens in vendor arrays
+ */
 static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
-				 void *object,
-				 const struct sof_topology_token *tokens,
-				 int count,
-				 struct snd_soc_tplg_vendor_array *array,
-				 size_t offset)
+				  void *object, size_t offset,
+				  const struct sof_topology_token *tokens, int num_tokens,
+				  struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_uuid_elem *elem;
 	int found = 0;
@@ -823,7 +832,7 @@ static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 		elem = &array->uuid[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (tokens[j].type != SND_SOC_TPLG_TUPLE_TYPE_UUID)
 				continue;
@@ -843,12 +852,21 @@ static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 	return found;
 }
 
+/**
+ * sof_parse_string_tokens - Parse multiple sets of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of string type tokens in vendor arrays
+ */
 static int sof_parse_string_tokens(struct snd_soc_component *scomp,
-				   void *object,
-				   const struct sof_topology_token *tokens,
-				   int count,
-				   struct snd_soc_tplg_vendor_array *array,
-				   size_t offset)
+				   void *object, int offset,
+				   const struct sof_topology_token *tokens, int num_tokens,
+				   struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_string_elem *elem;
 	int found = 0;
@@ -859,7 +877,7 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 		elem = &array->string[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (tokens[j].type != SND_SOC_TPLG_TUPLE_TYPE_STRING)
 				continue;
@@ -878,12 +896,21 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 	return found;
 }
 
+/**
+ * sof_parse_word_tokens - Parse multiple sets of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @offset: offset within the object pointer
+ * @tokens: array of struct sof_topology_token containing the tokens to be matched
+ * @num_tokens: number of tokens in tokens array
+ * @array: source pointer to consecutive vendor arrays in topology
+ *
+ * This function parses multiple sets of word type tokens in vendor arrays
+ */
 static int sof_parse_word_tokens(struct snd_soc_component *scomp,
-				 void *object,
-				 const struct sof_topology_token *tokens,
-				 int count,
-				 struct snd_soc_tplg_vendor_array *array,
-				 size_t offset)
+				  void *object, int offset,
+				  const struct sof_topology_token *tokens, int num_tokens,
+				  struct snd_soc_tplg_vendor_array *array)
 {
 	struct snd_soc_tplg_vendor_value_elem *elem;
 	int found = 0;
@@ -894,7 +921,7 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
 		elem = &array->value[i];
 
 		/* search for token */
-		for (j = 0; j < count; j++) {
+		for (j = 0; j < num_tokens; j++) {
 			/* match token type */
 			if (!(tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_WORD ||
 			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_SHORT ||
@@ -907,8 +934,7 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
 				continue;
 
 			/* load token */
-			tokens[j].get_token(elem, object,
-					    offset + tokens[j].offset);
+			tokens[j].get_token(elem, object, offset + tokens[j].offset);
 
 			found++;
 		}
@@ -923,27 +949,26 @@ static int sof_parse_word_tokens(struct snd_soc_component *scomp,
  * @object: target ipc struct for parsed values
  * @tokens: token definition array describing what tokens to parse
  * @count: number of tokens in definition array
- * @array: source pointer to consecutive vendor arrays to be parsed
- * @priv_size: total size of the consecutive source arrays
- * @sets: number of similar token sets to be parsed, 1 set has count elements
+ * @array: source pointer to consecutive vendor arrays in topology
+ * @array_size: total size of @array
+ * @token_instance_num: number of times the same tokens needs to be parsed i.e. the function
+ *			looks for @token_instance_num of each token in the @tokens
  * @object_size: offset to next target ipc struct with multiple sets
  *
  * This function parses multiple sets of tokens in vendor arrays into
  * consecutive ipc structs.
  */
 static int sof_parse_token_sets(struct snd_soc_component *scomp,
-				void *object,
-				const struct sof_topology_token *tokens,
-				int count,
-				struct snd_soc_tplg_vendor_array *array,
-				int priv_size, int sets, size_t object_size)
+				void *object, const struct sof_topology_token *tokens,
+				int count, struct snd_soc_tplg_vendor_array *array,
+				int array_size, int token_instance_num, size_t object_size)
 {
 	size_t offset = 0;
 	int found = 0;
 	int total = 0;
 	int asize;
 
-	while (priv_size > 0 && total < count * sets) {
+	while (array_size > 0 && total < count * token_instance_num) {
 		asize = le32_to_cpu(array->size);
 
 		/* validate asize */
@@ -954,8 +979,8 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 		}
 
 		/* make sure there is enough data before parsing */
-		priv_size -= asize;
-		if (priv_size < 0) {
+		array_size -= asize;
+		if (array_size < 0) {
 			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
@@ -964,19 +989,19 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 		/* call correct parser depending on type */
 		switch (le32_to_cpu(array->type)) {
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
-			found += sof_parse_uuid_tokens(scomp, object, tokens,
-						       count, array, offset);
+			found += sof_parse_uuid_tokens(scomp, object, offset, tokens, count,
+						       array);
 			break;
 		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
-			found += sof_parse_string_tokens(scomp, object, tokens,
-							 count, array, offset);
+			found += sof_parse_string_tokens(scomp, object, offset, tokens, count,
+							 array);
 			break;
 		case SND_SOC_TPLG_TUPLE_TYPE_BOOL:
 		case SND_SOC_TPLG_TUPLE_TYPE_BYTE:
 		case SND_SOC_TPLG_TUPLE_TYPE_WORD:
 		case SND_SOC_TPLG_TUPLE_TYPE_SHORT:
-			found += sof_parse_word_tokens(scomp, object, tokens,
-						       count, array, offset);
+			found += sof_parse_word_tokens(scomp, object, offset, tokens, count,
+						       array);
 			break;
 		default:
 			dev_err(scomp->dev, "error: unknown token type %d\n",
@@ -999,12 +1024,23 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 	return 0;
 }
 
-static int sof_parse_tokens(struct snd_soc_component *scomp,
-			    void *object,
-			    const struct sof_topology_token *tokens,
-			    int count,
+/**
+ * sof_parse_tokens - Parse one set of tokens
+ * @scomp: pointer to soc component
+ * @object: target ipc struct for parsed values
+ * @tokens: token definition array describing what tokens to parse
+ * @num_tokens: number of tokens in definition array
+ * @array: source pointer to consecutive vendor arrays in topology
+ * @array_size: total size of @array
+ *
+ * This function parses a single set of tokens in vendor arrays into
+ * consecutive ipc structs.
+ */
+static int sof_parse_tokens(struct snd_soc_component *scomp,  void *object,
+			    const struct sof_topology_token *tokens, int num_tokens,
 			    struct snd_soc_tplg_vendor_array *array,
-			    int priv_size)
+			    int array_size)
+
 {
 	/*
 	 * sof_parse_tokens is used when topology contains only a single set of
@@ -1012,8 +1048,8 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 	 * sof_parse_token_sets are sets = 1 (only 1 set) and
 	 * object_size = 0 (irrelevant).
 	 */
-	return sof_parse_token_sets(scomp, object, tokens, count, array,
-				    priv_size, 1, 0);
+	return sof_parse_token_sets(scomp, object, tokens, num_tokens, array,
+				    array_size, 1, 0);
 }
 
 static void sof_dbg_comp_config(struct snd_soc_component *scomp,
@@ -1419,16 +1455,16 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
  *
  * Return: The pointer to the new allocated component, NULL if failed.
  */
-static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
-					   size_t *ipc_size, int index)
+static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget, size_t *ipc_size,
+					   int index)
 {
-	u8 nil_uuid[SOF_UUID_SIZE] = {0};
 	struct sof_ipc_comp *comp;
 	size_t total_size = *ipc_size;
+	size_t ext_size = sizeof(swidget->uuid);
 
 	/* only non-zero UUID is valid */
-	if (memcmp(&swidget->comp_ext, nil_uuid, SOF_UUID_SIZE))
-		total_size += sizeof(swidget->comp_ext);
+	if (!guid_is_null(&swidget->uuid))
+		total_size += ext_size;
 
 	comp = kzalloc(total_size, GFP_KERNEL);
 	if (!comp)
@@ -1444,8 +1480,8 @@ static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget,
 	/* handle the extended data if needed */
 	if (total_size > *ipc_size) {
 		/* append extended data to the end of the component */
-		memcpy((u8 *)comp + *ipc_size, &swidget->comp_ext, sizeof(swidget->comp_ext));
-		comp->ext_data_length = sizeof(swidget->comp_ext);
+		memcpy((u8 *)comp + *ipc_size, &swidget->uuid, ext_size);
+		comp->ext_data_length = ext_size;
 	}
 
 	/* update ipc_size and return */
@@ -1459,14 +1495,21 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       struct snd_sof_dai *dai)
 {
 	struct snd_soc_tplg_private *private = &tw->priv;
+	struct sof_dai_private_data *dai_data;
 	struct sof_ipc_comp_dai *comp_dai;
 	size_t ipc_size = sizeof(*comp_dai);
 	int ret;
 
+	dai_data = kzalloc(sizeof(*dai_data), GFP_KERNEL);
+	if (!dai_data)
+		return -ENOMEM;
+
 	comp_dai = (struct sof_ipc_comp_dai *)
 		   sof_comp_alloc(swidget, &ipc_size, index);
-	if (!comp_dai)
-		return -ENOMEM;
+	if (!comp_dai) {
+		ret = -ENOMEM;
+		goto free;
+	}
 
 	/* configure dai IPC message */
 	comp_dai->comp.type = SOF_COMP_DAI;
@@ -1478,7 +1521,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
-		return ret;
+		goto free;
 	}
 
 	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
@@ -1487,7 +1530,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
-		return ret;
+		goto free;
 	}
 
 	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
@@ -1496,9 +1539,14 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 
 	if (dai) {
 		dai->scomp = scomp;
-		dai->comp_dai = comp_dai;
+		dai_data->comp_dai = comp_dai;
+		dai->private = dai_data;
 	}
 
+	return 0;
+
+free:
+	kfree(dai_data);
 	return ret;
 }
 
@@ -2276,9 +2324,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	swidget->core = comp.core;
 
-	ret = sof_parse_tokens(scomp, &swidget->comp_ext, comp_ext_tokens,
-			       ARRAY_SIZE(comp_ext_tokens), tw->priv.array,
-			       le32_to_cpu(tw->priv.size));
+	ret = sof_parse_tokens(scomp, swidget, comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens),
+			       tw->priv.array, le32_to_cpu(tw->priv.size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parsing comp_ext_tokens failed %d\n",
 			ret);
@@ -2421,9 +2468,11 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		dai = swidget->private;
 
 		if (dai) {
-			kfree(dai->comp_dai);
-			/* free dai config */
-			kfree(dai->dai_config);
+			struct sof_dai_private_data *dai_data = dai->private;
+
+			kfree(dai_data->comp_dai);
+			kfree(dai_data->dai_config);
+			kfree(dai_data);
 			list_del(&dai->list);
 		}
 		break;
@@ -2645,11 +2694,13 @@ static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
 				    struct sof_ipc_dai_config *config,
 				    int num_conf, int curr_conf)
 {
+	struct sof_dai_private_data *dai_data;
 	struct snd_sof_dai *dai;
 	int found = 0;
 	int i;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
+		dai_data = dai->private;
 		if (!dai->name)
 			continue;
 
@@ -2661,15 +2712,15 @@ static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
 			 * dai_index.
 			 */
 			for (i = 0; i < num_conf; i++)
-				config[i].dai_index = dai->comp_dai->dai_index;
+				config[i].dai_index = dai_data->comp_dai->dai_index;
 
 			dev_dbg(sdev->dev, "set DAI config for %s index %d\n",
 				dai->name, config[curr_conf].dai_index);
 
 			dai->number_configs = num_conf;
 			dai->current_config = curr_conf;
-			dai->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
-			if (!dai->dai_config)
+			dai_data->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
+			if (!dai_data->dai_config)
 				return -ENOMEM;
 
 			found = 1;
@@ -3323,7 +3374,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 			  struct snd_soc_dapm_route *route)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc_pipe_comp_connect *connect;
 	struct snd_sof_widget *source_swidget, *sink_swidget;
 	struct snd_soc_dobj *dobj = &route->dobj;
 	struct snd_sof_route *sroute;
@@ -3335,16 +3385,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		return -ENOMEM;
 
 	sroute->scomp = scomp;
-
-	connect = kzalloc(sizeof(*connect), GFP_KERNEL);
-	if (!connect) {
-		kfree(sroute);
-		return -ENOMEM;
-	}
-
-	connect->hdr.size = sizeof(*connect);
-	connect->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_CONNECT;
-
 	dev_dbg(scomp->dev, "sink %s control %s source %s\n",
 		route->sink, route->control ? route->control : "none",
 		route->source);
@@ -3368,8 +3408,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	    source_swidget->id == snd_soc_dapm_output)
 		goto err;
 
-	connect->source_id = source_swidget->comp_id;
-
 	/* sink component */
 	sink_swidget = snd_sof_find_swidget(scomp, (char *)route->sink);
 	if (!sink_swidget) {
@@ -3387,8 +3425,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	    sink_swidget->id == snd_soc_dapm_output)
 		goto err;
 
-	connect->sink_id = sink_swidget->comp_id;
-
 	/*
 	 * For virtual routes, both sink and source are not
 	 * buffer. Since only buffer linked to component is supported by
@@ -3403,7 +3439,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	} else {
 		sroute->route = route;
 		dobj->private = sroute;
-		sroute->private = connect;
 		sroute->src_widget = source_swidget;
 		sroute->sink_widget = sink_swidget;
 
@@ -3414,7 +3449,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	}
 
 err:
-	kfree(connect);
 	kfree(sroute);
 	return ret;
 }

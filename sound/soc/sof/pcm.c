@@ -670,7 +670,9 @@ static void ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const char
 		if (!dai->name || strcmp(link_name, dai->name))
 			continue;
 		for (i = 0; i < dai->number_configs; i++) {
-			config = &dai->dai_config[i];
+			struct sof_dai_private_data *private = dai->private;
+
+			config = &private->dai_config[i];
 			if (config->ssp.fsync_rate == params_rate(params)) {
 				dev_dbg(sdev->dev, "DAI config %d matches pcm hw params\n", i);
 				dai->current_config = i;
@@ -693,6 +695,7 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 	struct snd_sof_dai *dai =
 		snd_sof_find_dai(component, (char *)rtd->dai_link->name);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_dai_private_data *private = dai->private;
 	struct snd_soc_dpcm *dpcm;
 
 	/* no topology exists for this BE, try a common configuration */
@@ -717,7 +720,7 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 	/* read format from topology */
 	snd_mask_none(fmt);
 
-	switch (dai->comp_dai->config.frame_fmt) {
+	switch (private->comp_dai->config.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
 		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 		break;
@@ -733,15 +736,15 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 	}
 
 	/* read rate and channels from topology */
-	switch (dai->dai_config->type) {
+	switch (private->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
 		/* search for config to pcm params match, if not found use default */
 		ssp_dai_config_pcm_params_match(sdev, (char *)rtd->dai_link->name, params);
 
-		rate->min = dai->dai_config[dai->current_config].ssp.fsync_rate;
-		rate->max = dai->dai_config[dai->current_config].ssp.fsync_rate;
-		channels->min = dai->dai_config[dai->current_config].ssp.tdm_slots;
-		channels->max = dai->dai_config[dai->current_config].ssp.tdm_slots;
+		rate->min = private->dai_config[dai->current_config].ssp.fsync_rate;
+		rate->max = private->dai_config[dai->current_config].ssp.fsync_rate;
+		channels->min = private->dai_config[dai->current_config].ssp.tdm_slots;
+		channels->max = private->dai_config[dai->current_config].ssp.tdm_slots;
 
 		dev_dbg(component->dev,
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -752,11 +755,11 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 		break;
 	case SOF_DAI_INTEL_DMIC:
 		/* DMIC only supports 16 or 32 bit formats */
-		if (dai->comp_dai->config.frame_fmt == SOF_IPC_FRAME_S24_4LE) {
+		if (private->comp_dai->config.frame_fmt == SOF_IPC_FRAME_S24_4LE) {
 			dev_err(component->dev,
 				"error: invalid fmt %d for DAI type %d\n",
-				dai->comp_dai->config.frame_fmt,
-				dai->dai_config->type);
+				private->comp_dai->config.frame_fmt,
+				private->dai_config->type);
 		}
 		break;
 	case SOF_DAI_INTEL_HDA:
@@ -776,14 +779,14 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 		 * Dai could run with different channel count compared with
 		 * front end, so get dai channel count from topology
 		 */
-		channels->min = dai->dai_config->alh.channels;
-		channels->max = dai->dai_config->alh.channels;
+		channels->min = private->dai_config->alh.channels;
+		channels->max = private->dai_config->alh.channels;
 		break;
 	case SOF_DAI_IMX_ESAI:
-		rate->min = dai->dai_config->esai.fsync_rate;
-		rate->max = dai->dai_config->esai.fsync_rate;
-		channels->min = dai->dai_config->esai.tdm_slots;
-		channels->max = dai->dai_config->esai.tdm_slots;
+		rate->min = private->dai_config->esai.fsync_rate;
+		rate->max = private->dai_config->esai.fsync_rate;
+		channels->min = private->dai_config->esai.tdm_slots;
+		channels->max = private->dai_config->esai.tdm_slots;
 
 		dev_dbg(component->dev,
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -792,10 +795,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_MEDIATEK_AFE:
-		rate->min = dai->dai_config->afe.rate;
-		rate->max = dai->dai_config->afe.rate;
-		channels->min = dai->dai_config->afe.channels;
-		channels->max = dai->dai_config->afe.channels;
+		rate->min = private->dai_config->afe.rate;
+		rate->max = private->dai_config->afe.rate;
+		channels->min = private->dai_config->afe.channels;
+		channels->max = private->dai_config->afe.channels;
 
 		dev_dbg(component->dev,
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -804,10 +807,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_IMX_SAI:
-		rate->min = dai->dai_config->sai.fsync_rate;
-		rate->max = dai->dai_config->sai.fsync_rate;
-		channels->min = dai->dai_config->sai.tdm_slots;
-		channels->max = dai->dai_config->sai.tdm_slots;
+		rate->min = private->dai_config->sai.fsync_rate;
+		rate->max = private->dai_config->sai.fsync_rate;
+		channels->min = private->dai_config->sai.tdm_slots;
+		channels->max = private->dai_config->sai.tdm_slots;
 
 		dev_dbg(component->dev,
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -816,10 +819,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_AMD_BT:
-		rate->min = dai->dai_config->acpbt.fsync_rate;
-		rate->max = dai->dai_config->acpbt.fsync_rate;
-		channels->min = dai->dai_config->acpbt.tdm_slots;
-		channels->max = dai->dai_config->acpbt.tdm_slots;
+		rate->min = private->dai_config->acpbt.fsync_rate;
+		rate->max = private->dai_config->acpbt.fsync_rate;
+		channels->min = private->dai_config->acpbt.tdm_slots;
+		channels->max = private->dai_config->acpbt.tdm_slots;
 
 		dev_dbg(component->dev,
 			"AMD_BT rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -828,10 +831,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_AMD_SP:
-		rate->min = dai->dai_config->acpsp.fsync_rate;
-		rate->max = dai->dai_config->acpsp.fsync_rate;
-		channels->min = dai->dai_config->acpsp.tdm_slots;
-		channels->max = dai->dai_config->acpsp.tdm_slots;
+		rate->min = private->dai_config->acpsp.fsync_rate;
+		rate->max = private->dai_config->acpsp.fsync_rate;
+		channels->min = private->dai_config->acpsp.tdm_slots;
+		channels->max = private->dai_config->acpsp.tdm_slots;
 
 		dev_dbg(component->dev,
 			"AMD_SP rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -840,10 +843,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_AMD_DMIC:
-		rate->min = dai->dai_config->acpdmic.fsync_rate;
-		rate->max = dai->dai_config->acpdmic.fsync_rate;
-		channels->min = dai->dai_config->acpdmic.tdm_slots;
-		channels->max = dai->dai_config->acpdmic.tdm_slots;
+		rate->min = private->dai_config->acpdmic.fsync_rate;
+		rate->max = private->dai_config->acpdmic.fsync_rate;
+		channels->min = private->dai_config->acpdmic.tdm_slots;
+		channels->max = private->dai_config->acpdmic.tdm_slots;
 
 		dev_dbg(component->dev,
 			"AMD_DMIC rate_min: %d rate_max: %d\n", rate->min, rate->max);
@@ -853,7 +856,7 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 		break;
 	default:
 		dev_err(component->dev, "error: invalid DAI type %d\n",
-			dai->dai_config->type);
+			private->dai_config->type);
 		break;
 	}
 

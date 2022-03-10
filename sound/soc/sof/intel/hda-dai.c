@@ -167,6 +167,7 @@ static struct sof_ipc_dai_config *hda_dai_update_config(struct snd_soc_dapm_widg
 							int channel)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
+	struct sof_dai_private_data *private;
 	struct sof_ipc_dai_config *config;
 	struct snd_sof_dai *sof_dai;
 
@@ -175,12 +176,19 @@ static struct sof_ipc_dai_config *hda_dai_update_config(struct snd_soc_dapm_widg
 
 	sof_dai = swidget->private;
 
-	if (!sof_dai || !sof_dai->dai_config) {
-		dev_err(swidget->scomp->dev, "error: No config for DAI %s\n", w->name);
+	if (!sof_dai || !sof_dai->private) {
+		dev_err(swidget->scomp->dev, "%s: No private data for DAI %s\n", __func__,
+			w->name);
 		return NULL;
 	}
 
-	config = &sof_dai->dai_config[sof_dai->current_config];
+	private = sof_dai->private;
+	if (!private->dai_config) {
+		dev_err(swidget->scomp->dev, "%s: No config for DAI %s\n", __func__, w->name);
+		return NULL;
+	}
+
+	config = &private->dai_config[sof_dai->current_config];
 
 	/* update config with stream tag */
 	config->hda.link_dma_ch = channel;
@@ -294,6 +302,7 @@ static int hda_link_dai_config_pause_push_ipc(struct snd_soc_dapm_widget *w)
 	struct snd_sof_widget *swidget = w->dobj.private;
 	struct snd_soc_component *component = swidget->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_dai_private_data *private;
 	struct sof_ipc_dai_config *config;
 	struct snd_sof_dai *sof_dai;
 	struct sof_ipc_reply reply;
@@ -301,12 +310,18 @@ static int hda_link_dai_config_pause_push_ipc(struct snd_soc_dapm_widget *w)
 
 	sof_dai = swidget->private;
 
-	if (!sof_dai || !sof_dai->dai_config) {
-		dev_err(sdev->dev, "No config for DAI %s\n", w->name);
+	if (!sof_dai || !sof_dai->private) {
+		dev_err(sdev->dev, "%s: No private data for DAI %s\n", __func__, w->name);
 		return -EINVAL;
 	}
 
-	config = &sof_dai->dai_config[sof_dai->current_config];
+	private = sof_dai->private;
+	if (!private->dai_config) {
+		dev_err(sdev->dev, "%s: No config for DAI %s\n", __func__, w->name);
+		return -EINVAL;
+	}
+
+	config = &private->dai_config[sof_dai->current_config];
 
 	/* set PAUSE command flag */
 	config->flags = FIELD_PREP(SOF_DAI_CONFIG_FLAGS_CMD_MASK, SOF_DAI_CONFIG_FLAGS_PAUSE);

@@ -116,4 +116,9 @@ struct sof_ipc_dai_config {
 	};
 } __packed;
 
+struct sof_dai_private_data {
+	struct sof_ipc_comp_dai *comp_dai;
+	struct sof_ipc_dai_config *dai_config;
+};
+
 #endif

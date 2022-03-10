@@ -30,6 +30,18 @@
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
 
+/** struct snd_sof_tuple - Tuple info
+ * @token:	Token ID
+ * @value:	union of a string or a u32 values
+ */
+struct snd_sof_tuple {
+	u32 token;
+	union {
+		u32 v;
+		const char *s;
+	} value;
+};
+
 /* PCM stream, mapped to FW component  */
 struct snd_sof_pcm_stream {
 	u32 comp_id;
@@ -110,8 +122,10 @@ struct snd_sof_widget {
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_widget *pipe_widget;
 
-	/* extended data for UUID components */
-	struct sof_ipc_comp_ext comp_ext;
+	const guid_t uuid;
+
+	int num_tuples;
+	struct snd_sof_tuple *tuples;
 
 	void *private;		/* core does not touch this */
 };
@@ -134,12 +148,11 @@ struct snd_sof_dai {
 	struct snd_soc_component *scomp;
 	const char *name;
 
-	struct sof_ipc_comp_dai *comp_dai;
 	int number_configs;
 	int current_config;
 	bool configured; /* DAI configured during BE hw_params */
-	struct sof_ipc_dai_config *dai_config;
 	struct list_head list;	/* list in sdev dai list */
+	void *private;
 };
 
 /*
