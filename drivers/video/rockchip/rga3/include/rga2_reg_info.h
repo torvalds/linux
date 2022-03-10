@@ -39,6 +39,10 @@
 #define s_RGA2_SYS_CMD_CONTINUE(x)			((x & 0x1) << 10)
 
 /*RGA_INT*/
+#define m_RGA2_INT_LINE_WR_CLEAR			(1 << 16)
+#define m_RGA2_INT_LINE_RD_CLEAR			(1 << 15)
+#define m_RGA2_INT_LINE_WR_EN				(1 << 14)
+#define m_RGA2_INT_LINE_RD_EN				(1 << 13)
 #define m_RGA2_INT_WRITE_CNT_FLAG			(1 << 12)
 #define m_RGA2_INT_READ_CNT_FLAG			(1 << 11)
 #define m_RGA2_INT_ALL_CMD_DONE_INT_EN			(1 << 10)
@@ -64,6 +68,18 @@
 #define s_RGA2_INT_ALL_CMD_DONE_INT_CLEAR(x)		((x & 0x1) << 6)
 #define s_RGA2_INT_MMU_INT_CLEAR(x)			((x & 0x1) << 5)
 #define s_RGA2_INT_ERROR_INT_CLEAR(x)			((x & 0x1) << 4)
+
+/* RGA_READ_LINE_CNT_TH */
+#define m_RGA2_READ_LINE_SW_INTR_LINE_RD_TH		(0x1fff << 0)
+
+#define s_RGA2_READ_LINE_SW_INTR_LINE_RD_TH(x)		((x & 0x1fff) << 0)
+
+/* RGA_WRITE_LINE_CNT_TN */
+#define m_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START		(0x1fff << 0)
+#define m_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP		(0x1fff << 16)
+
+#define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START(x)	((x & 0x1fff) << 0)
+#define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP(x)	((x & 0x1fff) << 16)
 
 /* RGA_MODE_CTRL */
 #define m_RGA2_MODE_CTRL_SW_RENDER_MODE			(0x7 << 0)

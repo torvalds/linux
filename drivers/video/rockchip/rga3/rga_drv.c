@@ -771,8 +771,9 @@ static irqreturn_t rga2_irq_handler(int irq, void *data)
 	}
 
 	/*clear INT */
-	rga_write(rga_read(RGA2_INT, rga_scheduler) | (0x1 << 4) | (0x1 << 5) |
-		 (0x1 << 6) | (0x1 << 7), RGA2_INT, rga_scheduler);
+	rga_write(rga_read(RGA2_INT, rga_scheduler) |
+		  (0x1 << 4) | (0x1 << 5) | (0x1 << 6) | (0x1 << 7) |
+		  (0x1 << 15) | (0x1 << 16), RGA2_INT, rga_scheduler);
 
 	return IRQ_WAKE_THREAD;
 }

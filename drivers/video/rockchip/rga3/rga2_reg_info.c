@@ -2271,6 +2271,8 @@ int rga2_init_reg(struct rga_job *job)
 	memset(&req, 0x0, sizeof(req));
 
 	rga_cmd_to_rga2_cmd(scheduler, &job->rga_command_base, &req);
+	memcpy(&job->pre_intr_info, &job->rga_command_base.pre_intr_info,
+	       sizeof(job->pre_intr_info));
 
 	/* check value if legal */
 	ret = rga2_check_param(&req);
@@ -2354,6 +2356,36 @@ static void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 			csc_reg[2 + i * 4], csc_reg[3 + i * 4]);
 }
 
+static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	uint32_t reg;
+
+	if (job->pre_intr_info.read_intr_en) {
+		reg = s_RGA2_READ_LINE_SW_INTR_LINE_RD_TH(job->pre_intr_info.read_threshold);
+		rga_write(reg, RGA2_READ_LINE_CNT_OFFSET, scheduler);
+	}
+
+	if (job->pre_intr_info.write_intr_en) {
+		reg = s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START(job->pre_intr_info.write_start);
+		reg = ((reg & (~m_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP)) |
+		       (s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP(job->pre_intr_info.write_step)));
+		rga_write(reg, RGA2_WRITE_LINE_CNT_OFFSET, scheduler);
+	}
+
+	reg = rga_read(RGA2_SYS_CTRL_OFFSET, scheduler);
+	reg = ((reg & (~m_RGA2_SYS_HOLD_MODE_EN)) |
+	       (s_RGA2_SYS_HOLD_MODE_EN(job->pre_intr_info.read_hold_en)));
+	rga_write(reg, RGA2_SYS_CTRL_OFFSET, scheduler);
+
+	reg = rga_read(RGA2_INT_OFFSET, scheduler);
+	reg = (reg | s_RGA2_INT_LINE_RD_CLEAR(0x1) | s_RGA2_INT_LINE_WR_CLEAR(0x1));
+	reg = ((reg & (~m_RGA2_INT_LINE_RD_EN)) |
+	       (s_RGA2_INT_LINE_RD_EN(job->pre_intr_info.read_intr_en)));
+	reg = ((reg & (~m_RGA2_INT_LINE_WR_EN)) |
+	       (s_RGA2_INT_LINE_WR_EN(job->pre_intr_info.write_intr_en)));
+	rga_write(reg, RGA2_INT_OFFSET, scheduler);
+}
+
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	ktime_t now = ktime_get();
@@ -2384,6 +2416,10 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	for (i = 0; i < 12; i++) {
 		rga_write(job->csc_reg[i], RGA2_CSC_COE_BASE + i * 4,
 			 scheduler);
+	}
+
+	if (job->pre_intr_info.enable) {
+		rga2_set_pre_intr_reg(job, scheduler);
 	}
 
 	if (DEBUGGER_EN(REG)) {

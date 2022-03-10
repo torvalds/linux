@@ -406,6 +406,17 @@ struct rga_osd_info {
 	};
 };
 
+struct rga_pre_intr_info {
+	uint8_t enable;
+
+	uint8_t read_intr_en;
+	uint8_t write_intr_en;
+	uint8_t read_hold_en;
+	uint32_t read_threshold;
+	uint32_t write_start;
+	uint32_t write_step;
+};
+
 struct rga_win_info_t {
 	/* yrgb	mem addr */
 	unsigned long yrgb_addr;
@@ -589,7 +600,9 @@ struct rga_req {
 
 	struct rga_osd_info osd_info;
 
-	uint8_t reservr[75];
+	struct rga_pre_intr_info pre_intr_info;
+
+	uint8_t reservr[59];
 };
 
 struct rga2_req {
