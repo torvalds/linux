@@ -1417,7 +1417,6 @@ EXPORT_SYMBOL(ath11k_core_deinit);
 
 void ath11k_core_free(struct ath11k_base *ab)
 {
-	flush_workqueue(ab->workqueue);
 	destroy_workqueue(ab->workqueue);
 
 	kfree(ab);
