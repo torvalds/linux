@@ -91,6 +91,11 @@
 #define ACPI_PPAG_MAX_LB 24
 #define ACPI_PPAG_MIN_HB -16
 #define ACPI_PPAG_MAX_HB 40
+#define ACPI_PPAG_MASK 3
+#define IWL_PPAG_ETSI_MASK BIT(0)
+
+#define IWL_SAR_ENABLE_MSK		BIT(0)
+#define IWL_REDUCE_POWER_FLAGS_POS	1
 
 /*
  * The profile for revision 2 is a superset of revision 1, which is in
@@ -220,6 +225,13 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
+int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *cmd,
+			int *cmd_size);
+
+bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
@@ -305,6 +317,22 @@ static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	return 0;
+}
+
+static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt,
+				    union iwl_ppag_table_cmd *cmd, int *cmd_size)
+{
+	return -ENOENT;
+}
+
+static inline bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
+{
+	return false;
 }
 
 #endif /* CONFIG_ACPI */

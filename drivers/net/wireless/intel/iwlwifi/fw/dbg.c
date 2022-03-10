@@ -2430,6 +2430,9 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 	struct iwl_dump_ini_region_data reg_data = {
 		.dump_data = dump_data,
 	};
+	struct iwl_dump_ini_region_data imr_reg_data = {
+		.dump_data = dump_data,
+	};
 	int i;
 	u32 size = 0;
 	u64 regions_mask = le64_to_cpu(trigger->regions_mask) &
@@ -2465,10 +2468,32 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 				 tp_id);
 			continue;
 		}
+		/*
+		 * DRAM_IMR can be collected only for FW/HW error timepoint
+		 * when fw is not alive. In addition, it must be collected
+		 * lastly as it overwrites SRAM that can possibly contain
+		 * debug data which also need to be collected.
+		 */
+		if (reg_type == IWL_FW_INI_REGION_DRAM_IMR) {
+			if (tp_id == IWL_FW_INI_TIME_POINT_FW_ASSERT ||
+			    tp_id == IWL_FW_INI_TIME_POINT_FW_HW_ERROR)
+				imr_reg_data.reg_tlv = fwrt->trans->dbg.active_regions[i];
+			else
+				IWL_INFO(fwrt,
+					 "WRT: trying to collect DRAM_IMR at time point: %d, skipping\n",
+					 tp_id);
+		/* continue to next region */
+			continue;
+		}
+
 
 		size += iwl_dump_ini_mem(fwrt, list, &reg_data,
 					 &iwl_dump_ini_region_ops[reg_type]);
 	}
+	/* collect DRAM_IMR region in the last */
+	if (imr_reg_data.reg_tlv)
+		size += iwl_dump_ini_mem(fwrt, list, &reg_data,
+					 &iwl_dump_ini_region_ops[IWL_FW_INI_REGION_DRAM_IMR]);
 
 	if (size)
 		size += iwl_dump_ini_info(fwrt, trigger, list);
@@ -2880,6 +2905,11 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
+	if (!dump_data->trig) {
+		IWL_ERR(fwrt, "dump trigger data is not set\n");
+		goto out;
+	}
+
 	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status)) {
 		IWL_ERR(fwrt, "Device is not enabled - cannot dump error\n");
 		goto out;
@@ -2967,10 +2997,10 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 		 "WRT: Collecting data: ini trigger %d fired (delay=%dms).\n",
 		 tp_id, (u32)(delay / USEC_PER_MSEC));
 
-	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
-
 	if (sync)
 		iwl_fw_dbg_collect_sync(fwrt, idx);
+	else
+		schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
 
 	return 0;
 }

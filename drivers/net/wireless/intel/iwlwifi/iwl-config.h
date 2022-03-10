@@ -260,6 +260,7 @@ enum iwl_cfg_trans_ltr_delay {
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
  * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
+ * @imr_enabled: use the IMR if supported.
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
@@ -274,7 +275,8 @@ struct iwl_cfg_trans_params {
 	    integrated:1,
 	    low_latency_xtal:1,
 	    bisr_workaround:1,
-	    ltr_delay:2;
+	    ltr_delay:2,
+	    imr_enabled:1;
 };
 
 /**
@@ -491,6 +493,7 @@ extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_snj_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_so_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_ma_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_bz_trans_cfg;
 extern const char iwl9162_name[];

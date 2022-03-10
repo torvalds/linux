@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -10,7 +10,7 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_22000_UCODE_API_MAX	70
+#define IWL_22000_UCODE_API_MAX	72
 
 /* Lowest firmware API version supported */
 #define IWL_22000_UCODE_API_MIN	39
@@ -389,6 +389,21 @@ const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg = {
 	.low_latency_xtal = true,
 	.xtal_latency = 12000,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
+};
+
+const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_AX210,
+	.base_params = &iwl_ax210_base_params,
+	.umac_prph_offset = 0x300000,
+	.integrated = true,
+	.low_latency_xtal = true,
+	.xtal_latency = 12000,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
+	.imr_enabled = true,
 };
 
 /*
