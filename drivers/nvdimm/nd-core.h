@@ -150,9 +150,6 @@ int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
 int alias_dpa_busy(struct device *dev, void *data);
-struct resource *nsblk_add_resource(struct nd_region *nd_region,
-		struct nvdimm_drvdata *ndd, struct nd_namespace_blk *nsblk,
-		resource_size_t start);
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
 void get_ndd(struct nvdimm_drvdata *ndd);
 resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);

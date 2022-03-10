@@ -687,7 +687,6 @@ static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 
 	return false;
 }
-resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 const uuid_t *nd_dev_to_uuid(struct device *dev);
 bool pmem_should_map_pages(struct device *dev);
 #endif /* __ND_H__ */
