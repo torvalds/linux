@@ -6601,7 +6601,6 @@ static int btrfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	if (err)
 		goto out_fail;
 
-	btrfs_i_size_write(BTRFS_I(inode), 0);
 	err = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	if (err)
 		goto out_fail;
@@ -8780,7 +8779,6 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	inode->i_fop = &btrfs_dir_file_operations;
 
 	set_nlink(inode, 1);
-	btrfs_i_size_write(BTRFS_I(inode), 0);
 	unlock_new_inode(inode);
 
 	err = btrfs_subvol_inherit_props(trans, new_root, parent_root);
