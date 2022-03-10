@@ -45,12 +45,11 @@ int sof_ipc_msg_data(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL(sof_ipc_msg_data);
 
-int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
+int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
 {
 	struct sof_stream *stream = substream->runtime->private_data;
-	size_t posn_offset = reply->posn_offset;
 
 	/* check if offset is overflow or it is not aligned */
 	if (posn_offset > sdev->stream_box.size ||
@@ -63,6 +62,14 @@ int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
 		substream->stream, stream->posn_offset);
 
 	return 0;
+}
+EXPORT_SYMBOL(sof_set_stream_data_offset);
+
+int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply)
+{
+	return sof_set_stream_data_offset(sdev, substream, reply->posn_offset);
 }
 EXPORT_SYMBOL(sof_ipc_pcm_params);
 
