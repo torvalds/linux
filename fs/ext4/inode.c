@@ -3566,10 +3566,11 @@ const struct iomap_ops ext4_iomap_report_ops = {
 };
 
 /*
- * Pages can be marked dirty completely asynchronously from ext4's journalling
- * activity.  By filemap_sync_pte(), try_to_unmap_one(), etc.  We cannot do
- * much here because ->set_page_dirty is called under VFS locks.  The page is
- * not necessarily locked.
+ * Whenever the page is being dirtied, corresponding buffers should already be
+ * attached to the transaction (we take care of this in ext4_page_mkwrite() and
+ * ext4_write_begin()). However we cannot move buffers to dirty transaction
+ * lists here because ->set_page_dirty is called under VFS locks and the page
+ * is not necessarily locked.
  *
  * We cannot just dirty the page and leave attached buffers clean, because the
  * buffers' dirty state is "definitive".  We cannot just set the buffers dirty
@@ -3580,6 +3581,7 @@ const struct iomap_ops ext4_iomap_report_ops = {
  */
 static int ext4_journalled_set_page_dirty(struct page *page)
 {
+	WARN_ON_ONCE(!page_has_buffers(page));
 	SetPageChecked(page);
 	return __set_page_dirty_nobuffers(page);
 }
