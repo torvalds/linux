@@ -10,6 +10,7 @@
 #include "io.h"
 #include "journal.h"
 #include "journal_io.h"
+#include "journal_sb.h"
 #include "journal_seq_blacklist.h"
 #include "replicas.h"
 #include "quota.h"
@@ -459,7 +460,7 @@ static void __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 	memcpy(dst->compat,	src->compat,	sizeof(dst->compat));
 
 	for (i = 0; i < BCH_SB_FIELD_NR; i++) {
-		if (i == BCH_SB_FIELD_journal)
+		if ((1U << i) & BCH_SINGLE_DEVICE_SB_FIELDS)
 			continue;
 
 		src_f = bch2_sb_field_get(src, i);
@@ -928,85 +929,6 @@ void __bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 	}
 	mutex_unlock(&c->sb_lock);
 }
-
-/* BCH_SB_FIELD_journal: */
-
-static int u64_cmp(const void *_l, const void *_r)
-{
-	u64 l = *((const u64 *) _l), r = *((const u64 *) _r);
-
-	return l < r ? -1 : l > r ? 1 : 0;
-}
-
-static int bch2_sb_journal_validate(struct bch_sb *sb,
-				    struct bch_sb_field *f,
-				    struct printbuf *err)
-{
-	struct bch_sb_field_journal *journal = field_to_type(f, journal);
-	struct bch_member *m = bch2_sb_get_members(sb)->members + sb->dev_idx;
-	int ret = -EINVAL;
-	unsigned nr;
-	unsigned i;
-	u64 *b;
-
-	nr = bch2_nr_journal_buckets(journal);
-	if (!nr)
-		return 0;
-
-	b = kmalloc_array(sizeof(u64), nr, GFP_KERNEL);
-	if (!b)
-		return -ENOMEM;
-
-	for (i = 0; i < nr; i++)
-		b[i] = le64_to_cpu(journal->buckets[i]);
-
-	sort(b, nr, sizeof(u64), u64_cmp, NULL);
-
-	if (!b[0]) {
-		pr_buf(err, "journal bucket at sector 0");
-		goto err;
-	}
-
-	if (b[0] < le16_to_cpu(m->first_bucket)) {
-		pr_buf(err, "journal bucket %llu before first bucket %u",
-		       b[0], le16_to_cpu(m->first_bucket));
-		goto err;
-	}
-
-	if (b[nr - 1] >= le64_to_cpu(m->nbuckets)) {
-		pr_buf(err, "journal bucket %llu past end of device (nbuckets %llu)",
-		       b[nr - 1], le64_to_cpu(m->nbuckets));
-		goto err;
-	}
-
-	for (i = 0; i + 1 < nr; i++)
-		if (b[i] == b[i + 1]) {
-			pr_buf(err, "duplicate journal buckets %llu", b[i]);
-			goto err;
-		}
-
-	ret = 0;
-err:
-	kfree(b);
-	return ret;
-}
-
-static void bch2_sb_journal_to_text(struct printbuf *out, struct bch_sb *sb,
-				    struct bch_sb_field *f)
-{
-	struct bch_sb_field_journal *journal = field_to_type(f, journal);
-	unsigned i, nr = bch2_nr_journal_buckets(journal);
-
-	pr_buf(out, "Buckets: ");
-	for (i = 0; i < nr; i++)
-		pr_buf(out, " %llu", le64_to_cpu(journal->buckets[i]));
-	pr_newline(out);
-}
-
-static const struct bch_sb_field_ops bch_sb_field_ops_journal = {
-	.validate	= bch2_sb_journal_validate,
-	.to_text	= bch2_sb_journal_to_text,
-};
 
 /* BCH_SB_FIELD_members: */
 

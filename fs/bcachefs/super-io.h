@@ -75,15 +75,6 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 		__bch2_check_set_feature(c, feat);
 }
 
-/* BCH_SB_FIELD_journal: */
-
-static inline unsigned bch2_nr_journal_buckets(struct bch_sb_field_journal *j)
-{
-	return j
-		? (__le64 *) vstruct_end(&j->field) - j->buckets
-		: 0;
-}
-
 /* BCH_SB_FIELD_members: */
 
 static inline bool bch2_member_exists(struct bch_member *m)

@@ -1027,16 +1027,17 @@ struct bch_sb_field {
 	__le32			type;
 };
 
-#define BCH_SB_FIELDS()		\
-	x(journal,	0)	\
-	x(members,	1)	\
-	x(crypt,	2)	\
-	x(replicas_v0,	3)	\
-	x(quota,	4)	\
-	x(disk_groups,	5)	\
-	x(clean,	6)	\
-	x(replicas,	7)	\
-	x(journal_seq_blacklist, 8)
+#define BCH_SB_FIELDS()				\
+	x(journal,	0)			\
+	x(members,	1)			\
+	x(crypt,	2)			\
+	x(replicas_v0,	3)			\
+	x(quota,	4)			\
+	x(disk_groups,	5)			\
+	x(clean,	6)			\
+	x(replicas,	7)			\
+	x(journal_seq_blacklist, 8)		\
+	x(journal_v2,	9)
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -1045,11 +1046,28 @@ enum bch_sb_field_type {
 	BCH_SB_FIELD_NR
 };
 
+/*
+ * Most superblock fields are replicated in all device's superblocks - a few are
+ * not:
+ */
+#define BCH_SINGLE_DEVICE_SB_FIELDS		\
+	((1U << BCH_SB_FIELD_journal)|		\
+	 (1U << BCH_SB_FIELD_journal_v2))
+
 /* BCH_SB_FIELD_journal: */
 
 struct bch_sb_field_journal {
 	struct bch_sb_field	field;
 	__le64			buckets[0];
+};
+
+struct bch_sb_field_journal_v2 {
+	struct bch_sb_field	field;
+
+	struct bch_sb_field_journal_v2_entry {
+		__le64		start;
+		__le64		nr;
+	}			d[0];
 };
 
 /* BCH_SB_FIELD_members: */
