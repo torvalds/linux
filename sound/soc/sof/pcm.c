@@ -36,22 +36,6 @@ static int create_page_table(struct snd_soc_component *component,
 		spcm->stream[stream].page_table.area, size);
 }
 
-static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream *substream,
-			      const struct sof_ipc_pcm_params_reply *reply)
-{
-	struct snd_soc_component *scomp = spcm->scomp;
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-
-	/* validate offset */
-	int ret = snd_sof_ipc_pcm_params(sdev, substream, reply);
-
-	if (ret < 0)
-		dev_err(scomp->dev, "error: got wrong reply for PCM %d\n",
-			spcm->pcm.pcm_id);
-
-	return ret;
-}
-
 /*
  * sof pcm period elapse work
  */
@@ -285,9 +269,12 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 		return ret;
 	}
 
-	ret = sof_pcm_dsp_params(spcm, substream, &ipc_params_reply);
-	if (ret < 0)
+	ret = snd_sof_ipc_pcm_params(sdev, substream, &ipc_params_reply);
+	if (ret < 0) {
+		dev_err(component->dev, "%s: got wrong reply for PCM %d\n",
+			__func__, spcm->pcm.pcm_id);
 		return ret;
+	}
 
 	spcm->prepared[substream->stream] = true;
 
