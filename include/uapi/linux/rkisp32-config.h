@@ -48,6 +48,7 @@
 #define ISP32_MODULE_CAC		ISP3X_MODULE_CAC
 #define ISP32_MODULE_CSM		ISP3X_MODULE_CSM
 #define ISP32_MODULE_CGC		ISP3X_MODULE_CGC
+#define ISP32_MODULE_VSM		BIT_ULL(45)
 
 /* Measurement types */
 #define ISP32_STAT_RAWAWB		ISP3X_STAT_RAWAWB
@@ -62,6 +63,7 @@
 #define ISP32_STAT_RAWHST3		ISP3X_STAT_RAWHST3
 #define ISP32_STAT_BLS			ISP3X_STAT_BLS
 #define ISP32_STAT_DHAZ			ISP3X_STAT_DHAZ
+#define ISP32_STAT_VSM			BIT(18)
 
 #define ISP32_MESH_BUF_NUM		ISP3X_MESH_BUF_NUM
 
@@ -1226,6 +1228,15 @@ struct isp32_cac_cfg {
 	s32 buf_fd;
 } __attribute__ ((packed));
 
+struct isp32_vsm_cfg {
+	u8 h_segments;
+	u8 v_segments;
+	u16 h_offs;
+	u16 v_offs;
+	u16 h_size;
+	u16 v_size;
+} __attribute__ ((packed));
+
 struct isp32_isp_other_cfg {
 	struct isp32_bls_cfg bls_cfg;
 	struct isp2x_dpcc_cfg dpcc_cfg;
@@ -1252,6 +1263,7 @@ struct isp32_isp_other_cfg {
 	struct isp3x_gain_cfg gain_cfg;
 	struct isp21_csm_cfg csm_cfg;
 	struct isp21_cgc_cfg cgc_cfg;
+	struct isp32_vsm_cfg vsm_cfg;
 } __attribute__ ((packed));
 
 struct isp32_isp_meas_cfg {
@@ -1295,7 +1307,7 @@ struct isp32_rawaf_stat {
 	u32 afm_sum_b;
 	u32 afm_lum_b;
 	u32 highlit_cnt_winb;
-	u32 reserved[21];
+	u32 reserved[20];
 } __attribute__ ((packed));
 
 struct isp32_rawawb_ramdata {
@@ -1332,6 +1344,11 @@ struct isp32_rawawb_meas_stat {
 	struct isp32_rawawb_sum_exc sum_exc[ISP32_RAWAWB_EXCL_STAT_NUM];
 } __attribute__ ((packed));
 
+struct isp32_vsm_stat {
+	u16 delta_h;
+	u16 delta_v;
+} __attribute__ ((packed));
+
 struct isp32_isp_params_cfg {
 	u64 module_en_update;
 	u64 module_ens;
@@ -1357,6 +1374,7 @@ struct isp32_stat {
 	struct isp2x_rawhistbig_stat rawhist2;	//offset 0x1800
 	struct isp32_rawaf_stat rawaf;		//offset 0x1c00
 	struct isp3x_dhaz_stat dhaz;
+	struct isp32_vsm_stat vsm;
 	struct isp32_rawawb_meas_stat rawawb;	//offset 0x2b00
 } __attribute__ ((packed));
 

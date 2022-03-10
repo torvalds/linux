@@ -3551,6 +3551,51 @@ isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, val, ISP3X_ISP_CTRL0);
 }
 
+static void
+isp_vsm_config(struct rkisp_isp_params_vdev *params_vdev,
+	       const struct isp32_vsm_cfg *arg)
+{
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct v4l2_rect *out_crop = &ispdev->isp_sdev.out_crop;
+	u32 width = out_crop->width;
+	u32 height = out_crop->height;
+	u32 val, h, v;
+
+	val = arg->h_offs;
+	isp3_param_write(params_vdev, val, ISP32_VSM_H_OFFS);
+	val = arg->v_offs;
+	isp3_param_write(params_vdev, val, ISP32_VSM_V_OFFS);
+
+	h = arg->h_size;
+	if (h > width - arg->h_offs)
+		h = width - arg->h_offs;
+	h &= ~1;
+	isp3_param_write(params_vdev, h, ISP32_VSM_H_SIZE);
+
+	v = arg->v_size;
+	if (v > height - arg->v_offs)
+		v = height - arg->v_offs;
+	v &= ~1;
+	isp3_param_write(params_vdev, v, ISP32_VSM_V_SIZE);
+
+	val = arg->h_segments;
+	if (val > (h - 48) / 16)
+		val = (h - 48) / 16;
+	isp3_param_write(params_vdev, val, ISP32_VSM_H_SEGMENTS);
+
+	val = arg->v_segments;
+	if (val > (v - 48) / 16)
+		val = (v - 48) / 16;
+	isp3_param_write(params_vdev, val, ISP32_VSM_V_SEGMENTS);
+}
+
+static void
+isp_vsm_enable(struct rkisp_isp_params_vdev *params_vdev,
+	       bool en)
+{
+	isp3_param_write(params_vdev, en, ISP32_VSM_MODE);
+}
+
 struct rkisp_isp_params_ops_v32 isp_params_ops_v32 = {
 	.dpcc_config = isp_dpcc_config,
 	.dpcc_enable = isp_dpcc_enable,
@@ -3620,6 +3665,8 @@ struct rkisp_isp_params_ops_v32 isp_params_ops_v32 = {
 	.cac_config = isp_cac_config,
 	.cac_enable = isp_cac_enable,
 	.cgc_config = isp_cgc_config,
+	.vsm_config = isp_vsm_config,
+	.vsm_enable = isp_vsm_enable,
 };
 
 static __maybe_unused
@@ -3718,6 +3765,9 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (module_cfg_update & ISP32_MODULE_GAIN)
 		ops->gain_config(params_vdev, &new_params->others.gain_cfg);
+
+	if (module_cfg_update & ISP32_MODULE_VSM)
+		ops->vsm_config(params_vdev, &new_params->others.vsm_cfg);
 }
 
 static __maybe_unused
@@ -3820,6 +3870,9 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (module_en_update & ISP32_MODULE_GAIN)
 		ops->gain_enable(params_vdev, !!(module_ens & ISP32_MODULE_GAIN));
+
+	if (module_en_update & ISP32_MODULE_VSM)
+		ops->vsm_enable(params_vdev, !!(module_ens & ISP32_MODULE_VSM));
 
 	/* gain disable, using global gain for cnr */
 	gain_ctrl = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL);

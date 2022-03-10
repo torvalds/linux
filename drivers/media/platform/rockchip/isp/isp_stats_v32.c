@@ -35,6 +35,27 @@ static void isp3_stats_write(struct rkisp_isp_stats_vdev *stats_vdev,
 }
 
 static int
+rkisp_stats_get_vsm_stats(struct rkisp_isp_stats_vdev *stats_vdev,
+			  struct rkisp32_isp_stat_buffer *pbuf)
+{
+	struct isp32_vsm_stat *vsm;
+	u32 value;
+
+	if (!pbuf)
+		return 0;
+
+	vsm = &pbuf->params.vsm;
+	if (isp3_stats_read(stats_vdev, ISP32_VSM_MODE)) {
+		value = isp3_stats_read(stats_vdev, ISP32_VSM_DELTA_H);
+		vsm->delta_h = value;
+		value = isp3_stats_read(stats_vdev, ISP32_VSM_DELTA_V);
+		vsm->delta_v = value;
+		pbuf->meas_type |= ISP32_STAT_VSM;
+	}
+	return 0;
+}
+
+static int
 rkisp_stats_get_bls_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp32_isp_stat_buffer *pbuf)
 {
@@ -414,6 +435,7 @@ static struct rkisp_stats_ops_v32 __maybe_unused stats_ddr_ops_v32 = {
 	.get_rawhst3_meas = rkisp_stats_get_rawhst3_meas_ddr,
 	.get_bls_stats = rkisp_stats_get_bls_stats,
 	.get_dhaz_stats = rkisp_stats_get_dhaz_stats,
+	.get_vsm_stats = rkisp_stats_get_vsm_stats,
 };
 
 static void
@@ -521,6 +543,7 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (meas_work->isp_ris & ISP3X_FRAME) {
 		ret |= ops->get_bls_stats(stats_vdev, cur_stat_buf);
 		ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
+		ret |= ops->get_vsm_stats(stats_vdev, cur_stat_buf);
 	}
 
 	if (cur_buf) {

@@ -37,6 +37,8 @@ struct rkisp_stats_ops_v32 {
 			     struct rkisp32_isp_stat_buffer *pbuf);
 	int (*get_dhaz_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
 			      struct rkisp32_isp_stat_buffer *pbuf);
+	int (*get_vsm_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
+			     struct rkisp32_isp_stat_buffer *pbuf);
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32)
