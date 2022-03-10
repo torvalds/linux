@@ -101,23 +101,29 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		xdptxd.dma_addr     = dma_addr;
 		xdpi.frame.xdpf     = xdpf;
 		xdpi.frame.dma_addr = dma_addr;
-	} else {
-		/* Driver assumes that xdp_convert_buff_to_frame returns
-		 * an xdp_frame that points to the same memory region as
-		 * the original xdp_buff. It allows to map the memory only
-		 * once and to use the DMA_BIDIRECTIONAL mode.
-		 */
 
-		xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
+		if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
+					      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL, 0)))
+			return false;
 
-		dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
-		dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len,
-					   DMA_TO_DEVICE);
-
-		xdptxd.dma_addr = dma_addr;
-		xdpi.page.rq    = rq;
-		xdpi.page.page = page;
+		mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+		return true;
 	}
+
+	/* Driver assumes that xdp_convert_buff_to_frame returns an xdp_frame
+	 * that points to the same memory region as the original xdp_buff. It
+	 * allows to map the memory only once and to use the DMA_BIDIRECTIONAL
+	 * mode.
+	 */
+
+	xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
+
+	dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
+	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len, DMA_TO_DEVICE);
+
+	xdptxd.dma_addr = dma_addr;
+	xdpi.page.rq = rq;
+	xdpi.page.page = page;
 
 	if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
 				      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL, 0)))
