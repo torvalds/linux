@@ -237,6 +237,7 @@ struct dm_io {
 	unsigned long start_time;
 	void *data;
 	struct hlist_node node;
+	struct task_struct *map_task;
 	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
 	/* last member of dm_target_io is 'struct bio' */

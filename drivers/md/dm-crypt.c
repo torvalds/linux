@@ -1857,7 +1857,7 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 		return 1;
 	}
 
-	dm_submit_bio_remap(io->base_bio, clone, (gfp != CRYPT_MAP_READ_GFP));
+	dm_submit_bio_remap(io->base_bio, clone);
 	return 0;
 }
 
@@ -1883,7 +1883,7 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
 {
 	struct bio *clone = io->ctx.bio_out;
 
-	dm_submit_bio_remap(io->base_bio, clone, true);
+	dm_submit_bio_remap(io->base_bio, clone);
 }
 
 #define crypt_io_from_node(node) rb_entry((node), struct dm_crypt_io, rb_node)
@@ -1962,7 +1962,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 
 	if ((likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) ||
 	    test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags)) {
-		dm_submit_bio_remap(io->base_bio, clone, true);
+		dm_submit_bio_remap(io->base_bio, clone);
 		return;
 	}
 

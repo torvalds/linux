@@ -72,7 +72,7 @@ static void flush_bios(struct bio *bio)
 	while (bio) {
 		n = bio->bi_next;
 		bio->bi_next = NULL;
-		dm_submit_bio_remap(bio, NULL, true);
+		dm_submit_bio_remap(bio, NULL);
 		bio = n;
 	}
 }

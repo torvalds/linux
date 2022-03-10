@@ -755,7 +755,7 @@ static void issue(struct thin_c *tc, struct bio *bio)
 	struct pool *pool = tc->pool;
 
 	if (!bio_triggers_commit(tc, bio)) {
-		dm_submit_bio_remap(bio, NULL, true);
+		dm_submit_bio_remap(bio, NULL);
 		return;
 	}
 
@@ -2383,7 +2383,7 @@ static void process_deferred_bios(struct pool *pool)
 		if (bio->bi_opf & REQ_PREFLUSH)
 			bio_endio(bio);
 		else
-			dm_submit_bio_remap(bio, NULL, true);
+			dm_submit_bio_remap(bio, NULL);
 	}
 }
 

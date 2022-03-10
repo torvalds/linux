@@ -574,6 +574,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = NULL;
 	io->md = md;
+	io->map_task = current;
 	spin_lock_init(&io->endio_lock);
 
 	io->start_time = jiffies;
@@ -1189,15 +1190,13 @@ static inline void __dm_submit_bio_remap(struct bio *clone,
 /*
  * @clone: clone bio that DM core passed to target's .map function
  * @tgt_clone: clone of @clone bio that target needs submitted
- * @from_wq: caller is a workqueue thread managed by DM target
  *
  * Targets should use this interface to submit bios they take
  * ownership of when returning DM_MAPIO_SUBMITTED.
  *
  * Target should also enable ti->accounts_remapped_io
  */
-void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone,
-			 bool from_wq)
+void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone)
 {
 	struct dm_target_io *tio = clone_to_tio(clone);
 	struct dm_io *io = tio->io;
@@ -1212,7 +1211,7 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone,
 	 * Account io->origin_bio to DM dev on behalf of target
 	 * that took ownership of IO with DM_MAPIO_SUBMITTED.
 	 */
-	if (!from_wq) {
+	if (io->map_task == current) {
 		/* Still in target's map function */
 		io->start_io_acct = true;
 	} else {
@@ -1568,6 +1567,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	}
 
 	error = __split_and_process_bio(&ci);
+	ci.io->map_task = NULL;
 	if (error || !ci.sector_count)
 		goto out;
 
