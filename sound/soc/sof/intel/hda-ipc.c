@@ -289,10 +289,3 @@ int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-
-int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
-{
-	return hda_set_stream_data_offset(sdev, substream, reply->posn_offset);
-}
