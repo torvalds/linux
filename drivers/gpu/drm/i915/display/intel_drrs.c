@@ -65,7 +65,7 @@ static bool can_enable_drrs(struct intel_connector *connector,
 		return false;
 
 	return connector->panel.downclock_mode &&
-		i915->drrs.type == SEAMLESS_DRRS_SUPPORT;
+		i915->drrs.type == DRRS_TYPE_SEAMLESS;
 }
 
 void
@@ -155,7 +155,7 @@ static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT) {
+	if (dev_priv->drrs.type != DRRS_TYPE_SEAMLESS) {
 		drm_dbg_kms(&dev_priv->drm, "Only Seamless DRRS supported.\n");
 		return;
 	}
@@ -274,7 +274,7 @@ intel_drrs_update(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT)
+	if (dev_priv->drrs.type != DRRS_TYPE_SEAMLESS)
 		return;
 
 	mutex_lock(&dev_priv->drrs.mutex);
@@ -329,7 +329,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT)
+	if (dev_priv->drrs.type != DRRS_TYPE_SEAMLESS)
 		return;
 
 	cancel_delayed_work(&dev_priv->drrs.work);
@@ -449,7 +449,7 @@ intel_drrs_init(struct intel_connector *connector,
 		return NULL;
 	}
 
-	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
+	if (dev_priv->vbt.drrs_type != DRRS_TYPE_SEAMLESS) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CONNECTOR:%d:%s] DRRS not supported according to VBT\n",
 			    connector->base.base.id, connector->base.name);

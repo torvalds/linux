@@ -207,10 +207,10 @@ enum drrs_refresh_rate_type {
 	DRRS_MAX_RR, /* RR count */
 };
 
-enum drrs_support_type {
-	DRRS_NOT_SUPPORTED = 0,
-	STATIC_DRRS_SUPPORT = 1,
-	SEAMLESS_DRRS_SUPPORT = 2
+enum drrs_type {
+	DRRS_TYPE_NONE,
+	DRRS_TYPE_STATIC,
+	DRRS_TYPE_SEAMLESS,
 };
 
 struct i915_drrs {
@@ -219,7 +219,7 @@ struct i915_drrs {
 	struct intel_dp *dp;
 	unsigned busy_frontbuffer_bits;
 	enum drrs_refresh_rate_type refresh_rate_type;
-	enum drrs_support_type type;
+	enum drrs_type type;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
@@ -349,7 +349,7 @@ struct intel_vbt_data {
 	bool override_afc_startup;
 	u8 override_afc_startup_val;
 
-	enum drrs_support_type drrs_type;
+	enum drrs_type drrs_type;
 
 	struct {
 		int rate;

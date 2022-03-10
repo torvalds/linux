@@ -257,16 +257,16 @@ parse_panel_options(struct drm_i915_private *i915,
 	 */
 	switch (drrs_mode) {
 	case 0:
-		i915->vbt.drrs_type = STATIC_DRRS_SUPPORT;
+		i915->vbt.drrs_type = DRRS_TYPE_STATIC;
 		drm_dbg_kms(&i915->drm, "DRRS supported mode is static\n");
 		break;
 	case 2:
-		i915->vbt.drrs_type = SEAMLESS_DRRS_SUPPORT;
+		i915->vbt.drrs_type = DRRS_TYPE_SEAMLESS;
 		drm_dbg_kms(&i915->drm,
 			    "DRRS supported mode is seamless\n");
 		break;
 	default:
-		i915->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+		i915->vbt.drrs_type = DRRS_TYPE_NONE;
 		drm_dbg_kms(&i915->drm,
 			    "DRRS not supported (VBT input)\n");
 		break;
@@ -740,7 +740,7 @@ parse_driver_features(struct drm_i915_private *i915,
 		 * driver->drrs_enabled=false
 		 */
 		if (!driver->drrs_enabled)
-			i915->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+			i915->vbt.drrs_type = DRRS_TYPE_NONE;
 
 		i915->vbt.psr.enable = driver->psr_enabled;
 	}
@@ -769,7 +769,7 @@ parse_power_conservation_features(struct drm_i915_private *i915,
 	 * power->drrs & BIT(panel_type)=false
 	 */
 	if (!(power->drrs & BIT(panel_type)))
-		i915->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+		i915->vbt.drrs_type = DRRS_TYPE_NONE;
 
 	if (bdb->version >= 232)
 		i915->vbt.edp.hobl = power->hobl & BIT(panel_type);
