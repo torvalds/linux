@@ -984,6 +984,14 @@ enum dc_status dp_get_lane_status_and_lane_adjust(
 		(uint8_t *)(dpcd_buf),
 		sizeof(dpcd_buf));
 
+	if (status != DC_OK) {
+		DC_LOG_HW_LINK_TRAINING("%s:\n Failed to read from address 0x%X,"
+			" keep current lane status and lane adjust unchanged",
+			__func__,
+			lane01_status_address);
+		return status;
+	}
+
 	for (lane = 0; lane <
 		(uint32_t)(link_training_setting->link_settings.lane_count);
 		lane++) {
@@ -1124,6 +1132,9 @@ static bool perform_post_lt_adj_req_sequence(
 	uint32_t adj_req_timer;
 	bool req_drv_setting_changed;
 	uint32_t lane;
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
 	req_drv_setting_changed = false;
 	for (adj_req_count = 0; adj_req_count < POST_LT_ADJ_REQ_LIMIT;
@@ -1134,11 +1145,6 @@ static bool perform_post_lt_adj_req_sequence(
 		for (adj_req_timer = 0;
 			adj_req_timer < POST_LT_ADJ_REQ_TIMEOUT;
 			adj_req_timer++) {
-
-			union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
-			union lane_align_status_updated
-				dpcd_lane_status_updated;
-			union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
 
 			dp_get_lane_status_and_lane_adjust(
 				link,
@@ -1366,6 +1372,10 @@ static enum link_training_result perform_clock_recovery_sequence(
 	retries_cr = 0;
 	retry_count = 0;
 
+	memset(&dpcd_lane_status, '\0', sizeof(dpcd_lane_status));
+	memset(&dpcd_lane_status_updated, '\0',
+	sizeof(dpcd_lane_status_updated));
+
 	if (!link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		dp_set_hw_training_pattern(link, link_res, lt_settings->pattern_for_cr, offset);
 
@@ -1377,9 +1387,6 @@ static enum link_training_result perform_clock_recovery_sequence(
 	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
 		(retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
 
-		memset(&dpcd_lane_status, '\0', sizeof(dpcd_lane_status));
-		memset(&dpcd_lane_status_updated, '\0',
-		sizeof(dpcd_lane_status_updated));
 
 		/* 1. call HWSS to set lane settings*/
 		dp_set_hw_lane_settings(
@@ -2475,12 +2482,13 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		retries_cr = 0;
 		retry_count = 0;
 
+		memset(&dpcd_lane_status, '\0', sizeof(dpcd_lane_status));
+		memset(&dpcd_lane_status_updated, '\0',
+		sizeof(dpcd_lane_status_updated));
+
 		while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
 			(retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
 
-			memset(&dpcd_lane_status, '\0', sizeof(dpcd_lane_status));
-			memset(&dpcd_lane_status_updated, '\0',
-			sizeof(dpcd_lane_status_updated));
 
 			/* 1. call HWSS to set lane settings */
 			dp_set_hw_lane_settings(
