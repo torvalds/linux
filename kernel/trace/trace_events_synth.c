@@ -58,11 +58,8 @@ static void last_cmd_set(const char *str)
 		return;
 
 	kfree(last_cmd);
-	last_cmd = kzalloc(strlen(str) + 1, GFP_KERNEL);
-	if (!last_cmd)
-		return;
 
-	strncpy(last_cmd, str, strlen(str) + 1);
+	last_cmd = kstrdup(str, GFP_KERNEL);
 }
 
 static void synth_err(u8 err_type, u16 err_pos)
