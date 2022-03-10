@@ -466,19 +466,6 @@ static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
 {
 	return sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
 }
-
-/* host configure DSP HW parameters */
-static inline int
-snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
-{
-	if (sof_ops(sdev) && sof_ops(sdev)->ipc_pcm_params)
-		return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
-
-	return 0;
-}
-
 /* host side configuration of the stream's data offset in stream mailbox area */
 static inline int
 snd_sof_set_stream_data_offset(struct snd_sof_dev *sdev,

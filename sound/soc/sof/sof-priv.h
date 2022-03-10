@@ -221,11 +221,6 @@ struct snd_sof_dsp_ops {
 			    struct snd_pcm_substream *substream,
 			    void *p, size_t sz); /* mandatory */
 
-	/* host configure DSP HW parameters */
-	int (*ipc_pcm_params)(struct snd_sof_dev *sdev,
-			      struct snd_pcm_substream *substream,
-			      const struct sof_ipc_pcm_params_reply *reply); /* optional */
-
 	/* host side configuration of the stream's data offset in stream mailbox area */
 	int (*set_stream_data_offset)(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream,
@@ -635,9 +630,6 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 int sof_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream,
 		     void *p, size_t sz);
-int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply);
 int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
 			       struct snd_pcm_substream *substream,
 			       size_t posn_offset);

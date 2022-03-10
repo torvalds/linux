@@ -269,13 +269,6 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 		return ret;
 	}
 
-	ret = snd_sof_ipc_pcm_params(sdev, substream, &ipc_params_reply);
-	if (ret < 0) {
-		dev_err(component->dev, "%s: got wrong reply for PCM %d\n",
-			__func__, spcm->pcm.pcm_id);
-		return ret;
-	}
-
 	ret = snd_sof_set_stream_data_offset(sdev, substream,
 					     ipc_params_reply.posn_offset);
 	if (ret < 0) {
