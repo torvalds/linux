@@ -180,6 +180,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ssd_en>;
 
+		/*
+		 * The bootloaer may have left PCIe configured. Powering this
+		 * off while the PCIe clocks are still running isn't great,
+		 * so it's better to default to this regulator being on.
+		 */
+		regulator-boot-on;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
