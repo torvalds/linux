@@ -7388,36 +7388,36 @@ static const struct bpf_func_proto bpf_sock_ops_reserve_hdr_opt_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_skb_set_delivery_time, struct sk_buff *, skb,
-	   u64, dtime, u32, dtime_type)
+BPF_CALL_3(bpf_skb_set_tstamp, struct sk_buff *, skb,
+	   u64, tstamp, u32, tstamp_type)
 {
 	/* skb_clear_delivery_time() is done for inet protocol */
 	if (skb->protocol != htons(ETH_P_IP) &&
 	    skb->protocol != htons(ETH_P_IPV6))
 		return -EOPNOTSUPP;
 
-	switch (dtime_type) {
-	case BPF_SKB_DELIVERY_TIME_MONO:
-		if (!dtime)
+	switch (tstamp_type) {
+	case BPF_SKB_TSTAMP_DELIVERY_MONO:
+		if (!tstamp)
 			return -EINVAL;
-		skb->tstamp = dtime;
+		skb->tstamp = tstamp;
 		skb->mono_delivery_time = 1;
 		break;
-	case BPF_SKB_DELIVERY_TIME_NONE:
-		if (dtime)
+	case BPF_SKB_TSTAMP_UNSPEC:
+		if (tstamp)
 			return -EINVAL;
 		skb->tstamp = 0;
 		skb->mono_delivery_time = 0;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static const struct bpf_func_proto bpf_skb_set_delivery_time_proto = {
-	.func           = bpf_skb_set_delivery_time,
+static const struct bpf_func_proto bpf_skb_set_tstamp_proto = {
+	.func           = bpf_skb_set_tstamp,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
@@ -7786,8 +7786,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_tcp_gen_syncookie_proto;
 	case BPF_FUNC_sk_assign:
 		return &bpf_sk_assign_proto;
-	case BPF_FUNC_skb_set_delivery_time:
-		return &bpf_skb_set_delivery_time_proto;
+	case BPF_FUNC_skb_set_tstamp:
+		return &bpf_skb_set_tstamp_proto;
 #endif
 	default:
 		return bpf_sk_base_func_proto(func_id);
@@ -8127,9 +8127,9 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 			return false;
 		info->reg_type = PTR_TO_SOCK_COMMON_OR_NULL;
 		break;
-	case offsetof(struct __sk_buff, delivery_time_type):
+	case offsetof(struct __sk_buff, tstamp_type):
 		return false;
-	case offsetofend(struct __sk_buff, delivery_time_type) ... offsetof(struct __sk_buff, hwtstamp) - 1:
+	case offsetofend(struct __sk_buff, tstamp_type) ... offsetof(struct __sk_buff, hwtstamp) - 1:
 		/* Explicitly prohibit access to padding in __sk_buff. */
 		return false;
 	default:
@@ -8484,14 +8484,14 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 		break;
 	case bpf_ctx_range_till(struct __sk_buff, family, local_port):
 		return false;
-	case offsetof(struct __sk_buff, delivery_time_type):
+	case offsetof(struct __sk_buff, tstamp_type):
 		/* The convert_ctx_access() on reading and writing
 		 * __sk_buff->tstamp depends on whether the bpf prog
-		 * has used __sk_buff->delivery_time_type or not.
-		 * Thus, we need to set prog->delivery_time_access
+		 * has used __sk_buff->tstamp_type or not.
+		 * Thus, we need to set prog->tstamp_type_access
 		 * earlier during is_valid_access() here.
 		 */
-		((struct bpf_prog *)prog)->delivery_time_access = 1;
+		((struct bpf_prog *)prog)->tstamp_type_access = 1;
 		return size == sizeof(__u8);
 	}
 
@@ -8888,42 +8888,22 @@ static u32 flow_dissector_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
-static struct bpf_insn *bpf_convert_dtime_type_read(const struct bpf_insn *si,
-						    struct bpf_insn *insn)
+static struct bpf_insn *bpf_convert_tstamp_type_read(const struct bpf_insn *si,
+						     struct bpf_insn *insn)
 {
 	__u8 value_reg = si->dst_reg;
 	__u8 skb_reg = si->src_reg;
+	/* AX is needed because src_reg and dst_reg could be the same */
 	__u8 tmp_reg = BPF_REG_AX;
 
 	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-			      SKB_MONO_DELIVERY_TIME_OFFSET);
-	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
-				SKB_MONO_DELIVERY_TIME_MASK);
-	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
-	/* value_reg = BPF_SKB_DELIVERY_TIME_MONO */
-	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_DELIVERY_TIME_MONO);
-	*insn++ = BPF_JMP_A(IS_ENABLED(CONFIG_NET_CLS_ACT) ? 10 : 5);
-
-	*insn++ = BPF_LDX_MEM(BPF_DW, tmp_reg, skb_reg,
-			      offsetof(struct sk_buff, tstamp));
-	*insn++ = BPF_JMP_IMM(BPF_JNE, tmp_reg, 0, 2);
-	/* value_reg = BPF_SKB_DELIVERY_TIME_NONE */
-	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_DELIVERY_TIME_NONE);
-	*insn++ = BPF_JMP_A(IS_ENABLED(CONFIG_NET_CLS_ACT) ? 6 : 1);
-
-#ifdef CONFIG_NET_CLS_ACT
-	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
-	*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
-	*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
-	/* At ingress, value_reg = 0 */
-	*insn++ = BPF_MOV32_IMM(value_reg, 0);
+			      PKT_VLAN_PRESENT_OFFSET);
+	*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg,
+				SKB_MONO_DELIVERY_TIME_MASK, 2);
+	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_TSTAMP_UNSPEC);
 	*insn++ = BPF_JMP_A(1);
-#endif
+	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_TSTAMP_DELIVERY_MONO);
 
-	/* value_reg = BPF_SKB_DELIVERYT_TIME_UNSPEC */
-	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_DELIVERY_TIME_UNSPEC);
-
-	/* 15 insns with CONFIG_NET_CLS_ACT */
 	return insn;
 }
 
@@ -8956,21 +8936,22 @@ static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_prog *prog,
 	__u8 skb_reg = si->src_reg;
 
 #ifdef CONFIG_NET_CLS_ACT
-	if (!prog->delivery_time_access) {
+	/* If the tstamp_type is read,
+	 * the bpf prog is aware the tstamp could have delivery time.
+	 * Thus, read skb->tstamp as is if tstamp_type_access is true.
+	 */
+	if (!prog->tstamp_type_access) {
+		/* AX is needed because src_reg and dst_reg could be the same */
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
-		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 5);
-		/* @ingress, read __sk_buff->tstamp as the (rcv) timestamp,
-		 * so check the skb->mono_delivery_time.
-		 */
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
-					SKB_MONO_DELIVERY_TIME_MASK);
-		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 2);
-		/* skb->mono_delivery_time is set, read 0 as the (rcv) timestamp. */
+					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK);
+		*insn++ = BPF_JMP32_IMM(BPF_JNE, tmp_reg,
+					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK, 2);
+		/* skb->tc_at_ingress && skb->mono_delivery_time,
+		 * read 0 as the (rcv) timestamp.
+		 */
 		*insn++ = BPF_MOV64_IMM(value_reg, 0);
 		*insn++ = BPF_JMP_A(1);
 	}
@@ -8989,25 +8970,27 @@ static struct bpf_insn *bpf_convert_tstamp_write(const struct bpf_prog *prog,
 	__u8 skb_reg = si->dst_reg;
 
 #ifdef CONFIG_NET_CLS_ACT
-	if (!prog->delivery_time_access) {
+	/* If the tstamp_type is read,
+	 * the bpf prog is aware the tstamp could have delivery time.
+	 * Thus, write skb->tstamp as is if tstamp_type_access is true.
+	 * Otherwise, writing at ingress will have to clear the
+	 * mono_delivery_time bit also.
+	 */
+	if (!prog->tstamp_type_access) {
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, TC_AT_INGRESS_OFFSET);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, TC_AT_INGRESS_MASK);
-		*insn++ = BPF_JMP32_IMM(BPF_JEQ, tmp_reg, 0, 3);
-		/* Writing __sk_buff->tstamp at ingress as the (rcv) timestamp.
-		 * Clear the skb->mono_delivery_time.
-		 */
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
-					~SKB_MONO_DELIVERY_TIME_MASK);
-		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg,
-				      SKB_MONO_DELIVERY_TIME_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
+		/* Writing __sk_buff->tstamp as ingress, goto <clear> */
+		*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg, TC_AT_INGRESS_MASK, 1);
+		/* goto <store> */
+		*insn++ = BPF_JMP_A(2);
+		/* <clear>: mono_delivery_time */
+		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, ~SKB_MONO_DELIVERY_TIME_MASK);
+		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg, PKT_VLAN_PRESENT_OFFSET);
 	}
 #endif
 
-	/* skb->tstamp = tstamp */
+	/* <store>: skb->tstamp = tstamp */
 	*insn++ = BPF_STX_MEM(BPF_DW, skb_reg, value_reg,
 			      offsetof(struct sk_buff, tstamp));
 	return insn;
@@ -9326,8 +9309,8 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 			insn = bpf_convert_tstamp_read(prog, si, insn);
 		break;
 
-	case offsetof(struct __sk_buff, delivery_time_type):
-		insn = bpf_convert_dtime_type_read(si, insn);
+	case offsetof(struct __sk_buff, tstamp_type):
+		insn = bpf_convert_tstamp_type_read(si, insn);
 		break;
 
 	case offsetof(struct __sk_buff, gso_segs):
