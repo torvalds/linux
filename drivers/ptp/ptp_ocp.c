@@ -339,7 +339,7 @@ static struct ptp_ocp_eeprom_map fb_eeprom_map[] = {
  * 0: TS3 (and PPS)
  * 1: TS0
  * 2: TS1
- * 3: GNSS
+ * 3: GNSS1
  * 4: GNSS2
  * 5: MAC
  * 6: TS2
@@ -540,7 +540,7 @@ static struct ocp_selector ptp_ocp_sma_out[] = {
 	{ .name = "10Mhz",	.value = 0x00 },
 	{ .name = "PHC",	.value = 0x01 },
 	{ .name = "MAC",	.value = 0x02 },
-	{ .name = "GNSS",	.value = 0x04 },
+	{ .name = "GNSS1",	.value = 0x04 },
 	{ .name = "GNSS2",	.value = 0x08 },
 	{ .name = "IRIG",	.value = 0x10 },
 	{ .name = "DCF",	.value = 0x20 },
@@ -2288,7 +2288,7 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 	if (bp->ts0) {
 		ts_reg = bp->ts0->mem;
 		on = ioread32(&ts_reg->enable);
-		src = "GNSS";
+		src = "GNSS1";
 		seq_printf(s, "%7s: %s, src: %s\n", "TS0",
 			   on ? " ON" : "OFF", src);
 	}
@@ -2371,7 +2371,7 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 		else if (val & 0x02)
 			src = "MAC";
 		else if (val & 0x04)
-			src = "GNSS";
+			src = "GNSS1";
 		else
 			src = "----";
 	} else {
