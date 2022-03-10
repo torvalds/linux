@@ -17,7 +17,8 @@
 #include "acp-dsp-offset.h"
 
 int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *params, struct sof_ipc_stream_params *ipc_params)
+		      struct snd_pcm_hw_params *params,
+		      struct snd_sof_platform_stream_params *platform_params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct acp_dsp_stream *stream = runtime->private_data;
@@ -35,8 +36,9 @@ int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substr
 		return ret;
 	}
 
-	ipc_params->buffer.phy_addr = stream->reg_offset;
-	ipc_params->stream_tag = stream->stream_tag;
+	platform_params->use_phy_address = true;
+	platform_params->phy_addr = stream->reg_offset;
+	platform_params->stream_tag = stream->stream_tag;
 
 	/* write buffer size of stream in scratch memory */
 

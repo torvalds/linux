@@ -420,11 +420,11 @@ static inline int
 snd_sof_pcm_platform_hw_params(struct snd_sof_dev *sdev,
 			       struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
-			       struct sof_ipc_stream_params *ipc_params)
+			       struct snd_sof_platform_stream_params *platform_params)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->pcm_hw_params)
-		return sof_ops(sdev)->pcm_hw_params(sdev, substream,
-						    params, ipc_params);
+		return sof_ops(sdev)->pcm_hw_params(sdev, substream, params,
+						    platform_params);
 
 	return 0;
 }

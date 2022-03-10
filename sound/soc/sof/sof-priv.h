@@ -105,6 +105,21 @@ struct snd_soc_tplg_ops;
 struct snd_soc_component;
 struct snd_sof_pdata;
 
+/**
+ * struct snd_sof_platform_stream_params - platform dependent stream parameters
+ * @stream_tag:		Stream tag to use
+ * @use_phy_addr:	Use the provided @phy_addr for configuration
+ * @phy_addr:		Platform dependent address to be used, if  @use_phy_addr
+ *			is true
+ * @no_ipc_position:	Disable position update IPC from firmware
+ */
+struct snd_sof_platform_stream_params {
+	u16 stream_tag;
+	bool use_phy_address;
+	u32 phy_addr;
+	bool no_ipc_position;
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -183,7 +198,7 @@ struct snd_sof_dsp_ops {
 	int (*pcm_hw_params)(struct snd_sof_dev *sdev,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
-			     struct sof_ipc_stream_params *ipc_params); /* optional */
+			     struct snd_sof_platform_stream_params *platform_params); /* optional */
 
 	/* host stream hw_free */
 	int (*pcm_hw_free)(struct snd_sof_dev *sdev,

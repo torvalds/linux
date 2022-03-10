@@ -201,7 +201,8 @@ int acp_dsp_stream_put(struct snd_sof_dev *sdev, struct acp_dsp_stream *acp_stre
 int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *params, struct sof_ipc_stream_params *ipc_params);
+		      struct snd_pcm_hw_params *params,
+		      struct snd_sof_platform_stream_params *platform_params);
 
 extern const struct snd_sof_dsp_ops sof_renoir_ops;
 
