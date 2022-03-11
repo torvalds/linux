@@ -2290,7 +2290,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 		return 0;
 
 	if (!extent_buffer_uptodate(root_eb)) {
-		ret = btrfs_read_buffer(root_eb, root_gen, root_level, NULL);
+		ret = btrfs_read_extent_buffer(root_eb, root_gen, root_level, NULL);
 		if (ret)
 			goto out;
 	}

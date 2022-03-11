@@ -333,7 +333,7 @@ static int process_one_buffer(struct btrfs_root *log,
 	 * pin down any logged extents, so we have to read the block.
 	 */
 	if (btrfs_fs_incompat(fs_info, MIXED_GROUPS)) {
-		ret = btrfs_read_buffer(eb, gen, level, NULL);
+		ret = btrfs_read_extent_buffer(eb, gen, level, NULL);
 		if (ret)
 			return ret;
 	}
@@ -2575,7 +2575,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	int i;
 	int ret;
 
-	ret = btrfs_read_buffer(eb, gen, level, NULL);
+	ret = btrfs_read_extent_buffer(eb, gen, level, NULL);
 	if (ret)
 		return ret;
 
@@ -2786,7 +2786,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 			path->slots[*level]++;
 			if (wc->free) {
-				ret = btrfs_read_buffer(next, ptr_gen,
+				ret = btrfs_read_extent_buffer(next, ptr_gen,
 							*level - 1, &first_key);
 				if (ret) {
 					free_extent_buffer(next);
@@ -2815,7 +2815,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 			free_extent_buffer(next);
 			continue;
 		}
-		ret = btrfs_read_buffer(next, ptr_gen, *level - 1, &first_key);
+		ret = btrfs_read_extent_buffer(next, ptr_gen, *level - 1, &first_key);
 		if (ret) {
 			free_extent_buffer(next);
 			return ret;

@@ -1450,7 +1450,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			btrfs_unlock_up_safe(p, level + 1);
 
 		/* now we're allowed to do a blocking uptodate check */
-		ret = btrfs_read_buffer(tmp, gen, parent_level - 1, &first_key);
+		ret = btrfs_read_extent_buffer(tmp, gen, parent_level - 1, &first_key);
 		if (ret) {
 			free_extent_buffer(tmp);
 			btrfs_release_path(p);
