@@ -49,7 +49,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mac_enable_nf(dev, 0);
 	}
 
-	if (phy != &dev->phy) {
+	if (phy != &dev->phy || phy->band_idx) {
 		ret = mt76_connac_mcu_set_pm(&dev->mt76, 1, 0);
 		if (ret)
 			goto out;
@@ -217,7 +217,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	}
 	mvif->mt76.omac_idx = idx;
 	mvif->phy = phy;
-	mvif->mt76.band_idx = ext_phy;
+	mvif->mt76.band_idx = phy->band_idx;
 
 	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
 	if (ext_phy)
@@ -235,7 +235,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	INIT_LIST_HEAD(&mvif->sta.rc_list);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.ext_phy = mvif->mt76.band_idx;
+	mvif->sta.wcid.ext_phy = ext_phy;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mt76_packet_id_init(&mvif->sta.wcid);
@@ -654,6 +654,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	bool ext_phy = mvif->phy != &dev->phy;
 	int ret, idx;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
@@ -665,7 +666,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
-	msta->wcid.ext_phy = mvif->mt76.band_idx;
+	msta->wcid.ext_phy = ext_phy;
 	msta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	msta->jiffies = jiffies;
 
@@ -969,12 +970,9 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	phy->mt76->antenna_mask = tx_ant;
 
-	if (ext_phy) {
-		if (dev->chainmask == 0xf)
-			tx_ant <<= 2;
-		else
-			tx_ant <<= 1;
-	}
+	if (ext_phy)
+		tx_ant <<= dev->chainshift;
+
 	phy->mt76->chainmask = tx_ant;
 
 	mt76_set_stream_caps(phy->mt76, true);
@@ -1241,7 +1239,6 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	};
 	struct mib_stats *mib = &phy->mib;
 	/* See mt7915_ampdu_stat_read_phy, etc */
-	bool ext_phy = phy != &dev->phy;
 	int i, n, ei = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -1258,7 +1255,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->tx_pkt_ibf_cnt;
 
 	/* Tx ampdu stat */
-	n = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
+	n = phy->band_idx ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 15 /*ARRAY_SIZE(bound)*/; i++)
 		data[ei++] = dev->mt76.aggr_stats[i + n];
 

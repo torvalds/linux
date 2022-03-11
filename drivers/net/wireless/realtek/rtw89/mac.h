@@ -301,6 +301,7 @@ enum rtw89_mac_c2h_ofld_func {
 	RTW89_MAC_C2H_FUNC_PKT_OFLD_RSP,
 	RTW89_MAC_C2H_FUNC_BCN_RESEND,
 	RTW89_MAC_C2H_FUNC_MACID_PAUSE,
+	RTW89_MAC_C2H_FUNC_SCANOFLD_RSP = 0x9,
 	RTW89_MAC_C2H_FUNC_OFLD_MAX,
 };
 
@@ -674,13 +675,23 @@ enum mac_ax_err_info {
 extern const struct rtw89_hfc_prec_cfg rtw89_hfc_preccfg_pcie;
 extern const struct rtw89_dle_size rtw89_wde_size0;
 extern const struct rtw89_dle_size rtw89_wde_size4;
+extern const struct rtw89_dle_size rtw89_wde_size18;
+extern const struct rtw89_dle_size rtw89_wde_size19;
 extern const struct rtw89_dle_size rtw89_ple_size0;
 extern const struct rtw89_dle_size rtw89_ple_size4;
+extern const struct rtw89_dle_size rtw89_ple_size18;
+extern const struct rtw89_dle_size rtw89_ple_size19;
 extern const struct rtw89_wde_quota rtw89_wde_qt0;
 extern const struct rtw89_wde_quota rtw89_wde_qt4;
+extern const struct rtw89_wde_quota rtw89_wde_qt17;
+extern const struct rtw89_wde_quota rtw89_wde_qt18;
 extern const struct rtw89_ple_quota rtw89_ple_qt4;
 extern const struct rtw89_ple_quota rtw89_ple_qt5;
 extern const struct rtw89_ple_quota rtw89_ple_qt13;
+extern const struct rtw89_ple_quota rtw89_ple_qt44;
+extern const struct rtw89_ple_quota rtw89_ple_qt45;
+extern const struct rtw89_ple_quota rtw89_ple_qt46;
+extern const struct rtw89_ple_quota rtw89_ple_qt47;
 
 static inline u32 rtw89_mac_reg_by_idx(u32 reg_base, u8 band)
 {
@@ -798,6 +809,7 @@ bool rtw89_mac_get_txpwr_cr(struct rtw89_dev *rtwdev,
 			    enum rtw89_phy_idx phy_idx,
 			    u32 reg_base, u32 *cr);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
+void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
 void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
@@ -869,5 +881,43 @@ int rtw89_mac_set_tx_retry_limit(struct rtw89_dev *rtwdev,
 				 bool resume, u8 tx_retry);
 int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta, u8 *tx_retry);
+
+enum rtw89_mac_xtal_si_offset {
+	XTAL_SI_XTAL_SC_XI = 0x04,
+	XTAL_SI_XTAL_SC_XO = 0x05,
+	XTAL_SI_PWR_CUT = 0x10,
+#define XTAL_SI_SMALL_PWR_CUT	BIT(0)
+#define XTAL_SI_BIG_PWR_CUT	BIT(1)
+	XTAL_SI_XTAL_XMD_2 = 0x24,
+#define XTAL_SI_LDO_LPS		GENMASK(6, 4)
+	XTAL_SI_XTAL_XMD_4 = 0x26,
+#define XTAL_SI_LPS_CAP		GENMASK(3, 0)
+	XTAL_SI_CV = 0x41,
+	XTAL_SI_LOW_ADDR = 0x62,
+#define XTAL_SI_LOW_ADDR_MASK	GENMASK(7, 0)
+	XTAL_SI_CTRL = 0x63,
+#define XTAL_SI_MODE_SEL_MASK	GENMASK(7, 6)
+#define XTAL_SI_RDY		BIT(5)
+#define XTAL_SI_HIGH_ADDR_MASK	GENMASK(2, 0)
+	XTAL_SI_READ_VAL = 0x7A,
+	XTAL_SI_WL_RFC_S0 = 0x80,
+#define XTAL_SI_RF00		BIT(0)
+	XTAL_SI_WL_RFC_S1 = 0x81,
+#define XTAL_SI_RF10		BIT(0)
+	XTAL_SI_ANAPAR_WL = 0x90,
+#define XTAL_SI_SRAM2RFC	BIT(7)
+#define XTAL_SI_GND_SHDN_WL	BIT(6)
+#define XTAL_SI_SHDN_WL		BIT(5)
+#define XTAL_SI_RFC2RF		BIT(4)
+#define XTAL_SI_OFF_EI		BIT(3)
+#define XTAL_SI_OFF_WEI		BIT(2)
+#define XTAL_SI_PON_EI		BIT(1)
+#define XTAL_SI_PON_WEI		BIT(0)
+	XTAL_SI_SRAM_CTRL = 0xA1,
+#define FULL_BIT_MASK		GENMASK(7, 0)
+};
+
+int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
+int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val);
 
 #endif

@@ -3,6 +3,7 @@
  */
 
 #include "coex.h"
+#include "fw.h"
 #include "mac.h"
 #include "phy.h"
 #include "reg.h"
@@ -374,6 +375,31 @@ static const struct rtw89_pwr_cfg * const pwr_on_seq_8852a[] = {
 
 static const struct rtw89_pwr_cfg * const pwr_off_seq_8852a[] = {
 	rtw8852a_pwroff, NULL
+};
+
+static const u32 rtw8852a_h2c_regs[RTW89_H2CREG_MAX] = {
+	R_AX_H2CREG_DATA0, R_AX_H2CREG_DATA1,  R_AX_H2CREG_DATA2,
+	R_AX_H2CREG_DATA3
+};
+
+static const u32 rtw8852a_c2h_regs[RTW89_C2HREG_MAX] = {
+	R_AX_C2HREG_DATA0, R_AX_C2HREG_DATA1, R_AX_C2HREG_DATA2,
+	R_AX_C2HREG_DATA3
+};
+
+static const struct rtw89_page_regs rtw8852a_page_regs = {
+	.hci_fc_ctrl	= R_AX_HCI_FC_CTRL,
+	.ch_page_ctrl	= R_AX_CH_PAGE_CTRL,
+	.ach_page_ctrl	= R_AX_ACH0_PAGE_CTRL,
+	.ach_page_info	= R_AX_ACH0_PAGE_INFO,
+	.pub_page_info3	= R_AX_PUB_PAGE_INFO3,
+	.pub_page_ctrl1	= R_AX_PUB_PAGE_CTRL1,
+	.pub_page_ctrl2	= R_AX_PUB_PAGE_CTRL2,
+	.pub_page_info1	= R_AX_PUB_PAGE_INFO1,
+	.pub_page_info2 = R_AX_PUB_PAGE_INFO2,
+	.wp_page_ctrl1	= R_AX_WP_PAGE_CTRL1,
+	.wp_page_ctrl2	= R_AX_WP_PAGE_CTRL2,
+	.wp_page_info1	= R_AX_WP_PAGE_INFO1,
 };
 
 static void rtw8852ae_efuse_parsing(struct rtw89_efuse *efuse,
@@ -1987,6 +2013,8 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.query_ppdu		= rtw8852a_query_ppdu,
 	.bb_ctrl_btc_preagc	= rtw8852a_bb_ctrl_btc_preagc,
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
+	.pwr_on_func		= NULL,
+	.pwr_off_func		= NULL,
 
 	.btc_set_rfe		= rtw8852a_btc_set_rfe,
 	.btc_init_cfg		= rtw8852a_btc_init_cfg,
@@ -2024,6 +2052,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.dig_table		= &rtw89_8852a_phy_dig_table,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
+	.support_bw160		= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -2034,6 +2063,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 1536,
 	.limit_efuse_size	= 1152,
+	.dav_phy_efuse_size	= 0,
+	.dav_log_efuse_size	= 0,
 	.phycap_addr		= 0x580,
 	.phycap_size		= 128,
 	.para_ver		= 0x05050864,
@@ -2054,6 +2085,12 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED) |
 				  BIT(RTW89_PS_MODE_PWR_GATED),
+	.hci_func_en_addr	= R_AX_HCI_FUNC_EN,
+	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
+	.h2c_regs		= rtw8852a_h2c_regs,
+	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
+	.c2h_regs		= rtw8852a_c2h_regs,
+	.page_regs		= &rtw8852a_page_regs,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 

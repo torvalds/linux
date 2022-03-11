@@ -366,6 +366,8 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
 	IEEE80211_STA_DISABLE_HE	= BIT(16),
+	IEEE80211_STA_DISABLE_EHT	= BIT(17),
+	IEEE80211_STA_DISABLE_320MHZ	= BIT(18),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -765,6 +767,8 @@ struct ieee80211_if_mesh {
  *	back to wireless media and to the local net stack.
  * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  * @IEEE80211_SDATA_IN_DRIVER: indicates interface was added to driver
+ * @IEEE80211_SDATA_DISCONNECT_HW_RESTART: Disconnect after hardware restart
+ *  recovery
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
@@ -772,6 +776,7 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
+	IEEE80211_SDATA_DISCONNECT_HW_RESTART	= BIT(6),
 };
 
 /**
@@ -1587,6 +1592,8 @@ struct ieee802_11_elems {
 	const struct ieee80211_s1g_oper_ie *s1g_oper;
 	const struct ieee80211_s1g_bcn_compat_ie *s1g_bcn_compat;
 	const struct ieee80211_aid_response_ie *aid_resp;
+	const struct ieee80211_eht_cap_elem *eht_cap;
+	const struct ieee80211_eht_operation *eht_operation;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1608,6 +1615,7 @@ struct ieee802_11_elems {
 	u8 bssid_index_len;
 	u8 tx_pwr_env_len[IEEE80211_TPE_MAX_IE_COUNT];
 	u8 tx_pwr_env_num;
+	u8 eht_cap_len;
 
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;
@@ -2411,6 +2419,7 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 				struct cfg80211_chan_def *chandef);
 bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_he_operation *he_oper,
+				    const struct ieee80211_eht_operation *eht_oper,
 				    struct cfg80211_chan_def *chandef);
 bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 				struct cfg80211_chan_def *chandef);
@@ -2514,4 +2523,16 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 void ieee80211_init_frag_cache(struct ieee80211_fragment_cache *cache);
 void ieee80211_destroy_frag_cache(struct ieee80211_fragment_cache *cache);
 
+u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
+u8 *ieee80211_ie_build_eht_cap(u8 *pos,
+			       const struct ieee80211_sta_he_cap *he_cap,
+			       const struct ieee80211_sta_eht_cap *eht_cap,
+			       u8 *end);
+
+void
+ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_supported_band *sband,
+				    const u8 *he_cap_ie, u8 he_cap_len,
+				    const struct ieee80211_eht_cap_elem *eht_cap_ie_elem,
+				    u8 eht_cap_len, struct sta_info *sta);
 #endif /* IEEE80211_I_H */

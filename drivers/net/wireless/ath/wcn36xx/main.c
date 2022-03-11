@@ -394,7 +394,7 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *tmp;
 	struct ieee80211_supported_band *band;
-	struct ieee80211_channel *channel;
+	struct ieee80211_channel *channel = NULL;
 	unsigned long flags;
 	int i, j;
 
@@ -1391,11 +1391,11 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 
 	spin_unlock_irqrestore(&wcn->survey_lock, flags);
 
-	 wcn36xx_dbg(WCN36XX_DBG_MAC,
-		     "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
-		     HW_VALUE_CHANNEL(survey->channel->hw_value),
-		     chan_survey->rssi, chan_survey->snr, survey->noise,
-		     survey->filled, survey->channel->center_freq);
+	wcn36xx_dbg(WCN36XX_DBG_MAC,
+		    "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
+		    HW_VALUE_CHANNEL(survey->channel->hw_value),
+		    chan_survey->rssi, chan_survey->snr, survey->noise,
+		    survey->filled, survey->channel->center_freq);
 
 	return 0;
 }
@@ -1583,6 +1583,9 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	if (iris_node) {
 		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
+		if (of_device_is_compatible(iris_node, "qcom,wcn3660") ||
+		    of_device_is_compatible(iris_node, "qcom,wcn3660b"))
+			wcn->rf_id = RF_IRIS_WCN3660;
 		if (of_device_is_compatible(iris_node, "qcom,wcn3680"))
 			wcn->rf_id = RF_IRIS_WCN3680;
 		of_node_put(iris_node);

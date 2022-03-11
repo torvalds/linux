@@ -109,7 +109,12 @@ struct wiphy;
  *	on this channel.
  * @IEEE80211_CHAN_16MHZ: 16 MHz bandwidth is permitted
  *	on this channel.
- *
+ * @IEEE80211_CHAN_NO_320MHZ: If the driver supports 320 MHz on the band,
+ *	this flag indicates that a 320 MHz channel cannot use this
+ *	channel as the control or any of the secondary channels.
+ *	This may be due to the driver or due to regulatory bandwidth
+ *	restrictions.
+ * @IEEE80211_CHAN_NO_EHT: EHT operation is not permitted on this channel.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED		= 1<<0,
@@ -131,6 +136,8 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_4MHZ		= 1<<16,
 	IEEE80211_CHAN_8MHZ		= 1<<17,
 	IEEE80211_CHAN_16MHZ		= 1<<18,
+	IEEE80211_CHAN_NO_320MHZ	= 1<<19,
+	IEEE80211_CHAN_NO_EHT		= 1<<20,
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -361,6 +368,48 @@ struct ieee80211_sta_he_cap {
 };
 
 /**
+ * struct ieee80211_eht_mcs_nss_supp - EHT max supported NSS per MCS
+ *
+ * See P802.11be_D1.3 Table 9-401k - "Subfields of the Supported EHT-MCS
+ * and NSS Set field"
+ *
+ * @only_20mhz: MCS/NSS support for 20 MHz-only STA.
+ * @bw._80: MCS/NSS support for BW <= 80 MHz
+ * @bw._160: MCS/NSS support for BW = 160 MHz
+ * @bw._320: MCS/NSS support for BW = 320 MHz
+ */
+struct ieee80211_eht_mcs_nss_supp {
+	union {
+		struct ieee80211_eht_mcs_nss_supp_20mhz_only only_20mhz;
+		struct {
+			struct ieee80211_eht_mcs_nss_supp_bw _80;
+			struct ieee80211_eht_mcs_nss_supp_bw _160;
+			struct ieee80211_eht_mcs_nss_supp_bw _320;
+		} __packed bw;
+	} __packed;
+} __packed;
+
+#define IEEE80211_EHT_PPE_THRES_MAX_LEN		32
+
+/**
+ * struct ieee80211_sta_eht_cap - STA's EHT capabilities
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11be EHT capabilities for a STA.
+ *
+ * @has_eht: true iff EHT data is valid.
+ * @eht_cap_elem: Fixed portion of the eht capabilities element.
+ * @eht_mcs_nss_supp: The supported NSS/MCS combinations.
+ * @eht_ppe_thres: Holds the PPE Thresholds data.
+ */
+struct ieee80211_sta_eht_cap {
+	bool has_eht;
+	struct ieee80211_eht_cap_elem_fixed eht_cap_elem;
+	struct ieee80211_eht_mcs_nss_supp eht_mcs_nss_supp;
+	u8 eht_ppe_thres[IEEE80211_EHT_PPE_THRES_MAX_LEN];
+};
+
+/**
  * struct ieee80211_sband_iftype_data - sband data per interface type
  *
  * This structure encapsulates sband data that is relevant for the
@@ -379,6 +428,7 @@ struct ieee80211_sband_iftype_data {
 	u16 types_mask;
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
+	struct ieee80211_sta_eht_cap eht_cap;
 	struct {
 		const u8 *data;
 		unsigned int len;
@@ -559,6 +609,26 @@ ieee80211_get_he_6ghz_capa(const struct ieee80211_supported_band *sband,
 		return 0;
 
 	return data->he_6ghz_capa.capa;
+}
+
+/**
+ * ieee80211_get_eht_iftype_cap - return ETH capabilities for an sband's iftype
+ * @sband: the sband to search for the iftype on
+ * @iftype: enum nl80211_iftype
+ *
+ * Return: pointer to the struct ieee80211_sta_eht_cap, or NULL is none found
+ */
+static inline const struct ieee80211_sta_eht_cap *
+ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *sband,
+			     enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (data && data->eht_cap.has_eht)
+		return &data->eht_cap;
+
+	return NULL;
 }
 
 /**
@@ -1417,6 +1487,8 @@ struct sta_txpwr {
  * @airtime_weight: airtime scheduler weight for this station
  * @txpwr: transmit power for an associated station
  * @he_6ghz_capa: HE 6 GHz Band capabilities of station
+ * @eht_capa: EHT capabilities of station
+ * @eht_capa_len: the length of the EHT capabilities
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -1450,6 +1522,8 @@ struct station_parameters {
 	u16 airtime_weight;
 	struct sta_txpwr txpwr;
 	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
+	const struct ieee80211_eht_cap_elem *eht_capa;
+	u8 eht_capa_len;
 };
 
 /**
@@ -1527,6 +1601,7 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
  * @RATE_INFO_FLAGS_HE_MCS: HE MCS information
  * @RATE_INFO_FLAGS_EDMG: 60GHz MCS in EDMG mode
  * @RATE_INFO_FLAGS_EXTENDED_SC_DMG: 60GHz extended SC MCS
+ * @RATE_INFO_FLAGS_EHT_MCS: EHT MCS information
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS			= BIT(0),
@@ -1536,6 +1611,7 @@ enum rate_info_flags {
 	RATE_INFO_FLAGS_HE_MCS			= BIT(4),
 	RATE_INFO_FLAGS_EDMG			= BIT(5),
 	RATE_INFO_FLAGS_EXTENDED_SC_DMG		= BIT(6),
+	RATE_INFO_FLAGS_EHT_MCS			= BIT(7),
 };
 
 /**
@@ -1550,6 +1626,8 @@ enum rate_info_flags {
  * @RATE_INFO_BW_80: 80 MHz bandwidth
  * @RATE_INFO_BW_160: 160 MHz bandwidth
  * @RATE_INFO_BW_HE_RU: bandwidth determined by HE RU allocation
+ * @RATE_INFO_BW_320: 320 MHz bandwidth
+ * @RATE_INFO_BW_EHT_RU: bandwidth determined by EHT RU allocation
  */
 enum rate_info_bw {
 	RATE_INFO_BW_20 = 0,
@@ -1559,6 +1637,8 @@ enum rate_info_bw {
 	RATE_INFO_BW_80,
 	RATE_INFO_BW_160,
 	RATE_INFO_BW_HE_RU,
+	RATE_INFO_BW_320,
+	RATE_INFO_BW_EHT_RU,
 };
 
 /**
@@ -1576,6 +1656,9 @@ enum rate_info_bw {
  * @he_ru_alloc: HE RU allocation (from &enum nl80211_he_ru_alloc,
  *	only valid if bw is %RATE_INFO_BW_HE_RU)
  * @n_bonded_ch: In case of EDMG the number of bonded channels (1-4)
+ * @eht_gi: EHT guard interval (from &enum nl80211_eht_gi)
+ * @eht_ru_alloc: EHT RU allocation (from &enum nl80211_eht_ru_alloc,
+ *	only valid if bw is %RATE_INFO_BW_EHT_RU)
  */
 struct rate_info {
 	u8 flags;
@@ -1587,6 +1670,8 @@ struct rate_info {
 	u8 he_dcm;
 	u8 he_ru_alloc;
 	u8 n_bonded_ch;
+	u8 eht_gi;
+	u8 eht_ru_alloc;
 };
 
 /**

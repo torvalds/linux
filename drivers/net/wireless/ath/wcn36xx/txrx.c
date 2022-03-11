@@ -376,8 +376,8 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		status.freq = WCN36XX_CENTER_FREQ(wcn);
 	}
 
-	 wcn36xx_update_survey(wcn, status.signal, get_snr(bd),
-			       status.band, status.freq);
+	wcn36xx_update_survey(wcn, status.signal, get_snr(bd),
+			      status.band, status.freq);
 
 	if (bd->rate_id < ARRAY_SIZE(wcn36xx_rate_table)) {
 		rate = &wcn36xx_rate_table[bd->rate_id];

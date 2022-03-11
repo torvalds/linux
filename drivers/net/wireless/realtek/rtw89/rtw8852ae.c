@@ -8,8 +8,15 @@
 #include "pci.h"
 #include "rtw8852a.h"
 
+static const struct rtw89_pci_info rtw8852a_pci_info = {
+	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set,
+};
+
 static const struct rtw89_driver_info rtw89_8852ae_info = {
 	.chip = &rtw8852a_chip_info,
+	.bus = {
+		.pci = &rtw8852a_pci_info,
+	},
 };
 
 static const struct pci_device_id rtw89_8852ae_id_table[] = {

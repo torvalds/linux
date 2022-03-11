@@ -263,6 +263,9 @@ struct ath11k_vif {
 	bool bcca_zero_sent;
 	bool do_not_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
+#ifdef CONFIG_ATH11K_DEBUGFS
+	struct dentry *debugfs_twt;
+#endif /* CONFIG_ATH11K_DEBUGFS */
 };
 
 struct ath11k_vif_iter {
@@ -441,6 +444,8 @@ struct ath11k_dbg_htt_stats {
 	spinlock_t lock;
 };
 
+#define MAX_MODULE_ID_BITMAP_WORDS	16
+
 struct ath11k_debug {
 	struct dentry *debugfs_pdev;
 	struct ath11k_dbg_htt_stats htt_stats;
@@ -454,6 +459,9 @@ struct ath11k_debug {
 	u32 pktlog_peer_valid;
 	u8 pktlog_peer_addr[ETH_ALEN];
 	u32 rx_filter;
+	u32 mem_offset;
+	u32 module_id_bitmap[MAX_MODULE_ID_BITMAP_WORDS];
+	struct ath11k_debug_dbr *dbr_debug[WMI_DIRECT_BUF_MAX];
 };
 
 struct ath11k_per_peer_tx_stats {
@@ -604,6 +612,7 @@ struct ath11k {
 	bool pending_11d;
 	bool regdom_set_by_user;
 	int hw_rate_code;
+	u8 twt_enabled;
 };
 
 struct ath11k_band_cap {
@@ -807,7 +816,7 @@ struct ath11k_base {
 	} id;
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 struct ath11k_fw_stats_pdev {

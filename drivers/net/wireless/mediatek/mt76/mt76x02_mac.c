@@ -860,9 +860,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		status->chain_signal[1] = mt76x02_mac_get_rssi(dev,
 							       rxwi->rssi[1],
 							       1);
-		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
-	status->signal = signal;
 	status->freq = dev->mphy.chandef.chan->center_freq;
 	status->band = dev->mphy.chandef.chan->band;
 

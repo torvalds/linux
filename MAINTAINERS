@@ -3821,9 +3821,6 @@ BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Arend van Spriel <aspriel@gmail.com>
 M:	Franky Lin <franky.lin@broadcom.com>
 M:	Hante Meuleman <hante.meuleman@broadcom.com>
-M:	Chi-hsien Lin <chi-hsien.lin@infineon.com>
-M:	Wright Feng <wright.feng@infineon.com>
-M:	Chung-hsien Hsu <chung-hsien.hsu@infineon.com>
 L:	linux-wireless@vger.kernel.org
 L:	brcm80211-dev-list.pdl@broadcom.com
 L:	SHA-cyfmac-dev-list@infineon.com
@@ -12173,6 +12170,7 @@ R:	Shayne Chen <shayne.chen@mediatek.com>
 R:	Sean Wang <sean.wang@mediatek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/net/wireless/mediatek,mt76.yaml
 F:	drivers/net/wireless/mediatek/mt76/
 
 MEDIATEK MT7601U WIRELESS LAN DRIVER

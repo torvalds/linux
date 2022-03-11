@@ -12,66 +12,6 @@
 #include "rtw8852a_rfk_table.h"
 #include "rtw8852a_table.h"
 
-static void
-_rfk_write_rf(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
-{
-	rtw89_write_rf(rtwdev, def->path, def->addr, def->mask, def->data);
-}
-
-static void
-_rfk_write32_mask(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
-{
-	rtw89_phy_write32_mask(rtwdev, def->addr, def->mask, def->data);
-}
-
-static void
-_rfk_write32_set(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
-{
-	rtw89_phy_write32_set(rtwdev, def->addr, def->mask);
-}
-
-static void
-_rfk_write32_clr(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
-{
-	rtw89_phy_write32_clr(rtwdev, def->addr, def->mask);
-}
-
-static void
-_rfk_delay(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
-{
-	udelay(def->data);
-}
-
-static void
-(*_rfk_handler[])(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def) = {
-	[RTW89_RFK_F_WRF] = _rfk_write_rf,
-	[RTW89_RFK_F_WM] = _rfk_write32_mask,
-	[RTW89_RFK_F_WS] = _rfk_write32_set,
-	[RTW89_RFK_F_WC] = _rfk_write32_clr,
-	[RTW89_RFK_F_DELAY] = _rfk_delay,
-};
-
-static_assert(ARRAY_SIZE(_rfk_handler) == RTW89_RFK_F_NUM);
-
-static void
-rtw89_rfk_parser(struct rtw89_dev *rtwdev, const struct rtw89_rfk_tbl *tbl)
-{
-	const struct rtw89_reg5_def *p = tbl->defs;
-	const struct rtw89_reg5_def *end = tbl->defs + tbl->size;
-
-	for (; p < end; p++)
-		_rfk_handler[p->flag](rtwdev, p);
-}
-
-#define rtw89_rfk_parser_by_cond(rtwdev, cond, tbl_t, tbl_f)	\
-	do {							\
-		typeof(rtwdev) _dev = (rtwdev);			\
-		if (cond)					\
-			rtw89_rfk_parser(_dev, (tbl_t));	\
-		else						\
-			rtw89_rfk_parser(_dev, (tbl_f));	\
-	} while (0)
-
 static u8 _kpath(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RFK]dbcc_en: %x,  PHY%d\n",
@@ -2977,6 +2917,7 @@ static void _tssi_set_tmeter_tbl(struct rtw89_dev *rtwdev, enum rtw89_phy_idx ph
 	u8 i, j;
 
 	switch (subband) {
+	default:
 	case RTW89_CH_2G:
 		thm_up_a = rtw89_8852a_trk_cfg.delta_swingidx_2ga_p;
 		thm_down_a = rtw89_8852a_trk_cfg.delta_swingidx_2ga_n;
@@ -3161,6 +3102,7 @@ static void _tssi_pak(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	u8 subband = rtwdev->hal.current_subband;
 
 	switch (subband) {
+	default:
 	case RTW89_CH_2G:
 		rtw89_rfk_parser_by_cond(rtwdev, path == RF_PATH_A,
 					 &rtw8852a_tssi_pak_defs_a_2g_tbl,

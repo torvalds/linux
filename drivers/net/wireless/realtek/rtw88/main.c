@@ -207,6 +207,9 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	else
 		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
+	rtw_coex_wl_status_check(rtwdev);
+	rtw_coex_query_bt_hid_list(rtwdev);
+
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev, 0);
 
@@ -314,8 +317,8 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 
 	rtwdev->sta_cnt++;
 	rtwdev->beacon_loss = false;
-	rtw_info(rtwdev, "sta %pM joined with macid %d\n",
-		 sta->addr, si->mac_id);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "sta %pM joined with macid %d\n",
+		sta->addr, si->mac_id);
 
 	return 0;
 }
@@ -336,8 +339,8 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	kfree(si->mask);
 
 	rtwdev->sta_cnt--;
-	rtw_info(rtwdev, "sta %pM with macid %d left\n",
-		 sta->addr, si->mac_id);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "sta %pM with macid %d left\n",
+		sta->addr, si->mac_id);
 }
 
 struct rtw_fwcd_hdr {
@@ -1135,7 +1138,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 			ldpc_en = HT_LDPC_EN;
 	}
 
-	if (efuse->hw_cap.nss == 1)
+	if (efuse->hw_cap.nss == 1 || rtwdev->hal.txrx_1ss)
 		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
@@ -1568,6 +1571,37 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 {
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
+}
+
+static void rtw_vif_smps_iter(void *data, u8 *mac,
+			      struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+		return;
+
+	if (rtwdev->hal.txrx_1ss)
+		ieee80211_request_smps(vif, IEEE80211_SMPS_STATIC);
+	else
+		ieee80211_request_smps(vif, IEEE80211_SMPS_OFF);
+}
+
+void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool txrx_1ss)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	if (!chip->ops->config_txrx_mode || rtwdev->hal.txrx_1ss == txrx_1ss)
+		return;
+
+	rtwdev->hal.txrx_1ss = txrx_1ss;
+	if (txrx_1ss)
+		chip->ops->config_txrx_mode(rtwdev, BB_PATH_A, BB_PATH_A, false);
+	else
+		chip->ops->config_txrx_mode(rtwdev, hal->antenna_tx,
+					    hal->antenna_rx, false);
+	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_smps_iter, rtwdev);
 }
 
 static void __update_firmware_feature(struct rtw_dev *rtwdev,

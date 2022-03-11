@@ -429,7 +429,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
 		/* FIXME: why are we skipping the first part of the rx_desc? */
-		trace_ath10k_htt_rx_desc(ar, rx_desc + sizeof(u32),
+		trace_ath10k_htt_rx_desc(ar, (void *)rx_desc + sizeof(u32),
 					 hw->rx_desc_ops->rx_desc_size - sizeof(u32));
 
 		if (last_msdu)

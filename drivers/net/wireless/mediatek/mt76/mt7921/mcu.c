@@ -863,10 +863,12 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 	else
 		req.channel_band = chandef->chan->band;
 
-	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	if (cmd == MCU_EXT_CMD(SET_RX_PATH))
+		req.switch_reason = CH_SWITCH_NORMAL;
+	else if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
-	else if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-		 chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+	else if (!cfg80211_reg_can_beacon(dev->mt76.hw->wiphy, chandef,
+					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;

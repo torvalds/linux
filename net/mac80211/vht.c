@@ -4,7 +4,7 @@
  *
  * Portions of this file
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -329,15 +329,27 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-/* FIXME: move this to some better location - parses HE now */
+/* FIXME: move this to some better location - parses HE/EHT now */
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 {
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 	struct ieee80211_sta_he_cap *he_cap = &sta->sta.he_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.eht_cap;
 	u32 cap_width;
 
 	if (he_cap->has_he) {
-		u8 info = he_cap->he_cap_elem.phy_cap_info[0];
+		u8 info;
+
+		if (eht_cap->has_eht &&
+		    sta->sdata->vif.bss_conf.chandef.chan->band ==
+		    NL80211_BAND_6GHZ) {
+			info = eht_cap->eht_cap_elem.phy_cap_info[0];
+
+			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
+				return IEEE80211_STA_RX_BW_320;
+		}
+
+		info = he_cap->he_cap_elem.phy_cap_info[0];
 
 		if (sta->sdata->vif.bss_conf.chandef.chan->band ==
 				NL80211_BAND_2GHZ) {
@@ -445,6 +457,8 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 	case NL80211_CHAN_WIDTH_160:
 	case NL80211_CHAN_WIDTH_80P80:
 		return IEEE80211_STA_RX_BW_160;
+	case NL80211_CHAN_WIDTH_320:
+		return IEEE80211_STA_RX_BW_320;
 	default:
 		WARN_ON_ONCE(1);
 		return IEEE80211_STA_RX_BW_20;
@@ -483,12 +497,23 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 
 void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 {
-	u8 ht_rx_nss = 0, vht_rx_nss = 0, he_rx_nss = 0, rx_nss;
+	u8 ht_rx_nss = 0, vht_rx_nss = 0, he_rx_nss = 0, eht_rx_nss = 0, rx_nss;
 	bool support_160;
 
 	/* if we received a notification already don't overwrite it */
 	if (sta->sta.rx_nss)
 		return;
+
+	if (sta->sta.eht_cap.has_eht) {
+		int i;
+		const u8 *rx_nss_mcs = (void *)&sta->sta.eht_cap.eht_mcs_nss_supp;
+
+		/* get the max nss for EHT over all possible bandwidths and mcs */
+		for (i = 0; i < sizeof(struct ieee80211_eht_mcs_nss_supp); i++)
+			eht_rx_nss = max_t(u8, eht_rx_nss,
+					   u8_get_bits(rx_nss_mcs[i],
+						       IEEE80211_EHT_MCS_NSS_RX));
+	}
 
 	if (sta->sta.he_cap.has_he) {
 		int i;
@@ -555,6 +580,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 
 	rx_nss = max(vht_rx_nss, ht_rx_nss);
 	rx_nss = max(he_rx_nss, rx_nss);
+	rx_nss = max(eht_rx_nss, rx_nss);
 	sta->sta.rx_nss = max_t(u8, 1, rx_nss);
 }
 

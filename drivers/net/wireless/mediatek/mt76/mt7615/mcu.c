@@ -2020,7 +2020,7 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 	struct mt76_power_limits limits;
 	s8 *limits_array = (s8 *)&limits;
 	int n_chains = hweight8(mphy->antenna_mask);
-	int tx_power;
+	int tx_power = hw->conf.power_level * 2;
 	int i;
 	static const u8 sku_mapping[] = {
 #define SKU_FIELD(_type, _field) \
@@ -2077,9 +2077,8 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 #undef SKU_FIELD
 	};
 
-	tx_power = hw->conf.power_level * 2 -
-		   mt76_tx_power_nss_delta(n_chains);
-
+	tx_power = mt76_get_sar_power(mphy, mphy->chandef.chan, tx_power);
+	tx_power -= mt76_tx_power_nss_delta(n_chains);
 	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 					      &limits, tx_power);
 	mphy->txpower_cur = tx_power;
@@ -2152,10 +2151,12 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
 
-	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	if (cmd == MCU_EXT_CMD(SET_RX_PATH))
+		req.switch_reason = CH_SWITCH_NORMAL;
+	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
-	else if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-		 chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef,
+					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;

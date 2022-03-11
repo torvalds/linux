@@ -180,7 +180,8 @@ static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 
 static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb,
-				   const struct ieee80211_addba_ext_ie *req)
+				   const struct ieee80211_addba_ext_ie *req,
+				   u16 buf_size)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_addba_ext_ie *resp;
@@ -210,6 +211,8 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 		frag_level = cap_frag_level;
 	resp->data |= u8_encode_bits(frag_level,
 				     IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
+	resp->data |= u8_encode_bits(buf_size >> IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT,
+				     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
 }
 
 static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
@@ -261,7 +264,7 @@ static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
 	mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
 
 	if (sta->sta.he_cap.has_he && addbaext)
-		ieee80211_add_addbaext(sdata, skb, addbaext);
+		ieee80211_add_addbaext(sdata, skb, addbaext, buf_size);
 
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -309,8 +312,10 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
-	if (sta->sta.he_cap.has_he)
-		max_buf_size = IEEE80211_MAX_AMPDU_BUF;
+	if (sta->sta.eht_cap.has_eht)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_EHT;
+	else if (sta->sta.he_cap.has_he)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HE;
 	else
 		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
 
@@ -500,6 +505,13 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 					       ies_len, true, mgmt->bssid, NULL);
 		if (!elems || elems->parse_error)
 			goto free;
+	}
+
+	if (sta->sta.eht_cap.has_eht && elems && elems->addba_ext_ie) {
+		u8 buf_size_1k = u8_get_bits(elems->addba_ext_ie->data,
+					     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
+
+		buf_size |= buf_size_1k << IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT;
 	}
 
 	__ieee80211_start_rx_ba_session(sta, dialog_token, timeout,

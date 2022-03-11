@@ -233,6 +233,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	case C2H_BT_INFO:
 		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
 		break;
+	case C2H_BT_HID_INFO:
+		rtw_coex_bt_hid_info_notify(rtwdev, c2h->payload, len);
+		break;
 	case C2H_WLAN_INFO:
 		rtw_coex_wl_fwdbginfo_notify(rtwdev, c2h->payload, len);
 		break;
@@ -534,6 +537,18 @@ void rtw_fw_coex_tdma_type(struct rtw_dev *rtwdev,
 	SET_COEX_TDMA_TYPE_PARA3(h2c_pkt, para3);
 	SET_COEX_TDMA_TYPE_PARA4(h2c_pkt, para4);
 	SET_COEX_TDMA_TYPE_PARA5(h2c_pkt, para5);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_coex_query_hid_info(struct rtw_dev *rtwdev, u8 sub_id, u8 data)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_QUERY_BT_HID_INFO);
+
+	SET_COEX_QUERY_HID_INFO_SUBID(h2c_pkt, sub_id);
+	SET_COEX_QUERY_HID_INFO_DATA1(h2c_pkt, data);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
@@ -2131,7 +2146,7 @@ void rtw_hw_scan_status_report(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	rtw_hw_scan_complete(rtwdev, vif, aborted);
 
 	if (aborted)
-		rtw_info(rtwdev, "HW scan aborted with code: %d\n", rc);
+		rtw_dbg(rtwdev, RTW_DBG_HW_SCAN, "HW scan aborted with code: %d\n", rc);
 }
 
 void rtw_store_op_chan(struct rtw_dev *rtwdev)

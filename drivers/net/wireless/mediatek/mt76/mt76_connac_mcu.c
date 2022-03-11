@@ -1501,7 +1501,6 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	int ext_channels_num = max_t(int, sreq->n_channels - 32, 0);
 	struct ieee80211_channel **scan_list = sreq->channels;
 	struct mt76_dev *mdev = phy->dev;
-	bool ext_phy = phy == mdev->phy2;
 	struct mt76_connac_mcu_scan_channel *chan;
 	struct mt76_connac_hw_scan_req *req;
 	struct sk_buff *skb;
@@ -1515,7 +1514,7 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 
 	req = (struct mt76_connac_hw_scan_req *)skb_put(skb, sizeof(*req));
 
-	req->seq_num = mvif->scan_seq_num | ext_phy << 7;
+	req->seq_num = mvif->scan_seq_num | mvif->band_idx << 7;
 	req->bss_idx = mvif->idx;
 	req->scan_type = sreq->n_ssids ? 1 : 0;
 	req->probe_req_num = sreq->n_ssids ? 2 : 0;
@@ -1623,7 +1622,6 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 	struct mt76_connac_mcu_scan_channel *chan;
 	struct mt76_connac_sched_scan_req *req;
 	struct mt76_dev *mdev = phy->dev;
-	bool ext_phy = phy == mdev->phy2;
 	struct cfg80211_match_set *match;
 	struct cfg80211_ssid *ssid;
 	struct sk_buff *skb;
@@ -1637,7 +1635,7 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 
 	req = (struct mt76_connac_sched_scan_req *)skb_put(skb, sizeof(*req));
 	req->version = 1;
-	req->seq_num = mvif->scan_seq_num | ext_phy << 7;
+	req->seq_num = mvif->scan_seq_num | mvif->band_idx << 7;
 
 	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
 		u8 *addr = is_mt7663(phy->dev) ? req->mt7663.random_mac
@@ -2656,7 +2654,7 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_bss_ext_tlv);
 int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta,
-				  struct mt76_phy *phy, u8 wlan_idx,
+				  struct mt76_phy *phy, u16 wlan_idx,
 				  bool enable)
 {
 	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;

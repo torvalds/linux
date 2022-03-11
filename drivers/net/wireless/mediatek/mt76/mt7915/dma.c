@@ -310,10 +310,12 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 	/* enable interrupts for TX/RX rings */
 	irq_mask = MT_INT_RX_DONE_MCU |
 		   MT_INT_TX_DONE_MCU |
-		   MT_INT_MCU_CMD |
-		   MT_INT_BAND0_RX_DONE;
+		   MT_INT_MCU_CMD;
 
-	if (dev->dbdc_support)
+	if (!dev->phy.band_idx)
+		irq_mask |= MT_INT_BAND0_RX_DONE;
+
+	if (dev->dbdc_support || dev->phy.band_idx)
 		irq_mask |= MT_INT_BAND1_RX_DONE;
 
 	mt7915_irq_enable(dev, irq_mask);
@@ -338,7 +340,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 
 	/* init tx queue */
 	ret = mt7915_init_tx_queues(&dev->phy,
-				    MT_TXQ_ID(0),
+				    MT_TXQ_ID(dev->phy.band_idx),
 				    MT7915_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(0));
 	if (ret)
@@ -387,13 +389,15 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 		return ret;
 
 	/* rx data queue for band0 */
-	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
-			       MT_RXQ_ID(MT_RXQ_MAIN),
-			       MT7915_RX_RING_SIZE,
-			       MT_RX_BUF_SIZE,
-			       MT_RXQ_RING_BASE(MT_RXQ_MAIN));
-	if (ret)
-		return ret;
+	if (!dev->phy.band_idx) {
+		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
+				       MT_RXQ_ID(MT_RXQ_MAIN),
+				       MT7915_RX_RING_SIZE,
+				       MT_RX_BUF_SIZE,
+				       MT_RXQ_RING_BASE(MT_RXQ_MAIN));
+		if (ret)
+			return ret;
+	}
 
 	/* tx free notify event from WA for band0 */
 	if (!is_mt7915(mdev)) {
@@ -406,7 +410,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 			return ret;
 	}
 
-	if (dev->dbdc_support) {
+	if (dev->dbdc_support || dev->phy.band_idx) {
 		/* rx data queue for band1 */
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT],
 				       MT_RXQ_ID(MT_RXQ_EXT),

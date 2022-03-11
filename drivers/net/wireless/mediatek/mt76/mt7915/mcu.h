@@ -79,6 +79,15 @@ struct mt7915_mcu_csa_notify {
 	u8 rsv;
 } __packed;
 
+struct mt7915_mcu_bcc_notify {
+	struct mt7915_mcu_rxd rxd;
+
+	u8 band_idx;
+	u8 omac_idx;
+	u8 cca_count;
+	u8 rsv;
+} __packed;
+
 struct mt7915_mcu_rdd_report {
 	struct mt7915_mcu_rxd rxd;
 

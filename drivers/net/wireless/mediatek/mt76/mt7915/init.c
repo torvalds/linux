@@ -50,15 +50,22 @@ static ssize_t mt7915_thermal_temp_show(struct device *dev,
 	int i = to_sensor_dev_attr(attr)->index;
 	int temperature;
 
-	if (i)
-		return sprintf(buf, "%u\n", phy->throttle_temp[i - 1] * 1000);
-
-	temperature = mt7915_mcu_get_temperature(phy);
-	if (temperature < 0)
-		return temperature;
-
-	/* display in millidegree celcius */
-	return sprintf(buf, "%u\n", temperature * 1000);
+	switch (i) {
+	case 0:
+		temperature = mt7915_mcu_get_temperature(phy);
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree celcius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	case 1:
+	case 2:
+		return sprintf(buf, "%u\n",
+			       phy->throttle_temp[i - 1] * 1000);
+	case 3:
+		return sprintf(buf, "%hhu\n", phy->throttle_state);
+	default:
+		return -EINVAL;
+	}
 }
 
 static ssize_t mt7915_thermal_temp_store(struct device *dev,
@@ -84,11 +91,13 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
 static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7915_thermal_temp, 0);
 static SENSOR_DEVICE_ATTR_RW(temp1_crit, mt7915_thermal_temp, 1);
 static SENSOR_DEVICE_ATTR_RW(temp1_max, mt7915_thermal_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(throttle1, mt7915_thermal_temp, 3);
 
 static struct attribute *mt7915_hwmon_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_throttle1.dev_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mt7915_hwmon);
@@ -97,7 +106,7 @@ static int
 mt7915_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long *state)
 {
-	*state = MT7915_THERMAL_THROTTLE_MAX;
+	*state = MT7915_CDEV_THROTTLE_MAX;
 
 	return 0;
 }
@@ -108,7 +117,7 @@ mt7915_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
 {
 	struct mt7915_phy *phy = cdev->devdata;
 
-	*state = phy->throttle_state;
+	*state = phy->cdev_state;
 
 	return 0;
 }
@@ -118,22 +127,27 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long state)
 {
 	struct mt7915_phy *phy = cdev->devdata;
+	u8 throttling = MT7915_THERMAL_THROTTLE_MAX - state;
 	int ret;
 
-	if (state > MT7915_THERMAL_THROTTLE_MAX)
+	if (state > MT7915_CDEV_THROTTLE_MAX)
 		return -EINVAL;
 
 	if (phy->throttle_temp[0] > phy->throttle_temp[1])
 		return 0;
 
-	if (state == phy->throttle_state)
+	if (state == phy->cdev_state)
 		return 0;
 
-	ret = mt7915_mcu_set_thermal_throttling(phy, state);
+	/*
+	 * cooling_device convention: 0 = no cooling, more = more cooling
+	 * mcu convention: 1 = max cooling, more = less cooling
+	 */
+	ret = mt7915_mcu_set_thermal_throttling(phy, throttling);
 	if (ret)
 		return ret;
 
-	phy->throttle_state = state;
+	phy->cdev_state = state;
 
 	return 0;
 }
@@ -186,7 +200,8 @@ static int mt7915_thermal_init(struct mt7915_phy *phy)
 	phy->throttle_temp[0] = 110;
 	phy->throttle_temp[1] = 120;
 
-	return 0;
+	return mt7915_mcu_set_thermal_throttling(phy,
+						 MT7915_THERMAL_THROTTLE_MAX);
 }
 
 static void mt7915_led_set_config(struct led_classdev *led_cdev,
@@ -311,8 +326,8 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	struct mt7915_dev *dev = phy->dev;
 
 	hw->queues = 4;
-	hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
-	hw->max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
+	hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF_HE;
+	hw->max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF_HE;
 	hw->netdev_features = NETIF_F_RXCSUM;
 
 	hw->radiotap_timestamp.units_pos =
@@ -486,6 +501,9 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	phy->dev = dev;
 	phy->mt76 = mphy;
 
+	/* Bind main phy to band0 and ext_phy to band1 for dbdc case */
+	phy->band_idx = 1;
+
 	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
 
 	mt7915_eeprom_parse_hw_cap(dev, phy);
@@ -505,7 +523,7 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 
 	/* init wiphy according to mphy and phy */
 	mt7915_init_wiphy(mphy->hw);
-	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(1),
+	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(phy->band_idx),
 				    MT7915_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(1));
 	if (ret)
@@ -582,6 +600,12 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 		mt76_clear(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE);
 
 		msleep(100);
+	} else if (is_mt7986(&dev->mt76)) {
+		mt7986_wmac_disable(dev);
+		msleep(20);
+
+		mt7986_wmac_enable(dev);
+		msleep(20);
 	} else {
 		mt76_set(dev, MT_WF_SUBSYS_RST, 0x1);
 		msleep(20);
@@ -589,6 +613,32 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 		mt76_clear(dev, MT_WF_SUBSYS_RST, 0x1);
 		msleep(20);
 	}
+}
+
+static bool mt7915_band_config(struct mt7915_dev *dev)
+{
+	bool ret = true;
+
+	dev->phy.band_idx = 0;
+
+	if (is_mt7986(&dev->mt76)) {
+		u32 sku = mt7915_check_adie(dev, true);
+
+		/*
+		 * for mt7986, dbdc support is determined by the number
+		 * of adie chips and the main phy is bound to band1 when
+		 * dbdc is disabled.
+		 */
+		if (sku == MT7975_ONE_ADIE || sku == MT7976_ONE_ADIE) {
+			dev->phy.band_idx = 1;
+			ret = false;
+		}
+	} else {
+		ret = is_mt7915(&dev->mt76) ?
+		      !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5)) : true;
+	}
+
+	return ret;
 }
 
 static int mt7915_init_hardware(struct mt7915_dev *dev)
@@ -599,8 +649,7 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
 
-	dev->dbdc_support = is_mt7915(&dev->mt76) ?
-			    !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5)) : true;
+	dev->dbdc_support = mt7915_band_config(dev);
 
 	/* If MCU was already running, it is likely in a bad state */
 	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
@@ -767,9 +816,17 @@ static int
 mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		    struct ieee80211_sband_iftype_data *data)
 {
+	struct mt7915_dev *dev = phy->dev;
 	int i, idx = 0, nss = hweight8(phy->mt76->chainmask);
 	u16 mcs_map = 0;
 	u16 mcs_map_160 = 0;
+	u8 nss_160;
+
+	/* Can do 1/2 of NSS streams in 160Mhz mode for mt7915 */
+	if (is_mt7915(&dev->mt76) && !dev->dbdc_support)
+		nss_160 = nss / 2;
+	else
+		nss_160 = nss;
 
 	for (i = 0; i < 8; i++) {
 		if (i < nss)
@@ -777,8 +834,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		else
 			mcs_map |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
 
-		/* Can do 1/2 of NSS streams in 160Mhz mode. */
-		if (i < nss / 2)
+		if (i < nss_160)
 			mcs_map_160 |= (IEEE80211_HE_MCS_SUPPORT_0_11 << (i * 2));
 		else
 			mcs_map_160 |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
@@ -1010,6 +1066,9 @@ void mt7915_unregister_device(struct mt7915_dev *dev)
 	mt7915_tx_token_put(dev);
 	mt7915_dma_cleanup(dev);
 	tasklet_disable(&dev->irq_tasklet);
+
+	if (is_mt7986(&dev->mt76))
+		mt7986_wmac_disable(dev);
 
 	mt76_free_device(&dev->mt76);
 }

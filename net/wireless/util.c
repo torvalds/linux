@@ -1430,6 +1430,135 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	return result / 10000;
 }
 
+static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
+{
+#define SCALE 6144
+	static const u32 mcs_divisors[16] = {
+		102399, /* 16.666666... */
+		 51201, /*  8.333333... */
+		 34134, /*  5.555555... */
+		 25599, /*  4.166666... */
+		 17067, /*  2.777777... */
+		 12801, /*  2.083333... */
+		 11769, /*  1.851851... */
+		 10239, /*  1.666666... */
+		  8532, /*  1.388888... */
+		  7680, /*  1.250000... */
+		  6828, /*  1.111111... */
+		  6144, /*  1.000000... */
+		  5690, /*  0.926106... */
+		  5120, /*  0.833333... */
+		409600, /* 66.666666... */
+		204800, /* 33.333333... */
+	};
+	static const u32 rates_996[3] =  { 480388888, 453700000, 408333333 };
+	static const u32 rates_484[3] =  { 229411111, 216666666, 195000000 };
+	static const u32 rates_242[3] =  { 114711111, 108333333,  97500000 };
+	static const u32 rates_106[3] =  {  40000000,  37777777,  34000000 };
+	static const u32 rates_52[3]  =  {  18820000,  17777777,  16000000 };
+	static const u32 rates_26[3]  =  {   9411111,   8888888,   8000000 };
+	u64 tmp;
+	u32 result;
+
+	if (WARN_ON_ONCE(rate->mcs > 15))
+		return 0;
+	if (WARN_ON_ONCE(rate->eht_gi > NL80211_RATE_INFO_EHT_GI_3_2))
+		return 0;
+	if (WARN_ON_ONCE(rate->eht_ru_alloc >
+			 NL80211_RATE_INFO_EHT_RU_ALLOC_4x996))
+		return 0;
+	if (WARN_ON_ONCE(rate->nss < 1 || rate->nss > 8))
+		return 0;
+
+	/* Bandwidth checks for MCS 14 */
+	if (rate->mcs == 14) {
+		if ((rate->bw != RATE_INFO_BW_EHT_RU &&
+		     rate->bw != RATE_INFO_BW_80 &&
+		     rate->bw != RATE_INFO_BW_160 &&
+		     rate->bw != RATE_INFO_BW_320) ||
+		    (rate->bw == RATE_INFO_BW_EHT_RU &&
+		     rate->eht_ru_alloc != NL80211_RATE_INFO_EHT_RU_ALLOC_996 &&
+		     rate->eht_ru_alloc != NL80211_RATE_INFO_EHT_RU_ALLOC_2x996 &&
+		     rate->eht_ru_alloc != NL80211_RATE_INFO_EHT_RU_ALLOC_4x996)) {
+			WARN(1, "invalid EHT BW for MCS 14: bw:%d, ru:%d\n",
+			     rate->bw, rate->eht_ru_alloc);
+			return 0;
+		}
+	}
+
+	if (rate->bw == RATE_INFO_BW_320 ||
+	    (rate->bw == RATE_INFO_BW_EHT_RU &&
+	     rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_4x996))
+		result = 4 * rates_996[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_3x996P484)
+		result = 3 * rates_996[rate->eht_gi] + rates_484[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_3x996)
+		result = 3 * rates_996[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_2x996P484)
+		result = 2 * rates_996[rate->eht_gi] + rates_484[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_160 ||
+		 (rate->bw == RATE_INFO_BW_EHT_RU &&
+		  rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_2x996))
+		result = 2 * rates_996[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc ==
+		 NL80211_RATE_INFO_EHT_RU_ALLOC_996P484P242)
+		result = rates_996[rate->eht_gi] + rates_484[rate->eht_gi]
+			 + rates_242[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_996P484)
+		result = rates_996[rate->eht_gi] + rates_484[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_80 ||
+		 (rate->bw == RATE_INFO_BW_EHT_RU &&
+		  rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_996))
+		result = rates_996[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_484P242)
+		result = rates_484[rate->eht_gi] + rates_242[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_40 ||
+		 (rate->bw == RATE_INFO_BW_EHT_RU &&
+		  rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_484))
+		result = rates_484[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_20 ||
+		 (rate->bw == RATE_INFO_BW_EHT_RU &&
+		  rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_242))
+		result = rates_242[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_106P26)
+		result = rates_106[rate->eht_gi] + rates_26[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_106)
+		result = rates_106[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_52P26)
+		result = rates_52[rate->eht_gi] + rates_26[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_52)
+		result = rates_52[rate->eht_gi];
+	else if (rate->bw == RATE_INFO_BW_EHT_RU &&
+		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_26)
+		result = rates_26[rate->eht_gi];
+	else {
+		WARN(1, "invalid EHT MCS: bw:%d, ru:%d\n",
+		     rate->bw, rate->eht_ru_alloc);
+		return 0;
+	}
+
+	/* now scale to the appropriate MCS */
+	tmp = result;
+	tmp *= SCALE;
+	do_div(tmp, mcs_divisors[rate->mcs]);
+	result = tmp;
+
+	/* and take NSS */
+	result = (result * rate->nss) / 8;
+
+	return result / 10000;
+}
+
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	if (rate->flags & RATE_INFO_FLAGS_MCS)
@@ -1444,6 +1573,8 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 		return cfg80211_calculate_bitrate_vht(rate);
 	if (rate->flags & RATE_INFO_FLAGS_HE_MCS)
 		return cfg80211_calculate_bitrate_he(rate);
+	if (rate->flags & RATE_INFO_FLAGS_EHT_MCS)
+		return cfg80211_calculate_bitrate_eht(rate);
 
 	return rate->legacy;
 }

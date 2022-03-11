@@ -636,6 +636,7 @@ struct ieee80211_fils_discovery {
  * @tx_pwr_env: transmit power envelope array of BSS.
  * @tx_pwr_env_num: number of @tx_pwr_env.
  * @pwr_reduction: power constraint of BSS.
+ * @eht_support: does this BSS support EHT
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -710,6 +711,7 @@ struct ieee80211_bss_conf {
 	struct ieee80211_tx_pwr_env tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
 	u8 tx_pwr_env_num;
 	u8 pwr_reduction;
+	bool eht_support;
 };
 
 /**
@@ -2005,6 +2007,7 @@ enum ieee80211_sta_state {
  * @IEEE80211_STA_RX_BW_80: station can receive up to 80 MHz
  * @IEEE80211_STA_RX_BW_160: station can receive up to 160 MHz
  *	(including 80+80 MHz)
+ * @IEEE80211_STA_RX_BW_320: station can receive up to 320 MHz
  *
  * Implementation note: 20 must be zero to be initialized
  *	correctly, the values must be sorted.
@@ -2014,6 +2017,7 @@ enum ieee80211_sta_rx_bandwidth {
 	IEEE80211_STA_RX_BW_40,
 	IEEE80211_STA_RX_BW_80,
 	IEEE80211_STA_RX_BW_160,
+	IEEE80211_STA_RX_BW_320,
 };
 
 /**
@@ -2069,6 +2073,7 @@ struct ieee80211_sta_txpwr {
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
  * @he_cap: HE capabilities of this STA
  * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
+ * @eht_cap: EHT capabilities of this STA
  * @max_rx_aggregation_subframes: maximal amount of frames in a single AMPDU
  *	that this station is allowed to transmit to us.
  *	Can be modified by driver.
@@ -2109,6 +2114,7 @@ struct ieee80211_sta {
 	struct ieee80211_sta_vht_cap vht_cap;
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
+	struct ieee80211_sta_eht_cap eht_cap;
 	u16 max_rx_aggregation_subframes;
 	bool wme;
 	u8 uapsd_queues;
@@ -6063,6 +6069,16 @@ void ieee80211_disconnect(struct ieee80211_vif *vif, bool reconnect);
  * key configuration paths (if it supports HW crypto).
  */
 void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_hw_restart_disconnect - disconnect from AP after
+ * hardware restart
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Instructs mac80211 to disconnect from the AP after
+ * hardware restart.
+ */
+void ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring

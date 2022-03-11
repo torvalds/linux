@@ -548,4 +548,7 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
 int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct iwl_mvm_int_sta *sta, u8 *addr, u32 cipher,
 			 u8 *key, u32 key_len);
+void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   u32 mac_id);
 #endif /* __sta_h__ */
