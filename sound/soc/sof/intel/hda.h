@@ -524,7 +524,7 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params,
-			  struct sof_ipc_stream_params *ipc_params);
+			  struct snd_sof_platform_stream_params *platform_params);
 int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 			   struct snd_pcm_substream *substream);
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
@@ -566,9 +566,9 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream,
 		     void *p, size_t sz);
-int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply);
+int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset);
 
 /*
  * DSP IPC Operations.

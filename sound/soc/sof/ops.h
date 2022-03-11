@@ -420,11 +420,11 @@ static inline int
 snd_sof_pcm_platform_hw_params(struct snd_sof_dev *sdev,
 			       struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
-			       struct sof_ipc_stream_params *ipc_params)
+			       struct snd_sof_platform_stream_params *platform_params)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->pcm_hw_params)
-		return sof_ops(sdev)->pcm_hw_params(sdev, substream,
-						    params, ipc_params);
+		return sof_ops(sdev)->pcm_hw_params(sdev, substream, params,
+						    platform_params);
 
 	return 0;
 }
@@ -466,14 +466,17 @@ static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
 {
 	return sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
 }
-
-/* host configure DSP HW parameters */
+/* host side configuration of the stream's data offset in stream mailbox area */
 static inline int
-snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
+snd_sof_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
 {
-	return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
+	if (sof_ops(sdev) && sof_ops(sdev)->set_stream_data_offset)
+		return sof_ops(sdev)->set_stream_data_offset(sdev, substream,
+							     posn_offset);
+
+	return 0;
 }
 
 /* host stream pointer */

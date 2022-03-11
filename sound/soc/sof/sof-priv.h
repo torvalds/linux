@@ -105,6 +105,21 @@ struct snd_soc_tplg_ops;
 struct snd_soc_component;
 struct snd_sof_pdata;
 
+/**
+ * struct snd_sof_platform_stream_params - platform dependent stream parameters
+ * @stream_tag:		Stream tag to use
+ * @use_phy_addr:	Use the provided @phy_addr for configuration
+ * @phy_addr:		Platform dependent address to be used, if  @use_phy_addr
+ *			is true
+ * @no_ipc_position:	Disable position update IPC from firmware
+ */
+struct snd_sof_platform_stream_params {
+	u16 stream_tag;
+	bool use_phy_address;
+	u32 phy_addr;
+	bool no_ipc_position;
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -183,7 +198,7 @@ struct snd_sof_dsp_ops {
 	int (*pcm_hw_params)(struct snd_sof_dev *sdev,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
-			     struct sof_ipc_stream_params *ipc_params); /* optional */
+			     struct snd_sof_platform_stream_params *platform_params); /* optional */
 
 	/* host stream hw_free */
 	int (*pcm_hw_free)(struct snd_sof_dev *sdev,
@@ -206,10 +221,10 @@ struct snd_sof_dsp_ops {
 			    struct snd_pcm_substream *substream,
 			    void *p, size_t sz); /* mandatory */
 
-	/* host configure DSP HW parameters */
-	int (*ipc_pcm_params)(struct snd_sof_dev *sdev,
-			      struct snd_pcm_substream *substream,
-			      const struct sof_ipc_pcm_params_reply *reply); /* mandatory */
+	/* host side configuration of the stream's data offset in stream mailbox area */
+	int (*set_stream_data_offset)(struct snd_sof_dev *sdev,
+				      struct snd_pcm_substream *substream,
+				      size_t posn_offset); /* optional */
 
 	/* pre/post firmware run */
 	int (*pre_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
@@ -532,8 +547,6 @@ void snd_sof_ipc_free(struct snd_sof_dev *sdev);
 void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev);
 void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id);
 void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev);
-int snd_sof_ipc_stream_pcm_params(struct snd_sof_dev *sdev,
-				  struct sof_ipc_pcm_params *params);
 int snd_sof_ipc_valid(struct snd_sof_dev *sdev);
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		       void *msg_data, size_t msg_bytes, void *reply_data,
@@ -617,9 +630,9 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 int sof_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream,
 		     void *p, size_t sz);
-int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply);
+int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset);
 
 int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream);

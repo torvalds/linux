@@ -36,22 +36,6 @@ static int create_page_table(struct snd_soc_component *component,
 		spcm->stream[stream].page_table.area, size);
 }
 
-static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream *substream,
-			      const struct sof_ipc_pcm_params_reply *reply)
-{
-	struct snd_soc_component *scomp = spcm->scomp;
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-
-	/* validate offset */
-	int ret = snd_sof_ipc_pcm_params(sdev, substream, reply);
-
-	if (ret < 0)
-		dev_err(scomp->dev, "error: got wrong reply for PCM %d\n",
-			spcm->pcm.pcm_id);
-
-	return ret;
-}
-
 /*
  * sof pcm period elapse work
  */
@@ -162,6 +146,8 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_sof_platform_stream_params platform_params = { 0 };
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_pcm_params pcm;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
@@ -242,10 +228,27 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	ret = snd_sof_pcm_platform_hw_params(sdev,
 					     substream,
 					     params,
-					     &pcm.params);
+					     &platform_params);
 	if (ret < 0) {
 		dev_err(component->dev, "error: platform hw params failed\n");
 		return ret;
+	}
+
+	/* Update the IPC message with information from the platform */
+	pcm.params.stream_tag = platform_params.stream_tag;
+
+	if (platform_params.use_phy_address)
+		pcm.params.buffer.phy_addr = platform_params.phy_addr;
+
+	if (platform_params.no_ipc_position) {
+		/* For older ABIs set host_period_bytes to zero to inform
+		 * FW we don't want position updates. Newer versions use
+		 * no_stream_position for this purpose.
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
+			pcm.params.host_period_bytes = 0;
+		else
+			pcm.params.no_stream_position = 1;
 	}
 
 	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
@@ -266,9 +269,13 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 		return ret;
 	}
 
-	ret = sof_pcm_dsp_params(spcm, substream, &ipc_params_reply);
-	if (ret < 0)
+	ret = snd_sof_set_stream_data_offset(sdev, substream,
+					     ipc_params_reply.posn_offset);
+	if (ret < 0) {
+		dev_err(component->dev, "%s: invalid stream data offset for PCM %d\n",
+			__func__, spcm->pcm.pcm_id);
 		return ret;
+	}
 
 	spcm->prepared[substream->stream] = true;
 

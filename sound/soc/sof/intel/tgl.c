@@ -91,7 +91,7 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 	.get_window_offset = hda_dsp_ipc_get_window_offset,
 
 	.ipc_msg_data	= hda_ipc_msg_data,
-	.ipc_pcm_params	= hda_ipc_pcm_params,
+	.set_stream_data_offset = hda_set_stream_data_offset,
 
 	/* machine driver */
 	.machine_select = hda_machine_select,
