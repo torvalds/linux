@@ -209,5 +209,16 @@ config SND_SOC_INTEL_KEEMBAY
 	  If you have a Intel Keembay platform then enable this option
 	  by saying Y or m.
 
+config SND_SOC_INTEL_AVS
+	tristate "Intel AVS driver"
+	depends on PCI && ACPI
+	depends on COMMON_CLK
+	select SND_SOC_ACPI
+	select SND_HDA_EXT_CORE
+	help
+	  Enable support for Intel(R) cAVS 1.5 platforms with DSP
+	  capabilities. This includes Skylake, Kabylake, Amberlake and
+	  Apollolake.
+
 # ASoC codec drivers
 source "sound/soc/intel/boards/Kconfig"
