@@ -312,6 +312,20 @@ void optc1_program_timing(
 	}
 }
 
+/**
+ * optc1_set_vtg_params - Set Vertical Timing Generator (VTG) parameters
+ *
+ * @optc: timing_generator struct used to extract the optc parameters
+ * @dc_crtc_timing: Timing parameters configured
+ * @program_fp2: Boolean value indicating if FP2 will be programmed or not
+ *
+ * OTG is responsible for generating the global sync signals, including
+ * vertical timing information for each HUBP in the dcfclk domain. Each VTG is
+ * associated with one OTG that provides HUBP with vertical timing information
+ * (i.e., there is 1:1 correspondence between OTG and VTG). This function is
+ * responsible for setting the OTG parameters to the VTG during the pipe
+ * programming.
+ */
 void optc1_set_vtg_params(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2)
 {

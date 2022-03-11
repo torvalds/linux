@@ -812,22 +812,108 @@ struct dc_dsc_config {
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
 	uint32_t mst_pbn; /* pbn of display on dsc mst hub */
 };
+
+/**
+ * struct dc_crtc_timing - Timing parameters used to configure DCN blocks
+ *
+ * DCN provides multiple signals and parameters that can be used to adjust
+ * timing parameters, this struct aggregate multiple of these values for easy
+ * access. In this struct, fields prefixed with h_* are related to horizontal
+ * timing, and v_* to vertical timing. Keep in mind that when we talk about
+ * vertical timings, the values, in general, are described in the number of
+ * lines; on the other hand, the horizontal values are in pixels.
+ */
 struct dc_crtc_timing {
+	/**
+	 * @h_total: The total number of pixels from the rising edge of HSync
+	 * until the rising edge of the current HSync.
+	 */
 	uint32_t h_total;
+
+	/**
+	 * @h_border_left: The black pixels related to the left border
+	 */
 	uint32_t h_border_left;
+
+	/**
+	 * @h_addressable: It is the range of pixels displayed horizontally.
+	 * For example, if the display resolution is 3840@2160, the horizontal
+	 * addressable area is 3840.
+	 */
 	uint32_t h_addressable;
+
+	/**
+	 * @h_border_right: The black pixels related to the right border
+	 */
 	uint32_t h_border_right;
+
+	/**
+	 * @h_front_porch: Period (in pixels) between HBlank start and the
+	 * rising edge of HSync.
+	 */
 	uint32_t h_front_porch;
+
+	/**
+	 * @h_sync_width: HSync duration in pixels.
+	 */
 	uint32_t h_sync_width;
 
+	/**
+	 * @v_total: It is the total number of lines from the rising edge of
+	 * the previous VSync until the rising edge of the current VSync.
+	 *
+	 *          |--------------------------|
+	 *          +-+        V_TOTAL         +-+
+	 *          | |                        | |
+	 * VSync ---+ +--------- // -----------+ +---
+	 */
 	uint32_t v_total;
+
+	/**
+	 * @v_border_top: The black border on the top.
+	 */
 	uint32_t v_border_top;
+
+	/**
+	 * @v_addressable: It is the range of the scanout at which the
+	 * framebuffer is displayed. For example, if the display resolution is
+	 * 3840@2160, the addressable area is 2160 lines, or if the resolution
+	 * is 1920x1080, the addressable area is 1080 lines.
+	 */
 	uint32_t v_addressable;
+
+	/**
+	 * @v_border_bottom: The black border on the bottom.
+	 */
 	uint32_t v_border_bottom;
+
+	/**
+	 * @v_front_porch: Period (in lines) between VBlank start and rising
+	 * edge of VSync.
+	 *                  +-+
+	 * VSync            | |
+	 *        ----------+ +--------...
+	 *          +------------------...
+	 * VBlank   |
+	 *        --+
+	 *          |-------|
+	 *        v_front_porch
+	 */
 	uint32_t v_front_porch;
+
+	/**
+	 * @v_sync_width: VSync signal width in lines.
+	 */
 	uint32_t v_sync_width;
 
+	/**
+	 * @pix_clk_100hz: Pipe pixel precision
+	 *
+	 * This field is used to communicate pixel clocks with 100 Hz accuracy
+	 * from dc_crtc_timing to BIOS command table.
+	 */
 	uint32_t pix_clk_100hz;
+
 	uint32_t min_refresh_in_uhz;
 
 	uint32_t vic;
