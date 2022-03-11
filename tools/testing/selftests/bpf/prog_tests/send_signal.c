@@ -65,7 +65,7 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 
 		/* wait a little for signal handler */
 		for (int i = 0; i < 100000000 && !sigusr1_received; i++)
-			j /= i + 1;
+			j /= i + j + 1;
 
 		buf[0] = sigusr1_received ? '2' : '0';
 		ASSERT_EQ(sigusr1_received, 1, "sigusr1_received");
