@@ -233,11 +233,11 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 static void scrub_bio_end_io(struct bio *bio);
 static void scrub_bio_end_io_worker(struct work_struct *work);
 static void scrub_block_complete(struct scrub_block *sblock);
-static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
-			       u64 extent_logical, u32 extent_len,
-			       u64 *extent_physical,
-			       struct btrfs_device **extent_dev,
-			       int *extent_mirror_num);
+static void scrub_find_good_copy(struct btrfs_fs_info *fs_info,
+				 u64 extent_logical, u32 extent_len,
+				 u64 *extent_physical,
+				 struct btrfs_device **extent_dev,
+				 int *extent_mirror_num);
 static int scrub_add_sector_to_wr_bio(struct scrub_ctx *sctx,
 				      struct scrub_sector *sector);
 static void scrub_wr_submit(struct scrub_ctx *sctx);
@@ -2187,7 +2187,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		 * We shouldn't be scrubbing a missing device. Even for dev
 		 * replace, we should only get here for RAID 5/6. We either
 		 * managed to mount something with no mirrors remaining or
-		 * there's a bug in scrub_remap_extent()/btrfs_map_block().
+		 * there's a bug in scrub_find_good_copy()/btrfs_map_block().
 		 */
 		goto bioc_out;
 	}
@@ -2510,8 +2510,11 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 			u64 logical, u32 len,
 			u64 physical, struct btrfs_device *dev, u64 flags,
-			u64 gen, int mirror_num, u64 physical_for_dev_replace)
+			u64 gen, int mirror_num)
 {
+	struct btrfs_device *src_dev = dev;
+	u64 src_physical = physical;
+	int src_mirror = mirror_num;
 	int ret;
 	u8 csum[BTRFS_CSUM_SIZE];
 	u32 blocksize;
@@ -2539,6 +2542,18 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 		WARN_ON(1);
 	}
 
+	/*
+	 * For dev-replace case, we can have @dev being a missing device.
+	 * Regular scrub will avoid its execution on missing device at all,
+	 * as that would trigger tons of read error.
+	 *
+	 * Reading from missing device will cause read error counts to
+	 * increase unnecessarily.
+	 * So here we change the read source to a good mirror.
+	 */
+	if (sctx->is_dev_replace && !dev->bdev)
+		scrub_find_good_copy(sctx->fs_info, logical, len, &src_physical,
+				     &src_dev, &src_mirror);
 	while (len) {
 		u32 l = min(len, blocksize);
 		int have_csum = 0;
@@ -2549,15 +2564,15 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 			if (have_csum == 0)
 				++sctx->stat.no_csum;
 		}
-		ret = scrub_sectors(sctx, logical, l, physical, dev, flags, gen,
-				  mirror_num, have_csum ? csum : NULL,
-				  physical_for_dev_replace);
+		ret = scrub_sectors(sctx, logical, l, src_physical, src_dev,
+				    flags, gen, src_mirror,
+				    have_csum ? csum : NULL, physical);
 		if (ret)
 			return ret;
 		len -= l;
 		logical += l;
 		physical += l;
-		physical_for_dev_replace += l;
+		src_physical += l;
 	}
 	return 0;
 }
@@ -3244,14 +3259,11 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 	path.skip_locking = 1;
 	/* Go through each extent items inside the logical range */
 	while (cur_logical < logical_end) {
-		int cur_mirror = mirror_num;
-		struct btrfs_device *target_dev = device;
 		u64 extent_start;
 		u64 extent_len;
 		u64 extent_flags;
 		u64 extent_gen;
 		u64 scrub_len;
-		u64 cur_physical;
 
 		/* Canceled? */
 		if (atomic_read(&fs_info->scrub_cancel_req) ||
@@ -3307,11 +3319,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		scrub_len = min(min(extent_start + extent_len,
 				    logical_end), cur_logical + max_length) -
 			    cur_logical;
-		cur_physical = cur_logical - logical_start + physical;
 
-		if (sctx->is_dev_replace)
-			scrub_remap_extent(fs_info, cur_logical, scrub_len,
-					   &cur_physical, &target_dev, &cur_mirror);
 		if (extent_flags & BTRFS_EXTENT_FLAG_DATA) {
 			ret = btrfs_lookup_csums_range(csum_root, cur_logical,
 					cur_logical + scrub_len - 1,
@@ -3331,10 +3339,10 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 			cur_logical += scrub_len;
 			continue;
 		}
-		ret = scrub_extent(sctx, map, cur_logical, scrub_len, cur_physical,
-				   target_dev, extent_flags, extent_gen,
-				   cur_mirror, cur_logical - logical_start +
-				   physical);
+		ret = scrub_extent(sctx, map, cur_logical, scrub_len,
+				   cur_logical - logical_start + physical,
+				   device, extent_flags, extent_gen,
+				   mirror_num);
 		scrub_free_csums(sctx);
 		if (ret)
 			break;
@@ -4342,11 +4350,11 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 	return dev ? (sctx ? 0 : -ENOTCONN) : -ENODEV;
 }
 
-static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
-			       u64 extent_logical, u32 extent_len,
-			       u64 *extent_physical,
-			       struct btrfs_device **extent_dev,
-			       int *extent_mirror_num)
+static void scrub_find_good_copy(struct btrfs_fs_info *fs_info,
+				 u64 extent_logical, u32 extent_len,
+				 u64 *extent_physical,
+				 struct btrfs_device **extent_dev,
+				 int *extent_mirror_num)
 {
 	u64 mapped_length;
 	struct btrfs_io_context *bioc = NULL;
