@@ -52,6 +52,7 @@
 #include <linux/of_irq.h>
 #include <linux/vmalloc.h>
 #include <linux/pgtable.h>
+#include <linux/static_call.h>
 
 #include <linux/uaccess.h>
 #include <asm/interrupt.h>
@@ -729,6 +730,8 @@ static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
 	);
 }
 
+DEFINE_STATIC_CALL_RET0(ppc_get_irq, *ppc_md.get_irq);
+
 void __do_irq(struct pt_regs *regs)
 {
 	unsigned int irq;
@@ -740,7 +743,7 @@ void __do_irq(struct pt_regs *regs)
 	 *
 	 * This will typically lower the interrupt line to the CPU
 	 */
-	irq = ppc_md.get_irq();
+	irq = static_call(ppc_get_irq)();
 
 	/* We can hard enable interrupts now to allow perf interrupts */
 	if (should_hard_irq_enable())
@@ -808,6 +811,9 @@ void __init init_IRQ(void)
 
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
+
+	if (!WARN_ON(!ppc_md.get_irq))
+		static_call_update(ppc_get_irq, ppc_md.get_irq);
 }
 
 #ifdef CONFIG_BOOKE_OR_40x
