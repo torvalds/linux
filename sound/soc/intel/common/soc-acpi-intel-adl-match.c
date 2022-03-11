@@ -359,6 +359,15 @@ static const struct snd_soc_acpi_link_adr adl_rvp[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr adlps_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr adl_chromebook_base[] = {
 	{
 		.mask = BIT(0),
@@ -526,6 +535,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 	{
 		.link_mask = 0x1, /* link0 required */
 		.links = adl_rvp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-adl-rt711.tplg",
+	},
+	{
+		.link_mask = 0x1, /* link0 required */
+		.links = adlps_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-adl-rt711.tplg",
 	},
