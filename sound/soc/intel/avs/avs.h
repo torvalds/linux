@@ -53,12 +53,26 @@ struct avs_spec {
 	const u32 rom_status;
 };
 
+struct avs_fw_entry {
+	char *name;
+	const struct firmware *fw;
+
+	struct list_head node;
+};
+
 /*
  * struct avs_dev - Intel HD-Audio driver data
  *
  * @dev: PCI device
  * @dsp_ba: DSP bar address
  * @spec: platform-specific descriptor
+ * @fw_cfg: Firmware configuration, obtained through FW_CONFIG message
+ * @hw_cfg: Hardware configuration, obtained through HW_CONFIG message
+ * @mods_info: Available module-types, obtained through MODULES_INFO message
+ * @mod_idas: Module instance ID pool, one per module-type
+ * @modres_mutex: For synchronizing any @mods_info updates
+ * @ppl_ida: Pipeline instance ID pool
+ * @fw_list: List of libraries loaded, including base firmware
  */
 struct avs_dev {
 	struct hda_bus base;
@@ -67,6 +81,14 @@ struct avs_dev {
 	void __iomem *dsp_ba;
 	const struct avs_spec *spec;
 	struct avs_ipc *ipc;
+
+	struct avs_fw_cfg fw_cfg;
+	struct avs_hw_cfg hw_cfg;
+	struct avs_mods_info *mods_info;
+	struct ida **mod_idas;
+	struct mutex modres_mutex;
+	struct ida ppl_ida;
+	struct list_head fw_list;
 
 	struct completion fw_ready;
 };
@@ -167,5 +189,20 @@ int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request);
 void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable);
 int avs_ipc_init(struct avs_ipc *ipc, struct device *dev);
 void avs_ipc_block(struct avs_ipc *ipc);
+
+/* Firmware resources management */
+
+int avs_get_module_entry(struct avs_dev *adev, const guid_t *uuid, struct avs_module_entry *entry);
+int avs_get_module_id_entry(struct avs_dev *adev, u32 module_id, struct avs_module_entry *entry);
+int avs_get_module_id(struct avs_dev *adev, const guid_t *uuid);
+bool avs_is_module_ida_empty(struct avs_dev *adev, u32 module_id);
+
+int avs_module_info_init(struct avs_dev *adev, bool purge);
+void avs_module_info_free(struct avs_dev *adev);
+int avs_module_id_alloc(struct avs_dev *adev, u16 module_id);
+void avs_module_id_free(struct avs_dev *adev, u16 module_id, u8 instance_id);
+int avs_request_firmware(struct avs_dev *adev, const struct firmware **fw_p, const char *name);
+void avs_release_last_firmware(struct avs_dev *adev);
+void avs_release_firmwares(struct avs_dev *adev);
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
