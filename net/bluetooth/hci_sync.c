@@ -276,40 +276,37 @@ EXPORT_SYMBOL(__hci_cmd_sync_status);
 static void hci_cmd_sync_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_sync_work);
-	struct hci_cmd_sync_work_entry *entry;
-	hci_cmd_sync_work_func_t func;
-	hci_cmd_sync_work_destroy_t destroy;
-	void *data;
 
 	bt_dev_dbg(hdev, "");
 
-	mutex_lock(&hdev->cmd_sync_work_lock);
-	entry = list_first_entry(&hdev->cmd_sync_work_list,
-				 struct hci_cmd_sync_work_entry, list);
-	if (entry) {
-		list_del(&entry->list);
-		func = entry->func;
-		data = entry->data;
-		destroy = entry->destroy;
+	/* Dequeue all entries and run them */
+	while (1) {
+		struct hci_cmd_sync_work_entry *entry;
+
+		mutex_lock(&hdev->cmd_sync_work_lock);
+		entry = list_first_entry_or_null(&hdev->cmd_sync_work_list,
+						 struct hci_cmd_sync_work_entry,
+						 list);
+		if (entry)
+			list_del(&entry->list);
+		mutex_unlock(&hdev->cmd_sync_work_lock);
+
+		if (!entry)
+			break;
+
+		bt_dev_dbg(hdev, "entry %p", entry);
+
+		if (entry->func) {
+			int err;
+
+			hci_req_sync_lock(hdev);
+			err = entry->func(hdev, entry->data);
+			if (entry->destroy)
+				entry->destroy(hdev, entry->data, err);
+			hci_req_sync_unlock(hdev);
+		}
+
 		kfree(entry);
-	} else {
-		func = NULL;
-		data = NULL;
-		destroy = NULL;
-	}
-	mutex_unlock(&hdev->cmd_sync_work_lock);
-
-	if (func) {
-		int err;
-
-		hci_req_sync_lock(hdev);
-
-		err = func(hdev, data);
-
-		if (destroy)
-			destroy(hdev, data, err);
-
-		hci_req_sync_unlock(hdev);
 	}
 }
 
