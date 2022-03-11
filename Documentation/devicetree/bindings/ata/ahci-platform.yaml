@@ -108,6 +108,9 @@ properties:
       some embedded SoCs.
     maximum: 0x1f
 
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 1
 
