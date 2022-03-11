@@ -52,6 +52,7 @@ source "drivers/media/platform/mtk-jpeg/Kconfig"
 source "drivers/media/platform/mtk-mdp/Kconfig"
 source "drivers/media/platform/mtk-vcodec/Kconfig"
 source "drivers/media/platform/mtk-vpu/Kconfig"
+source "drivers/media/platform/omap3isp/Kconfig"
 source "drivers/media/platform/omap/Kconfig"
 
 source "drivers/media/platform/aspeed/Kconfig"
@@ -67,27 +68,6 @@ config VIDEO_MUX
 	select V4L2_FWNODE
 	help
 	  This driver provides support for N:1 video bus multiplexers.
-
-config VIDEO_OMAP3
-	tristate "OMAP 3 Camera support"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_V4L2 && I2C
-	depends on (ARCH_OMAP3 && OMAP_IOMMU) || COMPILE_TEST
-	depends on COMMON_CLK && OF
-	select ARM_DMA_USE_IOMMU if OMAP_IOMMU
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select VIDEOBUF2_DMA_CONTIG
-	select MFD_SYSCON
-	select V4L2_FWNODE
-	help
-	  Driver for an OMAP 3 camera controller.
-
-config VIDEO_OMAP3_DEBUG
-	bool "OMAP 3 Camera debug messages"
-	depends on VIDEO_OMAP3
-	help
-	  Enable debug messages on OMAP 3 camera controller driver.
 
 source "drivers/media/platform/intel/Kconfig"
 
