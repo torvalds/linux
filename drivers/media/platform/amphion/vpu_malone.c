@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/rational.h>
+#include <linux/time64.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/videodev2.h>
@@ -748,14 +749,12 @@ static void vpu_malone_pack_fs_release(struct vpu_rpc_event *pkt,
 static void vpu_malone_pack_timestamp(struct vpu_rpc_event *pkt,
 				      struct vpu_ts_info *info)
 {
+	struct timespec64 ts = ns_to_timespec64(info->timestamp);
+
 	pkt->hdr.num = 3;
-	if (info->timestamp < 0) {
-		pkt->data[0] = (u32)-1;
-		pkt->data[1] = 0;
-	} else {
-		pkt->data[0] = info->timestamp / NSEC_PER_SEC;
-		pkt->data[1] = info->timestamp % NSEC_PER_SEC;
-	}
+
+	pkt->data[0] = ts.tv_sec;
+	pkt->data[1] = ts.tv_nsec;
 	pkt->data[2] = info->size;
 }
 
@@ -916,6 +915,8 @@ static void vpu_malone_unpack_rel_frame(struct vpu_rpc_event *pkt,
 static void vpu_malone_unpack_buff_rdy(struct vpu_rpc_event *pkt,
 				       struct vpu_dec_pic_info *info)
 {
+	struct timespec64 ts = { pkt->data[9], pkt->data[10] };
+
 	info->id = pkt->data[0];
 	info->luma = pkt->data[1];
 	info->stride = pkt->data[3];
@@ -923,7 +924,8 @@ static void vpu_malone_unpack_buff_rdy(struct vpu_rpc_event *pkt,
 		info->skipped = 1;
 	else
 		info->skipped = 0;
-	info->timestamp = MAKE_TIMESTAMP(pkt->data[9], pkt->data[10]);
+
+	info->timestamp = timespec64_to_ns(&ts);
 }
 
 int vpu_malone_unpack_msg_data(struct vpu_rpc_event *pkt, void *data)

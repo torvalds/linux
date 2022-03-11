@@ -12,6 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/time64.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include "vpu.h"
@@ -682,7 +683,6 @@ static struct vpu_pair windsor_msgs[] = {
 int vpu_windsor_pack_cmd(struct vpu_rpc_event *pkt, u32 index, u32 id, void *data)
 {
 	int ret;
-	s64 timestamp;
 
 	ret = vpu_find_dst_by_src(windsor_cmds, ARRAY_SIZE(windsor_cmds), id);
 	if (ret < 0)
@@ -691,15 +691,12 @@ int vpu_windsor_pack_cmd(struct vpu_rpc_event *pkt, u32 index, u32 id, void *dat
 	pkt->hdr.num = 0;
 	pkt->hdr.index = index;
 	if (id == VPU_CMD_ID_FRAME_ENCODE) {
+		s64 timestamp = *(s64 *)data;
+		struct timespec64 ts = ns_to_timespec64(timestamp);
+
 		pkt->hdr.num = 2;
-		timestamp = *(s64 *)data;
-		if (timestamp < 0) {
-			pkt->data[0] = (u32)-1;
-			pkt->data[1] = 0;
-		} else {
-			pkt->data[0] = timestamp / NSEC_PER_SEC;
-			pkt->data[1] = timestamp % NSEC_PER_SEC;
-		}
+		pkt->data[0] = ts.tv_sec;
+		pkt->data[1] = ts.tv_nsec;
 	}
 
 	return 0;
@@ -714,6 +711,7 @@ static void vpu_windsor_unpack_pic_info(struct vpu_rpc_event *pkt, void *data)
 {
 	struct vpu_enc_pic_info *info = data;
 	struct windsor_pic_info *windsor = (struct windsor_pic_info *)pkt->data;
+	struct timespec64 ts = { windsor->tv_s, windsor->tv_ns };
 
 	info->frame_id = windsor->frame_id;
 	switch (windsor->pic_type) {
@@ -736,7 +734,7 @@ static void vpu_windsor_unpack_pic_info(struct vpu_rpc_event *pkt, void *data)
 	info->frame_size = windsor->frame_size;
 	info->wptr = get_ptr(windsor->str_buff_wptr);
 	info->crc = windsor->frame_crc;
-	info->timestamp = MAKE_TIMESTAMP(windsor->tv_s, windsor->tv_ns);
+	info->timestamp = timespec64_to_ns(&ts);
 }
 
 static void vpu_windsor_unpack_mem_req(struct vpu_rpc_event *pkt, void *data)

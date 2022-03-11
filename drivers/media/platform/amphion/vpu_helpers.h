@@ -11,9 +11,6 @@ struct vpu_pair {
 	u32 dst;
 };
 
-#define MAKE_TIMESTAMP(s, ns)		(((s32)(s) * NSEC_PER_SEC) + (ns))
-#define VPU_INVALID_TIMESTAMP		MAKE_TIMESTAMP(-1, 0)
-
 int vpu_helper_find_in_array_u8(const u8 *array, u32 size, u32 x);
 bool vpu_helper_check_type(struct vpu_inst *inst, u32 type);
 const struct vpu_format *vpu_helper_find_format(struct vpu_inst *inst, u32 type, u32 pixelfmt);

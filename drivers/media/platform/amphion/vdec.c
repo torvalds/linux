@@ -65,9 +65,6 @@ struct vdec_t {
 	u32 drain;
 	u32 ts_pre_count;
 	u32 frame_depth;
-	s64 ts_start;
-	s64 ts_input;
-	s64 timestamp;
 };
 
 static const struct vpu_format vdec_formats[] = {
@@ -693,7 +690,6 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 	vpu_inst_lock(inst);
-	vdec->timestamp = frame->timestamp;
 	vdec->display_frame_count++;
 	vpu_inst_unlock(inst);
 	dev_dbg(inst->dev, "[%d] decoded : %d, display : %d, sequence : %d\n",
@@ -713,9 +709,6 @@ static void vdec_stop_done(struct vpu_inst *inst)
 	vdec->params.end_flag = 0;
 	vdec->drain = 0;
 	vdec->ts_pre_count = 0;
-	vdec->timestamp = VPU_INVALID_TIMESTAMP;
-	vdec->ts_start = VPU_INVALID_TIMESTAMP;
-	vdec->ts_input = VPU_INVALID_TIMESTAMP;
 	vdec->params.frame_count = 0;
 	vdec->decoded_frame_count = 0;
 	vdec->display_frame_count = 0;
@@ -1228,7 +1221,6 @@ static int vdec_process_output(struct vpu_inst *inst, struct vb2_buffer *vb)
 	struct vdec_t *vdec = inst->priv;
 	struct vb2_v4l2_buffer *vbuf;
 	struct vpu_rpc_buffer_desc desc;
-	s64 timestamp;
 	u32 free_space;
 	int ret;
 
@@ -1251,12 +1243,6 @@ static int vdec_process_output(struct vpu_inst *inst, struct vb2_buffer *vb)
 	free_space = vpu_helper_get_free_space(inst);
 	if (free_space < vb2_get_plane_payload(vb, 0) + 0x40000)
 		return -ENOMEM;
-
-	timestamp = vb->timestamp;
-	if (timestamp >= 0 && vdec->ts_start < 0)
-		vdec->ts_start = timestamp;
-	if (vdec->ts_input < timestamp)
-		vdec->ts_input = timestamp;
 
 	ret = vpu_iface_input_frame(inst, vb);
 	if (ret < 0)
@@ -1333,9 +1319,6 @@ static void vdec_abort(struct vpu_inst *inst)
 	vdec->params.end_flag = 0;
 	vdec->drain = 0;
 	vdec->ts_pre_count = 0;
-	vdec->timestamp = VPU_INVALID_TIMESTAMP;
-	vdec->ts_start = VPU_INVALID_TIMESTAMP;
-	vdec->ts_input = VPU_INVALID_TIMESTAMP;
 	vdec->params.frame_count = 0;
 	vdec->decoded_frame_count = 0;
 	vdec->display_frame_count = 0;
@@ -1550,21 +1533,6 @@ static int vdec_get_debug_info(struct vpu_inst *inst, char *str, u32 size, u32 i
 				vdec->codec_info.frame_rate.numerator,
 				vdec->codec_info.frame_rate.denominator);
 		break;
-	case 10:
-	{
-		s64 timestamp = vdec->timestamp;
-		s64 ts_start = vdec->ts_start;
-		s64 ts_input = vdec->ts_input;
-
-		num = scnprintf(str, size, "timestamp = %9lld.%09lld(%9lld.%09lld, %9lld.%09lld)\n",
-				timestamp / NSEC_PER_SEC,
-				timestamp % NSEC_PER_SEC,
-				ts_start / NSEC_PER_SEC,
-				ts_start % NSEC_PER_SEC,
-				ts_input / NSEC_PER_SEC,
-				ts_input % NSEC_PER_SEC);
-	}
-		break;
 	default:
 		break;
 	}
@@ -1599,9 +1567,6 @@ static void vdec_init(struct file *file)
 
 	vdec = inst->priv;
 	vdec->frame_depth = VDEC_FRAME_DEPTH;
-	vdec->timestamp = VPU_INVALID_TIMESTAMP;
-	vdec->ts_start = VPU_INVALID_TIMESTAMP;
-	vdec->ts_input = VPU_INVALID_TIMESTAMP;
 
 	memset(&f, 0, sizeof(f));
 	f.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
