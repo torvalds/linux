@@ -210,6 +210,10 @@
 	status = "okay";
 };
 
+&can2 {
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };
