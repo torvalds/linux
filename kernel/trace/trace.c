@@ -185,6 +185,7 @@ static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
 static bool allocate_snapshot;
+static bool snapshot_at_boot;
 
 static int __init set_cmdline_ftrace(char *str)
 {
@@ -228,6 +229,15 @@ static int __init boot_alloc_snapshot(char *str)
 	return 1;
 }
 __setup("alloc_snapshot", boot_alloc_snapshot);
+
+
+static int __init boot_snapshot(char *str)
+{
+	snapshot_at_boot = true;
+	boot_alloc_snapshot(str);
+	return 1;
+}
+__setup("ftrace_boot_snapshot", boot_snapshot);
 
 
 static char trace_boot_options_buf[MAX_TRACER_SIZE] __initdata;
@@ -10147,6 +10157,14 @@ out_free_buffer_mask:
 	free_cpumask_var(tracing_buffer_mask);
 out:
 	return ret;
+}
+
+void __init ftrace_boot_snapshot(void)
+{
+	if (snapshot_at_boot) {
+		tracing_snapshot();
+		internal_trace_puts("** Boot snapshot taken **\n");
+	}
 }
 
 void __init early_trace_init(void)
