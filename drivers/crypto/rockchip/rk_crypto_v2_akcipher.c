@@ -149,6 +149,9 @@ static int rk_rsa_calc(struct akcipher_request *req, bool encypt)
 		return -EOVERFLOW;
 	}
 
+	if (req->src_len > key_byte_size)
+		return -EINVAL;
+
 	in = rk_bn_alloc(key_byte_size);
 	if (!in)
 		goto exit;
