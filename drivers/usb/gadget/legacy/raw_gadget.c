@@ -758,6 +758,7 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 	unsigned long flags;
 	struct usb_endpoint_descriptor *desc;
 	struct raw_ep *ep;
+	bool ep_props_matched = false;
 
 	desc = memdup_user((void __user *)value, sizeof(*desc));
 	if (IS_ERR(desc))
@@ -787,12 +788,13 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 
 	for (i = 0; i < dev->eps_num; i++) {
 		ep = &dev->eps[i];
-		if (ep->state != STATE_EP_DISABLED)
-			continue;
 		if (ep->addr != usb_endpoint_num(desc) &&
 				ep->addr != USB_RAW_EP_ADDR_ANY)
 			continue;
 		if (!usb_gadget_ep_match_desc(dev->gadget, ep->ep, desc, NULL))
+			continue;
+		ep_props_matched = true;
+		if (ep->state != STATE_EP_DISABLED)
 			continue;
 		ep->ep->desc = desc;
 		ret = usb_ep_enable(ep->ep);
@@ -815,8 +817,13 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 		goto out_unlock;
 	}
 
-	dev_dbg(&dev->gadget->dev, "fail, no gadget endpoints available\n");
-	ret = -EBUSY;
+	if (!ep_props_matched) {
+		dev_dbg(&dev->gadget->dev, "fail, bad endpoint descriptor\n");
+		ret = -EINVAL;
+	} else {
+		dev_dbg(&dev->gadget->dev, "fail, no endpoints available\n");
+		ret = -EBUSY;
+	}
 
 out_free:
 	kfree(desc);
