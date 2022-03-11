@@ -390,7 +390,7 @@ intel_drrs_init(struct intel_connector *connector,
 		return NULL;
 	}
 
-	if (dev_priv->vbt.drrs_type != DRRS_TYPE_SEAMLESS) {
+	if (dev_priv->vbt.drrs_type == DRRS_TYPE_NONE) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CONNECTOR:%d:%s] DRRS not supported according to VBT\n",
 			    connector->base.base.id, connector->base.name);
