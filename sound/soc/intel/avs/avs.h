@@ -43,6 +43,8 @@ struct avs_dsp_ops {
 #define avs_dsp_op(adev, op, ...) \
 	((adev)->spec->dsp_ops->op(adev, ## __VA_ARGS__))
 
+#define AVS_PLATATTR_CLDMA		BIT_ULL(0)
+
 #define avs_platattr_test(adev, attr) \
 	((adev)->spec->attributes & AVS_PLATATTR_##attr)
 
@@ -231,5 +233,10 @@ void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable);
 
 int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge);
 int avs_dsp_first_boot_firmware(struct avs_dev *adev);
+
+int avs_cldma_load_basefw(struct avs_dev *adev, struct firmware *fw);
+int avs_cldma_load_library(struct avs_dev *adev, struct firmware *lib, u32 id);
+int avs_cldma_transfer_modules(struct avs_dev *adev, bool load,
+			       struct avs_module_entry *mods, u32 num_mods);
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
