@@ -9,6 +9,12 @@
 #ifndef __SOUND_SOC_INTEL_AVS_REGS_H
 #define __SOUND_SOC_INTEL_AVS_REGS_H
 
+#define AZX_PCIREG_PGCTL		0x44
+#define AZX_PCIREG_CGCTL		0x48
+#define AZX_PGCTL_LSRMD_MASK		BIT(4)
+#define AZX_CGCTL_MISCBDCGE_MASK	BIT(6)
+#define AZX_VS_EM2_L1SEN		BIT(13)
+
 /* Intel HD Audio General DSP Registers */
 #define AVS_ADSP_GEN_BASE		0x0
 #define AVS_ADSP_REG_ADSPCS		(AVS_ADSP_GEN_BASE + 0x04)
