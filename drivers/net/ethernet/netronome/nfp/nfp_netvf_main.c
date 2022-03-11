@@ -36,9 +36,8 @@ struct nfp_net_vf {
 
 static const char nfp_net_driver_name[] = "nfp_netvf";
 
-#define PCI_DEVICE_NFP6000VF		0x6003
 static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_NFP6000VF,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000_VF,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0,
 	},
