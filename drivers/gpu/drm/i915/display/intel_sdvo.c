@@ -2932,7 +2932,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 		}
 	}
 
-	if (!intel_connector->panel.fixed_mode)
+	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		goto err;
 
 	return true;

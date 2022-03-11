@@ -582,8 +582,9 @@ static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
 						     int link_rate,
 						     u8 lane_count)
 {
+	/* FIXME figure out what we actually want here */
 	const struct drm_display_mode *fixed_mode =
-		intel_dp->attached_connector->panel.fixed_mode;
+		intel_panel_preferred_fixed_mode(intel_dp->attached_connector);
 	int mode_rate, max_rate;
 
 	mode_rate = intel_dp_link_required(fixed_mode->clock, 18);

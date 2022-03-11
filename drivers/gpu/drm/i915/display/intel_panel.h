@@ -25,6 +25,8 @@ enum drm_connector_status
 intel_panel_detect(struct drm_connector *connector, bool force);
 bool intel_panel_use_ssc(struct drm_i915_private *i915);
 const struct drm_display_mode *
+intel_panel_preferred_fixed_mode(struct intel_connector *connector);
+const struct drm_display_mode *
 intel_panel_fixed_mode(struct intel_connector *connector,
 		       const struct drm_display_mode *mode);
 const struct drm_display_mode *
