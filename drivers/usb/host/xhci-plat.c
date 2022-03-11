@@ -142,6 +142,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "generic-xhci",
 	}, {
 		.compatible = "xhci-platform",
+#ifndef CONFIG_ARCH_ROCKCHIP
 	}, {
 		.compatible = "marvell,armada-375-xhci",
 		.data = &xhci_plat_marvell_armada,
@@ -178,6 +179,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "brcm,bcm7445-xhci",
 		.data = &xhci_plat_brcm,
+#endif
 	},
 	{},
 };
