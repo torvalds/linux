@@ -1838,9 +1838,6 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
-	if (DISPLAY_VER(dev_priv) < 7)
-		return -ENODEV;
-
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state;
 		struct drm_crtc_commit *commit;

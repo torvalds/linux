@@ -158,10 +158,10 @@ static void intel_drrs_set_state(struct intel_crtc *crtc,
 	if (refresh_rate == crtc->drrs.refresh_rate)
 		return;
 
-	if (DISPLAY_VER(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv))
-		intel_drrs_set_refresh_rate_m_n(crtc, refresh_rate);
-	else if (DISPLAY_VER(dev_priv) > 6)
+	if (intel_cpu_transcoder_has_m2_n2(dev_priv, crtc->drrs.cpu_transcoder))
 		intel_drrs_set_refresh_rate_pipeconf(crtc, refresh_rate);
+	else
+		intel_drrs_set_refresh_rate_m_n(crtc, refresh_rate);
 
 	crtc->drrs.refresh_rate = refresh_rate;
 }
@@ -374,7 +374,7 @@ intel_drrs_init(struct intel_connector *connector,
 	struct intel_encoder *encoder = connector->encoder;
 	struct drm_display_mode *downclock_mode;
 
-	if (DISPLAY_VER(dev_priv) <= 6) {
+	if (DISPLAY_VER(dev_priv) < 5) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CONNECTOR:%d:%s] DRRS not supported on platform\n",
 			    connector->base.base.id, connector->base.name);
