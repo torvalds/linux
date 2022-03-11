@@ -83,6 +83,16 @@ int intel_panel_get_modes(struct intel_connector *connector)
 	return num_modes;
 }
 
+enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	if (!connector->panel.downclock_mode)
+		return DRRS_TYPE_NONE;
+
+	return i915->vbt.drrs_type;
+}
+
 int intel_panel_compute_config(struct intel_connector *connector,
 			       struct drm_display_mode *adjusted_mode)
 {
