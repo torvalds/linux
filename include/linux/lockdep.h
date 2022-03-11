@@ -329,6 +329,12 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
 #define lockdep_assert_none_held_once()		\
 	lockdep_assert_once(!current->lockdep_depth)
+/*
+ * Ensure that softirq is handled within the callchain and not delayed and
+ * handled by chance.
+ */
+#define lockdep_assert_softirq_will_run()	\
+	lockdep_assert_once(hardirq_count() | softirq_count())
 
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
 
@@ -414,6 +420,7 @@ extern int lockdep_is_held(const void *);
 #define lockdep_assert_held_read(l)		do { (void)(l); } while (0)
 #define lockdep_assert_held_once(l)		do { (void)(l); } while (0)
 #define lockdep_assert_none_held_once()	do { } while (0)
+#define lockdep_assert_softirq_will_run()	do { } while (0)
 
 #define lockdep_recursing(tsk)			(0)
 
