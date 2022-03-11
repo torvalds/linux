@@ -1928,18 +1928,18 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(1, RGA3_INT_EN, scheduler);
 
 	if (DEBUGGER_EN(MSG)) {
-		pr_err("sys_ctrl = %x, int_en = %x, int_raw = %x\n",
-			 rga_read(RGA3_SYS_CTRL, scheduler),
-			 rga_read(RGA3_INT_EN, scheduler),
-			 rga_read(RGA3_INT_RAW, scheduler));
+		pr_info("sys_ctrl = %x, int_en = %x, int_raw = %x\n",
+			rga_read(RGA3_SYS_CTRL, scheduler),
+			rga_read(RGA3_INT_EN, scheduler),
+			rga_read(RGA3_INT_RAW, scheduler));
 
-		pr_err("status0 = %x, status1 = %x\n",
-			 rga_read(RGA3_STATUS0, scheduler),
-			 rga_read(RGA3_STATUS1, scheduler));
+		pr_info("status0 = %x, status1 = %x\n",
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_STATUS1, scheduler));
 	}
 
 	if (DEBUGGER_EN(TIME))
-		pr_err("set cmd use time = %lld\n", ktime_us_delta(now, job->timestamp));
+		pr_info("set cmd use time = %lld\n", ktime_us_delta(now, job->timestamp));
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;

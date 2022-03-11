@@ -474,8 +474,8 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 
 	if (DEBUGGER_EN(TIME)) {
 		now = ktime_get();
-		pr_err("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
-		pr_err("(pid:%d) job done use time = %lld\n", job->pid,
+		pr_info("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
+		pr_info("(pid:%d) job done use time = %lld\n", job->pid,
 			ktime_us_delta(now, job->timestamp));
 	}
 
@@ -672,7 +672,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	now = ktime_get();
 
 	if (DEBUGGER_EN(TIME))
-		pr_err("%s use time = %lld\n", __func__,
+		pr_info("%s use time = %lld\n", __func__,
 			ktime_us_delta(now, job->hw_running_time));
 
 	return ret;
@@ -977,7 +977,7 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *
 		ctx->out_fence_fd = rga_command_base->out_fence_fd;
 
 		if (DEBUGGER_EN(MSG))
-			pr_err("in_fence_fd = %d",
+			pr_info("in_fence_fd = %d",
 				rga_command_base->in_fence_fd);
 
 		/* if input fence is valiable */

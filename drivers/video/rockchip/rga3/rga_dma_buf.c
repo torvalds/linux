@@ -610,7 +610,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 	size = iova_align(iovad, size);
 
 	if (DEBUGGER_EN(MSG))
-		pr_err("iova_align size = %ld", size);
+		pr_info("iova_align size = %ld", size);
 
 	iova = rga_iommu_dma_alloc_iova(domain, size, scheduler->dev->coherent_dma_mask,
 					scheduler->dev);

@@ -2458,10 +2458,10 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		 (0x1 << 8), RGA2_INT, scheduler);
 
 	if (DEBUGGER_EN(TIME)) {
-		pr_err("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
-			 rga_read(RGA2_SYS_CTRL, scheduler),
-			 rga_read(RGA2_INT, scheduler),
-			 ktime_us_delta(now, job->timestamp));
+		pr_info("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
+			rga_read(RGA2_SYS_CTRL, scheduler),
+			rga_read(RGA2_INT, scheduler),
+			ktime_us_delta(now, job->timestamp));
 	}
 
 	job->hw_running_time = now;

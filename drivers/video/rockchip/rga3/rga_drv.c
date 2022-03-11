@@ -397,7 +397,7 @@ static long rga_ioctl_cmd_config(unsigned long arg)
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_err("config cmd id = %d", rga_user_ctx.id);
+		pr_info("config cmd id = %d", rga_user_ctx.id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
 	ret = rga_job_config_by_user_ctx(&rga_user_ctx);
@@ -421,7 +421,7 @@ static long rga_ioctl_cmd_end(unsigned long arg)
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_err("config end id = %d", rga_user_ctx.id);
+		pr_info("config end id = %d", rga_user_ctx.id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
 	ret = rga_job_commit_by_user_ctx(&rga_user_ctx);
@@ -451,7 +451,7 @@ static long rga_ioctl_cmd_cancel(unsigned long arg)
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_err("config cancel id = %d", rga_user_ctx_id);
+		pr_info("config cancel id = %d", rga_user_ctx_id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
 	ret = rga_job_cancel_by_user_ctx(rga_user_ctx_id);
@@ -998,8 +998,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	rga_scheduler->irq = irq;
 
-	pr_err("%s, irq = %d, match scheduler\n",
-			match_data->irqs[0].name, irq);
+	pr_info("%s, irq = %d, match scheduler\n", match_data->irqs[0].name, irq);
 
 	ret = devm_request_threaded_irq(dev, irq,
 			match_data->irqs[0].irq_hdl,
@@ -1051,8 +1050,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 #endif //CONFIG_ROCKCHIP_FPGA
 
 	rga_scheduler->ops->get_version(rga_scheduler);
-	pr_err("%s driver loaded successfully ver:%s\n",
-	       dev_driver_string(dev), rga_scheduler->version.str);
+	pr_info("%s driver loaded successfully ver:%s\n",
+		dev_driver_string(dev), rga_scheduler->version.str);
 
 	/* TODO: get by hw version, Currently only supports judgment 1106. */
 	if (rga_scheduler->core == RGA3_SCHEDULER_CORE0 ||
@@ -1075,7 +1074,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 
-	pr_err("probe successfully\n");
+	pr_info("%s probe successfully\n", dev_driver_string(dev));
 
 	return 0;
 
