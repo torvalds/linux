@@ -8114,6 +8114,8 @@ static void intel_enable_crtc(struct intel_atomic_state *state,
 	if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
 		return;
 
+	intel_drrs_enable(new_crtc_state);
+
 	/* vblanks work again, re-enable pipe CRC. */
 	intel_crtc_enable_pipe_crc(crtc);
 }
@@ -8182,6 +8184,8 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	 * or we race against vblank off.
 	 */
 	intel_crtc_disable_pipe_crc(crtc);
+
+	intel_drrs_disable(old_crtc_state);
 
 	dev_priv->display->crtc_disable(state, crtc);
 	crtc->active = false;
