@@ -133,11 +133,6 @@ struct hisi_sas_rst {
 	bool done;
 };
 
-struct hisi_sas_internal_abort {
-	unsigned int flag;
-	unsigned int tag;
-};
-
 #define HISI_SAS_RST_WORK_INIT(r, c) \
 	{	.hisi_hba = hisi_hba, \
 		.completion = &c, \
@@ -325,8 +320,7 @@ struct hisi_sas_hw {
 	void (*prep_stp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
 	void (*prep_abort)(struct hisi_hba *hisi_hba,
-			  struct hisi_sas_slot *slot,
-			  int device_id, int abort_flag, int tag_to_abort);
+			  struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
 	void (*phy_start)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);

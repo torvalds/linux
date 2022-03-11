@@ -565,6 +565,7 @@ enum sas_internal_abort {
 
 struct sas_internal_abort_task {
 	enum sas_internal_abort type;
+	unsigned int qid;
 	u16 tag;
 };
 
@@ -671,6 +672,7 @@ struct sas_domain_function_template {
 	/* Special TMF callbacks */
 	void (*lldd_tmf_exec_complete)(struct domain_device *dev);
 	void (*lldd_tmf_aborted)(struct sas_task *task);
+	bool (*lldd_abort_timeout)(struct sas_task *task, void *data);
 
 	/* Port and Adapter management */
 	int (*lldd_clear_nexus_port)(struct asd_sas_port *);

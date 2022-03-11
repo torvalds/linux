@@ -1452,28 +1452,28 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 }
 
 static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
-		struct hisi_sas_slot *slot,
-		int device_id, int abort_flag, int tag_to_abort)
+			     struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
+	struct sas_internal_abort_task *abort = &task->abort_task;
 	struct domain_device *dev = task->dev;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct hisi_sas_port *port = slot->port;
+	struct hisi_sas_device *sas_dev = dev->lldd_dev;
+	bool sata = dev_is_sata(dev);
 
 	/* dw0 */
-	hdr->dw0 = cpu_to_le32((5U << CMD_HDR_CMD_OFF) | /*abort*/
+	hdr->dw0 = cpu_to_le32((5U << CMD_HDR_CMD_OFF) | /* abort */
 			       (port->id << CMD_HDR_PORT_OFF) |
-				   (dev_is_sata(dev)
-					<< CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
-					(abort_flag
-					 << CMD_HDR_ABORT_FLAG_OFF));
+				(sata << CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
+				(abort->type << CMD_HDR_ABORT_FLAG_OFF));
 
 	/* dw1 */
-	hdr->dw1 = cpu_to_le32(device_id
+	hdr->dw1 = cpu_to_le32(sas_dev->device_id
 			<< CMD_HDR_DEV_ID_OFF);
 
 	/* dw7 */
-	hdr->dw7 = cpu_to_le32(tag_to_abort << CMD_HDR_ABORT_IPTT_OFF);
+	hdr->dw7 = cpu_to_le32(abort->tag << CMD_HDR_ABORT_IPTT_OFF);
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
 }
 
