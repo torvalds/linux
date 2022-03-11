@@ -710,7 +710,7 @@ static void err_print_gt_info(struct drm_i915_error_state_buf *m,
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_gt_info_print(&gt->info, &p);
-	intel_sseu_print_topology(&gt->info.sseu, &p);
+	intel_sseu_print_topology(gt->_gt->i915, &gt->info.sseu, &p);
 }
 
 static void err_print_gt(struct drm_i915_error_state_buf *m,

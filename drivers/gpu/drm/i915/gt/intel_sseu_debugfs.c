@@ -285,22 +285,22 @@ static int sseu_status_show(struct seq_file *m, void *unused)
 }
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_status);
 
-static int rcs_topology_show(struct seq_file *m, void *unused)
+static int sseu_topology_show(struct seq_file *m, void *unused)
 {
 	struct intel_gt *gt = m->private;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_sseu_print_topology(&gt->info.sseu, &p);
+	intel_sseu_print_topology(gt->i915, &gt->info.sseu, &p);
 
 	return 0;
 }
-DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rcs_topology);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_topology);
 
 void intel_sseu_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "sseu_status", &sseu_status_fops, NULL },
-		{ "rcs_topology", &rcs_topology_fops, NULL },
+		{ "sseu_topology", &sseu_topology_fops, NULL },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);
