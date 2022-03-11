@@ -496,8 +496,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	}
 
 	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
-			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id,
+			       nfp_qcp_queue_offset(pf->dev_info, 0),
+			       pf->dev_info->qc_area_sz, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);

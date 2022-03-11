@@ -40,7 +40,7 @@ static const char nfp_net_driver_name[] = "nfp_netvf";
 static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000_VF,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000_VF,
 	},
 	{ 0, } /* Required last entry. */
 };
@@ -169,9 +169,9 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	startq = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
-	tx_bar_off = NFP_PCIE_QUEUE(startq);
+	tx_bar_off = nfp_qcp_queue_offset(dev_info, startq);
 	startq = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
-	rx_bar_off = NFP_PCIE_QUEUE(startq);
+	rx_bar_off = nfp_qcp_queue_offset(dev_info, startq);
 
 	/* Allocate and initialise the netdev */
 	nn = nfp_net_alloc(pdev, dev_info, ctrl_bar, true,

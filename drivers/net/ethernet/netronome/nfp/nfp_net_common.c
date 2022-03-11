@@ -40,6 +40,7 @@
 #include <net/vxlan.h>
 #include <net/xdp_sock_drv.h>
 
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nsp.h"
 #include "ccm.h"
 #include "nfp_app.h"
@@ -63,6 +64,12 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 
 	reg = readl(ctrl_bar + NFP_NET_CFG_VERSION);
 	put_unaligned_le32(reg, fw_ver);
+}
+
+u32 nfp_qcp_queue_offset(const struct nfp_dev_info *dev_info, u16 queue)
+{
+	queue &= dev_info->qc_idx_mask;
+	return dev_info->qc_addr_offset + NFP_QCP_QUEUE_ADDR_SZ * queue;
 }
 
 static dma_addr_t nfp_net_dma_map_rx(struct nfp_net_dp *dp, void *frag)
