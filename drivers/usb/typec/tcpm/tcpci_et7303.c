@@ -13,6 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/usb/tcpm.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include "tcpci.h"
 
 #define ET7303_VID		0x6DCF
@@ -31,6 +32,8 @@ struct et7303_chip {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
 	struct device *dev;
+	struct regulator *vbus;
+	bool vbus_on;
 };
 
 static int et7303_read16(struct et7303_chip *chip, unsigned int reg, u16 *val)
@@ -82,6 +85,33 @@ static int et7303_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 	if (ret < 0)
 		dev_err(chip->dev, "fail to init registers(%d)\n", ret);
 
+	return ret;
+}
+
+static int et7303_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
+			    bool on, bool charge)
+{
+	struct et7303_chip *chip = tdata_to_et7303(tdata);
+	int ret = 0;
+
+	if (chip->vbus_on == on) {
+		dev_dbg(chip->dev, "vbus is already %s", on ? "On" : "Off");
+		goto done;
+	}
+
+	if (on)
+		ret = regulator_enable(chip->vbus);
+	else
+		ret = regulator_disable(chip->vbus);
+	if (ret < 0) {
+		dev_err(chip->dev, "cannot %s vbus regulator, ret=%d",
+			on ? "enable" : "disable", ret);
+		goto done;
+	}
+
+	chip->vbus_on = on;
+
+done:
 	return ret;
 }
 
@@ -222,6 +252,14 @@ static int et7303_probe(struct i2c_client *client,
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 
+	chip->vbus = devm_regulator_get_optional(chip->dev, "vbus");
+	if (IS_ERR(chip->vbus)) {
+		ret = PTR_ERR(chip->vbus);
+		chip->vbus = NULL;
+		if (ret != -ENODEV)
+			return ret;
+	}
+
 	ret = et7303_sw_reset(chip);
 	if (ret < 0)
 		return ret;
@@ -231,6 +269,8 @@ static int et7303_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	if (chip->vbus)
+		chip->data.set_vbus = et7303_set_vbus;
 	chip->data.init = et7303_init;
 	chip->data.set_vconn = et7303_set_vconn;
 	chip->data.start_drp_toggling = et7303_start_drp_toggling;
