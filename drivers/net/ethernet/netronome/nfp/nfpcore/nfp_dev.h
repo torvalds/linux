@@ -12,6 +12,7 @@ enum nfp_dev_id {
 };
 
 struct nfp_dev_info {
+	u64 dma_mask;
 	const char *chip_names;
 	u32 pcie_cfg_expbar_offset;
 	u32 pcie_expl_offset;

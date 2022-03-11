@@ -63,9 +63,6 @@
 #define NFP_NET_Q0_BAR		2
 #define NFP_NET_Q1_BAR		4	/* OBSOLETE */
 
-/* Max bits in DMA address */
-#define NFP_NET_MAX_DMA_BITS	40
-
 /* Default size for MTU and freelist buffer sizes */
 #define NFP_NET_DEFAULT_MTU		1500U
 
