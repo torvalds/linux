@@ -994,6 +994,14 @@ int sas_execute_internal_abort_single(struct domain_device *device, u16 tag,
 }
 EXPORT_SYMBOL_GPL(sas_execute_internal_abort_single);
 
+int sas_execute_internal_abort_dev(struct domain_device *device,
+				   unsigned int qid, void *data)
+{
+	return sas_execute_internal_abort(device, SAS_INTERNAL_ABORT_DEV,
+					  SCSI_NO_TAG, qid, data);
+}
+EXPORT_SYMBOL_GPL(sas_execute_internal_abort_dev);
+
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf)

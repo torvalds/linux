@@ -560,6 +560,7 @@ struct sas_ata_task {
 /* LLDDs rely on these values */
 enum sas_internal_abort {
 	SAS_INTERNAL_ABORT_SINGLE	= 0,
+	SAS_INTERNAL_ABORT_DEV		= 1,
 };
 
 struct sas_internal_abort_task {
@@ -641,6 +642,11 @@ extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
+static inline bool sas_is_internal_abort(struct sas_task *task)
+{
+	return task->task_proto == SAS_PROTOCOL_INTERNAL_ABORT;
+}
+
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */
 	void (*lldd_port_formed)(struct asd_sas_phy *);
@@ -697,6 +703,8 @@ extern int sas_bios_param(struct scsi_device *, struct block_device *,
 int sas_execute_internal_abort_single(struct domain_device *device,
 				      u16 tag, unsigned int qid,
 				      void *data);
+int sas_execute_internal_abort_dev(struct domain_device *device,
+				   unsigned int qid, void *data);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
