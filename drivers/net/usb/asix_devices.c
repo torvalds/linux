@@ -679,6 +679,22 @@ static int ax88772_init_phy(struct usbnet *dev)
 
 	phy_attached_info(priv->phydev);
 
+	if (priv->embd_phy)
+		return 0;
+
+	/* In case main PHY is not the embedded PHY and MAC is RMII clock
+	 * provider, we need to suspend embedded PHY by keeping PLL enabled
+	 * (AX_SWRESET_IPPD == 0).
+	 */
+	priv->phydev_int = mdiobus_get_phy(priv->mdio, AX_EMBD_PHY_ADDR);
+	if (!priv->phydev_int) {
+		netdev_err(dev->net, "Could not find internal PHY\n");
+		return -ENODEV;
+	}
+
+	priv->phydev_int->mac_managed_pm = 1;
+	phy_suspend(priv->phydev_int);
+
 	return 0;
 }
 
@@ -734,7 +750,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 
 	priv->phy_addr = ret;
-	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10);
+	priv->embd_phy = ((priv->phy_addr & 0x1f) == AX_EMBD_PHY_ADDR);
 
 	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1,
 			    &priv->chipcode, 0);
