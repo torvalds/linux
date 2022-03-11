@@ -165,7 +165,7 @@ int vpu_imx8q_on_firmware_loaded(struct vpu_core *core)
 	return 0;
 }
 
-u32 vpu_imx8q_check_memory_region(dma_addr_t base, dma_addr_t addr, u32 size)
+int vpu_imx8q_check_memory_region(dma_addr_t base, dma_addr_t addr, u32 size)
 {
 	const struct vpu_rpc_region_t imx8q_regions[] = {
 		{0x00000000, 0x08000000, VPU_CORE_MEMORY_CACHED},

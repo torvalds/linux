@@ -472,7 +472,7 @@ struct vpu_inst *vpu_core_find_instance(struct vpu_core *core, u32 index)
 	struct vpu_inst *tmp;
 
 	mutex_lock(&core->lock);
-	if (!test_bit(index, &core->instance_mask))
+	if (index >= core->supported_instance_count || !test_bit(index, &core->instance_mask))
 		goto exit;
 	list_for_each_entry(tmp, &core->instances, list) {
 		if (tmp->id == index) {

@@ -43,7 +43,7 @@ struct vpu_iface_ops {
 	bool (*check_codec)(enum vpu_core_type type);
 	bool (*check_fmt)(enum vpu_core_type type, u32 pixelfmt);
 	u32 (*get_data_size)(void);
-	u32 (*check_memory_region)(dma_addr_t base, dma_addr_t addr, u32 size);
+	int (*check_memory_region)(dma_addr_t base, dma_addr_t addr, u32 size);
 	int (*boot_core)(struct vpu_core *core);
 	int (*shutdown_core)(struct vpu_core *core);
 	int (*restore_core)(struct vpu_core *core);
@@ -113,7 +113,7 @@ struct vpu_rpc_region_t {
 
 struct vpu_iface_ops *vpu_core_get_iface(struct vpu_core *core);
 struct vpu_iface_ops *vpu_inst_get_iface(struct vpu_inst *inst);
-u32 vpu_iface_check_memory_region(struct vpu_core *core, dma_addr_t addr, u32 size);
+int vpu_iface_check_memory_region(struct vpu_core *core, dma_addr_t addr, u32 size);
 
 static inline bool vpu_iface_check_codec(struct vpu_core *core)
 {
@@ -340,6 +340,11 @@ static inline int vpu_iface_config_stream_buffer(struct vpu_inst *inst,
 	struct vpu_iface_ops *ops = vpu_core_get_iface(inst->core);
 
 	if (!ops || !ops->config_stream_buffer || inst->id < 0)
+		return -EINVAL;
+
+	if ((buf->phys % 4) || (buf->length % 4))
+		return -EINVAL;
+	if (buf->phys + buf->length > (u64)UINT_MAX)
 		return -EINVAL;
 
 	return ops->config_stream_buffer(inst->core->iface, inst->id, buf);

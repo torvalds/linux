@@ -818,12 +818,18 @@ int vpu_windsor_config_memory_resource(struct vpu_shared_addr *shared,
 
 	switch (type) {
 	case MEM_RES_ENC:
+		if (index >= ARRAY_SIZE(pool->enc_frames))
+			return -EINVAL;
 		res = &pool->enc_frames[index];
 		break;
 	case MEM_RES_REF:
+		if (index >= ARRAY_SIZE(pool->ref_frames))
+			return -EINVAL;
 		res = &pool->ref_frames[index];
 		break;
 	case MEM_RES_ACT:
+		if (index)
+			return -EINVAL;
 		res = &pool->act_frame;
 		break;
 	default:

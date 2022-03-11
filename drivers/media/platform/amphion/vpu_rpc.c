@@ -20,7 +20,7 @@
 #include "vpu_windsor.h"
 #include "vpu_malone.h"
 
-u32 vpu_iface_check_memory_region(struct vpu_core *core, dma_addr_t addr, u32 size)
+int vpu_iface_check_memory_region(struct vpu_core *core, dma_addr_t addr, u32 size)
 {
 	struct vpu_iface_ops *ops = vpu_core_get_iface(core);
 
@@ -63,6 +63,8 @@ static int vpu_rpc_send_cmd_buf(struct vpu_shared_addr *shared, struct vpu_rpc_e
 	u32 wptr;
 	u32 i;
 
+	if (cmd->hdr.num > 0xff || cmd->hdr.num >= ARRAY_SIZE(cmd->data))
+		return -EINVAL;
 	desc = shared->cmd_desc;
 	space = vpu_rpc_check_buffer_space(desc, true);
 	if (space < (((cmd->hdr.num + 1) << 2) + 16))

@@ -108,7 +108,7 @@ int vpu_imx8q_set_system_cfg_common(struct vpu_rpc_system_config *config, u32 re
 int vpu_imx8q_boot_core(struct vpu_core *core);
 int vpu_imx8q_get_power_state(struct vpu_core *core);
 int vpu_imx8q_on_firmware_loaded(struct vpu_core *core);
-u32 vpu_imx8q_check_memory_region(dma_addr_t base, dma_addr_t addr, u32 size);
+int vpu_imx8q_check_memory_region(dma_addr_t base, dma_addr_t addr, u32 size);
 bool vpu_imx8q_check_codec(enum vpu_core_type type);
 bool vpu_imx8q_check_fmt(enum vpu_core_type type, u32 pixelfmt);
 

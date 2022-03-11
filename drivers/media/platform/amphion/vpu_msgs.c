@@ -214,7 +214,7 @@ static int vpu_session_handle_msg(struct vpu_inst *inst, struct vpu_rpc_event *m
 
 static bool vpu_inst_receive_msg(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
 {
-	u32 bytes = sizeof(struct vpu_rpc_event_header);
+	unsigned long bytes = sizeof(struct vpu_rpc_event_header);
 	u32 ret;
 
 	memset(pkt, 0, sizeof(*pkt));
@@ -246,7 +246,7 @@ void vpu_inst_run_work(struct work_struct *work)
 
 static void vpu_inst_handle_msg(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
 {
-	u32 bytes;
+	unsigned long bytes;
 	u32 id = pkt->hdr.id;
 	int ret;
 
@@ -337,7 +337,7 @@ void vpu_msg_delayed_work(struct work_struct *work)
 {
 	struct vpu_core *core;
 	struct delayed_work *dwork;
-	u32 bytes = sizeof(bytes);
+	unsigned long bytes = sizeof(u32);
 	u32 i;
 
 	if (!work)

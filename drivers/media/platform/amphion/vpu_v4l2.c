@@ -403,11 +403,15 @@ void vpu_vb2_buffers_return(struct vpu_inst *inst, unsigned int type, enum vb2_b
 	struct vb2_v4l2_buffer *buf;
 
 	if (V4L2_TYPE_IS_OUTPUT(type)) {
-		while ((buf = v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx)))
+		while ((buf = v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx))) {
+			vpu_set_buffer_state(buf, VPU_BUF_STATE_IDLE);
 			v4l2_m2m_buf_done(buf, state);
+		}
 	} else {
-		while ((buf = v4l2_m2m_dst_buf_remove(inst->fh.m2m_ctx)))
+		while ((buf = v4l2_m2m_dst_buf_remove(inst->fh.m2m_ctx))) {
+			vpu_set_buffer_state(buf, VPU_BUF_STATE_IDLE);
 			v4l2_m2m_buf_done(buf, state);
+		}
 	}
 }
 

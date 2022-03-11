@@ -19,11 +19,11 @@ u32 vpu_helper_valid_frame_width(struct vpu_inst *inst, u32 width);
 u32 vpu_helper_valid_frame_height(struct vpu_inst *inst, u32 height);
 u32 vpu_helper_get_plane_size(u32 fmt, u32 width, u32 height, int plane_no,
 			      u32 stride, u32 interlaced, u32 *pbl);
-u32 vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
 				       u32 *rptr, u32 size, void *dst);
-u32 vpu_helper_copy_to_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_copy_to_stream_buffer(struct vpu_buffer *stream_buffer,
 				     u32 *wptr, u32 size, void *src);
-u32 vpu_helper_memset_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_memset_stream_buffer(struct vpu_buffer *stream_buffer,
 				    u32 *wptr, u8 val, u32 size);
 u32 vpu_helper_get_free_space(struct vpu_inst *inst);
 u32 vpu_helper_get_used_space(struct vpu_inst *inst);

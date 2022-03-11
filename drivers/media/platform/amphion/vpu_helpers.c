@@ -197,7 +197,7 @@ u32 vpu_helper_get_plane_size(u32 fmt, u32 w, u32 h, int plane_no,
 	}
 }
 
-u32 vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
 				       u32 *rptr, u32 size, void *dst)
 {
 	u32 offset;
@@ -227,10 +227,11 @@ u32 vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
 	}
 
 	*rptr = vpu_helper_step_walk(stream_buffer, offset, size);
-	return size;
+
+	return 0;
 }
 
-u32 vpu_helper_copy_to_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_copy_to_stream_buffer(struct vpu_buffer *stream_buffer,
 				     u32 *wptr, u32 size, void *src)
 {
 	u32 offset;
@@ -260,10 +261,10 @@ u32 vpu_helper_copy_to_stream_buffer(struct vpu_buffer *stream_buffer,
 
 	*wptr = vpu_helper_step_walk(stream_buffer, offset, size);
 
-	return size;
+	return 0;
 }
 
-u32 vpu_helper_memset_stream_buffer(struct vpu_buffer *stream_buffer,
+int vpu_helper_memset_stream_buffer(struct vpu_buffer *stream_buffer,
 				    u32 *wptr, u8 val, u32 size)
 {
 	u32 offset;
@@ -297,7 +298,7 @@ u32 vpu_helper_memset_stream_buffer(struct vpu_buffer *stream_buffer,
 
 	*wptr = offset;
 
-	return size;
+	return 0;
 }
 
 u32 vpu_helper_get_free_space(struct vpu_inst *inst)
