@@ -814,41 +814,15 @@ enum nfp_qcp_ptr {
 	NFP_QCP_WRITE_PTR
 };
 
-/* There appear to be an *undocumented* upper limit on the value which
- * one can add to a queue and that value is either 0x3f or 0x7f.  We
- * go with 0x3f as a conservative measure.
- */
-#define NFP_QCP_MAX_ADD				0x3f
-
-static inline void _nfp_qcp_ptr_add(u8 __iomem *q,
-				    enum nfp_qcp_ptr ptr, u32 val)
-{
-	u32 off;
-
-	if (ptr == NFP_QCP_READ_PTR)
-		off = NFP_QCP_QUEUE_ADD_RPTR;
-	else
-		off = NFP_QCP_QUEUE_ADD_WPTR;
-
-	while (val > NFP_QCP_MAX_ADD) {
-		writel(NFP_QCP_MAX_ADD, q + off);
-		val -= NFP_QCP_MAX_ADD;
-	}
-
-	writel(val, q + off);
-}
-
 /**
  * nfp_qcp_rd_ptr_add() - Add the value to the read pointer of a queue
  *
  * @q:   Base address for queue structure
  * @val: Value to add to the queue pointer
- *
- * If @val is greater than @NFP_QCP_MAX_ADD multiple writes are performed.
  */
 static inline void nfp_qcp_rd_ptr_add(u8 __iomem *q, u32 val)
 {
-	_nfp_qcp_ptr_add(q, NFP_QCP_READ_PTR, val);
+	writel(val, q + NFP_QCP_QUEUE_ADD_RPTR);
 }
 
 /**
@@ -856,12 +830,10 @@ static inline void nfp_qcp_rd_ptr_add(u8 __iomem *q, u32 val)
  *
  * @q:   Base address for queue structure
  * @val: Value to add to the queue pointer
- *
- * If @val is greater than @NFP_QCP_MAX_ADD multiple writes are performed.
  */
 static inline void nfp_qcp_wr_ptr_add(u8 __iomem *q, u32 val)
 {
-	_nfp_qcp_ptr_add(q, NFP_QCP_WRITE_PTR, val);
+	writel(val, q + NFP_QCP_QUEUE_ADD_WPTR);
 }
 
 static inline u32 _nfp_qcp_read(u8 __iomem *q, enum nfp_qcp_ptr ptr)
