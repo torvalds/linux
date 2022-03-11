@@ -26,7 +26,6 @@
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
-#include <drm/i915_pciids.h>
 #include <uapi/drm/i915_drm.h>
 
 /* For use by IPS driver */
