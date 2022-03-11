@@ -1409,12 +1409,21 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	struct btrfs_key first_key;
 	int ret;
 	int parent_level;
+	bool unlock_up;
 
+	unlock_up = ((level + 1 < BTRFS_MAX_LEVEL) && p->locks[level + 1]);
 	blocknr = btrfs_node_blockptr(*eb_ret, slot);
 	gen = btrfs_node_ptr_generation(*eb_ret, slot);
 	parent_level = btrfs_header_level(*eb_ret);
 	btrfs_node_key_to_cpu(*eb_ret, &first_key, slot);
 
+	/*
+	 * If we need to read an extent buffer from disk and we are holding locks
+	 * on upper level nodes, we unlock all the upper nodes before reading the
+	 * extent buffer, and then return -EAGAIN to the caller as it needs to
+	 * restart the search. We don't release the lock on the current level
+	 * because we need to walk this node to figure out which blocks to read.
+	 */
 	tmp = find_extent_buffer(fs_info, blocknr);
 	if (tmp) {
 		if (p->reada == READA_FORWARD_ALWAYS)
@@ -1436,6 +1445,9 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			return 0;
 		}
 
+		if (unlock_up)
+			btrfs_unlock_up_safe(p, level + 1);
+
 		/* now we're allowed to do a blocking uptodate check */
 		ret = btrfs_read_buffer(tmp, gen, parent_level - 1, &first_key);
 		if (ret) {
@@ -1443,17 +1455,14 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			btrfs_release_path(p);
 			return -EIO;
 		}
-		*eb_ret = tmp;
-		return 0;
+
+		if (unlock_up)
+			ret = -EAGAIN;
+
+		goto out;
 	}
 
-	if ((level + 1 < BTRFS_MAX_LEVEL) && p->locks[level + 1]) {
-		/*
-		 * Reduce lock contention at high levels of the btree by
-		 * dropping locks before we read.  Don't release the lock
-		 * on the current level because we need to walk this node
-		 * to figure out which blocks to read.
-		 */
+	if (unlock_up) {
 		btrfs_unlock_up_safe(p, level + 1);
 		ret = -EAGAIN;
 	} else {
@@ -1478,6 +1487,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	if (!extent_buffer_uptodate(tmp))
 		ret = -EIO;
 
+out:
 	if (ret == 0) {
 		*eb_ret = tmp;
 	} else {
