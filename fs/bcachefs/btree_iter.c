@@ -427,8 +427,8 @@ bool bch2_btree_path_relock_intent(struct btree_trans *trans,
 	return true;
 }
 
-__flatten
-static bool bch2_btree_path_relock(struct btree_trans *trans,
+noinline __flatten
+static bool __bch2_btree_path_relock(struct btree_trans *trans,
 			struct btree_path *path, unsigned long trace_ip)
 {
 	bool ret = btree_path_get_locks(trans, path, false);
@@ -439,6 +439,14 @@ static bool bch2_btree_path_relock(struct btree_trans *trans,
 		btree_trans_restart(trans);
 	}
 	return ret;
+}
+
+static inline bool bch2_btree_path_relock(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	return btree_node_locked(path, path->level)
+		? true
+		: __bch2_btree_path_relock(trans, path, trace_ip);
 }
 
 bool __bch2_btree_path_upgrade(struct btree_trans *trans,
@@ -2388,9 +2396,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 			iter->update_path = bch2_btree_path_set_pos(trans,
 						iter->update_path, pos,
 						iter->flags & BTREE_ITER_INTENT);
-
-			BUG_ON(!(iter->update_path->nodes_locked & 1));
-			iter->update_path->should_be_locked = true;
 		}
 
 		/*
@@ -2428,8 +2433,12 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	BUG_ON(!iter->path->nodes_locked);
 out:
 	if (iter->update_path) {
-		BUG_ON(!(iter->update_path->nodes_locked & 1));
-		iter->update_path->should_be_locked = true;
+		if (unlikely(!bch2_btree_path_relock(trans, iter->update_path, _THIS_IP_))) {
+			k = bkey_s_c_err(-EINTR);
+		} else {
+			BUG_ON(!(iter->update_path->nodes_locked & 1));
+			iter->update_path->should_be_locked = true;
+		}
 	}
 	iter->path->should_be_locked = true;
 
