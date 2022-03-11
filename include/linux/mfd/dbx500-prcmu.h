@@ -561,10 +561,6 @@ static inline unsigned long prcmu_qos_get_cpufreq_opp_delay(void)
 	return 0;
 }
 
-static inline void prcmu_qos_set_cpufreq_opp_delay(unsigned long n) {}
-
-static inline void prcmu_qos_force_opp(int prcmu_qos_class, s32 i) {}
-
 static inline int prcmu_qos_requirement(int prcmu_qos_class)
 {
 	return 0;
