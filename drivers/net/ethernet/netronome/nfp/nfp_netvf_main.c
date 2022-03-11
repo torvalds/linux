@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/etherdevice.h>
 
+#include "nfpcore/nfp_dev.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
@@ -39,7 +40,7 @@ static const char nfp_net_driver_name[] = "nfp_netvf";
 static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000_VF,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
 	{ 0, } /* Required last entry. */
 };
@@ -64,6 +65,7 @@ static void nfp_netvf_get_mac_addr(struct nfp_net *nn)
 static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *pci_id)
 {
+	const struct nfp_dev_info *dev_info;
 	struct nfp_net_fw_version fw_ver;
 	int max_tx_rings, max_rx_rings;
 	u32 tx_bar_off, rx_bar_off;
@@ -76,6 +78,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	u32 startq;
 	int stride;
 	int err;
+
+	dev_info = &nfp_dev_info[pci_id->driver_data];
 
 	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
 	if (!vf)
@@ -171,7 +175,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	rx_bar_off = NFP_PCIE_QUEUE(startq);
 
 	/* Allocate and initialise the netdev */
-	nn = nfp_net_alloc(pdev, ctrl_bar, true, max_tx_rings, max_rx_rings);
+	nn = nfp_net_alloc(pdev, dev_info, ctrl_bar, true,
+			   max_tx_rings, max_rx_rings);
 	if (IS_ERR(nn)) {
 		err = PTR_ERR(nn);
 		goto err_ctrl_unmap;

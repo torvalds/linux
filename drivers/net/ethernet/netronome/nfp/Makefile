@@ -5,6 +5,7 @@ nfp-objs := \
 	    nfpcore/nfp6000_pcie.o \
 	    nfpcore/nfp_cppcore.o \
 	    nfpcore/nfp_cpplib.o \
+	    nfpcore/nfp_dev.o \
 	    nfpcore/nfp_hwinfo.o \
 	    nfpcore/nfp_mip.o \
 	    nfpcore/nfp_mutex.o \

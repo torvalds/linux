@@ -48,6 +48,7 @@ struct nfp_dumpspec {
 /**
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
+ * @dev_info:		NFP ASIC params
  * @cpp:		Pointer to the CPP handle
  * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
@@ -88,6 +89,7 @@ struct nfp_dumpspec {
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
+	const struct nfp_dev_info *dev_info;
 
 	struct nfp_cpp *cpp;
 

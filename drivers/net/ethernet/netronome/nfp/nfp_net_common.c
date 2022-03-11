@@ -3962,6 +3962,7 @@ void nfp_net_info(struct nfp_net *nn)
 /**
  * nfp_net_alloc() - Allocate netdev and related structure
  * @pdev:         PCI device
+ * @dev_info:     NFP ASIC params
  * @ctrl_bar:     PCI IOMEM with vNIC config memory
  * @needs_netdev: Whether to allocate a netdev for this vNIC
  * @max_tx_rings: Maximum number of TX rings supported by device
@@ -3974,7 +3975,8 @@ void nfp_net_info(struct nfp_net *nn)
  * Return: NFP Net device structure, or ERR_PTR on error.
  */
 struct nfp_net *
-nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
+nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
+	      void __iomem *ctrl_bar, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings)
 {
 	struct nfp_net *nn;
@@ -3999,6 +4001,7 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 
 	nn->dp.dev = &pdev->dev;
 	nn->dp.ctrl_bar = ctrl_bar;
+	nn->dev_info = dev_info;
 	nn->pdev = pdev;
 
 	nn->max_tx_rings = max_tx_rings;

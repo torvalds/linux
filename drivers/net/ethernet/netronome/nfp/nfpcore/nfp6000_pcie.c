@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 
 #include "nfp_cpp.h"
+#include "nfp_dev.h"
 
 #include "nfp6000/nfp6000.h"
 
@@ -145,6 +146,7 @@ struct nfp_bar {
 struct nfp6000_pcie {
 	struct pci_dev *pdev;
 	struct device *dev;
+	const struct nfp_dev_info *dev_info;
 
 	/* PCI BAR management */
 	spinlock_t bar_lock;		/* Protect the PCI2CPP BAR cache */
@@ -1306,18 +1308,20 @@ static const struct nfp_cpp_operations nfp6000_pcie_ops = {
 /**
  * nfp_cpp_from_nfp6000_pcie() - Build a NFP CPP bus from a NFP6000 PCI device
  * @pdev:	NFP6000 PCI device
+ * @dev_info:	NFP ASIC params
  *
  * Return: NFP CPP handle
  */
-struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
+struct nfp_cpp *
+nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev, const struct nfp_dev_info *dev_info)
 {
 	struct nfp6000_pcie *nfp;
 	u16 interface;
 	int err;
 
 	/*  Finished with card initialization. */
-	dev_info(&pdev->dev,
-		 "Netronome Flow Processor NFP4000/NFP5000/NFP6000 PCIe Card Probe\n");
+	dev_info(&pdev->dev, "Netronome Flow Processor %s PCIe Card Probe\n",
+		 dev_info->chip_names);
 	pcie_print_link_status(pdev);
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
@@ -1328,6 +1332,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 
 	nfp->dev = &pdev->dev;
 	nfp->pdev = pdev;
+	nfp->dev_info = dev_info;
 	init_waitqueue_head(&nfp->bar_waiters);
 	spin_lock_init(&nfp->bar_lock);
 
