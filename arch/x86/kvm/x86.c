@@ -9062,15 +9062,29 @@ bool kvm_apicv_activated(struct kvm *kvm)
 }
 EXPORT_SYMBOL_GPL(kvm_apicv_activated);
 
+
+static void set_or_clear_apicv_inhibit(unsigned long *inhibits,
+				       enum kvm_apicv_inhibit reason, bool set)
+{
+	if (set)
+		__set_bit(reason, inhibits);
+	else
+		__clear_bit(reason, inhibits);
+
+	trace_kvm_apicv_inhibit_changed(reason, set, *inhibits);
+}
+
 static void kvm_apicv_init(struct kvm *kvm)
 {
+	unsigned long *inhibits = &kvm->arch.apicv_inhibit_reasons;
+
 	init_rwsem(&kvm->arch.apicv_update_lock);
 
-	set_bit(APICV_INHIBIT_REASON_ABSENT,
-		&kvm->arch.apicv_inhibit_reasons);
+	set_or_clear_apicv_inhibit(inhibits, APICV_INHIBIT_REASON_ABSENT, true);
+
 	if (!enable_apicv)
-		set_bit(APICV_INHIBIT_REASON_DISABLE,
-			&kvm->arch.apicv_inhibit_reasons);
+		set_or_clear_apicv_inhibit(inhibits,
+					   APICV_INHIBIT_REASON_ABSENT, true);
 }
 
 static void kvm_sched_yield(struct kvm_vcpu *vcpu, unsigned long dest_id)
@@ -9756,13 +9770,9 @@ void __kvm_set_or_clear_apicv_inhibit(struct kvm *kvm,
 
 	old = new = kvm->arch.apicv_inhibit_reasons;
 
-	if (set)
-		__set_bit(reason, &new);
-	else
-		__clear_bit(reason, &new);
+	set_or_clear_apicv_inhibit(&new, reason, set);
 
 	if (!!old != !!new) {
-		trace_kvm_apicv_update_request(reason, !set);
 		/*
 		 * Kick all vCPUs before setting apicv_inhibit_reasons to avoid
 		 * false positives in the sanity check WARN in svm_vcpu_run().
@@ -12945,7 +12955,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_pi_irte_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_unaccelerated_access);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_incomplete_ipi);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_ga_log);
-EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_apicv_update_request);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_apicv_accept_irq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_vmgexit_enter);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_vmgexit_exit);
