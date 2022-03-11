@@ -586,12 +586,12 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 
 		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
-		k = bch2_btree_iter_peek(&iter);
+		k = bch2_btree_iter_peek_upto(&iter, POS(inum.inum, U64_MAX));
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
 
-		if (!k.k || iter.pos.inode != inum.inum)
+		if (!k.k)
 			break;
 
 		bkey_init(&delete.k);

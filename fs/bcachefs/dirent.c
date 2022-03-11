@@ -470,16 +470,13 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 	if (ret)
 		return ret;
 
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_dirents,
-			   SPOS(dir.inum, 0, snapshot), 0, k, ret) {
-		if (k.k->p.inode > dir.inum)
-			break;
-
+	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+			   SPOS(dir.inum, 0, snapshot),
+			   POS(dir.inum, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
 			ret = -ENOTEMPTY;
 			break;
 		}
-	}
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
@@ -503,11 +500,9 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_dirents,
-			   SPOS(inum.inum, ctx->pos, snapshot), 0, k, ret) {
-		if (k.k->p.inode > inum.inum)
-			break;
-
+	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_dirents,
+			   SPOS(inum.inum, ctx->pos, snapshot),
+			   POS(inum.inum, U64_MAX), 0, k, ret) {
 		if (k.k->type != KEY_TYPE_dirent)
 			continue;
 

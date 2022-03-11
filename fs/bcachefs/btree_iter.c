@@ -2346,11 +2346,12 @@ out:
  * bch2_btree_iter_peek: returns first key greater than or equal to iterator's
  * current position
  */
-struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
+struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos end)
 {
 	struct btree_trans *trans = iter->trans;
 	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_s_c k;
+	struct bpos iter_pos;
 	int ret;
 
 	if (iter->update_path) {
@@ -2365,6 +2366,24 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		k = __bch2_btree_iter_peek(iter, search_key);
 		if (!k.k || bkey_err(k))
 			goto out;
+
+		/*
+		 * iter->pos should be mononotically increasing, and always be
+		 * equal to the key we just returned - except extents can
+		 * straddle iter->pos:
+		 */
+		if (!(iter->flags & BTREE_ITER_IS_EXTENTS))
+			iter_pos = k.k->p;
+		else if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
+			iter_pos = bkey_start_pos(k.k);
+		else
+			iter_pos = iter->pos;
+
+		if (bkey_cmp(iter_pos, end) > 0) {
+			bch2_btree_iter_set_pos(iter, end);
+			k = bkey_s_c_null;
+			goto out;
+		}
 
 		if (iter->update_path &&
 		    bkey_cmp(iter->update_path->pos, k.k->p)) {
@@ -2419,14 +2438,7 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		break;
 	}
 
-	/*
-	 * iter->pos should be mononotically increasing, and always be equal to
-	 * the key we just returned - except extents can straddle iter->pos:
-	 */
-	if (!(iter->flags & BTREE_ITER_IS_EXTENTS))
-		iter->pos = k.k->p;
-	else if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
-		iter->pos = bkey_start_pos(k.k);
+	iter->pos = iter_pos;
 
 	iter->path = bch2_btree_path_set_pos(trans, iter->path, k.k->p,
 				iter->flags & BTREE_ITER_INTENT);
@@ -2658,9 +2670,13 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 		if (iter->flags & BTREE_ITER_INTENT) {
 			struct btree_iter iter2;
+			struct bpos end = iter->pos;
+
+			if (iter->flags & BTREE_ITER_IS_EXTENTS)
+				end.offset = U64_MAX;
 
 			bch2_trans_copy_iter(&iter2, iter);
-			k = bch2_btree_iter_peek(&iter2);
+			k = bch2_btree_iter_peek_upto(&iter2, end);
 
 			if (k.k && !bkey_err(k)) {
 				iter->k = iter2.k;

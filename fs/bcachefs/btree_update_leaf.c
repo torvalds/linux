@@ -1286,7 +1286,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_WITH_UPDATES|
 			     BTREE_ITER_NOT_EXTENTS);
-	k = bch2_btree_iter_peek(&iter);
+	k = bch2_btree_iter_peek_upto(&iter, POS(insert->k.p.inode, U64_MAX));
 	if ((ret = bkey_err(k)))
 		goto err;
 	if (!k.k)
@@ -1405,7 +1405,8 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			goto out;
 		}
 next:
-		k = bch2_btree_iter_next(&iter);
+		bch2_btree_iter_advance(&iter);
+		k = bch2_btree_iter_peek_upto(&iter, POS(insert->k.p.inode, U64_MAX));
 		if ((ret = bkey_err(k)))
 			goto err;
 		if (!k.k)

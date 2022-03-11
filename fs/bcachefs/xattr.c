@@ -311,13 +311,9 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_xattrs,
-			   SPOS(inum, offset, snapshot), 0, k, ret) {
-		BUG_ON(k.k->p.inode < inum);
-
-		if (k.k->p.inode > inum)
-			break;
-
+	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_xattrs,
+			   SPOS(inum, offset, snapshot),
+			   POS(inum, U64_MAX), 0, k, ret) {
 		if (k.k->type != KEY_TYPE_xattr)
 			continue;
 

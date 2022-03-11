@@ -936,9 +936,8 @@ retry:
 			     SPOS(ei->v.i_ino, start, snapshot), 0);
 
 	while (!(ret = btree_trans_too_many_iters(&trans)) &&
-	       (k = bch2_btree_iter_peek(&iter)).k &&
-	       !(ret = bkey_err(k)) &&
-	       bkey_cmp(iter.pos, end) < 0) {
+	       (k = bch2_btree_iter_peek_upto(&iter, end)).k &&
+	       !(ret = bkey_err(k))) {
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		if (!bkey_extent_is_data(k.k) &&
