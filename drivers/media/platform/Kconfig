@@ -61,6 +61,7 @@ source "drivers/media/platform/aspeed/Kconfig"
 source "drivers/media/platform/rockchip/rga/Kconfig"
 source "drivers/media/platform/s3c-camif/Kconfig"
 source "drivers/media/platform/s5p-g2d/Kconfig"
+source "drivers/media/platform/sti/hva/Kconfig"
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
@@ -185,33 +186,6 @@ config VIDEO_STI_BDISP
 	select V4L2_MEM2MEM_DEV
 	help
 	  This v4l2 mem2mem driver is a 2D blitter for STMicroelectronics SoC.
-
-config VIDEO_STI_HVA
-	tristate "STMicroelectronics HVA multi-format video encoder V4L2 driver"
-	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on ARCH_STI || COMPILE_TEST
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	  This V4L2 driver enables HVA (Hardware Video Accelerator) multi-format
-	  video encoder of STMicroelectronics SoC, allowing hardware encoding of
-	  raw uncompressed formats in various compressed video bitstreams format.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called st-hva.
-
-config VIDEO_STI_HVA_DEBUGFS
-	bool "Export STMicroelectronics HVA internals in debugfs"
-	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_STI_HVA
-	depends on DEBUG_FS
-	help
-	  Select this to see information about the internal state and the last
-	  operation of STMicroelectronics HVA multi-format video encoder in
-	  debugfs.
-
-	  Choose N unless you know you need this.
 
 config VIDEO_STI_DELTA
 	tristate "STMicroelectronics DELTA multi-format video decoder V4L2 driver"
