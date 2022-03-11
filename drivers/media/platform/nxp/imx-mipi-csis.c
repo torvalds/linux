@@ -932,7 +932,7 @@ static struct mipi_csis_device *sd_to_mipi_csis_device(struct v4l2_subdev *sdev)
 static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
-	int ret;
+	int ret = 0;
 
 	if (enable) {
 		ret = mipi_csis_calculate_params(csis);
@@ -944,10 +944,6 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 		ret = pm_runtime_resume_and_get(csis->dev);
 		if (ret < 0)
 			return ret;
-
-		ret = v4l2_subdev_call(csis->src_sd, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			goto done;
 	}
 
 	mutex_lock(&csis->lock);
@@ -968,9 +964,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 		csis->state |= ST_STREAMING;
 	} else {
 		v4l2_subdev_call(csis->src_sd, video, s_stream, 0);
-		ret = v4l2_subdev_call(csis->src_sd, core, s_power, 0);
-		if (ret == -ENOIOCTLCMD)
-			ret = 0;
+
 		mipi_csis_stop_stream(csis);
 		csis->state &= ~ST_STREAMING;
 		if (csis->debug.enable)
@@ -980,7 +974,6 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 unlock:
 	mutex_unlock(&csis->lock);
 
-done:
 	if (!enable || ret < 0)
 		pm_runtime_put(csis->dev);
 
