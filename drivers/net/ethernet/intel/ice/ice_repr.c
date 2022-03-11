@@ -142,6 +142,59 @@ ice_repr_get_devlink_port(struct net_device *netdev)
 	return &repr->vf->devlink_port;
 }
 
+/**
+ * ice_repr_sp_stats64 - get slow path stats for port representor
+ * @dev: network interface device structure
+ * @stats: netlink stats structure
+ *
+ * RX/TX stats are being swapped here to be consistent with VF stats. In slow
+ * path, port representor receives data when the corresponding VF is sending it
+ * (and vice versa), TX and RX bytes/packets are effectively swapped on port
+ * representor.
+ */
+static int
+ice_repr_sp_stats64(const struct net_device *dev,
+		    struct rtnl_link_stats64 *stats)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	int vf_id = np->repr->vf->vf_id;
+	struct ice_tx_ring *tx_ring;
+	struct ice_rx_ring *rx_ring;
+	u64 pkts, bytes;
+
+	tx_ring = np->vsi->tx_rings[vf_id];
+	ice_fetch_u64_stats_per_ring(&tx_ring->syncp, tx_ring->stats,
+				     &pkts, &bytes);
+	stats->rx_packets = pkts;
+	stats->rx_bytes = bytes;
+
+	rx_ring = np->vsi->rx_rings[vf_id];
+	ice_fetch_u64_stats_per_ring(&rx_ring->syncp, rx_ring->stats,
+				     &pkts, &bytes);
+	stats->tx_packets = pkts;
+	stats->tx_bytes = bytes;
+	stats->tx_dropped = rx_ring->rx_stats.alloc_page_failed +
+			    rx_ring->rx_stats.alloc_buf_failed;
+
+	return 0;
+}
+
+static bool
+ice_repr_ndo_has_offload_stats(const struct net_device *dev, int attr_id)
+{
+	return attr_id == IFLA_OFFLOAD_XSTATS_CPU_HIT;
+}
+
+static int
+ice_repr_ndo_get_offload_stats(int attr_id, const struct net_device *dev,
+			       void *sp)
+{
+	if (attr_id == IFLA_OFFLOAD_XSTATS_CPU_HIT)
+		return ice_repr_sp_stats64(dev, (struct rtnl_link_stats64 *)sp);
+
+	return -EINVAL;
+}
+
 static int
 ice_repr_setup_tc_cls_flower(struct ice_repr *repr,
 			     struct flow_cls_offload *flower)
@@ -199,6 +252,8 @@ static const struct net_device_ops ice_repr_netdev_ops = {
 	.ndo_start_xmit = ice_eswitch_port_start_xmit,
 	.ndo_get_devlink_port = ice_repr_get_devlink_port,
 	.ndo_setup_tc = ice_repr_setup_tc,
+	.ndo_has_offload_stats = ice_repr_ndo_has_offload_stats,
+	.ndo_get_offload_stats = ice_repr_ndo_get_offload_stats,
 };
 
 /**

@@ -24,6 +24,9 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	if (flags & ICE_TC_FLWR_FIELD_TENANT_ID)
 		lkups_cnt++;
 
+	if (flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC)
+		lkups_cnt++;
+
 	if (flags & (ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
 		     ICE_TC_FLWR_FIELD_ENC_DEST_IPV4 |
 		     ICE_TC_FLWR_FIELD_ENC_SRC_IPV6 |
@@ -33,9 +36,7 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	if (flags & ICE_TC_FLWR_FIELD_ENC_DEST_L4_PORT)
 		lkups_cnt++;
 
-	/* currently inner etype filter isn't supported */
-	if ((flags & ICE_TC_FLWR_FIELD_ETH_TYPE_ID) &&
-	    fltr->tunnel_type == TNL_LAST)
+	if (flags & ICE_TC_FLWR_FIELD_ETH_TYPE_ID)
 		lkups_cnt++;
 
 	/* are MAC fields specified? */
@@ -62,6 +63,11 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 static enum ice_protocol_type ice_proto_type_from_mac(bool inner)
 {
 	return inner ? ICE_MAC_IL : ICE_MAC_OFOS;
+}
+
+static enum ice_protocol_type ice_proto_type_from_etype(bool inner)
+{
+	return inner ? ICE_ETYPE_IL : ICE_ETYPE_OL;
 }
 
 static enum ice_protocol_type ice_proto_type_from_ipv4(bool inner)
@@ -145,6 +151,15 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 		}
 	}
 
+	if (flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC) {
+		list[i].type = ice_proto_type_from_mac(false);
+		ether_addr_copy(list[i].h_u.eth_hdr.dst_addr,
+				hdr->l2_key.dst_mac);
+		ether_addr_copy(list[i].m_u.eth_hdr.dst_addr,
+				hdr->l2_mask.dst_mac);
+		i++;
+	}
+
 	if (flags & (ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
 		     ICE_TC_FLWR_FIELD_ENC_DEST_IPV4)) {
 		list[i].type = ice_proto_type_from_ipv4(false);
@@ -224,8 +239,10 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 
 		headers = &tc_fltr->inner_headers;
 		inner = true;
-	} else if (flags & ICE_TC_FLWR_FIELD_ETH_TYPE_ID) {
-		list[i].type = ICE_ETYPE_OL;
+	}
+
+	if (flags & ICE_TC_FLWR_FIELD_ETH_TYPE_ID) {
+		list[i].type = ice_proto_type_from_etype(inner);
 		list[i].h_u.ethertype.ethtype_id = headers->l2_key.n_proto;
 		list[i].m_u.ethertype.ethtype_id = headers->l2_mask.n_proto;
 		i++;
@@ -1059,12 +1076,24 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 	 * this code won't do anything
 	 * 2. For non-tunnel, if user didn't specify MAC address, add implicit
 	 * dest MAC to be lower netdev's active unicast MAC address
+	 * 3. For tunnel,  as of now TC-filter through flower classifier doesn't
+	 * have provision for user to specify outer DMAC, hence driver to
+	 * implicitly add outer dest MAC to be lower netdev's active unicast
+	 * MAC address.
 	 */
-	if (!(fltr->flags & ICE_TC_FLWR_FIELD_DST_MAC)) {
-		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
-				main_vsi->netdev->dev_addr);
-		eth_broadcast_addr(fltr->outer_headers.l2_mask.dst_mac);
+	if (fltr->tunnel_type != TNL_LAST &&
+	    !(fltr->flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC))
+		fltr->flags |= ICE_TC_FLWR_FIELD_ENC_DST_MAC;
+
+	if (fltr->tunnel_type == TNL_LAST &&
+	    !(fltr->flags & ICE_TC_FLWR_FIELD_DST_MAC))
 		fltr->flags |= ICE_TC_FLWR_FIELD_DST_MAC;
+
+	if (fltr->flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+			   ICE_TC_FLWR_FIELD_ENC_DST_MAC)) {
+		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
+				vsi->netdev->dev_addr);
+		memset(fltr->outer_headers.l2_mask.dst_mac, 0xff, ETH_ALEN);
 	}
 
 	/* validate specified dest MAC address, make sure either it belongs to
