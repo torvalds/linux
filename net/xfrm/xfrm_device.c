@@ -143,7 +143,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		segs = skb_gso_segment(skb, esp_features);
 		if (IS_ERR(segs)) {
 			kfree_skb(skb);
-			atomic_long_inc(&dev->tx_dropped);
+			dev_core_stats_tx_dropped_inc(dev);
 			return NULL;
 		} else {
 			consume_skb(skb);

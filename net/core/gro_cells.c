@@ -28,7 +28,7 @@ int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 
 	if (skb_queue_len(&cell->napi_skbs) > netdev_max_backlog) {
 drop:
-		atomic_long_inc(&dev->rx_dropped);
+		dev_core_stats_rx_dropped_inc(dev);
 		kfree_skb(skb);
 		res = NET_RX_DROP;
 		goto unlock;
