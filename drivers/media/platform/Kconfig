@@ -29,46 +29,17 @@ config V4L_MEM2MEM_DRIVERS
 	  to capture and output drivers, which use memory buffers for just
 	  one of those.
 
-source "drivers/media/platform/allegro-dvt/Kconfig"
-source "drivers/media/platform/nxp/Kconfig"
+# Ancillary drivers
 
-source "drivers/media/platform/renesas/Kconfig"
-
-# V4L platform drivers
-
-source "drivers/media/platform/marvell-ccic/Kconfig"
-
-source "drivers/media/platform/via/Kconfig"
-
-source "drivers/media/platform/amphion/Kconfig"
-source "drivers/media/platform/cadence/Kconfig"
-
-source "drivers/media/platform/coda/Kconfig"
-source "drivers/media/platform/davinci/Kconfig"
-
-source "drivers/media/platform/exynos-gsc/Kconfig"
-source "drivers/media/platform/meson/ge2d/Kconfig"
-source "drivers/media/platform/mtk-jpeg/Kconfig"
-source "drivers/media/platform/mtk-mdp/Kconfig"
-source "drivers/media/platform/mtk-vcodec/Kconfig"
-source "drivers/media/platform/mtk-vpu/Kconfig"
-source "drivers/media/platform/omap3isp/Kconfig"
-source "drivers/media/platform/omap/Kconfig"
-source "drivers/media/platform/qcom/camss/Kconfig"
-source "drivers/media/platform/qcom/venus/Kconfig"
-
-source "drivers/media/platform/aspeed/Kconfig"
-source "drivers/media/platform/rockchip/rga/Kconfig"
-source "drivers/media/platform/rockchip/rkisp1/Kconfig"
-source "drivers/media/platform/s3c-camif/Kconfig"
-source "drivers/media/platform/s5p-g2d/Kconfig"
-source "drivers/media/platform/s5p-jpeg/Kconfig"
-source "drivers/media/platform/sti/hva/Kconfig"
-source "drivers/media/platform/stm32/Kconfig"
-source "drivers/media/platform/sunxi/sun8i-di/Kconfig"
-source "drivers/media/platform/sunxi/sun8i-rotate/Kconfig"
-source "drivers/media/platform/tegra/vde/Kconfig"
-source "drivers/media/platform/ti-vpe/Kconfig"
+config VIDEO_MEM2MEM_DEINTERLACE
+	tristate "Deinterlace support"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on HAS_DMA
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    Generic deinterlacing V4L2 driver.
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
@@ -82,31 +53,48 @@ config VIDEO_MUX
 	help
 	  This driver provides support for N:1 video bus multiplexers.
 
-source "drivers/media/platform/intel/Kconfig"
+# Platform drivers - Please keep it alphabetically sorted
 
-source "drivers/media/platform/exynos4-is/Kconfig"
+# TODO: create per-manufacturer directories
+
+source "drivers/media/platform/allegro-dvt/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
-source "drivers/media/platform/xilinx/Kconfig"
+source "drivers/media/platform/amphion/Kconfig"
+source "drivers/media/platform/aspeed/Kconfig"
 source "drivers/media/platform/atmel/Kconfig"
-source "drivers/media/platform/sunxi/Kconfig"
-
-# Mem2mem drivers
-
-config VIDEO_MEM2MEM_DEINTERLACE
-	tristate "Deinterlace support"
-	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	    Generic deinterlacing V4L2 driver.
-
+source "drivers/media/platform/cadence/Kconfig"
+source "drivers/media/platform/coda/Kconfig"
+source "drivers/media/platform/davinci/Kconfig"
+source "drivers/media/platform/exynos-gsc/Kconfig"
+source "drivers/media/platform/exynos4-is/Kconfig"
+source "drivers/media/platform/intel/Kconfig"
+source "drivers/media/platform/marvell-ccic/Kconfig"
+source "drivers/media/platform/meson/ge2d/Kconfig"
+source "drivers/media/platform/mtk-jpeg/Kconfig"
+source "drivers/media/platform/mtk-mdp/Kconfig"
+source "drivers/media/platform/mtk-vcodec/Kconfig"
+source "drivers/media/platform/mtk-vpu/Kconfig"
+source "drivers/media/platform/nxp/Kconfig"
+source "drivers/media/platform/omap/Kconfig"
+source "drivers/media/platform/omap3isp/Kconfig"
+source "drivers/media/platform/qcom/camss/Kconfig"
+source "drivers/media/platform/qcom/venus/Kconfig"
+source "drivers/media/platform/renesas/Kconfig"
+source "drivers/media/platform/rockchip/rga/Kconfig"
+source "drivers/media/platform/rockchip/rkisp1/Kconfig"
+source "drivers/media/platform/s3c-camif/Kconfig"
+source "drivers/media/platform/s5p-g2d/Kconfig"
+source "drivers/media/platform/s5p-jpeg/Kconfig"
 source "drivers/media/platform/s5p-mfc/Kconfig"
-
 source "drivers/media/platform/sti/bdisp/Kconfig"
-
-source "drivers/media/platform/sti/delta/Kconfig"
-
-# DVB platform drivers
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
+source "drivers/media/platform/sti/delta/Kconfig"
+source "drivers/media/platform/sti/hva/Kconfig"
+source "drivers/media/platform/stm32/Kconfig"
+source "drivers/media/platform/sunxi/Kconfig"
+source "drivers/media/platform/sunxi/sun8i-di/Kconfig"
+source "drivers/media/platform/sunxi/sun8i-rotate/Kconfig"
+source "drivers/media/platform/tegra/vde/Kconfig"
+source "drivers/media/platform/ti-vpe/Kconfig"
+source "drivers/media/platform/via/Kconfig"
+source "drivers/media/platform/xilinx/Kconfig"
