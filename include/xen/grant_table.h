@@ -125,11 +125,6 @@ void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
  */
 int gnttab_try_end_foreign_access(grant_ref_t ref);
 
-int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
-
-unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref);
-unsigned long gnttab_end_foreign_transfer(grant_ref_t ref);
-
 /*
  * operations on reserved batches of grant references
  */
@@ -161,9 +156,6 @@ static inline void gnttab_page_grant_foreign_access_ref_one(
 	gnttab_grant_foreign_access_ref(ref, domid, xen_page_to_gfn(page),
 					readonly);
 }
-
-void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
-				       unsigned long pfn);
 
 static inline void
 gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
