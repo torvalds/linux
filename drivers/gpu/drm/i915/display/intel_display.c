@@ -1229,7 +1229,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 
 	hsw_ips_post_update(state, crtc);
 	intel_fbc_post_update(state, crtc);
-	intel_drrs_page_flip(state, crtc);
+	intel_drrs_page_flip(crtc);
 
 	if (needs_async_flip_vtd_wa(old_crtc_state) &&
 	    !needs_async_flip_vtd_wa(new_crtc_state))

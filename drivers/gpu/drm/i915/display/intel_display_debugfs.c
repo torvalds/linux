@@ -1138,20 +1138,15 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static void drrs_status_per_crtc(struct seq_file *m,
-				 struct drm_device *dev,
-				 struct intel_crtc *crtc)
+static int i915_drrs_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_drrs *drrs = &dev_priv->drrs;
-	struct intel_connector *connector;
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_connector_list_iter conn_iter;
+	struct intel_connector *connector;
+	struct intel_crtc *crtc;
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
-		if (connector->base.state->crtc != &crtc->base)
-			continue;
-
 		seq_printf(m, "[CONNECTOR:%d:%s] DRRS type: %s\n",
 			   connector->base.base.id, connector->base.name,
 			   intel_drrs_type_str(intel_panel_drrs_type(connector)));
@@ -1160,56 +1155,25 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 	seq_puts(m, "\n");
 
-	if (to_intel_crtc_state(crtc->base.state)->has_drrs) {
-		mutex_lock(&drrs->mutex);
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		seq_printf(m, "[CRTC:%d:%s]:\n",
+			   crtc->base.base.id, crtc->base.name);
+
+		mutex_lock(&crtc->drrs.mutex);
+
 		/* DRRS Supported */
-		seq_puts(m, "\tDRRS Enabled: Yes\n");
+		seq_printf(m, "\tDRRS Enabled: %s\n",
+			   str_yes_no(intel_drrs_is_enabled(crtc)));
 
-		/* disable_drrs() will make drrs->dp NULL */
-		if (!drrs->crtc) {
-			seq_puts(m, "Idleness DRRS: Disabled\n");
-			mutex_unlock(&drrs->mutex);
-			return;
-		}
-
-		seq_printf(m, "\t\tBusy_frontbuffer_bits: 0x%X",
-					drrs->busy_frontbuffer_bits);
-
-		seq_puts(m, "\n\t\t");
+		seq_printf(m, "\tBusy_frontbuffer_bits: 0x%X\n",
+			   crtc->drrs.busy_frontbuffer_bits);
 
 		seq_printf(m, "DRRS refresh rate: %s\n",
-			   drrs->refresh_rate == DRRS_REFRESH_RATE_LOW ?
+			   crtc->drrs.refresh_rate == DRRS_REFRESH_RATE_LOW ?
 			   "low" : "high");
-		seq_puts(m, "\n\t\t");
 
-		mutex_unlock(&drrs->mutex);
-	} else {
-		/* DRRS not supported. Print the VBT parameter*/
-		seq_puts(m, "\tDRRS Enabled : No");
+		mutex_unlock(&crtc->drrs.mutex);
 	}
-	seq_puts(m, "\n");
-}
-
-static int i915_drrs_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc;
-	int active_crtc_cnt = 0;
-
-	drm_modeset_lock_all(dev);
-	for_each_intel_crtc(dev, crtc) {
-		if (crtc->base.state->active) {
-			active_crtc_cnt++;
-			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
-
-			drrs_status_per_crtc(m, dev, crtc);
-		}
-	}
-	drm_modeset_unlock_all(dev);
-
-	if (!active_crtc_cnt)
-		seq_puts(m, "No active crtc found\n");
 
 	return 0;
 }

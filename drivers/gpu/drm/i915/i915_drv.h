@@ -196,23 +196,10 @@ struct drm_i915_display_funcs {
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
-enum drrs_refresh_rate {
-	DRRS_REFRESH_RATE_HIGH,
-	DRRS_REFRESH_RATE_LOW,
-};
-
 enum drrs_type {
 	DRRS_TYPE_NONE,
 	DRRS_TYPE_STATIC,
 	DRRS_TYPE_SEAMLESS,
-};
-
-struct i915_drrs {
-	struct mutex mutex;
-	struct delayed_work work;
-	struct intel_crtc *crtc;
-	unsigned busy_frontbuffer_bits;
-	enum drrs_refresh_rate refresh_rate;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
@@ -536,7 +523,6 @@ struct drm_i915_private {
 
 	struct i915_hotplug hotplug;
 	struct intel_fbc *fbc[I915_MAX_FBCS];
-	struct i915_drrs drrs;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
 

@@ -24,6 +24,7 @@
 #include "intel_display_debugfs.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_drrs.h"
 #include "intel_dsi.h"
 #include "intel_pipe_crc.h"
 #include "intel_psr.h"
@@ -367,6 +368,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	intel_color_init(crtc);
 
+	intel_crtc_drrs_init(crtc);
 	intel_crtc_crc_init(crtc);
 
 	cpu_latency_qos_add_request(&crtc->vblank_pm_qos, PM_QOS_DEFAULT_VALUE);
