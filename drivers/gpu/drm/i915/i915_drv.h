@@ -213,7 +213,6 @@ struct i915_drrs {
 	struct intel_dp *dp;
 	unsigned busy_frontbuffer_bits;
 	enum drrs_refresh_rate refresh_rate;
-	enum drrs_type type;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
