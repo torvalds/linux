@@ -97,6 +97,8 @@ enum avs_module_msg_type {
 	AVS_MOD_LARGE_CONFIG_SET = 4,
 	AVS_MOD_BIND = 5,
 	AVS_MOD_UNBIND = 6,
+	AVS_MOD_SET_DX = 7,
+	AVS_MOD_SET_D0IX = 8,
 	AVS_MOD_DELETE_INSTANCE = 11,
 };
 
@@ -133,6 +135,10 @@ union avs_module_msg {
 				u32 dst_queue:3;
 				u32 src_queue:3;
 			} bind_unbind;
+			struct {
+				u32 wake:1;
+				u32 streaming:1;
+			} set_d0ix;
 		} ext;
 	};
 } __packed;
@@ -288,5 +294,14 @@ int avs_ipc_set_large_config(struct avs_dev *adev, u16 module_id,
 int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id,
 			     u8 param_id, u8 *request_data, size_t request_size,
 			     u8 **reply_data, size_t *reply_size);
+
+/* DSP cores and domains power management messages */
+struct avs_dxstate_info {
+	u32 core_mask;	/* which cores are subject for power transition */
+	u32 dx_mask;	/* bit[n]=1 core n goes to D0, bit[n]=0 it goes to D3 */
+} __packed;
+
+int avs_ipc_set_dx(struct avs_dev *adev, u32 core_mask, bool powerup);
+int avs_ipc_set_d0ix(struct avs_dev *adev, bool enable_pg, bool streaming);
 
 #endif /* __SOUND_SOC_INTEL_AVS_MSGS_H */
