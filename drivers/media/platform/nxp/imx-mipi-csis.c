@@ -243,10 +243,6 @@
 #define MIPI_CSI2_DATA_TYPE_RAW14		0x2d
 #define MIPI_CSI2_DATA_TYPE_USER(x)		(0x30 + (x))
 
-enum {
-	ST_POWERED	= 1,
-};
-
 struct mipi_csis_event {
 	bool debug;
 	u32 mask;
@@ -326,10 +322,10 @@ struct mipi_csis_device {
 	u32 hs_settle;
 	u32 clk_settle;
 
-	struct mutex lock;	/* Protect csis_fmt, format_mbus and state */
+	struct mutex lock;	/* Protect csis_fmt, format_mbus and powered */
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format_mbus[CSIS_PADS_NUM];
-	u32 state;
+	bool powered;
 
 	spinlock_t slock;	/* Protect events */
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
@@ -1161,7 +1157,7 @@ static int mipi_csis_log_status(struct v4l2_subdev *sd)
 
 	mutex_lock(&csis->lock);
 	mipi_csis_log_counters(csis, true);
-	if (csis->debug.enable && (csis->state & ST_POWERED))
+	if (csis->debug.enable && csis->powered)
 		mipi_csis_dump_regs(csis);
 	mutex_unlock(&csis->lock);
 
@@ -1321,13 +1317,14 @@ static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 	int ret = 0;
 
 	mutex_lock(&csis->lock);
-	if (csis->state & ST_POWERED) {
-		ret = mipi_csis_phy_disable(csis);
-		if (ret)
-			goto unlock;
-		mipi_csis_clk_disable(csis);
-		csis->state &= ~ST_POWERED;
-	}
+
+	ret = mipi_csis_phy_disable(csis);
+	if (ret)
+		goto unlock;
+
+	mipi_csis_clk_disable(csis);
+
+	csis->powered = false;
 
 unlock:
 	mutex_unlock(&csis->lock);
@@ -1343,14 +1340,13 @@ static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 
 	mutex_lock(&csis->lock);
 
-	if (!(csis->state & ST_POWERED)) {
-		ret = mipi_csis_phy_enable(csis);
-		if (ret)
-			goto unlock;
+	ret = mipi_csis_phy_enable(csis);
+	if (ret)
+		goto unlock;
 
-		csis->state |= ST_POWERED;
-		mipi_csis_clk_enable(csis);
-	}
+	mipi_csis_clk_enable(csis);
+
+	csis->powered = true;
 
 unlock:
 	mutex_unlock(&csis->lock);
