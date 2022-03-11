@@ -96,6 +96,7 @@ struct i915_ctx_workarounds {
 
 #define I915_MAX_VCS	8
 #define I915_MAX_VECS	4
+#define I915_MAX_SFC	(I915_MAX_VCS / 2)
 #define I915_MAX_CCS	4
 #define I915_MAX_RCS	1
 

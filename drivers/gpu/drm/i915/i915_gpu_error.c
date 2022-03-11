@@ -752,7 +752,7 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) >= 12) {
 		int i;
 
-		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+		for (i = 0; i < I915_MAX_SFC; i++) {
 			/*
 			 * SFC_DONE resides in the VD forcewake domain, so it
 			 * only exists if the corresponding VCS engine is
@@ -1689,7 +1689,7 @@ static void gt_record_regs(struct intel_gt_coredump *gt)
 		gt->aux_err = intel_uncore_read(uncore, GEN12_AUX_ERR_DBG);
 
 	if (GRAPHICS_VER(i915) >= 12) {
-		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+		for (i = 0; i < I915_MAX_SFC; i++) {
 			/*
 			 * SFC_DONE resides in the VD forcewake domain, so it
 			 * only exists if the corresponding VCS engine is
