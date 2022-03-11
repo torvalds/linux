@@ -32,7 +32,6 @@
 
 #include <linux/highmem.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mlx5/driver.h>
 #include <linux/xarray.h>

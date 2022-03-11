@@ -305,3 +305,8 @@ u32 mlx5dr_table_get_id(struct mlx5dr_table *tbl)
 {
 	return tbl->table_id;
 }
+
+struct mlx5dr_table *mlx5dr_table_get_from_fs_ft(struct mlx5_flow_table *ft)
+{
+	return ft->fs_dr_table.dr_table;
+}
