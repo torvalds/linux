@@ -1447,19 +1447,22 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 		return 0;
 	}
 
-	/*
-	 * reduce lock contention at high levels
-	 * of the btree by dropping locks before
-	 * we read.  Don't release the lock on the current
-	 * level because we need to walk this node to figure
-	 * out which blocks to read.
-	 */
-	btrfs_unlock_up_safe(p, level + 1);
+	if ((level + 1 < BTRFS_MAX_LEVEL) && p->locks[level + 1]) {
+		/*
+		 * Reduce lock contention at high levels of the btree by
+		 * dropping locks before we read.  Don't release the lock
+		 * on the current level because we need to walk this node
+		 * to figure out which blocks to read.
+		 */
+		btrfs_unlock_up_safe(p, level + 1);
+		ret = -EAGAIN;
+	} else {
+		ret = 0;
+	}
 
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, level, slot, key->objectid);
 
-	ret = -EAGAIN;
 	tmp = read_tree_block(fs_info, blocknr, root->root_key.objectid,
 			      gen, parent_level - 1, &first_key);
 	if (IS_ERR(tmp)) {
@@ -1474,9 +1477,14 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	 */
 	if (!extent_buffer_uptodate(tmp))
 		ret = -EIO;
-	free_extent_buffer(tmp);
 
-	btrfs_release_path(p);
+	if (ret == 0) {
+		*eb_ret = tmp;
+	} else {
+		free_extent_buffer(tmp);
+		btrfs_release_path(p);
+	}
+
 	return ret;
 }
 
