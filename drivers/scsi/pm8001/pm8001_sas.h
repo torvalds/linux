@@ -196,8 +196,7 @@ struct pm8001_dispatch {
 	int (*phy_ctl_req)(struct pm8001_hba_info *pm8001_ha,
 		u32 phy_id, u32 phy_op);
 	int (*task_abort)(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_device *pm8001_dev, u8 flag, u32 task_tag,
-		u32 cmd_tag);
+		struct pm8001_ccb_info *ccb);
 	int (*ssp_tm_req)(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_ccb_info *ccb, struct sas_tmf_task *tmf);
 	int (*get_nvmd_req)(struct pm8001_hba_info *pm8001_ha, void *payload);
@@ -683,8 +682,7 @@ int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
 				struct pm8001_ccb_info *ccb,
 				struct sas_tmf_task *tmf);
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
-				struct pm8001_device *pm8001_dev,
-				u8 flag, u32 task_tag, u32 cmd_tag);
+				struct pm8001_ccb_info *ccb);
 int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha, u32 device_id);
 void pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd);
 void pm8001_work_fn(struct work_struct *work);

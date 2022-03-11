@@ -4477,21 +4477,24 @@ pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 }
 
 static int send_task_abort(struct pm8001_hba_info *pm8001_ha, u32 opc,
-	u32 dev_id, u8 flag, u32 task_tag, u32 cmd_tag)
+	u32 dev_id, enum sas_internal_abort type, u32 task_tag, u32 cmd_tag)
 {
 	struct task_abort_req task_abort;
 
 	memset(&task_abort, 0, sizeof(task_abort));
-	if (ABORT_SINGLE == (flag & ABORT_MASK)) {
+	if (type == SAS_INTERNAL_ABORT_SINGLE) {
 		task_abort.abort_all = 0;
 		task_abort.device_id = cpu_to_le32(dev_id);
 		task_abort.tag_to_abort = cpu_to_le32(task_tag);
-		task_abort.tag = cpu_to_le32(cmd_tag);
-	} else if (ABORT_ALL == (flag & ABORT_MASK)) {
+	} else if (type == SAS_INTERNAL_ABORT_DEV) {
 		task_abort.abort_all = cpu_to_le32(1);
 		task_abort.device_id = cpu_to_le32(dev_id);
-		task_abort.tag = cpu_to_le32(cmd_tag);
+	} else {
+		pm8001_dbg(pm8001_ha, EH, "unknown type (%d)\n", type);
+		return -EIO;
 	}
+
+	task_abort.tag = cpu_to_le32(cmd_tag);
 
 	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
 				    sizeof(task_abort), 0);
@@ -4501,12 +4504,16 @@ static int send_task_abort(struct pm8001_hba_info *pm8001_ha, u32 opc,
  * pm8001_chip_abort_task - SAS abort task when error or exception happened.
  */
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
-	struct pm8001_device *pm8001_dev, u8 flag, u32 task_tag, u32 cmd_tag)
+	struct pm8001_ccb_info *ccb)
 {
-	u32 opc, device_id;
+	struct sas_task *task = ccb->task;
+	struct sas_internal_abort_task *abort = &task->abort_task;
+	struct pm8001_device *pm8001_dev = ccb->device;
 	int rc = TMF_RESP_FUNC_FAILED;
+	u32 opc, device_id;
+
 	pm8001_dbg(pm8001_ha, EH, "cmd_tag = %x, abort task tag = 0x%x\n",
-		   cmd_tag, task_tag);
+		   ccb->ccb_tag, abort->tag);
 	if (pm8001_dev->dev_type == SAS_END_DEVICE)
 		opc = OPC_INB_SSP_ABORT;
 	else if (pm8001_dev->dev_type == SAS_SATA_DEV)
@@ -4514,8 +4521,8 @@ int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 	else
 		opc = OPC_INB_SMP_ABORT;/* SMP */
 	device_id = pm8001_dev->device_id;
-	rc = send_task_abort(pm8001_ha, opc, device_id, flag,
-		task_tag, cmd_tag);
+	rc = send_task_abort(pm8001_ha, opc, device_id, abort->type,
+			     abort->tag, ccb->ccb_tag);
 	if (rc != TMF_RESP_FUNC_COMPLETE)
 		pm8001_dbg(pm8001_ha, EH, "rc= %d\n", rc);
 	return rc;
