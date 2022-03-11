@@ -1831,6 +1831,7 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 		      bool has_hdmi_sink)
 {
 	struct drm_i915_private *dev_priv = intel_hdmi_to_i915(hdmi);
+	enum phy phy = intel_port_to_phy(dev_priv, hdmi_to_dig_port(hdmi)->base.port);
 
 	if (clock < 25000)
 		return MODE_CLOCK_LOW;
@@ -1849,6 +1850,14 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 
 	/* CHV DPLL can't generate 216-240 MHz */
 	if (IS_CHERRYVIEW(dev_priv) && clock > 216000 && clock < 240000)
+		return MODE_CLOCK_RANGE;
+
+	/* ICL+ combo PHY PLL can't generate 500-533.2 MHz */
+	if (intel_phy_is_combo(dev_priv, phy) && clock > 500000 && clock < 533200)
+		return MODE_CLOCK_RANGE;
+
+	/* ICL+ TC PHY PLL can't generate 500-532.8 MHz */
+	if (intel_phy_is_tc(dev_priv, phy) && clock > 500000 && clock < 532800)
 		return MODE_CLOCK_RANGE;
 
 	/*
