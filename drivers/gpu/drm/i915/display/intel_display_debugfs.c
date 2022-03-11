@@ -544,11 +544,15 @@ static void intel_encoder_info(struct seq_file *m,
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
+static void intel_panel_info(struct seq_file *m,
+			     struct intel_connector *connector)
 {
-	const struct drm_display_mode *mode = panel->fixed_mode;
+	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
 
-	seq_printf(m, "\tfixed mode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+	if (!fixed_mode)
+		return;
+
+	seq_printf(m, "\tfixed mode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(fixed_mode));
 }
 
 static void intel_hdcp_info(struct seq_file *m,
@@ -586,8 +590,6 @@ static void intel_dp_info(struct seq_file *m,
 	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
 	seq_printf(m, "\taudio support: %s\n",
 		   str_yes_no(intel_dp->has_audio));
-	if (intel_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
-		intel_panel_info(m, &intel_connector->panel);
 
 	drm_dp_downstream_debug(m, intel_dp->dpcd, intel_dp->downstream_ports,
 				edid ? edid->data : NULL, &intel_dp->aux);
@@ -609,12 +611,6 @@ static void intel_hdmi_info(struct seq_file *m,
 
 	seq_printf(m, "\taudio support: %s\n",
 		   str_yes_no(intel_hdmi->has_audio));
-}
-
-static void intel_lvds_info(struct seq_file *m,
-			    struct intel_connector *intel_connector)
-{
-	intel_panel_info(m, &intel_connector->panel);
 }
 
 static void intel_connector_info(struct seq_file *m,
@@ -651,10 +647,6 @@ static void intel_connector_info(struct seq_file *m,
 		else
 			intel_dp_info(m, intel_connector);
 		break;
-	case DRM_MODE_CONNECTOR_LVDS:
-		if (encoder->type == INTEL_OUTPUT_LVDS)
-			intel_lvds_info(m, intel_connector);
-		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		if (encoder->type == INTEL_OUTPUT_HDMI ||
 		    encoder->type == INTEL_OUTPUT_DDI)
@@ -666,6 +658,8 @@ static void intel_connector_info(struct seq_file *m,
 
 	seq_puts(m, "\tHDCP version: ");
 	intel_hdcp_info(m, intel_connector);
+
+	intel_panel_info(m, intel_connector);
 
 	seq_printf(m, "\tmodes:\n");
 	list_for_each_entry(mode, &connector->modes, head)
