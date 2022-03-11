@@ -388,7 +388,7 @@ void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
 	unsigned long size;
-	unsigned long threshold;
+	unsigned long threshold, threshold2;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -403,8 +403,20 @@ void __init parisc_setup_cache_timing(void)
 		alltime, size, rangetime);
 
 	threshold = L1_CACHE_ALIGN(size * alltime / rangetime);
-	if (threshold > cache_info.dc_size)
-		threshold = cache_info.dc_size;
+
+	/*
+	 * The threshold computed above isn't very reliable since the
+	 * flush times depend greatly on the percentage of dirty lines
+	 * in the flush range. Further, the whole cache time doesn't
+	 * include the time to refill lines that aren't in the mm/vma
+	 * being flushed. By timing glibc build and checks on mako cpus,
+	 * the following formula seems to work reasonably well. The
+	 * value from the timing calculation is too small, and increases
+	 * build and check times by almost a factor two.
+	 */
+	threshold2 = cache_info.dc_size * num_online_cpus();
+	if (threshold2 > threshold)
+		threshold = threshold2;
 	if (threshold)
 		parisc_cache_flush_threshold = threshold;
 	printk(KERN_INFO "Cache flush threshold set to %lu KiB\n",
