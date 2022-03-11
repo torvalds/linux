@@ -4594,8 +4594,8 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 			 *   - Page fault in kernel mode
 			 *   - if CPL = 3 or X86_EFLAGS_AC is clear
 			 *
-			 * Here, we cover the first three conditions.
-			 * The fourth is computed dynamically in permission_fault();
+			 * Here, we cover the first four conditions.
+			 * The fifth is computed dynamically in permission_fault();
 			 * PFERR_RSVD_MASK bit will be set in PFEC if the access is
 			 * *not* subject to SMAP restrictions.
 			 */
