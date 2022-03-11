@@ -69,6 +69,8 @@ to_dma_fence_array(struct dma_fence *fence)
  *
  * Test if @array is a dma_fence_array object and if yes iterate over all fences
  * in the array. If not just iterate over the fence in @array itself.
+ *
+ * For a deep dive iterator see dma_fence_unwrap_for_each().
  */
 #define dma_fence_array_for_each(fence, index, head)			\
 	for (index = 0, fence = dma_fence_array_first(head); fence;	\
