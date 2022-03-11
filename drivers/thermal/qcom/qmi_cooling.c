@@ -84,6 +84,8 @@ static char  device_clients[][QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01] = {
 	{"sdr1_lte_dsc"},
 	{"sdr0_nr_dsc"},
 	{"sdr1_nr_dsc"},
+	{"sdr0_nr_scg_dsc"},
+	{"sdr1_nr_scg_dsc"},
 	{"pa_lte_sdr0_dsc"},
 	{"pa_lte_sdr1_dsc"},
 	{"pa_nr_sdr0_dsc"},
