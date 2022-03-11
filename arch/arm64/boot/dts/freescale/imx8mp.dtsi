@@ -61,6 +61,7 @@
 			next-level-cache = <&A53_L2>;
 			nvmem-cells = <&cpu_speed_grade>;
 			nvmem-cell-names = "speed_grade";
+			operating-points-v2 = <&a53_opp_table>;
 			#cooling-cells = <2>;
 		};
 
@@ -78,6 +79,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&A53_L2>;
+			operating-points-v2 = <&a53_opp_table>;
 			#cooling-cells = <2>;
 		};
 
@@ -95,6 +97,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&A53_L2>;
+			operating-points-v2 = <&a53_opp_table>;
 			#cooling-cells = <2>;
 		};
 
@@ -112,6 +115,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&A53_L2>;
+			operating-points-v2 = <&a53_opp_table>;
 			#cooling-cells = <2>;
 		};
 
@@ -121,6 +125,35 @@
 			cache-size = <0x80000>;
 			cache-line-size = <64>;
 			cache-sets = <512>;
+		};
+	};
+
+	a53_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <850000>;
+			opp-supported-hw = <0x8a0>, <0x7>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
+		};
+
+		opp-1600000000 {
+			opp-hz = /bits/ 64 <1600000000>;
+			opp-microvolt = <950000>;
+			opp-supported-hw = <0xa0>, <0x7>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
+		};
+
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1000000>;
+			opp-supported-hw = <0x20>, <0x3>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
 		};
 	};
 
