@@ -14,22 +14,18 @@ struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_connector;
-struct intel_dp;
 
 const char *intel_drrs_type_str(enum drrs_type drrs_type);
-void intel_drrs_enable(struct intel_dp *intel_dp,
-		       const struct intel_crtc_state *crtc_state);
-void intel_drrs_disable(struct intel_dp *intel_dp,
-			const struct intel_crtc_state *crtc_state);
-void intel_drrs_update(struct intel_dp *intel_dp,
-		       const struct intel_crtc_state *crtc_state);
+void intel_drrs_enable(const struct intel_crtc_state *crtc_state);
+void intel_drrs_disable(const struct intel_crtc_state *crtc_state);
+void intel_drrs_update(const struct intel_crtc_state *crtc_state);
 void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 			   unsigned int frontbuffer_bits);
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
 		      unsigned int frontbuffer_bits);
 void intel_drrs_page_flip(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc);
-void intel_drrs_compute_config(struct intel_dp *intel_dp,
+void intel_drrs_compute_config(struct intel_connector *connector,
 			       struct intel_crtc_state *pipe_config,
 			       int output_bpp, bool constant_n);
 struct drm_display_mode *intel_drrs_init(struct intel_connector *connector,

@@ -210,7 +210,7 @@ enum drrs_type {
 struct i915_drrs {
 	struct mutex mutex;
 	struct delayed_work work;
-	struct intel_dp *dp;
+	struct intel_crtc *crtc;
 	unsigned busy_frontbuffer_bits;
 	enum drrs_refresh_rate refresh_rate;
 };

@@ -80,11 +80,10 @@ static bool can_enable_drrs(struct intel_connector *connector,
 }
 
 void
-intel_drrs_compute_config(struct intel_dp *intel_dp,
+intel_drrs_compute_config(struct intel_connector *connector,
 			  struct intel_crtc_state *pipe_config,
 			  int output_bpp, bool constant_n)
 {
-	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *downclock_mode =
 		intel_panel_downclock_mode(connector, &pipe_config->hw.adjusted_mode);
@@ -153,10 +152,9 @@ static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 				 const struct intel_crtc_state *crtc_state,
 				 enum drrs_refresh_rate refresh_rate)
 {
-	struct intel_dp *intel_dp = dev_priv->drrs.dp;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	if (!intel_dp) {
+	if (!dev_priv->drrs.crtc) {
 		drm_dbg_kms(&dev_priv->drm, "DRRS not supported.\n");
 		return;
 	}
@@ -193,25 +191,24 @@ static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 }
 
 static void
-intel_drrs_enable_locked(struct intel_dp *intel_dp)
+intel_drrs_enable_locked(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	dev_priv->drrs.busy_frontbuffer_bits = 0;
-	dev_priv->drrs.dp = intel_dp;
+	dev_priv->drrs.crtc = crtc;
 }
 
 /**
  * intel_drrs_enable - init drrs struct if supported
- * @intel_dp: DP struct
  * @crtc_state: A pointer to the active crtc state.
  *
  * Initializes frontbuffer_bits and drrs.dp
  */
-void intel_drrs_enable(struct intel_dp *intel_dp,
-		       const struct intel_crtc_state *crtc_state)
+void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!crtc_state->has_drrs)
 		return;
@@ -220,48 +217,45 @@ void intel_drrs_enable(struct intel_dp *intel_dp,
 
 	mutex_lock(&dev_priv->drrs.mutex);
 
-	if (dev_priv->drrs.dp) {
+	if (dev_priv->drrs.crtc) {
 		drm_warn(&dev_priv->drm, "DRRS already enabled\n");
 		goto unlock;
 	}
 
-	intel_drrs_enable_locked(intel_dp);
+	intel_drrs_enable_locked(crtc);
 
 unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 static void
-intel_drrs_disable_locked(struct intel_dp *intel_dp,
-			  const struct intel_crtc_state *crtc_state)
+intel_drrs_disable_locked(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
 	intel_drrs_set_state(dev_priv, crtc_state, DRRS_REFRESH_RATE_HIGH);
-	dev_priv->drrs.dp = NULL;
+	dev_priv->drrs.crtc = NULL;
 }
 
 /**
  * intel_drrs_disable - Disable DRRS
- * @intel_dp: DP struct
  * @old_crtc_state: Pointer to old crtc_state.
- *
  */
-void intel_drrs_disable(struct intel_dp *intel_dp,
-			const struct intel_crtc_state *old_crtc_state)
+void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!old_crtc_state->has_drrs)
 		return;
 
 	mutex_lock(&dev_priv->drrs.mutex);
-	if (!dev_priv->drrs.dp) {
+	if (dev_priv->drrs.crtc != crtc) {
 		mutex_unlock(&dev_priv->drrs.mutex);
 		return;
 	}
 
-	intel_drrs_disable_locked(intel_dp, old_crtc_state);
+	intel_drrs_disable_locked(old_crtc_state);
 	mutex_unlock(&dev_priv->drrs.mutex);
 
 	cancel_delayed_work_sync(&dev_priv->drrs.work);
@@ -269,7 +263,6 @@ void intel_drrs_disable(struct intel_dp *intel_dp,
 
 /**
  * intel_drrs_update - Update DRRS state
- * @intel_dp: Intel DP
  * @crtc_state: new CRTC state
  *
  * This function will update DRRS states, disabling or enabling DRRS when
@@ -277,10 +270,10 @@ void intel_drrs_disable(struct intel_dp *intel_dp,
  * intel_drrs_enable() should be called instead.
  */
 void
-intel_drrs_update(struct intel_dp *intel_dp,
-		  const struct intel_crtc_state *crtc_state)
+intel_drrs_update(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (dev_priv->vbt.drrs_type != DRRS_TYPE_SEAMLESS)
 		return;
@@ -288,13 +281,13 @@ intel_drrs_update(struct intel_dp *intel_dp,
 	mutex_lock(&dev_priv->drrs.mutex);
 
 	/* New state matches current one? */
-	if (crtc_state->has_drrs == !!dev_priv->drrs.dp)
+	if (crtc_state->has_drrs == !!dev_priv->drrs.crtc)
 		goto unlock;
 
 	if (crtc_state->has_drrs)
-		intel_drrs_enable_locked(intel_dp);
+		intel_drrs_enable_locked(crtc);
 	else
-		intel_drrs_disable_locked(intel_dp, crtc_state);
+		intel_drrs_disable_locked(crtc_state);
 
 unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
@@ -304,13 +297,12 @@ static void intel_drrs_downclock_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), drrs.work.work);
-	struct intel_dp *intel_dp;
+	struct intel_crtc *crtc;
 
 	mutex_lock(&dev_priv->drrs.mutex);
 
-	intel_dp = dev_priv->drrs.dp;
-
-	if (!intel_dp)
+	crtc = dev_priv->drrs.crtc;
+	if (!crtc)
 		goto unlock;
 
 	/*
@@ -319,9 +311,6 @@ static void intel_drrs_downclock_work(struct work_struct *work)
 	 */
 
 	if (!dev_priv->drrs.busy_frontbuffer_bits) {
-		struct intel_crtc *crtc =
-			to_intel_crtc(dp_to_dig_port(intel_dp)->base.base.crtc);
-
 		intel_drrs_set_state(dev_priv, crtc->config,
 				     DRRS_REFRESH_RATE_LOW);
 	}
@@ -334,9 +323,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 					  unsigned int frontbuffer_bits,
 					  bool invalidate)
 {
-	struct intel_dp *intel_dp;
-	struct drm_crtc *crtc;
-	enum pipe pipe;
+	struct intel_crtc *crtc;
 
 	if (dev_priv->vbt.drrs_type != DRRS_TYPE_SEAMLESS)
 		return;
@@ -345,16 +332,13 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&dev_priv->drrs.mutex);
 
-	intel_dp = dev_priv->drrs.dp;
-	if (!intel_dp) {
+	crtc = dev_priv->drrs.crtc;
+	if (!crtc) {
 		mutex_unlock(&dev_priv->drrs.mutex);
 		return;
 	}
 
-	crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
-	pipe = to_intel_crtc(crtc)->pipe;
-
-	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 	if (invalidate)
 		dev_priv->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
 	else
@@ -362,7 +346,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 
 	/* flush/invalidate means busy screen hence upclock */
 	if (frontbuffer_bits)
-		intel_drrs_set_state(dev_priv, to_intel_crtc(crtc)->config,
+		intel_drrs_set_state(dev_priv, crtc->config,
 				     DRRS_REFRESH_RATE_HIGH);
 
 	/*

@@ -1161,20 +1161,17 @@ static void drrs_status_per_crtc(struct seq_file *m,
 	seq_puts(m, "\n");
 
 	if (to_intel_crtc_state(crtc->base.state)->has_drrs) {
-		struct intel_panel *panel;
-
 		mutex_lock(&drrs->mutex);
 		/* DRRS Supported */
 		seq_puts(m, "\tDRRS Enabled: Yes\n");
 
 		/* disable_drrs() will make drrs->dp NULL */
-		if (!drrs->dp) {
+		if (!drrs->crtc) {
 			seq_puts(m, "Idleness DRRS: Disabled\n");
 			mutex_unlock(&drrs->mutex);
 			return;
 		}
 
-		panel = &drrs->dp->attached_connector->panel;
 		seq_printf(m, "\t\tBusy_frontbuffer_bits: 0x%X",
 					drrs->busy_frontbuffer_bits);
 
@@ -1881,9 +1878,7 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 		return -ENODEV;
 
 	for_each_intel_crtc(dev, crtc) {
-		struct drm_connector_list_iter conn_iter;
 		struct intel_crtc_state *crtc_state;
-		struct drm_connector *connector;
 		struct drm_crtc_commit *commit;
 		int ret;
 
@@ -1904,30 +1899,14 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 				goto out;
 		}
 
-		drm_connector_list_iter_begin(dev, &conn_iter);
-		drm_for_each_connector_iter(connector, &conn_iter) {
-			struct intel_encoder *encoder;
-			struct intel_dp *intel_dp;
+		drm_dbg(&dev_priv->drm,
+			"Manually %sabling DRRS. %llu\n",
+			val ? "en" : "dis", val);
 
-			if (!(crtc_state->uapi.connector_mask &
-			      drm_connector_mask(connector)))
-				continue;
-
-			encoder = intel_attached_encoder(to_intel_connector(connector));
-			if (encoder->type != INTEL_OUTPUT_EDP)
-				continue;
-
-			drm_dbg(&dev_priv->drm,
-				"Manually %sabling DRRS. %llu\n",
-				val ? "en" : "dis", val);
-
-			intel_dp = enc_to_intel_dp(encoder);
-			if (val)
-				intel_drrs_enable(intel_dp, crtc_state);
-			else
-				intel_drrs_disable(intel_dp, crtc_state);
-		}
-		drm_connector_list_iter_end(&conn_iter);
+		if (val)
+			intel_drrs_enable(crtc_state);
+		else
+			intel_drrs_disable(crtc_state);
 
 out:
 		drm_modeset_unlock(&crtc->base.mutex);
