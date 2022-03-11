@@ -20,6 +20,7 @@ properties:
     items:
       - enum:
           - apple,s5l-uart
+          - axis,artpec8-uart
           - samsung,s3c2410-uart
           - samsung,s3c2412-uart
           - samsung,s3c2440-uart
@@ -111,6 +112,7 @@ allOf:
           contains:
             enum:
               - apple,s5l-uart
+              - axis,artpec8-uart
               - samsung,exynos4210-uart
               - samsung,exynos5433-uart
     then:
