@@ -97,7 +97,7 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
+int gnttab_end_foreign_access_ref(grant_ref_t ref);
 
 /*
  * Eventually end access through the given grant reference, and once that
@@ -114,8 +114,7 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
  * gnttab_end_foreign_access() are done via alloc_pages_exact() (and freeing
  * via free_pages_exact()) in order to avoid high order pages.
  */
-void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
-			       unsigned long page);
+void gnttab_end_foreign_access(grant_ref_t ref, unsigned long page);
 
 /*
  * End access through the given grant reference, iff the grant entry is
