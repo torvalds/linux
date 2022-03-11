@@ -3,17 +3,39 @@
 # Platform drivers
 #	Most drivers here are currently for webcam support
 
-menuconfig V4L_PLATFORM_DRIVERS
+config V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
 	help
 	  Say Y here to enable support for platform-specific V4L drivers.
 
-if V4L_PLATFORM_DRIVERS
+config SDR_PLATFORM_DRIVERS
+	bool "SDR platform devices"
+	depends on MEDIA_SDR_SUPPORT
+	help
+	  Say Y here to enable support for platform-specific SDR Drivers.
+
+config DVB_PLATFORM_DRIVERS
+	bool "DVB platform devices"
+	depends on MEDIA_DIGITAL_TV_SUPPORT
+	help
+	  Say Y here to enable support for platform-specific Digital TV drivers.
+
+config V4L_MEM2MEM_DRIVERS
+	bool "Memory-to-memory multimedia devices"
+	depends on VIDEO_V4L2
+	help
+	  Say Y here to enable selecting drivers for V4L devices that
+	  use system memory for both source and destination buffers, as opposed
+	  to capture and output drivers, which use memory buffers for just
+	  one of those.
+
+# V4L platform drivers
 
 source "drivers/media/platform/marvell-ccic/Kconfig"
 
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on FB_VIA && VIDEO_V4L2
 	select VIDEOBUF2_DMA_SG
 	select VIDEO_OV7670
@@ -22,9 +44,6 @@ config VIDEO_VIA_CAMERA
 	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
 	   with ov7670 sensors.
 
-#
-# Platform multimedia device configuration
-#
 source "drivers/media/platform/cadence/Kconfig"
 
 source "drivers/media/platform/davinci/Kconfig"
@@ -33,6 +52,7 @@ source "drivers/media/platform/omap/Kconfig"
 
 config VIDEO_ASPEED
 	tristate "Aspeed AST2400 and AST2500 Video Engine driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	select VIDEOBUF2_DMA_CONTIG
 	help
@@ -42,6 +62,7 @@ config VIDEO_ASPEED
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV && I2C
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -50,6 +71,7 @@ config VIDEO_SH_VOU
 
 config VIDEO_VIU
 	tristate "Freescale VIU Video Driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && (PPC_MPC512x || COMPILE_TEST) && I2C
 	select VIDEOBUF_DMA_CONTIG
 	default y
@@ -62,6 +84,7 @@ config VIDEO_VIU
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
+	depends on V4L_PLATFORM_DRIVERS
 	select MULTIPLEXER
 	depends on VIDEO_V4L2 && OF
 	select MEDIA_CONTROLLER
@@ -73,6 +96,7 @@ config VIDEO_MUX
 
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && I2C
 	depends on (ARCH_OMAP3 && OMAP_IOMMU) || COMPILE_TEST
 	depends on COMMON_CLK && OF
@@ -93,6 +117,7 @@ config VIDEO_OMAP3_DEBUG
 
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on PXA27x || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
@@ -103,6 +128,7 @@ config VIDEO_PXA27x
 
 config VIDEO_QCOM_CAMSS
 	tristate "Qualcomm V4L2 Camera Subsystem driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
 	select MEDIA_CONTROLLER
@@ -112,6 +138,7 @@ config VIDEO_QCOM_CAMSS
 
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && I2C && PM
 	depends on ARCH_S3C64XX || PLAT_S3C24XX || COMPILE_TEST
 	select MEDIA_CONTROLLER
@@ -126,6 +153,7 @@ config VIDEO_S3C_CAMIF
 
 config VIDEO_STM32_DCMI
 	tristate "STM32 Digital Camera Memory Interface (DCMI) support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && OF
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -140,6 +168,7 @@ config VIDEO_STM32_DCMI
 
 config VIDEO_RENESAS_CEU
 	tristate "Renesas Capture Engine Unit (CEU) driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -149,6 +178,7 @@ config VIDEO_RENESAS_CEU
 
 config VIDEO_ROCKCHIP_ISP1
 	tristate "Rockchip Image Signal Processing v1 Unit driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && OF
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select MEDIA_CONTROLLER
@@ -175,6 +205,7 @@ source "drivers/media/platform/imx/Kconfig"
 
 config VIDEO_TI_CAL
 	tristate "TI CAL (Camera Adaptation Layer) driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
@@ -187,10 +218,9 @@ config VIDEO_TI_CAL
 	  In TI Technical Reference Manual this module is referred as
 	  Camera Interface Subsystem (CAMSS).
 
-if VIDEO_TI_CAL
-
 config VIDEO_TI_CAL_MC
 	bool "Media Controller centric mode by default"
+	depends on VIDEO_TI_CAL
 	default n
 	help
 	  Enables Media Controller centric mode by default.
@@ -199,10 +229,9 @@ config VIDEO_TI_CAL_MC
 	  default. Note that this behavior can be overridden via
 	  module parameter 'mc_api'.
 
-endif # VIDEO_TI_CAL
-
 config VIDEO_RCAR_ISP
 	tristate "R-Car Image Signal Processor (ISP)"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select MEDIA_CONTROLLER
@@ -217,21 +246,11 @@ config VIDEO_RCAR_ISP
 	  To compile this driver as a module, choose M here: the
 	  module will be called rcar-isp.
 
-endif # V4L_PLATFORM_DRIVERS
-
-menuconfig V4L_MEM2MEM_DRIVERS
-	bool "Memory-to-memory multimedia devices"
-	depends on VIDEO_V4L2
-	help
-	  Say Y here to enable selecting drivers for V4L devices that
-	  use system memory for both source and destination buffers, as opposed
-	  to capture and output drivers, which use memory buffers for just
-	  one of those.
-
-if V4L_MEM2MEM_DRIVERS
+# Mem2mem drivers
 
 config VIDEO_ALLEGRO_DVT
 	tristate "Allegro DVT Video IP Core"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_ZYNQMP || COMPILE_TEST
 	select V4L2_MEM2MEM_DEV
@@ -247,6 +266,7 @@ config VIDEO_ALLEGRO_DVT
 
 config VIDEO_CODA
 	tristate "Chips&Media Coda multi-standard codec IP"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2 && OF && (ARCH_MXC || COMPILE_TEST)
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
@@ -263,6 +283,7 @@ config VIDEO_IMX_VDOA
 
 config VIDEO_IMX_PXP
 	tristate "i.MX Pixel Pipeline (PXP)"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2 && (ARCH_MXC || COMPILE_TEST)
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
@@ -274,6 +295,7 @@ source "drivers/media/platform/imx-jpeg/Kconfig"
 
 config VIDEO_MEDIATEK_JPEG
 	tristate "Mediatek JPEG Codec driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on MTK_IOMMU_V1 || MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -289,6 +311,7 @@ config VIDEO_MEDIATEK_JPEG
 
 config VIDEO_MEDIATEK_VPU
 	tristate "Mediatek Video Processor Unit"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
@@ -302,6 +325,7 @@ config VIDEO_MEDIATEK_VPU
 
 config VIDEO_MEDIATEK_MDP
 	tristate "Mediatek MDP driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -318,6 +342,7 @@ config VIDEO_MEDIATEK_MDP
 
 config VIDEO_MEDIATEK_VCODEC
 	tristate "Mediatek Video Codec driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -353,6 +378,7 @@ config VIDEO_MEDIATEK_VCODEC_SCP
 
 config VIDEO_MEM2MEM_DEINTERLACE
 	tristate "Deinterlace support"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
@@ -362,6 +388,7 @@ config VIDEO_MEM2MEM_DEINTERLACE
 
 config VIDEO_MESON_GE2D
 	tristate "Amlogic 2D Graphic Acceleration Unit"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MESON || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -375,6 +402,7 @@ config VIDEO_MESON_GE2D
 
 config VIDEO_SAMSUNG_S5P_G2D
 	tristate "Samsung S5P and EXYNOS4 G2D 2d graphics accelerator driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -385,6 +413,7 @@ config VIDEO_SAMSUNG_S5P_G2D
 
 config VIDEO_SAMSUNG_S5P_JPEG
 	tristate "Samsung S5P/Exynos3250/Exynos4 JPEG codec driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -395,6 +424,7 @@ config VIDEO_SAMSUNG_S5P_JPEG
 
 config VIDEO_SAMSUNG_S5P_MFC
 	tristate "Samsung S5P MFC Video Codec"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -403,6 +433,7 @@ config VIDEO_SAMSUNG_S5P_MFC
 
 config VIDEO_MX2_EMMAPRP
 	tristate "MX2 eMMa-PrP support"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on SOC_IMX27 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -414,6 +445,7 @@ config VIDEO_MX2_EMMAPRP
 
 config VIDEO_SAMSUNG_EXYNOS_GSC
 	tristate "Samsung Exynos G-Scaler driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -423,6 +455,7 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 
 config VIDEO_STI_BDISP
 	tristate "STMicroelectronics BDISP 2D blitter driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_STI || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -432,6 +465,7 @@ config VIDEO_STI_BDISP
 
 config VIDEO_STI_HVA
 	tristate "STMicroelectronics HVA multi-format video encoder V4L2 driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_STI || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -446,6 +480,7 @@ config VIDEO_STI_HVA
 
 config VIDEO_STI_HVA_DEBUGFS
 	bool "Export STMicroelectronics HVA internals in debugfs"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_STI_HVA
 	depends on DEBUG_FS
 	help
@@ -457,6 +492,7 @@ config VIDEO_STI_HVA_DEBUGFS
 
 config VIDEO_STI_DELTA
 	tristate "STMicroelectronics DELTA multi-format video decoder V4L2 driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_STI || COMPILE_TEST
 	help
@@ -471,11 +507,10 @@ config VIDEO_STI_DELTA
 		Please notice that the driver will only be built if
 		at least one of the DELTA decoder below is selected.
 
-if VIDEO_STI_DELTA
-
 config VIDEO_STI_DELTA_MJPEG
 	bool "STMicroelectronics DELTA MJPEG support"
 	default y
+	depends on VIDEO_STI_DELTA
 	help
 		Enables DELTA MJPEG hardware support.
 
@@ -491,10 +526,9 @@ config VIDEO_STI_DELTA_DRIVER
 	select V4L2_MEM2MEM_DEV
 	select RPMSG
 
-endif # VIDEO_STI_DELTA
-
 config VIDEO_STM32_DMA2D
 	tristate "STM32 Chrom-Art Accelerator (DMA2D)"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -507,6 +541,7 @@ config VIDEO_STM32_DMA2D
 
 config VIDEO_RENESAS_FDP1
 	tristate "Renesas Fine Display Processor"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
@@ -521,6 +556,7 @@ config VIDEO_RENESAS_FDP1
 
 config VIDEO_RENESAS_JPU
 	tristate "Renesas JPEG Processing Unit"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -533,6 +569,7 @@ config VIDEO_RENESAS_JPU
 
 config VIDEO_RENESAS_FCP
 	tristate "Renesas Frame Compression Processor"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on OF
 	help
@@ -546,6 +583,7 @@ config VIDEO_RENESAS_FCP
 
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
@@ -561,6 +599,7 @@ config VIDEO_RENESAS_VSP1
 
 config VIDEO_ROCKCHIP_RGA
 	tristate "Rockchip Raster 2d Graphic Acceleration Unit"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
@@ -575,6 +614,7 @@ config VIDEO_ROCKCHIP_RGA
 
 config VIDEO_TI_VPE
 	tristate "TI VPE (Video Processing Engine) driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on SOC_DRA7XX || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -588,12 +628,14 @@ config VIDEO_TI_VPE
 
 config VIDEO_TI_VPE_DEBUG
 	bool "VPE debug messages"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_TI_VPE
 	help
 	  Enable debug messages on VPE driver.
 
 config VIDEO_QCOM_VENUS
 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2 && QCOM_SMEM
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
 	select QCOM_MDT_LOADER if ARCH_QCOM
@@ -608,6 +650,7 @@ config VIDEO_QCOM_VENUS
 
 config VIDEO_SUN8I_DEINTERLACE
 	tristate "Allwinner Deinterlace driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_SUNXI || COMPILE_TEST
 	depends on COMMON_CLK && OF
@@ -621,6 +664,7 @@ config VIDEO_SUN8I_DEINTERLACE
 
 config VIDEO_SUN8I_ROTATE
 	tristate "Allwinner DE2 rotation driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_SUNXI || COMPILE_TEST
 	depends on COMMON_CLK && OF
@@ -633,6 +677,7 @@ config VIDEO_SUN8I_ROTATE
 
 config VIDEO_TEGRA_VDE
 	tristate "NVIDIA Tegra Video Decoder Engine driver"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select DMA_SHARED_BUFFER
@@ -650,6 +695,7 @@ config VIDEO_TEGRA_VDE
 
 config VIDEO_AMPHION_VPU
 	tristate "Amphion VPU (Video Processing Unit) Codec IP"
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on MEDIA_SUPPORT
 	depends on VIDEO_DEV
@@ -667,8 +713,6 @@ config VIDEO_AMPHION_VPU
 	  various NXP SoCs.
 	  To compile this driver as a module choose m here.
 
-endif # V4L_MEM2MEM_DRIVERS
-
 # TI VIDEO PORT Helper Modules
 # These will be selected by VPE and VIP
 config VIDEO_TI_VPDMA
@@ -680,26 +724,13 @@ config VIDEO_TI_SC
 config VIDEO_TI_CSC
 	tristate
 
-menuconfig DVB_PLATFORM_DRIVERS
-	bool "DVB platform devices"
-	depends on MEDIA_DIGITAL_TV_SUPPORT
-	help
-	  Say Y here to enable support for platform-specific Digital TV drivers.
-
-if DVB_PLATFORM_DRIVERS
+# DVB platform drivers
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
-endif #DVB_PLATFORM_DRIVERS
 
-menuconfig SDR_PLATFORM_DRIVERS
-	bool "SDR platform devices"
-	depends on MEDIA_SDR_SUPPORT
-	help
-	  Say Y here to enable support for platform-specific SDR Drivers.
-
-if SDR_PLATFORM_DRIVERS
-
+# SDR platform drivers
 config VIDEO_RCAR_DRIF
 	tristate "Renesas Digital Radio Interface (DRIF)"
+	depends on SDR_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC
@@ -712,5 +743,3 @@ config VIDEO_RCAR_DRIF
 
 	  To compile this driver as a module, choose M here; the module
 	  will be called rcar_drif.
-
-endif # SDR_PLATFORM_DRIVERS

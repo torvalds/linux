@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_DAVINCI_VPIF_DISPLAY
 	tristate "TI DaVinci VPIF V4L2-Display driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
@@ -17,6 +18,7 @@ config VIDEO_DAVINCI_VPIF_DISPLAY
 
 config VIDEO_DAVINCI_VPIF_CAPTURE
 	tristate "TI DaVinci VPIF video capture driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
@@ -32,6 +34,7 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 
 config VIDEO_DM6446_CCDC
 	tristate "TI DM6446 CCDC video capture driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
@@ -48,6 +51,7 @@ config VIDEO_DM6446_CCDC
 
 config VIDEO_DM355_CCDC
 	tristate "TI DM355 CCDC video capture driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
@@ -64,6 +68,7 @@ config VIDEO_DM355_CCDC
 
 config VIDEO_DM365_ISIF
 	tristate "TI DM365 ISIF video capture driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
@@ -78,6 +83,7 @@ config VIDEO_DM365_ISIF
 
 config VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C

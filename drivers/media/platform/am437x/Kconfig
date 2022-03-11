@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_AM437X_VPFE
 	tristate "TI AM437x VPFE video capture driver"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2
 	depends on SOC_AM43XX || COMPILE_TEST
 	select MEDIA_CONTROLLER

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_ATMEL_ISC
 	tristate "ATMEL Image Sensor Controller (ISC) support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && COMMON_CLK
 	depends on ARCH_AT91 || COMPILE_TEST
 	select MEDIA_CONTROLLER
@@ -15,6 +16,7 @@ config VIDEO_ATMEL_ISC
 
 config VIDEO_ATMEL_XISC
 	tristate "ATMEL eXtended Image Sensor Controller (XISC) support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && COMMON_CLK && VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -33,6 +35,7 @@ config VIDEO_ATMEL_ISC_BASE
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && OF
 	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -43,6 +46,7 @@ config VIDEO_ATMEL_ISI
 
 config VIDEO_MICROCHIP_CSI2DC
 	tristate "Microchip CSI2 Demux Controller"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_V4L2 && COMMON_CLK && OF
 	depends on ARCH_AT91 || COMPILE_TEST
 	select MEDIA_CONTROLLER

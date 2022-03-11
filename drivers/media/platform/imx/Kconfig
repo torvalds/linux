@@ -2,6 +2,7 @@
 
 menuconfig VIDEO_IMX
 	bool "V4L2 capture drivers for NXP i.MX devices"
+	depends on V4L_PLATFORM_DRIVERS
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	help
