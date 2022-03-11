@@ -96,16 +96,7 @@ config VIDEO_OMAP3_DEBUG
 	help
 	  Enable debug messages on OMAP 3 camera controller driver.
 
-config VIDEO_PXA27x
-	tristate "PXA27x Quick Capture Interface driver"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on PXA27x || COMPILE_TEST
-	select VIDEOBUF2_DMA_SG
-	select SG_SPLIT
-	select V4L2_FWNODE
-	help
-	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+source "drivers/media/platform/intel/Kconfig"
 
 config VIDEO_QCOM_CAMSS
 	tristate "Qualcomm V4L2 Camera Subsystem driver"
