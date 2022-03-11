@@ -462,3 +462,217 @@ int avs_ipc_set_d0ix(struct avs_dev *adev, bool enable_pg, bool streaming)
 
 	return ret;
 }
+
+int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
+{
+	struct avs_tlv *tlv;
+	size_t payload_size;
+	size_t offset = 0;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+				       AVS_BASEFW_FIRMWARE_CONFIG, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	while (offset < payload_size) {
+		tlv = (struct avs_tlv *)(payload + offset);
+
+		switch (tlv->type) {
+		case AVS_FW_CFG_FW_VERSION:
+			memcpy(&cfg->fw_version, tlv->value, sizeof(cfg->fw_version));
+			break;
+
+		case AVS_FW_CFG_MEMORY_RECLAIMED:
+			cfg->memory_reclaimed = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_SLOW_CLOCK_FREQ_HZ:
+			cfg->slow_clock_freq_hz = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_FAST_CLOCK_FREQ_HZ:
+			cfg->fast_clock_freq_hz = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_ALH_SUPPORT_LEVEL:
+			cfg->alh_support = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_IPC_DL_MAILBOX_BYTES:
+			cfg->ipc_dl_mailbox_bytes = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_IPC_UL_MAILBOX_BYTES:
+			cfg->ipc_ul_mailbox_bytes = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_TRACE_LOG_BYTES:
+			cfg->trace_log_bytes = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_PPL_COUNT:
+			cfg->max_ppl_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_ASTATE_COUNT:
+			cfg->max_astate_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_MODULE_PIN_COUNT:
+			cfg->max_module_pin_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MODULES_COUNT:
+			cfg->modules_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_MOD_INST_COUNT:
+			cfg->max_mod_inst_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_LL_TASKS_PER_PRI_COUNT:
+			cfg->max_ll_tasks_per_pri_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_LL_PRI_COUNT:
+			cfg->ll_pri_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_DP_TASKS_COUNT:
+			cfg->max_dp_tasks_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_MAX_LIBS_COUNT:
+			cfg->max_libs_count = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_XTAL_FREQ_HZ:
+			cfg->xtal_freq_hz = *tlv->value;
+			break;
+
+		case AVS_FW_CFG_POWER_GATING_POLICY:
+			cfg->power_gating_policy = *tlv->value;
+			break;
+
+		/* Known but not useful to us. */
+		case AVS_FW_CFG_DMA_BUFFER_CONFIG:
+		case AVS_FW_CFG_SCHEDULER_CONFIG:
+		case AVS_FW_CFG_CLOCKS_CONFIG:
+			break;
+
+		default:
+			dev_info(adev->dev, "Unrecognized fw param: %d\n", tlv->type);
+			break;
+		}
+
+		offset += sizeof(*tlv) + tlv->length;
+	}
+
+	/* No longer needed, free it as it's owned by the get_large_config() caller. */
+	kfree(payload);
+	return ret;
+}
+
+int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
+{
+	struct avs_tlv *tlv;
+	size_t payload_size;
+	size_t size, offset = 0;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+				       AVS_BASEFW_HARDWARE_CONFIG, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	while (offset < payload_size) {
+		tlv = (struct avs_tlv *)(payload + offset);
+
+		switch (tlv->type) {
+		case AVS_HW_CFG_AVS_VER:
+			cfg->avs_version = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_DSP_CORES:
+			cfg->dsp_cores = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_MEM_PAGE_BYTES:
+			cfg->mem_page_bytes = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_TOTAL_PHYS_MEM_PAGES:
+			cfg->total_phys_mem_pages = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_I2S_CAPS:
+			cfg->i2s_caps.i2s_version = tlv->value[0];
+			size = tlv->value[1];
+			cfg->i2s_caps.ctrl_count = size;
+			if (!size)
+				break;
+
+			/* Multiply to get entire array size. */
+			size *= sizeof(*cfg->i2s_caps.ctrl_base_addr);
+			cfg->i2s_caps.ctrl_base_addr = devm_kmemdup(adev->dev,
+								    &tlv->value[2],
+								    size, GFP_KERNEL);
+			if (!cfg->i2s_caps.ctrl_base_addr) {
+				ret = -ENOMEM;
+				goto exit;
+			}
+			break;
+
+		case AVS_HW_CFG_GATEWAY_COUNT:
+			cfg->gateway_count = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_HP_EBB_COUNT:
+			cfg->hp_ebb_count = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_LP_EBB_COUNT:
+			cfg->lp_ebb_count = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_EBB_SIZE_BYTES:
+			cfg->ebb_size_bytes = *tlv->value;
+			break;
+
+		case AVS_HW_CFG_GPDMA_CAPS:
+			break;
+
+		default:
+			dev_info(adev->dev, "Unrecognized hw config: %d\n", tlv->type);
+			break;
+		}
+
+		offset += sizeof(*tlv) + tlv->length;
+	}
+
+exit:
+	/* No longer needed, free it as it's owned by the get_large_config() caller. */
+	kfree(payload);
+	return ret;
+}
+
+int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
+{
+	size_t payload_size;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+				       AVS_BASEFW_MODULES_INFO, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	*info = (struct avs_mods_info *)payload;
+	return 0;
+}
