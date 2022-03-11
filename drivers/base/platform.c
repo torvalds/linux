@@ -231,7 +231,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 out_not_found:
 	ret = -ENXIO;
 out:
-	WARN(ret == 0, "0 is an invalid IRQ number\n");
+	if (WARN(!ret, "0 is an invalid IRQ number\n"))
+		return -EINVAL;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_optional);
@@ -446,7 +447,8 @@ static int __platform_get_irq_byname(struct platform_device *dev,
 
 	r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
 	if (r) {
-		WARN(r->start == 0, "0 is an invalid IRQ number\n");
+		if (WARN(!r->start, "0 is an invalid IRQ number\n"))
+			return -EINVAL;
 		return r->start;
 	}
 
