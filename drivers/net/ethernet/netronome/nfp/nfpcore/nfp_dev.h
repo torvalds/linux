@@ -7,6 +7,8 @@
 #include <linux/types.h>
 
 enum nfp_dev_id {
+	NFP_DEV_NFP3800,
+	NFP_DEV_NFP3800_VF,
 	NFP_DEV_NFP6000,
 	NFP_DEV_NFP6000_VF,
 	NFP_DEV_CNT,
