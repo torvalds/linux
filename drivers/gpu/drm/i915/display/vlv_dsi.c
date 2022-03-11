@@ -1657,7 +1657,8 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
-static void vlv_dsi_add_properties(struct intel_connector *connector)
+static void vlv_dsi_add_properties(struct intel_connector *connector,
+				   const struct drm_display_mode *fixed_mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	u32 allowed_scalers;
@@ -1673,8 +1674,8 @@ static void vlv_dsi_add_properties(struct intel_connector *connector)
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
 						       intel_dsi_get_panel_orientation(connector),
-						       connector->panel.fixed_mode->hdisplay,
-						       connector->panel.fixed_mode->vdisplay);
+						       fixed_mode->hdisplay,
+						       fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
@@ -1989,7 +1990,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
-	vlv_dsi_add_properties(intel_connector);
+	vlv_dsi_add_properties(intel_connector, fixed_mode);
 
 	return;
 
