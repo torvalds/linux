@@ -6,5 +6,7 @@
 const struct nfp_dev_info nfp_dev_info[NFP_DEV_CNT] = {
 	[NFP_DEV_NFP6000] = {
 		.chip_names		= "NFP4000/NFP5000/NFP6000",
+		.pcie_cfg_expbar_offset	= 0x0400,
+		.pcie_expl_offset	= 0x1000,
 	},
 };

@@ -101,11 +101,7 @@
 #define NFP_PCIE_P2C_GENERAL_TOKEN_OFFSET(bar, x) ((x) << ((bar)->bitsize - 4))
 #define NFP_PCIE_P2C_GENERAL_SIZE(bar)             (1 << ((bar)->bitsize - 4))
 
-#define NFP_PCIE_CFG_BAR_PCIETOCPPEXPANSIONBAR(bar, slot) \
-	(0x400 + ((bar) * 8 + (slot)) * 4)
-
-#define NFP_PCIE_CPP_BAR_PCIETOCPPEXPANSIONBAR(bar, slot) \
-	(((bar) * 8 + (slot)) * 4)
+#define NFP_PCIE_P2C_EXPBAR_OFFSET(bar_index)		((bar_index) * 4)
 
 /* The number of explicit BARs to reserve.
  * Minimum is 0, maximum is 4 on the NFP6000.
@@ -271,19 +267,16 @@ compute_bar(const struct nfp6000_pcie *nfp, const struct nfp_bar *bar,
 static int
 nfp6000_bar_write(struct nfp6000_pcie *nfp, struct nfp_bar *bar, u32 newcfg)
 {
-	int base, slot;
-	int xbar;
+	unsigned int xbar;
 
-	base = bar->index >> 3;
-	slot = bar->index & 7;
+	xbar = NFP_PCIE_P2C_EXPBAR_OFFSET(bar->index);
 
 	if (nfp->iomem.csr) {
-		xbar = NFP_PCIE_CPP_BAR_PCIETOCPPEXPANSIONBAR(base, slot);
 		writel(newcfg, nfp->iomem.csr + xbar);
 		/* Readback to ensure BAR is flushed */
 		readl(nfp->iomem.csr + xbar);
 	} else {
-		xbar = NFP_PCIE_CFG_BAR_PCIETOCPPEXPANSIONBAR(base, slot);
+		xbar += nfp->dev_info->pcie_cfg_expbar_offset;
 		pci_write_config_dword(nfp->pdev, xbar, newcfg);
 	}
 
@@ -624,7 +617,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 		nfp6000_bar_write(nfp, bar, barcfg_msix_general);
 
-		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM + 0x1000;
+		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM +
+			nfp->dev_info->pcie_expl_offset;
 
 		switch (nfp->pdev->device) {
 		case PCI_DEVICE_ID_NETRONOME_NFP3800:
