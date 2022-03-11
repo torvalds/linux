@@ -3004,7 +3004,7 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, logical);
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, logical);
-	struct btrfs_key key;
+	u64 cur_logical = logical;
 	int ret;
 
 	ASSERT(map->type & BTRFS_BLOCK_GROUP_RAID56_MASK);
@@ -3012,36 +3012,9 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 	/* Path must not be populated */
 	ASSERT(!path->nodes[0]);
 
-	if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
-		key.type = BTRFS_METADATA_ITEM_KEY;
-	else
-		key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.objectid = logical;
-	key.offset = (u64)-1;
-
-	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	if (ret > 0) {
-		ret = btrfs_previous_extent_item(extent_root, path, 0);
-		if (ret < 0)
-			return ret;
-		if (ret > 0) {
-			btrfs_release_path(path);
-			ret = btrfs_search_slot(NULL, extent_root, &key, path,
-						0, 0);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	while (1) {
+	while (cur_logical < logical + map->stripe_len) {
 		struct btrfs_io_context *bioc = NULL;
 		struct btrfs_device *extent_dev;
-		struct btrfs_extent_item *ei;
-		struct extent_buffer *leaf;
-		int slot;
 		u64 extent_start;
 		u64 extent_size;
 		u64 mapped_length;
@@ -3050,60 +3023,40 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 		u64 extent_physical;
 		u64 extent_mirror_num;
 
-		leaf = path->nodes[0];
-		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(leaf)) {
-			ret = btrfs_next_leaf(extent_root, path);
-			if (ret == 0)
-				continue;
-
-			/* No more extent items or error, exit */
+		ret = find_first_extent_item(extent_root, path, cur_logical,
+					     logical + map->stripe_len - cur_logical);
+		/* No more extent item in this data stripe */
+		if (ret > 0) {
+			ret = 0;
 			break;
 		}
-		btrfs_item_key_to_cpu(leaf, &key, slot);
-
-		if (key.type != BTRFS_EXTENT_ITEM_KEY &&
-		    key.type != BTRFS_METADATA_ITEM_KEY)
-			goto next;
-
-		if (key.type == BTRFS_METADATA_ITEM_KEY)
-			extent_size = fs_info->nodesize;
-		else
-			extent_size = key.offset;
-
-		if (key.objectid + extent_size <= logical)
-			goto next;
-
-		/* Beyond this data stripe */
-		if (key.objectid >= logical + map->stripe_len)
+		if (ret < 0)
 			break;
+		get_extent_info(path, &extent_start, &extent_size, &extent_flags,
+				&extent_gen);
 
-		ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
-		extent_flags = btrfs_extent_flags(leaf, ei);
-		extent_gen = btrfs_extent_generation(leaf, ei);
-
+		/* Metadata should not cross stripe boundaries */
 		if ((extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) &&
-		    (key.objectid < logical || key.objectid + extent_size >
-		     logical + map->stripe_len)) {
+		    does_range_cross_boundary(extent_start, extent_size,
+					      logical, map->stripe_len)) {
 			btrfs_err(fs_info,
-		  "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
-				  key.objectid, logical);
+	"scrub: tree block %llu spanning stripes, ignored. logical=%llu",
+				  extent_start, logical);
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.uncorrectable_errors++;
 			spin_unlock(&sctx->stat_lock);
-			goto next;
+			cur_logical += extent_size;
+			continue;
 		}
 
-		extent_start = key.objectid;
+		/* Skip hole range which doesn't have any extent */
+		cur_logical = max(extent_start, cur_logical);
+
+		/* Truncate the range inside this data stripe */
+		extent_size = min(extent_start + extent_size,
+				  logical + map->stripe_len) - cur_logical;
+		extent_start = cur_logical;
 		ASSERT(extent_size <= U32_MAX);
-
-		/* Truncate the range inside the data stripe */
-		if (extent_start < logical) {
-			extent_size -= logical - extent_start;
-			extent_start = logical;
-		}
-		if (extent_start + extent_size > logical + map->stripe_len)
-			extent_size = logical + map->stripe_len - extent_start;
 
 		scrub_parity_mark_sectors_data(sparity, extent_start, extent_size);
 
@@ -3145,8 +3098,7 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 		}
 
 		cond_resched();
-next:
-		path->slots[0]++;
+		cur_logical += extent_size;
 	}
 	btrfs_release_path(path);
 	return ret;
