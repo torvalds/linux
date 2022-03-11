@@ -450,7 +450,6 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 	struct asix_data *data = (struct asix_data *)&dev->data;
 	struct asix_common_private *priv = dev->driver_priv;
 	u16 rx_ctl, phy14h, phy15h, phy16h;
-	u8 chipcode = 0;
 	int ret;
 
 	ret = asix_write_gpio(dev, AX_GPIO_RSE, 5, in_pm);
@@ -493,12 +492,7 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 		goto out;
 	}
 
-	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0,
-			    0, 1, &chipcode, in_pm);
-	if (ret < 0)
-		goto out;
-
-	if ((chipcode & AX_CHIPCODE_MASK) == AX_AX88772B_CHIPCODE) {
+	if (priv->chipcode == AX_AX88772B_CHIPCODE) {
 		ret = asix_write_cmd(dev, AX_QCTCTRL, 0x8000, 0x8001,
 				     0, NULL, in_pm);
 		if (ret < 0) {
@@ -506,7 +500,7 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 				   ret);
 			goto out;
 		}
-	} else if ((chipcode & AX_CHIPCODE_MASK) == AX_AX88772A_CHIPCODE) {
+	} else if (priv->chipcode == AX_AX88772A_CHIPCODE) {
 		/* Check if the PHY registers have default settings */
 		phy14h = asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY14H);
@@ -689,8 +683,8 @@ static int ax88772_init_phy(struct usbnet *dev)
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	u8 buf[ETH_ALEN] = {0}, chipcode = 0;
 	struct asix_common_private *priv;
+	u8 buf[ETH_ALEN] = {0};
 	int ret, i;
 
 	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
@@ -741,17 +735,18 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	priv->phy_addr = ret;
 	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10);
 
-	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &chipcode, 0);
+	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1,
+			    &priv->chipcode, 0);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Failed to read STATMNGSTS_REG: %d\n", ret);
 		return ret;
 	}
 
-	chipcode &= AX_CHIPCODE_MASK;
+	priv->chipcode &= AX_CHIPCODE_MASK;
 
 	priv->resume = ax88772_resume;
 	priv->suspend = ax88772_suspend;
-	if (chipcode == AX_AX88772_CHIPCODE)
+	if (priv->chipcode == AX_AX88772_CHIPCODE)
 		priv->reset = ax88772_hw_reset;
 	else
 		priv->reset = ax88772a_hw_reset;

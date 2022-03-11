@@ -186,6 +186,7 @@ struct asix_common_private {
 	u16 phy_addr;
 	char phy_name[20];
 	bool embd_phy;
+	u8 chipcode;
 };
 
 extern const struct driver_info ax88172a_info;
