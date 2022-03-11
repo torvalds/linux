@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
+#include <linux/cpuidle.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -41,7 +42,9 @@ struct cluster_info {
 	struct monitor_dev_info *mdev_info;
 	struct rockchip_opp_info opp_info;
 	cpumask_t cpus;
+	unsigned int idle_threshold_freq;
 	int scale;
+	bool is_idle_disabled;
 };
 static LIST_HEAD(cluster_info_list);
 
@@ -460,6 +463,8 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		goto np_err;
 	}
 
+	if (!of_property_read_u32(np, "rockchip,idle-threshold-freq", &freq))
+		cluster->idle_threshold_freq = freq;
 	rockchip_get_opp_data(rockchip_cpufreq_of_match, opp_info);
 	if (opp_info->data && opp_info->data->set_read_margin) {
 		opp_info->current_rm = UINT_MAX;
@@ -613,6 +618,70 @@ static struct notifier_block rockchip_cpufreq_notifier_block = {
 	.notifier_call = rockchip_cpufreq_notifier,
 };
 
+static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
+					       int index, bool disable)
+{
+	unsigned int cpu;
+
+	for_each_cpu(cpu, cpumask) {
+		struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+		struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
+
+		if (!dev || !drv)
+			continue;
+		if (index >= drv->state_count)
+			continue;
+		cpuidle_driver_state_disabled(drv, index, disable);
+	}
+
+	if (disable) {
+		preempt_disable();
+		for_each_cpu(cpu, cpumask) {
+			if (cpu != smp_processor_id() && cpu_online(cpu))
+				wake_up_if_idle(cpu);
+		}
+		preempt_enable();
+	}
+
+	return 0;
+}
+
+static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
+						unsigned long event, void *data)
+{
+	struct cpufreq_freqs *freqs = data;
+	struct cpufreq_policy *policy = freqs->policy;
+	struct cluster_info *cluster;
+
+	cluster = rockchip_cluster_info_lookup(policy->cpu);
+	if (!cluster)
+		return NOTIFY_BAD;
+
+	if (event == CPUFREQ_PRECHANGE) {
+		if (cluster->idle_threshold_freq &&
+		    freqs->new >= cluster->idle_threshold_freq &&
+		    !cluster->is_idle_disabled) {
+			rockchip_cpufreq_idle_state_disable(policy->cpus, 1,
+							    true);
+			cluster->is_idle_disabled = true;
+		}
+	} else if (event == CPUFREQ_POSTCHANGE) {
+		if (cluster->idle_threshold_freq &&
+		    freqs->new < cluster->idle_threshold_freq &&
+		    cluster->is_idle_disabled) {
+			rockchip_cpufreq_idle_state_disable(policy->cpus, 1,
+							    false);
+			cluster->is_idle_disabled = false;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_cpufreq_transition_notifier_block = {
+	.notifier_call = rockchip_cpufreq_transition_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
 	struct cluster_info *cluster, *pos;
@@ -646,6 +715,17 @@ static int __init rockchip_cpufreq_driver_init(void)
 	if (ret) {
 		pr_err("failed to register cpufreq notifier\n");
 		goto release_cluster_info;
+	}
+
+	if (of_machine_is_compatible("rockchip,rk3588")) {
+		ret = cpufreq_register_notifier(&rockchip_cpufreq_transition_notifier_block,
+						CPUFREQ_TRANSITION_NOTIFIER);
+		if (ret) {
+			cpufreq_unregister_notifier(&rockchip_cpufreq_notifier_block,
+						    CPUFREQ_POLICY_NOTIFIER);
+			pr_err("failed to register cpufreq notifier\n");
+			goto release_cluster_info;
+		}
 	}
 
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
