@@ -2193,7 +2193,7 @@ int perf_pmu__test_parse_init(void)
 	for (i = 0; i < ARRAY_SIZE(symbols); i++, tmp++) {
 		tmp->type = symbols[i].type;
 		tmp->symbol = strdup(symbols[i].symbol);
-		if (!list->symbol)
+		if (!tmp->symbol)
 			goto err_free;
 	}
 
