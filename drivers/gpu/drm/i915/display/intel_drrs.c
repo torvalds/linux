@@ -47,6 +47,20 @@
  * requested by userspace.
  */
 
+const char *intel_drrs_type_str(enum drrs_type drrs_type)
+{
+	static const char * const str[] = {
+		[DRRS_TYPE_NONE] = "none",
+		[DRRS_TYPE_STATIC] = "static",
+		[DRRS_TYPE_SEAMLESS] = "seamless",
+	};
+
+	if (drrs_type >= ARRAY_SIZE(str))
+		return "<invalid>";
+
+	return str[drrs_type];
+}
+
 static bool can_enable_drrs(struct intel_connector *connector,
 			    const struct intel_crtc_state *pipe_config)
 {
@@ -461,8 +475,9 @@ intel_drrs_init(struct intel_connector *connector,
 
 	dev_priv->drrs.refresh_rate = DRRS_REFRESH_RATE_HIGH;
 	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] seamless DRRS supported\n",
-		    connector->base.base.id, connector->base.name);
+		    "[CONNECTOR:%d:%s] %s DRRS supported\n",
+		    connector->base.base.id, connector->base.name,
+		    intel_drrs_type_str(dev_priv->vbt.drrs_type));
 
 	return downclock_mode;
 }

@@ -22,6 +22,7 @@
 #include "intel_fbdev.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
+#include "intel_panel.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -1143,23 +1144,17 @@ static void drrs_status_per_crtc(struct seq_file *m,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_drrs *drrs = &dev_priv->drrs;
-	struct drm_connector *connector;
+	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		bool supported = false;
-
-		if (connector->state->crtc != &crtc->base)
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		if (connector->base.state->crtc != &crtc->base)
 			continue;
 
-		seq_printf(m, "%s:\n", connector->name);
-
-		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
-		    dev_priv->vbt.drrs_type == DRRS_TYPE_SEAMLESS)
-			supported = true;
-
-		seq_printf(m, "\tDRRS Supported: %s\n", str_yes_no(supported));
+		seq_printf(m, "[CONNECTOR:%d:%s] DRRS type: %s\n",
+			   connector->base.base.id, connector->base.name,
+			   intel_drrs_type_str(intel_panel_drrs_type(connector)));
 	}
 	drm_connector_list_iter_end(&conn_iter);
 

@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+enum drrs_type;
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
@@ -15,6 +16,7 @@ struct intel_crtc_state;
 struct intel_connector;
 struct intel_dp;
 
+const char *intel_drrs_type_str(enum drrs_type drrs_type);
 void intel_drrs_enable(struct intel_dp *intel_dp,
 		       const struct intel_crtc_state *crtc_state);
 void intel_drrs_disable(struct intel_dp *intel_dp,
