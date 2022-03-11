@@ -374,8 +374,8 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 		goto err_clk_put;
 	}
 
-	size = data->interconnect_count * sizeof(power->interconnect[0]);
-	power = kzalloc(sizeof(*power) + size, GFP_KERNEL);
+	size = struct_size(power, interconnect, data->interconnect_count);
+	power = kzalloc(size, GFP_KERNEL);
 	if (!power) {
 		ret = -ENOMEM;
 		goto err_clk_put;
