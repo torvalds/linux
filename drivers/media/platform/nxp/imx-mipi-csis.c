@@ -1322,7 +1322,6 @@ static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 
 	mutex_lock(&csis->lock);
 	if (csis->state & ST_POWERED) {
-		mipi_csis_stop_stream(csis);
 		ret = mipi_csis_phy_disable(csis);
 		if (ret)
 			goto unlock;
