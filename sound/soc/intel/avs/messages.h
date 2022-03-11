@@ -91,6 +91,15 @@ struct avs_tlv {
 	u32 value[];
 } __packed;
 
+enum avs_module_msg_type {
+	AVS_MOD_INIT_INSTANCE = 0,
+	AVS_MOD_LARGE_CONFIG_GET = 3,
+	AVS_MOD_LARGE_CONFIG_SET = 4,
+	AVS_MOD_BIND = 5,
+	AVS_MOD_UNBIND = 6,
+	AVS_MOD_DELETE_INSTANCE = 11,
+};
+
 union avs_module_msg {
 	u64 val;
 	struct {
@@ -106,6 +115,24 @@ union avs_module_msg {
 		};
 		union {
 			u32 val;
+			struct {
+				u32 param_block_size:16;
+				u32 ppl_instance_id:8;
+				u32 core_id:4;
+				u32 proc_domain:1;
+			} init_instance;
+			struct {
+				u32 data_off_size:20;
+				u32 large_param_id:8;
+				u32 final_block:1;
+				u32 init_block:1;
+			} large_config;
+			struct {
+				u32 dst_module_id:16;
+				u32 dst_instance_id:8;
+				u32 dst_queue:3;
+				u32 src_queue:3;
+			} bind_unbind;
 		} ext;
 	};
 } __packed;
@@ -132,6 +159,13 @@ union avs_reply_msg {
 			struct {
 				u32 state:5;
 			} get_ppl_state;
+			/* module management */
+			struct {
+				u32 data_off_size:20;
+				u32 large_param_id:8;
+				u32 final_block:1;
+				u32 init_block:1;
+			} large_config;
 		} ext;
 	};
 } __packed;
@@ -236,5 +270,23 @@ int avs_ipc_set_pipeline_state(struct avs_dev *adev, u8 instance_id,
 			       enum avs_pipeline_state state);
 int avs_ipc_get_pipeline_state(struct avs_dev *adev, u8 instance_id,
 			       enum avs_pipeline_state *state);
+
+/* Module management messages */
+int avs_ipc_init_instance(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			  u8 ppl_id, u8 core_id, u8 domain,
+			  void *param, u32 param_size);
+int avs_ipc_delete_instance(struct avs_dev *adev, u16 module_id, u8 instance_id);
+int avs_ipc_bind(struct avs_dev *adev, u16 module_id, u8 instance_id,
+		 u16 dst_module_id, u8 dst_instance_id,
+		 u8 dst_queue, u8 src_queue);
+int avs_ipc_unbind(struct avs_dev *adev, u16 module_id, u8 instance_id,
+		   u16 dst_module_id, u8 dst_instance_id,
+		   u8 dst_queue, u8 src_queue);
+int avs_ipc_set_large_config(struct avs_dev *adev, u16 module_id,
+			     u8 instance_id, u8 param_id,
+			     u8 *request, size_t request_size);
+int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     u8 param_id, u8 *request_data, size_t request_size,
+			     u8 **reply_data, size_t *reply_size);
 
 #endif /* __SOUND_SOC_INTEL_AVS_MSGS_H */
