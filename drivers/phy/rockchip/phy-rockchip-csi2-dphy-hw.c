@@ -804,22 +804,24 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 		}
 	}
 
-	if (dphy->phy_index % 3 == DPHY0 ||
-	    dphy->phy_index % 3 == DPHY1) {
-		if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x2);
+	if (hw->drv_data->chip_id == CHIP_ID_RV1106) {
+		if (dphy->phy_index % 3 == DPHY0 ||
+		    dphy->phy_index % 3 == DPHY1) {
+			if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x2);
+			} else {
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x4);
+				lvds_width = get_lvds_data_width(sensor->format.code);
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_LVDS_MODEL, (lvds_width << 4) | 0X01);
+			}
 		} else {
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x4);
-			lvds_width = get_lvds_data_width(sensor->format.code);
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH0_LVDS_MODEL, (lvds_width << 4) | 0X01);
-		}
-	} else {
-		if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x2);
-		} else {
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x4);
-			lvds_width = get_lvds_data_width(sensor->format.code);
-			write_csi2_dphy_reg(hw, CSI2PHY_PATH1_LVDS_MODEL, (lvds_width << 4) | 0X01);
+			if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x2);
+			} else {
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x4);
+				lvds_width = get_lvds_data_width(sensor->format.code);
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_LVDS_MODEL, (lvds_width << 4) | 0X01);
+			}
 		}
 	}
 
