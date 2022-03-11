@@ -45,10 +45,25 @@ bool intel_panel_use_ssc(struct drm_i915_private *i915)
 		&& !(i915->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
+const struct drm_display_mode *
+intel_panel_fixed_mode(struct intel_connector *connector,
+		       const struct drm_display_mode *mode)
+{
+	return connector->panel.fixed_mode;
+}
+
+const struct drm_display_mode *
+intel_panel_downclock_mode(struct intel_connector *connector,
+			   const struct drm_display_mode *adjusted_mode)
+{
+	return connector->panel.downclock_mode;
+}
+
 int intel_panel_compute_config(struct intel_connector *connector,
 			       struct drm_display_mode *adjusted_mode)
 {
-	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_fixed_mode(connector, adjusted_mode);
 
 	if (!fixed_mode)
 		return 0;
@@ -508,7 +523,8 @@ enum drm_mode_status
 intel_panel_mode_valid(struct intel_connector *connector,
 		       const struct drm_display_mode *mode)
 {
-	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_fixed_mode(connector, mode);
 
 	if (!fixed_mode)
 		return MODE_OK;

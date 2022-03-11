@@ -918,8 +918,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 {
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	const struct drm_display_mode *fixed_mode;
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int max_dotclk = dev_priv->max_dotclk_freq;
@@ -934,6 +934,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
 
+	fixed_mode = intel_panel_fixed_mode(intel_connector, mode);
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		status = intel_panel_mode_valid(intel_connector, mode);
 		if (status != MODE_OK)
@@ -1797,6 +1798,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	const struct drm_display_mode *fixed_mode;
 	enum port port = encoder->port;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
@@ -1823,7 +1825,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	else
 		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
 
-	if (intel_dp_is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
+	fixed_mode = intel_panel_fixed_mode(intel_connector, adjusted_mode);
+	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		ret = intel_panel_compute_config(intel_connector, adjusted_mode);
 		if (ret)
 			return ret;

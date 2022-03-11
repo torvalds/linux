@@ -795,7 +795,7 @@ intel_sdvo_create_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 
 	if (IS_LVDS(intel_sdvo_connector)) {
 		const struct drm_display_mode *fixed_mode =
-			intel_sdvo_connector->base.panel.fixed_mode;
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
 
 		if (fixed_mode->hdisplay != args.width ||
 		    fixed_mode->vdisplay != args.height)
@@ -1331,6 +1331,8 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
+		const struct drm_display_mode *fixed_mode =
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
 		int ret;
 
 		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
@@ -1338,8 +1340,7 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 		if (ret)
 			return ret;
 
-		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
-							     intel_sdvo_connector->base.panel.fixed_mode))
+		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, fixed_mode))
 			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
@@ -1461,7 +1462,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	const struct intel_sdvo_connector_state *sdvo_state =
 		to_intel_sdvo_connector_state(conn_state);
-	const struct intel_sdvo_connector *intel_sdvo_connector =
+	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(conn_state->connector);
 	const struct drm_display_mode *mode = &crtc_state->hw.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
@@ -1492,11 +1493,14 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 		return;
 
 	/* lvds has a special fixed output timing. */
-	if (IS_LVDS(intel_sdvo_connector))
-		intel_sdvo_get_dtd_from_mode(&output_dtd,
-					     intel_sdvo_connector->base.panel.fixed_mode);
-	else
+	if (IS_LVDS(intel_sdvo_connector)) {
+		const struct drm_display_mode *fixed_mode =
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
+
+		intel_sdvo_get_dtd_from_mode(&output_dtd, fixed_mode);
+	} else {
 		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
+	}
 	if (!intel_sdvo_set_output_timing(intel_sdvo, &output_dtd))
 		drm_info(&dev_priv->drm,
 			 "Setting output timings on %s failed\n",
