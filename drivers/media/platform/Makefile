@@ -42,6 +42,7 @@ obj-y += stm32/
 obj-y += sunxi/
 obj-y += tegra/vde/
 obj-y += ti-vpe/
+obj-y += via/
 obj-y += vsp1/
 obj-y += xilinx/
 
@@ -57,4 +58,3 @@ obj-$(CONFIG_VIDEO_RENESAS_FCP)		+= rcar-fcp.o
 obj-$(CONFIG_VIDEO_RENESAS_FDP1)	+= rcar_fdp1.o
 obj-$(CONFIG_VIDEO_RENESAS_JPU)		+= rcar_jpu.o
 obj-$(CONFIG_VIDEO_SH_VOU)		+= sh_vou.o
-obj-$(CONFIG_VIDEO_VIA_CAMERA)		+= via-camera.o
