@@ -653,38 +653,63 @@ static const struct isp_match_data rk3588_isp_unite_match_data = {
 };
 
 static const struct of_device_id rkisp_hw_of_match[] = {
+#ifdef CONFIG_CPU_RK1808
 	{
 		.compatible = "rockchip,rk1808-rkisp1",
 		.data = &rk1808_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RK3288
+	{
 		.compatible = "rockchip,rk3288-rkisp1",
 		.data = &rk3288_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_PX30
+	{
 		.compatible = "rockchip,rk3326-rkisp1",
 		.data = &rk3326_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RK3368
+	{
 		.compatible = "rockchip,rk3368-rkisp1",
 		.data = &rk3368_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RK3399
+	{
 		.compatible = "rockchip,rk3399-rkisp1",
 		.data = &rk3399_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RK3568
+	{
 		.compatible = "rockchip,rk3568-rkisp",
 		.data = &rk3568_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RK3588
+	{
 		.compatible = "rockchip,rk3588-rkisp",
 		.data = &rk3588_isp_match_data,
 	}, {
 		.compatible = "rockchip,rk3588-rkisp-unite",
 		.data = &rk3588_isp_unite_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RV1106
+	{
 		.compatible = "rockchip,rv1106-rkisp",
 		.data = &rv1106_isp_match_data,
-	}, {
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126
+	{
 		.compatible = "rockchip,rv1126-rkisp",
 		.data = &rv1126_isp_match_data,
 	},
-	{},
+#endif
 };
 
 static inline bool is_iommu_enable(struct device *dev)
