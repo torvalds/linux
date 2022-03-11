@@ -1340,17 +1340,17 @@ TRACE_EVENT(kvm_hv_stimer_cleanup,
 );
 
 TRACE_EVENT(kvm_apicv_update_request,
-	    TP_PROTO(bool activate, int reason),
-	    TP_ARGS(activate, reason),
+	    TP_PROTO(int reason, bool activate),
+	    TP_ARGS(reason, activate),
 
 	TP_STRUCT__entry(
-		__field(bool, activate)
 		__field(int, reason)
+		__field(bool, activate)
 	),
 
 	TP_fast_assign(
-		__entry->activate = activate;
 		__entry->reason = reason;
+		__entry->activate = activate;
 	),
 
 	TP_printk("%s reason=%u",
