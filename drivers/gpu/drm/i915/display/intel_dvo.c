@@ -333,8 +333,6 @@ intel_dvo_detect(struct drm_connector *connector, bool force)
 static int intel_dvo_get_modes(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	const struct drm_display_mode *fixed_mode =
-		to_intel_connector(connector)->panel.fixed_mode;
 	int num_modes;
 
 	/*
@@ -348,17 +346,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	if (num_modes)
 		return num_modes;
 
-	if (fixed_mode) {
-		struct drm_display_mode *mode;
-
-		mode = drm_mode_duplicate(connector->dev, fixed_mode);
-		if (mode) {
-			drm_mode_probed_add(connector, mode);
-			num_modes++;
-		}
-	}
-
-	return num_modes;
+	return intel_panel_get_modes(to_intel_connector(connector));
 }
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {

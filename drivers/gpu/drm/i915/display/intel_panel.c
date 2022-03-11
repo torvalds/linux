@@ -59,6 +59,24 @@ intel_panel_downclock_mode(struct intel_connector *connector,
 	return connector->panel.downclock_mode;
 }
 
+int intel_panel_get_modes(struct intel_connector *connector)
+{
+	int num_modes = 0;
+
+	if (connector->panel.fixed_mode) {
+		struct drm_display_mode *mode;
+
+		mode = drm_mode_duplicate(connector->base.dev,
+					  connector->panel.fixed_mode);
+		if (mode) {
+			drm_mode_probed_add(&connector->base, mode);
+			num_modes++;
+		}
+	}
+
+	return num_modes;
+}
+
 int intel_panel_compute_config(struct intel_connector *connector,
 			       struct drm_display_mode *adjusted_mode)
 {
