@@ -1340,22 +1340,22 @@ TRACE_EVENT(kvm_hv_stimer_cleanup,
 );
 
 TRACE_EVENT(kvm_apicv_update_request,
-	    TP_PROTO(bool activate, unsigned long bit),
-	    TP_ARGS(activate, bit),
+	    TP_PROTO(bool activate, int reason),
+	    TP_ARGS(activate, reason),
 
 	TP_STRUCT__entry(
 		__field(bool, activate)
-		__field(unsigned long, bit)
+		__field(int, reason)
 	),
 
 	TP_fast_assign(
 		__entry->activate = activate;
-		__entry->bit = bit;
+		__entry->reason = reason;
 	),
 
-	TP_printk("%s bit=%lu",
+	TP_printk("%s reason=%u",
 		  __entry->activate ? "activate" : "deactivate",
-		  __entry->bit)
+		  __entry->reason)
 );
 
 TRACE_EVENT(kvm_apicv_accept_irq,

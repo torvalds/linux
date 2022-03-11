@@ -9744,24 +9744,25 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
 
-void __kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
+void __kvm_request_apicv_update(struct kvm *kvm, bool activate,
+				enum kvm_apicv_inhibit reason)
 {
 	unsigned long old, new;
 
 	lockdep_assert_held_write(&kvm->arch.apicv_update_lock);
 
-	if (!static_call(kvm_x86_check_apicv_inhibit_reasons)(bit))
+	if (!static_call(kvm_x86_check_apicv_inhibit_reasons)(reason))
 		return;
 
 	old = new = kvm->arch.apicv_inhibit_reasons;
 
 	if (activate)
-		__clear_bit(bit, &new);
+		__clear_bit(reason, &new);
 	else
-		__set_bit(bit, &new);
+		__set_bit(reason, &new);
 
 	if (!!old != !!new) {
-		trace_kvm_apicv_update_request(activate, bit);
+		trace_kvm_apicv_update_request(activate, reason);
 		/*
 		 * Kick all vCPUs before setting apicv_inhibit_reasons to avoid
 		 * false positives in the sanity check WARN in svm_vcpu_run().
@@ -9780,17 +9781,19 @@ void __kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 			unsigned long gfn = gpa_to_gfn(APIC_DEFAULT_PHYS_BASE);
 			kvm_zap_gfn_range(kvm, gfn, gfn+1);
 		}
-	} else
+	} else {
 		kvm->arch.apicv_inhibit_reasons = new;
+	}
 }
 
-void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
+void kvm_request_apicv_update(struct kvm *kvm, bool activate,
+			      enum kvm_apicv_inhibit reason)
 {
 	if (!enable_apicv)
 		return;
 
 	down_write(&kvm->arch.apicv_update_lock);
-	__kvm_request_apicv_update(kvm, activate, bit);
+	__kvm_request_apicv_update(kvm, activate, reason);
 	up_write(&kvm->arch.apicv_update_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
