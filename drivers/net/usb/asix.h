@@ -177,6 +177,7 @@ struct asix_rx_fixup_info {
 struct asix_common_private {
 	void (*resume)(struct usbnet *dev);
 	void (*suspend)(struct usbnet *dev);
+	int (*reset)(struct usbnet *dev, int in_pm);
 	u16 presvd_phy_advertise;
 	u16 presvd_phy_bmcr;
 	struct asix_rx_fixup_info rx_fixup_info;

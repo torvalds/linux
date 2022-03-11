@@ -625,22 +625,8 @@ static void ax88772_resume(struct usbnet *dev)
 	int i;
 
 	for (i = 0; i < 3; i++)
-		if (!ax88772_hw_reset(dev, 1))
+		if (!priv->reset(dev, 1))
 			break;
-
-	if (netif_running(dev->net))
-		phy_start(priv->phydev);
-}
-
-static void ax88772a_resume(struct usbnet *dev)
-{
-	struct asix_common_private *priv = dev->driver_priv;
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		if (!ax88772a_hw_reset(dev, 1))
-			break;
-	}
 
 	if (netif_running(dev->net))
 		phy_start(priv->phydev);
@@ -763,9 +749,14 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	chipcode &= AX_CHIPCODE_MASK;
 
-	ret = (chipcode == AX_AX88772_CHIPCODE) ? ax88772_hw_reset(dev, 0) :
-						  ax88772a_hw_reset(dev, 0);
+	priv->resume = ax88772_resume;
+	priv->suspend = ax88772_suspend;
+	if (chipcode == AX_AX88772_CHIPCODE)
+		priv->reset = ax88772_hw_reset;
+	else
+		priv->reset = ax88772a_hw_reset;
 
+	ret = priv->reset(dev, 0);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Failed to reset AX88772: %d\n", ret);
 		return ret;
@@ -780,13 +771,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	priv->presvd_phy_bmcr = 0;
 	priv->presvd_phy_advertise = 0;
-	if (chipcode == AX_AX88772_CHIPCODE) {
-		priv->resume = ax88772_resume;
-		priv->suspend = ax88772_suspend;
-	} else {
-		priv->resume = ax88772a_resume;
-		priv->suspend = ax88772_suspend;
-	}
 
 	ret = ax88772_init_mdio(dev);
 	if (ret)
