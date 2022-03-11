@@ -676,3 +676,20 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 	*info = (struct avs_mods_info *)payload;
 	return 0;
 }
+
+int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
+				   u8 instance_id, u32 sink_id,
+				   const struct avs_audio_format *src_fmt,
+				   const struct avs_audio_format *sink_fmt)
+{
+	struct avs_copier_sink_format cpr_fmt;
+
+	cpr_fmt.sink_id = sink_id;
+	/* Firmware expects driver to resend copier's input format. */
+	cpr_fmt.src_fmt = *src_fmt;
+	cpr_fmt.sink_fmt = *sink_fmt;
+
+	return avs_ipc_set_large_config(adev, module_id, instance_id,
+					AVS_COPIER_SET_SINK_FORMAT,
+					(u8 *)&cpr_fmt, sizeof(cpr_fmt));
+}
