@@ -2053,9 +2053,22 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	    rport->mode == USB_DR_MODE_UNKNOWN)
 		goto out;
 
-	/* Select bvalid of usb phy as bvalid of usb controller */
-	if (rport->port_cfg->bvalid_grf_sel.enable != 0)
-		property_enable(base, &rport->port_cfg->bvalid_grf_sel, false);
+	/*
+	 * Set the utmi bvalid come from the usb phy or grf.
+	 * For most of Rockchip SoCs, them have VBUSDET pin
+	 * for the usb phy to detect the USB VBUS and set
+	 * the bvalid signal, so select the bvalid from the
+	 * usb phy by default. And for those SoCs which don't
+	 * have VBUSDET pin (e.g. RV1103), it needs to select
+	 * the bvaid from the grf and set bvalid to be valid
+	 * (high) by default.
+	 */
+	if (rport->port_cfg->bvalid_grf_sel.enable != 0) {
+		if (of_machine_is_compatible("rockchip,rv1103"))
+			property_enable(base, &rport->port_cfg->bvalid_grf_sel, true);
+		else
+			property_enable(base, &rport->port_cfg->bvalid_grf_sel, false);
+	}
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
