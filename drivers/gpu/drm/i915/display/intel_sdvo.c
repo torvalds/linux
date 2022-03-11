@@ -783,24 +783,22 @@ static bool intel_sdvo_get_input_timing(struct intel_sdvo *intel_sdvo,
 static bool
 intel_sdvo_create_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 					 struct intel_sdvo_connector *intel_sdvo_connector,
-					 u16 clock,
-					 u16 width,
-					 u16 height)
+					 const struct drm_display_mode *mode)
 {
 	struct intel_sdvo_preferred_input_timing_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.clock = clock;
-	args.width = width;
-	args.height = height;
+	args.clock = mode->clock / 10;
+	args.width = mode->hdisplay;
+	args.height = mode->vdisplay;
 	args.interlace = 0;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
 		const struct drm_display_mode *fixed_mode =
 			intel_sdvo_connector->base.panel.fixed_mode;
 
-		if (fixed_mode->hdisplay != width ||
-		    fixed_mode->vdisplay != height)
+		if (fixed_mode->hdisplay != args.width ||
+		    fixed_mode->vdisplay != args.height)
 			args.scaled = 1;
 	}
 
@@ -1236,9 +1234,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 
 	if (!intel_sdvo_create_preferred_input_timing(intel_sdvo,
 						      intel_sdvo_connector,
-						      mode->clock / 10,
-						      mode->hdisplay,
-						      mode->vdisplay))
+						      mode))
 		return false;
 
 	if (!intel_sdvo_get_preferred_input_timing(intel_sdvo,
