@@ -749,6 +749,17 @@
 		status = "disabled";
 	};
 
+	npu: npu@ff660000 {
+		compatible = "rockchip,rv1106-rknpu";
+		reg = <0xff660000 0x10000>;
+		interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RKNN>, <&cru HCLK_RKNN>;
+		clock-names = "aclk", "hclk";
+		resets = <&cru SRST_A_RKNN>, <&cru SRST_H_RKNN>;
+		reset-names = "srst_a", "srst_h";
+		status = "disabled";
+	};
+
 	rga2: rga@ff980000 {
 		compatible = "rockchip,rga2_core0";
 		reg = <0xff980000 0x1000>;
