@@ -558,15 +558,6 @@ static void flush_cache_pages(struct vm_area_struct *vma, struct mm_struct *mm,
 	}
 }
 
-static void flush_user_cache_tlb(struct vm_area_struct *vma,
-				 unsigned long start, unsigned long end)
-{
-	flush_user_dcache_range_asm(start, end);
-	if (vma->vm_flags & VM_EXEC)
-		flush_user_icache_range_asm(start, end);
-	flush_tlb_range(vma, start, end);
-}
-
 void flush_cache_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
@@ -581,17 +572,8 @@ void flush_cache_mm(struct mm_struct *mm)
 		return;
 	}
 
-	preempt_disable();
-	if (mm->context == mfsp(3)) {
-		for (vma = mm->mmap; vma; vma = vma->vm_next)
-			flush_user_cache_tlb(vma, vma->vm_start, vma->vm_end);
-		preempt_enable();
-		return;
-	}
-
 	for (vma = mm->mmap; vma; vma = vma->vm_next)
 		flush_cache_pages(vma, mm, vma->vm_start, vma->vm_end);
-	preempt_enable();
 }
 
 void flush_cache_range(struct vm_area_struct *vma,
@@ -605,15 +587,7 @@ void flush_cache_range(struct vm_area_struct *vma,
 		return;
 	}
 
-	preempt_disable();
-	if (vma->vm_mm->context == mfsp(3)) {
-		flush_user_cache_tlb(vma, start, end);
-		preempt_enable();
-		return;
-	}
-
-	flush_cache_pages(vma, vma->vm_mm, vma->vm_start, vma->vm_end);
-	preempt_enable();
+	flush_cache_pages(vma, vma->vm_mm, start, end);
 }
 
 void
