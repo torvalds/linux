@@ -893,6 +893,13 @@ struct dsa_switch_ops {
 			       struct ethtool_ts_info *ts);
 
 	/*
+	 * DCB ops
+	 */
+	int	(*port_get_default_prio)(struct dsa_switch *ds, int port);
+	int	(*port_set_default_prio)(struct dsa_switch *ds, int port,
+					 u8 prio);
+
+	/*
 	 * Suspend and resume
 	 */
 	int	(*suspend)(struct dsa_switch *ds);
