@@ -3160,10 +3160,10 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int slot;
 	u64 nstripes;
 	struct extent_buffer *l;
-	u64 physical;
+	u64 physical = map->stripes[stripe_index].physical;
 	u64 logical;
 	u64 logic_end;
-	u64 physical_end;
+	const u64 physical_end = physical + dev_extent_len;
 	u64 generation;
 	int mirror_num;
 	struct btrfs_key key;
@@ -3182,7 +3182,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	physical = map->stripes[stripe_index].physical;
 	offset = 0;
 	nstripes = div64_u64(dev_extent_len, map->stripe_len);
 	mirror_num = 1;
@@ -3219,7 +3218,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	path->reada = READA_FORWARD;
 
 	logical = chunk_logical + offset;
-	physical_end = physical + nstripes * map->stripe_len;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 		get_raid56_logic_offset(physical_end, stripe_index,
 					map, &logic_end, NULL);
