@@ -19,6 +19,8 @@
 #define DPMAC_CMDID_CLOSE		DPMAC_CMD(0x800)
 #define DPMAC_CMDID_OPEN		DPMAC_CMD(0x80c)
 
+#define DPMAC_CMDID_GET_API_VERSION	DPMAC_CMD(0xa0c)
+
 #define DPMAC_CMDID_GET_ATTR		DPMAC_CMD(0x004)
 #define DPMAC_CMDID_SET_LINK_STATE	DPMAC_CMD_V2(0x0c3)
 
@@ -68,6 +70,11 @@ struct dpmac_cmd_get_counter {
 struct dpmac_rsp_get_counter {
 	__le64 pad;
 	__le64 counter;
+};
+
+struct dpmac_rsp_get_api_version {
+	__le16 major;
+	__le16 minor;
 };
 
 #endif /* _FSL_DPMAC_CMD_H */
