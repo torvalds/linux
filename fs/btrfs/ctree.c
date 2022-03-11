@@ -1390,12 +1390,13 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 }
 
 /*
- * helper function for btrfs_search_slot.  The goal is to find a block
- * in cache without setting the path to blocking.  If we find the block
- * we return zero and the path is unchanged.
+ * Helper function for btrfs_search_slot() and other functions that do a search
+ * on a btree. The goal is to find a tree block in the cache (the radix tree at
+ * fs_info->buffer_radix), but if we can't find it, or it's not up to date, read
+ * its pages from disk.
  *
- * If we can't find the block, we set the path blocking and do some
- * reada.  -EAGAIN is returned and the search must be repeated.
+ * Returns -EAGAIN, with the path unlocked, if the caller needs to repeat the
+ * whole btree search, starting again from the current root node.
  */
 static int
 read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
