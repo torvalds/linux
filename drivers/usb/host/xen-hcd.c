@@ -589,14 +589,12 @@ static void xenhcd_gnttab_map(struct xenhcd_info *info, void *addr, int length,
 			      int nr_pages, int flags)
 {
 	grant_ref_t ref;
-	unsigned long buffer_mfn;
 	unsigned int offset;
 	unsigned int len = length;
 	unsigned int bytes;
 	int i;
 
 	for (i = 0; i < nr_pages; i++) {
-		buffer_mfn = PFN_DOWN(arbitrary_virt_to_machine(addr).maddr);
 		offset = offset_in_page(addr);
 
 		bytes = PAGE_SIZE - offset;
@@ -605,7 +603,7 @@ static void xenhcd_gnttab_map(struct xenhcd_info *info, void *addr, int length,
 
 		ref = gnttab_claim_grant_reference(gref_head);
 		gnttab_grant_foreign_access_ref(ref, info->xbdev->otherend_id,
-						buffer_mfn, flags);
+						virt_to_gfn(addr), flags);
 		seg[i].gref = ref;
 		seg[i].offset = (__u16)offset;
 		seg[i].length = (__u16)bytes;
