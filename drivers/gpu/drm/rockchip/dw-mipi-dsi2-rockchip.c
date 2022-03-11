@@ -448,8 +448,6 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
-	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
-
 	if (dsi2->panel)
 		drm_panel_disable(dsi2->panel);
 
@@ -465,6 +463,11 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(dsi2->panel);
 
 	dw_mipi_dsi2_post_disable(dsi2);
+
+	if (!crtc->state->active_changed)
+		return;
+
+	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 }
 
 static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
