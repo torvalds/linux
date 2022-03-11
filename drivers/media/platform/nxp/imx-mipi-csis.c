@@ -245,8 +245,6 @@
 
 enum {
 	ST_POWERED	= 1,
-	ST_STREAMING	= 2,
-	ST_SUSPENDED	= 4,
 };
 
 struct mipi_csis_event {
@@ -949,24 +947,17 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&csis->lock);
 
 	if (enable) {
-		if (csis->state & ST_SUSPENDED) {
-			ret = -EBUSY;
-			goto unlock;
-		}
-
 		mipi_csis_start_stream(csis);
 		ret = v4l2_subdev_call(csis->src_sd, video, s_stream, 1);
 		if (ret < 0)
 			goto unlock;
 
 		mipi_csis_log_counters(csis, true);
-
-		csis->state |= ST_STREAMING;
 	} else {
 		v4l2_subdev_call(csis->src_sd, video, s_stream, 0);
 
 		mipi_csis_stop_stream(csis);
-		csis->state &= ~ST_STREAMING;
+
 		if (csis->debug.enable)
 			mipi_csis_log_counters(csis, true);
 	}
@@ -1323,7 +1314,7 @@ err_parse:
  * Suspend/resume
  */
 
-static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
+static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1337,8 +1328,6 @@ static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
 			goto unlock;
 		mipi_csis_clk_disable(csis);
 		csis->state &= ~ST_POWERED;
-		if (!runtime)
-			csis->state |= ST_SUSPENDED;
 	}
 
 unlock:
@@ -1347,15 +1336,13 @@ unlock:
 	return ret ? -EAGAIN : 0;
 }
 
-static int mipi_csis_pm_resume(struct device *dev, bool runtime)
+static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	int ret = 0;
 
 	mutex_lock(&csis->lock);
-	if (!runtime && !(csis->state & ST_SUSPENDED))
-		goto unlock;
 
 	if (!(csis->state & ST_POWERED)) {
 		ret = mipi_csis_phy_enable(csis);
@@ -1365,10 +1352,6 @@ static int mipi_csis_pm_resume(struct device *dev, bool runtime)
 		csis->state |= ST_POWERED;
 		mipi_csis_clk_enable(csis);
 	}
-	if (csis->state & ST_STREAMING)
-		mipi_csis_start_stream(csis);
-
-	csis->state &= ~ST_SUSPENDED;
 
 unlock:
 	mutex_unlock(&csis->lock);
@@ -1376,30 +1359,9 @@ unlock:
 	return ret ? -EAGAIN : 0;
 }
 
-static int __maybe_unused mipi_csis_suspend(struct device *dev)
-{
-	return mipi_csis_pm_suspend(dev, false);
-}
-
-static int __maybe_unused mipi_csis_resume(struct device *dev)
-{
-	return mipi_csis_pm_resume(dev, false);
-}
-
-static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
-{
-	return mipi_csis_pm_suspend(dev, true);
-}
-
-static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
-{
-	return mipi_csis_pm_resume(dev, true);
-}
-
 static const struct dev_pm_ops mipi_csis_pm_ops = {
 	SET_RUNTIME_PM_OPS(mipi_csis_runtime_suspend, mipi_csis_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mipi_csis_suspend, mipi_csis_resume)
 };
 
 /* -----------------------------------------------------------------------------
@@ -1524,7 +1486,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	/* Enable runtime PM. */
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
-		ret = mipi_csis_pm_resume(dev, true);
+		ret = mipi_csis_runtime_resume(dev);
 		if (ret < 0)
 			goto unregister_all;
 	}
@@ -1559,7 +1521,7 @@ static int mipi_csis_remove(struct platform_device *pdev)
 	v4l2_async_unregister_subdev(&csis->sd);
 
 	pm_runtime_disable(&pdev->dev);
-	mipi_csis_pm_suspend(&pdev->dev, true);
+	mipi_csis_runtime_suspend(&pdev->dev);
 	mipi_csis_clk_disable(csis);
 	media_entity_cleanup(&csis->sd.entity);
 	mutex_destroy(&csis->lock);
