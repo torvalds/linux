@@ -646,7 +646,7 @@ intel_engine_has_relative_mmio(const struct intel_engine_cs * const engine)
 
 #define for_each_instdone_gslice_dss_xehp(dev_priv_, sseu_, iter_, gslice_, dss_) \
 	for ((iter_) = 0, (gslice_) = 0, (dss_) = 0; \
-	     (iter_) < GEN_MAX_SUBSLICES; \
+	     (iter_) < GEN_SS_MASK_SIZE; \
 	     (iter_)++, (gslice_) = (iter_) / GEN_DSS_PER_GSLICE, \
 	     (dss_) = (iter_) % GEN_DSS_PER_GSLICE) \
 		for_each_if(intel_sseu_has_subslice((sseu_), 0, (iter_)))
