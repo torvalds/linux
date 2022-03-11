@@ -77,7 +77,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 
 bool fill_callchain(unsigned long pc, void *entry)
 {
-	return perf_callchain_store(entry, pc);
+	return perf_callchain_store(entry, pc) == 0;
 }
 
 void notrace walk_stackframe(struct task_struct *task,
