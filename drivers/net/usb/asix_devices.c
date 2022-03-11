@@ -661,15 +661,16 @@ static int ax88772_init_phy(struct usbnet *dev)
 	struct asix_common_private *priv = dev->driver_priv;
 	int ret;
 
-	snprintf(priv->phy_name, sizeof(priv->phy_name), PHY_ID_FMT,
-		 priv->mdio->id, priv->phy_addr);
+	priv->phydev = mdiobus_get_phy(priv->mdio, priv->phy_addr);
+	if (!priv->phydev) {
+		netdev_err(dev->net, "Could not find PHY\n");
+		return -ENODEV;
+	}
 
-	priv->phydev = phy_connect(dev->net, priv->phy_name, &asix_adjust_link,
-				   PHY_INTERFACE_MODE_INTERNAL);
-	if (IS_ERR(priv->phydev)) {
-		netdev_err(dev->net, "Could not connect to PHY device %s\n",
-			   priv->phy_name);
-		ret = PTR_ERR(priv->phydev);
+	ret = phy_connect_direct(dev->net, priv->phydev, &asix_adjust_link,
+				 PHY_INTERFACE_MODE_INTERNAL);
+	if (ret) {
+		netdev_err(dev->net, "Could not connect PHY\n");
 		return ret;
 	}
 

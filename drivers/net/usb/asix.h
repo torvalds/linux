@@ -184,7 +184,6 @@ struct asix_common_private {
 	struct mii_bus *mdio;
 	struct phy_device *phydev;
 	u16 phy_addr;
-	char phy_name[20];
 	bool embd_phy;
 	u8 chipcode;
 };
