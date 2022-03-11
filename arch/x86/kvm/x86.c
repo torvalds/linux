@@ -6865,7 +6865,9 @@ static int emulator_read_std(struct x86_emulate_ctxt *ctxt,
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	u64 access = 0;
 
-	if (!system && static_call(kvm_x86_get_cpl)(vcpu) == 3)
+	if (system)
+		access |= PFERR_IMPLICIT_ACCESS;
+	else if (static_call(kvm_x86_get_cpl)(vcpu) == 3)
 		access |= PFERR_USER_MASK;
 
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, access, exception);
@@ -6917,7 +6919,9 @@ static int emulator_write_std(struct x86_emulate_ctxt *ctxt, gva_t addr, void *v
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	u64 access = PFERR_WRITE_MASK;
 
-	if (!system && static_call(kvm_x86_get_cpl)(vcpu) == 3)
+	if (system)
+		access |= PFERR_IMPLICIT_ACCESS;
+	else if (static_call(kvm_x86_get_cpl)(vcpu) == 3)
 		access |= PFERR_USER_MASK;
 
 	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu,

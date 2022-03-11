@@ -218,25 +218,23 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 {
 	/* strip nested paging fault error codes */
 	unsigned int pfec = access;
-	int cpl = static_call(kvm_x86_get_cpl)(vcpu);
 	unsigned long rflags = static_call(kvm_x86_get_rflags)(vcpu);
 
 	/*
-	 * If CPL < 3, SMAP prevention are disabled if EFLAGS.AC = 1.
+	 * For explicit supervisor accesses, SMAP is disabled if EFLAGS.AC = 1.
+	 * For implicit supervisor accesses, SMAP cannot be overridden.
 	 *
-	 * If CPL = 3, SMAP applies to all supervisor-mode data accesses
-	 * (these are implicit supervisor accesses) regardless of the value
-	 * of EFLAGS.AC.
+	 * SMAP works on supervisor accesses only, and not_smap can
+	 * be set or not set when user access with neither has any bearing
+	 * on the result.
 	 *
-	 * This computes (cpl < 3) && (rflags & X86_EFLAGS_AC), leaving
-	 * the result in X86_EFLAGS_AC. We then insert it in place of
-	 * the PFERR_RSVD_MASK bit; this bit will always be zero in pfec,
-	 * but it will be one in index if SMAP checks are being overridden.
-	 * It is important to keep this branchless.
+	 * We put the SMAP checking bit in place of the PFERR_RSVD_MASK bit;
+	 * this bit will always be zero in pfec, but it will be one in index
+	 * if SMAP checks are being disabled.
 	 */
-	unsigned long not_smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
-	int index = (pfec >> 1) +
-		    (not_smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+	u64 implicit_access = access & PFERR_IMPLICIT_ACCESS;
+	bool not_smap = ((rflags & X86_EFLAGS_AC) | implicit_access) == X86_EFLAGS_AC;
+	int index = (pfec + (not_smap << PFERR_RSVD_BIT)) >> 1;
 	bool fault = (mmu->permissions[index] >> pte_access) & 1;
 	u32 errcode = PFERR_PRESENT_MASK;
 
