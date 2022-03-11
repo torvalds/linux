@@ -920,6 +920,80 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
+static int sas_execute_internal_abort(struct domain_device *device,
+				      enum sas_internal_abort type, u16 tag,
+				      unsigned int qid, void *data)
+{
+	struct sas_ha_struct *ha = device->port->ha;
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct sas_task *task = NULL;
+	int res, retry;
+
+	for (retry = 0; retry < TASK_RETRY; retry++) {
+		task = sas_alloc_slow_task(GFP_KERNEL);
+		if (!task)
+			return -ENOMEM;
+
+		task->dev = device;
+		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
+		task->task_done = sas_task_internal_done;
+		task->slow_task->timer.function = sas_task_internal_timedout;
+		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+		add_timer(&task->slow_task->timer);
+
+		task->abort_task.tag = tag;
+		task->abort_task.type = type;
+
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		if (res) {
+			del_timer_sync(&task->slow_task->timer);
+			pr_err("Executing internal abort failed %016llx (%d)\n",
+			       SAS_ADDR(device->sas_addr), res);
+			break;
+		}
+
+		wait_for_completion(&task->slow_task->completion);
+		res = TMF_RESP_FUNC_FAILED;
+
+		/* Even if the internal abort timed out, return direct. */
+		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+			pr_err("Internal abort: timeout %016llx\n",
+			       SAS_ADDR(device->sas_addr));
+			res = -EIO;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+			task->task_status.stat == SAS_SAM_STAT_GOOD) {
+			res = TMF_RESP_FUNC_COMPLETE;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+			task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+			res = TMF_RESP_FUNC_SUCC;
+			break;
+		}
+
+		pr_err("Internal abort: task to dev %016llx response: 0x%x status 0x%x\n",
+		       SAS_ADDR(device->sas_addr), task->task_status.resp,
+		       task->task_status.stat);
+		sas_free_task(task);
+		task = NULL;
+	}
+	BUG_ON(retry == TASK_RETRY && task != NULL);
+	sas_free_task(task);
+	return res;
+}
+
+int sas_execute_internal_abort_single(struct domain_device *device, u16 tag,
+				      unsigned int qid, void *data)
+{
+	return sas_execute_internal_abort(device, SAS_INTERNAL_ABORT_SINGLE,
+					  tag, qid, data);
+}
+EXPORT_SYMBOL_GPL(sas_execute_internal_abort_single);
+
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf)
