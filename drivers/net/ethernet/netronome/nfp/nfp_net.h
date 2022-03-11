@@ -82,11 +82,6 @@
 				 NFP_NET_MAX_TX_RINGS : NFP_NET_MAX_RX_RINGS)
 #define NFP_NET_MAX_IRQS	(NFP_NET_NON_Q_VECTORS + NFP_NET_MAX_R_VECS)
 
-#define NFP_NET_MIN_TX_DESCS	256	/* Min. # of Tx descs per ring */
-#define NFP_NET_MIN_RX_DESCS	256	/* Min. # of Rx descs per ring */
-#define NFP_NET_MAX_TX_DESCS	(256 * 1024) /* Max. # of Tx descs per ring */
-#define NFP_NET_MAX_RX_DESCS	(256 * 1024) /* Max. # of Rx descs per ring */
-
 #define NFP_NET_TX_DESCS_DEFAULT 4096	/* Default # of Tx descs per ring */
 #define NFP_NET_RX_DESCS_DEFAULT 4096	/* Default # of Rx descs per ring */
 

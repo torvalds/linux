@@ -17,6 +17,8 @@ struct nfp_dev_info {
 	u64 dma_mask;
 	u32 qc_idx_mask;
 	u32 qc_addr_offset;
+	u32 min_qc_size;
+	u32 max_qc_size;
 
 	/* PF-only fields */
 	const char *chip_names;

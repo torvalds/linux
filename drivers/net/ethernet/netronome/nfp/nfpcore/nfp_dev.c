@@ -3,6 +3,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
+#include <linux/sizes.h>
 
 #include "nfp_dev.h"
 
@@ -11,6 +12,8 @@ const struct nfp_dev_info nfp_dev_info[NFP_DEV_CNT] = {
 		.dma_mask		= DMA_BIT_MASK(40),
 		.qc_idx_mask		= GENMASK(7, 0),
 		.qc_addr_offset		= 0x80000,
+		.min_qc_size		= 256,
+		.max_qc_size		= SZ_256K,
 
 		.chip_names		= "NFP4000/NFP5000/NFP6000",
 		.pcie_cfg_expbar_offset	= 0x0400,
@@ -21,5 +24,7 @@ const struct nfp_dev_info nfp_dev_info[NFP_DEV_CNT] = {
 		.dma_mask		= DMA_BIT_MASK(40),
 		.qc_idx_mask		= GENMASK(7, 0),
 		.qc_addr_offset		= 0,
+		.min_qc_size		= 256,
+		.max_qc_size		= SZ_256K,
 	},
 };
