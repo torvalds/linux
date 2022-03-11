@@ -1074,14 +1074,14 @@ static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
 	edp_panel_vdd_schedule_off(intel_dp);
 }
 
-bool intel_pps_have_power(struct intel_dp *intel_dp)
+bool intel_pps_have_panel_power_or_vdd(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 	bool have_power = false;
 
 	with_intel_pps_lock(intel_dp, wakeref) {
-		have_power = edp_have_panel_power(intel_dp) &&
-						  edp_have_panel_vdd(intel_dp);
+		have_power = edp_have_panel_power(intel_dp) ||
+			     edp_have_panel_vdd(intel_dp);
 	}
 
 	return have_power;
