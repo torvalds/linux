@@ -120,7 +120,7 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	dw_hdmi_qp_set_channel_status(hdmi, hparms->iec.status, ref2stream);
 	dw_hdmi_qp_set_channel_count(hdmi, hparms->channels);
 	dw_hdmi_qp_set_channel_allocation(hdmi, hparms->cea.channel_allocation);
-	dw_hdmi_qp_set_audio_infoframe(hdmi);
+	dw_hdmi_qp_set_audio_infoframe(hdmi, hparms);
 
 	return 0;
 }

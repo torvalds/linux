@@ -537,13 +537,44 @@ void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_allocation);
 
-void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi)
+void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi,
+				    struct hdmi_codec_params *hparms)
 {
+	u8 infoframe_buf[HDMI_INFOFRAME_SIZE(AUDIO)];
+	int ret = 0;
+
+	ret = hdmi_audio_infoframe_pack(&hparms->cea, infoframe_buf,
+					sizeof(infoframe_buf));
+	if (!ret) {
+		dev_err(hdmi->dev, "%s: Failed to pack audio infoframe: %d\n",
+			__func__, ret);
+		return;
+	}
+
 	mutex_lock(&hdmi->audio_mutex);
 	if (!hdmi->dclk_en) {
 		mutex_unlock(&hdmi->audio_mutex);
 		return;
 	}
+
+	/*
+	 * AUDI_CONTENTS0: { RSV, HB2, HB1, RSV }
+	 * AUDI_CONTENTS1: { PB3, PB2, PB1, PB0 }
+	 * AUDI_CONTENTS2: { PB7, PB6, PB5, PB4 }
+	 *
+	 * PB0: CheckSum
+	 * PB1: | CT3    | CT2  | CT1  | CT0  | F13  | CC2 | CC1 | CC0 |
+	 * PB2: | F27    | F26  | F25  | SF2  | SF1  | SF0 | SS1 | SS0 |
+	 * PB3: | F37    | F36  | F35  | F34  | F33  | F32 | F31 | F30 |
+	 * PB4: | CA7    | CA6  | CA5  | CA4  | CA3  | CA2 | CA1 | CA0 |
+	 * PB5: | DM_INH | LSV3 | LSV2 | LSV1 | LSV0 | F52 | F51 | F50 |
+	 * PB6~PB10: Reserved
+	 *
+	 * AUDI_CONTENTS0 default value defined by HDMI specification,
+	 * and shall only be changed for debug purposes.
+	 * So, we only configure payload byte from PB0~PB7(2 word total).
+	 */
+	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS1, &infoframe_buf[3], 2);
 
 	/* Enable ACR, AUDI, AMD */
 	hdmi_modb(hdmi,
