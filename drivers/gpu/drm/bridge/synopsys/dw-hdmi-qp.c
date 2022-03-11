@@ -2580,6 +2580,9 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
 
 	pinctrl_pm_select_default_state(dev);
+
+	hdmi->cec_adap->ops->adap_enable(hdmi->cec_adap, true);
+
 	mutex_lock(&hdmi->mutex);
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
