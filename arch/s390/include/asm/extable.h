@@ -69,8 +69,13 @@ static inline void swap_ex_entry_fixup(struct exception_table_entry *a,
 {
 	a->fixup = b->fixup + delta;
 	b->fixup = tmp.fixup - delta;
-	a->handler = b->handler + delta;
-	b->handler = tmp.handler - delta;
+	a->handler = b->handler;
+	if (a->handler)
+		a->handler += delta;
+	b->handler = tmp.handler;
+	if (b->handler)
+		b->handler -= delta;
 }
+#define swap_ex_entry_fixup swap_ex_entry_fixup
 
 #endif
