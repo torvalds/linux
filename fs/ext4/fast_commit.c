@@ -1165,12 +1165,12 @@ int ext4_fc_commit(journal_t *journal, tid_t commit_tid)
 	int status = EXT4_FC_STATUS_OK, fc_bufs_before = 0;
 	ktime_t start_time, commit_time;
 
+	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
+		return jbd2_complete_transaction(journal, commit_tid);
+
 	trace_ext4_fc_commit_start(sb);
 
 	start_time = ktime_get();
-
-	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
-		return jbd2_complete_transaction(journal, commit_tid);
 
 restart_fc:
 	ret = jbd2_fc_begin_commit(journal, commit_tid);
