@@ -1,11 +1,15 @@
+=========
+Schedutil
+=========
 
+.. note::
 
-NOTE; all this assumes a linear relation between frequency and work capacity,
-we know this is flawed, but it is the best workable approximation.
+   All this assumes a linear relation between frequency and work capacity,
+   we know this is flawed, but it is the best workable approximation.
 
 
 PELT (Per Entity Load Tracking)
--------------------------------
+===============================
 
 With PELT we track some metrics across the various scheduler entities, from
 individual tasks to task-group slices to CPU runqueues. As the basis for this
@@ -38,8 +42,8 @@ while 'runnable' will increase to reflect the amount of contention.
 For more detail see: kernel/sched/pelt.c
 
 
-Frequency- / CPU Invariance
----------------------------
+Frequency / CPU Invariance
+==========================
 
 Because consuming the CPU for 50% at 1GHz is not the same as consuming the CPU
 for 50% at 2GHz, nor is running 50% on a LITTLE CPU the same as running 50% on
@@ -47,7 +51,7 @@ a big CPU, we allow architectures to scale the time delta with two ratios, one
 Dynamic Voltage and Frequency Scaling (DVFS) ratio and one microarch ratio.
 
 For simple DVFS architectures (where software is in full control) we trivially
-compute the ratio as:
+compute the ratio as::
 
 	    f_cur
   r_dvfs := -----
@@ -55,7 +59,7 @@ compute the ratio as:
 
 For more dynamic systems where the hardware is in control of DVFS we use
 hardware counters (Intel APERF/MPERF, ARMv8.4-AMU) to provide us this ratio.
-For Intel specifically, we use:
+For Intel specifically, we use::
 
 	   APERF
   f_cur := ----- * P0
@@ -87,7 +91,7 @@ For more detail see:
 
 
 UTIL_EST / UTIL_EST_FASTUP
---------------------------
+==========================
 
 Because periodic tasks have their averages decayed while they sleep, even
 though when running their expected utilization will be the same, they suffer a
@@ -106,7 +110,7 @@ For more detail see: kernel/sched/fair.c:util_est_dequeue()
 
 
 UCLAMP
-------
+======
 
 It is possible to set effective u_min and u_max clamps on each CFS or RT task;
 the runqueue keeps an max aggregate of these clamps for all running tasks.
@@ -115,7 +119,7 @@ For more detail see: include/uapi/linux/sched/types.h
 
 
 Schedutil / DVFS
-----------------
+================
 
 Every time the scheduler load tracking is updated (task wakeup, task
 migration, time progression) we call out to schedutil to update the hardware
@@ -123,7 +127,7 @@ DVFS state.
 
 The basis is the CPU runqueue's 'running' metric, which per the above it is
 the frequency invariant utilization estimate of the CPU. From this we compute
-a desired frequency like:
+a desired frequency like::
 
              max( running, util_est );	if UTIL_EST
   u_cfs := { running;			otherwise
@@ -135,7 +139,7 @@ a desired frequency like:
 
   f_des := min( f_max, 1.25 u * f_max )
 
-XXX IO-wait; when the update is due to a task wakeup from IO-completion we
+XXX IO-wait: when the update is due to a task wakeup from IO-completion we
 boost 'u' above.
 
 This frequency is then used to select a P-state/OPP or directly munged into a
@@ -153,7 +157,7 @@ For more information see: kernel/sched/cpufreq_schedutil.c
 
 
 NOTES
------
+=====
 
  - On low-load scenarios, where DVFS is most relevant, the 'running' numbers
    will closely reflect utilization.
