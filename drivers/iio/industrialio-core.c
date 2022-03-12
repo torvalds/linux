@@ -892,8 +892,7 @@ static int __iio_str_to_fixpoint(const char *str, int fract_mult,
 		} else if (*str == '\n') {
 			if (*(str + 1) == '\0')
 				break;
-			else
-				return -EINVAL;
+			return -EINVAL;
 		} else if (!strncmp(str, " dB", sizeof(" dB") - 1) && scale_db) {
 			/* Ignore the dB suffix */
 			str += sizeof(" dB") - 1;

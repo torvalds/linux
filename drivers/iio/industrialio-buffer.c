@@ -915,7 +915,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		if (scan_mask == NULL)
 			return -EINVAL;
 	} else {
-	    scan_mask = compound_mask;
+		scan_mask = compound_mask;
 	}
 
 	config->scan_bytes = iio_compute_scan_bytes(indio_dev,
@@ -1649,7 +1649,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 	}
 
 	attrn = buffer_attrcount + scan_el_attrcount + ARRAY_SIZE(iio_buffer_attrs);
-	attr = kcalloc(attrn + 1, sizeof(* attr), GFP_KERNEL);
+	attr = kcalloc(attrn + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		ret = -ENOMEM;
 		goto error_free_scan_mask;
