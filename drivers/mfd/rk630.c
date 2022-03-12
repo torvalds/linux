@@ -13,7 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/rk630.h>
 
-static int rk630_macphy_enable(struct rk630 *rk630)
+static int rk630_macphy_enable(struct rk630 *rk630, unsigned long rate)
 {
 	u32 val;
 	int ret;
@@ -68,8 +68,23 @@ static int rk630_macphy_enable(struct rk630 *rk630)
 		return ret;
 	}
 
-	/* mode sel: RMII && clock sel: 24M && BGS value: OTP && id */
-	val = (2 << 14) | (0 << 12) | (0x1 << 8) | (6 << 5) | 1;
+	/* mode sel: RMII && BGS value: OTP && id */
+	val = (2 << 14) | (0 << 12) | (0x1 << 8) | 1;
+	switch (rate) {
+	case 24000000:
+		val |= 0x6 << 5;
+		break;
+	case 25000000:
+		val |= 0x4 << 5;
+		break;
+	case 27000000:
+		val |= 0x5 << 5;
+		break;
+	default:
+		dev_err(rk630->dev, "Unsupported clock rate: %ld\n", rate);
+		return -EINVAL;
+	}
+
 	ret = regmap_write(rk630->grf, GRF_REG(0x404), val | 0xffff0000);
 	if (ret != 0) {
 		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
@@ -169,6 +184,7 @@ int rk630_core_probe(struct rk630 *rk630)
 	bool macphy_enabled = false;
 	struct clk *ref_clk;
 	struct device_node *np;
+	unsigned long rate;
 	int ret;
 
 	ref_clk = devm_clk_get(rk630->dev, "ref");
@@ -182,6 +198,7 @@ int rk630_core_probe(struct rk630 *rk630)
 		dev_err(rk630->dev, "failed to enable ref clk - %d\n", ret);
 		return ret;
 	}
+	rate = clk_get_rate(ref_clk);
 
 	ret = devm_add_action_or_reset(rk630->dev, (void (*) (void *))clk_disable_unprepare,
 				       ref_clk);
@@ -222,7 +239,7 @@ int rk630_core_probe(struct rk630 *rk630)
 	}
 
 	if (macphy_enabled)
-		rk630_macphy_enable(rk630);
+		rk630_macphy_enable(rk630, rate);
 	else
 		rk630_macphy_disable(rk630);
 
