@@ -660,6 +660,32 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 		if (btree_node_type_needs_gc(i->bkey_type))
 			marking = true;
+
+		/*
+		 * Revalidate before calling mem triggers - XXX, ugly:
+		 *
+		 * - successful btree node splits don't cause transaction
+		 *   restarts and will have invalidated the pointer to the bkey
+		 *   value
+		 * - btree_node_lock_for_insert() -> btree_node_prep_for_write()
+		 *   when it has to resort
+		 * - btree_key_can_insert_cached() when it has to reallocate
+		 *
+		 *   Ugly because we currently have no way to tell if the
+		 *   pointer's been invalidated, which means it's debatabale
+		 *   whether we should be stashing the old key at all.
+		 */
+		i->old_v = bch2_btree_path_peek_slot(i->path, &i->old_k).v;
+
+		if (unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))) {
+			struct bkey_i *j_k =
+				bch2_journal_keys_peek(c, i->btree_id, i->level, i->k->k.p);
+
+			if (j_k && !bpos_cmp(j_k->k.p, i->k->k.p)) {
+				i->old_k = j_k->k;
+				i->old_v = &j_k->v;
+			}
+		}
 	}
 
 	/*
