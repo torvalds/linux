@@ -1524,13 +1524,12 @@ static void rkvenc2_task_pop_pending(struct mpp_task *task)
 }
 
 static int rkvenc2_task_default_process(struct mpp_dev *mpp,
-					struct mpp_task_msgs *msgs)
+					struct mpp_task *task)
 {
-	struct mpp_task *task = msgs->task;
 	int ret = 0;
 
 	if (mpp->dev_ops && mpp->dev_ops->result)
-		ret = mpp->dev_ops->result(mpp, task, msgs);
+		ret = mpp->dev_ops->result(mpp, task, NULL);
 
 	mpp_debug_func(DEBUG_TASK_INFO, "kref_read %d, ret %d\n",
 			kref_read(&task->ref), ret);
@@ -1584,7 +1583,7 @@ task_done_ret:
 					 msecs_to_jiffies(RKVENC2_WAIT_TIMEOUT_DELAY));
 
 		if (ret > 0)
-			return rkvenc2_task_default_process(mpp, msgs);
+			return rkvenc2_task_default_process(mpp, task);
 
 		rkvenc2_task_timeout_process(session, task);
 		return ret;
