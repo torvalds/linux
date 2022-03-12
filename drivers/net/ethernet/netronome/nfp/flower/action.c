@@ -956,7 +956,7 @@ nfp_flower_meter_action(struct nfp_app *app,
 	meter_id = action->hw_index;
 	if (!nfp_flower_search_meter_entry(app, meter_id)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "can not offload flow table with unsupported police action.\n");
+				   "can not offload flow table with unsupported police action.");
 		return -EOPNOTSUPP;
 	}
 
