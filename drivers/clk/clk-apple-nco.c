@@ -318,7 +318,7 @@ static const struct of_device_id applnco_ids[] = {
 	{ .compatible = "apple,nco" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, applnco_ids)
+MODULE_DEVICE_TABLE(of, applnco_ids);
 
 static struct platform_driver applnco_driver = {
 	.driver = {

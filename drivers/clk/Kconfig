@@ -60,7 +60,7 @@ config LMK04832
 	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
 
 config COMMON_CLK_APPLE_NCO
-	bool "Clock driver for Apple SoC NCOs"
+	tristate "Clock driver for Apple SoC NCOs"
 	depends on ARCH_APPLE || COMPILE_TEST
 	default ARCH_APPLE
 	help
