@@ -521,13 +521,14 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(sw)
 
 	memset(s, 0, sizeof(*s));
 
+	for (i = 0; i < priv->channels.num; i++) /* for active channels only */
+		mlx5e_stats_update_stats_rq_page_pool(priv->channels.c[i]);
+
 	for (i = 0; i < priv->stats_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats =
 			priv->channel_stats[i];
 
 		int j;
-
-		mlx5e_stats_update_stats_rq_page_pool(priv->channels.c[i]);
 
 		mlx5e_stats_grp_sw_update_stats_rq_stats(s, &channel_stats->rq);
 		mlx5e_stats_grp_sw_update_stats_xdpsq(s, &channel_stats->rq_xdpsq);
