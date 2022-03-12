@@ -1187,7 +1187,7 @@ static void ext4_fc_update_stats(struct super_block *sb, int status,
 	} else {
 		stats->fc_skipped_commits++;
 	}
-	trace_ext4_fc_commit_stop(sb, nblks, status);
+	trace_ext4_fc_commit_stop(sb, nblks, status, commit_tid);
 }
 
 /*
@@ -1208,7 +1208,7 @@ int ext4_fc_commit(journal_t *journal, tid_t commit_tid)
 	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
 		return jbd2_complete_transaction(journal, commit_tid);
 
-	trace_ext4_fc_commit_start(sb);
+	trace_ext4_fc_commit_start(sb, commit_tid);
 
 	start_time = ktime_get();
 

@@ -2686,26 +2686,29 @@ TRACE_EVENT(ext4_fc_replay,
 );
 
 TRACE_EVENT(ext4_fc_commit_start,
-	TP_PROTO(struct super_block *sb),
+	TP_PROTO(struct super_block *sb, tid_t commit_tid),
 
-	TP_ARGS(sb),
+	TP_ARGS(sb, commit_tid),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(tid_t, tid)
 	),
 
 	TP_fast_assign(
 		__entry->dev = sb->s_dev;
+		__entry->tid = commit_tid;
 	),
 
-	TP_printk("fast_commit started on dev %d,%d",
-		  MAJOR(__entry->dev), MINOR(__entry->dev))
+	TP_printk("dev %d,%d tid %u", MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tid)
 );
 
 TRACE_EVENT(ext4_fc_commit_stop,
-	    TP_PROTO(struct super_block *sb, int nblks, int reason),
+	    TP_PROTO(struct super_block *sb, int nblks, int reason,
+		     tid_t commit_tid),
 
-	TP_ARGS(sb, nblks, reason),
+	TP_ARGS(sb, nblks, reason, commit_tid),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -2714,6 +2717,7 @@ TRACE_EVENT(ext4_fc_commit_stop,
 		__field(int, num_fc)
 		__field(int, num_fc_ineligible)
 		__field(int, nblks_agg)
+		__field(tid_t, tid)
 	),
 
 	TP_fast_assign(
@@ -2724,12 +2728,13 @@ TRACE_EVENT(ext4_fc_commit_stop,
 		__entry->num_fc_ineligible =
 			EXT4_SB(sb)->s_fc_stats.fc_ineligible_commits;
 		__entry->nblks_agg = EXT4_SB(sb)->s_fc_stats.fc_numblks;
+		__entry->tid = commit_tid;
 	),
 
-	TP_printk("fc on [%d,%d] nblks %d, reason %d, fc = %d, ineligible = %d, agg_nblks %d",
+	TP_printk("dev %d,%d nblks %d, reason %d, fc = %d, ineligible = %d, agg_nblks %d, tid %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->nblks, __entry->reason, __entry->num_fc,
-		  __entry->num_fc_ineligible, __entry->nblks_agg)
+		  __entry->num_fc_ineligible, __entry->nblks_agg, __entry->tid)
 );
 
 #define FC_REASON_NAME_STAT(reason)					\
