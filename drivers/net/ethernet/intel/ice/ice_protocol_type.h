@@ -41,6 +41,8 @@ enum ice_protocol_type {
 	ICE_VXLAN,
 	ICE_GENEVE,
 	ICE_NVGRE,
+	ICE_GTP,
+	ICE_GTP_NO_PAY,
 	ICE_VXLAN_GPE,
 	ICE_SCTP_IL,
 	ICE_PROTOCOL_LAST
@@ -52,6 +54,8 @@ enum ice_sw_tunnel_type {
 	ICE_SW_TUN_VXLAN,
 	ICE_SW_TUN_GENEVE,
 	ICE_SW_TUN_NVGRE,
+	ICE_SW_TUN_GTPU,
+	ICE_SW_TUN_GTPC,
 	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
@@ -182,6 +186,20 @@ struct ice_udp_tnl_hdr {
 	__be32 vni;     /* only use lower 24-bits */
 };
 
+struct ice_udp_gtp_hdr {
+	u8 flags;
+	u8 msg_type;
+	__be16 rsrvd_len;
+	__be32 teid;
+	__be16 rsrvd_seq_nbr;
+	u8 rsrvd_n_pdu_nbr;
+	u8 rsrvd_next_ext;
+	u8 rsvrd_ext_len;
+	u8 pdu_type;
+	u8 qfi;
+	u8 rsvrd;
+};
+
 struct ice_nvgre_hdr {
 	__be16 flags;
 	__be16 protocol;
@@ -198,6 +216,7 @@ union ice_prot_hdr {
 	struct ice_sctp_hdr sctp_hdr;
 	struct ice_udp_tnl_hdr tnl_hdr;
 	struct ice_nvgre_hdr nvgre_hdr;
+	struct ice_udp_gtp_hdr gtp_hdr;
 };
 
 /* This is mapping table entry that maps every word within a given protocol
