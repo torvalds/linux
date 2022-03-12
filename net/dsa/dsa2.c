@@ -1058,7 +1058,7 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *dp;
-	int err;
+	int err = 0;
 
 	rtnl_lock();
 
@@ -1066,13 +1066,13 @@ static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 		if (dsa_port_is_cpu(dp)) {
 			err = dsa_master_setup(dp->master, dp);
 			if (err)
-				return err;
+				break;
 		}
 	}
 
 	rtnl_unlock();
 
-	return 0;
+	return err;
 }
 
 static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
