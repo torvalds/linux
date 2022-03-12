@@ -187,6 +187,13 @@ static const struct regmap_config mscc_miim_regmap_config = {
 	.reg_stride	= 4,
 };
 
+static const struct regmap_config mscc_miim_phy_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.name		= "phy",
+};
+
 int mscc_miim_setup(struct device *dev, struct mii_bus **pbus, const char *name,
 		    struct regmap *mii_regmap, int status_offset)
 {
@@ -250,7 +257,7 @@ static int mscc_miim_probe(struct platform_device *pdev)
 		}
 
 		phy_regmap = devm_regmap_init_mmio(&pdev->dev, phy_regs,
-						   &mscc_miim_regmap_config);
+						   &mscc_miim_phy_regmap_config);
 		if (IS_ERR(phy_regmap)) {
 			dev_err(&pdev->dev, "Unable to create phy register regmap\n");
 			return PTR_ERR(phy_regmap);
