@@ -26,7 +26,7 @@
 		};
 	};
 
-	cpuintc: cpuintc@0 {
+	cpuintc: cpuintc {
 		#address-cells = <0>;
 		#interrupt-cells = <1>;
 		interrupt-controller;
@@ -38,7 +38,7 @@
 	};
 
 
-	mmc_fixed_3v3: fixedregulator@0 {
+	mmc_fixed_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc_power";
 		regulator-min-microvolt = <3300000>;
@@ -47,7 +47,7 @@
 		regulator-always-on;
 	};
 
-	mmc_fixed_1v8_io: fixedregulator@1 {
+	mmc_fixed_1v8_io: regulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc_io";
 		regulator-min-microvolt = <1800000>;
@@ -263,8 +263,6 @@
 	};
 
 	xhci: xhci@1e1c0000 {
-		status = "okay";
-
 		compatible = "mediatek,mt8173-xhci";
 		reg = <0x1e1c0000 0x1000
 		       0x1e1d0700 0x0100>;
