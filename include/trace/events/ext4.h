@@ -2654,7 +2654,7 @@ TRACE_EVENT(ext4_fc_replay_scan,
 		__entry->off = off;
 	),
 
-	TP_printk("FC scan pass on dev %d,%d: error %d, off %d",
+	TP_printk("dev %d,%d error %d, off %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->error, __entry->off)
 );
@@ -2680,7 +2680,7 @@ TRACE_EVENT(ext4_fc_replay,
 		__entry->priv2 = priv2;
 	),
 
-	TP_printk("FC Replay %d,%d: tag %d, ino %d, data1 %d, data2 %d",
+	TP_printk("dev %d,%d: tag %d, ino %d, data1 %d, data2 %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->tag, __entry->ino, __entry->priv1, __entry->priv2)
 );
