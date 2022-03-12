@@ -114,6 +114,54 @@ static u32 rcar_read_conf(struct rcar_pcie *pcie, int where)
 	return val >> shift;
 }
 
+#ifdef CONFIG_ARM
+#define __rcar_pci_rw_reg_workaround(instr)				\
+		"	.arch armv7-a\n"				\
+		"1:	" instr " %1, [%2]\n"				\
+		"2:	isb\n"						\
+		"3:	.pushsection .text.fixup,\"ax\"\n"		\
+		"	.align	2\n"					\
+		"4:	mov	%0, #" __stringify(PCIBIOS_SET_FAILED) "\n" \
+		"	b	3b\n"					\
+		"	.popsection\n"					\
+		"	.pushsection __ex_table,\"a\"\n"		\
+		"	.align	3\n"					\
+		"	.long	1b, 4b\n"				\
+		"	.long	2b, 4b\n"				\
+		"	.popsection\n"
+#endif
+
+static int rcar_pci_write_reg_workaround(struct rcar_pcie *pcie, u32 val,
+					 unsigned int reg)
+{
+	int error = PCIBIOS_SUCCESSFUL;
+#ifdef CONFIG_ARM
+	asm volatile(
+		__rcar_pci_rw_reg_workaround("str")
+	: "+r"(error):"r"(val), "r"(pcie->base + reg) : "memory");
+#else
+	rcar_pci_write_reg(pcie, val, reg);
+#endif
+	return error;
+}
+
+static int rcar_pci_read_reg_workaround(struct rcar_pcie *pcie, u32 *val,
+					unsigned int reg)
+{
+	int error = PCIBIOS_SUCCESSFUL;
+#ifdef CONFIG_ARM
+	asm volatile(
+		__rcar_pci_rw_reg_workaround("ldr")
+	: "+r"(error), "=r"(*val) : "r"(pcie->base + reg) : "memory");
+
+	if (error != PCIBIOS_SUCCESSFUL)
+		PCI_SET_ERROR_RESPONSE(val);
+#else
+	*val = rcar_pci_read_reg(pcie, reg);
+#endif
+	return error;
+}
+
 /* Serialization is provided by 'pci_lock' in drivers/pci/access.c */
 static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 		unsigned char access_type, struct pci_bus *bus,
@@ -185,14 +233,14 @@ static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (access_type == RCAR_PCI_ACCESS_READ)
-		*data = rcar_pci_read_reg(pcie, PCIECDR);
+		ret = rcar_pci_read_reg_workaround(pcie, data, PCIECDR);
 	else
-		rcar_pci_write_reg(pcie, *data, PCIECDR);
+		ret = rcar_pci_write_reg_workaround(pcie, *data, PCIECDR);
 
 	/* Disable the configuration access */
 	rcar_pci_write_reg(pcie, 0, PCIECCTLR);
 
-	return PCIBIOS_SUCCESSFUL;
+	return ret;
 }
 
 static int rcar_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
@@ -1097,7 +1145,7 @@ static struct platform_driver rcar_pcie_driver = {
 static int rcar_pcie_aarch32_abort_handler(unsigned long addr,
 		unsigned int fsr, struct pt_regs *regs)
 {
-	return !!rcar_pcie_wakeup(pcie_dev, pcie_base);
+	return !fixup_exception(regs);
 }
 
 static const struct of_device_id rcar_pcie_abort_handler_of_match[] __initconst = {
