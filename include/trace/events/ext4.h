@@ -2782,32 +2782,41 @@ TRACE_EVENT(ext4_fc_stats,
 
 DECLARE_EVENT_CLASS(ext4_fc_track_dentry,
 
-	TP_PROTO(struct inode *inode, struct dentry *dentry, int ret),
+	TP_PROTO(handle_t *handle, struct inode *inode,
+		 struct dentry *dentry, int ret),
 
-	TP_ARGS(inode, dentry, ret),
+	TP_ARGS(handle, inode, dentry, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(tid_t, t_tid)
 		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
 		__field(int, error)
 	),
 
 	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
+
 		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
 		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
 		__entry->error = ret;
 	),
 
-	TP_printk("dev %d,%d, ino %lu, error %d",
+	TP_printk("dev %d,%d, t_tid %u, ino %lu, i_sync_tid %u, error %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->i_ino, __entry->error
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error
 	)
 );
 
 #define DEFINE_EVENT_CLASS_DENTRY(__type)				\
 DEFINE_EVENT(ext4_fc_track_dentry, ext4_fc_track_##__type,		\
-	TP_PROTO(struct inode *inode, struct dentry *dentry, int ret),	\
-	TP_ARGS(inode, dentry, ret)					\
+	TP_PROTO(handle_t *handle, struct inode *inode,			\
+		 struct dentry *dentry, int ret),			\
+	TP_ARGS(handle, inode, dentry, ret)				\
 )
 
 DEFINE_EVENT_CLASS_DENTRY(create);
@@ -2815,52 +2824,66 @@ DEFINE_EVENT_CLASS_DENTRY(link);
 DEFINE_EVENT_CLASS_DENTRY(unlink);
 
 TRACE_EVENT(ext4_fc_track_inode,
-	    TP_PROTO(struct inode *inode, int ret),
+	TP_PROTO(handle_t *handle, struct inode *inode, int ret),
 
-	    TP_ARGS(inode, ret),
+	TP_ARGS(handle, inode, ret),
 
-	    TP_STRUCT__entry(
-		    __field(dev_t, dev)
-		    __field(int, ino)
-		    __field(int, error)
-		    ),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(tid_t, t_tid)
+		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
+		__field(int, error)
+	),
 
-	    TP_fast_assign(
-		    __entry->dev = inode->i_sb->s_dev;
-		    __entry->ino = inode->i_ino;
-		    __entry->error = ret;
-		    ),
+	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
 
-	    TP_printk("dev %d:%d, inode %d, error %d",
-		      MAJOR(__entry->dev), MINOR(__entry->dev),
-		      __entry->ino, __entry->error)
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
+		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d:%d, t_tid %u, inode %lu, i_sync_tid %u, error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error)
 	);
 
 TRACE_EVENT(ext4_fc_track_range,
-	    TP_PROTO(struct inode *inode, long start, long end, int ret),
+	TP_PROTO(handle_t *handle, struct inode *inode,
+		 long start, long end, int ret),
 
-	    TP_ARGS(inode, start, end, ret),
+	TP_ARGS(handle, inode, start, end, ret),
 
-	    TP_STRUCT__entry(
-		    __field(dev_t, dev)
-		    __field(int, ino)
-		    __field(long, start)
-		    __field(long, end)
-		    __field(int, error)
-		    ),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(tid_t, t_tid)
+		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
+		__field(long, start)
+		__field(long, end)
+		__field(int, error)
+	),
 
-	    TP_fast_assign(
-		    __entry->dev = inode->i_sb->s_dev;
-		    __entry->ino = inode->i_ino;
-		    __entry->start = start;
-		    __entry->end = end;
-		    __entry->error = ret;
-		    ),
+	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
 
-	    TP_printk("dev %d:%d, inode %d, error %d, start %ld, end %ld",
-		      MAJOR(__entry->dev), MINOR(__entry->dev),
-		      __entry->ino, __entry->error, __entry->start,
-		      __entry->end)
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
+		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
+		__entry->start = start;
+		__entry->end = end;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d:%d, t_tid %u, inode %lu, i_sync_tid %u, error %d, start %ld, end %ld",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error, __entry->start, __entry->end)
 	);
 
 TRACE_EVENT(ext4_fc_cleanup,

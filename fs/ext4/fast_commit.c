@@ -487,7 +487,7 @@ void __ext4_fc_track_unlink(handle_t *handle,
 
 	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_unlink(inode, dentry, ret);
+	trace_ext4_fc_track_unlink(handle, inode, dentry, ret);
 }
 
 void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
@@ -516,7 +516,7 @@ void __ext4_fc_track_link(handle_t *handle,
 
 	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_link(inode, dentry, ret);
+	trace_ext4_fc_track_link(handle, inode, dentry, ret);
 }
 
 void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
@@ -545,7 +545,7 @@ void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
 
 	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_create(inode, dentry, ret);
+	trace_ext4_fc_track_create(handle, inode, dentry, ret);
 }
 
 void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
@@ -596,7 +596,7 @@ void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 		return;
 
 	ret = ext4_fc_track_template(handle, inode, __track_inode, NULL, 1);
-	trace_ext4_fc_track_inode(inode, ret);
+	trace_ext4_fc_track_inode(handle, inode, ret);
 }
 
 struct __track_range_args {
@@ -653,7 +653,7 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 
 	ret = ext4_fc_track_template(handle, inode,  __track_range, &args, 1);
 
-	trace_ext4_fc_track_range(inode, start, end, ret);
+	trace_ext4_fc_track_range(handle, inode, start, end, ret);
 }
 
 static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
