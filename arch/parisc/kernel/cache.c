@@ -38,6 +38,9 @@ EXPORT_SYMBOL(flush_dcache_page_asm);
 void purge_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 void flush_icache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
+/* Internal implementation in arch/parisc/kernel/pacache.S */
+void flush_data_cache_local(void *);  /* flushes local data-cache only */
+void flush_instruction_cache_local(void); /* flushes local code-cache only */
 
 /* On some machines (i.e., ones with the Merced bus), there can be
  * only a single PxTLB broadcast at a time; this must be guaranteed
@@ -58,26 +61,35 @@ struct pdc_cache_info cache_info __ro_after_init;
 static struct pdc_btlb_info btlb_info __ro_after_init;
 #endif
 
-#ifdef CONFIG_SMP
-void
-flush_data_cache(void)
-{
-	on_each_cpu(flush_data_cache_local, NULL, 1);
-}
-void 
-flush_instruction_cache(void)
-{
-	on_each_cpu(flush_instruction_cache_local, NULL, 1);
-}
-#endif
+DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
+DEFINE_STATIC_KEY_TRUE(parisc_has_dcache);
+DEFINE_STATIC_KEY_TRUE(parisc_has_icache);
 
-void
-flush_cache_all_local(void)
+static void cache_flush_local_cpu(void *dummy)
 {
-	flush_instruction_cache_local(NULL);
-	flush_data_cache_local(NULL);
+	if (static_branch_likely(&parisc_has_icache))
+		flush_instruction_cache_local();
+	if (static_branch_likely(&parisc_has_dcache))
+		flush_data_cache_local(NULL);
 }
-EXPORT_SYMBOL(flush_cache_all_local);
+
+void flush_cache_all_local(void)
+{
+	cache_flush_local_cpu(NULL);
+}
+
+void flush_cache_all(void)
+{
+	if (static_branch_likely(&parisc_has_cache))
+		on_each_cpu(cache_flush_local_cpu, NULL, 1);
+}
+
+static inline void flush_data_cache(void)
+{
+	if (static_branch_likely(&parisc_has_dcache))
+		on_each_cpu(flush_data_cache_local, NULL, 1);
+}
+
 
 /* Virtual address of pfn.  */
 #define pfn_va(pfn)	__va(PFN_PHYS(pfn))
@@ -375,7 +387,6 @@ EXPORT_SYMBOL(flush_dcache_page);
 
 /* Defined in arch/parisc/kernel/pacache.S */
 EXPORT_SYMBOL(flush_kernel_dcache_range_asm);
-EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
@@ -515,16 +526,6 @@ int __flush_tlb_range(unsigned long sid, unsigned long start,
 		start += PAGE_SIZE;
 	}
 	return 0;
-}
-
-static void cacheflush_h_tmp_function(void *dummy)
-{
-	flush_cache_all_local();
-}
-
-void flush_cache_all(void)
-{
-	on_each_cpu(cacheflush_h_tmp_function, NULL, 1);
 }
 
 static inline unsigned long mm_total_size(struct mm_struct *mm)
