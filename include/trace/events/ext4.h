@@ -2780,33 +2780,39 @@ TRACE_EVENT(ext4_fc_stats,
 		  __entry->fc_numblks)
 );
 
-#define DEFINE_TRACE_DENTRY_EVENT(__type)				\
-	TRACE_EVENT(ext4_fc_track_##__type,				\
-	    TP_PROTO(struct inode *inode, struct dentry *dentry, int ret), \
-									\
-	    TP_ARGS(inode, dentry, ret),				\
-									\
-	    TP_STRUCT__entry(						\
-		    __field(dev_t, dev)					\
-		    __field(int, ino)					\
-		    __field(int, error)					\
-		    ),							\
-									\
-	    TP_fast_assign(						\
-		    __entry->dev = inode->i_sb->s_dev;			\
-		    __entry->ino = inode->i_ino;			\
-		    __entry->error = ret;				\
-		    ),							\
-									\
-	    TP_printk("dev %d:%d, inode %d, error %d, fc_%s",		\
-		      MAJOR(__entry->dev), MINOR(__entry->dev),		\
-		      __entry->ino, __entry->error,			\
-		      #__type)						\
-	)
+DECLARE_EVENT_CLASS(ext4_fc_track_dentry,
 
-DEFINE_TRACE_DENTRY_EVENT(create);
-DEFINE_TRACE_DENTRY_EVENT(link);
-DEFINE_TRACE_DENTRY_EVENT(unlink);
+	TP_PROTO(struct inode *inode, struct dentry *dentry, int ret),
+
+	TP_ARGS(inode, dentry, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, i_ino)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->i_ino = inode->i_ino;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d,%d, ino %lu, error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->i_ino, __entry->error
+	)
+);
+
+#define DEFINE_EVENT_CLASS_DENTRY(__type)				\
+DEFINE_EVENT(ext4_fc_track_dentry, ext4_fc_track_##__type,		\
+	TP_PROTO(struct inode *inode, struct dentry *dentry, int ret),	\
+	TP_ARGS(inode, dentry, ret)					\
+)
+
+DEFINE_EVENT_CLASS_DENTRY(create);
+DEFINE_EVENT_CLASS_DENTRY(link);
+DEFINE_EVENT_CLASS_DENTRY(unlink);
 
 TRACE_EVENT(ext4_fc_track_inode,
 	    TP_PROTO(struct inode *inode, int ret),
