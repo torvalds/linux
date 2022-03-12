@@ -1157,7 +1157,7 @@ static int raw_ioctl_eps_info(struct raw_dev *dev, unsigned long value)
 	struct usb_raw_eps_info *info;
 	struct raw_ep *ep;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out;
@@ -1177,7 +1177,6 @@ static int raw_ioctl_eps_info(struct raw_dev *dev, unsigned long value)
 		goto out_free;
 	}
 
-	memset(info, 0, sizeof(*info));
 	for (i = 0; i < dev->eps_num; i++) {
 		ep = &dev->eps[i];
 		strscpy(&info->eps[i].name[0], ep->ep->name,
