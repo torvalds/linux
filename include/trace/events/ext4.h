@@ -2863,6 +2863,32 @@ TRACE_EVENT(ext4_fc_track_range,
 		      __entry->end)
 	);
 
+TRACE_EVENT(ext4_fc_cleanup,
+	TP_PROTO(journal_t *journal, int full, tid_t tid),
+
+	TP_ARGS(journal, full, tid),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, j_fc_off)
+		__field(int, full)
+		__field(tid_t, tid)
+	),
+
+	TP_fast_assign(
+		struct super_block *sb = journal->j_private;
+
+		__entry->dev = sb->s_dev;
+		__entry->j_fc_off = journal->j_fc_off;
+		__entry->full = full;
+		__entry->tid = tid;
+	),
+
+	TP_printk("dev %d,%d, j_fc_off %d, full %d, tid %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->j_fc_off, __entry->full, __entry->tid)
+	);
+
 TRACE_EVENT(ext4_update_sb,
 	TP_PROTO(struct super_block *sb, ext4_fsblk_t fsblk,
 		 unsigned int flags),

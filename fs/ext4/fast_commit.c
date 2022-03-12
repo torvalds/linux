@@ -1280,6 +1280,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 	if (full && sbi->s_fc_bh)
 		sbi->s_fc_bh = NULL;
 
+	trace_ext4_fc_cleanup(journal, full, tid);
 	jbd2_fc_release_bufs(journal);
 
 	spin_lock(&sbi->s_fc_lock);
