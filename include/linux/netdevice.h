@@ -3858,10 +3858,14 @@ static inline struct net_device_core_stats *dev_core_stats(struct net_device *de
 #define DEV_CORE_STATS_INC(FIELD)						\
 static inline void dev_core_stats_##FIELD##_inc(struct net_device *dev)		\
 {										\
-	struct net_device_core_stats *p = dev_core_stats(dev);			\
+	struct net_device_core_stats *p;					\
+										\
+	preempt_disable();							\
+	p = dev_core_stats(dev);						\
 										\
 	if (p)									\
 		local_inc(&p->FIELD);						\
+	preempt_enable();							\
 }
 DEV_CORE_STATS_INC(rx_dropped)
 DEV_CORE_STATS_INC(tx_dropped)
