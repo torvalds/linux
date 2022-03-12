@@ -40,6 +40,7 @@
 #include <net/vxlan.h>
 #include <net/xdp_sock_drv.h>
 
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nsp.h"
 #include "ccm.h"
 #include "nfp_app.h"
@@ -63,6 +64,12 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 
 	reg = readl(ctrl_bar + NFP_NET_CFG_VERSION);
 	put_unaligned_le32(reg, fw_ver);
+}
+
+u32 nfp_qcp_queue_offset(const struct nfp_dev_info *dev_info, u16 queue)
+{
+	queue &= dev_info->qc_idx_mask;
+	return dev_info->qc_addr_offset + NFP_QCP_QUEUE_ADDR_SZ * queue;
 }
 
 static dma_addr_t nfp_net_dma_map_rx(struct nfp_net_dp *dp, void *frag)
@@ -3962,6 +3969,7 @@ void nfp_net_info(struct nfp_net *nn)
 /**
  * nfp_net_alloc() - Allocate netdev and related structure
  * @pdev:         PCI device
+ * @dev_info:     NFP ASIC params
  * @ctrl_bar:     PCI IOMEM with vNIC config memory
  * @needs_netdev: Whether to allocate a netdev for this vNIC
  * @max_tx_rings: Maximum number of TX rings supported by device
@@ -3974,7 +3982,8 @@ void nfp_net_info(struct nfp_net *nn)
  * Return: NFP Net device structure, or ERR_PTR on error.
  */
 struct nfp_net *
-nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
+nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
+	      void __iomem *ctrl_bar, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings)
 {
 	struct nfp_net *nn;
@@ -3999,6 +4008,7 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 
 	nn->dp.dev = &pdev->dev;
 	nn->dp.ctrl_bar = ctrl_bar;
+	nn->dev_info = dev_info;
 	nn->pdev = pdev;
 
 	nn->max_tx_rings = max_tx_rings;

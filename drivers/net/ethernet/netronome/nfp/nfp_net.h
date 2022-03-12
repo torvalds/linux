@@ -63,9 +63,6 @@
 #define NFP_NET_Q0_BAR		2
 #define NFP_NET_Q1_BAR		4	/* OBSOLETE */
 
-/* Max bits in DMA address */
-#define NFP_NET_MAX_DMA_BITS	40
-
 /* Default size for MTU and freelist buffer sizes */
 #define NFP_NET_DEFAULT_MTU		1500U
 
@@ -85,11 +82,6 @@
 				 NFP_NET_MAX_TX_RINGS : NFP_NET_MAX_RX_RINGS)
 #define NFP_NET_MAX_IRQS	(NFP_NET_NON_Q_VECTORS + NFP_NET_MAX_R_VECS)
 
-#define NFP_NET_MIN_TX_DESCS	256	/* Min. # of Tx descs per ring */
-#define NFP_NET_MIN_RX_DESCS	256	/* Min. # of Rx descs per ring */
-#define NFP_NET_MAX_TX_DESCS	(256 * 1024) /* Max. # of Tx descs per ring */
-#define NFP_NET_MAX_RX_DESCS	(256 * 1024) /* Max. # of Rx descs per ring */
-
 #define NFP_NET_TX_DESCS_DEFAULT 4096	/* Default # of Tx descs per ring */
 #define NFP_NET_RX_DESCS_DEFAULT 4096	/* Default # of Rx descs per ring */
 
@@ -105,6 +97,7 @@
 
 /* Forward declarations */
 struct nfp_cpp;
+struct nfp_dev_info;
 struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
@@ -571,6 +564,7 @@ struct nfp_net_dp {
 /**
  * struct nfp_net - NFP network device structure
  * @dp:			Datapath structure
+ * @dev_info:		NFP ASIC params
  * @id:			vNIC id within the PF (0 for VFs)
  * @fw_ver:		Firmware version
  * @cap:                Capabilities advertised by the Firmware
@@ -644,6 +638,7 @@ struct nfp_net_dp {
 struct nfp_net {
 	struct nfp_net_dp dp;
 
+	const struct nfp_dev_info *dev_info;
 	struct nfp_net_fw_version fw_ver;
 
 	u32 id;
@@ -796,7 +791,6 @@ static inline void nn_pci_flush(struct nfp_net *nn)
  * either add to a pointer or to read the pointer value.
  */
 #define NFP_QCP_QUEUE_ADDR_SZ			0x800
-#define NFP_QCP_QUEUE_AREA_SZ			0x80000
 #define NFP_QCP_QUEUE_OFF(_x)			((_x) * NFP_QCP_QUEUE_ADDR_SZ)
 #define NFP_QCP_QUEUE_ADD_RPTR			0x0000
 #define NFP_QCP_QUEUE_ADD_WPTR			0x0004
@@ -805,50 +799,21 @@ static inline void nn_pci_flush(struct nfp_net *nn)
 #define NFP_QCP_QUEUE_STS_HI			0x000c
 #define NFP_QCP_QUEUE_STS_HI_WRITEPTR_mask	0x3ffff
 
-/* The offset of a QCP queues in the PCIe Target */
-#define NFP_PCIE_QUEUE(_q) (0x80000 + (NFP_QCP_QUEUE_ADDR_SZ * ((_q) & 0xff)))
-
 /* nfp_qcp_ptr - Read or Write Pointer of a queue */
 enum nfp_qcp_ptr {
 	NFP_QCP_READ_PTR = 0,
 	NFP_QCP_WRITE_PTR
 };
 
-/* There appear to be an *undocumented* upper limit on the value which
- * one can add to a queue and that value is either 0x3f or 0x7f.  We
- * go with 0x3f as a conservative measure.
- */
-#define NFP_QCP_MAX_ADD				0x3f
-
-static inline void _nfp_qcp_ptr_add(u8 __iomem *q,
-				    enum nfp_qcp_ptr ptr, u32 val)
-{
-	u32 off;
-
-	if (ptr == NFP_QCP_READ_PTR)
-		off = NFP_QCP_QUEUE_ADD_RPTR;
-	else
-		off = NFP_QCP_QUEUE_ADD_WPTR;
-
-	while (val > NFP_QCP_MAX_ADD) {
-		writel(NFP_QCP_MAX_ADD, q + off);
-		val -= NFP_QCP_MAX_ADD;
-	}
-
-	writel(val, q + off);
-}
-
 /**
  * nfp_qcp_rd_ptr_add() - Add the value to the read pointer of a queue
  *
  * @q:   Base address for queue structure
  * @val: Value to add to the queue pointer
- *
- * If @val is greater than @NFP_QCP_MAX_ADD multiple writes are performed.
  */
 static inline void nfp_qcp_rd_ptr_add(u8 __iomem *q, u32 val)
 {
-	_nfp_qcp_ptr_add(q, NFP_QCP_READ_PTR, val);
+	writel(val, q + NFP_QCP_QUEUE_ADD_RPTR);
 }
 
 /**
@@ -856,12 +821,10 @@ static inline void nfp_qcp_rd_ptr_add(u8 __iomem *q, u32 val)
  *
  * @q:   Base address for queue structure
  * @val: Value to add to the queue pointer
- *
- * If @val is greater than @NFP_QCP_MAX_ADD multiple writes are performed.
  */
 static inline void nfp_qcp_wr_ptr_add(u8 __iomem *q, u32 val)
 {
-	_nfp_qcp_ptr_add(q, NFP_QCP_WRITE_PTR, val);
+	writel(val, q + NFP_QCP_QUEUE_ADD_WPTR);
 }
 
 static inline u32 _nfp_qcp_read(u8 __iomem *q, enum nfp_qcp_ptr ptr)
@@ -903,6 +866,8 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 {
 	return _nfp_qcp_read(q, NFP_QCP_WRITE_PTR);
 }
+
+u32 nfp_qcp_queue_offset(const struct nfp_dev_info *dev_info, u16 queue);
 
 static inline bool nfp_net_is_data_vnic(struct nfp_net *nn)
 {
@@ -970,7 +935,8 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
 struct nfp_net *
-nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
+nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
+	      void __iomem *ctrl_bar, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings);
 void nfp_net_free(struct nfp_net *nn);
 

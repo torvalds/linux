@@ -22,6 +22,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfpcore/nfp6000_pcie.h"
@@ -116,7 +117,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, ctrl_bar, needs_netdev,
+	nn = nfp_net_alloc(pf->pdev, pf->dev_info, ctrl_bar, needs_netdev,
 			   n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
@@ -495,8 +496,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	}
 
 	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
-			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id,
+			       nfp_qcp_queue_offset(pf->dev_info, 0),
+			       pf->dev_info->qc_area_sz, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
