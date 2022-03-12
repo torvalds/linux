@@ -4389,9 +4389,8 @@ static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 static int io_msg_ring_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
-	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index ||
-		     sqe->rw_flags || sqe->splice_fd_in || sqe->buf_index ||
-		     sqe->personality))
+	if (unlikely(sqe->addr || sqe->ioprio || sqe->rw_flags ||
+		     sqe->splice_fd_in || sqe->buf_index || sqe->personality))
 		return -EINVAL;
 
 	if (req->file->f_op != &io_uring_fops)
