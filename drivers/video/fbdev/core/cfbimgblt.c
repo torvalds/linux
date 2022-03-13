@@ -218,7 +218,7 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 {
 	u32 fgx = fgcolor, bgx = bgcolor, bpp = p->var.bits_per_pixel;
 	u32 ppw = 32/bpp, spitch = (image->width + 7)/8;
-	u32 bit_mask, eorx;
+	u32 bit_mask, eorx, shift;
 	const char *s = image->data, *src;
 	u32 __iomem *dst;
 	const u32 *tab = NULL;
@@ -259,17 +259,23 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 
 	for (i = image->height; i--; ) {
 		dst = (u32 __iomem *)dst1;
+		shift = 8;
 		src = s;
 
+		/*
+		 * Manually unroll the per-line copying loop for better
+		 * performance. This works until we processed the last
+		 * completely filled source byte (inclusive).
+		 */
 		switch (ppw) {
 		case 4: /* 8 bpp */
-			for (j = k; j; j -= 2, ++src) {
+			for (j = k; j >= 2; j -= 2, ++src) {
 				FB_WRITEL(colortab[(*src >> 4) & bit_mask], dst++);
 				FB_WRITEL(colortab[(*src >> 0) & bit_mask], dst++);
 			}
 			break;
 		case 2: /* 16 bpp */
-			for (j = k; j; j -= 4, ++src) {
+			for (j = k; j >= 4; j -= 4, ++src) {
 				FB_WRITEL(colortab[(*src >> 6) & bit_mask], dst++);
 				FB_WRITEL(colortab[(*src >> 4) & bit_mask], dst++);
 				FB_WRITEL(colortab[(*src >> 2) & bit_mask], dst++);
@@ -277,7 +283,7 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 			}
 			break;
 		case 1: /* 32 bpp */
-			for (j = k; j; j -= 8, ++src) {
+			for (j = k; j >= 8; j -= 8, ++src) {
 				FB_WRITEL(colortab[(*src >> 7) & bit_mask], dst++);
 				FB_WRITEL(colortab[(*src >> 6) & bit_mask], dst++);
 				FB_WRITEL(colortab[(*src >> 5) & bit_mask], dst++);
@@ -288,6 +294,20 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 				FB_WRITEL(colortab[(*src >> 0) & bit_mask], dst++);
 			}
 			break;
+		}
+
+		/*
+		 * For image widths that are not a multiple of 8, there
+		 * are trailing pixels left on the current line. Print
+		 * them as well.
+		 */
+		for (; j--; ) {
+			shift -= ppw;
+			FB_WRITEL(colortab[(*src >> shift) & bit_mask], dst++);
+			if (!shift) {
+				shift = 8;
+				++src;
+			}
 		}
 
 		dst1 += p->fix.line_length;
