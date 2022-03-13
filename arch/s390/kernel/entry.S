@@ -121,22 +121,22 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 	.macro BPOFF
-	ALTERNATIVE "", ".long 0xb2e8c000", 82
+	ALTERNATIVE "", ".insn rrf,0xb2e80000,0,0,12,0", 82
 	.endm
 
 	.macro BPON
-	ALTERNATIVE "", ".long 0xb2e8d000", 82
+	ALTERNATIVE "", ".insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
-	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .long 0xb2e8d000", \
+	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .insn rrf,0xb2e80000,0,0,13,0", \
 		    "", 82
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
 	TSTMSK	\tif_ptr,\tif_mask
-	ALTERNATIVE "jz .+8;  .long 0xb2e8c000", \
-		    "jnz .+8; .long 0xb2e8d000", 82
+	ALTERNATIVE "jz .+8;  .insn rrf,0xb2e80000,0,0,12,0", \
+		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
 	/*
