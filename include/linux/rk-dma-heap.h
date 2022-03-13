@@ -111,6 +111,7 @@ struct rk_dma_heap {
 	struct device *heap_dev;
 	bool support_cma;
 	struct seq_file *s;
+	unsigned long total_size;
 };
 
 struct rk_dma_heap_dmabuf {
@@ -246,7 +247,18 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap,
  */
 void *rk_vmap_contig_pfn(unsigned long pfn, unsigned int count,
 				 pgprot_t prot);
-
+/**
+ * rk_dma_heap_total_inc - Increase total buffer size
+ * @heap:	dma_heap to increase
+ * @len:	length to increase
+ */
+void rk_dma_heap_total_inc(struct rk_dma_heap *heap, size_t len);
+/**
+ * rk_dma_heap_total_dec - Decrease total buffer size
+ * @heap:	dma_heap to decrease
+ * @len:	length to decrease
+ */
+void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len);
 /**
  * rk_dma_heap_get_cma - get cma structure
  */
@@ -326,6 +338,14 @@ static inline void *rk_vmap_contig_pfn(unsigned long pfn, unsigned int count,
 				 pgprot_t prot)
 {
 	return NULL;
+}
+
+void rk_dma_heap_total_inc(struct rk_dma_heap *heap, size_t len)
+{
+}
+
+void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len)
+{
 }
 
 static inline struct cma *rk_dma_heap_get_cma(void)

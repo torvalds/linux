@@ -353,6 +353,7 @@ static void rk_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
 	struct rk_cma_heap *cma_heap = buffer->heap;
+	struct rk_dma_heap *heap = cma_heap->heap;
 
 	if (buffer->vmap_cnt > 0) {
 		WARN(1, "%s: buffer still mapped in the kernel\n", __func__);
@@ -365,6 +366,8 @@ static void rk_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 	kfree(buffer->pages);
 	/* release memory */
 	cma_release(cma_heap->cma, buffer->cma_pages, buffer->pagecount);
+	rk_dma_heap_total_dec(heap, buffer->len);
+
 	kfree(buffer);
 }
 
@@ -471,6 +474,8 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 	if (ret)
 		goto fail_dma_buf;
 
+	rk_dma_heap_total_inc(heap, buffer->len);
+
 	return dmabuf;
 
 fail_dma_buf:
@@ -508,6 +513,8 @@ static struct page *rk_cma_heap_allocate_pages(struct rk_dma_heap *heap,
 		return ERR_PTR(-EINVAL);
 	}
 
+	rk_dma_heap_total_inc(heap, size);
+
 	return page;
 }
 
@@ -521,6 +528,8 @@ static void rk_cma_heap_free_pages(struct rk_dma_heap *heap,
 	rk_cma_heap_remove_contig_list(heap, page, name);
 
 	cma_release(cma_heap->cma, page, pagecount);
+
+	rk_dma_heap_total_dec(heap, len);
 }
 
 static const struct rk_dma_heap_ops rk_cma_heap_ops = {

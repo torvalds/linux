@@ -241,6 +241,25 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap,
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_free_contig_pages);
 
+void rk_dma_heap_total_inc(struct rk_dma_heap *heap, size_t len)
+{
+	mutex_lock(&rk_heap_list_lock);
+	heap->total_size += len;
+	mutex_unlock(&rk_heap_list_lock);
+}
+EXPORT_SYMBOL_GPL(rk_dma_heap_total_inc);
+
+void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len)
+{
+	mutex_lock(&rk_heap_list_lock);
+	if (WARN_ON(heap->total_size < len))
+		heap->total_size = 0;
+	else
+		heap->total_size -= len;
+	mutex_unlock(&rk_heap_list_lock);
+}
+EXPORT_SYMBOL_GPL(rk_dma_heap_total_dec);
+
 static int rk_dma_heap_open(struct inode *inode, struct file *file)
 {
 	struct rk_dma_heap *heap;
@@ -516,6 +535,7 @@ static int rk_dma_heap_dump_dmabuf(const struct dma_buf *dmabuf, void *data)
 	struct rk_dma_heap *heap = (struct rk_dma_heap *)data;
 	struct rk_dma_heap_dmabuf *buf;
 	struct dma_buf_attachment *a;
+	phys_addr_t size;
 	int attach_count;
 	int ret;
 
@@ -528,10 +548,11 @@ static int rk_dma_heap_dump_dmabuf(const struct dma_buf *dmabuf, void *data)
 				seq_printf(heap->s,
 					   "\ti_ino = %ld\n",
 					   dmabuf->file->f_inode->i_ino);
+				size = buf->end - buf->start + 1;
 				seq_printf(heap->s,
-					   "\tAlloc by (%s)\t[%pa-%pa]\n",
+					   "\tAlloc by (%s)\t[%pa-%pa]\t%pa\n",
 					   buf->orig_alloc, &buf->start,
-					   &buf->end);
+					   &buf->end, &size);
 				seq_puts(heap->s, "\t\tAttached Devices:\n");
 				attach_count = 0;
 				ret = dma_resv_lock_interruptible(dmabuf->resv,
@@ -563,12 +584,14 @@ static int rk_dma_heap_dump_contig(void *data)
 {
 	struct rk_dma_heap *heap = (struct rk_dma_heap *)data;
 	struct rk_dma_heap_contig_buf *buf;
+	phys_addr_t size;
 
 	mutex_lock(&heap->contig_lock);
 	list_for_each_entry(buf, &heap->contig_list, node) {
+		size = buf->end - buf->start + 1;
 		seq_printf(heap->s, "dma-heap:<%s> -non dmabuf\n", heap->name);
-		seq_printf(heap->s, "\tAlloc by (%s)\t[%pa-%pa]\n",
-			   buf->orig_alloc, &buf->start, &buf->end);
+		seq_printf(heap->s, "\tAlloc by (%s)\t[%pa-%pa]\t%pa\n",
+			   buf->orig_alloc, &buf->start, &buf->end, &size);
 	}
 	mutex_unlock(&heap->contig_lock);
 
@@ -633,16 +656,16 @@ static struct dentry *rk_dma_heap_debugfs_dir;
 static int rk_dma_heap_debug_show(struct seq_file *s, void *unused)
 {
 	struct rk_dma_heap *heap;
+	unsigned long total = 0;
 
 	mutex_lock(&rk_heap_list_lock);
 	list_for_each_entry(heap, &rk_heap_list, list) {
 		heap->s = s;
 		get_each_dmabuf(rk_dma_heap_dump_dmabuf, heap);
-	}
-	list_for_each_entry(heap, &rk_heap_list, list) {
-		heap->s = s;
 		rk_dma_heap_dump_contig(heap);
+		total += heap->total_size;
 	}
+	seq_printf(s, "\nTotal : 0x%lx\n", total);
 	mutex_unlock(&rk_heap_list_lock);
 
 	return 0;
