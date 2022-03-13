@@ -1708,20 +1708,20 @@ __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift)
 static int __init xive_off(char *arg)
 {
 	xive_cmdline_disabled = true;
-	return 0;
+	return 1;
 }
 __setup("xive=off", xive_off);
 
 static int __init xive_store_eoi_cmdline(char *arg)
 {
 	if (!arg)
-		return -EINVAL;
+		return 1;
 
 	if (strncmp(arg, "off", 3) == 0) {
 		pr_info("StoreEOI disabled on kernel command line\n");
 		xive_store_eoi = false;
 	}
-	return 0;
+	return 1;
 }
 __setup("xive.store-eoi=", xive_store_eoi_cmdline);
 
