@@ -97,6 +97,7 @@ source "drivers/media/platform/sunxi/Kconfig"
 source "drivers/media/platform/st/sti/Kconfig"
 source "drivers/media/platform/st/stm32/Kconfig"
 source "drivers/media/platform/ti-vpe/Kconfig"
+source "drivers/media/platform/ti/am437x/Kconfig"
 source "drivers/media/platform/via/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
 
