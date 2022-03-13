@@ -151,12 +151,6 @@ In order to create user controlled virtual machines on S390, check
 KVM_CAP_S390_UCONTROL and use the flag KVM_VM_S390_UCONTROL as
 privileged user (CAP_SYS_ADMIN).
 
-To use hardware assisted virtualization on MIPS (VZ ASE) rather than
-the default trap & emulate implementation (which changes the virtual
-memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
-flag KVM_VM_MIPS_VZ.
-
-
 On arm64, the physical address size for a VM (IPA Size limit) is limited
 to 40bits by default. The limit can be configured if the host supports the
 extension KVM_CAP_ARM_VM_IPA_SIZE. When supported, use
