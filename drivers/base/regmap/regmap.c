@@ -821,6 +821,8 @@ struct regmap *__regmap_init(struct device *dev,
 	else
 		map->alloc_flags = GFP_KERNEL;
 
+	map->reg_base = config->reg_base;
+
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.reg_downshift = config->reg_downshift;
@@ -1736,6 +1738,7 @@ static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,
 			return ret;
 	}
 
+	reg += map->reg_base;
 	reg >>= map->format.reg_downshift;
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 	regmap_set_work_buf_flag_mask(map, map->format.reg_bytes,
@@ -1907,6 +1910,7 @@ static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 			return ret;
 	}
 
+	reg += map->reg_base;
 	reg >>= map->format.reg_downshift;
 	map->format.format_write(map, reg, val);
 
@@ -2349,6 +2353,7 @@ static int _regmap_raw_multi_reg_write(struct regmap *map,
 		unsigned int reg = regs[i].reg;
 		unsigned int val = regs[i].def;
 		trace_regmap_hw_write_start(map, reg, 1);
+		reg += map->reg_base;
 		reg >>= map->format.reg_downshift;
 		map->format.format_reg(u8, reg, map->reg_shift);
 		u8 += reg_bytes + pad_bytes;
@@ -2677,6 +2682,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 			return ret;
 	}
 
+	reg += map->reg_base;
 	reg >>= map->format.reg_downshift;
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 	regmap_set_work_buf_flag_mask(map, map->format.reg_bytes,
