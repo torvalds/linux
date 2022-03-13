@@ -510,7 +510,7 @@ config DVB_RTL2832
 
 config DVB_RTL2832_SDR
 	tristate "Realtek RTL2832 SDR"
-	depends on DVB_CORE && I2C && I2C_MUX && VIDEO_V4L2 && MEDIA_SDR_SUPPORT && USB
+	depends on DVB_CORE && I2C && I2C_MUX && VIDEO_DEV && MEDIA_SDR_SUPPORT && USB
 	select DVB_RTL2832
 	select VIDEOBUF2_VMALLOC
 	default m if !MEDIA_SUBDRV_AUTOSELECT
@@ -681,7 +681,7 @@ config DVB_AU8522_DTV
 
 config DVB_AU8522_V4L
 	tristate "Auvitek AU8522 based ATV demod"
-	depends on VIDEO_V4L2 && DVB_CORE && I2C
+	depends on VIDEO_DEV && DVB_CORE && I2C
 	select DVB_AU8522
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help

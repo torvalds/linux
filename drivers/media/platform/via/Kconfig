@@ -5,7 +5,7 @@ comment "VIA media platform drivers"
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
 	depends on V4L_PLATFORM_DRIVERS
-	depends on FB_VIA && VIDEO_V4L2
+	depends on FB_VIA && VIDEO_DEV
 	select VIDEOBUF2_DMA_SG
 	select VIDEO_OV7670
 	help

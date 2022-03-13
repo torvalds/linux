@@ -3,7 +3,7 @@
 config VIDEO_MEDIATEK_VPU
 	tristate "Mediatek Video Processor Unit"
 	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
 	    This driver provides downloading VPU firmware and

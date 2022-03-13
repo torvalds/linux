@@ -2,7 +2,7 @@
 config VIDEO_RCAR_CSI2
 	tristate "R-Car MIPI CSI-2 Receiver"
 	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_V4L2 && OF
+	depends on VIDEO_DEV && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
@@ -18,7 +18,7 @@ config VIDEO_RCAR_CSI2
 config VIDEO_RCAR_VIN
 	tristate "R-Car Video Input (VIN) Driver"
 	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_V4L2 && OF
+	depends on VIDEO_DEV && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

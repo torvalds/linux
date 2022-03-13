@@ -9,7 +9,7 @@ config VIDEO_MEDIATEK_VCODEC
 	tristate "Mediatek Video Codec driver"
 	depends on V4L_MEM2MEM_DRIVERS
 	depends on MTK_IOMMU || COMPILE_TEST
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on VIDEO_MEDIATEK_VPU || MTK_SCP
 	# The two following lines ensure we have the same state ("m" or "y") as

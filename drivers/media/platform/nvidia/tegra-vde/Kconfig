@@ -2,7 +2,7 @@ config VIDEO_TEGRA_VDE
 	tristate "NVIDIA Tegra Video Decoder Engine driver"
 	depends on V4L_MEM2MEM_DRIVERS
 	depends on ARCH_TEGRA || COMPILE_TEST
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	select DMA_SHARED_BUFFER
 	select IOMMU_IOVA
 	select MEDIA_CONTROLLER

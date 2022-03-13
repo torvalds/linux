@@ -4,10 +4,20 @@ comment "Renesas media platform drivers"
 
 # V4L drivers
 
+config VIDEO_RENESAS_CEU
+	tristate "Renesas Capture Engine Unit (CEU) driver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	help
+	  This is a v4l2 driver for the Renesas CEU Interface
+
 config VIDEO_RCAR_ISP
 	tristate "R-Car Image Signal Processor (ISP)"
 	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_V4L2 && OF
+	depends on VIDEO_DEV && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
@@ -20,16 +30,6 @@ config VIDEO_RCAR_ISP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rcar-isp.
-
-config VIDEO_RENESAS_CEU
-	tristate "Renesas Capture Engine Unit (CEU) driver"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
-	help
-	  This is a v4l2 driver for the Renesas CEU Interface
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
@@ -61,7 +61,7 @@ config VIDEO_RENESAS_FCP
 config VIDEO_RENESAS_FDP1
 	tristate "Renesas Fine Display Processor"
 	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
 	select VIDEOBUF2_DMA_CONTIG
@@ -76,7 +76,7 @@ config VIDEO_RENESAS_FDP1
 config VIDEO_RENESAS_JPU
 	tristate "Renesas JPEG Processing Unit"
 	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
@@ -89,7 +89,7 @@ config VIDEO_RENESAS_JPU
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
 	depends on V4L_MEM2MEM_DRIVERS
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
 	select MEDIA_CONTROLLER
@@ -107,7 +107,7 @@ config VIDEO_RENESAS_VSP1
 config VIDEO_RCAR_DRIF
 	tristate "Renesas Digital Radio Interface (DRIF)"
 	depends on SDR_PLATFORM_DRIVERS
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC
 	select V4L2_ASYNC

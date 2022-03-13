@@ -38,4 +38,4 @@ obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_VMALLOC) += videobuf-vmalloc.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
-obj-$(CONFIG_VIDEO_V4L2) += v4l2-dv-timings.o videodev.o
+obj-$(CONFIG_VIDEO_DEV) += v4l2-dv-timings.o videodev.o

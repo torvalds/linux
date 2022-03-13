@@ -160,6 +160,9 @@ menu "Media core support"
 config VIDEO_DEV
 	tristate "Video4Linux core"
 	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT
+	depends on (I2C || I2C=n)
+	select RATIONAL
+	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	help
 	  Enables the V4L2 API, used by cameras, analog TV, video grabbers,
 	  radio devices and by some input devices.
