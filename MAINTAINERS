@@ -4248,7 +4248,7 @@ L:	linux-media@vger.kernel.org
 S:	Orphan
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/cafe_ccic*
-F:	drivers/media/platform/marvell-ccic/
+F:	drivers/media/platform/marvell/
 
 CAIF NETWORK LAYER
 L:	netdev@vger.kernel.org
