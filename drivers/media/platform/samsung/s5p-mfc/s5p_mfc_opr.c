@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/media/platform/s5p-mfc/s5p_mfc_opr.c
+ * drivers/media/platform/samsung/s5p-mfc/s5p_mfc_opr.c
  *
  * Samsung MFC (Multi Function Codec - FIMV) driver
  * This file contains hw related functions.

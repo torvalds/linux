@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * linux/drivers/media/platform/s5p-mfc/s5p_mfc_cmd.c
+ * linux/drivers/media/platform/samsung/s5p-mfc/s5p_mfc_cmd.c
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
