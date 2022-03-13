@@ -6,12 +6,12 @@
 # Place here, alphabetically sorted by directory
 # (e. g. LC_ALL=C sort Makefile)
 obj-y += allegro-dvt/
-obj-y += aspeed/
 obj-y += am437x/
 obj-y += amphion/
+obj-y += aspeed/
 obj-y += atmel/
 obj-y += cadence/
-obj-y += coda/
+obj-y += chips-media/
 obj-y += davinci/
 obj-y += exynos-gsc/
 obj-y += exynos4-is/
