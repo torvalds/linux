@@ -4,7 +4,7 @@
  * Copyright (C) 2014-2015 Cogent Embedded, Inc.  <source@cogentembedded.com>
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  *
- * This is based on the drivers/media/platform/s5p-jpeg driver by
+ * This is based on the drivers/media/platform/samsung/s5p-jpeg driver by
  * Andrzej Pietrasiewicz and Jacek Anaszewski.
  * Some portions of code inspired by VSP1 driver by Laurent Pinchart.
  *

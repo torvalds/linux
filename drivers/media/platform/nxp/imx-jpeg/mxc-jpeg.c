@@ -35,7 +35,7 @@
  * it, enable dynamic debug for this module and:
  * echo 1 > /sys/module/mxc_jpeg_encdec/parameters/jpeg_tracing
  *
- * This is inspired by the drivers/media/platform/s5p-jpeg driver
+ * This is inspired by the drivers/media/platform/samsung/s5p-jpeg driver
  *
  * Copyright 2018-2019 NXP
  */
