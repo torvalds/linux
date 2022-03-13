@@ -51,10 +51,9 @@
 
 unsigned int tlbcam_index;
 
-#define NUM_TLBCAMS	(64)
 struct tlbcam TLBCAM[NUM_TLBCAMS];
 
-struct tlbcamrange {
+static struct {
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
@@ -274,7 +273,7 @@ void __init adjust_total_lowmem(void)
 
 	i = switch_to_as1();
 	__max_low_memory = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, false, true);
-	restore_to_as0(i, 0, 0, 1);
+	restore_to_as0(i, 0, NULL, 1);
 
 	pr_info("Memory CAM mapping: ");
 	for (i = 0; i < tlbcam_index - 1; i++)
