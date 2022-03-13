@@ -242,10 +242,13 @@ static ssize_t rpmsg_eptdev_write_iter(struct kiocb *iocb,
 		goto unlock_eptdev;
 	}
 
-	if (filp->f_flags & O_NONBLOCK)
+	if (filp->f_flags & O_NONBLOCK) {
 		ret = rpmsg_trysendto(eptdev->ept, kbuf, len, eptdev->chinfo.dst);
-	else
+		if (ret == -ENOMEM)
+			ret = -EAGAIN;
+	} else {
 		ret = rpmsg_sendto(eptdev->ept, kbuf, len, eptdev->chinfo.dst);
+	}
 
 unlock_eptdev:
 	mutex_unlock(&eptdev->ept_lock);
