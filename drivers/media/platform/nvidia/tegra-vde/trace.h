@@ -90,6 +90,6 @@ TRACE_EVENT(vde_ref_l1,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../drivers/media/platform/tegra/vde
+#define TRACE_INCLUDE_PATH ../../drivers/media/platform/nvidia/tegra-vde
 #define TRACE_INCLUDE_FILE trace
 #include <trace/define_trace.h>
