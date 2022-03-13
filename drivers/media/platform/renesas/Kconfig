@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+comment "Renesas media platform drivers"
+
 # V4L drivers
 
 config VIDEO_RCAR_ISP
