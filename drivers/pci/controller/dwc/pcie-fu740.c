@@ -224,7 +224,7 @@ static int fu740_pcie_host_init(struct pcie_port *pp)
 	/* Clear hold_phy_rst */
 	writel_relaxed(0x0, afp->mgmt_base + PCIEX8MGMT_APP_HOLD_PHY_RST);
 	/* Enable pcieauxclk */
-	ret = clk_prepare_enable(afp->pcie_aux);
+	clk_prepare_enable(afp->pcie_aux);
 	/* Set RC mode */
 	writel_relaxed(0x4, afp->mgmt_base + PCIEX8MGMT_DEVICE_TYPE);
 
