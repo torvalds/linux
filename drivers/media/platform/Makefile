@@ -22,7 +22,6 @@ obj-y += mediatek/mtk-vpu/
 obj-y += nvidia/tegra-vde/
 obj-y += nxp/
 obj-y += omap/
-obj-y += omap3isp/
 obj-y += qcom/camss/
 obj-y += qcom/venus/
 obj-y += renesas/
@@ -43,6 +42,7 @@ obj-y += st/stm32/
 obj-y += ti-vpe/
 obj-y += ti/am437x/
 obj-y += ti/davinci/
+obj-y += ti/omap3isp/
 obj-y += via/
 obj-y += xilinx/
 

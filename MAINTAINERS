@@ -14094,7 +14094,7 @@ M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/ti,omap3isp.txt
-F:	drivers/media/platform/omap3isp/
+F:	drivers/media/platform/ti/omap3isp/
 F:	drivers/staging/media/omap4iss/
 
 OMAP MMC SUPPORT
