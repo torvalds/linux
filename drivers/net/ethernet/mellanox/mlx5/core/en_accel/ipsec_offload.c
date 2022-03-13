@@ -4,7 +4,7 @@
 #include "mlx5_core.h"
 #include "en.h"
 #include "ipsec.h"
-#include "lib/mlx5.h"
+#include "lib/crypto.h"
 
 enum {
 	MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET,

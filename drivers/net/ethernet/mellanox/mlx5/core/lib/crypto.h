@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+
+#ifndef __MLX5_LIB_CRYPTO_H__
+#define __MLX5_LIB_CRYPTO_H__
+
+enum {
+	MLX5_ACCEL_OBJ_TLS_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
+	MLX5_ACCEL_OBJ_IPSEC_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_IPSEC,
+	MLX5_ACCEL_OBJ_MACSEC_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_MACSEC,
+};
+
+int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
+			       void *key, u32 sz_bytes,
+			       u32 key_type, u32 *p_key_id);
+
+void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
+
+#endif /* __MLX5_LIB_CRYPTO_H__ */

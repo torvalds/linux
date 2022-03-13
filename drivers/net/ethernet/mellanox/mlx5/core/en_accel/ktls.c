@@ -4,6 +4,7 @@
 #include <linux/debugfs.h>
 #include "en.h"
 #include "lib/mlx5.h"
+#include "lib/crypto.h"
 #include "en_accel/ktls.h"
 #include "en_accel/ktls_utils.h"
 #include "en_accel/fs_tcp.h"
