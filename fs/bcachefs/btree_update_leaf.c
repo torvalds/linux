@@ -442,7 +442,8 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(i->btree_id))
 		return 0;
 
-	if (old.k->type == new->k.type &&
+	if (bch2_bkey_ops[old.k->type].atomic_trigger ==
+	    bch2_bkey_ops[i->k->k.type].atomic_trigger &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
 		ret   = bch2_mark_key(trans, old, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
@@ -493,7 +494,8 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 
 	if (overwrite) {
 		ret = bch2_trans_mark_old(trans, old, i->flags);
-	} else if (old.k->type == i->k->k.type &&
+	} else if (bch2_bkey_ops[old.k->type].trans_trigger ==
+		   bch2_bkey_ops[i->k->k.type].trans_trigger &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
 		i->overwrite_trigger_run = true;
 		ret = bch2_trans_mark_key(trans, old, i->k,
