@@ -57,7 +57,7 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 	if (skb) {
 		consume_skb(oskb);
 	} else {
-		kfree(oskb);
+		kfree_skb(oskb);
 		goto out_unlock;
 	}
 

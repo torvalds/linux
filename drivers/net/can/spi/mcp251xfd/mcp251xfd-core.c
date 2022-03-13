@@ -1598,6 +1598,7 @@ static int mcp251xfd_open(struct net_device *ndev)
 		goto out_transceiver_disable;
 
 	mcp251xfd_timestamp_init(priv);
+	clear_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
 	can_rx_offload_enable(&priv->offload);
 
 	err = request_threaded_irq(spi->irq, NULL, mcp251xfd_irq,
@@ -1618,6 +1619,7 @@ static int mcp251xfd_open(struct net_device *ndev)
 	free_irq(spi->irq, priv);
  out_can_rx_offload_disable:
 	can_rx_offload_disable(&priv->offload);
+	set_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
 	mcp251xfd_timestamp_stop(priv);
  out_transceiver_disable:
 	mcp251xfd_transceiver_disable(priv);
@@ -1637,6 +1639,8 @@ static int mcp251xfd_stop(struct net_device *ndev)
 	struct mcp251xfd_priv *priv = netdev_priv(ndev);
 
 	netif_stop_queue(ndev);
+	set_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
+	hrtimer_cancel(&priv->rx_irq_timer);
 	mcp251xfd_chip_interrupts_disable(priv);
 	free_irq(ndev->irq, priv);
 	can_rx_offload_disable(&priv->offload);
@@ -1871,6 +1875,8 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	if (err)
 		goto out_chip_sleep;
 
+	mcp251xfd_ethtool_init(priv);
+
 	err = register_candev(ndev);
 	if (err)
 		goto out_chip_sleep;
@@ -2034,6 +2040,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 		CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_BERR_REPORTING |
 		CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO |
 		CAN_CTRLMODE_CC_LEN8_DLC;
+	set_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
 	priv->ndev = ndev;
 	priv->spi = spi;
 	priv->rx_int = rx_int;
