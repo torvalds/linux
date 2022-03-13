@@ -3,6 +3,14 @@
 # Platform drivers
 #	Most drivers here are currently for webcam support
 
+menuconfig MEDIA_PLATFORM_DRIVERS
+	bool "Media platform devices"
+	default "y"
+	help
+	  Say Y here to enable support for platform-specific media drivers.
+
+if MEDIA_PLATFORM_DRIVERS
+
 config V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
 	help
@@ -91,3 +99,5 @@ source "drivers/media/platform/tegra/vde/Kconfig"
 source "drivers/media/platform/ti-vpe/Kconfig"
 source "drivers/media/platform/via/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
+
+endif # MEDIA_PLATFORM_DRIVERS

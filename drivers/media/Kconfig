@@ -216,12 +216,11 @@ menu "Media drivers"
 comment "Drivers filtered as selected at 'Filter media drivers'"
 	depends on MEDIA_SUPPORT_FILTER
 
+comment "Media drivers"
+
 source "drivers/media/usb/Kconfig"
 source "drivers/media/pci/Kconfig"
 source "drivers/media/radio/Kconfig"
-
-# Common driver options
-source "drivers/media/common/Kconfig"
 
 if MEDIA_PLATFORM_SUPPORT
 source "drivers/media/platform/Kconfig"
@@ -233,6 +232,9 @@ source "drivers/media/test-drivers/Kconfig"
 endif
 
 source "drivers/media/firewire/Kconfig"
+
+# Common driver options
+source "drivers/media/common/Kconfig"
 
 endmenu
 
