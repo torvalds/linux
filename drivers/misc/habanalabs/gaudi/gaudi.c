@@ -6115,7 +6115,7 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr,
 
 		*val = RREG32(addr - CFG_BASE);
 
-	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
+	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_SIZE)) {
 
 		*val = readl(hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
 
@@ -6158,7 +6158,7 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr,
 
 		WREG32(addr - CFG_BASE, val);
 
-	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
+	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_SIZE)) {
 
 		writel(val, hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
 
@@ -6205,7 +6205,7 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr,
 		*val = (((u64) val_h) << 32) | val_l;
 
 	} else if ((addr >= SRAM_BASE_ADDR) &&
-			(addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
+			(addr <= SRAM_BASE_ADDR + SRAM_SIZE - sizeof(u64))) {
 
 		*val = readq(hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
 
@@ -6250,7 +6250,7 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr,
 		WREG32(addr + sizeof(u32) - CFG_BASE, upper_32_bits(val));
 
 	} else if ((addr >= SRAM_BASE_ADDR) &&
-			(addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
+			(addr <= SRAM_BASE_ADDR + SRAM_SIZE - sizeof(u64))) {
 
 		writeq(val, hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
 
