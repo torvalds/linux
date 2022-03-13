@@ -65,16 +65,19 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc (struct bkey_ops) {		\
 	.key_invalid	= bch2_alloc_v1_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
+	.atomic_trigger	= bch2_mark_alloc,		\
 }
 
 #define bch2_bkey_ops_alloc_v2 (struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v2_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
+	.atomic_trigger	= bch2_mark_alloc,		\
 }
 
 #define bch2_bkey_ops_alloc_v3 (struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v3_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
+	.atomic_trigger	= bch2_mark_alloc,		\
 }
 
 static inline bool bkey_is_alloc(const struct bkey *k)

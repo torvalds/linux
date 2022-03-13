@@ -6,6 +6,7 @@
 
 struct bch_fs;
 struct btree;
+struct btree_trans;
 struct bkey;
 enum btree_node_type;
 
@@ -20,6 +21,10 @@ struct bkey_ops {
 	void		(*swab)(struct bkey_s);
 	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
 	bool		(*key_merge)(struct bch_fs *, struct bkey_s, struct bkey_s_c);
+	int		(*trans_trigger)(struct btree_trans *, struct bkey_s_c,
+					 struct bkey_i *, unsigned);
+	int		(*atomic_trigger)(struct btree_trans *, struct bkey_s_c,
+					  struct bkey_s_c, unsigned);
 	void		(*compat)(enum btree_id id, unsigned version,
 				  unsigned big_endian, int write,
 				  struct bkey_s);
@@ -53,6 +58,28 @@ static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct b
 }
 
 bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
+
+static inline int bch2_mark_key(struct btree_trans *trans,
+		  struct bkey_s_c old,
+		  struct bkey_s_c new,
+		  unsigned flags)
+{
+	const struct bkey_ops *ops = &bch2_bkey_ops[old.k->type ?: new.k->type];
+
+	return ops->atomic_trigger
+		? ops->atomic_trigger(trans, old, new, flags)
+		: 0;
+}
+
+static inline int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
+			struct bkey_i *new, unsigned flags)
+{
+	const struct bkey_ops *ops = &bch2_bkey_ops[old.k->type ?: new->k.type];
+
+	return ops->trans_trigger
+		? ops->trans_trigger(trans, old, new, flags)
+		: 0;
+}
 
 void bch2_bkey_renumber(enum btree_node_type, struct bkey_packed *, int);
 

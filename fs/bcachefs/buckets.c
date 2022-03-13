@@ -501,9 +501,9 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	BUG_ON(owned_by_allocator == old.owned_by_allocator);
 }
 
-static int bch2_mark_alloc(struct btree_trans *trans,
-			   struct bkey_s_c old, struct bkey_s_c new,
-			   unsigned flags)
+int bch2_mark_alloc(struct btree_trans *trans,
+		    struct bkey_s_c old, struct bkey_s_c new,
+		    unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
@@ -933,9 +933,9 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_mark_extent(struct btree_trans *trans,
-			    struct bkey_s_c old, struct bkey_s_c new,
-			    unsigned flags)
+int bch2_mark_extent(struct btree_trans *trans,
+		     struct bkey_s_c old, struct bkey_s_c new,
+		     unsigned flags)
 {
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
@@ -1015,9 +1015,9 @@ static int bch2_mark_extent(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_mark_stripe(struct btree_trans *trans,
-			    struct bkey_s_c old, struct bkey_s_c new,
-			    unsigned flags)
+int bch2_mark_stripe(struct btree_trans *trans,
+		     struct bkey_s_c old, struct bkey_s_c new,
+		     unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
@@ -1122,9 +1122,9 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_mark_inode(struct btree_trans *trans,
-			   struct bkey_s_c old, struct bkey_s_c new,
-			   unsigned flags)
+int bch2_mark_inode(struct btree_trans *trans,
+		    struct bkey_s_c old, struct bkey_s_c new,
+		    unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage __percpu *fs_usage;
@@ -1153,9 +1153,9 @@ static int bch2_mark_inode(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_mark_reservation(struct btree_trans *trans,
-				 struct bkey_s_c old, struct bkey_s_c new,
-				 unsigned flags)
+int bch2_mark_reservation(struct btree_trans *trans,
+			  struct bkey_s_c old, struct bkey_s_c new,
+			  unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
@@ -1232,9 +1232,9 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_mark_reflink_p(struct btree_trans *trans,
-			       struct bkey_s_c old, struct bkey_s_c new,
-			       unsigned flags)
+int bch2_mark_reflink_p(struct btree_trans *trans,
+			struct bkey_s_c old, struct bkey_s_c new,
+			unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
@@ -1269,39 +1269,6 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 					    &idx, flags, l++);
 
 	return ret;
-}
-
-int bch2_mark_key(struct btree_trans *trans,
-		  struct bkey_s_c old,
-		  struct bkey_s_c new,
-		  unsigned flags)
-{
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
-
-	switch (k.k->type) {
-	case KEY_TYPE_alloc:
-	case KEY_TYPE_alloc_v2:
-	case KEY_TYPE_alloc_v3:
-		return bch2_mark_alloc(trans, old, new, flags);
-	case KEY_TYPE_btree_ptr:
-	case KEY_TYPE_btree_ptr_v2:
-	case KEY_TYPE_extent:
-	case KEY_TYPE_reflink_v:
-		return bch2_mark_extent(trans, old, new, flags);
-	case KEY_TYPE_stripe:
-		return bch2_mark_stripe(trans, old, new, flags);
-	case KEY_TYPE_inode:
-	case KEY_TYPE_inode_v2:
-		return bch2_mark_inode(trans, old, new, flags);
-	case KEY_TYPE_reservation:
-		return bch2_mark_reservation(trans, old, new, flags);
-	case KEY_TYPE_reflink_p:
-		return bch2_mark_reflink_p(trans, old, new, flags);
-	case KEY_TYPE_snapshot:
-		return bch2_mark_snapshot(trans, old, new, flags);
-	default:
-		return 0;
-	}
 }
 
 static noinline __cold
@@ -1518,10 +1485,14 @@ err:
 	return ret;
 }
 
-static int bch2_trans_mark_extent(struct btree_trans *trans,
-			struct bkey_s_c k, unsigned flags)
+int bch2_trans_mark_extent(struct btree_trans *trans,
+			   struct bkey_s_c old, struct bkey_i *new,
+			   unsigned flags)
 {
 	struct bch_fs *c = trans->c;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE
+		? old
+		: bkey_i_to_s_c(new);
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -1652,9 +1623,9 @@ err:
 	return ret;
 }
 
-static int bch2_trans_mark_stripe(struct btree_trans *trans,
-				  struct bkey_s_c old, struct bkey_i *new,
-				  unsigned flags)
+int bch2_trans_mark_stripe(struct btree_trans *trans,
+			   struct bkey_s_c old, struct bkey_i *new,
+			   unsigned flags)
 {
 	const struct bch_stripe *old_s = NULL;
 	struct bch_stripe *new_s = NULL;
@@ -1722,10 +1693,10 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 	return ret;
 }
 
-static int bch2_trans_mark_inode(struct btree_trans *trans,
-				 struct bkey_s_c old,
-				 struct bkey_i *new,
-				 unsigned flags)
+int bch2_trans_mark_inode(struct btree_trans *trans,
+			  struct bkey_s_c old,
+			  struct bkey_i *new,
+			  unsigned flags)
 {
 	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
 
@@ -1738,9 +1709,14 @@ static int bch2_trans_mark_inode(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_trans_mark_reservation(struct btree_trans *trans,
-				       struct bkey_s_c k, unsigned flags)
+int bch2_trans_mark_reservation(struct btree_trans *trans,
+				struct bkey_s_c old,
+				struct bkey_i *new,
+				unsigned flags)
 {
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE
+		? old
+		: bkey_i_to_s_c(new);
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size;
 	struct replicas_delta_list *d;
@@ -1839,9 +1815,14 @@ err:
 	return ret;
 }
 
-static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
-				     struct bkey_s_c k, unsigned flags)
+int bch2_trans_mark_reflink_p(struct btree_trans *trans,
+			      struct bkey_s_c old,
+			      struct bkey_i *new,
+			      unsigned flags)
 {
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE
+		? old
+		: bkey_i_to_s_c(new);
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	u64 idx, end_idx;
 	int ret = 0;
@@ -1860,33 +1841,6 @@ static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		ret = __bch2_trans_mark_reflink_p(trans, p, &idx, flags);
 
 	return ret;
-}
-
-int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
-			struct bkey_i *new, unsigned flags)
-{
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE
-		? old
-		: bkey_i_to_s_c(new);
-
-	switch (k.k->type) {
-	case KEY_TYPE_btree_ptr:
-	case KEY_TYPE_btree_ptr_v2:
-	case KEY_TYPE_extent:
-	case KEY_TYPE_reflink_v:
-		return bch2_trans_mark_extent(trans, k, flags);
-	case KEY_TYPE_stripe:
-		return bch2_trans_mark_stripe(trans, old, new, flags);
-	case KEY_TYPE_inode:
-	case KEY_TYPE_inode_v2:
-		return bch2_trans_mark_inode(trans, old, new, flags);
-	case KEY_TYPE_reservation:
-		return bch2_trans_mark_reservation(trans, k, flags);
-	case KEY_TYPE_reflink_p:
-		return bch2_trans_mark_reflink_p(trans, k, flags);
-	default:
-		return 0;
-	}
 }
 
 static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
