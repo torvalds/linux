@@ -322,6 +322,7 @@ then
 	echo " --- make clean" > "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
 	echo " --- make allmodconfig" >> "$amcdir/Make.out" 2>&1
+	cp .config $amcdir
 	make -j$MAKE_ALLOTED_CPUS allmodconfig >> "$amcdir/Make.out" 2>&1
 	echo " --- make " >> "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
