@@ -62,3 +62,8 @@ config VIDEO_TI_VPE_DEBUG
 	depends on VIDEO_TI_VPE
 	help
 	  Enable debug messages on VPE driver.
+
+source "drivers/media/platform/ti/am437x/Kconfig"
+source "drivers/media/platform/ti/davinci/Kconfig"
+source "drivers/media/platform/ti/omap/Kconfig"
+source "drivers/media/platform/ti/omap3isp/Kconfig"
