@@ -468,37 +468,37 @@ TRACE_EVENT(invalidate,
 );
 
 DECLARE_EVENT_CLASS(bucket_alloc,
-	TP_PROTO(struct bch_dev *ca, enum alloc_reserve reserve),
-	TP_ARGS(ca, reserve),
+	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve),
+	TP_ARGS(ca, alloc_reserve),
 
 	TP_STRUCT__entry(
 		__field(dev_t,			dev	)
-		__field(enum alloc_reserve,	reserve	)
+		__array(char,	reserve,	16	)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= ca->dev;
-		__entry->reserve	= reserve;
+		strlcpy(__entry->reserve, alloc_reserve, sizeof(__entry->reserve));
 	),
 
-	TP_printk("%d,%d reserve %d",
+	TP_printk("%d,%d reserve %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->reserve)
 );
 
 DEFINE_EVENT(bucket_alloc, bucket_alloc,
-	TP_PROTO(struct bch_dev *ca, enum alloc_reserve reserve),
-	TP_ARGS(ca, reserve)
+	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve),
+	TP_ARGS(ca, alloc_reserve)
 );
 
 DEFINE_EVENT(bucket_alloc, bucket_alloc_fail,
-	TP_PROTO(struct bch_dev *ca, enum alloc_reserve reserve),
-	TP_ARGS(ca, reserve)
+	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve),
+	TP_ARGS(ca, alloc_reserve)
 );
 
 DEFINE_EVENT(bucket_alloc, open_bucket_alloc_fail,
-	TP_PROTO(struct bch_dev *ca, enum alloc_reserve reserve),
-	TP_ARGS(ca, reserve)
+	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve),
+	TP_ARGS(ca, alloc_reserve)
 );
 
 /* Moving IO */

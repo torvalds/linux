@@ -27,6 +27,13 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 
+const char * const bch2_alloc_reserves[] = {
+#define x(t) #t,
+	BCH_ALLOC_RESERVES()
+#undef x
+	NULL
+};
+
 /*
  * Open buckets represent a bucket that's currently being allocated from.  They
  * serve two purposes:
@@ -168,10 +175,10 @@ long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 {
 	switch (reserve) {
-	case RESERVE_BTREE:
-	case RESERVE_BTREE_MOVINGGC:
+	case RESERVE_btree:
+	case RESERVE_btree_movinggc:
 		return 0;
-	case RESERVE_MOVINGGC:
+	case RESERVE_movinggc:
 		return OPEN_BUCKETS_COUNT / 4;
 	default:
 		return OPEN_BUCKETS_COUNT / 2;
@@ -219,17 +226,17 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 			c->blocked_allocate_open_bucket = local_clock();
 
 		spin_unlock(&c->freelist_lock);
-		trace_open_bucket_alloc_fail(ca, reserve);
+		trace_open_bucket_alloc_fail(ca, bch2_alloc_reserves[reserve]);
 		return ERR_PTR(-OPEN_BUCKETS_EMPTY);
 	}
 
-	if (likely(fifo_pop(&ca->free[RESERVE_NONE], b)))
+	if (likely(fifo_pop(&ca->free[RESERVE_none], b)))
 		goto out;
 
 	switch (reserve) {
-	case RESERVE_BTREE_MOVINGGC:
-	case RESERVE_MOVINGGC:
-		if (fifo_pop(&ca->free[RESERVE_MOVINGGC], b))
+	case RESERVE_btree_movinggc:
+	case RESERVE_movinggc:
+		if (fifo_pop(&ca->free[RESERVE_movinggc], b))
 			goto out;
 		break;
 	default:
@@ -244,7 +251,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 
 	spin_unlock(&c->freelist_lock);
 
-	trace_bucket_alloc_fail(ca, reserve);
+	trace_bucket_alloc_fail(ca, bch2_alloc_reserves[reserve]);
 	return ERR_PTR(-FREELIST_EMPTY);
 out:
 	verify_not_on_freelist(c, ca, b);
@@ -282,7 +289,7 @@ out:
 
 	bch2_wake_allocator(ca);
 
-	trace_bucket_alloc(ca, reserve);
+	trace_bucket_alloc(ca, bch2_alloc_reserves[reserve]);
 	return ob;
 }
 

@@ -2091,9 +2091,9 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO))) ||
-	    !init_fifo(&free[RESERVE_MOVINGGC],
+	    !init_fifo(&free[RESERVE_movinggc],
 		       copygc_reserve, GFP_KERNEL) ||
-	    !init_fifo(&free[RESERVE_NONE], reserve_none, GFP_KERNEL) ||
+	    !init_fifo(&free[RESERVE_none], reserve_none, GFP_KERNEL) ||
 	    !init_fifo(&free_inc,	free_inc_nr, GFP_KERNEL) ||
 	    !init_heap(&alloc_heap,	ALLOC_SCAN_BATCH(ca) << 1, GFP_KERNEL))
 		goto err;

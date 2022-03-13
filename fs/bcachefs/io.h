@@ -70,7 +70,7 @@ static inline u64 *op_journal_seq(struct bch_write_op *op)
 
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
-	return op->alloc_reserve == RESERVE_MOVINGGC
+	return op->alloc_reserve == RESERVE_movinggc
 		? op->c->copygc_wq
 		: op->c->btree_update_wq;
 }
@@ -97,7 +97,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->compression_type	= bch2_compression_opt_to_type[opts.compression];
 	op->nr_replicas		= 0;
 	op->nr_replicas_required = c->opts.data_replicas_required;
-	op->alloc_reserve	= RESERVE_NONE;
+	op->alloc_reserve	= RESERVE_none;
 	op->incompressible	= 0;
 	op->open_buckets.nr	= 0;
 	op->devs_have.nr	= 0;

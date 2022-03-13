@@ -1307,8 +1307,8 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 					    &nr_have_parity,
 					    &have_cache,
 					    h->copygc
-					    ? RESERVE_MOVINGGC
-					    : RESERVE_NONE,
+					    ? RESERVE_movinggc
+					    : RESERVE_none,
 					    0,
 					    cl);
 
@@ -1336,8 +1336,8 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 					    &nr_have_data,
 					    &have_cache,
 					    h->copygc
-					    ? RESERVE_MOVINGGC
-					    : RESERVE_NONE,
+					    ? RESERVE_movinggc
+					    : RESERVE_none,
 					    0,
 					    cl);
 

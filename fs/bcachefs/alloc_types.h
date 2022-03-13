@@ -22,12 +22,17 @@ enum allocator_states {
 #undef x
 };
 
+#define BCH_ALLOC_RESERVES()		\
+	x(btree_movinggc)		\
+	x(btree)			\
+	x(movinggc)			\
+	x(none)
+
 enum alloc_reserve {
-	RESERVE_BTREE_MOVINGGC	= -2,
-	RESERVE_BTREE		= -1,
-	RESERVE_MOVINGGC	= 0,
-	RESERVE_NONE		= 1,
-	RESERVE_NR		= 2,
+#define x(name)	RESERVE_##name,
+	BCH_ALLOC_RESERVES()
+#undef x
+	RESERVE_NR
 };
 
 typedef FIFO(long)	alloc_fifo;

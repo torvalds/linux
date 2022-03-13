@@ -30,21 +30,6 @@
 #include <linux/sort.h>
 #include <linux/wait.h>
 
-/*
- * We can't use the entire copygc reserve in one iteration of copygc: we may
- * need the buckets we're freeing up to go back into the copygc reserve to make
- * forward progress, but if the copygc reserve is full they'll be available for
- * any allocation - and it's possible that in a given iteration, we free up most
- * of the buckets we're going to free before we allocate most of the buckets
- * we're going to allocate.
- *
- * If we only use half of the reserve per iteration, then in steady state we'll
- * always have room in the reserve for the buckets we're going to need in the
- * next iteration:
- */
-#define COPYGC_BUCKETS_PER_ITER(ca)					\
-	((ca)->free[RESERVE_MOVINGGC].size / 2)
-
 static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 {
 	const struct copygc_heap_entry *l = _l;
@@ -124,7 +109,7 @@ static bool have_copygc_reserve(struct bch_dev *ca)
 	bool ret;
 
 	spin_lock(&ca->fs->freelist_lock);
-	ret = fifo_full(&ca->free[RESERVE_MOVINGGC]) ||
+	ret = fifo_full(&ca->free[RESERVE_movinggc]) ||
 		ca->allocator_state != ALLOCATOR_running;
 	spin_unlock(&ca->fs->freelist_lock);
 
@@ -265,7 +250,7 @@ static int bch2_copygc(struct bch_fs *c)
 		closure_wait_event(&c->freelist_wait, have_copygc_reserve(ca));
 
 		spin_lock(&ca->fs->freelist_lock);
-		sectors_reserved += fifo_used(&ca->free[RESERVE_MOVINGGC]) * ca->mi.bucket_size;
+		sectors_reserved += fifo_used(&ca->free[RESERVE_movinggc]) * ca->mi.bucket_size;
 		spin_unlock(&ca->fs->freelist_lock);
 	}
 
@@ -281,7 +266,7 @@ static int bch2_copygc(struct bch_fs *c)
 	}
 
 	/*
-	 * Our btree node allocations also come out of RESERVE_MOVINGGC:
+	 * Our btree node allocations also come out of RESERVE_movingc:
 	 */
 	sectors_reserved = (sectors_reserved * 3) / 4;
 	if (!sectors_reserved) {

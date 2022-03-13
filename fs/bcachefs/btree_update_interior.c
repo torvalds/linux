@@ -194,10 +194,10 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 
 	if (flags & BTREE_INSERT_USE_RESERVE) {
 		nr_reserve	= 0;
-		alloc_reserve	= RESERVE_BTREE_MOVINGGC;
+		alloc_reserve	= RESERVE_btree_movinggc;
 	} else {
 		nr_reserve	= BTREE_NODE_RESERVE;
-		alloc_reserve	= RESERVE_BTREE;
+		alloc_reserve	= RESERVE_btree;
 	}
 
 	mutex_lock(&c->btree_reserve_cache_lock);

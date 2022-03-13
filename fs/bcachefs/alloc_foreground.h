@@ -12,6 +12,8 @@ struct bch_dev;
 struct bch_fs;
 struct bch_devs_List;
 
+extern const char * const bch2_alloc_reserves[];
+
 struct dev_alloc_list {
 	unsigned	nr;
 	u8		devs[BCH_SB_MEMBERS_MAX];

@@ -780,7 +780,7 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, u64 b)
 		 * Don't strand buckets on the copygc freelist until
 		 * after recovery is finished:
 		 */
-		if (i == RESERVE_MOVINGGC &&
+		if (i == RESERVE_movinggc &&
 		    !test_bit(BCH_FS_STARTED, &c->flags))
 			continue;
 
@@ -941,7 +941,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		 * allocations for foreground writes must wait -
 		 * not -ENOSPC calculations.
 		 */
-		for (j = 0; j < RESERVE_NONE; j++)
+		for (j = 0; j < RESERVE_none; j++)
 			dev_reserve += ca->free[j].size;
 
 		dev_reserve += 1;	/* btree write point */
