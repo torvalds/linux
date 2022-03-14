@@ -264,7 +264,7 @@ static int mt7921_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void mt7921_stop(struct ieee80211_hw *hw)
+void mt7921_stop(struct ieee80211_hw *hw)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
@@ -281,6 +281,7 @@ static void mt7921_stop(struct ieee80211_hw *hw)
 	mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, false, false);
 	mt7921_mutex_release(dev);
 }
+EXPORT_SYMBOL_GPL(mt7921_stop);
 
 static int mt7921_add_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif)

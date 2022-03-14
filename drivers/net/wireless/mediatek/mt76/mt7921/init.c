@@ -233,7 +233,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 		dev->pm.ds_enable = true;
 	}
 
-	if (mt76_is_sdio(&dev->mt76))
+	if (!mt76_is_mmio(&dev->mt76))
 		hw->extra_tx_headroom += MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
 
 	ret = mt7921_init_hardware(dev);

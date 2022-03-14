@@ -30,6 +30,7 @@
 
 #define MT7921_DRV_OWN_RETRY_COUNT	10
 #define MT7921_MCU_INIT_RETRY_COUNT	10
+#define MT7921_WFSYS_INIT_RETRY_COUNT	2
 
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
@@ -365,6 +366,7 @@ mt7921_skb_add_usb_sdio_hdr(struct mt7921_dev *dev, struct sk_buff *skb,
 	put_unaligned_le32(hdr, skb_push(skb, sizeof(hdr)));
 }
 
+void mt7921_stop(struct ieee80211_hw *hw);
 int mt7921_mac_init(struct mt7921_dev *dev);
 bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask);
 void mt7921_mac_reset_counters(struct mt7921_phy *phy);
@@ -456,4 +458,14 @@ int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 void mt7921_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 				     struct mt76_queue_entry *e);
 bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
+
+/* usb */
+#define MT_USB_TYPE_VENDOR	(USB_TYPE_VENDOR | 0x1f)
+#define MT_USB_TYPE_UHW_VENDOR	(USB_TYPE_VENDOR | 0x1e)
+
+int mt7921u_mcu_power_on(struct mt7921_dev *dev);
+int mt7921u_wfsys_reset(struct mt7921_dev *dev);
+int mt7921u_dma_init(struct mt7921_dev *dev);
+int mt7921u_init_reset(struct mt7921_dev *dev);
+int mt7921u_mac_reset(struct mt7921_dev *dev);
 #endif
