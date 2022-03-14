@@ -193,22 +193,55 @@ int __rtw89_fw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	return 0;
 }
 
+#define __DEF_FW_FEAT_COND(__cond, __op) \
+static bool __fw_feat_cond_ ## __cond(u32 suit_ver_code, u32 comp_ver_code) \
+{ \
+	return suit_ver_code __op comp_ver_code; \
+}
+
+__DEF_FW_FEAT_COND(ge, >=); /* greater or equal */
+__DEF_FW_FEAT_COND(le, <=); /* less or equal */
+
+struct __fw_feat_cfg {
+	enum rtw89_core_chip_id chip_id;
+	enum rtw89_fw_feature feature;
+	u32 ver_code;
+	bool (*cond)(u32 suit_ver_code, u32 comp_ver_code);
+};
+
+#define __CFG_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _feat) \
+	{ \
+		.chip_id = _chip, \
+		.feature = RTW89_FW_FEATURE_ ## _feat, \
+		.ver_code = RTW89_FW_VER_CODE(_maj, _min, _sub, _idx), \
+		.cond = __fw_feat_cond_ ## _cond, \
+	}
+
+static const struct __fw_feat_cfg fw_feat_tbl[] = {
+	__CFG_FW_FEAT(RTL8852A, le, 0, 13, 29, 0, OLD_HT_RA_FORMAT),
+	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, SCAN_OFFLOAD),
+	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, TX_WAKE),
+};
+
 static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_fw_suit *fw_suit = rtw89_fw_suit_get(rtwdev, RTW89_FW_NORMAL);
+	const struct __fw_feat_cfg *ent;
+	const struct rtw89_fw_suit *fw_suit;
+	u32 suit_ver_code;
+	int i;
 
-	if (chip->chip_id == RTL8852A &&
-	    RTW89_FW_SUIT_VER_CODE(fw_suit) <= RTW89_FW_VER_CODE(0, 13, 29, 0))
-		rtwdev->fw.old_ht_ra_format = true;
+	fw_suit = rtw89_fw_suit_get(rtwdev, RTW89_FW_NORMAL);
+	suit_ver_code = RTW89_FW_SUIT_VER_CODE(fw_suit);
 
-	if (chip->chip_id == RTL8852A &&
-	    RTW89_FW_SUIT_VER_CODE(fw_suit) >= RTW89_FW_VER_CODE(0, 13, 35, 0))
-		rtwdev->fw.scan_offload = true;
+	for (i = 0; i < ARRAY_SIZE(fw_feat_tbl); i++) {
+		ent = &fw_feat_tbl[i];
+		if (chip->chip_id != ent->chip_id)
+			continue;
 
-	if (chip->chip_id == RTL8852A &&
-	    RTW89_FW_SUIT_VER_CODE(fw_suit) >= RTW89_FW_VER_CODE(0, 13, 35, 0))
-		rtwdev->fw.tx_wake = true;
+		if (ent->cond(suit_ver_code, ent->ver_code))
+			RTW89_SET_FW_FEATURE(ent->feature, &rtwdev->fw);
+	}
 }
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)

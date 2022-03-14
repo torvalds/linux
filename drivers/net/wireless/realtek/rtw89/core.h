@@ -2396,6 +2396,12 @@ enum rtw89_fw_type {
 	RTW89_FW_WOWLAN = 3,
 };
 
+enum rtw89_fw_feature {
+	RTW89_FW_FEATURE_OLD_HT_RA_FORMAT,
+	RTW89_FW_FEATURE_SCAN_OFFLOAD,
+	RTW89_FW_FEATURE_TX_WAKE,
+};
+
 struct rtw89_fw_suit {
 	const u8 *data;
 	u32 size;
@@ -2425,10 +2431,14 @@ struct rtw89_fw_info {
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
 	bool fw_log_enable;
-	bool old_ht_ra_format;
-	bool scan_offload;
-	bool tx_wake;
+	u32 feature_map;
 };
+
+#define RTW89_CHK_FW_FEATURE(_feat, _fw) \
+	(!!((_fw)->feature_map & BIT(RTW89_FW_FEATURE_ ## _feat)))
+
+#define RTW89_SET_FW_FEATURE(_fw_feature, _fw) \
+	((_fw)->feature_map |= BIT(_fw_feature))
 
 struct rtw89_cam_info {
 	DECLARE_BITMAP(addr_cam_map, RTW89_MAX_ADDR_CAM_NUM);

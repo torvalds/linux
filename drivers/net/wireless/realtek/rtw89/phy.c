@@ -1686,7 +1686,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 		break;
 	case RTW89_RA_RPT_MODE_HT:
 		ra_report->txrate.flags |= RATE_INFO_FLAGS_MCS;
-		if (rtwdev->fw.old_ht_ra_format)
+		if (RTW89_CHK_FW_FEATURE(OLD_HT_RA_FORMAT, &rtwdev->fw))
 			rate = RTW89_MK_HT_RATE(FIELD_GET(RTW89_RA_RATE_MASK_NSS, rate),
 						FIELD_GET(RTW89_RA_RATE_MASK_MCS, rate));
 		else

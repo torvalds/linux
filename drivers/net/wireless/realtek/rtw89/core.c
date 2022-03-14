@@ -759,7 +759,7 @@ static void
 rtw89_core_tx_wake(struct rtw89_dev *rtwdev,
 		   struct rtw89_core_tx_request *tx_req)
 {
-	if (!rtwdev->fw.tx_wake)
+	if (!RTW89_CHK_FW_FEATURE(TX_WAKE, &rtwdev->fw))
 		return;
 
 	if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
@@ -1454,7 +1454,8 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
-	if (rtwdev->scanning && rtwdev->fw.scan_offload) {
+	if (rtwdev->scanning &&
+	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
 		rx_status->freq =
 			ieee80211_channel_to_frequency(hal->current_channel,
 						       hal->current_band_type);
