@@ -548,12 +548,15 @@ static void intel_encoder_info(struct seq_file *m,
 static void intel_panel_info(struct seq_file *m,
 			     struct intel_connector *connector)
 {
-	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
+	const struct drm_display_mode *fixed_mode;
 
-	if (!fixed_mode)
+	if (list_empty(&connector->panel.fixed_modes))
 		return;
 
-	seq_printf(m, "\tfixed mode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(fixed_mode));
+	seq_puts(m, "\tfixed modes:\n");
+
+	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head)
+		intel_seq_print_mode(m, 2, fixed_mode);
 }
 
 static void intel_hdcp_info(struct seq_file *m,

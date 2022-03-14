@@ -48,59 +48,55 @@ bool intel_panel_use_ssc(struct drm_i915_private *i915)
 const struct drm_display_mode *
 intel_panel_preferred_fixed_mode(struct intel_connector *connector)
 {
-	return connector->panel.fixed_mode;
+	return list_first_entry_or_null(&connector->panel.fixed_modes,
+					struct drm_display_mode, head);
 }
 
 const struct drm_display_mode *
 intel_panel_fixed_mode(struct intel_connector *connector,
 		       const struct drm_display_mode *mode)
 {
-	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
-	const struct drm_display_mode *downclock_mode = connector->panel.downclock_mode;
+	const struct drm_display_mode *fixed_mode, *best_mode = NULL;
+	int vrefresh = drm_mode_vrefresh(mode);
 
-	/* pick the one that is closer in terms of vrefresh */
-	/* FIXME make this a a list of modes so we can have more than two */
-	if (fixed_mode && downclock_mode &&
-	    abs(drm_mode_vrefresh(downclock_mode) - drm_mode_vrefresh(mode)) <
-	    abs(drm_mode_vrefresh(fixed_mode) - drm_mode_vrefresh(mode)))
-		return downclock_mode;
-	else
-		return fixed_mode;
+	/* pick the fixed_mode that is closest in terms of vrefresh */
+	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
+		if (!best_mode ||
+		    abs(drm_mode_vrefresh(fixed_mode) - vrefresh) <
+		    abs(drm_mode_vrefresh(best_mode) - vrefresh))
+			best_mode = fixed_mode;
+	}
+
+	return best_mode;
 }
 
 const struct drm_display_mode *
 intel_panel_downclock_mode(struct intel_connector *connector,
 			   const struct drm_display_mode *adjusted_mode)
 {
-	const struct drm_display_mode *downclock_mode = connector->panel.downclock_mode;
+	const struct drm_display_mode *fixed_mode, *best_mode = NULL;
+	int vrefresh = drm_mode_vrefresh(adjusted_mode);
 
-	if (downclock_mode &&
-	    drm_mode_vrefresh(downclock_mode) < drm_mode_vrefresh(adjusted_mode))
-		return downclock_mode;
-	else
-		return NULL;
+	/* pick the fixed_mode with the lowest refresh rate */
+	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
+		if (drm_mode_vrefresh(fixed_mode) < vrefresh) {
+			vrefresh = drm_mode_vrefresh(fixed_mode);
+			best_mode = fixed_mode;
+		}
+	}
+
+	return best_mode;
 }
 
 int intel_panel_get_modes(struct intel_connector *connector)
 {
+	const struct drm_display_mode *fixed_mode;
 	int num_modes = 0;
 
-	if (connector->panel.fixed_mode) {
+	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
 		struct drm_display_mode *mode;
 
-		mode = drm_mode_duplicate(connector->base.dev,
-					  connector->panel.fixed_mode);
-		if (mode) {
-			drm_mode_probed_add(&connector->base, mode);
-			num_modes++;
-		}
-	}
-
-	if (connector->panel.downclock_mode) {
-		struct drm_display_mode *mode;
-
-		mode = drm_mode_duplicate(connector->base.dev,
-					  connector->panel.downclock_mode);
+		mode = drm_mode_duplicate(connector->base.dev, fixed_mode);
 		if (mode) {
 			drm_mode_probed_add(&connector->base, mode);
 			num_modes++;
@@ -114,7 +110,8 @@ enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
-	if (!connector->panel.downclock_mode)
+	if (list_empty(&connector->panel.fixed_modes) ||
+	    list_is_singular(&connector->panel.fixed_modes))
 		return DRRS_TYPE_NONE;
 
 	return i915->vbt.drrs_type;
@@ -608,8 +605,10 @@ int intel_panel_init(struct intel_panel *panel,
 {
 	intel_backlight_init_funcs(panel);
 
-	panel->fixed_mode = fixed_mode;
-	panel->downclock_mode = downclock_mode;
+	if (fixed_mode)
+		list_add_tail(&fixed_mode->head, &panel->fixed_modes);
+	if (downclock_mode)
+		list_add_tail(&downclock_mode->head, &panel->fixed_modes);
 
 	return 0;
 }
@@ -618,13 +617,12 @@ void intel_panel_fini(struct intel_panel *panel)
 {
 	struct intel_connector *intel_connector =
 		container_of(panel, struct intel_connector, panel);
+	struct drm_display_mode *fixed_mode, *next;
 
 	intel_backlight_destroy(panel);
 
-	if (panel->fixed_mode)
-		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
-
-	if (panel->downclock_mode)
-		drm_mode_destroy(intel_connector->base.dev,
-				panel->downclock_mode);
+	list_for_each_entry_safe(fixed_mode, next, &panel->fixed_modes, head) {
+		list_del(&fixed_mode->head);
+		drm_mode_destroy(intel_connector->base.dev, fixed_mode);
+	}
 }
