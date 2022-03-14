@@ -2194,6 +2194,8 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_CL_OUTSRC_RF_REG_A		0x8
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
 
+#define RTW89_FW_RSVD_PLE_SIZE 0x800
+
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);

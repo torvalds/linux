@@ -2,10 +2,14 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include <linux/devcoredump.h>
+
 #include "cam.h"
 #include "debug.h"
+#include "fw.h"
 #include "mac.h"
 #include "ps.h"
+#include "reg.h"
 #include "ser.h"
 #include "util.h"
 
@@ -65,6 +69,58 @@ static char *ser_st_name(struct rtw89_ser *ser)
 		return ser->st_tbl[ser->state].name;
 
 	return "err_st_name";
+}
+
+#define RTW89_DEF_SER_CD_TYPE(_name, _type, _size) \
+struct ser_cd_ ## _name { \
+	u32 type; \
+	u32 type_size; \
+	u64 padding; \
+	u8 data[_size]; \
+} __packed; \
+static void ser_cd_ ## _name ## _init(struct ser_cd_ ## _name *p) \
+{ \
+	p->type = _type; \
+	p->type_size = sizeof(p->data); \
+	p->padding = 0x0123456789abcdef; \
+}
+
+enum rtw89_ser_cd_type {
+	RTW89_SER_CD_FW_RSVD_PLE	= 0,
+};
+
+RTW89_DEF_SER_CD_TYPE(fw_rsvd_ple,
+		      RTW89_SER_CD_FW_RSVD_PLE,
+		      RTW89_FW_RSVD_PLE_SIZE);
+
+struct rtw89_ser_cd_buffer {
+	struct ser_cd_fw_rsvd_ple fwple;
+} __packed;
+
+static struct rtw89_ser_cd_buffer *rtw89_ser_cd_prep(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_ser_cd_buffer *buf;
+
+	buf = vzalloc(sizeof(*buf));
+	if (!buf)
+		return NULL;
+
+	ser_cd_fw_rsvd_ple_init(&buf->fwple);
+
+	return buf;
+}
+
+static void rtw89_ser_cd_send(struct rtw89_dev *rtwdev,
+			      struct rtw89_ser_cd_buffer *buf)
+{
+	rtw89_debug(rtwdev, RTW89_DBG_SER, "SER sends core dump\n");
+
+	/* After calling dev_coredump, buf's lifetime is supposed to be
+	 * handled by the device coredump framework. Note that a new dump
+	 * will be discarded if a previous one hasn't been released by
+	 * framework yet.
+	 */
+	dev_coredumpv(rtwdev->dev, buf, sizeof(*buf), GFP_KERNEL);
 }
 
 static void ser_state_run(struct rtw89_ser *ser, u8 evt)
@@ -390,6 +446,65 @@ static void ser_do_hci_st_hdl(struct rtw89_ser *ser, u8 evt)
 	}
 }
 
+static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
+			     u8 sel, u32 start_addr, u32 len)
+{
+	u32 *ptr = (u32 *)buf;
+	u32 base_addr, start_page, residue;
+	u32 cnt = 0;
+	u32 i;
+
+	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
+	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
+	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
+
+	while (cnt < len) {
+		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
+
+		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
+		     i < R_AX_INDIR_ACCESS_ENTRY + MAC_MEM_DUMP_PAGE_SIZE;
+		     i += 4, ptr++) {
+			*ptr = rtw89_read32(rtwdev, i);
+			cnt += 4;
+			if (cnt >= len)
+				break;
+		}
+
+		residue = 0;
+		base_addr += MAC_MEM_DUMP_PAGE_SIZE;
+	}
+}
+
+static void rtw89_ser_fw_rsvd_ple_dump(struct rtw89_dev *rtwdev, u8 *buf)
+{
+	u32 start_addr = rtwdev->chip->rsvd_ple_ofst;
+
+	rtw89_debug(rtwdev, RTW89_DBG_SER,
+		    "dump mem for fw rsvd payload engine (start addr: 0x%x)\n",
+		    start_addr);
+	ser_mac_mem_dump(rtwdev, buf, RTW89_MAC_MEM_SHARED_BUF, start_addr,
+			 RTW89_FW_RSVD_PLE_SIZE);
+}
+
+static void ser_l2_reset_st_pre_hdl(struct rtw89_ser *ser)
+{
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+	struct rtw89_ser_cd_buffer *buf;
+
+	buf = rtw89_ser_cd_prep(rtwdev);
+	if (!buf)
+		goto bottom;
+
+	rtw89_ser_fw_rsvd_ple_dump(rtwdev, buf->fwple.data);
+	rtw89_ser_cd_send(rtwdev, buf);
+
+bottom:
+	ser_reset_mac_binding(rtwdev);
+	rtw89_core_stop(rtwdev);
+	INIT_LIST_HEAD(&rtwdev->rtwvifs_list);
+}
+
 static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 {
 	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
@@ -397,8 +512,7 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		mutex_lock(&rtwdev->mutex);
-		ser_reset_mac_binding(rtwdev);
-		rtw89_core_stop(rtwdev);
+		ser_l2_reset_st_pre_hdl(ser);
 		mutex_unlock(&rtwdev->mutex);
 
 		ieee80211_restart_hw(rtwdev->hw);

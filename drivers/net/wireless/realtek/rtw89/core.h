@@ -2275,6 +2275,7 @@ struct rtw89_chip_info {
 	u32 fifo_size;
 	u16 max_amsdu_limit;
 	bool dis_2g_40m_ul_ofdma;
+	u32 rsvd_ple_ofst;
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
 	u32 rf_base_addr[2];
