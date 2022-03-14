@@ -164,17 +164,17 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 
 	switch (reg_c2pmsg_90) {
 	case SMU_RESP_NONE: {
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
-		msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
-		prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
-	} else {
-		msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
-		prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
-	}
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+		} else {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		}
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
-	}
+		}
 		break;
 	case SMU_RESP_OK:
 		/* The SMU executed the command. It completed with a
