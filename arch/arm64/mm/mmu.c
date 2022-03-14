@@ -63,6 +63,7 @@ static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss __maybe_unused;
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
 
 static DEFINE_SPINLOCK(swapper_pgdir_lock);
+static DEFINE_MUTEX(fixmap_lock);
 
 void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd)
 {
@@ -294,18 +295,6 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	} while (addr = next, addr != end);
 }
 
-static inline bool use_1G_block(unsigned long addr, unsigned long next,
-			unsigned long phys)
-{
-	if (PAGE_SHIFT != 12)
-		return false;
-
-	if (((addr | next | phys) & ~PUD_MASK) != 0)
-		return false;
-
-	return true;
-}
-
 static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 			   phys_addr_t phys, pgprot_t prot,
 			   phys_addr_t (*pgtable_alloc)(int),
@@ -329,6 +318,12 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	}
 	BUG_ON(p4d_bad(p4d));
 
+	/*
+	 * No need for locking during early boot. And it doesn't work as
+	 * expected with KASLR enabled.
+	 */
+	if (system_state != SYSTEM_BOOTING)
+		mutex_lock(&fixmap_lock);
 	pudp = pud_set_fixmap_offset(p4dp, addr);
 	do {
 		pud_t old_pud = READ_ONCE(*pudp);
@@ -338,7 +333,8 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
-		if (use_1G_block(addr, next, phys) &&
+		if (pud_sect_supported() &&
+		   ((addr | next | phys) & ~PUD_MASK) == 0 &&
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pud_set_huge(pudp, phys, prot);
 
@@ -359,6 +355,8 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	} while (pudp++, addr = next, addr != end);
 
 	pud_clear_fixmap();
+	if (system_state != SYSTEM_BOOTING)
+		mutex_unlock(&fixmap_lock);
 }
 
 static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
