@@ -322,10 +322,9 @@ struct mipi_csis_device {
 	u32 hs_settle;
 	u32 clk_settle;
 
-	struct mutex lock;	/* Protect csis_fmt, format_mbus and powered */
+	struct mutex lock;	/* Protect csis_fmt and format_mbus */
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format_mbus[CSIS_PADS_NUM];
-	bool powered;
 
 	spinlock_t slock;	/* Protect events */
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
@@ -1163,11 +1162,11 @@ static int mipi_csis_log_status(struct v4l2_subdev *sd)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
-	mutex_lock(&csis->lock);
 	mipi_csis_log_counters(csis, true);
-	if (csis->debug.enable && csis->powered)
+	if (csis->debug.enable && pm_runtime_get_if_in_use(csis->dev)) {
 		mipi_csis_dump_regs(csis);
-	mutex_unlock(&csis->lock);
+		pm_runtime_put(csis->dev);
+	}
 
 	return 0;
 }
@@ -1332,8 +1331,6 @@ static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 
 	mipi_csis_clk_disable(csis);
 
-	csis->powered = false;
-
 unlock:
 	mutex_unlock(&csis->lock);
 
@@ -1353,8 +1350,6 @@ static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 		goto unlock;
 
 	mipi_csis_clk_enable(csis);
-
-	csis->powered = true;
 
 unlock:
 	mutex_unlock(&csis->lock);
