@@ -263,45 +263,15 @@ use_count_dec:
 }
 EXPORT_SYMBOL(sof_widget_setup);
 
-static int sof_route_setup_ipc(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
-{
-	struct sof_ipc_pipe_comp_connect connect;
-	struct sof_ipc_reply reply;
-	int ret;
-
-	/* nothing to do if route is already set up */
-	if (sroute->setup)
-		return 0;
-
-	connect.hdr.size = sizeof(connect);
-	connect.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_CONNECT;
-	connect.source_id = sroute->src_widget->comp_id;
-	connect.sink_id = sroute->sink_widget->comp_id;
-
-	dev_dbg(sdev->dev, "setting up route %s -> %s\n",
-		sroute->src_widget->widget->name,
-		sroute->sink_widget->widget->name);
-
-	/* send ipc */
-	ret = sof_ipc_tx_message(sdev->ipc, connect.hdr.cmd, &connect, sizeof(connect),
-				 &reply, sizeof(reply));
-	if (ret < 0) {
-		dev_err(sdev->dev, "%s: route setup failed %d\n", __func__, ret);
-		return ret;
-	}
-
-	sroute->setup = true;
-
-	return 0;
-}
-
 static int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsource,
 			   struct snd_soc_dapm_widget *wsink)
 {
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	struct snd_sof_widget *src_widget = wsource->dobj.private;
 	struct snd_sof_widget *sink_widget = wsink->dobj.private;
 	struct snd_sof_route *sroute;
 	bool route_found = false;
+	int ret;
 
 	/* ignore routes involving virtual widgets in topology */
 	switch (src_widget->id) {
@@ -335,7 +305,16 @@ static int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget 
 		return -EINVAL;
 	}
 
-	return sof_route_setup_ipc(sdev, sroute);
+	/* nothing to do if route is already set up */
+	if (sroute->setup)
+		return 0;
+
+	ret = ipc_tplg_ops->route_setup(sdev, sroute);
+	if (ret < 0)
+		return ret;
+
+	sroute->setup = true;
+	return 0;
 }
 
 static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
@@ -604,6 +583,7 @@ int sof_set_hw_params_upon_resume(struct device *dev)
 
 int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 {
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	struct snd_sof_widget *swidget;
 	struct snd_sof_route *sroute;
@@ -656,7 +636,7 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 				sroute->sink_widget->dynamic_pipeline_widget))
 			continue;
 
-		ret = sof_route_setup_ipc(sdev, sroute);
+		ret = ipc_tplg_ops->route_setup(sdev, sroute);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: restore pipeline connections failed\n", __func__);
 			return ret;
