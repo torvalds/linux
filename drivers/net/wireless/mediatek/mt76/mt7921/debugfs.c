@@ -267,6 +267,9 @@ mt7921_pm_set(void *data, u64 val)
 	struct mt7921_dev *dev = data;
 	struct mt76_connac_pm *pm = &dev->pm;
 
+	if (mt76_is_usb(&dev->mt76))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&dev->mt76.mutex);
 
 	if (val == pm->enable_user)
@@ -310,6 +313,9 @@ mt7921_deep_sleep_set(void *data, u64 val)
 	struct mt76_connac_pm *pm = &dev->pm;
 	bool monitor = !!(dev->mphy.hw->conf.flags & IEEE80211_CONF_MONITOR);
 	bool enable = !!val;
+
+	if (mt76_is_usb(&dev->mt76))
+		return -EOPNOTSUPP;
 
 	mt7921_mutex_acquire(dev);
 	if (pm->ds_enable_user == enable)
