@@ -629,10 +629,6 @@ static const struct sof_topology_token dai_link_tokens[] = {
 		offsetof(struct sof_ipc_dai_config, dai_index)},
 };
 
-/* Tone */
-static const struct sof_topology_token tone_tokens[] = {
-};
-
 /* EFFECT */
 static const struct sof_topology_token process_tokens[] = {
 	{SOF_TKN_PROCESS_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING,
@@ -1770,58 +1766,6 @@ err:
 	return ret;
 }
 
-/*
- * Signal Generator Topology
- */
-
-static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
-				  struct snd_sof_widget *swidget,
-				  struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_tone *tone;
-	size_t ipc_size = sizeof(*tone);
-	int ret;
-
-	tone = (struct sof_ipc_comp_tone *)
-	       sof_comp_alloc(swidget, &ipc_size, index);
-	if (!tone)
-		return -ENOMEM;
-
-	/* configure siggen IPC message */
-	tone->comp.type = SOF_COMP_TONE;
-	tone->config.hdr.size = sizeof(tone->config);
-
-	ret = sof_parse_tokens(scomp, tone, tone_tokens,
-			       ARRAY_SIZE(tone_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse tone tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto err;
-	}
-
-	ret = sof_parse_tokens(scomp, &tone->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse tone.cfg tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto err;
-	}
-
-	dev_dbg(scomp->dev, "tone %s: frequency %d amplitude %d\n",
-		swidget->widget->name, tone->frequency, tone->amplitude);
-	sof_dbg_comp_config(scomp, &tone->config);
-
-	swidget->private = tone;
-
-	return 0;
-err:
-	kfree(tone);
-	return ret;
-}
-
 static int sof_get_control_data(struct snd_soc_component *scomp,
 				struct snd_soc_dapm_widget *widget,
 				struct sof_widget_data *wdata,
@@ -2152,12 +2096,10 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_src:
 	case snd_soc_dapm_asrc:
+	case snd_soc_dapm_siggen:
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
 		ret = sof_widget_parse_tokens(scomp, swidget, tw,  token_list, token_list_size);
-		break;
-	case snd_soc_dapm_siggen:
-		ret = sof_widget_load_siggen(scomp, index, swidget, tw);
 		break;
 	case snd_soc_dapm_effect:
 		ret = sof_widget_load_process(scomp, index, swidget, tw);

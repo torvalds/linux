@@ -212,6 +212,39 @@ static void sof_ipc3_widget_free_comp(struct snd_sof_widget *swidget)
 	kfree(swidget->private);
 }
 
+static int sof_ipc3_widget_setup_comp_tone(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc_comp_tone *tone;
+	size_t ipc_size = sizeof(*tone);
+	int ret;
+
+	tone = sof_comp_alloc(swidget, &ipc_size, swidget->pipeline_id);
+	if (!tone)
+		return -ENOMEM;
+
+	swidget->private = tone;
+
+	/* configure siggen IPC message */
+	tone->comp.type = SOF_COMP_TONE;
+	tone->config.hdr.size = sizeof(tone->config);
+
+	/* parse one set of comp tokens */
+	ret = sof_update_ipc_object(scomp, &tone->config, SOF_COMP_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(tone->config), 1);
+	if (ret < 0) {
+		kfree(swidget->private);
+		swidget->private = NULL;
+		return ret;
+	}
+
+	dev_dbg(scomp->dev, "tone %s: frequency %d amplitude %d\n",
+		swidget->widget->name, tone->frequency, tone->amplitude);
+	sof_dbg_comp_config(scomp, &tone->config);
+
+	return 0;
+}
+
 static int sof_ipc3_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
@@ -585,6 +618,9 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 			      src_token_list, ARRAY_SIZE(src_token_list), NULL},
 	[snd_soc_dapm_asrc] = {sof_ipc3_widget_setup_comp_asrc, sof_ipc3_widget_free_comp,
 			       asrc_token_list, ARRAY_SIZE(asrc_token_list), NULL},
+	[snd_soc_dapm_siggen] = {sof_ipc3_widget_setup_comp_tone, sof_ipc3_widget_free_comp,
+				 comp_generic_token_list, ARRAY_SIZE(comp_generic_token_list),
+				 NULL},
 	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
 	[snd_soc_dapm_pga] = {sof_ipc3_widget_setup_comp_pga, sof_ipc3_widget_free_comp,
