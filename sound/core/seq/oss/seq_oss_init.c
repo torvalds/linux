@@ -80,7 +80,7 @@ snd_seq_oss_create_client(void)
 
 	system_client = rc;
 
-	/* create annoucement receiver port */
+	/* create announcement receiver port */
 	strcpy(port->name, "Receiver");
 	port->addr.client = system_client;
 	port->capability = SNDRV_SEQ_PORT_CAP_WRITE; /* receive only */
