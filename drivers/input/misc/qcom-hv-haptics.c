@@ -966,6 +966,8 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 1627700 : 1666667)
 #define TLRA_AUTO_RES_AUTO_CAL_STEP_PSEC	\
 	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 813850 : 833333)
+#define SLEEP_CLK_CAL_DIVIDER			\
+	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 600 : 586)
 static int haptics_get_closeloop_lra_period(
 		struct haptics_chip *chip, bool in_boot)
 {
@@ -1057,10 +1059,10 @@ static int haptics_get_closeloop_lra_period(
 		if (!config->t_lra_us || !config->cl_t_lra_us)
 			return -EINVAL;
 		/*
-		 * RC_CLK_CAL_COUNT = 600 * (CAL_TLRA_OL / TLRA_OL)
-		 *		* (600 / 586) * (CL_T_TLRA_US / OL_T_LRA_US)
+		 * RC_CLK_CAL_COUNT = SLEEP_CLK_CAL_DIVIDER * (CAL_TLRA_OL / TLRA_OL)
+		 *		* (SLEEP_CLK_CAL_DIVIDER / 586) * (CL_T_TLRA_US / OL_T_LRA_US)
 		 */
-		tmp = 360000;
+		tmp = SLEEP_CLK_CAL_DIVIDER * SLEEP_CLK_CAL_DIVIDER;
 		tmp *= cal_tlra_cl_sts * config->cl_t_lra_us;
 		tmp = div_u64(tmp, tlra_ol);
 		tmp = div_u64(tmp, 586);
@@ -1095,10 +1097,10 @@ static int haptics_get_closeloop_lra_period(
 
 		/*
 		 * RC_CLK_CAL_COUNT =
-		 *	600 * (CAL_TLRA_CL_STS_AUTO_CAL / LAST_GOOD_TLRA_CL_STS)
-		 *		* (600 / 293) * (CL_T_TLRA_US / OL_T_LRA_US)
+		 *	SLEEP_CLK_CAL_DIVIDER * (CAL_TLRA_CL_STS_AUTO_CAL / LAST_GOOD_TLRA_CL_STS)
+		 *		* (SLEEP_CLK_CAL_DIVIDER / 293) * (CL_T_TLRA_US / OL_T_LRA_US)
 		 */
-		tmp = 360000;
+		tmp = SLEEP_CLK_CAL_DIVIDER * SLEEP_CLK_CAL_DIVIDER;
 		tmp *= cal_tlra_cl_sts * config->cl_t_lra_us;
 		tmp = div_u64(tmp, last_good_tlra_cl_sts);
 		tmp = div_u64(tmp, 293);
