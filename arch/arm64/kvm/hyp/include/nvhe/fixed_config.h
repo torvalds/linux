@@ -192,6 +192,11 @@
 	ARM64_FEATURE_MASK(ID_AA64ISAR1_I8MM) \
 	)
 
+#define PVM_ID_AA64ISAR2_ALLOW (\
+	ARM64_FEATURE_MASK(ID_AA64ISAR2_GPA3) | \
+	ARM64_FEATURE_MASK(ID_AA64ISAR2_APA3) \
+	)
+
 u64 pvm_read_id_reg(const struct kvm_vcpu *vcpu, u32 id);
 bool kvm_handle_pvm_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code);
 bool kvm_handle_pvm_restricted(struct kvm_vcpu *vcpu, u64 *exit_code);
