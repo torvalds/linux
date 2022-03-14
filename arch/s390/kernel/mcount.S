@@ -27,6 +27,7 @@ ENDPROC(ftrace_stub)
 #define STACK_PTREGS_GPRS	(STACK_PTREGS + __PT_GPRS)
 #define STACK_PTREGS_PSW	(STACK_PTREGS + __PT_PSW)
 #define STACK_PTREGS_ORIG_GPR2	(STACK_PTREGS + __PT_ORIG_GPR2)
+#define STACK_PTREGS_FLAGS	(STACK_PTREGS + __PT_FLAGS)
 #ifdef __PACK_STACK
 /* allocate just enough for r14, r15 and backchain */
 #define TRACED_FUNC_FRAME_SIZE	24
@@ -57,6 +58,14 @@ ENDPROC(ftrace_stub)
 	.if \allregs == 1
 	stg	%r14,(STACK_PTREGS_PSW)(%r15)
 	stosm	(STACK_PTREGS_PSW)(%r15),0
+#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
+	mvghi	STACK_PTREGS_FLAGS(%r15),_PIF_FTRACE_FULL_REGS
+#else
+	lghi	%r14,_PIF_FTRACE_FULL_REGS
+	stg	%r14,STACK_PTREGS_FLAGS(%r15)
+#endif
+	.else
+	xc	STACK_PTREGS_FLAGS(8,%r15),STACK_PTREGS_FLAGS(%r15)
 	.endif
 
 	lg	%r14,(__SF_GPRS+8*8)(%r1)	# restore original return address

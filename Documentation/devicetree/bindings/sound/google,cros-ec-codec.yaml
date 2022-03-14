@@ -8,6 +8,7 @@ title: Audio codec controlled by ChromeOS EC
 
 maintainers:
   - Cheng-Yi Chiang <cychiang@chromium.org>
+  - Tzung-Bi Shih <tzungbi@google.com>
 
 description: |
   Google's ChromeOS EC codec is a digital mic codec provided by the

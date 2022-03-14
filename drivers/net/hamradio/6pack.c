@@ -668,10 +668,10 @@ static void sixpack_close(struct tty_struct *tty)
 	 */
 	netif_stop_queue(sp->dev);
 
+	unregister_netdev(sp->dev);
+
 	del_timer_sync(&sp->tx_t);
 	del_timer_sync(&sp->resync_t);
-
-	unregister_netdev(sp->dev);
 
 	/* Free all 6pack frame buffers after unreg. */
 	kfree(sp->rbuff);
