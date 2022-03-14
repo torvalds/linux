@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/xarray.h>
 #include <linux/list.h>
+#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -33,6 +34,7 @@ static DEFINE_MUTEX(rk_heap_list_lock);
 static dev_t rk_dma_heap_devt;
 static struct class *rk_dma_heap_class;
 static DEFINE_XARRAY_ALLOC(rk_dma_heap_minors);
+struct proc_dir_entry *proc_rk_dma_heap_dir;
 
 #define RK_DMA_HEAP_CMA_DEFAULT_SIZE SZ_32M
 
@@ -701,6 +703,52 @@ static inline int rk_dma_heap_init_debugfs(void)
 	return 0;
 }
 #endif
+
+static int rk_dma_heap_proc_show(struct seq_file *s, void *unused)
+{
+	struct rk_dma_heap *heap;
+	unsigned long total = 0;
+
+	mutex_lock(&rk_heap_list_lock);
+	list_for_each_entry(heap, &rk_heap_list, list) {
+		heap->s = s;
+		get_each_dmabuf(rk_dma_heap_dump_dmabuf, heap);
+		rk_dma_heap_dump_contig(heap);
+		total += heap->total_size;
+	}
+	seq_printf(s, "\nTotal : 0x%lx\n", total);
+	mutex_unlock(&rk_heap_list_lock);
+
+	return 0;
+}
+
+static int rk_dma_heap_info_proc_open(struct inode *inode,
+						  struct file *file)
+{
+	return single_open(file, rk_dma_heap_proc_show, NULL);
+}
+
+static const struct proc_ops rk_dma_heap_info_proc_fops = {
+	.proc_open	= rk_dma_heap_info_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static int rk_dma_heap_init_proc(void)
+{
+	proc_rk_dma_heap_dir = proc_mkdir("rk_dma_heap", NULL);
+	if (!proc_rk_dma_heap_dir) {
+		pr_err("create rk_dma_heap proc dir error\n");
+		return -ENOENT;
+	}
+
+	proc_create("dma_heap_info", 0644, proc_rk_dma_heap_dir,
+		    &rk_dma_heap_info_proc_fops);
+
+	return 0;
+}
+
 static int rk_dma_heap_init(void)
 {
 	int ret;
@@ -722,6 +770,7 @@ static int rk_dma_heap_init(void)
 	rk_dma_heap_class->devnode = rk_dma_heap_devnode;
 
 	rk_dma_heap_init_debugfs();
+	rk_dma_heap_init_proc();
 
 	return 0;
 
