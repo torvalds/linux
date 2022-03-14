@@ -4,6 +4,7 @@
 
 #include <linux/stringify.h>
 #include <linux/instrumentation.h>
+#include <linux/objtool.h>
 
 /*
  * Despite that some emulators terminate on UD2, we use it for WARN().
