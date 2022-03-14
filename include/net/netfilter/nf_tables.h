@@ -1633,4 +1633,12 @@ static inline struct nftables_pernet *nft_pernet(const struct net *net)
 	return net_generic(net, nf_tables_net_id);
 }
 
+#define __NFT_REDUCE_READONLY	1UL
+#define NFT_REDUCE_READONLY	(void *)__NFT_REDUCE_READONLY
+
+static inline bool nft_reduce_is_readonly(const struct nft_expr *expr)
+{
+	return expr->ops->reduce == NFT_REDUCE_READONLY;
+}
+
 #endif /* _NET_NF_TABLES_H */
