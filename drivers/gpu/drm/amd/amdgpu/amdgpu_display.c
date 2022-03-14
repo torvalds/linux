@@ -1044,31 +1044,6 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	return r;
 }
 
-int amdgpu_display_gem_fb_init(struct drm_device *dev,
-			       struct amdgpu_framebuffer *rfb,
-			       const struct drm_mode_fb_cmd2 *mode_cmd,
-			       struct drm_gem_object *obj)
-{
-	int ret;
-
-	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
-
-	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
-	if (ret)
-		goto err;
-
-	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	drm_dbg_kms(dev, "Failed to init gem fb: %d\n", ret);
-	rfb->base.obj[0] = NULL;
-	return ret;
-}
-
 int amdgpu_display_gem_fb_verify_and_init(
 	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
 	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
