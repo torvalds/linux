@@ -926,43 +926,51 @@ static struct mipi_csis_device *sd_to_mipi_csis_device(struct v4l2_subdev *sdev)
 static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
-	int ret = 0;
+	int ret;
 
-	if (enable) {
-		ret = mipi_csis_calculate_params(csis);
-		if (ret < 0)
-			return ret;
+	if (!enable) {
+		mutex_lock(&csis->lock);
 
-		mipi_csis_clear_counters(csis);
-
-		ret = pm_runtime_resume_and_get(csis->dev);
-		if (ret < 0)
-			return ret;
-	}
-
-	mutex_lock(&csis->lock);
-
-	if (enable) {
-		mipi_csis_start_stream(csis);
-		ret = v4l2_subdev_call(csis->src_sd, video, s_stream, 1);
-		if (ret < 0)
-			goto unlock;
-
-		mipi_csis_log_counters(csis, true);
-	} else {
 		v4l2_subdev_call(csis->src_sd, video, s_stream, 0);
 
 		mipi_csis_stop_stream(csis);
-
 		if (csis->debug.enable)
 			mipi_csis_log_counters(csis, true);
+
+		mutex_unlock(&csis->lock);
+
+		pm_runtime_put(csis->dev);
+
+		return 0;
 	}
 
-unlock:
+	ret = mipi_csis_calculate_params(csis);
+	if (ret < 0)
+		return ret;
+
+	mipi_csis_clear_counters(csis);
+
+	ret = pm_runtime_resume_and_get(csis->dev);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&csis->lock);
+
+	mipi_csis_start_stream(csis);
+	ret = v4l2_subdev_call(csis->src_sd, video, s_stream, 1);
+	if (ret < 0)
+		goto error;
+
+	mipi_csis_log_counters(csis, true);
+
 	mutex_unlock(&csis->lock);
 
-	if (!enable || ret < 0)
-		pm_runtime_put(csis->dev);
+	return 0;
+
+error:
+	mipi_csis_stop_stream(csis);
+	mutex_unlock(&csis->lock);
+	pm_runtime_put(csis->dev);
 
 	return ret;
 }
