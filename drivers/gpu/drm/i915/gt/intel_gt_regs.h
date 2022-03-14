@@ -46,6 +46,7 @@
 #define   GEN8_MCR_SLICE_MASK			GEN8_MCR_SLICE(3)
 #define   GEN8_MCR_SUBSLICE(subslice)		(((subslice) & 3) << 24)
 #define   GEN8_MCR_SUBSLICE_MASK		GEN8_MCR_SUBSLICE(3)
+#define   GEN11_MCR_MULTICAST			REG_BIT(31)
 #define   GEN11_MCR_SLICE(slice)		(((slice) & 0xf) << 27)
 #define   GEN11_MCR_SLICE_MASK			GEN11_MCR_SLICE(0xf)
 #define   GEN11_MCR_SUBSLICE(subslice)		(((subslice) & 0x7) << 24)
