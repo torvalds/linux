@@ -191,7 +191,7 @@ IV. Notes
 
 Thanks to Kim Stearns of Packet Engines for providing a pair of G-NIC boards.
 Thanks to Bruce Faust of Digitalscape for providing both their SYM53C885 board
-and an AlphaStation to verifty the Alpha port!
+and an AlphaStation to verify the Alpha port!
 
 IVb. References
 
