@@ -45,7 +45,7 @@ static u64 sparx5_ptp_get_1ppm(struct sparx5 *sparx5)
 		res =  920535763834;
 		break;
 	default:
-		WARN_ON("Invalid core clock");
+		WARN(1, "Invalid core clock");
 		break;
 	}
 
@@ -67,7 +67,7 @@ static u64 sparx5_ptp_get_nominal_value(struct sparx5 *sparx5)
 		res = 0x0CC6666666666666;
 		break;
 	default:
-		WARN_ON("Invalid core clock");
+		WARN(1, "Invalid core clock");
 		break;
 	}
 
