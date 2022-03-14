@@ -724,26 +724,6 @@ rtw89_debug_priv_mac_mem_dump_select(struct file *filp,
 	return count;
 }
 
-static const u32 mac_mem_base_addr_table[RTW89_MAC_MEM_MAX] = {
-	[RTW89_MAC_MEM_AXIDMA]	        = AXIDMA_BASE_ADDR,
-	[RTW89_MAC_MEM_SHARED_BUF]	= SHARED_BUF_BASE_ADDR,
-	[RTW89_MAC_MEM_DMAC_TBL]	= DMAC_TBL_BASE_ADDR,
-	[RTW89_MAC_MEM_SHCUT_MACHDR]	= SHCUT_MACHDR_BASE_ADDR,
-	[RTW89_MAC_MEM_STA_SCHED]	= STA_SCHED_BASE_ADDR,
-	[RTW89_MAC_MEM_RXPLD_FLTR_CAM]	= RXPLD_FLTR_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_SECURITY_CAM]	= SECURITY_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_WOW_CAM]		= WOW_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_CMAC_TBL]	= CMAC_TBL_BASE_ADDR,
-	[RTW89_MAC_MEM_ADDR_CAM]	= ADDR_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_BA_CAM]		= BA_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_BCN_IE_CAM0]	= BCN_IE_CAM0_BASE_ADDR,
-	[RTW89_MAC_MEM_BCN_IE_CAM1]	= BCN_IE_CAM1_BASE_ADDR,
-	[RTW89_MAC_MEM_TXD_FIFO_0]	= TXD_FIFO_0_BASE_ADDR,
-	[RTW89_MAC_MEM_TXD_FIFO_1]	= TXD_FIFO_1_BASE_ADDR,
-	[RTW89_MAC_MEM_TXDATA_FIFO_0]	= TXDATA_FIFO_0_BASE_ADDR,
-	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
-};
-
 static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 				     struct rtw89_dev *rtwdev,
 				     u8 sel, u32 start_addr, u32 len)
@@ -757,7 +737,7 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 	pages = len / MAC_MEM_DUMP_PAGE_SIZE + 1;
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = mac_mem_base_addr_table[sel];
+	base_addr = rtw89_mac_mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	for (p = 0; p < pages; p++) {

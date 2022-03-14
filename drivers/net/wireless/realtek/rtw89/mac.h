@@ -273,6 +273,8 @@ enum rtw89_mac_mem_sel {
 	RTW89_MAC_MEM_INVALID = RTW89_MAC_MEM_LAST,
 };
 
+extern const u32 rtw89_mac_mem_base_addrs[];
+
 enum rtw89_rpwm_req_pwr_state {
 	RTW89_MAC_RPWM_REQ_PWR_STATE_ACTIVE = 0,
 	RTW89_MAC_RPWM_REQ_PWR_STATE_BAND0_RFON = 1,
