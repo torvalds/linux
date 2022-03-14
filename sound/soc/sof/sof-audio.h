@@ -78,6 +78,57 @@ struct snd_sof_tuple {
 	} value;
 };
 
+/*
+ * List of SOF token ID's. The order of ID's does not matter as token arrays are looked up based on
+ * the ID.
+ */
+enum sof_tokens {
+	SOF_PCM_TOKENS,
+	SOF_PIPELINE_TOKENS,
+	SOF_SCHED_TOKENS,
+	SOF_ASRC_TOKENS,
+	SOF_SRC_TOKENS,
+	SOF_COMP_TOKENS,
+	SOF_BUFFER_TOKENS,
+	SOF_VOLUME_TOKENS,
+	SOF_PROCESS_TOKENS,
+	SOF_DAI_TOKENS,
+	SOF_DAI_LINK_TOKENS,
+	SOF_HDA_TOKENS,
+	SOF_SSP_TOKENS,
+	SOF_ALH_TOKENS,
+	SOF_DMIC_TOKENS,
+	SOF_DMIC_PDM_TOKENS,
+	SOF_ESAI_TOKENS,
+	SOF_SAI_TOKENS,
+	SOF_AFE_TOKENS,
+	SOF_CORE_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+
+	/* this should be the last */
+	SOF_TOKEN_COUNT,
+};
+
+/**
+ * struct sof_topology_token - SOF topology token definition
+ * @token:		Token number
+ * @type:		Token type
+ * @get_token:		Function pointer to parse the token value and save it in a object
+ * @offset:		Offset within an object to save the token value into
+ */
+struct sof_topology_token {
+	u32 token;
+	u32 type;
+	int (*get_token)(void *elem, void *object, u32 offset);
+	u32 offset;
+};
+
+struct sof_token_info {
+	const char *name;
+	const struct sof_topology_token *tokens;
+	int count;
+};
+
 /* PCM stream, mapped to FW component  */
 struct snd_sof_pcm_stream {
 	u32 comp_id;
@@ -333,4 +384,7 @@ int get_token_u16(void *elem, void *object, u32 offset);
 int get_token_comp_format(void *elem, void *object, u32 offset);
 int get_token_dai_type(void *elem, void *object, u32 offset);
 int get_token_uuid(void *elem, void *object, u32 offset);
+int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum sof_tokens token_id,
+			  struct snd_sof_tuple *tuples, int num_tuples,
+			  size_t object_size, int token_instance_num);
 #endif

@@ -47,6 +47,100 @@
 /* size of tplg abi in byte */
 #define SOF_TPLG_ABI_SIZE 3
 
+/**
+ * sof_update_ipc_object - Parse multiple sets of tokens within the token array associated with the
+ *			    token ID.
+ * @scomp: pointer to SOC component
+ * @object: target IPC struct to save the parsed values
+ * @token_id: token ID for the token array to be searched
+ * @tuples: pointer to the tuples array
+ * @num_tuples: number of tuples in the tuples array
+ * @object_size: size of the object
+ * @token_instance_num: number of times the same @token_id needs to be parsed i.e. the function
+ *			looks for @token_instance_num of each token in the token array associated
+ *			with the @token_id
+ */
+int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum sof_tokens token_id,
+			  struct snd_sof_tuple *tuples, int num_tuples,
+			  size_t object_size, int token_instance_num)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
+	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
+	const struct sof_topology_token *tokens;
+	int i, j;
+
+	if (token_list[token_id].count < 0) {
+		dev_err(scomp->dev, "Invalid token count for token ID: %d\n", token_id);
+		return -EINVAL;
+	}
+
+	/* No tokens to match */
+	if (!token_list[token_id].count)
+		return 0;
+
+	tokens = token_list[token_id].tokens;
+	if (!tokens) {
+		dev_err(scomp->dev, "Invalid tokens for token id: %d\n", token_id);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < token_list[token_id].count; i++) {
+		int offset = 0;
+		int num_tokens_matched = 0;
+
+		for (j = 0; j < num_tuples; j++) {
+			if (tokens[i].token == tuples[j].token) {
+				switch (tokens[i].type) {
+				case SND_SOC_TPLG_TUPLE_TYPE_WORD:
+				{
+					u32 *val = (u32 *)((u8 *)object + tokens[i].offset +
+							   offset);
+
+					*val = tuples[j].value.v;
+					break;
+				}
+				case SND_SOC_TPLG_TUPLE_TYPE_SHORT:
+				case SND_SOC_TPLG_TUPLE_TYPE_BOOL:
+				{
+					u16 *val = (u16 *)((u8 *)object + tokens[i].offset +
+							    offset);
+
+					*val = (u16)tuples[j].value.v;
+					break;
+				}
+				case SND_SOC_TPLG_TUPLE_TYPE_STRING:
+				{
+					if (!tokens[i].get_token) {
+						dev_err(scomp->dev,
+							"get_token not defined for token %d in %s\n",
+							tokens[i].token, token_list[token_id].name);
+						return -EINVAL;
+					}
+
+					tokens[i].get_token((void *)tuples[j].value.s, object,
+							    tokens[i].offset + offset);
+					break;
+				}
+				default:
+					break;
+				}
+
+				num_tokens_matched++;
+
+				/* found all required sets of current token. Move to the next one */
+				if (!(num_tokens_matched % token_instance_num))
+					break;
+
+				/* move to the next object */
+				offset += object_size;
+			}
+		}
+	}
+
+	return 0;
+}
+
 struct sof_widget_data {
 	int ctrl_type;
 	int ipc_cmd;
@@ -464,18 +558,6 @@ static enum sof_comp_type find_process_comp_type(enum sof_ipc_process_type type)
 
 	return SOF_COMP_NONE;
 }
-
-/*
- * Topology Token Parsing.
- * New tokens should be added to headers and parsing tables below.
- */
-
-struct sof_topology_token {
-	u32 token;
-	u32 type;
-	int (*get_token)(void *elem, void *object, u32 offset);
-	u32 offset;
-};
 
 int get_token_u32(void *elem, void *object, u32 offset)
 {
