@@ -873,12 +873,17 @@ static int mipi_csis_dump_regs(struct mipi_csis_device *csis)
 	unsigned int i;
 	u32 cfg;
 
+	if (!pm_runtime_get_if_in_use(csis->dev))
+		return 0;
+
 	dev_info(csis->dev, "--- REGISTERS ---\n");
 
 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
 		cfg = mipi_csis_read(csis, registers[i].offset);
 		dev_info(csis->dev, "%14s: 0x%08x\n", registers[i].name, cfg);
 	}
+
+	pm_runtime_put(csis->dev);
 
 	return 0;
 }
@@ -1163,10 +1168,8 @@ static int mipi_csis_log_status(struct v4l2_subdev *sd)
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
 	mipi_csis_log_counters(csis, true);
-	if (csis->debug.enable && pm_runtime_get_if_in_use(csis->dev)) {
+	if (csis->debug.enable)
 		mipi_csis_dump_regs(csis);
-		pm_runtime_put(csis->dev);
-	}
 
 	return 0;
 }
