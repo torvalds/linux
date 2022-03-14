@@ -9,6 +9,6 @@ TEST_PROGS := nft_trans_stress.sh nft_fib.sh nft_nat.sh bridge_brouter.sh \
 	conntrack_vrf.sh nft_synproxy.sh
 
 LDLIBS = -lmnl
-TEST_GEN_FILES =  nf-queue
+TEST_GEN_FILES =  nf-queue connect_close
 
 include ../lib.mk
