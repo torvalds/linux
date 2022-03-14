@@ -87,14 +87,20 @@ static void ser_cd_ ## _name ## _init(struct ser_cd_ ## _name *p) \
 
 enum rtw89_ser_cd_type {
 	RTW89_SER_CD_FW_RSVD_PLE	= 0,
+	RTW89_SER_CD_FW_BACKTRACE	= 1,
 };
 
 RTW89_DEF_SER_CD_TYPE(fw_rsvd_ple,
 		      RTW89_SER_CD_FW_RSVD_PLE,
 		      RTW89_FW_RSVD_PLE_SIZE);
 
+RTW89_DEF_SER_CD_TYPE(fw_backtrace,
+		      RTW89_SER_CD_FW_BACKTRACE,
+		      RTW89_FW_BACKTRACE_MAX_SIZE);
+
 struct rtw89_ser_cd_buffer {
 	struct ser_cd_fw_rsvd_ple fwple;
+	struct ser_cd_fw_backtrace fwbt;
 } __packed;
 
 static struct rtw89_ser_cd_buffer *rtw89_ser_cd_prep(struct rtw89_dev *rtwdev)
@@ -106,6 +112,7 @@ static struct rtw89_ser_cd_buffer *rtw89_ser_cd_prep(struct rtw89_dev *rtwdev)
 		return NULL;
 
 	ser_cd_fw_rsvd_ple_init(&buf->fwple);
+	ser_cd_fw_backtrace_init(&buf->fwbt);
 
 	return buf;
 }
@@ -121,6 +128,21 @@ static void rtw89_ser_cd_send(struct rtw89_dev *rtwdev,
 	 * framework yet.
 	 */
 	dev_coredumpv(rtwdev->dev, buf, sizeof(*buf), GFP_KERNEL);
+}
+
+static void rtw89_ser_cd_free(struct rtw89_dev *rtwdev,
+			      struct rtw89_ser_cd_buffer *buf, bool free_self)
+{
+	if (!free_self)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_SER, "SER frees core dump by self\n");
+
+	/* When some problems happen during filling data of core dump,
+	 * we won't send it to device coredump framework. Instead, we
+	 * free buf by ourselves.
+	 */
+	vfree(buf);
 }
 
 static void ser_state_run(struct rtw89_ser *ser, u8 evt)
@@ -487,19 +509,92 @@ static void rtw89_ser_fw_rsvd_ple_dump(struct rtw89_dev *rtwdev, u8 *buf)
 			 RTW89_FW_RSVD_PLE_SIZE);
 }
 
+struct __fw_backtrace_entry {
+	u32 wcpu_addr;
+	u32 size;
+	u32 key;
+} __packed;
+
+struct __fw_backtrace_info {
+	u32 ra;
+	u32 sp;
+} __packed;
+
+static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
+	      sizeof(struct __fw_backtrace_info));
+
+static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
+				       const struct __fw_backtrace_entry *ent)
+{
+	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
+	u32 fwbt_addr = ent->wcpu_addr - RTW89_WCPU_BASE_ADDR;
+	u32 fwbt_size = ent->size;
+	u32 fwbt_key = ent->key;
+	u32 i;
+
+	if (fwbt_addr == 0) {
+		rtw89_warn(rtwdev, "FW backtrace invalid address: 0x%x\n",
+			   fwbt_addr);
+		return -EINVAL;
+	}
+
+	if (fwbt_key != RTW89_FW_BACKTRACE_KEY) {
+		rtw89_warn(rtwdev, "FW backtrace invalid key: 0x%x\n",
+			   fwbt_key);
+		return -EINVAL;
+	}
+
+	if (fwbt_size == 0 || !RTW89_VALID_FW_BACKTRACE_SIZE(fwbt_size) ||
+	    fwbt_size > RTW89_FW_BACKTRACE_MAX_SIZE) {
+		rtw89_warn(rtwdev, "FW backtrace invalid size: 0x%x\n",
+			   fwbt_size);
+		return -EINVAL;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_SER, "dump fw backtrace start\n");
+	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, fwbt_addr);
+
+	for (i = R_AX_INDIR_ACCESS_ENTRY;
+	     i < R_AX_INDIR_ACCESS_ENTRY + fwbt_size;
+	     i += RTW89_FW_BACKTRACE_INFO_SIZE, ptr++) {
+		*ptr = (struct __fw_backtrace_info){
+			.ra = rtw89_read32(rtwdev, i),
+			.sp = rtw89_read32(rtwdev, i + 4),
+		};
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "next sp: 0x%x, next ra: 0x%x\n",
+			    ptr->sp, ptr->ra);
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_SER, "dump fw backtrace end\n");
+	return 0;
+}
+
 static void ser_l2_reset_st_pre_hdl(struct rtw89_ser *ser)
 {
 	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
 	struct rtw89_ser_cd_buffer *buf;
+	struct __fw_backtrace_entry fwbt_ent;
+	int ret = 0;
 
 	buf = rtw89_ser_cd_prep(rtwdev);
-	if (!buf)
+	if (!buf) {
+		ret = -ENOMEM;
 		goto bottom;
+	}
 
 	rtw89_ser_fw_rsvd_ple_dump(rtwdev, buf->fwple.data);
+
+	fwbt_ent = *(struct __fw_backtrace_entry *)buf->fwple.data;
+	ret = rtw89_ser_fw_backtrace_dump(rtwdev, buf->fwbt.data, &fwbt_ent);
+	if (ret)
+		goto bottom;
+
 	rtw89_ser_cd_send(rtwdev, buf);
 
 bottom:
+	rtw89_ser_cd_free(rtwdev, buf, !!ret);
+
 	ser_reset_mac_binding(rtwdev);
 	rtw89_core_stop(rtwdev);
 	INIT_LIST_HEAD(&rtwdev->rtwvifs_list);

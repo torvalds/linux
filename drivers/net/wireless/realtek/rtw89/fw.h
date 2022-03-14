@@ -2196,6 +2196,15 @@ struct rtw89_fw_h2c_rf_reg_info {
 
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
+#define RTW89_WCPU_BASE_ADDR 0xA0000000
+
+#define RTW89_FW_BACKTRACE_INFO_SIZE 8
+#define RTW89_VALID_FW_BACKTRACE_SIZE(_size) \
+	((_size) % RTW89_FW_BACKTRACE_INFO_SIZE == 0)
+
+#define RTW89_FW_BACKTRACE_MAX_SIZE 512 /* 8 * 64 (entries) */
+#define RTW89_FW_BACKTRACE_KEY 0xBACEBACE
+
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);
