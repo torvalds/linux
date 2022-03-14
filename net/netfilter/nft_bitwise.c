@@ -529,3 +529,4 @@ bool nft_expr_reduce_bitwise(struct nft_regs_track *track,
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(nft_expr_reduce_bitwise);
