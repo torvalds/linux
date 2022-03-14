@@ -538,7 +538,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	const char *platform_name;
 	bool sof_parent;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 
@@ -559,8 +559,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 
 	/* override platform name, if required */
-	snd_soc_card_cht.dev = &pdev->dev;
-	mach = pdev->dev.platform_data;
+	snd_soc_card_cht.dev = dev;
+	mach = dev->platform_data;
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(&snd_soc_card_cht,
@@ -576,9 +576,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	else
 		mclk_name = "pmc_plt_clk_3";
 
-	drv->mclk = devm_clk_get(&pdev->dev, mclk_name);
+	drv->mclk = devm_clk_get(dev, mclk_name);
 	if (IS_ERR(drv->mclk)) {
-		dev_err(&pdev->dev,
+		dev_err(dev,
 			"Failed to get MCLK from %s: %ld\n",
 			mclk_name, PTR_ERR(drv->mclk));
 		return PTR_ERR(drv->mclk);
@@ -594,12 +594,12 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (drv->quirks & QUIRK_PMC_PLT_CLK_0) {
 		ret_val = clk_prepare_enable(drv->mclk);
 		if (ret_val < 0) {
-			dev_err(&pdev->dev, "MCLK enable error: %d\n", ret_val);
+			dev_err(dev, "MCLK enable error: %d\n", ret_val);
 			return ret_val;
 		}
 	}
 
-	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+	sof_parent = snd_soc_acpi_sof_parent(dev);
 
 	/* set card and driver name */
 	if (sof_parent) {
@@ -614,9 +614,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (sof_parent)
 		dev->driver->pm = &snd_soc_pm_ops;
 
-	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cht);
+	ret_val = devm_snd_soc_register_card(dev, &snd_soc_card_cht);
 	if (ret_val) {
-		dev_err(&pdev->dev,
+		dev_err(dev,
 			"snd_soc_register_card failed %d\n", ret_val);
 		return ret_val;
 	}
