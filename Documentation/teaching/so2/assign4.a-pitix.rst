@@ -1,16 +1,8 @@
 ===================================
-Google Challenge - PITIX Filesystem
+Assignment 4.a - PITIX Filesystem
 ===================================
 
-Deadline: :command:`Thursday, May 20, 2021, 23:00`
-
-This assignment is a bonus assignment, sponsored by Google.
-It is worth 2 points and is to be solved individually.
-Those who solve it before the deadline are eligible to win on of the Google Prizes:
-
-#. Fitbit Sense
-#. Fitbit Charge 4
-#. Fitbit Inspire 2
+Deadline: :command:`Tuesday, 24 May 2022, 23:00`
 
 Statement
 =========
