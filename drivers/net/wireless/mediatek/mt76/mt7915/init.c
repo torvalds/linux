@@ -581,7 +581,7 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 		val &= ~MT_TOP_PWR_SW_RST;
 		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
-		/* release wfsys then mcu re-excutes romcode */
+		/* release wfsys then mcu re-executes romcode */
 		val |= MT_TOP_PWR_SW_RST;
 		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
