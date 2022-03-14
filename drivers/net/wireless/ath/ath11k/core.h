@@ -230,6 +230,13 @@ struct ath11k_arp_ns_offload {
 	u8  mac_addr[ETH_ALEN];
 };
 
+struct ath11k_rekey_data {
+	u8 kck[NL80211_KCK_LEN];
+	u8 kek[NL80211_KCK_LEN];
+	u64 replay_ctr;
+	bool enable_offload;
+};
+
 struct ath11k_vif {
 	u32 vdev_id;
 	enum wmi_vdev_type vdev_type;
@@ -282,6 +289,7 @@ struct ath11k_vif {
 	bool do_not_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
 	struct ath11k_arp_ns_offload arp_ns_offload;
+	struct ath11k_rekey_data rekey_data;
 
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct dentry *debugfs_twt;

@@ -7765,6 +7765,56 @@ exit:
 	kfree(tb);
 }
 
+static void ath11k_wmi_gtk_offload_status_event(struct ath11k_base *ab,
+						struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_gtk_offload_status_event *ev;
+	struct ath11k_vif *arvif;
+	__be64 replay_ctr_be;
+	u64    replay_ctr;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_GTK_OFFLOAD_STATUS_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch gtk offload status ev");
+		kfree(tb);
+		return;
+	}
+
+	arvif = ath11k_mac_get_arvif_by_vdev_id(ab, ev->vdev_id);
+	if (!arvif) {
+		ath11k_warn(ab, "failed to get arvif for vdev_id:%d\n",
+			    ev->vdev_id);
+		kfree(tb);
+		return;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "wmi gtk offload event refresh_cnt %d\n",
+		   ev->refresh_cnt);
+	ath11k_dbg_dump(ab, ATH11K_DBG_WMI, "replay_cnt",
+			NULL, ev->replay_ctr.counter, GTK_REPLAY_COUNTER_BYTES);
+
+	replay_ctr =  ev->replay_ctr.word1;
+	replay_ctr = (replay_ctr << 32) | ev->replay_ctr.word0;
+	arvif->rekey_data.replay_ctr = replay_ctr;
+
+	/* supplicant expects big-endian replay counter */
+	replay_ctr_be = cpu_to_be64(replay_ctr);
+
+	ieee80211_gtk_rekey_notify(arvif->vif, arvif->bssid,
+				   (void *)&replay_ctr_be, GFP_KERNEL);
+
+	kfree(tb);
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -7895,6 +7945,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_DIAG_EVENTID:
 		ath11k_wmi_diag_event(ab, skb);
+		break;
+	case WMI_GTK_OFFLOAD_STATUS_EVENTID:
+		ath11k_wmi_gtk_offload_status_event(ab, skb);
 		break;
 	/* TODO: Add remaining events */
 	default:
@@ -8734,4 +8787,70 @@ int ath11k_wmi_arp_ns_offload(struct ath11k *ar,
 		ath11k_wmi_fill_ns_offload(ar, offload, &buf_ptr, enable, 1);
 
 	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_SET_ARP_NS_OFFLOAD_CMDID);
+}
+
+int ath11k_wmi_gtk_rekey_offload(struct ath11k *ar,
+				 struct ath11k_vif *arvif, bool enable)
+{
+	struct wmi_gtk_rekey_offload_cmd *cmd;
+	struct ath11k_rekey_data *rekey_data = &arvif->rekey_data;
+	int len;
+	struct sk_buff *skb;
+	__le64 replay_ctr;
+
+	len = sizeof(*cmd);
+	skb =  ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_gtk_rekey_offload_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_GTK_OFFLOAD_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->vdev_id = arvif->vdev_id;
+
+	if (enable) {
+		cmd->flags = GTK_OFFLOAD_ENABLE_OPCODE;
+
+		/* the length in rekey_data and cmd is equal */
+		memcpy(cmd->kck, rekey_data->kck, sizeof(cmd->kck));
+		ath11k_ce_byte_swap(cmd->kck, GTK_OFFLOAD_KEK_BYTES);
+		memcpy(cmd->kek, rekey_data->kek, sizeof(cmd->kek));
+		ath11k_ce_byte_swap(cmd->kek, GTK_OFFLOAD_KEK_BYTES);
+
+		replay_ctr = cpu_to_le64(rekey_data->replay_ctr);
+		memcpy(cmd->replay_ctr, &replay_ctr,
+		       sizeof(replay_ctr));
+		ath11k_ce_byte_swap(cmd->replay_ctr, GTK_REPLAY_COUNTER_BYTES);
+	} else {
+		cmd->flags = GTK_OFFLOAD_DISABLE_OPCODE;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "offload gtk rekey vdev: %d %d\n",
+		   arvif->vdev_id, enable);
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_GTK_OFFLOAD_CMDID);
+}
+
+int ath11k_wmi_gtk_rekey_getinfo(struct ath11k *ar,
+				 struct ath11k_vif *arvif)
+{
+	struct wmi_gtk_rekey_offload_cmd *cmd;
+	int len;
+	struct sk_buff *skb;
+
+	len = sizeof(*cmd);
+	skb =  ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_gtk_rekey_offload_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_GTK_OFFLOAD_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->vdev_id = arvif->vdev_id;
+	cmd->flags = GTK_OFFLOAD_REQUEST_STATUS_OPCODE;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "get gtk rekey vdev_id: %d\n",
+		   arvif->vdev_id);
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_GTK_OFFLOAD_CMDID);
 }
