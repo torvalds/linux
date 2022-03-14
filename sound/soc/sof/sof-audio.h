@@ -96,7 +96,26 @@ struct snd_sof_control {
 	bool comp_data_dirty;
 };
 
-struct snd_sof_widget;
+/** struct snd_sof_dai_link - DAI link info
+ * @tuples: array of parsed tuples
+ * @num_tuples: number of tuples in the tuples array
+ * @link: Pointer to snd_soc_dai_link
+ * @hw_configs: Pointer to hw configs in topology
+ * @num_hw_configs: Number of hw configs in topology
+ * @default_hw_cfg_id: Default hw config ID
+ * @type: DAI type
+ * @list: item in snd_sof_dev dai_link list
+ */
+struct snd_sof_dai_link {
+	struct snd_sof_tuple *tuples;
+	int num_tuples;
+	struct snd_soc_dai_link *link;
+	struct snd_soc_tplg_hw_config *hw_configs;
+	int num_hw_configs;
+	int default_hw_cfg_id;
+	int type;
+	struct list_head list;
+};
 
 /* ASoC SOF DAPM widget */
 struct snd_sof_widget {

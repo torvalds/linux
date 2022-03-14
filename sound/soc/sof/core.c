@@ -370,6 +370,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	INIT_LIST_HEAD(&sdev->kcontrol_list);
 	INIT_LIST_HEAD(&sdev->widget_list);
 	INIT_LIST_HEAD(&sdev->dai_list);
+	INIT_LIST_HEAD(&sdev->dai_link_list);
 	INIT_LIST_HEAD(&sdev->route_list);
 	INIT_LIST_HEAD(&sdev->ipc_client_list);
 	INIT_LIST_HEAD(&sdev->ipc_rx_handler_list);
