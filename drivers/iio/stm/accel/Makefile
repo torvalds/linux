@@ -48,3 +48,10 @@ st_h3lis331dl-y := st_h3lis331dl_core.o st_h3lis331dl_buffer.o
 obj-$(CONFIG_IIO_ST_H3LIS331DL) += st_h3lis331dl.o
 obj-$(CONFIG_IIO_ST_H3LIS331DL_I2C) += st_h3lis331dl_i2c.o
 obj-$(CONFIG_IIO_ST_H3LIS331DL_SPI) += st_h3lis331dl_spi.o
+
+st_lis2du12-y:= st_lis2du12_core.o st_lis2du12_buffer.o
+obj-$(CONFIG_IIO_ST_LIS2DU12) += st_lis2du12.o
+obj-$(CONFIG_IIO_ST_LIS2DU12_I2C) += st_lis2du12_i2c.o
+obj-$(CONFIG_IIO_ST_LIS2DU12_SPI) += st_lis2du12_spi.o
+obj-$(CONFIG_IIO_ST_LIS2DU12_I3C) += st_lis2du12_i3c.o
+
