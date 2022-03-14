@@ -1793,45 +1793,6 @@ err:
 }
 
 /*
- * Mixer topology
- */
-
-static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
-				 struct snd_sof_widget *swidget,
-				 struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_mixer *mixer;
-	size_t ipc_size = sizeof(*mixer);
-	int ret;
-
-	mixer = (struct sof_ipc_comp_mixer *)
-		sof_comp_alloc(swidget, &ipc_size, index);
-	if (!mixer)
-		return -ENOMEM;
-
-	/* configure mixer IPC message */
-	mixer->comp.type = SOF_COMP_MIXER;
-	mixer->config.hdr.size = sizeof(mixer->config);
-
-	ret = sof_parse_tokens(scomp, &mixer->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse mixer.cfg tokens failed %d\n",
-			private->size);
-		kfree(mixer);
-		return ret;
-	}
-
-	sof_dbg_comp_config(scomp, &mixer->config);
-
-	swidget->private = mixer;
-
-	return 0;
-}
-
-/*
  * Mux topology
  */
 static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
@@ -2341,9 +2302,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		list_add(&dai->list, &sdev->dai_list);
 		swidget->private = dai;
 		break;
-	case snd_soc_dapm_mixer:
-		ret = sof_widget_load_mixer(scomp, index, swidget, tw);
-		break;
 	case snd_soc_dapm_pga:
 		if (!le32_to_cpu(tw->num_kcontrols)) {
 			dev_err(scomp->dev, "invalid kcontrol count %d for volume\n",
@@ -2353,6 +2311,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 
 		fallthrough;
+	case snd_soc_dapm_mixer:
 	case snd_soc_dapm_buffer:
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_aif_out:

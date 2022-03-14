@@ -190,6 +190,40 @@ static void sof_ipc3_widget_free_comp(struct snd_sof_widget *swidget)
 	kfree(swidget->private);
 }
 
+static int sof_ipc3_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc_comp_mixer *mixer;
+	size_t ipc_size = sizeof(*mixer);
+	int ret;
+
+	mixer = sof_comp_alloc(swidget, &ipc_size, swidget->pipeline_id);
+	if (!mixer)
+		return -ENOMEM;
+
+	swidget->private = mixer;
+
+	/* configure mixer IPC message */
+	mixer->comp.type = SOF_COMP_MIXER;
+	mixer->config.hdr.size = sizeof(mixer->config);
+
+	/* parse one set of comp tokens */
+	ret = sof_update_ipc_object(scomp, &mixer->config, SOF_COMP_TOKENS,
+				    swidget->tuples, swidget->num_tuples,
+				    sizeof(mixer->config), 1);
+	if (ret < 0) {
+		kfree(swidget->private);
+		swidget->private = NULL;
+
+		return ret;
+	}
+
+	dev_dbg(scomp->dev, "loaded mixer %s\n", swidget->widget->name);
+	sof_dbg_comp_config(scomp, &mixer->config);
+
+	return 0;
+}
+
 static int sof_ipc3_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
@@ -358,6 +392,12 @@ static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 };
 
+static enum sof_tokens comp_generic_token_list[] = {
+	SOF_CORE_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+	SOF_COMP_TOKENS,
+};
+
 static enum sof_tokens buffer_token_list[] = {
 	SOF_BUFFER_TOKENS,
 };
@@ -383,6 +423,9 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
 	[snd_soc_dapm_buffer] = {sof_ipc3_widget_setup_comp_buffer, sof_ipc3_widget_free_comp,
 				 buffer_token_list, ARRAY_SIZE(buffer_token_list), NULL},
+	[snd_soc_dapm_mixer] = {sof_ipc3_widget_setup_comp_mixer, sof_ipc3_widget_free_comp,
+				comp_generic_token_list, ARRAY_SIZE(comp_generic_token_list),
+				NULL},
 	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
 	[snd_soc_dapm_pga] = {sof_ipc3_widget_setup_comp_pga, sof_ipc3_widget_free_comp,
