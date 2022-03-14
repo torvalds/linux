@@ -302,8 +302,11 @@ static void hal_send_m4_event(struct rtw89_ser *ser)
 /* state handler */
 static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 {
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+
 	switch (evt) {
 	case SER_EV_STATE_IN:
+		rtw89_hci_recovery_complete(rtwdev);
 		break;
 	case SER_EV_L1_RESET:
 		ser_state_goto(ser, SER_RESET_TRX_ST);
@@ -312,6 +315,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 		ser_state_goto(ser, SER_L2_RESET_ST);
 		break;
 	case SER_EV_STATE_OUT:
+		rtw89_hci_recovery_start(rtwdev);
 	default:
 		break;
 	}

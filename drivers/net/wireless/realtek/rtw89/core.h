@@ -2025,6 +2025,13 @@ struct rtw89_hci_ops {
 	int (*mac_lv1_rcvy)(struct rtw89_dev *rtwdev, enum rtw89_lv1_rcvy_step step);
 	void (*dump_err_status)(struct rtw89_dev *rtwdev);
 	int (*napi_poll)(struct napi_struct *napi, int budget);
+
+	/* Deal with locks inside recovery_start and recovery_complete callbacks
+	 * by hci instance, and handle things which need to consider under SER.
+	 * e.g. turn on/off interrupts except for the one for halt notification.
+	 */
+	void (*recovery_start)(struct rtw89_dev *rtwdev);
+	void (*recovery_complete)(struct rtw89_dev *rtwdev);
 };
 
 struct rtw89_hci_info {
@@ -3031,6 +3038,18 @@ static inline void rtw89_hci_flush_queues(struct rtw89_dev *rtwdev, u32 queues,
 {
 	if (rtwdev->hci.ops->flush_queues)
 		return rtwdev->hci.ops->flush_queues(rtwdev, queues, drop);
+}
+
+static inline void rtw89_hci_recovery_start(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hci.ops->recovery_start)
+		rtwdev->hci.ops->recovery_start(rtwdev);
+}
+
+static inline void rtw89_hci_recovery_complete(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hci.ops->recovery_complete)
+		rtwdev->hci.ops->recovery_complete(rtwdev);
 }
 
 static inline u8 rtw89_read8(struct rtw89_dev *rtwdev, u32 addr)

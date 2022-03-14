@@ -647,6 +647,29 @@ static void rtw89_pci_disable_intr(struct rtw89_dev *rtwdev,
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR10, 0);
 }
 
+static void rtw89_pci_ops_recovery_start(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+	rtwpci->under_recovery = true;
+	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00, 0);
+	rtw89_write32(rtwdev, R_AX_PCIE_HIMR10, 0);
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
+}
+
+static void rtw89_pci_ops_recovery_complete(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+	rtwpci->under_recovery = false;
+	rtw89_pci_enable_intr(rtwdev, rtwpci);
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
+}
+
 static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 {
 	struct rtw89_dev *rtwdev = dev;
@@ -663,6 +686,9 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 
 	if (unlikely(isrs.halt_c2h_isrs & B_AX_HALT_C2H_INT_EN))
 		rtw89_ser_notify(rtwdev, rtw89_mac_get_err_status(rtwdev));
+
+	if (unlikely(rtwpci->under_recovery))
+		return IRQ_HANDLED;
 
 	if (likely(rtwpci->running)) {
 		local_bh_disable();
@@ -2931,6 +2957,9 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.mac_lv1_rcvy	= rtw89_pci_ops_mac_lv1_recovery,
 	.dump_err_status = rtw89_pci_ops_dump_err_status,
 	.napi_poll	= rtw89_pci_napi_poll,
+
+	.recovery_start = rtw89_pci_ops_recovery_start,
+	.recovery_complete = rtw89_pci_ops_recovery_complete,
 };
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
