@@ -91,8 +91,9 @@ mode is specified, the program will run in that mode. If multiple
 modes are specified, the mode is selected as described in the "Per-CPU
 preferred tag checking modes" section below.
 
-The current tag check fault mode can be read using the
-``prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0)`` system call.
+The current tag check fault configuration can be read using the
+``prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0)`` system call. If
+multiple modes were requested then all will be reported.
 
 Tag checking can also be disabled for a user thread by setting the
 ``PSTATE.TCO`` bit with ``MSR TCO, #1``.
