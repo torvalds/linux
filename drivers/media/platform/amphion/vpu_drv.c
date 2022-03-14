@@ -128,8 +128,12 @@ static int vpu_probe(struct platform_device *pdev)
 	vpu->encoder.function = MEDIA_ENT_F_PROC_VIDEO_ENCODER;
 	vpu->decoder.type = VPU_CORE_TYPE_DEC;
 	vpu->decoder.function = MEDIA_ENT_F_PROC_VIDEO_DECODER;
-	vpu_add_func(vpu, &vpu->decoder);
-	vpu_add_func(vpu, &vpu->encoder);
+	ret = vpu_add_func(vpu, &vpu->decoder);
+	if (ret)
+		goto err_add_decoder;
+	ret = vpu_add_func(vpu, &vpu->encoder);
+	if (ret)
+		goto err_add_encoder;
 	ret = media_device_register(&vpu->mdev);
 	if (ret)
 		goto err_vpu_media;
@@ -141,7 +145,10 @@ static int vpu_probe(struct platform_device *pdev)
 
 err_vpu_media:
 	vpu_remove_func(&vpu->encoder);
+err_add_encoder:
 	vpu_remove_func(&vpu->decoder);
+err_add_decoder:
+	media_device_cleanup(&vpu->mdev);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_vpu_deinit:
 	pm_runtime_set_suspended(dev);
