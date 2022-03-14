@@ -8580,3 +8580,158 @@ int ath11k_wmi_wow_config_pno(struct ath11k *ar, u32 vdev_id,
 	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);
 }
 
+static void ath11k_wmi_fill_ns_offload(struct ath11k *ar,
+				       struct ath11k_arp_ns_offload *offload,
+				       u8 **ptr,
+				       bool enable,
+				       bool ext)
+{
+	struct wmi_ns_offload_tuple *ns;
+	struct wmi_tlv *tlv;
+	u8 *buf_ptr = *ptr;
+	u32 ns_cnt, ns_ext_tuples;
+	int i, max_offloads;
+
+	ns_cnt = offload->ipv6_count;
+
+	tlv  = (struct wmi_tlv *)buf_ptr;
+
+	if (ext) {
+		ns_ext_tuples = offload->ipv6_count - WMI_MAX_NS_OFFLOADS;
+		tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
+			      FIELD_PREP(WMI_TLV_LEN, ns_ext_tuples * sizeof(*ns));
+		i = WMI_MAX_NS_OFFLOADS;
+		max_offloads = offload->ipv6_count;
+	} else {
+		tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
+			      FIELD_PREP(WMI_TLV_LEN, WMI_MAX_NS_OFFLOADS * sizeof(*ns));
+		i = 0;
+		max_offloads = WMI_MAX_NS_OFFLOADS;
+	}
+
+	buf_ptr += sizeof(*tlv);
+
+	for (; i < max_offloads; i++) {
+		ns = (struct wmi_ns_offload_tuple *)buf_ptr;
+		ns->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_NS_OFFLOAD_TUPLE) |
+				 FIELD_PREP(WMI_TLV_LEN, sizeof(*ns) - TLV_HDR_SIZE);
+
+		if (enable) {
+			if (i < ns_cnt)
+				ns->flags |= WMI_NSOL_FLAGS_VALID;
+
+			memcpy(ns->target_ipaddr[0], offload->ipv6_addr[i], 16);
+			memcpy(ns->solicitation_ipaddr, offload->self_ipv6_addr[i], 16);
+			ath11k_ce_byte_swap(ns->target_ipaddr[0], 16);
+			ath11k_ce_byte_swap(ns->solicitation_ipaddr, 16);
+
+			if (offload->ipv6_type[i])
+				ns->flags |= WMI_NSOL_FLAGS_IS_IPV6_ANYCAST;
+
+			memcpy(ns->target_mac.addr, offload->mac_addr, ETH_ALEN);
+			ath11k_ce_byte_swap(ns->target_mac.addr, 8);
+
+			if (ns->target_mac.word0 != 0 ||
+			    ns->target_mac.word1 != 0) {
+				ns->flags |= WMI_NSOL_FLAGS_MAC_VALID;
+			}
+
+			ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+				   "wmi index %d ns_solicited %pI6 target %pI6",
+				   i, ns->solicitation_ipaddr,
+				   ns->target_ipaddr[0]);
+		}
+
+		buf_ptr += sizeof(*ns);
+	}
+
+	*ptr = buf_ptr;
+}
+
+static void ath11k_wmi_fill_arp_offload(struct ath11k *ar,
+					struct ath11k_arp_ns_offload *offload,
+					u8 **ptr,
+					bool enable)
+{
+	struct wmi_arp_offload_tuple *arp;
+	struct wmi_tlv *tlv;
+	u8 *buf_ptr = *ptr;
+	int i;
+
+	/* fill arp tuple */
+	tlv = (struct wmi_tlv *)buf_ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
+		      FIELD_PREP(WMI_TLV_LEN, WMI_MAX_ARP_OFFLOADS * sizeof(*arp));
+	buf_ptr += sizeof(*tlv);
+
+	for (i = 0; i < WMI_MAX_ARP_OFFLOADS; i++) {
+		arp = (struct wmi_arp_offload_tuple *)buf_ptr;
+		arp->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARP_OFFLOAD_TUPLE) |
+				  FIELD_PREP(WMI_TLV_LEN, sizeof(*arp) - TLV_HDR_SIZE);
+
+		if (enable && i < offload->ipv4_count) {
+			/* Copy the target ip addr and flags */
+			arp->flags = WMI_ARPOL_FLAGS_VALID;
+			memcpy(arp->target_ipaddr, offload->ipv4_addr[i], 4);
+			ath11k_ce_byte_swap(arp->target_ipaddr, 4);
+
+			ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi arp offload address %pI4",
+				   arp->target_ipaddr);
+		}
+
+		buf_ptr += sizeof(*arp);
+	}
+
+	*ptr = buf_ptr;
+}
+
+int ath11k_wmi_arp_ns_offload(struct ath11k *ar,
+			      struct ath11k_vif *arvif, bool enable)
+{
+	struct ath11k_arp_ns_offload *offload;
+	struct wmi_set_arp_ns_offload_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	u8 *buf_ptr;
+	size_t len;
+	u8 ns_cnt, ns_ext_tuples = 0;
+
+	offload = &arvif->arp_ns_offload;
+	ns_cnt = offload->ipv6_count;
+
+	len = sizeof(*cmd) +
+	      sizeof(*tlv) +
+	      WMI_MAX_NS_OFFLOADS * sizeof(struct wmi_ns_offload_tuple) +
+	      sizeof(*tlv) +
+	      WMI_MAX_ARP_OFFLOADS * sizeof(struct wmi_arp_offload_tuple);
+
+	if (ns_cnt > WMI_MAX_NS_OFFLOADS) {
+		ns_ext_tuples = ns_cnt - WMI_MAX_NS_OFFLOADS;
+		len += sizeof(*tlv) +
+		       ns_ext_tuples * sizeof(struct wmi_ns_offload_tuple);
+	}
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	buf_ptr = skb->data;
+	cmd = (struct wmi_set_arp_ns_offload_cmd *)buf_ptr;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_SET_ARP_NS_OFFLOAD_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->flags = 0;
+	cmd->vdev_id = arvif->vdev_id;
+	cmd->num_ns_ext_tuples = ns_ext_tuples;
+
+	buf_ptr += sizeof(*cmd);
+
+	ath11k_wmi_fill_ns_offload(ar, offload, &buf_ptr, enable, 0);
+	ath11k_wmi_fill_arp_offload(ar, offload, &buf_ptr, enable);
+
+	if (ns_ext_tuples)
+		ath11k_wmi_fill_ns_offload(ar, offload, &buf_ptr, enable, 1);
+
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_SET_ARP_NS_OFFLOAD_CMDID);
+}
