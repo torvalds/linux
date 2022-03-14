@@ -214,17 +214,28 @@ static int psp_send_i2c_req(enum psp_i2c_req_type i2c_req_type)
 				PSP_I2C_REQ_RETRY_DELAY_US,
 				PSP_I2C_REQ_RETRY_CNT * PSP_I2C_REQ_RETRY_DELAY_US,
 				0, req);
-	if (ret)
+	if (ret) {
+		dev_err(psp_i2c_dev, "Timed out waiting for PSP to %s I2C bus\n",
+			(i2c_req_type == PSP_I2C_REQ_ACQUIRE) ?
+			"release" : "acquire");
 		goto cleanup;
+	}
 
 	ret = status;
-	if (ret)
+	if (ret) {
+		dev_err(psp_i2c_dev, "PSP communication error\n");
 		goto cleanup;
+	}
 
 	dev_dbg(psp_i2c_dev, "Request accepted by PSP after %ums\n",
 		jiffies_to_msecs(jiffies - start));
 
 cleanup:
+	if (ret) {
+		dev_err(psp_i2c_dev, "Assume i2c bus is for exclusive host usage\n");
+		psp_i2c_mbox_fail = true;
+	}
+
 	kfree(req);
 	return ret;
 }
@@ -249,16 +260,8 @@ static int psp_acquire_i2c_bus(void)
 	}
 
 	status = psp_send_i2c_req(PSP_I2C_REQ_ACQUIRE);
-	if (status) {
-		if (status == -ETIMEDOUT)
-			dev_err(psp_i2c_dev, "Timed out waiting for PSP to release I2C bus\n");
-		else
-			dev_err(psp_i2c_dev, "PSP communication error\n");
-
-		dev_err(psp_i2c_dev, "Assume i2c bus is for exclusive host usage\n");
-		psp_i2c_mbox_fail = true;
+	if (status)
 		goto cleanup;
-	}
 
 	psp_i2c_sem_acquired = jiffies;
 	psp_i2c_access_count++;
@@ -294,16 +297,8 @@ static void psp_release_i2c_bus(void)
 
 	/* Send a release command to PSP */
 	status = psp_send_i2c_req(PSP_I2C_REQ_RELEASE);
-	if (status) {
-		if (status == -ETIMEDOUT)
-			dev_err(psp_i2c_dev, "Timed out waiting for PSP to acquire I2C bus\n");
-		else
-			dev_err(psp_i2c_dev, "PSP communication error\n");
-
-		dev_err(psp_i2c_dev, "Assume i2c bus is for exclusive host usage\n");
-		psp_i2c_mbox_fail = true;
+	if (status)
 		goto cleanup;
-	}
 
 	dev_dbg(psp_i2c_dev, "PSP semaphore held for %ums\n",
 		jiffies_to_msecs(jiffies - psp_i2c_sem_acquired));
