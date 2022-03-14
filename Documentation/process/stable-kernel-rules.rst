@@ -83,8 +83,8 @@ it to be applied to.
 :ref:`option_2` and :ref:`option_3` are more useful if the patch isn't deemed
 worthy at the time it is applied to a public git tree (for instance, because
 it deserves more regression testing first).  :ref:`option_3` is especially
-useful if the patch needs some special handling to apply to an older kernel
-(e.g., if API's have changed in the meantime).
+useful if the original upstream patch needs to be backported (for example
+the backport needs some special handling due to e.g. API changes).
 
 Note that for :ref:`option_3`, if the patch deviates from the original
 upstream patch (for example because it had to be backported) this must be very
@@ -153,8 +153,17 @@ Review cycle
  - If the patch is rejected by a member of the committee, or linux-kernel
    members object to the patch, bringing up issues that the maintainers and
    members did not realize, the patch will be dropped from the queue.
- - At the end of the review cycle, the ACKed patches will be added to the
-   latest -stable release, and a new -stable release will happen.
+ - The ACKed patches will be posted again as part of release candidate (-rc)
+   to be tested by developers and testers.
+ - Usually only one -rc release is made, however if there are any outstanding
+   issues, some patches may be modified or dropped or additional patches may
+   be queued. Additional -rc releases are then released and tested until no
+   issues are found.
+ - Responding to the -rc releases can be done on the mailing list by sending
+   a "Tested-by:" email with any testing information desired. The "Tested-by:"
+   tags will be collected and added to the release commit.
+ - At the end of the review cycle, the new -stable release will be released
+   containing all the queued and tested patches.
  - Security patches will be accepted into the -stable tree directly from the
    security kernel team, and not go through the normal review cycle.
    Contact the kernel security team for more details on this procedure.
