@@ -130,14 +130,13 @@ denoting a range of code via ``SYM_*_START/END`` annotations.
   In fact, this kind of annotation corresponds to the now deprecated ``ENTRY``
   and ``ENDPROC`` macros.
 
-* ``SYM_FUNC_START_ALIAS`` and ``SYM_FUNC_START_LOCAL_ALIAS`` serve for those
-  who decided to have two or more names for one function. The typical use is::
+* ``SYM_FUNC_ALIAS``, ``SYM_FUNC_ALIAS_LOCAL``, and ``SYM_FUNC_ALIAS_WEAK`` can
+  be used to define multiple names for a function. The typical use is::
 
-    SYM_FUNC_START_ALIAS(__memset)
-    SYM_FUNC_START(memset)
+    SYM_FUNC_START(__memset)
         ... asm insns ...
-    SYM_FUNC_END(memset)
-    SYM_FUNC_END_ALIAS(__memset)
+    SYN_FUNC_END(__memset)
+    SYM_FUNC_ALIAS(memset, __memset)
 
   In this example, one can call ``__memset`` or ``memset`` with the same
   result, except the debug information for the instructions is generated to
