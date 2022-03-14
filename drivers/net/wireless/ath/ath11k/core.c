@@ -428,12 +428,29 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 	},
 };
 
+static inline struct ath11k_pdev *ath11k_core_get_single_pdev(struct ath11k_base *ab)
+{
+	WARN_ON(!ab->hw_params.single_pdev_only);
+
+	return &ab->pdevs[0];
+}
+
 int ath11k_core_suspend(struct ath11k_base *ab)
 {
 	int ret;
+	struct ath11k_pdev *pdev;
+	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
+
+	/* so far single_pdev_only chips have supports_suspend as true
+	 * and only the first pdev is valid.
+	 */
+	pdev = ath11k_core_get_single_pdev(ab);
+	ar = pdev->ar;
+	if (!ar || ar->state != ATH11K_STATE_OFF)
+		return 0;
 
 	/* TODO: there can frames in queues so for now add delay as a hack.
 	 * Need to implement to handle and remove this delay.
@@ -444,6 +461,12 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 	if (ret) {
 		ath11k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
 			    ret);
+		return ret;
+	}
+
+	ret = ath11k_mac_wait_tx_complete(ar);
+	if (ret) {
+		ath11k_warn(ab, "failed to wait tx complete: %d\n", ret);
 		return ret;
 	}
 
@@ -479,9 +502,19 @@ EXPORT_SYMBOL(ath11k_core_suspend);
 int ath11k_core_resume(struct ath11k_base *ab)
 {
 	int ret;
+	struct ath11k_pdev *pdev;
+	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
+
+	/* so far signle_pdev_only chips have supports_suspend as true
+	 * and only the first pdev is valid.
+	 */
+	pdev = ath11k_core_get_single_pdev(ab);
+	ar = pdev->ar;
+	if (!ar || ar->state != ATH11K_STATE_OFF)
+		return 0;
 
 	ret = ath11k_hif_resume(ab);
 	if (ret) {

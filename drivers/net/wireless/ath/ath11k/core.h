@@ -23,6 +23,7 @@
 #include "thermal.h"
 #include "dbring.h"
 #include "spectral.h"
+#include "wow.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -590,6 +591,9 @@ struct ath11k {
 	struct work_struct wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
+	struct ath11k_wow wow;
+	struct completion target_suspend;
+	bool target_suspend_ack;
 	struct ath11k_per_peer_tx_stats peer_tx_stats;
 	struct list_head ppdu_stats_info;
 	u32 ppdu_stat_list_depth;

@@ -16,6 +16,8 @@
 #include "testmode.h"
 #include "peer.h"
 #include "debugfs_sta.h"
+#include "hif.h"
+#include "wow.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -7258,31 +7260,47 @@ static int ath11k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	return -EOPNOTSUPP;
 }
 
-static void ath11k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-				u32 queues, bool drop)
+static int ath11k_mac_flush_tx_complete(struct ath11k *ar)
 {
-	struct ath11k *ar = hw->priv;
 	long time_left;
-
-	if (drop)
-		return;
+	int ret = 0;
 
 	time_left = wait_event_timeout(ar->dp.tx_empty_waitq,
 				       (atomic_read(&ar->dp.num_tx_pending) == 0),
 				       ATH11K_FLUSH_TIMEOUT);
-	if (time_left == 0)
-		ath11k_warn(ar->ab, "failed to flush transmit queue %ld\n", time_left);
+	if (time_left == 0) {
+		ath11k_warn(ar->ab, "failed to flush transmit queue, data pkts pending %d\n",
+			    atomic_read(&ar->dp.num_tx_pending));
+		ret = -ETIMEDOUT;
+	}
 
 	time_left = wait_event_timeout(ar->txmgmt_empty_waitq,
 				       (atomic_read(&ar->num_pending_mgmt_tx) == 0),
 				       ATH11K_FLUSH_TIMEOUT);
-	if (time_left == 0)
-		ath11k_warn(ar->ab, "failed to flush mgmt transmit queue %ld\n",
-			    time_left);
+	if (time_left == 0) {
+		ath11k_warn(ar->ab, "failed to flush mgmt transmit queue, mgmt pkts pending %d\n",
+			    atomic_read(&ar->num_pending_mgmt_tx));
+		ret = -ETIMEDOUT;
+	}
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac mgmt tx flush mgmt pending %d\n",
-		   atomic_read(&ar->num_pending_mgmt_tx));
+	return ret;
+}
+
+int ath11k_mac_wait_tx_complete(struct ath11k *ar)
+{
+	ath11k_mac_drain_tx(ar);
+	return ath11k_mac_flush_tx_complete(ar);
+}
+
+static void ath11k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				u32 queues, bool drop)
+{
+	struct ath11k *ar = hw->priv;
+
+	if (drop)
+		return;
+
+	ath11k_mac_flush_tx_complete(ar);
 }
 
 static int
@@ -8104,6 +8122,13 @@ static const struct ieee80211_ops ath11k_ops = {
 	.flush				= ath11k_mac_op_flush,
 	.sta_statistics			= ath11k_mac_op_sta_statistics,
 	CFG80211_TESTMODE_CMD(ath11k_tm_cmd)
+
+#ifdef CONFIG_PM
+	.suspend			= ath11k_wow_op_suspend,
+	.resume				= ath11k_wow_op_resume,
+	.set_wakeup			= ath11k_wow_op_set_wakeup,
+#endif
+
 #ifdef CONFIG_ATH11K_DEBUGFS
 	.sta_add_debugfs		= ath11k_debugfs_sta_op_add,
 #endif
@@ -8471,6 +8496,12 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	if (test_bit(WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi->wmi_ab->svc_map)) {
 		ar->hw->wiphy->features |=
 			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	}
+
+	ret = ath11k_wow_init(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to init wow: %d\n", ret);
+		goto err_free_if_combs;
 	}
 
 	ar->hw->queues = ATH11K_HW_MAX_QUEUES;
