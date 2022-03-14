@@ -514,6 +514,50 @@ static int ath11k_wow_nlo_cleanup(struct ath11k *ar)
 	return 0;
 }
 
+static int ath11k_wow_set_hw_filter(struct ath11k *ar)
+{
+	struct ath11k_vif *arvif;
+	u32 bitmap;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		bitmap = WMI_HW_DATA_FILTER_DROP_NON_ICMPV6_MC |
+			WMI_HW_DATA_FILTER_DROP_NON_ARP_BC;
+		ret = ath11k_wmi_hw_data_filter_cmd(ar, arvif->vdev_id,
+						    bitmap,
+						    true);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to set hw data filter on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int ath11k_wow_clear_hw_filter(struct ath11k *ar)
+{
+	struct ath11k_vif *arvif;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		ret = ath11k_wmi_hw_data_filter_cmd(ar, arvif->vdev_id, 0, false);
+
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to clear hw data filter on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
 {
@@ -539,6 +583,13 @@ int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 	ret = ath11k_mac_wait_tx_complete(ar);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to wait tx complete: %d\n", ret);
+		goto cleanup;
+	}
+
+	ret = ath11k_wow_set_hw_filter(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to set hw filter: %d\n",
+			    ret);
 		goto cleanup;
 	}
 
@@ -607,6 +658,12 @@ int ath11k_wow_op_resume(struct ieee80211_hw *hw)
 	ret = ath11k_wow_nlo_cleanup(ar);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to cleanup nlo: %d\n", ret);
+		goto exit;
+	}
+
+	ret = ath11k_wow_clear_hw_filter(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to clear hw filter: %d\n", ret);
 		goto exit;
 	}
 
