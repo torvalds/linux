@@ -1401,7 +1401,7 @@ static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 		mask |= FORCE_VSET_ACK_BIT;
 
 	if ((is_boost_vreg_enabled_in_open_loop(chip) ||
-	     is_haptics_external_powered(chip)) && en) {
+			chip->hboost_enabled || is_haptics_external_powered(chip)) && en) {
 		/* Force VREG_RDY */
 		val = mask;
 		rc = haptics_masked_write(chip, chip->cfg_addr_base,
