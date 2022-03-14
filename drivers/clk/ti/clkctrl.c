@@ -603,7 +603,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 
 	/*
 	 * The code below can be removed when all clkctrl nodes use domain
-	 * specific compatible proprerty and standard clock node naming
+	 * specific compatible property and standard clock node naming
 	 */
 	if (legacy_naming) {
 		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFnxxx", node->parent);
