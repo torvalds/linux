@@ -1793,44 +1793,6 @@ err:
 }
 
 /*
- * Mux topology
- */
-static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_mux *mux;
-	size_t ipc_size = sizeof(*mux);
-	int ret;
-
-	mux = (struct sof_ipc_comp_mux *)
-	      sof_comp_alloc(swidget, &ipc_size, index);
-	if (!mux)
-		return -ENOMEM;
-
-	/* configure mux IPC message */
-	mux->comp.type = SOF_COMP_MUX;
-	mux->config.hdr.size = sizeof(mux->config);
-
-	ret = sof_parse_tokens(scomp, &mux->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse mux.cfg tokens failed %d\n",
-			private->size);
-		kfree(mux);
-		return ret;
-	}
-
-	sof_dbg_comp_config(scomp, &mux->config);
-
-	swidget->private = mux;
-
-	return 0;
-}
-
-/*
  * SRC Topology
  */
 
@@ -2316,6 +2278,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_demux:
 		ret = sof_widget_parse_tokens(scomp, swidget, tw,  token_list, token_list_size);
 		break;
 	case snd_soc_dapm_src:
@@ -2329,10 +2293,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	case snd_soc_dapm_effect:
 		ret = sof_widget_load_process(scomp, index, swidget, tw);
-		break;
-	case snd_soc_dapm_mux:
-	case snd_soc_dapm_demux:
-		ret = sof_widget_load_mux(scomp, index, swidget, tw);
 		break;
 	case snd_soc_dapm_switch:
 	case snd_soc_dapm_dai_link:
