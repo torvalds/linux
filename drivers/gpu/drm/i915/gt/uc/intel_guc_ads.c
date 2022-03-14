@@ -276,15 +276,24 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	return slot;
 }
 
-static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
-					  u32 offset, u32 flags)
+#define GUC_REGSET_STEERING(group, instance) ( \
+	FIELD_PREP(GUC_REGSET_STEERING_GROUP, (group)) | \
+	FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, (instance)) | \
+	GUC_REGSET_NEEDS_STEERING \
+)
+
+static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
+					  struct temp_regset *regset,
+					  i915_reg_t reg, u32 flags)
 {
 	u32 count = regset->storage_used - (regset->registers - regset->storage);
-	struct guc_mmio_reg reg = {
+	u32 offset = i915_mmio_reg_offset(reg);
+	struct guc_mmio_reg entry = {
 		.offset = offset,
 		.flags = flags,
 	};
 	struct guc_mmio_reg *slot;
+	u8 group, inst;
 
 	/*
 	 * The mmio list is built using separate lists within the driver.
@@ -292,11 +301,22 @@ static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
 	 * register more than once. Do not consider this an error; silently
 	 * move on if the register is already in the list.
 	 */
-	if (bsearch(&reg, regset->registers, count,
-		    sizeof(reg), guc_mmio_reg_cmp))
+	if (bsearch(&entry, regset->registers, count,
+		    sizeof(entry), guc_mmio_reg_cmp))
 		return 0;
 
-	slot = __mmio_reg_add(regset, &reg);
+	/*
+	 * The GuC doesn't have a default steering, so we need to explicitly
+	 * steer all registers that need steering. However, we do not keep track
+	 * of all the steering ranges, only of those that have a chance of using
+	 * a non-default steering from the i915 pov. Instead of adding such
+	 * tracking, it is easier to just program the default steering for all
+	 * regs that don't need a non-default one.
+	 */
+	intel_gt_get_valid_steering_for_reg(gt, reg, &group, &inst);
+	entry.flags |= GUC_REGSET_STEERING(group, inst);
+
+	slot = __mmio_reg_add(regset, &entry);
 	if (IS_ERR(slot))
 		return PTR_ERR(slot);
 
@@ -311,14 +331,16 @@ static long __must_check guc_mmio_reg_add(struct temp_regset *regset,
 	return 0;
 }
 
-#define GUC_MMIO_REG_ADD(regset, reg, masked) \
-	guc_mmio_reg_add(regset, \
-			 i915_mmio_reg_offset((reg)), \
+#define GUC_MMIO_REG_ADD(gt, regset, reg, masked) \
+	guc_mmio_reg_add(gt, \
+			 regset, \
+			 (reg), \
 			 (masked) ? GUC_REGSET_MASKED : 0)
 
 static int guc_mmio_regset_init(struct temp_regset *regset,
 				struct intel_engine_cs *engine)
 {
+	struct intel_gt *gt = engine->gt;
 	const u32 base = engine->mmio_base;
 	struct i915_wa_list *wal = &engine->wa_list;
 	struct i915_wa *wa;
@@ -331,26 +353,26 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 	 */
 	regset->registers = regset->storage + regset->storage_used;
 
-	ret |= GUC_MMIO_REG_ADD(regset, RING_MODE_GEN7(base), true);
-	ret |= GUC_MMIO_REG_ADD(regset, RING_HWS_PGA(base), false);
-	ret |= GUC_MMIO_REG_ADD(regset, RING_IMR(base), false);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_MODE_GEN7(base), true);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_HWS_PGA(base), false);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_IMR(base), false);
 
 	if ((engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) &&
 	    CCS_MASK(engine->gt))
-		ret |= GUC_MMIO_REG_ADD(regset, GEN12_RCU_MODE, true);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN12_RCU_MODE, true);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ret |= GUC_MMIO_REG_ADD(regset, wa->reg, wa->masked_reg);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, wa->reg, wa->masked_reg);
 
 	/* Be extra paranoid and include all whitelist registers. */
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
-		ret |= GUC_MMIO_REG_ADD(regset,
+		ret |= GUC_MMIO_REG_ADD(gt, regset,
 					RING_FORCE_TO_NONPRIV(base, i),
 					false);
 
 	/* add in local MOCS registers */
 	for (i = 0; i < GEN9_LNCFCMOCS_REG_COUNT; i++)
-		ret |= GUC_MMIO_REG_ADD(regset, GEN9_LNCFCMOCS(i), false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
 
 	return ret ? -1 : 0;
 }

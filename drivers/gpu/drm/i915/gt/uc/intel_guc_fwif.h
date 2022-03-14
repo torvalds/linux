@@ -287,8 +287,11 @@ struct guc_mmio_reg {
 	u32 flags;
 	u32 mask;
 #define GUC_REGSET_MASKED		BIT(0)
+#define GUC_REGSET_NEEDS_STEERING	BIT(1)
 #define GUC_REGSET_MASKED_WITH_VALUE	BIT(2)
 #define GUC_REGSET_RESTORE_ONLY		BIT(3)
+#define GUC_REGSET_STEERING_GROUP	GENMASK(15, 12)
+#define GUC_REGSET_STEERING_INSTANCE	GENMASK(23, 20)
 } __packed;
 
 /* GuC register sets */

@@ -84,6 +84,9 @@ static inline bool intel_gt_needs_read_steering(struct intel_gt *gt,
 	return gt->steering_table[type];
 }
 
+void intel_gt_get_valid_steering_for_reg(struct intel_gt *gt, i915_reg_t reg,
+					 u8 *sliceid, u8 *subsliceid);
+
 u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg);
 u32 intel_gt_read_register(struct intel_gt *gt, i915_reg_t reg);
 
