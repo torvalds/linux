@@ -629,14 +629,6 @@ static const struct sof_topology_token dai_link_tokens[] = {
 		offsetof(struct sof_ipc_dai_config, dai_index)},
 };
 
-/* SRC */
-static const struct sof_topology_token src_tokens[] = {
-	{SOF_TKN_SRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_src, source_rate)},
-	{SOF_TKN_SRC_RATE_OUT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_src, sink_rate)},
-};
-
 /* ASRC */
 static const struct sof_topology_token asrc_tokens[] = {
 	{SOF_TKN_ASRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -1793,58 +1785,6 @@ err:
 }
 
 /*
- * SRC Topology
- */
-
-static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_src *src;
-	size_t ipc_size = sizeof(*src);
-	int ret;
-
-	src = (struct sof_ipc_comp_src *)
-	      sof_comp_alloc(swidget, &ipc_size, index);
-	if (!src)
-		return -ENOMEM;
-
-	/* configure src IPC message */
-	src->comp.type = SOF_COMP_SRC;
-	src->config.hdr.size = sizeof(src->config);
-
-	ret = sof_parse_tokens(scomp, src, src_tokens,
-			       ARRAY_SIZE(src_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse src tokens failed %d\n",
-			private->size);
-		goto err;
-	}
-
-	ret = sof_parse_tokens(scomp, &src->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse src.cfg tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto err;
-	}
-
-	dev_dbg(scomp->dev, "src %s: source rate %d sink rate %d\n",
-		swidget->widget->name, src->source_rate, src->sink_rate);
-	sof_dbg_comp_config(scomp, &src->config);
-
-	swidget->private = src;
-
-	return 0;
-err:
-	kfree(src);
-	return ret;
-}
-
-/*
  * ASRC Topology
  */
 
@@ -2278,12 +2218,10 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_src:
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
 		ret = sof_widget_parse_tokens(scomp, swidget, tw,  token_list, token_list_size);
-		break;
-	case snd_soc_dapm_src:
-		ret = sof_widget_load_src(scomp, index, swidget, tw);
 		break;
 	case snd_soc_dapm_asrc:
 		ret = sof_widget_load_asrc(scomp, index, swidget, tw);

@@ -51,6 +51,14 @@ static const struct sof_topology_token volume_tokens[] = {
 		offsetof(struct sof_ipc_comp_volume, initial_ramp)},
 };
 
+/* SRC */
+static const struct sof_topology_token src_tokens[] = {
+	{SOF_TKN_SRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_src, source_rate)},
+	{SOF_TKN_SRC_RATE_OUT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_src, sink_rate)},
+};
+
 /* PCM */
 static const struct sof_topology_token pcm_tokens[] = {
 	{SOF_TKN_PCM_DMAC_CONFIG, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -89,6 +97,7 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_COMP_EXT_TOKENS] = {"AFE tokens", comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens)},
 	[SOF_BUFFER_TOKENS] = {"Buffer tokens", buffer_tokens, ARRAY_SIZE(buffer_tokens)},
 	[SOF_VOLUME_TOKENS] = {"Volume tokens", volume_tokens, ARRAY_SIZE(volume_tokens)},
+	[SOF_SRC_TOKENS] = {"SRC tokens", src_tokens, ARRAY_SIZE(src_tokens)},
 };
 
 /**
@@ -324,6 +333,47 @@ static int sof_ipc3_widget_setup_comp_buffer(struct snd_sof_widget *swidget)
 	return 0;
 }
 
+static int sof_ipc3_widget_setup_comp_src(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc_comp_src *src;
+	size_t ipc_size = sizeof(*src);
+	int ret;
+
+	src = sof_comp_alloc(swidget, &ipc_size, swidget->pipeline_id);
+	if (!src)
+		return -ENOMEM;
+
+	swidget->private = src;
+
+	/* configure src IPC message */
+	src->comp.type = SOF_COMP_SRC;
+	src->config.hdr.size = sizeof(src->config);
+
+	/* parse one set of src tokens */
+	ret = sof_update_ipc_object(scomp, src, SOF_SRC_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*src), 1);
+	if (ret < 0)
+		goto err;
+
+	/* parse one set of comp tokens */
+	ret = sof_update_ipc_object(scomp, &src->config, SOF_COMP_TOKENS,
+				    swidget->tuples, swidget->num_tuples, sizeof(src->config), 1);
+	if (ret < 0)
+		goto err;
+
+	dev_dbg(scomp->dev, "src %s: source rate %d sink rate %d\n",
+		swidget->widget->name, src->source_rate, src->sink_rate);
+	sof_dbg_comp_config(scomp, &src->config);
+
+	return 0;
+err:
+	kfree(swidget->private);
+	swidget->private = NULL;
+
+	return ret;
+}
+
 /*
  * Mux topology
  */
@@ -444,6 +494,13 @@ static enum sof_tokens pipeline_token_list[] = {
 	SOF_SCHED_TOKENS,
 };
 
+static enum sof_tokens src_token_list[] = {
+	SOF_CORE_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+	SOF_SRC_TOKENS,
+	SOF_COMP_TOKENS
+};
+
 static enum sof_tokens pga_token_list[] = {
 	SOF_CORE_TOKENS,
 	SOF_COMP_EXT_TOKENS,
@@ -461,6 +518,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_mixer] = {sof_ipc3_widget_setup_comp_mixer, sof_ipc3_widget_free_comp,
 				comp_generic_token_list, ARRAY_SIZE(comp_generic_token_list),
 				NULL},
+	[snd_soc_dapm_src] = {sof_ipc3_widget_setup_comp_src, sof_ipc3_widget_free_comp,
+			      src_token_list, ARRAY_SIZE(src_token_list), NULL},
 	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
 	[snd_soc_dapm_pga] = {sof_ipc3_widget_setup_comp_pga, sof_ipc3_widget_free_comp,
