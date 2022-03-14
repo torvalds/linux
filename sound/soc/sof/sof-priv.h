@@ -370,6 +370,8 @@ struct sof_ipc_ops {
 	const struct sof_ipc_tplg_ops *tplg;
 };
 
+extern const struct sof_ipc_ops ipc3_ops;
+
 /* SOF generic IPC data */
 struct snd_sof_ipc {
 	struct snd_sof_dev *sdev;

@@ -1023,6 +1023,18 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 
 	init_waitqueue_head(&msg->waitq);
 
+	/*
+	 * Use IPC3 ops as it is the only available version now. With the addition of new IPC
+	 * versions, this will need to be modified to use the selected version at runtime.
+	 */
+	ipc->ops = &ipc3_ops;
+
+	/* check for mandatory ops */
+	if (!ipc->ops->tplg || !ipc->ops->tplg->widget) {
+		dev_err(sdev->dev, "Invalid topology IPC ops\n");
+		return NULL;
+	}
+
 	return ipc;
 }
 EXPORT_SYMBOL(snd_sof_ipc_init);
