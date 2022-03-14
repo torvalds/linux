@@ -4326,10 +4326,7 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = stream;
 	q->ops = &rkcif_vb2_ops;
-	if (hw_dev->iommu_en)
-		q->mem_ops = &vb2_dma_sg_memops;
-	else
-		q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
 	if (stream->cifdev->is_use_dummybuf)
 		q->min_buffers_needed = 1;
@@ -4341,6 +4338,8 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->allow_cache_hints = 1;
 	q->bidirectional = 1;
 	q->gfp_flags = GFP_DMA32;
+	if (hw_dev->is_dma_contig)
+		q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
 	return vb2_queue_init(q);
 }
 

@@ -5,6 +5,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
+#include <media/videobuf2-dma-sg.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP statistics */
 #include "dev.h"
 #include "isp_stats.h"
@@ -145,8 +146,11 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	unsigned long flags;
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
-	if (stats_dev->dev->isp_ver == ISP_V32)
-		stats_buf->buff_addr[0] = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (stats_dev->dev->isp_ver == ISP_V32) {
+		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
+
+		stats_buf->buff_addr[0] = sg_dma_address(sgt->sgl);
+	}
 	if (stats_buf->vaddr[0])
 		memset(stats_buf->vaddr[0], 0, size);
 	spin_lock_irqsave(&stats_dev->rd_lock, flags);
@@ -221,15 +225,17 @@ static int rkisp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = stats_vdev;
 	q->ops = &rkisp_stats_vb2_ops;
-	if (stats_vdev->dev->isp_ver == ISP_V32)
-		q->mem_ops = &vb2_dma_contig_memops;
-	else
+	if (stats_vdev->dev->isp_ver == ISP_V32) {
+		q->mem_ops = stats_vdev->dev->hw_dev->mem_ops;
+		if (stats_vdev->dev->hw_dev->is_dma_contig)
+			q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
+	} else {
 		q->mem_ops = &vb2_vmalloc_memops;
+	}
 	q->buf_struct_size = sizeof(struct rkisp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stats_vdev->dev->iqlock;
 	q->dev = stats_vdev->dev->dev;
-
 	return vb2_queue_init(q);
 }
 

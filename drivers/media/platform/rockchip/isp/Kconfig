@@ -3,9 +3,7 @@ config VIDEO_ROCKCHIP_ISP
 	tristate "Rockchip Image Signal Processing Unit driver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	select VIDEOBUF2_CMA_SG if DMA_CMA
-	select VIDEOBUF2_DMA_CONTIG
-	select VIDEOBUF2_DMA_SG
+	select VIDEOBUF2_CMA_SG
 	select VIDEOBUF2_VMALLOC
 	select V4L2_FWNODE
 	select PHY_ROCKCHIP_MIPI_RX

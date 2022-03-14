@@ -16,7 +16,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <media/videobuf2-cma-sg.h>
-#include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
 #include <soc/rockchip/rockchip_iommu.h>
 
@@ -995,28 +994,19 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_single = true;
 	hw_dev->is_mi_update = false;
 	hw_dev->is_dma_contig = true;
-	hw_dev->is_dma_sg_ops = false;
+	hw_dev->is_dma_sg_ops = true;
 	hw_dev->is_buf_init = false;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
 		is_mem_reserved = false;
-
 		if (!hw_dev->is_mmu)
 			dev_info(dev, "No reserved memory region. default cma area!\n");
-		else
-			hw_dev->is_dma_contig = false;
 	}
-	if (is_mem_reserved) {
-		hw_dev->mem_ops = &vb2_cma_sg_memops;
-		hw_dev->is_dma_sg_ops = true;
-	} else if (hw_dev->is_mmu) {
-		hw_dev->mem_ops = &vb2_dma_sg_memops;
-		hw_dev->is_dma_sg_ops = true;
-	} else {
-		hw_dev->mem_ops = &vb2_dma_contig_memops;
-	}
+	if (hw_dev->is_mmu && !is_mem_reserved)
+		hw_dev->is_dma_contig = false;
+	hw_dev->mem_ops = &vb2_cma_sg_memops;
 
 	pm_runtime_enable(dev);
 

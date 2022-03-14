@@ -1207,28 +1207,19 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 
 	cif_hw->cif_regs = data->cif_regs;
 
+	cif_hw->is_dma_sg_ops = true;
 	cif_hw->is_dma_contig = true;
-	cif_hw->is_dma_sg_ops = false;
 	mutex_init(&cif_hw->dev_lock);
 
 	cif_hw->iommu_en = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
 		is_mem_reserved = false;
-		if (!cif_hw->iommu_en)
-			dev_info(dev, "No reserved memory region assign to CIF\n");
-		else
-			cif_hw->is_dma_contig = false;
+		dev_info(dev, "No reserved memory region assign to CIF\n");
 	}
-	if (is_mem_reserved) {
-		cif_hw->mem_ops = &vb2_cma_sg_memops;
-		cif_hw->is_dma_sg_ops = true;
-	} else if (cif_hw->iommu_en) {
-		cif_hw->mem_ops = &vb2_dma_sg_memops;
-		cif_hw->is_dma_sg_ops = true;
-	} else {
-		cif_hw->mem_ops = &vb2_dma_contig_memops;
-	}
+	if (cif_hw->iommu_en && !is_mem_reserved)
+		cif_hw->is_dma_contig = false;
+	cif_hw->mem_ops = &vb2_cma_sg_memops;
 
 	if (data->chip_id < CHIP_RK1808_CIF) {
 		cif_dev = devm_kzalloc(dev, sizeof(*cif_dev), GFP_KERNEL);
