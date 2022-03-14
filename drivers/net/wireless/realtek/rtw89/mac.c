@@ -257,7 +257,9 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 	u32 dmac_err, cmac_err;
 
 	if (err != MAC_AX_ERR_L1_ERR_DMAC &&
-	    err != MAC_AX_ERR_L0_PROMOTE_TO_L1)
+	    err != MAC_AX_ERR_L0_PROMOTE_TO_L1 &&
+	    err != MAC_AX_ERR_L0_ERR_CMAC0 &&
+	    err != MAC_AX_ERR_L0_ERR_CMAC1)
 		return;
 
 	rtw89_info(rtwdev, "--->\nerr=0x%x\n", err);
@@ -458,7 +460,7 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 {
-	u32 err;
+	u32 err, err_scnr;
 	int ret;
 
 	ret = read_poll_timeout(rtw89_read32, err, (err != 0), 1000, 100000,
@@ -470,6 +472,12 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 
 	err = rtw89_read32(rtwdev, R_AX_HALT_C2H);
 	rtw89_write32(rtwdev, R_AX_HALT_C2H_CTRL, 0);
+
+	err_scnr = RTW89_ERROR_SCENARIO(err);
+	if (err_scnr == RTW89_WCPU_CPU_EXCEPTION)
+		err = MAC_AX_ERR_CPU_EXCEPTION;
+	else if (err_scnr == RTW89_WCPU_ASSERTION)
+		err = MAC_AX_ERR_ASSERTION;
 
 	rtw89_fw_st_dbg_dump(rtwdev);
 	rtw89_mac_dump_err_status(rtwdev, err);

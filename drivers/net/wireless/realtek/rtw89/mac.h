@@ -521,6 +521,13 @@ struct rtw89_mac_dle_dfi_qempty {
 	u32 qempty;
 };
 
+enum rtw89_mac_error_scenario {
+	RTW89_WCPU_CPU_EXCEPTION	= 2,
+	RTW89_WCPU_ASSERTION		= 3,
+};
+
+#define RTW89_ERROR_SCENARIO(__err) ((__err) >> 28)
+
 /* Define DBG and recovery enum */
 enum mac_ax_err_info {
 	/* Get error info */
@@ -659,6 +666,7 @@ enum mac_ax_err_info {
 	MAC_AX_ERR_L2_ERR_APB_BBRF_TO_OTHERS = 0x2370,
 	MAC_AX_ERR_L2_RESET_DONE = 0x2400,
 	MAC_AX_ERR_CPU_EXCEPTION = 0x3000,
+	MAC_AX_ERR_ASSERTION = 0x4000,
 	MAC_AX_GET_ERR_MAX,
 	MAC_AX_DUMP_SHAREBUFF_INDICATOR = 0x80000000,
 

@@ -477,7 +477,7 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
 {
 	u8 event = SER_EV_NONE;
 
-	rtw89_info(rtwdev, "ser event = 0x%04x\n", err);
+	rtw89_info(rtwdev, "SER catches error: 0x%x\n", err);
 
 	switch (err) {
 	case MAC_AX_ERR_L1_ERR_DMAC:
@@ -503,8 +503,10 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
 		break;
 	}
 
-	if (event == SER_EV_NONE)
+	if (event == SER_EV_NONE) {
+		rtw89_warn(rtwdev, "SER cannot recognize error: 0x%x\n", err);
 		return -EINVAL;
+	}
 
 	ser_send_msg(&rtwdev->ser, event);
 	return 0;
