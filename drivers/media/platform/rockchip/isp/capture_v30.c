@@ -334,7 +334,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_PIC_HEIGHT, val, false, is_unite);
 
 	val = out_fmt->plane_fmt[0].bytesperline;
-	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, val, is_unite);
+	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false, is_unite);
 
 	val = stream->out_isp_fmt.uv_swap ? ISP3X_MI_XTD_FORMAT_MP_UV_SWAP : 0;
 	mask = ISP3X_MI_XTD_FORMAT_MP_UV_SWAP;
@@ -915,7 +915,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
 		vb2_plane_vaddr(vb, i);
-		if (stream->ispdev->hw_dev->is_mmu) {
+		if (stream->ispdev->hw_dev->is_dma_sg_ops) {
 			sgt = vb2_dma_sg_plane_desc(vb, i);
 			ispbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
 		} else {
