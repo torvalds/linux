@@ -438,7 +438,6 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 	int ret;
 	unsigned char type = priv->bb_type;
 	unsigned char data = 0;
-	unsigned char bb_vga_0 = 0x1c;
 	unsigned char bb_vga_2_3 = 0x00;
 
 	ret = vnt_mac_set_bb_type(priv, type);
@@ -449,7 +448,6 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		data = 0x03;
-		bb_vga_0 = 0x20;
 		bb_vga_2_3 = 0x10;
 	} else if (priv->bb_type == BB_TYPE_11B) {
 		data = 0x02;
