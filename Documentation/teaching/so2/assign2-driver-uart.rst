@@ -2,7 +2,7 @@
 Assignment 2 - Driver UART
 ==========================
 
--  Deadline: :command:`Wednesday, April 21st, 2021, 23:00`
+-  Deadline: :command:`Tuesday, 19 April 2022, 23:00`
 -  This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
 
 Assignment's Objectives

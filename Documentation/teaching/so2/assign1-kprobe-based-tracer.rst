@@ -2,7 +2,7 @@
 Assignment 1 - Kprobe based tracer
 ==================================
 
--  Deadline: :command:`Wednesday, April 7th 2021, 23:00`
+-  Deadline: :command:`Tuesday, 5 April 2022, 23:00`
 
 Assignment's Objectives
 =======================
