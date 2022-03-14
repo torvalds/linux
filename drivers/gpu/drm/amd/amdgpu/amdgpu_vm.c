@@ -1364,25 +1364,6 @@ static int amdgpu_vm_update_pde(struct amdgpu_vm_update_params *params,
 }
 
 /**
- * amdgpu_vm_invalidate_pds - mark all PDs as invalid
- *
- * @adev: amdgpu_device pointer
- * @vm: related vm
- *
- * Mark all PD level as invalid after an error.
- */
-static void amdgpu_vm_invalidate_pds(struct amdgpu_device *adev,
-				     struct amdgpu_vm *vm)
-{
-	struct amdgpu_vm_pt_cursor cursor;
-	struct amdgpu_vm_bo_base *entry;
-
-	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry)
-		if (entry->bo && !entry->moved)
-			amdgpu_vm_bo_relocated(entry);
-}
-
-/**
  * amdgpu_vm_update_pdes - make sure that all directories are valid
  *
  * @adev: amdgpu_device pointer
@@ -1398,6 +1379,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm, bool immediate)
 {
 	struct amdgpu_vm_update_params params;
+	struct amdgpu_vm_bo_base *entry;
 	int r, idx;
 
 	if (list_empty(&vm->relocated))
@@ -1413,16 +1395,9 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->prepare(&params, NULL, AMDGPU_SYNC_EXPLICIT);
 	if (r)
-		goto exit;
+		goto error;
 
-	while (!list_empty(&vm->relocated)) {
-		struct amdgpu_vm_bo_base *entry;
-
-		entry = list_first_entry(&vm->relocated,
-					 struct amdgpu_vm_bo_base,
-					 vm_status);
-		amdgpu_vm_bo_idle(entry);
-
+	list_for_each_entry(entry, &vm->relocated, vm_status) {
 		r = amdgpu_vm_update_pde(&params, vm, entry);
 		if (r)
 			goto error;
@@ -1431,12 +1406,15 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	r = vm->update_funcs->commit(&params, &vm->last_update);
 	if (r)
 		goto error;
-	drm_dev_exit(idx);
-	return 0;
+
+	while (!list_empty(&vm->relocated)) {
+		entry = list_first_entry(&vm->relocated,
+					 struct amdgpu_vm_bo_base,
+					 vm_status);
+		amdgpu_vm_bo_idle(entry);
+	}
 
 error:
-	amdgpu_vm_invalidate_pds(adev, vm);
-exit:
 	drm_dev_exit(idx);
 	return r;
 }
