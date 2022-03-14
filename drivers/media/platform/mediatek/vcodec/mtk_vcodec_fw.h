@@ -6,7 +6,7 @@
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/mtk_scp.h>
 
-#include "../mtk-vpu/mtk_vpu.h"
+#include "../vpu/mtk_vpu.h"
 
 struct mtk_vcodec_dev;
 
