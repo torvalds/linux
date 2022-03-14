@@ -1461,6 +1461,11 @@ static inline void SET_LPS_PARM_LASTRPWM(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(15, 8));
 }
 
+static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 0));
+}
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -2140,6 +2145,12 @@ struct rtw89_fw_h2c_rf_reg_info {
 
 #define FWCMD_TYPE_H2C			0
 
+#define H2C_CAT_TEST		0x0
+
+/* CLASS 5 - FW STATUS TEST */
+#define H2C_CL_FW_STATUS_TEST		0x5
+#define H2C_FUNC_CPU_EXCEPTION		0x1
+
 #define H2C_CAT_MAC		0x1
 
 /* CLASS 0 - FW INFO */
@@ -2284,5 +2295,6 @@ void rtw89_hw_scan_status_report(struct rtw89_dev *rtwdev, struct sk_buff *skb);
 void rtw89_hw_scan_chan_switch(struct rtw89_dev *rtwdev, struct sk_buff *skb);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 void rtw89_store_op_chan(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
 
 #endif

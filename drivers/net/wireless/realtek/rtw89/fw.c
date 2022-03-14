@@ -221,6 +221,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852A, le, 0, 13, 29, 0, OLD_HT_RA_FORMAT),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, TX_WAKE),
+	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 36, 0, CRASH_TRIGGER),
 };
 
 static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
@@ -2286,4 +2287,39 @@ void rtw89_store_op_chan(struct rtw89_dev *rtwdev)
 	scan_info->op_chan = hal->current_channel;
 	scan_info->op_bw = hal->current_band_width;
 	scan_info->op_band = hal->current_band_type;
+}
+
+#define H2C_FW_CPU_EXCEPTION_LEN 4
+#define H2C_FW_CPU_EXCEPTION_TYPE_DEF 0x5566
+int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev)
+{
+	struct sk_buff *skb;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_FW_CPU_EXCEPTION_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for fw cpu exception\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_FW_CPU_EXCEPTION_LEN);
+	RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(skb->data,
+					   H2C_FW_CPU_EXCEPTION_TYPE_DEF);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_TEST,
+			      H2C_CL_FW_STATUS_TEST,
+			      H2C_FUNC_CPU_EXCEPTION, 0, 0,
+			      H2C_FW_CPU_EXCEPTION_LEN);
+
+	if (rtw89_h2c_tx(rtwdev, skb, false)) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+	return -EBUSY;
 }

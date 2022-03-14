@@ -619,6 +619,7 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 		fallthrough;
 	case SER_EV_L2_RECFG_DONE:
 		ser_state_goto(ser, SER_IDLE_ST);
+		clear_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags);
 		break;
 
 	case SER_EV_STATE_OUT:

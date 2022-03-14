@@ -2184,6 +2184,48 @@ out:
 	return count;
 }
 
+static int
+rtw89_debug_priv_fw_crash_get(struct seq_file *m, void *v)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+
+	seq_printf(m, "%d\n",
+		   test_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags));
+	return 0;
+}
+
+static ssize_t
+rtw89_debug_priv_fw_crash_set(struct file *filp, const char __user *user_buf,
+			      size_t count, loff_t *loff)
+{
+	struct seq_file *m = (struct seq_file *)filp->private_data;
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	bool fw_crash;
+	int ret;
+
+	if (!RTW89_CHK_FW_FEATURE(CRASH_TRIGGER, &rtwdev->fw))
+		return -EOPNOTSUPP;
+
+	ret = kstrtobool_from_user(user_buf, count, &fw_crash);
+	if (ret)
+		return -EINVAL;
+
+	if (!fw_crash)
+		return -EINVAL;
+
+	mutex_lock(&rtwdev->mutex);
+	set_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags);
+	ret = rtw89_fw_h2c_trigger_cpu_exception(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static int rtw89_debug_priv_btc_info_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
@@ -2468,6 +2510,11 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_early_h2c = {
 	.cb_write = rtw89_debug_priv_early_h2c_set,
 };
 
+static struct rtw89_debugfs_priv rtw89_debug_priv_fw_crash = {
+	.cb_read = rtw89_debug_priv_fw_crash_get,
+	.cb_write = rtw89_debug_priv_fw_crash_set,
+};
+
 static struct rtw89_debugfs_priv rtw89_debug_priv_btc_info = {
 	.cb_read = rtw89_debug_priv_btc_info_get,
 };
@@ -2522,6 +2569,7 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_rw(mac_dbg_port_dump);
 	rtw89_debugfs_add_w(send_h2c);
 	rtw89_debugfs_add_rw(early_h2c);
+	rtw89_debugfs_add_rw(fw_crash);
 	rtw89_debugfs_add_r(btc_info);
 	rtw89_debugfs_add_w(btc_manual);
 	rtw89_debugfs_add_w(fw_log_manual);
