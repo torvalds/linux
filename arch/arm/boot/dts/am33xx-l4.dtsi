@@ -263,6 +263,8 @@
 				compatible = "ti,am3359-tscadc";
 				reg = <0x0 0x1000>;
 				interrupts = <16>;
+				clocks = <&adc_tsc_fck>;
+				clock-names = "fck";
 				status = "disabled";
 				dmas = <&edma 53 0>, <&edma 57 0>;
 				dma-names = "fifo0", "fifo1";
