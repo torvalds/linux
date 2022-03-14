@@ -126,6 +126,7 @@ struct nft_regs_track {
 	struct {
 		const struct nft_expr		*selector;
 		const struct nft_expr		*bitwise;
+		u8				num_reg;
 	} regs[NFT_REG32_NUM];
 
 	const struct nft_expr			*cur;
@@ -1639,6 +1640,19 @@ static inline struct nftables_pernet *nft_pernet(const struct net *net)
 static inline bool nft_reduce_is_readonly(const struct nft_expr *expr)
 {
 	return expr->ops->reduce == NFT_REDUCE_READONLY;
+}
+
+void nft_reg_track_update(struct nft_regs_track *track,
+			  const struct nft_expr *expr, u8 dreg, u8 len);
+void nft_reg_track_cancel(struct nft_regs_track *track, u8 dreg, u8 len);
+void __nft_reg_track_cancel(struct nft_regs_track *track, u8 dreg);
+
+static inline bool nft_reg_track_cmp(struct nft_regs_track *track,
+				     const struct nft_expr *expr, u8 dreg)
+{
+	return track->regs[dreg].selector &&
+	       track->regs[dreg].selector->ops == expr->ops &&
+	       track->regs[dreg].num_reg == 0;
 }
 
 #endif /* _NET_NF_TABLES_H */
