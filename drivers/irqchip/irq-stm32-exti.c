@@ -214,11 +214,60 @@ static const struct stm32_desc_irq stm32mp1_desc_irq[] = {
 	{ .exti = 73, .irq_parent = 129, .chip = &stm32_exti_h_chip },
 };
 
+static const struct stm32_desc_irq stm32mp13_desc_irq[] = {
+	{ .exti = 0, .irq_parent = 6, .chip = &stm32_exti_h_chip },
+	{ .exti = 1, .irq_parent = 7, .chip = &stm32_exti_h_chip },
+	{ .exti = 2, .irq_parent = 8, .chip = &stm32_exti_h_chip },
+	{ .exti = 3, .irq_parent = 9, .chip = &stm32_exti_h_chip },
+	{ .exti = 4, .irq_parent = 10, .chip = &stm32_exti_h_chip },
+	{ .exti = 5, .irq_parent = 24, .chip = &stm32_exti_h_chip },
+	{ .exti = 6, .irq_parent = 65, .chip = &stm32_exti_h_chip },
+	{ .exti = 7, .irq_parent = 66, .chip = &stm32_exti_h_chip },
+	{ .exti = 8, .irq_parent = 67, .chip = &stm32_exti_h_chip },
+	{ .exti = 9, .irq_parent = 68, .chip = &stm32_exti_h_chip },
+	{ .exti = 10, .irq_parent = 41, .chip = &stm32_exti_h_chip },
+	{ .exti = 11, .irq_parent = 43, .chip = &stm32_exti_h_chip },
+	{ .exti = 12, .irq_parent = 77, .chip = &stm32_exti_h_chip },
+	{ .exti = 13, .irq_parent = 78, .chip = &stm32_exti_h_chip },
+	{ .exti = 14, .irq_parent = 106, .chip = &stm32_exti_h_chip },
+	{ .exti = 15, .irq_parent = 109, .chip = &stm32_exti_h_chip },
+	{ .exti = 16, .irq_parent = 1, .chip = &stm32_exti_h_chip },
+	{ .exti = 19, .irq_parent = 3, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 21, .irq_parent = 32, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 22, .irq_parent = 34, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 23, .irq_parent = 73, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 24, .irq_parent = 93, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 25, .irq_parent = 114, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 26, .irq_parent = 38, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 27, .irq_parent = 39, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 28, .irq_parent = 40, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 29, .irq_parent = 72, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 30, .irq_parent = 53, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 31, .irq_parent = 54, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 32, .irq_parent = 83, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 33, .irq_parent = 84, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 44, .irq_parent = 96, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 47, .irq_parent = 92, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 48, .irq_parent = 116, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 50, .irq_parent = 117, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 52, .irq_parent = 118, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 53, .irq_parent = 119, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 68, .irq_parent = 63, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 70, .irq_parent = 98, .chip = &stm32_exti_h_chip_direct },
+};
+
 static const struct stm32_exti_drv_data stm32mp1_drv_data = {
 	.exti_banks = stm32mp1_exti_banks,
 	.bank_nr = ARRAY_SIZE(stm32mp1_exti_banks),
 	.desc_irqs = stm32mp1_desc_irq,
 	.irq_nr = ARRAY_SIZE(stm32mp1_desc_irq),
+};
+
+static const struct stm32_exti_drv_data stm32mp13_drv_data = {
+	.exti_banks = stm32mp1_exti_banks,
+	.bank_nr = ARRAY_SIZE(stm32mp1_exti_banks),
+	.desc_irqs = stm32mp13_desc_irq,
+	.irq_nr = ARRAY_SIZE(stm32mp13_desc_irq),
 };
 
 static const struct
@@ -922,6 +971,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 /* platform driver only for MP1 */
 static const struct of_device_id stm32_exti_ids[] = {
 	{ .compatible = "st,stm32mp1-exti", .data = &stm32mp1_drv_data},
+	{ .compatible = "st,stm32mp13-exti", .data = &stm32mp13_drv_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32_exti_ids);
