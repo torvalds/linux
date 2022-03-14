@@ -1775,14 +1775,6 @@ static void cpu_copy_el2regs(const struct arm64_cpu_capabilities *__unused)
 		write_sysreg(read_sysreg(tpidr_el1), tpidr_el2);
 }
 
-static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
-{
-	u64 val = read_sysreg_s(SYS_CLIDR_EL1);
-
-	/* Check that CLIDR_EL1.LOU{U,IS} are both 0 */
-	WARN_ON(CLIDR_LOUU(val) || CLIDR_LOUIS(val));
-}
-
 #ifdef CONFIG_ARM64_PAN
 static void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
 {
@@ -2144,7 +2136,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64MMFR2_FWB_SHIFT,
 		.min_field_value = 1,
 		.matches = has_cpuid_feature,
-		.cpu_enable = cpu_has_fwb,
 	},
 	{
 		.desc = "ARMv8.4 Translation Table Level",
