@@ -183,6 +183,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"cpu_bringup_and_idle",
 		"do_group_exit",
 		"stop_this_cpu",
+		"__invalid_creds",
 	};
 
 	if (!func)
