@@ -8393,3 +8393,157 @@ int ath11k_wmi_wow_del_pattern(struct ath11k *ar, u32 vdev_id, u32 pattern_id)
 
 	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_WOW_DEL_WAKE_PATTERN_CMDID);
 }
+
+static struct sk_buff *
+ath11k_wmi_op_gen_config_pno_start(struct ath11k *ar,
+				   u32 vdev_id,
+				       struct wmi_pno_scan_req *pno)
+{
+	struct nlo_configured_parameters *nlo_list;
+	struct wmi_wow_nlo_config_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	u32 *channel_list;
+	size_t len, nlo_list_len, channel_list_len;
+	u8 *ptr;
+	u32 i;
+
+	len = sizeof(*cmd) +
+	      sizeof(*tlv) +
+	      /* TLV place holder for array of structures
+	       * nlo_configured_parameters(nlo_list)
+	       */
+	      sizeof(*tlv);
+	      /* TLV place holder for array of uint32 channel_list */
+
+	channel_list_len = sizeof(u32) * pno->a_networks[0].channel_count;
+	len += channel_list_len;
+
+	nlo_list_len = sizeof(*nlo_list) * pno->uc_networks_count;
+	len += nlo_list_len;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	ptr = (u8 *)skb->data;
+	cmd = (struct wmi_wow_nlo_config_cmd *)ptr;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_NLO_CONFIG_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->vdev_id = pno->vdev_id;
+	cmd->flags = WMI_NLO_CONFIG_START | WMI_NLO_CONFIG_SSID_HIDE_EN;
+
+	/* current FW does not support min-max range for dwell time */
+	cmd->active_dwell_time = pno->active_max_time;
+	cmd->passive_dwell_time = pno->passive_max_time;
+
+	if (pno->do_passive_scan)
+		cmd->flags |= WMI_NLO_CONFIG_SCAN_PASSIVE;
+
+	cmd->fast_scan_period = pno->fast_scan_period;
+	cmd->slow_scan_period = pno->slow_scan_period;
+	cmd->fast_scan_max_cycles = pno->fast_scan_max_cycles;
+	cmd->delay_start_time = pno->delay_start_time;
+
+	if (pno->enable_pno_scan_randomization) {
+		cmd->flags |= WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ |
+				WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ;
+		ether_addr_copy(cmd->mac_addr.addr, pno->mac_addr);
+		ether_addr_copy(cmd->mac_mask.addr, pno->mac_addr_mask);
+		ath11k_ce_byte_swap(cmd->mac_addr.addr, 8);
+		ath11k_ce_byte_swap(cmd->mac_mask.addr, 8);
+	}
+
+	ptr += sizeof(*cmd);
+
+	/* nlo_configured_parameters(nlo_list) */
+	cmd->no_of_ssids = pno->uc_networks_count;
+	tlv = (struct wmi_tlv *)ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG,
+				 WMI_TAG_ARRAY_STRUCT) |
+		      FIELD_PREP(WMI_TLV_LEN, nlo_list_len);
+
+	ptr += sizeof(*tlv);
+	nlo_list = (struct nlo_configured_parameters *)ptr;
+	for (i = 0; i < cmd->no_of_ssids; i++) {
+		tlv = (struct wmi_tlv *)(&nlo_list[i].tlv_header);
+		tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+			      FIELD_PREP(WMI_TLV_LEN, sizeof(*nlo_list) - sizeof(*tlv));
+
+		nlo_list[i].ssid.valid = true;
+		nlo_list[i].ssid.ssid.ssid_len = pno->a_networks[i].ssid.ssid_len;
+		memcpy(nlo_list[i].ssid.ssid.ssid,
+		       pno->a_networks[i].ssid.ssid,
+		       nlo_list[i].ssid.ssid.ssid_len);
+		ath11k_ce_byte_swap(nlo_list[i].ssid.ssid.ssid,
+				    roundup(nlo_list[i].ssid.ssid.ssid_len, 4));
+
+		if (pno->a_networks[i].rssi_threshold &&
+		    pno->a_networks[i].rssi_threshold > -300) {
+			nlo_list[i].rssi_cond.valid = true;
+			nlo_list[i].rssi_cond.rssi =
+				pno->a_networks[i].rssi_threshold;
+		}
+
+		nlo_list[i].bcast_nw_type.valid = true;
+		nlo_list[i].bcast_nw_type.bcast_nw_type =
+			pno->a_networks[i].bcast_nw_type;
+	}
+
+	ptr += nlo_list_len;
+	cmd->num_of_channels = pno->a_networks[0].channel_count;
+	tlv = (struct wmi_tlv *)ptr;
+	tlv->header =  FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_UINT32) |
+		       FIELD_PREP(WMI_TLV_LEN, channel_list_len);
+	ptr += sizeof(*tlv);
+	channel_list = (u32 *)ptr;
+	for (i = 0; i < cmd->num_of_channels; i++)
+		channel_list[i] = pno->a_networks[0].channels[i];
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi tlv start pno config vdev_id %d\n",
+		   vdev_id);
+
+	return skb;
+}
+
+static struct sk_buff *ath11k_wmi_op_gen_config_pno_stop(struct ath11k *ar,
+							 u32 vdev_id)
+{
+	struct wmi_wow_nlo_config_cmd *cmd;
+	struct sk_buff *skb;
+	size_t len;
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_wow_nlo_config_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_NLO_CONFIG_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+
+	cmd->vdev_id = vdev_id;
+	cmd->flags = WMI_NLO_CONFIG_STOP;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "wmi tlv stop pno config vdev_id %d\n", vdev_id);
+	return skb;
+}
+
+int ath11k_wmi_wow_config_pno(struct ath11k *ar, u32 vdev_id,
+			      struct wmi_pno_scan_req  *pno_scan)
+{
+	struct sk_buff *skb;
+
+	if (pno_scan->enable)
+		skb = ath11k_wmi_op_gen_config_pno_start(ar, vdev_id, pno_scan);
+	else
+		skb = ath11k_wmi_op_gen_config_pno_stop(ar, vdev_id);
+
+	if (IS_ERR_OR_NULL(skb))
+		return -ENOMEM;
+
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);
+}
+

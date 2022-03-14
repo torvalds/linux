@@ -617,6 +617,7 @@ struct ath11k {
 	bool regdom_set_by_user;
 	int hw_rate_code;
 	u8 twt_enabled;
+	bool nlo_enabled;
 };
 
 struct ath11k_band_cap {
