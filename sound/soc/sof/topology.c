@@ -629,15 +629,6 @@ static const struct sof_topology_token dai_link_tokens[] = {
 		offsetof(struct sof_ipc_dai_config, dai_index)},
 };
 
-/* volume */
-static const struct sof_topology_token volume_tokens[] = {
-	{SOF_TKN_VOLUME_RAMP_STEP_TYPE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
-		get_token_u32, offsetof(struct sof_ipc_comp_volume, ramp)},
-	{SOF_TKN_VOLUME_RAMP_STEP_MS,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_volume, initial_ramp)},
-};
-
 /* SRC */
 static const struct sof_topology_token src_tokens[] = {
 	{SOF_TKN_SRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -1879,78 +1870,6 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 }
 
 /*
- * PGA Topology
- */
-
-static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_volume *volume;
-	struct snd_sof_control *scontrol;
-	size_t ipc_size = sizeof(*volume);
-	int min_step;
-	int max_step;
-	int ret;
-
-	volume = (struct sof_ipc_comp_volume *)
-		 sof_comp_alloc(swidget, &ipc_size, index);
-	if (!volume)
-		return -ENOMEM;
-
-	if (!le32_to_cpu(tw->num_kcontrols)) {
-		dev_err(scomp->dev, "error: invalid kcontrol count %d for volume\n",
-			tw->num_kcontrols);
-		ret = -EINVAL;
-		goto err;
-	}
-
-	/* configure volume IPC message */
-	volume->comp.type = SOF_COMP_VOLUME;
-	volume->config.hdr.size = sizeof(volume->config);
-
-	ret = sof_parse_tokens(scomp, volume, volume_tokens,
-			       ARRAY_SIZE(volume_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse volume tokens failed %d\n",
-			private->size);
-		goto err;
-	}
-	ret = sof_parse_tokens(scomp, &volume->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse volume.cfg tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto err;
-	}
-
-	sof_dbg_comp_config(scomp, &volume->config);
-
-	swidget->private = volume;
-
-	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
-		if (scontrol->comp_id == swidget->comp_id &&
-		    scontrol->volume_table) {
-			min_step = scontrol->min_volume_step;
-			max_step = scontrol->max_volume_step;
-			volume->min_value = scontrol->volume_table[min_step];
-			volume->max_value = scontrol->volume_table[max_step];
-			volume->channels = scontrol->num_channels;
-			break;
-		}
-	}
-
-	return 0;
-err:
-	kfree(volume);
-	return ret;
-}
-
-/*
  * SRC Topology
  */
 
@@ -2426,8 +2345,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		ret = sof_widget_load_mixer(scomp, index, swidget, tw);
 		break;
 	case snd_soc_dapm_pga:
-		ret = sof_widget_load_pga(scomp, index, swidget, tw);
-		break;
+		if (!le32_to_cpu(tw->num_kcontrols)) {
+			dev_err(scomp->dev, "invalid kcontrol count %d for volume\n",
+				tw->num_kcontrols);
+			ret = -EINVAL;
+			break;
+		}
+
+		fallthrough;
 	case snd_soc_dapm_buffer:
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_aif_out:

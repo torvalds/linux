@@ -43,6 +43,14 @@ static const struct sof_topology_token pipeline_tokens[] = {
 
 };
 
+/* volume */
+static const struct sof_topology_token volume_tokens[] = {
+	{SOF_TKN_VOLUME_RAMP_STEP_TYPE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_volume, ramp)},
+	{SOF_TKN_VOLUME_RAMP_STEP_MS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_volume, initial_ramp)},
+};
+
 /* PCM */
 static const struct sof_topology_token pcm_tokens[] = {
 	{SOF_TKN_PCM_DMAC_CONFIG, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -80,6 +88,7 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_CORE_TOKENS] = {"Core tokens", core_tokens, ARRAY_SIZE(core_tokens)},
 	[SOF_COMP_EXT_TOKENS] = {"AFE tokens", comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens)},
 	[SOF_BUFFER_TOKENS] = {"Buffer tokens", buffer_tokens, ARRAY_SIZE(buffer_tokens)},
+	[SOF_VOLUME_TOKENS] = {"Volume tokens", volume_tokens, ARRAY_SIZE(volume_tokens)},
 };
 
 /**
@@ -281,6 +290,66 @@ static int sof_ipc3_widget_setup_comp_buffer(struct snd_sof_widget *swidget)
 	return 0;
 }
 
+/*
+ * PGA Topology
+ */
+
+static int sof_ipc3_widget_setup_comp_pga(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc_comp_volume *volume;
+	struct snd_sof_control *scontrol;
+	size_t ipc_size = sizeof(*volume);
+	int min_step, max_step;
+	int ret;
+
+	volume = sof_comp_alloc(swidget, &ipc_size, swidget->pipeline_id);
+	if (!volume)
+		return -ENOMEM;
+
+	swidget->private = volume;
+
+	/* configure volume IPC message */
+	volume->comp.type = SOF_COMP_VOLUME;
+	volume->config.hdr.size = sizeof(volume->config);
+
+	/* parse one set of volume tokens */
+	ret = sof_update_ipc_object(scomp, volume, SOF_VOLUME_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*volume), 1);
+	if (ret < 0)
+		goto err;
+
+	/* parse one set of comp tokens */
+	ret = sof_update_ipc_object(scomp, &volume->config, SOF_COMP_TOKENS,
+				    swidget->tuples, swidget->num_tuples,
+				    sizeof(volume->config), 1);
+	if (ret < 0)
+		goto err;
+
+	dev_dbg(scomp->dev, "loaded PGA %s\n", swidget->widget->name);
+	sof_dbg_comp_config(scomp, &volume->config);
+
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+		if (scontrol->comp_id == swidget->comp_id &&
+		    scontrol->volume_table) {
+			min_step = scontrol->min_volume_step;
+			max_step = scontrol->max_volume_step;
+			volume->min_value = scontrol->volume_table[min_step];
+			volume->max_value = scontrol->volume_table[max_step];
+			volume->channels = scontrol->num_channels;
+			break;
+		}
+	}
+
+	return 0;
+err:
+	kfree(swidget->private);
+	swidget->private = NULL;
+
+	return ret;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -300,6 +369,13 @@ static enum sof_tokens pipeline_token_list[] = {
 	SOF_SCHED_TOKENS,
 };
 
+static enum sof_tokens pga_token_list[] = {
+	SOF_CORE_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+	SOF_VOLUME_TOKENS,
+	SOF_COMP_TOKENS,
+};
+
 static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TYPE_COUNT] = {
 	[snd_soc_dapm_aif_in] =  {sof_ipc3_widget_setup_comp_host, sof_ipc3_widget_free_comp,
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
@@ -309,6 +385,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 				 buffer_token_list, ARRAY_SIZE(buffer_token_list), NULL},
 	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
+	[snd_soc_dapm_pga] = {sof_ipc3_widget_setup_comp_pga, sof_ipc3_widget_free_comp,
+			      pga_token_list, ARRAY_SIZE(pga_token_list), NULL},
 };
 
 static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
