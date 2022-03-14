@@ -356,6 +356,7 @@ struct arm64_cpu_capabilities {
 		struct {	/* Feature register checking */
 			u32 sys_reg;
 			u8 field_pos;
+			u8 field_width;
 			u8 min_field_value;
 			u8 hwcap_type;
 			bool sign;
@@ -576,6 +577,8 @@ static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
 static inline int __attribute_const__
 cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
 {
+	if (WARN_ON_ONCE(!width))
+		width = 4;
 	return (sign) ?
 		cpuid_feature_extract_signed_field_width(features, field, width) :
 		cpuid_feature_extract_unsigned_field_width(features, field, width);
