@@ -257,6 +257,7 @@
 #define HAP_BOOST_REVISION2			0x01
 #define HAP_BOOST_V0P0				0x0000
 #define HAP_BOOST_V0P1				0x0001
+#define HAP_BOOST_V0P2				0x0002
 
 #define HAP_BOOST_STATUS4_REG			0x0B
 #define BOOST_DTEST1_STATUS_BIT			BIT(0)
@@ -2912,7 +2913,10 @@ static int haptics_config_wa(struct haptics_chip *chip)
 			TOGGLE_EN_TO_FLUSH_FIFO | RECOVER_SWR_SLAVE;
 		break;
 	case HAP520_MV:
+		break;
 	case HAP525_HV:
+		if (chip->hbst_revision == HAP_BOOST_V0P1)
+			chip->wa_flags |= SW_CTRL_HBST;
 		break;
 	default:
 		dev_err(chip->dev, "HW type %d does not match\n",
