@@ -13,6 +13,14 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+/* Buffers */
+static const struct sof_topology_token buffer_tokens[] = {
+	{SOF_TKN_BUF_SIZE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_buffer, size)},
+	{SOF_TKN_BUF_CAPS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_buffer, caps)},
+};
+
 /* scheduling */
 static const struct sof_topology_token sched_tokens[] = {
 	{SOF_TKN_SCHED_PERIOD, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -71,6 +79,7 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_COMP_TOKENS] = {"Comp tokens", comp_tokens, ARRAY_SIZE(comp_tokens)},
 	[SOF_CORE_TOKENS] = {"Core tokens", core_tokens, ARRAY_SIZE(core_tokens)},
 	[SOF_COMP_EXT_TOKENS] = {"AFE tokens", comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens)},
+	[SOF_BUFFER_TOKENS] = {"Buffer tokens", buffer_tokens, ARRAY_SIZE(buffer_tokens)},
 };
 
 /**
@@ -237,12 +246,51 @@ err:
 	return ret;
 }
 
+static int sof_ipc3_widget_setup_comp_buffer(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc_buffer *buffer;
+	int ret;
+
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	swidget->private = buffer;
+
+	/* configure dai IPC message */
+	buffer->comp.hdr.size = sizeof(*buffer);
+	buffer->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_BUFFER_NEW;
+	buffer->comp.id = swidget->comp_id;
+	buffer->comp.type = SOF_COMP_BUFFER;
+	buffer->comp.pipeline_id = swidget->pipeline_id;
+	buffer->comp.core = swidget->core;
+
+	/* parse one set of buffer tokens */
+	ret = sof_update_ipc_object(scomp, buffer, SOF_BUFFER_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*buffer), 1);
+	if (ret < 0) {
+		kfree(swidget->private);
+		swidget->private = NULL;
+		return ret;
+	}
+
+	dev_dbg(scomp->dev, "buffer %s: size %d caps 0x%x\n",
+		swidget->widget->name, buffer->size, buffer->caps);
+
+	return 0;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
 	SOF_COMP_EXT_TOKENS,
 	SOF_PCM_TOKENS,
 	SOF_COMP_TOKENS,
+};
+
+static enum sof_tokens buffer_token_list[] = {
+	SOF_BUFFER_TOKENS,
 };
 
 static enum sof_tokens pipeline_token_list[] = {
@@ -257,6 +305,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
 	[snd_soc_dapm_aif_out] = {sof_ipc3_widget_setup_comp_host, sof_ipc3_widget_free_comp,
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
+	[snd_soc_dapm_buffer] = {sof_ipc3_widget_setup_comp_buffer, sof_ipc3_widget_free_comp,
+				 buffer_token_list, ARRAY_SIZE(buffer_token_list), NULL},
 	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
 };

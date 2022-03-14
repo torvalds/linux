@@ -611,14 +611,6 @@ static int get_token_process_type(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-/* Buffers */
-static const struct sof_topology_token buffer_tokens[] = {
-	{SOF_TKN_BUF_SIZE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_buffer, size)},
-	{SOF_TKN_BUF_CAPS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_buffer, caps)},
-};
-
 /* DAI */
 static const struct sof_topology_token dai_tokens[] = {
 	{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type,
@@ -1721,48 +1713,6 @@ free:
 	return ret;
 }
 
-/*
- * Buffer topology
- */
-
-static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
-				  struct snd_sof_widget *swidget,
-				  struct snd_soc_tplg_dapm_widget *tw)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_buffer *buffer;
-	int ret;
-
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	/* configure dai IPC message */
-	buffer->comp.hdr.size = sizeof(*buffer);
-	buffer->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_BUFFER_NEW;
-	buffer->comp.id = swidget->comp_id;
-	buffer->comp.type = SOF_COMP_BUFFER;
-	buffer->comp.pipeline_id = index;
-	buffer->comp.core = swidget->core;
-
-	ret = sof_parse_tokens(scomp, buffer, buffer_tokens,
-			       ARRAY_SIZE(buffer_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse buffer tokens failed %d\n",
-			private->size);
-		kfree(buffer);
-		return ret;
-	}
-
-	dev_dbg(scomp->dev, "buffer %s: size %d caps 0x%x\n",
-		swidget->widget->name, buffer->size, buffer->caps);
-
-	swidget->private = buffer;
-
-	return 0;
-}
-
 /* bind PCM ID to host component ID */
 static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 		     int dir)
@@ -2479,8 +2429,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		ret = sof_widget_load_pga(scomp, index, swidget, tw);
 		break;
 	case snd_soc_dapm_buffer:
-		ret = sof_widget_load_buffer(scomp, index, swidget, tw);
-		break;
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_aif_in:
