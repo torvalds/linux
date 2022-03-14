@@ -13,6 +13,28 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+/* scheduling */
+static const struct sof_topology_token sched_tokens[] = {
+	{SOF_TKN_SCHED_PERIOD, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, period)},
+	{SOF_TKN_SCHED_PRIORITY, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, priority)},
+	{SOF_TKN_SCHED_MIPS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, period_mips)},
+	{SOF_TKN_SCHED_CORE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, core)},
+	{SOF_TKN_SCHED_FRAMES, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, frames_per_sched)},
+	{SOF_TKN_SCHED_TIME_DOMAIN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_pipe_new, time_domain)},
+};
+
+static const struct sof_topology_token pipeline_tokens[] = {
+	{SOF_TKN_SCHED_DYNAMIC_PIPELINE, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct snd_sof_widget, dynamic_pipeline_widget)},
+
+};
+
 /* PCM */
 static const struct sof_topology_token pcm_tokens[] = {
 	{SOF_TKN_PCM_DMAC_CONFIG, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -44,6 +66,8 @@ static const struct sof_topology_token comp_ext_tokens[] = {
 
 static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_PCM_TOKENS] = {"PCM tokens", pcm_tokens, ARRAY_SIZE(pcm_tokens)},
+	[SOF_PIPELINE_TOKENS] = {"Pipeline tokens", pipeline_tokens, ARRAY_SIZE(pipeline_tokens)},
+	[SOF_SCHED_TOKENS] = {"Scheduler tokens", sched_tokens, ARRAY_SIZE(sched_tokens)},
 	[SOF_COMP_TOKENS] = {"Comp tokens", comp_tokens, ARRAY_SIZE(comp_tokens)},
 	[SOF_CORE_TOKENS] = {"Core tokens", core_tokens, ARRAY_SIZE(core_tokens)},
 	[SOF_COMP_EXT_TOKENS] = {"AFE tokens", comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens)},
@@ -148,6 +172,71 @@ static void sof_ipc3_widget_free_comp(struct snd_sof_widget *swidget)
 	kfree(swidget->private);
 }
 
+static int sof_ipc3_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc_pipe_new *pipeline;
+	struct snd_sof_widget *comp_swidget;
+	int ret;
+
+	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);
+	if (!pipeline)
+		return -ENOMEM;
+
+	/* configure pipeline IPC message */
+	pipeline->hdr.size = sizeof(*pipeline);
+	pipeline->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_PIPE_NEW;
+	pipeline->pipeline_id = swidget->pipeline_id;
+	pipeline->comp_id = swidget->comp_id;
+
+	swidget->private = pipeline;
+
+	/* component at start of pipeline is our stream id */
+	comp_swidget = snd_sof_find_swidget(scomp, swidget->widget->sname);
+	if (!comp_swidget) {
+		dev_err(scomp->dev, "scheduler %s refers to non existent widget %s\n",
+			swidget->widget->name, swidget->widget->sname);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	pipeline->sched_id = comp_swidget->comp_id;
+
+	/* parse one set of scheduler tokens */
+	ret = sof_update_ipc_object(scomp, pipeline, SOF_SCHED_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*pipeline), 1);
+	if (ret < 0)
+		goto err;
+
+	/* parse one set of pipeline tokens */
+	ret = sof_update_ipc_object(scomp, swidget, SOF_PIPELINE_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*swidget), 1);
+	if (ret < 0)
+		goto err;
+
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
+		pipeline->core = SOF_DSP_PRIMARY_CORE;
+
+	if (sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE))
+		swidget->dynamic_pipeline_widget =
+			sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_ENABLE);
+
+	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d dynamic %d\n",
+		swidget->widget->name, pipeline->period, pipeline->priority,
+		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched,
+		swidget->dynamic_pipeline_widget);
+
+	swidget->core = pipeline->core;
+
+	return 0;
+
+err:
+	kfree(swidget->private);
+	swidget->private = NULL;
+
+	return ret;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -156,11 +245,20 @@ static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 };
 
+static enum sof_tokens pipeline_token_list[] = {
+	SOF_CORE_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+	SOF_PIPELINE_TOKENS,
+	SOF_SCHED_TOKENS,
+};
+
 static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TYPE_COUNT] = {
 	[snd_soc_dapm_aif_in] =  {sof_ipc3_widget_setup_comp_host, sof_ipc3_widget_free_comp,
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
 	[snd_soc_dapm_aif_out] = {sof_ipc3_widget_setup_comp_host, sof_ipc3_widget_free_comp,
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL},
+	[snd_soc_dapm_scheduler] = {sof_ipc3_widget_setup_comp_pipeline, sof_ipc3_widget_free_comp,
+				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL},
 };
 
 static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
