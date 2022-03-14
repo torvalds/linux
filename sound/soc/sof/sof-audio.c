@@ -362,6 +362,7 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 
 int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir)
 {
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
 	struct snd_soc_dapm_widget *widget;
 	int i, ret, num_widgets;
@@ -432,10 +433,12 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, in
 		if (pipe_widget->complete)
 			continue;
 
-		pipe_widget->complete = snd_sof_complete_pipeline(sdev, pipe_widget);
-		if (pipe_widget->complete < 0) {
-			ret = pipe_widget->complete;
-			goto widget_free;
+		if (ipc_tplg_ops->pipeline_complete) {
+			pipe_widget->complete = ipc_tplg_ops->pipeline_complete(sdev, pipe_widget);
+			if (pipe_widget->complete < 0) {
+				ret = pipe_widget->complete;
+				goto widget_free;
+			}
 		}
 	}
 
@@ -657,8 +660,11 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 					return ret;
 			}
 
-			swidget->complete =
-				snd_sof_complete_pipeline(sdev, swidget);
+			if (ipc_tplg_ops->pipeline_complete) {
+				swidget->complete = ipc_tplg_ops->pipeline_complete(sdev, swidget);
+				if (swidget->complete < 0)
+					return swidget->complete;
+			}
 			break;
 		default:
 			break;

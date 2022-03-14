@@ -1887,6 +1887,28 @@ static int sof_ipc3_widget_bind_event(struct snd_soc_component *scomp,
 	return -EINVAL;
 }
 
+static int sof_ipc3_complete_pipeline(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_pipe_ready ready;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	dev_dbg(sdev->dev, "tplg: complete pipeline %s id %d\n",
+		swidget->widget->name, swidget->comp_id);
+
+	memset(&ready, 0, sizeof(ready));
+	ready.hdr.size = sizeof(ready);
+	ready.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_PIPE_COMPLETE;
+	ready.comp_id = swidget->comp_id;
+
+	ret = sof_ipc_tx_message(sdev->ipc, ready.hdr.cmd, &ready, sizeof(ready), &reply,
+				 sizeof(reply));
+	if (ret < 0)
+		return ret;
+
+	return 1;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -1988,6 +2010,7 @@ static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.route_setup = sof_ipc3_route_setup,
 	.control_setup = sof_ipc3_control_setup,
 	.control_free = sof_ipc3_control_free,
+	.pipeline_complete = sof_ipc3_complete_pipeline,
 	.token_list = ipc3_token_list,
 };
 

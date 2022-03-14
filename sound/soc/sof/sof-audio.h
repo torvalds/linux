@@ -68,6 +68,7 @@ struct sof_ipc_tplg_widget_ops {
  *		initialized to 0.
  * @control_setup: Function pointer for setting up kcontrol IPC-specific data
  * @control_free: Function pointer for freeing kcontrol IPC-specific data
+ * @pipeline_complete: Function pointer for pipeline complete IPC
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
@@ -75,6 +76,7 @@ struct sof_ipc_tplg_ops {
 	const struct sof_token_info *token_list;
 	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
 	int (*control_free)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
+	int (*pipeline_complete)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 };
 
 /** struct snd_sof_tuple - Tuple info
@@ -318,8 +320,6 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
  * be freed by snd_soc_unregister_component,
  */
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file);
-int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
-			      struct snd_sof_widget *swidget);
 
 /*
  * Stream IPC
