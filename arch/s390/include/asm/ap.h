@@ -63,7 +63,7 @@ static inline bool ap_instructions_available(void)
 		"	lgr	0,%[reg0]\n"   /* qid into gr0 */
 		"	lghi	1,0\n"	       /* 0 into gr1 */
 		"	lghi	2,0\n"	       /* 0 into gr2 */
-		"	.long	0xb2af0000\n"  /* PQAP(TAPQ) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(TAPQ) */
 		"0:	la	%[reg1],1\n"   /* 1 into reg1 */
 		"1:\n"
 		EX_TABLE(0b, 1b)
@@ -88,7 +88,7 @@ static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
 	asm volatile(
 		"	lgr	0,%[qid]\n"    /* qid into gr0 */
 		"	lghi	2,0\n"	       /* 0 into gr2 */
-		"	.long	0xb2af0000\n"  /* PQAP(TAPQ) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(TAPQ) */
 		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
 		"	lgr	%[reg2],2\n"   /* gr2 into reg2 */
 		: [reg1] "=&d" (reg1), [reg2] "=&d" (reg2)
@@ -129,7 +129,7 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"  /* qid arg into gr0 */
-		"	.long	0xb2af0000\n" /* PQAP(RAPQ) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(RAPQ) */
 		"	lgr	%[reg1],1\n"  /* gr1 (status) into reg1 */
 		: [reg1] "=&d" (reg1)
 		: [reg0] "d" (reg0)
@@ -150,7 +150,7 @@ static inline struct ap_queue_status ap_zapq(ap_qid_t qid)
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"   /* qid arg into gr0 */
-		"	.long	0xb2af0000\n"  /* PQAP(ZAPQ) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(ZAPQ) */
 		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
 		: [reg1] "=&d" (reg1)
 		: [reg0] "d" (reg0)
@@ -192,7 +192,7 @@ static inline int ap_qci(struct ap_config_info *config)
 	asm volatile(
 		"	lgr	0,%[reg0]\n"   /* QCI fc into gr0 */
 		"	lgr	2,%[reg2]\n"   /* ptr to config into gr2 */
-		"	.long	0xb2af0000\n"  /* PQAP(QCI) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(QCI) */
 		"0:	la	%[reg1],0\n"   /* good case, QCI fc available */
 		"1:\n"
 		EX_TABLE(0b, 1b)
@@ -249,7 +249,7 @@ static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
 		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
 		"	lgr	1,%[reg1]\n"   /* irq ctrl into gr1 */
 		"	lgr	2,%[reg2]\n"   /* ni addr into gr2 */
-		"	.long	0xb2af0000\n"  /* PQAP(AQIC) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(AQIC) */
 		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
 		: [reg1] "+&d" (reg1)
 		: [reg0] "d" (reg0), [reg2] "d" (reg2)
@@ -299,7 +299,7 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 	asm volatile(
 		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
 		"	lgr	1,%[reg1]\n"   /* qact in info into gr1 */
-		"	.long	0xb2af0000\n"  /* PQAP(QACT) */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(QACT) */
 		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
 		"	lgr	%[reg2],2\n"   /* qact out info into reg2 */
 		: [reg1] "+&d" (reg1), [reg2] "=&d" (reg2)
