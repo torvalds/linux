@@ -275,6 +275,7 @@ static void mt7921u_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt7921_dev *dev = usb_get_intfdata(usb_intf);
 
+	cancel_work_sync(&dev->init_work);
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return;
 

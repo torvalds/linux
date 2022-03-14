@@ -205,6 +205,8 @@ struct mt7921_dev {
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
 
+	struct work_struct init_work;
+
 	u8 fw_debug;
 
 	struct mt76_connac_pm pm;
