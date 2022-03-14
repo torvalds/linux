@@ -76,6 +76,9 @@ configurable behaviours:
   with ``.si_code = SEGV_MTEAERR`` and ``.si_addr = 0`` (the faulting
   address is unknown).
 
+- *Asymmetric* - Reads are handled as for synchronous mode while writes
+  are handled as for asynchronous mode.
+
 The user can select the above modes, per thread, using the
 ``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where ``flags``
 contains any number of the following values in the ``PR_MTE_TCF_MASK``
@@ -140,18 +143,25 @@ tag checking mode as the CPU's preferred tag checking mode.
 
 The preferred tag checking mode for each CPU is controlled by
 ``/sys/devices/system/cpu/cpu<N>/mte_tcf_preferred``, to which a
-privileged user may write the value ``async`` or ``sync``.  The default
-preferred mode for each CPU is ``async``.
+privileged user may write the value ``async``, ``sync`` or ``asymm``.  The
+default preferred mode for each CPU is ``async``.
 
 To allow a program to potentially run in the CPU's preferred tag
 checking mode, the user program may set multiple tag check fault mode
 bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
-flags, 0, 0, 0)`` system call. If the CPU's preferred tag checking
-mode is in the task's set of provided tag checking modes (this will
-always be the case at present because the kernel only supports two
-tag checking modes, but future kernels may support more modes), that
-mode will be selected. Otherwise, one of the modes in the task's mode
-set will be selected in a currently unspecified manner.
+flags, 0, 0, 0)`` system call. If both synchronous and asynchronous
+modes are requested then asymmetric mode may also be selected by the
+kernel. If the CPU's preferred tag checking mode is in the task's set
+of provided tag checking modes, that mode will be selected. Otherwise,
+one of the modes in the task's mode will be selected by the kernel
+from the task's mode set using the preference order:
+
+	1. Asynchronous
+	2. Asymmetric
+	3. Synchronous
+
+Note that there is no way for userspace to request multiple modes and
+also disable asymmetric mode.
 
 Initial process state
 ---------------------
