@@ -48,13 +48,13 @@ struct aspeed_i2c_base_clk {
  * base clk:3250000, val:0x3c, scl:100.8Khz, tbuf:4.96us
  * base clk:3200000, val:0x3d, scl: 99.2Khz, tbuf:5.04us
  * base clk:3125000, val:0x3e, scl: 97.6Khz, tbuf:5.12us
- * base clk:3076000, val:0x40, scl: 97.7Khz, tbuf:5.28us
+ * base clk:3000000, val:0x41, scl: 99.5Khz, tbuf:5.36us
  */
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
 	{  "base_clk3",	20000000 },	/* 20M */
 	{  "base_clk2",	10000000 },	/* 10M */
-	{  "base_clk1",	3250000 },	/* 3.25M */
+	{  "base_clk1",	3000000 },	/* 3M */
 	{  "base_clk0",	1000000 },	/* 1M */
 };
 
