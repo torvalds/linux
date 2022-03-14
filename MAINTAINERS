@@ -2710,7 +2710,7 @@ F:	drivers/clocksource/clksrc_st_lpc.c
 F:	drivers/cpufreq/sti-cpufreq.c
 F:	drivers/dma/st_fdma*
 F:	drivers/i2c/busses/i2c-st.c
-F:	drivers/media/platform/sti/c8sectpfe/
+F:	drivers/media/platform/st/sti/c8sectpfe/
 F:	drivers/media/rc/st_rc.c
 F:	drivers/mmc/host/sdhci-st.c
 F:	drivers/phy/st/phy-miphy28lp.c
@@ -3383,7 +3383,7 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/sti/bdisp
+F:	drivers/media/platform/st/sti/bdisp
 
 BECKHOFF CX5020 ETHERCAT MASTER DRIVER
 M:	Dariusz Marcinkiewicz <reksio@newterm.pl>
@@ -5482,7 +5482,7 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/sti/delta
+F:	drivers/media/platform/st/sti/delta
 
 DELTA AHE-50DC FAN CONTROL MODULE DRIVER
 M:	Zev Weiss <zev@bewilderbeest.net>
@@ -8870,7 +8870,7 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/sti/hva
+F:	drivers/media/platform/st/sti/hva
 
 HWPOISON MEMORY FAILURE HANDLING
 M:	Naoya Horiguchi <naoya.horiguchi@nec.com>
@@ -12046,7 +12046,7 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/st,stm32-dcmi.yaml
-F:	drivers/media/platform/stm32/stm32-dcmi.c
+F:	drivers/media/platform/st/stm32/stm32-dcmi.c
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
