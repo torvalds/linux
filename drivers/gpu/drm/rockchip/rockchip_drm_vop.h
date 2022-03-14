@@ -701,7 +701,6 @@ struct vop2_video_port_regs {
 	struct vop_reg dclk_core_div;
 	struct vop_reg dclk_out_div;
 	struct vop_reg dclk_src_sel;
-	struct vop_reg aclk_en;
 
 	struct vop_reg splice_en;
 

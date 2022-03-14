@@ -3286,11 +3286,9 @@ static void vop2_initial(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*
 		 * Disable auto gating, this is a workaround to
-		 * avoid display image shift when a window enabled
-		 * on rk3566/rk3568.
+		 * avoid display image shift when a window enabled.
 		 */
-		if (vop2->version == VOP_VERSION_RK3568)
-			VOP_CTRL_SET(vop2, auto_gating_en, 0);
+		VOP_CTRL_SET(vop2, auto_gating_en, 0);
 		/*
 		 * Register OVERLAY_LAYER_SEL and OVERLAY_PORT_SEL should take effect immediately,
 		 * than windows configuration(CLUSTER/ESMART/SMART) can take effect according the
@@ -3308,7 +3306,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		vop2->is_enabled = true;
 	}
 
-	VOP_MODULE_SET(vop2, vp, aclk_en, 1);
 	vop2_debug_irq_enable(crtc);
 
 	vop2->enable_count++;
@@ -3376,7 +3373,6 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 			DRM_DEV_ERROR(vop2->dev, "failed to enable dclk for video port%d - %d\n",
 				      vp->id, ret);
 		crtc = &vp->rockchip_crtc.crtc;
-		VOP_MODULE_SET(vop2, vp, aclk_en, 1);
 		VOP_MODULE_SET(vop2, vp, standby, 0);
 		vop2_power_domain_off(pd);
 		vop2_cfg_done(crtc);
@@ -3390,7 +3386,6 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 			DRM_DEV_INFO(vop2->dev, "wait for vp%d dsp_hold timeout\n", vp->id);
 
 		vop2_dsp_hold_valid_irq_disable(crtc);
-		VOP_MODULE_SET(vop2, vp, aclk_en, 0);
 		clk_disable_unprepare(vp->dclk);
 	}
 }
@@ -3805,8 +3800,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		DRM_DEV_INFO(vop2->dev, "wait for vp%d dsp_hold timeout\n", vp->id);
 
 	vop2_dsp_hold_valid_irq_disable(crtc);
-
-	VOP_MODULE_SET(vop2, vp, aclk_en, 0);
 
 	vop2_disable(crtc);
 
