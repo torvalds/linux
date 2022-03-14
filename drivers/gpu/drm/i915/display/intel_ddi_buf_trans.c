@@ -931,6 +931,20 @@ static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_dp_hbr2_hbr3[
 	{ .icl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
+static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_edp_hbr2[] = {
+							/* NT mV Trans mV db    */
+	{ .icl = { 0x4, 0x50, 0x38, 0x00, 0x07 } },	/* 200   200      0.0   */
+	{ .icl = { 0x4, 0x58, 0x35, 0x00, 0x0A } },	/* 200   250      1.9   */
+	{ .icl = { 0x4, 0x60, 0x34, 0x00, 0x0B } },	/* 200   300      3.5   */
+	{ .icl = { 0x4, 0x6A, 0x32, 0x00, 0x0D } },	/* 200   350      4.9   */
+	{ .icl = { 0x4, 0x5E, 0x38, 0x00, 0x07 } },	/* 250   250      0.0   */
+	{ .icl = { 0x4, 0x61, 0x36, 0x00, 0x09 } },	/* 250   300      1.6   */
+	{ .icl = { 0x4, 0x6B, 0x34, 0x00, 0x0B } },	/* 250   350      2.9   */
+	{ .icl = { 0x4, 0x69, 0x39, 0x00, 0x06 } },	/* 300   300      0.0   */
+	{ .icl = { 0x4, 0x73, 0x37, 0x00, 0x08 } },	/* 300   350      1.3   */
+	{ .icl = { 0x4, 0x7A, 0x38, 0x00, 0x07 } },	/* 350   350      0.0   */
+};
+
 static const struct intel_ddi_buf_trans adlp_combo_phy_trans_dp_hbr2_hbr3 = {
 	.entries = _adlp_combo_phy_trans_dp_hbr2_hbr3,
 	.num_entries = ARRAY_SIZE(_adlp_combo_phy_trans_dp_hbr2_hbr3),
@@ -942,8 +956,8 @@ static const struct intel_ddi_buf_trans adlp_combo_phy_trans_edp_hbr3 = {
 };
 
 static const struct intel_ddi_buf_trans adlp_combo_phy_trans_edp_up_to_hbr2 = {
-	.entries = _icl_combo_phy_trans_edp_hbr2,
-	.num_entries = ARRAY_SIZE(_icl_combo_phy_trans_edp_hbr2),
+	.entries = _adlp_combo_phy_trans_edp_hbr2,
+	.num_entries = ARRAY_SIZE(_adlp_combo_phy_trans_edp_hbr2),
 };
 
 static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_trans_dp_hbr[] = {
