@@ -483,9 +483,9 @@ static void sr_revalidate_disk(struct scsi_cd *cd)
 
 static int sr_block_open(struct block_device *bdev, fmode_t mode)
 {
-	struct scsi_cd *cd = cd = scsi_cd(bdev->bd_disk);
+	struct scsi_cd *cd = scsi_cd(bdev->bd_disk);
 	struct scsi_device *sdev = cd->device;
-	int ret = -ENXIO;
+	int ret;
 
 	if (scsi_device_get(cd->device))
 		return -ENXIO;
