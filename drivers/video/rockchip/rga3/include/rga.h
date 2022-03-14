@@ -103,6 +103,22 @@ enum {
 	RGA_TILE_MODE			 = 0x1 << 2,
 };
 
+enum {
+	RGA_CONTEXT_NONE		= 0x0,
+	RGA_CONTEXT_SRC_FIX_ENABLE	= 0x1 << 0,
+	RGA_CONTEXT_SRC_CACHE_INFO	= 0x1 << 1,
+	RGA_CONTEXT_SRC_MASK		= RGA_CONTEXT_SRC_FIX_ENABLE |
+					  RGA_CONTEXT_SRC_CACHE_INFO,
+	RGA_CONTEXT_PAT_FIX_ENABLE	= 0x1 << 2,
+	RGA_CONTEXT_PAT_CACHE_INFO	= 0x1 << 3,
+	RGA_CONTEXT_PAT_MASK		= RGA_CONTEXT_PAT_FIX_ENABLE |
+					  RGA_CONTEXT_PAT_CACHE_INFO,
+	RGA_CONTEXT_DST_FIX_ENABLE	= 0x1 << 4,
+	RGA_CONTEXT_DST_CACHE_INFO	= 0x1 << 5,
+	RGA_CONTEXT_DST_MASK		= RGA_CONTEXT_DST_FIX_ENABLE |
+					  RGA_CONTEXT_DST_CACHE_INFO,
+};
+
 /* RGA feature */
 enum {
 	RGA_COLOR_FILL			= 0x1 << 0,
@@ -821,8 +837,9 @@ struct rga_mpi_job_t {
 	struct dma_buf *dma_buf_src1;
 	struct dma_buf *dma_buf_dst;
 
-	struct rga_video_frame_info src;
-	struct rga_video_frame_info dst;
+	struct rga_video_frame_info *src;
+	struct rga_video_frame_info *pat;
+	struct rga_video_frame_info *dst;
 
 	int ctx_id;
 };
@@ -834,9 +851,9 @@ struct rga_user_ctx_t {
 	uint32_t sync_mode;
 	uint32_t out_fence_fd;
 
-	uint8_t mpi_config_flags;
+	uint32_t mpi_config_flags;
 
-	uint8_t reservr[127];
+	uint8_t reservr[124];
 };
 
 int rga_mpi_commit(struct rga_mpi_job_t *mpi_job);

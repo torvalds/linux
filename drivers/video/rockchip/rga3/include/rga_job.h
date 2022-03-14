@@ -36,7 +36,7 @@ int rga_ctx_manager_remove(struct rga_pending_ctx_manager **ctx_manager_session)
 
 struct rga_internal_ctx_t *
 	rga_internal_ctx_lookup(struct rga_pending_ctx_manager *ctx_manager, uint32_t id);
-uint32_t rga_internal_ctx_alloc_to_get_idr_id(void);
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags);
 void rga_internel_ctx_kref_release(struct kref *ref);
 int rga_job_config_by_user_ctx(struct rga_user_ctx_t *user_ctx);
 int rga_job_commit_by_user_ctx(struct rga_user_ctx_t *user_ctx);

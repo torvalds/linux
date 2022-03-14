@@ -673,7 +673,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	return ret;
 }
 
-uint32_t rga_internal_ctx_alloc_to_get_idr_id(void)
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags)
 {
 	struct rga_pending_ctx_manager *ctx_manager;
 	struct rga_internal_ctx_t *ctx;
@@ -708,6 +708,7 @@ uint32_t rga_internal_ctx_alloc_to_get_idr_id(void)
 
 	kref_init(&ctx->refcount);
 	ctx->pid = current->pid;
+	ctx->flags = flags;
 
 	mutex_unlock(&ctx_manager->lock);
 
