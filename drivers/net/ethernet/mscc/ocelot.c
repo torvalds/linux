@@ -2907,6 +2907,122 @@ void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_port_bridge_flags);
 
+int ocelot_port_get_default_prio(struct ocelot *ocelot, int port)
+{
+	int val = ocelot_read_gix(ocelot, ANA_PORT_QOS_CFG, port);
+
+	return ANA_PORT_QOS_CFG_QOS_DEFAULT_VAL_X(val);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_get_default_prio);
+
+int ocelot_port_set_default_prio(struct ocelot *ocelot, int port, u8 prio)
+{
+	if (prio >= IEEE_8021QAZ_MAX_TCS)
+		return -ERANGE;
+
+	ocelot_rmw_gix(ocelot,
+		       ANA_PORT_QOS_CFG_QOS_DEFAULT_VAL(prio),
+		       ANA_PORT_QOS_CFG_QOS_DEFAULT_VAL_M,
+		       ANA_PORT_QOS_CFG,
+		       port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ocelot_port_set_default_prio);
+
+int ocelot_port_get_dscp_prio(struct ocelot *ocelot, int port, u8 dscp)
+{
+	int qos_cfg = ocelot_read_gix(ocelot, ANA_PORT_QOS_CFG, port);
+	int dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, dscp);
+
+	/* Return error if DSCP prioritization isn't enabled */
+	if (!(qos_cfg & ANA_PORT_QOS_CFG_QOS_DSCP_ENA))
+		return -EOPNOTSUPP;
+
+	if (qos_cfg & ANA_PORT_QOS_CFG_DSCP_TRANSLATE_ENA) {
+		dscp = ANA_DSCP_CFG_DSCP_TRANSLATE_VAL_X(dscp_cfg);
+		/* Re-read ANA_DSCP_CFG for the translated DSCP */
+		dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, dscp);
+	}
+
+	/* If the DSCP value is not trusted, the QoS classification falls back
+	 * to VLAN PCP or port-based default.
+	 */
+	if (!(dscp_cfg & ANA_DSCP_CFG_DSCP_TRUST_ENA))
+		return -EOPNOTSUPP;
+
+	return ANA_DSCP_CFG_QOS_DSCP_VAL_X(dscp_cfg);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_get_dscp_prio);
+
+int ocelot_port_add_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
+{
+	int mask, val;
+
+	if (prio >= IEEE_8021QAZ_MAX_TCS)
+		return -ERANGE;
+
+	/* There is at least one app table priority (this one), so we need to
+	 * make sure DSCP prioritization is enabled on the port.
+	 * Also make sure DSCP translation is disabled
+	 * (dcbnl doesn't support it).
+	 */
+	mask = ANA_PORT_QOS_CFG_QOS_DSCP_ENA |
+	       ANA_PORT_QOS_CFG_DSCP_TRANSLATE_ENA;
+
+	ocelot_rmw_gix(ocelot, ANA_PORT_QOS_CFG_QOS_DSCP_ENA, mask,
+		       ANA_PORT_QOS_CFG, port);
+
+	/* Trust this DSCP value and map it to the given QoS class */
+	val = ANA_DSCP_CFG_DSCP_TRUST_ENA | ANA_DSCP_CFG_QOS_DSCP_VAL(prio);
+
+	ocelot_write_rix(ocelot, val, ANA_DSCP_CFG, dscp);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ocelot_port_add_dscp_prio);
+
+int ocelot_port_del_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
+{
+	int dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, dscp);
+	int mask, i;
+
+	/* During a "dcb app replace" command, the new app table entry will be
+	 * added first, then the old one will be deleted. But the hardware only
+	 * supports one QoS class per DSCP value (duh), so if we blindly delete
+	 * the app table entry for this DSCP value, we end up deleting the
+	 * entry with the new priority. Avoid that by checking whether user
+	 * space wants to delete the priority which is currently configured, or
+	 * something else which is no longer current.
+	 */
+	if (ANA_DSCP_CFG_QOS_DSCP_VAL_X(dscp_cfg) != prio)
+		return 0;
+
+	/* Untrust this DSCP value */
+	ocelot_write_rix(ocelot, 0, ANA_DSCP_CFG, dscp);
+
+	for (i = 0; i < 64; i++) {
+		int dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, i);
+
+		/* There are still app table entries on the port, so we need to
+		 * keep DSCP enabled, nothing to do.
+		 */
+		if (dscp_cfg & ANA_DSCP_CFG_DSCP_TRUST_ENA)
+			return 0;
+	}
+
+	/* Disable DSCP QoS classification if there isn't any trusted
+	 * DSCP value left.
+	 */
+	mask = ANA_PORT_QOS_CFG_QOS_DSCP_ENA |
+	       ANA_PORT_QOS_CFG_DSCP_TRANSLATE_ENA;
+
+	ocelot_rmw_gix(ocelot, 0, mask, ANA_PORT_QOS_CFG, port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ocelot_port_del_dscp_prio);
+
 void ocelot_init_port(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];

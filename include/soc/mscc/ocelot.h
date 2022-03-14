@@ -869,6 +869,11 @@ int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,
 				 struct switchdev_brport_flags val);
 void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
 			      struct switchdev_brport_flags val);
+int ocelot_port_get_default_prio(struct ocelot *ocelot, int port);
+int ocelot_port_set_default_prio(struct ocelot *ocelot, int port, u8 prio);
+int ocelot_port_get_dscp_prio(struct ocelot *ocelot, int port, u8 dscp);
+int ocelot_port_add_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio);
+int ocelot_port_del_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio);
 int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 			    struct net_device *bridge, int bridge_num,
 			    struct netlink_ext_ack *extack);
