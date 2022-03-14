@@ -916,7 +916,7 @@ static int mcp251xfd_handle_rxovif(struct mcp251xfd_priv *priv)
 	cf->can_id |= CAN_ERR_CRTL;
 	cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
@@ -1021,7 +1021,7 @@ static int mcp251xfd_handle_ivmif(struct mcp251xfd_priv *priv)
 		return 0;
 
 	mcp251xfd_skb_set_timestamp(priv, skb, timestamp);
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
@@ -1094,7 +1094,7 @@ static int mcp251xfd_handle_cerrif(struct mcp251xfd_priv *priv)
 		cf->data[7] = bec.rxerr;
 	}
 
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
