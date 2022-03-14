@@ -192,15 +192,18 @@ void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 	swap(req->r_fscrypt_auth, as->fscrypt_auth);
 }
 
-int ceph_encode_encrypted_fname(const struct inode *parent,
-				struct dentry *dentry, char *buf)
+int ceph_encode_encrypted_dname(const struct inode *parent,
+				struct qstr *d_name, char *buf)
 {
 	u32 len;
 	int elen;
 	int ret;
 	u8 *cryptbuf;
 
-	WARN_ON_ONCE(!fscrypt_has_encryption_key(parent));
+	if (!fscrypt_has_encryption_key(parent)) {
+		memcpy(buf, d_name->name, d_name->len);
+		return d_name->len;
+	}
 
 	/*
 	 * Convert cleartext d_name to ciphertext. If result is longer than
@@ -208,8 +211,7 @@ int ceph_encode_encrypted_fname(const struct inode *parent,
 	 *
 	 * See: fscrypt_setup_filename
 	 */
-	if (!fscrypt_fname_encrypted_size(parent, dentry->d_name.len, NAME_MAX,
-					  &len))
+	if (!fscrypt_fname_encrypted_size(parent, d_name->len, NAME_MAX, &len))
 		return -ENAMETOOLONG;
 
 	/* Allocate a buffer appropriate to hold the result */
@@ -218,7 +220,7 @@ int ceph_encode_encrypted_fname(const struct inode *parent,
 	if (!cryptbuf)
 		return -ENOMEM;
 
-	ret = fscrypt_fname_encrypt(parent, &dentry->d_name, cryptbuf, len);
+	ret = fscrypt_fname_encrypt(parent, d_name, cryptbuf, len);
 	if (ret) {
 		kfree(cryptbuf);
 		return ret;
@@ -243,6 +245,14 @@ int ceph_encode_encrypted_fname(const struct inode *parent,
 	kfree(cryptbuf);
 	dout("base64-encoded ciphertext name = %.*s\n", elen, buf);
 	return elen;
+}
+
+int ceph_encode_encrypted_fname(const struct inode *parent,
+				struct dentry *dentry, char *buf)
+{
+	WARN_ON_ONCE(!fscrypt_has_encryption_key(parent));
+
+	return ceph_encode_encrypted_dname(parent, &dentry->d_name, buf);
 }
 
 /**
@@ -286,7 +296,10 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, struct fscrypt_str *tname,
 	 * generating a nokey name via fscrypt.
 	 */
 	if (!fscrypt_has_encryption_key(fname->dir)) {
-		memcpy(oname->name, fname->name, fname->name_len);
+		if (fname->no_copy)
+			oname->name = fname->name;
+		else
+			memcpy(oname->name, fname->name, fname->name_len);
 		oname->len = fname->name_len;
 		if (is_nokey)
 			*is_nokey = true;

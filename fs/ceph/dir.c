@@ -9,6 +9,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "crypto.h"
 
 /*
  * Directory operations: readdir, lookup, create, link, unlink,
@@ -241,7 +242,9 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 		di = ceph_dentry(dentry);
 		if (d_unhashed(dentry) ||
 		    d_really_is_negative(dentry) ||
-		    di->lease_shared_gen != shared_gen) {
+		    di->lease_shared_gen != shared_gen ||
+		    ((dentry->d_flags & DCACHE_NOKEY_NAME) &&
+		     fscrypt_has_encryption_key(dir))) {
 			spin_unlock(&dentry->d_lock);
 			dput(dentry);
 			err = -EAGAIN;
@@ -340,6 +343,10 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 		ctx->pos = 2;
 	}
 
+	err = fscrypt_prepare_readdir(inode);
+	if (err)
+		return err;
+
 	spin_lock(&ci->i_ceph_lock);
 	/* request Fx cap. if have Fx, we don't need to release Fs cap
 	 * for later create/unlink. */
@@ -389,6 +396,7 @@ more:
 		req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
+
 		err = ceph_alloc_readdir_reply_buffer(req, inode);
 		if (err) {
 			ceph_mdsc_put_request(req);
@@ -402,10 +410,20 @@ more:
 			req->r_inode_drop = CEPH_CAP_FILE_EXCL;
 		}
 		if (dfi->last_name) {
-			req->r_path2 = kstrdup(dfi->last_name, GFP_KERNEL);
+			struct qstr d_name = { .name = dfi->last_name,
+					       .len = strlen(dfi->last_name) };
+
+			req->r_path2 = kzalloc(NAME_MAX + 1, GFP_KERNEL);
 			if (!req->r_path2) {
 				ceph_mdsc_put_request(req);
 				return -ENOMEM;
+			}
+
+			err = ceph_encode_encrypted_dname(inode, &d_name,
+							  req->r_path2);
+			if (err < 0) {
+				ceph_mdsc_put_request(req);
+				return err;
 			}
 		} else if (is_hash_order(ctx->pos)) {
 			req->r_args.readdir.offset_hash =
@@ -511,14 +529,19 @@ more:
 	for (; i < rinfo->dir_nr; i++) {
 		struct ceph_mds_reply_dir_entry *rde = rinfo->dir_entries + i;
 
-		BUG_ON(rde->offset < ctx->pos);
+		if (rde->offset < ctx->pos) {
+			pr_warn("%s: rde->offset 0x%llx ctx->pos 0x%llx\n",
+				__func__, rde->offset, ctx->pos);
+			return -EIO;
+		}
+
+		if (WARN_ON_ONCE(!rde->inode.in))
+			return -EIO;
 
 		ctx->pos = rde->offset;
 		dout("readdir (%d/%d) -> %llx '%.*s' %p\n",
 		     i, rinfo->dir_nr, ctx->pos,
 		     rde->name_len, rde->name, &rde->inode.in);
-
-		BUG_ON(!rde->inode.in);
 
 		if (!dir_emit(ctx, rde->name, rde->name_len,
 			      ceph_present_ino(inode->i_sb, le64_to_cpu(rde->inode.in->ino)),
@@ -532,6 +555,8 @@ more:
 			dout("filldir stopping us...\n");
 			return 0;
 		}
+
+		/* Reset the lengths to their original allocated vals */
 		ctx->pos++;
 	}
 
@@ -586,7 +611,6 @@ more:
 					dfi->dir_ordered_count);
 		spin_unlock(&ci->i_ceph_lock);
 	}
-
 	dout("readdir %p file %p done.\n", inode, file);
 	return 0;
 }

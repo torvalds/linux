@@ -19,6 +19,7 @@ struct ceph_fname {
 	unsigned char	*ctext;		// binary crypttext (if any)
 	u32		name_len;	// length of name buffer
 	u32		ctext_len;	// length of crypttext
+	bool		no_copy;
 };
 
 struct ceph_fscrypt_auth {
@@ -76,6 +77,8 @@ int ceph_fscrypt_prepare_context(struct inode *dir, struct inode *inode,
 				 struct ceph_acl_sec_ctx *as);
 void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 				struct ceph_acl_sec_ctx *as);
+int ceph_encode_encrypted_dname(const struct inode *parent,
+				struct qstr *d_name, char *buf);
 int ceph_encode_encrypted_fname(const struct inode *parent,
 				struct dentry *dentry, char *buf);
 
@@ -119,6 +122,13 @@ static inline int ceph_fscrypt_prepare_context(struct inode *dir,
 static inline void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 						struct ceph_acl_sec_ctx *as_ctx)
 {
+}
+
+static inline int ceph_encode_encrypted_dname(const struct inode *parent,
+					      struct qstr *d_name, char *buf)
+{
+	memcpy(buf, d_name->name, d_name->len);
+	return d_name->len;
 }
 
 static inline int ceph_encode_encrypted_fname(const struct inode *parent,
