@@ -113,7 +113,7 @@ static int vlv_drpc(struct seq_file *m)
 	seq_printf(m, "Media Power Well: %s\n",
 		   (pw_status & VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
 
-	print_rc6_res(m, "Render RC6 residency since boot:", VLV_GT_RENDER_RC6);
+	print_rc6_res(m, "Render RC6 residency since boot:", GEN6_GT_GFX_RC6);
 	print_rc6_res(m, "Media RC6 residency since boot:", VLV_GT_MEDIA_RC6);
 
 	return fw_domains_show(m, NULL);
