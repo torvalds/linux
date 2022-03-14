@@ -19,6 +19,7 @@ select:
       contains:
         enum:
           - mediatek,mt2712-gmac
+          - mediatek,mt8195-gmac
   required:
     - compatible
 
@@ -27,26 +28,35 @@ allOf:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - mediatek,mt2712-gmac
-      - const: snps,dwmac-4.20a
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt2712-gmac
+          - const: snps,dwmac-4.20a
+      - items:
+          - enum:
+              - mediatek,mt8195-gmac
+          - const: snps,dwmac-5.10a
 
   clocks:
+    minItems: 5
     items:
       - description: AXI clock
       - description: APB clock
       - description: MAC Main clock
       - description: PTP clock
       - description: RMII reference clock provided by MAC
+      - description: MAC clock gate
 
   clock-names:
+    minItems: 5
     items:
       - const: axi
       - const: apb
       - const: mac_main
       - const: ptp_ref
       - const: rmii_internal
+      - const: mac_cg
 
   mediatek,pericfg:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -61,6 +71,8 @@ properties:
       or will round down. Range 0~31*170.
       For MT2712 RMII/MII interface, Allowed value need to be a multiple of 550,
       or will round down. Range 0~31*550.
+      For MT8195 RGMII/RMII/MII interface, Allowed value need to be a multiple of 290,
+      or will round down. Range 0~31*290.
 
   mediatek,rx-delay-ps:
     description:
@@ -69,6 +81,8 @@ properties:
       or will round down. Range 0~31*170.
       For MT2712 RMII/MII interface, Allowed value need to be a multiple of 550,
       or will round down. Range 0~31*550.
+      For MT8195 RGMII/RMII/MII interface, Allowed value need to be a multiple
+      of 290, or will round down. Range 0~31*290.
 
   mediatek,rmii-rxc:
     type: boolean
@@ -101,6 +115,12 @@ properties:
          the reference clock is from external PHYs.
       3. the inside clock, which be sent to MAC, will be inversed in RMII case when
          the reference clock is from MAC.
+
+  mediatek,mac-wol:
+    type: boolean
+    description:
+      If present, indicates that MAC supports WOL(Wake-On-LAN), and MAC WOL will be enabled.
+      Otherwise, PHY WOL is perferred.
 
 required:
   - compatible
