@@ -28,15 +28,9 @@
 #define VOL_TWENTIETH_ROOT_OF_TEN	73533
 /* 40th root of 10 in Q1.16 fixed-point notation*/
 #define VOL_FORTIETH_ROOT_OF_TEN	69419
-/*
- * Volume fractional word length define to 16 sets
- * the volume linear gain value to use Qx.16 format
- */
-#define VOLUME_FWL	16
+
 /* 0.5 dB step value in topology TLV */
 #define VOL_HALF_DB_STEP	50
-/* Full volume for default values */
-#define VOL_ZERO_DB	BIT(VOLUME_FWL)
 
 /* TLV data items */
 #define TLV_ITEMS	3
@@ -944,16 +938,12 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_mixer_control *mc =
 		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
-	struct sof_ipc_ctrl_data *cdata;
 	int tlv[TLV_ITEMS];
-	unsigned int i;
 	int ret;
 
 	/* validate topology data */
-	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN)
+		return -EINVAL;
 
 	/*
 	 * If control has more than 2 channels we need to override the info. This is because even if
@@ -964,48 +954,26 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	if (le32_to_cpu(mc->num_channels) > 2)
 		kc->info = snd_sof_volume_info;
 
-	/* init the volume get/put data */
-	scontrol->size = struct_size(scontrol->control_data, chanv,
-				     le32_to_cpu(mc->num_channels));
-	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	if (!scontrol->control_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->min_volume_step = le32_to_cpu(mc->min);
 	scontrol->max_volume_step = le32_to_cpu(mc->max);
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
-	scontrol->control_data->index = kc->index;
 
-	/* set cmd for mixer control */
-	if (le32_to_cpu(mc->max) == 1) {
-		scontrol->control_data->cmd = SOF_CTRL_CMD_SWITCH;
+	scontrol->max = le32_to_cpu(mc->max);
+	if (le32_to_cpu(mc->max) == 1)
 		goto skip;
-	}
-
-	scontrol->control_data->cmd = SOF_CTRL_CMD_VOLUME;
 
 	/* extract tlv data */
 	if (!kc->tlv.p || get_tlv_data(kc->tlv.p, tlv) < 0) {
 		dev_err(scomp->dev, "error: invalid TLV data\n");
-		ret = -EINVAL;
-		goto out_free;
+		return -EINVAL;
 	}
 
 	/* set up volume table */
 	ret = set_up_volume_table(scontrol, tlv, le32_to_cpu(mc->max) + 1);
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: setting up volume table\n");
-		goto out_free;
-	}
-
-	/* set default volume values to 0dB in control */
-	cdata = scontrol->control_data;
-	for (i = 0; i < scontrol->num_channels; i++) {
-		cdata->chanv[i].channel = i;
-		cdata->chanv[i].value = VOL_ZERO_DB;
+		return ret;
 	}
 
 skip:
@@ -1016,7 +984,7 @@ skip:
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse led tokens failed %d\n",
 			le32_to_cpu(mc->priv.size));
-		goto out_free_table;
+		goto err;
 	}
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
@@ -1024,12 +992,10 @@ skip:
 
 	return 0;
 
-out_free_table:
+err:
 	if (le32_to_cpu(mc->max) > 1)
 		kfree(scontrol->volume_table);
-out_free:
-	kfree(scontrol->control_data);
-out:
+
 	return ret;
 }
 
@@ -1046,17 +1012,8 @@ static int sof_control_load_enum(struct snd_soc_component *scomp,
 	if (le32_to_cpu(ec->num_channels) > SND_SOC_TPLG_MAX_CHAN)
 		return -EINVAL;
 
-	/* init the enum get/put data */
-	scontrol->size = struct_size(scontrol->control_data, chanv,
-				     le32_to_cpu(ec->num_channels));
-	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	if (!scontrol->control_data)
-		return -ENOMEM;
-
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->num_channels = le32_to_cpu(ec->num_channels);
-	scontrol->control_data->index = kc->index;
-	scontrol->control_data->cmd = SOF_CTRL_CMD_ENUM;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
 		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
@@ -1070,77 +1027,27 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 				  struct snd_soc_tplg_ctl_hdr *hdr)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc_ctrl_data *cdata;
 	struct snd_soc_tplg_bytes_control *control =
 		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
 	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
-	size_t max_size = sbe->max;
 	size_t priv_size = le32_to_cpu(control->priv.size);
-	int ret;
 
-	if (max_size < sizeof(struct sof_ipc_ctrl_data) ||
-	    max_size < sizeof(struct sof_abi_hdr)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* init the get/put bytes data */
-	if (priv_size > max_size - sizeof(struct sof_ipc_ctrl_data)) {
-		dev_err(scomp->dev, "err: bytes data size %zu exceeds max %zu.\n",
-			priv_size, max_size - sizeof(struct sof_ipc_ctrl_data));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	scontrol->size = sizeof(struct sof_ipc_ctrl_data) + priv_size;
-
-	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
-	cdata = scontrol->control_data;
-	if (!scontrol->control_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
+	scontrol->max_size = sbe->max;
 	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->control_data->cmd = SOF_CTRL_CMD_BINARY;
-	scontrol->control_data->index = kc->index;
 
-	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
-		scontrol->comp_id, scontrol->num_channels);
+	dev_dbg(scomp->dev, "tplg: load kcontrol index %d\n", scontrol->comp_id);
 
-	if (le32_to_cpu(control->priv.size) > 0) {
-		memcpy(cdata->data, control->priv.data,
-		       le32_to_cpu(control->priv.size));
+	/* copy the private data */
+	if (priv_size > 0) {
+		scontrol->priv = kzalloc(priv_size, GFP_KERNEL);
+		if (!scontrol->priv)
+			return -ENOMEM;
 
-		if (cdata->data->magic != SOF_ABI_MAGIC) {
-			dev_err(scomp->dev, "error: Wrong ABI magic 0x%08x.\n",
-				cdata->data->magic);
-			ret = -EINVAL;
-			goto out_free;
-		}
-		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION,
-						 cdata->data->abi)) {
-			dev_err(scomp->dev,
-				"error: Incompatible ABI version 0x%08x.\n",
-				cdata->data->abi);
-			ret = -EINVAL;
-			goto out_free;
-		}
-		if (cdata->data->size + sizeof(struct sof_abi_hdr) !=
-		    le32_to_cpu(control->priv.size)) {
-			dev_err(scomp->dev,
-				"error: Conflict in bytes vs. priv size.\n");
-			ret = -EINVAL;
-			goto out_free;
-		}
+		memcpy(scontrol->priv, control->priv.data, priv_size);
+		scontrol->priv_size = priv_size;
 	}
 
 	return 0;
-
-out_free:
-	kfree(scontrol->control_data);
-out:
-	return ret;
 }
 
 /* external kcontrol init - used for any driver specific init */
@@ -1163,8 +1070,14 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	if (!scontrol)
 		return -ENOMEM;
 
+	scontrol->name = kstrdup(hdr->name, GFP_KERNEL);
+	if (!scontrol->name)
+		return -ENOMEM;
+
 	scontrol->scomp = scomp;
 	scontrol->access = kc->access;
+	scontrol->info_type = le32_to_cpu(hdr->ops.info);
+	scontrol->index = kc->index;
 
 	switch (le32_to_cpu(hdr->ops.info)) {
 	case SND_SOC_TPLG_CTL_VOLSW:
@@ -1215,22 +1128,26 @@ static int sof_control_unload(struct snd_soc_component *scomp,
 			      struct snd_soc_dobj *dobj)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc_free fcomp;
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	struct snd_sof_control *scontrol = dobj->private;
+	int ret = 0;
 
-	dev_dbg(scomp->dev, "tplg: unload control name : %s\n", scomp->name);
+	dev_dbg(scomp->dev, "tplg: unload control name : %s\n", scontrol->name);
 
-	fcomp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_FREE;
-	fcomp.hdr.size = sizeof(fcomp);
-	fcomp.id = scontrol->comp_id;
+	if (ipc_tplg_ops->control_free) {
+		ret = ipc_tplg_ops->control_free(sdev, scontrol);
+		if (ret < 0)
+			dev_err(scomp->dev, "failed to free control: %s\n", scontrol->name);
+	}
 
-	kfree(scontrol->control_data);
+	/* free all data before returning in case of error too */
+	kfree(scontrol->ipc_control_data);
+	kfree(scontrol->priv);
+	kfree(scontrol->name);
 	list_del(&scontrol->list);
 	kfree(scontrol);
-	/* send IPC to the DSP */
-	return sof_ipc_tx_message(sdev->ipc,
-				  fcomp.hdr.cmd, &fcomp, sizeof(fcomp),
-				  NULL, 0);
+
+	return ret;
 }
 
 /*
@@ -1657,7 +1574,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			dev_warn(scomp->dev, "unsupported kcontrol_type\n");
 			goto out;
 		}
-		kfree(scontrol->control_data);
+		kfree(scontrol->ipc_control_data);
 		list_del(&scontrol->list);
 		kfree(scontrol);
 	}
@@ -2167,10 +2084,22 @@ static int sof_complete(struct snd_soc_component *scomp)
 	struct snd_sof_widget *swidget, *comp_swidget;
 	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	const struct sof_ipc_tplg_widget_ops *widget_ops = ipc_tplg_ops->widget;
+	struct snd_sof_control *scontrol;
 	int ret;
 
+	/* first update all control IPC structures based on the IPC version */
+	if (ipc_tplg_ops->control_setup)
+		list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+			ret = ipc_tplg_ops->control_setup(sdev, scontrol);
+			if (ret < 0) {
+				dev_err(sdev->dev, "failed updating IPC struct for control %s\n",
+					scontrol->name);
+				return ret;
+			}
+		}
+
 	/*
-	 * now update all widget IPC structures. If any of the ipc_setup callbacks fail, the
+	 * then update all widget IPC structures. If any of the ipc_setup callbacks fail, the
 	 * topology will be removed and all widgets will be unloaded resulting in freeing all
 	 * associated memories.
 	 */

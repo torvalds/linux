@@ -12,6 +12,9 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+/* Full volume for default values */
+#define VOL_ZERO_DB	BIT(VOLUME_FWL)
+
 struct sof_widget_data {
 	int ctrl_type;
 	int ipc_cmd;
@@ -743,6 +746,7 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 				struct sof_widget_data *wdata, size_t *size)
 {
 	const struct snd_kcontrol_new *kc;
+	struct sof_ipc_ctrl_data *cdata;
 	struct soc_mixer_control *sm;
 	struct soc_bytes_ext *sbe;
 	struct soc_enum *se;
@@ -777,7 +781,8 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 			return -EINVAL;
 		}
 
-		wdata[i].pdata = wdata[i].control->control_data->data;
+		cdata = wdata[i].control->ipc_control_data;
+		wdata[i].pdata = cdata->data;
 		if (!wdata[i].pdata)
 			return -EINVAL;
 
@@ -789,7 +794,7 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 		*size += wdata[i].pdata->size;
 
 		/* get data type */
-		switch (wdata[i].control->control_data->cmd) {
+		switch (cdata->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
 		case SOF_CTRL_CMD_ENUM:
 		case SOF_CTRL_CMD_SWITCH:
@@ -1553,6 +1558,146 @@ static int sof_ipc3_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	return ret;
 }
 
+static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_ctrl_data *cdata;
+	int ret;
+
+	scontrol->ipc_control_data = kzalloc(scontrol->max_size, GFP_KERNEL);
+	if (!scontrol->ipc_control_data)
+		return -ENOMEM;
+
+	if (scontrol->max_size < sizeof(*cdata) ||
+	    scontrol->max_size < sizeof(struct sof_abi_hdr)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* init the get/put bytes data */
+	if (scontrol->priv_size > scontrol->max_size - sizeof(*cdata)) {
+		dev_err(sdev->dev, "err: bytes data size %zu exceeds max %zu.\n",
+			scontrol->priv_size, scontrol->max_size - sizeof(*cdata));
+		ret = -EINVAL;
+		goto err;
+	}
+
+	scontrol->size = sizeof(struct sof_ipc_ctrl_data) + scontrol->priv_size;
+
+	cdata = scontrol->ipc_control_data;
+	cdata->cmd = SOF_CTRL_CMD_BINARY;
+	cdata->index = scontrol->index;
+
+	if (scontrol->priv_size > 0) {
+		memcpy(cdata->data, scontrol->priv, scontrol->priv_size);
+		kfree(scontrol->priv);
+
+		if (cdata->data->magic != SOF_ABI_MAGIC) {
+			dev_err(sdev->dev, "Wrong ABI magic 0x%08x.\n", cdata->data->magic);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, cdata->data->abi)) {
+			dev_err(sdev->dev, "Incompatible ABI version 0x%08x.\n",
+				cdata->data->abi);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (cdata->data->size + sizeof(struct sof_abi_hdr) != scontrol->priv_size) {
+			dev_err(sdev->dev, "Conflict in bytes vs. priv size.\n");
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
+	return 0;
+err:
+	kfree(scontrol->ipc_control_data);
+	return ret;
+}
+
+static int sof_ipc3_control_load_volume(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_ctrl_data *cdata;
+	int i;
+
+	/* init the volume get/put data */
+	scontrol->size = struct_size(cdata, chanv, scontrol->num_channels);
+
+	scontrol->ipc_control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->ipc_control_data)
+		return -ENOMEM;
+
+	cdata = scontrol->ipc_control_data;
+	cdata->index = scontrol->index;
+
+	/* set cmd for mixer control */
+	if (scontrol->max == 1) {
+		cdata->cmd = SOF_CTRL_CMD_SWITCH;
+		return 0;
+	}
+
+	cdata->cmd = SOF_CTRL_CMD_VOLUME;
+
+	/* set default volume values to 0dB in control */
+	for (i = 0; i < scontrol->num_channels; i++) {
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = VOL_ZERO_DB;
+	}
+
+	return 0;
+}
+
+static int sof_ipc3_control_load_enum(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_ctrl_data *cdata;
+
+	/* init the enum get/put data */
+	scontrol->size = struct_size(cdata, chanv, scontrol->num_channels);
+
+	scontrol->ipc_control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->ipc_control_data)
+		return -ENOMEM;
+
+	cdata = scontrol->ipc_control_data;
+	cdata->index = scontrol->index;
+	cdata->cmd = SOF_CTRL_CMD_ENUM;
+
+	return 0;
+}
+
+static int sof_ipc3_control_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	switch (scontrol->info_type) {
+	case SND_SOC_TPLG_CTL_VOLSW:
+	case SND_SOC_TPLG_CTL_VOLSW_SX:
+	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
+		return sof_ipc3_control_load_volume(sdev, scontrol);
+	case SND_SOC_TPLG_CTL_BYTES:
+		return sof_ipc3_control_load_bytes(sdev, scontrol);
+	case SND_SOC_TPLG_CTL_ENUM:
+	case SND_SOC_TPLG_CTL_ENUM_VALUE:
+		return sof_ipc3_control_load_enum(sdev, scontrol);
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int sof_ipc3_control_free(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_free fcomp;
+
+	fcomp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_FREE;
+	fcomp.hdr.size = sizeof(fcomp);
+	fcomp.id = scontrol->comp_id;
+
+	/* send IPC to the DSP */
+	return sof_ipc_tx_message(sdev->ipc, fcomp.hdr.cmd, &fcomp, sizeof(fcomp), NULL, 0);
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -1651,6 +1796,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget = tplg_ipc3_widget_ops,
 	.route_setup = sof_ipc3_route_setup,
+	.control_setup = sof_ipc3_control_setup,
+	.control_free = sof_ipc3_control_free,
 	.token_list = ipc3_token_list,
 };
 

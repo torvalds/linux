@@ -30,8 +30,15 @@
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
 
+/*
+ * Volume fractional word length define to 16 sets
+ * the volume linear gain value to use Qx.16 format
+ */
+#define VOLUME_FWL	16
+
 struct snd_sof_widget;
 struct snd_sof_route;
+struct snd_sof_control;
 
 /**
  * struct sof_ipc_tplg_widget_ops - IPC-specific ops for topology widgets
@@ -59,11 +66,15 @@ struct sof_ipc_tplg_widget_ops {
  * @token_list: List of all tokens supported by the IPC version. The size of the token_list
  *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
  *		initialized to 0.
+ * @control_setup: Function pointer for setting up kcontrol IPC-specific data
+ * @control_free: Function pointer for freeing kcontrol IPC-specific data
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
 	int (*route_setup)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
 	const struct sof_token_info *token_list;
+	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
+	int (*control_free)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
 };
 
 /** struct snd_sof_tuple - Tuple info
@@ -165,13 +176,20 @@ struct snd_sof_led_control {
 /* ALSA SOF Kcontrol device */
 struct snd_sof_control {
 	struct snd_soc_component *scomp;
+	const char *name;
 	int comp_id;
 	int min_volume_step; /* min volume step for volume_table */
 	int max_volume_step; /* max volume step for volume_table */
 	int num_channels;
 	unsigned int access;
 	u32 readback_offset; /* offset to mmapped data if used */
-	struct sof_ipc_ctrl_data *control_data;
+	int info_type;
+	int index; /* pipeline ID */
+	void *priv; /* private data copied from topology */
+	size_t priv_size; /* size of private data */
+	size_t max_size;
+	void *ipc_control_data;
+	int max; /* applicable to volume controls */
 	u32 size;	/* cdata size */
 	u32 *volume_table; /* volume table computed from tlv data*/
 

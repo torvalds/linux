@@ -812,7 +812,7 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
 int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 {
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
