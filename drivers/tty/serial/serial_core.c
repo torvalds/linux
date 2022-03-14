@@ -653,6 +653,20 @@ static void uart_flush_buffer(struct tty_struct *tty)
 }
 
 /*
+ * This function performs low-level write of high-priority XON/XOFF
+ * character and accounting for it.
+ *
+ * Requires uart_port to implement .serial_out().
+ */
+void uart_xchar_out(struct uart_port *uport, int offset)
+{
+	serial_port_out(uport, offset, uport->x_char);
+	uport->icount.tx++;
+	uport->x_char = 0;
+}
+EXPORT_SYMBOL_GPL(uart_xchar_out);
+
+/*
  * This function is used to send a high-priority XON/XOFF character to
  * the device
  */
