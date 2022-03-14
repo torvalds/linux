@@ -854,6 +854,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *tgt_device;
 	struct btrfs_device *src_device;
 	struct btrfs_root *root = fs_info->tree_root;
@@ -903,12 +904,12 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		WARN_ON(ret);
 
 		/* Prevent write_all_supers() during the finishing procedure */
-		mutex_lock(&fs_info->fs_devices->device_list_mutex);
+		mutex_lock(&fs_devices->device_list_mutex);
 		/* Prevent new chunks being allocated on the source device */
 		mutex_lock(&fs_info->chunk_mutex);
 
 		if (!list_empty(&src_device->post_commit_list)) {
-			mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+			mutex_unlock(&fs_devices->device_list_mutex);
 			mutex_unlock(&fs_info->chunk_mutex);
 		} else {
 			break;
@@ -945,7 +946,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 error:
 		up_write(&dev_replace->rwsem);
 		mutex_unlock(&fs_info->chunk_mutex);
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+		mutex_unlock(&fs_devices->device_list_mutex);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
 			btrfs_destroy_dev_replace_tgtdev(tgt_device);
@@ -974,8 +975,8 @@ error:
 
 	btrfs_assign_next_active_device(src_device, tgt_device);
 
-	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
-	fs_info->fs_devices->rw_devices++;
+	list_add(&tgt_device->dev_alloc_list, &fs_devices->alloc_list);
+	fs_devices->rw_devices++;
 
 	up_write(&dev_replace->rwsem);
 	btrfs_rm_dev_replace_blocked(fs_info);
@@ -998,7 +999,7 @@ error:
 	 * belong to this filesystem.
 	 */
 	mutex_unlock(&fs_info->chunk_mutex);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	/* replace the sysfs entry */
 	btrfs_sysfs_remove_device(src_device);
