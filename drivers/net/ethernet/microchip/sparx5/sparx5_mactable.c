@@ -286,7 +286,8 @@ static void sparx5_fdb_call_notifiers(enum switchdev_notifier_type type,
 }
 
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
-			  struct sparx5_port *port,
+			  struct net_device *dev,
+			  u16 portno,
 			  const unsigned char *addr, u16 vid)
 {
 	struct sparx5_mact_entry *mact_entry;
@@ -302,14 +303,14 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	 * mact thread to start the frame will reach CPU and the CPU will
 	 * add the entry but without the extern_learn flag.
 	 */
-	mact_entry = find_mact_entry(sparx5, addr, vid, port->portno);
+	mact_entry = find_mact_entry(sparx5, addr, vid, portno);
 	if (mact_entry)
 		goto update_hw;
 
 	/* Add the entry in SW MAC table not to get the notification when
 	 * SW is pulling again
 	 */
-	mact_entry = alloc_mact_entry(sparx5, addr, vid, port->portno);
+	mact_entry = alloc_mact_entry(sparx5, addr, vid, portno);
 	if (!mact_entry)
 		return -ENOMEM;
 
@@ -318,13 +319,13 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	mutex_unlock(&sparx5->mact_lock);
 
 update_hw:
-	ret = sparx5_mact_learn(sparx5, port->portno, addr, vid);
+	ret = sparx5_mact_learn(sparx5, portno, addr, vid);
 
 	/* New entry? */
 	if (mact_entry->flags == 0) {
 		mact_entry->flags |= MAC_ENT_LOCK; /* Don't age this */
 		sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE, addr, vid,
-					  port->ndev, true);
+					  dev, true);
 	}
 
 	return ret;

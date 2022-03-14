@@ -305,7 +305,8 @@ bool sparx5_mact_getnext(struct sparx5 *sparx5,
 int sparx5_mact_forget(struct sparx5 *sparx5,
 		       const unsigned char mac[ETH_ALEN], u16 vid);
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
-			  struct sparx5_port *port,
+			  struct net_device *dev,
+			  u16 portno,
 			  const unsigned char *addr, u16 vid);
 int sparx5_del_mact_entry(struct sparx5 *sparx5,
 			  const unsigned char *addr,
