@@ -1,8 +1,8 @@
 =====================================
-Assignment 4 - SO2 Transport Protocol
+Assignment 4.b - SO2 Transport Protocol
 =====================================
 
-- Deadline: :command:`Monday, May, 31, 2021, 23:00`
+- Deadline: :command:`Tuesday, 24 May 2022, 23:00`
 - This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
 
 Implement a simple datagram transport protocol - STP (*SO2 Transport Protocol*).
