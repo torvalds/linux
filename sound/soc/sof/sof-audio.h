@@ -30,6 +30,42 @@
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
 
+struct snd_sof_widget;
+struct snd_sof_route;
+
+/**
+ * struct sof_ipc_tplg_widget_ops - IPC-specific ops for topology widgets
+ * @ipc_setup: Function pointer for setting up widget IPC params
+ * @ipc_free: Function pointer for freeing widget IPC params
+ * @token_list: List of token ID's that should be parsed for the widget
+ * @token_list_size: number of elements in token_list
+ * @bind_event: Function pointer for binding events to the widget
+ */
+struct sof_ipc_tplg_widget_ops {
+	int (*ipc_setup)(struct snd_sof_widget *swidget);
+	void (*ipc_free)(struct snd_sof_widget *swidget);
+	enum sof_tokens *token_list;
+	int token_list_size;
+	int (*bind_event)(struct snd_soc_component *scomp, struct snd_sof_widget *swidget,
+			  u16 event_type);
+};
+
+/**
+ * struct sof_ipc_tplg_ops - IPC-specific topology ops
+ * @widget: Array of pointers to IPC-specific ops for widgets. This should always be of size
+ *	    SND_SOF_DAPM_TYPE_COUNT i.e one per widget type. Unsupported widget types will be
+ *	    initialized to 0.
+ * @route_setup: Function pointer for setting up pipeline connections
+ * @token_list: List of all tokens supported by the IPC version. The size of the token_list
+ *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
+ *		initialized to 0.
+ */
+struct sof_ipc_tplg_ops {
+	const struct sof_ipc_tplg_widget_ops *widget;
+	int (*route_setup)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
+	const struct sof_token_info *token_list;
+};
+
 /** struct snd_sof_tuple - Tuple info
  * @token:	Token ID
  * @value:	union of a string or a u32 values

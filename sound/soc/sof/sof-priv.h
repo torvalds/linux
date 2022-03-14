@@ -360,6 +360,16 @@ struct snd_sof_ipc_msg {
 	bool ipc_complete;
 };
 
+struct sof_ipc_tplg_ops;
+
+/**
+ * struct sof_ipc_ops - IPC-specific ops
+ * @tplg:	Pointer to IPC-specific topology ops
+ */
+struct sof_ipc_ops {
+	const struct sof_ipc_tplg_ops *tplg;
+};
+
 /* SOF generic IPC data */
 struct snd_sof_ipc {
 	struct snd_sof_dev *sdev;
@@ -370,6 +380,9 @@ struct snd_sof_ipc {
 	bool disable_ipc_tx;
 
 	struct snd_sof_ipc_msg msg;
+
+	/* IPC ops based on version */
+	const struct sof_ipc_ops *ops;
 };
 
 /*
