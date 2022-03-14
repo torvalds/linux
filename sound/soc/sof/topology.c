@@ -554,204 +554,20 @@ int get_token_dai_type(void *elem, void *object, u32 offset)
 	return 0;
 }
 
-/* DAI */
-static const struct sof_topology_token dai_tokens[] = {
-	{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type,
-		offsetof(struct sof_ipc_comp_dai, type)},
-	{SOF_TKN_DAI_INDEX, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_dai, dai_index)},
-	{SOF_TKN_DAI_DIRECTION, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_dai, direction)},
-};
-
-/* BE DAI link */
-static const struct sof_topology_token dai_link_tokens[] = {
-	{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type,
-		offsetof(struct sof_ipc_dai_config, type)},
-	{SOF_TKN_DAI_INDEX, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_config, dai_index)},
-};
-
 /* PCM */
 static const struct sof_topology_token stream_tokens[] = {
-	{SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3,
-		SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+	{SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
 		offsetof(struct snd_sof_pcm, stream[0].d0i3_compatible)},
-	{SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3,
-		SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+	{SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
 		offsetof(struct snd_sof_pcm, stream[1].d0i3_compatible)},
-};
-
-/* Generic components */
-static const struct sof_topology_token comp_tokens[] = {
-	{SOF_TKN_COMP_PERIOD_SINK_COUNT,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_config, periods_sink)},
-	{SOF_TKN_COMP_PERIOD_SOURCE_COUNT,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_config, periods_source)},
-	{SOF_TKN_COMP_FORMAT,
-		SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_format,
-		offsetof(struct sof_ipc_comp_config, frame_fmt)},
-};
-
-/* SSP */
-static const struct sof_topology_token ssp_tokens[] = {
-	{SOF_TKN_INTEL_SSP_CLKS_CONTROL,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_ssp_params, clks_control)},
-	{SOF_TKN_INTEL_SSP_MCLK_ID,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_ssp_params, mclk_id)},
-	{SOF_TKN_INTEL_SSP_SAMPLE_BITS, SND_SOC_TPLG_TUPLE_TYPE_WORD,
-		get_token_u32,
-		offsetof(struct sof_ipc_dai_ssp_params, sample_valid_bits)},
-	{SOF_TKN_INTEL_SSP_FRAME_PULSE_WIDTH, SND_SOC_TPLG_TUPLE_TYPE_SHORT,
-		get_token_u16,
-		offsetof(struct sof_ipc_dai_ssp_params, frame_pulse_width)},
-	{SOF_TKN_INTEL_SSP_QUIRKS, SND_SOC_TPLG_TUPLE_TYPE_WORD,
-		get_token_u32,
-		offsetof(struct sof_ipc_dai_ssp_params, quirks)},
-	{SOF_TKN_INTEL_SSP_TDM_PADDING_PER_SLOT, SND_SOC_TPLG_TUPLE_TYPE_BOOL,
-		get_token_u16,
-		offsetof(struct sof_ipc_dai_ssp_params,
-			 tdm_per_slot_padding_flag)},
-	{SOF_TKN_INTEL_SSP_BCLK_DELAY, SND_SOC_TPLG_TUPLE_TYPE_WORD,
-		get_token_u32,
-		offsetof(struct sof_ipc_dai_ssp_params, bclk_delay)},
-
-};
-
-/* ALH */
-static const struct sof_topology_token alh_tokens[] = {
-	{SOF_TKN_INTEL_ALH_RATE,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_alh_params, rate)},
-	{SOF_TKN_INTEL_ALH_CH,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_alh_params, channels)},
-};
-
-/* DMIC */
-static const struct sof_topology_token dmic_tokens[] = {
-	{SOF_TKN_INTEL_DMIC_DRIVER_VERSION,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, driver_ipc_version)},
-	{SOF_TKN_INTEL_DMIC_CLK_MIN,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, pdmclk_min)},
-	{SOF_TKN_INTEL_DMIC_CLK_MAX,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, pdmclk_max)},
-	{SOF_TKN_INTEL_DMIC_SAMPLE_RATE,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, fifo_fs)},
-	{SOF_TKN_INTEL_DMIC_DUTY_MIN,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_params, duty_min)},
-	{SOF_TKN_INTEL_DMIC_DUTY_MAX,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_params, duty_max)},
-	{SOF_TKN_INTEL_DMIC_NUM_PDM_ACTIVE,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params,
-			 num_pdm_active)},
-	{SOF_TKN_INTEL_DMIC_FIFO_WORD_LENGTH,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_params, fifo_bits)},
-	{SOF_TKN_INTEL_DMIC_UNMUTE_RAMP_TIME_MS,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, unmute_ramp_time)},
-
-};
-
-/* ESAI */
-static const struct sof_topology_token esai_tokens[] = {
-	{SOF_TKN_IMX_ESAI_MCLK_ID,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_esai_params, mclk_id)},
-};
-
-/* SAI */
-static const struct sof_topology_token sai_tokens[] = {
-	{SOF_TKN_IMX_SAI_MCLK_ID,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_sai_params, mclk_id)},
-};
-
-/* Core tokens */
-static const struct sof_topology_token core_tokens[] = {
-	{SOF_TKN_COMP_CORE_ID,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp, core)},
-};
-
-/* Component extended tokens */
-static const struct sof_topology_token comp_ext_tokens[] = {
-	{SOF_TKN_COMP_UUID,
-		SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
-		offsetof(struct snd_sof_widget, uuid)},
-};
-
-/*
- * DMIC PDM Tokens
- * SOF_TKN_INTEL_DMIC_PDM_CTRL_ID should be the first token
- * as it increments the index while parsing the array of pdm tokens
- * and determines the correct offset
- */
-static const struct sof_topology_token dmic_pdm_tokens[] = {
-	{SOF_TKN_INTEL_DMIC_PDM_CTRL_ID,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, id),},
-	{SOF_TKN_INTEL_DMIC_PDM_MIC_A_Enable,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, enable_mic_a)},
-	{SOF_TKN_INTEL_DMIC_PDM_MIC_B_Enable,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, enable_mic_b)},
-	{SOF_TKN_INTEL_DMIC_PDM_POLARITY_A,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, polarity_mic_a)},
-	{SOF_TKN_INTEL_DMIC_PDM_POLARITY_B,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, polarity_mic_b)},
-	{SOF_TKN_INTEL_DMIC_PDM_CLK_EDGE,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, clk_edge)},
-	{SOF_TKN_INTEL_DMIC_PDM_SKEW,
-		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_pdm_ctrl, skew)},
-};
-
-/* HDA */
-static const struct sof_topology_token hda_tokens[] = {
-	{SOF_TKN_INTEL_HDA_RATE,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_hda_params, rate)},
-	{SOF_TKN_INTEL_HDA_CH,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_hda_params, channels)},
 };
 
 /* Leds */
 static const struct sof_topology_token led_tokens[] = {
 	{SOF_TKN_MUTE_LED_USE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-	 offsetof(struct snd_sof_led_control, use_led)},
-	{SOF_TKN_MUTE_LED_DIRECTION, SND_SOC_TPLG_TUPLE_TYPE_WORD,
-	 get_token_u32, offsetof(struct snd_sof_led_control, direction)},
-};
-
-/* AFE */
-static const struct sof_topology_token afe_tokens[] = {
-	{SOF_TKN_MEDIATEK_AFE_RATE,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_mtk_afe_params, rate)},
-	{SOF_TKN_MEDIATEK_AFE_CH,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_mtk_afe_params, channels)},
-	{SOF_TKN_MEDIATEK_AFE_FORMAT,
-		SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_format,
-		offsetof(struct sof_ipc_dai_mtk_afe_params, format)},
+		offsetof(struct snd_sof_led_control, use_led)},
+	{SOF_TKN_MUTE_LED_DIRECTION, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_led_control, direction)},
 };
 
 /**
@@ -1114,14 +930,6 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,  void *object,
 	 */
 	return sof_parse_token_sets(scomp, object, tokens, num_tokens, array,
 				    array_size, 1, 0);
-}
-
-static void sof_dbg_comp_config(struct snd_soc_component *scomp,
-				struct sof_ipc_comp_config *config)
-{
-	dev_dbg(scomp->dev, " config: periods snk %d src %d fmt %d\n",
-		config->periods_sink, config->periods_source,
-		config->frame_fmt);
 }
 
 /*
@@ -1510,110 +1318,6 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	return 0;
 }
 
-/**
- * sof_comp_alloc - allocate and initialize buffer for a new component
- * @swidget: pointer to struct snd_sof_widget containing extended data
- * @ipc_size: IPC payload size that will be updated depending on valid
- *  extended data.
- * @index: ID of the pipeline the component belongs to
- *
- * Return: The pointer to the new allocated component, NULL if failed.
- */
-static struct sof_ipc_comp *sof_comp_alloc(struct snd_sof_widget *swidget, size_t *ipc_size,
-					   int index)
-{
-	struct sof_ipc_comp *comp;
-	size_t total_size = *ipc_size;
-	size_t ext_size = sizeof(swidget->uuid);
-
-	/* only non-zero UUID is valid */
-	if (!guid_is_null(&swidget->uuid))
-		total_size += ext_size;
-
-	comp = kzalloc(total_size, GFP_KERNEL);
-	if (!comp)
-		return NULL;
-
-	/* configure comp new IPC message */
-	comp->hdr.size = total_size;
-	comp->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	comp->id = swidget->comp_id;
-	comp->pipeline_id = index;
-	comp->core = swidget->core;
-
-	/* handle the extended data if needed */
-	if (total_size > *ipc_size) {
-		/* append extended data to the end of the component */
-		memcpy((u8 *)comp + *ipc_size, &swidget->uuid, ext_size);
-		comp->ext_data_length = ext_size;
-	}
-
-	/* update ipc_size and return */
-	*ipc_size = total_size;
-	return comp;
-}
-
-static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw,
-			       struct snd_sof_dai *dai)
-{
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_dai_private_data *dai_data;
-	struct sof_ipc_comp_dai *comp_dai;
-	size_t ipc_size = sizeof(*comp_dai);
-	int ret;
-
-	dai_data = kzalloc(sizeof(*dai_data), GFP_KERNEL);
-	if (!dai_data)
-		return -ENOMEM;
-
-	comp_dai = (struct sof_ipc_comp_dai *)
-		   sof_comp_alloc(swidget, &ipc_size, index);
-	if (!comp_dai) {
-		ret = -ENOMEM;
-		goto free;
-	}
-
-	/* configure dai IPC message */
-	comp_dai->comp.type = SOF_COMP_DAI;
-	comp_dai->config.hdr.size = sizeof(comp_dai->config);
-
-	ret = sof_parse_tokens(scomp, comp_dai, dai_tokens,
-			       ARRAY_SIZE(dai_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto free;
-	}
-
-	ret = sof_parse_tokens(scomp, &comp_dai->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
-			private->size);
-		goto free;
-	}
-
-	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
-		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
-	sof_dbg_comp_config(scomp, &comp_dai->config);
-
-	if (dai) {
-		dai->scomp = scomp;
-		dai_data->comp_dai = comp_dai;
-		dai->private = dai_data;
-	}
-
-	return 0;
-
-free:
-	kfree(dai_data);
-	return ret;
-}
-
 /* bind PCM ID to host component ID */
 static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 		     int dir)
@@ -1734,6 +1438,21 @@ static int sof_widget_bind_event(struct snd_soc_component *scomp,
 	return -EINVAL;
 }
 
+static int sof_get_token_value(u32 token_id, struct snd_sof_tuple *tuples, int num_tuples)
+{
+	int i;
+
+	if (!tuples)
+		return -EINVAL;
+
+	for (i = 0; i < num_tuples; i++) {
+		if (tuples[i].token == token_id)
+			return tuples[i].value.v;
+	}
+
+	return -EINVAL;
+}
+
 /* external widget init - used for any driver specific init */
 static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			    struct snd_soc_dapm_widget *w,
@@ -1746,9 +1465,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dai *dai;
 	enum sof_tokens *token_list;
 	int token_list_size;
-	struct sof_ipc_comp comp = {
-		.core = SOF_DSP_PRIMARY_CORE,
-	};
 	int ret = 0;
 
 	swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
@@ -1771,30 +1487,6 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	token_list = widget_ops[w->id].token_list;
 	token_list_size = widget_ops[w->id].token_list_size;
 
-	ret = sof_parse_tokens(scomp, &comp, core_tokens,
-			       ARRAY_SIZE(core_tokens), tw->priv.array,
-			       le32_to_cpu(tw->priv.size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parsing core tokens failed %d\n",
-			ret);
-		kfree(swidget);
-		return ret;
-	}
-
-	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
-		comp.core = SOF_DSP_PRIMARY_CORE;
-
-	swidget->core = comp.core;
-
-	ret = sof_parse_tokens(scomp, swidget, comp_ext_tokens, ARRAY_SIZE(comp_ext_tokens),
-			       tw->priv.array, le32_to_cpu(tw->priv.size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parsing comp_ext_tokens failed %d\n",
-			ret);
-		kfree(swidget);
-		return ret;
-	}
-
 	/* handle any special case widgets */
 	switch (w->id) {
 	case snd_soc_dapm_dai_in:
@@ -1803,9 +1495,10 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		if (!dai) {
 			kfree(swidget);
 			return -ENOMEM;
+
 		}
 
-		ret = sof_widget_load_dai(scomp, index, swidget, tw, dai);
+		ret = sof_widget_parse_tokens(scomp, swidget, tw, token_list, token_list_size);
 		if (!ret)
 			ret = sof_connect_dai_widget(scomp, w, tw, dai);
 		if (ret < 0) {
@@ -1853,7 +1546,17 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	}
 
-	/* check IPC reply */
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE)) {
+		swidget->core = SOF_DSP_PRIMARY_CORE;
+	} else {
+		int core = sof_get_token_value(SOF_TKN_COMP_CORE_ID, swidget->tuples,
+					       swidget->num_tuples);
+
+		if (core >= 0)
+			swidget->core = core;
+	}
+
+	/* check token parsing reply */
 	if (ret < 0) {
 		dev_err(scomp->dev,
 			"error: failed to add widget id %d type %d name : %s stream %s\n",
@@ -1927,14 +1630,8 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	case snd_soc_dapm_dai_out:
 		dai = swidget->private;
 
-		if (dai) {
-			struct sof_dai_private_data *dai_data = dai->private;
-
-			kfree(dai_data->comp_dai);
-			kfree(dai_data->dai_config);
-			kfree(dai_data);
+		if (dai)
 			list_del(&dai->list);
-		}
 		break;
 	default:
 		break;
@@ -1969,9 +1666,6 @@ out:
 	/* free IPC related data */
 	if (widget_ops[swidget->id].ipc_free)
 		widget_ops[swidget->id].ipc_free(swidget);
-
-	/* free private value */
-	kfree(swidget->private);
 
 	kfree(swidget->tuples);
 
@@ -2118,589 +1812,24 @@ static int sof_dai_unload(struct snd_soc_component *scomp,
 	return 0;
 }
 
-static void sof_dai_set_format(struct snd_soc_tplg_hw_config *hw_config,
-			       struct sof_ipc_dai_config *config)
-{
-	/* clock directions wrt codec */
-	if (hw_config->bclk_provider == SND_SOC_TPLG_BCLK_CP) {
-		/* codec is bclk provider */
-		if (hw_config->fsync_provider == SND_SOC_TPLG_FSYNC_CP)
-			config->format |= SOF_DAI_FMT_CBP_CFP;
-		else
-			config->format |= SOF_DAI_FMT_CBP_CFC;
-	} else {
-		/* codec is bclk consumer */
-		if (hw_config->fsync_provider == SND_SOC_TPLG_FSYNC_CP)
-			config->format |= SOF_DAI_FMT_CBC_CFP;
-		else
-			config->format |= SOF_DAI_FMT_CBC_CFC;
-	}
-
-	/* inverted clocks ? */
-	if (hw_config->invert_bclk) {
-		if (hw_config->invert_fsync)
-			config->format |= SOF_DAI_FMT_IB_IF;
-		else
-			config->format |= SOF_DAI_FMT_IB_NF;
-	} else {
-		if (hw_config->invert_fsync)
-			config->format |= SOF_DAI_FMT_NB_IF;
-		else
-			config->format |= SOF_DAI_FMT_NB_NF;
-	}
-}
-
-/*
- * Send IPC and set the same config for all DAIs with name matching the link
- * name. Note that the function can only be used for the case that all DAIs
- * have a common DAI config for now.
- */
-static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
-				    struct snd_soc_dai_link *link,
-				    struct sof_ipc_dai_config *config,
-				    int num_conf, int curr_conf)
-{
-	struct sof_dai_private_data *dai_data;
-	struct snd_sof_dai *dai;
-	int found = 0;
-	int i;
-
-	list_for_each_entry(dai, &sdev->dai_list, list) {
-		dai_data = dai->private;
-		if (!dai->name)
-			continue;
-
-		if (strcmp(link->name, dai->name) == 0) {
-			/*
-			 * the same dai config will be applied to all DAIs in
-			 * the same dai link. We have to ensure that the ipc
-			 * dai config's dai_index match to the component's
-			 * dai_index.
-			 */
-			for (i = 0; i < num_conf; i++)
-				config[i].dai_index = dai_data->comp_dai->dai_index;
-
-			dev_dbg(sdev->dev, "set DAI config for %s index %d\n",
-				dai->name, config[curr_conf].dai_index);
-
-			dai->number_configs = num_conf;
-			dai->current_config = curr_conf;
-			dai_data->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
-			if (!dai_data->dai_config)
-				return -ENOMEM;
-
-			found = 1;
-		}
-	}
-
-	/*
-	 * machine driver may define a dai link with playback and capture
-	 * dai enabled, but the dai link in topology would support both, one
-	 * or none of them. Here print a warning message to notify user
-	 */
-	if (!found) {
-		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
-			 link->name);
-	}
-
-	return 0;
-}
-
-static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
-			      struct snd_soc_dai_link *link,
-			      struct sof_ipc_dai_config *config)
-{
-	return sof_set_dai_config_multi(sdev, size, link, config, 1, 0);
-}
-
-static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
-			     struct snd_soc_dai_link *link,
-			     struct snd_soc_tplg_link_config *cfg,
-			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config, int curr_conf)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	int num_conf = le32_to_cpu(cfg->num_hw_configs);
-	u32 size = sizeof(*config);
-	int ret;
-	int i;
-
-	/*
-	 * Parse common data, we should have 1 common data per hw_config.
-	 */
-	ret = sof_parse_token_sets(scomp, &config->ssp, ssp_tokens,
-				   ARRAY_SIZE(ssp_tokens), private->array,
-				   le32_to_cpu(private->size),
-				   num_conf, size);
-
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse ssp tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	/* process all possible hw configs */
-	for (i = 0; i < num_conf; i++) {
-
-		/* handle master/slave and inverted clocks */
-		sof_dai_set_format(&hw_config[i], &config[i]);
-
-		config[i].hdr.size = size;
-
-		/* copy differentiating hw configs to ipc structs */
-		config[i].ssp.mclk_rate = le32_to_cpu(hw_config[i].mclk_rate);
-		config[i].ssp.bclk_rate = le32_to_cpu(hw_config[i].bclk_rate);
-		config[i].ssp.fsync_rate = le32_to_cpu(hw_config[i].fsync_rate);
-		config[i].ssp.tdm_slots = le32_to_cpu(hw_config[i].tdm_slots);
-		config[i].ssp.tdm_slot_width = le32_to_cpu(hw_config[i].tdm_slot_width);
-		config[i].ssp.mclk_direction = hw_config[i].mclk_direction;
-		config[i].ssp.rx_slots = le32_to_cpu(hw_config[i].rx_slots);
-		config[i].ssp.tx_slots = le32_to_cpu(hw_config[i].tx_slots);
-
-		dev_dbg(scomp->dev, "tplg: config SSP%d fmt %#x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d clks_control %#x\n",
-			config[i].dai_index, config[i].format,
-			config[i].ssp.mclk_rate, config[i].ssp.bclk_rate,
-			config[i].ssp.fsync_rate, config[i].ssp.sample_valid_bits,
-			config[i].ssp.tdm_slot_width, config[i].ssp.tdm_slots,
-			config[i].ssp.mclk_id, config[i].ssp.quirks, config[i].ssp.clks_control);
-
-		/* validate SSP fsync rate and channel count */
-		if (config[i].ssp.fsync_rate < 8000 || config[i].ssp.fsync_rate > 192000) {
-			dev_err(scomp->dev, "error: invalid fsync rate for SSP%d\n",
-				config[i].dai_index);
-			return -EINVAL;
-		}
-
-		if (config[i].ssp.tdm_slots < 1 || config[i].ssp.tdm_slots > 8) {
-			dev_err(scomp->dev, "error: invalid channel count for SSP%d\n",
-				config[i].dai_index);
-			return -EINVAL;
-		}
-	}
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config_multi(sdev, size, link, config, num_conf, curr_conf);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to save DAI config for SSP%d\n",
-			config->dai_index);
-
-	return ret;
-}
-
-static int sof_link_sai_load(struct snd_soc_component *scomp, int index,
-			     struct snd_soc_dai_link *link,
-			     struct snd_soc_tplg_link_config *cfg,
-			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	u32 size = sizeof(*config);
-	int ret;
-
-	/* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
-
-	/* init IPC */
-	memset(&config->sai, 0, sizeof(struct sof_ipc_dai_sai_params));
-	config->hdr.size = size;
-
-	ret = sof_parse_tokens(scomp, &config->sai, sai_tokens,
-			       ARRAY_SIZE(sai_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse sai tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	config->sai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
-	config->sai.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
-	config->sai.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->sai.mclk_direction = hw_config->mclk_direction;
-
-	config->sai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-	config->sai.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
-	config->sai.rx_slots = le32_to_cpu(hw_config->rx_slots);
-	config->sai.tx_slots = le32_to_cpu(hw_config->tx_slots);
-
-	dev_info(scomp->dev,
-		 "tplg: config SAI%d fmt 0x%x mclk %d width %d slots %d mclk id %d\n",
-		config->dai_index, config->format,
-		config->sai.mclk_rate, config->sai.tdm_slot_width,
-		config->sai.tdm_slots, config->sai.mclk_id);
-
-	if (config->sai.tdm_slots < 1 || config->sai.tdm_slots > 8) {
-		dev_err(scomp->dev, "error: invalid channel count for SAI%d\n",
-			config->dai_index);
-		return -EINVAL;
-	}
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to save DAI config for SAI%d\n",
-			config->dai_index);
-
-	return ret;
-}
-
-static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
-			      struct snd_soc_dai_link *link,
-			      struct snd_soc_tplg_link_config *cfg,
-			      struct snd_soc_tplg_hw_config *hw_config,
-			      struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	u32 size = sizeof(*config);
-	int ret;
-
-	/* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
-
-	/* init IPC */
-	memset(&config->esai, 0, sizeof(struct sof_ipc_dai_esai_params));
-	config->hdr.size = size;
-
-	ret = sof_parse_tokens(scomp, &config->esai, esai_tokens,
-			       ARRAY_SIZE(esai_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse esai tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	config->esai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
-	config->esai.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
-	config->esai.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->esai.mclk_direction = hw_config->mclk_direction;
-	config->esai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-	config->esai.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
-	config->esai.rx_slots = le32_to_cpu(hw_config->rx_slots);
-	config->esai.tx_slots = le32_to_cpu(hw_config->tx_slots);
-
-	dev_info(scomp->dev,
-		 "tplg: config ESAI%d fmt 0x%x mclk %d width %d slots %d mclk id %d\n",
-		config->dai_index, config->format,
-		config->esai.mclk_rate, config->esai.tdm_slot_width,
-		config->esai.tdm_slots, config->esai.mclk_id);
-
-	if (config->esai.tdm_slots < 1 || config->esai.tdm_slots > 8) {
-		dev_err(scomp->dev, "error: invalid channel count for ESAI%d\n",
-			config->dai_index);
-		return -EINVAL;
-	}
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to save DAI config for ESAI%d\n",
-			config->dai_index);
-
-	return ret;
-}
-
-static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, int index,
-				  struct snd_soc_dai_link *link,
-				  struct snd_soc_tplg_link_config *cfg,
-				  struct snd_soc_tplg_hw_config *hw_config,
-				  struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	u32 size = sizeof(*config);
-	int ret;
-
-       /* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
-
-	/* init IPC */
-	memset(&config->acpdmic, 0, sizeof(struct sof_ipc_dai_acp_params));
-	config->hdr.size = size;
-
-	config->acpdmic.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpdmic.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-
-	dev_info(scomp->dev, "ACP_DMIC config ACP%d channel %d rate %d\n",
-		 config->dai_index, config->acpdmic.tdm_slots,
-		 config->acpdmic.fsync_rate);
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "ACP_DMIC failed to save DAI config for ACP%d\n",
-			config->dai_index);
-	return ret;
-}
-
-static int sof_link_acp_bt_load(struct snd_soc_component *scomp, int index,
-				struct snd_soc_dai_link *link,
-				struct snd_soc_tplg_link_config *cfg,
-				struct snd_soc_tplg_hw_config *hw_config,
-				struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	u32 size = sizeof(*config);
-	int ret;
-
-	/* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
-
-	/* init IPC */
-	memset(&config->acpbt, 0, sizeof(struct sof_ipc_dai_acp_params));
-	config->hdr.size = size;
-
-	config->acpbt.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpbt.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-
-	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d\n",
-		 config->dai_index, config->acpbt.tdm_slots,
-		 config->acpbt.fsync_rate);
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "ACP_BT failed to save DAI config for ACP%d\n",
-			config->dai_index);
-	return ret;
-}
-
-static int sof_link_acp_sp_load(struct snd_soc_component *scomp, int index,
-				struct snd_soc_dai_link *link,
-				struct snd_soc_tplg_link_config *cfg,
-				struct snd_soc_tplg_hw_config *hw_config,
-				struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	u32 size = sizeof(*config);
-	int ret;
-
-	/* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
-
-	/* init IPC */
-	memset(&config->acpsp, 0, sizeof(struct sof_ipc_dai_acp_params));
-	config->hdr.size = size;
-
-	config->acpsp.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpsp.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-
-	dev_info(scomp->dev, "ACP_SP config ACP%d channel %d rate %d\n",
-		 config->dai_index, config->acpsp.tdm_slots,
-		 config->acpsp.fsync_rate);
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "ACP_SP failed to save DAI config for ACP%d\n",
-			config->dai_index);
-	return ret;
-}
-
-static int sof_link_afe_load(struct snd_soc_component *scomp, int index,
-			     struct snd_soc_dai_link *link,
-			     struct snd_soc_tplg_link_config *cfg,
-			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	u32 size = sizeof(*config);
-	int ret;
-
-	config->hdr.size = size;
-
-	/* get any bespoke DAI tokens */
-	ret = sof_parse_tokens(scomp, &config->afe, afe_tokens,
-			       ARRAY_SIZE(afe_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "parse afe tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	dev_dbg(scomp->dev, "AFE config rate %d channels %d format:%d\n",
-		config->afe.rate, config->afe.channels, config->afe.format);
-
-	config->afe.stream_id = DMA_CHAN_INVALID;
-
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "failed to process afe dai link %s", link->name);
-
-	return ret;
-}
-
-static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
-			      struct snd_soc_dai_link *link,
-			      struct snd_soc_tplg_link_config *cfg,
-			      struct snd_soc_tplg_hw_config *hw_config,
-			      struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
-	struct sof_ipc_fw_version *v = &ready->version;
-	size_t size = sizeof(*config);
-	int ret, j;
-
-	/* Ensure the entire DMIC config struct is zeros */
-	memset(&config->dmic, 0, sizeof(struct sof_ipc_dai_dmic_params));
-
-	/* get DMIC tokens */
-	ret = sof_parse_tokens(scomp, &config->dmic, dmic_tokens,
-			       ARRAY_SIZE(dmic_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse dmic tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	/* get DMIC PDM tokens */
-	ret = sof_parse_token_sets(scomp, &config->dmic.pdm[0], dmic_pdm_tokens,
-			       ARRAY_SIZE(dmic_pdm_tokens), private->array,
-			       le32_to_cpu(private->size),
-			       config->dmic.num_pdm_active,
-			       sizeof(struct sof_ipc_dai_dmic_pdm_ctrl));
-
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse dmic pdm tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	/* set IPC header size */
-	config->hdr.size = size;
-
-	/* debug messages */
-	dev_dbg(scomp->dev, "tplg: config DMIC%d driver version %d\n",
-		config->dai_index, config->dmic.driver_ipc_version);
-	dev_dbg(scomp->dev, "pdmclk_min %d pdm_clkmax %d duty_min %hd\n",
-		config->dmic.pdmclk_min, config->dmic.pdmclk_max,
-		config->dmic.duty_min);
-	dev_dbg(scomp->dev, "duty_max %hd fifo_fs %d num_pdms active %d\n",
-		config->dmic.duty_max, config->dmic.fifo_fs,
-		config->dmic.num_pdm_active);
-	dev_dbg(scomp->dev, "fifo word length %hd\n", config->dmic.fifo_bits);
-
-	for (j = 0; j < config->dmic.num_pdm_active; j++) {
-		dev_dbg(scomp->dev, "pdm %hd mic a %hd mic b %hd\n",
-			config->dmic.pdm[j].id,
-			config->dmic.pdm[j].enable_mic_a,
-			config->dmic.pdm[j].enable_mic_b);
-		dev_dbg(scomp->dev, "pdm %hd polarity a %hd polarity b %hd\n",
-			config->dmic.pdm[j].id,
-			config->dmic.pdm[j].polarity_mic_a,
-			config->dmic.pdm[j].polarity_mic_b);
-		dev_dbg(scomp->dev, "pdm %hd clk_edge %hd skew %hd\n",
-			config->dmic.pdm[j].id,
-			config->dmic.pdm[j].clk_edge,
-			config->dmic.pdm[j].skew);
-	}
-
-	/*
-	 * this takes care of backwards compatible handling of fifo_bits_b.
-	 * It is deprecated since firmware ABI version 3.0.1.
-	 */
-	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1))
-		config->dmic.fifo_bits_b = config->dmic.fifo_bits;
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to save DAI config for DMIC%d\n",
-			config->dai_index);
-
-	return ret;
-}
-
-static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
-			     struct snd_soc_dai_link *link,
-			     struct snd_soc_tplg_link_config *cfg,
-			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	u32 size = sizeof(*config);
-	int ret;
-
-	/* init IPC */
-	memset(&config->hda, 0, sizeof(struct sof_ipc_dai_hda_params));
-	config->hdr.size = size;
-
-	/* get any bespoke DAI tokens */
-	ret = sof_parse_tokens(scomp, &config->hda, hda_tokens,
-			       ARRAY_SIZE(hda_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse hda tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	dev_dbg(scomp->dev, "HDA config rate %d channels %d\n",
-		config->hda.rate, config->hda.channels);
-
-	config->hda.link_dma_ch = DMA_CHAN_INVALID;
-
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to process hda dai link %s",
-			link->name);
-
-	return ret;
-}
-
-static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
-			     struct snd_soc_dai_link *link,
-			     struct snd_soc_tplg_link_config *cfg,
-			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &cfg->priv;
-	u32 size = sizeof(*config);
-	int ret;
-
-	ret = sof_parse_tokens(scomp, &config->alh, alh_tokens,
-			       ARRAY_SIZE(alh_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse alh tokens failed %d\n",
-			le32_to_cpu(private->size));
-		return ret;
-	}
-
-	/* init IPC */
-	config->hdr.size = size;
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0)
-		dev_err(scomp->dev, "error: failed to save DAI config for ALH %d\n",
-			config->dai_index);
-
-	return ret;
-}
+static const struct sof_topology_token common_dai_link_tokens[] = {
+	{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type,
+		offsetof(struct snd_sof_dai_link, type)},
+};
 
 /* DAI link - used for any driver specific init */
-static int sof_link_load(struct snd_soc_component *scomp, int index,
-			 struct snd_soc_dai_link *link,
+static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_soc_dai_link *link,
 			 struct snd_soc_tplg_link_config *cfg)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
+	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct snd_soc_tplg_hw_config *hw_config;
-	struct sof_ipc_dai_config common_config;
-	struct sof_ipc_dai_config *config;
-	int curr_conf;
-	int num_conf;
-	int ret;
-	int i;
+	struct snd_sof_dai_link *slink;
+	size_t size;
+	u32 token_id = 0;
+	int num_tuples = 0;
+	int ret, num_sets;
 
 	if (!link->platforms) {
 		dev_err(scomp->dev, "error: no platforms\n");
@@ -2737,102 +1866,157 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	memset(&common_config, 0, sizeof(common_config));
+	slink = kzalloc(sizeof(*slink), GFP_KERNEL);
+	if (!slink)
+		return -ENOMEM;
 
-	/* get any common DAI tokens */
-	ret = sof_parse_tokens(scomp, &common_config, dai_link_tokens, ARRAY_SIZE(dai_link_tokens),
+	slink->num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
+	slink->hw_configs = kmemdup(cfg->hw_config,
+				    sizeof(*slink->hw_configs) * slink->num_hw_configs,
+				    GFP_KERNEL);
+	if (!slink->hw_configs) {
+		kfree(slink);
+		return -ENOMEM;
+	}
+
+	slink->default_hw_cfg_id = le32_to_cpu(cfg->default_hw_config_id);
+	slink->link = link;
+
+	dev_dbg(scomp->dev, "tplg: %d hw_configs found, default id: %d for dai link %s!\n",
+		slink->num_hw_configs, slink->default_hw_cfg_id, link->name);
+
+	ret = sof_parse_tokens(scomp, slink, common_dai_link_tokens,
+			       ARRAY_SIZE(common_dai_link_tokens),
 			       private->array, le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse link tokens failed %d\n",
-			le32_to_cpu(private->size));
+	if (ret < 0) {
+		dev_err(scomp->dev, "Failed tp parse common DAI link tokens\n");
+		kfree(slink->hw_configs);
+		kfree(slink);
 		return ret;
 	}
 
-	/*
-	 * DAI links are expected to have at least 1 hw_config.
-	 * But some older topologies might have no hw_config for HDA dai links.
-	 */
-	hw_config = cfg->hw_config;
-	num_conf = le32_to_cpu(cfg->num_hw_configs);
-	if (!num_conf) {
-		if (common_config.type != SOF_DAI_INTEL_HDA) {
-			dev_err(scomp->dev, "error: unexpected DAI config count %d!\n",
-				le32_to_cpu(cfg->num_hw_configs));
-			return -EINVAL;
-		}
-		num_conf = 1;
-		curr_conf = 0;
-	} else {
-		dev_dbg(scomp->dev, "tplg: %d hw_configs found, default id: %d!\n",
-			cfg->num_hw_configs, le32_to_cpu(cfg->default_hw_config_id));
+	if (!token_list)
+		goto out;
 
-		for (curr_conf = 0; curr_conf < num_conf; curr_conf++) {
-			if (hw_config[curr_conf].id == cfg->default_hw_config_id)
-				break;
-		}
-
-		if (curr_conf == num_conf) {
-			dev_err(scomp->dev, "error: default hw_config id: %d not found!\n",
-				le32_to_cpu(cfg->default_hw_config_id));
-			return -EINVAL;
-		}
-	}
-
-	/* Reserve memory for all hw configs, eventually freed by widget */
-	config = kcalloc(num_conf, sizeof(*config), GFP_KERNEL);
-	if (!config)
-		return -ENOMEM;
-
-	/* Copy common data to all config ipc structs */
-	for (i = 0; i < num_conf; i++) {
-		config[i].hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
-		config[i].format = le32_to_cpu(hw_config[i].fmt);
-		config[i].type = common_config.type;
-		config[i].dai_index = common_config.dai_index;
-	}
-
-	/* now load DAI specific data and send IPC - type comes from token */
-	switch (common_config.type) {
+	/* calculate size of tuples array */
+	num_tuples += token_list[SOF_DAI_LINK_TOKENS].count;
+	num_sets = slink->num_hw_configs;
+	switch (slink->type) {
 	case SOF_DAI_INTEL_SSP:
-		ret = sof_link_ssp_load(scomp, index, link, cfg, hw_config, config, curr_conf);
+		token_id = SOF_SSP_TOKENS;
+		num_tuples += token_list[SOF_SSP_TOKENS].count * slink->num_hw_configs;
 		break;
 	case SOF_DAI_INTEL_DMIC:
-		ret = sof_link_dmic_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		token_id = SOF_DMIC_TOKENS;
+		num_tuples += token_list[SOF_DMIC_TOKENS].count;
+
+		/* Allocate memory for max PDM controllers */
+		num_tuples += token_list[SOF_DMIC_PDM_TOKENS].count * SOF_DAI_INTEL_DMIC_NUM_CTRL;
 		break;
 	case SOF_DAI_INTEL_HDA:
-		ret = sof_link_hda_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		token_id = SOF_HDA_TOKENS;
+		num_tuples += token_list[SOF_HDA_TOKENS].count;
 		break;
 	case SOF_DAI_INTEL_ALH:
-		ret = sof_link_alh_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		token_id = SOF_ALH_TOKENS;
+		num_tuples += token_list[SOF_ALH_TOKENS].count;
 		break;
 	case SOF_DAI_IMX_SAI:
-		ret = sof_link_sai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		token_id = SOF_SAI_TOKENS;
+		num_tuples += token_list[SOF_SAI_TOKENS].count;
 		break;
 	case SOF_DAI_IMX_ESAI:
-		ret = sof_link_esai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
-		break;
-	case SOF_DAI_AMD_BT:
-		ret = sof_link_acp_bt_load(scomp, index, link, cfg, hw_config + curr_conf, config);
-		break;
-	case SOF_DAI_AMD_SP:
-		ret = sof_link_acp_sp_load(scomp, index, link, cfg, hw_config + curr_conf, config);
-		break;
-	case SOF_DAI_AMD_DMIC:
-		ret = sof_link_acp_dmic_load(scomp, index, link, cfg, hw_config + curr_conf,
-					     config);
+		token_id = SOF_ESAI_TOKENS;
+		num_tuples += token_list[SOF_ESAI_TOKENS].count;
 		break;
 	case SOF_DAI_MEDIATEK_AFE:
-		ret = sof_link_afe_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		token_id = SOF_AFE_TOKENS;
+		num_tuples += token_list[SOF_AFE_TOKENS].count;
 		break;
 	default:
-		dev_err(scomp->dev, "error: invalid DAI type %d\n", common_config.type);
-		ret = -EINVAL;
 		break;
 	}
 
-	kfree(config);
+	/* allocate memory for tuples array */
+	size = sizeof(struct snd_sof_tuple) * num_tuples;
+	slink->tuples = kzalloc(size, GFP_KERNEL);
+	if (!slink->tuples) {
+		kfree(slink->hw_configs);
+		kfree(slink);
+		return -ENOMEM;
+	}
+
+	/* parse one set of DAI link tokens */
+	ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
+			      SOF_DAI_LINK_TOKENS, 1, slink->tuples,
+			      num_tuples, &slink->num_tuples);
+	if (ret < 0) {
+		dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
+			token_list[SOF_DAI_LINK_TOKENS].name, link->name);
+		goto err;
+	}
+
+	/* nothing more to do if there are no DAI type-specific tokens defined */
+	if (!token_id || !token_list[token_id].tokens)
+		goto out;
+
+	/* parse "num_sets" sets of DAI-specific tokens */
+	ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
+			      token_id, num_sets, slink->tuples, num_tuples, &slink->num_tuples);
+	if (ret < 0) {
+		dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
+			token_list[token_id].name, link->name);
+		goto err;
+	}
+
+	/* for DMIC, also parse all sets of DMIC PDM tokens based on active PDM count */
+	if (token_id == SOF_DMIC_TOKENS) {
+		num_sets = sof_get_token_value(SOF_TKN_INTEL_DMIC_NUM_PDM_ACTIVE,
+					       slink->tuples, slink->num_tuples);
+
+		if (num_sets < 0) {
+			dev_err(sdev->dev, "Invalid active PDM count for %s\n", link->name);
+			ret = num_sets;
+			goto err;
+		}
+
+		ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
+				      SOF_DMIC_PDM_TOKENS, num_sets, slink->tuples,
+				      num_tuples, &slink->num_tuples);
+		if (ret < 0) {
+			dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
+				token_list[SOF_DMIC_PDM_TOKENS].name, link->name);
+			goto err;
+		}
+	}
+out:
+	link->dobj.private = slink;
+	list_add(&slink->list, &sdev->dai_link_list);
+
+	return 0;
+
+err:
+	kfree(slink->tuples);
+	kfree(slink->hw_configs);
+	kfree(slink);
 
 	return ret;
+}
+
+static int sof_link_unload(struct snd_soc_component *scomp, struct snd_soc_dobj *dobj)
+{
+	struct snd_sof_dai_link *slink = dobj->private;
+
+	if (!slink)
+		return 0;
+
+	kfree(slink->tuples);
+	list_del(&slink->list);
+	kfree(slink->hw_configs);
+	kfree(slink);
+	dobj->private = NULL;
+
+	return 0;
 }
 
 /* DAI link - used for any driver specific init */
@@ -3121,6 +2305,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 	/* DAI link - used for any driver specific init */
 	.link_load	= sof_link_load,
+	.link_unload	= sof_link_unload,
 
 	/* completion - called at completion of firmware loading */
 	.complete	= sof_complete,
