@@ -24,8 +24,7 @@ struct pedit_headers_action {
 int
 mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
 				const struct flow_action_entry *act, int namespace,
-				struct mlx5e_tc_flow_parse_attr *parse_attr,
-				struct mlx5e_tc_flow *flow,
+				struct pedit_headers_action *hdrs,
 				struct netlink_ext_ack *extack);
 
 #endif /* __MLX5_EN_TC_ACT_PEDIT_H__ */

@@ -34,7 +34,8 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 		     const struct flow_action_entry *act,
 		     struct mlx5_esw_flow_attr *attr,
 		     u32 *action,
-		     struct netlink_ext_ack *extack)
+		     struct netlink_ext_ack *extack,
+		     struct mlx5e_tc_act_parse_state *parse_state)
 {
 	u8 vlan_idx = attr->total_vlan;
 
@@ -84,6 +85,13 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
 		}
 		break;
+	case FLOW_ACTION_VLAN_PUSH_ETH:
+		if (!flow_flag_test(parse_state->flow, L3_TO_L2_DECAP))
+			return -EOPNOTSUPP;
+		parse_state->eth_push = true;
+		memcpy(attr->eth.h_dest, act->vlan_push_eth.dst, ETH_ALEN);
+		memcpy(attr->eth.h_source, act->vlan_push_eth.src, ETH_ALEN);
+		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Unexpected action id for VLAN");
 		return -EINVAL;
@@ -109,7 +117,7 @@ mlx5e_tc_act_vlan_add_push_action(struct mlx5e_priv *priv,
 	};
 	int err;
 
-	err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, &attr->action, extack);
+	err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, &attr->action, extack, NULL);
 	if (err)
 		return err;
 
@@ -139,7 +147,7 @@ mlx5e_tc_act_vlan_add_pop_action(struct mlx5e_priv *priv,
 						priv->netdev->lower_level;
 	while (nest_level--) {
 		err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, &attr->action,
-					   extack);
+					   extack, NULL);
 		if (err)
 			return err;
 	}
@@ -174,7 +182,7 @@ tc_act_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 							   parse_state->extack);
 	} else {
 		err = parse_tc_vlan_action(priv, act, esw_attr, &attr->action,
-					   parse_state->extack);
+					   parse_state->extack, parse_state);
 	}
 
 	if (err)

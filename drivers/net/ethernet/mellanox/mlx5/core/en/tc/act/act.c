@@ -35,6 +35,12 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_CT_METADATA, */
 	&mlx5e_tc_act_mpls_push,
 	&mlx5e_tc_act_mpls_pop,
+	NULL, /* FLOW_ACTION_MPLS_MANGLE, */
+	NULL, /* FLOW_ACTION_GATE, */
+	NULL, /* FLOW_ACTION_PPPOE_PUSH, */
+	NULL, /* FLOW_ACTION_JUMP, */
+	NULL, /* FLOW_ACTION_PIPE, */
+	&mlx5e_tc_act_vlan,
 };
 
 /* Must be aligned with enum flow_action_id. */

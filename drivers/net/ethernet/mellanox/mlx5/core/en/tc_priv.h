@@ -41,7 +41,6 @@ struct mlx5e_tc_flow_parse_attr {
 	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 	struct mlx5e_tc_mod_hdr_acts mod_hdr_acts;
 	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct ethhdr eth;
 	struct mlx5e_tc_act_parse_state parse_state;
 };
 

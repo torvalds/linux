@@ -43,8 +43,8 @@ mlx5e_tc_act_vlan_add_rewrite_action(struct mlx5e_priv *priv, int namespace,
 		return -EOPNOTSUPP;
 	}
 
-	err = mlx5e_tc_act_pedit_parse_action(priv, &pedit_act, namespace, parse_attr,
-					      NULL, extack);
+	err = mlx5e_tc_act_pedit_parse_action(priv, &pedit_act, namespace, parse_attr->hdrs,
+					      extack);
 	*action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 
 	return err;

@@ -125,6 +125,11 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 		return false;
 	}
 
+	if (flow_flag_test(parse_state->flow, L3_TO_L2_DECAP) && !parse_state->eth_push) {
+		NL_SET_ERR_MSG_MOD(extack, "mpls pop is only supported with vlan eth push");
+		return false;
+	}
+
 	if (mlx5e_is_ft_flow(flow) && out_dev == priv->netdev) {
 		/* Ignore forward to self rules generated
 		 * by adding both mlx5 devs to the flow table
