@@ -2634,7 +2634,6 @@ static int hdmirx_runtime_suspend(struct device *dev)
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
-	hdmirx_disable_all_interrupts(hdmirx_dev);
 	disable_irq(hdmirx_dev->hdmi_irq);
 	disable_irq(hdmirx_dev->dma_irq);
 
@@ -2642,10 +2641,6 @@ static int hdmirx_runtime_suspend(struct device *dev)
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_audio);
 
-	hdmirx_update_bits(hdmirx_dev, PHY_CONFIG,
-			HDMI_DISABLE | PHY_RESET | PHY_PDDQ,
-			HDMI_DISABLE);
-	hdmirx_writel(hdmirx_dev, PHYCREG_CONFIG0, 0x0);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 
 	v4l2_dbg(2, debug, v4l2_dev, "%s: suspend!\n", __func__);
@@ -2669,13 +2664,16 @@ static int hdmirx_runtime_resume(struct device *dev)
 		dev_err(dev, "failed to enable hdmirx bulk clks: %d\n", ret);
 		return ret;
 	}
-	enable_irq(hdmirx_dev->hdmi_irq);
-	enable_irq(hdmirx_dev->dma_irq);
 
 	reset_control_assert(hdmirx_dev->reset);
 	usleep_range(150, 160);
 	reset_control_deassert(hdmirx_dev->reset);
 	usleep_range(150, 160);
+
+	hdmirx_edid_init_config(hdmirx_dev);
+
+	enable_irq(hdmirx_dev->hdmi_irq);
+	enable_irq(hdmirx_dev->dma_irq);
 
 	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
 		     (HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
@@ -2762,7 +2760,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_work_queues;
 
-	hdmirx_edid_init_config(hdmirx_dev);
 	hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_RGB24;
 	hdmirx_dev->timings = timings_def;
 
