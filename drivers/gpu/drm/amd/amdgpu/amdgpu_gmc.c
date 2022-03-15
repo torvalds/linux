@@ -639,6 +639,15 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	 */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		adev->mman.keep_stolen_vga_memory = true;
+		/*
+		 * VEGA10 SRIOV VF needs some firmware reserved area.
+		 */
+		if (amdgpu_sriov_vf(adev)) {
+			adev->mman.stolen_reserved_offset = 0x100000;
+			adev->mman.stolen_reserved_size = 0x600000;
+		}
+		break;
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
 		adev->mman.keep_stolen_vga_memory = true;
