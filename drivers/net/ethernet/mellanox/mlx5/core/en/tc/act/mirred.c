@@ -125,6 +125,11 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 		return false;
 	}
 
+	if (parse_state->eth_pop && !parse_state->mpls_push) {
+		NL_SET_ERR_MSG_MOD(extack, "vlan pop eth is supported only with mpls push");
+		return false;
+	}
+
 	if (flow_flag_test(parse_state->flow, L3_TO_L2_DECAP) && !parse_state->eth_push) {
 		NL_SET_ERR_MSG_MOD(extack, "mpls pop is only supported with vlan eth push");
 		return false;

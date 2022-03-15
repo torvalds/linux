@@ -23,6 +23,7 @@ struct mlx5e_tc_act_parse_state {
 	bool decap;
 	bool mpls_push;
 	bool eth_push;
+	bool eth_pop;
 	bool ptype_host;
 	const struct ip_tunnel_info *tun_info;
 	struct mlx5e_mpls_info mpls_info;

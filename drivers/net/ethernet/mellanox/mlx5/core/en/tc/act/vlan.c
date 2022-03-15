@@ -85,6 +85,9 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
 		}
 		break;
+	case FLOW_ACTION_VLAN_POP_ETH:
+		parse_state->eth_pop = true;
+		break;
 	case FLOW_ACTION_VLAN_PUSH_ETH:
 		if (!flow_flag_test(parse_state->flow, L3_TO_L2_DECAP))
 			return -EOPNOTSUPP;
