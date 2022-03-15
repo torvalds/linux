@@ -10,6 +10,17 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
+config HAVE_RETHOOK
+	bool
+
+config RETHOOK
+	bool
+	depends on HAVE_RETHOOK
+	help
+	  Enable generic return hooking feature. This is an internal
+	  API, which will be used by other function-entry hooking
+	  features like fprobe and kprobes.
+
 config HAVE_FUNCTION_TRACER
 	bool
 	help
