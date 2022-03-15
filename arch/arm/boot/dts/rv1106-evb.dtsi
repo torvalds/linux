@@ -28,6 +28,10 @@
 	status = "okay";
 };
 
+&npu {
+	status = "okay";
+};
+
 &rga2 {
 	status = "okay";
 };
