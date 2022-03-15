@@ -266,7 +266,6 @@ static void cifs_kill_sb(struct super_block *sb)
 		dput(cifs_sb->root);
 		cifs_sb->root = NULL;
 	}
-	spin_lock(&cifs_sb->tlink_tree_lock);
 	node = rb_first(root);
 	while (node != NULL) {
 		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
@@ -280,7 +279,6 @@ static void cifs_kill_sb(struct super_block *sb)
 		mutex_unlock(&cfid->fid_mutex);
 		node = rb_next(node);
 	}
-	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
