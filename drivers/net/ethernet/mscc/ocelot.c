@@ -2917,7 +2917,7 @@ EXPORT_SYMBOL_GPL(ocelot_port_get_default_prio);
 
 int ocelot_port_set_default_prio(struct ocelot *ocelot, int port, u8 prio)
 {
-	if (prio >= IEEE_8021QAZ_MAX_TCS)
+	if (prio >= OCELOT_NUM_TC)
 		return -ERANGE;
 
 	ocelot_rmw_gix(ocelot,
@@ -2959,7 +2959,7 @@ int ocelot_port_add_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
 {
 	int mask, val;
 
-	if (prio >= IEEE_8021QAZ_MAX_TCS)
+	if (prio >= OCELOT_NUM_TC)
 		return -ERANGE;
 
 	/* There is at least one app table priority (this one), so we need to
