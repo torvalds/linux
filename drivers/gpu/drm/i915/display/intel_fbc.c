@@ -667,6 +667,10 @@ static bool intel_fbc_is_compressing(struct intel_fbc *fbc)
 
 static void intel_fbc_nuke(struct intel_fbc *fbc)
 {
+	struct drm_i915_private *i915 = fbc->i915;
+
+	drm_WARN_ON(&i915->drm, fbc->flip_pending);
+
 	trace_intel_fbc_nuke(fbc->state.plane);
 
 	fbc->funcs->nuke(fbc);
@@ -969,6 +973,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 	struct intel_fbc_state *fbc_state = &fbc->state;
 
 	WARN_ON(plane_state->no_fbc_reason);
+	WARN_ON(fbc_state->plane && fbc_state->plane != plane);
 
 	fbc_state->plane = plane;
 
@@ -1273,6 +1278,7 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	__intel_fbc_cleanup_cfb(fbc);
 
 	fbc->state.plane = NULL;
+	fbc->flip_pending = false;
 	fbc->busy_bits = 0;
 }
 
@@ -1367,12 +1373,12 @@ static void __intel_fbc_flush(struct intel_fbc *fbc,
 	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		goto out;
 
-	if (fbc->busy_bits)
+	if (fbc->busy_bits || fbc->flip_pending)
 		goto out;
 
 	if (fbc->active)
 		intel_fbc_nuke(fbc);
-	else if (!fbc->flip_pending)
+	else
 		__intel_fbc_post_update(fbc);
 
 out:
