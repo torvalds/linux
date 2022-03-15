@@ -587,6 +587,12 @@ static noinline int create_subvol(struct user_namespace *mnt_userns,
 	if (ret < 0)
 		goto out_root_item;
 
+	inode = btrfs_new_subvol_inode(mnt_userns, dir);
+	if (!inode) {
+		ret = -ENOMEM;
+		goto out_anon_dev;
+	}
+
 	btrfs_init_block_rsv(&block_rsv, BTRFS_BLOCK_RSV_TEMP);
 	/*
 	 * The same as the snapshot creation, please see the comment
@@ -594,13 +600,13 @@ static noinline int create_subvol(struct user_namespace *mnt_userns,
 	 */
 	ret = btrfs_subvolume_reserve_metadata(root, &block_rsv, 8, false);
 	if (ret)
-		goto out_anon_dev;
+		goto out_inode;
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		btrfs_subvolume_release_metadata(root, &block_rsv);
-		goto out_anon_dev;
+		goto out_inode;
 	}
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
@@ -683,16 +689,16 @@ static noinline int create_subvol(struct user_namespace *mnt_userns,
 	}
 	/* anon_dev is owned by new_root now. */
 	anon_dev = 0;
+	BTRFS_I(inode)->root = new_root;
+	/* ... and new_root is owned by inode now. */
 
 	ret = btrfs_record_root_in_trans(trans, new_root);
 	if (ret) {
-		btrfs_put_root(new_root);
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
-	ret = btrfs_create_subvol_root(trans, new_root, root, mnt_userns);
-	btrfs_put_root(new_root);
+	ret = btrfs_create_subvol_root(trans, root, inode);
 	if (ret) {
 		/* We potentially lose an unused inode item here */
 		btrfs_abort_transaction(trans, ret);
@@ -745,11 +751,11 @@ out:
 		ret = btrfs_commit_transaction(trans);
 
 	if (!ret) {
-		inode = btrfs_lookup_dentry(dir, dentry);
-		if (IS_ERR(inode))
-			return PTR_ERR(inode);
 		d_instantiate(dentry, inode);
+		inode = NULL;
 	}
+out_inode:
+	iput(inode);
 out_anon_dev:
 	if (anon_dev)
 		free_anon_bdev(anon_dev);
