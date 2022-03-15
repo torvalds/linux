@@ -1164,6 +1164,7 @@ static int starfive_irq_set_type(struct irq_data *d, unsigned int trigger)
 }
 
 static struct irq_chip starfive_irq_chip = {
+	.name = "StarFive GPIO",
 	.irq_ack = starfive_irq_ack,
 	.irq_mask = starfive_irq_mask,
 	.irq_mask_ack = starfive_irq_mask_ack,
@@ -1308,7 +1309,6 @@ static int starfive_probe(struct platform_device *pdev)
 	sfp->gc.ngpio = NR_GPIOS;
 
 	starfive_irq_chip.parent_device = dev;
-	starfive_irq_chip.name = sfp->gc.label;
 
 	sfp->gc.irq.chip = &starfive_irq_chip;
 	sfp->gc.irq.parent_handler = starfive_gpio_irq_handler;

@@ -183,7 +183,7 @@ static int smc_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct smc_sock *smc;
-	int rc = 0;
+	int old_state, rc = 0;
 
 	if (!sk)
 		goto out;
@@ -191,8 +191,10 @@ static int smc_release(struct socket *sock)
 	sock_hold(sk); /* sock_put below */
 	smc = smc_sk(sk);
 
+	old_state = sk->sk_state;
+
 	/* cleanup for a dangling non-blocking connect */
-	if (smc->connect_nonblock && sk->sk_state == SMC_INIT)
+	if (smc->connect_nonblock && old_state == SMC_INIT)
 		tcp_abort(smc->clcsock->sk, ECONNABORTED);
 
 	if (cancel_work_sync(&smc->connect_work))
@@ -205,6 +207,10 @@ static int smc_release(struct socket *sock)
 		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 	else
 		lock_sock(sk);
+
+	if (old_state == SMC_INIT && sk->sk_state == SMC_ACTIVE &&
+	    !smc->use_fallback)
+		smc_close_active_abort(smc);
 
 	rc = __smc_release(smc);
 
@@ -3081,12 +3087,14 @@ static int __init smc_init(void)
 	rc = tcp_register_ulp(&smc_ulp_ops);
 	if (rc) {
 		pr_err("%s: tcp_ulp_register fails with %d\n", __func__, rc);
-		goto out_sock;
+		goto out_ib;
 	}
 
 	static_branch_enable(&tcp_have_smc);
 	return 0;
 
+out_ib:
+	smc_ib_unregister_client();
 out_sock:
 	sock_unregister(PF_SMC);
 out_proto6:

@@ -53,6 +53,7 @@ properties:
           - const: st,stm32mp15-hsotg
           - const: snps,dwc2
       - const: samsung,s3c6400-hsotg
+      - const: intel,socfpga-agilex-hsotg
 
   reg:
     maxItems: 1
