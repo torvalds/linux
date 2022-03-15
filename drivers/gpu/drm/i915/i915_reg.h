@@ -8464,6 +8464,9 @@ enum skl_power_gate {
 #define   SGGI_DIS			REG_BIT(15)
 #define   SGR_DIS			REG_BIT(13)
 
+#define XEHPSDV_TILE0_ADDR_RANGE	_MMIO(0x4900)
+#define   XEHPSDV_TILE_LMEM_RANGE_SHIFT  8
+
 #define XEHPSDV_FLAT_CCS_BASE_ADDR	_MMIO(0x4910)
 #define   XEHPSDV_CCS_BASE_SHIFT	8
 
