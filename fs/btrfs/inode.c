@@ -222,15 +222,25 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 static int btrfs_dirty_inode(struct inode *inode);
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
-				     struct inode *inode,  struct inode *dir,
-				     const struct qstr *qstr)
+				     struct btrfs_new_inode_args *args)
 {
 	int err;
 
-	err = btrfs_init_acl(trans, inode, dir);
-	if (!err)
-		err = btrfs_xattr_security_init(trans, inode, dir, qstr);
-	return err;
+	if (args->default_acl) {
+		err = __btrfs_set_acl(trans, args->inode, args->default_acl,
+				      ACL_TYPE_DEFAULT);
+		if (err)
+			return err;
+	}
+	if (args->acl) {
+		err = __btrfs_set_acl(trans, args->inode, args->acl, ACL_TYPE_ACCESS);
+		if (err)
+			return err;
+	}
+	if (!args->default_acl && !args->acl)
+		cache_no_acl(args->inode);
+	return btrfs_xattr_security_init(trans, args->inode, args->dir,
+					 &args->dentry->d_name);
 }
 
 /*
@@ -6038,6 +6048,54 @@ static int btrfs_insert_inode_locked(struct inode *inode)
 		   btrfs_find_actor, &args);
 }
 
+int btrfs_new_inode_prepare(struct btrfs_new_inode_args *args,
+			    unsigned int *trans_num_items)
+{
+	struct inode *dir = args->dir;
+	struct inode *inode = args->inode;
+	int ret;
+
+	ret = posix_acl_create(dir, &inode->i_mode, &args->default_acl, &args->acl);
+	if (ret)
+		return ret;
+
+	/* 1 to add inode item */
+	*trans_num_items = 1;
+	/* 1 to add compression property */
+	if (BTRFS_I(dir)->prop_compress)
+		(*trans_num_items)++;
+	/* 1 to add default ACL xattr */
+	if (args->default_acl)
+		(*trans_num_items)++;
+	/* 1 to add access ACL xattr */
+	if (args->acl)
+		(*trans_num_items)++;
+#ifdef CONFIG_SECURITY
+	/* 1 to add LSM xattr */
+	if (dir->i_security)
+		(*trans_num_items)++;
+#endif
+	if (args->orphan) {
+		/* 1 to add orphan item */
+		(*trans_num_items)++;
+	} else {
+		/*
+		 * 1 to add inode ref
+		 * 1 to add dir item
+		 * 1 to add dir index
+		 * 1 to update parent inode item
+		 */
+		*trans_num_items += 4;
+	}
+	return 0;
+}
+
+void btrfs_new_inode_args_destroy(struct btrfs_new_inode_args *args)
+{
+	posix_acl_release(args->acl);
+	posix_acl_release(args->default_acl);
+}
+
 /*
  * Inherit flags from the parent inode.
  *
@@ -6069,12 +6127,16 @@ static void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
 	btrfs_sync_inode_flags_to_i_flags(inode);
 }
 
-static int btrfs_new_inode(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, struct inode *inode,
-			   struct inode *dir, const char *name, int name_len,
+int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
+			   struct btrfs_new_inode_args *args,
 			   u64 *index)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct inode *dir = args->subvol ? NULL : args->dir;
+	struct inode *inode = args->inode;
+	const char *name;
+	int name_len;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_root *root;
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_key *location;
 	struct btrfs_path *path;
@@ -6086,6 +6148,17 @@ static int btrfs_new_inode(struct btrfs_trans_handle *trans,
 	unsigned long ptr;
 	int ret;
 
+	if (args->subvol) {
+		name = "..";
+		name_len = 2;
+	} else if (args->orphan) {
+		name = NULL;
+		name_len = 0;
+	} else {
+		name = args->dentry->d_name.name;
+		name_len = args->dentry->d_name.len;
+	}
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -6096,6 +6169,10 @@ static int btrfs_new_inode(struct btrfs_trans_handle *trans,
 	 */
 	if (!name)
 		set_nlink(inode, 0);
+
+	if (!args->subvol)
+		BTRFS_I(inode)->root = btrfs_grab_root(BTRFS_I(dir)->root);
+	root = BTRFS_I(inode)->root;
 
 	ret = btrfs_get_free_objectid(root, &objectid);
 	if (ret) {
@@ -6122,8 +6199,6 @@ static int btrfs_new_inode(struct btrfs_trans_handle *trans,
 	 */
 	BTRFS_I(inode)->index_cnt = 2;
 	BTRFS_I(inode)->dir_index = *index;
-	if (!BTRFS_I(inode)->root)
-		BTRFS_I(inode)->root = btrfs_grab_root(root);
 	BTRFS_I(inode)->generation = trans->transid;
 	inode->i_generation = BTRFS_I(inode)->generation;
 
@@ -6331,30 +6406,37 @@ static int btrfs_create_common(struct inode *dir, struct dentry *dentry,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_new_inode_args new_inode_args = {
+		.dir = dir,
+		.dentry = dentry,
+		.inode = inode,
+	};
+	unsigned int trans_num_items;
 	struct btrfs_trans_handle *trans;
 	int err;
 	u64 index = 0;
 
-	/*
-	 * 2 for inode item and ref
-	 * 2 for dir items
-	 * 1 for xattr if selinux is on
-	 */
-	trans = btrfs_start_transaction(root, 5);
-	if (IS_ERR(trans)) {
+	err = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
+	if (err) {
 		iput(inode);
-		return PTR_ERR(trans);
+		return err;
 	}
 
-	err = btrfs_new_inode(trans, root, inode, dir, dentry->d_name.name,
-			      dentry->d_name.len, &index);
+	trans = btrfs_start_transaction(root, trans_num_items);
+	if (IS_ERR(trans)) {
+		iput(inode);
+		err = PTR_ERR(trans);
+		goto out_new_inode_args;
+	}
+
+	err = btrfs_create_new_inode(trans, &new_inode_args, &index);
 	if (err) {
 		iput(inode);
 		inode = NULL;
 		goto out_unlock;
 	}
 
-	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
+	err = btrfs_init_inode_security(trans, &new_inode_args);
 	if (err)
 		goto out_unlock;
 
@@ -6376,6 +6458,8 @@ out_unlock:
 		discard_new_inode(inode);
 	}
 	btrfs_btree_balance_dirty(fs_info);
+out_new_inode_args:
+	btrfs_new_inode_args_destroy(&new_inode_args);
 	return err;
 }
 
@@ -8653,13 +8737,14 @@ struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
  */
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *parent_root,
-			     struct inode *inode)
+			     struct btrfs_new_inode_args *args)
 {
+	struct inode *inode = args->inode;
 	struct btrfs_root *new_root = BTRFS_I(inode)->root;
 	int err;
 	u64 index = 0;
 
-	err = btrfs_new_inode(trans, new_root, inode, NULL, "..", 2, &index);
+	err = btrfs_create_new_inode(trans, args, &index);
 	if (err)
 		return err;
 
@@ -9164,22 +9249,22 @@ static struct inode *new_whiteout_inode(struct user_namespace *mnt_userns,
 }
 
 static int btrfs_whiteout_for_rename(struct btrfs_trans_handle *trans,
-				     struct btrfs_root *root,
-				     struct inode *inode, struct inode *dir,
-				     struct dentry *dentry)
+				     struct btrfs_new_inode_args *args)
 {
+	struct inode *inode = args->inode;
+	struct inode *dir = args->dir;
+	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct dentry *dentry = args->dentry;
 	int ret;
 	u64 index;
 
-	ret = btrfs_new_inode(trans, root, inode, dir, dentry->d_name.name,
-			      dentry->d_name.len, &index);
+	ret = btrfs_create_new_inode(trans, args, &index);
 	if (ret) {
 		iput(inode);
 		return ret;
 	}
 
-	ret = btrfs_init_inode_security(trans, inode, dir,
-				&dentry->d_name);
+	ret = btrfs_init_inode_security(trans, args);
 	if (ret)
 		goto out;
 
@@ -9204,7 +9289,10 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 			unsigned int flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(old_dir->i_sb);
-	struct inode *whiteout_inode;
+	struct btrfs_new_inode_args whiteout_args = {
+		.dir = old_dir,
+		.dentry = old_dentry,
+	};
 	struct btrfs_trans_handle *trans;
 	unsigned int trans_num_items;
 	struct btrfs_root *root = BTRFS_I(old_dir)->root;
@@ -9260,9 +9348,15 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		filemap_flush(old_inode->i_mapping);
 
 	if (flags & RENAME_WHITEOUT) {
-		whiteout_inode = new_whiteout_inode(mnt_userns, old_dir);
-		if (!whiteout_inode)
+		whiteout_args.inode = new_whiteout_inode(mnt_userns, old_dir);
+		if (!whiteout_args.inode)
 			return -ENOMEM;
+		ret = btrfs_new_inode_prepare(&whiteout_args, &trans_num_items);
+		if (ret)
+			goto out_whiteout_inode;
+	} else {
+		/* 1 to update the old parent inode. */
+		trans_num_items = 1;
 	}
 
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
@@ -9274,24 +9368,23 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		 * 1 to add new root ref
 		 * 1 to add new root backref
 		 */
-		trans_num_items = 4;
+		trans_num_items += 4;
 	} else {
 		/*
 		 * 1 to update inode
 		 * 1 to remove old inode ref
 		 * 1 to add new inode ref
 		 */
-		trans_num_items = 3;
+		trans_num_items += 3;
 	}
 	/*
 	 * 1 to remove old dir item
 	 * 1 to remove old dir index
-	 * 1 to update old parent inode
 	 * 1 to add new dir item
 	 * 1 to add new dir index
-	 * 1 to update new parent inode (if it's not the same as the old parent)
 	 */
-	trans_num_items += 6;
+	trans_num_items += 4;
+	/* 1 to update new parent inode if it's not the same as the old parent */
 	if (new_dir != old_dir)
 		trans_num_items++;
 	if (new_inode) {
@@ -9304,8 +9397,6 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		 */
 		trans_num_items += 5;
 	}
-	if (flags & RENAME_WHITEOUT)
-		trans_num_items += 5;
 	trans = btrfs_start_transaction(root, trans_num_items);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
@@ -9401,9 +9492,8 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 				   rename_ctx.index, new_dentry->d_parent);
 
 	if (flags & RENAME_WHITEOUT) {
-		ret = btrfs_whiteout_for_rename(trans, root, whiteout_inode,
-						old_dir, old_dentry);
-		whiteout_inode = NULL;
+		ret = btrfs_whiteout_for_rename(trans, &whiteout_args);
+		whiteout_args.inode = NULL;
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
@@ -9416,7 +9506,10 @@ out_notrans:
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&fs_info->subvol_sem);
 	if (flags & RENAME_WHITEOUT)
-		iput(whiteout_inode);
+		btrfs_new_inode_args_destroy(&whiteout_args);
+out_whiteout_inode:
+	if (flags & RENAME_WHITEOUT)
+		iput(whiteout_args.inode);
 	return ret;
 }
 
@@ -9636,6 +9729,11 @@ static int btrfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct inode *inode;
+	struct btrfs_new_inode_args new_inode_args = {
+		.dir = dir,
+		.dentry = dentry,
+	};
+	unsigned int trans_num_items;
 	int err;
 	u64 index = 0;
 	int name_len;
@@ -9656,28 +9754,30 @@ static int btrfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &btrfs_aops;
 
-	/*
-	 * 2 items for inode item and ref
-	 * 2 items for dir items
-	 * 1 item for updating parent inode item
-	 * 1 item for the inline extent item
-	 * 1 item for xattr if selinux is on
-	 */
-	trans = btrfs_start_transaction(root, 7);
+	new_inode_args.inode = inode;
+	err = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
+	if (err) {
+		iput(inode);
+		return err;
+	}
+	/* 1 additional item for the inline extent */
+	trans_num_items++;
+
+	trans = btrfs_start_transaction(root, trans_num_items);
 	if (IS_ERR(trans)) {
 		iput(inode);
-		return PTR_ERR(trans);
+		err = PTR_ERR(trans);
+		goto out_new_inode_args;
 	}
 
-	err = btrfs_new_inode(trans, root, inode, dir, dentry->d_name.name,
-			      dentry->d_name.len, &index);
+	err = btrfs_create_new_inode(trans, &new_inode_args, &index);
 	if (err) {
 		iput(inode);
 		inode = NULL;
 		goto out_unlock;
 	}
 
-	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
+	err = btrfs_init_inode_security(trans, &new_inode_args);
 	if (err)
 		goto out_unlock;
 
@@ -9736,6 +9836,8 @@ out_unlock:
 		discard_new_inode(inode);
 	}
 	btrfs_btree_balance_dirty(fs_info);
+out_new_inode_args:
+	btrfs_new_inode_args_destroy(&new_inode_args);
 	return err;
 }
 
@@ -9987,6 +10089,12 @@ static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct inode *inode;
+	struct btrfs_new_inode_args new_inode_args = {
+		.dir = dir,
+		.dentry = dentry,
+		.orphan = true,
+	};
+	unsigned int trans_num_items;
 	u64 index;
 	int ret;
 
@@ -9998,23 +10106,28 @@ static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	inode->i_op = &btrfs_file_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_aops;
 
-	/*
-	 * 5 units required for adding orphan entry
-	 */
-	trans = btrfs_start_transaction(root, 5);
-	if (IS_ERR(trans)) {
+	new_inode_args.inode = inode;
+	ret = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
+	if (ret) {
 		iput(inode);
-		return PTR_ERR(trans);
+		return ret;
 	}
 
-	ret = btrfs_new_inode(trans, root, inode, dir, NULL, 0, &index);
+	trans = btrfs_start_transaction(root, trans_num_items);
+	if (IS_ERR(trans)) {
+		iput(inode);
+		ret = PTR_ERR(trans);
+		goto out_new_inode_args;
+	}
+
+	ret = btrfs_create_new_inode(trans, &new_inode_args, &index);
 	if (ret) {
 		iput(inode);
 		inode = NULL;
 		goto out;
 	}
 
-	ret = btrfs_init_inode_security(trans, inode, dir, NULL);
+	ret = btrfs_init_inode_security(trans, &new_inode_args);
 	if (ret)
 		goto out;
 
@@ -10026,9 +10139,9 @@ static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 		goto out;
 
 	/*
-	 * We set number of links to 0 in btrfs_new_inode(), and here we set
-	 * it to 1 because d_tmpfile() will issue a warning if the count is 0,
-	 * through:
+	 * We set number of links to 0 in btrfs_create_new_inode(), and here we
+	 * set it to 1 because d_tmpfile() will issue a warning if the count is
+	 * 0, through:
 	 *
 	 *    d_tmpfile() -> inode_dec_link_count() -> drop_nlink()
 	 */
@@ -10041,6 +10154,8 @@ out:
 	if (ret && inode)
 		discard_new_inode(inode);
 	btrfs_btree_balance_dirty(fs_info);
+out_new_inode_args:
+	btrfs_new_inode_args_destroy(&new_inode_args);
 	return ret;
 }
 
