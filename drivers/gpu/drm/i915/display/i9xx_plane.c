@@ -449,7 +449,6 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	int x = plane_state->view.color_plane[0].x;
 	int y = plane_state->view.color_plane[0].y;
 	u32 dspcntr, dspaddr_offset, linear_offset;
-	unsigned long irqflags;
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
@@ -490,15 +489,12 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	 */
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
 
-	/* lock to protect against rmw in fbc nuke */
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i830_plane_update_arm(struct intel_plane *plane,
@@ -520,7 +516,6 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 	u32 dspcntr;
 
 	/*
@@ -537,13 +532,10 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
 
-	/* lock to protect against rmw in fbc nuke */
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane), 0);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
@@ -556,18 +548,14 @@ g4x_primary_async_flip(struct intel_plane *plane,
 	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 
 	if (async_flip)
 		dspcntr |= DISP_ASYNC_FLIP;
 
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
 
-	/* lock to protect against rmw in fbc nuke */
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
