@@ -90,7 +90,6 @@ struct intel_fbc {
 	 * with stolen_lock.
 	 */
 	struct mutex lock;
-	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 
 	struct drm_mm_node compressed_fb;
@@ -1317,7 +1316,7 @@ static unsigned int intel_fbc_get_frontbuffer_bit(struct intel_fbc *fbc)
 	if (fbc->state.plane)
 		return fbc->state.plane->frontbuffer_bit;
 	else
-		return fbc->possible_framebuffer_bits;
+		return 0;
 }
 
 static void __intel_fbc_invalidate(struct intel_fbc *fbc,
@@ -1656,11 +1655,7 @@ static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 
 void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane)
 {
-	if (!fbc)
-		return;
-
 	plane->fbc = fbc;
-	fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 }
 
 static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915,
