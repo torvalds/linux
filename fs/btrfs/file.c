@@ -2570,10 +2570,10 @@ static int find_first_non_hole(struct btrfs_inode *inode, u64 *start, u64 *len)
 	return ret;
 }
 
-static int btrfs_punch_hole_lock_range(struct inode *inode,
-				       const u64 lockstart,
-				       const u64 lockend,
-				       struct extent_state **cached_state)
+static void btrfs_punch_hole_lock_range(struct inode *inode,
+					const u64 lockstart,
+					const u64 lockend,
+					struct extent_state **cached_state)
 {
 	/*
 	 * For subpage case, if the range is not at page boundary, we could
@@ -2587,40 +2587,27 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 	const u64 page_lockend = round_down(lockend + 1, PAGE_SIZE) - 1;
 
 	while (1) {
-		struct btrfs_ordered_extent *ordered;
-		int ret;
-
 		truncate_pagecache_range(inode, lockstart, lockend);
 
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 				 cached_state);
-		ordered = btrfs_lookup_first_ordered_extent(BTRFS_I(inode),
-							    lockend);
-
 		/*
-		 * We need to make sure we have no ordered extents in this range
-		 * and nobody raced in and read a page in this range, if we did
-		 * we need to try again.
+		 * We can't have ordered extents in the range, nor dirty/writeback
+		 * pages, because we have locked the inode's VFS lock in exclusive
+		 * mode, we have locked the inode's i_mmap_lock in exclusive mode,
+		 * we have flushed all delalloc in the range and we have waited
+		 * for any ordered extents in the range to complete.
+		 * We can race with anyone reading pages from this range, so after
+		 * locking the range check if we have pages in the range, and if
+		 * we do, unlock the range and retry.
 		 */
-		if ((!ordered ||
-		    (ordered->file_offset + ordered->num_bytes <= lockstart ||
-		     ordered->file_offset > lockend)) &&
-		     !filemap_range_has_page(inode->i_mapping,
-					     page_lockstart, page_lockend)) {
-			if (ordered)
-				btrfs_put_ordered_extent(ordered);
+		if (!filemap_range_has_page(inode->i_mapping, page_lockstart,
+					    page_lockend))
 			break;
-		}
-		if (ordered)
-			btrfs_put_ordered_extent(ordered);
+
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart,
 				     lockend, cached_state);
-		ret = btrfs_wait_ordered_range(inode, lockstart,
-					       lockend - lockstart + 1);
-		if (ret)
-			return ret;
 	}
-	return 0;
 }
 
 static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
@@ -3073,10 +3060,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 		goto out_only_mutex;
 	}
 
-	ret = btrfs_punch_hole_lock_range(inode, lockstart, lockend,
-					  &cached_state);
-	if (ret)
-		goto out_only_mutex;
+	btrfs_punch_hole_lock_range(inode, lockstart, lockend, &cached_state);
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -3367,10 +3351,8 @@ reserve_space:
 		if (ret < 0)
 			goto out;
 		space_reserved = true;
-		ret = btrfs_punch_hole_lock_range(inode, lockstart, lockend,
-						  &cached_state);
-		if (ret)
-			goto out;
+		btrfs_punch_hole_lock_range(inode, lockstart, lockend,
+					    &cached_state);
 		ret = btrfs_qgroup_reserve_data(BTRFS_I(inode), &data_reserved,
 						alloc_start, bytes_to_reserve);
 		if (ret) {
