@@ -1566,7 +1566,7 @@ config SERIAL_LITEUART_CONSOLE
 
 config SERIAL_SUNPLUS
 	tristate "Sunplus UART support"
-	depends on OF || COMPILE_TEST
+	depends on ARCH_SUNPLUS || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  Select this option if you would like to use Sunplus serial port on
