@@ -1503,6 +1503,8 @@ static int va_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(va->dcodec);
 	clk_disable_unprepare(va->macro);
 
+	lpass_macro_pds_exit(va->pds);
+
 	return 0;
 }
 
@@ -1531,8 +1533,6 @@ static int __maybe_unused va_macro_runtime_resume(struct device *dev)
 
 	regcache_cache_only(va->regmap, false);
 	regcache_sync(va->regmap);
-
-	lpass_macro_pds_exit(va->pds);
 
 	return 0;
 }

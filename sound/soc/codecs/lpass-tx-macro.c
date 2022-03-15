@@ -1920,6 +1920,8 @@ static int tx_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(tx->npl);
 	clk_disable_unprepare(tx->fsgen);
 
+	lpass_macro_pds_exit(tx->pds);
+
 	return 0;
 }
 
@@ -1963,8 +1965,6 @@ static int __maybe_unused tx_macro_runtime_resume(struct device *dev)
 	regcache_cache_only(tx->regmap, false);
 	regcache_sync(tx->regmap);
 	tx->reset_swr = true;
-
-	lpass_macro_pds_exit(tx->pds);
 
 	return 0;
 err_fsgen:
