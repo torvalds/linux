@@ -387,6 +387,7 @@ struct io_ring_ctx {
 		struct list_head	cq_overflow_list;
 		struct xarray		io_buffers;
 		struct list_head	io_buffers_cache;
+		struct list_head	apoll_cache;
 		struct xarray		personalities;
 		u32			pers_next;
 		unsigned		sq_thread_idle;
@@ -1528,6 +1529,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_cache);
+	INIT_LIST_HEAD(&ctx->apoll_cache);
 	init_completion(&ctx->ref_comp);
 	xa_init_flags(&ctx->io_buffers, XA_FLAGS_ALLOC1);
 	xa_init_flags(&ctx->personalities, XA_FLAGS_ALLOC1);
@@ -2650,6 +2652,15 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 
 			if (!(req->flags & REQ_F_CQE_SKIP))
 				__io_fill_cqe(req, req->result, req->cflags);
+			if ((req->flags & REQ_F_POLLED) && req->apoll) {
+				struct async_poll *apoll = req->apoll;
+
+				if (apoll->double_poll)
+					kfree(apoll->double_poll);
+				list_add(&apoll->poll.wait.entry,
+						&ctx->apoll_cache);
+				req->flags &= ~REQ_F_POLLED;
+			}
 		}
 
 		io_commit_cqring(ctx);
@@ -6143,7 +6154,7 @@ enum {
 	IO_APOLL_READY
 };
 
-static int io_arm_poll_handler(struct io_kiocb *req)
+static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
@@ -6168,9 +6179,16 @@ static int io_arm_poll_handler(struct io_kiocb *req)
 		mask |= POLLOUT | POLLWRNORM;
 	}
 
-	apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
-	if (unlikely(!apoll))
-		return IO_APOLL_ABORTED;
+	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
+	    !list_empty(&ctx->apoll_cache)) {
+		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
+						poll.wait.entry);
+		list_del_init(&apoll->poll.wait.entry);
+	} else {
+		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
+		if (unlikely(!apoll))
+			return IO_APOLL_ABORTED;
+	}
 	apoll->double_poll = NULL;
 	req->apoll = apoll;
 	req->flags |= REQ_F_POLLED;
@@ -7271,7 +7289,7 @@ static void io_wq_submit_work(struct io_wq_work *work)
 			continue;
 		}
 
-		if (io_arm_poll_handler(req) == IO_APOLL_OK)
+		if (io_arm_poll_handler(req, issue_flags) == IO_APOLL_OK)
 			return;
 		/* aborted or ready, in either case retry blocking */
 		needs_poll = false;
@@ -7417,7 +7435,7 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 {
 	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
 
-	switch (io_arm_poll_handler(req)) {
+	switch (io_arm_poll_handler(req, 0)) {
 	case IO_APOLL_READY:
 		io_req_task_queue(req);
 		break;
@@ -9938,6 +9956,18 @@ static void io_wait_rsrc_data(struct io_rsrc_data *data)
 		wait_for_completion(&data->done);
 }
 
+static void io_flush_apoll_cache(struct io_ring_ctx *ctx)
+{
+	struct async_poll *apoll;
+
+	while (!list_empty(&ctx->apoll_cache)) {
+		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
+						poll.wait.entry);
+		list_del(&apoll->poll.wait.entry);
+		kfree(apoll);
+	}
+}
+
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
@@ -9960,6 +9990,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->rings)
 		__io_cqring_overflow_flush(ctx, true);
 	io_eventfd_unregister(ctx);
+	io_flush_apoll_cache(ctx);
 	mutex_unlock(&ctx->uring_lock);
 	io_destroy_buffers(ctx);
 	if (ctx->sq_creds)
