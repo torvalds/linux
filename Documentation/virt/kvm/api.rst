@@ -4081,6 +4081,11 @@ x2APIC MSRs are always allowed, independent of the ``default_allow`` setting,
 and their behavior depends on the ``X2APIC_ENABLE`` bit of the APIC base
 register.
 
+.. warning::
+   MSR accesses coming from nested vmentry/vmexit are not filtered.
+   This includes both writes to individual VMCS fields and reads/writes
+   through the MSR lists pointed to by the VMCS.
+
 If a bit is within one of the defined ranges, read and write accesses are
 guarded by the bitmap's value for the MSR index if the kind of access
 is included in the ``struct kvm_msr_filter_range`` flags.  If no range
