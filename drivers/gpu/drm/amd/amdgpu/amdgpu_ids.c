@@ -277,7 +277,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	unsigned vmhub = ring->funcs->vmhub;
 	uint64_t fence_context = adev->fence_context + ring->idx;
 	bool needs_flush = vm->use_cpu_for_update;
-	uint64_t updates = sync->last_vm_update;
+	uint64_t updates = amdgpu_vm_tlb_seq(vm);
 	int r;
 
 	*id = vm->reserved_vmid[vmhub];
@@ -338,7 +338,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	uint64_t fence_context = adev->fence_context + ring->idx;
-	uint64_t updates = sync->last_vm_update;
+	uint64_t updates = amdgpu_vm_tlb_seq(vm);
 	int r;
 
 	job->vm_needs_flush = vm->use_cpu_for_update;
@@ -426,7 +426,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			if (r)
 				goto error;
 
-			id->flushed_updates = sync->last_vm_update;
+			id->flushed_updates = amdgpu_vm_tlb_seq(vm);
 			job->vm_needs_flush = true;
 		}
 

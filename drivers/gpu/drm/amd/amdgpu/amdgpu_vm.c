@@ -89,6 +89,21 @@ struct amdgpu_prt_cb {
 };
 
 /**
+ * amdgpu_vm_tlb_seq_cb - Helper to increment the TLB flush sequence
+ */
+struct amdgpu_vm_tlb_seq_cb {
+	/**
+	 * @vm: pointer to the amdgpu_vm structure to set the fence sequence on
+	 */
+	struct amdgpu_vm *vm;
+
+	/**
+	 * @cb: callback
+	 */
+	struct dma_fence_cb cb;
+};
+
+/**
  * amdgpu_vm_set_pasid - manage pasid and vm ptr mapping
  *
  * @adev: amdgpu_device pointer
@@ -761,6 +776,23 @@ error:
 }
 
 /**
+ * amdgpu_vm_tlb_seq_cb - make sure to increment tlb sequence
+ * @fence: unused
+ * @cb: the callback structure
+ *
+ * Increments the tlb sequence to make sure that future CS execute a VM flush.
+ */
+static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
+				 struct dma_fence_cb *cb)
+{
+	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
+
+	tlb_cb = container_of(cb, typeof(*tlb_cb), cb);
+	atomic64_inc(&tlb_cb->vm->tlb_seq);
+	kfree(tlb_cb);
+}
+
+/**
  * amdgpu_vm_bo_update_mapping - update a mapping in the vm page table
  *
  * @adev: amdgpu_device pointer of the VM
@@ -795,12 +827,19 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				bool *table_freed)
 {
 	struct amdgpu_vm_update_params params;
+	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
 	struct amdgpu_res_cursor cursor;
 	enum amdgpu_sync_mode sync_mode;
 	int r, idx;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return -ENODEV;
+
+	tlb_cb = kmalloc(sizeof(*tlb_cb), GFP_KERNEL);
+	if (!tlb_cb) {
+		r = -ENOMEM;
+		goto error_unlock;
+	}
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -820,7 +859,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	amdgpu_vm_eviction_lock(vm);
 	if (vm->evicting) {
 		r = -EBUSY;
-		goto error_unlock;
+		goto error_free;
 	}
 
 	if (!unlocked && !dma_fence_is_signaled(vm->last_unlocked)) {
@@ -833,7 +872,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->prepare(&params, resv, sync_mode);
 	if (r)
-		goto error_unlock;
+		goto error_free;
 
 	amdgpu_res_first(pages_addr ? NULL : res, offset,
 			 (last - start + 1) * AMDGPU_GPU_PAGE_SIZE, &cursor);
@@ -882,7 +921,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		tmp = start + num_entries;
 		r = amdgpu_vm_ptes_update(&params, start, tmp, addr, flags);
 		if (r)
-			goto error_unlock;
+			goto error_free;
 
 		amdgpu_res_next(&cursor, num_entries * AMDGPU_GPU_PAGE_SIZE);
 		start = tmp;
@@ -890,8 +929,20 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->commit(&params, fence);
 
+	if (!unlocked && (!(flags & AMDGPU_PTE_VALID) || params.table_freed)) {
+		tlb_cb->vm = vm;
+		if (!fence || !*fence ||
+		    dma_fence_add_callback(*fence, &tlb_cb->cb,
+					   amdgpu_vm_tlb_seq_cb))
+			amdgpu_vm_tlb_seq_cb(NULL, &tlb_cb->cb);
+		tlb_cb = NULL;
+	}
+
 	if (table_freed)
 		*table_freed = *table_freed || params.table_freed;
+
+error_free:
+	kfree(tlb_cb);
 
 error_unlock:
 	amdgpu_vm_eviction_unlock(vm);
