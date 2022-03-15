@@ -306,12 +306,6 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	if (!is_mmio_range(dev_pa, dev_size))
 		return -EINVAL;
 
-	if (drv->ops->validate) {
-		ret = drv->ops->validate(dev_pa, dev_size);
-		if (ret)
-			return ret;
-	}
-
 	/*
 	 * Accept memory donation if the host is providing new memory.
 	 * Note: We do not return the memory even if there is an error later.
@@ -348,6 +342,12 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	if (!validate_against_existing_iommus(dev)) {
 		ret = -EBUSY;
 		goto out;
+	}
+
+	if (dev->ops->validate) {
+		ret = dev->ops->validate(dev);
+		if (ret)
+			goto out;
 	}
 
 	/*

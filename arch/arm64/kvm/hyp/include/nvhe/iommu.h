@@ -20,10 +20,11 @@ struct pkvm_iommu_ops {
 	int (*init)(void *data, size_t size);
 
 	/*
-	 * Driver-specific validation of device registration inputs.
-	 * This should be stateless. No locks are held at entry.
+	 * Driver-specific validation of a device that is being registered.
+	 * All fields of the device struct have been populated.
+	 * Called with the host lock held.
 	 */
-	int (*validate)(phys_addr_t base, size_t size);
+	int (*validate)(struct pkvm_iommu *dev);
 
 	/*
 	 * Callback to apply a host stage-2 mapping change at driver level.
