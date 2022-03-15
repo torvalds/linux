@@ -5,6 +5,7 @@
  * Copyright (c) 2020 Western Digital Corporation or its affiliates.
  */
 
+#include <linux/bits.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -85,7 +86,7 @@ static unsigned long __sbi_v01_cpumask_to_hartmask(const struct cpumask *cpu_mas
 			pr_warn("Unable to send any request to hartid > BITS_PER_LONG for SBI v0.1\n");
 			break;
 		}
-		hmask |= 1 << hartid;
+		hmask |= BIT(hartid);
 	}
 
 	return hmask;
@@ -160,7 +161,7 @@ static int __sbi_send_ipi_v01(const struct cpumask *cpu_mask)
 {
 	unsigned long hart_mask;
 
-	if (!cpu_mask)
+	if (!cpu_mask || cpumask_empty(cpu_mask))
 		cpu_mask = cpu_online_mask;
 	hart_mask = __sbi_v01_cpumask_to_hartmask(cpu_mask);
 
@@ -176,7 +177,7 @@ static int __sbi_rfence_v01(int fid, const struct cpumask *cpu_mask,
 	int result = 0;
 	unsigned long hart_mask;
 
-	if (!cpu_mask)
+	if (!cpu_mask || cpumask_empty(cpu_mask))
 		cpu_mask = cpu_online_mask;
 	hart_mask = __sbi_v01_cpumask_to_hartmask(cpu_mask);
 
@@ -249,26 +250,37 @@ static void __sbi_set_timer_v02(uint64_t stime_value)
 
 static int __sbi_send_ipi_v02(const struct cpumask *cpu_mask)
 {
-	unsigned long hartid, cpuid, hmask = 0, hbase = 0;
+	unsigned long hartid, cpuid, hmask = 0, hbase = 0, htop = 0;
 	struct sbiret ret = {0};
 	int result;
 
-	if (!cpu_mask)
+	if (!cpu_mask || cpumask_empty(cpu_mask))
 		cpu_mask = cpu_online_mask;
 
 	for_each_cpu(cpuid, cpu_mask) {
 		hartid = cpuid_to_hartid_map(cpuid);
-		if (hmask && ((hbase + BITS_PER_LONG) <= hartid)) {
-			ret = sbi_ecall(SBI_EXT_IPI, SBI_EXT_IPI_SEND_IPI,
-					hmask, hbase, 0, 0, 0, 0);
-			if (ret.error)
-				goto ecall_failed;
-			hmask = 0;
-			hbase = 0;
+		if (hmask) {
+			if (hartid + BITS_PER_LONG <= htop ||
+			    hbase + BITS_PER_LONG <= hartid) {
+				ret = sbi_ecall(SBI_EXT_IPI,
+						SBI_EXT_IPI_SEND_IPI, hmask,
+						hbase, 0, 0, 0, 0);
+				if (ret.error)
+					goto ecall_failed;
+				hmask = 0;
+			} else if (hartid < hbase) {
+				/* shift the mask to fit lower hartid */
+				hmask <<= hbase - hartid;
+				hbase = hartid;
+			}
 		}
-		if (!hmask)
+		if (!hmask) {
 			hbase = hartid;
-		hmask |= 1UL << (hartid - hbase);
+			htop = hartid;
+		} else if (hartid > htop) {
+			htop = hartid;
+		}
+		hmask |= BIT(hartid - hbase);
 	}
 
 	if (hmask) {
@@ -344,25 +356,35 @@ static int __sbi_rfence_v02(int fid, const struct cpumask *cpu_mask,
 			    unsigned long start, unsigned long size,
 			    unsigned long arg4, unsigned long arg5)
 {
-	unsigned long hartid, cpuid, hmask = 0, hbase = 0;
+	unsigned long hartid, cpuid, hmask = 0, hbase = 0, htop = 0;
 	int result;
 
-	if (!cpu_mask)
+	if (!cpu_mask || cpumask_empty(cpu_mask))
 		cpu_mask = cpu_online_mask;
 
 	for_each_cpu(cpuid, cpu_mask) {
 		hartid = cpuid_to_hartid_map(cpuid);
-		if (hmask && ((hbase + BITS_PER_LONG) <= hartid)) {
-			result = __sbi_rfence_v02_call(fid, hmask, hbase,
-						       start, size, arg4, arg5);
-			if (result)
-				return result;
-			hmask = 0;
-			hbase = 0;
+		if (hmask) {
+			if (hartid + BITS_PER_LONG <= htop ||
+			    hbase + BITS_PER_LONG <= hartid) {
+				result = __sbi_rfence_v02_call(fid, hmask,
+						hbase, start, size, arg4, arg5);
+				if (result)
+					return result;
+				hmask = 0;
+			} else if (hartid < hbase) {
+				/* shift the mask to fit lower hartid */
+				hmask <<= hbase - hartid;
+				hbase = hartid;
+			}
 		}
-		if (!hmask)
+		if (!hmask) {
 			hbase = hartid;
-		hmask |= 1UL << (hartid - hbase);
+			htop = hartid;
+		} else if (hartid > htop) {
+			htop = hartid;
+		}
+		hmask |= BIT(hartid - hbase);
 	}
 
 	if (hmask) {
