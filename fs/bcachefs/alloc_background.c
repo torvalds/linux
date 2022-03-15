@@ -670,7 +670,6 @@ static int bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 	ret = bch2_trans_do(c, NULL, &commit_seq,
 			    BTREE_INSERT_NOCHECK_RW|
 			    BTREE_INSERT_NOFAIL|
-			    BTREE_INSERT_JOURNAL_RESERVED|
 			    flags,
 			    bucket_invalidate_btree(&trans, ca, b, &u));
 

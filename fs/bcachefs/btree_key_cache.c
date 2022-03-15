@@ -421,7 +421,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_USE_RESERVE|
 				  (ck->journal.seq == journal_last_seq(j)
-				   ? BTREE_INSERT_JOURNAL_RESERVED
+				   ? JOURNAL_WATERMARK_reserved
 				   : 0)|
 				  commit_flags);
 	if (ret) {

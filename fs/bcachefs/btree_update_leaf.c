@@ -296,11 +296,10 @@ static inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	int ret;
 
-	if (trans->flags & BTREE_INSERT_JOURNAL_RESERVED)
-		flags |= JOURNAL_RES_GET_RESERVED;
-
 	ret = bch2_journal_res_get(&c->journal, &trans->journal_res,
-				   trans->journal_u64s, flags);
+				   trans->journal_u64s,
+				   flags|
+				   (trans->flags & JOURNAL_WATERMARK_MASK));
 
 	return ret == -EAGAIN ? BTREE_INSERT_NEED_JOURNAL_RES : ret;
 }
@@ -902,8 +901,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
 			JOURNAL_RES_GET_NONBLOCK|
-			((trans->flags & BTREE_INSERT_JOURNAL_RESERVED)
-			 ? JOURNAL_RES_GET_RESERVED : 0));
+			(trans->flags & JOURNAL_WATERMARK_MASK));
 	if (unlikely(ret == -EAGAIN))
 		ret = bch2_trans_journal_preres_get_cold(trans,
 						trans->journal_preres_u64s, trace_ip);
@@ -988,7 +986,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		bch2_trans_unlock(trans);
 
 		if ((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
-		    !(trans->flags & BTREE_INSERT_JOURNAL_RESERVED)) {
+		    !(trans->flags & JOURNAL_WATERMARK_reserved)) {
 			trans->restarted = true;
 			ret = -EAGAIN;
 			break;

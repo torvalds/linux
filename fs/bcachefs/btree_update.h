@@ -16,12 +16,12 @@ bool bch2_btree_bset_insert_key(struct btree_trans *, struct btree_path *,
 void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 
 enum btree_insert_flags {
-	__BTREE_INSERT_NOFAIL,
+	/* First two bits for journal watermark: */
+	__BTREE_INSERT_NOFAIL = 2,
 	__BTREE_INSERT_NOCHECK_RW,
 	__BTREE_INSERT_LAZY_RW,
 	__BTREE_INSERT_USE_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
-	__BTREE_INSERT_JOURNAL_RESERVED,
 	__BTREE_INSERT_JOURNAL_RECLAIM,
 	__BTREE_INSERT_NOWAIT,
 	__BTREE_INSERT_GC_LOCK_HELD,
@@ -40,9 +40,6 @@ enum btree_insert_flags {
 
 /* Insert is for journal replay - don't get journal reservations: */
 #define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)
-
-/* Indicates that we have pre-reserved space in the journal: */
-#define BTREE_INSERT_JOURNAL_RESERVED	(1 << __BTREE_INSERT_JOURNAL_RESERVED)
 
 /* Insert is being called from journal reclaim path: */
 #define BTREE_INSERT_JOURNAL_RECLAIM (1 << __BTREE_INSERT_JOURNAL_RECLAIM)

@@ -293,9 +293,9 @@ static inline void bch2_journal_res_put(struct journal *j,
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 				  unsigned);
 
-#define JOURNAL_RES_GET_NONBLOCK	(1 << 0)
-#define JOURNAL_RES_GET_CHECK		(1 << 1)
-#define JOURNAL_RES_GET_RESERVED	(1 << 2)
+/* First two bits for JOURNAL_WATERMARK: */
+#define JOURNAL_RES_GET_NONBLOCK	(1 << 2)
+#define JOURNAL_RES_GET_CHECK		(1 << 3)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
@@ -316,8 +316,7 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		EBUG_ON(!journal_state_count(new, new.idx));
 
-		if (!(flags & JOURNAL_RES_GET_RESERVED) &&
-		    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags))
+		if ((flags & JOURNAL_WATERMARK_MASK) < j->watermark)
 			return 0;
 
 		new.cur_entry_offset += res->u64s;
@@ -370,23 +369,27 @@ out:
 
 /* journal_preres: */
 
-static inline bool journal_check_may_get_unreserved(struct journal *j)
+static inline void journal_set_watermark(struct journal *j)
 {
 	union journal_preres_state s = READ_ONCE(j->prereserved);
-	bool ret = s.reserved < s.remaining &&
-		fifo_free(&j->pin) > j->pin.size / 4;
+	unsigned watermark = JOURNAL_WATERMARK_any;
 
-	lockdep_assert_held(&j->lock);
+	if (fifo_free(&j->pin) < j->pin.size / 4)
+		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_copygc);
+	if (fifo_free(&j->pin) < j->pin.size / 8)
+		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_reserved);
 
-	if (ret != test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
-		if (ret) {
-			set_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags);
-			journal_wake(j);
-		} else {
-			clear_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags);
-		}
-	}
-	return ret;
+	if (s.reserved > s.remaining)
+		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_copygc);
+	if (!s.remaining)
+		watermark = max_t(unsigned, watermark, JOURNAL_WATERMARK_reserved);
+
+	if (watermark == j->watermark)
+		return;
+
+	swap(watermark, j->watermark);
+	if (watermark > j->watermark)
+		journal_wake(j);
 }
 
 static inline void bch2_journal_preres_put(struct journal *j,
@@ -406,12 +409,8 @@ static inline void bch2_journal_preres_put(struct journal *j,
 		closure_wake_up(&j->preres_wait);
 	}
 
-	if (s.reserved <= s.remaining &&
-	    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
-		spin_lock(&j->lock);
-		journal_check_may_get_unreserved(j);
-		spin_unlock(&j->lock);
-	}
+	if (s.reserved <= s.remaining && j->watermark)
+		journal_set_watermark(j);
 }
 
 int __bch2_journal_preres_get(struct journal *,
@@ -432,7 +431,7 @@ static inline int bch2_journal_preres_get_fast(struct journal *j,
 		old.v = new.v = v;
 		ret = 0;
 
-		if ((flags & JOURNAL_RES_GET_RESERVED) ||
+		if ((flags & JOURNAL_WATERMARK_reserved) ||
 		    new.reserved + d < new.remaining) {
 			new.reserved += d;
 			ret = 1;

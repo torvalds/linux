@@ -195,7 +195,7 @@ void bch2_journal_space_available(struct journal *j)
 	j->can_discard = can_discard;
 
 	if (nr_online < c->opts.metadata_replicas_required) {
-		ret = cur_entry_insufficient_devices;
+		ret = JOURNAL_ERR_insufficient_devices;
 		goto out;
 	}
 
@@ -224,9 +224,9 @@ void bch2_journal_space_available(struct journal *j)
 		bch2_fatal_error(c);
 		spin_lock(&j->lock);
 
-		ret = cur_entry_journal_stuck;
+		ret = JOURNAL_ERR_journal_stuck;
 	} else if (!j->space[journal_space_discarded].next_entry)
-		ret = cur_entry_journal_full;
+		ret = JOURNAL_ERR_journal_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
@@ -245,7 +245,7 @@ out:
 	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
 	j->cur_entry_error	= ret;
 	journal_set_remaining(j, u64s_remaining);
-	journal_check_may_get_unreserved(j);
+	journal_set_watermark(j);
 
 	if (!ret)
 		journal_wake(j);

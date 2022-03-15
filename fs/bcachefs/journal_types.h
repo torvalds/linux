@@ -144,8 +144,36 @@ enum journal_space_from {
 enum {
 	JOURNAL_REPLAY_DONE,
 	JOURNAL_STARTED,
-	JOURNAL_MAY_GET_UNRESERVED,
 	JOURNAL_MAY_SKIP_FLUSH,
+};
+
+#define JOURNAL_WATERMARKS()		\
+	x(any)				\
+	x(copygc)			\
+	x(reserved)
+
+enum journal_watermark {
+#define x(n)	JOURNAL_WATERMARK_##n,
+	JOURNAL_WATERMARKS()
+#undef x
+};
+
+#define JOURNAL_WATERMARK_MASK	3
+
+/* Reasons we may fail to get a journal reservation: */
+#define JOURNAL_ERRORS()		\
+	x(ok)				\
+	x(blocked)			\
+	x(max_in_flight)		\
+	x(journal_full)			\
+	x(journal_pin_full)		\
+	x(journal_stuck)		\
+	x(insufficient_devices)
+
+enum journal_errors {
+#define x(n)	JOURNAL_ERR_##n,
+	JOURNAL_ERRORS()
+#undef x
 };
 
 /* Embedded in struct bch_fs */
@@ -154,6 +182,7 @@ struct journal {
 	struct {
 
 	union journal_res_state reservations;
+	enum journal_watermark	watermark;
 
 	union journal_preres_state prereserved;
 
@@ -173,15 +202,7 @@ struct journal {
 	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
 	 * insufficient devices:
 	 */
-	enum {
-		cur_entry_ok,
-		cur_entry_blocked,
-		cur_entry_max_in_flight,
-		cur_entry_journal_full,
-		cur_entry_journal_pin_full,
-		cur_entry_journal_stuck,
-		cur_entry_insufficient_devices,
-	}			cur_entry_error;
+	enum journal_errors	cur_entry_error;
 
 	unsigned		buf_size_want;
 	/*

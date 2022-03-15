@@ -91,7 +91,7 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 			data_opts->target		= io_opts->background_target;
 			data_opts->nr_replicas		= 1;
 			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE|
-				BTREE_INSERT_JOURNAL_RESERVED;
+				JOURNAL_WATERMARK_copygc;
 			data_opts->rewrite_dev		= p.ptr.dev;
 
 			if (p.has_ec)

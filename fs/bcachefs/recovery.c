@@ -562,8 +562,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 		ret = bch2_trans_do(c, NULL, NULL,
 				    BTREE_INSERT_LAZY_RW|
 				    BTREE_INSERT_NOFAIL|
-				    BTREE_INSERT_JOURNAL_RESERVED|
-				    (!k->allocated ? BTREE_INSERT_JOURNAL_REPLAY : 0),
+				    (!k->allocated
+				     ? BTREE_INSERT_JOURNAL_REPLAY|JOURNAL_WATERMARK_reserved
+				     : 0),
 			     bch2_journal_replay_key(&trans, k));
 		if (ret) {
 			bch_err(c, "journal replay: error %d while replaying key at btree %s level %u",
