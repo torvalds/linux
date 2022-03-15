@@ -10,7 +10,7 @@ maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
 
 description: |
-  On Renesas RZ/{G2L,V2L} SoC, the CPG (Clock Pulse Generator) and Module
+  On Renesas RZ/{G2L,V2L}-alike SoC's, the CPG (Clock Pulse Generator) and Module
   Standby Mode share the same register block.
 
   They provide the following functionalities:
@@ -23,8 +23,9 @@ description: |
 properties:
   compatible:
     enum:
-      - renesas,r9a07g044-cpg  # RZ/G2{L,LC}
-      - renesas,r9a07g054-cpg  # RZ/V2L
+      - renesas,r9a07g043-cpg # RZ/G2UL{Type-1,Type-2}
+      - renesas,r9a07g044-cpg # RZ/G2{L,LC}
+      - renesas,r9a07g054-cpg # RZ/V2L
 
   reg:
     maxItems: 1
