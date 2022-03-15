@@ -246,7 +246,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	const struct intel_gt_info *info = &gt->info;
-	struct sseu_dev_info sseu;
+	struct sseu_dev_info *sseu;
 	intel_wakeref_t wakeref;
 
 	if (GRAPHICS_VER(i915) < 8)
@@ -256,23 +256,29 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 	i915_print_sseu_info(m, true, HAS_POOLED_EU(i915), &info->sseu);
 
 	seq_puts(m, "SSEU Device Status\n");
-	memset(&sseu, 0, sizeof(sseu));
-	intel_sseu_set_info(&sseu, info->sseu.max_slices,
+
+	sseu = kzalloc(sizeof(*sseu), GFP_KERNEL);
+	if (!sseu)
+		return -ENOMEM;
+
+	intel_sseu_set_info(sseu, info->sseu.max_slices,
 			    info->sseu.max_subslices,
 			    info->sseu.max_eus_per_subslice);
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		if (IS_CHERRYVIEW(i915))
-			cherryview_sseu_device_status(gt, &sseu);
+			cherryview_sseu_device_status(gt, sseu);
 		else if (IS_BROADWELL(i915))
-			bdw_sseu_device_status(gt, &sseu);
+			bdw_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) == 9)
-			gen9_sseu_device_status(gt, &sseu);
+			gen9_sseu_device_status(gt, sseu);
 		else if (GRAPHICS_VER(i915) >= 11)
-			gen11_sseu_device_status(gt, &sseu);
+			gen11_sseu_device_status(gt, sseu);
 	}
 
-	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), &sseu);
+	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), sseu);
+
+	kfree(sseu);
 
 	return 0;
 }
