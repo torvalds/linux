@@ -80,8 +80,6 @@ source "drivers/staging/vc04_services/Kconfig"
 
 source "drivers/staging/pi433/Kconfig"
 
-source "drivers/staging/mt7621-dts/Kconfig"
-
 source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/fieldbus/Kconfig"
