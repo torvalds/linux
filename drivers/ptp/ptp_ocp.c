@@ -970,13 +970,25 @@ ptp_ocp_verify(struct ptp_clock_info *ptp_info, unsigned pin,
 	struct ptp_ocp *bp = container_of(ptp_info, struct ptp_ocp, ptp_info);
 	char buf[16];
 
-	if (func != PTP_PF_PEROUT)
+	switch (func) {
+	case PTP_PF_NONE:
+		sprintf(buf, "IN: None");
+		break;
+	case PTP_PF_EXTTS:
+		/* Allow timestamps, but require sysfs configuration. */
+		return 0;
+	case PTP_PF_PEROUT:
+		/* channel 0 is 1PPS from PHC.
+		 * channels 1..4 are the frequency generators.
+		 */
+		if (chan)
+			sprintf(buf, "OUT: GEN%d", chan);
+		else
+			sprintf(buf, "OUT: PHC");
+		break;
+	default:
 		return -EOPNOTSUPP;
-
-	if (chan)
-		sprintf(buf, "OUT: GEN%d", chan);
-	else
-		sprintf(buf, "OUT: PHC");
+	}
 
 	return ptp_ocp_sma_store(bp, buf, pin + 1);
 }
@@ -2922,7 +2934,7 @@ _signal_summary_show(struct seq_file *s, struct ptp_ocp *bp, int nr)
 		return;
 
 	on = signal->running;
-	sprintf(label, "GEN%d", nr);
+	sprintf(label, "GEN%d", nr + 1);
 	seq_printf(s, "%7s: %s, period:%llu duty:%d%% phase:%llu pol:%d",
 		   label, on ? " ON" : "OFF",
 		   signal->period, signal->duty, signal->phase,
@@ -2947,7 +2959,7 @@ _frequency_summary_show(struct seq_file *s, int nr,
 	if (!reg)
 		return;
 
-	sprintf(label, "FREQ%d", nr);
+	sprintf(label, "FREQ%d", nr + 1);
 	val = ioread32(&reg->ctrl);
 	on = val & 1;
 	val = (val >> 8) & 0xff;
