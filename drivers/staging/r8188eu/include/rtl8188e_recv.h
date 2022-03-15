@@ -6,10 +6,6 @@
 
 #define TX_RPT1_PKT_LEN 8
 
-#define RECV_BLK_SZ 512
-#define RECV_BLK_CNT 16
-#define RECV_BLK_TH RECV_BLK_CNT
-
 #define NR_PREALLOC_RECV_SKB (8)
 
 #define NR_RECVBUFF (4)
