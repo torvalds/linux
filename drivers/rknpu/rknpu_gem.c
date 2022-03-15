@@ -21,13 +21,14 @@
 #include "rknpu_ioctl.h"
 #include "rknpu_gem.h"
 
-#define RKNPU_GEM_ALLOC_FROM_PAGES 0
+#define RKNPU_GEM_ALLOC_FROM_PAGES 1
 
 #if RKNPU_GEM_ALLOC_FROM_PAGES
 static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 {
 	struct drm_device *drm = rknpu_obj->base.dev;
 	struct scatterlist *s = NULL;
+	dma_addr_t dma_addr = 0;
 	int ret = -EINVAL, i = 0;
 
 	rknpu_obj->pages = drm_gem_get_pages(&rknpu_obj->base);
@@ -48,35 +49,44 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 		goto put_pages;
 	}
 
-	for_each_sg(rknpu_obj->sgt->sgl, s, rknpu_obj->sgt->nents, i) {
-		sg_dma_address(s) = sg_phys(s);
-		LOG_DEBUG(
-			"gem pages alloc sgt[%d], phys_address: %#llx, length: %#x\n",
-			i, (__u64)s->dma_address, s->length);
-	}
-
-	ret = dma_map_sg_attrs(drm->dev, rknpu_obj->sgt->sgl,
-			       rknpu_obj->sgt->nents, DMA_BIDIRECTIONAL,
-			       rknpu_obj->dma_attrs);
+	ret = dma_map_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
+			 DMA_BIDIRECTIONAL);
 	if (ret == 0) {
-		LOG_DEV_ERROR(drm->dev, "failed to map sg table.\n");
 		ret = -EFAULT;
 		goto free_sgt;
 	}
 
+	dma_sync_sg_for_device(drm->dev, rknpu_obj->sgt->sgl,
+			       rknpu_obj->sgt->nents, DMA_TO_DEVICE);
+
 	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING) {
-		rknpu_obj->kv_addr =
-			vmap(rknpu_obj->pages, rknpu_obj->num_pages, VM_MAP,
-			     PAGE_KERNEL);
+		rknpu_obj->cookie = vmap(rknpu_obj->pages, rknpu_obj->num_pages,
+					 VM_MAP, PAGE_KERNEL);
+		if (!rknpu_obj->cookie)
+			goto unmap_sg;
+		rknpu_obj->kv_addr = rknpu_obj->cookie;
 	}
 
-	rknpu_obj->dma_addr = (__u64)sg_dma_address(rknpu_obj->sgt->sgl);
+	dma_addr = sg_dma_address(rknpu_obj->sgt->sgl);
+	rknpu_obj->dma_addr = dma_addr;
+
+	for_each_sg(rknpu_obj->sgt->sgl, s, rknpu_obj->sgt->nents, i) {
+		dma_addr += s->length;
+		LOG_DEBUG(
+			"gem pages alloc sgt[%d], dma_address: %#llx, length: %#x\n",
+			i, (__u64)dma_addr, s->length);
+	}
 
 	return 0;
+
+unmap_sg:
+	dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
+		     DMA_BIDIRECTIONAL);
 
 free_sgt:
 	sg_free_table(rknpu_obj->sgt);
 	kfree(rknpu_obj->sgt);
+
 put_pages:
 	drm_gem_put_pages(&rknpu_obj->base, rknpu_obj->pages, false, false);
 
@@ -90,8 +100,9 @@ static void rknpu_gem_put_pages(struct rknpu_gem_object *rknpu_obj)
 	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING)
 		vunmap(rknpu_obj->kv_addr);
 
-	dma_map_sg_attrs(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
-			 DMA_BIDIRECTIONAL, rknpu_obj->dma_attrs);
+	dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
+		     DMA_BIDIRECTIONAL);
+
 	drm_gem_put_pages(&rknpu_obj->base, rknpu_obj->pages, true, true);
 	sg_free_table(rknpu_obj->sgt);
 	kfree(rknpu_obj->sgt);
@@ -911,9 +922,8 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 	struct rknpu_gem_object *rknpu_obj = NULL;
 	struct rknpu_mem_sync *args = data;
 	struct scatterlist *sg;
-	dma_addr_t sg_dma_addr;
 	unsigned long length, offset = 0;
-	unsigned long sg_offset, sg_left, size = 0;
+	unsigned long sg_left, size = 0;
 	unsigned long len = 0;
 	int i;
 
@@ -937,11 +947,6 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 						      DMA_FROM_DEVICE);
 		}
 	} else {
-		struct drm_device *drm = rknpu_obj->base.dev;
-		struct rknpu_device *rknpu_dev = drm->dev_private;
-
-		WARN_ON(!rknpu_dev->fake_dev);
-
 		length = args->size;
 		offset = args->offset;
 
@@ -951,21 +956,17 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 			if (len <= offset)
 				continue;
 
-			sg_dma_addr = sg_dma_address(sg);
 			sg_left = len - offset;
-			sg_offset = sg->length - sg_left;
 			size = (length < sg_left) ? length : sg_left;
 
 			if (args->flags & RKNPU_MEM_SYNC_TO_DEVICE) {
-				dma_sync_single_range_for_device(
-					rknpu_dev->fake_dev, sg_dma_addr,
-					sg_offset, size, DMA_TO_DEVICE);
+				dma_sync_sg_for_device(dev->dev, sg, 1,
+						       DMA_TO_DEVICE);
 			}
 
 			if (args->flags & RKNPU_MEM_SYNC_FROM_DEVICE) {
-				dma_sync_single_range_for_cpu(
-					rknpu_dev->fake_dev, sg_dma_addr,
-					sg_offset, size, DMA_FROM_DEVICE);
+				dma_sync_sg_for_cpu(dev->dev, sg, 1,
+						    DMA_FROM_DEVICE);
 			}
 
 			offset += size;

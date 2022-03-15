@@ -1,10 +1,54 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "RKNPU"
-	depends on ARCH_ROCKCHIP && DRM
+	depends on ARCH_ROCKCHIP
 
 config ROCKCHIP_RKNPU
 	tristate "ROCKCHIP_RKNPU"
+	depends on DRM || DMABUF_HEAPS_ROCKCHIP_CMA_HEAP
 	help
 	  rknpu module.
+
+if ROCKCHIP_RKNPU
+
+config ROCKCHIP_RKNPU_DEBUG_FS
+	bool "RKNPU debugfs"
+	depends on DEBUG_FS
+	default y
+	help
+	  Enable debugfs to debug RKNPU usage.
+
+config ROCKCHIP_RKNPU_PROC_FS
+	bool "RKNPU procfs"
+	depends on PROC_FS
+	help
+	  Enable procfs to debug RKNPU usage.
+
+config ROCKCHIP_RKNPU_FENCE
+	bool "RKNPU fence"
+	depends on SYNC_FILE
+	help
+	  Enable fence support for RKNPU.
+
+choice
+	prompt "RKNPU memory manager"
+	default ROCKCHIP_RKNPU_DRM_GEM
+	help
+	  Select RKNPU memory manager
+
+config ROCKCHIP_RKNPU_DRM_GEM
+	bool "RKNPU DRM GEM"
+	depends on DRM
+	help
+	  Enable RKNPU memory manager by DRM GEM.
+
+config ROCKCHIP_RKNPU_DMA_HEAP
+	bool "RKNPU DMA heap"
+	depends on DMABUF_HEAPS_ROCKCHIP_CMA_HEAP
+	help
+	  Enable RKNPU memory manager by DMA Heap.
+
+endchoice
+
+endif
 
 endmenu
