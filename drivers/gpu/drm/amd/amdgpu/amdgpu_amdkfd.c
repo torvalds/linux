@@ -724,3 +724,11 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bo
 	else if (reset)
 		amdgpu_amdkfd_gpu_reset(adev);
 }
+
+bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)
+{
+	if (adev->gfx.ras->query_utcl2_poison_status)
+		return adev->gfx.ras->query_utcl2_poison_status(adev);
+	else
+		return false;
+}

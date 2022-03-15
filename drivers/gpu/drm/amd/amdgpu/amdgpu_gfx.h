@@ -202,6 +202,7 @@ struct amdgpu_cu_info {
 struct amdgpu_gfx_ras {
 	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
+	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_gfx_funcs {
