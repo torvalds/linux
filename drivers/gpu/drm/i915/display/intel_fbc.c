@@ -1517,25 +1517,6 @@ void intel_fbc_update(struct intel_atomic_state *state,
 	}
 }
 
-/**
- * intel_fbc_global_disable - globally disable FBC
- * @i915: i915 device instance
- *
- * This function disables FBC regardless of which CRTC is associated with it.
- */
-void intel_fbc_global_disable(struct drm_i915_private *i915)
-{
-	struct intel_fbc *fbc;
-	enum intel_fbc_id fbc_id;
-
-	for_each_intel_fbc(i915, fbc, fbc_id) {
-		mutex_lock(&fbc->lock);
-		if (fbc->state.plane)
-			__intel_fbc_disable(fbc);
-		mutex_unlock(&fbc->lock);
-	}
-}
-
 static void intel_fbc_underrun_work_fn(struct work_struct *work)
 {
 	struct intel_fbc *fbc = container_of(work, typeof(*fbc), underrun_work);
