@@ -15,7 +15,6 @@
 
 #include <linux/cma.h>
 #include <linux/dma-buf.h>
-#include <linux/rk-dma-heap.h>
 #include <linux/dma-map-ops.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
@@ -26,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <uapi/linux/rk-dma-heap.h>
+
+#include "rk-dma-heap.h"
 
 struct rk_dma_heap_attachment {
 	struct device *dev;

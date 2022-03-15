@@ -25,6 +25,8 @@
 #include <linux/rk-dma-heap.h>
 #include <uapi/linux/rk-dma-heap.h>
 
+#include "rk-dma-heap.h"
+
 #define DEVNAME "rk_dma_heap"
 
 #define NUM_HEAP_MINORS 128
@@ -89,7 +91,6 @@ struct cma *rk_dma_heap_get_cma(void)
 {
 	return rk_dma_heap_cma;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_get_cma);
 
 static int rk_vmap_pfn_apply(pte_t *pte, unsigned long addr, void *private)
 {
@@ -115,7 +116,6 @@ void *rk_vmap_contig_pfn(unsigned long pfn, unsigned int count, pgprot_t prot)
 	}
 	return area->addr;
 }
-EXPORT_SYMBOL_GPL(rk_vmap_contig_pfn);
 
 int rk_dma_heap_set_dev(struct device *heap_dev)
 {
@@ -143,7 +143,6 @@ int rk_dma_heap_set_dev(struct device *heap_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_set_dev);
 
 struct rk_dma_heap *rk_dma_heap_find(const char *name)
 {
@@ -160,13 +159,11 @@ struct rk_dma_heap *rk_dma_heap_find(const char *name)
 	mutex_unlock(&rk_heap_list_lock);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_find);
 
 void rk_dma_heap_buffer_free(struct dma_buf *dmabuf)
 {
 	dma_buf_put(dmabuf);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_buffer_free);
 
 struct dma_buf *rk_dma_heap_buffer_alloc(struct rk_dma_heap *heap, size_t len,
 					 unsigned int fd_flags,
@@ -188,7 +185,6 @@ struct dma_buf *rk_dma_heap_buffer_alloc(struct rk_dma_heap *heap, size_t len,
 
 	return heap->ops->allocate(heap, len, fd_flags, heap_flags, name);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_buffer_alloc);
 
 int rk_dma_heap_bufferfd_alloc(struct rk_dma_heap *heap, size_t len,
 			       unsigned int fd_flags,
@@ -212,7 +208,6 @@ int rk_dma_heap_bufferfd_alloc(struct rk_dma_heap *heap, size_t len,
 	return fd;
 
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_bufferfd_alloc);
 
 struct page *rk_dma_heap_alloc_contig_pages(struct rk_dma_heap *heap,
 					    size_t len, const char *name)
@@ -228,7 +223,6 @@ struct page *rk_dma_heap_alloc_contig_pages(struct rk_dma_heap *heap,
 
 	return heap->ops->alloc_contig_pages(heap, len, name);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_alloc_contig_pages);
 
 void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap,
 				   struct page *pages, size_t len,
@@ -241,7 +235,6 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap,
 
 	return heap->ops->free_contig_pages(heap, pages, len, name);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_free_contig_pages);
 
 void rk_dma_heap_total_inc(struct rk_dma_heap *heap, size_t len)
 {
@@ -249,7 +242,6 @@ void rk_dma_heap_total_inc(struct rk_dma_heap *heap, size_t len)
 	heap->total_size += len;
 	mutex_unlock(&rk_heap_list_lock);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_total_inc);
 
 void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len)
 {
@@ -260,7 +252,6 @@ void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len)
 		heap->total_size -= len;
 	mutex_unlock(&rk_heap_list_lock);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_total_dec);
 
 static int rk_dma_heap_open(struct inode *inode, struct file *file)
 {
@@ -382,7 +373,6 @@ void *rk_dma_heap_get_drvdata(struct rk_dma_heap *heap)
 {
 	return heap->priv;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_get_drvdata);
 
 static void rk_dma_heap_release(struct kref *ref)
 {
@@ -409,7 +399,6 @@ void rk_dma_heap_put(struct rk_dma_heap *h)
 	kref_put(&h->refcount, rk_dma_heap_release);
 	mutex_unlock(&rk_heap_list_lock);
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_put);
 
 /**
  * rk_dma_heap_get_dev() - get device struct for the heap
@@ -422,7 +411,6 @@ struct device *rk_dma_heap_get_dev(struct rk_dma_heap *heap)
 {
 	return heap->heap_dev;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_get_dev);
 
 /**
  * rk_dma_heap_get_name() - get heap name
@@ -435,7 +423,6 @@ const char *rk_dma_heap_get_name(struct rk_dma_heap *heap)
 {
 	return heap->name;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_get_name);
 
 struct rk_dma_heap *rk_dma_heap_add(const struct rk_dma_heap_export_info *exp_info)
 {
@@ -525,7 +512,6 @@ err0:
 	kfree(heap);
 	return err_ret;
 }
-EXPORT_SYMBOL_GPL(rk_dma_heap_add);
 
 static char *rk_dma_heap_devnode(struct device *dev, umode_t *mode)
 {
