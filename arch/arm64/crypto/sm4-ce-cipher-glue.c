@@ -54,7 +54,7 @@ static void sm4_ce_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 static struct crypto_alg sm4_ce_alg = {
 	.cra_name			= "sm4",
 	.cra_driver_name		= "sm4-ce",
-	.cra_priority			= 200,
+	.cra_priority			= 300,
 	.cra_flags			= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize			= SM4_BLOCK_SIZE,
 	.cra_ctxsize			= sizeof(struct sm4_ctx),
