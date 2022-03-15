@@ -62,7 +62,8 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 }
 
 static bool can_enable_drrs(struct intel_connector *connector,
-			    const struct intel_crtc_state *pipe_config)
+			    const struct intel_crtc_state *pipe_config,
+			    const struct drm_display_mode *downclock_mode)
 {
 	if (pipe_config->vrr.enable)
 		return false;
@@ -76,7 +77,8 @@ static bool can_enable_drrs(struct intel_connector *connector,
 	if (pipe_config->has_psr)
 		return false;
 
-	return intel_panel_drrs_type(connector) == DRRS_TYPE_SEAMLESS;
+	return downclock_mode &&
+		intel_panel_drrs_type(connector) == DRRS_TYPE_SEAMLESS;
 }
 
 void
@@ -89,7 +91,7 @@ intel_drrs_compute_config(struct intel_connector *connector,
 		intel_panel_downclock_mode(connector, &pipe_config->hw.adjusted_mode);
 	int pixel_clock;
 
-	if (!can_enable_drrs(connector, pipe_config)) {
+	if (!can_enable_drrs(connector, pipe_config, downclock_mode)) {
 		if (intel_cpu_transcoder_has_m2_n2(i915, pipe_config->cpu_transcoder))
 			intel_zero_m_n(&pipe_config->dp_m2_n2);
 		return;
