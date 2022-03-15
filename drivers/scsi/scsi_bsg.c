@@ -31,7 +31,6 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		return PTR_ERR(rq);
 	rq->timeout = timeout;
 
-	ret = -ENOMEM;
 	scmd = blk_mq_rq_to_pdu(rq);
 	scmd->cmd_len = hdr->request_len;
 	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
