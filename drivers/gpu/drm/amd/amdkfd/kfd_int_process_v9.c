@@ -93,20 +93,19 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 				uint16_t pasid, uint16_t source_id)
 {
-	int ret = -EINVAL;
+	int old_poison, ret = -EINVAL;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
 	if (!p)
 		return;
 
 	/* all queues of a process will be unmapped in one time */
-	if (atomic_read(&p->poison)) {
-		kfd_unref_process(p);
-		return;
-	}
-
-	atomic_set(&p->poison, 1);
+	old_poison = atomic_cmpxchg(&p->poison, 0, 1);
 	kfd_unref_process(p);
+	if (old_poison)
+		return;
+
+	pr_warn("RAS poison consumption handling\n");
 
 	switch (source_id) {
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
