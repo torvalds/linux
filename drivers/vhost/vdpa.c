@@ -42,7 +42,7 @@ struct vhost_vdpa {
 	struct device dev;
 	struct cdev cdev;
 	atomic_t opened;
-	int nvqs;
+	u32 nvqs;
 	int virtio_id;
 	int minor;
 	struct eventfd_ctx *config_ctx;
@@ -161,7 +161,8 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
 	u8 status, status_old;
-	int ret, nvqs = v->nvqs;
+	u32 nvqs = v->nvqs;
+	int ret;
 	u16 i;
 
 	if (copy_from_user(&status, statusp, sizeof(status)))
@@ -968,7 +969,8 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 	struct vhost_vdpa *v;
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
-	int nvqs, i, r, opened;
+	int r, opened;
+	u32 i, nvqs;
 
 	v = container_of(inode->i_cdev, struct vhost_vdpa, cdev);
 
@@ -1021,7 +1023,7 @@ err:
 
 static void vhost_vdpa_clean_irq(struct vhost_vdpa *v)
 {
-	int i;
+	u32 i;
 
 	for (i = 0; i < v->nvqs; i++)
 		vhost_vdpa_unsetup_vq_irq(v, i);

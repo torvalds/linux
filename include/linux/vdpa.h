@@ -83,7 +83,7 @@ struct vdpa_device {
 	unsigned int index;
 	bool features_valid;
 	bool use_va;
-	int nvqs;
+	u32 nvqs;
 	struct vdpa_mgmt_dev *mdev;
 };
 
@@ -338,10 +338,10 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 				       dev_struct, member)), name, use_va), \
 				       dev_struct, member)
 
-int vdpa_register_device(struct vdpa_device *vdev, int nvqs);
+int vdpa_register_device(struct vdpa_device *vdev, u32 nvqs);
 void vdpa_unregister_device(struct vdpa_device *vdev);
 
-int _vdpa_register_device(struct vdpa_device *vdev, int nvqs);
+int _vdpa_register_device(struct vdpa_device *vdev, u32 nvqs);
 void _vdpa_unregister_device(struct vdpa_device *vdev);
 
 /**
