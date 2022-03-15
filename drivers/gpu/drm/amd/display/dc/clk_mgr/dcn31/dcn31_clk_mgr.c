@@ -615,13 +615,37 @@ static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 	}
 }
 
+void dcn31_set_low_power_state(struct clk_mgr *clk_mgr_base)
+{
+	int display_count;
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct dc_state *context = dc->current_state;
+
+	if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
+		display_count = dcn31_get_active_display_cnt_wa(dc, context);
+		/* if we can go lower, go lower */
+		if (display_count == 0) {
+			union display_idle_optimization_u idle_info = { 0 };
+
+			idle_info.idle_info.df_request_disabled = 1;
+			idle_info.idle_info.phy_ref_clk_off = 1;
+			idle_info.idle_info.s0i2_rdy = 1;
+			dcn31_smu_set_display_idle_optimization(clk_mgr, idle_info.data);
+			/* update power state */
+			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+		}
+	}
+}
+
 static struct clk_mgr_funcs dcn31_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn31_update_clocks,
 	.init_clocks = dcn31_init_clocks,
 	.enable_pme_wa = dcn31_enable_pme_wa,
 	.are_clock_states_equal = dcn31_are_clock_states_equal,
-	.notify_wm_ranges = dcn31_notify_wm_ranges
+	.notify_wm_ranges = dcn31_notify_wm_ranges,
+	.set_low_power_state = dcn31_set_low_power_state
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 

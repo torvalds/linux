@@ -88,11 +88,22 @@ static int rn_get_active_display_cnt_wa(struct dc *dc, struct dc_state *context)
 
 static void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 {
+	int display_count;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct dc_state *context = dc->current_state;
 
-	rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
-	/* update power state */
-	clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+	if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
+
+		display_count = rn_get_active_display_cnt_wa(dc, context);
+
+		/* if we can go lower, go lower */
+		if (display_count == 0) {
+			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
+			/* update power state */
+			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+		}
+	}
 }
 
 static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
