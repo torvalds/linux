@@ -1171,7 +1171,7 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 		seq_printf(m, "\tBusy_frontbuffer_bits: 0x%X\n",
 			   crtc->drrs.busy_frontbuffer_bits);
 
-		seq_printf(m, "DRRS refresh rate: %s\n",
+		seq_printf(m, "\tDRRS refresh rate: %s\n",
 			   crtc->drrs.refresh_rate == DRRS_REFRESH_RATE_LOW ?
 			   "low" : "high");
 
