@@ -38,10 +38,9 @@
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/uaccess.h>
-#include "crypto/cryptodev.h"
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev_int.h"
+#include "cryptodev.h"
 #include "zc.h"
 #include "util.h"
 #include "cryptlib.h"

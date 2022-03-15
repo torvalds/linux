@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 
 /* cipher stuff */
-#ifndef CRYPTODEV_INT_H
-# define CRYPTODEV_INT_H
+#ifndef CRYPTODEV_H
+# define CRYPTODEV_H
 
 #include <linux/version.h>
 
@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
-#include "crypto/cryptodev.h"
+#include <uapi/linux/cryptodev.h>
 #include <crypto/aead.h>
 
 #define PFX "cryptodev: "

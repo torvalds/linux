@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
 
 /* This is a source compatible implementation with the original API of
  * cryptodev by Angelos D. Keromytis, found at openbsd cryptodev.h.
  * Placed under public domain */
 
-#ifndef L_CRYPTODEV_H
-#define L_CRYPTODEV_H
+#ifndef _UAPI_CRYPTODEV_H
+#define _UAPI_CRYPTODEV_H
 
 #include <linux/types.h>
 #include <linux/version.h>

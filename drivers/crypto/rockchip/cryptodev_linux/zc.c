@@ -34,7 +34,7 @@
 #include <linux/uaccess.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev_int.h"
+#include "cryptodev.h"
 #include "zc.h"
 #include "version.h"
 

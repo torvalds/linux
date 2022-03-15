@@ -1,13 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
+/*
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
+ */
 
-/* Copyright (c) 2021 Rockchip Electronics Co. Ltd. */
-
-#ifndef __RK_CRYPTODEV_H__
-#define __RK_CRYPTODEV_H__
+#ifndef _UAPI_RK_CRYPTODEV_H
+#define _UAPI_RK_CRYPTODEV_H
 
 #include <linux/types.h>
 #include <linux/version.h>
-#include "cryptodev.h"
 
 #ifndef __KERNEL__
 #define __user

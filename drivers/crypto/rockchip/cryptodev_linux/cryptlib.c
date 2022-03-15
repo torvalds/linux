@@ -31,11 +31,10 @@
 #include <linux/uaccess.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include "crypto/cryptodev.h"
 #include <crypto/aead.h>
 #include <linux/rtnetlink.h>
 #include <crypto/authenc.h>
-#include "cryptodev_int.h"
+#include "cryptodev.h"
 #include "cipherapi.h"
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))

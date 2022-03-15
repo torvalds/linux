@@ -2,12 +2,12 @@
 
 /* Copyright (c) 2021 Rockchip Electronics Co. Ltd. */
 
-#ifndef __RK_CRYPTODEV_INT_H__
-#define __RK_CRYPTODEV_INT_H__
+#ifndef __RK_CRYPTODEV_H__
+#define __RK_CRYPTODEV_H__
 
 #include <linux/device.h>
-#include "crypto/rk_cryptodev.h"
-#include "cryptodev_int.h"
+#include <uapi/linux/rk_cryptodev.h>
+#include "cryptodev.h"
 
 /* compatibility stuff */
 #ifdef CONFIG_COMPAT

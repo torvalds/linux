@@ -18,11 +18,9 @@
 #include <linux/dma-buf.h>
 #include <linux/list.h>
 
-#include "crypto/cryptodev.h"
-#include "cryptodev_int.h"
 #include "version.h"
 #include "cipherapi.h"
-#include "rk_cryptodev_int.h"
+#include "rk_cryptodev.h"
 
 #define MAX_CRYPTO_DEV		1
 #define MAX_CRYPTO_NAME_LEN	64

@@ -22,7 +22,7 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_v1.h"
 #include "rk_crypto_v2.h"
-#include "cryptodev_linux/rk_cryptodev_int.h"
+#include "cryptodev_linux/rk_cryptodev.h"
 
 #define RK_CRYPTO_V1_SOC_DATA_INIT(names) {\
 	.crypto_ver  = "CRYPTO V1.0.0.0",\
