@@ -1410,13 +1410,15 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
 		break;
 	}
 
-	if (video->color_format == DRM_COLOR_FORMAT_RGB444)
+	if (video->color_format == DRM_COLOR_FORMAT_RGB444) {
 		vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
-	else
+		vsc.dynamic_range = DP_DYNAMIC_RANGE_VESA;
+	} else {
 		vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
+		vsc.dynamic_range = DP_DYNAMIC_RANGE_CTA;
+	}
 
 	vsc.bpc = video->bpc;
-	vsc.dynamic_range = DP_DYNAMIC_RANGE_CTA;
 	vsc.content_type = DP_CONTENT_TYPE_NOT_DEFINED;
 
 	dw_dp_vsc_sdp_pack(&vsc, &sdp);
