@@ -262,6 +262,7 @@ void		rpc_destroy_mempool(void);
 extern struct workqueue_struct *rpciod_workqueue;
 extern struct workqueue_struct *xprtiod_workqueue;
 void		rpc_prepare_task(struct rpc_task *task);
+gfp_t		rpc_task_gfp_mask(void);
 
 static inline int rpc_wait_for_completion_task(struct rpc_task *task)
 {

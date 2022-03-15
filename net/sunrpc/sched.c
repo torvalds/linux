@@ -57,6 +57,13 @@ struct workqueue_struct *rpciod_workqueue __read_mostly;
 struct workqueue_struct *xprtiod_workqueue __read_mostly;
 EXPORT_SYMBOL_GPL(xprtiod_workqueue);
 
+gfp_t rpc_task_gfp_mask(void)
+{
+	if (current->flags & PF_WQ_WORKER)
+		return GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+	return GFP_KERNEL;
+}
+
 unsigned long
 rpc_task_timeout(const struct rpc_task *task)
 {
@@ -1030,15 +1037,15 @@ int rpc_malloc(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	size_t size = rqst->rq_callsize + rqst->rq_rcvsize;
 	struct rpc_buffer *buf;
-	gfp_t gfp = GFP_KERNEL;
-
-	if (RPC_IS_ASYNC(task))
-		gfp = GFP_NOWAIT | __GFP_NOWARN;
+	gfp_t gfp = rpc_task_gfp_mask();
 
 	size += sizeof(struct rpc_buffer);
-	if (size <= RPC_BUFFER_MAXSIZE)
-		buf = mempool_alloc(rpc_buffer_mempool, gfp);
-	else
+	if (size <= RPC_BUFFER_MAXSIZE) {
+		buf = kmem_cache_alloc(rpc_buffer_slabp, gfp);
+		/* Reach for the mempool if dynamic allocation fails */
+		if (!buf && RPC_IS_ASYNC(task))
+			buf = mempool_alloc(rpc_buffer_mempool, GFP_NOWAIT);
+	} else
 		buf = kmalloc(size, gfp);
 
 	if (!buf)
