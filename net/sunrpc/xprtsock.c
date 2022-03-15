@@ -806,13 +806,15 @@ static int xs_sock_nospace(struct rpc_rqst *req)
 	return ret;
 }
 
-static int xs_stream_nospace(struct rpc_rqst *req)
+static int xs_stream_nospace(struct rpc_rqst *req, bool vm_wait)
 {
 	struct sock_xprt *transport =
 		container_of(req->rq_xprt, struct sock_xprt, xprt);
 	struct sock *sk = transport->inet;
 	int ret = -EAGAIN;
 
+	if (vm_wait)
+		return -ENOBUFS;
 	lock_sock(sk);
 	if (!sk_stream_memory_free(sk))
 		ret = xs_nospace(req, transport);
@@ -870,6 +872,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	struct msghdr msg = {
 		.msg_flags	= XS_SENDMSG_FLAGS,
 	};
+	bool vm_wait;
 	unsigned int sent;
 	int status;
 
@@ -882,14 +885,13 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	xs_pktdump("packet data:",
 			req->rq_svec->iov_base, req->rq_svec->iov_len);
 
+	vm_wait = sk_stream_is_writeable(transport->inet) ? true : false;
+
 	req->rq_xtime = ktime_get();
 	status = xprt_sock_sendmsg(transport->sock, &msg, xdr,
 				   transport->xmit.offset, rm, &sent);
 	dprintk("RPC:       %s(%u) = %d\n",
 			__func__, xdr->len - transport->xmit.offset, status);
-
-	if (status == -EAGAIN && sock_writeable(transport->inet))
-		status = -ENOBUFS;
 
 	if (likely(sent > 0) || status == 0) {
 		transport->xmit.offset += sent;
@@ -900,13 +902,12 @@ static int xs_local_send_request(struct rpc_rqst *req)
 			return 0;
 		}
 		status = -EAGAIN;
+		vm_wait = false;
 	}
 
 	switch (status) {
-	case -ENOBUFS:
-		break;
 	case -EAGAIN:
-		status = xs_stream_nospace(req);
+		status = xs_stream_nospace(req, vm_wait);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
@@ -1024,7 +1025,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 	struct msghdr msg = {
 		.msg_flags	= XS_SENDMSG_FLAGS,
 	};
-	bool vm_wait = false;
+	bool vm_wait;
 	unsigned int sent;
 	int status;
 
@@ -1051,7 +1052,10 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 	 * called sendmsg(). */
 	req->rq_xtime = ktime_get();
 	tcp_sock_set_cork(transport->inet, true);
-	while (1) {
+
+	vm_wait = sk_stream_is_writeable(transport->inet) ? true : false;
+
+	do {
 		status = xprt_sock_sendmsg(transport->sock, &msg, xdr,
 					   transport->xmit.offset, rm, &sent);
 
@@ -1072,31 +1076,10 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 
 		WARN_ON_ONCE(sent == 0 && status == 0);
 
-		if (status == -EAGAIN ) {
-			/*
-			 * Return EAGAIN if we're sure we're hitting the
-			 * socket send buffer limits.
-			 */
-			if (test_bit(SOCK_NOSPACE, &transport->sock->flags))
-				break;
-			/*
-			 * Did we hit a memory allocation failure?
-			 */
-			if (sent == 0) {
-				status = -ENOBUFS;
-				if (vm_wait)
-					break;
-				/* Retry, knowing now that we're below the
-				 * socket send buffer limit
-				 */
-				vm_wait = true;
-			}
-			continue;
-		}
-		if (status < 0)
-			break;
-		vm_wait = false;
-	}
+		if (sent > 0)
+			vm_wait = false;
+
+	} while (status == 0);
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -1104,7 +1087,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		status = xs_stream_nospace(req);
+		status = xs_stream_nospace(req, vm_wait);
 		break;
 	case -ECONNRESET:
 	case -ECONNREFUSED:
