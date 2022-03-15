@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "gem/i915_gem_region.h"
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_display.h"
@@ -69,7 +70,8 @@ initial_plane_vma(struct drm_i915_private *i915,
 	    size * 2 > i915->stolen_usable_size)
 		return NULL;
 
-	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
+	obj = i915_gem_object_create_region_at(i915->mm.stolen_region,
+					       base, size, 0);
 	if (IS_ERR(obj))
 		return NULL;
 

@@ -27,11 +27,12 @@ void i915_gem_object_release_memory_region(struct drm_i915_gem_object *obj)
 	mutex_unlock(&mem->objects.lock);
 }
 
-struct drm_i915_gem_object *
-i915_gem_object_create_region(struct intel_memory_region *mem,
-			      resource_size_t size,
-			      resource_size_t page_size,
-			      unsigned int flags)
+static struct drm_i915_gem_object *
+__i915_gem_object_create_region(struct intel_memory_region *mem,
+				resource_size_t offset,
+				resource_size_t size,
+				resource_size_t page_size,
+				unsigned int flags)
 {
 	struct drm_i915_gem_object *obj;
 	resource_size_t default_page_size;
@@ -86,7 +87,7 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	if (default_page_size < mem->min_page_size)
 		flags |= I915_BO_ALLOC_PM_EARLY;
 
-	err = mem->ops->init_object(mem, obj, size, page_size, flags);
+	err = mem->ops->init_object(mem, obj, offset, size, page_size, flags);
 	if (err)
 		goto err_object_free;
 
@@ -96,6 +97,40 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 err_object_free:
 	i915_gem_object_free(obj);
 	return ERR_PTR(err);
+}
+
+struct drm_i915_gem_object *
+i915_gem_object_create_region(struct intel_memory_region *mem,
+			      resource_size_t size,
+			      resource_size_t page_size,
+			      unsigned int flags)
+{
+	return __i915_gem_object_create_region(mem, I915_BO_INVALID_OFFSET,
+					       size, page_size, flags);
+}
+
+struct drm_i915_gem_object *
+i915_gem_object_create_region_at(struct intel_memory_region *mem,
+				 resource_size_t offset,
+				 resource_size_t size,
+				 unsigned int flags)
+{
+	GEM_BUG_ON(offset == I915_BO_INVALID_OFFSET);
+
+	if (GEM_WARN_ON(!IS_ALIGNED(size, mem->min_page_size)) ||
+	    GEM_WARN_ON(!IS_ALIGNED(offset, mem->min_page_size)))
+		return ERR_PTR(-EINVAL);
+
+	if (range_overflows(offset, size, resource_size(&mem->region)))
+		return ERR_PTR(-EINVAL);
+
+	if (!(flags & I915_BO_ALLOC_GPU_ONLY) &&
+	    offset + size > mem->io_size &&
+	    !i915_ggtt_has_aperture(to_gt(mem->i915)->ggtt))
+		return ERR_PTR(-ENOSPC);
+
+	return __i915_gem_object_create_region(mem, offset, size, 0,
+					       flags | I915_BO_ALLOC_CONTIGUOUS);
 }
 
 /**
