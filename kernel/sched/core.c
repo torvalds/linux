@@ -63,7 +63,9 @@
 #include <linux/workqueue_api.h>
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
-# include <linux/entry-common.h>
+# ifdef CONFIG_GENERIC_ENTRY
+#  include <linux/entry-common.h>
+# endif
 #endif
 
 #include <uapi/linux/sched/types.h>
