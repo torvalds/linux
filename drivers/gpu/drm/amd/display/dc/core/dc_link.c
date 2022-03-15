@@ -4683,22 +4683,20 @@ bool dc_link_is_fec_supported(const struct dc_link *link)
 
 bool dc_link_should_enable_fec(const struct dc_link *link)
 {
-	bool is_fec_disable = false;
-	bool ret = false;
+	bool force_disable = false;
 
-	if ((link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
+	if (link->fec_state == dc_link_fec_enabled)
+		force_disable = false;
+	else if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
 			link->local_sink &&
-			link->local_sink->edid_caps.panel_patch.disable_fec) ||
-			(link->connector_signal == SIGNAL_TYPE_EDP
-				// enable FEC for EDP if DSC is supported
-				&& link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT == false
-				))
-		is_fec_disable = true;
+			link->local_sink->edid_caps.panel_patch.disable_fec)
+		force_disable = true;
+	else if (link->connector_signal == SIGNAL_TYPE_EDP
+			&& link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
+			 dsc_support.DSC_SUPPORT == false)
+		force_disable = true;
 
-	if (dc_link_is_fec_supported(link) && !link->dc->debug.disable_fec && !is_fec_disable)
-		ret = true;
-
-	return ret;
+	return !force_disable && dc_link_is_fec_supported(link);
 }
 
 uint32_t dc_bandwidth_in_kbps_from_timing(
