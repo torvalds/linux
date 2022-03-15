@@ -340,9 +340,9 @@ static int hammer_kbd_brightness_set_blocking(struct led_classdev *cdev,
 static int hammer_register_leds(struct hid_device *hdev)
 {
 	struct hammer_kbd_leds *kbd_backlight;
-	int error;
 
-	kbd_backlight = kzalloc(sizeof(*kbd_backlight), GFP_KERNEL);
+	kbd_backlight = devm_kzalloc(&hdev->dev, sizeof(*kbd_backlight),
+				     GFP_KERNEL);
 	if (!kbd_backlight)
 		return -ENOMEM;
 
@@ -356,26 +356,7 @@ static int hammer_register_leds(struct hid_device *hdev)
 	/* Set backlight to 0% initially. */
 	hammer_kbd_brightness_set_blocking(&kbd_backlight->cdev, 0);
 
-	error = led_classdev_register(&hdev->dev, &kbd_backlight->cdev);
-	if (error)
-		goto err_free_mem;
-
-	hid_set_drvdata(hdev, kbd_backlight);
-	return 0;
-
-err_free_mem:
-	kfree(kbd_backlight);
-	return error;
-}
-
-static void hammer_unregister_leds(struct hid_device *hdev)
-{
-	struct hammer_kbd_leds *kbd_backlight = hid_get_drvdata(hdev);
-
-	if (kbd_backlight) {
-		led_classdev_unregister(&kbd_backlight->cdev);
-		kfree(kbd_backlight);
-	}
+	return devm_led_classdev_register(&hdev->dev, &kbd_backlight->cdev);
 }
 
 #define HID_UP_GOOGLEVENDOR	0xffd10000
@@ -512,6 +493,11 @@ out:
 	kfree(buf);
 }
 
+static void hammer_stop(void *hdev)
+{
+	hid_hw_stop(hdev);
+}
+
 static int hammer_probe(struct hid_device *hdev,
 			const struct hid_device_id *id)
 {
@@ -522,6 +508,10 @@ static int hammer_probe(struct hid_device *hdev,
 		return error;
 
 	error = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+	if (error)
+		return error;
+
+	error = devm_add_action(&hdev->dev, hammer_stop, hdev);
 	if (error)
 		return error;
 
@@ -577,9 +567,7 @@ static void hammer_remove(struct hid_device *hdev)
 		spin_unlock_irqrestore(&cbas_ec_lock, flags);
 	}
 
-	hammer_unregister_leds(hdev);
-
-	hid_hw_stop(hdev);
+	/* Unregistering LEDs and stopping the hardware is done via devm */
 }
 
 static const struct hid_device_id hammer_devices[] = {
