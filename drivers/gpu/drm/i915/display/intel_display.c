@@ -10430,6 +10430,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 			intel_crtc_vblank_on(crtc_state);
 	}
 
+	intel_fbc_sanitize(dev_priv);
+
 	intel_sanitize_plane_mapping(dev_priv);
 
 	for_each_intel_encoder(dev, encoder)

@@ -1703,22 +1703,26 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "Sanitized enable_fbc value: %d\n",
 		    i915->params.enable_fbc);
 
-	for_each_fbc_id(i915, fbc_id) {
-		struct intel_fbc *fbc;
+	for_each_fbc_id(i915, fbc_id)
+		i915->fbc[fbc_id] = intel_fbc_create(i915, fbc_id);
+}
 
-		fbc = intel_fbc_create(i915, fbc_id);
-		if (!fbc)
-			continue;
+/**
+ * intel_fbc_sanitize - Sanitize FBC
+ * @i915: the i915 device
+ *
+ * Make sure FBC is initially disabled since we have no
+ * idea eg. into which parts of stolen it might be scribbling
+ * into.
+ */
+void intel_fbc_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-		/*
-		 * We still don't have any sort of hardware state readout
-		 * for FBC, so deactivate it in case the BIOS activated it
-		 * to make sure software matches the hardware state.
-		 */
+	for_each_intel_fbc(i915, fbc, fbc_id) {
 		if (intel_fbc_hw_is_active(fbc))
 			intel_fbc_hw_deactivate(fbc);
-
-		i915->fbc[fbc->id] = fbc;
 	}
 }
 
