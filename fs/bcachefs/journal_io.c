@@ -907,6 +907,7 @@ static void bch2_journal_read_device(struct closure *cl)
 	struct bch_fs *c = ca->fs;
 	struct journal_list *jlist =
 		container_of(cl->parent, struct journal_list, cl);
+	struct journal_replay *r;
 	struct journal_read_buf buf = { NULL, 0 };
 	u64 min_seq = U64_MAX;
 	unsigned i;
@@ -942,11 +943,29 @@ static void bch2_journal_read_device(struct closure *cl)
 	 * allocate
 	 */
 	while (ja->bucket_seq[ja->cur_idx] > min_seq &&
-	       ja->bucket_seq[ja->cur_idx] >
+	       ja->bucket_seq[ja->cur_idx] ==
 	       ja->bucket_seq[(ja->cur_idx + 1) % ja->nr])
 		ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
-	ja->sectors_free = 0;
+	ja->sectors_free = ca->mi.bucket_size;
+
+	mutex_lock(&jlist->lock);
+	list_for_each_entry(r, jlist->head, list) {
+		for (i = 0; i < r->nr_ptrs; i++) {
+			if (r->ptrs[i].dev == ca->dev_idx &&
+			    sector_to_bucket(ca, r->ptrs[i].sector) == ja->buckets[ja->cur_idx]) {
+				unsigned wrote = (r->ptrs[i].sector % ca->mi.bucket_size) +
+					vstruct_sectors(&r->j, c->block_bits);
+
+				ja->sectors_free = min(ja->sectors_free,
+						       ca->mi.bucket_size - wrote);
+			}
+		}
+	}
+	mutex_unlock(&jlist->lock);
+
+	BUG_ON(ja->bucket_seq[ja->cur_idx] &&
+	       ja->sectors_free == ca->mi.bucket_size);
 
 	/*
 	 * Set dirty_idx to indicate the entire journal is full and needs to be
