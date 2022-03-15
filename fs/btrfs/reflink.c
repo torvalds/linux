@@ -614,14 +614,23 @@ static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
 static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
 				     struct inode *inode2, u64 loff2, u64 len)
 {
+	u64 range1_end = loff1 + len - 1;
+	u64 range2_end = loff2 + len - 1;
+
 	if (inode1 < inode2) {
 		swap(inode1, inode2);
 		swap(loff1, loff2);
+		swap(range1_end, range2_end);
 	} else if (inode1 == inode2 && loff2 < loff1) {
 		swap(loff1, loff2);
+		swap(range1_end, range2_end);
 	}
-	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
-	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
+
+	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, range1_end);
+	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, range2_end);
+
+	btrfs_assert_inode_range_clean(BTRFS_I(inode1), loff1, range1_end);
+	btrfs_assert_inode_range_clean(BTRFS_I(inode2), loff2, range2_end);
 }
 
 static void btrfs_double_mmap_lock(struct inode *inode1, struct inode *inode2)

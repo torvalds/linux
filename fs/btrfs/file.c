@@ -2608,6 +2608,8 @@ static void btrfs_punch_hole_lock_range(struct inode *inode,
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart,
 				     lockend, cached_state);
 	}
+
+	btrfs_assert_inode_range_clean(BTRFS_I(inode), lockstart, lockend);
 }
 
 static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
@@ -3478,6 +3480,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	locked_end = alloc_end - 1;
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 			 &cached_state);
+
+	btrfs_assert_inode_range_clean(BTRFS_I(inode), alloc_start, locked_end);
 
 	/* First, check if we exceed the qgroup limit */
 	INIT_LIST_HEAD(&reserve_list);
