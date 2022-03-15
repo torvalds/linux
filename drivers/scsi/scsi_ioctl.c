@@ -434,7 +434,6 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	if (hdr->flags & SG_FLAG_Q_AT_HEAD)
 		at_head = 1;
 
-	ret = -ENOMEM;
 	rq = scsi_alloc_request(sdev->request_queue, writing ?
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
