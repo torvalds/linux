@@ -258,7 +258,7 @@ static void intel_drrs_downclock_work(struct work_struct *work)
 }
 
 static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
-					  unsigned int frontbuffer_bits,
+					  unsigned int all_frontbuffer_bits,
 					  bool invalidate)
 {
 	struct intel_crtc *crtc;
@@ -267,6 +267,8 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 		return;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		unsigned int frontbuffer_bits;
+
 		cancel_delayed_work(&crtc->drrs.work);
 
 		mutex_lock(&crtc->drrs.mutex);
@@ -276,7 +278,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 			continue;
 		}
 
-		frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
+		frontbuffer_bits = all_frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 		if (invalidate)
 			crtc->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
 		else
