@@ -189,13 +189,12 @@ static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *c
 void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!crtc_state->has_drrs)
 		return;
 
-	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] Enabling DRRS\n",
-		    crtc->base.base.id, crtc->base.name);
+	if (!crtc_state->hw.active)
+		return;
 
 	mutex_lock(&crtc->drrs.mutex);
 
@@ -217,13 +216,12 @@ void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!old_crtc_state->has_drrs)
 		return;
 
-	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] Disabling DRRS\n",
-		    crtc->base.base.id, crtc->base.name);
+	if (!old_crtc_state->hw.active)
+		return;
 
 	mutex_lock(&crtc->drrs.mutex);
 
@@ -237,28 +235,6 @@ void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
 	mutex_unlock(&crtc->drrs.mutex);
 
 	cancel_delayed_work_sync(&crtc->drrs.work);
-}
-
-/**
- * intel_drrs_update - Update DRRS during fastset
- * @state: atomic state
- * @crtc: crtc
- */
-void intel_drrs_update(struct intel_atomic_state *state,
-		       struct intel_crtc *crtc)
-{
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-
-	if (old_crtc_state->has_drrs == new_crtc_state->has_drrs)
-		return;
-
-	if (new_crtc_state->has_drrs)
-		intel_drrs_enable(new_crtc_state);
-	else
-		intel_drrs_disable(old_crtc_state);
 }
 
 static void intel_drrs_downclock_work(struct work_struct *work)
@@ -345,14 +321,6 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
 		      unsigned int frontbuffer_bits)
 {
-	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, false);
-}
-
-void intel_drrs_page_flip(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	unsigned int frontbuffer_bits = INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
-
 	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, false);
 }
 
