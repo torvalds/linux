@@ -120,8 +120,8 @@ static void mlx5_infer_tx_disabled(struct lag_tracker *tracker, u8 num_ports,
 	}
 }
 
-static void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
-				  u8 *ports, int *num_enabled)
+void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
+			   u8 *ports, int *num_enabled)
 {
 	int i;
 
@@ -454,7 +454,7 @@ static int mlx5_lag_set_port_sel_mode(struct mlx5_lag *ldev,
 	return mlx5_lag_set_port_sel_mode_offloads(ldev, tracker, flags);
 }
 
-static char *get_str_port_sel_mode(u8 flags)
+char *get_str_port_sel_mode(u8 flags)
 {
 	if (flags &  MLX5_LAG_FLAG_HASH_BASED)
 		return "hash";
@@ -1106,6 +1106,10 @@ void mlx5_lag_remove_mdev(struct mlx5_core_dev *dev)
 	if (!ldev)
 		return;
 
+	/* mdev is being removed, might as well remove debugfs
+	 * as early as possible.
+	 */
+	mlx5_ldev_remove_debugfs(dev->priv.dbg.lag_debugfs);
 recheck:
 	mutex_lock(&ldev->lock);
 	if (ldev->mode_changes_in_progress) {
@@ -1137,6 +1141,7 @@ recheck:
 		msleep(100);
 		goto recheck;
 	}
+	mlx5_ldev_add_debugfs(dev);
 }
 
 void mlx5_lag_remove_netdev(struct mlx5_core_dev *dev,

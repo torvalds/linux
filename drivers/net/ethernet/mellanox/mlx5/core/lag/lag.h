@@ -4,6 +4,8 @@
 #ifndef __MLX5_LAG_H__
 #define __MLX5_LAG_H__
 
+#include <linux/debugfs.h>
+
 #define MLX5_LAG_MAX_HASH_BUCKETS 16
 #include "mlx5_core.h"
 #include "mp.h"
@@ -89,5 +91,12 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 		      bool shared_fdb);
 int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 				struct net_device *ndev);
+
+char *get_str_port_sel_mode(u8 flags);
+void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
+			   u8 *ports, int *num_enabled);
+
+void mlx5_ldev_add_debugfs(struct mlx5_core_dev *dev);
+void mlx5_ldev_remove_debugfs(struct dentry *dbg);
 
 #endif /* __MLX5_LAG_H__ */
