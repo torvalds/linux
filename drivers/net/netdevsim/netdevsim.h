@@ -184,6 +184,28 @@ struct nsim_dev_health {
 int nsim_dev_health_init(struct nsim_dev *nsim_dev, struct devlink *devlink);
 void nsim_dev_health_exit(struct nsim_dev *nsim_dev);
 
+struct nsim_dev_hwstats_netdev {
+	struct list_head list;
+	struct net_device *netdev;
+	struct rtnl_hw_stats64 stats;
+	bool enabled;
+	bool fail_enable;
+};
+
+struct nsim_dev_hwstats {
+	struct dentry *ddir;
+	struct dentry *l3_ddir;
+
+	struct mutex hwsdev_list_lock; /* protects hwsdev list(s) */
+	struct list_head l3_list;
+
+	struct notifier_block netdevice_nb;
+	struct delayed_work traffic_dw;
+};
+
+int nsim_dev_hwstats_init(struct nsim_dev *nsim_dev);
+void nsim_dev_hwstats_exit(struct nsim_dev *nsim_dev);
+
 #if IS_ENABLED(CONFIG_PSAMPLE)
 int nsim_dev_psample_init(struct nsim_dev *nsim_dev);
 void nsim_dev_psample_exit(struct nsim_dev *nsim_dev);
@@ -261,6 +283,7 @@ struct nsim_dev {
 	bool fail_reload;
 	struct devlink_region *dummy_region;
 	struct nsim_dev_health health;
+	struct nsim_dev_hwstats hwstats;
 	struct flow_action_cookie *fa_cookie;
 	spinlock_t fa_cookie_lock; /* protects fa_cookie */
 	bool fail_trap_group_set;
