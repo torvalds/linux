@@ -121,5 +121,5 @@ int optee_notif_init(struct optee *optee, u_int max_key)
 
 void optee_notif_uninit(struct optee *optee)
 {
-	kfree(optee->notif.bitmap);
+	bitmap_free(optee->notif.bitmap);
 }

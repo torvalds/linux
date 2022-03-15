@@ -494,8 +494,8 @@ void intel_generic_uncore_mmio_enable_box(struct intel_uncore_box *box)
 	writel(0, box->io_addr);
 }
 
-static void intel_generic_uncore_mmio_enable_event(struct intel_uncore_box *box,
-					     struct perf_event *event)
+void intel_generic_uncore_mmio_enable_event(struct intel_uncore_box *box,
+					    struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 

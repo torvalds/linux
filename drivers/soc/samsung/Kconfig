@@ -31,7 +31,7 @@ config EXYNOS_USI
 	help
 	  Enable support for USI block. USI (Universal Serial Interface) is an
 	  IP-core found in modern Samsung Exynos SoCs, like Exynos850 and
-	  ExynosAutoV0. USI block can be configured to provide one of the
+	  ExynosAutoV9. USI block can be configured to provide one of the
 	  following serial protocols: UART, SPI or High Speed I2C.
 
 	  This driver allows one to configure USI for desired protocol, which

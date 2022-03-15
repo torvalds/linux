@@ -264,7 +264,7 @@ struct xen_device_domain_owner {
 };
 
 static DEFINE_SPINLOCK(dev_domain_list_spinlock);
-static struct list_head dev_domain_list = LIST_HEAD_INIT(dev_domain_list);
+static LIST_HEAD(dev_domain_list);
 
 static struct xen_device_domain_owner *find_device(struct pci_dev *dev)
 {

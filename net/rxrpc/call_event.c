@@ -157,7 +157,7 @@ static void rxrpc_congestion_timeout(struct rxrpc_call *call)
 static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 {
 	struct sk_buff *skb;
-	unsigned long resend_at, rto_j;
+	unsigned long resend_at;
 	rxrpc_seq_t cursor, seq, top;
 	ktime_t now, max_age, oldest, ack_ts;
 	int ix;
@@ -165,10 +165,8 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
 
-	rto_j = call->peer->rto_j;
-
 	now = ktime_get_real();
-	max_age = ktime_sub(now, jiffies_to_usecs(rto_j));
+	max_age = ktime_sub(now, jiffies_to_usecs(call->peer->rto_j));
 
 	spin_lock_bh(&call->lock);
 
@@ -213,7 +211,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	}
 
 	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
-	resend_at += jiffies + rto_j;
+	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer, retrans);
 	WRITE_ONCE(call->resend_at, resend_at);
 
 	if (unacked)

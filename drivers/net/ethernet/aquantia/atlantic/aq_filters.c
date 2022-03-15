@@ -826,7 +826,6 @@ int aq_filters_vlans_update(struct aq_nic_s *aq_nic)
 	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
 	int hweight = 0;
 	int err = 0;
-	int i;
 
 	if (unlikely(!aq_hw_ops->hw_filter_vlan_set))
 		return -EOPNOTSUPP;
@@ -837,8 +836,7 @@ int aq_filters_vlans_update(struct aq_nic_s *aq_nic)
 			 aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans);
 
 	if (aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
-		for (i = 0; i < BITS_TO_LONGS(VLAN_N_VID); i++)
-			hweight += hweight_long(aq_nic->active_vlans[i]);
+		hweight = bitmap_weight(aq_nic->active_vlans, VLAN_N_VID);
 
 		err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, false);
 		if (err)
@@ -871,7 +869,7 @@ int aq_filters_vlan_offload_off(struct aq_nic_s *aq_nic)
 	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
 	int err = 0;
 
-	memset(aq_nic->active_vlans, 0, sizeof(aq_nic->active_vlans));
+	bitmap_zero(aq_nic->active_vlans, VLAN_N_VID);
 	aq_fvlan_rebuild(aq_nic, aq_nic->active_vlans,
 			 aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans);
 

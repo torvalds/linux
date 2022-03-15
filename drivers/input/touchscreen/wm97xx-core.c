@@ -615,10 +615,9 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 	 * extensions)
 	 */
 	wm->touch_dev = platform_device_alloc("wm97xx-touch", -1);
-	if (!wm->touch_dev) {
-		ret = -ENOMEM;
-		goto touch_err;
-	}
+	if (!wm->touch_dev)
+		return -ENOMEM;
+
 	platform_set_drvdata(wm->touch_dev, wm);
 	wm->touch_dev->dev.parent = wm->dev;
 	wm->touch_dev->dev.platform_data = pdata;
@@ -629,9 +628,6 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 	return 0;
 touch_reg_err:
 	platform_device_put(wm->touch_dev);
-touch_err:
-	input_unregister_device(wm->input_dev);
-	wm->input_dev = NULL;
 
 	return ret;
 }
@@ -639,8 +635,6 @@ touch_err:
 static void wm97xx_unregister_touch(struct wm97xx *wm)
 {
 	platform_device_unregister(wm->touch_dev);
-	input_unregister_device(wm->input_dev);
-	wm->input_dev = NULL;
 }
 
 static int _wm97xx_probe(struct wm97xx *wm)

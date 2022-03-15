@@ -55,7 +55,7 @@
 		2 1 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
 	>;
 	tx-num-evt = <16>;
-	rt-num-evt = <16>;
+	rx-num-evt = <16>;
 	status = "okay";
 };
 
