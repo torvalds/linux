@@ -18,8 +18,9 @@
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
+	u32 ver_offset;
 
-	fw_ver = kmalloc(16, GFP_KERNEL);
+	fw_ver = kmalloc(VERSION_MAX_LEN, GFP_KERNEL);
 	if (!fw_ver)
 		return NULL;
 
@@ -29,9 +30,10 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 
 	/* Skip the fw- part */
 	str += 3;
+	ver_offset = str - fw_str;
 
 	/* Copy until the next whitespace */
-	whitespace =  strnstr(str, " ", 15);
+	whitespace =  strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
 	if (!whitespace)
 		goto free_fw_ver;
 
