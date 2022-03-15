@@ -639,13 +639,8 @@ static inline void nvme_clear_nvme_request(struct request *req)
 	req->rq_flags |= RQF_DONTPREP;
 }
 
-static inline unsigned int nvme_req_op(struct nvme_command *cmd)
-{
-	return nvme_is_write(cmd) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
-}
-
-static inline void nvme_init_request(struct request *req,
-		struct nvme_command *cmd)
+/* initialize a passthrough request */
+void nvme_init_request(struct request *req, struct nvme_command *cmd)
 {
 	if (req->q->queuedata)
 		req->timeout = NVME_IO_TIMEOUT;
@@ -661,30 +656,7 @@ static inline void nvme_init_request(struct request *req,
 	nvme_clear_nvme_request(req);
 	memcpy(nvme_req(req)->cmd, cmd, sizeof(*cmd));
 }
-
-struct request *nvme_alloc_request(struct request_queue *q,
-		struct nvme_command *cmd, blk_mq_req_flags_t flags)
-{
-	struct request *req;
-
-	req = blk_mq_alloc_request(q, nvme_req_op(cmd), flags);
-	if (!IS_ERR(req))
-		nvme_init_request(req, cmd);
-	return req;
-}
-EXPORT_SYMBOL_GPL(nvme_alloc_request);
-
-static struct request *nvme_alloc_request_qid(struct request_queue *q,
-		struct nvme_command *cmd, blk_mq_req_flags_t flags, int qid)
-{
-	struct request *req;
-
-	req = blk_mq_alloc_request_hctx(q, nvme_req_op(cmd), flags,
-			qid ? qid - 1 : 0);
-	if (!IS_ERR(req))
-		nvme_init_request(req, cmd);
-	return req;
-}
+EXPORT_SYMBOL_GPL(nvme_init_request);
 
 /*
  * For something we're not in a state to send to the device the default action
@@ -1110,11 +1082,14 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	int ret;
 
 	if (qid == NVME_QID_ANY)
-		req = nvme_alloc_request(q, cmd, flags);
+		req = blk_mq_alloc_request(q, nvme_req_op(cmd), flags);
 	else
-		req = nvme_alloc_request_qid(q, cmd, flags, qid);
+		req = blk_mq_alloc_request_hctx(q, nvme_req_op(cmd), flags,
+						qid ? qid - 1 : 0);
+
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+	nvme_init_request(req, cmd);
 
 	if (timeout)
 		req->timeout = timeout;
@@ -1304,14 +1279,15 @@ static void nvme_keep_alive_work(struct work_struct *work)
 		return;
 	}
 
-	rq = nvme_alloc_request(ctrl->admin_q, &ctrl->ka_cmd,
-				BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+	rq = blk_mq_alloc_request(ctrl->admin_q, nvme_req_op(&ctrl->ka_cmd),
+				  BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 	if (IS_ERR(rq)) {
 		/* allocation failure, reset the controller */
 		dev_err(ctrl->device, "keep-alive failed: %ld\n", PTR_ERR(rq));
 		nvme_reset_ctrl(ctrl);
 		return;
 	}
+	nvme_init_request(rq, &ctrl->ka_cmd);
 
 	rq->timeout = ctrl->kato * HZ;
 	rq->end_io_data = ctrl;
