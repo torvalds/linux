@@ -28,6 +28,9 @@
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
 
+#define for_each_child(child, dev) \
+	list_for_each_entry((child), &(dev)->children, siblings)
+
 struct s2mpu_drv_data {
 	u32 version;
 	u32 context_cfg_valid_vid;
@@ -155,6 +158,13 @@ static void __set_control_regs(struct pkvm_iommu *dev)
 	writel_relaxed(ctrl0, dev->va + REG_NS_CTRL0);
 }
 
+/* Poll the given SFR until its value has all bits of a given mask set. */
+static void __wait_until(void __iomem *addr, u32 mask)
+{
+	while ((readl_relaxed(addr) & mask) != mask)
+		continue;
+}
+
 /* Poll the given SFR as long as its value has all bits of a given mask set. */
 static void __wait_while(void __iomem *addr, u32 mask)
 {
@@ -164,6 +174,17 @@ static void __wait_while(void __iomem *addr, u32 mask)
 
 static void __wait_for_invalidation_complete(struct pkvm_iommu *dev)
 {
+	struct pkvm_iommu *sync;
+
+	/*
+	 * Wait for transactions to drain if SysMMU_SYNCs were registered.
+	 * Assumes that they are in the same power domain as the S2MPU.
+	 */
+	for_each_child(sync, dev) {
+		writel_relaxed(SYNC_CMD_SYNC, sync->va + REG_NS_SYNC_CMD);
+		__wait_until(sync->va + REG_NS_SYNC_COMP, SYNC_COMP_COMPLETE);
+	}
+
 	/* Must not access SFRs while S2MPU is busy invalidating (v9 only). */
 	if (is_version(dev, S2MPU_VERSION_9)) {
 		__wait_while(dev->va + REG_NS_STATUS,
@@ -473,13 +494,37 @@ static int s2mpu_validate(struct pkvm_iommu *dev)
 	return 0;
 }
 
+static int s2mpu_validate_child(struct pkvm_iommu *dev, struct pkvm_iommu *child)
+{
+	if (child->ops != &pkvm_sysmmu_sync_ops)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int sysmmu_sync_validate(struct pkvm_iommu *dev)
+{
+	if (dev->size != SYSMMU_SYNC_S2_MMIO_SIZE)
+		return -EINVAL;
+
+	if (!dev->parent || dev->parent->ops != &pkvm_s2mpu_ops)
+		return -EINVAL;
+
+	return 0;
+}
+
 const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 	.init = s2mpu_init,
 	.validate = s2mpu_validate,
+	.validate_child = s2mpu_validate_child,
 	.resume = s2mpu_resume,
 	.suspend = s2mpu_suspend,
 	.host_stage2_idmap_prepare = s2mpu_host_stage2_idmap_prepare,
 	.host_stage2_idmap_apply = s2mpu_host_stage2_idmap_apply,
 	.host_dabt_handler = s2mpu_host_dabt_handler,
 	.data_size = sizeof(struct s2mpu_drv_data),
+};
+
+const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops = (struct pkvm_iommu_ops){
+	.validate = sysmmu_sync_validate,
 };

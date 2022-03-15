@@ -12,6 +12,10 @@
 #include <asm/kvm_mmu.h>
 
 #define S2MPU_MMIO_SIZE				SZ_64K
+#define SYSMMU_SYNC_MMIO_SIZE			SZ_64K
+#define SYSMMU_SYNC_S2_OFFSET			SZ_32K
+#define SYSMMU_SYNC_S2_MMIO_SIZE		(SYSMMU_SYNC_MMIO_SIZE - \
+						 SYSMMU_SYNC_S2_OFFSET)
 
 #define NR_VIDS					8
 #define NR_CTX_IDS				8
@@ -127,6 +131,13 @@ static_assert(SMPT_GRAN <= PAGE_SIZE);
 #define SMPT_NUM_WORDS				(SMPT_SIZE / SMPT_WORD_SIZE)
 #define SMPT_NUM_PAGES				(SMPT_SIZE / PAGE_SIZE)
 #define SMPT_ORDER				get_order(SMPT_SIZE)
+
+/* SysMMU_SYNC registers, relative to SYSMMU_SYNC_S2_OFFSET. */
+#define REG_NS_SYNC_CMD				0x0
+#define REG_NS_SYNC_COMP			0x4
+
+#define SYNC_CMD_SYNC				BIT(0)
+#define SYNC_COMP_COMPLETE			BIT(0)
 
 /*
  * Iterate over S2MPU gigabyte regions. Skip those that cannot be modified

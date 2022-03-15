@@ -84,3 +84,37 @@ int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t addr)
 				   addr, S2MPU_MMIO_SIZE, NULL);
 }
 EXPORT_SYMBOL_GPL(pkvm_iommu_s2mpu_register);
+
+static int init_sysmmu_sync_driver(void)
+{
+	static DEFINE_MUTEX(lock);
+	static bool init_done;
+
+	int ret = 0;
+
+	mutex_lock(&lock);
+	if (!init_done) {
+		ret = pkvm_iommu_driver_init(PKVM_IOMMU_DRIVER_SYSMMU_SYNC, NULL, 0);
+		init_done = !ret;
+	}
+	mutex_unlock(&lock);
+	return ret;
+}
+
+int pkvm_iommu_sysmmu_sync_register(struct device *dev, phys_addr_t addr,
+				    struct device *parent)
+{
+	int ret;
+
+	if (!is_protected_kvm_enabled())
+		return -ENODEV;
+
+	ret = init_sysmmu_sync_driver();
+	if (ret)
+		return ret;
+
+	return pkvm_iommu_register(dev, PKVM_IOMMU_DRIVER_SYSMMU_SYNC,
+				   addr + SYSMMU_SYNC_S2_OFFSET,
+				   SYSMMU_SYNC_S2_MMIO_SIZE, parent);
+}
+EXPORT_SYMBOL_GPL(pkvm_iommu_sysmmu_sync_register);

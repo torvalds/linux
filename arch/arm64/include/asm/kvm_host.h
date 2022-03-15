@@ -381,6 +381,7 @@ extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 
 enum pkvm_iommu_driver_id {
 	PKVM_IOMMU_DRIVER_S2MPU,
+	PKVM_IOMMU_DRIVER_SYSMMU_SYNC,
 	PKVM_IOMMU_NR_DRIVERS,
 };
 
@@ -396,6 +397,8 @@ int pkvm_iommu_suspend(struct device *dev);
 int pkvm_iommu_resume(struct device *dev);
 
 int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t pa);
+int pkvm_iommu_sysmmu_sync_register(struct device *dev, phys_addr_t pa,
+				    struct device *parent);
 
 struct vcpu_reset_state {
 	unsigned long	pc;
