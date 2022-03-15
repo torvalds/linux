@@ -1273,6 +1273,7 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	__intel_fbc_cleanup_cfb(fbc);
 
 	fbc->state.plane = NULL;
+	fbc->busy_bits = 0;
 }
 
 static void __intel_fbc_post_update(struct intel_fbc *fbc)
@@ -1328,11 +1329,14 @@ static void __intel_fbc_invalidate(struct intel_fbc *fbc,
 
 	mutex_lock(&fbc->lock);
 
-	fbc->busy_bits |= intel_fbc_get_frontbuffer_bit(fbc) & frontbuffer_bits;
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
 
-	if (fbc->state.plane && fbc->busy_bits)
-		intel_fbc_deactivate(fbc, "frontbuffer write");
+	fbc->busy_bits |= frontbuffer_bits;
+	intel_fbc_deactivate(fbc, "frontbuffer write");
 
+out:
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1354,18 +1358,22 @@ static void __intel_fbc_flush(struct intel_fbc *fbc,
 {
 	mutex_lock(&fbc->lock);
 
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
+
 	fbc->busy_bits &= ~frontbuffer_bits;
 
 	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		goto out;
 
-	if (!fbc->busy_bits && fbc->state.plane &&
-	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
-		if (fbc->active)
-			intel_fbc_nuke(fbc);
-		else if (!fbc->flip_pending)
-			__intel_fbc_post_update(fbc);
-	}
+	if (fbc->busy_bits)
+		goto out;
+
+	if (fbc->active)
+		intel_fbc_nuke(fbc);
+	else if (!fbc->flip_pending)
+		__intel_fbc_post_update(fbc);
 
 out:
 	mutex_unlock(&fbc->lock);
