@@ -248,6 +248,7 @@
 #define BUS_I3C_MST_FREE(x)		((x) & GENMASK(15, 0))
 
 #define BUS_IDLE_TIMING			0xd8
+#define SCL_LOW_MST_EXT_TIMEOUT		0xdc
 #define I3C_VER_ID			0xe0
 #define I3C_VER_TYPE			0xe4
 #define EXTENDED_CAPABILITY		0xe8
@@ -999,6 +1000,13 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 
 	ast_clrsetbits(master->regs + SCL_EXT_TERMN_LCNT_TIMING, GENMASK(3, 0),
 		      I3C_BUS_EXT_TERMN_CNT);
+
+	/*
+	 * SCL low time for timed-reset, set 52.4288 ms to ensure all devices
+	 * are back to I2C mode
+	 */
+	scl_timing = DIV_ROUND_UP(52428800, core_period);
+	writel(scl_timing, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
 
 	return 0;
 }
