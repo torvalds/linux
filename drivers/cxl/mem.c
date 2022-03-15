@@ -158,30 +158,8 @@ static int cxl_mem_probe(struct device *dev)
 	 * is no use in trying to manage those.
 	 */
 	if (!cxl_dvsec_decode_init(cxlds)) {
-		struct cxl_endpoint_dvsec_info *info = &cxlds->info;
-		int i;
-
-		/* */
-		for (i = 0; i < 2; i++) {
-			u64 base, size;
-
-			/*
-			 * Give a nice warning to the user that BIOS has really
-			 * botched things for them if it didn't place DVSEC
-			 * ranges in the memory map.
-			 */
-			base = info->dvsec_range[i].start;
-			size = range_len(&info->dvsec_range[i]);
-			if (size && !region_intersects(base, size,
-						       IORESOURCE_SYSTEM_RAM,
-						       IORES_DESC_NONE)) {
-				dev_err(dev,
-					"DVSEC range %#llx-%#llx must be reserved by BIOS, but isn't\n",
-					base, base + size - 1);
-			}
-		}
 		dev_err(dev,
-			"Active DVSEC range registers in use. Will not bind.\n");
+			"Legacy range registers configuration prevents HDM operation.\n");
 		return -EBUSY;
 	}
 
