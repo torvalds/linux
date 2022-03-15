@@ -62,6 +62,7 @@
 #define ASPEED_PTCR_CTRL_SET_PWMA_TYPE_PART2	3
 #define ASPEED_PTCR_CTRL_SET_PWMA_TYPE_MASK	(BIT(4) | BIT(12))
 
+#define	ASPEED_PTCR_CTRL_FAN_EN_MASK	GENMASK(31, 16)
 #define	ASPEED_PTCR_CTRL_FAN_NUM_EN(x)	BIT(16 + (x))
 
 #define	ASPEED_PTCR_CTRL_PWMD_EN	BIT(11)
@@ -973,6 +974,10 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 		priv->pulse_pr = DEFAULT_FAN_PULSE_PR;
 
 	aspeed_create_type(priv);
+
+	/* Disable all tach channels */
+	regmap_write_bits(priv->regmap, ASPEED_PTCR_CTRL,
+			  ASPEED_PTCR_CTRL_FAN_EN_MASK, 0);
 
 	for_each_child_of_node(np, child) {
 		ret = aspeed_create_fan(dev, child, priv);
