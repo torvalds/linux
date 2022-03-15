@@ -252,7 +252,7 @@ Linux-next 集成测试树
 在将子系统树的更新合并到主线树之前，需要对它们进行集成测试。为此，存在一个
 特殊的测试存储库，其中几乎每天都会提取所有子系统树：
 
-        https://git.kernel.org/？p=linux/kernel/git/next/linux-next.git
+        https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
 展望。非常欢冒险的测试者运行测试Linux-next。
