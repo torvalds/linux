@@ -70,29 +70,21 @@ nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	devl_lock(devlink);
-
 	rtnl_lock();
 	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
 	rtnl_unlock();
 	if (ret)
-		goto out;
+		return ret;
 
-	if (eth_port.port_lanes % count) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (eth_port.port_lanes % count)
+		return -EINVAL;
 
 	/* Special case the 100G CXP -> 2x40G split */
 	lanes = eth_port.port_lanes / count;
 	if (eth_port.lanes == 10 && count == 2)
 		lanes = 8 / count;
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
-out:
-	devl_unlock(devlink);
-
-	return ret;
+	return nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 }
 
 static int
@@ -104,29 +96,21 @@ nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	devl_lock(devlink);
-
 	rtnl_lock();
 	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
 	rtnl_unlock();
 	if (ret)
-		goto out;
+		return ret;
 
-	if (!eth_port.is_split) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!eth_port.is_split)
+		return -EINVAL;
 
 	/* Special case the 100G CXP -> 2x40G unsplit */
 	lanes = eth_port.port_lanes;
 	if (eth_port.port_lanes == 8)
 		lanes = 10;
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
-out:
-	devl_unlock(devlink);
-
-	return ret;
+	return nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 }
 
 static int
