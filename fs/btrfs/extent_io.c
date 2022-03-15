@@ -75,6 +75,7 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
 	if (!fs_info->allocated_ebs.next)
 		return;
 
+	WARN_ON(!list_empty(&fs_info->allocated_ebs));
 	spin_lock_irqsave(&fs_info->eb_leak_lock, flags);
 	while (!list_empty(&fs_info->allocated_ebs)) {
 		eb = list_first_entry(&fs_info->allocated_ebs,
