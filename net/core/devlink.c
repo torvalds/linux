@@ -1568,34 +1568,19 @@ static int devlink_nl_cmd_port_set_doit(struct sk_buff *skb,
 	return 0;
 }
 
-static int devlink_port_split(struct devlink *devlink, u32 port_index,
-			      u32 count, struct netlink_ext_ack *extack)
-
-{
-	if (devlink->ops->port_split)
-		return devlink->ops->port_split(devlink, port_index, count,
-						extack);
-	return -EOPNOTSUPP;
-}
-
 static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 					  struct genl_info *info)
 {
+	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
-	struct devlink_port *devlink_port;
-	u32 port_index;
 	u32 count;
 
-	if (!info->attrs[DEVLINK_ATTR_PORT_INDEX] ||
-	    !info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT])
+	if (!info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT])
 		return -EINVAL;
+	if (!devlink->ops->port_split)
+		return -EOPNOTSUPP;
 
-	devlink_port = devlink_port_get_from_info(devlink, info);
-	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
-
-	if (IS_ERR(devlink_port))
-		return -EINVAL;
 
 	if (!devlink_port->attrs.splittable) {
 		/* Split ports cannot be split. */
@@ -1611,29 +1596,19 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	return devlink_port_split(devlink, port_index, count, info->extack);
-}
-
-static int devlink_port_unsplit(struct devlink *devlink, u32 port_index,
-				struct netlink_ext_ack *extack)
-
-{
-	if (devlink->ops->port_unsplit)
-		return devlink->ops->port_unsplit(devlink, port_index, extack);
-	return -EOPNOTSUPP;
+	return devlink->ops->port_split(devlink, devlink_port, count,
+					info->extack);
 }
 
 static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 					    struct genl_info *info)
 {
+	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
-	u32 port_index;
 
-	if (!info->attrs[DEVLINK_ATTR_PORT_INDEX])
-		return -EINVAL;
-
-	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
-	return devlink_port_unsplit(devlink, port_index, info->extack);
+	if (!devlink->ops->port_unsplit)
+		return -EOPNOTSUPP;
+	return devlink->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
 static int devlink_port_new_notifiy(struct devlink *devlink,
@@ -8672,12 +8647,14 @@ static const struct genl_small_ops devlink_nl_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = devlink_nl_cmd_port_split_doit,
 		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT,
 	},
 	{
 		.cmd = DEVLINK_CMD_PORT_UNSPLIT,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = devlink_nl_cmd_port_unsplit_doit,
 		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT,
 	},
 	{
 		.cmd = DEVLINK_CMD_PORT_NEW,

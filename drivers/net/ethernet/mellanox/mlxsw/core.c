@@ -1217,36 +1217,37 @@ static void mlxsw_core_fw_params_unregister(struct mlxsw_core *mlxsw_core)
 				  ARRAY_SIZE(mlxsw_core_fw_devlink_params));
 }
 
+static void *__dl_port(struct devlink_port *devlink_port)
+{
+	return container_of(devlink_port, struct mlxsw_core_port, devlink_port);
+}
+
 static int mlxsw_devlink_port_split(struct devlink *devlink,
-				    unsigned int port_index,
+				    struct devlink_port *port,
 				    unsigned int count,
 				    struct netlink_ext_ack *extack)
 {
+	struct mlxsw_core_port *mlxsw_core_port = __dl_port(port);
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports) {
-		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
-		return -EINVAL;
-	}
 	if (!mlxsw_core->driver->port_split)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count,
-					      extack);
+	return mlxsw_core->driver->port_split(mlxsw_core,
+					      mlxsw_core_port->local_port,
+					      count, extack);
 }
 
 static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
-				      unsigned int port_index,
+				      struct devlink_port *port,
 				      struct netlink_ext_ack *extack)
 {
+	struct mlxsw_core_port *mlxsw_core_port = __dl_port(port);
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports) {
-		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
-		return -EINVAL;
-	}
 	if (!mlxsw_core->driver->port_unsplit)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index,
+	return mlxsw_core->driver->port_unsplit(mlxsw_core,
+						mlxsw_core_port->local_port,
 						extack);
 }
 
@@ -1278,11 +1279,6 @@ mlxsw_devlink_sb_pool_set(struct devlink *devlink,
 	return mlxsw_driver->sb_pool_set(mlxsw_core, sb_index,
 					 pool_index, size, threshold_type,
 					 extack);
-}
-
-static void *__dl_port(struct devlink_port *devlink_port)
-{
-	return container_of(devlink_port, struct mlxsw_core_port, devlink_port);
 }
 
 static int mlxsw_devlink_port_type_set(struct devlink_port *devlink_port,
