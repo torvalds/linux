@@ -52,6 +52,15 @@ config ROCKCHIP_IODOMAIN
 	  necessary for the io domain setting of the SoC to match the
 	  voltage supplied by the regulators.
 
+config ROCKCHIP_IOMUX
+	tristate "Rockchip IOMUX ioctl support"
+	depends on PINCTRL_ROCKCHIP
+	help
+	  This is the debug option for rockchip pinctrl driver by add a device
+	  /dev/iomux to set or get iomux.
+
+	  If unsure, say N.
+
 config ROCKCHIP_IPA
 	tristate "Rockchip IPA support"
 	depends on THERMAL && OF
