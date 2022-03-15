@@ -147,7 +147,7 @@ intel_drrs_set_refresh_rate_m_n(struct intel_crtc *crtc,
 				       &crtc->drrs.m2_n2 : &crtc->drrs.m_n);
 }
 
-bool intel_drrs_is_enabled(struct intel_crtc *crtc)
+bool intel_drrs_is_active(struct intel_crtc *crtc)
 {
 	return crtc->drrs.cpu_transcoder != INVALID_TRANSCODER;
 }
@@ -189,12 +189,12 @@ static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *c
 }
 
 /**
- * intel_drrs_enable - init drrs struct if supported
- * @crtc_state: A pointer to the active crtc state.
+ * intel_drrs_activate - activate DRRS
+ * @crtc_state: the crtc state
  *
- * Initializes frontbuffer_bits and drrs.dp
+ * Activates DRRS on the crtc.
  */
-void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
+void intel_drrs_activate(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
@@ -221,10 +221,12 @@ void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 }
 
 /**
- * intel_drrs_disable - Disable DRRS
- * @old_crtc_state: Pointer to old crtc_state.
+ * intel_drrs_deactivate - deactivate DRRS
+ * @old_crtc_state: the old crtc state
+ *
+ * Deactivates DRRS on the crtc.
  */
-void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
+void intel_drrs_deactivate(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 
@@ -239,7 +241,7 @@ void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
 
 	mutex_lock(&crtc->drrs.mutex);
 
-	if (intel_drrs_is_enabled(crtc))
+	if (intel_drrs_is_active(crtc))
 		intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_HIGH);
 
 	crtc->drrs.cpu_transcoder = INVALID_TRANSCODER;
@@ -257,7 +259,7 @@ static void intel_drrs_downclock_work(struct work_struct *work)
 
 	mutex_lock(&crtc->drrs.mutex);
 
-	if (intel_drrs_is_enabled(crtc) && !crtc->drrs.busy_frontbuffer_bits)
+	if (intel_drrs_is_active(crtc) && !crtc->drrs.busy_frontbuffer_bits)
 		intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_LOW);
 
 	mutex_unlock(&crtc->drrs.mutex);
