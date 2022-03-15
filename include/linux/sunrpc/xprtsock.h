@@ -90,5 +90,6 @@ struct sock_xprt {
 #define XPRT_SOCK_WAKE_PENDING	(6)
 #define XPRT_SOCK_WAKE_DISCONNECT	(7)
 #define XPRT_SOCK_CONNECT_SENT	(8)
+#define XPRT_SOCK_NOSPACE	(9)
 
 #endif /* _LINUX_SUNRPC_XPRTSOCK_H */
