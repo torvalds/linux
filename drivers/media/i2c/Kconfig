@@ -561,6 +561,17 @@ config VIDEO_MAX9286
 	  To compile this driver as a module, choose M here: the
 	  module will be called max9286.
 
+config VIDEO_MAX96714
+	tristate "Maxim MAX96714 GMSL deserializer support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This driver supports the Maxim MAX96714 GMSL deserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96714.
+
 comment "Video and audio decoders"
 
 config VIDEO_SAA717X
