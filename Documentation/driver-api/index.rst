@@ -103,6 +103,7 @@ available subsections can be seen below.
    sync_file
    vfio-mediated-device
    vfio
+   vfio-pci-device-specific-driver-acceptance
    xilinx/index
    xillybus
    zorro
