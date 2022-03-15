@@ -510,11 +510,6 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 }
 EXPORT_SYMBOL(rtw89_mac_set_err_status);
 
-const struct rtw89_hfc_prec_cfg rtw89_hfc_preccfg_pcie = {
-	2, 40, 0, 0, 1, 0, 0, 0
-};
-EXPORT_SYMBOL(rtw89_hfc_preccfg_pcie);
-
 static int hfc_reset_param(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
@@ -1216,119 +1211,48 @@ static int rtw89_mac_sys_init(struct rtw89_dev *rtwdev)
 	return ret;
 }
 
-/* PCIE 64 */
-const struct rtw89_dle_size rtw89_wde_size0 = {
-	RTW89_WDE_PG_64, 4095, 1,
+const struct rtw89_mac_size_set rtw89_mac_size = {
+	.hfc_preccfg_pcie = {2, 40, 0, 0, 1, 0, 0, 0},
+	/* PCIE 64 */
+	.wde_size0 = {RTW89_WDE_PG_64, 4095, 1,},
+	/* DLFW */
+	.wde_size4 = {RTW89_WDE_PG_64, 0, 4096,},
+	/* 8852C DLFW */
+	.wde_size18 = {RTW89_WDE_PG_64, 0, 2048,},
+	/* 8852C PCIE SCC */
+	.wde_size19 = {RTW89_WDE_PG_64, 3328, 0,},
+	/* PCIE */
+	.ple_size0 = {RTW89_PLE_PG_128, 1520, 16,},
+	/* DLFW */
+	.ple_size4 = {RTW89_PLE_PG_128, 64, 1472,},
+	/* 8852C DLFW */
+	.ple_size18 = {RTW89_PLE_PG_128, 2544, 16,},
+	/* 8852C PCIE SCC */
+	.ple_size19 = {RTW89_PLE_PG_128, 1904, 16,},
+	/* PCIE 64 */
+	.wde_qt0 = {3792, 196, 0, 107,},
+	/* DLFW */
+	.wde_qt4 = {0, 0, 0, 0,},
+	/* 8852C DLFW */
+	.wde_qt17 = {0, 0, 0,  0,},
+	/* 8852C PCIE SCC */
+	.wde_qt18 = {3228, 60, 0, 40,},
+	/* PCIE SCC */
+	.ple_qt4 = {264, 0, 16, 20, 26, 13, 356, 0, 32, 40, 8,},
+	/* PCIE SCC */
+	.ple_qt5 = {264, 0, 32, 20, 64, 13, 1101, 0, 64, 128, 120,},
+	/* DLFW */
+	.ple_qt13 = {0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0,},
+	/* DLFW 52C */
+	.ple_qt44 = {0, 0, 16, 256, 0, 0, 0, 0, 0, 0, 0, 0,},
+	/* DLFW 52C */
+	.ple_qt45 = {0, 0, 32, 256, 0, 0, 0, 0, 0, 0, 0, 0,},
+	/* 8852C PCIE SCC */
+	.ple_qt46 = {525, 0, 16, 20, 13, 13, 178, 0, 32, 62, 8, 16,},
+	/* 8852C PCIE SCC */
+	.ple_qt47 = {525, 0, 32, 20, 1034, 13, 1199, 0, 1053, 62, 160, 1037,},
 };
-EXPORT_SYMBOL(rtw89_wde_size0);
-
-/* DLFW */
-const struct rtw89_dle_size rtw89_wde_size4 = {
-	RTW89_WDE_PG_64, 0, 4096,
-};
-EXPORT_SYMBOL(rtw89_wde_size4);
-
-/* 8852C DLFW */
-const struct rtw89_dle_size rtw89_wde_size18 = {
-	RTW89_WDE_PG_64, 0, 2048,
-};
-EXPORT_SYMBOL(rtw89_wde_size18);
-
-/* 8852C PCIE SCC */
-const struct rtw89_dle_size rtw89_wde_size19 = {
-	RTW89_WDE_PG_64, 3328, 0,
-};
-EXPORT_SYMBOL(rtw89_wde_size19);
-
-/* PCIE */
-const struct rtw89_dle_size rtw89_ple_size0 = {
-	RTW89_PLE_PG_128, 1520, 16,
-};
-EXPORT_SYMBOL(rtw89_ple_size0);
-
-/* DLFW */
-const struct rtw89_dle_size rtw89_ple_size4 = {
-	RTW89_PLE_PG_128, 64, 1472,
-};
-EXPORT_SYMBOL(rtw89_ple_size4);
-
-/* 8852C DLFW */
-const struct rtw89_dle_size rtw89_ple_size18 = {
-	RTW89_PLE_PG_128, 2544, 16,
-};
-EXPORT_SYMBOL(rtw89_ple_size18);
-
-/* 8852C PCIE SCC */
-const struct rtw89_dle_size rtw89_ple_size19 = {
-	RTW89_PLE_PG_128, 1904, 16,
-};
-EXPORT_SYMBOL(rtw89_ple_size19);
-
-/* PCIE 64 */
-const struct rtw89_wde_quota rtw89_wde_qt0 = {
-	3792, 196, 0, 107,
-};
-EXPORT_SYMBOL(rtw89_wde_qt0);
-
-/* DLFW */
-const struct rtw89_wde_quota rtw89_wde_qt4 = {
-	0, 0, 0, 0,
-};
-EXPORT_SYMBOL(rtw89_wde_qt4);
-
-/* 8852C DLFW */
-const struct rtw89_wde_quota rtw89_wde_qt17 = {
-	0, 0, 0,  0,
-};
-EXPORT_SYMBOL(rtw89_wde_qt17);
-
-/* 8852C PCIE SCC */
-const struct rtw89_wde_quota rtw89_wde_qt18 = {
-	3228, 60, 0, 40,
-};
-EXPORT_SYMBOL(rtw89_wde_qt18);
-
-/* PCIE SCC */
-const struct rtw89_ple_quota rtw89_ple_qt4 = {
-	264, 0, 16, 20, 26, 13, 356, 0, 32, 40, 8,
-};
-EXPORT_SYMBOL(rtw89_ple_qt4);
-
-/* PCIE SCC */
-const struct rtw89_ple_quota rtw89_ple_qt5 = {
-	264, 0, 32, 20, 64, 13, 1101, 0, 64, 128, 120,
-};
-EXPORT_SYMBOL(rtw89_ple_qt5);
-
-/* DLFW */
-const struct rtw89_ple_quota rtw89_ple_qt13 = {
-	0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0
-};
-EXPORT_SYMBOL(rtw89_ple_qt13);
-
-/* DLFW 52C */
-const struct rtw89_ple_quota rtw89_ple_qt44 = {
-	0, 0, 16, 256, 0, 0, 0, 0, 0, 0, 0, 0,
-};
-EXPORT_SYMBOL(rtw89_ple_qt44);
-
-/* DLFW 52C */
-const struct rtw89_ple_quota rtw89_ple_qt45 = {
-	0, 0, 32, 256, 0, 0, 0, 0, 0, 0, 0, 0,
-};
-EXPORT_SYMBOL(rtw89_ple_qt45);
-
-/* 8852C PCIE SCC */
-const struct rtw89_ple_quota rtw89_ple_qt46 = {
-	525, 0, 16, 20, 13, 13, 178, 0, 32, 62, 8, 16,
-};
-EXPORT_SYMBOL(rtw89_ple_qt46);
-
-/* 8852C PCIE SCC */
-const struct rtw89_ple_quota rtw89_ple_qt47 = {
-	525, 0, 32, 20, 1034, 13, 1199, 0, 1053, 62, 160, 1037,
-};
-EXPORT_SYMBOL(rtw89_ple_qt47);
+EXPORT_SYMBOL(rtw89_mac_size);
 
 static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 						   enum rtw89_qta_mode mode)

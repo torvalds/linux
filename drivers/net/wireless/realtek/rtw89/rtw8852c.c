@@ -10,12 +10,14 @@
 #include "rtw8852c.h"
 
 static const struct rtw89_dle_mem rtw8852c_dle_mem_pcie[] = {
-	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_wde_size19, &rtw89_ple_size19,
-			   &rtw89_wde_qt18, &rtw89_wde_qt18, &rtw89_ple_qt46,
-			   &rtw89_ple_qt47},
-	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_wde_size18,
-			    &rtw89_ple_size18, &rtw89_wde_qt17, &rtw89_wde_qt17,
-			    &rtw89_ple_qt44, &rtw89_ple_qt45},
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size19,
+			   &rtw89_mac_size.ple_size19, &rtw89_mac_size.wde_qt18,
+			   &rtw89_mac_size.wde_qt18, &rtw89_mac_size.ple_qt46,
+			   &rtw89_mac_size.ple_qt47},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_mac_size.wde_size18,
+			    &rtw89_mac_size.ple_size18, &rtw89_mac_size.wde_qt17,
+			    &rtw89_mac_size.wde_qt17, &rtw89_mac_size.ple_qt44,
+			    &rtw89_mac_size.ple_qt45},
 	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
 			       NULL},
 };

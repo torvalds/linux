@@ -37,19 +37,21 @@ static const struct rtw89_hfc_pub_cfg rtw8852a_hfc_pubcfg_pcie = {
 
 static const struct rtw89_hfc_param_ini rtw8852a_hfc_param_ini_pcie[] = {
 	[RTW89_QTA_SCC] = {rtw8852a_hfc_chcfg_pcie, &rtw8852a_hfc_pubcfg_pcie,
-			   &rtw89_hfc_preccfg_pcie, RTW89_HCIFC_POH},
-	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_hfc_preccfg_pcie,
+			   &rtw89_mac_size.hfc_preccfg_pcie, RTW89_HCIFC_POH},
+	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_mac_size.hfc_preccfg_pcie,
 			    RTW89_HCIFC_POH},
 	[RTW89_QTA_INVALID] = {NULL},
 };
 
 static const struct rtw89_dle_mem rtw8852a_dle_mem_pcie[] = {
-	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_wde_size0, &rtw89_ple_size0,
-			   &rtw89_wde_qt0, &rtw89_wde_qt0, &rtw89_ple_qt4,
-			   &rtw89_ple_qt5},
-	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_wde_size4, &rtw89_ple_size4,
-			    &rtw89_wde_qt4, &rtw89_wde_qt4, &rtw89_ple_qt13,
-			    &rtw89_ple_qt13},
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size0,
+			   &rtw89_mac_size.ple_size0, &rtw89_mac_size.wde_qt0,
+			   &rtw89_mac_size.wde_qt0, &rtw89_mac_size.ple_qt4,
+			   &rtw89_mac_size.ple_qt5},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_mac_size.wde_size4,
+			    &rtw89_mac_size.ple_size4, &rtw89_mac_size.wde_qt4,
+			    &rtw89_mac_size.wde_qt4, &rtw89_mac_size.ple_qt13,
+			    &rtw89_mac_size.ple_qt13},
 	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
 			       NULL},
 };
