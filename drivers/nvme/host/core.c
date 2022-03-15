@@ -3855,6 +3855,14 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 					nsid);
 			goto out_put_ns_head;
 		}
+
+		if (!multipath && !list_empty(&head->list)) {
+			dev_warn(ctrl->device,
+				"Found shared namespace %d, but multipathing not supported.\n",
+				nsid);
+			dev_warn_once(ctrl->device,
+				"Support for shared namespaces without CONFIG_NVME_MULTIPATH is deprecated and will be removed in Linux 6.0\n.");
+		}
 	}
 
 	list_add_tail_rcu(&ns->siblings, &head->list);
