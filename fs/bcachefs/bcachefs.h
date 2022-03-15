@@ -584,6 +584,7 @@ struct bch_fs {
 
 	struct list_head	list;
 	struct kobject		kobj;
+	struct kobject		counters_kobj;
 	struct kobject		internal;
 	struct kobject		opts_dir;
 	struct kobject		time_stats;
@@ -900,11 +901,14 @@ mempool_t		bio_bounce_pages;
 
 	u64			last_bucket_seq_cleanup;
 
-	/* The rest of this all shows up in sysfs */
+	/* TODO rewrite as counters - The rest of this all shows up in sysfs */
 	atomic_long_t		read_realloc_races;
 	atomic_long_t		extent_migrate_done;
 	atomic_long_t		extent_migrate_raced;
 	atomic_long_t		bucket_alloc_fail;
+
+	u64			counters_on_mount[BCH_COUNTER_NR];
+	u64 __percpu		*counters;
 
 	unsigned		btree_gc_periodic:1;
 	unsigned		copy_gc_enabled:1;

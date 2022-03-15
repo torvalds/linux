@@ -575,6 +575,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 
 	atomic64_inc(&ctxt->stats->keys_moved);
 	atomic64_add(k.k->size, &ctxt->stats->sectors_moved);
+	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 
 	trace_move_extent(k.k);
 

@@ -40,7 +40,7 @@
 #include "util.h"
 
 #define SYSFS_OPS(type)							\
-struct sysfs_ops type ## _sysfs_ops = {					\
+const struct sysfs_ops type ## _sysfs_ops = {					\
 	.show	= type ## _show,					\
 	.store	= type ## _store					\
 }
@@ -194,6 +194,10 @@ read_attribute(read_realloc_races);
 read_attribute(extent_migrate_done);
 read_attribute(extent_migrate_raced);
 read_attribute(bucket_alloc_fail);
+
+#define x(t, n, ...) read_attribute(t);
+BCH_PERSISTENT_COUNTERS()
+#undef x
 
 rw_attribute(discard);
 rw_attribute(label);
@@ -551,6 +555,47 @@ struct attribute *bch2_fs_files[] = {
 	NULL
 };
 
+/* counters dir */
+
+SHOW(bch2_fs_counters)
+{
+	struct bch_fs *c = container_of(kobj, struct bch_fs, counters_kobj);
+	u64 counter = 0;
+	u64 counter_since_mount = 0;
+
+	out->tabstops[0] = 32;
+	#define x(t, ...) \
+		if (attr == &sysfs_##t) {					\
+			counter             = percpu_u64_get(&c->counters[BCH_COUNTER_##t]);\
+			counter_since_mount = counter - c->counters_on_mount[BCH_COUNTER_##t];\
+			pr_buf(out, "since mount:");				\
+			pr_tab(out);						\
+			bch2_hprint(out, counter_since_mount << 9);		\
+			pr_newline(out);					\
+										\
+			pr_buf(out, "since filesystem creation:");		\
+			pr_tab(out);						\
+			bch2_hprint(out, counter << 9);				\
+			pr_newline(out);					\
+		}
+	BCH_PERSISTENT_COUNTERS()
+	#undef x
+	return 0;
+}
+
+STORE(bch2_fs_counters) {
+	return 0;
+}
+
+SYSFS_OPS(bch2_fs_counters);
+
+struct attribute *bch2_fs_counters_files[] = {
+#define x(t, ...) \
+	&sysfs_##t,
+	BCH_PERSISTENT_COUNTERS()
+#undef x
+	NULL
+};
 /* internal dir - just a wrapper */
 
 SHOW(bch2_fs_internal)

@@ -21,6 +21,7 @@
 #include "checksum.h"
 #include "clock.h"
 #include "compress.h"
+#include "counters.h"
 #include "debug.h"
 #include "disk_groups.h"
 #include "ec.h"
@@ -78,6 +79,9 @@ static const struct kobj_type type ## _ktype = {			\
 
 static void bch2_fs_release(struct kobject *);
 static void bch2_dev_release(struct kobject *);
+static void bch2_fs_counters_release(struct kobject *k)
+{
+}
 
 static void bch2_fs_internal_release(struct kobject *k)
 {
@@ -92,6 +96,7 @@ static void bch2_fs_time_stats_release(struct kobject *k)
 }
 
 KTYPE(bch2_fs);
+KTYPE(bch2_fs_counters);
 KTYPE(bch2_fs_internal);
 KTYPE(bch2_fs_opts_dir);
 KTYPE(bch2_fs_time_stats);
@@ -416,6 +421,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
 
+	bch2_fs_counters_exit(c);
 	bch2_fs_snapshots_exit(c);
 	bch2_fs_quota_exit(c);
 	bch2_fs_fsio_exit(c);
@@ -500,6 +506,7 @@ void __bch2_fs_stop(struct bch_fs *c)
 	bch2_fs_debug_exit(c);
 	bch2_fs_chardev_exit(c);
 
+	kobject_put(&c->counters_kobj);
 	kobject_put(&c->time_stats);
 	kobject_put(&c->opts_dir);
 	kobject_put(&c->internal);
@@ -569,6 +576,7 @@ static int bch2_fs_online(struct bch_fs *c)
 	    kobject_add(&c->internal, &c->kobj, "internal") ?:
 	    kobject_add(&c->opts_dir, &c->kobj, "options") ?:
 	    kobject_add(&c->time_stats, &c->kobj, "time_stats") ?:
+	    kobject_add(&c->counters_kobj, &c->kobj, "counters") ?:
 	    bch2_opts_create_sysfs_files(&c->opts_dir);
 	if (ret) {
 		bch_err(c, "error creating sysfs objects");
@@ -617,6 +625,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	kobject_init(&c->internal, &bch2_fs_internal_ktype);
 	kobject_init(&c->opts_dir, &bch2_fs_opts_dir_ktype);
 	kobject_init(&c->time_stats, &bch2_fs_time_stats_ktype);
+	kobject_init(&c->counters_kobj, &bch2_fs_counters_ktype);
 
 	c->minor		= -1;
 	c->disk_sb.fs_sb	= true;
@@ -777,7 +786,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_encryption_init(c) ?:
 	    bch2_fs_compress_init(c) ?:
 	    bch2_fs_ec_init(c) ?:
-	    bch2_fs_fsio_init(c);
+	    bch2_fs_fsio_init(c) ?:
+	    bch2_fs_counters_init(c);
 	if (ret)
 		goto err;
 
