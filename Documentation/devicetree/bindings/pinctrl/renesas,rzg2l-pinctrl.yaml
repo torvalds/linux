@@ -11,8 +11,8 @@ maintainers:
   - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
 
 description:
-  The Renesas SoCs of the RZ/{G2L,V2L} series feature a combined Pin and GPIO
-  controller.
+  The Renesas SoCs of the RZ/{G2L,V2L} alike series feature a combined Pin and
+  GPIO controller.
   Pin multiplexing and GPIO configuration is performed on a per-pin basis.
   Each port features up to 8 pins, each of them configurable for GPIO function
   (port mode) or in alternate function mode.
@@ -23,6 +23,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - renesas,r9a07g043-pinctrl # RZ/G2UL{Type-1,Type-2}
               - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
 
       - items:
