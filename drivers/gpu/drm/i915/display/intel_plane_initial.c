@@ -47,17 +47,55 @@ static struct i915_vma *
 initial_plane_vma(struct drm_i915_private *i915,
 		  struct intel_initial_plane_config *plane_config)
 {
-	struct intel_memory_region *mem = i915->mm.stolen_region;
+	struct intel_memory_region *mem;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	resource_size_t phys_base;
 	u32 base, size;
 	u64 pinctl;
 
-	if (!mem || plane_config->size == 0)
+	if (plane_config->size == 0)
 		return NULL;
 
-	base = round_down(plane_config->base,
-			  I915_GTT_MIN_ALIGNMENT);
+	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
+	if (IS_DGFX(i915)) {
+		gen8_pte_t __iomem *gte = to_gt(i915)->ggtt->gsm;
+		gen8_pte_t pte;
+
+		gte += base / I915_GTT_PAGE_SIZE;
+
+		pte = ioread64(gte);
+		if (!(pte & GEN12_GGTT_PTE_LM)) {
+			drm_err(&i915->drm,
+				"Initial plane programming missing PTE_LM bit\n");
+			return NULL;
+		}
+
+		phys_base = pte & I915_GTT_PAGE_MASK;
+		mem = i915->mm.regions[INTEL_REGION_LMEM];
+
+		/*
+		 * We don't currently expect this to ever be placed in the
+		 * stolen portion.
+		 */
+		if (phys_base >= resource_size(&mem->region)) {
+			drm_err(&i915->drm,
+				"Initial plane programming using invalid range, phys_base=%pa\n",
+				&phys_base);
+			return NULL;
+		}
+
+		drm_dbg(&i915->drm,
+			"Using phys_base=%pa, based on initial plane programming\n",
+			&phys_base);
+	} else {
+		phys_base = base;
+		mem = i915->mm.stolen_region;
+	}
+
+	if (!mem)
+		return NULL;
+
 	size = round_up(plane_config->base + plane_config->size,
 			mem->min_page_size);
 	size -= base;
@@ -68,11 +106,11 @@ initial_plane_vma(struct drm_i915_private *i915,
 	 * features.
 	 */
 	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
+	    mem == i915->mm.stolen_region &&
 	    size * 2 > i915->stolen_usable_size)
 		return NULL;
 
-	obj = i915_gem_object_create_region_at(i915->mm.stolen_region,
-					       base, size, 0);
+	obj = i915_gem_object_create_region_at(mem, phys_base, size, 0);
 	if (IS_ERR(obj))
 		return NULL;
 
