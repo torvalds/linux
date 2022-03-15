@@ -61,6 +61,10 @@ int sched_long_running_rt_task_ms_handler(struct ctl_table *table, int write,
 
 	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
 
+	if (sysctl_sched_long_running_rt_task_ms > 0 &&
+			sysctl_sched_long_running_rt_task_ms < 800)
+		sysctl_sched_long_running_rt_task_ms = 800;
+
 	if (write && !long_running_rt_task_trace_rgstrd) {
 		register_trace_sched_switch(rt_task_arrival_marker, NULL);
 		register_trace_android_vh_scheduler_tick(long_running_rt_task_notifier, NULL);
