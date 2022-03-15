@@ -6,6 +6,7 @@
 #include <linux/debugfs.h>
 
 #include "i915_drv.h"
+#include "intel_gt.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_engines_debugfs.h"
 #include "intel_gt_pm_debugfs.h"
@@ -57,10 +58,22 @@ static int __intel_gt_debugfs_reset_store(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(reset_fops, __intel_gt_debugfs_reset_show,
 			__intel_gt_debugfs_reset_store, "%llu\n");
 
+static int steering_show(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct intel_gt *gt = m->private;
+
+	intel_gt_report_steering(&p, gt, true);
+
+	return 0;
+}
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(steering);
+
 static void gt_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "reset", &reset_fops, NULL },
+		{ "steering", &steering_fops },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);

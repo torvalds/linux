@@ -182,6 +182,11 @@ struct intel_gt {
 
 	const struct intel_mmio_range *steering_table[NUM_STEERING_TYPES];
 
+	struct {
+		u8 groupid;
+		u8 instanceid;
+	} default_steering;
+
 	struct intel_gt_info {
 		intel_engine_mask_t engine_mask;
 

@@ -1072,9 +1072,15 @@ static void __set_mcr_steering(struct i915_wa_list *wal,
 static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
 			 unsigned int slice, unsigned int subslice)
 {
-	drm_dbg(&gt->i915->drm, "MCR slice=0x%x, subslice=0x%x\n", slice, subslice);
+	struct drm_printer p = drm_debug_printer("MCR Steering:");
 
 	__set_mcr_steering(wal, GEN8_MCR_SELECTOR, slice, subslice);
+
+	gt->default_steering.groupid = slice;
+	gt->default_steering.instanceid = subslice;
+
+	if (drm_debug_enabled(DRM_UT_DRIVER))
+		intel_gt_report_steering(&p, gt, false);
 }
 
 static void
