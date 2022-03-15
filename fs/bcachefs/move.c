@@ -352,7 +352,6 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 
 	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE) {
 		m->op.alloc_reserve = RESERVE_movinggc;
-		m->op.flags |= BCH_WRITE_ALLOC_NOWAIT;
 	} else {
 		/* XXX: this should probably be passed in */
 		m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS;
