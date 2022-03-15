@@ -1867,7 +1867,6 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 };
 
 #define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
-#define DEFAULT_MB_OPTIMIZE_SCAN	(-1)
 
 static const char deprecated_msg[] =
 	"Mount option \"%s\" will be removed by %s\n"
