@@ -131,6 +131,7 @@ enum rk_pcie_device_mode {
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
+#define RK_PCIE_L2_TMOUT_US		5000
 
 enum rk_pcie_ltssm_code {
 	S_L0 = 0x11,
@@ -1948,7 +1949,7 @@ static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret = 0, power;
 	struct dw_pcie *pci = rk_pcie->pci;
 	u32 status;
 
@@ -1977,11 +1978,20 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	rk_pcie_link_status_clear(rk_pcie);
 
+	/*
+	 * Wlan devices will be shutdown from function driver now, so doing L2 here
+	 * must fail. Skip L2 routine.
+	 */
+	if (rk_pcie->skip_scan_in_resume) {
+		rfkill_get_wifi_power_state(&power);
+		if (!power)
+			goto no_l2;
+	}
+
 	/* 2. Broadcast PME_Turn_Off Message */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_MSG_GEN, PME_TURN_OFF);
 	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_MSG_GEN,
-				 status, !(status & BIT(4)), 20,
-				 jiffies_to_usecs(5 * HZ));
+				 status, !(status & BIT(4)), 20, RK_PCIE_L2_TMOUT_US);
 	if (ret) {
 		dev_err(dev, "Failed to send PME_Turn_Off\n");
 		goto no_l2;
@@ -1989,8 +1999,7 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	/* 3. Wait for PME_TO_Ack */
 	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_INTR_STATUS_MSG_RX,
-				 status, status & BIT(9), 20,
-				 jiffies_to_usecs(5 * HZ));
+				 status, status & BIT(9), 20, RK_PCIE_L2_TMOUT_US);
 	if (ret) {
 		dev_err(dev, "Failed to receive PME_TO_Ack\n");
 		goto no_l2;
@@ -1999,8 +2008,7 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 	/* 4. Clear PME_TO_Ack and Wait for ready to enter L23 message */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MSG_RX, PME_TO_ACK);
 	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_POWER,
-				 status, status & READY_ENTER_L23, 20,
-				 jiffies_to_usecs(5 * HZ));
+				 status, status & READY_ENTER_L23, 20, RK_PCIE_L2_TMOUT_US);
 	if (ret) {
 		dev_err(dev, "Failed to ready to enter L23\n");
 		goto no_l2;
@@ -2008,8 +2016,7 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	/* 5. Check we are in L2 */
 	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_LTSSM_STATUS,
-				 status, ((status & S_MAX) == S_L2_IDLE), 20,
-				 jiffies_to_usecs(5 * HZ));
+				 status, ((status & S_MAX) == S_L2_IDLE), 20, RK_PCIE_L2_TMOUT_US);
 	if (ret)
 		dev_err(pci->dev, "Link isn't in L2 idle!\n");
 
