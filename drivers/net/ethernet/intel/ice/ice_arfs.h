@@ -3,6 +3,9 @@
 
 #ifndef _ICE_ARFS_H_
 #define _ICE_ARFS_H_
+
+#include "ice_fdir.h"
+
 enum ice_arfs_fltr_state {
 	ICE_ARFS_INACTIVE,
 	ICE_ARFS_ACTIVE,

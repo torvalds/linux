@@ -6,7 +6,7 @@
 #include "ice_vlan_mode.h"
 #include "ice.h"
 #include "ice_vf_vsi_vlan_ops.h"
-#include "ice_virtchnl_pf.h"
+#include "ice_sriov.h"
 
 static int
 noop_vlan_arg(struct ice_vsi __always_unused *vsi,

@@ -5,7 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
-#include "ice_virtchnl_pf.h"
+#include "ice_sriov.h"
 
 static bool ice_alloc_rx_buf_zc(struct ice_rx_ring *rx_ring)
 {
