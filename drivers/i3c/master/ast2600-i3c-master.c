@@ -877,9 +877,8 @@ struct i3c_scl_timing_cfg *ast2600_i3c_jesd403_scl_search(unsigned long fscl)
 static int aspeed_i2c_fm_clk(struct aspeed_i3c_master *master)
 {
 	unsigned long core_rate, core_period;
-	unsigned long tlow;
 	u32 scl_timing;
-	u16 hcnt, lcnt;
+	u16 hcnt, lcnt, period_cnt, hcnt_min, lcnt_min;
 
 	core_rate = clk_get_rate(master->core_clk);
 	if (!core_rate)
@@ -890,15 +889,30 @@ static int aspeed_i2c_fm_clk(struct aspeed_i3c_master *master)
 	if (!master->base.bus.scl_rate.i2c)
 		master->base.bus.scl_rate.i2c = I3C_BUS_I2C_FM_PLUS_SCL_RATE;
 
-	if (master->base.bus.scl_rate.i2c <= 100000)
-		tlow = I3C_BUS_I2C_STD_TLOW_MIN_NS;
-	else if (master->base.bus.scl_rate.i2c <= 400000)
-		tlow = I3C_BUS_I2C_FM_TLOW_MIN_NS;
-	else
-		tlow = I3C_BUS_I2C_FMP_TLOW_MIN_NS;
+	if (master->base.bus.scl_rate.i2c <= 100000) {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_TLOW_MIN_NS, core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_THIGH_MIN_NS, core_period);
+	} else if (master->base.bus.scl_rate.i2c <= 400000) {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_THIGH_MIN_NS, core_period);
+	} else {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_THIGH_MIN_NS, core_period);
+	}
 
-	lcnt = DIV_ROUND_UP(tlow, core_period);
-	hcnt = DIV_ROUND_UP(core_rate, master->base.bus.scl_rate.i2c) - lcnt;
+	/* try to keep 50/50 duty but also meet the timing constrain */
+	period_cnt = DIV_ROUND_UP(core_rate, master->base.bus.scl_rate.i2c);
+	hcnt = period_cnt >> 1;
+	lcnt = period_cnt - hcnt;
+
+	if (hcnt < hcnt_min) {
+		hcnt = hcnt_min;
+		lcnt = period_cnt - hcnt;
+	} else if (lcnt < lcnt_min) {
+		lcnt = lcnt_min;
+		hcnt = period_cnt - lcnt;
+	}
+
 	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) | SCL_I2C_FM_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
 
