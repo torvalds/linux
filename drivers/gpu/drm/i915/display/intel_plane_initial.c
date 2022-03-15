@@ -51,6 +51,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 base, size;
+	u64 pinctl;
 
 	if (!mem || plane_config->size == 0)
 		return NULL;
@@ -101,7 +102,10 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (IS_ERR(vma))
 		goto err_obj;
 
-	if (i915_ggtt_pin(vma, NULL, 0, PIN_MAPPABLE | PIN_OFFSET_FIXED | base))
+	pinctl = PIN_GLOBAL | PIN_OFFSET_FIXED | base;
+	if (HAS_GMCH(i915))
+		pinctl |= PIN_MAPPABLE;
+	if (i915_vma_pin(vma, 0, 0, pinctl))
 		goto err_obj;
 
 	if (i915_gem_object_is_tiled(obj) &&
