@@ -11,7 +11,7 @@
 #include <asm/unaligned.h>
 #include <crypto/sm4.h>
 
-static const u32 fk[4] = {
+static const u32 ____cacheline_aligned fk[4] = {
 	0xa3b1bac6, 0x56aa3350, 0x677d9197, 0xb27022dc
 };
 
@@ -60,6 +60,14 @@ static const u8 ____cacheline_aligned sbox[256] = {
 	0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20,
 	0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39, 0x48
 };
+
+extern const u32 crypto_sm4_fk[4] __alias(fk);
+extern const u32 crypto_sm4_ck[32] __alias(ck);
+extern const u8 crypto_sm4_sbox[256] __alias(sbox);
+
+EXPORT_SYMBOL(crypto_sm4_fk);
+EXPORT_SYMBOL(crypto_sm4_ck);
+EXPORT_SYMBOL(crypto_sm4_sbox);
 
 static inline u32 sm4_t_non_lin_sub(u32 x)
 {
