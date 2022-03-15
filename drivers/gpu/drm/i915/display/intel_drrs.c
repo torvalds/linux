@@ -168,6 +168,11 @@ static void intel_drrs_set_state(struct intel_crtc *crtc,
 	crtc->drrs.refresh_rate = refresh_rate;
 }
 
+static void intel_drrs_schedule_work(struct intel_crtc *crtc)
+{
+	mod_delayed_work(system_wq, &crtc->drrs.work, msecs_to_jiffies(1000));
+}
+
 static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -199,6 +204,8 @@ void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 	crtc->drrs.m2_n2 = crtc_state->dp_m2_n2;
 	crtc->drrs.frontbuffer_bits = intel_drrs_frontbuffer_bits(crtc_state);
 	crtc->drrs.busy_frontbuffer_bits = 0;
+
+	intel_drrs_schedule_work(crtc);
 
 	mutex_unlock(&crtc->drrs.mutex);
 }
@@ -299,8 +306,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 		 * other fbs are quiescent too
 		 */
 		if (!crtc->drrs.busy_frontbuffer_bits)
-			mod_delayed_work(system_wq, &crtc->drrs.work,
-					 msecs_to_jiffies(1000));
+			intel_drrs_schedule_work(crtc);
 		else
 			cancel_delayed_work(&crtc->drrs.work);
 
