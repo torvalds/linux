@@ -168,6 +168,13 @@ static void intel_drrs_set_state(struct intel_crtc *crtc,
 	crtc->drrs.refresh_rate = refresh_rate;
 }
 
+static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	return INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
+}
+
 /**
  * intel_drrs_enable - init drrs struct if supported
  * @crtc_state: A pointer to the active crtc state.
@@ -190,6 +197,7 @@ void intel_drrs_enable(const struct intel_crtc_state *crtc_state)
 	crtc->drrs.cpu_transcoder = crtc_state->cpu_transcoder;
 	crtc->drrs.m_n = crtc_state->dp_m_n;
 	crtc->drrs.m2_n2 = crtc_state->dp_m2_n2;
+	crtc->drrs.frontbuffer_bits = intel_drrs_frontbuffer_bits(crtc_state);
 	crtc->drrs.busy_frontbuffer_bits = 0;
 
 	mutex_unlock(&crtc->drrs.mutex);
@@ -216,6 +224,7 @@ void intel_drrs_disable(const struct intel_crtc_state *old_crtc_state)
 		intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_HIGH);
 
 	crtc->drrs.cpu_transcoder = INVALID_TRANSCODER;
+	crtc->drrs.frontbuffer_bits = 0;
 	crtc->drrs.busy_frontbuffer_bits = 0;
 
 	mutex_unlock(&crtc->drrs.mutex);
@@ -278,7 +287,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 			continue;
 		}
 
-		frontbuffer_bits = all_frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
+		frontbuffer_bits = all_frontbuffer_bits & crtc->drrs.frontbuffer_bits;
 		if (invalidate)
 			crtc->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
 		else

@@ -1302,6 +1302,7 @@ struct intel_crtc {
 		struct mutex mutex;
 		struct delayed_work work;
 		enum drrs_refresh_rate refresh_rate;
+		unsigned int frontbuffer_bits;
 		unsigned int busy_frontbuffer_bits;
 		enum transcoder cpu_transcoder;
 		struct intel_link_m_n m_n, m2_n2;
