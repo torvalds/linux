@@ -542,10 +542,14 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		val = hdmirx_readl(hdmirx_dev, VMON_STATUS6);
 		vtotal = (val >> 16) & 0xffff;
 		vact = val & 0xffff;
+		if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+			hact *= 2;
 	}
 	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
 		htotal *= 2;
 	fps = (bt->pixelclock + (htotal * vtotal) / 2) / (htotal * vtotal);
+	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+		fps *= 2;
 	bt->width = hact;
 	bt->height = vact;
 	bt->hfrontporch = hfp;
@@ -2505,7 +2509,8 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 	dev_dbg(hdmirx_dev->dev, "%s: HDMI_RX_AUD_FIFO_FILLSTS1:%#x, single offset:%d, total offset:%d\n",
 		__func__, cur_state, cur_state - pre_state, cur_state - init_state);
 	if (!is_validfs(fs_audio)) {
-		dev_warn(hdmirx_dev->dev, "%s: no supported fs(%u), cur_state %d\n",
+		v4l2_dbg(1, debug, &hdmirx_dev->v4l2_dev,
+			 "%s: no supported fs(%u), cur_state %d\n",
 			 __func__, fs_audio, cur_state);
 		delay = 1000;
 	} else if (abs(fs_audio - as->fs_audio) > 1000 || ch_audio != as->ch_audio) {
