@@ -1379,7 +1379,7 @@ static void __intel_fbc_flush(struct intel_fbc *fbc,
 	if (fbc->active)
 		intel_fbc_nuke(fbc);
 	else
-		__intel_fbc_post_update(fbc);
+		intel_fbc_activate(fbc);
 
 out:
 	mutex_unlock(&fbc->lock);
