@@ -570,6 +570,7 @@ static void del_sw_hw_rule(struct fs_node *node)
 		--fte->dests_size;
 		fte->modify_mask |=
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
+		goto out;
 	}
 out:
 	kfree(rule);
