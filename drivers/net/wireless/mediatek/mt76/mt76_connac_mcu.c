@@ -2675,10 +2675,24 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 	struct bss_info_basic *bss;
 	struct tlv *tlv;
 
+	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_BASIC, sizeof(*bss));
+	bss = (struct bss_info_basic *)tlv;
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MONITOR:
+		break;
+	case NL80211_IFTYPE_AP:
+		if (ieee80211_hw_check(phy->hw, SUPPORTS_MULTI_BSSID)) {
+			u8 bssid_id = vif->bss_conf.bssid_indicator;
+			struct wiphy *wiphy = phy->hw->wiphy;
+
+			if (bssid_id > ilog2(wiphy->mbssid_max_interfaces))
+				return -EINVAL;
+
+			bss->non_tx_bssid = vif->bss_conf.bssid_index;
+			bss->max_bssid = bssid_id;
+		}
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (enable) {
@@ -2704,9 +2718,6 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 		break;
 	}
 
-	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_BASIC, sizeof(*bss));
-
-	bss = (struct bss_info_basic *)tlv;
 	bss->network_type = cpu_to_le32(type);
 	bss->bmc_wcid_lo = to_wcid_lo(wlan_idx);
 	bss->bmc_wcid_hi = to_wcid_hi(wlan_idx);
