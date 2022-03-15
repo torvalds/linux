@@ -289,6 +289,7 @@ out:
 int __pkvm_iommu_register(unsigned long dev_id,
 			  enum pkvm_iommu_driver_id drv_id,
 			  phys_addr_t dev_pa, size_t dev_size,
+			  unsigned long parent_id,
 			  void *kern_mem_va, size_t mem_size)
 {
 	struct pkvm_iommu *dev = NULL;
@@ -333,6 +334,7 @@ int __pkvm_iommu_register(unsigned long dev_id,
 
 	/* Populate the new device entry. */
 	*dev = (struct pkvm_iommu){
+		.children = LIST_HEAD_INIT(dev->children),
 		.id = dev_id,
 		.ops = drv->ops,
 		.pa = dev_pa,
@@ -342,6 +344,20 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	if (!validate_against_existing_iommus(dev)) {
 		ret = -EBUSY;
 		goto out;
+	}
+
+	if (parent_id) {
+		dev->parent = find_iommu_by_id(parent_id);
+		if (!dev->parent) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (dev->parent->ops->validate_child) {
+			ret = dev->parent->ops->validate_child(dev->parent, dev);
+			if (ret)
+				goto out;
+		}
 	}
 
 	if (dev->ops->validate) {
@@ -368,6 +384,8 @@ int __pkvm_iommu_register(unsigned long dev_id,
 
 	/* Register device and prevent host from mapping the MMIO range. */
 	list_add_tail(&dev->list, &iommu_list);
+	if (dev->parent)
+		list_add_tail(&dev->siblings, &dev->parent->children);
 
 out:
 	if (ret)

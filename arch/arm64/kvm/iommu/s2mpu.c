@@ -81,6 +81,6 @@ int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t addr)
 		return ret;
 
 	return pkvm_iommu_register(dev, PKVM_IOMMU_DRIVER_S2MPU,
-				   addr, S2MPU_MMIO_SIZE);
+				   addr, S2MPU_MMIO_SIZE, NULL);
 }
 EXPORT_SYMBOL_GPL(pkvm_iommu_s2mpu_register);
