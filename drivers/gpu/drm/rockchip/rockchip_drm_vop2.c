@@ -7216,9 +7216,9 @@ static u16 vop2_calc_bg_ovl_and_port_mux(struct vop2_video_port *vp)
 		prev_vp = &vop2->vps[i];
 		used_layers += hweight32(prev_vp->win_mask);
 		if (vop2->version == VOP_VERSION_RK3588) {
-			if (vp->hdr10_at_splice_mode && i == 0)
+			if (vop2->vps[0].hdr10_at_splice_mode && i == 0)
 				used_layers += 1;
-			if (vp->hdr10_at_splice_mode && i == 1)
+			if (vop2->vps[0].hdr10_at_splice_mode && i == 1)
 				used_layers -= 1;
 		}
 		/*
@@ -7594,9 +7594,10 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 
 		sort(vop2_zpos, nr_layers, sizeof(vop2_zpos[0]), vop2_zpos_cmp, NULL);
 
-		vop2_setup_port_mux(vp);
-		if (!vp->hdr10_at_splice_mode)
+		if (!vp->hdr10_at_splice_mode) {
+			vop2_setup_port_mux(vp);
 			vop2_setup_layer_mixer_for_vp(vp, vop2_zpos);
+		}
 		vop2_setup_hdr10(vp, vop2_zpos[0].win_phys_id);
 		vop2_setup_alpha(vp, vop2_zpos);
 		vop2_setup_dly_for_vp(vp);
