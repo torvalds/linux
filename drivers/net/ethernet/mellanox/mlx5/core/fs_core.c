@@ -424,6 +424,16 @@ static bool is_fwd_next_action(u32 action)
 			 MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS);
 }
 
+static bool is_fwd_dest_type(enum mlx5_flow_destination_type type)
+{
+	return type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM ||
+		type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE ||
+		type == MLX5_FLOW_DESTINATION_TYPE_UPLINK ||
+		type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
+		type == MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER ||
+		type == MLX5_FLOW_DESTINATION_TYPE_TIR;
+}
+
 static bool check_valid_spec(const struct mlx5_flow_spec *spec)
 {
 	int i;
@@ -566,8 +576,13 @@ static void del_sw_hw_rule(struct fs_node *node)
 		goto out;
 	}
 
-	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+	if (is_fwd_dest_type(rule->dest_attr.type)) {
 		--fte->dests_size;
+		--fte->fwd_dests;
+
+		if (!fte->fwd_dests)
+			fte->action.action &=
+				~MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 		fte->modify_mask |=
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 		goto out;
@@ -1366,6 +1381,9 @@ create_flow_handle(struct fs_fte *fte,
 			list_add_tail(&rule->node.list, &fte->node.children);
 		if (dest) {
 			fte->dests_size++;
+
+			if (is_fwd_dest_type(dest[i].type))
+				fte->fwd_dests++;
 
 			type = dest[i].type ==
 				MLX5_FLOW_DESTINATION_TYPE_COUNTER;
