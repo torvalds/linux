@@ -32,6 +32,10 @@ properties:
           - const: mediatek,mt6765-spi
       - items:
           - enum:
+              - mediatek,mt7986-spi-ipm
+          - const: mediatek,spi-ipm
+      - items:
+          - enum:
               - mediatek,mt2701-spi
               - mediatek,mt2712-spi
               - mediatek,mt6589-spi
