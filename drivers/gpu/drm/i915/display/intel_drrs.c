@@ -278,32 +278,31 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		unsigned int frontbuffer_bits;
 
-		cancel_delayed_work(&crtc->drrs.work);
-
 		mutex_lock(&crtc->drrs.mutex);
 
-		if (!intel_drrs_is_enabled(crtc)) {
+		frontbuffer_bits = all_frontbuffer_bits & crtc->drrs.frontbuffer_bits;
+		if (!frontbuffer_bits) {
 			mutex_unlock(&crtc->drrs.mutex);
 			continue;
 		}
 
-		frontbuffer_bits = all_frontbuffer_bits & crtc->drrs.frontbuffer_bits;
 		if (invalidate)
 			crtc->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
 		else
 			crtc->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 		/* flush/invalidate means busy screen hence upclock */
-		if (frontbuffer_bits)
-			intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_HIGH);
+		intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_HIGH);
 
 		/*
 		 * flush also means no more activity hence schedule downclock, if all
 		 * other fbs are quiescent too
 		 */
-		if (!invalidate && !crtc->drrs.busy_frontbuffer_bits)
-			schedule_delayed_work(&crtc->drrs.work,
-					      msecs_to_jiffies(1000));
+		if (!crtc->drrs.busy_frontbuffer_bits)
+			mod_delayed_work(system_wq, &crtc->drrs.work,
+					 msecs_to_jiffies(1000));
+		else
+			cancel_delayed_work(&crtc->drrs.work);
 
 		mutex_unlock(&crtc->drrs.mutex);
 	}
