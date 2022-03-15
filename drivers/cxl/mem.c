@@ -68,7 +68,7 @@ static int create_endpoint(struct cxl_memdev *cxlmd,
 }
 
 /**
- * cxl_dvsec_decode_init() - Setup HDM decoding for the endpoint
+ * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
  * @cxlds: Device state
  *
  * Additionally, enables global HDM decoding. Warning: don't call this outside
@@ -79,12 +79,12 @@ static int create_endpoint(struct cxl_memdev *cxlmd,
  * decoders, or if it can not be determined if DVSEC Ranges are in use.
  * Otherwise, returns true.
  */
-__mock bool cxl_dvsec_decode_init(struct cxl_dev_state *cxlds)
+__mock bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
 {
 	struct cxl_endpoint_dvsec_info *info = &cxlds->info;
 	struct cxl_register_map map;
 	struct cxl_component_reg_map *cmap = &map.component_map;
-	bool global_enable, do_hdm_init = false;
+	bool global_enable, retval = false;
 	void __iomem *crb;
 	u32 global_ctrl;
 
@@ -113,7 +113,7 @@ __mock bool cxl_dvsec_decode_init(struct cxl_dev_state *cxlds)
 		goto out;
 	}
 
-	do_hdm_init = true;
+	retval = true;
 
 	/*
 	 * Permanently (for this boot at least) opt the device into HDM
@@ -129,7 +129,7 @@ __mock bool cxl_dvsec_decode_init(struct cxl_dev_state *cxlds)
 
 out:
 	iounmap(crb);
-	return do_hdm_init;
+	return retval;
 }
 
 static int cxl_mem_probe(struct device *dev)
@@ -160,7 +160,7 @@ static int cxl_mem_probe(struct device *dev)
 	 * If DVSEC ranges are being used instead of HDM decoder registers there
 	 * is no use in trying to manage those.
 	 */
-	if (!cxl_dvsec_decode_init(cxlds)) {
+	if (!cxl_hdm_decode_init(cxlds)) {
 		dev_err(dev,
 			"Legacy range registers configuration prevents HDM operation.\n");
 		return -EBUSY;

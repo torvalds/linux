@@ -4,7 +4,7 @@
 #include <linux/types.h>
 
 struct cxl_dev_state;
-bool cxl_dvsec_decode_init(struct cxl_dev_state *cxlds)
+bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
 {
 	return true;
 }
