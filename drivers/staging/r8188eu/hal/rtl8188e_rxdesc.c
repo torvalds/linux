@@ -45,7 +45,7 @@ static void process_link_qual(struct adapter *padapter, struct recv_frame *prfra
 	signal_stat->avg_val = signal_stat->total_val / signal_stat->total_num;
 }
 
-void rtl8188e_process_phy_info(struct adapter *padapter, void *prframe)
+static void rtl8188e_process_phy_info(struct adapter *padapter, void *prframe)
 {
 	struct recv_frame *precvframe = (struct recv_frame *)prframe;
 
