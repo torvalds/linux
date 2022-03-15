@@ -15,8 +15,6 @@
  *                    Michael Trimarchi <michael@amarulasolutions.com>,
  *                    Fabio Checconi <fchecconi@gmail.com>
  */
-#include "sched.h"
-#include "pelt.h"
 
 static inline struct task_struct *dl_task_of(struct sched_dl_entity *dl_se)
 {

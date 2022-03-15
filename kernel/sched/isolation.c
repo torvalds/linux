@@ -7,7 +7,6 @@
  * Copyright (C) 2017-2018 SUSE, Frederic Weisbecker
  *
  */
-#include "sched.h"
 
 enum hk_flags {
 	HK_FLAG_TIMER		= BIT(HK_TYPE_TIMER),

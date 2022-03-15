@@ -4,7 +4,6 @@
  *
  * membarrier system call
  */
-#include "sched.h"
 
 /*
  * For documentation purposes, here are some membarrier ordering

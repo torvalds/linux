@@ -6,7 +6,6 @@
  *
  * Copyright(C) 2007, Red Hat, Inc., Ingo Molnar
  */
-#include "sched.h"
 
 /*
  * This allows printing both to /proc/sched_debug and

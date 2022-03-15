@@ -20,7 +20,38 @@
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
+#include <linux/energy_model.h>
+#include <linux/mmap_lock.h>
+#include <linux/hugetlb_inline.h>
+#include <linux/jiffies.h>
+#include <linux/mm_api.h>
+#include <linux/highmem.h>
+#include <linux/spinlock_api.h>
+#include <linux/cpumask_api.h>
+#include <linux/lockdep_api.h>
+#include <linux/softirq.h>
+#include <linux/refcount_api.h>
+#include <linux/topology.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/cond_resched.h>
+#include <linux/sched/cputime.h>
+#include <linux/sched/isolation.h>
+
+#include <linux/cpuidle.h>
+#include <linux/interrupt.h>
+#include <linux/mempolicy.h>
+#include <linux/mutex_api.h>
+#include <linux/profile.h>
+#include <linux/psi.h>
+#include <linux/ratelimit.h>
+
+#include <asm/switch_to.h>
+
+#include <linux/sched/cond_resched.h>
+
 #include "sched.h"
+#include "stats.h"
+#include "autogroup.h"
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
