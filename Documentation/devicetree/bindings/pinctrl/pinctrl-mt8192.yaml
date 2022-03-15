@@ -29,6 +29,8 @@ properties:
     description: gpio valid number range.
     maxItems: 1
 
+  gpio-line-names: true
+
   reg:
     description: |
       Physical address base for gpio base registers. There are 11 GPIO
