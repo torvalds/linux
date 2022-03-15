@@ -604,7 +604,8 @@ static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,
 	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return 0;
 	for (i = 0; i < fte->dests_size; i++) {
-		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_COUNTER ||
+		    fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_NONE)
 			continue;
 		if ((fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
 		     fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) &&
@@ -727,6 +728,8 @@ int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
 				continue;
 
 			switch (type) {
+			case MLX5_FLOW_DESTINATION_TYPE_NONE:
+				continue;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
 				id = fte->dest_arr[i].ft_num;
 				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_TABLE;

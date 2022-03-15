@@ -1289,6 +1289,8 @@ static struct mlx5_flow_rule *alloc_rule(struct mlx5_flow_destination *dest)
 	rule->node.type = FS_TYPE_FLOW_DEST;
 	if (dest)
 		memcpy(&rule->dest_attr, dest, sizeof(*dest));
+	else
+		rule->dest_attr.type = MLX5_FLOW_DESTINATION_TYPE_NONE;
 
 	return rule;
 }
