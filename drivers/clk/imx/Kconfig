@@ -109,6 +109,7 @@ config CLK_IMX8ULP
 config CLK_IMX93
 	tristate "IMX93 CCM Clock Driver"
 	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
 	help
 	    Build the driver for i.MX93 CCM Clock Driver
 
