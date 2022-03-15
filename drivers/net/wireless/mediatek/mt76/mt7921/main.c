@@ -485,9 +485,17 @@ mt7921_sniffer_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt7921_dev *dev = priv;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
+	struct mt76_connac_pm *pm = &dev->pm;
+	bool monitor = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
 
-	mt7921_mcu_set_sniffer(dev, vif, enabled);
+	mt7921_mcu_set_sniffer(dev, vif, monitor);
+	pm->enable = !monitor;
+	pm->ds_enable = !monitor;
+
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
+
+	if (monitor)
+		mt7921_mcu_set_beacon_filter(dev, vif, false);
 }
 
 void mt7921_set_runtime_pm(struct mt7921_dev *dev)
@@ -531,7 +539,6 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 						    IEEE80211_IFACE_ITER_RESUME_ALL,
 						    mt7921_sniffer_interface_iter, dev);
 		dev->mt76.rxfilter = mt76_rr(dev, MT_WF_RFCR(0));
-		mt7921_set_runtime_pm(dev);
 	}
 
 out:
