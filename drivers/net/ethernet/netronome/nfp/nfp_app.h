@@ -4,12 +4,10 @@
 #ifndef _NFP_APP_H
 #define _NFP_APP_H 1
 
-#include <linux/lockdep.h>
 #include <net/devlink.h>
 
 #include <trace/events/devlink.h>
 
-#include "nfp_main.h"
 #include "nfp_net_repr.h"
 
 #define NFP_APP_CTRL_MTU_MAX	U32_MAX
@@ -77,7 +75,7 @@ extern const struct nfp_app_type app_abm;
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
- * @eswitch_mode_set:    set SR-IOV eswitch mode (under pf->lock)
+ * @eswitch_mode_set:    set SR-IOV eswitch mode
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
  * @dev_get:	get representor or internal port representing netdev
@@ -178,10 +176,13 @@ struct nfp_app {
 
 static inline void assert_nfp_app_locked(struct nfp_app *app)
 {
-	lockdep_assert_held(&app->pf->lock);
+	devl_assert_locked(priv_to_devlink(app->pf));
 }
 
-#define nfp_app_is_locked(app)	lockdep_is_held(&(app)->pf->lock)
+static inline bool nfp_app_is_locked(struct nfp_app *app)
+{
+	return devl_lock_is_held(priv_to_devlink(app->pf));
+}
 
 void nfp_check_rhashtable_empty(void *ptr, void *arg);
 bool __nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);

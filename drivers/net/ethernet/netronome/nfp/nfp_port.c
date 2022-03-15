@@ -78,9 +78,10 @@ int nfp_port_set_features(struct net_device *netdev, netdev_features_t features)
 struct nfp_port *
 nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
 	struct nfp_port *port;
 
-	lockdep_assert_held(&pf->lock);
+	devl_assert_locked(devlink);
 
 	if (type != NFP_PORT_PHYS_PORT)
 		return NULL;

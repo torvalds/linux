@@ -70,7 +70,7 @@ nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 
 	rtnl_lock();
 	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
@@ -90,7 +90,7 @@ nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
 
 	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 out:
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	return ret;
 }
@@ -104,7 +104,7 @@ nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 
 	rtnl_lock();
 	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
@@ -124,7 +124,7 @@ nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
 
 	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 out:
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	return ret;
 }
@@ -163,9 +163,9 @@ static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	struct nfp_pf *pf = devlink_priv(devlink);
 	int ret;
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	ret = nfp_app_eswitch_mode_set(pf->app, mode);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	return ret;
 }
@@ -375,12 +375,12 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 
 	devlink = priv_to_devlink(app->pf);
 
-	return devlink_port_register(devlink, &port->dl_port, port->eth_id);
+	return devl_port_register(devlink, &port->dl_port, port->eth_id);
 }
 
 void nfp_devlink_port_unregister(struct nfp_port *port)
 {
-	devlink_port_unregister(&port->dl_port);
+	devl_port_unregister(&port->dl_port);
 }
 
 void nfp_devlink_port_type_eth_set(struct nfp_port *port)
