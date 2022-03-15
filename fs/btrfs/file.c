@@ -2976,11 +2976,12 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 	bool truncated_block = false;
 	bool updated_inode = false;
 
+	btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
+
 	ret = btrfs_wait_ordered_range(inode, offset, len);
 	if (ret)
-		return ret;
+		goto out_only_mutex;
 
-	btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
 	ino_size = round_up(inode->i_size, fs_info->sectorsize);
 	ret = find_first_non_hole(BTRFS_I(inode), &offset, &len);
 	if (ret < 0)
