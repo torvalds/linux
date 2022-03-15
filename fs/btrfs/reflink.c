@@ -771,7 +771,6 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
 	u64 bs = BTRFS_I(inode_out)->root->fs_info->sb->s_blocksize;
-	bool same_inode = inode_out == inode_in;
 	u64 wb_len;
 	int ret;
 
@@ -808,15 +807,6 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		wb_len = ALIGN(inode_in->i_size, bs) - ALIGN_DOWN(pos_in, bs);
 	else
 		wb_len = ALIGN(*len, bs);
-
-	/*
-	 * Since we don't lock ranges, wait for ongoing lockless dio writes (as
-	 * any in progress could create its ordered extents after we wait for
-	 * existing ordered extents below).
-	 */
-	inode_dio_wait(inode_in);
-	if (!same_inode)
-		inode_dio_wait(inode_out);
 
 	/*
 	 * Workaround to make sure NOCOW buffered write reach disk as NOCOW.
