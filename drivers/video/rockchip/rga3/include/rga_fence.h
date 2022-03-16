@@ -8,21 +8,88 @@
 #ifndef __LINUX_RGA_FENCE_H_
 #define __LINUX_RGA_FENCE_H_
 
-#include "rga_drv.h"
+struct rga_fence_context {
+	unsigned int context;
+	unsigned int seqno;
+	spinlock_t spinlock;
+};
 
-struct rga_fence_context *rga_fence_context_alloc(void);
+struct rga_fence_waiter {
+	/* Base sync driver waiter structure */
+	struct dma_fence_cb waiter;
 
-void rga_fence_context_free(struct rga_fence_context *fence_ctx);
+	void *private;
+};
 
-int rga_out_fence_alloc(struct rga_job *job);
+#ifdef CONFIG_ROCKCHIP_RGA_ASYNC
+int rga_fence_context_init(struct rga_fence_context **ctx);
+void rga_fence_context_remove(struct rga_fence_context **ctx);
 
-int rga_out_fence_get_fd(struct rga_job *job);
+struct dma_fence *rga_dma_fence_alloc(spinlock_t *lock);
+int rga_dma_fence_get_fd(struct dma_fence *fence);
+struct dma_fence *rga_get_dma_fence_from_fd(int fence_fd);
+int rga_dma_fence_wait(struct dma_fence *fence);
+int rga_dma_fence_add_callback(struct dma_fence *fence, dma_fence_func_t func, void *private);
 
-struct dma_fence *rga_get_input_fence(int in_fence_fd);
 
-int rga_wait_input_fence(struct dma_fence *in_fence);
+static inline void rga_dma_fence_put(struct dma_fence *fence)
+{
+	if (fence)
+		dma_fence_put(fence);
+}
 
-int rga_add_dma_fence_callback(struct rga_job *job,
-	struct dma_fence *in_fence, dma_fence_func_t func);
+static inline void rga_dma_fence_signal(struct dma_fence *fence)
+{
+	if (fence)
+		dma_fence_signal(fence);
+}
+
+static inline int rga_dma_fence_get_status(struct dma_fence *fence)
+{
+	return dma_fence_get_status(fence);
+}
+
+#else
+static inline struct dma_fence *rga_dma_fence_alloc(spinlock_t *lock)
+{
+	return NULL;
+}
+
+static inline int rga_dma_fence_get_fd(struct dma_fence *fence)
+{
+	return 0;
+}
+
+static inline struct dma_fence *rga_get_dma_fence_from_fd(int fence_fd)
+{
+	return NULL;
+}
+
+static inline int rga_dma_fence_wait(struct dma_fence *fence)
+{
+	return 0;
+}
+
+static inline int rga_dma_fence_add_callback(struct dma_fence *fence,
+					     dma_fence_func_t func,
+					     void *private)
+{
+	return 0;
+}
+
+static inline void rga_dma_fence_put(struct dma_fence *fence)
+{
+}
+
+static inline void rga_dma_fence_signal(struct dma_fence *fence)
+{
+}
+
+static inline int rga_dma_fence_get_status(struct dma_fence *fence)
+{
+	return 0;
+}
+
+#endif /* #ifdef CONFIG_SYNC_FILE */
 
 #endif /* __LINUX_RGA_FENCE_H_ */

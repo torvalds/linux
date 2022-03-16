@@ -123,19 +123,6 @@ enum iommu_dma_cookie_type {
 	IOMMU_DMA_MSI_COOKIE,
 };
 
-struct rga_fence_context {
-	unsigned int context;
-	unsigned int seqno;
-	spinlock_t spinlock;
-};
-
-struct rga_fence_waiter {
-	/* Base sync driver waiter structure */
-	struct dma_fence_cb waiter;
-
-	struct rga_job *job;
-};
-
 struct rga_iommu_dma_cookie {
 	enum iommu_dma_cookie_type  type;
 
@@ -376,8 +363,6 @@ struct rga_pending_ctx_manager {
 struct rga_drvdata_t {
 	struct miscdevice miscdev;
 
-	struct rga_fence_context *fence_ctx;
-
 	/* used by rga2's mmu lock */
 	struct mutex lock;
 
@@ -391,6 +376,10 @@ struct rga_drvdata_t {
 
 	/* rga_job pending manager, import by RGA_START_CONFIG */
 	struct rga_pending_ctx_manager *pend_ctx_manager;
+
+#ifdef CONFIG_ROCKCHIP_RGA_ASYNC
+	struct rga_fence_context *fence_ctx;
+#endif
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	struct rga_debugger *debugger;

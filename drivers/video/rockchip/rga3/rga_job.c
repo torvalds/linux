@@ -125,8 +125,7 @@ static void rga_job_put_current_mm(struct rga_job *job)
 
 static void rga_job_free(struct rga_job *job)
 {
-	if (job->out_fence)
-		dma_fence_put(job->out_fence);
+	rga_dma_fence_put(job->out_fence);
 
 	if (~job->flags & RGA_JOB_USE_HANDLE)
 		rga_job_put_current_mm(job);
@@ -330,8 +329,7 @@ static int rga_internal_ctx_signal(struct rga_scheduler_t *scheduler, struct rga
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
 	if (finished_job_count >= ctx->cmd_num) {
-		if (ctx->out_fence)
-			dma_fence_signal(ctx->out_fence);
+		rga_dma_fence_signal(ctx->out_fence);
 
 		job->flags |= RGA_JOB_DONE;
 
@@ -450,8 +448,7 @@ next_job:
 		if (job->use_batch_mode) {
 			rga_internal_ctx_signal(rga_scheduler, job);
 		} else {
-			if (job->out_fence)
-				dma_fence_signal(job->out_fence);
+			rga_dma_fence_signal(job->out_fence);
 
 			job->flags |= RGA_JOB_DONE;
 
@@ -491,8 +488,7 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 	if (job->use_batch_mode)
 		rga_internal_ctx_signal(rga_scheduler, job);
 	else {
-		if (job->out_fence)
-			dma_fence_signal(job->out_fence);
+		rga_dma_fence_signal(job->out_fence);
 
 		job->flags |= RGA_JOB_DONE;
 
@@ -550,8 +546,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 		if (job->use_batch_mode)
 			rga_internal_ctx_signal(scheduler, job);
 		else {
-			if (job->out_fence)
-				dma_fence_signal(job->out_fence);
+			rga_dma_fence_signal(job->out_fence);
 
 			rga_job_cleanup(job);
 		}
@@ -676,28 +671,6 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 			ktime_us_delta(now, job->hw_running_time));
 
 	return ret;
-}
-
-static void rga_input_fence_signaled(struct dma_fence *fence,
-					 struct dma_fence_cb *_waiter)
-{
-	struct rga_fence_waiter *waiter = (struct rga_fence_waiter *)_waiter;
-	struct rga_scheduler_t *scheduler = NULL;
-
-	ktime_t now;
-
-	now = ktime_get();
-
-	if (DEBUGGER_EN(TIME))
-		pr_err("rga job wait in_fence signal use time = %lld\n",
-			ktime_us_delta(now, waiter->job->timestamp));
-
-	scheduler = rga_job_schedule(waiter->job);
-
-	if (scheduler == NULL)
-		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-
-	kfree(waiter);
 }
 
 uint32_t rga_internal_ctx_alloc_to_get_idr_id(void)
@@ -928,11 +901,82 @@ int rga_job_cancel_by_user_ctx(uint32_t ctx_id)
 	return ret;
 }
 
+static int rga_job_alloc_release_fence(struct dma_fence **release_fence, spinlock_t *lock)
+{
+	struct dma_fence *fence;
+
+	fence = rga_dma_fence_alloc(lock);
+	if (IS_ERR(fence)) {
+		pr_err("Can not alloc release fence!\n");
+		return IS_ERR(fence);
+	}
+
+	*release_fence = fence;
+
+	return rga_dma_fence_get_fd(fence);
+}
+
+static void rga_job_fence_signaled_callback(struct dma_fence *fence, struct dma_fence_cb *_waiter)
+{
+	struct rga_fence_waiter *waiter = (struct rga_fence_waiter *)_waiter;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job;
+	ktime_t now;
+
+	job = (struct rga_job *)waiter->private;
+
+	now = ktime_get();
+	if (DEBUGGER_EN(TIME))
+		pr_err("rga job wait acquire_fence signal use time = %lld\n",
+			ktime_us_delta(now, job->timestamp));
+
+	scheduler = rga_job_schedule(job);
+	if (scheduler == NULL) {
+		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
+		rga_job_free(job);
+	}
+
+	kfree(waiter);
+}
+
+static int rga_job_add_acquire_fence_callback(int acquire_fence_fd, void *private,
+					      dma_fence_func_t cb_func)
+{
+	int ret;
+	struct dma_fence *acquire_fence = NULL;
+
+	if (DEBUGGER_EN(MSG))
+		pr_info("acquire_fence_fd = %d", acquire_fence_fd);
+
+	acquire_fence = rga_get_dma_fence_from_fd(acquire_fence_fd);
+	if (IS_ERR(acquire_fence)) {
+		pr_err("%s: failed to get acquire dma_fence\n", __func__);
+		return PTR_ERR(acquire_fence);
+	}
+	/* close acquire fence fd */
+	ksys_close(acquire_fence_fd);
+
+	ret = rga_dma_fence_get_status(acquire_fence);
+	if (ret == 0) {
+		ret = rga_dma_fence_add_callback(acquire_fence, cb_func, private);
+		if (ret < 0) {
+			if (ret == -ENOENT)
+				return 1;
+
+			pr_err("%s: failed to add fence callback\n", __func__);
+			return ret;
+		}
+	} else {
+		return ret;
+	}
+
+	return 0;
+}
+
 int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx)
 {
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
-	struct dma_fence *in_fence;
 	int ret = 0;
 
 	job = rga_job_alloc(rga_command_base);
@@ -952,85 +996,63 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *
 	if (ret < 0) {
 		pr_err("%s: failed to get dma buf from fd\n",
 				__func__);
-		rga_job_free(job);
-		return ret;
+		goto free_job;
 	}
 
 	if (ctx->sync_mode == RGA_BLIT_ASYNC) {
+		if (!IS_ENABLED(CONFIG_ROCKCHIP_RGA_ASYNC)) {
+			pr_err("Unsupported ASYNC mode, please enable CONFIG_ROCKCHIP_RGA_ASYNC\n");
+			ret = -EFAULT;
+			goto free_job;
+		}
+
 		job->flags |= RGA_JOB_ASYNC;
 
 		if (ctx->out_fence) {
 			job->out_fence = ctx->out_fence;
+			rga_command_base->out_fence_fd = ctx->out_fence_fd;
 		} else {
-			ret = rga_out_fence_alloc(job);
-			if (ret) {
-				rga_job_free(job);
-				return ret;
+			rga_command_base->out_fence_fd =
+				rga_job_alloc_release_fence(&job->out_fence,
+							    &job->fence_lock);
+			if (rga_command_base->out_fence_fd < 0) {
+				pr_err("Failed to alloc release fence fd!\n");
+				goto free_job;
 			}
 
 			/* on batch mode, only first job need to alloc fence */
 			if (ctx->use_batch_mode)
 				ctx->out_fence = job->out_fence;
+
+			ctx->out_fence_fd = rga_command_base->out_fence_fd;
 		}
 
-		rga_command_base->out_fence_fd = rga_out_fence_get_fd(job);
-		ctx->out_fence_fd = rga_command_base->out_fence_fd;
-
-		if (DEBUGGER_EN(MSG))
-			pr_info("in_fence_fd = %d",
-				rga_command_base->in_fence_fd);
-
-		/* if input fence is valiable */
-		if (rga_command_base->in_fence_fd > 0) {
-			in_fence = rga_get_input_fence(
-				rga_command_base->in_fence_fd);
-			if (!in_fence) {
-				pr_err("%s: failed to get input dma_fence\n",
-					 __func__);
-				rga_job_free(job);
-				return ret;
-			}
-
-			/* close input fence fd */
-			ksys_close(rga_command_base->in_fence_fd);
-
-			ret = dma_fence_get_status(in_fence);
-			/* ret = 1: fence has been signaled */
+		if (job->rga_command_base.in_fence_fd > 0) {
+			ret = rga_job_add_acquire_fence_callback(job->rga_command_base.in_fence_fd,
+								 (void *)job,
+								 rga_job_fence_signaled_callback);
 			if (ret == 1) {
+				/* It means has been already signaled. */
 				scheduler = rga_job_schedule(job);
 				if (scheduler == NULL) {
 					pr_err("failed to get scheduler, %s(%d)\n",
-						 __func__, __LINE__);
+					       __func__, __LINE__);
 					ret = -EINVAL;
 					goto invalid_job;
 				}
-				/* if input fence is valid */
-			} else if (ret == 0) {
-				ret = rga_add_dma_fence_callback(job,
-					in_fence, rga_input_fence_signaled);
-				if (ret < 0) {
-					pr_err("%s: failed to add fence callback\n",
-						 __func__);
-					rga_job_free(job);
-					return ret;
-				}
 			} else {
-				pr_err("%s: fence status error\n", __func__);
-				rga_job_free(job);
-				return ret;
+				pr_err("Failed to wait acquire fence fd[%d]!\n",
+				       job->rga_command_base.in_fence_fd);
+				goto free_job;
 			}
 		} else {
 			scheduler = rga_job_schedule(job);
 			if (scheduler == NULL) {
-				pr_err("failed to get scheduler, %s(%d)\n",
-					 __func__, __LINE__);
+				pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
 				ret = -EINVAL;
 				goto invalid_job;
 			}
 		}
-
-		return ret;
-
 	/* RGA_BLIT_SYNC: wait until job finish */
 	} else if (ctx->sync_mode == RGA_BLIT_SYNC) {
 		scheduler = rga_job_schedule(job);
@@ -1055,6 +1077,10 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *
 
 		rga_job_cleanup(job);
 	}
+	return ret;
+
+free_job:
+	rga_job_free(job);
 	return ret;
 
 invalid_job:

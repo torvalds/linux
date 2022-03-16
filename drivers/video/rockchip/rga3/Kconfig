@@ -7,6 +7,13 @@ menuconfig ROCKCHIP_MULTI_RGA
 
 if ROCKCHIP_MULTI_RGA
 
+config ROCKCHIP_RGA_ASYNC
+	bool "Enable async mode"
+	depends on SYNC_FILE
+	default y
+	help
+	  Asynchronous calls will be supported.
+
 config ROCKCHIP_RGA_PROC_FS
 	bool "Enable RGA procfs"
 	select ROCKCHIP_RGA_DEBUGGER

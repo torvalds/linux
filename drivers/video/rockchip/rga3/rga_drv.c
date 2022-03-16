@@ -475,6 +475,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	struct rga_hw_versions_t hw_versions;
 	struct rga_internal_ctx_t ctx;
 
+	memset(&ctx, 0x0, sizeof(ctx));
+
 	if (!rga) {
 		pr_err("rga_drvdata is null, rga is not init\n");
 		return -ENODEV;
@@ -1194,13 +1196,6 @@ static int __init rga_init(void)
 
 	rga_init_timer();
 
-	rga_drvdata->fence_ctx = rga_fence_context_alloc();
-	if (IS_ERR(rga_drvdata->fence_ctx)) {
-		pr_err("failed to allocate fence context for RGA\n");
-		ret = PTR_ERR(rga_drvdata->fence_ctx);
-		return ret;
-	}
-
 	ret = misc_register(&rga_dev);
 	if (ret) {
 		pr_err("cannot register miscdev (%d)\n", ret);
@@ -1210,6 +1205,10 @@ static int __init rga_init(void)
 	rga_mm_init(&rga_drvdata->mm);
 
 	rga_ctx_manager_init(&rga_drvdata->pend_ctx_manager);
+
+#ifdef CONFIG_ROCKCHIP_RGA_ASYNC
+	rga_fence_context_init(&rga_drvdata->fence_ctx);
+#endif
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_init(&rga_drvdata->debugger);
@@ -1230,13 +1229,15 @@ static void __exit rga_exit(void)
 	rga_debugger_remove(&rga_drvdata->debugger);
 #endif
 
+#ifdef CONFIG_ROCKCHIP_RGA_ASYNC
+	rga_fence_context_remove(&rga_drvdata->fence_ctx);
+#endif
+
 	rga_mm_remove(&rga_drvdata->mm);
 
 	rga_ctx_manager_remove(&rga_drvdata->pend_ctx_manager);
 
 	wake_lock_destroy(&rga_drvdata->wake_lock);
-
-	rga_fence_context_free(rga_drvdata->fence_ctx);
 
 	rga_cancel_timer();
 
