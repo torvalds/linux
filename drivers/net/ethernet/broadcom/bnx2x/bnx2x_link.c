@@ -6178,7 +6178,7 @@ static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 		return -EINVAL;
 	}
 
-	ret = scnprintf(str, *len, "%hx.%hx", num >> 16, num);
+	ret = scnprintf(str, *len, "%x.%x", num >> 16, num);
 	*len -= ret;
 	return 0;
 }
@@ -6193,7 +6193,7 @@ static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
 		return -EINVAL;
 	}
 
-	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
+	ret = scnprintf(str, *len, "%x.%x.%x", num >> 16, num >> 8, num);
 	*len -= ret;
 	return 0;
 }
