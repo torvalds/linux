@@ -44,7 +44,7 @@ TRACE_EVENT(io_uring_create,
 		__entry->flags		= flags;
 	),
 
-	TP_printk("ring %p, fd %d sq size %d, cq size %d, flags %d",
+	TP_printk("ring %p, fd %d sq size %d, cq size %d, flags 0x%x",
 			  __entry->ctx, __entry->fd, __entry->sq_entries,
 			  __entry->cq_entries, __entry->flags)
 );
@@ -125,7 +125,7 @@ TRACE_EVENT(io_uring_file_get,
 		__entry->fd		= fd;
 	),
 
-	TP_printk("ring %p, req %p, user_data %llu, fd %d",
+	TP_printk("ring %p, req %p, user_data 0x%llx, fd %d",
 		__entry->ctx, __entry->req, __entry->user_data, __entry->fd)
 );
 
@@ -169,7 +169,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->rw		= rw;
 	),
 
-	TP_printk("ring %p, request %p, user_data %llu, opcode %d, flags %d, %s queue, work %p",
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, flags 0x%x, %s queue, work %p",
 		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
 		__entry->flags, __entry->rw ? "hashed" : "normal", __entry->work)
 );
@@ -205,7 +205,7 @@ TRACE_EVENT(io_uring_defer,
 		__entry->opcode	= opcode;
 	),
 
-	TP_printk("ring %p, request %p, user_data %llu, opcode %d",
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d",
 		__entry->ctx, __entry->req, __entry->data, __entry->opcode)
 );
 
@@ -305,7 +305,7 @@ TRACE_EVENT(io_uring_fail_link,
 		__entry->link		= link;
 	),
 
-	TP_printk("ring %p, request %p, user_data %llu, opcode %d, link %p",
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, link %p",
 		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
 		__entry->link)
 );
@@ -342,9 +342,9 @@ TRACE_EVENT(io_uring_complete,
 		__entry->cflags		= cflags;
 	),
 
-	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags %x",
+	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags 0x%x",
 		__entry->ctx, __entry->req,
-		(unsigned long long)__entry->user_data,
+		__entry->user_data,
 		__entry->res, __entry->cflags)
 );
 
@@ -389,7 +389,7 @@ TRACE_EVENT(io_uring_submit_sqe,
 		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, req %p, user_data %llu, opcode %d, flags %u, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, flags 0x%x, "
 		  "non block %d, sq_thread %d", __entry->ctx, __entry->req,
 		  __entry->user_data, __entry->opcode,
 		  __entry->flags, __entry->force_nonblock, __entry->sq_thread)
@@ -433,7 +433,7 @@ TRACE_EVENT(io_uring_poll_arm,
 		__entry->events		= events;
 	),
 
-	TP_printk("ring %p, req %p, user_data %llu, opcode %d, mask 0x%x, events 0x%x",
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask 0x%x, events 0x%x",
 		  __entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
 		  __entry->mask, __entry->events)
 );
@@ -470,7 +470,7 @@ TRACE_EVENT(io_uring_task_add,
 		__entry->mask		= mask;
 	),
 
-	TP_printk("ring %p, req %p, user_data %llu, opcode %d, mask %x",
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask %x",
 		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
 		__entry->mask)
 );
@@ -529,8 +529,8 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->error		= error;
 	),
 
-	TP_printk("ring %p, req %p, user_data %llu, "
-		"op %d, flags=0x%x, prio=%d, off=%llu, addr=%llu, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, "
+		"op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
 		  "len=%u, rw_flags=0x%x, buf_index=%d, "
 		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
 		  __entry->ctx, __entry->req, __entry->user_data,
