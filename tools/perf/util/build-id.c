@@ -762,7 +762,7 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 
 		len = readlink(linkname, path, sizeof(path) - 1);
 		if (len <= 0) {
-			pr_err("Cant read link: %s\n", linkname);
+			pr_err("Can't read link: %s\n", linkname);
 			goto out_free;
 		}
 		path[len] = '\0';
