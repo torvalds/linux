@@ -94,6 +94,11 @@ int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
 	struct pci_mem_region *cfg_region = &hdev->pci_mem_region[PCI_REGION_CFG];
 	u32 val_h, val_l;
 
+	if (!IS_ALIGNED(addr, sizeof(u32))) {
+		dev_err(hdev->dev, "address %#llx not a multiple of %zu\n", addr, sizeof(u32));
+		return -EINVAL;
+	}
+
 	switch (acc_type) {
 	case DEBUGFS_READ32:
 		*val = RREG32(addr - cfg_region->region_base);
