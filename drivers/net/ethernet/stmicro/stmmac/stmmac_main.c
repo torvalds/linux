@@ -1668,7 +1668,7 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_count = priv->plat->rx_queues_to_use;
-	u32 queue;
+	int queue;
 	int ret;
 
 	/* RX INITIALIZATION */
@@ -1694,9 +1694,6 @@ err_init_rx_buffers:
 
 		rx_q->buf_alloc_num = 0;
 		rx_q->xsk_pool = NULL;
-
-		if (queue == 0)
-			break;
 
 		queue--;
 	}
