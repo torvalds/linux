@@ -1206,6 +1206,9 @@ static int hdptx_ropll_cmn_config(struct rockchip_hdptx_phy *hdptx, unsigned lon
 	dev_info(hdptx->dev, "%s bus_width:%x rate:%lu\n", __func__, bus_width, bit_rate);
 	hdptx->rate = bit_rate * 100;
 
+	if (color_depth)
+		bit_rate = bit_rate * 10 / 8;
+
 	for (; cfg->bit_rate != ~0; cfg++)
 		if (bit_rate == cfg->bit_rate)
 			break;
