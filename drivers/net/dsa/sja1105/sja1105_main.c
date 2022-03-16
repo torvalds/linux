@@ -2847,7 +2847,7 @@ static int sja1105_mirror_apply(struct sja1105_private *priv, int from, int to,
 
 static int sja1105_mirror_add(struct dsa_switch *ds, int port,
 			      struct dsa_mall_mirror_tc_entry *mirror,
-			      bool ingress)
+			      bool ingress, struct netlink_ext_ack *extack)
 {
 	return sja1105_mirror_apply(ds->priv, port, mirror->to_local_port,
 				    ingress, true);

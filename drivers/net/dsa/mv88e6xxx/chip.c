@@ -6321,7 +6321,8 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_port_mirror_add(struct dsa_switch *ds, int port,
 				     struct dsa_mall_mirror_tc_entry *mirror,
-				     bool ingress)
+				     bool ingress,
+				     struct netlink_ext_ack *extack)
 {
 	enum mv88e6xxx_egress_direction direction = ingress ?
 						MV88E6XXX_EGRESS_DIR_INGRESS :
