@@ -1282,10 +1282,6 @@ struct fw_load_mgr {
  * @update_eq_ci: update event queue CI.
  * @context_switch: called upon ASID context switch.
  * @restore_phase_topology: clear all SOBs amd MONs.
- * @debugfs_read32: debug interface for reading u32 from DRAM/SRAM/Host memory.
- * @debugfs_write32: debug interface for writing u32 to DRAM/SRAM/Host memory.
- * @debugfs_read64: debug interface for reading u64 from DRAM/SRAM/Host memory.
- * @debugfs_write64: debug interface for writing u64 to DRAM/SRAM/Host memory.
  * @debugfs_read_dma: debug interface for reading up to 2MB from the device's
  *                    internal memory via DMA engine.
  * @add_device_attr: add ASIC specific device attributes.
@@ -1409,14 +1405,6 @@ struct hl_asic_funcs {
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
-	int (*debugfs_read32)(struct hl_device *hdev, u64 addr,
-				bool user_address, u32 *val);
-	int (*debugfs_write32)(struct hl_device *hdev, u64 addr,
-				bool user_address, u32 val);
-	int (*debugfs_read64)(struct hl_device *hdev, u64 addr,
-				bool user_address, u64 *val);
-	int (*debugfs_write64)(struct hl_device *hdev, u64 addr,
-				bool user_address, u64 val);
 	int (*debugfs_read_dma)(struct hl_device *hdev, u64 addr, u32 size,
 				void *blob_addr);
 	void (*add_device_attr)(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp,
