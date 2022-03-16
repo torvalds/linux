@@ -729,12 +729,24 @@ static void populate_logical_ids(struct intel_gt *gt, u8 *logical_ids,
 
 static void setup_logical_ids(struct intel_gt *gt, u8 *logical_ids, u8 class)
 {
-	int i;
-	u8 map[MAX_ENGINE_INSTANCE + 1];
+	/*
+	 * Logical to physical mapping is needed for proper support
+	 * to split-frame feature.
+	 */
+	if (MEDIA_VER(gt->i915) >= 11 && class == VIDEO_DECODE_CLASS) {
+		const u8 map[] = { 0, 2, 4, 6, 1, 3, 5, 7 };
 
-	for (i = 0; i < MAX_ENGINE_INSTANCE + 1; ++i)
-		map[i] = i;
-	populate_logical_ids(gt, logical_ids, class, map, ARRAY_SIZE(map));
+		populate_logical_ids(gt, logical_ids, class,
+				     map, ARRAY_SIZE(map));
+	} else {
+		int i;
+		u8 map[MAX_ENGINE_INSTANCE + 1];
+
+		for (i = 0; i < MAX_ENGINE_INSTANCE + 1; ++i)
+			map[i] = i;
+		populate_logical_ids(gt, logical_ids, class,
+				     map, ARRAY_SIZE(map));
+	}
 }
 
 /**
