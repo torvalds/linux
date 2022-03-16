@@ -3832,7 +3832,14 @@ static bool prog_is_subprog(const struct bpf_object *obj,
 	 * .text programs are subprograms (even if they are not called from
 	 * other programs), because libbpf never explicitly supported mixing
 	 * SEC()-designated BPF programs and .text entry-point BPF programs.
+	 *
+	 * In libbpf 1.0 strict mode, we always consider .text
+	 * programs to be subprograms.
 	 */
+
+	if (libbpf_mode & LIBBPF_STRICT_SEC_NAME)
+		return prog->sec_idx == obj->efile.text_shndx;
+
 	return prog->sec_idx == obj->efile.text_shndx && obj->nr_programs > 1;
 }
 
