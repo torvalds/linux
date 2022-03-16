@@ -1005,11 +1005,15 @@ static int isotp_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
+	struct isotp_sock *so = isotp_sk(sk);
 	int err = 0;
 	int noblock;
 
 	noblock = flags & MSG_DONTWAIT;
 	flags &= ~MSG_DONTWAIT;
+
+	if (!so->bound)
+		return -EADDRNOTAVAIL;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
