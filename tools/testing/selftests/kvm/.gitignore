@@ -15,6 +15,7 @@
 /x86_64/debug_regs
 /x86_64/evmcs_test
 /x86_64/emulator_error_test
+/x86_64/fix_hypercall_test
 /x86_64/get_msr_index_features
 /x86_64/kvm_clock_test
 /x86_64/kvm_pv_test
