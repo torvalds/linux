@@ -98,7 +98,7 @@ static int vfio_ap_matrix_dev_create(void)
 			goto matrix_alloc_err;
 	}
 
-	mutex_init(&matrix_dev->lock);
+	mutex_init(&matrix_dev->mdevs_lock);
 	INIT_LIST_HEAD(&matrix_dev->mdev_list);
 
 	dev_set_name(&matrix_dev->device, "%s", VFIO_AP_DEV_NAME);
