@@ -345,6 +345,7 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 		case CONNECTOR_ID_LVDS:
 			return SIGNAL_TYPE_LVDS;
 		case CONNECTOR_ID_DISPLAY_PORT:
+		case CONNECTOR_ID_USBC:
 			return SIGNAL_TYPE_DISPLAY_PORT;
 		case CONNECTOR_ID_EDP:
 			return SIGNAL_TYPE_EDP;
@@ -380,7 +381,8 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 
 	bool present =
 		((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
-		(connector_id == CONNECTOR_ID_EDP));
+		(connector_id == CONNECTOR_ID_EDP) ||
+		(connector_id == CONNECTOR_ID_USBC));
 
 	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
 
@@ -476,7 +478,8 @@ static enum signal_type link_detect_sink(struct dc_link *link,
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 	}
 	break;
-	case CONNECTOR_ID_DISPLAY_PORT: {
+	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_USBC: {
 		/* DP HPD short pulse. Passive DP dongle will not
 		 * have short pulse
 		 */
@@ -1591,6 +1594,7 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_USBC:
 		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 
 		if (link->hpd_gpio)
