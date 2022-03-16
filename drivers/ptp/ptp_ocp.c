@@ -2983,11 +2983,12 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 {
 	struct device *dev = s->private;
 	struct ptp_system_timestamp sts;
-	u16 sma_val[4][2], ctrl, val;
 	struct ts_reg __iomem *ts_reg;
 	struct timespec64 ts;
 	struct ptp_ocp *bp;
+	u16 sma_val[4][2];
 	char *src, *buf;
+	u32 ctrl, val;
 	bool on, map;
 	int i;
 
