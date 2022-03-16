@@ -1174,8 +1174,6 @@ static int __init rga_init(void)
 
 	mutex_init(&rga_drvdata->lock);
 
-	wake_lock_init(&rga_drvdata->wake_lock, WAKE_LOCK_SUSPEND, "rga");
-
 	ret = platform_driver_register(&rga3_core0_driver);
 	if (ret != 0) {
 		pr_err("Platform device rga3_core0_driver register failed (%d).\n", ret);
@@ -1236,8 +1234,6 @@ static void __exit rga_exit(void)
 	rga_mm_remove(&rga_drvdata->mm);
 
 	rga_ctx_manager_remove(&rga_drvdata->pend_ctx_manager);
-
-	wake_lock_destroy(&rga_drvdata->wake_lock);
 
 	rga_cancel_timer();
 

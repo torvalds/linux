@@ -41,7 +41,6 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/wait.h>
-#include <linux/wakelock.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched/mm.h>
 
@@ -370,7 +369,6 @@ struct rga_drvdata_t {
 	int num_of_scheduler;
 
 	struct delayed_work power_off_work;
-	struct wake_lock wake_lock;
 
 	struct rga_mm *mm;
 
