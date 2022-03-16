@@ -170,6 +170,72 @@ cleanup:
 	kprobe_multi__destroy(skel);
 }
 
+static void kprobe_multi_attach_api_subtest(void)
+{
+	struct bpf_link *link1 = NULL, *link2 = NULL;
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct kprobe_multi *skel = NULL;
+	const char *syms[8] = {
+		"bpf_fentry_test1",
+		"bpf_fentry_test2",
+		"bpf_fentry_test3",
+		"bpf_fentry_test4",
+		"bpf_fentry_test5",
+		"bpf_fentry_test6",
+		"bpf_fentry_test7",
+		"bpf_fentry_test8",
+	};
+	__u64 cookies[8];
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "fentry_raw_skel_load"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+	skel->bss->test_cookie = true;
+
+	cookies[0] = 1;
+	cookies[1] = 2;
+	cookies[2] = 3;
+	cookies[3] = 4;
+	cookies[4] = 5;
+	cookies[5] = 6;
+	cookies[6] = 7;
+	cookies[7] = 8;
+
+	opts.syms = syms;
+	opts.cnt = ARRAY_SIZE(syms);
+	opts.cookies = cookies;
+
+	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link1, "bpf_program__attach_kprobe_multi_opts"))
+		goto cleanup;
+
+	cookies[0] = 8;
+	cookies[1] = 7;
+	cookies[2] = 6;
+	cookies[3] = 5;
+	cookies[4] = 4;
+	cookies[5] = 3;
+	cookies[6] = 2;
+	cookies[7] = 1;
+
+	opts.retprobe = true;
+
+	link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link2, "bpf_program__attach_kprobe_multi_opts"))
+		goto cleanup;
+
+	kprobe_multi_test_run(skel);
+
+cleanup:
+	bpf_link__destroy(link2);
+	bpf_link__destroy(link1);
+	kprobe_multi__destroy(skel);
+}
 static void uprobe_subtest(struct test_bpf_cookie *skel)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
@@ -358,6 +424,8 @@ void test_bpf_cookie(void)
 		kprobe_subtest(skel);
 	if (test__start_subtest("multi_kprobe_link_api"))
 		kprobe_multi_link_api_subtest();
+	if (test__start_subtest("multi_kprobe_attach_api"))
+		kprobe_multi_attach_api_subtest();
 	if (test__start_subtest("uprobe"))
 		uprobe_subtest(skel);
 	if (test__start_subtest("tracepoint"))
