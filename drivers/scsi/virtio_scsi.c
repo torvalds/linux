@@ -988,7 +988,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.remove = virtscsi_remove,
 };
 
-static int __init init(void)
+static int __init virtio_scsi_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -1020,14 +1020,14 @@ error:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit virtio_scsi_fini(void)
 {
 	unregister_virtio_driver(&virtio_scsi_driver);
 	mempool_destroy(virtscsi_cmd_pool);
 	kmem_cache_destroy(virtscsi_cmd_cache);
 }
-module_init(init);
-module_exit(fini);
+module_init(virtio_scsi_init);
+module_exit(virtio_scsi_fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio SCSI HBA driver");
