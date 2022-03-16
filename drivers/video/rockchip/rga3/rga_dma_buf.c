@@ -12,6 +12,11 @@
 #include "rga_common.h"
 #include "rga_job.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && \
+    LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <linux/dma-noncoherent.h>
+#endif
+
 /**
  * rga_dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
  *                    page flags.
@@ -358,7 +363,7 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct rga_iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	dma_addr_t limit;
 #endif
 
@@ -383,7 +388,7 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
 #else
 	limit = min_t(dma_addr_t, dma_limit >> shift, iovad->end_pfn);
@@ -416,7 +421,7 @@ static inline size_t rga_iommu_map_sg(struct iommu_domain *domain,
 
 static inline bool rga_dev_is_dma_coherent(struct device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	return dev_is_dma_coherent(dev);
 #else
 	return dev->archdata.dma_coherent;

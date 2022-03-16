@@ -13,7 +13,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/dma-buf-cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/fb.h>
@@ -49,6 +48,12 @@
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/dma-iommu.h>
+
+#ifdef CONFIG_DMABUF_CACHE
+#include <linux/dma-buf-cache.h>
+#else
+#include <linux/dma-buf.h>
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 #include <linux/dma-map-ops.h>
