@@ -1022,6 +1022,10 @@ static void hdptx_phy_disable(struct rockchip_hdptx_phy *hdptx)
 {
 	u32 val;
 
+	reset_control_assert(hdptx->phy_reset);
+	udelay(20);
+	reset_control_deassert(hdptx->phy_reset);
+
 	hdptx_write(hdptx, LANE_REG0300, 0x82);
 	hdptx_write(hdptx, SB_REG010F, 0xc1);
 	hdptx_write(hdptx, SB_REG0110, 0x1);
