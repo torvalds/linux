@@ -119,6 +119,7 @@ int br_vlan_get_info(const struct net_device *dev, u16 vid,
 		     struct bridge_vlan_info *p_vinfo);
 int br_vlan_get_info_rcu(const struct net_device *dev, u16 vid,
 			 struct bridge_vlan_info *p_vinfo);
+bool br_mst_enabled(const struct net_device *dev);
 int br_mst_get_info(const struct net_device *dev, u16 msti, unsigned long *vids);
 #else
 static inline bool br_vlan_enabled(const struct net_device *dev)
@@ -151,6 +152,11 @@ static inline int br_vlan_get_info_rcu(const struct net_device *dev, u16 vid,
 				       struct bridge_vlan_info *p_vinfo)
 {
 	return -EINVAL;
+}
+
+static inline bool br_mst_enabled(const struct net_device *dev)
+{
+	return false;
 }
 
 static inline int br_mst_get_info(const struct net_device *dev, u16 msti,
