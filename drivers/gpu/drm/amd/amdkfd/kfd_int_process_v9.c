@@ -91,7 +91,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
 
 static void event_interrupt_poison_consumption(struct kfd_dev *dev,
-				uint16_t pasid, uint16_t source_id)
+				uint16_t pasid, uint16_t client_id)
 {
 	int old_poison, ret = -EINVAL;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
@@ -105,13 +105,22 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 	if (old_poison)
 		return;
 
-	pr_warn("RAS poison consumption handling\n");
+	pr_warn("RAS poison consumption handling: client id %d\n", client_id);
 
-	switch (source_id) {
-	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
+	switch (client_id) {
+	case SOC15_IH_CLIENTID_SE0SH:
+	case SOC15_IH_CLIENTID_SE1SH:
+	case SOC15_IH_CLIENTID_SE2SH:
+	case SOC15_IH_CLIENTID_SE3SH:
+	case SOC15_IH_CLIENTID_UTCL2:
 		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
 		break;
-	case SOC15_INTSRC_SDMA_ECC:
+	case SOC15_IH_CLIENTID_SDMA0:
+	case SOC15_IH_CLIENTID_SDMA1:
+	case SOC15_IH_CLIENTID_SDMA2:
+	case SOC15_IH_CLIENTID_SDMA3:
+	case SOC15_IH_CLIENTID_SDMA4:
+		break;
 	default:
 		break;
 	}
@@ -269,7 +278,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption(dev, pasid, source_id);
+					event_interrupt_poison_consumption(dev, pasid, client_id);
 					return;
 				}
 				break;
@@ -290,7 +299,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption(dev, pasid, source_id);
+			event_interrupt_poison_consumption(dev, pasid, client_id);
 			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
