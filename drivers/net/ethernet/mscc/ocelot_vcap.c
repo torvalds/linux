@@ -955,12 +955,11 @@ int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
 }
 EXPORT_SYMBOL(ocelot_vcap_policer_del);
 
-static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
-					   struct ocelot_vcap_block *block,
-					   struct ocelot_vcap_filter *filter)
+static int
+ocelot_vcap_filter_add_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter,
+				     struct netlink_ext_ack *extack)
 {
-	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *n;
 	int ret;
 
 	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
@@ -969,6 +968,30 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static void
+ocelot_vcap_filter_del_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter)
+{
+	if (filter->block_id == VCAP_IS2 && filter->action.police_ena)
+		ocelot_vcap_policer_del(ocelot, filter->action.pol_ix);
+}
+
+static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
+					   struct ocelot_vcap_block *block,
+					   struct ocelot_vcap_filter *filter,
+					   struct netlink_ext_ack *extack)
+{
+	struct ocelot_vcap_filter *tmp;
+	struct list_head *pos, *n;
+	int ret;
+
+	ret = ocelot_vcap_filter_add_aux_resources(ocelot, filter, extack);
+	if (ret)
+		return ret;
 
 	block->count++;
 
@@ -1168,7 +1191,7 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 	}
 
 	/* Add filter to the linked list */
-	ret = ocelot_vcap_filter_add_to_block(ocelot, block, filter);
+	ret = ocelot_vcap_filter_add_to_block(ocelot, block, filter, extack);
 	if (ret)
 		return ret;
 
@@ -1199,11 +1222,7 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 
 	list_for_each_entry_safe(tmp, n, &block->rules, list) {
 		if (ocelot_vcap_filter_equal(filter, tmp)) {
-			if (tmp->block_id == VCAP_IS2 &&
-			    tmp->action.police_ena)
-				ocelot_vcap_policer_del(ocelot,
-							tmp->action.pol_ix);
-
+			ocelot_vcap_filter_del_aux_resources(ocelot, tmp);
 			list_del(&tmp->list);
 			kfree(tmp);
 		}
