@@ -934,6 +934,11 @@
 			clocks = <&bpmp TEGRA194_CLK_SDMMC1>,
 				 <&bpmp TEGRA194_CLK_SDMMC_LEGACY_TM>;
 			clock-names = "sdhci", "tmclk";
+			assigned-clocks = <&bpmp TEGRA194_CLK_SDMMC1>,
+					  <&bpmp TEGRA194_CLK_PLLC4_MUXED>;
+			assigned-clock-parents =
+					  <&bpmp TEGRA194_CLK_PLLC4_MUXED>,
+					  <&bpmp TEGRA194_CLK_PLLC4_VCO_DIV2>;
 			resets = <&bpmp TEGRA194_RESET_SDMMC1>;
 			reset-names = "sdhci";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_SDMMCRA &emc>,
@@ -968,6 +973,11 @@
 			clocks = <&bpmp TEGRA194_CLK_SDMMC3>,
 				 <&bpmp TEGRA194_CLK_SDMMC_LEGACY_TM>;
 			clock-names = "sdhci", "tmclk";
+			assigned-clocks = <&bpmp TEGRA194_CLK_SDMMC3>,
+					  <&bpmp TEGRA194_CLK_PLLC4_MUXED>;
+			assigned-clock-parents =
+					  <&bpmp TEGRA194_CLK_PLLC4_MUXED>,
+					  <&bpmp TEGRA194_CLK_PLLC4_VCO_DIV2>;
 			resets = <&bpmp TEGRA194_RESET_SDMMC3>;
 			reset-names = "sdhci";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_SDMMCR &emc>,
