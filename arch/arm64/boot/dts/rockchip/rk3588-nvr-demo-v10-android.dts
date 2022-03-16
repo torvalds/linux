@@ -66,6 +66,28 @@
 	status = "disabled";
 };
 
+&route_dp0 {
+	status = "okay";
+	connect = <&vp2_out_dp0>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
+&route_dp1 {
+	status = "disabled";
+};
+
+&route_hdmi0 {
+	status = "okay";
+	connect = <&vp0_out_hdmi0>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
+&route_hdmi1 {
+	status = "disabled";
+};
+
 &sata0 {
 	status = "disabled";
 };
