@@ -634,7 +634,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		clear_bit(ICE_PREPARED_FOR_RESET, pf->state);
 		clear_bit(ICE_PFR_REQ, pf->state);
 		wake_up(&pf->reset_wait_queue);
-		ice_reset_all_vfs(pf, true);
+		ice_reset_all_vfs(pf);
 	}
 }
 
@@ -685,7 +685,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			clear_bit(ICE_CORER_REQ, pf->state);
 			clear_bit(ICE_GLOBR_REQ, pf->state);
 			wake_up(&pf->reset_wait_queue);
-			ice_reset_all_vfs(pf, true);
+			ice_reset_all_vfs(pf);
 		}
 
 		return;
@@ -1823,9 +1823,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 				 * reset, so print the event prior to reset.
 				 */
 				ice_print_vf_rx_mdd_event(vf);
-				mutex_lock(&vf->cfg_lock);
-				ice_reset_vf(vf, false);
-				mutex_unlock(&vf->cfg_lock);
+				ice_reset_vf(vf, ICE_VF_RESET_LOCK);
 			}
 		}
 	}
