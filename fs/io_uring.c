@@ -908,6 +908,7 @@ struct io_kiocb {
 	/* used by request caches, completion batching and iopoll */
 	struct io_wq_work_node		comp_list;
 	atomic_t			refs;
+	atomic_t			poll_refs;
 	struct io_kiocb			*link;
 	struct io_task_work		io_task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
@@ -916,12 +917,11 @@ struct io_kiocb {
 	struct async_poll		*apoll;
 	/* opcode allocated if it needs to store data for async defer */
 	void				*async_data;
-	struct io_wq_work		work;
 	/* custom credentials, valid IFF REQ_F_CREDS is set */
-	const struct cred		*creds;
 	/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */
 	struct io_buffer		*kbuf;
-	atomic_t			poll_refs;
+	const struct cred		*creds;
+	struct io_wq_work		work;
 };
 
 struct io_tctx_node {
