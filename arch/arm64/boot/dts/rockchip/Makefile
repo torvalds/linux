@@ -20,6 +20,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-avb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v11-avb.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v12-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-odroid-go2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-863-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-863-lp3-v10-avb.dtb
