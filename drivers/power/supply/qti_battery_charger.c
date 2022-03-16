@@ -122,6 +122,10 @@ enum wireless_property_id {
 	WLS_CURR_MAX,
 	WLS_TYPE,
 	WLS_BOOST_EN,
+	WLS_HBOOST_VMAX,
+	WLS_INPUT_CURR_LIMIT,
+	WLS_ADAP_TYPE,
+	WLS_CONN_TEMP,
 	WLS_PROP_MAX,
 };
 
@@ -298,6 +302,8 @@ static const int wls_prop_map[WLS_PROP_MAX] = {
 	[WLS_VOLT_MAX]		= POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	[WLS_CURR_NOW]		= POWER_SUPPLY_PROP_CURRENT_NOW,
 	[WLS_CURR_MAX]		= POWER_SUPPLY_PROP_CURRENT_MAX,
+	[WLS_INPUT_CURR_LIMIT]	= POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	[WLS_CONN_TEMP]		= POWER_SUPPLY_PROP_TEMP,
 };
 
 /* Standard usb_type definitions similar to power_supply_sysfs.c */
@@ -309,6 +315,11 @@ static const char * const power_supply_usb_type_text[] = {
 /* Custom usb_type definitions */
 static const char * const qc_power_supply_usb_type_text[] = {
 	"HVDCP", "HVDCP_3", "HVDCP_3P5"
+};
+
+/* wireless_type definitions */
+static const char * const qc_power_supply_wls_type_text[] = {
+	"Unknown", "BPP", "EPP", "HPP"
 };
 
 static RAW_NOTIFIER_HEAD(hboost_notifier);
@@ -901,6 +912,8 @@ static enum power_supply_property wls_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static const struct power_supply_desc wls_psy_desc = {
@@ -912,6 +925,14 @@ static const struct power_supply_desc wls_psy_desc = {
 	.set_property		= wls_psy_set_prop,
 	.property_is_writeable	= wls_psy_prop_is_writeable,
 };
+
+static const char *get_wls_type_name(u32 wls_type)
+{
+	if (wls_type >= ARRAY_SIZE(qc_power_supply_wls_type_text))
+		return "Unknown";
+
+	return qc_power_supply_wls_type_text[wls_type];
+}
 
 static const char *get_usb_type_name(u32 usb_type)
 {
@@ -1583,6 +1604,23 @@ static ssize_t wireless_fw_update_store(struct class *c,
 }
 static CLASS_ATTR_WO(wireless_fw_update);
 
+static ssize_t wireless_type_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_WLS];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, WLS_ADAP_TYPE);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
+			get_wls_type_name(pst->prop[WLS_ADAP_TYPE]));
+}
+static CLASS_ATTR_RO(wireless_type);
+
 static ssize_t usb_typec_compliant_show(struct class *c,
 				struct class_attribute *attr, char *buf)
 {
@@ -1867,6 +1905,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_version.attr,
 	&class_attr_wireless_fw_crc.attr,
 	&class_attr_wireless_fw_update_time_ms.attr,
+	&class_attr_wireless_type.attr,
 	&class_attr_ship_mode_en.attr,
 	&class_attr_restrict_chg.attr,
 	&class_attr_restrict_cur.attr,
