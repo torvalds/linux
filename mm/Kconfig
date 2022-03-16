@@ -513,6 +513,13 @@ config CMA_DEBUGFS
 	help
 	  Turns on the DebugFS interface for CMA.
 
+config CMA_DEBUGFS_BITMAP_HEX
+	bool "CMA debugfs add bitmap_hex node"
+	depends on CMA_DEBUGFS
+	help
+	  Turns on the bitmap_hex node under DEBUGFS, shows the bitmap in hex
+	  format.
+
 config CMA_SYSFS
 	bool "CMA information through sysfs interface"
 	depends on CMA && SYSFS
