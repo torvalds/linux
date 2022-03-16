@@ -103,7 +103,10 @@ static int gc_thread_func(void *data)
 				sbi->gc_urgent_high_remaining--;
 			}
 			spin_unlock(&sbi->gc_urgent_high_lock);
+		}
 
+		if (sbi->gc_mode == GC_URGENT_HIGH ||
+				sbi->gc_mode == GC_URGENT_MID) {
 			wait_ms = gc_th->urgent_sleep_time;
 			f2fs_down_write(&sbi->gc_lock);
 			goto do_gc;
