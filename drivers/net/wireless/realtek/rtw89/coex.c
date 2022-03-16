@@ -4623,12 +4623,12 @@ static void _show_cx_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	ver_hotfix = FIELD_GET(GENMASK(15, 8), chip->wlcx_desired);
 	seq_printf(m, "(%s, desired:%d.%d.%d), ",
 		   (wl->ver_info.fw_coex >= chip->wlcx_desired ?
-		   "Match" : "Mis-Match"), ver_main, ver_sub, ver_hotfix);
+		   "Match" : "Mismatch"), ver_main, ver_sub, ver_hotfix);
 
 	seq_printf(m, "BT_FW_coex:%d(%s, desired:%d)\n",
 		   bt->ver_info.fw_coex,
 		   (bt->ver_info.fw_coex >= chip->btcx_desired ?
-		   "Match" : "Mis-Match"), chip->btcx_desired);
+		   "Match" : "Mismatch"), chip->btcx_desired);
 
 	if (bt->enable.now && bt->ver_info.fw == 0)
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_VER_INFO, true);
@@ -5075,7 +5075,7 @@ static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	seq_printf(m, "leak_ap:%d, fw_offload:%s%s\n", dm->leak_ap,
 		   (BTC_CX_FW_OFFLOAD ? "Y" : "N"),
 		   (dm->wl_fw_cx_offload == BTC_CX_FW_OFFLOAD ?
-		    "" : "(Mis-Match!!)"));
+		    "" : "(Mismatch!!)"));
 
 	if (dm->rf_trx_para.wl_tx_power == 0xff)
 		seq_printf(m,
