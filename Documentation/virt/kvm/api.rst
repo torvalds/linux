@@ -7134,6 +7134,15 @@ The valid bits in cap.args[0] are:
                                     Additionally, when this quirk is disabled,
                                     KVM clears CPUID.01H:ECX[bit 3] if
                                     IA32_MISC_ENABLE[bit 18] is cleared.
+
+ KVM_X86_QUIRK_FIX_HYPERCALL_INSN   By default, KVM rewrites guest
+                                    VMMCALL/VMCALL instructions to match the
+                                    vendor's hypercall instruction for the
+                                    system. When this quirk is disabled, KVM
+                                    will no longer rewrite invalid guest
+                                    hypercall instructions. Executing the
+                                    incorrect hypercall instruction will
+                                    generate a #UD within the guest.
 =================================== ============================================
 
 8. Other capabilities.

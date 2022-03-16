@@ -9267,6 +9267,17 @@ static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
 	char instruction[3];
 	unsigned long rip = kvm_rip_read(vcpu);
 
+	/*
+	 * If the quirk is disabled, synthesize a #UD and let the guest pick up
+	 * the pieces.
+	 */
+	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_FIX_HYPERCALL_INSN)) {
+		ctxt->exception.error_code_valid = false;
+		ctxt->exception.vector = UD_VECTOR;
+		ctxt->have_exception = true;
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+
 	static_call(kvm_x86_patch_hypercall)(vcpu, instruction);
 
 	return emulator_write_emulated(ctxt, rip, instruction, 3,
