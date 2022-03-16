@@ -936,6 +936,13 @@ static int btmtksdio_mtk_reg_write(struct hci_dev *hdev, u32 reg, u32 val, u32 m
 	return err;
 }
 
+static int btmtksdio_get_data_path_id(struct hci_dev *hdev, __u8 *data_path_id)
+{
+	/* uses 1 as data path id for all the usecases */
+	*data_path_id = 1;
+	return 0;
+}
+
 static int btmtksdio_sco_setting(struct hci_dev *hdev)
 {
 	const struct btmtk_sco sco_setting = {
@@ -968,7 +975,13 @@ static int btmtksdio_sco_setting(struct hci_dev *hdev)
 		return err;
 
 	val |= 0x00000101;
-	return btmtksdio_mtk_reg_write(hdev, MT7921_PINMUX_1, val, ~0);
+	err =  btmtksdio_mtk_reg_write(hdev, MT7921_PINMUX_1, val, ~0);
+	if (err < 0)
+		return err;
+
+	hdev->get_data_path_id = btmtksdio_get_data_path_id;
+
+	return err;
 }
 
 static int btmtksdio_reset_setting(struct hci_dev *hdev)
