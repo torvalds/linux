@@ -16,6 +16,8 @@
 #include <linux/udp.h>
 #include <sys/socket.h>
 
+#include "../kselftest.h"
+
 enum {
 	ERN_SUCCESS = 0,
 	/* Well defined errors, callers may depend on these */
@@ -318,7 +320,7 @@ static const char *cs_ts_info2str(unsigned int info)
 		[SCM_TSTAMP_ACK]	= "ACK",
 	};
 
-	if (info < sizeof(names) / sizeof(names[0]))
+	if (info < ARRAY_SIZE(names))
 		return names[info];
 	return "unknown";
 }
