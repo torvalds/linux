@@ -6,8 +6,10 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/fs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -23,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/rockchip/rockchip_sip.h>
+#include <linux/seq_file.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
@@ -107,6 +110,19 @@ enum ddr_store_fmt {
 	STORE_YUV422_16BIT = 9,
 };
 
+enum hdmirx_reg_attr {
+	HDMIRX_ATTR_RW = 0,
+	HDMIRX_ATTR_RO = 1,
+	HDMIRX_ATTR_WO = 2,
+	HDMIRX_ATTR_RE = 3,
+};
+
+struct hdmirx_reg_table {
+	int reg_base;
+	int reg_end;
+	enum hdmirx_reg_attr attr;
+};
+
 struct hdmirx_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
@@ -188,6 +204,7 @@ struct rk_hdmirx_dev {
 	struct hdmirx_cec *cec;
 	struct cec_notifier *cec_notifier;
 	spinlock_t dma_rst_lock;
+	struct dentry *debugfs_dir;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
@@ -913,6 +930,40 @@ static int wait_reg_bit_status(struct rk_hdmirx_dev *hdmirx_dev,
 
 	if (i == ms)
 		return -1;
+
+	return 0;
+}
+
+static int hdmirx_phy_register_read(struct rk_hdmirx_dev *hdmirx_dev,
+		u32 phy_reg, u32 *val)
+{
+	u32 i;
+	struct device *dev = hdmirx_dev->dev;
+
+	hdmirx_dev->cr_read_done = false;
+	/* clear irq status */
+	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	/* en irq */
+	hdmirx_update_bits(hdmirx_dev, MAINUNIT_2_INT_MASK_N,
+			PHYCREG_CR_READ_DONE, PHYCREG_CR_READ_DONE);
+	/* write phy reg addr */
+	hdmirx_writel(hdmirx_dev, PHYCREG_CONFIG1, phy_reg);
+	/* config read enable */
+	hdmirx_writel(hdmirx_dev, PHYCREG_CONTROL, PHYCREG_CR_PARA_READ_P);
+
+	for (i = 0; i < 50; i++) {
+		usleep_range(200, 210);
+		if (hdmirx_dev->cr_read_done)
+			break;
+	}
+
+	if (i == 50) {
+		dev_err(dev, "%s wait cr read done failed!\n", __func__);
+		return -1;
+	}
+
+	/* read phy reg val */
+	*val = hdmirx_readl(hdmirx_dev, PHYCREG_STATUS);
 
 	return 0;
 }
@@ -2823,6 +2874,358 @@ static struct attribute *hdmirx_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hdmirx);
 
+static const struct hdmirx_reg_table hdmirx_ctrl_table[] = {
+	{0x00, 0x0c, HDMIRX_ATTR_RO},
+	{0x10, 0x10, HDMIRX_ATTR_RE},
+	{0x14, 0x1c, HDMIRX_ATTR_RO},
+	{0x20, 0x20, HDMIRX_ATTR_WO},
+	{0x24, 0x28, HDMIRX_ATTR_RW},
+	{0x40, 0x40, HDMIRX_ATTR_WO},
+	{0x44, 0x48, HDMIRX_ATTR_RW},
+	{0x50, 0x50, HDMIRX_ATTR_RW},
+	{0x60, 0x60, HDMIRX_ATTR_RW},
+	{0x64, 0x6c, HDMIRX_ATTR_RE},
+	{0x70, 0x70, HDMIRX_ATTR_RE},
+	{0x74, 0x74, HDMIRX_ATTR_RW},
+	{0x78, 0x78, HDMIRX_ATTR_RE},
+	{0x7c, 0x7c, HDMIRX_ATTR_RO},
+	{0x80, 0x84, HDMIRX_ATTR_RO},
+	{0xc0, 0xc0, HDMIRX_ATTR_RO},
+	{0xc4, 0xc4, HDMIRX_ATTR_RE},
+	{0xc8, 0xd8, HDMIRX_ATTR_RW},
+	{0xe0, 0xe8, HDMIRX_ATTR_RW},
+	{0xec, 0xf0, HDMIRX_ATTR_WO},
+	{0xf4, 0xf8, HDMIRX_ATTR_RW},
+	{0x150, 0x150, HDMIRX_ATTR_RO},
+	{0x160, 0x164, HDMIRX_ATTR_RW},
+	{0x210, 0x218, HDMIRX_ATTR_RW},
+	{0x220, 0x228, HDMIRX_ATTR_RE},
+	{0x22c, 0x22c, HDMIRX_ATTR_RW},
+	{0x230, 0x230, HDMIRX_ATTR_WO},
+	{0x234, 0x234, HDMIRX_ATTR_RO},
+	{0x270, 0x274, HDMIRX_ATTR_RO},
+	{0x278, 0x278, HDMIRX_ATTR_WO},
+	{0x27c, 0x27c, HDMIRX_ATTR_RO},
+	{0x290, 0x294, HDMIRX_ATTR_RW},
+	{0x2a0, 0x2a8, HDMIRX_ATTR_WO},
+	{0x2ac, 0x2ac, HDMIRX_ATTR_RO},
+	{0x2b0, 0x2b4, HDMIRX_ATTR_RE},
+	{0x2b8, 0x2d8, HDMIRX_ATTR_RW},
+	{0x2e0, 0x2e4, HDMIRX_ATTR_RW},
+	{0x2f0, 0x304, HDMIRX_ATTR_RW},
+	/* {0x3f0, 0x410, HDMIRX_ATTR_WO}, */
+	{0x420, 0x434, HDMIRX_ATTR_RW},
+	{0x460, 0x460, HDMIRX_ATTR_RW},
+	/* {0x464, 0x478, HDMIRX_ATTR_WO}, */
+	{0x480, 0x494, HDMIRX_ATTR_RW},
+	{0x580, 0x580, HDMIRX_ATTR_RW},
+	{0x584, 0x584, HDMIRX_ATTR_WO},
+	{0x588, 0x59c, HDMIRX_ATTR_RO},
+	{0x5a0, 0x5a4, HDMIRX_ATTR_RE},
+	{0x5a8, 0x5e0, HDMIRX_ATTR_RW},
+	{0x700, 0x728, HDMIRX_ATTR_RW},
+	{0x740, 0x74c, HDMIRX_ATTR_RW},
+	{0x760, 0x768, HDMIRX_ATTR_RW},
+	{0x7c0, 0x7c0, HDMIRX_ATTR_RE},
+	{0x7c4, 0x7d4, HDMIRX_ATTR_RW},
+	{0x1580, 0x1598, HDMIRX_ATTR_RO},
+	{0x2000, 0x2000, HDMIRX_ATTR_WO},
+	{0x2004, 0x200c, HDMIRX_ATTR_RW},
+	{0x2020, 0x2030, HDMIRX_ATTR_RW},
+	{0x2040, 0x2050, HDMIRX_ATTR_RO},
+	{0x2060, 0x2068, HDMIRX_ATTR_RW},
+	{0x4400, 0x442c, HDMIRX_ATTR_RW},
+	{0x4430, 0x446c, HDMIRX_ATTR_RO},
+	{0x5000, 0x5000, HDMIRX_ATTR_RO},
+	{0x5010, 0x5014, HDMIRX_ATTR_RW},
+	{0x5020, 0x5024, HDMIRX_ATTR_RW},
+	{0x5030, 0x5034, HDMIRX_ATTR_RW},
+	{0x5040, 0x5044, HDMIRX_ATTR_RW},
+	{0x5050, 0x5054, HDMIRX_ATTR_RW},
+	{0x5080, 0x5084, HDMIRX_ATTR_RW},
+	{0x5090, 0x5094, HDMIRX_ATTR_RW},
+	{0x50a0, 0x50a4, HDMIRX_ATTR_RW},
+	{0x50c0, 0x50c4, HDMIRX_ATTR_RW},
+	{0x50d0, 0x50d4, HDMIRX_ATTR_RW},
+	{0x50e0, 0x50e4, HDMIRX_ATTR_RW},
+	{0x5100, 0x5104, HDMIRX_ATTR_RW},
+};
+
+static int hdmirx_ctrl_show(struct seq_file *s, void *v)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = s->private;
+	u32 i = 0, j = 0, val = 0;
+
+	seq_puts(s, "\n--------------------hdmirx ctrl--------------------");
+	for (i = 0; i < ARRAY_SIZE(hdmirx_ctrl_table); i++) {
+		for (j = hdmirx_ctrl_table[i].reg_base;
+			j <= hdmirx_ctrl_table[i].reg_end; j += 4) {
+			if (j % 16 == 0)
+				seq_printf(s, "\n%08x:", j);
+			if (hdmirx_ctrl_table[i].attr == HDMIRX_ATTR_WO)
+				seq_puts(s, " WO......");
+			else if (hdmirx_ctrl_table[i].attr == HDMIRX_ATTR_RE)
+				seq_puts(s, " Reserved");
+			else {
+				val = hdmirx_readl(hdmirx_dev, j);
+				seq_printf(s, " %08x", val);
+			}
+		}
+	}
+	seq_puts(s, "\n---------------------------------------------------\n");
+
+	return 0;
+}
+
+static int hdmirx_ctrl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdmirx_ctrl_show, inode->i_private);
+}
+
+static ssize_t
+hdmirx_ctrl_write(struct file *file, const char __user *buf,
+		  size_t count, loff_t *ppos)
+{
+	struct rk_hdmirx_dev *hdmirx_dev =
+		((struct seq_file *)file->private_data)->private;
+	u32 reg, val;
+	char kbuf[25];
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
+		return -EFAULT;
+	if (reg > CEC_INT_CLEAR) {
+		dev_err(hdmirx_dev->dev, "it is no a hdmirx register\n");
+		return count;
+	}
+	dev_info(hdmirx_dev->dev, "/**********hdmi register config******/");
+	dev_info(hdmirx_dev->dev, "\n reg=%x val=%x\n", reg, val);
+	hdmirx_writel(hdmirx_dev, reg, val);
+	return count;
+}
+
+static const struct file_operations hdmirx_ctrl_fops = {
+	.owner = THIS_MODULE,
+	.open = hdmirx_ctrl_open,
+	.read = seq_read,
+	.write = hdmirx_ctrl_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int hdmirx_phy_show(struct seq_file *s, void *v)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = s->private;
+	u32 i = 0, val = 0;
+
+	seq_puts(s, "\n--------------------hdmirx phy---------------------\n");
+	hdmirx_phy_register_read(hdmirx_dev, SUP_DIG_ANA_CREGS_SUP_ANA_NC, &val);
+	seq_printf(s, "%08x: %08x\n", SUP_DIG_ANA_CREGS_SUP_ANA_NC, val);
+
+	for (i = LANE0_DIG_ASIC_RX_OVRD_OUT_0;
+	     i <= LANE3_DIG_ASIC_RX_OVRD_OUT_0; i += 0x100) {
+		hdmirx_phy_register_read(hdmirx_dev, i, &val);
+		seq_printf(s, "%08x: %08x\n", i, val);
+	}
+	for (i = LANE0_DIG_RX_VCOCAL_RX_VCO_CAL_CTRL_2;
+	     i <= LANE3_DIG_RX_VCOCAL_RX_VCO_CAL_CTRL_2; i += 0x100) {
+		hdmirx_phy_register_read(hdmirx_dev, i, &val);
+		seq_printf(s, "%08x: %08x\n", i, val);
+	}
+
+	hdmirx_phy_register_read(hdmirx_dev,
+		HDMIPCS_DIG_CTRL_PATH_MAIN_FSM_FSM_CONFIG, &val);
+	seq_printf(s, "%08x: %08x\n",
+		   HDMIPCS_DIG_CTRL_PATH_MAIN_FSM_FSM_CONFIG, val);
+	hdmirx_phy_register_read(hdmirx_dev,
+		HDMIPCS_DIG_CTRL_PATH_MAIN_FSM_ADAPT_REF_FOM, &val);
+	seq_printf(s, "%08x: %08x\n",
+		   HDMIPCS_DIG_CTRL_PATH_MAIN_FSM_ADAPT_REF_FOM, val);
+
+	for (i = RAWLANE0_DIG_PCS_XF_RX_OVRD_OUT;
+	     i <= RAWLANE3_DIG_PCS_XF_RX_OVRD_OUT; i += 0x100) {
+		hdmirx_phy_register_read(hdmirx_dev, i, &val);
+		seq_printf(s, "%08x: %08x\n", i, val);
+	}
+	for (i = RAWLANE0_DIG_AON_FAST_FLAGS;
+	     i <= RAWLANE3_DIG_AON_FAST_FLAGS; i += 0x100) {
+		hdmirx_phy_register_read(hdmirx_dev, i, &val);
+		seq_printf(s, "%08x: %08x\n", i, val);
+	}
+	seq_puts(s, "---------------------------------------------------\n");
+
+	return 0;
+}
+
+static int hdmirx_phy_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdmirx_phy_show, inode->i_private);
+}
+
+static ssize_t
+hdmirx_phy_write(struct file *file, const char __user *buf,
+		 size_t count, loff_t *ppos)
+{
+	struct rk_hdmirx_dev *hdmirx_dev =
+		((struct seq_file *)file->private_data)->private;
+	u32 reg, val;
+	char kbuf[25];
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
+		return -EFAULT;
+	if (reg > RAWLANE3_DIG_AON_FAST_FLAGS) {
+		dev_err(hdmirx_dev->dev, "it is no a hdmirx register\n");
+		return count;
+	}
+	dev_info(hdmirx_dev->dev, "/**********hdmi register config******/");
+	dev_info(hdmirx_dev->dev, "\n reg=%x val=%x\n", reg, val);
+	hdmirx_phy_register_write(hdmirx_dev, reg, val);
+	return count;
+}
+
+static const struct file_operations hdmirx_phy_fops = {
+	.owner = THIS_MODULE,
+	.open = hdmirx_phy_open,
+	.read = seq_read,
+	.write = hdmirx_phy_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int hdmirx_status_show(struct seq_file *s, void *v)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = s->private;
+	struct v4l2_dv_timings timings = hdmirx_dev->timings;
+	struct v4l2_bt_timings *bt = &timings.bt;
+	bool plugin;
+	u32 htot, vtot, fps;
+	u32 val;
+
+	plugin = tx_5v_power_present(hdmirx_dev);
+	seq_printf(s, "status: %s\n",  plugin ? "plugin" : "plugout");
+	if (!plugin)
+		return 0;
+
+	val = hdmirx_readl(hdmirx_dev, SCDC_REGBANK_STATUS3);
+	seq_puts(s, "Clk-Ch:");
+	if (val & 0x1)
+		seq_puts(s, "Lock\t");
+	else
+		seq_puts(s, "Unlock\t");
+	seq_puts(s, "Ch0:");
+	if (val & 0x2)
+		seq_puts(s, "Lock\t");
+	else
+		seq_puts(s, "Unlock\t");
+	seq_puts(s, "Ch1:");
+	if (val & 0x4)
+		seq_puts(s, "Lock\t");
+	else
+		seq_puts(s, "Unlock\t");
+	seq_puts(s, "Ch2:");
+	if (val & 0x8)
+		seq_puts(s, "Lock\n");
+	else
+		seq_puts(s, "Unlock\n");
+
+	val = hdmirx_readl(hdmirx_dev, 0x598);
+	if (val & 0x8000)
+		seq_printf(s, "Ch0-Err:%d\t", (val & 0x7fff));
+	if (val & 0x80000000)
+		seq_printf(s, "Ch1-Err:%d\t", (val & 0x7fff0000) >> 16);
+	val = hdmirx_readl(hdmirx_dev, 0x59c);
+	if (val & 0x8000)
+		seq_printf(s, "Ch2-Err:%d", (val & 0x7fff));
+	seq_puts(s, "\n");
+
+	htot = bt->width + bt->hfrontporch + bt->hsync + bt->hbackporch;
+	vtot = bt->height + bt->vfrontporch + bt->vsync + bt->vbackporch;
+	if (bt->interlaced)
+		vtot /= 2;
+
+	fps = (bt->pixelclock + (htot * vtot) / 2) / (htot * vtot);
+	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+		fps *= 2;
+
+	seq_puts(s, "Color Format: ");
+	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888)
+		seq_puts(s, "RGB");
+	else if (hdmirx_dev->pix_fmt == HDMIRX_YUV422)
+		seq_puts(s, "YUV422");
+	else if (hdmirx_dev->pix_fmt == HDMIRX_YUV444)
+		seq_puts(s, "YUV444");
+	else if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+		seq_puts(s, "YUV420");
+	else
+		seq_puts(s, "UNKNOWN");
+
+	val = hdmirx_readl(hdmirx_dev, DMA_CONFIG1) & DDR_STORE_FORMAT_MASK;
+	val = val >> 12;
+	seq_puts(s, "\t\t\tStore Format: ");
+	if (val == STORE_RGB888)
+		seq_puts(s, "RGB\n");
+	else if (val == STORE_RGBA_ARGB)
+		seq_puts(s, "RGBA/ARGB\n");
+	else if (val == STORE_YUV420_8BIT)
+		seq_puts(s, "YUV420 (8 bit)\n");
+	else if (val == STORE_YUV420_10BIT)
+		seq_puts(s, "YUV420 (10 bit)\n");
+	else if (val == STORE_YUV422_8BIT)
+		seq_puts(s, "YUV422 (8 bit)\n");
+	else if (val == STORE_YUV422_10BIT)
+		seq_puts(s, "YUV422 (10 bit)\n");
+	else if (val == STORE_YUV444_8BIT)
+		seq_puts(s, "YUV444 (8 bit)\n");
+	else if (val == STORE_YUV420_16BIT)
+		seq_puts(s, "YUV420 (16 bit)\n");
+	else if (val == STORE_YUV422_16BIT)
+		seq_puts(s, "YUV422 (16 bit)\n");
+	else
+		seq_puts(s, "UNKNOWN\n");
+
+	seq_printf(s, "Mode: %ux%u%s%u (%ux%u)",
+		   bt->width, bt->height, bt->interlaced ? "i" : "p",
+		   fps, htot, vtot);
+
+	seq_printf(s, "\t\thfp:%d  hs:%d  hbp:%d  vfp:%d  vs:%d  vbp:%d\n",
+		   bt->hfrontporch, bt->hsync, bt->hbackporch,
+		   bt->vfrontporch, bt->vsync, bt->vbackporch);
+	seq_printf(s, "Pixel Clk: %llu\n", bt->pixelclock);
+
+	return 0;
+}
+
+static int hdmirx_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdmirx_status_show, inode->i_private);
+}
+
+static const struct file_operations hdmirx_status_fops = {
+	.owner = THIS_MODULE,
+	.open = hdmirx_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void hdmirx_register_debugfs(struct device *dev,
+				    struct rk_hdmirx_dev *hdmirx_dev)
+{
+	hdmirx_dev->debugfs_dir = debugfs_create_dir("hdmirx", NULL);
+	if (IS_ERR(hdmirx_dev->debugfs_dir))
+		return;
+
+	debugfs_create_file("ctrl", 0600, hdmirx_dev->debugfs_dir,
+			    hdmirx_dev, &hdmirx_ctrl_fops);
+	debugfs_create_file("phy", 0600, hdmirx_dev->debugfs_dir,
+			    hdmirx_dev, &hdmirx_phy_fops);
+	debugfs_create_file("status", 0600, hdmirx_dev->debugfs_dir,
+			    hdmirx_dev, &hdmirx_status_fops);
+}
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	const struct v4l2_dv_timings timings_def = HDMIRX_DEFAULT_TIMING;
@@ -2992,6 +3395,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	cec_data.edid = edid_init_data;
 	hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
 
+	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
+
 	dev_info(dev, "%s driver probe ok!\n", dev_name(dev));
 
 	return 0;
@@ -3018,6 +3423,8 @@ static int hdmirx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	debugfs_remove_recursive(hdmirx_dev->debugfs_dir);
 
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
