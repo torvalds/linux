@@ -115,34 +115,32 @@ The diagnostic data field is optional, and results which have neither a
 directive nor any diagnostic data do not need to include the "#" field
 separator.
 
-Example result lines include:
-
-.. code-block:: none
+Example result lines include::
 
 	ok 1 test_case_name
 
 The test "test_case_name" passed.
 
-.. code-block:: none
+::
 
 	not ok 1 test_case_name
 
 The test "test_case_name" failed.
 
-.. code-block:: none
+::
 
 	ok 1 test # SKIP necessary dependency unavailable
 
 The test "test" was SKIPPED with the diagnostic message "necessary dependency
 unavailable".
 
-.. code-block:: none
+::
 
 	not ok 1 test # TIMEOUT 30 seconds
 
 The test "test" timed out, with diagnostic data "30 seconds".
 
-.. code-block:: none
+::
 
 	ok 5 check return code # rcode=0
 
@@ -202,7 +200,7 @@ allowed to be either indented or not indented.
 
 An example of a test with two nested subtests:
 
-.. code-block:: none
+::
 
 	KTAP version 1
 	1..1
@@ -215,7 +213,7 @@ An example of a test with two nested subtests:
 
 An example format with multiple levels of nested testing:
 
-.. code-block:: none
+::
 
 	KTAP version 1
 	1..2
@@ -250,7 +248,7 @@ nested version line, uses a line of the form
 
 Example KTAP output
 --------------------
-.. code-block:: none
+::
 
 	KTAP version 1
 	1..1
