@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2017-2018 HUAWEI, Inc.
  *             https://www.huawei.com/
+ * Copyright (C) 2022, Alibaba Cloud
  */
 #include "internal.h"
 
@@ -67,7 +68,7 @@ static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
 static int erofs_readdir(struct file *f, struct dir_context *ctx)
 {
 	struct inode *dir = file_inode(f);
-	struct address_space *mapping = dir->i_mapping;
+	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 	const size_t dirsize = i_size_read(dir);
 	unsigned int i = ctx->pos / EROFS_BLKSIZ;
 	unsigned int ofs = ctx->pos % EROFS_BLKSIZ;
@@ -75,26 +76,19 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 	bool initial = true;
 
 	while (ctx->pos < dirsize) {
-		struct page *dentry_page;
 		struct erofs_dirent *de;
 		unsigned int nameoff, maxsize;
 
-		dentry_page = read_mapping_page(mapping, i, NULL);
-		if (dentry_page == ERR_PTR(-ENOMEM)) {
-			err = -ENOMEM;
-			break;
-		} else if (IS_ERR(dentry_page)) {
+		de = erofs_bread(&buf, dir, i, EROFS_KMAP);
+		if (IS_ERR(de)) {
 			erofs_err(dir->i_sb,
 				  "fail to readdir of logical block %u of nid %llu",
 				  i, EROFS_I(dir)->nid);
-			err = -EFSCORRUPTED;
+			err = PTR_ERR(de);
 			break;
 		}
 
-		de = (struct erofs_dirent *)kmap(dentry_page);
-
 		nameoff = le16_to_cpu(de->nameoff);
-
 		if (nameoff < sizeof(struct erofs_dirent) ||
 		    nameoff >= PAGE_SIZE) {
 			erofs_err(dir->i_sb,
@@ -119,10 +113,6 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		err = erofs_fill_dentries(dir, ctx, de, &ofs,
 					  nameoff, maxsize);
 skip_this:
-		kunmap(dentry_page);
-
-		put_page(dentry_page);
-
 		ctx->pos = blknr_to_addr(i) + ofs;
 
 		if (err)
@@ -130,6 +120,7 @@ skip_this:
 		++i;
 		ofs = 0;
 	}
+	erofs_put_metabuf(&buf);
 	return err < 0 ? err : 0;
 }
 
