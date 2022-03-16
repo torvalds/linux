@@ -22,8 +22,6 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <sys/capability.h>
-
 #include <linux/unistd.h>
 #include <linux/filter.h>
 #include <linux/bpf_perf_event.h>
@@ -42,6 +40,7 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
+#include "cap_helpers.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
 #include "test_btf.h"
@@ -62,6 +61,10 @@
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
 
+/* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
+#define ADMIN_CAPS (1ULL << CAP_NET_ADMIN |	\
+		    1ULL << CAP_PERFMON |	\
+		    1ULL << CAP_BPF)
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
 static int skips;
@@ -973,47 +976,19 @@ struct libcap {
 
 static int set_admin(bool admin)
 {
-	cap_t caps;
-	/* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
-	const cap_value_t cap_net_admin = CAP_NET_ADMIN;
-	const cap_value_t cap_sys_admin = CAP_SYS_ADMIN;
-	struct libcap *cap;
-	int ret = -1;
+	int err;
 
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return -1;
-	}
-	cap = (struct libcap *)caps;
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_sys_admin, CAP_CLEAR)) {
-		perror("cap_set_flag clear admin");
-		goto out;
-	}
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_net_admin,
-				admin ? CAP_SET : CAP_CLEAR)) {
-		perror("cap_set_flag set_or_clear net");
-		goto out;
-	}
-	/* libcap is likely old and simply ignores CAP_BPF and CAP_PERFMON,
-	 * so update effective bits manually
-	 */
 	if (admin) {
-		cap->data[1].effective |= 1 << (38 /* CAP_PERFMON */ - 32);
-		cap->data[1].effective |= 1 << (39 /* CAP_BPF */ - 32);
+		err = cap_enable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_enable_effective(ADMIN_CAPS)");
 	} else {
-		cap->data[1].effective &= ~(1 << (38 - 32));
-		cap->data[1].effective &= ~(1 << (39 - 32));
+		err = cap_disable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_disable_effective(ADMIN_CAPS)");
 	}
-	if (cap_set_proc(caps)) {
-		perror("cap_set_proc");
-		goto out;
-	}
-	ret = 0;
-out:
-	if (cap_free(caps))
-		perror("cap_free");
-	return ret;
+
+	return err;
 }
 
 static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
@@ -1291,31 +1266,18 @@ fail_log:
 
 static bool is_admin(void)
 {
-	cap_flag_value_t net_priv = CAP_CLEAR;
-	bool perfmon_priv = false;
-	bool bpf_priv = false;
-	struct libcap *cap;
-	cap_t caps;
+	__u64 caps;
 
-#ifdef CAP_IS_SUPPORTED
-	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) {
-		perror("cap_get_flag");
+	/* The test checks for finer cap as CAP_NET_ADMIN,
+	 * CAP_PERFMON, and CAP_BPF instead of CAP_SYS_ADMIN.
+	 * Thus, disable CAP_SYS_ADMIN at the beginning.
+	 */
+	if (cap_disable_effective(1ULL << CAP_SYS_ADMIN, &caps)) {
+		perror("cap_disable_effective(CAP_SYS_ADMIN)");
 		return false;
 	}
-#endif
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return false;
-	}
-	cap = (struct libcap *)caps;
-	bpf_priv = cap->data[1].effective & (1 << (39/* CAP_BPF */ - 32));
-	perfmon_priv = cap->data[1].effective & (1 << (38/* CAP_PERFMON */ - 32));
-	if (cap_get_flag(caps, CAP_NET_ADMIN, CAP_EFFECTIVE, &net_priv))
-		perror("cap_get_flag NET");
-	if (cap_free(caps))
-		perror("cap_free");
-	return bpf_priv && perfmon_priv && net_priv == CAP_SET;
+
+	return (caps & ADMIN_CAPS) == ADMIN_CAPS;
 }
 
 static void get_unpriv_disabled()
