@@ -3189,8 +3189,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 
 	irq = platform_get_irq(pdev, 0);
-	if (WARN_ON(irq < 0))
-		return irq;
+	if (WARN_ON(irq < 0)) {
+		err = irq;
+		goto out;
+	}
 	dev->irq = irq;
 
 	dev->netdev_ops = &mv643xx_eth_netdev_ops;
