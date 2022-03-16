@@ -71,13 +71,18 @@
 #define RVE_CFG_REG                       0x200
 #define RVE_MMU_REG                       0x300
 
+/* mode value */
+#define RVE_LLP_MODE                      0x8000
+#define RVE_LLP_DONE                      0x11
+#define RVE_CLEAR_UP_REG6_WROK_STA        0xff0000
+
 void rve_soft_reset(struct rve_scheduler_t *scheduler);
 int rve_set_reg(struct rve_job *job, struct rve_scheduler_t *scheduler);
 int rve_init_reg(struct rve_job *job);
 int rve_get_version(struct rve_scheduler_t *scheduler);
 
 void rve_dump_read_back_reg(struct rve_scheduler_t *scheduler);
-void rve_get_monitor_info(struct rve_internal_ctx_t *ctx, struct rve_scheduler_t *scheduler);
+void rve_get_monitor_info(struct rve_scheduler_t *scheduler);
 
 #endif
 

@@ -74,7 +74,7 @@
 
 #define DRIVER_MAJOR_VERSION		1
 #define DRIVER_MINOR_VERSION		0
-#define DRIVER_REVISION_VERSION		0
+#define DRIVER_REVISION_VERSION		1
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERSION) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -88,6 +88,7 @@
 #define RVE_MAX_SCHEDULER 1
 
 #define RVE_MAX_BUS_CLK 10
+#define RVE_MAX_PID_INFO 10
 
 extern struct rve_drvdata_t *rve_drvdata;
 
@@ -154,14 +155,33 @@ struct rve_timer {
 	u32 busy_time_record;
 };
 
+struct rve_sche_pid_info_t {
+	pid_t pid;
+	/* hw total use time, per hrtimer */
+	u32 hw_time_total;
+};
+
+struct rve_sche_session_info_t {
+	struct rve_sche_pid_info_t pid_info[RVE_MAX_PID_INFO];
+
+	int pd_refcount;
+
+	/* the bandwidth of total read bytes, per hrtimer */
+	uint32_t rd_bandwidth;
+	/* the bandwidth of total write bytes, per hrtimer */
+	uint32_t wr_bandwidth;
+	/* the total running cycle of current frame, per hrtimer */
+	uint32_t cycle_cnt;
+	/* total interrupt count */
+	uint64_t total_int_cnt;
+};
+
 struct rve_scheduler_t {
 	struct device *dev;
 	void __iomem *rve_base;
 
 	struct clk *clks[RVE_MAX_BUS_CLK];
 	int num_clks;
-
-	int pd_refcount;
 
 	struct rve_job *running_job;
 	struct list_head todo_list;
@@ -175,24 +195,25 @@ struct rve_scheduler_t {
 	int core;
 
 	struct rve_timer timer;
-	uint64_t total_int_cnt;
+
+	struct rve_sche_session_info_t session;
 };
 
 struct rve_cmd_reg_array_t {
 	uint32_t cmd_reg[58];
 };
 
-struct rve_debug_info_t {
+struct rve_ctx_debug_info_t {
 	pid_t pid;
-	ktime_t timestamp;
-	ktime_t hw_time_total;
-	ktime_t last_job_use_time;
-	ktime_t last_job_hw_use_time;
-	ktime_t max_cost_time_per_sec;
-
-	uint32_t rd_bandwidth;
-	uint32_t wr_bandwidth;
-	uint32_t cycle_cnt;
+	u32 timestamp;
+	/* hw total use time, per hrtimer */
+	u32 hw_time_total;
+	/* last job use time, per hrtimer*/
+	u32 last_job_use_time;
+	/* last job hardware use time, per hrtimer*/
+	u32 last_job_hw_use_time;
+	/* the most time-consuming job, per hrtimer */
+	u32 max_cost_time_per_sec;
 };
 
 struct rve_internal_ctx_t {
@@ -218,13 +239,13 @@ struct rve_internal_ctx_t {
 	struct kref refcount;
 
 	/* debug info */
-	struct rve_debug_info_t debug_info;
+	struct rve_ctx_debug_info_t debug_info;
 
 	/* TODO: add some common work */
 };
 
 struct rve_pending_ctx_manager {
-	struct mutex lock;
+	spinlock_t lock;
 
 	/*
 	 * @ctx_id_idr:

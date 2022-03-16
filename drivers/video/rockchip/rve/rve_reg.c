@@ -130,7 +130,6 @@ int rve_set_reg(struct rve_job *job, struct rve_scheduler_t *scheduler)
 	uint32_t *cmd_reg;
 	int i;
 
-	/* TODO: dump regcmd_data */
 	cmd_reg = job->regcmd_data->cmd_reg;
 
 	if (DEBUGGER_EN(REG)) {
@@ -144,8 +143,6 @@ int rve_set_reg(struct rve_job *job, struct rve_scheduler_t *scheduler)
 
 	/* clean up irq status reg */
 	rve_write(0x00000, RVE_SWREG6_IVE_WORK_STA, scheduler);
-
-	/* TODO: llp mode */
 
 	if (DEBUGGER_EN(MSG)) {
 		pr_info("idle_ctrl = %x, idle_prc_sta = %x",
@@ -165,18 +162,27 @@ int rve_set_reg(struct rve_job *job, struct rve_scheduler_t *scheduler)
 	for (i = 0; i < 8; i++)
 		rve_write(cmd_reg[i], RVE_SYS_REG + i * 4, scheduler);
 
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++) {
+		/* skip start reg */
+		if (i == 2)
+			continue;
+
 		rve_write(cmd_reg[8 + i], RVE_LTB_REG + i * 4, scheduler);
+	}
 
 	/* 0x200(start)(40 - 1 = 39) need config after reg ready */
 	for (i = 0; i < 39; i++)
 		rve_write(cmd_reg[19 + i], RVE_CFG_REG + (i + 1) * 4, scheduler);
 
-	//TODO:
+	//TODO: ddr config
 	rve_write(0x30000, RVE_SWCFG5_CTRL, scheduler);
 	rve_write(0xf4240, RVE_SWCFG6_TIMEOUT_THRESH, scheduler);
 	rve_write(0x1f0001, RVE_SWCFG7_DDR_CTRL, scheduler);
 
+	/* reset RVE_SWREG6_IVE_WORK_STA */
+	rve_write(RVE_CLEAR_UP_REG6_WROK_STA, RVE_SWREG6_IVE_WORK_STA, scheduler);
+
+	/* enable monitor */
 	if (DEBUGGER_EN(MONITOR))
 		rve_write(1, RVE_SWCFG32_MONITOR_CTRL0, scheduler);
 
@@ -185,7 +191,12 @@ int rve_set_reg(struct rve_job *job, struct rve_scheduler_t *scheduler)
 		rve_dump_read_back_reg(scheduler);
 	}
 
-	rve_write(cmd_reg[18], RVE_SWCFG0_EN, scheduler);
+	/* if llp mode enable, skip to enable slave mode */
+	if (cmd_reg[11] != 1)
+		rve_write(1, RVE_SWCFG0_EN, scheduler);
+	else
+		/* llp config done, to start hw */
+		rve_write(cmd_reg[10], RVE_SWLTB2_CFG_DONE, scheduler);
 
 	if (DEBUGGER_EN(REG)) {
 		pr_err("after config:");
@@ -221,7 +232,7 @@ int rve_get_version(struct rve_scheduler_t *scheduler)
 	return 0;
 }
 
-void rve_get_monitor_info(struct rve_internal_ctx_t *ctx, struct rve_scheduler_t *scheduler)
+void rve_get_monitor_info(struct rve_scheduler_t *scheduler)
 {
 	unsigned long flags;
 	uint32_t rd_bandwidth, wr_bandwidth, cycle_cnt;
@@ -235,13 +246,12 @@ void rve_get_monitor_info(struct rve_internal_ctx_t *ctx, struct rve_scheduler_t
 		/* reset per htimer occur */
 		rve_write(2, RVE_SWCFG32_MONITOR_CTRL0, scheduler);
 
-		spin_lock_irqsave(&ctx->lock, flags);
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-		ctx->debug_info.max_cost_time_per_sec = 0;
-		ctx->debug_info.rd_bandwidth = rd_bandwidth;
-		ctx->debug_info.wr_bandwidth = wr_bandwidth;
-		ctx->debug_info.cycle_cnt = cycle_cnt;
+		scheduler->session.rd_bandwidth = rd_bandwidth;
+		scheduler->session.wr_bandwidth = wr_bandwidth;
+		scheduler->session.cycle_cnt = cycle_cnt;
 
-		spin_unlock_irqrestore(&ctx->lock, flags);
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 	}
 }

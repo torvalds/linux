@@ -149,6 +149,7 @@ static int rve_version_show(struct seq_file *m, void *data)
 static int rve_load_show(struct seq_file *m, void *data)
 {
 	struct rve_scheduler_t *scheduler = NULL;
+	struct rve_sche_pid_info_t *pid_info = NULL;
 	unsigned long flags;
 	int i;
 	int load;
@@ -157,21 +158,24 @@ static int rve_load_show(struct seq_file *m, void *data)
 	seq_printf(m, "num of scheduler = %d\n", rve_drvdata->num_of_scheduler);
 	seq_printf(m, "================= load ==================\n");
 
-	for (i = 0; i < rve_drvdata->num_of_scheduler; i++) {
-		scheduler = rve_drvdata->scheduler[i];
+	scheduler = rve_drvdata->scheduler[0];
 
-		seq_printf(m, "scheduler[%d]: %s\n",
-			i, dev_driver_string(scheduler->dev));
+	seq_printf(m, "scheduler[0]: %s\n", dev_driver_string(scheduler->dev));
 
-		spin_lock_irqsave(&scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-		busy_time_total = scheduler->timer.busy_time_record;
+	busy_time_total = scheduler->timer.busy_time_record;
+	pid_info = scheduler->session.pid_info;
 
-		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-		load = (busy_time_total * 100000 / RVE_LOAD_INTERVAL);
-		seq_printf(m, "\t load = %d\n", load);
-		seq_printf(m, "-----------------------------------\n");
+	load = (busy_time_total * 100000 / RVE_LOAD_INTERVAL);
+	seq_printf(m, "\t load = %d\n", load);
+	seq_printf(m, "-----------------------------------\n");
+
+	for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+		seq_printf(m, "\t [pid: %d] hw_time_total = %llu us\n",
+			pid_info[i].pid, ktime_to_us(pid_info[i].hw_time_total));
 	}
 	return 0;
 }
@@ -180,6 +184,11 @@ static int rve_scheduler_show(struct seq_file *m, void *data)
 {
 	struct rve_scheduler_t *scheduler = NULL;
 	int i;
+	unsigned long flags;
+
+	int pd_refcount;
+	uint64_t total_int_cnt;
+	uint32_t rd_bandwidth, wr_bandwidth, cycle_cnt;
 
 	seq_printf(m, "num of scheduler = %d\n", rve_drvdata->num_of_scheduler);
 	seq_printf(m, "===================================\n");
@@ -187,10 +196,23 @@ static int rve_scheduler_show(struct seq_file *m, void *data)
 	for (i = 0; i < rve_drvdata->num_of_scheduler; i++) {
 		scheduler = rve_drvdata->scheduler[i];
 
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		pd_refcount = scheduler->session.pd_refcount;
+		total_int_cnt = scheduler->session.total_int_cnt;
+		rd_bandwidth = scheduler->session.rd_bandwidth;
+		wr_bandwidth = scheduler->session.wr_bandwidth;
+		cycle_cnt = scheduler->session.cycle_cnt;
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
 		seq_printf(m, "scheduler[%d]: %s\n", i, dev_driver_string(scheduler->dev));
 		seq_printf(m, "-----------------------------------\n");
-		seq_printf(m, "pd_ref = %d\n", scheduler->pd_refcount);
-		seq_printf(m, "total_int_cnt = %llu\n", scheduler->total_int_cnt);
+		seq_printf(m, "pd_ref = %d\n", pd_refcount);
+		seq_printf(m, "total_int_cnt = %llu\n", total_int_cnt);
+		seq_printf(m, "rd_bandwidth: %u bytes/s\t wr_bandwidth: %u bytes/s\n",
+				rd_bandwidth, wr_bandwidth);
+		seq_printf(m, "cycle_cnt/s: %u\n", cycle_cnt);
 	}
 
 	return 0;
@@ -207,21 +229,22 @@ static int rve_ctx_manager_show(struct seq_file *m, void *data)
 	bool status = false;
 	pid_t pid;
 
-	ktime_t last_job_hw_use_time;
-	ktime_t last_job_use_time;
-	ktime_t hw_time_total;
-	ktime_t max_cost_time_per_sec;
-	uint32_t rd_bandwidth, wr_bandwidth, cycle_cnt;
+	u32 last_job_hw_use_time;
+	u32 last_job_use_time;
+	u32 hw_time_total;
+	u32 max_cost_time_per_sec;
 
 	ctx_manager = rve_drvdata->pend_ctx_manager;
 
 	seq_puts(m, "rve internal ctx dump:\n");
 	seq_printf(m, "ctx count = %d\n", ctx_manager->ctx_count);
 
-	mutex_lock(&ctx_manager->lock);
+	spin_lock_irqsave(&ctx_manager->lock, flags);
 
 	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, id) {
 		seq_printf(m, "================= ctx id: %d =================\n", ctx->id);
+
+		spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
 		spin_lock_irqsave(&ctx->lock, flags);
 
@@ -233,9 +256,6 @@ static int rve_ctx_manager_show(struct seq_file *m, void *data)
 		last_job_use_time = ctx->debug_info.last_job_use_time;
 		hw_time_total = ctx->debug_info.hw_time_total;
 		max_cost_time_per_sec = ctx->debug_info.max_cost_time_per_sec;
-		rd_bandwidth = ctx->debug_info.rd_bandwidth;
-		wr_bandwidth = ctx->debug_info.wr_bandwidth;
-		cycle_cnt = ctx->debug_info.cycle_cnt;
 
 		spin_unlock_irqrestore(&ctx->lock, flags);
 
@@ -243,19 +263,18 @@ static int rve_ctx_manager_show(struct seq_file *m, void *data)
 		seq_printf(m, "\t [pid: %d] status: %s\n", pid, status ? "active" : "pending");
 		seq_printf(m, "\t set cmd num: %d\t finish job sum: %d\n",
 				cmd_num, finished_job_count);
-		seq_printf(m, "\t last_job_use_time: %llu us\t last_job_hw_use_time: %llu us",
-				ktime_to_us(last_job_use_time), ktime_to_us(last_job_hw_use_time));
-		seq_printf(m, "\t hw_time_total: %llu us\t max_cost_time_per_sec: %llu us",
-				ktime_to_us(hw_time_total), ktime_to_us(max_cost_time_per_sec));
-		seq_printf(m, "\t rd_bandwidth: %u bytes\t wr_bandwidth: %u bytes",
-				rd_bandwidth, wr_bandwidth);
-		seq_printf(m, "\t cycle_cnt: %u\t", cycle_cnt);
+		seq_printf(m, "\t last_job_use_time: %u us\t last_job_hw_use_time: %u us",
+				last_job_use_time, last_job_hw_use_time);
+		seq_printf(m, "\t hw_time_total: %u us\t max_cost_time_per_sec: %u us",
+				hw_time_total, max_cost_time_per_sec);
 
 		seq_printf(m, "----------------- RVE INVOKE INFO -----------------\n");
 		/* TODO: */
+
+		spin_lock_irqsave(&ctx_manager->lock, flags);
 	}
 
-	mutex_unlock(&ctx_manager->lock);
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
 	return 0;
 }
@@ -269,8 +288,6 @@ struct rve_debugger_list rve_debugger_root_list[] = {
 	{"ctx_manager", rve_ctx_manager_show, NULL, NULL},
 };
 
-#ifdef CONFIG_ROCKCHIP_RVE_DEBUG_FS
-
 static ssize_t rve_debugger_write(struct file *file, const char __user *ubuf,
 				 size_t len, loff_t *offp)
 {
@@ -282,6 +299,8 @@ static ssize_t rve_debugger_write(struct file *file, const char __user *ubuf,
 	else
 		return len;
 }
+
+#ifdef CONFIG_ROCKCHIP_RVE_DEBUG_FS
 
 static int rve_debugfs_open(struct inode *inode, struct file *file)
 {
@@ -420,25 +439,12 @@ static int rve_procfs_open(struct inode *inode, struct file *file)
 	return single_open(file, node->info_ent->show, node);
 }
 
-static ssize_t rve_fops_write_u32(struct file *file, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	int rc;
-	struct seq_file *priv = file->private_data;
-
-	rc = kstrtou32_from_user(buf, count, 0, priv->private);
-	if (rc)
-		return rc;
-
-	return count;
-}
-
 static const struct proc_ops rve_procfs_fops = {
 	.proc_open = rve_procfs_open,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
-	.proc_write = rve_fops_write_u32,
+	.proc_write = rve_debugger_write,
 };
 
 static int rve_procfs_remove_files(struct rve_debugger *debugger)

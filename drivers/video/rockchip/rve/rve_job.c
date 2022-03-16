@@ -111,14 +111,15 @@ static struct rve_internal_ctx_t *
 rve_internal_ctx_lookup(struct rve_pending_ctx_manager *ctx_manager, uint32_t id)
 {
 	struct rve_internal_ctx_t *ctx = NULL;
+	unsigned long flags;
 
-	mutex_lock(&ctx_manager->lock);
+	spin_lock_irqsave(&ctx_manager->lock, flags);
 
 	ctx = idr_find(&ctx_manager->ctx_id_idr, id);
 	if (ctx == NULL)
 		pr_err("can not find internal ctx from id[%d]", id);
 
-	mutex_unlock(&ctx_manager->lock);
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
 	return ctx;
 }
@@ -139,16 +140,17 @@ static int rve_internal_ctx_free_remove_idr_cb(int id, void *ptr, void *data)
 static int rve_internal_ctx_free_remove_idr(struct rve_internal_ctx_t *ctx)
 {
 	struct rve_pending_ctx_manager *ctx_manager;
+	unsigned long flags;
 
 	ctx_manager = rve_drvdata->pend_ctx_manager;
 
-	mutex_lock(&ctx_manager->lock);
+	spin_lock_irqsave(&ctx_manager->lock, flags);
 
 	ctx_manager->ctx_count--;
 	idr_remove(&ctx_manager->ctx_id_idr, ctx->id);
 	kfree(ctx);
 
-	mutex_unlock(&ctx_manager->lock);
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
 	return 0;
 }
@@ -319,6 +321,44 @@ static void rve_job_finish_and_next(struct rve_job *job, int ret)
 #endif
 }
 
+static void rve_scheduler_set_pid_info(struct rve_job *job, ktime_t now)
+{
+	struct rve_scheduler_t *scheduler;
+	bool pid_match_flag = false;
+	ktime_t tmp = 0;
+	int pid_mark = 0, i;
+
+	scheduler = rve_job_get_scheduler(job);
+
+	for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+		if (scheduler->session.pid_info[i].pid == 0)
+			scheduler->session.pid_info[i].pid = job->pid;
+
+		if (scheduler->session.pid_info[i].pid == job->pid) {
+			pid_match_flag = true;
+			scheduler->session.pid_info[i].hw_time_total +=
+				(job->hw_running_time - now);
+			break;
+		}
+	}
+
+	if (!pid_match_flag) {
+		for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+			if (i == 0) {
+				tmp = scheduler->session.pid_info[i].hw_time_total;
+				continue;
+			}
+
+			if (tmp > scheduler->session.pid_info[i].hw_time_total)
+				pid_mark = i;
+		}
+
+		scheduler->session.pid_info[pid_mark].pid = job->pid;
+		scheduler->session.pid_info[pid_mark].hw_time_total +=
+					ktime_us_delta(now, job->hw_running_time);
+	}
+}
+
 void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
 {
 	struct rve_job *job;
@@ -336,6 +376,8 @@ void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
 
 	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
 
+	rve_scheduler_set_pid_info(job, now);
+
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	spin_lock_irqsave(&job->ctx->lock, flags);
@@ -343,9 +385,9 @@ void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
 	job->ctx->debug_info.max_cost_time_per_sec =
 		max(job->ctx->debug_info.last_job_hw_use_time,
 			job->ctx->debug_info.max_cost_time_per_sec);
-	job->ctx->debug_info.last_job_hw_use_time = job->hw_running_time - now;
+	job->ctx->debug_info.last_job_hw_use_time = ktime_us_delta(now, job->hw_running_time);
 	job->ctx->debug_info.hw_time_total += job->ctx->debug_info.last_job_hw_use_time;
-	job->ctx->debug_info.last_job_use_time = job->timestamp - now;
+	job->ctx->debug_info.last_job_use_time = ktime_us_delta(now, job->timestamp);
 
 	spin_unlock_irqrestore(&job->ctx->lock, flags);
 
@@ -358,6 +400,9 @@ void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
 
 	if (DEBUGGER_EN(MSG))
 		pr_err("irq thread work_status[%.8x]\n", error_flag);
+
+	/* disable llp enable, TODO: support pause mode */
+	rve_write(0, RVE_SWLTB3_ENABLE, scheduler);
 
 	rve_job_finish_and_next(job, ret);
 }
@@ -527,6 +572,7 @@ int rve_internal_ctx_alloc_to_get_idr_id(void)
 {
 	struct rve_pending_ctx_manager *ctx_manager;
 	struct rve_internal_ctx_t *ctx;
+	unsigned long flags;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL) {
@@ -537,8 +583,7 @@ int rve_internal_ctx_alloc_to_get_idr_id(void)
 	ctx_manager = rve_drvdata->pend_ctx_manager;
 	if (ctx_manager == NULL) {
 		pr_err("rve_pending_ctx_manager is null!\n");
-		kfree(ctx);
-		return -EFAULT;
+		goto failed;
 	}
 
 	spin_lock_init(&ctx->lock);
@@ -548,21 +593,33 @@ int rve_internal_ctx_alloc_to_get_idr_id(void)
 	 * allocation under our spinlock.
 	 */
 
-	mutex_lock(&ctx_manager->lock);
-
 	idr_preload(GFP_KERNEL);
-	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_KERNEL);
-	idr_preload_end();
+
+	spin_lock_irqsave(&ctx_manager->lock, flags);
+
+	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_ATOMIC);
+	if (ctx->id < 0) {
+		pr_err("idr_alloc failed");
+		spin_unlock_irqrestore(&ctx_manager->lock, flags);
+		goto failed;
+	}
 
 	ctx_manager->ctx_count++;
 
-	kref_init(&ctx->refcount);
 	ctx->debug_info.pid = current->pid;
 	ctx->debug_info.timestamp = ktime_get();
 
-	mutex_unlock(&ctx_manager->lock);
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+	idr_preload_end();
+
+	kref_init(&ctx->refcount);
 
 	return ctx->id;
+
+failed:
+	kfree(ctx);
+	return -EFAULT;
 }
 
 int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
@@ -897,7 +954,7 @@ int rve_ctx_manager_init(struct rve_pending_ctx_manager **ctx_manager_session)
 
 	ctx_manager = *ctx_manager_session;
 
-	mutex_init(&ctx_manager->lock);
+	spin_lock_init(&ctx_manager->lock);
 
 	idr_init_base(&ctx_manager->ctx_id_idr, 1);
 
@@ -907,13 +964,14 @@ int rve_ctx_manager_init(struct rve_pending_ctx_manager **ctx_manager_session)
 int rve_ctx_manager_remove(struct rve_pending_ctx_manager **ctx_manager_session)
 {
 	struct rve_pending_ctx_manager *ctx_manager = *ctx_manager_session;
+	unsigned long flags;
 
-	mutex_lock(&ctx_manager->lock);
+	spin_lock_irqsave(&ctx_manager->lock, flags);
 
 	idr_for_each(&ctx_manager->ctx_id_idr, &rve_internal_ctx_free_remove_idr_cb, ctx_manager);
 	idr_destroy(&ctx_manager->ctx_id_idr);
 
-	mutex_unlock(&ctx_manager->lock);
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
 	kfree(*ctx_manager_session);
 
