@@ -687,13 +687,13 @@ static void qm_mb_write(struct hisi_qm *qm, const void *src)
 
 	if (!IS_ENABLED(CONFIG_ARM64)) {
 		memcpy_toio(fun_base, src, 16);
-		wmb();
+		dma_wmb();
 		return;
 	}
 
 	asm volatile("ldp %0, %1, %3\n"
 		     "stp %0, %1, %2\n"
-		     "dsb sy\n"
+		     "dmb oshst\n"
 		     : "=&r" (tmp0),
 		       "=&r" (tmp1),
 		       "+Q" (*((char __iomem *)fun_base))
@@ -982,7 +982,7 @@ static void qm_set_qp_disable(struct hisi_qp *qp, int offset)
 	*addr = 1;
 
 	/* make sure setup is completed */
-	mb();
+	smp_wmb();
 }
 
 static void qm_disable_qp(struct hisi_qm *qm, u32 qp_id)
