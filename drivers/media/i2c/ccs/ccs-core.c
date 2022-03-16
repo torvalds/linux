@@ -3183,7 +3183,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	u32 rotation;
-	int i;
+	unsigned int i;
 	int rval;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
@@ -3261,7 +3261,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 
 	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
 		hwcfg->op_sys_clock[i] = bus_cfg.link_frequencies[i];
-		dev_dbg(dev, "freq %d: %lld\n", i, hwcfg->op_sys_clock[i]);
+		dev_dbg(dev, "freq %u: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
 	v4l2_fwnode_endpoint_free(&bus_cfg);
