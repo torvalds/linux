@@ -16,6 +16,7 @@ extern const void bpf_fentry_test7 __ksym;
 extern const void bpf_fentry_test8 __ksym;
 
 int pid = 0;
+bool test_cookie = false;
 
 __u64 kprobe_test1_result = 0;
 __u64 kprobe_test2_result = 0;
@@ -40,31 +41,33 @@ static void kprobe_multi_check(void *ctx, bool is_return)
 	if (bpf_get_current_pid_tgid() >> 32 != pid)
 		return;
 
+	__u64 cookie = test_cookie ? bpf_get_attach_cookie(ctx) : 0;
 	__u64 addr = bpf_get_func_ip(ctx);
 
-#define SET(__var, __addr) ({			\
-	if ((const void *) addr == __addr) 	\
-		__var = 1;			\
+#define SET(__var, __addr, __cookie) ({			\
+	if (((const void *) addr == __addr) &&		\
+	     (!test_cookie || (cookie == __cookie)))	\
+		__var = 1;				\
 })
 
 	if (is_return) {
-		SET(kretprobe_test1_result, &bpf_fentry_test1);
-		SET(kretprobe_test2_result, &bpf_fentry_test2);
-		SET(kretprobe_test3_result, &bpf_fentry_test3);
-		SET(kretprobe_test4_result, &bpf_fentry_test4);
-		SET(kretprobe_test5_result, &bpf_fentry_test5);
-		SET(kretprobe_test6_result, &bpf_fentry_test6);
-		SET(kretprobe_test7_result, &bpf_fentry_test7);
-		SET(kretprobe_test8_result, &bpf_fentry_test8);
+		SET(kretprobe_test1_result, &bpf_fentry_test1, 8);
+		SET(kretprobe_test2_result, &bpf_fentry_test2, 7);
+		SET(kretprobe_test3_result, &bpf_fentry_test3, 6);
+		SET(kretprobe_test4_result, &bpf_fentry_test4, 5);
+		SET(kretprobe_test5_result, &bpf_fentry_test5, 4);
+		SET(kretprobe_test6_result, &bpf_fentry_test6, 3);
+		SET(kretprobe_test7_result, &bpf_fentry_test7, 2);
+		SET(kretprobe_test8_result, &bpf_fentry_test8, 1);
 	} else {
-		SET(kprobe_test1_result, &bpf_fentry_test1);
-		SET(kprobe_test2_result, &bpf_fentry_test2);
-		SET(kprobe_test3_result, &bpf_fentry_test3);
-		SET(kprobe_test4_result, &bpf_fentry_test4);
-		SET(kprobe_test5_result, &bpf_fentry_test5);
-		SET(kprobe_test6_result, &bpf_fentry_test6);
-		SET(kprobe_test7_result, &bpf_fentry_test7);
-		SET(kprobe_test8_result, &bpf_fentry_test8);
+		SET(kprobe_test1_result, &bpf_fentry_test1, 1);
+		SET(kprobe_test2_result, &bpf_fentry_test2, 2);
+		SET(kprobe_test3_result, &bpf_fentry_test3, 3);
+		SET(kprobe_test4_result, &bpf_fentry_test4, 4);
+		SET(kprobe_test5_result, &bpf_fentry_test5, 5);
+		SET(kprobe_test6_result, &bpf_fentry_test6, 6);
+		SET(kprobe_test7_result, &bpf_fentry_test7, 7);
+		SET(kprobe_test8_result, &bpf_fentry_test8, 8);
 	}
 
 #undef SET

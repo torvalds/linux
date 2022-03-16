@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <test_progs.h>
 #include "test_bpf_cookie.skel.h"
+#include "kprobe_multi.skel.h"
 
 /* uprobe attach point */
 static void trigger_func(void)
@@ -61,6 +62,112 @@ cleanup:
 	bpf_link__destroy(link2);
 	bpf_link__destroy(retlink1);
 	bpf_link__destroy(retlink2);
+}
+
+static void kprobe_multi_test_run(struct kprobe_multi *skel)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, prog_fd;
+
+	prog_fd = bpf_program__fd(skel->progs.trigger);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(skel->bss->kprobe_test1_result, 1, "kprobe_test1_result");
+	ASSERT_EQ(skel->bss->kprobe_test2_result, 1, "kprobe_test2_result");
+	ASSERT_EQ(skel->bss->kprobe_test3_result, 1, "kprobe_test3_result");
+	ASSERT_EQ(skel->bss->kprobe_test4_result, 1, "kprobe_test4_result");
+	ASSERT_EQ(skel->bss->kprobe_test5_result, 1, "kprobe_test5_result");
+	ASSERT_EQ(skel->bss->kprobe_test6_result, 1, "kprobe_test6_result");
+	ASSERT_EQ(skel->bss->kprobe_test7_result, 1, "kprobe_test7_result");
+	ASSERT_EQ(skel->bss->kprobe_test8_result, 1, "kprobe_test8_result");
+
+	ASSERT_EQ(skel->bss->kretprobe_test1_result, 1, "kretprobe_test1_result");
+	ASSERT_EQ(skel->bss->kretprobe_test2_result, 1, "kretprobe_test2_result");
+	ASSERT_EQ(skel->bss->kretprobe_test3_result, 1, "kretprobe_test3_result");
+	ASSERT_EQ(skel->bss->kretprobe_test4_result, 1, "kretprobe_test4_result");
+	ASSERT_EQ(skel->bss->kretprobe_test5_result, 1, "kretprobe_test5_result");
+	ASSERT_EQ(skel->bss->kretprobe_test6_result, 1, "kretprobe_test6_result");
+	ASSERT_EQ(skel->bss->kretprobe_test7_result, 1, "kretprobe_test7_result");
+	ASSERT_EQ(skel->bss->kretprobe_test8_result, 1, "kretprobe_test8_result");
+}
+
+static void kprobe_multi_link_api_subtest(void)
+{
+	int prog_fd, link1_fd = -1, link2_fd = -1;
+	struct kprobe_multi *skel = NULL;
+	LIBBPF_OPTS(bpf_link_create_opts, opts);
+	unsigned long long addrs[8];
+	__u64 cookies[8];
+
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
+		goto cleanup;
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "fentry_raw_skel_load"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+	skel->bss->test_cookie = true;
+
+#define GET_ADDR(__sym, __addr) ({				\
+	__addr = ksym_get_addr(__sym);				\
+	if (!ASSERT_NEQ(__addr, 0, "ksym_get_addr " #__sym))	\
+		goto cleanup;					\
+})
+
+	GET_ADDR("bpf_fentry_test1", addrs[0]);
+	GET_ADDR("bpf_fentry_test2", addrs[1]);
+	GET_ADDR("bpf_fentry_test3", addrs[2]);
+	GET_ADDR("bpf_fentry_test4", addrs[3]);
+	GET_ADDR("bpf_fentry_test5", addrs[4]);
+	GET_ADDR("bpf_fentry_test6", addrs[5]);
+	GET_ADDR("bpf_fentry_test7", addrs[6]);
+	GET_ADDR("bpf_fentry_test8", addrs[7]);
+
+#undef GET_ADDR
+
+	cookies[0] = 1;
+	cookies[1] = 2;
+	cookies[2] = 3;
+	cookies[3] = 4;
+	cookies[4] = 5;
+	cookies[5] = 6;
+	cookies[6] = 7;
+	cookies[7] = 8;
+
+	opts.kprobe_multi.addrs = (const unsigned long *) &addrs;
+	opts.kprobe_multi.cnt = ARRAY_SIZE(addrs);
+	opts.kprobe_multi.cookies = (const __u64 *) &cookies;
+	prog_fd = bpf_program__fd(skel->progs.test_kprobe);
+
+	link1_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_KPROBE_MULTI, &opts);
+	if (!ASSERT_GE(link1_fd, 0, "link1_fd"))
+		goto cleanup;
+
+	cookies[0] = 8;
+	cookies[1] = 7;
+	cookies[2] = 6;
+	cookies[3] = 5;
+	cookies[4] = 4;
+	cookies[5] = 3;
+	cookies[6] = 2;
+	cookies[7] = 1;
+
+	opts.kprobe_multi.flags = BPF_F_KPROBE_MULTI_RETURN;
+	prog_fd = bpf_program__fd(skel->progs.test_kretprobe);
+
+	link2_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_KPROBE_MULTI, &opts);
+	if (!ASSERT_GE(link2_fd, 0, "link2_fd"))
+		goto cleanup;
+
+	kprobe_multi_test_run(skel);
+
+cleanup:
+	close(link1_fd);
+	close(link2_fd);
+	kprobe_multi__destroy(skel);
 }
 
 static void uprobe_subtest(struct test_bpf_cookie *skel)
@@ -249,6 +356,8 @@ void test_bpf_cookie(void)
 
 	if (test__start_subtest("kprobe"))
 		kprobe_subtest(skel);
+	if (test__start_subtest("multi_kprobe_link_api"))
+		kprobe_multi_link_api_subtest();
 	if (test__start_subtest("uprobe"))
 		uprobe_subtest(skel);
 	if (test__start_subtest("tracepoint"))
