@@ -38,7 +38,8 @@
 struct ocelot_port_tc {
 	bool block_shared;
 	unsigned long offload_cnt;
-
+	unsigned long ingress_mirred_id;
+	unsigned long egress_mirred_id;
 	unsigned long police_id;
 };
 
