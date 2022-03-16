@@ -96,7 +96,7 @@ static struct skcipher_alg serpent_algs[] = {
 
 static struct simd_skcipher_alg *serpent_simd_algs[ARRAY_SIZE(serpent_algs)];
 
-static int __init init(void)
+static int __init serpent_avx2_init(void)
 {
 	const char *feature_name;
 
@@ -115,14 +115,14 @@ static int __init init(void)
 					      serpent_simd_algs);
 }
 
-static void __exit fini(void)
+static void __exit serpent_avx2_fini(void)
 {
 	simd_unregister_skciphers(serpent_algs, ARRAY_SIZE(serpent_algs),
 				  serpent_simd_algs);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(serpent_avx2_init);
+module_exit(serpent_avx2_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serpent Cipher Algorithm, AVX2 optimized");
