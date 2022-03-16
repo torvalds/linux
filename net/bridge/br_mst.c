@@ -48,6 +48,31 @@ int br_mst_get_info(const struct net_device *dev, u16 msti, unsigned long *vids)
 }
 EXPORT_SYMBOL_GPL(br_mst_get_info);
 
+int br_mst_get_state(const struct net_device *dev, u16 msti, u8 *state)
+{
+	const struct net_bridge_port *p = NULL;
+	const struct net_bridge_vlan_group *vg;
+	const struct net_bridge_vlan *v;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_check_rtnl(dev);
+	if (!p || !br_opt_get(p->br, BROPT_MST_ENABLED))
+		return -EINVAL;
+
+	vg = nbp_vlan_group(p);
+
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		if (v->brvlan->msti == msti) {
+			*state = v->state;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(br_mst_get_state);
+
 static void br_mst_vlan_set_state(struct net_bridge_port *p, struct net_bridge_vlan *v,
 				  u8 state)
 {
