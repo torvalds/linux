@@ -20,7 +20,7 @@ struct net_device *
 nfp_repr_get_locked(struct nfp_app *app, struct nfp_reprs *set, unsigned int id)
 {
 	return rcu_dereference_protected(set->reprs[id],
-					 lockdep_is_held(&app->pf->lock));
+					 nfp_app_is_locked(app));
 }
 
 static void
@@ -476,7 +476,7 @@ nfp_reprs_clean_and_free_by_type(struct nfp_app *app, enum nfp_repr_type type)
 	int i;
 
 	reprs = rcu_dereference_protected(app->reprs[type],
-					  lockdep_is_held(&app->pf->lock));
+					  nfp_app_is_locked(app));
 	if (!reprs)
 		return;
 
