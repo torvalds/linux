@@ -77,6 +77,7 @@ struct ksz_device {
 	phy_interface_t compat_interface;
 	u32 regs_size;
 	bool phy_errata_9477;
+	bool ksz87xx_eee_link_erratum;
 	bool synclko_125;
 	bool synclko_disable;
 
