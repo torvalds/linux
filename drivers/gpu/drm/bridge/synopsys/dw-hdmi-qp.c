@@ -2043,37 +2043,11 @@ static void dw_hdmi_qp_bridge_detach(struct drm_bridge *bridge)
 	mutex_unlock(&hdmi->cec_notifier_mutex);
 }
 
-static const u32 supported_freq[] = {
-	594000, 371250, 297000, 162000, 185625, 154000, 148500, 146250, 119000,
-	106500, 108000, 85500, 83500, 92812, 74250, 65000, 33750, 40000, 27000,
-	25175
-};
-
 static enum drm_mode_status
 dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_info *info,
 			     const struct drm_display_mode *mode)
 {
-	int i;
-	struct dw_hdmi_qp *hdmi = bridge->driver_private;
-	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
-	struct drm_display_mode m;
-
-	drm_mode_copy(&m, mode);
-
-	if (pdata->split_mode)
-		pdata->convert_to_origin_mode(&m);
-
-	if (m.clock > HDMI20_MAX_TMDSCLK_KHZ)
-		return MODE_OK;
-
-	for (i = 0; i < ARRAY_SIZE(supported_freq); i++)
-		if (supported_freq[i] == m.clock)
-			break;
-
-	if (i == ARRAY_SIZE(supported_freq))
-		return MODE_CLOCK_RANGE;
-
 	return MODE_OK;
 }
 
