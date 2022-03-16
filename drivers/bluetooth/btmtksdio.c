@@ -981,14 +981,14 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->manufacturer = 70;
 	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
 
+	sdio_set_drvdata(func, bdev);
+
 	err = hci_register_dev(hdev);
 	if (err < 0) {
 		dev_err(&func->dev, "Can't register HCI device\n");
 		hci_free_dev(hdev);
 		return err;
 	}
-
-	sdio_set_drvdata(func, bdev);
 
 	/* pm_runtime_enable would be done after the firmware is being
 	 * downloaded because the core layer probably already enables
