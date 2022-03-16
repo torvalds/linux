@@ -656,7 +656,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 {
 	struct reg_addr_pool addr;
 	int ret;
-	u16 val;
+	int val;
 
 	dac->gpio_reset = devm_gpiod_get_optional(&dac->spi->dev, "reset",
 						  GPIOD_OUT_LOW);
