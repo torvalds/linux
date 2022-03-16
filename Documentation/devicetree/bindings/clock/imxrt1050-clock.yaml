@@ -57,11 +57,3 @@ examples:
         clock-names = "osc";
         #clock-cells = <1>;
     };
-
-    lpuart1: serial@40184000 {
-        compatible = "fsl,imxrt1050-lpuart";
-        reg = <0x40184000 0x4000>;
-        interrupts = <20>;
-        clocks = <&clks IMXRT1050_CLK_LPUART1>;
-        clock-names = "ipg";
-    };
