@@ -67,7 +67,7 @@ static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
 
 static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
 	int ret;
 
@@ -97,7 +97,7 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *sm =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 
 	snd_sof_refresh_control(scontrol);
@@ -118,7 +118,7 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 	bool change = false;
 	u32 value;
@@ -166,7 +166,7 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *sm =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 
 	snd_sof_refresh_control(scontrol);
@@ -185,7 +185,7 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 	bool change = false;
 	u32 value;
@@ -214,7 +214,7 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	struct soc_enum *se =
 		(struct soc_enum *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = se->dobj.private;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 
 	snd_sof_refresh_control(scontrol);
@@ -233,7 +233,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 		(struct soc_enum *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = se->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	unsigned int i, channels = scontrol->num_channels;
 	bool change = false;
 	u32 value;
@@ -260,7 +260,7 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
 
@@ -296,7 +296,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
 
@@ -335,7 +335,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_ctl_tlv header;
 	const struct snd_ctl_tlv __user *tlvd =
 		(const struct snd_ctl_tlv __user *)binary_data;
@@ -409,7 +409,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_ctl_tlv header;
 	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
 	size_t data_size;
@@ -482,7 +482,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_ctl_tlv header;
 	struct snd_ctl_tlv __user *tlvd =
 		(struct snd_ctl_tlv __user *)binary_data;
@@ -534,7 +534,7 @@ static void snd_sof_update_control(struct snd_sof_control *scontrol,
 	struct sof_ipc_ctrl_data *local_cdata;
 	int i;
 
-	local_cdata = scontrol->control_data;
+	local_cdata = scontrol->ipc_control_data;
 
 	if (cdata->cmd == SOF_CTRL_CMD_BINARY) {
 		if (cdata->num_elems != local_cdata->data->size) {

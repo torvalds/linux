@@ -360,6 +360,18 @@ struct snd_sof_ipc_msg {
 	bool ipc_complete;
 };
 
+struct sof_ipc_tplg_ops;
+
+/**
+ * struct sof_ipc_ops - IPC-specific ops
+ * @tplg:	Pointer to IPC-specific topology ops
+ */
+struct sof_ipc_ops {
+	const struct sof_ipc_tplg_ops *tplg;
+};
+
+extern const struct sof_ipc_ops ipc3_ops;
+
 /* SOF generic IPC data */
 struct snd_sof_ipc {
 	struct snd_sof_dev *sdev;
@@ -370,6 +382,9 @@ struct snd_sof_ipc {
 	bool disable_ipc_tx;
 
 	struct snd_sof_ipc_msg msg;
+
+	/* IPC ops based on version */
+	const struct sof_ipc_ops *ops;
 };
 
 /*
@@ -441,6 +456,7 @@ struct snd_sof_dev {
 	struct list_head kcontrol_list;
 	struct list_head widget_list;
 	struct list_head dai_list;
+	struct list_head dai_link_list;
 	struct list_head route_list;
 	struct snd_soc_component *component;
 	u32 enabled_cores_mask; /* keep track of enabled cores */
