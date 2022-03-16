@@ -58,6 +58,7 @@
 #include "sunrpc.h"
 
 static void xs_close(struct rpc_xprt *xprt);
+static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock);
 static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 		struct socket *sock);
 
@@ -1024,6 +1025,8 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 
 	if (test_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state))
 		xs_tcp_set_socket_timeouts(xprt, transport->sock);
+
+	xs_set_srcport(transport, transport->sock);
 
 	/* Continue transmitting the packet/record. We must be careful
 	 * to cope with writespace callbacks arriving _after_ we have
@@ -2263,8 +2266,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 			sock->sk->sk_state);
 	switch (status) {
 	case 0:
-		xs_set_srcport(transport, sock);
-		fallthrough;
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		set_bit(XPRT_SOCK_CONNECT_SENT, &transport->sock_state);
