@@ -176,6 +176,7 @@ struct flash_switch_data {
  * @non_all_mask_switch_present: Used in handling symmetry for all_mask switch
  * @secure_vm:			Flag indicating whether flash LED is used by
  *				secure VM
+ * @debug_board_present:	Flag to indicate debug board present
  */
 struct qti_flash_led {
 	struct platform_device		*pdev;
@@ -201,6 +202,7 @@ struct qti_flash_led {
 	bool				trigger_lmh;
 	bool				non_all_mask_switch_present;
 	bool				secure_vm;
+	bool				debug_board_present;
 };
 
 struct flash_current_headroom {
@@ -346,7 +348,7 @@ static int qti_flash_lmh_mitigation_config(struct qti_flash_led *led,
 	u8 val = enable ? FLASH_LED_LMH_MITIGATION_SW_EN : 0;
 	int rc;
 
-	if (enable == led->trigger_lmh)
+	if (led->debug_board_present || enable == led->trigger_lmh)
 		return 0;
 
 	rc = qti_flash_led_write(led, FLASH_LED_MITIGATION_SW, &val, 1);
@@ -956,6 +958,7 @@ static int qti_flash_led_calc_max_avail_current(
 
 	if (!rbatt_uohm) {
 		*max_current_ma = MAX_FLASH_CURRENT_MA;
+		led->debug_board_present = true;
 		return 0;
 	}
 
