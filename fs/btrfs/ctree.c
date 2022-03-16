@@ -16,6 +16,7 @@
 #include "volumes.h"
 #include "qgroup.h"
 #include "tree-mod-log.h"
+#include "tree-checker.h"
 
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
@@ -1455,6 +1456,11 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			free_extent_buffer(tmp);
 			btrfs_release_path(p);
 			return -EIO;
+		}
+		if (btrfs_check_eb_owner(tmp, root->root_key.objectid)) {
+			free_extent_buffer(tmp);
+			btrfs_release_path(p);
+			return -EUCLEAN;
 		}
 
 		if (unlock_up)
