@@ -213,11 +213,11 @@ static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs
 
 	txq_ix = mlx5e_qid_from_qos(chs, node->qid);
 
-	WARN_ON(node->qid > priv->htb.max_qos_sqs);
-	if (node->qid == priv->htb.max_qos_sqs) {
+	WARN_ON(node->qid > priv->htb_max_qos_sqs);
+	if (node->qid == priv->htb_max_qos_sqs) {
 		struct mlx5e_sq_stats *stats, **stats_list = NULL;
 
-		if (priv->htb.max_qos_sqs == 0) {
+		if (priv->htb_max_qos_sqs == 0) {
 			stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
 					      sizeof(*stats_list),
 					      GFP_KERNEL);
@@ -230,12 +230,12 @@ static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs
 			return -ENOMEM;
 		}
 		if (stats_list)
-			WRITE_ONCE(priv->htb.qos_sq_stats, stats_list);
-		WRITE_ONCE(priv->htb.qos_sq_stats[node->qid], stats);
-		/* Order max_qos_sqs increment after writing the array pointer.
+			WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
+		WRITE_ONCE(priv->htb_qos_sq_stats[node->qid], stats);
+		/* Order htb_max_qos_sqs increment after writing the array pointer.
 		 * Pairs with smp_load_acquire in en_stats.c.
 		 */
-		smp_store_release(&priv->htb.max_qos_sqs, priv->htb.max_qos_sqs + 1);
+		smp_store_release(&priv->htb_max_qos_sqs, priv->htb_max_qos_sqs + 1);
 	}
 
 	ix = node->qid % params->num_channels;
@@ -259,7 +259,7 @@ static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs
 		goto err_free_sq;
 	err = mlx5e_open_txqsq(c, priv->tisn[c->lag_port][0], txq_ix, params,
 			       &param_sq, sq, 0, node->hw_id,
-			       priv->htb.qos_sq_stats[node->qid]);
+			       priv->htb_qos_sq_stats[node->qid]);
 	if (err)
 		goto err_close_cq;
 
