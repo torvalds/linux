@@ -112,6 +112,10 @@ int ocelot_trap_add(struct ocelot *ocelot, int port,
 		    void (*populate)(struct ocelot_vcap_filter *f));
 int ocelot_trap_del(struct ocelot *ocelot, int port, unsigned long cookie);
 
+struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
+					struct netlink_ext_ack *extack);
+void ocelot_mirror_put(struct ocelot *ocelot);
+
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;
 extern struct notifier_block ocelot_switchdev_blocking_nb;

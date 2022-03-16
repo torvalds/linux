@@ -335,6 +335,7 @@ static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
 
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_MASK_MODE, a->mask_mode);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_PORT_MASK, a->port_mask);
+	vcap_action_set(vcap, data, VCAP_IS2_ACT_MIRROR_ENA, a->mirror_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_ENA, a->police_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_IDX, a->pol_ix);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_CPU_QU_NUM, a->cpu_qu_num);
@@ -960,7 +961,15 @@ ocelot_vcap_filter_add_aux_resources(struct ocelot *ocelot,
 				     struct ocelot_vcap_filter *filter,
 				     struct netlink_ext_ack *extack)
 {
+	struct ocelot_mirror *m;
 	int ret;
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena) {
+		m = ocelot_mirror_get(ocelot, filter->egress_port.value,
+				      extack);
+		if (IS_ERR(m))
+			return PTR_ERR(m);
+	}
 
 	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
 		ret = ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
@@ -978,6 +987,9 @@ ocelot_vcap_filter_del_aux_resources(struct ocelot *ocelot,
 {
 	if (filter->block_id == VCAP_IS2 && filter->action.police_ena)
 		ocelot_vcap_policer_del(ocelot, filter->action.pol_ix);
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena)
+		ocelot_mirror_put(ocelot);
 }
 
 static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,

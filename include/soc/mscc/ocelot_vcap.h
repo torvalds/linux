@@ -654,6 +654,7 @@ struct ocelot_vcap_action {
 			enum ocelot_mask_mode mask_mode;
 			unsigned long port_mask;
 			bool police_ena;
+			bool mirror_ena;
 			struct ocelot_policer pol;
 			u32 pol_ix;
 		};
@@ -697,6 +698,7 @@ struct ocelot_vcap_filter {
 	unsigned long ingress_port_mask;
 	/* For VCAP ES0 */
 	struct ocelot_vcap_port ingress_port;
+	/* For VCAP IS2 mirrors and ES0 */
 	struct ocelot_vcap_port egress_port;
 
 	enum ocelot_vcap_bit dmac_mc;
