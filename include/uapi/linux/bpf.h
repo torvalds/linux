@@ -1487,6 +1487,7 @@ union bpf_attr {
 				__u32		cnt;
 				__aligned_u64	syms;
 				__aligned_u64	addrs;
+				__aligned_u64	cookies;
 			} kprobe_multi;
 		};
 	} link_create;
