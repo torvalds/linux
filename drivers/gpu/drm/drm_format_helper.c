@@ -594,8 +594,8 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 }
 EXPORT_SYMBOL(drm_fb_blit_toio);
 
-static void drm_fb_gray8_to_mono_reversed_line(u8 *dst, const u8 *src, unsigned int pixels,
-					       unsigned int start_offset, unsigned int end_len)
+static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixels,
+				      unsigned int start_offset, unsigned int end_len)
 {
 	unsigned int xb, i;
 
@@ -621,8 +621,8 @@ static void drm_fb_gray8_to_mono_reversed_line(u8 *dst, const u8 *src, unsigned 
 }
 
 /**
- * drm_fb_xrgb8888_to_mono_reversed - Convert XRGB8888 to reversed monochrome
- * @dst: reversed monochrome destination buffer
+ * drm_fb_xrgb8888_to_mono - Convert XRGB8888 to monochrome
+ * @dst: monochrome destination buffer (0=black, 1=white)
  * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @src: XRGB8888 source buffer
  * @fb: DRM framebuffer
@@ -633,10 +633,10 @@ static void drm_fb_gray8_to_mono_reversed_line(u8 *dst, const u8 *src, unsigned 
  * and use this function to convert to the native format.
  *
  * This function uses drm_fb_xrgb8888_to_gray8() to convert to grayscale and
- * then the result is converted from grayscale to reversed monohrome.
+ * then the result is converted from grayscale to monochrome.
  */
-void drm_fb_xrgb8888_to_mono_reversed(void *dst, unsigned int dst_pitch, const void *vaddr,
-				      const struct drm_framebuffer *fb, const struct drm_rect *clip)
+void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *vaddr,
+			     const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int linepixels = drm_rect_width(clip);
 	unsigned int lines = clip->y2 - clip->y1;
@@ -652,8 +652,8 @@ void drm_fb_xrgb8888_to_mono_reversed(void *dst, unsigned int dst_pitch, const v
 		return;
 
 	/*
-	 * The reversed mono destination buffer contains 1 bit per pixel
-	 * and destination scanlines have to be in multiple of 8 pixels.
+	 * The mono destination buffer contains 1 bit per pixel and
+	 * destination scanlines have to be in multiple of 8 pixels.
 	 */
 	if (!dst_pitch)
 		dst_pitch = DIV_ROUND_UP(linepixels, 8);
@@ -664,9 +664,9 @@ void drm_fb_xrgb8888_to_mono_reversed(void *dst, unsigned int dst_pitch, const v
 	 * The cma memory is write-combined so reads are uncached.
 	 * Speed up by fetching one line at a time.
 	 *
-	 * Also, format conversion from XR24 to reversed monochrome
-	 * are done line-by-line but are converted to 8-bit grayscale
-	 * as an intermediate step.
+	 * Also, format conversion from XR24 to monochrome are done
+	 * line-by-line but are converted to 8-bit grayscale as an
+	 * intermediate step.
 	 *
 	 * Allocate a buffer to be used for both copying from the cma
 	 * memory and to store the intermediate grayscale line pixels.
@@ -683,7 +683,7 @@ void drm_fb_xrgb8888_to_mono_reversed(void *dst, unsigned int dst_pitch, const v
 	 * are not aligned to multiple of 8.
 	 *
 	 * Calculate if the start and end pixels are not aligned and set the
-	 * offsets for the reversed mono line conversion function to adjust.
+	 * offsets for the mono line conversion function to adjust.
 	 */
 	start_offset = clip->x1 % 8;
 	end_len = clip->x2 % 8;
@@ -692,12 +692,11 @@ void drm_fb_xrgb8888_to_mono_reversed(void *dst, unsigned int dst_pitch, const v
 	for (y = 0; y < lines; y++) {
 		src32 = memcpy(src32, vaddr, len_src32);
 		drm_fb_xrgb8888_to_gray8_line(gray8, src32, linepixels);
-		drm_fb_gray8_to_mono_reversed_line(mono, gray8, dst_pitch,
-						   start_offset, end_len);
+		drm_fb_gray8_to_mono_line(mono, gray8, dst_pitch, start_offset, end_len);
 		vaddr += fb->pitches[0];
 		mono += dst_pitch;
 	}
 
 	kfree(src32);
 }
-EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono_reversed);
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono);

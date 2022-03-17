@@ -458,7 +458,7 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf
 	if (!buf)
 		return -ENOMEM;
 
-	drm_fb_xrgb8888_to_mono_reversed(buf, 0, vmap, fb, rect);
+	drm_fb_xrgb8888_to_mono(buf, 0, vmap, fb, rect);
 
 	ssd130x_update_rect(ssd130x, buf, rect);
 
