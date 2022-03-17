@@ -897,6 +897,12 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 
 unlock:
 	mutex_unlock(&udphy->mutex);
+	/*
+	 * If data send by aux channel too fast after phy power on,
+	 * the aux may be not ready which will cause aux error. Adding
+	 * delay to avoid this issue.
+	 */
+	usleep_range(10000, 11000);
 	return ret;
 }
 
