@@ -5340,8 +5340,9 @@ void scheduler_tick(void)
 
 	rq_lock(rq, &rf);
 
-	trace_android_rvh_tick_entry(rq);
 	update_rq_clock(rq);
+	trace_android_rvh_tick_entry(rq);
+
 	thermal_pressure = arch_scale_thermal_pressure(cpu_of(rq));
 	update_thermal_load_avg(rq_clock_thermal(rq), rq, thermal_pressure);
 	curr->sched_class->task_tick(rq, curr, 0);
