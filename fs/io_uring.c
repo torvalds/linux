@@ -3242,14 +3242,10 @@ static void kiocb_done(struct io_kiocb *req, ssize_t ret,
 
 	if (req->flags & REQ_F_REISSUE) {
 		req->flags &= ~REQ_F_REISSUE;
-		if (io_resubmit_prep(req)) {
+		if (io_resubmit_prep(req))
 			io_req_task_queue_reissue(req);
-		} else {
-			req_set_fail(req);
-			req->result = ret;
-			req->io_task_work.func = io_req_task_complete;
-			io_req_task_work_add(req, false);
-		}
+		else
+			io_req_task_queue_fail(req, ret);
 	}
 }
 
