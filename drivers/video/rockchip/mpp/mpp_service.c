@@ -113,8 +113,14 @@ static int mpp_add_driver(struct mpp_service *srv,
 static int mpp_remove_driver(struct mpp_service *srv, int i)
 {
 	if (srv && srv->sub_drivers[i]) {
-		mpp_set_grf(&srv->grf_infos[i]);
-		platform_driver_unregister(srv->sub_drivers[i]);
+		if (i != MPP_DRIVER_AV1DEC) {
+			mpp_set_grf(&srv->grf_infos[i]);
+			platform_driver_unregister(srv->sub_drivers[i]);
+		}
+#if IS_ENABLED(CONFIG_ROCKCHIP_MPP_AV1DEC)
+		else
+			av1dec_driver_unregister(srv->sub_drivers[i]);
+#endif
 		srv->sub_drivers[i] = NULL;
 	}
 

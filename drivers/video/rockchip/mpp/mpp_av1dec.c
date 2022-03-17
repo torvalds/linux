@@ -7,6 +7,8 @@
  *
  */
 
+#define pr_fmt(fmt) "mpp_av1dec: " fmt
+
 #include <asm/cacheflush.h>
 #include <linux/clk.h>
 #include <linux/clk/clk-conf.h>
@@ -16,8 +18,9 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/of_platform.h>
-#include <linux/pm_domain.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/regmap.h>
@@ -28,7 +31,7 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-#define AV1DEC_DRIVER_NAME			"mpp_av1dec"
+#define AV1DEC_DRIVER_NAME		"mpp_av1dec"
 
 #define	AV1DEC_SESSION_MAX_BUFFERS		40
 
@@ -1098,7 +1101,7 @@ static int av1_of_device_add(struct platform_device *ofdev)
 	return device_add(&ofdev->dev);
 }
 
-struct platform_device *av1dec_device_create(void)
+static struct platform_device *av1dec_device_create(void)
 {
 	int ret = -ENODEV;
 	struct device_node *root, *child;
@@ -1132,6 +1135,35 @@ struct platform_device *av1dec_device_create(void)
 	}
 
 	return ERR_PTR(ret);
+}
+
+static void av1dec_device_destory(void)
+{
+	struct platform_device *pdev;
+	struct device *dev;
+
+	dev = bus_find_device_by_name(&av1dec_bus, NULL, "av1d-master");
+	pdev = dev ? to_platform_device(dev) : NULL;
+	if (!pdev) {
+		pr_err("cannot find platform device\n");
+		return;
+	}
+
+	pr_info("destroy device %s\n", dev_name(&pdev->dev));
+	platform_device_del(pdev);
+	platform_device_put(pdev);
+}
+
+void av1dec_driver_unregister(struct platform_driver *drv)
+{
+	/* 1. unregister av1 driver */
+	driver_unregister(&drv->driver);
+	/* 2. release device */
+	av1dec_device_destory();
+	/* 3. unregister iommu driver */
+	platform_driver_unregister(&rockchip_av1_iommu_driver);
+	/* 4. unregister bus */
+	bus_unregister(&av1dec_bus);
 }
 
 int av1dec_driver_register(struct platform_driver *drv)
