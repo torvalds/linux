@@ -103,6 +103,7 @@ enum offs_rev {
 	PLE_PG_HIF_GROUP,
 	PLE_HIF_PG_INFO,
 	AC_OFFSET,
+	ETBF_PAR_RPT0,
 	__MT_OFFS_MAX,
 };
 
@@ -223,10 +224,10 @@ enum offs_rev {
 #define MT_ETBF_TX_FB_CPL		GENMASK(31, 16)
 #define MT_ETBF_TX_FB_TRI		GENMASK(15, 0)
 
-#define MT_ETBF_RX_FB_CONT(_band)	MT_WF_ETBF(_band, 0x068)
-#define MT_ETBF_RX_FB_BW		GENMASK(7, 6)
-#define MT_ETBF_RX_FB_NC		GENMASK(5, 3)
-#define MT_ETBF_RX_FB_NR		GENMASK(2, 0)
+#define MT_ETBF_PAR_RPT0(_band)		MT_WF_ETBF(_band, __OFFS(ETBF_PAR_RPT0))
+#define MT_ETBF_PAR_RPT0_FB_BW		GENMASK(7, 6)
+#define MT_ETBF_PAR_RPT0_FB_NC		GENMASK(5, 3)
+#define MT_ETBF_PAR_RPT0_FB_NR		GENMASK(2, 0)
 
 #define MT_ETBF_TX_APP_CNT(_band)	MT_WF_ETBF(_band, 0x0f0)
 #define MT_ETBF_TX_IBF_CNT		GENMASK(31, 16)
@@ -367,11 +368,11 @@ enum offs_rev {
 #define MT_MIB_SDR31(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR31))
 
 #define MT_MIB_SDR32(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR32))
-#define MT_MIB_SDR32_TX_PKT_EBF_CNT_MASK	GENMASK(15, 0)
+#define MT_MIB_SDR32_TX_PKT_EBF_CNT	GENMASK(15, 0)
+#define MT_MIB_SDR32_TX_PKT_IBF_CNT	GENMASK(31, 16)
 
 #define MT_MIB_SDR33(_band)		MT_WF_MIB(_band, 0x088)
-#define MT_MIB_SDR32_TX_PKT_IBF_CNT_MASK	GENMASK(15, 0)
-#define MT_MIB_SDR32_TX_PKT_IBF_CNT_MASK_MT7916	GENMASK(31, 16)
+#define MT_MIB_SDR33_TX_PKT_IBF_CNT	GENMASK(15, 0)
 
 #define MT_MIB_SDRMUBF(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDRMUBF))
 #define MT_MIB_MU_BF_TX_CNT		GENMASK(15, 0)
@@ -400,6 +401,19 @@ enum offs_rev {
 #define MT_MIB_ARNG(_band, n)		MT_WF_MIB(_band, __OFFS(MIB_ARNG) +	\
 						  ((n) << 2))
 #define MT_MIB_ARNCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(7, 0))
+
+#define MT_MIB_BFCR0(_band)		MT_WF_MIB(_band, 0x7b0)
+#define MT_MIB_BFCR0_RX_FB_HT		GENMASK(15, 0)
+#define MT_MIB_BFCR0_RX_FB_VHT		GENMASK(31, 16)
+
+#define MT_MIB_BFCR1(_band)		MT_WF_MIB(_band, 0x7b4)
+#define MT_MIB_BFCR1_RX_FB_HE		GENMASK(15, 0)
+
+#define MT_MIB_BFCR2(_band)		MT_WF_MIB(_band, 0x7b8)
+#define MT_MIB_BFCR2_BFEE_TX_FB_TRIG	GENMASK(15, 0)
+
+#define MT_MIB_BFCR7(_band)		MT_WF_MIB(_band, 0x7cc)
+#define MT_MIB_BFCR7_BFEE_TX_FB_CPL	GENMASK(15, 0)
 
 /* WTBLON TOP */
 #define MT_WTBLON_TOP_BASE		0x820d4000

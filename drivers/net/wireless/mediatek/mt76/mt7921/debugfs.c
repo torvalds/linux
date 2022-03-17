@@ -129,23 +129,22 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 
 	mt7921_mutex_acquire(dev);
 
-	for (i = 0; i < 16; i++) {
-		int j, acs = i / 4, index = i % 4;
+	for (i = 0; i < 4; i++) {
 		u32 ctrl, val, qlen = 0;
+		int j;
 
-		val = mt76_rr(dev, MT_PLE_AC_QEMPTY(acs, index));
-		ctrl = BIT(31) | BIT(15) | (acs << 8);
+		val = mt76_rr(dev, MT_PLE_AC_QEMPTY(i));
+		ctrl = BIT(31) | BIT(11) | (i << 24);
 
 		for (j = 0; j < 32; j++) {
 			if (val & BIT(j))
 				continue;
 
-			mt76_wr(dev, MT_PLE_FL_Q0_CTRL,
-				ctrl | (j + (index << 5)));
+			mt76_wr(dev, MT_PLE_FL_Q0_CTRL, ctrl | j);
 			qlen += mt76_get_field(dev, MT_PLE_FL_Q3_CTRL,
 					       GENMASK(11, 0));
 		}
-		seq_printf(s, "AC%d%d: queued=%d\n", acs, index, qlen);
+		seq_printf(s, "AC%d: queued=%d\n", i, qlen);
 	}
 
 	mt7921_mutex_release(dev);
@@ -268,6 +267,9 @@ mt7921_pm_set(void *data, u64 val)
 	struct mt7921_dev *dev = data;
 	struct mt76_connac_pm *pm = &dev->pm;
 
+	if (mt76_is_usb(&dev->mt76))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&dev->mt76.mutex);
 
 	if (val == pm->enable_user)
@@ -311,6 +313,9 @@ mt7921_deep_sleep_set(void *data, u64 val)
 	struct mt76_connac_pm *pm = &dev->pm;
 	bool monitor = !!(dev->mphy.hw->conf.flags & IEEE80211_CONF_MONITOR);
 	bool enable = !!val;
+
+	if (mt76_is_usb(&dev->mt76))
+		return -EOPNOTSUPP;
 
 	mt7921_mutex_acquire(dev);
 	if (pm->ds_enable_user == enable)
@@ -429,8 +434,13 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 	if (!dir)
 		return -ENOMEM;
 
-	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
-				    mt7921_queues_read);
+	if (mt76_is_mmio(&dev->mt76))
+		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues",
+					    dir, mt7921_queues_read);
+	else
+		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues",
+					    dir, mt76_queues_read);
+
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7921_queues_acq);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower_sku", dir,
