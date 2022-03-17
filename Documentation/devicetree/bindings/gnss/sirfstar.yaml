@@ -25,6 +25,8 @@ allOf:
 properties:
   compatible:
     enum:
+      - csr,gsd4t
+      - csr,csrg05ta03-icje-r
       - fastrax,uc430
       - linx,r4
       - wi2wi,w2sg0004
@@ -38,6 +40,11 @@ properties:
   vcc-supply:
     description:
       Main voltage regulator, pin names such as 3V3_IN, VCC, VDD.
+
+  reset-gpios:
+    maxItems: 1
+    description: An optional active low reset line, should be flagged with
+      GPIO_ACTIVE_LOW.
 
   sirf,onoff-gpios:
     maxItems: 1
@@ -61,6 +68,7 @@ examples:
         gnss {
             compatible = "wi2wi,w2sg0084i";
             vcc-supply = <&gnss_vcc_reg>;
+            reset-gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
             sirf,onoff-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
             sirf,wakeup-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
             current-speed = <38400>;
