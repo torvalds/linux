@@ -93,8 +93,6 @@ static int dw_hdmi_qp_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	unsigned int i;
 	u32 val;
 
-	dw_hdmi_qp_write(cec, CEC_CTRL_CLEAR, CEC_TX_CONTROL);
-
 	for (i = 0; i < msg->len; i++) {
 		if (!(i % 4))
 			val = msg->msg[i];
