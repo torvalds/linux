@@ -579,39 +579,27 @@ static void smp_ctl_bit_callback(void *info)
 }
 
 static DEFINE_SPINLOCK(ctl_lock);
-static unsigned long ctlreg;
 
-/*
- * Set a bit in a control register of all cpus
- */
-void smp_ctl_set_bit(int cr, int bit)
+void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 {
-	struct ec_creg_mask_parms parms = { 1UL << bit, -1UL, cr };
+	struct ec_creg_mask_parms parms = { .cr = cr, };
+	u64 ctlreg;
 
+	if (set) {
+		parms.orval = 1UL << bit;
+		parms.andval = -1UL;
+	} else {
+		parms.orval = 0;
+		parms.andval = ~(1UL << bit);
+	}
 	spin_lock(&ctl_lock);
 	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
-	__set_bit(bit, &ctlreg);
+	ctlreg = (ctlreg & parms.andval) | parms.orval;
 	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
-EXPORT_SYMBOL(smp_ctl_set_bit);
-
-/*
- * Clear a bit in a control register of all cpus
- */
-void smp_ctl_clear_bit(int cr, int bit)
-{
-	struct ec_creg_mask_parms parms = { 0, ~(1UL << bit), cr };
-
-	spin_lock(&ctl_lock);
-	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
-	__clear_bit(bit, &ctlreg);
-	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
-	spin_unlock(&ctl_lock);
-	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
-}
-EXPORT_SYMBOL(smp_ctl_clear_bit);
+EXPORT_SYMBOL(smp_ctl_set_clear_bit);
 
 #ifdef CONFIG_CRASH_DUMP
 

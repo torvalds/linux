@@ -72,8 +72,17 @@ static __always_inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 	__ctl_load(reg, cr, cr);
 }
 
-void smp_ctl_set_bit(int cr, int bit);
-void smp_ctl_clear_bit(int cr, int bit);
+void smp_ctl_set_clear_bit(int cr, int bit, bool set);
+
+static inline void ctl_set_bit(int cr, int bit)
+{
+	smp_ctl_set_clear_bit(cr, bit, true);
+}
+
+static inline void ctl_clear_bit(int cr, int bit)
+{
+	smp_ctl_set_clear_bit(cr, bit, false);
+}
 
 union ctlreg0 {
 	unsigned long val;
@@ -127,9 +136,6 @@ union ctlreg15 {
 		unsigned long	    : 3;
 	};
 };
-
-#define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
-#define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_CTL_REG_H */
