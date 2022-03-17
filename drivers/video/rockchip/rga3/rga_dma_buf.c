@@ -506,7 +506,7 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_debug("iova_align size = %ld", size);
+		pr_info("iova_align size = %ld", size);
 
 	iova = rga_iommu_dma_alloc_iova(domain, size, rga_dev->coherent_dma_mask, rga_dev);
 	if (!iova) {
