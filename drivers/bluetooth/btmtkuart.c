@@ -105,8 +105,10 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	}
 
 	wc = kzalloc(hlen, GFP_KERNEL);
-	if (!wc)
-		return -ENOMEM;
+	if (!wc) {
+		err = -ENOMEM;
+		goto err_free_skb;
+	}
 
 	hdr = &wc->hdr;
 	hdr->dir = 1;
@@ -153,7 +155,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 		bt_dev_err(hdev, "Wrong op received %d expected %d",
 			   wmt_evt->whdr.op, hdr->op);
 		err = -EIO;
-		goto err_free_skb;
+		goto err_free_wc;
 	}
 
 	switch (wmt_evt->whdr.op) {
@@ -177,11 +179,11 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	if (wmt_params->status)
 		*wmt_params->status = status;
 
+err_free_wc:
+	kfree(wc);
 err_free_skb:
 	kfree_skb(bdev->evt_skb);
 	bdev->evt_skb = NULL;
-err_free_wc:
-	kfree(wc);
 
 	return err;
 }
