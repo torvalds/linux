@@ -1275,10 +1275,10 @@ static u32 rtw8852a_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 
 static
 void rtw8852a_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
-				     s16 pw_ofst, enum rtw89_mac_idx mac_idx)
+				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
 {
-	s32 val_1t = 0;
-	s32 val_2t = 0;
+	s8 val_1t = 0;
+	s8 val_2t = 0;
 	u32 reg;
 
 	if (pw_ofst < -16 || pw_ofst > 15) {
@@ -1288,7 +1288,7 @@ void rtw8852a_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	}
 	reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_CTRL, mac_idx);
 	rtw89_write32_set(rtwdev, reg, B_AX_PWR_UL_TB_CTRL_EN);
-	val_1t = (s32)pw_ofst;
+	val_1t = pw_ofst;
 	reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_1T, mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_1T_MASK, val_1t);
 	val_2t = max(val_1t - 3, -16);

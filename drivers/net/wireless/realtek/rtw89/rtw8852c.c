@@ -445,10 +445,46 @@ static void rtw8852c_power_trim(struct rtw89_dev *rtwdev)
 	rtw8852c_pa_bias_trim(rtwdev);
 }
 
+static
+void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
+				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
+{
+	s8 pw_ofst_2tx;
+	s8 val_1t;
+	s8 val_2t;
+	u32 reg;
+	u8 i;
+
+	if (pw_ofst < -32 || pw_ofst > 31) {
+		rtw89_warn(rtwdev, "[ULTB] Err pwr_offset=%d\n", pw_ofst);
+		return;
+	}
+	val_1t = pw_ofst << 2;
+	pw_ofst_2tx = max(pw_ofst - 3, -32);
+	val_2t = pw_ofst_2tx << 2;
+
+	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[ULTB] val_1tx=0x%x\n", val_1t);
+	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[ULTB] val_2tx=0x%x\n", val_2t);
+
+	for (i = 0; i < 4; i++) {
+		/* 1TX */
+		reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_1T, mac_idx);
+		rtw89_write32_mask(rtwdev, reg,
+				   B_AX_PWR_UL_TB_1T_V1_MASK << (8 * i),
+				   val_1t);
+		/* 2TX */
+		reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_2T, mac_idx);
+		rtw89_write32_mask(rtwdev, reg,
+				   B_AX_PWR_UL_TB_2T_V1_MASK << (8 * i),
+				   val_2t);
+	}
+}
+
 static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
 	.power_trim		= rtw8852c_power_trim,
+	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8852c_pwr_on_func,
 	.pwr_off_func		= rtw8852c_pwr_off_func,
 };

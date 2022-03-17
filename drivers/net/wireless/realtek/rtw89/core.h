@@ -2065,7 +2065,7 @@ struct rtw89_chip_ops {
 			   struct ieee80211_rx_status *status);
 	void (*bb_ctrl_btc_preagc)(struct rtw89_dev *rtwdev, bool bt_en);
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
-				       s16 pw_ofst, enum rtw89_mac_idx mac_idx);
+				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 
