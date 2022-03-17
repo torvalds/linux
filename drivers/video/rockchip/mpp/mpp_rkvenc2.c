@@ -847,11 +847,14 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, queue->core_idle);
 	} else {
-		mpp_dbg_core("core %d set idle %lx\n", core_id, queue->core_idle);
+		unsigned long core_idle = queue->core_idle;
 
 		clear_bit(core_id, &queue->core_idle);
 		mpp_task->mpp = queue->cores[core_id];
 		mpp_task->core_id = core_id;
+
+		mpp_dbg_core("core %d set idle %lx -> %lx\n", core_id,
+			     core_idle, queue->core_idle);
 	}
 
 	spin_unlock_irqrestore(&queue->running_lock, flags);
@@ -918,8 +921,8 @@ static void rkvenc2_patch_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
 		if (dependency_core < 0) {
 			u32 dchs_val = (u32)task_id->val & (~(DCHS_RXE));
 
+			task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET] = dchs_val;
 			dchs[core_id].rxe = 0;
-			mpp_write_relaxed(&enc->mpp, DCHS_REG_OFFSET, dchs_val);
 		}
 	}
 	dchs[core_id].working = 1;
@@ -947,6 +950,17 @@ static void rkvenc2_update_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task
 
 	spin_lock_irqsave(&ccu->lock_dchs, flags);
 	ccu->dchs[core_id].val = 0;
+	if (mpp_debug_unlikely(DEBUG_CORE)) {
+		union rkvenc2_dual_core_handshake_id *dchs = ccu->dchs;
+		union rkvenc2_dual_core_handshake_id *task_id = &task->dchs_id;
+
+		pr_info("core tx:rx 0 %s %d:%d %d:%d -- 1 %s %d:%d %d:%d -- task %d %d:%d %d:%d\n",
+			dchs[0].working ? "work" : "idle",
+			dchs[0].txid, dchs[0].txe, dchs[0].rxid, dchs[0].rxe,
+			dchs[1].working ? "work" : "idle",
+			dchs[1].txid, dchs[1].txe, dchs[1].rxid, dchs[1].rxe,
+			core_id, task_id->txid, task_id->txe, task_id->rxid, task_id->rxe);
+	}
 	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
 }
 
@@ -961,6 +975,8 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	/* clear hardware counter */
 	mpp_write_relaxed(mpp, 0x5300, 0x2);
+
+	rkvenc2_patch_dchs(enc, task);
 
 	for (i = 0; i < task->w_req_cnt; i++) {
 		int ret;
@@ -987,13 +1003,15 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		}
 	}
 
+	if (mpp_debug_unlikely(DEBUG_CORE))
+		dev_info(mpp->dev, "core %d dchs %08x\n", mpp->core_id,
+			 mpp_read_relaxed(&enc->mpp, DCHS_REG_OFFSET));
+
 	/* flush tlb before starting hardware */
 	mpp_iommu_flush_tlb(mpp->iommu_info);
 
 	/* init current task */
 	mpp->cur_task = mpp_task;
-
-	rkvenc2_patch_dchs(enc, task);
 
 	/* Flush the register before the start the device */
 	wmb();
@@ -1079,6 +1097,7 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	struct mpp_task *mpp_task;
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct mpp_taskqueue *queue = mpp->queue;
+	unsigned long core_idle;
 
 	mpp_debug_enter();
 
@@ -1111,8 +1130,11 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	}
 	mpp_task_finish(mpp_task->session, mpp_task);
 
+	core_idle = queue->core_idle;
 	set_bit(mpp->core_id, &queue->core_idle);
-	mpp_dbg_core("core %d isr idle %lx\n", mpp->core_id, queue->core_idle);
+
+	mpp_dbg_core("core %d isr idle %lx -> %lx\n", mpp->core_id, core_idle,
+		     queue->core_idle);
 
 	mpp_debug_leave();
 
@@ -1143,6 +1165,7 @@ static int rkvenc_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 			reg[j] = mpp_read_relaxed(mpp, msg.offset + j * sizeof(u32));
 
 	}
+
 	/* revert hack for irq status */
 	reg = rkvenc_get_class_reg(task, task->hw_info->int_sta_base);
 	if (reg)
@@ -1469,6 +1492,9 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 	}
 
 	set_bit(mpp->core_id, &queue->core_idle);
+	if (enc->ccu)
+		enc->ccu->dchs[mpp->core_id].val = 0;
+
 	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, queue->core_idle);
 
 	mpp_debug_leave();
@@ -1894,6 +1920,23 @@ err_sram_map:
 	return ret;
 }
 
+static int rkvenc2_iommu_fault_handle(struct iommu_domain *iommu,
+				      struct device *iommu_dev,
+				      unsigned long iova, int status, void *arg)
+{
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct mpp_task *mpp_task = mpp->cur_task;
+
+	dev_info(mpp->dev, "core %d page fault found dchs %08x\n",
+		 mpp->core_id, mpp_read_relaxed(&enc->mpp, DCHS_REG_OFFSET));
+
+	if (mpp_task)
+		mpp_task_dump_mem_region(mpp, mpp_task);
+
+	return 0;
+}
+
 static int rkvenc_core_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1943,6 +1986,7 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	}
 	mpp->session_max_buffers = RKVENC_SESSION_MAX_BUFFERS;
 	enc->hw_info = to_rkvenc_info(mpp->var->hw_info);
+	mpp->iommu_info->hdl = rkvenc2_iommu_fault_handle;
 	rkvenc_procfs_init(mpp);
 	rkvenc_procfs_ccu_init(mpp);
 
