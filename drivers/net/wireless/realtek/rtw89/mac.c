@@ -3621,29 +3621,32 @@ EXPORT_SYMBOL(rtw89_mac_coex_init);
 int rtw89_mac_cfg_gnt(struct rtw89_dev *rtwdev,
 		      const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
 {
-	u32 val, ret;
+	u32 val = 0, ret;
 
-	ret = rtw89_mac_read_lte(rtwdev, R_AX_LTE_SW_CFG_1, &val);
-	if (ret) {
-		rtw89_err(rtwdev, "Read LTE fail!\n");
-		return ret;
-	}
-	val = (gnt_cfg->band[0].gnt_bt ?
-	       B_AX_GNT_BT_RFC_S0_SW_VAL | B_AX_GNT_BT_BB_S0_SW_VAL : 0) |
-	      (gnt_cfg->band[0].gnt_bt_sw_en ?
-	       B_AX_GNT_BT_RFC_S0_SW_CTRL | B_AX_GNT_BT_BB_S0_SW_CTRL : 0) |
-	      (gnt_cfg->band[0].gnt_wl ?
-	       B_AX_GNT_WL_RFC_S0_SW_VAL | B_AX_GNT_WL_BB_S0_SW_VAL : 0) |
-	      (gnt_cfg->band[0].gnt_wl_sw_en ?
-	       B_AX_GNT_WL_RFC_S0_SW_CTRL | B_AX_GNT_WL_BB_S0_SW_CTRL : 0) |
-	      (gnt_cfg->band[1].gnt_bt ?
-	       B_AX_GNT_BT_RFC_S1_SW_VAL | B_AX_GNT_BT_BB_S1_SW_VAL : 0) |
-	      (gnt_cfg->band[1].gnt_bt_sw_en ?
-	       B_AX_GNT_BT_RFC_S1_SW_CTRL | B_AX_GNT_BT_BB_S1_SW_CTRL : 0) |
-	      (gnt_cfg->band[1].gnt_wl ?
-	       B_AX_GNT_WL_RFC_S1_SW_VAL | B_AX_GNT_WL_BB_S1_SW_VAL : 0) |
-	      (gnt_cfg->band[1].gnt_wl_sw_en ?
-	       B_AX_GNT_WL_RFC_S1_SW_CTRL | B_AX_GNT_WL_BB_S1_SW_CTRL : 0);
+	if (gnt_cfg->band[0].gnt_bt)
+		val |= B_AX_GNT_BT_RFC_S0_SW_VAL | B_AX_GNT_BT_BB_S0_SW_VAL;
+
+	if (gnt_cfg->band[0].gnt_bt_sw_en)
+		val |= B_AX_GNT_BT_RFC_S0_SW_CTRL | B_AX_GNT_BT_BB_S0_SW_CTRL;
+
+	if (gnt_cfg->band[0].gnt_wl)
+		val |= B_AX_GNT_WL_RFC_S0_SW_VAL | B_AX_GNT_WL_BB_S0_SW_VAL;
+
+	if (gnt_cfg->band[0].gnt_wl_sw_en)
+		val |= B_AX_GNT_WL_RFC_S0_SW_CTRL | B_AX_GNT_WL_BB_S0_SW_CTRL;
+
+	if (gnt_cfg->band[1].gnt_bt)
+		val |= B_AX_GNT_BT_RFC_S1_SW_VAL | B_AX_GNT_BT_BB_S1_SW_VAL;
+
+	if (gnt_cfg->band[1].gnt_bt_sw_en)
+		val |= B_AX_GNT_BT_RFC_S1_SW_CTRL | B_AX_GNT_BT_BB_S1_SW_CTRL;
+
+	if (gnt_cfg->band[1].gnt_wl)
+		val |= B_AX_GNT_WL_RFC_S1_SW_VAL | B_AX_GNT_WL_BB_S1_SW_VAL;
+
+	if (gnt_cfg->band[1].gnt_wl_sw_en)
+		val |= B_AX_GNT_WL_RFC_S1_SW_CTRL | B_AX_GNT_WL_BB_S1_SW_CTRL;
+
 	ret = rtw89_mac_write_lte(rtwdev, R_AX_LTE_SW_CFG_1, val);
 	if (ret) {
 		rtw89_err(rtwdev, "Write LTE fail!\n");
