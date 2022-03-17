@@ -576,7 +576,7 @@ struct setup_rw_req {
 	struct blkif_request *ring_req;
 	grant_ref_t gref_head;
 	unsigned int id;
-	/* Only used when persistent grant is used and it's a read request */
+	/* Only used when persistent grant is used and it's a write request */
 	bool need_copy;
 	unsigned int bvec_off;
 	char *bvec_data;
