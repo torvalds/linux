@@ -1971,13 +1971,7 @@ usb_pipe_endpoint(struct usb_device *dev, unsigned int pipe)
 
 static inline u16 usb_maxpacket(struct usb_device *udev, int pipe)
 {
-	struct usb_host_endpoint	*ep;
-	unsigned			epnum = usb_pipeendpoint(pipe);
-
-	if (usb_pipeout(pipe))
-		ep = udev->ep_out[epnum];
-	else
-		ep = udev->ep_in[epnum];
+	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
 
 	if (!ep)
 		return 0;
