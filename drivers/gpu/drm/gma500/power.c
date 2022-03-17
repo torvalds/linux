@@ -201,7 +201,7 @@ int gma_power_suspend(struct device *_dev)
 			dev_err(dev->dev, "GPU hardware busy, cannot suspend\n");
 			return -EBUSY;
 		}
-		psb_irq_uninstall(dev);
+		gma_irq_uninstall(dev);
 		gma_suspend_display(dev);
 		gma_suspend_pci(pdev);
 	}
@@ -223,8 +223,8 @@ int gma_power_resume(struct device *_dev)
 	mutex_lock(&power_mutex);
 	gma_resume_pci(pdev);
 	gma_resume_display(pdev);
-	psb_irq_preinstall(dev);
-	psb_irq_postinstall(dev);
+	gma_irq_preinstall(dev);
+	gma_irq_postinstall(dev);
 	mutex_unlock(&power_mutex);
 	return 0;
 }
@@ -270,8 +270,8 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 	/* Ok power up needed */
 	ret = gma_resume_pci(pdev);
 	if (ret == 0) {
-		psb_irq_preinstall(dev);
-		psb_irq_postinstall(dev);
+		gma_irq_preinstall(dev);
+		gma_irq_postinstall(dev);
 		pm_runtime_get(dev->dev);
 		dev_priv->display_count++;
 		spin_unlock_irqrestore(&power_ctrl_lock, flags);

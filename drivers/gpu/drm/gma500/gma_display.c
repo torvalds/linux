@@ -17,7 +17,7 @@
 #include "framebuffer.h"
 #include "gem.h"
 #include "gma_display.h"
-#include "psb_drv.h"
+#include "psb_irq.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 
@@ -572,9 +572,9 @@ const struct drm_crtc_funcs gma_crtc_funcs = {
 	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
 	.page_flip = gma_crtc_page_flip,
-	.enable_vblank = psb_enable_vblank,
-	.disable_vblank = psb_disable_vblank,
-	.get_vblank_counter = psb_get_vblank_counter,
+	.enable_vblank = gma_enable_vblank,
+	.disable_vblank = gma_disable_vblank,
+	.get_vblank_counter = gma_get_vblank_counter,
 };
 
 /*

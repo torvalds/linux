@@ -609,17 +609,6 @@ struct psb_ops {
 	int i2c_bus;		/* I2C bus identifier for Moorestown */
 };
 
-/* psb_irq.c */
-extern int psb_enable_vblank(struct drm_crtc *crtc);
-extern void psb_disable_vblank(struct drm_crtc *crtc);
-void
-psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
-
-void
-psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
-
-extern u32 psb_get_vblank_counter(struct drm_crtc *crtc);
-
 /* psb_lid.c */
 extern void psb_lid_timer_init(struct drm_psb_private *dev_priv);
 extern void psb_lid_timer_takedown(struct drm_psb_private *dev_priv);
