@@ -1828,10 +1828,6 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd;
 
-	/* Return quickly if ctx->io_ev_fd doesn't exist */
-	if (likely(!rcu_dereference_raw(ctx->io_ev_fd)))
-		return;
-
 	rcu_read_lock();
 	/*
 	 * rcu_dereference ctx->io_ev_fd once and use it for both for checking
@@ -1851,7 +1847,6 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 
 	if (!ev_fd->eventfd_async || io_wq_current_is_worker())
 		eventfd_signal(ev_fd->cq_ev_fd, 1);
-
 out:
 	rcu_read_unlock();
 }
@@ -1863,7 +1858,7 @@ out:
  * 1:1 relationship between how many times this function is called (and
  * hence the eventfd count) and number of CQEs posted to the CQ ring.
  */
-static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
+static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
 	/*
 	 * wake_up_all() may seem excessive, but io_wake_function() and
@@ -1872,7 +1867,8 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 	 */
 	if (wq_has_sleeper(&ctx->cq_wait))
 		wake_up_all(&ctx->cq_wait);
-	io_eventfd_signal(ctx);
+	if (unlikely(rcu_dereference_raw(ctx->io_ev_fd)))
+		io_eventfd_signal(ctx);
 }
 
 static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
@@ -1881,7 +1877,8 @@ static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 		if (wq_has_sleeper(&ctx->cq_wait))
 			wake_up_all(&ctx->cq_wait);
 	}
-	io_eventfd_signal(ctx);
+	if (unlikely(rcu_dereference_raw(ctx->io_ev_fd)))
+		io_eventfd_signal(ctx);
 }
 
 /* Returns true if there are no backlogged entries after the flush */
