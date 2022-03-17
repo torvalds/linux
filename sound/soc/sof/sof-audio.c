@@ -104,7 +104,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		.id = swidget->comp_id,
 	};
 	struct sof_ipc_reply reply;
-	int ret, ret1;
+	int ret, err;
 
 	if (!swidget->private)
 		return 0;
@@ -136,31 +136,41 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	}
 
 	/* continue to disable core even if IPC fails */
-	ret = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
+	err = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
 				 &reply, sizeof(reply));
-	if (ret < 0)
+	if (err < 0)
 		dev_err(sdev->dev, "error: failed to free widget %s\n", swidget->widget->name);
 
 	/*
 	 * disable widget core. continue to route setup status and complete flag
 	 * even if this fails and return the appropriate error
 	 */
-	ret1 = snd_sof_dsp_core_put(sdev, swidget->core);
-	if (ret1 < 0) {
+	ret = snd_sof_dsp_core_put(sdev, swidget->core);
+	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to disable target core: %d for widget %s\n",
 			swidget->core, swidget->widget->name);
-		if (!ret)
-			ret = ret1;
+		if (!err)
+			err = ret;
 	}
 
 	/* reset route setup status for all routes that contain this widget */
 	sof_reset_route_setup_status(sdev, swidget);
 	swidget->complete = 0;
 
-	if (!ret)
+	/*
+	 * free the scheduler widget (same as pipe_widget) associated with the current swidget.
+	 * skip for static pipelines
+	 */
+	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
+		ret = sof_widget_free(sdev, swidget->pipe_widget);
+		if (ret < 0 && !err)
+			err = ret;
+	}
+
+	if (!err)
 		dev_dbg(sdev->dev, "widget %s freed\n", swidget->widget->name);
 
-	return ret;
+	return err;
 }
 EXPORT_SYMBOL(sof_widget_free);
 
@@ -181,12 +191,32 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (++swidget->use_count > 1)
 		return 0;
 
+	/*
+	 * The scheduler widget for a pipeline is not part of the connected DAPM
+	 * widget list and it needs to be set up before the widgets in the pipeline
+	 * are set up. The use_count for the scheduler widget is incremented for every
+	 * widget in a given pipeline to ensure that it is freed only after the last
+	 * widget in the pipeline is freed. Skip setting up scheduler widget for static pipelines.
+	 */
+	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
+		if (!swidget->pipe_widget) {
+			dev_err(sdev->dev, "No scheduler widget set for %s\n",
+				swidget->widget->name);
+			ret = -EINVAL;
+			goto use_count_dec;
+		}
+
+		ret = sof_widget_setup(sdev, swidget->pipe_widget);
+		if (ret < 0)
+			goto use_count_dec;
+	}
+
 	/* enable widget core */
 	ret = snd_sof_dsp_core_get(sdev, swidget->core);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to enable target core for widget %s\n",
 			swidget->widget->name);
-		goto use_count_dec;
+		goto pipe_widget_free;
 	}
 
 	switch (swidget->id) {
@@ -257,6 +287,9 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 
 core_put:
 	snd_sof_dsp_core_put(sdev, swidget->core);
+pipe_widget_free:
+	if (swidget->id != snd_soc_dapm_scheduler)
+		sof_widget_free(sdev, swidget->pipe_widget);
 use_count_dec:
 	swidget->use_count--;
 	return ret;
@@ -374,36 +407,14 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, in
 	/* set up widgets in the list */
 	for_each_dapm_widgets(list, num_widgets, widget) {
 		struct snd_sof_widget *swidget = widget->dobj.private;
-		struct snd_sof_widget *pipe_widget;
 
 		if (!swidget)
 			continue;
 
-		/*
-		 * The scheduler widget for a pipeline is not part of the connected DAPM
-		 * widget list and it needs to be set up before the widgets in the pipeline
-		 * are set up. The use_count for the scheduler widget is incremented for every
-		 * widget in a given pipeline to ensure that it is freed only after the last
-		 * widget in the pipeline is freed.
-		 */
-		pipe_widget = swidget->pipe_widget;
-		if (!pipe_widget) {
-			dev_err(sdev->dev, "error: no pipeline widget found for %s\n",
-				swidget->widget->name);
-			ret = -EINVAL;
-			goto widget_free;
-		}
-
-		ret = sof_widget_setup(sdev, pipe_widget);
-		if (ret < 0)
-			goto widget_free;
-
 		/* set up the widget */
 		ret = sof_widget_setup(sdev, swidget);
-		if (ret < 0) {
-			sof_widget_free(sdev, pipe_widget);
+		if (ret < 0)
 			goto widget_free;
-		}
 	}
 
 	/*
@@ -456,7 +467,6 @@ widget_free:
 			break;
 
 		sof_widget_free(sdev, swidget);
-		sof_widget_free(sdev, swidget->pipe_widget);
 	}
 
 	return ret;
@@ -488,10 +498,6 @@ int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int
 		 * possible before freeing the list and returning the error.
 		 */
 		ret = sof_widget_free(sdev, swidget);
-		if (ret < 0)
-			ret1 = ret;
-
-		ret = sof_widget_free(sdev, swidget->pipe_widget);
 		if (ret < 0)
 			ret1 = ret;
 	}
