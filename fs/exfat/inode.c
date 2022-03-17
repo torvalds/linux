@@ -44,8 +44,8 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	/* get the directory entry of given file or directory */
 	if (exfat_get_dentry_set(&es, sb, &(ei->dir), ei->entry, ES_ALL_ENTRIES))
 		return -EIO;
-	ep = exfat_get_dentry_cached(&es, 0);
-	ep2 = exfat_get_dentry_cached(&es, 1);
+	ep = exfat_get_dentry_cached(&es, ES_IDX_FILE);
+	ep2 = exfat_get_dentry_cached(&es, ES_IDX_STREAM);
 
 	ep->dentry.file.attr = cpu_to_le16(exfat_make_attr(inode));
 
