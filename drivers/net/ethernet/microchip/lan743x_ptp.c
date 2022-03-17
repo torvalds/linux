@@ -689,6 +689,215 @@ failed:
 	return ret;
 }
 
+static void lan743x_ptp_io_perout_off(struct lan743x_adapter *adapter,
+				      u32 index)
+{
+	struct lan743x_ptp *ptp = &adapter->ptp;
+	int perout_pin;
+	int event_ch;
+	u32 gen_cfg;
+	int val;
+
+	event_ch = ptp->ptp_io_perout[index];
+	if (event_ch >= 0) {
+		/* set target to far in the future, effectively disabling it */
+		lan743x_csr_write(adapter,
+				  PTP_CLOCK_TARGET_SEC_X(event_ch),
+				  0xFFFF0000);
+		lan743x_csr_write(adapter,
+				  PTP_CLOCK_TARGET_NS_X(event_ch),
+				  0);
+
+		gen_cfg = lan743x_csr_read(adapter, HS_PTP_GENERAL_CONFIG);
+		gen_cfg &= ~(HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_X_MASK_
+				    (event_ch));
+		gen_cfg &= ~(HS_PTP_GENERAL_CONFIG_EVENT_POL_X_(event_ch));
+		gen_cfg |= HS_PTP_GENERAL_CONFIG_RELOAD_ADD_X_(event_ch);
+		lan743x_csr_write(adapter, HS_PTP_GENERAL_CONFIG, gen_cfg);
+		if (event_ch)
+			lan743x_csr_write(adapter, PTP_INT_STS,
+					  PTP_INT_TIMER_INT_B_);
+		else
+			lan743x_csr_write(adapter, PTP_INT_STS,
+					  PTP_INT_TIMER_INT_A_);
+		lan743x_ptp_release_event_ch(adapter, event_ch);
+		ptp->ptp_io_perout[index] = -1;
+	}
+
+	perout_pin = ptp_find_pin(ptp->ptp_clock, PTP_PF_PEROUT, index);
+
+	/* Deselect Event output */
+	val = lan743x_csr_read(adapter, PTP_IO_EVENT_OUTPUT_CFG);
+
+	/* Disables the output of Local Time Target compare events */
+	val &= ~PTP_IO_EVENT_OUTPUT_CFG_EN_(perout_pin);
+	lan743x_csr_write(adapter, PTP_IO_EVENT_OUTPUT_CFG, val);
+
+	/* Configured as an opendrain driver*/
+	val = lan743x_csr_read(adapter, PTP_IO_PIN_CFG);
+	val &= ~PTP_IO_PIN_CFG_OBUF_TYPE_(perout_pin);
+	lan743x_csr_write(adapter, PTP_IO_PIN_CFG, val);
+	/* Dummy read to make sure write operation success */
+	val = lan743x_csr_read(adapter, PTP_IO_PIN_CFG);
+}
+
+static int lan743x_ptp_io_perout(struct lan743x_adapter *adapter, int on,
+				 struct ptp_perout_request *perout_request)
+{
+	struct lan743x_ptp *ptp = &adapter->ptp;
+	u32 period_sec, period_nsec;
+	u32 start_sec, start_nsec;
+	u32 pulse_sec, pulse_nsec;
+	int pulse_width;
+	int perout_pin;
+	int event_ch;
+	u32 gen_cfg;
+	u32 index;
+	int val;
+
+	index = perout_request->index;
+	event_ch = ptp->ptp_io_perout[index];
+
+	if (on) {
+		perout_pin = ptp_find_pin(ptp->ptp_clock, PTP_PF_PEROUT, index);
+		if (perout_pin < 0)
+			return -EBUSY;
+	} else {
+		lan743x_ptp_io_perout_off(adapter, index);
+		return 0;
+	}
+
+	if (event_ch >= LAN743X_PTP_N_EVENT_CHAN) {
+		/* already on, turn off first */
+		lan743x_ptp_io_perout_off(adapter, index);
+	}
+
+	event_ch = lan743x_ptp_reserve_event_ch(adapter, index);
+	if (event_ch < 0) {
+		netif_warn(adapter, drv, adapter->netdev,
+			   "Failed to reserve event channel %d for PEROUT\n",
+			   index);
+		goto failed;
+	}
+	ptp->ptp_io_perout[index] = event_ch;
+
+	if (perout_request->flags & PTP_PEROUT_DUTY_CYCLE) {
+		pulse_sec = perout_request->on.sec;
+		pulse_sec += perout_request->on.nsec / 1000000000;
+		pulse_nsec = perout_request->on.nsec % 1000000000;
+	} else {
+		pulse_sec = perout_request->period.sec;
+		pulse_sec += perout_request->period.nsec / 1000000000;
+		pulse_nsec = perout_request->period.nsec % 1000000000;
+	}
+
+	if (pulse_sec == 0) {
+		if (pulse_nsec >= 400000000) {
+			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
+		} else if (pulse_nsec >= 200000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100MS_;
+		} else if (pulse_nsec >= 100000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_50MS_;
+		} else if (pulse_nsec >= 20000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_;
+		} else if (pulse_nsec >= 10000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_5MS_;
+		} else if (pulse_nsec >= 2000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_;
+		} else if (pulse_nsec >= 1000000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_500US_;
+		} else if (pulse_nsec >= 200000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100US_;
+		} else if (pulse_nsec >= 100000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_50US_;
+		} else if (pulse_nsec >= 20000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_10US_;
+		} else if (pulse_nsec >= 10000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_5US_;
+		} else if (pulse_nsec >= 2000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_1US_;
+		} else if (pulse_nsec >= 1000) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_500NS_;
+		} else if (pulse_nsec >= 200) {
+			pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100NS_;
+		} else {
+			netif_warn(adapter, drv, adapter->netdev,
+				   "perout period too small, min is 200nS\n");
+			goto failed;
+		}
+	} else {
+		pulse_width = HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
+	}
+
+	/* turn off by setting target far in future */
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_SEC_X(event_ch),
+			  0xFFFF0000);
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_NS_X(event_ch), 0);
+
+	/* Configure to pulse every period */
+	gen_cfg = lan743x_csr_read(adapter, HS_PTP_GENERAL_CONFIG);
+	gen_cfg &= ~(HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_X_MASK_(event_ch));
+	gen_cfg |= HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_X_SET_
+			  (event_ch, pulse_width);
+	gen_cfg |= HS_PTP_GENERAL_CONFIG_EVENT_POL_X_(event_ch);
+	gen_cfg &= ~(HS_PTP_GENERAL_CONFIG_RELOAD_ADD_X_(event_ch));
+	lan743x_csr_write(adapter, HS_PTP_GENERAL_CONFIG, gen_cfg);
+
+	/* set the reload to one toggle cycle */
+	period_sec = perout_request->period.sec;
+	period_sec += perout_request->period.nsec / 1000000000;
+	period_nsec = perout_request->period.nsec % 1000000000;
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_RELOAD_SEC_X(event_ch),
+			  period_sec);
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_RELOAD_NS_X(event_ch),
+			  period_nsec);
+
+	start_sec = perout_request->start.sec;
+	start_sec += perout_request->start.nsec / 1000000000;
+	start_nsec = perout_request->start.nsec % 1000000000;
+
+	/* set the start time */
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_SEC_X(event_ch),
+			  start_sec);
+	lan743x_csr_write(adapter,
+			  PTP_CLOCK_TARGET_NS_X(event_ch),
+			  start_nsec);
+
+	/* Enable LTC Target Read */
+	val = lan743x_csr_read(adapter, PTP_CMD_CTL);
+	val |= PTP_CMD_CTL_PTP_LTC_TARGET_READ_;
+	lan743x_csr_write(adapter, PTP_CMD_CTL, val);
+
+	/* Configure as an push/pull driver */
+	val = lan743x_csr_read(adapter, PTP_IO_PIN_CFG);
+	val |= PTP_IO_PIN_CFG_OBUF_TYPE_(perout_pin);
+	lan743x_csr_write(adapter, PTP_IO_PIN_CFG, val);
+
+	/* Select Event output */
+	val = lan743x_csr_read(adapter, PTP_IO_EVENT_OUTPUT_CFG);
+	if (event_ch)
+		/* Channel B as the output */
+		val |= PTP_IO_EVENT_OUTPUT_CFG_SEL_(perout_pin);
+	else
+		/* Channel A as the output */
+		val &= ~PTP_IO_EVENT_OUTPUT_CFG_SEL_(perout_pin);
+
+	/* Enables the output of Local Time Target compare events */
+	val |= PTP_IO_EVENT_OUTPUT_CFG_EN_(perout_pin);
+	lan743x_csr_write(adapter, PTP_IO_EVENT_OUTPUT_CFG, val);
+
+	return 0;
+
+failed:
+	lan743x_ptp_io_perout_off(adapter, index);
+	return -ENODEV;
+}
+
 static void lan743x_ptp_io_extts_off(struct lan743x_adapter *adapter,
 				     u32 index)
 {
@@ -812,9 +1021,14 @@ static int lan743x_ptpci_enable(struct ptp_clock_info *ptpci,
 							 &request->extts);
 			return -EINVAL;
 		case PTP_CLK_REQ_PEROUT:
-			if (request->perout.index < ptpci->n_per_out)
-				return lan743x_ptp_perout(adapter, on,
+			if (request->perout.index < ptpci->n_per_out) {
+				if (adapter->is_pci11x1x)
+					return lan743x_ptp_io_perout(adapter, on,
+							     &request->perout);
+				else
+					return lan743x_ptp_perout(adapter, on,
 							  &request->perout);
+			}
 			return -EINVAL;
 		case PTP_CLK_REQ_PPS:
 			return -EINVAL;
