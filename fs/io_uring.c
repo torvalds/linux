@@ -2019,7 +2019,7 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 	return true;
 }
 
-static inline bool __fill_cqe(struct io_ring_ctx *ctx, u64 user_data,
+static inline bool __io_fill_cqe(struct io_ring_ctx *ctx, u64 user_data,
 				 s32 res, u32 cflags)
 {
 	struct io_uring_cqe *cqe;
@@ -2039,16 +2039,16 @@ static inline bool __fill_cqe(struct io_ring_ctx *ctx, u64 user_data,
 	return io_cqring_event_overflow(ctx, user_data, res, cflags);
 }
 
-static inline bool __io_fill_cqe(struct io_kiocb *req, s32 res, u32 cflags)
+static inline bool __io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	trace_io_uring_complete(req->ctx, req, req->user_data, res, cflags);
-	return __fill_cqe(req->ctx, req->user_data, res, cflags);
+	return __io_fill_cqe(req->ctx, req->user_data, res, cflags);
 }
 
 static noinline void io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	if (!(req->flags & REQ_F_CQE_SKIP))
-		__io_fill_cqe(req, res, cflags);
+		__io_fill_cqe_req(req, res, cflags);
 }
 
 static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
@@ -2056,7 +2056,7 @@ static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
 {
 	ctx->cq_extra++;
 	trace_io_uring_complete(ctx, NULL, user_data, res, cflags);
-	return __fill_cqe(ctx, user_data, res, cflags);
+	return __io_fill_cqe(ctx, user_data, res, cflags);
 }
 
 static void __io_req_complete_post(struct io_kiocb *req, s32 res,
@@ -2065,7 +2065,7 @@ static void __io_req_complete_post(struct io_kiocb *req, s32 res,
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (!(req->flags & REQ_F_CQE_SKIP))
-		__io_fill_cqe(req, res, cflags);
+		__io_fill_cqe_req(req, res, cflags);
 	/*
 	 * If we're the last reference to this request, add to our locked
 	 * free_list cache.
@@ -2657,7 +2657,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 						    comp_list);
 
 			if (!(req->flags & REQ_F_CQE_SKIP))
-				__io_fill_cqe(req, req->result, req->cflags);
+				__io_fill_cqe_req(req, req->result, req->cflags);
 			if ((req->flags & REQ_F_POLLED) && req->apoll) {
 				struct async_poll *apoll = req->apoll;
 
@@ -2788,7 +2788,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		if (unlikely(req->flags & REQ_F_CQE_SKIP))
 			continue;
 
-		__io_fill_cqe(req, req->result, io_put_kbuf(req, 0));
+		__io_fill_cqe_req(req, req->result, io_put_kbuf(req, 0));
 		nr_events++;
 	}
 
