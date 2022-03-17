@@ -1128,18 +1128,31 @@ static int cmac_func_en(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 
 static int dmac_func_en(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val32;
 
-	val32 = (B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_MAC_SEC_EN |
-		 B_AX_DISPATCHER_EN | B_AX_DLE_CPUIO_EN | B_AX_PKT_IN_EN |
-		 B_AX_DMAC_TBL_EN | B_AX_PKT_BUF_EN | B_AX_STA_SCH_EN |
-		 B_AX_TXPKT_CTRL_EN | B_AX_WD_RLS_EN | B_AX_MPDU_PROC_EN);
+	if (chip_id == RTL8852C)
+		val32 = (B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN |
+			 B_AX_MAC_SEC_EN | B_AX_DISPATCHER_EN |
+			 B_AX_DLE_CPUIO_EN | B_AX_PKT_IN_EN |
+			 B_AX_DMAC_TBL_EN | B_AX_PKT_BUF_EN |
+			 B_AX_STA_SCH_EN | B_AX_TXPKT_CTRL_EN |
+			 B_AX_WD_RLS_EN | B_AX_MPDU_PROC_EN |
+			 B_AX_DMAC_CRPRT | B_AX_H_AXIDMA_EN);
+	else
+		val32 = (B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN |
+			 B_AX_MAC_SEC_EN | B_AX_DISPATCHER_EN |
+			 B_AX_DLE_CPUIO_EN | B_AX_PKT_IN_EN |
+			 B_AX_DMAC_TBL_EN | B_AX_PKT_BUF_EN |
+			 B_AX_STA_SCH_EN | B_AX_TXPKT_CTRL_EN |
+			 B_AX_WD_RLS_EN | B_AX_MPDU_PROC_EN |
+			 B_AX_DMAC_CRPRT);
 	rtw89_write32(rtwdev, R_AX_DMAC_FUNC_EN, val32);
 
 	val32 = (B_AX_MAC_SEC_CLK_EN | B_AX_DISPATCHER_CLK_EN |
 		 B_AX_DLE_CPUIO_CLK_EN | B_AX_PKT_IN_CLK_EN |
 		 B_AX_STA_SCH_CLK_EN | B_AX_TXPKT_CTRL_CLK_EN |
-		 B_AX_WD_RLS_CLK_EN);
+		 B_AX_WD_RLS_CLK_EN | B_AX_BBRPT_CLK_EN);
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val32);
 
 	return 0;
@@ -1147,7 +1160,11 @@ static int dmac_func_en(struct rtw89_dev *rtwdev)
 
 static int chip_func_en(struct rtw89_dev *rtwdev)
 {
-	rtw89_write32_set(rtwdev, R_AX_SPSLDO_ON_CTRL0, B_AX_OCP_L1_MASK);
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+
+	if (chip_id == RTL8852A)
+		rtw89_write32_set(rtwdev, R_AX_SPSLDO_ON_CTRL0,
+				  B_AX_OCP_L1_MASK);
 
 	return 0;
 }
