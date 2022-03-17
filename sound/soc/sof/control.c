@@ -160,17 +160,14 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_enum *se =
-		(struct soc_enum *)kcontrol->private_value;
+	struct soc_enum *se = (struct soc_enum *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = se->dobj.private;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	unsigned int i, channels = scontrol->num_channels;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	snd_sof_refresh_control(scontrol);
-
-	/* read back each channel */
-	for (i = 0; i < channels; i++)
-		ucontrol->value.enumerated.item[i] = cdata->chanv[i].value;
+	if (tplg_ops->control->enum_get)
+		return tplg_ops->control->enum_get(scontrol, ucontrol);
 
 	return 0;
 }
@@ -178,28 +175,16 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_enum *se =
-		(struct soc_enum *)kcontrol->private_value;
+	struct soc_enum *se = (struct soc_enum *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = se->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	unsigned int i, channels = scontrol->num_channels;
-	bool change = false;
-	u32 value;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	/* update each channel */
-	for (i = 0; i < channels; i++) {
-		value = ucontrol->value.enumerated.item[i];
-		change = change || (value != cdata->chanv[i].value);
-		cdata->chanv[i].channel = i;
-		cdata->chanv[i].value = value;
-	}
+	if (tplg_ops->control->enum_put)
+		return tplg_ops->control->enum_put(scontrol, ucontrol);
 
-	/* notify DSP of enum updates */
-	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol, true);
-
-	return change;
+	return false;
 }
 
 int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,

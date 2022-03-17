@@ -157,6 +157,54 @@ static bool sof_ipc3_switch_put(struct snd_sof_control *scontrol,
 	return change;
 }
 
+static int sof_ipc3_enum_get(struct snd_sof_control *scontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	unsigned int channels = scontrol->num_channels;
+	unsigned int i;
+
+	snd_sof_refresh_control(scontrol);
+
+	/* read back each channel */
+	for (i = 0; i < channels; i++)
+		ucontrol->value.enumerated.item[i] = cdata->chanv[i].value;
+
+	return 0;
+}
+
+static bool sof_ipc3_enum_put(struct snd_sof_control *scontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	unsigned int channels = scontrol->num_channels;
+	unsigned int i;
+	bool change = false;
+	u32 value;
+
+	/* update each channel */
+	for (i = 0; i < channels; i++) {
+		value = ucontrol->value.enumerated.item[i];
+		change = change || (value != cdata->chanv[i].value);
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
+	}
+
+	/* notify DSP of enum updates */
+	if (pm_runtime_active(scomp->dev)) {
+		int ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
+
+		if (ret < 0) {
+			dev_err(scomp->dev, "Failed to set enum updates for %s\n",
+				scontrol->name);
+			return false;
+		}
+	}
+
+	return change;
+}
+
 static void snd_sof_update_control(struct snd_sof_control *scontrol,
 				   struct sof_ipc_ctrl_data *cdata)
 {
@@ -302,5 +350,7 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.volume_get = sof_ipc3_volume_get,
 	.switch_put = sof_ipc3_switch_put,
 	.switch_get = sof_ipc3_switch_get,
+	.enum_put = sof_ipc3_enum_put,
+	.enum_get = sof_ipc3_enum_get,
 	.update = sof_ipc3_control_update,
 };
