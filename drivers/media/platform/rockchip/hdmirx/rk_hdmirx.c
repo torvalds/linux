@@ -205,6 +205,7 @@ struct rk_hdmirx_dev {
 	struct cec_notifier *cec_notifier;
 	spinlock_t dma_rst_lock;
 	struct dentry *debugfs_dir;
+	bool initialized;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
@@ -720,7 +721,13 @@ static int hdmirx_query_dv_timings(struct file *file, void *_fh,
 		return -ENOLCK;
 	}
 
-	ret = hdmirx_try_to_get_timings(hdmirx_dev, timings, 1);
+	/*
+	 * query dv timings is during preview, dma's timing is stable,
+	 * so we can get from DMA. If the current resolution is negative,
+	 * get timing from CTRL need to change polarity of sync,
+	 * maybe cause DMA errors.
+	 */
+	ret = hdmirx_get_detected_timings(hdmirx_dev, timings, true);
 	if (ret)
 		return ret;
 
@@ -2829,15 +2836,21 @@ static int hdmirx_runtime_resume(struct device *dev)
 
 	hdmirx_edid_init_config(hdmirx_dev);
 
-	enable_irq(hdmirx_dev->hdmi_irq);
-	enable_irq(hdmirx_dev->dma_irq);
-	sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_EN, RK_IRQ_HDMIRX_HDMI, 0);
+	if (hdmirx_dev->initialized) {
+		enable_irq(hdmirx_dev->hdmi_irq);
+		enable_irq(hdmirx_dev->dma_irq);
+		sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_EN, RK_IRQ_HDMIRX_HDMI, 0);
+	}
 
 	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
 		     (HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
 		     ((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
-	schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-			      msecs_to_jiffies(20));
+	if (hdmirx_dev->initialized)
+		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
+				      msecs_to_jiffies(20));
+	else
+		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
+				      msecs_to_jiffies(2000));
 
 	return 0;
 }
@@ -3412,9 +3425,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_unreg_video_dev;
 	}
 
-	schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-			msecs_to_jiffies(2000));
-
 	hdmirx_dev->cec_notifier = cec_notifier_conn_register(dev, NULL, NULL);
 	if (!hdmirx_dev->cec_notifier) {
 		ret = -ENOMEM;
@@ -3438,6 +3448,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
 
+	hdmirx_dev->initialized = true;
 	dev_info(dev, "%s driver probe ok!\n", dev_name(dev));
 
 	return 0;
