@@ -371,15 +371,18 @@ struct sof_ipc_pm_ops {
 };
 
 struct sof_ipc_tplg_ops;
+struct sof_ipc_pcm_ops;
 
 /**
  * struct sof_ipc_ops - IPC-specific ops
  * @tplg:	Pointer to IPC-specific topology ops
  * @pm:		Pointer to PM ops
+ * @pcm:	Pointer to PCM ops
  */
 struct sof_ipc_ops {
 	const struct sof_ipc_tplg_ops *tplg;
 	const struct sof_ipc_pm_ops *pm;
+	const struct sof_ipc_pcm_ops *pcm;
 };
 
 /* SOF generic IPC data */
