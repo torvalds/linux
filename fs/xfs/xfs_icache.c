@@ -23,6 +23,7 @@
 #include "xfs_reflink.h"
 #include "xfs_ialloc.h"
 #include "xfs_ag.h"
+#include "xfs_log_priv.h"
 
 #include <linux/iversion.h>
 
@@ -873,7 +874,14 @@ xfs_reclaim_inode(
 	if (xfs_iflags_test_and_set(ip, XFS_IFLUSHING))
 		goto out_iunlock;
 
-	if (xfs_is_shutdown(ip->i_mount)) {
+	/*
+	 * Check for log shutdown because aborting the inode can move the log
+	 * tail and corrupt in memory state. This is fine if the log is shut
+	 * down, but if the log is still active and only the mount is shut down
+	 * then the in-memory log tail movement caused by the abort can be
+	 * incorrectly propagated to disk.
+	 */
+	if (xlog_is_shutdown(ip->i_mount->m_log)) {
 		xfs_iunpin_wait(ip);
 		xfs_iflush_abort(ip);
 		goto reclaim;

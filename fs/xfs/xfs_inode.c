@@ -35,6 +35,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
+#include "xfs_log_priv.h"
 
 struct kmem_cache *xfs_inode_cache;
 
@@ -3678,7 +3679,7 @@ xfs_iflush_cluster(
 		 * AIL, leaving a dirty/unpinned inode attached to the buffer
 		 * that otherwise looks like it should be flushed.
 		 */
-		if (xfs_is_shutdown(mp)) {
+		if (xlog_is_shutdown(mp->m_log)) {
 			xfs_iunpin_wait(ip);
 			xfs_iflush_abort(ip);
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -3704,9 +3705,19 @@ xfs_iflush_cluster(
 	}
 
 	if (error) {
+		/*
+		 * Shutdown first so we kill the log before we release this
+		 * buffer. If it is an INODE_ALLOC buffer and pins the tail
+		 * of the log, failing it before the _log_ is shut down can
+		 * result in the log tail being moved forward in the journal
+		 * on disk because log writes can still be taking place. Hence
+		 * unpinning the tail will allow the ICREATE intent to be
+		 * removed from the log an recovery will fail with uninitialised
+		 * inode cluster buffers.
+		 */
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		bp->b_flags |= XBF_ASYNC;
 		xfs_buf_ioend_fail(bp);
-		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;
 	}
 

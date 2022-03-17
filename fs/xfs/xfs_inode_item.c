@@ -17,6 +17,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
+#include "xfs_log_priv.h"
 #include "xfs_error.h"
 
 #include <linux/iversion.h>
@@ -719,6 +720,17 @@ xfs_iflush_ail_updates(
 		clear_bit(XFS_LI_FAILED, &lip->li_flags);
 		if (INODE_ITEM(lip)->ili_flush_lsn != lip->li_lsn)
 			continue;
+
+		/*
+		 * dgc: Not sure how this happens, but it happens very
+		 * occassionaly via generic/388.  xfs_iflush_abort() also
+		 * silently handles this same "under writeback but not in AIL at
+		 * shutdown" condition via xfs_trans_ail_delete().
+		 */
+		if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
+			ASSERT(xlog_is_shutdown(lip->li_log));
+			continue;
+		}
 
 		lsn = xfs_ail_delete_one(ailp, lip);
 		if (!tail_lsn && lsn)
