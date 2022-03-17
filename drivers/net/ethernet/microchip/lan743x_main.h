@@ -86,6 +86,40 @@
 
 #define E2P_DATA			(0x044)
 
+/* Hearthstone top level & System Reg Addresses */
+#define ETH_CTRL_REG_ADDR_BASE		(0x0000)
+#define ETH_SYS_REG_ADDR_BASE		(0x4000)
+#define CONFIG_REG_ADDR_BASE		(0x0000)
+#define ETH_EEPROM_REG_ADDR_BASE	(0x0E00)
+#define ETH_OTP_REG_ADDR_BASE		(0x1000)
+#define SYS_LOCK_REG			(0x00A0)
+#define SYS_LOCK_REG_MAIN_LOCK_		BIT(7)
+#define SYS_LOCK_REG_GEN_PERI_LOCK_	BIT(5)
+#define SYS_LOCK_REG_SPI_PERI_LOCK_	BIT(4)
+#define SYS_LOCK_REG_SMBUS_PERI_LOCK_	BIT(3)
+#define SYS_LOCK_REG_UART_SS_LOCK_	BIT(2)
+#define SYS_LOCK_REG_ENET_SS_LOCK_	BIT(1)
+#define SYS_LOCK_REG_USB_SS_LOCK_	BIT(0)
+#define ETH_SYSTEM_SYS_LOCK_REG		(ETH_SYS_REG_ADDR_BASE + \
+					 CONFIG_REG_ADDR_BASE + \
+					 SYS_LOCK_REG)
+#define HS_EEPROM_REG_ADDR_BASE		(ETH_SYS_REG_ADDR_BASE + \
+					 ETH_EEPROM_REG_ADDR_BASE)
+#define HS_E2P_CMD			(HS_EEPROM_REG_ADDR_BASE + 0x0000)
+#define HS_E2P_CMD_EPC_BUSY_		BIT(31)
+#define HS_E2P_CMD_EPC_CMD_WRITE_	GENMASK(29, 28)
+#define HS_E2P_CMD_EPC_CMD_READ_	(0x0)
+#define HS_E2P_CMD_EPC_TIMEOUT_		BIT(17)
+#define HS_E2P_CMD_EPC_ADDR_MASK_	GENMASK(15, 0)
+#define HS_E2P_DATA			(HS_EEPROM_REG_ADDR_BASE + 0x0004)
+#define HS_E2P_DATA_MASK_		GENMASK(7, 0)
+#define HS_E2P_CFG			(HS_EEPROM_REG_ADDR_BASE + 0x0008)
+#define HS_E2P_CFG_I2C_PULSE_MASK_	GENMASK(19, 16)
+#define HS_E2P_CFG_EEPROM_SIZE_SEL_	BIT(12)
+#define HS_E2P_CFG_I2C_BAUD_RATE_MASK_	GENMASK(9, 8)
+#define HS_E2P_CFG_TEST_EEPR_TO_BYP_	BIT(0)
+#define HS_E2P_PAD_CTL			(HS_EEPROM_REG_ADDR_BASE + 0x000C)
+
 #define GPIO_CFG0			(0x050)
 #define GPIO_CFG0_GPIO_DIR_BIT_(bit)	BIT(16 + (bit))
 #define GPIO_CFG0_GPIO_DATA_BIT_(bit)	BIT(0 + (bit))
@@ -773,6 +807,10 @@ struct lan743x_adapter {
 	struct lan743x_rx       rx[LAN743X_USED_RX_CHANNELS];
 	bool			is_pci11x1x;
 	bool			is_sgmii_en;
+	/* protect ethernet syslock */
+	spinlock_t		eth_syslock_spinlock;
+	bool			eth_syslock_en;
+	u32			eth_syslock_acquire_cnt;
 	u8			max_tx_channels;
 	u8			used_tx_channels;
 	u8			max_vector_count;
