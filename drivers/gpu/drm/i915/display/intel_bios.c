@@ -180,11 +180,11 @@ get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *lvds_lfp_data,
 	 */
 
 	int lfp_data_size =
-		lvds_lfp_data_ptrs->ptr[1].dvo_timing_offset -
-		lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset;
+		lvds_lfp_data_ptrs->ptr[1].dvo_timing.offset -
+		lvds_lfp_data_ptrs->ptr[0].dvo_timing.offset;
 	int dvo_timing_offset =
-		lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset -
-		lvds_lfp_data_ptrs->ptr[0].fp_timing_offset;
+		lvds_lfp_data_ptrs->ptr[0].dvo_timing.offset -
+		lvds_lfp_data_ptrs->ptr[0].fp_timing.offset;
 	char *entry = (char *)lvds_lfp_data->data + lfp_data_size * index;
 
 	return (struct lvds_dvo_timing *)(entry + dvo_timing_offset);
@@ -205,7 +205,7 @@ get_lvds_fp_timing(const struct bdb_header *bdb,
 
 	if (index >= ARRAY_SIZE(ptrs->ptr))
 		return NULL;
-	ofs = ptrs->ptr[index].fp_timing_offset;
+	ofs = ptrs->ptr[index].fp_timing.offset;
 	if (ofs < data_ofs ||
 	    ofs + sizeof(struct lvds_fp_timing) > data_ofs + data_size)
 		return NULL;

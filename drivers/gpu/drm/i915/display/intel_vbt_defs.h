@@ -722,15 +722,16 @@ struct bdb_lvds_options {
 /*
  * Block 41 - LFP Data Table Pointers
  */
+struct lvds_lfp_data_ptr_table {
+	u16 offset; /* offsets are from start of bdb */
+	u8 table_size;
+} __packed;
 
 /* LFP pointer table contains entries to the struct below */
 struct lvds_lfp_data_ptr {
-	u16 fp_timing_offset; /* offsets are from start of bdb */
-	u8 fp_table_size;
-	u16 dvo_timing_offset;
-	u8 dvo_table_size;
-	u16 panel_pnp_id_offset;
-	u8 pnp_table_size;
+	struct lvds_lfp_data_ptr_table fp_timing;
+	struct lvds_lfp_data_ptr_table dvo_timing;
+	struct lvds_lfp_data_ptr_table panel_pnp_id;
 } __packed;
 
 struct bdb_lvds_lfp_data_ptrs {
