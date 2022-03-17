@@ -3421,7 +3421,8 @@ static inline void __walt_irq_work_locked(bool is_migration, struct cpumask *loc
 	struct walt_rq *wrq;
 
 	wc = walt_sched_clock();
-	walt_load_reported_window = atomic64_read(&walt_irq_work_lastq_ws);
+	if (!is_migration)
+		walt_load_reported_window = atomic64_read(&walt_irq_work_lastq_ws);
 	for_each_sched_cluster(cluster) {
 		u64 aggr_grp_load = 0;
 
