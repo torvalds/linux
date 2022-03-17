@@ -334,10 +334,10 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		lc->restart_data = (unsigned long)data;
 		lc->restart_source = source_cpu;
 	} else {
-		mem_assign_absolute(lc->restart_stack, stack);
-		mem_assign_absolute(lc->restart_fn, (unsigned long)func);
-		mem_assign_absolute(lc->restart_data, (unsigned long)data);
-		mem_assign_absolute(lc->restart_source, source_cpu);
+		put_abs_lowcore(restart_stack, stack);
+		put_abs_lowcore(restart_fn, (unsigned long)func);
+		put_abs_lowcore(restart_data, (unsigned long)data);
+		put_abs_lowcore(restart_source, source_cpu);
 	}
 	__bpon();
 	asm volatile(
@@ -593,9 +593,9 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 		parms.andval = ~(1UL << bit);
 	}
 	spin_lock(&ctl_lock);
-	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
+	get_abs_lowcore(ctlreg, cregs_save_area[cr]);
 	ctlreg = (ctlreg & parms.andval) | parms.orval;
-	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
+	put_abs_lowcore(cregs_save_area[cr], ctlreg);
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
