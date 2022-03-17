@@ -134,11 +134,11 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	if (!sk)
 		RET_LOG();
 
-	/* Not the testing egress traffic or
-	 * TCP_LISTEN (10) socket will be copied at the ingress side.
+	/* Not testing the egress traffic or the listening socket,
+	 * which are covered by the cgroup_skb/ingress test program.
 	 */
 	if (sk->family != AF_INET6 || !is_loopback6(sk->src_ip6) ||
-	    sk->state == 10)
+	    sk->state == BPF_TCP_LISTEN)
 		return CG_OK;
 
 	if (sk->src_port == bpf_ntohs(srv_sa6.sin6_port)) {
@@ -232,8 +232,8 @@ int ingress_read_sock_fields(struct __sk_buff *skb)
 	    sk->src_port != bpf_ntohs(srv_sa6.sin6_port))
 		return CG_OK;
 
-	/* Only interested in TCP_LISTEN */
-	if (sk->state != 10)
+	/* Only interested in the listening socket */
+	if (sk->state != BPF_TCP_LISTEN)
 		return CG_OK;
 
 	/* It must be a fullsock for cgroup_skb/ingress prog */
