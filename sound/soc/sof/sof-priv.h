@@ -360,17 +360,27 @@ struct snd_sof_ipc_msg {
 	bool ipc_complete;
 };
 
+/**
+ * struct sof_ipc_pm_ops - IPC-specific PM ops
+ * @ctx_save:		Function pointer for context save
+ * @ctx_restore:	Function pointer for context restore
+ */
+struct sof_ipc_pm_ops {
+	int (*ctx_save)(struct snd_sof_dev *sdev);
+	int (*ctx_restore)(struct snd_sof_dev *sdev);
+};
+
 struct sof_ipc_tplg_ops;
 
 /**
  * struct sof_ipc_ops - IPC-specific ops
  * @tplg:	Pointer to IPC-specific topology ops
+ * @pm:		Pointer to PM ops
  */
 struct sof_ipc_ops {
 	const struct sof_ipc_tplg_ops *tplg;
+	const struct sof_ipc_pm_ops *pm;
 };
-
-extern const struct sof_ipc_ops ipc3_ops;
 
 /* SOF generic IPC data */
 struct snd_sof_ipc {

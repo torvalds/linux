@@ -11,6 +11,7 @@
 #include <sound/pcm_params.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
+#include "ipc3-ops.h"
 #include "ops.h"
 
 /* Full volume for default values */
@@ -2152,7 +2153,7 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 				 sof_ipc3_widget_bind_event},
 };
 
-static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
+const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget = tplg_ipc3_widget_ops,
 	.route_setup = sof_ipc3_route_setup,
 	.control_setup = sof_ipc3_control_setup,
@@ -2162,8 +2163,4 @@ static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget_free = sof_ipc3_widget_free,
 	.widget_setup = sof_ipc3_widget_setup,
 	.dai_config = sof_ipc3_dai_config,
-};
-
-const struct sof_ipc_ops ipc3_ops = {
-	.tplg = &ipc3_tplg_ops,
 };
