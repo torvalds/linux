@@ -727,7 +727,6 @@ ap_ec_spi: &spi10 {
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		output-high;
 	};
 
 	fp_to_ap_irq_l: fp-to-ap-irq-l {
@@ -741,7 +740,6 @@ ap_ec_spi: &spi10 {
 		pins = "gpio68";
 		function = "gpio";
 		bias-disable;
-		output-low;
 	};
 
 	gsc_ap_int_odl: gsc-ap-int-odl {
