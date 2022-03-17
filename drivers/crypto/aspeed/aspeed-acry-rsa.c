@@ -113,7 +113,7 @@ int aspeed_acry_rsa_ctx_copy(void *buf, const void *xbuf, size_t nbytes, int mod
 	u32 a;
 	int i, j;
 
-	RSA_DBG("\n");
+	RSA_DBG("nbytes:0x%x, mode:%d\n", nbytes, mode);
 	if (nbytes > 512)
 		return -ENOMEM;
 
@@ -240,10 +240,22 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 
 	aspeed_acry_rsa_sg_copy_to_buffer(acry_dev->buf_addr, req->src, req->src_len);
 
-	nm = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.n, ctx->key.n_sz, 1);
+	if (!ctx->n || !ctx->n_sz) {
+		pr_err("%s: key n is not set\n", __func__);
+		return -EINVAL;
+	}
+	nm = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->n, ctx->n_sz, 1);
 	if (ctx->enc) {
-		ne = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.e, ctx->key.e_sz, 0);
+		if (!ctx->e || !ctx->e_sz) {
+			pr_err("%s: key e is not set\n", __func__);
+			return -EINVAL;
+		}
+		ne = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->e, ctx->e_sz, 0);
 	} else {
+		if (!ctx->d || !ctx->d_sz) {
+			pr_err("%s: key d is not set\n", __func__);
+			return -EINVAL;
+		}
 		ne = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.d, ctx->key.d_sz, 0);
 	}
 
@@ -270,6 +282,10 @@ static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
+	if (!ctx || !acry_dev) {
+		pr_err("%s: ctx or acry_dev is null\n", __func__);
+		return -1;
+	}
 	acry_ctx->trigger = aspeed_acry_rsa_trigger;
 	ctx->enc = 1;
 
@@ -292,6 +308,44 @@ static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
 }
 
+static u8 *aspeed_rsa_key_copy(u8 *src, size_t len)
+{
+	u8 *dst;
+
+	dst = kmemdup(src, len, GFP_DMA | GFP_KERNEL);
+	return dst;
+}
+
+static int aspeed_rsa_set_n(struct aspeed_acry_rsa_ctx *ctx, u8 *value,
+			    size_t len)
+{
+	ctx->n_sz = len;
+	ctx->n = aspeed_rsa_key_copy(value, len);
+	if (!ctx->n)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int aspeed_rsa_set_e(struct aspeed_acry_rsa_ctx *ctx, u8 *value,
+			    size_t len)
+{
+	ctx->e_sz = len;
+	ctx->e = aspeed_rsa_key_copy(value, len);
+	if (!ctx->e)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void aspeed_rsa_key_free(struct aspeed_acry_rsa_ctx *ctx)
+{
+	kfree_sensitive(ctx->n);
+	kfree_sensitive(ctx->e);
+	ctx->n_sz = 0;
+	ctx->e_sz = 0;
+}
+
 static int aspeed_acry_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 				  unsigned int keylen, int priv)
 {
@@ -304,15 +358,21 @@ static int aspeed_acry_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 		ret = rsa_parse_priv_key(&ctx->key, key, keylen);
 	else
 		ret = rsa_parse_pub_key(&ctx->key, key, keylen);
-	if (ret)
+	if (ret) {
+		RSA_DBG("rsa parse key failed, ret:0x%x\n", ret);
 		return ret;
+	}
 
-	// printk("raw_key.n_sz %d, raw_key.e_sz %d, raw_key.d_sz %d, raw_key.p_sz %d, raw_key.q_sz %d, raw_key.dp_sz %d, raw_key.dq_sz %d, raw_key.qinv_sz %d\n",
-	//        raw_key.n_sz, raw_key.e_sz, raw_key.d_sz,
-	//        raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
-	//        raw_key.dq_sz, raw_key.qinv_sz);
+	/* Aspeed engine supports up to 4096 bits */
 	if (ctx->key.n_sz > 512)
 		return -EINVAL;
+
+	ret = aspeed_rsa_set_n(ctx, (u8 *)ctx->key.n, ctx->key.n_sz) ||
+	      aspeed_rsa_set_e(ctx, (u8 *)ctx->key.e, ctx->key.e_sz);
+	if (ret) {
+		aspeed_rsa_key_free(ctx);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -338,8 +398,7 @@ static unsigned int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
 	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
 	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 
-	RSA_DBG("key->n_sz %d\n", ctx->key.n_sz);
-	return (ctx->key.n_sz) ? ctx->key.n_sz : -EINVAL;
+	return (ctx->n_sz) ? ctx->n_sz : -EINVAL;
 }
 
 static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)

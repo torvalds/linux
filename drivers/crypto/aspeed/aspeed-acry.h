@@ -88,6 +88,12 @@ struct aspeed_acry_rsa_ctx {
 	struct aspeed_acry_dev		*acry_dev;
 	struct rsa_key			key;
 	int 				enc;
+	u8				*n;
+	u8				*e;
+	u8				*d;
+	size_t				n_sz;
+	size_t				e_sz;
+	size_t				d_sz;
 };
 
 struct aspeed_acry_ecdsa_ctx {
