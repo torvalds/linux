@@ -125,6 +125,72 @@ static inline void release_update_locks_for_mdev(struct ap_matrix_mdev *matrix_m
 }
 
 /**
+ * get_update_locks_by_apqn: Find the mdev to which an APQN is assigned and
+ *			     acquire the locks required to update the APCB of
+ *			     the KVM guest to which the mdev is attached.
+ *
+ * @apqn: the APQN of a queue device.
+ *
+ * The proper locking order is:
+ * 1. matrix_dev->guests_lock: required to use the KVM pointer to update a KVM
+ *			       guest's APCB.
+ * 2. matrix_mdev->kvm->lock:  required to update a guest's APCB
+ * 3. matrix_dev->mdevs_lock:  required to access data stored in a matrix_mdev
+ *
+ * Note: If @apqn is not assigned to a matrix_mdev, the matrix_mdev->kvm->lock
+ *	 will not be taken.
+ *
+ * Return: the ap_matrix_mdev object to which @apqn is assigned or NULL if @apqn
+ *	   is not assigned to an ap_matrix_mdev.
+ */
+static struct ap_matrix_mdev *get_update_locks_by_apqn(int apqn)
+{
+	struct ap_matrix_mdev *matrix_mdev;
+
+	mutex_lock(&matrix_dev->guests_lock);
+
+	list_for_each_entry(matrix_mdev, &matrix_dev->mdev_list, node) {
+		if (test_bit_inv(AP_QID_CARD(apqn), matrix_mdev->matrix.apm) &&
+		    test_bit_inv(AP_QID_QUEUE(apqn), matrix_mdev->matrix.aqm)) {
+			if (matrix_mdev->kvm)
+				mutex_lock(&matrix_mdev->kvm->lock);
+
+			mutex_lock(&matrix_dev->mdevs_lock);
+
+			return matrix_mdev;
+		}
+	}
+
+	mutex_lock(&matrix_dev->mdevs_lock);
+
+	return NULL;
+}
+
+/**
+ * get_update_locks_for_queue: get the locks required to update the APCB of the
+ *			       KVM guest to which the matrix mdev linked to a
+ *			       vfio_ap_queue object is attached.
+ *
+ * @q: a pointer to a vfio_ap_queue object.
+ *
+ * The proper locking order is:
+ * 1. q->matrix_dev->guests_lock: required to use the KVM pointer to update a
+ *				  KVM guest's APCB.
+ * 2. q->matrix_mdev->kvm->lock:  required to update a guest's APCB
+ * 3. matrix_dev->mdevs_lock:	  required to access data stored in matrix_mdev
+ *
+ * Note: if @queue is not linked to an ap_matrix_mdev object, the KVM lock
+ *	  will not be taken.
+ */
+static inline void get_update_locks_for_queue(struct vfio_ap_queue *q)
+{
+	mutex_lock(&matrix_dev->guests_lock);
+	if (q->matrix_mdev && q->matrix_mdev->kvm)
+		mutex_lock(&q->matrix_mdev->kvm->lock);
+	mutex_lock(&matrix_dev->mdevs_lock);
+}
+
+/**
  * vfio_ap_mdev_get_queue - retrieve a queue with a specific APQN from a
  *			    hash table of queues assigned to a matrix mdev
  * @matrix_mdev: the matrix mdev
@@ -622,21 +688,17 @@ static int vfio_ap_mdev_probe(struct mdev_device *mdev)
 	matrix_mdev->pqap_hook = handle_pqap;
 	vfio_ap_matrix_init(&matrix_dev->info, &matrix_mdev->shadow_apcb);
 	hash_init(matrix_mdev->qtable.queues);
-	dev_set_drvdata(&mdev->dev, matrix_mdev);
-	mutex_lock(&matrix_dev->mdevs_lock);
-	list_add(&matrix_mdev->node, &matrix_dev->mdev_list);
-	mutex_unlock(&matrix_dev->mdevs_lock);
 
 	ret = vfio_register_emulated_iommu_dev(&matrix_mdev->vdev);
 	if (ret)
 		goto err_list;
 	dev_set_drvdata(&mdev->dev, matrix_mdev);
+	mutex_lock(&matrix_dev->mdevs_lock);
+	list_add(&matrix_mdev->node, &matrix_dev->mdev_list);
+	mutex_unlock(&matrix_dev->mdevs_lock);
 	return 0;
 
 err_list:
-	mutex_lock(&matrix_dev->mdevs_lock);
-	list_del(&matrix_mdev->node);
-	mutex_unlock(&matrix_dev->mdevs_lock);
 	vfio_uninit_group_dev(&matrix_mdev->vdev);
 	kfree(matrix_mdev);
 err_dec_available:
@@ -699,11 +761,13 @@ static void vfio_ap_mdev_remove(struct mdev_device *mdev)
 
 	vfio_unregister_group_dev(&matrix_mdev->vdev);
 
+	mutex_lock(&matrix_dev->guests_lock);
 	mutex_lock(&matrix_dev->mdevs_lock);
 	vfio_ap_mdev_reset_queues(matrix_mdev);
 	vfio_ap_mdev_unlink_fr_queues(matrix_mdev);
 	list_del(&matrix_mdev->node);
 	mutex_unlock(&matrix_dev->mdevs_lock);
+	mutex_unlock(&matrix_dev->guests_lock);
 	vfio_uninit_group_dev(&matrix_mdev->vdev);
 	kfree(matrix_mdev);
 	atomic_inc(&matrix_dev->available_instances);
@@ -1701,32 +1765,11 @@ void vfio_ap_mdev_unregister(void)
 	mdev_unregister_driver(&vfio_ap_matrix_driver);
 }
 
-/*
- * vfio_ap_queue_link_mdev
- *
- * @q: The queue to link with the matrix mdev.
- *
- * Links @q with the matrix mdev to which the queue's APQN is assigned.
- */
-static void vfio_ap_queue_link_mdev(struct vfio_ap_queue *q)
-{
-	unsigned long apid = AP_QID_CARD(q->apqn);
-	unsigned long apqi = AP_QID_QUEUE(q->apqn);
-	struct ap_matrix_mdev *matrix_mdev;
-
-	list_for_each_entry(matrix_mdev, &matrix_dev->mdev_list, node) {
-		if (test_bit_inv(apid, matrix_mdev->matrix.apm) &&
-		    test_bit_inv(apqi, matrix_mdev->matrix.aqm)) {
-			vfio_ap_mdev_link_queue(matrix_mdev, q);
-			break;
-		}
-	}
-}
-
 int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 {
 	int ret;
 	struct vfio_ap_queue *q;
+	struct ap_matrix_mdev *matrix_mdev;
 
 	ret = sysfs_create_group(&apdev->device.kobj, &vfio_queue_attr_group);
 	if (ret)
@@ -1736,17 +1779,18 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 	if (!q)
 		return -ENOMEM;
 
-	mutex_lock(&matrix_dev->mdevs_lock);
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
-	vfio_ap_queue_link_mdev(q);
-	if (q->matrix_mdev) {
-		vfio_ap_mdev_filter_matrix(q->matrix_mdev->matrix.apm,
-					   q->matrix_mdev->matrix.aqm,
-					   q->matrix_mdev);
+	matrix_mdev = get_update_locks_by_apqn(q->apqn);
+
+	if (matrix_mdev) {
+		vfio_ap_mdev_link_queue(matrix_mdev, q);
+		vfio_ap_mdev_filter_matrix(matrix_mdev->matrix.apm,
+					   matrix_mdev->matrix.aqm,
+					   matrix_mdev);
 	}
 	dev_set_drvdata(&apdev->device, q);
-	mutex_unlock(&matrix_dev->mdevs_lock);
+	release_update_locks_for_mdev(matrix_mdev);
 
 	return 0;
 }
@@ -1755,12 +1799,14 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 {
 	unsigned long apid;
 	struct vfio_ap_queue *q;
+	struct ap_matrix_mdev *matrix_mdev;
 
-	mutex_lock(&matrix_dev->mdevs_lock);
 	sysfs_remove_group(&apdev->device.kobj, &vfio_queue_attr_group);
 	q = dev_get_drvdata(&apdev->device);
+	get_update_locks_for_queue(q);
+	matrix_mdev = q->matrix_mdev;
 
-	if (q->matrix_mdev) {
+	if (matrix_mdev) {
 		vfio_ap_unlink_queue_fr_mdev(q);
 
 		apid = AP_QID_CARD(q->apqn);
@@ -1771,5 +1817,5 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 	vfio_ap_mdev_reset_queue(q, 1);
 	dev_set_drvdata(&apdev->device, NULL);
 	kfree(q);
-	mutex_unlock(&matrix_dev->mdevs_lock);
+	release_update_locks_for_mdev(matrix_mdev);
 }
