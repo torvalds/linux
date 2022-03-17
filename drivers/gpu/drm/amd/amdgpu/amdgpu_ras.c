@@ -66,6 +66,8 @@ const char *ras_block_string[] = {
 	"mp1",
 	"fuse",
 	"mca",
+	"vcn",
+	"jpeg",
 };
 
 const char *ras_mca_block_string[] = {
@@ -2205,6 +2207,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 			dev_info(adev->dev, "SRAM ECC is active.\n");
 			adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
 						    1 << AMDGPU_RAS_BLOCK__DF);
+
+			if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
+				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
+						1 << AMDGPU_RAS_BLOCK__JPEG);
+			else
+				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
+						1 << AMDGPU_RAS_BLOCK__JPEG);
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
