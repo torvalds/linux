@@ -316,6 +316,17 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Counts the number of retired loads that are blocked due to a first level TLB miss.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.DTLB_MISS",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
         "BriefDescription": "Counts the number of memory retired ops that missed in the second level TLB.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",

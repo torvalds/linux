@@ -11,6 +11,18 @@
         "UMask": "0x2"
     },
     {
+        "BriefDescription": "Counts the number of floating point operations retired that required microcode assist.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.FP_ASSIST",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of floating point operations retired that required microcode assist, which is not a reflection of the number of FP operations, instructions or uops.",
+        "SampleAfterValue": "20003",
+        "UMask": "0x4"
+    },
+    {
         "BriefDescription": "Counts the number of floating point divide uops retired (x87 and SSE, including x87 sqrt).",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",

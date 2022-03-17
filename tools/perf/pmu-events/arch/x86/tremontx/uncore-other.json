@@ -945,6 +945,7 @@
         "CounterType": "FREERUN",
         "EventName": "UNC_IIO_CLOCKTICKS_FREERUN",
         "PerPkg": "1",
+        "PublicDescription": "Free running counter that increments for integrated IO (IIO) traffic controller clockticks",
         "Unit": "IIO"
     },
     {
