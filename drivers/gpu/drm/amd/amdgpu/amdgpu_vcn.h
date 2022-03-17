@@ -24,6 +24,8 @@
 #ifndef __AMDGPU_VCN_H__
 #define __AMDGPU_VCN_H__
 
+#include "amdgpu_ras.h"
+
 #define AMDGPU_VCN_STACK_SIZE		(128*1024)
 #define AMDGPU_VCN_CONTEXT_SIZE 	(512*1024)
 
@@ -233,6 +235,10 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_vcn_fw_shared fw_shared;
 };
 
+struct amdgpu_vcn_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+
 struct amdgpu_vcn {
 	unsigned		fw_version;
 	struct delayed_work	idle_work;
@@ -252,6 +258,9 @@ struct amdgpu_vcn {
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
+
+	struct ras_common_if    *ras_if;
+	struct amdgpu_vcn_ras   *ras;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
