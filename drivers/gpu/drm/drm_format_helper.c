@@ -594,27 +594,16 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 }
 EXPORT_SYMBOL(drm_fb_blit_toio);
 
-static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixels,
-				      unsigned int start_offset, unsigned int end_len)
+
+static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixels)
 {
-	unsigned int xb, i;
+	while (pixels) {
+		unsigned int i, bits = min(pixels, 8U);
+		u8 byte = 0;
 
-	for (xb = 0; xb < pixels; xb++) {
-		unsigned int start = 0, end = 8;
-		u8 byte = 0x00;
-
-		if (xb == 0 && start_offset)
-			start = start_offset;
-
-		if (xb == pixels - 1 && end_len)
-			end = end_len;
-
-		for (i = start; i < end; i++) {
-			unsigned int x = xb * 8 + i;
-
-			byte >>= 1;
-			if (src[x] >> 7)
-				byte |= BIT(7);
+		for (i = 0; i < bits; i++, pixels--) {
+			if (*src++ >= 128)
+				byte |= BIT(i);
 		}
 		*dst++ = byte;
 	}
@@ -634,16 +623,22 @@ static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixel
  *
  * This function uses drm_fb_xrgb8888_to_gray8() to convert to grayscale and
  * then the result is converted from grayscale to monochrome.
+ *
+ * The first pixel (upper left corner of the clip rectangle) will be converted
+ * and copied to the first bit (LSB) in the first byte of the monochrome
+ * destination buffer.
+ * If the caller requires that the first pixel in a byte must be located at an
+ * x-coordinate that is a multiple of 8, then the caller must take care itself
+ * of supplying a suitable clip rectangle.
  */
 void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *vaddr,
 			     const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int linepixels = drm_rect_width(clip);
-	unsigned int lines = clip->y2 - clip->y1;
+	unsigned int lines = drm_rect_height(clip);
 	unsigned int cpp = fb->format->cpp[0];
 	unsigned int len_src32 = linepixels * cpp;
 	struct drm_device *dev = fb->dev;
-	unsigned int start_offset, end_len;
 	unsigned int y;
 	u8 *mono = dst, *gray8;
 	u32 *src32;
@@ -652,13 +647,10 @@ void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *vadd
 		return;
 
 	/*
-	 * The mono destination buffer contains 1 bit per pixel and
-	 * destination scanlines have to be in multiple of 8 pixels.
+	 * The mono destination buffer contains 1 bit per pixel
 	 */
 	if (!dst_pitch)
 		dst_pitch = DIV_ROUND_UP(linepixels, 8);
-
-	drm_WARN_ONCE(dev, dst_pitch % 8 != 0, "dst_pitch is not a multiple of 8\n");
 
 	/*
 	 * The cma memory is write-combined so reads are uncached.
@@ -677,22 +669,11 @@ void drm_fb_xrgb8888_to_mono(void *dst, unsigned int dst_pitch, const void *vadd
 
 	gray8 = (u8 *)src32 + len_src32;
 
-	/*
-	 * For damage handling, it is possible that only parts of the source
-	 * buffer is copied and this could lead to start and end pixels that
-	 * are not aligned to multiple of 8.
-	 *
-	 * Calculate if the start and end pixels are not aligned and set the
-	 * offsets for the mono line conversion function to adjust.
-	 */
-	start_offset = clip->x1 % 8;
-	end_len = clip->x2 % 8;
-
 	vaddr += clip_offset(clip, fb->pitches[0], cpp);
 	for (y = 0; y < lines; y++) {
 		src32 = memcpy(src32, vaddr, len_src32);
 		drm_fb_xrgb8888_to_gray8_line(gray8, src32, linepixels);
-		drm_fb_gray8_to_mono_line(mono, gray8, dst_pitch, start_offset, end_len);
+		drm_fb_gray8_to_mono_line(mono, gray8, linepixels);
 		vaddr += fb->pitches[0];
 		mono += dst_pitch;
 	}
