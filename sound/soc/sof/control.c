@@ -45,33 +45,6 @@ static void update_mute_led(struct snd_sof_control *scontrol,
 #endif
 }
 
-static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
-{
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct snd_soc_component *scomp = scontrol->scomp;
-	int ret;
-
-	if (!scontrol->comp_data_dirty)
-		return;
-
-	if (!pm_runtime_active(scomp->dev))
-		return;
-
-	/* set the ABI header values */
-	cdata->data->magic = SOF_ABI_MAGIC;
-	cdata->data->abi = SOF_ABI_VERSION;
-
-	/* refresh the component data from DSP */
-	scontrol->comp_data_dirty = false;
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
-	if (ret < 0) {
-		dev_err(scomp->dev, "Failed to get control data: %d\n", ret);
-
-		/* Set the flag to re-try next time to get the data */
-		scontrol->comp_data_dirty = true;
-	}
-}
-
 int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
@@ -221,74 +194,18 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 			  const unsigned int __user *binary_data,
 			  unsigned int size)
 {
-	struct soc_bytes_ext *be =
-		(struct soc_bytes_ext *)kcontrol->private_value;
+	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct snd_ctl_tlv header;
-	const struct snd_ctl_tlv __user *tlvd =
-		(const struct snd_ctl_tlv __user *)binary_data;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
 	/* make sure we have at least a header */
 	if (size < sizeof(struct snd_ctl_tlv))
 		return -EINVAL;
 
-	/*
-	 * The beginning of bytes data contains a header from where
-	 * the length (as bytes) is needed to know the correct copy
-	 * length of data from tlvd->tlv.
-	 */
-	if (copy_from_user(&header, tlvd, sizeof(struct snd_ctl_tlv)))
-		return -EFAULT;
-
-	/* make sure TLV info is consistent */
-	if (header.length + sizeof(struct snd_ctl_tlv) > size) {
-		dev_err_ratelimited(scomp->dev, "error: inconsistent TLV, data %d + header %zu > %d\n",
-				    header.length, sizeof(struct snd_ctl_tlv), size);
-		return -EINVAL;
-	}
-
-	/* be->max is coming from topology */
-	if (header.length > be->max) {
-		dev_err_ratelimited(scomp->dev, "error: Bytes data size %d exceeds max %d.\n",
-				    header.length, be->max);
-		return -EINVAL;
-	}
-
-	/* Check that header id matches the command */
-	if (header.numid != cdata->cmd) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: incorrect numid %d\n",
-				    header.numid);
-		return -EINVAL;
-	}
-
-	if (copy_from_user(cdata->data, tlvd->tlv, header.length))
-		return -EFAULT;
-
-	if (cdata->data->magic != SOF_ABI_MAGIC) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: Wrong ABI magic 0x%08x.\n",
-				    cdata->data->magic);
-		return -EINVAL;
-	}
-
-	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, cdata->data->abi)) {
-		dev_err_ratelimited(scomp->dev, "error: Incompatible ABI version 0x%08x.\n",
-				    cdata->data->abi);
-		return -EINVAL;
-	}
-
-	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
-	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
-		dev_err_ratelimited(scomp->dev, "error: Mismatch in ABI data size (truncated?).\n");
-		return -EINVAL;
-	}
-
-	/* notify DSP of byte control updates */
-	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol, true);
+	if (tplg_ops->control->bytes_ext_put)
+		return tplg_ops->control->bytes_ext_put(scontrol, binary_data, size);
 
 	return 0;
 }
@@ -299,67 +216,24 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct snd_ctl_tlv header;
-	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
-	size_t data_size;
-	int ret;
-	int err;
-
-	/*
-	 * Decrement the limit by ext bytes header size to
-	 * ensure the user space buffer is not exceeded.
-	 */
-	if (size < sizeof(struct snd_ctl_tlv))
-		return -ENOSPC;
-	size -= sizeof(struct snd_ctl_tlv);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	int ret, err;
 
 	ret = pm_runtime_get_sync(scomp->dev);
 	if (ret < 0 && ret != -EACCES) {
-		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to resume %d\n", ret);
+		dev_err_ratelimited(scomp->dev, "%s: failed to resume %d\n", __func__, ret);
 		pm_runtime_put_noidle(scomp->dev);
 		return ret;
 	}
 
-	/* set the ABI header values */
-	cdata->data->magic = SOF_ABI_MAGIC;
-	cdata->data->abi = SOF_ABI_VERSION;
-	/* get all the component data from DSP */
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
-	if (ret < 0)
-		goto out;
+	if (tplg_ops->control->bytes_ext_volatile_get)
+		ret = tplg_ops->control->bytes_ext_volatile_get(scontrol, binary_data, size);
 
-	/* check data size doesn't exceed max coming from topology */
-	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
-		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
-				    cdata->data->size,
-				    be->max - sizeof(struct sof_abi_hdr));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
-
-	/* make sure we don't exceed size provided by user space for data */
-	if (data_size > size) {
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	header.numid = cdata->cmd;
-	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv))) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		ret = -EFAULT;
-out:
 	pm_runtime_mark_last_busy(scomp->dev);
 	err = pm_runtime_put_autosuspend(scomp->dev);
 	if (err < 0)
-		dev_err_ratelimited(scomp->dev, "error: bytes_ext get failed to idle %d\n", err);
+		dev_err_ratelimited(scomp->dev, "%s: failed to idle %d\n", __func__, err);
 
 	return ret;
 }
@@ -368,51 +242,14 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 			  unsigned int __user *binary_data,
 			  unsigned int size)
 {
-	struct soc_bytes_ext *be =
-		(struct soc_bytes_ext *)kcontrol->private_value;
+	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct snd_ctl_tlv header;
-	struct snd_ctl_tlv __user *tlvd =
-		(struct snd_ctl_tlv __user *)binary_data;
-	size_t data_size;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	snd_sof_refresh_control(scontrol);
-
-	/*
-	 * Decrement the limit by ext bytes header size to
-	 * ensure the user space buffer is not exceeded.
-	 */
-	if (size < sizeof(struct snd_ctl_tlv))
-		return -ENOSPC;
-	size -= sizeof(struct snd_ctl_tlv);
-
-	/* set the ABI header values */
-	cdata->data->magic = SOF_ABI_MAGIC;
-	cdata->data->abi = SOF_ABI_VERSION;
-
-	/* check data size doesn't exceed max coming from topology */
-	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
-		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
-				    cdata->data->size,
-				    be->max - sizeof(struct sof_abi_hdr));
-		return -EINVAL;
-	}
-
-	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
-
-	/* make sure we don't exceed size provided by user space for data */
-	if (data_size > size)
-		return -ENOSPC;
-
-	header.numid = cdata->cmd;
-	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
-		return -EFAULT;
-
-	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		return -EFAULT;
+	if (tplg_ops->control->bytes_ext_get)
+		return tplg_ops->control->bytes_ext_get(scontrol, binary_data, size);
 
 	return 0;
 }

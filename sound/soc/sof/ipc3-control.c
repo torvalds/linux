@@ -270,6 +270,174 @@ static int sof_ipc3_bytes_put(struct snd_sof_control *scontrol,
 	return 0;
 }
 
+static int sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
+				  const unsigned int __user *binary_data, unsigned int size)
+{
+	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_ctl_tlv header;
+	size_t data_size;
+
+	snd_sof_refresh_control(scontrol);
+
+	/*
+	 * Decrement the limit by ext bytes header size to
+	 * ensure the user space buffer is not exceeded.
+	 */
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -ENOSPC;
+
+	size -= sizeof(struct snd_ctl_tlv);
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+
+	/* check data size doesn't exceed max coming from topology */
+	if (cdata->data->size > scontrol->max_size - sizeof(struct sof_abi_hdr)) {
+		dev_err_ratelimited(scomp->dev, "User data size %d exceeds max size %zu\n",
+				    cdata->data->size,
+				    scontrol->max_size - sizeof(struct sof_abi_hdr));
+		return -EINVAL;
+	}
+
+	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
+
+	/* make sure we don't exceed size provided by user space for data */
+	if (data_size > size)
+		return -ENOSPC;
+
+	header.numid = cdata->cmd;
+	header.length = data_size;
+	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
+		return -EFAULT;
+
+	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
+				  const unsigned int __user *binary_data,
+				  unsigned int size)
+{
+	const struct snd_ctl_tlv __user *tlvd = (const struct snd_ctl_tlv __user *)binary_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_ctl_tlv header;
+
+	/*
+	 * The beginning of bytes data contains a header from where
+	 * the length (as bytes) is needed to know the correct copy
+	 * length of data from tlvd->tlv.
+	 */
+	if (copy_from_user(&header, tlvd, sizeof(struct snd_ctl_tlv)))
+		return -EFAULT;
+
+	/* make sure TLV info is consistent */
+	if (header.length + sizeof(struct snd_ctl_tlv) > size) {
+		dev_err_ratelimited(scomp->dev, "Inconsistent TLV, data %d + header %zu > %d\n",
+				    header.length, sizeof(struct snd_ctl_tlv), size);
+		return -EINVAL;
+	}
+
+	/* be->max is coming from topology */
+	if (header.length > scontrol->max_size) {
+		dev_err_ratelimited(scomp->dev, "Bytes data size %d exceeds max %zu\n",
+				    header.length, scontrol->max_size);
+		return -EINVAL;
+	}
+
+	/* Check that header id matches the command */
+	if (header.numid != cdata->cmd) {
+		dev_err_ratelimited(scomp->dev, "Incorrect command for bytes put %d\n",
+				    header.numid);
+		return -EINVAL;
+	}
+
+	if (copy_from_user(cdata->data, tlvd->tlv, header.length))
+		return -EFAULT;
+
+	if (cdata->data->magic != SOF_ABI_MAGIC) {
+		dev_err_ratelimited(scomp->dev, "Wrong ABI magic 0x%08x\n", cdata->data->magic);
+		return -EINVAL;
+	}
+
+	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, cdata->data->abi)) {
+		dev_err_ratelimited(scomp->dev, "Incompatible ABI version 0x%08x\n",
+				    cdata->data->abi);
+		return -EINVAL;
+	}
+
+	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (cdata->data->size > scontrol->max_size - sizeof(struct sof_abi_hdr)) {
+		dev_err_ratelimited(scomp->dev, "Mismatch in ABI data size (truncated?)\n");
+		return -EINVAL;
+	}
+
+	/* notify DSP of byte control updates */
+	if (pm_runtime_active(scomp->dev))
+		return snd_sof_ipc_set_get_comp_data(scontrol, true);
+
+	return 0;
+}
+
+static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
+					   const unsigned int __user *binary_data,
+					   unsigned int size)
+{
+	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_ctl_tlv header;
+	size_t data_size;
+	int ret;
+
+	/*
+	 * Decrement the limit by ext bytes header size to
+	 * ensure the user space buffer is not exceeded.
+	 */
+	if (size < sizeof(struct snd_ctl_tlv))
+		return -ENOSPC;
+
+	size -= sizeof(struct snd_ctl_tlv);
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+
+	/* get all the component data from DSP */
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
+	if (ret < 0)
+		return ret;
+
+	/* check data size doesn't exceed max coming from topology */
+	if (cdata->data->size > scontrol->max_size - sizeof(struct sof_abi_hdr)) {
+		dev_err_ratelimited(scomp->dev, "User data size %d exceeds max size %zu\n",
+				    cdata->data->size,
+				    scontrol->max_size - sizeof(struct sof_abi_hdr));
+		return -EINVAL;
+	}
+
+	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
+
+	/* make sure we don't exceed size provided by user space for data */
+	if (data_size > size)
+		return -ENOSPC;
+
+	header.numid = cdata->cmd;
+	header.length = data_size;
+	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
+		return -EFAULT;
+
+	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
+		return -EFAULT;
+
+	return ret;
+}
+
 static void snd_sof_update_control(struct snd_sof_control *scontrol,
 				   struct sof_ipc_ctrl_data *cdata)
 {
@@ -419,5 +587,8 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.enum_get = sof_ipc3_enum_get,
 	.bytes_put = sof_ipc3_bytes_put,
 	.bytes_get = sof_ipc3_bytes_get,
+	.bytes_ext_put = sof_ipc3_bytes_ext_put,
+	.bytes_ext_get = sof_ipc3_bytes_ext_get,
+	.bytes_ext_volatile_get = sof_ipc3_bytes_ext_volatile_get,
 	.update = sof_ipc3_control_update,
 };
