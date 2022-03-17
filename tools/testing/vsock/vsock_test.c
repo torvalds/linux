@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <sys/mman.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -470,6 +471,131 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 	close(fd);
 }
 
+#define BUF_PATTERN_1 'a'
+#define BUF_PATTERN_2 'b'
+
+static void test_seqpacket_invalid_rec_buffer_client(const struct test_opts *opts)
+{
+	int fd;
+	unsigned char *buf1;
+	unsigned char *buf2;
+	int buf_size = getpagesize() * 3;
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	buf1 = malloc(buf_size);
+	if (!buf1) {
+		perror("'malloc()' for 'buf1'");
+		exit(EXIT_FAILURE);
+	}
+
+	buf2 = malloc(buf_size);
+	if (!buf2) {
+		perror("'malloc()' for 'buf2'");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(buf1, BUF_PATTERN_1, buf_size);
+	memset(buf2, BUF_PATTERN_2, buf_size);
+
+	if (send(fd, buf1, buf_size, 0) != buf_size) {
+		perror("send failed");
+		exit(EXIT_FAILURE);
+	}
+
+	if (send(fd, buf2, buf_size, 0) != buf_size) {
+		perror("send failed");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opts)
+{
+	int fd;
+	unsigned char *broken_buf;
+	unsigned char *valid_buf;
+	int page_size = getpagesize();
+	int buf_size = page_size * 3;
+	ssize_t res;
+	int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	int i;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Setup first buffer. */
+	broken_buf = mmap(NULL, buf_size, prot, flags, -1, 0);
+	if (broken_buf == MAP_FAILED) {
+		perror("mmap for 'broken_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Unmap "hole" in buffer. */
+	if (munmap(broken_buf + page_size, page_size)) {
+		perror("'broken_buf' setup");
+		exit(EXIT_FAILURE);
+	}
+
+	valid_buf = mmap(NULL, buf_size, prot, flags, -1, 0);
+	if (valid_buf == MAP_FAILED) {
+		perror("mmap for 'valid_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Try to fill buffer with unmapped middle. */
+	res = read(fd, broken_buf, buf_size);
+	if (res != -1) {
+		fprintf(stderr,
+			"expected 'broken_buf' read(2) failure, got %zi\n",
+			res);
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != ENOMEM) {
+		perror("unexpected errno of 'broken_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Try to fill valid buffer. */
+	res = read(fd, valid_buf, buf_size);
+	if (res < 0) {
+		perror("unexpected 'valid_buf' read(2) failure");
+		exit(EXIT_FAILURE);
+	}
+
+	if (res != buf_size) {
+		fprintf(stderr,
+			"invalid 'valid_buf' read(2), expected %i, got %zi\n",
+			buf_size, res);
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < buf_size; i++) {
+		if (valid_buf[i] != BUF_PATTERN_2) {
+			fprintf(stderr,
+				"invalid pattern for 'valid_buf' at %i, expected %hhX, got %hhX\n",
+				i, BUF_PATTERN_2, valid_buf[i]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	/* Unmap buffers. */
+	munmap(broken_buf, page_size);
+	munmap(broken_buf + page_size * 2, page_size);
+	munmap(valid_buf, buf_size);
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -514,6 +640,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET timeout",
 		.run_client = test_seqpacket_timeout_client,
 		.run_server = test_seqpacket_timeout_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET invalid receive buffer",
+		.run_client = test_seqpacket_invalid_rec_buffer_client,
+		.run_server = test_seqpacket_invalid_rec_buffer_server,
 	},
 	{},
 };
