@@ -862,6 +862,21 @@ static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
 	}
 }
 
+void rtw89_phy_config_rf_reg_v1(struct rtw89_dev *rtwdev,
+				const struct rtw89_reg2_def *reg,
+				enum rtw89_rf_path rf_path,
+				void *extra_data)
+{
+	rtw89_write_rf(rtwdev, rf_path, reg->addr, RFREG_MASK, reg->data);
+
+	if (reg->addr < 0x100)
+		return;
+
+	rtw89_phy_cofig_rf_reg_store(rtwdev, reg, rf_path,
+				     (struct rtw89_fw_h2c_rf_reg_info *)extra_data);
+}
+EXPORT_SYMBOL(rtw89_phy_config_rf_reg_v1);
+
 static int rtw89_phy_sel_headline(struct rtw89_dev *rtwdev,
 				  const struct rtw89_phy_table *table,
 				  u32 *headline_size, u32 *headline_idx,
@@ -1033,6 +1048,8 @@ static u32 rtw89_phy_nctl_poll(struct rtw89_dev *rtwdev)
 
 void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
 {
+	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
+		       enum rtw89_rf_path rf_path, void *data);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_phy_table *rf_table;
 	struct rtw89_fw_h2c_rf_reg_info *rf_reg_info;
@@ -1043,13 +1060,13 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
 		return;
 
 	for (path = RF_PATH_A; path < chip->rf_path_num; path++) {
-		rf_reg_info->rf_path = path;
 		rf_table = chip->rf_table[path];
-		rtw89_phy_init_reg(rtwdev, rf_table, rtw89_phy_config_rf_reg,
-				   (void *)rf_reg_info);
+		rf_reg_info->rf_path = rf_table->rf_path;
+		config = rf_table->config ? rf_table->config : rtw89_phy_config_rf_reg;
+		rtw89_phy_init_reg(rtwdev, rf_table, config, (void *)rf_reg_info);
 		if (rtw89_phy_config_rf_reg_fw(rtwdev, rf_reg_info))
 			rtw89_warn(rtwdev, "rf path %d reg h2c config failed\n",
-				   path);
+				   rf_reg_info->rf_path);
 	}
 	kfree(rf_reg_info);
 }

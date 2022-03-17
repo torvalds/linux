@@ -2229,6 +2229,8 @@ struct rtw89_phy_table {
 	const struct rtw89_reg2_def *regs;
 	u32 n_regs;
 	enum rtw89_rf_path rf_path;
+	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
+		       enum rtw89_rf_path rf_path, void *data);
 };
 
 struct rtw89_txpwr_table {
