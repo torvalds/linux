@@ -355,6 +355,12 @@ struct msm_file_private {
 	 */
 	int sysprof;
 
+	/** comm: Overridden task comm, see MSM_PARAM_COMM */
+	char *comm;
+
+	/** cmdline: Overridden task cmdline, see MSM_PARAM_CMDLINE */
+	char *cmdline;
+
 	/**
 	 * entities:
 	 *

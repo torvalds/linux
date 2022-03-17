@@ -353,14 +353,22 @@ static void retire_submits(struct msm_gpu *gpu);
 
 static void get_comm_cmdline(struct msm_gem_submit *submit, char **comm, char **cmd)
 {
+	struct msm_file_private *ctx = submit->queue->ctx;
 	struct task_struct *task;
+
+	/* Note that kstrdup will return NULL if argument is NULL: */
+	*comm = kstrdup(ctx->comm, GFP_KERNEL);
+	*cmd  = kstrdup(ctx->cmdline, GFP_KERNEL);
 
 	task = get_pid_task(submit->pid, PIDTYPE_PID);
 	if (!task)
 		return;
 
-	*comm = kstrdup(task->comm, GFP_KERNEL);
-	*cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
+	if (!*comm)
+		*comm = kstrdup(task->comm, GFP_KERNEL);
+
+	if (!*cmd)
+		*cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
 
 	put_task_struct(task);
 }
