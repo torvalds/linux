@@ -58,15 +58,7 @@ extern bool gma_pipe_has_type(struct drm_crtc *crtc, int type);
 extern void gma_wait_for_vblank(struct drm_device *dev);
 extern int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
-extern int gma_crtc_cursor_set(struct drm_crtc *crtc,
-			       struct drm_file *file_priv,
-			       uint32_t handle,
-			       uint32_t width, uint32_t height);
-extern int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 extern void gma_crtc_load_lut(struct drm_crtc *crtc);
-extern int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, u32 size,
-			      struct drm_modeset_acquire_ctx *ctx);
 extern void gma_crtc_dpms(struct drm_crtc *crtc, int mode);
 extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);
@@ -82,6 +74,8 @@ extern int gma_crtc_set_config(struct drm_mode_set *set,
 
 extern void gma_crtc_save(struct drm_crtc *crtc);
 extern void gma_crtc_restore(struct drm_crtc *crtc);
+
+extern const struct drm_crtc_funcs gma_crtc_funcs;
 
 extern void gma_encoder_prepare(struct drm_encoder *encoder);
 extern void gma_encoder_commit(struct drm_encoder *encoder);

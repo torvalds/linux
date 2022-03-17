@@ -565,6 +565,18 @@ int gma_crtc_set_config(struct drm_mode_set *set,
 	return ret;
 }
 
+const struct drm_crtc_funcs gma_crtc_funcs = {
+	.cursor_set = gma_crtc_cursor_set,
+	.cursor_move = gma_crtc_cursor_move,
+	.gamma_set = gma_crtc_gamma_set,
+	.set_config = gma_crtc_set_config,
+	.destroy = gma_crtc_destroy,
+	.page_flip = gma_crtc_page_flip,
+	.enable_vblank = psb_enable_vblank,
+	.disable_vblank = psb_disable_vblank,
+	.get_vblank_counter = psb_get_vblank_counter,
+};
+
 /*
  * Save HW states of given crtc
  */

@@ -13,7 +13,6 @@
 
 #include <drm/drm_device.h>
 
-#include "gma_display.h"
 #include "gtt.h"
 #include "intel_bios.h"
 #include "mmu.h"
@@ -647,7 +646,6 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 
 /* psb_intel_display.c */
 extern const struct drm_crtc_helper_funcs psb_intel_helper_funcs;
-extern const struct drm_crtc_funcs gma_intel_crtc_funcs;
 
 /* psb_intel_lvds.c */
 extern const struct drm_connector_helper_funcs
