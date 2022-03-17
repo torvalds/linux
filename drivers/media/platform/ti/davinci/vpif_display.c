@@ -1284,8 +1284,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
+		vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 	err = vpif_probe_complete();
 	if (err)
