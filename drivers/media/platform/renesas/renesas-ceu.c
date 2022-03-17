@@ -1606,15 +1606,15 @@ struct ceu_data {
 	u32 irq_mask;
 };
 
-static const struct ceu_data ceu_data_rz = {
-	.irq_mask = CEU_CETCR_ALL_IRQS_RZ,
-};
-
 static const struct ceu_data ceu_data_sh4 = {
 	.irq_mask = CEU_CETCR_ALL_IRQS_SH4,
 };
 
 #if IS_ENABLED(CONFIG_OF)
+static const struct ceu_data ceu_data_rz = {
+	.irq_mask = CEU_CETCR_ALL_IRQS_RZ,
+};
+
 static const struct of_device_id ceu_of_match[] = {
 	{ .compatible = "renesas,r7s72100-ceu", .data = &ceu_data_rz },
 	{ .compatible = "renesas,r8a7740-ceu", .data = &ceu_data_rz },
