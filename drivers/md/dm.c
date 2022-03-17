@@ -578,7 +578,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 
 	io = container_of(tio, struct dm_io, tio);
 	io->magic = DM_IO_MAGIC;
-	io->status = 0;
+	io->status = BLK_STS_OK;
 	atomic_set(&io->io_count, 1);
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = NULL;
@@ -933,20 +933,31 @@ static inline bool dm_tio_is_normal(struct dm_target_io *tio)
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
-void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
+static inline void __dm_io_dec_pending(struct dm_io *io)
 {
-	/* Push-back supersedes any I/O errors */
-	if (unlikely(error)) {
-		unsigned long flags;
-		spin_lock_irqsave(&io->lock, flags);
-		if (!(io->status == BLK_STS_DM_REQUEUE &&
-		      __noflush_suspending(io->md)))
-			io->status = error;
-		spin_unlock_irqrestore(&io->lock, flags);
-	}
-
 	if (atomic_dec_and_test(&io->io_count))
 		dm_io_complete(io);
+}
+
+static void dm_io_set_error(struct dm_io *io, blk_status_t error)
+{
+	unsigned long flags;
+
+	/* Push-back supersedes any I/O errors */
+	spin_lock_irqsave(&io->lock, flags);
+	if (!(io->status == BLK_STS_DM_REQUEUE &&
+	      __noflush_suspending(io->md))) {
+		io->status = error;
+	}
+	spin_unlock_irqrestore(&io->lock, flags);
+}
+
+void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
+{
+	if (unlikely(error))
+		dm_io_set_error(io, error);
+
+	__dm_io_dec_pending(io);
 }
 
 void disable_discard(struct mapped_device *md)
@@ -1428,7 +1439,7 @@ static bool is_abnormal_io(struct bio *bio)
 }
 
 static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
-				  int *result)
+				  blk_status_t *status)
 {
 	unsigned num_bios = 0;
 
@@ -1452,11 +1463,11 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 	 * reconfiguration might also have changed that since the
 	 * check was performed.
 	 */
-	if (!num_bios)
-		*result = -EOPNOTSUPP;
+	if (unlikely(!num_bios))
+		*status = BLK_STS_NOTSUPP;
 	else {
 		__send_changing_extent_only(ci, ti, num_bios);
-		*result = 0;
+		*status = BLK_STS_OK;
 	}
 	return true;
 }
@@ -1505,19 +1516,16 @@ static void dm_queue_poll_io(struct bio *bio, struct dm_io *io)
 /*
  * Select the correct strategy for processing a non-flush bio.
  */
-static int __split_and_process_bio(struct clone_info *ci)
+static blk_status_t __split_and_process_bio(struct clone_info *ci)
 {
 	struct bio *clone;
 	struct dm_target *ti;
 	unsigned len;
-	int r;
+	blk_status_t error = BLK_STS_IOERR;
 
 	ti = dm_table_find_target(ci->map, ci->sector);
-	if (!ti)
-		return -EIO;
-
-	if (__process_abnormal_io(ci, ti, &r))
-		return r;
+	if (unlikely(!ti || __process_abnormal_io(ci, ti, &error)))
+		return error;
 
 	/*
 	 * Only support bio polling for normal IO, and the target io is
@@ -1532,7 +1540,7 @@ static int __split_and_process_bio(struct clone_info *ci)
 	ci->sector += len;
 	ci->sector_count -= len;
 
-	return 0;
+	return BLK_STS_OK;
 }
 
 static void init_clone_info(struct clone_info *ci, struct mapped_device *md,
@@ -1558,7 +1566,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 {
 	struct clone_info ci;
 	struct bio *orig_bio = NULL;
-	int error = 0;
+	blk_status_t error = BLK_STS_OK;
 
 	init_clone_info(&ci, md, map, bio);
 
@@ -1600,7 +1608,7 @@ out:
 	 * bio->bi_private, so that dm_poll_bio can poll them all.
 	 */
 	if (error || !ci.submit_as_polled)
-		dm_io_dec_pending(ci.io, errno_to_blk_status(error));
+		dm_io_dec_pending(ci.io, error);
 	else
 		dm_queue_poll_io(bio, ci.io);
 }
@@ -1681,10 +1689,10 @@ static int dm_poll_bio(struct bio *bio, struct io_comp_batch *iob,
 		if (dm_poll_dm_io(io, iob, flags)) {
 			hlist_del_init(&io->node);
 			/*
-			 * clone_endio() has already occurred, so passing
-			 * error as 0 here doesn't override io->status
+			 * clone_endio() has already occurred, so no
+			 * error handling is needed here.
 			 */
-			dm_io_dec_pending(io, 0);
+			__dm_io_dec_pending(io);
 		}
 	}
 
