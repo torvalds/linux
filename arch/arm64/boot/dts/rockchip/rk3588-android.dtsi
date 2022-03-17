@@ -98,6 +98,7 @@
 &dmc {
 	status = "okay";
 	center-supply = <&vdd_ddr_s0>;
+	mem-supply = <&vdd_log_s0>;
 };
 
 &rng {
