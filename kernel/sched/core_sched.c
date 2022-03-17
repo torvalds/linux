@@ -277,7 +277,7 @@ void __sched_core_account_forceidle(struct rq *rq)
 		rq_i = cpu_rq(i);
 		p = rq_i->core_pick ?: rq_i->curr;
 
-		if (!p->core_cookie)
+		if (p == rq_i->idle)
 			continue;
 
 		__schedstat_add(p->stats.core_forceidle_sum, delta);

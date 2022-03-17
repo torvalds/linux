@@ -1558,7 +1558,10 @@ static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
 		fpregs_restore_userregs();
 
 	newfps->xfeatures = curfps->xfeatures | xfeatures;
-	newfps->user_xfeatures = curfps->user_xfeatures | xfeatures;
+
+	if (!guest_fpu)
+		newfps->user_xfeatures = curfps->user_xfeatures | xfeatures;
+
 	newfps->xfd = curfps->xfd & ~xfeatures;
 
 	/* Do the final updates within the locked region */

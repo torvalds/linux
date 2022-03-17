@@ -21,28 +21,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		serial0 = &wkup_uart0;
-		serial1 = &mcu_uart0;
-		serial2 = &main_uart0;
-		serial3 = &main_uart1;
-		serial4 = &main_uart2;
-		serial5 = &main_uart3;
-		serial6 = &main_uart4;
-		serial7 = &main_uart5;
-		serial8 = &main_uart6;
-		serial9 = &main_uart7;
-		serial10 = &main_uart8;
-		serial11 = &main_uart9;
-		mmc0 = &main_sdhci0;
-		mmc1 = &main_sdhci1;
-		can0 = &main_mcan16;
-		can1 = &mcu_mcan0;
-		can2 = &mcu_mcan1;
-		can3 = &main_mcan3;
-		can4 = &main_mcan5;
-	};
-
 	chosen { };
 
 	cpus {

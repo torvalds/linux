@@ -699,6 +699,8 @@ event_triggers_post_call(struct trace_event_file *file,
 
 bool trace_event_ignore_this_pid(struct trace_event_file *trace_file);
 
+bool __trace_trigger_soft_disabled(struct trace_event_file *file);
+
 /**
  * trace_trigger_soft_disabled - do triggers and test if soft disabled
  * @file: The file pointer of the event to test
@@ -708,20 +710,20 @@ bool trace_event_ignore_this_pid(struct trace_event_file *trace_file);
  * triggers that require testing the fields, it will return true,
  * otherwise false.
  */
-static inline bool
+static __always_inline bool
 trace_trigger_soft_disabled(struct trace_event_file *file)
 {
 	unsigned long eflags = file->flags;
 
-	if (!(eflags & EVENT_FILE_FL_TRIGGER_COND)) {
-		if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
-			event_triggers_call(file, NULL, NULL, NULL);
-		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
-			return true;
-		if (eflags & EVENT_FILE_FL_PID_FILTER)
-			return trace_event_ignore_this_pid(file);
-	}
-	return false;
+	if (likely(!(eflags & (EVENT_FILE_FL_TRIGGER_MODE |
+			       EVENT_FILE_FL_SOFT_DISABLED |
+			       EVENT_FILE_FL_PID_FILTER))))
+		return false;
+
+	if (likely(eflags & EVENT_FILE_FL_TRIGGER_COND))
+		return false;
+
+	return __trace_trigger_soft_disabled(file);
 }
 
 #ifdef CONFIG_BPF_EVENTS

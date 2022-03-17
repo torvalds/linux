@@ -1681,8 +1681,10 @@ static void at_xdmac_tasklet(struct tasklet_struct *t)
 		__func__, atchan->irq_status);
 
 	if (!(atchan->irq_status & AT_XDMAC_CIS_LIS) &&
-	    !(atchan->irq_status & error_mask))
+	    !(atchan->irq_status & error_mask)) {
+		spin_unlock_irq(&atchan->lock);
 		return;
+	}
 
 	if (atchan->irq_status & error_mask)
 		at_xdmac_handle_error(atchan);

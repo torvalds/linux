@@ -178,7 +178,6 @@ struct aic_irq_chip {
 	struct irq_domain *hw_domain;
 	struct irq_domain *ipi_domain;
 	int nr_hw;
-	int ipi_hwirq;
 };
 
 static DEFINE_PER_CPU(uint32_t, aic_fiq_unmasked);

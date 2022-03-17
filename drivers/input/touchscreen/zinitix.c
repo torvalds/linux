@@ -571,8 +571,20 @@ static SIMPLE_DEV_PM_OPS(zinitix_pm_ops, zinitix_suspend, zinitix_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id zinitix_of_match[] = {
+	{ .compatible = "zinitix,bt402" },
+	{ .compatible = "zinitix,bt403" },
+	{ .compatible = "zinitix,bt404" },
+	{ .compatible = "zinitix,bt412" },
+	{ .compatible = "zinitix,bt413" },
+	{ .compatible = "zinitix,bt431" },
+	{ .compatible = "zinitix,bt432" },
+	{ .compatible = "zinitix,bt531" },
 	{ .compatible = "zinitix,bt532" },
+	{ .compatible = "zinitix,bt538" },
 	{ .compatible = "zinitix,bt541" },
+	{ .compatible = "zinitix,bt548" },
+	{ .compatible = "zinitix,bt554" },
+	{ .compatible = "zinitix,at100" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zinitix_of_match);

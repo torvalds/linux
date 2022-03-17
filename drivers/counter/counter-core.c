@@ -90,10 +90,8 @@ struct counter_device *counter_alloc(size_t sizeof_priv)
 	int err;
 
 	ch = kzalloc(sizeof(*ch) + sizeof_priv, GFP_KERNEL);
-	if (!ch) {
-		err = -ENOMEM;
-		goto err_alloc_ch;
-	}
+	if (!ch)
+		return NULL;
 
 	counter = &ch->counter;
 	dev = &counter->dev;
@@ -123,9 +121,8 @@ err_chrdev_add:
 err_ida_alloc:
 
 	kfree(ch);
-err_alloc_ch:
 
-	return ERR_PTR(err);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(counter_alloc);
 
@@ -208,12 +205,12 @@ struct counter_device *devm_counter_alloc(struct device *dev, size_t sizeof_priv
 	int err;
 
 	counter = counter_alloc(sizeof_priv);
-	if (IS_ERR(counter))
-		return counter;
+	if (!counter)
+		return NULL;
 
 	err = devm_add_action_or_reset(dev, devm_counter_put, counter);
 	if (err < 0)
-		return ERR_PTR(err);
+		return NULL;
 
 	return counter;
 }

@@ -1338,7 +1338,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct cdns_sierra_data *data;
 	unsigned int id_value;
-	int i, ret, node = 0;
+	int ret, node = 0;
 	void __iomem *base;
 	struct device_node *dn = dev->of_node, *child;
 
@@ -1416,7 +1416,8 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to get reset %s\n",
 				child->full_name);
 			ret = PTR_ERR(sp->phys[node].lnk_rst);
-			goto put_child2;
+			of_node_put(child);
+			goto put_control;
 		}
 
 		if (!sp->autoconf) {
@@ -1424,7 +1425,9 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(dev, "missing property in node %s\n",
 					child->name);
-				goto put_child;
+				of_node_put(child);
+				reset_control_put(sp->phys[node].lnk_rst);
+				goto put_control;
 			}
 		}
 
@@ -1434,7 +1437,9 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
-			goto put_child;
+			of_node_put(child);
+			reset_control_put(sp->phys[node].lnk_rst);
+			goto put_control;
 		}
 		sp->phys[node].phy = gphy;
 		phy_set_drvdata(gphy, &sp->phys[node]);
@@ -1446,26 +1451,28 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	if (sp->num_lanes > SIERRA_MAX_LANES) {
 		ret = -EINVAL;
 		dev_err(dev, "Invalid lane configuration\n");
-		goto put_child2;
+		goto put_control;
 	}
 
 	/* If more than one subnode, configure the PHY as multilink */
 	if (!sp->autoconf && sp->nsubnodes > 1) {
 		ret = cdns_sierra_phy_configure_multilink(sp);
 		if (ret)
-			goto put_child2;
+			goto put_control;
 	}
 
 	pm_runtime_enable(dev);
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	return PTR_ERR_OR_ZERO(phy_provider);
+	if (IS_ERR(phy_provider)) {
+		ret = PTR_ERR(phy_provider);
+		goto put_control;
+	}
 
-put_child:
-	node++;
-put_child2:
-	for (i = 0; i < node; i++)
-		reset_control_put(sp->phys[i].lnk_rst);
-	of_node_put(child);
+	return 0;
+
+put_control:
+	while (--node >= 0)
+		reset_control_put(sp->phys[node].lnk_rst);
 clk_disable:
 	cdns_sierra_phy_disable_clocks(sp);
 	reset_control_assert(sp->apb_rst);

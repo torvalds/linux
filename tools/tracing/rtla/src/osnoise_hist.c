@@ -426,7 +426,7 @@ static void osnoise_hist_usage(char *usage)
 	static const char * const msg[] = {
 		"",
 		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-t[=file]] \\",
-		"	  [-c cpu-list] [-P priority] [-b N] [-e N] [--no-header] [--no-summary] \\",
+		"	  [-c cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
 		"	  [--no-index] [--with-zeros]",
 		"",
 		"	  -h/--help: print this menu",
@@ -439,7 +439,7 @@ static void osnoise_hist_usage(char *usage)
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
 		"	  -b/--bucket-size N: set the histogram bucket size (default 1)",
-		"	  -e/--entries N: set the number of entries of the histogram (default 256)",
+		"	  -E/--entries N: set the number of entries of the histogram (default 256)",
 		"	     --no-header: do not print header",
 		"	     --no-summary: do not print summary",
 		"	     --no-index: do not print index",
@@ -486,7 +486,7 @@ static struct osnoise_hist_params
 	while (1) {
 		static struct option long_options[] = {
 			{"bucket-size",		required_argument,	0, 'b'},
-			{"entries",		required_argument,	0, 'e'},
+			{"entries",		required_argument,	0, 'E'},
 			{"cpus",		required_argument,	0, 'c'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
@@ -507,7 +507,7 @@ static struct osnoise_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:b:d:e:Dhp:P:r:s:S:t::0123",
+		c = getopt_long(argc, argv, "c:b:d:E:Dhp:P:r:s:S:t::0123",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -534,7 +534,7 @@ static struct osnoise_hist_params
 			if (!params->duration)
 				osnoise_hist_usage("Invalid -D duration\n");
 			break;
-		case 'e':
+		case 'E':
 			params->entries = get_llong_from_str(optarg);
 			if ((params->entries < 10) || (params->entries > 9999999))
 				osnoise_hist_usage("Entries must be > 10 and < 9999999\n");
@@ -701,9 +701,9 @@ osnoise_hist_set_signals(struct osnoise_hist_params *params)
 int osnoise_hist_main(int argc, char *argv[])
 {
 	struct osnoise_hist_params *params;
+	struct osnoise_tool *record = NULL;
+	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
-	struct osnoise_tool *record;
-	struct osnoise_tool *tool;
 	int return_value = 1;
 	int retval;
 
@@ -792,9 +792,8 @@ int osnoise_hist_main(int argc, char *argv[])
 out_hist:
 	osnoise_free_histogram(tool->data);
 out_destroy:
+	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
-	if (params->trace_output)
-		osnoise_destroy_tool(record);
 	free(params);
 out_exit:
 	exit(return_value);

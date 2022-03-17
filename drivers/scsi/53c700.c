@@ -1507,7 +1507,6 @@ NCR_700_intr(int irq, void *dev_id)
 		struct scsi_cmnd *SCp = hostdata->cmd;
 
 		handled = 1;
-		SCp = hostdata->cmd;
 
 		if(istat & SCSI_INT_PENDING) {
 			udelay(10);

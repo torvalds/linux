@@ -301,9 +301,6 @@ void gfs2_glock_queue_put(struct gfs2_glock *gl)
 
 void gfs2_glock_put(struct gfs2_glock *gl)
 {
-	/* last put could call sleepable dlm api */
-	might_sleep();
-
 	if (lockref_put_or_lock(&gl->gl_lockref))
 		return;
 
