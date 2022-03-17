@@ -2346,14 +2346,6 @@ static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
 	return fs_audio;
 }
 
-static void hdmirx_audio_clk_set_rate(struct rk_hdmirx_dev *hdmirx_dev, u32 rate)
-{
-	dev_dbg(hdmirx_dev->dev, "%s: %u to %u\n",
-		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate);
-	clk_set_rate(hdmirx_dev->clks[1].clk, rate);
-	hdmirx_dev->audio_state.hdmirx_aud_clkrate = rate;
-}
-
 static void hdmirx_audio_set_ch(struct rk_hdmirx_dev *hdmirx_dev, u32 ch_audio)
 {
 	hdmirx_dev->audio_state.ch_audio = ch_audio;
@@ -2409,7 +2401,7 @@ static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev)
 	as->init_state = INIT_FIFO_STATE*4;
 	as->fifo_int = false;
 	as->audio_enabled = false;
-	hdmirx_audio_clk_set_rate(hdmirx_dev, 5644800);
+	hdmirx_audio_set_fs(hdmirx_dev, 44100);
 	/* Disable audio domain */
 	hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, AUDIO_ENABLE, 0);
 	/* Configure Vsync interrupt threshold */
@@ -2903,7 +2895,8 @@ static ssize_t audio_present_show(struct device *dev,
 {
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d", hdmirx_dev->audio_present);
+	return snprintf(buf, PAGE_SIZE, "%d",
+			tx_5v_power_present(hdmirx_dev) ? hdmirx_dev->audio_present : 0);
 }
 
 static DEVICE_ATTR_RO(audio_rate);
