@@ -490,6 +490,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8852c_pwr_on_func,
 	.pwr_off_func		= rtw8852c_pwr_off_func,
+	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path_v1,
+	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v1,
 };
 
 const struct rtw89_chip_info rtw8852c_chip_info = {

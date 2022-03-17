@@ -2068,6 +2068,9 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
+	int (*cfg_ctrl_path)(struct rtw89_dev *rtwdev, bool wl);
+	int (*mac_cfg_gnt)(struct rtw89_dev *rtwdev,
+			   const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
@@ -3465,6 +3468,22 @@ static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 
 	if (chip->ops->ctrl_btg)
 		chip->ops->ctrl_btg(rtwdev, btg);
+}
+
+static inline
+void rtw89_chip_mac_cfg_gnt(struct rtw89_dev *rtwdev,
+			    const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->mac_cfg_gnt(rtwdev, gnt_cfg);
+}
+
+static inline void rtw89_chip_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->cfg_ctrl_path(rtwdev, wl);
 }
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)

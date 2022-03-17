@@ -1478,7 +1478,7 @@ static void _set_gnt_wl(struct rtw89_dev *rtwdev, u8 phy_map, u8 state)
 		}
 	}
 
-	rtw89_mac_cfg_gnt(rtwdev, &dm->gnt);
+	rtw89_chip_mac_cfg_gnt(rtwdev, &dm->gnt);
 }
 
 #define BTC_TDMA_WLROLE_MAX 2
@@ -2233,7 +2233,7 @@ static void _set_gnt_bt(struct rtw89_dev *rtwdev, u8 phy_map, u8 state)
 		}
 	}
 
-	rtw89_mac_cfg_gnt(rtwdev, &dm->gnt);
+	rtw89_chip_mac_cfg_gnt(rtwdev, &dm->gnt);
 }
 
 static void _set_bt_plut(struct rtw89_dev *rtwdev, u8 phy_map,
@@ -2300,7 +2300,7 @@ static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
 
 	switch (type) {
 	case BTC_ANT_WPOWERON:
-		rtw89_mac_cfg_ctrl_path(rtwdev, false);
+		rtw89_chip_cfg_ctrl_path(rtwdev, false);
 		break;
 	case BTC_ANT_WINIT:
 		if (bt->enable.now) {
@@ -2310,21 +2310,21 @@ static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
 			_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_HI);
 			_set_gnt_bt(rtwdev, phy_map, BTC_GNT_SW_LO);
 		}
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL, BTC_PLT_BT, BTC_PLT_BT);
 		break;
 	case BTC_ANT_WONLY:
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_SW_LO);
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL, BTC_PLT_NONE, BTC_PLT_NONE);
 		break;
 	case BTC_ANT_WOFF:
-		rtw89_mac_cfg_ctrl_path(rtwdev, false);
+		rtw89_chip_cfg_ctrl_path(rtwdev, false);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL, BTC_PLT_NONE, BTC_PLT_NONE);
 		break;
 	case BTC_ANT_W2G:
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		if (rtwdev->dbcc_en) {
 			for (i = 0; i < RTW89_PHY_MAX; i++) {
 				b2g = (wl_dinfo->real_band[i] == RTW89_BAND_2G);
@@ -2352,32 +2352,32 @@ static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
 		}
 		break;
 	case BTC_ANT_W5G:
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_HW);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL, BTC_PLT_NONE, BTC_PLT_NONE);
 		break;
 	case BTC_ANT_W25G:
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_HW);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_HW);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL,
 			     BTC_PLT_GNT_WL, BTC_PLT_GNT_WL);
 		break;
 	case BTC_ANT_FREERUN:
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_bt_plut(rtwdev, BTC_PHY_ALL, BTC_PLT_NONE, BTC_PLT_NONE);
 		break;
 	case BTC_ANT_WRFK:
-		rtw89_mac_cfg_ctrl_path(rtwdev, true);
+		rtw89_chip_cfg_ctrl_path(rtwdev, true);
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_SW_LO);
 		_set_bt_plut(rtwdev, phy_map, BTC_PLT_NONE, BTC_PLT_NONE);
 		break;
 	case BTC_ANT_BRFK:
-		rtw89_mac_cfg_ctrl_path(rtwdev, false);
+		rtw89_chip_cfg_ctrl_path(rtwdev, false);
 		_set_gnt_wl(rtwdev, phy_map, BTC_GNT_SW_LO);
 		_set_gnt_bt(rtwdev, phy_map, BTC_GNT_SW_HI);
 		_set_bt_plut(rtwdev, phy_map, BTC_PLT_NONE, BTC_PLT_NONE);
