@@ -274,13 +274,12 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
 	struct snd_sof_pcm *spcm;
-	struct sof_ipc_stream stream;
-	struct sof_ipc_reply reply;
 	bool reset_hw_params = false;
 	bool free_widget_list = false;
 	bool ipc_first = false;
-	int ret;
+	int ret = 0;
 
 	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
@@ -293,17 +292,11 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: trigger stream %d dir %d cmd %d\n",
 		spcm->pcm.pcm_id, substream->stream, cmd);
 
-	stream.hdr.size = sizeof(stream);
-	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG;
-	stream.comp_id = spcm->stream[substream->stream].comp_id;
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_PAUSE;
 		ipc_first = true;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
 		break;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
@@ -315,7 +308,6 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = false;
 			return 0;
 		}
-		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_START;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (sdev->system_suspend_target == SOF_SUSPEND_S0IX &&
@@ -332,13 +324,11 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		free_widget_list = true;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
-		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		ipc_first = true;
 		reset_hw_params = true;
 		break;
 	default:
-		dev_err(component->dev, "error: unhandled trigger cmd %d\n",
-			cmd);
+		dev_err(component->dev, "Unhandled trigger cmd %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -349,11 +339,10 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	if (!ipc_first)
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
-	/* send IPC to the DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
-				 sizeof(stream), &reply, sizeof(reply));
+	if (pcm_ops->trigger)
+		ret = pcm_ops->trigger(component, substream, cmd);
 
-	/* need to STOP DMA even if STOP IPC failed */
+	/* need to STOP DMA even if trigger IPC failed */
 	if (ipc_first)
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 

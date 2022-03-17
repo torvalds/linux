@@ -137,7 +137,50 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 	return ret;
 }
 
+static int sof_ipc3_pcm_trigger(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_ipc_stream stream;
+	struct sof_ipc_reply reply;
+	struct snd_sof_pcm *spcm;
+
+	spcm = snd_sof_find_spcm_dai(component, rtd);
+	if (!spcm)
+		return -EINVAL;
+
+	stream.hdr.size = sizeof(stream);
+	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG;
+	stream.comp_id = spcm->stream[substream->stream].comp_id;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_PAUSE;
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
+		break;
+	case SNDRV_PCM_TRIGGER_START:
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_START;
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_STOP:
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
+		break;
+	default:
+		dev_err(component->dev, "Unhandled trigger cmd %d\n", cmd);
+		return -EINVAL;
+	}
+
+	/* send IPC to the DSP */
+	return sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
+				  sizeof(stream), &reply, sizeof(reply));
+}
+
 const struct sof_ipc_pcm_ops ipc3_pcm_ops = {
 	.hw_params = sof_ipc3_pcm_hw_params,
 	.hw_free = sof_ipc3_pcm_hw_free,
+	.trigger = sof_ipc3_pcm_trigger,
 };
