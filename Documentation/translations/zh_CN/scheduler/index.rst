@@ -27,6 +27,7 @@ Linux调度器
     sched-energy
     sched-nice-design
     sched-stats
+    sched-debug
 
 TODOList:
 
