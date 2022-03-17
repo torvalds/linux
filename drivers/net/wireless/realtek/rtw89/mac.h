@@ -884,7 +884,9 @@ int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
 
 enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_XTAL_SC_XI = 0x04,
+#define XTAL_SC_XI_MASK		GENMASK(7, 0)
 	XTAL_SI_XTAL_SC_XO = 0x05,
+#define XTAL_SC_XO_MASK		GENMASK(7, 0)
 	XTAL_SI_PWR_CUT = 0x10,
 #define XTAL_SI_SMALL_PWR_CUT	BIT(0)
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)

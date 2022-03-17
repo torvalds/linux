@@ -4,6 +4,7 @@
 
 #include "debug.h"
 #include "fw.h"
+#include "mac.h"
 #include "phy.h"
 #include "ps.h"
 #include "reg.h"
@@ -1667,15 +1668,25 @@ static void rtw89_phy_cfo_set_crystal_cap(struct rtw89_dev *rtwdev,
 					  u8 crystal_cap, bool force)
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 sc_xi_val, sc_xo_val;
 
 	if (!force && cfo->crystal_cap == crystal_cap)
 		return;
 	crystal_cap = clamp_t(u8, crystal_cap, 0, 127);
-	rtw89_phy_cfo_set_xcap_reg(rtwdev, true, crystal_cap);
-	rtw89_phy_cfo_set_xcap_reg(rtwdev, false, crystal_cap);
-	sc_xo_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, true);
-	sc_xi_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, false);
+	if (chip->chip_id == RTL8852A) {
+		rtw89_phy_cfo_set_xcap_reg(rtwdev, true, crystal_cap);
+		rtw89_phy_cfo_set_xcap_reg(rtwdev, false, crystal_cap);
+		sc_xo_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, true);
+		sc_xi_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, false);
+	} else {
+		rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XO,
+					crystal_cap, XTAL_SC_XO_MASK);
+		rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XI,
+					crystal_cap, XTAL_SC_XI_MASK);
+		rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XO, &sc_xo_val);
+		rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XI, &sc_xi_val);
+	}
 	cfo->crystal_cap = sc_xi_val;
 	cfo->x_cap_ofst = (s8)((int)cfo->crystal_cap - cfo->def_x_cap);
 
