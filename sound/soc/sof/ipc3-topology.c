@@ -2057,6 +2057,201 @@ static int sof_ipc3_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	return ret;
 }
 
+static int sof_ipc3_set_up_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_widget *swidget;
+	struct snd_sof_route *sroute;
+	int ret;
+
+	/* restore pipeline components */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		/* only set up the widgets belonging to static pipelines */
+		if (!verify && swidget->dynamic_pipeline_widget)
+			continue;
+
+		/*
+		 * For older firmware, skip scheduler widgets in this loop,
+		 * sof_widget_setup() will be called in the 'complete pipeline' loop
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 19, 0) &&
+		    swidget->id == snd_soc_dapm_scheduler)
+			continue;
+
+		/* update DAI config. The IPC will be sent in sof_widget_setup() */
+		if (WIDGET_IS_DAI(swidget->id)) {
+			struct snd_sof_dai *dai = swidget->private;
+			struct sof_dai_private_data *private;
+			struct sof_ipc_dai_config *config;
+
+			if (!dai || !dai->private)
+				continue;
+			private = dai->private;
+			if (!private->dai_config)
+				continue;
+
+			config = private->dai_config;
+			/*
+			 * The link DMA channel would be invalidated for running
+			 * streams but not for streams that were in the PAUSED
+			 * state during suspend. So invalidate it here before setting
+			 * the dai config in the DSP.
+			 */
+			if (config->type == SOF_DAI_INTEL_HDA)
+				config->hda.link_dma_ch = DMA_CHAN_INVALID;
+		}
+
+		ret = sof_widget_setup(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* restore pipeline connections */
+	list_for_each_entry(sroute, &sdev->route_list, list) {
+		/* only set up routes belonging to static pipelines */
+		if (!verify && (sroute->src_widget->dynamic_pipeline_widget ||
+				sroute->sink_widget->dynamic_pipeline_widget))
+			continue;
+
+		/*
+		 * For virtual routes, both sink and source are not buffer. IPC3 only supports
+		 * connections between a buffer and a component. Ignore the rest.
+		 */
+		if (sroute->src_widget->id != snd_soc_dapm_buffer &&
+		    sroute->sink_widget->id != snd_soc_dapm_buffer)
+			continue;
+
+		ret = sof_route_setup(sdev, sroute->src_widget->widget,
+				      sroute->sink_widget->widget);
+		if (ret < 0) {
+			dev_err(sdev->dev, "%s: route set up failed\n", __func__);
+			return ret;
+		}
+	}
+
+	/* complete pipeline */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		switch (swidget->id) {
+		case snd_soc_dapm_scheduler:
+			/* only complete static pipelines */
+			if (!verify && swidget->dynamic_pipeline_widget)
+				continue;
+
+			if (v->abi_version < SOF_ABI_VER(3, 19, 0)) {
+				ret = sof_widget_setup(sdev, swidget);
+				if (ret < 0)
+					return ret;
+			}
+
+			swidget->complete = sof_ipc3_complete_pipeline(sdev, swidget);
+			if (swidget->complete < 0)
+				return swidget->complete;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Free the PCM, its associated widgets and set the prepared flag to false for all PCMs that
+ * did not get suspended(ex: paused streams) so the widgets can be set up again during resume.
+ */
+static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_widget *swidget;
+	struct snd_sof_pcm *spcm;
+	int dir, ret;
+
+	/*
+	 * free all PCMs and their associated DAPM widgets if their connected DAPM widget
+	 * list is not NULL. This should only be true for paused streams at this point.
+	 * This is equivalent to the handling of FE DAI suspend trigger for running streams.
+	 */
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
+
+			if (!substream || !substream->runtime)
+				continue;
+
+			if (spcm->stream[dir].list) {
+				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
+	/*
+	 * free any left over DAI widgets. This is equivalent to the handling of suspend trigger
+	 * for the BE DAI for running streams.
+	 */
+	list_for_each_entry(swidget, &sdev->widget_list, list)
+		if (WIDGET_IS_DAI(swidget->id) && swidget->use_count == 1) {
+			ret = sof_widget_free(sdev, swidget);
+			if (ret < 0)
+				return ret;
+		}
+
+	return 0;
+}
+
+/*
+ * For older firmware, this function doesn't free widgets for static pipelines during suspend.
+ * It only resets use_count for all widgets.
+ */
+static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_widget *swidget;
+	struct snd_sof_route *sroute;
+	int ret;
+
+	/*
+	 * This function is called during suspend and for one-time topology verification during
+	 * first boot. In both cases, there is no need to protect swidget->use_count and
+	 * sroute->setup because during suspend all running streams are suspended and during
+	 * topology loading the sound card unavailable to open PCMs.
+	 */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->dynamic_pipeline_widget)
+			continue;
+
+		/* Do not free widgets for static pipelines with FW ABI older than 3.19 */
+		if (!verify && !swidget->dynamic_pipeline_widget &&
+		    v->abi_version < SOF_ABI_VER(3, 19, 0)) {
+			swidget->use_count = 0;
+			swidget->complete = 0;
+			continue;
+		}
+
+		ret = sof_widget_free(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Tear down all pipelines associated with PCMs that did not get suspended
+	 * and unset the prepare flag so that they can be set up again during resume.
+	 * Skip this step for older firmware.
+	 */
+	if (!verify && v->abi_version >= SOF_ABI_VER(3, 19, 0)) {
+		ret = sof_tear_down_left_over_pipelines(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev, "failed to tear down paused pipelines\n");
+			return ret;
+		}
+	}
+
+	list_for_each_entry(sroute, &sdev->route_list, list)
+		sroute->setup = false;
+
+	return 0;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2164,4 +2359,6 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget_free = sof_ipc3_widget_free,
 	.widget_setup = sof_ipc3_widget_setup,
 	.dai_config = sof_ipc3_dai_config,
+	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
+	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
 };

@@ -1796,29 +1796,15 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	    sink_swidget->id == snd_soc_dapm_output)
 		goto err;
 
-	/*
-	 * For virtual routes, both sink and source are not
-	 * buffer. Since only buffer linked to component is supported by
-	 * FW, others are reported as error, add check in route function,
-	 * do not send it to FW when both source and sink are not buffer
-	 */
-	if (source_swidget->id != snd_soc_dapm_buffer &&
-	    sink_swidget->id != snd_soc_dapm_buffer) {
-		dev_dbg(scomp->dev, "warning: neither Linked source component %s nor sink component %s is of buffer type, ignoring link\n",
-			route->source, route->sink);
-		goto err;
-	} else {
-		sroute->route = route;
-		dobj->private = sroute;
-		sroute->src_widget = source_swidget;
-		sroute->sink_widget = sink_swidget;
+	sroute->route = route;
+	dobj->private = sroute;
+	sroute->src_widget = source_swidget;
+	sroute->sink_widget = sink_swidget;
 
-		/* add route to route list */
-		list_add(&sroute->list, &sdev->route_list);
+	/* add route to route list */
+	list_add(&sroute->list, &sdev->route_list);
 
-		return 0;
-	}
-
+	return 0;
 err:
 	kfree(sroute);
 	return ret;
@@ -1917,21 +1903,28 @@ static int sof_complete(struct snd_soc_component *scomp)
 
 	/* verify topology components loading including dynamic pipelines */
 	if (sof_debug_check_flag(SOF_DBG_VERIFY_TPLG)) {
-		ret = sof_set_up_pipelines(sdev, true);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: topology verification failed %d\n", ret);
-			return ret;
-		}
+		if (ipc_tplg_ops->set_up_all_pipelines && ipc_tplg_ops->tear_down_all_pipelines) {
+			ret = ipc_tplg_ops->set_up_all_pipelines(sdev, true);
+			if (ret < 0) {
+				dev_err(sdev->dev, "Failed to set up all topology pipelines: %d\n",
+					ret);
+				return ret;
+			}
 
-		ret = sof_tear_down_pipelines(sdev, true);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: topology tear down pipelines failed %d\n", ret);
-			return ret;
+			ret = ipc_tplg_ops->tear_down_all_pipelines(sdev, true);
+			if (ret < 0) {
+				dev_err(sdev->dev, "Failed to tear down topology pipelines: %d\n",
+					ret);
+				return ret;
+			}
 		}
 	}
 
 	/* set up static pipelines */
-	return sof_set_up_pipelines(sdev, false);
+	if (ipc_tplg_ops->set_up_all_pipelines)
+		return ipc_tplg_ops->set_up_all_pipelines(sdev, false);
+
+	return 0;
 }
 
 /* manifest - optional to inform component of manifest */

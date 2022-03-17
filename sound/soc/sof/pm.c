@@ -71,6 +71,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	u32 old_state = sdev->dsp_power_state.state;
 	int ret;
 
@@ -144,12 +145,12 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* restore pipelines */
-	ret = sof_set_up_pipelines(sdev, false);
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to restore pipeline after resume %d\n",
-			ret);
-		return ret;
+	if (tplg_ops->set_up_all_pipelines) {
+		ret = tplg_ops->set_up_all_pipelines(sdev, false);
+		if (ret < 0) {
+			dev_err(sdev->dev, "Failed to restore pipeline after resume %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* Notify clients not managed by pm framework about core resume */
@@ -169,6 +170,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	pm_message_t pm_state;
 	u32 target_state = 0;
 	int ret;
@@ -204,7 +206,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		goto suspend;
 	}
 
-	sof_tear_down_pipelines(sdev, false);
+	if (tplg_ops->tear_down_all_pipelines)
+		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	/* release trace */
 	snd_sof_release_trace(sdev);
