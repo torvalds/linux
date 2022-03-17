@@ -46,6 +46,28 @@ struct snd_sof_dai_config_data {
 };
 
 /**
+ * struct ipc_tplg_control_ops - IPC-specific ops for topology kcontrol IO
+ */
+struct ipc_tplg_control_ops {
+	bool (*volume_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*volume_get)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	bool (*switch_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*switch_get)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	bool (*enum_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*enum_get)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*bytes_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*bytes_get)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
+	int (*bytes_ext_get)(struct snd_sof_control *scontrol,
+			     const unsigned int __user *binary_data, unsigned int size);
+	int (*bytes_ext_volatile_get)(struct snd_sof_control *scontrol,
+				      const unsigned int __user *binary_data, unsigned int size);
+	int (*bytes_ext_put)(struct snd_sof_control *scontrol,
+			     const unsigned int __user *binary_data, unsigned int size);
+	/* update control data based on notification from the DSP */
+	void (*update)(struct snd_sof_dev *sdev, void *ipc_control_message);
+};
+
+/**
  * struct sof_ipc_tplg_widget_ops - IPC-specific ops for topology widgets
  * @ipc_setup: Function pointer for setting up widget IPC params
  * @ipc_free: Function pointer for freeing widget IPC params
@@ -67,6 +89,7 @@ struct sof_ipc_tplg_widget_ops {
  * @widget: Array of pointers to IPC-specific ops for widgets. This should always be of size
  *	    SND_SOF_DAPM_TYPE_COUNT i.e one per widget type. Unsupported widget types will be
  *	    initialized to 0.
+ * @control: Pointer to the IPC-specific ops for topology kcontrol IO
  * @route_setup: Function pointer for setting up pipeline connections
  * @token_list: List of all tokens supported by the IPC version. The size of the token_list
  *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
@@ -80,6 +103,7 @@ struct sof_ipc_tplg_widget_ops {
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
+	const struct ipc_tplg_control_ops *control;
 	int (*route_setup)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
 	const struct sof_token_info *token_list;
 	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
