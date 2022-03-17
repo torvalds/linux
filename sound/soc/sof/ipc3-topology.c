@@ -2252,6 +2252,34 @@ static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 	return 0;
 }
 
+static int sof_ipc3_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type)
+{
+	struct sof_dai_private_data *private = dai->private;
+
+	if (!private || !private->dai_config)
+		return 0;
+
+	switch (private->dai_config->type) {
+	case SOF_DAI_INTEL_SSP:
+		switch (clk_type) {
+		case SOF_DAI_CLK_INTEL_SSP_MCLK:
+			return private->dai_config->ssp.mclk_rate;
+		case SOF_DAI_CLK_INTEL_SSP_BCLK:
+			return private->dai_config->ssp.bclk_rate;
+		default:
+			break;
+		}
+		dev_err(sdev->dev, "fail to get SSP clk %d rate\n", clk_type);
+		break;
+	default:
+		/* not yet implemented for platforms other than the above */
+		dev_err(sdev->dev, "DAI type %d not supported yet!\n", private->dai_config->type);
+		break;
+	}
+
+	return -EINVAL;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2359,6 +2387,7 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget_free = sof_ipc3_widget_free,
 	.widget_setup = sof_ipc3_widget_setup,
 	.dai_config = sof_ipc3_dai_config,
+	.dai_get_clk = sof_ipc3_dai_get_clk,
 	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
 	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
 };
