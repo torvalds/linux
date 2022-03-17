@@ -1982,8 +1982,7 @@ bool __init handle_vc_boot_ghcb(struct pt_regs *regs)
 fail:
 	show_regs(regs);
 
-	while (true)
-		halt();
+	sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
 }
 
 /*
