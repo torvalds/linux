@@ -448,10 +448,22 @@ xfsaild_push(
 
 	spin_lock(&ailp->ail_lock);
 
-	/* barrier matches the ail_target update in xfs_ail_push() */
-	smp_rmb();
-	target = ailp->ail_target;
-	ailp->ail_target_prev = target;
+	/*
+	 * If we have a sync push waiter, we always have to push till the AIL is
+	 * empty. Update the target to point to the end of the AIL so that
+	 * capture updates that occur after the sync push waiter has gone to
+	 * sleep.
+	 */
+	if (waitqueue_active(&ailp->ail_empty)) {
+		lip = xfs_ail_max(ailp);
+		if (lip)
+			target = lip->li_lsn;
+	} else {
+		/* barrier matches the ail_target update in xfs_ail_push() */
+		smp_rmb();
+		target = ailp->ail_target;
+		ailp->ail_target_prev = target;
+	}
 
 	/* we're done if the AIL is empty or our push has reached the end */
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->ail_last_pushed_lsn);
@@ -724,7 +736,6 @@ xfs_ail_push_all_sync(
 	spin_lock(&ailp->ail_lock);
 	while ((lip = xfs_ail_max(ailp)) != NULL) {
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
-		ailp->ail_target = lip->li_lsn;
 		wake_up_process(ailp->ail_task);
 		spin_unlock(&ailp->ail_lock);
 		schedule();
