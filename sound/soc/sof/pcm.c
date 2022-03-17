@@ -119,15 +119,12 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_platform_stream_params platform_params = { 0 };
-	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_pcm *spcm;
-	struct sof_ipc_pcm_params pcm;
-	struct sof_ipc_pcm_params_reply ipc_params_reply;
 	int ret;
 
 	/* nothing to do for BE */
@@ -153,87 +150,6 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
-	memset(&pcm, 0, sizeof(pcm));
-
-	/* create compressed page table for audio firmware */
-	if (runtime->buffer_changed) {
-		ret = create_page_table(component, substream, runtime->dma_area,
-					runtime->dma_bytes);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* number of pages should be rounded up */
-	pcm.params.buffer.pages = PFN_UP(runtime->dma_bytes);
-
-	/* set IPC PCM parameters */
-	pcm.hdr.size = sizeof(pcm);
-	pcm.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_PARAMS;
-	pcm.comp_id = spcm->stream[substream->stream].comp_id;
-	pcm.params.hdr.size = sizeof(pcm.params);
-	pcm.params.buffer.phy_addr =
-		spcm->stream[substream->stream].page_table.addr;
-	pcm.params.buffer.size = runtime->dma_bytes;
-	pcm.params.direction = substream->stream;
-	pcm.params.sample_valid_bytes = params_width(params) >> 3;
-	pcm.params.buffer_fmt = SOF_IPC_BUFFER_INTERLEAVED;
-	pcm.params.rate = params_rate(params);
-	pcm.params.channels = params_channels(params);
-	pcm.params.host_period_bytes = params_period_bytes(params);
-
-	/* container size */
-	ret = snd_pcm_format_physical_width(params_format(params));
-	if (ret < 0)
-		return ret;
-	pcm.params.sample_container_bytes = ret >> 3;
-
-	/* format */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16:
-		pcm.params.frame_fmt = SOF_IPC_FRAME_S16_LE;
-		break;
-	case SNDRV_PCM_FORMAT_S24:
-		pcm.params.frame_fmt = SOF_IPC_FRAME_S24_4LE;
-		break;
-	case SNDRV_PCM_FORMAT_S32:
-		pcm.params.frame_fmt = SOF_IPC_FRAME_S32_LE;
-		break;
-	case SNDRV_PCM_FORMAT_FLOAT:
-		pcm.params.frame_fmt = SOF_IPC_FRAME_FLOAT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* firmware already configured host stream */
-	ret = snd_sof_pcm_platform_hw_params(sdev,
-					     substream,
-					     params,
-					     &platform_params);
-	if (ret < 0) {
-		dev_err(component->dev, "error: platform hw params failed\n");
-		return ret;
-	}
-
-	/* Update the IPC message with information from the platform */
-	pcm.params.stream_tag = platform_params.stream_tag;
-
-	if (platform_params.use_phy_address)
-		pcm.params.buffer.phy_addr = platform_params.phy_addr;
-
-	if (platform_params.no_ipc_position) {
-		/* For older ABIs set host_period_bytes to zero to inform
-		 * FW we don't want position updates. Newer versions use
-		 * no_stream_position for this purpose.
-		 */
-		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
-			pcm.params.host_period_bytes = 0;
-		else
-			pcm.params.no_stream_position = 1;
-	}
-
-	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
-
 	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
 	if (!spcm->stream[substream->stream].list) {
 		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, substream->stream);
@@ -241,21 +157,25 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 			return ret;
 	}
 
-	/* send hw_params IPC to the DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
-				 &ipc_params_reply, sizeof(ipc_params_reply));
+	/* create compressed page table for audio firmware */
+	if (runtime->buffer_changed) {
+		ret = create_page_table(component, substream, runtime->dma_area,
+					runtime->dma_bytes);
+
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
 	if (ret < 0) {
-		dev_err(component->dev, "error: hw params ipc failed for stream %d\n",
-			pcm.params.stream_tag);
+		dev_err(component->dev, "platform hw params failed\n");
 		return ret;
 	}
 
-	ret = snd_sof_set_stream_data_offset(sdev, substream,
-					     ipc_params_reply.posn_offset);
-	if (ret < 0) {
-		dev_err(component->dev, "%s: invalid stream data offset for PCM %d\n",
-			__func__, spcm->pcm.pcm_id);
-		return ret;
+	if (pcm_ops->hw_params) {
+		ret = pcm_ops->hw_params(component, substream, params, &platform_params);
+		if (ret < 0)
+			return ret;
 	}
 
 	spcm->prepared[substream->stream] = true;
@@ -263,7 +183,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
 
-	return ret;
+	return 0;
 }
 
 static int sof_pcm_hw_free(struct snd_soc_component *component,
