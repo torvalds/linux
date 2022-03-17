@@ -833,6 +833,8 @@ static struct rcu_torture_ops tasks_ops = {
 #endif // #else #ifdef CONFIG_TASKS_RCU
 
 
+#ifdef CONFIG_TASKS_RUDE_RCU
+
 /*
  * Definitions for rude RCU-tasks torture testing.
  */
@@ -861,6 +863,15 @@ static struct rcu_torture_ops tasks_rude_ops = {
 	.irq_capable	= 1,
 	.name		= "tasks-rude"
 };
+
+#define TASKS_RUDE_OPS &tasks_rude_ops,
+
+#else // #ifdef CONFIG_TASKS_RUDE_RCU
+
+#define TASKS_RUDE_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_RUDE_RCU
+
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
@@ -3119,7 +3130,7 @@ rcu_torture_init(void)
 	unsigned long gp_seq = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops, &busted_srcud_ops,
-		TASKS_OPS &tasks_rude_ops, TASKS_TRACING_OPS
+		TASKS_OPS TASKS_RUDE_OPS TASKS_TRACING_OPS
 		&trivial_ops,
 	};
 

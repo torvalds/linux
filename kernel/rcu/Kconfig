@@ -93,15 +93,22 @@ config TASKS_RCU
 	default n
 	select IRQ_WORK
 
-config TASKS_RUDE_RCU
-	def_bool 0
-	select IRQ_WORK
+config FORCE_TASKS_RUDE_RCU
+	bool "Force selection of Tasks Rude RCU"
+	depends on RCU_EXPERT
+	select TASKS_RUDE_RCU
+	default n
 	help
-	  This option enables a task-based RCU implementation that uses
-	  only context switch (including preemption) and user-mode
-	  execution as quiescent states.  It forces IPIs and context
-	  switches on all online CPUs, including idle ones, so use
-	  with caution.
+	  This option force-enables a task-based RCU implementation
+	  that uses only context switch (including preemption) and
+	  user-mode execution as quiescent states.  It forces IPIs and
+	  context switches on all online CPUs, including idle ones,
+	  so use with caution.	Not for manual selection in most cases.
+
+config TASKS_RUDE_RCU
+	bool
+	default n
+	select IRQ_WORK
 
 config FORCE_TASKS_TRACE_RCU
 	bool "Force selection of Tasks Trace RCU"
