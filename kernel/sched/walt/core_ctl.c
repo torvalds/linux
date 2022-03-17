@@ -482,7 +482,7 @@ static struct kobj_type ktype_core_ctl = {
 
 /* ==================== runqueue based core count =================== */
 
-static struct sched_avg_stats nr_stats[WALT_NR_CPUS];
+static struct sched_avg_stats *nr_stats;
 
 /*
  * nr_need:
@@ -686,7 +686,7 @@ static void update_running_avg(void)
 	unsigned long flags;
 	int big_avg = 0;
 
-	sched_get_nr_running_avg(nr_stats);
+	nr_stats = sched_get_nr_running_avg();
 
 	spin_lock_irqsave(&state_lock, flags);
 	for_each_cluster(cluster, index) {
@@ -954,6 +954,14 @@ static void core_ctl_call_notifier(void)
 	atomic_notifier_call_chain(&core_ctl_notifier, 0, &ndata);
 }
 
+/*
+ * sched_get_nr_running_avg will wipe out previous statistics and
+ * update it to the values computed since the last call.
+ *
+ * core_ctl_check assumes that the statistics are stable, hence
+ * window based. Therefore core_ctl_check must only be called from
+ * window rollover, or walt_irq_work for not migration.
+ */
 void core_ctl_check(u64 window_start)
 {
 	int cpu;
@@ -1329,6 +1337,8 @@ int core_ctl_init(void)
 	int ret;
 
 	spin_lock_init(&core_ctl_pending_lock);
+
+	nr_stats = sched_get_nr_running_avg();
 
 	/* initialize our single kthread, after spin lock init */
 	core_ctl_thread = kthread_run(try_core_ctl, NULL, "core_ctl");

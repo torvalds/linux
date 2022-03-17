@@ -120,6 +120,7 @@ struct walt_rq {
 	bool			high_irqload;
 	u64			last_cc_update;
 	u64			cycles;
+	u64			util;
 	struct list_head	mvp_tasks;
 	int                     num_mvp_tasks;
 	u64			latest_clock;
@@ -773,7 +774,8 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 	return task_fits_capacity(p, capacity, cpu);
 }
 
-extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);
+extern struct sched_avg_stats *sched_get_nr_running_avg(void);
+extern unsigned int sched_get_cluster_util_pct(struct walt_sched_cluster *cluster);
 extern void sched_update_hyst_times(void);
 
 extern void walt_rt_init(void);
