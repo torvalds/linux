@@ -488,8 +488,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		return;
 	}
 
-	/* Set the CRTC operations from the chip specific data */
-	drm_crtc_init(dev, &gma_crtc->base, dev_priv->ops->crtc_funcs);
+	drm_crtc_init(dev, &gma_crtc->base, &gma_crtc_funcs);
 
 	/* Set the CRTC clock functions from chip specific data */
 	gma_crtc->clock_funcs = dev_priv->ops->clock_funcs;

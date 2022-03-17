@@ -578,7 +578,6 @@ struct psb_ops {
 
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
-	struct drm_crtc_funcs const *crtc_funcs;
 	const struct gma_clock_funcs *clock_funcs;
 
 	/* Setup hooks */
