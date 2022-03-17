@@ -105,7 +105,7 @@
 		timer@1c20c00 {
 			compatible = "allwinner,suniv-f1c100s-timer";
 			reg = <0x01c20c00 0x90>;
-			interrupts = <13>;
+			interrupts = <13>, <14>, <15>;
 			clocks = <&osc24M>;
 		};
 
