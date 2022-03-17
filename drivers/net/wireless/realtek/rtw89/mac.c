@@ -2685,7 +2685,11 @@ static void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev)
 	clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
 
 	rtw89_write32_clr(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_WCPU_EN);
+	rtw89_write32_clr(rtwdev, R_AX_WCPU_FW_CTRL, B_AX_WCPU_FWDL_EN |
+			  B_AX_H2C_PATH_RDY | B_AX_FWDL_PATH_RDY);
 	rtw89_write32_clr(rtwdev, R_AX_SYS_CLK_CTRL, B_AX_CPU_CLK_EN);
+	rtw89_write32_clr(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_PLATFORM_EN);
+	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_PLATFORM_EN);
 }
 
 static int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason,
