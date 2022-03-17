@@ -82,29 +82,6 @@ void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(snd_sof_pcm_period_elapsed);
 
-int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
-			 struct snd_sof_pcm *spcm)
-{
-	struct sof_ipc_stream stream;
-	struct sof_ipc_reply reply;
-	int ret;
-
-	if (!spcm->prepared[substream->stream])
-		return 0;
-
-	stream.hdr.size = sizeof(stream);
-	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_FREE;
-	stream.comp_id = spcm->stream[substream->stream].comp_id;
-
-	/* send IPC to the DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
-				 sizeof(stream), &reply, sizeof(reply));
-	if (!ret)
-		spcm->prepared[substream->stream] = false;
-
-	return ret;
-}
-
 int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
 				    struct snd_sof_pcm *spcm, int dir)
 {
@@ -145,6 +122,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
 	struct snd_sof_platform_stream_params platform_params = { 0 };
 	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	struct snd_sof_pcm *spcm;
@@ -164,9 +142,13 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.
 	 */
-	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-	if (ret < 0)
-		return ret;
+	if (pcm_ops->hw_free && spcm->prepared[substream->stream]) {
+		ret = pcm_ops->hw_free(component, substream);
+		if (ret < 0)
+			return ret;
+
+		spcm->prepared[substream->stream] = false;
+	}
 
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
@@ -289,6 +271,7 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
 	struct snd_sof_pcm *spcm;
 	int ret, err = 0;
 
@@ -304,10 +287,13 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 		spcm->pcm.pcm_id, substream->stream);
 
 	/* free PCM in the DSP */
-	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-	if (ret < 0)
-		err = ret;
+	if (pcm_ops->hw_free && spcm->prepared[substream->stream]) {
+		ret = pcm_ops->hw_free(component, substream);
+		if (ret < 0)
+			err = ret;
 
+		spcm->prepared[substream->stream] = false;
+	}
 
 	/* stop DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);

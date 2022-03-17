@@ -41,4 +41,5 @@ static const struct sof_ipc_pm_ops ipc3_pm_ops = {
 const struct sof_ipc_ops ipc3_ops = {
 	.tplg = &ipc3_tplg_ops,
 	.pm = &ipc3_pm_ops,
+	.pcm = &ipc3_pcm_ops,
 };

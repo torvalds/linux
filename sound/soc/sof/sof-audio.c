@@ -591,12 +591,17 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
 			struct snd_sof_pcm *spcm, int dir, bool free_widget_list)
 {
+	const struct sof_ipc_pcm_ops *pcm_ops = sdev->ipc->ops->pcm;
 	int ret;
 
 	/* Send PCM_FREE IPC to reset pipeline */
-	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-	if (ret < 0)
-		return ret;
+	if (pcm_ops->hw_free && spcm->prepared[substream->stream]) {
+		ret = pcm_ops->hw_free(sdev->component, substream);
+		if (ret < 0)
+			return ret;
+	}
+
+	spcm->prepared[substream->stream] = false;
 
 	/* stop the DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
