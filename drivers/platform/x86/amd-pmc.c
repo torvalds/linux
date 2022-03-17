@@ -655,10 +655,11 @@ static void amd_pmc_s2idle_prepare(void)
 		return;
 	}
 
-	if (enable_stb)
+	if (enable_stb) {
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF);
-	if (rc)
-		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+		if (rc)
+			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+	}
 }
 
 static void amd_pmc_s2idle_restore(void)
@@ -679,10 +680,11 @@ static void amd_pmc_s2idle_restore(void)
 	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
 
 	/* Write data incremented by 1 to distinguish in stb_read */
-	if (enable_stb)
+	if (enable_stb) {
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF + 1);
-	if (rc)
-		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+		if (rc)
+			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+	}
 
 	/* Notify on failed entry */
 	amd_pmc_validate_deepest(pdev);
