@@ -365,6 +365,14 @@ static const char lan743x_set1_sw_cnt_strings[][ETH_GSTRING_LEN] = {
 	"RX Queue 3 Frames",
 };
 
+static const char lan743x_tx_queue_cnt_strings[][ETH_GSTRING_LEN] = {
+	"TX Queue 0 Frames",
+	"TX Queue 1 Frames",
+	"TX Queue 2 Frames",
+	"TX Queue 3 Frames",
+	"TX Total Queue Frames",
+};
+
 static const char lan743x_set2_hw_cnt_strings[][ETH_GSTRING_LEN] = {
 	"RX Total Frames",
 	"EEE RX LPI Transitions",
@@ -462,6 +470,8 @@ static const char lan743x_priv_flags_strings[][ETH_GSTRING_LEN] = {
 static void lan743x_ethtool_get_strings(struct net_device *netdev,
 					u32 stringset, u8 *data)
 {
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(data, lan743x_set0_hw_cnt_strings,
@@ -473,6 +483,13 @@ static void lan743x_ethtool_get_strings(struct net_device *netdev,
 		       sizeof(lan743x_set1_sw_cnt_strings)],
 		       lan743x_set2_hw_cnt_strings,
 		       sizeof(lan743x_set2_hw_cnt_strings));
+		if (adapter->is_pci11x1x) {
+			memcpy(&data[sizeof(lan743x_set0_hw_cnt_strings) +
+			       sizeof(lan743x_set1_sw_cnt_strings) +
+			       sizeof(lan743x_set2_hw_cnt_strings)],
+			       lan743x_tx_queue_cnt_strings,
+			       sizeof(lan743x_tx_queue_cnt_strings));
+		}
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, lan743x_priv_flags_strings,
@@ -486,7 +503,9 @@ static void lan743x_ethtool_get_ethtool_stats(struct net_device *netdev,
 					      u64 *data)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	u64 total_queue_count = 0;
 	int data_index = 0;
+	u64 pkt_cnt;
 	u32 buf;
 	int i;
 
@@ -499,6 +518,14 @@ static void lan743x_ethtool_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < ARRAY_SIZE(lan743x_set2_hw_cnt_addr); i++) {
 		buf = lan743x_csr_read(adapter, lan743x_set2_hw_cnt_addr[i]);
 		data[data_index++] = (u64)buf;
+	}
+	if (adapter->is_pci11x1x) {
+		for (i = 0; i < ARRAY_SIZE(adapter->tx); i++) {
+			pkt_cnt = (u64)(adapter->tx[i].frame_count);
+			data[data_index++] = pkt_cnt;
+			total_queue_count += pkt_cnt;
+		}
+		data[data_index++] = total_queue_count;
 	}
 }
 
@@ -520,6 +547,8 @@ static int lan743x_ethtool_set_priv_flags(struct net_device *netdev, u32 flags)
 
 static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
 	switch (sset) {
 	case ETH_SS_STATS:
 	{
@@ -528,6 +557,8 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 		ret = ARRAY_SIZE(lan743x_set0_hw_cnt_strings);
 		ret += ARRAY_SIZE(lan743x_set1_sw_cnt_strings);
 		ret += ARRAY_SIZE(lan743x_set2_hw_cnt_strings);
+		if (adapter->is_pci11x1x)
+			ret += ARRAY_SIZE(lan743x_tx_queue_cnt_strings);
 		return ret;
 	}
 	case ETH_SS_PRIV_FLAGS:

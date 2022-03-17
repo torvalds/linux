@@ -715,6 +715,7 @@ struct lan743x_tx {
 	int		last_tail;
 
 	struct napi_struct napi;
+	u32 frame_count;
 
 	struct sk_buff *overflow_skb;
 };

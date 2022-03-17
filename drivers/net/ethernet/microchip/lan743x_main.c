@@ -1776,6 +1776,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		dev_kfree_skb_irq(skb);
 		goto unlock;
 	}
+	tx->frame_count++;
 
 	if (gso)
 		lan743x_tx_frame_add_lso(tx, frame_length, nr_frags);
