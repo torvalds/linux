@@ -470,6 +470,7 @@ EXPORT_SYMBOL(snd_sof_ipc_reply);
 
 static void ipc_comp_notification(struct snd_sof_dev *sdev, void *msg_buf)
 {
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	struct sof_ipc_cmd_hdr *hdr = msg_buf;
 	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
 
@@ -482,7 +483,8 @@ static void ipc_comp_notification(struct snd_sof_dev *sdev, void *msg_buf)
 		return;
 	}
 
-	snd_sof_control_notify(sdev, msg_buf);
+	if (tplg_ops->control->update)
+		tplg_ops->control->update(sdev, msg_buf);
 }
 
 /* DSP firmware has sent host a message  */
@@ -1031,7 +1033,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	ipc->ops = &ipc3_ops;
 
 	/* check for mandatory ops */
-	if (!ipc->ops->tplg || !ipc->ops->tplg->widget) {
+	if (!ipc->ops->tplg || !ipc->ops->tplg->widget || !ipc->ops->tplg->control) {
 		dev_err(sdev->dev, "Invalid topology IPC ops\n");
 		return NULL;
 	}

@@ -46,9 +46,9 @@ struct snd_sof_dai_config_data {
 };
 
 /**
- * struct ipc_tplg_control_ops - IPC-specific ops for topology kcontrol IO
+ * struct sof_ipc_tplg_control_ops - IPC-specific ops for topology kcontrol IO
  */
-struct ipc_tplg_control_ops {
+struct sof_ipc_tplg_control_ops {
 	bool (*volume_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
 	int (*volume_get)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
 	bool (*switch_put)(struct snd_sof_control *scontrol, struct snd_ctl_elem_value *ucontrol);
@@ -103,7 +103,7 @@ struct sof_ipc_tplg_widget_ops {
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
-	const struct ipc_tplg_control_ops *control;
+	const struct sof_ipc_tplg_control_ops *control;
 	int (*route_setup)(struct snd_sof_dev *sdev, struct snd_sof_route *sroute);
 	const struct sof_token_info *token_list;
 	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
