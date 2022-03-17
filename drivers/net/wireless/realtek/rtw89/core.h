@@ -609,7 +609,7 @@ struct rtw89_channel_params {
 };
 
 struct rtw89_channel_help_params {
-	u16 tx_en;
+	u32 tx_en;
 };
 
 struct rtw89_port_reg {
