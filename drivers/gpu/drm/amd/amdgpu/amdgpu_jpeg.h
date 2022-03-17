@@ -24,6 +24,8 @@
 #ifndef __AMDGPU_JPEG_H__
 #define __AMDGPU_JPEG_H__
 
+#include "amdgpu_ras.h"
+
 #define AMDGPU_MAX_JPEG_INSTANCES	2
 
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
@@ -39,6 +41,10 @@ struct amdgpu_jpeg_inst {
 	struct amdgpu_jpeg_reg external;
 };
 
+struct amdgpu_jpeg_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+
 struct amdgpu_jpeg {
 	uint8_t	num_jpeg_inst;
 	struct amdgpu_jpeg_inst inst[AMDGPU_MAX_JPEG_INSTANCES];
@@ -48,6 +54,8 @@ struct amdgpu_jpeg {
 	enum amd_powergating_state cur_state;
 	struct mutex jpeg_pg_lock;
 	atomic_t total_submission_cnt;
+	struct ras_common_if	*ras_if;
+	struct amdgpu_jpeg_ras	*ras;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
