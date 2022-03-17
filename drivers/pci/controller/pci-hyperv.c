@@ -766,14 +766,6 @@ static unsigned int hv_msi_get_int_vector(struct irq_data *irqd)
 	return irqd->parent_data->hwirq;
 }
 
-static void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
-				       struct msi_desc *msi_desc)
-{
-	msi_entry->address = ((u64)msi_desc->msg.address_hi << 32) |
-			      msi_desc->msg.address_lo;
-	msi_entry->data = msi_desc->msg.data;
-}
-
 /*
  * @nr_bm_irqs:		Indicates the number of IRQs that were allocated from
  *			the bitmap.
