@@ -779,6 +779,8 @@ static struct rcu_torture_ops trivial_ops = {
 	.name		= "trivial"
 };
 
+#ifdef CONFIG_TASKS_RCU
+
 /*
  * Definitions for RCU-tasks torture testing.
  */
@@ -821,6 +823,15 @@ static struct rcu_torture_ops tasks_ops = {
 	.slow_gps	= 1,
 	.name		= "tasks"
 };
+
+#define TASKS_OPS &tasks_ops,
+
+#else // #ifdef CONFIG_TASKS_RCU
+
+#define TASKS_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_RCU
+
 
 /*
  * Definitions for rude RCU-tasks torture testing.
@@ -3108,7 +3119,7 @@ rcu_torture_init(void)
 	unsigned long gp_seq = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops, &busted_srcud_ops,
-		&tasks_ops, &tasks_rude_ops, TASKS_TRACING_OPS
+		TASKS_OPS &tasks_rude_ops, TASKS_TRACING_OPS
 		&trivial_ops,
 	};
 
