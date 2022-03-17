@@ -355,10 +355,13 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	unsigned int width = drm_rect_width(rect);
 	unsigned int height = drm_rect_height(rect);
 	unsigned int line_length = DIV_ROUND_UP(width, 8);
-	unsigned int pages = DIV_ROUND_UP(y % 8 + height, 8);
+	unsigned int pages = DIV_ROUND_UP(height, 8);
+	struct drm_device *drm = &ssd130x->drm;
 	u32 array_idx = 0;
 	int ret, i, j, k;
 	u8 *data_array = NULL;
+
+	drm_WARN_ONCE(drm, y % 8 != 0, "y must be aligned to screen page\n");
 
 	data_array = kcalloc(width, pages, GFP_KERNEL);
 	if (!data_array)
@@ -401,13 +404,13 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	if (ret < 0)
 		goto out_free;
 
-	for (i = y / 8; i < y / 8 + pages; i++) {
+	for (i = 0; i < pages; i++) {
 		int m = 8;
 
 		/* Last page may be partial */
-		if (8 * (i + 1) > ssd130x->height)
+		if (8 * (y / 8 + i + 1) > ssd130x->height)
 			m = ssd130x->height % 8;
-		for (j = x; j < x + width; j++) {
+		for (j = 0; j < width; j++) {
 			u8 data = 0;
 
 			for (k = 0; k < m; k++) {
@@ -453,6 +456,10 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf
 	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
 	int ret = 0;
 	u8 *buf = NULL;
+
+	/* Align y to display page boundaries */
+	rect->y1 = round_down(rect->y1, 8);
+	rect->y2 = min_t(unsigned int, round_up(rect->y2, 8), ssd130x->height);
 
 	buf = kcalloc(fb->width, fb->height, GFP_KERNEL);
 	if (!buf)
