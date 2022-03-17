@@ -852,9 +852,9 @@ retry_under_glock:
 		leftover = fault_in_iov_iter_writeable(to, window_size);
 		gfs2_holder_disallow_demote(gh);
 		if (leftover != window_size) {
-			if (!gfs2_holder_queued(gh))
-				goto retry;
-			goto retry_under_glock;
+			if (gfs2_holder_queued(gh))
+				goto retry_under_glock;
+			goto retry;
 		}
 	}
 	if (gfs2_holder_queued(gh))
@@ -921,9 +921,9 @@ retry_under_glock:
 		leftover = fault_in_iov_iter_readable(from, window_size);
 		gfs2_holder_disallow_demote(gh);
 		if (leftover != window_size) {
-			if (!gfs2_holder_queued(gh))
-				goto retry;
-			goto retry_under_glock;
+			if (gfs2_holder_queued(gh))
+				goto retry_under_glock;
+			goto retry;
 		}
 	}
 out:
@@ -992,12 +992,11 @@ retry_under_glock:
 		leftover = fault_in_iov_iter_writeable(to, window_size);
 		gfs2_holder_disallow_demote(&gh);
 		if (leftover != window_size) {
-			if (!gfs2_holder_queued(&gh)) {
-				if (written)
-					goto out_uninit;
-				goto retry;
-			}
-			goto retry_under_glock;
+			if (gfs2_holder_queued(&gh))
+				goto retry_under_glock;
+			if (written)
+				goto out_uninit;
+			goto retry;
 		}
 	}
 	if (gfs2_holder_queued(&gh))
@@ -1071,12 +1070,11 @@ retry_under_glock:
 		gfs2_holder_disallow_demote(gh);
 		if (leftover != window_size) {
 			from->count = min(from->count, window_size - leftover);
-			if (!gfs2_holder_queued(gh)) {
-				if (read)
-					goto out_uninit;
-				goto retry;
-			}
-			goto retry_under_glock;
+			if (gfs2_holder_queued(gh))
+				goto retry_under_glock;
+			if (read)
+				goto out_uninit;
+			goto retry;
 		}
 	}
 out_unlock:
