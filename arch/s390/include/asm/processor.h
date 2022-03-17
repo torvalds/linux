@@ -319,11 +319,18 @@ extern void (*s390_base_pgm_handler_fn)(struct pt_regs *regs);
 extern int memcpy_real(void *, unsigned long, size_t);
 extern void memcpy_absolute(void *, void *, size_t);
 
-#define mem_assign_absolute(dest, val) do {			\
-	__typeof__(dest) __tmp = (val);				\
-								\
-	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
-	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
+#define put_abs_lowcore(member, x) do {					\
+	unsigned long __abs_address = offsetof(struct lowcore, member);	\
+	__typeof__(((struct lowcore *)0)->member) __tmp = (x);		\
+									\
+	memcpy_absolute(__va(__abs_address), &__tmp, sizeof(__tmp));	\
+} while (0)
+
+#define get_abs_lowcore(x, member) do {					\
+	unsigned long __abs_address = offsetof(struct lowcore, member);	\
+	__typeof__(((struct lowcore *)0)->member) *__ptr = &(x);	\
+									\
+	memcpy_absolute(__ptr, __va(__abs_address), sizeof(*__ptr));	\
 } while (0)
 
 extern int s390_isolate_bp(void);
