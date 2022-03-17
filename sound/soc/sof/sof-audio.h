@@ -441,6 +441,8 @@ void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata);
 
 int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsource,
+		    struct snd_soc_dapm_widget *wsink);
 
 /* PCM */
 int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
