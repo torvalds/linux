@@ -12,7 +12,11 @@
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
 #define BTRFS_SEND_STREAM_VERSION 1
 
-#define BTRFS_SEND_BUF_SIZE SZ_64K
+/*
+ * In send stream v1, no command is larger than 64K. In send stream v2, no limit
+ * should be assumed.
+ */
+#define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
 
 enum btrfs_tlv_type {
 	BTRFS_TLV_U8,
@@ -80,16 +84,20 @@ enum btrfs_send_cmd {
 	BTRFS_SEND_C_MAX_V1		= 22,
 
 	/* Version 2 */
-	BTRFS_SEND_C_MAX_V2		= 22,
+	BTRFS_SEND_C_FALLOCATE		= 23,
+	BTRFS_SEND_C_SETFLAGS		= 24,
+	BTRFS_SEND_C_ENCODED_WRITE	= 25,
+	BTRFS_SEND_C_MAX_V2		= 25,
 
 	/* End */
-	BTRFS_SEND_C_MAX		= 22,
+	BTRFS_SEND_C_MAX		= 25,
 };
 
 /* attributes in send stream */
 enum {
 	BTRFS_SEND_A_UNSPEC		= 0,
 
+	/* Version 1 */
 	BTRFS_SEND_A_UUID		= 1,
 	BTRFS_SEND_A_CTRANSID		= 2,
 
@@ -112,6 +120,11 @@ enum {
 	BTRFS_SEND_A_PATH_LINK		= 17,
 
 	BTRFS_SEND_A_FILE_OFFSET	= 18,
+	/*
+	 * As of send stream v2, this attribute is special: it must be the last
+	 * attribute in a command, its header contains only the type, and its
+	 * length is implicitly the remaining length of the command.
+	 */
 	BTRFS_SEND_A_DATA		= 19,
 
 	BTRFS_SEND_A_CLONE_UUID		= 20,
@@ -120,7 +133,26 @@ enum {
 	BTRFS_SEND_A_CLONE_OFFSET	= 23,
 	BTRFS_SEND_A_CLONE_LEN		= 24,
 
-	BTRFS_SEND_A_MAX		= 24,
+	BTRFS_SEND_A_MAX_V1		= 24,
+
+	/* Version 2 */
+	BTRFS_SEND_A_FALLOCATE_MODE	= 25,
+
+	BTRFS_SEND_A_SETFLAGS_FLAGS	= 26,
+
+	BTRFS_SEND_A_UNENCODED_FILE_LEN	= 27,
+	BTRFS_SEND_A_UNENCODED_LEN	= 28,
+	BTRFS_SEND_A_UNENCODED_OFFSET	= 29,
+	/*
+	 * COMPRESSION and ENCRYPTION default to NONE (0) if omitted from
+	 * BTRFS_SEND_C_ENCODED_WRITE.
+	 */
+	BTRFS_SEND_A_COMPRESSION	= 30,
+	BTRFS_SEND_A_ENCRYPTION		= 31,
+	BTRFS_SEND_A_MAX_V2		= 31,
+
+	/* End */
+	BTRFS_SEND_A_MAX		= 31,
 };
 
 #ifdef __KERNEL__
