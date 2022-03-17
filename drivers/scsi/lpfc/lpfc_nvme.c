@@ -2169,8 +2169,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			abts_nvme = 0;
 			for (i = 0; i < phba->cfg_hdw_queue; i++) {
 				qp = &phba->sli4_hba.hdwq[i];
-				if (!vport || !vport->localport ||
-				    !qp || !qp->io_wq)
+				if (!vport->localport || !qp || !qp->io_wq)
 					return;
 
 				pring = qp->io_wq->pring;
@@ -2180,8 +2179,9 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 				abts_scsi += qp->abts_scsi_io_bufs;
 				abts_nvme += qp->abts_nvme_io_bufs;
 			}
-			if (!vport || !vport->localport ||
-			    vport->phba->hba_flag & HBA_PCI_ERR)
+			if (!vport->localport ||
+			    test_bit(HBA_PCI_ERR, &vport->phba->bit_flags) ||
+			    vport->load_flag & FC_UNLOADING)
 				return;
 
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -2541,8 +2541,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * return values is ignored.  The upcall is a courtesy to the
 		 * transport.
 		 */
-		if (vport->load_flag & FC_UNLOADING ||
-		    unlikely(vport->phba->hba_flag & HBA_PCI_ERR))
+		if (vport->load_flag & FC_UNLOADING)
 			(void)nvme_fc_set_remoteport_devloss(remoteport, 0);
 
 		ret = nvme_fc_unregister_remoteport(remoteport);
