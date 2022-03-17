@@ -1141,7 +1141,14 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
+	ret = smu_setup_pptable(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup pptable!\n");
+		return ret;
+	}
+
 	/* smu_dump_pptable(smu); */
+
 	/*
 	 * Copy pptable bo in the vram to smc with SMU MSGs such as
 	 * SetDriverDramAddr and TransferTableDram2Smu.
@@ -1310,12 +1317,6 @@ static int smu_hw_init(void *handle)
 
 	if (!smu->pm_enabled)
 		return 0;
-
-	ret = smu_setup_pptable(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup pptable!\n");
-		return ret;
-	}
 
 	ret = smu_get_driver_allowed_feature_mask(smu);
 	if (ret)
