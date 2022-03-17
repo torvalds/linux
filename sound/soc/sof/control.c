@@ -190,35 +190,14 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_bytes_ext *be =
-		(struct soc_bytes_ext *)kcontrol->private_value;
+	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct sof_abi_hdr *data = cdata->data;
-	size_t size;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	snd_sof_refresh_control(scontrol);
-
-	if (be->max > sizeof(ucontrol->value.bytes.data)) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: data max %d exceeds ucontrol data array size\n",
-				    be->max);
-		return -EINVAL;
-	}
-
-	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
-	if (data->size > be->max - sizeof(*data)) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: %u bytes of control data is invalid, max is %zu\n",
-				    data->size, be->max - sizeof(*data));
-		return -EINVAL;
-	}
-
-	size = data->size + sizeof(*data);
-
-	/* copy back to kcontrol */
-	memcpy(ucontrol->value.bytes.data, data, size);
+	if (tplg_ops->control->bytes_get)
+		return tplg_ops->control->bytes_get(scontrol, ucontrol);
 
 	return 0;
 }
@@ -226,37 +205,14 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_bytes_ext *be =
-		(struct soc_bytes_ext *)kcontrol->private_value;
+	struct soc_bytes_ext *be = (struct soc_bytes_ext *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct sof_abi_hdr *data = cdata->data;
-	size_t size;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	if (be->max > sizeof(ucontrol->value.bytes.data)) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: data max %d exceeds ucontrol data array size\n",
-				    be->max);
-		return -EINVAL;
-	}
-
-	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
-	if (data->size > be->max - sizeof(*data)) {
-		dev_err_ratelimited(scomp->dev,
-				    "error: data size too big %u bytes max is %zu\n",
-				    data->size, be->max - sizeof(*data));
-		return -EINVAL;
-	}
-
-	size = data->size + sizeof(*data);
-
-	/* copy from kcontrol */
-	memcpy(data, ucontrol->value.bytes.data, size);
-
-	/* notify DSP of byte control updates */
-	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol, true);
+	if (tplg_ops->control->bytes_put)
+		return tplg_ops->control->bytes_put(scontrol, ucontrol);
 
 	return 0;
 }

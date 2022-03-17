@@ -205,6 +205,71 @@ static bool sof_ipc3_enum_put(struct snd_sof_control *scontrol,
 	return change;
 }
 
+static int sof_ipc3_bytes_get(struct snd_sof_control *scontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_abi_hdr *data = cdata->data;
+	size_t size;
+
+	snd_sof_refresh_control(scontrol);
+
+	if (scontrol->max_size > sizeof(ucontrol->value.bytes.data)) {
+		dev_err_ratelimited(scomp->dev, "data max %zu exceeds ucontrol data array size\n",
+				    scontrol->max_size);
+		return -EINVAL;
+	}
+
+	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (data->size > scontrol->max_size - sizeof(*data)) {
+		dev_err_ratelimited(scomp->dev,
+				    "%u bytes of control data is invalid, max is %zu\n",
+				    data->size, scontrol->max_size - sizeof(*data));
+		return -EINVAL;
+	}
+
+	size = data->size + sizeof(*data);
+
+	/* copy back to kcontrol */
+	memcpy(ucontrol->value.bytes.data, data, size);
+
+	return 0;
+}
+
+static int sof_ipc3_bytes_put(struct snd_sof_control *scontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_abi_hdr *data = cdata->data;
+	size_t size;
+
+	if (scontrol->max_size > sizeof(ucontrol->value.bytes.data)) {
+		dev_err_ratelimited(scomp->dev, "data max %zu exceeds ucontrol data array size\n",
+				    scontrol->max_size);
+		return -EINVAL;
+	}
+
+	/* scontrol->max_size has been verified to be >= sizeof(struct sof_abi_hdr) */
+	if (data->size > scontrol->max_size - sizeof(*data)) {
+		dev_err_ratelimited(scomp->dev, "data size too big %u bytes max is %zu\n",
+				    data->size, scontrol->max_size - sizeof(*data));
+		return -EINVAL;
+	}
+
+	size = data->size + sizeof(*data);
+
+	/* copy from kcontrol */
+	memcpy(data, ucontrol->value.bytes.data, size);
+
+	/* notify DSP of byte control updates */
+	if (pm_runtime_active(scomp->dev))
+		return snd_sof_ipc_set_get_comp_data(scontrol, true);
+
+	return 0;
+}
+
 static void snd_sof_update_control(struct snd_sof_control *scontrol,
 				   struct sof_ipc_ctrl_data *cdata)
 {
@@ -352,5 +417,7 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.switch_get = sof_ipc3_switch_get,
 	.enum_put = sof_ipc3_enum_put,
 	.enum_get = sof_ipc3_enum_get,
+	.bytes_put = sof_ipc3_bytes_put,
+	.bytes_get = sof_ipc3_bytes_get,
 	.update = sof_ipc3_control_update,
 };
