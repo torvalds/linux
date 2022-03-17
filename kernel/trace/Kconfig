@@ -144,6 +144,7 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
+	select TASKS_RCU if PREEMPTION
 
 config GENERIC_TRACER
 	bool
