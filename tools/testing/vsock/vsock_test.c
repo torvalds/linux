@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <time.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -391,6 +392,84 @@ static void test_seqpacket_msg_trunc_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static time_t current_nsec(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_REALTIME, &ts)) {
+		perror("clock_gettime(3) failed");
+		exit(EXIT_FAILURE);
+	}
+
+	return (ts.tv_sec * 1000000000ULL) + ts.tv_nsec;
+}
+
+#define RCVTIMEO_TIMEOUT_SEC 1
+#define READ_OVERHEAD_NSEC 250000000 /* 0.25 sec */
+
+static void test_seqpacket_timeout_client(const struct test_opts *opts)
+{
+	int fd;
+	struct timeval tv;
+	char dummy;
+	time_t read_enter_ns;
+	time_t read_overhead_ns;
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	tv.tv_sec = RCVTIMEO_TIMEOUT_SEC;
+	tv.tv_usec = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) {
+		perror("setsockopt 'SO_RCVTIMEO'");
+		exit(EXIT_FAILURE);
+	}
+
+	read_enter_ns = current_nsec();
+
+	if (read(fd, &dummy, sizeof(dummy)) != -1) {
+		fprintf(stderr,
+			"expected 'dummy' read(2) failure\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != EAGAIN) {
+		perror("EAGAIN expected");
+		exit(EXIT_FAILURE);
+	}
+
+	read_overhead_ns = current_nsec() - read_enter_ns -
+			1000000000ULL * RCVTIMEO_TIMEOUT_SEC;
+
+	if (read_overhead_ns > READ_OVERHEAD_NSEC) {
+		fprintf(stderr,
+			"too much time in read(2), %lu > %i ns\n",
+			read_overhead_ns, READ_OVERHEAD_NSEC);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("WAITDONE");
+	close(fd);
+}
+
+static void test_seqpacket_timeout_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("WAITDONE");
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -430,6 +509,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET MSG_TRUNC flag",
 		.run_client = test_seqpacket_msg_trunc_client,
 		.run_server = test_seqpacket_msg_trunc_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET timeout",
+		.run_client = test_seqpacket_timeout_client,
+		.run_server = test_seqpacket_timeout_server,
 	},
 	{},
 };
