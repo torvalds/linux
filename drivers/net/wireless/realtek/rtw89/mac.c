@@ -1545,6 +1545,43 @@ error:
 	return ret;
 }
 
+static int preload_init_set(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
+			    enum rtw89_qta_mode mode)
+{
+	u32 reg, max_preld_size, min_rsvd_size;
+
+	max_preld_size = (mac_idx == RTW89_MAC_0 ?
+			  PRELD_B0_ENT_NUM : PRELD_B1_ENT_NUM) * PRELD_AMSDU_SIZE;
+	reg = mac_idx == RTW89_MAC_0 ?
+	      R_AX_TXPKTCTL_B0_PRELD_CFG0 : R_AX_TXPKTCTL_B1_PRELD_CFG0;
+	rtw89_write32_mask(rtwdev, reg, B_AX_B0_PRELD_USEMAXSZ_MASK, max_preld_size);
+	rtw89_write32_set(rtwdev, reg, B_AX_B0_PRELD_FEN);
+
+	min_rsvd_size = PRELD_AMSDU_SIZE;
+	reg = mac_idx == RTW89_MAC_0 ?
+	      R_AX_TXPKTCTL_B0_PRELD_CFG1 : R_AX_TXPKTCTL_B1_PRELD_CFG1;
+	rtw89_write32_mask(rtwdev, reg, B_AX_B0_PRELD_NXT_TXENDWIN_MASK, PRELD_NEXT_WND);
+	rtw89_write32_mask(rtwdev, reg, B_AX_B0_PRELD_NXT_RSVMINSZ_MASK, min_rsvd_size);
+
+	return 0;
+}
+
+static bool is_qta_poh(struct rtw89_dev *rtwdev)
+{
+	return rtwdev->hci.type == RTW89_HCI_TYPE_PCIE;
+}
+
+static int preload_init(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
+			enum rtw89_qta_mode mode)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B || !is_qta_poh(rtwdev))
+		return 0;
+
+	return preload_init_set(rtwdev, mac_idx, mode);
+}
+
 static bool dle_is_txq_empty(struct rtw89_dev *rtwdev)
 {
 	u32 msk32;
@@ -1649,6 +1686,12 @@ static int dmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	ret = dle_init(rtwdev, rtwdev->mac.qta_mode, RTW89_QTA_INVALID);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE init %d\n", ret);
+		return ret;
+	}
+
+	ret = preload_init(rtwdev, RTW89_MAC_0, rtwdev->mac.qta_mode);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]preload init %d\n", ret);
 		return ret;
 	}
 
