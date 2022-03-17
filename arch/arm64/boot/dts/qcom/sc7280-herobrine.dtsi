@@ -92,6 +92,7 @@
 		pinctrl-0 = <&en_pp3300_codec>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp3300_left_in_mlb: pp3300-left-in-mlb-regulator {
@@ -132,6 +133,7 @@
 		pinctrl-0 = <&en_fp_rails>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp3300_hub: pp3300-hub-regulator {
@@ -194,6 +196,7 @@
 		pinctrl-0 = <&wf_cam_en>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp2850_wf_cam: pp2850-wf-cam-regulator {
@@ -214,6 +217,7 @@
 		 */
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp1800_fp: pp1800-fp-regulator {
@@ -258,6 +262,7 @@
 		 */
 
 		vin-supply = <&vreg_l19b_s0>;
+		status = "disabled";
 	};
 
 	pp1200_wf_cam: pp1200-wf-cam-regulator {
@@ -278,6 +283,7 @@
 		 */
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
