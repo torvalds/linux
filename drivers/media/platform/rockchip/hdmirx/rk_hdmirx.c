@@ -2881,10 +2881,10 @@ static const struct hdmirx_reg_table hdmirx_ctrl_table[] = {
 	{0x20, 0x20, HDMIRX_ATTR_WO},
 	{0x24, 0x28, HDMIRX_ATTR_RW},
 	{0x40, 0x40, HDMIRX_ATTR_WO},
-	{0x44, 0x48, HDMIRX_ATTR_RW},
+	{0x44, 0x44, HDMIRX_ATTR_RO},
+	{0x48, 0x48, HDMIRX_ATTR_RW},
 	{0x50, 0x50, HDMIRX_ATTR_RW},
 	{0x60, 0x60, HDMIRX_ATTR_RW},
-	{0x64, 0x6c, HDMIRX_ATTR_RE},
 	{0x70, 0x70, HDMIRX_ATTR_RE},
 	{0x74, 0x74, HDMIRX_ATTR_RW},
 	{0x78, 0x78, HDMIRX_ATTR_RE},
@@ -2892,63 +2892,94 @@ static const struct hdmirx_reg_table hdmirx_ctrl_table[] = {
 	{0x80, 0x84, HDMIRX_ATTR_RO},
 	{0xc0, 0xc0, HDMIRX_ATTR_RO},
 	{0xc4, 0xc4, HDMIRX_ATTR_RE},
-	{0xc8, 0xd8, HDMIRX_ATTR_RW},
+	{0xc8, 0xc8, HDMIRX_ATTR_RO},
+	{0xcc, 0xd4, HDMIRX_ATTR_RW},
+	{0xd8, 0xd8, HDMIRX_ATTR_RO},
 	{0xe0, 0xe8, HDMIRX_ATTR_RW},
-	{0xec, 0xf0, HDMIRX_ATTR_WO},
-	{0xf4, 0xf8, HDMIRX_ATTR_RW},
+	{0xf0, 0xf0, HDMIRX_ATTR_WO},
+	{0xf4, 0xf4, HDMIRX_ATTR_RO},
+	{0xf8, 0xf8, HDMIRX_ATTR_RW},
 	{0x150, 0x150, HDMIRX_ATTR_RO},
 	{0x160, 0x164, HDMIRX_ATTR_RW},
-	{0x210, 0x218, HDMIRX_ATTR_RW},
+	{0x210, 0x214, HDMIRX_ATTR_RW},
+	{0x218, 0x218, HDMIRX_ATTR_RO},
 	{0x220, 0x228, HDMIRX_ATTR_RE},
 	{0x22c, 0x22c, HDMIRX_ATTR_RW},
 	{0x230, 0x230, HDMIRX_ATTR_WO},
 	{0x234, 0x234, HDMIRX_ATTR_RO},
-	{0x270, 0x274, HDMIRX_ATTR_RO},
+	{0x270, 0x274, HDMIRX_ATTR_RW},
 	{0x278, 0x278, HDMIRX_ATTR_WO},
 	{0x27c, 0x27c, HDMIRX_ATTR_RO},
 	{0x290, 0x294, HDMIRX_ATTR_RW},
 	{0x2a0, 0x2a8, HDMIRX_ATTR_WO},
 	{0x2ac, 0x2ac, HDMIRX_ATTR_RO},
 	{0x2b0, 0x2b4, HDMIRX_ATTR_RE},
-	{0x2b8, 0x2d8, HDMIRX_ATTR_RW},
-	{0x2e0, 0x2e4, HDMIRX_ATTR_RW},
-	{0x2f0, 0x304, HDMIRX_ATTR_RW},
+	{0x2b8, 0x2b8, HDMIRX_ATTR_RO},
+	{0x2bc, 0x2bc, HDMIRX_ATTR_RW},
+	{0x2c0, 0x2d0, HDMIRX_ATTR_RO},
+	{0x2d4, 0x2d8, HDMIRX_ATTR_RW},
+	{0x2e0, 0x2e0, HDMIRX_ATTR_RW},
+	{0x2e4, 0x2e4, HDMIRX_ATTR_RO},
+	{0x2f0, 0x2f0, HDMIRX_ATTR_RW},
+	{0x2f4, 0x2f4, HDMIRX_ATTR_RO},
+	{0x2f8, 0x2f8, HDMIRX_ATTR_RW},
+	{0x2fc, 0x2fc, HDMIRX_ATTR_RO},
+	{0x300, 0x300, HDMIRX_ATTR_RW},
+	{0x304, 0x304, HDMIRX_ATTR_RO},
 	/* {0x3f0, 0x410, HDMIRX_ATTR_WO}, */
 	{0x420, 0x434, HDMIRX_ATTR_RW},
 	{0x460, 0x460, HDMIRX_ATTR_RW},
 	/* {0x464, 0x478, HDMIRX_ATTR_WO}, */
-	{0x480, 0x494, HDMIRX_ATTR_RW},
+	{0x480, 0x48c, HDMIRX_ATTR_RW},
+	{0x490, 0x494, HDMIRX_ATTR_RO},
 	{0x580, 0x580, HDMIRX_ATTR_RW},
 	{0x584, 0x584, HDMIRX_ATTR_WO},
 	{0x588, 0x59c, HDMIRX_ATTR_RO},
 	{0x5a0, 0x5a4, HDMIRX_ATTR_RE},
-	{0x5a8, 0x5e0, HDMIRX_ATTR_RW},
+	{0x5a8, 0x5bc, HDMIRX_ATTR_RO},
+	{0x5c0, 0x5e0, HDMIRX_ATTR_RW},
 	{0x700, 0x728, HDMIRX_ATTR_RW},
 	{0x740, 0x74c, HDMIRX_ATTR_RW},
-	{0x760, 0x768, HDMIRX_ATTR_RW},
-	{0x7c0, 0x7c0, HDMIRX_ATTR_RE},
-	{0x7c4, 0x7d4, HDMIRX_ATTR_RW},
+	{0x760, 0x760, HDMIRX_ATTR_RW},
+	{0x764, 0x764, HDMIRX_ATTR_RO},
+	{0x768, 0x768, HDMIRX_ATTR_RW},
+	{0x7c0, 0x7c8, HDMIRX_ATTR_RW},
+	{0x7cc, 0x7d0, HDMIRX_ATTR_RO},
+	{0x7d4, 0x7d4, HDMIRX_ATTR_RW},
 	{0x1580, 0x1598, HDMIRX_ATTR_RO},
 	{0x2000, 0x2000, HDMIRX_ATTR_WO},
-	{0x2004, 0x200c, HDMIRX_ATTR_RW},
+	{0x2004, 0x2004, HDMIRX_ATTR_RO},
+	{0x2008, 0x200c, HDMIRX_ATTR_RW},
 	{0x2020, 0x2030, HDMIRX_ATTR_RW},
 	{0x2040, 0x2050, HDMIRX_ATTR_RO},
 	{0x2060, 0x2068, HDMIRX_ATTR_RW},
-	{0x4400, 0x442c, HDMIRX_ATTR_RW},
+	{0x4400, 0x4428, HDMIRX_ATTR_RW},
 	{0x4430, 0x446c, HDMIRX_ATTR_RO},
 	{0x5000, 0x5000, HDMIRX_ATTR_RO},
-	{0x5010, 0x5014, HDMIRX_ATTR_RW},
-	{0x5020, 0x5024, HDMIRX_ATTR_RW},
-	{0x5030, 0x5034, HDMIRX_ATTR_RW},
-	{0x5040, 0x5044, HDMIRX_ATTR_RW},
-	{0x5050, 0x5054, HDMIRX_ATTR_RW},
-	{0x5080, 0x5084, HDMIRX_ATTR_RW},
-	{0x5090, 0x5094, HDMIRX_ATTR_RW},
-	{0x50a0, 0x50a4, HDMIRX_ATTR_RW},
-	{0x50c0, 0x50c4, HDMIRX_ATTR_RW},
-	{0x50d0, 0x50d4, HDMIRX_ATTR_RW},
-	{0x50e0, 0x50e4, HDMIRX_ATTR_RW},
-	{0x5100, 0x5104, HDMIRX_ATTR_RW},
+	{0x5010, 0x5010, HDMIRX_ATTR_RO},
+	{0x5014, 0x5014, HDMIRX_ATTR_RW},
+	{0x5020, 0x5020, HDMIRX_ATTR_RO},
+	{0x5024, 0x5024, HDMIRX_ATTR_RW},
+	{0x5030, 0x5030, HDMIRX_ATTR_RO},
+	{0x5034, 0x5034, HDMIRX_ATTR_RW},
+	{0x5040, 0x5040, HDMIRX_ATTR_RO},
+	{0x5044, 0x5044, HDMIRX_ATTR_RW},
+	{0x5050, 0x5050, HDMIRX_ATTR_RO},
+	{0x5054, 0x5054, HDMIRX_ATTR_RW},
+	{0x5080, 0x5080, HDMIRX_ATTR_RO},
+	{0x5084, 0x5084, HDMIRX_ATTR_RW},
+	{0x5090, 0x5090, HDMIRX_ATTR_RO},
+	{0x5094, 0x5094, HDMIRX_ATTR_RW},
+	{0x50a0, 0x50a0, HDMIRX_ATTR_RO},
+	{0x50a4, 0x50a4, HDMIRX_ATTR_RW},
+	{0x50c0, 0x50c0, HDMIRX_ATTR_RO},
+	{0x50c4, 0x50c4, HDMIRX_ATTR_RW},
+	{0x50d0, 0x50d0, HDMIRX_ATTR_RO},
+	{0x50d4, 0x50d4, HDMIRX_ATTR_RW},
+	{0x50e0, 0x50e0, HDMIRX_ATTR_RO},
+	{0x50e4, 0x50e4, HDMIRX_ATTR_RW},
+	{0x5100, 0x5100, HDMIRX_ATTR_RO},
+	{0x5104, 0x5104, HDMIRX_ATTR_RW},
 };
 
 static int hdmirx_ctrl_show(struct seq_file *s, void *v)
@@ -2990,15 +3021,25 @@ hdmirx_ctrl_write(struct file *file, const char __user *buf,
 		((struct seq_file *)file->private_data)->private;
 	u32 reg, val;
 	char kbuf[25];
+	u32 i;
+	bool write_en = false;
 
 	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
 	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
 		return -EFAULT;
-	if (reg > CEC_INT_CLEAR) {
-		dev_err(hdmirx_dev->dev, "it is no a hdmirx register\n");
-		return count;
+	for (i = 0; i < ARRAY_SIZE(hdmirx_ctrl_table); i++) {
+		if (reg >= hdmirx_ctrl_table[i].reg_base &&
+		    reg <= hdmirx_ctrl_table[i].reg_end &&
+		    (hdmirx_ctrl_table[i].attr == HDMIRX_ATTR_RW ||
+		     hdmirx_ctrl_table[i].attr == HDMIRX_ATTR_WO)) {
+			write_en = true;
+			break;
+		}
 	}
+	if (!write_en)
+		return count;
+
 	dev_info(hdmirx_dev->dev, "/**********hdmi register config******/");
 	dev_info(hdmirx_dev->dev, "\n reg=%x val=%x\n", reg, val);
 	hdmirx_writel(hdmirx_dev, reg, val);
