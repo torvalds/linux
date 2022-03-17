@@ -873,11 +873,10 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 
 	/* copy the private data */
 	if (priv_size > 0) {
-		scontrol->priv = kzalloc(priv_size, GFP_KERNEL);
+		scontrol->priv = kmemdup(control->priv.data, priv_size, GFP_KERNEL);
 		if (!scontrol->priv)
 			return -ENOMEM;
 
-		memcpy(scontrol->priv, control->priv.data, priv_size);
 		scontrol->priv_size = priv_size;
 	}
 
