@@ -14,6 +14,10 @@
 	compatible = "rockchip,rk3588-nvr-demo-v10-android", "rockchip,rk3588";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &dp0 {
 	status = "disabled";
 };
