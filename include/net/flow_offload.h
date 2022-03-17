@@ -150,6 +150,8 @@ enum flow_action_id {
 	FLOW_ACTION_PPPOE_PUSH,
 	FLOW_ACTION_JUMP,
 	FLOW_ACTION_PIPE,
+	FLOW_ACTION_VLAN_PUSH_ETH,
+	FLOW_ACTION_VLAN_POP_ETH,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -211,6 +213,10 @@ struct flow_action_entry {
 			__be16		proto;
 			u8		prio;
 		} vlan;
+		struct {				/* FLOW_ACTION_VLAN_PUSH_ETH */
+			unsigned char dst[ETH_ALEN];
+			unsigned char src[ETH_ALEN];
+		} vlan_push_eth;
 		struct {				/* FLOW_ACTION_MANGLE */
 							/* FLOW_ACTION_ADD */
 			enum flow_action_mangle_base htype;

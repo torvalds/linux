@@ -906,20 +906,18 @@ int mlx5e_attach_decap(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->attr->esw_attr;
 	struct mlx5_pkt_reformat_params reformat_params;
-	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_decap_entry *d;
 	struct mlx5e_decap_key key;
 	uintptr_t hash_key;
 	int err = 0;
 
-	parse_attr = flow->attr->parse_attr;
-	if (sizeof(parse_attr->eth) > MLX5_CAP_ESW(priv->mdev, max_encap_header_size)) {
+	if (sizeof(attr->eth) > MLX5_CAP_ESW(priv->mdev, max_encap_header_size)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "encap header larger than max supported");
 		return -EOPNOTSUPP;
 	}
 
-	key.key = parse_attr->eth;
+	key.key = attr->eth;
 	hash_key = hash_decap_info(&key);
 	mutex_lock(&esw->offloads.decap_tbl_lock);
 	d = mlx5e_decap_get(priv, &key, hash_key);
@@ -949,8 +947,8 @@ int mlx5e_attach_decap(struct mlx5e_priv *priv,
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
 	reformat_params.type = MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
-	reformat_params.size = sizeof(parse_attr->eth);
-	reformat_params.data = &parse_attr->eth;
+	reformat_params.size = sizeof(attr->eth);
+	reformat_params.data = &attr->eth;
 	d->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
 						     &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);

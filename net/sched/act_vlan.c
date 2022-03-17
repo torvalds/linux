@@ -390,6 +390,13 @@ static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->vlan.proto = tcf_vlan_push_proto(act);
 			entry->vlan.prio = tcf_vlan_push_prio(act);
 			break;
+		case TCA_VLAN_ACT_POP_ETH:
+			entry->id = FLOW_ACTION_VLAN_POP_ETH;
+			break;
+		case TCA_VLAN_ACT_PUSH_ETH:
+			entry->id = FLOW_ACTION_VLAN_PUSH_ETH;
+			tcf_vlan_push_eth(entry->vlan_push_eth.src, entry->vlan_push_eth.dst, act);
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -406,6 +413,12 @@ static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
 			break;
 		case TCA_VLAN_ACT_MODIFY:
 			fl_action->id = FLOW_ACTION_VLAN_MANGLE;
+			break;
+		case TCA_VLAN_ACT_POP_ETH:
+			fl_action->id = FLOW_ACTION_VLAN_POP_ETH;
+			break;
+		case TCA_VLAN_ACT_PUSH_ETH:
+			fl_action->id = FLOW_ACTION_VLAN_PUSH_ETH;
 			break;
 		default:
 			return -EOPNOTSUPP;
