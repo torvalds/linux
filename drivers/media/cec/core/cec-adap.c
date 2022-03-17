@@ -39,15 +39,6 @@ static void cec_fill_msg_report_features(struct cec_adapter *adap,
  */
 #define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
 
-#define call_op(adap, op, arg...) \
-	(adap->ops->op ? adap->ops->op(adap, ## arg) : 0)
-
-#define call_void_op(adap, op, arg...)			\
-	do {						\
-		if (adap->ops->op)			\
-			adap->ops->op(adap, ## arg);	\
-	} while (0)
-
 static int cec_log_addr2idx(const struct cec_adapter *adap, u8 log_addr)
 {
 	int i;
@@ -405,9 +396,9 @@ static void cec_data_cancel(struct cec_data *data, u8 tx_status, u8 rx_status)
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(adap, &data->msg, 1);
 
-	if (!data->blocking && data->msg.sequence && adap->ops->received)
+	if (!data->blocking && data->msg.sequence)
 		/* Allow drivers to process the message first */
-		adap->ops->received(adap, &data->msg);
+		call_op(adap, received, &data->msg);
 
 	cec_data_completed(data);
 }
@@ -584,8 +575,8 @@ int cec_thread_func(void *_adap)
 
 		adap->transmit_in_progress_aborted = false;
 		/* Tell the adapter to transmit, cancel on error */
-		if (adap->ops->adap_transmit(adap, data->attempts,
-					     signal_free_time, &data->msg))
+		if (call_op(adap, adap_transmit, data->attempts,
+			    signal_free_time, &data->msg))
 			cec_data_cancel(data, CEC_TX_STATUS_ABORTED, 0);
 		else
 			adap->transmit_in_progress = true;
@@ -1331,7 +1322,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 	 * Message not acknowledged, so this logical
 	 * address is free to use.
 	 */
-	err = adap->ops->adap_log_addr(adap, log_addr);
+	err = call_op(adap, adap_log_addr, log_addr);
 	if (err)
 		return err;
 
@@ -1348,9 +1339,8 @@ static int cec_config_log_addr(struct cec_adapter *adap,
  */
 static void cec_adap_unconfigure(struct cec_adapter *adap)
 {
-	if (!adap->needs_hpd ||
-	    adap->phys_addr != CEC_PHYS_ADDR_INVALID)
-		WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
+	if (!adap->needs_hpd || adap->phys_addr != CEC_PHYS_ADDR_INVALID)
+		WARN_ON(call_op(adap, adap_log_addr, CEC_LOG_ADDR_INVALID));
 	adap->log_addrs.log_addr_mask = 0;
 	adap->is_configuring = false;
 	adap->is_configured = false;
@@ -1593,7 +1583,7 @@ static int cec_activate_cnt_inc(struct cec_adapter *adap)
 	mutex_lock(&adap->devnode.lock);
 	adap->last_initiator = 0xff;
 	adap->transmit_in_progress = false;
-	ret = adap->ops->adap_enable(adap, true);
+	ret = call_op(adap, adap_enable, true);
 	if (ret)
 		adap->activate_cnt--;
 	mutex_unlock(&adap->devnode.lock);
@@ -1610,7 +1600,7 @@ static void cec_activate_cnt_dec(struct cec_adapter *adap)
 
 	/* serialize adap_enable */
 	mutex_lock(&adap->devnode.lock);
-	WARN_ON(adap->ops->adap_enable(adap, false));
+	WARN_ON(call_op(adap, adap_enable, false));
 	adap->last_initiator = 0xff;
 	adap->transmit_in_progress = false;
 	adap->transmit_in_progress_aborted = false;
@@ -1984,11 +1974,10 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	    msg->msg[1] != CEC_MSG_CDC_MESSAGE)
 		return 0;
 
-	if (adap->ops->received) {
-		/* Allow drivers to process the message first */
-		if (adap->ops->received(adap, msg) != -ENOMSG)
-			return 0;
-	}
+	/* Allow drivers to process the message first */
+	if (adap->ops->received && !adap->devnode.unregistered &&
+	    adap->ops->received(adap, msg) != -ENOMSG)
+		return 0;
 
 	/*
 	 * REPORT_PHYSICAL_ADDR, CEC_MSG_USER_CONTROL_PRESSED and
