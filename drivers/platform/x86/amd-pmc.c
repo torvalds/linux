@@ -653,8 +653,10 @@ static void amd_pmc_s2idle_prepare(void)
 	/* Activate CZN specific RTC functionality */
 	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
 		rc = amd_pmc_verify_czn_rtc(pdev, &arg);
-		if (rc)
+		if (rc) {
+			dev_err(pdev->dev, "failed to set RTC: %d\n", rc);
 			goto fail;
+		}
 	}
 
 	/* Dump the IdleMask before we send hint to SMU */
@@ -662,14 +664,14 @@ static void amd_pmc_s2idle_prepare(void)
 	msg = amd_pmc_get_os_hint(pdev);
 	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, 0);
 	if (rc) {
-		dev_err(pdev->dev, "suspend failed\n");
+		dev_err(pdev->dev, "suspend failed: %d\n", rc);
 		goto fail;
 	}
 
 	if (enable_stb)
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF);
 	if (rc) {
-		dev_err(pdev->dev, "error writing to STB\n");
+		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 		goto fail;
 	}
 	return;
@@ -688,7 +690,7 @@ static void amd_pmc_s2idle_restore(void)
 	msg = amd_pmc_get_os_hint(pdev);
 	rc = amd_pmc_send_cmd(pdev, 0, NULL, msg, 0);
 	if (rc)
-		dev_err(pdev->dev, "resume failed\n");
+		dev_err(pdev->dev, "resume failed: %d\n", rc);
 
 	/* Let SMU know that we are looking for stats */
 	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, 0);
@@ -700,7 +702,7 @@ static void amd_pmc_s2idle_restore(void)
 	if (enable_stb)
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF + 1);
 	if (rc)
-		dev_err(pdev->dev, "error writing to STB\n");
+		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 
 	/* Restore the QoS request back to defaults if it was set */
 	if (pdev->cpu_id == AMD_CPU_ID_CZN)
