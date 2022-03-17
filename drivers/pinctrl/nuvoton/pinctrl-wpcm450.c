@@ -1019,8 +1019,9 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 	int ret;
 
 	pctrl->gpio_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!pctrl->gpio_base)
-		return dev_err_probe(dev, -ENOMEM, "Resource fail for GPIO controller\n");
+	if (IS_ERR(pctrl->gpio_base))
+		return dev_err_probe(dev, PTR_ERR(pctrl->gpio_base),
+				     "Resource fail for GPIO controller\n");
 
 	device_for_each_child_node(dev, child)  {
 		void __iomem *dat = NULL;
