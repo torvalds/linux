@@ -56,6 +56,7 @@ enum cachefiles_coherency_trace {
 	cachefiles_coherency_set_ok,
 	cachefiles_coherency_vol_check_cmp,
 	cachefiles_coherency_vol_check_ok,
+	cachefiles_coherency_vol_check_resv,
 	cachefiles_coherency_vol_check_xattr,
 	cachefiles_coherency_vol_set_fail,
 	cachefiles_coherency_vol_set_ok,
@@ -139,6 +140,7 @@ enum cachefiles_error_trace {
 	EM(cachefiles_coherency_set_ok,		"SET ok  ")		\
 	EM(cachefiles_coherency_vol_check_cmp,	"VOL BAD cmp ")		\
 	EM(cachefiles_coherency_vol_check_ok,	"VOL OK      ")		\
+	EM(cachefiles_coherency_vol_check_resv,	"VOL BAD resv")	\
 	EM(cachefiles_coherency_vol_check_xattr,"VOL BAD xatt")		\
 	EM(cachefiles_coherency_vol_set_fail,	"VOL SET fail")		\
 	E_(cachefiles_coherency_vol_set_ok,	"VOL SET ok  ")
