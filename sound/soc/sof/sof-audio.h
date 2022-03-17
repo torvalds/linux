@@ -40,6 +40,11 @@ struct snd_sof_widget;
 struct snd_sof_route;
 struct snd_sof_control;
 
+struct snd_sof_dai_config_data {
+	int dai_index;
+	int dai_data; /* contains DAI-specific information */
+};
+
 /**
  * struct sof_ipc_tplg_widget_ops - IPC-specific ops for topology widgets
  * @ipc_setup: Function pointer for setting up widget IPC params
@@ -69,6 +74,9 @@ struct sof_ipc_tplg_widget_ops {
  * @control_setup: Function pointer for setting up kcontrol IPC-specific data
  * @control_free: Function pointer for freeing kcontrol IPC-specific data
  * @pipeline_complete: Function pointer for pipeline complete IPC
+ * @widget_setup: Function pointer for setting up setup in the DSP
+ * @widget_free: Function pointer for freeing widget in the DSP
+ * @dai_config: Function pointer for sending DAI config IPC to the DSP
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
@@ -77,6 +85,10 @@ struct sof_ipc_tplg_ops {
 	int (*control_setup)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
 	int (*control_free)(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol);
 	int (*pipeline_complete)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+	int (*widget_setup)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+	int (*widget_free)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+	int (*dai_config)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			  unsigned int flags, struct snd_sof_dai_config_data *data);
 };
 
 /** struct snd_sof_tuple - Tuple info
@@ -276,7 +288,6 @@ struct snd_sof_dai {
 
 	int number_configs;
 	int current_config;
-	bool configured; /* DAI configured during BE hw_params */
 	struct list_head list;	/* list in sdev dai list */
 	void *private;
 };

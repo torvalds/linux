@@ -27,31 +27,6 @@ static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *
 	return ret;
 }
 
-static int sof_dai_config_setup(struct snd_sof_dev *sdev, struct snd_sof_dai *dai)
-{
-	struct sof_dai_private_data *private = dai->private;
-	struct sof_ipc_dai_config *config;
-	struct sof_ipc_reply reply;
-	int ret;
-
-	config = &private->dai_config[dai->current_config];
-	if (!config) {
-		dev_err(sdev->dev, "error: no config for DAI %s\n", dai->name);
-		return -EINVAL;
-	}
-
-	/* set NONE flag to clear all previous settings */
-	config->flags = SOF_DAI_CONFIG_FLAGS_NONE;
-
-	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
-				 &reply, sizeof(reply));
-
-	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to set dai config for %s\n", dai->name);
-
-	return ret;
-}
-
 static int sof_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	struct snd_sof_control *scontrol;
@@ -96,15 +71,9 @@ static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_so
 
 int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct sof_ipc_free ipc_free = {
-		.hdr = {
-			.size = sizeof(ipc_free),
-			.cmd = SOF_IPC_GLB_TPLG_MSG,
-		},
-		.id = swidget->comp_id,
-	};
-	struct sof_ipc_reply reply;
-	int ret, err;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	int err = 0;
+	int ret;
 
 	if (!swidget->private)
 		return 0;
@@ -113,33 +82,9 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (--swidget->use_count)
 		return 0;
 
-	switch (swidget->id) {
-	case snd_soc_dapm_scheduler:
-	{
-		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
-		break;
-	}
-	case snd_soc_dapm_buffer:
-		ipc_free.hdr.cmd |= SOF_IPC_TPLG_BUFFER_FREE;
-		break;
-	case snd_soc_dapm_dai_in:
-	case snd_soc_dapm_dai_out:
-	{
-		struct snd_sof_dai *dai = swidget->private;
-
-		dai->configured = false;
-		fallthrough;
-	}
-	default:
-		ipc_free.hdr.cmd |= SOF_IPC_TPLG_COMP_FREE;
-		break;
-	}
-
 	/* continue to disable core even if IPC fails */
-	err = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
-				 &reply, sizeof(reply));
-	if (err < 0)
-		dev_err(sdev->dev, "error: failed to free widget %s\n", swidget->widget->name);
+	if (tplg_ops->widget_free)
+		err = tplg_ops->widget_free(sdev, swidget);
 
 	/*
 	 * disable widget core. continue to route setup status and complete flag
@@ -176,11 +121,7 @@ EXPORT_SYMBOL(sof_widget_free);
 
 int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct sof_ipc_pipe_new *pipeline;
-	struct sof_ipc_comp_reply r;
-	struct sof_ipc_cmd_hdr *hdr;
-	struct sof_ipc_comp *comp;
-	struct snd_sof_dai *dai;
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	int ret;
 
 	/* skip if there is no private data */
@@ -219,53 +160,22 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		goto pipe_widget_free;
 	}
 
-	switch (swidget->id) {
-	case snd_soc_dapm_dai_in:
-	case snd_soc_dapm_dai_out:
-	{
-		struct sof_dai_private_data *dai_data;
-
-		dai = swidget->private;
-		dai_data = dai->private;
-		comp = &dai_data->comp_dai->comp;
-		dai->configured = false;
-
-		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai_data->comp_dai,
-					 comp->hdr.size, &r, sizeof(r));
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to load widget %s\n",
-				swidget->widget->name);
+	/* setup widget in the DSP */
+	if (tplg_ops->widget_setup) {
+		ret = tplg_ops->widget_setup(sdev, swidget);
+		if (ret < 0)
 			goto core_put;
-		}
-
-		ret = sof_dai_config_setup(sdev, dai);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to load dai config for DAI %s\n",
-				swidget->widget->name);
-
-			/*
-			 * widget use_count and core ref_count will both be decremented by
-			 * sof_widget_free()
-			 */
-			sof_widget_free(sdev, swidget);
-			return ret;
-		}
-		break;
 	}
-	case snd_soc_dapm_scheduler:
-		pipeline = swidget->private;
-		ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
-					 sizeof(*pipeline), &r, sizeof(r));
-		break;
-	default:
-		hdr = swidget->private;
-		ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, swidget->private, hdr->size,
-					 &r, sizeof(r));
-		break;
-	}
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to load widget %s\n", swidget->widget->name);
-		goto core_put;
+
+	/* send config for DAI components */
+	if (WIDGET_IS_DAI(swidget->id)) {
+		unsigned int flags = SOF_DAI_CONFIG_FLAGS_NONE;
+
+		if (tplg_ops->dai_config) {
+			ret = tplg_ops->dai_config(sdev, swidget, flags, NULL);
+			if (ret < 0)
+				goto widget_free;
+		}
 	}
 
 	/* restore kcontrols for widget */
@@ -273,18 +183,16 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to restore kcontrols for widget %s\n",
 			swidget->widget->name);
-		/*
-		 * widget use_count and core ref_count will both be decremented by
-		 * sof_widget_free()
-		 */
-		sof_widget_free(sdev, swidget);
-		return ret;
+		goto widget_free;
 	}
 
 	dev_dbg(sdev->dev, "widget %s setup complete\n", swidget->widget->name);
 
 	return 0;
 
+widget_free:
+	/* widget use_count and core ref_count will both be decremented by sof_widget_free() */
+	sof_widget_free(sdev, swidget);
 core_put:
 	snd_sof_dsp_core_put(sdev, swidget->core);
 pipe_widget_free:

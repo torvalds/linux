@@ -1909,6 +1909,153 @@ static int sof_ipc3_complete_pipeline(struct snd_sof_dev *sdev, struct snd_sof_w
 	return 1;
 }
 
+static int sof_ipc3_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_free ipc_free = {
+		.hdr = {
+			.size = sizeof(ipc_free),
+			.cmd = SOF_IPC_GLB_TPLG_MSG,
+		},
+		.id = swidget->comp_id,
+	};
+	struct sof_ipc_reply reply;
+	int ret;
+
+	if (!swidget->private)
+		return 0;
+
+	switch (swidget->id) {
+	case snd_soc_dapm_scheduler:
+	{
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
+		break;
+	}
+	case snd_soc_dapm_buffer:
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_BUFFER_FREE;
+		break;
+	default:
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_COMP_FREE;
+		break;
+	}
+
+	ret = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
+				 &reply, sizeof(reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "failed to free widget %s\n", swidget->widget->name);
+
+	return ret;
+}
+
+static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			       unsigned int flags, struct snd_sof_dai_config_data *data)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_dai *dai = swidget->private;
+	struct sof_dai_private_data *private;
+	struct sof_ipc_dai_config *config;
+	struct sof_ipc_reply reply;
+	int ret = 0;
+
+	if (!dai || !dai->private) {
+		dev_err(sdev->dev, "No private data for DAI %s\n", swidget->widget->name);
+		return -EINVAL;
+	}
+
+	private = dai->private;
+	if (!private->dai_config) {
+		dev_err(sdev->dev, "No config for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	config = &private->dai_config[dai->current_config];
+	if (!config) {
+		dev_err(sdev->dev, "Invalid current config for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	switch (config->type) {
+	case SOF_DAI_INTEL_SSP:
+		/*
+		 * DAI_CONFIG IPC during hw_params/hw_free for SSP DAI's is not supported in older
+		 * firmware
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 18, 0) &&
+		    ((flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) ||
+		     (flags & SOF_DAI_CONFIG_FLAGS_HW_FREE)))
+			return 0;
+		break;
+	case SOF_DAI_INTEL_HDA:
+		if (data)
+			config->hda.link_dma_ch = data->dai_data;
+		break;
+	case SOF_DAI_INTEL_ALH:
+		if (data) {
+			config->dai_index = data->dai_index;
+			config->alh.stream_id = data->dai_data;
+		}
+		break;
+	default:
+		break;
+	}
+
+	config->flags = flags;
+
+	/* only send the IPC if the widget is set up in the DSP */
+	if (swidget->use_count > 0) {
+		ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+					 &reply, sizeof(reply));
+		if (ret < 0)
+			dev_err(sdev->dev, "Failed to set dai config for %s\n", dai->name);
+	}
+
+	return ret;
+}
+
+static int sof_ipc3_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_comp_reply reply;
+	int ret;
+
+	if (!swidget->private)
+		return 0;
+
+	switch (swidget->id) {
+	case snd_soc_dapm_dai_in:
+	case snd_soc_dapm_dai_out:
+	{
+		struct snd_sof_dai *dai = swidget->private;
+		struct sof_dai_private_data *dai_data = dai->private;
+		struct sof_ipc_comp *comp = &dai_data->comp_dai->comp;
+
+		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai_data->comp_dai,
+					 comp->hdr.size, &reply, sizeof(reply));
+		break;
+	}
+	case snd_soc_dapm_scheduler:
+	{
+		struct sof_ipc_pipe_new *pipeline;
+
+		pipeline = swidget->private;
+		ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
+					 sizeof(*pipeline), &reply, sizeof(reply));
+		break;
+	}
+	default:
+	{
+		struct sof_ipc_cmd_hdr *hdr;
+
+		hdr = swidget->private;
+		ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, swidget->private, hdr->size,
+					 &reply, sizeof(reply));
+		break;
+	}
+	}
+	if (ret < 0)
+		dev_err(sdev->dev, "Failed to setup widget %s\n", swidget->widget->name);
+
+	return ret;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2012,6 +2159,9 @@ static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.control_free = sof_ipc3_control_free,
 	.pipeline_complete = sof_ipc3_complete_pipeline,
 	.token_list = ipc3_token_list,
+	.widget_free = sof_ipc3_widget_free,
+	.widget_setup = sof_ipc3_widget_setup,
+	.dai_config = sof_ipc3_dai_config,
 };
 
 const struct sof_ipc_ops ipc3_ops = {
