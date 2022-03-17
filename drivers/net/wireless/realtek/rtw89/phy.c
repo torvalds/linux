@@ -1705,9 +1705,11 @@ static void rtw89_phy_cfo_reset(struct rtw89_dev *rtwdev)
 
 static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 {
+	const struct rtw89_reg_def *dcfo_comp = rtwdev->chip->dcfo_comp;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 	s32 cfo_avg_312;
-	s32 dcfo_comp;
+	s32 dcfo_comp_val;
+	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 	int sign;
 
 	if (!is_linked) {
@@ -1718,13 +1720,13 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: curr_cfo=%d\n", curr_cfo);
 	if (curr_cfo == 0)
 		return;
-	dcfo_comp = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
+	dcfo_comp_val = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
 	sign = curr_cfo > 0 ? 1 : -1;
-	cfo_avg_312 = (curr_cfo << 3) / 5 + sign * dcfo_comp;
+	cfo_avg_312 = (curr_cfo << dcfo_comp_sft) / 5 + sign * dcfo_comp_val;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: avg_cfo=%d\n", cfo_avg_312);
 	if (rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
 		cfo_avg_312 = -cfo_avg_312;
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_COMP_S0, B_DCFO_COMP_S0_MSK,
+	rtw89_phy_set_phy_regs(rtwdev, dcfo_comp->addr, dcfo_comp->mask,
 			       cfo_avg_312);
 }
 

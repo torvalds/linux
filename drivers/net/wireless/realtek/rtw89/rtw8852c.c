@@ -44,6 +44,10 @@ static const struct rtw89_page_regs rtw8852c_page_regs = {
 	.wp_page_info1	= R_AX_WP_PAGE_INFO1_V1,
 };
 
+static const struct rtw89_reg_def rtw8852c_dcfo_comp = {
+	R_DCFO_COMP_S0_V1, B_DCFO_COMP_S0_V1_MSK
+};
+
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -470,6 +474,8 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL_V1,
 	.c2h_regs		= rtw8852c_c2h_regs,
 	.page_regs		= &rtw8852c_page_regs,
+	.dcfo_comp		= &rtw8852c_dcfo_comp,
+	.dcfo_comp_sft		= 5,
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

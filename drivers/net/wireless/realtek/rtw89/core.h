@@ -2332,6 +2332,8 @@ struct rtw89_chip_info {
 	u32 c2h_ctrl_reg;
 	const u32 *c2h_regs;
 	const struct rtw89_page_regs *page_regs;
+	const struct rtw89_reg_def *dcfo_comp;
+	u8 dcfo_comp_sft;
 };
 
 union rtw89_bus_info {
