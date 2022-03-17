@@ -6572,20 +6572,23 @@ struct module *btf_try_get_module(const struct btf *btf)
 	return res;
 }
 
-/* Returns struct btf corresponding to the struct module
- *
- * This function can return NULL or ERR_PTR. Note that caller must
- * release reference for struct btf iff btf_is_module is true.
+/* Returns struct btf corresponding to the struct module.
+ * This function can return NULL or ERR_PTR.
  */
 static struct btf *btf_get_module_btf(const struct module *module)
 {
-	struct btf *btf = NULL;
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	struct btf_module *btf_mod, *tmp;
 #endif
+	struct btf *btf = NULL;
 
-	if (!module)
-		return bpf_get_btf_vmlinux();
+	if (!module) {
+		btf = bpf_get_btf_vmlinux();
+		if (!IS_ERR(btf))
+			btf_get(btf);
+		return btf;
+	}
+
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	mutex_lock(&btf_module_mutex);
 	list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
@@ -6823,9 +6826,7 @@ int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 
 	hook = bpf_prog_type_to_kfunc_hook(prog_type);
 	ret = btf_populate_kfunc_set(btf, hook, kset);
-	/* reference is only taken for module BTF */
-	if (btf_is_module(btf))
-		btf_put(btf);
+	btf_put(btf);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_btf_kfunc_id_set);
