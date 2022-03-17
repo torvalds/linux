@@ -328,11 +328,11 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		idx += 8;
 
 	/* vif is already set or idx is 8 for AP/Mesh/... */
-	if (dev->mt76.vif_mask & BIT(idx) ||
+	if (dev->mt76.vif_mask & BIT_ULL(idx) ||
 	    (vif->type != NL80211_IFTYPE_STATION && idx > 7))
 		return -EBUSY;
 
-	dev->mt76.vif_mask |= BIT(idx);
+	dev->mt76.vif_mask |= BIT_ULL(idx);
 
 	mt76x02_vif_init(dev, vif, idx);
 	return 0;
@@ -345,7 +345,7 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->idx);
 	rcu_assign_pointer(dev->mt76.wcid[mvif->group_wcid.idx], NULL);
 	mt76_packet_id_flush(&dev->mt76, &mvif->group_wcid);
 }
