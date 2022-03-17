@@ -492,6 +492,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.pwr_off_func		= rtw8852c_pwr_off_func,
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path_v1,
 	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v1,
+	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v1,
+	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v1,
 };
 
 const struct rtw89_chip_info rtw8852c_chip_info = {

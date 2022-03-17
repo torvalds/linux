@@ -2071,6 +2071,9 @@ struct rtw89_chip_ops {
 	int (*cfg_ctrl_path)(struct rtw89_dev *rtwdev, bool wl);
 	int (*mac_cfg_gnt)(struct rtw89_dev *rtwdev,
 			   const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
+	int (*stop_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx,
+			   u32 *tx_en, enum rtw89_sch_tx_sel sel);
+	int (*resume_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
@@ -3484,6 +3487,23 @@ static inline void rtw89_chip_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	chip->ops->cfg_ctrl_path(rtwdev, wl);
+}
+
+static inline
+int rtw89_chip_stop_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx,
+			   u32 *tx_en, enum rtw89_sch_tx_sel sel)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->stop_sch_tx(rtwdev, mac_idx, tx_en, sel);
+}
+
+static inline
+int rtw89_chip_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->resume_sch_tx(rtwdev, mac_idx, tx_en);
 }
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
