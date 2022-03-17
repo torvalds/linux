@@ -993,8 +993,8 @@ union dp_128b_132b_supported_link_rates {
 union dp_128b_132b_supported_lttpr_link_rates {
 	struct {
 		uint8_t UHBR10	:1;
-		uint8_t UHBR13_5:1;
 		uint8_t UHBR20	:1;
+		uint8_t UHBR13_5:1;
 		uint8_t RESERVED:5;
 	} bits;
 	uint8_t raw;
