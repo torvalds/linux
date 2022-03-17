@@ -812,10 +812,9 @@ xfs_log_mount_finish(
 	 * mount failure occurs.
 	 */
 	mp->m_super->s_flags |= SB_ACTIVE;
+	xfs_log_work_queue(mp);
 	if (xlog_recovery_needed(log))
 		error = xlog_recover_finish(log);
-	if (!error)
-		xfs_log_work_queue(mp);
 	mp->m_super->s_flags &= ~SB_ACTIVE;
 	evict_inodes(mp->m_super);
 
