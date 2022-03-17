@@ -1779,20 +1779,21 @@ static __cold void io_flush_timeouts(struct io_ring_ctx *ctx)
 	spin_unlock_irq(&ctx->timeout_lock);
 }
 
+static inline void io_commit_cqring(struct io_ring_ctx *ctx)
+{
+	/* order cqe stores with ring update */
+	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
+}
+
 static __cold void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
+	spin_lock(&ctx->completion_lock);
 	if (ctx->off_timeout_used)
 		io_flush_timeouts(ctx);
 	if (ctx->drain_active)
 		io_queue_deferred(ctx);
-}
-
-static inline void io_commit_cqring(struct io_ring_ctx *ctx)
-{
-	if (unlikely(ctx->off_timeout_used || ctx->drain_active))
-		__io_commit_cqring_flush(ctx);
-	/* order cqe stores with ring update */
-	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
+	io_commit_cqring(ctx);
+	spin_unlock(&ctx->completion_lock);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)
@@ -1860,6 +1861,9 @@ out:
  */
 static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
+	if (unlikely(ctx->off_timeout_used || ctx->drain_active))
+		__io_commit_cqring_flush(ctx);
+
 	/*
 	 * wake_up_all() may seem excessive, but io_wake_function() and
 	 * io_should_wake() handle the termination of the loop and only
@@ -1873,6 +1877,9 @@ static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 
 static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 {
+	if (unlikely(ctx->off_timeout_used || ctx->drain_active))
+		__io_commit_cqring_flush(ctx);
+
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		if (wq_has_sleeper(&ctx->cq_wait))
 			wake_up_all(&ctx->cq_wait);
