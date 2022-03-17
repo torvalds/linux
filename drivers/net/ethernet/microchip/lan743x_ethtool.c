@@ -212,6 +212,160 @@ static void lan743x_hs_syslock_release(struct lan743x_adapter *adapter)
 	spin_unlock(&adapter->eth_syslock_spinlock);
 }
 
+static void lan743x_hs_otp_power_up(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+	if (reg_value & OTP_PWR_DN_PWRDN_N_) {
+		reg_value &= ~OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, HS_OTP_PWR_DN, reg_value);
+		/* To flush the posted write so the subsequent delay is
+		 * guaranteed to happen after the write at the hardware
+		 */
+		lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+		udelay(1);
+	}
+}
+
+static void lan743x_hs_otp_power_down(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+	if (!(reg_value & OTP_PWR_DN_PWRDN_N_)) {
+		reg_value |= OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, HS_OTP_PWR_DN, reg_value);
+		/* To flush the posted write so the subsequent delay is
+		 * guaranteed to happen after the write at the hardware
+		 */
+		lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+		udelay(1);
+	}
+}
+
+static void lan743x_hs_otp_set_address(struct lan743x_adapter *adapter,
+				       u32 address)
+{
+	lan743x_csr_write(adapter, HS_OTP_ADDR_HIGH, (address >> 8) & 0x03);
+	lan743x_csr_write(adapter, HS_OTP_ADDR_LOW, address & 0xFF);
+}
+
+static void lan743x_hs_otp_read_go(struct lan743x_adapter *adapter)
+{
+	lan743x_csr_write(adapter, HS_OTP_FUNC_CMD, OTP_FUNC_CMD_READ_);
+	lan743x_csr_write(adapter, HS_OTP_CMD_GO, OTP_CMD_GO_GO_);
+}
+
+static int lan743x_hs_otp_cmd_cmplt_chk(struct lan743x_adapter *adapter)
+{
+	u32 val;
+
+	return readx_poll_timeout(LAN743X_CSR_READ_OP, HS_OTP_STATUS, val,
+				  !(val & OTP_STATUS_BUSY_),
+				  80, 10000);
+}
+
+static int lan743x_hs_otp_read(struct lan743x_adapter *adapter, u32 offset,
+			       u32 length, u8 *data)
+{
+	int ret;
+	int i;
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+	lan743x_hs_otp_power_up(adapter);
+
+	ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+	if (ret < 0)
+		goto power_down;
+
+	lan743x_hs_syslock_release(adapter);
+
+	for (i = 0; i < length; i++) {
+		ret = lan743x_hs_syslock_acquire(adapter,
+						 LOCK_TIMEOUT_MAX_CNT);
+		if (ret < 0)
+			return ret;
+
+		lan743x_hs_otp_set_address(adapter, offset + i);
+
+		lan743x_hs_otp_read_go(adapter);
+		ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+		if (ret < 0)
+			goto power_down;
+
+		data[i] = lan743x_csr_read(adapter, HS_OTP_READ_DATA);
+
+		lan743x_hs_syslock_release(adapter);
+	}
+
+	ret = lan743x_hs_syslock_acquire(adapter,
+					 LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+power_down:
+	lan743x_hs_otp_power_down(adapter);
+	lan743x_hs_syslock_release(adapter);
+
+	return ret;
+}
+
+static int lan743x_hs_otp_write(struct lan743x_adapter *adapter, u32 offset,
+				u32 length, u8 *data)
+{
+	int ret;
+	int i;
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+	lan743x_hs_otp_power_up(adapter);
+
+	ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+	if (ret < 0)
+		goto power_down;
+
+	/* set to BYTE program mode */
+	lan743x_csr_write(adapter, HS_OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
+
+	lan743x_hs_syslock_release(adapter);
+
+	for (i = 0; i < length; i++) {
+		ret = lan743x_hs_syslock_acquire(adapter,
+						 LOCK_TIMEOUT_MAX_CNT);
+		if (ret < 0)
+			return ret;
+
+		lan743x_hs_otp_set_address(adapter, offset + i);
+
+		lan743x_csr_write(adapter, HS_OTP_PRGM_DATA, data[i]);
+		lan743x_csr_write(adapter, HS_OTP_TST_CMD,
+				  OTP_TST_CMD_PRGVRFY_);
+		lan743x_csr_write(adapter, HS_OTP_CMD_GO, OTP_CMD_GO_GO_);
+
+		ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+		if (ret < 0)
+			goto power_down;
+
+		lan743x_hs_syslock_release(adapter);
+	}
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+power_down:
+	lan743x_hs_otp_power_down(adapter);
+	lan743x_hs_syslock_release(adapter);
+
+	return ret;
+}
+
 static int lan743x_eeprom_wait(struct lan743x_adapter *adapter)
 {
 	unsigned long start_time = jiffies;
@@ -462,7 +616,12 @@ static int lan743x_ethtool_get_eeprom(struct net_device *netdev,
 	int ret = 0;
 
 	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP) {
-		ret = lan743x_otp_read(adapter, ee->offset, ee->len, data);
+		if (adapter->is_pci11x1x)
+			ret = lan743x_hs_otp_read(adapter, ee->offset,
+						  ee->len, data);
+		else
+			ret = lan743x_otp_read(adapter, ee->offset,
+					       ee->len, data);
 	} else {
 		if (adapter->is_pci11x1x)
 			ret = lan743x_hs_eeprom_read(adapter, ee->offset,
@@ -484,8 +643,12 @@ static int lan743x_ethtool_set_eeprom(struct net_device *netdev,
 	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP) {
 		/* Beware!  OTP is One Time Programming ONLY! */
 		if (ee->magic == LAN743X_OTP_MAGIC) {
-			ret = lan743x_otp_write(adapter, ee->offset,
-						ee->len, data);
+			if (adapter->is_pci11x1x)
+				ret = lan743x_hs_otp_write(adapter, ee->offset,
+							   ee->len, data);
+			else
+				ret = lan743x_otp_write(adapter, ee->offset,
+							ee->len, data);
 		}
 	} else {
 		if (ee->magic == LAN743X_EEPROM_MAGIC) {

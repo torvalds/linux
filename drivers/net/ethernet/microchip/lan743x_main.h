@@ -556,6 +556,20 @@
 #define OTP_STATUS				(0x1030)
 #define OTP_STATUS_BUSY_			BIT(0)
 
+/* Hearthstone OTP block registers */
+#define HS_OTP_BLOCK_BASE			(ETH_SYS_REG_ADDR_BASE + \
+						 ETH_OTP_REG_ADDR_BASE)
+#define HS_OTP_PWR_DN				(HS_OTP_BLOCK_BASE + 0x0)
+#define HS_OTP_ADDR_HIGH			(HS_OTP_BLOCK_BASE + 0x4)
+#define HS_OTP_ADDR_LOW				(HS_OTP_BLOCK_BASE + 0x8)
+#define HS_OTP_PRGM_DATA			(HS_OTP_BLOCK_BASE + 0x10)
+#define HS_OTP_PRGM_MODE			(HS_OTP_BLOCK_BASE + 0x14)
+#define HS_OTP_READ_DATA			(HS_OTP_BLOCK_BASE + 0x18)
+#define HS_OTP_FUNC_CMD				(HS_OTP_BLOCK_BASE + 0x20)
+#define HS_OTP_TST_CMD				(HS_OTP_BLOCK_BASE + 0x24)
+#define HS_OTP_CMD_GO				(HS_OTP_BLOCK_BASE + 0x28)
+#define HS_OTP_STATUS				(HS_OTP_BLOCK_BASE + 0x30)
+
 /* MAC statistics registers */
 #define STAT_RX_FCS_ERRORS			(0x1200)
 #define STAT_RX_ALIGNMENT_ERRORS		(0x1204)
