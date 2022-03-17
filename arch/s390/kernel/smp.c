@@ -328,10 +328,17 @@ static void pcpu_delegate(struct pcpu *pcpu,
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
-	mem_assign_absolute(lc->restart_stack, stack);
-	mem_assign_absolute(lc->restart_fn, (unsigned long) func);
-	mem_assign_absolute(lc->restart_data, (unsigned long) data);
-	mem_assign_absolute(lc->restart_source, source_cpu);
+	if (lc) {
+		lc->restart_stack = stack;
+		lc->restart_fn = (unsigned long)func;
+		lc->restart_data = (unsigned long)data;
+		lc->restart_source = source_cpu;
+	} else {
+		mem_assign_absolute(lc->restart_stack, stack);
+		mem_assign_absolute(lc->restart_fn, (unsigned long)func);
+		mem_assign_absolute(lc->restart_data, (unsigned long)data);
+		mem_assign_absolute(lc->restart_source, source_cpu);
+	}
 	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
