@@ -245,6 +245,14 @@ enum v4l2_colorspace {
 
 	/* DCI-P3 colorspace, used by cinema projectors */
 	V4L2_COLORSPACE_DCI_P3        = 12,
+
+#ifdef __KERNEL__
+	/*
+	 * Largest supported colorspace value, assigned by the compiler, used
+	 * by the framework to check for invalid values.
+	 */
+	V4L2_COLORSPACE_LAST,
+#endif
 };
 
 /*
@@ -283,6 +291,13 @@ enum v4l2_xfer_func {
 	V4L2_XFER_FUNC_NONE        = 5,
 	V4L2_XFER_FUNC_DCI_P3      = 6,
 	V4L2_XFER_FUNC_SMPTE2084   = 7,
+#ifdef __KERNEL__
+	/*
+	 * Largest supported transfer function value, assigned by the compiler,
+	 * used by the framework to check for invalid values.
+	 */
+	V4L2_XFER_FUNC_LAST,
+#endif
 };
 
 /*
@@ -343,6 +358,13 @@ enum v4l2_ycbcr_encoding {
 
 	/* SMPTE 240M -- Obsolete HDTV */
 	V4L2_YCBCR_ENC_SMPTE240M      = 8,
+#ifdef __KERNEL__
+	/*
+	 * Largest supported encoding value, assigned by the compiler, used by
+	 * the framework to check for invalid values.
+	 */
+	V4L2_YCBCR_ENC_LAST,
+#endif
 };
 
 /*
