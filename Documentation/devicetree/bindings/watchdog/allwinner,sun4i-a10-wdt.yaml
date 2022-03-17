@@ -39,14 +39,8 @@ properties:
   clocks:
     minItems: 1
     items:
-      - description: High-frequency oscillator input, divided internally
-      - description: Low-frequency oscillator input, only found on some variants
-
-  clock-names:
-    minItems: 1
-    items:
-      - const: hosc
-      - const: losc
+      - description: 32 KHz input clock
+      - description: secondary clock source
 
   interrupts:
     maxItems: 1
@@ -71,9 +65,14 @@ then:
   properties:
     clocks:
       minItems: 2
+      items:
+        - description: High-frequency oscillator input, divided internally
+        - description: Low-frequency oscillator input
 
     clock-names:
-      minItems: 2
+      items:
+        - const: hosc
+        - const: losc
 
   required:
     - clock-names
@@ -81,9 +80,6 @@ then:
 else:
   properties:
     clocks:
-      maxItems: 1
-
-    clock-names:
       maxItems: 1
 
 unevaluatedProperties: false
