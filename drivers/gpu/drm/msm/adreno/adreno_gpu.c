@@ -229,9 +229,13 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 }
 
 int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
-		     uint32_t param, uint64_t *value)
+		     uint32_t param, uint64_t *value, uint32_t *len)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	/* No pointer params yet */
+	if (*len != 0)
+		return -EINVAL;
 
 	switch (param) {
 	case MSM_PARAM_GPU_ID:
@@ -284,8 +288,12 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 }
 
 int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
-		     uint32_t param, uint64_t value)
+		     uint32_t param, uint64_t value, uint32_t len)
 {
+	/* No pointer params yet */
+	if (len != 0)
+		return -EINVAL;
+
 	switch (param) {
 	case MSM_PARAM_SYSPROF:
 		if (!capable(CAP_SYS_ADMIN))

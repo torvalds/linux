@@ -613,7 +613,7 @@ static int msm_ioctl_get_param(struct drm_device *dev, void *data,
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
-	if (args->pipe != MSM_PIPE_3D0)
+	if ((args->pipe != MSM_PIPE_3D0) || (args->pad != 0))
 		return -EINVAL;
 
 	gpu = priv->gpu;
@@ -622,7 +622,7 @@ static int msm_ioctl_get_param(struct drm_device *dev, void *data,
 		return -ENXIO;
 
 	return gpu->funcs->get_param(gpu, file->driver_priv,
-				     args->param, &args->value);
+				     args->param, &args->value, &args->len);
 }
 
 static int msm_ioctl_set_param(struct drm_device *dev, void *data,
@@ -632,7 +632,7 @@ static int msm_ioctl_set_param(struct drm_device *dev, void *data,
 	struct drm_msm_param *args = data;
 	struct msm_gpu *gpu;
 
-	if (args->pipe != MSM_PIPE_3D0)
+	if ((args->pipe != MSM_PIPE_3D0) || (args->pad != 0))
 		return -EINVAL;
 
 	gpu = priv->gpu;
@@ -641,7 +641,7 @@ static int msm_ioctl_set_param(struct drm_device *dev, void *data,
 		return -ENXIO;
 
 	return gpu->funcs->set_param(gpu, file->driver_priv,
-				     args->param, args->value);
+				     args->param, args->value, args->len);
 }
 
 static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
