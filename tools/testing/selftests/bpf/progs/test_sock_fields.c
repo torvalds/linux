@@ -251,10 +251,16 @@ int ingress_read_sock_fields(struct __sk_buff *skb)
 	return CG_OK;
 }
 
+/*
+ * NOTE: 4-byte load from bpf_sock at dst_port offset is quirky. It
+ * gets rewritten by the access converter to a 2-byte load for
+ * backward compatibility. Treating the load result as a be16 value
+ * makes the code portable across little- and big-endian platforms.
+ */
 static __noinline bool sk_dst_port__load_word(struct bpf_sock *sk)
 {
 	__u32 *word = (__u32 *)&sk->dst_port;
-	return word[0] == bpf_htonl(0xcafe0000);
+	return word[0] == bpf_htons(0xcafe);
 }
 
 static __noinline bool sk_dst_port__load_half(struct bpf_sock *sk)
