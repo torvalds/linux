@@ -11,6 +11,104 @@
 #include "sof-audio.h"
 #include "ipc3-ops.h"
 
+static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
+{
+	if (value >= size)
+		return volume_map[size - 1];
+
+	return volume_map[value];
+}
+
+static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (volume_map[i] >= value)
+			return i;
+	}
+
+	return i - 1;
+}
+
+static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	int ret;
+
+	if (!scontrol->comp_data_dirty)
+		return;
+
+	if (!pm_runtime_active(scomp->dev))
+		return;
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+
+	/* refresh the component data from DSP */
+	scontrol->comp_data_dirty = false;
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
+	if (ret < 0) {
+		dev_err(scomp->dev, "Failed to get control data: %d\n", ret);
+
+		/* Set the flag to re-try next time to get the data */
+		scontrol->comp_data_dirty = true;
+	}
+}
+
+static int sof_ipc3_volume_get(struct snd_sof_control *scontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	unsigned int channels = scontrol->num_channels;
+	unsigned int i;
+
+	snd_sof_refresh_control(scontrol);
+
+	/* read back each channel */
+	for (i = 0; i < channels; i++)
+		ucontrol->value.integer.value[i] = ipc_to_mixer(cdata->chanv[i].value,
+								scontrol->volume_table,
+								scontrol->max + 1);
+
+	return 0;
+}
+
+static bool sof_ipc3_volume_put(struct snd_sof_control *scontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	unsigned int channels = scontrol->num_channels;
+	unsigned int i;
+	bool change = false;
+
+	/* update each channel */
+	for (i = 0; i < channels; i++) {
+		u32 value = mixer_to_ipc(ucontrol->value.integer.value[i],
+					 scontrol->volume_table, scontrol->max + 1);
+
+		change = change || (value != cdata->chanv[i].value);
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
+	}
+
+	/* notify DSP of mixer updates */
+	if (pm_runtime_active(scomp->dev)) {
+		int ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
+
+		if (ret < 0) {
+			dev_err(scomp->dev, "Failed to set mixer updates for %s\n",
+				scontrol->name);
+			return false;
+		}
+	}
+
+	return change;
+}
+
 static void snd_sof_update_control(struct snd_sof_control *scontrol,
 				   struct sof_ipc_ctrl_data *cdata)
 {
@@ -152,5 +250,7 @@ static void sof_ipc3_control_update(struct snd_sof_dev *sdev, void *ipc_control_
 }
 
 const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
+	.volume_put = sof_ipc3_volume_put,
+	.volume_get = sof_ipc3_volume_get,
 	.update = sof_ipc3_control_update,
 };

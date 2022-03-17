@@ -45,26 +45,6 @@ static void update_mute_led(struct snd_sof_control *scontrol,
 #endif
 }
 
-static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
-{
-	if (value >= size)
-		return volume_map[size - 1];
-
-	return volume_map[value];
-}
-
-static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (volume_map[i] >= value)
-			return i;
-	}
-
-	return i - 1;
-}
-
 static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
@@ -85,7 +65,8 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 	scontrol->comp_data_dirty = false;
 	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
 	if (ret < 0) {
-		dev_err(scomp->dev, "error: failed to get control data: %d\n", ret);
+		dev_err(scomp->dev, "Failed to get control data: %d\n", ret);
+
 		/* Set the flag to re-try next time to get the data */
 		scontrol->comp_data_dirty = true;
 	}
@@ -94,19 +75,14 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_mixer_control *sm =
-		(struct soc_mixer_control *)kcontrol->private_value;
+	struct soc_mixer_control *sm = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	unsigned int i, channels = scontrol->num_channels;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	snd_sof_refresh_control(scontrol);
-
-	/* read back each channel */
-	for (i = 0; i < channels; i++)
-		ucontrol->value.integer.value[i] =
-			ipc_to_mixer(cdata->chanv[i].value,
-				     scontrol->volume_table, sm->max + 1);
+	if (tplg_ops->control->volume_get)
+		return tplg_ops->control->volume_get(scontrol, ucontrol);
 
 	return 0;
 }
@@ -114,28 +90,16 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_mixer_control *sm =
-		(struct soc_mixer_control *)kcontrol->private_value;
+	struct soc_mixer_control *sm = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	unsigned int i, channels = scontrol->num_channels;
-	bool change = false;
-	u32 value;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	/* update each channel */
-	for (i = 0; i < channels; i++) {
-		value = mixer_to_ipc(ucontrol->value.integer.value[i],
-				     scontrol->volume_table, sm->max + 1);
-		change = change || (value != cdata->chanv[i].value);
-		cdata->chanv[i].channel = i;
-		cdata->chanv[i].value = value;
-	}
+	if (tplg_ops->control->volume_put)
+		return tplg_ops->control->volume_put(scontrol, ucontrol);
 
-	/* notify DSP of mixer updates */
-	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol, true);
-	return change;
+	return false;
 }
 
 int snd_sof_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
