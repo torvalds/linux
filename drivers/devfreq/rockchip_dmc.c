@@ -50,6 +50,7 @@
 #include "rockchip_dmc_timing.h"
 #include "../clk/rockchip/clk.h"
 #include "../gpu/drm/rockchip/rockchip_drm_drv.h"
+#include "../opp/opp.h"
 
 #define system_status_to_dmcfreq(nb) container_of(nb, struct rockchip_dmcfreq, \
 						  status_nb)
@@ -115,6 +116,7 @@ struct rockchip_dmcfreq {
 	struct mutex lock; /* serializes access to video_info_list */
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
+	struct regulator *mem_reg;
 	struct notifier_block status_nb;
 	struct list_head video_info_list;
 	struct freq_map_table *cpu_bw_tbl;
@@ -124,9 +126,9 @@ struct rockchip_dmcfreq {
 	struct share_params *set_rate_params;
 
 	unsigned long *nocp_bw;
-	unsigned long rate, target_rate;
-	unsigned long volt, target_volt;
-	unsigned long sleep_volt;
+	unsigned long rate;
+	unsigned long volt, mem_volt;
+	unsigned long sleep_volt, sleep_mem_volt;
 	unsigned long auto_min_rate;
 	unsigned long status_rate;
 	unsigned long normal_rate;
@@ -155,6 +157,7 @@ struct rockchip_dmcfreq {
 	int edev_count;
 	int dfi_id;
 	int nocp_cpu_id;
+	int regulator_count;
 
 	bool is_fixed;
 	bool is_set_rate_direct;
@@ -171,6 +174,16 @@ struct rockchip_dmcfreq {
 };
 
 static struct pm_qos_request pm_qos;
+
+static int rockchip_dmcfreq_opp_helper(struct dev_pm_set_opp_data *data);
+
+static struct monitor_dev_profile dmc_mdevp = {
+	.type = MONITOR_TPYE_DEV,
+	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+	.update_volt = rockchip_monitor_check_rate_volt,
+	.set_opp = rockchip_dmcfreq_opp_helper,
+};
 
 static inline unsigned long is_dualview(unsigned long status)
 {
@@ -346,48 +359,47 @@ static int rockchip_ddr_set_rate(unsigned long target_rate)
 	return res.a0;
 }
 
-static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
-				   u32 flags)
+static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
+				     struct dev_pm_opp_supply *supply,
+				     char *reg_name)
 {
+	int ret;
+
+	dev_dbg(dev, "%s: %s voltages (mV): %lu %lu %lu\n", __func__, reg_name,
+		supply->u_volt_min, supply->u_volt, supply->u_volt_max);
+	ret = regulator_set_voltage_triplet(reg, supply->u_volt_min,
+					    supply->u_volt, INT_MAX);
+	if (ret)
+		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu mV): %d\n",
+			__func__, supply->u_volt_min, supply->u_volt,
+			supply->u_volt_max, ret);
+
+	return ret;
+}
+
+static int rockchip_dmcfreq_opp_helper(struct dev_pm_set_opp_data *data)
+{
+	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
+	struct dev_pm_opp_supply *new_supply_vdd = &data->new_opp.supplies[0];
+	struct regulator *vdd_reg = data->regulators[0];
+	struct dev_pm_opp_supply *old_supply_mem;
+	struct dev_pm_opp_supply *new_supply_mem;
+	struct regulator *mem_reg;
+	struct device *dev = data->dev;
+	struct clk *clk = data->clk;
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
-	struct dev_pm_opp *opp;
 	struct cpufreq_policy *policy;
-	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long target_volt, target_rate;
-	unsigned int cpu_cur, cpufreq_cur;
+	unsigned long old_freq = data->old_opp.rate;
+	unsigned long freq = data->new_opp.rate;
+	unsigned int reg_count = data->regulator_count;
 	bool is_cpufreq_changed = false;
-	int err = 0;
+	unsigned int cpu_cur, cpufreq_cur;
+	int ret = 0;
 
-	opp = devfreq_recommended_opp(dev, freq, flags);
-	if (IS_ERR(opp)) {
-		dev_err(dev, "Failed to find opp for %lu Hz\n", *freq);
-		return PTR_ERR(opp);
-	}
-	target_volt = dev_pm_opp_get_voltage(opp);
-	dev_pm_opp_put(opp);
-
-	if (dmcfreq->is_set_rate_direct) {
-		target_rate = *freq;
-	} else {
-		target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
-		if ((long)target_rate <= 0)
-			target_rate = *freq;
-	}
-
-	if (dmcfreq->rate == target_rate) {
-		if (dmcfreq->volt == target_volt)
-			return 0;
-		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
-					    INT_MAX);
-		if (err) {
-			dev_err(dev, "Cannot set voltage %lu uV\n",
-				target_volt);
-			return err;
-		}
-		dmcfreq->volt = target_volt;
-		return 0;
-	} else if (!dmcfreq->volt) {
-		dmcfreq->volt = regulator_get_voltage(dmcfreq->vdd_center);
+	if (reg_count > 1) {
+		old_supply_mem = &data->old_opp.supplies[1];
+		new_supply_mem = &data->new_opp.supplies[1];
+		mem_reg = data->regulators[1];
 	}
 
 	/*
@@ -410,6 +422,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		policy = cpufreq_cpu_get(cpu_cur);
 		if (!policy) {
 			dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
+			ret = -EINVAL;
 			goto cpufreq;
 		}
 		down_write(&policy->rwsem);
@@ -430,18 +443,20 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
-	/*
-	 * If frequency scaling from low to high, adjust voltage first.
-	 * If frequency scaling from high to low, adjust frequency first.
-	 */
-	if (old_clk_rate < target_rate) {
-		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
-					    INT_MAX);
-		if (err) {
-			dev_err(dev, "Cannot set voltage %lu uV\n",
-				target_volt);
-			goto out;
+	/* Scaling up? Scale voltage before frequency */
+	if (freq >= old_freq) {
+		if (reg_count > 1) {
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
+							new_supply_mem, "mem");
+			if (ret)
+				goto restore_voltage;
 		}
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, new_supply_vdd,
+						"vdd");
+		if (ret)
+			goto restore_voltage;
+		if (freq == old_freq)
+			goto out;
 	}
 
 	/*
@@ -453,7 +468,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	 */
 	while (!rockchip_dmcfreq_write_trylock())
 		cond_resched();
-	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_rate);
+	dev_dbg(dev, "%lu Hz --> %lu Hz\n", old_freq, freq);
 
 	if (dmcfreq->set_rate_params) {
 		dmcfreq->set_rate_params->lcdc_type = rk_drm_get_lcdc_type();
@@ -462,50 +477,65 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	}
 
 	if (dmcfreq->is_set_rate_direct)
-		err = rockchip_ddr_set_rate(target_rate);
+		ret = rockchip_ddr_set_rate(freq);
 	else
-		err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+		ret = clk_set_rate(clk, freq);
 
 	rockchip_dmcfreq_write_unlock();
-	if (err) {
-		dev_err(dev, "Cannot set frequency %lu (%d)\n",
-			target_rate, err);
-		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
-				      INT_MAX);
-		goto out;
+	if (ret) {
+		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
+			ret);
+		goto restore_voltage;
 	}
 
 	/*
 	 * Check the dpll rate,
 	 * There only two result we will get,
 	 * 1. Ddr frequency scaling fail, we still get the old rate.
-	 * 2. Ddr frequency scaling sucessful, we get the rate we set.
+	 * 2. Ddr frequency scaling successful, we get the rate we set.
 	 */
-	dmcfreq->rate = clk_get_rate(dmcfreq->dmc_clk);
+	dmcfreq->rate = clk_get_rate(clk);
 
 	/* If get the incorrect rate, set voltage to old value. */
-	if (dmcfreq->rate != target_rate) {
+	if (dmcfreq->rate != freq) {
 		dev_err(dev, "Get wrong frequency, Request %lu, Current %lu\n",
-			target_rate, dmcfreq->rate);
-		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
-				      INT_MAX);
-		goto out;
-	} else if (old_clk_rate > target_rate) {
-		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
-					    INT_MAX);
-		if (err) {
-			dev_err(dev, "Cannot set vol %lu uV\n", target_volt);
-			goto out;
+			freq, dmcfreq->rate);
+		ret = -EINVAL;
+		goto restore_voltage;
+	}
+
+	/* Scaling down? Scale voltage after frequency */
+	if (freq < old_freq) {
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, new_supply_vdd,
+						"vdd");
+		if (ret)
+			goto restore_freq;
+		if (reg_count > 1) {
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
+							new_supply_mem, "mem");
+			if (ret)
+				goto restore_freq;
 		}
 	}
+	dmcfreq->volt = new_supply_vdd->u_volt;
+	if (reg_count > 1)
+		dmcfreq->mem_volt = new_supply_mem->u_volt;
 
-	if (dmcfreq->info.devfreq) {
-		struct devfreq *devfreq = dmcfreq->info.devfreq;
+	goto out;
 
-		devfreq->last_status.current_frequency = *freq;
-	}
-
-	dmcfreq->volt = target_volt;
+restore_freq:
+	if (dmcfreq->is_set_rate_direct)
+		ret = rockchip_ddr_set_rate(freq);
+	else
+		ret = clk_set_rate(clk, freq);
+	if (ret)
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_freq);
+restore_voltage:
+	if (reg_count > 1 && old_supply_mem->u_volt)
+		rockchip_dmcfreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
+	if (old_supply_vdd->u_volt)
+		rockchip_dmcfreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
 out:
 	if (dmcfreq->min_cpu_freq) {
 		if (is_cpufreq_changed)
@@ -516,7 +546,39 @@ out:
 	}
 cpufreq:
 	cpus_read_unlock();
-	return err;
+
+	return ret;
+}
+
+static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
+				   u32 flags)
+{
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct devfreq *devfreq;
+	struct dev_pm_opp *opp;
+	int ret = 0;
+
+	if (!dmc_mdevp.is_checked)
+		return -EINVAL;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp)) {
+		dev_err(dev, "Failed to find opp for %lu Hz\n", *freq);
+		return PTR_ERR(opp);
+	}
+	dev_pm_opp_put(opp);
+
+	rockchip_monitor_volt_adjust_lock(dmcfreq->mdev_info);
+	ret = dev_pm_opp_set_rate(dev, *freq);
+	if (!ret) {
+		if (dmcfreq->info.devfreq) {
+			devfreq = dmcfreq->info.devfreq;
+			devfreq->last_status.current_frequency = *freq;
+		}
+	}
+	rockchip_monitor_volt_adjust_unlock(dmcfreq->mdev_info);
+
+	return ret;
 }
 
 static int rockchip_dmcfreq_get_dev_status(struct device *dev,
@@ -1879,7 +1941,9 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Failed to find opp for %lu Hz\n", opp_rate);
 		return PTR_ERR(opp);
 	}
-	dmcfreq->sleep_volt = dev_pm_opp_get_voltage(opp);
+	dmcfreq->sleep_volt = opp->supplies[0].u_volt;
+	if (dmcfreq->regulator_count > 1)
+		dmcfreq->sleep_mem_volt = opp->supplies[1].u_volt;
 	dev_pm_opp_put(opp);
 
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
@@ -2768,21 +2832,61 @@ static int rockchip_dmcfreq_get_event(struct rockchip_dmcfreq *dmcfreq)
 static int rockchip_dmcfreq_power_control(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = dmcfreq->dev;
+	struct device_node *np = dev->of_node;
+	struct opp_table *opp_table = NULL, *reg_opp_table = NULL;
+	const char * const reg_names[] = {"center", "mem"};
+	int ret = 0;
+
+	if (of_find_property(np, "mem-supply", NULL))
+		dmcfreq->regulator_count = 2;
+	else
+		dmcfreq->regulator_count = 1;
+	reg_opp_table = dev_pm_opp_set_regulators(dev, reg_names,
+						  dmcfreq->regulator_count);
+	if (IS_ERR(reg_opp_table)) {
+		dev_err(dev, "failed to set regulators\n");
+		return PTR_ERR(reg_opp_table);
+	}
+	opp_table = dev_pm_opp_register_set_opp_helper(dev, rockchip_dmcfreq_opp_helper);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "failed to set opp helper\n");
+		ret = PTR_ERR(opp_table);
+		goto reg_opp_table;
+	}
 
 	dmcfreq->vdd_center = devm_regulator_get_optional(dev, "center");
 	if (IS_ERR(dmcfreq->vdd_center)) {
 		dev_err(dev, "Cannot get the regulator \"center\"\n");
-		return PTR_ERR(dmcfreq->vdd_center);
+		ret = PTR_ERR(dmcfreq->vdd_center);
+		goto opp_table;
+	}
+	if (dmcfreq->regulator_count > 1) {
+		dmcfreq->mem_reg = devm_regulator_get_optional(dev, "mem");
+		if (IS_ERR(dmcfreq->mem_reg)) {
+			dev_err(dev, "Cannot get the regulator \"mem\"\n");
+			ret = PTR_ERR(dmcfreq->mem_reg);
+			goto opp_table;
+		}
 	}
 
 	dmcfreq->dmc_clk = devm_clk_get(dev, "dmc_clk");
 	if (IS_ERR(dmcfreq->dmc_clk)) {
 		dev_err(dev, "Cannot get the clk dmc_clk. If using SCMI, trusted firmware need update to V1.01 and above.\n");
-		return PTR_ERR(dmcfreq->dmc_clk);
+		ret = PTR_ERR(dmcfreq->dmc_clk);
+		goto opp_table;
 	}
 	dmcfreq->rate = clk_get_rate(dmcfreq->dmc_clk);
 
 	return 0;
+
+opp_table:
+	if (opp_table)
+		dev_pm_opp_unregister_set_opp_helper(opp_table);
+reg_opp_table:
+	if (reg_opp_table)
+		dev_pm_opp_put_regulators(reg_opp_table);
+
+	return ret;
 }
 
 static int rockchip_dmcfreq_dmc_init(struct platform_device *pdev,
@@ -2909,12 +3013,6 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 
 	return 0;
 }
-
-static struct monitor_dev_profile dmc_mdevp = {
-	.type = MONITOR_TPYE_DEV,
-	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
-	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
-};
 
 static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 {
@@ -3262,11 +3360,23 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 		return ret;
 	}
 
-	/* set vdd_center voltage to sleep_volt if need */
+	/* set voltage to sleep_volt if need */
 	if (dmcfreq->sleep_volt && dmcfreq->sleep_volt != dmcfreq->volt) {
-		ret = regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->sleep_volt, INT_MAX);
+		ret = regulator_set_voltage(dmcfreq->vdd_center,
+					    dmcfreq->sleep_volt, INT_MAX);
 		if (ret) {
-			dev_err(dev, "Cannot set voltage %lu uV\n", dmcfreq->sleep_volt);
+			dev_err(dev, "Cannot set vdd voltage %lu uV\n",
+				dmcfreq->sleep_volt);
+			return ret;
+		}
+	}
+	if (dmcfreq->sleep_mem_volt &&
+	    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
+		ret = regulator_set_voltage(dmcfreq->mem_reg,
+					    dmcfreq->sleep_mem_volt, INT_MAX);
+		if (ret) {
+			dev_err(dev, "Cannot set mem voltage %lu uV\n",
+				dmcfreq->sleep_mem_volt);
 			return ret;
 		}
 	}
@@ -3282,11 +3392,23 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 	if (!dmcfreq)
 		return 0;
 
-	/* restore vdd_center voltage if it is sleep_volt */
+	/* restore voltage if it is sleep_volt */
 	if (dmcfreq->sleep_volt && dmcfreq->sleep_volt != dmcfreq->volt) {
-		ret = regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt, INT_MAX);
+		ret = regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
+					    INT_MAX);
 		if (ret) {
-			dev_err(dev, "Cannot set voltage %lu uV\n", dmcfreq->volt);
+			dev_err(dev, "Cannot set vdd voltage %lu uV\n",
+				dmcfreq->volt);
+			return ret;
+		}
+	}
+	if (dmcfreq->sleep_mem_volt &&
+	    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
+		ret = regulator_set_voltage(dmcfreq->mem_reg, dmcfreq->mem_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "Cannot set mem voltage %lu uV\n",
+				dmcfreq->mem_volt);
 			return ret;
 		}
 	}
