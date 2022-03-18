@@ -9,12 +9,14 @@
 
 #include <asm/cacheflush.h>
 #include <linux/clk.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/of_platform.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -1011,14 +1013,26 @@ static int av1dec_device_match(struct device *dev, struct device_driver *drv)
 
 static int av1dec_device_probe(struct device *dev)
 {
+	int ret;
 	const struct platform_driver *drv;
 	struct platform_device *pdev = to_platform_device(dev);
 
+	ret = of_clk_set_defaults(dev->of_node, false);
+	if (ret < 0)
+		return ret;
+
+	ret = dev_pm_domain_attach(dev, true);
+	if (ret)
+		return ret;
+
 	drv = to_platform_driver(dev->driver);
+	if (drv->probe) {
+		ret = drv->probe(pdev);
+		if (ret)
+			dev_pm_domain_detach(dev, true);
+	}
 
-	drv->probe(pdev);
-
-	return 0;
+	return ret;
 }
 
 static int av1dec_device_remove(struct device *dev)
@@ -1029,6 +1043,9 @@ static int av1dec_device_remove(struct device *dev)
 
 	if (dev->driver && drv->remove)
 		drv->remove(pdev);
+
+	dev_pm_domain_detach(dev, true);
+
 	return 0;
 }
 
@@ -1220,7 +1237,11 @@ static int av1dec_probe(struct platform_device *pdev)
 	ret = mpp_dev_probe(mpp, pdev);
 	if (ret)
 		return ret;
-	mpp->iommu_info->skip_refresh = 1;
+
+	/* iommu may disabled */
+	if (mpp->iommu_info)
+		mpp->iommu_info->skip_refresh = 1;
+
 	dec->reg_base[AV1DEC_CLASS_VCD] = mpp->reg_base;
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
