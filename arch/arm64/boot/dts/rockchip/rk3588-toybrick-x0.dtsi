@@ -33,7 +33,7 @@
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip,es8388-codec";
+		rockchip,card-name = "rockchip,es8388";
 		hp-det-gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 3>;
 		io-channel-names = "adc-detect";
@@ -89,7 +89,7 @@
 		regulator-always-on;
 		regulator-min-microvolt = <850000>;
 		regulator-max-microvolt = <850000>;
-		vin-supply = <&vdd_0v85_s0>;//csq
+		vin-supply = <&vdd_0v85_s0>;
 	};
 
 	pcie20_avdd1v8: pcie20-avdd1v8 {
