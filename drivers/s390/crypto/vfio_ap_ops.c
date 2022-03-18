@@ -1189,13 +1189,6 @@ static const struct attribute_group *vfio_ap_mdev_attr_groups[] = {
  * @matrix_mdev: a mediated matrix device
  * @kvm: reference to KVM instance
  *
- * Note: The matrix_dev->lock must be taken prior to calling
- * this function; however, the lock will be temporarily released while the
- * guest's AP configuration is set to avoid a potential lockdep splat.
- * The kvm->lock is taken to set the guest's AP configuration which, under
- * certain circumstances, will result in a circular lock dependency if this is
- * done under the @matrix_mdev->lock.
- *
  * Return: 0 if no other mediated matrix device has a reference to @kvm;
  * otherwise, returns an -EPERM.
  */
@@ -1269,18 +1262,11 @@ static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
  * by @matrix_mdev.
  *
  * @matrix_mdev: a matrix mediated device
- * @kvm: the pointer to the kvm structure being unset.
- *
- * Note: The matrix_dev->lock must be taken prior to calling
- * this function; however, the lock will be temporarily released while the
- * guest's AP configuration is cleared to avoid a potential lockdep splat.
- * The kvm->lock is taken to clear the guest's AP configuration which, under
- * certain circumstances, will result in a circular lock dependency if this is
- * done under the @matrix_mdev->lock.
  */
-static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev,
-				   struct kvm *kvm)
+static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev)
 {
+	struct kvm *kvm = matrix_mdev->kvm;
+
 	if (kvm && kvm->arch.crypto.crycbd) {
 		down_write(&kvm->arch.crypto.pqap_hook_rwsem);
 		kvm->arch.crypto.pqap_hook = NULL;
@@ -1311,7 +1297,7 @@ static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
 	matrix_mdev = container_of(nb, struct ap_matrix_mdev, group_notifier);
 
 	if (!data)
-		vfio_ap_mdev_unset_kvm(matrix_mdev, matrix_mdev->kvm);
+		vfio_ap_mdev_unset_kvm(matrix_mdev);
 	else if (vfio_ap_mdev_set_kvm(matrix_mdev, data))
 		notify_rc = NOTIFY_DONE;
 
@@ -1448,7 +1434,7 @@ static void vfio_ap_mdev_close_device(struct vfio_device *vdev)
 				 &matrix_mdev->iommu_notifier);
 	vfio_unregister_notifier(vdev->dev, VFIO_GROUP_NOTIFY,
 				 &matrix_mdev->group_notifier);
-	vfio_ap_mdev_unset_kvm(matrix_mdev, matrix_mdev->kvm);
+	vfio_ap_mdev_unset_kvm(matrix_mdev);
 }
 
 static int vfio_ap_mdev_get_device_info(unsigned long arg)
