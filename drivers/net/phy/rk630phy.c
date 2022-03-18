@@ -3,14 +3,9 @@
  *
  * Driver for ROCKCHIP RK630 Ethernet PHYs
  *
- * Copyright (c) 2020, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2020, Rockchip Electronics Co., Ltd
  *
  * David Wu <david.wu@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  */
 
@@ -48,12 +43,26 @@
 
 /* PAGE 6 */
 #define REG_PAGE6_ADC_ANONTROL			0x10
+#define REG_PAGE6_GAIN_ANONTROL			0x12
 #define REG_PAGE6_AFE_RX_CTRL			0x13
 #define REG_PAGE6_AFE_TX_CTRL			0x14
 #define REG_PAGE6_AFE_DRIVER2			0x15
+#define REG_PAGE6_CP_CURRENT			0x17
+#define REG_PAGE6_ADC_OP_BIAS			0x18
+#define REG_PAGE6_RX_DECTOR			0x19
+#define REG_PAGE6_AFE_PDCW			0x1c
 
 /* PAGE 8 */
 #define REG_PAGE8_AFE_CTRL			0x18
+#define REG_PAGE8_AUTO_CAL			0x1d
+
+/*
+ * Fixed address:
+ * Addr: 1 --- RK630@S40
+ *       2 --- RV1106@T22
+ */
+#define PHY_ADDR_S40 1
+#define PHY_ADDR_T22 2
 
 struct rk630_phy_priv {
 	struct phy_device *phydev;
@@ -124,7 +133,7 @@ static void rk630_phy_set_uaps(struct phy_device *phydev)
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
 }
 
-static int rk630_phy_config_init(struct phy_device *phydev)
+static void rk630_phy_s40_config_init(struct phy_device *phydev)
 {
 	phy_write(phydev, 0, phy_read(phydev, 0) & ~BIT(13));
 
@@ -151,6 +160,60 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 
 	/* Switch to page 0 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
+}
+
+static void rk630_phy_t22_config_init(struct phy_device *phydev)
+{
+	/* Switch to page 1 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0100);
+	/* Disable APS */
+	phy_write(phydev, REG_PAGE1_APS_CTRL, 0x4824);
+	/* Switch to page 2 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0200);
+	/* PHYAFE TRX optimization */
+	phy_write(phydev, REG_PAGE2_AFE_CTRL, 0x0000);
+	/* Switch to page 6 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0600);
+	/* PHYAFE ADC optimization */
+	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, 0x5540);
+	/* PHYAFE Gain optimization */
+	phy_write(phydev, REG_PAGE6_GAIN_ANONTROL, 0x0400);
+	/* PHYAFE EQ optimization */
+	phy_write(phydev, REG_PAGE6_AFE_TX_CTRL, 0x1088);
+	/* PHYAFE TX optimization */
+	phy_write(phydev, REG_PAGE6_AFE_DRIVER2, 0x3030);
+	/* PHYAFE CP current optimization */
+	phy_write(phydev, REG_PAGE6_CP_CURRENT, 0x0575);
+	/* ADC OP BIAS optimization */
+	phy_write(phydev, REG_PAGE6_ADC_OP_BIAS, 0x0000);
+	/* Rx signal detctor level optimization */
+	phy_write(phydev, REG_PAGE6_RX_DECTOR, 0x0408);
+	/* PHYAFE PDCW optimization */
+	phy_write(phydev, REG_PAGE6_AFE_PDCW, 0x8880);
+
+	/* Switch to page 8 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0800);
+	/* Disable auto-cal */
+	phy_write(phydev, REG_PAGE8_AUTO_CAL, 0x0844);
+
+	/* Switch to page 0 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0000);
+}
+
+static int rk630_phy_config_init(struct phy_device *phydev)
+{
+	switch (phydev->mdio.addr) {
+	case PHY_ADDR_S40:
+		rk630_phy_s40_config_init(phydev);
+		break;
+	case PHY_ADDR_T22:
+		rk630_phy_t22_config_init(phydev);
+		break;
+	default:
+		phydev_err(phydev, "Unsupported address for current phy: %d\n",
+			   phydev->mdio.addr);
+		return -EINVAL;
+	}
 
 	rk630_phy_ieee_set(phydev, true);
 	/*
