@@ -11,6 +11,7 @@
 #include <sound/pcm_params.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
+#include "ipc3-ops.h"
 #include "ops.h"
 
 /* Full volume for default values */
@@ -1909,6 +1910,376 @@ static int sof_ipc3_complete_pipeline(struct snd_sof_dev *sdev, struct snd_sof_w
 	return 1;
 }
 
+static int sof_ipc3_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_free ipc_free = {
+		.hdr = {
+			.size = sizeof(ipc_free),
+			.cmd = SOF_IPC_GLB_TPLG_MSG,
+		},
+		.id = swidget->comp_id,
+	};
+	struct sof_ipc_reply reply;
+	int ret;
+
+	if (!swidget->private)
+		return 0;
+
+	switch (swidget->id) {
+	case snd_soc_dapm_scheduler:
+	{
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
+		break;
+	}
+	case snd_soc_dapm_buffer:
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_BUFFER_FREE;
+		break;
+	default:
+		ipc_free.hdr.cmd |= SOF_IPC_TPLG_COMP_FREE;
+		break;
+	}
+
+	ret = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
+				 &reply, sizeof(reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "failed to free widget %s\n", swidget->widget->name);
+
+	return ret;
+}
+
+static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			       unsigned int flags, struct snd_sof_dai_config_data *data)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_dai *dai = swidget->private;
+	struct sof_dai_private_data *private;
+	struct sof_ipc_dai_config *config;
+	struct sof_ipc_reply reply;
+	int ret = 0;
+
+	if (!dai || !dai->private) {
+		dev_err(sdev->dev, "No private data for DAI %s\n", swidget->widget->name);
+		return -EINVAL;
+	}
+
+	private = dai->private;
+	if (!private->dai_config) {
+		dev_err(sdev->dev, "No config for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	config = &private->dai_config[dai->current_config];
+	if (!config) {
+		dev_err(sdev->dev, "Invalid current config for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	switch (config->type) {
+	case SOF_DAI_INTEL_SSP:
+		/*
+		 * DAI_CONFIG IPC during hw_params/hw_free for SSP DAI's is not supported in older
+		 * firmware
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 18, 0) &&
+		    ((flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) ||
+		     (flags & SOF_DAI_CONFIG_FLAGS_HW_FREE)))
+			return 0;
+		break;
+	case SOF_DAI_INTEL_HDA:
+		if (data)
+			config->hda.link_dma_ch = data->dai_data;
+		break;
+	case SOF_DAI_INTEL_ALH:
+		if (data) {
+			config->dai_index = data->dai_index;
+			config->alh.stream_id = data->dai_data;
+		}
+		break;
+	default:
+		break;
+	}
+
+	config->flags = flags;
+
+	/* only send the IPC if the widget is set up in the DSP */
+	if (swidget->use_count > 0) {
+		ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+					 &reply, sizeof(reply));
+		if (ret < 0)
+			dev_err(sdev->dev, "Failed to set dai config for %s\n", dai->name);
+	}
+
+	return ret;
+}
+
+static int sof_ipc3_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_comp_reply reply;
+	int ret;
+
+	if (!swidget->private)
+		return 0;
+
+	switch (swidget->id) {
+	case snd_soc_dapm_dai_in:
+	case snd_soc_dapm_dai_out:
+	{
+		struct snd_sof_dai *dai = swidget->private;
+		struct sof_dai_private_data *dai_data = dai->private;
+		struct sof_ipc_comp *comp = &dai_data->comp_dai->comp;
+
+		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, dai_data->comp_dai,
+					 comp->hdr.size, &reply, sizeof(reply));
+		break;
+	}
+	case snd_soc_dapm_scheduler:
+	{
+		struct sof_ipc_pipe_new *pipeline;
+
+		pipeline = swidget->private;
+		ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
+					 sizeof(*pipeline), &reply, sizeof(reply));
+		break;
+	}
+	default:
+	{
+		struct sof_ipc_cmd_hdr *hdr;
+
+		hdr = swidget->private;
+		ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, swidget->private, hdr->size,
+					 &reply, sizeof(reply));
+		break;
+	}
+	}
+	if (ret < 0)
+		dev_err(sdev->dev, "Failed to setup widget %s\n", swidget->widget->name);
+
+	return ret;
+}
+
+static int sof_ipc3_set_up_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_widget *swidget;
+	struct snd_sof_route *sroute;
+	int ret;
+
+	/* restore pipeline components */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		/* only set up the widgets belonging to static pipelines */
+		if (!verify && swidget->dynamic_pipeline_widget)
+			continue;
+
+		/*
+		 * For older firmware, skip scheduler widgets in this loop,
+		 * sof_widget_setup() will be called in the 'complete pipeline' loop
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 19, 0) &&
+		    swidget->id == snd_soc_dapm_scheduler)
+			continue;
+
+		/* update DAI config. The IPC will be sent in sof_widget_setup() */
+		if (WIDGET_IS_DAI(swidget->id)) {
+			struct snd_sof_dai *dai = swidget->private;
+			struct sof_dai_private_data *private;
+			struct sof_ipc_dai_config *config;
+
+			if (!dai || !dai->private)
+				continue;
+			private = dai->private;
+			if (!private->dai_config)
+				continue;
+
+			config = private->dai_config;
+			/*
+			 * The link DMA channel would be invalidated for running
+			 * streams but not for streams that were in the PAUSED
+			 * state during suspend. So invalidate it here before setting
+			 * the dai config in the DSP.
+			 */
+			if (config->type == SOF_DAI_INTEL_HDA)
+				config->hda.link_dma_ch = DMA_CHAN_INVALID;
+		}
+
+		ret = sof_widget_setup(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* restore pipeline connections */
+	list_for_each_entry(sroute, &sdev->route_list, list) {
+		/* only set up routes belonging to static pipelines */
+		if (!verify && (sroute->src_widget->dynamic_pipeline_widget ||
+				sroute->sink_widget->dynamic_pipeline_widget))
+			continue;
+
+		/*
+		 * For virtual routes, both sink and source are not buffer. IPC3 only supports
+		 * connections between a buffer and a component. Ignore the rest.
+		 */
+		if (sroute->src_widget->id != snd_soc_dapm_buffer &&
+		    sroute->sink_widget->id != snd_soc_dapm_buffer)
+			continue;
+
+		ret = sof_route_setup(sdev, sroute->src_widget->widget,
+				      sroute->sink_widget->widget);
+		if (ret < 0) {
+			dev_err(sdev->dev, "%s: route set up failed\n", __func__);
+			return ret;
+		}
+	}
+
+	/* complete pipeline */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		switch (swidget->id) {
+		case snd_soc_dapm_scheduler:
+			/* only complete static pipelines */
+			if (!verify && swidget->dynamic_pipeline_widget)
+				continue;
+
+			if (v->abi_version < SOF_ABI_VER(3, 19, 0)) {
+				ret = sof_widget_setup(sdev, swidget);
+				if (ret < 0)
+					return ret;
+			}
+
+			swidget->complete = sof_ipc3_complete_pipeline(sdev, swidget);
+			if (swidget->complete < 0)
+				return swidget->complete;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Free the PCM, its associated widgets and set the prepared flag to false for all PCMs that
+ * did not get suspended(ex: paused streams) so the widgets can be set up again during resume.
+ */
+static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_widget *swidget;
+	struct snd_sof_pcm *spcm;
+	int dir, ret;
+
+	/*
+	 * free all PCMs and their associated DAPM widgets if their connected DAPM widget
+	 * list is not NULL. This should only be true for paused streams at this point.
+	 * This is equivalent to the handling of FE DAI suspend trigger for running streams.
+	 */
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
+
+			if (!substream || !substream->runtime)
+				continue;
+
+			if (spcm->stream[dir].list) {
+				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
+	/*
+	 * free any left over DAI widgets. This is equivalent to the handling of suspend trigger
+	 * for the BE DAI for running streams.
+	 */
+	list_for_each_entry(swidget, &sdev->widget_list, list)
+		if (WIDGET_IS_DAI(swidget->id) && swidget->use_count == 1) {
+			ret = sof_widget_free(sdev, swidget);
+			if (ret < 0)
+				return ret;
+		}
+
+	return 0;
+}
+
+/*
+ * For older firmware, this function doesn't free widgets for static pipelines during suspend.
+ * It only resets use_count for all widgets.
+ */
+static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_widget *swidget;
+	struct snd_sof_route *sroute;
+	int ret;
+
+	/*
+	 * This function is called during suspend and for one-time topology verification during
+	 * first boot. In both cases, there is no need to protect swidget->use_count and
+	 * sroute->setup because during suspend all running streams are suspended and during
+	 * topology loading the sound card unavailable to open PCMs.
+	 */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->dynamic_pipeline_widget)
+			continue;
+
+		/* Do not free widgets for static pipelines with FW ABI older than 3.19 */
+		if (!verify && !swidget->dynamic_pipeline_widget &&
+		    v->abi_version < SOF_ABI_VER(3, 19, 0)) {
+			swidget->use_count = 0;
+			swidget->complete = 0;
+			continue;
+		}
+
+		ret = sof_widget_free(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Tear down all pipelines associated with PCMs that did not get suspended
+	 * and unset the prepare flag so that they can be set up again during resume.
+	 * Skip this step for older firmware.
+	 */
+	if (!verify && v->abi_version >= SOF_ABI_VER(3, 19, 0)) {
+		ret = sof_tear_down_left_over_pipelines(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev, "failed to tear down paused pipelines\n");
+			return ret;
+		}
+	}
+
+	list_for_each_entry(sroute, &sdev->route_list, list)
+		sroute->setup = false;
+
+	return 0;
+}
+
+static int sof_ipc3_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type)
+{
+	struct sof_dai_private_data *private = dai->private;
+
+	if (!private || !private->dai_config)
+		return 0;
+
+	switch (private->dai_config->type) {
+	case SOF_DAI_INTEL_SSP:
+		switch (clk_type) {
+		case SOF_DAI_CLK_INTEL_SSP_MCLK:
+			return private->dai_config->ssp.mclk_rate;
+		case SOF_DAI_CLK_INTEL_SSP_BCLK:
+			return private->dai_config->ssp.bclk_rate;
+		default:
+			break;
+		}
+		dev_err(sdev->dev, "fail to get SSP clk %d rate\n", clk_type);
+		break;
+	default:
+		/* not yet implemented for platforms other than the above */
+		dev_err(sdev->dev, "DAI type %d not supported yet!\n", private->dai_config->type);
+		break;
+	}
+
+	return -EINVAL;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2005,15 +2376,18 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc3_widget_ops[SND_SOC_DAPM_TY
 				 sof_ipc3_widget_bind_event},
 };
 
-static const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
+const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.widget = tplg_ipc3_widget_ops,
+	.control = &tplg_ipc3_control_ops,
 	.route_setup = sof_ipc3_route_setup,
 	.control_setup = sof_ipc3_control_setup,
 	.control_free = sof_ipc3_control_free,
 	.pipeline_complete = sof_ipc3_complete_pipeline,
 	.token_list = ipc3_token_list,
-};
-
-const struct sof_ipc_ops ipc3_ops = {
-	.tplg = &ipc3_tplg_ops,
+	.widget_free = sof_ipc3_widget_free,
+	.widget_setup = sof_ipc3_widget_setup,
+	.dai_config = sof_ipc3_dai_config,
+	.dai_get_clk = sof_ipc3_dai_get_clk,
+	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
+	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
 };
