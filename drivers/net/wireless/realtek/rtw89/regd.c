@@ -5,10 +5,9 @@
 #include "debug.h"
 #include "ps.h"
 
-#define COUNTRY_REGD(_alpha2, _txpwr_regd_2g, _txpwr_regd_5g) \
+#define COUNTRY_REGD(_alpha2, _txpwr_regd...) \
 	{.alpha2 = (_alpha2), \
-	 .txpwr_regd[RTW89_BAND_2G] = (_txpwr_regd_2g), \
-	 .txpwr_regd[RTW89_BAND_5G] = (_txpwr_regd_5g) \
+	 .txpwr_regd = {_txpwr_regd}, \
 	}
 
 static const struct rtw89_regulatory rtw89_ww_regd =
@@ -272,6 +271,17 @@ static bool rtw89_regd_is_ww(const struct rtw89_regulatory *regd)
 	return regd == &rtw89_ww_regd;
 }
 
+#define rtw89_debug_regd(_dev, _regd, _desc, _argv...) \
+do { \
+	typeof(_regd) __r = _regd; \
+	rtw89_debug(_dev, RTW89_DBG_REGD, _desc \
+		    ": %c%c: mapping txregd to {2g: %d, 5g: %d, 6g: %d}\n", \
+		    ##_argv, __r->alpha2[0], __r->alpha2[1], \
+		    __r->txpwr_regd[RTW89_BAND_2G], \
+		    __r->txpwr_regd[RTW89_BAND_5G], \
+		    __r->txpwr_regd[RTW89_BAND_6G]); \
+} while (0)
+
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		    void (*reg_notifier)(struct wiphy *wiphy,
 					 struct regulatory_request *request))
@@ -294,20 +304,12 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		if (ret)
 			rtw89_warn(rtwdev, "failed to hint regulatory:%d\n", ret);
 
-		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "efuse country code %c%c, mapping to 2g txregd %d, 5g txregd %d\n",
-			    rtwdev->efuse.country_code[0], rtwdev->efuse.country_code[1],
-			    rtwdev->regd->txpwr_regd[RTW89_BAND_2G],
-			    rtwdev->regd->txpwr_regd[RTW89_BAND_5G]);
-
+		rtw89_debug_regd(rtwdev, chip_regd, "efuse country code");
 		return 0;
 	}
-	rtw89_debug(rtwdev, RTW89_DBG_REGD,
-		    "worldwide roaming chip, follow the setting of stack(%c%c), mapping to 2g txregd %d, 5g txregd %d\n",
-		     rtwdev->regd->alpha2[0], rtwdev->regd->alpha2[1],
-		     rtwdev->regd->txpwr_regd[RTW89_BAND_2G],
-		     rtwdev->regd->txpwr_regd[RTW89_BAND_5G]);
 
+	rtw89_debug_regd(rtwdev, rtwdev->regd,
+			 "worldwide roaming chip, follow the setting of stack");
 	return 0;
 }
 
@@ -341,11 +343,8 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 		goto exit;
 	}
 	rtw89_regd_notifier_apply(rtwdev, wiphy, request);
-	rtw89_debug(rtwdev, RTW89_DBG_REGD,
-		    "get alpha2 %c%c from initiator %d, mapping to 2g txregd %d, 5g txregd %d\n",
-		    request->alpha2[0], request->alpha2[1], request->initiator,
-		    rtwdev->regd->txpwr_regd[RTW89_BAND_2G],
-		    rtwdev->regd->txpwr_regd[RTW89_BAND_5G]);
+	rtw89_debug_regd(rtwdev, rtwdev->regd, "get from initiator %d, alpha2",
+			 request->initiator);
 
 	rtw89_chip_set_txpwr(rtwdev);
 
