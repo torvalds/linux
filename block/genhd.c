@@ -25,6 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
 #include <linux/part_stat.h>
+#include "blk-throttle.h"
 
 #include "blk.h"
 #include "blk-mq-sched.h"
@@ -626,6 +627,8 @@ void del_gendisk(struct gendisk *disk)
 	device_del(disk_to_dev(disk));
 
 	blk_mq_freeze_queue_wait(q);
+
+	blk_throtl_cancel_bios(disk->queue);
 
 	blk_sync_queue(q);
 	blk_flush_integrity();
