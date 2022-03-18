@@ -95,7 +95,7 @@ struct copygc_heap_entry {
 	u8			replicas;
 	u32			fragmentation;
 	u32			sectors;
-	u64			offset;
+	u64			bucket;
 };
 
 typedef HEAP(struct copygc_heap_entry) copygc_heap;

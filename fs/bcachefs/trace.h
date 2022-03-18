@@ -717,6 +717,37 @@ TRACE_EVENT(move_data,
 		  __entry->sectors_moved, __entry->keys_moved)
 );
 
+TRACE_EVENT(evacuate_bucket,
+	TP_PROTO(struct bch_fs *c, struct bpos *bucket,
+		 unsigned sectors, unsigned bucket_size,
+		 int ret),
+	TP_ARGS(c, bucket, sectors, bucket_size, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev		)
+		__field(u64,		member		)
+		__field(u64,		bucket		)
+		__field(u32,		sectors		)
+		__field(u32,		bucket_size	)
+		__field(int,		ret		)
+	),
+
+	TP_fast_assign(
+		__entry->dev			= c->dev;
+		__entry->member			= bucket->inode;
+		__entry->bucket			= bucket->offset;
+		__entry->sectors		= sectors;
+		__entry->bucket_size		= bucket_size;
+		__entry->ret			= ret;
+	),
+
+	TP_printk("%d,%d %llu:%llu sectors %u/%u ret %i",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->member, __entry->bucket,
+		  __entry->sectors, __entry->bucket_size,
+		  __entry->ret)
+);
+
 TRACE_EVENT(copygc,
 	TP_PROTO(struct bch_fs *c,
 		 u64 sectors_moved, u64 sectors_not_moved,

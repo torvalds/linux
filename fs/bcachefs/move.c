@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "backpointers.h"
 #include "bkey_buf.h"
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
+#include "btree_write_buffer.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "errcode.h"
+#include "error.h"
 #include "inode.h"
 #include "io.h"
 #include "journal_reclaim.h"
@@ -65,6 +69,9 @@ static void move_write_done(struct bch_write_op *op)
 {
 	struct moving_io *io = container_of(op, struct moving_io, write.op);
 	struct moving_context *ctxt = io->write.ctxt;
+
+	if (io->write.op.error)
+		ctxt->write_error = true;
 
 	atomic_sub(io->write_sectors, &io->write.ctxt->write_sectors);
 	move_free(io);
@@ -401,6 +408,30 @@ static int move_ratelimit(struct btree_trans *trans,
 	return 0;
 }
 
+static int move_get_io_opts(struct btree_trans *trans,
+			    struct bch_io_opts *io_opts,
+			    struct bkey_s_c k, u64 *cur_inum)
+{
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	if (*cur_inum == k.k->p.inode)
+		return 0;
+
+	ret = lookup_inode(trans,
+			   SPOS(0, k.k->p.inode, k.k->p.snapshot),
+			   &inode);
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		return ret;
+
+	if (!ret)
+		bch2_inode_opts_get(io_opts, trans->c, &inode);
+	else
+		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
+	*cur_inum = k.k->p.inode;
+	return 0;
+}
+
 static int __bch2_move_data(struct moving_context *ctxt,
 			    struct bpos start,
 			    struct bpos end,
@@ -452,23 +483,9 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		if (btree_id == BTREE_ID_extents &&
-		    cur_inum != k.k->p.inode) {
-			struct bch_inode_unpacked inode;
-
-			io_opts = bch2_opts_to_inode_opts(c->opts);
-
-			ret = lookup_inode(&trans,
-					SPOS(0, k.k->p.inode, k.k->p.snapshot),
-					&inode);
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				continue;
-
-			if (!ret)
-				bch2_inode_opts_get(&io_opts, c, &inode);
-
-			cur_inum = k.k->p.inode;
-		}
+		ret = move_get_io_opts(&trans, &io_opts, k, &cur_inum);
+		if (ret)
+			continue;
 
 		memset(&data_opts, 0, sizeof(data_opts));
 		if (!pred(c, arg, k, &io_opts, &data_opts))
@@ -544,6 +561,246 @@ int bch2_move_data(struct bch_fs *c,
 			break;
 	}
 
+	bch2_moving_ctxt_exit(&ctxt);
+
+	return ret;
+}
+
+static int verify_bucket_evacuated(struct btree_trans *trans, struct bpos bucket, int gen)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct printbuf buf = PRINTBUF;
+	struct bch_backpointer bp;
+	u64 bp_offset = 0;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
+			     bucket, BTREE_ITER_CACHED);
+again:
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+
+	if (!ret && k.k->type == KEY_TYPE_alloc_v4) {
+		struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
+
+		if (a.v->gen == gen &&
+		    a.v->dirty_sectors) {
+			if (a.v->data_type == BCH_DATA_btree) {
+				bch2_trans_unlock(trans);
+				if (bch2_btree_interior_updates_flush(c))
+					goto again;
+				goto failed_to_evacuate;
+			}
+		}
+	}
+
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+failed_to_evacuate:
+	bch2_trans_iter_exit(trans, &iter);
+
+	prt_printf(&buf, bch2_log_msg(c, "failed to evacuate bucket "));
+	bch2_bkey_val_to_text(&buf, c, k);
+
+	while (1) {
+		bch2_trans_begin(trans);
+
+		ret = bch2_get_next_backpointer(trans, bucket, gen,
+						&bp_offset, &bp);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			break;
+		if (bp_offset == U64_MAX)
+			break;
+
+		k = bch2_backpointer_get_key(trans, &iter,
+					     bucket, bp_offset, bp);
+		ret = bkey_err(k);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			break;
+		if (!k.k)
+			continue;
+		prt_newline(&buf);
+		bch2_bkey_val_to_text(&buf, c, k);
+		bch2_trans_iter_exit(trans, &iter);
+	}
+
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+	return 0;
+}
+
+int __bch2_evacuate_bucket(struct moving_context *ctxt,
+			   struct bpos bucket, int gen,
+			   struct data_update_opts _data_opts)
+{
+	struct bch_fs *c = ctxt->c;
+	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_buf sk;
+	struct bch_backpointer bp;
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a;
+	struct bkey_s_c k;
+	struct data_update_opts data_opts;
+	unsigned dirty_sectors, bucket_size;
+	u64 bp_offset = 0, cur_inum = U64_MAX;
+	int ret = 0;
+
+	bch2_bkey_buf_init(&sk);
+	bch2_trans_init(&trans, c, 0, 0);
+
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_alloc,
+			     bucket, BTREE_ITER_CACHED);
+	ret = lockrestart_do(&trans,
+			bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+	bch2_trans_iter_exit(&trans, &iter);
+
+	if (ret) {
+		bch_err(c, "%s: error looking up alloc key: %s", __func__, bch2_err_str(ret));
+		goto err;
+	}
+
+	a = bch2_alloc_to_v4(k, &a_convert);
+	dirty_sectors = a->dirty_sectors;
+	bucket_size = bch_dev_bkey_exists(c, bucket.inode)->mi.bucket_size;
+
+	ret = bch2_btree_write_buffer_flush(&trans);
+	if (ret) {
+		bch_err(c, "%s: error flushing btree write buffer: %s", __func__, bch2_err_str(ret));
+		goto err;
+	}
+
+	while (!(ret = move_ratelimit(&trans, ctxt))) {
+		bch2_trans_begin(&trans);
+
+		ret = bch2_get_next_backpointer(&trans, bucket, gen,
+						&bp_offset, &bp);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			goto err;
+		if (bp_offset == U64_MAX)
+			break;
+
+		if (!bp.level) {
+			const struct bch_extent_ptr *ptr;
+			struct bkey_s_c k;
+			unsigned i = 0;
+
+			k = bch2_backpointer_get_key(&trans, &iter,
+						bucket, bp_offset, bp);
+			ret = bkey_err(k);
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret)
+				goto err;
+			if (!k.k)
+				goto next;
+
+			bch2_bkey_buf_reassemble(&sk, c, k);
+			k = bkey_i_to_s_c(sk.k);
+
+			ret = move_get_io_opts(&trans, &io_opts, k, &cur_inum);
+			if (ret) {
+				bch2_trans_iter_exit(&trans, &iter);
+				continue;
+			}
+
+			data_opts = _data_opts;
+			data_opts.target	= io_opts.background_target;
+			data_opts.rewrite_ptrs = 0;
+
+			bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
+				if (ptr->dev == bucket.inode)
+					data_opts.rewrite_ptrs |= 1U << i;
+				i++;
+			}
+
+			ret = bch2_move_extent(&trans, &iter, ctxt, io_opts,
+					       bp.btree_id, k, data_opts);
+			bch2_trans_iter_exit(&trans, &iter);
+
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret == -ENOMEM) {
+				/* memory allocation failure, wait for some IO to finish */
+				bch2_move_ctxt_wait_for_io(ctxt, &trans);
+				continue;
+			}
+			if (ret)
+				goto err;
+
+			if (ctxt->rate)
+				bch2_ratelimit_increment(ctxt->rate, k.k->size);
+			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
+		} else {
+			struct btree *b;
+
+			b = bch2_backpointer_get_node(&trans, &iter,
+						bucket, bp_offset, bp);
+			ret = PTR_ERR_OR_ZERO(b);
+			if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
+				continue;
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret)
+				goto err;
+			if (!b)
+				goto next;
+
+			ret = bch2_btree_node_rewrite(&trans, &iter, b, 0);
+			bch2_trans_iter_exit(&trans, &iter);
+
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret)
+				goto err;
+
+			if (ctxt->rate)
+				bch2_ratelimit_increment(ctxt->rate,
+							 c->opts.btree_node_size >> 9);
+			atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_seen);
+			atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_moved);
+		}
+next:
+		bp_offset++;
+	}
+
+	trace_evacuate_bucket(c, &bucket, dirty_sectors, bucket_size, ret);
+
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) && gen >= 0) {
+		bch2_trans_unlock(&trans);
+		move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
+		closure_sync(&ctxt->cl);
+		if (!ctxt->write_error)
+			lockrestart_do(&trans, verify_bucket_evacuated(&trans, bucket, gen));
+	}
+err:
+	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&sk, c);
+	return ret;
+}
+
+int bch2_evacuate_bucket(struct bch_fs *c,
+			 struct bpos bucket, int gen,
+			 struct data_update_opts data_opts,
+			 struct bch_ratelimit *rate,
+			 struct bch_move_stats *stats,
+			 struct write_point_specifier wp,
+			 bool wait_on_copygc)
+{
+	struct moving_context ctxt;
+	int ret;
+
+	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
+	ret = __bch2_evacuate_bucket(&ctxt, bucket, gen, data_opts);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return ret;

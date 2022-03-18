@@ -15,6 +15,7 @@ struct moving_context {
 	struct bch_move_stats	*stats;
 	struct write_point_specifier wp;
 	bool			wait_on_copygc;
+	bool			write_error;
 
 	/* For waiting on outstanding reads and writes: */
 	struct closure		cl;
@@ -46,6 +47,15 @@ int bch2_move_data(struct bch_fs *,
 		   bool,
 		   move_pred_fn, void *);
 
+int __bch2_evacuate_bucket(struct moving_context *,
+			   struct bpos, int,
+			   struct data_update_opts);
+int bch2_evacuate_bucket(struct bch_fs *, struct bpos, int,
+			 struct data_update_opts,
+			 struct bch_ratelimit *,
+			 struct bch_move_stats *,
+			 struct write_point_specifier,
+			 bool);
 int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
 		  struct bch_ioctl_data);
