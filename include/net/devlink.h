@@ -1490,6 +1490,10 @@ int devl_port_register(struct devlink *devlink,
 		       unsigned int port_index);
 void devl_port_unregister(struct devlink_port *devlink_port);
 
+int devl_rate_leaf_create(struct devlink_port *port, void *priv);
+void devl_rate_leaf_destroy(struct devlink_port *devlink_port);
+void devl_rate_nodes_destroy(struct devlink *devlink);
+
 struct ib_device;
 
 struct net *devlink_net(const struct devlink *devlink);

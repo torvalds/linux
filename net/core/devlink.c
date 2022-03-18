@@ -2868,7 +2868,7 @@ static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 {
 	struct devlink_rate *devlink_rate;
 
-	/* Take the lock to sync with devlink_rate_nodes_destroy() */
+	/* Take the lock to sync with destroy */
 	mutex_lock(&devlink->lock);
 	list_for_each_entry(devlink_rate, &devlink->rate_list, list)
 		if (devlink_rate_is_node(devlink_rate)) {
@@ -9548,30 +9548,26 @@ void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 contro
 EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_sf_set);
 
 /**
- * devlink_rate_leaf_create - create devlink rate leaf
- *
+ * devl_rate_leaf_create - create devlink rate leaf
  * @devlink_port: devlink port object to create rate object on
  * @priv: driver private data
  *
  * Create devlink rate object of type leaf on provided @devlink_port.
- * Throws call trace if @devlink_port already has a devlink rate object.
- *
- * Context: Takes and release devlink->lock <mutex>.
- *
- * Return: -ENOMEM if failed to allocate rate object, 0 otherwise.
  */
-int
-devlink_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
+int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
 {
 	struct devlink *devlink = devlink_port->devlink;
 	struct devlink_rate *devlink_rate;
+
+	devl_assert_locked(devlink_port->devlink);
+
+	if (WARN_ON(devlink_port->devlink_rate))
+		return -EBUSY;
 
 	devlink_rate = kzalloc(sizeof(*devlink_rate), GFP_KERNEL);
 	if (!devlink_rate)
 		return -ENOMEM;
 
-	mutex_lock(&devlink->lock);
-	WARN_ON(devlink_port->devlink_rate);
 	devlink_rate->type = DEVLINK_RATE_TYPE_LEAF;
 	devlink_rate->devlink = devlink;
 	devlink_rate->devlink_port = devlink_port;
@@ -9579,11 +9575,41 @@ devlink_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
 	list_add_tail(&devlink_rate->list, &devlink->rate_list);
 	devlink_port->devlink_rate = devlink_rate;
 	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_NEW);
-	mutex_unlock(&devlink->lock);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(devl_rate_leaf_create);
+
+int
+devlink_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
+{
+	struct devlink *devlink = devlink_port->devlink;
+	int ret;
+
+	mutex_lock(&devlink->lock);
+	ret = devl_rate_leaf_create(devlink_port, priv);
+	mutex_unlock(&devlink->lock);
+
+	return ret;
+}
 EXPORT_SYMBOL_GPL(devlink_rate_leaf_create);
+
+void devl_rate_leaf_destroy(struct devlink_port *devlink_port)
+{
+	struct devlink_rate *devlink_rate = devlink_port->devlink_rate;
+
+	devl_assert_locked(devlink_port->devlink);
+	if (!devlink_rate)
+		return;
+
+	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_DEL);
+	if (devlink_rate->parent)
+		refcount_dec(&devlink_rate->parent->refcnt);
+	list_del(&devlink_rate->list);
+	devlink_port->devlink_rate = NULL;
+	kfree(devlink_rate);
+}
+EXPORT_SYMBOL_GPL(devl_rate_leaf_destroy);
 
 /**
  * devlink_rate_leaf_destroy - destroy devlink rate leaf
@@ -9601,32 +9627,25 @@ void devlink_rate_leaf_destroy(struct devlink_port *devlink_port)
 		return;
 
 	mutex_lock(&devlink->lock);
-	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_DEL);
-	if (devlink_rate->parent)
-		refcount_dec(&devlink_rate->parent->refcnt);
-	list_del(&devlink_rate->list);
-	devlink_port->devlink_rate = NULL;
+	devl_rate_leaf_destroy(devlink_port);
 	mutex_unlock(&devlink->lock);
-	kfree(devlink_rate);
 }
 EXPORT_SYMBOL_GPL(devlink_rate_leaf_destroy);
 
 /**
- * devlink_rate_nodes_destroy - destroy all devlink rate nodes on device
- *
+ * devl_rate_nodes_destroy - destroy all devlink rate nodes on device
  * @devlink: devlink instance
  *
  * Unset parent for all rate objects and destroy all rate nodes
  * on specified device.
- *
- * Context: Takes and release devlink->lock <mutex>.
  */
-void devlink_rate_nodes_destroy(struct devlink *devlink)
+void devl_rate_nodes_destroy(struct devlink *devlink)
 {
 	static struct devlink_rate *devlink_rate, *tmp;
 	const struct devlink_ops *ops = devlink->ops;
 
-	mutex_lock(&devlink->lock);
+	devl_assert_locked(devlink);
+
 	list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
 		if (!devlink_rate->parent)
 			continue;
@@ -9647,6 +9666,23 @@ void devlink_rate_nodes_destroy(struct devlink *devlink)
 			kfree(devlink_rate);
 		}
 	}
+}
+EXPORT_SYMBOL_GPL(devl_rate_nodes_destroy);
+
+/**
+ * devlink_rate_nodes_destroy - destroy all devlink rate nodes on device
+ *
+ * @devlink: devlink instance
+ *
+ * Unset parent for all rate objects and destroy all rate nodes
+ * on specified device.
+ *
+ * Context: Takes and release devlink->lock <mutex>.
+ */
+void devlink_rate_nodes_destroy(struct devlink *devlink)
+{
+	mutex_lock(&devlink->lock);
+	devl_rate_nodes_destroy(devlink);
 	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_rate_nodes_destroy);
