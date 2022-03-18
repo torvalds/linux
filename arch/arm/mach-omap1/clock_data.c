@@ -811,7 +811,7 @@ int __init omap1_clk_init(void)
 		omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
 		omap_readw(ARM_CKCTL));
 
-	/* We want to be in syncronous scalable mode */
+	/* We want to be in synchronous scalable mode */
 	omap_writew(0x1000, ARM_SYSST);
 
 
