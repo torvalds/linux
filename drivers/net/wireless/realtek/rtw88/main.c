@@ -280,7 +280,8 @@ static void rtw_ips_work(struct work_struct *work)
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev, ips_work);
 
 	mutex_lock(&rtwdev->mutex);
-	rtw_enter_ips(rtwdev);
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE)
+		rtw_enter_ips(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -1353,7 +1354,7 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 
 	rtw_leave_lps(rtwdev);
 
-	if (hw_scan && rtwvif->net_type == RTW_NET_NO_LINK) {
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		ret = rtw_leave_ips(rtwdev);
 		if (ret) {
 			rtw_err(rtwdev, "failed to leave idle state\n");
@@ -1389,7 +1390,7 @@ void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
 
-	if (rtwvif->net_type == RTW_NET_NO_LINK && hw_scan)
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
 }
 
