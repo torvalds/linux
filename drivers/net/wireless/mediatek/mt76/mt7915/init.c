@@ -312,6 +312,7 @@ mt7915_regd_notifier(struct wiphy *wiphy,
 
 	mt7915_init_txpower(dev, &mphy->sband_2g.sband);
 	mt7915_init_txpower(dev, &mphy->sband_5g.sband);
+	mt7915_init_txpower(dev, &mphy->sband_6g.sband);
 
 	mphy->dfs_state = MT_DFS_STATE_UNKNOWN;
 	mt7915_dfs_init_radar_detector(phy);
@@ -342,6 +343,7 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	wiphy->reg_notifier = mt7915_regd_notifier;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->mbssid_max_interfaces = 16;
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BSS_COLOR);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
@@ -359,6 +361,7 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
+	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->max_tx_fragments = 4;
@@ -558,6 +561,7 @@ static void mt7915_init_work(struct work_struct *work)
 	mt7915_mac_init(dev);
 	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
 	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
+	mt7915_init_txpower(dev, &dev->mphy.sband_6g.sband);
 	mt7915_txbf_init(dev);
 }
 
@@ -579,7 +583,7 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 		val &= ~MT_TOP_PWR_SW_RST;
 		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
-		/* release wfsys then mcu re-excutes romcode */
+		/* release wfsys then mcu re-executes romcode */
 		val |= MT_TOP_PWR_SW_RST;
 		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
@@ -724,11 +728,18 @@ void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
 }
 
 static void
-mt7915_set_stream_he_txbf_caps(struct ieee80211_sta_he_cap *he_cap,
+mt7915_set_stream_he_txbf_caps(struct mt7915_dev *dev,
+			       struct ieee80211_sta_he_cap *he_cap,
 			       int vif, int nss)
 {
 	struct ieee80211_he_cap_elem *elem = &he_cap->he_cap_elem;
-	u8 c;
+	u8 c, nss_160;
+
+	/* Can do 1/2 of NSS streams in 160Mhz mode for mt7915 */
+	if (is_mt7915(&dev->mt76) && !dev->dbdc_support)
+		nss_160 = nss / 2;
+	else
+		nss_160 = nss;
 
 #ifdef CONFIG_MAC80211_MESH
 	if (vif == NL80211_IFTYPE_MESH_POINT)
@@ -782,13 +793,21 @@ mt7915_set_stream_he_txbf_caps(struct ieee80211_sta_he_cap *he_cap,
 	/* num_snd_dim
 	 * for mt7915, max supported nss is 2 for bw > 80MHz
 	 */
-	c = (nss - 1) |
-	    IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2;
+	c = FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK,
+		       nss - 1) |
+	    FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK,
+		       nss_160 - 1);
 	elem->phy_cap_info[5] |= c;
 
 	c = IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB |
 	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMING_PARTIAL_BW_FB;
 	elem->phy_cap_info[6] |= c;
+
+	if (!is_mt7915(&dev->mt76)) {
+		c = IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ |
+		    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
+		elem->phy_cap_info[7] |= c;
+	}
 }
 
 static void
@@ -872,7 +891,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
-		else if (band == NL80211_BAND_5GHZ)
+		else
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
@@ -911,7 +930,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 			if (band == NL80211_BAND_2GHZ)
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
-			else if (band == NL80211_BAND_5GHZ)
+			else
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
 
@@ -950,7 +969,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		he_mcs->rx_mcs_80p80 = cpu_to_le16(mcs_map_160);
 		he_mcs->tx_mcs_80p80 = cpu_to_le16(mcs_map_160);
 
-		mt7915_set_stream_he_txbf_caps(he_cap, i, nss);
+		mt7915_set_stream_he_txbf_caps(dev, he_cap, i, nss);
 
 		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
 		if (he_cap_elem->phy_cap_info[6] &
@@ -961,6 +980,21 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 				u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
 					       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
 		}
+
+		if (band == NL80211_BAND_6GHZ) {
+			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
+				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+
+			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_8,
+					       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
+			       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
+					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
+			       u16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+					       IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+
+			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
+		}
+
 		idx++;
 	}
 
@@ -987,6 +1021,15 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 		n = mt7915_init_he_caps(phy, NL80211_BAND_5GHZ, data);
 
 		band = &phy->mt76->sband_5g.sband;
+		band->iftype_data = data;
+		band->n_iftype_data = n;
+	}
+
+	if (phy->mt76->cap.has_6ghz) {
+		data = phy->iftype[NL80211_BAND_6GHZ];
+		n = mt7915_init_he_caps(phy, NL80211_BAND_6GHZ, data);
+
+		band = &phy->mt76->sband_6g.sband;
 		band->iftype_data = data;
 		band->n_iftype_data = n;
 	}

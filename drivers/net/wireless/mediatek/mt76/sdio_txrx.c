@@ -118,7 +118,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 		__le32 *rxd = (__le32 *)buf;
 
 		/* parse rxd to get the actual packet length */
-		len = FIELD_GET(GENMASK(15, 0), le32_to_cpu(rxd[0]));
+		len = le32_get_bits(rxd[0], GENMASK(15, 0));
 		e->skb = mt76s_build_rx_skb(buf, len, round_up(len + 4, 4));
 		if (!e->skb)
 			break;

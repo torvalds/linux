@@ -202,6 +202,7 @@ enum tx_mcu_port_q_idx {
 #define MT_SDIO_TXD_SIZE		(MT_TXD_SIZE + 8 * 4)
 #define MT_SDIO_TAIL_SIZE		8
 #define MT_SDIO_HDR_SIZE		4
+#define MT_USB_TAIL_SIZE		4
 
 #define MT_TXD0_Q_IDX			GENMASK(31, 25)
 #define MT_TXD0_PKT_FMT			GENMASK(24, 23)

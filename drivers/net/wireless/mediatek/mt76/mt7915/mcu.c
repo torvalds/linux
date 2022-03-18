@@ -821,8 +821,9 @@ mt7915_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 	     IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G))
 		cap |= STA_REC_HE_CAP_BW20_RU242_SUPPORT;
 
-	if (mvif->cap.ldpc && (elem->phy_cap_info[1] &
-			       IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+	if (mvif->cap.he_ldpc &&
+	    (elem->phy_cap_info[1] &
+	     IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
 		cap |= STA_REC_HE_CAP_LDPC;
 
 	if (elem->phy_cap_info[1] &
@@ -986,6 +987,9 @@ mt7915_mcu_sta_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 	struct sta_rec_ht *ht;
 	struct tlv *tlv;
 
+	if (!sta->ht_cap.ht_supported)
+		return;
+
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_HT, sizeof(*ht));
 
 	ht = (struct sta_rec_ht *)tlv;
@@ -1073,7 +1077,8 @@ mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, vif, wcid, tlv, wtbl_hdr);
 	if (sta)
 		mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, skb, sta, tlv,
-					    wtbl_hdr, mvif->cap.ldpc);
+					    wtbl_hdr, mvif->cap.ht_ldpc,
+					    mvif->cap.vht_ldpc);
 
 	return 0;
 }
@@ -1265,6 +1270,9 @@ mt7915_mcu_sta_bfer_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	};
 	bool ebf;
 
+	if (!(sta->ht_cap.ht_supported || sta->he_cap.has_he))
+		return;
+
 	ebf = mt7915_is_ebf_supported(phy, vif, sta, false);
 	if (!ebf && !dev->ibf)
 		return;
@@ -1324,6 +1332,9 @@ mt7915_mcu_sta_bfee_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	struct sta_rec_bfee *bfee;
 	struct tlv *tlv;
 	u8 nrow = 0;
+
+	if (!(sta->vht_cap.vht_supported || sta->he_cap.has_he))
+		return;
 
 	if (!mt7915_is_ebf_supported(phy, vif, sta, true))
 		return;
@@ -1582,7 +1593,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 			cap |= STA_CAP_TX_STBC;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			cap |= STA_CAP_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.ht_ldpc &&
 		    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 			cap |= STA_CAP_LDPC;
 
@@ -1608,7 +1619,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 			cap |= STA_CAP_VHT_TX_STBC;
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_1)
 			cap |= STA_CAP_VHT_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.vht_ldpc &&
 		    (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC))
 			cap |= STA_CAP_VHT_LDPC;
 
@@ -1619,6 +1630,10 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 	if (sta->he_cap.has_he) {
 		ra->supp_mode |= MODE_HE;
 		cap |= STA_CAP_HE;
+
+		if (sta->he_6ghz_capa.capa)
+			ra->af = le16_get_bits(sta->he_6ghz_capa.capa,
+					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
 	}
 
 	ra->sta_cap = cpu_to_le32(cap);
@@ -1641,7 +1656,7 @@ int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	 * once dev->rc_work changes the settings driver should also
 	 * update sta_rec_he here.
 	 */
-	if (sta->he_cap.has_he && changed)
+	if (changed)
 		mt7915_mcu_sta_he_tlv(skb, sta, vif);
 
 	/* sta_rec_ra accommodates BW, NSS and only MCS range format
@@ -1710,7 +1725,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		goto out;
 
 	/* tag order is in accordance with firmware dependency. */
-	if (sta && sta->ht_cap.ht_supported) {
+	if (sta) {
 		/* starec bfer */
 		mt7915_mcu_sta_bfer_tlv(dev, skb, vif, sta);
 		/* starec ht */
@@ -1727,7 +1742,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		return ret;
 	}
 
-	if (sta && sta->ht_cap.ht_supported) {
+	if (sta) {
 		/* starec amsdu */
 		mt7915_mcu_sta_amsdu_tlv(dev, skb, vif, sta);
 		/* starec he */
@@ -1811,6 +1826,55 @@ mt7915_mcu_beacon_cntdwn(struct ieee80211_vif *vif, struct sk_buff *rskb,
 }
 
 static void
+mt7915_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
+		       struct ieee80211_vif *vif, struct bss_info_bcn *bcn,
+		       struct ieee80211_mutable_offsets *offs)
+{
+	struct bss_info_bcn_mbss *mbss;
+	const struct element *elem;
+	struct tlv *tlv;
+
+	if (!vif->bss_conf.bssid_indicator)
+		return;
+
+	tlv = mt7915_mcu_add_nested_subtlv(rskb, BSS_INFO_BCN_MBSSID,
+					   sizeof(*mbss), &bcn->sub_ntlv,
+					   &bcn->len);
+
+	mbss = (struct bss_info_bcn_mbss *)tlv;
+	mbss->offset[0] = cpu_to_le16(offs->tim_offset);
+	mbss->bitmap = cpu_to_le32(1);
+
+	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID,
+			    &skb->data[offs->mbssid_off],
+			    skb->len - offs->mbssid_off) {
+		const struct element *sub_elem;
+
+		if (elem->datalen < 2)
+			continue;
+
+		for_each_element(sub_elem, elem->data + 1, elem->datalen - 1) {
+			const u8 *data;
+
+			if (sub_elem->id || sub_elem->datalen < 4)
+				continue; /* not a valid BSS profile */
+
+			/* Find WLAN_EID_MULTI_BSSID_IDX
+			 * in the merged nontransmitted profile
+			 */
+			data = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
+						sub_elem->data,
+						sub_elem->datalen);
+			if (!data || data[1] < 1 || !data[2])
+				continue;
+
+			mbss->offset[data[2]] = cpu_to_le16(data - skb->data);
+			mbss->bitmap |= cpu_to_le32(BIT(data[2]));
+		}
+	}
+}
+
+static void
 mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		       struct sk_buff *rskb, struct sk_buff *skb,
 		       struct bss_info_bcn *bcn,
@@ -1872,8 +1936,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			      len);
 	if (ie && ie[1] >= sizeof(*ht)) {
 		ht = (void *)(ie + 2);
-		vc->ldpc |= !!(le16_to_cpu(ht->cap_info) &
-			       IEEE80211_HT_CAP_LDPC_CODING);
+		vc->ht_ldpc = !!(le16_to_cpu(ht->cap_info) &
+				 IEEE80211_HT_CAP_LDPC_CODING);
 	}
 
 	ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, mgmt->u.beacon.variable,
@@ -1884,7 +1948,7 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		vht = (void *)(ie + 2);
 		bc = le32_to_cpu(vht->vht_cap_info);
 
-		vc->ldpc |= !!(bc & IEEE80211_VHT_CAP_RXLDPC);
+		vc->vht_ldpc = !!(bc & IEEE80211_VHT_CAP_RXLDPC);
 		vc->vht_su_ebfer =
 			(bc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) &&
 			(pc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
@@ -1908,6 +1972,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 
 		he = (void *)(ie + 3);
 
+		vc->he_ldpc =
+			HE_PHY(CAP1_LDPC_CODING_IN_PAYLOAD, pe->phy_cap_info[1]);
 		vc->he_su_ebfer =
 			HE_PHY(CAP3_SU_BEAMFORMER, he->phy_cap_info[3]) &&
 			HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]);
@@ -1934,6 +2000,9 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
 	struct bss_info_bcn *bcn;
 	int len = MT7915_BEACON_UPDATE_SIZE + MAX_BEACON_SIZE;
 	bool ext_phy = phy != &dev->phy;
+
+	if (vif->bss_conf.nontransmitted)
+		return 0;
 
 	rskb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
 					       NULL, len);
@@ -1964,8 +2033,8 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
 
 	mt7915_mcu_beacon_check_caps(phy, vif, skb);
 
-	/* TODO: subtag - 11v MBSSID */
 	mt7915_mcu_beacon_cntdwn(vif, rskb, skb, bcn, &offs);
+	mt7915_mcu_beacon_mbss(rskb, skb, vif, bcn, &offs);
 	mt7915_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
 	dev_kfree_skb(skb);
 
@@ -2768,6 +2837,11 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 
 int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 {
+	static const u8 ch_band[] = {
+		[NL80211_BAND_2GHZ] = 0,
+		[NL80211_BAND_5GHZ] = 1,
+		[NL80211_BAND_6GHZ] = 2,
+	};
 	struct mt7915_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1;
@@ -2795,7 +2869,7 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
 		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy->band_idx,
-		.channel_band = chandef->chan->band,
+		.channel_band = ch_band[chandef->chan->band],
 	};
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -2811,7 +2885,8 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 	}
 #endif
 
-	if (cmd == MCU_EXT_CMD(SET_RX_PATH))
+	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
+	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
 		req.switch_reason = CH_SWITCH_NORMAL;
 	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
@@ -3457,6 +3532,8 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 	case MT_PHY_TYPE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 

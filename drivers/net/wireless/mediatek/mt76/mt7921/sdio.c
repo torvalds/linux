@@ -41,6 +41,7 @@ static void mt7921s_unregister_device(struct mt7921_dev *dev)
 {
 	struct mt76_connac_pm *pm = &dev->pm;
 
+	cancel_work_sync(&dev->init_work);
 	mt76_unregister_device(&dev->mt76);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
@@ -91,9 +92,9 @@ static int mt7921s_probe(struct sdio_func *func,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
-		.tx_prepare_skb = mt7921s_tx_prepare_skb,
-		.tx_complete_skb = mt7921s_tx_complete_skb,
-		.tx_status_data = mt7921s_tx_status_data,
+		.tx_prepare_skb = mt7921_usb_sdio_tx_prepare_skb,
+		.tx_complete_skb = mt7921_usb_sdio_tx_complete_skb,
+		.tx_status_data = mt7921_usb_sdio_tx_status_data,
 		.rx_skb = mt7921_queue_rx_skb,
 		.sta_ps = mt7921_sta_ps,
 		.sta_add = mt7921_mac_sta_add,

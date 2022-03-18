@@ -5,7 +5,7 @@
 #include "../dma.h"
 #include "mac.h"
 
-int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc)
+static int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc)
 {
 	int i, err;
 

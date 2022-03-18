@@ -880,7 +880,7 @@ mt7615_mcu_wtbl_sta_add(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 						 NULL, wtbl_hdr);
 		if (sta)
 			mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, wskb, sta,
-						    NULL, wtbl_hdr, true);
+						    NULL, wtbl_hdr, true, true);
 		mt76_connac_mcu_wtbl_hdr_trans_tlv(wskb, vif, &msta->wcid,
 						   NULL, wtbl_hdr);
 	}
@@ -2151,7 +2151,8 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
 
-	if (cmd == MCU_EXT_CMD(SET_RX_PATH))
+	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
+	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
 		req.switch_reason = CH_SWITCH_NORMAL;
 	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;

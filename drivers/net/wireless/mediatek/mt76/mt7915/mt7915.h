@@ -138,7 +138,9 @@ struct mt7915_sta {
 };
 
 struct mt7915_vif_cap {
-	bool ldpc:1;
+	bool ht_ldpc:1;
+	bool vht_ldpc:1;
+	bool he_ldpc:1;
 	bool vht_su_ebfer:1;
 	bool vht_su_ebfee:1;
 	bool vht_mu_ebfer:1;
@@ -225,7 +227,7 @@ struct mt7915_phy {
 	struct mt76_phy *mt76;
 	struct mt7915_dev *dev;
 
-	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
+	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
 	struct ieee80211_vif *monitor_vif;
 

@@ -402,6 +402,10 @@ static const struct rtw89_page_regs rtw8852a_page_regs = {
 	.wp_page_info1	= R_AX_WP_PAGE_INFO1,
 };
 
+static const struct rtw89_reg_def rtw8852a_dcfo_comp = {
+	R_DCFO_COMP_S0, B_DCFO_COMP_S0_MSK
+};
+
 static void rtw8852ae_efuse_parsing(struct rtw89_efuse *efuse,
 				    struct rtw8852a_efuse *map)
 {
@@ -1163,7 +1167,7 @@ static void rtw8852a_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	u8 phy_idx = RTW89_PHY_0;
 
 	if (enter) {
-		rtw89_mac_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
+		rtw89_chip_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
 		rtw8852a_dfs_en(rtwdev, false);
 		rtw8852a_tssi_cont_en_phyidx(rtwdev, false, RTW89_PHY_0);
@@ -1176,7 +1180,7 @@ static void rtw8852a_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 		rtw8852a_dfs_en(rtwdev, true);
 		rtw8852a_tssi_cont_en_phyidx(rtwdev, true, RTW89_PHY_0);
 		rtw8852a_bb_reset_en(rtwdev, phy_idx, true);
-		rtw89_mac_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
+		rtw89_chip_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
 	}
 }
 
@@ -1271,10 +1275,10 @@ static u32 rtw8852a_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 
 static
 void rtw8852a_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
-				     s16 pw_ofst, enum rtw89_mac_idx mac_idx)
+				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
 {
-	s32 val_1t = 0;
-	s32 val_2t = 0;
+	s8 val_1t = 0;
+	s8 val_2t = 0;
 	u32 reg;
 
 	if (pw_ofst < -16 || pw_ofst > 15) {
@@ -1284,7 +1288,7 @@ void rtw8852a_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	}
 	reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_CTRL, mac_idx);
 	rtw89_write32_set(rtwdev, reg, B_AX_PWR_UL_TB_CTRL_EN);
-	val_1t = (s32)pw_ofst;
+	val_1t = pw_ofst;
 	reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_1T, mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_1T_MASK, val_1t);
 	val_2t = max(val_1t - 3, -16);
@@ -2015,6 +2019,10 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= NULL,
 	.pwr_off_func		= NULL,
+	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path,
+	.mac_cfg_gnt		= rtw89_mac_cfg_gnt,
+	.stop_sch_tx		= rtw89_mac_stop_sch_tx,
+	.resume_sch_tx		= rtw89_mac_resume_sch_tx,
 
 	.btc_set_rfe		= rtw8852a_btc_set_rfe,
 	.btc_init_cfg		= rtw8852a_btc_init_cfg,
@@ -2091,6 +2099,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
 	.c2h_regs		= rtw8852a_c2h_regs,
 	.page_regs		= &rtw8852a_page_regs,
+	.dcfo_comp		= &rtw8852a_dcfo_comp,
+	.dcfo_comp_sft		= 3,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 

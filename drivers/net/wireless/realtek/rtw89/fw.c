@@ -1964,7 +1964,7 @@ static int rtw89_append_probe_req_ie(struct rtw89_dev *rtwdev,
 	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
 	struct rtw89_pktofld_info *info;
 	struct sk_buff *new;
-	int ret;
+	int ret = 0;
 	u8 band;
 
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {

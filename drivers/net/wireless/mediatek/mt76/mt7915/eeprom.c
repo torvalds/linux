@@ -135,9 +135,24 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 
 	val = eeprom[MT_EE_WIFI_CONF + phy->band_idx];
 	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
-	if (val == MT_EE_BAND_SEL_DEFAULT &&
-	    (!is_mt7915(&dev->mt76) || dev->dbdc_support))
-		val = phy->band_idx ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+
+	if (!is_mt7915(&dev->mt76)) {
+		switch (val) {
+		case MT_EE_V2_BAND_SEL_5GHZ:
+			phy->mt76->cap.has_5ghz = true;
+			return;
+		case MT_EE_V2_BAND_SEL_6GHZ:
+			phy->mt76->cap.has_6ghz = true;
+			return;
+		case MT_EE_V2_BAND_SEL_5GHZ_6GHZ:
+			phy->mt76->cap.has_5ghz = true;
+			phy->mt76->cap.has_6ghz = true;
+			return;
+		default:
+			phy->mt76->cap.has_2ghz = true;
+			return;
+		}
+	}
 
 	switch (val) {
 	case MT_EE_BAND_SEL_5GHZ:
@@ -248,32 +263,43 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
 	int index, target_power;
-	bool tssi_on;
+	bool tssi_on, is_7976;
 
 	if (chain_idx > 3)
 		return -EINVAL;
 
 	tssi_on = mt7915_tssi_enabled(dev, chan->band);
+	is_7976 = mt7915_check_adie(dev, false) || is_mt7916(&dev->mt76);
 
 	if (chan->band == NL80211_BAND_2GHZ) {
-		u32 power = is_mt7915(&dev->mt76) ?
-			    MT_EE_TX0_POWER_2G : MT_EE_TX0_POWER_2G_V2;
+		if (is_7976) {
+			index = MT_EE_TX0_POWER_2G_V2 + chain_idx;
+			target_power = eeprom[index];
+		} else {
+			index = MT_EE_TX0_POWER_2G + chain_idx * 3;
+			target_power = eeprom[index];
 
-		index = power + chain_idx * 3;
-		target_power = eeprom[index];
+			if (!tssi_on)
+				target_power += eeprom[index + 1];
+		}
+	} else if (chan->band == NL80211_BAND_5GHZ) {
+		int group = mt7915_get_channel_group_5g(chan->hw_value, is_7976);
 
-		if (!tssi_on)
-			target_power += eeprom[index + 1];
+		if (is_7976) {
+			index = MT_EE_TX0_POWER_5G_V2 + chain_idx * 5;
+			target_power = eeprom[index + group];
+		} else {
+			index = MT_EE_TX0_POWER_5G + chain_idx * 12;
+			target_power = eeprom[index + group];
+
+			if (!tssi_on)
+				target_power += eeprom[index + 8];
+		}
 	} else {
-		int group = mt7915_get_channel_group(chan->hw_value);
-		u32 power = is_mt7915(&dev->mt76) ?
-			    MT_EE_TX0_POWER_5G : MT_EE_TX0_POWER_5G_V2;
+		int group = mt7915_get_channel_group_6g(chan->hw_value);
 
-		index = power + chain_idx * 12;
-		target_power = eeprom[index + group];
-
-		if (!tssi_on)
-			target_power += eeprom[index + 8];
+		index = MT_EE_TX0_POWER_6G_V2 + chain_idx * 8;
+		target_power = is_7976 ? eeprom[index + group] : 0;
 	}
 
 	return target_power;
@@ -282,22 +308,20 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
-	u32 val;
+	u32 val, offs;
 	s8 delta;
-	u32 rate_2g, rate_5g;
-
-	rate_2g = is_mt7915(&dev->mt76) ?
-		  MT_EE_RATE_DELTA_2G : MT_EE_RATE_DELTA_2G_V2;
-
-	rate_5g = is_mt7915(&dev->mt76) ?
-		  MT_EE_RATE_DELTA_5G : MT_EE_RATE_DELTA_5G_V2;
+	bool is_7976 = mt7915_check_adie(dev, false) || is_mt7916(&dev->mt76);
 
 	if (band == NL80211_BAND_2GHZ)
-		val = eeprom[rate_2g];
+		offs = is_7976 ? MT_EE_RATE_DELTA_2G_V2 : MT_EE_RATE_DELTA_2G;
+	else if (band == NL80211_BAND_5GHZ)
+		offs = is_7976 ? MT_EE_RATE_DELTA_5G_V2 : MT_EE_RATE_DELTA_5G;
 	else
-		val = eeprom[rate_5g];
+		offs = is_7976 ? MT_EE_RATE_DELTA_6G_V2 : 0;
 
-	if (!(val & MT_EE_RATE_DELTA_EN))
+	val = eeprom[offs];
+
+	if (!offs || !(val & MT_EE_RATE_DELTA_EN))
 		return 0;
 
 	delta = FIELD_GET(MT_EE_RATE_DELTA_MASK, val);

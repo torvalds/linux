@@ -609,7 +609,7 @@ struct rtw89_channel_params {
 };
 
 struct rtw89_channel_help_params {
-	u16 tx_en;
+	u32 tx_en;
 };
 
 struct rtw89_port_reg {
@@ -2065,9 +2065,15 @@ struct rtw89_chip_ops {
 			   struct ieee80211_rx_status *status);
 	void (*bb_ctrl_btc_preagc)(struct rtw89_dev *rtwdev, bool bt_en);
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
-				       s16 pw_ofst, enum rtw89_mac_idx mac_idx);
+				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
+	int (*cfg_ctrl_path)(struct rtw89_dev *rtwdev, bool wl);
+	int (*mac_cfg_gnt)(struct rtw89_dev *rtwdev,
+			   const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
+	int (*stop_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx,
+			   u32 *tx_en, enum rtw89_sch_tx_sel sel);
+	int (*resume_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
@@ -2229,6 +2235,8 @@ struct rtw89_phy_table {
 	const struct rtw89_reg2_def *regs;
 	u32 n_regs;
 	enum rtw89_rf_path rf_path;
+	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
+		       enum rtw89_rf_path rf_path, void *data);
 };
 
 struct rtw89_txpwr_table {
@@ -2332,6 +2340,8 @@ struct rtw89_chip_info {
 	u32 c2h_ctrl_reg;
 	const u32 *c2h_regs;
 	const struct rtw89_page_regs *page_regs;
+	const struct rtw89_reg_def *dcfo_comp;
+	u8 dcfo_comp_sft;
 };
 
 union rtw89_bus_info {
@@ -3461,6 +3471,39 @@ static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 
 	if (chip->ops->ctrl_btg)
 		chip->ops->ctrl_btg(rtwdev, btg);
+}
+
+static inline
+void rtw89_chip_mac_cfg_gnt(struct rtw89_dev *rtwdev,
+			    const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->mac_cfg_gnt(rtwdev, gnt_cfg);
+}
+
+static inline void rtw89_chip_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->cfg_ctrl_path(rtwdev, wl);
+}
+
+static inline
+int rtw89_chip_stop_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx,
+			   u32 *tx_en, enum rtw89_sch_tx_sel sel)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->stop_sch_tx(rtwdev, mac_idx, tx_en, sel);
+}
+
+static inline
+int rtw89_chip_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->resume_sch_tx(rtwdev, mac_idx, tx_en);
 }
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)

@@ -8,6 +8,7 @@
 #include "core.h"
 
 #define RTW89_PHY_ADDR_OFFSET	0x10000
+#define RTW89_RF_ADDR_ADSEL_MASK  BIT(16)
 
 #define get_phy_headline(addr)		FIELD_GET(GENMASK(31, 28), addr)
 #define PHY_HEADLINE_VALID	0xf
@@ -395,10 +396,18 @@ u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
 		      enum rtw89_bandwidth dbw);
 u32 rtw89_phy_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 		      u32 addr, u32 mask);
+u32 rtw89_phy_read_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			 u32 addr, u32 mask);
 bool rtw89_phy_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			u32 addr, u32 mask, u32 data);
+bool rtw89_phy_write_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			   u32 addr, u32 mask, u32 data);
 void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev);
 void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev);
+void rtw89_phy_config_rf_reg_v1(struct rtw89_dev *rtwdev,
+				const struct rtw89_reg2_def *reg,
+				enum rtw89_rf_path rf_path,
+				void *extra_data);
 void rtw89_phy_dm_init(struct rtw89_dev *rtwdev);
 void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			   u32 data, enum rtw89_phy_idx phy_idx);

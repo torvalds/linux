@@ -942,10 +942,11 @@ mt76_rx_signal(struct mt76_rx_status *status)
 	for (chains = status->chains; chains; chains >>= 1, chain_signal++) {
 		int cur, diff;
 
-		if (!(chains & BIT(0)))
+		cur = *chain_signal;
+		if (!(chains & BIT(0)) ||
+		    cur > 0)
 			continue;
 
-		cur = *chain_signal;
 		if (cur > signal)
 			swap(cur, signal);
 

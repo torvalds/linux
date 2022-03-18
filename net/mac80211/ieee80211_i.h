@@ -257,6 +257,7 @@ struct beacon_data {
 	struct ieee80211_meshconf_ie *meshconf;
 	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
 	u8 cntdwn_current_counter;
+	struct cfg80211_mbssid_elems *mbssid_ies;
 	struct rcu_head rcu_head;
 };
 
@@ -1081,6 +1082,20 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 	rcu_read_unlock();
 
 	return shift;
+}
+
+static inline int
+ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems)
+{
+	int i, len = 0;
+
+	if (!elems)
+		return 0;
+
+	for (i = 0; i < elems->cnt; i++)
+		len += elems->elem[i].len;
+
+	return len;
 }
 
 enum {

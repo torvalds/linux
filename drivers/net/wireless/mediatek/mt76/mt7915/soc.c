@@ -196,6 +196,8 @@ static int mt7986_wmac_gpio_setup(struct mt7915_dev *dev)
 
 	type = mt7986_wmac_check_adie_type(dev);
 	pinctrl = devm_pinctrl_get(dev->mt76.dev);
+	if (IS_ERR(pinctrl))
+		return PTR_ERR(pinctrl);
 
 	switch (type) {
 	case ADIE_SB:

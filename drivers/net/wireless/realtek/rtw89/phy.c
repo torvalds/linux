@@ -4,6 +4,7 @@
 
 #include "debug.h"
 #include "fw.h"
+#include "mac.h"
 #include "phy.h"
 #include "ps.h"
 #include "reg.h"
@@ -603,6 +604,12 @@ u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_phy_get_txsc);
 
+static bool rtw89_phy_check_swsi_busy(struct rtw89_dev *rtwdev)
+{
+	return !!rtw89_phy_read32_mask(rtwdev, R_SWSI_V1, B_SWSI_W_BUSY_V1) ||
+	       !!rtw89_phy_read32_mask(rtwdev, R_SWSI_V1, B_SWSI_R_BUSY_V1);
+}
+
 u32 rtw89_phy_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 		      u32 addr, u32 mask)
 {
@@ -624,6 +631,56 @@ u32 rtw89_phy_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 	return val;
 }
 EXPORT_SYMBOL(rtw89_phy_read_rf);
+
+static u32 rtw89_phy_read_rf_a(struct rtw89_dev *rtwdev,
+			       enum rtw89_rf_path rf_path, u32 addr, u32 mask)
+{
+	bool busy;
+	bool done;
+	u32 val;
+	int ret;
+
+	ret = read_poll_timeout_atomic(rtw89_phy_check_swsi_busy, busy, !busy,
+				       1, 30, false, rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "read rf busy swsi\n");
+		return INV_RF_DATA;
+	}
+
+	mask &= RFREG_MASK;
+
+	val = FIELD_PREP(B_SWSI_READ_ADDR_PATH_V1, rf_path) |
+	      FIELD_PREP(B_SWSI_READ_ADDR_ADDR_V1, addr);
+	rtw89_phy_write32_mask(rtwdev, R_SWSI_READ_ADDR_V1, B_SWSI_READ_ADDR_V1, val);
+	udelay(2);
+
+	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, done, done, 1,
+				       30, false, rtwdev, R_SWSI_V1,
+				       B_SWSI_R_DATA_DONE_V1);
+	if (ret) {
+		rtw89_err(rtwdev, "read swsi busy\n");
+		return INV_RF_DATA;
+	}
+
+	return rtw89_phy_read32_mask(rtwdev, R_SWSI_V1, mask);
+}
+
+u32 rtw89_phy_read_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			 u32 addr, u32 mask)
+{
+	bool ad_sel = FIELD_GET(RTW89_RF_ADDR_ADSEL_MASK, addr);
+
+	if (rf_path >= rtwdev->chip->rf_path_num) {
+		rtw89_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
+		return INV_RF_DATA;
+	}
+
+	if (ad_sel)
+		return rtw89_phy_read_rf(rtwdev, rf_path, addr, mask);
+	else
+		return rtw89_phy_read_rf_a(rtwdev, rf_path, addr, mask);
+}
+EXPORT_SYMBOL(rtw89_phy_read_rf_v1);
 
 bool rtw89_phy_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			u32 addr, u32 mask, u32 data)
@@ -649,6 +706,60 @@ bool rtw89_phy_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 	return true;
 }
 EXPORT_SYMBOL(rtw89_phy_write_rf);
+
+static bool rtw89_phy_write_rf_a(struct rtw89_dev *rtwdev,
+				 enum rtw89_rf_path rf_path, u32 addr, u32 mask,
+				 u32 data)
+{
+	u8 bit_shift;
+	u32 val;
+	bool busy, b_msk_en = false;
+	int ret;
+
+	ret = read_poll_timeout_atomic(rtw89_phy_check_swsi_busy, busy, !busy,
+				       1, 30, false, rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "write rf busy swsi\n");
+		return false;
+	}
+
+	data &= RFREG_MASK;
+	mask &= RFREG_MASK;
+
+	if (mask != RFREG_MASK) {
+		b_msk_en = true;
+		rtw89_phy_write32_mask(rtwdev, R_SWSI_BIT_MASK_V1, RFREG_MASK,
+				       mask);
+		bit_shift = __ffs(mask);
+		data = (data << bit_shift) & RFREG_MASK;
+	}
+
+	val = FIELD_PREP(B_SWSI_DATA_BIT_MASK_EN_V1, b_msk_en) |
+	      FIELD_PREP(B_SWSI_DATA_PATH_V1, rf_path) |
+	      FIELD_PREP(B_SWSI_DATA_ADDR_V1, addr) |
+	      FIELD_PREP(B_SWSI_DATA_VAL_V1, data);
+
+	rtw89_phy_write32_mask(rtwdev, R_SWSI_DATA_V1, MASKDWORD, val);
+
+	return true;
+}
+
+bool rtw89_phy_write_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			   u32 addr, u32 mask, u32 data)
+{
+	bool ad_sel = FIELD_GET(RTW89_RF_ADDR_ADSEL_MASK, addr);
+
+	if (rf_path >= rtwdev->chip->rf_path_num) {
+		rtw89_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
+		return false;
+	}
+
+	if (ad_sel)
+		return rtw89_phy_write_rf(rtwdev, rf_path, addr, mask, data);
+	else
+		return rtw89_phy_write_rf_a(rtwdev, rf_path, addr, mask, data);
+}
+EXPORT_SYMBOL(rtw89_phy_write_rf_v1);
 
 static void rtw89_phy_bb_reset(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx)
@@ -750,6 +861,21 @@ static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
 					     (struct rtw89_fw_h2c_rf_reg_info *)extra_data);
 	}
 }
+
+void rtw89_phy_config_rf_reg_v1(struct rtw89_dev *rtwdev,
+				const struct rtw89_reg2_def *reg,
+				enum rtw89_rf_path rf_path,
+				void *extra_data)
+{
+	rtw89_write_rf(rtwdev, rf_path, reg->addr, RFREG_MASK, reg->data);
+
+	if (reg->addr < 0x100)
+		return;
+
+	rtw89_phy_cofig_rf_reg_store(rtwdev, reg, rf_path,
+				     (struct rtw89_fw_h2c_rf_reg_info *)extra_data);
+}
+EXPORT_SYMBOL(rtw89_phy_config_rf_reg_v1);
 
 static int rtw89_phy_sel_headline(struct rtw89_dev *rtwdev,
 				  const struct rtw89_phy_table *table,
@@ -922,6 +1048,8 @@ static u32 rtw89_phy_nctl_poll(struct rtw89_dev *rtwdev)
 
 void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
 {
+	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
+		       enum rtw89_rf_path rf_path, void *data);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_phy_table *rf_table;
 	struct rtw89_fw_h2c_rf_reg_info *rf_reg_info;
@@ -932,13 +1060,13 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
 		return;
 
 	for (path = RF_PATH_A; path < chip->rf_path_num; path++) {
-		rf_reg_info->rf_path = path;
 		rf_table = chip->rf_table[path];
-		rtw89_phy_init_reg(rtwdev, rf_table, rtw89_phy_config_rf_reg,
-				   (void *)rf_reg_info);
+		rf_reg_info->rf_path = rf_table->rf_path;
+		config = rf_table->config ? rf_table->config : rtw89_phy_config_rf_reg;
+		rtw89_phy_init_reg(rtwdev, rf_table, config, (void *)rf_reg_info);
 		if (rtw89_phy_config_rf_reg_fw(rtwdev, rf_reg_info))
 			rtw89_warn(rtwdev, "rf path %d reg h2c config failed\n",
-				   path);
+				   rf_reg_info->rf_path);
 	}
 	kfree(rf_reg_info);
 }
@@ -1667,15 +1795,25 @@ static void rtw89_phy_cfo_set_crystal_cap(struct rtw89_dev *rtwdev,
 					  u8 crystal_cap, bool force)
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 sc_xi_val, sc_xo_val;
 
 	if (!force && cfo->crystal_cap == crystal_cap)
 		return;
 	crystal_cap = clamp_t(u8, crystal_cap, 0, 127);
-	rtw89_phy_cfo_set_xcap_reg(rtwdev, true, crystal_cap);
-	rtw89_phy_cfo_set_xcap_reg(rtwdev, false, crystal_cap);
-	sc_xo_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, true);
-	sc_xi_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, false);
+	if (chip->chip_id == RTL8852A) {
+		rtw89_phy_cfo_set_xcap_reg(rtwdev, true, crystal_cap);
+		rtw89_phy_cfo_set_xcap_reg(rtwdev, false, crystal_cap);
+		sc_xo_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, true);
+		sc_xi_val = rtw89_phy_cfo_get_xcap_reg(rtwdev, false);
+	} else {
+		rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XO,
+					crystal_cap, XTAL_SC_XO_MASK);
+		rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XI,
+					crystal_cap, XTAL_SC_XI_MASK);
+		rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XO, &sc_xo_val);
+		rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_XTAL_SC_XI, &sc_xi_val);
+	}
 	cfo->crystal_cap = sc_xi_val;
 	cfo->x_cap_ofst = (s8)((int)cfo->crystal_cap - cfo->def_x_cap);
 
@@ -1705,9 +1843,11 @@ static void rtw89_phy_cfo_reset(struct rtw89_dev *rtwdev)
 
 static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 {
+	const struct rtw89_reg_def *dcfo_comp = rtwdev->chip->dcfo_comp;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 	s32 cfo_avg_312;
-	s32 dcfo_comp;
+	s32 dcfo_comp_val;
+	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 	int sign;
 
 	if (!is_linked) {
@@ -1718,13 +1858,13 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: curr_cfo=%d\n", curr_cfo);
 	if (curr_cfo == 0)
 		return;
-	dcfo_comp = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
+	dcfo_comp_val = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
 	sign = curr_cfo > 0 ? 1 : -1;
-	cfo_avg_312 = (curr_cfo << 3) / 5 + sign * dcfo_comp;
+	cfo_avg_312 = (curr_cfo << dcfo_comp_sft) / 5 + sign * dcfo_comp_val;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: avg_cfo=%d\n", cfo_avg_312);
 	if (rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
 		cfo_avg_312 = -cfo_avg_312;
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_COMP_S0, B_DCFO_COMP_S0_MSK,
+	rtw89_phy_set_phy_regs(rtwdev, dcfo_comp->addr, dcfo_comp->mask,
 			       cfo_avg_312);
 }
 

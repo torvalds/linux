@@ -137,7 +137,7 @@ mt7921_txwi_free(struct mt7921_dev *dev, struct mt76_txwi_cache *t,
 
 		wcid_idx = wcid->idx;
 	} else {
-		wcid_idx = FIELD_GET(MT_TXD1_WLAN_IDX, le32_to_cpu(txwi[1]));
+		wcid_idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
 	}
 
 	__mt76_tx_complete_skb(mdev, wcid_idx, t->skb, free_list);
@@ -164,11 +164,7 @@ mt7921e_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_BE], false);
 
-	/* TODO: MT_TX_FREE_LATENCY is msdu time from the TXD is queued into PLE,
-	 * to the time ack is received or dropped by hw (air + hw queue time).
-	 * Should avoid accessing WTBL to get Tx airtime, and use it instead.
-	 */
-	count = FIELD_GET(MT_TX_FREE_MSDU_CNT, le16_to_cpu(free->ctrl));
+	count = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
 	if (WARN_ON_ONCE((void *)&free->info[count] > end))
 		return;
 
@@ -231,7 +227,8 @@ bool mt7921e_rx_check(struct mt76_dev *mdev, void *data, int len)
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
 		mt7921e_mac_tx_free(dev, data, len);
@@ -252,7 +249,7 @@ void mt7921e_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	__le32 *rxd = (__le32 *)skb->data;
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
