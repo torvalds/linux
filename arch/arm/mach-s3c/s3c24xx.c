@@ -146,7 +146,7 @@ static struct map_desc s3c_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(UART)
 };
 
-/* read cpu identificaiton code */
+/* read cpu identification code */
 
 static unsigned long s3c24xx_read_idcode_v5(void)
 {
