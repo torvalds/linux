@@ -14,12 +14,37 @@
 #include "intel_gt_sysfs.h"
 #include "intel_gt_sysfs_pm.h"
 #include "intel_rc6.h"
+#include "intel_rps.h"
 
 #ifdef CONFIG_PM
 enum intel_gt_sysfs_op {
 	INTEL_GT_SYSFS_MIN = 0,
 	INTEL_GT_SYSFS_MAX,
 };
+
+static int
+sysfs_gt_attribute_w_func(struct device *dev, struct device_attribute *attr,
+			  int (func)(struct intel_gt *gt, u32 val), u32 val)
+{
+	struct intel_gt *gt;
+	int ret;
+
+	if (!is_object_gt(&dev->kobj)) {
+		int i;
+		struct drm_i915_private *i915 = kdev_minor_to_i915(dev);
+
+		for_each_gt(gt, i915, i) {
+			ret = func(gt, val);
+			if (ret)
+				break;
+		}
+	} else {
+		gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+		ret = func(gt, val);
+	}
+
+	return ret;
+}
 
 static u32
 sysfs_gt_attribute_r_func(struct device *dev, struct device_attribute *attr,
@@ -62,6 +87,7 @@ sysfs_gt_attribute_r_func(struct device *dev, struct device_attribute *attr,
 #define sysfs_gt_attribute_r_min_func(d, a, f) \
 		sysfs_gt_attribute_r_func(d, a, f, INTEL_GT_SYSFS_MIN)
 
+/* Frequency interfaces will show the maximum frequency value */
 #define sysfs_gt_attribute_r_max_func(d, a, f) \
 		sysfs_gt_attribute_r_func(d, a, f, INTEL_GT_SYSFS_MAX)
 
@@ -238,7 +264,264 @@ static void intel_sysfs_rc6_init(struct intel_gt *gt, struct kobject *kobj)
 }
 #endif /* CONFIG_PM */
 
+static u32 __act_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_read_actual_frequency(&gt->rps);
+}
+
+static ssize_t act_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 actual_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						    __act_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", actual_freq);
+}
+
+static u32 __cur_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_requested_frequency(&gt->rps);
+}
+
+static ssize_t cur_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 cur_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						 __cur_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", cur_freq);
+}
+
+static u32 __boost_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_boost_frequency(&gt->rps);
+}
+
+static ssize_t boost_freq_mhz_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buff)
+{
+	u32 boost_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						   __boost_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", boost_freq);
+}
+
+static int __boost_freq_mhz_store(struct intel_gt *gt, u32 val)
+{
+	return intel_rps_set_boost_frequency(&gt->rps, val);
+}
+
+static ssize_t boost_freq_mhz_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buff, size_t count)
+{
+	ssize_t ret;
+	u32 val;
+
+	ret = kstrtou32(buff, 0, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_gt_attribute_w_func(dev, attr,
+					 __boost_freq_mhz_store, val) ?: count;
+}
+
+static u32 __rp0_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_rp0_frequency(&gt->rps);
+}
+
+static ssize_t RP0_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 rp0_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						     __rp0_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", rp0_freq);
+}
+
+static u32 __rp1_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_rp1_frequency(&gt->rps);
+}
+
+static ssize_t RP1_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 rp1_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						     __rp1_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", rp1_freq);
+}
+
+static u32 __rpn_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_rpn_frequency(&gt->rps);
+}
+
+static ssize_t RPn_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 rpn_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						     __rpn_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", rpn_freq);
+}
+
+static u32 __max_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_max_frequency(&gt->rps);
+}
+
+static ssize_t max_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 max_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						     __max_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", max_freq);
+}
+
+static int __set_max_freq(struct intel_gt *gt, u32 val)
+{
+	return intel_rps_set_max_frequency(&gt->rps, val);
+}
+
+static ssize_t max_freq_mhz_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buff, size_t count)
+{
+	int ret;
+	u32 val;
+
+	ret = kstrtou32(buff, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = sysfs_gt_attribute_w_func(dev, attr, __set_max_freq, val);
+
+	return ret ?: count;
+}
+
+static u32 __min_freq_mhz_show(struct intel_gt *gt)
+{
+	return intel_rps_get_min_frequency(&gt->rps);
+}
+
+static ssize_t min_freq_mhz_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	u32 min_freq = sysfs_gt_attribute_r_min_func(dev, attr,
+						     __min_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", min_freq);
+}
+
+static int __set_min_freq(struct intel_gt *gt, u32 val)
+{
+	return intel_rps_set_min_frequency(&gt->rps, val);
+}
+
+static ssize_t min_freq_mhz_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buff, size_t count)
+{
+	int ret;
+	u32 val;
+
+	ret = kstrtou32(buff, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = sysfs_gt_attribute_w_func(dev, attr, __set_min_freq, val);
+
+	return ret ?: count;
+}
+
+static u32 __vlv_rpe_freq_mhz_show(struct intel_gt *gt)
+{
+	struct intel_rps *rps = &gt->rps;
+
+	return intel_gpu_freq(rps, rps->efficient_freq);
+}
+
+static ssize_t vlv_rpe_freq_mhz_show(struct device *dev,
+				     struct device_attribute *attr, char *buff)
+{
+	u32 rpe_freq = sysfs_gt_attribute_r_max_func(dev, attr,
+						 __vlv_rpe_freq_mhz_show);
+
+	return sysfs_emit(buff, "%u\n", rpe_freq);
+}
+
+#define INTEL_GT_RPS_SYSFS_ATTR(_name, _mode, _show, _store) \
+	struct device_attribute dev_attr_gt_##_name = __ATTR(gt_##_name, _mode, _show, _store); \
+	struct device_attribute dev_attr_rps_##_name = __ATTR(rps_##_name, _mode, _show, _store)
+
+#define INTEL_GT_RPS_SYSFS_ATTR_RO(_name)				\
+		INTEL_GT_RPS_SYSFS_ATTR(_name, 0444, _name##_show, NULL)
+#define INTEL_GT_RPS_SYSFS_ATTR_RW(_name)				\
+		INTEL_GT_RPS_SYSFS_ATTR(_name, 0644, _name##_show, _name##_store)
+
+static INTEL_GT_RPS_SYSFS_ATTR_RO(act_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RO(cur_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RW(boost_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RO(RP0_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RO(RP1_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RO(RPn_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RW(max_freq_mhz);
+static INTEL_GT_RPS_SYSFS_ATTR_RW(min_freq_mhz);
+
+static DEVICE_ATTR_RO(vlv_rpe_freq_mhz);
+
+#define GEN6_ATTR(s) { \
+		&dev_attr_##s##_act_freq_mhz.attr, \
+		&dev_attr_##s##_cur_freq_mhz.attr, \
+		&dev_attr_##s##_boost_freq_mhz.attr, \
+		&dev_attr_##s##_max_freq_mhz.attr, \
+		&dev_attr_##s##_min_freq_mhz.attr, \
+		&dev_attr_##s##_RP0_freq_mhz.attr, \
+		&dev_attr_##s##_RP1_freq_mhz.attr, \
+		&dev_attr_##s##_RPn_freq_mhz.attr, \
+		NULL, \
+	}
+
+#define GEN6_RPS_ATTR GEN6_ATTR(rps)
+#define GEN6_GT_ATTR  GEN6_ATTR(gt)
+
+static const struct attribute * const gen6_rps_attrs[] = GEN6_RPS_ATTR;
+static const struct attribute * const gen6_gt_attrs[]  = GEN6_GT_ATTR;
+
+static int intel_sysfs_rps_init(struct intel_gt *gt, struct kobject *kobj,
+				const struct attribute * const *attrs)
+{
+	int ret;
+
+	if (GRAPHICS_VER(gt->i915) < 6)
+		return 0;
+
+	ret = sysfs_create_files(kobj, attrs);
+	if (ret)
+		return ret;
+
+	if (IS_VALLEYVIEW(gt->i915) || IS_CHERRYVIEW(gt->i915))
+		ret = sysfs_create_file(kobj, &dev_attr_vlv_rpe_freq_mhz.attr);
+
+	return ret;
+}
+
 void intel_gt_sysfs_pm_init(struct intel_gt *gt, struct kobject *kobj)
 {
+	int ret;
+
 	intel_sysfs_rc6_init(gt, kobj);
+
+	ret = is_object_gt(kobj) ?
+	      intel_sysfs_rps_init(gt, kobj, gen6_rps_attrs) :
+	      intel_sysfs_rps_init(gt, kobj, gen6_gt_attrs);
+	if (ret)
+		drm_warn(&gt->i915->drm,
+			 "failed to create gt%u RPS sysfs files (%pe)",
+			 gt->info.id, ERR_PTR(ret));
 }
