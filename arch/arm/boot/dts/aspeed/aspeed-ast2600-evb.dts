@@ -363,6 +363,10 @@
 	snoop-ports = <0x80>;
 };
 
+&ibt {
+	status = "okay";
+};
+
 &kcs3 {
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca2>;
@@ -374,5 +378,33 @@
 };
 
 &mbox {
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart10 {
+	status = "okay";
+};
+
+&uart11 {
+	status = "okay";
+};
+
+&uart_routing {
 	status = "okay";
 };
