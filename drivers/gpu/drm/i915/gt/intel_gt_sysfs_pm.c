@@ -8,6 +8,7 @@
 #include <linux/printk.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_sysfs.h"
 #include "intel_gt.h"
 #include "intel_gt_regs.h"
@@ -493,6 +494,69 @@ static DEVICE_ATTR_RO(vlv_rpe_freq_mhz);
 static const struct attribute * const gen6_rps_attrs[] = GEN6_RPS_ATTR;
 static const struct attribute * const gen6_gt_attrs[]  = GEN6_GT_ATTR;
 
+static ssize_t punit_req_freq_mhz_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buff)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	u32 preq = intel_rps_read_punit_req_frequency(&gt->rps);
+
+	return sysfs_emit(buff, "%u\n", preq);
+}
+
+struct intel_gt_bool_throttle_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	i915_reg_t reg32;
+	u32 mask;
+};
+
+static ssize_t throttle_reason_bool_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buff)
+{
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	struct intel_gt_bool_throttle_attr *t_attr =
+				(struct intel_gt_bool_throttle_attr *) attr;
+	bool val = rps_read_mask_mmio(&gt->rps, t_attr->reg32, t_attr->mask);
+
+	return sysfs_emit(buff, "%u\n", val);
+}
+
+#define INTEL_GT_RPS_BOOL_ATTR_RO(sysfs_func__, mask__) \
+struct intel_gt_bool_throttle_attr attr_##sysfs_func__ = { \
+	.attr = { .name = __stringify(sysfs_func__), .mode = 0444 }, \
+	.show = throttle_reason_bool_show, \
+	.reg32 = GT0_PERF_LIMIT_REASONS, \
+	.mask = mask__, \
+}
+
+static DEVICE_ATTR_RO(punit_req_freq_mhz);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_status, GT0_PERF_LIMIT_REASONS_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_pl1, POWER_LIMIT_1_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_pl2, POWER_LIMIT_2_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_pl4, POWER_LIMIT_4_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_thermal, THERMAL_LIMIT_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_prochot, PROCHOT_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_ratl, RATL_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_vr_thermalert, VR_THERMALERT_MASK);
+static INTEL_GT_RPS_BOOL_ATTR_RO(throttle_reason_vr_tdc, VR_TDC_MASK);
+
+static const struct attribute *freq_attrs[] = {
+	&dev_attr_punit_req_freq_mhz.attr,
+	&attr_throttle_reason_status.attr,
+	&attr_throttle_reason_pl1.attr,
+	&attr_throttle_reason_pl2.attr,
+	&attr_throttle_reason_pl4.attr,
+	&attr_throttle_reason_thermal.attr,
+	&attr_throttle_reason_prochot.attr,
+	&attr_throttle_reason_ratl.attr,
+	&attr_throttle_reason_vr_thermalert.attr,
+	&attr_throttle_reason_vr_tdc.attr,
+	NULL
+};
+
 static int intel_sysfs_rps_init(struct intel_gt *gt, struct kobject *kobj,
 				const struct attribute * const *attrs)
 {
@@ -523,5 +587,15 @@ void intel_gt_sysfs_pm_init(struct intel_gt *gt, struct kobject *kobj)
 	if (ret)
 		drm_warn(&gt->i915->drm,
 			 "failed to create gt%u RPS sysfs files (%pe)",
+			 gt->info.id, ERR_PTR(ret));
+
+	/* end of the legacy interfaces */
+	if (!is_object_gt(kobj))
+		return;
+
+	ret = sysfs_create_files(kobj, freq_attrs);
+	if (ret)
+		drm_warn(&gt->i915->drm,
+			 "failed to create gt%u throttle sysfs files (%pe)",
 			 gt->info.id, ERR_PTR(ret));
 }
