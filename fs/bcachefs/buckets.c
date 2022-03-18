@@ -7,6 +7,7 @@
 
 #include "bcachefs.h"
 #include "alloc_background.h"
+#include "backpointers.h"
 #include "bset.h"
 #include "btree_gc.h"
 #include "btree_update.h"
@@ -660,16 +661,6 @@ err:
 		bch2_dev_usage_update_m(c, ca, old, new, 0, true);
 	percpu_up_read(&c->mark_lock);
 	return ret;
-}
-
-static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
-{
-	EBUG_ON(sectors < 0);
-
-	return crc_is_compressed(p.crc)
-		? DIV_ROUND_UP_ULL(sectors * p.crc.compressed_size,
-				   p.crc.uncompressed_size)
-		: sectors;
 }
 
 static int check_bucket_ref(struct bch_fs *c,
@@ -1399,22 +1390,42 @@ need_mark:
 
 /* trans_mark: */
 
-static int bch2_trans_mark_pointer(struct btree_trans *trans,
-			struct bkey_s_c k, struct extent_ptr_decoded p,
-			s64 sectors, enum bch_data_type data_type)
+static inline int bch2_trans_mark_pointer(struct btree_trans *trans,
+				   enum btree_id btree_id, unsigned level,
+				   struct bkey_s_c k, struct extent_ptr_decoded p,
+				   unsigned flags)
 {
+	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
 	struct btree_iter iter;
 	struct bkey_i_alloc_v4 *a;
+	struct bpos bucket_pos;
+	struct bch_backpointer bp;
+	s64 sectors;
 	int ret;
 
-	a = bch2_trans_start_alloc_update(trans, &iter, PTR_BUCKET_POS(trans->c, &p.ptr));
+	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket_pos, &bp);
+	sectors = bp.bucket_len;
+	if (!insert)
+		sectors = -sectors;
+
+	a = bch2_trans_start_alloc_update(trans, &iter, bucket_pos);
 	if (IS_ERR(a))
 		return PTR_ERR(a);
 
-	ret = __mark_pointer(trans, k, &p.ptr, sectors, data_type,
+	ret = __mark_pointer(trans, k, &p.ptr, sectors, bp.data_type,
 			     a->v.gen, &a->v.data_type,
-			     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
-		bch2_trans_update(trans, &iter, &a->k_i, 0);
+			     &a->v.dirty_sectors, &a->v.cached_sectors);
+	if (ret)
+		goto err;
+
+	if (!p.ptr.cached) {
+		ret = bch2_bucket_backpointer_mod(trans, a, bp, k, insert);
+		if (ret)
+			goto err;
+	}
+
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -1497,8 +1508,7 @@ int bch2_trans_mark_extent(struct btree_trans *trans,
 		if (flags & BTREE_TRIGGER_OVERWRITE)
 			disk_sectors = -disk_sectors;
 
-		ret = bch2_trans_mark_pointer(trans, k, p,
-					disk_sectors, data_type);
+		ret = bch2_trans_mark_pointer(trans, btree_id, level, k, p, flags);
 		if (ret < 0)
 			return ret;
 

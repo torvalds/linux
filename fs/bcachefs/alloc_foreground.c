@@ -14,6 +14,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "backpointers.h"
 #include "btree_iter.h"
 #include "btree_update.h"
 #include "btree_gc.h"
@@ -344,6 +345,28 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		ob = ERR_PTR(-EIO);
 		goto err;
 
+	}
+
+	if (!test_bit(BCH_FS_CHECK_BACKPOINTERS_DONE, &c->flags)) {
+		struct bch_backpointer bp;
+		u64 bp_offset = 0;
+
+		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
+						&bp_offset, &bp);
+		if (ret) {
+			ob = ERR_PTR(ret);
+			goto err;
+		}
+
+		if (bp_offset != U64_MAX) {
+			/*
+			 * Bucket may have data in it - we don't call
+			 * bc2h_trans_inconnsistent() because fsck hasn't
+			 * finished yet
+			 */
+			ob = NULL;
+			goto err;
+		}
 	}
 
 	ob = __try_alloc_bucket(c, ca, b, reserve, a, s, cl);

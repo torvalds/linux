@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "backpointers.h"
 #include "bkey_methods.h"
 #include "btree_types.h"
 #include "alloc_background.h"
@@ -191,6 +192,9 @@ static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_need_discard] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_set),
+	[BKEY_TYPE_backpointers] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_backpointer),
 	[BKEY_TYPE_btree] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_btree_ptr)|

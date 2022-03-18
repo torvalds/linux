@@ -75,6 +75,15 @@ static inline struct bpos PTR_BUCKET_POS(const struct bch_fs *c,
 	return POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
 }
 
+static inline struct bpos PTR_BUCKET_POS_OFFSET(const struct bch_fs *c,
+						const struct bch_extent_ptr *ptr,
+						u32 *bucket_offset)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+
+	return POS(ptr->dev, sector_to_bucket_and_offset(ca, ptr->offset, bucket_offset));
+}
+
 static inline struct bucket *PTR_GC_BUCKET(struct bch_dev *ca,
 					   const struct bch_extent_ptr *ptr)
 {
@@ -88,6 +97,16 @@ static inline enum bch_data_type ptr_data_type(const struct bkey *k,
 		return BCH_DATA_btree;
 
 	return ptr->cached ? BCH_DATA_cached : BCH_DATA_user;
+}
+
+static inline s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
+{
+	EBUG_ON(sectors < 0);
+
+	return crc_is_compressed(p.crc)
+		? DIV_ROUND_UP_ULL(sectors * p.crc.compressed_size,
+				   p.crc.uncompressed_size)
+		: sectors;
 }
 
 static inline int gen_cmp(u8 a, u8 b)

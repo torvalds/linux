@@ -4,6 +4,7 @@ obj-$(CONFIG_BCACHEFS_FS)	+= bcachefs.o
 bcachefs-y		:=	\
 	alloc_background.o	\
 	alloc_foreground.o	\
+	backpointers.o		\
 	bkey.o			\
 	bkey_methods.o		\
 	bkey_sort.o		\

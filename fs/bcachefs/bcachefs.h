@@ -315,7 +315,10 @@ do {									\
 		"done in memory")					\
 	BCH_DEBUG_PARAM(verify_all_btree_replicas,			\
 		"When reading btree nodes, read all replicas and "	\
-		"compare them")
+		"compare them")						\
+	BCH_DEBUG_PARAM(backpointers_no_use_write_buffer,		\
+		"Don't use the write buffer for backpointers, enabling "\
+		"extra runtime checks")
 
 /* Parameters that should only be compiled in debug mode: */
 #define BCH_DEBUG_PARAMS_DEBUG()					\
@@ -435,6 +438,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_lru,
 	GC_PHASE_BTREE_freespace,
 	GC_PHASE_BTREE_need_discard,
+	GC_PHASE_BTREE_backpointers,
 
 	GC_PHASE_PENDING_DELETE,
 };
@@ -552,6 +556,7 @@ enum {
 	BCH_FS_INITIAL_GC_DONE,		/* kill when we enumerate fsck passes */
 	BCH_FS_CHECK_ALLOC_DONE,
 	BCH_FS_CHECK_LRUS_DONE,
+	BCH_FS_CHECK_BACKPOINTERS_DONE,
 	BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE,
 	BCH_FS_FSCK_DONE,
 	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
