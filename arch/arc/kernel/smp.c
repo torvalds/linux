@@ -35,7 +35,7 @@ EXPORT_SYMBOL_GPL(smp_atomic_ops_lock);
 
 struct plat_smp_ops  __weak plat_smp_ops;
 
-/* XXX: per cpu ? Only needed once in early seconday boot */
+/* XXX: per cpu ? Only needed once in early secondary boot */
 struct task_struct *secondary_idle_tsk;
 
 /* Called from start_kernel */

@@ -366,7 +366,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 	case op_SP:	/* LD_S|LDB_S b,[sp,u7], ST_S|STB_S b,[sp,u7] */
 		/* note: we are ignoring possibility of:
 		 * ADD_S, SUB_S, PUSH_S, POP_S as these should not
-		 * cause unaliged exception anyway */
+		 * cause unaligned exception anyway */
 		state->write = BITS(state->words[0], 6, 6);
 		state->zz = BITS(state->words[0], 5, 5);
 		if (state->zz)
