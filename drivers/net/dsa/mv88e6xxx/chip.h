@@ -730,7 +730,9 @@ struct mv88e6xxx_hw_stat {
 
 static inline bool mv88e6xxx_has_stu(struct mv88e6xxx_chip *chip)
 {
-	return chip->info->max_sid > 0;
+	return chip->info->max_sid > 0 &&
+		chip->info->ops->stu_loadpurge &&
+		chip->info->ops->stu_getnext;
 }
 
 static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
