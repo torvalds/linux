@@ -8773,9 +8773,9 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC245_FIXUP_CS35L41_SPI_4_HP_GPIO_LED] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc245_fixup_hp_gpio_led,
+		.v.func = cs35l41_fixup_spi_four,
 		.chained = true,
-		.chain_id = ALC245_FIXUP_CS35L41_SPI_4,
+		.chain_id = ALC285_FIXUP_HP_GPIO_LED,
 	},
 	[ALC285_FIXUP_HP_SPEAKERS_MICMUTE_LED] = {
 		.type = HDA_FIXUP_VERBS,
