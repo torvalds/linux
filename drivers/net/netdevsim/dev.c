@@ -576,11 +576,11 @@ static int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev,
 	struct nsim_dev_port *nsim_dev_port, *tmp;
 
 	devlink_rate_nodes_destroy(devlink);
-	mutex_lock(&nsim_dev->port_list_lock);
+	devl_lock(devlink);
 	list_for_each_entry_safe(nsim_dev_port, tmp, &nsim_dev->port_list, list)
 		if (nsim_dev_port_is_vf(nsim_dev_port))
 			__nsim_dev_port_del(nsim_dev_port);
-	mutex_unlock(&nsim_dev->port_list_lock);
+	devl_unlock(devlink);
 	nsim_dev->esw_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 	return 0;
 }
@@ -835,14 +835,14 @@ static void nsim_dev_trap_report_work(struct work_struct *work)
 	/* For each running port and enabled packet trap, generate a UDP
 	 * packet with a random 5-tuple and report it.
 	 */
-	mutex_lock(&nsim_dev->port_list_lock);
+	devl_lock(priv_to_devlink(nsim_dev));
 	list_for_each_entry(nsim_dev_port, &nsim_dev->port_list, list) {
 		if (!netif_running(nsim_dev_port->ns->netdev))
 			continue;
 
 		nsim_dev_trap_report(nsim_dev_port);
 	}
-	mutex_unlock(&nsim_dev->port_list_lock);
+	devl_unlock(priv_to_devlink(nsim_dev));
 
 	schedule_delayed_work(&nsim_dev->trap_data->trap_report_dw,
 			      msecs_to_jiffies(NSIM_TRAP_REPORT_INTERVAL_MS));
@@ -924,6 +924,7 @@ static void nsim_dev_traps_exit(struct devlink *devlink)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 
+	/* caution, trap work takes devlink lock */
 	cancel_delayed_work_sync(&nsim_dev->trap_data->trap_report_dw);
 	devlink_traps_unregister(devlink, nsim_traps_arr,
 				 ARRAY_SIZE(nsim_traps_arr));
@@ -1380,8 +1381,8 @@ static int __nsim_dev_port_add(struct nsim_dev *nsim_dev, enum nsim_dev_port_typ
 	memcpy(attrs.switch_id.id, nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
 	attrs.switch_id.id_len = nsim_dev->switch_id.id_len;
 	devlink_port_attrs_set(devlink_port, &attrs);
-	err = devlink_port_register(priv_to_devlink(nsim_dev), devlink_port,
-				    nsim_dev_port->port_index);
+	err = devl_port_register(priv_to_devlink(nsim_dev), devlink_port,
+				 nsim_dev_port->port_index);
 	if (err)
 		goto err_port_free;
 
@@ -1396,8 +1397,8 @@ static int __nsim_dev_port_add(struct nsim_dev *nsim_dev, enum nsim_dev_port_typ
 	}
 
 	if (nsim_dev_port_is_vf(nsim_dev_port)) {
-		err = devlink_rate_leaf_create(&nsim_dev_port->devlink_port,
-					       nsim_dev_port);
+		err = devl_rate_leaf_create(&nsim_dev_port->devlink_port,
+					    nsim_dev_port);
 		if (err)
 			goto err_nsim_destroy;
 	}
@@ -1412,7 +1413,7 @@ err_nsim_destroy:
 err_port_debugfs_exit:
 	nsim_dev_port_debugfs_exit(nsim_dev_port);
 err_dl_port_unregister:
-	devlink_port_unregister(devlink_port);
+	devl_port_unregister(devlink_port);
 err_port_free:
 	kfree(nsim_dev_port);
 	return err;
@@ -1424,11 +1425,11 @@ static void __nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port)
 
 	list_del(&nsim_dev_port->list);
 	if (nsim_dev_port_is_vf(nsim_dev_port))
-		devlink_rate_leaf_destroy(&nsim_dev_port->devlink_port);
+		devl_rate_leaf_destroy(&nsim_dev_port->devlink_port);
 	devlink_port_type_clear(devlink_port);
 	nsim_destroy(nsim_dev_port->ns);
 	nsim_dev_port_debugfs_exit(nsim_dev_port);
-	devlink_port_unregister(devlink_port);
+	devl_port_unregister(devlink_port);
 	kfree(nsim_dev_port);
 }
 
@@ -1436,11 +1437,11 @@ static void nsim_dev_port_del_all(struct nsim_dev *nsim_dev)
 {
 	struct nsim_dev_port *nsim_dev_port, *tmp;
 
-	mutex_lock(&nsim_dev->port_list_lock);
+	devl_lock(priv_to_devlink(nsim_dev));
 	list_for_each_entry_safe(nsim_dev_port, tmp,
 				 &nsim_dev->port_list, list)
 		__nsim_dev_port_del(nsim_dev_port);
-	mutex_unlock(&nsim_dev->port_list_lock);
+	devl_unlock(priv_to_devlink(nsim_dev));
 }
 
 static int nsim_dev_port_add_all(struct nsim_dev *nsim_dev,
@@ -1449,7 +1450,9 @@ static int nsim_dev_port_add_all(struct nsim_dev *nsim_dev,
 	int i, err;
 
 	for (i = 0; i < port_count; i++) {
+		devl_lock(priv_to_devlink(nsim_dev));
 		err = __nsim_dev_port_add(nsim_dev, NSIM_DEV_PORT_TYPE_PF, i);
+		devl_unlock(priv_to_devlink(nsim_dev));
 		if (err)
 			goto err_port_del_all;
 	}
@@ -1470,7 +1473,6 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 	devlink = priv_to_devlink(nsim_dev);
 	nsim_dev = devlink_priv(devlink);
 	INIT_LIST_HEAD(&nsim_dev->port_list);
-	mutex_init(&nsim_dev->port_list_lock);
 	nsim_dev->fw_update_status = true;
 	nsim_dev->fw_update_overwrite_mask = 0;
 
@@ -1544,7 +1546,6 @@ int nsim_drv_probe(struct nsim_bus_dev *nsim_bus_dev)
 	get_random_bytes(nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
 	INIT_LIST_HEAD(&nsim_dev->port_list);
 	mutex_init(&nsim_dev->vfs_lock);
-	mutex_init(&nsim_dev->port_list_lock);
 	nsim_dev->fw_update_status = true;
 	nsim_dev->fw_update_overwrite_mask = 0;
 	nsim_dev->max_macs = NSIM_DEV_MAX_MACS_DEFAULT;
@@ -1666,7 +1667,6 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 	nsim_dev_traps_exit(devlink);
 	nsim_dev_dummy_region_exit(nsim_dev);
-	mutex_destroy(&nsim_dev->port_list_lock);
 }
 
 void nsim_drv_remove(struct nsim_bus_dev *nsim_bus_dev)
@@ -1706,12 +1706,12 @@ int nsim_drv_port_add(struct nsim_bus_dev *nsim_bus_dev, enum nsim_dev_port_type
 	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
 	int err;
 
-	mutex_lock(&nsim_dev->port_list_lock);
+	devl_lock(priv_to_devlink(nsim_dev));
 	if (__nsim_dev_port_lookup(nsim_dev, type, port_index))
 		err = -EEXIST;
 	else
 		err = __nsim_dev_port_add(nsim_dev, type, port_index);
-	mutex_unlock(&nsim_dev->port_list_lock);
+	devl_unlock(priv_to_devlink(nsim_dev));
 	return err;
 }
 
@@ -1722,13 +1722,13 @@ int nsim_drv_port_del(struct nsim_bus_dev *nsim_bus_dev, enum nsim_dev_port_type
 	struct nsim_dev_port *nsim_dev_port;
 	int err = 0;
 
-	mutex_lock(&nsim_dev->port_list_lock);
+	devl_lock(priv_to_devlink(nsim_dev));
 	nsim_dev_port = __nsim_dev_port_lookup(nsim_dev, type, port_index);
 	if (!nsim_dev_port)
 		err = -ENOENT;
 	else
 		__nsim_dev_port_del(nsim_dev_port);
-	mutex_unlock(&nsim_dev->port_list_lock);
+	devl_unlock(priv_to_devlink(nsim_dev));
 	return err;
 }
 
