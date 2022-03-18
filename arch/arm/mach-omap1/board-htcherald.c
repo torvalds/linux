@@ -170,7 +170,7 @@ static const unsigned int htc_herald_keymap[] = {
 	KEY(3, 0, KEY_VOLUMEUP), /* Volume up */
 	KEY(4, 0, KEY_F2),  /* Right bar (landscape) */
 	KEY(5, 0, KEY_MAIL), /* Win key (portrait) */
-	KEY(6, 0, KEY_DIRECTORY), /* Right bar (protrait) */
+	KEY(6, 0, KEY_DIRECTORY), /* Right bar (portrait) */
 	KEY(0, 1, KEY_LEFTCTRL), /* Windows key */
 	KEY(1, 1, KEY_COMMA),
 	KEY(2, 1, KEY_M),
