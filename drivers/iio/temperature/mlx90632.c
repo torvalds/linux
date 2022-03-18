@@ -13,9 +13,9 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/math64.h>
-#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 

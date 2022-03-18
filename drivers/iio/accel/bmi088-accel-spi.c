@@ -83,3 +83,4 @@ module_spi_driver(bmi088_accel_driver);
 MODULE_AUTHOR("Niek van Agt <niek.van.agt@topicproducts.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMI088 accelerometer driver (SPI)");
+MODULE_IMPORT_NS(IIO_BMI088);

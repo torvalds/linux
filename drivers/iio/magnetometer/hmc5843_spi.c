@@ -102,3 +102,4 @@ module_spi_driver(hmc5843_driver);
 MODULE_AUTHOR("Josef Gajdusek <atx@atx.name>");
 MODULE_DESCRIPTION("HMC5983 SPI driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HMC5843);
