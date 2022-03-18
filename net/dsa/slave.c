@@ -1173,6 +1173,7 @@ dsa_slave_add_cls_matchall_mirred(struct net_device *dev,
 				  struct tc_cls_matchall_offload *cls,
 				  bool ingress)
 {
+	struct netlink_ext_ack *extack = cls->common.extack;
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_mall_mirror_tc_entry *mirror;
@@ -1210,7 +1211,7 @@ dsa_slave_add_cls_matchall_mirred(struct net_device *dev,
 	mirror->to_local_port = to_dp->index;
 	mirror->ingress = ingress;
 
-	err = ds->ops->port_mirror_add(ds, dp->index, mirror, ingress);
+	err = ds->ops->port_mirror_add(ds, dp->index, mirror, ingress, extack);
 	if (err) {
 		kfree(mall_tc_entry);
 		return err;

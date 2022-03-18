@@ -3023,6 +3023,82 @@ int ocelot_port_del_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
 }
 EXPORT_SYMBOL_GPL(ocelot_port_del_dscp_prio);
 
+struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
+					struct netlink_ext_ack *extack)
+{
+	struct ocelot_mirror *m = ocelot->mirror;
+
+	if (m) {
+		if (m->to != to) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Mirroring already configured towards different egress port");
+			return ERR_PTR(-EBUSY);
+		}
+
+		refcount_inc(&m->refcount);
+		return m;
+	}
+
+	m = kzalloc(sizeof(*m), GFP_KERNEL);
+	if (!m)
+		return ERR_PTR(-ENOMEM);
+
+	m->to = to;
+	refcount_set(&m->refcount, 1);
+	ocelot->mirror = m;
+
+	/* Program the mirror port to hardware */
+	ocelot_write(ocelot, BIT(to), ANA_MIRRORPORTS);
+
+	return m;
+}
+
+void ocelot_mirror_put(struct ocelot *ocelot)
+{
+	struct ocelot_mirror *m = ocelot->mirror;
+
+	if (!refcount_dec_and_test(&m->refcount))
+		return;
+
+	ocelot_write(ocelot, 0, ANA_MIRRORPORTS);
+	ocelot->mirror = NULL;
+	kfree(m);
+}
+
+int ocelot_port_mirror_add(struct ocelot *ocelot, int from, int to,
+			   bool ingress, struct netlink_ext_ack *extack)
+{
+	struct ocelot_mirror *m = ocelot_mirror_get(ocelot, to, extack);
+
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+
+	if (ingress) {
+		ocelot_rmw_gix(ocelot, ANA_PORT_PORT_CFG_SRC_MIRROR_ENA,
+			       ANA_PORT_PORT_CFG_SRC_MIRROR_ENA,
+			       ANA_PORT_PORT_CFG, from);
+	} else {
+		ocelot_rmw(ocelot, BIT(from), BIT(from),
+			   ANA_EMIRRORPORTS);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ocelot_port_mirror_add);
+
+void ocelot_port_mirror_del(struct ocelot *ocelot, int from, bool ingress)
+{
+	if (ingress) {
+		ocelot_rmw_gix(ocelot, 0, ANA_PORT_PORT_CFG_SRC_MIRROR_ENA,
+			       ANA_PORT_PORT_CFG, from);
+	} else {
+		ocelot_rmw(ocelot, 0, BIT(from), ANA_EMIRRORPORTS);
+	}
+
+	ocelot_mirror_put(ocelot);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_mirror_del);
+
 void ocelot_init_port(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];

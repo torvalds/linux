@@ -20,6 +20,8 @@
 
 #define OCELOT_MAC_QUIRKS	OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP
 
+static bool ocelot_netdevice_dev_check(const struct net_device *dev);
+
 static struct ocelot *devlink_port_to_ocelot(struct devlink_port *dlp)
 {
 	return devlink_priv(dlp->devlink);
@@ -216,14 +218,14 @@ int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
 	}
 }
 
-static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
-					struct tc_cls_matchall_offload *f,
-					bool ingress)
+static int ocelot_setup_tc_cls_matchall_police(struct ocelot_port_private *priv,
+					       struct tc_cls_matchall_offload *f,
+					       bool ingress,
+					       struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack *extack = f->common.extack;
+	struct flow_action_entry *action = &f->rule->action.entries[0];
 	struct ocelot *ocelot = priv->port.ocelot;
 	struct ocelot_policer pol = { 0 };
-	struct flow_action_entry *action;
 	int port = priv->chip_port;
 	int err;
 
@@ -231,6 +233,119 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 		NL_SET_ERR_MSG_MOD(extack, "Only ingress is supported");
 		return -EOPNOTSUPP;
 	}
+
+	if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only one policer per port is supported");
+		return -EEXIST;
+	}
+
+	err = ocelot_policer_validate(&f->rule->action, action, extack);
+	if (err)
+		return err;
+
+	pol.rate = (u32)div_u64(action->police.rate_bytes_ps, 1000) * 8;
+	pol.burst = action->police.burst;
+
+	err = ocelot_port_policer_add(ocelot, port, &pol);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
+		return err;
+	}
+
+	priv->tc.police_id = f->cookie;
+	priv->tc.offload_cnt++;
+
+	return 0;
+}
+
+static int ocelot_setup_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
+					       struct tc_cls_matchall_offload *f,
+					       bool ingress,
+					       struct netlink_ext_ack *extack)
+{
+	struct flow_action *action = &f->rule->action;
+	struct ocelot *ocelot = priv->port.ocelot;
+	struct ocelot_port_private *other_priv;
+	const struct flow_action_entry *a;
+	int err;
+
+	if (f->common.protocol != htons(ETH_P_ALL))
+		return -EOPNOTSUPP;
+
+	if (!flow_action_basic_hw_stats_check(action, extack))
+		return -EOPNOTSUPP;
+
+	a = &action->entries[0];
+	if (!a->dev)
+		return -EINVAL;
+
+	if (!ocelot_netdevice_dev_check(a->dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Destination not an ocelot port");
+		return -EOPNOTSUPP;
+	}
+
+	other_priv = netdev_priv(a->dev);
+
+	err = ocelot_port_mirror_add(ocelot, priv->chip_port,
+				     other_priv->chip_port, ingress, extack);
+	if (err)
+		return err;
+
+	if (ingress)
+		priv->tc.ingress_mirred_id = f->cookie;
+	else
+		priv->tc.egress_mirred_id = f->cookie;
+	priv->tc.offload_cnt++;
+
+	return 0;
+}
+
+static int ocelot_del_tc_cls_matchall_police(struct ocelot_port_private *priv,
+					     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+	int err;
+
+	err = ocelot_port_policer_del(ocelot, port);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Could not delete policer");
+		return err;
+	}
+
+	priv->tc.police_id = 0;
+	priv->tc.offload_cnt--;
+
+	return 0;
+}
+
+static int ocelot_del_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
+					     bool ingress,
+					     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	ocelot_port_mirror_del(ocelot, port, ingress);
+
+	if (ingress)
+		priv->tc.ingress_mirred_id = 0;
+	else
+		priv->tc.egress_mirred_id = 0;
+	priv->tc.offload_cnt--;
+
+	return 0;
+}
+
+static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
+					struct tc_cls_matchall_offload *f,
+					bool ingress)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct flow_action_entry *action;
 
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
@@ -242,53 +357,41 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		if (priv->tc.block_shared) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Rate limit is not supported on shared blocks");
+					   "Matchall offloads not supported on shared blocks");
 			return -EOPNOTSUPP;
 		}
 
 		action = &f->rule->action.entries[0];
 
-		if (action->id != FLOW_ACTION_POLICE) {
+		switch (action->id) {
+		case FLOW_ACTION_POLICE:
+			return ocelot_setup_tc_cls_matchall_police(priv, f,
+								   ingress,
+								   extack);
+			break;
+		case FLOW_ACTION_MIRRED:
+			return ocelot_setup_tc_cls_matchall_mirred(priv, f,
+								   ingress,
+								   extack);
+		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			return -EOPNOTSUPP;
 		}
 
-		if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Only one policer per port is supported");
-			return -EEXIST;
-		}
-
-		err = ocelot_policer_validate(&f->rule->action, action,
-					      extack);
-		if (err)
-			return err;
-
-		pol.rate = (u32)div_u64(action->police.rate_bytes_ps, 1000) * 8;
-		pol.burst = action->police.burst;
-
-		err = ocelot_port_policer_add(ocelot, port, &pol);
-		if (err) {
-			NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
-			return err;
-		}
-
-		priv->tc.police_id = f->cookie;
-		priv->tc.offload_cnt++;
-		return 0;
+		break;
 	case TC_CLSMATCHALL_DESTROY:
-		if (priv->tc.police_id != f->cookie)
+		action = &f->rule->action.entries[0];
+
+		if (f->cookie == priv->tc.police_id)
+			return ocelot_del_tc_cls_matchall_police(priv, extack);
+		else if (f->cookie == priv->tc.ingress_mirred_id ||
+			 f->cookie == priv->tc.egress_mirred_id)
+			return ocelot_del_tc_cls_matchall_mirred(priv, ingress,
+								 extack);
+		else
 			return -ENOENT;
 
-		err = ocelot_port_policer_del(ocelot, port);
-		if (err) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Could not delete policer");
-			return err;
-		}
-		priv->tc.police_id = 0;
-		priv->tc.offload_cnt--;
-		return 0;
+		break;
 	case TC_CLSMATCHALL_STATS:
 	default:
 		return -EOPNOTSUPP;

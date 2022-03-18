@@ -2473,7 +2473,7 @@ qca8k_port_mdb_del(struct dsa_switch *ds, int port,
 static int
 qca8k_port_mirror_add(struct dsa_switch *ds, int port,
 		      struct dsa_mall_mirror_tc_entry *mirror,
-		      bool ingress)
+		      bool ingress, struct netlink_ext_ack *extack)
 {
 	struct qca8k_priv *priv = ds->priv;
 	int monitor_port, ret;
