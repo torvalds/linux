@@ -6429,6 +6429,12 @@ static long ov50c40_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
+		ret = copy_from_user(ch_info, up, sizeof(*ch_info));
+		if (ret) {
+			ret = -EFAULT;
+			return ret;
+		}
+
 		ret = ov50c40_ioctl(sd, cmd, ch_info);
 		if (!ret) {
 			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
