@@ -237,6 +237,10 @@
 	};
 };
 
+&av1d_mmu {
+	status = "okay";
+};
+
 &dsi0 {
 	status = "disabled";
 	//rockchip,lane-rate = <1000>;
