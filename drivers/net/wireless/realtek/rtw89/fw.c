@@ -10,31 +10,33 @@
 #include "phy.h"
 #include "reg.h"
 
-static struct sk_buff *rtw89_fw_h2c_alloc_skb(u32 len, bool header)
+static struct sk_buff *rtw89_fw_h2c_alloc_skb(struct rtw89_dev *rtwdev, u32 len,
+					      bool header)
 {
 	struct sk_buff *skb;
 	u32 header_len = 0;
+	u32 h2c_desc_size = rtwdev->chip->h2c_desc_size;
 
 	if (header)
 		header_len = H2C_HEADER_LEN;
 
-	skb = dev_alloc_skb(len + header_len + 24);
+	skb = dev_alloc_skb(len + header_len + h2c_desc_size);
 	if (!skb)
 		return NULL;
-	skb_reserve(skb, header_len + 24);
+	skb_reserve(skb, header_len + h2c_desc_size);
 	memset(skb->data, 0, len);
 
 	return skb;
 }
 
-struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(u32 len)
+struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(struct rtw89_dev *rtwdev, u32 len)
 {
-	return rtw89_fw_h2c_alloc_skb(len, true);
+	return rtw89_fw_h2c_alloc_skb(rtwdev, len, true);
 }
 
-struct sk_buff *rtw89_fw_h2c_alloc_skb_no_hdr(u32 len)
+struct sk_buff *rtw89_fw_h2c_alloc_skb_no_hdr(struct rtw89_dev *rtwdev, u32 len)
 {
-	return rtw89_fw_h2c_alloc_skb(len, false);
+	return rtw89_fw_h2c_alloc_skb(rtwdev, len, false);
 }
 
 static u8 _fw_get_rdy(struct rtw89_dev *rtwdev)
@@ -309,7 +311,7 @@ static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 l
 	struct sk_buff *skb;
 	u32 ret = 0;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw hdr dl\n");
 		return -ENOMEM;
@@ -375,7 +377,7 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 		else
 			pkt_len = residue_len;
 
-		skb = rtw89_fw_h2c_alloc_skb_no_hdr(pkt_len);
+		skb = rtw89_fw_h2c_alloc_skb_no_hdr(rtwdev, pkt_len);
 		if (!skb) {
 			rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 			return -ENOMEM;
@@ -570,7 +572,7 @@ int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_CAM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CAM_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -619,7 +621,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 		return 0;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_BA_CAM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_BA_CAM_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c ba cam\n");
 		return -ENOMEM;
@@ -665,7 +667,7 @@ int rtw89_fw_h2c_fw_log(struct rtw89_dev *rtwdev, bool enable)
 	u32 comp = enable ? BIT(RTW89_FW_LOG_COMP_INIT) | BIT(RTW89_FW_LOG_COMP_TASK) |
 			    BIT(RTW89_FW_LOG_COMP_PS) | BIT(RTW89_FW_LOG_COMP_ERROR) : 0;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LOG_CFG_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LOG_CFG_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw log cfg\n");
 		return -ENOMEM;
@@ -701,7 +703,7 @@ int rtw89_fw_h2c_general_pkt(struct rtw89_dev *rtwdev, u8 macid)
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_GENERAL_PKT_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_GENERAL_PKT_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -738,7 +740,7 @@ int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LPS_PARM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LPS_PARM_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -784,7 +786,7 @@ int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 	u8 map_b = hal->antenna_tx == RF_AB ? 1 : 0;
 	u8 macid = rtwvif->mac_id;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_CMC_TBL_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -894,7 +896,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	if (sta)
 		__get_sta_he_pkt_padding(rtwdev, sta, pads);
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_CMC_TBL_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -945,7 +947,7 @@ int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_CMC_TBL_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		return -ENOMEM;
@@ -997,7 +999,7 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	}
 
 	bcn_total_len = H2C_BCN_BASE_LEN + skb_beacon->len;
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(bcn_total_len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, bcn_total_len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		dev_kfree_skb_any(skb_beacon);
@@ -1051,7 +1053,7 @@ int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 		self_role = rtwvif->self_role;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_ROLE_MAINTAIN_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_ROLE_MAINTAIN_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
@@ -1093,7 +1095,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		net_type = dis_conn ? RTW89_NET_TYPE_NO_LINK : net_type;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_JOIN_INFO_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_JOIN_INFO_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
@@ -1137,7 +1139,7 @@ int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 	u8 len = sizeof(struct rtw89_fw_macid_pause_grp);
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_JOIN_INFO_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_JOIN_INFO_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
@@ -1170,7 +1172,7 @@ int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_EDCA_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_EDCA_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c edca\n");
 		return -ENOMEM;
@@ -1205,7 +1207,7 @@ int rtw89_fw_h2c_set_ofld_cfg(struct rtw89_dev *rtwdev)
 	static const u8 cfg[] = {0x09, 0x00, 0x00, 0x00, 0x5e, 0x00, 0x00, 0x00};
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_OFLD_CFG_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_OFLD_CFG_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c ofld\n");
 		return -ENOMEM;
@@ -1235,7 +1237,7 @@ int rtw89_fw_h2c_ra(struct rtw89_dev *rtwdev, struct rtw89_ra_info *ra, bool csi
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_RA_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_RA_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
@@ -1306,7 +1308,7 @@ int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev)
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_CXDRVINFO_INIT);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_CXDRVINFO_INIT);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_init\n");
 		return -ENOMEM;
@@ -1365,7 +1367,7 @@ int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev)
 	u8 *cmd;
 	int i;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_CXDRVINFO_ROLE);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_CXDRVINFO_ROLE);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_role\n");
 		return -ENOMEM;
@@ -1433,7 +1435,7 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_CXDRVINFO_CTRL);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_CXDRVINFO_CTRL);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
 		return -ENOMEM;
@@ -1475,7 +1477,7 @@ int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev)
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_CXDRVINFO_RFK);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_CXDRVINFO_RFK);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
 		return -ENOMEM;
@@ -1515,7 +1517,7 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_PKT_OFLD);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_PKT_OFLD);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c pkt offload\n");
 		return -ENOMEM;
@@ -1557,7 +1559,7 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 
 	*id = alloc_id;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_PKT_OFLD + skb_ofld->len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_PKT_OFLD + skb_ofld->len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c pkt offload\n");
 		return -ENOMEM;
@@ -1596,7 +1598,7 @@ int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
 	int skb_len = H2C_LEN_SCAN_LIST_OFFLOAD + len * RTW89_MAC_CHINFO_SIZE;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(skb_len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, skb_len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan list\n");
 		return -ENOMEM;
@@ -1660,7 +1662,7 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb;
 	u8 *cmd;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_LEN_SCAN_OFFLOAD);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_LEN_SCAN_OFFLOAD);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan offload\n");
 		return -ENOMEM;
@@ -1709,7 +1711,7 @@ int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 	u8 class = info->rf_path == RF_PATH_A ?
 		   H2C_CL_OUTSRC_RF_REG_A : H2C_CL_OUTSRC_RF_REG_B;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c rf reg\n");
 		return -ENOMEM;
@@ -1738,7 +1740,7 @@ int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for raw with hdr\n");
 		return -ENOMEM;
@@ -1765,7 +1767,7 @@ int rtw89_fw_h2c_raw(struct rtw89_dev *rtwdev, const u8 *buf, u16 len)
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_no_hdr(len);
+	skb = rtw89_fw_h2c_alloc_skb_no_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c raw\n");
 		return -ENOMEM;
@@ -2295,7 +2297,7 @@ int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev)
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_FW_CPU_EXCEPTION_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_FW_CPU_EXCEPTION_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev,
 			  "failed to alloc skb for fw cpu exception\n");

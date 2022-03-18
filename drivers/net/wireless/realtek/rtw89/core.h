@@ -117,6 +117,8 @@ enum rtw89_core_rx_type {
 	RTW89_CORE_RX_TYPE_C2H		= 10,
 	RTW89_CORE_RX_TYPE_CSI		= 11,
 	RTW89_CORE_RX_TYPE_CQI		= 12,
+	RTW89_CORE_RX_TYPE_H2C		= 13,
+	RTW89_CORE_RX_TYPE_FWDL		= 14,
 };
 
 enum rtw89_txq_flags {
@@ -2076,6 +2078,9 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
+	void (*fill_txdesc_fwcmd)(struct rtw89_dev *rtwdev,
+				  struct rtw89_tx_desc_info *desc_info,
+				  void *txdesc);
 	int (*cfg_ctrl_path)(struct rtw89_dev *rtwdev, bool wl);
 	int (*mac_cfg_gnt)(struct rtw89_dev *rtwdev,
 			   const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
@@ -2344,6 +2349,7 @@ struct rtw89_chip_info {
 	u8 ps_mode_supported;
 
 	u32 hci_func_en_addr;
+	u32 h2c_desc_size;
 	u32 h2c_ctrl_reg;
 	const u32 *h2c_regs;
 	u32 c2h_ctrl_reg;
@@ -3508,6 +3514,16 @@ static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 }
 
 static inline
+void rtw89_chip_fill_txdesc_fwcmd(struct rtw89_dev *rtwdev,
+				  struct rtw89_tx_desc_info *desc_info,
+				  void *txdesc)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->fill_txdesc_fwcmd(rtwdev, desc_info, txdesc);
+}
+
+static inline
 void rtw89_chip_mac_cfg_gnt(struct rtw89_dev *rtwdev,
 			    const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
 {
@@ -3580,6 +3596,9 @@ void rtw89_core_tx_kick_off(struct rtw89_dev *rtwdev, u8 qsel);
 void rtw89_core_fill_txdesc(struct rtw89_dev *rtwdev,
 			    struct rtw89_tx_desc_info *desc_info,
 			    void *txdesc);
+void rtw89_core_fill_txdesc_fwcmd_v1(struct rtw89_dev *rtwdev,
+				     struct rtw89_tx_desc_info *desc_info,
+				     void *txdesc);
 void rtw89_core_rx(struct rtw89_dev *rtwdev,
 		   struct rtw89_rx_desc_info *desc_info,
 		   struct sk_buff *skb);

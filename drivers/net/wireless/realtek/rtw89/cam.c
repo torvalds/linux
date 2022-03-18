@@ -18,7 +18,7 @@ rtw89_cam_get_sec_key_cmd(struct rtw89_dev *rtwdev,
 	u8 *cmd;
 	int i, j;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(cmd_len);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, cmd_len);
 	if (!skb)
 		return NULL;
 

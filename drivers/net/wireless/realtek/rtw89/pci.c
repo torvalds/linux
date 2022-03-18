@@ -1043,16 +1043,18 @@ static int rtw89_pci_fwcmd_submit(struct rtw89_dev *rtwdev,
 				  struct rtw89_core_tx_request *tx_req)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
-	struct rtw89_txwd_body *txwd_body;
+	void *txdesc;
+	int txdesc_size = chip->h2c_desc_size;
 	struct pci_dev *pdev = rtwpci->pdev;
 	struct sk_buff *skb = tx_req->skb;
 	struct rtw89_pci_tx_data *tx_data = RTW89_PCI_TX_SKB_CB(skb);
 	dma_addr_t dma;
 
-	txwd_body = (struct rtw89_txwd_body *)skb_push(skb, sizeof(*txwd_body));
-	memset(txwd_body, 0, sizeof(*txwd_body));
-	rtw89_core_fill_txdesc(rtwdev, desc_info, txwd_body);
+	txdesc = skb_push(skb, txdesc_size);
+	memset(txdesc, 0, txdesc_size);
+	rtw89_chip_fill_txdesc_fwcmd(rtwdev, desc_info, txdesc);
 
 	dma = dma_map_single(&pdev->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&pdev->dev, dma)) {
