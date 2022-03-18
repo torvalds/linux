@@ -4085,9 +4085,32 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
+static enum dc_link_rate get_link_rate_from_test_link_rate(uint8_t test_rate)
+{
+	switch (test_rate) {
+	case DP_TEST_LINK_RATE_RBR:
+		return LINK_RATE_LOW;
+	case DP_TEST_LINK_RATE_HBR:
+		return LINK_RATE_HIGH;
+	case DP_TEST_LINK_RATE_HBR2:
+		return LINK_RATE_HIGH2;
+	case DP_TEST_LINK_RATE_HBR3:
+		return LINK_RATE_HIGH3;
+	case DP_TEST_LINK_RATE_UHBR10:
+		return LINK_RATE_UHBR10;
+	case DP_TEST_LINK_RATE_UHBR20:
+		return LINK_RATE_UHBR20;
+	case DP_TEST_LINK_RATE_UHBR13_5:
+		return LINK_RATE_UHBR13_5;
+	default:
+		return LINK_RATE_UNKNOWN;
+	}
+}
+
 static void dp_test_send_link_training(struct dc_link *link)
 {
 	struct dc_link_settings link_settings = {0};
+	uint8_t test_rate = 0;
 
 	core_link_read_dpcd(
 			link,
@@ -4097,8 +4120,9 @@ static void dp_test_send_link_training(struct dc_link *link)
 	core_link_read_dpcd(
 			link,
 			DP_TEST_LINK_RATE,
-			(unsigned char *)(&link_settings.link_rate),
+			&test_rate,
 			1);
+	link_settings.link_rate = get_link_rate_from_test_link_rate(test_rate);
 
 	/* Set preferred link settings */
 	link->verified_link_cap.lane_count = link_settings.lane_count;
