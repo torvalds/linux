@@ -2752,6 +2752,8 @@ static void rtw89_core_setup_phycap(struct rtw89_dev *rtwdev)
 	rtwdev->hal.support_cckpd =
 		!(rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV) &&
 		!(rtwdev->chip->chip_id == RTL8852B && rtwdev->hal.cv <= CHIP_CAV);
+	rtwdev->hal.support_igi =
+		rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV;
 }
 
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
