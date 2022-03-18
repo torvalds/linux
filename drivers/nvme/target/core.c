@@ -1123,7 +1123,7 @@ static inline u8 nvmet_cc_iocqes(u32 cc)
 
 static inline bool nvmet_css_supported(u8 cc_css)
 {
-	switch (cc_css <<= NVME_CC_CSS_SHIFT) {
+	switch (cc_css << NVME_CC_CSS_SHIFT) {
 	case NVME_CC_CSS_NVM:
 	case NVME_CC_CSS_CSI:
 		return true;
