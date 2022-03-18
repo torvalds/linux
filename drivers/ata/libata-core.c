@@ -6100,67 +6100,90 @@ int ata_platform_remove_one(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(ata_platform_remove_one);
 
 #ifdef CONFIG_ATA_FORCE
+
+#define force_cbl(name, flag)				\
+	{ #name,	.cbl		= (flag) }
+
+#define force_spd_limit(spd, val)			\
+	{ #spd,	.spd_limit		= (val) }
+
+#define force_xfer(mode, shift)				\
+	{ #mode,	.xfer_mask	= (1UL << (shift)) }
+
+#define force_lflag(name, flags)			\
+	{ #name,	.lflags		= (flags) }
+
+#define force_horkage_on(name, flag)			\
+	{ #name,	.horkage_on	= (flag) }
+
+#define force_horkage_onoff(name, flag)			\
+	{ "no" #name,	.horkage_on	= (flag) },	\
+	{ #name,	.horkage_off	= (flag) }
+
+static const struct ata_force_param force_tbl[] __initconst = {
+	force_cbl(40c,			ATA_CBL_PATA40),
+	force_cbl(80c,			ATA_CBL_PATA80),
+	force_cbl(short40c,		ATA_CBL_PATA40_SHORT),
+	force_cbl(unk,			ATA_CBL_PATA_UNK),
+	force_cbl(ign,			ATA_CBL_PATA_IGN),
+	force_cbl(sata,			ATA_CBL_SATA),
+
+	force_spd_limit(1.5Gbps,	1),
+	force_spd_limit(3.0Gbps,	2),
+
+	force_xfer(pio0,		ATA_SHIFT_PIO + 0),
+	force_xfer(pio1,		ATA_SHIFT_PIO + 1),
+	force_xfer(pio2,		ATA_SHIFT_PIO + 2),
+	force_xfer(pio3,		ATA_SHIFT_PIO + 3),
+	force_xfer(pio4,		ATA_SHIFT_PIO + 4),
+	force_xfer(pio5,		ATA_SHIFT_PIO + 5),
+	force_xfer(pio6,		ATA_SHIFT_PIO + 6),
+	force_xfer(mwdma0,		ATA_SHIFT_MWDMA + 0),
+	force_xfer(mwdma1,		ATA_SHIFT_MWDMA + 1),
+	force_xfer(mwdma2,		ATA_SHIFT_MWDMA + 2),
+	force_xfer(mwdma3,		ATA_SHIFT_MWDMA + 3),
+	force_xfer(mwdma4,		ATA_SHIFT_MWDMA + 4),
+	force_xfer(udma0,		ATA_SHIFT_UDMA + 0),
+	force_xfer(udma16,		ATA_SHIFT_UDMA + 0),
+	force_xfer(udma/16,		ATA_SHIFT_UDMA + 0),
+	force_xfer(udma1,		ATA_SHIFT_UDMA + 1),
+	force_xfer(udma25,		ATA_SHIFT_UDMA + 1),
+	force_xfer(udma/25,		ATA_SHIFT_UDMA + 1),
+	force_xfer(udma2,		ATA_SHIFT_UDMA + 2),
+	force_xfer(udma33,		ATA_SHIFT_UDMA + 2),
+	force_xfer(udma/33,		ATA_SHIFT_UDMA + 2),
+	force_xfer(udma3,		ATA_SHIFT_UDMA + 3),
+	force_xfer(udma44,		ATA_SHIFT_UDMA + 3),
+	force_xfer(udma/44,		ATA_SHIFT_UDMA + 3),
+	force_xfer(udma4,		ATA_SHIFT_UDMA + 4),
+	force_xfer(udma66,		ATA_SHIFT_UDMA + 4),
+	force_xfer(udma/66,		ATA_SHIFT_UDMA + 4),
+	force_xfer(udma5,		ATA_SHIFT_UDMA + 5),
+	force_xfer(udma100,		ATA_SHIFT_UDMA + 5),
+	force_xfer(udma/100,		ATA_SHIFT_UDMA + 5),
+	force_xfer(udma6,		ATA_SHIFT_UDMA + 6),
+	force_xfer(udma133,		ATA_SHIFT_UDMA + 6),
+	force_xfer(udma/133,		ATA_SHIFT_UDMA + 6),
+	force_xfer(udma7,		ATA_SHIFT_UDMA + 7),
+
+	force_lflag(nohrst,		ATA_LFLAG_NO_HRST),
+	force_lflag(nosrst,		ATA_LFLAG_NO_SRST),
+	force_lflag(norst,		ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST),
+	force_lflag(rstonce,		ATA_LFLAG_RST_ONCE),
+
+	force_horkage_onoff(ncq,	ATA_HORKAGE_NONCQ),
+	force_horkage_onoff(ncqtrim,	ATA_HORKAGE_NO_NCQ_TRIM),
+	force_horkage_onoff(ncqati,	ATA_HORKAGE_NO_NCQ_ON_ATI),
+
+	force_horkage_on(dump_id,	ATA_HORKAGE_DUMP_ID),
+	force_horkage_on(atapi_dmadir,	ATA_HORKAGE_ATAPI_DMADIR),
+	force_horkage_on(disable,	ATA_HORKAGE_DISABLE)
+};
+
 static int __init ata_parse_force_one(char **cur,
 				      struct ata_force_ent *force_ent,
 				      const char **reason)
 {
-	static const struct ata_force_param force_tbl[] __initconst = {
-		{ "40c",	.cbl		= ATA_CBL_PATA40 },
-		{ "80c",	.cbl		= ATA_CBL_PATA80 },
-		{ "short40c",	.cbl		= ATA_CBL_PATA40_SHORT },
-		{ "unk",	.cbl		= ATA_CBL_PATA_UNK },
-		{ "ign",	.cbl		= ATA_CBL_PATA_IGN },
-		{ "sata",	.cbl		= ATA_CBL_SATA },
-		{ "1.5Gbps",	.spd_limit	= 1 },
-		{ "3.0Gbps",	.spd_limit	= 2 },
-		{ "noncq",	.horkage_on	= ATA_HORKAGE_NONCQ },
-		{ "ncq",	.horkage_off	= ATA_HORKAGE_NONCQ },
-		{ "noncqtrim",	.horkage_on	= ATA_HORKAGE_NO_NCQ_TRIM },
-		{ "ncqtrim",	.horkage_off	= ATA_HORKAGE_NO_NCQ_TRIM },
-		{ "noncqati",	.horkage_on	= ATA_HORKAGE_NO_NCQ_ON_ATI },
-		{ "ncqati",	.horkage_off	= ATA_HORKAGE_NO_NCQ_ON_ATI },
-		{ "dump_id",	.horkage_on	= ATA_HORKAGE_DUMP_ID },
-		{ "pio0",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 0) },
-		{ "pio1",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 1) },
-		{ "pio2",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 2) },
-		{ "pio3",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 3) },
-		{ "pio4",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 4) },
-		{ "pio5",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 5) },
-		{ "pio6",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 6) },
-		{ "mwdma0",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 0) },
-		{ "mwdma1",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 1) },
-		{ "mwdma2",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 2) },
-		{ "mwdma3",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 3) },
-		{ "mwdma4",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 4) },
-		{ "udma0",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
-		{ "udma16",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
-		{ "udma/16",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
-		{ "udma1",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
-		{ "udma25",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
-		{ "udma/25",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
-		{ "udma2",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
-		{ "udma33",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
-		{ "udma/33",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
-		{ "udma3",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
-		{ "udma44",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
-		{ "udma/44",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
-		{ "udma4",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
-		{ "udma66",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
-		{ "udma/66",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
-		{ "udma5",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
-		{ "udma100",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
-		{ "udma/100",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
-		{ "udma6",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
-		{ "udma133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
-		{ "udma/133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
-		{ "udma7",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 7) },
-		{ "nohrst",	.lflags		= ATA_LFLAG_NO_HRST },
-		{ "nosrst",	.lflags		= ATA_LFLAG_NO_SRST },
-		{ "norst",	.lflags		= ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST },
-		{ "rstonce",	.lflags		= ATA_LFLAG_RST_ONCE },
-		{ "atapi_dmadir", .horkage_on	= ATA_HORKAGE_ATAPI_DMADIR },
-		{ "disable",	.horkage_on	= ATA_HORKAGE_DISABLE },
-	};
 	char *start = *cur, *p = *cur;
 	char *id, *val, *endp;
 	const struct ata_force_param *match_fp = NULL;
@@ -6242,7 +6265,7 @@ static void __init ata_parse_force_param(void)
 	int last_port = -1, last_device = -1;
 	char *p, *cur, *next;
 
-	/* calculate maximum number of params and allocate force_tbl */
+	/* Calculate maximum number of params and allocate ata_force_tbl */
 	for (p = ata_force_param_buf; *p; p++)
 		if (*p == ',')
 			size++;
