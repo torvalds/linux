@@ -4982,8 +4982,10 @@ int stmmac_dvr_probe(struct device *device,
 
 	if (priv->dma_cap.sphen) {
 		ndev->hw_features |= NETIF_F_GRO;
-		priv->sph = true;
-		dev_info(priv->device, "SPH feature enabled\n");
+		if (!priv->plat->sph_disable) {
+			priv->sph = true;
+			dev_info(priv->device, "SPH feature enabled\n");
+		}
 	}
 
 	/* The current IP register MAC_HW_Feature1[ADDR64] only define

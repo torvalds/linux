@@ -157,6 +157,7 @@ struct plat_stmmacenet_data {
 	struct stmmac_est *est;
 	int clk_csr;
 	int has_gmac;
+	int sph_disable;
 	int enh_desc;
 	int tx_coe;
 	int rx_coe;
