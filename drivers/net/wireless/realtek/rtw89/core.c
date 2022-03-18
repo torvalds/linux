@@ -435,6 +435,7 @@ static void
 rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 			     struct rtw89_core_tx_request *tx_req)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_vif *vif = tx_req->vif;
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct ieee80211_tx_info *info;
@@ -446,6 +447,7 @@ rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct sk_buff *skb = tx_req->skb;
 	u8 sec_type = RTW89_SEC_KEY_TYPE_NONE;
+	u64 pn64;
 
 	if (!vif) {
 		rtw89_warn(rtwdev, "cannot set sec key without vif\n");
@@ -491,8 +493,21 @@ rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 	}
 
 	desc_info->sec_en = true;
+	desc_info->sec_keyid = key->keyidx;
 	desc_info->sec_type = sec_type;
 	desc_info->sec_cam_idx = sec_cam->sec_cam_idx;
+
+	if (!chip->hw_sec_hdr)
+		return;
+
+	pn64 = atomic64_inc_return(&key->tx_pn);
+	desc_info->sec_seq[0] = pn64;
+	desc_info->sec_seq[1] = pn64 >> 8;
+	desc_info->sec_seq[2] = pn64 >> 16;
+	desc_info->sec_seq[3] = pn64 >> 24;
+	desc_info->sec_seq[4] = pn64 >> 32;
+	desc_info->sec_seq[5] = pn64 >> 40;
+	desc_info->wp_offset = 1; /* in unit of 8 bytes for security header */
 }
 
 static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
@@ -755,6 +770,17 @@ rtw89_core_tx_btc_spec_pkt_notify(struct rtw89_dev *rtwdev,
 	return PACKET_MAX;
 }
 
+static void rtw89_core_tx_update_llc_hdr(struct rtw89_dev *rtwdev,
+					 struct rtw89_tx_desc_info *desc_info,
+					 struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	__le16 fc = hdr->frame_control;
+
+	desc_info->hdr_llc_len = ieee80211_hdrlen(fc);
+	desc_info->hdr_llc_len >>= 1; /* in unit of 2 bytes */
+}
+
 static void
 rtw89_core_tx_wake(struct rtw89_dev *rtwdev,
 		   struct rtw89_core_tx_request *tx_req)
@@ -806,6 +832,7 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 		rtw89_core_tx_update_data_info(rtwdev, tx_req);
 		pkt_type = rtw89_core_tx_btc_spec_pkt_notify(rtwdev, tx_req);
 		rtw89_core_tx_update_he_qos_htc(rtwdev, tx_req, pkt_type);
+		rtw89_core_tx_update_llc_hdr(rtwdev, desc_info, skb);
 		break;
 	case RTW89_CORE_TX_TYPE_FWCMD:
 		rtw89_core_tx_update_h2c_info(rtwdev, tx_req);
@@ -912,6 +939,7 @@ static __le32 rtw89_build_txwd_body0_v1(struct rtw89_tx_desc_info *desc_info)
 static __le32 rtw89_build_txwd_body1_v1(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(RTW89_TXWD_BODY1_ADDR_INFO_NUM, desc_info->addr_info_nr) |
+		    FIELD_PREP(RTW89_TXWD_BODY1_SEC_KEYID, desc_info->sec_keyid) |
 		    FIELD_PREP(RTW89_TXWD_BODY1_SEC_TYPE, desc_info->sec_type);
 
 	return cpu_to_le32(dword);
@@ -932,6 +960,24 @@ static __le32 rtw89_build_txwd_body3(struct rtw89_tx_desc_info *desc_info)
 	u32 dword = FIELD_PREP(RTW89_TXWD_BODY3_SW_SEQ, desc_info->seq) |
 		    FIELD_PREP(RTW89_TXWD_BODY3_AGG_EN, desc_info->agg_en) |
 		    FIELD_PREP(RTW89_TXWD_BODY3_BK, desc_info->bk);
+
+	return cpu_to_le32(dword);
+}
+
+static __le32 rtw89_build_txwd_body4(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(RTW89_TXWD_BODY4_SEC_IV_L0, desc_info->sec_seq[0]) |
+		    FIELD_PREP(RTW89_TXWD_BODY4_SEC_IV_L1, desc_info->sec_seq[1]);
+
+	return cpu_to_le32(dword);
+}
+
+static __le32 rtw89_build_txwd_body5(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(RTW89_TXWD_BODY5_SEC_IV_H2, desc_info->sec_seq[2]) |
+		    FIELD_PREP(RTW89_TXWD_BODY5_SEC_IV_H3, desc_info->sec_seq[3]) |
+		    FIELD_PREP(RTW89_TXWD_BODY5_SEC_IV_H4, desc_info->sec_seq[4]) |
+		    FIELD_PREP(RTW89_TXWD_BODY5_SEC_IV_H5, desc_info->sec_seq[5]);
 
 	return cpu_to_le32(dword);
 }
@@ -1032,6 +1078,10 @@ void rtw89_core_fill_txdesc_v1(struct rtw89_dev *rtwdev,
 	txwd_body->dword1 = rtw89_build_txwd_body1_v1(desc_info);
 	txwd_body->dword2 = rtw89_build_txwd_body2(desc_info);
 	txwd_body->dword3 = rtw89_build_txwd_body3(desc_info);
+	if (desc_info->sec_en) {
+		txwd_body->dword4 = rtw89_build_txwd_body4(desc_info);
+		txwd_body->dword5 = rtw89_build_txwd_body5(desc_info);
+	}
 	txwd_body->dword7 = rtw89_build_txwd_body7_v1(desc_info);
 
 	if (!desc_info->en_wd_info)

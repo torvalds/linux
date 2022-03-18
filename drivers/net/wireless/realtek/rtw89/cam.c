@@ -320,6 +320,7 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 hw_key_type;
 	bool ext_key = false;
 	int ret;
@@ -353,7 +354,8 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 		return -EOPNOTSUPP;
 	}
 
-	key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+	if (!chip->hw_sec_hdr)
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 
 	ret = rtw89_cam_sec_key_install(rtwdev, vif, sta, key, hw_key_type,
 					ext_key);

@@ -733,8 +733,10 @@ struct rtw89_tx_desc_info {
 	u8 ampdu_num;
 	bool sec_en;
 	u8 addr_info_nr;
+	u8 sec_keyid;
 	u8 sec_type;
 	u8 sec_cam_idx;
+	u8 sec_seq[6];
 	u16 data_rate;
 	u16 data_retry_lowest_rate;
 	bool fw_dl;
@@ -2302,6 +2304,7 @@ struct rtw89_chip_info {
 	u32 rf_base_addr[2];
 	u8 support_bands;
 	bool support_bw160;
+	bool hw_sec_hdr;
 	u8 rf_path_num;
 	u8 tx_nss;
 	u8 rx_nss;
