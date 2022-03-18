@@ -541,11 +541,18 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 	 * Expect no possibility for race unless is_duplicate_bio.
 	 */
 	if (!clone || likely(!clone_to_tio(clone)->is_duplicate_bio)) {
-		if (WARN_ON_ONCE(io->was_accounted))
+		if (WARN_ON_ONCE(dm_io_flagged(io, DM_IO_ACCOUNTED)))
 			return;
-		io->was_accounted = 1;
-	} else if (xchg(&io->was_accounted, 1) == 1)
-		return;
+		dm_io_set_flag(io, DM_IO_ACCOUNTED);
+	} else {
+		unsigned long flags;
+		if (dm_io_flagged(io, DM_IO_ACCOUNTED))
+			return;
+		/* Can afford locking given is_duplicate_bio */
+		spin_lock_irqsave(&io->startio_lock, flags);
+		dm_io_set_flag(io, DM_IO_ACCOUNTED);
+		spin_unlock_irqrestore(&io->startio_lock, flags);
+	}
 
 	__dm_start_io_acct(io, bio);
 }
@@ -575,11 +582,10 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	io->orig_bio = NULL;
 	io->md = md;
 	io->map_task = current;
+	spin_lock_init(&io->startio_lock);
 	spin_lock_init(&io->endio_lock);
-
 	io->start_time = jiffies;
-	io->start_io_acct = false;
-	io->was_accounted = 0;
+	io->flags = 0;
 
 	dm_stats_record_start(&md->stats, &io->stats_aux);
 
@@ -868,7 +874,7 @@ static void dm_io_complete(struct dm_io *io)
 	}
 
 	io_error = io->status;
-	if (io->was_accounted)
+	if (dm_io_flagged(io, DM_IO_ACCOUNTED))
 		dm_end_io_acct(io, bio);
 	else if (!io_error) {
 		/*
@@ -1218,7 +1224,7 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone)
 	 */
 	if (io->map_task == current) {
 		/* Still in target's map function */
-		io->start_io_acct = true;
+		dm_io_set_flag(io, DM_IO_START_ACCT);
 	} else {
 		/*
 		 * Called by another thread, managed by DM target,
@@ -1288,7 +1294,7 @@ static void __map_bio(struct bio *clone)
 	case DM_MAPIO_SUBMITTED:
 		/* target has assumed ownership of this io */
 		if (!ti->accounts_remapped_io)
-			io->start_io_acct = true;
+			dm_io_set_flag(io, DM_IO_START_ACCT);
 		break;
 	case DM_MAPIO_REMAPPED:
 		/*
@@ -1297,7 +1303,7 @@ static void __map_bio(struct bio *clone)
 		 */
 		__dm_submit_bio_remap(clone, disk_devt(io->md->disk),
 				      tio->old_sector);
-		io->start_io_acct = true;
+		dm_io_set_flag(io, DM_IO_START_ACCT);
 		break;
 	case DM_MAPIO_KILL:
 	case DM_MAPIO_REQUEUE:
@@ -1591,7 +1597,7 @@ out:
 	if (!orig_bio)
 		orig_bio = bio;
 	smp_store_release(&ci.io->orig_bio, orig_bio);
-	if (ci.io->start_io_acct)
+	if (dm_io_flagged(ci.io, DM_IO_START_ACCT))
 		dm_start_io_acct(ci.io, NULL);
 
 	/*

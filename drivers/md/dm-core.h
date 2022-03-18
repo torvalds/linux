@@ -232,17 +232,35 @@ struct dm_io {
 	struct mapped_device *md;
 	struct bio *orig_bio;
 	blk_status_t status;
-	bool start_io_acct:1;
-	int was_accounted;
+	unsigned short flags;
 	unsigned long start_time;
 	void *data;
 	struct hlist_node node;
 	struct task_struct *map_task;
+	spinlock_t startio_lock;
 	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
 };
+
+/*
+ * dm_io flags
+ */
+enum {
+	DM_IO_START_ACCT,
+	DM_IO_ACCOUNTED
+};
+
+static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)
+{
+	return (io->flags & (1U << bit)) != 0;
+}
+
+static inline void dm_io_set_flag(struct dm_io *io, unsigned int bit)
+{
+	io->flags |= (1U << bit);
+}
 
 static inline void dm_io_inc_pending(struct dm_io *io)
 {
