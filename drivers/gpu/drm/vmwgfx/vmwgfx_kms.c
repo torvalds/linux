@@ -602,6 +602,14 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 
 			ret = ttm_bo_kmap(cm_bo, 0, PFN_UP(size), &vps->cm_map);
 
+			/*
+			 * We just want to try to get mob bind to finish
+			 * so that the first write to SVGA_REG_CURSOR_MOBID
+			 * is done with a buffer that the device has already
+			 * seen
+			 */
+			(void) ttm_bo_wait(cm_bo, false, false);
+
 			ttm_bo_unreserve(cm_bo);
 
 			if (unlikely(ret != 0)) {
