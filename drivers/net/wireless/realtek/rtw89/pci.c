@@ -977,6 +977,58 @@ static void rtw89_pci_ops_flush_queues(struct rtw89_dev *rtwdev, u32 queues,
 	__rtw89_pci_ops_flush_txchs(rtwdev, BIT(RTW89_TXCH_NUM) - 1, drop);
 }
 
+u32 rtw89_pci_fill_txaddr_info(struct rtw89_dev *rtwdev,
+			       void *txaddr_info_addr, u32 total_len,
+			       dma_addr_t dma, u8 *add_info_nr)
+{
+	struct rtw89_pci_tx_addr_info_32 *txaddr_info = txaddr_info_addr;
+
+	txaddr_info->length = cpu_to_le16(total_len);
+	txaddr_info->option = cpu_to_le16(RTW89_PCI_ADDR_MSDU_LS |
+					  RTW89_PCI_ADDR_NUM(1));
+	txaddr_info->dma = cpu_to_le32(dma);
+
+	*add_info_nr = 1;
+
+	return sizeof(*txaddr_info);
+}
+EXPORT_SYMBOL(rtw89_pci_fill_txaddr_info);
+
+u32 rtw89_pci_fill_txaddr_info_v1(struct rtw89_dev *rtwdev,
+				  void *txaddr_info_addr, u32 total_len,
+				  dma_addr_t dma, u8 *add_info_nr)
+{
+	struct rtw89_pci_tx_addr_info_32_v1 *txaddr_info = txaddr_info_addr;
+	u32 remain = total_len;
+	u32 len;
+	u16 length_option;
+	int n;
+
+	for (n = 0; n < RTW89_TXADDR_INFO_NR_V1 && remain; n++) {
+		len = remain >= TXADDR_INFO_LENTHG_V1_MAX ?
+		      TXADDR_INFO_LENTHG_V1_MAX : remain;
+		remain -= len;
+
+		length_option = FIELD_PREP(B_PCIADDR_LEN_V1_MASK, len) |
+				FIELD_PREP(B_PCIADDR_HIGH_SEL_V1_MASK, 0) |
+				FIELD_PREP(B_PCIADDR_LS_V1_MASK, remain == 0);
+		txaddr_info->length_opt = cpu_to_le16(length_option);
+		txaddr_info->dma_low_lsb = cpu_to_le16(FIELD_GET(GENMASK(15, 0), dma));
+		txaddr_info->dma_low_msb = cpu_to_le16(FIELD_GET(GENMASK(31, 16), dma));
+
+		dma += len;
+		txaddr_info++;
+	}
+
+	WARN_ONCE(remain, "length overflow remain=%u total_len=%u",
+		  remain, total_len);
+
+	*add_info_nr = n;
+
+	return n * sizeof(*txaddr_info);
+}
+EXPORT_SYMBOL(rtw89_pci_fill_txaddr_info_v1);
+
 static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 				 struct rtw89_pci_tx_ring *tx_ring,
 				 struct rtw89_pci_tx_wd *txwd,
@@ -987,7 +1039,7 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 	struct rtw89_txwd_body *txwd_body;
 	struct rtw89_txwd_info *txwd_info;
 	struct rtw89_pci_tx_wp_info *txwp_info;
-	struct rtw89_pci_tx_addr_info_32 *txaddr_info;
+	void *txaddr_info_addr;
 	struct pci_dev *pdev = rtwpci->pdev;
 	struct sk_buff *skb = tx_req->skb;
 	struct rtw89_pci_tx_data *tx_data = RTW89_PCI_TX_SKB_CB(skb);
@@ -1009,7 +1061,6 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 
 	tx_data->dma = dma;
 
-	txaddr_info_len = sizeof(*txaddr_info);
 	txwp_len = sizeof(*txwp_info);
 	txwd_len = sizeof(*txwd_body);
 	txwd_len += en_wd_info ? sizeof(*txwd_info) : 0;
@@ -1021,11 +1072,10 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 	txwp_info->seq3 = 0;
 
 	tx_ring->tx_cnt++;
-	txaddr_info = txwd->vaddr + txwd_len + txwp_len;
-	txaddr_info->length = cpu_to_le16(skb->len);
-	txaddr_info->option = cpu_to_le16(RTW89_PCI_ADDR_MSDU_LS |
-					  RTW89_PCI_ADDR_NUM(1));
-	txaddr_info->dma = cpu_to_le32(dma);
+	txaddr_info_addr = txwd->vaddr + txwd_len + txwp_len;
+	txaddr_info_len =
+		rtw89_chip_fill_txaddr_info(rtwdev, txaddr_info_addr, skb->len,
+					    dma, &desc_info->addr_info_nr);
 
 	txwd->len = txwd_len + txwp_len + txaddr_info_len;
 

@@ -721,6 +721,7 @@ struct rtw89_tx_desc_info {
 	u8 ampdu_density;
 	u8 ampdu_num;
 	bool sec_en;
+	u8 addr_info_nr;
 	u8 sec_type;
 	u8 sec_cam_idx;
 	u16 data_rate;
