@@ -862,7 +862,9 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	return 0;
 
 err_free_bm_irq:
-	free_irq(pci_irq_vector(pdev, 1), vmci_dev);
+	if (vmci_dev->exclusive_vectors)
+		free_irq(pci_irq_vector(pdev, 1), vmci_dev);
+
 err_free_irq:
 	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	tasklet_kill(&vmci_dev->datagram_tasklet);
