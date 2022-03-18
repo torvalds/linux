@@ -559,44 +559,34 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
-	int rc = 0;
 
-	devl_lock(devlink);
 	if (bp->eswitch_mode == mode) {
 		netdev_info(bp->dev, "already in %s eswitch mode\n",
 			    mode == DEVLINK_ESWITCH_MODE_LEGACY ?
 			    "legacy" : "switchdev");
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
 	switch (mode) {
 	case DEVLINK_ESWITCH_MODE_LEGACY:
 		bnxt_vf_reps_destroy(bp);
-		break;
+		return 0;
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (bp->hwrm_spec_code < 0x10803) {
 			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
-			rc = -ENOTSUPP;
-			goto done;
+			return -ENOTSUPP;
 		}
 
 		if (pci_num_vf(bp->pdev) == 0) {
 			netdev_info(bp->dev, "Enable VFs before setting switchdev mode\n");
-			rc = -EPERM;
-			goto done;
+			return -EPERM;
 		}
-		rc = bnxt_vf_reps_create(bp);
-		break;
+		return bnxt_vf_reps_create(bp);
 
 	default:
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
-done:
-	devl_unlock(devlink);
-	return rc;
 }
 
 #endif
