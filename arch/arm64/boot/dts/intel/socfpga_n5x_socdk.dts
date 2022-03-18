@@ -26,11 +26,10 @@
 	};
 
 	soc {
-		sdram_edac: sdr_edac@f87f8000 {
+		sdram_edac: memory-controller@f87f8000 {
 			compatible = "snps,ddrc-3.80a";
 			reg = <0xf87f8000 0x400>;
 			interrupts = <0 175 4>;
-			intel,sysmgr-syscon = <&sysmgr 0xb8>;
 			status = "okay";
 		};
 	};
