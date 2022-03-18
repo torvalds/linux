@@ -727,7 +727,7 @@
 			assigned-clock-parents = <&clk26m>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		audsys: clock-controller@11210000 {
