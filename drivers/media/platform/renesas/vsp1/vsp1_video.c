@@ -1030,7 +1030,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct vsp1_pipeline *pipe;
 	int ret;
 
-	if (video->queue.owner && video->queue.owner != file->private_data)
+	if (vb2_queue_is_busy(&video->queue, file))
 		return -EBUSY;
 
 	/*
