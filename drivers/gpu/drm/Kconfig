@@ -12,7 +12,7 @@ menuconfig DRM
 	select HDMI if !ROCKCHIP_MINI_KERNEL
 	select FB_CMDLINE
 	select I2C
-	select I2C_ALGOBIT
+	select I2C_ALGOBIT if !ROCKCHIP_MINI_KERNEL
 	select DMA_SHARED_BUFFER
 	select SYNC_FILE
 # gallium uses SYS_kcmp for os_same_file_description() to de-duplicate
