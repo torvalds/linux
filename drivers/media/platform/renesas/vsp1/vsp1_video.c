@@ -1127,20 +1127,10 @@ static int vsp1_video_open(struct file *file)
 static int vsp1_video_release(struct file *file)
 {
 	struct vsp1_video *video = video_drvdata(file);
-	struct v4l2_fh *vfh = file->private_data;
 
-	mutex_lock(&video->lock);
-	if (video->queue.owner == vfh) {
-		vb2_queue_release(&video->queue);
-		video->queue.owner = NULL;
-	}
-	mutex_unlock(&video->lock);
+	vb2_fop_release(file);
 
 	vsp1_device_put(video->vsp1);
-
-	v4l2_fh_release(file);
-
-	file->private_data = NULL;
 
 	return 0;
 }
