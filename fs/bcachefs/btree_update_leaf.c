@@ -351,7 +351,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
-	unsigned new_u64s;
+	unsigned old_u64s = ck->u64s, new_u64s;
 	struct bkey_i *new_k;
 
 	EBUG_ON(path->level);
@@ -385,7 +385,8 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	 * transaction restart:
 	 */
 	trace_trans_restart_key_cache_key_realloced(trans->fn, _RET_IP_,
-					     path->btree_id, &path->pos);
+					     path->btree_id, &path->pos,
+					     old_u64s, new_u64s);
 	/*
 	 * Not using btree_trans_restart() because we can't unlock here, we have
 	 * write locks held:

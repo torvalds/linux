@@ -918,12 +918,46 @@ TRACE_EVENT(trans_restart_mem_realloced,
 		  __entry->bytes)
 );
 
-DEFINE_EVENT(transaction_restart_iter,	trans_restart_key_cache_key_realloced,
+TRACE_EVENT(trans_restart_key_cache_key_realloced,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip,
 		 enum btree_id btree_id,
-		 struct bpos *pos),
-	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
+		 struct bpos *pos,
+		 unsigned old_u64s,
+		 unsigned new_u64s),
+	TP_ARGS(trans_fn, caller_ip, btree_id, pos, old_u64s, new_u64s),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 24	)
+		__field(unsigned long,		caller_ip	)
+		__field(enum btree_id,		btree_id	)
+		__field(u64,			inode		)
+		__field(u64,			offset		)
+		__field(u32,			snapshot	)
+		__field(u32,			old_u64s	)
+		__field(u32,			new_u64s	)
+	),
+
+	TP_fast_assign(
+		strncpy(__entry->trans_fn, trans_fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip	= caller_ip;
+		__entry->btree_id	= btree_id;
+		__entry->inode		= pos->inode;
+		__entry->offset		= pos->offset;
+		__entry->snapshot	= pos->snapshot;
+		__entry->old_u64s	= old_u64s;
+		__entry->new_u64s	= new_u64s;
+	),
+
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u old_u64s %u new_u64s %u",
+		  __entry->trans_fn,
+		  (void *) __entry->caller_ip,
+		  bch2_btree_ids[__entry->btree_id],
+		  __entry->inode,
+		  __entry->offset,
+		  __entry->snapshot,
+		  __entry->old_u64s,
+		  __entry->new_u64s)
 );
 
 #endif /* _TRACE_BCACHEFS_H */

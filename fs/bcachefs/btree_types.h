@@ -323,7 +323,7 @@ struct bkey_cached {
 	struct btree_bkey_cached_common c;
 
 	unsigned long		flags;
-	u8			u64s;
+	u16			u64s;
 	bool			valid;
 	u32			btree_trans_barrier_seq;
 	struct bkey_cached_key	key;
