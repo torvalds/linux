@@ -76,7 +76,7 @@ int intel_gt_probe_lmem(struct intel_gt *gt)
 		return err;
 	}
 
-	id = INTEL_REGION_LMEM;
+	id = INTEL_REGION_LMEM_0;
 
 	mem->id = id;
 

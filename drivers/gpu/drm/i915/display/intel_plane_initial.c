@@ -72,7 +72,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 		}
 
 		phys_base = pte & I915_GTT_PAGE_MASK;
-		mem = i915->mm.regions[INTEL_REGION_LMEM];
+		mem = i915->mm.regions[INTEL_REGION_LMEM_0];
 
 		/*
 		 * We don't currently expect this to ever be placed in the

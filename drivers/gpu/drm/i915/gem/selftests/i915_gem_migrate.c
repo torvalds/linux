@@ -92,17 +92,17 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 
 static int igt_smem_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_LMEM, INTEL_REGION_SMEM);
+	return igt_create_migrate(arg, INTEL_REGION_LMEM_0, INTEL_REGION_SMEM);
 }
 
 static int igt_lmem_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_SMEM, INTEL_REGION_LMEM);
+	return igt_create_migrate(arg, INTEL_REGION_SMEM, INTEL_REGION_LMEM_0);
 }
 
 static int igt_same_create_migrate(void *arg)
 {
-	return igt_create_migrate(arg, INTEL_REGION_LMEM, INTEL_REGION_LMEM);
+	return igt_create_migrate(arg, INTEL_REGION_LMEM_0, INTEL_REGION_LMEM_0);
 }
 
 static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
@@ -152,7 +152,7 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 		}
 
 	} else {
-		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_LMEM);
+		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_LMEM_0);
 		if (err) {
 			pr_err("Object failed migration to lmem\n");
 			if (err)
