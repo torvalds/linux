@@ -1035,13 +1035,17 @@
 	status = "okay";
 };
 
-
 &rkvenc1 {
 	status = "okay";
 };
 
 &rkvenc1_mmu {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
 };
 
 &saradc {
