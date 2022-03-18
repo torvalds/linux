@@ -8679,9 +8679,10 @@ static const struct attribute_group fan_driver_attr_group = {
 	.attrs = fan_driver_attributes,
 };
 
-#define TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
-#define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
-#define TPACPI_FAN_2CTL	0x0004		/* selects fan2 control */
+#define TPACPI_FAN_Q1		0x0001		/* Uninitialized HFSP */
+#define TPACPI_FAN_2FAN		0x0002		/* EC 0x31 bit 0 selects fan2 */
+#define TPACPI_FAN_2CTL		0x0004		/* selects fan2 control */
+#define TPACPI_FAN_NOFAN	0x0008		/* no fan available */
 
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
@@ -8702,6 +8703,7 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '4', '0', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (4nd gen) */
 	TPACPI_Q_LNV3('N', '3', '0', TPACPI_FAN_2CTL),	/* P15 (1st gen) / P15v (1st gen) */
 	TPACPI_Q_LNV3('N', '3', '2', TPACPI_FAN_2CTL),	/* X1 Carbon (9th gen) */
+	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_NOFAN),	/* X1 Tablet (2nd gen) */
 };
 
 static int __init fan_init(struct ibm_init_struct *iibm)
@@ -8729,6 +8731,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	quirks = tpacpi_check_quirks(fan_quirk_table,
 				     ARRAY_SIZE(fan_quirk_table));
+
+	if (quirks & TPACPI_FAN_NOFAN) {
+		pr_info("No integrated ThinkPad fan available\n");
+		return -ENODEV;
+	}
 
 	if (gfan_handle) {
 		/* 570, 600e/x, 770e, 770x */
@@ -10112,6 +10119,9 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_CMD_MMC_GET      8 /* To get current MMC function and mode */
 #define DYTC_CMD_RESET    0x1ff /* To reset back to default */
 
+#define DYTC_CMD_FUNC_CAP     3 /* To get DYTC capabilities */
+#define DYTC_FC_MMC           27 /* MMC Mode supported */
+
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
 
@@ -10323,6 +10333,15 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	/* Check DYTC is enabled and supports mode setting */
 	if (dytc_version < 5)
 		return -ENODEV;
+
+	/* Check what capabilities are supported. Currently MMC is needed */
+	err = dytc_command(DYTC_CMD_FUNC_CAP, &output);
+	if (err)
+		return err;
+	if (!(output & BIT(DYTC_FC_MMC))) {
+		dbg_printk(TPACPI_DBG_INIT, " DYTC MMC mode not supported\n");
+		return -ENODEV;
+	}
 
 	dbg_printk(TPACPI_DBG_INIT,
 			"DYTC version %d: thermal mode available\n", dytc_version);

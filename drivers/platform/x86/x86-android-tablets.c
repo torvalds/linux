@@ -26,6 +26,7 @@
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
 #include "../../gpio/gpiolib.h"
+#include "../../gpio/gpiolib-acpi.h"
 
 /*
  * Helper code to get Linux IRQ numbers given a description of the IRQ source
@@ -47,7 +48,7 @@ struct x86_acpi_irq_data {
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
 };
 
-static int x86_acpi_irq_helper_gpiochip_find(struct gpio_chip *gc, void *data)
+static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
 {
 	return gc->label && !strcmp(gc->label, data);
 }
@@ -73,7 +74,7 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		return irq;
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
-		chip = gpiochip_find(data->chip, x86_acpi_irq_helper_gpiochip_find);
+		chip = gpiochip_find(data->chip, gpiochip_find_match_label);
 		if (!chip) {
 			pr_err("error cannot find GPIO chip %s\n", data->chip);
 			return -ENODEV;
@@ -143,14 +144,17 @@ struct x86_serdev_info {
 };
 
 struct x86_dev_info {
+	char *invalid_aei_gpiochip;
 	const char * const *modules;
-	struct gpiod_lookup_table **gpiod_lookup_tables;
+	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
 	int i2c_client_count;
 	int pdev_count;
 	int serdev_count;
+	int (*init)(void);
+	void (*exit)(void);
 };
 
 /* Generic / shared bq24190 settings */
@@ -187,8 +191,8 @@ static struct bq24190_platform_data bq24190_pdata = {
 };
 
 static const char * const bq24190_modules[] __initconst = {
-	"crystal_cove_charger", /* For the bq24190 IRQ */
-	"bq24190_charger",      /* For the Vbus regulator for intel-int3496 */
+	"intel_crystal_cove_charger", /* For the bq24190 IRQ */
+	"bq24190_charger",            /* For the Vbus regulator for intel-int3496 */
 	NULL
 };
 
@@ -302,7 +306,7 @@ static struct gpiod_lookup_table asus_me176c_goodix_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table *asus_me176c_gpios[] = {
+static struct gpiod_lookup_table * const asus_me176c_gpios[] = {
 	&int3496_gpo2_pin22_gpios,
 	&asus_me176c_goodix_gpios,
 	NULL
@@ -317,6 +321,7 @@ static const struct x86_dev_info asus_me176c_info __initconst = {
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.modules = bq24190_modules,
+	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
@@ -405,7 +410,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 	},
 };
 
-static struct gpiod_lookup_table *asus_tf103c_gpios[] = {
+static struct gpiod_lookup_table * const asus_tf103c_gpios[] = {
 	&int3496_gpo2_pin22_gpios,
 	NULL
 };
@@ -417,6 +422,7 @@ static const struct x86_dev_info asus_tf103c_info __initconst = {
 	.pdev_count = ARRAY_SIZE(int3496_pdevs),
 	.gpiod_lookup_tables = asus_tf103c_gpios,
 	.modules = bq24190_modules,
+	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /*
@@ -490,6 +496,39 @@ static const struct x86_dev_info chuwi_hi8_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(chuwi_hi8_i2c_clients),
 };
 
+#define CZC_EC_EXTRA_PORT	0x68
+#define CZC_EC_ANDROID_KEYS	0x63
+
+static int __init czc_p10t_init(void)
+{
+	/*
+	 * The device boots up in "Windows 7" mode, when the home button sends a
+	 * Windows specific key sequence (Left Meta + D) and the second button
+	 * sends an unknown one while also toggling the Radio Kill Switch.
+	 * This is a surprising behavior when the second button is labeled "Back".
+	 *
+	 * The vendor-supplied Android-x86 build switches the device to a "Android"
+	 * mode by writing value 0x63 to the I/O port 0x68. This just seems to just
+	 * set bit 6 on address 0x96 in the EC region; switching the bit directly
+	 * seems to achieve the same result. It uses a "p10t_switcher" to do the
+	 * job. It doesn't seem to be able to do anything else, and no other use
+	 * of the port 0x68 is known.
+	 *
+	 * In the Android mode, the home button sends just a single scancode,
+	 * which can be handled in Linux userspace more reasonably and the back
+	 * button only sends a scancode without toggling the kill switch.
+	 * The scancode can then be mapped either to Back or RF Kill functionality
+	 * in userspace, depending on how the button is labeled on that particular
+	 * model.
+	 */
+	outb(CZC_EC_ANDROID_KEYS, CZC_EC_EXTRA_PORT);
+	return 0;
+}
+
+static const struct x86_dev_info czc_p10t __initconst = {
+	.init = czc_p10t_init,
+};
+
 /*
  * Whitelabel (sold as various brands) TM800A550L tablets.
  * These tablet's DSDT contains a whole bunch of bogus ACPI I2C devices
@@ -559,7 +598,7 @@ static struct gpiod_lookup_table whitelabel_tm800a550l_goodix_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table *whitelabel_tm800a550l_gpios[] = {
+static struct gpiod_lookup_table * const whitelabel_tm800a550l_gpios[] = {
 	&whitelabel_tm800a550l_goodix_gpios,
 	NULL
 };
@@ -642,6 +681,24 @@ static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&chuwi_hi8_info,
 	},
 	{
+		/* CZC P10T */
+		.ident = "CZC ODEON TPC-10 (\"P10T\")",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "CZC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ODEON*TPC-10"),
+		},
+		.driver_data = (void *)&czc_p10t,
+	},
+	{
+		/* A variant of CZC P10T */
+		.ident = "ViewSonic ViewPad 10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ViewSonic"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VPAD10"),
+		},
+		.driver_data = (void *)&czc_p10t,
+	},
+	{
 		/* Whitelabel (sold as various brands) TM800A550L */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
@@ -669,7 +726,8 @@ static int serdev_count;
 static struct i2c_client **i2c_clients;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
-static struct gpiod_lookup_table **gpiod_lookup_tables;
+static struct gpiod_lookup_table * const *gpiod_lookup_tables;
+static void (*exit_handler)(void);
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
@@ -787,6 +845,9 @@ static void x86_android_tablet_cleanup(void)
 
 	kfree(i2c_clients);
 
+	if (exit_handler)
+		exit_handler();
+
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_remove_lookup_table(gpiod_lookup_tables[i]);
 }
@@ -795,6 +856,7 @@ static __init int x86_android_tablet_init(void)
 {
 	const struct x86_dev_info *dev_info;
 	const struct dmi_system_id *id;
+	struct gpio_chip *chip;
 	int i, ret = 0;
 
 	id = dmi_first_match(x86_android_tablet_ids);
@@ -802,6 +864,20 @@ static __init int x86_android_tablet_init(void)
 		return -ENODEV;
 
 	dev_info = id->driver_data;
+
+	/*
+	 * The broken DSDTs on these devices often also include broken
+	 * _AEI (ACPI Event Interrupt) handlers, disable these.
+	 */
+	if (dev_info->invalid_aei_gpiochip) {
+		chip = gpiochip_find(dev_info->invalid_aei_gpiochip,
+				     gpiochip_find_match_label);
+		if (!chip) {
+			pr_err("error cannot find GPIO chip %s\n", dev_info->invalid_aei_gpiochip);
+			return -ENODEV;
+		}
+		acpi_gpiochip_free_interrupts(chip);
+	}
 
 	/*
 	 * Since this runs from module_init() it cannot use -EPROBE_DEFER,
@@ -813,6 +889,15 @@ static __init int x86_android_tablet_init(void)
 	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
+
+	if (dev_info->init) {
+		ret = dev_info->init();
+		if (ret < 0) {
+			x86_android_tablet_cleanup();
+			return ret;
+		}
+		exit_handler = dev_info->exit;
+	}
 
 	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
 	if (!i2c_clients) {
@@ -865,6 +950,6 @@ static __init int x86_android_tablet_init(void)
 module_init(x86_android_tablet_init);
 module_exit(x86_android_tablet_cleanup);
 
-MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("X86 Android tablets DSDT fixups driver");
 MODULE_LICENSE("GPL");

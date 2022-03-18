@@ -6,6 +6,7 @@
 #ifndef __I915_MM_H__
 #define __I915_MM_H__
 
+#include <linux/bug.h>
 #include <linux/types.h>
 
 struct vm_area_struct;

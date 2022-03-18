@@ -3,7 +3,7 @@
 #include <linux/pci.h>
 #include <loongson.h>
 
-static void pci_fixup_radeon(struct pci_dev *pdev)
+static void pci_fixup_video(struct pci_dev *pdev)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 
@@ -22,8 +22,7 @@ static void pci_fixup_radeon(struct pci_dev *pdev)
 	res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
 		     IORESOURCE_PCI_FIXED;
 
-	dev_info(&pdev->dev, "BAR %d: assigned %pR for Radeon ROM\n",
-		 PCI_ROM_RESOURCE, res);
+	dev_info(&pdev->dev, "Video device with shadowed ROM at %pR\n", res);
 }
-DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_ATI, 0x9615,
-				PCI_CLASS_DISPLAY_VGA, 8, pci_fixup_radeon);
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_ATI, 0x9615,
+			       PCI_CLASS_DISPLAY_VGA, 8, pci_fixup_video);

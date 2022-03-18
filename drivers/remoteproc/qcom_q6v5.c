@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/soc/qcom/qcom_aoss.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/remoteproc.h>

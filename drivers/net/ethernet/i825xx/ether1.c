@@ -986,6 +986,7 @@ static int
 ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 	int i, ret = 0;
 
 	ether1_banner();
@@ -1015,7 +1016,8 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	}
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = readb(IDPROM_ADDRESS + (i << 2));
+		addr[i] = readb(IDPROM_ADDRESS + (i << 2));
+	eth_hw_addr_set(dev, addr);
 
 	if (ether1_init_2(dev)) {
 		ret = -ENODEV;

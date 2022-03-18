@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE // needed for sched.h to get sched_[gs]etaffinity and CPU_(ZERO,SET)
+#include <inttypes.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -526,12 +527,12 @@ static int test_stat_multiplexing(void)
 
 	min = counts[0].val;
 	for (i = 0; i < EVENT_NUM; i++) {
-		__T_VERBOSE("Event %2d -- Raw count = %lu, run = %lu, enable = %lu\n",
+		__T_VERBOSE("Event %2d -- Raw count = %" PRIu64 ", run = %" PRIu64 ", enable = %" PRIu64 "\n",
 			    i, counts[i].val, counts[i].run, counts[i].ena);
 
 		perf_counts_values__scale(&counts[i], true, &scaled);
 		if (scaled == 1) {
-			__T_VERBOSE("\t Scaled count = %lu (%.2lf%%, %lu/%lu)\n",
+			__T_VERBOSE("\t Scaled count = %" PRIu64 " (%.2lf%%, %" PRIu64 "/%" PRIu64 ")\n",
 				    counts[i].val,
 				    (double)counts[i].run / (double)counts[i].ena * 100.0,
 				    counts[i].run, counts[i].ena);

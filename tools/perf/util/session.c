@@ -1503,11 +1503,12 @@ static int machines__deliver_event(struct machines *machines,
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
-		dump_sample(evsel, event, sample, perf_env__arch(machine->env));
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
+			dump_sample(evsel, event, sample, perf_env__arch(NULL));
 			return 0;
 		}
+		dump_sample(evsel, event, sample, perf_env__arch(machine->env));
 		return evlist__deliver_sample(evlist, tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);

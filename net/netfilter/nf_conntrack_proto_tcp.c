@@ -446,6 +446,32 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
+static void tcp_init_sender(struct ip_ct_tcp_state *sender,
+			    struct ip_ct_tcp_state *receiver,
+			    const struct sk_buff *skb,
+			    unsigned int dataoff,
+			    const struct tcphdr *tcph,
+			    u32 end, u32 win)
+{
+	/* SYN-ACK in reply to a SYN
+	 * or SYN from reply direction in simultaneous open.
+	 */
+	sender->td_end =
+	sender->td_maxend = end;
+	sender->td_maxwin = (win == 0 ? 1 : win);
+
+	tcp_options(skb, dataoff, tcph, sender);
+	/* RFC 1323:
+	 * Both sides must send the Window Scale option
+	 * to enable window scaling in either direction.
+	 */
+	if (!(sender->flags & IP_CT_TCP_FLAG_WINDOW_SCALE &&
+	      receiver->flags & IP_CT_TCP_FLAG_WINDOW_SCALE)) {
+		sender->td_scale = 0;
+		receiver->td_scale = 0;
+	}
+}
+
 static bool tcp_in_window(struct nf_conn *ct,
 			  enum ip_conntrack_dir dir,
 			  unsigned int index,
@@ -499,24 +525,9 @@ static bool tcp_in_window(struct nf_conn *ct,
 		 * Initialize sender data.
 		 */
 		if (tcph->syn) {
-			/*
-			 * SYN-ACK in reply to a SYN
-			 * or SYN from reply direction in simultaneous open.
-			 */
-			sender->td_end =
-			sender->td_maxend = end;
-			sender->td_maxwin = (win == 0 ? 1 : win);
-
-			tcp_options(skb, dataoff, tcph, sender);
-			/*
-			 * RFC 1323:
-			 * Both sides must send the Window Scale option
-			 * to enable window scaling in either direction.
-			 */
-			if (!(sender->flags & IP_CT_TCP_FLAG_WINDOW_SCALE
-			      && receiver->flags & IP_CT_TCP_FLAG_WINDOW_SCALE))
-				sender->td_scale =
-				receiver->td_scale = 0;
+			tcp_init_sender(sender, receiver,
+					skb, dataoff, tcph,
+					end, win);
 			if (!tcph->ack)
 				/* Simultaneous open */
 				return true;
@@ -560,6 +571,18 @@ static bool tcp_in_window(struct nf_conn *ct,
 		sender->td_maxwin = (win == 0 ? 1 : win);
 
 		tcp_options(skb, dataoff, tcph, sender);
+	} else if (tcph->syn && dir == IP_CT_DIR_REPLY &&
+		   state->state == TCP_CONNTRACK_SYN_SENT) {
+		/* Retransmitted syn-ack, or syn (simultaneous open).
+		 *
+		 * Re-init state for this direction, just like for the first
+		 * syn(-ack) reply, it might differ in seq, ack or tcp options.
+		 */
+		tcp_init_sender(sender, receiver,
+				skb, dataoff, tcph,
+				end, win);
+		if (!tcph->ack)
+			return true;
 	}
 
 	if (!(tcph->ack)) {

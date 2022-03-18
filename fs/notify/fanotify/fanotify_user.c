@@ -158,7 +158,6 @@ static size_t fanotify_event_len(unsigned int info_mode,
 				 struct fanotify_event *event)
 {
 	size_t event_len = FAN_EVENT_METADATA_LEN;
-	struct fanotify_info *info;
 	int fh_len;
 	int dot_len = 0;
 
@@ -167,8 +166,6 @@ static size_t fanotify_event_len(unsigned int info_mode,
 
 	if (fanotify_is_error_event(event->mask))
 		event_len += FANOTIFY_ERROR_INFO_LEN;
-
-	info = fanotify_event_info(event);
 
 	if (fanotify_event_has_any_dir_fh(event)) {
 		event_len += fanotify_dir_name_info_len(event);
@@ -704,15 +701,15 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (fanotify_is_perm_event(event->mask))
 		FANOTIFY_PERM(event)->fd = fd;
 
-	if (f)
-		fd_install(fd, f);
-
 	if (info_mode) {
 		ret = copy_info_records_to_user(event, info, info_mode, pidfd,
 						buf, count);
 		if (ret < 0)
 			goto out_close_fd;
 	}
+
+	if (f)
+		fd_install(fd, f);
 
 	return metadata.event_len;
 

@@ -139,6 +139,8 @@ void intel_generic_uncore_mmio_disable_box(struct intel_uncore_box *box);
 void intel_generic_uncore_mmio_enable_box(struct intel_uncore_box *box);
 void intel_generic_uncore_mmio_disable_event(struct intel_uncore_box *box,
 					     struct perf_event *event);
+void intel_generic_uncore_mmio_enable_event(struct intel_uncore_box *box,
+					    struct perf_event *event);
 
 void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box);
 void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box);
