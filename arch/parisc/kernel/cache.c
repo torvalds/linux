@@ -315,6 +315,8 @@ static inline void
 __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 		   unsigned long physaddr)
 {
+	if (!static_branch_likely(&parisc_has_cache))
+		return;
 	preempt_disable();
 	flush_dcache_page_asm(physaddr, vmaddr);
 	if (vma->vm_flags & VM_EXEC)
@@ -326,6 +328,8 @@ static inline void
 __purge_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 		   unsigned long physaddr)
 {
+	if (!static_branch_likely(&parisc_has_cache))
+		return;
 	preempt_disable();
 	purge_dcache_page_asm(physaddr, vmaddr);
 	if (vma->vm_flags & VM_EXEC)
