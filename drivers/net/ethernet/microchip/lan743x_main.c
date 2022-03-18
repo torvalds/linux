@@ -1776,6 +1776,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		dev_kfree_skb_irq(skb);
 		goto unlock;
 	}
+	tx->frame_count++;
 
 	if (gso)
 		lan743x_tx_frame_add_lso(tx, frame_length, nr_frags);
@@ -2868,6 +2869,7 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 		adapter->used_tx_channels = PCI11X1X_USED_TX_CHANNELS;
 		adapter->max_vector_count = PCI11X1X_MAX_VECTOR_COUNT;
 		pci11x1x_strap_get_status(adapter);
+		spin_lock_init(&adapter->eth_syslock_spinlock);
 	} else {
 		adapter->max_tx_channels = LAN743X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = LAN743X_USED_TX_CHANNELS;
