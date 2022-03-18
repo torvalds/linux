@@ -1245,7 +1245,6 @@ static int av1dec_probe(struct platform_device *pdev)
 	av1dec_procfs_init(mpp);
 	mpp_dev_register_srv(mpp, mpp->srv);
 	dev_info(dev, "probing finish\n");
-	pm_runtime_get(mpp->dev);
 
 	return 0;
 
@@ -1263,7 +1262,6 @@ static int av1dec_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(&dec->mpp);
 	av1dec_procfs_remove(&dec->mpp);
-	pm_runtime_put(dec->mpp.dev);
 
 	return 0;
 }
