@@ -720,7 +720,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 			dev_err(&pdev->dev,
 				"Missing capability: VMCI_CAPS_DMA_DATAGRAM\n");
 			error = -ENXIO;
-			goto err_free_data_buffers;
+			goto err_free_notification_bitmap;
 		}
 	}
 
@@ -886,6 +886,7 @@ err_remove_vmci_dev_g:
 	vmci_dev_g = NULL;
 	spin_unlock_irq(&vmci_dev_spinlock);
 
+err_free_notification_bitmap:
 	if (vmci_dev->notification_bitmap) {
 		vmci_write_reg(vmci_dev, VMCI_CONTROL_RESET, VMCI_CONTROL_ADDR);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
