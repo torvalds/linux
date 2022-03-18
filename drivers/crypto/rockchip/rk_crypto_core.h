@@ -39,7 +39,7 @@
 #define RK_BUFFER_ORDER			3
 #define RK_BUFFER_SIZE			(PAGE_SIZE << RK_BUFFER_ORDER)
 
-#define RK_DMA_ALIGNMENT		64
+#define RK_DMA_ALIGNMENT		128
 #define sha384_state			sha512_state
 #define sha224_state			sha256_state
 
