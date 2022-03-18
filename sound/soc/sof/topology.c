@@ -904,8 +904,10 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 		return -ENOMEM;
 
 	scontrol->name = kstrdup(hdr->name, GFP_KERNEL);
-	if (!scontrol->name)
+	if (!scontrol->name) {
+		kfree(scontrol);
 		return -ENOMEM;
+	}
 
 	scontrol->scomp = scomp;
 	scontrol->access = kc->access;
