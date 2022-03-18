@@ -806,6 +806,10 @@
 	snoop-ports = <0x80>;
 };
 
+&ibt {
+	status = "okay";
+};
+
 &kcs1 {
 	kcs_addr = <0xca0>;
 	status = "okay";
@@ -1037,5 +1041,25 @@
 };
 
 &acry {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart10 {
+	status = "okay";
+};
+
+&uart11 {
+	status = "okay";
+};
+
+&uart_routing {
 	status = "okay";
 };
