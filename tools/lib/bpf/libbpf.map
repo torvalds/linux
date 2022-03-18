@@ -444,4 +444,5 @@ LIBBPF_0.8.0 {
 	global:
 		libbpf_register_prog_handler;
 		libbpf_unregister_prog_handler;
+		bpf_program__attach_kprobe_multi_opts;
 } LIBBPF_0.7.0;
