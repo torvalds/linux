@@ -2081,8 +2081,11 @@ bool acpi_ec_dispatch_gpe(void)
 	 */
 	spin_lock_irq(&first_ec->lock);
 
-	if (acpi_ec_gpe_status_set(first_ec))
+	if (acpi_ec_gpe_status_set(first_ec)) {
+		pm_pr_dbg("ACPI EC GPE status set\n");
+
 		work_in_progress = advance_transaction(first_ec, false);
+	}
 
 	spin_unlock_irq(&first_ec->lock);
 
