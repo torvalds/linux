@@ -814,6 +814,8 @@ struct drm_i915_private {
 #define I915_MAX_GT 4
 	struct intel_gt *gt[I915_MAX_GT];
 
+	struct kobject *sysfs_gt;
+
 	struct {
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
