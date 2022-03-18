@@ -615,7 +615,7 @@ static struct kvm_pgtable_mm_ops kvm_s2_mm_ops = {
 };
 
 /**
- * kvm_init_stage2_mmu - Initialise a S2 MMU strucrure
+ * kvm_init_stage2_mmu - Initialise a S2 MMU structure
  * @kvm:	The pointer to the KVM structure
  * @mmu:	The pointer to the s2 MMU structure
  *
