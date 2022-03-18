@@ -191,7 +191,7 @@ static int rk630_phy_probe(struct phy_device *phydev)
 			       WAKE_LOCK_SUSPEND, "wol_wake_lock");
 		ret = devm_request_threaded_irq(&phydev->mdio.dev, priv->wol_irq,
 						NULL, rk630_wol_irq_thread,
-						IRQF_TRIGGER_RISING | IRQF_SHARED | IRQF_ONESHOT,
+						IRQF_TRIGGER_FALLING | IRQF_SHARED | IRQF_ONESHOT,
 						"wol_irq", priv);
 		if (ret) {
 			wake_lock_destroy(&priv->wol_wake_lock);
