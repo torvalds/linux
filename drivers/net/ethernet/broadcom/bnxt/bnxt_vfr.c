@@ -561,7 +561,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;
 
-	mutex_lock(&bp->sriov_lock);
+	devl_lock(devlink);
 	if (bp->eswitch_mode == mode) {
 		netdev_info(bp->dev, "already in %s eswitch mode\n",
 			    mode == DEVLINK_ESWITCH_MODE_LEGACY ?
@@ -595,7 +595,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		goto done;
 	}
 done:
-	mutex_unlock(&bp->sriov_lock);
+	devl_unlock(devlink);
 	return rc;
 }
 
