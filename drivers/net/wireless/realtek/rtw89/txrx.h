@@ -204,6 +204,8 @@
 	le32_get_bits((rxdesc)->dword0, GENMASK(13, 0))
 #define RTW89_GET_RXWD_BW(rxdesc) \
 	le32_get_bits((rxdesc)->dword1, GENMASK(31, 30))
+#define RTW89_GET_RXWD_BW_V1(rxdesc) \
+	le32_get_bits((rxdesc)->dword1, GENMASK(31, 29))
 #define RTW89_GET_RXWD_GI_LTF(rxdesc) \
 	le32_get_bits((rxdesc)->dword1, GENMASK(27, 25))
 #define RTW89_GET_RXWD_DATA_RATE(rxdesc) \

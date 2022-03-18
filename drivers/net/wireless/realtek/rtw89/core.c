@@ -1492,6 +1492,7 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 			     struct rtw89_rx_desc_info *desc_info,
 			     u8 *data, u32 data_offset)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_rxdesc_short *rxd_s;
 	struct rtw89_rxdesc_long *rxd_l;
 	u8 shift_len, drv_info_len;
@@ -1502,7 +1503,10 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 	desc_info->long_rxdesc = RTW89_GET_RXWD_LONG_RXD(rxd_s);
 	desc_info->pkt_type = RTW89_GET_RXWD_RPKT_TYPE(rxd_s);
 	desc_info->mac_info_valid = RTW89_GET_RXWD_MAC_INFO_VALID(rxd_s);
-	desc_info->bw = RTW89_GET_RXWD_BW(rxd_s);
+	if (chip->chip_id == RTL8852C)
+		desc_info->bw = RTW89_GET_RXWD_BW_V1(rxd_s);
+	else
+		desc_info->bw = RTW89_GET_RXWD_BW(rxd_s);
 	desc_info->data_rate = RTW89_GET_RXWD_DATA_RATE(rxd_s);
 	desc_info->gi_ltf = RTW89_GET_RXWD_GI_LTF(rxd_s);
 	desc_info->user_id = RTW89_GET_RXWD_USER_ID(rxd_s);
