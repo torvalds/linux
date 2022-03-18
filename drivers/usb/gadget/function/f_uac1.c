@@ -58,6 +58,16 @@ static inline struct f_uac1_opts *g_audio_to_uac1_opts(struct g_audio *audio)
 	return container_of(audio->func.fi, struct f_uac1_opts, func_inst);
 }
 
+static struct usb_interface_assoc_descriptor iad_desc = {
+	.bLength = sizeof(iad_desc),
+	.bDescriptorType = USB_DT_INTERFACE_ASSOCIATION,
+	/* .bFirstInterface = DYNAMIC */
+	/* .bInterfaceCount = DYNAMIC */
+	.bFunctionClass = USB_CLASS_AUDIO,
+	.bFunctionSubClass = USB_SUBCLASS_AUDIOSTREAMING,
+	.bFunctionProtocol = UAC_VERSION_1,
+};
+
 /*
  * DESCRIPTORS ... most are static, but strings and full
  * configuration descriptors are built on demand.
@@ -259,6 +269,7 @@ static struct uac_iso_endpoint_descriptor as_iso_in_desc = {
 };
 
 static struct usb_descriptor_header *f_audio_desc[] = {
+	(struct usb_descriptor_header *)&iad_desc,
 	(struct usb_descriptor_header *)&ac_interface_desc,
 	(struct usb_descriptor_header *)&ac_header_desc,
 
@@ -293,6 +304,7 @@ static struct usb_descriptor_header *f_audio_desc[] = {
 };
 
 enum {
+	STR_ASSOC,
 	STR_AC_IF,
 	STR_USB_OUT_IT,
 	STR_USB_OUT_IT_CH_NAMES,
@@ -309,7 +321,8 @@ enum {
 };
 
 static struct usb_string strings_uac1[] = {
-	/* [STR_AC_IF].s = DYNAMIC, */
+	/* [STR_ASSOC].s = DYNAMIC, */
+	[STR_AC_IF].s = "AC Interface",
 	[STR_USB_OUT_IT].s = "Playback Input terminal",
 	[STR_USB_OUT_IT_CH_NAMES].s = "Playback Channels",
 	[STR_IO_OUT_OT].s = "Playback Output terminal",
@@ -1058,6 +1071,7 @@ static void setup_descriptor(struct f_uac1_opts *opts)
 	as_out_header_desc.bTerminalLink = usb_out_it_desc.bTerminalID;
 	as_in_header_desc.bTerminalLink = usb_in_ot_desc.bTerminalID;
 
+	iad_desc.bInterfaceCount = 1;
 	ac_header_desc->wTotalLength = cpu_to_le16(ac_header_desc->bLength);
 
 	if (EPIN_EN(opts)) {
@@ -1068,6 +1082,7 @@ static void setup_descriptor(struct f_uac1_opts *opts)
 		if (FUIN_EN(opts))
 			len += in_feature_unit_desc->bLength;
 		ac_header_desc->wTotalLength = cpu_to_le16(len);
+		iad_desc.bInterfaceCount++;
 	}
 	if (EPOUT_EN(opts)) {
 		u16 len = le16_to_cpu(ac_header_desc->wTotalLength);
@@ -1077,9 +1092,11 @@ static void setup_descriptor(struct f_uac1_opts *opts)
 		if (FUOUT_EN(opts))
 			len += out_feature_unit_desc->bLength;
 		ac_header_desc->wTotalLength = cpu_to_le16(len);
+		iad_desc.bInterfaceCount++;
 	}
 
 	i = 0;
+	f_audio_desc[i++] = USBDHDR(&iad_desc);
 	f_audio_desc[i++] = USBDHDR(&ac_interface_desc);
 	f_audio_desc[i++] = USBDHDR(ac_header_desc);
 
@@ -1192,7 +1209,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 
-	strings_uac1[STR_AC_IF].s = audio_opts->function_name;
+	strings_uac1[STR_ASSOC].s = audio_opts->function_name;
 
 	us = usb_gstrings_attach(cdev, uac1_strings, ARRAY_SIZE(strings_uac1));
 	if (IS_ERR(us))
@@ -1217,6 +1234,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		}
 	}
 
+	iad_desc.iFunction = us[STR_ASSOC].id;
 	ac_interface_desc.iInterface = us[STR_AC_IF].id;
 	usb_out_it_desc.iTerminal = us[STR_USB_OUT_IT].id;
 	usb_out_it_desc.iChannelNames = us[STR_USB_OUT_IT_CH_NAMES].id;
@@ -1302,6 +1320,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto err_free_fu;
+	iad_desc.bFirstInterface = status;
 	ac_interface_desc.bInterfaceNumber = status;
 	uac1->ac_intf = status;
 	uac1->ac_alt = 0;
@@ -1685,7 +1704,7 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 
 	opts->req_number = UAC1_DEF_REQ_NUM;
 
-	snprintf(opts->function_name, sizeof(opts->function_name), "AC Interface");
+	snprintf(opts->function_name, sizeof(opts->function_name), "Source/Sink");
 
 	return &opts->func_inst;
 }
