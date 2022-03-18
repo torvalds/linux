@@ -126,8 +126,6 @@ static void rk630_phy_set_uaps(struct phy_device *phydev)
 
 static int rk630_phy_config_init(struct phy_device *phydev)
 {
-	u32 value;
-
 	phy_write(phydev, 0, phy_read(phydev, 0) & ~BIT(13));
 
 	/* Switch to page 1 */
@@ -150,22 +148,6 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 	phy_write(phydev, REG_PAGE_SEL, 0x0800);
 	/* PHYAFE TRX optimization */
 	phy_write(phydev, REG_PAGE8_AFE_CTRL, 0x00bc);
-
-	/* Adjust tx level, bypass */
-	value = phy_read(phydev, 0x1d);
-	value |= BIT(11);
-	phy_write(phydev, 0x1d, value);
-	/* switch to page6 */
-	phy_write(phydev, REG_PAGE_SEL, 0x0600);
-	/* Enable tx level control */
-	value = phy_read(phydev, REG_PAGE6_ADC_ANONTROL);
-	value &= ~BIT(6);
-	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, value);
-	/* Set tx level */
-	value = phy_read(phydev, REG_PAGE6_AFE_DRIVER2);
-	value &= ~GENMASK(15, 8);
-	value |= 0x121a;
-	phy_write(phydev, REG_PAGE6_AFE_DRIVER2, value);
 
 	/* Switch to page 0 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
