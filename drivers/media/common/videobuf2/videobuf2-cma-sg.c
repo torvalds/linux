@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/refcount.h>
+#include <linux/rk-dma-heap.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -43,15 +44,107 @@ struct vb2_cma_sg_buf {
 
 static void vb2_cma_sg_put(void *buf_priv);
 
+static int vb2_cma_sg_alloc_compacted(struct vb2_cma_sg_buf *buf,
+				      gfp_t gfp_flags)
+{
+	unsigned int last_page = 0;
+	unsigned long size = buf->size;
+
+	while (size > 0) {
+		struct page *pages;
+		int order;
+		int i;
+
+		order = get_order(size);
+		/* Don't over allocate*/
+		if ((PAGE_SIZE << order) > size)
+			order--;
+
+		pages = NULL;
+		while (!pages) {
+			pages = alloc_pages(GFP_KERNEL | __GFP_ZERO |
+					__GFP_NOWARN | gfp_flags, order);
+			if (pages)
+				break;
+
+			if (order == 0) {
+				while (last_page--)
+					__free_page(buf->pages[last_page]);
+				return -ENOMEM;
+			}
+			order--;
+		}
+
+		split_page(pages, order);
+		for (i = 0; i < (1 << order); i++)
+			buf->pages[last_page++] = &pages[i];
+
+		size -= PAGE_SIZE << order;
+	}
+
+	return 0;
+}
+
+static void vb2_cma_sg_free_compacted(struct vb2_cma_sg_buf *buf)
+{
+	int num_pages = buf->num_pages;
+
+	while (num_pages--) {
+		__free_page(buf->pages[num_pages]);
+		buf->pages[num_pages] = NULL;
+	}
+}
+
+static int vb2_cma_sg_alloc_contiguous(struct vb2_cma_sg_buf *buf)
+{
+	struct rk_dma_heap *heap __maybe_unused;
+	struct page *page = NULL;
+	int i;
+	bool cma_en = false;
+
+	if (IS_ENABLED(CONFIG_DMA_CMA)) {
+		struct rk_dma_heap *heap = rk_dma_heap_find("rk-dma-heap-cma");
+
+		cma_en = true;
+		if (heap)
+			page = rk_dma_heap_alloc_contig_pages(heap, buf->size,
+							      dev_name(buf->dev));
+		else
+			page = cma_alloc(dev_get_cma_area(buf->dev), buf->num_pages,
+					 get_order(buf->size), GFP_KERNEL);
+	}
+	if (!page) {
+		pr_err("CONFIG_DMA_CMA en:%d alloc pages fail\n", cma_en);
+		return -ENOMEM;
+	}
+	for (i = 0; i < buf->num_pages; i++)
+		buf->pages[i] = page + i;
+
+	return 0;
+}
+
+static void vb2_cma_sg_free_contiguous(struct vb2_cma_sg_buf *buf)
+{
+	if (IS_ENABLED(CONFIG_DMA_CMA)) {
+		struct rk_dma_heap *heap = rk_dma_heap_find("rk-dma-heap-cma");
+
+		if (heap)
+			rk_dma_heap_free_contig_pages(heap, buf->pages[0],
+						      buf->size, dev_name(buf->dev));
+		else
+			cma_release(dev_get_cma_area(buf->dev),
+				    buf->pages[0], buf->num_pages);
+	}
+}
+
 static void *vb2_cma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 			      unsigned long size,
 			      enum dma_data_direction dma_dir,
 			      gfp_t gfp_flags)
 {
 	struct vb2_cma_sg_buf *buf;
-	struct page *page;
 	struct sg_table *sgt;
-	int i, ret;
+	int ret;
 
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
@@ -68,27 +161,25 @@ static void *vb2_cma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	/* size is already page aligned */
 	buf->num_pages = size >> PAGE_SHIFT;
 	buf->dma_sgt = &buf->sg_table;
+	/* Prevent the device from being released while the buffer is used */
+	buf->dev = get_device(dev);
 
 	buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
-	page = cma_alloc(dev_get_cma_area(dev), buf->num_pages,
-			 get_order(buf->size), GFP_KERNEL);
-	if (!page)
+	if (dma_attrs & DMA_ATTR_FORCE_CONTIGUOUS)
+		ret = vb2_cma_sg_alloc_contiguous(buf);
+	else
+		ret = vb2_cma_sg_alloc_compacted(buf, gfp_flags);
+	if (ret)
 		goto fail_pages_alloc;
-
-	for (i = 0; i < buf->num_pages; i++)
-		buf->pages[i] = page + i;
 
 	ret = sg_alloc_table_from_pages(buf->dma_sgt, buf->pages,
 			buf->num_pages, 0, size, GFP_KERNEL);
 	if (ret)
 		goto fail_table_alloc;
-
-	/* Prevent the device from being released while the buffer is used */
-	buf->dev = get_device(dev);
 
 	sgt = &buf->sg_table;
 	/*
@@ -108,13 +199,16 @@ static void *vb2_cma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	return buf;
 
 fail_map:
-	put_device(buf->dev);
 	sg_free_table(buf->dma_sgt);
 fail_table_alloc:
-	cma_release(dev_get_cma_area(dev), buf->pages[0], buf->num_pages);
+	if (dma_attrs & DMA_ATTR_FORCE_CONTIGUOUS)
+		vb2_cma_sg_free_contiguous(buf);
+	else
+		vb2_cma_sg_free_compacted(buf);
 fail_pages_alloc:
 	kvfree(buf->pages);
 fail_pages_array_alloc:
+	put_device(buf->dev);
 	kfree(buf);
 	return ERR_PTR(-ENOMEM);
 }
@@ -123,7 +217,6 @@ static void vb2_cma_sg_put(void *buf_priv)
 {
 	struct vb2_cma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = &buf->sg_table;
-	int i = buf->num_pages;
 
 	if (refcount_dec_and_test(&buf->refcount)) {
 		dma_unmap_sgtable(buf->dev, sgt, buf->dma_dir,
@@ -131,8 +224,12 @@ static void vb2_cma_sg_put(void *buf_priv)
 		if (buf->vaddr)
 			vm_unmap_ram(buf->vaddr, buf->num_pages);
 		sg_free_table(buf->dma_sgt);
-		cma_release(dev_get_cma_area(buf->dev), buf->pages[0], i);
+		if (buf->dma_attrs & DMA_ATTR_FORCE_CONTIGUOUS)
+			vb2_cma_sg_free_contiguous(buf);
+		else
+			vb2_cma_sg_free_compacted(buf);
 		kvfree(buf->pages);
+		buf->pages = NULL;
 		put_device(buf->dev);
 		kfree(buf);
 	}
