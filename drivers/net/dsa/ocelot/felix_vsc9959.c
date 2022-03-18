@@ -37,6 +37,7 @@ static const u32 vsc9959_port_modes[VSC9959_NUM_PORTS] = {
 	VSC9959_PORT_MODE_SERDES,
 	VSC9959_PORT_MODE_SERDES,
 	OCELOT_PORT_MODE_INTERNAL,
+	OCELOT_PORT_MODE_INTERNAL,
 };
 
 static const u32 vsc9959_ana_regmap[] = {
