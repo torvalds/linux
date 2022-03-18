@@ -697,9 +697,9 @@ static int rkvenc2_is_split_task(struct rkvenc_task *task)
 	}
 
 	if (sli_split_en && slen_fifo_en && sli_flsh_en) {
-		mpp_dbg_slice("slice output with irq enabled\n");
 		if (!slc_done_en || slc_done_msk)
-			mpp_dbg_slice("slice output enabled but irq disabled!\n");
+			mpp_dbg_slice("task %d slice output enabled but irq disabled!\n",
+				      task->mpp_task.task_id);
 
 		return 1;
 	}
@@ -984,7 +984,8 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 	for (i = 0; i < sli_num; i++) {
 		u32 sli_len = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_LEN_BASE);
 
-		mpp_dbg_slice("wr %d:%d len %d\n", sli_num, i, sli_len);
+		mpp_dbg_slice("task %d wr len %d %d:%d\n",
+			      task->mpp_task.task_id, sli_len, sli_num, i);
 		kfifo_in(&task->slice_len, &sli_len, 1);
 	}
 }
@@ -993,7 +994,7 @@ static void rkvenc2_last_slice(struct rkvenc_task *task)
 {
 	u32 sli_len = 0;
 
-	mpp_dbg_slice("wr last slice\n");
+	mpp_dbg_slice("task %d last slice found\n", task->mpp_task.task_id);
 	kfifo_in(&task->slice_len, &sli_len, 1);
 }
 
@@ -1034,8 +1035,10 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 		ret = IRQ_WAKE_THREAD;
 
 		if (task) {
-			rkvenc2_read_slice_len(mpp, task);
-			rkvenc2_last_slice(task);
+			if (task->task_split) {
+				rkvenc2_read_slice_len(mpp, task);
+				rkvenc2_last_slice(task);
+			}
 			wake_up(&mpp_task->wait);
 		}
 	}
@@ -1541,6 +1544,7 @@ static int rkvenc2_wait_result(struct mpp_session *session,
 	struct mpp_task *task;
 	struct mpp_dev *mpp;
 	u32 slice_len = 0;
+	u32 task_id;
 	int ret = 0;
 
 	mutex_lock(&session->pending_lock);
@@ -1555,6 +1559,9 @@ static int rkvenc2_wait_result(struct mpp_session *session,
 
 	mpp = mpp_get_task_used_device(task, session);
 	enc_task = to_rkvenc_task(task);
+	task_id = task->task_id;
+
+	req = cmpxchg(&msgs->poll_req, msgs->poll_req, NULL);
 
 	if (!enc_task->task_split || enc_task->task_split_done) {
 task_done_ret:
@@ -1569,8 +1576,6 @@ task_done_ret:
 		return ret;
 	}
 
-	req = msgs->poll_req;
-
 	/* not slice return just wait all slice length */
 	if (!req) {
 		do {
@@ -1578,7 +1583,8 @@ task_done_ret:
 						 kfifo_out(&enc_task->slice_len, &slice_len, 1),
 						 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
 			if (ret > 0) {
-				mpp_dbg_slice("not ret rd len %d\n", slice_len);
+				mpp_dbg_slice("task %d skip slice len %d\n",
+					      task_id, slice_len);
 				if (slice_len == 0)
 					goto task_done_ret;
 
@@ -1595,7 +1601,8 @@ task_done_ret:
 		return -EINVAL;
 	}
 
-	mpp_dbg_slice("count %d : %d\n", cfg.count_max, cfg.count_ret);
+	mpp_dbg_slice("task %d poll irq %d:%d\n", task->task_id,
+		      cfg.count_max, cfg.count_ret);
 	cfg.count_ret = 0;
 
 	/* handle slice mode poll return */
@@ -1603,24 +1610,28 @@ task_done_ret:
 				 kfifo_out(&enc_task->slice_len, &slice_len, 1),
 				 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
 	if (ret > 0) {
-		mpp_dbg_slice("rd len %d\n", slice_len);
-		if (!slice_len)
-			enc_task->task_split_done = 1;
+		mpp_dbg_slice("task %d rd len %d\n", task_id, slice_len);
 
 		if (cfg.count_ret < cfg.count_max) {
 			struct rkvenc_poll_slice_cfg __user *ucfg =
 				(struct rkvenc_poll_slice_cfg __user *)(req->data);
 			u32 __user *dst = (u32 __user *)(ucfg + 1);
 
+			/* Do NOT return here when put_user error. Just continue */
 			if (put_user(slice_len, dst + cfg.count_ret))
-				return -EFAULT;
+				ret = -EFAULT;
 
 			cfg.count_ret++;
 			if (put_user(cfg.count_ret, &ucfg->count_ret))
-				return -EFAULT;
+				ret = -EFAULT;
 		}
 
-		return 0;
+		if (!slice_len) {
+			enc_task->task_split_done = 1;
+			goto task_done_ret;
+		}
+
+		return ret < 0 ? ret : 0;
 	}
 
 	rkvenc2_task_timeout_process(session, task);

@@ -1202,12 +1202,20 @@ static int mpp_process_request(struct mpp_session *session,
 	case MPP_CMD_POLL_HW_FINISH: {
 		msgs->flags |= req->flags;
 		msgs->poll_cnt++;
+		msgs->poll_req = NULL;
+	} break;
+	case MPP_CMD_POLL_HW_IRQ: {
+		if (msgs->poll_cnt || msgs->poll_req)
+			mpp_err("Do NOT poll hw irq when previous call not return\n");
+
+		msgs->flags |= req->flags;
+		msgs->poll_cnt++;
 
 		if (req->size && req->data) {
-			if (msgs->poll_req)
-				mpp_err("can not poll more than one request\n");
-			else
+			if (!msgs->poll_req)
 				msgs->poll_req = req;
+		} else {
+			msgs->poll_req = NULL;
 		}
 	} break;
 	case MPP_CMD_RESET_SESSION: {
