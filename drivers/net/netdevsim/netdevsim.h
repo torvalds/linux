@@ -261,7 +261,6 @@ struct nsim_dev {
 	struct dentry *take_snapshot;
 	struct dentry *nodes_ddir;
 
-	struct mutex vfs_lock;  /* Protects vfconfigs */
 	struct nsim_vf_config *vfconfigs;
 
 	struct bpf_offload_dev *bpf_dev;
