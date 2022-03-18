@@ -13,6 +13,7 @@
 #include "i915_sysfs.h"
 #include "intel_gt.h"
 #include "intel_gt_sysfs.h"
+#include "intel_gt_sysfs_pm.h"
 #include "intel_gt_types.h"
 #include "intel_rc6.h"
 
@@ -50,6 +51,11 @@ struct intel_gt *intel_gt_sysfs_get_drvdata(struct device *dev,
 	return kobj_to_gt(kobj);
 }
 
+static struct kobject *gt_get_parent_obj(struct intel_gt *gt)
+{
+	return &gt->i915->drm.primary->kdev->kobj;
+}
+
 static ssize_t id_show(struct device *dev,
 		       struct device_attribute *attr,
 		       char *buf)
@@ -81,6 +87,17 @@ void intel_gt_sysfs_register(struct intel_gt *gt)
 {
 	struct kobj_gt *kg;
 
+	/*
+	 * We need to make things right with the
+	 * ABI compatibility. The files were originally
+	 * generated under the parent directory.
+	 *
+	 * We generate the files only for gt 0
+	 * to avoid duplicates.
+	 */
+	if (gt_is_root(gt))
+		intel_gt_sysfs_pm_init(gt, gt_get_parent_obj(gt));
+
 	kg = kzalloc(sizeof(*kg), GFP_KERNEL);
 	if (!kg)
 		goto exit_fail;
@@ -91,6 +108,8 @@ void intel_gt_sysfs_register(struct intel_gt *gt)
 	/* xfer ownership to sysfs tree */
 	if (kobject_add(&kg->base, gt->i915->sysfs_gt, "gt%d", gt->info.id))
 		goto exit_kobj_put;
+
+	intel_gt_sysfs_pm_init(gt, &kg->base);
 
 	return;
 

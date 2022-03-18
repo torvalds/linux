@@ -45,107 +45,6 @@ struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 	return to_i915(minor->dev);
 }
 
-#ifdef CONFIG_PM
-static u32 calc_residency(struct drm_i915_private *dev_priv,
-			  i915_reg_t reg)
-{
-	intel_wakeref_t wakeref;
-	u64 res = 0;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		res = intel_rc6_residency_us(&to_gt(dev_priv)->rc6, reg);
-
-	return DIV_ROUND_CLOSEST_ULL(res, 1000);
-}
-
-static ssize_t rc6_enable_show(struct device *kdev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	unsigned int mask;
-
-	mask = 0;
-	if (HAS_RC6(dev_priv))
-		mask |= BIT(0);
-	if (HAS_RC6p(dev_priv))
-		mask |= BIT(1);
-	if (HAS_RC6pp(dev_priv))
-		mask |= BIT(2);
-
-	return sysfs_emit(buf, "%x\n", mask);
-}
-
-static ssize_t rc6_residency_ms_show(struct device *kdev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6);
-	return sysfs_emit(buf, "%u\n", rc6_residency);
-}
-
-static ssize_t rc6p_residency_ms_show(struct device *kdev,
-				      struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6p_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6p);
-	return sysfs_emit(buf, "%u\n", rc6p_residency);
-}
-
-static ssize_t rc6pp_residency_ms_show(struct device *kdev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6pp_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6pp);
-	return sysfs_emit(buf, "%u\n", rc6pp_residency);
-}
-
-static ssize_t media_rc6_residency_ms_show(struct device *kdev,
-					   struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6_residency = calc_residency(dev_priv, VLV_GT_MEDIA_RC6);
-	return sysfs_emit(buf, "%u\n", rc6_residency);
-}
-
-static DEVICE_ATTR_RO(rc6_enable);
-static DEVICE_ATTR_RO(rc6_residency_ms);
-static DEVICE_ATTR_RO(rc6p_residency_ms);
-static DEVICE_ATTR_RO(rc6pp_residency_ms);
-static DEVICE_ATTR_RO(media_rc6_residency_ms);
-
-static struct attribute *rc6_attrs[] = {
-	&dev_attr_rc6_enable.attr,
-	&dev_attr_rc6_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group rc6_attr_group = {
-	.name = power_group_name,
-	.attrs =  rc6_attrs
-};
-
-static struct attribute *rc6p_attrs[] = {
-	&dev_attr_rc6p_residency_ms.attr,
-	&dev_attr_rc6pp_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group rc6p_attr_group = {
-	.name = power_group_name,
-	.attrs =  rc6p_attrs
-};
-
-static struct attribute *media_rc6_attrs[] = {
-	&dev_attr_media_rc6_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group media_rc6_attr_group = {
-	.name = power_group_name,
-	.attrs =  media_rc6_attrs
-};
-#endif
-
 static int l3_access_valid(struct drm_i915_private *i915, loff_t offset)
 {
 	if (!HAS_L3_DPF(i915))
@@ -492,29 +391,6 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 	struct device *kdev = dev_priv->drm.primary->kdev;
 	int ret;
 
-#ifdef CONFIG_PM
-	if (HAS_RC6(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&rc6_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"RC6 residency sysfs setup failed\n");
-	}
-	if (HAS_RC6p(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&rc6p_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"RC6p residency sysfs setup failed\n");
-	}
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&media_rc6_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"Media RC6 residency sysfs setup failed\n");
-	}
-#endif
 	if (HAS_L3_DPF(dev_priv)) {
 		ret = device_create_bin_file(kdev, &dpf_attrs);
 		if (ret)
@@ -560,8 +436,4 @@ void i915_teardown_sysfs(struct drm_i915_private *dev_priv)
 		sysfs_remove_files(&kdev->kobj, gen6_attrs);
 	device_remove_bin_file(kdev,  &dpf_attrs_1);
 	device_remove_bin_file(kdev,  &dpf_attrs);
-#ifdef CONFIG_PM
-	sysfs_unmerge_group(&kdev->kobj, &rc6_attr_group);
-	sysfs_unmerge_group(&kdev->kobj, &rc6p_attr_group);
-#endif
 }
