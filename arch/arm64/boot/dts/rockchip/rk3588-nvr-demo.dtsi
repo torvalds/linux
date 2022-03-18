@@ -78,7 +78,7 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <5000>;
+		startup-delay-us = <7500>;
 		vin-supply = <&vcc12v_dcin>;
 	};
 
