@@ -446,6 +446,7 @@ enum rtw89_regulation_type {
 	RTW89_UKRAINE	= 11,
 	RTW89_CN	= 12,
 	RTW89_QATAR	= 13,
+	RTW89_UK	= 14,
 	RTW89_REGD_NUM,
 };
 
