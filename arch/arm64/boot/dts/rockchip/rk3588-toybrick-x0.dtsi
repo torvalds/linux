@@ -10,6 +10,21 @@
 #include "rk3588-rk806-single.dtsi"
 
 / {
+	/* If hdmirx node is disabled, delete the reserved-memory node here. */
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Reserve 256MB memory for hdmirx-controller@fdee0000 */
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 (256 * 0x100000) 0x0 (256 * 0x100000)>;
+			linux,cma-default;
+		};
+	};
+
 	hdmiin_dc: hdmiin-dc {
 			compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
@@ -322,6 +337,15 @@
 
 &hdmi0_sound {
 	status = "okay";
+};
+
+/* Should work with at least 128MB cma reserved above. */
+&hdmirx_ctrler {
+	status = "okay";
+
+	/* Effective level used to trigger HPD: 0-low, 1-high */
+	hpd-trigger-level = <1>;
+	hdmirx-det-gpios = <&gpio2 13 GPIO_ACTIVE_LOW>;
 };
 
 &hdptxphy_hdmi0 {
