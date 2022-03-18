@@ -1518,6 +1518,9 @@ static char *internal_map_name(struct bpf_object *obj, const char *real_name)
 }
 
 static int
+bpf_map_find_btf_info(struct bpf_object *obj, struct bpf_map *map);
+
+static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 			      const char *real_name, int sec_idx, void *data, size_t data_sz)
 {
@@ -1563,6 +1566,9 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 		zfree(&map->name);
 		return err;
 	}
+
+	/* failures are fine because of maps like .rodata.str1.1 */
+	(void) bpf_map_find_btf_info(obj, map);
 
 	if (data)
 		memcpy(map->mmaped, data, data_sz);
@@ -2046,6 +2052,9 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 			}
 			memcpy(&map->def, def, sizeof(struct bpf_map_def));
 		}
+
+		/* btf info may not exist but fill it in if it does exist */
+		(void) bpf_map_find_btf_info(obj, map);
 	}
 	return 0;
 }
@@ -2533,6 +2542,10 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 
 		fill_map_from_def(map->inner_map, &inner_def);
 	}
+
+	err = bpf_map_find_btf_info(obj, map);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -3832,7 +3845,14 @@ static bool prog_is_subprog(const struct bpf_object *obj,
 	 * .text programs are subprograms (even if they are not called from
 	 * other programs), because libbpf never explicitly supported mixing
 	 * SEC()-designated BPF programs and .text entry-point BPF programs.
+	 *
+	 * In libbpf 1.0 strict mode, we always consider .text
+	 * programs to be subprograms.
 	 */
+
+	if (libbpf_mode & LIBBPF_STRICT_SEC_NAME)
+		return prog->sec_idx == obj->efile.text_shndx;
+
 	return prog->sec_idx == obj->efile.text_shndx && obj->nr_programs > 1;
 }
 
@@ -4866,7 +4886,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 	if (bpf_map__is_struct_ops(map))
 		create_attr.btf_vmlinux_value_type_id = map->btf_vmlinux_value_type_id;
 
-	if (obj->btf && btf__fd(obj->btf) >= 0 && !bpf_map_find_btf_info(obj, map)) {
+	if (obj->btf && btf__fd(obj->btf) >= 0) {
 		create_attr.btf_fd = btf__fd(obj->btf);
 		create_attr.btf_key_type_id = map->btf_key_type_id;
 		create_attr.btf_value_type_id = map->btf_value_type_id;
@@ -11969,6 +11989,49 @@ int libbpf_num_possible_cpus(void)
 	return tmp_cpus;
 }
 
+static int populate_skeleton_maps(const struct bpf_object *obj,
+				  struct bpf_map_skeleton *maps,
+				  size_t map_cnt)
+{
+	int i;
+
+	for (i = 0; i < map_cnt; i++) {
+		struct bpf_map **map = maps[i].map;
+		const char *name = maps[i].name;
+		void **mmaped = maps[i].mmaped;
+
+		*map = bpf_object__find_map_by_name(obj, name);
+		if (!*map) {
+			pr_warn("failed to find skeleton map '%s'\n", name);
+			return -ESRCH;
+		}
+
+		/* externs shouldn't be pre-setup from user code */
+		if (mmaped && (*map)->libbpf_type != LIBBPF_MAP_KCONFIG)
+			*mmaped = (*map)->mmaped;
+	}
+	return 0;
+}
+
+static int populate_skeleton_progs(const struct bpf_object *obj,
+				   struct bpf_prog_skeleton *progs,
+				   size_t prog_cnt)
+{
+	int i;
+
+	for (i = 0; i < prog_cnt; i++) {
+		struct bpf_program **prog = progs[i].prog;
+		const char *name = progs[i].name;
+
+		*prog = bpf_object__find_program_by_name(obj, name);
+		if (!*prog) {
+			pr_warn("failed to find skeleton program '%s'\n", name);
+			return -ESRCH;
+		}
+	}
+	return 0;
+}
+
 int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 			      const struct bpf_object_open_opts *opts)
 {
@@ -11976,7 +12039,7 @@ int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 		.object_name = s->name,
 	);
 	struct bpf_object *obj;
-	int i, err;
+	int err;
 
 	/* Attempt to preserve opts->object_name, unless overriden by user
 	 * explicitly. Overwriting object name for skeletons is discouraged,
@@ -11999,35 +12062,89 @@ int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 	}
 
 	*s->obj = obj;
-
-	for (i = 0; i < s->map_cnt; i++) {
-		struct bpf_map **map = s->maps[i].map;
-		const char *name = s->maps[i].name;
-		void **mmaped = s->maps[i].mmaped;
-
-		*map = bpf_object__find_map_by_name(obj, name);
-		if (!*map) {
-			pr_warn("failed to find skeleton map '%s'\n", name);
-			return libbpf_err(-ESRCH);
-		}
-
-		/* externs shouldn't be pre-setup from user code */
-		if (mmaped && (*map)->libbpf_type != LIBBPF_MAP_KCONFIG)
-			*mmaped = (*map)->mmaped;
+	err = populate_skeleton_maps(obj, s->maps, s->map_cnt);
+	if (err) {
+		pr_warn("failed to populate skeleton maps for '%s': %d\n", s->name, err);
+		return libbpf_err(err);
 	}
 
-	for (i = 0; i < s->prog_cnt; i++) {
-		struct bpf_program **prog = s->progs[i].prog;
-		const char *name = s->progs[i].name;
-
-		*prog = bpf_object__find_program_by_name(obj, name);
-		if (!*prog) {
-			pr_warn("failed to find skeleton program '%s'\n", name);
-			return libbpf_err(-ESRCH);
-		}
+	err = populate_skeleton_progs(obj, s->progs, s->prog_cnt);
+	if (err) {
+		pr_warn("failed to populate skeleton progs for '%s': %d\n", s->name, err);
+		return libbpf_err(err);
 	}
 
 	return 0;
+}
+
+int bpf_object__open_subskeleton(struct bpf_object_subskeleton *s)
+{
+	int err, len, var_idx, i;
+	const char *var_name;
+	const struct bpf_map *map;
+	struct btf *btf;
+	__u32 map_type_id;
+	const struct btf_type *map_type, *var_type;
+	const struct bpf_var_skeleton *var_skel;
+	struct btf_var_secinfo *var;
+
+	if (!s->obj)
+		return libbpf_err(-EINVAL);
+
+	btf = bpf_object__btf(s->obj);
+	if (!btf) {
+		pr_warn("subskeletons require BTF at runtime (object %s)\n",
+		        bpf_object__name(s->obj));
+		return libbpf_err(-errno);
+	}
+
+	err = populate_skeleton_maps(s->obj, s->maps, s->map_cnt);
+	if (err) {
+		pr_warn("failed to populate subskeleton maps: %d\n", err);
+		return libbpf_err(err);
+	}
+
+	err = populate_skeleton_progs(s->obj, s->progs, s->prog_cnt);
+	if (err) {
+		pr_warn("failed to populate subskeleton maps: %d\n", err);
+		return libbpf_err(err);
+	}
+
+	for (var_idx = 0; var_idx < s->var_cnt; var_idx++) {
+		var_skel = &s->vars[var_idx];
+		map = *var_skel->map;
+		map_type_id = bpf_map__btf_value_type_id(map);
+		map_type = btf__type_by_id(btf, map_type_id);
+
+		if (!btf_is_datasec(map_type)) {
+			pr_warn("type for map '%1$s' is not a datasec: %2$s",
+				bpf_map__name(map),
+				__btf_kind_str(btf_kind(map_type)));
+			return libbpf_err(-EINVAL);
+		}
+
+		len = btf_vlen(map_type);
+		var = btf_var_secinfos(map_type);
+		for (i = 0; i < len; i++, var++) {
+			var_type = btf__type_by_id(btf, var->type);
+			var_name = btf__name_by_offset(btf, var_type->name_off);
+			if (strcmp(var_name, var_skel->name) == 0) {
+				*var_skel->addr = map->mmaped + var->offset;
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+void bpf_object__destroy_subskeleton(struct bpf_object_subskeleton *s)
+{
+	if (!s)
+		return;
+	free(s->maps);
+	free(s->progs);
+	free(s->vars);
+	free(s);
 }
 
 int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
