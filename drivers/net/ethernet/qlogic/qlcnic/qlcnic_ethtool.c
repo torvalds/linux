@@ -1355,7 +1355,7 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 
 	memset(data, 0, stats->n_stats * sizeof(u64));
 
-	for (ring = 0, index = 0; ring < adapter->drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		if (adapter->is_up == QLCNIC_ADAPTER_UP_MAGIC) {
 			tx_ring = &adapter->tx_ring[ring];
 			data = qlcnic_fill_tx_queue_stats(data, tx_ring);
