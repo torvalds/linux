@@ -1035,8 +1035,8 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 				 struct rtw89_core_tx_request *tx_req)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
-	struct rtw89_txwd_body *txwd_body;
 	struct rtw89_txwd_info *txwd_info;
 	struct rtw89_pci_tx_wp_info *txwp_info;
 	void *txaddr_info_addr;
@@ -1050,8 +1050,6 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 	dma_addr_t dma;
 	int ret;
 
-	rtw89_core_fill_txdesc(rtwdev, desc_info, txwd->vaddr);
-
 	dma = dma_map_single(&pdev->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&pdev->dev, dma)) {
 		rtw89_err(rtwdev, "failed to map skb dma data\n");
@@ -1062,7 +1060,7 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 	tx_data->dma = dma;
 
 	txwp_len = sizeof(*txwp_info);
-	txwd_len = sizeof(*txwd_body);
+	txwd_len = chip->txwd_body_size;
 	txwd_len += en_wd_info ? sizeof(*txwd_info) : 0;
 
 	txwp_info = txwd->vaddr + txwd_len;
@@ -1078,6 +1076,8 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 					    dma, &desc_info->addr_info_nr);
 
 	txwd->len = txwd_len + txwp_len + txaddr_info_len;
+
+	rtw89_chip_fill_txdesc(rtwdev, desc_info, txwd->vaddr);
 
 	skb_queue_tail(&txwd->queue, skb);
 
