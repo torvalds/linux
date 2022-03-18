@@ -199,7 +199,6 @@ struct isp32_bls_cfg {
 	struct isp2x_window bls_window2;
 	struct isp2x_bls_fixed_val fixed_val;
 	struct isp2x_bls_fixed_val bls1_val;
-	struct isp2x_bls_fixed_val bls2_val;
 
 	u16 isp_ob_offset;
 	u16 isp_ob_predgain;
