@@ -102,6 +102,11 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 		sparx5_port_attr_ageing_set(port, attr->u.ageing_time);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		/* Used PVID 1 when default_pvid is 0, to avoid
+		 * collision with non-bridged ports.
+		 */
+		if (port->pvid == 0)
+			port->pvid = 1;
 		port->vlan_aware = attr->u.vlan_filtering;
 		sparx5_vlan_port_apply(port->sparx5, port);
 		break;
@@ -137,6 +142,9 @@ static int sparx5_port_bridge_join(struct sparx5_port *port,
 	if (err)
 		goto err_switchdev_offload;
 
+	/* Remove standalone port entry */
+	sparx5_mact_forget(sparx5, ndev->dev_addr, 0);
+
 	/* Port enters in bridge mode therefor don't need to copy to CPU
 	 * frames for multicast in case the bridge is not requesting them
 	 */
@@ -164,6 +172,9 @@ static void sparx5_port_bridge_leave(struct sparx5_port *port,
 	port->vlan_aware = 0;
 	port->pvid = NULL_VID;
 	port->vid = NULL_VID;
+
+	/* Forward frames to CPU */
+	sparx5_mact_learn(sparx5, PGID_CPU, port->ndev->dev_addr, 0);
 
 	/* Port enters in host more therefore restore mc list */
 	__dev_mc_sync(port->ndev, sparx5_mc_sync, sparx5_mc_unsync);
@@ -249,6 +260,7 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	struct sparx5_port *port;
 	struct sparx5 *sparx5;
 	bool host_addr;
+	u16 vid;
 
 	rtnl_lock();
 	if (!sparx5_netdevice_check(dev)) {
@@ -262,17 +274,25 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 
 	fdb_info = &switchdev_work->fdb_info;
 
+	/* Used PVID 1 when default_pvid is 0, to avoid
+	 * collision with non-bridged ports.
+	 */
+	if (fdb_info->vid == 0)
+		vid = 1;
+	else
+		vid = fdb_info->vid;
+
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		if (host_addr)
 			sparx5_add_mact_entry(sparx5, dev, PGID_CPU,
-					      fdb_info->addr, fdb_info->vid);
+					      fdb_info->addr, vid);
 		else
 			sparx5_add_mact_entry(sparx5, port->ndev, port->portno,
-					      fdb_info->addr, fdb_info->vid);
+					      fdb_info->addr, vid);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		sparx5_del_mact_entry(sparx5, fdb_info->addr, fdb_info->vid);
+		sparx5_del_mact_entry(sparx5, fdb_info->addr, vid);
 		break;
 	}
 
