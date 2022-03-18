@@ -610,38 +610,6 @@ static int rkvenc_task_get_format(struct mpp_dev *mpp,
 	return 0;
 }
 
-static struct rkvenc_dev *rkvenc_core_balance(struct rkvenc_ccu *ccu)
-{
-	struct rkvenc_dev *enc;
-	struct rkvenc_dev *core = NULL, *n;
-
-	mpp_debug_enter();
-
-	mutex_lock(&ccu->lock);
-	enc = list_first_entry(&ccu->core_list, struct rkvenc_dev, core_link);
-	list_for_each_entry_safe(core, n, &ccu->core_list, core_link) {
-		mpp_debug(DEBUG_DEVICE, "%s, disable_work=%d, task_count=%d, task_index=%d\n",
-			  dev_name(core->mpp.dev), core->disable_work,
-			  atomic_read(&core->mpp.task_count), atomic_read(&core->mpp.task_index));
-		/* if core (except main-core) disabled, skip it */
-		if (core->disable_work)
-			continue;
-		/* choose core with less task in queue */
-		if (atomic_read(&core->mpp.task_count) < atomic_read(&enc->mpp.task_count)) {
-			enc = core;
-			break;
-		}
-		/* choose core with less task which done */
-		if (atomic_read(&core->mpp.task_index) < atomic_read(&enc->mpp.task_index))
-			enc = core;
-	}
-	mutex_unlock(&ccu->lock);
-
-	mpp_debug_leave();
-
-	return enc;
-}
-
 static int rkvenc2_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
 			      struct rkvenc_task *task)
 {
@@ -817,20 +785,6 @@ free_task:
 	kfree(task);
 
 	return NULL;
-}
-
-static void *rkvenc_ccu_alloc_task(struct mpp_session *session,
-				   struct mpp_task_msgs *msgs)
-{
-	struct rkvenc_dev *enc = to_rkvenc_dev(session->mpp);
-
-	/* if multi-cores, choose one for current task */
-	if (enc->ccu) {
-		enc = rkvenc_core_balance(enc->ccu);
-		session->mpp = &enc->mpp;
-	}
-
-	return rkvenc_alloc_task(session, msgs);
 }
 
 static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
@@ -1573,7 +1527,7 @@ static void rkvenc2_task_timeout_process(struct mpp_session *session,
 
 	mpp_err("session %d:%d count %d task %d ref %d timeout\n",
 		session->pid, session->index, atomic_read(&session->task_count),
-		task->task_index, kref_read(&task->ref));
+		task->task_id, kref_read(&task->ref));
 
 	rkvenc2_task_pop_pending(task);
 }
@@ -1699,7 +1653,7 @@ static struct mpp_dev_ops rkvenc_dev_ops_v2 = {
 
 static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
 	.wait_result = rkvenc2_wait_result,
-	.alloc_task = rkvenc_ccu_alloc_task,
+	.alloc_task = rkvenc_alloc_task,
 	.prepare = rkvenc2_prepare,
 	.run = rkvenc_run,
 	.irq = rkvenc_irq,

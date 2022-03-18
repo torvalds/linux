@@ -496,7 +496,7 @@ void mpp_free_task(struct kref *ref)
 	session = task->session;
 
 	mpp_debug_func(DEBUG_TASK_INFO, "task %d:%d free state 0x%lx abort %d\n",
-		       session->index, task->task_index, task->state,
+		       session->index, task->task_id, task->state,
 		       atomic_read(&task->abort_request));
 
 	mpp = mpp_get_task_used_device(task, session);
@@ -573,6 +573,7 @@ static int mpp_process_task_default(struct mpp_session *session,
 	init_waitqueue_head(&task->wait);
 	atomic_set(&task->abort_request, 0);
 	task->task_index = atomic_fetch_inc(&mpp->task_index);
+	task->task_id = atomic_fetch_inc(&mpp->queue->task_id);
 	INIT_DELAYED_WORK(&task->timeout_work, mpp_task_timeout_work);
 
 	if (mpp->auto_freq_en && mpp->hw_ops->get_freq)
@@ -836,14 +837,14 @@ static int mpp_wait_result_default(struct mpp_session *session,
 	} else {
 		atomic_inc(&task->abort_request);
 		set_bit(TASK_STATE_ABORT, &task->state);
-		mpp_err("timeout, pid %d session %p:%d count %d cur_task %p index %d.\n",
+		mpp_err("timeout, pid %d session %p:%d count %d cur_task %p id %d\n",
 			session->pid, session, session->index,
 			atomic_read(&session->task_count), task,
-			task->task_index);
+			task->task_id);
 	}
 
 	mpp_debug_func(DEBUG_TASK_INFO, "task %d kref_%d\n",
-		       task->task_index, kref_read(&task->ref));
+		       task->task_id, kref_read(&task->ref));
 
 	mpp_session_pop_pending(session, task);
 
@@ -946,6 +947,7 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 	/* default taskqueue has max 16 task capacity */
 	queue->task_capacity = MPP_MAX_TASK_CAPACITY;
 	atomic_set(&queue->reset_request, 0);
+	atomic_set(&queue->task_id, 0);
 
 	return queue;
 }
@@ -1492,7 +1494,7 @@ static void mpp_msgs_trigger(struct list_head *msgs_list)
 		}
 
 		if (test_bit(TASK_STATE_ABORT, &task->state))
-			pr_info("try to trigger abort task %d\n", task->task_index);
+			pr_info("try to trigger abort task %d\n", task->task_id);
 
 		atomic_inc(&mpp->task_count);
 

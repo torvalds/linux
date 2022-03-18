@@ -448,6 +448,7 @@ struct mpp_task {
 	/* hardware info for current task */
 	struct mpp_hw_info *hw_info;
 	u32 task_index;
+	u32 task_id;
 	u32 *reg;
 	/* event for session wait thread */
 	wait_queue_head_t wait;
@@ -471,6 +472,7 @@ struct mpp_taskqueue {
 	struct list_head session_detach;
 	u32 detach_count;
 
+	atomic_t task_id;
 	/* lock for pending list */
 	struct mutex pending_lock;
 	struct list_head pending_list;

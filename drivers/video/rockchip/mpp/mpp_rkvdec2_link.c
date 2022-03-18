@@ -366,7 +366,7 @@ static int rkvdec_link_write_task_to_slot(struct rkvdec_link_dev *dev, int idx,
 	dev->task_to_run++;
 	dev->task_prepared++;
 	mpp_dbg_link_flow("slot %d write task %d\n", slot_idx,
-			  mpp_task->task_index);
+			  mpp_task->task_id);
 
 	return 0;
 }
@@ -572,7 +572,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		regs = table_base + idx * link_dec->link_reg_count;
 		irq_status = regs[info->tb_reg_int];
 		mpp_dbg_link_flow("slot %d rd task %d\n", idx,
-				  mpp_task->task_index);
+				  mpp_task->task_id);
 
 		task->irq_status = irq_status;
 
@@ -968,13 +968,13 @@ static void rkvdec2_link_free_task(struct kref *ref)
 	struct mpp_task *task = container_of(ref, struct mpp_task, ref);
 
 	if (!task->session) {
-		mpp_err("task %d task->session is null.\n", task->task_index);
+		mpp_err("task %d task->session is null.\n", task->task_id);
 		return;
 	}
 	session = task->session;
 
 	mpp_debug_func(DEBUG_TASK_INFO, "task %d:%d state 0x%lx\n",
-		       session->index, task->task_index, task->state);
+		       session->index, task->task_id, task->state);
 	if (!session->mpp) {
 		mpp_err("session %d session->mpp is null.\n", session->index);
 		return;
@@ -1064,19 +1064,19 @@ static void rkvdec2_link_timeout_proc(struct work_struct *work_s)
 
 	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
 		mpp_err("task %d state %lx has been handled\n",
-			task->task_index, task->state);
+			task->task_id, task->state);
 		return;
 	}
 
 	if (!task->session) {
-		mpp_err("task %d session is null.\n", task->task_index);
+		mpp_err("task %d session is null.\n", task->task_id);
 		return;
 	}
 	session = task->session;
 
 	if (!session->mpp) {
 		mpp_err("task %d:%d mpp is null.\n", session->index,
-			task->task_index);
+			task->task_id);
 		return;
 	}
 	mpp = session->mpp;
@@ -1171,7 +1171,7 @@ static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *task)
 
 	/* prepare the task for running */
 	if (test_and_set_bit(TASK_STATE_PREPARE, &task->state))
-		mpp_err("task %d has been prepare twice\n", task->task_index);
+		mpp_err("task %d has been prepare twice\n", task->task_id);
 
 	rkvdec2_link_prepare(mpp, task);
 
@@ -1257,6 +1257,7 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 	kref_init(&task->ref);
 	atomic_set(&task->abort_request, 0);
 	task->task_index = atomic_fetch_inc(&mpp->task_index);
+	task->task_id = atomic_fetch_inc(&mpp->queue->task_id);
 	INIT_DELAYED_WORK(&task->timeout_work, rkvdec2_link_timeout_proc);
 
 	atomic_inc(&session->task_count);
@@ -1304,7 +1305,7 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 		mpp_session_pop_done(session, mpp_task);
 	} else {
 		mpp_err("task %d:%d statue %lx timeout -> abort\n",
-			session->index, mpp_task->task_index, mpp_task->state);
+			session->index, mpp_task->task_id, mpp_task->state);
 
 		atomic_inc(&mpp_task->abort_request);
 		set_bit(TASK_STATE_ABORT, &mpp_task->state);
@@ -1375,7 +1376,7 @@ again:
 	if (mpp_task_queue(mpp, task)) {
 		/* failed to run */
 		mpp_err("%p failed to process task %p:%d\n",
-			mpp, task, task->task_index);
+			mpp, task, task->task_id);
 	} else {
 		mutex_lock(&queue->pending_lock);
 		set_bit(TASK_STATE_RUNNING, &task->state);
@@ -1512,19 +1513,19 @@ static void rkvdec2_ccu_link_timeout_work(struct work_struct *work_s)
 
 	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
 		mpp_err("task %d state %lx has been handled\n",
-			task->task_index, task->state);
+			task->task_id, task->state);
 		return;
 	}
 
 	if (!task->session) {
-		mpp_err("task %d session is null.\n", task->task_index);
+		mpp_err("task %d session is null.\n", task->task_id);
 		return;
 	}
 	session = task->session;
 
 	if (!session->mpp) {
 		mpp_err("task %d:%d mpp is null.\n", session->index,
-			task->task_index);
+			task->task_id);
 		return;
 	}
 	mpp = task->mpp ? task->mpp : session->mpp;
