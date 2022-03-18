@@ -127,7 +127,7 @@
 };
 
 &dp0 {
-	pinctrl-0 = <&dp1m2_pins>;
+	pinctrl-0 = <&dp0m2_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
