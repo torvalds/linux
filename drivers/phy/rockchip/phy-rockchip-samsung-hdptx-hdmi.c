@@ -2070,6 +2070,7 @@ static int hdptx_phy_clk_enable(struct clk_hw *hw)
 		}
 	}
 
+	clk_get_rate(hdptx->dclk);
 	hdptx->count++;
 
 	return 0;
@@ -2117,7 +2118,7 @@ static int rockchip_hdptx_phy_clk_register(struct rockchip_hdptx_phy *hdptx)
 
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.flags = 0;
+	init.flags = CLK_GET_RATE_NOCACHE;
 	if (!hdptx->id)
 		init.name = "clk_hdmiphy_pixel0";
 	else
