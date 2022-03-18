@@ -5,7 +5,6 @@
  */
 
 int sched_rr_timeslice = RR_TIMESLICE;
-static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
 /* More than 4 hours if BW_SHIFT equals 20. */
 static const u64 max_rt_runtime = MAX_BW;
 
@@ -25,11 +24,12 @@ unsigned int sysctl_sched_rt_period = 1000000;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+#ifdef CONFIG_SYSCTL
+static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
 static int sched_rt_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
-#ifdef CONFIG_SYSCTL
 static struct ctl_table sched_rt_sysctls[] = {
 	{
 		.procname       = "sched_rt_period_us",
@@ -2911,6 +2911,7 @@ long sched_group_rt_period(struct task_group *tg)
 	return rt_period_us;
 }
 
+#ifdef CONFIG_SYSCTL
 static int sched_rt_global_constraints(void)
 {
 	int ret = 0;
@@ -2921,6 +2922,7 @@ static int sched_rt_global_constraints(void)
 
 	return ret;
 }
+#endif /* CONFIG_SYSCTL */
 
 int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
 {
@@ -2932,6 +2934,8 @@ int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
 }
 
 #else /* !CONFIG_RT_GROUP_SCHED */
+
+#ifdef CONFIG_SYSCTL
 static int sched_rt_global_constraints(void)
 {
 	unsigned long flags;
@@ -2949,8 +2953,10 @@ static int sched_rt_global_constraints(void)
 
 	return 0;
 }
+#endif /* CONFIG_SYSCTL */
 #endif /* CONFIG_RT_GROUP_SCHED */
 
+#ifdef CONFIG_SYSCTL
 static int sched_rt_global_validate(void)
 {
 	if (sysctl_sched_rt_period <= 0)
@@ -3035,6 +3041,7 @@ static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
 
 	return ret;
 }
+#endif /* CONFIG_SYSCTL */
 
 #ifdef CONFIG_SCHED_DEBUG
 void print_rt_stats(struct seq_file *m, int cpu)
