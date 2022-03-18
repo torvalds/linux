@@ -86,17 +86,11 @@ ifdef need-builtin
 targets-for-builtin += $(obj)/built-in.a
 endif
 
-targets-for-modules :=
+targets-for-modules := $(patsubst %.o, %.mod, $(filter %.o, $(obj-m)))
 
-ifdef CONFIG_LTO_CLANG
-targets-for-modules += $(patsubst %.o, %.lto.o, $(filter %.o, $(obj-m)))
+ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
+targets-for-modules += $(patsubst %.o, %.prelink.o, $(filter %.o, $(obj-m)))
 endif
-
-ifdef CONFIG_X86_KERNEL_IBT
-targets-for-modules += $(patsubst %.o, %.objtool, $(filter %.o, $(obj-m)))
-endif
-
-targets-for-modules += $(patsubst %.o, %.mod, $(filter %.o, $(obj-m)))
 
 ifdef need-modorder
 targets-for-modules += $(obj)/modules.order
@@ -244,30 +238,15 @@ objtool_args =								\
 	$(if $(CONFIG_FTRACE_MCOUNT_USE_OBJTOOL), --mcount)		\
 	$(if $(CONFIG_SLS), --sls)
 
-cmd_objtool = $(if $(objtool-enabled), ; $(objtool) $(objtool_args) $(@:.objtool=.o))
-cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$(@:.objtool=.o): $$(wildcard $(objtool))' ; } >> $(dot-target).cmd)
+cmd_objtool = $(if $(objtool-enabled), ; $(objtool) $(objtool_args) $@)
+cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$@: $$(wildcard $(objtool))' ; } >> $(dot-target).cmd)
 
 endif # CONFIG_STACK_VALIDATION
 
-ifdef CONFIG_LTO_CLANG
+ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
 
 # Skip objtool for LLVM bitcode
 $(obj)/%.o: objtool-enabled :=
-
-# objtool was skipped for LLVM bitcode, run it now that we have compiled
-# modules into native code
-$(obj)/%.lto.o: objtool-enabled = y
-$(obj)/%.lto.o: part-of-module := y
-
-else ifdef CONFIG_X86_KERNEL_IBT
-
-# Skip objtool on individual files
-$(obj)/%.o: objtool-enabled :=
-
-# instead run objtool on the module as a whole, right before
-# the final link pass with the linker script.
-$(obj)/%.objtool: objtool-enabled = y
-$(obj)/%.objtool: part-of-module := y
 
 else
 
@@ -310,19 +289,24 @@ $(obj)/%.o: $(src)/%.c $(recordmcount_source) FORCE
 	$(call if_changed_rule,cc_o_c)
 	$(call cmd,force_checksrc)
 
-ifdef CONFIG_LTO_CLANG
+ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
 # Module .o files may contain LLVM bitcode, compile them into native code
 # before ELF processing
-quiet_cmd_cc_lto_link_modules = LTO [M] $@
-      cmd_cc_lto_link_modules =						\
+quiet_cmd_cc_prelink_modules = LD [M]  $@
+      cmd_cc_prelink_modules =						\
 	$(LD) $(ld_flags) -r -o $@					\
-		$(shell [ -s $(@:.lto.o=.o.symversions) ] &&		\
-			echo -T $(@:.lto.o=.o.symversions))		\
+               $(shell [ -s $(@:.prelink.o=.o.symversions) ] &&		\
+                       echo -T $(@:.prelink.o=.o.symversions))		\
 		--whole-archive $(filter-out FORCE,$^)			\
 		$(cmd_objtool)
 
-$(obj)/%.lto.o: $(obj)/%.o FORCE
-	$(call if_changed,cc_lto_link_modules)
+# objtool was skipped for LLVM bitcode, run it now that we have compiled
+# modules into native code
+$(obj)/%.prelink.o: objtool-enabled = y
+$(obj)/%.prelink.o: part-of-module := y
+
+$(obj)/%.prelink.o: $(obj)/%.o FORCE
+	$(call if_changed,cc_prelink_modules)
 endif
 
 cmd_mod = { \
@@ -332,18 +316,6 @@ cmd_mod = { \
 
 $(obj)/%.mod: $(obj)/%$(mod-prelink-ext).o FORCE
 	$(call if_changed,mod)
-
-#
-# Since objtool will re-write the file it will change the timestamps, therefore
-# it is critical that the %.objtool file gets a timestamp *after* objtool runs.
-#
-# Additionally, care must be had with ordering this rule against the other rules
-# that take %.o as a dependency.
-#
-cmd_objtool_mod = true $(cmd_objtool) ; touch $@
-
-$(obj)/%.objtool: $(obj)/%$(mod-prelink-ext).o FORCE
-	$(call if_changed,objtool_mod)
 
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
@@ -498,7 +470,7 @@ $(obj)/lib.a: $(lib-y) FORCE
 # Do not replace $(filter %.o,^) with $(real-prereqs). When a single object
 # module is turned into a multi object module, $^ will contain header file
 # dependencies recorded in the .*.cmd file.
-ifdef CONFIG_LTO_CLANG
+ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
 quiet_cmd_link_multi-m = AR [M]  $@
 cmd_link_multi-m =						\
 	$(cmd_update_lto_symversions);				\
