@@ -1043,7 +1043,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		gpio = &pctrl->gpio_bank[reg];
 		gpio->pctrl = pctrl;
 
-		if (reg > WPCM450_NUM_BANKS)
+		if (reg >= WPCM450_NUM_BANKS)
 			return dev_err_probe(dev, -EINVAL,
 					     "GPIO index %d out of range!\n", reg);
 
