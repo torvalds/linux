@@ -25,7 +25,7 @@
 #include <subdev/pci.h>
 
 static u32
-prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
+nvbios_prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	struct nvkm_device *device = data;
 	u32 i;
@@ -38,14 +38,14 @@ prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 }
 
 static void
-prom_fini(void *data)
+nvbios_prom_fini(void *data)
 {
 	struct nvkm_device *device = data;
 	nvkm_pci_rom_shadow(device->pci, true);
 }
 
 static void *
-prom_init(struct nvkm_bios *bios, const char *name)
+nvbios_prom_init(struct nvkm_bios *bios, const char *name)
 {
 	struct nvkm_device *device = bios->subdev.device;
 	if (device->card_type == NV_40 && device->chipset >= 0x4c)
@@ -55,10 +55,10 @@ prom_init(struct nvkm_bios *bios, const char *name)
 }
 
 const struct nvbios_source
-nvbios_rom = {
+nvbios_prom = {
 	.name = "PROM",
-	.init = prom_init,
-	.fini = prom_fini,
-	.read = prom_read,
+	.init = nvbios_prom_init,
+	.fini = nvbios_prom_fini,
+	.read = nvbios_prom_read,
 	.rw = false,
 };
