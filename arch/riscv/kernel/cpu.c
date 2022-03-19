@@ -73,7 +73,7 @@ int riscv_of_parent_hartid(struct device_node *node)
  * Here are the ordering rules of extension naming defined by RISC-V
  * specification :
  * 1. All extensions should be separated from other multi-letter extensions
- *    from other multi-letter extensions by an underscore.
+ *    by an underscore.
  * 2. The first letter following the 'Z' conventionally indicates the most
  *    closely related alphabetical extension category, IMAFDQLCBKJTPVH.
  *    If multiple 'Z' extensions are named, they should be ordered first
