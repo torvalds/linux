@@ -564,7 +564,7 @@ static void mt7915_init_work(struct work_struct *work)
 	mt7915_txbf_init(dev);
 }
 
-static void mt7915_wfsys_reset(struct mt7915_dev *dev)
+void mt7915_wfsys_reset(struct mt7915_dev *dev)
 {
 #define MT_MCU_DUMMY_RANDOM	GENMASK(15, 0)
 #define MT_MCU_DUMMY_DEFAULT	GENMASK(31, 16)
@@ -653,11 +653,6 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
 
-	/* If MCU was already running, it is likely in a bad state */
-	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
-	    FW_STATE_FW_DOWNLOAD)
-		mt7915_wfsys_reset(dev);
-
 	ret = mt7915_dma_init(dev, phy2);
 	if (ret)
 		return ret;
@@ -665,14 +660,8 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	ret = mt7915_mcu_init(dev);
-	if (ret) {
-		/* Reset and try again */
-		mt7915_wfsys_reset(dev);
-
-		ret = mt7915_mcu_init(dev);
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	ret = mt7915_eeprom_init(dev);
 	if (ret < 0)

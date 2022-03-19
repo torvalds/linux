@@ -1128,7 +1128,7 @@ static int mt7986_wmac_init(struct mt7915_dev *dev)
 	if (IS_ERR(dev->rstc))
 		return PTR_ERR(dev->rstc);
 
-	return mt7986_wmac_enable(dev);
+	return 0;
 }
 
 static int mt7986_wmac_probe(struct platform_device *pdev)
@@ -1161,11 +1161,12 @@ static int mt7986_wmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_device;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-
 	ret = mt7986_wmac_init(dev);
 	if (ret)
 		goto free_irq;
+
+	mt7915_wfsys_reset(dev);
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	ret = mt7915_register_device(dev);
 	if (ret)
