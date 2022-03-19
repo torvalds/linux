@@ -4823,8 +4823,8 @@ bpf_object__reuse_map(struct bpf_map *map)
 	}
 
 	err = bpf_map__reuse_fd(map, pin_fd);
+	close(pin_fd);
 	if (err) {
-		close(pin_fd);
 		return err;
 	}
 	map->pinned = true;
