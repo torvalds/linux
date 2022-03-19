@@ -10,6 +10,10 @@
 /delete-node/ &cpu6_map;
 /delete-node/ &cpu7_map;
 
+&gcc {
+	compatible = "qcom,gcc-msm8992";
+};
+
 &rpmcc {
 	compatible = "qcom,rpmcc-msm8992";
 };
