@@ -4,6 +4,7 @@
 #include <network_helpers.h>
 #include "for_each_hash_map_elem.skel.h"
 #include "for_each_array_map_elem.skel.h"
+#include "for_each_map_elem_write_key.skel.h"
 
 static unsigned int duration;
 
@@ -129,10 +130,21 @@ out:
 	for_each_array_map_elem__destroy(skel);
 }
 
+static void test_write_map_key(void)
+{
+	struct for_each_map_elem_write_key *skel;
+
+	skel = for_each_map_elem_write_key__open_and_load();
+	if (!ASSERT_ERR_PTR(skel, "for_each_map_elem_write_key__open_and_load"))
+		for_each_map_elem_write_key__destroy(skel);
+}
+
 void test_for_each(void)
 {
 	if (test__start_subtest("hash_map"))
 		test_hash_map();
 	if (test__start_subtest("array_map"))
 		test_array_map();
+	if (test__start_subtest("write_map_key"))
+		test_write_map_key();
 }
