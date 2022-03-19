@@ -122,6 +122,13 @@
 #define PCIE_DMA_PARAM_SIZE		64
 #define PCIE_DMA_CHN0			0x0
 
+enum transfer_type {
+	PCIE_DMA_DATA_SND,
+	PCIE_DMA_DATA_RCV_ACK,
+	PCIE_DMA_DATA_FREE_ACK,
+	PCIE_DMA_READ_REMOTE,
+};
+
 static int enable_check_sum;
 struct pcie_misc_dev {
 	struct miscdevice dev;
@@ -221,6 +228,7 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 		local = obj->local_mem_start + obj->ack_base + idx * NODE_SIZE;
 		bus = obj->remote_mem_start + obj->ack_base + idx * NODE_SIZE;
 		virt = obj->local_mem_base + obj->ack_base + idx * NODE_SIZE;
+		buf_size = 4;
 
 		if (is_rc(obj)) {
 			local += 3 * PCIE_DMA_ACK_BLOCK_SIZE;
@@ -490,6 +498,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	int ret;
 	int i;
 	phys_addr_t addr_send_to_remote;
+	enum transfer_type type;
 
 	if (copy_from_user(&msg, uarg, sizeof(msg)) != 0) {
 		dev_err(dev, "failed to copy argument into kernel space\n");
@@ -500,6 +509,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	case PCIE_DMA_START:
 		test_and_clear_bit(msg.in.l_widx, &obj->local_write_available);
 		test_and_clear_bit(msg.in.r_widx, &obj->remote_write_available);
+		type = PCIE_DMA_DATA_SND;
 		obj->loop_count++;
 		break;
 	case PCIE_DMA_GET_LOCAL_READ_BUFFER_INDEX:
@@ -521,6 +531,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case PCIE_DMA_SET_LOCAL_READ_BUFFER_INDEX:
 		test_and_clear_bit(msg.in.idx, &obj->local_read_available);
+		type = PCIE_DMA_DATA_FREE_ACK;
 		break;
 	case PCIE_DMA_GET_LOCAL_REMOTE_WRITE_BUFFER_INDEX:
 		msg_to_user.out.lwa = obj->local_write_available;
@@ -582,6 +593,8 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	case PCIE_DMA_READ_FROM_REMOTE:
 		pr_debug("read buffer from : %d to local : %d\n",
 			 msg.in.r_widx, msg.in.l_widx);
+
+		type = PCIE_DMA_READ_REMOTE;
 		break;
 	case PCIE_DMA_USER_SET_BUF_ADDR:
 		/* If msg.local_addr valid, use msg.local_addr for local buffer,
@@ -593,8 +606,8 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 		 */
 		if (msg.local_addr) {
 			pr_debug("local_addr = %pa\n", &msg.local_addr);
-			addr_send_to_remote = msg.local_addr;
-			obj->local_mem_start = msg.local_addr;
+			addr_send_to_remote = (phys_addr_t)msg.local_addr;
+			obj->local_mem_start = (phys_addr_t)msg.local_addr;
 			/* Unmap previous */
 			rk_pcie_unmap_kernel(obj->local_mem_base);
 			/* Remap userspace's buffer to kernel */
@@ -613,6 +626,14 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 		hrtimer_start(&obj->scan_timer,
 		      ktime_set(0, 1 * 1000 * 1000 * 1000), HRTIMER_MODE_REL);
 		break;
+	case PCIE_DMA_GET_BUFFER_SIZE:
+		msg_to_user.buffer_size = obj->buffer_size;
+		ret = copy_to_user(uarg, &msg_to_user, sizeof(msg));
+		if (ret) {
+			dev_err(dev, "failed to get buffer\n");
+			return -EFAULT;
+		}
+		break;
 	default:
 		pr_info("%s, %d, cmd : %x not support\n", __func__, __LINE__,
 			cmd);
@@ -622,7 +643,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	if (cmd == PCIE_DMA_START || cmd == PCIE_DMA_READ_FROM_REMOTE ||
 		cmd == PCIE_DMA_SET_LOCAL_READ_BUFFER_INDEX) {
 		rk_pcie_prepare_dma(obj, msg.in.idx, msg.in.r_widx,
-				    msg.in.l_widx, msg.in.size, msg.in.type,
+				    msg.in.l_widx, msg.in.size, type,
 				    msg.in.chn);
 		queue_work(obj->dma_trx_wq, &obj->dma_trx_work);
 	}
