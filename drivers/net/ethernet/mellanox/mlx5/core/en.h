@@ -405,6 +405,7 @@ enum {
 	MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 	MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
+	MLX5E_SQ_STATE_XDP_MULTIBUF,
 };
 
 struct mlx5e_tx_mpwqe {
@@ -515,7 +516,7 @@ struct mlx5e_xdp_info {
 		} frame;
 		struct {
 			struct mlx5e_rq *rq;
-			struct mlx5e_dma_info di;
+			struct page *page;
 		} page;
 	};
 };
@@ -537,7 +538,7 @@ struct mlx5e_xdpsq;
 typedef int (*mlx5e_fp_xmit_xdp_frame_check)(struct mlx5e_xdpsq *);
 typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq *,
 					struct mlx5e_xmit_data *,
-					struct mlx5e_xdp_info *,
+					struct skb_shared_info *,
 					int);
 
 struct mlx5e_xdpsq {

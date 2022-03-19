@@ -1720,7 +1720,7 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 	}
 }
 
-void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
+static void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	unsigned long bitmask;

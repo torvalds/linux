@@ -780,7 +780,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 		 * entered, and it's safe to call mlx5e_page_release_dynamic
 		 * directly.
 		 */
-		mlx5e_page_release_dynamic(rq, dma_info, false);
+		mlx5e_page_release_dynamic(rq, dma_info->page, false);
 	}
 
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
@@ -1666,14 +1666,22 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
+
+	/* Don't enable multi buffer on XDP_REDIRECT SQ, as it's not yet
+	 * supported by upstream, and there is no defined trigger to allow
+	 * transmitting redirected multi-buffer frames.
+	 */
+	if (param->is_xdp_mb && !is_redirect)
+		set_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state);
+
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, 0, &sq->sqn);
 	if (err)
 		goto err_free_xdpsq;
 
 	mlx5e_set_xmit_fp(sq, param->is_mpw);
 
-	if (!param->is_mpw) {
-		unsigned int ds_cnt = MLX5E_XDP_TX_DS_COUNT;
+	if (!param->is_mpw && !test_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state)) {
+		unsigned int ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT + 1;
 		unsigned int inline_hdr_sz = 0;
 		int i;
 
@@ -3945,6 +3953,31 @@ static bool mlx5e_xsk_validate_mtu(struct net_device *netdev,
 	return true;
 }
 
+static bool mlx5e_params_validate_xdp(struct net_device *netdev, struct mlx5e_params *params)
+{
+	bool is_linear;
+
+	/* No XSK params: AF_XDP can't be enabled yet at the point of setting
+	 * the XDP program.
+	 */
+	is_linear = mlx5e_rx_is_linear_skb(params, NULL);
+
+	if (!is_linear && params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
+		netdev_warn(netdev, "XDP is not allowed with striding RQ and MTU(%d) > %d\n",
+			    params->sw_mtu,
+			    mlx5e_xdp_max_mtu(params, NULL));
+		return false;
+	}
+	if (!is_linear && !params->xdp_prog->aux->xdp_has_frags) {
+		netdev_warn(netdev, "MTU(%d) > %d, too big for an XDP program not aware of multi buffer\n",
+			    params->sw_mtu,
+			    mlx5e_xdp_max_mtu(params, NULL));
+		return false;
+	}
+
+	return true;
+}
+
 int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		     mlx5e_fp_preactivate preactivate)
 {
@@ -3964,10 +3997,7 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	if (err)
 		goto out;
 
-	if (params->xdp_prog &&
-	    !mlx5e_rx_is_linear_skb(&new_params, NULL)) {
-		netdev_err(netdev, "MTU(%d) > %d is not allowed while XDP enabled\n",
-			   new_mtu, mlx5e_xdp_max_mtu(params, NULL));
+	if (new_params.xdp_prog && !mlx5e_params_validate_xdp(netdev, &new_params)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -4450,15 +4480,8 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 	new_params = priv->channels.params;
 	new_params.xdp_prog = prog;
 
-	/* No XSK params: AF_XDP can't be enabled yet at the point of setting
-	 * the XDP program.
-	 */
-	if (!mlx5e_rx_is_linear_skb(&new_params, NULL)) {
-		netdev_warn(netdev, "XDP is not allowed with MTU(%d) > %d\n",
-			    new_params.sw_mtu,
-			    mlx5e_xdp_max_mtu(&new_params, NULL));
+	if (!mlx5e_params_validate_xdp(netdev, &new_params))
 		return -EINVAL;
-	}
 
 	return 0;
 }
