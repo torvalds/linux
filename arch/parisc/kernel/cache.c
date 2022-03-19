@@ -611,8 +611,8 @@ void
 flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn)
 {
 	if (pfn_valid(pfn)) {
+		flush_tlb_page(vma, vmaddr);
 		if (likely(vma->vm_mm->context.space_id)) {
-			flush_tlb_page(vma, vmaddr);
 			__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 		} else {
 			__purge_cache_page(vma, vmaddr, PFN_PHYS(pfn));
@@ -624,6 +624,7 @@ void flush_kernel_vmap_range(void *vaddr, int size)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end = start + size;
+	unsigned long flags, physaddr;
 
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    (unsigned long)size >= parisc_cache_flush_threshold) {
@@ -632,8 +633,14 @@ void flush_kernel_vmap_range(void *vaddr, int size)
 		return;
 	}
 
-	flush_kernel_dcache_range_asm(start, end);
-	flush_tlb_kernel_range(start, end);
+	while (start < end) {
+		physaddr = lpa(start);
+		purge_tlb_start(flags);
+		pdtlb(SR_KERNEL, start);
+		purge_tlb_end(flags);
+		flush_dcache_page_asm(physaddr, start);
+		start += PAGE_SIZE;
+	}
 }
 EXPORT_SYMBOL(flush_kernel_vmap_range);
 
@@ -641,6 +648,7 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end = start + size;
+	unsigned long flags, physaddr;
 
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    (unsigned long)size >= parisc_cache_flush_threshold) {
@@ -649,7 +657,13 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 		return;
 	}
 
-	purge_kernel_dcache_range_asm(start, end);
-	flush_tlb_kernel_range(start, end);
+	while (start < end) {
+		physaddr = lpa(start);
+		purge_tlb_start(flags);
+		pdtlb(SR_KERNEL, start);
+		purge_tlb_end(flags);
+		purge_dcache_page_asm(physaddr, start);
+		start += PAGE_SIZE;
+	}
 }
 EXPORT_SYMBOL(invalidate_kernel_vmap_range);
