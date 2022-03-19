@@ -1788,7 +1788,7 @@ static int qe_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	/* make sure it's actually queued on this endpoint */
 	list_for_each_entry(iter, &ep->queue, queue) {
 		if (&iter->req != _req)
-			continue
+			continue;
 		req = iter;
 		break;
 	}
