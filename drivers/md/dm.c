@@ -550,9 +550,9 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 		if (dm_io_flagged(io, DM_IO_ACCOUNTED))
 			return;
 		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
-		spin_lock_irqsave(&io->startio_lock, flags);
+		spin_lock_irqsave(&io->lock, flags);
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
-		spin_unlock_irqrestore(&io->startio_lock, flags);
+		spin_unlock_irqrestore(&io->lock, flags);
 	}
 
 	__dm_start_io_acct(io, bio);
@@ -584,8 +584,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	io->orig_bio = NULL;
 	io->md = md;
 	io->map_task = current;
-	spin_lock_init(&io->startio_lock);
-	spin_lock_init(&io->endio_lock);
+	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
 	io->flags = 0;
 
@@ -933,11 +932,11 @@ void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
 	/* Push-back supersedes any I/O errors */
 	if (unlikely(error)) {
 		unsigned long flags;
-		spin_lock_irqsave(&io->endio_lock, flags);
+		spin_lock_irqsave(&io->lock, flags);
 		if (!(io->status == BLK_STS_DM_REQUEUE &&
 		      __noflush_suspending(io->md)))
 			io->status = error;
-		spin_unlock_irqrestore(&io->endio_lock, flags);
+		spin_unlock_irqrestore(&io->lock, flags);
 	}
 
 	if (atomic_dec_and_test(&io->io_count))

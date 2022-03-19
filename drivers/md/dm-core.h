@@ -250,12 +250,11 @@ struct dm_io {
 	struct mapped_device *md;
 	struct bio *orig_bio;
 	blk_status_t status;
+	spinlock_t lock;
 	unsigned long start_time;
 	void *data;
 	struct hlist_node node;
 	struct task_struct *map_task;
-	spinlock_t startio_lock;
-	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
