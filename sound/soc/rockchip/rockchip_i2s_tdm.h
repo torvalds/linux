@@ -199,6 +199,27 @@
  * XFER
  * Transfer start register
  */
+/*
+ * lp mode2 swap:
+ * i2s sdi0_l <- i2s sdo0_l
+ * i2s sdi0_r <- codec sdo_r
+ *
+ * lp mode2:
+ * i2s sdi0_l <- codec sdo_l
+ * i2s sdi0_r <- i2s sdo0_r
+ *
+ * lp mode1:
+ * i2s sdi0_l <- codec sdo_l
+ * i2s sdi0_r <- codec sdo_r
+ * i2s sdi1_l <- i2s sdo0_l
+ * i2s sdi1_r <- i2s sdo0_r
+ *
+ */
+#define I2S_XFER_LP_MODE_MASK	GENMASK(4, 2)
+#define I2S_XFER_LP_MODE_2_SWAP	(BIT(4) | BIT(3))
+#define I2S_XFER_LP_MODE_2	BIT(3)
+#define I2S_XFER_LP_MODE_1	BIT(2)
+#define I2S_XFER_LP_MODE_DIS	0
 #define I2S_XFER_RXS_SHIFT	1
 #define I2S_XFER_RXS_STOP	(0 << I2S_XFER_RXS_SHIFT)
 #define I2S_XFER_RXS_START	(1 << I2S_XFER_RXS_SHIFT)

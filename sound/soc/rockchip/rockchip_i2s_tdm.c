@@ -1246,6 +1246,93 @@ static struct snd_kcontrol_new rockchip_i2s_tdm_compensation_control = {
 	.put = rockchip_i2s_tdm_clk_compensation_put,
 };
 
+/* loopback mode select */
+enum {
+	LOOPBACK_MODE_DIS = 0,
+	LOOPBACK_MODE_1,
+	LOOPBACK_MODE_2,
+	LOOPBACK_MODE_2_SWAP,
+};
+
+static const char *const loopback_text[] = {
+	"Disabled",
+	"Mode1",
+	"Mode2",
+	"Mode2 Swap",
+};
+
+static SOC_ENUM_SINGLE_EXT_DECL(loopback_mode, loopback_text);
+
+static int rockchip_i2s_tdm_loopback_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+	unsigned int reg = 0, mode = 0;
+
+	pm_runtime_get_sync(component->dev);
+	regmap_read(i2s_tdm->regmap, I2S_XFER, &reg);
+	pm_runtime_put(component->dev);
+
+	switch (reg & I2S_XFER_LP_MODE_MASK) {
+	case I2S_XFER_LP_MODE_2_SWAP:
+		mode = LOOPBACK_MODE_2_SWAP;
+		break;
+	case I2S_XFER_LP_MODE_2:
+		mode = LOOPBACK_MODE_2;
+		break;
+	case I2S_XFER_LP_MODE_1:
+		mode = LOOPBACK_MODE_1;
+		break;
+	default:
+		mode = LOOPBACK_MODE_DIS;
+		break;
+	}
+
+	ucontrol->value.enumerated.item[0] = mode;
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_loopback_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+	unsigned int val = 0, mode = ucontrol->value.enumerated.item[0];
+
+	if (mode < LOOPBACK_MODE_DIS ||
+	    mode > LOOPBACK_MODE_2_SWAP)
+		return -EINVAL;
+
+	switch (mode) {
+	case LOOPBACK_MODE_2_SWAP:
+		val = I2S_XFER_LP_MODE_2_SWAP;
+		break;
+	case LOOPBACK_MODE_2:
+		val = I2S_XFER_LP_MODE_2;
+		break;
+	case LOOPBACK_MODE_1:
+		val = I2S_XFER_LP_MODE_1;
+		break;
+	default:
+		val = I2S_XFER_LP_MODE_DIS;
+		break;
+	}
+
+	pm_runtime_get_sync(component->dev);
+	regmap_update_bits(i2s_tdm->regmap, I2S_XFER, I2S_XFER_LP_MODE_MASK, val);
+	pm_runtime_put(component->dev);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new rockchip_i2s_tdm_snd_controls[] = {
+	SOC_ENUM_EXT("I2STDM Digital Loopback Mode", loopback_mode,
+		     rockchip_i2s_tdm_loopback_get,
+		     rockchip_i2s_tdm_loopback_put),
+};
+
 static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
@@ -1289,6 +1376,8 @@ static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
 
 static const struct snd_soc_component_driver rockchip_i2s_tdm_component = {
 	.name = DRV_NAME,
+	.controls = rockchip_i2s_tdm_snd_controls,
+	.num_controls = ARRAY_SIZE(rockchip_i2s_tdm_snd_controls),
 };
 
 static bool rockchip_i2s_tdm_wr_reg(struct device *dev, unsigned int reg)
