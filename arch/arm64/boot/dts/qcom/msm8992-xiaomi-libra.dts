@@ -30,7 +30,6 @@
 		ranges;
 
 		framebuffer0: framebuffer@3404000 {
-			status= "okay";
 			compatible = "simple-framebuffer";
 			reg = <0 0x3404000 0 (1080 * 1920 * 3)>;
 			width = <1080>;
