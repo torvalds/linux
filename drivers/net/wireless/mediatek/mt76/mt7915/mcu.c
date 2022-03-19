@@ -1854,7 +1854,8 @@ mt7915_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
 			continue;
 
 		for_each_element(sub_elem, elem->data + 1, elem->datalen - 1) {
-			const u8 *data;
+			const struct ieee80211_bssid_index *idx;
+			const u8 *idx_ie;
 
 			if (sub_elem->id || sub_elem->datalen < 4)
 				continue; /* not a valid BSS profile */
@@ -1862,14 +1863,19 @@ mt7915_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
 			/* Find WLAN_EID_MULTI_BSSID_IDX
 			 * in the merged nontransmitted profile
 			 */
-			data = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
-						sub_elem->data,
-						sub_elem->datalen);
-			if (!data || data[1] < 1 || !data[2])
+			idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
+						  sub_elem->data,
+						  sub_elem->datalen);
+			if (!idx_ie || idx_ie[1] < sizeof(*idx))
 				continue;
 
-			mbss->offset[data[2]] = cpu_to_le16(data - skb->data);
-			mbss->bitmap |= cpu_to_le32(BIT(data[2]));
+			idx = (void *)(idx_ie + 2);
+			if (!idx->bssid_index || idx->bssid_index > 31)
+				continue;
+
+			mbss->offset[idx->bssid_index] =
+				cpu_to_le16(idx_ie - skb->data);
+			mbss->bitmap |= cpu_to_le32(BIT(idx->bssid_index));
 		}
 	}
 }
