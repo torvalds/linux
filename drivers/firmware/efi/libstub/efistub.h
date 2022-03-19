@@ -939,7 +939,8 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
-				 efi_loaded_image_t *image);
+				 efi_loaded_image_t *image,
+				 efi_handle_t image_handle);
 
 asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
 					    unsigned long fdt_addr,
