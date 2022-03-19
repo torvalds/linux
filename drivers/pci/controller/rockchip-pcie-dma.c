@@ -286,6 +286,7 @@ static void rk_pcie_dma_trx_work(struct work_struct *work)
 				WARN_ON(1);
 				return;
 			}
+			reinit_completion(&obj->done);
 			obj->start_dma_func(obj);
 		}
 	}
@@ -538,7 +539,6 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 					DMA_FROM_DEVICE);
 		break;
 	case PCIE_DMA_WAIT_TRANSFER_COMPLETE:
-		reinit_completion(&obj->done);
 		ret = wait_for_completion_interruptible(&obj->done);
 		if (WARN_ON(ret)) {
 			pr_info("failed to wait complete\n");
