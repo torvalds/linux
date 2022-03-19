@@ -1052,6 +1052,23 @@
 					       <960000000>,
 					       <600000000>;
 		};
+
+		ocmem: ocmem@fdd00000 {
+			compatible = "qcom,msm8974-ocmem";
+			reg = <0xfdd00000 0x2000>,
+			      <0xfec00000 0x200000>;
+			reg-names = "ctrl", "mem";
+			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
+				 <&mmcc OCMEMCX_OCMEMNOC_CLK>;
+			clock-names = "core", "iface";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			gmu_sram: gmu-sram@0 {
+				reg = <0x0 0x180000>;
+			};
+		};
 	};
 
 	timer: timer {

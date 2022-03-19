@@ -24,6 +24,14 @@
 			       <800000000>;
 };
 
+&ocmem {
+	reg = <0xfdd00000 0x2000>, <0xfec00000 0x100000>;
+
+	gmu-sram@0 {
+		reg = <0x0 0x80000>;
+	};
+};
+
 &rpmcc {
 	compatible = "qcom,rpmcc-msm8992";
 };
