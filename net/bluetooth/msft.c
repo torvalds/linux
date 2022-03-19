@@ -330,12 +330,13 @@ static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
 		/* Do not free the monitor if it is being removed due to
 		 * suspend. It will be re-monitored on resume.
 		 */
-		if (monitor && !msft->suspending)
+		if (monitor && !msft->suspending) {
 			hci_free_adv_monitor(hdev, monitor);
 
-		/* Clear any monitored devices by this Adv Monitor */
-		msft_monitor_device_del(hdev, handle_data->mgmt_handle, NULL,
-					0, false);
+			/* Clear any monitored devices by this Adv Monitor */
+			msft_monitor_device_del(hdev, handle_data->mgmt_handle,
+						NULL, 0, false);
+		}
 
 		list_del(&handle_data->list);
 		kfree(handle_data);
@@ -521,6 +522,16 @@ int msft_resume_sync(struct hci_dev *hdev)
 
 	if (!msft || !msft_monitor_supported(hdev))
 		return 0;
+
+	hci_dev_lock(hdev);
+
+	/* Clear already tracked devices on resume. Once the monitors are
+	 * reregistered, devices in range will be found again after resume.
+	 */
+	hdev->advmon_pend_notify = false;
+	msft_monitor_device_del(hdev, 0, NULL, 0, true);
+
+	hci_dev_unlock(hdev);
 
 	msft->resuming = true;
 
