@@ -23,7 +23,7 @@
 
 	/* This enables graphical output via bootloader-enabled display */
 	chosen {
-		bootargs = "earlycon=tty0 console=tty0";
+		bootargs = "earlycon=tty0 console=tty0 maxcpus=1";
 
 		#address-cells = <2>;
 		#size-cells = <2>;
