@@ -208,14 +208,14 @@ struct dm_table {
 /*
  * One of these is allocated per clone bio.
  */
-#define DM_TIO_MAGIC 7282014
+#define DM_TIO_MAGIC 28714
 struct dm_target_io {
-	unsigned int magic;
+	unsigned short magic;
+	unsigned short flags;
 	unsigned int target_bio_nr;
 	struct dm_io *io;
 	struct dm_target *ti;
 	unsigned int *len_ptr;
-	unsigned short flags;
 	sector_t old_sector;
 	struct bio clone;
 };
@@ -242,14 +242,14 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
  * One of these is allocated per original bio.
  * It contains the first clone used for that original.
  */
-#define DM_IO_MAGIC 5191977
+#define DM_IO_MAGIC 19577
 struct dm_io {
-	unsigned int magic;
+	unsigned short magic;
+	unsigned short flags;
 	atomic_t io_count;
 	struct mapped_device *md;
 	struct bio *orig_bio;
 	blk_status_t status;
-	unsigned short flags;
 	unsigned long start_time;
 	void *data;
 	struct hlist_node node;
