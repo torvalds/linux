@@ -29,13 +29,25 @@
 		#size-cells = <2>;
 		ranges;
 
-		framebuffer0: framebuffer@3404000 {
+		framebuffer0: framebuffer@3400000 {
 			compatible = "simple-framebuffer";
-			reg = <0 0x3404000 0 (1080 * 1920 * 3)>;
+			reg = <0 0x3400000 0 (1080 * 1920 * 3)>;
 			width = <1080>;
 			height = <1920>;
 			stride = <(1080 * 3)>;
 			format = "r8g8b8";
+			/*
+			 * That's a lot of clocks, but it's necessary due
+			 * to unused clk cleanup & no panel driver yet..
+			 */
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MDSS_BYTE0_CLK>,
+				 <&mmcc MDSS_PCLK0_CLK>,
+				 <&mmcc MDSS_ESC0_CLK>;
+			power-domains = <&mmcc MDSS_GDSC>;
 		};
 	};
 
