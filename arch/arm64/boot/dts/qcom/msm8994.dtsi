@@ -4,6 +4,8 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8994.h>
+#include <dt-bindings/clock/qcom,mmcc-msm8994.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 
 / {
@@ -1011,6 +1013,44 @@
 				bias-pull-up;
 				drive-strength = <2>;
 			};
+		};
+
+		mmcc: clock-controller@fd8c0000 {
+			compatible = "qcom,mmcc-msm8994";
+			reg = <0xfd8c0000 0x5200>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+
+			clock-names = "xo",
+				      "gpll0",
+				      "mmssnoc_ahb",
+				      "oxili_gfx3d_clk_src",
+				      "dsi0pll",
+				      "dsi0pllbyte",
+				      "dsi1pll",
+				      "dsi1pllbyte",
+				      "hdmipll";
+			clocks = <&xo_board>,
+				 <&gcc GPLL0_OUT_MMSSCC>,
+				 <&rpmcc RPM_SMD_MMSSNOC_AHB_CLK>,
+				 <&rpmcc RPM_SMD_GFX3D_CLK_SRC>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>;
+
+			assigned-clocks = <&mmcc MMPLL0_PLL>,
+					  <&mmcc MMPLL1_PLL>,
+					  <&mmcc MMPLL3_PLL>,
+					  <&mmcc MMPLL4_PLL>,
+					  <&mmcc MMPLL5_PLL>;
+			assigned-clock-rates = <800000000>,
+					       <1167000000>,
+					       <1020000000>,
+					       <960000000>,
+					       <600000000>;
 		};
 	};
 
