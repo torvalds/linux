@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x51b95a35
+#define DMUB_FW_VERSION_GIT_HASH 0x19edd13d
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 109
+#define DMUB_FW_VERSION_REVISION 110
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -1451,81 +1451,6 @@ enum dmub_cmd_mall_type {
 };
 
 /**
- * PHY Link rate for DP.
- */
-enum phy_link_rate {
-	/**
-	 * not supported.
-	 */
-	PHY_RATE_UNKNOWN = 0,
-	/**
-	 * Rate_1 (RBR)	- 1.62 Gbps/Lane
-	 */
-	PHY_RATE_162 = 1,
-	/**
-	 * Rate_2		- 2.16 Gbps/Lane
-	 */
-	PHY_RATE_216 = 2,
-	/**
-	 * Rate_3		- 2.43 Gbps/Lane
-	 */
-	PHY_RATE_243 = 3,
-	/**
-	 * Rate_4 (HBR)	- 2.70 Gbps/Lane
-	 */
-	PHY_RATE_270 = 4,
-	/**
-	 * Rate_5 (RBR2)- 3.24 Gbps/Lane
-	 */
-	PHY_RATE_324 = 5,
-	/**
-	 * Rate_6		- 4.32 Gbps/Lane
-	 */
-	PHY_RATE_432 = 6,
-	/**
-	 * Rate_7 (HBR2)- 5.40 Gbps/Lane
-	 */
-	PHY_RATE_540 = 7,
-	/**
-	 * Rate_8 (HBR3)- 8.10 Gbps/Lane
-	 */
-	PHY_RATE_810 = 8,
-	/**
-	 * UHBR10 - 10.0 Gbps/Lane
-	 */
-	PHY_RATE_1000 = 9,
-	/**
-	 * UHBR13.5 - 13.5 Gbps/Lane
-	 */
-	PHY_RATE_1350 = 10,
-	/**
-	 * UHBR10 - 20.0 Gbps/Lane
-	 */
-	PHY_RATE_2000 = 11,
-};
-
-/**
- * enum dmub_phy_fsm_state - PHY FSM states.
- * PHY FSM state to transit to during PSR enable/disable.
- */
-enum dmub_phy_fsm_state {
-	DMUB_PHY_FSM_POWER_UP_DEFAULT = 0,
-	DMUB_PHY_FSM_RESET,
-	DMUB_PHY_FSM_RESET_RELEASED,
-	DMUB_PHY_FSM_SRAM_LOAD_DONE,
-	DMUB_PHY_FSM_INITIALIZED,
-	DMUB_PHY_FSM_CALIBRATED,
-	DMUB_PHY_FSM_CALIBRATED_LP,
-	DMUB_PHY_FSM_CALIBRATED_PG,
-	DMUB_PHY_FSM_POWER_DOWN,
-	DMUB_PHY_FSM_PLL_EN,
-	DMUB_PHY_FSM_TX_EN,
-	DMUB_PHY_FSM_FAST_LP,
-};
-
-
-
-/**
  * Data passed from driver to FW in a DMUB_CMD__PSR_COPY_SETTINGS command.
  */
 struct dmub_cmd_psr_copy_settings_data {
@@ -1772,16 +1697,9 @@ struct dmub_cmd_psr_force_static_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Phy state to enter.
-	 * Values to use are defined in dmub_phy_fsm_state
+	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t phy_fsm_state;
-	/**
-	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
-	 * Set this using enum phy_link_rate.
-	 * This does not support HDMI/DP2 for now.
-	 */
-	uint8_t phy_rate;
+	uint8_t pad[2];
 };
 
 /**
