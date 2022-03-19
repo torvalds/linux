@@ -215,11 +215,28 @@ struct dm_target_io {
 	struct dm_io *io;
 	struct dm_target *ti;
 	unsigned int *len_ptr;
-	bool inside_dm_io:1;
-	bool is_duplicate_bio:1;
+	unsigned short flags;
 	sector_t old_sector;
 	struct bio clone;
 };
+
+/*
+ * dm_target_io flags
+ */
+enum {
+	DM_TIO_INSIDE_DM_IO,
+	DM_TIO_IS_DUPLICATE_BIO
+};
+
+static inline bool dm_tio_flagged(struct dm_target_io *tio, unsigned int bit)
+{
+	return (tio->flags & (1U << bit)) != 0;
+}
+
+static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
+{
+	tio->flags |= (1U << bit);
+}
 
 /*
  * One of these is allocated per original bio.

@@ -94,7 +94,7 @@ static inline struct dm_target_io *clone_to_tio(struct bio *clone)
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size)
 {
-	if (!clone_to_tio(bio)->inside_dm_io)
+	if (!dm_tio_flagged(clone_to_tio(bio), DM_TIO_INSIDE_DM_IO))
 		return (char *)bio - DM_TARGET_IO_BIO_OFFSET - data_size;
 	return (char *)bio - DM_IO_BIO_OFFSET - data_size;
 }
@@ -538,9 +538,10 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 
 	/*
 	 * Ensure IO accounting is only ever started once.
-	 * Expect no possibility for race unless is_duplicate_bio.
+	 * Expect no possibility for race unless DM_TIO_IS_DUPLICATE_BIO.
 	 */
-	if (!clone || likely(!clone_to_tio(clone)->is_duplicate_bio)) {
+	if (!clone ||
+	    likely(!dm_tio_flagged(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO))) {
 		if (WARN_ON_ONCE(dm_io_flagged(io, DM_IO_ACCOUNTED)))
 			return;
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
@@ -548,7 +549,7 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 		unsigned long flags;
 		if (dm_io_flagged(io, DM_IO_ACCOUNTED))
 			return;
-		/* Can afford locking given is_duplicate_bio */
+		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
 		spin_lock_irqsave(&io->startio_lock, flags);
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
 		spin_unlock_irqrestore(&io->startio_lock, flags);
@@ -571,7 +572,8 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	clone = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO, &md->io_bs);
 
 	tio = clone_to_tio(clone);
-	tio->inside_dm_io = true;
+	tio->flags = 0;
+	dm_tio_set_flag(tio, DM_TIO_INSIDE_DM_IO);
 	tio->io = NULL;
 
 	io = container_of(tio, struct dm_io, tio);
@@ -618,14 +620,13 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 		clone->bi_opf &= ~REQ_DM_POLL_LIST;
 
 		tio = clone_to_tio(clone);
-		tio->inside_dm_io = false;
+		tio->flags = 0; /* also clears DM_TIO_INSIDE_DM_IO */
 	}
 
 	tio->magic = DM_TIO_MAGIC;
 	tio->io = ci->io;
 	tio->ti = ti;
 	tio->target_bio_nr = target_bio_nr;
-	tio->is_duplicate_bio = false;
 	tio->len_ptr = len;
 	tio->old_sector = 0;
 
@@ -640,7 +641,7 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 
 static void free_tio(struct bio *clone)
 {
-	if (clone_to_tio(clone)->inside_dm_io)
+	if (dm_tio_flagged(clone_to_tio(clone), DM_TIO_INSIDE_DM_IO))
 		return;
 	bio_put(clone);
 }
@@ -917,6 +918,12 @@ static void dm_io_complete(struct dm_io *io)
 	}
 }
 
+static inline bool dm_tio_is_normal(struct dm_target_io *tio)
+{
+	return (dm_tio_flagged(tio, DM_TIO_INSIDE_DM_IO) &&
+		!dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
+}
+
 /*
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
@@ -1180,7 +1187,7 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 	struct dm_target_io *tio = clone_to_tio(bio);
 	unsigned bi_size = bio->bi_iter.bi_size >> SECTOR_SHIFT;
 
-	BUG_ON(tio->is_duplicate_bio);
+	BUG_ON(dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
 	BUG_ON(op_is_zone_mgmt(bio_op(bio)));
 	BUG_ON(bio_op(bio) == REQ_OP_ZONE_APPEND);
 	BUG_ON(bi_size > *tio->len_ptr);
@@ -1362,13 +1369,13 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 		break;
 	case 1:
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
-		clone_to_tio(clone)->is_duplicate_bio = true;
+		dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
 		__map_bio(clone);
 		break;
 	default:
 		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
 		while ((clone = bio_list_pop(&blist))) {
-			clone_to_tio(clone)->is_duplicate_bio = true;
+			dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
 			__map_bio(clone);
 		}
 		break;
@@ -1648,7 +1655,7 @@ out:
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,
 			  unsigned int flags)
 {
-	WARN_ON_ONCE(!io->tio.inside_dm_io);
+	WARN_ON_ONCE(!dm_tio_is_normal(&io->tio));
 
 	/* don't poll if the mapped io is done */
 	if (atomic_read(&io->io_count) > 1)
