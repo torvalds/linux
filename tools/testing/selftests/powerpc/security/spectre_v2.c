@@ -198,7 +198,7 @@ int spectre_v2_test(void)
 				return 4;
 			}
 			printf("Branch misses > 15%% unexpected in this configuration!\n");
-			printf("Possible mis-match between reported & actual mitigation\n");
+			printf("Possible mismatch between reported & actual mitigation\n");
 
 			return 1;
 		}
@@ -207,14 +207,14 @@ int spectre_v2_test(void)
 		// This seems to affect userspace branch prediction a bit?
 		if (miss_percent > 25) {
 			printf("Branch misses > 25%% unexpected in this configuration!\n");
-			printf("Possible mis-match between reported & actual mitigation\n");
+			printf("Possible mismatch between reported & actual mitigation\n");
 			return 1;
 		}
 		break;
 	case COUNT_CACHE_DISABLED:
 		if (miss_percent < 95) {
 			printf("Branch misses < 95%% unexpected in this configuration!\n");
-			printf("Possible mis-match between reported & actual mitigation\n");
+			printf("Possible mismatch between reported & actual mitigation\n");
 			return 1;
 		}
 		break;
