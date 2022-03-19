@@ -101,7 +101,15 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	u64 min_kimg_align = efi_nokaslr ? MIN_KIMG_ALIGN : EFI_KIMG_ALIGN;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		if (!efi_nokaslr) {
+		efi_guid_t li_fixed_proto = LINUX_EFI_LOADED_IMAGE_FIXED_GUID;
+		void *p;
+
+		if (efi_nokaslr) {
+			efi_info("KASLR disabled on kernel command line\n");
+		} else if (efi_bs_call(handle_protocol, image_handle,
+				       &li_fixed_proto, &p) == EFI_SUCCESS) {
+			efi_info("Image placement fixed by loader\n");
+		} else {
 			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
@@ -112,8 +120,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 					status);
 				efi_nokaslr = true;
 			}
-		} else {
-			efi_info("KASLR disabled on kernel command line\n");
 		}
 	}
 
