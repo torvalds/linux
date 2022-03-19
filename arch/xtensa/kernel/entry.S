@@ -488,9 +488,10 @@ KABI_W	or	a3, a3, a2
 common_exception_return:
 
 #if XTENSA_FAKE_NMI
-	l32i	a2, a1, PT_EXCCAUSE
-	movi	a3, EXCCAUSE_MAPPED_NMI
-	beq	a2, a3, .LNMIexit
+	l32i	abi_tmp0, a1, PT_EXCCAUSE
+	movi	abi_tmp1, EXCCAUSE_MAPPED_NMI
+	l32i	abi_saved1, a1, PT_PS
+	beq	abi_tmp0, abi_tmp1, 4f
 #endif
 1:
 	irq_save a2, a3
@@ -548,12 +549,6 @@ common_exception_return:
 	bnez	a4, 4f
 	abi_call	preempt_schedule_irq
 	j	4f
-#endif
-
-#if XTENSA_FAKE_NMI
-.LNMIexit:
-	l32i	abi_saved1, a1, PT_PS
-	_bbci.l	abi_saved1, PS_UM_BIT, 4f
 #endif
 
 5:
