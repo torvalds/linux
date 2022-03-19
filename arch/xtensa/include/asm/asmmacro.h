@@ -225,8 +225,6 @@
 #endif
 	.endm
 
-#define XTENSA_STACK_ALIGNMENT		16
-
 #if defined(__XTENSA_WINDOWED_ABI__)
 
 /* Assembly instructions for windowed kernel ABI. */

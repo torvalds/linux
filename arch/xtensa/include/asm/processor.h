@@ -18,11 +18,7 @@
 #include <asm/types.h>
 #include <asm/regs.h>
 
-/* Xtensa ABI requires stack alignment to be at least 16 */
-
-#define STACK_ALIGN (XCHAL_DATA_WIDTH > 16 ? XCHAL_DATA_WIDTH : 16)
-
-#define ARCH_SLAB_MINALIGN STACK_ALIGN
+#define ARCH_SLAB_MINALIGN XTENSA_STACK_ALIGNMENT
 
 /*
  * User space process size: 1 GB.
