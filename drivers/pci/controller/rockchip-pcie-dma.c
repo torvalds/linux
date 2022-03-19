@@ -529,7 +529,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		}
 		break;
-	case PCIE_DMA_SET_LOCAL_READ_BUFFER_INDEX:
+	case PCIE_DMA_FREE_LOCAL_READ_BUFFER_INDEX:
 		test_and_clear_bit(msg.in.idx, &obj->local_read_available);
 		type = PCIE_DMA_DATA_FREE_ACK;
 		break;
@@ -641,7 +641,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	}
 
 	if (cmd == PCIE_DMA_START || cmd == PCIE_DMA_READ_FROM_REMOTE ||
-		cmd == PCIE_DMA_SET_LOCAL_READ_BUFFER_INDEX) {
+		cmd == PCIE_DMA_FREE_LOCAL_READ_BUFFER_INDEX) {
 		rk_pcie_prepare_dma(obj, msg.in.idx, msg.in.r_widx,
 				    msg.in.l_widx, msg.in.size, type,
 				    msg.in.chn);

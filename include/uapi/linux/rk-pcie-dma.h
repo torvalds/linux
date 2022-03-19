@@ -33,7 +33,7 @@ union pcie_dma_ioctl_param {
 	_IOR(PCIE_BASE, 1, union pcie_dma_ioctl_param)
 #define PCIE_DMA_GET_LOCAL_REMOTE_WRITE_BUFFER_INDEX	\
 	_IOR(PCIE_BASE, 2, union pcie_dma_ioctl_param)
-#define PCIE_DMA_SET_LOCAL_READ_BUFFER_INDEX		\
+#define PCIE_DMA_FREE_LOCAL_READ_BUFFER_INDEX		\
 	_IOW(PCIE_BASE, 3, union pcie_dma_ioctl_param)
 #define PCIE_DMA_SYNC_BUFFER_FOR_CPU			\
 	_IOW(PCIE_BASE, 4, union pcie_dma_ioctl_param)
