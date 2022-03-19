@@ -61,6 +61,7 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define HDMIRX_PLANE_CBCR		1
 #define INIT_FIFO_STATE			64
 #define RK_IRQ_HDMIRX_HDMI		210
+#define FILTER_FRAME_CNT		6
 
 #define is_validfs(x) (x == 32000 || \
 			x == 44100 || \
@@ -2066,6 +2067,9 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 		v4l2_dbg(1, debug, v4l2_dev,
 			 "%s: last time have no line_flag_irq\n", __func__);
 
+	if (stream->line_flag_int_cnt <= FILTER_FRAME_CNT)
+		goto DMA_IDLE_OUT;
+
 	if ((bt->interlaced != V4L2_DV_INTERLACED) ||
 			(stream->line_flag_int_cnt % 2 == 0)) {
 		if (stream->next_buf) {
@@ -2090,6 +2094,7 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 		}
 	}
 
+DMA_IDLE_OUT:
 	*handled = true;
 }
 
@@ -2110,6 +2115,9 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 		v4l2_dbg(2, debug, v4l2_dev, "%s: dma not on\n", __func__);
 		goto LINE_FLAG_OUT;
 	}
+
+	if (stream->line_flag_int_cnt <= FILTER_FRAME_CNT)
+		goto LINE_FLAG_OUT;
 
 	if ((bt->interlaced != V4L2_DV_INTERLACED) ||
 			(stream->line_flag_int_cnt % 2 == 0)) {
