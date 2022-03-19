@@ -4,13 +4,8 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
+#include <linux/bits.h>
 #include <linux/ieee80211.h>
-
-#ifdef BIT
-/* error	"BIT define occurred earlier elsewhere!\n" */
-#undef BIT
-#endif
-#define BIT(x)	(1 << (x))
 
 #define WLAN_ETHHDR_LEN		14
 #define WLAN_HDR_A3_LEN		24
