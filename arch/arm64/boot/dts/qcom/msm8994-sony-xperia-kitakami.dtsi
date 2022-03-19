@@ -108,13 +108,6 @@
 	/* NXP PN547 NFC */
 };
 
-&blsp1_i2c4 {
-	status = "okay";
-	clock-frequency = <355000>;
-
-	/* Empty but active */
-};
-
 &blsp1_i2c6 {
 	status = "okay";
 	clock-frequency = <355000>;
