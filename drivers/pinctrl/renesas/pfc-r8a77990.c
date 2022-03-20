@@ -22,12 +22,12 @@
 	PORT_GP_CFG_18(0, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_23(1, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_26(2, fn, sfx, CFG_FLAGS), \
-	PORT_GP_CFG_12(3, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
+	PORT_GP_CFG_12(3, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE | SH_PFC_PIN_CFG_DRIVE_STRENGTH), \
 	PORT_GP_CFG_1(3, 12, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_1(3, 13, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_1(3, 14, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_1(3, 15, fn, sfx, CFG_FLAGS), \
-	PORT_GP_CFG_11(4, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
+	PORT_GP_CFG_11(4, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE | SH_PFC_PIN_CFG_DRIVE_STRENGTH), \
 	PORT_GP_CFG_20(5, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_9(6, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_1(6, 9, fn, sfx, SH_PFC_PIN_CFG_PULL_UP), \
@@ -5030,6 +5030,39 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+static const struct pinmux_drive_reg pinmux_drive_regs[] = {
+	{ PINMUX_DRIVE_REG("DRVCTRL8", 0xe6060320) {
+		{ RCAR_GP_PIN(3,  0), 18, 2 },	/* SD0_CLK */
+		{ RCAR_GP_PIN(3,  1), 15, 2 },	/* SD0_CMD */
+		{ RCAR_GP_PIN(3,  2), 12, 2 },	/* SD0_DAT0 */
+		{ RCAR_GP_PIN(3,  3),  9, 2 },	/* SD0_DAT1 */
+		{ RCAR_GP_PIN(3,  4),  6, 2 },	/* SD0_DAT2 */
+		{ RCAR_GP_PIN(3,  5),  3, 2 },	/* SD0_DAT3 */
+		{ RCAR_GP_PIN(3,  6),  0, 2 },	/* SD1_CLK */
+	} },
+	{ PINMUX_DRIVE_REG("DRVCTRL9", 0xe6060324) {
+		{ RCAR_GP_PIN(3,  7), 29, 2 },	/* SD1_CMD */
+		{ RCAR_GP_PIN(3,  8), 26, 2 },	/* SD1_DAT0 */
+		{ RCAR_GP_PIN(3,  9), 23, 2 },	/* SD1_DAT1 */
+		{ RCAR_GP_PIN(3, 10), 20, 2 },	/* SD1_DAT2 */
+		{ RCAR_GP_PIN(3, 11), 17, 2 },	/* SD1_DAT3 */
+		{ RCAR_GP_PIN(4,  0), 14, 2 },	/* SD3_CLK */
+		{ RCAR_GP_PIN(4,  1), 11, 2 },	/* SD3_CMD */
+		{ RCAR_GP_PIN(4,  2),  8, 2 },	/* SD3_DAT0 */
+		{ RCAR_GP_PIN(4,  3),  5, 2 },	/* SD3_DAT1 */
+		{ RCAR_GP_PIN(4,  4),  2, 2 },	/* SD3_DAT2 */
+	} },
+	{ PINMUX_DRIVE_REG("DRVCTRL10", 0xe6060328) {
+		{ RCAR_GP_PIN(4,  5), 29, 2 },	/* SD3_DAT3 */
+		{ RCAR_GP_PIN(4,  6), 26, 2 },	/* SD3_DAT4 */
+		{ RCAR_GP_PIN(4,  7), 23, 2 },	/* SD3_DAT5 */
+		{ RCAR_GP_PIN(4,  8), 20, 2 },	/* SD3_DAT6 */
+		{ RCAR_GP_PIN(4,  9), 17, 2 },	/* SD3_DAT7 */
+		{ RCAR_GP_PIN(4, 10), 14, 2 },	/* SD3_DS */
+	} },
+	{ },
+};
+
 enum ioctrl_regs {
 	POCCTRL0,
 	TDSELCTRL,
@@ -5286,6 +5319,7 @@ const struct sh_pfc_soc_info r8a774c0_pinmux_info = {
 	.nr_functions = ARRAY_SIZE(pinmux_functions.common),
 
 	.cfg_regs = pinmux_config_regs,
+	.drive_regs = pinmux_drive_regs,
 	.bias_regs = pinmux_bias_regs,
 	.ioctrl_regs = pinmux_ioctrl_regs,
 
@@ -5312,6 +5346,7 @@ const struct sh_pfc_soc_info r8a77990_pinmux_info = {
 		ARRAY_SIZE(pinmux_functions.automotive),
 
 	.cfg_regs = pinmux_config_regs,
+	.drive_regs = pinmux_drive_regs,
 	.bias_regs = pinmux_bias_regs,
 	.ioctrl_regs = pinmux_ioctrl_regs,
 
