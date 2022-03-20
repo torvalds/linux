@@ -81,9 +81,6 @@ static unsigned long global_flags;
 #define SDHI_INTERNAL_DMAC_ONE_RX_ONLY	0
 #define SDHI_INTERNAL_DMAC_RX_IN_USE	1
 
-/* RZ/A2 does not have the ADRR_MODE bit */
-#define SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY 2
-
 /* Definitions for sampling clocks */
 static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
 	{
@@ -106,10 +103,6 @@ static const struct renesas_sdhi_of_data of_data_rza2 = {
 	/* DMAC can handle 32bit blk count but only 1 segment */
 	.max_blk_count	= UINT_MAX / TMIO_MAX_BLK_SIZE,
 	.max_segs	= 1,
-};
-
-static const struct renesas_sdhi_of_data_with_quirks of_rza2_compatible = {
-	.of_data	= &of_data_rza2,
 };
 
 static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
@@ -176,6 +169,10 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 
 static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
 	.hs400_disabled = true,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_fixed_addr = {
+	.fixed_addr_mode = true,
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps1357 = {
@@ -246,6 +243,11 @@ static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_compatible = {
 static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_nohs400_compatible = {
 	.of_data = &of_data_rcar_gen3,
 	.quirks = &sdhi_quirks_nohs400,
+};
+
+static const struct renesas_sdhi_of_data_with_quirks of_rza2_compatible = {
+	.of_data	= &of_data_rza2,
+	.quirks		= &sdhi_quirks_fixed_addr,
 };
 
 static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
@@ -358,10 +360,11 @@ static void
 renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 				     struct mmc_data *data)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
 	struct scatterlist *sg = host->sg_ptr;
 	u32 dtran_mode = DTRAN_MODE_BUS_WIDTH;
 
-	if (!test_bit(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY, &global_flags))
+	if (!priv->quirks->fixed_addr_mode)
 		dtran_mode |= DTRAN_MODE_ADDR_MODE;
 
 	if (!renesas_sdhi_internal_dmac_map(host, data, COOKIE_MAPPED))
@@ -522,8 +525,6 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 };
 
 static const struct soc_device_attribute soc_dma_quirks[] = {
-	{ .soc_id = "r7s9210",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY) },
 	{ .soc_id = "r8a7795", .revision = "ES1.*",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
 	{ .soc_id = "r8a7796", .revision = "ES1.0",
