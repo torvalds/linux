@@ -1109,7 +1109,6 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
 	struct snd_soc_tplg_private *private = &tw->priv;
 	int num_tuples = 0;
-	size_t size;
 	int ret, i;
 
 	if (count > 0 && !object_token_list) {
@@ -1122,8 +1121,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 		num_tuples += token_list[object_token_list[i]].count;
 
 	/* allocate memory for tuples array */
-	size = sizeof(struct snd_sof_tuple) * num_tuples;
-	swidget->tuples = kzalloc(size, GFP_KERNEL);
+	swidget->tuples = kcalloc(num_tuples, sizeof(*swidget->tuples), GFP_KERNEL);
 	if (!swidget->tuples)
 		return -ENOMEM;
 
@@ -1561,7 +1559,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct snd_sof_dai_link *slink;
-	size_t size;
 	u32 token_id = 0;
 	int num_tuples = 0;
 	int ret, num_sets;
@@ -1673,8 +1670,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	}
 
 	/* allocate memory for tuples array */
-	size = sizeof(struct snd_sof_tuple) * num_tuples;
-	slink->tuples = kzalloc(size, GFP_KERNEL);
+	slink->tuples = kcalloc(num_tuples, sizeof(*slink->tuples), GFP_KERNEL);
 	if (!slink->tuples) {
 		kfree(slink->hw_configs);
 		kfree(slink);
