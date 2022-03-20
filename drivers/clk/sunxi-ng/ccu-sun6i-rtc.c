@@ -9,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 
+#include <linux/clk/sunxi-ng.h>
+
 #include "ccu_common.h"
 
 #include "ccu_div.h"
