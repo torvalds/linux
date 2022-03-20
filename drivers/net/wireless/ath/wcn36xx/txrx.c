@@ -367,7 +367,13 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		 */
 		u8 hwch = (bd->reserved0 << 4) + bd->rx_ch;
 
-		if (bd->rf_band != 1 && hwch <= sizeof(ab_rx_ch_map) && hwch >= 1) {
+		/* FIXME: For some reason WCN3620 sometimes sends packets that
+		 * look like 5 GHz even though it is 2.4 GHz only...
+		 */
+		if (bd->rf_band != 1 && hwch <= sizeof(ab_rx_ch_map) && hwch >= 1 &&
+		    !DO_ONCE_LITE_IF(wcn->rf_id == RF_IRIS_WCN3620, wcn36xx_warn,
+				     "Received 5 GHz band packet on WCN3620? "
+				     "(rf_band %d, hwch %d)\n", bd->rf_band, hwch)) {
 			status.band = NL80211_BAND_5GHZ;
 			status.freq = ieee80211_channel_to_frequency(ab_rx_ch_map[hwch - 1],
 								     status.band);
