@@ -1538,7 +1538,6 @@ static int do_subskeleton(int argc, char **argv)
 			return obj;					    \n\
 		err:							    \n\
 			%1$s__destroy(obj);				    \n\
-			errno = -err;					    \n\
 			return NULL;					    \n\
 		}							    \n\
 									    \n\
