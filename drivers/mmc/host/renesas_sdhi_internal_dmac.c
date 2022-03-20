@@ -296,7 +296,8 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 }
 
 static void
-renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
+renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host)
+{
 	u64 val = RST_DTRANRST1 | RST_DTRANRST0;
 
 	renesas_sdhi_internal_dmac_enable_dma(host, false);
@@ -312,7 +313,8 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 }
 
 static void
-renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host) {
+renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host)
+{
 	struct renesas_sdhi *priv = host_to_priv(host);
 
 	tasklet_schedule(&priv->dma_priv.dma_complete);
