@@ -92,6 +92,7 @@ struct monitor_dev_info {
 	struct dev_pm_qos_request dev_max_freq_req;
 	struct regulator *early_reg;
 	struct regulator **regulators;
+	struct dev_pm_set_opp_data *set_opp_data;
 	struct clk *clk;
 	unsigned long low_limit;
 	unsigned long high_limit;
@@ -120,6 +121,7 @@ struct monitor_dev_profile {
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*update_volt)(struct monitor_dev_info *info);
+	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct cpumask allowed_cpus;
 	struct rockchip_opp_info *opp_info;
 };

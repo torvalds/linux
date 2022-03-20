@@ -1082,6 +1082,8 @@ static int rockchip_system_monitor_parse_supplies(struct device *dev,
 						  struct monitor_dev_info *info)
 {
 	struct opp_table *opp_table;
+	struct dev_pm_set_opp_data *data;
+	int len, count;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (IS_ERR(opp_table))
@@ -1092,6 +1094,20 @@ static int rockchip_system_monitor_parse_supplies(struct device *dev,
 	if (opp_table->regulators)
 		info->regulators = opp_table->regulators;
 	info->regulator_count = opp_table->regulator_count;
+
+	if (opp_table->regulators && info->devp->set_opp) {
+		count = opp_table->regulator_count;
+		/* space for set_opp_data */
+		len = sizeof(*data);
+		/* space for old_opp.supplies and new_opp.supplies */
+		len += 2 * sizeof(struct dev_pm_opp_supply) * count;
+		data = kzalloc(len, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		data->old_opp.supplies = (void *)(data + 1);
+		data->new_opp.supplies = data->old_opp.supplies + count;
+		info->set_opp_data = data;
+	}
 
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -1137,6 +1153,35 @@ static void rockchip_monitor_disable_opp_clk(struct device *dev,
 
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 }
+
+static int rockchip_monitor_set_opp(struct monitor_dev_info *info,
+				    unsigned long old_freq,
+				    unsigned long freq,
+				    struct dev_pm_opp_supply *old_supply,
+				    struct dev_pm_opp_supply *new_supply)
+{
+	struct dev_pm_set_opp_data *data;
+	int size;
+
+	data = info->set_opp_data;
+	data->regulators = info->regulators;
+	data->regulator_count = info->regulator_count;
+	data->clk = info->clk;
+	data->dev = info->dev;
+
+	data->old_opp.rate = old_freq;
+	size = sizeof(*old_supply) * info->regulator_count;
+	if (!old_supply)
+		memset(data->old_opp.supplies, 0, size);
+	else
+		memcpy(data->old_opp.supplies, old_supply, size);
+
+	data->new_opp.rate = freq;
+	memcpy(data->new_opp.supplies, new_supply, size);
+
+	return info->devp->set_opp(data);
+}
+
 int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	struct device *dev = info->dev;
@@ -1194,6 +1239,12 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 	}
 	if (!new_volt || (info->regulator_count > 1 && !new_mem_volt))
 		goto unlock;
+
+	if (info->devp->set_opp) {
+		ret = rockchip_monitor_set_opp(info, old_rate, new_rate,
+					       NULL, opp->supplies);
+		goto unlock;
+	}
 
 	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
 		is_set_rm = true;
@@ -1303,6 +1354,8 @@ rockchip_system_monitor_register(struct device *dev,
 	rockchip_system_monitor_parse_supplies(dev, info);
 	if (monitor_device_parse_dt(dev, info)) {
 		rockchip_monitor_check_rate_volt(info);
+		devp->is_checked = true;
+		kfree(info->set_opp_data);
 		kfree(info);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1340,6 +1393,7 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 
 	kfree(info->low_temp_adjust_table);
 	kfree(info->opp_table);
+	kfree(info->set_opp_data);
 	kfree(info);
 }
 EXPORT_SYMBOL(rockchip_system_monitor_unregister);
