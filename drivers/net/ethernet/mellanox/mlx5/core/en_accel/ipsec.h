@@ -102,12 +102,9 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u8 is_ipv6;
 };
 
-enum mlx5_accel_ipsec_cap {
-	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
-	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 1,
-	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 2,
-	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 3,
-	MLX5_ACCEL_IPSEC_CAP_ESN		= 1 << 4,
+enum mlx5_ipsec_cap {
+	MLX5_IPSEC_CAP_CRYPTO		= 1 << 0,
+	MLX5_IPSEC_CAP_ESN		= 1 << 1,
 };
 
 struct mlx5e_priv;

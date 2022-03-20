@@ -7,7 +7,7 @@
 
 u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 {
-	u32 caps;
+	u32 caps = 0;
 
 	if (!MLX5_CAP_GEN(mdev, ipsec_offload))
 		return 0;
@@ -19,23 +19,23 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC))
 		return 0;
 
-	if (!MLX5_CAP_IPSEC(mdev, ipsec_crypto_offload) ||
-	    !MLX5_CAP_ETH(mdev, insert_trailer))
-		return 0;
-
 	if (!MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ipsec_encrypt) ||
 	    !MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ipsec_decrypt))
 		return 0;
 
-	caps = MLX5_ACCEL_IPSEC_CAP_DEVICE | MLX5_ACCEL_IPSEC_CAP_IPV6 |
-	       MLX5_ACCEL_IPSEC_CAP_LSO;
+	if (!MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_encrypt) ||
+	    !MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_decrypt))
+		return 0;
 
-	if (MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_encrypt) &&
-	    MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_decrypt))
-		caps |= MLX5_ACCEL_IPSEC_CAP_ESP;
+	if (MLX5_CAP_IPSEC(mdev, ipsec_crypto_offload) &&
+	    MLX5_CAP_ETH(mdev, insert_trailer) && MLX5_CAP_ETH(mdev, swp))
+		caps |= MLX5_IPSEC_CAP_CRYPTO;
+
+	if (!caps)
+		return 0;
 
 	if (MLX5_CAP_IPSEC(mdev, ipsec_esn))
-		caps |= MLX5_ACCEL_IPSEC_CAP_ESN;
+		caps |= MLX5_IPSEC_CAP_ESN;
 
 	/* We can accommodate up to 2^24 different IPsec objects
 	 * because we use up to 24 bit in flow table metadata
