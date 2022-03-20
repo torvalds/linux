@@ -770,22 +770,22 @@ static void p_to_t(u8 const *buf, long int length, u16 pid, u8 *counter,
 	if (length > 3 &&
 	     buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x01)
 		switch (buf[3]) {
-			case PROG_STREAM_MAP:
-			case PRIVATE_STREAM2:
-			case PROG_STREAM_DIR:
-			case ECM_STREAM     :
-			case EMM_STREAM     :
-			case PADDING_STREAM :
-			case DSM_CC_STREAM  :
-			case ISO13522_STREAM:
-			case PRIVATE_STREAM1:
-			case AUDIO_STREAM_S ... AUDIO_STREAM_E:
-			case VIDEO_STREAM_S ... VIDEO_STREAM_E:
-				pes_start = 1;
-				break;
+		case PROG_STREAM_MAP:
+		case PRIVATE_STREAM2:
+		case PROG_STREAM_DIR:
+		case ECM_STREAM     :
+		case EMM_STREAM     :
+		case PADDING_STREAM :
+		case DSM_CC_STREAM  :
+		case ISO13522_STREAM:
+		case PRIVATE_STREAM1:
+		case AUDIO_STREAM_S ... AUDIO_STREAM_E:
+		case VIDEO_STREAM_S ... VIDEO_STREAM_E:
+			pes_start = 1;
+			break;
 
-			default:
-				break;
+		default:
+			break;
 		}
 
 	while (c < length) {
