@@ -406,6 +406,8 @@ static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
 	case BPF_TRACE_FENTRY:
 	case BPF_TRACE_FEXIT:
 		btf_vmlinux = bpf_get_btf_vmlinux();
+		if (IS_ERR_OR_NULL(btf_vmlinux))
+			return false;
 		btf_id = prog->aux->attach_btf_id;
 		t = btf_type_by_id(btf_vmlinux, btf_id);
 		tname = btf_name_by_offset(btf_vmlinux, t->name_off);

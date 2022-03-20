@@ -534,6 +534,8 @@ static s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
 	btf = bpf_get_btf_vmlinux();
 	if (IS_ERR(btf))
 		return PTR_ERR(btf);
+	if (!btf)
+		return -EINVAL;
 
 	ret = btf_find_by_name_kind(btf, name, kind);
 	/* ret is never zero, since btf_find_by_name_kind returns
@@ -6584,7 +6586,7 @@ static struct btf *btf_get_module_btf(const struct module *module)
 
 	if (!module) {
 		btf = bpf_get_btf_vmlinux();
-		if (!IS_ERR(btf))
+		if (!IS_ERR_OR_NULL(btf))
 			btf_get(btf);
 		return btf;
 	}
@@ -7180,6 +7182,8 @@ bpf_core_find_cands(struct bpf_core_ctx *ctx, u32 local_type_id)
 	main_btf = bpf_get_btf_vmlinux();
 	if (IS_ERR(main_btf))
 		return ERR_CAST(main_btf);
+	if (!main_btf)
+		return ERR_PTR(-EINVAL);
 
 	local_type = btf_type_by_id(local_btf, local_type_id);
 	if (!local_type)
