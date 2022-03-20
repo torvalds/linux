@@ -719,26 +719,14 @@ struct hl_ts_mgr {
 
 /**
  * struct hl_ts_buff - describes a timestamp buffer.
- * @refcount: reference counter for usage of the buffer.
- * @hdev: pointer to device this buffer belongs to.
- * @mmap: true if the buff is currently mapped to user.
  * @kernel_buff_address: Holds the internal buffer's kernel virtual address.
  * @user_buff_address: Holds the user buffer's kernel virtual address.
- * @id: the buffer ID.
- * @mmap_size: Holds the buffer size that was mmaped.
  * @kernel_buff_size: Holds the internal kernel buffer size.
- * @user_buff_size: Holds the user buffer size.
  */
 struct hl_ts_buff {
-	struct kref		refcount;
-	struct hl_device	*hdev;
-	atomic_t		mmap;
 	void			*kernel_buff_address;
 	void			*user_buff_address;
-	u32			id;
-	u32			mmap_size;
 	u32			kernel_buff_size;
-	u32			user_buff_size;
 };
 
 struct hl_mmap_mem_buf;
@@ -973,12 +961,12 @@ struct hl_user_interrupt {
  * struct timestamp_reg_free_node - holds the timestamp registration free objects node
  * @free_objects_node: node in the list free_obj_jobs
  * @cq_cb: pointer to cq command buffer to be freed
- * @ts_buff: pointer to timestamp buffer to be freed
+ * @buf: pointer to timestamp buffer to be freed
  */
 struct timestamp_reg_free_node {
 	struct list_head	free_objects_node;
 	struct hl_cb		*cq_cb;
-	struct hl_ts_buff	*ts_buff;
+	struct hl_mmap_mem_buf	*buf;
 };
 
 /* struct timestamp_reg_work_obj - holds the timestamp registration free objects job
@@ -995,8 +983,8 @@ struct timestamp_reg_work_obj {
 };
 
 /* struct timestamp_reg_info - holds the timestamp registration related data.
- * @ts_buff: pointer to the timestamp buffer which include both user/kernel buffers.
- *           relevant only when doing timestamps records registration.
+ * @buf: pointer to the timestamp buffer which include both user/kernel buffers.
+ *       relevant only when doing timestamps records registration.
  * @cq_cb: pointer to CQ counter CB.
  * @timestamp_kernel_addr: timestamp handle address, where to set timestamp
  *                         relevant only when doing timestamps records
@@ -1007,7 +995,7 @@ struct timestamp_reg_work_obj {
  *          allocating records dynamically.
  */
 struct timestamp_reg_info {
-	struct hl_ts_buff	*ts_buff;
+	struct hl_mmap_mem_buf	*buf;
 	struct hl_cb		*cq_cb;
 	u64			*timestamp_kernel_addr;
 	u8			in_use;
@@ -1966,7 +1954,7 @@ struct hl_debug_params {
  * @ctx: current executing context. TODO: remove for multiple ctx per process
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
- * @ts_mem_mgr: timestamp registration manager for alloc/free/map timestamp buffers.
+ * @mem_mgr: manager descriptor for memory exportable via mmap
  * @debugfs_list: list of relevant ASIC debugfs.
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
@@ -1979,7 +1967,7 @@ struct hl_fpriv {
 	struct hl_ctx		*ctx;
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
-	struct hl_ts_mgr	ts_mem_mgr;
+	struct hl_mem_mgr	mem_mgr;
 	struct list_head	debugfs_list;
 	struct list_head	dev_node;
 	struct kref		refcount;
@@ -3267,11 +3255,18 @@ __printf(4, 5) int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
 					const char *format, ...);
 char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
 const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
-void hl_ts_mgr_init(struct hl_ts_mgr *mgr);
-void hl_ts_mgr_fini(struct hl_device *hdev, struct hl_ts_mgr *mgr);
-int hl_ts_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
-struct hl_ts_buff *hl_ts_get(struct hl_device *hdev, struct hl_ts_mgr *mgr, u32 handle);
-void hl_ts_put(struct hl_ts_buff *buff);
+
+void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg);
+void hl_mem_mgr_fini(struct hl_mem_mgr *mmg);
+int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
+		    void *args);
+struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg,
+						   u32 handle);
+int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf);
+struct hl_mmap_mem_buf *
+hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
+		      struct hl_mmap_mem_buf_ops *behavior, gfp_t gfp,
+		      void *args);
 
 #ifdef CONFIG_DEBUG_FS
 

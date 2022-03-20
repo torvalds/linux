@@ -957,9 +957,9 @@ wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_for_each_entry_safe(pend, temp, &interrupt->wait_list_head, wait_list_node) {
-		if (pend->ts_reg_info.ts_buff) {
+		if (pend->ts_reg_info.buf) {
 			list_del(&pend->wait_list_node);
-			hl_ts_put(pend->ts_reg_info.ts_buff);
+			hl_mmap_mem_buf_put(pend->ts_reg_info.buf);
 			hl_cb_put(pend->ts_reg_info.cq_cb);
 		} else {
 			pend->fence.error = -EIO;
@@ -2867,12 +2867,13 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	return 0;
 }
 
-static int ts_buff_get_kernel_ts_record(struct hl_ts_buff *ts_buff,
+static int ts_buff_get_kernel_ts_record(struct hl_mmap_mem_buf *buf,
 					struct hl_cb *cq_cb,
 					u64 ts_offset, u64 cq_offset, u64 target_value,
 					spinlock_t *wait_list_lock,
 					struct hl_user_pending_interrupt **pend)
 {
+	struct hl_ts_buff *ts_buff = buf->private;
 	struct hl_user_pending_interrupt *requested_offset_record =
 				(struct hl_user_pending_interrupt *)ts_buff->kernel_buff_address +
 				ts_offset;
@@ -2884,7 +2885,7 @@ static int ts_buff_get_kernel_ts_record(struct hl_ts_buff *ts_buff,
 
 	/* Validate ts_offset not exceeding last max */
 	if (requested_offset_record > cb_last) {
-		dev_err(ts_buff->hdev->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
+		dev_err(buf->mmg->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
 								(u64)(uintptr_t)cb_last);
 		return -EINVAL;
 	}
@@ -2903,18 +2904,21 @@ start_over:
 			list_del(&requested_offset_record->wait_list_node);
 			spin_unlock_irqrestore(wait_list_lock, flags);
 
-			hl_ts_put(requested_offset_record->ts_reg_info.ts_buff);
+			hl_mmap_mem_buf_put(requested_offset_record->ts_reg_info.buf);
 			hl_cb_put(requested_offset_record->ts_reg_info.cq_cb);
 
-			dev_dbg(ts_buff->hdev->dev, "ts node removed from interrupt list now can re-use\n");
+			dev_dbg(buf->mmg->dev,
+				"ts node removed from interrupt list now can re-use\n");
 		} else {
-			dev_dbg(ts_buff->hdev->dev, "ts node in middle of irq handling\n");
+			dev_dbg(buf->mmg->dev,
+				"ts node in middle of irq handling\n");
 
 			/* irq handling in the middle give it time to finish */
 			spin_unlock_irqrestore(wait_list_lock, flags);
 			usleep_range(1, 10);
 			if (++iter_counter == MAX_TS_ITER_NUM) {
-				dev_err(ts_buff->hdev->dev, "handling registration interrupt took too long!!\n");
+				dev_err(buf->mmg->dev,
+					"handling registration interrupt took too long!!\n");
 				return -EINVAL;
 			}
 
@@ -2926,7 +2930,7 @@ start_over:
 
 	/* Fill up the new registration node info */
 	requested_offset_record->ts_reg_info.in_use = 1;
-	requested_offset_record->ts_reg_info.ts_buff = ts_buff;
+	requested_offset_record->ts_reg_info.buf = buf;
 	requested_offset_record->ts_reg_info.cq_cb = cq_cb;
 	requested_offset_record->ts_reg_info.timestamp_kernel_addr =
 			(u64 *) ts_buff->user_buff_address + ts_offset;
@@ -2936,13 +2940,13 @@ start_over:
 
 	*pend = requested_offset_record;
 
-	dev_dbg(ts_buff->hdev->dev, "Found available node in TS kernel CB(0x%llx)\n",
+	dev_dbg(buf->mmg->dev, "Found available node in TS kernel CB(0x%llx)\n",
 						(u64)(uintptr_t)requested_offset_record);
 	return 0;
 }
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
-				struct hl_cb_mgr *cb_mgr, struct hl_ts_mgr *ts_mgr,
+				struct hl_cb_mgr *cb_mgr, struct hl_mem_mgr *mmg,
 				u64 timeout_us, u64 cq_counters_handle,	u64 cq_counters_offset,
 				u64 target_value, struct hl_user_interrupt *interrupt,
 				bool register_ts_record, u64 ts_handle, u64 ts_offset,
@@ -2950,7 +2954,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 {
 	u32 cq_patched_handle, ts_patched_handle;
 	struct hl_user_pending_interrupt *pend;
-	struct hl_ts_buff *ts_buff;
+	struct hl_mmap_mem_buf *buf;
 	struct hl_cb *cq_cb;
 	unsigned long timeout, flags;
 	long completion_rc;
@@ -2971,15 +2975,21 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, ts offset: %llu, cq_offset: %llu\n",
 					interrupt->interrupt_id, ts_offset, cq_counters_offset);
 
+		/* TODO:
+		 * See if this can be removed.
+		 * Embedding type in handle will no longer be needed as soon as we
+		 * switch to using a single memory manager for all memory types.
+		 * We may still need the page shift, though.
+		 */
 		ts_patched_handle = lower_32_bits(ts_handle >> PAGE_SHIFT);
-		ts_buff = hl_ts_get(hdev, ts_mgr, ts_patched_handle);
-		if (!ts_buff) {
+		buf = hl_mmap_mem_buf_get(mmg, ts_patched_handle);
+		if (!buf) {
 			rc = -EINVAL;
 			goto put_cq_cb;
 		}
 
 		/* Find first available record */
-		rc = ts_buff_get_kernel_ts_record(ts_buff, cq_cb, ts_offset,
+		rc = ts_buff_get_kernel_ts_record(buf, cq_cb, ts_offset,
 						cq_counters_offset, target_value,
 						&interrupt->wait_list_lock, &pend);
 		if (rc)
@@ -3086,7 +3096,7 @@ ts_registration_exit:
 	return rc;
 
 put_ts_buff:
-	hl_ts_put(ts_buff);
+	hl_mmap_mem_buf_put(buf);
 put_cq_cb:
 	hl_cb_put(cq_cb);
 put_ctx:
@@ -3248,7 +3258,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
 	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ)
-		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr, &hpriv->ts_mem_mgr,
+		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr, &hpriv->mem_mgr,
 				args->in.interrupt_timeout_us, args->in.cq_counters_handle,
 				args->in.cq_counters_offset,
 				args->in.target, interrupt,

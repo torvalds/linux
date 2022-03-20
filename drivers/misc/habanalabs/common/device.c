@@ -149,7 +149,7 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
-	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
 	hdev->compute_ctx_in_release = 1;
@@ -218,7 +218,7 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 		return hl_hw_block_mmap(hpriv, vma);
 
 	case HL_MMAP_TYPE_TS_BUFF:
-		return hl_ts_mmap(hpriv, vma);
+		return hl_mem_mgr_mmap(&hpriv->mem_mgr, vma, NULL);
 	}
 
 	return -EINVAL;

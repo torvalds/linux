@@ -140,7 +140,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
-	hl_ts_mgr_init(&hpriv->ts_mem_mgr);
+	hl_mem_mgr_init(hpriv->hdev->dev, &hpriv->mem_mgr);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
@@ -198,7 +198,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
-	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
 	mutex_destroy(&hpriv->restore_phase_mutex);

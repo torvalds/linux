@@ -2076,164 +2076,34 @@ out:
 	return rc;
 }
 
-static void ts_buff_release(struct kref *ref)
+static void ts_buff_release(struct hl_mmap_mem_buf *buf)
 {
-	struct hl_ts_buff *buff;
+	struct hl_ts_buff *ts_buff = buf->private;
 
-	buff = container_of(ref, struct hl_ts_buff, refcount);
-
-	vfree(buff->kernel_buff_address);
-	vfree(buff->user_buff_address);
-	kfree(buff);
+	vfree(ts_buff->kernel_buff_address);
+	vfree(ts_buff->user_buff_address);
+	kfree(ts_buff);
 }
 
-struct hl_ts_buff *hl_ts_get(struct hl_device *hdev, struct hl_ts_mgr *mgr,
-					u32 handle)
+static int hl_ts_mmap(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, void *args)
 {
-	struct hl_ts_buff *buff;
+	struct hl_ts_buff *ts_buff = buf->private;
 
-	spin_lock(&mgr->ts_lock);
-	buff = idr_find(&mgr->ts_handles, handle);
-	if (!buff) {
-		spin_unlock(&mgr->ts_lock);
-		dev_warn(hdev->dev,
-			"TS buff get failed, no match to handle 0x%x\n", handle);
-		return NULL;
-	}
-	kref_get(&buff->refcount);
-	spin_unlock(&mgr->ts_lock);
-
-	return buff;
-}
-
-void hl_ts_put(struct hl_ts_buff *buff)
-{
-	kref_put(&buff->refcount, ts_buff_release);
-}
-
-static void buff_vm_close(struct vm_area_struct *vma)
-{
-	struct hl_ts_buff *buff = (struct hl_ts_buff *) vma->vm_private_data;
-	long new_mmap_size;
-
-	new_mmap_size = buff->mmap_size - (vma->vm_end - vma->vm_start);
-
-	if (new_mmap_size > 0) {
-		buff->mmap_size = new_mmap_size;
-		return;
-	}
-
-	atomic_set(&buff->mmap, 0);
-	hl_ts_put(buff);
-	vma->vm_private_data = NULL;
-}
-
-static const struct vm_operations_struct ts_buff_vm_ops = {
-	.close = buff_vm_close
-};
-
-int hl_ts_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
-{
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ts_buff *buff;
-	u32 handle, user_buff_size;
-	int rc;
-
-	/* We use the page offset to hold the idr and thus we need to clear
-	 * it before doing the mmap itself
-	 */
-	handle = vma->vm_pgoff;
-	vma->vm_pgoff = 0;
-
-	buff = hl_ts_get(hdev, &hpriv->ts_mem_mgr, handle);
-	if (!buff) {
-		dev_err(hdev->dev,
-			"TS buff mmap failed, no match to handle 0x%x\n", handle);
-		return -EINVAL;
-	}
-
-	/* Validation check */
-	user_buff_size = vma->vm_end - vma->vm_start;
-	if (user_buff_size != ALIGN(buff->user_buff_size, PAGE_SIZE)) {
-		dev_err(hdev->dev,
-			"TS buff mmap failed, mmap size 0x%x != 0x%x buff size\n",
-			user_buff_size, ALIGN(buff->user_buff_size, PAGE_SIZE));
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
-	if (!access_ok(VERIFY_WRITE,
-		(void __user *) (uintptr_t) vma->vm_start, user_buff_size)) {
-#else
-	if (!access_ok((void __user *) (uintptr_t) vma->vm_start,
-						user_buff_size)) {
-#endif
-		dev_err(hdev->dev,
-			"user pointer is invalid - 0x%lx\n",
-			vma->vm_start);
-
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-	if (atomic_cmpxchg(&buff->mmap, 0, 1)) {
-		dev_err(hdev->dev, "TS buff memory mmap failed, already mmaped to user\n");
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-	vma->vm_ops = &ts_buff_vm_ops;
-	vma->vm_private_data = buff;
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_NORESERVE;
-	rc = remap_vmalloc_range(vma, buff->user_buff_address, 0);
-	if (rc) {
-		atomic_set(&buff->mmap, 0);
-		goto put_buff;
-	}
-
-	buff->mmap_size = buff->user_buff_size;
-	vma->vm_pgoff = handle;
-
-	return 0;
-
-put_buff:
-	hl_ts_put(buff);
-	return rc;
+	return remap_vmalloc_range(vma, ts_buff->user_buff_address, 0);
 }
 
-void hl_ts_mgr_init(struct hl_ts_mgr *mgr)
-{
-	spin_lock_init(&mgr->ts_lock);
-	idr_init(&mgr->ts_handles);
-}
-
-void hl_ts_mgr_fini(struct hl_device *hdev, struct hl_ts_mgr *mgr)
-{
-	struct hl_ts_buff *buff;
-	struct idr *idp;
-	u32 id;
-
-	idp = &mgr->ts_handles;
-
-	idr_for_each_entry(idp, buff, id) {
-		if (kref_put(&buff->refcount, ts_buff_release) != 1)
-			dev_err(hdev->dev, "TS buff handle %d for CTX is still alive\n",
-							id);
-	}
-
-	idr_destroy(&mgr->ts_handles);
-}
-
-static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_elements)
+static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 {
 	struct hl_ts_buff *ts_buff = NULL;
-	u32 size;
+	u32 size, num_elements;
 	void *p;
+
+	num_elements = *(u32 *)args;
 
 	ts_buff = kzalloc(sizeof(*ts_buff), GFP_KERNEL);
 	if (!ts_buff)
-		return NULL;
+		return -ENOMEM;
 
 	/* Allocate the user buffer */
 	size = num_elements * sizeof(u64);
@@ -2242,7 +2112,7 @@ static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_eleme
 		goto free_mem;
 
 	ts_buff->user_buff_address = p;
-	ts_buff->user_buff_size = size;
+	buf->mappable_size = size;
 
 	/* Allocate the internal kernel buffer */
 	size = num_elements * sizeof(struct hl_user_pending_interrupt);
@@ -2253,14 +2123,22 @@ static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_eleme
 	ts_buff->kernel_buff_address = p;
 	ts_buff->kernel_buff_size = size;
 
-	return ts_buff;
+	buf->private = ts_buff;
+
+	return 0;
 
 free_user_buff:
 	vfree(ts_buff->user_buff_address);
 free_mem:
 	kfree(ts_buff);
-	return NULL;
+	return -ENOMEM;
 }
+
+struct hl_mmap_mem_buf_ops hl_ts_behavior = {
+	.mmap = hl_ts_mmap,
+	.alloc = hl_ts_alloc_buf,
+	.release = ts_buff_release,
+};
 
 /**
  * allocate_timestamps_buffers() - allocate timestamps buffers
@@ -2278,54 +2156,27 @@ free_mem:
  */
 static int allocate_timestamps_buffers(struct hl_fpriv *hpriv, struct hl_mem_in *args, u64 *handle)
 {
-	struct hl_ts_mgr *ts_mgr = &hpriv->ts_mem_mgr;
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ts_buff *ts_buff;
-	int rc = 0;
+	struct hl_mem_mgr *mmg = &hpriv->mem_mgr;
+	struct hl_mmap_mem_buf *buf;
 
 	if (args->num_of_elements > TS_MAX_ELEMENTS_NUM) {
-		dev_err(hdev->dev, "Num of elements exceeds Max allowed number (0x%x > 0x%x)\n",
+		dev_err(mmg->dev, "Num of elements exceeds Max allowed number (0x%x > 0x%x)\n",
 				args->num_of_elements, TS_MAX_ELEMENTS_NUM);
 		return -EINVAL;
 	}
 
-	/* Allocate ts buffer object
-	 * This object will contain two buffers one that will be mapped to the user
-	 * and another internal buffer for the driver use only, which won't be mapped
-	 * to the user.
+	buf = hl_mmap_mem_buf_alloc(mmg, &hl_ts_behavior, GFP_KERNEL, &args->num_of_elements);
+	if (!buf)
+		return -ENOMEM;
+
+	/* TODO:
+	 * Remove HL_MMAP_TYPE_TS_BUFF.
+	 * Embedding type in handle will no longer be needed as soon as we
+	 * switch to using a single memory manager for all memory types.
 	 */
-	ts_buff = hl_ts_alloc_buff(hdev, args->num_of_elements);
-	if (!ts_buff) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
-
-	spin_lock(&ts_mgr->ts_lock);
-	rc = idr_alloc(&ts_mgr->ts_handles, ts_buff, 1, 0, GFP_ATOMIC);
-	spin_unlock(&ts_mgr->ts_lock);
-	if (rc < 0) {
-		dev_err(hdev->dev, "Failed to allocate IDR for a new ts buffer\n");
-		goto release_ts_buff;
-	}
-
-	ts_buff->id = rc;
-	ts_buff->hdev = hdev;
-
-	kref_init(&ts_buff->refcount);
-
-	/* idr is 32-bit so we can safely OR it with a mask that is above 32 bit */
-	*handle = (u64) ts_buff->id | HL_MMAP_TYPE_TS_BUFF;
-	*handle <<= PAGE_SHIFT;
-
-	dev_dbg(hdev->dev, "Created ts buff object handle(%u)\n", ts_buff->id);
+	*handle = ((u64)buf->handle | HL_MMAP_TYPE_TS_BUFF) << PAGE_SHIFT;
 
 	return 0;
-
-release_ts_buff:
-	kref_put(&ts_buff->refcount, ts_buff_release);
-out_err:
-	*handle = 0;
-	return rc;
 }
 
 int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
