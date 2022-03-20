@@ -986,8 +986,6 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	CMD_SP(sc) = NULL;
 	CMD_FLAGS(sc) |= FNIC_IO_DONE;
 
-	spin_unlock_irqrestore(io_lock, flags);
-
 	if (hdr_status != FCPIO_SUCCESS) {
 		atomic64_inc(&fnic_stats->io_stats.io_failures);
 		shost_printk(KERN_ERR, fnic->lport->host, "hdr status = %s\n",
@@ -995,8 +993,6 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	}
 
 	fnic_release_ioreq_buf(fnic, io_req, sc);
-
-	mempool_free(io_req, fnic->io_req_pool);
 
 	cmd_trace = ((u64)hdr_status << 56) |
 		  (u64)icmnd_cmpl->scsi_status << 48 |
@@ -1020,6 +1016,12 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		fnic->fcp_output_bytes += xfer_len;
 	} else
 		fnic->lport->host_stats.fcp_control_requests++;
+
+	/* Call SCSI completion function to complete the IO */
+	scsi_done(sc);
+	spin_unlock_irqrestore(io_lock, flags);
+
+	mempool_free(io_req, fnic->io_req_pool);
 
 	atomic64_dec(&fnic_stats->io_stats.active_ios);
 	if (atomic64_read(&fnic->io_cmpl_skip))
@@ -1049,9 +1051,6 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		if(io_duration_time > atomic64_read(&fnic_stats->io_stats.current_max_io_time))
 			atomic64_set(&fnic_stats->io_stats.current_max_io_time, io_duration_time);
 	}
-
-	/* Call SCSI completion function to complete the IO */
-	scsi_done(sc);
 }
 
 /* fnic_fcpio_itmf_cmpl_handler
