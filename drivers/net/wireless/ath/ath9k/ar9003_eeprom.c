@@ -3911,7 +3911,7 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Test value. if 0 then attenuation is unused. Don't load anything. */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (ah->txchainmask & BIT(i)) {
 			value = ar9003_hw_atten_chain_get(ah, i, chan);
 			REG_RMW_FIELD(ah, ext_atten_reg[i],
@@ -5126,7 +5126,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 		frequency, correction[0], correction[1], correction[2]);
 
 	/* Store calibrated noise floor values */
-	for (ichain = 0; ichain < AR5416_MAX_CHAINS; ichain++)
+	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++)
 		if (mode) {
 			ah->nf_5g.cal[ichain] = nf_cal[ichain];
 			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
