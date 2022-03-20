@@ -4482,8 +4482,7 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 	btf = env->btf;
 	btf_data_size = btf->data_size;
 
-	if (btf_data_size <
-	    offsetof(struct btf_header, hdr_len) + sizeof(hdr->hdr_len)) {
+	if (btf_data_size < offsetofend(struct btf_header, hdr_len)) {
 		btf_verifier_log(env, "hdr_len not found");
 		return -EINVAL;
 	}
