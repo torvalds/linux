@@ -1625,7 +1625,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	unsigned char     *resp;
 	struct ssif_info   *ssif_info;
 	int               rv = 0;
-	int               len;
+	int               len = 0;
 	int               i;
 	u8		  slave_addr = 0;
 	struct ssif_addr_info *addr_info = NULL;
