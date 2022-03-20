@@ -78,8 +78,7 @@ static unsigned long global_flags;
  * stored into the system memory even if the DMAC interrupt happened.
  * So, this driver then uses one RX DMAC channel only.
  */
-#define SDHI_INTERNAL_DMAC_ONE_RX_ONLY	0
-#define SDHI_INTERNAL_DMAC_RX_IN_USE	1
+#define SDHI_INTERNAL_DMAC_RX_IN_USE	0
 
 /* Definitions for sampling clocks */
 static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
@@ -162,6 +161,12 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
 	.hs400_4taps = true,
 };
 
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400_one_rx = {
+	.hs400_disabled = true,
+	.hs400_4taps = true,
+	.dma_one_rx_only = true,
+};
+
 static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
 	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
@@ -205,9 +210,10 @@ static const struct renesas_sdhi_quirks sdhi_quirks_r8a77990 = {
  */
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400_one_rx },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap_nohs400_one_rx },
+	{ .soc_id = "r8a7796", .revision = "ES1.[12]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_r8a7796_es13 },
 	{ /* Sentinel. */ }
 };
@@ -372,7 +378,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
-		if (test_bit(SDHI_INTERNAL_DMAC_ONE_RX_ONLY, &global_flags) &&
+		if (priv->quirks->dma_one_rx_only &&
 		    test_and_set_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags))
 			goto force_pio_with_unmap;
 	} else {
@@ -524,14 +530,6 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.end = renesas_sdhi_internal_dmac_end_dma,
 };
 
-static const struct soc_device_attribute soc_dma_quirks[] = {
-	{ .soc_id = "r8a7795", .revision = "ES1.*",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ .soc_id = "r8a7796", .revision = "ES1.0",
-	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ /* sentinel */ }
-};
-
 static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
@@ -541,10 +539,6 @@ static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 
 	of_data_quirks = of_device_get_match_data(&pdev->dev);
 	quirks = of_data_quirks->quirks;
-
-	attr = soc_device_match(soc_dma_quirks);
-	if (attr)
-		global_flags |= (unsigned long)attr->data;
 
 	attr = soc_device_match(sdhi_quirks_match);
 	if (attr)
