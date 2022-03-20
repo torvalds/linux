@@ -741,6 +741,57 @@ struct hl_ts_buff {
 	u32			user_buff_size;
 };
 
+struct hl_mmap_mem_buf;
+
+/**
+ * struct hl_mem_mgr - describes unified memory manager for mappable memory chunks.
+ * @dev: back pointer to the owning device
+ * @lock: protects handles
+ * @handles: an idr holding all active handles to the memory buffers in the system.
+ */
+struct hl_mem_mgr {
+	struct device *dev;
+	spinlock_t lock;
+	struct idr handles;
+};
+
+/**
+ * struct hl_mmap_mem_buf_ops - describes unified memory manager buffer behavior
+ * @alloc: callback executed on buffer allocation, shall allocate the memory,
+ *         set it under buffer private, and set mappable size.
+ * @mmap: callback executed on mmap, must map the buffer to vma
+ * @release: callback executed on release, must free the resources used by the buffer
+ */
+struct hl_mmap_mem_buf_ops {
+	int (*alloc)(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args);
+	int (*mmap)(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, void *args);
+	void (*release)(struct hl_mmap_mem_buf *buf);
+};
+
+/**
+ * struct hl_mmap_mem_buf_ops - describes a single unified memory buffer
+ * @ops: buffer behavior
+ * @mmg: back pointer to the unified memory manager
+ * @refcount: reference counter for buffer users
+ * @private: pointer to buffer behavior private data
+ * @mmap: atomic boolean indicating whether or not the buffer is mapped right now
+ * @real_mapped_size: the actual size of buffer mapped, after part of it may be released,
+ *                   may change at runtime.
+ * @mappable_size: the original mappable size of the buffer, does not change after
+ *                 the allocation.
+ * @handle: the buffer id in mmg handles store
+ */
+struct hl_mmap_mem_buf {
+	struct hl_mmap_mem_buf_ops *ops;
+	struct hl_mem_mgr *mmg;
+	struct kref refcount;
+	void *private;
+	atomic_t mmap;
+	u64 real_mapped_size;
+	u64 mappable_size;
+	u32 handle;
+};
+
 /**
  * struct hl_cb - describes a Command Buffer.
  * @refcount: reference counter for usage of the CB.
