@@ -6240,6 +6240,8 @@ static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	req->flags |= REQ_F_POLLED;
 	ipt.pt._qproc = io_async_queue_proc;
 
+	io_kbuf_recycle(req);
+
 	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask);
 	if (ret || ipt.error)
 		return ret ? IO_APOLL_READY : IO_APOLL_ABORTED;
@@ -7491,7 +7493,6 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 		io_queue_async_work(req, NULL);
 		break;
 	case IO_APOLL_OK:
-		io_kbuf_recycle(req);
 		break;
 	}
 
