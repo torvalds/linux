@@ -521,10 +521,6 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.end = renesas_sdhi_internal_dmac_end_dma,
 };
 
-/*
- * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
- * implementation as others may use a different implementation.
- */
 static const struct soc_device_attribute soc_dma_quirks[] = {
 	{ .soc_id = "r7s9210",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY) },
