@@ -128,7 +128,7 @@ static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
 	.sdhi_flags	= SDHI_FLAG_NEED_CLKH_FALLBACK,
 };
 
-static const struct renesas_sdhi_of_data of_data_rcar_gen3_no_fallback = {
+static const struct renesas_sdhi_of_data of_data_rcar_gen3_no_sdh_fallback = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL |
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
@@ -231,7 +231,7 @@ static const struct renesas_sdhi_of_data_with_quirks of_r8a77965_compatible = {
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77970_compatible = {
-	.of_data = &of_data_rcar_gen3_no_fallback,
+	.of_data = &of_data_rcar_gen3_no_sdh_fallback,
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77990_compatible = {
