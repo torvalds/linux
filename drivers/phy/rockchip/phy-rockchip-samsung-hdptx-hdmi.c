@@ -1023,9 +1023,14 @@ static void hdptx_phy_disable(struct rockchip_hdptx_phy *hdptx)
 {
 	u32 val;
 
+	/* reset phy and apb, or phy locked flag may keep 1 */
 	reset_control_assert(hdptx->phy_reset);
 	udelay(20);
 	reset_control_deassert(hdptx->phy_reset);
+
+	reset_control_assert(hdptx->apb_reset);
+	udelay(20);
+	reset_control_deassert(hdptx->apb_reset);
 
 	hdptx_write(hdptx, LANE_REG0300, 0x82);
 	hdptx_write(hdptx, SB_REG010F, 0xc1);
@@ -1973,9 +1978,10 @@ static int rockchip_hdptx_phy_power_off(struct phy *phy)
 	if (hdptx->count)
 		return 0;
 
-	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE)
-		hdptx_phy_disable(hdptx);
+	if (!(hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE))
+		return 0;
 
+	hdptx_phy_disable(hdptx);
 	clk_bulk_disable(hdptx->nr_clks, hdptx->clks);
 
 	return 0;
