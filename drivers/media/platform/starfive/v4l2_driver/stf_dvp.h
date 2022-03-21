@@ -10,6 +10,8 @@
 #include <media/media-entity.h>
 #include <video/stf-vin.h>
 
+#define STF_DVP_NAME "stf_dvp"
+
 #define STF_DVP_PAD_SINK     0
 #define STF_DVP_PAD_SRC      1
 #define STF_DVP_PADS_NUM     2

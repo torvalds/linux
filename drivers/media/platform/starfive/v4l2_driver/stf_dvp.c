@@ -10,15 +10,17 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define STF_DVP_NAME "stf_dvp"
-
 static const struct dvp_format dvp_formats_st7110[] = {
-	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
-	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 16},
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 16},
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 16},
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 16},
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8},
+	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 8},
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8},
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 8},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 8},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 8},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 8},
 };
 
 static int dvp_find_format(u32 code,
@@ -120,12 +122,13 @@ static void dvp_try_format(struct stf_dvp_dev *dvp_dev,
 				break;
 
 		if (i >= dvp_dev->nformats)
-			fmt->code = MEDIA_BUS_FMT_RGB565_2X8_LE;
+			fmt->code = dvp_dev->formats[0].code;
 
 		fmt->width = clamp_t(u32,
-				fmt->width, 1, STFCAMSS_FRAME_MAX_WIDTH);
+				fmt->width, STFCAMSS_FRAME_MIN_WIDTH, STFCAMSS_FRAME_MAX_WIDTH);
 		fmt->height = clamp_t(u32,
-				fmt->height, 1, STFCAMSS_FRAME_MAX_HEIGHT_PIX);
+				fmt->height, STFCAMSS_FRAME_MIN_HEIGHT,
+				STFCAMSS_FRAME_MAX_HEIGHT_PIX);
 
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
@@ -224,8 +227,16 @@ static int dvp_set_format(struct v4l2_subdev *sd,
 	if (format == NULL)
 		return -EINVAL;
 
-	dvp_try_format(dvp_dev, state, fmt->pad, &fmt->format, fmt->which);
-	*format = fmt->format;
+	mutex_lock(&dvp_dev->stream_lock);
+	if (dvp_dev->stream_count) {
+		fmt->format = *format;
+		mutex_unlock(&dvp_dev->stream_lock);
+		goto out;
+	} else {
+		dvp_try_format(dvp_dev, state, fmt->pad, &fmt->format, fmt->which);
+		*format = fmt->format;
+	}
+	mutex_unlock(&dvp_dev->stream_lock);
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == STF_DVP_PAD_SINK) {
@@ -237,6 +248,7 @@ static int dvp_set_format(struct v4l2_subdev *sd,
 					fmt->which);
 	}
 
+out:
 	return 0;
 }
 
