@@ -36,6 +36,9 @@ properties:
   vdd-io-supply:
     description: A reference to the 1.8V I/O supply
 
+  vdd-mic-bias-supply:
+    description: A reference to the 3.8V mic bias supply
+
   qcom,tx-device:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: A reference to Soundwire tx device phandle
