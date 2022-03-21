@@ -622,7 +622,11 @@ void dcn32_clk_mgr_construct(
 	clk_mgr->ss_on_dprefclk = false;
 	clk_mgr->dfs_ref_freq_khz = 100000;
 
-	clk_mgr->base.dprefclk_khz = 717000; /* Changed as per DCN3.2_clock_frequency doc */
+	/* Changed from DCN3.2_clock_frequency doc to match
+	 * dcn32_dump_clk_registers from 4 * dentist_vco_freq_khz /
+	 * dprefclk DID divider
+	 */
+	clk_mgr->base.dprefclk_khz = 716666;
 	clk_mgr->dccg->ref_dtbclk_khz = 268750;
 
 	/* integer part is now VCO frequency in kHz */
@@ -636,8 +640,7 @@ void dcn32_clk_mgr_construct(
 	}
 
 	if (clk_mgr->base.boot_snapshot.dprefclk != 0) {
-		//ASSERT(clk_mgr->base.dprefclk_khz == clk_mgr->base.boot_snapshot.dprefclk);
-		//clk_mgr->base.dprefclk_khz = clk_mgr->base.boot_snapshot.dprefclk;
+		clk_mgr->base.dprefclk_khz = clk_mgr->base.boot_snapshot.dprefclk;
 	}
 	dcn32_clock_read_ss_info(clk_mgr);
 
