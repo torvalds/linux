@@ -10,3 +10,13 @@ config CAN_CTUCANFD
 	  from project (https://gitlab.fel.cvut.cz/canbus/pcie-ctucanfd) and
 	  on Intel SoC from project (https://gitlab.fel.cvut.cz/canbus/intel-soc-ctucanfd).
 	  Guidepost CTU FEE CAN bus projects page https://canbus.pages.fel.cvut.cz/ .
+
+config CAN_CTUCANFD_PCI
+	tristate "CTU CAN-FD IP core PCI/PCIe driver"
+	depends on CAN_CTUCANFD
+	depends on PCI
+	help
+	  This driver adds PCI/PCIe support for CTU CAN-FD IP core.
+	  The project providing FPGA design for Intel EP4CGX15 based DB4CGX15
+	  PCIe board with PiKRON.com designed transceiver riser shield is available
+	  at https://gitlab.fel.cvut.cz/canbus/pcie-ctucanfd .
