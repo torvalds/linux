@@ -708,7 +708,7 @@ int __kmem_cache_shrink(struct kmem_cache *d)
 	return 0;
 }
 
-struct kmem_cache kmem_cache_boot = {
+static struct kmem_cache kmem_cache_boot = {
 	.name = "kmem_cache",
 	.size = sizeof(struct kmem_cache),
 	.flags = SLAB_PANIC,
