@@ -525,7 +525,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		memcpy(buf, value, size);
 		buf[size] = '\0';
 
-		ret = bch2_opt_parse(c, NULL, opt, buf, &v);
+		ret = bch2_opt_parse(c, opt, buf, &v, NULL);
 		kfree(buf);
 
 		if (ret < 0)

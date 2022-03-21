@@ -224,42 +224,43 @@ static int bch2_mount_opt_lookup(const char *name)
 	return bch2_opt_lookup(name);
 }
 
-static int bch2_opt_validate(const struct bch_option *opt, const char *msg, u64 v)
+int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 {
 	if (v < opt->min) {
-		if (msg)
-			pr_err("invalid %s%s: too small (min %llu)",
-			       msg, opt->attr.name, opt->min);
+		if (err)
+			pr_buf(err, "%s: too small (min %llu)",
+			       opt->attr.name, opt->min);
 		return -ERANGE;
 	}
 
 	if (opt->max && v >= opt->max) {
-		if (msg)
-			pr_err("invalid %s%s: too big (max %llu)",
-			       msg, opt->attr.name, opt->max);
+		if (err)
+			pr_buf(err, "%s: too big (max %llu)",
+			       opt->attr.name, opt->max);
 		return -ERANGE;
 	}
 
 	if ((opt->flags & OPT_SB_FIELD_SECTORS) && (v & 511)) {
-		if (msg)
-			pr_err("invalid %s %s: not a multiple of 512",
-			       msg, opt->attr.name);
+		if (err)
+			pr_buf(err, "%s: not a multiple of 512",
+			       opt->attr.name);
 		return -EINVAL;
 	}
 
 	if ((opt->flags & OPT_MUST_BE_POW_2) && !is_power_of_2(v)) {
-		if (msg)
-			pr_err("invalid %s%s: must be a power of two",
-			       msg, opt->attr.name);
+		if (err)
+			pr_buf(err, "%s: must be a power of two",
+			       opt->attr.name);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int bch2_opt_parse(struct bch_fs *c, const char *msg,
+int bch2_opt_parse(struct bch_fs *c,
 		   const struct bch_option *opt,
-		   const char *val, u64 *res)
+		   const char *val, u64 *res,
+		   struct printbuf *err)
 {
 	ssize_t ret;
 
@@ -292,7 +293,7 @@ int bch2_opt_parse(struct bch_fs *c, const char *msg,
 			return ret;
 	}
 
-	return bch2_opt_validate(opt, msg, *res);
+	return bch2_opt_validate(opt, *res, err);
 }
 
 void bch2_opt_to_text(struct printbuf *out,
@@ -372,6 +373,7 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 	char *copied_opts, *copied_opts_start;
 	char *opt, *name, *val;
 	int ret, id;
+	struct printbuf err = PRINTBUF;
 	u64 v;
 
 	if (!options)
@@ -391,8 +393,7 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 			if (id < 0)
 				goto bad_opt;
 
-			ret = bch2_opt_parse(c, "mount option ",
-					     &bch2_opt_table[id], val, &v);
+			ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
 			if (ret < 0)
 				goto bad_val;
 		} else {
@@ -435,7 +436,7 @@ bad_opt:
 	ret = -1;
 	goto out;
 bad_val:
-	pr_err("Invalid value %s for mount option %s", val, name);
+	pr_err("Invalid mount option %s", err.buf);
 	ret = -1;
 	goto out;
 no_val:
@@ -444,6 +445,7 @@ no_val:
 	goto out;
 out:
 	kfree(copied_opts_start);
+	printbuf_exit(&err);
 	return ret;
 }
 
@@ -470,22 +472,14 @@ u64 bch2_opt_from_sb(struct bch_sb *sb, enum bch_opt_id id)
 int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 {
 	unsigned id;
-	int ret;
 
 	for (id = 0; id < bch2_opts_nr; id++) {
 		const struct bch_option *opt = bch2_opt_table + id;
-		u64 v;
 
 		if (opt->get_sb == BCH2_NO_SB_OPT)
 			continue;
 
-		v = bch2_opt_from_sb(sb, id);
-
-		ret = bch2_opt_validate(opt, "superblock option ", v);
-		if (ret)
-			return ret;
-
-		bch2_opt_set_by_id(opts, id, v);
+		bch2_opt_set_by_id(opts, id, bch2_opt_from_sb(sb, id));
 	}
 
 	return 0;

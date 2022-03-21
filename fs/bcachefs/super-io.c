@@ -258,6 +258,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out)
 	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field *f;
 	struct bch_sb_field_members *mi;
+	enum bch_opt_id opt_id;
 	u32 version, version_min;
 	u16 block_size;
 	int ret;
@@ -327,6 +328,21 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out)
 		pr_buf(out, "Invalid time precision: %u (min 1, max %lu)",
 		       le32_to_cpu(sb->time_precision), NSEC_PER_SEC);
 		return -EINVAL;
+	}
+
+	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
+		const struct bch_option *opt = bch2_opt_table + opt_id;
+
+		if (opt->get_sb != BCH2_NO_SB_OPT) {
+			u64 v = bch2_opt_from_sb(sb, opt_id);
+
+			pr_buf(out, "Invalid option ");
+			ret = bch2_opt_validate(opt, v, out);
+			if (ret)
+				return ret;
+
+			printbuf_reset(out);
+		}
 	}
 
 	/* validate layout */

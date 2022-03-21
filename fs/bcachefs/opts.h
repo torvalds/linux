@@ -489,8 +489,9 @@ void __bch2_opt_set_sb(struct bch_sb *, const struct bch_option *, u64);
 void bch2_opt_set_sb(struct bch_fs *, const struct bch_option *, u64);
 
 int bch2_opt_lookup(const char *);
-int bch2_opt_parse(struct bch_fs *, const char *, const struct bch_option *,
-		   const char *, u64 *);
+int bch2_opt_validate(const struct bch_option *, u64, struct printbuf *);
+int bch2_opt_parse(struct bch_fs *, const struct bch_option *,
+		   const char *, u64 *, struct printbuf *);
 
 #define OPT_SHOW_FULL_LIST	(1 << 0)
 #define OPT_SHOW_MOUNT_STYLE	(1 << 1)

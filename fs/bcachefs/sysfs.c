@@ -624,7 +624,7 @@ STORE(bch2_fs_opts_dir)
 		goto err;
 	}
 
-	ret = bch2_opt_parse(c, NULL, opt, strim(tmp), &v);
+	ret = bch2_opt_parse(c, opt, strim(tmp), &v, NULL);
 	kfree(tmp);
 
 	if (ret < 0)
