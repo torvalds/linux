@@ -915,6 +915,7 @@
 			      "rst_cif_i0", "rst_cif_i1",
 			      "rst_cif_rx0", "rst_cif_rx1",
 			      "rst_cif_isp0";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
