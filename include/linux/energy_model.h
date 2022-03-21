@@ -114,9 +114,30 @@ struct em_data_callback {
 	 */
 	int (*active_power)(unsigned long *power, unsigned long *freq,
 			    struct device *dev);
+
+	/**
+	 * get_cost() - Provide the cost at the given performance state of
+	 *		a device
+	 * @dev		: Device for which we do this operation (can be a CPU)
+	 * @freq	: Frequency at the performance state in kHz
+	 * @cost	: The cost value for the performance state
+	 *		(modified)
+	 *
+	 * In case of CPUs, the cost is the one of a single CPU in the domain.
+	 * It is expected to fit in the [0, EM_MAX_POWER] range due to internal
+	 * usage in EAS calculation.
+	 *
+	 * Return 0 on success, or appropriate error value in case of failure.
+	 */
+	int (*get_cost)(struct device *dev, unsigned long freq,
+			unsigned long *cost);
 };
-#define EM_DATA_CB(_active_power_cb) { .active_power = &_active_power_cb }
 #define EM_SET_ACTIVE_POWER_CB(em_cb, cb) ((em_cb).active_power = cb)
+#define EM_ADV_DATA_CB(_active_power_cb, _cost_cb)	\
+	{ .active_power = _active_power_cb,		\
+	  .get_cost = _cost_cb }
+#define EM_DATA_CB(_active_power_cb)			\
+		EM_ADV_DATA_CB(_active_power_cb, NULL)
 
 struct em_perf_domain *em_cpu_get(int cpu);
 struct em_perf_domain *em_pd_get(struct device *dev);
@@ -264,6 +285,7 @@ static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 
 #else
 struct em_data_callback {};
+#define EM_ADV_DATA_CB(_active_power_cb, _cost_cb) { }
 #define EM_DATA_CB(_active_power_cb) { }
 #define EM_SET_ACTIVE_POWER_CB(em_cb, cb) do { } while (0)
 
