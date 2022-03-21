@@ -56,6 +56,36 @@ config ARM_PMU
 	  Say y if you want to use CPU performance monitors on ARM-based
 	  systems.
 
+config RISCV_PMU
+	depends on RISCV
+	bool "RISC-V PMU framework"
+	default y
+	help
+	  Say y if you want to use CPU performance monitors on RISCV-based
+	  systems. This provides the core PMU framework that abstracts common
+	  PMU functionalities in a core library so that different PMU drivers
+	  can reuse it.
+
+config RISCV_PMU_LEGACY
+	depends on RISCV_PMU
+	bool "RISC-V legacy PMU implementation"
+	default y
+	help
+	  Say y if you want to use the legacy CPU performance monitor
+	  implementation on RISC-V based systems. This only allows counting
+	  of cycle/instruction counter and doesn't support counter overflow,
+	  or programmable counters. It will be removed in future.
+
+config RISCV_PMU_SBI
+	depends on RISCV_PMU && RISCV_SBI
+	bool "RISC-V PMU based on SBI PMU extension"
+	default y
+	help
+	  Say y if you want to use the CPU performance monitor
+	  using SBI PMU extension on RISC-V based systems. This option provides
+	  full perf feature support i.e. counter overflow, privilege mode
+	  filtering, counter configuration.
+
 config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
