@@ -1042,7 +1042,6 @@ static const struct bpf_func_proto bpf_get_func_ip_proto_kprobe = {
 
 BPF_CALL_1(bpf_get_func_ip_kprobe_multi, struct pt_regs *, regs)
 {
-	/* This helper call is inlined by verifier on x86. */
 	return instruction_pointer(regs);
 }
 
