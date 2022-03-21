@@ -980,7 +980,7 @@
 
 	gmac: ethernet@ffa80000 {
 		compatible = "rockchip,rv1106-gmac", "snps,dwmac-4.20a";
-		reg = <0xffa80000 010000>;
+		reg = <0xffa80000 0x10000>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq";
@@ -1008,7 +1008,7 @@
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 			rmii_phy: ethernet-phy@2 {
-				compatible = "ethernet-phy-ieee802.3-c22";
+				compatible = "ethernet-phy-id0044.1400", "ethernet-phy-ieee802.3-c22";
 				reg = <2>;
 				clocks = <&cru CLK_MACPHY>;
 				resets = <&cru SRST_MACPHY>;
