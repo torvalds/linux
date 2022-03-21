@@ -1037,13 +1037,43 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
-#ifdef UNUSED_CODE
-	vin->isp1_irq = platform_get_irq(pdev, 2);
-	if (vin->isp1_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp1 irq\n");
+	vin->isp0_csi_irq = platform_get_irq(pdev, 2);
+	if (vin->isp0_csi_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp0 csi irq\n");
 		goto err_cam;
 	}
-#endif
+
+	vin->isp0_scd_irq = platform_get_irq(pdev, 3);
+	if (vin->isp0_scd_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp0 scd irq\n");
+		goto err_cam;
+	}
+
+	vin->isp1_irq = platform_get_irq(pdev, 4);
+
+	vin->isp1_csi_irq = platform_get_irq(pdev, 5);
+	if (vin->isp1_csi_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp1 csi irq\n");
+		goto err_cam;
+	}
+
+	vin->isp1_scd_irq = platform_get_irq(pdev, 6);
+	if (vin->isp1_scd_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp1 scd irq\n");
+		goto err_cam;
+	}
+
+	vin->isp0_irq_csiline = platform_get_irq(pdev, 7);
+	if (vin->isp0_irq_csiline <= 0) {
+		st_err(ST_CAMSS, "Could not get isp0 irq csiline\n");
+		goto err_cam;
+	}
+
+	vin->isp1_irq_csiline = platform_get_irq(pdev, 8);
+	if (vin->isp1_irq_csiline <= 0) {
+		st_err(ST_CAMSS, "Could not get isp1 irq csiline\n");
+		goto err_cam;
+	}
 
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;

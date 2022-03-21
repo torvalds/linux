@@ -12,6 +12,8 @@
 #include <video/stf-vin.h>
 
 #define STF_ISP_NAME "stf_isp"
+
+//#define ISP_USE_CSI_AND_SC_DONE_INTERRUPT  1
 #define STF_ISP_PAD_SINK     0
 #define STF_ISP_PAD_SRC      1
 #define STF_ISP_PADS_NUM     2
@@ -27,6 +29,15 @@
 #define ISP_REG_DUMP_CFG_0      0x00000024
 #define ISP_REG_DUMP_CFG_1      0x00000028
 #define ISP_REG_IESHD_ADDR      0x00000A50
+
+enum {
+	EN_INT_NONE                 = 0,
+	EN_INT_ISP_DONE             = (0x1 << 24),
+	EN_INT_CSI_DONE             = (0x1 << 25),
+	EN_INT_SC_DONE              = (0x1 << 26),
+	EN_INT_LINE_INT             = (0x1 << 27),
+	EN_INT_ALL                  = (0xF << 24),
+};
 
 struct isp_format {
 	u32 code;

@@ -291,7 +291,7 @@
 #define ISP_REG_RGB_TO_YUV_COVERSION6       0x00000E58
 #define ISP_REG_RGB_TO_YUV_COVERSION7       0x00000E5C
 #define ISP_REG_RGB_TO_YUV_COVERSION8       0x00000E60
-#define ISP_REG_CIS_MODULE_CFG              0x00000010
+#define ISP_REG_CSI_MODULE_CFG              0x00000010
 #define ISP_REG_ISP_CTRL_1                  0x00000A08
 #define ISP_REG_ISP_CTRL_0                  0x00000A00
 #define ISP_REG_DC_AXI_ID                   0x00000044
@@ -431,7 +431,13 @@ struct stf_vin_dev {
 	bool isp0;
 	bool isp1;
 	int isp0_irq;
+	int isp0_csi_irq;
+	int isp0_scd_irq;
+	int isp0_irq_csiline;
 	int isp1_irq;
+	int isp1_csi_irq;
+	int isp1_scd_irq;
+	int isp1_irq_csiline;
 	u32 major;
 	struct vin_buf buf;
 

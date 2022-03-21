@@ -32,6 +32,7 @@ static const struct vin2_format vin2_formats_st7110[] = {
 };
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params);
+static void vin_change_buffer(struct vin_line *line);
 static struct stfcamss_buffer *vin_buf_get_pending(struct vin_output *output);
 static void vin_output_init_addrs(struct vin_line *line);
 static void vin_init_outputs(struct vin_line *line);
@@ -73,6 +74,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	vin_dev->stfcamss = stfcamss;
 	vin_dev->hw_ops = &vin_ops;
 	vin_dev->hw_ops->isr_buffer_done = vin_buffer_done;
+	vin_dev->hw_ops->isr_change_buffer = vin_change_buffer;
 
 	vin = stfcamss->vin;
 	atomic_set(&vin_dev->ref_count, 0);
@@ -99,6 +101,59 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 			0, "vin_isp1_irq", vin_dev);
 	if (ret) {
 		st_err(ST_VIN, "failed to request isp1 irq\n");
+		goto out;
+	}
+
+	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
+#ifdef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
+	ret = devm_request_irq(dev,
+			vin->isp0_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
+			0, "vin_isp0_csi_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp0 raw irq\n");
+		goto out;
+	}
+
+	ret = devm_request_irq(dev,
+			vin->isp1_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
+			0, "vin_isp1_csi_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp1 raw irq\n");
+		goto out;
+	}
+
+	ret = devm_request_irq(dev,
+			vin->isp0_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
+			0, "vin_isp0_scd_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp0 scd irq\n");
+		goto out;
+	}
+
+	ret = devm_request_irq(dev,
+			vin->isp1_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
+			0, "vin_isp1_scd_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp1 scd irq\n");
+		goto out;
+	}
+
+#endif
+	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
+	ret = devm_request_irq(dev,
+			vin->isp0_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
+			0, "vin_isp0_irq_csiline", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp0 irq csiline\n");
+		goto out;
+	}
+
+	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
+	ret = devm_request_irq(dev,
+			vin->isp1_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
+			0, "vin_isp1_irq_csiline", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp1 irq csiline\n");
 		goto out;
 	}
 
@@ -516,6 +571,28 @@ static void vin_init_outputs(struct vin_line *line)
 	output->buf[1] = NULL;
 	output->active_buf = 0;
 	INIT_LIST_HEAD(&output->pending_bufs);
+	INIT_LIST_HEAD(&output->ready_bufs);
+}
+
+static void vin_buf_add_ready(struct vin_output *output,
+				struct stfcamss_buffer *buffer)
+{
+	INIT_LIST_HEAD(&buffer->queue);
+	list_add_tail(&buffer->queue, &output->ready_bufs);
+}
+
+static struct stfcamss_buffer *vin_buf_get_ready(struct vin_output *output)
+{
+	struct stfcamss_buffer *buffer = NULL;
+
+	if (!list_empty(&output->ready_bufs)) {
+		buffer = list_first_entry(&output->ready_bufs,
+					struct stfcamss_buffer,
+					queue);
+		list_del(&buffer->queue);
+	}
+
+	return buffer;
 }
 
 static void vin_buf_add_pending(struct vin_output *output,
@@ -675,7 +752,7 @@ static void vin_buf_update_on_new(struct vin_line *line,
 	}
 }
 
-static void vin_buf_flush_pending(struct vin_output *output,
+static void vin_buf_flush(struct vin_output *output,
 				enum vb2_buffer_state state)
 {
 	struct stfcamss_buffer *buf;
@@ -685,9 +762,35 @@ static void vin_buf_flush_pending(struct vin_output *output,
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->queue);
 	}
+	list_for_each_entry_safe(buf, t, &output->ready_bufs, queue) {
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+		list_del(&buf->queue);
+	}
 }
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
+{
+	struct stfcamss_buffer *ready_buf;
+	struct vin_output *output = &line->output;
+	unsigned long flags;
+	u64 ts = ktime_get_ns();
+
+	if (output->state == VIN_OUTPUT_OFF
+		|| output->state == VIN_OUTPUT_RESERVED)
+		return;
+
+	spin_lock_irqsave(&line->output_lock, flags);
+
+	while ((ready_buf = vin_buf_get_ready(output))) {
+		ready_buf->vb.vb2_buf.timestamp = ts;
+		ready_buf->vb.sequence = output->sequence++;
+		vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	}
+
+	spin_unlock_irqrestore(&line->output_lock, flags);
+}
+
+static void vin_change_buffer(struct vin_line *line)
 {
 	struct stfcamss_buffer *ready_buf;
 	struct vin_output *output = &line->output;
@@ -695,24 +798,18 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	dma_addr_t *new_addr;
 	unsigned long flags;
 	u32 active_index;
-	u64 ts = ktime_get_ns();
 
 	if (output->state == VIN_OUTPUT_OFF
 		|| output->state == VIN_OUTPUT_STOPPING
 		|| output->state == VIN_OUTPUT_RESERVED
 		|| output->state == VIN_OUTPUT_IDLE) {
-		st_warn(ST_VIN,
-				"output state no ready %d!, %d\n",
-				output->state, line->id);
+		st_err_ratelimited(ST_VIN,
+				"%s: output state no ready %d!, %d\n",
+				__func__, output->state, line->id);
 		return;
 	}
 
 	spin_lock_irqsave(&line->output_lock, flags);
-
-	if (output->frame_skip) {
-		output->frame_skip--;
-		goto out_unlock;
-	}
 
 	active_index = output->active_buf;
 
@@ -742,8 +839,11 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 		vin_buf_update_on_next(line);
 	}
 
-	switch (line->id) {
-	case VIN_LINE_WR:  // wr
+	if (output->state == VIN_OUTPUT_STOPPING)
+		output->last_buffer = ready_buf;
+	else {
+		switch (line->id) {
+		case VIN_LINE_WR:  // wr
 #ifdef VIN_TWO_BUFFER
 		if (active_index)
 			vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
@@ -774,12 +874,7 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 		break;
 	}
 
-	if (output->state == VIN_OUTPUT_STOPPING)
-		output->last_buffer = ready_buf;
-	else {
-		ready_buf->vb.vb2_buf.timestamp = ts;
-		ready_buf->vb.sequence = output->sequence++;
-		vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		vin_buf_add_ready(output, ready_buf);
 	}
 
 	spin_unlock_irqrestore(&line->output_lock, flags);
@@ -817,7 +912,7 @@ static int vin_flush_buffers(struct stfcamss_video *vid,
 
 	spin_lock_irqsave(&line->output_lock, flags);
 
-	vin_buf_flush_pending(output, state);
+	vin_buf_flush(output, state);
 	if (output->buf[0])
 		vb2_buffer_done(&output->buf[0]->vb.vb2_buf, state);
 

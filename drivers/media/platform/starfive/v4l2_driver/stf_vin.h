@@ -36,6 +36,7 @@ struct vin_output {
 	struct stfcamss_buffer *buf[2];
 	struct stfcamss_buffer *last_buffer;
 	struct list_head pending_bufs;
+	struct list_head ready_bufs;
 	enum vin_output_state state;
 	unsigned int sequence;
 	unsigned int frame_skip;
@@ -95,8 +96,12 @@ struct vin_hw_ops {
 			int isp_id, dma_addr_t raw_addr);
 	irqreturn_t (*vin_wr_irq_handler)(int irq, void *priv);
 	irqreturn_t (*vin_isp_irq_handler)(int irq, void *priv);
+	irqreturn_t (*vin_isp_csi_irq_handler)(int irq, void *priv);
+	irqreturn_t (*vin_isp_scd_irq_handler)(int irq, void *priv);
+	irqreturn_t (*vin_isp_irq_csiline_handler)(int irq, void *priv);
 	void (*isr_buffer_done)(struct vin_line *line,
 			struct vin_params *params);
+	void (*isr_change_buffer)(struct vin_line *line);
 };
 
 struct stf_vin2_dev {

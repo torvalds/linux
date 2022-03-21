@@ -814,8 +814,9 @@
 				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3",
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on",
 				"rst_isp_top_n", "rst_isp_top_axi";
-			interrupts = <92 87>;
 			power-domains = <&pwrc JH7110_PD_ISP>;
+			/* jh7110 hasn't isp1, duplicate isp0 irq nr, will remove it later */
+			interrupts = <92 87 88 89 87 88 89 90 90>;
 			status = "disabled";
 		};
 
