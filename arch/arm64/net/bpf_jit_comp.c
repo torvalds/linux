@@ -191,6 +191,47 @@ static bool is_addsub_imm(u32 imm)
 	return !(imm & ~0xfff) || !(imm & ~0xfff000);
 }
 
+/*
+ * There are 3 types of AArch64 LDR/STR (immediate) instruction:
+ * Post-index, Pre-index, Unsigned offset.
+ *
+ * For BPF ldr/str, the "unsigned offset" type is sufficient.
+ *
+ * "Unsigned offset" type LDR(immediate) format:
+ *
+ *    3                   2                   1                   0
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |x x|1 1 1 0 0 1 0 1|         imm12         |    Rn   |    Rt   |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * scale
+ *
+ * "Unsigned offset" type STR(immediate) format:
+ *    3                   2                   1                   0
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |x x|1 1 1 0 0 1 0 0|         imm12         |    Rn   |    Rt   |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * scale
+ *
+ * The offset is calculated from imm12 and scale in the following way:
+ *
+ * offset = (u64)imm12 << scale
+ */
+static bool is_lsi_offset(s16 offset, int scale)
+{
+	if (offset < 0)
+		return false;
+
+	if (offset > (0xFFF << scale))
+		return false;
+
+	if (offset & ((1 << scale) - 1))
+		return false;
+
+	return true;
+}
+
 /* Tail call offset to jump into */
 #if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL)
 #define PROLOGUE_OFFSET 8
@@ -971,19 +1012,38 @@ emit_cond_jmp:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
-		emit_a64_mov_i(1, tmp, off, ctx);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_LDR32(dst, src, tmp), ctx);
+			if (is_lsi_offset(off, 2)) {
+				emit(A64_LDR32I(dst, src, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDR32(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_LDRH(dst, src, tmp), ctx);
+			if (is_lsi_offset(off, 1)) {
+				emit(A64_LDRHI(dst, src, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDRH(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_LDRB(dst, src, tmp), ctx);
+			if (is_lsi_offset(off, 0)) {
+				emit(A64_LDRBI(dst, src, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDRB(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_LDR64(dst, src, tmp), ctx);
+			if (is_lsi_offset(off, 3)) {
+				emit(A64_LDR64I(dst, src, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDR64(dst, src, tmp), ctx);
+			}
 			break;
 		}
 
@@ -1011,20 +1071,39 @@ emit_cond_jmp:
 	case BPF_ST | BPF_MEM | BPF_B:
 	case BPF_ST | BPF_MEM | BPF_DW:
 		/* Load imm to a register then store it */
-		emit_a64_mov_i(1, tmp2, off, ctx);
 		emit_a64_mov_i(1, tmp, imm, ctx);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_STR32(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off, 2)) {
+				emit(A64_STR32I(tmp, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STR32(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_STRH(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off, 1)) {
+				emit(A64_STRHI(tmp, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STRH(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_STRB(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off, 0)) {
+				emit(A64_STRBI(tmp, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STRB(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_STR64(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off, 3)) {
+				emit(A64_STR64I(tmp, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STR64(tmp, dst, tmp2), ctx);
+			}
 			break;
 		}
 		break;
@@ -1034,19 +1113,38 @@ emit_cond_jmp:
 	case BPF_STX | BPF_MEM | BPF_H:
 	case BPF_STX | BPF_MEM | BPF_B:
 	case BPF_STX | BPF_MEM | BPF_DW:
-		emit_a64_mov_i(1, tmp, off, ctx);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_STR32(src, dst, tmp), ctx);
+			if (is_lsi_offset(off, 2)) {
+				emit(A64_STR32I(src, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STR32(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_STRH(src, dst, tmp), ctx);
+			if (is_lsi_offset(off, 1)) {
+				emit(A64_STRHI(src, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STRH(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_STRB(src, dst, tmp), ctx);
+			if (is_lsi_offset(off, 0)) {
+				emit(A64_STRBI(src, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STRB(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_STR64(src, dst, tmp), ctx);
+			if (is_lsi_offset(off, 3)) {
+				emit(A64_STR64I(src, dst, off), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STR64(src, dst, tmp), ctx);
+			}
 			break;
 		}
 		break;
