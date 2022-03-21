@@ -375,6 +375,7 @@ static int i3cdev_notifier_call(struct notifier_block *nb,
 
 		fallthrough;
 	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_NOTIFY_REMOVED_DEVICE:
 		return i3cdev_detach(dev, NULL);
 	}
 
