@@ -20,6 +20,10 @@
 	status = "okay";
 };
 
+&rga2 {
+	status = "okay";
+};
+
 &rng {
 	status = "okay";
 };
