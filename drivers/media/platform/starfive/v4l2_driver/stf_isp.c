@@ -452,6 +452,7 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	int ret = 0, interface_type;
 	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_event src_ch = { 0 };
 
 	fmt = __isp_get_format(isp_dev, NULL, STF_ISP_PAD_SINK, V4L2_SUBDEV_FORMAT_ACTIVE);
 	mutex_lock(&isp_dev->stream_lock);
@@ -476,6 +477,10 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 			isp_dev->hw_ops->isp_stream_set(isp_dev, enable);
 		isp_dev->stream_count--;
 	}
+	src_ch.type = V4L2_EVENT_SOURCE_CHANGE,
+	src_ch.u.src_change.changes = isp_dev->stream_count,
+
+	v4l2_subdev_notify_event(sd, &src_ch);
 exit:
 	mutex_unlock(&isp_dev->stream_lock);
 
@@ -1287,11 +1292,27 @@ int isp_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 
+static int stf_isp_subscribe_event(struct v4l2_subdev *sd,
+				   struct v4l2_fh *fh,
+				   struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_SOURCE_CHANGE:
+		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	default:
+		st_debug(ST_ISP, "unspport subscribe_event\n");
+		return -EINVAL;
+	}
+}
+
 static const struct v4l2_subdev_core_ops isp_core_ops = {
 	.s_power = isp_set_power,
 	.ioctl = stf_isp_ioctl,
 	.log_status = v4l2_ctrl_subdev_log_status,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	// .subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.subscribe_event = stf_isp_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
