@@ -581,6 +581,8 @@ intel_guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 cl
 	return 0;
 }
 
+static void guc_capture_create_prealloc_nodes(struct intel_guc *guc);
+
 int
 intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 			  void **outptr)
@@ -600,6 +602,12 @@ intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classi
 		*outptr = cache->ptr;
 		return cache->status;
 	}
+
+	/*
+	 * ADS population of input registers is a good
+	 * time to pre-allocate cachelist output nodes
+	 */
+	guc_capture_create_prealloc_nodes(guc);
 
 	ret = intel_guc_capture_getlistsize(guc, owner, type, classid, &size);
 	if (ret) {
@@ -742,7 +750,8 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
  *                                err-state-captured register-list we find, we alloc 'C':
  *      --> alloc C: A capture-output-node structure that includes misc capture info along
  *                   with 3 register list dumps (global, engine-class and engine-instance)
- *                   This node is dynamically allocated and populated with the error-capture
+ *                   This node is created from a pre-allocated list of blank nodes in
+ *                   guc->capture->cachelist and populated with the error-capture
  *                   data from GuC and then it's added into guc->capture->outlist linked
  *                   list. This list is used for matchup and printout by i915_gpu_coredump
  *                   and err_print_gt, (when user invokes the error capture sysfs).
@@ -902,19 +911,20 @@ guc_capture_delete_one_node(struct intel_guc *guc, struct __guc_capture_parsed_o
 }
 
 static void
-guc_capture_delete_nodes(struct intel_guc *guc)
+guc_capture_delete_prealloc_nodes(struct intel_guc *guc)
 {
+	struct __guc_capture_parsed_output *n, *ntmp;
+
 	/*
 	 * NOTE: At the end of driver operation, we must assume that we
-	 * have nodes in outlist from unclaimed error capture events
-	 * that occurred prior to shutdown.
+	 * have prealloc nodes in both the cachelist as well as outlist
+	 * if unclaimed error capture events occurred prior to shutdown.
 	 */
-	if (!list_empty(&guc->capture->outlist)) {
-		struct __guc_capture_parsed_output *n, *ntmp;
+	list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link)
+		guc_capture_delete_one_node(guc, n);
 
-		list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link)
-			guc_capture_delete_one_node(guc, n);
-	}
+	list_for_each_entry_safe(n, ntmp, &guc->capture->cachelist, link)
+		guc_capture_delete_one_node(guc, n);
 }
 
 static void
@@ -932,20 +942,79 @@ guc_capture_add_node_to_outlist(struct intel_guc_state_capture *gc,
 }
 
 static void
+guc_capture_add_node_to_cachelist(struct intel_guc_state_capture *gc,
+				  struct __guc_capture_parsed_output *node)
+{
+	guc_capture_add_node_to_list(node, &gc->cachelist);
+}
+
+static void
 guc_capture_init_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
 {
+	struct guc_mmio_reg *tmp[GUC_CAPTURE_LIST_TYPE_MAX];
+	int i;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		tmp[i] = node->reginfo[i].regs;
+		memset(tmp[i], 0, sizeof(struct guc_mmio_reg) *
+		       guc->capture->max_mmio_per_node);
+	}
+	memset(node, 0, sizeof(*node));
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
+		node->reginfo[i].regs = tmp[i];
+
 	INIT_LIST_HEAD(&node->link);
+}
+
+static struct __guc_capture_parsed_output *
+guc_capture_get_prealloc_node(struct intel_guc *guc)
+{
+	struct __guc_capture_parsed_output *found = NULL;
+
+	if (!list_empty(&guc->capture->cachelist)) {
+		struct __guc_capture_parsed_output *n, *ntmp;
+
+		/* get first avail node from the cache list */
+		list_for_each_entry_safe(n, ntmp, &guc->capture->cachelist, link) {
+			found = n;
+			list_del(&n->link);
+			break;
+		}
+	} else {
+		struct __guc_capture_parsed_output *n, *ntmp;
+
+		/* traverse down and steal back the oldest node already allocated */
+		list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link) {
+			found = n;
+		}
+		if (found)
+			list_del(&found->link);
+	}
+	if (found)
+		guc_capture_init_node(guc, found);
+
+	return found;
 }
 
 static struct __guc_capture_parsed_output *
 guc_capture_alloc_one_node(struct intel_guc *guc)
 {
 	struct __guc_capture_parsed_output *new;
+	int i;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return NULL;
 
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		new->reginfo[i].regs = kcalloc(guc->capture->max_mmio_per_node,
+					       sizeof(struct guc_mmio_reg), GFP_KERNEL);
+		if (!new->reginfo[i].regs) {
+			while (i)
+				kfree(new->reginfo[--i].regs);
+			return NULL;
+		}
+	}
 	guc_capture_init_node(guc, new);
 
 	return new;
@@ -958,7 +1027,7 @@ guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output
 	struct __guc_capture_parsed_output *new;
 	int i;
 
-	new = guc_capture_alloc_one_node(guc);
+	new = guc_capture_get_prealloc_node(guc);
 	if (!new)
 		return NULL;
 	if (!original)
@@ -969,13 +1038,12 @@ guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output
 	/* copy reg-lists that we want to clone */
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
 		if (keep_reglist_mask & BIT(i)) {
-			new->reginfo[i].regs = kcalloc(original->reginfo[i].num_regs,
-						       sizeof(struct guc_mmio_reg), GFP_KERNEL);
-			if (!new->reginfo[i].regs)
-				goto bail_clone;
+			GEM_BUG_ON(original->reginfo[i].num_regs  >
+				   guc->capture->max_mmio_per_node);
 
 			memcpy(new->reginfo[i].regs, original->reginfo[i].regs,
 			       original->reginfo[i].num_regs * sizeof(struct guc_mmio_reg));
+
 			new->reginfo[i].num_regs = original->reginfo[i].num_regs;
 			new->reginfo[i].vfid  = original->reginfo[i].vfid;
 
@@ -990,12 +1058,58 @@ guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output
 	}
 
 	return new;
+}
 
-bail_clone:
-	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
-		kfree(new->reginfo[i].regs);
-	kfree(new);
-	return NULL;
+static void
+__guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+{
+	struct __guc_capture_parsed_output *node = NULL;
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	int i;
+
+	for (i = 0; i < PREALLOC_NODES_MAX_COUNT; ++i) {
+		node = guc_capture_alloc_one_node(guc);
+		if (!node) {
+			drm_warn(&i915->drm, "GuC Capture pre-alloc-cache failure\n");
+			/* dont free the priors, use what we got and cleanup at shutdown */
+			return;
+		}
+		guc_capture_add_node_to_cachelist(guc->capture, node);
+	}
+}
+
+static int
+guc_get_max_reglist_count(struct intel_guc *guc)
+{
+	int i, j, k, tmp, maxregcount = 0;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; ++i) {
+		for (j = 0; j < GUC_CAPTURE_LIST_TYPE_MAX; ++j) {
+			for (k = 0; k < GUC_MAX_ENGINE_CLASSES; ++k) {
+				if (j == GUC_CAPTURE_LIST_TYPE_GLOBAL && k > 0)
+					continue;
+
+				tmp = guc_cap_list_num_regs(guc->capture, i, j, k);
+				if (tmp > maxregcount)
+					maxregcount = tmp;
+			}
+		}
+	}
+	if (!maxregcount)
+		maxregcount = PREALLOC_NODES_DEFAULT_NUMREGS;
+
+	return maxregcount;
+}
+
+static void
+guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+{
+	/* skip if we've already done the pre-alloc */
+	if (guc->capture->max_mmio_per_node)
+		return;
+
+	guc->capture->max_mmio_per_node = guc_get_max_reglist_count(guc);
+	__guc_capture_create_prealloc_nodes(guc);
 }
 
 static int
@@ -1111,13 +1225,13 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 				guc_capture_add_node_to_outlist(guc->capture, node);
 				node = NULL;
 			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS &&
-				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS].regs) {
+				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS].num_regs) {
 				/* Add to list, clone node and duplicate global list */
 				guc_capture_add_node_to_outlist(guc->capture, node);
 				node = guc_capture_clone_node(guc, node,
 							      GCAP_PARSED_REGLIST_INDEX_GLOBAL);
 			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE &&
-				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE].regs) {
+				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE].num_regs) {
 				/* Add to list, clone node and duplicate global + class lists */
 				guc_capture_add_node_to_outlist(guc->capture, node);
 				node = guc_capture_clone_node(guc, node,
@@ -1127,7 +1241,7 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 		}
 
 		if (!node) {
-			node = guc_capture_alloc_one_node(guc);
+			node = guc_capture_get_prealloc_node(guc);
 			if (!node) {
 				ret = -ENOMEM;
 				break;
@@ -1152,17 +1266,13 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 			break;
 		}
 
-		regs = NULL;
 		numregs = FIELD_GET(CAP_HDR_NUM_MMIOS, hdr.num_mmios);
-		if (numregs) {
-			regs = kcalloc(numregs, sizeof(struct guc_mmio_reg), GFP_KERNEL);
-			if (!regs) {
-				ret = -ENOMEM;
-				break;
-			}
+		if (numregs > guc->capture->max_mmio_per_node) {
+			drm_dbg(&i915->drm, "GuC Capture list extraction clipped by prealloc!\n");
+			numregs = guc->capture->max_mmio_per_node;
 		}
 		node->reginfo[datatype].num_regs = numregs;
-		node->reginfo[datatype].regs = regs;
+		regs = node->reginfo[datatype].regs;
 		i = 0;
 		while (numregs--) {
 			if (guc_capture_log_get_register(guc, buf, &regs[i++])) {
@@ -1182,8 +1292,8 @@ bailout:
 				break;
 			}
 		}
-		/* else free it */
-		kfree(node);
+		if (node) /* else return it back to cache list */
+			guc_capture_add_node_to_cachelist(guc->capture, node);
 	}
 	return ret;
 }
@@ -1291,7 +1401,7 @@ void intel_guc_capture_destroy(struct intel_guc *guc)
 
 	guc_capture_free_ads_cache(guc->capture);
 
-	guc_capture_delete_nodes(guc);
+	guc_capture_delete_prealloc_nodes(guc);
 
 	guc_capture_free_extlists(guc->capture->extlists);
 	kfree(guc->capture->extlists);
@@ -1309,6 +1419,7 @@ int intel_guc_capture_init(struct intel_guc *guc)
 	guc->capture->reglists = guc_capture_get_device_reglist(guc);
 
 	INIT_LIST_HEAD(&guc->capture->outlist);
+	INIT_LIST_HEAD(&guc->capture->cachelist);
 
 	return 0;
 }

@@ -31,7 +31,7 @@ struct __guc_capture_bufstate {
  *
  * A single unit of extracted error-capture output data grouped together
  * at an engine-instance level. We keep these nodes in a linked list.
- * See outlist below.
+ * See cachelist and outlist below.
  */
 struct __guc_capture_parsed_output {
 	/*
@@ -190,7 +190,22 @@ struct intel_guc_state_capture {
 	void *ads_null_cache;
 
 	/**
-	 * @outlist: allocated nodes with parsed engine-instance error capture data
+	 * @cachelist: Pool of pre-allocated nodes for error capture output
+	 *
+	 * We need this pool of pre-allocated nodes because we cannot
+	 * dynamically allocate new nodes when receiving the G2H notification
+	 * because the event handlers for all G2H event-processing is called
+	 * by the ct processing worker queue and when that queue is being
+	 * processed, there is no absoluate guarantee that we are not in the
+	 * midst of a GT reset operation (which doesn't allow allocations).
+	 */
+	struct list_head cachelist;
+#define PREALLOC_NODES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
+#define PREALLOC_NODES_DEFAULT_NUMREGS 64
+	int max_mmio_per_node;
+
+	/**
+	 * @outlist: Pool of pre-allocated nodes for error capture output
 	 *
 	 * A linked list of parsed GuC error-capture output data before
 	 * reporting with formatting via i915_gpu_coredump. Each node in this linked list shall
