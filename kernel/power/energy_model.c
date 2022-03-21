@@ -140,7 +140,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		 * lowest performance state of 'dev' above 'freq' and updates
 		 * 'power' and 'freq' accordingly.
 		 */
-		ret = cb->active_power(&power, &freq, dev);
+		ret = cb->active_power(dev, &power, &freq);
 		if (ret) {
 			dev_err(dev, "EM: invalid perf. state: %d\n",
 				ret);

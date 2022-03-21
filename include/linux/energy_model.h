@@ -101,11 +101,11 @@ struct em_data_callback {
 	/**
 	 * active_power() - Provide power at the next performance state of
 	 *		a device
+	 * @dev		: Device for which we do this operation (can be a CPU)
 	 * @power	: Active power at the performance state
 	 *		(modified)
 	 * @freq	: Frequency at the performance state in kHz
 	 *		(modified)
-	 * @dev		: Device for which we do this operation (can be a CPU)
 	 *
 	 * active_power() must find the lowest performance state of 'dev' above
 	 * 'freq' and update 'power' and 'freq' to the matching active power
@@ -117,8 +117,8 @@ struct em_data_callback {
 	 *
 	 * Return 0 on success.
 	 */
-	int (*active_power)(unsigned long *power, unsigned long *freq,
-			    struct device *dev);
+	int (*active_power)(struct device *dev, unsigned long *power,
+			    unsigned long *freq);
 
 	/**
 	 * get_cost() - Provide the cost at the given performance state of

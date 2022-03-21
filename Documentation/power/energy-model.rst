@@ -181,8 +181,8 @@ EM framework::
 
   -> drivers/cpufreq/foo_cpufreq.c
 
-  01	static int est_power(unsigned long *mW, unsigned long *KHz,
-  02			struct device *dev)
+  01	static int est_power(struct device *dev, unsigned long *mW,
+  02			unsigned long *KHz)
   03	{
   04		long freq, power;
   05
