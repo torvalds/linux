@@ -1891,8 +1891,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
-		u32 val;
-
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
@@ -1921,7 +1919,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			vmode->mtmdsclock /= 2;
 
-		val = hdmi_readl(hdmi, CMU_STATUS);
 		/*
 		 * If uboot logo enabled, atomic_enable won't be called,
 		 * but atomic_disable will be called when hdmi plug out.
@@ -1929,7 +1926,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		 * we should check ipi/link/video clk to determine whether
 		 * uboot logo is enabled.
 		 */
-		if (((val & DISPLAY_CLK_MONITOR) == DISPLAY_CLK_LOCKED) && !hdmi->dclk_en) {
+		if (hdmi->initialized && !hdmi->dclk_en) {
 			mutex_lock(&hdmi->audio_mutex);
 			if (hdmi->plat_data->dclk_set)
 				hdmi->plat_data->dclk_set(data, true);
@@ -2395,6 +2392,8 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
 	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
+	if ((hdmi_readl(hdmi, CMU_STATUS) & DISPLAY_CLK_MONITOR) == DISPLAY_CLK_LOCKED)
+		hdmi->initialized = true;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
