@@ -7,7 +7,6 @@
  * during cache_registration
  */
 struct journal_replay {
-	struct list_head	list;
 	struct journal_ptr {
 		u8		dev;
 		u32		bucket;
@@ -53,7 +52,7 @@ void bch2_journal_entry_to_text(struct printbuf *, struct bch_fs *,
 void bch2_journal_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			       struct journal_replay *);
 
-int bch2_journal_read(struct bch_fs *, struct list_head *, u64 *, u64 *);
+int bch2_journal_read(struct bch_fs *, u64 *, u64 *);
 
 void bch2_journal_write(struct closure *);
 

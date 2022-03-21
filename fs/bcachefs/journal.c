@@ -1039,17 +1039,25 @@ void bch2_fs_journal_stop(struct journal *j)
 	cancel_delayed_work_sync(&j->write_work);
 }
 
-int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
-			  struct list_head *journal_entries)
+int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_entry_pin_list *p;
-	struct journal_replay *i;
+	struct journal_replay *i, **_i;
+	struct genradix_iter iter;
+	bool had_entries = false;
+	unsigned ptr;
 	u64 last_seq = cur_seq, nr, seq;
 
-	if (!list_empty(journal_entries))
-		last_seq = le64_to_cpu(list_last_entry(journal_entries,
-				struct journal_replay, list)->j.last_seq);
+	genradix_for_each_reverse(&c->journal_entries, iter, _i) {
+		i = *_i;
+
+		if (!i || i->ignore)
+			continue;
+
+		last_seq = le64_to_cpu(i->j.last_seq);
+		break;
+	}
 
 	nr = cur_seq - last_seq;
 
@@ -1071,14 +1079,14 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	j->pin.back		= cur_seq;
 	atomic64_set(&j->seq, cur_seq - 1);
 
-	if (list_empty(journal_entries))
-		j->last_empty_seq = cur_seq - 1;
-
 	fifo_for_each_entry_ptr(p, &j->pin, seq)
 		journal_pin_list_init(p, 1);
 
-	list_for_each_entry(i, journal_entries, list) {
-		unsigned ptr;
+	genradix_for_each(&c->journal_entries, iter, _i) {
+		i = *_i;
+
+		if (!i || i->ignore)
+			continue;
 
 		seq = le64_to_cpu(i->j.seq);
 		BUG_ON(seq >= cur_seq);
@@ -1094,9 +1102,11 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 		p->devs.nr = 0;
 		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
 			bch2_dev_list_add_dev(&p->devs, i->ptrs[ptr].dev);
+
+		had_entries = true;
 	}
 
-	if (list_empty(journal_entries))
+	if (!had_entries)
 		j->last_empty_seq = cur_seq;
 
 	spin_lock(&j->lock);

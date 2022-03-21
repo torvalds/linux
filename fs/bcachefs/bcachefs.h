@@ -894,7 +894,8 @@ mempool_t		bio_bounce_pages;
 	mempool_t		btree_bounce_pool;
 
 	struct journal		journal;
-	struct list_head	journal_entries;
+	GENRADIX(struct journal_replay *) journal_entries;
+	u64			journal_entries_base_seq;
 	struct journal_keys	journal_keys;
 	struct list_head	journal_iters;
 

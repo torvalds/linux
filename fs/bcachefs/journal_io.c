@@ -16,12 +16,22 @@
 #include "replicas.h"
 #include "trace.h"
 
-static void __journal_replay_free(struct journal_replay *i)
+static inline u32 journal_entry_radix_idx(struct bch_fs *c,
+					  struct jset *j)
 {
-	list_del(&i->list);
+	return (le64_to_cpu(j->seq) - c->journal_entries_base_seq) & (~0U >> 1);
+}
+
+static void __journal_replay_free(struct bch_fs *c,
+				  struct journal_replay *i)
+{
+	struct journal_replay **p =
+		genradix_ptr(&c->journal_entries, journal_entry_radix_idx(c, &i->j));
+
+	BUG_ON(*p != i);
+	*p = NULL;
 	kvpfree(i, offsetof(struct journal_replay, j) +
 		vstruct_bytes(&i->j));
-
 }
 
 static void journal_replay_free(struct bch_fs *c, struct journal_replay *i)
@@ -29,13 +39,12 @@ static void journal_replay_free(struct bch_fs *c, struct journal_replay *i)
 	i->ignore = true;
 
 	if (!c->opts.read_entire_journal)
-		__journal_replay_free(i);
+		__journal_replay_free(c, i);
 }
 
 struct journal_list {
 	struct closure		cl;
 	struct mutex		lock;
-	struct list_head	*head;
 	int			ret;
 };
 
@@ -51,19 +60,30 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 			     struct journal_list *jlist, struct jset *j,
 			     bool bad)
 {
-	struct journal_replay *i, *pos, *dup = NULL;
+	struct genradix_iter iter;
+	struct journal_replay **_i, *i, *dup;
 	struct journal_ptr *ptr;
-	struct list_head *where;
 	size_t bytes = vstruct_bytes(j);
 	u64 last_seq = 0;
 	int ret = JOURNAL_ENTRY_ADD_OK;
 
+	/*
+	 * Xarrays are indexed by a ulong, not a u64, so we can't index them by
+	 * sequence number directly:
+	 * Assume instead that they will all fall within the range of +-2billion
+	 * of the filrst one we find.
+	 */
+	if (!c->journal_entries_base_seq)
+		c->journal_entries_base_seq = max_t(s64, 1, le64_to_cpu(j->seq) - S32_MAX);
+
+#if 0
 	list_for_each_entry_reverse(i, jlist->head, list) {
 		if (!JSET_NO_FLUSH(&i->j)) {
 			last_seq = le64_to_cpu(i->j.last_seq);
 			break;
 		}
 	}
+#endif
 
 	/* Is this entry older than the range we need? */
 	if (!c->opts.read_entire_journal &&
@@ -73,29 +93,21 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	/* Drop entries we don't need anymore */
-	if (!JSET_NO_FLUSH(j)) {
-		list_for_each_entry_safe(i, pos, jlist->head, list) {
+	if (!JSET_NO_FLUSH(j) && !c->opts.read_entire_journal) {
+		genradix_for_each(&c->journal_entries, iter, _i) {
+			i = *_i;
+
+			if (!i)
+				continue;
+
 			if (le64_to_cpu(i->j.seq) >= le64_to_cpu(j->last_seq))
 				break;
 			journal_replay_free(c, i);
 		}
 	}
 
-	list_for_each_entry_reverse(i, jlist->head, list) {
-		if (le64_to_cpu(j->seq) > le64_to_cpu(i->j.seq)) {
-			where = &i->list;
-			goto add;
-		}
-	}
-
-	where = jlist->head;
-add:
-	dup = where->next != jlist->head
-		? container_of(where->next, struct journal_replay, list)
-		: NULL;
-
-	if (dup && le64_to_cpu(j->seq) != le64_to_cpu(dup->j.seq))
-		dup = NULL;
+	_i = genradix_ptr(&c->journal_entries, journal_entry_radix_idx(c, j));
+	dup = _i ? *_i : NULL;
 
 	/*
 	 * Duplicate journal entries? If so we want the one that didn't have a
@@ -131,10 +143,19 @@ add:
 	if (dup) {
 		i->nr_ptrs = dup->nr_ptrs;
 		memcpy(i->ptrs, dup->ptrs, sizeof(dup->ptrs));
-		__journal_replay_free(dup);
+		__journal_replay_free(c, dup);
 	}
 
-	list_add(&i->list, where);
+	_i = genradix_ptr_alloc(&c->journal_entries,
+				journal_entry_radix_idx(c, &i->j),
+				GFP_KERNEL);
+	if (!_i) {
+		bch_err(c, "failed to allocate c->journal_entries entry");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	*_i = i;
 found:
 	for (ptr = i->ptrs; ptr < i->ptrs + i->nr_ptrs; ptr++) {
 		if (ptr->dev == ca->dev_idx) {
@@ -913,7 +934,8 @@ static void bch2_journal_read_device(struct closure *cl)
 	struct bch_fs *c = ca->fs;
 	struct journal_list *jlist =
 		container_of(cl->parent, struct journal_list, cl);
-	struct journal_replay *r;
+	struct journal_replay *r, **_r;
+	struct genradix_iter iter;
 	struct journal_read_buf buf = { NULL, 0 };
 	u64 min_seq = U64_MAX;
 	unsigned i;
@@ -956,7 +978,12 @@ static void bch2_journal_read_device(struct closure *cl)
 	ja->sectors_free = ca->mi.bucket_size;
 
 	mutex_lock(&jlist->lock);
-	list_for_each_entry(r, jlist->head, list) {
+	genradix_for_each(&c->journal_entries, iter, _r) {
+		r = *_r;
+
+		if (!r)
+			continue;
+
 		for (i = 0; i < r->nr_ptrs; i++) {
 			if (r->ptrs[i].dev == ca->dev_idx &&
 			    sector_to_bucket(ca, r->ptrs[i].sector) == ja->buckets[ja->cur_idx]) {
@@ -1022,11 +1049,11 @@ void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 	}
 }
 
-int bch2_journal_read(struct bch_fs *c, struct list_head *list,
-		      u64 *blacklist_seq, u64 *start_seq)
+int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 {
 	struct journal_list jlist;
-	struct journal_replay *i, *t;
+	struct journal_replay *i, **_i, *prev = NULL;
+	struct genradix_iter radix_iter;
 	struct bch_dev *ca;
 	unsigned iter;
 	struct printbuf buf = PRINTBUF;
@@ -1037,7 +1064,6 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 
 	closure_init_stack(&jlist.cl);
 	mutex_init(&jlist.lock);
-	jlist.head = list;
 	jlist.ret = 0;
 
 	for_each_member_device(ca, c, iter) {
@@ -1061,21 +1087,20 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 	if (jlist.ret)
 		return jlist.ret;
 
-	if (list_empty(list)) {
-		bch_info(c, "journal read done, but no entries found");
-		return 0;
-	}
-
-	i = list_last_entry(list, struct journal_replay, list);
-	*start_seq = le64_to_cpu(i->j.seq) + 1;
+	*start_seq = 0;
 
 	/*
 	 * Find most recent flush entry, and ignore newer non flush entries -
 	 * those entries will be blacklisted:
 	 */
-	list_for_each_entry_safe_reverse(i, t, list, list) {
-		if (i->ignore)
+	genradix_for_each_reverse(&c->journal_entries, radix_iter, _i) {
+		i = *_i;
+
+		if (!i || i->ignore)
 			continue;
+
+		if (!*start_seq)
+			*start_seq = le64_to_cpu(i->j.seq) + 1;
 
 		if (!JSET_NO_FLUSH(&i->j)) {
 			last_seq	= le64_to_cpu(i->j.last_seq);
@@ -1086,6 +1111,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		journal_replay_free(c, i);
 	}
 
+	if (!*start_seq) {
+		bch_info(c, "journal read done, but no entries found");
+		return 0;
+	}
+
 	if (!last_seq) {
 		fsck_err(c, "journal read done, but no entries found after dropping non-flushes");
 		ret = -1;
@@ -1093,8 +1123,10 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 	}
 
 	/* Drop blacklisted entries and entries older than last_seq: */
-	list_for_each_entry_safe(i, t, list, list) {
-		if (i->ignore)
+	genradix_for_each(&c->journal_entries, radix_iter, _i) {
+		i = *_i;
+
+		if (!i || i->ignore)
 			continue;
 
 		seq = le64_to_cpu(i->j.seq);
@@ -1113,8 +1145,10 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 
 	/* Check for missing entries: */
 	seq = last_seq;
-	list_for_each_entry(i, list, list) {
-		if (i->ignore)
+	genradix_for_each(&c->journal_entries, radix_iter, _i) {
+		i = *_i;
+
+		if (!i || i->ignore)
 			continue;
 
 		BUG_ON(seq > le64_to_cpu(i->j.seq));
@@ -1136,11 +1170,9 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 			       !bch2_journal_seq_is_blacklisted(c, seq, false))
 				seq++;
 
-			if (i->list.prev != list) {
-				struct journal_replay *p = list_prev_entry(i, list);
-
-				bch2_journal_ptrs_to_text(&buf1, c, p);
-				pr_buf(&buf1, " size %zu", vstruct_sectors(&p->j, c->block_bits));
+			if (prev) {
+				bch2_journal_ptrs_to_text(&buf1, c, prev);
+				pr_buf(&buf1, " size %zu", vstruct_sectors(&prev->j, c->block_bits));
 			} else
 				pr_buf(&buf1, "(none)");
 			bch2_journal_ptrs_to_text(&buf2, c, i);
@@ -1157,10 +1189,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 			printbuf_exit(&buf2);
 		}
 
+		prev = i;
 		seq++;
 	}
 
-	list_for_each_entry(i, list, list) {
+	genradix_for_each(&c->journal_entries, radix_iter, _i) {
 		struct jset_entry *entry;
 		struct bkey_i *k, *_n;
 		struct bch_replicas_padded replicas = {
@@ -1169,7 +1202,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		};
 		unsigned ptr;
 
-		if (i->ignore)
+		i = *_i;
+		if (!i || i->ignore)
 			continue;
 
 		ret = jset_validate_entries(c, &i->j, READ);

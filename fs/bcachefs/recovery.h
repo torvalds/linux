@@ -55,7 +55,7 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
 						struct btree *);
 
 void bch2_journal_keys_free(struct journal_keys *);
-void bch2_journal_entries_free(struct list_head *);
+void bch2_journal_entries_free(struct bch_fs *);
 
 int bch2_fs_recovery(struct bch_fs *);
 int bch2_fs_initialize(struct bch_fs *);
