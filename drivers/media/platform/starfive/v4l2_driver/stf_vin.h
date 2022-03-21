@@ -24,6 +24,11 @@ struct vin2_format {
 	u8 bpp;
 };
 
+struct vin2_format_table {
+	const struct vin2_format *fmts;
+	int nfmts;
+};
+
 enum vin_output_state {
 	VIN_OUTPUT_OFF,
 	VIN_OUTPUT_RESERVED,

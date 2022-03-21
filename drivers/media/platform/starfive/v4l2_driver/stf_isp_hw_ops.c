@@ -303,10 +303,14 @@ static int stf_isp_config_set(struct stf_isp_dev *isp_dev)
 }
 
 static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
-		struct v4l2_rect *crop, u32 mcode)
+		struct isp_stream_format *crop_array, u32 mcode,
+		int type)
 		// u32 width, u32 height)
 {
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	struct stf_dvp_dev *dvp_dev = isp_dev->stfcamss->dvp_dev;
+	struct v4l2_rect *crop = &crop_array[ISP_COMPOSE].rect;
+	u32 bpp = crop_array[ISP_COMPOSE].bpp;
 	void __iomem *ispbase;
 	u32 val, val1;
 
@@ -318,6 +322,17 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	} else {
 		ispbase = vin->isp_isp1_base;
 		isp_settings = isp_sc2235_settings;
+	}
+
+	st_debug(ST_ISP, "interface type is %d(%s)\n",
+			type, type == CSI_SENSOR ? "CSI" : "DVP");
+
+	if (type == DVP_SENSOR) {
+		unsigned int flags = dvp_dev->dvp->flags;
+
+		st_debug(ST_ISP, "dvp flags = 0x%x, hsync active is %s, vsync active is %s\n",
+			flags, flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH ? "high" : "low",
+			flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH ? "high" : "low");
 	}
 
 	val = crop->left + (crop->top << 16);
@@ -334,7 +349,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	isp_format_reg_list[2].val = val;
 
 	isp_format_reg_list[3].addr = ISP_REG_STRIDE;
-	isp_format_reg_list[3].val = crop->width;
+	isp_format_reg_list[3].val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_8);
 
 	switch (mcode) {
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
@@ -367,6 +382,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 		val1 = 0x10000000;
 		break;
 	}
+
 	isp_format_reg_list[4].addr = ISP_REG_RAW_FORMAT_CFG;
 	isp_format_reg_list[4].val = val;
 
@@ -374,14 +390,87 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	isp_format_reg_list[5].val = val1;
 	isp_format_reg_list[5].mask = 0xF0000000;
 
-	st_info(ST_ISP, "left: %d, top: %d, width = %d, height = %d, code = 0x%x\n",
-		crop->left, crop->top, crop->width, crop->height, mcode);
+	st_info(ST_ISP, "src left: %d, top: %d, width = %d, height = %d, bpp = %d\n",
+		crop->left, crop->top, crop->width, crop->height, bpp);
 
+	crop = &crop_array[ISP_CROP].rect;
+	bpp = crop_array[ISP_CROP].bpp;
+	val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_128);
+	isp_format_reg_list[6].addr = ISP_REG_DUMP_CFG_1;
+	isp_format_reg_list[6].val = val | 3 << 16;
+	isp_format_reg_list[6].mask = 0x0003FFFF;
+
+	st_info(ST_ISP, "raw left: %d, top: %d, width = %d, height = %d, bpp = %d\n",
+		crop->left, crop->top, crop->width, crop->height, bpp);
+
+	crop = &crop_array[ISP_SCALE_SS0].rect;
+	bpp = crop_array[ISP_SCALE_SS0].bpp;
+	isp_format_reg_list[7].addr = ISP_REG_SS0IW;
+	isp_format_reg_list[7].val = (crop->width << 16) + crop->height;
+	isp_format_reg_list[8].addr = ISP_REG_SS0S;
+	isp_format_reg_list[8].val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+
+	st_info(ST_ISP, "ss0 left: %d, top: %d, width = %d, height = %d, bpp = %d\n",
+		crop->left, crop->top, crop->width, crop->height, bpp);
+
+	crop = &crop_array[ISP_SCALE_SS1].rect;
+	bpp = crop_array[ISP_SCALE_SS1].bpp;
+	isp_format_reg_list[9].addr = ISP_REG_SS1IW;
+	isp_format_reg_list[9].val = (crop->width << 16) + crop->height;
+	isp_format_reg_list[10].addr = ISP_REG_SS1S;
+	isp_format_reg_list[10].val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+
+	crop = &crop_array[ISP_ITIWS].rect;
+	bpp = crop_array[ISP_ITIWS].bpp;
+	isp_format_reg_list[11].addr = ISP_REG_ITIIWSR;
+	isp_format_reg_list[11].val = (crop->height << 16) + crop->width;
+	isp_format_reg_list[12].addr = ISP_REG_ITIDWLSR;
+	isp_format_reg_list[12].val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+	isp_format_reg_list[13].addr = ISP_REG_ITIDRLSR;
+	isp_format_reg_list[13].val = ALIGN(crop->width * bpp / 8, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+
+	st_info(ST_ISP, "iti left: %d, top: %d, width = %d, height = %d, bpp = %d\n",
+		crop->left, crop->top, crop->width, crop->height, bpp);
+
+	isp_format_reg_list[14].addr = ISP_REG_SENSOR;
+	isp_format_reg_list[14].val = 0x00000000;
+	if (type == DVP_SENSOR) {
+		unsigned int flags = dvp_dev->dvp->flags;
+
+		if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
+			isp_format_reg_list[14].val |= 0x08;
+		if (flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
+			isp_format_reg_list[14].val |= 0x04;
+	} else {
+		isp_format_reg_list[14].val |= 0x01;
+	}
+
+	isp_load_regs(ispbase, isp_format_settings);
 	return 0;
 }
 
 static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 {
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+
+	void __iomem *ispbase;
+
+	if (isp_dev->id == 0)
+		ispbase = vin->isp_isp0_base;
+	else
+		ispbase = vin->isp_isp1_base;
+
+	if (on) {
+#if defined(USE_NEW_CONFIG_SETTING)
+		isp_load_regs(ispbase, isp_reg_start_settings);
+#else
+		reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, 0x3FFFF, 0x3000a);
+		reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);
+		reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(0), 1);
+#endif //#if defined(USE_NEW_CONFIG_SETTING)
+	}
+	//else  //disable crash
+	//	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(0), 0);
 	return 0;
 }
 

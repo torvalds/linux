@@ -94,6 +94,11 @@ struct isp_format {
 	u8 bpp;
 };
 
+struct isp_format_table {
+	const struct isp_format *fmts;
+	int nfmts;
+};
+
 struct regval_t {
 	u32 addr;
 	u32 val;
@@ -106,6 +111,11 @@ struct reg_table {
 	int regval_num;
 };
 
+struct isp_stream_format {
+	struct v4l2_rect rect;
+	u32 bpp;
+};
+
 struct stf_isp_dev;
 enum subdev_type;
 
@@ -115,7 +125,8 @@ struct isp_hw_ops {
 	int (*isp_reset)(struct stf_isp_dev *isp_dev);
 	int (*isp_config_set)(struct stf_isp_dev *isp_dev);
 	int (*isp_set_format)(struct stf_isp_dev *isp_dev,
-			struct v4l2_rect *crop, u32 mcode);
+			struct isp_stream_format *crop, u32 mcode,
+			int type);
 			// u32 width, u32 height);
 	int (*isp_stream_set)(struct stf_isp_dev *isp_dev, int on);
 	int (*isp_reg_read)(struct stf_isp_dev *isp_dev, void *arg);
@@ -156,17 +167,24 @@ struct isp_setfile {
 	unsigned int state;
 };
 
+enum {
+	ISP_CROP = 0,
+	ISP_COMPOSE,
+	ISP_SCALE_SS0,
+	ISP_SCALE_SS1,
+	ISP_ITIWS,
+	ISP_RECT_MAX
+};
+
 struct stf_isp_dev {
 	enum subdev_type sdev_type;  // must be frist
 	struct stfcamss *stfcamss;
-	atomic_t ref_count;
 	u8 id;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_ISP_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[STF_ISP_PADS_NUM];
-	struct v4l2_rect compose;
-	struct v4l2_rect crop;
-	const struct isp_format *formats;
+	struct isp_stream_format rect[ISP_RECT_MAX];
+	const struct isp_format_table *formats;
 	unsigned int nformats;
 	struct isp_hw_ops *hw_ops;
 	struct mutex power_lock;

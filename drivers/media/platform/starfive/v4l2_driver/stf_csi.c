@@ -145,7 +145,8 @@ static void csi_try_format(struct stf_csi_dev *csi_dev,
 		fmt->height = clamp_t(u32,
 				fmt->height,
 				STFCAMSS_FRAME_MIN_HEIGHT,
-				STFCAMSS_FRAME_MAX_HEIGHT_PIX);
+				STFCAMSS_FRAME_MAX_HEIGHT);
+
 
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;

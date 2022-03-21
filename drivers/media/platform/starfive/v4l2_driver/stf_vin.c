@@ -23,10 +23,62 @@
 static const struct vin2_format vin2_formats_st7110[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 12},
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8},
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
+	{ MEDIA_BUS_FMT_Y12_1X12, 8},
+	{ MEDIA_BUS_FMT_YUV8_1X24, 8},
+};
+
+static const struct vin2_format isp_formats_st7110_raw[] = {
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
+};
+
+static const struct vin2_format isp_formats_st7110_uo[] = {
+	{ MEDIA_BUS_FMT_Y12_1X12, 8},
+};
+
+static const struct vin2_format isp_formats_st7110_iti[] = {
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
+	{ MEDIA_BUS_FMT_Y12_1X12, 8},
+	{ MEDIA_BUS_FMT_YUV8_1X24, 8},
+};
+
+static const struct vin2_format_table vin2_formats_table[] = {
+	{ vin2_formats_st7110, ARRAY_SIZE(vin2_formats_st7110) },         // VIN_LINE_WR
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0_SS0
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1_SS0
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0_SS1
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1_SS1
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP0_ITIW
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP1_ITIW
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP0_ITIR
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP1_ITIR
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP0_RAW
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP1_RAW
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP0_SCD_Y
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP1_SCD_Y
 };
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params);
@@ -238,8 +290,8 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		l->video_out.stfcamss = stfcamss;
 		l->id = i;
 		l->sdev_type = VIN_DEV_TYPE;
-		l->formats = vin2_formats_st7110;
-		l->nformats = ARRAY_SIZE(vin2_formats_st7110);
+		l->formats = vin2_formats_table[i].fmts;
+		l->nformats = vin2_formats_table[i].nfmts;
 		spin_lock_init(&l->output_lock);
 
 		mutex_init(&l->stream_lock);
@@ -721,12 +773,12 @@ static void vin_try_format(struct vin_line *line,
 
 		/* If not found, use UYVY as default */
 		if (i >= line->nformats)
-			fmt->code = MEDIA_BUS_FMT_RGB565_2X8_LE;
+			fmt->code = line->formats[0].code;
 
 		fmt->width = clamp_t(u32,
-				fmt->width, 1, STFCAMSS_FRAME_MAX_WIDTH);
+				fmt->width, STFCAMSS_FRAME_MIN_WIDTH, STFCAMSS_FRAME_MAX_WIDTH);
 		fmt->height = clamp_t(u32,
-				fmt->height, 1, STFCAMSS_FRAME_MAX_HEIGHT_PIX);
+				fmt->height, STFCAMSS_FRAME_MIN_HEIGHT, STFCAMSS_FRAME_MAX_HEIGHT);
 
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
