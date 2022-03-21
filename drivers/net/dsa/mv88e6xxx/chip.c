@@ -2678,6 +2678,9 @@ static int mv88e6xxx_vlan_msti_set(struct dsa_switch *ds,
 	u8 old_sid, new_sid;
 	int err;
 
+	if (!mv88e6xxx_has_stu(chip))
+		return -EOPNOTSUPP;
+
 	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_vtu_get(chip, msti->vid, &vlan);
