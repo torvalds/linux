@@ -939,8 +939,19 @@ new_vma:
 			if (i915_vma_is_pinned(vma) || i915_vma_is_active(vma))
 				return ERR_PTR(-ENOSPC);
 
+			/*
+			 * If this misplaced vma is too big (i.e, at-least
+			 * half the size of aperture) or hasn't been pinned
+			 * mappable before, we ignore the misplacement when
+			 * PIN_NONBLOCK is set in order to avoid the ping-pong
+			 * issue described above. In other words, we try to
+			 * avoid the costly operation of unbinding this vma
+			 * from the GGTT and rebinding it back because there
+			 * may not be enough space for this vma in the aperture.
+			 */
 			if (flags & PIN_MAPPABLE &&
-			    vma->fence_size > ggtt->mappable_end / 2)
+			    (vma->fence_size > ggtt->mappable_end / 2 ||
+			    !i915_vma_is_map_and_fenceable(vma)))
 				return ERR_PTR(-ENOSPC);
 		}
 
