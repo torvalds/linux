@@ -494,38 +494,6 @@ another_round:
 	goto another_round;
 }
 
-static bool tuple_force_port_remap(const struct nf_conntrack_tuple *tuple)
-{
-	u16 sp, dp;
-
-	switch (tuple->dst.protonum) {
-	case IPPROTO_TCP:
-		sp = ntohs(tuple->src.u.tcp.port);
-		dp = ntohs(tuple->dst.u.tcp.port);
-		break;
-	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
-		sp = ntohs(tuple->src.u.udp.port);
-		dp = ntohs(tuple->dst.u.udp.port);
-		break;
-	default:
-		return false;
-	}
-
-	/* IANA: System port range: 1-1023,
-	 *         user port range: 1024-49151,
-	 *      private port range: 49152-65535.
-	 *
-	 * Linux default ephemeral port range is 32768-60999.
-	 *
-	 * Enforce port remapping if sport is significantly lower
-	 * than dport to prevent NAT port shadowing, i.e.
-	 * accidental match of 'new' inbound connection vs.
-	 * existing outbound one.
-	 */
-	return sp < 16384 && dp >= 32768;
-}
-
 /* Manipulate the tuple into the range given. For NF_INET_POST_ROUTING,
  * we change the source to map into the range. For NF_INET_PRE_ROUTING
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
@@ -539,16 +507,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
-	bool random_port = range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL;
 	const struct nf_conntrack_zone *zone;
 	struct net *net = nf_ct_net(ct);
 
 	zone = nf_ct_zone(ct);
-
-	if (maniptype == NF_NAT_MANIP_SRC &&
-	    !random_port &&
-	    !ct->local_origin)
-		random_port = tuple_force_port_remap(orig_tuple);
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	 * and that same mapping gives a unique tuple within the given
@@ -558,7 +520,8 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
-	if (maniptype == NF_NAT_MANIP_SRC && !random_port) {
+	if (maniptype == NF_NAT_MANIP_SRC &&
+	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
 		if (in_range(orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
@@ -582,7 +545,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!random_port) {
+	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
 			    l4proto_in_range(tuple, maniptype,
