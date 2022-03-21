@@ -816,7 +816,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	struct drm_i915_private *i915 = m->private;
 	intel_wakeref_t wakeref;
 	struct intel_dmc *dmc;
-	i915_reg_t dc5_reg, dc6_reg = {};
+	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
 
 	if (!HAS_DMC(i915))
 		return -ENODEV;
@@ -868,7 +868,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	}
 
 	seq_printf(m, "DC3 -> DC5 count: %d\n", intel_de_read(i915, dc5_reg));
-	if (dc6_reg.reg)
+	if (i915_mmio_reg_valid(dc6_reg))
 		seq_printf(m, "DC5 -> DC6 count: %d\n",
 			   intel_de_read(i915, dc6_reg));
 
