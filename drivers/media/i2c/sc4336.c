@@ -418,7 +418,7 @@ static int sc4336_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 static int sc4336_set_gain_reg(struct sc4336 *sc4336, u32 gain)
 {
 	u32 coarse_again = 0, coarse_dgian = 0, fine_dgian = 0;
-	u64 gain_factor;
+	u32 gain_factor;
 	int ret = 0;
 
 	if (gain < 32)
