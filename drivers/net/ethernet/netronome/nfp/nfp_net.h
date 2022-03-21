@@ -98,11 +98,18 @@
 /* Forward declarations */
 struct nfp_cpp;
 struct nfp_dev_info;
+struct nfp_dp_ops;
 struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 struct nfp_port;
 struct xsk_buff_pool;
+
+struct nfp_nfd3_tx_desc;
+struct nfp_nfd3_tx_buf;
+
+struct nfp_nfdk_tx_desc;
+struct nfp_nfdk_tx_buf;
 
 /* Convenience macro for wrapping descriptor index on ring size */
 #define D_IDX(ring, idx)	((idx) & ((ring)->cnt - 1))
@@ -117,97 +124,25 @@ struct xsk_buff_pool;
 		__d->dma_addr_hi = upper_32_bits(__addr) & 0xff;	\
 	} while (0)
 
-/* TX descriptor format */
-
-#define PCIE_DESC_TX_EOP		BIT(7)
-#define PCIE_DESC_TX_OFFSET_MASK	GENMASK(6, 0)
-#define PCIE_DESC_TX_MSS_MASK		GENMASK(13, 0)
-
-/* Flags in the host TX descriptor */
-#define PCIE_DESC_TX_CSUM		BIT(7)
-#define PCIE_DESC_TX_IP4_CSUM		BIT(6)
-#define PCIE_DESC_TX_TCP_CSUM		BIT(5)
-#define PCIE_DESC_TX_UDP_CSUM		BIT(4)
-#define PCIE_DESC_TX_VLAN		BIT(3)
-#define PCIE_DESC_TX_LSO		BIT(2)
-#define PCIE_DESC_TX_ENCAP		BIT(1)
-#define PCIE_DESC_TX_O_IP4_CSUM	BIT(0)
-
-struct nfp_net_tx_desc {
-	union {
-		struct {
-			u8 dma_addr_hi; /* High bits of host buf address */
-			__le16 dma_len;	/* Length to DMA for this desc */
-			u8 offset_eop;	/* Offset in buf where pkt starts +
-					 * highest bit is eop flag.
-					 */
-			__le32 dma_addr_lo; /* Low 32bit of host buf addr */
-
-			__le16 mss;	/* MSS to be used for LSO */
-			u8 lso_hdrlen;	/* LSO, TCP payload offset */
-			u8 flags;	/* TX Flags, see @PCIE_DESC_TX_* */
-			union {
-				struct {
-					u8 l3_offset; /* L3 header offset */
-					u8 l4_offset; /* L4 header offset */
-				};
-				__le16 vlan; /* VLAN tag to add if indicated */
-			};
-			__le16 data_len; /* Length of frame + meta data */
-		} __packed;
-		__le32 vals[4];
-		__le64 vals8[2];
-	};
-};
-
-/**
- * struct nfp_net_tx_buf - software TX buffer descriptor
- * @skb:	normal ring, sk_buff associated with this buffer
- * @frag:	XDP ring, page frag associated with this buffer
- * @xdp:	XSK buffer pool handle (for AF_XDP)
- * @dma_addr:	DMA mapping address of the buffer
- * @fidx:	Fragment index (-1 for the head and [0..nr_frags-1] for frags)
- * @pkt_cnt:	Number of packets to be produced out of the skb associated
- *		with this buffer (valid only on the head's buffer).
- *		Will be 1 for all non-TSO packets.
- * @is_xsk_tx:	Flag if buffer is a RX buffer after a XDP_TX action and not a
- *		buffer from the TX queue (for AF_XDP).
- * @real_len:	Number of bytes which to be produced out of the skb (valid only
- *		on the head's buffer). Equal to skb->len for non-TSO packets.
- */
-struct nfp_net_tx_buf {
-	union {
-		struct sk_buff *skb;
-		void *frag;
-		struct xdp_buff *xdp;
-	};
-	dma_addr_t dma_addr;
-	union {
-		struct {
-			short int fidx;
-			u16 pkt_cnt;
-		};
-		struct {
-			bool is_xsk_tx;
-		};
-	};
-	u32 real_len;
-};
-
 /**
  * struct nfp_net_tx_ring - TX ring structure
  * @r_vec:      Back pointer to ring vector structure
  * @idx:        Ring index from Linux's perspective
- * @qcidx:      Queue Controller Peripheral (QCP) queue index for the TX queue
+ * @data_pending: number of bytes added to current block (NFDK only)
  * @qcp_q:      Pointer to base of the QCP TX queue
+ * @txrwb:	TX pointer write back area
  * @cnt:        Size of the queue in number of descriptors
  * @wr_p:       TX ring write pointer (free running)
  * @rd_p:       TX ring read pointer (free running)
  * @qcp_rd_p:   Local copy of QCP TX queue read pointer
  * @wr_ptr_add:	Accumulated number of buffers to add to QCP write pointer
  *		(used for .xmit_more delayed kick)
- * @txbufs:     Array of transmitted TX buffers, to free on transmit
- * @txds:       Virtual address of TX ring in host memory
+ * @txbufs:	Array of transmitted TX buffers, to free on transmit (NFD3)
+ * @ktxbufs:	Array of transmitted TX buffers, to free on transmit (NFDK)
+ * @txds:	Virtual address of TX ring in host memory (NFD3)
+ * @ktxds:	Virtual address of TX ring in host memory (NFDK)
+ *
+ * @qcidx:      Queue Controller Peripheral (QCP) queue index for the TX queue
  * @dma:        DMA address of the TX ring
  * @size:       Size, in bytes, of the TX ring (needed to free)
  * @is_xdp:	Is this a XDP TX ring?
@@ -215,9 +150,10 @@ struct nfp_net_tx_buf {
 struct nfp_net_tx_ring {
 	struct nfp_net_r_vector *r_vec;
 
-	u32 idx;
-	int qcidx;
+	u16 idx;
+	u16 data_pending;
 	u8 __iomem *qcp_q;
+	u64 *txrwb;
 
 	u32 cnt;
 	u32 wr_p;
@@ -226,8 +162,17 @@ struct nfp_net_tx_ring {
 
 	u32 wr_ptr_add;
 
-	struct nfp_net_tx_buf *txbufs;
-	struct nfp_net_tx_desc *txds;
+	union {
+		struct nfp_nfd3_tx_buf *txbufs;
+		struct nfp_nfdk_tx_buf *ktxbufs;
+	};
+	union {
+		struct nfp_nfd3_tx_desc *txds;
+		struct nfp_nfdk_tx_desc *ktxds;
+	};
+
+	/* Cold data follows */
+	int qcidx;
 
 	dma_addr_t dma;
 	size_t size;
@@ -479,13 +424,17 @@ struct nfp_net_fw_version {
 	u8 minor;
 	u8 major;
 	u8 class;
-	u8 resv;
+
+	/* This byte can be exploited for more use, currently,
+	 * BIT0: dp type, BIT[7:1]: reserved
+	 */
+	u8 extend;
 } __packed;
 
 static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
-				     u8 resv, u8 class, u8 major, u8 minor)
+				     u8 extend, u8 class, u8 major, u8 minor)
 {
-	return fw_ver->resv == resv &&
+	return fw_ver->extend == extend &&
 	       fw_ver->class == class &&
 	       fw_ver->major == major &&
 	       fw_ver->minor == minor;
@@ -513,8 +462,11 @@ struct nfp_stat_pair {
  * @rx_rings:		Array of pre-allocated RX ring structures
  * @ctrl_bar:		Pointer to mapped control BAR
  *
- * @txd_cnt:		Size of the TX ring in number of descriptors
- * @rxd_cnt:		Size of the RX ring in number of descriptors
+ * @ops:		Callbacks and parameters for this vNIC's NFD version
+ * @txrwb:		TX pointer write back area (indexed by queue id)
+ * @txrwb_dma:		TX pointer write back area DMA address
+ * @txd_cnt:		Size of the TX ring in number of min size packets
+ * @rxd_cnt:		Size of the RX ring in number of min size packets
  * @num_r_vecs:		Number of used ring vectors
  * @num_tx_rings:	Currently configured number of TX rings
  * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
@@ -546,6 +498,11 @@ struct nfp_net_dp {
 	u8 __iomem *ctrl_bar;
 
 	/* Cold data follows */
+
+	const struct nfp_dp_ops *ops;
+
+	u64 *txrwb;
+	dma_addr_t txrwb_dma;
 
 	unsigned int txd_cnt;
 	unsigned int rxd_cnt;
@@ -915,11 +872,13 @@ static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 /* Globals */
 extern const char nfp_driver_version[];
 
-extern const struct net_device_ops nfp_net_netdev_ops;
+extern const struct net_device_ops nfp_nfd3_netdev_ops;
+extern const struct net_device_ops nfp_nfdk_netdev_ops;
 
 static inline bool nfp_netdev_is_nfp_net(struct net_device *netdev)
 {
-	return netdev->netdev_ops == &nfp_net_netdev_ops;
+	return netdev->netdev_ops == &nfp_nfd3_netdev_ops ||
+	       netdev->netdev_ops == &nfp_nfdk_netdev_ops;
 }
 
 static inline int nfp_net_coalesce_para_check(u32 usecs, u32 pkts)
@@ -960,7 +919,6 @@ int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd);
 void nfp_net_mbox_reconfig_post(struct nfp_net *nn, u32 update);
 int nfp_net_mbox_reconfig_wait_posted(struct nfp_net *nn);
 
-void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr);
 unsigned int
 nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
 		   unsigned int min_irqs, unsigned int want_irqs);
@@ -968,19 +926,10 @@ void nfp_net_irqs_disable(struct pci_dev *pdev);
 void
 nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 		    unsigned int n);
-
-void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring);
-void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget);
-
-bool
-nfp_net_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
-		   void *data, void *pkt, unsigned int pkt_len, int meta_len);
-
-void nfp_net_rx_csum(const struct nfp_net_dp *dp,
-		     struct nfp_net_r_vector *r_vec,
-		     const struct nfp_net_rx_desc *rxd,
-		     const struct nfp_meta_parsed *meta,
-		     struct sk_buff *skb);
+struct sk_buff *
+nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
+	       struct sk_buff *skb, u64 *tls_handle, int *nr_frags);
+void nfp_net_tls_tx_undo(struct sk_buff *skb, u64 tls_handle);
 
 struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
