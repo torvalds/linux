@@ -132,10 +132,38 @@ struct vin_hw_ops {
 	void (*isr_change_buffer)(struct vin_line *line);
 };
 
+#define ISP_DUMMY_BUFFER_NUMS  STF_ISP_PADS_NUM
+#define VIN_DUMMY_BUFFER_NUMS  1
+
+enum {
+	STF_DUMMY_VIN,
+	STF_DUMMY_ISP0,
+	STF_DUMMY_ISP1,
+	STF_DUMMY_MODULE_NUMS,
+};
+
+struct vin_dummy_buffer {
+	dma_addr_t paddr[3];
+	void *vaddr;
+	u32 buffer_size;
+	u32 width;
+	u32 height;
+	u32 mcode;
+};
+
+struct dummy_buffer {
+	struct vin_dummy_buffer *buffer;
+	u32 nums;
+	struct mutex stream_lock;
+	int stream_count;
+	atomic_t frame_skip;
+};
+
 struct stf_vin2_dev {
 	struct stfcamss *stfcamss;
 	u8 id;
 	struct vin_line line[VIN_LINE_MAX];
+	struct dummy_buffer dummy_buffer[STF_DUMMY_MODULE_NUMS];
 	struct vin_hw_ops *hw_ops;
 	atomic_t ref_count;
 	struct mutex power_lock;

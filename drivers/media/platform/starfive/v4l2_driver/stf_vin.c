@@ -34,6 +34,11 @@ static void vin_change_buffer(struct vin_line *line);
 static struct stfcamss_buffer *vin_buf_get_pending(struct vin_output *output);
 static void vin_output_init_addrs(struct vin_line *line);
 static void vin_init_outputs(struct vin_line *line);
+static struct v4l2_mbus_framefmt *
+__vin_get_format(struct vin_line *line,
+		struct v4l2_subdev_state *state,
+		unsigned int pad,
+		enum v4l2_subdev_format_whence which);
 
 static char *get_line_subdevname(int line_id)
 {
@@ -208,6 +213,17 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	mutex_init(&vin_dev->power_lock);
 	vin_dev->power_count = 0;
 
+	for (i = 0; i < STF_DUMMY_MODULE_NUMS; i++) {
+		struct dummy_buffer *dummy_buffer = &vin_dev->dummy_buffer[i];
+
+		mutex_init(&dummy_buffer->stream_lock);
+		dummy_buffer->nums = i == 0 ? VIN_DUMMY_BUFFER_NUMS : ISP_DUMMY_BUFFER_NUMS;
+		dummy_buffer->stream_count = 0;
+		dummy_buffer->buffer = devm_kzalloc(dev,
+			dummy_buffer->nums * sizeof(struct vin_dummy_buffer), GFP_KERNEL);
+		atomic_set(&dummy_buffer->frame_skip, 0);
+	}
+
 	for (i = VIN_LINE_WR; i < VIN_LINE_MAX; i++) {
 		struct vin_line *l = &vin_dev->line[i];
 		int is_mp;
@@ -285,6 +301,26 @@ exit:
 	return 0;
 }
 
+static unsigned int get_frame_skip(struct vin_line *line)
+{
+	unsigned int frame_skip = 0;
+	struct media_entity *sensor;
+
+	sensor = stfcamss_find_sensor(&line->subdev.entity);
+	if (sensor) {
+		struct v4l2_subdev *subdev =
+					media_entity_to_v4l2_subdev(sensor);
+
+		v4l2_subdev_call(subdev, sensor, g_skip_frames, &frame_skip);
+		frame_skip += VIN_FRAME_DROP_MIN_VAL;
+		if (frame_skip > VIN_FRAME_DROP_MAX_VAL)
+			frame_skip = VIN_FRAME_DROP_MAX_VAL;
+		st_debug(ST_VIN, "%s, frame_skip %d\n", __func__, frame_skip);
+	}
+
+	return frame_skip;
+}
+
 static int vin_enable_output(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
@@ -331,10 +367,304 @@ static int vin_disable_output(struct vin_line *line)
 	return 0;
 }
 
+static u32 line_to_dummy_module(struct vin_line *line)
+{
+	u32 dummy_module = 0;
+
+	switch (line->id) {
+	case VIN_LINE_WR:
+		dummy_module = STF_DUMMY_VIN;
+		break;
+	case VIN_LINE_ISP0:
+	case VIN_LINE_ISP0_SS0:
+	case VIN_LINE_ISP0_SS1:
+	case VIN_LINE_ISP0_ITIW:
+	case VIN_LINE_ISP0_ITIR:
+	case VIN_LINE_ISP0_RAW:
+	case VIN_LINE_ISP0_SCD_Y:
+		dummy_module = STF_DUMMY_ISP0;
+		break;
+	case VIN_LINE_ISP1:
+	case VIN_LINE_ISP1_SS0:
+	case VIN_LINE_ISP1_SS1:
+	case VIN_LINE_ISP1_ITIW:
+	case VIN_LINE_ISP1_ITIR:
+	case VIN_LINE_ISP1_RAW:
+	case VIN_LINE_ISP1_SCD_Y:
+		dummy_module = STF_DUMMY_ISP1;
+		break;
+	default:
+		dummy_module = STF_DUMMY_VIN;
+		break;
+	}
+
+	return dummy_module;
+}
+
+static u32 line_to_buffer_pad(struct vin_line *line)
+{
+	u32 pad = 0;
+
+	switch (line->id) {
+	case VIN_LINE_WR:
+		pad = STF_VIN_PAD_SINK;
+		break;
+	case VIN_LINE_ISP0:
+	case VIN_LINE_ISP1:
+		pad = STF_ISP_PAD_SRC;
+		break;
+	case VIN_LINE_ISP0_SS0:
+	case VIN_LINE_ISP1_SS0:
+		pad = STF_ISP_PAD_SRC_SS0;
+		break;
+	case VIN_LINE_ISP0_SS1:
+	case VIN_LINE_ISP1_SS1:
+		pad = STF_ISP_PAD_SRC_SS1;
+		break;
+	case VIN_LINE_ISP0_ITIW:
+	case VIN_LINE_ISP1_ITIW:
+		pad = STF_ISP_PAD_SRC_ITIW;
+		break;
+	case VIN_LINE_ISP0_ITIR:
+	case VIN_LINE_ISP1_ITIR:
+		pad = STF_ISP_PAD_SRC_ITIR;
+		break;
+	case VIN_LINE_ISP0_RAW:
+	case VIN_LINE_ISP1_RAW:
+		pad = STF_ISP_PAD_SRC_RAW;
+		break;
+	case VIN_LINE_ISP0_SCD_Y:
+	case VIN_LINE_ISP1_SCD_Y:
+		pad = STF_ISP_PAD_SRC_SCD_Y;
+		break;
+	default:
+		pad = STF_VIN_PAD_SINK;
+		break;
+	}
+
+	return pad;
+}
+
+static int vin_alloc_dummy_buffer(struct stf_vin2_dev *vin_dev,
+		struct v4l2_mbus_framefmt *fmt, int dummy_module)
+{
+	struct device *dev = vin_dev->stfcamss->dev;
+	struct dummy_buffer *dummy_buffer = &vin_dev->dummy_buffer[dummy_module];
+	struct vin_dummy_buffer *buffer = NULL;
+	int ret = 0, i;
+	u32 aligns;
+
+	for (i = 0; i < dummy_buffer->nums; i++) {
+		buffer = &vin_dev->dummy_buffer[dummy_module].buffer[i];
+		buffer->width = fmt->width;
+		buffer->height = fmt->height;
+		buffer->mcode = fmt->code;
+		if (i == STF_VIN_PAD_SINK) {
+			aligns = ALIGN(fmt->width * 4, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+			buffer->buffer_size = PAGE_ALIGN(aligns * fmt->height);
+		} else if (i == STF_ISP_PAD_SRC
+			|| i == STF_ISP_PAD_SRC_SS0
+			|| i == STF_ISP_PAD_SRC_SS1) {
+			aligns = ALIGN(fmt->width, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+			buffer->buffer_size = PAGE_ALIGN(aligns * fmt->height * 3 / 2);
+		} else if (i == STF_ISP_PAD_SRC_ITIW
+			|| i == STF_ISP_PAD_SRC_ITIR) {
+			aligns = ALIGN(fmt->width, STFCAMSS_FRAME_WIDTH_ALIGN_8);
+			buffer->buffer_size = PAGE_ALIGN(aligns * fmt->height * 3);
+		} else if (i == STF_ISP_PAD_SRC_RAW) {
+			aligns = ALIGN(fmt->width * ISP_RAW_DATA_BITS / 8,
+					STFCAMSS_FRAME_WIDTH_ALIGN_128);
+			buffer->buffer_size = PAGE_ALIGN(aligns * fmt->height);
+		} else if (i == STF_ISP_PAD_SRC_SCD_Y)
+			buffer->buffer_size = PAGE_ALIGN(ISP_SCD_Y_BUFFER_SIZE);
+		else
+			continue;
+
+		buffer->vaddr = dma_alloc_coherent(dev, buffer->buffer_size,
+				&buffer->paddr[0], GFP_DMA | GFP_KERNEL);
+
+		if (buffer->vaddr) {
+			if (i == STF_ISP_PAD_SRC
+				|| i == STF_ISP_PAD_SRC_SS0
+				|| i == STF_ISP_PAD_SRC_SS1
+				|| i == STF_ISP_PAD_SRC_ITIW
+				|| i == STF_ISP_PAD_SRC_ITIR)
+				buffer->paddr[1] = (dma_addr_t)(buffer->paddr[0] +
+									aligns * fmt->height);
+			else if (i == STF_ISP_PAD_SRC_SCD_Y)
+				buffer->paddr[1] = (dma_addr_t)(buffer->paddr[0] +
+									ISP_YHIST_BUFFER_SIZE);
+			else
+				st_debug(ST_VIN, "signal plane\n");
+		}
+		{
+			char szPadName[][32] = {
+				"VIN_PAD_SINK",
+				"ISP_PAD_SRC",
+				"ISP_PAD_SRC_SS0",
+				"ISP_PAD_SRC_SS1",
+				"ISP_PAD_SRC_ITIW",
+				"ISP_PAD_SRC_ITIR",
+				"ISP_PAD_SRC_RAW",
+				"ISP_PAD_SRC_SCD_Y",
+				"Unknown Pad"
+			};
+
+			st_debug(ST_VIN, "%s: i = %d(%s) addr[0] = %llx, addr[1] = %llx, size = %u bytes\n",
+				__func__,
+				i,
+				szPadName[i],
+				buffer->paddr[0],
+				buffer->paddr[1],
+				buffer->buffer_size
+				);
+		}
+	}
+
+	return ret;
+}
+
+static void vin_free_dummy_buffer(struct stf_vin2_dev *vin_dev, int dummy_module)
+{
+	struct device *dev = vin_dev->stfcamss->dev;
+	struct dummy_buffer *dummy_buffer = &vin_dev->dummy_buffer[dummy_module];
+	struct vin_dummy_buffer *buffer = NULL;
+	int i;
+
+	for (i = 0; i < dummy_buffer->nums; i++) {
+		buffer = &dummy_buffer->buffer[i];
+		if (buffer->vaddr)
+			dma_free_coherent(dev, buffer->buffer_size,
+						buffer->vaddr, buffer->paddr[0]);
+		memset(buffer, 0, sizeof(struct vin_dummy_buffer));
+	}
+}
+
+static void vin_set_dummy_buffer(struct vin_line *line, u32 pad)
+{
+	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+	int dummy_module = line_to_dummy_module(line);
+	struct dummy_buffer *dummy_buffer = &vin_dev->dummy_buffer[dummy_module];
+	struct vin_dummy_buffer *buffer = NULL;
+
+	switch (pad) {
+	case STF_VIN_PAD_SINK:
+		if (line->id == VIN_LINE_WR) {
+			buffer = &dummy_buffer->buffer[STF_VIN_PAD_SINK];
+			vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev, buffer->paddr[0]);
+			vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev, buffer->paddr[0]);
+		} else {
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC];
+			vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
+				line->id - VIN_LINE_ISP0,
+				buffer->paddr[0], buffer->paddr[1]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS0];
+			vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SS0,
+				buffer->paddr[0], buffer->paddr[1]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS1];
+			vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SS1,
+				buffer->paddr[0], buffer->paddr[1]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIW];
+			vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_ITIW,
+				buffer->paddr[0], buffer->paddr[1]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIR];
+			vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_ITIR,
+				buffer->paddr[0], buffer->paddr[1]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_RAW];
+			vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_RAW, buffer->paddr[0]);
+
+			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SCD_Y];
+			vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SCD_Y,
+				buffer->paddr[0], buffer->paddr[1], AWB_TYPE);
+		}
+		break;
+	case STF_ISP_PAD_SRC:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC];
+		vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
+			line->id - VIN_LINE_ISP0,
+			buffer->paddr[0], buffer->paddr[1]);
+		break;
+	case STF_ISP_PAD_SRC_SS0:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS0];
+		vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SS0,
+			buffer->paddr[0], buffer->paddr[1]);
+		break;
+	case STF_ISP_PAD_SRC_SS1:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS1];
+		vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SS1,
+			buffer->paddr[0], buffer->paddr[1]);
+		break;
+	case STF_ISP_PAD_SRC_ITIW:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIW];
+		vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_ITIW,
+			buffer->paddr[0], buffer->paddr[1]);
+		break;
+	case STF_ISP_PAD_SRC_ITIR:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIR];
+		vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_ITIR,
+			buffer->paddr[0], buffer->paddr[1]);
+		break;
+	case STF_ISP_PAD_SRC_RAW:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_RAW];
+		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_RAW,
+			buffer->paddr[0]);
+		break;
+	case STF_ISP_PAD_SRC_SCD_Y:
+		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SCD_Y];
+		vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SCD_Y,
+			buffer->paddr[0], buffer->paddr[1], AWB_TYPE);
+		break;
+	default:
+		break;
+	}
+}
+
 static int vin_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+	int dummy_module = line_to_dummy_module(line);
+	struct dummy_buffer *dummy_buffer = &vin_dev->dummy_buffer[dummy_module];
+	struct v4l2_mbus_framefmt *fmt;
+
+	st_debug(ST_VIN, "%s, %d\n", __func__, __LINE__);
+	fmt = __vin_get_format(line, NULL, STF_VIN_PAD_SINK, V4L2_SUBDEV_FORMAT_ACTIVE);
+	mutex_lock(&dummy_buffer->stream_lock);
+	if (enable) {
+		if (dummy_buffer->stream_count == 0) {
+			vin_alloc_dummy_buffer(vin_dev, fmt, dummy_module);
+			vin_set_dummy_buffer(line, STF_VIN_PAD_SINK);
+			atomic_set(&dummy_buffer->frame_skip, get_frame_skip(line));
+		}
+		dummy_buffer->stream_count++;
+	} else {
+		if (dummy_buffer->stream_count == 1) {
+			vin_free_dummy_buffer(vin_dev, dummy_module);
+			// set buffer addr to zero
+			vin_set_dummy_buffer(line, STF_VIN_PAD_SINK);
+		} else
+			vin_set_dummy_buffer(line, line_to_buffer_pad(line));
+
+		dummy_buffer->stream_count--;
+	}
+	mutex_unlock(&dummy_buffer->stream_lock);
 
 	if (line->id == VIN_LINE_WR) {
 		mutex_lock(&line->stream_lock);
@@ -1181,6 +1511,8 @@ int stf_vin_unregister(struct stf_vin2_dev *vin_dev)
 	int i;
 
 	mutex_destroy(&vin_dev->power_lock);
+	for (i = 0; i < STF_DUMMY_MODULE_NUMS; i++)
+		mutex_destroy(&vin_dev->dummy_buffer[i].stream_lock);
 	for (i = 0; i < VIN_LINE_MAX; i++) {
 		sd = &vin_dev->line[i].subdev;
 		video_out = &vin_dev->line[i].video_out;

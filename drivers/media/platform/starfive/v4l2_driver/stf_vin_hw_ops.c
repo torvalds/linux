@@ -25,9 +25,14 @@ static irqreturn_t stf_vin_wr_irq_handler(int irq, void *priv)
 	static struct vin_params params;
 	struct stf_vin2_dev *vin_dev = priv;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	struct dummy_buffer *dummy_buffer =
+			&vin_dev->dummy_buffer[STF_DUMMY_VIN];
 
-	vin_dev->hw_ops->isr_change_buffer(&vin_dev->line[VIN_LINE_WR]);
-	vin_dev->hw_ops->isr_buffer_done(&vin_dev->line[VIN_LINE_WR], &params);
+	if (atomic_dec_if_positive(&dummy_buffer->frame_skip) < 0) {
+		vin_dev->hw_ops->isr_change_buffer(&vin_dev->line[VIN_LINE_WR]);
+		vin_dev->hw_ops->isr_buffer_done(&vin_dev->line[VIN_LINE_WR], &params);
+	}
+
 	vin_intr_clear(vin->sysctrl_base);
 
 	return IRQ_HANDLED;
@@ -167,34 +172,39 @@ static irqreturn_t stf_vin_isp_irq_csiline_handler(int irq, void *priv)
 
 	int_status = reg_read(ispbase, ISP_REG_ISP_CTRL_0);
 	if (int_status & BIT(27)) {
+		struct dummy_buffer *dummy_buffer =
+			&vin_dev->dummy_buffer[STF_DUMMY_ISP0 + isp_id];
+
 		if (!atomic_read(&isp_dev->shadow_count)) {
-			if ((int_status & BIT(11)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_SS0 + isp_id]);
-			if ((int_status & BIT(12)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_SS1 + isp_id]);
-			if ((int_status & BIT(20)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0 + isp_id]);
+			if (atomic_dec_if_positive(&dummy_buffer->frame_skip) < 0) {
+				if ((int_status & BIT(11)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_SS0 + isp_id]);
+				if ((int_status & BIT(12)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_SS1 + isp_id]);
+				if ((int_status & BIT(20)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0 + isp_id]);
 
-			value = reg_read(ispbase, ISP_REG_ITIDPSR);
-			if ((value & BIT(17)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_ITIW + isp_id]);
-			if ((value & BIT(16)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_ITIR + isp_id]);
+				value = reg_read(ispbase, ISP_REG_ITIDPSR);
+				if ((value & BIT(17)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_ITIW + isp_id]);
+				if ((value & BIT(16)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_ITIR + isp_id]);
 
-			value = reg_read(ispbase, ISP_REG_CSI_MODULE_CFG);
-			if ((value & BIT(19)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_RAW + isp_id]);
-			if ((value & BIT(17)))
-				vin_dev->hw_ops->isr_change_buffer(
-					&vin_dev->line[VIN_LINE_ISP0_SCD_Y + isp_id]);
+				value = reg_read(ispbase, ISP_REG_CSI_MODULE_CFG);
+				if ((value & BIT(19)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_RAW + isp_id]);
+				if ((value & BIT(17)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP0_SCD_Y + isp_id]);
+			}
 
-			/* shadow update */
+			// shadow update
 			reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, 0x30000, 0x30000);
 			reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);
 		} else {
