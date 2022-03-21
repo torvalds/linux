@@ -163,7 +163,7 @@ char *fgets(char *s, int size, FILE *stream)
 
 
 /* minimal vfprintf(). It supports the following formats:
- *  - %[l*]{d,u,c,x}
+ *  - %[l*]{d,u,c,x,p}
  *  - %s
  *  - unknown modifiers are ignored.
  */
@@ -184,8 +184,12 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 		if (escape) {
 			/* we're in an escape sequence, ofs == 1 */
 			escape = 0;
-			if (c == 'c' || c == 'd' || c == 'u' || c == 'x') {
-				if (lpref) {
+			if (c == 'c' || c == 'd' || c == 'u' || c == 'x' || c == 'p') {
+				char *out = tmpbuf;
+
+				if (c == 'p')
+					v = va_arg(args, unsigned long);
+				else if (lpref) {
 					if (lpref > 1)
 						v = va_arg(args, unsigned long long);
 					else
@@ -202,18 +206,22 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 				}
 
 				switch (c) {
+				case 'c':
+					out[0] = v;
+					out[1] = 0;
+					break;
 				case 'd':
-					i64toa_r(v, tmpbuf);
+					i64toa_r(v, out);
 					break;
 				case 'u':
-					u64toa_r(v, tmpbuf);
+					u64toa_r(v, out);
 					break;
-				case 'x':
-					u64toh_r(v, tmpbuf);
-					break;
-				default: /* 'c' */
-					tmpbuf[0] = v;
-					tmpbuf[1] = 0;
+				case 'p':
+					*(out++) = '0';
+					*(out++) = 'x';
+					/* fall through */
+				default: /* 'x' and 'p' above */
+					u64toh_r(v, out);
 					break;
 				}
 				outstr = tmpbuf;
