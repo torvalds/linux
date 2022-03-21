@@ -161,7 +161,8 @@ struct sc2235_dev {
 	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
-	bool streaming;
+
+	int streaming;
 };
 
 static inline struct sc2235_dev *to_sc2235_dev(struct v4l2_subdev *sd)
@@ -617,7 +618,6 @@ static int sc2235_load_regs(struct sc2235_dev *sensor,
 	u8 mask, val;
 	int ret = 0;
 
-	st_info(ST_SENSOR, "%s, mode = 0x%x\n", __func__, mode->id);
 	for (i = 0; i < mode->reg_data_size; ++i, ++regs) {
 		delay_ms = regs->delay_ms;
 		reg_addr = regs->reg_addr;
@@ -708,6 +708,16 @@ static int sc2235_set_stream_dvp(struct sc2235_dev *sensor, bool on)
 }
 
 #ifdef UNUSED_CODE
+static int sc2235_get_sysclk(struct sc2235_dev *sensor)
+{
+	return 0;
+}
+
+static int sc2235_set_night_mode(struct sc2235_dev *sensor)
+{
+	return 0;
+}
+
 static int sc2235_get_hts(struct sc2235_dev *sensor)
 {
 	u16 hts;
@@ -736,6 +746,32 @@ static int sc2235_set_vts(struct sc2235_dev *sensor, int vts)
 {
 	return sc2235_write_reg16(sensor, SC2235_REG_TIMING_VTS, vts);
 }
+
+static int sc2235_get_light_freq(struct sc2235_dev *sensor)
+{
+	return 0;
+}
+
+static int sc2235_set_bandingfilter(struct sc2235_dev *sensor)
+{
+	return 0;
+}
+
+static int sc2235_set_ae_target(struct sc2235_dev *sensor, int target)
+{
+	return 0;
+}
+
+static int sc2235_get_binning(struct sc2235_dev *sensor)
+{
+	return 0;
+}
+
+static int sc2235_set_binning(struct sc2235_dev *sensor, bool enable)
+{
+	return 0;
+}
+
 #endif
 
 static const struct sc2235_mode_info *
@@ -796,16 +832,8 @@ static int sc2235_set_dvp_pclk(struct sc2235_dev *sensor,
 	sc2235_calc_sys_clk(sensor, rate, &prediv, &mult,
 				&sysdiv);
 
-	st_info(ST_SENSOR, "%s, prediv = %d, mult = %d, sysdiv = %d\n",
-			__func__, prediv, mult, sysdiv);
 
-	ret = sc2235_mod_reg(sensor, SC2235_REG_SC_PLL_CTRL0, 0x7f,
-			(sysdiv << 4) | (prediv << 1) | ((mult & 0x20) >> 5));
-	if (ret)
-		return ret;
-
-	return sc2235_mod_reg(sensor, SC2235_REG_SC_PLL_CTRL1,
-			0xf8, mult << 3);
+	return ret;
 }
 
 /*
@@ -1657,12 +1685,17 @@ static int sc2235_s_stream(struct v4l2_subdev *sd, int enable)
 			sensor->pending_fmt_change = false;
 		}
 
-		if (sensor->ep.bus_type == V4L2_MBUS_PARALLEL)
+		if (sensor->ep.bus_type == V4L2_MBUS_PARALLEL) {
+			ret = sc2235_set_gain(sensor, 0x10);
+			ret = sc2235_set_exposure(sensor, (360 * 2));
 			ret = sc2235_set_stream_dvp(sensor, enable);
+		}
 
-		if (!ret)
-			sensor->streaming = enable;
+		if (ret)
+			goto out;
 	}
+	sensor->streaming += enable ? 1 : -1;
+	WARN_ON(sensor->streaming < 0);
 out:
 	mutex_unlock(&sensor->lock);
 
@@ -1754,7 +1787,7 @@ static int sc2235_probe(struct i2c_client *client)
 	sensor->i2c_client = client;
 
 	fmt = &sensor->fmt;
-	fmt->code = MEDIA_BUS_FMT_SGBRG10_1X10;
+	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
 	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
