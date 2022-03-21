@@ -964,8 +964,16 @@ static void bch2_journal_read_device(struct closure *cl)
 	}
 	mutex_unlock(&jlist->lock);
 
-	BUG_ON(ja->bucket_seq[ja->cur_idx] &&
-	       ja->sectors_free == ca->mi.bucket_size);
+	if (ja->bucket_seq[ja->cur_idx] &&
+	    ja->sectors_free == ca->mi.bucket_size) {
+		bch_err(c, "ja->sectors_free == ca->mi.bucket_size");
+		bch_err(c, "cur_idx %u/%u", ja->cur_idx, ja->nr);
+		for (i = 0; i < 3; i++) {
+			unsigned idx = (ja->cur_idx + ja->nr - 1 + i) % ja->nr;
+			bch_err(c, "bucket_seq[%u] = %llu", idx, ja->bucket_seq[idx]);
+		}
+		ja->sectors_free = 0;
+	}
 
 	/*
 	 * Set dirty_idx to indicate the entire journal is full and needs to be
