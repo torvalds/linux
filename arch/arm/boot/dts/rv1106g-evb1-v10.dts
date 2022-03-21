@@ -11,4 +11,27 @@
 / {
 	model = "Rockchip RV1106G EVB1 V10 Board";
 	compatible = "rockchip,rv1106g-evb1-v10", "rockchip,rv1106";
+
+	vcc5v0_usb: vcc5v0-usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_pwren>;
+	};
+};
+
+&pinctrl {
+	usb {
+		usb_pwren: usb-pwren {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&u2phy_otg {
+	vbus-supply = <&vcc5v0_usb>;
 };
