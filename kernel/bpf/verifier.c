@@ -13492,6 +13492,26 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			goto patch_call_imm;
 		}
 
+		if (insn->imm == BPF_FUNC_task_storage_get ||
+		    insn->imm == BPF_FUNC_sk_storage_get ||
+		    insn->imm == BPF_FUNC_inode_storage_get) {
+			if (env->prog->aux->sleepable)
+				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__s32)GFP_KERNEL);
+			else
+				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__s32)GFP_ATOMIC);
+			insn_buf[1] = *insn;
+			cnt = 2;
+
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta += cnt - 1;
+			env->prog = prog = new_prog;
+			insn = new_prog->insnsi + i + delta;
+			goto patch_call_imm;
+		}
+
 		/* BPF_EMIT_CALL() assumptions in some of the map_gen_lookup
 		 * and other inlining handlers are currently limited to 64 bit
 		 * only.
