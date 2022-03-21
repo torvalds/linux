@@ -1141,7 +1141,7 @@ static void __bch2_write(struct closure *cl)
 	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
 	struct bch_fs *c = op->c;
 	struct write_point *wp;
-	struct bio *bio;
+	struct bio *bio = NULL;
 	bool skip_put = true;
 	unsigned nofs_flags;
 	int ret;
