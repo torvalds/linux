@@ -12,6 +12,7 @@ obj-$(CONFIG_VIN_SENSOR_OV5640) += v4l2_driver/ov5640.o
 obj-$(CONFIG_VIN_SENSOR_SC2235) += v4l2_driver/sc2235.o
 obj-$(CONFIG_VIN_SENSOR_OV4689) += v4l2_driver/ov4689_mipi.o
 obj-$(CONFIG_VIN_SENSOR_OV13850) += v4l2_driver/ov13850_mipi.o
+obj-$(CONFIG_VIN_SENSOR_IMX219) += imx219_mipi.o
 
 obj-$(CONFIG_VIDEO_STF_VIN) += 	v4l2_driver/stfcamss.o \
 	                       	v4l2_driver/stf_event.o \
