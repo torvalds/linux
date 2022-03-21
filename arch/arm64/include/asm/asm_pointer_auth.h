@@ -60,6 +60,9 @@ alternative_else_nop_endif
 	.macro __ptrauth_keys_init_cpu tsk, tmp1, tmp2, tmp3
 	mrs	\tmp1, id_aa64isar1_el1
 	ubfx	\tmp1, \tmp1, #ID_AA64ISAR1_APA_SHIFT, #8
+	mrs_s	\tmp2, SYS_ID_AA64ISAR2_EL1
+	ubfx	\tmp2, \tmp2, #ID_AA64ISAR2_APA3_SHIFT, #4
+	orr	\tmp1, \tmp1, \tmp2
 	cbz	\tmp1, .Lno_addr_auth\@
 	mov_q	\tmp1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
 			SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)

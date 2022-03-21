@@ -662,6 +662,7 @@ Description:	Preferred MTE tag checking mode
 
 		================  ==============================================
 		"sync"	  	  Prefer synchronous mode
+		"asymm"	  	  Prefer asymmetric mode
 		"async"	  	  Prefer asynchronous mode
 		================  ==============================================
 

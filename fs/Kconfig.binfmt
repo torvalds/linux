@@ -36,6 +36,9 @@ config COMPAT_BINFMT_ELF
 config ARCH_BINFMT_ELF_STATE
 	bool
 
+config ARCH_BINFMT_ELF_EXTRA_PHDRS
+	bool
+
 config ARCH_HAVE_ELF_PROT
 	bool
 
