@@ -11,13 +11,13 @@
 #include <media/media-entity.h>
 #include <video/stf-vin.h>
 
+#define STF_ISP_NAME "stf_isp"
 #define STF_ISP_PAD_SINK     0
 #define STF_ISP_PAD_SRC      1
 #define STF_ISP_PADS_NUM     2
 
 #define STF_ISP0_SETFILE     "stf_isp0_fw.bin"
 #define STF_ISP1_SETFILE     "stf_isp1_fw.bin"
-#define FILENAME_MAX_LEN     30
 
 #define SCALER_RATIO_MAX     1  // no compose function
 #define STF_ISP_REG_OFFSET_MAX  0x0FFF
@@ -27,13 +27,6 @@
 #define ISP_REG_DUMP_CFG_0      0x00000024
 #define ISP_REG_DUMP_CFG_1      0x00000028
 #define ISP_REG_IESHD_ADDR      0x00000A50
-
-struct stfisp_fw_info {
-	char __user filename[FILENAME_MAX_LEN];
-};
-
-#define VIDIOC_STFISP_LOAD_FW \
-		_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct stfisp_fw_info)
 
 struct isp_format {
 	u32 code;
@@ -64,6 +57,9 @@ struct isp_hw_ops {
 			struct v4l2_rect *crop, u32 mcode);
 			// u32 width, u32 height);
 	int (*isp_stream_set)(struct stf_isp_dev *isp_dev, int on);
+	int (*isp_reg_read)(struct stf_isp_dev *isp_dev, void *arg);
+	int (*isp_reg_write)(struct stf_isp_dev *isp_dev, void *arg);
+	int (*isp_shadow_trigger)(struct stf_isp_dev *isp_dev);
 };
 
 struct isp_ctrls {
@@ -114,6 +110,7 @@ struct stf_isp_dev {
 	struct isp_hw_ops *hw_ops;
 	struct mutex stream_lock;
 	int stream_count;
+	atomic_t shadow_count;
 
 	struct isp_ctrls ctrls;
 	struct mutex setfile_lock;

@@ -10,8 +10,10 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/firmware.h>
+#include "stf_isp_ioctl.h"
+#include "stf_dmabuf.h"
 
-#define STF_ISP_NAME "stf_isp"
+static int user_config_isp;
 
 static const struct isp_format isp_formats_st7110[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
@@ -35,6 +37,7 @@ int stf_isp_subdev_init(struct stfcamss *stfcamss, int id)
 	isp_dev->nformats = ARRAY_SIZE(isp_formats_st7110);
 	mutex_init(&isp_dev->stream_lock);
 	mutex_init(&isp_dev->setfile_lock);
+	atomic_set(&isp_dev->shadow_count, 0);
 	return 0;
 }
 
@@ -811,6 +814,7 @@ static int stf_isp_load_setfile(struct stf_isp_dev *isp_dev, char *file_name)
 static long stf_isp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
+	struct device *dev = isp_dev->stfcamss->dev;
 	int ret = -ENOIOCTLCMD;
 
 	switch (cmd) {
@@ -825,10 +829,59 @@ static long stf_isp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ret = stf_isp_load_setfile(isp_dev, fw_info->filename);
 		break;
 	}
+	case VIDIOC_STF_DMABUF_ALLOC:
+	case VIDIOC_STF_DMABUF_FREE:
+		ret = stf_dmabuf_ioctl(dev, cmd, arg);
+		break;
+	case VIDIOC_STFISP_GET_REG:
+		ret = isp_dev->hw_ops->isp_reg_read(isp_dev, arg);
+		break;
+	case VIDIOC_STFISP_SET_REG:
+		ret = isp_dev->hw_ops->isp_reg_write(isp_dev, arg);
+		break;
+	case VIDIOC_STFISP_SHADOW_LOCK:
+		if (atomic_add_unless(&isp_dev->shadow_count, 1, 1))
+			ret = 0;
+		else
+			ret = -EBUSY;
+		st_debug(ST_ISP, "%s, %d, ret = %d\n", __func__, __LINE__, ret);
+		break;
+	case VIDIOC_STFISP_SHADOW_UNLOCK:
+		if (atomic_dec_if_positive(&isp_dev->shadow_count) < 0)
+			ret = -EINVAL;
+		else
+			ret = 0;
+		st_debug(ST_ISP, "%s, %d, ret = %d\n", __func__, __LINE__, ret);
+		break;
+	case VIDIOC_STFISP_SHADOW_UNLOCK_N_TRIGGER:
+		{
+			isp_dev->hw_ops->isp_shadow_trigger(isp_dev);
+			if (atomic_dec_if_positive(&isp_dev->shadow_count) < 0)
+				ret = -EINVAL;
+			else
+				ret = 0;
+			st_debug(ST_ISP, "%s, %d, ret = %d\n", __func__, __LINE__, ret);
+		}
+		break;
+	case VIDIOC_STFISP_SET_USER_CONFIG_ISP:
+		st_debug(ST_ISP, "%s, %d set user_config_isp\n", __func__, __LINE__);
+		user_config_isp = 1;
+		break;
 	default:
 		break;
 	}
 	return ret;
+}
+
+int isp_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
+
+	st_debug(ST_ISP, "%s, %d\n", __func__, __LINE__);
+	while (atomic_dec_if_positive(&isp_dev->shadow_count) > 0)
+		st_warn(ST_ISP, "user not unlocked the shadow lock, driver unlock it!\n");
+
+	return 0;
 }
 
 static const struct v4l2_subdev_core_ops isp_core_ops = {
@@ -860,6 +913,7 @@ static const struct v4l2_subdev_ops isp_v4l2_ops = {
 
 static const struct v4l2_subdev_internal_ops isp_v4l2_internal_ops = {
 	.open = isp_init_formats,
+	.close = isp_close,
 };
 
 static const struct media_entity_operations isp_media_ops = {

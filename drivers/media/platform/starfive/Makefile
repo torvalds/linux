@@ -25,4 +25,5 @@ obj-$(CONFIG_VIDEO_STF_VIN) += 	v4l2_driver/stfcamss.o \
 				v4l2_driver/stf_csi_hw_ops.o \
 				v4l2_driver/stf_csiphy_hw_ops.o \
 				v4l2_driver/stf_isp_hw_ops.o \
-				v4l2_driver/stf_dvp_hw_ops.o
+				v4l2_driver/stf_dvp_hw_ops.o \
+				v4l2_driver/stf_dmabuf.o

@@ -11,6 +11,7 @@
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <video/stf-vin.h>
+#include "stf_isp_ioctl.h"
 #include <linux/delay.h>
 
 static const struct regval_t isp_sc2235_reg_config_list[] = {
@@ -384,6 +385,452 @@ static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 	return 0;
 }
 
+static union reg_buf reg_buf;
+static int stf_isp_reg_read(struct stf_isp_dev *isp_dev, void *arg)
+{
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase;
+	struct isp_reg_param *reg_param = arg;
+	u32 size;
+	unsigned long r;
+
+	if (reg_param->reg_buf == NULL) {
+		st_err(ST_ISP, "Failed to access register. The pointer is NULL!!!\n");
+		return -EINVAL;
+	}
+
+	if (isp_dev->id == 0)
+		ispbase = vin->isp_isp0_base;
+	else
+		ispbase = vin->isp_isp1_base;
+
+	size = 0;
+	switch (reg_param->reg_info.method) {
+	case STF_ISP_REG_METHOD_ONE_REG:
+		break;
+
+	case STF_ISP_REG_METHOD_SERIES:
+		if (reg_param->reg_info.length > STF_ISP_REG_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_BUF_SIZE);
+			return -EINVAL;
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_MODULE:
+		/* This mode is not supported in the V4L2 version. */
+		st_err(ST_ISP, "Reg Read - Failed to access register. The method = \
+			STF_ISP_REG_METHOD_MODULE is not supported!!!\n");
+		return -ENOTTY;
+
+	case STF_ISP_REG_METHOD_TABLE:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 2;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_2:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_2_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_2_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 3;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_3:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_3_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_3_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 4;
+		break;
+
+	case STF_ISP_REG_METHOD_SMPL_PACK:
+		st_err(ST_ISP, "Reg Read - Failed to access register. The method = \
+			STF_ISP_REG_METHOD_SMPL_PACK is not supported!!!\n");
+		return -ENOTTY;
+
+	case STF_ISP_REG_METHOD_SOFT_RDMA:
+		// This mode is not supported in the V4L2 version.
+		st_err(ST_ISP, "Reg Read - Failed to access register. The method = \
+			STF_ISP_REG_METHOD_SOFT_RDMA is not supported!!!\n");
+		return -ENOTTY;
+
+	default:
+		st_err(ST_ISP, "Failed to access register. The method=%d \
+			is not supported!!!\n", reg_param->reg_info.method);
+		return -ENOTTY;
+	}
+
+	memset(&reg_buf, 0, sizeof(union reg_buf));
+	if (size) {
+		r = copy_from_user((u8 *)reg_buf.buffer,
+			(u8 *)reg_param->reg_buf->buffer, size);
+		if (r) {
+			st_err(ST_ISP, "Failed to call copy_from_user for the \
+				reg_param->reg_buf value\n");
+			return -EIO;
+		}
+	}
+
+	size = 0;
+	switch (reg_param->reg_info.method) {
+	case STF_ISP_REG_METHOD_ONE_REG:
+		reg_buf.buffer[0] = reg_read(ispbase, reg_param->reg_info.offset);
+		size = sizeof(u32);
+		break;
+
+	case STF_ISP_REG_METHOD_SERIES:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			reg_buf.buffer[r] = reg_read(ispbase,
+				reg_param->reg_info.offset + (r * 4));
+		}
+		size = sizeof(u32) * reg_param->reg_info.length;
+		break;
+
+	case STF_ISP_REG_METHOD_MODULE:
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			reg_buf.reg_tbl[r].value = reg_read(ispbase,
+				reg_buf.reg_tbl[r].offset);
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 2;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_2:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			if (reg_buf.reg_tbl2[r].mask) {
+				reg_buf.reg_tbl2[r].value = (reg_read(ispbase,
+					reg_buf.reg_tbl2[r].offset)
+						& reg_buf.reg_tbl2[r].mask);
+			} else {
+				reg_buf.reg_tbl2[r].value = reg_read(ispbase,
+					reg_buf.reg_tbl2[r].offset);
+			}
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 3;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_3:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			if (reg_buf.reg_tbl3[r].mask) {
+				reg_buf.reg_tbl3[r].value = (reg_read(ispbase,
+					reg_buf.reg_tbl3[r].offset)
+						& reg_buf.reg_tbl3[r].mask);
+			} else {
+				reg_buf.reg_tbl3[r].value = reg_read(ispbase,
+					reg_buf.reg_tbl3[r].offset);
+			}
+			if (reg_buf.reg_tbl3[r].delay_ms) {
+				usleep_range(1000 * reg_buf.reg_tbl3[r].delay_ms,
+					1000 * reg_buf.reg_tbl3[r].delay_ms + 100);
+			}
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 4;
+		break;
+
+	case STF_ISP_REG_METHOD_SMPL_PACK:
+		break;
+
+	case STF_ISP_REG_METHOD_SOFT_RDMA:
+		break;
+
+	default:
+		break;
+	}
+
+	r = copy_to_user((u8 *)reg_param->reg_buf->buffer, (u8 *)reg_buf.buffer,
+		size);
+	if (r) {
+		st_err(ST_ISP, "Failed to call copy_to_user for the \
+			reg_param->buffer value\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int stf_isp_soft_rdma(struct stf_isp_dev *isp_dev, u32 rdma_addr)
+{
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase;
+	struct isp_rdma_info *rdma_info = NULL;
+	s32 len;
+	u32 offset;
+	int ret = 0;
+
+	if (isp_dev->id == 0)
+		ispbase = vin->isp_isp0_base;
+	else
+		ispbase = vin->isp_isp1_base;
+
+	rdma_info = phys_to_virt(rdma_addr);
+	while (1) {
+		if (rdma_info->tag == RDMA_WR_ONE) {
+			reg_write(ispbase, rdma_info->offset, rdma_info->param);
+			rdma_info++;
+		} else if (rdma_info->tag == RDMA_WR_SRL) {
+			offset = rdma_info->offset;
+			len = rdma_info->param;
+			rdma_info++;
+			while (len > 0) {
+				reg_write(ispbase, offset, rdma_info->param);
+				offset += 4;
+				len--;
+				if (len > 0) {
+					reg_write(ispbase, offset, rdma_info->value);
+					len--;
+				}
+				offset += 4;
+				rdma_info++;
+			}
+		} else if (rdma_info->tag == RDMA_LINK) {
+			rdma_info = phys_to_virt(rdma_info->param);
+		} else if (rdma_info->tag == RDMA_SINT) {
+			/* Software not support this command. */
+			rdma_info++;
+		} else if (rdma_info->tag == RDMA_END) {
+			break;
+		} else
+			rdma_info++;
+	}
+
+	return ret;
+}
+
+static int stf_isp_reg_write(struct stf_isp_dev *isp_dev, void *arg)
+{
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase;
+	struct isp_reg_param *reg_param = arg;
+	struct isp_rdma_info *rdma_info = NULL;
+	s32 len;
+	u32 offset;
+	u32 size;
+	unsigned long r;
+	int ret = 0;
+
+	if ((reg_param->reg_buf == NULL)
+		&& (reg_param->reg_info.method != STF_ISP_REG_METHOD_SOFT_RDMA)) {
+		st_err(ST_ISP, "Failed to access register. \
+			The register buffer pointer is NULL!!!\n");
+		return -EINVAL;
+	}
+
+	if (isp_dev->id == 0)
+		ispbase = vin->isp_isp0_base;
+	else
+		ispbase = vin->isp_isp1_base;
+
+	size = 0;
+	switch (reg_param->reg_info.method) {
+	case STF_ISP_REG_METHOD_ONE_REG:
+		size = sizeof(u32);
+		break;
+
+	case STF_ISP_REG_METHOD_SERIES:
+		if (reg_param->reg_info.length > STF_ISP_REG_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length;
+		break;
+
+	case STF_ISP_REG_METHOD_MODULE:
+		// This mode is not supported in the V4L2 version.
+		st_err(ST_ISP, "Reg Write - Failed to access register. \
+			The method = STF_ISP_REG_METHOD_MODULE is not supported!!!\n");
+		return -ENOTTY;
+
+	case STF_ISP_REG_METHOD_TABLE:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 2;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_2:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_2_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_2_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 3;
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_3:
+		if (reg_param->reg_info.length > STF_ISP_REG_TBL_3_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_TBL_3_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 4;
+		break;
+
+	case STF_ISP_REG_METHOD_SMPL_PACK:
+		if (reg_param->reg_info.length > STF_ISP_REG_SMPL_PACK_BUF_SIZE) {
+			st_err(ST_ISP, "Failed to access register. \
+				The (length=0x%08X > 0x%08X) is out of size!!!\n",
+				reg_param->reg_info.length, STF_ISP_REG_SMPL_PACK_BUF_SIZE);
+			return -EINVAL;
+		}
+		size = sizeof(u32) * reg_param->reg_info.length * 2;
+		break;
+
+	case STF_ISP_REG_METHOD_SOFT_RDMA:
+		break;
+
+	default:
+		st_err(ST_ISP, "Failed to access register. The method=%d \
+			is not supported!!!\n", reg_param->reg_info.method);
+		return -ENOTTY;
+	}
+
+	memset(&reg_buf, 0, sizeof(union reg_buf));
+	if (size) {
+		r = copy_from_user((u8 *)reg_buf.buffer,
+			(u8 *)reg_param->reg_buf->buffer, size);
+		if (r) {
+			st_err(ST_ISP, "Failed to call copy_from_user for the \
+				reg_param->reg_buf value\n");
+			return -EIO;
+		}
+	}
+
+	switch (reg_param->reg_info.method) {
+	case STF_ISP_REG_METHOD_ONE_REG:
+		reg_write(ispbase, reg_param->reg_info.offset, reg_buf.buffer[0]);
+		break;
+
+	case STF_ISP_REG_METHOD_SERIES:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			reg_write(ispbase, reg_param->reg_info.offset + (r * 4),
+				reg_buf.buffer[r]);
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_MODULE:
+		/* This mode is not supported in the V4L2 version. */
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			reg_write(ispbase, reg_buf.reg_tbl[r].offset,
+				reg_buf.reg_tbl[r].value);
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_2:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			if (reg_buf.reg_tbl2[r].mask) {
+				reg_set_bit(ispbase, reg_buf.reg_tbl2[r].offset,
+					reg_buf.reg_tbl2[r].mask, reg_buf.reg_tbl2[r].value);
+			} else {
+				reg_write(ispbase, reg_buf.reg_tbl2[r].offset,
+					reg_buf.reg_tbl2[r].value);
+			}
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_TABLE_3:
+		for (r = 0; r < reg_param->reg_info.length; r++) {
+			if (reg_buf.reg_tbl3[r].mask) {
+				reg_set_bit(ispbase, reg_buf.reg_tbl3[r].offset,
+					reg_buf.reg_tbl3[r].mask, reg_buf.reg_tbl3[r].value);
+			} else {
+				reg_write(ispbase, reg_buf.reg_tbl3[r].offset,
+					reg_buf.reg_tbl3[r].value);
+			}
+			if (reg_buf.reg_tbl3[r].delay_ms) {
+				usleep_range(1000 * reg_buf.reg_tbl3[r].delay_ms,
+					1000 * reg_buf.reg_tbl3[r].delay_ms + 100);
+			}
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_SMPL_PACK:
+		size = reg_param->reg_info.length;
+		rdma_info = &reg_buf.rdma_cmd[0];
+		while (size) {
+			if (rdma_info->tag == RDMA_WR_ONE) {
+				reg_write(ispbase, rdma_info->offset, rdma_info->param);
+				rdma_info++;
+				size--;
+			} else if (rdma_info->tag == RDMA_WR_SRL) {
+				offset = rdma_info->offset;
+				len = rdma_info->param;
+				rdma_info++;
+				size--;
+				while (size && (len > 0)) {
+					reg_write(ispbase, offset, rdma_info->param);
+					offset += 4;
+					len--;
+					if (len > 0) {
+						reg_write(ispbase, offset, rdma_info->value);
+						len--;
+					}
+					offset += 4;
+					rdma_info++;
+					size--;
+				}
+			} else if (rdma_info->tag == RDMA_END) {
+				break;
+			} else {
+				rdma_info++;
+				size--;
+			}
+		}
+		break;
+
+	case STF_ISP_REG_METHOD_SOFT_RDMA:
+		/*
+		 * Simulation the hardware RDMA behavior to debug and verify
+		 * the RDMA chain.
+		 */
+		ret = stf_isp_soft_rdma(isp_dev, reg_param->reg_info.offset);
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int stf_isp_shadow_trigger(struct stf_isp_dev *isp_dev)
+{
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase;
+
+	if (isp_dev->id == 0)
+		ispbase = vin->isp_isp0_base;
+	else
+		ispbase = vin->isp_isp1_base;
+
+	// shadow update
+	reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, (BIT(17) | BIT(16)), 0x30000);
+	reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, (BIT(1) | BIT(0)), 0x3);
+	return 0;
+}
+
 void dump_isp_reg(void *__iomem ispbase, int id)
 {
 	int j;
@@ -419,4 +866,7 @@ struct isp_hw_ops isp_ops = {
 	.isp_config_set        = stf_isp_config_set,
 	.isp_set_format        = stf_isp_set_format,
 	.isp_stream_set        = stf_isp_stream_set,
+	.isp_reg_read          = stf_isp_reg_read,
+	.isp_reg_write         = stf_isp_reg_write,
+	.isp_shadow_trigger    = stf_isp_shadow_trigger,
 };
