@@ -13470,7 +13470,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
-	mutex_init(&bp->sriov_lock);
 #endif
 	if (BNXT_SUPPORTS_TPA(bp)) {
 		bp->gro_func = bnxt_gro_func_5730x;
