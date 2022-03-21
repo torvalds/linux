@@ -1075,6 +1075,11 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 #endif
 
+static inline bool folio_is_zone_device(const struct folio *folio)
+{
+	return is_zone_device_page(&folio->page);
+}
+
 static inline bool is_zone_movable_page(const struct page *page)
 {
 	return page_zonenum(page) == ZONE_MOVABLE;
@@ -1555,6 +1560,11 @@ static inline bool is_pinnable_page(struct page *page)
 	return true;
 }
 #endif
+
+static inline bool folio_is_pinnable(struct folio *folio)
+{
+	return is_pinnable_page(&folio->page);
+}
 
 static inline void set_page_zone(struct page *page, enum zone_type zone)
 {
