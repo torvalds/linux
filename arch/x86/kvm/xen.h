@@ -207,4 +207,11 @@ struct compat_vcpu_runstate_info {
     uint64_t time[4];
 } __attribute__((packed));
 
+struct compat_sched_poll {
+	/* This is actually a guest virtual address which points to ports. */
+	uint32_t ports;
+	unsigned int nr_ports;
+	uint64_t timeout;
+};
+
 #endif /* __ARCH_X86_KVM_XEN_H__ */

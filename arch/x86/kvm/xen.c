@@ -1201,18 +1201,43 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	evtchn_port_t port, *ports;
 	gpa_t gpa;
 
-	if (!longmode || !lapic_in_kernel(vcpu) ||
+	if (!lapic_in_kernel(vcpu) ||
 	    !(vcpu->kvm->arch.xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
 		return false;
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-
-	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &sched_poll,
-					sizeof(sched_poll))) {
+	if (!gpa) {
 		*r = -EFAULT;
 		return true;
+	}
+
+	if (IS_ENABLED(CONFIG_64BIT) && !longmode) {
+		struct compat_sched_poll sp32;
+
+		/* Sanity check that the compat struct definition is correct */
+		BUILD_BUG_ON(sizeof(sp32) != 16);
+
+		if (kvm_vcpu_read_guest(vcpu, gpa, &sp32, sizeof(sp32))) {
+			*r = -EFAULT;
+			return true;
+		}
+
+		/*
+		 * This is a 32-bit pointer to an array of evtchn_port_t which
+		 * are uint32_t, so once it's converted no further compat
+		 * handling is needed.
+		 */
+		sched_poll.ports = (void *)(unsigned long)(sp32.ports);
+		sched_poll.nr_ports = sp32.nr_ports;
+		sched_poll.timeout = sp32.timeout;
+	} else {
+		if (kvm_vcpu_read_guest(vcpu, gpa, &sched_poll,
+					sizeof(sched_poll))) {
+			*r = -EFAULT;
+			return true;
+		}
 	}
 
 	if (unlikely(sched_poll.nr_ports > 1)) {
