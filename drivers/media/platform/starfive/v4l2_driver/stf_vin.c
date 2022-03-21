@@ -9,12 +9,10 @@
 
 #include "stfcamss.h"
 
-#define STF_VIN_NAME "stf_vin"
-
-#define vin_line_array(ptr_line)		\
+#define vin_line_array(ptr_line) \
 		((const struct vin_line (*)[]) &(ptr_line[-(ptr_line->id)]))
 
-#define line_to_vin2_dev(ptr_line)		\
+#define line_to_vin2_dev(ptr_line) \
 		container_of(vin_line_array(ptr_line), struct stf_vin2_dev, line)
 
 #define VIN_FRAME_DROP_MAX_VAL 30
@@ -51,11 +49,41 @@ static char *get_line_subdevname(int line_id)
 	case VIN_LINE_ISP1:
 		name = "isp1";
 		break;
+	case VIN_LINE_ISP0_SS0:
+		name = "isp0_ss0";
+		break;
+	case VIN_LINE_ISP1_SS0:
+		name = "isp1_ss0";
+		break;
+	case VIN_LINE_ISP0_SS1:
+		name = "isp0_ss1";
+		break;
+	case VIN_LINE_ISP1_SS1:
+		name = "isp1_ss1";
+		break;
+	case VIN_LINE_ISP0_ITIW:
+		name = "isp0_itiw";
+		break;
+	case VIN_LINE_ISP1_ITIW:
+		name = "isp1_itiw";
+		break;
+	case VIN_LINE_ISP0_ITIR:
+		name = "isp0_itir";
+		break;
+	case VIN_LINE_ISP1_ITIR:
+		name = "isp1_itir";
+		break;
 	case VIN_LINE_ISP0_RAW:
 		name = "isp0_raw";
 		break;
 	case VIN_LINE_ISP1_RAW:
 		name = "isp1_raw";
+		break;
+	case VIN_LINE_ISP0_SCD_Y:
+		name = "isp0_scd_y";
+		break;
+	case VIN_LINE_ISP1_SCD_Y:
+		name = "isp1_scd_y";
 		break;
 	default:
 		name = "unknow";
@@ -186,7 +214,10 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 
 		is_mp = i == VIN_LINE_WR ? false : true;
 		is_mp = false;
-		l->video_out.type = is_mp ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
+		if (i == VIN_LINE_ISP0_ITIR || i == VIN_LINE_ISP1_ITIR)
+			l->video_out.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+		else
+			l->video_out.type = is_mp ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
 				V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		l->video_out.stfcamss = stfcamss;
 		l->id = i;
@@ -258,23 +289,8 @@ static int vin_enable_output(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
 	unsigned long flags;
-	unsigned int frame_skip = 0;
-	struct media_entity *sensor;
-
-	sensor = stfcamss_find_sensor(&line->subdev.entity);
-	if (sensor) {
-		struct v4l2_subdev *subdev =
-					media_entity_to_v4l2_subdev(sensor);
-
-		v4l2_subdev_call(subdev, sensor, g_skip_frames, &frame_skip);
-		frame_skip += VIN_FRAME_DROP_MIN_VAL;
-		if (frame_skip > VIN_FRAME_DROP_MAX_VAL)
-			frame_skip = VIN_FRAME_DROP_MAX_VAL;
-		st_debug(ST_VIN, "%s, frame_skip %d\n", __func__, frame_skip);
-	}
 
 	spin_lock_irqsave(&line->output_lock, flags);
-	output->frame_skip = frame_skip;
 
 	output->state = VIN_OUTPUT_IDLE;
 
@@ -479,8 +495,16 @@ static int vin_set_format(struct v4l2_subdev *sd,
 	if (format == NULL)
 		return -EINVAL;
 
-	vin_try_format(line, state, fmt->pad, &fmt->format, fmt->which);
-	*format = fmt->format;
+	mutex_lock(&line->stream_lock);
+	if (line->stream_count) {
+		fmt->format = *format;
+		mutex_unlock(&line->stream_lock);
+		goto out;
+	} else {
+		vin_try_format(line, state, fmt->pad, &fmt->format, fmt->which);
+		*format = fmt->format;
+	}
+	mutex_unlock(&line->stream_lock);
 
 	if (fmt->pad == STF_VIN_PAD_SINK) {
 		/* Propagate the format from sink to source */
@@ -492,6 +516,7 @@ static int vin_set_format(struct v4l2_subdev *sd,
 					fmt->which);
 	}
 
+out:
 	return 0;
 }
 
@@ -526,9 +551,8 @@ static void vin_output_init_addrs(struct vin_line *line)
 		ping_addr = output->buf[0]->addr[0];
 		y_addr = output->buf[0]->addr[0];
 		uv_addr = output->buf[0]->addr[1];
-
 	} else
-		ping_addr = 0;
+		return;
 
 	if (output->buf[1])
 		pong_addr = output->buf[1]->addr[0];
@@ -552,10 +576,41 @@ static void vin_output_init_addrs(struct vin_line *line)
 			y_addr, uv_addr);
 
 		break;
+	case VIN_LINE_ISP0_SS0: // isp0_ss0
+	case VIN_LINE_ISP1_SS0: // isp1_ss0
+		vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SS0,
+			y_addr, uv_addr);
+		break;
+	case VIN_LINE_ISP0_SS1: // isp0_ss1
+	case VIN_LINE_ISP1_SS1: // isp1_ss1
+		vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SS1,
+			y_addr, uv_addr);
+		break;
+	case VIN_LINE_ISP0_ITIW: // isp0_itiw
+	case VIN_LINE_ISP1_ITIW: // isp1_itiw
+		vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_ITIW,
+			y_addr, uv_addr);
+		break;
+	case VIN_LINE_ISP0_ITIR: // isp0_itir
+	case VIN_LINE_ISP1_ITIR: // isp1_itir
+		vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_ITIR,
+			y_addr, uv_addr);
+		break;
 	case VIN_LINE_ISP0_RAW: // isp0_raw
 	case VIN_LINE_ISP1_RAW: // isp1_raw
 		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_RAW, y_addr);
+		break;
+	case VIN_LINE_ISP0_SCD_Y: // isp0_scd_y
+	case VIN_LINE_ISP1_SCD_Y: // isp1_scd_y
+		output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
+		vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
+			line->id - VIN_LINE_ISP0_SCD_Y, y_addr, uv_addr,
+			AWB_TYPE);
 		break;
 	default:
 		break;
@@ -700,6 +755,11 @@ static void vin_buf_update_on_new(struct vin_line *line,
 				struct vin_output *output,
 				struct stfcamss_buffer *new_buf)
 {
+#ifdef VIN_TWO_BUFFER
+	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+	int inactive_idx;
+#endif
+
 	switch (output->state) {
 	case VIN_OUTPUT_SINGLE:
 #ifdef VIN_TWO_BUFFER
@@ -798,6 +858,7 @@ static void vin_change_buffer(struct vin_line *line)
 	dma_addr_t *new_addr;
 	unsigned long flags;
 	u32 active_index;
+	int scd_type;
 
 	if (output->state == VIN_OUTPUT_OFF
 		|| output->state == VIN_OUTPUT_STOPPING
@@ -857,22 +918,65 @@ static void vin_change_buffer(struct vin_line *line)
 		vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
 				new_addr[0]);
 #endif
-		break;
-	case VIN_LINE_ISP0: // isp0
-	case VIN_LINE_ISP1: // isp1
-		vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
-			line->id - VIN_LINE_ISP0,
-			new_addr[0], new_addr[1]);
-		break;
-	case VIN_LINE_ISP0_RAW: // isp0_raw
-	case VIN_LINE_ISP1_RAW: // isp1_raw
-		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_RAW, new_addr[0]);
-		break;
-
-	default:
-		break;
-	}
+			break;
+		case VIN_LINE_ISP0: // isp0
+		case VIN_LINE_ISP1: // isp1
+			vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
+				line->id - VIN_LINE_ISP0,
+				new_addr[0], new_addr[1]);
+			break;
+		case VIN_LINE_ISP0_SS0: // isp0_ss0
+		case VIN_LINE_ISP1_SS0: // isp1_ss0
+			vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SS0,
+				new_addr[0], new_addr[1]);
+			break;
+		case VIN_LINE_ISP0_SS1: // isp0_ss1
+		case VIN_LINE_ISP1_SS1: // isp1_ss1
+			vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SS1,
+				new_addr[0], new_addr[1]);
+			break;
+		case VIN_LINE_ISP0_ITIW: // isp0_itiw
+		case VIN_LINE_ISP1_ITIW: // isp1_itiw
+			vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_ITIW,
+				new_addr[0], new_addr[1]);
+			break;
+		case VIN_LINE_ISP0_ITIR: // isp0_itir
+		case VIN_LINE_ISP1_ITIR: // isp1_itir
+			vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_ITIR,
+				new_addr[0], new_addr[1]);
+			break;
+		case VIN_LINE_ISP0_RAW: // isp0_raw
+		case VIN_LINE_ISP1_RAW: // isp1_raw
+			vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_RAW, new_addr[0]);
+			break;
+		case VIN_LINE_ISP0_SCD_Y: // isp0_scd_y
+		case VIN_LINE_ISP1_SCD_Y: // isp1_scd_y
+			scd_type = vin_dev->hw_ops->vin_isp_get_scd_type(vin_dev,
+					line->id - VIN_LINE_ISP0_SCD_Y);
+			ready_buf->vb.flags &= ~(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
+			if (scd_type == AWB_TYPE)
+				ready_buf->vb.flags |= V4L2_BUF_FLAG_PFRAME;
+			else
+				ready_buf->vb.flags |= V4L2_BUF_FLAG_BFRAME;
+			if (!output->frame_skip) {
+				output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
+				scd_type = scd_type == AWB_TYPE ? OECF_TYPE : AWB_TYPE;
+			} else {
+				output->frame_skip--;
+				scd_type = scd_type == AWB_TYPE ? AWB_TYPE : OECF_TYPE;
+			}
+			vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
+				line->id - VIN_LINE_ISP0_SCD_Y, new_addr[0], new_addr[1],
+				scd_type);
+			break;
+		default:
+			break;
+		}
 
 		vin_buf_add_ready(output, ready_buf);
 	}

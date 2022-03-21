@@ -425,7 +425,7 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 			STF_CSIPHY_PAD_SRC,
 			&csi_dev[j].subdev.entity,
 			STF_CSI_PAD_SINK,
-			0);
+			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
@@ -455,7 +455,67 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC,
+			STF_ISP_PAD_SRC_SS0,
+			&vin_dev->line[i + VIN_LINE_ISP0_SS0].subdev.entity,
+			STF_VIN_PAD_SINK,
+			0);
+		if (ret < 0) {
+			st_err(ST_CAMSS,
+				"Failed to link %s->%s entities: %d\n",
+				isp_dev[i].subdev.entity.name,
+				vin_dev->line[i + VIN_LINE_ISP0_SS0]
+				.subdev.entity.name,
+				ret);
+			goto err_link;
+		}
+		ret = media_create_pad_link(
+			&isp_dev[i].subdev.entity,
+			STF_ISP_PAD_SRC_SS1,
+			&vin_dev->line[i + VIN_LINE_ISP0_SS1].subdev.entity,
+			STF_VIN_PAD_SINK,
+			0);
+		if (ret < 0) {
+			st_err(ST_CAMSS,
+				"Failed to link %s->%s entities: %d\n",
+				isp_dev[i].subdev.entity.name,
+				vin_dev->line[i + VIN_LINE_ISP0_SS1]
+				.subdev.entity.name,
+				ret);
+			goto err_link;
+		}
+		ret = media_create_pad_link(
+			&isp_dev[i].subdev.entity,
+			STF_ISP_PAD_SRC_ITIW,
+			&vin_dev->line[i + VIN_LINE_ISP0_ITIW].subdev.entity,
+			STF_VIN_PAD_SINK,
+			0);
+		if (ret < 0) {
+			st_err(ST_CAMSS,
+				"Failed to link %s->%s entities: %d\n",
+				isp_dev[i].subdev.entity.name,
+				vin_dev->line[i + VIN_LINE_ISP0_ITIW]
+				.subdev.entity.name,
+				ret);
+			goto err_link;
+		}
+		ret = media_create_pad_link(
+			&isp_dev[i].subdev.entity,
+			STF_ISP_PAD_SRC_ITIR,
+			&vin_dev->line[i + VIN_LINE_ISP0_ITIR].subdev.entity,
+			STF_VIN_PAD_SINK,
+			0);
+		if (ret < 0) {
+			st_err(ST_CAMSS,
+				"Failed to link %s->%s entities: %d\n",
+				isp_dev[i].subdev.entity.name,
+				vin_dev->line[i + VIN_LINE_ISP0_ITIR]
+				.subdev.entity.name,
+				ret);
+			goto err_link;
+		}
+		ret = media_create_pad_link(
+			&isp_dev[i].subdev.entity,
+			STF_ISP_PAD_SRC_RAW,
 			&vin_dev->line[i + VIN_LINE_ISP0_RAW].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
@@ -468,7 +528,21 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 				ret);
 			goto err_link;
 		}
-
+		ret = media_create_pad_link(
+			&isp_dev[i].subdev.entity,
+			STF_ISP_PAD_SRC_SCD_Y,
+			&vin_dev->line[i + VIN_LINE_ISP0_SCD_Y].subdev.entity,
+			STF_VIN_PAD_SINK,
+			0);
+		if (ret < 0) {
+			st_err(ST_CAMSS,
+				"Failed to link %s->%s entities: %d\n",
+				isp_dev[i].subdev.entity.name,
+				vin_dev->line[i + VIN_LINE_ISP0_SCD_Y]
+				.subdev.entity.name,
+				ret);
+			goto err_link;
+		}
 		ret = media_create_pad_link(
 			&dvp_dev->subdev.entity,
 			STF_DVP_PAD_SRC,
@@ -688,7 +762,6 @@ static int stfcamss_subdev_notifier_complete(
 static const struct v4l2_async_notifier_operations
 stfcamss_subdev_notifier_ops = {
 	.bound = stfcamss_subdev_notifier_bound,
-	// .complete = stfcamss_subdev_notifier_complete,
 };
 
 static const struct media_device_ops stfcamss_media_ops = {

@@ -28,7 +28,6 @@ int stf_isp_subdev_init(struct stfcamss *stfcamss, int id)
 {
 	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[id];
 
-	atomic_set(&isp_dev->ref_count, 0);
 	isp_dev->sdev_type = id == 0 ? ISP0_DEV_TYPE : ISP1_DEV_TYPE;
 	isp_dev->id = id;
 	isp_dev->hw_ops = &isp_ops;
@@ -36,6 +35,7 @@ int stf_isp_subdev_init(struct stfcamss *stfcamss, int id)
 	isp_dev->formats = isp_formats_st7110;
 	isp_dev->nformats = ARRAY_SIZE(isp_formats_st7110);
 	mutex_init(&isp_dev->stream_lock);
+	mutex_init(&isp_dev->power_lock);
 	mutex_init(&isp_dev->setfile_lock);
 	atomic_set(&isp_dev->shadow_count, 0);
 	return 0;
@@ -198,8 +198,12 @@ static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 	 * not apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
-	if (!atomic_read(&isp_dev->ref_count))
+	mutex_lock(&isp_dev->power_lock);
+	if (isp_dev->power_count == 0) {
+		mutex_unlock(&isp_dev->power_lock);
 		return 0;
+	}
+	mutex_unlock(&isp_dev->power_lock);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
@@ -325,11 +329,27 @@ free_ctrls:
 static int isp_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
+	struct stf_vin2_dev *vin_dev = isp_dev->stfcamss->vin_dev;
 
-	if (on)
-		atomic_inc(&isp_dev->ref_count);
-	else
-		atomic_dec(&isp_dev->ref_count);
+	st_debug(ST_ISP, "%s, %d\n", __func__, __LINE__);
+	mutex_lock(&isp_dev->power_lock);
+	if (on) {
+		if (isp_dev->power_count == 0) {
+			vin_dev->hw_ops->vin_clk_enable(vin_dev);
+			isp_dev->hw_ops->isp_clk_enable(isp_dev);
+			if (!user_config_isp)
+				isp_dev->hw_ops->isp_config_set(isp_dev);
+		}
+		isp_dev->power_count++;
+	} else {
+		if (isp_dev->power_count == 0)
+			goto exit;
+		if (isp_dev->power_count == 1)
+			isp_dev->hw_ops->isp_clk_disable(isp_dev);
+		isp_dev->power_count--;
+	}
+exit:
+	mutex_unlock(&isp_dev->power_lock);
 
 	return 0;
 }
@@ -357,31 +377,31 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&isp_dev->stream_lock);
 	if (enable) {
 		if (isp_dev->stream_count == 0) {
-			isp_dev->hw_ops->isp_clk_enable(isp_dev);
-			isp_dev->hw_ops->isp_reset(isp_dev);
 			isp_dev->hw_ops->isp_set_format(isp_dev,
 					&isp_dev->crop, fmt->code);
 				// format->width, format->height);
-			isp_dev->hw_ops->isp_config_set(isp_dev);
+			isp_dev->hw_ops->isp_reset(isp_dev);
 			isp_dev->hw_ops->isp_stream_set(isp_dev, enable);
+			user_config_isp = 0;
 		}
 		isp_dev->stream_count++;
 	} else {
 		if (isp_dev->stream_count == 0)
 			goto exit;
-		if (isp_dev->stream_count == 1) {
+		if (isp_dev->stream_count == 1)
 			isp_dev->hw_ops->isp_stream_set(isp_dev, enable);
-			isp_dev->hw_ops->isp_clk_disable(isp_dev);
-		}
 		isp_dev->stream_count--;
 	}
 exit:
 	mutex_unlock(&isp_dev->stream_lock);
 
-	if (enable && atomic_read(&isp_dev->ref_count) == 1) {
-		/* restore controls */
+	mutex_lock(&isp_dev->power_lock);
+	/* restore controls */
+	if (enable && isp_dev->power_count == 1) {
+		mutex_unlock(&isp_dev->power_lock);
 		ret = v4l2_ctrl_handler_setup(&isp_dev->ctrls.handler);
-	}
+	} else
+		mutex_unlock(&isp_dev->power_lock);
 
 	return ret;
 }
@@ -943,6 +963,12 @@ int stf_isp_register(struct stf_isp_dev *isp_dev,
 
 	pads[STF_ISP_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[STF_ISP_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_SS0].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_SS1].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_ITIW].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_ITIR].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_RAW].flags = MEDIA_PAD_FL_SOURCE;
+	pads[STF_ISP_PAD_SRC_SCD_Y].flags = MEDIA_PAD_FL_SOURCE;
 
 	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	sd->entity.ops = &isp_media_ops;
@@ -982,6 +1008,7 @@ int stf_isp_unregister(struct stf_isp_dev *isp_dev)
 	media_entity_cleanup(&isp_dev->subdev.entity);
 	v4l2_ctrl_handler_free(&isp_dev->ctrls.handler);
 	mutex_destroy(&isp_dev->stream_lock);
+	mutex_destroy(&isp_dev->power_lock);
 	mutex_destroy(&isp_dev->setfile_lock);
 	return 0;
 }

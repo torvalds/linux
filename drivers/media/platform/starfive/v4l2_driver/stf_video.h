@@ -13,12 +13,14 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 
-#define STFCAMSS_FRAME_MIN_WIDTH           1
+#define STFCAMSS_FRAME_MIN_WIDTH           64
 #define STFCAMSS_FRAME_MAX_WIDTH           8191
-#define STFCAMSS_FRAME_MIN_HEIGHT          1
+#define STFCAMSS_FRAME_MIN_HEIGHT          64
 #define STFCAMSS_FRAME_MAX_HEIGHT_RDI      8191
 #define STFCAMSS_FRAME_MAX_HEIGHT_PIX      4096
-#define STFCAMSS_FRAME_WIDTH_ALIGN         8
+#define STFCAMSS_FRAME_WIDTH_ALIGN_8       8
+#define STFCAMSS_FRAME_WIDTH_ALIGN_128     128
+#define STFCAMSS_MIN_BUFFERS               2
 
 struct stfcamss_buffer {
 	struct vb2_v4l2_buffer vb;

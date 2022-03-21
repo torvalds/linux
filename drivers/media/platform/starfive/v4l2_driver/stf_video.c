@@ -51,6 +51,38 @@ static const struct stfcamss_format_info formats_pix_st7110_isp[] = {
 	  { { 1, 1 } }, { { 2, 3 } }, { 8 } },
 };
 
+static const struct stfcamss_format_info formats_st7110_isp_iti[] = {
+	//  raw format
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_PIX_FMT_SRGGB10, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 10 } },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, V4L2_PIX_FMT_SGRBG10, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 10 } },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, V4L2_PIX_FMT_SGBRG10, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 10 } },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_PIX_FMT_SBGGR10, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 10 } },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, V4L2_PIX_FMT_SRGGB12, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 12 } },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, V4L2_PIX_FMT_SGRBG12, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 12 } },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, V4L2_PIX_FMT_SGBRG12, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 12 } },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, V4L2_PIX_FMT_SBGGR12, 1,
+	  { { 1, 1 } }, { { 1, 1 } }, { 12 } },
+
+	// YUV420
+	{ MEDIA_BUS_FMT_Y12_1X12, V4L2_PIX_FMT_NV12, 1,
+	  { { 1, 1 } }, { { 2, 3 } }, { 8 } },
+	{ MEDIA_BUS_FMT_Y12_1X12, V4L2_PIX_FMT_NV21, 1,
+	  { { 1, 1 } }, { { 2, 3 } }, { 8 } },
+
+	// YUV444
+	{ MEDIA_BUS_FMT_YUV8_1X24, V4L2_PIX_FMT_NV24, 1,
+	  { { 1, 1 } }, { { 1, 3 } }, { 8 } },
+	{ MEDIA_BUS_FMT_VUY8_1X24, V4L2_PIX_FMT_NV42, 1,
+	  { { 1, 1 } }, { { 1, 3 } }, { 8 } },
+};
+
 static int video_find_format(u32 code, u32 pixelformat,
 				const struct stfcamss_format_info *formats,
 				unsigned int nformats)
@@ -258,6 +290,11 @@ static int video_queue_setup(struct vb2_queue *q,
 		if (!sizes[0])
 			st_err(ST_VIDEO, "%s: error size is zero!!!\n", __func__);
 	}
+	if ((video->id == VIN_LINE_ISP0_SCD_Y
+		|| video->id == VIN_LINE_ISP1_SCD_Y)
+		&& sizes[0] < ISP_SCD_Y_BUFFER_SIZE) {
+		sizes[0] = ISP_SCD_Y_BUFFER_SIZE;
+	}
 
 	st_info(ST_VIDEO, "%s, planes = %d, size = %d\n",
 			__func__, *num_planes, sizes[0]);
@@ -289,7 +326,7 @@ static int video_buf_init(struct vb2_buffer *vb)
 			|| fmt_mp->pixelformat == V4L2_PIX_FMT_NV16
 			|| fmt_mp->pixelformat == V4L2_PIX_FMT_NV61))
 			buffer->addr[1] = buffer->addr[0] +
-					fmt_mp->width *
+					fmt_mp->plane_fmt[0].bytesperline *
 					fmt_mp->height;
 	} else {
 		paddr = vb2_plane_cookie(vb, 0);
@@ -299,9 +336,13 @@ static int video_buf_init(struct vb2_buffer *vb)
 			|| fmt->pixelformat == V4L2_PIX_FMT_NV16
 			|| fmt->pixelformat == V4L2_PIX_FMT_NV61)
 			buffer->addr[1] = buffer->addr[0] +
-				fmt->width *
+				fmt->bytesperline *
 				fmt->height;
 	}
+
+	if (video->id == VIN_LINE_ISP0_SCD_Y
+		|| video->id == VIN_LINE_ISP1_SCD_Y)
+		buffer->addr[1] = buffer->addr[0] + ISP_YHIST_BUFFER_SIZE;
 
 	return 0;
 }
@@ -325,8 +366,11 @@ static int video_buf_prepare(struct vb2_buffer *vb)
 					fmt_mp->plane_fmt[i].sizeimage);
 		}
 	} else {
-		if (fmt->sizeimage > vb2_plane_size(vb, 0))
+		if (fmt->sizeimage > vb2_plane_size(vb, 0)) {
+			st_err(ST_VIDEO, "sizeimage = %d, plane size = %d\n",
+				fmt->sizeimage, (unsigned int)vb2_plane_size(vb, 0));
 			return -EINVAL;
+		}
 		vb2_set_plane_payload(vb, 0, fmt->sizeimage);
 	}
 
@@ -507,7 +551,8 @@ static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 	int ret;
 
 #ifdef USE_MEDIA_PIPELINE
-	ret = media_pipeline_start(&vdev->entity, &video->pipe);
+	// ret = media_pipeline_start(&vdev->entity, &video->pipe);
+	ret = media_pipeline_start(&vdev->entity, &video->stfcamss->pipe);
 	if (ret < 0) {
 		st_err(ST_VIDEO,
 			"Failed to media_pipeline_start: %d\n", ret);
@@ -1188,7 +1233,7 @@ int video_g_ctrl(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1204,7 +1249,7 @@ static int video_s_ctrl(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1224,7 +1269,7 @@ static int video_query_ext_ctrl(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1242,7 +1287,7 @@ static int video_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1283,7 +1328,7 @@ static int video_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1305,7 +1350,7 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
 
@@ -1318,6 +1363,7 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	return ret;
 }
 
+
 #ifdef UNUSED_CODE
 static int video_querymenu(struct file *file, void *fh,
 			       struct v4l2_querymenu *qm)
@@ -1325,9 +1371,10 @@ static int video_querymenu(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file, __func__);
+	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
+
 	ret = v4l2_querymenu(subdev->ctrl_handler, qm);
 
 	return ret;
@@ -1364,9 +1411,6 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_queryctrl               = video_queryctrl,
 	.vidioc_s_ext_ctrls             = video_s_ext_ctrls,
 	.vidioc_try_ext_ctrls           = video_try_ext_ctrls,
-	//.vidioc_query_ext_ctrl          = video_query_ext_ctrl,
-	//.vidioc_querymenu               = video_querymenu,
-
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
@@ -1399,8 +1443,25 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
 	.vidioc_queryctrl               = video_queryctrl,
 	.vidioc_s_ext_ctrls             = video_s_ext_ctrls,
 	.vidioc_try_ext_ctrls           = video_try_ext_ctrls,
-//	.vidioc_querymenu               = video_querymenu,
-//	.vidioc_query_ext_ctrl          = video_query_ext_ctrl,
+};
+
+static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {
+	.vidioc_querycap                = video_querycap,
+	.vidioc_enum_fmt_vid_out        = video_enum_fmt,
+	.vidioc_enum_framesizes         = video_enum_framesizes,
+	.vidioc_enum_frameintervals     = video_enum_frameintervals,
+	.vidioc_g_fmt_vid_out           = video_g_fmt,
+	.vidioc_s_fmt_vid_out           = video_s_fmt,
+	.vidioc_try_fmt_vid_out         = video_try_fmt,
+	.vidioc_reqbufs                 = vb2_ioctl_reqbufs,
+	.vidioc_querybuf                = vb2_ioctl_querybuf,
+	.vidioc_qbuf                    = vb2_ioctl_qbuf,
+	.vidioc_expbuf                  = vb2_ioctl_expbuf,
+	.vidioc_dqbuf                   = vb2_ioctl_dqbuf,
+	.vidioc_create_bufs             = vb2_ioctl_create_bufs,
+	.vidioc_prepare_buf             = vb2_ioctl_prepare_buf,
+	.vidioc_streamon                = vb2_ioctl_streamon,
+	.vidioc_streamoff               = vb2_ioctl_streamoff,
 };
 
 static int video_open(struct file *file)
@@ -1553,13 +1614,15 @@ int stf_video_register(struct stfcamss_video *video,
 	q->drv_priv = video;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->ops = &stf_video_vb2_q_ops;
-	q->type = is_mp ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
-		V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	//q->type = is_mp ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
+	//	V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	q->type = video->type;
 	q->io_modes = VB2_DMABUF | VB2_MMAP | VB2_READ;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->buf_struct_size = sizeof(struct stfcamss_buffer);
 	q->dev = video->stfcamss->dev;
 	q->lock = &video->q_lock;
+	q->min_buffers_needed = STFCAMSS_MIN_BUFFERS;
 	ret = vb2_queue_init(q);
 	if (ret < 0) {
 		st_err(ST_VIDEO,
@@ -1581,16 +1644,27 @@ int stf_video_register(struct stfcamss_video *video,
 	if (video->id == VIN_LINE_WR) {
 		video->formats = formats_pix_st7110_wr;
 		video->nformats = ARRAY_SIZE(formats_pix_st7110_wr);
-		video->bpl_alignment = 8;
+		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
 	} else if (video->id == VIN_LINE_ISP0
-		|| video->id == VIN_LINE_ISP1) {  // ISP0/ISP1
+		|| video->id == VIN_LINE_ISP1
+		|| video->id == VIN_LINE_ISP0_SS0
+		|| video->id == VIN_LINE_ISP1_SS0
+		|| video->id == VIN_LINE_ISP0_SS1
+		|| video->id == VIN_LINE_ISP1_SS1) {  // ISP0/ISP1
 		video->formats = formats_pix_st7110_isp;
 		video->nformats = ARRAY_SIZE(formats_pix_st7110_isp);
-		video->bpl_alignment = 8;
-	} else {
+		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
+	} else if (video->id == VIN_LINE_ISP0_ITIW
+		|| video->id == VIN_LINE_ISP0_ITIR
+		|| video->id == VIN_LINE_ISP1_ITIW
+		|| video->id == VIN_LINE_ISP1_ITIR) {  // ISP0/ISP1
+		video->formats = formats_st7110_isp_iti;
+		video->nformats = ARRAY_SIZE(formats_st7110_isp_iti);
+		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
+	} else { // raw/scdump/yhist
 		video->formats = formats_raw_st7110_isp;
 		video->nformats = ARRAY_SIZE(formats_raw_st7110_isp);
-		video->bpl_alignment = 16 * 8;
+		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_128;
 	}
 	video->is_mp = is_mp;
 
@@ -1601,13 +1675,22 @@ int stf_video_register(struct stfcamss_video *video,
 	}
 
 	vdev->fops = &stf_vid_fops;
-	vdev->device_caps = is_mp ? V4L2_CAP_VIDEO_CAPTURE_MPLANE :
+	if (video->id == VIN_LINE_ISP0_ITIR
+		|| video->id == VIN_LINE_ISP1_ITIR) {
+		vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT;
+		vdev->vfl_dir = VFL_DIR_TX;
+	} else {
+		vdev->device_caps = is_mp ? V4L2_CAP_VIDEO_CAPTURE_MPLANE :
 			V4L2_CAP_VIDEO_CAPTURE;
+		vdev->vfl_dir = VFL_DIR_RX;
+	}
 	vdev->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	vdev->ioctl_ops = is_mp ? &stf_vid_ioctl_ops_mp : &stf_vid_ioctl_ops;
+	if (video->type == V4L2_CAP_VIDEO_OUTPUT)
+		vdev->ioctl_ops = &stf_vid_ioctl_ops_out;
+	else
+		vdev->ioctl_ops = is_mp ? &stf_vid_ioctl_ops_mp : &stf_vid_ioctl_ops;
 	vdev->release = stf_video_release;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->vfl_dir = VFL_DIR_RX;
 	vdev->queue = &video->vb2_q;
 	vdev->lock = &video->lock;
 	//strlcpy(vdev->name, name, sizeof(vdev->name));

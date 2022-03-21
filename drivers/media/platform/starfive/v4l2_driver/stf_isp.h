@@ -14,21 +14,56 @@
 #define STF_ISP_NAME "stf_isp"
 
 //#define ISP_USE_CSI_AND_SC_DONE_INTERRUPT  1
-#define STF_ISP_PAD_SINK     0
-#define STF_ISP_PAD_SRC      1
-#define STF_ISP_PADS_NUM     2
+
+#define STF_ISP_PAD_SINK         0
+#define STF_ISP_PAD_SRC          1
+#define STF_ISP_PAD_SRC_SS0      2
+#define STF_ISP_PAD_SRC_SS1      3
+#define STF_ISP_PAD_SRC_ITIW     4
+#define STF_ISP_PAD_SRC_ITIR     5
+#define STF_ISP_PAD_SRC_RAW      6
+#define STF_ISP_PAD_SRC_SCD_Y    7
+#define STF_ISP_PADS_NUM         8
 
 #define STF_ISP0_SETFILE     "stf_isp0_fw.bin"
 #define STF_ISP1_SETFILE     "stf_isp1_fw.bin"
 
-#define SCALER_RATIO_MAX     1  // no compose function
+#define ISP_SCD_BUFFER_SIZE     (19 * 256 * 4)  // align 128
+#define ISP_YHIST_BUFFER_SIZE   (64 * 4)
+#define ISP_SCD_Y_BUFFER_SIZE   (ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)
+#define ISP_RAW_DATA_BITS       12
+#define SCALER_RATIO_MAX        1  // no compose function
 #define STF_ISP_REG_OFFSET_MAX  0x0FFF
 #define STF_ISP_REG_DELAY_MAX   100
 
 #define ISP_REG_CSIINTS_ADDR    0x00000008
+#define ISP_REG_SENSOR          0x00000014
 #define ISP_REG_DUMP_CFG_0      0x00000024
 #define ISP_REG_DUMP_CFG_1      0x00000028
+#define ISP_REG_SCD_CFG_0       0x00000098
+#define ISP_REG_SCD_CFG_1       0x0000009C
+#define ISP_REG_SC_CFG_1        0x000000BC
 #define ISP_REG_IESHD_ADDR      0x00000A50
+#define ISP_REG_SS0AY           0x00000A94
+#define ISP_REG_SS0AUV          0x00000A98
+#define ISP_REG_SS0S            0x00000A9C
+#define ISP_REG_SS0IW           0x00000AA8
+#define ISP_REG_SS1AY           0x00000AAC
+#define ISP_REG_SS1AUV          0x00000AB0
+#define ISP_REG_SS1S            0x00000AB4
+#define ISP_REG_SS1IW           0x00000AC0
+#define ISP_REG_YHIST_CFG_4     0x00000CD8
+#define ISP_REG_ITIIWSR         0x00000B20
+#define ISP_REG_ITIDWLSR        0x00000B24
+#define ISP_REG_ITIDWYSAR       0x00000B28
+#define ISP_REG_ITIDWUSAR       0x00000B2C
+#define ISP_REG_ITIDRYSAR       0x00000B30
+#define ISP_REG_ITIDRUSAR       0x00000B34
+#define ISP_REG_ITIPDFR         0x00000B38
+#define ISP_REG_ITIDRLSR        0x00000B3C
+#define ISP_REG_ITIBSR          0x00000B40
+#define ISP_REG_ITIAIR          0x00000B44
+#define ISP_REG_ITIDPSR         0x00000B48
 
 enum {
 	EN_INT_NONE                 = 0,
@@ -37,6 +72,21 @@ enum {
 	EN_INT_SC_DONE              = (0x1 << 26),
 	EN_INT_LINE_INT             = (0x1 << 27),
 	EN_INT_ALL                  = (0xF << 24),
+};
+
+enum {
+	DVP_SENSOR = 0,
+	CSI_SENSOR,
+};
+
+#define ISP_AWB_OECF_SKIP_FRAME  1
+// 0x0BC [31:30] SEL - sc0 input mux for sc awb
+// 00 : after DEC, 01 : after OBC, 10 : after OECF, 11 : after AWB
+enum scd_type {
+	DEC_TYPE = 0,
+	OBC_TYPE,
+	OECF_TYPE,
+	AWB_TYPE
 };
 
 struct isp_format {
@@ -119,6 +169,8 @@ struct stf_isp_dev {
 	const struct isp_format *formats;
 	unsigned int nformats;
 	struct isp_hw_ops *hw_ops;
+	struct mutex power_lock;
+	int power_count;
 	struct mutex stream_lock;
 	int stream_count;
 	atomic_t shadow_count;

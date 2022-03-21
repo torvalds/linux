@@ -13,6 +13,8 @@
 
 #include "stf_video.h"
 
+#define STF_VIN_NAME "stf_vin"
+
 #define STF_VIN_PAD_SINK   0
 #define STF_VIN_PAD_SRC    1
 #define STF_VIN_PADS_NUM   2
@@ -47,9 +49,19 @@ enum vin_line_id {
 	VIN_LINE_WR = 0,
 	VIN_LINE_ISP0 = 1,
 	VIN_LINE_ISP1 = 2,
-	VIN_LINE_ISP0_RAW = 3,
-	VIN_LINE_ISP1_RAW = 4,
-	VIN_LINE_MAX = 5
+	VIN_LINE_ISP0_SS0 = 3,
+	VIN_LINE_ISP1_SS0 = 4,
+	VIN_LINE_ISP0_SS1 = 5,
+	VIN_LINE_ISP1_SS1 = 6,
+	VIN_LINE_ISP0_ITIW = 7,
+	VIN_LINE_ISP1_ITIW = 8,
+	VIN_LINE_ISP0_ITIR = 9,
+	VIN_LINE_ISP1_ITIR = 10,
+	VIN_LINE_ISP0_RAW = 11,
+	VIN_LINE_ISP1_RAW = 12,
+	VIN_LINE_ISP0_SCD_Y = 13,
+	VIN_LINE_ISP1_SCD_Y = 14,
+	VIN_LINE_MAX = 15
 };
 
 enum subdev_type;
@@ -94,6 +106,22 @@ struct vin_hw_ops {
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_raw_addr)(struct stf_vin2_dev *vin_dev,
 			int isp_id, dma_addr_t raw_addr);
+	void (*vin_isp_set_ss0_addr)(struct stf_vin2_dev *vin_dev,
+			int isp_id,
+			dma_addr_t y_addr, dma_addr_t uv_addr);
+	void (*vin_isp_set_ss1_addr)(struct stf_vin2_dev *vin_dev,
+			int isp_id,
+			dma_addr_t y_addr, dma_addr_t uv_addr);
+	void (*vin_isp_set_itiw_addr)(struct stf_vin2_dev *vin_dev,
+			int isp_id,
+			dma_addr_t y_addr, dma_addr_t uv_addr);
+	void (*vin_isp_set_itir_addr)(struct stf_vin2_dev *vin_dev,
+			int isp_id,
+			dma_addr_t y_addr, dma_addr_t uv_addr);
+	void (*vin_isp_set_scd_addr)(struct stf_vin2_dev *vin_dev,
+			int isp_id, dma_addr_t yhist_addr,
+			dma_addr_t scd_addr, int scd_type);
+	int (*vin_isp_get_scd_type)(struct stf_vin2_dev *vin_dev, int isp_id);
 	irqreturn_t (*vin_wr_irq_handler)(int irq, void *priv);
 	irqreturn_t (*vin_isp_irq_handler)(int irq, void *priv);
 	irqreturn_t (*vin_isp_csi_irq_handler)(int irq, void *priv);

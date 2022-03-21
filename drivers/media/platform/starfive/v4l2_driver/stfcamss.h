@@ -84,6 +84,7 @@ struct stfcamss {
 	struct stf_vin_dev *vin;  // stfcamss phy res
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct media_pipeline pipe;
 	struct device *dev;
 	struct stf_vin2_dev *vin_dev;  // subdev
 	struct stf_dvp_dev *dvp_dev;   // subdev
