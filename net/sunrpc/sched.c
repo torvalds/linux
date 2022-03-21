@@ -1108,10 +1108,14 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	rpc_init_task_statistics(task);
 }
 
-static struct rpc_task *
-rpc_alloc_task(void)
+static struct rpc_task *rpc_alloc_task(void)
 {
-	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_KERNEL);
+	struct rpc_task *task;
+
+	task = kmem_cache_alloc(rpc_task_slabp, rpc_task_gfp_mask());
+	if (task)
+		return task;
+	return mempool_alloc(rpc_task_mempool, GFP_NOWAIT);
 }
 
 /*
