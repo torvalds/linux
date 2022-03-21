@@ -166,7 +166,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		iod->req.transfer_len = blk_rq_payload_bytes(req);
 	}
 
-	schedule_work(&iod->work);
+	queue_work(nvmet_wq, &iod->work);
 	return BLK_STS_OK;
 }
 
@@ -187,7 +187,7 @@ static void nvme_loop_submit_async_event(struct nvme_ctrl *arg)
 		return;
 	}
 
-	schedule_work(&iod->work);
+	queue_work(nvmet_wq, &iod->work);
 }
 
 static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
