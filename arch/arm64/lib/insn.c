@@ -299,29 +299,24 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 	return insn;
 }
 
+static const u32 aarch64_insn_ldst_size[] = {
+	[AARCH64_INSN_SIZE_8] = 0,
+	[AARCH64_INSN_SIZE_16] = 1,
+	[AARCH64_INSN_SIZE_32] = 2,
+	[AARCH64_INSN_SIZE_64] = 3,
+};
+
 static u32 aarch64_insn_encode_ldst_size(enum aarch64_insn_size_type type,
 					 u32 insn)
 {
 	u32 size;
 
-	switch (type) {
-	case AARCH64_INSN_SIZE_8:
-		size = 0;
-		break;
-	case AARCH64_INSN_SIZE_16:
-		size = 1;
-		break;
-	case AARCH64_INSN_SIZE_32:
-		size = 2;
-		break;
-	case AARCH64_INSN_SIZE_64:
-		size = 3;
-		break;
-	default:
+	if (type < AARCH64_INSN_SIZE_8 || type > AARCH64_INSN_SIZE_64) {
 		pr_err("%s: unknown size encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
+	size = aarch64_insn_ldst_size[type];
 	insn &= ~GENMASK(31, 30);
 	insn |= size << 30;
 
@@ -502,6 +497,50 @@ u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
 
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn,
 					    offset);
+}
+
+u32 aarch64_insn_gen_load_store_imm(enum aarch64_insn_register reg,
+				    enum aarch64_insn_register base,
+				    unsigned int imm,
+				    enum aarch64_insn_size_type size,
+				    enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+	u32 shift;
+
+	if (size < AARCH64_INSN_SIZE_8 || size > AARCH64_INSN_SIZE_64) {
+		pr_err("%s: unknown size encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	shift = aarch64_insn_ldst_size[size];
+	if (imm & ~(BIT(12 + shift) - BIT(shift))) {
+		pr_err("%s: invalid imm: %d\n", __func__, imm);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	imm >>= shift;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_IMM_OFFSET:
+		insn = aarch64_insn_get_ldr_imm_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_IMM_OFFSET:
+		insn = aarch64_insn_get_str_imm_value();
+		break;
+	default:
+		pr_err("%s: unknown load/store encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_ldst_size(size, insn);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_12, insn, imm);
 }
 
 u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
