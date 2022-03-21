@@ -1241,19 +1241,22 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
-		mutex_unlock(&ctx->mmu_lock);
-		dev_err(hdev->dev, "mapping page pack failed for handle %u\n",
-				handle);
+		dev_err(hdev->dev, "mapping page pack failed for handle %u\n", handle);
 		goto map_err;
 	}
 
 	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
 				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
-
-	mutex_unlock(&ctx->mmu_lock);
-
 	if (rc)
 		goto map_err;
+
+	/* already prefetch the relevant translations to the cache */
+	rc = hl_mmu_prefetch_cache_range(hdev, *vm_type, ctx->asid, ret_vaddr,
+						phys_pg_pack->total_size);
+	if (rc)
+		goto map_err;
+
+	mutex_unlock(&ctx->mmu_lock);
 
 	ret_vaddr += phys_pg_pack->offset;
 
@@ -1272,6 +1275,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	return rc;
 
 map_err:
+	mutex_unlock(&ctx->mmu_lock);
+
 	if (add_va_block(hdev, va_range, ret_vaddr,
 				ret_vaddr + phys_pg_pack->total_size - 1))
 		dev_warn(hdev->dev,

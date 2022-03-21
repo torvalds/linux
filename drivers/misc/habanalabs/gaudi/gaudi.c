@@ -9377,6 +9377,12 @@ static void gaudi_get_valid_dram_page_orders(struct hl_info_dev_memalloc_page_si
 	info->page_order_bitmask = 0;
 }
 
+static int gaudi_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va,
+						u64 size)
+{
+	return 0;
+}
+
 static ssize_t infineon_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
@@ -9444,6 +9450,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.write_pte = gaudi_write_pte,
 	.mmu_invalidate_cache = gaudi_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = gaudi_mmu_invalidate_cache_range,
+	.mmu_prefetch_cache_range = gaudi_mmu_prefetch_cache_range,
 	.send_heartbeat = gaudi_send_heartbeat,
 	.debug_coresight = gaudi_debug_coresight,
 	.is_device_idle = gaudi_is_device_idle,

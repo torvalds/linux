@@ -665,6 +665,17 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 	return rc;
 }
 
+int hl_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va, u64 size)
+{
+	int rc;
+
+	rc = hdev->asic_funcs->mmu_prefetch_cache_range(hdev, flags, asid, va, size);
+	if (rc)
+		dev_err_ratelimited(hdev->dev, "MMU cache range prefetch failed\n");
+
+	return rc;
+}
+
 u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
 {
 	return (curr_pte & PAGE_PRESENT_MASK) ? (curr_pte & HOP_PHYS_ADDR_MASK) : ULLONG_MAX;

@@ -5680,6 +5680,12 @@ static void goya_get_valid_dram_page_orders(struct hl_info_dev_memalloc_page_siz
 	info->page_order_bitmask = 0;
 }
 
+static int goya_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va,
+					u64 size)
+{
+	return 0;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5724,6 +5730,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.write_pte = goya_write_pte,
 	.mmu_invalidate_cache = goya_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = goya_mmu_invalidate_cache_range,
+	.mmu_prefetch_cache_range = goya_mmu_prefetch_cache_range,
 	.send_heartbeat = goya_send_heartbeat,
 	.debug_coresight = goya_debug_coresight,
 	.is_device_idle = goya_is_device_idle,

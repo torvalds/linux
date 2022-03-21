@@ -1283,8 +1283,8 @@ struct fw_load_mgr {
  * @write_pte: write MMU page table entry to DRAM.
  * @mmu_invalidate_cache: flush MMU STLB host/DRAM cache, either with soft
  *                        (L1 only) or hard (L0 & L1) flush.
- * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
- *                              ASID-VA-size mask.
+ * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with ASID-VA-size mask.
+ * @mmu_prefetch_cache_range: pre-fetch specific MMU STLB cache lines with ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to CPU-CP and verify response.
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
@@ -1416,6 +1416,8 @@ struct hl_asic_funcs {
 					u32 flags);
 	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 				u32 flags, u32 asid, u64 va, u64 size);
+	int (*mmu_prefetch_cache_range)(struct hl_device *hdev, u32 flags, u32 asid, u64 va,
+				u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
@@ -3143,6 +3145,7 @@ int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size);
 int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags);
 int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 					u32 flags, u32 asid, u64 va, u64 size);
+int hl_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va, u64 size);
 u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte);
 u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
 					u8 hop_idx, u64 hop_addr, u64 virt_addr);
