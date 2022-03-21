@@ -626,6 +626,9 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Init MAC table, ageing */
 	sparx5_mact_init(sparx5);
 
+	/* Init PGID table arbitrator */
+	sparx5_pgid_init(sparx5);
+
 	/* Setup VLANs */
 	sparx5_vlan_init(sparx5);
 

@@ -66,6 +66,12 @@ enum sparx5_vlan_port_type {
 #define PGID_BCAST	       (PGID_BASE + 6)
 #define PGID_CPU	       (PGID_BASE + 7)
 
+#define PGID_TABLE_SIZE	       3290
+
+#define PGID_MCAST_START 65
+#define PGID_GLAG_START 833
+#define PGID_GLAG_END 1088
+
 #define IFH_LEN                9 /* 36 bytes */
 #define NULL_VID               0
 #define SPX5_MACT_PULL_DELAY   (2 * HZ)
@@ -271,6 +277,8 @@ struct sparx5 {
 	struct mutex ptp_lock; /* lock for ptp interface state */
 	u16 ptp_skbs;
 	int ptp_irq;
+	/* PGID allocation map */
+	u8 pgid_map[PGID_TABLE_SIZE];
 };
 
 /* sparx5_switchdev.c */
@@ -302,6 +310,8 @@ int sparx5_mact_learn(struct sparx5 *sparx5, int port,
 		      const unsigned char mac[ETH_ALEN], u16 vid);
 bool sparx5_mact_getnext(struct sparx5 *sparx5,
 			 unsigned char mac[ETH_ALEN], u16 *vid, u32 *pcfg2);
+bool sparx5_mact_find(struct sparx5 *sparx5,
+		      const unsigned char mac[ETH_ALEN], u16 vid, u32 *pcfg2);
 int sparx5_mact_forget(struct sparx5 *sparx5,
 		       const unsigned char mac[ETH_ALEN], u16 vid);
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
@@ -358,6 +368,19 @@ int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
 void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
+
+/* sparx5_pgid.c */
+enum sparx5_pgid_type {
+	SPX5_PGID_FREE,
+	SPX5_PGID_RESERVED,
+	SPX5_PGID_MULTICAST,
+	SPX5_PGID_GLAG
+};
+
+void sparx5_pgid_init(struct sparx5 *spx5);
+int sparx5_pgid_alloc_glag(struct sparx5 *spx5, u16 *idx);
+int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
+int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
