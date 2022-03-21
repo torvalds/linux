@@ -10,18 +10,19 @@
 #include <linux/iosys-map.h>
 #include <linux/xarray.h>
 
-#include "intel_uncore.h"
+#include "intel_guc_ct.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_fwif.h"
-#include "intel_guc_ct.h"
 #include "intel_guc_log.h"
 #include "intel_guc_reg.h"
 #include "intel_guc_slpc_types.h"
 #include "intel_uc_fw.h"
+#include "intel_uncore.h"
 #include "i915_utils.h"
 #include "i915_vma.h"
 
 struct __guc_ads_blob;
+struct intel_guc_state_capture;
 
 /**
  * struct intel_guc - Top level structure of GuC.
@@ -38,6 +39,8 @@ struct intel_guc {
 	struct intel_guc_ct ct;
 	/** @slpc: sub-structure containing SLPC related data and objects */
 	struct intel_guc_slpc slpc;
+	/** @capture: the error-state-capture module's data and objects */
+	struct intel_guc_state_capture *capture;
 
 	/** @sched_engine: Global engine used to submit requests to GuC */
 	struct i915_sched_engine *sched_engine;
@@ -162,6 +165,8 @@ struct intel_guc {
 	struct guc_mmio_reg *ads_regset;
 	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
 	u32 ads_golden_ctxt_size;
+	/** @ads_capture_size: size of register lists in the ADS used for error capture */
+	u32 ads_capture_size;
 	/** @ads_engine_usage_size: size of engine usage in the ADS */
 	u32 ads_engine_usage_size;
 
