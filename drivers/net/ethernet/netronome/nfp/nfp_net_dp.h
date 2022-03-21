@@ -60,6 +60,14 @@ static inline void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring)
 	tx_ring->wr_ptr_add = 0;
 }
 
+static inline u32
+nfp_net_read_tx_cmpl(struct nfp_net_tx_ring *tx_ring, struct nfp_net_dp *dp)
+{
+	if (tx_ring->txrwb)
+		return *tx_ring->txrwb;
+	return nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
+}
+
 static inline void nfp_net_free_frag(void *frag, bool xdp)
 {
 	if (!xdp)

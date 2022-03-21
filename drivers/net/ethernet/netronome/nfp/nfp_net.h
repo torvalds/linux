@@ -126,6 +126,7 @@ struct nfp_nfd3_tx_buf;
  * @r_vec:      Back pointer to ring vector structure
  * @idx:        Ring index from Linux's perspective
  * @qcp_q:      Pointer to base of the QCP TX queue
+ * @txrwb:	TX pointer write back area
  * @cnt:        Size of the queue in number of descriptors
  * @wr_p:       TX ring write pointer (free running)
  * @rd_p:       TX ring read pointer (free running)
@@ -145,6 +146,7 @@ struct nfp_net_tx_ring {
 
 	u32 idx;
 	u8 __iomem *qcp_q;
+	u64 *txrwb;
 
 	u32 cnt;
 	u32 wr_p;
@@ -444,6 +446,8 @@ struct nfp_stat_pair {
  * @ctrl_bar:		Pointer to mapped control BAR
  *
  * @ops:		Callbacks and parameters for this vNIC's NFD version
+ * @txrwb:		TX pointer write back area (indexed by queue id)
+ * @txrwb_dma:		TX pointer write back area DMA address
  * @txd_cnt:		Size of the TX ring in number of min size packets
  * @rxd_cnt:		Size of the RX ring in number of min size packets
  * @num_r_vecs:		Number of used ring vectors
@@ -479,6 +483,9 @@ struct nfp_net_dp {
 	/* Cold data follows */
 
 	const struct nfp_dp_ops *ops;
+
+	u64 *txrwb;
+	dma_addr_t txrwb_dma;
 
 	unsigned int txd_cnt;
 	unsigned int rxd_cnt;

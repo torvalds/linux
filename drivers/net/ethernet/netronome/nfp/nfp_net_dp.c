@@ -44,12 +44,13 @@ void *nfp_net_rx_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 /**
  * nfp_net_tx_ring_init() - Fill in the boilerplate for a TX ring
  * @tx_ring:  TX ring structure
+ * @dp:	      NFP Net data path struct
  * @r_vec:    IRQ vector servicing this ring
  * @idx:      Ring index
  * @is_xdp:   Is this an XDP TX ring?
  */
 static void
-nfp_net_tx_ring_init(struct nfp_net_tx_ring *tx_ring,
+nfp_net_tx_ring_init(struct nfp_net_tx_ring *tx_ring, struct nfp_net_dp *dp,
 		     struct nfp_net_r_vector *r_vec, unsigned int idx,
 		     bool is_xdp)
 {
@@ -61,6 +62,7 @@ nfp_net_tx_ring_init(struct nfp_net_tx_ring *tx_ring,
 	u64_stats_init(&tx_ring->r_vec->tx_sync);
 
 	tx_ring->qcidx = tx_ring->idx * nn->stride_tx;
+	tx_ring->txrwb = dp->txrwb ? &dp->txrwb[idx] : NULL;
 	tx_ring->qcp_q = nn->tx_bar + NFP_QCP_QUEUE_OFF(tx_ring->qcidx);
 }
 
@@ -187,14 +189,22 @@ int nfp_net_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
 	if (!dp->tx_rings)
 		return -ENOMEM;
 
+	if (dp->ctrl & NFP_NET_CFG_CTRL_TXRWB) {
+		dp->txrwb = dma_alloc_coherent(dp->dev,
+					       dp->num_tx_rings * sizeof(u64),
+					       &dp->txrwb_dma, GFP_KERNEL);
+		if (!dp->txrwb)
+			goto err_free_rings;
+	}
+
 	for (r = 0; r < dp->num_tx_rings; r++) {
 		int bias = 0;
 
 		if (r >= dp->num_stack_tx_rings)
 			bias = dp->num_stack_tx_rings;
 
-		nfp_net_tx_ring_init(&dp->tx_rings[r], &nn->r_vecs[r - bias],
-				     r, bias);
+		nfp_net_tx_ring_init(&dp->tx_rings[r], dp,
+				     &nn->r_vecs[r - bias], r, bias);
 
 		if (nfp_net_tx_ring_alloc(dp, &dp->tx_rings[r]))
 			goto err_free_prev;
@@ -211,6 +221,10 @@ err_free_prev:
 err_free_ring:
 		nfp_net_tx_ring_free(dp, &dp->tx_rings[r]);
 	}
+	if (dp->txrwb)
+		dma_free_coherent(dp->dev, dp->num_tx_rings * sizeof(u64),
+				  dp->txrwb, dp->txrwb_dma);
+err_free_rings:
 	kfree(dp->tx_rings);
 	return -ENOMEM;
 }
@@ -224,6 +238,9 @@ void nfp_net_tx_rings_free(struct nfp_net_dp *dp)
 		nfp_net_tx_ring_free(dp, &dp->tx_rings[r]);
 	}
 
+	if (dp->txrwb)
+		dma_free_coherent(dp->dev, dp->num_tx_rings * sizeof(u64),
+				  dp->txrwb, dp->txrwb_dma);
 	kfree(dp->tx_rings);
 }
 
@@ -377,6 +394,11 @@ nfp_net_tx_ring_hw_cfg_write(struct nfp_net *nn,
 			     struct nfp_net_tx_ring *tx_ring, unsigned int idx)
 {
 	nn_writeq(nn, NFP_NET_CFG_TXR_ADDR(idx), tx_ring->dma);
+	if (tx_ring->txrwb) {
+		*tx_ring->txrwb = 0;
+		nn_writeq(nn, NFP_NET_CFG_TXR_WB_ADDR(idx),
+			  nn->dp.txrwb_dma + idx * sizeof(u64));
+	}
 	nn_writeb(nn, NFP_NET_CFG_TXR_SZ(idx), ilog2(tx_ring->cnt));
 	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), tx_ring->r_vec->irq_entry);
 }
@@ -388,6 +410,7 @@ void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
 	nn_writeb(nn, NFP_NET_CFG_RXR_VEC(idx), 0);
 
 	nn_writeq(nn, NFP_NET_CFG_TXR_ADDR(idx), 0);
+	nn_writeq(nn, NFP_NET_CFG_TXR_WB_ADDR(idx), 0);
 	nn_writeb(nn, NFP_NET_CFG_TXR_SZ(idx), 0);
 	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), 0);
 }

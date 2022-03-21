@@ -392,7 +392,7 @@ void nfp_nfd3_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 		return;
 
 	/* Work out how many descriptors have been transmitted */
-	qcp_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
+	qcp_rd_p = nfp_net_read_tx_cmpl(tx_ring, dp);
 
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return;
@@ -467,13 +467,14 @@ void nfp_nfd3_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 static bool nfp_nfd3_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
+	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
 	u32 done_pkts = 0, done_bytes = 0;
 	bool done_all;
 	int idx, todo;
 	u32 qcp_rd_p;
 
 	/* Work out how many descriptors have been transmitted */
-	qcp_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
+	qcp_rd_p = nfp_net_read_tx_cmpl(tx_ring, dp);
 
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return true;

@@ -1427,6 +1427,8 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn)
 	new->rx_rings = NULL;
 	new->num_r_vecs = 0;
 	new->num_stack_tx_rings = 0;
+	new->txrwb = NULL;
+	new->txrwb_dma = 0;
 
 	return new;
 }
@@ -1963,7 +1965,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.resv, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -1981,6 +1983,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_CTAG_FILTER ? "CTAG_FILTER " : "",
 		nn->cap & NFP_NET_CFG_CTRL_MSIXAUTO ? "AUTOMASK " : "",
 		nn->cap & NFP_NET_CFG_CTRL_IRQMOD   ? "IRQMOD "   : "",
+		nn->cap & NFP_NET_CFG_CTRL_TXRWB    ? "TXRWB "    : "",
 		nn->cap & NFP_NET_CFG_CTRL_VXLAN    ? "VXLAN "    : "",
 		nn->cap & NFP_NET_CFG_CTRL_NVGRE    ? "NVGRE "	  : "",
 		nn->cap & NFP_NET_CFG_CTRL_CSUM_COMPLETE ?
@@ -2351,6 +2354,10 @@ int nfp_net_init(struct nfp_net *nn)
 		nfp_net_irqmod_init(nn);
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
+
+	/* Enable TX pointer writeback, if supported */
+	if (nn->cap & NFP_NET_CFG_CTRL_TXRWB)
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_TXRWB;
 
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;
