@@ -28,6 +28,7 @@ properties:
       - const: nvidia,tegra210-i2s
       - items:
           - enum:
+              - nvidia,tegra234-i2s
               - nvidia,tegra194-i2s
               - nvidia,tegra186-i2s
           - const: nvidia,tegra210-i2s

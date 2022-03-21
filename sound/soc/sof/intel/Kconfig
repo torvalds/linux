@@ -215,6 +215,7 @@ config SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_PCI_DEV
 	select SND_INTEL_DSP_CONFIG
 	select SND_SOC_SOF_HDA_LINK_BASELINE
+	select SND_SOC_SOF_HDA_PROBES
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
@@ -240,15 +241,6 @@ config SND_SOC_SOF_HDA_AUDIO_CODEC
 	  Say Y if you want to enable HDAudio codecs with SOF.
 	  If unsure select "N".
 
-config SND_SOC_SOF_HDA_PROBES
-	bool "SOF enable probes over HDA"
-	depends on SND_SOC_SOF_DEBUG_PROBES
-	help
-	  This option enables the data probing for Intel(R)
-	  Skylake and newer platforms.
-	  Say Y if you want to enable probes.
-	  If unsure, select "N".
-
 endif ## SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK_BASELINE
@@ -263,6 +255,15 @@ config SND_SOC_SOF_HDA
 	select SND_HDA_EXT_CORE if SND_SOC_SOF_HDA_LINK
 	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
 	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_HDA_PROBES
+	bool
+	select SND_SOC_SOF_DEBUG_PROBES
+	help
+	  The option enables the data probing for Intel(R) Skylake and newer
+	  (HDA) platforms.
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
