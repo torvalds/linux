@@ -2635,6 +2635,15 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 				if (!req_ref_put_and_test(req))
 					continue;
 			}
+			if ((req->flags & REQ_F_POLLED) && req->apoll) {
+				struct async_poll *apoll = req->apoll;
+
+				if (apoll->double_poll)
+					kfree(apoll->double_poll);
+				list_add(&apoll->poll.wait.entry,
+						&ctx->apoll_cache);
+				req->flags &= ~REQ_F_POLLED;
+			}
 			io_queue_next(req);
 			if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
 				io_clean_op(req);
@@ -2673,15 +2682,6 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 
 			if (!(req->flags & REQ_F_CQE_SKIP))
 				__io_fill_cqe_req(req, req->result, req->cflags);
-			if ((req->flags & REQ_F_POLLED) && req->apoll) {
-				struct async_poll *apoll = req->apoll;
-
-				if (apoll->double_poll)
-					kfree(apoll->double_poll);
-				list_add(&apoll->poll.wait.entry,
-						&ctx->apoll_cache);
-				req->flags &= ~REQ_F_POLLED;
-			}
 		}
 
 		io_commit_cqring(ctx);
