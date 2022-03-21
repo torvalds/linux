@@ -2959,11 +2959,11 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	for (r = 0; r < nn->dp.num_rx_rings; r++)
 		nfp_net_rx_ring_hw_cfg_write(nn, &nn->dp.rx_rings[r], r);
 
-	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, nn->dp.num_tx_rings == 64 ?
-		  0xffffffffffffffffULL : ((u64)1 << nn->dp.num_tx_rings) - 1);
+	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE,
+		  U64_MAX >> (64 - nn->dp.num_tx_rings));
 
-	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, nn->dp.num_rx_rings == 64 ?
-		  0xffffffffffffffffULL : ((u64)1 << nn->dp.num_rx_rings) - 1);
+	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE,
+		  U64_MAX >> (64 - nn->dp.num_rx_rings));
 
 	if (nn->dp.netdev)
 		nfp_net_write_mac_addr(nn, nn->dp.netdev->dev_addr);
