@@ -128,6 +128,8 @@ int __pata_platform_probe(struct device *dev, struct resource *io_res,
 	ap = host->ports[0];
 
 	ap->ops = devm_kzalloc(dev, sizeof(*ap->ops), GFP_KERNEL);
+	if (!ap->ops)
+		return -ENOMEM;
 	ap->ops->inherits = &ata_sff_port_ops;
 	ap->ops->cable_detect = ata_cable_unknown;
 	ap->ops->set_mode = pata_platform_set_mode;

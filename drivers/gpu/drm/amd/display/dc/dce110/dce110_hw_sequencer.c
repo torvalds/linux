@@ -1566,6 +1566,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				&pipe_ctx->stream->audio_info);
 	}
 
+	/* make sure no pipes syncd to the pipe being enabled */
+	if (!pipe_ctx->stream->apply_seamless_boot_optimization && dc->config.use_pipe_ctx_sync_logic)
+		check_syncd_pipes_for_disabled_master_pipe(dc, context, pipe_ctx->pipe_idx);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* DCN3.1 FPGA Workaround
 	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
@@ -1603,11 +1607,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
-		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo)
-		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo(
-			pipe_ctx->stream_res.stream_enc);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
@@ -1835,9 +1834,29 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				break;
 			}
 		}
-		// We are trying to enable eDP, don't power down VDD
-		if (can_apply_edp_fast_boot)
+
+		/*
+		 * TO-DO: So far the code logic below only addresses single eDP case.
+		 * For dual eDP case, there are a few things that need to be
+		 * implemented first:
+		 *
+		 * 1. Change the fastboot logic above, so eDP link[0 or 1]'s
+		 * stream[0 or 1] will all be checked.
+		 *
+		 * 2. Change keep_edp_vdd_on to an array, and maintain keep_edp_vdd_on
+		 * for each eDP.
+		 *
+		 * Once above 2 things are completed, we can then change the logic below
+		 * correspondingly, so dual eDP case will be fully covered.
+		 */
+
+		// We are trying to enable eDP, don't power down VDD if eDP stream is existing
+		if ((edp_stream_num == 1 && edp_streams[0] != NULL) || can_apply_edp_fast_boot) {
 			keep_edp_vdd_on = true;
+			DC_LOG_EVENT_LINK_TRAINING("Keep eDP Vdd on\n");
+		} else {
+			DC_LOG_EVENT_LINK_TRAINING("No eDP stream enabled, turn eDP Vdd off\n");
+		}
 	}
 
 	// Check seamless boot support
@@ -2296,6 +2315,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
+
+	/* reset syncd pipes from disabled pipes */
+	if (dc->config.use_pipe_ctx_sync_logic)
+		reset_syncd_pipes_from_disabled_pipes(dc, context);
 
 	/* Reset old context */
 	/* look up the targets that have been removed since last commit */

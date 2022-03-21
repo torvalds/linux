@@ -309,9 +309,6 @@ config ARCH_VISCONTI
 	help
 	  This enables support for Toshiba Visconti SoCs Family.
 
-config ARCH_VULCAN
-	def_bool n
-
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"
 	help

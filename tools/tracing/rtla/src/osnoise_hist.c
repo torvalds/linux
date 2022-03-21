@@ -701,9 +701,9 @@ osnoise_hist_set_signals(struct osnoise_hist_params *params)
 int osnoise_hist_main(int argc, char *argv[])
 {
 	struct osnoise_hist_params *params;
+	struct osnoise_tool *record = NULL;
+	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
-	struct osnoise_tool *record;
-	struct osnoise_tool *tool;
 	int return_value = 1;
 	int retval;
 
@@ -792,9 +792,8 @@ int osnoise_hist_main(int argc, char *argv[])
 out_hist:
 	osnoise_free_histogram(tool->data);
 out_destroy:
+	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
-	if (params->trace_output)
-		osnoise_destroy_tool(record);
 	free(params);
 out_exit:
 	exit(return_value);

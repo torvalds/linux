@@ -602,11 +602,14 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		return retval;
 	}
 
-	find_and_link_peer(hub, port1);
-
 	retval = component_add(&port_dev->dev, &connector_ops);
-	if (retval)
+	if (retval) {
 		dev_warn(&port_dev->dev, "failed to add component\n");
+		device_unregister(&port_dev->dev);
+		return retval;
+	}
+
+	find_and_link_peer(hub, port1);
 
 	/*
 	 * Enable runtime pm and hold a refernce that hub_configure()

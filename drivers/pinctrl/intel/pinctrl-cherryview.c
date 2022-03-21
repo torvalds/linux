@@ -1471,8 +1471,9 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 		offset = cctx->intr_lines[intr_line];
 		if (offset == CHV_INVALID_HWIRQ) {
-			dev_err(dev, "interrupt on unused interrupt line %u\n", intr_line);
-			continue;
+			dev_warn_once(dev, "interrupt on unmapped interrupt line %u\n", intr_line);
+			/* Some boards expect hwirq 0 to trigger in this case */
+			offset = 0;
 		}
 
 		generic_handle_domain_irq(gc->irq.domain, offset);
