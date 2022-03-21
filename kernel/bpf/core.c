@@ -829,6 +829,7 @@ struct bpf_prog_pack {
 #define BPF_PROG_SIZE_TO_NBITS(size)	(round_up(size, BPF_PROG_CHUNK_SIZE) / BPF_PROG_CHUNK_SIZE)
 
 static size_t bpf_prog_pack_size = -1;
+static size_t bpf_prog_pack_mask = -1;
 
 static int bpf_prog_chunk_count(void)
 {
@@ -850,8 +851,12 @@ static size_t select_bpf_prog_pack_size(void)
 	/* Test whether we can get huge pages. If not just use PAGE_SIZE
 	 * packs.
 	 */
-	if (!ptr || !is_vm_area_hugepages(ptr))
+	if (!ptr || !is_vm_area_hugepages(ptr)) {
 		size = PAGE_SIZE;
+		bpf_prog_pack_mask = PAGE_MASK;
+	} else {
+		bpf_prog_pack_mask = PMD_MASK;
+	}
 
 	vfree(ptr);
 	return size;
@@ -935,7 +940,7 @@ static void bpf_prog_pack_free(struct bpf_binary_header *hdr)
 		goto out;
 	}
 
-	pack_ptr = (void *)((unsigned long)hdr & ~(bpf_prog_pack_size - 1));
+	pack_ptr = (void *)((unsigned long)hdr & bpf_prog_pack_mask);
 
 	list_for_each_entry(tmp, &pack_list, list) {
 		if (tmp->ptr == pack_ptr) {
