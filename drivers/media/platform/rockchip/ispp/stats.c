@@ -211,7 +211,7 @@ static void rkispp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	unsigned long lock_flags = 0;
 
 	vb2_plane_vaddr(vb, 0);
-	if (stats_dev->dev->hw_dev->is_mmu) {
+	if (stats_dev->dev->hw_dev->is_dma_sg_ops) {
 		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
 		buf->buff_addr[0] = sg_dma_address(sgt->sgl);
