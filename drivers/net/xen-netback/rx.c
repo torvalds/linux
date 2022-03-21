@@ -33,28 +33,36 @@
 #include <xen/xen.h>
 #include <xen/events.h>
 
+/*
+ * Update the needed ring page slots for the first SKB queued.
+ * Note that any call sequence outside the RX thread calling this function
+ * needs to wake up the RX thread via a call of xenvif_kick_thread()
+ * afterwards in order to avoid a race with putting the thread to sleep.
+ */
+static void xenvif_update_needed_slots(struct xenvif_queue *queue,
+				       const struct sk_buff *skb)
+{
+	unsigned int needed = 0;
+
+	if (skb) {
+		needed = DIV_ROUND_UP(skb->len, XEN_PAGE_SIZE);
+		if (skb_is_gso(skb))
+			needed++;
+		if (skb->sw_hash)
+			needed++;
+	}
+
+	WRITE_ONCE(queue->rx_slots_needed, needed);
+}
+
 static bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue)
 {
 	RING_IDX prod, cons;
-	struct sk_buff *skb;
-	int needed;
-	unsigned long flags;
+	unsigned int needed;
 
-	spin_lock_irqsave(&queue->rx_queue.lock, flags);
-
-	skb = skb_peek(&queue->rx_queue);
-	if (!skb) {
-		spin_unlock_irqrestore(&queue->rx_queue.lock, flags);
+	needed = READ_ONCE(queue->rx_slots_needed);
+	if (!needed)
 		return false;
-	}
-
-	needed = DIV_ROUND_UP(skb->len, XEN_PAGE_SIZE);
-	if (skb_is_gso(skb))
-		needed++;
-	if (skb->sw_hash)
-		needed++;
-
-	spin_unlock_irqrestore(&queue->rx_queue.lock, flags);
 
 	do {
 		prod = queue->rx.sring->req_prod;
@@ -80,13 +88,19 @@ void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb)
 
 	spin_lock_irqsave(&queue->rx_queue.lock, flags);
 
-	__skb_queue_tail(&queue->rx_queue, skb);
-
-	queue->rx_queue_len += skb->len;
-	if (queue->rx_queue_len > queue->rx_queue_max) {
+	if (queue->rx_queue_len >= queue->rx_queue_max) {
 		struct net_device *dev = queue->vif->dev;
 
 		netif_tx_stop_queue(netdev_get_tx_queue(dev, queue->id));
+		kfree_skb(skb);
+		queue->vif->dev->stats.rx_dropped++;
+	} else {
+		if (skb_queue_empty(&queue->rx_queue))
+			xenvif_update_needed_slots(queue, skb);
+
+		__skb_queue_tail(&queue->rx_queue, skb);
+
+		queue->rx_queue_len += skb->len;
 	}
 
 	spin_unlock_irqrestore(&queue->rx_queue.lock, flags);
@@ -100,6 +114,8 @@ static struct sk_buff *xenvif_rx_dequeue(struct xenvif_queue *queue)
 
 	skb = __skb_dequeue(&queue->rx_queue);
 	if (skb) {
+		xenvif_update_needed_slots(queue, skb_peek(&queue->rx_queue));
+
 		queue->rx_queue_len -= skb->len;
 		if (queue->rx_queue_len < queue->rx_queue_max) {
 			struct netdev_queue *txq;
@@ -134,6 +150,7 @@ static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
 			break;
 		xenvif_rx_dequeue(queue);
 		kfree_skb(skb);
+		queue->vif->dev->stats.rx_dropped++;
 	}
 }
 
@@ -487,27 +504,31 @@ void xenvif_rx_action(struct xenvif_queue *queue)
 	xenvif_rx_copy_flush(queue);
 }
 
-static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
+static RING_IDX xenvif_rx_queue_slots(const struct xenvif_queue *queue)
 {
 	RING_IDX prod, cons;
 
 	prod = queue->rx.sring->req_prod;
 	cons = queue->rx.req_cons;
 
+	return prod - cons;
+}
+
+static bool xenvif_rx_queue_stalled(const struct xenvif_queue *queue)
+{
+	unsigned int needed = READ_ONCE(queue->rx_slots_needed);
+
 	return !queue->stalled &&
-		prod - cons < 1 &&
+		xenvif_rx_queue_slots(queue) < needed &&
 		time_after(jiffies,
 			   queue->last_rx_time + queue->vif->stall_timeout);
 }
 
 static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
 {
-	RING_IDX prod, cons;
+	unsigned int needed = READ_ONCE(queue->rx_slots_needed);
 
-	prod = queue->rx.sring->req_prod;
-	cons = queue->rx.req_cons;
-
-	return queue->stalled && prod - cons >= 1;
+	return queue->stalled && xenvif_rx_queue_slots(queue) >= needed;
 }
 
 bool xenvif_have_rx_work(struct xenvif_queue *queue, bool test_kthread)

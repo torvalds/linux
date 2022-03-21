@@ -866,11 +866,12 @@
 				assigned-clocks = <&clk IMX8MM_CLK_ENET_AXI>,
 						  <&clk IMX8MM_CLK_ENET_TIMER>,
 						  <&clk IMX8MM_CLK_ENET_REF>,
-						  <&clk IMX8MM_CLK_ENET_TIMER>;
+						  <&clk IMX8MM_CLK_ENET_PHY_REF>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_266M>,
 							 <&clk IMX8MM_SYS_PLL2_100M>,
-							 <&clk IMX8MM_SYS_PLL2_125M>;
-				assigned-clock-rates = <0>, <0>, <125000000>, <100000000>;
+							 <&clk IMX8MM_SYS_PLL2_125M>,
+							 <&clk IMX8MM_SYS_PLL2_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
 				status = "disabled";

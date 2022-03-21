@@ -41,7 +41,7 @@ config STM32_TIMER_CNT
 
 config STM32_LPTIMER_CNT
 	tristate "STM32 LP Timer encoder counter driver"
-	depends on (MFD_STM32_LPTIMER || COMPILE_TEST) && IIO
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
 	help
 	  Select this option to enable STM32 Low-Power Timer quadrature encoder
 	  and counter driver.

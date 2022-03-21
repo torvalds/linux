@@ -151,8 +151,8 @@ static void flow_offload_fixup_ct_timeout(struct nf_conn *ct)
 	else
 		return;
 
-	if (nf_flow_timeout_delta(ct->timeout) > (__s32)timeout)
-		ct->timeout = nfct_time_stamp + timeout;
+	if (nf_flow_timeout_delta(READ_ONCE(ct->timeout)) > (__s32)timeout)
+		WRITE_ONCE(ct->timeout, nfct_time_stamp + timeout);
 }
 
 static void flow_offload_fixup_ct_state(struct nf_conn *ct)

@@ -249,6 +249,9 @@ struct ethnl_reply_data {
 
 static inline int ethnl_ops_begin(struct net_device *dev)
 {
+	if (dev && dev->reg_state == NETREG_UNREGISTERING)
+		return -ENODEV;
+
 	if (dev && dev->ethtool_ops->begin)
 		return dev->ethtool_ops->begin(dev);
 	else

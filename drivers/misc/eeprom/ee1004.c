@@ -82,6 +82,9 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 	if (unlikely(offset + count > EE1004_PAGE_SIZE))
 		count = EE1004_PAGE_SIZE - offset;
 
+	if (count > I2C_SMBUS_BLOCK_MAX)
+		count = I2C_SMBUS_BLOCK_MAX;
+
 	status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
 							   count, buf);
 	dev_dbg(&client->dev, "read %zu@%d --> %d\n", count, offset, status);

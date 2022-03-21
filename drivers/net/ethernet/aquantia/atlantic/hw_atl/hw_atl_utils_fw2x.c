@@ -132,9 +132,6 @@ static enum hw_atl_fw2x_rate link_speed_mask_2fw2x_ratemask(u32 speed)
 	if (speed & AQ_NIC_RATE_5G)
 		rate |= FW2X_RATE_5G;
 
-	if (speed & AQ_NIC_RATE_5GSR)
-		rate |= FW2X_RATE_5G;
-
 	if (speed & AQ_NIC_RATE_2G5)
 		rate |= FW2X_RATE_2G5;
 

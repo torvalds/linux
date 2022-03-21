@@ -177,6 +177,7 @@ static const struct clk_div_table clk_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 4, },
 	{ .val = 3, .div = 8, },
+	{ /* sentinel */ },
 };
 
 static struct wiz_clk_div_sel clk_div_sel[] = {

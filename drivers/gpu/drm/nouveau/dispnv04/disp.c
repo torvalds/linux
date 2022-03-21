@@ -205,7 +205,7 @@ nv04_display_destroy(struct drm_device *dev)
 	nvif_notify_dtor(&disp->flip);
 
 	nouveau_display(dev)->priv = NULL;
-	kfree(disp);
+	vfree(disp);
 
 	nvif_object_unmap(&drm->client.device.object);
 }
@@ -223,7 +223,7 @@ nv04_display_create(struct drm_device *dev)
 	struct nv04_display *disp;
 	int i, ret;
 
-	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
+	disp = vzalloc(sizeof(*disp));
 	if (!disp)
 		return -ENOMEM;
 
