@@ -1017,7 +1017,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 		return -EOPNOTSUPP;
 	if (n > NFS42_LAYOUTERROR_MAX)
 		return -EINVAL;
-	data = nfs42_alloc_layouterror_data(lseg, GFP_KERNEL);
+	data = nfs42_alloc_layouterror_data(lseg, nfs_io_gfp_mask());
 	if (!data)
 		return -ENOMEM;
 	for (i = 0; i < n; i++) {
