@@ -465,6 +465,23 @@ pid_t getpid(void)
 
 
 /*
+ * pid_t getppid(void);
+ */
+
+static __attribute__((unused))
+pid_t sys_getppid(void)
+{
+	return my_syscall0(__NR_getppid);
+}
+
+static __attribute__((unused))
+pid_t getppid(void)
+{
+	return sys_getppid();
+}
+
+
+/*
  * pid_t gettid(void);
  */
 
