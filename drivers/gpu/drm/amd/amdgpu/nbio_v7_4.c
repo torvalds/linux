@@ -362,9 +362,24 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg_ald = {
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
+	uint32_t baco_cntl;
+
 	if (amdgpu_sriov_vf(adev))
 		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
 			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+
+	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4) &&
+	    !amdgpu_sriov_vf(adev)) {
+		baco_cntl = RREG32_SOC15(NBIO, 0, mmBACO_CNTL);
+		if (baco_cntl &
+		    (BACO_CNTL__BACO_DUMMY_EN_MASK | BACO_CNTL__BACO_EN_MASK)) {
+			baco_cntl &= ~(BACO_CNTL__BACO_DUMMY_EN_MASK |
+				       BACO_CNTL__BACO_EN_MASK);
+			dev_dbg(adev->dev, "Unsetting baco dummy mode %x",
+				baco_cntl);
+			WREG32_SOC15(NBIO, 0, mmBACO_CNTL, baco_cntl);
+		}
+	}
 }
 
 static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)

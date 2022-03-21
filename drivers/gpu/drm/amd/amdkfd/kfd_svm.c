@@ -3155,6 +3155,7 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 	struct svm_range_bo *svm_bo;
 	struct kfd_process *p;
 	struct mm_struct *mm;
+	int r = 0;
 
 	svm_bo = container_of(work, struct svm_range_bo, eviction_work);
 	if (!svm_bo_ref_unless_zero(svm_bo))
@@ -3170,7 +3171,7 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 
 	mmap_read_lock(mm);
 	spin_lock(&svm_bo->list_lock);
-	while (!list_empty(&svm_bo->range_list)) {
+	while (!list_empty(&svm_bo->range_list) && !r) {
 		struct svm_range *prange =
 				list_first_entry(&svm_bo->range_list,
 						struct svm_range, svm_bo_list);
@@ -3184,15 +3185,18 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 
 		mutex_lock(&prange->migrate_mutex);
 		do {
-			svm_migrate_vram_to_ram(prange,
+			r = svm_migrate_vram_to_ram(prange,
 						svm_bo->eviction_fence->mm);
-		} while (prange->actual_loc && --retries);
-		WARN(prange->actual_loc, "Migration failed during eviction");
+		} while (!r && prange->actual_loc && --retries);
 
-		mutex_lock(&prange->lock);
-		prange->svm_bo = NULL;
-		mutex_unlock(&prange->lock);
+		if (!r && prange->actual_loc)
+			pr_info_once("Migration failed during eviction");
 
+		if (!prange->actual_loc) {
+			mutex_lock(&prange->lock);
+			prange->svm_bo = NULL;
+			mutex_unlock(&prange->lock);
+		}
 		mutex_unlock(&prange->migrate_mutex);
 
 		spin_lock(&svm_bo->list_lock);
@@ -3201,10 +3205,11 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 	mmap_read_unlock(mm);
 
 	dma_fence_signal(&svm_bo->eviction_fence->base);
+
 	/* This is the last reference to svm_bo, after svm_range_vram_node_free
 	 * has been called in svm_migrate_vram_to_ram
 	 */
-	WARN_ONCE(kref_read(&svm_bo->kref) != 1, "This was not the last reference\n");
+	WARN_ONCE(!r && kref_read(&svm_bo->kref) != 1, "This was not the last reference\n");
 	svm_range_bo_unref(svm_bo);
 }
 

@@ -524,4 +524,6 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
 
+struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
+
 #endif /* DC_STREAM_H_ */

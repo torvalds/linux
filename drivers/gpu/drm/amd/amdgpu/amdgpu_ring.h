@@ -155,6 +155,7 @@ struct amdgpu_ring_funcs {
 	u32			nop;
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
+	bool			secure_submission_supported;
 	unsigned		vmhub;
 	unsigned		extra_dw;
 

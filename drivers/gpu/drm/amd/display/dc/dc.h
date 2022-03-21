@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.175"
+#define DC_VER "3.2.177"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -1206,6 +1206,7 @@ struct dpcd_caps {
 
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 	/* branch device or sink device */
 	bool is_branch_dev;
 	/* Dongle's downstream count. */

@@ -310,6 +310,10 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
+	adev->psp.xgmi_context.supports_extended_data =
+		!adev->gmc.xgmi.connected_to_cpu &&
+			adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2);
+
 	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
 	if (psp_get_runtime_db_entry(adev,
 				PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG,
@@ -3008,7 +3012,6 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr->sos.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr->sos.offset_bytes);
-		adev->psp.xgmi_context.supports_extended_data = false;
 	} else {
 		/* Load alternate PSP SOS FW */
 		sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
@@ -3023,7 +3026,6 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 			le32_to_cpu(sos_hdr_v1_3->sos_aux.offset_bytes);
-		adev->psp.xgmi_context.supports_extended_data = true;
 	}
 
 	if ((adev->psp.sys.size_bytes == 0) || (adev->psp.sos.size_bytes == 0)) {

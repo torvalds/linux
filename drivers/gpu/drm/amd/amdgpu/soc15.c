@@ -853,6 +853,10 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
 
+	/* CP hangs in IGT reloading test on RN, reset to WA */
+	if (adev->asic_type == CHIP_RENOIR)
+		return true;
+
 	/* Just return false for soc15 GPUs.  Reset does not seem to
 	 * be necessary.
 	 */

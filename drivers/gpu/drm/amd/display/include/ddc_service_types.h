@@ -64,6 +64,7 @@ enum ddc_service_type {
 struct display_sink_capability {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 
 	/**********************************************************
 	 capabilities going INTO SINK DEVICE (stream capabilities)

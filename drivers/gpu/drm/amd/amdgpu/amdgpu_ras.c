@@ -2068,6 +2068,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	mutex_init(&con->recovery_lock);
 	INIT_WORK(&con->recovery_work, amdgpu_ras_do_recovery);
 	atomic_set(&con->in_recovery, 0);
+	con->eeprom_control.bad_channel_bitmap = 0;
 
 	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count();
 	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
@@ -2092,6 +2093,11 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 			goto free;
 
 		amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+
+		if (con->update_channel_flag == true) {
+			amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
+			con->update_channel_flag = false;
+		}
 	}
 
 #ifdef CONFIG_X86_MCE_AMD
@@ -2285,6 +2291,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		goto release_con;
 	}
 
+	con->update_channel_flag = false;
 	con->features = 0;
 	INIT_LIST_HEAD(&con->head);
 	/* Might need get this flag from vbios. */

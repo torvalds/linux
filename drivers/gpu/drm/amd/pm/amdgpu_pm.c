@@ -1870,7 +1870,7 @@ static ssize_t amdgpu_set_smartshift_bias(struct device *dev,
 	amdgpu_smartshift_bias = bias;
 	r = count;
 
-	/* TODO: upadte bias level with SMU message */
+	/* TODO: update bias level with SMU message */
 
 out:
 	pm_runtime_mark_last_busy(ddev->dev);
