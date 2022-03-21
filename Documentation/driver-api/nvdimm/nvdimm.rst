@@ -15,7 +15,7 @@ Version 13
 	    Supporting Documents
 	    Git Trees
 	LIBNVDIMM PMEM
-	        PMEM-REGIONs, Atomic Sectors, and DAX
+	    PMEM-REGIONs, Atomic Sectors, and DAX
 	Example NVDIMM Platform
 	LIBNVDIMM Kernel Device Model and LIBNDCTL Userspace API
 	    LIBNDCTL: Context
@@ -144,7 +144,7 @@ can be immediately attached to nd_pmem. This latter mode is called
 label-less or "legacy".
 
 PMEM-REGIONs, Atomic Sectors, and DAX
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------
 
 For the cases where an application or filesystem still needs atomic sector
 update guarantees it can register a BTT on a PMEM device or partition.  See
