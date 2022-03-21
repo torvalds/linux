@@ -541,11 +541,6 @@ next:
 		  tx_ring->rd_p, tx_ring->wr_p, tx_ring->cnt);
 }
 
-static bool nfp_nfdk_xdp_complete(struct nfp_net_tx_ring *tx_ring)
-{
-	return true;
-}
-
 /* Receive processing */
 static void *
 nfp_nfdk_napi_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
@@ -791,6 +786,185 @@ nfp_nfdk_rx_drop(const struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		dev_kfree_skb_any(skb);
 }
 
+static bool nfp_nfdk_xdp_complete(struct nfp_net_tx_ring *tx_ring)
+{
+	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
+	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
+	struct nfp_net_rx_ring *rx_ring;
+	u32 qcp_rd_p, done = 0;
+	bool done_all;
+	int todo;
+
+	/* Work out how many descriptors have been transmitted */
+	qcp_rd_p = nfp_net_read_tx_cmpl(tx_ring, dp);
+	if (qcp_rd_p == tx_ring->qcp_rd_p)
+		return true;
+
+	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
+
+	done_all = todo <= NFP_NET_XDP_MAX_COMPLETE;
+	todo = min(todo, NFP_NET_XDP_MAX_COMPLETE);
+
+	rx_ring = r_vec->rx_ring;
+	while (todo > 0) {
+		int idx = D_IDX(tx_ring, tx_ring->rd_p + done);
+		struct nfp_nfdk_tx_buf *txbuf;
+		unsigned int step = 1;
+
+		txbuf = &tx_ring->ktxbufs[idx];
+		if (!txbuf->raw)
+			goto next;
+
+		if (NFDK_TX_BUF_INFO(txbuf->val) != NFDK_TX_BUF_INFO_SOP) {
+			WARN_ONCE(1, "Unexpected TX buffer in XDP TX ring\n");
+			goto next;
+		}
+
+		/* Two successive txbufs are used to stash virtual and dma
+		 * address respectively, recycle and clean them here.
+		 */
+		nfp_nfdk_rx_give_one(dp, rx_ring,
+				     (void *)NFDK_TX_BUF_PTR(txbuf[0].val),
+				     txbuf[1].dma_addr);
+		txbuf[0].raw = 0;
+		txbuf[1].raw = 0;
+		step = 2;
+
+		u64_stats_update_begin(&r_vec->tx_sync);
+		/* Note: tx_bytes not accumulated. */
+		r_vec->tx_pkts++;
+		u64_stats_update_end(&r_vec->tx_sync);
+next:
+		todo -= step;
+		done += step;
+	}
+
+	tx_ring->qcp_rd_p = D_IDX(tx_ring, tx_ring->qcp_rd_p + done);
+	tx_ring->rd_p += done;
+
+	WARN_ONCE(tx_ring->wr_p - tx_ring->rd_p > tx_ring->cnt,
+		  "XDP TX ring corruption rd_p=%u wr_p=%u cnt=%u\n",
+		  tx_ring->rd_p, tx_ring->wr_p, tx_ring->cnt);
+
+	return done_all;
+}
+
+static bool
+nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
+		    struct nfp_net_tx_ring *tx_ring,
+		    struct nfp_net_rx_buf *rxbuf, unsigned int dma_off,
+		    unsigned int pkt_len, bool *completed)
+{
+	unsigned int dma_map_sz = dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA;
+	unsigned int dma_len, type, cnt, dlen_type, tmp_dlen;
+	struct nfp_nfdk_tx_buf *txbuf;
+	struct nfp_nfdk_tx_desc *txd;
+	unsigned int n_descs;
+	dma_addr_t dma_addr;
+	int wr_idx;
+
+	/* Reject if xdp_adjust_tail grow packet beyond DMA area */
+	if (pkt_len + dma_off > dma_map_sz)
+		return false;
+
+	/* Make sure there's still at least one block available after
+	 * aligning to block boundary, so that the txds used below
+	 * won't wrap around the tx_ring.
+	 */
+	if (unlikely(nfp_net_tx_full(tx_ring, NFDK_TX_DESC_STOP_CNT))) {
+		if (!*completed) {
+			nfp_nfdk_xdp_complete(tx_ring);
+			*completed = true;
+		}
+
+		if (unlikely(nfp_net_tx_full(tx_ring, NFDK_TX_DESC_STOP_CNT))) {
+			nfp_nfdk_rx_drop(dp, rx_ring->r_vec, rx_ring, rxbuf,
+					 NULL);
+			return false;
+		}
+	}
+
+	/* Check if cross block boundary */
+	n_descs = nfp_nfdk_headlen_to_segs(pkt_len);
+	if ((round_down(tx_ring->wr_p, NFDK_TX_DESC_BLOCK_CNT) !=
+	     round_down(tx_ring->wr_p + n_descs, NFDK_TX_DESC_BLOCK_CNT)) ||
+	    ((u32)tx_ring->data_pending + pkt_len >
+	     NFDK_TX_MAX_DATA_PER_BLOCK)) {
+		unsigned int nop_slots = D_BLOCK_CPL(tx_ring->wr_p);
+
+		wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
+		txd = &tx_ring->ktxds[wr_idx];
+		memset(txd, 0,
+		       array_size(nop_slots, sizeof(struct nfp_nfdk_tx_desc)));
+
+		tx_ring->data_pending = 0;
+		tx_ring->wr_p += nop_slots;
+		tx_ring->wr_ptr_add += nop_slots;
+	}
+
+	wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
+
+	txbuf = &tx_ring->ktxbufs[wr_idx];
+
+	txbuf[0].val = (unsigned long)rxbuf->frag | NFDK_TX_BUF_INFO_SOP;
+	txbuf[1].dma_addr = rxbuf->dma_addr;
+	/* Note: pkt len not stored */
+
+	dma_sync_single_for_device(dp->dev, rxbuf->dma_addr + dma_off,
+				   pkt_len, DMA_BIDIRECTIONAL);
+
+	/* Build TX descriptor */
+	txd = &tx_ring->ktxds[wr_idx];
+	dma_len = pkt_len;
+	dma_addr = rxbuf->dma_addr + dma_off;
+
+	if (dma_len < NFDK_TX_MAX_DATA_PER_HEAD)
+		type = NFDK_DESC_TX_TYPE_SIMPLE;
+	else
+		type = NFDK_DESC_TX_TYPE_GATHER;
+
+	/* FIELD_PREP() implicitly truncates to chunk */
+	dma_len -= 1;
+	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD, dma_len) |
+		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
+
+	txd->dma_len_type = cpu_to_le16(dlen_type);
+	nfp_desc_set_dma_addr(txd, dma_addr);
+
+	tmp_dlen = dlen_type & NFDK_DESC_TX_DMA_LEN_HEAD;
+	dma_len -= tmp_dlen;
+	dma_addr += tmp_dlen + 1;
+	txd++;
+
+	while (dma_len > 0) {
+		dma_len -= 1;
+		dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
+		txd->dma_len_type = cpu_to_le16(dlen_type);
+		nfp_desc_set_dma_addr(txd, dma_addr);
+
+		dlen_type &= NFDK_DESC_TX_DMA_LEN;
+		dma_len -= dlen_type;
+		dma_addr += dlen_type + 1;
+		txd++;
+	}
+
+	(txd - 1)->dma_len_type = cpu_to_le16(dlen_type | NFDK_DESC_TX_EOP);
+
+	/* Metadata desc */
+	txd->raw = 0;
+	txd++;
+
+	cnt = txd - tx_ring->ktxds - wr_idx;
+	tx_ring->wr_p += cnt;
+	if (tx_ring->wr_p % NFDK_TX_DESC_BLOCK_CNT)
+		tx_ring->data_pending += pkt_len;
+	else
+		tx_ring->data_pending = 0;
+
+	tx_ring->wr_ptr_add += cnt;
+	return true;
+}
+
 /**
  * nfp_nfdk_rx() - receive up to @budget packets on @rx_ring
  * @rx_ring:   RX ring to receive from
@@ -903,6 +1077,7 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		if (xdp_prog && !meta.portid) {
 			void *orig_data = rxbuf->frag + pkt_off;
+			unsigned int dma_off;
 			int act;
 
 			xdp_prepare_buff(&xdp,
@@ -919,6 +1094,17 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			case XDP_PASS:
 				meta_len_xdp = xdp.data - xdp.data_meta;
 				break;
+			case XDP_TX:
+				dma_off = pkt_off - NFP_NET_RX_BUF_HEADROOM;
+				if (unlikely(!nfp_nfdk_tx_xdp_buf(dp, rx_ring,
+								  tx_ring,
+								  rxbuf,
+								  dma_off,
+								  pkt_len,
+								  &xdp_tx_cmpl)))
+					trace_xdp_exception(dp->netdev,
+							    xdp_prog, act);
+				continue;
 			default:
 				bpf_warn_invalid_xdp_action(dp->netdev, xdp_prog, act);
 				fallthrough;

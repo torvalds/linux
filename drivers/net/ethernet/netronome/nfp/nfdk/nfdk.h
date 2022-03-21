@@ -71,12 +71,29 @@ struct nfp_nfdk_tx_desc {
 	};
 };
 
+/* The device don't make use of the 2 or 3 least significant bits of the address
+ * due to alignment constraints. The driver can make use of those bits to carry
+ * information about the buffer before giving it to the device.
+ *
+ * NOTE: The driver must clear the lower bits before handing the buffer to the
+ * device.
+ *
+ * - NFDK_TX_BUF_INFO_SOP - Start of a packet
+ *   Mark the buffer as a start of a packet. This is used in the XDP TX process
+ *   to stash virtual and DMA address so that they can be recycled when the TX
+ *   operation is completed.
+ */
+#define NFDK_TX_BUF_PTR(val) ((val) & ~(sizeof(void *) - 1))
+#define NFDK_TX_BUF_INFO(val) ((val) & (sizeof(void *) - 1))
+#define NFDK_TX_BUF_INFO_SOP BIT(0)
+
 struct nfp_nfdk_tx_buf {
 	union {
 		/* First slot */
 		union {
 			struct sk_buff *skb;
 			void *frag;
+			unsigned long val;
 		};
 
 		/* 1 + nr_frags next slots */
