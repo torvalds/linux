@@ -275,7 +275,7 @@ enum opt_type {
 	  NULL,		"Extra debugging information during mount/recovery")\
 	x(journal_flush_delay,		u32,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
-	  OPT_UINT(0, U32_MAX),						\
+	  OPT_UINT(1, U32_MAX),						\
 	  BCH_SB_JOURNAL_FLUSH_DELAY,	1000,				\
 	  NULL,		"Delay in milliseconds before automatic journal commits")\
 	x(journal_flush_disabled,	u8,				\
