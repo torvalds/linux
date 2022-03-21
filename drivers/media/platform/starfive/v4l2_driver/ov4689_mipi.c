@@ -190,7 +190,7 @@ struct ov4689_dev {
 	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
-	bool streaming;
+	int streaming;
 };
 
 static inline struct ov4689_dev *to_ov4689_dev(struct v4l2_subdev *sd)
@@ -2017,6 +2017,7 @@ static int ov4689_set_mode(struct ov4689_dev *sensor)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
 	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+
 	int ret = 0;
 
 	ret = ov4689_set_mode_direct(sensor, mode);
@@ -2771,9 +2772,11 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 
 		ret = ov4689_stream_start(sensor, enable);
 
-		if (!ret)
-			sensor->streaming = enable;
+		if (ret)
+			goto out;
 	}
+	sensor->streaming += enable ? 1 : -1;
+	WARN_ON(sensor->streaming < 0);
 out:
 	mutex_unlock(&sensor->lock);
 	return ret;
