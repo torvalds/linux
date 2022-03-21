@@ -125,7 +125,6 @@ struct nfp_nfd3_tx_buf;
  * struct nfp_net_tx_ring - TX ring structure
  * @r_vec:      Back pointer to ring vector structure
  * @idx:        Ring index from Linux's perspective
- * @qcidx:      Queue Controller Peripheral (QCP) queue index for the TX queue
  * @qcp_q:      Pointer to base of the QCP TX queue
  * @cnt:        Size of the queue in number of descriptors
  * @wr_p:       TX ring write pointer (free running)
@@ -135,6 +134,8 @@ struct nfp_nfd3_tx_buf;
  *		(used for .xmit_more delayed kick)
  * @txbufs:     Array of transmitted TX buffers, to free on transmit
  * @txds:       Virtual address of TX ring in host memory
+ *
+ * @qcidx:      Queue Controller Peripheral (QCP) queue index for the TX queue
  * @dma:        DMA address of the TX ring
  * @size:       Size, in bytes, of the TX ring (needed to free)
  * @is_xdp:	Is this a XDP TX ring?
@@ -143,7 +144,6 @@ struct nfp_net_tx_ring {
 	struct nfp_net_r_vector *r_vec;
 
 	u32 idx;
-	int qcidx;
 	u8 __iomem *qcp_q;
 
 	u32 cnt;
@@ -155,6 +155,9 @@ struct nfp_net_tx_ring {
 
 	struct nfp_nfd3_tx_buf *txbufs;
 	struct nfp_nfd3_tx_desc *txds;
+
+	/* Cold data follows */
+	int qcidx;
 
 	dma_addr_t dma;
 	size_t size;
