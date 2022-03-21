@@ -31,8 +31,6 @@
 /*  BB ODM section BIT 0-15 */
 #define	DYNAMIC_BB_DIG				BIT(0)
 
-#define		DYNAMIC_RF_CALIBRATION		BIT(26)
-
 #define		DYNAMIC_ALL_FUNC_ENABLE		0xFFFFFFF
 
 #define _HW_STATE_NOLINK_		0x00
