@@ -191,9 +191,11 @@ static void sditf_reinit_mode(struct sditf_priv *priv, struct rkisp_vicap_mode *
 		else if (strstr(mode->name, RKISP_UNITE_DEVNAME))
 			priv->toisp_inf.link_mode = TOISP_UNITE;
 		else
-			v4l2_err(&priv->cif_dev->v4l2_dev,
-				 "%s, mode name err, mode name: %s\n",
-				 __func__, mode->name);
+			priv->toisp_inf.link_mode = TOISP0;
+
+		v4l2_info(&priv->cif_dev->v4l2_dev,
+			 "%s, on the fly, mode name: %s\n",
+			 __func__, mode->name);
 	}
 	v4l2_dbg(3, rkcif_debug, &priv->cif_dev->v4l2_dev,
 		 "%s, mode->is_rdbk %d, mode->name %s, link_mode %d\n",

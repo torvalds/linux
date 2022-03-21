@@ -21,7 +21,7 @@
 
 #define RKCIF_DEV_MAX		7
 #define RKCIF_HW_DRIVER_NAME	"rkcifhw"
-#define RKCIF_MAX_BUS_CLK	8
+#define RKCIF_MAX_BUS_CLK	15
 #define RKCIF_MAX_RESET		15
 
 #define write_cif_reg(base, addr, val) \
