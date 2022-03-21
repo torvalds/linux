@@ -411,13 +411,17 @@ struct nfp_net_fw_version {
 	u8 minor;
 	u8 major;
 	u8 class;
-	u8 resv;
+
+	/* This byte can be exploited for more use, currently,
+	 * BIT0: dp type, BIT[7:1]: reserved
+	 */
+	u8 extend;
 } __packed;
 
 static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
-				     u8 resv, u8 class, u8 major, u8 minor)
+				     u8 extend, u8 class, u8 major, u8 minor)
 {
-	return fw_ver->resv == resv &&
+	return fw_ver->extend == extend &&
 	       fw_ver->class == class &&
 	       fw_ver->major == major &&
 	       fw_ver->minor == minor;
@@ -855,11 +859,11 @@ static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 /* Globals */
 extern const char nfp_driver_version[];
 
-extern const struct net_device_ops nfp_net_netdev_ops;
+extern const struct net_device_ops nfp_nfd3_netdev_ops;
 
 static inline bool nfp_netdev_is_nfp_net(struct net_device *netdev)
 {
-	return netdev->netdev_ops == &nfp_net_netdev_ops;
+	return netdev->netdev_ops == &nfp_nfd3_netdev_ops;
 }
 
 static inline int nfp_net_coalesce_para_check(u32 usecs, u32 pkts)

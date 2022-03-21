@@ -219,7 +219,7 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
-		 nn->fw_ver.resv, nn->fw_ver.class,
+		 nn->fw_ver.extend, nn->fw_ver.class,
 		 nn->fw_ver.major, nn->fw_ver.minor);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));

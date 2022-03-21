@@ -149,7 +149,9 @@
  * - define more STS bits
  */
 #define NFP_NET_CFG_VERSION		0x0030
-#define   NFP_NET_CFG_VERSION_RESERVED_MASK	(0xff << 24)
+#define   NFP_NET_CFG_VERSION_RESERVED_MASK	(0xfe << 24)
+#define   NFP_NET_CFG_VERSION_DP_NFD3		0
+#define   NFP_NET_CFG_VERSION_DP_MASK		1
 #define   NFP_NET_CFG_VERSION_CLASS_MASK  (0xff << 16)
 #define   NFP_NET_CFG_VERSION_CLASS(x)	  (((x) & 0xff) << 16)
 #define   NFP_NET_CFG_VERSION_CLASS_GENERIC	0
