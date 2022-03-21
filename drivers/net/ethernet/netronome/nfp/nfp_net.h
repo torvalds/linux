@@ -108,6 +108,9 @@ struct xsk_buff_pool;
 struct nfp_nfd3_tx_desc;
 struct nfp_nfd3_tx_buf;
 
+struct nfp_nfdk_tx_desc;
+struct nfp_nfdk_tx_buf;
+
 /* Convenience macro for wrapping descriptor index on ring size */
 #define D_IDX(ring, idx)	((idx) & ((ring)->cnt - 1))
 
@@ -125,6 +128,7 @@ struct nfp_nfd3_tx_buf;
  * struct nfp_net_tx_ring - TX ring structure
  * @r_vec:      Back pointer to ring vector structure
  * @idx:        Ring index from Linux's perspective
+ * @data_pending: number of bytes added to current block (NFDK only)
  * @qcp_q:      Pointer to base of the QCP TX queue
  * @txrwb:	TX pointer write back area
  * @cnt:        Size of the queue in number of descriptors
@@ -133,8 +137,10 @@ struct nfp_nfd3_tx_buf;
  * @qcp_rd_p:   Local copy of QCP TX queue read pointer
  * @wr_ptr_add:	Accumulated number of buffers to add to QCP write pointer
  *		(used for .xmit_more delayed kick)
- * @txbufs:     Array of transmitted TX buffers, to free on transmit
- * @txds:       Virtual address of TX ring in host memory
+ * @txbufs:	Array of transmitted TX buffers, to free on transmit (NFD3)
+ * @ktxbufs:	Array of transmitted TX buffers, to free on transmit (NFDK)
+ * @txds:	Virtual address of TX ring in host memory (NFD3)
+ * @ktxds:	Virtual address of TX ring in host memory (NFDK)
  *
  * @qcidx:      Queue Controller Peripheral (QCP) queue index for the TX queue
  * @dma:        DMA address of the TX ring
@@ -144,7 +150,8 @@ struct nfp_nfd3_tx_buf;
 struct nfp_net_tx_ring {
 	struct nfp_net_r_vector *r_vec;
 
-	u32 idx;
+	u16 idx;
+	u16 data_pending;
 	u8 __iomem *qcp_q;
 	u64 *txrwb;
 
@@ -155,8 +162,14 @@ struct nfp_net_tx_ring {
 
 	u32 wr_ptr_add;
 
-	struct nfp_nfd3_tx_buf *txbufs;
-	struct nfp_nfd3_tx_desc *txds;
+	union {
+		struct nfp_nfd3_tx_buf *txbufs;
+		struct nfp_nfdk_tx_buf *ktxbufs;
+	};
+	union {
+		struct nfp_nfd3_tx_desc *txds;
+		struct nfp_nfdk_tx_desc *ktxds;
+	};
 
 	/* Cold data follows */
 	int qcidx;
@@ -860,10 +873,12 @@ static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 extern const char nfp_driver_version[];
 
 extern const struct net_device_ops nfp_nfd3_netdev_ops;
+extern const struct net_device_ops nfp_nfdk_netdev_ops;
 
 static inline bool nfp_netdev_is_nfp_net(struct net_device *netdev)
 {
-	return netdev->netdev_ops == &nfp_nfd3_netdev_ops;
+	return netdev->netdev_ops == &nfp_nfd3_netdev_ops ||
+	       netdev->netdev_ops == &nfp_nfdk_netdev_ops;
 }
 
 static inline int nfp_net_coalesce_para_check(u32 usecs, u32 pkts)

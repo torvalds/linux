@@ -112,6 +112,10 @@ int nfp_net_xsk_setup_pool(struct net_device *netdev,
 	struct nfp_net_dp *dp;
 	int err;
 
+	/* NFDK doesn't implement xsk yet. */
+	if (nn->dp.ops->version == NFP_NFD_VER_NFDK)
+		return -EOPNOTSUPP;
+
 	/* Reject on old FWs so we can drop some checks on datapath. */
 	if (nn->dp.rx_offset != NFP_NET_CFG_RX_OFFSET_DYNAMIC)
 		return -EOPNOTSUPP;

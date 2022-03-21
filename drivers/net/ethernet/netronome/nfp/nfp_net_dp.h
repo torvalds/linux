@@ -109,6 +109,7 @@ void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring);
 
 enum nfp_nfd_version {
 	NFP_NFD_VER_NFD3,
+	NFP_NFD_VER_NFDK,
 };
 
 /**
@@ -207,6 +208,7 @@ nfp_net_debugfs_print_tx_descs(struct seq_file *file, struct nfp_net_dp *dp,
 }
 
 extern const struct nfp_dp_ops nfp_nfd3_ops;
+extern const struct nfp_dp_ops nfp_nfdk_ops;
 
 netdev_tx_t nfp_net_tx(struct sk_buff *skb, struct net_device *netdev);
 

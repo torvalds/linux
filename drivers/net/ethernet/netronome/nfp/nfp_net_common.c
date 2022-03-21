@@ -1920,6 +1920,33 @@ const struct net_device_ops nfp_nfd3_netdev_ops = {
 	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
+const struct net_device_ops nfp_nfdk_netdev_ops = {
+	.ndo_init		= nfp_app_ndo_init,
+	.ndo_uninit		= nfp_app_ndo_uninit,
+	.ndo_open		= nfp_net_netdev_open,
+	.ndo_stop		= nfp_net_netdev_close,
+	.ndo_start_xmit		= nfp_net_tx,
+	.ndo_get_stats64	= nfp_net_stat64,
+	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
+	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
+	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
+	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
+	.ndo_get_vf_config	= nfp_app_get_vf_config,
+	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
+	.ndo_setup_tc		= nfp_port_setup_tc,
+	.ndo_tx_timeout		= nfp_net_tx_timeout,
+	.ndo_set_rx_mode	= nfp_net_set_rx_mode,
+	.ndo_change_mtu		= nfp_net_change_mtu,
+	.ndo_set_mac_address	= nfp_net_set_mac_address,
+	.ndo_set_features	= nfp_net_set_features,
+	.ndo_features_check	= nfp_net_features_check,
+	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
+	.ndo_bpf		= nfp_net_xdp,
+	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
+};
+
 static int nfp_udp_tunnel_sync(struct net_device *netdev, unsigned int table)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
@@ -2041,6 +2068,16 @@ nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
 	switch (FIELD_GET(NFP_NET_CFG_VERSION_DP_MASK, nn->fw_ver.extend)) {
 	case NFP_NET_CFG_VERSION_DP_NFD3:
 		nn->dp.ops = &nfp_nfd3_ops;
+		break;
+	case NFP_NET_CFG_VERSION_DP_NFDK:
+		if (nn->fw_ver.major < 5) {
+			dev_err(&pdev->dev,
+				"NFDK must use ABI 5 or newer, found: %d\n",
+				nn->fw_ver.major);
+			err = -EINVAL;
+			goto err_free_nn;
+		}
+		nn->dp.ops = &nfp_nfdk_ops;
 		break;
 	default:
 		err = -EINVAL;
@@ -2267,6 +2304,9 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	switch (nn->dp.ops->version) {
 	case NFP_NFD_VER_NFD3:
 		netdev->netdev_ops = &nfp_nfd3_netdev_ops;
+		break;
+	case NFP_NFD_VER_NFDK:
+		netdev->netdev_ops = &nfp_nfdk_netdev_ops;
 		break;
 	}
 
