@@ -941,13 +941,17 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 		flush = true;
 	}
 
+	/*
+	 * Need to flush before releasing RCU.  TODO: do it only if intermediate
+	 * page tables were zapped; there is no need to flush under RCU protection
+	 * if no 'struct kvm_mmu_page' is freed.
+	 */
+	if (flush)
+		kvm_flush_remote_tlbs_with_address(kvm, start, end - start);
+
 	rcu_read_unlock();
 
-	/*
-	 * Because this flow zaps _only_ leaf SPTEs, the caller doesn't need
-	 * to provide RCU protection as no 'struct kvm_mmu_page' will be freed.
-	 */
-	return flush;
+	return false;
 }
 
 /*
