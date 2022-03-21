@@ -1069,7 +1069,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i,
-				  "invalid bkey %s: %s", buf, invalid);
+				  "invalid bkey %s: %s", buf.buf, invalid);
 			printbuf_exit(&buf);
 
 			btree_keys_account_key_drop(&b->nr, 0, k);

@@ -282,7 +282,8 @@ static inline size_t printbuf_linelen(struct printbuf *buf)
 	return buf->pos - buf->last_newline;
 }
 
-void bch2_pr_buf(struct printbuf *out, const char *fmt, ...);
+void bch2_pr_buf(struct printbuf *out, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #define pr_buf(_out, ...) bch2_pr_buf(_out, __VA_ARGS__)
 

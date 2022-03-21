@@ -1586,7 +1586,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	pr_buf(out, "Oldest version on disk:");
 	pr_tab(out);
-	pr_buf(out, "%u", bch2_metadata_versions[le16_to_cpu(sb->version_min)]);
+	pr_buf(out, "%s", bch2_metadata_versions[le16_to_cpu(sb->version_min)]);
 	pr_newline(out);
 
 	pr_buf(out, "Created:");
