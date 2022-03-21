@@ -253,7 +253,8 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 	return 0;
 }
 
-static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out)
+static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
+			    int rw)
 {
 	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field *f;
@@ -328,6 +329,18 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out)
 		pr_buf(out, "Invalid time precision: %u (min 1, max %lu)",
 		       le32_to_cpu(sb->time_precision), NSEC_PER_SEC);
 		return -EINVAL;
+	}
+
+	if (rw == READ) {
+		/*
+		 * Been seeing a bug where these are getting inexplicably
+		 * zeroed, so we'r now validating them, but we have to be
+		 * careful not to preven people's filesystems from mounting:
+		 */
+		if (!BCH_SB_JOURNAL_FLUSH_DELAY(sb))
+			SET_BCH_SB_JOURNAL_FLUSH_DELAY(sb, 1000);
+		if (!BCH_SB_JOURNAL_RECLAIM_DELAY(sb))
+			SET_BCH_SB_JOURNAL_RECLAIM_DELAY(sb, 1000);
 	}
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
@@ -696,7 +709,7 @@ got_super:
 	ret = 0;
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb, &err);
+	ret = bch2_sb_validate(sb, &err, READ);
 	if (ret) {
 		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s",
 		       path, err.buf);
@@ -808,7 +821,7 @@ int bch2_write_super(struct bch_fs *c)
 	for_each_online_member(ca, c, i) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&ca->disk_sb, &err);
+		ret = bch2_sb_validate(&ca->disk_sb, &err, WRITE);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			percpu_ref_put(&ca->io_ref);
