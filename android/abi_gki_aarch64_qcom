@@ -2430,6 +2430,7 @@
   sysfs_create_groups
   sysfs_create_link
   sysfs_emit
+  sysfs_group_change_owner
   __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
@@ -2687,6 +2688,7 @@
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_gic_resume
   __tracepoint_android_vh_gpio_block_read
+  __tracepoint_android_vh_handle_tlb_conf
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update

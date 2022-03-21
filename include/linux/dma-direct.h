@@ -37,11 +37,16 @@ static inline bool zone_dma32_is_empty(int node)
 
 static inline bool zone_dma32_are_empty(void)
 {
+#ifdef CONFIG_NUMA
 	int node;
 
 	for_each_node(node)
 		if (!zone_dma32_is_empty(node))
 			return false;
+#else
+	if (!zone_dma32_is_empty(numa_node_id()))
+		return false;
+#endif
 
 	return true;
 }

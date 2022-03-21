@@ -2081,9 +2081,17 @@ static inline bool enabled_nat_bits(struct f2fs_sb_info *sbi,
 	return (cpc) ? (cpc->reason & CP_UMOUNT) && set : set;
 }
 
-static inline void init_f2fs_rwsem(struct f2fs_rwsem *sem)
+#define init_f2fs_rwsem(sem)					\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__init_f2fs_rwsem((sem), #sem, &__key);			\
+} while (0)
+
+static inline void __init_f2fs_rwsem(struct f2fs_rwsem *sem,
+		const char *sem_name, struct lock_class_key *key)
 {
-	init_rwsem(&sem->internal_rwsem);
+	__init_rwsem(&sem->internal_rwsem, sem_name, key);
 	init_waitqueue_head(&sem->read_waiters);
 }
 

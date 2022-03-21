@@ -3189,7 +3189,7 @@ int __sync_dirty_buffer(struct buffer_head *bh, int op_flags)
 	}
 	return ret;
 }
-EXPORT_SYMBOL_NS(__sync_dirty_buffer, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL(__sync_dirty_buffer);
 
 int sync_dirty_buffer(struct buffer_head *bh)
 {

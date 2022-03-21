@@ -343,6 +343,7 @@
   __traceiter_dwc3_readl
   __traceiter_dwc3_writel
   __traceiter_gpu_mem_total
+  __traceiter_kfree_skb
   __traceiter_sched_util_est_se_tp
   __traceiter_xdp_exception
   __tracepoint_android_rvh_account_irq
@@ -494,6 +495,7 @@
   __tracepoint_ipi_raise
   __tracepoint_irq_handler_entry
   __tracepoint_irq_handler_exit
+  __tracepoint_kfree_skb
   __tracepoint_pelt_cfs_tp
   __tracepoint_pelt_dl_tp
   __tracepoint_pelt_irq_tp
@@ -4278,6 +4280,7 @@
   usb_hcd_start_port_resume
   usb_hcd_unlink_urb_from_ep
   usb_hcds_loaded
+  usb_hid_driver
   usb_hub_clear_tt_buffer
   usb_hub_find_child
   usb_ifnum_to_if

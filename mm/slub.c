@@ -599,7 +599,9 @@ unsigned long get_each_object_track(struct kmem_cache *s,
 	slab_lock(page);
 	for_each_object(p, s, page_address(page), page->objects) {
 		t = get_track(s, p, alloc);
+		metadata_access_enable();
 		ret = fn(s, p, t, private);
+		metadata_access_disable();
 		if (ret < 0)
 			break;
 		num_track += 1;

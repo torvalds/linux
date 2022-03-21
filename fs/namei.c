@@ -2533,7 +2533,7 @@ int kern_path(const char *name, unsigned int flags, struct path *path)
 	return filename_lookup(AT_FDCWD, getname_kernel(name),
 			       flags, path, NULL);
 }
-EXPORT_SYMBOL_NS(kern_path, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL(kern_path);
 
 /**
  * vfs_path_lookup - lookup a file path relative to a dentry-vfsmount pair

@@ -328,7 +328,6 @@ void __dump_page_pinner(struct page *page)
 void __page_pinner_migration_failed(struct page *page)
 {
 	struct page_ext *page_ext = lookup_page_ext(page);
-	struct page_pinner *page_pinner;
 	struct captured_pinner record;
 	unsigned long flags;
 	unsigned int idx;
@@ -336,7 +335,6 @@ void __page_pinner_migration_failed(struct page *page)
 	if (unlikely(!page_ext))
 		return;
 
-	page_pinner = get_page_pinner(page_ext);
 	if (!test_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags))
 		return;
 

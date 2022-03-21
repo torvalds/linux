@@ -711,7 +711,11 @@ static int do_alignment_fault(unsigned long far, unsigned int esr,
 
 static int do_bad(unsigned long far, unsigned int esr, struct pt_regs *regs)
 {
-	return 1; /* "fault" */
+	unsigned long addr = untagged_addr(far);
+	int ret = 1;
+
+	trace_android_vh_handle_tlb_conf(addr, esr, &ret);
+	return ret;
 }
 
 static int do_sea(unsigned long far, unsigned int esr, struct pt_regs *regs)
