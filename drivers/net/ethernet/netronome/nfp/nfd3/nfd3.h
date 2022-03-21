@@ -93,34 +93,14 @@ nfp_nfd3_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 		    void *data, void *pkt, unsigned int pkt_len, int meta_len);
 void nfp_nfd3_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget);
 int nfp_nfd3_poll(struct napi_struct *napi, int budget);
+netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev);
+bool
+nfp_nfd3_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
+		     struct sk_buff *skb, bool old);
 void nfp_nfd3_ctrl_poll(struct tasklet_struct *t);
 void nfp_nfd3_rx_ring_fill_freelist(struct nfp_net_dp *dp,
 				    struct nfp_net_rx_ring *rx_ring);
 void nfp_nfd3_xsk_tx_free(struct nfp_nfd3_tx_buf *txbuf);
 int nfp_nfd3_xsk_poll(struct napi_struct *napi, int budget);
-
-void
-nfp_nfd3_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring);
-void
-nfp_nfd3_rx_ring_fill_freelist(struct nfp_net_dp *dp,
-			       struct nfp_net_rx_ring *rx_ring);
-int
-nfp_nfd3_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring);
-void
-nfp_nfd3_tx_ring_free(struct nfp_net_tx_ring *tx_ring);
-int
-nfp_nfd3_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
-			    struct nfp_net_tx_ring *tx_ring);
-void
-nfp_nfd3_tx_ring_bufs_free(struct nfp_net_dp *dp,
-			   struct nfp_net_tx_ring *tx_ring);
-void
-nfp_nfd3_print_tx_descs(struct seq_file *file,
-			struct nfp_net_r_vector *r_vec,
-			struct nfp_net_tx_ring *tx_ring,
-			u32 d_rd_p, u32 d_wr_p);
-netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev);
-bool nfp_nfd3_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
-bool __nfp_nfd3_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 #endif

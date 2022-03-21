@@ -5,7 +5,6 @@
 #define _NFP_NET_DP_
 
 #include "nfp_net.h"
-#include "nfd3/nfd3.h"
 
 static inline dma_addr_t nfp_net_dma_map_rx(struct nfp_net_dp *dp, void *frag)
 {
@@ -100,21 +99,103 @@ void nfp_net_rx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_tx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring);
 
-void
-nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring);
-void nfp_net_rx_ring_fill_freelist(struct nfp_net_dp *dp,
-				   struct nfp_net_rx_ring *rx_ring);
-int
-nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring);
-void
-nfp_net_tx_ring_free(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring);
-int nfp_net_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
-			       struct nfp_net_tx_ring *tx_ring);
-void nfp_net_tx_ring_bufs_free(struct nfp_net_dp *dp,
-			       struct nfp_net_tx_ring *tx_ring);
-void
-nfp_net_debugfs_print_tx_descs(struct seq_file *file,
+enum nfp_nfd_version {
+	NFP_NFD_VER_NFD3,
+};
+
+/**
+ * struct nfp_dp_ops - Hooks to wrap different implementation of different dp
+ * @version:			Indicate dp type
+ * @poll:			Napi poll for normal rx/tx
+ * @xsk_poll:			Napi poll when xsk is enabled
+ * @ctrl_poll:			Tasklet poll for ctrl rx/tx
+ * @xmit:			Xmit for normal path
+ * @ctrl_tx_one:		Xmit for ctrl path
+ * @rx_ring_fill_freelist:	Give buffers from the ring to FW
+ * @tx_ring_alloc:		Allocate resource for a TX ring
+ * @tx_ring_reset:		Free any untransmitted buffers and reset pointers
+ * @tx_ring_free:		Free resources allocated to a TX ring
+ * @tx_ring_bufs_alloc:		Allocate resource for each TX buffer
+ * @tx_ring_bufs_free:		Free resources allocated to each TX buffer
+ * @print_tx_descs:		Show TX ring's info for debug purpose
+ */
+struct nfp_dp_ops {
+	enum nfp_nfd_version version;
+
+	int (*poll)(struct napi_struct *napi, int budget);
+	int (*xsk_poll)(struct napi_struct *napi, int budget);
+	void (*ctrl_poll)(struct tasklet_struct *t);
+	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *netdev);
+	bool (*ctrl_tx_one)(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
+			    struct sk_buff *skb, bool old);
+	void (*rx_ring_fill_freelist)(struct nfp_net_dp *dp,
+				      struct nfp_net_rx_ring *rx_ring);
+	int (*tx_ring_alloc)(struct nfp_net_dp *dp,
+			     struct nfp_net_tx_ring *tx_ring);
+	void (*tx_ring_reset)(struct nfp_net_dp *dp,
+			      struct nfp_net_tx_ring *tx_ring);
+	void (*tx_ring_free)(struct nfp_net_tx_ring *tx_ring);
+	int (*tx_ring_bufs_alloc)(struct nfp_net_dp *dp,
+				  struct nfp_net_tx_ring *tx_ring);
+	void (*tx_ring_bufs_free)(struct nfp_net_dp *dp,
+				  struct nfp_net_tx_ring *tx_ring);
+
+	void (*print_tx_descs)(struct seq_file *file,
 			       struct nfp_net_r_vector *r_vec,
 			       struct nfp_net_tx_ring *tx_ring,
 			       u32 d_rd_p, u32 d_wr_p);
+};
+
+static inline void
+nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
+{
+	return dp->ops->tx_ring_reset(dp, tx_ring);
+}
+
+static inline void
+nfp_net_rx_ring_fill_freelist(struct nfp_net_dp *dp,
+			      struct nfp_net_rx_ring *rx_ring)
+{
+	dp->ops->rx_ring_fill_freelist(dp, rx_ring);
+}
+
+static inline int
+nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
+{
+	return dp->ops->tx_ring_alloc(dp, tx_ring);
+}
+
+static inline void
+nfp_net_tx_ring_free(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
+{
+	dp->ops->tx_ring_free(tx_ring);
+}
+
+static inline int
+nfp_net_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
+			   struct nfp_net_tx_ring *tx_ring)
+{
+	return dp->ops->tx_ring_bufs_alloc(dp, tx_ring);
+}
+
+static inline void
+nfp_net_tx_ring_bufs_free(struct nfp_net_dp *dp,
+			  struct nfp_net_tx_ring *tx_ring)
+{
+	dp->ops->tx_ring_bufs_free(dp, tx_ring);
+}
+
+static inline void
+nfp_net_debugfs_print_tx_descs(struct seq_file *file, struct nfp_net_dp *dp,
+			       struct nfp_net_r_vector *r_vec,
+			       struct nfp_net_tx_ring *tx_ring,
+			       u32 d_rd_p, u32 d_wr_p)
+{
+	dp->ops->print_tx_descs(file, r_vec, tx_ring, d_rd_p, d_wr_p);
+}
+
+extern const struct nfp_dp_ops nfp_nfd3_ops;
+
+netdev_tx_t nfp_net_tx(struct sk_buff *skb, struct net_device *netdev);
+
 #endif /* _NFP_NET_DP_ */

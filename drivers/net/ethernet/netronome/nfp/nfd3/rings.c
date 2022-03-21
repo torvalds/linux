@@ -38,7 +38,7 @@ static void nfp_nfd3_xsk_tx_bufs_free(struct nfp_net_tx_ring *tx_ring)
  *
  * Assumes that the device is stopped, must be idempotent.
  */
-void
+static void
 nfp_nfd3_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 {
 	struct netdev_queue *nd_q;
@@ -98,7 +98,7 @@ nfp_nfd3_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
  * nfp_nfd3_tx_ring_free() - Free resources allocated to a TX ring
  * @tx_ring:   TX ring to free
  */
-void nfp_nfd3_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
+static void nfp_nfd3_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
@@ -123,7 +123,7 @@ void nfp_nfd3_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
  *
  * Return: 0 on success, negative errno otherwise.
  */
-int
+static int
 nfp_nfd3_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
@@ -156,7 +156,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-void
+static void
 nfp_nfd3_tx_ring_bufs_free(struct nfp_net_dp *dp,
 			   struct nfp_net_tx_ring *tx_ring)
 {
@@ -174,7 +174,7 @@ nfp_nfd3_tx_ring_bufs_free(struct nfp_net_dp *dp,
 	}
 }
 
-int
+static int
 nfp_nfd3_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
 			    struct nfp_net_tx_ring *tx_ring)
 {
@@ -195,7 +195,7 @@ nfp_nfd3_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
 	return 0;
 }
 
-void
+static void
 nfp_nfd3_print_tx_descs(struct seq_file *file,
 			struct nfp_net_r_vector *r_vec,
 			struct nfp_net_tx_ring *tx_ring,
@@ -241,3 +241,19 @@ nfp_nfd3_print_tx_descs(struct seq_file *file,
 		seq_putc(file, '\n');
 	}
 }
+
+const struct nfp_dp_ops nfp_nfd3_ops = {
+	.version		= NFP_NFD_VER_NFD3,
+	.poll			= nfp_nfd3_poll,
+	.xsk_poll		= nfp_nfd3_xsk_poll,
+	.ctrl_poll		= nfp_nfd3_ctrl_poll,
+	.xmit			= nfp_nfd3_tx,
+	.ctrl_tx_one		= nfp_nfd3_ctrl_tx_one,
+	.rx_ring_fill_freelist	= nfp_nfd3_rx_ring_fill_freelist,
+	.tx_ring_alloc		= nfp_nfd3_tx_ring_alloc,
+	.tx_ring_reset		= nfp_nfd3_tx_ring_reset,
+	.tx_ring_free		= nfp_nfd3_tx_ring_free,
+	.tx_ring_bufs_alloc	= nfp_nfd3_tx_ring_bufs_alloc,
+	.tx_ring_bufs_free	= nfp_nfd3_tx_ring_bufs_free,
+	.print_tx_descs		= nfp_nfd3_print_tx_descs
+};

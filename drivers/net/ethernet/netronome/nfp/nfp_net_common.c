@@ -754,7 +754,7 @@ static void nfp_net_vecs_init(struct nfp_net *nn)
 
 			__skb_queue_head_init(&r_vec->queue);
 			spin_lock_init(&r_vec->lock);
-			tasklet_setup(&r_vec->tasklet, nfp_nfd3_ctrl_poll);
+			tasklet_setup(&r_vec->tasklet, nn->dp.ops->ctrl_poll);
 			tasklet_disable(&r_vec->tasklet);
 		}
 
@@ -768,7 +768,7 @@ nfp_net_napi_add(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec, int idx)
 	if (dp->netdev)
 		netif_napi_add(dp->netdev, &r_vec->napi,
 			       nfp_net_has_xsk_pool_slow(dp, idx) ?
-			       nfp_nfd3_xsk_poll : nfp_nfd3_poll,
+			       dp->ops->xsk_poll : dp->ops->poll,
 			       NAPI_POLL_WEIGHT);
 	else
 		tasklet_enable(&r_vec->tasklet);
@@ -1895,7 +1895,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_uninit		= nfp_app_ndo_uninit,
 	.ndo_open		= nfp_net_netdev_open,
 	.ndo_stop		= nfp_net_netdev_close,
-	.ndo_start_xmit		= nfp_nfd3_tx,
+	.ndo_start_xmit		= nfp_net_tx,
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
@@ -2033,6 +2033,7 @@ nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
 	nn->dp.ctrl_bar = ctrl_bar;
 	nn->dev_info = dev_info;
 	nn->pdev = pdev;
+	nn->dp.ops = &nfp_nfd3_ops;
 
 	nn->max_tx_rings = max_tx_rings;
 	nn->max_rx_rings = max_rx_rings;

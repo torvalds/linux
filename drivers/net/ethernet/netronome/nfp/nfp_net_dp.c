@@ -392,57 +392,28 @@ void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
 	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), 0);
 }
 
-void
-nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
+netdev_tx_t nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 {
-	nfp_nfd3_tx_ring_reset(dp, tx_ring);
-}
+	struct nfp_net *nn = netdev_priv(netdev);
 
-void nfp_net_rx_ring_fill_freelist(struct nfp_net_dp *dp,
-				   struct nfp_net_rx_ring *rx_ring)
-{
-	nfp_nfd3_rx_ring_fill_freelist(dp, rx_ring);
-}
-
-int
-nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
-{
-	return nfp_nfd3_tx_ring_alloc(dp, tx_ring);
-}
-
-void
-nfp_net_tx_ring_free(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
-{
-	nfp_nfd3_tx_ring_free(tx_ring);
-}
-
-int nfp_net_tx_ring_bufs_alloc(struct nfp_net_dp *dp,
-			       struct nfp_net_tx_ring *tx_ring)
-{
-	return nfp_nfd3_tx_ring_bufs_alloc(dp, tx_ring);
-}
-
-void nfp_net_tx_ring_bufs_free(struct nfp_net_dp *dp,
-			       struct nfp_net_tx_ring *tx_ring)
-{
-	nfp_nfd3_tx_ring_bufs_free(dp, tx_ring);
-}
-
-void
-nfp_net_debugfs_print_tx_descs(struct seq_file *file,
-			       struct nfp_net_r_vector *r_vec,
-			       struct nfp_net_tx_ring *tx_ring,
-			       u32 d_rd_p, u32 d_wr_p)
-{
-	nfp_nfd3_print_tx_descs(file, r_vec, tx_ring, d_rd_p, d_wr_p);
+	return nn->dp.ops->xmit(skb, netdev);
 }
 
 bool __nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
 {
-	return __nfp_nfd3_ctrl_tx(nn, skb);
+	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];
+
+	return nn->dp.ops->ctrl_tx_one(nn, r_vec, skb, false);
 }
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
 {
-	return nfp_nfd3_ctrl_tx(nn, skb);
+	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];
+	bool ret;
+
+	spin_lock_bh(&r_vec->lock);
+	ret = nn->dp.ops->ctrl_tx_one(nn, r_vec, skb, false);
+	spin_unlock_bh(&r_vec->lock);
+
+	return ret;
 }

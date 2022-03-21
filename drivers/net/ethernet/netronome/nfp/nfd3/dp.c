@@ -1131,9 +1131,9 @@ int nfp_nfd3_poll(struct napi_struct *napi, int budget)
 /* Control device data path
  */
 
-static bool
-nfp_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
-		struct sk_buff *skb, bool old)
+bool
+nfp_nfd3_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
+		     struct sk_buff *skb, bool old)
 {
 	unsigned int real_len = skb->len, meta_len = 0;
 	struct nfp_net_tx_ring *tx_ring;
@@ -1215,31 +1215,12 @@ err_free:
 	return false;
 }
 
-bool __nfp_nfd3_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
-{
-	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];
-
-	return nfp_ctrl_tx_one(nn, r_vec, skb, false);
-}
-
-bool nfp_nfd3_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
-{
-	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];
-	bool ret;
-
-	spin_lock_bh(&r_vec->lock);
-	ret = nfp_ctrl_tx_one(nn, r_vec, skb, false);
-	spin_unlock_bh(&r_vec->lock);
-
-	return ret;
-}
-
 static void __nfp_ctrl_tx_queued(struct nfp_net_r_vector *r_vec)
 {
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(&r_vec->queue)))
-		if (nfp_ctrl_tx_one(r_vec->nfp_net, r_vec, skb, true))
+		if (nfp_nfd3_ctrl_tx_one(r_vec->nfp_net, r_vec, skb, true))
 			return;
 }
 

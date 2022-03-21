@@ -105,7 +105,7 @@ static int nfp_tx_q_show(struct seq_file *file, void *data)
 		   tx_ring->cnt, &tx_ring->dma, tx_ring->txds,
 		   tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
 
-	nfp_net_debugfs_print_tx_descs(file, r_vec, tx_ring,
+	nfp_net_debugfs_print_tx_descs(file, &nn->dp, r_vec, tx_ring,
 				       d_rd_p, d_wr_p);
 out:
 	rtnl_unlock();
