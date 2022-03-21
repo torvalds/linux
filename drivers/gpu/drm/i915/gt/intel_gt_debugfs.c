@@ -30,7 +30,7 @@ int intel_gt_debugfs_reset_show(struct intel_gt *gt, u64 *val)
 	}
 }
 
-int intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
+void intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
 {
 	/* Flush any previous reset before applying for a new one */
 	wait_event(gt->reset.queue,
@@ -38,7 +38,6 @@ int intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val)
 
 	intel_gt_handle_error(gt, val, I915_ERROR_CAPTURE,
 			      "Manually reset engine mask to %llx", val);
-	return 0;
 }
 
 /*
@@ -52,7 +51,9 @@ static int __intel_gt_debugfs_reset_show(void *data, u64 *val)
 
 static int __intel_gt_debugfs_reset_store(void *data, u64 val)
 {
-	return intel_gt_debugfs_reset_store(data, val);
+	intel_gt_debugfs_reset_store(data, val);
+
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(reset_fops, __intel_gt_debugfs_reset_show,

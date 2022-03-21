@@ -23,38 +23,38 @@
 #include "intel_uncore.h"
 #include "vlv_sideband.h"
 
-int intel_gt_pm_debugfs_forcewake_user_open(struct intel_gt *gt)
+void intel_gt_pm_debugfs_forcewake_user_open(struct intel_gt *gt)
 {
 	atomic_inc(&gt->user_wakeref);
 	intel_gt_pm_get(gt);
 	if (GRAPHICS_VER(gt->i915) >= 6)
 		intel_uncore_forcewake_user_get(gt->uncore);
-
-	return 0;
 }
 
-int intel_gt_pm_debugfs_forcewake_user_release(struct intel_gt *gt)
+void intel_gt_pm_debugfs_forcewake_user_release(struct intel_gt *gt)
 {
 	if (GRAPHICS_VER(gt->i915) >= 6)
 		intel_uncore_forcewake_user_put(gt->uncore);
 	intel_gt_pm_put(gt);
 	atomic_dec(&gt->user_wakeref);
-
-	return 0;
 }
 
 static int forcewake_user_open(struct inode *inode, struct file *file)
 {
 	struct intel_gt *gt = inode->i_private;
 
-	return intel_gt_pm_debugfs_forcewake_user_open(gt);
+	intel_gt_pm_debugfs_forcewake_user_open(gt);
+
+	return 0;
 }
 
 static int forcewake_user_release(struct inode *inode, struct file *file)
 {
 	struct intel_gt *gt = inode->i_private;
 
-	return intel_gt_pm_debugfs_forcewake_user_release(gt);
+	intel_gt_pm_debugfs_forcewake_user_release(gt);
+
+	return 0;
 }
 
 static const struct file_operations forcewake_user_fops = {
