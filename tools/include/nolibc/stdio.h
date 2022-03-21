@@ -220,6 +220,8 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 			}
 			else if (c == 's') {
 				outstr = va_arg(args, char *);
+				if (!outstr)
+					outstr="(null)";
 			}
 			else if (c == '%') {
 				/* queue it verbatim */
