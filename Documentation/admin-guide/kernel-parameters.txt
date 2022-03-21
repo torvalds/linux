@@ -1282,7 +1282,7 @@
 			Append ",keep" to not disable it when the real console
 			takes over.
 
-			Only one of vga, efi, serial, or usb debug port can
+			Only one of vga, serial, or usb debug port can
 			be used at a time.
 
 			Currently only ttyS0 and ttyS1 may be specified by
@@ -1297,7 +1297,7 @@
 			Interaction with the standard serial driver is not
 			very good.
 
-			The VGA and EFI output is eventually overwritten by
+			The VGA output is eventually overwritten by
 			the real console.
 
 			The xen option can only be used in Xen domains.
