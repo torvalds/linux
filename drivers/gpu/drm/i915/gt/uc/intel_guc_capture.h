@@ -10,8 +10,8 @@
 
 struct drm_i915_error_state_buf;
 struct guc_gt_system_info;
-struct intel_context;
 struct intel_engine_coredump;
+struct intel_context;
 struct intel_gt;
 struct intel_guc;
 

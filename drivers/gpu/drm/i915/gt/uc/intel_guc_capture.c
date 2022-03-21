@@ -768,6 +768,21 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
  *                                    intel_engine_coredump struct (if the context and
  *                                    engine of the event notification matches a node
  *                                    in the link list).
+ *
+ * User Sysfs / Debugfs
+ * --------------------
+ *      --> i915_gpu_coredump_copy_to_buffer->
+ *                   L--> err_print_to_sgl --> err_print_gt
+ *                        L--> error_print_guc_captures
+ *                             L--> intel_guc_capture_print_node prints the
+ *                                  register lists values of the attached node
+ *                                  on the error-engine-dump being reported.
+ *                   L--> i915_reset_error_state ... -->__i915_gpu_coredump_free
+ *                        L--> ... cleanup_gt -->
+ *                             L--> intel_guc_capture_free_node returns the
+ *                                  capture-output-node back to the internal
+ *                                  cachelist for reuse.
+ *
  */
 
 static int guc_capture_buf_cnt(struct __guc_capture_bufstate *buf)
@@ -1385,9 +1400,155 @@ static void __guc_capture_process_output(struct intel_guc *guc)
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
+static const char *
+guc_capture_reg_to_str(const struct intel_guc *guc, u32 owner, u32 type,
+		       u32 class, u32 id, u32 offset, u32 *is_ext)
+{
+	const struct __guc_mmio_reg_descr_group *reglists = guc->capture->reglists;
+	struct __guc_mmio_reg_descr_group *extlists = guc->capture->extlists;
+	const struct __guc_mmio_reg_descr_group *match;
+	struct __guc_mmio_reg_descr_group *matchext;
+	int j;
+
+	*is_ext = 0;
+	if (!reglists)
+		return NULL;
+
+	match = guc_capture_get_one_list(reglists, owner, type, id);
+	if (!match)
+		return NULL;
+
+	for (j = 0; j < match->num_regs; ++j) {
+		if (offset == match->list[j].reg.reg)
+			return match->list[j].regname;
+	}
+	if (extlists) {
+		matchext = guc_capture_get_one_ext_list(extlists, owner, type, id);
+		if (!matchext)
+			return NULL;
+		for (j = 0; j < matchext->num_regs; ++j) {
+			if (offset == matchext->extlist[j].reg.reg) {
+				*is_ext = 1;
+				return matchext->extlist[j].regname;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+#define __out(a, ...) \
+	do { \
+		drm_warn((&(a)->i915->drm), __VA_ARGS__); \
+		i915_error_printf((a), __VA_ARGS__); \
+	} while (0)
+#else
+#define __out(a, ...) \
+	i915_error_printf(a, __VA_ARGS__)
+#endif
+
+#define GCAP_PRINT_INTEL_ENG_INFO(ebuf, eng) \
+	do { \
+		__out(ebuf, "    i915-Eng-Name: %s command stream\n", \
+		      (eng)->name); \
+		__out(ebuf, "    i915-Eng-Inst-Class: 0x%02x\n", (eng)->class); \
+		__out(ebuf, "    i915-Eng-Inst-Id: 0x%02x\n", (eng)->instance); \
+		__out(ebuf, "    i915-Eng-LogicalMask: 0x%08x\n", \
+		      (eng)->logical_mask); \
+	} while (0)
+
+#define GCAP_PRINT_GUC_INST_INFO(ebuf, node) \
+	do { \
+		__out(ebuf, "    GuC-Engine-Inst-Id: 0x%08x\n", \
+		      (node)->eng_inst); \
+		__out(ebuf, "    GuC-Context-Id: 0x%08x\n", (node)->guc_id); \
+		__out(ebuf, "    LRCA: 0x%08x\n", (node)->lrca); \
+	} while (0)
+
 int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *ebuf,
 					const struct intel_engine_coredump *ee)
 {
+	const char *grptype[GUC_STATE_CAPTURE_GROUP_TYPE_MAX] = {
+		"full-capture",
+		"partial-capture"
+	};
+	const char *datatype[GUC_CAPTURE_LIST_TYPE_MAX] = {
+		"Global",
+		"Engine-Class",
+		"Engine-Instance"
+	};
+	struct intel_guc_state_capture *cap;
+	struct __guc_capture_parsed_output *node;
+	struct intel_engine_cs *eng;
+	struct guc_mmio_reg *regs;
+	struct intel_guc *guc;
+	const char *str;
+	int numregs, i, j;
+	u32 is_ext;
+
+	if (!ebuf || !ee)
+		return -EINVAL;
+	cap = ee->capture;
+	if (!cap || !ee->engine)
+		return -ENODEV;
+
+	guc = &ee->engine->gt->uc.guc;
+
+	__out(ebuf, "global --- GuC Error Capture on %s command stream:\n",
+	      ee->engine->name);
+
+	node = ee->guc_capture_node;
+	if (!node) {
+		__out(ebuf, "  No matching ee-node\n");
+		return 0;
+	}
+
+	__out(ebuf, "Coverage:  %s\n", grptype[node->is_partial]);
+
+	for (i = GUC_CAPTURE_LIST_TYPE_GLOBAL; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		__out(ebuf, "  RegListType: %s\n",
+		      datatype[i % GUC_CAPTURE_LIST_TYPE_MAX]);
+		__out(ebuf, "    Owner-Id: %d\n", node->reginfo[i].vfid);
+
+		switch (i) {
+		case GUC_CAPTURE_LIST_TYPE_GLOBAL:
+		default:
+			break;
+		case GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS:
+			__out(ebuf, "    GuC-Eng-Class: %d\n", node->eng_class);
+			__out(ebuf, "    i915-Eng-Class: %d\n",
+			      guc_class_to_engine_class(node->eng_class));
+			break;
+		case GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE:
+			eng = intel_guc_lookup_engine(guc, node->eng_class, node->eng_inst);
+			if (eng)
+				GCAP_PRINT_INTEL_ENG_INFO(ebuf, eng);
+			else
+				__out(ebuf, "    i915-Eng-Lookup Fail!\n");
+			GCAP_PRINT_GUC_INST_INFO(ebuf, node);
+			break;
+		}
+
+		numregs = node->reginfo[i].num_regs;
+		__out(ebuf, "    NumRegs: %d\n", numregs);
+		j = 0;
+		while (numregs--) {
+			regs = node->reginfo[i].regs;
+			str = guc_capture_reg_to_str(guc, GUC_CAPTURE_LIST_INDEX_PF, i,
+						     node->eng_class, 0, regs[j].offset, &is_ext);
+			if (!str)
+				__out(ebuf, "      REG-0x%08x", regs[j].offset);
+			else
+				__out(ebuf, "      %s", str);
+			if (is_ext)
+				__out(ebuf, "[%ld][%ld]",
+				      FIELD_GET(GUC_REGSET_STEERING_GROUP, regs[j].flags),
+				      FIELD_GET(GUC_REGSET_STEERING_INSTANCE, regs[j].flags));
+			__out(ebuf, ":  0x%08x\n", regs[j].value);
+			++j;
+		}
+	}
 	return 0;
 }
 

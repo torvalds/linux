@@ -308,6 +308,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES, CORE_DUMP_FLAG_NONE);
+
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
