@@ -24,9 +24,6 @@
 
 #define REAUTH_LIMIT	(4)
 #define REASSOC_LIMIT	(4)
-#define READDBA_LIMIT	(2)
-
-#define ROAMING_LIMIT	8
 
 #define	DYNAMIC_FUNC_DISABLE			(0x0)
 
