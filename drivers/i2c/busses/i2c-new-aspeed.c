@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2C driver for the Aspeed SoC
+ * ASPEED New I2C controller for the Aspeed AST2600 SoCS
  *
  * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
  */
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -21,7 +20,7 @@
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/i2c-smbus.h>
-#include "ast2600-i2c-global.h"
+#include "aspeed-i2c-new-global.h"
 
 /***************************************************************************/
 /* AST2600 reg */
@@ -1698,5 +1697,5 @@ static struct platform_driver aspeed_new_i2c_bus_driver = {
 module_platform_driver(aspeed_new_i2c_bus_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("ASPEED I2C New Mode Bus Driver");
+MODULE_DESCRIPTION("ASPEED I2C New Register Controller Driver");
 MODULE_LICENSE("GPL v2");

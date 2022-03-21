@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Aspeed I2C Interrupt Controller.
+ * Aspeed I2C Global Controller.
  *
  * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
  */
 #include <linux/clk.h>
 #include <linux/irq.h>
@@ -19,7 +18,7 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
-#include "ast2600-i2c-global.h"
+#include "aspeed-i2c-new-global.h"
 
 struct aspeed_i2c_ic {
 	void __iomem		*base;
@@ -27,12 +26,11 @@ struct aspeed_i2c_ic {
 	u32			i2c_irq_mask;
 	struct reset_control	*rst;
 	struct irq_domain	*irq_domain;
-	int			bus_num;
 };
 
 static const struct of_device_id aspeed_i2c_ic_of_match[] = {
-	{ .compatible = "aspeed,ast2600-i2c-global", .data = (void *)0},
-	{ }
+	{ .compatible = "aspeed,ast2600-i2c-global", },
+	{ },
 };
 MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
 
@@ -71,17 +69,13 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct devi
 	onecell = kzalloc(sizeof(*onecell) +
 			  (BASE_CLK_COUNT * sizeof(struct clk_hw *)),
 			  GFP_KERNEL);
-
 	if (!onecell) {
-		pr_err("allocate clk_hw\n");
 		return 0;
 	}
 
 	onecell->num = BASE_CLK_COUNT;
 
-	pr_debug("base_clk %ld\n", base_clk);
 	for (j = 0; j < BASE_CLK_COUNT; j++) {
-		pr_debug("target clk : %ld\n", i2c_base_clk[j].base_freq);
 		for (i = 0; i < 0xff; i++) {
 			/*
 			 * i maps to div:
@@ -98,7 +92,6 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct devi
 			if (base_freq <= i2c_base_clk[j].base_freq)
 				break;
 		}
-		pr_info("i2cg - %s : %ld\n", i2c_base_clk[j].name, base_freq);
 		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
 		if (IS_ERR(hw)) {
 			pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
@@ -132,13 +125,6 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	i2c_ic->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(i2c_ic->base))
 		return PTR_ERR(i2c_ic->base);
-
-	i2c_ic->bus_num = (int)device_get_match_data(&pdev->dev);
-	if (i2c_ic->bus_num) {
-		i2c_ic->parent_irq = platform_get_irq(pdev, 0);
-		if (i2c_ic->parent_irq < 0)
-			return i2c_ic->parent_irq;
-	}
 
 	i2c_ic->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(i2c_ic->rst)) {
