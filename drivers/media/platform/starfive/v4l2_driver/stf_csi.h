@@ -11,6 +11,8 @@
 #include <media/media-entity.h>
 #include <video/stf-vin.h>
 
+#define STF_CSI_NAME "stf_csi"
+
 #define STF_CSI_PAD_SINK     0
 #define STF_CSI_PAD_SRC      1
 #define STF_CSI_PADS_NUM     2
