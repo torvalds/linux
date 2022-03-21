@@ -664,7 +664,11 @@ one is input, the second one output.
 * The fd channel - use file descriptor numbers for input/output. Example:
   ``con1=fd:0,fd:1.``
 
-* The port channel - listen on TCP port number. Example: ``con1=port:4321``
+* The port channel - start a telnet server on TCP port number. Example:
+  ``con1=port:4321``.  The host must have /usr/sbin/in.telnetd (usually part of
+  a telnetd package) and the port-helper from the UML utilities (see the
+  information for the xterm channel below).  UML will not boot until a client
+  connects.
 
 * The pty and pts channels - use system pty/pts.
 
