@@ -553,10 +553,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	int rc = 0;
 	int conf;
 
-	if (sockptr_is_null(optval) || (optlen < sizeof(*crypto_info))) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (sockptr_is_null(optval) || (optlen < sizeof(*crypto_info)))
+		return -EINVAL;
 
 	if (tx) {
 		crypto_info = &ctx->crypto_send.info;
@@ -567,10 +565,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	}
 
 	/* Currently we don't support set crypto info more than one time */
-	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
-		rc = -EBUSY;
-		goto out;
-	}
+	if (TLS_CRYPTO_INFO_READY(crypto_info))
+		return -EBUSY;
 
 	rc = copy_from_sockptr(crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
@@ -672,11 +668,10 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		ctx->sk_write_space = sk->sk_write_space;
 		sk->sk_write_space = tls_write_space;
 	}
-	goto out;
+	return 0;
 
 err_crypto_info:
 	memzero_explicit(crypto_info, sizeof(union tls_crypto_context));
-out:
 	return rc;
 }
 
