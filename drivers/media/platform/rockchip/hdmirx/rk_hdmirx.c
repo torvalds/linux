@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -62,6 +63,7 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define INIT_FIFO_STATE			64
 #define RK_IRQ_HDMIRX_HDMI		210
 #define FILTER_FRAME_CNT		6
+#define CPU_LIMIT_FREQ_KHZ		1200000
 
 #define is_validfs(x) (x == 32000 || \
 			x == 44100 || \
@@ -159,8 +161,11 @@ struct hdmirx_stream {
 };
 
 struct rk_hdmirx_dev {
+	struct cec_notifier *cec_notifier;
+	struct cpufreq_policy *policy;
 	struct device *dev;
 	struct device *classdev;
+	struct device *codec_dev;
 	struct device_node *of_node;
 	struct hdmirx_stream stream;
 	struct v4l2_device v4l2_dev;
@@ -171,8 +176,13 @@ struct rk_hdmirx_dev {
 	struct delayed_work delayed_work_hotplug;
 	struct delayed_work delayed_work_res_change;
 	struct delayed_work delayed_work_audio;
+	struct dentry *debugfs_dir;
+	struct freq_qos_request min_sta_freq_req;
+	struct hdmirx_audiostate audio_state;
+	struct hdmirx_cec *cec;
 	struct mutex stream_lock;
 	struct mutex work_lock;
+	struct pm_qos_request pm_qos;
 	struct reset_control *rst_a;
 	struct reset_control *rst_p;
 	struct reset_control *rst_ref;
@@ -181,6 +191,7 @@ struct rk_hdmirx_dev {
 	struct regmap *grf;
 	struct regmap *vo1_grf;
 	void __iomem *regs;
+	int audio_present;
 	int hdmi_irq;
 	int dma_irq;
 	int det_irq;
@@ -192,21 +203,18 @@ struct rk_hdmirx_dev {
 	bool tmds_clk_ratio;
 	bool is_dvi_mode;
 	bool power_on;
+	bool initialized;
+	bool freq_qos_add;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
 	u32 cur_vic;
 	u32 cur_fmt_fourcc;
 	u32 color_depth;
-	int audio_present;
-	struct hdmirx_audiostate audio_state;
+	u32 cpu_freq_khz;
+	u32 bound_cpu;
 	hdmi_codec_plugged_cb plugged_cb;
-	struct device *codec_dev;
-	struct hdmirx_cec *cec;
-	struct cec_notifier *cec_notifier;
 	spinlock_t dma_rst_lock;
-	struct dentry *debugfs_dir;
-	bool initialized;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
@@ -217,6 +225,8 @@ static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev);
 static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_audio_handle_plugged_change(struct rk_hdmirx_dev *hdmirx_dev, bool plugged);
 static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en);
+static int hdmirx_set_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev);
+static void hdmirx_cancel_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev);
 
 static u8 edid_init_data[] = {
 	0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
@@ -1132,8 +1142,9 @@ static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 	};
 
 	if (hdmirx_try_to_get_timings(hdmirx_dev, &timings, 20)) {
-		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-			msecs_to_jiffies(20));
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+				&hdmirx_dev->delayed_work_hotplug,
+				msecs_to_jiffies(20));
 		return;
 	}
 
@@ -1860,7 +1871,8 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			FIFO_UNDERFLOW_INT_EN |
 			HDMIRX_AXI_ERROR_INT_EN, 0);
 	hdmirx_reset_dma(hdmirx_dev);
-	schedule_delayed_work(&hdmirx_dev->delayed_work_res_change,
+	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+			&hdmirx_dev->delayed_work_res_change,
 			msecs_to_jiffies(50));
 }
 
@@ -1892,7 +1904,8 @@ static void avpunit_1_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
 				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
 				   0);
-		schedule_delayed_work(&hdmirx_dev->delayed_work_audio, HZ / 2);
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+				&hdmirx_dev->delayed_work_audio, HZ / 2);
 		*handled = true;
 	}
 }
@@ -2256,6 +2269,8 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 	v4l2_dbg(1, debug, v4l2_dev, "%s: plugin:%d\n", __func__, plugin);
 
 	if (plugin) {
+		cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, 0);
+		hdmirx_set_cpu_limit_freq(hdmirx_dev);
 		hdmirx_submodule_init(hdmirx_dev);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
 					POWERPROVIDED);
@@ -2287,6 +2302,8 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 		hdmirx_writel(hdmirx_dev, PHYCREG_CONFIG0, 0x0);
 		cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 		cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
+		cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
+		hdmirx_cancel_cpu_limit_freq(hdmirx_dev);
 	}
 	mutex_unlock(&hdmirx_dev->work_lock);
 }
@@ -2607,7 +2624,9 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 	}
 	as->pre_state = cur_state;
 exit:
-	schedule_delayed_work(&hdmirx_dev->delayed_work_audio, msecs_to_jiffies(delay));
+	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+			&hdmirx_dev->delayed_work_audio,
+			msecs_to_jiffies(delay));
 }
 
 static void hdmirx_delayed_work_res_change(struct work_struct *work)
@@ -2645,8 +2664,8 @@ static irqreturn_t hdmirx_5v_det_irq_handler(int irq, void *dev_id)
 	val = gpiod_get_value(hdmirx_dev->hdmirx_det_gpio);
 	v4l2_dbg(3, debug, &hdmirx_dev->v4l2_dev, "%s: 5v:%d\n", __func__, val);
 
-	schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-				msecs_to_jiffies(10));
+	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+			&hdmirx_dev->delayed_work_hotplug, msecs_to_jiffies(10));
 
 	return IRQ_HANDLED;
 }
@@ -2854,11 +2873,13 @@ static int hdmirx_runtime_resume(struct device *dev)
 		     (HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
 		     ((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
 	if (hdmirx_dev->initialized)
-		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-				      msecs_to_jiffies(20));
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+				&hdmirx_dev->delayed_work_hotplug,
+				msecs_to_jiffies(20));
 	else
-		schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
-				      msecs_to_jiffies(2000));
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+				&hdmirx_dev->delayed_work_hotplug,
+				msecs_to_jiffies(2000));
 
 	return 0;
 }
@@ -3288,6 +3309,51 @@ static void hdmirx_register_debugfs(struct device *dev,
 			    hdmirx_dev, &hdmirx_status_fops);
 }
 
+static int hdmirx_set_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	int ret;
+
+	if (hdmirx_dev->policy == NULL) {
+		hdmirx_dev->policy = cpufreq_cpu_get(hdmirx_dev->bound_cpu);
+		if (!hdmirx_dev->policy) {
+			dev_err(hdmirx_dev->dev, "%s: cpu%d policy NULL\n",
+					__func__, hdmirx_dev->bound_cpu);
+			return -1;
+		}
+
+		ret = freq_qos_add_request(&hdmirx_dev->policy->constraints,
+					   &hdmirx_dev->min_sta_freq_req,
+					   FREQ_QOS_MIN,
+					   FREQ_QOS_MIN_DEFAULT_VALUE);
+		if (ret < 0) {
+			dev_err(hdmirx_dev->dev,
+				"%s: failed to add sta freq constraint\n",
+				__func__);
+			freq_qos_remove_request(&hdmirx_dev->min_sta_freq_req);
+			hdmirx_dev->policy = NULL;
+			return -1;
+		}
+		hdmirx_dev->freq_qos_add = true;
+	}
+
+	if (hdmirx_dev->freq_qos_add)
+		freq_qos_update_request(&hdmirx_dev->min_sta_freq_req,
+					hdmirx_dev->cpu_freq_khz);
+	else
+		dev_err(hdmirx_dev->dev, "%s freq qos nod add\n", __func__);
+
+	return 0;
+}
+
+static void hdmirx_cancel_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	if (hdmirx_dev->freq_qos_add)
+		freq_qos_update_request(&hdmirx_dev->min_sta_freq_req,
+					FREQ_QOS_MIN_DEFAULT_VALUE);
+	else
+		dev_err(hdmirx_dev->dev, "%s freq qos nod add\n", __func__);
+}
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	const struct v4l2_dv_timings timings_def = HDMIRX_DEFAULT_TIMING;
@@ -3297,8 +3363,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct v4l2_device *v4l2_dev;
 	struct v4l2_ctrl_handler *hdl;
 	struct resource *res;
-	int ret, irq;
+	int ret, irq, cpu_aff;
 	struct hdmirx_cec_data cec_data;
+	struct cpumask cpumask;
 
 	hdmirx_dev = devm_kzalloc(dev, sizeof(*hdmirx_dev), GFP_KERNEL);
 	if (!hdmirx_dev)
@@ -3307,6 +3374,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, hdmirx_dev);
 	hdmirx_dev->dev = dev;
 	hdmirx_dev->of_node = dev->of_node;
+	hdmirx_dev->cpu_freq_khz = CPU_LIMIT_FREQ_KHZ;
 	ret = hdmirx_parse_dt(hdmirx_dev);
 	if (ret)
 		return ret;
@@ -3317,6 +3385,17 @@ static int hdmirx_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to remap regs resource\n");
 		return PTR_ERR(hdmirx_dev->regs);
 	}
+
+	if (cpu_logical_map(0) == 0)
+		cpu_aff = cpu_logical_map(4); // big cpu0
+	else
+
+		cpu_aff = cpu_logical_map(1); // big cpu1
+	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
+	hdmirx_dev->bound_cpu = (cpu_aff >> 8) & 0xf;
+	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d\n", __func__, cpu_aff,
+			hdmirx_dev->bound_cpu);
+	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
 	mutex_init(&hdmirx_dev->work_lock);
@@ -3343,6 +3422,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_work_queues;
 	}
 
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
+	irq_set_affinity_hint(irq, &cpumask);
 	hdmirx_dev->hdmi_irq = irq;
 	ret = devm_request_threaded_irq(dev, irq, hdmirx_hdmi_irq_handler, NULL,
 			IRQF_ONESHOT, RK_HDMIRX_DRVNAME"-hdmi", hdmirx_dev);
@@ -3358,6 +3440,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_work_queues;
 	}
 
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
+	irq_set_affinity_hint(irq, &cpumask);
 	hdmirx_dev->dma_irq = irq;
 	ret = devm_request_threaded_irq(dev, irq, NULL, hdmirx_dma_irq_handler,
 			IRQF_ONESHOT, RK_HDMIRX_DRVNAME"-dma", hdmirx_dev);
@@ -3424,6 +3509,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_unreg_video_dev;
 	}
 
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
+	irq_set_affinity_hint(irq, &cpumask);
 	hdmirx_dev->det_irq = irq;
 	ret = devm_request_threaded_irq(dev, irq, hdmirx_5v_det_irq_handler,
 			NULL, IRQF_ONESHOT | IRQF_TRIGGER_FALLING |
@@ -3446,6 +3534,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		ret = irq;
 		goto err_hdl;
 	}
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
+	irq_set_affinity_hint(irq, &cpumask);
 
 	cec_data.hdmirx = hdmirx_dev;
 	cec_data.dev = hdmirx_dev->dev;
@@ -3468,6 +3559,7 @@ err_unreg_v4l2_dev:
 err_hdl:
 	v4l2_ctrl_handler_free(&hdmirx_dev->hdl);
 err_work_queues:
+	cpu_latency_qos_remove_request(&hdmirx_dev->pm_qos);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
@@ -3486,6 +3578,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	debugfs_remove_recursive(hdmirx_dev->debugfs_dir);
 
+	cpu_latency_qos_remove_request(&hdmirx_dev->pm_qos);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
