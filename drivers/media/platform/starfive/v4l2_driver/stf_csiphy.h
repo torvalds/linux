@@ -10,6 +10,8 @@
 #include <media/media-entity.h>
 #include <video/stf-vin.h>
 
+#define STF_CSIPHY_NAME "stf_csiphy"
+
 #define STF_CSIPHY_PAD_SINK     0
 #define STF_CSIPHY_PAD_SRC      1
 #define STF_CSIPHY_PADS_NUM     2

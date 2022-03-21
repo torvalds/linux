@@ -10,15 +10,13 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define STF_CSIPHY_NAME "stf_csiphy"
-
 static const struct csiphy_format csiphy_formats_st7110[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 12},
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
 };
 
 int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id)
@@ -109,15 +107,15 @@ static void csiphy_try_format(struct stf_csiphy_dev *csiphy_dev,
 				break;
 
 		if (i >= csiphy_dev->nformats)
-			fmt->code = MEDIA_BUS_FMT_RGB565_2X8_LE;
+			fmt->code = csiphy_dev->formats[0].code;
 
 		fmt->width = clamp_t(u32,
 				fmt->width,
-				1,
+				STFCAMSS_FRAME_MIN_WIDTH,
 				STFCAMSS_FRAME_MAX_WIDTH);
 		fmt->height = clamp_t(u32,
 				fmt->height,
-				1,
+				STFCAMSS_FRAME_MIN_HEIGHT,
 				STFCAMSS_FRAME_MAX_HEIGHT_PIX);
 
 		fmt->field = V4L2_FIELD_NONE;
@@ -219,8 +217,16 @@ static int csiphy_set_format(struct v4l2_subdev *sd,
 	if (format == NULL)
 		return -EINVAL;
 
-	csiphy_try_format(csiphy_dev, state, fmt->pad, &fmt->format, fmt->which);
-	*format = fmt->format;
+	mutex_lock(&csiphy_dev->stream_lock);
+	if (csiphy_dev->stream_count) {
+		fmt->format = *format;
+		mutex_unlock(&csiphy_dev->stream_lock);
+		goto out;
+	} else {
+		csiphy_try_format(csiphy_dev, state, fmt->pad, &fmt->format, fmt->which);
+		*format = fmt->format;
+	}
+	mutex_unlock(&csiphy_dev->stream_lock);
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == STF_CSIPHY_PAD_SINK) {
@@ -233,7 +239,7 @@ static int csiphy_set_format(struct v4l2_subdev *sd,
 		csiphy_try_format(csiphy_dev, state, STF_CSIPHY_PAD_SRC, format,
 					fmt->which);
 	}
-
+out:
 	return 0;
 }
 
