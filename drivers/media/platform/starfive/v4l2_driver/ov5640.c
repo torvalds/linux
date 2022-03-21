@@ -258,7 +258,7 @@ struct ov5640_dev {
 	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
-	bool streaming;
+	int streaming;
 };
 
 static inline struct ov5640_dev *to_ov5640_dev(struct v4l2_subdev *sd)
@@ -2957,9 +2957,11 @@ static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
 		else
 			ret = ov5640_set_stream_dvp(sensor, enable);
 
-		if (!ret)
-			sensor->streaming = enable;
+		if (ret)
+			goto out;
 	}
+	sensor->streaming += enable ? 1 : -1;
+	WARN_ON(sensor->streaming < 0);
 out:
 	mutex_unlock(&sensor->lock);
 	return ret;
