@@ -1,0 +1,12 @@
+config CAN_CTUCANFD
+	tristate "CTU CAN-FD IP core"
+	help
+	  This driver adds support for the CTU CAN FD open-source IP core.
+	  More documentation and core sources at project page
+	  (https://gitlab.fel.cvut.cz/canbus/ctucanfd_ip_core).
+	  The core integration to Xilinx Zynq system as platform driver
+	  is available (https://gitlab.fel.cvut.cz/canbus/zynq/zynq-can-sja1000-top).
+	  Implementation on Intel FPGA-based PCI Express board is available
+	  from project (https://gitlab.fel.cvut.cz/canbus/pcie-ctucanfd) and
+	  on Intel SoC from project (https://gitlab.fel.cvut.cz/canbus/intel-soc-ctucanfd).
+	  Guidepost CTU FEE CAN bus projects page https://canbus.pages.fel.cvut.cz/ .
