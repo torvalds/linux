@@ -510,7 +510,7 @@
 	u2phy: usb2-phy@ff3e0000 {
 		compatible = "rockchip,rv1106-usb2phy";
 		reg = <0xff3e0000 0x8000>;
-		rockchip,grf = <&grf>;
+		rockchip,usbgrf = <&grf>;
 		clocks = <&cru CLK_REF_USBPHY>, <&cru PCLK_USBPHY>;
 		clock-names = "phyclk", "pclk";
 		resets = <&cru SRST_USBPHY_POR>, <&cru SRST_P_USBPHY>;
