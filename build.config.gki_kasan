@@ -1,6 +1,8 @@
 DEFCONFIG=gki_defconfig
 POST_DEFCONFIG_CMDS="check_defconfig && update_kasan_config"
 KERNEL_DIR=common
+LTO=none
+
 function update_kasan_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -e CONFIG_KASAN \
@@ -10,8 +12,6 @@ function update_kasan_config() {
          -d CONFIG_RANDOMIZE_BASE \
          -d CONFIG_KASAN_OUTLINE \
          --set-val CONFIG_FRAME_WARN 0 \
-         -d LTO \
-         -d LTO_CLANG \
          -d CFI \
          -d CFI_PERMISSIVE \
          -d CFI_CLANG \
