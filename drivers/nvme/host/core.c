@@ -4031,6 +4031,16 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	set_capacity(ns->disk, 0);
 	nvme_fault_inject_fini(&ns->fault_inject);
 
+	/*
+	 * Ensure that !NVME_NS_READY is seen by other threads to prevent
+	 * this ns going back into current_path.
+	 */
+	synchronize_srcu(&ns->head->srcu);
+
+	/* wait for concurrent submissions */
+	if (nvme_mpath_clear_current_path(ns))
+		synchronize_srcu(&ns->head->srcu);
+
 	mutex_lock(&ns->ctrl->subsys->lock);
 	list_del_rcu(&ns->siblings);
 	if (list_empty(&ns->head->list)) {
@@ -4041,10 +4051,6 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 
 	/* guarantee not available in head->list */
 	synchronize_rcu();
-
-	/* wait for concurrent submissions */
-	if (nvme_mpath_clear_current_path(ns))
-		synchronize_srcu(&ns->head->srcu);
 
 	if (!nvme_ns_head_multipath(ns->head))
 		nvme_cdev_del(&ns->cdev, &ns->cdev_device);
