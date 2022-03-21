@@ -85,7 +85,7 @@
 struct i2s_dev_data {
 	bool tdm_mode;
 	bool master_mode;
-	unsigned int i2s_irq;
+	int i2s_irq;
 	u16 i2s_instance;
 	u32 tdm_fmt;
 	void __iomem *acp5x_base;

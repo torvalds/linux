@@ -127,6 +127,12 @@ static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev
 		return;
 	}
 
+	/* Group Enable */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_BASE_ADDR_GRP_1,
+			  ACP_SRAM_PTE_OFFSET | BIT(31));
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1,
+			  PAGE_SIZE_4K_ENABLE);
+
 	for (page_idx = 0; page_idx < num_pages; page_idx++) {
 		low = lower_32_bits(addr);
 		high = upper_32_bits(addr);
@@ -136,6 +142,9 @@ static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev
 		offset += 8;
 		addr += PAGE_SIZE;
 	}
+
+	/* Flush ATU Cache after PTE Update */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
 }
 
 /* pre fw run operations */

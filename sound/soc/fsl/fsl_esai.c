@@ -1077,7 +1077,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	 * Register platform component before registering cpu dai for there
 	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
-	ret = imx_pcm_dma_init(pdev, IMX_ESAI_DMABUF_SIZE);
+	ret = imx_pcm_dma_init(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to init imx pcm dma: %d\n", ret);
 		goto err_pm_get_sync;
