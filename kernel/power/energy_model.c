@@ -54,28 +54,15 @@ static int em_debug_cpus_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(em_debug_cpus);
 
-static int em_debug_units_show(struct seq_file *s, void *unused)
+static int em_debug_flags_show(struct seq_file *s, void *unused)
 {
 	struct em_perf_domain *pd = s->private;
-	char *units = (pd->flags & EM_PERF_DOMAIN_MILLIWATTS) ?
-		"milliWatts" : "bogoWatts";
 
-	seq_printf(s, "%s\n", units);
+	seq_printf(s, "%#lx\n", pd->flags);
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(em_debug_units);
-
-static int em_debug_skip_inefficiencies_show(struct seq_file *s, void *unused)
-{
-	struct em_perf_domain *pd = s->private;
-	int enabled = (pd->flags & EM_PERF_DOMAIN_SKIP_INEFFICIENCIES) ? 1 : 0;
-
-	seq_printf(s, "%d\n", enabled);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(em_debug_skip_inefficiencies);
+DEFINE_SHOW_ATTRIBUTE(em_debug_flags);
 
 static void em_debug_create_pd(struct device *dev)
 {
@@ -89,9 +76,8 @@ static void em_debug_create_pd(struct device *dev)
 		debugfs_create_file("cpus", 0444, d, dev->em_pd->cpus,
 				    &em_debug_cpus_fops);
 
-	debugfs_create_file("units", 0444, d, dev->em_pd, &em_debug_units_fops);
-	debugfs_create_file("skip-inefficiencies", 0444, d, dev->em_pd,
-			    &em_debug_skip_inefficiencies_fops);
+	debugfs_create_file("flags", 0444, d, dev->em_pd,
+			    &em_debug_flags_fops);
 
 	/* Create a sub-directory for each performance state */
 	for (i = 0; i < dev->em_pd->nr_perf_states; i++)
