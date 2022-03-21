@@ -1148,15 +1148,11 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		else
 			podmpriv->SupportAbility = podmpriv->BK_SupportAbility;
 		break;
-	case HW_VAR_DM_FUNC_SET:
-		if (*((u32 *)val) == DYNAMIC_ALL_FUNC_ENABLE) {
-			podmpriv->SupportAbility =	pdmpriv->InitODMFlag;
-		} else {
-			podmpriv->SupportAbility |= *((u32 *)val);
-		}
+	case HW_VAR_DM_FUNC_RESET:
+		podmpriv->SupportAbility = pdmpriv->InitODMFlag;
 		break;
 	case HW_VAR_DM_FUNC_CLR:
-		podmpriv->SupportAbility &= *((u32 *)val);
+		podmpriv->SupportAbility = 0;
 		break;
 	case HW_VAR_AC_PARAM_BE:
 		haldata->AcParam_BE = ((u32 *)(val))[0];

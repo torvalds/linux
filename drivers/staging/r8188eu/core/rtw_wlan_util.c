@@ -276,14 +276,6 @@ void Restore_DM_Func_Flag(struct adapter *padapter)
 	SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&saveflag));
 }
 
-void Switch_DM_Func(struct adapter *padapter, u32 mode, u8 enable)
-{
-	if (enable)
-		SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_SET, (u8 *)(&mode));
-	else
-		SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_CLR, (u8 *)(&mode));
-}
-
 void Set_MSR(struct adapter *padapter, u8 type)
 {
 	u8 val8;
