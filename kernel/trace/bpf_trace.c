@@ -80,7 +80,8 @@ u64 bpf_get_stack(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
 				  u64 flags, const struct btf **btf,
 				  s32 *btf_id);
-static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx, u64 ip);
+static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx);
+static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx);
 
 /**
  * trace_call_bpf - invoke BPF program
@@ -1042,7 +1043,7 @@ static const struct bpf_func_proto bpf_get_func_ip_proto_kprobe = {
 
 BPF_CALL_1(bpf_get_func_ip_kprobe_multi, struct pt_regs *, regs)
 {
-	return instruction_pointer(regs);
+	return bpf_kprobe_multi_entry_ip(current->bpf_ctx);
 }
 
 static const struct bpf_func_proto bpf_get_func_ip_proto_kprobe_multi = {
@@ -1054,7 +1055,7 @@ static const struct bpf_func_proto bpf_get_func_ip_proto_kprobe_multi = {
 
 BPF_CALL_1(bpf_get_attach_cookie_kprobe_multi, struct pt_regs *, regs)
 {
-	return bpf_kprobe_multi_cookie(current->bpf_ctx, instruction_pointer(regs));
+	return bpf_kprobe_multi_cookie(current->bpf_ctx);
 }
 
 static const struct bpf_func_proto bpf_get_attach_cookie_proto_kmulti = {
@@ -2219,13 +2220,14 @@ struct bpf_kprobe_multi_link {
 	struct bpf_link link;
 	struct fprobe fp;
 	unsigned long *addrs;
-	/*
-	 * The run_ctx here is used to get struct bpf_kprobe_multi_link in
-	 * get_attach_cookie helper, so it can't be used to store data.
-	 */
-	struct bpf_run_ctx run_ctx;
 	u64 *cookies;
 	u32 cnt;
+};
+
+struct bpf_kprobe_multi_run_ctx {
+	struct bpf_run_ctx run_ctx;
+	struct bpf_kprobe_multi_link *link;
+	unsigned long entry_ip;
 };
 
 static void bpf_kprobe_multi_link_release(struct bpf_link *link)
@@ -2281,18 +2283,21 @@ static int bpf_kprobe_multi_cookie_cmp(const void *a, const void *b, const void 
 	return __bpf_kprobe_multi_cookie_cmp(a, b);
 }
 
-static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx, u64 ip)
+static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx)
 {
+	struct bpf_kprobe_multi_run_ctx *run_ctx;
 	struct bpf_kprobe_multi_link *link;
+	u64 *cookie, entry_ip;
 	unsigned long *addr;
-	u64 *cookie;
 
 	if (WARN_ON_ONCE(!ctx))
 		return 0;
-	link = container_of(ctx, struct bpf_kprobe_multi_link, run_ctx);
+	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx, run_ctx);
+	link = run_ctx->link;
 	if (!link->cookies)
 		return 0;
-	addr = bsearch(&ip, link->addrs, link->cnt, sizeof(ip),
+	entry_ip = run_ctx->entry_ip;
+	addr = bsearch(&entry_ip, link->addrs, link->cnt, sizeof(entry_ip),
 		       __bpf_kprobe_multi_cookie_cmp);
 	if (!addr)
 		return 0;
@@ -2300,10 +2305,22 @@ static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx, u64 ip)
 	return *cookie;
 }
 
+static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
+{
+	struct bpf_kprobe_multi_run_ctx *run_ctx;
+
+	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx, run_ctx);
+	return run_ctx->entry_ip;
+}
+
 static int
 kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
-			   struct pt_regs *regs)
+			   unsigned long entry_ip, struct pt_regs *regs)
 {
+	struct bpf_kprobe_multi_run_ctx run_ctx = {
+		.link = link,
+		.entry_ip = entry_ip,
+	};
 	struct bpf_run_ctx *old_run_ctx;
 	int err;
 
@@ -2314,7 +2331,7 @@ kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 
 	migrate_disable();
 	rcu_read_lock();
-	old_run_ctx = bpf_set_run_ctx(&link->run_ctx);
+	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
 	err = bpf_prog_run(link->link.prog, regs);
 	bpf_reset_run_ctx(old_run_ctx);
 	rcu_read_unlock();
@@ -2329,24 +2346,10 @@ static void
 kprobe_multi_link_handler(struct fprobe *fp, unsigned long entry_ip,
 			  struct pt_regs *regs)
 {
-	unsigned long saved_ip = instruction_pointer(regs);
 	struct bpf_kprobe_multi_link *link;
 
-	/*
-	 * Because fprobe's regs->ip is set to the next instruction of
-	 * dynamic-ftrace instruction, correct entry ip must be set, so
-	 * that the bpf program can access entry address via regs as same
-	 * as kprobes.
-	 *
-	 * Both kprobe and kretprobe see the entry ip of traced function
-	 * as instruction pointer.
-	 */
-	instruction_pointer_set(regs, entry_ip);
-
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	kprobe_multi_link_prog_run(link, regs);
-
-	instruction_pointer_set(regs, saved_ip);
+	kprobe_multi_link_prog_run(link, entry_ip, regs);
 }
 
 static int
@@ -2513,7 +2516,11 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 {
 	return -EOPNOTSUPP;
 }
-static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx, u64 ip)
+static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx)
+{
+	return 0;
+}
+static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 {
 	return 0;
 }
