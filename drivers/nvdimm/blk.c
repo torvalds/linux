@@ -6,7 +6,6 @@
 
 #include <linux/blkdev.h>
 #include <linux/fs.h>
-#include <linux/genhd.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/nd.h>

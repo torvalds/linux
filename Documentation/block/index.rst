@@ -8,7 +8,6 @@ Block
    :maxdepth: 1
 
    bfq-iosched
-   biodoc
    biovecs
    blk-mq
    capability

@@ -494,7 +494,7 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 	if (!map_req)
 		return NULL;
 
-	bio = bio_alloc(GFP_KERNEL, hpb->pages_per_srgn);
+	bio = bio_alloc(NULL, hpb->pages_per_srgn, 0, GFP_KERNEL);
 	if (!bio) {
 		ufshpb_put_req(hpb, map_req);
 		return NULL;
@@ -2050,7 +2050,7 @@ static int ufshpb_pre_req_mempool_init(struct ufshpb_lu *hpb)
 		INIT_LIST_HEAD(&pre_req->list_req);
 		pre_req->req = NULL;
 
-		pre_req->bio = bio_alloc(GFP_KERNEL, 1);
+		pre_req->bio = bio_alloc(NULL, 1, 0, GFP_KERNEL);
 		if (!pre_req->bio)
 			goto release_mem;
 
