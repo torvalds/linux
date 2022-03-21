@@ -1887,7 +1887,7 @@ do_write:
 	BUG_ON(BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN);
 	BUG_ON(i->seq != b->data->keys.seq);
 
-	i->version = c->sb.version < bcachefs_metadata_version_new_versioning
+	i->version = c->sb.version < bcachefs_metadata_version_bkey_renumber
 		? cpu_to_le16(BCH_BSET_VERSION_OLD)
 		: cpu_to_le16(c->sb.version);
 	SET_BSET_OFFSET(i, b->written);

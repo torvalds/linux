@@ -1279,19 +1279,23 @@ struct bch_sb_field_journal_seq_blacklist {
 #define BCH_JSET_VERSION_OLD			2
 #define BCH_BSET_VERSION_OLD			3
 
+#define BCH_METADATA_VERSIONS()				\
+	x(bkey_renumber,		10)		\
+	x(inode_btree_change,		11)		\
+	x(snapshot,			12)		\
+	x(inode_backpointers,		13)		\
+	x(btree_ptr_sectors_written,	14)		\
+	x(snapshot_2,			15)		\
+	x(reflink_p_fix,		16)		\
+	x(subvol_dirent,		17)		\
+	x(inode_v2,			18)
+
 enum bcachefs_metadata_version {
-	bcachefs_metadata_version_min			= 9,
-	bcachefs_metadata_version_new_versioning	= 10,
-	bcachefs_metadata_version_bkey_renumber		= 10,
-	bcachefs_metadata_version_inode_btree_change	= 11,
-	bcachefs_metadata_version_snapshot		= 12,
-	bcachefs_metadata_version_inode_backpointers	= 13,
-	bcachefs_metadata_version_btree_ptr_sectors_written = 14,
-	bcachefs_metadata_version_snapshot_2		= 15,
-	bcachefs_metadata_version_reflink_p_fix		= 16,
-	bcachefs_metadata_version_subvol_dirent		= 17,
-	bcachefs_metadata_version_inode_v2		= 18,
-	bcachefs_metadata_version_max			= 19,
+	bcachefs_metadata_version_min = 9,
+#define x(t, n)	bcachefs_metadata_version_##t = n,
+	BCH_METADATA_VERSIONS()
+#undef x
+	bcachefs_metadata_version_max
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)

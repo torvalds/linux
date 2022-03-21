@@ -263,7 +263,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out)
 	int ret;
 
 	version		= le16_to_cpu(sb->version);
-	version_min	= version >= bcachefs_metadata_version_new_versioning
+	version_min	= version >= bcachefs_metadata_version_bkey_renumber
 		? le16_to_cpu(sb->version_min)
 		: version;
 
@@ -518,7 +518,7 @@ reread:
 	}
 
 	version		= le16_to_cpu(sb->sb->version);
-	version_min	= version >= bcachefs_metadata_version_new_versioning
+	version_min	= version >= bcachefs_metadata_version_bkey_renumber
 		? le16_to_cpu(sb->sb->version_min)
 		: version;
 
@@ -1552,12 +1552,12 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	pr_buf(out, "Version:");
 	pr_tab(out);
-	pr_buf(out, "%u", le16_to_cpu(sb->version));
+	pr_buf(out, "%s", bch2_metadata_versions[le16_to_cpu(sb->version)]);
 	pr_newline(out);
 
 	pr_buf(out, "Oldest version on disk:");
 	pr_tab(out);
-	pr_buf(out, "%u", le16_to_cpu(sb->version_min));
+	pr_buf(out, "%u", bch2_metadata_versions[le16_to_cpu(sb->version_min)]);
 	pr_newline(out);
 
 	pr_buf(out, "Created:");

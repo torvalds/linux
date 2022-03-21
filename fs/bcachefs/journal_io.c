@@ -1574,7 +1574,7 @@ void bch2_journal_write(struct closure *cl)
 	BUG_ON(vstruct_sectors(jset, c->block_bits) > w->sectors);
 
 	jset->magic		= cpu_to_le64(jset_magic(c));
-	jset->version		= c->sb.version < bcachefs_metadata_version_new_versioning
+	jset->version		= c->sb.version < bcachefs_metadata_version_bkey_renumber
 		? cpu_to_le32(BCH_JSET_VERSION_OLD)
 		: cpu_to_le32(c->sb.version);
 

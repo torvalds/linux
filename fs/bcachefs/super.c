@@ -897,7 +897,7 @@ static void print_mount_opts(struct bch_fs *c)
 	if (!p.pos)
 		pr_buf(&p, "(null)");
 
-	bch_info(c, "mounted with opts: %s", p.buf);
+	bch_info(c, "mounted version=%s opts=%s", bch2_metadata_versions[c->sb.version], p.buf);
 	printbuf_exit(&p);
 }
 
