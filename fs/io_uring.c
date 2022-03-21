@@ -2475,10 +2475,6 @@ static void tctx_task_work(struct callback_head *cb)
 	while (1) {
 		struct io_wq_work_node *node1, *node2;
 
-		if (!tctx->task_list.first &&
-		    !tctx->prior_task_list.first && uring_locked)
-			io_submit_flush_completions(ctx);
-
 		spin_lock_irq(&tctx->task_lock);
 		node1 = tctx->prior_task_list.first;
 		node2 = tctx->task_list.first;
@@ -2492,10 +2488,13 @@ static void tctx_task_work(struct callback_head *cb)
 
 		if (node1)
 			handle_prev_tw_list(node1, &ctx, &uring_locked);
-
 		if (node2)
 			handle_tw_list(node2, &ctx, &uring_locked);
 		cond_resched();
+
+		if (!tctx->task_list.first &&
+		    !tctx->prior_task_list.first && uring_locked)
+			io_submit_flush_completions(ctx);
 	}
 
 	ctx_flush_and_put(ctx, &uring_locked);
