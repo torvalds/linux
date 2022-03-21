@@ -1014,14 +1014,6 @@ static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
 		V4L2_MAP_QUANTIZATION_DEFAULT(false, fmt_sink->colorspace,
 					      fmt_sink->ycbcr_enc);
 
-	/*
-	 * When called from mipi_csis_subdev_init() to initialize the active
-	 * configuration, cfg is NULL, which indicates there's no source pad
-	 * configuration to set.
-	 */
-	if (!sd_state)
-		return 0;
-
 	fmt_source = mipi_csis_get_format(csis, sd_state, which,
 					  CSIS_PAD_SOURCE);
 	*fmt_source = *fmt_sink;
