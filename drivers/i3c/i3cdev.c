@@ -367,6 +367,7 @@ static int i3cdev_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		return i3cdev_attach(dev, NULL);
 	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_NOTIFY_REMOVED_DEVICE:
 	case BUS_NOTIFY_BIND_DRIVER:
 		return i3cdev_detach(dev, NULL);
 	}
