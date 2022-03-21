@@ -529,16 +529,18 @@ static int av1dec_set_l2_cache(struct av1dec_dev *dec, struct av1dec_task *task)
 		/* shaper enable */
 		writel_relaxed(AV1_L2_CACHE_SHAPER_EN,
 			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_SHAPER_CTRL);
+
+		/* TODO: set exception list */
+
+		/* multi id enable bit */
+		writel_relaxed(0x00000001, dec->reg_base[AV1DEC_CLASS_CACHE] +
+			       AV1_L2_CACHE_RD_ONLY_CONFIG);
+		/* reorder_e and cache_e */
+		writel_relaxed(0x00000081, dec->reg_base[AV1DEC_CLASS_CACHE] +
+			       AV1_L2_CACHE_RD_ONLY_CTRL);
+		/* wmb */
+		wmb();
 	}
-
-	/* TODO: set exception list */
-
-	/* multi id enable bit */
-	writel_relaxed(0x00000001, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_RD_ONLY_CONFIG);
-	/* reorder_e and cache_e */
-	writel_relaxed(0x00000081, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_RD_ONLY_CTRL);
-	/* wmb */
-	wmb();
 
 	return 0;
 }
@@ -1272,7 +1274,7 @@ static int av1dec_probe(struct platform_device *pdev)
 
 	/* iommu may disabled */
 	if (mpp->iommu_info)
-		mpp->iommu_info->skip_refresh = 1;
+		mpp->iommu_info->av1d_iommu = 1;
 
 	dec->reg_base[AV1DEC_CLASS_VCD] = mpp->reg_base;
 	ret = devm_request_threaded_irq(dev, mpp->irq,

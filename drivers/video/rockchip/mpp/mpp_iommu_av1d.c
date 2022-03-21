@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include "mpp_debug.h"
 #include "mpp_common.h"
+#include "mpp_iommu.h"
 
 struct av1_iommu_domain {
 	struct list_head iommus;
@@ -196,6 +197,18 @@ static void av1_iommu_disable(struct av1_iommu *iommu)
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 }
 
+int mpp_av1_iommu_disable(struct device *dev)
+{
+	struct av1_iommu *iommu = av1_iommu_from_dev(dev);
+
+	if (!iommu->domain)
+		return 0;
+
+	av1_iommu_disable(iommu);
+
+	return 0;
+}
+
 static int av1_iommu_enable(struct av1_iommu *iommu)
 {
 	struct iommu_domain *domain = iommu->domain;
@@ -219,6 +232,16 @@ static int av1_iommu_enable(struct av1_iommu *iommu)
 	}
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 	return ret;
+}
+
+int mpp_av1_iommu_enable(struct device *dev)
+{
+	struct av1_iommu *iommu = av1_iommu_from_dev(dev);
+
+	if (!iommu->domain)
+		return 0;
+
+	return av1_iommu_enable(iommu);
 }
 
 static inline void av1_table_flush(struct av1_iommu_domain *dom, dma_addr_t dma,

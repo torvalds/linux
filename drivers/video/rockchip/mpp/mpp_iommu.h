@@ -73,7 +73,7 @@ struct mpp_iommu_info {
 	struct iommu_group *group;
 	struct mpp_rk_iommu *iommu;
 	iommu_fault_handler_t hdl;
-	u32 skip_refresh;
+	u32 av1d_iommu;
 };
 
 struct mpp_dma_session *
@@ -105,6 +105,8 @@ int mpp_iommu_detach(struct mpp_iommu_info *info);
 
 int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev);
 int mpp_iommu_flush_tlb(struct mpp_iommu_info *info);
+int mpp_av1_iommu_disable(struct device *dev);
+int mpp_av1_iommu_enable(struct device *dev);
 
 static inline int mpp_iommu_down_read(struct mpp_iommu_info *info)
 {
