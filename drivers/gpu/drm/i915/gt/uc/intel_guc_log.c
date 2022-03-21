@@ -158,9 +158,9 @@ static void *guc_get_write_buffer(struct intel_guc_log *log)
 	return relay_reserve(log->relay.channel, 0);
 }
 
-static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
-				       enum guc_log_buffer_type type,
-				       unsigned int full_cnt)
+bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
+				      enum guc_log_buffer_type type,
+				      unsigned int full_cnt)
 {
 	unsigned int prev_full_cnt = log->stats[type].sampled_overflow;
 	bool overflow = false;
@@ -183,7 +183,7 @@ static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
 	return overflow;
 }
 
-static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
+unsigned int intel_guc_get_log_buffer_size(enum guc_log_buffer_type type)
 {
 	switch (type) {
 	case GUC_DEBUG_LOG_BUFFER:
@@ -197,6 +197,20 @@ static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 	}
 
 	return 0;
+}
+
+size_t intel_guc_get_log_buffer_offset(enum guc_log_buffer_type type)
+{
+	enum guc_log_buffer_type i;
+	size_t offset = PAGE_SIZE;/* for the log_buffer_states */
+
+	for (i = GUC_DEBUG_LOG_BUFFER; i < GUC_MAX_LOG_BUFFER; ++i) {
+		if (i == type)
+			break;
+		offset += intel_guc_get_log_buffer_size(i);
+	}
+
+	return offset;
 }
 
 static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
@@ -244,14 +258,14 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 		 */
 		memcpy(&log_buf_state_local, log_buf_state,
 		       sizeof(struct guc_log_buffer_state));
-		buffer_size = guc_get_log_buffer_size(type);
+		buffer_size = intel_guc_get_log_buffer_size(type);
 		read_offset = log_buf_state_local.read_ptr;
 		write_offset = log_buf_state_local.sampled_write_ptr;
 		full_cnt = log_buf_state_local.buffer_full_cnt;
 
 		/* Bookkeeping stuff */
 		log->stats[type].flush += log_buf_state_local.flush_to_file;
-		new_overflow = guc_check_log_buf_overflow(log, type, full_cnt);
+		new_overflow = intel_guc_check_log_buf_overflow(log, type, full_cnt);
 
 		/* Update the state of shared log buffer */
 		log_buf_state->read_ptr = write_offset;

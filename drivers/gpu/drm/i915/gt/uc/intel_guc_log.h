@@ -67,6 +67,10 @@ struct intel_guc_log {
 };
 
 void intel_guc_log_init_early(struct intel_guc_log *log);
+bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log, enum guc_log_buffer_type type,
+				      unsigned int full_cnt);
+unsigned int intel_guc_get_log_buffer_size(enum guc_log_buffer_type type);
+size_t intel_guc_get_log_buffer_offset(enum guc_log_buffer_type type);
 int intel_guc_log_create(struct intel_guc_log *log);
 void intel_guc_log_destroy(struct intel_guc_log *log);
 

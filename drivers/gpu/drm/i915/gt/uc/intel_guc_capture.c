@@ -14,6 +14,8 @@
 #include "intel_guc_capture.h"
 #include "intel_guc_fwif.h"
 #include "i915_drv.h"
+#include "i915_gpu_error.h"
+#include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "i915_reg.h"
 
@@ -674,6 +676,9 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
 	int worst_min_size = 0, num_regs = 0;
 	size_t tmp = 0;
 
+	if (!guc->capture)
+		return -ENODEV;
+
 	/*
 	 * If every single engine-instance suffered a failure in quick succession but
 	 * were all unrelated, then a burst of multiple error-capture events would dump
@@ -692,7 +697,7 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
 
 	for_each_engine(engine, gt, id) {
 		worst_min_size += sizeof(struct guc_state_capture_group_header_t) +
-				  (3 * sizeof(struct guc_state_capture_header_t));
+					 (3 * sizeof(struct guc_state_capture_header_t));
 
 		if (!intel_guc_capture_getlistsize(guc, 0, GUC_CAPTURE_LIST_TYPE_GLOBAL, 0, &tmp))
 			num_regs += tmp;
@@ -710,6 +715,555 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
 	worst_min_size += (num_regs * sizeof(struct guc_mmio_reg));
 
 	return (worst_min_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER);
+}
+
+/*
+ * KMD Init time flows:
+ * --------------------
+ *     --> alloc A: GuC input capture regs lists (registered to GuC via ADS).
+ *                  intel_guc_ads acquires the register lists by calling
+ *                  intel_guc_capture_list_size and intel_guc_capture_list_get 'n' times,
+ *                  where n = 1 for global-reg-list +
+ *                            num_engine_classes for class-reg-list +
+ *                            num_engine_classes for instance-reg-list
+ *                               (since all instances of the same engine-class type
+ *                                have an identical engine-instance register-list).
+ *                  ADS module also calls separately for PF vs VF.
+ *
+ *     --> alloc B: GuC output capture buf (registered via guc_init_params(log_param))
+ *                  Size = #define CAPTURE_BUFFER_SIZE (warns if on too-small)
+ *                  Note2: 'x 3' to hold multiple capture groups
+ *
+ * GUC Runtime notify capture:
+ * --------------------------
+ *     --> G2H STATE_CAPTURE_NOTIFICATION
+ *                   L--> intel_guc_capture_process
+ *                           L--> Loop through B (head..tail) and for each engine instance's
+ *                                err-state-captured register-list we find, we alloc 'C':
+ *      --> alloc C: A capture-output-node structure that includes misc capture info along
+ *                   with 3 register list dumps (global, engine-class and engine-instance)
+ *                   This node is dynamically allocated and populated with the error-capture
+ *                   data from GuC and then it's added into guc->capture->outlist linked
+ *                   list. This list is used for matchup and printout by i915_gpu_coredump
+ *                   and err_print_gt, (when user invokes the error capture sysfs).
+ */
+
+static int guc_capture_buf_cnt(struct __guc_capture_bufstate *buf)
+{
+	if (buf->wr >= buf->rd)
+		return (buf->wr - buf->rd);
+	return (buf->size - buf->rd) + buf->wr;
+}
+
+static int guc_capture_buf_cnt_to_end(struct __guc_capture_bufstate *buf)
+{
+	if (buf->rd > buf->wr)
+		return (buf->size - buf->rd);
+	return (buf->wr - buf->rd);
+}
+
+/*
+ * GuC's error-capture output is a ring buffer populated in a byte-stream fashion:
+ *
+ * The GuC Log buffer region for error-capture is managed like a ring buffer.
+ * The GuC firmware dumps error capture logs into this ring in a byte-stream flow.
+ * Additionally, as per the current and foreseeable future, all packed error-
+ * capture output structures are dword aligned.
+ *
+ * That said, if the GuC firmware is in the midst of writing a structure that is larger
+ * than one dword but the tail end of the err-capture buffer-region has lesser space left,
+ * we would need to extract that structure one dword at a time straddled across the end,
+ * onto the start of the ring.
+ *
+ * Below function, guc_capture_log_remove_dw is a helper for that. All callers of this
+ * function would typically do a straight-up memcpy from the ring contents and will only
+ * call this helper if their structure-extraction is straddling across the end of the
+ * ring. GuC firmware does not add any padding. The reason for the no-padding is to ease
+ * scalability for future expansion of output data types without requiring a redesign
+ * of the flow controls.
+ */
+static int
+guc_capture_log_remove_dw(struct intel_guc *guc, struct __guc_capture_bufstate *buf,
+			  u32 *dw)
+{
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	int tries = 2;
+	int avail = 0;
+	u32 *src_data;
+
+	if (!guc_capture_buf_cnt(buf))
+		return 0;
+
+	while (tries--) {
+		avail = guc_capture_buf_cnt_to_end(buf);
+		if (avail >= sizeof(u32)) {
+			src_data = (u32 *)(buf->data + buf->rd);
+			*dw = *src_data;
+			buf->rd += 4;
+			return 4;
+		}
+		if (avail)
+			drm_dbg(&i915->drm, "GuC-Cap-Logs not dword aligned, skipping.\n");
+		buf->rd = 0;
+	}
+
+	return 0;
+}
+
+static bool
+guc_capture_data_extracted(struct __guc_capture_bufstate *b,
+			   int size, void *dest)
+{
+	if (guc_capture_buf_cnt_to_end(b) >= size) {
+		memcpy(dest, (b->data + b->rd), size);
+		b->rd += size;
+		return true;
+	}
+	return false;
+}
+
+static int
+guc_capture_log_get_group_hdr(struct intel_guc *guc, struct __guc_capture_bufstate *buf,
+			      struct guc_state_capture_group_header_t *ghdr)
+{
+	int read = 0;
+	int fullsize = sizeof(struct guc_state_capture_group_header_t);
+
+	if (fullsize > guc_capture_buf_cnt(buf))
+		return -1;
+
+	if (guc_capture_data_extracted(buf, fullsize, (void *)ghdr))
+		return 0;
+
+	read += guc_capture_log_remove_dw(guc, buf, &ghdr->owner);
+	read += guc_capture_log_remove_dw(guc, buf, &ghdr->info);
+	if (read != fullsize)
+		return -1;
+
+	return 0;
+}
+
+static int
+guc_capture_log_get_data_hdr(struct intel_guc *guc, struct __guc_capture_bufstate *buf,
+			     struct guc_state_capture_header_t *hdr)
+{
+	int read = 0;
+	int fullsize = sizeof(struct guc_state_capture_header_t);
+
+	if (fullsize > guc_capture_buf_cnt(buf))
+		return -1;
+
+	if (guc_capture_data_extracted(buf, fullsize, (void *)hdr))
+		return 0;
+
+	read += guc_capture_log_remove_dw(guc, buf, &hdr->owner);
+	read += guc_capture_log_remove_dw(guc, buf, &hdr->info);
+	read += guc_capture_log_remove_dw(guc, buf, &hdr->lrca);
+	read += guc_capture_log_remove_dw(guc, buf, &hdr->guc_id);
+	read += guc_capture_log_remove_dw(guc, buf, &hdr->num_mmios);
+	if (read != fullsize)
+		return -1;
+
+	return 0;
+}
+
+static int
+guc_capture_log_get_register(struct intel_guc *guc, struct __guc_capture_bufstate *buf,
+			     struct guc_mmio_reg *reg)
+{
+	int read = 0;
+	int fullsize = sizeof(struct guc_mmio_reg);
+
+	if (fullsize > guc_capture_buf_cnt(buf))
+		return -1;
+
+	if (guc_capture_data_extracted(buf, fullsize, (void *)reg))
+		return 0;
+
+	read += guc_capture_log_remove_dw(guc, buf, &reg->offset);
+	read += guc_capture_log_remove_dw(guc, buf, &reg->value);
+	read += guc_capture_log_remove_dw(guc, buf, &reg->flags);
+	read += guc_capture_log_remove_dw(guc, buf, &reg->mask);
+	if (read != fullsize)
+		return -1;
+
+	return 0;
+}
+
+static void
+guc_capture_delete_one_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
+{
+	int i;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
+		kfree(node->reginfo[i].regs);
+	list_del(&node->link);
+	kfree(node);
+}
+
+static void
+guc_capture_delete_nodes(struct intel_guc *guc)
+{
+	/*
+	 * NOTE: At the end of driver operation, we must assume that we
+	 * have nodes in outlist from unclaimed error capture events
+	 * that occurred prior to shutdown.
+	 */
+	if (!list_empty(&guc->capture->outlist)) {
+		struct __guc_capture_parsed_output *n, *ntmp;
+
+		list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link)
+			guc_capture_delete_one_node(guc, n);
+	}
+}
+
+static void
+guc_capture_add_node_to_list(struct __guc_capture_parsed_output *node,
+			     struct list_head *list)
+{
+	list_add_tail(&node->link, list);
+}
+
+static void
+guc_capture_add_node_to_outlist(struct intel_guc_state_capture *gc,
+				struct __guc_capture_parsed_output *node)
+{
+	guc_capture_add_node_to_list(node, &gc->outlist);
+}
+
+static void
+guc_capture_init_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
+{
+	INIT_LIST_HEAD(&node->link);
+}
+
+static struct __guc_capture_parsed_output *
+guc_capture_alloc_one_node(struct intel_guc *guc)
+{
+	struct __guc_capture_parsed_output *new;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	guc_capture_init_node(guc, new);
+
+	return new;
+}
+
+static struct __guc_capture_parsed_output *
+guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output *original,
+		       u32 keep_reglist_mask)
+{
+	struct __guc_capture_parsed_output *new;
+	int i;
+
+	new = guc_capture_alloc_one_node(guc);
+	if (!new)
+		return NULL;
+	if (!original)
+		return new;
+
+	new->is_partial = original->is_partial;
+
+	/* copy reg-lists that we want to clone */
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		if (keep_reglist_mask & BIT(i)) {
+			new->reginfo[i].regs = kcalloc(original->reginfo[i].num_regs,
+						       sizeof(struct guc_mmio_reg), GFP_KERNEL);
+			if (!new->reginfo[i].regs)
+				goto bail_clone;
+
+			memcpy(new->reginfo[i].regs, original->reginfo[i].regs,
+			       original->reginfo[i].num_regs * sizeof(struct guc_mmio_reg));
+			new->reginfo[i].num_regs = original->reginfo[i].num_regs;
+			new->reginfo[i].vfid  = original->reginfo[i].vfid;
+
+			if (i == GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS) {
+				new->eng_class = original->eng_class;
+			} else if (i == GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE) {
+				new->eng_inst = original->eng_inst;
+				new->guc_id = original->guc_id;
+				new->lrca = original->lrca;
+			}
+		}
+	}
+
+	return new;
+
+bail_clone:
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
+		kfree(new->reginfo[i].regs);
+	kfree(new);
+	return NULL;
+}
+
+static int
+guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstate *buf)
+{
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct guc_state_capture_group_header_t ghdr = {0};
+	struct guc_state_capture_header_t hdr = {0};
+	struct __guc_capture_parsed_output *node = NULL;
+	struct guc_mmio_reg *regs = NULL;
+	int i, numlists, numregs, ret = 0;
+	enum guc_capture_type datatype;
+	struct guc_mmio_reg tmp;
+	bool is_partial = false;
+
+	i = guc_capture_buf_cnt(buf);
+	if (!i)
+		return -ENODATA;
+	if (i % sizeof(u32)) {
+		drm_warn(&i915->drm, "GuC Capture new entries unaligned\n");
+		ret = -EIO;
+		goto bailout;
+	}
+
+	/* first get the capture group header */
+	if (guc_capture_log_get_group_hdr(guc, buf, &ghdr)) {
+		ret = -EIO;
+		goto bailout;
+	}
+	/*
+	 * we would typically expect a layout as below where n would be expected to be
+	 * anywhere between 3 to n where n > 3 if we are seeing multiple dependent engine
+	 * instances being reset together.
+	 * ____________________________________________
+	 * | Capture Group                            |
+	 * | ________________________________________ |
+	 * | | Capture Group Header:                | |
+	 * | |  - num_captures = 5                  | |
+	 * | |______________________________________| |
+	 * | ________________________________________ |
+	 * | | Capture1:                            | |
+	 * | |  Hdr: GLOBAL, numregs=a              | |
+	 * | | ____________________________________ | |
+	 * | | | Reglist                          | | |
+	 * | | | - reg1, reg2, ... rega           | | |
+	 * | | |__________________________________| | |
+	 * | |______________________________________| |
+	 * | ________________________________________ |
+	 * | | Capture2:                            | |
+	 * | |  Hdr: CLASS=RENDER/COMPUTE, numregs=b| |
+	 * | | ____________________________________ | |
+	 * | | | Reglist                          | | |
+	 * | | | - reg1, reg2, ... regb           | | |
+	 * | | |__________________________________| | |
+	 * | |______________________________________| |
+	 * | ________________________________________ |
+	 * | | Capture3:                            | |
+	 * | |  Hdr: INSTANCE=RCS, numregs=c        | |
+	 * | | ____________________________________ | |
+	 * | | | Reglist                          | | |
+	 * | | | - reg1, reg2, ... regc           | | |
+	 * | | |__________________________________| | |
+	 * | |______________________________________| |
+	 * | ________________________________________ |
+	 * | | Capture4:                            | |
+	 * | |  Hdr: CLASS=RENDER/COMPUTE, numregs=d| |
+	 * | | ____________________________________ | |
+	 * | | | Reglist                          | | |
+	 * | | | - reg1, reg2, ... regd           | | |
+	 * | | |__________________________________| | |
+	 * | |______________________________________| |
+	 * | ________________________________________ |
+	 * | | Capture5:                            | |
+	 * | |  Hdr: INSTANCE=CCS0, numregs=e       | |
+	 * | | ____________________________________ | |
+	 * | | | Reglist                          | | |
+	 * | | | - reg1, reg2, ... rege           | | |
+	 * | | |__________________________________| | |
+	 * | |______________________________________| |
+	 * |__________________________________________|
+	 */
+	is_partial = FIELD_GET(CAP_GRP_HDR_CAPTURE_TYPE, ghdr.info);
+	numlists = FIELD_GET(CAP_GRP_HDR_NUM_CAPTURES, ghdr.info);
+
+	while (numlists--) {
+		if (guc_capture_log_get_data_hdr(guc, buf, &hdr)) {
+			ret = -EIO;
+			break;
+		}
+
+		datatype = FIELD_GET(CAP_HDR_CAPTURE_TYPE, hdr.info);
+		if (datatype > GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE) {
+			/* unknown capture type - skip over to next capture set */
+			numregs = FIELD_GET(CAP_HDR_NUM_MMIOS, hdr.num_mmios);
+			while (numregs--) {
+				if (guc_capture_log_get_register(guc, buf, &tmp)) {
+					ret = -EIO;
+					break;
+				}
+			}
+			continue;
+		} else if (node) {
+			/*
+			 * Based on the current capture type and what we have so far,
+			 * decide if we should add the current node into the internal
+			 * linked list for match-up when i915_gpu_coredump calls later
+			 * (and alloc a blank node for the next set of reglists)
+			 * or continue with the same node or clone the current node
+			 * but only retain the global or class registers (such as the
+			 * case of dependent engine resets).
+			 */
+			if (datatype == GUC_CAPTURE_LIST_TYPE_GLOBAL) {
+				guc_capture_add_node_to_outlist(guc->capture, node);
+				node = NULL;
+			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS &&
+				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS].regs) {
+				/* Add to list, clone node and duplicate global list */
+				guc_capture_add_node_to_outlist(guc->capture, node);
+				node = guc_capture_clone_node(guc, node,
+							      GCAP_PARSED_REGLIST_INDEX_GLOBAL);
+			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE &&
+				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE].regs) {
+				/* Add to list, clone node and duplicate global + class lists */
+				guc_capture_add_node_to_outlist(guc->capture, node);
+				node = guc_capture_clone_node(guc, node,
+							      (GCAP_PARSED_REGLIST_INDEX_GLOBAL |
+							      GCAP_PARSED_REGLIST_INDEX_ENGCLASS));
+			}
+		}
+
+		if (!node) {
+			node = guc_capture_alloc_one_node(guc);
+			if (!node) {
+				ret = -ENOMEM;
+				break;
+			}
+			if (datatype != GUC_CAPTURE_LIST_TYPE_GLOBAL)
+				drm_dbg(&i915->drm, "GuC Capture missing global dump: %08x!\n",
+					datatype);
+		}
+		node->is_partial = is_partial;
+		node->reginfo[datatype].vfid = FIELD_GET(CAP_HDR_CAPTURE_VFID, hdr.owner);
+		switch (datatype) {
+		case GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE:
+			node->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
+			node->eng_inst = FIELD_GET(CAP_HDR_ENGINE_INSTANCE, hdr.info);
+			node->lrca = hdr.lrca;
+			node->guc_id = hdr.guc_id;
+			break;
+		case GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS:
+			node->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
+			break;
+		default:
+			break;
+		}
+
+		regs = NULL;
+		numregs = FIELD_GET(CAP_HDR_NUM_MMIOS, hdr.num_mmios);
+		if (numregs) {
+			regs = kcalloc(numregs, sizeof(struct guc_mmio_reg), GFP_KERNEL);
+			if (!regs) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+		node->reginfo[datatype].num_regs = numregs;
+		node->reginfo[datatype].regs = regs;
+		i = 0;
+		while (numregs--) {
+			if (guc_capture_log_get_register(guc, buf, &regs[i++])) {
+				ret = -EIO;
+				break;
+			}
+		}
+	}
+
+bailout:
+	if (node) {
+		/* If we have data, add to linked list for match-up when i915_gpu_coredump calls */
+		for (i = GUC_CAPTURE_LIST_TYPE_GLOBAL; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+			if (node->reginfo[i].regs) {
+				guc_capture_add_node_to_outlist(guc->capture, node);
+				node = NULL;
+				break;
+			}
+		}
+		/* else free it */
+		kfree(node);
+	}
+	return ret;
+}
+
+static int __guc_capture_flushlog_complete(struct intel_guc *guc)
+{
+	u32 action[] = {
+		INTEL_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE,
+		GUC_CAPTURE_LOG_BUFFER
+	};
+
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+}
+
+static void __guc_capture_process_output(struct intel_guc *guc)
+{
+	unsigned int buffer_size, read_offset, write_offset, full_count;
+	struct intel_uc *uc = container_of(guc, typeof(*uc), guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct guc_log_buffer_state log_buf_state_local;
+	struct guc_log_buffer_state *log_buf_state;
+	struct __guc_capture_bufstate buf;
+	void *src_data = NULL;
+	bool new_overflow;
+	int ret;
+
+	log_buf_state = guc->log.buf_addr +
+			(sizeof(struct guc_log_buffer_state) * GUC_CAPTURE_LOG_BUFFER);
+	src_data = guc->log.buf_addr + intel_guc_get_log_buffer_offset(GUC_CAPTURE_LOG_BUFFER);
+
+	/*
+	 * Make a copy of the state structure, inside GuC log buffer
+	 * (which is uncached mapped), on the stack to avoid reading
+	 * from it multiple times.
+	 */
+	memcpy(&log_buf_state_local, log_buf_state, sizeof(struct guc_log_buffer_state));
+	buffer_size = intel_guc_get_log_buffer_size(GUC_CAPTURE_LOG_BUFFER);
+	read_offset = log_buf_state_local.read_ptr;
+	write_offset = log_buf_state_local.sampled_write_ptr;
+	full_count = log_buf_state_local.buffer_full_cnt;
+
+	/* Bookkeeping stuff */
+	guc->log.stats[GUC_CAPTURE_LOG_BUFFER].flush += log_buf_state_local.flush_to_file;
+	new_overflow = intel_guc_check_log_buf_overflow(&guc->log, GUC_CAPTURE_LOG_BUFFER,
+							full_count);
+
+	/* Now copy the actual logs. */
+	if (unlikely(new_overflow)) {
+		/* copy the whole buffer in case of overflow */
+		read_offset = 0;
+		write_offset = buffer_size;
+	} else if (unlikely((read_offset > buffer_size) ||
+			(write_offset > buffer_size))) {
+		drm_err(&i915->drm, "invalid GuC log capture buffer state!\n");
+		/* copy whole buffer as offsets are unreliable */
+		read_offset = 0;
+		write_offset = buffer_size;
+	}
+
+	buf.size = buffer_size;
+	buf.rd = read_offset;
+	buf.wr = write_offset;
+	buf.data = src_data;
+
+	if (!uc->reset_in_progress) {
+		do {
+			ret = guc_capture_extract_reglists(guc, &buf);
+		} while (ret >= 0);
+	}
+
+	/* Update the state of log buffer err-cap state */
+	log_buf_state->read_ptr = write_offset;
+	log_buf_state->flush_to_file = 0;
+	__guc_capture_flushlog_complete(guc);
+}
+
+void intel_guc_capture_process(struct intel_guc *guc)
+{
+	if (guc->capture)
+		__guc_capture_process_output(guc);
 }
 
 static void
@@ -737,8 +1291,7 @@ void intel_guc_capture_destroy(struct intel_guc *guc)
 
 	guc_capture_free_ads_cache(guc->capture);
 
-	kfree(guc->capture);
-	guc->capture = NULL;
+	guc_capture_delete_nodes(guc);
 
 	guc_capture_free_extlists(guc->capture->extlists);
 	kfree(guc->capture->extlists);
@@ -754,6 +1307,8 @@ int intel_guc_capture_init(struct intel_guc *guc)
 		return -ENOMEM;
 
 	guc->capture->reglists = guc_capture_get_device_reglist(guc);
+
+	INIT_LIST_HEAD(&guc->capture->outlist);
 
 	return 0;
 }
