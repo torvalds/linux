@@ -9,9 +9,7 @@ source lib.sh
 h1_create()
 {
 	simple_if_init $h1 192.0.2.1/24 2001:db8:1::1/64
-	vrf_create "vrf-vlan-h1"
-	ip link set dev vrf-vlan-h1 up
-	vlan_create $h1 100 vrf-vlan-h1 198.51.100.1/24
+	vlan_create $h1 100 v$h1 198.51.100.1/24
 }
 
 h1_destroy()
@@ -23,9 +21,7 @@ h1_destroy()
 h2_create()
 {
 	simple_if_init $h2 192.0.2.2/24 2001:db8:1::2/64
-	vrf_create "vrf-vlan-h2"
-	ip link set dev vrf-vlan-h2 up
-	vlan_create $h2 100 vrf-vlan-h2 198.51.100.2/24
+	vlan_create $h2 100 v$h2 198.51.100.2/24
 }
 
 h2_destroy()
