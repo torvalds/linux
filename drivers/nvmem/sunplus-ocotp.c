@@ -202,8 +202,6 @@ static int sp_ocotp_probe(struct platform_device *pdev)
 		(int)QAC628_OTP_NUM_BANKS, (int)OTP_WORDS_PER_BANK,
 		(int)OTP_WORD_SIZE, (int)QAC628_OTP_SIZE);
 
-	dev_info(dev, "by Sunplus (C) 2020");
-
 	return 0;
 }
 
