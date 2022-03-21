@@ -30,7 +30,6 @@
 /*  ====== ODM_ABILITY_E ======== */
 /*  BB ODM section BIT 0-15 */
 #define	DYNAMIC_BB_DIG				BIT(0)
-#define	DYNAMIC_BB_DYNAMIC_TXPWR	BIT(2)
 
 #define		DYNAMIC_BB_ANT_DIV			BIT(6)
 
