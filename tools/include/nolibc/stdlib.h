@@ -60,6 +60,29 @@ int atoi(const char *s)
 	return atol(s);
 }
 
+/* Tries to find the environment variable named <name> in the environment array
+ * pointed to by global variable "environ" which must be declared as a char **,
+ * and must be terminated by a NULL (it is recommended to set this variable to
+ * the "envp" argument of main()). If the requested environment variable exists
+ * its value is returned otherwise NULL is returned.
+ */
+static __attribute__((unused))
+char *getenv(const char *name)
+{
+	extern char **environ;
+	int idx, i;
+
+	if (environ) {
+		for (idx = 0; environ[idx]; idx++) {
+			for (i = 0; name[i] && name[i] == environ[idx][i];)
+				i++;
+			if (!name[i] && environ[idx][i] == '=')
+				return &environ[idx][i+1];
+		}
+	}
+	return NULL;
+}
+
 /* Converts the unsigned long integer <in> to its hex representation into
  * buffer <buffer>, which must be long enough to store the number and the
  * trailing zero (17 bytes for "ffffffffffffffff" or 9 for "ffffffff"). The
