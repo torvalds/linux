@@ -14951,6 +14951,36 @@ static struct tail_call_test tail_call_tests[] = {
 		.result = 10,
 	},
 	{
+		"Tail call load/store leaf",
+		.insns = {
+			BPF_ALU64_IMM(BPF_MOV, R1, 1),
+			BPF_ALU64_IMM(BPF_MOV, R2, 2),
+			BPF_ALU64_REG(BPF_MOV, R3, BPF_REG_FP),
+			BPF_STX_MEM(BPF_DW, R3, R1, -8),
+			BPF_STX_MEM(BPF_DW, R3, R2, -16),
+			BPF_LDX_MEM(BPF_DW, R0, BPF_REG_FP, -8),
+			BPF_JMP_REG(BPF_JNE, R0, R1, 3),
+			BPF_LDX_MEM(BPF_DW, R0, BPF_REG_FP, -16),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = 0,
+		.stack_depth = 32,
+	},
+	{
+		"Tail call load/store",
+		.insns = {
+			BPF_ALU64_IMM(BPF_MOV, R0, 3),
+			BPF_STX_MEM(BPF_DW, BPF_REG_FP, R0, -8),
+			TAIL_CALL(-1),
+			BPF_ALU64_IMM(BPF_MOV, R0, -1),
+			BPF_EXIT_INSN(),
+		},
+		.result = 0,
+		.stack_depth = 16,
+	},
+	{
 		"Tail call error path, max count reached",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, R2, R1, 0),
