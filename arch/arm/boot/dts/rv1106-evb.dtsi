@@ -20,7 +20,23 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
+&mpp_vcodec {
+	status = "okay";
+};
+
 &rga2 {
+	status = "okay";
+};
+
+&rkdvbm {
+	status = "okay";
+};
+
+&rkvenc {
 	status = "okay";
 };
 
