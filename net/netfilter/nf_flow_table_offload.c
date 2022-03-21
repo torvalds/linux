@@ -20,7 +20,6 @@ static struct workqueue_struct *nf_flow_offload_stats_wq;
 struct flow_offload_work {
 	struct list_head	list;
 	enum flow_cls_command	cmd;
-	int			priority;
 	struct nf_flowtable	*flowtable;
 	struct flow_offload	*flow;
 	struct work_struct	work;
@@ -874,7 +873,8 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 				  enum flow_offload_tuple_dir dir)
 {
 	return nf_flow_offload_tuple(offload->flowtable, offload->flow,
-				     flow_rule, dir, offload->priority,
+				     flow_rule, dir,
+				     offload->flowtable->priority,
 				     FLOW_CLS_REPLACE, NULL,
 				     &offload->flowtable->flow_block.cb_list);
 }
@@ -883,7 +883,8 @@ static void flow_offload_tuple_del(struct flow_offload_work *offload,
 				   enum flow_offload_tuple_dir dir)
 {
 	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
-			      offload->priority, FLOW_CLS_DESTROY, NULL,
+			      offload->flowtable->priority,
+			      FLOW_CLS_DESTROY, NULL,
 			      &offload->flowtable->flow_block.cb_list);
 }
 
@@ -934,7 +935,8 @@ static void flow_offload_tuple_stats(struct flow_offload_work *offload,
 				     struct flow_stats *stats)
 {
 	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
-			      offload->priority, FLOW_CLS_STATS, stats,
+			      offload->flowtable->priority,
+			      FLOW_CLS_STATS, stats,
 			      &offload->flowtable->flow_block.cb_list);
 }
 
@@ -1012,7 +1014,6 @@ nf_flow_offload_work_alloc(struct nf_flowtable *flowtable,
 
 	offload->cmd = cmd;
 	offload->flow = flow;
-	offload->priority = flowtable->priority;
 	offload->flowtable = flowtable;
 	INIT_WORK(&offload->work, flow_offload_work_handler);
 
