@@ -693,7 +693,7 @@ __v4l2_async_nf_add_fwnode_remote(struct v4l2_async_notifier *notif,
 	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *remote;
 
-	remote = fwnode_graph_get_remote_port_parent(endpoint);
+	remote = fwnode_graph_get_remote_endpoint(endpoint);
 	if (!remote)
 		return ERR_PTR(-ENOTCONN);
 
