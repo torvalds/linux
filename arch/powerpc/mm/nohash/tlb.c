@@ -358,6 +358,7 @@ void __init early_init_mmu_47x(void)
 /*
  * Flush kernel TLB entries in the given range
  */
+#ifndef CONFIG_PPC_8xx
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 #ifdef CONFIG_SMP
@@ -370,6 +371,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 #endif
 }
 EXPORT_SYMBOL(flush_tlb_kernel_range);
+#endif
 
 /*
  * Currently, for range flushing, we just do a full mm flush. This should
