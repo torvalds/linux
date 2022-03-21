@@ -1595,6 +1595,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 
 #define RV1106_VOGRF_GMAC_CLK_CON		0X60004
 
+#define RV1106_VOGRF_MACPHY_RMII_MODE		GRF_BIT(0)
 #define RV1106_VOGRF_GMAC_CLK_RMII_DIV2		GRF_BIT(2)
 #define RV1106_VOGRF_GMAC_CLK_RMII_DIV20	GRF_CLR_BIT(2)
 
@@ -1602,14 +1603,13 @@ static const struct rk_gmac_ops rk3588_ops = {
 
 #define RV1106_VOGRF_MACPHY_SHUTDOWN		GRF_BIT(1)
 #define RV1106_VOGRF_MACPHY_POWERUP		GRF_CLR_BIT(1)
-#define RV1106_VOGRF_MACPHY_SIM_MODE		GRF_BIT(2)
 #define RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL	GRF_BIT(6)
 #define RV1106_VOGRF_MACPHY_24M_CLK_SEL		(GRF_BIT(8) | GRF_BIT(9))
 #define RV1106_VOGRF_MACPHY_PHY_ID		GRF_BIT(11)
 
 #define RV1106_VOGRF_MACPHY_CON1		0X6002C
 
-#define RV1106_VOGRF_MACPHY_BGS			GRF_BIT(1)
+#define RV1106_VOGRF_MACPHY_BGS			GRF_BIT(2)
 
 static void rv1106_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
@@ -1644,11 +1644,12 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 	}
 
 	if (up) {
+		regmap_write(priv->grf, RV1106_VOGRF_GMAC_CLK_CON,
+			     RV1106_VOGRF_MACPHY_RMII_MODE);
 		reset_control_assert(priv->phy_reset);
 		udelay(20);
 		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
 			     RV1106_VOGRF_MACPHY_POWERUP |
-			     RV1106_VOGRF_MACPHY_SIM_MODE |
 			     RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL |
 			     RV1106_VOGRF_MACPHY_24M_CLK_SEL |
 			     RV1106_VOGRF_MACPHY_PHY_ID);
