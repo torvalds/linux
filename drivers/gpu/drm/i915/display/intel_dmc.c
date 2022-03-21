@@ -810,3 +810,86 @@ void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 	for (id = 0; id < DMC_FW_MAX; id++)
 		kfree(dev_priv->dmc.dmc_info[id].payload);
 }
+
+static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	intel_wakeref_t wakeref;
+	struct intel_dmc *dmc;
+	i915_reg_t dc5_reg, dc6_reg = {};
+
+	if (!HAS_DMC(i915))
+		return -ENODEV;
+
+	dmc = &i915->dmc;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	seq_printf(m, "fw loaded: %s\n",
+		   str_yes_no(intel_dmc_has_payload(i915)));
+	seq_printf(m, "path: %s\n", dmc->fw_path);
+	seq_printf(m, "Pipe A fw support: %s\n",
+		   str_yes_no(GRAPHICS_VER(i915) >= 12));
+	seq_printf(m, "Pipe A fw loaded: %s\n",
+		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEA].payload));
+	seq_printf(m, "Pipe B fw support: %s\n",
+		   str_yes_no(IS_ALDERLAKE_P(i915)));
+	seq_printf(m, "Pipe B fw loaded: %s\n",
+		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEB].payload));
+
+	if (!intel_dmc_has_payload(i915))
+		goto out;
+
+	seq_printf(m, "version: %d.%d\n", DMC_VERSION_MAJOR(dmc->version),
+		   DMC_VERSION_MINOR(dmc->version));
+
+	if (DISPLAY_VER(i915) >= 12) {
+		if (IS_DGFX(i915)) {
+			dc5_reg = DG1_DMC_DEBUG_DC5_COUNT;
+		} else {
+			dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
+			dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		}
+
+		/*
+		 * NOTE: DMC_DEBUG3 is a general purpose reg.
+		 * According to B.Specs:49196 DMC f/w reuses DC5/6 counter
+		 * reg for DC3CO debugging and validation,
+		 * but TGL DMC f/w is using DMC_DEBUG3 reg for DC3CO counter.
+		 */
+		seq_printf(m, "DC3CO count: %d\n",
+			   intel_de_read(i915, IS_DGFX(i915) ?
+					 DG1_DMC_DEBUG3 : TGL_DMC_DEBUG3));
+	} else {
+		dc5_reg = IS_BROXTON(i915) ? BXT_DMC_DC3_DC5_COUNT :
+			SKL_DMC_DC3_DC5_COUNT;
+		if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+			dc6_reg = SKL_DMC_DC5_DC6_COUNT;
+	}
+
+	seq_printf(m, "DC3 -> DC5 count: %d\n", intel_de_read(i915, dc5_reg));
+	if (dc6_reg.reg)
+		seq_printf(m, "DC5 -> DC6 count: %d\n",
+			   intel_de_read(i915, dc6_reg));
+
+out:
+	seq_printf(m, "program base: 0x%08x\n",
+		   intel_de_read(i915, DMC_PROGRAM(dmc->dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)));
+	seq_printf(m, "ssp base: 0x%08x\n",
+		   intel_de_read(i915, DMC_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", intel_de_read(i915, DMC_HTP_SKL));
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_dmc_debugfs_status);
+
+void intel_dmc_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_dmc_info", 0444, minor->debugfs_root,
+			    i915, &intel_dmc_debugfs_status_fops);
+}
