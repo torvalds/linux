@@ -124,6 +124,7 @@ enum perf_output_field {
 	PERF_OUTPUT_DATA_PAGE_SIZE  = 1ULL << 33,
 	PERF_OUTPUT_CODE_PAGE_SIZE  = 1ULL << 34,
 	PERF_OUTPUT_INS_LAT         = 1ULL << 35,
+	PERF_OUTPUT_BRSTACKINSNLEN  = 1ULL << 36,
 };
 
 struct perf_script {
@@ -191,6 +192,7 @@ struct output_option {
 	{.str = "data_page_size", .field = PERF_OUTPUT_DATA_PAGE_SIZE},
 	{.str = "code_page_size", .field = PERF_OUTPUT_CODE_PAGE_SIZE},
 	{.str = "ins_lat", .field = PERF_OUTPUT_INS_LAT},
+	{.str = "brstackinsnlen", .field = PERF_OUTPUT_BRSTACKINSNLEN},
 };
 
 enum {
@@ -488,7 +490,7 @@ static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 		       "selected. Hence, no address to lookup the source line number.\n");
 		return -EINVAL;
 	}
-	if (PRINT_FIELD(BRSTACKINSN) && !allow_user_set &&
+	if ((PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN)) && !allow_user_set &&
 	    !(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY)) {
 		pr_err("Display of branch stack assembler requested, but non all-branch filter set\n"
 		       "Hint: run 'perf record -b ...'\n");
@@ -1120,10 +1122,17 @@ static int print_srccode(struct thread *thread, u8 cpumode, uint64_t addr)
 
 static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 			    struct perf_insn *x, u8 *inbuf, int len,
-			    int insn, FILE *fp, int *total_cycles)
+			    int insn, FILE *fp, int *total_cycles,
+			    struct perf_event_attr *attr)
 {
-	int printed = fprintf(fp, "\t%016" PRIx64 "\t%-30s\t#%s%s%s%s", ip,
-			      dump_insn(x, ip, inbuf, len, NULL),
+	int ilen = 0;
+	int printed = fprintf(fp, "\t%016" PRIx64 "\t%-30s\t", ip,
+			      dump_insn(x, ip, inbuf, len, &ilen));
+
+	if (PRINT_FIELD(BRSTACKINSNLEN))
+		printed += fprintf(fp, "ilen: %d\t", ilen);
+
+	printed += fprintf(fp, "#%s%s%s%s",
 			      en->flags.predicted ? " PRED" : "",
 			      en->flags.mispred ? " MISPRED" : "",
 			      en->flags.in_tx ? " INTX" : "",
@@ -1209,7 +1218,8 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 		printed += ip__fprintf_sym(entries[nr - 1].from, thread,
 					   x.cpumode, x.cpu, &lastsym, attr, fp);
 		printed += ip__fprintf_jump(entries[nr - 1].from, &entries[nr - 1],
-					    &x, buffer, len, 0, fp, &total_cycles);
+					    &x, buffer, len, 0, fp, &total_cycles,
+					    attr);
 		if (PRINT_FIELD(SRCCODE))
 			printed += print_srccode(thread, x.cpumode, entries[nr - 1].from);
 	}
@@ -1240,14 +1250,17 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			printed += ip__fprintf_sym(ip, thread, x.cpumode, x.cpu, &lastsym, attr, fp);
 			if (ip == end) {
 				printed += ip__fprintf_jump(ip, &entries[i], &x, buffer + off, len - off, ++insn, fp,
-							    &total_cycles);
+							    &total_cycles, attr);
 				if (PRINT_FIELD(SRCCODE))
 					printed += print_srccode(thread, x.cpumode, ip);
 				break;
 			} else {
 				ilen = 0;
-				printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", ip,
+				printed += fprintf(fp, "\t%016" PRIx64 "\t%s", ip,
 						   dump_insn(&x, ip, buffer + off, len - off, &ilen));
+				if (PRINT_FIELD(BRSTACKINSNLEN))
+					printed += fprintf(fp, "\tilen: %d", ilen);
+				printed += fprintf(fp, "\n");
 				if (ilen == 0)
 					break;
 				if (PRINT_FIELD(SRCCODE))
@@ -1290,16 +1303,23 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			      machine, thread, &x.is64bit, &x.cpumode, false);
 		if (len <= 0)
 			goto out;
-		printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", sample->ip,
-			dump_insn(&x, sample->ip, buffer, len, NULL));
+		ilen = 0;
+		printed += fprintf(fp, "\t%016" PRIx64 "\t%s", sample->ip,
+			dump_insn(&x, sample->ip, buffer, len, &ilen));
+		if (PRINT_FIELD(BRSTACKINSNLEN))
+			printed += fprintf(fp, "\tilen: %d", ilen);
+		printed += fprintf(fp, "\n");
 		if (PRINT_FIELD(SRCCODE))
 			print_srccode(thread, x.cpumode, sample->ip);
 		goto out;
 	}
 	for (off = 0; off <= end - start; off += ilen) {
 		ilen = 0;
-		printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", start + off,
+		printed += fprintf(fp, "\t%016" PRIx64 "\t%s", start + off,
 				   dump_insn(&x, start + off, buffer + off, len - off, &ilen));
+		if (PRINT_FIELD(BRSTACKINSNLEN))
+			printed += fprintf(fp, "\tilen: %d", ilen);
+		printed += fprintf(fp, "\n");
 		if (ilen == 0)
 			break;
 		if (arch_is_branch(buffer + off, len - off, x.is64bit) && start + off != sample->ip) {
@@ -1457,7 +1477,7 @@ static int perf_sample__fprintf_insn(struct perf_sample *sample,
 		for (i = 0; i < sample->insn_len; i++)
 			printed += fprintf(fp, " %02x", (unsigned char)sample->insn[i]);
 	}
-	if (PRINT_FIELD(BRSTACKINSN))
+	if (PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN))
 		printed += perf_sample__fprintf_brstackinsn(sample, thread, attr, machine, fp);
 
 	return printed;
@@ -3776,7 +3796,7 @@ int cmd_script(int argc, const char **argv)
 		     "Valid types: hw,sw,trace,raw,synth. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
-		     "brstacksym,flags,bpf-output,brstackinsn,brstackoff,"
+		     "brstacksym,flags,bpf-output,brstackinsn,brstackinsnlen,brstackoff,"
 		     "callindent,insn,insnlen,synth,phys_addr,metric,misc,ipc,tod,"
 		     "data_page_size,code_page_size,ins_lat",
 		     parse_output_fields),
