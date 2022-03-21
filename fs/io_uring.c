@@ -2597,14 +2597,12 @@ static void io_req_task_queue_reissue(struct io_kiocb *req)
 	io_req_task_work_add(req, false);
 }
 
-static inline void io_queue_next(struct io_kiocb *req)
+static void io_queue_next(struct io_kiocb *req)
 {
-	if (unlikely(req->flags & (REQ_F_LINK|REQ_F_HARDLINK))) {
-		struct io_kiocb *nxt = io_req_find_next(req);
+	struct io_kiocb *nxt = io_req_find_next(req);
 
-		if (nxt)
-			io_req_task_queue(nxt);
-	}
+	if (nxt)
+		io_req_task_queue(nxt);
 }
 
 static void io_free_req(struct io_kiocb *req)
@@ -2644,7 +2642,8 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 						&ctx->apoll_cache);
 				req->flags &= ~REQ_F_POLLED;
 			}
-			io_queue_next(req);
+			if (req->flags & (REQ_F_LINK|REQ_F_HARDLINK))
+				io_queue_next(req);
 			if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
 				io_clean_op(req);
 		}
