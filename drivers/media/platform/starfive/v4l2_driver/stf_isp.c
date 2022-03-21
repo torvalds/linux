@@ -1392,11 +1392,6 @@ int stf_isp_register(struct stf_isp_dev *isp_dev,
 		goto free_ctrls;
 	}
 
-	if (isp_dev->id == 0)
-		stf_isp_load_setfile(isp_dev, STF_ISP0_SETFILE);
-	else
-		stf_isp_load_setfile(isp_dev, STF_ISP1_SETFILE);
-
 	return 0;
 
 free_ctrls:
