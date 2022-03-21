@@ -2715,12 +2715,13 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 		btrfs_subpage_end_reader(fs_info, page, start, len);
 }
 
-static blk_status_t submit_read_repair(struct inode *inode,
-				      struct bio *failed_bio, u32 bio_offset,
-				      struct page *page, unsigned int pgoff,
-				      u64 start, u64 end, int failed_mirror,
-				      unsigned int error_bitmap,
-				      submit_bio_hook_t *submit_bio_hook)
+static blk_status_t submit_data_read_repair(struct inode *inode,
+					    struct bio *failed_bio,
+					    u32 bio_offset, struct page *page,
+					    unsigned int pgoff,
+					    u64 start, u64 end,
+					    int failed_mirror,
+					    unsigned int error_bitmap)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const u32 sectorsize = fs_info->sectorsize;
@@ -2729,6 +2730,9 @@ static blk_status_t submit_read_repair(struct inode *inode,
 	int i;
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
+
+	/* This repair is only for data */
+	ASSERT(is_data_inode(inode));
 
 	/* We're here because we had some read errors or csum mismatch */
 	ASSERT(error_bitmap);
@@ -2758,7 +2762,7 @@ static blk_status_t submit_read_repair(struct inode *inode,
 		ret = btrfs_repair_one_sector(inode, failed_bio,
 				bio_offset + offset,
 				page, pgoff + offset, start + offset,
-				failed_mirror, submit_bio_hook);
+				failed_mirror, btrfs_submit_data_bio);
 		if (!ret) {
 			/*
 			 * We have submitted the read repair, the page release
@@ -3076,13 +3080,13 @@ static void end_bio_extent_readpage(struct bio *bio)
 				goto readpage_ok;
 
 			/*
-			 * btrfs_submit_read_repair() will handle all the good
+			 * submit_data_read_repair() will handle all the good
 			 * and bad sectors, we just continue to the next bvec.
 			 */
-			submit_read_repair(inode, bio, bio_offset, page,
-					   start - page_offset(page), start,
-					   end, mirror, error_bitmap,
-					   btrfs_submit_data_bio);
+			submit_data_read_repair(inode, bio, bio_offset, page,
+						start - page_offset(page),
+						start, end, mirror,
+						error_bitmap);
 
 			ASSERT(bio_offset + len > bio_offset);
 			bio_offset += len;
