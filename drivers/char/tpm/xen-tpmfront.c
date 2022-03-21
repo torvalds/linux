@@ -126,16 +126,16 @@ static void vtpm_cancel(struct tpm_chip *chip)
 	notify_remote_via_evtchn(priv->evtchn);
 }
 
-static unsigned int shr_data_offset(struct vtpm_shared_page *shr)
+static size_t shr_data_offset(struct vtpm_shared_page *shr)
 {
-	return sizeof(*shr) + sizeof(u32) * shr->nr_extra_pages;
+	return struct_size(shr, extra_pages, shr->nr_extra_pages);
 }
 
 static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
-	unsigned int offset = shr_data_offset(shr);
+	size_t offset = shr_data_offset(shr);
 
 	u32 ordinal;
 	unsigned long duration;
@@ -177,7 +177,7 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
-	unsigned int offset = shr_data_offset(shr);
+	size_t offset = shr_data_offset(shr);
 	size_t length = shr->length;
 
 	if (shr->state == VTPM_STATE_IDLE)
