@@ -441,8 +441,8 @@ struct nfp_stat_pair {
  * @ctrl_bar:		Pointer to mapped control BAR
  *
  * @ops:		Callbacks and parameters for this vNIC's NFD version
- * @txd_cnt:		Size of the TX ring in number of descriptors
- * @rxd_cnt:		Size of the RX ring in number of descriptors
+ * @txd_cnt:		Size of the TX ring in number of min size packets
+ * @rxd_cnt:		Size of the RX ring in number of min size packets
  * @num_r_vecs:		Number of used ring vectors
  * @num_tx_rings:	Currently configured number of TX rings
  * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)

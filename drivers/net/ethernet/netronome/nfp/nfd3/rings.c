@@ -244,6 +244,7 @@ nfp_nfd3_print_tx_descs(struct seq_file *file,
 
 const struct nfp_dp_ops nfp_nfd3_ops = {
 	.version		= NFP_NFD_VER_NFD3,
+	.tx_min_desc_per_pkt	= 1,
 	.poll			= nfp_nfd3_poll,
 	.xsk_poll		= nfp_nfd3_xsk_poll,
 	.ctrl_poll		= nfp_nfd3_ctrl_poll,
