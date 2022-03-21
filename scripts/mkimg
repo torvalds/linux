@@ -123,8 +123,8 @@ check_mkimage()
 
 unpack_itb()
 {
+	rm -rf ${OUT}
 	mkdir -p ${OUT}
-	rm -f ${OUT}/fdt ${OUT}/kernel ${OUT}/resource
 
 	for NAME in $(fdtget -l ${ITB} /images)
 	do
@@ -151,7 +151,7 @@ gen_its()
 	TMP_ITB=${OUT}/boot.tmp
 
 	# add placeholder
-	cp -a ${ITB} ${TMP_ITB}
+	cp ${ITB} ${TMP_ITB}
 	for NAME in $(fdtget -l ${ITB} /images); do
 		fdtput -t s ${TMP_ITB} /images/${NAME} data "/INCBIN/(${NAME})"
 	done
@@ -247,7 +247,7 @@ scripts/resource_tool ${DTB_PATH} ${LOGO} ${LOGO_KERNEL} >/dev/null
 echo "  Image:  resource.img (with ${DTB} ${LOGO} ${LOGO_KERNEL}) is ready"
 
 if [ -f "${BOOT_IMG}" ]; then
-	if file -p -b ${BOOT_IMG} | grep -q 'Device Tree Blob' ; then
+	if file -L -p -b ${BOOT_IMG} | grep -q 'Device Tree Blob' ; then
 		repack_itb;
 	elif [ -x ${srctree}/scripts/repack-bootimg ]; then
 		repack_boot_img;
