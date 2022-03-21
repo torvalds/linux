@@ -276,17 +276,8 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 	struct intel_dmc *dmc = &dev_priv->dmc;
 	u32 id, i;
 
-	if (!HAS_DMC(dev_priv)) {
-		drm_err(&dev_priv->drm,
-			"No DMC support available for this platform\n");
+	if (!intel_dmc_has_payload(dev_priv))
 		return;
-	}
-
-	if (!dev_priv->dmc.dmc_info[DMC_FW_MAIN].payload) {
-		drm_err(&dev_priv->drm,
-			"Tried to program CSR with empty payload\n");
-		return;
-	}
 
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 

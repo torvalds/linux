@@ -5387,7 +5387,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	gen9_dbuf_enable(dev_priv);
 
-	if (resume && intel_dmc_has_payload(dev_priv))
+	if (resume)
 		intel_dmc_load_program(dev_priv);
 }
 
@@ -5454,7 +5454,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	gen9_dbuf_enable(dev_priv);
 
-	if (resume && intel_dmc_has_payload(dev_priv))
+	if (resume)
 		intel_dmc_load_program(dev_priv);
 }
 
@@ -5618,7 +5618,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	if (IS_DG2(dev_priv))
 		intel_snps_phy_wait_for_calibration(dev_priv);
 
-	if (resume && intel_dmc_has_payload(dev_priv))
+	if (resume)
 		intel_dmc_load_program(dev_priv);
 
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p */
