@@ -532,7 +532,7 @@ int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
 	struct arm_smccc_res res;
 
 	res = __invoke_sip_fn_smc(RK_SIP_FIQ_CTRL,
-				  sub_func, irq, 0);
+				  sub_func, irq, data);
 	return res.a0;
 }
 EXPORT_SYMBOL_GPL(sip_fiq_control);
