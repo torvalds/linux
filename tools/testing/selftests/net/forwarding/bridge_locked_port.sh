@@ -41,11 +41,11 @@ switch_create()
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
 
+	bridge link set dev $swp1 learning off
+
 	ip link set dev br0 up
 	ip link set dev $swp1 up
 	ip link set dev $swp2 up
-
-	bridge link set dev $swp1 learning off
 }
 
 switch_destroy()
