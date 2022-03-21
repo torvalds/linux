@@ -3705,9 +3705,11 @@ static void vop2_crtc_atomic_disable_for_psr(struct drm_crtc *crtc,
 
 	vop2_disable_all_planes_for_crtc(crtc);
 	drm_crtc_vblank_off(crtc);
-	vop2->aclk_rate = clk_get_rate(vop2->aclk);
-	clk_set_rate(vop2->aclk, vop2->aclk_rate / 3);
-	vop2->aclk_rate_reset = true;
+	if (hweight8(vop2->active_vp_mask) == 1) {
+		vop2->aclk_rate = clk_get_rate(vop2->aclk);
+		clk_set_rate(vop2->aclk, vop2->aclk_rate / 3);
+		vop2->aclk_rate_reset = true;
+	}
 }
 
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
