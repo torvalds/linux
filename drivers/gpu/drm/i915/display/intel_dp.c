@@ -843,9 +843,13 @@ static int intel_dp_max_tmds_clock(struct intel_dp *intel_dp)
 
 static enum drm_mode_status
 intel_dp_tmds_clock_valid(struct intel_dp *intel_dp,
-			  int clock, int bpc, bool ycbcr420_output)
+			  int clock, int bpc, bool ycbcr420_output,
+			  bool respect_downstream_limits)
 {
 	int tmds_clock, min_tmds_clock, max_tmds_clock;
+
+	if (!respect_downstream_limits)
+		return MODE_OK;
 
 	tmds_clock = intel_hdmi_tmds_clock(clock, bpc, ycbcr420_output);
 
@@ -898,7 +902,7 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 
 	/* Assume 8bpc for the DP++/HDMI/DVI TMDS clock check */
 	status = intel_dp_tmds_clock_valid(intel_dp, target_clock,
-					   8, ycbcr_420_only);
+					   8, ycbcr_420_only, true);
 
 	if (status != MODE_OK) {
 		if (ycbcr_420_only ||
@@ -907,7 +911,7 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 			return status;
 
 		status = intel_dp_tmds_clock_valid(intel_dp, target_clock,
-						   8, true);
+						   8, true, true);
 		if (status != MODE_OK)
 			return status;
 	}
@@ -1156,7 +1160,7 @@ static bool intel_dp_is_ycbcr420(struct intel_dp *intel_dp,
 
 static int intel_dp_hdmi_compute_bpc(struct intel_dp *intel_dp,
 				     const struct intel_crtc_state *crtc_state,
-				     int bpc)
+				     int bpc, bool respect_downstream_limits)
 {
 	bool ycbcr420_output = intel_dp_is_ycbcr420(intel_dp, crtc_state);
 	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
@@ -1168,10 +1172,19 @@ static int intel_dp_hdmi_compute_bpc(struct intel_dp *intel_dp,
 	 */
 	bpc = max(bpc, 8);
 
+	/*
+	 * We will never exceed downstream TMDS clock limits while
+	 * attempting deep color. If the user insists on forcing an
+	 * out of spec mode they will have to be satisfied with 8bpc.
+	 */
+	if (!respect_downstream_limits)
+		bpc = 8;
+
 	for (; bpc >= 8; bpc -= 2) {
 		if (intel_hdmi_bpc_possible(crtc_state, bpc,
 					    intel_dp->has_hdmi_sink, ycbcr420_output) &&
-		    intel_dp_tmds_clock_valid(intel_dp, clock, bpc, ycbcr420_output) == MODE_OK)
+		    intel_dp_tmds_clock_valid(intel_dp, clock, bpc, ycbcr420_output,
+					      respect_downstream_limits) == MODE_OK)
 			return bpc;
 	}
 
@@ -1179,7 +1192,8 @@ static int intel_dp_hdmi_compute_bpc(struct intel_dp *intel_dp,
 }
 
 static int intel_dp_max_bpp(struct intel_dp *intel_dp,
-			    const struct intel_crtc_state *crtc_state)
+			    const struct intel_crtc_state *crtc_state,
+			    bool respect_downstream_limits)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
@@ -1193,7 +1207,8 @@ static int intel_dp_max_bpp(struct intel_dp *intel_dp,
 	if (intel_dp->dfp.min_tmds_clock) {
 		int max_hdmi_bpc;
 
-		max_hdmi_bpc = intel_dp_hdmi_compute_bpc(intel_dp, crtc_state, bpc);
+		max_hdmi_bpc = intel_dp_hdmi_compute_bpc(intel_dp, crtc_state, bpc,
+							 respect_downstream_limits);
 		if (max_hdmi_bpc < 0)
 			return 0;
 
@@ -1512,7 +1527,8 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
-			     struct drm_connector_state *conn_state)
+			     struct drm_connector_state *conn_state,
+			     bool respect_downstream_limits)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
@@ -1530,7 +1546,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
 	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
-	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config);
+	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config, respect_downstream_limits);
 
 	if (intel_dp->use_max_params) {
 		/*
@@ -1901,7 +1917,8 @@ static bool intel_dp_has_audio(struct intel_encoder *encoder,
 static int
 intel_dp_compute_output_format(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
-			       struct drm_connector_state *conn_state)
+			       struct drm_connector_state *conn_state,
+			       bool respect_downstream_limits)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1921,7 +1938,8 @@ intel_dp_compute_output_format(struct intel_encoder *encoder,
 		crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	}
 
-	ret = intel_dp_compute_link_config(encoder, crtc_state, conn_state);
+	ret = intel_dp_compute_link_config(encoder, crtc_state, conn_state,
+					   respect_downstream_limits);
 	if (ret) {
 		if (intel_dp_is_ycbcr420(intel_dp, crtc_state) ||
 		    !connector->base.ycbcr_420_allowed ||
@@ -1929,7 +1947,8 @@ intel_dp_compute_output_format(struct intel_encoder *encoder,
 			return ret;
 
 		crtc_state->output_format = intel_dp_output_format(connector, true);
-		ret = intel_dp_compute_link_config(encoder, crtc_state, conn_state);
+		ret = intel_dp_compute_link_config(encoder, crtc_state, conn_state,
+						   respect_downstream_limits);
 	}
 
 	return ret;
@@ -1973,7 +1992,13 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (intel_dp_hdisplay_bad(dev_priv, adjusted_mode->crtc_hdisplay))
 		return -EINVAL;
 
-	ret = intel_dp_compute_output_format(encoder, pipe_config, conn_state);
+	/*
+	 * Try to respect downstream TMDS clock limits first, if
+	 * that fails assume the user might know something we don't.
+	 */
+	ret = intel_dp_compute_output_format(encoder, pipe_config, conn_state, true);
+	if (ret)
+		ret = intel_dp_compute_output_format(encoder, pipe_config, conn_state, false);
 	if (ret)
 		return ret;
 
