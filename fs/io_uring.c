@@ -2854,12 +2854,6 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	int ret = 0;
 
 	/*
-	 * We disallow the app entering submit/complete with polling, but we
-	 * still need to lock the ring to prevent racing with polled issue
-	 * that got punted to a workqueue.
-	 */
-	mutex_lock(&ctx->uring_lock);
-	/*
 	 * Don't enter poll loop if we already have events pending.
 	 * If we do, we can potentially be spinning for commands that
 	 * already triggered a CQE (eg in error).
@@ -2867,7 +2861,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	if (test_bit(0, &ctx->check_cq_overflow))
 		__io_cqring_overflow_flush(ctx, false);
 	if (io_cqring_events(ctx))
-		goto out;
+		return 0;
 	do {
 		/*
 		 * If a submit got punted to a workqueue, we can have the
@@ -2897,8 +2891,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		nr_events += ret;
 		ret = 0;
 	} while (nr_events < min && !need_resched());
-out:
-	mutex_unlock(&ctx->uring_lock);
+
 	return ret;
 }
 
@@ -10820,21 +10813,33 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		ret = io_uring_add_tctx_node(ctx);
 		if (unlikely(ret))
 			goto out;
+
 		mutex_lock(&ctx->uring_lock);
 		submitted = io_submit_sqes(ctx, to_submit);
-		mutex_unlock(&ctx->uring_lock);
-
-		if (submitted != to_submit)
+		if (submitted != to_submit) {
+			mutex_unlock(&ctx->uring_lock);
 			goto out;
+		}
+		if ((flags & IORING_ENTER_GETEVENTS) && ctx->syscall_iopoll)
+			goto iopoll_locked;
+		mutex_unlock(&ctx->uring_lock);
 	}
 	if (flags & IORING_ENTER_GETEVENTS) {
-		min_complete = min(min_complete, ctx->cq_entries);
-
 		if (ctx->syscall_iopoll) {
+			/*
+			 * We disallow the app entering submit/complete with
+			 * polling, but we still need to lock the ring to
+			 * prevent racing with polled issue that got punted to
+			 * a workqueue.
+			 */
+			mutex_lock(&ctx->uring_lock);
+iopoll_locked:
 			ret = io_validate_ext_arg(flags, argp, argsz);
-			if (unlikely(ret))
-				goto out;
-			ret = io_iopoll_check(ctx, min_complete);
+			if (likely(!ret)) {
+				min_complete = min(min_complete, ctx->cq_entries);
+				ret = io_iopoll_check(ctx, min_complete);
+			}
+			mutex_unlock(&ctx->uring_lock);
 		} else {
 			const sigset_t __user *sig;
 			struct __kernel_timespec __user *ts;
@@ -10842,6 +10847,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			ret = io_get_ext_arg(flags, argp, &argsz, &ts, &sig);
 			if (unlikely(ret))
 				goto out;
+			min_complete = min(min_complete, ctx->cq_entries);
 			ret = io_cqring_wait(ctx, min_complete, sig, argsz, ts);
 		}
 	}
