@@ -1036,7 +1036,7 @@
 					    QORIQ_CLK_PLL_DIV(4)>;
 		};
 
-		ifc: ifc@2240000 {
+		ifc: memory-controller@2240000 {
 			compatible = "fsl,ifc";
 			reg = <0x0 0x2240000 0x0 0x20000>;
 			interrupts = <0 21 0x4>; /* Level high type */
