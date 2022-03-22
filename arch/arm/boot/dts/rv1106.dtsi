@@ -319,6 +319,21 @@
 		reg = <0xff200000 0x1000>;
 	};
 
+	pvtm@ff240000 {
+		compatible = "rockchip,rv1106-core-pvtm";
+		reg = <0xff240000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pvtm@0 {
+			reg = <0>;
+			clocks = <&cru CLK_PVTM_CORE>;
+			clock-names = "clk";
+			resets = <&cru SRST_PVTM_CORE>, <&cru SRST_P_PVTM_CORE>;
+			reset-names = "rst", "rst-p";
+		};
+	};
+
 	i2c0: i2c@ff310000 {
 		compatible = "rockchip,rv1106-i2c", "rockchip,rk3399-i2c";
 		reg = <0xff310000 0x1000>;
@@ -466,6 +481,21 @@
 	pmuioc: syscon@ff388000 {
 		compatible = "rockchip,rv1106-pmuioc", "syscon";
 		reg = <0xff388000 0x1000>;
+	};
+
+	pvtm@ff390000 {
+		compatible = "rockchip,rv1106-pmu-pvtm";
+		reg = <0xff390000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pvtm@0 {
+			reg = <1>;
+			clocks = <&cru CLK_PVTM_PMU>, <&cru PCLK_PVTM_PMU>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_PVTM_PMU>, <&cru SRST_P_PVTM_PMU>;
+			reset-names = "rst", "rst-p";
+		};
 	};
 
 	cru: clock-controller@ff3a0000 {
