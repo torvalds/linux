@@ -3451,7 +3451,7 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type)
 	return btrfs_chunk_alloc(trans, alloc_flags, CHUNK_ALLOC_FORCE);
 }
 
-static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
+static struct btrfs_block_group *do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
 {
 	struct btrfs_block_group *bg;
 	int ret;
@@ -3538,7 +3538,11 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
 out:
 	btrfs_trans_release_chunk_metadata(trans);
 
-	return ret;
+	if (ret)
+		return ERR_PTR(ret);
+
+	btrfs_get_block_group(bg);
+	return bg;
 }
 
 /*
@@ -3653,6 +3657,7 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_space_info *space_info;
+	struct btrfs_block_group *ret_bg;
 	bool wait_for_alloc = false;
 	bool should_alloc = false;
 	int ret = 0;
@@ -3746,8 +3751,13 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 			force_metadata_allocation(fs_info);
 	}
 
-	ret = do_chunk_alloc(trans, flags);
+	ret_bg = do_chunk_alloc(trans, flags);
 	trans->allocating_chunk = false;
+
+	if (IS_ERR(ret_bg))
+		ret = PTR_ERR(ret_bg);
+	else
+		btrfs_put_block_group(ret_bg);
 
 	spin_lock(&space_info->lock);
 	if (ret < 0) {
