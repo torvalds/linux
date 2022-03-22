@@ -575,9 +575,9 @@ const struct drm_crtc_funcs gma_crtc_funcs = {
 	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
 	.page_flip = gma_crtc_page_flip,
-	.enable_vblank = gma_enable_vblank,
-	.disable_vblank = gma_disable_vblank,
-	.get_vblank_counter = gma_get_vblank_counter,
+	.enable_vblank = gma_crtc_enable_vblank,
+	.disable_vblank = gma_crtc_disable_vblank,
+	.get_vblank_counter = gma_crtc_get_vblank_counter,
 };
 
 /*

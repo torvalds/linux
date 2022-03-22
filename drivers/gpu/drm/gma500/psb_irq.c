@@ -371,7 +371,7 @@ void gma_irq_uninstall(struct drm_device *dev)
 	free_irq(pdev->irq, dev);
 }
 
-int gma_enable_vblank(struct drm_crtc *crtc)
+int gma_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
@@ -404,7 +404,7 @@ int gma_enable_vblank(struct drm_crtc *crtc)
 	return 0;
 }
 
-void gma_disable_vblank(struct drm_crtc *crtc)
+void gma_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
@@ -428,7 +428,7 @@ void gma_disable_vblank(struct drm_crtc *crtc)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-u32 gma_get_vblank_counter(struct drm_crtc *crtc)
+u32 gma_crtc_get_vblank_counter(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
