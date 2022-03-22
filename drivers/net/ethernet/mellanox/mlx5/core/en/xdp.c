@@ -435,8 +435,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 		u8 num_pkts = 1 + num_frags;
 		int i;
 
-		memset(&cseg->signature, 0, sizeof(*cseg) -
-		       sizeof(cseg->opmod_idx_opcode) - sizeof(cseg->qpn_ds));
+		memset(&cseg->trailer, 0, sizeof(cseg->trailer));
 		memset(eseg, 0, sizeof(*eseg) - sizeof(eseg->trailer));
 
 		eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
