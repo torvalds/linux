@@ -895,7 +895,7 @@ static struct npcm7xx_func npcm7xx_funcs[] = {
 };
 
 #define NPCM7XX_PINCFG(a, b, c, d, e, f, g, h, i, j, k) \
-	[a] { .fn0 = fn_ ## b, .reg0 = NPCM7XX_GCR_ ## c, .bit0 = d, \
+	[a] = { .fn0 = fn_ ## b, .reg0 = NPCM7XX_GCR_ ## c, .bit0 = d, \
 			.fn1 = fn_ ## e, .reg1 = NPCM7XX_GCR_ ## f, .bit1 = g, \
 			.fn2 = fn_ ## h, .reg2 = NPCM7XX_GCR_ ## i, .bit2 = j, \
 			.flag = k }

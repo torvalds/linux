@@ -613,8 +613,8 @@ static struct wpcm450_func wpcm450_funcs[] = {
 };
 
 #define WPCM450_PINCFG(a, b, c, d, e, f, g) \
-	[a] { .fn0 = fn_ ## b, .reg0 = WPCM450_GCR_ ## c, .bit0 = d, \
-	      .fn1 = fn_ ## e, .reg1 = WPCM450_GCR_ ## f, .bit1 = g }
+	[a] = { .fn0 = fn_ ## b, .reg0 = WPCM450_GCR_ ## c, .bit0 = d, \
+	        .fn1 = fn_ ## e, .reg1 = WPCM450_GCR_ ## f, .bit1 = g }
 
 struct wpcm450_pincfg {
 	int fn0, reg0, bit0;
