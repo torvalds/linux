@@ -571,7 +571,9 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 		int list_size = 0;
 
 		list_for_each_entry(dst, &fte->node.children, node.list) {
-			unsigned int id, type = dst->dest_attr.type;
+			enum mlx5_flow_destination_type type = dst->dest_attr.type;
+			enum mlx5_ifc_flow_destination_type ifc_type;
+			unsigned int id;
 
 			if (type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				continue;
@@ -579,10 +581,11 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 			switch (type) {
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
 				id = dst->dest_attr.ft_num;
-				type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				id = dst->dest_attr.ft->id;
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
 			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
@@ -596,8 +599,10 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				if (type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) {
 					/* destination_id is reserved */
 					id = 0;
+					ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_UPLINK;
 					break;
 				}
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_VPORT;
 				id = dst->dest_attr.vport.num;
 				if (extended_dest &&
 				    dst->dest_attr.vport.pkt_reformat) {
@@ -612,13 +617,15 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER:
 				id = dst->dest_attr.sampler_id;
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_SAMPLER;
 				break;
 			default:
 				id = dst->dest_attr.tir_num;
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_TIR;
 			}
 
 			MLX5_SET(dest_format_struct, in_dests, destination_type,
-				 type);
+				 ifc_type);
 			MLX5_SET(dest_format_struct, in_dests, destination_id, id);
 			in_dests += dst_cnt_size;
 			list_size++;
