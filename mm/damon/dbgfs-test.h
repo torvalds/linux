@@ -74,7 +74,7 @@ static void damon_dbgfs_test_set_targets(struct kunit *test)
 	char buf[64];
 
 	/* Make DAMON consider target has no pid */
-	ctx->ops = (struct damon_operations){};
+	damon_select_ops(ctx, DAMON_OPS_PADDR);
 
 	dbgfs_set_targets(ctx, 0, NULL);
 	sprint_target_ids(ctx, buf, 64);
@@ -110,6 +110,8 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 	char *input, *expect;
 	int i, rc;
 	char buf[256];
+
+	damon_select_ops(ctx, DAMON_OPS_PADDR);
 
 	dbgfs_set_targets(ctx, 3, NULL);
 
