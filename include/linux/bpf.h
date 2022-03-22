@@ -334,7 +334,15 @@ enum bpf_type_flag {
 	/* MEM is in user address space. */
 	MEM_USER		= BIT(3 + BPF_BASE_TYPE_BITS),
 
-	__BPF_TYPE_LAST_FLAG	= MEM_USER,
+	/* MEM is a percpu memory. MEM_PERCPU tags PTR_TO_BTF_ID. When tagged
+	 * with MEM_PERCPU, PTR_TO_BTF_ID _cannot_ be directly accessed. In
+	 * order to drop this tag, it must be passed into bpf_per_cpu_ptr()
+	 * or bpf_this_cpu_ptr(), which will return the pointer corresponding
+	 * to the specified cpu.
+	 */
+	MEM_PERCPU		= BIT(4 + BPF_BASE_TYPE_BITS),
+
+	__BPF_TYPE_LAST_FLAG	= MEM_PERCPU,
 };
 
 /* Max number of base types. */
@@ -516,7 +524,6 @@ enum bpf_reg_type {
 	 */
 	PTR_TO_MEM,		 /* reg points to valid memory region */
 	PTR_TO_BUF,		 /* reg points to a read/write buffer */
-	PTR_TO_PERCPU_BTF_ID,	 /* reg points to a percpu kernel variable */
 	PTR_TO_FUNC,		 /* reg points to a bpf program function */
 	__BPF_REG_TYPE_MAX,
 

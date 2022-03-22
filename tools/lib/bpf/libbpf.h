@@ -425,6 +425,29 @@ bpf_program__attach_kprobe_opts(const struct bpf_program *prog,
                                 const char *func_name,
                                 const struct bpf_kprobe_opts *opts);
 
+struct bpf_kprobe_multi_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* array of function symbols to attach */
+	const char **syms;
+	/* array of function addresses to attach */
+	const unsigned long *addrs;
+	/* array of user-provided values fetchable through bpf_get_attach_cookie */
+	const __u64 *cookies;
+	/* number of elements in syms/addrs/cookies arrays */
+	size_t cnt;
+	/* create return kprobes */
+	bool retprobe;
+	size_t :0;
+};
+
+#define bpf_kprobe_multi_opts__last_field retprobe
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
+				      const char *pattern,
+				      const struct bpf_kprobe_multi_opts *opts);
+
 struct bpf_uprobe_opts {
 	/* size of this struct, for forward/backward compatiblity */
 	size_t sz;
@@ -1289,6 +1312,35 @@ LIBBPF_API int bpf_object__attach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__detach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s);
 
+struct bpf_var_skeleton {
+	const char *name;
+	struct bpf_map **map;
+	void **addr;
+};
+
+struct bpf_object_subskeleton {
+	size_t sz; /* size of this struct, for forward/backward compatibility */
+
+	const struct bpf_object *obj;
+
+	int map_cnt;
+	int map_skel_sz; /* sizeof(struct bpf_map_skeleton) */
+	struct bpf_map_skeleton *maps;
+
+	int prog_cnt;
+	int prog_skel_sz; /* sizeof(struct bpf_prog_skeleton) */
+	struct bpf_prog_skeleton *progs;
+
+	int var_cnt;
+	int var_skel_sz; /* sizeof(struct bpf_var_skeleton) */
+	struct bpf_var_skeleton *vars;
+};
+
+LIBBPF_API int
+bpf_object__open_subskeleton(struct bpf_object_subskeleton *s);
+LIBBPF_API void
+bpf_object__destroy_subskeleton(struct bpf_object_subskeleton *s);
+
 struct gen_loader_opts {
 	size_t sz; /* size of this struct, for forward/backward compatiblity */
 	const char *data;
@@ -1327,6 +1379,115 @@ LIBBPF_API int bpf_linker__add_file(struct bpf_linker *linker,
 				    const struct bpf_linker_file_opts *opts);
 LIBBPF_API int bpf_linker__finalize(struct bpf_linker *linker);
 LIBBPF_API void bpf_linker__free(struct bpf_linker *linker);
+
+/*
+ * Custom handling of BPF program's SEC() definitions
+ */
+
+struct bpf_prog_load_opts; /* defined in bpf.h */
+
+/* Called during bpf_object__open() for each recognized BPF program. Callback
+ * can use various bpf_program__set_*() setters to adjust whatever properties
+ * are necessary.
+ */
+typedef int (*libbpf_prog_setup_fn_t)(struct bpf_program *prog, long cookie);
+
+/* Called right before libbpf performs bpf_prog_load() to load BPF program
+ * into the kernel. Callback can adjust opts as necessary.
+ */
+typedef int (*libbpf_prog_prepare_load_fn_t)(struct bpf_program *prog,
+					     struct bpf_prog_load_opts *opts, long cookie);
+
+/* Called during skeleton attach or through bpf_program__attach(). If
+ * auto-attach is not supported, callback should return 0 and set link to
+ * NULL (it's not considered an error during skeleton attach, but it will be
+ * an error for bpf_program__attach() calls). On error, error should be
+ * returned directly and link set to NULL. On success, return 0 and set link
+ * to a valid struct bpf_link.
+ */
+typedef int (*libbpf_prog_attach_fn_t)(const struct bpf_program *prog, long cookie,
+				       struct bpf_link **link);
+
+struct libbpf_prog_handler_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* User-provided value that is passed to prog_setup_fn,
+	 * prog_prepare_load_fn, and prog_attach_fn callbacks. Allows user to
+	 * register one set of callbacks for multiple SEC() definitions and
+	 * still be able to distinguish them, if necessary. For example,
+	 * libbpf itself is using this to pass necessary flags (e.g.,
+	 * sleepable flag) to a common internal SEC() handler.
+	 */
+	long cookie;
+	/* BPF program initialization callback (see libbpf_prog_setup_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_setup_fn_t prog_setup_fn;
+	/* BPF program loading callback (see libbpf_prog_prepare_load_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_prepare_load_fn_t prog_prepare_load_fn;
+	/* BPF program attach callback (see libbpf_prog_attach_fn_t).
+	 * Callback is optional, pass NULL if it's not necessary.
+	 */
+	libbpf_prog_attach_fn_t prog_attach_fn;
+};
+#define libbpf_prog_handler_opts__last_field prog_attach_fn
+
+/**
+ * @brief **libbpf_register_prog_handler()** registers a custom BPF program
+ * SEC() handler.
+ * @param sec section prefix for which custom handler is registered
+ * @param prog_type BPF program type associated with specified section
+ * @param exp_attach_type Expected BPF attach type associated with specified section
+ * @param opts optional cookie, callbacks, and other extra options
+ * @return Non-negative handler ID is returned on success. This handler ID has
+ * to be passed to *libbpf_unregister_prog_handler()* to unregister such
+ * custom handler. Negative error code is returned on error.
+ *
+ * *sec* defines which SEC() definitions are handled by this custom handler
+ * registration. *sec* can have few different forms:
+ *   - if *sec* is just a plain string (e.g., "abc"), it will match only
+ *   SEC("abc"). If BPF program specifies SEC("abc/whatever") it will result
+ *   in an error;
+ *   - if *sec* is of the form "abc/", proper SEC() form is
+ *   SEC("abc/something"), where acceptable "something" should be checked by
+ *   *prog_init_fn* callback, if there are additional restrictions;
+ *   - if *sec* is of the form "abc+", it will successfully match both
+ *   SEC("abc") and SEC("abc/whatever") forms;
+ *   - if *sec* is NULL, custom handler is registered for any BPF program that
+ *   doesn't match any of the registered (custom or libbpf's own) SEC()
+ *   handlers. There could be only one such generic custom handler registered
+ *   at any given time.
+ *
+ * All custom handlers (except the one with *sec* == NULL) are processed
+ * before libbpf's own SEC() handlers. It is allowed to "override" libbpf's
+ * SEC() handlers by registering custom ones for the same section prefix
+ * (i.e., it's possible to have custom SEC("perf_event/LLC-load-misses")
+ * handler).
+ *
+ * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * to ensure synchronization if there is a risk of running this API from
+ * multiple threads simultaneously.
+ */
+LIBBPF_API int libbpf_register_prog_handler(const char *sec,
+					    enum bpf_prog_type prog_type,
+					    enum bpf_attach_type exp_attach_type,
+					    const struct libbpf_prog_handler_opts *opts);
+/**
+ * @brief *libbpf_unregister_prog_handler()* unregisters previously registered
+ * custom BPF program SEC() handler.
+ * @param handler_id handler ID returned by *libbpf_register_prog_handler()*
+ * after successful registration
+ * @return 0 on success, negative error code if handler isn't found
+ *
+ * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * to ensure synchronization if there is a risk of running this API from
+ * multiple threads simultaneously.
+ */
+LIBBPF_API int libbpf_unregister_prog_handler(int handler_id);
 
 #ifdef __cplusplus
 } /* extern "C" */

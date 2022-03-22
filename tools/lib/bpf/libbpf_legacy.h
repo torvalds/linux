@@ -54,6 +54,10 @@ enum libbpf_strict_mode {
 	 *
 	 * Note, in this mode the program pin path will be based on the
 	 * function name instead of section name.
+	 *
+	 * Additionally, routines in the .text section are always considered
+	 * sub-programs. Legacy behavior allows for a single routine in .text
+	 * to be a program.
 	 */
 	LIBBPF_STRICT_SEC_NAME = 0x04,
 	/*

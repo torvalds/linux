@@ -25,6 +25,7 @@ GEN COMMANDS
 
 |	**bpftool** **gen object** *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
 |	**bpftool** **gen skeleton** *FILE* [**name** *OBJECT_NAME*]
+|	**bpftool** **gen subskeleton** *FILE* [**name** *OBJECT_NAME*]
 |	**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
 |	**bpftool** **gen help**
 
@@ -149,6 +150,30 @@ DESCRIPTION
 		  arrays, same structs can be used to fetch and update
 		  (non-read-only) data from userspace, with same simplicity
 		  as for BPF side.
+
+	**bpftool gen subskeleton** *FILE*
+		  Generate BPF subskeleton C header file for a given *FILE*.
+
+		  Subskeletons are similar to skeletons, except they do not own
+		  the corresponding maps, programs, or global variables. They
+		  require that the object file used to generate them is already
+		  loaded into a *bpf_object* by some other means.
+
+		  This functionality is useful when a library is included into a
+		  larger BPF program. A subskeleton for the library would have
+		  access to all objects and globals defined in it, without
+		  having to know about the larger program.
+
+		  Consequently, there are only two functions defined
+		  for subskeletons:
+
+		  - **example__open(bpf_object\*)**
+		    Instantiates a subskeleton from an already opened (but not
+		    necessarily loaded) **bpf_object**.
+
+		  - **example__destroy()**
+		    Frees the storage for the subskeleton but *does not* unload
+		    any BPF programs or maps.
 
 	**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
 		  Generate a minimum BTF file as *OUTPUT*, derived from a given

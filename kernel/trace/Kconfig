@@ -10,6 +10,17 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
+config HAVE_RETHOOK
+	bool
+
+config RETHOOK
+	bool
+	depends on HAVE_RETHOOK
+	help
+	  Enable generic return hooking feature. This is an internal
+	  API, which will be used by other function-entry hooking
+	  features like fprobe and kprobes.
+
 config HAVE_FUNCTION_TRACER
 	bool
 	help
@@ -235,6 +246,21 @@ config DYNAMIC_FTRACE_WITH_ARGS
 	def_bool y
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_DYNAMIC_FTRACE_WITH_ARGS
+
+config FPROBE
+	bool "Kernel Function Probe (fprobe)"
+	depends on FUNCTION_TRACER
+	depends on DYNAMIC_FTRACE_WITH_REGS
+	depends on HAVE_RETHOOK
+	select RETHOOK
+	default n
+	help
+	  This option enables kernel function probe (fprobe) based on ftrace.
+	  The fprobe is similar to kprobes, but probes only for kernel function
+	  entries and exits. This also can probe multiple functions by one
+	  fprobe.
+
+	  If unsure, say N.
 
 config FUNCTION_PROFILER
 	bool "Kernel function profiler"

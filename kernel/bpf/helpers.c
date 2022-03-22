@@ -225,13 +225,8 @@ BPF_CALL_2(bpf_get_current_comm, char *, buf, u32, size)
 	if (unlikely(!task))
 		goto err_clear;
 
-	strncpy(buf, task->comm, size);
-
-	/* Verifier guarantees that size > 0. For task->comm exceeding
-	 * size, guarantee that buf is %NUL-terminated. Unconditionally
-	 * done here to save the size test.
-	 */
-	buf[size - 1] = 0;
+	/* Verifier guarantees that size > 0 */
+	strscpy(buf, task->comm, size);
 	return 0;
 err_clear:
 	memset(buf, 0, size);

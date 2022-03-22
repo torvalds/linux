@@ -151,6 +151,9 @@
 #define __diag_GCC_8(s)
 #endif
 
+#define __diag_ignore_all(option, comment) \
+	__diag_GCC(8, ignore, option)
+
 /*
  * Prior to 9.1, -Wno-alloc-size-larger-than (and therefore the "alloc_size"
  * attribute) do not work, and must be disabled.

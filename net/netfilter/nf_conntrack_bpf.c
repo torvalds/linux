@@ -12,6 +12,7 @@
 #include <linux/btf_ids.h>
 #include <linux/net_namespace.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_bpf.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
 /* bpf_ct_opts - Options for CT lookup helpers
@@ -102,8 +103,8 @@ static struct nf_conn *__bpf_nf_ct_lookup(struct net *net,
 }
 
 __diag_push();
-__diag_ignore(GCC, 8, "-Wmissing-prototypes",
-	      "Global functions as their definitions will be in nf_conntrack BTF");
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in nf_conntrack BTF");
 
 /* bpf_xdp_ct_lookup - Lookup CT entry for the given tuple, and acquire a
  *		       reference to it

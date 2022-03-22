@@ -2335,7 +2335,13 @@ out_image:
 						   sizeof(rw_header->size));
 				bpf_jit_binary_pack_free(header, rw_header);
 			}
+			/* Fall back to interpreter mode */
 			prog = orig_prog;
+			if (extra_pass) {
+				prog->bpf_func = NULL;
+				prog->jited = 0;
+				prog->jited_len = 0;
+			}
 			goto out_addrs;
 		}
 		if (image) {
@@ -2384,8 +2390,9 @@ out_image:
 			 * Both cases are serious bugs and justify WARN_ON.
 			 */
 			if (WARN_ON(bpf_jit_binary_pack_finalize(prog, header, rw_header))) {
-				prog = orig_prog;
-				goto out_addrs;
+				/* header has been freed */
+				header = NULL;
+				goto out_image;
 			}
 
 			bpf_tail_call_direct_fixup(prog);
