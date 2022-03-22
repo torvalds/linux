@@ -619,27 +619,12 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	return 0;
 }
 
-static inline void *alternate_node_alloc(struct kmem_cache *cachep,
-		gfp_t flags)
-{
-	return NULL;
-}
-
-static inline void *____cache_alloc_node(struct kmem_cache *cachep,
-		 gfp_t flags, int nodeid)
-{
-	return NULL;
-}
-
 static inline gfp_t gfp_exact_node(gfp_t flags)
 {
 	return flags & ~__GFP_NOFAIL;
 }
 
 #else	/* CONFIG_NUMA */
-
-static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
-static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 
 static struct alien_cache *__alloc_alien_cache(int node, int entries,
 						int batch, gfp_t gfp)
@@ -3056,6 +3041,8 @@ out:
 }
 
 #ifdef CONFIG_NUMA
+static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
+
 /*
  * Try allocating on another node if PFA_SPREAD_SLAB is a mempolicy is set.
  *
