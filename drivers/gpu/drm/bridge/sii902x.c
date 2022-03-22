@@ -426,12 +426,29 @@ static void sii902x_bridge_enable(struct drm_bridge *bridge)
 	mutex_unlock(&sii902x->mutex);
 }
 
+static bool sii902x_check_embedded_format(uint32_t bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void sii902x_set_embedded_sync(struct sii902x *sii902x)
 {
 	unsigned char data[8];
 	struct videomode vm;
 
-	if (sii902x->bus_format == MEDIA_BUS_FMT_RGB888_1X24)
+	if (!sii902x_check_embedded_format(sii902x->bus_format))
 		return;
 
 	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
@@ -1139,8 +1156,10 @@ static int sii902x_init(struct sii902x *sii902x)
 	sii902x_reset(sii902x);
 
 	ret = regmap_write(sii902x->regmap, SII902X_REG_TPI_RQB, 0x0);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "enable TPI mode failed %d\n", ret);
 		return ret;
+	}
 
 	ret = regmap_bulk_read(sii902x->regmap, SII902X_REG_CHIPID(0),
 			       &chipid, 4);
@@ -1273,6 +1292,7 @@ static int sii902x_probe(struct i2c_client *client,
 
 	ret = sii902x_init(sii902x);
 	if (ret < 0) {
+		dev_err(dev, "Failed to init sii902x %d\n", ret);
 		regulator_bulk_disable(ARRAY_SIZE(sii902x->supplies),
 				       sii902x->supplies);
 	}
