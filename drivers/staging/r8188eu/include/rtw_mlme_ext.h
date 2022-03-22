@@ -744,8 +744,6 @@ struct C2HEvent_Header {
 	unsigned int rsvd;
 };
 
-void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
-
 enum rtw_c2h_event {
 	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
 	GEN_EVT_CODE(_Read_BBREG),
@@ -799,7 +797,7 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
-	{0, rtw_fwdbg_event_callback},
+	{0, NULL},
 	{0, NULL},	 /*20*/
 	{0, NULL},
 	{0, NULL},

@@ -747,10 +747,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 	rtw_os_xmit_schedule(adapter);
 }
 
-void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf)
-{
-}
-
 static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 {
 	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
