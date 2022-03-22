@@ -10701,6 +10701,19 @@ static int io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+static int io_validate_ext_arg(unsigned flags, const void __user *argp, size_t argsz)
+{
+	if (flags & IORING_ENTER_EXT_ARG) {
+		struct io_uring_getevents_arg arg;
+
+		if (argsz != sizeof(arg))
+			return -EINVAL;
+		if (copy_from_user(&arg, argp, sizeof(arg)))
+			return -EFAULT;
+	}
+	return 0;
+}
+
 static int io_get_ext_arg(unsigned flags, const void __user *argp, size_t *argsz,
 			  struct __kernel_timespec __user **ts,
 			  const sigset_t __user **sig)
@@ -10814,13 +10827,6 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			goto out;
 	}
 	if (flags & IORING_ENTER_GETEVENTS) {
-		const sigset_t __user *sig;
-		struct __kernel_timespec __user *ts;
-
-		ret = io_get_ext_arg(flags, argp, &argsz, &ts, &sig);
-		if (unlikely(ret))
-			goto out;
-
 		min_complete = min(min_complete, ctx->cq_entries);
 
 		/*
@@ -10831,8 +10837,17 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		 */
 		if (ctx->flags & IORING_SETUP_IOPOLL &&
 		    !(ctx->flags & IORING_SETUP_SQPOLL)) {
+			ret = io_validate_ext_arg(flags, argp, argsz);
+			if (unlikely(ret))
+				goto out;
 			ret = io_iopoll_check(ctx, min_complete);
 		} else {
+			const sigset_t __user *sig;
+			struct __kernel_timespec __user *ts;
+
+			ret = io_get_ext_arg(flags, argp, &argsz, &ts, &sig);
+			if (unlikely(ret))
+				goto out;
 			ret = io_cqring_wait(ctx, min_complete, sig, argsz, ts);
 		}
 	}
