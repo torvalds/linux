@@ -5,6 +5,9 @@
 #ifndef __ROCKCHIP_DVBM_H__
 #define __ROCKCHIP_DVBM_H__
 
+#include <linux/clk.h>
+#include <linux/reset.h>
+
 struct rk_dvbm_base {
 	/* 0x2c */
 	u32 ybuf_bot;
@@ -168,9 +171,11 @@ struct rk_dvbm_regs {
 };
 
 struct dvbm_ctx {
+	struct clk *clk;
 	struct device *dev;
 	void __iomem *reg_base;
 	struct rk_dvbm_regs regs;
+	struct reset_control *rst;
 
 	u32 isp_connet;
 	u32 vepu_connet;
@@ -179,27 +184,25 @@ struct dvbm_ctx {
 	u32 dvbm_status;
 	int irq;
 
-	struct dvbm_port port_isp;
+	/* vepu infos */
 	struct dvbm_port port_vepu;
-
-	atomic_t isp_ref;
 	atomic_t vepu_ref;
-
-	atomic_t isp_link;
 	atomic_t vepu_link;
-
 	struct dvbm_cb	vepu_cb;
-	struct dvbm_cb	isp_cb;
 
+	/* isp infos */
+	struct dvbm_port port_isp;
+	struct dvbm_cb	isp_cb;
+	atomic_t isp_link;
+	atomic_t isp_ref;
 	u32 isp_frm_start;
 	u32 isp_frm_end;
 	u64 isp_frm_ns;
 
-	wait_queue_head_t link_wait;
-
-#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
-	struct proc_dir_entry *procfs;
-#endif
+	/* debug infos */
+	u32 dump_s;
+	u32 dump_e;
+	u32 ignore_ovfl;
 };
 
 #endif

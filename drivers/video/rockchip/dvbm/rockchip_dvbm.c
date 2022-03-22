@@ -25,11 +25,11 @@ module_param(dvbm_debug, uint, 0644);
 MODULE_PARM_DESC(dvbm_debug, "bit switch for dvbm debug information");
 
 static struct dvbm_ctx *g_ctx;
-#define DVBM_LINK_WAIT_TIMEOUT_MS	(1000)
 
 #define DVBM_DEBUG	0x00000001
 #define DVBM_DEBUG_IRQ	0x00000002
 #define DVBM_DEBUG_REG	0x00000004
+#define DVBM_DEBUG_DUMP	0x00000008
 
 #define dvbm_debug(fmt, args...)				\
 	do {							\
@@ -46,6 +46,12 @@ static struct dvbm_ctx *g_ctx;
 #define dvbm_debug_irq(fmt, args...)				\
 	do {							\
 		if (unlikely(dvbm_debug & (DVBM_DEBUG_IRQ)))	\
+			pr_info(fmt, ##args);			\
+	} while (0)
+
+#define dvbm_debug_dump(fmt, args...)				\
+	do {							\
+		if (unlikely(dvbm_debug & (DVBM_DEBUG_DUMP)))	\
 			pr_info(fmt, ##args);			\
 	} while (0)
 
@@ -102,6 +108,8 @@ enum dvbm_flow {
 #define DVBM_ST		0x80
 #define DVBM_OVFL_ST	0x84
 
+#define DVBM_REG_OFFSET 0x2c
+
 static void rk_dvbm_set_reg(struct dvbm_ctx *ctx, u32 offset, u32 val)
 {
 	dvbm_debug_reg("write reg[%d] 0x%x = 0x%08x\n", offset >> 2, offset, val);
@@ -141,12 +149,80 @@ static void dvbm2enc_callback(struct dvbm_ctx *ctx, enum dvbm_cb_event event, vo
 
 static void rk_dvbm_dump_regs(struct dvbm_ctx *ctx)
 {
-	u32 start = 0x4;
-	u32 end = 0xb8;
+	u32 start = ctx->dump_s;//0x80;
+	u32 end = ctx->dump_e;//0xb8;
+	u32 i;
+	dvbm_debug_dump("=== %s ===\n", __func__);
+	for (i = start; i <= end; i += 4)
+		dvbm_debug_dump("reg[0x%0x] = 0x%08x\n", i, readl(ctx->reg_base + i));
+	dvbm_debug_dump("=== %s ===\n", __func__);
+}
+
+static int rk_dvbm_clk_on(struct dvbm_ctx *ctx)
+{
+	int ret = 0;
+
+	if (ctx->clk)
+		ret = clk_prepare_enable(ctx->clk);
+	if (ret)
+		dev_err(ctx->dev, "clk on failed\n");
+	return ret;
+}
+
+static int rk_dvbm_clk_off(struct dvbm_ctx *ctx)
+{
+	if (ctx->clk)
+		clk_disable_unprepare(ctx->clk);
+	return 0;
+}
+
+static void init_isp_infos(struct dvbm_ctx *ctx)
+{
+	ctx->isp_frm_start = 0;
+	ctx->isp_frm_end = 0;
+	ctx->isp_frm_ns = 0;
+}
+
+static int rk_dvbm_setup_iobuf(struct dvbm_ctx *ctx, struct rk_dvbm_base *addr_base)
+{
+	u32 *data = (u32 *)addr_base;
 	u32 i;
 
-	for (i = start; i <= end; i += 4)
-		dvbm_debug("reg[0x%0x] = 0x%08x\n", i, readl(ctx->reg_base + i));
+	for (i = 0; i < sizeof(struct rk_dvbm_base) / sizeof(u32); i++)
+		rk_dvbm_set_reg(ctx, i * sizeof(u32) + DVBM_REG_OFFSET, data[i]);
+
+	return 0;
+}
+
+static void rk_dvbm_reg_init(struct dvbm_ctx *ctx)
+{
+	struct rk_dvbm_regs *reg = &ctx->regs;
+	u32 *val = (u32 *)reg;
+
+	reg->int_en.buf_ovfl               = 1;
+	reg->int_en.isp_cnct               = 1;
+	reg->int_en.vepu_cnct              = 1;
+	reg->int_en.vepu_discnct           = 1;
+	reg->int_en.isp_discnct            = 1;
+	reg->int_en.resync_finish          = 1;
+	reg->int_en.isp_cnct_timeout       = 1;
+	reg->int_en.vepu_cnct_timeout      = 1;
+	reg->int_en.vepu_handshake_timeout = 1;
+
+	reg->dvbm_cfg.fmt                         = 0;
+	reg->dvbm_cfg.auto_resyn                  = 0;
+	reg->dvbm_cfg.ignore_vepu_cnct_ack        = 0;
+	reg->dvbm_cfg.start_point_after_vepu_cnct = 0;
+
+	reg->wdg_cfg0.wdg_isp_cnct_timeout       = 0xfffff;
+	reg->wdg_cfg1.wdg_vepu_cnct_timeout      = 0xfffff;
+	reg->wdg_cfg2.wdg_vepu_handshake_timeout = 0xfffff;
+
+	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG0, val[DVBM_WDG_CFG0 >> 2]);
+	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG1, val[DVBM_WDG_CFG1 >> 2]);
+	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG2, val[DVBM_WDG_CFG2 >> 2]);
+	rk_dvbm_set_reg(ctx, DVBM_CFG, val[DVBM_CFG >> 2]);
+	rk_dvbm_set_reg(ctx, DVBM_INT_EN, val[DVBM_INT_EN >> 2]);
 }
 
 struct dvbm_port *rk_dvbm_get_port(struct platform_device *pdev,
@@ -190,7 +266,7 @@ int rk_dvbm_link(struct dvbm_port *port)
 	struct dvbm_ctx *ctx;
 	enum dvbm_port_dir dir;
 	struct rk_dvbm_regs *reg;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON(!port))
 		return -EINVAL;
@@ -206,22 +282,19 @@ int rk_dvbm_link(struct dvbm_port *port)
 		}
 		reg->isp_cnct.isp_cnct = 1;
 		rk_dvbm_set_reg(ctx, DVBM_ISP_CNCT, 0x1);
-
-
 	} else if (dir == DVBM_VEPU_PORT) {
-		reg->vepu_cnct.vepu_cnct = 1;
-		rk_dvbm_set_reg(ctx, DVBM_VEPU_CNCT, 0x1);
+		if (!port->linked) {
+			reg->vepu_cnct.vepu_cnct = 1;
+			rk_dvbm_set_reg(ctx, DVBM_VEPU_CNCT, 0x1);
+		}
+		dvbm_debug_dump("=== vepu link ===\n");
+		rk_dvbm_dump_regs(ctx);
+		dvbm_debug_dump("=== vepu link ===\n");
 	}
-	ret = wait_event_timeout(ctx->link_wait, port->linked,
-				 msecs_to_jiffies(DVBM_LINK_WAIT_TIMEOUT_MS));
-	if (ret > 0)
-		dvbm_debug("%s connect frm_cnt[%d : %d]\n",
-			   dir == DVBM_ISP_PORT ? "isp" : "vepu",
-			   ctx->isp_frm_start, ctx->isp_frm_end);
-	else
-		dvbm_err("%s connect timeout!!! frm cnt[%d : %d]\n",
-			 dir == DVBM_ISP_PORT ? "isp" : "vepu",
-			 ctx->isp_frm_start, ctx->isp_frm_end);
+
+	dvbm_debug("%s connect frm_cnt[%d : %d]\n",
+		   dir == DVBM_ISP_PORT ? "isp" : "vepu",
+		   ctx->isp_frm_start, ctx->isp_frm_end);
 
 	return ret;
 }
@@ -285,7 +358,7 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 	struct dvbm_ctx *ctx;
 	struct rk_dvbm_regs *reg;
 
-	if (WARN_ON(!port) || WARN_ON(!arg))
+	if (WARN_ON(!arg))
 		return -EINVAL;
 	if ((cmd < DVBM_ISP_CMD_BASE) || (cmd > DVBM_VEPU_CMD_BUTT)) {
 		dvbm_err("%s input cmd invalid\n", __func__);
@@ -321,13 +394,9 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 		dvbm_debug("ybot 0x%x top 0x%x cbuf bot 0x%x top 0x%x\n",
 			   addr_base->ybuf_bot, addr_base->ybuf_top,
 			   addr_base->cbuf_bot, addr_base->cbuf_top);
-		{
-			u32 *data = (u32 *)&reg->addr_base;
-			u32 i;
-
-			for (i = 0; i < sizeof(struct rk_dvbm_base) / sizeof(u32); i++)
-				rk_dvbm_set_reg(ctx, i * sizeof(u32), data[i]);
-		}
+		rk_dvbm_setup_iobuf(ctx, addr_base);
+		rk_dvbm_reg_init(ctx);
+		init_isp_infos(ctx);
 	} break;
 	case DVBM_ISP_FRM_START: {
 		ctx->isp_frm_start = *(u32 *)arg;
@@ -367,6 +436,15 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 			 reg->dvbm_cfg.auto_resyn ? "auto" : "soft");
 		rk_dvbm_set_reg(ctx, DVBM_CFG, ((u32 *)&reg->dvbm_cfg)[0]);
 	} break;
+	case DVBM_VEPU_SET_CFG: {
+		struct dvbm_vepu_cfg *cfg = (struct dvbm_vepu_cfg *)arg;
+
+		reg->dvbm_cfg.auto_resyn = cfg->auto_resyn;
+		reg->dvbm_cfg.ignore_vepu_cnct_ack = cfg->ignore_vepu_cnct_ack;
+		reg->dvbm_cfg.start_point_after_vepu_cnct = cfg->start_point_after_vepu_cnct;
+
+		rk_dvbm_set_reg(ctx, DVBM_CFG, ((u32 *)&reg->dvbm_cfg)[0]);
+	} break;
 	case DVBM_VEPU_DUMP_REGS: {
 		rk_dvbm_dump_regs(ctx);
 	} break;
@@ -378,37 +456,6 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 }
 EXPORT_SYMBOL(rk_dvbm_ctrl);
 
-static void rk_dvbm_reg_init(struct dvbm_ctx *ctx)
-{
-	struct rk_dvbm_regs *reg = &ctx->regs;
-	u32 *val = (u32 *)reg;
-
-	reg->int_en.buf_ovfl               = 1;
-	reg->int_en.isp_cnct               = 1;
-	reg->int_en.vepu_cnct              = 1;
-	reg->int_en.vepu_discnct           = 1;
-	reg->int_en.isp_discnct            = 1;
-	reg->int_en.resync_finish          = 1;
-	reg->int_en.isp_cnct_timeout       = 1;
-	reg->int_en.vepu_cnct_timeout      = 1;
-	reg->int_en.vepu_handshake_timeout = 1;
-
-	reg->dvbm_cfg.fmt                         = 0;
-	reg->dvbm_cfg.auto_resyn                  = 0;
-	reg->dvbm_cfg.ignore_vepu_cnct_ack        = 0;
-	reg->dvbm_cfg.start_point_after_vepu_cnct = 0;
-
-	reg->wdg_cfg0.wdg_isp_cnct_timeout       = 0xfffff;
-	reg->wdg_cfg1.wdg_vepu_cnct_timeout      = 0xfffff;
-	reg->wdg_cfg2.wdg_vepu_handshake_timeout = 0xfffff;
-
-	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG0, val[DVBM_WDG_CFG0 >> 2]);
-	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG1, val[DVBM_WDG_CFG1 >> 2]);
-	rk_dvbm_set_reg(ctx, DVBM_WDG_CFG2, val[DVBM_WDG_CFG2 >> 2]);
-	rk_dvbm_set_reg(ctx, DVBM_CFG, val[DVBM_CFG >> 2]);
-	rk_dvbm_set_reg(ctx, DVBM_INT_EN, val[DVBM_INT_EN >> 2]);
-}
-
 static void dvbm_check_irq(struct dvbm_ctx *ctx)
 {
 	u32 irq_st = ctx->irq_status;
@@ -418,7 +465,6 @@ static void dvbm_check_irq(struct dvbm_ctx *ctx)
 		dvbm_debug_irq("%s isp connect success! st 0x%08x\n",
 			       __func__, cur_st);
 		ctx->port_isp.linked = 1;
-		wake_up(&ctx->link_wait);
 	}
 	if (irq_st & ISP_DISCNCT) {
 		dvbm_debug_irq("%s isp disconnect success!\n", __func__);
@@ -428,16 +474,16 @@ static void dvbm_check_irq(struct dvbm_ctx *ctx)
 		dvbm_debug_irq("%s vepu connect success! st 0x%08x\n",
 			       __func__, cur_st);
 		ctx->port_vepu.linked = 1;
-		wake_up(&ctx->link_wait);
 	}
 	if (irq_st & VEPU_DISCNCT) {
 		dvbm_debug_irq("%s vepu disconnect success! st 0x%08x\n", __func__, cur_st);
 		ctx->port_vepu.linked = 0;
 	}
 	if (irq_st & BUF_OVERFLOW) {
-		dvbm_debug_irq("%s buffer overflow st 0x%08x auto_resync %d\n",
-			       __func__, cur_st, ctx->regs.dvbm_cfg.auto_resyn);
-		if (!ctx->regs.dvbm_cfg.auto_resyn)
+		dvbm_debug_irq("%s buf overflow st 0x%08x auto_resync %d ignore %d\n",
+			       __func__, cur_st, ctx->regs.dvbm_cfg.auto_resyn, ctx->ignore_ovfl);
+
+		if (!ctx->regs.dvbm_cfg.auto_resyn && !ctx->ignore_ovfl)
 			rk_dvbm_unlink(&ctx->port_vepu);
 	}
 	if (irq_st & (ISP_CNCT_TIMEOUT | VEPU_CNCT_TIMEOUT))
@@ -454,6 +500,12 @@ static irqreturn_t rk_dvbm_irq(int irq, void *param)
 		/* read irq st */
 		irq_st = rk_dvbm_read_reg(ctx, DVBM_INT_ST);
 		cur_st = rk_dvbm_read_reg(ctx, DVBM_ST);
+		if (irq_st & BUF_OVERFLOW) {
+			dvbm_debug_dump("=== dvbm overflow! dump reg st: 0x%08x===\n", irq_st);
+			rk_dvbm_dump_regs(ctx);
+			dvbm2enc_callback(ctx, DVBM_VEPU_NOTIFY_DUMP, NULL);
+			dvbm_debug_dump("=== dvbm overflow! dump reg end===\n");
+		}
 		/* clr irq */
 		rk_dvbm_set_reg(ctx, DVBM_INT_CLR, irq_st);
 		rk_dvbm_set_reg(ctx, DVBM_INT_ST, 0);
@@ -515,15 +567,35 @@ static int rk_dvbm_probe(struct platform_device *pdev)
 	}
 
 	ctx->reg_base = devm_ioremap_resource(dev, res);
-	if (!ctx->reg_base) {
+	if (IS_ERR_OR_NULL(ctx->reg_base)) {
 		dev_err(dev, "ioremap failed for resource %pR\n", res);
-		ret = -ENOMEM;
+		ret = -ENODEV;
 		goto failed;
 	}
 
+	ctx->clk = devm_clk_get(ctx->dev, "clk_core");
+	if (IS_ERR_OR_NULL(ctx->clk)) {
+		dev_err(dev, "clk_get failed for resource %pR\n", res);
+		ret = -ENODEV;
+		goto failed;
+	}
+	ctx->rst = devm_reset_control_get(ctx->dev, "dvbm_rst");
+	if (IS_ERR_OR_NULL(ctx->rst)) {
+		dev_err(dev, "clk_rst failed for resource %pR\n", res);
+		ret = -ENODEV;
+		goto failed;
+	}
+	ret = pm_runtime_get_sync(dev);
+	if (ret)
+		dev_err(dev, "pm get failed!\n");
 	g_ctx = ctx;
+	ret = rk_dvbm_clk_on(ctx);
+	if (ret)
+		goto failed;
 	rk_dvbm_reg_init(ctx);
-	init_waitqueue_head(&ctx->link_wait);
+	ctx->ignore_ovfl = 1;
+	ctx->dump_s = 0x80;
+	ctx->dump_e = 0xb8;
 	ret = devm_request_threaded_irq(dev, ctx->irq,
 					rk_dvbm_irq, rk_dvbm_isr,
 					IRQF_ONESHOT, dev_name(dev), ctx);
@@ -546,6 +618,8 @@ static int rk_dvbm_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_info(dev, "remove device\n");
+	rk_dvbm_clk_off(g_ctx);
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return 0;

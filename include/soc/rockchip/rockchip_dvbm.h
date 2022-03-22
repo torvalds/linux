@@ -22,6 +22,7 @@ enum dvbm_cmd {
 
 	DVBM_VEPU_CMD_BASE  = 0x10,
 	DVBM_VEPU_SET_RESYNC,
+	DVBM_VEPU_SET_CFG,
 	DVBM_VEPU_GET_ADR,
 	DVBM_VEPU_GET_CUR_ID,
 	DVBM_VEPU_DUMP_REGS,
@@ -34,6 +35,7 @@ enum dvbm_cb_event {
 
 	DVBM_VEPU_EVENT_BASE  = 0x10,
 	DVBM_VEPU_NOTIFY_ADDR,
+	DVBM_VEPU_NOTIFY_DUMP,
 	DVBM_VEPU_REQ_CONNECT,
 	DVBM_VEPU_NOTIFY_FRM_STR,
 	DVBM_VEPU_NOTIFY_FRM_END,
@@ -72,6 +74,12 @@ struct dvbm_addr_cfg {
 	u32 ybuf_bot;
 	u32 cbuf_top;
 	u32 cbuf_bot;
+};
+
+struct dvbm_vepu_cfg {
+	u32 auto_resyn;
+	u32 ignore_vepu_cnct_ack;
+	u32 start_point_after_vepu_cnct;
 };
 
 typedef int (*dvbm_callback)(void *ctx, enum dvbm_cb_event event, void *arg);
