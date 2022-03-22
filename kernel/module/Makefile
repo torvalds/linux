@@ -10,3 +10,4 @@ KCOV_INSTRUMENT_module.o := n
 obj-y += main.o
 obj-$(CONFIG_MODULE_DECOMPRESS) += decompress.o
 obj-$(CONFIG_MODULE_SIG) += signing.o
+obj-$(CONFIG_LIVEPATCH) += livepatch.o
