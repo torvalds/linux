@@ -1375,6 +1375,13 @@ int x86_perf_event_set_period(struct perf_event *event)
 		return x86_pmu.set_topdown_event_period(event);
 
 	/*
+	 * decrease period by the depth of the BRS feature to get
+	 * the last N taken branches and approximate the desired period
+	 */
+	if (has_branch_stack(event))
+		period = amd_brs_adjust_period(period);
+
+	/*
 	 * If we are way outside a reasonable range then just skip forward:
 	 */
 	if (unlikely(left <= -period)) {
