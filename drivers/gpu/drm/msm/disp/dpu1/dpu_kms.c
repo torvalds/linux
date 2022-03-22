@@ -1212,7 +1212,9 @@ static int dpu_kms_init(struct drm_device *ddev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dpu_kms *dpu_kms;
 	int irq;
+	struct dev_pm_opp *opp;
 	int ret = 0;
+	unsigned long max_freq = ULONG_MAX;
 
 	dpu_kms = devm_kzalloc(&pdev->dev, sizeof(*dpu_kms), GFP_KERNEL);
 	if (!dpu_kms)
@@ -1234,6 +1236,12 @@ static int dpu_kms_init(struct drm_device *ddev)
 		return ret;
 	}
 	dpu_kms->num_clocks = ret;
+
+	opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
+
+	dev_pm_opp_set_rate(dev, max_freq);
 
 	ret = msm_kms_init(&dpu_kms->base, &kms_funcs);
 	if (ret) {
