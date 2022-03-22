@@ -526,6 +526,22 @@ union dpia_debug_options {
 	uint32_t raw;
 };
 
+/* AUX wake work around options
+ * 0: enable/disable work around
+ * 1: use default timeout LINK_AUX_WAKE_TIMEOUT_MS
+ * 15-2: reserved
+ * 31-16: timeout in ms
+ */
+union aux_wake_wa_options {
+	struct {
+		uint32_t enable_wa : 1;
+		uint32_t use_default_timeout : 1;
+		uint32_t rsvd: 14;
+		uint32_t timeout_ms : 16;
+	} bits;
+	uint32_t raw;
+};
+
 struct dc_debug_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
@@ -712,6 +728,7 @@ struct dc_debug_options {
 #endif
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
+	union aux_wake_wa_options aux_wake_wa;
 	bool ignore_dpref_ss;
 	uint8_t psr_power_use_phy_fsm;
 };
