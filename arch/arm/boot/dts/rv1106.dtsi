@@ -252,9 +252,12 @@
 	rtc: rtc@ff1c0000 {
 		compatible = "rockchip,rtc-1.0";
 		reg = <0xff1c0000 0x1000>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_VI_RTC_PHY>;
-		clock-names = "pclk";
+		clocks = <&cru PCLK_VI_RTC_PHY>, <&cru PCLK_VI_RTC_TEST>;
+		clock-names = "pclk_phy", "pclk_test";
+		assigned-clocks = <&cru PCLK_VI_RTC_PHY>;
+		assigned-clock-rates = <24000000>;
 		status = "disabled";
 	};
 
