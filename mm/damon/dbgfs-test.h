@@ -74,7 +74,7 @@ static void damon_dbgfs_test_set_targets(struct kunit *test)
 	char buf[64];
 
 	/* Make DAMON consider target has no pid */
-	ctx->primitive = (struct damon_primitive){};
+	ctx->ops = (struct damon_operations){};
 
 	dbgfs_set_targets(ctx, 0, NULL);
 	sprint_target_ids(ctx, buf, 64);

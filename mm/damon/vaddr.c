@@ -15,7 +15,7 @@
 #include <linux/pagewalk.h>
 #include <linux/sched/mm.h>
 
-#include "prmtv-common.h"
+#include "ops-common.h"
 
 #ifdef CONFIG_DAMON_VADDR_KUNIT_TEST
 #undef DAMON_MIN_REGION
@@ -739,17 +739,17 @@ static int damon_va_scheme_score(struct damon_ctx *context,
 	return DAMOS_MAX_SCORE;
 }
 
-void damon_va_set_primitives(struct damon_ctx *ctx)
+void damon_va_set_operations(struct damon_ctx *ctx)
 {
-	ctx->primitive.init = damon_va_init;
-	ctx->primitive.update = damon_va_update;
-	ctx->primitive.prepare_access_checks = damon_va_prepare_access_checks;
-	ctx->primitive.check_accesses = damon_va_check_accesses;
-	ctx->primitive.reset_aggregated = NULL;
-	ctx->primitive.target_valid = damon_va_target_valid;
-	ctx->primitive.cleanup = NULL;
-	ctx->primitive.apply_scheme = damon_va_apply_scheme;
-	ctx->primitive.get_scheme_score = damon_va_scheme_score;
+	ctx->ops.init = damon_va_init;
+	ctx->ops.update = damon_va_update;
+	ctx->ops.prepare_access_checks = damon_va_prepare_access_checks;
+	ctx->ops.check_accesses = damon_va_check_accesses;
+	ctx->ops.reset_aggregated = NULL;
+	ctx->ops.target_valid = damon_va_target_valid;
+	ctx->ops.cleanup = NULL;
+	ctx->ops.apply_scheme = damon_va_apply_scheme;
+	ctx->ops.get_scheme_score = damon_va_scheme_score;
 }
 
 #include "vaddr-test.h"

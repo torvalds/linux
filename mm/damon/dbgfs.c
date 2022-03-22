@@ -56,7 +56,7 @@ static ssize_t dbgfs_attrs_read(struct file *file,
 	mutex_lock(&ctx->kdamond_lock);
 	ret = scnprintf(kbuf, ARRAY_SIZE(kbuf), "%lu %lu %lu %lu %lu\n",
 			ctx->sample_interval, ctx->aggr_interval,
-			ctx->primitive_update_interval, ctx->min_nr_regions,
+			ctx->ops_update_interval, ctx->min_nr_regions,
 			ctx->max_nr_regions);
 	mutex_unlock(&ctx->kdamond_lock);
 
@@ -277,7 +277,7 @@ out:
 
 static inline bool target_has_pid(const struct damon_ctx *ctx)
 {
-	return ctx->primitive.target_valid == damon_va_target_valid;
+	return ctx->ops.target_valid == damon_va_target_valid;
 }
 
 static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
@@ -477,9 +477,9 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 
 	/* Configure the context for the address space type */
 	if (id_is_pid)
-		damon_va_set_primitives(ctx);
+		damon_va_set_operations(ctx);
 	else
-		damon_pa_set_primitives(ctx);
+		damon_pa_set_operations(ctx);
 
 	ret = dbgfs_set_targets(ctx, nr_targets, target_pids);
 	if (!ret)
@@ -735,7 +735,7 @@ static struct damon_ctx *dbgfs_new_ctx(void)
 	if (!ctx)
 		return NULL;
 
-	damon_va_set_primitives(ctx);
+	damon_va_set_operations(ctx);
 	ctx->callback.before_terminate = dbgfs_before_terminate;
 	return ctx;
 }

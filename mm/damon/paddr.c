@@ -14,7 +14,7 @@
 #include <linux/swap.h>
 
 #include "../internal.h"
-#include "prmtv-common.h"
+#include "ops-common.h"
 
 static bool __damon_pa_mkold(struct page *page, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
@@ -261,15 +261,15 @@ static int damon_pa_scheme_score(struct damon_ctx *context,
 	return DAMOS_MAX_SCORE;
 }
 
-void damon_pa_set_primitives(struct damon_ctx *ctx)
+void damon_pa_set_operations(struct damon_ctx *ctx)
 {
-	ctx->primitive.init = NULL;
-	ctx->primitive.update = NULL;
-	ctx->primitive.prepare_access_checks = damon_pa_prepare_access_checks;
-	ctx->primitive.check_accesses = damon_pa_check_accesses;
-	ctx->primitive.reset_aggregated = NULL;
-	ctx->primitive.target_valid = damon_pa_target_valid;
-	ctx->primitive.cleanup = NULL;
-	ctx->primitive.apply_scheme = damon_pa_apply_scheme;
-	ctx->primitive.get_scheme_score = damon_pa_scheme_score;
+	ctx->ops.init = NULL;
+	ctx->ops.update = NULL;
+	ctx->ops.prepare_access_checks = damon_pa_prepare_access_checks;
+	ctx->ops.check_accesses = damon_pa_check_accesses;
+	ctx->ops.reset_aggregated = NULL;
+	ctx->ops.target_valid = damon_pa_target_valid;
+	ctx->ops.cleanup = NULL;
+	ctx->ops.apply_scheme = damon_pa_apply_scheme;
+	ctx->ops.get_scheme_score = damon_pa_scheme_score;
 }

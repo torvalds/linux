@@ -314,7 +314,7 @@ static struct kunit_case damon_test_cases[] = {
 };
 
 static struct kunit_suite damon_test_suite = {
-	.name = "damon-primitives",
+	.name = "damon-operations",
 	.test_cases = damon_test_cases,
 };
 kunit_test_suite(damon_test_suite);

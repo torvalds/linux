@@ -204,10 +204,10 @@ struct damon_ctx *damon_new_ctx(void)
 
 	ctx->sample_interval = 5 * 1000;
 	ctx->aggr_interval = 100 * 1000;
-	ctx->primitive_update_interval = 60 * 1000 * 1000;
+	ctx->ops_update_interval = 60 * 1000 * 1000;
 
 	ktime_get_coarse_ts64(&ctx->last_aggregation);
-	ctx->last_primitive_update = ctx->last_aggregation;
+	ctx->last_ops_update = ctx->last_aggregation;
 
 	mutex_init(&ctx->kdamond_lock);
 
@@ -224,8 +224,8 @@ static void damon_destroy_targets(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next_t;
 
-	if (ctx->primitive.cleanup) {
-		ctx->primitive.cleanup(ctx);
+	if (ctx->ops.cleanup) {
+		ctx->ops.cleanup(ctx);
 		return;
 	}
 
@@ -250,7 +250,7 @@ void damon_destroy_ctx(struct damon_ctx *ctx)
  * @ctx:		monitoring context
  * @sample_int:		time interval between samplings
  * @aggr_int:		time interval between aggregations
- * @primitive_upd_int:	time interval between monitoring primitive updates
+ * @ops_upd_int:	time interval between monitoring operations updates
  * @min_nr_reg:		minimal number of regions
  * @max_nr_reg:		maximum number of regions
  *
@@ -260,7 +260,7 @@ void damon_destroy_ctx(struct damon_ctx *ctx)
  * Return: 0 on success, negative error code otherwise.
  */
 int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
-		    unsigned long aggr_int, unsigned long primitive_upd_int,
+		    unsigned long aggr_int, unsigned long ops_upd_int,
 		    unsigned long min_nr_reg, unsigned long max_nr_reg)
 {
 	if (min_nr_reg < 3)
@@ -270,7 +270,7 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 
 	ctx->sample_interval = sample_int;
 	ctx->aggr_interval = aggr_int;
-	ctx->primitive_update_interval = primitive_upd_int;
+	ctx->ops_update_interval = ops_upd_int;
 	ctx->min_nr_regions = min_nr_reg;
 	ctx->max_nr_regions = max_nr_reg;
 
@@ -516,10 +516,10 @@ static bool damos_valid_target(struct damon_ctx *c, struct damon_target *t,
 {
 	bool ret = __damos_valid_target(r, s);
 
-	if (!ret || !s->quota.esz || !c->primitive.get_scheme_score)
+	if (!ret || !s->quota.esz || !c->ops.get_scheme_score)
 		return ret;
 
-	return c->primitive.get_scheme_score(c, t, r, s) >= s->quota.min_score;
+	return c->ops.get_scheme_score(c, t, r, s) >= s->quota.min_score;
 }
 
 static void damon_do_apply_schemes(struct damon_ctx *c,
@@ -576,7 +576,7 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 			continue;
 
 		/* Apply the scheme */
-		if (c->primitive.apply_scheme) {
+		if (c->ops.apply_scheme) {
 			if (quota->esz &&
 					quota->charged_sz + sz > quota->esz) {
 				sz = ALIGN_DOWN(quota->esz - quota->charged_sz,
@@ -586,7 +586,7 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 				damon_split_region_at(c, t, r, sz);
 			}
 			ktime_get_coarse_ts64(&begin);
-			sz_applied = c->primitive.apply_scheme(c, t, r, s);
+			sz_applied = c->ops.apply_scheme(c, t, r, s);
 			ktime_get_coarse_ts64(&end);
 			quota->total_charged_ns += timespec64_to_ns(&end) -
 				timespec64_to_ns(&begin);
@@ -660,7 +660,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 			damos_set_effective_quota(quota);
 		}
 
-		if (!c->primitive.get_scheme_score)
+		if (!c->ops.get_scheme_score)
 			continue;
 
 		/* Fill up the score histogram */
@@ -669,7 +669,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 			damon_for_each_region(r, t) {
 				if (!__damos_valid_target(r, s))
 					continue;
-				score = c->primitive.get_scheme_score(
+				score = c->ops.get_scheme_score(
 						c, t, r, s);
 				quota->histogram[score] +=
 					r->ar.end - r->ar.start;
@@ -848,14 +848,15 @@ static void kdamond_split_regions(struct damon_ctx *ctx)
 }
 
 /*
- * Check whether it is time to check and apply the target monitoring regions
+ * Check whether it is time to check and apply the operations-related data
+ * structures.
  *
  * Returns true if it is.
  */
-static bool kdamond_need_update_primitive(struct damon_ctx *ctx)
+static bool kdamond_need_update_operations(struct damon_ctx *ctx)
 {
-	return damon_check_reset_time_interval(&ctx->last_primitive_update,
-			ctx->primitive_update_interval);
+	return damon_check_reset_time_interval(&ctx->last_ops_update,
+			ctx->ops_update_interval);
 }
 
 /*
@@ -873,11 +874,11 @@ static bool kdamond_need_stop(struct damon_ctx *ctx)
 	if (kthread_should_stop())
 		return true;
 
-	if (!ctx->primitive.target_valid)
+	if (!ctx->ops.target_valid)
 		return false;
 
 	damon_for_each_target(t, ctx) {
-		if (ctx->primitive.target_valid(t))
+		if (ctx->ops.target_valid(t))
 			return false;
 	}
 
@@ -976,8 +977,8 @@ static int kdamond_fn(void *data)
 
 	pr_debug("kdamond (%d) starts\n", current->pid);
 
-	if (ctx->primitive.init)
-		ctx->primitive.init(ctx);
+	if (ctx->ops.init)
+		ctx->ops.init(ctx);
 	if (ctx->callback.before_start && ctx->callback.before_start(ctx))
 		done = true;
 
@@ -987,16 +988,16 @@ static int kdamond_fn(void *data)
 		if (kdamond_wait_activation(ctx))
 			continue;
 
-		if (ctx->primitive.prepare_access_checks)
-			ctx->primitive.prepare_access_checks(ctx);
+		if (ctx->ops.prepare_access_checks)
+			ctx->ops.prepare_access_checks(ctx);
 		if (ctx->callback.after_sampling &&
 				ctx->callback.after_sampling(ctx))
 			done = true;
 
 		kdamond_usleep(ctx->sample_interval);
 
-		if (ctx->primitive.check_accesses)
-			max_nr_accesses = ctx->primitive.check_accesses(ctx);
+		if (ctx->ops.check_accesses)
+			max_nr_accesses = ctx->ops.check_accesses(ctx);
 
 		if (kdamond_aggregate_interval_passed(ctx)) {
 			kdamond_merge_regions(ctx,
@@ -1008,13 +1009,13 @@ static int kdamond_fn(void *data)
 			kdamond_apply_schemes(ctx);
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
-			if (ctx->primitive.reset_aggregated)
-				ctx->primitive.reset_aggregated(ctx);
+			if (ctx->ops.reset_aggregated)
+				ctx->ops.reset_aggregated(ctx);
 		}
 
-		if (kdamond_need_update_primitive(ctx)) {
-			if (ctx->primitive.update)
-				ctx->primitive.update(ctx);
+		if (kdamond_need_update_operations(ctx)) {
+			if (ctx->ops.update)
+				ctx->ops.update(ctx);
 			sz_limit = damon_region_sz_limit(ctx);
 		}
 	}
@@ -1025,8 +1026,8 @@ static int kdamond_fn(void *data)
 
 	if (ctx->callback.before_terminate)
 		ctx->callback.before_terminate(ctx);
-	if (ctx->primitive.cleanup)
-		ctx->primitive.cleanup(ctx);
+	if (ctx->ops.cleanup)
+		ctx->ops.cleanup(ctx);
 
 	pr_debug("kdamond (%d) finishes\n", current->pid);
 	mutex_lock(&ctx->kdamond_lock);
