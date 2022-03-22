@@ -984,8 +984,9 @@ static inline void init_vmcb_after_set_cpuid(struct kvm_vcpu *vcpu)
 static void init_vmcb(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb_control_area *control = &svm->vmcb->control;
-	struct vmcb_save_area *save = &svm->vmcb->save;
+	struct vmcb *vmcb = svm->vmcb01.ptr;
+	struct vmcb_control_area *control = &vmcb->control;
+	struct vmcb_save_area *save = &vmcb->save;
 
 	svm_set_intercept(svm, INTERCEPT_CR0_READ);
 	svm_set_intercept(svm, INTERCEPT_CR3_READ);
@@ -1109,7 +1110,7 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_SPEC_CTRL, 1, 1);
 
 	if (kvm_vcpu_apicv_active(vcpu))
-		avic_init_vmcb(svm);
+		avic_init_vmcb(svm, vmcb);
 
 	if (vgif) {
 		svm_clr_intercept(svm, INTERCEPT_STGI);
@@ -1127,10 +1128,10 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	svm_hv_init_vmcb(svm->vmcb);
+	svm_hv_init_vmcb(vmcb);
 	init_vmcb_after_set_cpuid(vcpu);
 
-	vmcb_mark_all_dirty(svm->vmcb);
+	vmcb_mark_all_dirty(vmcb);
 
 	enable_gif(svm);
 }

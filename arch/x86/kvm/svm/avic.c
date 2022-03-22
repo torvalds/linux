@@ -165,9 +165,8 @@ free_avic:
 	return err;
 }
 
-void avic_init_vmcb(struct vcpu_svm *svm)
+void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 {
-	struct vmcb *vmcb = svm->vmcb;
 	struct kvm_svm *kvm_svm = to_kvm_svm(svm->vcpu.kvm);
 	phys_addr_t bpa = __sme_set(page_to_phys(svm->avic_backing_page));
 	phys_addr_t lpa = __sme_set(page_to_phys(kvm_svm->avic_logical_id_table_page));
