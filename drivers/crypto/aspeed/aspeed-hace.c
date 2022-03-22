@@ -34,6 +34,21 @@
 #define HACE_DBUG(fmt, args...)
 #endif
 
+static unsigned char *dummy_key1;
+static unsigned char *dummy_key2;
+
+int find_dummy_key(const char *key, int keylen)
+{
+	int ret = 0;
+
+	if (dummy_key1 && memcmp(key, dummy_key1, keylen) == 0)
+		ret = 1;
+	else if (dummy_key2 && memcmp(key, dummy_key2, keylen) == 0)
+		ret = 2;
+
+	return ret;
+}
+
 static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 {
 	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)dev;
@@ -158,6 +173,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	struct aspeed_engine_hash *hash_engine;
 	struct aspeed_hace_engine_rsa *rsa_engine;
 	int err;
+	struct device_node *sec_node;
 
 
 	hace_dev = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_hace_dev), GFP_KERNEL);
@@ -266,6 +282,34 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	if (of_find_property(dev->of_node, "dummy-key1", NULL)) {
+		dummy_key1 = kzalloc(DUMMY_KEY_SIZE, GFP_KERNEL);
+		if (dummy_key1) {
+			err = of_property_read_u8_array(dev->of_node, "dummy-key1", dummy_key1, DUMMY_KEY_SIZE);
+			if (err)
+				dev_err(dev, "err read dummy_key 1\n");
+		} else
+			dev_err(dev, "error dummy_key1 allocation\n");
+	}
+	if (of_find_property(dev->of_node, "dummy-key2", NULL)) {
+		dummy_key2 = kzalloc(DUMMY_KEY_SIZE, GFP_KERNEL);
+		if (dummy_key2) {
+			err = of_property_read_u8_array(dev->of_node, "dummy-key2", dummy_key2, DUMMY_KEY_SIZE);
+			if (err)
+				dev_err(dev, "err read dummy_key 2\n");
+		} else
+			dev_err(dev, "error dummy_key2 allocation\n");
+	}
+
+	sec_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-otp");
+	if (!sec_node) {
+		dev_err(dev, "[%s:%d] cannot find sec node\n", __func__, __LINE__);
+	} else {
+		hace_dev->sec_regs = of_iomap(sec_node, 0);
+		if (!hace_dev->sec_regs)
+			dev_err(dev, "[%s:%d] failed to map SEC registers\n", __func__, __LINE__);
+	}
+
 	dev_info(dev, "ASPEED Crypto Accelerator successfully registered\n");
 
 	return 0;
@@ -278,6 +322,8 @@ static int aspeed_hace_remove(struct platform_device *pdev)
 	//aspeed_hace_unregister();
 	// tasklet_kill(&hace_dev->done_task);
 	// tasklet_kill(&hace_dev->queue_task);
+	kfree(dummy_key1);
+	kfree(dummy_key2);
 	return 0;
 }
 

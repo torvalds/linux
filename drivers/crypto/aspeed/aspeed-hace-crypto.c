@@ -17,6 +17,11 @@
  */
 #include "aspeed-hace.h"
 
+#define ASPEED_SEC_PROTECTION		0x0
+#define SEC_UNLOCK_PASSWORD			0x349fe38a
+#define ASPEED_VAULT_KEY_CTRL		0x80C
+#define SEC_VK_CTRL_VK_SELECTION	BIT(0)
+
 // #define ASPEED_CIPHER_DEBUG
 
 #ifdef ASPEED_CIPHER_DEBUG
@@ -217,6 +222,8 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
 	struct skcipher_request *req = skcipher_request_cast(crypto_engine->areq);
 	struct aspeed_cipher_reqctx *rctx = skcipher_request_ctx(req);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
+	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 	struct device *dev = hace_dev->dev;
 	struct aspeed_sg_list *src_list, *dst_list;
 	dma_addr_t src_dma_addr, dst_dma_addr;
@@ -224,11 +231,32 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 	int total, i;
 	int src_sg_len;
 	int dst_sg_len;
+	unsigned int val;
 
 	CIPHER_DBG("\n");
 
 	rctx->enc_cmd |= HACE_CMD_DES_SG_CTRL | HACE_CMD_SRC_SG_CTRL |
 			 HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN;
+
+	if (ctx->dummy_key == 1 || ctx->dummy_key == 2) {
+		rctx->enc_cmd |= HACE_CMD_AES_KEY_FROM_OTP;
+		writel(SEC_UNLOCK_PASSWORD, hace_dev->sec_regs + ASPEED_SEC_PROTECTION);
+		CIPHER_DBG("unlock SB, SEC000=0x%x\n", readl(hace_dev->sec_regs + ASPEED_SEC_PROTECTION));
+		val = readl(hace_dev->sec_regs + ASPEED_VAULT_KEY_CTRL);
+		if (ctx->dummy_key == 1) {
+			val &= ~SEC_VK_CTRL_VK_SELECTION;
+			writel(val, hace_dev->sec_regs + ASPEED_VAULT_KEY_CTRL);
+			CIPHER_DBG("Vault key 1:\n");
+		} else {
+			val |= SEC_VK_CTRL_VK_SELECTION;
+			writel(val, hace_dev->sec_regs + ASPEED_VAULT_KEY_CTRL);
+			CIPHER_DBG("Vault key 2:\n");
+		}
+		writel(0x0, hace_dev->sec_regs + ASPEED_SEC_PROTECTION);
+		CIPHER_DBG("lock SB, SEC000=0x%x\n", readl(hace_dev->sec_regs + ASPEED_SEC_PROTECTION));
+	} else {
+		rctx->enc_cmd &= ~HACE_CMD_AES_KEY_FROM_OTP;
+	}
 
 	if (req->dst == req->src) {
 		src_sg_len = dma_map_sg(dev, req->src, rctx->src_nents, DMA_BIDIRECTIONAL);
@@ -654,6 +682,8 @@ static int aspeed_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	struct crypto_aes_ctx gen_aes_key;
 
 	CIPHER_DBG("bits : %d\n", (keylen * 8));
+
+	ctx->dummy_key = find_dummy_key(key, keylen);
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
 	    keylen != AES_KEYSIZE_256)

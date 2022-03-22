@@ -1305,7 +1305,7 @@
 
 			otp: otp@1e6f2000 {
 				compatible = "aspeed,ast2600-otp";
-				reg = <0x1e6f2000 0x200>;
+				reg = <0x1e6f2000 0x940>;
 				aspeed,scu = <&syscon>;
 			};
 
