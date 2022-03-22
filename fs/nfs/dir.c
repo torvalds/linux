@@ -252,6 +252,11 @@ static void nfs_readdir_page_array_free(struct page *page)
 	}
 }
 
+static u64 nfs_readdir_array_index_cookie(struct nfs_cache_array *array)
+{
+	return array->size == 0 ? array->last_cookie : array->array[0].cookie;
+}
+
 static void nfs_readdir_array_set_eof(struct nfs_cache_array *array)
 {
 	array->page_is_eof = 1;
@@ -369,7 +374,7 @@ static bool nfs_readdir_page_validate(struct page *page, u64 last_cookie,
 
 	if (array->change_attr != change_attr)
 		ret = false;
-	if (array->size > 0 && array->array[0].cookie != last_cookie)
+	if (nfs_readdir_array_index_cookie(array) != last_cookie)
 		ret = false;
 	kunmap_atomic(array);
 	return ret;
@@ -480,7 +485,7 @@ static void nfs_readdir_seek_next_array(struct nfs_cache_array *array,
 		desc->cache_entry_index = 0;
 		desc->page_index++;
 	} else
-		desc->last_cookie = array->array[0].cookie;
+		desc->last_cookie = nfs_readdir_array_index_cookie(array);
 }
 
 static void nfs_readdir_rewind_search(struct nfs_readdir_descriptor *desc)
