@@ -1292,7 +1292,7 @@ del_gadget:
 	return err;
 }
 
-static int max3420_remove(struct spi_device *spi)
+static void max3420_remove(struct spi_device *spi)
 {
 	struct max3420_udc *udc = spi_get_drvdata(spi);
 	unsigned long flags;
@@ -1304,8 +1304,6 @@ static int max3420_remove(struct spi_device *spi)
 	kthread_stop(udc->thread_task);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
-
-	return 0;
 }
 
 static const struct of_device_id max3420_udc_of_match[] = {

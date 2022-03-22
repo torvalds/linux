@@ -112,7 +112,7 @@ static int max5487_spi_probe(struct spi_device *spi)
 	return iio_device_register(indio_dev);
 }
 
-static int max5487_spi_remove(struct spi_device *spi)
+static void max5487_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	int ret;
@@ -123,8 +123,6 @@ static int max5487_spi_remove(struct spi_device *spi)
 	ret = max5487_write_cmd(spi, MAX5487_COPY_AB_TO_NV);
 	if (ret)
 		dev_warn(&spi->dev, "Failed to save wiper regs to NV regs\n");
-
-	return 0;
 }
 
 static const struct spi_device_id max5487_id[] = {

@@ -3346,18 +3346,16 @@ static int sja1105_probe(struct spi_device *spi)
 	return dsa_register_switch(priv->ds);
 }
 
-static int sja1105_remove(struct spi_device *spi)
+static void sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
 
 	if (!priv)
-		return 0;
+		return;
 
 	dsa_unregister_switch(priv->ds);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void sja1105_shutdown(struct spi_device *spi)

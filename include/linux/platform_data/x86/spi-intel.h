@@ -6,8 +6,8 @@
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#ifndef INTEL_SPI_PDATA_H
-#define INTEL_SPI_PDATA_H
+#ifndef SPI_INTEL_PDATA_H
+#define SPI_INTEL_PDATA_H
 
 enum intel_spi_type {
 	INTEL_SPI_BYT = 1,
@@ -19,11 +19,13 @@ enum intel_spi_type {
 /**
  * struct intel_spi_boardinfo - Board specific data for Intel SPI driver
  * @type: Type which this controller is compatible with
- * @writeable: The chip is writeable
+ * @set_writeable: Try to make the chip writeable (optional)
+ * @data: Data to be passed to @set_writeable can be %NULL
  */
 struct intel_spi_boardinfo {
 	enum intel_spi_type type;
-	bool writeable;
+	bool (*set_writeable)(void __iomem *base, void *data);
+	void *data;
 };
 
-#endif /* INTEL_SPI_PDATA_H */
+#endif /* SPI_INTEL_PDATA_H */

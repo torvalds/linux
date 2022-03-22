@@ -586,7 +586,7 @@ err_setup_irq:
 	return ret;
 }
 
-static int ssp_remove(struct spi_device *spi)
+static void ssp_remove(struct spi_device *spi)
 {
 	struct ssp_data *data = spi_get_drvdata(spi);
 
@@ -608,8 +608,6 @@ static int ssp_remove(struct spi_device *spi)
 	mutex_destroy(&data->pending_lock);
 
 	mfd_remove_devices(&spi->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
