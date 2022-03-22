@@ -356,6 +356,7 @@ struct io_ring_ctx {
 		unsigned int		drain_active: 1;
 		unsigned int		drain_disabled: 1;
 		unsigned int		has_evfd: 1;
+		unsigned int		syscall_iopoll: 1;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -10829,14 +10830,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	if (flags & IORING_ENTER_GETEVENTS) {
 		min_complete = min(min_complete, ctx->cq_entries);
 
-		/*
-		 * When SETUP_IOPOLL and SETUP_SQPOLL are both enabled, user
-		 * space applications don't need to do io completion events
-		 * polling again, they can rely on io_sq_thread to do polling
-		 * work, which can reduce cpu usage and uring_lock contention.
-		 */
-		if (ctx->flags & IORING_SETUP_IOPOLL &&
-		    !(ctx->flags & IORING_SETUP_SQPOLL)) {
+		if (ctx->syscall_iopoll) {
 			ret = io_validate_ext_arg(flags, argp, argsz);
 			if (unlikely(ret))
 				goto out;
@@ -11174,6 +11168,17 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx = io_ring_ctx_alloc(p);
 	if (!ctx)
 		return -ENOMEM;
+
+	/*
+	 * When SETUP_IOPOLL and SETUP_SQPOLL are both enabled, user
+	 * space applications don't need to do io completion events
+	 * polling again, they can rely on io_sq_thread to do polling
+	 * work, which can reduce cpu usage and uring_lock contention.
+	 */
+	if (ctx->flags & IORING_SETUP_IOPOLL &&
+	    !(ctx->flags & IORING_SETUP_SQPOLL))
+		ctx->syscall_iopoll = 1;
+
 	ctx->compat = in_compat_syscall();
 	if (!capable(CAP_IPC_LOCK))
 		ctx->user = get_uid(current_user());
