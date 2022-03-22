@@ -34,6 +34,9 @@
 extern struct mutex module_mutex;
 extern struct list_head modules;
 
+extern struct module_attribute *modinfo_attrs[];
+extern size_t modinfo_attrs_count;
+
 /* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
@@ -204,3 +207,21 @@ static inline void init_build_id(struct module *mod, const struct load_info *inf
 static inline void layout_symtab(struct module *mod, struct load_info *info) { }
 static inline void add_kallsyms(struct module *mod, const struct load_info *info) { }
 #endif /* CONFIG_KALLSYMS */
+
+#ifdef CONFIG_SYSFS
+int mod_sysfs_setup(struct module *mod, const struct load_info *info,
+		    struct kernel_param *kparam, unsigned int num_params);
+void mod_sysfs_teardown(struct module *mod);
+void init_param_lock(struct module *mod);
+#else /* !CONFIG_SYSFS */
+static inline int mod_sysfs_setup(struct module *mod,
+			   	  const struct load_info *info,
+			   	  struct kernel_param *kparam,
+			   	  unsigned int num_params)
+{
+	return 0;
+}
+
+static inline void mod_sysfs_teardown(struct module *mod) { }
+static inline void init_param_lock(struct module *mod) { }
+#endif /* CONFIG_SYSFS */
