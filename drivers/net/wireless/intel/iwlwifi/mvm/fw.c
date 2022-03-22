@@ -1015,8 +1015,9 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	int ret, cmd_size;
 
 	ret = iwl_read_ppag_table(&mvm->fwrt, &cmd, &cmd_size);
+	/* Not supporting PPAG table is a valid scenario */
 	if(ret < 0)
-		return ret;
+		return 0;
 
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
