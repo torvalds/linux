@@ -12,66 +12,58 @@
 
 #include <kunit/test.h>
 
-static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
+static void damon_dbgfs_test_str_to_ints(struct kunit *test)
 {
 	char *question;
-	unsigned long *answers;
-	unsigned long expected[] = {12, 35, 46};
+	int *answers;
+	int expected[] = {12, 35, 46};
 	ssize_t nr_integers = 0, i;
 
 	question = "123";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)1, nr_integers);
-	KUNIT_EXPECT_EQ(test, 123ul, answers[0]);
+	KUNIT_EXPECT_EQ(test, 123, answers[0]);
 	kfree(answers);
 
 	question = "123abc";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)1, nr_integers);
-	KUNIT_EXPECT_EQ(test, 123ul, answers[0]);
+	KUNIT_EXPECT_EQ(test, 123, answers[0]);
 	kfree(answers);
 
 	question = "a123";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
 
 	question = "12 35";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)2, nr_integers);
 	for (i = 0; i < nr_integers; i++)
 		KUNIT_EXPECT_EQ(test, expected[i], answers[i]);
 	kfree(answers);
 
 	question = "12 35 46";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)3, nr_integers);
 	for (i = 0; i < nr_integers; i++)
 		KUNIT_EXPECT_EQ(test, expected[i], answers[i]);
 	kfree(answers);
 
 	question = "12 35 abc 46";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)2, nr_integers);
 	for (i = 0; i < 2; i++)
 		KUNIT_EXPECT_EQ(test, expected[i], answers[i]);
 	kfree(answers);
 
 	question = "";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
 
 	question = "\n";
-	answers = str_to_target_ids(question, strlen(question),
-			&nr_integers);
+	answers = str_to_ints(question, strlen(question), &nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
 }
@@ -79,30 +71,20 @@ static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
 static void damon_dbgfs_test_set_targets(struct kunit *test)
 {
 	struct damon_ctx *ctx = dbgfs_new_ctx();
-	unsigned long ids[] = {1, 2, 3};
 	char buf[64];
 
-	/* Make DAMON consider target id as plain number */
-	ctx->primitive.target_valid = NULL;
-	ctx->primitive.cleanup = NULL;
+	/* Make DAMON consider target has no pid */
+	ctx->primitive = (struct damon_primitive){};
 
-	dbgfs_set_targets(ctx, ids, 3);
-	sprint_target_ids(ctx, buf, 64);
-	KUNIT_EXPECT_STREQ(test, (char *)buf, "1 2 3\n");
-
-	dbgfs_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, 0, NULL);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "\n");
 
-	dbgfs_set_targets(ctx, (unsigned long []){1, 2}, 2);
+	dbgfs_set_targets(ctx, 1, NULL);
 	sprint_target_ids(ctx, buf, 64);
-	KUNIT_EXPECT_STREQ(test, (char *)buf, "1 2\n");
+	KUNIT_EXPECT_STREQ(test, (char *)buf, "42\n");
 
-	dbgfs_set_targets(ctx, (unsigned long []){2}, 1);
-	sprint_target_ids(ctx, buf, 64);
-	KUNIT_EXPECT_STREQ(test, (char *)buf, "2\n");
-
-	dbgfs_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, 0, NULL);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "\n");
 
@@ -112,7 +94,6 @@ static void damon_dbgfs_test_set_targets(struct kunit *test)
 static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 {
 	struct damon_ctx *ctx = damon_new_ctx();
-	unsigned long ids[] = {1, 2, 3};
 	/* Each line represents one region in ``<target idx> <start> <end>`` */
 	char * const valid_inputs[] = {"1 10 20\n 1   20 30\n1 35 45",
 		"1 10 20\n",
@@ -130,7 +111,7 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 	int i, rc;
 	char buf[256];
 
-	dbgfs_set_targets(ctx, ids, 3);
+	dbgfs_set_targets(ctx, 3, NULL);
 
 	/* Put valid inputs and check the results */
 	for (i = 0; i < ARRAY_SIZE(valid_inputs); i++) {
@@ -158,12 +139,12 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 		KUNIT_EXPECT_STREQ(test, (char *)buf, "");
 	}
 
-	dbgfs_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, 0, NULL);
 	damon_destroy_ctx(ctx);
 }
 
 static struct kunit_case damon_test_cases[] = {
-	KUNIT_CASE(damon_dbgfs_test_str_to_target_ids),
+	KUNIT_CASE(damon_dbgfs_test_str_to_ints),
 	KUNIT_CASE(damon_dbgfs_test_set_targets),
 	KUNIT_CASE(damon_dbgfs_test_set_init_regions),
 	{},

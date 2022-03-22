@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-static inline bool targetid_is_pid(const struct damon_ctx *ctx)
+static inline bool target_has_pid(const struct damon_ctx *ctx)
 {
 	return ctx->primitive.target_valid == damon_va_target_valid;
 }
@@ -283,17 +283,19 @@ static inline bool targetid_is_pid(const struct damon_ctx *ctx)
 static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
 {
 	struct damon_target *t;
-	unsigned long id;
+	int id;
 	int written = 0;
 	int rc;
 
 	damon_for_each_target(t, ctx) {
-		id = t->id;
-		if (targetid_is_pid(ctx))
+		if (target_has_pid(ctx))
 			/* Show pid numbers to debugfs users */
-			id = (unsigned long)pid_vnr((struct pid *)id);
+			id = pid_vnr(t->pid);
+		else
+			/* Show 42 for physical address space, just for fun */
+			id = 42;
 
-		rc = scnprintf(&buf[written], len - written, "%lu ", id);
+		rc = scnprintf(&buf[written], len - written, "%d ", id);
 		if (!rc)
 			return -ENOMEM;
 		written += rc;
@@ -321,75 +323,114 @@ static ssize_t dbgfs_target_ids_read(struct file *file,
 }
 
 /*
- * Converts a string into an array of unsigned long integers
+ * Converts a string into an integers array
  *
- * Returns an array of unsigned long integers if the conversion success, or
- * NULL otherwise.
+ * Returns an array of integers array if the conversion success, or NULL
+ * otherwise.
  */
-static unsigned long *str_to_target_ids(const char *str, ssize_t len,
-					ssize_t *nr_ids)
+static int *str_to_ints(const char *str, ssize_t len, ssize_t *nr_ints)
 {
-	unsigned long *ids;
-	const int max_nr_ids = 32;
-	unsigned long id;
+	int *array;
+	const int max_nr_ints = 32;
+	int nr;
 	int pos = 0, parsed, ret;
 
-	*nr_ids = 0;
-	ids = kmalloc_array(max_nr_ids, sizeof(id), GFP_KERNEL);
-	if (!ids)
+	*nr_ints = 0;
+	array = kmalloc_array(max_nr_ints, sizeof(*array), GFP_KERNEL);
+	if (!array)
 		return NULL;
-	while (*nr_ids < max_nr_ids && pos < len) {
-		ret = sscanf(&str[pos], "%lu%n", &id, &parsed);
+	while (*nr_ints < max_nr_ints && pos < len) {
+		ret = sscanf(&str[pos], "%d%n", &nr, &parsed);
 		pos += parsed;
 		if (ret != 1)
 			break;
-		ids[*nr_ids] = id;
-		*nr_ids += 1;
+		array[*nr_ints] = nr;
+		*nr_ints += 1;
 	}
 
-	return ids;
+	return array;
 }
 
-static void dbgfs_put_pids(unsigned long *ids, int nr_ids)
+static void dbgfs_put_pids(struct pid **pids, int nr_pids)
 {
 	int i;
 
-	for (i = 0; i < nr_ids; i++)
-		put_pid((struct pid *)ids[i]);
+	for (i = 0; i < nr_pids; i++)
+		put_pid(pids[i]);
+}
+
+/*
+ * Converts a string into an struct pid pointers array
+ *
+ * Returns an array of struct pid pointers if the conversion success, or NULL
+ * otherwise.
+ */
+static struct pid **str_to_pids(const char *str, ssize_t len, ssize_t *nr_pids)
+{
+	int *ints;
+	ssize_t nr_ints;
+	struct pid **pids;
+
+	*nr_pids = 0;
+
+	ints = str_to_ints(str, len, &nr_ints);
+	if (!ints)
+		return NULL;
+
+	pids = kmalloc_array(nr_ints, sizeof(*pids), GFP_KERNEL);
+	if (!pids)
+		goto out;
+
+	for (; *nr_pids < nr_ints; (*nr_pids)++) {
+		pids[*nr_pids] = find_get_pid(ints[*nr_pids]);
+		if (!pids[*nr_pids]) {
+			dbgfs_put_pids(pids, *nr_pids);
+			kfree(ints);
+			kfree(pids);
+			return NULL;
+		}
+	}
+
+out:
+	kfree(ints);
+	return pids;
 }
 
 /*
  * dbgfs_set_targets() - Set monitoring targets.
  * @ctx:	monitoring context
- * @ids:	array of target ids
- * @nr_ids:	number of entries in @ids
+ * @nr_targets:	number of targets
+ * @pids:	array of target pids (size is same to @nr_targets)
  *
- * This function should not be called while the kdamond is running.
+ * This function should not be called while the kdamond is running.  @pids is
+ * ignored if the context is not configured to have pid in each target.  On
+ * failure, reference counts of all pids in @pids are decremented.
  *
  * Return: 0 on success, negative error code otherwise.
  */
-static int dbgfs_set_targets(struct damon_ctx *ctx,
-		      unsigned long *ids, ssize_t nr_ids)
+static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
+		struct pid **pids)
 {
 	ssize_t i;
 	struct damon_target *t, *next;
 
 	damon_for_each_target_safe(t, next, ctx) {
-		if (targetid_is_pid(ctx))
-			put_pid((struct pid *)t->id);
+		if (target_has_pid(ctx))
+			put_pid(t->pid);
 		damon_destroy_target(t);
 	}
 
-	for (i = 0; i < nr_ids; i++) {
-		t = damon_new_target(ids[i]);
+	for (i = 0; i < nr_targets; i++) {
+		t = damon_new_target();
 		if (!t) {
-			/* The caller should do cleanup of the ids itself */
 			damon_for_each_target_safe(t, next, ctx)
 				damon_destroy_target(t);
-			if (targetid_is_pid(ctx))
-				dbgfs_put_pids(ids, nr_ids);
+			if (target_has_pid(ctx))
+				dbgfs_put_pids(pids, nr_targets);
 			return -ENOMEM;
 		}
+		if (target_has_pid(ctx))
+			t->pid = pids[i];
 		damon_add_target(ctx, t);
 	}
 
@@ -402,10 +443,9 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	struct damon_ctx *ctx = file->private_data;
 	bool id_is_pid = true;
 	char *kbuf;
-	unsigned long *targets;
+	struct pid **target_pids = NULL;
 	ssize_t nr_targets;
 	ssize_t ret;
-	int i;
 
 	kbuf = user_input_str(buf, count, ppos);
 	if (IS_ERR(kbuf))
@@ -413,38 +453,27 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 
 	if (!strncmp(kbuf, "paddr\n", count)) {
 		id_is_pid = false;
-		/* target id is meaningless here, but we set it just for fun */
-		scnprintf(kbuf, count, "42    ");
-	}
-
-	targets = str_to_target_ids(kbuf, count, &nr_targets);
-	if (!targets) {
-		ret = -ENOMEM;
-		goto out;
+		nr_targets = 1;
 	}
 
 	if (id_is_pid) {
-		for (i = 0; i < nr_targets; i++) {
-			targets[i] = (unsigned long)find_get_pid(
-					(int)targets[i]);
-			if (!targets[i]) {
-				dbgfs_put_pids(targets, i);
-				ret = -EINVAL;
-				goto free_targets_out;
-			}
+		target_pids = str_to_pids(kbuf, count, &nr_targets);
+		if (!target_pids) {
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
 	mutex_lock(&ctx->kdamond_lock);
 	if (ctx->kdamond) {
 		if (id_is_pid)
-			dbgfs_put_pids(targets, nr_targets);
+			dbgfs_put_pids(target_pids, nr_targets);
 		ret = -EBUSY;
 		goto unlock_out;
 	}
 
 	/* remove previously set targets */
-	dbgfs_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, 0, NULL);
 
 	/* Configure the context for the address space type */
 	if (id_is_pid)
@@ -452,14 +481,13 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	else
 		damon_pa_set_primitives(ctx);
 
-	ret = dbgfs_set_targets(ctx, targets, nr_targets);
+	ret = dbgfs_set_targets(ctx, nr_targets, target_pids);
 	if (!ret)
 		ret = count;
 
 unlock_out:
 	mutex_unlock(&ctx->kdamond_lock);
-free_targets_out:
-	kfree(targets);
+	kfree(target_pids);
 out:
 	kfree(kbuf);
 	return ret;
@@ -688,12 +716,12 @@ static void dbgfs_before_terminate(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next;
 
-	if (!targetid_is_pid(ctx))
+	if (!target_has_pid(ctx))
 		return;
 
 	mutex_lock(&ctx->kdamond_lock);
 	damon_for_each_target_safe(t, next, ctx) {
-		put_pid((struct pid *)t->id);
+		put_pid(t->pid);
 		damon_destroy_target(t);
 	}
 	mutex_unlock(&ctx->kdamond_lock);

@@ -144,7 +144,7 @@ void damon_destroy_scheme(struct damos *s)
  *
  * Returns the pointer to the new struct if success, or NULL otherwise
  */
-struct damon_target *damon_new_target(unsigned long id)
+struct damon_target *damon_new_target(void)
 {
 	struct damon_target *t;
 
@@ -152,7 +152,7 @@ struct damon_target *damon_new_target(unsigned long id)
 	if (!t)
 		return NULL;
 
-	t->id = id;
+	t->pid = NULL;
 	t->nr_regions = 0;
 	INIT_LIST_HEAD(&t->regions_list);
 

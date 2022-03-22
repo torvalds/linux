@@ -60,19 +60,18 @@ struct damon_region {
 
 /**
  * struct damon_target - Represents a monitoring target.
- * @id:			Unique identifier for this target.
+ * @pid:		The PID of the virtual address space to monitor.
  * @nr_regions:		Number of monitoring target regions of this target.
  * @regions_list:	Head of the monitoring target regions of this target.
  * @list:		List head for siblings.
  *
  * Each monitoring context could have multiple targets.  For example, a context
  * for virtual memory address spaces could have multiple target processes.  The
- * @id of each target should be unique among the targets of the context.  For
- * example, in the virtual address monitoring context, it could be a pidfd or
- * an address of an mm_struct.
+ * @pid should be set for appropriate address space monitoring primitives
+ * including the virtual address spaces monitoring primitives.
  */
 struct damon_target {
-	unsigned long id;
+	struct pid *pid;
 	unsigned int nr_regions;
 	struct list_head regions_list;
 	struct list_head list;
@@ -475,7 +474,7 @@ struct damos *damon_new_scheme(
 void damon_add_scheme(struct damon_ctx *ctx, struct damos *s);
 void damon_destroy_scheme(struct damos *s);
 
-struct damon_target *damon_new_target(unsigned long id);
+struct damon_target *damon_new_target(void);
 void damon_add_target(struct damon_ctx *ctx, struct damon_target *t);
 bool damon_targets_empty(struct damon_ctx *ctx);
 void damon_free_target(struct damon_target *t);
