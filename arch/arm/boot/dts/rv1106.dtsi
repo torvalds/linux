@@ -34,6 +34,9 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		mmc0 = &emmc;
+		mmc1 = &sdmmc;
+		mmc2 = &sdio;
 		rkcif_mipi_lvds0 = &rkcif_mipi_lvds;
 		rkcif_mipi_lvds1 = &rkcif_mipi_lvds1;
 		serial0 = &uart0;
