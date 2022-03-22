@@ -536,6 +536,7 @@ void nested_vmcb02_compute_g_pat(struct vcpu_svm *svm)
 static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
 {
 	bool new_vmcb12 = false;
+	struct vmcb *vmcb01 = svm->vmcb01.ptr;
 	struct vmcb *vmcb02 = svm->nested.vmcb02.ptr;
 
 	nested_vmcb02_compute_g_pat(svm);
@@ -586,6 +587,9 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 		svm->vcpu.arch.dr6  = svm->nested.save.dr6 | DR6_ACTIVE_LOW;
 		vmcb_mark_dirty(vmcb02, VMCB_DR);
 	}
+
+	if (unlikely(vmcb01->control.virt_ext & LBR_CTL_ENABLE_MASK))
+		svm_copy_lbrs(vmcb02, vmcb01);
 }
 
 static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
@@ -644,6 +648,9 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	vmcb02->control.int_state           = svm->nested.ctl.int_state;
 	vmcb02->control.event_inj           = svm->nested.ctl.event_inj;
 	vmcb02->control.event_inj_err       = svm->nested.ctl.event_inj_err;
+
+	vmcb02->control.virt_ext            = vmcb01->control.virt_ext &
+					      LBR_CTL_ENABLE_MASK;
 
 	if (!nested_vmcb_needs_vls_intercept(svm))
 		vmcb02->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
@@ -911,6 +918,11 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
+
+	if (unlikely(vmcb01->control.virt_ext & LBR_CTL_ENABLE_MASK)) {
+		svm_copy_lbrs(vmcb01, vmcb02);
+		svm_update_lbrv(vcpu);
+	}
 
 	/*
 	 * On vmexit the  GIF is set to false and
