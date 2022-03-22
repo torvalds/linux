@@ -114,6 +114,347 @@ static struct kobj_type damon_sysfs_ul_range_ktype = {
 };
 
 /*
+ * access_pattern directory
+ */
+
+struct damon_sysfs_access_pattern {
+	struct kobject kobj;
+	struct damon_sysfs_ul_range *sz;
+	struct damon_sysfs_ul_range *nr_accesses;
+	struct damon_sysfs_ul_range *age;
+};
+
+static
+struct damon_sysfs_access_pattern *damon_sysfs_access_pattern_alloc(void)
+{
+	struct damon_sysfs_access_pattern *access_pattern =
+		kmalloc(sizeof(*access_pattern), GFP_KERNEL);
+
+	if (!access_pattern)
+		return NULL;
+	access_pattern->kobj = (struct kobject){};
+	return access_pattern;
+}
+
+static int damon_sysfs_access_pattern_add_range_dir(
+		struct damon_sysfs_access_pattern *access_pattern,
+		struct damon_sysfs_ul_range **range_dir_ptr,
+		char *name)
+{
+	struct damon_sysfs_ul_range *range = damon_sysfs_ul_range_alloc(0, 0);
+	int err;
+
+	if (!range)
+		return -ENOMEM;
+	err = kobject_init_and_add(&range->kobj, &damon_sysfs_ul_range_ktype,
+			&access_pattern->kobj, name);
+	if (err)
+		kobject_put(&range->kobj);
+	else
+		*range_dir_ptr = range;
+	return err;
+}
+
+static int damon_sysfs_access_pattern_add_dirs(
+		struct damon_sysfs_access_pattern *access_pattern)
+{
+	int err;
+
+	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+			&access_pattern->sz, "sz");
+	if (err)
+		goto put_sz_out;
+
+	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+			&access_pattern->nr_accesses, "nr_accesses");
+	if (err)
+		goto put_nr_accesses_sz_out;
+
+	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+			&access_pattern->age, "age");
+	if (err)
+		goto put_age_nr_accesses_sz_out;
+	return 0;
+
+put_age_nr_accesses_sz_out:
+	kobject_put(&access_pattern->age->kobj);
+	access_pattern->age = NULL;
+put_nr_accesses_sz_out:
+	kobject_put(&access_pattern->nr_accesses->kobj);
+	access_pattern->nr_accesses = NULL;
+put_sz_out:
+	kobject_put(&access_pattern->sz->kobj);
+	access_pattern->sz = NULL;
+	return err;
+}
+
+static void damon_sysfs_access_pattern_rm_dirs(
+		struct damon_sysfs_access_pattern *access_pattern)
+{
+	kobject_put(&access_pattern->sz->kobj);
+	kobject_put(&access_pattern->nr_accesses->kobj);
+	kobject_put(&access_pattern->age->kobj);
+}
+
+static void damon_sysfs_access_pattern_release(struct kobject *kobj)
+{
+	kfree(container_of(kobj, struct damon_sysfs_access_pattern, kobj));
+}
+
+static struct attribute *damon_sysfs_access_pattern_attrs[] = {
+	NULL,
+};
+ATTRIBUTE_GROUPS(damon_sysfs_access_pattern);
+
+static struct kobj_type damon_sysfs_access_pattern_ktype = {
+	.release = damon_sysfs_access_pattern_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damon_sysfs_access_pattern_groups,
+};
+
+/*
+ * scheme directory
+ */
+
+struct damon_sysfs_scheme {
+	struct kobject kobj;
+	enum damos_action action;
+	struct damon_sysfs_access_pattern *access_pattern;
+};
+
+/* This should match with enum damos_action */
+static const char * const damon_sysfs_damos_action_strs[] = {
+	"willneed",
+	"cold",
+	"pageout",
+	"hugepage",
+	"nohugepage",
+	"stat",
+};
+
+static struct damon_sysfs_scheme *damon_sysfs_scheme_alloc(
+		enum damos_action action)
+{
+	struct damon_sysfs_scheme *scheme = kmalloc(sizeof(*scheme),
+				GFP_KERNEL);
+
+	if (!scheme)
+		return NULL;
+	scheme->kobj = (struct kobject){};
+	scheme->action = action;
+	return scheme;
+}
+
+static int damon_sysfs_scheme_set_access_pattern(
+		struct damon_sysfs_scheme *scheme)
+{
+	struct damon_sysfs_access_pattern *access_pattern;
+	int err;
+
+	access_pattern = damon_sysfs_access_pattern_alloc();
+	if (!access_pattern)
+		return -ENOMEM;
+	err = kobject_init_and_add(&access_pattern->kobj,
+			&damon_sysfs_access_pattern_ktype, &scheme->kobj,
+			"access_pattern");
+	if (err)
+		goto out;
+	err = damon_sysfs_access_pattern_add_dirs(access_pattern);
+	if (err)
+		goto out;
+	scheme->access_pattern = access_pattern;
+	return 0;
+
+out:
+	kobject_put(&access_pattern->kobj);
+	return err;
+}
+
+static int damon_sysfs_scheme_add_dirs(struct damon_sysfs_scheme *scheme)
+{
+	int err;
+
+	err = damon_sysfs_scheme_set_access_pattern(scheme);
+	if (err)
+		return err;
+	return 0;
+}
+
+static void damon_sysfs_scheme_rm_dirs(struct damon_sysfs_scheme *scheme)
+{
+	damon_sysfs_access_pattern_rm_dirs(scheme->access_pattern);
+	kobject_put(&scheme->access_pattern->kobj);
+}
+
+static ssize_t action_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	struct damon_sysfs_scheme *scheme = container_of(kobj,
+			struct damon_sysfs_scheme, kobj);
+
+	return sysfs_emit(buf, "%s\n",
+			damon_sysfs_damos_action_strs[scheme->action]);
+}
+
+static ssize_t action_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct damon_sysfs_scheme *scheme = container_of(kobj,
+			struct damon_sysfs_scheme, kobj);
+	enum damos_action action;
+
+	for (action = 0; action < NR_DAMOS_ACTIONS; action++) {
+		if (sysfs_streq(buf, damon_sysfs_damos_action_strs[action])) {
+			scheme->action = action;
+			return count;
+		}
+	}
+	return -EINVAL;
+}
+
+static void damon_sysfs_scheme_release(struct kobject *kobj)
+{
+	kfree(container_of(kobj, struct damon_sysfs_scheme, kobj));
+}
+
+static struct kobj_attribute damon_sysfs_scheme_action_attr =
+		__ATTR_RW_MODE(action, 0600);
+
+static struct attribute *damon_sysfs_scheme_attrs[] = {
+	&damon_sysfs_scheme_action_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(damon_sysfs_scheme);
+
+static struct kobj_type damon_sysfs_scheme_ktype = {
+	.release = damon_sysfs_scheme_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damon_sysfs_scheme_groups,
+};
+
+/*
+ * schemes directory
+ */
+
+struct damon_sysfs_schemes {
+	struct kobject kobj;
+	struct damon_sysfs_scheme **schemes_arr;
+	int nr;
+};
+
+static struct damon_sysfs_schemes *damon_sysfs_schemes_alloc(void)
+{
+	return kzalloc(sizeof(struct damon_sysfs_schemes), GFP_KERNEL);
+}
+
+static void damon_sysfs_schemes_rm_dirs(struct damon_sysfs_schemes *schemes)
+{
+	struct damon_sysfs_scheme **schemes_arr = schemes->schemes_arr;
+	int i;
+
+	for (i = 0; i < schemes->nr; i++) {
+		damon_sysfs_scheme_rm_dirs(schemes_arr[i]);
+		kobject_put(&schemes_arr[i]->kobj);
+	}
+	schemes->nr = 0;
+	kfree(schemes_arr);
+	schemes->schemes_arr = NULL;
+}
+
+static int damon_sysfs_schemes_add_dirs(struct damon_sysfs_schemes *schemes,
+		int nr_schemes)
+{
+	struct damon_sysfs_scheme **schemes_arr, *scheme;
+	int err, i;
+
+	damon_sysfs_schemes_rm_dirs(schemes);
+	if (!nr_schemes)
+		return 0;
+
+	schemes_arr = kmalloc_array(nr_schemes, sizeof(*schemes_arr),
+			GFP_KERNEL | __GFP_NOWARN);
+	if (!schemes_arr)
+		return -ENOMEM;
+	schemes->schemes_arr = schemes_arr;
+
+	for (i = 0; i < nr_schemes; i++) {
+		scheme = damon_sysfs_scheme_alloc(DAMOS_STAT);
+		if (!scheme) {
+			damon_sysfs_schemes_rm_dirs(schemes);
+			return -ENOMEM;
+		}
+
+		err = kobject_init_and_add(&scheme->kobj,
+				&damon_sysfs_scheme_ktype, &schemes->kobj,
+				"%d", i);
+		if (err)
+			goto out;
+		err = damon_sysfs_scheme_add_dirs(scheme);
+		if (err)
+			goto out;
+
+		schemes_arr[i] = scheme;
+		schemes->nr++;
+	}
+	return 0;
+
+out:
+	damon_sysfs_schemes_rm_dirs(schemes);
+	kobject_put(&scheme->kobj);
+	return err;
+}
+
+static ssize_t nr_schemes_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_schemes *schemes = container_of(kobj,
+			struct damon_sysfs_schemes, kobj);
+
+	return sysfs_emit(buf, "%d\n", schemes->nr);
+}
+
+static ssize_t nr_schemes_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damon_sysfs_schemes *schemes = container_of(kobj,
+			struct damon_sysfs_schemes, kobj);
+	int nr, err = kstrtoint(buf, 0, &nr);
+
+	if (err)
+		return err;
+	if (nr < 0)
+		return -EINVAL;
+
+	if (!mutex_trylock(&damon_sysfs_lock))
+		return -EBUSY;
+	err = damon_sysfs_schemes_add_dirs(schemes, nr);
+	mutex_unlock(&damon_sysfs_lock);
+	if (err)
+		return err;
+	return count;
+}
+
+static void damon_sysfs_schemes_release(struct kobject *kobj)
+{
+	kfree(container_of(kobj, struct damon_sysfs_schemes, kobj));
+}
+
+static struct kobj_attribute damon_sysfs_schemes_nr_attr =
+		__ATTR_RW_MODE(nr_schemes, 0600);
+
+static struct attribute *damon_sysfs_schemes_attrs[] = {
+	&damon_sysfs_schemes_nr_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(damon_sysfs_schemes);
+
+static struct kobj_type damon_sysfs_schemes_ktype = {
+	.release = damon_sysfs_schemes_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damon_sysfs_schemes_groups,
+};
+
+/*
  * init region directory
  */
 
@@ -748,6 +1089,7 @@ struct damon_sysfs_context {
 	enum damon_ops_id ops_id;
 	struct damon_sysfs_attrs *attrs;
 	struct damon_sysfs_targets *targets;
+	struct damon_sysfs_schemes *schemes;
 };
 
 static struct damon_sysfs_context *damon_sysfs_context_alloc(
@@ -802,6 +1144,23 @@ static int damon_sysfs_context_set_targets(struct damon_sysfs_context *context)
 	return 0;
 }
 
+static int damon_sysfs_context_set_schemes(struct damon_sysfs_context *context)
+{
+	struct damon_sysfs_schemes *schemes = damon_sysfs_schemes_alloc();
+	int err;
+
+	if (!schemes)
+		return -ENOMEM;
+	err = kobject_init_and_add(&schemes->kobj, &damon_sysfs_schemes_ktype,
+			&context->kobj, "schemes");
+	if (err) {
+		kobject_put(&schemes->kobj);
+		return err;
+	}
+	context->schemes = schemes;
+	return 0;
+}
+
 static int damon_sysfs_context_add_dirs(struct damon_sysfs_context *context)
 {
 	int err;
@@ -813,8 +1172,15 @@ static int damon_sysfs_context_add_dirs(struct damon_sysfs_context *context)
 	err = damon_sysfs_context_set_targets(context);
 	if (err)
 		goto put_attrs_out;
+
+	err = damon_sysfs_context_set_schemes(context);
+	if (err)
+		goto put_targets_attrs_out;
 	return 0;
 
+put_targets_attrs_out:
+	kobject_put(&context->targets->kobj);
+	context->targets = NULL;
 put_attrs_out:
 	kobject_put(&context->attrs->kobj);
 	context->attrs = NULL;
@@ -827,6 +1193,8 @@ static void damon_sysfs_context_rm_dirs(struct damon_sysfs_context *context)
 	kobject_put(&context->attrs->kobj);
 	damon_sysfs_targets_rm_dirs(context->targets);
 	kobject_put(&context->targets->kobj);
+	damon_sysfs_schemes_rm_dirs(context->schemes);
+	kobject_put(&context->schemes->kobj);
 }
 
 static ssize_t operations_show(struct kobject *kobj,
@@ -1149,6 +1517,45 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 	return 0;
 }
 
+static struct damos *damon_sysfs_mk_scheme(
+		struct damon_sysfs_scheme *sysfs_scheme)
+{
+	struct damon_sysfs_access_pattern *pattern =
+		sysfs_scheme->access_pattern;
+	struct damos_quota quota = (struct damos_quota){};
+	struct damos_watermarks wmarks = {
+		.metric = DAMOS_WMARK_NONE,
+		.interval = 0,
+		.high = 0,
+		.mid = 0,
+		.low = 0,
+	};
+
+	return damon_new_scheme(pattern->sz->min, pattern->sz->max,
+			pattern->nr_accesses->min, pattern->nr_accesses->max,
+			pattern->age->min, pattern->age->max,
+			sysfs_scheme->action, &quota, &wmarks);
+}
+
+static int damon_sysfs_set_schemes(struct damon_ctx *ctx,
+		struct damon_sysfs_schemes *sysfs_schemes)
+{
+	int i;
+
+	for (i = 0; i < sysfs_schemes->nr; i++) {
+		struct damos *scheme, *next;
+
+		scheme = damon_sysfs_mk_scheme(sysfs_schemes->schemes_arr[i]);
+		if (!scheme) {
+			damon_for_each_scheme_safe(scheme, next, ctx)
+				damon_destroy_scheme(scheme);
+			return -ENOMEM;
+		}
+		damon_add_scheme(ctx, scheme);
+	}
+	return 0;
+}
+
 static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next;
@@ -1180,6 +1587,9 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 	if (err)
 		goto out;
 	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
+	if (err)
+		goto out;
+	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
 	if (err)
 		goto out;
 
