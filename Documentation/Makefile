@@ -2,9 +2,6 @@
 # Makefile for Sphinx documentation
 #
 
-# for cleaning
-subdir- := devicetree/bindings
-
 # Check for broken documentation file references
 ifeq ($(CONFIG_WARN_MISSING_DOCUMENTS),y)
 $(shell $(srctree)/scripts/documentation-file-ref-check --warn)
