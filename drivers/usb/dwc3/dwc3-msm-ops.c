@@ -130,6 +130,16 @@ static int exit_dwc3_gadget_pullup(struct kretprobe_instance *ri,
 	return 0;
 }
 
+static int entry___dwc3_gadget_start(struct kretprobe_instance *ri,
+				   struct pt_regs *regs)
+{
+	struct dwc3 *dwc = (struct dwc3 *)regs->regs[0];
+
+	dwc3_msm_notify_event(dwc, DWC3_CONTROLLER_SOFT_RESET, 0);
+
+	return 0;
+}
+
 static int entry_trace_dwc3_ctrl_req(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
@@ -226,6 +236,7 @@ static struct kretprobe dwc3_msm_probes[] = {
 	ENTRY(dwc3_gadget_reset_interrupt),
 	ENTRY_EXIT(dwc3_gadget_conndone_interrupt),
 	ENTRY_EXIT(dwc3_gadget_pullup),
+	ENTRY(__dwc3_gadget_start),
 	ENTRY(trace_dwc3_ctrl_req),
 	ENTRY(trace_dwc3_ep_queue),
 	ENTRY(trace_dwc3_ep_dequeue),
