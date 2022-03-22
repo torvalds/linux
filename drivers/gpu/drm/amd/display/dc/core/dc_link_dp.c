@@ -5308,7 +5308,13 @@ static bool retrieve_link_cap(struct dc_link *link)
 			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
 
 	/* Try to ensure AUX channel active before proceeding. */
-	status = wa_try_to_wake_dprx(link, LINK_AUX_WAKE_TIMEOUT_MS);
+	if (link->dc->debug.aux_wake_wa.bits.enable_wa) {
+		uint64_t timeout_ms = link->dc->debug.aux_wake_wa.bits.timeout_ms;
+
+		if (link->dc->debug.aux_wake_wa.bits.use_default_timeout)
+			timeout_ms = LINK_AUX_WAKE_TIMEOUT_MS;
+		status = wa_try_to_wake_dprx(link, timeout_ms);
+	}
 
 	is_lttpr_present = dp_retrieve_lttpr_cap(link);
 	/* Read DP tunneling information. */
