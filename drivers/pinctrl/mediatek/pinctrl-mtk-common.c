@@ -168,7 +168,7 @@ int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
 		break;
 	default:
 		break;
-	};
+	}
 
 	if (!ies_smt_infos)
 		return -EINVAL;
