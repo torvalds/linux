@@ -72,10 +72,6 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
 
-#define TSC_RATIO_RSVD          0xffffff0000000000ULL
-#define TSC_RATIO_MIN		0x0000000000000001ULL
-#define TSC_RATIO_MAX		0x000000ffffffffffULL
-
 static bool erratum_383_found __read_mostly;
 
 u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
@@ -87,7 +83,6 @@ u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 static uint64_t osvw_len = 4, osvw_status;
 
 static DEFINE_PER_CPU(u64, current_tsc_ratio);
-#define TSC_RATIO_DEFAULT	0x0100000000ULL
 
 static const struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
@@ -480,7 +475,7 @@ static void svm_hardware_disable(void)
 {
 	/* Make sure we clean up behind us */
 	if (tsc_scaling)
-		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
+		wrmsrl(MSR_AMD64_TSC_RATIO, SVM_TSC_RATIO_DEFAULT);
 
 	cpu_svm_disable();
 
@@ -526,8 +521,8 @@ static int svm_hardware_enable(void)
 		 * Set the default value, even if we don't use TSC scaling
 		 * to avoid having stale value in the msr
 		 */
-		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
-		__this_cpu_write(current_tsc_ratio, TSC_RATIO_DEFAULT);
+		wrmsrl(MSR_AMD64_TSC_RATIO, SVM_TSC_RATIO_DEFAULT);
+		__this_cpu_write(current_tsc_ratio, SVM_TSC_RATIO_DEFAULT);
 	}
 
 
@@ -2723,7 +2718,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 			break;
 		}
 
-		if (data & TSC_RATIO_RSVD)
+		if (data & SVM_TSC_RATIO_RSVD)
 			return 1;
 
 		svm->tsc_ratio_msr = data;
@@ -4765,7 +4760,7 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("TSC scaling supported\n");
 			kvm_has_tsc_control = true;
-			kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
+			kvm_max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
 			kvm_tsc_scaling_ratio_frac_bits = 32;
 		}
 	}
