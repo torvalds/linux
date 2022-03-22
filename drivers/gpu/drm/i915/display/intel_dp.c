@@ -2625,38 +2625,8 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 			    "Failed to %s protocol converter YCbCr 4:2:0 conversion mode\n",
 			    str_enable_disable(intel_dp->dfp.ycbcr_444_to_420));
 
-	tmp = 0;
-	if (intel_dp->dfp.rgb_to_ycbcr) {
-		bool bt2020, bt709;
-
-		/*
-		 * FIXME: Currently if userspace selects BT2020 or BT709, but PCON supports only
-		 * RGB->YCbCr for BT601 colorspace, we go ahead with BT601, as default.
-		 *
-		 */
-		tmp = DP_CONVERSION_BT601_RGB_YCBCR_ENABLE;
-
-		bt2020 = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
-								   intel_dp->downstream_ports,
-								   DP_DS_HDMI_BT2020_RGB_YCBCR_CONV);
-		bt709 = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
-								  intel_dp->downstream_ports,
-								  DP_DS_HDMI_BT709_RGB_YCBCR_CONV);
-		switch (crtc_state->infoframes.vsc.colorimetry) {
-		case DP_COLORIMETRY_BT2020_RGB:
-		case DP_COLORIMETRY_BT2020_YCC:
-			if (bt2020)
-				tmp = DP_CONVERSION_BT2020_RGB_YCBCR_ENABLE;
-			break;
-		case DP_COLORIMETRY_BT709_YCC:
-		case DP_COLORIMETRY_XVYCC_709:
-			if (bt709)
-				tmp = DP_CONVERSION_BT709_RGB_YCBCR_ENABLE;
-			break;
-		default:
-			break;
-		}
-	}
+	tmp = intel_dp->dfp.rgb_to_ycbcr ?
+		DP_CONVERSION_BT709_RGB_YCBCR_ENABLE : 0;
 
 	if (drm_dp_pcon_convert_rgb_to_ycbcr(&intel_dp->aux, tmp) < 0)
 		drm_dbg_kms(&i915->drm,
@@ -4510,9 +4480,7 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 							intel_dp->downstream_ports);
 	rgb_to_ycbcr = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
 								 intel_dp->downstream_ports,
-								 DP_DS_HDMI_BT601_RGB_YCBCR_CONV |
-								 DP_DS_HDMI_BT709_RGB_YCBCR_CONV |
-								 DP_DS_HDMI_BT2020_RGB_YCBCR_CONV);
+								 DP_DS_HDMI_BT709_RGB_YCBCR_CONV);
 
 	if (DISPLAY_VER(i915) >= 11) {
 		/* Let PCON convert from RGB->YCbCr if possible */
