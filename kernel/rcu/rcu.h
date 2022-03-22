@@ -120,6 +120,18 @@ static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 }
 
 /*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * full update-side operation has occurred, but do not allow the
+ * (ULONG_MAX / 2) safety-factor/guard-band.
+ */
+static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
+{
+	unsigned long cur_s = READ_ONCE(*sp);
+
+	return ULONG_CMP_GE(cur_s, s) || ULONG_CMP_LT(cur_s, s - (2 * RCU_SEQ_STATE_MASK + 1));
+}
+
+/*
  * Has a grace period completed since the time the old gp_seq was collected?
  */
 static inline bool rcu_seq_completed_gp(unsigned long old, unsigned long new)
