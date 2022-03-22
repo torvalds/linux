@@ -9,6 +9,7 @@ KVM for x86 systems
 
    amd-memory-encryption
    cpuid
+   errata
    halt-polling
    hypercalls
    mmu
