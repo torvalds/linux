@@ -222,6 +222,8 @@ struct rockchip_thermal_data {
 #define TSADCV2_AUTO_PERIOD_HT			0x6c
 #define TSADCV3_AUTO_PERIOD			0x154
 #define TSADCV3_AUTO_PERIOD_HT			0x158
+#define TSADCV9_Q_MAX				0x210
+#define TSADCV9_FLOW_CON			0x218
 
 #define TSADCV2_AUTO_EN				BIT(0)
 #define TSADCV2_AUTO_EN_MASK			BIT(16)
@@ -260,6 +262,10 @@ struct rockchip_thermal_data {
 #define TSADCV2_USER_INTER_PD_SOC		0x340 /* 13 clocks */
 #define TSADCV5_USER_INTER_PD_SOC		0xfc0 /* 97us, at least 90us */
 
+#define TSADCV9_AUTO_SRC			(0x10001 << 0)
+#define TSADCV9_PD_MODE				(0x10001 << 4)
+#define TSADCV9_Q_MAX_VAL			(0xffff0400 << 0)
+
 #define GRF_SARADC_TESTBIT			0x0e644
 #define GRF_TSADC_TESTBIT_L			0x0e648
 #define GRF_TSADC_TESTBIT_H			0x0e64c
@@ -273,6 +279,10 @@ struct rockchip_thermal_data {
 #define RK3568_GRF_TSADC_ANA_REG1		(0x10001 << 1)
 #define RK3568_GRF_TSADC_ANA_REG2		(0x10001 << 2)
 #define RK3568_GRF_TSADC_TSEN			(0x10001 << 8)
+
+#define RV1106_VOGRF_TSADC_CON			0x6000C
+#define RV1106_VOGRF_TSADC_TSEN			(0x10001 << 8)
+#define RV1106_VOGRF_TSADC_ANA			(0xff0007 << 0)
 
 #define RV1126_GRF0_TSADC_CON			0x0100
 
@@ -309,12 +319,12 @@ struct tsadc_table {
 };
 
 static const struct tsadc_table rv1106_code_table[] = {
-	{TSADCV2_DATA_MASK, -40000},
-	{628, -40000},
-	{520, 25000},
-	{419, 85000},
-	{351, 125000},
-	{0, 125000},
+	{0, -40000},
+	{396, -40000},
+	{504, 25000},
+	{605, 85000},
+	{673, 125000},
+	{TSADCV2_DATA_MASK, 125000},
 };
 
 static const struct tsadc_table rv1108_table[] = {
@@ -957,6 +967,35 @@ static void rk_tsadcv8_initialize(struct regmap *grf, void __iomem *regs,
 			       regs + TSADCV2_AUTO_CON);
 }
 
+static void rk_tsadcv9_initialize(struct regmap *grf, void __iomem *regs,
+				  enum tshut_polarity tshut_polarity)
+{
+	regmap_write(grf, RV1106_VOGRF_TSADC_CON, RV1106_VOGRF_TSADC_TSEN);
+	udelay(10);
+	regmap_write(grf, RV1106_VOGRF_TSADC_CON, RV1106_VOGRF_TSADC_ANA);
+	udelay(100);
+
+	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME, regs + TSADCV3_AUTO_PERIOD);
+	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME,
+		       regs + TSADCV3_AUTO_PERIOD_HT);
+	writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
+		       regs + TSADCV3_HIGHT_INT_DEBOUNCE);
+	writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
+		       regs + TSADCV3_HIGHT_TSHUT_DEBOUNCE);
+	writel_relaxed(TSADCV9_AUTO_SRC, regs + TSADCV2_INT_PD);
+	writel_relaxed(TSADCV9_PD_MODE, regs + TSADCV9_FLOW_CON);
+	writel_relaxed(TSADCV9_Q_MAX_VAL, regs + TSADCV9_Q_MAX);
+	if (tshut_polarity == TSHUT_HIGH_ACTIVE)
+		writel_relaxed(TSADCV2_AUTO_TSHUT_POLARITY_HIGH |
+			       TSADCV2_AUTO_TSHUT_POLARITY_MASK,
+			       regs + TSADCV2_AUTO_CON);
+	else
+		writel_relaxed(TSADCV2_AUTO_TSHUT_POLARITY_MASK,
+			       regs + TSADCV2_AUTO_CON);
+	writel_relaxed(TSADCV3_AUTO_Q_SEL_EN | (TSADCV3_AUTO_Q_SEL_EN << 16),
+		       regs + TSADCV2_AUTO_CON);
+}
+
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
 {
 	u32 val;
@@ -1261,7 +1300,7 @@ static const struct rockchip_tsadc_chip rv1106_tsadc_data = {
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.tshut_temp = 95000,
-	.initialize = rk_tsadcv8_initialize,
+	.initialize = rk_tsadcv9_initialize,
 	.irq_ack = rk_tsadcv4_irq_ack,
 	.control = rk_tsadcv4_control,
 	.get_temp = rk_tsadcv4_get_temp,
@@ -1272,7 +1311,7 @@ static const struct rockchip_tsadc_chip rv1106_tsadc_data = {
 		.id = rv1106_code_table,
 		.length = ARRAY_SIZE(rv1106_code_table),
 		.data_mask = TSADCV2_DATA_MASK,
-		.mode = ADC_DECREMENT,
+		.mode = ADC_INCREMENT,
 	},
 };
 
