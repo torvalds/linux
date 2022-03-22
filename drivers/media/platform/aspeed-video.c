@@ -959,7 +959,7 @@ static void aspeed_video_free_buf(struct aspeed_video *video,
 
 /*
  * Get the minimum HW-supported compression buffer size for the frame size.
- * Assume worst-case JPEG compression size is 1/8 raw size. This should be
+ * Assume worst-case JPEG compression size is 1/2 raw size. This should be
  * plenty even for maximum quality; any worse and the engine will simply return
  * incomplete JPEGs.
  */
@@ -971,19 +971,19 @@ static void aspeed_video_calc_compressed_size(struct aspeed_video *video,
 	unsigned int size;
 	const unsigned int num_compression_packets = 4;
 	const unsigned int compression_packet_size = 1024;
-	const unsigned int max_compressed_size = frame_size / 2; /* 4bpp / 8 */
+	const unsigned int max_compressed_size = frame_size * 2; /* 4bpp / 2 */
 
 	video->max_compressed_size = UINT_MAX;
 
-	for (i = 0; i < 6; ++i) {
-		for (j = 0; j < 8; ++j) {
-			size = (num_compression_packets << i) *
-				(compression_packet_size << j);
+	for (i = 0; i < 8; ++i) {
+		for (j = 0; j < 6; ++j) {
+			size = (num_compression_packets << j) *
+				(compression_packet_size << i);
 			if (size < max_compressed_size)
 				continue;
 
 			if (size < video->max_compressed_size) {
-				compression_buffer_size_reg = (i << 3) | j;
+				compression_buffer_size_reg = (j << 3) | i;
 				video->max_compressed_size = size;
 			}
 		}
