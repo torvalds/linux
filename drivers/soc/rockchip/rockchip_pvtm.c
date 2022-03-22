@@ -353,6 +353,12 @@ disable_clks:
 	return val;
 }
 
+static void rv1106_core_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
+					  unsigned int ring_sel)
+{
+	writel_relaxed(wr_mask_bit(ring_sel + 4, 0x2, 0x7), pvtm->base + pvtm->con);
+}
+
 static void rv1126_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 				     unsigned int ring_sel)
 {
@@ -690,6 +696,35 @@ static const struct rockchip_pvtm_data rk3588_pmu_pvtm = {
 	},
 };
 
+static const struct rockchip_pvtm_info rv1106_corepvtm_infos[] = {
+	PVTM(0, "core", 2, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rv1106_corepvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rv1106_corepvtm_infos),
+	.infos = rv1106_corepvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1106_core_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rv1106_pmupvtm_infos[] = {
+	PVTM(1, "pmu", 1, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rv1106_pmupvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rv1106_pmupvtm_infos),
+	.infos = rv1106_pmupvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+	},
+};
+
 static const struct rockchip_pvtm_info rv1126_cpupvtm_infos[] = {
 	PVTM(0, "cpu", 7, 0, 1, 0x4, 0, 0x4),
 };
@@ -823,6 +858,16 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 	{
 		.compatible = "rockchip,rk3588-pmu-pvtm",
 		.data = (void *)&rk3588_pmu_pvtm,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1106
+	{
+		.compatible = "rockchip,rv1106-core-pvtm",
+		.data = (void *)&rv1106_corepvtm,
+	},
+	{
+		.compatible = "rockchip,rv1106-pmu-pvtm",
+		.data = (void *)&rv1106_pmupvtm,
 	},
 #endif
 #ifdef CONFIG_CPU_RV1126
