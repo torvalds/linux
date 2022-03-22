@@ -176,9 +176,9 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
-int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-		       u32 size,
-		       struct drm_modeset_acquire_ctx *ctx)
+static int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, u32 size,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	gma_crtc_load_lut(crtc);
 
@@ -323,10 +323,9 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	REG_WRITE(DSPARB, 0x3F3E);
 }
 
-int gma_crtc_cursor_set(struct drm_crtc *crtc,
-			struct drm_file *file_priv,
-			uint32_t handle,
-			uint32_t width, uint32_t height)
+static int gma_crtc_cursor_set(struct drm_crtc *crtc,
+			       struct drm_file *file_priv, uint32_t handle,
+			       uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -439,7 +438,7 @@ unref_cursor:
 	return ret;
 }
 
-int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+static int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);

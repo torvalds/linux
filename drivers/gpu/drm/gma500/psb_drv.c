@@ -100,7 +100,7 @@ static const struct drm_ioctl_desc psb_ioctls[] = {
  *
  *	Soft reset the graphics engine and then reload the necessary registers.
  */
-void psb_spank(struct drm_psb_private *dev_priv)
+static void psb_spank(struct drm_psb_private *dev_priv)
 {
 	PSB_WSGX32(_PSB_CS_RESET_BIF_RESET | _PSB_CS_RESET_DPM_RESET |
 		_PSB_CS_RESET_TA_RESET | _PSB_CS_RESET_USE_RESET |
