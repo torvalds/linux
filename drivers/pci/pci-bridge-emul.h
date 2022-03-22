@@ -90,6 +90,14 @@ struct pci_bridge_emul_ops {
 	 */
 	pci_bridge_emul_read_status_t (*read_pcie)(struct pci_bridge_emul *bridge,
 						   int reg, u32 *value);
+
+	/*
+	 * Same as ->read_base(), except it is for reading from the
+	 * PCIe extended capability configuration space.
+	 */
+	pci_bridge_emul_read_status_t (*read_ext)(struct pci_bridge_emul *bridge,
+						  int reg, u32 *value);
+
 	/*
 	 * Called when writing to the regular PCI bridge configuration
 	 * space. old is the current value, new is the new value being
@@ -105,6 +113,13 @@ struct pci_bridge_emul_ops {
 	 */
 	void (*write_pcie)(struct pci_bridge_emul *bridge, int reg,
 			   u32 old, u32 new, u32 mask);
+
+	/*
+	 * Same as ->write_base(), except it is for writing from the
+	 * PCIe extended capability configuration space.
+	 */
+	void (*write_ext)(struct pci_bridge_emul *bridge, int reg,
+			  u32 old, u32 new, u32 mask);
 };
 
 struct pci_bridge_reg_behavior;
@@ -112,15 +127,27 @@ struct pci_bridge_reg_behavior;
 struct pci_bridge_emul {
 	struct pci_bridge_emul_conf conf;
 	struct pci_bridge_emul_pcie_conf pcie_conf;
-	struct pci_bridge_emul_ops *ops;
+	const struct pci_bridge_emul_ops *ops;
 	struct pci_bridge_reg_behavior *pci_regs_behavior;
 	struct pci_bridge_reg_behavior *pcie_cap_regs_behavior;
 	void *data;
 	bool has_pcie;
+	u16 subsystem_vendor_id;
+	u16 subsystem_id;
 };
 
 enum {
-	PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR = BIT(0),
+	/*
+	 * PCI bridge does not support forwarding of prefetchable memory
+	 * requests between primary and secondary buses.
+	 */
+	PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD = BIT(0),
+
+	/*
+	 * PCI bridge does not support forwarding of IO requests between
+	 * primary and secondary buses.
+	 */
+	PCI_BRIDGE_EMUL_NO_IO_FORWARD = BIT(1),
 };
 
 int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
