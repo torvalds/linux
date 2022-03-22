@@ -117,7 +117,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 			paddr = gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
-				"failed to allocate %llu contiguous pages with total size of %llu\n",
+				"Cannot allocate %llu contiguous pages with total size of %llu\n",
 				num_pgs, total_size);
 			return -ENOMEM;
 		}
@@ -156,9 +156,10 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 			else
 				phys_pg_pack->pages[i] = gen_pool_alloc(vm->dram_pg_pool,
 									page_size);
+
 			if (!phys_pg_pack->pages[i]) {
 				dev_err(hdev->dev,
-					"Failed to allocate device memory (out of memory)\n");
+					"Cannot allocate device memory (out of memory)\n");
 				rc = -ENOMEM;
 				goto page_err;
 			}
