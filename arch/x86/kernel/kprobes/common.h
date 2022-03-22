@@ -6,7 +6,6 @@
 
 #include <asm/asm.h>
 #include <asm/frame.h>
-#include <asm/insn.h>
 
 #ifdef CONFIG_X86_64
 
