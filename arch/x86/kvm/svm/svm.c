@@ -4752,10 +4752,10 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("TSC scaling supported\n");
 			kvm_has_tsc_control = true;
-			kvm_max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
-			kvm_tsc_scaling_ratio_frac_bits = 32;
 		}
 	}
+	kvm_max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
+	kvm_tsc_scaling_ratio_frac_bits = 32;
 
 	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
 
