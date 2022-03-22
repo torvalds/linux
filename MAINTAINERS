@@ -18877,6 +18877,7 @@ SUNPLUS PWM DRIVER
 M:	Hammer Hsieh <hammerh0314@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/pwm/sunplus,sp7021-pwm.yaml
+F:	drivers/pwm/pwm-sunplus.c
 
 SUNPLUS RTC DRIVER
 M:	Vincent Shih <vincent.sunplus@gmail.com>

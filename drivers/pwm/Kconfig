@@ -572,6 +572,17 @@ config PWM_SUN4I
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sun4i.
 
+config PWM_SUNPLUS
+	tristate "Sunplus PWM support"
+	depends on ARCH_SUNPLUS || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	help
+	  Generic PWM framework driver for the PWM controller on
+	  Sunplus SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sunplus.
+
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA || COMPILE_TEST
