@@ -215,10 +215,18 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 
 	pci_read_config_dword(dev, bar_offset, &val);
 
-	if (val & UNCORE_DISCOVERY_MASK)
+	if (val & ~PCI_BASE_ADDRESS_MEM_MASK & ~PCI_BASE_ADDRESS_MEM_TYPE_64)
 		return -EINVAL;
 
-	addr = (resource_size_t)(val & ~UNCORE_DISCOVERY_MASK);
+	addr = (resource_size_t)(val & PCI_BASE_ADDRESS_MEM_MASK);
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	if ((val & PCI_BASE_ADDRESS_MEM_TYPE_MASK) == PCI_BASE_ADDRESS_MEM_TYPE_64) {
+		u32 val2;
+
+		pci_read_config_dword(dev, bar_offset + 4, &val2);
+		addr |= ((resource_size_t)val2) << 32;
+	}
+#endif
 	size = UNCORE_DISCOVERY_GLOBAL_MAP_SIZE;
 	io_addr = ioremap(addr, size);
 	if (!io_addr)
@@ -444,7 +452,7 @@ static struct intel_uncore_ops generic_uncore_pci_ops = {
 
 #define UNCORE_GENERIC_MMIO_SIZE		0x4000
 
-static unsigned int generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
+static u64 generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
 {
 	struct intel_uncore_type *type = box->pmu->type;
 
@@ -456,7 +464,7 @@ static unsigned int generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
 
 void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 {
-	unsigned int box_ctl = generic_uncore_mmio_box_ctl(box);
+	u64 box_ctl = generic_uncore_mmio_box_ctl(box);
 	struct intel_uncore_type *type = box->pmu->type;
 	resource_size_t addr;
 
