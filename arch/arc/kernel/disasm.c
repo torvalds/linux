@@ -503,7 +503,6 @@ int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 {
 	struct disasm_state instr;
 
-	memset(&instr, 0, sizeof(struct disasm_state));
 	disasm_instr(pc, &instr, 0, regs, cregs);
 
 	*next_pc = pc + instr.instr_len;
