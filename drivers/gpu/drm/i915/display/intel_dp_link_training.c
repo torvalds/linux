@@ -55,6 +55,7 @@ static u8 *intel_dp_lttpr_phy_caps(struct intel_dp *intel_dp,
 }
 
 static void intel_dp_read_lttpr_phy_caps(struct intel_dp *intel_dp,
+					 const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 					 enum drm_dp_phy dp_phy)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
@@ -63,7 +64,7 @@ static void intel_dp_read_lttpr_phy_caps(struct intel_dp *intel_dp,
 
 	intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name));
 
-	if (drm_dp_read_lttpr_phy_caps(&intel_dp->aux, dp_phy, phy_caps) < 0) {
+	if (drm_dp_read_lttpr_phy_caps(&intel_dp->aux, dpcd, dp_phy, phy_caps) < 0) {
 		drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
 			    "[ENCODER:%d:%s][%s] failed to read the PHY caps\n",
 			    encoder->base.base.id, encoder->base.name, phy_name);
@@ -77,10 +78,12 @@ static void intel_dp_read_lttpr_phy_caps(struct intel_dp *intel_dp,
 		    phy_caps);
 }
 
-static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
+static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp,
+					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	int ret;
 
 	if (intel_dp_is_edp(intel_dp))
 		return false;
@@ -92,8 +95,9 @@ static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
 	if (DISPLAY_VER(i915) < 10 || IS_GEMINILAKE(i915))
 		return false;
 
-	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,
-					  intel_dp->lttpr_common_caps) < 0)
+	ret = drm_dp_read_lttpr_common_caps(&intel_dp->aux, dpcd,
+					    intel_dp->lttpr_common_caps);
+	if (ret < 0)
 		goto reset_caps;
 
 	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
@@ -122,14 +126,14 @@ intel_dp_set_lttpr_transparent_mode(struct intel_dp *intel_dp, bool enable)
 	return drm_dp_dpcd_write(&intel_dp->aux, DP_PHY_REPEATER_MODE, &val, 1) == 1;
 }
 
-static int intel_dp_init_lttpr(struct intel_dp *intel_dp)
+static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	int lttpr_count;
 	int i;
 
-	if (!intel_dp_read_lttpr_common_caps(intel_dp))
+	if (!intel_dp_read_lttpr_common_caps(intel_dp, dpcd))
 		return 0;
 
 	lttpr_count = drm_dp_lttpr_count(intel_dp->lttpr_common_caps);
@@ -168,7 +172,7 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp)
 	}
 
 	for (i = 0; i < lttpr_count; i++)
-		intel_dp_read_lttpr_phy_caps(intel_dp, DP_PHY_LTTPR(i));
+		intel_dp_read_lttpr_phy_caps(intel_dp, dpcd, DP_PHY_LTTPR(i));
 
 	return lttpr_count;
 }
@@ -193,9 +197,18 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp)
  */
 int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp)
 {
-	int lttpr_count = intel_dp_init_lttpr(intel_dp);
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	int lttpr_count;
 
-	/* The DPTX shall read the DPRX caps after LTTPR detection. */
+	if (drm_dp_read_dpcd_caps(&intel_dp->aux, dpcd))
+		return -EIO;
+
+	lttpr_count = intel_dp_init_lttpr(intel_dp, dpcd);
+
+	/*
+	 * The DPTX shall read the DPRX caps after LTTPR detection, so re-read
+	 * it here.
+	 */
 	if (drm_dp_read_dpcd_caps(&intel_dp->aux, intel_dp->dpcd)) {
 		intel_dp_reset_lttpr_common_caps(intel_dp);
 		return -EIO;
