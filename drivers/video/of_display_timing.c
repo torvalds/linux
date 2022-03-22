@@ -199,7 +199,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		struct display_timing *dt;
 		int r;
 
-		dt = kzalloc(sizeof(*dt), GFP_KERNEL);
+		dt = kmalloc(sizeof(*dt), GFP_KERNEL);
 		if (!dt) {
 			pr_err("%pOF: could not allocate display_timing struct\n",
 				np);
