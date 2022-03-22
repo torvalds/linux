@@ -2,75 +2,20 @@
 /*
  * Test cases for compiler-based stack variable zeroing via
  * -ftrivial-auto-var-init={zero,pattern} or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
+ * For example, see:
+ * https://www.kernel.org/doc/html/latest/dev-tools/kunit/kunit-tool.html#configuring-building-and-running-tests
+ *	./tools/testing/kunit/kunit.py run stackinit [--raw_output] \
+ *		--make_option LLVM=1 \
+ *		--kconfig_add CONFIG_INIT_STACK_ALL_ZERO=y
  *
- * External build example:
- *	clang -O2 -Wall -ftrivial-auto-var-init=pattern \
- *		-o test_stackinit test_stackinit.c
  */
-#ifdef __KERNEL__
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <kunit/test.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-
-#else
-
-/* Userspace headers. */
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <errno.h>
-#include <sys/types.h>
-
-/* Linux kernel-ism stubs for stand-alone userspace build. */
-#define KBUILD_MODNAME		"stackinit"
-#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
-#define pr_err(fmt, ...)	fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warn(fmt, ...)	fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_info(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
-#define __init			/**/
-#define __exit			/**/
-#define __user			/**/
-#define noinline		__attribute__((__noinline__))
-#define __aligned(x)		__attribute__((__aligned__(x)))
-#ifdef __clang__
-# define __compiletime_error(message) /**/
-#else
-# define __compiletime_error(message) __attribute__((__error__(message)))
-#endif
-#define __compiletime_assert(condition, msg, prefix, suffix)		\
-	do {								\
-		extern void prefix ## suffix(void) __compiletime_error(msg); \
-		if (!(condition))					\
-			prefix ## suffix();				\
-	} while (0)
-#define _compiletime_assert(condition, msg, prefix, suffix) \
-	__compiletime_assert(condition, msg, prefix, suffix)
-#define compiletime_assert(condition, msg) \
-	_compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
-#define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
-#define BUILD_BUG_ON(condition) \
-	BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
-typedef uint8_t			u8;
-typedef uint16_t		u16;
-typedef uint32_t		u32;
-typedef uint64_t		u64;
-
-#define module_init(func)	static int (*do_init)(void) = func
-#define module_exit(func)	static void (*do_exit)(void) = func
-#define MODULE_LICENSE(str)	int main(void) {		\
-					int rc;			\
-					/* License: str */	\
-					rc = do_init();		\
-					if (rc == 0)		\
-						do_exit();	\
-					return rc;		\
-				}
-
-#endif /* __KERNEL__ */
 
 /* Exfiltration buffer. */
 #define MAX_VAR_SIZE	128
@@ -201,7 +146,7 @@ static bool range_contains(char *haystack_start, size_t haystack_size,
  */
 #define DEFINE_TEST_DRIVER(name, var_type, which, xfail)	\
 /* Returns 0 on success, 1 on failure. */			\
-static noinline __init int test_ ## name (void)			\
+static noinline void test_ ## name (struct kunit *test)		\
 {								\
 	var_type zero INIT_CLONE_ ## which;			\
 	int ignored;						\
@@ -220,10 +165,8 @@ static noinline __init int test_ ## name (void)			\
 	/* Verify all bytes overwritten with 0xFF. */		\
 	for (sum = 0, i = 0; i < target_size; i++)		\
 		sum += (check_buf[i] != 0xFF);			\
-	if (sum) {						\
-		pr_err(#name ": leaf fill was not 0xFF!?\n");	\
-		return 1;					\
-	}							\
+	KUNIT_ASSERT_EQ_MSG(test, sum, 0,			\
+			    "leaf fill was not 0xFF!?\n");	\
 	/* Clear entire check buffer for later bit tests. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Extract stack-defined variable contents. */		\
@@ -231,32 +174,29 @@ static noinline __init int test_ ## name (void)			\
 				FETCH_ARG_ ## which(zero));	\
 								\
 	/* Validate that compiler lined up fill and target. */	\
-	if (!range_contains(fill_start, fill_size,		\
-			    target_start, target_size)) {	\
-		pr_err(#name ": stack fill missed target!?\n");	\
-		pr_err(#name ": fill %zu wide\n", fill_size);	\
-		pr_err(#name ": target offset by %d\n",	\
-			(int)((ssize_t)(uintptr_t)fill_start -	\
-			(ssize_t)(uintptr_t)target_start));	\
-		return 1;					\
-	}							\
+	KUNIT_ASSERT_TRUE_MSG(test,				\
+		range_contains(fill_start, fill_size,		\
+			    target_start, target_size),		\
+		"stack fill missed target!? "			\
+		"(fill %zu wide, target offset by %d)\n",	\
+		fill_size,					\
+		(int)((ssize_t)(uintptr_t)fill_start -		\
+		      (ssize_t)(uintptr_t)target_start));	\
 								\
 	/* Look for any bytes still 0xFF in check region. */	\
 	for (sum = 0, i = 0; i < target_size; i++)		\
 		sum += (check_buf[i] == 0xFF);			\
 								\
-	if (sum == 0) {						\
-		pr_info(#name " ok\n");				\
-		return 0;					\
-	} else {						\
-		pr_warn(#name " %sFAIL (uninit bytes: %d)\n",	\
-			(xfail) ? "X" : "", sum);		\
-		return (xfail) ? 0 : 1;				\
-	}							\
+	if (sum != 0 && xfail)					\
+		kunit_skip(test,				\
+			   "XFAIL uninit bytes: %d\n",		\
+			   sum);				\
+	KUNIT_ASSERT_EQ_MSG(test, sum, 0,			\
+		"uninit bytes: %d\n", sum);			\
 }
 #define DEFINE_TEST(name, var_type, which, init_level, xfail)	\
 /* no-op to force compiler into ignoring "uninitialized" vars */\
-static noinline __init DO_NOTHING_TYPE_ ## which(var_type)	\
+static noinline DO_NOTHING_TYPE_ ## which(var_type)		\
 do_nothing_ ## name(var_type *ptr)				\
 {								\
 	/* Will always be true, but compiler doesn't know. */	\
@@ -265,9 +205,8 @@ do_nothing_ ## name(var_type *ptr)				\
 	else							\
 		return DO_NOTHING_RETURN_ ## which(ptr + 1);	\
 }								\
-static noinline __init int leaf_ ## name(unsigned long sp,	\
-					 bool fill,		\
-					 var_type *arg)		\
+static noinline int leaf_ ## name(unsigned long sp, bool fill,	\
+				  var_type *arg)		\
 {								\
 	char buf[VAR_BUFFER];					\
 	var_type var						\
@@ -341,6 +280,27 @@ struct test_user {
 	unsigned long four;
 };
 
+#define ALWAYS_PASS	WANT_SUCCESS
+#define ALWAYS_FAIL	XFAIL
+
+#ifdef CONFIG_INIT_STACK_NONE
+# define USER_PASS	XFAIL
+# define BYREF_PASS	XFAIL
+# define STRONG_PASS	XFAIL
+#elif defined(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER)
+# define USER_PASS	WANT_SUCCESS
+# define BYREF_PASS	XFAIL
+# define STRONG_PASS	XFAIL
+#elif defined(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF)
+# define USER_PASS	WANT_SUCCESS
+# define BYREF_PASS	WANT_SUCCESS
+# define STRONG_PASS	XFAIL
+#else
+# define USER_PASS	WANT_SUCCESS
+# define BYREF_PASS	WANT_SUCCESS
+# define STRONG_PASS	WANT_SUCCESS
+#endif
+
 #define DEFINE_SCALAR_TEST(name, init, xfail)			\
 		DEFINE_TEST(name ## _ ## init, name, SCALAR,	\
 			    init, xfail)
@@ -364,27 +324,26 @@ struct test_user {
 		DEFINE_STRUCT_TEST(trailing_hole, init, xfail);	\
 		DEFINE_STRUCT_TEST(packed, init, xfail)
 
-#define DEFINE_STRUCT_INITIALIZER_TESTS(base)			\
+#define DEFINE_STRUCT_INITIALIZER_TESTS(base, xfail)		\
 		DEFINE_STRUCT_TESTS(base ## _ ## partial,	\
-				    WANT_SUCCESS);		\
-		DEFINE_STRUCT_TESTS(base ## _ ## all,		\
-				    WANT_SUCCESS)
+				    xfail);			\
+		DEFINE_STRUCT_TESTS(base ## _ ## all, xfail)
 
 /* These should be fully initialized all the time! */
-DEFINE_SCALAR_TESTS(zero, WANT_SUCCESS);
-DEFINE_STRUCT_TESTS(zero, WANT_SUCCESS);
+DEFINE_SCALAR_TESTS(zero, ALWAYS_PASS);
+DEFINE_STRUCT_TESTS(zero, ALWAYS_PASS);
 /* Struct initializers: padding may be left uninitialized. */
-DEFINE_STRUCT_INITIALIZER_TESTS(static);
-DEFINE_STRUCT_INITIALIZER_TESTS(dynamic);
-DEFINE_STRUCT_INITIALIZER_TESTS(runtime);
-DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static);
-DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic);
-DEFINE_STRUCT_TESTS(assigned_copy, XFAIL);
+DEFINE_STRUCT_INITIALIZER_TESTS(static, STRONG_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(dynamic, STRONG_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(runtime, STRONG_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
+DEFINE_STRUCT_TESTS(assigned_copy, ALWAYS_FAIL);
 /* No initialization without compiler instrumentation. */
-DEFINE_SCALAR_TESTS(none, WANT_SUCCESS);
-DEFINE_STRUCT_TESTS(none, WANT_SUCCESS);
+DEFINE_SCALAR_TESTS(none, STRONG_PASS);
+DEFINE_STRUCT_TESTS(none, BYREF_PASS);
 /* Initialization of members with __user attribute. */
-DEFINE_TEST(user, struct test_user, STRUCT, none, WANT_SUCCESS);
+DEFINE_TEST(user, struct test_user, STRUCT, none, USER_PASS);
 
 /*
  * Check two uses through a variable declaration outside either path,
@@ -398,7 +357,7 @@ static int noinline __leaf_switch_none(int path, bool fill)
 		 * This is intentionally unreachable. To silence the
 		 * warning, build with -Wno-switch-unreachable
 		 */
-		uint64_t var;
+		uint64_t var[10];
 
 	case 1:
 		target_start = &var;
@@ -423,19 +382,19 @@ static int noinline __leaf_switch_none(int path, bool fill)
 		memcpy(check_buf, target_start, target_size);
 		break;
 	default:
-		var = 5;
-		return var & forced_mask;
+		var[1] = 5;
+		return var[1] & forced_mask;
 	}
 	return 0;
 }
 
-static noinline __init int leaf_switch_1_none(unsigned long sp, bool fill,
+static noinline int leaf_switch_1_none(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
 	return __leaf_switch_none(1, fill);
 }
 
-static noinline __init int leaf_switch_2_none(unsigned long sp, bool fill,
+static noinline int leaf_switch_2_none(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
 	return __leaf_switch_none(2, fill);
@@ -447,68 +406,56 @@ static noinline __init int leaf_switch_2_none(unsigned long sp, bool fill,
  * non-code areas (i.e. in a switch statement before the first "case").
  * https://bugs.llvm.org/show_bug.cgi?id=44916
  */
-DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, XFAIL);
-DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, XFAIL);
+DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, ALWAYS_FAIL);
+DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, ALWAYS_FAIL);
 
-static int __init test_stackinit_init(void)
-{
-	unsigned int failures = 0;
+#define KUNIT_test_scalars(init)			\
+		KUNIT_CASE(test_u8_ ## init),		\
+		KUNIT_CASE(test_u16_ ## init),		\
+		KUNIT_CASE(test_u32_ ## init),		\
+		KUNIT_CASE(test_u64_ ## init),		\
+		KUNIT_CASE(test_char_array_ ## init)
 
-#define test_scalars(init)	do {				\
-		failures += test_u8_ ## init ();		\
-		failures += test_u16_ ## init ();		\
-		failures += test_u32_ ## init ();		\
-		failures += test_u64_ ## init ();		\
-		failures += test_char_array_ ## init ();	\
-	} while (0)
+#define KUNIT_test_structs(init)			\
+		KUNIT_CASE(test_small_hole_ ## init),	\
+		KUNIT_CASE(test_big_hole_ ## init),	\
+		KUNIT_CASE(test_trailing_hole_ ## init),\
+		KUNIT_CASE(test_packed_ ## init)	\
 
-#define test_structs(init)	do {				\
-		failures += test_small_hole_ ## init ();	\
-		failures += test_big_hole_ ## init ();		\
-		failures += test_trailing_hole_ ## init ();	\
-		failures += test_packed_ ## init ();		\
-	} while (0)
-
+static struct kunit_case stackinit_test_cases[] = {
 	/* These are explicitly initialized and should always pass. */
-	test_scalars(zero);
-	test_structs(zero);
+	KUNIT_test_scalars(zero),
+	KUNIT_test_structs(zero),
 	/* Padding here appears to be accidentally always initialized? */
-	test_structs(dynamic_partial);
-	test_structs(assigned_dynamic_partial);
+	KUNIT_test_structs(dynamic_partial),
+	KUNIT_test_structs(assigned_dynamic_partial),
 	/* Padding initialization depends on compiler behaviors. */
-	test_structs(static_partial);
-	test_structs(static_all);
-	test_structs(dynamic_all);
-	test_structs(runtime_partial);
-	test_structs(runtime_all);
-	test_structs(assigned_static_partial);
-	test_structs(assigned_static_all);
-	test_structs(assigned_dynamic_all);
+	KUNIT_test_structs(static_partial),
+	KUNIT_test_structs(static_all),
+	KUNIT_test_structs(dynamic_all),
+	KUNIT_test_structs(runtime_partial),
+	KUNIT_test_structs(runtime_all),
+	KUNIT_test_structs(assigned_static_partial),
+	KUNIT_test_structs(assigned_static_all),
+	KUNIT_test_structs(assigned_dynamic_all),
 	/* Everything fails this since it effectively performs a memcpy(). */
-	test_structs(assigned_copy);
-
+	KUNIT_test_structs(assigned_copy),
 	/* STRUCTLEAK_BYREF_ALL should cover everything from here down. */
-	test_scalars(none);
-	failures += test_switch_1_none();
-	failures += test_switch_2_none();
-
+	KUNIT_test_scalars(none),
+	KUNIT_CASE(test_switch_1_none),
+	KUNIT_CASE(test_switch_2_none),
 	/* STRUCTLEAK_BYREF should cover from here down. */
-	test_structs(none);
-
+	KUNIT_test_structs(none),
 	/* STRUCTLEAK will only cover this. */
-	failures += test_user();
+	KUNIT_CASE(test_user),
+	{}
+};
 
-	if (failures == 0)
-		pr_info("all tests passed!\n");
-	else
-		pr_err("failures: %u\n", failures);
+static struct kunit_suite stackinit_test_suite = {
+	.name = "stackinit",
+	.test_cases = stackinit_test_cases,
+};
 
-	return failures ? -EINVAL : 0;
-}
-module_init(test_stackinit_init);
-
-static void __exit test_stackinit_exit(void)
-{ }
-module_exit(test_stackinit_exit);
+kunit_test_suites(&stackinit_test_suite);
 
 MODULE_LICENSE("GPL");
