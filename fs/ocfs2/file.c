@@ -270,7 +270,7 @@ int ocfs2_update_inode_atime(struct inode *inode,
 
 	/*
 	 * Don't use ocfs2_mark_inode_dirty() here as we don't always
-	 * have i_mutex to guard against concurrent changes to other
+	 * have i_rwsem to guard against concurrent changes to other
 	 * inode fields.
 	 */
 	inode->i_atime = current_time(inode);
@@ -1065,7 +1065,7 @@ static int ocfs2_extend_file(struct inode *inode,
 	/*
 	 * The alloc sem blocks people in read/write from reading our
 	 * allocation until we're done changing it. We depend on
-	 * i_mutex to block other extend/truncate calls while we're
+	 * i_rwsem to block other extend/truncate calls while we're
 	 * here.  We even have to hold it for sparse files because there
 	 * might be some tail zeroing.
 	 */
