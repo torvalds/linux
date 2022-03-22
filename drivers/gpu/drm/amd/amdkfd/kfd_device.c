@@ -531,7 +531,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
+	if (amdgpu_use_xgmi_p2p)
+		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
 	kfd->noretry = kfd->adev->gmc.noretry;
 
