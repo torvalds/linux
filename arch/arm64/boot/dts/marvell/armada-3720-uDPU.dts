@@ -153,15 +153,15 @@
 	scl-gpios = <&gpionb 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpionb 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
-	lm75@48 {
+	nct375@48 {
 		status = "okay";
-		compatible = "lm75";
+		compatible = "ti,tmp75c";
 		reg = <0x48>;
 	};
 
-	lm75@49 {
+	nct375@49 {
 		status = "okay";
-		compatible = "lm75";
+		compatible = "ti,tmp75c";
 		reg = <0x49>;
 	};
 };
