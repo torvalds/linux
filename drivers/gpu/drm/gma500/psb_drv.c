@@ -173,6 +173,8 @@ static void psb_driver_unload(struct drm_device *dev)
 		gma_backlight_exit(dev);
 	psb_modeset_cleanup(dev);
 
+	gma_irq_uninstall(dev);
+
 	if (dev_priv->ops->chip_teardown)
 		dev_priv->ops->chip_teardown(dev);
 
