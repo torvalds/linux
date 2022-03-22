@@ -2503,12 +2503,6 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		return ERR_PTR(ret);
 	}
 
-	/*
-	 * New block group is likely to be used soon. Try to activate it now.
-	 * Failure is OK for now.
-	 */
-	btrfs_zone_activate(cache);
-
 	ret = exclude_super_stripes(cache);
 	if (ret) {
 		/* We may have excluded something, so call this just in case */
@@ -3660,7 +3654,13 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 	struct btrfs_block_group *ret_bg;
 	bool wait_for_alloc = false;
 	bool should_alloc = false;
+	bool from_extent_allocation = false;
 	int ret = 0;
+
+	if (force == CHUNK_ALLOC_FORCE_FOR_EXTENT) {
+		from_extent_allocation = true;
+		force = CHUNK_ALLOC_FORCE;
+	}
 
 	/* Don't re-enter if we're already allocating a chunk */
 	if (trans->allocating_chunk)
@@ -3754,9 +3754,17 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 	ret_bg = do_chunk_alloc(trans, flags);
 	trans->allocating_chunk = false;
 
-	if (IS_ERR(ret_bg))
+	if (IS_ERR(ret_bg)) {
 		ret = PTR_ERR(ret_bg);
-	else
+	} else if (from_extent_allocation) {
+		/*
+		 * New block group is likely to be used soon. Try to activate
+		 * it now. Failure is OK for now.
+		 */
+		btrfs_zone_activate(ret_bg);
+	}
+
+	if (!ret)
 		btrfs_put_block_group(ret_bg);
 
 	spin_lock(&space_info->lock);
