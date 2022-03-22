@@ -1037,7 +1037,7 @@
 		};
 
 		ifc: ifc@2240000 {
-			compatible = "fsl,ifc", "simple-bus";
+			compatible = "fsl,ifc";
 			reg = <0x0 0x2240000 0x0 0x20000>;
 			interrupts = <0 21 0x4>; /* Level high type */
 			little-endian;
