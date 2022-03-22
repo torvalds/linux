@@ -1130,8 +1130,8 @@ static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
 		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
 }
 
-static bool intel_dp_hdmi_ycbcr420(struct intel_dp *intel_dp,
-				   const struct intel_crtc_state *crtc_state)
+static bool intel_dp_is_ycbcr420(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 		(crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444 &&
@@ -1142,7 +1142,7 @@ static bool intel_dp_hdmi_bpc_possible(struct intel_dp *intel_dp,
 				       const struct intel_crtc_state *crtc_state,
 				       int bpc)
 {
-	bool ycbcr420_output = intel_dp_hdmi_ycbcr420(intel_dp, crtc_state);
+	bool ycbcr420_output = intel_dp_is_ycbcr420(intel_dp, crtc_state);
 	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
 
 	return intel_hdmi_bpc_possible(crtc_state, bpc,
