@@ -1899,6 +1899,8 @@ enum netdev_ml_priv_type {
  *	@garp_port:	GARP
  *	@mrp_port:	MRP
  *
+ *	@dm_private:	Drop monitor private
+ *
  *	@dev:		Class/net/name entry
  *	@sysfs_groups:	Space for optional device, statistics and wireless
  *			sysfs groups
