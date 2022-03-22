@@ -514,7 +514,8 @@ void psb_modeset_init(struct drm_device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int i;
 
-	drm_mode_config_init(dev);
+	if (drmm_mode_config_init(dev))
+		return;
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -546,6 +547,5 @@ void psb_modeset_cleanup(struct drm_device *dev)
 	if (dev_priv->modeset) {
 		drm_kms_helper_poll_fini(dev);
 		psb_fbdev_fini(dev);
-		drm_mode_config_cleanup(dev);
 	}
 }
