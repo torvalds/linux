@@ -744,7 +744,6 @@ struct C2HEvent_Header {
 	unsigned int rsvd;
 };
 
-void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
 enum rtw_c2h_event {
@@ -781,7 +780,7 @@ enum rtw_c2h_event {
 #ifdef _RTW_MLME_EXT_C_
 
 static struct fwevent wlanevents[] = {
-	{0, rtw_dummy_event_callback},	/*0*/
+	{0, NULL},	/*0*/
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
@@ -795,7 +794,7 @@ static struct fwevent wlanevents[] = {
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},
 	{sizeof(struct stadel_event), &rtw_stadel_event_callback},
 	{0, NULL},
-	{0, rtw_dummy_event_callback},
+	{0, NULL},
 	{0, NULL},	/*15*/
 	{0, NULL},
 	{0, NULL},

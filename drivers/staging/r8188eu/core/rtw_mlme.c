@@ -747,10 +747,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 	rtw_os_xmit_schedule(adapter);
 }
 
-void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf)
-{
-}
-
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf)
 {
 }
