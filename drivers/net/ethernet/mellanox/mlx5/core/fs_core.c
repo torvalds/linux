@@ -605,6 +605,7 @@ static void del_hw_fte(struct fs_node *node)
 	fs_get_obj(ft, fg->node.parent);
 
 	trace_mlx5_fs_del_fte(fte);
+	WARN_ON(fte->dests_size);
 	dev = get_dev(&ft->node);
 	root = find_root(&ft->node);
 	if (node->active) {
