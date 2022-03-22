@@ -113,19 +113,19 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 {
 	struct damon_ctx *ctx = damon_new_ctx();
 	unsigned long ids[] = {1, 2, 3};
-	/* Each line represents one region in ``<target id> <start> <end>`` */
-	char * const valid_inputs[] = {"2 10 20\n 2   20 30\n2 35 45",
-		"2 10 20\n",
-		"2 10 20\n1 39 59\n1 70 134\n  2  20 25\n",
+	/* Each line represents one region in ``<target idx> <start> <end>`` */
+	char * const valid_inputs[] = {"1 10 20\n 1   20 30\n1 35 45",
+		"1 10 20\n",
+		"1 10 20\n0 39 59\n0 70 134\n  1  20 25\n",
 		""};
 	/* Reading the file again will show sorted, clean output */
-	char * const valid_expects[] = {"2 10 20\n2 20 30\n2 35 45\n",
-		"2 10 20\n",
-		"1 39 59\n1 70 134\n2 10 20\n2 20 25\n",
+	char * const valid_expects[] = {"1 10 20\n1 20 30\n1 35 45\n",
+		"1 10 20\n",
+		"0 39 59\n0 70 134\n1 10 20\n1 20 25\n",
 		""};
-	char * const invalid_inputs[] = {"4 10 20\n",	/* target not exists */
-		"2 10 20\n 2 14 26\n",		/* regions overlap */
-		"1 10 20\n2 30 40\n 1 5 8"};	/* not sorted by address */
+	char * const invalid_inputs[] = {"3 10 20\n",	/* target not exists */
+		"1 10 20\n 1 14 26\n",		/* regions overlap */
+		"0 10 20\n1 30 40\n 0 5 8"};	/* not sorted by address */
 	char *input, *expect;
 	int i, rc;
 	char buf[256];

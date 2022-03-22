@@ -440,18 +440,20 @@ static ssize_t sprint_init_regions(struct damon_ctx *c, char *buf, ssize_t len)
 {
 	struct damon_target *t;
 	struct damon_region *r;
+	int target_idx = 0;
 	int written = 0;
 	int rc;
 
 	damon_for_each_target(t, c) {
 		damon_for_each_region(r, t) {
 			rc = scnprintf(&buf[written], len - written,
-					"%lu %lu %lu\n",
-					t->id, r->ar.start, r->ar.end);
+					"%d %lu %lu\n",
+					target_idx, r->ar.start, r->ar.end);
 			if (!rc)
 				return -ENOMEM;
 			written += rc;
 		}
+		target_idx++;
 	}
 	return written;
 }
@@ -485,22 +487,19 @@ out:
 	return len;
 }
 
-static int add_init_region(struct damon_ctx *c,
-			 unsigned long target_id, struct damon_addr_range *ar)
+static int add_init_region(struct damon_ctx *c, int target_idx,
+		struct damon_addr_range *ar)
 {
 	struct damon_target *t;
 	struct damon_region *r, *prev;
-	unsigned long id;
+	unsigned long idx = 0;
 	int rc = -EINVAL;
 
 	if (ar->start >= ar->end)
 		return -EINVAL;
 
 	damon_for_each_target(t, c) {
-		id = t->id;
-		if (targetid_is_pid(c))
-			id = (unsigned long)pid_vnr((struct pid *)id);
-		if (id == target_id) {
+		if (idx++ == target_idx) {
 			r = damon_new_region(ar->start, ar->end);
 			if (!r)
 				return -ENOMEM;
@@ -523,7 +522,7 @@ static int set_init_regions(struct damon_ctx *c, const char *str, ssize_t len)
 	struct damon_target *t;
 	struct damon_region *r, *next;
 	int pos = 0, parsed, ret;
-	unsigned long target_id;
+	int target_idx;
 	struct damon_addr_range ar;
 	int err;
 
@@ -533,11 +532,11 @@ static int set_init_regions(struct damon_ctx *c, const char *str, ssize_t len)
 	}
 
 	while (pos < len) {
-		ret = sscanf(&str[pos], "%lu %lu %lu%n",
-				&target_id, &ar.start, &ar.end, &parsed);
+		ret = sscanf(&str[pos], "%d %lu %lu%n",
+				&target_idx, &ar.start, &ar.end, &parsed);
 		if (ret != 3)
 			break;
-		err = add_init_region(c, target_id, &ar);
+		err = add_init_region(c, target_idx, &ar);
 		if (err)
 			goto fail;
 		pos += parsed;
