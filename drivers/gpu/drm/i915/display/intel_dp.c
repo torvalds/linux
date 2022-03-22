@@ -1849,6 +1849,24 @@ intel_dp_drrs_compute_config(struct intel_connector *connector,
 		pipe_config->dp_m2_n2.data_m *= pipe_config->splitter.link_count;
 }
 
+static bool intel_dp_has_audio(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *crtc_state,
+			       const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	const struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+
+	if (!intel_dp_port_has_audio(i915, encoder->port))
+		return false;
+
+	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		return intel_dp->has_audio;
+	else
+		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
+}
+
 int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -1858,14 +1876,11 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	const struct drm_display_mode *fixed_mode;
-	enum port port = encoder->port;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	struct intel_digital_connector_state *intel_conn_state =
-		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_CONSTANT_N);
 	int ret = 0, output_bpp;
 
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
+	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && encoder->port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->output_format = intel_dp_output_format(&intel_connector->base,
@@ -1877,12 +1892,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			return ret;
 	}
 
-	if (!intel_dp_port_has_audio(dev_priv, port))
-		pipe_config->has_audio = false;
-	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		pipe_config->has_audio = intel_dp->has_audio;
-	else
-		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
+	pipe_config->has_audio = intel_dp_has_audio(encoder, pipe_config, conn_state);
 
 	fixed_mode = intel_panel_fixed_mode(intel_connector, adjusted_mode);
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
