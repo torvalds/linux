@@ -108,19 +108,23 @@ In such cases, users can explicitly set the initial monitoring target regions
 as they want, by writing proper values to the ``init_regions`` file.  Each line
 of the input should represent one region in below form.::
 
-    <target id> <start address> <end address>
+    <target idx> <start address> <end address>
 
-The ``target id`` should already in ``target_ids`` file, and the regions should
-be passed in address order.  For example, below commands will set a couple of
-address ranges, ``1-100`` and ``100-200`` as the initial monitoring target
-region of process 42, and another couple of address ranges, ``20-40`` and
-``50-100`` as that of process 4242.::
+The ``target idx`` should be the index of the target in ``target_ids`` file,
+starting from ``0``, and the regions should be passed in address order.  For
+example, below commands will set a couple of address ranges, ``1-100`` and
+``100-200`` as the initial monitoring target region of pid 42, which is the
+first one (index ``0``) in ``target_ids``, and another couple of address
+ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
+(index ``1``) in ``target_ids``.::
 
     # cd <debugfs>/damon
-    # echo "42   1       100
-            42   100     200
-            4242 20      40
-            4242 50      100" > init_regions
+    # cat target_ids
+    42 4242
+    # echo "0   1       100
+            0   100     200
+            1   20      40
+            1   50      100" > init_regions
 
 Note that this sets the initial monitoring target regions only.  In case of
 virtual memory monitoring, DAMON will automatically updates the boundary of the
