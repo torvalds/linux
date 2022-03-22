@@ -735,6 +735,7 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 			if (function > READ_ONCE(max_cpuid_80000000))
 				return entry;
 		}
+		break;
 
 	default:
 		break;
