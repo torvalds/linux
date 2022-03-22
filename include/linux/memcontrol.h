@@ -34,6 +34,7 @@ enum memcg_stat_item {
 	MEMCG_SOCK,
 	MEMCG_PERCPU_B,
 	MEMCG_VMALLOC,
+	MEMCG_KMEM,
 	MEMCG_NR_STAT,
 };
 
