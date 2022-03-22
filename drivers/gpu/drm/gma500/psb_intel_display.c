@@ -106,7 +106,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false;
 	bool is_lvds = false, is_tv = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	const struct gma_limit_t *limit;
 
@@ -116,7 +116,8 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
 		if (!connector->encoder
@@ -135,6 +136,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	refclk = 96000;
 
@@ -534,16 +536,19 @@ struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 
 int gma_connector_clones(struct drm_device *dev, int type_mask)
 {
-	int index_mask = 0;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
+	int index_mask = 0;
 	int entry = 0;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 		if (type_mask & (1 << gma_encoder->type))
 			index_mask |= (1 << entry);
 		entry++;
 	}
+	drm_connector_list_iter_end(&conn_iter);
+
 	return index_mask;
 }

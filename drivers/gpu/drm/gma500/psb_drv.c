@@ -236,10 +236,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
-	int ret = -ENOMEM;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
+	int ret = -ENOMEM;
 
 	/* initializing driver private data */
 
@@ -390,9 +391,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	psb_fbdev_init(dev);
 	drm_kms_helper_poll_init(dev);
 
-	/* Only add backlight support if we have LVDS output */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
+	/* Only add backlight support if we have LVDS or MIPI output */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		gma_encoder = gma_attached_encoder(connector);
 
 		switch (gma_encoder->type) {
@@ -402,6 +403,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (ret)
 		return ret;

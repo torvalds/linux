@@ -27,17 +27,21 @@
 bool gma_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *l_entry;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 
-	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->encoder && connector->encoder->crtc == crtc) {
 			struct gma_encoder *gma_encoder =
-						gma_attached_encoder(l_entry);
-			if (gma_encoder->type == type)
+						gma_attached_encoder(connector);
+			if (gma_encoder->type == type) {
+				drm_connector_list_iter_end(&conn_iter);
 				return true;
+			}
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return false;
 }
