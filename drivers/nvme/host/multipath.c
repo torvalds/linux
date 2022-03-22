@@ -5,10 +5,11 @@
 
 #include <linux/backing-dev.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 #include <trace/events/block.h>
 #include "nvme.h"
 
-static bool multipath = true;
+bool multipath = true;
 module_param(multipath, bool, 0444);
 MODULE_PARM_DESC(multipath,
 	"turn on native support for multiple controllers per subsystem");
@@ -77,28 +78,6 @@ void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 	list_for_each_entry(h, &subsys->nsheads, entry)
 		if (h->disk)
 			blk_freeze_queue_start(h->disk->queue);
-}
-
-/*
- * If multipathing is enabled we need to always use the subsystem instance
- * number for numbering our devices to avoid conflicts between subsystems that
- * have multiple controllers and thus use the multipath-aware subsystem node
- * and those that have a single controller and use the controller node
- * directly.
- */
-bool nvme_mpath_set_disk_name(struct nvme_ns *ns, char *disk_name, int *flags)
-{
-	if (!multipath)
-		return false;
-	if (!ns->head->disk) {
-		sprintf(disk_name, "nvme%dn%d", ns->ctrl->subsys->instance,
-			ns->head->instance);
-		return true;
-	}
-	sprintf(disk_name, "nvme%dc%dn%d", ns->ctrl->subsys->instance,
-		ns->ctrl->instance, ns->head->instance);
-	*flags = GENHD_FL_HIDDEN;
-	return true;
 }
 
 void nvme_failover_req(struct request *req)
@@ -386,8 +365,7 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 	} else {
 		dev_warn_ratelimited(dev, "no available path - failing I/O\n");
 
-		bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
+		bio_io_error(bio);
 	}
 
 	srcu_read_unlock(&head->srcu, srcu_idx);
@@ -898,7 +876,7 @@ int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	if (ana_log_size > ctrl->ana_log_size) {
 		nvme_mpath_stop(ctrl);
 		nvme_mpath_uninit(ctrl);
-		ctrl->ana_log_buf = kmalloc(ana_log_size, GFP_KERNEL);
+		ctrl->ana_log_buf = kvmalloc(ana_log_size, GFP_KERNEL);
 		if (!ctrl->ana_log_buf)
 			return -ENOMEM;
 	}
@@ -915,7 +893,7 @@ out_uninit:
 
 void nvme_mpath_uninit(struct nvme_ctrl *ctrl)
 {
-	kfree(ctrl->ana_log_buf);
+	kvfree(ctrl->ana_log_buf);
 	ctrl->ana_log_buf = NULL;
 	ctrl->ana_log_size = 0;
 }

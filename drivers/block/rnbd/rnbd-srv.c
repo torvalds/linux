@@ -558,7 +558,6 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
 		cpu_to_le32(rnbd_dev_get_discard_alignment(rnbd_dev));
 	rsp->secure_discard =
 		cpu_to_le16(rnbd_dev_get_secure_discard(rnbd_dev));
-	rsp->rotational = !blk_queue_nonrot(q);
 	rsp->cache_policy = 0;
 	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
 		rsp->cache_policy |= RNBD_WRITEBACK;
