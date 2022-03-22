@@ -2437,7 +2437,7 @@ static void task_numa_placement(struct task_struct *p)
 	}
 
 	/* Cannot migrate task to CPU-less node */
-	if (!node_state(max_nid, N_CPU)) {
+	if (max_nid != NUMA_NO_NODE && !node_state(max_nid, N_CPU)) {
 		int near_nid = max_nid;
 		int distance, near_distance = INT_MAX;
 
