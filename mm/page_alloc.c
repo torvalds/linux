@@ -2291,43 +2291,6 @@ static inline int check_new_page(struct page *page)
 	return 1;
 }
 
-#ifdef CONFIG_DEBUG_VM
-/*
- * With DEBUG_VM enabled, order-0 pages are checked for expected state when
- * being allocated from pcp lists. With debug_pagealloc also enabled, they are
- * also checked when pcp lists are refilled from the free lists.
- */
-static inline bool check_pcp_refill(struct page *page)
-{
-	if (debug_pagealloc_enabled_static())
-		return check_new_page(page);
-	else
-		return false;
-}
-
-static inline bool check_new_pcp(struct page *page)
-{
-	return check_new_page(page);
-}
-#else
-/*
- * With DEBUG_VM disabled, free order-0 pages are checked for expected state
- * when pcp lists are being refilled from the free lists. With debug_pagealloc
- * enabled, they are also checked when being allocated from the pcp lists.
- */
-static inline bool check_pcp_refill(struct page *page)
-{
-	return check_new_page(page);
-}
-static inline bool check_new_pcp(struct page *page)
-{
-	if (debug_pagealloc_enabled_static())
-		return check_new_page(page);
-	else
-		return false;
-}
-#endif /* CONFIG_DEBUG_VM */
-
 static bool check_new_pages(struct page *page, unsigned int order)
 {
 	int i;
@@ -2340,6 +2303,43 @@ static bool check_new_pages(struct page *page, unsigned int order)
 
 	return false;
 }
+
+#ifdef CONFIG_DEBUG_VM
+/*
+ * With DEBUG_VM enabled, order-0 pages are checked for expected state when
+ * being allocated from pcp lists. With debug_pagealloc also enabled, they are
+ * also checked when pcp lists are refilled from the free lists.
+ */
+static inline bool check_pcp_refill(struct page *page, unsigned int order)
+{
+	if (debug_pagealloc_enabled_static())
+		return check_new_pages(page, order);
+	else
+		return false;
+}
+
+static inline bool check_new_pcp(struct page *page, unsigned int order)
+{
+	return check_new_pages(page, order);
+}
+#else
+/*
+ * With DEBUG_VM disabled, free order-0 pages are checked for expected state
+ * when pcp lists are being refilled from the free lists. With debug_pagealloc
+ * enabled, they are also checked when being allocated from the pcp lists.
+ */
+static inline bool check_pcp_refill(struct page *page, unsigned int order)
+{
+	return check_new_pages(page, order);
+}
+static inline bool check_new_pcp(struct page *page, unsigned int order)
+{
+	if (debug_pagealloc_enabled_static())
+		return check_new_pages(page, order);
+	else
+		return false;
+}
+#endif /* CONFIG_DEBUG_VM */
 
 inline void post_alloc_hook(struct page *page, unsigned int order,
 				gfp_t gfp_flags)
@@ -2982,7 +2982,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 		if (unlikely(page == NULL))
 			break;
 
-		if (unlikely(check_pcp_refill(page)))
+		if (unlikely(check_pcp_refill(page, order)))
 			continue;
 
 		/*
@@ -3600,7 +3600,7 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
 		page = list_first_entry(list, struct page, lru);
 		list_del(&page->lru);
 		pcp->count -= 1 << order;
-	} while (check_new_pcp(page));
+	} while (check_new_pcp(page, order));
 
 	return page;
 }
