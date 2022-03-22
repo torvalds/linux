@@ -196,6 +196,41 @@
 		status = "disabled";
 	};
 
+	rockchip_system_monitor: rockchip-system-monitor {
+		compatible = "rockchip,system-monitor";
+
+		rockchip,thermal-zone = "soc-thermal";
+	};
+
+	thermal_zones: thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <20>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <2100>; /* milliwatts */
+
+			thermal-sensors = <&tsadc 0>;
+			trips {
+				threshold: trip-point-0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				soc_crit: soc-crit {
+					/* millicelsius */
+					temperature = <115000>;
+					/* millicelsius */
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -466,11 +501,12 @@
 	tsadc: tsadc@ff3c8000 {
 		compatible = "rockchip,rv1106-tsadc";
 		reg = <0xff3c8000 0x1000>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>;
-		clock-names = "tsadc", "apb_pclk";
-		assigned-clocks = <&cru CLK_TSADC>;
-		assigned-clock-rates = <2000000>;
+		clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>, <&cru CLK_TSADC_TSEN>;
+		clock-names = "tsadc", "apb_pclk", "tsen";
+		assigned-clocks = <&cru CLK_TSADC>, <&cru CLK_TSADC_TSEN>;
+		assigned-clock-rates = <1000000>, <12000000>;
 		resets = <&cru SRST_TSADC>, <&cru SRST_P_TSADC>;
 		reset-names = "tsadc", "tsadc-apb";
 		#thermal-sensor-cells = <1>;
