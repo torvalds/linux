@@ -68,6 +68,19 @@ struct load_info {
 };
 
 int mod_verify_sig(const void *mod, struct load_info *info);
+struct module *find_module_all(const char *name, size_t len, bool even_unformed);
+int cmp_name(const void *name, const void *sym);
+long module_get_offset(struct module *mod, unsigned int *size, Elf_Shdr *sechdr,
+		       unsigned int section);
+
+static inline unsigned long kernel_symbol_value(const struct kernel_symbol *sym)
+{
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+	return (unsigned long)offset_to_ptr(&sym->value_offset);
+#else
+	return sym->value;
+#endif
+}
 
 #ifdef CONFIG_LIVEPATCH
 int copy_module_elf(struct module *mod, struct load_info *info);
@@ -174,3 +187,19 @@ void kmemleak_load_module(const struct module *mod, const struct load_info *info
 static inline void kmemleak_load_module(const struct module *mod,
 					const struct load_info *info) { }
 #endif /* CONFIG_DEBUG_KMEMLEAK */
+
+#ifdef CONFIG_KALLSYMS
+void init_build_id(struct module *mod, const struct load_info *info);
+void layout_symtab(struct module *mod, struct load_info *info);
+void add_kallsyms(struct module *mod, const struct load_info *info);
+unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name);
+
+static inline bool sect_empty(const Elf_Shdr *sect)
+{
+	return !(sect->sh_flags & SHF_ALLOC) || sect->sh_size == 0;
+}
+#else /* !CONFIG_KALLSYMS */
+static inline void init_build_id(struct module *mod, const struct load_info *info) { }
+static inline void layout_symtab(struct module *mod, struct load_info *info) { }
+static inline void add_kallsyms(struct module *mod, const struct load_info *info) { }
+#endif /* CONFIG_KALLSYMS */
