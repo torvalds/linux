@@ -72,6 +72,7 @@ struct module *find_module_all(const char *name, size_t len, bool even_unformed)
 int cmp_name(const void *name, const void *sym);
 long module_get_offset(struct module *mod, unsigned int *size, Elf_Shdr *sechdr,
 		       unsigned int section);
+char *module_flags(struct module *mod, char *buf);
 
 static inline unsigned long kernel_symbol_value(const struct kernel_symbol *sym)
 {
