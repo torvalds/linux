@@ -2054,6 +2054,7 @@ source "arch/Kconfig"
 
 config RT_MUTEXES
 	bool
+	default y if PREEMPT_RT
 
 config BASE_SMALL
 	int
