@@ -627,6 +627,7 @@ static void test_gfpzero(struct kunit *test)
 			kunit_warn(test, "giving up ... cannot get same object back\n");
 			return;
 		}
+		cond_resched();
 	}
 
 	for (i = 0; i < size; i++)
