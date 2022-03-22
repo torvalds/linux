@@ -307,7 +307,9 @@ static int glink_rpm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glink);
 
-	return 0;
+	ret = qcom_glink_native_start(glink);
+
+	return ret;
 }
 
 static int glink_rpm_remove(struct platform_device *pdev)
