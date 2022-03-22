@@ -1217,16 +1217,6 @@ static pg_data_t __ref *hotadd_init_pgdat(int nid)
 	return pgdat;
 }
 
-static void rollback_node_hotadd(int nid)
-{
-	pg_data_t *pgdat = NODE_DATA(nid);
-
-	arch_refresh_nodedata(nid, NULL);
-	free_percpu(pgdat->per_cpu_nodestats);
-	arch_free_nodedata(pgdat);
-}
-
-
 /*
  * __try_online_node - online a node if offlined
  * @nid: the node ID

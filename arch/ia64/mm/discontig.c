@@ -615,11 +615,6 @@ pg_data_t * __init arch_alloc_nodedata(int nid)
 	return memblock_alloc(size, SMP_CACHE_BYTES);
 }
 
-void arch_free_nodedata(pg_data_t *pgdat)
-{
-	kfree(pgdat);
-}
-
 void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
 {
 	pgdat_list[update_node] = update_pgdat;
