@@ -79,6 +79,8 @@ static int text_area_cpu_down(unsigned int cpu)
 	return 0;
 }
 
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(poking_init_done);
+
 /*
  * Although BUG_ON() is rude, in this case it should only happen if ENOMEM, and
  * we judge it as being preferable to a kernel that will crash later when
@@ -89,6 +91,7 @@ void __init poking_init(void)
 	BUG_ON(!cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 		"powerpc/text_poke:online", text_area_cpu_up,
 		text_area_cpu_down));
+	static_branch_enable(&poking_init_done);
 }
 
 /*
@@ -171,7 +174,7 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	 * when text_poke_area is not ready, but we still need
 	 * to allow patching. We just do the plain old patching
 	 */
-	if (!this_cpu_read(text_poke_area))
+	if (!static_branch_likely(&poking_init_done))
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
