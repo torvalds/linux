@@ -1,23 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Aspeed I2C Global Controller.
+ * Aspeed I2C Global Controller Driver.
  *
  * Copyright (C) ASPEED Technology Inc.
  */
-#include <linux/clk.h>
-#include <linux/irq.h>
-#include <linux/irqchip.h>
-#include <linux/irqchip/chained_irq.h>
-#include <linux/irqdomain.h>
-#include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
-#include <linux/clk-provider.h>
+#include <linux/io.h>
 #include "aspeed-i2c-new-global.h"
 
 struct aspeed_i2c_new_global {
@@ -31,87 +24,27 @@ static const struct of_device_id aspeed_i2c_ic_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
 
-struct aspeed_i2c_base_clk {
-	const char	*name;
-	unsigned long	base_freq;
-};
-
-#define BASE_CLK_COUNT 4
-
+#define I2CCG_DIV_CTRL 0x6C411208
 /*
- * 100khz base clk1 table
- * base clk:3250000, val:0x3c, scl:100.8Khz, tbuf:4.96us
- * base clk:3200000, val:0x3d, scl: 99.2Khz, tbuf:5.04us
- * base clk:3125000, val:0x3e, scl: 97.6Khz, tbuf:5.12us
- * base clk:3000000, val:0x41, scl: 99.5Khz, tbuf:5.36us
+ * APB clk : 100Mhz
+ * div  : scl       : baseclk [APB/((div/2) + 1)] : tBuf [1/bclk * 16]
+ * I2CG10[31:24] base clk4 for i2c auto recovery timeout counter
+ * I2CG10[23:16] base clk3 for Standard-mode (100Khz) min tBuf 4.7us
+ * 0x3c : 100.8Khz  : 3.225Mhz                    : 4.96us
+ * 0x3d : 99.2Khz   : 3.174Mhz                    : 5.04us
+ * 0x3e : 97.65Khz  : 3.125Mhz                    : 5.12us
+ * 0x40 : 97.75Khz  : 3.03Mhz                     : 5.28us
+ * 0x41 : 99.5Khz   : 2.98Mhz                     : 5.36us (default)
+ * I2CG10[15:8] base clk2 for Fast-mode (400Khz) min tBuf 1.3us
+ * 0x12 : 400Khz    : 10Mhz                       : 1.6us
+ * I2CG10[7:0] base clk1 for Fast-mode Plus (1Mhz) min tBuf 0.5us
+ * 0x08 : 1Mhz      : 20Mhz                       : 0.8us
  */
-static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
-	/* name	target_freq */
-	{  "base_clk3",	20000000 },	/* 20M */
-	{  "base_clk2",	10000000 },	/* 10M */
-	{  "base_clk1",	3000000 },	/* 3M */
-	{  "base_clk0",	1000000 },	/* 1M */
-};
-
-static u32 aspeed_i2c_new_global_get_clk_divider(unsigned long base_clk, struct device_node *node)
-{
-	struct clk_hw_onecell_data *onecell;
-	unsigned long base_freq;
-	u32 clk_divider = 0;
-	struct clk_hw *hw;
-	int err;
-	int i;
-	int j;
-
-	onecell = kzalloc(sizeof(*onecell) +
-			  (BASE_CLK_COUNT * sizeof(struct clk_hw *)),
-			  GFP_KERNEL);
-	if (!onecell)
-		return 0;
-
-	onecell->num = BASE_CLK_COUNT;
-
-	for (j = 0; j < BASE_CLK_COUNT; j++) {
-		for (i = 0; i < 0xff; i++) {
-			/*
-			 * i maps to div:
-			 * 0x00: div 1
-			 * 0x01: div 1.5
-			 * 0x02: div 2
-			 * 0x03: div 2.5
-			 * 0x04: div 3
-			 * ...
-			 * 0xFE: div 128
-			 * 0xFF: div 128.5
-			 */
-			base_freq = base_clk * 2 / (2 + i);
-			if (base_freq <= i2c_base_clk[j].base_freq)
-				break;
-		}
-		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
-		if (IS_ERR(hw)) {
-			pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
-			break;
-		}
-		onecell->hws[j] = hw;
-		clk_divider |= (i << (8 * j));
-	}
-
-	err = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, onecell);
-	if (err)
-		pr_err("failed to add i2c base clk provider: %d\n", err);
-
-	return clk_divider;
-}
 
 static int aspeed_i2c_global_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	unsigned long	parent_clk_frequency;
 	struct aspeed_i2c_new_global *i2c_global;
-	struct clk *parent_clk;
 	struct resource *res;
-	u32 clk_divider;
 
 	i2c_global = devm_kzalloc(&pdev->dev, sizeof(*i2c_global), GFP_KERNEL);
 	if (IS_ERR(i2c_global))
@@ -123,25 +56,16 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 		return PTR_ERR(i2c_global->base);
 
 	i2c_global->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(i2c_global->rst)) {
-		dev_dbg(&pdev->dev,
-			"missing or invalid reset controller device tree entry");
-	} else {
-		/* SCU I2C Reset */
-		reset_control_assert(i2c_global->rst);
-		udelay(3);
-		reset_control_deassert(i2c_global->rst);
-	}
+	if (IS_ERR(i2c_global->rst))
+		return IS_ERR(i2c_global->rst);
 
-	/* ast2600 init */
+	reset_control_assert(i2c_global->rst);
+	udelay(3);
+	reset_control_deassert(i2c_global->rst);
+
 	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV,
 	       i2c_global->base + ASPEED_I2CG_CTRL);
-	parent_clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(parent_clk))
-		return PTR_ERR(parent_clk);
-	parent_clk_frequency = clk_get_rate(parent_clk);
-	clk_divider = aspeed_i2c_new_global_get_clk_divider(parent_clk_frequency, node);
-	writel(clk_divider, i2c_global->base + ASPEED_I2CG_CLK_DIV_CTRL);
+	writel(I2CCG_DIV_CTRL, i2c_global->base + ASPEED_I2CG_CLK_DIV_CTRL);
 
 	pr_info("i2c global registered\n");
 
