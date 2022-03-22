@@ -586,7 +586,8 @@ struct mcp251xfd_regs_status {
 enum mcp251xfd_model {
 	MCP251XFD_MODEL_MCP2517FD = 0x2517,
 	MCP251XFD_MODEL_MCP2518FD = 0x2518,
-	MCP251XFD_MODEL_MCP251XFD = 0xffff,	/* autodetect model */
+	MCP251XFD_MODEL_MCP251863 = 0x251863,
+	MCP251XFD_MODEL_MCP251XFD = 0xffffffff,	/* autodetect model */
 };
 
 struct mcp251xfd_devtype_data {
@@ -659,12 +660,13 @@ struct mcp251xfd_priv {
 static inline bool \
 mcp251xfd_is_##_model(const struct mcp251xfd_priv *priv) \
 { \
-	return priv->devtype_data.model == MCP251XFD_MODEL_MCP##_model##FD; \
+	return priv->devtype_data.model == MCP251XFD_MODEL_MCP##_model; \
 }
 
-MCP251XFD_IS(2517);
-MCP251XFD_IS(2518);
-MCP251XFD_IS(251X);
+MCP251XFD_IS(2517FD);
+MCP251XFD_IS(2518FD);
+MCP251XFD_IS(251863);
+MCP251XFD_IS(251XFD);
 
 static inline bool mcp251xfd_is_fd_mode(const struct mcp251xfd_priv *priv)
 {
