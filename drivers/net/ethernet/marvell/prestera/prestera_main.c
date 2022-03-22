@@ -1032,8 +1032,10 @@ static int __init prestera_module_init(void)
 		return -ENOMEM;
 
 	prestera_owq = alloc_ordered_workqueue("prestera_ordered", 0);
-	if (!prestera_owq)
+	if (!prestera_owq) {
+		destroy_workqueue(prestera_wq);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
