@@ -1239,11 +1239,20 @@ static bool same_function(struct instruction *insn1, struct instruction *insn2)
 	return insn1->func->pfunc == insn2->func->pfunc;
 }
 
-static bool is_first_func_insn(struct instruction *insn)
+static bool is_first_func_insn(struct objtool_file *file, struct instruction *insn)
 {
-	return insn->offset == insn->func->offset ||
-	       (insn->type == INSN_ENDBR &&
-		insn->offset == insn->func->offset + insn->len);
+	if (insn->offset == insn->func->offset)
+		return true;
+
+	if (ibt) {
+		struct instruction *prev = prev_insn_same_sym(file, insn);
+
+		if (prev && prev->type == INSN_ENDBR &&
+		    insn->offset == insn->func->offset + prev->len)
+			return true;
+	}
+
+	return false;
 }
 
 /*
@@ -1327,7 +1336,7 @@ static int add_jump_destinations(struct objtool_file *file)
 				insn->jump_dest->func->pfunc = insn->func;
 
 			} else if (!same_function(insn, insn->jump_dest) &&
-				   is_first_func_insn(insn->jump_dest)) {
+				   is_first_func_insn(file, insn->jump_dest)) {
 				/* internal sibling call (without reloc) */
 				add_call_dest(file, insn, insn->jump_dest->func, true);
 			}
