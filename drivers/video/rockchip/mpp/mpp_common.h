@@ -333,6 +333,7 @@ struct mpp_dev {
 	u32 msgs_cap;
 
 	int irq;
+	bool is_irq_startup;
 	u32 irq_status;
 
 	void __iomem *reg_base;

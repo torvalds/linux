@@ -74,6 +74,8 @@ struct mpp_iommu_info {
 	struct mpp_rk_iommu *iommu;
 	iommu_fault_handler_t hdl;
 	u32 av1d_iommu;
+	int irq;
+	int got_irq;
 };
 
 struct mpp_dma_session *

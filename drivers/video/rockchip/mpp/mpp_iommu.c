@@ -441,6 +441,8 @@ mpp_iommu_probe(struct device *dev)
 	info->pdev = pdev;
 	info->group = group;
 	info->domain = domain;
+	info->irq = platform_get_irq(pdev, 0);
+	info->got_irq = (info->irq < 0) ? false : true;
 
 	return info;
 

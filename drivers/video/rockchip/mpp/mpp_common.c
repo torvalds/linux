@@ -2077,7 +2077,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		goto failed;
 	}
 
-	pm_runtime_get_sync(dev);
 	/*
 	 * TODO: here or at the device itself, some device does not
 	 * have the iommu, maybe in the device is better.
@@ -2090,7 +2089,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	if (mpp->hw_ops->init) {
 		ret = mpp->hw_ops->init(mpp);
 		if (ret)
-			goto failed_init;
+			goto failed;
 	}
 	/* set iommu fault handler */
 	if (mpp->iommu_info)
@@ -2099,19 +2098,17 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 
 	/* read hardware id */
 	if (hw_info->reg_id >= 0) {
+		pm_runtime_get_sync(dev);
 		if (mpp->hw_ops->clk_on)
 			mpp->hw_ops->clk_on(mpp);
 
 		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
 		if (mpp->hw_ops->clk_off)
 			mpp->hw_ops->clk_off(mpp);
+		pm_runtime_put_sync(dev);
 	}
 
-	pm_runtime_put_sync(dev);
-
 	return ret;
-failed_init:
-	pm_runtime_put_sync(dev);
 failed:
 	mpp_detach_workqueue(mpp);
 	device_init_wakeup(dev, false);

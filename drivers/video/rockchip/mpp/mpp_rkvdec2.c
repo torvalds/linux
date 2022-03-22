@@ -960,6 +960,9 @@ static int rkvdec2_ccu_probe(struct platform_device *pdev)
 
 	device_init_wakeup(dev, true);
 	pm_runtime_enable(dev);
+	/* power domain autosuspend delay 2s */
+	pm_runtime_set_autosuspend_delay(dev, 2000);
+	pm_runtime_use_autosuspend(dev);
 
 	ccu->aclk_info.clk = devm_clk_get(dev, "aclk_ccu");
 	if (!ccu->aclk_info.clk)
@@ -1088,7 +1091,7 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 
 	mpp = &dec->mpp;
 	platform_set_drvdata(pdev, mpp);
-
+	mpp->is_irq_startup = false;
 	if (dev->of_node) {
 		struct device_node *np = pdev->dev.of_node;
 		const struct of_device_id *match;
@@ -1110,6 +1113,9 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 		dev_err(dev, "attach ccu failed\n");
 		return ret;
 	}
+	/* power domain autosuspend delay 2s */
+	pm_runtime_set_autosuspend_delay(dev, 2000);
+	pm_runtime_use_autosuspend(dev);
 
 	/* alloc rcb buffer */
 	rkvdec2_alloc_rcbbuf(pdev, dec);
@@ -1129,6 +1135,9 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 		dev_err(dev, "register interrupter runtime failed\n");
 		return -EINVAL;
 	}
+	/*make sure mpp->irq is startup then can be en/disable*/
+	mpp->is_irq_startup = true;
+
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
 	rkvdec2_procfs_init(mpp);
 
@@ -1264,6 +1273,68 @@ static void rkvdec2_shutdown(struct platform_device *pdev)
 		mpp_dev_shutdown(pdev);
 }
 
+static int __maybe_unused rkvdec2_runtime_suspend(struct device *dev)
+{
+	if (strstr(dev_name(dev), "ccu")) {
+		struct rkvdec2_ccu *ccu = dev_get_drvdata(dev);
+
+		mpp_clk_safe_disable(ccu->aclk_info.clk);
+	} else {
+		u32 val;
+		struct mpp_dev *mpp = dev_get_drvdata(dev);
+
+		/* soft reset */
+		mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
+		udelay(5);
+		val = mpp_read(mpp, RKVDEC_REG_INT_EN);
+		if (!(val & RKVDEC_SOFT_RESET_READY))
+			mpp_err("soft reset fail, int %08x\n", val);
+		mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+
+		if (mpp->is_irq_startup) {
+			/* disable core irq */
+			disable_irq(mpp->irq);
+			if (mpp->iommu_info && mpp->iommu_info->got_irq)
+				/* disable mmu irq */
+				disable_irq(mpp->iommu_info->irq);
+		}
+
+		if (mpp->hw_ops->clk_off)
+			mpp->hw_ops->clk_off(mpp);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused rkvdec2_runtime_resume(struct device *dev)
+{
+	if (strstr(dev_name(dev), "ccu")) {
+		struct rkvdec2_ccu *ccu = dev_get_drvdata(dev);
+
+		mpp_clk_safe_enable(ccu->aclk_info.clk);
+	} else {
+		struct mpp_dev *mpp = dev_get_drvdata(dev);
+
+		if (mpp->hw_ops->clk_on)
+			mpp->hw_ops->clk_on(mpp);
+		if (mpp->is_irq_startup) {
+			/* enable core irq */
+			enable_irq(mpp->irq);
+			/* enable mmu irq */
+			if (mpp->iommu_info && mpp->iommu_info->got_irq)
+				enable_irq(mpp->iommu_info->irq);
+		}
+
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops rkvdec2_pm_ops = {
+	SET_RUNTIME_PM_OPS(rkvdec2_runtime_suspend, rkvdec2_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
+
 struct platform_driver rockchip_rkvdec2_driver = {
 	.probe = rkvdec2_probe,
 	.remove = rkvdec2_remove,
@@ -1271,6 +1342,7 @@ struct platform_driver rockchip_rkvdec2_driver = {
 	.driver = {
 		.name = RKVDEC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_rkvdec2_dt_match),
+		.pm = &rkvdec2_pm_ops,
 	},
 };
 EXPORT_SYMBOL(rockchip_rkvdec2_driver);
