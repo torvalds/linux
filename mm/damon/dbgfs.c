@@ -358,11 +358,48 @@ static void dbgfs_put_pids(unsigned long *ids, int nr_ids)
 		put_pid((struct pid *)ids[i]);
 }
 
+/*
+ * dbgfs_set_targets() - Set monitoring targets.
+ * @ctx:	monitoring context
+ * @ids:	array of target ids
+ * @nr_ids:	number of entries in @ids
+ *
+ * This function should not be called while the kdamond is running.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+static int dbgfs_set_targets(struct damon_ctx *ctx,
+		      unsigned long *ids, ssize_t nr_ids)
+{
+	ssize_t i;
+	struct damon_target *t, *next;
+
+	damon_for_each_target_safe(t, next, ctx) {
+		if (targetid_is_pid(ctx))
+			put_pid((struct pid *)t->id);
+		damon_destroy_target(t);
+	}
+
+	for (i = 0; i < nr_ids; i++) {
+		t = damon_new_target(ids[i]);
+		if (!t) {
+			/* The caller should do cleanup of the ids itself */
+			damon_for_each_target_safe(t, next, ctx)
+				damon_destroy_target(t);
+			if (targetid_is_pid(ctx))
+				dbgfs_put_pids(ids, nr_ids);
+			return -ENOMEM;
+		}
+		damon_add_target(ctx, t);
+	}
+
+	return 0;
+}
+
 static ssize_t dbgfs_target_ids_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct damon_ctx *ctx = file->private_data;
-	struct damon_target *t, *next_t;
 	bool id_is_pid = true;
 	char *kbuf;
 	unsigned long *targets;
@@ -407,11 +444,7 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	}
 
 	/* remove previously set targets */
-	damon_for_each_target_safe(t, next_t, ctx) {
-		if (targetid_is_pid(ctx))
-			put_pid((struct pid *)t->id);
-		damon_destroy_target(t);
-	}
+	dbgfs_set_targets(ctx, NULL, 0);
 
 	/* Configure the context for the address space type */
 	if (id_is_pid)
@@ -419,13 +452,9 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	else
 		damon_pa_set_primitives(ctx);
 
-	ret = damon_set_targets(ctx, targets, nr_targets);
-	if (ret) {
-		if (id_is_pid)
-			dbgfs_put_pids(targets, nr_targets);
-	} else {
+	ret = dbgfs_set_targets(ctx, targets, nr_targets);
+	if (!ret)
 		ret = count;
-	}
 
 unlock_out:
 	mutex_unlock(&ctx->kdamond_lock);

@@ -86,23 +86,23 @@ static void damon_dbgfs_test_set_targets(struct kunit *test)
 	ctx->primitive.target_valid = NULL;
 	ctx->primitive.cleanup = NULL;
 
-	damon_set_targets(ctx, ids, 3);
+	dbgfs_set_targets(ctx, ids, 3);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "1 2 3\n");
 
-	damon_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, NULL, 0);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "\n");
 
-	damon_set_targets(ctx, (unsigned long []){1, 2}, 2);
+	dbgfs_set_targets(ctx, (unsigned long []){1, 2}, 2);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "1 2\n");
 
-	damon_set_targets(ctx, (unsigned long []){2}, 1);
+	dbgfs_set_targets(ctx, (unsigned long []){2}, 1);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "2\n");
 
-	damon_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, NULL, 0);
 	sprint_target_ids(ctx, buf, 64);
 	KUNIT_EXPECT_STREQ(test, (char *)buf, "\n");
 
@@ -130,7 +130,7 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 	int i, rc;
 	char buf[256];
 
-	damon_set_targets(ctx, ids, 3);
+	dbgfs_set_targets(ctx, ids, 3);
 
 	/* Put valid inputs and check the results */
 	for (i = 0; i < ARRAY_SIZE(valid_inputs); i++) {
@@ -158,7 +158,7 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 		KUNIT_EXPECT_STREQ(test, (char *)buf, "");
 	}
 
-	damon_set_targets(ctx, NULL, 0);
+	dbgfs_set_targets(ctx, NULL, 0);
 	damon_destroy_ctx(ctx);
 }
 
