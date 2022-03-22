@@ -525,7 +525,6 @@ void psb_intel_lvds_destroy(struct drm_connector *connector)
 	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 
 	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -782,7 +781,6 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 */
 out:
 	mutex_unlock(&dev->mode_config.mutex);
-	drm_connector_register(connector);
 	return;
 
 failed_find:

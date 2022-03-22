@@ -1866,7 +1866,6 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		intel_dp->panel_fixed_mode = NULL;
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1989,8 +1988,6 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-
-	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {

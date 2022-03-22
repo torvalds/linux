@@ -1542,7 +1542,6 @@ static int psb_intel_sdvo_get_modes(struct drm_connector *connector)
 
 static void psb_intel_sdvo_destroy(struct drm_connector *connector)
 {
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1932,7 +1931,6 @@ psb_intel_sdvo_connector_init(struct psb_intel_sdvo_connector *connector,
 	connector->base.restore = psb_intel_sdvo_restore;
 
 	gma_connector_attach_encoder(&connector->base, &encoder->base);
-	drm_connector_register(&connector->base.base);
 }
 
 static void
