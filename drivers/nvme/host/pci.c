@@ -44,7 +44,7 @@
 #define NVME_MAX_SEGS	127
 
 static int use_threaded_interrupts;
-module_param(use_threaded_interrupts, int, 0);
+module_param(use_threaded_interrupts, int, 0444);
 
 static bool use_cmb_sqes = true;
 module_param(use_cmb_sqes, bool, 0444);
