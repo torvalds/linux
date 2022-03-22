@@ -830,13 +830,31 @@ static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
 }
 
 static enum drm_mode_status
+intel_dp_tmds_clock_valid(struct intel_dp *intel_dp,
+			  int clock, int bpc, bool ycbcr420_output)
+{
+	int tmds_clock;
+
+	tmds_clock = intel_hdmi_tmds_clock(clock, bpc, ycbcr420_output);
+
+	if (intel_dp->dfp.min_tmds_clock &&
+	    tmds_clock < intel_dp->dfp.min_tmds_clock)
+		return MODE_CLOCK_LOW;
+
+	if (intel_dp->dfp.max_tmds_clock &&
+	    tmds_clock > intel_dp->dfp.max_tmds_clock)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status
 intel_dp_mode_valid_downstream(struct intel_connector *connector,
 			       const struct drm_display_mode *mode,
 			       int target_clock)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	const struct drm_display_info *info = &connector->base.display_info;
-	int tmds_clock;
 
 	/* If PCON supports FRL MODE, check FRL bandwidth constraints */
 	if (intel_dp->dfp.pcon_max_frl_bw) {
@@ -862,17 +880,8 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* Assume 8bpc for the DP++/HDMI/DVI TMDS clock check */
-	tmds_clock = intel_hdmi_tmds_clock(target_clock, 8,
-					   drm_mode_is_420_only(info, mode));
-
-	if (intel_dp->dfp.min_tmds_clock &&
-	    tmds_clock < intel_dp->dfp.min_tmds_clock)
-		return MODE_CLOCK_LOW;
-	if (intel_dp->dfp.max_tmds_clock &&
-	    tmds_clock > intel_dp->dfp.max_tmds_clock)
-		return MODE_CLOCK_HIGH;
-
-	return MODE_OK;
+	return intel_dp_tmds_clock_valid(intel_dp, target_clock, 8,
+					 drm_mode_is_420_only(info, mode));
 }
 
 static bool intel_dp_need_bigjoiner(struct intel_dp *intel_dp,
@@ -1115,32 +1124,16 @@ static bool intel_dp_hdmi_ycbcr420(struct intel_dp *intel_dp,
 		 intel_dp->dfp.ycbcr_444_to_420);
 }
 
-static bool intel_dp_hdmi_tmds_clock_valid(struct intel_dp *intel_dp,
-					   const struct intel_crtc_state *crtc_state, int bpc)
-{
-	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
-	int tmds_clock = intel_hdmi_tmds_clock(clock, bpc,
-					       intel_dp_hdmi_ycbcr420(intel_dp, crtc_state));
-
-	if (intel_dp->dfp.min_tmds_clock &&
-	    tmds_clock < intel_dp->dfp.min_tmds_clock)
-		return false;
-
-	if (intel_dp->dfp.max_tmds_clock &&
-	    tmds_clock > intel_dp->dfp.max_tmds_clock)
-		return false;
-
-	return true;
-}
-
 static bool intel_dp_hdmi_bpc_possible(struct intel_dp *intel_dp,
 				       const struct intel_crtc_state *crtc_state,
 				       int bpc)
 {
+	bool ycbcr420_output = intel_dp_hdmi_ycbcr420(intel_dp, crtc_state);
+	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
 
-	return intel_hdmi_bpc_possible(crtc_state, bpc, intel_dp->has_hdmi_sink,
-				       intel_dp_hdmi_ycbcr420(intel_dp, crtc_state)) &&
-		intel_dp_hdmi_tmds_clock_valid(intel_dp, crtc_state, bpc);
+	return intel_hdmi_bpc_possible(crtc_state, bpc,
+				       intel_dp->has_hdmi_sink, ycbcr420_output) &&
+		intel_dp_tmds_clock_valid(intel_dp, clock, bpc, ycbcr420_output) == MODE_OK;
 }
 
 static int intel_dp_max_bpp(struct intel_dp *intel_dp,
