@@ -226,6 +226,12 @@ time it will be set using the Dirty tracking mechanism described above.
 :Comment:	'raw' because hardware enabling/disabling must be atomic /wrt
 		migration.
 
+``kvm->mn_invalidate_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Type:          spinlock_t
+:Arch:          any
+:Protects:      mn_active_invalidate_count, mn_memslots_update_rcuwait
 
 ``kvm_arch::tsc_write_lock``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -254,6 +260,15 @@ time it will be set using the Dirty tracking mechanism described above.
 		MMIO/PIO address->device structure mapping (kvm->buses).
 		The srcu index can be stored in kvm_vcpu->srcu_idx per vcpu
 		if it is needed by multiple functions.
+
+``kvm->slots_arch_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^
+:Type:          mutex
+:Arch:          any (only needed on x86 though)
+:Protects:      any arch-specific fields of memslots that have to be modified
+                in a ``kvm->srcu`` read-side critical section.
+:Comment:       must be held before reading the pointer to the current memslots,
+                until after all changes to the memslots are complete
 
 ``wakeup_vcpus_on_cpu_lock``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
