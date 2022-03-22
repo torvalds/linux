@@ -438,13 +438,13 @@ prototypes::
 locking rules:
 
 ======================	=============	=================	=========
-ops			inode->i_lock	blocked_lock_lock	may block
+ops			   flc_lock  	blocked_lock_lock	may block
 ======================	=============	=================	=========
-lm_notify:		yes		yes			no
+lm_notify:		no      	yes			no
 lm_grant:		no		no			no
 lm_break:		yes		no			no
 lm_change		yes		no			no
-lm_breaker_owns_lease:	no		no			no
+lm_breaker_owns_lease:	yes     	no			no
 ======================	=============	=================	=========
 
 buffer_head
