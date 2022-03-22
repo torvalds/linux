@@ -688,6 +688,10 @@
 #define MSR_IA32_PERF_CTL		0x00000199
 #define INTEL_PERF_CTL_MASK		0xffff
 
+/* AMD Branch Sampling configuration */
+#define MSR_AMD_DBG_EXTN_CFG		0xc000010f
+#define MSR_AMD_SAMP_BR_FROM		0xc0010300
+
 #define MSR_IA32_MPERF			0x000000e7
 #define MSR_IA32_APERF			0x000000e8
 

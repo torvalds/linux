@@ -325,8 +325,16 @@ static inline bool amd_is_pair_event_code(struct hw_perf_event *hwc)
 	}
 }
 
+#define AMD_FAM19H_BRS_EVENT 0xc4 /* RETIRED_TAKEN_BRANCH_INSTRUCTIONS */
+static inline int amd_is_brs_event(struct perf_event *e)
+{
+	return (e->hw.config & AMD64_RAW_EVENT_MASK) == AMD_FAM19H_BRS_EVENT;
+}
+
 static int amd_core_hw_config(struct perf_event *event)
 {
+	int ret = 0;
+
 	if (event->attr.exclude_host && event->attr.exclude_guest)
 		/*
 		 * When HO == GO == 1 the hardware treats that as GO == HO == 0
@@ -343,7 +351,66 @@ static int amd_core_hw_config(struct perf_event *event)
 	if ((x86_pmu.flags & PMU_FL_PAIR) && amd_is_pair_event_code(&event->hw))
 		event->hw.flags |= PERF_X86_EVENT_PAIR;
 
-	return 0;
+	/*
+	 * if branch stack is requested
+	 */
+	if (has_branch_stack(event)) {
+		/*
+		 * Due to interrupt holding, BRS is not recommended in
+		 * counting mode.
+		 */
+		if (!is_sampling_event(event))
+			return -EINVAL;
+
+		/*
+		 * Due to the way BRS operates by holding the interrupt until
+		 * lbr_nr entries have been captured, it does not make sense
+		 * to allow sampling on BRS with an event that does not match
+		 * what BRS is capturing, i.e., retired taken branches.
+		 * Otherwise the correlation with the event's period is even
+		 * more loose:
+		 *
+		 * With retired taken branch:
+		 *   Effective P = P + 16 + X
+		 * With any other event:
+		 *   Effective P = P + Y + X
+		 *
+		 * Where X is the number of taken branches due to interrupt
+		 * skid. Skid is large.
+		 *
+		 * Where Y is the occurences of the event while BRS is
+		 * capturing the lbr_nr entries.
+		 *
+		 * By using retired taken branches, we limit the impact on the
+		 * Y variable. We know it cannot be more than the depth of
+		 * BRS.
+		 */
+		if (!amd_is_brs_event(event))
+			return -EINVAL;
+
+		/*
+		 * BRS implementation does not work with frequency mode
+		 * reprogramming of the period.
+		 */
+		if (event->attr.freq)
+			return -EINVAL;
+		/*
+		 * The kernel subtracts BRS depth from period, so it must
+		 * be big enough.
+		 */
+		if (event->attr.sample_period <= x86_pmu.lbr_nr)
+			return -EINVAL;
+
+		/*
+		 * Check if we can allow PERF_SAMPLE_BRANCH_STACK
+		 */
+		ret = amd_brs_setup_filter(event);
+
+		/* only set in case of success */
+		if (!ret)
+			event->hw.flags |= PERF_X86_EVENT_AMD_BRS;
+	}
+	return ret;
 }
 
 static inline int amd_is_nb_event(struct hw_perf_event *hwc)
@@ -366,7 +433,7 @@ static int amd_pmu_hw_config(struct perf_event *event)
 	if (event->attr.precise_ip && get_ibs_caps())
 		return -ENOENT;
 
-	if (has_branch_stack(event))
+	if (has_branch_stack(event) && !x86_pmu.lbr_nr)
 		return -EOPNOTSUPP;
 
 	ret = x86_pmu_hw_config(event);
@@ -555,6 +622,8 @@ static void amd_pmu_cpu_starting(int cpu)
 
 	cpuc->amd_nb->nb_id = nb_id;
 	cpuc->amd_nb->refcnt++;
+
+	amd_brs_reset();
 }
 
 static void amd_pmu_cpu_dead(int cpu)
@@ -610,6 +679,8 @@ static void amd_pmu_disable_all(void)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int idx;
 
+	amd_brs_disable_all();
+
 	x86_pmu_disable_all();
 
 	/*
@@ -634,6 +705,30 @@ static void amd_pmu_disable_all(void)
 	}
 }
 
+static void amd_pmu_enable_event(struct perf_event *event)
+{
+	x86_pmu_enable_event(event);
+}
+
+static void amd_pmu_enable_all(int added)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	struct hw_perf_event *hwc;
+	int idx;
+
+	amd_brs_enable_all();
+
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		hwc = &cpuc->events[idx]->hw;
+
+		/* only activate events which are marked as active */
+		if (!test_bit(idx, cpuc->active_mask))
+			continue;
+
+		amd_pmu_enable_event(cpuc->events[idx]);
+	}
+}
+
 static void amd_pmu_disable_event(struct perf_event *event)
 {
 	x86_pmu_disable_event(event);
@@ -649,6 +744,18 @@ static void amd_pmu_disable_event(struct perf_event *event)
 		return;
 
 	amd_pmu_wait_on_overflow(event->hw.idx);
+}
+
+static void amd_pmu_add_event(struct perf_event *event)
+{
+	if (needs_branch_stack(event))
+		amd_pmu_brs_add(event);
+}
+
+static void amd_pmu_del_event(struct perf_event *event)
+{
+	if (needs_branch_stack(event))
+		amd_pmu_brs_del(event);
 }
 
 /*
@@ -671,10 +778,30 @@ static void amd_pmu_disable_event(struct perf_event *event)
  */
 static int amd_pmu_handle_irq(struct pt_regs *regs)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int handled;
+	int pmu_enabled;
+
+	/*
+	 * Save the PMU state.
+	 * It needs to be restored when leaving the handler.
+	 */
+	pmu_enabled = cpuc->enabled;
+	cpuc->enabled = 0;
+
+	/* stop everything (includes BRS) */
+	amd_pmu_disable_all();
+
+	/* Drain BRS is in use (could be inactive) */
+	if (cpuc->lbr_users)
+		amd_brs_drain();
 
 	/* Process any counter overflows */
 	handled = x86_pmu_handle_irq(regs);
+
+	cpuc->enabled = pmu_enabled;
+	if (pmu_enabled)
+		amd_pmu_enable_all(0);
 
 	/*
 	 * If a counter was handled, record a timestamp such that un-handled
@@ -897,6 +1024,51 @@ static void amd_put_event_constraints_f17h(struct cpu_hw_events *cpuc,
 		--cpuc->n_pair;
 }
 
+/*
+ * Because of the way BRS operates with an inactive and active phases, and
+ * the link to one counter, it is not possible to have two events using BRS
+ * scheduled at the same time. There would be an issue with enforcing the
+ * period of each one and given that the BRS saturates, it would not be possible
+ * to guarantee correlated content for all events. Therefore, in situations
+ * where multiple events want to use BRS, the kernel enforces mutual exclusion.
+ * Exclusion is enforced by chosing only one counter for events using BRS.
+ * The event scheduling logic will then automatically multiplex the
+ * events and ensure that at most one event is actively using BRS.
+ *
+ * The BRS counter could be any counter, but there is no constraint on Fam19h,
+ * therefore all counters are equal and thus we pick the first one: PMC0
+ */
+static struct event_constraint amd_fam19h_brs_cntr0_constraint =
+	EVENT_CONSTRAINT(0, 0x1, AMD64_RAW_EVENT_MASK);
+
+static struct event_constraint amd_fam19h_brs_pair_cntr0_constraint =
+	__EVENT_CONSTRAINT(0, 0x1, AMD64_RAW_EVENT_MASK, 1, 0, PERF_X86_EVENT_PAIR);
+
+static struct event_constraint *
+amd_get_event_constraints_f19h(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	bool has_brs = has_amd_brs(hwc);
+
+	/*
+	 * In case BRS is used with an event requiring a counter pair,
+	 * the kernel allows it but only on counter 0 & 1 to enforce
+	 * multiplexing requiring to protect BRS in case of multiple
+	 * BRS users
+	 */
+	if (amd_is_pair_event_code(hwc)) {
+		return has_brs ? &amd_fam19h_brs_pair_cntr0_constraint
+			       : &pair_constraint;
+	}
+
+	if (has_brs)
+		return &amd_fam19h_brs_cntr0_constraint;
+
+	return &unconstrained;
+}
+
+
 static ssize_t amd_event_sysfs_show(char *page, u64 config)
 {
 	u64 event = (config & ARCH_PERFMON_EVENTSEL_EVENT) |
@@ -905,12 +1077,19 @@ static ssize_t amd_event_sysfs_show(char *page, u64 config)
 	return x86_event_sysfs_show(page, config, event);
 }
 
+static void amd_pmu_sched_task(struct perf_event_context *ctx,
+				 bool sched_in)
+{
+	if (sched_in && x86_pmu.lbr_nr)
+		amd_pmu_brs_sched_task(ctx, sched_in);
+}
+
 static __initconst const struct x86_pmu amd_pmu = {
 	.name			= "AMD",
 	.handle_irq		= amd_pmu_handle_irq,
 	.disable_all		= amd_pmu_disable_all,
-	.enable_all		= x86_pmu_enable_all,
-	.enable			= x86_pmu_enable_event,
+	.enable_all		= amd_pmu_enable_all,
+	.enable			= amd_pmu_enable_event,
 	.disable		= amd_pmu_disable_event,
 	.hw_config		= amd_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
@@ -920,6 +1099,8 @@ static __initconst const struct x86_pmu amd_pmu = {
 	.event_map		= amd_pmu_event_map,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
 	.num_counters		= AMD64_NUM_COUNTERS,
+	.add			= amd_pmu_add_event,
+	.del			= amd_pmu_del_event,
 	.cntval_bits		= 48,
 	.cntval_mask		= (1ULL << 48) - 1,
 	.apic			= 1,
@@ -936,6 +1117,37 @@ static __initconst const struct x86_pmu amd_pmu = {
 	.cpu_dead		= amd_pmu_cpu_dead,
 
 	.amd_nb_constraints	= 1,
+};
+
+static ssize_t branches_show(struct device *cdev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", x86_pmu.lbr_nr);
+}
+
+static DEVICE_ATTR_RO(branches);
+
+static struct attribute *amd_pmu_brs_attrs[] = {
+	&dev_attr_branches.attr,
+	NULL,
+};
+
+static umode_t
+amd_brs_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return x86_pmu.lbr_nr ? attr->mode : 0;
+}
+
+static struct attribute_group group_caps_amd_brs = {
+	.name  = "caps",
+	.attrs = amd_pmu_brs_attrs,
+	.is_visible = amd_brs_is_visible,
+};
+
+static const struct attribute_group *amd_attr_update[] = {
+	&group_caps_amd_brs,
+	NULL,
 };
 
 static int __init amd_core_pmu_init(void)
@@ -988,6 +1200,19 @@ static int __init amd_core_pmu_init(void)
 		x86_pmu.perf_ctr_pair_en = AMD_MERGE_EVENT_ENABLE;
 		x86_pmu.flags |= PMU_FL_PAIR;
 	}
+
+	/*
+	 * BRS requires special event constraints and flushing on ctxsw.
+	 */
+	if (boot_cpu_data.x86 >= 0x19 && !amd_brs_init()) {
+		x86_pmu.get_event_constraints = amd_get_event_constraints_f19h;
+		x86_pmu.sched_task = amd_pmu_sched_task;
+		/*
+		 * put_event_constraints callback same as Fam17h, set above
+		 */
+	}
+
+	x86_pmu.attr_update = amd_attr_update;
 
 	pr_cont("core perfctr, ");
 	return 0;
