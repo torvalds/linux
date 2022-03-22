@@ -177,30 +177,29 @@ static struct mlx5_profile profile[] = {
 	},
 };
 
-static int fw_initializing(struct mlx5_core_dev *dev)
-{
-	return ioread32be(&dev->iseg->initializing) >> 31;
-}
-
 static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 			u32 warn_time_mili)
 {
 	unsigned long warn = jiffies + msecs_to_jiffies(warn_time_mili);
 	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
+	u32 fw_initializing;
 	int err = 0;
 
-	while (fw_initializing(dev)) {
+	do {
+		fw_initializing = ioread32be(&dev->iseg->initializing);
+		if (!(fw_initializing >> 31))
+			break;
 		if (time_after(jiffies, end)) {
 			err = -EBUSY;
 			break;
 		}
 		if (warn_time_mili && time_after(jiffies, warn)) {
-			mlx5_core_warn(dev, "Waiting for FW initialization, timeout abort in %ds\n",
-				       jiffies_to_msecs(end - warn) / 1000);
+			mlx5_core_warn(dev, "Waiting for FW initialization, timeout abort in %ds (0x%x)\n",
+				       jiffies_to_msecs(end - warn) / 1000, fw_initializing);
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(mlx5_tout_ms(dev, FW_PRE_INIT_WAIT));
-	}
+	} while (true);
 
 	return err;
 }
