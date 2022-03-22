@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/perf_event.h>
+#include <linux/jump_label.h>
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -1225,6 +1226,9 @@ static int __init amd_core_pmu_init(void)
 		/*
 		 * put_event_constraints callback same as Fam17h, set above
 		 */
+
+		/* branch sampling must be stopped when entering low power */
+		amd_brs_lopwr_init();
 	}
 
 	x86_pmu.attr_update = amd_attr_update;
