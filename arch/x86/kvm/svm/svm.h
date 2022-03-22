@@ -236,6 +236,7 @@ struct vcpu_svm {
 	bool nrips_enabled                : 1;
 	bool tsc_scaling_enabled          : 1;
 	bool v_vmload_vmsave_enabled      : 1;
+	bool lbrv_enabled                 : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -485,6 +486,8 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 
 /* svm.c */
 #define MSR_INVALID				0xffffffffU
+
+#define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
 
 extern bool dump_invalid_vmcb;
 
