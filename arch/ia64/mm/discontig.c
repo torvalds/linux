@@ -608,17 +608,11 @@ void __init paging_init(void)
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-pg_data_t *arch_alloc_nodedata(int nid)
+pg_data_t * __init arch_alloc_nodedata(int nid)
 {
 	unsigned long size = compute_pernodesize(nid);
 
-	return kzalloc(size, GFP_KERNEL);
-}
-
-void arch_free_nodedata(pg_data_t *pgdat)
-{
-	kfree(pgdat);
+	return memblock_alloc(size, SMP_CACHE_BYTES);
 }
 
 void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
@@ -626,7 +620,6 @@ void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
 	pgdat_list[update_node] = update_pgdat;
 	scatter_node_data();
 }
-#endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,

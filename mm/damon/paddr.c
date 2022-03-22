@@ -14,7 +14,7 @@
 #include <linux/swap.h>
 
 #include "../internal.h"
-#include "prmtv-common.h"
+#include "ops-common.h"
 
 static bool __damon_pa_mkold(struct page *page, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
@@ -208,11 +208,6 @@ static unsigned int damon_pa_check_accesses(struct damon_ctx *ctx)
 	return max_nr_accesses;
 }
 
-bool damon_pa_target_valid(void *t)
-{
-	return true;
-}
-
 static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 		struct damon_target *t, struct damon_region *r,
 		struct damos *scheme)
@@ -261,15 +256,22 @@ static int damon_pa_scheme_score(struct damon_ctx *context,
 	return DAMOS_MAX_SCORE;
 }
 
-void damon_pa_set_primitives(struct damon_ctx *ctx)
+static int __init damon_pa_initcall(void)
 {
-	ctx->primitive.init = NULL;
-	ctx->primitive.update = NULL;
-	ctx->primitive.prepare_access_checks = damon_pa_prepare_access_checks;
-	ctx->primitive.check_accesses = damon_pa_check_accesses;
-	ctx->primitive.reset_aggregated = NULL;
-	ctx->primitive.target_valid = damon_pa_target_valid;
-	ctx->primitive.cleanup = NULL;
-	ctx->primitive.apply_scheme = damon_pa_apply_scheme;
-	ctx->primitive.get_scheme_score = damon_pa_scheme_score;
-}
+	struct damon_operations ops = {
+		.id = DAMON_OPS_PADDR,
+		.init = NULL,
+		.update = NULL,
+		.prepare_access_checks = damon_pa_prepare_access_checks,
+		.check_accesses = damon_pa_check_accesses,
+		.reset_aggregated = NULL,
+		.target_valid = NULL,
+		.cleanup = NULL,
+		.apply_scheme = damon_pa_apply_scheme,
+		.get_scheme_score = damon_pa_scheme_score,
+	};
+
+	return damon_register_ops(&ops);
+};
+
+subsys_initcall(damon_pa_initcall);
