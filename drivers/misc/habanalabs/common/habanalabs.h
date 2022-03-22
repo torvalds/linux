@@ -61,6 +61,7 @@
 
 #define HL_CPUCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
 #define HL_CPUCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_CPUCP_MON_DUMP_TIMEOUT_USEC	10000000 /* 10s */
 
 #define HL_FW_STATUS_POLL_INTERVAL_USEC		10000 /* 10ms */
 
@@ -1293,6 +1294,7 @@ struct fw_load_mgr {
  * @hw_queues_unlock: release H/W queues lock.
  * @get_pci_id: retrieve PCI ID.
  * @get_eeprom_data: retrieve EEPROM data from F/W.
+ * @get_monitor_dump: retrieve monitor registers dump from F/W.
  * @send_cpu_message: send message to F/W. If the message is timedout, the
  *                    driver will eventually reset the device. The timeout can
  *                    be determined by the calling function or it can be 0 and
@@ -1426,8 +1428,8 @@ struct hl_asic_funcs {
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
 	u32 (*get_pci_id)(struct hl_device *hdev);
-	int (*get_eeprom_data)(struct hl_device *hdev, void *data,
-				size_t max_size);
+	int (*get_eeprom_data)(struct hl_device *hdev, void *data, size_t max_size);
+	int (*get_monitor_dump)(struct hl_device *hdev, void *data);
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, u64 *result);
 	int (*pci_bars_map)(struct hl_device *hdev);
@@ -2021,7 +2023,8 @@ struct hl_debugfs_entry {
  * @userptr_spinlock: protects userptr_list.
  * @ctx_mem_hash_list: list of available contexts with MMU mappings.
  * @ctx_mem_hash_spinlock: protects cb_list.
- * @blob_desc: descriptor of blob
+ * @data_dma_blob_desc: data DMA descriptor of blob.
+ * @mon_dump_blob_desc: monitor dump descriptor of blob.
  * @state_dump: data of the system states in case of a bad cs.
  * @state_dump_sem: protects state_dump.
  * @addr: next address to read/write from/to in read/write32.
@@ -2050,7 +2053,8 @@ struct hl_dbg_device_entry {
 	spinlock_t			userptr_spinlock;
 	struct list_head		ctx_mem_hash_list;
 	spinlock_t			ctx_mem_hash_spinlock;
-	struct debugfs_blob_wrapper	blob_desc;
+	struct debugfs_blob_wrapper	data_dma_blob_desc;
+	struct debugfs_blob_wrapper	mon_dump_blob_desc;
 	char				*state_dump[HL_STATE_DUMP_HIST_LEN];
 	struct rw_semaphore		state_dump_sem;
 	u64				addr;
@@ -3183,6 +3187,7 @@ int hl_fw_cpucp_handshake(struct hl_device *hdev,
 				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
 				u32 boot_err1_reg);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
+int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data);
 int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,

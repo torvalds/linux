@@ -5680,6 +5680,11 @@ static void goya_get_valid_dram_page_orders(struct hl_info_dev_memalloc_page_siz
 	info->page_order_bitmask = 0;
 }
 
+static int goya_get_monitor_dump(struct hl_device *hdev, void *data)
+{
+	return -EOPNOTSUPP;
+}
+
 static int goya_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va,
 					u64 size)
 {
@@ -5739,6 +5744,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.hw_queues_unlock = goya_hw_queues_unlock,
 	.get_pci_id = goya_get_pci_id,
 	.get_eeprom_data = goya_get_eeprom_data,
+	.get_monitor_dump = goya_get_monitor_dump,
 	.send_cpu_message = goya_send_cpu_message,
 	.pci_bars_map = goya_pci_bars_map,
 	.init_iatu = goya_init_iatu,

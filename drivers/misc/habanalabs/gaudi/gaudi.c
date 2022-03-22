@@ -8500,6 +8500,16 @@ static int gaudi_get_eeprom_data(struct hl_device *hdev, void *data,
 	return hl_fw_get_eeprom_data(hdev, data, max_size);
 }
 
+static int gaudi_get_monitor_dump(struct hl_device *hdev, void *data)
+{
+	struct gaudi_device *gaudi = hdev->asic_specific;
+
+	if (!(gaudi->hw_cap_initialized & HW_CAP_CPU_Q))
+		return 0;
+
+	return hl_fw_get_monitor_dump(hdev, data);
+}
+
 /*
  * this function should be used only during initialization and/or after reset,
  * when there are no active users.
@@ -9459,6 +9469,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.hw_queues_unlock = gaudi_hw_queues_unlock,
 	.get_pci_id = gaudi_get_pci_id,
 	.get_eeprom_data = gaudi_get_eeprom_data,
+	.get_monitor_dump = gaudi_get_monitor_dump,
 	.send_cpu_message = gaudi_send_cpu_message,
 	.pci_bars_map = gaudi_pci_bars_map,
 	.init_iatu = gaudi_init_iatu,

@@ -821,6 +821,54 @@ out:
 	return rc;
 }
 
+int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
+{
+	struct cpucp_monitor_dump *mon_dump_cpu_addr;
+	dma_addr_t mon_dump_dma_addr;
+	struct cpucp_packet pkt = {};
+	size_t data_size;
+	__le32 *src_ptr;
+	u32 *dst_ptr;
+	u64 result;
+	int i, rc;
+
+	data_size = sizeof(struct cpucp_monitor_dump);
+	mon_dump_cpu_addr = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, data_size,
+										&mon_dump_dma_addr);
+	if (!mon_dump_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP monitor-dump packet\n");
+		return -ENOMEM;
+	}
+
+	memset(mon_dump_cpu_addr, 0, data_size);
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MONITOR_DUMP_GET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(mon_dump_dma_addr);
+	pkt.data_max_size = cpu_to_le32(data_size);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+							HL_CPUCP_MON_DUMP_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to handle CPU-CP monitor-dump packet, error %d\n", rc);
+		goto out;
+	}
+
+	/* result contains the actual size */
+	src_ptr = (__le32 *) mon_dump_cpu_addr;
+	dst_ptr = data;
+	for (i = 0; i < (data_size / sizeof(u32)); i++) {
+		*dst_ptr = le32_to_cpu(*src_ptr);
+		src_ptr++;
+		dst_ptr++;
+	}
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
+
+	return rc;
+}
+
 int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters)
 {

@@ -829,23 +829,67 @@ static ssize_t hl_dma_size_write(struct file *f, const char __user *buf,
 	}
 
 	/* Free the previous allocation, if there was any */
-	entry->blob_desc.size = 0;
-	vfree(entry->blob_desc.data);
+	entry->data_dma_blob_desc.size = 0;
+	vfree(entry->data_dma_blob_desc.data);
 
-	entry->blob_desc.data = vmalloc(size);
-	if (!entry->blob_desc.data)
+	entry->data_dma_blob_desc.data = vmalloc(size);
+	if (!entry->data_dma_blob_desc.data)
 		return -ENOMEM;
 
 	rc = hdev->asic_funcs->debugfs_read_dma(hdev, addr, size,
-						entry->blob_desc.data);
+						entry->data_dma_blob_desc.data);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to DMA from 0x%010llx\n", addr);
-		vfree(entry->blob_desc.data);
-		entry->blob_desc.data = NULL;
+		vfree(entry->data_dma_blob_desc.data);
+		entry->data_dma_blob_desc.data = NULL;
 		return -EIO;
 	}
 
-	entry->blob_desc.size = size;
+	entry->data_dma_blob_desc.size = size;
+
+	return count;
+}
+
+static ssize_t hl_monitor_dump_trigger(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u32 size, trig;
+	ssize_t rc;
+
+	if (hdev->reset_info.in_reset) {
+		dev_warn_ratelimited(hdev->dev, "Can't dump monitors during reset\n");
+		return 0;
+	}
+	rc = kstrtouint_from_user(buf, count, 10, &trig);
+	if (rc)
+		return rc;
+
+	if (trig != 1) {
+		dev_err(hdev->dev, "Must write 1 to trigger monitor dump\n");
+		return -EINVAL;
+	}
+
+	size = sizeof(struct cpucp_monitor_dump);
+
+	/* Free the previous allocation, if there was any */
+	entry->mon_dump_blob_desc.size = 0;
+	vfree(entry->mon_dump_blob_desc.data);
+
+	entry->mon_dump_blob_desc.data = vmalloc(size);
+	if (!entry->mon_dump_blob_desc.data)
+		return -ENOMEM;
+
+	rc = hdev->asic_funcs->get_monitor_dump(hdev, entry->mon_dump_blob_desc.data);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to dump monitors\n");
+		vfree(entry->mon_dump_blob_desc.data);
+		entry->mon_dump_blob_desc.data = NULL;
+		return -EIO;
+	}
+
+	entry->mon_dump_blob_desc.size = size;
 
 	return count;
 }
@@ -1235,6 +1279,11 @@ static const struct file_operations hl_dma_size_fops = {
 	.write = hl_dma_size_write
 };
 
+static const struct file_operations hl_monitor_dump_fops = {
+	.owner = THIS_MODULE,
+	.write = hl_monitor_dump_trigger
+};
+
 static const struct file_operations hl_i2c_data_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_i2c_data_read,
@@ -1350,8 +1399,10 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	if (!dev_entry->entry_arr)
 		return;
 
-	dev_entry->blob_desc.size = 0;
-	dev_entry->blob_desc.data = NULL;
+	dev_entry->data_dma_blob_desc.size = 0;
+	dev_entry->data_dma_blob_desc.data = NULL;
+	dev_entry->mon_dump_blob_desc.size = 0;
+	dev_entry->mon_dump_blob_desc.data = NULL;
 
 	INIT_LIST_HEAD(&dev_entry->file_list);
 	INIT_LIST_HEAD(&dev_entry->cb_list);
@@ -1470,7 +1521,18 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	debugfs_create_blob("data_dma",
 				0400,
 				dev_entry->root,
-				&dev_entry->blob_desc);
+				&dev_entry->data_dma_blob_desc);
+
+	debugfs_create_file("monitor_dump_trig",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_monitor_dump_fops);
+
+	debugfs_create_blob("monitor_dump",
+				0400,
+				dev_entry->root,
+				&dev_entry->mon_dump_blob_desc);
 
 	debugfs_create_x8("skip_reset_on_timeout",
 				0644,
@@ -1509,7 +1571,8 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 
 	mutex_destroy(&entry->file_mutex);
 
-	vfree(entry->blob_desc.data);
+	vfree(entry->data_dma_blob_desc.data);
+	vfree(entry->mon_dump_blob_desc.data);
 
 	for (i = 0; i < ARRAY_SIZE(entry->state_dump); ++i)
 		vfree(entry->state_dump[i]);

@@ -389,6 +389,14 @@ enum pq_init_status {
  *
  * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
  *       Packet to perform engine core ASID configuration
+ *
+ * CPUCP_PACKET_MONITOR_DUMP_GET -
+ *       Get monitors registers dump from the CpuCP kernel.
+ *       The CPU will put the registers dump in the a buffer allocated by the driver
+ *       which address is passed via the CpuCp packet. In addition, the host's driver
+ *       passes the max size it allows the CpuCP to write to the structure, to prevent
+ *       data corruption in case of mismatched driver/FW versions.
+ *       Relevant only to Gaudi.
  */
 
 enum cpucp_packet_id {
@@ -439,6 +447,11 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_POWER_SET,			/* internal */
 	CPUCP_PACKET_RESERVED,			/* not used */
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
+	CPUCP_PACKET_RESERVED2,			/* not used */
+	CPUCP_PACKET_RESERVED3,			/* not used */
+	CPUCP_PACKET_RESERVED4,			/* not used */
+	CPUCP_PACKET_RESERVED5,			/* not used */
+	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -887,6 +900,31 @@ struct cpucp_hbm_row_replaced_rows_info {
 	__le16 num_replaced_rows;
 	__u8 pad[6];
 	struct cpucp_hbm_row_info replaced_rows[CPUCP_HBM_ROW_REPLACE_MAX];
+};
+
+/*
+ * struct dcore_monitor_regs_data - DCORE monitor regs data.
+ * the structure follows sync manager block layout. relevant only to Gaudi.
+ * @mon_pay_addrl: array of payload address low bits.
+ * @mon_pay_addrh: array of payload address high bits.
+ * @mon_pay_data: array of payload data.
+ * @mon_arm: array of monitor arm.
+ * @mon_status: array of monitor status.
+ */
+struct dcore_monitor_regs_data {
+	__le32 mon_pay_addrl[512];
+	__le32 mon_pay_addrh[512];
+	__le32 mon_pay_data[512];
+	__le32 mon_arm[512];
+	__le32 mon_status[512];
+};
+
+/* contains SM data for each SYNC_MNGR (relevant only to Gaudi) */
+struct cpucp_monitor_dump {
+	struct dcore_monitor_regs_data sync_mngr_w_s;
+	struct dcore_monitor_regs_data sync_mngr_e_s;
+	struct dcore_monitor_regs_data sync_mngr_w_n;
+	struct dcore_monitor_regs_data sync_mngr_e_n;
 };
 
 #endif /* CPUCP_IF_H */
