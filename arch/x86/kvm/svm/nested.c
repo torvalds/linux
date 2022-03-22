@@ -668,6 +668,29 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	if (!nested_vmcb_needs_vls_intercept(svm))
 		vmcb02->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
 
+	if (kvm_pause_in_guest(svm->vcpu.kvm)) {
+		/* use guest values since host doesn't use them */
+		vmcb02->control.pause_filter_count =
+				svm->pause_filter_enabled ?
+				svm->nested.ctl.pause_filter_count : 0;
+
+		vmcb02->control.pause_filter_thresh =
+				svm->pause_threshold_enabled ?
+				svm->nested.ctl.pause_filter_thresh : 0;
+
+	} else if (!vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_PAUSE)) {
+		/* use host values when guest doesn't use them */
+		vmcb02->control.pause_filter_count = vmcb01->control.pause_filter_count;
+		vmcb02->control.pause_filter_thresh = vmcb01->control.pause_filter_thresh;
+	} else {
+		/*
+		 * Intercept every PAUSE otherwise and
+		 * ignore both host and guest values
+		 */
+		vmcb02->control.pause_filter_count = 0;
+		vmcb02->control.pause_filter_thresh = 0;
+	}
+
 	nested_svm_transition_tlb_flush(vcpu);
 
 	/* Enter Guest-Mode */
@@ -927,6 +950,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->control.tlb_ctl           = svm->nested.ctl.tlb_ctl;
 	vmcb12->control.event_inj         = svm->nested.ctl.event_inj;
 	vmcb12->control.event_inj_err     = svm->nested.ctl.event_inj_err;
+
+	if (!kvm_pause_in_guest(vcpu->kvm) && vmcb02->control.pause_filter_count)
+		vmcb01->control.pause_filter_count = vmcb02->control.pause_filter_count;
 
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 

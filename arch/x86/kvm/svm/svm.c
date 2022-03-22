@@ -908,6 +908,9 @@ static void grow_ple_window(struct kvm_vcpu *vcpu)
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	int old = control->pause_filter_count;
 
+	if (kvm_pause_in_guest(vcpu->kvm) || !old)
+		return;
+
 	control->pause_filter_count = __grow_ple_window(old,
 							pause_filter_count,
 							pause_filter_count_grow,
@@ -925,6 +928,9 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	int old = control->pause_filter_count;
+
+	if (kvm_pause_in_guest(vcpu->kvm) || !old)
+		return;
 
 	control->pause_filter_count =
 				__shrink_ple_window(old,
@@ -2982,7 +2988,6 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu)
 static int pause_interception(struct kvm_vcpu *vcpu)
 {
 	bool in_kernel;
-
 	/*
 	 * CPL is not made available for an SEV-ES guest, therefore
 	 * vcpu->arch.preempted_in_kernel can never be true.  Just
@@ -2990,8 +2995,7 @@ static int pause_interception(struct kvm_vcpu *vcpu)
 	 */
 	in_kernel = !sev_es_guest(vcpu->kvm) && svm_get_cpl(vcpu) == 0;
 
-	if (!kvm_pause_in_guest(vcpu->kvm))
-		grow_ple_window(vcpu);
+	grow_ple_window(vcpu);
 
 	kvm_vcpu_on_spin(vcpu, in_kernel);
 	return kvm_skip_emulated_instruction(vcpu);
@@ -4018,6 +4022,12 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 
 	svm->v_vmload_vmsave_enabled = vls && guest_cpuid_has(vcpu, X86_FEATURE_V_VMSAVE_VMLOAD);
 
+	svm->pause_filter_enabled = kvm_cpu_cap_has(X86_FEATURE_PAUSEFILTER) &&
+			guest_cpuid_has(vcpu, X86_FEATURE_PAUSEFILTER);
+
+	svm->pause_threshold_enabled = kvm_cpu_cap_has(X86_FEATURE_PFTHRESHOLD) &&
+			guest_cpuid_has(vcpu, X86_FEATURE_PFTHRESHOLD);
+
 	svm_recalc_instruction_intercepts(vcpu, svm);
 
 	/* For sev guests, the memory encryption bit is not reserved in CR3.  */
@@ -4770,6 +4780,12 @@ static __init void svm_set_cpu_caps(void)
 			kvm_cpu_cap_set(X86_FEATURE_V_VMSAVE_VMLOAD);
 		if (lbrv)
 			kvm_cpu_cap_set(X86_FEATURE_LBRV);
+
+		if (boot_cpu_has(X86_FEATURE_PAUSEFILTER))
+			kvm_cpu_cap_set(X86_FEATURE_PAUSEFILTER);
+
+		if (boot_cpu_has(X86_FEATURE_PFTHRESHOLD))
+			kvm_cpu_cap_set(X86_FEATURE_PFTHRESHOLD);
 
 		/* Nested VM can receive #VMEXIT instead of triggering #GP */
 		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);
