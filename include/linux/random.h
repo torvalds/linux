@@ -48,7 +48,7 @@ extern int unregister_random_ready_notifier(struct notifier_block *nb);
 extern size_t __must_check get_random_bytes_arch(void *buf, size_t nbytes);
 
 #ifndef MODULE
-extern const struct file_operations random_fops;
+extern const struct file_operations random_fops, urandom_fops;
 #endif
 
 u32 get_random_u32(void);
