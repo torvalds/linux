@@ -1350,7 +1350,6 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	bool is_thp = false;
 	struct page *page;
 	struct page *page2;
-	int swapwrite = current->flags & PF_SWAPWRITE;
 	int rc, nr_subpages;
 	LIST_HEAD(ret_pages);
 	LIST_HEAD(thp_split_pages);
@@ -1358,9 +1357,6 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	bool no_subpage_counting = false;
 
 	trace_mm_migrate_pages_start(mode, reason);
-
-	if (!swapwrite)
-		current->flags |= PF_SWAPWRITE;
 
 thp_subpage_migration:
 	for (pass = 0; pass < 10 && (retry || thp_retry); pass++) {
@@ -1515,9 +1511,6 @@ out:
 	count_vm_events(THP_MIGRATION_SPLIT, nr_thp_split);
 	trace_mm_migrate_pages(nr_succeeded, nr_failed_pages, nr_thp_succeeded,
 			       nr_thp_failed, nr_thp_split, mode, reason);
-
-	if (!swapwrite)
-		current->flags &= ~PF_SWAPWRITE;
 
 	if (ret_succeeded)
 		*ret_succeeded = nr_succeeded;
