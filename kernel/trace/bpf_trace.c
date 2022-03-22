@@ -2254,15 +2254,13 @@ static void bpf_kprobe_multi_cookie_swap(void *a, void *b, int size, const void 
 	const struct bpf_kprobe_multi_link *link = priv;
 	unsigned long *addr_a = a, *addr_b = b;
 	u64 *cookie_a, *cookie_b;
-	unsigned long tmp1;
-	u64 tmp2;
 
 	cookie_a = link->cookies + (addr_a - link->addrs);
 	cookie_b = link->cookies + (addr_b - link->addrs);
 
 	/* swap addr_a/addr_b and cookie_a/cookie_b values */
-	tmp1 = *addr_a; *addr_a = *addr_b; *addr_b = tmp1;
-	tmp2 = *cookie_a; *cookie_a = *cookie_b; *cookie_b = tmp2;
+	swap(*addr_a, *addr_b);
+	swap(*cookie_a, *cookie_b);
 }
 
 static int __bpf_kprobe_multi_cookie_cmp(const void *a, const void *b)
