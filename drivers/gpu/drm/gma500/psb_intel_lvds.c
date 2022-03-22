@@ -521,12 +521,13 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
  */
 void psb_intel_lvds_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 
 	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 int psb_intel_lvds_set_property(struct drm_connector *connector,

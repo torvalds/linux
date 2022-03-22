@@ -1857,6 +1857,7 @@ done:
 static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = gma_encoder->dev_priv;
 
@@ -1867,7 +1868,7 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 	}
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {

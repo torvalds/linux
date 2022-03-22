@@ -1542,8 +1542,10 @@ static int psb_intel_sdvo_get_modes(struct drm_connector *connector)
 
 static void psb_intel_sdvo_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
+
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static bool psb_intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
