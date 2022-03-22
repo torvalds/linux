@@ -107,7 +107,7 @@ int isolate_movable_page(struct page *page, isolate_mode_t mode)
 
 	/* Driver shouldn't use PG_isolated bit of page->flags */
 	WARN_ON_ONCE(PageIsolated(page));
-	__SetPageIsolated(page);
+	SetPageIsolated(page);
 	unlock_page(page);
 
 	return 0;
@@ -126,7 +126,7 @@ static void putback_movable_page(struct page *page)
 
 	mapping = page_mapping(page);
 	mapping->a_ops->putback_page(page);
-	__ClearPageIsolated(page);
+	ClearPageIsolated(page);
 }
 
 /*
@@ -159,7 +159,7 @@ void putback_movable_pages(struct list_head *l)
 			if (PageMovable(page))
 				putback_movable_page(page);
 			else
-				__ClearPageIsolated(page);
+				ClearPageIsolated(page);
 			unlock_page(page);
 			put_page(page);
 		} else {
@@ -883,7 +883,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		VM_BUG_ON_PAGE(!PageIsolated(page), page);
 		if (!PageMovable(page)) {
 			rc = MIGRATEPAGE_SUCCESS;
-			__ClearPageIsolated(page);
+			ClearPageIsolated(page);
 			goto out;
 		}
 
@@ -905,7 +905,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 			 * We clear PG_movable under page_lock so any compactor
 			 * cannot try to migrate this page.
 			 */
-			__ClearPageIsolated(page);
+			ClearPageIsolated(page);
 		}
 
 		/*
@@ -1091,7 +1091,7 @@ static int unmap_and_move(new_page_t get_new_page,
 		if (unlikely(__PageMovable(page))) {
 			lock_page(page);
 			if (!PageMovable(page))
-				__ClearPageIsolated(page);
+				ClearPageIsolated(page);
 			unlock_page(page);
 		}
 		goto out;
