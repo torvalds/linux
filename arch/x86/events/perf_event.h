@@ -1218,6 +1218,8 @@ static inline bool fixed_counter_disabled(int i, struct pmu *pmu)
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
+
+#ifdef CONFIG_PERF_EVENTS_AMD_BRS
 int amd_brs_init(void);
 void amd_brs_disable(void);
 void amd_brs_enable(void);
@@ -1252,17 +1254,6 @@ static inline void amd_pmu_brs_del(struct perf_event *event)
 
 void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in);
 
-/*
- * check if BRS is activated on the CPU
- * active defined as it has non-zero users and DBG_EXT_CFG.BRSEN=1
- */
-static inline bool amd_brs_active(void)
-{
-	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-
-	return cpuc->brs_active;
-}
-
 static inline s64 amd_brs_adjust_period(s64 period)
 {
 	if (period > x86_pmu.lbr_nr)
@@ -1270,6 +1261,44 @@ static inline s64 amd_brs_adjust_period(s64 period)
 
 	return period;
 }
+#else
+static inline int amd_brs_init(void)
+{
+	return 0;
+}
+static inline void amd_brs_disable(void) {}
+static inline void amd_brs_enable(void) {}
+static inline void amd_brs_drain(void) {}
+static inline void amd_brs_lopwr_init(void) {}
+static inline void amd_brs_disable_all(void) {}
+static inline int amd_brs_setup_filter(struct perf_event *event)
+{
+	return 0;
+}
+static inline void amd_brs_reset(void) {}
+
+static inline void amd_pmu_brs_add(struct perf_event *event)
+{
+}
+
+static inline void amd_pmu_brs_del(struct perf_event *event)
+{
+}
+
+static inline void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+}
+
+static inline s64 amd_brs_adjust_period(s64 period)
+{
+	return period;
+}
+
+static inline void amd_brs_enable_all(void)
+{
+}
+
+#endif
 
 #else /* CONFIG_CPU_SUP_AMD */
 
