@@ -111,24 +111,56 @@ static int dsa_slave_schedule_standalone_work(struct net_device *dev,
 static int dsa_slave_sync_uc(struct net_device *dev,
 			     const unsigned char *addr)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	dev_uc_add(master, addr);
+
+	if (!dsa_switch_supports_uc_filtering(dp->ds))
+		return 0;
+
 	return dsa_slave_schedule_standalone_work(dev, DSA_UC_ADD, addr, 0);
 }
 
 static int dsa_slave_unsync_uc(struct net_device *dev,
 			       const unsigned char *addr)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	dev_uc_del(master, addr);
+
+	if (!dsa_switch_supports_uc_filtering(dp->ds))
+		return 0;
+
 	return dsa_slave_schedule_standalone_work(dev, DSA_UC_DEL, addr, 0);
 }
 
 static int dsa_slave_sync_mc(struct net_device *dev,
 			     const unsigned char *addr)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	dev_mc_add(master, addr);
+
+	if (!dsa_switch_supports_mc_filtering(dp->ds))
+		return 0;
+
 	return dsa_slave_schedule_standalone_work(dev, DSA_MC_ADD, addr, 0);
 }
 
 static int dsa_slave_unsync_mc(struct net_device *dev,
 			       const unsigned char *addr)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	dev_mc_del(master, addr);
+
+	if (!dsa_switch_supports_mc_filtering(dp->ds))
+		return 0;
+
 	return dsa_slave_schedule_standalone_work(dev, DSA_MC_DEL, addr, 0);
 }
 
@@ -283,16 +315,8 @@ static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 
 static void dsa_slave_set_rx_mode(struct net_device *dev)
 {
-	struct net_device *master = dsa_slave_to_master(dev);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
-	struct dsa_switch *ds = dp->ds;
-
-	dev_mc_sync(master, dev);
-	dev_uc_sync(master, dev);
-	if (dsa_switch_supports_mc_filtering(ds))
-		__dev_mc_sync(dev, dsa_slave_sync_mc, dsa_slave_unsync_mc);
-	if (dsa_switch_supports_uc_filtering(ds))
-		__dev_uc_sync(dev, dsa_slave_sync_uc, dsa_slave_unsync_uc);
+	__dev_mc_sync(dev, dsa_slave_sync_mc, dsa_slave_unsync_mc);
+	__dev_uc_sync(dev, dsa_slave_sync_uc, dsa_slave_unsync_uc);
 }
 
 static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
