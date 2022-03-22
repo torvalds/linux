@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/thermal.h>
@@ -30,6 +31,7 @@
 
 struct hwmon_device {
 	const char *name;
+	const char *label;
 	struct device dev;
 	const struct hwmon_chip_info *chip;
 	struct list_head tzdata;
@@ -71,17 +73,29 @@ name_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(name);
 
+static ssize_t
+label_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->label);
+}
+static DEVICE_ATTR_RO(label);
+
 static struct attribute *hwmon_dev_attrs[] = {
 	&dev_attr_name.attr,
+	&dev_attr_label.attr,
 	NULL
 };
 
-static umode_t hwmon_dev_name_is_visible(struct kobject *kobj,
+static umode_t hwmon_dev_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
+	struct hwmon_device *hdev = to_hwmon_device(dev);
 
-	if (to_hwmon_device(dev)->name == NULL)
+	if (attr == &dev_attr_name.attr && hdev->name == NULL)
+		return 0;
+
+	if (attr == &dev_attr_label.attr && hdev->label == NULL)
 		return 0;
 
 	return attr->mode;
@@ -89,7 +103,7 @@ static umode_t hwmon_dev_name_is_visible(struct kobject *kobj,
 
 static const struct attribute_group hwmon_dev_attr_group = {
 	.attrs		= hwmon_dev_attrs,
-	.is_visible	= hwmon_dev_name_is_visible,
+	.is_visible	= hwmon_dev_attr_is_visible,
 };
 
 static const struct attribute_group *hwmon_dev_attr_groups[] = {
@@ -117,6 +131,7 @@ static void hwmon_dev_release(struct device *dev)
 	if (hwdev->group.attrs)
 		hwmon_free_attrs(hwdev->group.attrs);
 	kfree(hwdev->groups);
+	kfree(hwdev->label);
 	kfree(hwdev);
 }
 
@@ -589,6 +604,7 @@ static const char * const hwmon_pwm_attr_templates[] = {
 	[hwmon_pwm_enable] = "pwm%d_enable",
 	[hwmon_pwm_mode] = "pwm%d_mode",
 	[hwmon_pwm_freq] = "pwm%d_freq",
+	[hwmon_pwm_auto_channels_temp] = "pwm%d_auto_channels_temp",
 };
 
 static const char * const hwmon_intrusion_attr_templates[] = {
@@ -625,7 +641,9 @@ static const int __templates_size[] = {
 int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel)
 {
+	char event[MAX_SYSFS_ATTR_NAME_LENGTH + 5];
 	char sattr[MAX_SYSFS_ATTR_NAME_LENGTH];
+	char *envp[] = { event, NULL };
 	const char * const *templates;
 	const char *template;
 	int base;
@@ -641,8 +659,9 @@ int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 	base = hwmon_attr_base(type);
 
 	scnprintf(sattr, MAX_SYSFS_ATTR_NAME_LENGTH, template, base + channel);
+	scnprintf(event, sizeof(event), "NAME=%s", sattr);
 	sysfs_notify(&dev->kobj, NULL, sattr);
-	kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 
 	if (type == hwmon_temp)
 		hwmon_thermal_notify(dev, channel);
@@ -735,6 +754,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 			const struct attribute_group **groups)
 {
 	struct hwmon_device *hwdev;
+	const char *label;
 	struct device *hdev;
 	int i, err, id;
 
@@ -788,6 +808,18 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 		hdev->groups = hwdev->groups;
 	} else {
 		hdev->groups = groups;
+	}
+
+	if (dev && device_property_present(dev, "label")) {
+		err = device_property_read_string(dev, "label", &label);
+		if (err < 0)
+			goto free_hwmon;
+
+		hwdev->label = kstrdup(label, GFP_KERNEL);
+		if (hwdev->label == NULL) {
+			err = -ENOMEM;
+			goto free_hwmon;
+		}
 	}
 
 	hwdev->name = name;

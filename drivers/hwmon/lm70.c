@@ -34,6 +34,7 @@
 #define LM70_CHIP_LM71		2	/* NS LM71 */
 #define LM70_CHIP_LM74		3	/* NS LM74 */
 #define LM70_CHIP_TMP122	4	/* TI TMP122/TMP124 */
+#define LM70_CHIP_TMP125	5	/* TI TMP125 */
 
 struct lm70 {
 	struct spi_device *spi;
@@ -87,6 +88,12 @@ static ssize_t temp1_input_show(struct device *dev,
 	 * LM71:
 	 * 14 bits of 2's complement data, discard LSB 2 bits,
 	 * resolution 0.0312 degrees celsius.
+	 *
+	 * TMP125:
+	 * MSB/D15 is a leading zero. D14 is the sign-bit. This is
+	 * followed by 9 temperature bits (D13..D5) in 2's complement
+	 * data format with a resolution of 0.25 degrees celsius per unit.
+	 * LSB 5 bits (D4..D0) share the same value as D5 and get discarded.
 	 */
 	switch (p_lm70->chip) {
 	case LM70_CHIP_LM70:
@@ -101,6 +108,10 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	case LM70_CHIP_LM71:
 		val = ((int)raw / 4) * 3125 / 100;
+		break;
+
+	case LM70_CHIP_TMP125:
+		val = (sign_extend32(raw, 14) / 32) * 250;
 		break;
 	}
 
@@ -134,6 +145,10 @@ static const struct of_device_id lm70_of_ids[] = {
 	{
 		.compatible = "ti,tmp122",
 		.data = (void *) LM70_CHIP_TMP122,
+	},
+	{
+		.compatible = "ti,tmp125",
+		.data = (void *) LM70_CHIP_TMP125,
 	},
 	{
 		.compatible = "ti,lm71",
@@ -184,6 +199,7 @@ static const struct spi_device_id lm70_ids[] = {
 	{ "lm70",   LM70_CHIP_LM70 },
 	{ "tmp121", LM70_CHIP_TMP121 },
 	{ "tmp122", LM70_CHIP_TMP122 },
+	{ "tmp125", LM70_CHIP_TMP125 },
 	{ "lm71",   LM70_CHIP_LM71 },
 	{ "lm74",   LM70_CHIP_LM74 },
 	{ },
