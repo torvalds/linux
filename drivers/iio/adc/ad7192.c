@@ -58,7 +58,8 @@
 /* Mode Register Bit Designations (AD7192_REG_MODE) */
 #define AD7192_MODE_SEL(x)	(((x) & 0x7) << 21) /* Operation Mode Select */
 #define AD7192_MODE_SEL_MASK	(0x7 << 21) /* Operation Mode Select Mask */
-#define AD7192_MODE_DAT_STA	BIT(20) /* Status Register transmission */
+#define AD7192_MODE_STA(x)	(((x) & 0x1) << 20) /* Status Register transmission */
+#define AD7192_MODE_STA_MASK	BIT(20) /* Status Register transmission Mask */
 #define AD7192_MODE_CLKSRC(x)	(((x) & 0x3) << 18) /* Clock Source Select */
 #define AD7192_MODE_SINC3	BIT(15) /* SINC3 Filter Select */
 #define AD7192_MODE_ACX		BIT(14) /* AC excitation enable(AD7195 only)*/
@@ -288,12 +289,51 @@ static int ad7192_set_mode(struct ad_sigma_delta *sd,
 	return ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, st->mode);
 }
 
+static int ad7192_append_status(struct ad_sigma_delta *sd, bool append)
+{
+	struct ad7192_state *st = ad_sigma_delta_to_ad7192(sd);
+	unsigned int mode = st->mode;
+	int ret;
+
+	mode &= ~AD7192_MODE_STA_MASK;
+	mode |= AD7192_MODE_STA(append);
+
+	ret = ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, mode);
+	if (ret < 0)
+		return ret;
+
+	st->mode = mode;
+
+	return 0;
+}
+
+static int ad7192_disable_all(struct ad_sigma_delta *sd)
+{
+	struct ad7192_state *st = ad_sigma_delta_to_ad7192(sd);
+	u32 conf = st->conf;
+	int ret;
+
+	conf &= ~AD7192_CONF_CHAN_MASK;
+
+	ret = ad_sd_write_reg(&st->sd, AD7192_REG_CONF, 3, conf);
+	if (ret < 0)
+		return ret;
+
+	st->conf = conf;
+
+	return 0;
+}
+
 static const struct ad_sigma_delta_info ad7192_sigma_delta_info = {
 	.set_channel = ad7192_set_channel,
+	.append_status = ad7192_append_status,
+	.disable_all = ad7192_disable_all,
 	.set_mode = ad7192_set_mode,
 	.has_registers = true,
 	.addr_shift = 3,
 	.read_mask = BIT(6),
+	.status_ch_mask = GENMASK(3, 0),
+	.num_slots = 4,
 	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
