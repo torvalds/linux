@@ -669,11 +669,32 @@ static const struct attribute_group ad7124_attrs_group = {
 	.attrs = ad7124_attributes,
 };
 
+static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
+				   const unsigned long *scan_mask)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	bool bit_set;
+	int ret;
+	int i;
+
+	for (i = 0; i < st->num_channels; i++) {
+		bit_set = test_bit(i, scan_mask);
+		ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i),
+					    AD7124_CHANNEL_EN_MSK,
+					    AD7124_CHANNEL_EN(bit_set),
+					    2);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 static const struct iio_info ad7124_info = {
 	.read_raw = ad7124_read_raw,
 	.write_raw = ad7124_write_raw,
 	.debugfs_reg_access = &ad7124_reg_access,
 	.validate_trigger = ad_sd_validate_trigger,
+	.update_scan_mode = ad7124_update_scan_mode,
 	.attrs = &ad7124_attrs_group,
 };
 
