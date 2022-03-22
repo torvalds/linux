@@ -653,7 +653,7 @@ static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
  * Functions for the target validity check and cleanup
  */
 
-bool damon_va_target_valid(void *target)
+static bool damon_va_target_valid(void *target)
 {
 	struct damon_target *t = target;
 	struct task_struct *task;
@@ -737,19 +737,6 @@ static int damon_va_scheme_score(struct damon_ctx *context,
 	}
 
 	return DAMOS_MAX_SCORE;
-}
-
-void damon_va_set_operations(struct damon_ctx *ctx)
-{
-	ctx->ops.init = damon_va_init;
-	ctx->ops.update = damon_va_update;
-	ctx->ops.prepare_access_checks = damon_va_prepare_access_checks;
-	ctx->ops.check_accesses = damon_va_check_accesses;
-	ctx->ops.reset_aggregated = NULL;
-	ctx->ops.target_valid = damon_va_target_valid;
-	ctx->ops.cleanup = NULL;
-	ctx->ops.apply_scheme = damon_va_apply_scheme;
-	ctx->ops.get_scheme_score = damon_va_scheme_score;
 }
 
 static int __init damon_va_initcall(void)
