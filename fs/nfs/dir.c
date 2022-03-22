@@ -381,23 +381,28 @@ static void nfs_readdir_page_unlock_and_put(struct page *page)
 	put_page(page);
 }
 
-static struct page *nfs_readdir_page_get_locked(struct address_space *mapping,
-						u64 last_cookie,
-						u64 change_attr)
+static void nfs_readdir_page_init_and_validate(struct page *page, u64 cookie,
+					       u64 change_attr)
 {
-	pgoff_t index = nfs_readdir_page_cookie_hash(last_cookie);
+	if (PageUptodate(page)) {
+		if (nfs_readdir_page_validate(page, cookie, change_attr))
+			return;
+		nfs_readdir_clear_array(page);
+	}
+	nfs_readdir_page_init_array(page, cookie, change_attr);
+	SetPageUptodate(page);
+}
+
+static struct page *nfs_readdir_page_get_locked(struct address_space *mapping,
+						u64 cookie, u64 change_attr)
+{
+	pgoff_t index = nfs_readdir_page_cookie_hash(cookie);
 	struct page *page;
 
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return NULL;
-	if (PageUptodate(page)) {
-		if (nfs_readdir_page_validate(page, last_cookie, change_attr))
-			return page;
-		nfs_readdir_clear_array(page);
-	}
-	nfs_readdir_page_init_array(page, last_cookie, change_attr);
-	SetPageUptodate(page);
+	nfs_readdir_page_init_and_validate(page, cookie, change_attr);
 	return page;
 }
 
@@ -435,11 +440,13 @@ static void nfs_readdir_page_set_eof(struct page *page)
 static struct page *nfs_readdir_page_get_next(struct address_space *mapping,
 					      u64 cookie, u64 change_attr)
 {
+	pgoff_t index = nfs_readdir_page_cookie_hash(cookie);
 	struct page *page;
 
-	page = nfs_readdir_page_get_locked(mapping, cookie, change_attr);
+	page = grab_cache_page_nowait(mapping, index);
 	if (!page)
 		return NULL;
+	nfs_readdir_page_init_and_validate(page, cookie, change_attr);
 	if (nfs_readdir_page_last_cookie(page) != cookie)
 		nfs_readdir_page_reinit_array(page, cookie, change_attr);
 	return page;
