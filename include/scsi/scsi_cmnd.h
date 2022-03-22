@@ -13,7 +13,6 @@
 #include <scsi/scsi_request.h>
 
 struct Scsi_Host;
-struct scsi_driver;
 
 /*
  * MAX_COMMAND_SIZE is:
@@ -157,14 +156,6 @@ static inline struct request *scsi_cmd_to_rq(struct scsi_cmnd *scmd)
 static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 {
 	return cmd + 1;
-}
-
-/* make sure not to use it with passthrough commands */
-static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
-{
-	struct request *rq = scsi_cmd_to_rq(cmd);
-
-	return *(struct scsi_driver **)rq->q->disk->private_data;
 }
 
 void scsi_done(struct scsi_cmnd *cmd);

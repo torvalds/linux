@@ -250,7 +250,8 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	INIT_LIST_HEAD(&io->stripe_list);
 	atomic_set(&io->pending_stripes, 0);
 	atomic_set(&io->pending_flushes, 0);
-	bio_init(&io->bio, io->biovec, PPL_IO_INLINE_BVECS);
+	bio_init(&io->bio, log->rdev->bdev, io->biovec, PPL_IO_INLINE_BVECS,
+		 REQ_OP_WRITE | REQ_FUA);
 
 	pplhdr = page_address(io->header_page);
 	clear_page(pplhdr);
@@ -416,12 +417,10 @@ static void ppl_log_endio(struct bio *bio)
 
 static void ppl_submit_iounit_bio(struct ppl_io_unit *io, struct bio *bio)
 {
-	char b[BDEVNAME_SIZE];
-
-	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %s\n",
+	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %pg\n",
 		 __func__, io->seq, bio->bi_iter.bi_size,
 		 (unsigned long long)bio->bi_iter.bi_sector,
-		 bio_devname(bio, b));
+		 bio->bi_bdev);
 
 	submit_bio(bio);
 }
@@ -465,8 +464,6 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 
 
 	bio->bi_end_io = ppl_log_endio;
-	bio->bi_opf = REQ_OP_WRITE | REQ_FUA;
-	bio_set_dev(bio, log->rdev->bdev);
 	bio->bi_iter.bi_sector = log->next_io_sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
 	bio->bi_write_hint = ppl_conf->write_hint;
@@ -496,11 +493,10 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 		if (!bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0)) {
 			struct bio *prev = bio;
 
-			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_VECS,
+			bio = bio_alloc_bioset(prev->bi_bdev, BIO_MAX_VECS,
+					       prev->bi_opf, GFP_NOIO,
 					       &ppl_conf->bs);
-			bio->bi_opf = prev->bi_opf;
 			bio->bi_write_hint = prev->bi_write_hint;
-			bio_copy_dev(bio, prev);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
 			bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0);
 
@@ -590,9 +586,8 @@ static void ppl_flush_endio(struct bio *bio)
 	struct ppl_log *log = io->log;
 	struct ppl_conf *ppl_conf = log->ppl_conf;
 	struct r5conf *conf = ppl_conf->mddev->private;
-	char b[BDEVNAME_SIZE];
 
-	pr_debug("%s: dev: %s\n", __func__, bio_devname(bio, b));
+	pr_debug("%s: dev: %pg\n", __func__, bio->bi_bdev);
 
 	if (bio->bi_status) {
 		struct md_rdev *rdev;
@@ -635,16 +630,14 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 
 		if (bdev) {
 			struct bio *bio;
-			char b[BDEVNAME_SIZE];
 
-			bio = bio_alloc_bioset(GFP_NOIO, 0, &ppl_conf->flush_bs);
-			bio_set_dev(bio, bdev);
+			bio = bio_alloc_bioset(bdev, 0, GFP_NOIO,
+					       REQ_OP_WRITE | REQ_PREFLUSH,
+					       &ppl_conf->flush_bs);
 			bio->bi_private = io;
-			bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			bio->bi_end_io = ppl_flush_endio;
 
-			pr_debug("%s: dev: %s\n", __func__,
-				 bio_devname(bio, b));
+			pr_debug("%s: dev: %ps\n", __func__, bio->bi_bdev);
 
 			submit_bio(bio);
 			flushed_disks++;

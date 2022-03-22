@@ -26,9 +26,9 @@ fragmentation statistics can be obtained through gfp flag information of
 each page. It is already implemented and activated if page owner is
 enabled. Other usages are more than welcome.
 
-page owner is disabled in default. So, if you'd like to use it, you need
-to add "page_owner=on" into your boot cmdline. If the kernel is built
-with page owner and page owner is disabled in runtime due to no enabling
+page owner is disabled by default. So, if you'd like to use it, you need
+to add "page_owner=on" to your boot cmdline. If the kernel is built
+with page owner and page owner is disabled in runtime due to not enabling
 boot option, runtime overhead is marginal. If disabled in runtime, it
 doesn't require memory to store owner information, so there is no runtime
 memory overhead. And, page owner inserts just two unlikely branches into
@@ -85,7 +85,7 @@ Usage
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
 	./page_owner_sort page_owner_full.txt sorted_page_owner.txt
 
-   The general output of ``page_owner_full.txt`` is as follows:
+   The general output of ``page_owner_full.txt`` is as follows::
 
 	Page allocated via order XXX, ...
 	PFN XXX ...
@@ -100,7 +100,7 @@ Usage
    and pages of buf, and finally sorts them according to the times.
 
    See the result about who allocated each page
-   in the ``sorted_page_owner.txt``. General output:
+   in the ``sorted_page_owner.txt``. General output::
 
 	XXX times, XXX pages:
 	Page allocated via order XXX, ...

@@ -335,7 +335,7 @@ static inline void add_taint_module(struct module *mod, unsigned flag,
 
 /*
  * A thread that wants to hold a reference to a module only while it
- * is running can call this to safely exit.  nfsd and lockd use this.
+ * is running can call this to safely exit.
  */
 void __noreturn __module_put_and_kthread_exit(struct module *mod, long code)
 {

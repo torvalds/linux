@@ -47,11 +47,7 @@ static inline void prepare_to_rcuwait(struct rcuwait *w)
 	rcu_assign_pointer(w->task, current);
 }
 
-static inline void finish_rcuwait(struct rcuwait *w)
-{
-        rcu_assign_pointer(w->task, NULL);
-	__set_current_state(TASK_RUNNING);
-}
+extern void finish_rcuwait(struct rcuwait *w);
 
 #define rcuwait_wait_event(w, condition, state)				\
 ({									\

@@ -831,7 +831,7 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 finish:;
 }
 
-static int ca8210_remove(struct spi_device *spi_device);
+static void ca8210_remove(struct spi_device *spi_device);
 
 /**
  * ca8210_spi_transfer_complete() - Called when a single spi transfer has
@@ -3049,7 +3049,7 @@ static void ca8210_test_interface_clear(struct ca8210_priv *priv)
  *
  * Return: 0 or linux error code
  */
-static int ca8210_remove(struct spi_device *spi_device)
+static void ca8210_remove(struct spi_device *spi_device)
 {
 	struct ca8210_priv *priv;
 	struct ca8210_platform_data *pdata;
@@ -3089,8 +3089,6 @@ static int ca8210_remove(struct spi_device *spi_device)
 		if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEBUGFS))
 			ca8210_test_interface_clear(priv);
 	}
-
-	return 0;
 }
 
 /**

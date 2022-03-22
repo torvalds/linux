@@ -539,7 +539,7 @@ ATTRIBUTE_GROUPS(sugov);
 
 static void sugov_tunables_free(struct kobject *kobj)
 {
-	struct gov_attr_set *attr_set = container_of(kobj, struct gov_attr_set, kobj);
+	struct gov_attr_set *attr_set = to_gov_attr_set(kobj);
 
 	kfree(to_sugov_tunables(attr_set));
 }

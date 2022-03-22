@@ -231,6 +231,13 @@ config CRYPTO_DH
 	help
 	  Generic implementation of the Diffie-Hellman algorithm.
 
+config CRYPTO_DH_RFC7919_GROUPS
+	bool "Support for RFC 7919 FFDHE group parameters"
+	depends on CRYPTO_DH
+	select CRYPTO_RNG_DEFAULT
+	help
+	  Provide support for RFC 7919 FFDHE group parameters. If unsure, say N.
+
 config CRYPTO_ECC
 	tristate
 	select CRYPTO_RNG_DEFAULT
@@ -267,7 +274,7 @@ config CRYPTO_ECRDSA
 
 config CRYPTO_SM2
 	tristate "SM2 algorithm"
-	select CRYPTO_SM3
+	select CRYPTO_LIB_SM3
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
 	select MPILIB
@@ -425,6 +432,7 @@ config CRYPTO_LRW
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
+	select CRYPTO_ECB
 	help
 	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
 	  narrow block cipher mode for dm-crypt.  Use it with cipher
@@ -999,6 +1007,7 @@ config CRYPTO_SHA3
 config CRYPTO_SM3
 	tristate "SM3 digest algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SM3
 	help
 	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
 	  It is part of the Chinese Commercial Cryptography suite.
@@ -1006,6 +1015,19 @@ config CRYPTO_SM3
 	  References:
 	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
 	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
+
+config CRYPTO_SM3_AVX_X86_64
+	tristate "SM3 digest algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_HASH
+	select CRYPTO_LIB_SM3
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
+	  It is part of the Chinese Commercial Cryptography suite. This is
+	  SM3 optimized implementation using Advanced Vector Extensions (AVX)
+	  when available.
+
+	  If unsure, say N.
 
 config CRYPTO_STREEBOG
 	tristate "Streebog Hash Function"
@@ -1847,6 +1869,7 @@ config CRYPTO_JITTERENTROPY
 
 config CRYPTO_KDF800108_CTR
 	tristate
+	select CRYPTO_HMAC
 	select CRYPTO_SHA256
 
 config CRYPTO_USER_API

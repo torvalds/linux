@@ -96,8 +96,6 @@ void acpi_scan_table_notify(void);
 
 extern struct list_head acpi_bus_id_list;
 
-#define ACPI_MAX_DEVICE_INSTANCES	4096
-
 struct acpi_device_bus_id {
 	const char *bus_id;
 	struct ida instance_ida;

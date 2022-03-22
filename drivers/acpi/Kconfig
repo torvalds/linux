@@ -302,7 +302,7 @@ config ACPI_IPMI
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
 	  uses the IPMI request/response message to communicate with BMC
-	  controller, which can be found on on the server.
+	  controller, which can be found on the server.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called as acpi_ipmi.

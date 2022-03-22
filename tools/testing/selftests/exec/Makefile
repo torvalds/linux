@@ -10,6 +10,7 @@ TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
 TEST_FILES := Makefile
 
 TEST_GEN_PROGS += recursion-depth
+TEST_GEN_PROGS += null-argv
 
 EXTRA_CLEAN := $(OUTPUT)/subdir.moved $(OUTPUT)/execveat.moved $(OUTPUT)/xxxxx*	\
 	       $(OUTPUT)/S_I*.test

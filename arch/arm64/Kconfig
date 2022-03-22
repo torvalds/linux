@@ -10,6 +10,7 @@ config ARM64
 	select ACPI_SPCR_TABLE if ACPI
 	select ACPI_PPTT if ACPI
 	select ARCH_HAS_DEBUG_WX
+	select ARCH_BINFMT_ELF_EXTRA_PHDRS
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
@@ -18,6 +19,7 @@ config ARM64
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_CACHE_LINE_SIZE
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
@@ -891,12 +893,16 @@ config CAVIUM_ERRATUM_23144
 	  If unsure, say Y.
 
 config CAVIUM_ERRATUM_23154
-	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	bool "Cavium errata 23154 and 38545: GICv3 lacks HW synchronisation"
 	default y
 	help
-	  The gicv3 of ThunderX requires a modified version for
+	  The ThunderX GICv3 implementation requires a modified version for
 	  reading the IAR status to ensure data synchronization
 	  (access to icc_iar1_el1 is not sync'ed before and after).
+
+	  It also suffers from erratum 38545 (also present on Marvell's
+	  OcteonTX and OcteonTX2), resulting in deactivated interrupts being
+	  spuriously presented to the CPU interface.
 
 	  If unsure, say Y.
 
@@ -1252,7 +1258,7 @@ config HW_PERF_EVENTS
 	def_bool y
 	depends on ARM_PMU
 
-# Supported by clang >= 7.0
+# Supported by clang >= 7.0 or GCC >= 12.0.0
 config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 

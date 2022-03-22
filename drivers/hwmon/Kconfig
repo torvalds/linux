@@ -174,6 +174,7 @@ config SENSORS_ADM9240
 
 config SENSORS_ADT7X10
 	tristate
+	select REGMAP
 	help
 	  This module contains common code shared by the ADT7310/ADT7320 and
 	  ADT7410/ADT7420 temperature monitoring chip drivers.
@@ -504,6 +505,21 @@ config SENSORS_DELL_SMM
 
 	  When option I8K is also enabled this driver provides legacy /proc/i8k
 	  userspace interface for i8kutils package.
+
+config I8K
+	bool "Legacy /proc/i8k interface of Dell laptop SMM BIOS hwmon driver"
+	depends on SENSORS_DELL_SMM
+	depends on PROC_FS
+	help
+	  This option enables the legacy /proc/i8k userspace interface of the
+	  dell-smm-hwmon driver. The character file /proc/i8k exposes the BIOS
+	  version, temperatures and allows control of fan speeds of some Dell
+	  laptops. Sometimes it also reports power and hotkey status.
+
+	  This interface is required to run programs from the i8kutils package.
+
+	  Say Y if you intend to run userspace programs that use this interface.
+	  Say N otherwise.
 
 config SENSORS_DA9052_ADC
 	tristate "Dialog DA9052/DA9053 ADC"
@@ -1208,8 +1224,8 @@ config SENSORS_LM70
 	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the National Semiconductor
-	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123 digital tempera-
-	  ture sensor chips.
+	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123, TMP122/TMP124,
+	  TMP125 digital temperature sensor chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm70.
@@ -1288,6 +1304,7 @@ config SENSORS_LM80
 config SENSORS_LM83
 	tristate "National Semiconductor LM83 and compatibles"
 	depends on I2C
+	select REGMAP
 	help
 	  If you say yes here you get support for National Semiconductor
 	  LM82 and LM83 sensor chips.
@@ -1979,6 +1996,17 @@ config SENSORS_TMP421
 	  This driver can also be built as a module. If so, the module
 	  will be called tmp421.
 
+config SENSORS_TMP464
+	tristate "Texas Instruments TMP464 and compatible"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP464
+	  and TMP468 temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp464.
+
 config SENSORS_TMP513
 	tristate "Texas Instruments TMP513 and compatibles"
 	depends on I2C
@@ -2252,15 +2280,30 @@ config SENSORS_ASUS_WMI
 
 config SENSORS_ASUS_WMI_EC
 	tristate "ASUS WMI B550/X570"
-	depends on ACPI_WMI
+	depends on ACPI_WMI && SENSORS_ASUS_EC=n
 	help
 	  If you say yes here you get support for the ACPI embedded controller
 	  hardware monitoring interface found in B550/X570 ASUS motherboards.
 	  This driver will provide readings of fans, voltages and temperatures
 	  through the system firmware.
 
+	  This driver is deprecated in favor of the ASUS EC Sensors driver
+	  which provides fully compatible output.
+
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_wmi_sensors_ec.
+
+config SENSORS_ASUS_EC
+	tristate "ASUS EC Sensors"
+	depends on X86
+	help
+	  If you say yes here you get support for the ACPI embedded controller
+	  hardware monitoring interface found in ASUS motherboards. The driver
+	  currently supports B550/X570 boards, although other ASUS boards might
+	  provide this monitoring interface as well.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_ec_sensors.
 
 endif # ACPI
 

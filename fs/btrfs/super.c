@@ -66,6 +66,52 @@ static struct file_system_type btrfs_root_fs_type;
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data);
 
+#ifdef CONFIG_PRINTK
+
+#define STATE_STRING_PREFACE	": state "
+#define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT)
+
+/*
+ * Characters to print to indicate error conditions or uncommon filesystem sate.
+ * RO is not an error.
+ */
+static const char fs_state_chars[] = {
+	[BTRFS_FS_STATE_ERROR]			= 'E',
+	[BTRFS_FS_STATE_REMOUNTING]		= 'M',
+	[BTRFS_FS_STATE_RO]			= 0,
+	[BTRFS_FS_STATE_TRANS_ABORTED]		= 'A',
+	[BTRFS_FS_STATE_DEV_REPLACING]		= 'R',
+	[BTRFS_FS_STATE_DUMMY_FS_INFO]		= 0,
+	[BTRFS_FS_STATE_NO_CSUMS]		= 'C',
+	[BTRFS_FS_STATE_LOG_CLEANUP_ERROR]	= 'L',
+};
+
+static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
+{
+	unsigned int bit;
+	bool states_printed = false;
+	unsigned long fs_state = READ_ONCE(info->fs_state);
+	char *curr = buf;
+
+	memcpy(curr, STATE_STRING_PREFACE, sizeof(STATE_STRING_PREFACE));
+	curr += sizeof(STATE_STRING_PREFACE) - 1;
+
+	for_each_set_bit(bit, &fs_state, sizeof(fs_state)) {
+		WARN_ON_ONCE(bit >= BTRFS_FS_STATE_COUNT);
+		if ((bit < BTRFS_FS_STATE_COUNT) && fs_state_chars[bit]) {
+			*curr++ = fs_state_chars[bit];
+			states_printed = true;
+		}
+	}
+
+	/* If no states were printed, reset the buffer */
+	if (!states_printed)
+		curr = buf;
+
+	*curr++ = 0;
+}
+#endif
+
 /*
  * Generally the error codes correspond to their respective errors, but there
  * are a few special cases.
@@ -128,6 +174,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 {
 	struct super_block *sb = fs_info->sb;
 #ifdef CONFIG_PRINTK
+	char statestr[STATE_STRING_BUF_LEN];
 	const char *errstr;
 #endif
 
@@ -140,6 +187,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 
 #ifdef CONFIG_PRINTK
 	errstr = btrfs_decode_error(errno);
+	btrfs_state_to_string(fs_info, statestr);
 	if (fmt) {
 		struct va_format vaf;
 		va_list args;
@@ -148,12 +196,12 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s (%pV)\n",
-			sb->s_id, function, line, errno, errstr, &vaf);
+		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s (%pV)\n",
+			sb->s_id, statestr, function, line, errno, errstr, &vaf);
 		va_end(args);
 	} else {
-		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
-			sb->s_id, function, line, errno, errstr);
+		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s\n",
+			sb->s_id, statestr, function, line, errno, errstr);
 	}
 #endif
 
@@ -240,11 +288,15 @@ void __cold btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, .
 	vaf.va = &args;
 
 	if (__ratelimit(ratelimit)) {
-		if (fs_info)
-			printk("%sBTRFS %s (device %s): %pV\n", lvl, type,
-				fs_info->sb->s_id, &vaf);
-		else
+		if (fs_info) {
+			char statestr[STATE_STRING_BUF_LEN];
+
+			btrfs_state_to_string(fs_info, statestr);
+			printk("%sBTRFS %s (device %s%s): %pV\n", lvl, type,
+				fs_info->sb->s_id, statestr, &vaf);
+		} else {
 			printk("%sBTRFS %s: %pV\n", lvl, type, &vaf);
+		}
 	}
 
 	va_end(args);
@@ -861,6 +913,14 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_space_cache:
 		case Opt_space_cache_version:
+			/*
+			 * We already set FREE_SPACE_TREE above because we have
+			 * compat_ro(FREE_SPACE_TREE) set, and we aren't going
+			 * to allow v1 to be set for extent tree v2, simply
+			 * ignore this setting if we're extent tree v2.
+			 */
+			if (btrfs_fs_incompat(info, EXTENT_TREE_V2))
+				break;
 			if (token == Opt_space_cache ||
 			    strcmp(args[0].from, "v1") == 0) {
 				btrfs_clear_opt(info->mount_opt,
@@ -881,6 +941,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			btrfs_set_opt(info->mount_opt, RESCAN_UUID_TREE);
 			break;
 		case Opt_no_space_cache:
+			/*
+			 * We cannot operate without the free space tree with
+			 * extent tree v2, ignore this option.
+			 */
+			if (btrfs_fs_incompat(info, EXTENT_TREE_V2))
+				break;
 			if (btrfs_test_opt(info, SPACE_CACHE)) {
 				btrfs_clear_and_info(info, SPACE_CACHE,
 					     "disabling disk space caching");
@@ -896,6 +962,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 	"the 'inode_cache' option is deprecated and has no effect since 5.11");
 			break;
 		case Opt_clear_cache:
+			/*
+			 * We cannot clear the free space tree with extent tree
+			 * v2, ignore this option.
+			 */
+			if (btrfs_fs_incompat(info, EXTENT_TREE_V2))
+				break;
 			btrfs_set_and_info(info, CLEAR_CACHE,
 					   "force clearing of disk cache");
 			break;
@@ -2383,6 +2455,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 {
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_device *device = NULL;
+	dev_t devt = 0;
 	int ret = -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -2402,7 +2475,12 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 		mutex_unlock(&uuid_mutex);
 		break;
 	case BTRFS_IOC_FORGET_DEV:
-		ret = btrfs_forget_devices(vol->name);
+		if (vol->name[0] != 0) {
+			ret = lookup_bdev(vol->name, &devt);
+			if (ret)
+				break;
+		}
+		ret = btrfs_forget_devices(devt);
 		break;
 	case BTRFS_IOC_DEVICES_READY:
 		mutex_lock(&uuid_mutex);

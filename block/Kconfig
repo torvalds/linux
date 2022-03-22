@@ -26,6 +26,16 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLOCK_LEGACY_AUTOLOAD
+	bool "Legacy autoloading support"
+	default y
+	help
+	  Enable loading modules and creating block device instances based on
+	  accesses through their device special file.  This is a historic Linux
+	  feature and makes no sense in a udev world where device files are
+	  created on demand, but scripts that manually create device nodes and
+	  then call losetup might rely on this behavior.
+
 config BLK_RQ_ALLOC_TIME
 	bool
 
@@ -216,6 +226,9 @@ config BLK_PM
 
 # do not use in new code
 config BLOCK_HOLDER_DEPRECATED
+	bool
+
+config BLK_MQ_STACKING
 	bool
 
 source "block/Kconfig.iosched"

@@ -163,10 +163,50 @@ static void cifs_resolve_server(struct work_struct *work)
 }
 
 /*
+ * Update the tcpStatus for the server.
+ * This is used to signal the cifsd thread to call cifs_reconnect
+ * ONLY cifsd thread should call cifs_reconnect. For any other
+ * thread, use this function
+ *
+ * @server: the tcp ses for which reconnect is needed
+ * @all_channels: if this needs to be done for all channels
+ */
+void
+cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
+				bool all_channels)
+{
+	struct TCP_Server_Info *pserver;
+	struct cifs_ses *ses;
+	int i;
+
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (!all_channels) {
+		pserver->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&cifs_tcp_ses_lock);
+		return;
+	}
+
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		spin_lock(&ses->chan_lock);
+		for (i = 0; i < ses->chan_count; i++)
+			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&ses->chan_lock);
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+}
+
+/*
  * Mark all sessions and tcons for reconnect.
+ * IMPORTANT: make sure that this gets called only from
+ * cifsd thread. For any other thread, use
+ * cifs_signal_cifsd_for_reconnect
  *
+ * @server: the tcp ses for which reconnect is needed
  * @server needs to be previously set to CifsNeedReconnect.
- *
+ * @mark_smb_session: whether even sessions need to be marked
  */
 void
 cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
@@ -3924,7 +3964,8 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (server->tcpStatus != CifsNeedSessSetup) {
+	if ((server->tcpStatus != CifsNeedSessSetup) &&
+	    (ses->status == CifsGood)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}

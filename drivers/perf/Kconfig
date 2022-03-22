@@ -141,11 +141,25 @@ config ARM_DMC620_PMU
 
 config MARVELL_CN10K_TAD_PMU
 	tristate "Marvell CN10K LLC-TAD PMU"
-	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
 	help
 	  Provides support for Last-Level cache Tag-and-data Units (LLC-TAD)
 	  performance monitors on CN10K family silicons.
 
+config APPLE_M1_CPU_PMU
+	bool "Apple M1 CPU PMU support"
+	depends on ARM_PMU && ARCH_APPLE
+	help
+	  Provides support for the non-architectural CPU PMUs present on
+	  the Apple M1 SoCs and derivatives.
+
 source "drivers/perf/hisilicon/Kconfig"
+
+config MARVELL_CN10K_DDR_PMU
+	tristate "Enable MARVELL CN10K DRAM Subsystem(DSS) PMU Support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Enable perf support for Marvell DDR Performance monitoring
+	  event on CN10K platform.
 
 endmenu

@@ -55,9 +55,6 @@ MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
-
-DEFINE_PER_CPU(bool, crypto_simd_disabled_for_test);
-EXPORT_PER_CPU_SYMBOL_GPL(crypto_simd_disabled_for_test);
 #endif
 
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
@@ -1854,6 +1851,9 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 	}
 
 	for (i = 0; i < num_vecs; i++) {
+		if (fips_enabled && vecs[i].fips_skip)
+			continue;
+
 		err = test_hash_vec(&vecs[i], i, req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
@@ -4650,7 +4650,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "dh",
 		.test = alg_test_kpp,
-		.fips_allowed = 1,
 		.suite = {
 			.kpp = __VECS(dh_tv_template)
 		}
@@ -4973,6 +4972,43 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(essiv_aes_cbc_tv_template)
 		}
 	}, {
+#if IS_ENABLED(CONFIG_CRYPTO_DH_RFC7919_GROUPS)
+		.alg = "ffdhe2048(dh)",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ffdhe2048_dh_tv_template)
+		}
+	}, {
+		.alg = "ffdhe3072(dh)",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ffdhe3072_dh_tv_template)
+		}
+	}, {
+		.alg = "ffdhe4096(dh)",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ffdhe4096_dh_tv_template)
+		}
+	}, {
+		.alg = "ffdhe6144(dh)",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ffdhe6144_dh_tv_template)
+		}
+	}, {
+		.alg = "ffdhe8192(dh)",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ffdhe8192_dh_tv_template)
+		}
+	}, {
+#endif /* CONFIG_CRYPTO_DH_RFC7919_GROUPS */
 		.alg = "gcm(aes)",
 		.generic_driver = "gcm_base(ctr(aes-generic),ghash-generic)",
 		.test = alg_test_aead,
@@ -5613,6 +5649,13 @@ static int alg_find_test(const char *alg)
 	return -1;
 }
 
+static int alg_fips_disabled(const char *driver, const char *alg)
+{
+	pr_info("alg: %s (%s) is disabled due to FIPS\n", alg, driver);
+
+	return -ECANCELED;
+}
+
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	int i;
@@ -5649,9 +5692,13 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	if (i < 0 && j < 0)
 		goto notest;
 
-	if (fips_enabled && ((i >= 0 && !alg_test_descs[i].fips_allowed) ||
-			     (j >= 0 && !alg_test_descs[j].fips_allowed)))
-		goto non_fips_alg;
+	if (fips_enabled) {
+		if (j >= 0 && !alg_test_descs[j].fips_allowed)
+			return -EINVAL;
+
+		if (i >= 0 && !alg_test_descs[i].fips_allowed)
+			goto non_fips_alg;
+	}
 
 	rc = 0;
 	if (i >= 0)
@@ -5681,9 +5728,13 @@ test_done:
 
 notest:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
+
+	if (type & CRYPTO_ALG_FIPS_INTERNAL)
+		return alg_fips_disabled(driver, alg);
+
 	return 0;
 non_fips_alg:
-	return -EINVAL;
+	return alg_fips_disabled(driver, alg);
 }
 
 #endif /* CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */

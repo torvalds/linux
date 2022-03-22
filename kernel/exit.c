@@ -735,7 +735,7 @@ void __noreturn do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 
-	WARN_ON(blk_needs_flush_plug(tsk));
+	WARN_ON(tsk->plug);
 
 	/*
 	 * If do_dead is called because this processes oopsed, it's possible
@@ -845,6 +845,7 @@ void __noreturn do_exit(long code)
 		put_page(tsk->task_frag.page);
 
 	validate_creds_for_do_exit(tsk);
+	exit_task_stack_account(tsk);
 
 	check_stack_usage();
 	preempt_disable();

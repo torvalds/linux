@@ -427,6 +427,45 @@ config SPI_INGENIC
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-ingenic.
 
+config SPI_INTEL
+	tristate
+
+config SPI_INTEL_PCI
+	tristate "Intel PCH/PCU SPI flash PCI driver (DANGEROUS)"
+	depends on PCI
+	depends on X86 || COMPILE_TEST
+	depends on SPI_MEM
+	select SPI_INTEL
+	help
+	  This enables PCI support for the Intel PCH/PCU SPI controller in
+	  master mode. This controller is present in modern Intel hardware
+	  and is used to hold BIOS and other persistent settings. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called spi-intel-pci.
+
+config SPI_INTEL_PLATFORM
+	tristate "Intel PCH/PCU SPI flash platform driver (DANGEROUS)"
+	depends on X86 || COMPILE_TEST
+	depends on SPI_MEM
+	select SPI_INTEL
+	help
+	  This enables platform support for the Intel PCH/PCU SPI
+	  controller in master mode. This controller is present in modern
+	  Intel hardware and is used to hold BIOS and other persistent
+	  settings. Using this driver it is possible to upgrade BIOS
+	  directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called spi-intel-platform.
+
 config SPI_JCORE
 	tristate "J-Core SPI Master"
 	depends on OF && (SUPERH || COMPILE_TEST)
@@ -865,6 +904,17 @@ config SPI_SUN6I
 	depends on RESET_CONTROLLER
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
+
+config SPI_SUNPLUS_SP7021
+	tristate "Sunplus SP7021 SPI controller"
+	depends on SOC_SP7021 || COMPILE_TEST
+	help
+	  This enables Sunplus SP7021 SPI controller driver on the SP7021 SoCs.
+	  This driver can also be built as a module. If so, the module will be
+	  called as spi-sunplus-sp7021.
+
+	  If you have a  Sunplus SP7021 platform say Y here.
+	  If unsure, say N.
 
 config SPI_SYNQUACER
 	tristate "Socionext's SynQuacer HighSpeed SPI controller"

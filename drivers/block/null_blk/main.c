@@ -431,9 +431,10 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 	if (!dev->power && newp) {
 		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
 			return count;
-		if (null_add_dev(dev)) {
+		ret = null_add_dev(dev);
+		if (ret) {
 			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
-			return -ENOMEM;
+			return ret;
 		}
 
 		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
@@ -719,26 +720,25 @@ static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 	return NULL;
 }
 
-static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
+static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, struct bio *bio)
 {
 	struct nullb_cmd *cmd;
 	DEFINE_WAIT(wait);
 
-	cmd = __alloc_cmd(nq);
-	if (cmd || !can_wait)
-		return cmd;
-
 	do {
-		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
+		/*
+		 * This avoids multiple return statements, multiple calls to
+		 * __alloc_cmd() and a fast path call to prepare_to_wait().
+		 */
 		cmd = __alloc_cmd(nq);
-		if (cmd)
-			break;
-
+		if (cmd) {
+			cmd->bio = bio;
+			return cmd;
+		}
+		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
 		io_schedule();
+		finish_wait(&nq->wait, &wait);
 	} while (1);
-
-	finish_wait(&nq->wait, &wait);
-	return cmd;
 }
 
 static void end_cmd(struct nullb_cmd *cmd)
@@ -777,24 +777,22 @@ static void null_complete_rq(struct request *rq)
 	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
-static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
+static struct nullb_page *null_alloc_page(void)
 {
 	struct nullb_page *t_page;
 
-	t_page = kmalloc(sizeof(struct nullb_page), gfp_flags);
+	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
 	if (!t_page)
-		goto out;
+		return NULL;
 
-	t_page->page = alloc_pages(gfp_flags, 0);
-	if (!t_page->page)
-		goto out_freepage;
+	t_page->page = alloc_pages(GFP_NOIO, 0);
+	if (!t_page->page) {
+		kfree(t_page);
+		return NULL;
+	}
 
 	memset(t_page->bitmap, 0, sizeof(t_page->bitmap));
 	return t_page;
-out_freepage:
-	kfree(t_page);
-out:
-	return NULL;
 }
 
 static void null_free_page(struct nullb_page *t_page)
@@ -932,7 +930,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_unlock_irq(&nullb->lock);
 
-	t_page = null_alloc_page(GFP_NOIO);
+	t_page = null_alloc_page();
 	if (!t_page)
 		goto out_lock;
 
@@ -1476,12 +1474,8 @@ static void null_submit_bio(struct bio *bio)
 	sector_t nr_sectors = bio_sectors(bio);
 	struct nullb *nullb = bio->bi_bdev->bd_disk->private_data;
 	struct nullb_queue *nq = nullb_to_queue(nullb);
-	struct nullb_cmd *cmd;
 
-	cmd = alloc_cmd(nq, 1);
-	cmd->bio = bio;
-
-	null_handle_cmd(cmd, sector, nr_sectors, bio_op(bio));
+	null_handle_cmd(alloc_cmd(nq, bio), sector, nr_sectors, bio_op(bio));
 }
 
 static bool should_timeout_request(struct request *rq)

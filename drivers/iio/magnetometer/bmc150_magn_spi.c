@@ -29,11 +29,9 @@ static int bmc150_magn_spi_probe(struct spi_device *spi)
 	return bmc150_magn_probe(&spi->dev, regmap, spi->irq, id->name);
 }
 
-static int bmc150_magn_spi_remove(struct spi_device *spi)
+static void bmc150_magn_spi_remove(struct spi_device *spi)
 {
 	bmc150_magn_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id bmc150_magn_spi_id[] = {

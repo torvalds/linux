@@ -135,25 +135,37 @@ static inline int getmiso(const struct spi_device *spi)
 static u32 spi_gpio_txrx_word_mode0(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 0, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha0(spi, nsecs, 0, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha0(spi, nsecs, 0, flags, word, bits);
 }
 
 static u32 spi_gpio_txrx_word_mode1(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	return bitbang_txrx_be_cpha1(spi, nsecs, 0, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha1(spi, nsecs, 0, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha1(spi, nsecs, 0, flags, word, bits);
 }
 
 static u32 spi_gpio_txrx_word_mode2(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 1, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha0(spi, nsecs, 1, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha0(spi, nsecs, 1, flags, word, bits);
 }
 
 static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	return bitbang_txrx_be_cpha1(spi, nsecs, 1, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha1(spi, nsecs, 1, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha1(spi, nsecs, 1, flags, word, bits);
 }
 
 /*
@@ -170,28 +182,40 @@ static u32 spi_gpio_spec_txrx_word_mode0(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
 	flags = spi->master->flags;
-	return bitbang_txrx_be_cpha0(spi, nsecs, 0, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha0(spi, nsecs, 0, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha0(spi, nsecs, 0, flags, word, bits);
 }
 
 static u32 spi_gpio_spec_txrx_word_mode1(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
 	flags = spi->master->flags;
-	return bitbang_txrx_be_cpha1(spi, nsecs, 0, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha1(spi, nsecs, 0, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha1(spi, nsecs, 0, flags, word, bits);
 }
 
 static u32 spi_gpio_spec_txrx_word_mode2(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
 	flags = spi->master->flags;
-	return bitbang_txrx_be_cpha0(spi, nsecs, 1, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha0(spi, nsecs, 1, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha0(spi, nsecs, 1, flags, word, bits);
 }
 
 static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
 	flags = spi->master->flags;
-	return bitbang_txrx_be_cpha1(spi, nsecs, 1, flags, word, bits);
+	if (unlikely(spi->mode & SPI_LSB_FIRST))
+		return bitbang_txrx_le_cpha1(spi, nsecs, 1, flags, word, bits);
+	else
+		return bitbang_txrx_be_cpha1(spi, nsecs, 1, flags, word, bits);
 }
 
 /*----------------------------------------------------------------------*/
@@ -378,7 +402,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->mode_bits = SPI_3WIRE | SPI_3WIRE_HIZ | SPI_CPHA | SPI_CPOL |
-			    SPI_CS_HIGH;
+			    SPI_CS_HIGH | SPI_LSB_FIRST;
 	if (!spi_gpio->mosi) {
 		/* HW configuration without MOSI pin
 		 *

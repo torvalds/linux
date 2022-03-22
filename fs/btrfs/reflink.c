@@ -277,7 +277,7 @@ copy_inline_extent:
 						  path->slots[0]),
 			    size);
 	btrfs_update_inode_bytes(BTRFS_I(dst), datal, drop_args.bytes_found);
-	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(dst)->runtime_flags);
+	btrfs_set_inode_full_sync(BTRFS_I(dst));
 	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
 out:
 	if (!ret && !trans) {
@@ -494,7 +494,8 @@ process_slot:
 					&clone_info, &trans);
 			if (ret)
 				goto out;
-		} else if (type == BTRFS_FILE_EXTENT_INLINE) {
+		} else {
+			ASSERT(type == BTRFS_FILE_EXTENT_INLINE);
 			/*
 			 * Inline extents always have to start at file offset 0
 			 * and can never be bigger then the sector size. We can
@@ -505,8 +506,12 @@ process_slot:
 			 */
 			ASSERT(key.offset == 0);
 			ASSERT(datal <= fs_info->sectorsize);
-			if (key.offset != 0 || datal > fs_info->sectorsize)
-				return -EUCLEAN;
+			if (WARN_ON(type != BTRFS_FILE_EXTENT_INLINE) ||
+			    WARN_ON(key.offset != 0) ||
+			    WARN_ON(datal > fs_info->sectorsize)) {
+				ret = -EUCLEAN;
+				goto out;
+			}
 
 			ret = clone_copy_inline_extent(inode, path, &new_key,
 						       drop_start, datal, size,
@@ -518,17 +523,22 @@ process_slot:
 		btrfs_release_path(path);
 
 		/*
-		 * If this is a new extent update the last_reflink_trans of both
-		 * inodes. This is used by fsync to make sure it does not log
-		 * multiple checksum items with overlapping ranges. For older
-		 * extents we don't need to do it since inode logging skips the
-		 * checksums for older extents. Also ignore holes and inline
-		 * extents because they don't have checksums in the csum tree.
+		 * Whenever we share an extent we update the last_reflink_trans
+		 * of each inode to the current transaction. This is needed to
+		 * make sure fsync does not log multiple checksum items with
+		 * overlapping ranges (because some extent items might refer
+		 * only to sections of the original extent). For the destination
+		 * inode we do this regardless of the generation of the extents
+		 * or even if they are inline extents or explicit holes, to make
+		 * sure a full fsync does not skip them. For the source inode,
+		 * we only need to update last_reflink_trans in case it's a new
+		 * extent that is not a hole or an inline extent, to deal with
+		 * the checksums problem on fsync.
 		 */
-		if (extent_gen == trans->transid && disko > 0) {
+		if (extent_gen == trans->transid && disko > 0)
 			BTRFS_I(src)->last_reflink_trans = trans->transid;
-			BTRFS_I(inode)->last_reflink_trans = trans->transid;
-		}
+
+		BTRFS_I(inode)->last_reflink_trans = trans->transid;
 
 		last_dest_end = ALIGN(new_key.offset + datal,
 				      fs_info->sectorsize);
@@ -575,8 +585,7 @@ process_slot:
 		 * replaced file extent items.
 		 */
 		if (last_dest_end >= i_size_read(inode))
-			set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-				&BTRFS_I(inode)->runtime_flags);
+			btrfs_set_inode_full_sync(BTRFS_I(inode));
 
 		ret = btrfs_replace_file_extents(BTRFS_I(inode), path,
 				last_dest_end, destoff + len - 1, NULL, &trans);
@@ -772,9 +781,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		if (btrfs_root_readonly(root_out))
 			return -EROFS;
 
-		if (file_in->f_path.mnt != file_out->f_path.mnt ||
-		    inode_in->i_sb != inode_out->i_sb)
-			return -EXDEV;
+		ASSERT(inode_in->i_sb == inode_out->i_sb);
 	}
 
 	/* Don't make the dst file partly checksummed */

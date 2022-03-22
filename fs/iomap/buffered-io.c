@@ -292,19 +292,20 @@ static loff_t iomap_readpage_iter(const struct iomap_iter *iter,
 
 		if (ctx->rac) /* same as readahead_gfp_mask */
 			gfp |= __GFP_NORETRY | __GFP_NOWARN;
-		ctx->bio = bio_alloc(gfp, bio_max_segs(nr_vecs));
+		ctx->bio = bio_alloc(iomap->bdev, bio_max_segs(nr_vecs),
+				     REQ_OP_READ, gfp);
 		/*
 		 * If the bio_alloc fails, try it again for a single page to
 		 * avoid having to deal with partial page reads.  This emulates
 		 * what do_mpage_readpage does.
 		 */
-		if (!ctx->bio)
-			ctx->bio = bio_alloc(orig_gfp, 1);
-		ctx->bio->bi_opf = REQ_OP_READ;
+		if (!ctx->bio) {
+			ctx->bio = bio_alloc(iomap->bdev, 1, REQ_OP_READ,
+					     orig_gfp);
+		}
 		if (ctx->rac)
 			ctx->bio->bi_opf |= REQ_RAHEAD;
 		ctx->bio->bi_iter.bi_sector = sector;
-		bio_set_dev(ctx->bio, iomap->bdev);
 		ctx->bio->bi_end_io = iomap_read_end_io;
 		bio_add_folio(ctx->bio, folio, plen, poff);
 	}
@@ -550,10 +551,8 @@ static int iomap_read_folio_sync(loff_t block_start, struct folio *folio,
 	struct bio_vec bvec;
 	struct bio bio;
 
-	bio_init(&bio, &bvec, 1);
-	bio.bi_opf = REQ_OP_READ;
+	bio_init(&bio, iomap->bdev, &bvec, 1, REQ_OP_READ);
 	bio.bi_iter.bi_sector = iomap_sector(iomap, block_start);
-	bio_set_dev(&bio, iomap->bdev);
 	bio_add_folio(&bio, folio, plen, poff);
 	return submit_bio_wait(&bio);
 }
@@ -1229,10 +1228,10 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
 	struct iomap_ioend *ioend;
 	struct bio *bio;
 
-	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_VECS, &iomap_ioend_bioset);
-	bio_set_dev(bio, wpc->iomap.bdev);
+	bio = bio_alloc_bioset(wpc->iomap.bdev, BIO_MAX_VECS,
+			       REQ_OP_WRITE | wbc_to_write_flags(wbc),
+			       GFP_NOFS, &iomap_ioend_bioset);
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
 	bio->bi_write_hint = inode->i_write_hint;
 	wbc_init_bio(wbc, bio);
 
@@ -1261,10 +1260,9 @@ iomap_chain_bio(struct bio *prev)
 {
 	struct bio *new;
 
-	new = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
-	bio_copy_dev(new, prev);/* also copies over blkcg information */
+	new = bio_alloc(prev->bi_bdev, BIO_MAX_VECS, prev->bi_opf, GFP_NOFS);
+	bio_clone_blkg_association(new, prev);
 	new->bi_iter.bi_sector = bio_end_sector(prev);
-	new->bi_opf = prev->bi_opf;
 	new->bi_write_hint = prev->bi_write_hint;
 
 	bio_chain(prev, new);
