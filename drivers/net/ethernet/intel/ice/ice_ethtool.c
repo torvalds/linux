@@ -2275,7 +2275,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	curr_link_speed = pi->phy.link_info.link_speed;
+	curr_link_speed = pi->phy.curr_user_speed_req;
 	adv_link_speed = ice_ksettings_find_adv_link_speed(ks);
 
 	/* If speed didn't get set, set it to what it currently is.

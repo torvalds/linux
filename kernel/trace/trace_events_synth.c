@@ -2053,6 +2053,13 @@ static int create_synth_event(const char *raw_command)
 
 	last_cmd_set(raw_command);
 
+	name = raw_command;
+
+	/* Don't try to process if not our system */
+	if (name[0] != 's' || name[1] != ':')
+		return -ECANCELED;
+	name += 2;
+
 	p = strpbrk(raw_command, " \t");
 	if (!p) {
 		synth_err(SYNTH_ERR_INVALID_CMD, 0);
@@ -2060,12 +2067,6 @@ static int create_synth_event(const char *raw_command)
 	}
 
 	fields = skip_spaces(p);
-
-	name = raw_command;
-
-	if (name[0] != 's' || name[1] != ':')
-		return -ECANCELED;
-	name += 2;
 
 	/* This interface accepts group name prefix */
 	if (strchr(name, '/')) {

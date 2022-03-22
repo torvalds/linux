@@ -29,6 +29,9 @@ static struct mac_ops	rpm_mac_ops   = {
 	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
 	.mac_pause_frm_config =		rpm_lmac_pause_frm_config,
+	.mac_enadis_ptp_config =	rpm_lmac_ptp_config,
+	.mac_rx_tx_enable =		rpm_lmac_rx_tx_enable,
+	.mac_tx_enable =		rpm_lmac_tx_enable,
 };
 
 struct mac_ops *rpm_get_mac_ops(void)
@@ -51,6 +54,43 @@ int rpm_get_nr_lmacs(void *rpmd)
 	rpm_t *rpm = rpmd;
 
 	return hweight8(rpm_read(rpm, 0, CGXX_CMRX_RX_LMACS) & 0xFULL);
+}
+
+int rpm_lmac_tx_enable(void *rpmd, int lmac_id, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg, last;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	last = cfg;
+	if (enable)
+		cfg |= RPM_TX_EN;
+	else
+		cfg &= ~(RPM_TX_EN);
+
+	if (cfg != last)
+		rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
+	return !!(last & RPM_TX_EN);
+}
+
+int rpm_lmac_rx_tx_enable(void *rpmd, int lmac_id, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	if (enable)
+		cfg |= RPM_RX_EN | RPM_TX_EN;
+	else
+		cfg &= ~(RPM_RX_EN | RPM_TX_EN);
+	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
+	return 0;
 }
 
 void rpm_lmac_enadis_rx_pause_fwding(void *rpmd, int lmac_id, bool enable)
@@ -266,4 +306,20 @@ int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 	rpm_write(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1, cfg);
 
 	return 0;
+}
+
+void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return;
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_CFG);
+	if (enable)
+		cfg |= RPMX_RX_TS_PREPEND;
+	else
+		cfg &= ~RPMX_RX_TS_PREPEND;
+	rpm_write(rpm, lmac_id, RPMX_CMRX_CFG, cfg);
 }

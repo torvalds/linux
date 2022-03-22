@@ -54,32 +54,43 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
 	int i;
 
+	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		if (is_server_using_iface(ses->chans[i].server, iface))
+		if (is_server_using_iface(ses->chans[i].server, iface)) {
+			spin_unlock(&ses->chan_lock);
 			return true;
+		}
 	}
+	spin_unlock(&ses->chan_lock);
 	return false;
 }
 
 /* returns number of channels added */
 int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
-	int old_chan_count = ses->chan_count;
-	int left = ses->chan_max - ses->chan_count;
+	int old_chan_count, new_chan_count;
+	int left;
 	int i = 0;
 	int rc = 0;
 	int tries = 0;
 	struct cifs_server_iface *ifaces = NULL;
 	size_t iface_count;
 
+	spin_lock(&ses->chan_lock);
+
+	new_chan_count = old_chan_count = ses->chan_count;
+	left = ses->chan_max - ses->chan_count;
+
 	if (left <= 0) {
 		cifs_dbg(FYI,
 			 "ses already at max_channels (%zu), nothing to open\n",
 			 ses->chan_max);
+		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
 
 	if (ses->server->dialect < SMB30_PROT_ID) {
+		spin_unlock(&ses->chan_lock);
 		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
@@ -87,8 +98,10 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
 		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
 		ses->chan_max = 1;
+		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
+	spin_unlock(&ses->chan_lock);
 
 	/*
 	 * Make a copy of the iface list at the time and use that
@@ -142,10 +155,11 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 		cifs_dbg(FYI, "successfully opened new channel on iface#%d\n",
 			 i);
 		left--;
+		new_chan_count++;
 	}
 
 	kfree(ifaces);
-	return ses->chan_count - old_chan_count;
+	return new_chan_count - old_chan_count;
 }
 
 /*
@@ -157,10 +171,14 @@ cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {
 	int i;
 
+	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		if (ses->chans[i].server == server)
+		if (ses->chans[i].server == server) {
+			spin_unlock(&ses->chan_lock);
 			return &ses->chans[i];
+		}
 	}
+	spin_unlock(&ses->chan_lock);
 	return NULL;
 }
 
@@ -168,6 +186,7 @@ static int
 cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
 {
+	struct TCP_Server_Info *chan_server;
 	struct cifs_chan *chan;
 	struct smb3_fs_context ctx = {NULL};
 	static const char unc_fmt[] = "\\%s\\foo";
@@ -240,15 +259,20 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	       SMB2_CLIENT_GUID_SIZE);
 	ctx.use_client_guid = true;
 
-	mutex_lock(&ses->session_mutex);
+	chan_server = cifs_get_tcp_session(&ctx);
 
+	mutex_lock(&ses->session_mutex);
+	spin_lock(&ses->chan_lock);
 	chan = ses->binding_chan = &ses->chans[ses->chan_count];
-	chan->server = cifs_get_tcp_session(&ctx);
+	chan->server = chan_server;
 	if (IS_ERR(chan->server)) {
 		rc = PTR_ERR(chan->server);
 		chan->server = NULL;
+		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
+	spin_unlock(&ses->chan_lock);
+
 	spin_lock(&cifs_tcp_ses_lock);
 	chan->server->is_channel = true;
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -283,8 +307,11 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * ses to the new server.
 	 */
 
+	spin_lock(&ses->chan_lock);
 	ses->chan_count++;
 	atomic_set(&ses->chan_seq, 0);
+	spin_unlock(&ses->chan_lock);
+
 out:
 	ses->binding = false;
 	ses->binding_chan = NULL;

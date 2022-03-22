@@ -568,7 +568,6 @@ enum {
 	/*
 	 * Indicate that relocation of a chunk has started, it's set per chunk
 	 * and is toggled between chunks.
-	 * Set, tested and cleared while holding fs_info::send_reloc_lock.
 	 */
 	BTRFS_FS_RELOC_RUNNING,
 
@@ -592,6 +591,9 @@ enum {
 
 	/* Indicate whether there are any tree modification log users */
 	BTRFS_FS_TREE_MOD_LOG_USERS,
+
+	/* Indicate we have half completed snapshot deletions pending. */
+	BTRFS_FS_UNFINISHED_DROPS,
 
 #if BITS_PER_LONG == 32
 	/* Indicate if we have error/warn message printed on 32bit systems */
@@ -665,6 +667,12 @@ struct btrfs_fs_info {
 
 	u64 generation;
 	u64 last_trans_committed;
+	/*
+	 * Generation of the last transaction used for block group relocation
+	 * since the filesystem was last mounted (or 0 if none happened yet).
+	 * Must be written and read while holding btrfs_fs_info::commit_root_sem.
+	 */
+	u64 last_reloc_trans;
 	u64 avg_delayed_ref_runtime;
 
 	/*
@@ -994,13 +1002,6 @@ struct btrfs_fs_info {
 
 	struct crypto_shash *csum_shash;
 
-	spinlock_t send_reloc_lock;
-	/*
-	 * Number of send operations in progress.
-	 * Updated while holding fs_info::send_reloc_lock.
-	 */
-	int send_in_progress;
-
 	/* Type of exclusive operation running, protected by super_lock */
 	enum btrfs_exclusive_operation exclusive_operation;
 
@@ -1098,7 +1099,14 @@ enum {
 	BTRFS_ROOT_HAS_LOG_TREE,
 	/* Qgroup flushing is in progress */
 	BTRFS_ROOT_QGROUP_FLUSHING,
+	/* This root has a drop operation that was started previously. */
+	BTRFS_ROOT_UNFINISHED_DROP,
 };
+
+static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
+{
+	clear_and_wake_up_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
+}
 
 /*
  * Record swapped tree blocks of a subvolume tree for delayed subtree trace

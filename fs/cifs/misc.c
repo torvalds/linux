@@ -75,6 +75,7 @@ sesInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		mutex_init(&ret_buf->session_mutex);
 		spin_lock_init(&ret_buf->iface_lock);
+		spin_lock_init(&ret_buf->chan_lock);
 	}
 	return ret_buf;
 }

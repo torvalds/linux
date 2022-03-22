@@ -6573,11 +6573,14 @@ static bool io_drain_req(struct io_kiocb *req)
 	}
 
 	/* Still need defer if there is pending req in defer list. */
+	spin_lock(&ctx->completion_lock);
 	if (likely(list_empty_careful(&ctx->defer_list) &&
 		!(req->flags & REQ_F_IO_DRAIN))) {
+		spin_unlock(&ctx->completion_lock);
 		ctx->drain_active = false;
 		return false;
 	}
+	spin_unlock(&ctx->completion_lock);
 
 	seq = io_get_sequence(req);
 	/* Still a chance to pass the sequence check */

@@ -451,6 +451,7 @@ static uintptr_t __init best_map_size(phys_addr_t base, phys_addr_t size)
 }
 
 #ifdef CONFIG_XIP_KERNEL
+#define phys_ram_base  (*(phys_addr_t *)XIP_FIXUP(&phys_ram_base))
 /* called from head.S with MMU off */
 asmlinkage void __init __copy_data(void)
 {

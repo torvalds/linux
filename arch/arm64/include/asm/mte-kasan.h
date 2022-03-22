@@ -5,6 +5,7 @@
 #ifndef __ASM_MTE_KASAN_H
 #define __ASM_MTE_KASAN_H
 
+#include <asm/compiler.h>
 #include <asm/mte-def.h>
 
 #ifndef __ASSEMBLY__

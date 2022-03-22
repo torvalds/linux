@@ -953,8 +953,10 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 		if ((psta->state&WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap&BIT(psta->aid))) {
 			struct list_head	*xmitframe_plist, *xmitframe_phead;
 			struct xmit_frame *pxmitframe = NULL;
+			struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-			spin_lock_bh(&psta->sleep_q.lock);
+			/* spin_lock_bh(&psta->sleep_q.lock); */
+			spin_lock_bh(&pxmitpriv->lock);
 
 			xmitframe_phead = get_list_head(&psta->sleep_q);
 			xmitframe_plist = get_next(xmitframe_phead);
@@ -985,10 +987,12 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 					update_beacon(padapter, WLAN_EID_TIM, NULL, true);
 				}
 
-				spin_unlock_bh(&psta->sleep_q.lock);
+				/* spin_unlock_bh(&psta->sleep_q.lock); */
+				spin_unlock_bh(&pxmitpriv->lock);
 
 			} else {
-				spin_unlock_bh(&psta->sleep_q.lock);
+				/* spin_unlock_bh(&psta->sleep_q.lock); */
+				spin_unlock_bh(&pxmitpriv->lock);
 
 				if (pstapriv->tim_bitmap&BIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {

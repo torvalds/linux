@@ -1526,8 +1526,12 @@ static int match_session(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	 * If an existing session is limited to less channels than
 	 * requested, it should not be reused
 	 */
-	if (ses->chan_max < ctx->max_channels)
+	spin_lock(&ses->chan_lock);
+	if (ses->chan_max < ctx->max_channels) {
+		spin_unlock(&ses->chan_lock);
 		return 0;
+	}
+	spin_unlock(&ses->chan_lock);
 
 	switch (ses->sectype) {
 	case Kerberos:
@@ -1662,6 +1666,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 void cifs_put_smb_ses(struct cifs_ses *ses)
 {
 	unsigned int rc, xid;
+	unsigned int chan_count;
 	struct TCP_Server_Info *server = ses->server;
 	cifs_dbg(FYI, "%s: ses_count=%d\n", __func__, ses->ses_count);
 
@@ -1703,12 +1708,24 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	list_del_init(&ses->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	spin_lock(&ses->chan_lock);
+	chan_count = ses->chan_count;
+	spin_unlock(&ses->chan_lock);
+
 	/* close any extra channels */
-	if (ses->chan_count > 1) {
+	if (chan_count > 1) {
 		int i;
 
-		for (i = 1; i < ses->chan_count; i++)
+		for (i = 1; i < chan_count; i++) {
+			/*
+			 * note: for now, we're okay accessing ses->chans
+			 * without chan_lock. But when chans can go away, we'll
+			 * need to introduce ref counting to make sure that chan
+			 * is not freed from under us.
+			 */
 			cifs_put_tcp_session(ses->chans[i].server, 0);
+			ses->chans[i].server = NULL;
+		}
 	}
 
 	sesInfoFree(ses);
@@ -1959,9 +1976,11 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	mutex_lock(&ses->session_mutex);
 
 	/* add server as first channel */
+	spin_lock(&ses->chan_lock);
 	ses->chans[0].server = server;
 	ses->chan_count = 1;
 	ses->chan_max = ctx->multichannel ? ctx->max_channels:1;
+	spin_unlock(&ses->chan_lock);
 
 	rc = cifs_negotiate_protocol(xid, ses);
 	if (!rc)

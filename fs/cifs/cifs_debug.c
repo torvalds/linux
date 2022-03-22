@@ -414,12 +414,14 @@ skip_rdma:
 				   from_kuid(&init_user_ns, ses->linux_uid),
 				   from_kuid(&init_user_ns, ses->cred_uid));
 
+			spin_lock(&ses->chan_lock);
 			if (ses->chan_count > 1) {
 				seq_printf(m, "\n\n\tExtra Channels: %zu ",
 					   ses->chan_count-1);
 				for (j = 1; j < ses->chan_count; j++)
 					cifs_dump_channel(m, j, &ses->chans[j]);
 			}
+			spin_unlock(&ses->chan_lock);
 
 			seq_puts(m, "\n\n\tShares: ");
 			j = 0;

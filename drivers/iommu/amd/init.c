@@ -656,6 +656,16 @@ static int __init alloc_command_buffer(struct amd_iommu *iommu)
 }
 
 /*
+ * This function restarts event logging in case the IOMMU experienced
+ * an event log buffer overflow.
+ */
+void amd_iommu_restart_event_logging(struct amd_iommu *iommu)
+{
+	iommu_feature_disable(iommu, CONTROL_EVT_LOG_EN);
+	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
+}
+
+/*
  * This function resets the command buffer if the IOMMU stopped fetching
  * commands from it.
  */

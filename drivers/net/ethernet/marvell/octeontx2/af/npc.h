@@ -31,9 +31,9 @@ enum npc_kpu_la_ltype {
 	NPC_LT_LA_HIGIG2_ETHER,
 	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
 	NPC_LT_LA_CUSTOM_L2_90B_ETHER,
-	NPC_LT_LA_CH_LEN_90B_ETHER,
 	NPC_LT_LA_CPT_HDR,
 	NPC_LT_LA_CUSTOM_L2_24B_ETHER,
+	NPC_LT_LA_CUSTOM_PRE_L2_ETHER,
 	NPC_LT_LA_CUSTOM0 = 0xE,
 	NPC_LT_LA_CUSTOM1 = 0xF,
 };
@@ -148,10 +148,11 @@ enum npc_kpu_lh_ltype {
  * Software assigns pkind for each incoming port such as CGX
  * Ethernet interfaces, LBK interfaces, etc.
  */
-#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_VLAN_EXDSA_PKIND
+#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_CUSTOM_PRE_L2_PKIND
 
 enum npc_pkind_type {
 	NPC_RX_LBK_PKIND = 0ULL,
+	NPC_RX_CUSTOM_PRE_L2_PKIND = 55ULL,
 	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
 	NPC_RX_CHLEN24B_PKIND = 57ULL,
 	NPC_RX_CPT_HDR_PKIND,
@@ -160,6 +161,10 @@ enum npc_pkind_type {
 	NPC_RX_HIGIG_PKIND,
 	NPC_RX_EDSA_PKIND,
 	NPC_TX_DEF_PKIND,	/* NIX-TX PKIND */
+};
+
+enum npc_interface_type {
+	NPC_INTF_MODE_DEF,
 };
 
 /* list of known and supported fields in packet header and
