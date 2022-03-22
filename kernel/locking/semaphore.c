@@ -32,6 +32,7 @@
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/ftrace.h>
+#include <trace/events/lock.h>
 
 static noinline void __down(struct semaphore *sem);
 static noinline int __down_interruptible(struct semaphore *sem);
@@ -205,7 +206,7 @@ struct semaphore_waiter {
  * constant, and thus optimised away by the compiler.  Likewise the
  * 'timeout' parameter for the cases without timeouts.
  */
-static inline int __sched __down_common(struct semaphore *sem, long state,
+static inline int __sched ___down_common(struct semaphore *sem, long state,
 								long timeout)
 {
 	struct semaphore_waiter waiter;
@@ -234,6 +235,18 @@ static inline int __sched __down_common(struct semaphore *sem, long state,
  interrupted:
 	list_del(&waiter.list);
 	return -EINTR;
+}
+
+static inline int __sched __down_common(struct semaphore *sem, long state,
+					long timeout)
+{
+	int ret;
+
+	trace_contention_begin(sem, 0);
+	ret = ___down_common(sem, state, timeout);
+	trace_contention_end(sem, ret);
+
+	return ret;
 }
 
 static noinline void __sched __down(struct semaphore *sem)

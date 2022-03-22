@@ -112,6 +112,8 @@ static int __sched __rwbase_read_lock(struct rwbase_rt *rwb,
 	 * Reader2 to call up_read(), which might be unbound.
 	 */
 
+	trace_contention_begin(rwb, LCB_F_RT | LCB_F_READ);
+
 	/*
 	 * For rwlocks this returns 0 unconditionally, so the below
 	 * !ret conditionals are optimized out.
@@ -130,6 +132,8 @@ static int __sched __rwbase_read_lock(struct rwbase_rt *rwb,
 	raw_spin_unlock_irq(&rtm->wait_lock);
 	if (!ret)
 		rwbase_rtmutex_unlock(rtm);
+
+	trace_contention_end(rwb, ret);
 	return ret;
 }
 
@@ -247,11 +251,13 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 		goto out_unlock;
 
 	rwbase_set_and_save_current_state(state);
+	trace_contention_begin(rwb, LCB_F_RT | LCB_F_WRITE);
 	for (;;) {
 		/* Optimized out for rwlocks */
 		if (rwbase_signal_pending_state(state, current)) {
 			rwbase_restore_current_state();
 			__rwbase_write_unlock(rwb, 0, flags);
+			trace_contention_end(rwb, -EINTR);
 			return -EINTR;
 		}
 
@@ -265,6 +271,7 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 		set_current_state(state);
 	}
 	rwbase_restore_current_state();
+	trace_contention_end(rwb, 0);
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
