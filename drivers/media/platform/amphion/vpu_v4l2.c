@@ -398,6 +398,10 @@ static int vpu_vb2_queue_setup(struct vb2_queue *vq,
 		return 0;
 	}
 
+	if (V4L2_TYPE_IS_OUTPUT(vq->type))
+		*buf_count = max_t(unsigned int, *buf_count, inst->min_buffer_out);
+	else
+		*buf_count = max_t(unsigned int, *buf_count, inst->min_buffer_cap);
 	*plane_count = cur_fmt->num_planes;
 	for (i = 0; i < cur_fmt->num_planes; i++)
 		psize[i] = cur_fmt->sizeimage[i];
