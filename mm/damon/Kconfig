@@ -52,6 +52,13 @@ config DAMON_VADDR_KUNIT_TEST
 
 	  If unsure, say N.
 
+config DAMON_SYSFS
+	bool "DAMON sysfs interface"
+	depends on DAMON && SYSFS
+	help
+	  This builds the sysfs interface for DAMON.  The user space can use
+	  the interface for arbitrary data access monitoring.
+
 config DAMON_DBGFS
 	bool "DAMON debugfs interface"
 	depends on DAMON_VADDR && DAMON_PADDR && DEBUG_FS
