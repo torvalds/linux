@@ -48,8 +48,10 @@
  *  VERSION     : 01-00-24
  *  10 Dec 2021 : 1. Added link partner pause frame count debug counters to ethtool statistics.
  *  VERSION     : 01-00-31
- *  04 Feb 2021 : 1. Ethtool statistics added to print doorbell SRAM area for all the channels.
+ *  04 Feb 2022 : 1. Ethtool statistics added to print doorbell SRAM area for all the channels.
  *  VERSION     : 01-00-41
+ *  22 Mar 2022 : 1. PCI bus info updated for ethtool get driver version
+ *  VERSION     : 01-00-46
  */
 
 #include <linux/etherdevice.h>
@@ -814,6 +816,7 @@ static void tc956xmac_ethtool_getdrvinfo(struct net_device *dev,
 				      struct ethtool_drvinfo *info)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
+	struct pci_dev *pdev = to_pci_dev(priv->device);
 	struct tc956x_version *fw_version;
 	int reg = 0;
 	char fw_version_str[32];
@@ -838,6 +841,7 @@ static void tc956xmac_ethtool_getdrvinfo(struct net_device *dev,
 			sizeof(info->driver));
 
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(pdev), sizeof(info->bus_info));
 
 	info->n_priv_flags = TC956X_PRIV_FLAGS_STR_LEN;
 }
