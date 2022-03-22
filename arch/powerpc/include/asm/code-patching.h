@@ -22,6 +22,8 @@
 #define BRANCH_SET_LINK	0x1
 #define BRANCH_ABSOLUTE	0x2
 
+DECLARE_STATIC_KEY_FALSE(init_mem_is_free);
+
 bool is_offset_in_branch_range(long offset);
 bool is_offset_in_cond_branch_range(long offset);
 int create_branch(ppc_inst_t *instr, const u32 *addr,

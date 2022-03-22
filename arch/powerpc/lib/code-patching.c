@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/cpuhotplug.h>
 #include <linux/uaccess.h>
+#include <linux/jump_label.h>
 
 #include <asm/tlbflush.h>
 #include <asm/page.h>
@@ -188,10 +189,12 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
+__ro_after_init DEFINE_STATIC_KEY_FALSE(init_mem_is_free);
+
 int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (system_state >= SYSTEM_FREEING_INITMEM && init_section_contains(addr, 4))
+	if (static_branch_likely(&init_mem_is_free) && init_section_contains(addr, 4))
 		return 0;
 
 	return do_patch_instruction(addr, instr);
