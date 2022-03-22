@@ -1564,6 +1564,50 @@ static void rollover_cpu_window(struct rq *rq, bool full_window)
 /*
  * Account cpu activity in its
  * busy time counters(wrq->curr/prev_runnable_sum)
+ *
+ * While the comments at the top of update_task_demand() apply, irqtime handling
+ * needs some explanation.
+ *
+ * Note that update_task_ravg() with irqtime is only called when idle, i.e. p is
+ * always idle
+ *
+ * ms_i = mark_start of idle task
+ * ws = wrq->window_start
+ * irq_s = start time of irq
+ * irq_e = end time of irq = wallclock
+ *
+ * note irqtime = irq_e - irq_s
+ *
+ * Similar to the explanation at update_task_demand() we have few sitautions for irqtime
+ *
+ *              ws   ms_i   is    ie
+ *              |    |      |      |
+ *              V    V      V      V
+ *      --------|--------------------|
+ *          prev    curr
+ *
+ * In the above case, new_window is false and irqtime is accounted in curr_runnable_sum, this is
+ * done in the if (!new_window) block.
+ *
+ *             ms_i  ws     is    ie
+ *              |    |      |      |
+ *              V    V      V      V
+ *      -------------|---------------------
+ *               prev   curr
+ *
+ * In this case, new_window is true, however the irqtime falls within the current window, the
+ * entire irqtime is accounted in curr_runnable_sum. This is handled in the if (irqtime) block and
+ * within that if (mark_start > window_start) block
+ *
+ *             ms_i  is     ws    ie
+ *              |    |      |      |
+ *              V    V      V      V
+ *      --------------------|---------------
+ *                      prev    curr
+ *
+ * In this case, new_window is true, portion  of the irqtime  needs to be accounted in
+ * prev_runnable_sum while the rest is in curr_runnable_sum. This is handled in the
+ * if (irqtime) block
  */
 static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 				 int event, u64 wallclock, u64 irqtime)
@@ -1641,8 +1685,16 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 	}
 
 	/*
-	 * situations below this need window rollover, which should already be done
+	 * situations below this need window rollover,
+	 * Rollover of cpu counters (curr/prev_runnable_sum) should have already be done
 	 * in update_window_start()
+	 *
+	 * For task counters curr/prev_window[_cpu] are rolled over in the early part of
+	 * this function. If full_window(s) have expired and time since last update needs
+	 * to be accounted as busy time, set the prev to a complete window size time, else
+	 * add the prev window portion.
+	 *
+	 * For task curr counters a new window has begun, always assign
 	 */
 
 	if (!p_is_curr_task) {
@@ -1760,6 +1812,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		 */
 
 		WALT_PANIC(!is_idle_task(p));
+		/* mark_start here becomes the starting time of interrupt */
 		mark_start = wallclock - irqtime;
 
 		/*
