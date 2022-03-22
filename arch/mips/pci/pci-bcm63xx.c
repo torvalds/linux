@@ -186,7 +186,7 @@ static int __init bcm63xx_register_pcie(void)
 	/* setup class code as bridge */
 	val = bcm_pcie_readl(PCIE_IDVAL3_REG);
 	val &= ~IDVAL3_CLASS_CODE_MASK;
-	val |= (PCI_CLASS_BRIDGE_PCI << IDVAL3_SUBCLASS_SHIFT);
+	val |= PCI_CLASS_BRIDGE_PCI_NORMAL;
 	bcm_pcie_writel(val, PCIE_IDVAL3_REG);
 
 	/* disable bar1 size */
