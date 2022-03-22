@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#include <net/udp.h>
 #include "ar-internal.h"
 
 struct rxrpc_ack_buffer {
@@ -22,6 +23,19 @@ struct rxrpc_ack_buffer {
 	u8 pad[3];
 	struct rxrpc_ackinfo ackinfo;
 };
+
+extern int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
+
+static ssize_t do_udp_sendmsg(struct socket *sk, struct msghdr *msg, size_t len)
+{
+#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
+	struct sockaddr *sa = msg->msg_name;
+
+	if (sa->sa_family == AF_INET6)
+		return udpv6_sendmsg(sk->sk, msg, len);
+#endif
+	return udp_sendmsg(sk->sk, msg, len);
+}
 
 struct rxrpc_abort_buffer {
 	struct rxrpc_wire_header whdr;
@@ -258,8 +272,10 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
-	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
+	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
+	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_ack);
@@ -336,8 +352,8 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	serial = atomic_inc_return(&conn->serial);
 	pkt.whdr.serial = htonl(serial);
 
-	ret = kernel_sendmsg(conn->params.local->socket,
-			     &msg, iov, 1, sizeof(pkt));
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, sizeof(pkt));
+	ret = do_udp_sendmsg(conn->params.local->socket, &msg, sizeof(pkt));
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -397,6 +413,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	iov[1].iov_base = skb->head;
 	iov[1].iov_len = skb->len;
 	len = iov[0].iov_len + iov[1].iov_len;
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
 
 	msg.msg_name = &call->peer->srx.transport;
 	msg.msg_namelen = call->peer->srx.transport_len;
@@ -469,7 +486,7 @@ dont_set_request_ack:
 	 *     message and update the peer record
 	 */
 	rxrpc_inc_stat(call->rxnet, stat_tx_data_send);
-	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
+	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	up_read(&conn->params.local->defrag_sem);
@@ -545,8 +562,7 @@ send_fragmentable:
 		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
 				IP_PMTUDISC_DONT);
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
-		ret = kernel_sendmsg(conn->params.local->socket, &msg,
-				     iov, 2, len);
+		ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
 		conn->params.peer->last_tx_at = ktime_get_seconds();
 
 		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
@@ -632,8 +648,8 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			whdr.flags	^= RXRPC_CLIENT_INITIATED;
 			whdr.flags	&= RXRPC_CLIENT_INITIATED;
 
-			ret = kernel_sendmsg(local->socket, &msg,
-					     iov, ioc, size);
+			iov_iter_kvec(&msg.msg_iter, WRITE, iov, ioc, size);
+			ret = do_udp_sendmsg(local->socket, &msg, size);
 			if (ret < 0)
 				trace_rxrpc_tx_fail(local->debug_id, 0, ret,
 						    rxrpc_tx_point_reject);
@@ -688,7 +704,8 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	_proto("Tx VERSION (keepalive)");
 
-	ret = kernel_sendmsg(peer->local->socket, &msg, iov, 2, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
+	ret = do_udp_sendmsg(peer->local->socket, &msg, len);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(peer->debug_id, 0, ret,
 				    rxrpc_tx_point_version_keepalive);
