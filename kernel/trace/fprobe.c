@@ -215,7 +215,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	 * correctly calculate the total number of filtered symbols
 	 * from both filter and notfilter.
 	 */
-	hash = fp->ops.local_hash.filter_hash;
+	hash = rcu_access_pointer(fp->ops.local_hash.filter_hash);
 	if (WARN_ON_ONCE(!hash))
 		goto out;
 
