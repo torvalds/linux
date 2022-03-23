@@ -86,6 +86,8 @@ static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
 		sprintf(benchmark_cmd[5], "%s", MBA_STR);
 	res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
 	ksft_test_result(!res, "MBM: bw change\n");
+	if ((get_vendor() == ARCH_INTEL) && res)
+		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 	mbm_test_cleanup();
 }
 
@@ -122,6 +124,8 @@ static void run_cmt_test(bool has_ben, char **benchmark_cmd, int cpu_no)
 		sprintf(benchmark_cmd[5], "%s", CMT_STR);
 	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
 	ksft_test_result(!res, "CMT: test\n");
+	if ((get_vendor() == ARCH_INTEL) && res)
+		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 	cmt_test_cleanup();
 }
 
