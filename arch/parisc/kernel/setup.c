@@ -48,6 +48,7 @@ struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
+	char *p;
 
 	/* Collect stuff passed in from the boot loader */
 
@@ -56,8 +57,18 @@ void __init setup_cmdline(char **cmdline_p)
 		/* called from hpux boot loader */
 		boot_command_line[0] = '\0';
 	} else {
-		strlcpy(boot_command_line, (char *)__va(boot_args[1]),
+		strscpy(boot_command_line, (char *)__va(boot_args[1]),
 			COMMAND_LINE_SIZE);
+
+	/* autodetect console type (if not done by palo yet) */
+	p = boot_command_line;
+	if (!str_has_prefix(p, "console=") && !strstr(p, " console=")) {
+		strlcat(p, " console=", COMMAND_LINE_SIZE);
+		if (PAGE0->mem_cons.cl_class == CL_DUPLEX)
+			strlcat(p, "ttyS0", COMMAND_LINE_SIZE);
+		else
+			strlcat(p, "tty0", COMMAND_LINE_SIZE);
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
@@ -68,7 +79,7 @@ void __init setup_cmdline(char **cmdline_p)
 #endif
 	}
 
-	strcpy(command_line, boot_command_line);
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 }
 

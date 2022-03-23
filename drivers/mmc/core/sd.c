@@ -67,7 +67,7 @@ static const unsigned int sd_au_size[] = {
 		__res & __mask;						\
 	})
 
-#define SD_POWEROFF_NOTIFY_TIMEOUT_MS 2000
+#define SD_POWEROFF_NOTIFY_TIMEOUT_MS 1000
 #define SD_WRITE_EXTR_SINGLE_TIMEOUT_MS 1000
 
 struct sd_busy_data {
@@ -1663,6 +1663,12 @@ static int sd_poweroff_notify(struct mmc_card *card)
 			mmc_hostname(card->host), err);
 		goto out;
 	}
+
+	/* Find out when the command is completed. */
+	err = mmc_poll_for_busy(card, SD_WRITE_EXTR_SINGLE_TIMEOUT_MS, false,
+				MMC_BUSY_EXTR_SINGLE);
+	if (err)
+		goto out;
 
 	cb_data.card = card;
 	cb_data.reg_buf = reg_buf;

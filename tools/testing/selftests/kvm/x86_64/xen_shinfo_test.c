@@ -46,20 +46,20 @@ static struct kvm_vm *vm;
 #define MIN_STEAL_TIME		50000
 
 struct pvclock_vcpu_time_info {
-        u32   version;
-        u32   pad0;
-        u64   tsc_timestamp;
-        u64   system_time;
-        u32   tsc_to_system_mul;
-        s8    tsc_shift;
-        u8    flags;
-        u8    pad[2];
+	u32   version;
+	u32   pad0;
+	u64   tsc_timestamp;
+	u64   system_time;
+	u32   tsc_to_system_mul;
+	s8    tsc_shift;
+	u8    flags;
+	u8    pad[2];
 } __attribute__((__packed__)); /* 32 bytes */
 
 struct pvclock_wall_clock {
-        u32   version;
-        u32   sec;
-        u32   nsec;
+	u32   version;
+	u32   sec;
+	u32   nsec;
 } __attribute__((__packed__));
 
 struct vcpu_runstate_info {
@@ -74,11 +74,11 @@ struct arch_vcpu_info {
 };
 
 struct vcpu_info {
-        uint8_t evtchn_upcall_pending;
-        uint8_t evtchn_upcall_mask;
-        unsigned long evtchn_pending_sel;
-        struct arch_vcpu_info arch;
-        struct pvclock_vcpu_time_info time;
+	uint8_t evtchn_upcall_pending;
+	uint8_t evtchn_upcall_mask;
+	unsigned long evtchn_pending_sel;
+	struct arch_vcpu_info arch;
+	struct pvclock_vcpu_time_info time;
 }; /* 64 bytes (x86) */
 
 struct shared_info {
@@ -493,7 +493,7 @@ int main(int argc, char *argv[])
 
 	vm_ts.tv_sec = wc->sec;
 	vm_ts.tv_nsec = wc->nsec;
-        TEST_ASSERT(wc->version && !(wc->version & 1),
+	TEST_ASSERT(wc->version && !(wc->version & 1),
 		    "Bad wallclock version %x", wc->version);
 	TEST_ASSERT(cmp_timespec(&min_ts, &vm_ts) <= 0, "VM time too old");
 	TEST_ASSERT(cmp_timespec(&max_ts, &vm_ts) >= 0, "VM time too new");

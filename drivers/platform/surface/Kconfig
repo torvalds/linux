@@ -5,6 +5,7 @@
 
 menuconfig SURFACE_PLATFORMS
 	bool "Microsoft Surface Platform-Specific Device Drivers"
+	depends on ARM64 || X86 || COMPILE_TEST
 	default y
 	help
 	  Say Y here to get to see options for platform-specific device drivers

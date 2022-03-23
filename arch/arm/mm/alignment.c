@@ -1005,7 +1005,7 @@ static int __init noalign_setup(char *__unused)
 __setup("noalign", noalign_setup);
 
 /*
- * This needs to be done after sysctl_init, otherwise sys/ will be
+ * This needs to be done after sysctl_init_bases(), otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since
  * it isn't a sysctl, and it doesn't contain sysctl information.
  * We now locate it in /proc/cpu/alignment instead.

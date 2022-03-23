@@ -43,7 +43,7 @@ properties:
   priority:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-      A priority ranging from 0 to 255 (default 128) according to the following guidelines:
+      A priority ranging from 0 to 255 (default 129) according to the following guidelines:
 
         0:   Restart handler of last resort, with limited restart capabilities.
         128: Default restart handler; use if no other restart handler is expected to be available,
@@ -51,7 +51,7 @@ properties:
         255: Highest priority restart handler, will preempt all other restart handlers.
     minimum: 0
     maximum: 255
-    default: 128
+    default: 129
 
   active-delay:
     $ref: /schemas/types.yaml#/definitions/uint32

@@ -308,8 +308,11 @@ static int q6apm_dai_close(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct q6apm_dai_rtd *prtd = runtime->private_data;
 
-	q6apm_graph_stop(prtd->graph);
-	q6apm_unmap_memory_regions(prtd->graph, substream->stream);
+	if (prtd->state) { /* only stop graph that is started */
+		q6apm_graph_stop(prtd->graph);
+		q6apm_unmap_memory_regions(prtd->graph, substream->stream);
+	}
+
 	q6apm_graph_close(prtd->graph);
 	prtd->graph = NULL;
 	kfree(prtd);

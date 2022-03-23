@@ -333,7 +333,7 @@ int bench_epoll_ctl(int argc, const char **argv)
 
 	/* default to the number of CPUs */
 	if (!nthreads)
-		nthreads = cpu->nr;
+		nthreads = perf_cpu_map__nr(cpu);
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)

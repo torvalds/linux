@@ -2011,7 +2011,6 @@ static void nft_last_rule(struct nft_rule_blob *blob, const void *ptr)
 
 	prule = (struct nft_rule_dp *)ptr;
 	prule->is_last = 1;
-	ptr += offsetof(struct nft_rule_dp, data);
 	/* blob size does not include the trailer rule */
 }
 
@@ -8264,14 +8263,12 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 	void *data, *data_boundary;
 	struct nft_rule_dp *prule;
 	struct nft_rule *rule;
-	int i;
 
 	/* already handled or inactive chain? */
 	if (chain->blob_next || !nft_is_active_next(net, chain))
 		return 0;
 
 	rule = list_entry(&chain->rules, struct nft_rule, list);
-	i = 0;
 
 	data_size = 0;
 	list_for_each_entry_continue(rule, &chain->rules, list) {
@@ -8301,7 +8298,7 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 			return -ENOMEM;
 
 		size = 0;
-		track.last = last;
+		track.last = nft_expr_last(rule);
 		nft_rule_for_each_expr(expr, last, rule) {
 			track.cur = expr;
 

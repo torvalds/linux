@@ -128,6 +128,8 @@ config HID_ACRUX_FF
 config HID_APPLE
 	tristate "Apple {i,Power,Mac}Books"
 	depends on HID
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
 	default !EXPERT
 	help
 	Support for some Apple devices which less or more break

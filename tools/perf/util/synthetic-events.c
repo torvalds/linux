@@ -1186,12 +1186,12 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 static void synthesize_cpus(struct cpu_map_entries *cpus,
 			    struct perf_cpu_map *map)
 {
-	int i;
+	int i, map_nr = perf_cpu_map__nr(map);
 
-	cpus->nr = map->nr;
+	cpus->nr = map_nr;
 
-	for (i = 0; i < map->nr; i++)
-		cpus->cpu[i] = map->map[i].cpu;
+	for (i = 0; i < map_nr; i++)
+		cpus->cpu[i] = perf_cpu_map__cpu(map, i).cpu;
 }
 
 static void synthesize_mask(struct perf_record_record_cpu_map *mask,
@@ -1202,13 +1202,13 @@ static void synthesize_mask(struct perf_record_record_cpu_map *mask,
 	mask->nr = BITS_TO_LONGS(max);
 	mask->long_size = sizeof(long);
 
-	for (i = 0; i < map->nr; i++)
-		set_bit(map->map[i].cpu, mask->mask);
+	for (i = 0; i < perf_cpu_map__nr(map); i++)
+		set_bit(perf_cpu_map__cpu(map, i).cpu, mask->mask);
 }
 
 static size_t cpus_size(struct perf_cpu_map *map)
 {
-	return sizeof(struct cpu_map_entries) + map->nr * sizeof(u16);
+	return sizeof(struct cpu_map_entries) + perf_cpu_map__nr(map) * sizeof(u16);
 }
 
 static size_t mask_size(struct perf_cpu_map *map, int *max)
@@ -1217,9 +1217,9 @@ static size_t mask_size(struct perf_cpu_map *map, int *max)
 
 	*max = 0;
 
-	for (i = 0; i < map->nr; i++) {
+	for (i = 0; i < perf_cpu_map__nr(map); i++) {
 		/* bit position of the cpu is + 1 */
-		int bit = map->map[i].cpu + 1;
+		int bit = perf_cpu_map__cpu(map, i).cpu + 1;
 
 		if (bit > *max)
 			*max = bit;
@@ -1784,6 +1784,25 @@ int __machine__synthesize_threads(struct machine *machine, struct perf_tool *too
 				  perf_event__handler_t process, bool needs_mmap,
 				  bool data_mmap, unsigned int nr_threads_synthesize)
 {
+	/*
+	 * When perf runs in non-root PID namespace, and the namespace's proc FS
+	 * is not mounted, nsinfo__is_in_root_namespace() returns false.
+	 * In this case, the proc FS is coming for the parent namespace, thus
+	 * perf tool will wrongly gather process info from its parent PID
+	 * namespace.
+	 *
+	 * To avoid the confusion that the perf tool runs in a child PID
+	 * namespace but it synthesizes thread info from its parent PID
+	 * namespace, returns failure with warning.
+	 */
+	if (!nsinfo__is_in_root_namespace()) {
+		pr_err("Perf runs in non-root PID namespace but it tries to ");
+		pr_err("gather process info from its parent PID namespace.\n");
+		pr_err("Please mount the proc file system properly, e.g. ");
+		pr_err("add the option '--mount-proc' for unshare command.\n");
+		return -EPERM;
+	}
+
 	if (target__has_task(target))
 		return perf_event__synthesize_thread_map(tool, threads, process, machine,
 							 needs_mmap, data_mmap);

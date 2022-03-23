@@ -497,7 +497,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	offset = pc - (long)&ex->insn;
 	if (WARN_ON_ONCE(offset >= 0 || offset < INT_MIN))
 		return -ERANGE;
-	ex->insn = pc;
+	ex->insn = offset;
 
 	/*
 	 * Since the extable follows the program, the fixup offset is always

@@ -485,7 +485,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * when we add extents we extent the journal
 	 */
 	/*
-	 * Even though we take i_mutex we can still cause block
+	 * Even though we take i_rwsem we can still cause block
 	 * allocation via mmap write to holes. If we have allocated
 	 * new blocks we fail migrate.  New block allocation will
 	 * clear EXT4_STATE_EXT_MIGRATE flag.  The flag is updated

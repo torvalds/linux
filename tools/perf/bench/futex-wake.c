@@ -151,7 +151,7 @@ int bench_futex_wake(int argc, const char **argv)
 	}
 
 	if (!params.nthreads)
-		params.nthreads = cpu->nr;
+		params.nthreads = perf_cpu_map__nr(cpu);
 
 	worker = calloc(params.nthreads, sizeof(*worker));
 	if (!worker)

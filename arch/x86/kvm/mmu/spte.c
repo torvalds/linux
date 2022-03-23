@@ -216,6 +216,7 @@ u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 
 	new_spte &= ~PT_WRITABLE_MASK;
 	new_spte &= ~shadow_host_writable_mask;
+	new_spte &= ~shadow_mmu_writable_mask;
 
 	new_spte = mark_spte_for_access_track(new_spte);
 

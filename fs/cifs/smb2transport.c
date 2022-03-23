@@ -100,6 +100,7 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 	goto out;
 
 found:
+	spin_lock(&ses->chan_lock);
 	if (cifs_chan_needs_reconnect(ses, server) &&
 	    !CIFS_ALL_CHANS_NEED_RECONNECT(ses)) {
 		/*
@@ -108,6 +109,7 @@ found:
 		 * session key
 		 */
 		memcpy(key, ses->smb3signingkey, SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
 
@@ -119,9 +121,11 @@ found:
 		chan = ses->chans + i;
 		if (chan->server == server) {
 			memcpy(key, chan->signkey, SMB3_SIGN_KEY_SIZE);
+			spin_unlock(&ses->chan_lock);
 			goto out;
 		}
 	}
+	spin_unlock(&ses->chan_lock);
 
 	cifs_dbg(VFS,
 		 "%s: Could not find channel signing key for session 0x%llx\n",
@@ -430,8 +434,10 @@ generate_smb3signingkey(struct cifs_ses *ses,
 			return rc;
 
 		/* safe to access primary channel, since it will never go away */
+		spin_lock(&ses->chan_lock);
 		memcpy(ses->chans[0].signkey, ses->smb3signingkey,
 		       SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
 
 		rc = generate_key(ses, ptriplet->encryption.label,
 				  ptriplet->encryption.context,

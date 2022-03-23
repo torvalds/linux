@@ -2834,7 +2834,7 @@ out:
 
 static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	ext4_group_t group;
 
 	if (*pos < 0 || *pos >= ext4_get_groups_count(sb))
@@ -2845,7 +2845,7 @@ static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
 
 static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	ext4_group_t group;
 
 	++*pos;
@@ -2857,7 +2857,7 @@ static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
 	int i;
 	int err, buddy_loaded = 0;
@@ -2985,7 +2985,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 static void *ext4_mb_seq_structs_summary_start(struct seq_file *seq, loff_t *pos)
 __acquires(&EXT4_SB(sb)->s_mb_rb_lock)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	unsigned long position;
 
 	read_lock(&EXT4_SB(sb)->s_mb_rb_lock);
@@ -2998,7 +2998,7 @@ __acquires(&EXT4_SB(sb)->s_mb_rb_lock)
 
 static void *ext4_mb_seq_structs_summary_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	unsigned long position;
 
 	++*pos;
@@ -3010,7 +3010,7 @@ static void *ext4_mb_seq_structs_summary_next(struct seq_file *seq, void *v, lof
 
 static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	unsigned long position = ((unsigned long) v);
 	struct ext4_group_info *grp;
@@ -3058,7 +3058,7 @@ static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 static void ext4_mb_seq_structs_summary_stop(struct seq_file *seq, void *v)
 __releases(&EXT4_SB(sb)->s_mb_rb_lock)
 {
-	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+	struct super_block *sb = pde_data(file_inode(seq->file));
 
 	read_unlock(&EXT4_SB(sb)->s_mb_rb_lock);
 }
@@ -5753,7 +5753,8 @@ static ext4_fsblk_t ext4_mb_new_blocks_simple(handle_t *handle,
 	struct super_block *sb = ar->inode->i_sb;
 	ext4_group_t group;
 	ext4_grpblk_t blkoff;
-	int i = sb->s_blocksize;
+	ext4_grpblk_t max = EXT4_CLUSTERS_PER_GROUP(sb);
+	ext4_grpblk_t i = 0;
 	ext4_fsblk_t goal, block;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
@@ -5775,19 +5776,26 @@ static ext4_fsblk_t ext4_mb_new_blocks_simple(handle_t *handle,
 		ext4_get_group_no_and_offset(sb,
 			max(ext4_group_first_block_no(sb, group), goal),
 			NULL, &blkoff);
-		i = mb_find_next_zero_bit(bitmap_bh->b_data, sb->s_blocksize,
+		while (1) {
+			i = mb_find_next_zero_bit(bitmap_bh->b_data, max,
 						blkoff);
+			if (i >= max)
+				break;
+			if (ext4_fc_replay_check_excluded(sb,
+				ext4_group_first_block_no(sb, group) + i)) {
+				blkoff = i + 1;
+			} else
+				break;
+		}
 		brelse(bitmap_bh);
-		if (i >= sb->s_blocksize)
-			continue;
-		if (ext4_fc_replay_check_excluded(sb,
-			ext4_group_first_block_no(sb, group) + i))
-			continue;
-		break;
+		if (i < max)
+			break;
 	}
 
-	if (group >= ext4_get_groups_count(sb) && i >= sb->s_blocksize)
+	if (group >= ext4_get_groups_count(sb) || i >= max) {
+		*errp = -ENOSPC;
 		return 0;
+	}
 
 	block = ext4_group_first_block_no(sb, group) + i;
 	ext4_mb_mark_bb(sb, block, 1, 1);

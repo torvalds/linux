@@ -50,16 +50,15 @@ patternProperties:
           Offset and size in bytes within the storage device.
 
       bits:
-        maxItems: 1
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         items:
-          items:
-            - minimum: 0
-              maximum: 7
-              description:
-                Offset in bit within the address range specified by reg.
-            - minimum: 1
-              description:
-                Size in bit within the address range specified by reg.
+          - minimum: 0
+            maximum: 7
+            description:
+              Offset in bit within the address range specified by reg.
+          - minimum: 1
+            description:
+              Size in bit within the address range specified by reg.
 
     required:
       - reg

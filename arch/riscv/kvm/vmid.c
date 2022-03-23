@@ -67,7 +67,6 @@ void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 {
 	unsigned long i;
 	struct kvm_vcpu *v;
-	struct cpumask hmask;
 	struct kvm_vmid *vmid = &vcpu->kvm->arch.vmid;
 
 	if (!kvm_riscv_stage2_vmid_ver_changed(vmid))
@@ -102,8 +101,7 @@ void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 		 * running, we force VM exits on all host CPUs using IPI and
 		 * flush all Guest TLBs.
 		 */
-		riscv_cpuid_to_hartid_mask(cpu_online_mask, &hmask);
-		sbi_remote_hfence_gvma(cpumask_bits(&hmask), 0, 0);
+		sbi_remote_hfence_gvma(cpu_online_mask, 0, 0);
 	}
 
 	vmid->vmid = vmid_next;

@@ -150,7 +150,7 @@ int bench_futex_hash(int argc, const char **argv)
 	}
 
 	if (!params.nthreads) /* default to the number of CPUs */
-		params.nthreads = cpu->nr;
+		params.nthreads = perf_cpu_map__nr(cpu);
 
 	worker = calloc(params.nthreads, sizeof(*worker));
 	if (!worker)

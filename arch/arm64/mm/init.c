@@ -172,7 +172,7 @@ int pfn_is_map_memory(unsigned long pfn)
 }
 EXPORT_SYMBOL(pfn_is_map_memory);
 
-static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+static phys_addr_t memory_limit __ro_after_init = PHYS_ADDR_MAX;
 
 /*
  * Limit the memory size that was specified via FDT.

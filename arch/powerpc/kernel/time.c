@@ -649,8 +649,9 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 		__this_cpu_inc(irq_stat.timer_irqs_event);
 	} else {
 		now = *next_tb - now;
-		if (now <= decrementer_max)
-			set_dec_or_work(now);
+		if (now > decrementer_max)
+			now = decrementer_max;
+		set_dec_or_work(now);
 		__this_cpu_inc(irq_stat.timer_irqs_others);
 	}
 

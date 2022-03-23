@@ -2100,8 +2100,13 @@ void __init sev_hardware_setup(void)
 	if (!sev_enabled || !npt_enabled)
 		goto out;
 
-	/* Does the CPU support SEV? */
-	if (!boot_cpu_has(X86_FEATURE_SEV))
+	/*
+	 * SEV must obviously be supported in hardware.  Sanity check that the
+	 * CPU supports decode assists, which is mandatory for SEV guests to
+	 * support instruction emulation.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_SEV) ||
+	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_DECODEASSISTS)))
 		goto out;
 
 	/* Retrieve SEV CPUID information */

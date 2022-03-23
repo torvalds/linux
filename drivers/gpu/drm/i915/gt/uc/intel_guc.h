@@ -206,6 +206,11 @@ struct intel_guc {
 		 * context usage for overflows.
 		 */
 		struct delayed_work work;
+
+		/**
+		 * @shift: Right shift value for the gpm timestamp
+		 */
+		u32 shift;
 	} timestamp;
 
 #ifdef CONFIG_DRM_I915_SELFTEST

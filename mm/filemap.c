@@ -21,6 +21,7 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
@@ -34,13 +35,13 @@
 #include <linux/cpuset.h>
 #include <linux/hugetlb.h>
 #include <linux/memcontrol.h>
-#include <linux/cleancache.h>
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
 #include <linux/delayacct.h>
 #include <linux/psi.h>
 #include <linux/ramfs.h>
 #include <linux/page_idle.h>
+#include <linux/migrate.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -149,16 +150,6 @@ static void filemap_unaccount_folio(struct address_space *mapping,
 {
 	long nr;
 
-	/*
-	 * if we're uptodate, flush out into the cleancache, otherwise
-	 * invalidate any existing cleancache entries.  We can't leave
-	 * stale data around in the cleancache once our page is gone
-	 */
-	if (folio_test_uptodate(folio) && folio_test_mappedtodisk(folio))
-		cleancache_put_page(&folio->page);
-	else
-		cleancache_invalidate_page(mapping, &folio->page);
-
 	VM_BUG_ON_FOLIO(folio_mapped(folio), folio);
 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(folio_mapped(folio))) {
 		int mapcount;
@@ -231,17 +222,15 @@ void __filemap_remove_folio(struct folio *folio, void *shadow)
 void filemap_free_folio(struct address_space *mapping, struct folio *folio)
 {
 	void (*freepage)(struct page *);
+	int refs = 1;
 
 	freepage = mapping->a_ops->freepage;
 	if (freepage)
 		freepage(&folio->page);
 
-	if (folio_test_large(folio) && !folio_test_hugetlb(folio)) {
-		folio_ref_sub(folio, folio_nr_pages(folio));
-		VM_BUG_ON_FOLIO(folio_ref_count(folio) <= 0, folio);
-	} else {
-		folio_put(folio);
-	}
+	if (folio_test_large(folio) && !folio_test_hugetlb(folio))
+		refs = folio_nr_pages(folio);
+	folio_put_refs(folio, refs);
 }
 
 /**
@@ -1387,6 +1376,95 @@ repeat:
 
 	return wait->flags & WQ_FLAG_WOKEN ? 0 : -EINTR;
 }
+
+#ifdef CONFIG_MIGRATION
+/**
+ * migration_entry_wait_on_locked - Wait for a migration entry to be removed
+ * @entry: migration swap entry.
+ * @ptep: mapped pte pointer. Will return with the ptep unmapped. Only required
+ *        for pte entries, pass NULL for pmd entries.
+ * @ptl: already locked ptl. This function will drop the lock.
+ *
+ * Wait for a migration entry referencing the given page to be removed. This is
+ * equivalent to put_and_wait_on_page_locked(page, TASK_UNINTERRUPTIBLE) except
+ * this can be called without taking a reference on the page. Instead this
+ * should be called while holding the ptl for the migration entry referencing
+ * the page.
+ *
+ * Returns after unmapping and unlocking the pte/ptl with pte_unmap_unlock().
+ *
+ * This follows the same logic as folio_wait_bit_common() so see the comments
+ * there.
+ */
+void migration_entry_wait_on_locked(swp_entry_t entry, pte_t *ptep,
+				spinlock_t *ptl)
+{
+	struct wait_page_queue wait_page;
+	wait_queue_entry_t *wait = &wait_page.wait;
+	bool thrashing = false;
+	bool delayacct = false;
+	unsigned long pflags;
+	wait_queue_head_t *q;
+	struct folio *folio = page_folio(pfn_swap_entry_to_page(entry));
+
+	q = folio_waitqueue(folio);
+	if (!folio_test_uptodate(folio) && folio_test_workingset(folio)) {
+		if (!folio_test_swapbacked(folio)) {
+			delayacct_thrashing_start();
+			delayacct = true;
+		}
+		psi_memstall_enter(&pflags);
+		thrashing = true;
+	}
+
+	init_wait(wait);
+	wait->func = wake_page_function;
+	wait_page.folio = folio;
+	wait_page.bit_nr = PG_locked;
+	wait->flags = 0;
+
+	spin_lock_irq(&q->lock);
+	folio_set_waiters(folio);
+	if (!folio_trylock_flag(folio, PG_locked, wait))
+		__add_wait_queue_entry_tail(q, wait);
+	spin_unlock_irq(&q->lock);
+
+	/*
+	 * If a migration entry exists for the page the migration path must hold
+	 * a valid reference to the page, and it must take the ptl to remove the
+	 * migration entry. So the page is valid until the ptl is dropped.
+	 */
+	if (ptep)
+		pte_unmap_unlock(ptep, ptl);
+	else
+		spin_unlock(ptl);
+
+	for (;;) {
+		unsigned int flags;
+
+		set_current_state(TASK_UNINTERRUPTIBLE);
+
+		/* Loop until we've been woken or interrupted */
+		flags = smp_load_acquire(&wait->flags);
+		if (!(flags & WQ_FLAG_WOKEN)) {
+			if (signal_pending_state(TASK_UNINTERRUPTIBLE, current))
+				break;
+
+			io_schedule();
+			continue;
+		}
+		break;
+	}
+
+	finish_wait(q, wait);
+
+	if (thrashing) {
+		if (delayacct)
+			delayacct_thrashing_end();
+		psi_memstall_leave(&pflags);
+	}
+}
+#endif
 
 void folio_wait_bit(struct folio *folio, int bit_nr)
 {

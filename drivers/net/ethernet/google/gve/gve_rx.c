@@ -86,7 +86,8 @@ static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 	dma_addr_t dma;
 	int err;
 
-	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE);
+	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE,
+			     GFP_ATOMIC);
 	if (err)
 		return err;
 
@@ -608,6 +609,7 @@ static bool gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 
 	*packet_size_bytes = skb->len + (skb->protocol ? ETH_HLEN : 0);
 	*work_done = work_cnt;
+	skb_record_rx_queue(skb, rx->q_num);
 	if (skb_is_nonlinear(skb))
 		napi_gro_frags(napi);
 	else

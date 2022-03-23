@@ -3268,6 +3268,7 @@ number.
 
 :Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
              KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_SYS_ATTRIBUTES for system (/dev/kvm) device (no set)
 :Type: device ioctl, vm ioctl, vcpu ioctl
 :Parameters: struct kvm_device_attr
 :Returns: 0 on success, -1 on error
@@ -3302,7 +3303,8 @@ transferred is defined by the particular attribute.
 ------------------------
 
 :Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
-	     KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+             KVM_CAP_SYS_ATTRIBUTES for system (/dev/kvm) device
 :Type: device ioctl, vm ioctl, vcpu ioctl
 :Parameters: struct kvm_device_attr
 :Returns: 0 on success, -1 on error
@@ -5545,8 +5547,8 @@ the trailing ``'\0'``, is indicated by ``name_size`` in the header.
 The Stats Data block contains an array of 64-bit values in the same order
 as the descriptors in Descriptors block.
 
-4.42 KVM_GET_XSAVE2
-------------------
+4.134 KVM_GET_XSAVE2
+--------------------
 
 :Capability: KVM_CAP_XSAVE2
 :Architectures: x86
@@ -7363,7 +7365,7 @@ trap and emulate MSRs that are outside of the scope of KVM as well as
 limit the attack surface on KVM's MSR emulation code.
 
 8.28 KVM_CAP_ENFORCE_PV_FEATURE_CPUID
------------------------------
+-------------------------------------
 
 Architectures: x86
 

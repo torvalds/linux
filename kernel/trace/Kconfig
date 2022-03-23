@@ -70,6 +70,19 @@ config HAVE_C_RECORDMCOUNT
 	help
 	  C version of recordmcount available?
 
+config HAVE_BUILDTIME_MCOUNT_SORT
+       bool
+       help
+         An architecture selects this if it sorts the mcount_loc section
+	 at build time.
+
+config BUILDTIME_MCOUNT_SORT
+       bool
+       default y
+       depends on HAVE_BUILDTIME_MCOUNT_SORT && DYNAMIC_FTRACE
+       help
+         Sort the mcount_loc section at build time.
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -918,7 +931,7 @@ config EVENT_TRACE_TEST_SYSCALLS
 config FTRACE_SORT_STARTUP_TEST
        bool "Verify compile time sorting of ftrace functions"
        depends on DYNAMIC_FTRACE
-       depends on BUILDTIME_TABLE_SORT
+       depends on BUILDTIME_MCOUNT_SORT
        help
 	 Sorting of the mcount_loc sections that is used to find the
 	 where the ftrace knows where to patch functions for tracing

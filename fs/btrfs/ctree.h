@@ -145,6 +145,9 @@ enum {
 	BTRFS_FS_STATE_DUMMY_FS_INFO,
 
 	BTRFS_FS_STATE_NO_CSUMS,
+
+	/* Indicates there was an error cleaning up a log tree. */
+	BTRFS_FS_STATE_LOG_CLEANUP_ERROR,
 };
 
 #define BTRFS_BACKREF_REV_MAX		256
@@ -3593,6 +3596,9 @@ do {								\
 
 #define BTRFS_FS_ERROR(fs_info)	(unlikely(test_bit(BTRFS_FS_STATE_ERROR, \
 						   &(fs_info)->fs_state)))
+#define BTRFS_FS_LOG_CLEANUP_ERROR(fs_info)				\
+	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
+			   &(fs_info)->fs_state)))
 
 __printf(5, 6)
 __cold

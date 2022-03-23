@@ -202,6 +202,7 @@ struct dc_caps {
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
+	uint32_t max_otg_num;
 };
 
 struct dc_bug_wa {
@@ -344,6 +345,7 @@ struct dc_config {
 	uint8_t  vblank_alignment_max_frame_time_diff;
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
+	bool use_pipe_ctx_sync_logic;
 };
 
 enum visual_confirm {

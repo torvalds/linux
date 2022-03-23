@@ -56,7 +56,12 @@ int typec_link_ports(struct typec_port *con)
 {
 	struct each_port_arg arg = { .port = con, .match = NULL };
 
+	if (!has_acpi_companion(&con->dev))
+		return 0;
+
 	bus_for_each_dev(&acpi_bus_type, NULL, &arg, typec_port_match);
+	if (!arg.match)
+		return 0;
 
 	/*
 	 * REVISIT: Now each connector can have only a single component master.
@@ -74,5 +79,6 @@ int typec_link_ports(struct typec_port *con)
 
 void typec_unlink_ports(struct typec_port *con)
 {
-	component_master_del(&con->dev, &typec_aggregate_ops);
+	if (has_acpi_companion(&con->dev))
+		component_master_del(&con->dev, &typec_aggregate_ops);
 }

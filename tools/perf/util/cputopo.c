@@ -325,7 +325,7 @@ struct numa_topology *numa_topology__new(void)
 	if (!node_map)
 		goto out;
 
-	nr = (u32) node_map->nr;
+	nr = (u32) perf_cpu_map__nr(node_map);
 
 	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0])*nr);
 	if (!tp)
@@ -334,7 +334,7 @@ struct numa_topology *numa_topology__new(void)
 	tp->nr = nr;
 
 	for (i = 0; i < nr; i++) {
-		if (load_numa_node(&tp->nodes[i], node_map->map[i].cpu)) {
+		if (load_numa_node(&tp->nodes[i], perf_cpu_map__cpu(node_map, i).cpu)) {
 			numa_topology__delete(tp);
 			tp = NULL;
 			break;

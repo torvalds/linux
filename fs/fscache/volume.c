@@ -142,12 +142,12 @@ static void fscache_wait_on_volume_collision(struct fscache_volume *candidate,
 					     unsigned int collidee_debug_id)
 {
 	wait_var_event_timeout(&candidate->flags,
-			       fscache_is_acquire_pending(candidate), 20 * HZ);
+			       !fscache_is_acquire_pending(candidate), 20 * HZ);
 	if (!fscache_is_acquire_pending(candidate)) {
 		pr_notice("Potential volume collision new=%08x old=%08x",
 			  candidate->debug_id, collidee_debug_id);
 		fscache_stat(&fscache_n_volumes_collision);
-		wait_var_event(&candidate->flags, fscache_is_acquire_pending(candidate));
+		wait_var_event(&candidate->flags, !fscache_is_acquire_pending(candidate));
 	}
 }
 

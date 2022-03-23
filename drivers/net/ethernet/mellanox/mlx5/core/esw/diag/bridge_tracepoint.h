@@ -21,7 +21,7 @@ DECLARE_EVENT_CLASS(mlx5_esw_bridge_fdb_template,
 			    __field(unsigned int, used)
 			    ),
 		    TP_fast_assign(
-			    strncpy(__entry->dev_name,
+			    strscpy(__entry->dev_name,
 				    netdev_name(fdb->dev),
 				    IFNAMSIZ);
 			    memcpy(__entry->addr, fdb->key.addr, ETH_ALEN);

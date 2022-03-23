@@ -124,22 +124,23 @@ int evlist__fix_hybrid_cpus(struct evlist *evlist, const char *cpu_list)
 
 		events_nr++;
 
-		if (matched_cpus->nr > 0 && (unmatched_cpus->nr > 0 ||
-		    matched_cpus->nr < cpus->nr ||
-		    matched_cpus->nr < pmu->cpus->nr)) {
+		if (perf_cpu_map__nr(matched_cpus) > 0 &&
+		    (perf_cpu_map__nr(unmatched_cpus) > 0 ||
+		     perf_cpu_map__nr(matched_cpus) < perf_cpu_map__nr(cpus) ||
+		     perf_cpu_map__nr(matched_cpus) < perf_cpu_map__nr(pmu->cpus))) {
 			perf_cpu_map__put(evsel->core.cpus);
 			perf_cpu_map__put(evsel->core.own_cpus);
 			evsel->core.cpus = perf_cpu_map__get(matched_cpus);
 			evsel->core.own_cpus = perf_cpu_map__get(matched_cpus);
 
-			if (unmatched_cpus->nr > 0) {
+			if (perf_cpu_map__nr(unmatched_cpus) > 0) {
 				cpu_map__snprint(matched_cpus, buf1, sizeof(buf1));
 				pr_warning("WARNING: use %s in '%s' for '%s', skip other cpus in list.\n",
 					   buf1, pmu->name, evsel->name);
 			}
 		}
 
-		if (matched_cpus->nr == 0) {
+		if (perf_cpu_map__nr(matched_cpus) == 0) {
 			evlist__remove(evlist, evsel);
 			evsel__delete(evsel);
 

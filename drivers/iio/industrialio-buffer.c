@@ -1569,9 +1569,17 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 	}
 
 	if (copy_to_user(ival, &fd, sizeof(fd))) {
-		put_unused_fd(fd);
-		ret = -EFAULT;
-		goto error_free_ib;
+		/*
+		 * "Leak" the fd, as there's not much we can do about this
+		 * anyway. 'fd' might have been closed already, as
+		 * anon_inode_getfd() called fd_install() on it, which made
+		 * it reachable by userland.
+		 *
+		 * Instead of allowing a malicious user to play tricks with
+		 * us, rely on the process exit path to do any necessary
+		 * cleanup, as in releasing the file, if still needed.
+		 */
+		return -EFAULT;
 	}
 
 	return 0;

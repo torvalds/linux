@@ -86,7 +86,7 @@ struct cachefiles_cache {
 	unsigned			bcull_percent;	/* when to start culling (% blocks) */
 	unsigned			bstop_percent;	/* when to stop allocating (% blocks) */
 	unsigned			bsize;		/* cache's block size */
-	unsigned			bshift;		/* min(ilog2(PAGE_SIZE / bsize), 0) */
+	unsigned			bshift;		/* ilog2(bsize) */
 	uint64_t			frun;		/* when to stop culling */
 	uint64_t			fcull;		/* when to start culling */
 	uint64_t			fstop;		/* when to stop allocating */

@@ -33,7 +33,7 @@ static inline void regs_set_gpr(struct pt_regs *regs, unsigned int offset,
 	if (unlikely(offset > MAX_REG_OFFSET))
 		return;
 
-	if (!offset)
+	if (offset)
 		*(unsigned long *)((unsigned long)regs + offset) = val;
 }
 
@@ -43,8 +43,8 @@ static bool ex_handler_uaccess_err_zero(const struct exception_table_entry *ex,
 	int reg_err = FIELD_GET(EX_DATA_REG_ERR, ex->data);
 	int reg_zero = FIELD_GET(EX_DATA_REG_ZERO, ex->data);
 
-	regs_set_gpr(regs, reg_err, -EFAULT);
-	regs_set_gpr(regs, reg_zero, 0);
+	regs_set_gpr(regs, reg_err * sizeof(unsigned long), -EFAULT);
+	regs_set_gpr(regs, reg_zero * sizeof(unsigned long), 0);
 
 	regs->epc = get_ex_fixup(ex);
 	return true;

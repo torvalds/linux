@@ -1379,7 +1379,7 @@ bool is_empty_dir_inode(struct inode *inode)
 		(inode->i_op == &empty_dir_inode_operations);
 }
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 /*
  * Determine if the name of a dentry should be casefolded.
  *
@@ -1473,7 +1473,7 @@ static const struct dentry_operations generic_encrypted_dentry_ops = {
 };
 #endif
 
-#if defined(CONFIG_FS_ENCRYPTION) && defined(CONFIG_UNICODE)
+#if defined(CONFIG_FS_ENCRYPTION) && IS_ENABLED(CONFIG_UNICODE)
 static const struct dentry_operations generic_encrypted_ci_dentry_ops = {
 	.d_hash = generic_ci_d_hash,
 	.d_compare = generic_ci_d_compare,
@@ -1508,10 +1508,10 @@ void generic_set_encrypted_ci_d_ops(struct dentry *dentry)
 #ifdef CONFIG_FS_ENCRYPTION
 	bool needs_encrypt_ops = dentry->d_flags & DCACHE_NOKEY_NAME;
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	bool needs_ci_ops = dentry->d_sb->s_encoding;
 #endif
-#if defined(CONFIG_FS_ENCRYPTION) && defined(CONFIG_UNICODE)
+#if defined(CONFIG_FS_ENCRYPTION) && IS_ENABLED(CONFIG_UNICODE)
 	if (needs_encrypt_ops && needs_ci_ops) {
 		d_set_d_op(dentry, &generic_encrypted_ci_dentry_ops);
 		return;
@@ -1523,7 +1523,7 @@ void generic_set_encrypted_ci_d_ops(struct dentry *dentry)
 		return;
 	}
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (needs_ci_ops) {
 		d_set_d_op(dentry, &generic_ci_dentry_ops);
 		return;

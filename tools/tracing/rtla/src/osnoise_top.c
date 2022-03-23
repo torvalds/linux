@@ -483,9 +483,9 @@ static void osnoise_top_set_signals(struct osnoise_top_params *params)
 int osnoise_top_main(int argc, char **argv)
 {
 	struct osnoise_top_params *params;
+	struct osnoise_tool *record = NULL;
+	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
-	struct osnoise_tool *record;
-	struct osnoise_tool *tool;
 	int return_value = 1;
 	int retval;
 
@@ -571,9 +571,8 @@ int osnoise_top_main(int argc, char **argv)
 
 out_top:
 	osnoise_free_top(tool->data);
+	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
-	if (params->trace_output)
-		osnoise_destroy_tool(record);
 out_exit:
 	exit(return_value);
 }

@@ -136,9 +136,7 @@ nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 		goto out_err_free_stripe_indices;
 	}
 
-	dsaddr = kzalloc(sizeof(*dsaddr) +
-			(sizeof(struct nfs4_pnfs_ds *) * (num - 1)),
-			gfp_flags);
+	dsaddr = kzalloc(struct_size(dsaddr, ds_list, num), gfp_flags);
 	if (!dsaddr)
 		goto out_err_free_stripe_indices;
 

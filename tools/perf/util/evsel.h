@@ -11,6 +11,7 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include <internal/cpumap.h>
+#include <perf/cpumap.h>
 
 struct bpf_object;
 struct cgroup;
@@ -191,7 +192,7 @@ static inline struct perf_cpu_map *evsel__cpus(struct evsel *evsel)
 
 static inline int evsel__nr_cpus(struct evsel *evsel)
 {
-	return evsel__cpus(evsel)->nr;
+	return perf_cpu_map__nr(evsel__cpus(evsel));
 }
 
 void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,

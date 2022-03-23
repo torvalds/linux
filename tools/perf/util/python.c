@@ -638,17 +638,17 @@ static Py_ssize_t pyrf_cpu_map__length(PyObject *obj)
 {
 	struct pyrf_cpu_map *pcpus = (void *)obj;
 
-	return pcpus->cpus->nr;
+	return perf_cpu_map__nr(pcpus->cpus);
 }
 
 static PyObject *pyrf_cpu_map__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_cpu_map *pcpus = (void *)obj;
 
-	if (i >= pcpus->cpus->nr)
+	if (i >= perf_cpu_map__nr(pcpus->cpus))
 		return NULL;
 
-	return Py_BuildValue("i", pcpus->cpus->map[i]);
+	return Py_BuildValue("i", perf_cpu_map__cpu(pcpus->cpus, i).cpu);
 }
 
 static PySequenceMethods pyrf_cpu_map__sequence_methods = {

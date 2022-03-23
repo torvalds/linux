@@ -250,7 +250,7 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 
 	nr_cpus = perf_cpu_map__nr(cpu_map);
 	for (idx = 0; idx < nr_cpus; idx++) {
-		cpu = cpu_map->map[idx]; /* map c index to online cpu index */
+		cpu = perf_cpu_map__cpu(cpu_map, idx); /* map c index to online cpu index */
 		if (cpu__get_node(cpu) == node)
 			set_bit(cpu.cpu, mask->bits);
 	}

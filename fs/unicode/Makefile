@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj-$(CONFIG_UNICODE) += unicode.o
+ifneq ($(CONFIG_UNICODE),)
+obj-y			+= unicode.o
+endif
+obj-$(CONFIG_UNICODE)	+= utf8data.o
 obj-$(CONFIG_UNICODE_NORMALIZATION_SELFTEST) += utf8-selftest.o
-obj-$(CONFIG_UNICODE_UTF8_DATA) += utf8data.o
 
 unicode-y := utf8-norm.o utf8-core.o
 

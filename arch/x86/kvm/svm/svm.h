@@ -32,7 +32,6 @@
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
 extern bool intercept_smi;
-extern bool pmu;
 
 /*
  * Clean bits in VMCB.
@@ -226,7 +225,6 @@ struct vcpu_svm {
 	u32 dfr_reg;
 	struct page *avic_backing_page;
 	u64 *avic_physical_id_cache;
-	bool avic_is_running;
 
 	/*
 	 * Per-vcpu list of struct amd_svm_iommu_ir:
@@ -304,11 +302,6 @@ static inline void vmcb_mark_all_clean(struct vmcb *vmcb)
 {
 	vmcb->control.clean = VMCB_ALL_CLEAN_MASK
 			       & ~VMCB_ALWAYS_DIRTY_MASK;
-}
-
-static inline bool vmcb_is_clean(struct vmcb *vmcb, int bit)
-{
-	return (vmcb->control.clean & (1 << bit));
 }
 
 static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
@@ -527,7 +520,7 @@ static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 
 int enter_svm_guest_mode(struct kvm_vcpu *vcpu,
 			 u64 vmcb_gpa, struct vmcb *vmcb12, bool from_vmrun);
-void svm_leave_nested(struct vcpu_svm *svm);
+void svm_leave_nested(struct kvm_vcpu *vcpu);
 void svm_free_nested(struct vcpu_svm *svm);
 int svm_allocate_nested(struct vcpu_svm *svm);
 int nested_svm_vmrun(struct kvm_vcpu *vcpu);
@@ -574,17 +567,6 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
-static inline bool avic_vcpu_is_running(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	u64 *entry = svm->avic_physical_id_cache;
-
-	if (!entry)
-		return false;
-
-	return (READ_ONCE(*entry) & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
-}
-
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
@@ -605,8 +587,8 @@ int svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec);
 bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
 int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		       uint32_t guest_irq, bool set);
-void svm_vcpu_blocking(struct kvm_vcpu *vcpu);
-void svm_vcpu_unblocking(struct kvm_vcpu *vcpu);
+void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
+void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 

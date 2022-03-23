@@ -608,7 +608,7 @@ static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	bitmap = &ncf->bitmap;
 
 	spin_lock_irqsave(&nc->lock, flags);
-	index = find_next_bit(bitmap, ncf->n_vids, 0);
+	index = find_first_bit(bitmap, ncf->n_vids);
 	if (index >= ncf->n_vids) {
 		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
@@ -667,7 +667,7 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 		return -1;
 	}
 
-	index = find_next_zero_bit(bitmap, ncf->n_vids, 0);
+	index = find_first_zero_bit(bitmap, ncf->n_vids);
 	if (index < 0 || index >= ncf->n_vids) {
 		netdev_err(ndp->ndev.dev,
 			   "Channel %u already has all VLAN filters set\n",
