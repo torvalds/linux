@@ -2357,14 +2357,9 @@ out:
 }
 
 int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
-			  u64 bytenr, bool strict)
+			  u64 bytenr, bool strict, struct btrfs_path *path)
 {
-	struct btrfs_path *path;
 	int ret;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
 
 	do {
 		ret = check_committed_ref(root, path, objectid,
@@ -2376,7 +2371,7 @@ int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
 	} while (ret == -EAGAIN);
 
 out:
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 	if (btrfs_is_data_reloc_root(root))
 		WARN_ON(ret > 0);
 	return ret;

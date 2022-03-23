@@ -1788,7 +1788,8 @@ next_slot:
 
 			ret = btrfs_cross_ref_exist(root, ino,
 						    found_key.offset -
-						    extent_offset, disk_bytenr, false);
+						    extent_offset, disk_bytenr,
+						    false, path);
 			if (ret) {
 				/*
 				 * ret could be -EIO if the above fails to read
@@ -7222,7 +7223,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 
 	ret = btrfs_cross_ref_exist(root, btrfs_ino(BTRFS_I(inode)),
 				    key.offset - backref_offset, disk_bytenr,
-				    strict);
+				    strict, path);
 	if (ret) {
 		ret = 0;
 		goto out;
