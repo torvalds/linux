@@ -1290,6 +1290,8 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 
 		ret = drm_connector_init(dp->drm_dev, connector,
 					 &analogix_dp_connector_funcs,
+					 dp->plat_data->bridge ?
+					 dp->plat_data->bridge->type :
 					 DRM_MODE_CONNECTOR_eDP);
 		if (ret) {
 			DRM_ERROR("Failed to initialize connector with drm\n");

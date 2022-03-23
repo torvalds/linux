@@ -76,7 +76,6 @@ struct rockchip_dp_device {
 	struct drm_device        *drm_dev;
 	struct device            *dev;
 	struct drm_encoder       encoder;
-	struct drm_bridge	 *bridge;
 	struct drm_display_mode  mode;
 
 	struct regmap            *grf;
@@ -244,6 +243,17 @@ static void rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	analogix_dp_loader_protect(dp->adp);
 }
 
+static bool rockchip_dp_skip_connector(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return false;
+
+	if (of_device_is_compatible(bridge->of_node, "dp-connector"))
+		return false;
+
+	return true;
+}
+
 static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 				     struct drm_bridge *bridge,
 				     struct drm_connector *connector)
@@ -252,8 +262,10 @@ static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	struct rockchip_drm_sub_dev *sdev = &dp->sub_dev;
 	int ret;
 
-	if (dp->bridge) {
-		ret = drm_bridge_attach(&dp->encoder, dp->bridge, bridge, 0);
+	if (plat_data->bridge) {
+		ret = drm_bridge_attach(&dp->encoder, plat_data->bridge, bridge,
+					rockchip_dp_skip_connector(bridge) ?
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0);
 		if (ret) {
 			DRM_ERROR("Failed to attach bridge to drm: %d\n", ret);
 			return ret;
@@ -580,8 +592,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->plat_data.detach = rockchip_dp_bridge_detach;
 	dp->plat_data.convert_to_split_mode = drm_mode_convert_to_split_mode;
 	dp->plat_data.convert_to_origin_mode = drm_mode_convert_to_origin_mode;
-	dp->plat_data.skip_connector = !!bridge;
-	dp->bridge = bridge;
+	dp->plat_data.skip_connector = rockchip_dp_skip_connector(bridge);
+	dp->plat_data.bridge = bridge;
 
 	ret = rockchip_dp_of_probe(dp);
 	if (ret < 0)
