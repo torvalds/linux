@@ -357,7 +357,7 @@ static const struct dvb_tuner_ops fc2580_dvb_tuner_ops = {
 /*
  * V4L2 API
  */
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 static const struct v4l2_frequency_band bands[] = {
 	{
 		.type = V4L2_TUNER_RF,
@@ -552,7 +552,7 @@ static int fc2580_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 	/* Register controls */
 	v4l2_ctrl_handler_init(&dev->hdl, 2);
 	dev->bandwidth_auto = v4l2_ctrl_new_std(&dev->hdl, &fc2580_ctrl_ops,
@@ -594,7 +594,7 @@ static int fc2580_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 	v4l2_ctrl_handler_free(&dev->hdl);
 #endif
 	kfree(dev);

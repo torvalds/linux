@@ -268,7 +268,6 @@ enum media_entity_type {
  * @pads:	Pads array with the size defined by @num_pads.
  * @links:	List of data links.
  * @ops:	Entity operations.
- * @stream_count: Stream count for the entity.
  * @use_count:	Use count for the entity.
  * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
@@ -283,10 +282,9 @@ enum media_entity_type {
  *
  * .. note::
  *
- *    @stream_count and @use_count reference counts must never be
- *    negative, but are signed integers on purpose: a simple ``WARN_ON(<0)``
- *    check can be used to detect reference count bugs that would make them
- *    negative.
+ *    The @use_count reference count must never be negative, but is a signed
+ *    integer on purpose: a simple ``WARN_ON(<0)`` check can be used to detect
+ *    reference count bugs that would make it negative.
  */
 struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
@@ -305,7 +303,6 @@ struct media_entity {
 
 	const struct media_entity_operations *ops;
 
-	int stream_count;
 	int use_count;
 
 	struct media_pipeline *pipe;
@@ -657,6 +654,10 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  *
  * This function must be called during the cleanup phase after unregistering
  * the entity (currently, it does nothing).
+ *
+ * Calling media_entity_cleanup() on a media_entity whose memory has been
+ * zeroed but that has not been initialized with media_entity_pad_init() is
+ * valid and is a no-op.
  */
 #if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
 static inline void media_entity_cleanup(struct media_entity *entity) {}
@@ -857,6 +858,18 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * enabled link, or %NULL if no enabled link has been found.
  */
 struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
+
+/**
+ * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
+ * @entity: The entity
+ *
+ * Return: True if the entity is part of a pipeline started with the
+ * media_pipeline_start() function, false otherwise.
+ */
+static inline bool media_entity_is_streaming(const struct media_entity *entity)
+{
+	return entity->pipe;
+}
 
 /**
  * media_entity_get_fwnode_pad - Get pad number from fwnode

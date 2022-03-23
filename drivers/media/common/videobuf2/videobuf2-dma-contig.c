@@ -132,12 +132,12 @@ static void vb2_dc_prepare(void *buf_priv)
 	if (!buf->non_coherent_mem)
 		return;
 
-	/* For both USERPTR and non-coherent MMAP */
-	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
-
 	/* Non-coherent MMAP only */
 	if (buf->vaddr)
 		flush_kernel_vmap_range(buf->vaddr, buf->size);
+
+	/* For both USERPTR and non-coherent MMAP */
+	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
 }
 
 static void vb2_dc_finish(void *buf_priv)
@@ -152,12 +152,12 @@ static void vb2_dc_finish(void *buf_priv)
 	if (!buf->non_coherent_mem)
 		return;
 
-	/* For both USERPTR and non-coherent MMAP */
-	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
-
 	/* Non-coherent MMAP only */
 	if (buf->vaddr)
 		invalidate_kernel_vmap_range(buf->vaddr, buf->size);
+
+	/* For both USERPTR and non-coherent MMAP */
+	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
 }
 
 /*********************************************/
