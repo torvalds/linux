@@ -245,6 +245,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		iova = sg_dma_address(sgt->sgl) - memory_base;
 		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
 			mapping->iova = iova;
+			mapping->context = etnaviv_iommu_context_get(context);
 			list_add_tail(&mapping->mmu_node, &context->mappings);
 			ret = 0;
 			goto unlock;
@@ -271,6 +272,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		goto unlock;
 	}
 
+	mapping->context = etnaviv_iommu_context_get(context);
 	list_add_tail(&mapping->mmu_node, &context->mappings);
 	context->flush_seq++;
 unlock:
@@ -299,6 +301,7 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu_context *context,
 	list_del(&mapping->mmu_node);
 	context->flush_seq++;
 	mutex_unlock(&context->lock);
+	etnaviv_iommu_context_put(context);
 }
 
 static void etnaviv_iommu_context_free(struct kref *kref)
