@@ -223,7 +223,46 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 static int etnaviv_iommu_insert_exact(struct etnaviv_iommu_context *context,
 		   struct drm_mm_node *node, size_t size, u64 va)
 {
+	struct etnaviv_vram_mapping *m, *n;
+	struct drm_mm_node *scan_node;
+	LIST_HEAD(scan_list);
+	int ret;
+
 	lockdep_assert_held(&context->lock);
+
+	ret = drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
+					  va + size, DRM_MM_INSERT_LOWEST);
+	if (ret != -ENOSPC)
+		return ret;
+
+	/*
+	 * When we can't insert the node, due to a existing mapping blocking
+	 * the address space, there are two possible reasons:
+	 * 1. Userspace genuinely messed up and tried to reuse address space
+	 * before the last job using this VMA has finished executing.
+	 * 2. The existing buffer mappings are idle, but the buffers are not
+	 * destroyed yet (likely due to being referenced by another context) in
+	 * which case the mappings will not be cleaned up and we must reap them
+	 * here to make space for the new mapping.
+	 */
+
+	drm_mm_for_each_node_in_range(scan_node, &context->mm, va, va + size) {
+		m = container_of(scan_node, struct etnaviv_vram_mapping,
+				 vram_node);
+
+		if (m->use)
+			return -ENOSPC;
+
+		list_add(&m->scan_node, &scan_list);
+	}
+
+	list_for_each_entry_safe(m, n, &scan_list, scan_node) {
+		etnaviv_iommu_remove_mapping(context, m);
+		etnaviv_iommu_context_put(m->context);
+		m->context = NULL;
+		list_del_init(&m->mmu_node);
+		list_del_init(&m->scan_node);
+	}
 
 	return drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
 					   va + size, DRM_MM_INSERT_LOWEST);
