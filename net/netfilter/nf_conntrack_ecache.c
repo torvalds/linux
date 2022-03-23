@@ -96,8 +96,8 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 
 static void ecache_work(struct work_struct *work)
 {
-	struct nf_conntrack_net *cnet = container_of(work, struct nf_conntrack_net, ecache_dwork.work);
-	struct netns_ct *ctnet = cnet->ct_net;
+	struct nf_conntrack_net *cnet = container_of(work, struct nf_conntrack_net, ecache.dwork.work);
+	struct netns_ct *ctnet = cnet->ecache.ct_net;
 	int cpu, delay = -1;
 	struct ct_pcpu *pcpu;
 
@@ -127,7 +127,7 @@ static void ecache_work(struct work_struct *work)
 
 	ctnet->ecache_dwork_pending = delay > 0;
 	if (delay >= 0)
-		schedule_delayed_work(&cnet->ecache_dwork, delay);
+		schedule_delayed_work(&cnet->ecache.dwork, delay);
 }
 
 static int __nf_conntrack_eventmask_report(struct nf_conntrack_ecache *e,
@@ -293,12 +293,12 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	if (state == NFCT_ECACHE_DESTROY_FAIL &&
-	    !delayed_work_pending(&cnet->ecache_dwork)) {
-		schedule_delayed_work(&cnet->ecache_dwork, HZ);
+	    !delayed_work_pending(&cnet->ecache.dwork)) {
+		schedule_delayed_work(&cnet->ecache.dwork, HZ);
 		net->ct.ecache_dwork_pending = true;
 	} else if (state == NFCT_ECACHE_DESTROY_SENT) {
 		net->ct.ecache_dwork_pending = false;
-		mod_delayed_work(system_wq, &cnet->ecache_dwork, 0);
+		mod_delayed_work(system_wq, &cnet->ecache.dwork, 0);
 	}
 }
 
@@ -310,8 +310,9 @@ void nf_conntrack_ecache_pernet_init(struct net *net)
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	net->ct.sysctl_events = nf_ct_events;
-	cnet->ct_net = &net->ct;
-	INIT_DELAYED_WORK(&cnet->ecache_dwork, ecache_work);
+
+	cnet->ecache.ct_net = &net->ct;
+	INIT_DELAYED_WORK(&cnet->ecache.dwork, ecache_work);
 
 	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* e->ctmask is u16 */
 }
@@ -320,5 +321,5 @@ void nf_conntrack_ecache_pernet_fini(struct net *net)
 {
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
-	cancel_delayed_work_sync(&cnet->ecache_dwork);
+	cancel_delayed_work_sync(&cnet->ecache.dwork);
 }
