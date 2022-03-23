@@ -36,7 +36,6 @@
 #include <linux/iomap.h>
 #include <linux/namei.h>
 #include <linux/uio.h>
-#include <linux/dax.h>
 #include "ext2.h"
 #include "acl.h"
 #include "xattr.h"
