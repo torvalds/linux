@@ -14,7 +14,13 @@ config SAMPLE_TRACE_EVENTS
 	tristate "Build trace_events examples -- loadable modules only"
 	depends on EVENT_TRACING && m
 	help
-	  This build trace event example modules.
+	  This builds the trace event example module.
+
+config SAMPLE_TRACE_CUSTOM_EVENTS
+	tristate "Build custom trace event example -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This builds the custom trace event example module.
 
 config SAMPLE_TRACE_PRINTK
         tristate "Build trace_printk module - tests various trace_printk formats"
