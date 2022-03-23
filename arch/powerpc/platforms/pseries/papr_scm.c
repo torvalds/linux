@@ -69,8 +69,6 @@
 #define PAPR_SCM_PERF_STATS_EYECATCHER __stringify(SCMSTATS)
 #define PAPR_SCM_PERF_STATS_VERSION 0x1
 
-#define to_nvdimm_pmu(_pmu)	container_of(_pmu, struct nvdimm_pmu, pmu)
-
 /* Struct holding a single performance metric */
 struct papr_scm_perf_stat {
 	u8 stat_id[8];
@@ -346,6 +344,9 @@ static ssize_t drc_pmem_query_stats(struct papr_scm_priv *p,
 	return 0;
 }
 
+#ifdef CONFIG_PERF_EVENTS
+#define to_nvdimm_pmu(_pmu)	container_of(_pmu, struct nvdimm_pmu, pmu)
+
 static int papr_scm_pmu_get_value(struct perf_event *event, struct device *dev, u64 *count)
 {
 	struct papr_scm_perf_stat *stat;
@@ -557,6 +558,10 @@ pmu_check_events_err:
 pmu_err_print:
 	dev_info(&p->pdev->dev, "nvdimm pmu didn't register rc=%d\n", rc);
 }
+
+#else
+static void papr_scm_pmu_register(struct papr_scm_priv *p) { }
+#endif
 
 /*
  * Issue hcall to retrieve dimm health info and populate papr_scm_priv with the
