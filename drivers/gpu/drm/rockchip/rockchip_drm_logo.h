@@ -33,6 +33,7 @@ struct rockchip_drm_mode_set {
 	unsigned int hue;
 
 	bool mode_changed;
+	bool force_output;
 	int ratio;
 };
 
