@@ -4705,7 +4705,7 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 			goto out;
 		}
 	}
-	ret = btrfs_delalloc_reserve_metadata(inode, blocksize, blocksize);
+	ret = btrfs_delalloc_reserve_metadata(inode, blocksize, blocksize, false);
 	if (ret < 0) {
 		if (!only_release_metadata)
 			btrfs_free_reserved_data_space(inode, data_reserved,
@@ -7415,6 +7415,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 					 u64 start, u64 len,
 					 unsigned int iomap_flags)
 {
+	const bool nowait = (iomap_flags & IOMAP_NOWAIT);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map *em = *map;
 	int type;
@@ -7454,12 +7455,15 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		struct extent_map *em2;
 
 		/* We can NOCOW, so only need to reserve metadata space. */
-		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len, len);
+		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len, len,
+						      nowait);
 		if (ret < 0) {
 			/* Our caller expects us to free the input extent map. */
 			free_extent_map(em);
 			*map = NULL;
 			btrfs_dec_nocow_writers(fs_info, block_start);
+			if (nowait && (ret == -ENOSPC || ret == -EDQUOT))
+				ret = -EAGAIN;
 			goto out;
 		}
 		space_reserved = true;
@@ -7483,7 +7487,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		free_extent_map(em);
 		*map = NULL;
 
-		if (iomap_flags & IOMAP_NOWAIT)
+		if (nowait)
 			return -EAGAIN;
 
 		/* We have to COW, so need to reserve metadata and data space. */
@@ -10801,7 +10805,8 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	ret = btrfs_qgroup_reserve_data(inode, &data_reserved, start, num_bytes);
 	if (ret)
 		goto out_free_data_space;
-	ret = btrfs_delalloc_reserve_metadata(inode, num_bytes, disk_num_bytes);
+	ret = btrfs_delalloc_reserve_metadata(inode, num_bytes, disk_num_bytes,
+					      false);
 	if (ret)
 		goto out_qgroup_free_data;
 
