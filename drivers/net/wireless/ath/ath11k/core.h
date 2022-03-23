@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CORE_H
@@ -12,6 +13,7 @@
 #include <linux/bitfield.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
+#include <linux/rhashtable.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -803,6 +805,18 @@ struct ath11k_base {
 	struct ath11k_pdev __rcu *pdevs_active[MAX_RADIOS];
 	struct ath11k_hal_reg_capabilities_ext hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
+
+	/* To synchronize rhash tbl write operation */
+	struct mutex tbl_mtx_lock;
+
+	/* The rhashtable containing struct ath11k_peer keyed by mac addr */
+	struct rhashtable *rhead_peer_addr;
+	struct rhashtable_params rhash_peer_addr_param;
+
+	/* The rhashtable containing struct ath11k_peer keyed by id  */
+	struct rhashtable *rhead_peer_id;
+	struct rhashtable_params rhash_peer_id_param;
+
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 	u8 mac_addr[ETH_ALEN];
