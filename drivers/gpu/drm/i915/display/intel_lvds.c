@@ -983,12 +983,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * on.  If so, assume that whatever is currently programmed is the
 	 * correct mode.
 	 */
-	fixed_mode = intel_encoder_current_mode(intel_encoder);
-	if (fixed_mode) {
-		drm_dbg_kms(&dev_priv->drm, "using current (BIOS) mode: " DRM_MODE_FMT "\n",
-			    DRM_MODE_ARG(fixed_mode));
-		fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-	}
+	fixed_mode = intel_panel_encoder_fixed_mode(intel_connector, intel_encoder);
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!fixed_mode)

@@ -378,27 +378,6 @@ static const struct drm_encoder_funcs intel_dvo_enc_funcs = {
 	.destroy = intel_dvo_enc_destroy,
 };
 
-/*
- * Attempts to get a fixed panel timing for LVDS (currently only the i830).
- *
- * Other chips with DVO LVDS will need to extend this to deal with the LVDS
- * chip being on DVOB/C and having multiple pipes.
- */
-static struct drm_display_mode *
-intel_dvo_get_current_mode(struct intel_encoder *encoder)
-{
-	struct drm_display_mode *mode;
-
-	mode = intel_encoder_current_mode(encoder);
-	if (mode) {
-		DRM_DEBUG_KMS("using current (BIOS) mode: " DRM_MODE_FMT "\n",
-			      DRM_MODE_ARG(mode));
-		mode->type |= DRM_MODE_TYPE_PREFERRED;
-	}
-
-	return mode;
-}
-
 static enum port intel_dvo_port(i915_reg_t dvo_reg)
 {
 	if (i915_mmio_reg_equal(dvo_reg, DVOA))
@@ -541,6 +520,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 
 		intel_connector_attach_encoder(intel_connector, intel_encoder);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
+			struct drm_display_mode *fixed_mode;
+
 			/*
 			 * For our LVDS chipsets, we should hopefully be able
 			 * to dig the fixed panel mode out of the BIOS data.
@@ -549,9 +530,10 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 * headers, likely), so for now, just get the current
 			 * mode being output through DVO.
 			 */
-			intel_panel_init(intel_connector,
-					 intel_dvo_get_current_mode(intel_encoder),
-					 NULL);
+			fixed_mode = intel_panel_encoder_fixed_mode(intel_connector,
+								    intel_encoder);
+
+			intel_panel_init(intel_connector, fixed_mode, NULL);
 			intel_dvo->panel_wants_dither = true;
 		}
 

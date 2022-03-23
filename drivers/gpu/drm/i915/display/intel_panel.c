@@ -292,6 +292,26 @@ intel_panel_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 	return fixed_mode;
 }
 
+struct drm_display_mode *
+intel_panel_encoder_fixed_mode(struct intel_connector *connector,
+			       struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct drm_display_mode *fixed_mode;
+
+	fixed_mode = intel_encoder_current_mode(encoder);
+	if (!fixed_mode)
+		return NULL;
+
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] using current (BIOS) mode: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name,
+		    DRM_MODE_ARG(fixed_mode));
+
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	return fixed_mode;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)

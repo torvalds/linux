@@ -16,6 +16,7 @@ struct drm_display_mode;
 struct drm_i915_private;
 struct intel_connector;
 struct intel_crtc_state;
+struct intel_encoder;
 
 int intel_panel_init(struct intel_connector *connector,
 		     struct drm_display_mode *fixed_mode,
@@ -50,5 +51,8 @@ struct drm_display_mode *
 intel_panel_vbt_lfp_fixed_mode(struct intel_connector *connector);
 struct drm_display_mode *
 intel_panel_vbt_sdvo_fixed_mode(struct intel_connector *connector);
+struct drm_display_mode *
+intel_panel_encoder_fixed_mode(struct intel_connector *connector,
+			       struct intel_encoder *encoder);
 
 #endif /* __INTEL_PANEL_H__ */
