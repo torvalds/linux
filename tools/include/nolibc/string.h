@@ -122,7 +122,9 @@ char *strcpy(char *dst, const char *src)
 	return ret;
 }
 
-/* this function is only used with arguments that are not constants */
+/* this function is only used with arguments that are not constants or when
+ * it's not known because optimizations are disabled.
+ */
 static __attribute__((unused))
 size_t nolibc_strlen(const char *str)
 {
@@ -132,11 +134,18 @@ size_t nolibc_strlen(const char *str)
 	return len;
 }
 
+/* do not trust __builtin_constant_p() at -O0, as clang will emit a test and
+ * the two branches, then will rely on an external definition of strlen().
+ */
+#if defined(__OPTIMIZE__)
 #define strlen(str) ({                          \
 	__builtin_constant_p((str)) ?           \
 		__builtin_strlen((str)) :       \
 		nolibc_strlen((str));           \
 })
+#else
+#define strlen(str) nolibc_strlen((str))
+#endif
 
 static __attribute__((unused))
 size_t strlcat(char *dst, const char *src, size_t size)
