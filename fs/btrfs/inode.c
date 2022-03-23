@@ -7230,6 +7230,14 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	}
 
 	/*
+	 * We don't need the path anymore, plus through the csum_exist_in_range()
+	 * call below we will end up allocating another path. So free the path
+	 * to avoid unnecessary extra memory usage.
+	 */
+	btrfs_free_path(path);
+	path = NULL;
+
+	/*
 	 * adjust disk_bytenr and num_bytes to cover just the bytes
 	 * in this extent we are about to write.  If there
 	 * are any csums in that range we have to cow in order
