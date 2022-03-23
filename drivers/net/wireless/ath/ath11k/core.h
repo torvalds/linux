@@ -10,6 +10,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bitfield.h>
+#include <linux/dmi.h>
+#include <linux/ctype.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -36,6 +38,15 @@
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
 #define ATH11K_CONNECTION_LOSS_HZ	(3 * HZ)
+
+/* SMBIOS type containing Board Data File Name Extension */
+#define ATH11K_SMBIOS_BDF_EXT_TYPE 0xF8
+
+/* SMBIOS type structure length (excluding strings-set) */
+#define ATH11K_SMBIOS_BDF_EXT_LENGTH 0x9
+
+/* The magic used by QCA spec */
+#define ATH11K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 extern unsigned int ath11k_frame_mode;
 
@@ -152,6 +163,13 @@ struct ath11k_ext_irq_grp {
 	bool napi_enabled;
 	struct napi_struct napi;
 	struct net_device napi_ndev;
+};
+
+struct ath11k_smbios_bdf {
+	struct dmi_header hdr;
+	u32 padding;
+	u8 bdf_enabled;
+	u8 bdf_ext[];
 };
 
 #define HEHANDLE_CAP_PHYINFO_SIZE       3
@@ -1046,7 +1064,7 @@ int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 				       const char *name);
 void ath11k_core_free_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd);
 int ath11k_core_check_dt(struct ath11k_base *ath11k);
-
+int ath11k_core_check_smbios(struct ath11k_base *ab);
 void ath11k_core_halt(struct ath11k *ar);
 int ath11k_core_resume(struct ath11k_base *ab);
 int ath11k_core_suspend(struct ath11k_base *ab);
