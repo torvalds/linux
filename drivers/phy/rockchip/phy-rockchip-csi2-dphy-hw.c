@@ -51,6 +51,8 @@
 #define CSI2_DPHY_CTRL_LANE_ENABLE	(0x00)
 #define CSI2_DPHY_CLK1_LANE_EN		(0x2C)
 #define CSI2_DPHY_DUAL_CAL_EN		(0x80)
+#define CSI2_DPHY_CLK_INV		(0X84)
+
 #define CSI2_DPHY_CLK_WR_THS_SETTLE	(0x160)
 #define CSI2_DPHY_CLK_CALIB_EN		(0x168)
 #define CSI2_DPHY_LANE0_WR_THS_SETTLE	(0x1e0)
@@ -221,6 +223,7 @@ enum csi2dphy_reg_id {
 	CSI2PHY_PATH0_LVDS_MODEL,
 	CSI2PHY_PATH1_MODEL,
 	CSI2PHY_PATH1_LVDS_MODEL,
+	CSI2PHY_CLK_INV,
 };
 
 #define HIWORD_UPDATE(val, mask, shift) \
@@ -466,6 +469,7 @@ static const struct csi2dphy_reg rv1106_csi2dphy_regs[] = {
 	[CSI2PHY_PATH0_LVDS_MODEL] = CSI2PHY_REG(CSI2_DPHY_PATH0_LVDS_MODE_SEL),
 	[CSI2PHY_PATH1_MODEL] = CSI2PHY_REG(CSI2_DPHY_PATH1_MODE_SEL),
 	[CSI2PHY_PATH1_LVDS_MODEL] = CSI2PHY_REG(CSI2_DPHY_PATH1_LVDS_MODE_SEL),
+	[CSI2PHY_CLK_INV] = CSI2PHY_REG(CSI2_DPHY_CLK_INV),
 };
 
 /* These tables must be sorted by .range_h ascending. */
@@ -825,6 +829,12 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 				lvds_width = get_lvds_data_width(sensor->format.code);
 				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_LVDS_MODEL, (lvds_width << 4) | 0X01);
 			}
+		}
+		if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+			if (hw->lane_mode == LANE_MODE_FULL)
+				write_csi2_dphy_reg(hw, CSI2PHY_CLK_INV, 0x04);
+			else
+				write_csi2_dphy_reg(hw, CSI2PHY_CLK_INV, 0x14);
 		}
 	}
 
