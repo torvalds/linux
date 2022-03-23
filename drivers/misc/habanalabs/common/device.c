@@ -15,6 +15,133 @@
 
 #define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
+/*
+ * hl_set_dram_bar- sets the bar to allow later access to address
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @addr: the address the caller wants to access.
+ *
+ * @return: the old BAR base address on success, U64_MAX for failure.
+ *	    The caller should set it back to the old address after use.
+ *
+ * In case the bar space does not cover the whole address space,
+ * the bar base address should be set to allow access to a given address.
+ * This function can be called also if the bar doesn't need to be set,
+ * in that case it just won't change the base.
+ */
+static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 bar_base_addr;
+
+	bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+
+	return hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
+}
+
+
+static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type, enum pci_region region_type)
+{
+	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
+	u64 old_base, rc;
+
+	if (region_type == PCI_REGION_DRAM) {
+		old_base = hl_set_dram_bar(hdev, addr);
+		if (old_base == U64_MAX)
+			return -EIO;
+	}
+
+	switch (acc_type) {
+	case DEBUGFS_READ32:
+		*val = readl(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE32:
+		writel(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_READ64:
+		*val = readq(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE64:
+		writeq(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	}
+
+	if (region_type == PCI_REGION_DRAM) {
+		rc = hl_set_dram_bar(hdev, old_base);
+		if (rc == U64_MAX)
+			return -EIO;
+	}
+
+	return 0;
+}
+
+/*
+ * hl_access_cfg_region - access the config region
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @addr: the address to access
+ * @val: the value to write from or read to
+ * @acc_type: the type of access (read/write 64/32)
+ */
+int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type)
+{
+	struct pci_mem_region *cfg_region = &hdev->pci_mem_region[PCI_REGION_CFG];
+	u32 val_h, val_l;
+
+	switch (acc_type) {
+	case DEBUGFS_READ32:
+		*val = RREG32(addr - cfg_region->region_base);
+		break;
+	case DEBUGFS_WRITE32:
+		WREG32(addr - cfg_region->region_base, *val);
+		break;
+	case DEBUGFS_READ64:
+		val_l = RREG32(addr - cfg_region->region_base);
+		val_h = RREG32(addr + sizeof(u32) - cfg_region->region_base);
+
+		*val = (((u64) val_h) << 32) | val_l;
+		break;
+	case DEBUGFS_WRITE64:
+		WREG32(addr - cfg_region->region_base, lower_32_bits(*val));
+		WREG32(addr + sizeof(u32) - cfg_region->region_base, upper_32_bits(*val));
+		break;
+	}
+	return 0;
+}
+
+/*
+ * hl_access_dev_mem - access device memory
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @region: the memory region the address belongs to
+ * @region_type: the type of the region the address belongs to
+ * @addr: the address to access
+ * @val: the value to write from or read to
+ * @acc_type: the type of access (r/w, 32/64)
+ */
+int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
+		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type)
+{
+	switch (region_type) {
+	case PCI_REGION_CFG:
+		return hl_access_cfg_region(hdev, addr, val, acc_type);
+	case PCI_REGION_SRAM:
+	case PCI_REGION_DRAM:
+		return hl_access_sram_dram_region(hdev, addr, val, acc_type,
+			region_type);
+	default:
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;

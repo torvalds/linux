@@ -557,6 +557,8 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	}
 
 	prop->device_dma_offset_for_host_access = HOST_PHYS_BASE;
+	prop->host_base_address = HOST_PHYS_BASE;
+	prop->host_end_address = prop->host_base_address + HOST_PHYS_SIZE;
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
 	prop->collective_first_sob = 0;
 	prop->collective_first_mon = 0;
@@ -9506,6 +9508,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.is_valid_dram_page_size = NULL,
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 	.get_valid_dram_page_orders = gaudi_get_valid_dram_page_orders,
+	.access_dev_mem = hl_access_dev_mem,
+	.set_dram_bar_base = gaudi_set_hbm_bar_base,
 };
 
 /**

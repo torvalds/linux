@@ -390,6 +390,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	}
 
 	prop->device_dma_offset_for_host_access = HOST_PHYS_BASE;
+	prop->host_base_address = HOST_PHYS_BASE;
+	prop->host_end_address = prop->host_base_address + HOST_PHYS_SIZE;
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
 
 	prop->dram_base_address = DRAM_PHYS_BASE;
@@ -5781,6 +5783,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.is_valid_dram_page_size = NULL,
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 	.get_valid_dram_page_orders = goya_get_valid_dram_page_orders,
+	.access_dev_mem = hl_access_dev_mem,
+	.set_dram_bar_base = goya_set_ddr_bar_base,
 };
 
 /*

@@ -467,8 +467,10 @@ struct hl_hints_range {
  *                  the device's MMU.
  * @dram_hints_align_mask: dram va hint addresses alignment mask which is used
  *                  for hints validity check.
- * device_dma_offset_for_host_access: the offset to add to host DMA addresses
- *                                    to enable the device to access them.
+ * @device_dma_offset_for_host_access: the offset to add to host DMA addresses
+ *                                     to enable the device to access them.
+ * @host_base_address: host physical start address for host DMA from device
+ * @host_end_address: host physical end address for host DMA from device
  * @max_freq_value: current max clk frequency.
  * @clk_pll_index: clock PLL index that specify which PLL determines the clock
  *                 we display to the user
@@ -585,6 +587,8 @@ struct asic_fixed_properties {
 	u64				cb_va_end_addr;
 	u64				dram_hints_align_mask;
 	u64				device_dma_offset_for_host_access;
+	u64				host_base_address;
+	u64				host_end_address;
 	u64				max_freq_value;
 	u32				clk_pll_index;
 	u32				mmu_pgt_size;
@@ -1095,6 +1099,13 @@ enum div_select_defs {
 	DIV_SEL_DIVIDED_PLL = 3,
 };
 
+enum debugfs_access_type {
+	DEBUGFS_READ32,
+	DEBUGFS_WRITE32,
+	DEBUGFS_READ64,
+	DEBUGFS_WRITE64,
+};
+
 enum pci_region {
 	PCI_REGION_CFG,
 	PCI_REGION_SRAM,
@@ -1346,6 +1357,8 @@ struct fw_load_mgr {
  * @is_valid_dram_page_size: return true if page size is supported in device
  *                           memory allocation, otherwise false.
  * @get_valid_dram_page_orders: get valid device memory allocation page orders
+ * @access_dev_mem: access device memory
+ * @set_dram_bar_base: set the base of the DRAM BAR
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1476,6 +1489,9 @@ struct hl_asic_funcs {
 	int (*mmu_get_real_page_size)(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
 					u32 page_size, u32 *real_page_size, bool is_dram_addr);
 	void (*get_valid_dram_page_orders)(struct hl_info_dev_memalloc_page_sizes *info);
+	int (*access_dev_mem)(struct hl_device *hdev, struct pci_mem_region *region,
+		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type);
+	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 };
 
 
@@ -3006,6 +3022,11 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 	return ((address <= range_end_address) && (range_start_address <= end_address));
 }
 
+uint64_t hl_set_dram_bar_default(struct hl_device *hdev, u64 addr);
+int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type);
+int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
+		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type);
 int hl_device_open(struct inode *inode, struct file *filp);
 int hl_device_open_ctrl(struct inode *inode, struct file *filp);
 bool hl_device_operational(struct hl_device *hdev,
