@@ -628,11 +628,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_inval;
 		goto out;
 	}
-	/*
-	 * nfsd4_process_open2() does the actual opening of the file.  If
-	 * successful, it (1) truncates the file if open->op_truncate was
-	 * set, (2) sets open->op_stateid, (3) sets open->op_delegation.
-	 */
+
 	status = nfsd4_process_open2(rqstp, resfh, open);
 	WARN(status && open->op_created,
 	     "nfsd4_process_open2 failed to open newly-created file! status=%u\n",
