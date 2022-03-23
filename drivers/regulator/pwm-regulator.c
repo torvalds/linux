@@ -41,12 +41,19 @@ struct pwm_regulator_data {
 
 	/* Enable GPIO */
 	struct gpio_desc *enb_gpio;
+
+	/* Init voltage */
+	int init_uv;
 };
 
 struct pwm_voltages {
 	unsigned int uV;
 	unsigned int dutycycle;
 };
+
+static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
+				     int req_min_uV, int req_max_uV,
+				     unsigned int *selector);
 
 /*
  * Voltage table call-backs
@@ -115,6 +122,10 @@ static int pwm_regulator_list_voltage(struct regulator_dev *rdev,
 static int pwm_regulator_enable(struct regulator_dev *dev)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(dev);
+
+	if (drvdata->init_uv && !pwm_get_duty_cycle(drvdata->pwm))
+		pwm_regulator_set_voltage(dev, drvdata->init_uv,
+					  drvdata->init_uv, NULL);
 
 	gpiod_set_value_cansleep(drvdata->enb_gpio, 1);
 
@@ -322,6 +333,7 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	enum gpiod_flags gpio_flags;
 	int ret;
+	u32 init_uv;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Device Tree node missing\n");
@@ -340,6 +352,9 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		ret = pwm_regulator_init_continuous(pdev, drvdata);
 	if (ret)
 		return ret;
+
+	if (!of_property_read_u32(np, "regulator-init-microvolt", &init_uv))
+		drvdata->init_uv = init_uv;
 
 	init_data = of_get_regulator_init_data(&pdev->dev, np,
 					       &drvdata->desc);
