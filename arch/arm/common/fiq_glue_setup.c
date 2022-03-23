@@ -33,7 +33,7 @@ static void fiq_glue_setup_helper(void *info)
 {
 	struct fiq_glue_handler *handler = info;
 	fiq_glue_setup(handler->fiq, handler,
-		__get_cpu_var(fiq_stack) + THREAD_START_SP,
+		(void *)((*this_cpu_ptr(&fiq_stack)) + THREAD_START_SP),
 		fiq_return_handler);
 }
 
@@ -139,7 +139,7 @@ void fiq_glue_resume(void)
 	if (!current_handler)
 		return;
 	fiq_glue_setup(current_handler->fiq, current_handler,
-		__get_cpu_var(fiq_stack) + THREAD_START_SP,
+		(void *)((*this_cpu_ptr(&fiq_stack)) + THREAD_START_SP),
 		fiq_return_handler);
 	if (current_handler->resume)
 		current_handler->resume(current_handler);

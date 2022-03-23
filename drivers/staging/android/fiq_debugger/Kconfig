@@ -70,3 +70,11 @@ config RK_CONSOLE_THREAD
 	default n
 	help
 	  Normal kernel printk will write out to UART by "kconsole" kthread
+
+config FIQ_DEBUGGER_FIQ_GLUE
+	bool "Uart FIQ is captured by linux"
+	depends on FIQ_DEBUGGER
+	select FIQ_GLUE
+	default n
+	help
+	  It is for ARM v7 arch without trust zone.

@@ -94,8 +94,9 @@ int show_fiq_list(struct seq_file *p, int prec)
 void set_fiq_handler(void *start, unsigned int length)
 {
 	void *base = vectors_page;
-	unsigned offset = FIQ_OFFSET;
+	unsigned int volatile offset = FIQ_OFFSET;
 
+	offset &= 0xfffffffc;
 	memcpy(base + offset, start, length);
 	if (!cache_is_vipt_nonaliasing())
 		flush_icache_range((unsigned long)base + offset,
