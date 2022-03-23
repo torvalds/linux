@@ -7197,6 +7197,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 		*ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
 	}
 
+	btrfs_release_path(path);
+
 	if (btrfs_extent_readonly(fs_info, disk_bytenr))
 		goto out;
 
@@ -7213,8 +7215,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			goto out;
 		}
 	}
-
-	btrfs_release_path(path);
 
 	/*
 	 * look for other files referencing this extent, if we
