@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/iommu.h>
 
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
@@ -647,13 +648,102 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 	return rc;
 }
 
+static int hl_access_dev_mem_by_region(struct hl_device *hdev, u64 addr,
+		u64 *val, enum debugfs_access_type acc_type, bool *found)
+{
+	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
+		sizeof(u64) : sizeof(u32);
+	struct pci_mem_region *mem_reg;
+	int i;
+
+	for (i = 0; i < PCI_REGION_NUMBER; i++) {
+		mem_reg = &hdev->pci_mem_region[i];
+		if (!mem_reg->used)
+			continue;
+		if (addr >= mem_reg->region_base &&
+			addr <= mem_reg->region_base + mem_reg->region_size - acc_size) {
+			*found = true;
+			return hdev->asic_funcs->access_dev_mem(hdev, mem_reg, i,
+				addr, val, acc_type);
+		}
+	}
+	return 0;
+}
+
+static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
+		enum debugfs_access_type acc_type)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 offset = prop->device_dma_offset_for_host_access;
+
+	switch (acc_type) {
+	case DEBUGFS_READ32:
+		*val = *(u32 *) phys_to_virt(addr - offset);
+		break;
+	case DEBUGFS_WRITE32:
+		*(u32 *) phys_to_virt(addr - offset) = *val;
+		break;
+	case DEBUGFS_READ64:
+		*val = *(u64 *) phys_to_virt(addr - offset);
+		break;
+	case DEBUGFS_WRITE64:
+		*(u64 *) phys_to_virt(addr - offset) = *val;
+		break;
+	}
+}
+
+static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type)
+{
+	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
+		sizeof(u64) : sizeof(u32);
+	u64 host_start = hdev->asic_prop.host_base_address;
+	u64 host_end = hdev->asic_prop.host_end_address;
+	bool user_address, found = false;
+	int rc;
+
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, acc_size, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hl_access_dev_mem_by_region(hdev, addr, val, acc_type, &found);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed reading addr %#llx from dev mem (%d)\n",
+			addr, rc);
+		return rc;
+	}
+
+	if (found)
+		return 0;
+
+	if (!user_address || iommu_present(&pci_bus_type)) {
+		rc = -EINVAL;
+		goto err;
+	}
+
+	if (addr >= host_start && addr <= host_end - acc_size) {
+		hl_access_host_mem(hdev, addr, val, acc_type);
+	} else {
+		rc = -EINVAL;
+		goto err;
+	}
+
+	return 0;
+err:
+	dev_err(hdev->dev, "invalid addr %#llx\n", addr);
+	return rc;
+}
+
 static ssize_t hl_data_read32(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 addr = entry->addr;
-	bool user_address;
+	u64 value64, addr = entry->addr;
 	char tmp_buf[32];
 	ssize_t rc;
 	u32 val;
@@ -666,18 +756,11 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_read32(hdev, addr, user_address, &val);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
+	rc = hl_access_mem(hdev, addr, &value64, DEBUGFS_READ32);
+	if (rc)
 		return rc;
-	}
+
+	val = value64; /* downcast back to 32 */
 
 	sprintf(tmp_buf, "0x%08x\n", val);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
@@ -689,8 +772,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 addr = entry->addr;
-	bool user_address;
+	u64 value64, addr = entry->addr;
 	u32 value;
 	ssize_t rc;
 
@@ -703,19 +785,10 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_write32(hdev, addr, user_address, value);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to write 0x%08x to 0x%010llx\n",
-			value, addr);
+	value64 = value;
+	rc = hl_access_mem(hdev, addr, &value64, DEBUGFS_WRITE32);
+	if (rc)
 		return rc;
-	}
 
 	return count;
 }
@@ -726,7 +799,6 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
-	bool user_address;
 	char tmp_buf[32];
 	ssize_t rc;
 	u64 val;
@@ -739,18 +811,9 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_read64(hdev, addr, user_address, &val);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
+	rc = hl_access_mem(hdev, addr, &val, DEBUGFS_READ64);
+	if (rc)
 		return rc;
-	}
 
 	sprintf(tmp_buf, "0x%016llx\n", val);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
@@ -763,7 +826,6 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
-	bool user_address;
 	u64 value;
 	ssize_t rc;
 
@@ -776,19 +838,9 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	user_address = hl_is_device_va(hdev, addr);
-	if (user_address) {
-		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
-		if (rc)
-			return rc;
-	}
-
-	rc = hdev->asic_funcs->debugfs_write64(hdev, addr, user_address, value);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to write 0x%016llx to 0x%010llx\n",
-			value, addr);
+	rc = hl_access_mem(hdev, addr, &value, DEBUGFS_WRITE64);
+	if (rc)
 		return rc;
-	}
 
 	return count;
 }
