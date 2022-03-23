@@ -53,13 +53,21 @@ config SND_SOC_SOF_COMPRESS
 	select SND_SOC_COMPRESS
 
 config SND_SOC_SOF_DEBUG_PROBES
-	bool "SOF enable data probing"
+	tristate
+	select SND_SOC_SOF_CLIENT
 	select SND_SOC_COMPRESS
 	help
 	  This option enables the data probing feature that can be used to
 	  gather data directly from specific points of the audio pipeline.
-	  Say Y if you want to enable probes.
-	  If unsure, select "N".
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_CLIENT
+	tristate
+	select AUXILIARY_BUS
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
 
 config SND_SOC_SOF_DEVELOPER_SUPPORT
 	bool "SOF developer options support"
@@ -187,15 +195,26 @@ config SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE
 	  If unsure, select "N".
 
 config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
-	bool "SOF enable IPC flood test"
+	tristate "SOF enable IPC flood test"
+	select SND_SOC_SOF_CLIENT
 	help
-	  This option enables the IPC flood test which can be used to flood
-	  the DSP with test IPCs and gather stats about response times.
+	  This option enables a separate client device for IPC flood test
+	  which can be used to flood the DSP with test IPCs and gather stats
+	  about response times.
 	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM
+	int "Number of IPC flood test clients"
+	range 1 32
+	default 2
+	depends on SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
+	help
+	  Select the number of IPC flood test clients to be created.
+
 config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
-	bool "SOF enable IPC message injector"
+	tristate "SOF enable IPC message injector"
+	select SND_SOC_SOF_CLIENT
 	help
 	  This option enables the IPC message injector which can be used to send
 	  crafted IPC messages to the DSP to test its robustness.

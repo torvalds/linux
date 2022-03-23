@@ -920,7 +920,7 @@ static int mchp_spdifrx_probe(struct platform_device *pdev)
 
 	err = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (err) {
-		dev_err(&pdev->dev, "failed to register PMC: %d\n", err);
+		dev_err(&pdev->dev, "failed to register PCM: %d\n", err);
 		return err;
 	}
 

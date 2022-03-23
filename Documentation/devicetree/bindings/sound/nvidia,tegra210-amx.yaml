@@ -31,6 +31,9 @@ properties:
           - const: nvidia,tegra186-amx
           - const: nvidia,tegra210-amx
       - const: nvidia,tegra194-amx
+      - items:
+          - const: nvidia,tegra234-amx
+          - const: nvidia,tegra194-amx
 
   reg:
     maxItems: 1

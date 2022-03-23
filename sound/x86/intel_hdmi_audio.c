@@ -1254,18 +1254,6 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 }
 
 /*
- * ALSA PCM mmap callback
- */
-static int had_pcm_mmap(struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	return remap_pfn_range(vma, vma->vm_start,
-			substream->runtime->dma_addr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
-}
-
-/*
  * ALSA PCM ops
  */
 static const struct snd_pcm_ops had_pcm_ops = {
@@ -1276,7 +1264,6 @@ static const struct snd_pcm_ops had_pcm_ops = {
 	.trigger =	had_pcm_trigger,
 	.sync_stop =	had_pcm_sync_stop,
 	.pointer =	had_pcm_pointer,
-	.mmap =		had_pcm_mmap,
 };
 
 /* process mode change of the running stream; called in mutex */
