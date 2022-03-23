@@ -1043,6 +1043,7 @@
 		snps,mtl-tx-config = <&mtl_tx_setup>;
 
 		phy-mode = "rmii";
+		clock_in_out = "input";
 		phy-handle = <&rmii_phy>;
 		status = "disabled";
 
