@@ -80,6 +80,11 @@ static inline bool task_demand_fits(struct task_struct *p, int cpu)
 	if (is_max_cluster_cpu(cpu))
 		return true;
 
+	if (!task_in_related_thread_group(p) && p->prio >= 124 &&
+			!is_min_cluster_cpu(cpu) && !is_max_cluster_cpu(cpu)) {
+		/* a non topapp low prio task fits on gold */
+		return true;
+	}
 	return task_fits_capacity(p, capacity, cpu);
 }
 
