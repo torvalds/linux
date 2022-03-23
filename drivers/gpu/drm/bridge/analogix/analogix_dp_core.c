@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/extcon-provider.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
@@ -35,6 +36,11 @@
 #define to_dp(nm)	container_of(nm, struct analogix_dp_device, nm)
 
 static const bool verify_fast_training;
+
+static const unsigned int analogix_dp_cable[] = {
+	EXTCON_DISP_DP,
+	EXTCON_NONE,
+};
 
 struct bridge_init {
 	struct i2c_client *client;
@@ -1220,8 +1226,10 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 	int ret;
 
 	ret = analogix_dp_phy_power_on(dp);
-	if (ret)
+	if (ret) {
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
 		return connector_status_disconnected;
+	}
 
 	if (dp->plat_data->panel)
 		analogix_dp_panel_prepare(dp);
@@ -1245,6 +1253,11 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 out:
 	analogix_dp_phy_power_off(dp);
 
+	if (status == connector_status_connected)
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
+	else
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+
 	return status;
 }
 
@@ -1259,6 +1272,16 @@ analogix_dp_connector_detect(struct drm_connector *connector, bool force)
 	return analogix_dp_detect(dp);
 }
 
+static void analogix_dp_connector_force(struct drm_connector *connector)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	if (connector->status == connector_status_connected)
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
+	else
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+}
+
 static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = analogix_dp_connector_detect,
@@ -1266,6 +1289,7 @@ static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.force = analogix_dp_connector_force,
 };
 
 static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
@@ -1962,6 +1986,18 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 					IRQF_ONESHOT, dev_name(dev), dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
+		return ERR_PTR(ret);
+	}
+
+	dp->extcon = devm_extcon_dev_allocate(dev, analogix_dp_cable);
+	if (IS_ERR(dp->extcon)) {
+		dev_err(dev, "failed to allocate extcon device\n");
+		return ERR_CAST(dp->extcon);
+	}
+
+	ret = devm_extcon_dev_register(dev, dp->extcon);
+	if (ret) {
+		dev_err(dev, "failed to register extcon device\n");
 		return ERR_PTR(ret);
 	}
 

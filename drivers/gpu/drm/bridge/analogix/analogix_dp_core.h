@@ -182,6 +182,7 @@ struct analogix_dp_device {
 
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	struct analogix_dp_plat_data *plat_data;
+	struct extcon_dev *extcon;
 };
 
 /* analogix_dp_reg.c */
