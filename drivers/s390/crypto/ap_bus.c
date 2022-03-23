@@ -693,6 +693,24 @@ void ap_send_online_uevent(struct ap_device *ap_dev, int online)
 }
 EXPORT_SYMBOL(ap_send_online_uevent);
 
+static void ap_send_mask_changed_uevent(unsigned long *newapm,
+					unsigned long *newaqm)
+{
+	char buf[100];
+	char *envp[] = { buf, NULL };
+
+	if (newapm)
+		snprintf(buf, sizeof(buf),
+			 "APMASK=0x%016lx%016lx%016lx%016lx\n",
+			 newapm[0], newapm[1], newapm[2], newapm[3]);
+	else
+		snprintf(buf, sizeof(buf),
+			 "AQMASK=0x%016lx%016lx%016lx%016lx\n",
+			 newaqm[0], newaqm[1], newaqm[2], newaqm[3]);
+
+	kobject_uevent_env(&ap_root_device->kobj, KOBJ_CHANGE, envp);
+}
+
 /*
  * calc # of bound APQNs
  */
@@ -1355,7 +1373,7 @@ static int apmask_commit(unsigned long *newapm)
 static ssize_t apmask_store(struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc;
+	int rc, changes = 0;
 	DECLARE_BITMAP(newapm, AP_DEVICES);
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
@@ -1365,14 +1383,19 @@ static ssize_t apmask_store(struct bus_type *bus, const char *buf,
 	if (rc)
 		goto done;
 
-	rc = apmask_commit(newapm);
+	changes = memcmp(ap_perms.apm, newapm, APMASKSIZE);
+	if (changes)
+		rc = apmask_commit(newapm);
 
 done:
 	mutex_unlock(&ap_perms_mutex);
 	if (rc)
 		return rc;
 
-	ap_bus_revise_bindings();
+	if (changes) {
+		ap_bus_revise_bindings();
+		ap_send_mask_changed_uevent(newapm, NULL);
+	}
 
 	return count;
 }
@@ -1443,7 +1466,7 @@ static int aqmask_commit(unsigned long *newaqm)
 static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc;
+	int rc, changes = 0;
 	DECLARE_BITMAP(newaqm, AP_DOMAINS);
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
@@ -1453,14 +1476,19 @@ static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
 	if (rc)
 		goto done;
 
-	rc = aqmask_commit(newaqm);
+	changes = memcmp(ap_perms.aqm, newaqm, APMASKSIZE);
+	if (changes)
+		rc = aqmask_commit(newaqm);
 
 done:
 	mutex_unlock(&ap_perms_mutex);
 	if (rc)
 		return rc;
 
-	ap_bus_revise_bindings();
+	if (changes) {
+		ap_bus_revise_bindings();
+		ap_send_mask_changed_uevent(NULL, newaqm);
+	}
 
 	return count;
 }
