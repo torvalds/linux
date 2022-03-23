@@ -328,13 +328,15 @@ static void gfxhub_v1_2_setup_vmid_config(struct amdgpu_device *adev)
 					    PAGE_TABLE_BLOCK_SIZE,
 					    block_size);
 			/* Send no-retry XNACK on fault to suppress VM fault storm.
-			 * On Aldebaran, XNACK can be enabled in the SQ per-process.
+			 * On 9.4.2 and 9.4.3, XNACK can be enabled in
+			 * the SQ per-process.
 			 * Retry faults need to be enabled for that to work.
 			 */
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 					    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
 					    !adev->gmc.noretry ||
-					    adev->asic_type == CHIP_ALDEBARAN);
+					    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+					    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3));
 			WREG32_SOC15_OFFSET(GC, j, regVM_CONTEXT1_CNTL,
 					    i * hub->ctx_distance, tmp);
 			WREG32_SOC15_OFFSET(GC, j,

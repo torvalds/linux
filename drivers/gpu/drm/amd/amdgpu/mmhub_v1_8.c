@@ -288,7 +288,7 @@ static void mmhub_v1_8_setup_vmid_config(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				    PAGE_TABLE_BLOCK_SIZE,
 				    block_size);
-		/* On Aldebaran, XNACK can be enabled in the SQ per-process.
+		/* On 9.4.3, XNACK can be enabled in the SQ per-process.
 		 * Retry faults need to be enabled for that to work.
 		 */
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
