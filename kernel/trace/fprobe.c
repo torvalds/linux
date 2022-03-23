@@ -150,15 +150,15 @@ static int fprobe_init_rethook(struct fprobe *fp, int num)
 
 	fp->rethook = rethook_alloc((void *)fp, fprobe_exit_handler);
 	for (i = 0; i < size; i++) {
-		struct rethook_node *node;
+		struct fprobe_rethook_node *node;
 
-		node = kzalloc(sizeof(struct fprobe_rethook_node), GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (!node) {
 			rethook_free(fp->rethook);
 			fp->rethook = NULL;
 			return -ENOMEM;
 		}
-		rethook_add_node(fp->rethook, node);
+		rethook_add_node(fp->rethook, &node->node);
 	}
 	return 0;
 }
