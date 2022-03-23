@@ -18,6 +18,8 @@
 #define BG_WORDS2BYTES(words)	((words) * sizeof(u32))
 #define BG_BYTES2WORDS(bytes)	(((bytes) + sizeof(u32) - 1) / sizeof(u32))
 
+static DEFINE_MUTEX(akcipher_mutex);
+
 static void rk_rsa_adjust_rsa_key(struct rsa_key *key)
 {
 	if (key->n_sz && key->n && !key->n[0]) {
@@ -177,10 +179,15 @@ static int rk_rsa_calc(struct akcipher_request *req, bool encypt)
 
 	CRYPTO_DUMPHEX("in = ", in->data, BG_WORDS2BYTES(in->n_words));
 
+	mutex_lock(&akcipher_mutex);
+
 	if (encypt)
 		ret = rk_pka_expt_mod(in, ctx->e, ctx->n, out);
 	else
 		ret = rk_pka_expt_mod(in, ctx->d, ctx->n, out);
+
+	mutex_unlock(&akcipher_mutex);
+
 	if (ret)
 		goto exit;
 
