@@ -2886,7 +2886,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
-	struct drm_display_mode *mode;
+	struct drm_display_mode *fixed_mode;
 
 	DRM_DEBUG_KMS("initialising LVDS device %d\n", device);
 
@@ -2917,16 +2917,9 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_sdvo_get_lvds_modes(connector);
 
-	list_for_each_entry(mode, &connector->probed_modes, head) {
-		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			struct drm_display_mode *fixed_mode =
-				drm_mode_duplicate(connector->dev, mode);
+	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
 
-			intel_panel_init(intel_connector,
-					 fixed_mode, NULL);
-			break;
-		}
-	}
+	intel_panel_init(intel_connector, fixed_mode, NULL);
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		goto err;
