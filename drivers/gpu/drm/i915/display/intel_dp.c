@@ -5048,7 +5048,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	/* fallback to VBT if available for eDP */
 	if (!fixed_mode)
-		fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+		fixed_mode = intel_panel_vbt_lfp_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {

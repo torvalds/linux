@@ -47,6 +47,6 @@ intel_panel_edid_downclock_mode(struct intel_connector *connector,
 struct drm_display_mode *
 intel_panel_edid_fixed_mode(struct intel_connector *connector);
 struct drm_display_mode *
-intel_panel_vbt_fixed_mode(struct intel_connector *connector);
+intel_panel_vbt_lfp_fixed_mode(struct intel_connector *connector);
 
 #endif /* __INTEL_PANEL_H__ */

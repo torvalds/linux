@@ -974,7 +974,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 		goto out;
 
 	/* Failed to get EDID, what about VBT? */
-	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	fixed_mode = intel_panel_vbt_lfp_fixed_mode(intel_connector);
 	if (fixed_mode)
 		goto out;
 

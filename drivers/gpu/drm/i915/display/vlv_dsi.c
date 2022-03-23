@@ -1980,7 +1980,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	mutex_lock(&dev->mode_config.mutex);
-	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	fixed_mode = intel_panel_vbt_lfp_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
