@@ -1223,6 +1223,10 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file = 1
 	},
 	[IORING_OP_SETXATTR] = {},
+	[IORING_OP_FGETXATTR] = {
+		.needs_file = 1
+	},
+	[IORING_OP_GETXATTR] = {},
 };
 
 /* requests with any of those set should undergo io_disarm_next() */
@@ -4222,6 +4226,119 @@ static void io_xattr_finish(struct io_kiocb *req, int ret)
 		req_set_fail(req);
 
 	io_req_complete(req, ret);
+}
+
+static int __io_getxattr_prep(struct io_kiocb *req,
+			      const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *name;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->ioprio))
+		return -EINVAL;
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	ix->filename = NULL;
+	ix->ctx.kvalue = NULL;
+	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	ix->ctx.cvalue = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	ix->ctx.size = READ_ONCE(sqe->len);
+	ix->ctx.flags = READ_ONCE(sqe->xattr_flags);
+
+	if (ix->ctx.flags)
+		return -EINVAL;
+
+	ix->ctx.kname = kmalloc(sizeof(*ix->ctx.kname), GFP_KERNEL);
+	if (!ix->ctx.kname)
+		return -ENOMEM;
+
+	ret = strncpy_from_user(ix->ctx.kname->name, name,
+				sizeof(ix->ctx.kname->name));
+	if (!ret || ret == sizeof(ix->ctx.kname->name))
+		ret = -ERANGE;
+	if (ret < 0) {
+		kfree(ix->ctx.kname);
+		return ret;
+	}
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	return 0;
+}
+
+static int io_fgetxattr_prep(struct io_kiocb *req,
+			     const struct io_uring_sqe *sqe)
+{
+	return __io_getxattr_prep(req, sqe);
+}
+
+static int io_getxattr_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *path;
+	int ret;
+
+	ret = __io_getxattr_prep(req, sqe);
+	if (ret)
+		return ret;
+
+	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
+
+	ix->filename = getname_flags(path, LOOKUP_FOLLOW, NULL);
+	if (IS_ERR(ix->filename)) {
+		ret = PTR_ERR(ix->filename);
+		ix->filename = NULL;
+	}
+
+	return ret;
+}
+
+static int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_xattr *ix = &req->xattr;
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+	ret = do_getxattr(mnt_user_ns(req->file->f_path.mnt),
+			req->file->f_path.dentry,
+			&ix->ctx);
+
+	io_xattr_finish(req, ret);
+	return 0;
+}
+
+static int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_xattr *ix = &req->xattr;
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	struct path path;
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+retry:
+	ret = filename_lookup(AT_FDCWD, ix->filename, lookup_flags, &path, NULL);
+	if (!ret) {
+		ret = do_getxattr(mnt_user_ns(path.mnt),
+				path.dentry,
+				&ix->ctx);
+
+		path_put(&path);
+		if (retry_estale(ret, lookup_flags)) {
+			lookup_flags |= LOOKUP_REVAL;
+			goto retry;
+		}
+	}
+
+	io_xattr_finish(req, ret);
+	return 0;
 }
 
 static int __io_setxattr_prep(struct io_kiocb *req,
@@ -7305,6 +7422,10 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_fsetxattr_prep(req, sqe);
 	case IORING_OP_SETXATTR:
 		return io_setxattr_prep(req, sqe);
+	case IORING_OP_FGETXATTR:
+		return io_fgetxattr_prep(req, sqe);
+	case IORING_OP_GETXATTR:
+		return io_getxattr_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -7451,6 +7572,8 @@ static void io_clean_op(struct io_kiocb *req)
 			break;
 		case IORING_OP_SETXATTR:
 		case IORING_OP_FSETXATTR:
+		case IORING_OP_GETXATTR:
+		case IORING_OP_FGETXATTR:
 			__io_xattr_finish(req);
 			break;
 		}
@@ -7614,6 +7737,12 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		break;
 	case IORING_OP_SETXATTR:
 		ret = io_setxattr(req, issue_flags);
+		break;
+	case IORING_OP_FGETXATTR:
+		ret = io_fgetxattr(req, issue_flags);
+		break;
+	case IORING_OP_GETXATTR:
+		ret = io_getxattr(req, issue_flags);
 		break;
 	default:
 		ret = -EINVAL;
