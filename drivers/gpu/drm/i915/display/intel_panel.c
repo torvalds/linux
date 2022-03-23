@@ -599,10 +599,12 @@ intel_panel_mode_valid(struct intel_connector *connector,
 	return MODE_OK;
 }
 
-int intel_panel_init(struct intel_panel *panel,
+int intel_panel_init(struct intel_connector *connector,
 		     struct drm_display_mode *fixed_mode,
 		     struct drm_display_mode *downclock_mode)
 {
+	struct intel_panel *panel = &connector->panel;
+
 	intel_backlight_init_funcs(panel);
 
 	if (fixed_mode)
@@ -613,16 +615,15 @@ int intel_panel_init(struct intel_panel *panel,
 	return 0;
 }
 
-void intel_panel_fini(struct intel_panel *panel)
+void intel_panel_fini(struct intel_connector *connector)
 {
-	struct intel_connector *intel_connector =
-		container_of(panel, struct intel_connector, panel);
+	struct intel_panel *panel = &connector->panel;
 	struct drm_display_mode *fixed_mode, *next;
 
 	intel_backlight_destroy(panel);
 
 	list_for_each_entry_safe(fixed_mode, next, &panel->fixed_modes, head) {
 		list_del(&fixed_mode->head);
-		drm_mode_destroy(intel_connector->base.dev, fixed_mode);
+		drm_mode_destroy(connector->base.dev, fixed_mode);
 	}
 }

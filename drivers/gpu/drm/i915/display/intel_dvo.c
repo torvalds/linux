@@ -549,7 +549,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 * headers, likely), so for now, just get the current
 			 * mode being output through DVO.
 			 */
-			intel_panel_init(&intel_connector->panel,
+			intel_panel_init(intel_connector,
 					 intel_dvo_get_current_mode(intel_encoder),
 					 NULL);
 			intel_dvo->panel_wants_dither = true;

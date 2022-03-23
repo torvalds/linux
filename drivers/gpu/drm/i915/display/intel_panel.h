@@ -16,12 +16,11 @@ struct drm_display_mode;
 struct drm_i915_private;
 struct intel_connector;
 struct intel_crtc_state;
-struct intel_panel;
 
-int intel_panel_init(struct intel_panel *panel,
+int intel_panel_init(struct intel_connector *connector,
 		     struct drm_display_mode *fixed_mode,
 		     struct drm_display_mode *downclock_mode);
-void intel_panel_fini(struct intel_panel *panel);
+void intel_panel_fini(struct intel_connector *connector);
 enum drm_connector_status
 intel_panel_detect(struct drm_connector *connector, bool force);
 bool intel_panel_use_ssc(struct drm_i915_private *i915);

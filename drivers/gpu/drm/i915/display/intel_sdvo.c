@@ -2928,7 +2928,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 			struct drm_display_mode *fixed_mode =
 				drm_mode_duplicate(connector->dev, mode);
 
-			intel_panel_init(&intel_connector->panel,
+			intel_panel_init(intel_connector,
 					 fixed_mode, NULL);
 			break;
 		}

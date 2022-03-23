@@ -102,7 +102,7 @@ void intel_connector_destroy(struct drm_connector *connector)
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	intel_panel_fini(&intel_connector->panel);
+	intel_panel_fini(intel_connector);
 
 	drm_connector_cleanup(connector);
 
