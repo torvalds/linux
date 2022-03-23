@@ -934,7 +934,7 @@ static struct soc_device_attribute soc_tuning_erratum_type1[] = {
 	{ .family = "QorIQ T1040", },
 	{ .family = "QorIQ T2080", },
 	{ .family = "QorIQ LS1021A", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct soc_device_attribute soc_tuning_erratum_type2[] = {
@@ -944,7 +944,7 @@ static struct soc_device_attribute soc_tuning_erratum_type2[] = {
 	{ .family = "QorIQ LS1080A", },
 	{ .family = "QorIQ LS2080A", },
 	{ .family = "QorIQ LA1575A", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static void esdhc_tuning_block_enable(struct sdhci_host *host, bool enable)
@@ -1316,21 +1316,21 @@ static const struct sdhci_pltfm_data sdhci_esdhc_le_pdata = {
 static struct soc_device_attribute soc_incorrect_hostver[] = {
 	{ .family = "QorIQ T4240", .revision = "1.0", },
 	{ .family = "QorIQ T4240", .revision = "2.0", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct soc_device_attribute soc_fixup_sdhc_clkdivs[] = {
 	{ .family = "QorIQ LX2160A", .revision = "1.0", },
 	{ .family = "QorIQ LX2160A", .revision = "2.0", },
 	{ .family = "QorIQ LS1028A", .revision = "1.0", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct soc_device_attribute soc_unreliable_pulse_detection[] = {
 	{ .family = "QorIQ LX2160A", .revision = "1.0", },
 	{ .family = "QorIQ LX2160A", .revision = "2.0", },
 	{ .family = "QorIQ LS1028A", .revision = "1.0", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
