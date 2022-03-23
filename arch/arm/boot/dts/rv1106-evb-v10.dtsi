@@ -25,6 +25,18 @@
 			sound-dai = <&dsm>;
 		};
 	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <724000>;
+		regulator-max-microvolt = <1078000>;
+		regulator-init-microvolt = <950000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+	};
 };
 
 &emmc {
@@ -48,4 +60,8 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m2_xfer>;
+};
+
+&pwm0 {
+	status = "okay";
 };
