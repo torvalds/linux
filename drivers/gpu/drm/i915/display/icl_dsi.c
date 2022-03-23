@@ -1965,9 +1965,10 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	intel_dsi_log_params(intel_dsi);
 }
 
-static void icl_dsi_add_properties(struct intel_connector *connector,
-				   const struct drm_display_mode *fixed_mode)
+static void icl_dsi_add_properties(struct intel_connector *connector)
 {
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
@@ -2085,7 +2086,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 
 	icl_dphy_param_init(intel_dsi);
 
-	icl_dsi_add_properties(intel_connector, fixed_mode);
+	icl_dsi_add_properties(intel_connector);
 	return;
 
 err:

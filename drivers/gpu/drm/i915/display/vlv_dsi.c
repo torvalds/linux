@@ -1657,10 +1657,11 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
-static void vlv_dsi_add_properties(struct intel_connector *connector,
-				   const struct drm_display_mode *fixed_mode)
+static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
@@ -1990,7 +1991,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_panel_init(intel_connector, fixed_mode, NULL);
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
-	vlv_dsi_add_properties(intel_connector, fixed_mode);
+	vlv_dsi_add_properties(intel_connector);
 
 	return;
 

@@ -4955,11 +4955,12 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 }
 
 static void
-intel_edp_add_properties(struct intel_dp *intel_dp,
-			 const struct drm_display_mode *fixed_mode)
+intel_edp_add_properties(struct intel_dp *intel_dp)
 {
 	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 
 	if (!fixed_mode)
 		return;
@@ -5074,7 +5075,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		intel_connector->panel.backlight.power = intel_pps_backlight_power;
 	intel_backlight_setup(intel_connector, pipe);
 
-	intel_edp_add_properties(intel_dp, fixed_mode);
+	intel_edp_add_properties(intel_dp);
 
 	return true;
 
