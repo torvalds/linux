@@ -7470,6 +7470,9 @@ static void adlp_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	/* Wa_22011091694:adlp */
 	intel_de_rmw(dev_priv, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
+
+	/* Bspec/49189 Initialize Sequence */
+	intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1, DDI_CLOCK_REG_ACCESS, 0);
 }
 
 static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
