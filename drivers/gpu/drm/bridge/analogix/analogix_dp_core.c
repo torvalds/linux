@@ -1698,6 +1698,8 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 {
 	struct device_node *dp_node = dp->dev->of_node;
 	struct video_info *video_info = &dp->video_info;
+	struct property *prop;
+	int ret, len, num_lanes;
 
 	switch (dp->plat_data->dev_type) {
 	case RK3288_DP:
@@ -1728,6 +1730,32 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 
 	video_info->video_bist_enable =
 		of_property_read_bool(dp_node, "analogix,video-bist-enable");
+
+	prop = of_find_property(dp_node, "data-lanes", &len);
+	if (!prop) {
+		video_info->lane_map[0] = 0;
+		video_info->lane_map[1] = 1;
+		video_info->lane_map[2] = 2;
+		video_info->lane_map[3] = 3;
+		DRM_DEV_DEBUG(dp->dev, "failed to find data lane mapping, using default\n");
+		return 0;
+	}
+
+	num_lanes = len / sizeof(u32);
+
+	if (num_lanes < 1 || num_lanes > 4 || num_lanes == 3) {
+		DRM_DEV_ERROR(dp->dev, "bad number of data lanes\n");
+		return -EINVAL;
+	}
+
+	video_info->max_lane_count = num_lanes;
+
+	ret = of_property_read_u32_array(dp_node, "data-lanes",
+					 video_info->lane_map, num_lanes);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev, "failed to read lane data\n");
+		return ret;
+	}
 
 	return 0;
 }

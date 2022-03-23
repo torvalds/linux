@@ -61,16 +61,13 @@ void analogix_dp_stop_video(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_1, reg);
 }
 
-void analogix_dp_lane_swap(struct analogix_dp_device *dp, bool enable)
+static void analogix_dp_set_lane_map(struct analogix_dp_device *dp)
 {
-	u32 reg;
+	struct video_info *video_info = &dp->video_info;
+	u32 i, reg = 0;
 
-	if (enable)
-		reg = LANE3_MAP_LOGIC_LANE_0 | LANE2_MAP_LOGIC_LANE_1 |
-		      LANE1_MAP_LOGIC_LANE_2 | LANE0_MAP_LOGIC_LANE_3;
-	else
-		reg = LANE3_MAP_LOGIC_LANE_3 | LANE2_MAP_LOGIC_LANE_2 |
-		      LANE1_MAP_LOGIC_LANE_1 | LANE0_MAP_LOGIC_LANE_0;
+	for (i = 0; i < video_info->max_lane_count; i++)
+		reg |= video_info->lane_map[i] << (2 * i);
 
 	analogix_dp_write(dp, ANALOGIX_DP_LANE_MAP, reg);
 }
@@ -154,7 +151,7 @@ void analogix_dp_reset(struct analogix_dp_device *dp)
 
 	usleep_range(20, 30);
 
-	analogix_dp_lane_swap(dp, 0);
+	analogix_dp_set_lane_map(dp);
 
 	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_1, 0x0);
 	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_2, 0x40);
