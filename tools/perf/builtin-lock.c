@@ -282,6 +282,7 @@ static struct rb_root		sorted; /* place to store intermediate data */
 static struct rb_root		result;	/* place to store sorted data */
 
 static LIST_HEAD(lock_keys);
+static const char		*output_fields;
 
 #define DEF_KEY_LOCK(name, header, fn_suffix, len)			\
 	{ #name, header, len, lock_stat_key_ ## fn_suffix, lock_stat_key_print_ ## fn_suffix, {} }
@@ -304,23 +305,65 @@ static int select_key(void)
 	for (i = 0; keys[i].name; i++) {
 		if (!strcmp(keys[i].name, sort_key)) {
 			compare = keys[i].key;
+
+			/* selected key should be in the output fields */
+			if (list_empty(&keys[i].list))
+				list_add_tail(&keys[i].list, &lock_keys);
+
 			return 0;
 		}
 	}
 
 	pr_err("Unknown compare key: %s\n", sort_key);
-
 	return -1;
 }
 
-static int setup_output_field(void)
+static int add_output_field(struct list_head *head, char *name)
 {
 	int i;
 
-	for (i = 0; keys[i].name; i++)
-		list_add_tail(&keys[i].list, &lock_keys);
+	for (i = 0; keys[i].name; i++) {
+		if (strcmp(keys[i].name, name))
+			continue;
 
-	return 0;
+		/* prevent double link */
+		if (list_empty(&keys[i].list))
+			list_add_tail(&keys[i].list, head);
+
+		return 0;
+	}
+
+	pr_err("Unknown output field: %s\n", name);
+	return -1;
+}
+
+static int setup_output_field(const char *str)
+{
+	char *tok, *tmp, *orig;
+	int i, ret = 0;
+
+	/* no output field given: use all of them */
+	if (str == NULL) {
+		for (i = 0; keys[i].name; i++)
+			list_add_tail(&keys[i].list, &lock_keys);
+		return 0;
+	}
+
+	for (i = 0; keys[i].name; i++)
+		INIT_LIST_HEAD(&keys[i].list);
+
+	orig = tmp = strdup(str);
+	if (orig == NULL)
+		return -ENOMEM;
+
+	while ((tok = strsep(&tmp, ",")) != NULL){
+		ret = add_output_field(&lock_keys, tok);
+		if (ret < 0)
+			break;
+	}
+	free(orig);
+
+	return ret;
 }
 
 static void combine_lock_stats(struct lock_stat *st)
@@ -1002,7 +1045,7 @@ static int __cmd_report(bool display_info)
 		goto out_delete;
 	}
 
-	if (setup_output_field())
+	if (setup_output_field(output_fields))
 		goto out_delete;
 
 	if (select_key())
@@ -1090,6 +1133,8 @@ int cmd_lock(int argc, const char **argv)
 	const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
 		    "key for sorting (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
+	OPT_STRING('F', "field", &output_fields, NULL,
+		    "output fields (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
 	/* TODO: type */
 	OPT_BOOLEAN('c', "combine-locks", &combine_locks,
 		    "combine locks in the same class"),
