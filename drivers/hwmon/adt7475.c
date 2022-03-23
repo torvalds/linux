@@ -1569,12 +1569,12 @@ static int set_property_bit(const struct i2c_client *client, char *property,
 	return ret;
 }
 
-static int load_attenuators(const struct i2c_client *client, int chip,
+static int load_attenuators(const struct i2c_client *client, enum chips chip,
 			    struct adt7475_data *data)
 {
-	int ret;
-
-	if (chip == adt7476 || chip == adt7490) {
+	switch (chip) {
+	case adt7476:
+	case adt7490:
 		set_property_bit(client, "adi,bypass-attenuator-in0",
 				 &data->config4, 4);
 		set_property_bit(client, "adi,bypass-attenuator-in1",
@@ -1584,18 +1584,15 @@ static int load_attenuators(const struct i2c_client *client, int chip,
 		set_property_bit(client, "adi,bypass-attenuator-in4",
 				 &data->config4, 7);
 
-		ret = i2c_smbus_write_byte_data(client, REG_CONFIG4,
-						data->config4);
-		if (ret < 0)
-			return ret;
-	} else if (chip == adt7473 || chip == adt7475) {
+		return i2c_smbus_write_byte_data(client, REG_CONFIG4,
+						 data->config4);
+	case adt7473:
+	case adt7475:
 		set_property_bit(client, "adi,bypass-attenuator-in1",
 				 &data->config2, 5);
 
-		ret = i2c_smbus_write_byte_data(client, REG_CONFIG2,
-						data->config2);
-		if (ret < 0)
-			return ret;
+		return i2c_smbus_write_byte_data(client, REG_CONFIG2,
+						 data->config2);
 	}
 
 	return 0;
