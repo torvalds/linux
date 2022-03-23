@@ -84,7 +84,7 @@ static inline void tcf_vlan_push_eth(unsigned char *src, unsigned char *dest,
 {
 	rcu_read_lock();
 	memcpy(dest, rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_dst, ETH_ALEN);
-	memcpy(dest, rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_src, ETH_ALEN);
+	memcpy(src, rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_src, ETH_ALEN);
 	rcu_read_unlock();
 }
 
