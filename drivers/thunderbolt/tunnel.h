@@ -29,6 +29,9 @@ enum tb_tunnel_type {
  * @init: Optional tunnel specific initialization
  * @deinit: Optional tunnel specific de-initialization
  * @activate: Optional tunnel specific activation/deactivation
+ * @maximum_bandwidth:
+ * @allocated_bandwidth: Return how much bandwidth is allocated for the tunnel
+ * @alloc_bandwidth: Change tunnel bandwidth allocation
  * @consumed_bandwidth: Return how much bandwidth the tunnel consumes
  * @release_unused_bandwidth: Release all unused bandwidth
  * @reclaim_available_bandwidth: Reclaim back available bandwidth
@@ -40,6 +43,8 @@ enum tb_tunnel_type {
  *	      Only set if the bandwidth needs to be limited.
  * @allocated_up: Allocated upstream bandwidth (only for USB3)
  * @allocated_down: Allocated downstream bandwidth (only for USB3)
+ * @bw_mode: DP bandwidth allocation mode registers can be used to
+ *	     determine consumed and allocated bandwidth
  */
 struct tb_tunnel {
 	struct tb *tb;
@@ -50,6 +55,12 @@ struct tb_tunnel {
 	int (*init)(struct tb_tunnel *tunnel);
 	void (*deinit)(struct tb_tunnel *tunnel);
 	int (*activate)(struct tb_tunnel *tunnel, bool activate);
+	int (*maximum_bandwidth)(struct tb_tunnel *tunnel, int *max_up,
+				 int *max_down);
+	int (*allocated_bandwidth)(struct tb_tunnel *tunnel, int *allocated_up,
+				   int *allocated_down);
+	int (*alloc_bandwidth)(struct tb_tunnel *tunnel, int *alloc_up,
+			       int *alloc_down);
 	int (*consumed_bandwidth)(struct tb_tunnel *tunnel, int *consumed_up,
 				  int *consumed_down);
 	int (*release_unused_bandwidth)(struct tb_tunnel *tunnel);
@@ -62,6 +73,7 @@ struct tb_tunnel {
 	int max_down;
 	int allocated_up;
 	int allocated_down;
+	bool bw_mode;
 };
 
 struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down,
@@ -92,6 +104,12 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel);
 bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel);
 bool tb_tunnel_port_on_path(const struct tb_tunnel *tunnel,
 			    const struct tb_port *port);
+int tb_tunnel_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
+				int *max_down);
+int tb_tunnel_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up,
+				  int *allocated_down);
+int tb_tunnel_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
+			      int *alloc_down);
 int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 				 int *consumed_down);
 int tb_tunnel_release_unused_bandwidth(struct tb_tunnel *tunnel);

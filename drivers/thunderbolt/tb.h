@@ -224,6 +224,23 @@ struct tb_switch {
 };
 
 /**
+ * struct tb_bandwidth_group - Bandwidth management group
+ * @tb: Pointer to the domain the group belongs to
+ * @index: Index of the group (aka Group_ID). Valid values %1-%7
+ * @ports: DP IN adapters belonging to this group are linked here
+ *
+ * Any tunnel that requires isochronous bandwidth (that's DP for now) is
+ * attached to a bandwidth group. All tunnels going through the same
+ * USB4 links share the same group and can dynamically distribute the
+ * bandwidth within the group.
+ */
+struct tb_bandwidth_group {
+	struct tb *tb;
+	int index;
+	struct list_head ports;
+};
+
+/**
  * struct tb_port - a thunderbolt port, part of a tb_switch
  * @config: Cached port configuration read from registers
  * @sw: Switch the port belongs to
@@ -247,6 +264,9 @@ struct tb_switch {
  * @ctl_credits: Buffers reserved for control path
  * @dma_credits: Number of credits allocated for DMA tunneling for all
  *		 DMA paths through this port.
+ * @group: Bandwidth allocation group the adapter is assigned to. Only
+ *	   used for DP IN adapters for now.
+ * @group_list: The adapter is linked to the group's list of ports through this
  *
  * In USB4 terminology this structure represents an adapter (protocol or
  * lane adapter).
@@ -272,6 +292,8 @@ struct tb_port {
 	unsigned int total_credits;
 	unsigned int ctl_credits;
 	unsigned int dma_credits;
+	struct tb_bandwidth_group *group;
+	struct list_head group_list;
 };
 
 /**
