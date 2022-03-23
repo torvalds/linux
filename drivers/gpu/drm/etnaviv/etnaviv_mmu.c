@@ -92,6 +92,8 @@ static int etnaviv_iommu_map(struct etnaviv_iommu_context *context, u32 iova,
 		da += bytes;
 	}
 
+	context->flush_seq++;
+
 	return 0;
 
 fail:
@@ -117,6 +119,8 @@ static void etnaviv_iommu_unmap(struct etnaviv_iommu_context *context, u32 iova,
 
 		da += bytes;
 	}
+
+	context->flush_seq++;
 }
 
 static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu_context *context,
@@ -274,7 +278,6 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 
 	mapping->context = etnaviv_iommu_context_get(context);
 	list_add_tail(&mapping->mmu_node, &context->mappings);
-	context->flush_seq++;
 unlock:
 	mutex_unlock(&context->lock);
 
@@ -299,7 +302,6 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu_context *context,
 		etnaviv_iommu_remove_mapping(context, mapping);
 
 	list_del(&mapping->mmu_node);
-	context->flush_seq++;
 	mutex_unlock(&context->lock);
 	etnaviv_iommu_context_put(context);
 }
