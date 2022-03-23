@@ -10,7 +10,7 @@ maintainers:
   - Stephen Boyd <sboyd@kernel.org>
   - Taniya Das <tdas@codeaurora.org>
 
-description:
+description: |
   Qualcomm global clock control module which supports the clocks, resets and
   power domains.
 
