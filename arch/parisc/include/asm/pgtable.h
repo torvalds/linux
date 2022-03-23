@@ -408,6 +408,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return ((unsigned long) __va(pmd_address(pmd)));
 }
 
+#define pmd_pfn(pmd)	(pmd_address(pmd) >> PAGE_SHIFT)
 #define __pmd_page(pmd) ((unsigned long) __va(pmd_address(pmd)))
 #define pmd_page(pmd)	virt_to_page((void *)__pmd_page(pmd))
 

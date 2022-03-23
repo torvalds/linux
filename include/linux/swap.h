@@ -328,7 +328,7 @@ static inline swp_entry_t folio_swap_entry(struct folio *folio)
 
 /* linux/mm/workingset.c */
 void workingset_age_nonresident(struct lruvec *lruvec, unsigned long nr_pages);
-void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg);
+void *workingset_eviction(struct folio *folio, struct mem_cgroup *target_memcg);
 void workingset_refault(struct folio *folio, void *shadow);
 void workingset_activation(struct folio *folio);
 
@@ -375,7 +375,6 @@ extern void lru_add_drain(void);
 extern void lru_add_drain_cpu(int cpu);
 extern void lru_add_drain_cpu_zone(struct zone *zone);
 extern void lru_add_drain_all(void);
-extern void deactivate_file_page(struct page *page);
 extern void deactivate_page(struct page *page);
 extern void mark_page_lazyfree(struct page *page);
 extern void swap_setup(void);
@@ -397,7 +396,7 @@ extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
 						unsigned long *nr_scanned);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
-extern int remove_mapping(struct address_space *mapping, struct page *page);
+long remove_mapping(struct address_space *mapping, struct folio *folio);
 
 extern unsigned long reclaim_pages(struct list_head *page_list);
 #ifdef CONFIG_NUMA
@@ -743,7 +742,7 @@ static inline void cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 #endif
 
 #ifdef CONFIG_MEMCG_SWAP
-extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry);
 extern int __mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
 static inline int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
 {
@@ -763,7 +762,7 @@ static inline void mem_cgroup_uncharge_swap(swp_entry_t entry, unsigned int nr_p
 extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
 extern bool mem_cgroup_swap_full(struct page *page);
 #else
-static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+static inline void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry)
 {
 }
 

@@ -681,9 +681,8 @@ bool folio_mapped(struct folio *folio)
 }
 EXPORT_SYMBOL(folio_mapped);
 
-struct anon_vma *page_anon_vma(struct page *page)
+struct anon_vma *folio_anon_vma(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	unsigned long mapping = (unsigned long)folio->mapping;
 
 	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
@@ -741,6 +740,39 @@ int __page_mapcount(struct page *page)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__page_mapcount);
+
+/**
+ * folio_mapcount() - Calculate the number of mappings of this folio.
+ * @folio: The folio.
+ *
+ * A large folio tracks both how many times the entire folio is mapped,
+ * and how many times each individual page in the folio is mapped.
+ * This function calculates the total number of times the folio is
+ * mapped.
+ *
+ * Return: The number of times this folio is mapped.
+ */
+int folio_mapcount(struct folio *folio)
+{
+	int i, compound, nr, ret;
+
+	if (likely(!folio_test_large(folio)))
+		return atomic_read(&folio->_mapcount) + 1;
+
+	compound = folio_entire_mapcount(folio);
+	nr = folio_nr_pages(folio);
+	if (folio_test_hugetlb(folio))
+		return compound;
+	ret = compound;
+	for (i = 0; i < nr; i++)
+		ret += atomic_read(&folio_page(folio, i)->_mapcount) + 1;
+	/* File pages has compound_mapcount included in _mapcount */
+	if (!folio_test_anon(folio))
+		return ret - compound * nr;
+	if (folio_test_double_map(folio))
+		ret -= nr;
+	return ret;
+}
 
 /**
  * folio_copy - Copy the contents of one folio to another.

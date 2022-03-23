@@ -193,27 +193,6 @@ static void truncate_cleanup_folio(struct folio *folio)
 	folio_clear_mappedtodisk(folio);
 }
 
-/*
- * This is for invalidate_mapping_pages().  That function can be called at
- * any time, and is not supposed to throw away dirty pages.  But pages can
- * be marked dirty at any time too, so use remove_mapping which safely
- * discards clean, unused pages.
- *
- * Returns non-zero if the page was successfully invalidated.
- */
-static int
-invalidate_complete_page(struct address_space *mapping, struct page *page)
-{
-
-	if (page->mapping != mapping)
-		return 0;
-
-	if (page_has_private(page) && !try_to_release_page(page, 0))
-		return 0;
-
-	return remove_mapping(mapping, page);
-}
-
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
 {
 	if (folio->mapping != mapping)
@@ -294,22 +273,40 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 }
 EXPORT_SYMBOL(generic_error_remove_page);
 
-/*
- * Safely invalidate one page from its pagecache mapping.
- * It only drops clean, unused pages. The page must be locked.
- *
- * Returns 1 if the page is successfully invalidated, otherwise 0.
- */
-int invalidate_inode_page(struct page *page)
+static long mapping_evict_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct address_space *mapping = page_mapping(page);
+	if (folio_test_dirty(folio) || folio_test_writeback(folio))
+		return 0;
+	/* The refcount will be elevated if any page in the folio is mapped */
+	if (folio_ref_count(folio) >
+			folio_nr_pages(folio) + folio_has_private(folio) + 1)
+		return 0;
+	if (folio_has_private(folio) && !filemap_release_folio(folio, 0))
+		return 0;
+
+	return remove_mapping(mapping, folio);
+}
+
+/**
+ * invalidate_inode_page() - Remove an unused page from the pagecache.
+ * @page: The page to remove.
+ *
+ * Safely invalidate one page from its pagecache mapping.
+ * It only drops clean, unused pages.
+ *
+ * Context: Page must be locked.
+ * Return: The number of pages successfully removed.
+ */
+long invalidate_inode_page(struct page *page)
+{
+	struct folio *folio = page_folio(page);
+	struct address_space *mapping = folio_mapping(folio);
+
+	/* The page may have been truncated before it was locked */
 	if (!mapping)
 		return 0;
-	if (PageDirty(page) || PageWriteback(page))
-		return 0;
-	if (page_mapped(page))
-		return 0;
-	return invalidate_complete_page(mapping, page);
+	return mapping_evict_folio(mapping, folio);
 }
 
 /**
@@ -497,7 +494,18 @@ void truncate_inode_pages_final(struct address_space *mapping)
 }
 EXPORT_SYMBOL(truncate_inode_pages_final);
 
-static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+/**
+ * invalidate_mapping_pagevec - Invalidate all the unlocked pages of one inode
+ * @mapping: the address_space which holds the pages to invalidate
+ * @start: the offset 'from' which to invalidate
+ * @end: the offset 'to' which to invalidate (inclusive)
+ * @nr_pagevec: invalidate failed page number for caller
+ *
+ * This helper is similar to invalidate_mapping_pages(), except that it accounts
+ * for pages that are likely on a pagevec and counts them in @nr_pagevec, which
+ * will be used by the caller.
+ */
+unsigned long invalidate_mapping_pagevec(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec)
 {
 	pgoff_t indices[PAGEVEC_SIZE];
@@ -510,27 +518,27 @@ static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 	folio_batch_init(&fbatch);
 	while (find_lock_entries(mapping, index, end, &fbatch, indices)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion not changing folio->index */
 			index = indices[i];
 
-			if (xa_is_value(page)) {
+			if (xa_is_value(folio)) {
 				count += invalidate_exceptional_entry(mapping,
 								      index,
-								      page);
+								      folio);
 				continue;
 			}
-			index += thp_nr_pages(page) - 1;
+			index += folio_nr_pages(folio) - 1;
 
-			ret = invalidate_inode_page(page);
-			unlock_page(page);
+			ret = mapping_evict_folio(mapping, folio);
+			folio_unlock(folio);
 			/*
-			 * Invalidation is a hint that the page is no longer
+			 * Invalidation is a hint that the folio is no longer
 			 * of interest and try to speed up its reclaim.
 			 */
 			if (!ret) {
-				deactivate_file_page(page);
+				deactivate_file_folio(folio);
 				/* It is likely on the pagevec of a remote CPU */
 				if (nr_pagevec)
 					(*nr_pagevec)++;
@@ -562,29 +570,12 @@ static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
 		pgoff_t start, pgoff_t end)
 {
-	return __invalidate_mapping_pages(mapping, start, end, NULL);
+	return invalidate_mapping_pagevec(mapping, start, end, NULL);
 }
 EXPORT_SYMBOL(invalidate_mapping_pages);
 
-/**
- * invalidate_mapping_pagevec - Invalidate all the unlocked pages of one inode
- * @mapping: the address_space which holds the pages to invalidate
- * @start: the offset 'from' which to invalidate
- * @end: the offset 'to' which to invalidate (inclusive)
- * @nr_pagevec: invalidate failed page number for caller
- *
- * This helper is similar to invalidate_mapping_pages(), except that it accounts
- * for pages that are likely on a pagevec and counts them in @nr_pagevec, which
- * will be used by the caller.
- */
-void invalidate_mapping_pagevec(struct address_space *mapping,
-		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec)
-{
-	__invalidate_mapping_pages(mapping, start, end, nr_pagevec);
-}
-
 /*
- * This is like invalidate_complete_page(), except it ignores the page's
+ * This is like invalidate_inode_page(), except it ignores the page's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
  * invalidation guarantees, and cannot afford to leave pages behind because
  * shrink_page_list() has a temp ref on them, or because they're transiently

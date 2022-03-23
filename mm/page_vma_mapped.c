@@ -53,18 +53,6 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
 	return true;
 }
 
-static inline bool pfn_is_match(struct page *page, unsigned long pfn)
-{
-	unsigned long page_pfn = page_to_pfn(page);
-
-	/* normal page and hugetlbfs page */
-	if (!PageTransCompound(page) || PageHuge(page))
-		return page_pfn == pfn;
-
-	/* THP can be referenced by any subpage */
-	return pfn >= page_pfn && pfn - page_pfn < thp_nr_pages(page);
-}
-
 /**
  * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
  * @pvmw: page_vma_mapped_walk struct, includes a pair pte and page for checking
@@ -116,7 +104,17 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
 		pfn = pte_pfn(*pvmw->pte);
 	}
 
-	return pfn_is_match(pvmw->page, pfn);
+	return (pfn - pvmw->pfn) < pvmw->nr_pages;
+}
+
+/* Returns true if the two ranges overlap.  Careful to not overflow. */
+static bool check_pmd(unsigned long pfn, struct page_vma_mapped_walk *pvmw)
+{
+	if ((pfn + HPAGE_PMD_NR - 1) < pvmw->pfn)
+		return false;
+	if (pfn > pvmw->pfn + pvmw->nr_pages - 1)
+		return false;
+	return true;
 }
 
 static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
@@ -127,7 +125,7 @@ static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
 }
 
 /**
- * page_vma_mapped_walk - check if @pvmw->page is mapped in @pvmw->vma at
+ * page_vma_mapped_walk - check if @pvmw->pfn is mapped in @pvmw->vma at
  * @pvmw->address
  * @pvmw: pointer to struct page_vma_mapped_walk. page, vma, address and flags
  * must be set. pmd, pte and ptl must be NULL.
@@ -152,8 +150,8 @@ static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
  */
 bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 {
-	struct mm_struct *mm = pvmw->vma->vm_mm;
-	struct page *page = pvmw->page;
+	struct vm_area_struct *vma = pvmw->vma;
+	struct mm_struct *mm = vma->vm_mm;
 	unsigned long end;
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -164,32 +162,26 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	if (pvmw->pmd && !pvmw->pte)
 		return not_found(pvmw);
 
-	if (unlikely(PageHuge(page))) {
+	if (unlikely(is_vm_hugetlb_page(vma))) {
+		unsigned long size = pvmw->nr_pages * PAGE_SIZE;
 		/* The only possible mapping was handled on last iteration */
 		if (pvmw->pte)
 			return not_found(pvmw);
 
 		/* when pud is not present, pte will be NULL */
-		pvmw->pte = huge_pte_offset(mm, pvmw->address, page_size(page));
+		pvmw->pte = huge_pte_offset(mm, pvmw->address, size);
 		if (!pvmw->pte)
 			return false;
 
-		pvmw->ptl = huge_pte_lockptr(page_hstate(page), mm, pvmw->pte);
+		pvmw->ptl = huge_pte_lockptr(size_to_hstate(size), mm,
+						pvmw->pte);
 		spin_lock(pvmw->ptl);
 		if (!check_pte(pvmw))
 			return not_found(pvmw);
 		return true;
 	}
 
-	/*
-	 * Seek to next pte only makes sense for THP.
-	 * But more important than that optimization, is to filter out
-	 * any PageKsm page: whose page->index misleads vma_address()
-	 * and vma_address_end() to disaster.
-	 */
-	end = PageTransCompound(page) ?
-		vma_address_end(page, pvmw->vma) :
-		pvmw->address + PAGE_SIZE;
+	end = vma_address_end(pvmw);
 	if (pvmw->pte)
 		goto next_pte;
 restart:
@@ -224,7 +216,7 @@ restart:
 			if (likely(pmd_trans_huge(pmde))) {
 				if (pvmw->flags & PVMW_MIGRATION)
 					return not_found(pvmw);
-				if (pmd_page(pmde) != page)
+				if (!check_pmd(pmd_pfn(pmde), pvmw))
 					return not_found(pvmw);
 				return true;
 			}
@@ -236,7 +228,7 @@ restart:
 					return not_found(pvmw);
 				entry = pmd_to_swp_entry(pmde);
 				if (!is_migration_entry(entry) ||
-				    pfn_swap_entry_to_page(entry) != page)
+				    !check_pmd(swp_offset(entry), pvmw))
 					return not_found(pvmw);
 				return true;
 			}
@@ -250,7 +242,8 @@ restart:
 			 * cleared *pmd but not decremented compound_mapcount().
 			 */
 			if ((pvmw->flags & PVMW_SYNC) &&
-			    PageTransCompound(page)) {
+			    transparent_hugepage_active(vma) &&
+			    (pvmw->nr_pages >= HPAGE_PMD_NR)) {
 				spinlock_t *ptl = pmd_lock(mm, pvmw->pmd);
 
 				spin_unlock(ptl);
@@ -307,7 +300,8 @@ next_pte:
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {
 	struct page_vma_mapped_walk pvmw = {
-		.page = page,
+		.pfn = page_to_pfn(page),
+		.nr_pages = 1,
 		.vma = vma,
 		.flags = PVMW_SYNC,
 	};
