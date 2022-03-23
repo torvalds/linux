@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
 
@@ -430,4 +431,36 @@ int parse_prio(char *arg, struct sched_attr *sched_param)
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * set_cpu_dma_latency - set the /dev/cpu_dma_latecy
+ *
+ * This is used to reduce the exit from idle latency. The value
+ * will be reset once the file descriptor of /dev/cpu_dma_latecy
+ * is closed.
+ *
+ * Return: the /dev/cpu_dma_latecy file descriptor
+ */
+int set_cpu_dma_latency(int32_t latency)
+{
+	int retval;
+	int fd;
+
+	fd = open("/dev/cpu_dma_latency", O_RDWR);
+	if (fd < 0) {
+		err_msg("Error opening /dev/cpu_dma_latency\n");
+		return -1;
+	}
+
+	retval = write(fd, &latency, 4);
+	if (retval < 1) {
+		err_msg("Error setting /dev/cpu_dma_latency\n");
+		close(fd);
+		return -1;
+	}
+
+	debug_msg("Set /dev/cpu_dma_latency to %d\n", latency);
+
+	return fd;
 }
