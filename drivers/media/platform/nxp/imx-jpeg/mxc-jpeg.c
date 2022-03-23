@@ -1827,12 +1827,40 @@ static int mxc_jpeg_s_fmt_vid_out(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	int ret;
+	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(priv);
+	struct vb2_queue *dst_vq;
+	struct mxc_jpeg_q_data *q_data_cap;
+	enum v4l2_buf_type cap_type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	struct v4l2_format fc;
 
 	ret = mxc_jpeg_try_fmt_vid_out(file, priv, f);
 	if (ret)
 		return ret;
 
-	return mxc_jpeg_s_fmt(mxc_jpeg_fh_to_ctx(priv), f);
+	ret = mxc_jpeg_s_fmt(mxc_jpeg_fh_to_ctx(priv), f);
+	if (ret)
+		return ret;
+
+	if (ctx->mxc_jpeg->mode != MXC_JPEG_DECODE)
+		return 0;
+
+	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, cap_type);
+	if (!dst_vq)
+		return -EINVAL;
+
+	if (vb2_is_busy(dst_vq))
+		return 0;
+
+	q_data_cap = mxc_jpeg_get_q_data(ctx, cap_type);
+	if (q_data_cap->w == f->fmt.pix_mp.width && q_data_cap->h == f->fmt.pix_mp.height)
+		return 0;
+	memset(&fc, 0, sizeof(fc));
+	fc.type = cap_type;
+	fc.fmt.pix_mp.pixelformat = q_data_cap->fmt->fourcc;
+	fc.fmt.pix_mp.width = f->fmt.pix_mp.width;
+	fc.fmt.pix_mp.height = f->fmt.pix_mp.height;
+
+	return mxc_jpeg_s_fmt_vid_cap(file, priv, &fc);
 }
 
 static int mxc_jpeg_g_fmt_vid(struct file *file, void *priv,
