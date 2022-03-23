@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/badblocks.h>
 #include <linux/perf_event.h>
-#include <linux/platform_device.h>
 
 enum nvdimm_event {
 	NVDIMM_REVALIDATE_POISON,
@@ -57,15 +56,24 @@ struct nvdimm_pmu {
 	struct cpumask arch_cpumask;
 };
 
+struct platform_device;
+
+#ifdef CONFIG_PERF_EVENTS
 extern ssize_t nvdimm_events_sysfs_show(struct device *dev,
 					struct device_attribute *attr,
 					char *page);
 
 int register_nvdimm_pmu(struct nvdimm_pmu *nvdimm, struct platform_device *pdev);
 void unregister_nvdimm_pmu(struct nvdimm_pmu *nd_pmu);
-void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu);
-int perf_pmu_register(struct pmu *pmu, const char *name, int type);
-void perf_pmu_unregister(struct pmu *pmu);
+
+#else
+static inline int register_nvdimm_pmu(struct nvdimm_pmu *nvdimm, struct platform_device *pdev)
+{
+	return -ENXIO;
+}
+
+static inline void unregister_nvdimm_pmu(struct nvdimm_pmu *nd_pmu) { }
+#endif
 
 struct nd_device_driver {
 	struct device_driver drv;
