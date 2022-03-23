@@ -1635,15 +1635,21 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_display_mode m;
+	u32 max_link_rate, max_lane_count;
 
 	drm_mode_copy(&m, mode);
 
 	if (dp->plat_data->split_mode)
 		dp->plat_data->convert_to_origin_mode(&m);
 
+	max_link_rate = min_t(u32, dp->video_info.max_link_rate,
+			      dp->link_train.link_rate);
+	max_lane_count = min_t(u32, dp->video_info.max_lane_count,
+			       dp->link_train.lane_count);
+
 	if (!analogix_dp_bandwidth_ok(dp, &m,
-				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
-				      dp->link_train.lane_count))
+				      drm_dp_bw_code_to_link_rate(max_link_rate),
+				      max_lane_count))
 		return MODE_BAD;
 
 	return MODE_OK;
