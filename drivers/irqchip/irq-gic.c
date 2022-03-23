@@ -463,7 +463,11 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
 	bypass = readl(cpu_base + GIC_CPU_CTRL);
 	bypass &= GICC_DIS_BYPASS_MASK;
 
+#ifdef CONFIG_FIQ_GLUE
+	writel_relaxed(0x0f, cpu_base + GIC_CPU_CTRL);
+#else
 	writel_relaxed(bypass | mode | GICC_ENABLE, cpu_base + GIC_CPU_CTRL);
+#endif
 }
 
 
@@ -487,7 +491,15 @@ static void gic_dist_init(struct gic_chip_data *gic)
 
 	gic_dist_config(base, gic_irqs, NULL);
 
+#ifdef CONFIG_FIQ_GLUE
+	/* set all the interrupt to non-secure state */
+	for (i = 0; i < gic_irqs; i += 32)
+		writel_relaxed(0xffffffff, base + GIC_DIST_IGROUP + i * 4 / 32);
+	dsb(sy);
+	writel_relaxed(3, base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+#endif
 }
 
 static int gic_cpu_init(struct gic_chip_data *gic)
@@ -635,7 +647,11 @@ void gic_dist_restore(struct gic_chip_data *gic)
 			dist_base + GIC_DIST_ACTIVE_SET + i * 4);
 	}
 
+#ifdef CONFIG_FIQ_GLUE
+	writel_relaxed(3, dist_base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(GICD_ENABLE, dist_base + GIC_DIST_CTRL);
+#endif
 }
 
 void gic_cpu_save(struct gic_chip_data *gic)
@@ -776,6 +792,27 @@ static int gic_pm_init(struct gic_chip_data *gic)
 }
 #endif
 
+#ifdef CONFIG_FIQ_GLUE
+/*
+ *	ICDISR each bit   0 -- Secure   1--Non-Secure
+ */
+void gic_set_irq_secure(struct irq_data *d)
+{
+	u32 mask = 0;
+	void __iomem *base = gic_dist_base(d);
+
+	base += GIC_DIST_IGROUP + ((gic_irq(d) / 32) * 4);
+	mask = readl_relaxed(base);
+	mask &= ~(1 << (gic_irq(d) % 32));
+	writel_relaxed(mask, base);
+}
+
+void gic_set_irq_priority(struct irq_data *d, u8 pri)
+{
+	writeb_relaxed(pri, gic_dist_base(d) + GIC_DIST_PRI + gic_irq(d));
+}
+#endif
+
 #ifdef CONFIG_SMP
 static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
@@ -822,14 +859,24 @@ static void gic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 	dmb(ishst);
 
 	/* this always happens on GIC0 */
+#ifdef CONFIG_FIQ_GLUE
+	/* enable non-secure SGI for GIC with security extensions */
+	writel_relaxed(map << 16 | d->hwirq | 0x8000,
+			gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+#else
 	writel_relaxed(map << 16 | d->hwirq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
-
+#endif
 	gic_unlock_irqrestore(flags);
 }
 
 static int gic_starting_cpu(unsigned int cpu)
 {
 	gic_cpu_init(&gic_data[0]);
+	if (IS_ENABLED(CONFIG_FIQ_GLUE)) {
+		/* set SGI to none secure state */
+		writel_relaxed(0xffffffff, gic_data_dist_base(&gic_data[0]) + GIC_DIST_IGROUP);
+		writel_relaxed(0xf, gic_data_cpu_base(&gic_data[0]) + GIC_CPU_CTRL);
+	}
 	return 0;
 }
 
