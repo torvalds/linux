@@ -2952,7 +2952,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				bool register_ts_record, u64 ts_handle, u64 ts_offset,
 				u32 *status, u64 *timestamp)
 {
-	u32 cq_patched_handle, ts_patched_handle;
+	u32 cq_patched_handle;
 	struct hl_user_pending_interrupt *pend;
 	struct hl_mmap_mem_buf *buf;
 	struct hl_cb *cq_cb;
@@ -2974,15 +2974,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (register_ts_record) {
 		dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, ts offset: %llu, cq_offset: %llu\n",
 					interrupt->interrupt_id, ts_offset, cq_counters_offset);
-
-		/* TODO:
-		 * See if this can be removed.
-		 * Embedding type in handle will no longer be needed as soon as we
-		 * switch to using a single memory manager for all memory types.
-		 * We may still need the page shift, though.
-		 */
-		ts_patched_handle = lower_32_bits(ts_handle >> PAGE_SHIFT);
-		buf = hl_mmap_mem_buf_get(mmg, ts_patched_handle);
+		buf = hl_mmap_mem_buf_get(mmg, ts_handle);
 		if (!buf) {
 			rc = -EINVAL;
 			goto put_cq_cb;

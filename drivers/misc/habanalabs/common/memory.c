@@ -2140,7 +2140,8 @@ free_mem:
 	return -ENOMEM;
 }
 
-static struct hl_mmap_mem_buf_ops hl_ts_behavior = {
+static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
+	.mem_id = HL_MMAP_TYPE_TS_BUFF,
 	.mmap = hl_ts_mmap,
 	.alloc = hl_ts_alloc_buf,
 	.release = ts_buff_release,
@@ -2175,12 +2176,7 @@ static int allocate_timestamps_buffers(struct hl_fpriv *hpriv, struct hl_mem_in 
 	if (!buf)
 		return -ENOMEM;
 
-	/* TODO:
-	 * Remove HL_MMAP_TYPE_TS_BUFF.
-	 * Embedding type in handle will no longer be needed as soon as we
-	 * switch to using a single memory manager for all memory types.
-	 */
-	*handle = ((u64)buf->handle | HL_MMAP_TYPE_TS_BUFF) << PAGE_SHIFT;
+	*handle = buf->handle;
 
 	return 0;
 }

@@ -17,16 +17,16 @@
  * @return Find the buffer in the store and return a pointer to its descriptor.
  *         Increase buffer refcount. If not found - return NULL.
  */
-struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u32 handle)
+struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 {
 	struct hl_mmap_mem_buf *buf;
 
 	spin_lock(&mmg->lock);
-	buf = idr_find(&mmg->handles, handle);
+	buf = idr_find(&mmg->handles, lower_32_bits(handle >> PAGE_SHIFT));
 	if (!buf) {
 		spin_unlock(&mmg->lock);
 		dev_warn(mmg->dev,
-			 "Buff get failed, no match to handle %u\n", handle);
+			 "Buff get failed, no match to handle %llu\n", handle);
 		return NULL;
 	}
 	kref_get(&buf->refcount);
@@ -51,8 +51,8 @@ static void hl_mmap_mem_buf_release(struct kref *kref)
 	idr_remove(&buf->mmg->handles, lower_32_bits(buf->handle >> PAGE_SHIFT));
 	spin_unlock(&buf->mmg->lock);
 
-	if (buf->ops->release)
-		buf->ops->release(buf);
+	if (buf->behavior->release)
+		buf->behavior->release(buf);
 
 	kfree(buf);
 }
@@ -83,7 +83,7 @@ int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf)
  */
 struct hl_mmap_mem_buf *
 hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
-		      struct hl_mmap_mem_buf_ops *behavior, gfp_t gfp,
+		      struct hl_mmap_mem_buf_behavior *behavior, gfp_t gfp,
 		      void *args)
 {
 	struct hl_mmap_mem_buf *buf;
@@ -102,19 +102,18 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 		goto free_buf;
 	}
 
-	buf->handle = rc;
 	buf->mmg = mmg;
-	buf->ops = behavior;
+	buf->behavior = behavior;
+	buf->handle = (((u64)rc | buf->behavior->mem_id) << PAGE_SHIFT);
 	kref_init(&buf->refcount);
 
-	rc = buf->ops->alloc(buf, gfp, args);
+	rc = buf->behavior->alloc(buf, gfp, args);
 	if (rc) {
 		dev_err(mmg->dev, "Failure in buffer alloc callback %d\n",
 			rc);
 		goto remove_idr;
 	}
 
-	dev_dbg(mmg->dev, "Created buff object handle %u\n", buf->handle);
 	return buf;
 
 remove_idr:
@@ -169,20 +168,20 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 {
 	struct hl_mmap_mem_buf *buf;
 	u64 user_mem_size;
-	u32 handle;
+	u64 handle;
 	int rc;
 
 	/* We use the page offset to hold the idr and thus we need to clear
 	 * it before doing the mmap itself
 	 */
-	handle = vma->vm_pgoff;
+	handle = vma->vm_pgoff << PAGE_SHIFT;
 	vma->vm_pgoff = 0;
 
 	/* Reference was taken here */
 	buf = hl_mmap_mem_buf_get(mmg, handle);
 	if (!buf) {
 		dev_err(mmg->dev,
-			"Memory mmap failed, no match to handle %u\n", handle);
+			"Memory mmap failed, no match to handle %llu\n", handle);
 		return -EINVAL;
 	}
 
@@ -223,7 +222,7 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 
 	vma->vm_private_data = buf;
 
-	rc = buf->ops->mmap(buf, vma, args);
+	rc = buf->behavior->mmap(buf, vma, args);
 	if (rc) {
 		atomic_set(&buf->mmap, 0);
 		goto put_mem;

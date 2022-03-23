@@ -750,21 +750,25 @@ struct hl_mem_mgr {
 };
 
 /**
- * struct hl_mmap_mem_buf_ops - describes unified memory manager buffer behavior
+ * struct hl_mmap_mem_buf_behavior - describes unified memory manager buffer behavior
+ * @mem_id: memory type identifier, embedded in the handle and used to identify
+ *          the memory type by handle.
  * @alloc: callback executed on buffer allocation, shall allocate the memory,
  *         set it under buffer private, and set mappable size.
  * @mmap: callback executed on mmap, must map the buffer to vma
  * @release: callback executed on release, must free the resources used by the buffer
  */
-struct hl_mmap_mem_buf_ops {
+struct hl_mmap_mem_buf_behavior {
+	u64 mem_id;
+
 	int (*alloc)(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args);
 	int (*mmap)(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, void *args);
 	void (*release)(struct hl_mmap_mem_buf *buf);
 };
 
 /**
- * struct hl_mmap_mem_buf_ops - describes a single unified memory buffer
- * @ops: buffer behavior
+ * struct hl_mmap_mem_buf - describes a single unified memory buffer
+ * @behavior: buffer behavior
  * @mmg: back pointer to the unified memory manager
  * @refcount: reference counter for buffer users
  * @private: pointer to buffer behavior private data
@@ -776,14 +780,14 @@ struct hl_mmap_mem_buf_ops {
  * @handle: the buffer id in mmg handles store
  */
 struct hl_mmap_mem_buf {
-	struct hl_mmap_mem_buf_ops *ops;
+	struct hl_mmap_mem_buf_behavior *behavior;
 	struct hl_mem_mgr *mmg;
 	struct kref refcount;
 	void *private;
 	atomic_t mmap;
 	u64 real_mapped_size;
 	u64 mappable_size;
-	u32 handle;
+	u64 handle;
 };
 
 /**
@@ -3288,11 +3292,11 @@ void hl_mem_mgr_fini(struct hl_mem_mgr *mmg);
 int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 		    void *args);
 struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg,
-						   u32 handle);
+						   u64 handle);
 int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf);
 struct hl_mmap_mem_buf *
 hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
-		      struct hl_mmap_mem_buf_ops *behavior, gfp_t gfp,
+		      struct hl_mmap_mem_buf_behavior *behavior, gfp_t gfp,
 		      void *args);
 
 #ifdef CONFIG_DEBUG_FS

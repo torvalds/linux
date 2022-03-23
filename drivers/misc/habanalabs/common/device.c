@@ -384,13 +384,14 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	vm_pgoff = vma->vm_pgoff;
-	vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 
 	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
 	case HL_MMAP_TYPE_CB:
+		vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 		return hl_cb_mmap(hpriv, vma);
 
 	case HL_MMAP_TYPE_BLOCK:
+		vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 		return hl_hw_block_mmap(hpriv, vma);
 
 	case HL_MMAP_TYPE_TS_BUFF:
