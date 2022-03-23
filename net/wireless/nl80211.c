@@ -791,6 +791,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_RANGE(NLA_BINARY,
 				 NL80211_EHT_MIN_CAPABILITY_LEN,
 				 NL80211_EHT_MAX_CAPABILITY_LEN),
+	[NL80211_ATTR_DISABLE_EHT] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -10378,6 +10379,9 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_HE]))
 		req.flags |= ASSOC_REQ_DISABLE_HE;
 
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_EHT]))
+		req.flags |= ASSOC_REQ_DISABLE_EHT;
+
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
 		memcpy(&req.vht_capa_mask,
 		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]),
@@ -11165,6 +11169,9 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_HE]))
 		connect.flags |= ASSOC_REQ_DISABLE_HE;
+
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_EHT]))
+		connect.flags |= ASSOC_REQ_DISABLE_EHT;
 
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
 		memcpy(&connect.vht_capa_mask,
