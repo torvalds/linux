@@ -237,8 +237,42 @@ struct lock_key {
 	 * e.g. nr_acquired -> acquired, wait_time_total -> wait_total
 	 */
 	const char		*name;
+	/* header: the string printed on the header line */
+	const char		*header;
+	/* len: the printing width of the field */
+	int			len;
+	/* key: a pointer to function to compare two lock stats for sorting */
 	int			(*key)(struct lock_stat*, struct lock_stat*);
+	/* print: a pointer to function to print a given lock stats */
+	void			(*print)(struct lock_key*, struct lock_stat*);
+	/* list: list entry to link this */
+	struct list_head	list;
 };
+
+#define PRINT_KEY(member)						\
+static void lock_stat_key_print_ ## member(struct lock_key *key,	\
+					   struct lock_stat *ls)	\
+{									\
+	pr_info("%*llu", key->len, (unsigned long long)ls->member);	\
+}
+
+PRINT_KEY(nr_acquired)
+PRINT_KEY(nr_contended)
+PRINT_KEY(avg_wait_time)
+PRINT_KEY(wait_time_total)
+PRINT_KEY(wait_time_max)
+
+static void lock_stat_key_print_wait_time_min(struct lock_key *key,
+					      struct lock_stat *ls)
+{
+	u64 wait_time = ls->wait_time_min;
+
+	if (wait_time == ULLONG_MAX)
+		wait_time = 0;
+
+	pr_info("%*"PRIu64, key->len, wait_time);
+}
+
 
 static const char		*sort_key = "acquired";
 
@@ -247,19 +281,20 @@ static int			(*compare)(struct lock_stat *, struct lock_stat *);
 static struct rb_root		sorted; /* place to store intermediate data */
 static struct rb_root		result;	/* place to store sorted data */
 
-#define DEF_KEY_LOCK(name, fn_suffix)	\
-	{ #name, lock_stat_key_ ## fn_suffix }
+static LIST_HEAD(lock_keys);
+
+#define DEF_KEY_LOCK(name, header, fn_suffix, len)			\
+	{ #name, header, len, lock_stat_key_ ## fn_suffix, lock_stat_key_print_ ## fn_suffix, {} }
 struct lock_key keys[] = {
-	DEF_KEY_LOCK(acquired, nr_acquired),
-	DEF_KEY_LOCK(contended, nr_contended),
-	DEF_KEY_LOCK(avg_wait, avg_wait_time),
-	DEF_KEY_LOCK(wait_total, wait_time_total),
-	DEF_KEY_LOCK(wait_min, wait_time_min),
-	DEF_KEY_LOCK(wait_max, wait_time_max),
+	DEF_KEY_LOCK(acquired, "acquired", nr_acquired, 10),
+	DEF_KEY_LOCK(contended, "contended", nr_contended, 10),
+	DEF_KEY_LOCK(avg_wait, "avg wait (ns)", avg_wait_time, 15),
+	DEF_KEY_LOCK(wait_total, "total wait (ns)", wait_time_total, 15),
+	DEF_KEY_LOCK(wait_max, "max wait (ns)", wait_time_max, 15),
+	DEF_KEY_LOCK(wait_min, "min wait (ns)", wait_time_min, 15),
 
 	/* extra comparisons much complicated should be here */
-
-	{ NULL, NULL }
+	{ }
 };
 
 static int select_key(void)
@@ -276,6 +311,16 @@ static int select_key(void)
 	pr_err("Unknown compare key: %s\n", sort_key);
 
 	return -1;
+}
+
+static int setup_output_field(void)
+{
+	int i;
+
+	for (i = 0; keys[i].name; i++)
+		list_add_tail(&keys[i].list, &lock_keys);
+
+	return 0;
 }
 
 static void combine_lock_stats(struct lock_stat *st)
@@ -753,18 +798,13 @@ static void print_bad_events(int bad, int total)
 static void print_result(void)
 {
 	struct lock_stat *st;
+	struct lock_key *key;
 	char cut_name[20];
 	int bad, total;
 
 	pr_info("%20s ", "Name");
-	pr_info("%10s ", "acquired");
-	pr_info("%10s ", "contended");
-
-	pr_info("%15s ", "avg wait (ns)");
-	pr_info("%15s ", "total wait (ns)");
-	pr_info("%15s ", "max wait (ns)");
-	pr_info("%15s ", "min wait (ns)");
-
+	list_for_each_entry(key, &lock_keys, list)
+		pr_info("%*s ", key->len, key->header);
 	pr_info("\n\n");
 
 	bad = total = 0;
@@ -789,14 +829,10 @@ static void print_result(void)
 			pr_info("%20s ", cut_name);
 		}
 
-		pr_info("%10u ", st->nr_acquired);
-		pr_info("%10u ", st->nr_contended);
-
-		pr_info("%15" PRIu64 " ", st->avg_wait_time);
-		pr_info("%15" PRIu64 " ", st->wait_time_total);
-		pr_info("%15" PRIu64 " ", st->wait_time_max);
-		pr_info("%15" PRIu64 " ", st->wait_time_min == ULLONG_MAX ?
-		       0 : st->wait_time_min);
+		list_for_each_entry(key, &lock_keys, list) {
+			key->print(key, st);
+			pr_info(" ");
+		}
 		pr_info("\n");
 	}
 
@@ -965,6 +1001,9 @@ static int __cmd_report(bool display_info)
 		pr_err("Initializing perf session tracepoint handlers failed\n");
 		goto out_delete;
 	}
+
+	if (setup_output_field())
+		goto out_delete;
 
 	if (select_key())
 		goto out_delete;
