@@ -7403,7 +7403,8 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 static int btrfs_get_blocks_direct_write(struct extent_map **map,
 					 struct inode *inode,
 					 struct btrfs_dio_data *dio_data,
-					 u64 start, u64 len)
+					 u64 start, u64 len,
+					 unsigned int iomap_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map *em = *map;
@@ -7472,6 +7473,9 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		/* Our caller expects us to free the input extent map. */
 		free_extent_map(em);
 		*map = NULL;
+
+		if (iomap_flags & IOMAP_NOWAIT)
+			return -EAGAIN;
 
 		/* We have to COW, so need to reserve metadata and data space. */
 		ret = btrfs_delalloc_reserve_space(BTRFS_I(inode),
@@ -7649,7 +7653,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 
 	if (write) {
 		ret = btrfs_get_blocks_direct_write(&em, inode, dio_data,
-						    start, len);
+						    start, len, flags);
 		if (ret < 0)
 			goto unlock_err;
 		unlock_extents = true;
