@@ -54,12 +54,12 @@ static inline void ceph_fscache_unpin_writeback(struct inode *inode,
 	fscache_unpin_writeback(wbc, ceph_fscache_cookie(ceph_inode(inode)));
 }
 
-static inline int ceph_fscache_set_page_dirty(struct page *page)
+static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_inode_info *ci = ceph_inode(mapping->host);
 
-	return fscache_set_page_dirty(page, ceph_fscache_cookie(ci));
+	return fscache_dirty_folio(mapping, folio, ceph_fscache_cookie(ci));
 }
 
 static inline int ceph_begin_cache_operation(struct netfs_read_request *rreq)
@@ -133,9 +133,10 @@ static inline void ceph_fscache_unpin_writeback(struct inode *inode,
 {
 }
 
-static inline int ceph_fscache_set_page_dirty(struct page *page)
+static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	return __set_page_dirty_nobuffers(page);
+	return filemap_dirty_folio(mapping, folio);
 }
 
 static inline bool ceph_is_cache_enabled(struct inode *inode)

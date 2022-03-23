@@ -532,6 +532,24 @@ static inline struct folio *filemap_get_folio(struct address_space *mapping,
 }
 
 /**
+ * filemap_lock_folio - Find and lock a folio.
+ * @mapping: The address_space to search.
+ * @index: The page index.
+ *
+ * Looks up the page cache entry at @mapping & @index.  If a folio is
+ * present, it is returned locked with an increased refcount.
+ *
+ * Context: May sleep.
+ * Return: A folio or %NULL if there is no folio in the cache for this
+ * index.  Will not return a shadow, swap or DAX entry.
+ */
+static inline struct folio *filemap_lock_folio(struct address_space *mapping,
+					pgoff_t index)
+{
+	return __filemap_get_folio(mapping, index, FGP_LOCK, 0);
+}
+
+/**
  * find_get_page - find and get a page reference
  * @mapping: the address_space to search
  * @offset: the page index
@@ -738,15 +756,15 @@ extern int read_cache_pages(struct address_space *mapping,
 		struct list_head *pages, filler_t *filler, void *data);
 
 static inline struct page *read_mapping_page(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_page(mapping, index, NULL, data);
+	return read_cache_page(mapping, index, NULL, file);
 }
 
 static inline struct folio *read_mapping_folio(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_folio(mapping, index, NULL, data);
+	return read_cache_folio(mapping, index, NULL, file);
 }
 
 /*
@@ -1006,6 +1024,7 @@ static inline void cancel_dirty_page(struct page *page)
 }
 bool folio_clear_dirty_for_io(struct folio *folio);
 bool clear_page_dirty_for_io(struct page *page);
+void folio_invalidate(struct folio *folio, size_t offset, size_t length);
 int __must_check folio_write_one(struct folio *folio);
 static inline int __must_check write_one_page(struct page *page)
 {
@@ -1013,7 +1032,7 @@ static inline int __must_check write_one_page(struct page *page)
 }
 
 int __set_page_dirty_nobuffers(struct page *page);
-int __set_page_dirty_no_writeback(struct page *page);
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 void page_endio(struct page *page, bool is_write, int err);
 

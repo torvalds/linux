@@ -199,23 +199,22 @@ static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
 	return 0;
 }
 
-static int nilfs_set_page_dirty(struct page *page)
+static bool nilfs_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	int ret = __set_page_dirty_nobuffers(page);
+	struct inode *inode = mapping->host;
+	struct buffer_head *head;
+	unsigned int nr_dirty = 0;
+	bool ret = filemap_dirty_folio(mapping, folio);
 
-	if (page_has_buffers(page)) {
-		unsigned int nr_dirty = 0;
-		struct buffer_head *bh, *head;
+	/*
+	 * The page may not be locked, eg if called from try_to_unmap_one()
+	 */
+	spin_lock(&mapping->private_lock);
+	head = folio_buffers(folio);
+	if (head) {
+		struct buffer_head *bh = head;
 
-		/*
-		 * This page is locked by callers, and no other thread
-		 * concurrently marks its buffers dirty since they are
-		 * only dirtied through routines in fs/buffer.c in
-		 * which call sites of mark_buffer_dirty are protected
-		 * by page lock.
-		 */
-		bh = head = page_buffers(page);
 		do {
 			/* Do not mark hole blocks dirty */
 			if (buffer_dirty(bh) || !buffer_mapped(bh))
@@ -224,14 +223,13 @@ static int nilfs_set_page_dirty(struct page *page)
 			set_buffer_dirty(bh);
 			nr_dirty++;
 		} while (bh = bh->b_this_page, bh != head);
-
-		if (nr_dirty)
-			nilfs_set_file_dirty(inode, nr_dirty);
 	} else if (ret) {
-		unsigned int nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
-
-		nilfs_set_file_dirty(inode, nr_dirty);
+		nr_dirty = 1 << (folio_shift(folio) - inode->i_blkbits);
 	}
+	spin_unlock(&mapping->private_lock);
+
+	if (nr_dirty)
+		nilfs_set_file_dirty(inode, nr_dirty);
 	return ret;
 }
 
@@ -299,12 +297,12 @@ const struct address_space_operations nilfs_aops = {
 	.writepage		= nilfs_writepage,
 	.readpage		= nilfs_readpage,
 	.writepages		= nilfs_writepages,
-	.set_page_dirty		= nilfs_set_page_dirty,
+	.dirty_folio		= nilfs_dirty_folio,
 	.readahead		= nilfs_readahead,
 	.write_begin		= nilfs_write_begin,
 	.write_end		= nilfs_write_end,
 	/* .releasepage		= nilfs_releasepage, */
-	.invalidatepage		= block_invalidatepage,
+	.invalidate_folio	= block_invalidate_folio,
 	.direct_IO		= nilfs_direct_IO,
 	.is_partially_uptodate  = block_is_partially_uptodate,
 };

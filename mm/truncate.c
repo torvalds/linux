@@ -19,8 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/pagevec.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/buffer_head.h>	/* grr. try_to_release_page,
-				   do_invalidatepage */
+#include <linux/buffer_head.h>	/* grr. try_to_release_page */
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
 #include "internal.h"
@@ -138,33 +137,28 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
 }
 
 /**
- * do_invalidatepage - invalidate part or all of a page
- * @page: the page which is affected
+ * folio_invalidate - Invalidate part or all of a folio.
+ * @folio: The folio which is affected.
  * @offset: start of the range to invalidate
  * @length: length of the range to invalidate
  *
- * do_invalidatepage() is called when all or part of the page has become
+ * folio_invalidate() is called when all or part of the folio has become
  * invalidated by a truncate operation.
  *
- * do_invalidatepage() does not have to release all buffers, but it must
+ * folio_invalidate() does not have to release all buffers, but it must
  * ensure that no dirty buffer is left outside @offset and that no I/O
  * is underway against any of the blocks which are outside the truncation
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
  */
-void do_invalidatepage(struct page *page, unsigned int offset,
-		       unsigned int length)
+void folio_invalidate(struct folio *folio, size_t offset, size_t length)
 {
-	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
+	const struct address_space_operations *aops = folio->mapping->a_ops;
 
-	invalidatepage = page->mapping->a_ops->invalidatepage;
-#ifdef CONFIG_BLOCK
-	if (!invalidatepage)
-		invalidatepage = block_invalidatepage;
-#endif
-	if (invalidatepage)
-		(*invalidatepage)(page, offset, length);
+	if (aops->invalidate_folio)
+		aops->invalidate_folio(folio, offset, length);
 }
+EXPORT_SYMBOL_GPL(folio_invalidate);
 
 /*
  * If truncate cannot remove the fs-private metadata from the page, the page
@@ -182,7 +176,7 @@ static void truncate_cleanup_folio(struct folio *folio)
 		unmap_mapping_folio(folio);
 
 	if (folio_has_private(folio))
-		do_invalidatepage(&folio->page, 0, folio_size(folio));
+		folio_invalidate(folio, 0, folio_size(folio));
 
 	/*
 	 * Some filesystems seem to re-dirty the page even after
@@ -243,7 +237,7 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 	folio_zero_range(folio, offset, length);
 
 	if (folio_has_private(folio))
-		do_invalidatepage(&folio->page, offset, length);
+		folio_invalidate(folio, offset, length);
 	if (!folio_test_large(folio))
 		return true;
 	if (split_huge_page(&folio->page) == 0)
@@ -329,7 +323,7 @@ long invalidate_inode_page(struct page *page)
  * mapping is large, it is probably the case that the final pages are the most
  * recently touched, and freeing happens in ascending file offset order.
  *
- * Note that since ->invalidatepage() accepts range to invalidate
+ * Note that since ->invalidate_folio() accepts range to invalidate
  * truncate_inode_pages_range is able to handle cases where lend + 1 is not
  * page aligned properly.
  */
@@ -611,13 +605,13 @@ failed:
 	return 0;
 }
 
-static int do_launder_folio(struct address_space *mapping, struct folio *folio)
+static int folio_launder(struct address_space *mapping, struct folio *folio)
 {
 	if (!folio_test_dirty(folio))
 		return 0;
-	if (folio->mapping != mapping || mapping->a_ops->launder_page == NULL)
+	if (folio->mapping != mapping || mapping->a_ops->launder_folio == NULL)
 		return 0;
-	return mapping->a_ops->launder_page(&folio->page);
+	return mapping->a_ops->launder_folio(folio);
 }
 
 /**
@@ -683,7 +677,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				unmap_mapping_folio(folio);
 			BUG_ON(folio_mapped(folio));
 
-			ret2 = do_launder_folio(mapping, folio);
+			ret2 = folio_launder(mapping, folio);
 			if (ret2 == 0) {
 				if (!invalidate_complete_folio2(mapping, folio))
 					ret2 = -EBUSY;

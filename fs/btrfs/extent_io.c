@@ -1507,17 +1507,17 @@ void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 
 void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
 {
+	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 
 	while (index <= end_index) {
-		page = find_get_page(inode->i_mapping, index);
-		BUG_ON(!page); /* Pages should be in the extent_io_tree */
-		__set_page_dirty_nobuffers(page);
-		account_page_redirty(page);
-		put_page(page);
-		index++;
+		folio = filemap_get_folio(mapping, index);
+		filemap_dirty_folio(mapping, folio);
+		folio_account_redirty(folio);
+		index += folio_nr_pages(folio);
+		folio_put(folio);
 	}
 }
 
@@ -4054,6 +4054,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			      struct extent_page_data *epd)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const u64 page_start = page_offset(page);
@@ -4074,8 +4075,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	pg_offset = offset_in_page(i_size);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
-		unlock_page(page);
+		folio_invalidate(folio, 0, folio_size(folio));
+		folio_unlock(folio);
 		return 0;
 	}
 
@@ -5225,17 +5226,17 @@ void extent_readahead(struct readahead_control *rac)
 }
 
 /*
- * basic invalidatepage code, this waits on any locked or writeback
- * ranges corresponding to the page, and then deletes any extent state
+ * basic invalidate_folio code, this waits on any locked or writeback
+ * ranges corresponding to the folio, and then deletes any extent state
  * records from the tree
  */
-int extent_invalidatepage(struct extent_io_tree *tree,
-			  struct page *page, unsigned long offset)
+int extent_invalidate_folio(struct extent_io_tree *tree,
+			  struct folio *folio, size_t offset)
 {
 	struct extent_state *cached_state = NULL;
-	u64 start = page_offset(page);
-	u64 end = start + PAGE_SIZE - 1;
-	size_t blocksize = page->mapping->host->i_sb->s_blocksize;
+	u64 start = folio_pos(folio);
+	u64 end = start + folio_size(folio) - 1;
+	size_t blocksize = folio->mapping->host->i_sb->s_blocksize;
 
 	/* This function is only called for the btree inode */
 	ASSERT(tree->owner == IO_TREE_BTREE_INODE_IO);
@@ -5245,7 +5246,7 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 		return 0;
 
 	lock_extent_bits(tree, start, end, &cached_state);
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
 	/*
 	 * Currently for btree io tree, only EXTENT_LOCKED is utilized,

@@ -479,7 +479,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 			if (!buffer_mapped(bh)) {
 				/*
 				 * unmapped dirty buffers are created by
-				 * __set_page_dirty_buffers -> mmapped data
+				 * block_dirty_folio -> mmapped data
 				 */
 				if (buffer_dirty(bh))
 					goto confused;

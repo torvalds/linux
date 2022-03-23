@@ -537,25 +537,24 @@ static int erofs_managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
  * decompression requests in progress, wait with rescheduling for a bit here.
  * We could introduce an extra locking instead but it seems unnecessary.
  */
-static void erofs_managed_cache_invalidatepage(struct page *page,
-					       unsigned int offset,
-					       unsigned int length)
+static void erofs_managed_cache_invalidate_folio(struct folio *folio,
+					       size_t offset, size_t length)
 {
-	const unsigned int stop = length + offset;
+	const size_t stop = length + offset;
 
-	DBG_BUGON(!PageLocked(page));
+	DBG_BUGON(!folio_test_locked(folio));
 
 	/* Check for potential overflow in debug mode */
-	DBG_BUGON(stop > PAGE_SIZE || stop < length);
+	DBG_BUGON(stop > folio_size(folio) || stop < length);
 
-	if (offset == 0 && stop == PAGE_SIZE)
-		while (!erofs_managed_cache_releasepage(page, GFP_NOFS))
+	if (offset == 0 && stop == folio_size(folio))
+		while (!erofs_managed_cache_releasepage(&folio->page, GFP_NOFS))
 			cond_resched();
 }
 
 static const struct address_space_operations managed_cache_aops = {
 	.releasepage = erofs_managed_cache_releasepage,
-	.invalidatepage = erofs_managed_cache_invalidatepage,
+	.invalidate_folio = erofs_managed_cache_invalidate_folio,
 };
 
 static int erofs_init_managed_cache(struct super_block *sb)

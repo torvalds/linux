@@ -2217,14 +2217,14 @@ static int __dispose_buffer(struct journal_head *jh, transaction_t *transaction)
 }
 
 /*
- * jbd2_journal_invalidatepage
+ * jbd2_journal_invalidate_folio
  *
  * This code is tricky.  It has a number of cases to deal with.
  *
  * There are two invariants which this code relies on:
  *
- * i_size must be updated on disk before we start calling invalidatepage on the
- * data.
+ * i_size must be updated on disk before we start calling invalidate_folio
+ * on the data.
  *
  *  This is done in ext3 by defining an ext3_setattr method which
  *  updates i_size before truncate gets going.  By maintaining this
@@ -2426,9 +2426,9 @@ zap_buffer_unlocked:
 }
 
 /**
- * jbd2_journal_invalidatepage()
+ * jbd2_journal_invalidate_folio()
  * @journal: journal to use for flush...
- * @page:    page to flush
+ * @folio:    folio to flush
  * @offset:  start of the range to invalidate
  * @length:  length of the range to invalidate
  *
@@ -2437,30 +2437,29 @@ zap_buffer_unlocked:
  * the page is straddling i_size. Caller then has to wait for current commit
  * and try again.
  */
-int jbd2_journal_invalidatepage(journal_t *journal,
-				struct page *page,
-				unsigned int offset,
-				unsigned int length)
+int jbd2_journal_invalidate_folio(journal_t *journal, struct folio *folio,
+				size_t offset, size_t length)
 {
 	struct buffer_head *head, *bh, *next;
 	unsigned int stop = offset + length;
 	unsigned int curr_off = 0;
-	int partial_page = (offset || length < PAGE_SIZE);
+	int partial_page = (offset || length < folio_size(folio));
 	int may_free = 1;
 	int ret = 0;
 
-	if (!PageLocked(page))
+	if (!folio_test_locked(folio))
 		BUG();
-	if (!page_has_buffers(page))
+	head = folio_buffers(folio);
+	if (!head)
 		return 0;
 
-	BUG_ON(stop > PAGE_SIZE || stop < length);
+	BUG_ON(stop > folio_size(folio) || stop < length);
 
 	/* We will potentially be playing with lists other than just the
 	 * data lists (especially for journaled data mode), so be
 	 * cautious in our locking. */
 
-	head = bh = page_buffers(page);
+	bh = head;
 	do {
 		unsigned int next_off = curr_off + bh->b_size;
 		next = bh->b_this_page;
@@ -2483,8 +2482,8 @@ int jbd2_journal_invalidatepage(journal_t *journal,
 	} while (bh != head);
 
 	if (!partial_page) {
-		if (may_free && try_to_free_buffers(page))
-			J_ASSERT(!page_has_buffers(page));
+		if (may_free && try_to_free_buffers(&folio->page))
+			J_ASSERT(!folio_buffers(folio));
 	}
 	return 0;
 }

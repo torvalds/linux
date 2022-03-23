@@ -158,18 +158,9 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 	return 1;
 }
 
-/**
- * v9fs_invalidate_page - Invalidate a page completely or partially
- * @page: The page to be invalidated
- * @offset: offset of the invalidated region
- * @length: length of the invalidated region
- */
-
-static void v9fs_invalidate_page(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void v9fs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	struct folio *folio = page_folio(page);
-
 	folio_wait_fscache(folio);
 }
 
@@ -249,16 +240,8 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 	return retval;
 }
 
-/**
- * v9fs_launder_page - Writeback a dirty page
- * @page: The page to be cleaned up
- *
- * Returns 0 on success.
- */
-
-static int v9fs_launder_page(struct page *page)
+static int v9fs_launder_folio(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	int retval;
 
 	if (folio_clear_dirty_for_io(folio)) {
@@ -376,25 +359,25 @@ out:
  * Mark a page as having been made dirty and thus needing writeback.  We also
  * need to pin the cache object to write back to.
  */
-static int v9fs_set_page_dirty(struct page *page)
+static bool v9fs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct v9fs_inode *v9inode = V9FS_I(page->mapping->host);
+	struct v9fs_inode *v9inode = V9FS_I(mapping->host);
 
-	return fscache_set_page_dirty(page, v9fs_inode_cookie(v9inode));
+	return fscache_dirty_folio(mapping, folio, v9fs_inode_cookie(v9inode));
 }
 #else
-#define v9fs_set_page_dirty __set_page_dirty_nobuffers
+#define v9fs_dirty_folio filemap_dirty_folio
 #endif
 
 const struct address_space_operations v9fs_addr_operations = {
 	.readpage = v9fs_vfs_readpage,
 	.readahead = v9fs_vfs_readahead,
-	.set_page_dirty = v9fs_set_page_dirty,
+	.dirty_folio = v9fs_dirty_folio,
 	.writepage = v9fs_vfs_writepage,
 	.write_begin = v9fs_write_begin,
 	.write_end = v9fs_write_end,
 	.releasepage = v9fs_release_page,
-	.invalidatepage = v9fs_invalidate_page,
-	.launder_page = v9fs_launder_page,
+	.invalidate_folio = v9fs_invalidate_folio,
+	.launder_folio = v9fs_launder_folio,
 	.direct_IO = v9fs_direct_IO,
 };

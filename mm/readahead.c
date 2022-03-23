@@ -156,7 +156,7 @@ static void read_cache_pages_invalidate_page(struct address_space *mapping,
 		if (!trylock_page(page))
 			BUG();
 		page->mapping = mapping;
-		do_invalidatepage(page, 0, PAGE_SIZE);
+		folio_invalidate(page_folio(page), 0, PAGE_SIZE);
 		page->mapping = NULL;
 		unlock_page(page);
 	}

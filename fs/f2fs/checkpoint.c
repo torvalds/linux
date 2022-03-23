@@ -447,26 +447,27 @@ stop:
 	return nwritten;
 }
 
-static int f2fs_set_meta_page_dirty(struct page *page)
+static bool f2fs_dirty_meta_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(page, META);
+	trace_f2fs_set_page_dirty(&folio->page, META);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-	if (!PageDirty(page)) {
-		__set_page_dirty_nobuffers(page);
-		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
-		set_page_private_reference(page);
-		return 1;
+	if (!folio_test_uptodate(folio))
+		folio_mark_uptodate(folio);
+	if (!folio_test_dirty(folio)) {
+		filemap_dirty_folio(mapping, folio);
+		inc_page_count(F2FS_P_SB(&folio->page), F2FS_DIRTY_META);
+		set_page_private_reference(&folio->page);
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 const struct address_space_operations f2fs_meta_aops = {
 	.writepage	= f2fs_write_meta_page,
 	.writepages	= f2fs_write_meta_pages,
-	.set_page_dirty	= f2fs_set_meta_page_dirty,
-	.invalidatepage = f2fs_invalidate_page,
+	.dirty_folio	= f2fs_dirty_meta_folio,
+	.invalidate_folio = f2fs_invalidate_folio,
 	.releasepage	= f2fs_release_page,
 #ifdef CONFIG_MIGRATION
 	.migratepage    = f2fs_migrate_page,
@@ -1027,7 +1028,7 @@ static void __remove_dirty_inode(struct inode *inode, enum inode_type type)
 	stat_dec_dirty_inode(F2FS_I_SB(inode), type);
 }
 
-void f2fs_update_dirty_page(struct inode *inode, struct page *page)
+void f2fs_update_dirty_folio(struct inode *inode, struct folio *folio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	enum inode_type type = S_ISDIR(inode->i_mode) ? DIR_INODE : FILE_INODE;
@@ -1042,7 +1043,7 @@ void f2fs_update_dirty_page(struct inode *inode, struct page *page)
 	inode_inc_dirty_pages(inode);
 	spin_unlock(&sbi->inode_lock[type]);
 
-	set_page_private_reference(page);
+	set_page_private_reference(&folio->page);
 }
 
 void f2fs_remove_dirty_inode(struct inode *inode)

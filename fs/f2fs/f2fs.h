@@ -3705,7 +3705,7 @@ void f2fs_add_orphan_inode(struct inode *inode);
 void f2fs_remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino);
 int f2fs_recover_orphan_inodes(struct f2fs_sb_info *sbi);
 int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi);
-void f2fs_update_dirty_page(struct inode *inode, struct page *page);
+void f2fs_update_dirty_folio(struct inode *inode, struct folio *folio);
 void f2fs_remove_dirty_inode(struct inode *inode);
 int f2fs_sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type);
 void f2fs_wait_on_all_pages(struct f2fs_sb_info *sbi, int type);
@@ -3769,8 +3769,7 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 				enum iostat_type io_type,
 				int compr_blocks, bool allow_balance);
 void f2fs_write_failed(struct inode *inode, loff_t to);
-void f2fs_invalidate_page(struct page *page, unsigned int offset,
-			unsigned int length);
+void f2fs_invalidate_folio(struct folio *folio, size_t offset, size_t length);
 int f2fs_release_page(struct page *page, gfp_t wait);
 #ifdef CONFIG_MIGRATION
 int f2fs_migrate_page(struct address_space *mapping, struct page *newpage,

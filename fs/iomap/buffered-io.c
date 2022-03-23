@@ -425,37 +425,33 @@ void iomap_readahead(struct readahead_control *rac, const struct iomap_ops *ops)
 EXPORT_SYMBOL_GPL(iomap_readahead);
 
 /*
- * iomap_is_partially_uptodate checks whether blocks within a page are
+ * iomap_is_partially_uptodate checks whether blocks within a folio are
  * uptodate or not.
  *
- * Returns true if all blocks which correspond to a file portion
- * we want to read within the page are uptodate.
+ * Returns true if all blocks which correspond to the specified part
+ * of the folio are uptodate.
  */
-int
-iomap_is_partially_uptodate(struct page *page, unsigned long from,
-		unsigned long count)
+bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 {
-	struct folio *folio = page_folio(page);
 	struct iomap_page *iop = to_iomap_page(folio);
-	struct inode *inode = page->mapping->host;
-	unsigned len, first, last;
-	unsigned i;
+	struct inode *inode = folio->mapping->host;
+	size_t len;
+	unsigned first, last, i;
 
-	/* Limit range to one page */
-	len = min_t(unsigned, PAGE_SIZE - from, count);
+	if (!iop)
+		return false;
+
+	/* Limit range to this folio */
+	len = min(folio_size(folio) - from, count);
 
 	/* First and last blocks in range within page */
 	first = from >> inode->i_blkbits;
 	last = (from + len - 1) >> inode->i_blkbits;
 
-	if (iop) {
-		for (i = first; i <= last; i++)
-			if (!test_bit(i, iop->uptodate))
-				return 0;
-		return 1;
-	}
-
-	return 0;
+	for (i = first; i <= last; i++)
+		if (!test_bit(i, iop->uptodate))
+			return false;
+	return true;
 }
 EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
 
@@ -481,7 +477,8 @@ EXPORT_SYMBOL_GPL(iomap_releasepage);
 
 void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 {
-	trace_iomap_invalidatepage(folio->mapping->host, offset, len);
+	trace_iomap_invalidate_folio(folio->mapping->host,
+					folio_pos(folio) + offset, len);
 
 	/*
 	 * If we're invalidating the entire folio, clear the dirty state
@@ -499,13 +496,6 @@ void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 	}
 }
 EXPORT_SYMBOL_GPL(iomap_invalidate_folio);
-
-void iomap_invalidatepage(struct page *page, unsigned int offset,
-		unsigned int len)
-{
-	iomap_invalidate_folio(page_folio(page), offset, len);
-}
-EXPORT_SYMBOL_GPL(iomap_invalidatepage);
 
 #ifdef CONFIG_MIGRATION
 int

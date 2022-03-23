@@ -1287,25 +1287,25 @@ int ubifs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	return err;
 }
 
-static void ubifs_invalidatepage(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void ubifs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-	ubifs_assert(c, PagePrivate(page));
-	if (offset || length < PAGE_SIZE)
-		/* Partial page remains dirty */
+	ubifs_assert(c, folio_test_private(folio));
+	if (offset || length < folio_size(folio))
+		/* Partial folio remains dirty */
 		return;
 
-	if (PageChecked(page))
+	if (folio_test_checked(folio))
 		release_new_page_budget(c);
 	else
 		release_existing_page_budget(c);
 
 	atomic_long_dec(&c->dirty_pg_cnt);
-	ClearPagePrivate(page);
-	ClearPageChecked(page);
+	folio_clear_private(folio);
+	folio_clear_checked(folio);
 }
 
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
@@ -1445,18 +1445,18 @@ static ssize_t ubifs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return generic_file_write_iter(iocb, from);
 }
 
-static int ubifs_set_page_dirty(struct page *page)
+static bool ubifs_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	int ret;
-	struct inode *inode = page->mapping->host;
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	bool ret;
+	struct ubifs_info *c = mapping->host->i_sb->s_fs_info;
 
-	ret = __set_page_dirty_nobuffers(page);
+	ret = filemap_dirty_folio(mapping, folio);
 	/*
 	 * An attempt to dirty a page without budgeting for it - should not
 	 * happen.
 	 */
-	ubifs_assert(c, ret == 0);
+	ubifs_assert(c, ret == false);
 	return ret;
 }
 
@@ -1646,8 +1646,8 @@ const struct address_space_operations ubifs_file_address_operations = {
 	.writepage      = ubifs_writepage,
 	.write_begin    = ubifs_write_begin,
 	.write_end      = ubifs_write_end,
-	.invalidatepage = ubifs_invalidatepage,
-	.set_page_dirty = ubifs_set_page_dirty,
+	.invalidate_folio = ubifs_invalidate_folio,
+	.dirty_folio	= ubifs_dirty_folio,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= ubifs_migrate_page,
 #endif

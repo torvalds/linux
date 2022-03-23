@@ -76,18 +76,17 @@ static inline struct ceph_snap_context *page_snap_context(struct page *page)
  * Dirty a page.  Optimistically adjust accounting, on the assumption
  * that we won't race with invalidate.  If we do, readjust.
  */
-static int ceph_set_page_dirty(struct page *page)
+static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct address_space *mapping = page->mapping;
 	struct inode *inode;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc;
 
-	if (PageDirty(page)) {
-		dout("%p set_page_dirty %p idx %lu -- already dirty\n",
-		     mapping->host, page, page->index);
-		BUG_ON(!PagePrivate(page));
-		return 0;
+	if (folio_test_dirty(folio)) {
+		dout("%p dirty_folio %p idx %lu -- already dirty\n",
+		     mapping->host, folio, folio->index);
+		BUG_ON(!folio_get_private(folio));
+		return false;
 	}
 
 	inode = mapping->host;
@@ -111,56 +110,56 @@ static int ceph_set_page_dirty(struct page *page)
 	if (ci->i_wrbuffer_ref == 0)
 		ihold(inode);
 	++ci->i_wrbuffer_ref;
-	dout("%p set_page_dirty %p idx %lu head %d/%d -> %d/%d "
+	dout("%p dirty_folio %p idx %lu head %d/%d -> %d/%d "
 	     "snapc %p seq %lld (%d snaps)\n",
-	     mapping->host, page, page->index,
+	     mapping->host, folio, folio->index,
 	     ci->i_wrbuffer_ref-1, ci->i_wrbuffer_ref_head-1,
 	     ci->i_wrbuffer_ref, ci->i_wrbuffer_ref_head,
 	     snapc, snapc->seq, snapc->num_snaps);
 	spin_unlock(&ci->i_ceph_lock);
 
 	/*
-	 * Reference snap context in page->private.  Also set
-	 * PagePrivate so that we get invalidatepage callback.
+	 * Reference snap context in folio->private.  Also set
+	 * PagePrivate so that we get invalidate_folio callback.
 	 */
-	BUG_ON(PagePrivate(page));
-	attach_page_private(page, snapc);
+	BUG_ON(folio_get_private(folio));
+	folio_attach_private(folio, snapc);
 
-	return ceph_fscache_set_page_dirty(page);
+	return ceph_fscache_dirty_folio(mapping, folio);
 }
 
 /*
- * If we are truncating the full page (i.e. offset == 0), adjust the
- * dirty page counters appropriately.  Only called if there is private
- * data on the page.
+ * If we are truncating the full folio (i.e. offset == 0), adjust the
+ * dirty folio counters appropriately.  Only called if there is private
+ * data on the folio.
  */
-static void ceph_invalidatepage(struct page *page, unsigned int offset,
-				unsigned int length)
+static void ceph_invalidate_folio(struct folio *folio, size_t offset,
+				size_t length)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc;
 
-	inode = page->mapping->host;
+	inode = folio->mapping->host;
 	ci = ceph_inode(inode);
 
-	if (offset != 0 || length != thp_size(page)) {
-		dout("%p invalidatepage %p idx %lu partial dirty page %u~%u\n",
-		     inode, page, page->index, offset, length);
+	if (offset != 0 || length != folio_size(folio)) {
+		dout("%p invalidate_folio idx %lu partial dirty page %zu~%zu\n",
+		     inode, folio->index, offset, length);
 		return;
 	}
 
-	WARN_ON(!PageLocked(page));
-	if (PagePrivate(page)) {
-		dout("%p invalidatepage %p idx %lu full dirty page\n",
-		     inode, page, page->index);
+	WARN_ON(!folio_test_locked(folio));
+	if (folio_get_private(folio)) {
+		dout("%p invalidate_folio idx %lu full dirty page\n",
+		     inode, folio->index);
 
-		snapc = detach_page_private(page);
+		snapc = folio_detach_private(folio);
 		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 		ceph_put_snap_context(snapc);
 	}
 
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 }
 
 static int ceph_releasepage(struct page *page, gfp_t gfp)
@@ -516,6 +515,7 @@ static u64 get_writepages_data_length(struct inode *inode,
  */
 static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = page->mapping->host;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
@@ -550,8 +550,9 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	/* is this a partial page at end of file? */
 	if (page_off >= ceph_wbc.i_size) {
-		dout("%p page eof %llu\n", page, ceph_wbc.i_size);
-		page->mapping->a_ops->invalidatepage(page, 0, thp_size(page));
+		dout("folio at %lu beyond eof %llu\n", folio->index,
+				ceph_wbc.i_size);
+		folio_invalidate(folio, 0, folio_size(folio));
 		return 0;
 	}
 
@@ -874,14 +875,16 @@ get_more_pages:
 				continue;
 			}
 			if (page_offset(page) >= ceph_wbc.i_size) {
-				dout("%p page eof %llu\n",
-				     page, ceph_wbc.i_size);
+				struct folio *folio = page_folio(page);
+
+				dout("folio at %lu beyond eof %llu\n",
+				     folio->index, ceph_wbc.i_size);
 				if ((ceph_wbc.size_stable ||
-				    page_offset(page) >= i_size_read(inode)) &&
-				    clear_page_dirty_for_io(page))
-					mapping->a_ops->invalidatepage(page,
-								0, thp_size(page));
-				unlock_page(page);
+				    folio_pos(folio) >= i_size_read(inode)) &&
+				    folio_clear_dirty_for_io(folio))
+					folio_invalidate(folio, 0,
+							folio_size(folio));
+				folio_unlock(folio);
 				continue;
 			}
 			if (strip_unit_end && (page->index > strip_unit_end)) {
@@ -1376,8 +1379,8 @@ const struct address_space_operations ceph_aops = {
 	.writepages = ceph_writepages_start,
 	.write_begin = ceph_write_begin,
 	.write_end = ceph_write_end,
-	.set_page_dirty = ceph_set_page_dirty,
-	.invalidatepage = ceph_invalidatepage,
+	.dirty_folio = ceph_dirty_folio,
+	.invalidate_folio = ceph_invalidate_folio,
 	.releasepage = ceph_releasepage,
 	.direct_IO = noop_direct_IO,
 };

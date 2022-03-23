@@ -2418,13 +2418,13 @@ EXPORT_SYMBOL(folio_write_one);
 /*
  * For address_spaces which do not use buffers nor write back.
  */
-int __set_page_dirty_no_writeback(struct page *page)
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	if (!PageDirty(page))
-		return !TestSetPageDirty(page);
-	return 0;
+	if (!folio_test_dirty(folio))
+		return !folio_test_set_dirty(folio);
+	return false;
 }
-EXPORT_SYMBOL(__set_page_dirty_no_writeback);
+EXPORT_SYMBOL(noop_dirty_folio);
 
 /*
  * Helper function for set_page_dirty family.
@@ -2518,7 +2518,7 @@ void __folio_mark_dirty(struct folio *folio, struct address_space *mapping,
  * This is also sometimes used by filesystems which use buffer_heads when
  * a single buffer is being dirtied: we want to set the folio dirty in
  * that case, but not all the buffers.  This is a "bottom-up" dirtying,
- * whereas __set_page_dirty_buffers() is a "top-down" dirtying.
+ * whereas block_dirty_folio() is a "top-down" dirtying.
  *
  * The caller must ensure this doesn't race with truncation.  Most will
  * simply hold the folio lock, but e.g. zap_pte_range() calls with the
@@ -2604,7 +2604,7 @@ EXPORT_SYMBOL(folio_redirty_for_writepage);
  * folio_mark_dirty - Mark a folio as being modified.
  * @folio: The folio.
  *
- * For folios with a mapping this should be done under the page lock
+ * For folios with a mapping this should be done with the folio lock held
  * for the benefit of asynchronous memory errors who prefer a consistent
  * dirty state. This rule can be broken in some special cases,
  * but should be better not to.
@@ -2618,23 +2618,21 @@ bool folio_mark_dirty(struct folio *folio)
 	if (likely(mapping)) {
 		/*
 		 * readahead/lru_deactivate_page could remain
-		 * PG_readahead/PG_reclaim due to race with end_page_writeback
-		 * About readahead, if the page is written, the flags would be
+		 * PG_readahead/PG_reclaim due to race with folio_end_writeback
+		 * About readahead, if the folio is written, the flags would be
 		 * reset. So no problem.
-		 * About lru_deactivate_page, if the page is redirty, the flag
-		 * will be reset. So no problem. but if the page is used by readahead
-		 * it will confuse readahead and make it restart the size rampup
-		 * process. But it's a trivial problem.
+		 * About lru_deactivate_page, if the folio is redirtied,
+		 * the flag will be reset. So no problem. but if the
+		 * folio is used by readahead it will confuse readahead
+		 * and make it restart the size rampup process. But it's
+		 * a trivial problem.
 		 */
 		if (folio_test_reclaim(folio))
 			folio_clear_reclaim(folio);
-		return mapping->a_ops->set_page_dirty(&folio->page);
+		return mapping->a_ops->dirty_folio(mapping, folio);
 	}
-	if (!folio_test_dirty(folio)) {
-		if (!folio_test_set_dirty(folio))
-			return true;
-	}
-	return false;
+
+	return noop_dirty_folio(mapping, folio);
 }
 EXPORT_SYMBOL(folio_mark_dirty);
 
