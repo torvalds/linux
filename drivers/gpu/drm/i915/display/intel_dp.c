@@ -2553,9 +2553,9 @@ static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
 	drm_mode_set_name(mode);
 
 	drm_dbg_kms(&i915->drm,
-		    "[CONNECTOR:%d:%s] using generated MSO mode: ",
-		    connector->base.base.id, connector->base.name);
-	drm_mode_debug_printmodeline(mode);
+		    "[CONNECTOR:%d:%s] using generated MSO mode: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name,
+		    DRM_MODE_ARG(mode));
 }
 
 static void intel_edp_mso_init(struct intel_dp *intel_dp)

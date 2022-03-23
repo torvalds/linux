@@ -391,8 +391,8 @@ intel_dvo_get_current_mode(struct intel_encoder *encoder)
 
 	mode = intel_encoder_current_mode(encoder);
 	if (mode) {
-		DRM_DEBUG_KMS("using current (BIOS) mode: ");
-		drm_mode_debug_printmodeline(mode);
+		DRM_DEBUG_KMS("using current (BIOS) mode: " DRM_MODE_FMT "\n",
+			      DRM_MODE_ARG(mode));
 		mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 

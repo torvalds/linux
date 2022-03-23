@@ -984,8 +984,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 */
 	fixed_mode = intel_encoder_current_mode(intel_encoder);
 	if (fixed_mode) {
-		drm_dbg_kms(&dev_priv->drm, "using current (BIOS) mode: ");
-		drm_mode_debug_printmodeline(fixed_mode);
+		drm_dbg_kms(&dev_priv->drm, "using current (BIOS) mode: " DRM_MODE_FMT "\n",
+			    DRM_MODE_ARG(fixed_mode));
 		fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 

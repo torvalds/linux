@@ -5421,13 +5421,13 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    intel_vrr_vmin_vblank_start(pipe_config),
 		    intel_vrr_vmax_vblank_start(pipe_config));
 
-	drm_dbg_kms(&dev_priv->drm, "requested mode:\n");
-	drm_mode_debug_printmodeline(&pipe_config->hw.mode);
-	drm_dbg_kms(&dev_priv->drm, "adjusted mode:\n");
-	drm_mode_debug_printmodeline(&pipe_config->hw.adjusted_mode);
+	drm_dbg_kms(&dev_priv->drm, "requested mode: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(&pipe_config->hw.mode));
+	drm_dbg_kms(&dev_priv->drm, "adjusted mode: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(&pipe_config->hw.adjusted_mode));
 	intel_dump_crtc_timings(dev_priv, &pipe_config->hw.adjusted_mode);
-	drm_dbg_kms(&dev_priv->drm, "pipe mode:\n");
-	drm_mode_debug_printmodeline(&pipe_config->hw.pipe_mode);
+	drm_dbg_kms(&dev_priv->drm, "pipe mode: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(&pipe_config->hw.pipe_mode));
 	intel_dump_crtc_timings(dev_priv, &pipe_config->hw.pipe_mode);
 	drm_dbg_kms(&dev_priv->drm,
 		    "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d\n",

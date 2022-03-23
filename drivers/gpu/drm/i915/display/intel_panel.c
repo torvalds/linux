@@ -194,9 +194,9 @@ intel_panel_edid_downclock_mode(struct intel_connector *connector,
 		return NULL;
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] using downclock mode from EDID: ",
-		    connector->base.base.id, connector->base.name);
-	drm_mode_debug_printmodeline(downclock_mode);
+		    "[CONNECTOR:%d:%s] using downclock mode from EDID: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name,
+		    DRM_MODE_ARG(downclock_mode));
 
 	return downclock_mode;
 }
@@ -221,9 +221,9 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 			return NULL;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "[CONNECTOR:%d:%s] using preferred mode from EDID: ",
-			    connector->base.base.id, connector->base.name);
-		drm_mode_debug_printmodeline(fixed_mode);
+			    "[CONNECTOR:%d:%s] using preferred mode from EDID: " DRM_MODE_FMT "\n",
+			    connector->base.base.id, connector->base.name,
+			    DRM_MODE_ARG(fixed_mode));
 
 		return fixed_mode;
 	}
@@ -238,9 +238,9 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] using first mode from EDID: ",
-		    connector->base.base.id, connector->base.name);
-	drm_mode_debug_printmodeline(fixed_mode);
+		    "[CONNECTOR:%d:%s] using first mode from EDID: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name,
+		    DRM_MODE_ARG(fixed_mode));
 
 	return fixed_mode;
 }
@@ -262,9 +262,9 @@ intel_panel_vbt_fixed_mode(struct intel_connector *connector)
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
-	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] using mode from VBT: ",
-		    connector->base.base.id, connector->base.name);
-	drm_mode_debug_printmodeline(fixed_mode);
+	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] using mode from VBT: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name,
+		    DRM_MODE_ARG(fixed_mode));
 
 	info->width_mm = fixed_mode->width_mm;
 	info->height_mm = fixed_mode->height_mm;

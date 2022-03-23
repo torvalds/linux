@@ -306,8 +306,8 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 	i915->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
 	drm_dbg_kms(&i915->drm,
-		    "Found panel mode in BIOS VBT legacy lfp table:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+		    "Found panel mode in BIOS VBT legacy lfp table: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(panel_fixed_mode));
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
 				       lvds_lfp_data_ptrs,
@@ -397,8 +397,8 @@ parse_generic_dtd(struct drm_i915_private *i915,
 		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
 
 	drm_dbg_kms(&i915->drm,
-		    "Found panel mode in BIOS VBT generic dtd table:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+		    "Found panel mode in BIOS VBT generic dtd table: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(panel_fixed_mode));
 
 	i915->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 }
@@ -551,8 +551,8 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 	i915->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
 	drm_dbg_kms(&i915->drm,
-		    "Found SDVO panel mode in BIOS VBT tables:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+		    "Found SDVO panel mode in BIOS VBT tables: " DRM_MODE_FMT "\n",
+		    DRM_MODE_ARG(panel_fixed_mode));
 }
 
 static int intel_bios_ssc_frequency(struct drm_i915_private *i915,
