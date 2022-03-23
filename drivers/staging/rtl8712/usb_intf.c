@@ -568,7 +568,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 6. Load the firmware asynchronously */
 	if (rtl871x_load_fw(padapter))
 		goto deinit_drv_sw;
-	spin_lock_init(&padapter->lock_rx_ff0_filter);
+	init_completion(&padapter->rx_filter_ready);
 	mutex_init(&padapter->mutex_start);
 	return 0;
 
