@@ -46,6 +46,7 @@
 
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 
+static_assert(N_SPI_MINORS > 0 && N_SPI_MINORS <= 256);
 
 /* Bit masks for spi_device.mode management.  Note that incorrect
  * settings for some settings can cause *lots* of trouble for other
@@ -856,7 +857,6 @@ static int __init spidev_init(void)
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * the driver which manages those device numbers.
 	 */
-	BUILD_BUG_ON(N_SPI_MINORS > 256);
 	status = register_chrdev(SPIDEV_MAJOR, "spi", &spidev_fops);
 	if (status < 0)
 		return status;
