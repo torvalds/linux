@@ -7588,9 +7588,15 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 		}
 	}
 
-	dio_data = kzalloc(sizeof(*dio_data), GFP_NOFS);
-	if (!dio_data)
-		return -ENOMEM;
+	if (flags & IOMAP_NOWAIT) {
+		dio_data = kzalloc(sizeof(*dio_data), GFP_NOWAIT);
+		if (!dio_data)
+			return -EAGAIN;
+	} else {
+		dio_data = kzalloc(sizeof(*dio_data), GFP_NOFS);
+		if (!dio_data)
+			return -ENOMEM;
+	}
 
 	iomap->private = dio_data;
 
