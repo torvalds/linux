@@ -223,17 +223,14 @@ static int pata_imx_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct pata_imx_priv *priv = host->private_data;
-	int ret;
 
-	ret = ata_host_suspend(host, PMSG_SUSPEND);
-	if (!ret) {
-		__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
-		priv->ata_ctl =
-			__raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
-		clk_disable_unprepare(priv->clk);
-	}
+	ata_host_suspend(host, PMSG_SUSPEND);
 
-	return ret;
+	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
+	priv->ata_ctl = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
 }
 
 static int pata_imx_resume(struct device *dev)
