@@ -70,4 +70,9 @@ struct fiq_debugger_pdata {
 #endif
 };
 
+#ifdef CONFIG_FIQ_GLUE
+void gic_set_irq_secure(struct irq_data *d);
+void gic_set_irq_priority(struct irq_data *d, u8 pri);
+#endif
+
 #endif

@@ -975,8 +975,10 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 			}
 #endif
 			fiq_debugger_prompt(state);
+#ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 			fiq_debugger_ringbuf_push(state->tty_rbuf, 8);
 			fiq_debugger_ringbuf_push(state->tty_rbuf, 8);
+#endif
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 		} else if (state->console_enable && state->tty_rbuf) {
 			fiq_debugger_ringbuf_push(state->tty_rbuf, c);
@@ -1058,7 +1060,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 
 #ifdef CONFIG_FIQ_GLUE
 static void fiq_debugger_fiq(struct fiq_glue_handler *h,
-		const struct pt_regs *regs, void *svc_sp)
+		void *regs, void *svc_sp)
 {
 	struct fiq_debugger_state *state =
 		container_of(h, struct fiq_debugger_state, handler);
@@ -1235,11 +1237,13 @@ static int fiq_tty_poll_get_char(struct tty_driver *driver, int line)
 
 	fiq_debugger_uart_enable(state);
 	if (fiq_debugger_have_fiq(state)) {
+#ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 		int count = fiq_debugger_ringbuf_level(state->tty_rbuf);
 		if (count > 0) {
 			c = fiq_debugger_ringbuf_peek(state->tty_rbuf, 0);
 			fiq_debugger_ringbuf_consume(state->tty_rbuf, 1);
 		}
+#endif
 	} else {
 		c = fiq_debugger_getc(state);
 		if (c == FIQ_DEBUGGER_NO_CHAR)
