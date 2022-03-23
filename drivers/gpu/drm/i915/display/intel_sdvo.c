@@ -2291,27 +2291,12 @@ static int intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct drm_display_mode *newmode;
 	int num_modes = 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	/*
-	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
-	 * SDVO->LVDS transcoders can't cope with the EDID mode.
-	 */
-	newmode = intel_panel_vbt_sdvo_fixed_mode(to_intel_connector(connector));
-	if (newmode) {
-		drm_mode_probed_add(connector, newmode);
-		num_modes++;
-	}
-
-	/*
-	 * Attempt to get the mode list from DDC.
-	 * Assume that the preferred modes are
-	 * arranged in priority order.
-	 */
+	num_modes += intel_panel_get_modes(to_intel_connector(connector));
 	num_modes += intel_ddc_get_modes(connector, &intel_sdvo->ddc);
 
 	return num_modes;
@@ -2915,9 +2900,15 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
-	intel_sdvo_get_lvds_modes(connector);
-
-	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	/*
+	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
+	 * SDVO->LVDS transcoders can't cope with the EDID mode.
+	 */
+	fixed_mode = intel_panel_vbt_sdvo_fixed_mode(intel_connector);
+	if (!fixed_mode) {
+		intel_ddc_get_modes(connector, &intel_sdvo->ddc);
+		fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	}
 
 	intel_panel_init(intel_connector, fixed_mode, NULL);
 
