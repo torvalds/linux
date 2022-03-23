@@ -32,7 +32,7 @@ int sof_ipc_probe_points_add(struct snd_sof_dev *sdev,
 int sof_ipc_probe_points_remove(struct snd_sof_dev *sdev,
 				unsigned int *buffer_id, size_t num_buffer_id);
 
-extern struct snd_soc_cdai_ops sof_probe_compr_ops;
+extern const struct snd_soc_cdai_ops sof_probe_compr_ops;
 extern const struct snd_compress_ops sof_probe_compressed_ops;
 
 #endif

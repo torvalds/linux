@@ -570,7 +570,7 @@ void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 		goto out_unlock;
 	}
 
-	cache = kmalloc(sizeof(struct sidtab_str_cache) + str_len, GFP_ATOMIC);
+	cache = kmalloc(struct_size(cache, str, str_len), GFP_ATOMIC);
 	if (!cache)
 		goto out_unlock;
 

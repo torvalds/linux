@@ -634,9 +634,13 @@ static void smc_conn_abort(struct smc_sock *smc, int local_first)
 {
 	struct smc_connection *conn = &smc->conn;
 	struct smc_link_group *lgr = conn->lgr;
+	bool lgr_valid = false;
+
+	if (smc_conn_lgr_valid(conn))
+		lgr_valid = true;
 
 	smc_conn_free(conn);
-	if (local_first)
+	if (local_first && lgr_valid)
 		smc_lgr_cleanup_early(lgr);
 }
 

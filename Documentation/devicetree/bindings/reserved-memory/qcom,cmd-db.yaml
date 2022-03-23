@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/reserved-memory/qcom,cmd-db.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm Command DB
+
+description: |
+  Command DB is a database that provides a mapping between resource key and the
+  resource address for a system resource managed by a remote processor. The data
+  is stored in a shared memory region and is loaded by the remote processor.
+
+  Some of the Qualcomm Technologies Inc SoC's have hardware accelerators for
+  controlling shared resources. Depending on the board configuration the shared
+  resource properties may change. These properties are dynamically probed by the
+  remote processor and made available in the shared memory.
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+allOf:
+  - $ref: "reserved-memory.yaml"
+
+properties:
+  compatible:
+    const: qcom,cmd-db
+
+required:
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        reserved-memory@85fe0000 {
+            reg = <0x85fe0000 0x20000>;
+            compatible = "qcom,cmd-db";
+            no-map;
+        };
+    };

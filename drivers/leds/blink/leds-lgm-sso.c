@@ -477,7 +477,6 @@ static int sso_gpio_gc_init(struct device *dev, struct sso_led_priv *priv)
 	gc->ngpio               = priv->gpio.pins;
 	gc->parent              = dev;
 	gc->owner               = THIS_MODULE;
-	gc->of_node             = dev->of_node;
 
 	return devm_gpiochip_add_data(dev, gc, priv);
 }

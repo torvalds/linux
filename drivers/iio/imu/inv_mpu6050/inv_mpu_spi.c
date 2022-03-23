@@ -45,7 +45,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 		chip_type = (enum inv_devices)spi_id->driver_data;
 		name = spi_id->name;
 	} else if ((match = device_get_match_data(&spi->dev))) {
-		chip_type = (enum inv_devices)match;
+		chip_type = (uintptr_t)match;
 		name = dev_name(&spi->dev);
 	} else {
 		return -ENODEV;

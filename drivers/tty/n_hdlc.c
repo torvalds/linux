@@ -593,14 +593,13 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 /**
  * n_hdlc_tty_ioctl - process IOCTL system call for the tty device.
  * @tty: pointer to tty instance data
- * @file: pointer to open file object for device
  * @cmd: IOCTL command code
  * @arg: argument for IOCTL call (cmd dependent)
  *
  * Returns command dependent result.
  */
-static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			    unsigned long arg)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;

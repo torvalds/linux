@@ -1004,14 +1004,17 @@ static void uninitialize(struct device_queue_manager *dqm)
 
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
+	int r = 0;
+
 	pr_info("SW scheduler is used");
 	init_interrupts(dqm);
 	
 	if (dqm->dev->adev->asic_type == CHIP_HAWAII)
-		return pm_init(&dqm->packet_mgr, dqm);
-	dqm->sched_running = true;
+		r = pm_init(&dqm->packet_mgr, dqm);
+	if (!r)
+		dqm->sched_running = true;
 
-	return 0;
+	return r;
 }
 
 static int stop_nocpsch(struct device_queue_manager *dqm)

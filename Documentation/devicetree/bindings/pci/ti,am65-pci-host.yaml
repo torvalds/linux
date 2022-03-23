@@ -29,16 +29,27 @@ properties:
       - const: config
       - const: atu
 
+  interrupts:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
   ti,syscon-pcie-id:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the SYSCON entry
+          - description: pcie_device_id register offset within SYSCON
     description: Phandle to the SYSCON entry required for getting PCIe device/vendor ID
-    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,syscon-pcie-mode:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the SYSCON entry
+          - description: pcie_ctrl register offset within SYSCON
     description: Phandle to the SYSCON entry required for configuring PCIe in RC or EP mode.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
   msi-map: true
 
@@ -84,10 +95,9 @@ examples:
         #size-cells = <2>;
         ranges = <0x81000000 0 0          0x10020000 0 0x00010000>,
                  <0x82000000 0 0x10030000 0x10030000 0 0x07FD0000>;
-        ti,syscon-pcie-id = <&pcie_devid>;
-        ti,syscon-pcie-mode = <&pcie0_mode>;
+        ti,syscon-pcie-id = <&scm_conf 0x0210>;
+        ti,syscon-pcie-mode = <&scm_conf 0x4060>;
         bus-range = <0x0 0xff>;
-        num-viewport = <16>;
         max-link-speed = <2>;
         dma-coherent;
         interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;

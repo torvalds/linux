@@ -110,7 +110,7 @@ examples:
               };
         };
 
-        panel-dsi@0 {
+        panel@0 {
               compatible = "orisetech,otm8009a";
               reg = <0>;
               reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
@@ -125,4 +125,3 @@ examples:
     };
 
 ...
-

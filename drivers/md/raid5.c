@@ -2215,10 +2215,9 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	struct r5conf *conf = sh->raid_conf;
 	int level = conf->level;
 	struct raid5_percpu *percpu;
-	unsigned long cpu;
 
-	cpu = get_cpu();
-	percpu = per_cpu_ptr(conf->percpu, cpu);
+	local_lock(&conf->percpu->lock);
+	percpu = this_cpu_ptr(conf->percpu);
 	if (test_bit(STRIPE_OP_BIOFILL, &ops_request)) {
 		ops_run_biofill(sh);
 		overlap_clear++;
@@ -2271,13 +2270,14 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 			BUG();
 	}
 
-	if (overlap_clear && !sh->batch_head)
+	if (overlap_clear && !sh->batch_head) {
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 			if (test_and_clear_bit(R5_Overlap, &dev->flags))
 				wake_up(&sh->raid_conf->wait_for_overlap);
 		}
-	put_cpu();
+	}
+	local_unlock(&conf->percpu->lock);
 }
 
 static void free_stripe(struct kmem_cache *sc, struct stripe_head *sh)
@@ -5686,6 +5686,10 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 	struct stripe_head *sh;
 	int stripe_sectors;
 
+	/* We need to handle this when io_uring supports discard/trim */
+	if (WARN_ON_ONCE(bi->bi_opf & REQ_NOWAIT))
+		return;
+
 	if (mddev->reshape_position != MaxSector)
 		/* Skip discard while reshape is happening */
 		return;
@@ -5819,6 +5823,17 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
 
+	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
+	if ((bi->bi_opf & REQ_NOWAIT) &&
+	    (conf->reshape_progress != MaxSector) &&
+	    (mddev->reshape_backwards
+	    ? (logical_sector > conf->reshape_progress && logical_sector <= conf->reshape_safe)
+	    : (logical_sector >= conf->reshape_safe && logical_sector < conf->reshape_progress))) {
+		bio_wouldblock_error(bi);
+		if (rw == WRITE)
+			md_write_end(mddev);
+		return true;
+	}
 	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
@@ -7052,6 +7067,7 @@ static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu
 		return -ENOMEM;
 	}
 
+	local_lock_init(&percpu->lock);
 	return 0;
 }
 
@@ -7446,12 +7462,19 @@ static int raid5_run(struct mddev *mddev)
 	struct md_rdev *rdev;
 	struct md_rdev *journal_dev = NULL;
 	sector_t reshape_offset = 0;
-	int i;
+	int i, ret = 0;
 	long long min_offset_diff = 0;
 	int first = 1;
 
-	if (mddev_init_writes_pending(mddev) < 0)
+	if (acct_bioset_init(mddev)) {
+		pr_err("md/raid456:%s: alloc acct bioset failed.\n", mdname(mddev));
 		return -ENOMEM;
+	}
+
+	if (mddev_init_writes_pending(mddev) < 0) {
+		ret = -ENOMEM;
+		goto exit_acct_set;
+	}
 
 	if (mddev->recovery_cp != MaxSector)
 		pr_notice("md/raid:%s: not clean -- starting background reconstruction\n",
@@ -7482,7 +7505,8 @@ static int raid5_run(struct mddev *mddev)
 	    (mddev->bitmap_info.offset || mddev->bitmap_info.file)) {
 		pr_notice("md/raid:%s: array cannot have both journal and bitmap\n",
 			  mdname(mddev));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit_acct_set;
 	}
 
 	if (mddev->reshape_position != MaxSector) {
@@ -7507,13 +7531,15 @@ static int raid5_run(struct mddev *mddev)
 		if (journal_dev) {
 			pr_warn("md/raid:%s: don't support reshape with journal - aborting.\n",
 				mdname(mddev));
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit_acct_set;
 		}
 
 		if (mddev->new_level != mddev->level) {
 			pr_warn("md/raid:%s: unsupported reshape required - aborting.\n",
 				mdname(mddev));
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit_acct_set;
 		}
 		old_disks = mddev->raid_disks - mddev->delta_disks;
 		/* reshape_position must be on a new-stripe boundary, and one
@@ -7529,7 +7555,8 @@ static int raid5_run(struct mddev *mddev)
 		if (sector_div(here_new, chunk_sectors * new_data_disks)) {
 			pr_warn("md/raid:%s: reshape_position not on a stripe boundary\n",
 				mdname(mddev));
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit_acct_set;
 		}
 		reshape_offset = here_new * chunk_sectors;
 		/* here_new is the stripe we will write to */
@@ -7551,7 +7578,8 @@ static int raid5_run(struct mddev *mddev)
 			else if (mddev->ro == 0) {
 				pr_warn("md/raid:%s: in-place reshape must be started in read-only mode - aborting\n",
 					mdname(mddev));
-				return -EINVAL;
+				ret = -EINVAL;
+				goto exit_acct_set;
 			}
 		} else if (mddev->reshape_backwards
 		    ? (here_new * chunk_sectors + min_offset_diff <=
@@ -7561,7 +7589,8 @@ static int raid5_run(struct mddev *mddev)
 			/* Reading from the same stripe as writing to - bad */
 			pr_warn("md/raid:%s: reshape_position too early for auto-recovery - aborting.\n",
 				mdname(mddev));
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit_acct_set;
 		}
 		pr_debug("md/raid:%s: reshape will continue\n", mdname(mddev));
 		/* OK, we should be able to continue; */
@@ -7585,8 +7614,10 @@ static int raid5_run(struct mddev *mddev)
 	else
 		conf = mddev->private;
 
-	if (IS_ERR(conf))
-		return PTR_ERR(conf);
+	if (IS_ERR(conf)) {
+		ret = PTR_ERR(conf);
+		goto exit_acct_set;
+	}
 
 	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
 		if (!journal_dev) {
@@ -7783,7 +7814,10 @@ abort:
 	free_conf(conf);
 	mddev->private = NULL;
 	pr_warn("md/raid:%s: failed to run raid set.\n", mdname(mddev));
-	return -EIO;
+	ret = -EIO;
+exit_acct_set:
+	acct_bioset_exit(mddev);
+	return ret;
 }
 
 static void raid5_free(struct mddev *mddev, void *priv)
@@ -7791,6 +7825,7 @@ static void raid5_free(struct mddev *mddev, void *priv)
 	struct r5conf *conf = priv;
 
 	free_conf(conf);
+	acct_bioset_exit(mddev);
 	mddev->to_remove = &raid5_attrs_group;
 }
 

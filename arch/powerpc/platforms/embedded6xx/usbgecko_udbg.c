@@ -194,7 +194,7 @@ static int ug_udbg_getc_poll(void)
 /*
  * Retrieves and prepares the virtual address needed to access the hardware.
  */
-static void __iomem *ug_udbg_setup_exi_io_base(struct device_node *np)
+static void __iomem *__init ug_udbg_setup_exi_io_base(struct device_node *np)
 {
 	void __iomem *exi_io_base = NULL;
 	phys_addr_t paddr;
@@ -212,7 +212,7 @@ static void __iomem *ug_udbg_setup_exi_io_base(struct device_node *np)
 /*
  * Checks if a USB Gecko adapter is inserted in any memory card slot.
  */
-static void __iomem *ug_udbg_probe(void __iomem *exi_io_base)
+static void __iomem *__init ug_udbg_probe(void __iomem *exi_io_base)
 {
 	int i;
 

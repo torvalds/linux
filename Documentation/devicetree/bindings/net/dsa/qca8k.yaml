@@ -58,32 +58,13 @@ properties:
       B68 on the QCA832x and B49 on the QCA833x.
 
   mdio:
-    type: object
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
     description: Qca8k switch have an internal mdio to access switch port.
                  If this is not present, the legacy mapping is used and the
                  internal mdio access is used.
                  With the legacy mapping the reg corresponding to the internal
                  mdio is the switch reg with an offset of -1.
-
-    properties:
-      '#address-cells':
-        const: 1
-      '#size-cells':
-        const: 0
-
-    patternProperties:
-      "^(ethernet-)?phy@[0-4]$":
-        type: object
-
-        allOf:
-          - $ref: "http://devicetree.org/schemas/net/mdio.yaml#"
-
-        properties:
-          reg:
-            maxItems: 1
-
-        required:
-          - reg
 
 patternProperties:
   "^(ethernet-)?ports$":

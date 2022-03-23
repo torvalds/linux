@@ -637,3 +637,28 @@ u64 hl_mmu_descramble_addr(struct hl_device *hdev, u64 addr)
 {
 	return addr;
 }
+
+int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
+{
+	int rc;
+
+	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
+	if (rc)
+		dev_err_ratelimited(hdev->dev, "MMU cache invalidation failed\n");
+
+	return rc;
+}
+
+int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
+					u32 flags, u32 asid, u64 va, u64 size)
+{
+	int rc;
+
+	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, is_hard, flags,
+								asid, va, size);
+	if (rc)
+		dev_err_ratelimited(hdev->dev, "MMU cache range invalidation failed\n");
+
+	return rc;
+}
+

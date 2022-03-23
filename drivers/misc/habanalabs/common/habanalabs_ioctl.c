@@ -158,7 +158,7 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
 }
 
-static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
+static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl_debug_args *args)
 {
 	struct hl_debug_params *params;
 	void *input = NULL, *output = NULL;
@@ -200,7 +200,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 		params->output_size = args->output_size;
 	}
 
-	rc = hdev->asic_funcs->debug_coresight(hdev, params);
+	rc = hdev->asic_funcs->debug_coresight(hdev, ctx, params);
 	if (rc) {
 		dev_err(hdev->dev,
 			"debug coresight operation failed %d\n", rc);
@@ -269,8 +269,8 @@ static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	reset_count.hard_reset_cnt = hdev->hard_reset_cnt;
-	reset_count.soft_reset_cnt = hdev->soft_reset_cnt;
+	reset_count.hard_reset_cnt = hdev->reset_info.hard_reset_cnt;
+	reset_count.soft_reset_cnt = hdev->reset_info.soft_reset_cnt;
 
 	return copy_to_user(out, &reset_count,
 		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;
@@ -313,15 +313,38 @@ static int pci_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_info_clk_throttle clk_throttle = {0};
+	ktime_t end_time, zero_time = ktime_set(0, 0);
 	u32 max_size = args->return_size;
-	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int i;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	clk_throttle.clk_throttling_reason = hdev->clk_throttling_reason;
+	mutex_lock(&hdev->clk_throttling.lock);
+
+	clk_throttle.clk_throttling_reason = hdev->clk_throttling.current_reason;
+
+	for (i = 0 ; i < HL_CLK_THROTTLE_TYPE_MAX ; i++) {
+		if (!(hdev->clk_throttling.aggregated_reason & BIT(i)))
+			continue;
+
+		clk_throttle.clk_throttling_timestamp_us[i] =
+			ktime_to_us(hdev->clk_throttling.timestamp[i].start);
+
+		if (ktime_compare(hdev->clk_throttling.timestamp[i].end, zero_time))
+			end_time = hdev->clk_throttling.timestamp[i].end;
+		else
+			end_time = ktime_get();
+
+		clk_throttle.clk_throttling_duration_ns[i] =
+			ktime_to_ns(ktime_sub(end_time,
+				hdev->clk_throttling.timestamp[i].start));
+
+	}
+	mutex_unlock(&hdev->clk_throttling.lock);
 
 	return copy_to_user(out, &clk_throttle,
 		min((size_t) max_size, sizeof(clk_throttle))) ? -EFAULT : 0;
@@ -480,6 +503,94 @@ static int open_stats_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(open_stats_info))) ? -EFAULT : 0;
 }
 
+static int dram_pending_rows_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	u32 pend_rows_num = 0;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_dram_pending_row_get(hdev, &pend_rows_num);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &pend_rows_num,
+			min_t(size_t, max_size, sizeof(pend_rows_num))) ? -EFAULT : 0;
+}
+
+static int dram_replaced_rows_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct cpucp_hbm_row_info info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_dram_replaced_row_get(hdev, &info);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int last_err_open_dev_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_info_last_err_open_dev_time info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.open_dev_timestamp);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int cs_timeout_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_info_cs_timeout_event info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.seq = hdev->last_error.cs_timeout_seq;
+	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout_timestamp);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_info_razwi_event info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.razwi_timestamp);
+	info.addr = hdev->last_error.razwi_addr;
+	info.engine_id_1 = hdev->last_error.razwi_engine_id_1;
+	info.engine_id_2 = hdev->last_error.razwi_engine_id_2;
+	info.no_engine_id = hdev->last_error.razwi_non_engine_initiator;
+	info.error_type = hdev->last_error.razwi_type;
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -503,6 +614,33 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_RESET_COUNT:
 		return get_reset_count(hdev, args);
 
+	case HL_INFO_HW_EVENTS:
+		return hw_events_info(hdev, false, args);
+
+	case HL_INFO_HW_EVENTS_AGGREGATE:
+		return hw_events_info(hdev, true, args);
+
+	case HL_INFO_CS_COUNTERS:
+		return cs_counters_info(hpriv, args);
+
+	case HL_INFO_CLK_THROTTLE_REASON:
+		return clk_throttle_info(hpriv, args);
+
+	case HL_INFO_SYNC_MANAGER:
+		return sync_manager_info(hpriv, args);
+
+	case HL_INFO_OPEN_STATS:
+		return open_stats_info(hpriv, args);
+
+	case HL_INFO_LAST_ERR_OPEN_DEV_TIME:
+		return last_err_open_dev_info(hpriv, args);
+
+	case HL_INFO_CS_TIMEOUT_EVENT:
+		return cs_timeout_info(hpriv, args);
+
+	case HL_INFO_RAZWI_EVENT:
+		return razwi_info(hpriv, args);
+
 	default:
 		break;
 	}
@@ -515,10 +653,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	}
 
 	switch (args->op) {
-	case HL_INFO_HW_EVENTS:
-		rc = hw_events_info(hdev, false, args);
-		break;
-
 	case HL_INFO_DRAM_USAGE:
 		rc = dram_usage_info(hpriv, args);
 		break;
@@ -531,10 +665,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 		rc = device_utilization(hdev, args);
 		break;
 
-	case HL_INFO_HW_EVENTS_AGGREGATE:
-		rc = hw_events_info(hdev, true, args);
-		break;
-
 	case HL_INFO_CLK_RATE:
 		rc = get_clk_rate(hdev, args);
 		break;
@@ -542,17 +672,8 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_TIME_SYNC:
 		return time_sync_info(hdev, args);
 
-	case HL_INFO_CS_COUNTERS:
-		return cs_counters_info(hpriv, args);
-
 	case HL_INFO_PCI_COUNTERS:
 		return pci_counters_info(hpriv, args);
-
-	case HL_INFO_CLK_THROTTLE_REASON:
-		return clk_throttle_info(hpriv, args);
-
-	case HL_INFO_SYNC_MANAGER:
-		return sync_manager_info(hpriv, args);
 
 	case HL_INFO_TOTAL_ENERGY:
 		return total_energy_consumption_info(hpriv, args);
@@ -563,12 +684,16 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_POWER:
 		return power_info(hpriv, args);
 
-	case HL_INFO_OPEN_STATS:
-		return open_stats_info(hpriv, args);
+
+	case HL_INFO_DRAM_REPLACED_ROWS:
+		return dram_replaced_rows_info(hpriv, args);
+
+	case HL_INFO_DRAM_PENDING_ROWS:
+		return dram_pending_rows_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -613,16 +738,17 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 				"Rejecting debug configuration request because device not in debug mode\n");
 			return -EFAULT;
 		}
-		args->input_size =
-			min(args->input_size, hl_debug_struct_size[args->op]);
-		rc = debug_coresight(hdev, args);
+		args->input_size = min(args->input_size, hl_debug_struct_size[args->op]);
+		rc = debug_coresight(hdev, hpriv->ctx, args);
 		break;
+
 	case HL_DEBUG_OP_SET_MODE:
-		rc = hl_device_set_debug_mode(hdev, (bool) args->enable);
+		rc = hl_device_set_debug_mode(hdev, hpriv->ctx, (bool) args->enable);
 		break;
+
 	default:
 		dev_err(hdev->dev, "Invalid request %d\n", args->op);
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -649,7 +775,6 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 		const struct hl_ioctl_desc *ioctl, struct device *dev)
 {
 	struct hl_fpriv *hpriv = filep->private_data;
-	struct hl_device *hdev = hpriv->hdev;
 	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128] = {0};
 	char *kdata = NULL;
@@ -657,12 +782,6 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 	hl_ioctl_t *func;
 	u32 hl_size;
 	int retcode;
-
-	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(dev,
-			"Device HARD reset pending! Please close FD\n");
-		return -ENODEV;
-	}
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;

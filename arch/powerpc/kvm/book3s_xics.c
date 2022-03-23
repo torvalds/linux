@@ -942,8 +942,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	struct kvmppc_xics *xics = m->private;
 	struct kvm *kvm = xics->kvm;
 	struct kvm_vcpu *vcpu;
-	int icsid, i;
-	unsigned long flags;
+	int icsid;
+	unsigned long flags, i;
 	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
 	unsigned long t_rm_notify_eoi;
 	unsigned long t_reject, t_check_resend;
@@ -1340,7 +1340,7 @@ static int xics_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 static void kvmppc_xics_release(struct kvm_device *dev)
 {
 	struct kvmppc_xics *xics = dev->private;
-	int i;
+	unsigned long i;
 	struct kvm *kvm = xics->kvm;
 	struct kvm_vcpu *vcpu;
 

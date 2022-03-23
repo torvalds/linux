@@ -1003,6 +1003,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 
 	if (!rtd)
 		return -EINVAL;
@@ -1023,7 +1024,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 		}
 		if (bytescount > 0) {
 			delay = do_div(bytescount, period_bytes);
-			runtime->delay = bytes_to_frames(runtime, delay);
+			adata->delay += bytes_to_frames(runtime, delay);
 		}
 	} else {
 		buffersize = frames_to_bytes(runtime, runtime->buffer_size);
@@ -1033,6 +1034,17 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 		pos = do_div(bytescount, buffersize);
 	}
 	return bytes_to_frames(runtime, pos);
+}
+
+static snd_pcm_sframes_t acp_dma_delay(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream)
+{
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
+	snd_pcm_sframes_t delay = adata->delay;
+
+	adata->delay = 0;
+
+	return delay;
 }
 
 static int acp_dma_prepare(struct snd_soc_component *component,
@@ -1198,6 +1210,7 @@ static const struct snd_soc_component_driver acp_asoc_platform = {
 	.hw_params	= acp_dma_hw_params,
 	.trigger	= acp_dma_trigger,
 	.pointer	= acp_dma_pointer,
+	.delay		= acp_dma_delay,
 	.prepare	= acp_dma_prepare,
 	.pcm_construct	= acp_dma_new,
 };

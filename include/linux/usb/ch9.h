@@ -33,7 +33,6 @@
 #ifndef __LINUX_USB_CH9_H
 #define __LINUX_USB_CH9_H
 
-#include <linux/device.h>
 #include <uapi/linux/usb/ch9.h>
 
 /* USB 3.2 SuperSpeed Plus phy signaling rate generation and lane count */
@@ -44,6 +43,8 @@ enum usb_ssp_rate {
 	USB_SSP_GEN_1x2,
 	USB_SSP_GEN_2x2,
 };
+
+struct device;
 
 extern const char *usb_ep_type_string(int ep_type);
 extern const char *usb_speed_string(enum usb_device_speed speed);

@@ -146,6 +146,8 @@ config PINCTRL_NS
 	depends on OF && (ARCH_BCM_5301X || COMPILE_TEST)
 	select PINMUX
 	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	default ARCH_BCM_5301X
 	help
 	  Say yes here to enable the Broadcom NS SoC pins driver.

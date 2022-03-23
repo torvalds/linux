@@ -83,6 +83,9 @@ patternProperties:
                   UART7, UART8, UART9, USBA, USBB, VB, VGAHS, VGAVS, WDTRST1, WDTRST2,
                   WDTRST3, WDTRST4]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
 

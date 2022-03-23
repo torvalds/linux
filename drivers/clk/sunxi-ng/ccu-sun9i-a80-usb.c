@@ -5,7 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -138,4 +138,7 @@ static struct platform_driver sun9i_a80_usb_clk_driver = {
 		.of_match_table	= sun9i_a80_usb_clk_ids,
 	},
 };
-builtin_platform_driver(sun9i_a80_usb_clk_driver);
+module_platform_driver(sun9i_a80_usb_clk_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

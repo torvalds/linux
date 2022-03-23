@@ -5,7 +5,6 @@
 
 menuconfig SURFACE_PLATFORMS
 	bool "Microsoft Surface Platform-Specific Device Drivers"
-	depends on ACPI
 	default y
 	help
 	  Say Y here to get to see options for platform-specific device drivers
@@ -30,12 +29,14 @@ config SURFACE3_WMI
 
 config SURFACE_3_BUTTON
 	tristate "Power/home/volume buttons driver for Microsoft Surface 3 tablet"
+	depends on ACPI
 	depends on KEYBOARD_GPIO && I2C
 	help
 	  This driver handles the power/home/volume buttons on the Microsoft Surface 3 tablet.
 
 config SURFACE_3_POWER_OPREGION
 	tristate "Surface 3 battery platform operation region support"
+	depends on ACPI
 	depends on I2C
 	help
 	  This driver provides support for ACPI operation
@@ -126,6 +127,7 @@ config SURFACE_DTX
 
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
+	depends on ACPI
 	depends on DMI
 	help
 	  This driver marks the GPEs related to the ACPI lid device found on
@@ -135,6 +137,7 @@ config SURFACE_GPE
 
 config SURFACE_HOTPLUG
 	tristate "Surface Hot-Plug Driver"
+	depends on ACPI
 	depends on GPIOLIB
 	help
 	  Driver for out-of-band hot-plug event signaling on Microsoft Surface
@@ -154,6 +157,7 @@ config SURFACE_HOTPLUG
 
 config SURFACE_PLATFORM_PROFILE
 	tristate "Surface Platform Profile Driver"
+	depends on ACPI
 	depends on SURFACE_AGGREGATOR_REGISTRY
 	select ACPI_PLATFORM_PROFILE
 	help
@@ -176,6 +180,7 @@ config SURFACE_PLATFORM_PROFILE
 
 config SURFACE_PRO3_BUTTON
 	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
+	depends on ACPI
 	depends on INPUT
 	help
 	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.

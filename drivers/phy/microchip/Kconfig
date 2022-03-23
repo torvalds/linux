@@ -11,3 +11,11 @@ config PHY_SPARX5_SERDES
 	depends on HAS_IOMEM
 	help
 	  Enable this for support of the 10G/25G SerDes on Microchip Sparx5.
+
+config PHY_LAN966X_SERDES
+	tristate "SerDes PHY driver for Microchip LAN966X"
+	select GENERIC_PHY
+	depends on OF
+	depends on MFD_SYSCON
+	help
+	  Enable this for supporting SerDes muxing with Microchip LAN966X

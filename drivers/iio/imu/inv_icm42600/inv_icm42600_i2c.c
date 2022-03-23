@@ -58,7 +58,7 @@ static int inv_icm42600_probe(struct i2c_client *client)
 	match = device_get_match_data(&client->dev);
 	if (!match)
 		return -EINVAL;
-	chip = (enum inv_icm42600_chip)match;
+	chip = (uintptr_t)match;
 
 	regmap = devm_regmap_init_i2c(client, &inv_icm42600_regmap_config);
 	if (IS_ERR(regmap))

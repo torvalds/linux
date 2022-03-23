@@ -1,0 +1,746 @@
+[
+    {
+        "PublicDescription": "Instruction architecturally executed, Condition code check pass, software increment",
+        "EventCode": "0x00",
+        "EventName": "SW_INCR",
+        "BriefDescription": "Instruction architecturally executed, Condition code check pass, software increment"
+    },
+    {
+        "PublicDescription": "Level 1 instruction cache refill",
+        "EventCode": "0x01",
+        "EventName": "L1I_CACHE_REFILL",
+        "BriefDescription": "Level 1 instruction cache refill"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 instruction TLB refill",
+        "EventCode": "0x02",
+        "EventName": "L1I_TLB_REFILL",
+        "BriefDescription": "Attributable Level 1 instruction TLB refill"
+    },
+    {
+        "PublicDescription": "Level 1 data cache refill",
+        "EventCode": "0x03",
+        "EventName": "L1D_CACHE_REFILL",
+        "BriefDescription": "Level 1 data cache refill"
+    },
+    {
+        "PublicDescription": "Level 1 data cache access",
+        "EventCode": "0x04",
+        "EventName": "L1D_CACHE",
+        "BriefDescription": "Level 1 data cache access"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data TLB refill",
+        "EventCode": "0x05",
+        "EventName": "L1D_TLB_REFILL",
+        "BriefDescription": "Attributable Level 1 data TLB refill"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed",
+        "EventCode": "0x08",
+        "EventName": "INST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed"
+    },
+    {
+        "PublicDescription": "Exception taken",
+        "EventCode": "0x09",
+        "EventName": "EXC_TAKEN",
+        "BriefDescription": "Exception taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition check pass, exception return",
+        "EventCode": "0x0a",
+        "EventName": "EXC_RETURN",
+        "BriefDescription": "Instruction architecturally executed, condition check pass, exception return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR",
+        "EventCode": "0x0b",
+        "EventName": "CID_WRITE_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR"
+    },
+    {
+        "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
+        "EventCode": "0x10",
+        "EventName": "BR_MIS_PRED",
+        "BriefDescription": "Mispredicted or not predicted branch speculatively executed"
+    },
+    {
+        "PublicDescription": "Cycle",
+        "EventCode": "0x11",
+        "EventName": "CPU_CYCLES",
+        "BriefDescription": "Cycle"
+    },
+    {
+        "PublicDescription": "Predictable branch speculatively executed",
+        "EventCode": "0x12",
+        "EventName": "BR_PRED",
+        "BriefDescription": "Predictable branch speculatively executed"
+    },
+    {
+        "PublicDescription": "Data memory access",
+        "EventCode": "0x13",
+        "EventName": "MEM_ACCESS",
+        "BriefDescription": "Data memory access"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 instruction cache access",
+        "EventCode": "0x14",
+        "EventName": "L1I_CACHE",
+        "BriefDescription": "Attributable Level 1 instruction cache access"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache write-back",
+        "EventCode": "0x15",
+        "EventName": "L1D_CACHE_WB",
+        "BriefDescription": "Attributable Level 1 data cache write-back"
+    },
+    {
+        "PublicDescription": "Level 2 data cache access",
+        "EventCode": "0x16",
+        "EventName": "L2D_CACHE",
+        "BriefDescription": "Level 2 data cache access"
+    },
+    {
+        "PublicDescription": "Level 2 data refill",
+        "EventCode": "0x17",
+        "EventName": "L2D_CACHE_REFILL",
+        "BriefDescription": "Level 2 data refill"
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache write-back",
+        "EventCode": "0x18",
+        "EventName": "L2D_CACHE_WB",
+        "BriefDescription": "Attributable Level 2 data cache write-back"
+    },
+    {
+        "PublicDescription": "Attributable Bus access",
+        "EventCode": "0x19",
+        "EventName": "BUS_ACCESS",
+        "BriefDescription": "Attributable Bus access"
+    },
+    {
+        "PublicDescription": "Local memory error",
+        "EventCode": "0x1a",
+        "EventName": "MEMORY_ERROR",
+        "BriefDescription": "Local memory error"
+    },
+    {
+        "PublicDescription": "Operation speculatively executed",
+        "EventCode": "0x1b",
+        "EventName": "INST_SPEC",
+        "BriefDescription": "Operation speculatively executed"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, Condition code check pass, write to TTBR",
+        "EventCode": "0x1c",
+        "EventName": "TTBR_WRITE_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, Condition code check pass, write to TTBR"
+    },
+    {
+        "PublicDescription": "Bus cycle",
+        "EventCode": "0x1D",
+        "EventName": "BUS_CYCLES",
+        "BriefDescription": "Bus cycle"
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache allocation without refill",
+        "EventCode": "0x20",
+        "EventName": "L2D_CACHE_ALLOCATE",
+        "BriefDescription": "Attributable Level 2 data cache allocation without refill"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, branch",
+        "EventCode": "0x21",
+        "EventName": "BR_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted branch",
+        "EventCode": "0x22",
+        "EventName": "BR_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted branch"
+    },
+    {
+        "PublicDescription": "No operation issued because of the frontend",
+        "EventCode": "0x23",
+        "EventName": "STALL_FRONTEND",
+        "BriefDescription": "No operation issued because of the frontend"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend",
+        "EventCode": "0x24",
+        "EventName": "STALL_BACKEND",
+        "BriefDescription": "No operation issued due to the backend"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data or unified TLB access",
+        "EventCode": "0x25",
+        "EventName": "L1D_TLB",
+        "BriefDescription": "Attributable Level 1 data or unified TLB access"
+    },
+    {
+        "PublicDescription": "Attributable Level 1 instruction TLB access",
+        "EventCode": "0x26",
+        "EventName": "L1I_TLB",
+        "BriefDescription": "Attributable Level 1 instruction TLB access"
+    },
+    {
+        "PublicDescription": "Attributable Level 3 data cache allocation without refill",
+        "EventCode": "0x29",
+        "EventName": "L3D_CACHE_ALLOCATE",
+        "BriefDescription": "Attributable Level 3 data cache allocation without refill"
+    },
+    {
+        "PublicDescription": "Attributable Level 3 data cache refill",
+        "EventCode": "0x2A",
+        "EventName": "L3D_CACHE_REFILL",
+        "BriefDescription": "Attributable Level 3 data cache refill"
+    },
+    {
+        "PublicDescription": "Attributable Level 3 data cache access",
+        "EventCode": "0x2B",
+        "EventName": "L3D_CACHE",
+        "BriefDescription": "Attributable Level 3 data cache access"
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data TLB refill",
+        "EventCode": "0x2D",
+        "EventName": "L2D_TLB_REFILL",
+        "BriefDescription": "Attributable Level 2 data TLB refill"
+    },
+    {
+        "PublicDescription": "Attributable Level 2 instruction TLB refill.",
+        "EventCode": "0x2E",
+        "EventName": "L2I_TLB_REFILL",
+        "BriefDescription": "Attributable Level 2 instruction TLB refill."
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data or unified TLB access",
+        "EventCode": "0x2F",
+        "EventName": "L2D_TLB",
+        "BriefDescription": "Attributable Level 2 data or unified TLB access"
+    },
+    {
+        "PublicDescription": "Attributable Level 2 instruction TLB access.",
+        "EventCode": "0x30",
+        "EventName": "L2I_TLB",
+        "BriefDescription": "Attributable Level 2 instruction TLB access."
+    },
+    {
+        "PublicDescription": "Access to another socket in a multi-socket system",
+        "EventCode": "0x31",
+        "EventName": "REMOTE_ACCESS",
+        "BriefDescription": "Access to another socket in a multi-socket system"
+    },
+    {
+        "PublicDescription": "Access to data TLB causes a translation table walk",
+        "EventCode": "0x34",
+        "EventName": "DTLB_WALK",
+        "BriefDescription": "Access to data TLB causes a translation table walk"
+    },
+    {
+        "PublicDescription": "Access to instruction TLB that causes a translation table walk",
+        "EventCode": "0x35",
+        "EventName": "ITLB_WALK",
+        "BriefDescription": "Access to instruction TLB that causes a translation table walk"
+    },
+    {
+        "PublicDescription": "Attributable Last level cache memory read",
+        "EventCode": "0x36",
+        "EventName": "LL_CACHE_RD",
+        "BriefDescription": "Attributable Last level cache memory read"
+    },
+    {
+        "PublicDescription": "Last level cache miss, read",
+        "EventCode": "0x37",
+        "EventName": "LL_CACHE_MISS_RD",
+        "BriefDescription": "Last level cache miss, read"
+    },
+    {
+        "PublicDescription": "Level 1 data cache long-latency read miss.  The counter counts each memory read access counted by L1D_CACHE that incurs additional latency because it returns data from outside the Level 1 data or unified cache of this processing element.",
+        "EventCode": "0x39",
+        "EventName": "L1D_CACHE_LMISS_RD",
+        "BriefDescription": "Level 1 data cache long-latency read miss"
+    },
+    {
+        "PublicDescription": "Micro-operation architecturally executed.  The counter counts each operation counted by OP_SPEC that would be executed in a simple sequential execution of the program.",
+        "EventCode": "0x3A",
+        "EventName": "OP_RETIRED",
+        "BriefDescription": "Micro-operation architecturally executed"
+    },
+    {
+        "PublicDescription": "Micro-operation speculatively executed.  The counter counts the number of operations executed by the processing element, including those that are executed speculatively and would not be executed in a simple sequential execution of the program.",
+        "EventCode": "0x3B",
+        "EventName": "OP_SPEC",
+        "BriefDescription": "Micro-operation speculatively executed"
+    },
+    {
+        "PublicDescription": "No operation sent for execution.  The counter counts every attributable cycle on which no attributable instruction or operation was sent for execution on this processing element.",
+        "EventCode": "0x3C",
+        "EventName": "STALL",
+        "BriefDescription": "No operation sent for execution"
+    },
+    {
+        "PublicDescription": "No operation sent for execution on a slot due to the backend.  Counts each slot counted by STALL_SLOT where no attributable instruction or operation was sent for execution because the backend is unable to accept it.",
+        "EventCode": "0x3D",
+        "EventName": "STALL_SLOT_BACKEND",
+        "BriefDescription": "No operation sent for execution on a slot due to the backend"
+    },
+    {
+        "PublicDescription": "No operation sent for execution on a slot due to the frontend.  Counts each slot counted by STALL_SLOT where no attributable instruction or operation was sent for execution because there was no attributable instruction or operation available to issue from the processing element from the frontend for the slot.",
+        "EventCode": "0x3E",
+        "EventName": "STALL_SLOT_FRONTEND",
+        "BriefDescription": "No operation sent for execution on a slot due to the frontend"
+    },
+    {
+        "PublicDescription": "No operation sent for execution on a slot.  The counter counts on each attributable cycle the number of instruction or operation slots that were not occupied by an instruction or operation attributable to the processing element.",
+        "EventCode": "0x3F",
+        "EventName": "STALL_SLOT",
+        "BriefDescription": "No operation sent for execution on a slot"
+    },
+    {
+        "PublicDescription": "Sample Population",
+        "EventCode": "0x4000",
+        "EventName": "SAMPLE_POP",
+        "BriefDescription": "Sample Population"
+    },
+    {
+        "PublicDescription": "Sample Taken",
+        "EventCode": "0x4001",
+        "EventName": "SAMPLE_FEED",
+        "BriefDescription": "Sample Taken"
+    },
+    {
+        "PublicDescription": "Sample Taken and not removed by filtering",
+        "EventCode": "0x4002",
+        "EventName": "SAMPLE_FILTRATE",
+        "BriefDescription": "Sample Taken and not removed by filtering"
+    },
+    {
+        "PublicDescription": "Sample collided with previous sample",
+        "EventCode": "0x4003",
+        "EventName": "SAMPLE_COLLISION",
+        "BriefDescription": "Sample collided with previous sample"
+    },
+    {
+        "PublicDescription": "Constant frequency cycles.  The counter increments at a constant frequency equal to the rate of increment of the system counter, CNTPCT_EL0.",
+        "EventCode": "0x4004",
+        "EventName": "CNT_CYCLES",
+        "BriefDescription": "Constant frequency cycles"
+    },
+    {
+        "PublicDescription": "Memory stall cycles.  The counter counts each cycle counted by STALL_BACKEND where there is a cache miss in the last level of cache within the processing element clock domain",
+        "EventCode": "0x4005",
+        "EventName": "STALL_BACKEND_MEM",
+        "BriefDescription": "Memory stall cycles"
+    },
+    {
+        "PublicDescription": "Level 1 instruction cache long-latency read miss.  If the L1I_CACHE_RD event is implemented, the counter counts each access counted by L1I_CACHE_RD that incurs additional latency because it returns instructions from outside of the Level 1 instruction cache of this PE.  If the L1I_CACHE_RD event is not implemented, the counter counts each access counted by L1I_CACHE that incurs additional latency because it returns instructions from outside the Level 1 instruction cache of this PE.  The event indicates to software that the access missed in the Level 1 instruction cache and might have a significant performance impact due to the additional latency, compared to the latency of an access that hits in the Level 1 instruction cache.",
+        "EventCode": "0x4006",
+        "EventName": "L1I_CACHE_LMISS",
+        "BriefDescription": "Level 1 instruction cache long-latency read miss"
+    },
+    {
+        "PublicDescription": "Level 2 data cache long-latency read miss.  The counter counts each memory read access counted by L2D_CACHE that incurs additional latency because it returns data from outside the Level 2 data or unified cache of this processing element.  The event indicates to software that the access missed in the Level 2 data or unified cache and might have a significant performance impact compared to the latency of an access that hits in the Level 2 data or unified cache.",
+        "EventCode": "0x4009",
+        "EventName": "L2D_CACHE_LMISS_RD",
+        "BriefDescription": "Level 2 data cache long-latency read miss"
+    },
+    {
+        "PublicDescription": "Level 3 data cache long-latency read miss.  The counter counts each memory read access counted by L3D_CACHE that incurs additional latency because it returns data from outside the Level 3 data or unified cache of this processing element.  The event indicates to software that the access missed in the Level 3 data or unified cache and might have a significant performance impact compared to the latency of an access that hits in the Level 3 data or unified cache.",
+        "EventCode": "0x400B",
+        "EventName": "L3D_CACHE_LMISS_RD",
+        "BriefDescription": "Level 3 data cache long-latency read miss"
+    },
+    {
+        "PublicDescription": "Trace buffer current write pointer wrapped",
+        "EventCode": "0x400C",
+        "EventName": "TRB_WRAP",
+        "BriefDescription": "Trace buffer current write pointer wrapped"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 0",
+        "EventCode": "0x4010",
+        "EventName": "TRCEXTOUT0",
+        "BriefDescription": "PE Trace Unit external output 0"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 1",
+        "EventCode": "0x4011",
+        "EventName": "TRCEXTOUT1",
+        "BriefDescription": "PE Trace Unit external output 1"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 2",
+        "EventCode": "0x4012",
+        "EventName": "TRCEXTOUT2",
+        "BriefDescription": "PE Trace Unit external output 2"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 3",
+        "EventCode": "0x4013",
+        "EventName": "TRCEXTOUT3",
+        "BriefDescription": "PE Trace Unit external output 3"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 4",
+        "EventCode": "0x4018",
+        "EventName": "CTI_TRIGOUT4",
+        "BriefDescription": "Cross-trigger Interface output trigger 4"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 5 ",
+        "EventCode": "0x4019",
+        "EventName": "CTI_TRIGOUT5",
+        "BriefDescription": "Cross-trigger Interface output trigger 5 "
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 6",
+        "EventCode": "0x401A",
+        "EventName": "CTI_TRIGOUT6",
+        "BriefDescription": "Cross-trigger Interface output trigger 6"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 7",
+        "EventCode": "0x401B",
+        "EventName": "CTI_TRIGOUT7",
+        "BriefDescription": "Cross-trigger Interface output trigger 7"
+    },
+    {
+        "PublicDescription": "Access with additional latency from alignment",
+        "EventCode": "0x4020",
+        "EventName": "LDST_ALIGN_LAT",
+        "BriefDescription": "Access with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Load with additional latency from alignment",
+        "EventCode": "0x4021",
+        "EventName": "LD_ALIGN_LAT",
+        "BriefDescription": "Load with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Store with additional latency from alignment",
+        "EventCode": "0x4022",
+        "EventName": "ST_ALIGN_LAT",
+        "BriefDescription": "Store with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Checked data memory access",
+        "EventCode": "0x4024",
+        "EventName": "MEM_ACCESS_CHECKED",
+        "BriefDescription": "Checked data memory access"
+    },
+    {
+        "PublicDescription": "Checked data memory access, read",
+        "EventCode": "0x4025",
+        "EventName": "MEM_ACCESS_CHECKED_RD",
+        "BriefDescription": "Checked data memory access, read"
+    },
+    {
+        "PublicDescription": "Checked data memory access, write",
+        "EventCode": "0x4026",
+        "EventName": "MEM_ACCESS_CHECKED_WR",
+        "BriefDescription": "Checked data memory access, write"
+    },
+    {
+        "PublicDescription": "SIMD Instruction architecturally executed.",
+        "EventCode": "0x8000",
+        "EventName": "SIMD_INST_RETIRED",
+        "BriefDescription": "SIMD Instruction architecturally executed."
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, SVE.",
+        "EventCode": "0x8002",
+        "EventName": "SVE_INST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, SVE."
+    },
+    {
+        "PublicDescription": "ASE operations speculatively executed",
+        "EventCode": "0x8005",
+        "EventName": "ASE_INST_SPEC",
+        "BriefDescription": "ASE operations speculatively executed"
+    },
+    {
+        "PublicDescription": "SVE operations speculatively executed",
+        "EventCode": "0x8006",
+        "EventName": "SVE_INST_SPEC",
+        "BriefDescription": "SVE operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Microarchitectural operation, Operations speculatively executed.",
+        "EventCode": "0x8008",
+        "EventName": "UOP_SPEC",
+        "BriefDescription": "Microarchitectural operation, Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE Math accelerator Operations speculatively executed.",
+        "EventCode": "0x800E",
+        "EventName": "SVE_MATH_SPEC",
+        "BriefDescription": "SVE Math accelerator Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Floating-point Operations speculatively executed.",
+        "EventCode": "0x8010",
+        "EventName": "FP_SPEC",
+        "BriefDescription": "Floating-point Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Floating-point half-precision operations speculatively executed",
+        "EventCode": "0x8014",
+        "EventName": "FP_HP_SPEC",
+        "BriefDescription": "Floating-point half-precision operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Floating-point single-precision operations speculatively executed",
+        "EventCode": "0x8018",
+        "EventName": "FP_SP_SPEC",
+        "BriefDescription": "Floating-point single-precision operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Floating-point double-precision operations speculatively executed",
+        "EventCode": "0x801C",
+        "EventName": "FP_DP_SPEC",
+        "BriefDescription": "Floating-point double-precision operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Floating-point FMA Operations speculatively executed.",
+        "EventCode": "0x8028",
+        "EventName": "FP_FMA_SPEC",
+        "BriefDescription": "Floating-point FMA Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Floating-point reciprocal estimate Operations speculatively executed.",
+        "EventCode": "0x8034",
+        "EventName": "FP_RECPE_SPEC",
+        "BriefDescription": "Floating-point reciprocal estimate Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "floating-point convert Operations speculatively executed.",
+        "EventCode": "0x8038",
+        "EventName": "FP_CVT_SPEC",
+        "BriefDescription": "floating-point convert Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE integer Operations speculatively executed.",
+        "EventCode": "0x8043",
+        "EventName": "ASE_SVE_INT_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE integer Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE predicated Operations speculatively executed.",
+        "EventCode": "0x8074",
+        "EventName": "SVE_PRED_SPEC",
+        "BriefDescription": "SVE predicated Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE predicated operations with no active predicates speculatively executed",
+        "EventCode": "0x8075",
+        "EventName": "SVE_PRED_EMPTY_SPEC",
+        "BriefDescription": "SVE predicated operations with no active predicates speculatively executed"
+    },
+    {
+        "PublicDescription": "SVE predicated operations speculatively executed with all active predicates",
+        "EventCode": "0x8076",
+        "EventName": "SVE_PRED_FULL_SPEC",
+        "BriefDescription": "SVE predicated operations speculatively executed with all active predicates"
+    },
+    {
+        "PublicDescription": "SVE predicated operations speculatively executed with partially active predicates",
+        "EventCode": "0x8077",
+        "EventName": "SVE_PRED_PARTIAL_SPEC",
+        "BriefDescription": "SVE predicated operations speculatively executed with partially active predicates"
+    },
+    {
+        "PublicDescription": "SVE predicated operations with empty or partially active predicates",
+        "EventCode": "0x8079",
+        "EventName": "SVE_PRED_NOT_FULL_SPEC",
+        "BriefDescription": "SVE predicated operations with empty or partially active predicates"
+    },
+    {
+        "PublicDescription": "SVE MOVPRFX Operations speculatively executed.",
+        "EventCode": "0x807C",
+        "EventName": "SVE_MOVPRFX_SPEC",
+        "BriefDescription": "SVE MOVPRFX Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE MOVPRFX unfused Operations speculatively executed.",
+        "EventCode": "0x807F",
+        "EventName": "SVE_MOVPRFX_U_SPEC",
+        "BriefDescription": "SVE MOVPRFX unfused Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE load Operations speculatively executed.",
+        "EventCode": "0x8085",
+        "EventName": "ASE_SVE_LD_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE load Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE store Operations speculatively executed.",
+        "EventCode": "0x8086",
+        "EventName": "ASE_SVE_ST_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE store Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Prefetch Operations speculatively executed.",
+        "EventCode": "0x8087",
+        "EventName": "PRF_SPEC",
+        "BriefDescription": "Prefetch Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "General-purpose register load Operations speculatively executed.",
+        "EventCode": "0x8089",
+        "EventName": "BASE_LD_REG_SPEC",
+        "BriefDescription": "General-purpose register load Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "General-purpose register store Operations speculatively executed.",
+        "EventCode": "0x808A",
+        "EventName": "BASE_ST_REG_SPEC",
+        "BriefDescription": "General-purpose register store Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE unpredicated load register Operations speculatively executed.",
+        "EventCode": "0x8091",
+        "EventName": "SVE_LDR_REG_SPEC",
+        "BriefDescription": "SVE unpredicated load register Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE unpredicated store register Operations speculatively executed.",
+        "EventCode": "0x8092",
+        "EventName": "SVE_STR_REG_SPEC",
+        "BriefDescription": "SVE unpredicated store register Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE load predicate register Operations speculatively executed.",
+        "EventCode": "0x8095",
+        "EventName": "SVE_LDR_PREG_SPEC",
+        "BriefDescription": "SVE load predicate register Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE store predicate register Operations speculatively executed.",
+        "EventCode": "0x8096",
+        "EventName": "SVE_STR_PREG_SPEC",
+        "BriefDescription": "SVE store predicate register Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE contiguous prefetch element Operations speculatively executed.",
+        "EventCode": "0x809F",
+        "EventName": "SVE_PRF_CONTIG_SPEC",
+        "BriefDescription": "SVE contiguous prefetch element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE contiguous load multiple vector Operations speculatively executed.",
+        "EventCode": "0x80A5",
+        "EventName": "ASE_SVE_LD_MULTI_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE contiguous load multiple vector Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE contiguous store multiple vector Operations speculatively executed.",
+        "EventCode": "0x80A6",
+        "EventName": "ASE_SVE_ST_MULTI_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE contiguous store multiple vector Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE gather-load Operations speculatively executed.",
+        "EventCode": "0x80AD",
+        "EventName": "SVE_LD_GATHER_SPEC",
+        "BriefDescription": "SVE gather-load Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE scatter-store Operations speculatively executed.",
+        "EventCode": "0x80AE",
+        "EventName": "SVE_ST_SCATTER_SPEC",
+        "BriefDescription": "SVE scatter-store Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE gather-prefetch Operations speculatively executed.",
+        "EventCode": "0x80AF",
+        "EventName": "SVE_PRF_GATHER_SPEC",
+        "BriefDescription": "SVE gather-prefetch Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE First-fault load Operations speculatively executed.",
+        "EventCode": "0x80BC",
+        "EventName": "SVE_LDFF_SPEC",
+        "BriefDescription": "SVE First-fault load Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE first-fault load operations speculatively executed which set FFR bit to 0",
+        "EventCode": "0x80BD",
+        "EventName": "SVE_LDFF_FAULT_SPEC",
+        "BriefDescription": "SVE first-fault load operations speculatively executed which set FFR bit to 0"
+    },
+    {
+        "PublicDescription": "Scalable floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C0",
+        "EventName": "FP_SCALE_OPS_SPEC",
+        "BriefDescription": "Scalable floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Non-scalable floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C1",
+        "EventName": "FP_FIXED_OPS_SPEC",
+        "BriefDescription": "Non-scalable floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Scalable half-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C2",
+        "EventName": "FP_HP_SCALE_OPS_SPEC",
+        "BriefDescription": "Scalable half-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Non-scalable half-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C3",
+        "EventName": "FP_HP_FIXED_OPS_SPEC",
+        "BriefDescription": "Non-scalable half-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Scalable single-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C4",
+        "EventName": "FP_SP_SCALE_OPS_SPEC",
+        "BriefDescription": "Scalable single-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Non-scalable single-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C5",
+        "EventName": "FP_SP_FIXED_OPS_SPEC",
+        "BriefDescription": "Non-scalable single-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Scalable double-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C6",
+        "EventName": "FP_DP_SCALE_OPS_SPEC",
+        "BriefDescription": "Scalable double-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Non-scalable double-precision floating-point element Operations speculatively executed.",
+        "EventCode": "0x80C7",
+        "EventName": "FP_DP_FIXED_OPS_SPEC",
+        "BriefDescription": "Non-scalable double-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 8-bit integer operations speculatively executed",
+        "EventCode": "0x80E3",
+        "EventName": "ASE_SVE_INT8_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 8-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 16-bit integer operations speculatively executed",
+        "EventCode": "0x80E7",
+        "EventName": "ASE_SVE_INT16_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 16-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 32-bit integer operations speculatively executed",
+        "EventCode": "0x80EB",
+        "EventName": "ASE_SVE_INT32_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 32-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 64-bit integer operations speculatively executed",
+        "EventCode": "0x80EF",
+        "EventName": "ASE_SVE_INT64_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 64-bit integer operations speculatively executed"
+    }
+]

@@ -81,7 +81,7 @@ SYM_FUNC_START(__vdso_sgx_enter_enclave)
 	pop	%rbx
 	leave
 	.cfi_def_cfa		%rsp, 8
-	ret
+	RET
 
 	/* The out-of-line code runs with the pre-leave stack frame. */
 	.cfi_def_cfa		%rbp, 16

@@ -143,8 +143,8 @@ int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *pdev)
 			IFCVF_DBG(pdev, "hw->isr = %p\n", hw->isr);
 			break;
 		case VIRTIO_PCI_CAP_DEVICE_CFG:
-			hw->net_cfg = get_cap_addr(hw, &cap);
-			IFCVF_DBG(pdev, "hw->net_cfg = %p\n", hw->net_cfg);
+			hw->dev_cfg = get_cap_addr(hw, &cap);
+			IFCVF_DBG(pdev, "hw->dev_cfg = %p\n", hw->dev_cfg);
 			break;
 		}
 
@@ -153,7 +153,7 @@ next:
 	}
 
 	if (hw->common_cfg == NULL || hw->notify_base == NULL ||
-	    hw->isr == NULL || hw->net_cfg == NULL) {
+	    hw->isr == NULL || hw->dev_cfg == NULL) {
 		IFCVF_ERR(pdev, "Incomplete PCI capabilities\n");
 		return -EIO;
 	}
@@ -174,7 +174,7 @@ next:
 	IFCVF_DBG(pdev,
 		  "PCI capability mapping: common cfg: %p, notify base: %p\n, isr cfg: %p, device cfg: %p, multiplier: %u\n",
 		  hw->common_cfg, hw->notify_base, hw->isr,
-		  hw->net_cfg, hw->notify_off_multiplier);
+		  hw->dev_cfg, hw->notify_off_multiplier);
 
 	return 0;
 }
@@ -242,33 +242,54 @@ int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features)
 	return 0;
 }
 
-void ifcvf_read_net_config(struct ifcvf_hw *hw, u64 offset,
+u32 ifcvf_get_config_size(struct ifcvf_hw *hw)
+{
+	struct ifcvf_adapter *adapter;
+	u32 config_size;
+
+	adapter = vf_to_adapter(hw);
+	switch (hw->dev_type) {
+	case VIRTIO_ID_NET:
+		config_size = sizeof(struct virtio_net_config);
+		break;
+	case VIRTIO_ID_BLOCK:
+		config_size = sizeof(struct virtio_blk_config);
+		break;
+	default:
+		config_size = 0;
+		IFCVF_ERR(adapter->pdev, "VIRTIO ID %u not supported\n", hw->dev_type);
+	}
+
+	return config_size;
+}
+
+void ifcvf_read_dev_config(struct ifcvf_hw *hw, u64 offset,
 			   void *dst, int length)
 {
 	u8 old_gen, new_gen, *p;
 	int i;
 
-	WARN_ON(offset + length > sizeof(struct virtio_net_config));
+	WARN_ON(offset + length > hw->config_size);
 	do {
 		old_gen = ifc_ioread8(&hw->common_cfg->config_generation);
 		p = dst;
 		for (i = 0; i < length; i++)
-			*p++ = ifc_ioread8(hw->net_cfg + offset + i);
+			*p++ = ifc_ioread8(hw->dev_cfg + offset + i);
 
 		new_gen = ifc_ioread8(&hw->common_cfg->config_generation);
 	} while (old_gen != new_gen);
 }
 
-void ifcvf_write_net_config(struct ifcvf_hw *hw, u64 offset,
+void ifcvf_write_dev_config(struct ifcvf_hw *hw, u64 offset,
 			    const void *src, int length)
 {
 	const u8 *p;
 	int i;
 
 	p = src;
-	WARN_ON(offset + length > sizeof(struct virtio_net_config));
+	WARN_ON(offset + length > hw->config_size);
 	for (i = 0; i < length; i++)
-		ifc_iowrite8(*p++, hw->net_cfg + offset + i);
+		ifc_iowrite8(*p++, hw->dev_cfg + offset + i);
 }
 
 static void ifcvf_set_features(struct ifcvf_hw *hw, u64 features)

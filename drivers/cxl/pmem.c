@@ -19,9 +19,9 @@ static struct workqueue_struct *cxl_pmem_wq;
 
 static __read_mostly DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 
-static void clear_exclusive(void *cxlm)
+static void clear_exclusive(void *cxlds)
 {
-	clear_exclusive_cxl_commands(cxlm, exclusive_cmds);
+	clear_exclusive_cxl_commands(cxlds, exclusive_cmds);
 }
 
 static void unregister_nvdimm(void *nvdimm)
@@ -34,7 +34,7 @@ static int cxl_nvdimm_probe(struct device *dev)
 	struct cxl_nvdimm *cxl_nvd = to_cxl_nvdimm(dev);
 	struct cxl_memdev *cxlmd = cxl_nvd->cxlmd;
 	unsigned long flags = 0, cmd_mask = 0;
-	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct nvdimm *nvdimm;
 	int rc;
@@ -49,8 +49,8 @@ static int cxl_nvdimm_probe(struct device *dev)
 		goto out;
 	}
 
-	set_exclusive_cxl_commands(cxlm, exclusive_cmds);
-	rc = devm_add_action_or_reset(dev, clear_exclusive, cxlm);
+	set_exclusive_cxl_commands(cxlds, exclusive_cmds);
+	rc = devm_add_action_or_reset(dev, clear_exclusive, cxlds);
 	if (rc)
 		goto out;
 
@@ -80,7 +80,7 @@ static struct cxl_driver cxl_nvdimm_driver = {
 	.id = CXL_DEVICE_NVDIMM,
 };
 
-static int cxl_pmem_get_config_size(struct cxl_mem *cxlm,
+static int cxl_pmem_get_config_size(struct cxl_dev_state *cxlds,
 				    struct nd_cmd_get_config_size *cmd,
 				    unsigned int buf_len)
 {
@@ -88,14 +88,14 @@ static int cxl_pmem_get_config_size(struct cxl_mem *cxlm,
 		return -EINVAL;
 
 	*cmd = (struct nd_cmd_get_config_size) {
-		 .config_size = cxlm->lsa_size,
-		 .max_xfer = cxlm->payload_size,
+		 .config_size = cxlds->lsa_size,
+		 .max_xfer = cxlds->payload_size,
 	};
 
 	return 0;
 }
 
-static int cxl_pmem_get_config_data(struct cxl_mem *cxlm,
+static int cxl_pmem_get_config_data(struct cxl_dev_state *cxlds,
 				    struct nd_cmd_get_config_data_hdr *cmd,
 				    unsigned int buf_len)
 {
@@ -112,15 +112,14 @@ static int cxl_pmem_get_config_data(struct cxl_mem *cxlm,
 		.length = cmd->in_length,
 	};
 
-	rc = cxl_mem_mbox_send_cmd(cxlm, CXL_MBOX_OP_GET_LSA, &get_lsa,
-				   sizeof(get_lsa), cmd->out_buf,
-				   cmd->in_length);
+	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_GET_LSA, &get_lsa,
+			       sizeof(get_lsa), cmd->out_buf, cmd->in_length);
 	cmd->status = 0;
 
 	return rc;
 }
 
-static int cxl_pmem_set_config_data(struct cxl_mem *cxlm,
+static int cxl_pmem_set_config_data(struct cxl_dev_state *cxlds,
 				    struct nd_cmd_set_config_hdr *cmd,
 				    unsigned int buf_len)
 {
@@ -144,9 +143,9 @@ static int cxl_pmem_set_config_data(struct cxl_mem *cxlm,
 	};
 	memcpy(set_lsa->data, cmd->in_buf, cmd->in_length);
 
-	rc = cxl_mem_mbox_send_cmd(cxlm, CXL_MBOX_OP_SET_LSA, set_lsa,
-				   struct_size(set_lsa, data, cmd->in_length),
-				   NULL, 0);
+	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_SET_LSA, set_lsa,
+			       struct_size(set_lsa, data, cmd->in_length),
+			       NULL, 0);
 
 	/*
 	 * Set "firmware" status (4-packed bytes at the end of the input
@@ -164,18 +163,18 @@ static int cxl_pmem_nvdimm_ctl(struct nvdimm *nvdimm, unsigned int cmd,
 	struct cxl_nvdimm *cxl_nvd = nvdimm_provider_data(nvdimm);
 	unsigned long cmd_mask = nvdimm_cmd_mask(nvdimm);
 	struct cxl_memdev *cxlmd = cxl_nvd->cxlmd;
-	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
 	if (!test_bit(cmd, &cmd_mask))
 		return -ENOTTY;
 
 	switch (cmd) {
 	case ND_CMD_GET_CONFIG_SIZE:
-		return cxl_pmem_get_config_size(cxlm, buf, buf_len);
+		return cxl_pmem_get_config_size(cxlds, buf, buf_len);
 	case ND_CMD_GET_CONFIG_DATA:
-		return cxl_pmem_get_config_data(cxlm, buf, buf_len);
+		return cxl_pmem_get_config_data(cxlds, buf, buf_len);
 	case ND_CMD_SET_CONFIG_DATA:
-		return cxl_pmem_set_config_data(cxlm, buf, buf_len);
+		return cxl_pmem_set_config_data(cxlds, buf, buf_len);
 	default:
 		return -ENOTTY;
 	}
@@ -266,14 +265,24 @@ static void cxl_nvb_update_state(struct work_struct *work)
 	put_device(&cxl_nvb->dev);
 }
 
+static void cxl_nvdimm_bridge_state_work(struct cxl_nvdimm_bridge *cxl_nvb)
+{
+	/*
+	 * Take a reference that the workqueue will drop if new work
+	 * gets queued.
+	 */
+	get_device(&cxl_nvb->dev);
+	if (!queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
+		put_device(&cxl_nvb->dev);
+}
+
 static void cxl_nvdimm_bridge_remove(struct device *dev)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb = to_cxl_nvdimm_bridge(dev);
 
 	if (cxl_nvb->state == CXL_NVB_ONLINE)
 		cxl_nvb->state = CXL_NVB_OFFLINE;
-	if (queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
-		get_device(&cxl_nvb->dev);
+	cxl_nvdimm_bridge_state_work(cxl_nvb);
 }
 
 static int cxl_nvdimm_bridge_probe(struct device *dev)
@@ -294,8 +303,7 @@ static int cxl_nvdimm_bridge_probe(struct device *dev)
 	}
 
 	cxl_nvb->state = CXL_NVB_ONLINE;
-	if (queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
-		get_device(&cxl_nvb->dev);
+	cxl_nvdimm_bridge_state_work(cxl_nvb);
 
 	return 0;
 }
@@ -306,6 +314,31 @@ static struct cxl_driver cxl_nvdimm_bridge_driver = {
 	.remove = cxl_nvdimm_bridge_remove,
 	.id = CXL_DEVICE_NVDIMM_BRIDGE,
 };
+
+/*
+ * Return all bridges to the CXL_NVB_NEW state to invalidate any
+ * ->state_work referring to the now destroyed cxl_pmem_wq.
+ */
+static int cxl_nvdimm_bridge_reset(struct device *dev, void *data)
+{
+	struct cxl_nvdimm_bridge *cxl_nvb;
+
+	if (!is_cxl_nvdimm_bridge(dev))
+		return 0;
+
+	cxl_nvb = to_cxl_nvdimm_bridge(dev);
+	device_lock(dev);
+	cxl_nvb->state = CXL_NVB_NEW;
+	device_unlock(dev);
+
+	return 0;
+}
+
+static void destroy_cxl_pmem_wq(void)
+{
+	destroy_workqueue(cxl_pmem_wq);
+	bus_for_each_dev(&cxl_bus_type, NULL, NULL, cxl_nvdimm_bridge_reset);
+}
 
 static __init int cxl_pmem_init(void)
 {
@@ -332,7 +365,7 @@ static __init int cxl_pmem_init(void)
 err_nvdimm:
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
 err_bridge:
-	destroy_workqueue(cxl_pmem_wq);
+	destroy_cxl_pmem_wq();
 	return rc;
 }
 
@@ -340,7 +373,7 @@ static __exit void cxl_pmem_exit(void)
 {
 	cxl_driver_unregister(&cxl_nvdimm_driver);
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
-	destroy_workqueue(cxl_pmem_wq);
+	destroy_cxl_pmem_wq();
 }
 
 MODULE_LICENSE("GPL v2");

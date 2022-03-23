@@ -649,6 +649,8 @@ void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu)
 	int ext;
 	unsigned long lpcr;
 
+	WARN_ON_ONCE(cpu_has_feature(CPU_FTR_ARCH_300));
+
 	/* Insert EXTERNAL bit into LPCR at the MER bit position */
 	ext = (vcpu->arch.pending_exceptions >> BOOK3S_IRQPRIO_EXTERNAL) & 1;
 	lpcr = mfspr(SPRN_LPCR);
@@ -682,60 +684,23 @@ static void flush_guest_tlb(struct kvm *kvm)
 	unsigned long rb, set;
 
 	rb = PPC_BIT(52);	/* IS = 2 */
-	if (kvm_is_radix(kvm)) {
-		/* R=1 PRS=1 RIC=2 */
+	for (set = 0; set < kvm->arch.tlb_sets; ++set) {
+		/* R=0 PRS=0 RIC=0 */
 		asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
-			     : : "r" (rb), "i" (1), "i" (1), "i" (2),
+			     : : "r" (rb), "i" (0), "i" (0), "i" (0),
 			       "r" (0) : "memory");
-		for (set = 1; set < kvm->arch.tlb_sets; ++set) {
-			rb += PPC_BIT(51);	/* increment set number */
-			/* R=1 PRS=1 RIC=0 */
-			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
-				     : : "r" (rb), "i" (1), "i" (1), "i" (0),
-				       "r" (0) : "memory");
-		}
-		asm volatile("ptesync": : :"memory");
-		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it now.
-		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
-	} else {
-		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
-			/* R=0 PRS=0 RIC=0 */
-			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
-				     : : "r" (rb), "i" (0), "i" (0), "i" (0),
-				       "r" (0) : "memory");
-			rb += PPC_BIT(51);	/* increment set number */
-		}
-		asm volatile("ptesync": : :"memory");
-		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it now.
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
+		rb += PPC_BIT(51);	/* increment set number */
 	}
+	asm volatile("ptesync": : :"memory");
 }
 
-void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,
-				 struct kvm_nested_guest *nested)
+void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu)
 {
-	cpumask_t *need_tlb_flush;
-
-	/*
-	 * On POWER9, individual threads can come in here, but the
-	 * TLB is shared between the 4 threads in a core, hence
-	 * invalidating on one thread invalidates for all.
-	 * Thus we make all 4 threads use the same bit.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pcpu = cpu_first_tlb_thread_sibling(pcpu);
-
-	if (nested)
-		need_tlb_flush = &nested->need_tlb_flush;
-	else
-		need_tlb_flush = &kvm->arch.need_tlb_flush;
-
-	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
+	if (cpumask_test_cpu(pcpu, &kvm->arch.need_tlb_flush)) {
 		flush_guest_tlb(kvm);
 
 		/* Clear the bit after the TLB flush */
-		cpumask_clear_cpu(pcpu, need_tlb_flush);
+		cpumask_clear_cpu(pcpu, &kvm->arch.need_tlb_flush);
 	}
 }
 EXPORT_SYMBOL_GPL(kvmppc_check_need_tlb_flush);

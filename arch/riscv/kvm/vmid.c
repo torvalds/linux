@@ -65,7 +65,7 @@ bool kvm_riscv_stage2_vmid_ver_changed(struct kvm_vmid *vmid)
 
 void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *v;
 	struct cpumask hmask;
 	struct kvm_vmid *vmid = &vcpu->kvm->arch.vmid;

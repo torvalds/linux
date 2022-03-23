@@ -5534,7 +5534,7 @@ void mlx5e_destroy_netdev(struct mlx5e_priv *priv)
 static int mlx5e_resume(struct auxiliary_device *adev)
 {
 	struct mlx5_adev *edev = container_of(adev, struct mlx5_adev, adev);
-	struct mlx5e_priv *priv = dev_get_drvdata(&adev->dev);
+	struct mlx5e_priv *priv = auxiliary_get_drvdata(adev);
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = edev->mdev;
 	int err;
@@ -5557,7 +5557,7 @@ static int mlx5e_resume(struct auxiliary_device *adev)
 
 static int mlx5e_suspend(struct auxiliary_device *adev, pm_message_t state)
 {
-	struct mlx5e_priv *priv = dev_get_drvdata(&adev->dev);
+	struct mlx5e_priv *priv = auxiliary_get_drvdata(adev);
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
@@ -5589,7 +5589,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	mlx5e_build_nic_netdev(netdev);
 
 	priv = netdev_priv(netdev);
-	dev_set_drvdata(&adev->dev, priv);
+	auxiliary_set_drvdata(adev, priv);
 
 	priv->profile = profile;
 	priv->ppriv = NULL;
@@ -5637,7 +5637,7 @@ err_destroy_netdev:
 
 static void mlx5e_remove(struct auxiliary_device *adev)
 {
-	struct mlx5e_priv *priv = dev_get_drvdata(&adev->dev);
+	struct mlx5e_priv *priv = auxiliary_get_drvdata(adev);
 	pm_message_t state = {};
 
 	mlx5e_dcbnl_delete_app(priv);

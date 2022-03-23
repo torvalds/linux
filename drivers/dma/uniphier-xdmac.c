@@ -131,8 +131,9 @@ uniphier_xdmac_next_desc(struct uniphier_xdmac_chan *xc)
 static void uniphier_xdmac_chan_start(struct uniphier_xdmac_chan *xc,
 				      struct uniphier_xdmac_desc *xd)
 {
-	u32 src_mode, src_addr, src_width;
-	u32 dst_mode, dst_addr, dst_width;
+	u32 src_mode, src_width;
+	u32 dst_mode, dst_width;
+	dma_addr_t src_addr, dst_addr;
 	u32 val, its, tnum;
 	enum dma_slave_buswidth buswidth;
 

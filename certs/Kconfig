@@ -17,21 +17,19 @@ config MODULE_SIG_KEY
 
 choice
 	prompt "Type of module signing key to be generated"
-	default MODULE_SIG_KEY_TYPE_RSA
+	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
 	help
 	 The type of module signing key type to generate. This option
 	 does not apply if a #PKCS11 URI is used.
 
 config MODULE_SIG_KEY_TYPE_RSA
 	bool "RSA"
-	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
 	help
 	 Use an RSA key for module signing.
 
 config MODULE_SIG_KEY_TYPE_ECDSA
 	bool "ECDSA"
 	select CRYPTO_ECDSA
-	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
 	help
 	 Use an elliptic curve key (NIST P384) for module signing. Consider
 	 using a strong hash like sha256 or sha384 for hashing modules.

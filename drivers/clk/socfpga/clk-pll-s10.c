@@ -113,7 +113,7 @@ static unsigned long clk_boot_clk_recalc_rate(struct clk_hw *hwclk,
 		SWCTRLBTCLKSEL_MASK) >>
 		SWCTRLBTCLKSEL_SHIFT);
 	div += 1;
-	return parent_rate /= div;
+	return parent_rate / div;
 }
 
 

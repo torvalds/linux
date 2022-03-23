@@ -23,7 +23,9 @@
 
 #include "unwind.h"
 #include "libunwind-aarch64.h"
+#define perf_event_arm_regs perf_event_arm64_regs
 #include <../../../../arch/arm64/include/uapi/asm/perf_regs.h>
+#undef perf_event_arm_regs
 #include "../../arch/arm64/util/unwind-libunwind.c"
 
 /* NO_LIBUNWIND_DEBUG_FRAME is a feature flag for local libunwind,

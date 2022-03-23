@@ -21,8 +21,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
+#include <linux/comedi/comedidev.h>
 #include <linux/delay.h>
 
 /*

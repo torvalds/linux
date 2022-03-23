@@ -52,7 +52,7 @@ SYM_INNER_LABEL(__put_user_nocheck_1, SYM_L_GLOBAL)
 1:	movb %al,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_1)
 EXPORT_SYMBOL(__put_user_1)
 EXPORT_SYMBOL(__put_user_nocheck_1)
@@ -66,7 +66,7 @@ SYM_INNER_LABEL(__put_user_nocheck_2, SYM_L_GLOBAL)
 2:	movw %ax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_2)
 EXPORT_SYMBOL(__put_user_2)
 EXPORT_SYMBOL(__put_user_nocheck_2)
@@ -80,7 +80,7 @@ SYM_INNER_LABEL(__put_user_nocheck_4, SYM_L_GLOBAL)
 3:	movl %eax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_4)
 EXPORT_SYMBOL(__put_user_4)
 EXPORT_SYMBOL(__put_user_nocheck_4)

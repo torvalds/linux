@@ -164,7 +164,7 @@ static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
 	struct request *rq = scsi_cmd_to_rq(cmd);
 
-	return *(struct scsi_driver **)rq->rq_disk->private_data;
+	return *(struct scsi_driver **)rq->q->disk->private_data;
 }
 
 void scsi_done(struct scsi_cmnd *cmd);

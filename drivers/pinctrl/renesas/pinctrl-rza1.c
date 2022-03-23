@@ -757,9 +757,9 @@ static int rza1_gpio_request(struct gpio_chip *chip, unsigned int gpio)
 }
 
 /**
- * rza1_gpio_disable_free() - reset a pin
+ * rza1_gpio_free() - reset a pin
  *
- * Surprisingly, disable_free a gpio, is equivalent to request it.
+ * Surprisingly, freeing a gpio is equivalent to requesting it.
  * Reset pin to port mode, with input buffer disabled. This overwrites all
  * port direction settings applied with set_direction
  *
@@ -875,7 +875,7 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 }
 
 /**
- * rza1_parse_pmx_function() - parse a pin mux sub-node
+ * rza1_parse_pinmux_node() - parse a pin mux sub-node
  *
  * @rza1_pctl: RZ/A1 pin controller device
  * @np: of pmx sub-node

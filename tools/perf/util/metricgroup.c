@@ -209,8 +209,8 @@ static struct metric *metric__new(const struct pmu_event *pe,
 	m->metric_name = pe->metric_name;
 	m->modifier = modifier ? strdup(modifier) : NULL;
 	if (modifier && !m->modifier) {
-		free(m);
 		expr__ctx_free(m->pctx);
+		free(m);
 		return NULL;
 	}
 	m->metric_expr = pe->metric_expr;
@@ -314,7 +314,7 @@ static int setup_metric_events(struct hashmap *ids,
 		 */
 		metric_id = evsel__metric_id(ev);
 		evlist__for_each_entry_continue(metric_evlist, ev) {
-			if (!strcmp(evsel__metric_id(metric_events[i]), metric_id))
+			if (!strcmp(evsel__metric_id(ev), metric_id))
 				ev->metric_leader = metric_events[i];
 		}
 	}
@@ -1115,13 +1115,27 @@ out:
 	return ret;
 }
 
+/**
+ * metric_list_cmp - list_sort comparator that sorts metrics with more events to
+ *                   the front. duration_time is excluded from the count.
+ */
 static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 			   const struct list_head *r)
 {
 	const struct metric *left = container_of(l, struct metric, nd);
 	const struct metric *right = container_of(r, struct metric, nd);
+	struct expr_id_data *data;
+	int left_count, right_count;
 
-	return hashmap__size(right->pctx->ids) - hashmap__size(left->pctx->ids);
+	left_count = hashmap__size(left->pctx->ids);
+	if (!expr__get_id(left->pctx, "duration_time", &data))
+		left_count--;
+
+	right_count = hashmap__size(right->pctx->ids);
+	if (!expr__get_id(right->pctx, "duration_time", &data))
+		right_count--;
+
+	return right_count - left_count;
 }
 
 /**
@@ -1299,14 +1313,16 @@ err_out:
 /**
  * parse_ids - Build the event string for the ids and parse them creating an
  *             evlist. The encoded metric_ids are decoded.
+ * @metric_no_merge: is metric sharing explicitly disabled.
  * @fake_pmu: used when testing metrics not supported by the current CPU.
  * @ids: the event identifiers parsed from a metric.
  * @modifier: any modifiers added to the events.
  * @has_constraint: false if events should be placed in a weak group.
  * @out_evlist: the created list of events.
  */
-static int parse_ids(struct perf_pmu *fake_pmu, struct expr_parse_ctx *ids,
-		     const char *modifier, bool has_constraint, struct evlist **out_evlist)
+static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
+		     struct expr_parse_ctx *ids, const char *modifier,
+		     bool has_constraint, struct evlist **out_evlist)
 {
 	struct parse_events_error parse_error;
 	struct evlist *parsed_evlist;
@@ -1314,12 +1330,19 @@ static int parse_ids(struct perf_pmu *fake_pmu, struct expr_parse_ctx *ids,
 	int ret;
 
 	*out_evlist = NULL;
-	if (hashmap__size(ids->ids) == 0) {
+	if (!metric_no_merge || hashmap__size(ids->ids) == 0) {
 		char *tmp;
 		/*
-		 * No ids/events in the expression parsing context. Events may
-		 * have been removed because of constant evaluation, e.g.:
-		 *  event1 if #smt_on else 0
+		 * We may fail to share events between metrics because
+		 * duration_time isn't present in one metric. For example, a
+		 * ratio of cache misses doesn't need duration_time but the same
+		 * events may be used for a misses per second. Events without
+		 * sharing implies multiplexing, that is best avoided, so place
+		 * duration_time in every group.
+		 *
+		 * Also, there may be no ids/events in the expression parsing
+		 * context because of constant evaluation, e.g.:
+		 *    event1 if #smt_on else 0
 		 * Add a duration_time event to avoid a parse error on an empty
 		 * string.
 		 */
@@ -1387,7 +1410,8 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		ret = build_combined_expr_ctx(&metric_list, &combined);
 
 		if (!ret && combined && hashmap__size(combined->ids)) {
-			ret = parse_ids(fake_pmu, combined, /*modifier=*/NULL,
+			ret = parse_ids(metric_no_merge, fake_pmu, combined,
+					/*modifier=*/NULL,
 					/*has_constraint=*/true,
 					&combined_evlist);
 		}
@@ -1435,7 +1459,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 			}
 		}
 		if (!metric_evlist) {
-			ret = parse_ids(fake_pmu, m->pctx, m->modifier,
+			ret = parse_ids(metric_no_merge, fake_pmu, m->pctx, m->modifier,
 					m->has_constraint, &m->evlist);
 			if (ret)
 				goto out;

@@ -38,7 +38,6 @@
 #include "clk/clk_11_0_0_offset.h"
 #include "clk/clk_11_0_0_sh_mask.h"
 
-#include "irq/dcn20/irq_service_dcn20.h"
 
 #undef FN
 #define FN(reg_name, field_name) \
@@ -223,8 +222,6 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool force_reset = false;
 	bool p_state_change_support;
 	int total_plane_count;
-	int irq_src;
-	uint32_t hpd_state;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -242,13 +239,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->res_pool->pp_smu)
 		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
 
-	for (irq_src = DC_IRQ_SOURCE_HPD1; irq_src <= DC_IRQ_SOURCE_HPD6; irq_src++) {
-		hpd_state = dc_get_hpd_state_dcn20(dc->res_pool->irqs, irq_src);
-		if (hpd_state)
-			break;
-	}
-
-	if (display_count == 0 && !hpd_state)
+	if (display_count == 0)
 		enter_display_off = true;
 
 	if (enter_display_off == safe_to_lower) {

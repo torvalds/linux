@@ -84,7 +84,7 @@
 	},
 	.fixup_map_ringbuf = { 1 },
 	.result = REJECT,
-	.errstr = "R0 pointer arithmetic on mem_or_null prohibited",
+	.errstr = "R0 pointer arithmetic on alloc_mem_or_null prohibited",
 },
 {
 	"check corrupted spill/fill",

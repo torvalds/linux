@@ -1069,6 +1069,26 @@ out_unlock:
 	return ret ? ret : count;
 }
 
+static void __nvmf_concat_opt_tokens(struct seq_file *seq_file)
+{
+	const struct match_token *tok;
+	int idx;
+
+	/*
+	 * Add dummy entries for instance and cntlid to
+	 * signal an invalid/non-existing controller
+	 */
+	seq_puts(seq_file, "instance=-1,cntlid=-1");
+	for (idx = 0; idx < ARRAY_SIZE(opt_tokens); idx++) {
+		tok = &opt_tokens[idx];
+		if (tok->token == NVMF_OPT_ERR)
+			continue;
+		seq_puts(seq_file, ",");
+		seq_puts(seq_file, tok->pattern);
+	}
+	seq_puts(seq_file, "\n");
+}
+
 static int nvmf_dev_show(struct seq_file *seq_file, void *private)
 {
 	struct nvme_ctrl *ctrl;
@@ -1077,7 +1097,7 @@ static int nvmf_dev_show(struct seq_file *seq_file, void *private)
 	mutex_lock(&nvmf_dev_mutex);
 	ctrl = seq_file->private;
 	if (!ctrl) {
-		ret = -EINVAL;
+		__nvmf_concat_opt_tokens(seq_file);
 		goto out_unlock;
 	}
 

@@ -103,6 +103,39 @@ xlog_cil_iovec_space(
 }
 
 /*
+ * shadow buffers can be large, so we need to use kvmalloc() here to ensure
+ * success. Unfortunately, kvmalloc() only allows GFP_KERNEL contexts to fall
+ * back to vmalloc, so we can't actually do anything useful with gfp flags to
+ * control the kmalloc() behaviour within kvmalloc(). Hence kmalloc() will do
+ * direct reclaim and compaction in the slow path, both of which are
+ * horrendously expensive. We just want kmalloc to fail fast and fall back to
+ * vmalloc if it can't get somethign straight away from the free lists or buddy
+ * allocator. Hence we have to open code kvmalloc outselves here.
+ *
+ * Also, we are in memalloc_nofs_save task context here, so despite the use of
+ * GFP_KERNEL here, we are actually going to be doing GFP_NOFS allocations. This
+ * is actually the only way to make vmalloc() do GFP_NOFS allocations, so lets
+ * just all pretend this is a GFP_KERNEL context operation....
+ */
+static inline void *
+xlog_cil_kvmalloc(
+	size_t		buf_size)
+{
+	gfp_t		flags = GFP_KERNEL;
+	void		*p;
+
+	flags &= ~__GFP_DIRECT_RECLAIM;
+	flags |= __GFP_NOWARN | __GFP_NORETRY;
+	do {
+		p = kmalloc(buf_size, flags);
+		if (!p)
+			p = vmalloc(buf_size);
+	} while (!p);
+
+	return p;
+}
+
+/*
  * Allocate or pin log vector buffers for CIL insertion.
  *
  * The CIL currently uses disposable buffers for copying a snapshot of the
@@ -203,25 +236,16 @@ xlog_cil_alloc_shadow_bufs(
 		 */
 		if (!lip->li_lv_shadow ||
 		    buf_size > lip->li_lv_shadow->lv_size) {
-
 			/*
 			 * We free and allocate here as a realloc would copy
-			 * unnecessary data. We don't use kmem_zalloc() for the
+			 * unnecessary data. We don't use kvzalloc() for the
 			 * same reason - we don't need to zero the data area in
 			 * the buffer, only the log vector header and the iovec
 			 * storage.
 			 */
 			kmem_free(lip->li_lv_shadow);
+			lv = xlog_cil_kvmalloc(buf_size);
 
-			/*
-			 * We are in transaction context, which means this
-			 * allocation will pick up GFP_NOFS from the
-			 * memalloc_nofs_save/restore context the transaction
-			 * holds. This means we can use GFP_KERNEL here so the
-			 * generic kvmalloc() code will run vmalloc on
-			 * contiguous page allocation failure as we require.
-			 */
-			lv = kvmalloc(buf_size, GFP_KERNEL);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -1442,9 +1466,9 @@ out_shutdown:
  */
 bool
 xfs_log_item_in_current_chkpt(
-	struct xfs_log_item *lip)
+	struct xfs_log_item	*lip)
 {
-	struct xfs_cil_ctx *ctx = lip->li_mountp->m_log->l_cilp->xc_ctx;
+	struct xfs_cil		*cil = lip->li_mountp->m_log->l_cilp;
 
 	if (list_empty(&lip->li_cil))
 		return false;
@@ -1454,7 +1478,7 @@ xfs_log_item_in_current_chkpt(
 	 * first checkpoint it is written to. Hence if it is different to the
 	 * current sequence, we're in a new checkpoint.
 	 */
-	return lip->li_seq == ctx->sequence;
+	return lip->li_seq == READ_ONCE(cil->xc_current_sequence);
 }
 
 /*

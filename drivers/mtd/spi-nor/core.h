@@ -250,7 +250,7 @@ struct spi_nor_otp {
  *                      higher index in the array, the higher priority.
  * @erase_map:		the erase map parsed from the SFDP Sector Map Parameter
  *                      Table.
- * @otp_info:		describes the OTP regions.
+ * @otp:		SPI NOR OTP info.
  * @octal_dtr_enable:	enables SPI NOR octal DTR mode.
  * @quad_enable:	enables SPI NOR quad mode.
  * @set_4byte_addr_mode: puts the SPI NOR in 4 byte addressing mode.
@@ -262,7 +262,6 @@ struct spi_nor_otp {
  *                      e.g. different opcodes, specific address calculation,
  *                      page size, etc.
  * @locking_ops:	SPI NOR locking methods.
- * @otp:		SPI NOR OTP methods.
  */
 struct spi_nor_flash_parameter {
 	u64				size;
@@ -298,6 +297,9 @@ struct spi_nor_flash_parameter {
  *             parameters that could not be extracted by other means (i.e.
  *             when information provided by the SFDP/flash_info tables are
  *             incomplete or wrong).
+ * @late_init: used to initialize flash parameters that are not declared in the
+ *             JESD216 SFDP standard, or where SFDP tables not defined at all.
+ *             Will replace the default_init() hook.
  *
  * Those hooks can be used to tweak the SPI NOR configuration when the SFDP
  * table is broken or not available.
@@ -308,89 +310,121 @@ struct spi_nor_fixups {
 			 const struct sfdp_parameter_header *bfpt_header,
 			 const struct sfdp_bfpt *bfpt);
 	void (*post_sfdp)(struct spi_nor *nor);
+	void (*late_init)(struct spi_nor *nor);
 };
 
+/**
+ * struct flash_info - SPI NOR flash_info entry.
+ * @name: the name of the flash.
+ * @id:             the flash's ID bytes. The first three bytes are the
+ *                  JEDIC ID. JEDEC ID zero means "no ID" (mostly older chips).
+ * @id_len:         the number of bytes of ID.
+ * @sector_size:    the size listed here is what works with SPINOR_OP_SE, which
+ *                  isn't necessarily called a "sector" by the vendor.
+ * @n_sectors:      the number of sectors.
+ * @page_size:      the flash's page size.
+ * @addr_width:     the flash's address width.
+ *
+ * @parse_sfdp:     true when flash supports SFDP tables. The false value has no
+ *                  meaning. If one wants to skip the SFDP tables, one should
+ *                  instead use the SPI_NOR_SKIP_SFDP sfdp_flag.
+ * @flags:          flags that indicate support that is not defined by the
+ *                  JESD216 standard in its SFDP tables. Flag meanings:
+ *   SPI_NOR_HAS_LOCK:        flash supports lock/unlock via SR
+ *   SPI_NOR_HAS_TB:          flash SR has Top/Bottom (TB) protect bit. Must be
+ *                            used with SPI_NOR_HAS_LOCK.
+ *   SPI_NOR_TB_SR_BIT6:      Top/Bottom (TB) is bit 6 of status register.
+ *                            Must be used with SPI_NOR_HAS_TB.
+ *   SPI_NOR_4BIT_BP:         flash SR has 4 bit fields (BP0-3) for block
+ *                            protection.
+ *   SPI_NOR_BP3_SR_BIT6:     BP3 is bit 6 of status register. Must be used with
+ *                            SPI_NOR_4BIT_BP.
+ *   SPI_NOR_SWP_IS_VOLATILE: flash has volatile software write protection bits.
+ *                            Usually these will power-up in a write-protected
+ *                            state.
+ *   SPI_NOR_NO_ERASE:        no erase command needed.
+ *   NO_CHIP_ERASE:           chip does not support chip erase.
+ *   SPI_NOR_NO_FR:           can't do fastread.
+ *   USE_CLSR:                use CLSR command.
+ *   USE_FSR:                 use flag status register
+ *   SPI_NOR_XSR_RDY:         S3AN flashes have specific opcode to read the
+ *                            status register.
+ *
+ * @no_sfdp_flags:  flags that indicate support that can be discovered via SFDP.
+ *                  Used when SFDP tables are not defined in the flash. These
+ *                  flags are used together with the SPI_NOR_SKIP_SFDP flag.
+ *   SPI_NOR_SKIP_SFDP:       skip parsing of SFDP tables.
+ *   SECT_4K:                 SPINOR_OP_BE_4K works uniformly.
+ *   SECT_4K_PMC:             SPINOR_OP_BE_4K_PMC works uniformly.
+ *   SPI_NOR_DUAL_READ:       flash supports Dual Read.
+ *   SPI_NOR_QUAD_READ:       flash supports Quad Read.
+ *   SPI_NOR_OCTAL_READ:      flash supports Octal Read.
+ *   SPI_NOR_OCTAL_DTR_READ:  flash supports octal DTR Read.
+ *   SPI_NOR_OCTAL_DTR_PP:    flash supports Octal DTR Page Program.
+ *
+ * @fixup_flags:    flags that indicate support that can be discovered via SFDP
+ *                  ideally, but can not be discovered for this particular flash
+ *                  because the SFDP table that indicates this support is not
+ *                  defined by the flash. In case the table for this support is
+ *                  defined but has wrong values, one should instead use a
+ *                  post_sfdp() hook to set the SNOR_F equivalent flag.
+ *
+ *   SPI_NOR_4B_OPCODES:      use dedicated 4byte address op codes to support
+ *                            memory size above 128Mib.
+ *   SPI_NOR_IO_MODE_EN_VOLATILE: flash enables the best available I/O mode
+ *                            via a volatile bit.
+ * @mfr_flags:      manufacturer private flags. Used in the manufacturer fixup
+ *                  hooks to differentiate support between flashes of the same
+ *                  manufacturer.
+ * @otp_org:        flash's OTP organization.
+ * @fixups:         part specific fixup hooks.
+ */
 struct flash_info {
-	char		*name;
+	char *name;
+	u8 id[SPI_NOR_MAX_ID_LEN];
+	u8 id_len;
+	unsigned sector_size;
+	u16 n_sectors;
+	u16 page_size;
+	u16 addr_width;
 
-	/*
-	 * This array stores the ID bytes.
-	 * The first three bytes are the JEDIC ID.
-	 * JEDEC ID zero means "no ID" (mostly older chips).
-	 */
-	u8		id[SPI_NOR_MAX_ID_LEN];
-	u8		id_len;
+	bool parse_sfdp;
+	u16 flags;
+#define SPI_NOR_HAS_LOCK		BIT(0)
+#define SPI_NOR_HAS_TB			BIT(1)
+#define SPI_NOR_TB_SR_BIT6		BIT(2)
+#define SPI_NOR_4BIT_BP			BIT(3)
+#define SPI_NOR_BP3_SR_BIT6		BIT(4)
+#define SPI_NOR_SWP_IS_VOLATILE		BIT(5)
+#define SPI_NOR_NO_ERASE		BIT(6)
+#define NO_CHIP_ERASE			BIT(7)
+#define SPI_NOR_NO_FR			BIT(8)
+#define USE_CLSR			BIT(9)
+#define USE_FSR				BIT(10)
+#define SPI_NOR_XSR_RDY			BIT(11)
 
-	/* The size listed here is what works with SPINOR_OP_SE, which isn't
-	 * necessarily called a "sector" by the vendor.
-	 */
-	unsigned	sector_size;
-	u16		n_sectors;
+	u8 no_sfdp_flags;
+#define SPI_NOR_SKIP_SFDP		BIT(0)
+#define SECT_4K				BIT(1)
+#define SECT_4K_PMC			BIT(2)
+#define SPI_NOR_DUAL_READ		BIT(3)
+#define SPI_NOR_QUAD_READ		BIT(4)
+#define SPI_NOR_OCTAL_READ		BIT(5)
+#define SPI_NOR_OCTAL_DTR_READ		BIT(6)
+#define SPI_NOR_OCTAL_DTR_PP		BIT(7)
 
-	u16		page_size;
-	u16		addr_width;
+	u8 fixup_flags;
+#define SPI_NOR_4B_OPCODES		BIT(0)
+#define SPI_NOR_IO_MODE_EN_VOLATILE	BIT(1)
 
-	u32		flags;
-#define SECT_4K			BIT(0)	/* SPINOR_OP_BE_4K works uniformly */
-#define SPI_NOR_NO_ERASE	BIT(1)	/* No erase command needed */
-#define SST_WRITE		BIT(2)	/* use SST byte programming */
-#define SPI_NOR_NO_FR		BIT(3)	/* Can't do fastread */
-#define SECT_4K_PMC		BIT(4)	/* SPINOR_OP_BE_4K_PMC works uniformly */
-#define SPI_NOR_DUAL_READ	BIT(5)	/* Flash supports Dual Read */
-#define SPI_NOR_QUAD_READ	BIT(6)	/* Flash supports Quad Read */
-#define USE_FSR			BIT(7)	/* use flag status register */
-#define SPI_NOR_HAS_LOCK	BIT(8)	/* Flash supports lock/unlock via SR */
-#define SPI_NOR_HAS_TB		BIT(9)	/*
-					 * Flash SR has Top/Bottom (TB) protect
-					 * bit. Must be used with
-					 * SPI_NOR_HAS_LOCK.
-					 */
-#define SPI_NOR_XSR_RDY		BIT(10)	/*
-					 * S3AN flashes have specific opcode to
-					 * read the status register.
-					 */
-#define SPI_NOR_4B_OPCODES	BIT(11)	/*
-					 * Use dedicated 4byte address op codes
-					 * to support memory size above 128Mib.
-					 */
-#define NO_CHIP_ERASE		BIT(12) /* Chip does not support chip erase */
-#define SPI_NOR_SKIP_SFDP	BIT(13)	/* Skip parsing of SFDP tables */
-#define USE_CLSR		BIT(14)	/* use CLSR command */
-#define SPI_NOR_OCTAL_READ	BIT(15)	/* Flash supports Octal Read */
-#define SPI_NOR_TB_SR_BIT6	BIT(16)	/*
-					 * Top/Bottom (TB) is bit 6 of
-					 * status register. Must be used with
-					 * SPI_NOR_HAS_TB.
-					 */
-#define SPI_NOR_4BIT_BP		BIT(17) /*
-					 * Flash SR has 4 bit fields (BP0-3)
-					 * for block protection.
-					 */
-#define SPI_NOR_BP3_SR_BIT6	BIT(18) /*
-					 * BP3 is bit 6 of status register.
-					 * Must be used with SPI_NOR_4BIT_BP.
-					 */
-#define SPI_NOR_OCTAL_DTR_READ	BIT(19) /* Flash supports octal DTR Read. */
-#define SPI_NOR_OCTAL_DTR_PP	BIT(20) /* Flash supports Octal DTR Page Program */
-#define SPI_NOR_IO_MODE_EN_VOLATILE	BIT(21) /*
-						 * Flash enables the best
-						 * available I/O mode via a
-						 * volatile bit.
-						 */
-#define SPI_NOR_SWP_IS_VOLATILE	BIT(22)	/*
-					 * Flash has volatile software write
-					 * protection bits. Usually these will
-					 * power-up in a write-protected state.
-					 */
+	u8 mfr_flags;
 
 	const struct spi_nor_otp_organization otp_org;
-
-	/* Part specific fixup hooks. */
 	const struct spi_nor_fixups *fixups;
 };
 
 /* Used when the "_ext_id" is two bytes at most */
-#define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
+#define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors)		\
 		.id = {							\
 			((_jedec_id) >> 16) & 0xff,			\
 			((_jedec_id) >> 8) & 0xff,			\
@@ -402,9 +436,8 @@ struct flash_info {
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.flags = (_flags),
 
-#define INFO6(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
+#define INFO6(_jedec_id, _ext_id, _sector_size, _n_sectors)		\
 		.id = {							\
 			((_jedec_id) >> 16) & 0xff,			\
 			((_jedec_id) >> 8) & 0xff,			\
@@ -417,14 +450,13 @@ struct flash_info {
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.flags = (_flags),
 
-#define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_width, _flags)	\
+#define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_width)	\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = (_page_size),				\
 		.addr_width = (_addr_width),				\
-		.flags = (_flags),
+		.flags = SPI_NOR_NO_ERASE | SPI_NOR_NO_FR,		\
 
 #define S3AN_INFO(_jedec_id, _n_sectors, _page_size)			\
 		.id = {							\
@@ -446,6 +478,21 @@ struct flash_info {
 			.offset = (_offset),				\
 			.n_regions = (_n_regions),			\
 		},
+
+#define PARSE_SFDP							\
+	.parse_sfdp = true,						\
+
+#define FLAGS(_flags)							\
+		.flags = (_flags),					\
+
+#define NO_SFDP_FLAGS(_no_sfdp_flags)					\
+		.no_sfdp_flags = (_no_sfdp_flags),			\
+
+#define FIXUP_FLAGS(_fixup_flags)					\
+		.fixup_flags = (_fixup_flags),				\
+
+#define MFR_FLAGS(_mfr_flags)						\
+		.mfr_flags = (_mfr_flags),				\
 
 /**
  * struct spi_nor_manufacturer - SPI NOR manufacturer object
@@ -549,12 +596,12 @@ int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
 
 void spi_nor_init_default_locking_ops(struct spi_nor *nor);
 void spi_nor_try_unlock_all(struct spi_nor *nor);
-void spi_nor_register_locking_ops(struct spi_nor *nor);
-void spi_nor_otp_init(struct spi_nor *nor);
+void spi_nor_set_mtd_locking_ops(struct spi_nor *nor);
+void spi_nor_set_mtd_otp_ops(struct spi_nor *nor);
 
-static struct spi_nor __maybe_unused *mtd_to_spi_nor(struct mtd_info *mtd)
+static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 {
-	return mtd->priv;
+	return container_of(mtd, struct spi_nor, mtd);
 }
 
 #endif /* __LINUX_MTD_SPI_NOR_INTERNAL_H */

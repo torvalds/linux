@@ -281,7 +281,7 @@ xchk_superblock(
 	features_mask = cpu_to_be32(XFS_SB_VERSION2_ATTR2BIT);
 	if ((sb->sb_features2 & features_mask) !=
 	    (cpu_to_be32(mp->m_sb.sb_features2) & features_mask))
-		xchk_block_set_corrupt(sc, bp);
+		xchk_block_set_preen(sc, bp);
 
 	if (!xfs_has_crc(mp)) {
 		/* all v5 fields must be zero */
@@ -290,38 +290,37 @@ xchk_superblock(
 				offsetof(struct xfs_dsb, sb_features_compat)))
 			xchk_block_set_corrupt(sc, bp);
 	} else {
-		/* Check compat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_COMPAT_UNKNOWN);
-		if ((sb->sb_features_compat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_compat) & features_mask))
+		/* compat features must match */
+		if (sb->sb_features_compat !=
+				cpu_to_be32(mp->m_sb.sb_features_compat))
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check ro compat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_RO_COMPAT_UNKNOWN |
-					    XFS_SB_FEAT_RO_COMPAT_FINOBT |
-					    XFS_SB_FEAT_RO_COMPAT_RMAPBT |
-					    XFS_SB_FEAT_RO_COMPAT_REFLINK);
-		if ((sb->sb_features_ro_compat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_ro_compat) &
-		     features_mask))
+		/* ro compat features must match */
+		if (sb->sb_features_ro_compat !=
+				cpu_to_be32(mp->m_sb.sb_features_ro_compat))
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check incompat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_UNKNOWN |
-					    XFS_SB_FEAT_INCOMPAT_FTYPE |
-					    XFS_SB_FEAT_INCOMPAT_SPINODES |
-					    XFS_SB_FEAT_INCOMPAT_META_UUID);
-		if ((sb->sb_features_incompat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_incompat) &
-		     features_mask))
+		/*
+		 * NEEDSREPAIR is ignored on a secondary super, so we should
+		 * clear it when we find it, though it's not a corruption.
+		 */
+		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR);
+		if ((cpu_to_be32(mp->m_sb.sb_features_incompat) ^
+				sb->sb_features_incompat) & features_mask)
+			xchk_block_set_preen(sc, bp);
+
+		/* all other incompat features must match */
+		if ((cpu_to_be32(mp->m_sb.sb_features_incompat) ^
+				sb->sb_features_incompat) & ~features_mask)
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check log incompat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN);
-		if ((sb->sb_features_log_incompat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_log_incompat) &
-		     features_mask))
-			xchk_block_set_corrupt(sc, bp);
+		/*
+		 * log incompat features protect newer log record types from
+		 * older log recovery code.  Log recovery doesn't check the
+		 * secondary supers, so we can clear these if needed.
+		 */
+		if (sb->sb_features_log_incompat)
+			xchk_block_set_preen(sc, bp);
 
 		/* Don't care about sb_crc */
 

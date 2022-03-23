@@ -1592,6 +1592,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 				/* Let IP handle its data, maybe we need get the output
 				 * from the callback to udpate the error type/count, etc
 				 */
+				memset(&err_data, 0, sizeof(err_data));
 				ret = data->cb(obj->adev, &err_data, &entry);
 				/* ue will trigger an interrupt, and in that case
 				 * we need do a reset to recovery the whole system.
@@ -1838,8 +1839,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.size = AMDGPU_GPU_PAGE_SIZE,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
-		status = amdgpu_vram_mgr_query_page_status(
-				ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM),
+		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
 				data->bps[i].retired_page);
 		if (status == -EBUSY)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
@@ -1940,8 +1940,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			goto out;
 		}
 
-		amdgpu_vram_mgr_reserve_range(
-			ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM),
+		amdgpu_vram_mgr_reserve_range(&adev->mman.vram_mgr,
 			bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT,
 			AMDGPU_GPU_PAGE_SIZE);
 

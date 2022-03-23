@@ -435,7 +435,7 @@ static int process_extent_item(struct btrfs_fs_info *fs_info,
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	struct extent_buffer *leaf = path->nodes[0];
-	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 item_size = btrfs_item_size(leaf, slot);
 	unsigned long end, ptr;
 	u64 offset, flags, count;
 	int type, ret;
@@ -972,6 +972,7 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 /* Walk down all roots and build the ref tree, meant to be called at mount */
 int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_root *extent_root;
 	struct btrfs_path *path;
 	struct extent_buffer *eb;
 	int tree_block_level = 0;
@@ -985,7 +986,8 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 	if (!path)
 		return -ENOMEM;
 
-	eb = btrfs_read_lock_root_node(fs_info->extent_root);
+	extent_root = btrfs_extent_root(fs_info, 0);
+	eb = btrfs_read_lock_root_node(extent_root);
 	level = btrfs_header_level(eb);
 	path->nodes[level] = eb;
 	path->slots[level] = 0;
@@ -998,7 +1000,7 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 		 * would have had to added a ref key item which may appear on a
 		 * different leaf from the original extent item.
 		 */
-		ret = walk_down_tree(fs_info->extent_root, path, level,
+		ret = walk_down_tree(extent_root, path, level,
 				     &bytenr, &num_bytes, &tree_block_level);
 		if (ret)
 			break;

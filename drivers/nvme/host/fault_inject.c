@@ -56,7 +56,7 @@ void nvme_fault_inject_fini(struct nvme_fault_inject *fault_inject)
 
 void nvme_should_fail(struct request *req)
 {
-	struct gendisk *disk = req->rq_disk;
+	struct gendisk *disk = req->q->disk;
 	struct nvme_fault_inject *fault_inject = NULL;
 	u16 status;
 

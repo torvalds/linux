@@ -204,6 +204,12 @@ int virtio_finalize_features(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(virtio_finalize_features);
 
+void virtio_reset_device(struct virtio_device *dev)
+{
+	dev->config->reset(dev);
+}
+EXPORT_SYMBOL_GPL(virtio_reset_device);
+
 static int virtio_dev_probe(struct device *_d)
 {
 	int err, i;

@@ -303,6 +303,17 @@ static int ucsi_next_altmode(struct typec_altmode **alt)
 	return -ENOENT;
 }
 
+static int ucsi_get_num_altmode(struct typec_altmode **alt)
+{
+	int i;
+
+	for (i = 0; i < UCSI_MAX_ALTMODES; i++)
+		if (!alt[i])
+			break;
+
+	return i;
+}
+
 static int ucsi_register_altmode(struct ucsi_connector *con,
 				 struct typec_altmode_desc *desc,
 				 u8 recipient)
@@ -607,7 +618,7 @@ static int ucsi_get_src_pdos(struct ucsi_connector *con)
 
 static int ucsi_check_altmodes(struct ucsi_connector *con)
 {
-	int ret;
+	int ret, num_partner_am;
 
 	ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP);
 	if (ret && ret != -ETIMEDOUT)
@@ -617,6 +628,9 @@ static int ucsi_check_altmodes(struct ucsi_connector *con)
 
 	/* Ignoring the errors in this case. */
 	if (con->partner_altmode[0]) {
+		num_partner_am = ucsi_get_num_altmode(con->partner_altmode);
+		if (num_partner_am > 0)
+			typec_partner_set_num_altmodes(con->partner, num_partner_am);
 		ucsi_altmode_update_active(con);
 		return 0;
 	}

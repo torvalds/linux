@@ -204,6 +204,7 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	/* Will be freed by btrfs_free_fs_roots */
 	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
 		return;
+	btrfs_global_root_delete(root);
 	btrfs_put_root(root);
 }
 

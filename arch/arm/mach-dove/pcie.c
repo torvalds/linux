@@ -38,6 +38,7 @@ static int num_pcie_ports;
 static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct pcie_port *pp;
+	struct resource realio;
 
 	if (nr >= num_pcie_ports)
 		return 0;
@@ -53,10 +54,10 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	orion_pcie_setup(pp->base);
 
-	if (pp->index == 0)
-		pci_ioremap_io(sys->busnr * SZ_64K, DOVE_PCIE0_IO_PHYS_BASE);
-	else
-		pci_ioremap_io(sys->busnr * SZ_64K, DOVE_PCIE1_IO_PHYS_BASE);
+	realio.start = sys->busnr * SZ_64K;
+	realio.end = realio.start + SZ_64K - 1;
+	pci_remap_iospace(&realio, pp->index == 0 ? DOVE_PCIE0_IO_PHYS_BASE :
+						    DOVE_PCIE1_IO_PHYS_BASE);
 
 	/*
 	 * IORESOURCE_MEM

@@ -19,6 +19,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pgtable.h>
+#include <linux/crc32.h>
 
 #include "internal.h"
 
@@ -667,6 +668,19 @@ static int acpi_tie_acpi_dev(struct acpi_device *adev)
 	return 0;
 }
 
+static void acpi_store_pld_crc(struct acpi_device *adev)
+{
+	struct acpi_pld_info *pld;
+	acpi_status status;
+
+	status = acpi_get_physical_device_location(adev->handle, &pld);
+	if (ACPI_FAILURE(status))
+		return;
+
+	adev->pld_crc = crc32(~0, pld, sizeof(*pld));
+	ACPI_FREE(pld);
+}
+
 static int __acpi_device_add(struct acpi_device *device,
 			     void (*release)(struct device *))
 {
@@ -724,6 +738,8 @@ static int __acpi_device_add(struct acpi_device *device,
 
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
+
+	acpi_store_pld_crc(device);
 
 	mutex_unlock(&acpi_device_lock);
 
@@ -2486,42 +2502,33 @@ int acpi_bus_register_early_device(int type)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_register_early_device);
 
-static int acpi_bus_scan_fixed(void)
+static void acpi_bus_scan_fixed(void)
 {
-	int result = 0;
-
-	/*
-	 * Enumerate all fixed-feature devices.
-	 */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
-		struct acpi_device *device = NULL;
+		struct acpi_device *adev = NULL;
 
-		result = acpi_add_single_object(&device, NULL,
-						ACPI_BUS_TYPE_POWER_BUTTON, false);
-		if (result)
-			return result;
-
-		device->flags.match_driver = true;
-		result = device_attach(&device->dev);
-		if (result < 0)
-			return result;
-
-		device_init_wakeup(&device->dev, true);
+		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_POWER_BUTTON,
+				       false);
+		if (adev) {
+			adev->flags.match_driver = true;
+			if (device_attach(&adev->dev) >= 0)
+				device_init_wakeup(&adev->dev, true);
+			else
+				dev_dbg(&adev->dev, "No driver\n");
+		}
 	}
 
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON)) {
-		struct acpi_device *device = NULL;
+		struct acpi_device *adev = NULL;
 
-		result = acpi_add_single_object(&device, NULL,
-						ACPI_BUS_TYPE_SLEEP_BUTTON, false);
-		if (result)
-			return result;
-
-		device->flags.match_driver = true;
-		result = device_attach(&device->dev);
+		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_SLEEP_BUTTON,
+				       false);
+		if (adev) {
+			adev->flags.match_driver = true;
+			if (device_attach(&adev->dev) < 0)
+				dev_dbg(&adev->dev, "No driver\n");
+		}
 	}
-
-	return result < 0 ? result : 0;
 }
 
 static void __init acpi_get_spcr_uart_addr(void)
@@ -2542,9 +2549,8 @@ static void __init acpi_get_spcr_uart_addr(void)
 
 static bool acpi_scan_initialized;
 
-int __init acpi_scan_init(void)
+void __init acpi_scan_init(void)
 {
-	int result;
 	acpi_status status;
 	struct acpi_table_stao *stao_ptr;
 
@@ -2594,33 +2600,23 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT);
-	if (result)
-		goto out;
+	if (acpi_bus_scan(ACPI_ROOT_OBJECT))
+		goto unlock;
 
 	acpi_root = acpi_fetch_acpi_dev(ACPI_ROOT_OBJECT);
 	if (!acpi_root)
-		goto out;
+		goto unlock;
 
 	/* Fixed feature devices do not exist on HW-reduced platform */
-	if (!acpi_gbl_reduced_hardware) {
-		result = acpi_bus_scan_fixed();
-		if (result) {
-			acpi_detach_data(acpi_root->handle,
-					 acpi_scan_drop_device);
-			acpi_device_del(acpi_root);
-			acpi_bus_put_acpi_device(acpi_root);
-			goto out;
-		}
-	}
+	if (!acpi_gbl_reduced_hardware)
+		acpi_bus_scan_fixed();
 
 	acpi_turn_off_unused_power_resources();
 
 	acpi_scan_initialized = true;
 
- out:
+unlock:
 	mutex_unlock(&acpi_scan_lock);
-	return result;
 }
 
 static struct acpi_probe_entry *ape;

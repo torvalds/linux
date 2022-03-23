@@ -1744,10 +1744,11 @@ TRACE_EVENT(svc_xprt_create_err,
 		const char *program,
 		const char *protocol,
 		struct sockaddr *sap,
+		size_t salen,
 		const struct svc_xprt *xprt
 	),
 
-	TP_ARGS(program, protocol, sap, xprt),
+	TP_ARGS(program, protocol, sap, salen, xprt),
 
 	TP_STRUCT__entry(
 		__field(long, error)
@@ -1760,7 +1761,7 @@ TRACE_EVENT(svc_xprt_create_err,
 		__entry->error = PTR_ERR(xprt);
 		__assign_str(program, program);
 		__assign_str(protocol, protocol);
-		memcpy(__entry->addr, sap, sizeof(__entry->addr));
+		memcpy(__entry->addr, sap, min(salen, sizeof(__entry->addr)));
 	),
 
 	TP_printk("addr=%pISpc program=%s protocol=%s error=%ld",
@@ -1768,7 +1769,7 @@ TRACE_EVENT(svc_xprt_create_err,
 		__entry->error)
 );
 
-TRACE_EVENT(svc_xprt_do_enqueue,
+TRACE_EVENT(svc_xprt_enqueue,
 	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
 
 	TP_ARGS(xprt, rqst),
@@ -1815,7 +1816,6 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 			), \
 			TP_ARGS(xprt))
 
-DEFINE_SVC_XPRT_EVENT(received);
 DEFINE_SVC_XPRT_EVENT(no_write_space);
 DEFINE_SVC_XPRT_EVENT(close);
 DEFINE_SVC_XPRT_EVENT(detach);
@@ -1900,27 +1900,6 @@ TRACE_EVENT(svc_alloc_arg_err,
 	),
 
 	TP_printk("pages=%u", __entry->pages)
-);
-
-TRACE_EVENT(svc_handle_xprt,
-	TP_PROTO(struct svc_xprt *xprt, int len),
-
-	TP_ARGS(xprt, len),
-
-	TP_STRUCT__entry(
-		__field(int, len)
-		__field(unsigned long, flags)
-		__string(addr, xprt->xpt_remotebuf)
-	),
-
-	TP_fast_assign(
-		__entry->len = len;
-		__entry->flags = xprt->xpt_flags;
-		__assign_str(addr, xprt->xpt_remotebuf);
-	),
-
-	TP_printk("addr=%s len=%d flags=%s", __get_str(addr),
-		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 
 TRACE_EVENT(svc_stats_latency,
@@ -2146,17 +2125,17 @@ DECLARE_EVENT_CLASS(svcsock_accept_class,
 	TP_STRUCT__entry(
 		__field(long, status)
 		__string(service, service)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__field(unsigned int, netns_ino)
 	),
 
 	TP_fast_assign(
 		__entry->status = status;
 		__assign_str(service, service);
-		memcpy(__entry->addr, &xprt->xpt_local, sizeof(__entry->addr));
+		__entry->netns_ino = xprt->xpt_net->ns.inum;
 	),
 
-	TP_printk("listener=%pISpc service=%s status=%ld",
-		__entry->addr, __get_str(service), __entry->status
+	TP_printk("addr=listener service=%s status=%ld",
+		__get_str(service), __entry->status
 	)
 );
 

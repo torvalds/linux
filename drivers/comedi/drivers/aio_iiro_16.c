@@ -30,8 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #define AIO_IIRO_16_RELAY_0_7		0x00
 #define AIO_IIRO_16_INPUT_0_7		0x01

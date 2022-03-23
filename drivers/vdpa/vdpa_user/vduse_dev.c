@@ -573,19 +573,26 @@ static u32 vduse_vdpa_get_vq_align(struct vdpa_device *vdpa)
 	return dev->vq_align;
 }
 
-static u64 vduse_vdpa_get_features(struct vdpa_device *vdpa)
+static u64 vduse_vdpa_get_device_features(struct vdpa_device *vdpa)
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 
 	return dev->device_features;
 }
 
-static int vduse_vdpa_set_features(struct vdpa_device *vdpa, u64 features)
+static int vduse_vdpa_set_driver_features(struct vdpa_device *vdpa, u64 features)
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 
 	dev->driver_features = features;
 	return 0;
+}
+
+static u64 vduse_vdpa_get_driver_features(struct vdpa_device *vdpa)
+{
+	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
+
+	return dev->driver_features;
 }
 
 static void vduse_vdpa_set_config_cb(struct vdpa_device *vdpa,
@@ -721,8 +728,9 @@ static const struct vdpa_config_ops vduse_vdpa_config_ops = {
 	.set_vq_state		= vduse_vdpa_set_vq_state,
 	.get_vq_state		= vduse_vdpa_get_vq_state,
 	.get_vq_align		= vduse_vdpa_get_vq_align,
-	.get_features		= vduse_vdpa_get_features,
-	.set_features		= vduse_vdpa_set_features,
+	.get_device_features	= vduse_vdpa_get_device_features,
+	.set_driver_features	= vduse_vdpa_set_driver_features,
+	.get_driver_features	= vduse_vdpa_get_driver_features,
 	.set_config_cb		= vduse_vdpa_set_config_cb,
 	.get_vq_num_max		= vduse_vdpa_get_vq_num_max,
 	.get_device_id		= vduse_vdpa_get_device_id,
@@ -1357,7 +1365,6 @@ err_domain:
 err_str:
 	vduse_dev_destroy(dev);
 err:
-	kvfree(config_buf);
 	return ret;
 }
 
@@ -1408,6 +1415,8 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 		}
 		config.name[VDUSE_NAME_MAX - 1] = '\0';
 		ret = vduse_create_dev(&config, buf, control->api_version);
+		if (ret)
+			kvfree(buf);
 		break;
 	}
 	case VDUSE_DESTROY_DEV: {

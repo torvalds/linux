@@ -469,7 +469,11 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 
 #ifdef CONFIG_9P_FSCACHE
 	/* register the session for caching */
-	v9fs_cache_session_get_cookie(v9ses);
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
+		rc = v9fs_cache_session_get_cookie(v9ses, dev_name);
+		if (rc < 0)
+			goto err_clnt;
+	}
 #endif
 	spin_lock(&v9fs_sessionlist_lock);
 	list_add(&v9ses->slist, &v9fs_sessionlist);
@@ -502,8 +506,7 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 	}
 
 #ifdef CONFIG_9P_FSCACHE
-	if (v9ses->fscache)
-		v9fs_cache_session_put_cookie(v9ses);
+	fscache_relinquish_volume(v9fs_session_cache(v9ses), NULL, false);
 	kfree(v9ses->cachetag);
 #endif
 	kfree(v9ses->uname);
@@ -665,20 +668,12 @@ static int v9fs_cache_register(void)
 	ret = v9fs_init_inode_cache();
 	if (ret < 0)
 		return ret;
-#ifdef CONFIG_9P_FSCACHE
-	ret = fscache_register_netfs(&v9fs_cache_netfs);
-	if (ret < 0)
-		v9fs_destroy_inode_cache();
-#endif
 	return ret;
 }
 
 static void v9fs_cache_unregister(void)
 {
 	v9fs_destroy_inode_cache();
-#ifdef CONFIG_9P_FSCACHE
-	fscache_unregister_netfs(&v9fs_cache_netfs);
-#endif
 }
 
 /**

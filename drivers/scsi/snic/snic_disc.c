@@ -100,7 +100,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 	SNIC_BUG_ON(ntgts == 0);
 	buf_len = ntgts * sizeof(struct snic_tgt_id) + SNIC_SG_DESC_ALIGN;
 
-	buf = kzalloc(buf_len, GFP_KERNEL|GFP_DMA);
+	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
 		snic_req_free(snic, rqi);
 		SNIC_HOST_ERR(snic->shost, "Resp Buf Alloc Failed.\n");

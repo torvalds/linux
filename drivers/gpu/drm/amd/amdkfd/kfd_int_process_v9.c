@@ -197,6 +197,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	 */
 	return source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
 		source_id == SOC15_INTSRC_SDMA_TRAP ||
+		source_id == SOC15_INTSRC_SDMA_ECC ||
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
 		((client_id == SOC15_IH_CLIENTID_VMC ||

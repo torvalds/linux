@@ -14,7 +14,7 @@ static inline void um_ndelay(unsigned long nsecs)
 	ndelay(nsecs);
 }
 #undef ndelay
-#define ndelay um_ndelay
+#define ndelay(n) um_ndelay(n)
 
 static inline void um_udelay(unsigned long usecs)
 {
@@ -26,5 +26,5 @@ static inline void um_udelay(unsigned long usecs)
 	udelay(usecs);
 }
 #undef udelay
-#define udelay um_udelay
+#define udelay(n) um_udelay(n)
 #endif /* __UM_DELAY_H */

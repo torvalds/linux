@@ -16,7 +16,7 @@ static inline bool is_kvm_guest(void)
 	return static_branch_unlikely(&kvm_guest);
 }
 
-int check_kvm_guest(void);
+int __init check_kvm_guest(void);
 #else
 static inline bool is_kvm_guest(void) { return false; }
 static inline int check_kvm_guest(void) { return 0; }

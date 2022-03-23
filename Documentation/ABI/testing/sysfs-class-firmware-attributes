@@ -161,6 +161,15 @@ Description:
 						power-on:
 							Representing a password required to use
 							the system
+						system-mgmt:
+							Representing System Management password.
+							See Lenovo extensions section for details
+						HDD:
+							Representing HDD password
+							See Lenovo extensions section for details
+						NVMe:
+							Representing NVMe password
+							See Lenovo extensions section for details
 
 		mechanism:
 					The means of authentication.  This attribute is mandatory.
@@ -207,6 +216,13 @@ Description:
 
 		On Lenovo systems the following additional settings are available:
 
+		role: system-mgmt	This gives the same authority as the bios-admin password to control
+					security related features. The authorities allocated can be set via
+					the BIOS menu SMP Access Control Policy
+
+		role: HDD & NVMe	This password is used to unlock access to the drive at boot. Note see
+					'level' and 'index' extensions below.
+
 		lenovo_encoding:
 					The encoding method that is used. This can be either "ascii"
 					or "scancode". Default is set to "ascii"
@@ -215,6 +231,22 @@ Description:
 					The keyboard language method that is used. This is generally a
 					two char code (e.g. "us", "fr", "gr") and may vary per platform.
 					Default is set to "us"
+
+		level:
+					Available for HDD and NVMe authentication to set 'user' or 'master'
+					privilege level.
+					If only the user password is configured then this should be used to
+					unlock the drive at boot. If both master and user passwords are set
+					then either can be used. If a master password is set a user password
+					is required.
+					This attribute defaults to 'user' level
+
+		index:
+					Used with HDD and NVME authentication to set the drive index
+					that is being referenced (e.g hdd0, hdd1 etc)
+					This attribute defaults to device 0.
+
+
 
 What:		/sys/class/firmware-attributes/*/attributes/pending_reboot
 Date:		February 2021

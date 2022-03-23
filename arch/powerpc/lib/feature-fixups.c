@@ -47,7 +47,7 @@ static u32 *calc_addr(struct fixup_entry *fcur, long offset)
 static int patch_alt_instruction(u32 *src, u32 *dest, u32 *alt_start, u32 *alt_end)
 {
 	int err;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	instr = ppc_inst_read(src);
 
@@ -580,7 +580,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
 }
 
-static void patch_btb_flush_section(long *curr)
+static void __init patch_btb_flush_section(long *curr)
 {
 	unsigned int *start, *end;
 
@@ -592,7 +592,7 @@ static void patch_btb_flush_section(long *curr)
 	}
 }
 
-void do_btb_flush_fixups(void)
+void __init do_btb_flush_fixups(void)
 {
 	long *start, *end;
 
@@ -621,10 +621,10 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	}
 }
 
-static void do_final_fixups(void)
+static void __init do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
-	struct ppc_inst inst;
+	ppc_inst_t inst;
 	u32 *src, *dest, *end;
 
 	if (PHYSICAL_START == 0)
@@ -715,12 +715,12 @@ late_initcall(check_features);
 /* This must be after the text it fixes up, vmlinux.lds.S enforces that atm */
 static struct fixup_entry fixup;
 
-static long calc_offset(struct fixup_entry *entry, unsigned int *p)
+static long __init calc_offset(struct fixup_entry *entry, unsigned int *p)
 {
 	return (unsigned long)p - (unsigned long)entry;
 }
 
-static void test_basic_patching(void)
+static void __init test_basic_patching(void)
 {
 	extern unsigned int ftr_fixup_test1[];
 	extern unsigned int end_ftr_fixup_test1[];
@@ -751,7 +751,7 @@ static void test_basic_patching(void)
 	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_expected, size) == 0);
 }
 
-static void test_alternative_patching(void)
+static void __init test_alternative_patching(void)
 {
 	extern unsigned int ftr_fixup_test2[];
 	extern unsigned int end_ftr_fixup_test2[];
@@ -784,7 +784,7 @@ static void test_alternative_patching(void)
 	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_expected, size) == 0);
 }
 
-static void test_alternative_case_too_big(void)
+static void __init test_alternative_case_too_big(void)
 {
 	extern unsigned int ftr_fixup_test3[];
 	extern unsigned int end_ftr_fixup_test3[];
@@ -810,7 +810,7 @@ static void test_alternative_case_too_big(void)
 	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 }
 
-static void test_alternative_case_too_small(void)
+static void __init test_alternative_case_too_small(void)
 {
 	extern unsigned int ftr_fixup_test4[];
 	extern unsigned int end_ftr_fixup_test4[];
@@ -856,7 +856,7 @@ static void test_alternative_case_with_branch(void)
 	check(memcmp(ftr_fixup_test5, ftr_fixup_test5_expected, size) == 0);
 }
 
-static void test_alternative_case_with_external_branch(void)
+static void __init test_alternative_case_with_external_branch(void)
 {
 	extern unsigned int ftr_fixup_test6[];
 	extern unsigned int end_ftr_fixup_test6[];
@@ -866,7 +866,7 @@ static void test_alternative_case_with_external_branch(void)
 	check(memcmp(ftr_fixup_test6, ftr_fixup_test6_expected, size) == 0);
 }
 
-static void test_alternative_case_with_branch_to_end(void)
+static void __init test_alternative_case_with_branch_to_end(void)
 {
 	extern unsigned int ftr_fixup_test7[];
 	extern unsigned int end_ftr_fixup_test7[];
@@ -876,7 +876,7 @@ static void test_alternative_case_with_branch_to_end(void)
 	check(memcmp(ftr_fixup_test7, ftr_fixup_test7_expected, size) == 0);
 }
 
-static void test_cpu_macros(void)
+static void __init test_cpu_macros(void)
 {
 	extern u8 ftr_fixup_test_FTR_macros[];
 	extern u8 ftr_fixup_test_FTR_macros_expected[];
@@ -888,7 +888,7 @@ static void test_cpu_macros(void)
 		     ftr_fixup_test_FTR_macros_expected, size) == 0);
 }
 
-static void test_fw_macros(void)
+static void __init test_fw_macros(void)
 {
 #ifdef CONFIG_PPC64
 	extern u8 ftr_fixup_test_FW_FTR_macros[];
@@ -902,7 +902,7 @@ static void test_fw_macros(void)
 #endif
 }
 
-static void test_lwsync_macros(void)
+static void __init test_lwsync_macros(void)
 {
 	extern u8 lwsync_fixup_test[];
 	extern u8 end_lwsync_fixup_test[];

@@ -264,9 +264,6 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	    !(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
 		vma->vm_flags &= ~VM_MAYWRITE;
 
-	if (bo->kfd_bo)
-		vma->vm_flags |= VM_DONTCOPY;
-
 	return drm_gem_ttm_mmap(obj, vma);
 }
 

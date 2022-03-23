@@ -31,6 +31,7 @@ description: |
 
 allOf:
   - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: "/schemas/spi/spi-peripheral-props.yaml#"
 
 maintainers:
   - Chris Packham <chris.packham@alliedtelesis.co.nz>

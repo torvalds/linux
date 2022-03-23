@@ -208,4 +208,6 @@ struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
 		const struct dc_link *link);
 #endif
 
+uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

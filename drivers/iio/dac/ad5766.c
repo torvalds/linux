@@ -426,14 +426,6 @@ static ssize_t ad5766_write_ext(struct iio_dev *indio_dev,
 	.shared = _shared, \
 }
 
-#define IIO_ENUM_AVAILABLE_SHARED(_name, _shared, _e) \
-{ \
-	.name = (_name "_available"), \
-	.shared = _shared, \
-	.read = iio_enum_available_read, \
-	.private = (uintptr_t)(_e), \
-}
-
 static const struct iio_chan_spec_ext_info ad5766_ext_info[] = {
 
 	_AD5766_CHAN_EXT_INFO("dither_enable", AD5766_DITHER_ENABLE,
@@ -443,9 +435,8 @@ static const struct iio_chan_spec_ext_info ad5766_ext_info[] = {
 	_AD5766_CHAN_EXT_INFO("dither_source", AD5766_DITHER_SOURCE,
 			      IIO_SEPARATE),
 	IIO_ENUM("dither_scale", IIO_SEPARATE, &ad5766_dither_scale_enum),
-	IIO_ENUM_AVAILABLE_SHARED("dither_scale",
-				  IIO_SEPARATE,
-				  &ad5766_dither_scale_enum),
+	IIO_ENUM_AVAILABLE("dither_scale", IIO_SEPARATE,
+			   &ad5766_dither_scale_enum),
 	{}
 };
 

@@ -58,6 +58,12 @@ struct mmc_busy_data {
 	enum mmc_busy_cmd busy_cmd;
 };
 
+struct mmc_op_cond_busy_data {
+	struct mmc_host *host;
+	u32 ocr;
+	struct mmc_command *cmd;
+};
+
 int __mmc_send_status(struct mmc_card *card, u32 *status, unsigned int retries)
 {
 	int err;
@@ -173,43 +179,62 @@ int mmc_go_idle(struct mmc_host *host)
 	return err;
 }
 
+static int __mmc_send_op_cond_cb(void *cb_data, bool *busy)
+{
+	struct mmc_op_cond_busy_data *data = cb_data;
+	struct mmc_host *host = data->host;
+	struct mmc_command *cmd = data->cmd;
+	u32 ocr = data->ocr;
+	int err = 0;
+
+	err = mmc_wait_for_cmd(host, cmd, 0);
+	if (err)
+		return err;
+
+	if (mmc_host_is_spi(host)) {
+		if (!(cmd->resp[0] & R1_SPI_IDLE)) {
+			*busy = false;
+			return 0;
+		}
+	} else {
+		if (cmd->resp[0] & MMC_CARD_BUSY) {
+			*busy = false;
+			return 0;
+		}
+	}
+
+	*busy = true;
+
+	/*
+	 * According to eMMC specification v5.1 section 6.4.3, we
+	 * should issue CMD1 repeatedly in the idle state until
+	 * the eMMC is ready. Otherwise some eMMC devices seem to enter
+	 * the inactive mode after mmc_init_card() issued CMD0 when
+	 * the eMMC device is busy.
+	 */
+	if (!ocr && !mmc_host_is_spi(host))
+		cmd->arg = cmd->resp[0] | BIT(30);
+
+	return 0;
+}
+
 int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
 	struct mmc_command cmd = {};
-	int i, err = 0;
+	int err = 0;
+	struct mmc_op_cond_busy_data cb_data = {
+		.host = host,
+		.ocr = ocr,
+		.cmd = &cmd
+	};
 
 	cmd.opcode = MMC_SEND_OP_COND;
 	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
-	for (i = 100; i; i--) {
-		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if (err)
-			break;
-
-		/* wait until reset completes */
-		if (mmc_host_is_spi(host)) {
-			if (!(cmd.resp[0] & R1_SPI_IDLE))
-				break;
-		} else {
-			if (cmd.resp[0] & MMC_CARD_BUSY)
-				break;
-		}
-
-		err = -ETIMEDOUT;
-
-		mmc_delay(10);
-
-		/*
-		 * According to eMMC specification v5.1 section 6.4.3, we
-		 * should issue CMD1 repeatedly in the idle state until
-		 * the eMMC is ready. Otherwise some eMMC devices seem to enter
-		 * the inactive mode after mmc_init_card() issued CMD0 when
-		 * the eMMC device is busy.
-		 */
-		if (!ocr && !mmc_host_is_spi(host))
-			cmd.arg = cmd.resp[0] | BIT(30);
-	}
+	err = __mmc_poll_for_busy(host, 1000, &__mmc_send_op_cond_cb, &cb_data);
+	if (err)
+		return err;
 
 	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
@@ -470,11 +495,10 @@ static int mmc_busy_cb(void *cb_data, bool *busy)
 	return 0;
 }
 
-int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+int __mmc_poll_for_busy(struct mmc_host *host, unsigned int timeout_ms,
 			int (*busy_cb)(void *cb_data, bool *busy),
 			void *cb_data)
 {
-	struct mmc_host *host = card->host;
 	int err;
 	unsigned long timeout;
 	unsigned int udelay = 32, udelay_max = 32768;
@@ -515,13 +539,14 @@ EXPORT_SYMBOL_GPL(__mmc_poll_for_busy);
 int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		      bool retry_crc_err, enum mmc_busy_cmd busy_cmd)
 {
+	struct mmc_host *host = card->host;
 	struct mmc_busy_data cb_data;
 
 	cb_data.card = card;
 	cb_data.retry_crc_err = retry_crc_err;
 	cb_data.busy_cmd = busy_cmd;
 
-	return __mmc_poll_for_busy(card, timeout_ms, &mmc_busy_cb, &cb_data);
+	return __mmc_poll_for_busy(host, timeout_ms, &mmc_busy_cb, &cb_data);
 }
 EXPORT_SYMBOL_GPL(mmc_poll_for_busy);
 

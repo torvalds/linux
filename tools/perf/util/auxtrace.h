@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
+#include <internal/cpumap.h>
 #include <asm/bitsperlong.h>
 #include <asm/barrier.h>
 
@@ -240,7 +241,7 @@ struct auxtrace_buffer {
 	size_t			size;
 	pid_t			pid;
 	pid_t			tid;
-	int			cpu;
+	struct perf_cpu		cpu;
 	void			*data;
 	off_t			data_offset;
 	void			*mmap_addr;
@@ -350,7 +351,7 @@ struct auxtrace_mmap_params {
 	int		prot;
 	int		idx;
 	pid_t		tid;
-	int		cpu;
+	struct perf_cpu	cpu;
 };
 
 /**

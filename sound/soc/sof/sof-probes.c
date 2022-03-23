@@ -321,7 +321,7 @@ static int sof_probe_compr_pointer(struct snd_compr_stream *cstream,
 	return snd_sof_probe_compr_pointer(sdev, cstream, tstamp, dai);
 }
 
-struct snd_soc_cdai_ops sof_probe_compr_ops = {
+const struct snd_soc_cdai_ops sof_probe_compr_ops = {
 	.startup	= sof_probe_compr_startup,
 	.shutdown	= sof_probe_compr_shutdown,
 	.set_params	= sof_probe_compr_set_params,

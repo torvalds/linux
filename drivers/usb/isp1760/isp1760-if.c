@@ -13,6 +13,7 @@
 
 #include <linux/usb.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -191,17 +192,15 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	unsigned long irqflags;
 	unsigned int devflags = 0;
 	struct resource *mem_res;
-	struct resource *irq_res;
+	int irq;
 	int ret;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq_res) {
-		pr_warn("isp1760: IRQ resource not available\n");
-		return -ENODEV;
-	}
-	irqflags = irq_res->flags & IRQF_TRIGGER_MASK;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+	irqflags = irq_get_trigger_type(irq);
 
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		struct device_node *dp = pdev->dev.of_node;
@@ -239,8 +238,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = isp1760_register(mem_res, irq_res->start, irqflags, &pdev->dev,
-			       devflags);
+	ret = isp1760_register(mem_res, irq, irqflags, &pdev->dev, devflags);
 	if (ret < 0)
 		return ret;
 

@@ -28,6 +28,7 @@ static void ingenic_tcu_intc_cascade(struct irq_desc *desc)
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(domain, 0);
 	struct regmap *map = gc->private;
 	uint32_t irq_reg, irq_mask;
+	unsigned long bits;
 	unsigned int i;
 
 	regmap_read(map, TCU_REG_TFR, &irq_reg);
@@ -36,8 +37,9 @@ static void ingenic_tcu_intc_cascade(struct irq_desc *desc)
 	chained_irq_enter(irq_chip, desc);
 
 	irq_reg &= ~irq_mask;
+	bits = irq_reg;
 
-	for_each_set_bit(i, (unsigned long *)&irq_reg, 32)
+	for_each_set_bit(i, &bits, 32)
 		generic_handle_domain_irq(domain, i);
 
 	chained_irq_exit(irq_chip, desc);

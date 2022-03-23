@@ -85,8 +85,7 @@ static void __init one_md_table_init(pud_t *pud)
 		      __func__, PAGE_SIZE, PAGE_SIZE);
 
 	set_pud(pud, __pud(_KERNPG_TABLE + (unsigned long) __pa(pmd_table)));
-	if (pmd_table != pmd_offset(pud, 0))
-		BUG();
+	BUG_ON(pmd_table != pmd_offset(pud, 0));
 #endif
 }
 

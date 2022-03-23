@@ -15,6 +15,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/regmap.h>
 #include <linux/types.h>
 
 struct platform_device;
@@ -172,24 +173,27 @@ struct spear_pinctrl_machdata {
  * @dev: pointer to struct dev of platform_device registered
  * @pctl: pointer to struct pinctrl_dev
  * @machdata: pointer to SoC or machine specific structure
- * @vbase: virtual base address of pinmux controller
+ * @regmap: regmap of pinmux controller
  */
 struct spear_pmx {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
 	struct spear_pinctrl_machdata *machdata;
-	void __iomem *vbase;
+	struct regmap *regmap;
 };
 
 /* exported routines */
 static inline u32 pmx_readl(struct spear_pmx *pmx, u32 reg)
 {
-	return readl_relaxed(pmx->vbase + reg);
+	u32 val;
+
+	regmap_read(pmx->regmap, reg, &val);
+	return val;
 }
 
 static inline void pmx_writel(struct spear_pmx *pmx, u32 val, u32 reg)
 {
-	writel_relaxed(val, pmx->vbase + reg);
+	regmap_write(pmx->regmap, reg, val);
 }
 
 void pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg);

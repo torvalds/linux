@@ -623,6 +623,7 @@ static int bdc_resume(struct device *dev)
 	ret = bdc_reinit(bdc);
 	if (ret) {
 		dev_err(bdc->dev, "err in bdc reinit\n");
+		clk_disable_unprepare(bdc->clk);
 		return ret;
 	}
 

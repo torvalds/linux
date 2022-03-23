@@ -17,6 +17,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
+#include <linux/fscache.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -205,7 +206,10 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 int v9fs_dir_release(struct inode *inode, struct file *filp)
 {
+	struct v9fs_inode *v9inode = V9FS_I(inode);
 	struct p9_fid *fid;
+	__le32 version;
+	loff_t i_size;
 
 	fid = filp->private_data;
 	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
@@ -215,6 +219,15 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 		hlist_del(&fid->ilist);
 		spin_unlock(&inode->i_lock);
 		p9_client_clunk(fid);
+	}
+
+	if ((filp->f_mode & FMODE_WRITE)) {
+		version = cpu_to_le32(v9inode->qid.version);
+		i_size = i_size_read(inode);
+		fscache_unuse_cookie(v9fs_inode_cookie(v9inode),
+				     &version, &i_size);
+	} else {
+		fscache_unuse_cookie(v9fs_inode_cookie(v9inode), NULL, NULL);
 	}
 	return 0;
 }

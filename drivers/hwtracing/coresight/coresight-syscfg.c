@@ -250,6 +250,13 @@ static int cscfg_check_feat_for_cfg(struct cscfg_config_desc *config_desc)
 static int cscfg_load_feat(struct cscfg_feature_desc *feat_desc)
 {
 	int err;
+	struct cscfg_feature_desc *feat_desc_exist;
+
+	/* new feature must have unique name */
+	list_for_each_entry(feat_desc_exist, &cscfg_mgr->feat_desc_list, item) {
+		if (!strcmp(feat_desc_exist->name, feat_desc->name))
+			return -EEXIST;
+	}
 
 	/* add feature to any matching registered devices */
 	err = cscfg_add_feat_to_csdevs(feat_desc);
@@ -267,6 +274,13 @@ static int cscfg_load_feat(struct cscfg_feature_desc *feat_desc)
 static int cscfg_load_config(struct cscfg_config_desc *config_desc)
 {
 	int err;
+	struct cscfg_config_desc *config_desc_exist;
+
+	/* new configuration must have a unique name */
+	list_for_each_entry(config_desc_exist, &cscfg_mgr->config_desc_list, item) {
+		if (!strcmp(config_desc_exist->name, config_desc->name))
+			return -EEXIST;
+	}
 
 	/* validate features are present */
 	err = cscfg_check_feat_for_cfg(config_desc);
@@ -354,6 +368,92 @@ unlock_exit:
 	return err;
 }
 
+/*
+ * Conditionally up reference count on owner to prevent unload.
+ *
+ * module loaded configs need to be locked in to prevent premature unload.
+ */
+static int cscfg_owner_get(struct cscfg_load_owner_info *owner_info)
+{
+	if ((owner_info->type == CSCFG_OWNER_MODULE) &&
+	    (!try_module_get(owner_info->owner_handle)))
+		return -EINVAL;
+	return 0;
+}
+
+/* conditionally lower ref count on an owner */
+static void cscfg_owner_put(struct cscfg_load_owner_info *owner_info)
+{
+	if (owner_info->type == CSCFG_OWNER_MODULE)
+		module_put(owner_info->owner_handle);
+}
+
+static void cscfg_remove_owned_csdev_configs(struct coresight_device *csdev, void *load_owner)
+{
+	struct cscfg_config_csdev *config_csdev, *tmp;
+
+	if (list_empty(&csdev->config_csdev_list))
+		return;
+
+	list_for_each_entry_safe(config_csdev, tmp, &csdev->config_csdev_list, node) {
+		if (config_csdev->config_desc->load_owner == load_owner)
+			list_del(&config_csdev->node);
+	}
+}
+
+static void cscfg_remove_owned_csdev_features(struct coresight_device *csdev, void *load_owner)
+{
+	struct cscfg_feature_csdev *feat_csdev, *tmp;
+
+	if (list_empty(&csdev->feature_csdev_list))
+		return;
+
+	list_for_each_entry_safe(feat_csdev, tmp, &csdev->feature_csdev_list, node) {
+		if (feat_csdev->feat_desc->load_owner == load_owner)
+			list_del(&feat_csdev->node);
+	}
+}
+
+/*
+ * removal is relatively easy - just remove from all lists, anything that
+ * matches the owner. Memory for the descriptors will be managed by the owner,
+ * memory for the csdev items is devm_ allocated with the individual csdev
+ * devices.
+ */
+static void cscfg_unload_owned_cfgs_feats(void *load_owner)
+{
+	struct cscfg_config_desc *config_desc, *cfg_tmp;
+	struct cscfg_feature_desc *feat_desc, *feat_tmp;
+	struct cscfg_registered_csdev *csdev_item;
+
+	/* remove from each csdev instance feature and config lists */
+	list_for_each_entry(csdev_item, &cscfg_mgr->csdev_desc_list, item) {
+		/*
+		 * for each csdev, check the loaded lists and remove if
+		 * referenced descriptor is owned
+		 */
+		cscfg_remove_owned_csdev_configs(csdev_item->csdev, load_owner);
+		cscfg_remove_owned_csdev_features(csdev_item->csdev, load_owner);
+	}
+
+	/* remove from the config descriptor lists */
+	list_for_each_entry_safe(config_desc, cfg_tmp, &cscfg_mgr->config_desc_list, item) {
+		if (config_desc->load_owner == load_owner) {
+			cscfg_configfs_del_config(config_desc);
+			etm_perf_del_symlink_cscfg(config_desc);
+			list_del(&config_desc->item);
+		}
+	}
+
+	/* remove from the feature descriptor lists */
+	list_for_each_entry_safe(feat_desc, feat_tmp, &cscfg_mgr->feat_desc_list, item) {
+		if (feat_desc->load_owner == load_owner) {
+			cscfg_configfs_del_feature(feat_desc);
+			list_del(&feat_desc->item);
+		}
+	}
+}
+
 /**
  * cscfg_load_config_sets - API function to load feature and config sets.
  *
@@ -361,13 +461,22 @@ unlock_exit:
  * descriptors and load into the system.
  * Features are loaded first to ensure configuration dependencies can be met.
  *
+ * To facilitate dynamic loading and unloading, features and configurations
+ * have a "load_owner", to allow later unload by the same owner. An owner may
+ * be a loadable module or configuration dynamically created via configfs.
+ * As later loaded configurations can use earlier loaded features, creating load
+ * dependencies, a load order list is maintained. Unload is strictly in the
+ * reverse order to load.
+ *
  * @config_descs: 0 terminated array of configuration descriptors.
  * @feat_descs:   0 terminated array of feature descriptors.
+ * @owner_info:	  Information on the owner of this set.
  */
 int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
-			   struct cscfg_feature_desc **feat_descs)
+			   struct cscfg_feature_desc **feat_descs,
+			   struct cscfg_load_owner_info *owner_info)
 {
-	int err, i = 0;
+	int err = 0, i = 0;
 
 	mutex_lock(&cscfg_mutex);
 
@@ -380,8 +489,10 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load feature %s\n",
 				       feat_descs[i]->name);
+				cscfg_unload_owned_cfgs_feats(owner_info);
 				goto exit_unlock;
 			}
+			feat_descs[i]->load_owner = owner_info;
 			i++;
 		}
 	}
@@ -396,9 +507,22 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load configuration %s\n",
 				       config_descs[i]->name);
+				cscfg_unload_owned_cfgs_feats(owner_info);
 				goto exit_unlock;
 			}
+			config_descs[i]->load_owner = owner_info;
 			i++;
+		}
+	}
+
+	/* add the load owner to the load order list */
+	list_add_tail(&owner_info->item, &cscfg_mgr->load_order_list);
+	if (!list_is_singular(&cscfg_mgr->load_order_list)) {
+		/* lock previous item in load order list */
+		err = cscfg_owner_get(list_prev_entry(owner_info, item));
+		if (err) {
+			cscfg_unload_owned_cfgs_feats(owner_info);
+			list_del(&owner_info->item);
 		}
 	}
 
@@ -407,6 +531,61 @@ exit_unlock:
 	return err;
 }
 EXPORT_SYMBOL_GPL(cscfg_load_config_sets);
+
+/**
+ * cscfg_unload_config_sets - unload a set of configurations by owner.
+ *
+ * Dynamic unload of configuration and feature sets is done on the basis of
+ * the load owner of that set. Later loaded configurations can depend on
+ * features loaded earlier.
+ *
+ * Therefore, unload is only possible if:-
+ * 1) no configurations are active.
+ * 2) the set being unloaded was the last to be loaded to maintain dependencies.
+ *
+ * @owner_info:	Information on owner for set being unloaded.
+ */
+int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
+{
+	int err = 0;
+	struct cscfg_load_owner_info *load_list_item = NULL;
+
+	mutex_lock(&cscfg_mutex);
+
+	/* cannot unload if anything is active */
+	if (atomic_read(&cscfg_mgr->sys_active_cnt)) {
+		err = -EBUSY;
+		goto exit_unlock;
+	}
+
+	/* cannot unload if not last loaded in load order */
+	if (!list_empty(&cscfg_mgr->load_order_list)) {
+		load_list_item = list_last_entry(&cscfg_mgr->load_order_list,
+						 struct cscfg_load_owner_info, item);
+		if (load_list_item != owner_info)
+			load_list_item = NULL;
+	}
+
+	if (!load_list_item) {
+		err = -EINVAL;
+		goto exit_unlock;
+	}
+
+	/* unload all belonging to load_owner */
+	cscfg_unload_owned_cfgs_feats(owner_info);
+
+	/* remove from load order list */
+	if (!list_is_singular(&cscfg_mgr->load_order_list)) {
+		/* unlock previous item in load order list */
+		cscfg_owner_put(list_prev_entry(owner_info, item));
+	}
+	list_del(&owner_info->item);
+
+exit_unlock:
+	mutex_unlock(&cscfg_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(cscfg_unload_config_sets);
 
 /* Handle coresight device registration and add configs and features to devices */
 
@@ -566,32 +745,26 @@ unlock_exit:
 }
 EXPORT_SYMBOL_GPL(cscfg_csdev_reset_feats);
 
-/**
- * cscfg_activate_config -  Mark a configuration descriptor as active.
- *
- * This will be seen when csdev devices are enabled in the system.
- * Only activated configurations can be enabled on individual devices.
- * Activation protects the configuration from alteration or removal while
- * active.
- *
- * Selection by hash value - generated from the configuration name when it
- * was loaded and added to the cs_etm/configurations file system for selection
- * by perf.
+/*
+ * This activate configuration for either perf or sysfs. Perf can have multiple
+ * active configs, selected per event, sysfs is limited to one.
  *
  * Increments the configuration descriptor active count and the global active
  * count.
  *
  * @cfg_hash: Hash value of the selected configuration name.
  */
-int cscfg_activate_config(unsigned long cfg_hash)
+static int _cscfg_activate_config(unsigned long cfg_hash)
 {
 	struct cscfg_config_desc *config_desc;
 	int err = -EINVAL;
 
-	mutex_lock(&cscfg_mutex);
-
 	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
 		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
+			/* must ensure that config cannot be unloaded in use */
+			err = cscfg_owner_get(config_desc->load_owner);
+			if (err)
+				break;
 			/*
 			 * increment the global active count - control changes to
 			 * active configurations
@@ -609,6 +782,101 @@ int cscfg_activate_config(unsigned long cfg_hash)
 			break;
 		}
 	}
+	return err;
+}
+
+static void _cscfg_deactivate_config(unsigned long cfg_hash)
+{
+	struct cscfg_config_desc *config_desc;
+
+	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
+		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
+			atomic_dec(&config_desc->active_cnt);
+			atomic_dec(&cscfg_mgr->sys_active_cnt);
+			cscfg_owner_put(config_desc->load_owner);
+			dev_dbg(cscfg_device(), "Deactivate config %s.\n", config_desc->name);
+			break;
+		}
+	}
+}
+
+/*
+ * called from configfs to set/clear the active configuration for use when
+ * using sysfs to control trace.
+ */
+int cscfg_config_sysfs_activate(struct cscfg_config_desc *config_desc, bool activate)
+{
+	unsigned long cfg_hash;
+	int err = 0;
+
+	mutex_lock(&cscfg_mutex);
+
+	cfg_hash = (unsigned long)config_desc->event_ea->var;
+
+	if (activate) {
+		/* cannot be a current active value to activate this */
+		if (cscfg_mgr->sysfs_active_config) {
+			err = -EBUSY;
+			goto exit_unlock;
+		}
+		err = _cscfg_activate_config(cfg_hash);
+		if (!err)
+			cscfg_mgr->sysfs_active_config = cfg_hash;
+	} else {
+		/* disable if matching current value */
+		if (cscfg_mgr->sysfs_active_config == cfg_hash) {
+			_cscfg_deactivate_config(cfg_hash);
+			cscfg_mgr->sysfs_active_config = 0;
+		} else
+			err = -EINVAL;
+	}
+
+exit_unlock:
+	mutex_unlock(&cscfg_mutex);
+	return err;
+}
+
+/* set the sysfs preset value */
+void cscfg_config_sysfs_set_preset(int preset)
+{
+	mutex_lock(&cscfg_mutex);
+	cscfg_mgr->sysfs_active_preset = preset;
+	mutex_unlock(&cscfg_mutex);
+}
+
+/*
+ * Used by a device to get the config and preset selected as active in configfs,
+ * when using sysfs to control trace.
+ */
+void cscfg_config_sysfs_get_active_cfg(unsigned long *cfg_hash, int *preset)
+{
+	mutex_lock(&cscfg_mutex);
+	*preset = cscfg_mgr->sysfs_active_preset;
+	*cfg_hash = cscfg_mgr->sysfs_active_config;
+	mutex_unlock(&cscfg_mutex);
+}
+EXPORT_SYMBOL_GPL(cscfg_config_sysfs_get_active_cfg);
+
+/**
+ * cscfg_activate_config -  Mark a configuration descriptor as active.
+ *
+ * This will be seen when csdev devices are enabled in the system.
+ * Only activated configurations can be enabled on individual devices.
+ * Activation protects the configuration from alteration or removal while
+ * active.
+ *
+ * Selection by hash value - generated from the configuration name when it
+ * was loaded and added to the cs_etm/configurations file system for selection
+ * by perf.
+ *
+ * @cfg_hash: Hash value of the selected configuration name.
+ */
+int cscfg_activate_config(unsigned long cfg_hash)
+{
+	int err = 0;
+
+	mutex_lock(&cscfg_mutex);
+	err = _cscfg_activate_config(cfg_hash);
 	mutex_unlock(&cscfg_mutex);
 
 	return err;
@@ -624,18 +892,8 @@ EXPORT_SYMBOL_GPL(cscfg_activate_config);
  */
 void cscfg_deactivate_config(unsigned long cfg_hash)
 {
-	struct cscfg_config_desc *config_desc;
-
 	mutex_lock(&cscfg_mutex);
-
-	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
-		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
-			atomic_dec(&config_desc->active_cnt);
-			atomic_dec(&cscfg_mgr->sys_active_cnt);
-			dev_dbg(cscfg_device(), "Deactivate config %s.\n", config_desc->name);
-			break;
-		}
-	}
+	_cscfg_deactivate_config(cfg_hash);
 	mutex_unlock(&cscfg_mutex);
 }
 EXPORT_SYMBOL_GPL(cscfg_deactivate_config);
@@ -827,10 +1085,11 @@ int __init cscfg_init(void)
 	INIT_LIST_HEAD(&cscfg_mgr->csdev_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->feat_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
+	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
 	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
 
 	/* preload built-in configurations */
-	err = cscfg_preload();
+	err = cscfg_preload(THIS_MODULE);
 	if (err)
 		goto exit_err;
 

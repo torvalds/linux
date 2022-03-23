@@ -78,7 +78,7 @@ SYM_INNER_LABEL(int80_landing_pad, SYM_L_GLOBAL)
 	popl	%ecx
 	CFI_RESTORE		ecx
 	CFI_ADJUST_CFA_OFFSET	-4
-	ret
+	RET
 	CFI_ENDPROC
 
 	.size __kernel_vsyscall,.-__kernel_vsyscall

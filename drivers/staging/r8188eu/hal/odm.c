@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-/*  include files */
-
-#include "../include/odm_precomp.h"
+#include "../include/drv_types.h"
 
 /* avoid to warn in FreeBSD ==> To DO modify */
 static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {
@@ -142,222 +140,26 @@ u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8] = {
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 
-/* 3 Export Interface */
-
-/*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
-void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
-{
-	/* 2012.05.03 Luke: For all IC series */
-	odm_CommonInfoSelfInit(pDM_Odm);
-	odm_DIGInit(pDM_Odm);
-	odm_RateAdaptiveMaskInit(pDM_Odm);
-
-	odm_PrimaryCCA_Init(pDM_Odm);    /*  Gary */
-	odm_DynamicBBPowerSavingInit(pDM_Odm);
-	odm_TXPowerTrackingInit(pDM_Odm);
-	ODM_EdcaTurboInit(pDM_Odm);
-	ODM_RAInfo_Init_all(pDM_Odm);
-	if ((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV) ||
-	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-		odm_InitHybridAntDiv(pDM_Odm);
-}
-
-/*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
-/*  You can not add any dummy function here, be care, you can only use DM structure */
-/*  to perform any new ODM_DM. */
-void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
-{
-	/* 2012.05.03 Luke: For all IC series */
-	odm_CommonInfoSelfUpdate(pDM_Odm);
-	odm_FalseAlarmCounterStatistics(pDM_Odm);
-	odm_RSSIMonitorCheck(pDM_Odm);
-
-	odm_DIG(pDM_Odm);
-	odm_CCKPacketDetectionThresh(pDM_Odm);
-
-	if (*pDM_Odm->pbPowerSaving)
-		return;
-
-	odm_RefreshRateAdaptiveMask(pDM_Odm);
-
-	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-		odm_HwAntDiv(pDM_Odm);
-
-	ODM_TXPowerTrackingCheck(pDM_Odm);
-	odm_EdcaTurboCheck(pDM_Odm);
-}
-
-/*  Init /.. Fixed HW value. Only init time. */
-void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, u32 Value)
-{
-	/*  This section is used for init value */
-	switch	(CmnInfo) {
-	/*  Fixed ODM value. */
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
-	case	ODM_CMNINFO_MP_TEST_CHIP:
-		pDM_Odm->bIsMPChip = (u8)Value;
-		break;
-	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
-		pDM_Odm->AntDivType = (u8)Value;
-		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
-	default:
-		/* do nothing */
-		break;
-	}
-
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
-	pDM_Odm->BbSwingIdxOfdm			= 12; /*  Set defalut value as index 12. */
-	pDM_Odm->BbSwingIdxOfdmCurrent	= 12;
-	pDM_Odm->BbSwingFlagOfdm		= false;
-}
-
-void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, void *pValue)
-{
-	/*  */
-	/*  Hook call by reference pointer. */
-	/*  */
-	switch	(CmnInfo) {
-	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_TX_UNI:
-		pDM_Odm->pNumTxBytesUnicast = (u64 *)pValue;
-		break;
-	case	ODM_CMNINFO_RX_UNI:
-		pDM_Odm->pNumRxBytesUnicast = (u64 *)pValue;
-		break;
-	case	ODM_CMNINFO_WM_MODE:
-		pDM_Odm->pWirelessMode = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
-		pDM_Odm->pSecChOffset = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SEC_MODE:
-		pDM_Odm->pSecurity = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_BW:
-		pDM_Odm->pBandWidth = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_CHNL:
-		pDM_Odm->pChannel = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SCAN:
-		pDM_Odm->pbScanInProcess = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_POWER_SAVING:
-		pDM_Odm->pbPowerSaving = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_NET_CLOSED:
-		pDM_Odm->pbNet_closed = (bool *)pValue;
-		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
-	default:
-		/* do nothing */
-		break;
-	}
-}
-
-/*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
-void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
-{
-	/*  */
-	/*  This init variable may be changed in run time. */
-	/*  */
-	switch	(CmnInfo) {
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
-	case	ODM_CMNINFO_WIFI_DIRECT:
-		pDM_Odm->bWIFI_Direct = (bool)Value;
-		break;
-	case	ODM_CMNINFO_WIFI_DISPLAY:
-		pDM_Odm->bWIFI_Display = (bool)Value;
-		break;
-	case	ODM_CMNINFO_LINK:
-		pDM_Odm->bLinked = (bool)Value;
-		break;
-	case	ODM_CMNINFO_RSSI_MIN:
-		pDM_Odm->RSSI_Min = (u8)Value;
-		break;
-	}
-}
-
-void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
-{
-	pDM_Odm->bCckHighPower = (bool)ODM_GetBBReg(pDM_Odm, 0x824, BIT(9));
-	pDM_Odm->RFPathRxEnable = (u8)ODM_GetBBReg(pDM_Odm, 0xc04, 0x0F);
-}
-
-void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
-{
-	u8 EntryCnt = 0;
-	u8 i;
-	struct sta_info *pEntry;
-
-	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
-		if (*pDM_Odm->pSecChOffset == 1)
-			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
-		else if (*pDM_Odm->pSecChOffset == 2)
-			pDM_Odm->ControlChannel = *pDM_Odm->pChannel + 2;
-	} else {
-		pDM_Odm->ControlChannel = *pDM_Odm->pChannel;
-	}
-
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		pEntry = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pEntry))
-			EntryCnt++;
-	}
-	if (EntryCnt == 1)
-		pDM_Odm->bOneEntryOnly = true;
-	else
-		pDM_Odm->bOneEntryOnly = false;
-}
-
-void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
+static void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct adapter *adapter = pDM_Odm->Adapter;
 
-	if (pDM_DigTable->CurIGValue != CurrentIGI) {
-		ODM_SetBBReg(pDM_Odm, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
-		pDM_DigTable->CurIGValue = CurrentIGI;
-	}
-}
-
-void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
-
-	pDM_DigTable->CurIGValue = (u8)ODM_GetBBReg(pDM_Odm, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N);
-	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
-	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
-	pDM_DigTable->FALowThresh	= DM_false_ALARM_THRESH_LOW;
-	pDM_DigTable->FAHighThresh	= DM_false_ALARM_THRESH_HIGH;
+	pDM_DigTable->CurIGValue = (u8)rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N);
 	pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
 	pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
-	pDM_DigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
-	pDM_DigTable->BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
-	pDM_DigTable->BackoffVal_range_min = DM_DIG_BACKOFF_MIN;
-	pDM_DigTable->PreCCK_CCAThres = 0xFF;
 	pDM_DigTable->CurCCK_CCAThres = 0x83;
 	pDM_DigTable->ForbiddenIGI = DM_DIG_MIN_NIC;
 	pDM_DigTable->LargeFAHit = 0;
 	pDM_DigTable->Recover_cnt = 0;
 	pDM_DigTable->DIG_Dynamic_MIN_0 = DM_DIG_MIN_NIC;
-	pDM_DigTable->DIG_Dynamic_MIN_1 = DM_DIG_MIN_NIC;
 	pDM_DigTable->bMediaConnect_0 = false;
-	pDM_DigTable->bMediaConnect_1 = false;
 
 	/* To Initialize pDM_Odm->bDMInitialGainEnable == false to avoid DIG error */
 	pDM_Odm->bDMInitialGainEnable = true;
 }
 
-void odm_DIG(struct odm_dm_struct *pDM_Odm)
+static void odm_DIG(struct odm_dm_struct *pDM_Odm)
 {
 	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
@@ -367,7 +169,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	u8 dm_dig_max, dm_dig_min;
 	u8 CurrentIGI = pDM_DigTable->CurIGValue;
 
-	if ((!(pDM_Odm->SupportAbility & ODM_BB_DIG)) || (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT)))
+	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return;
 
 	if (*pDM_Odm->pbScanInProcess)
@@ -457,11 +259,11 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 			CurrentIGI = pDM_Odm->RSSI_Min;
 		} else {
 			if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2)
-					CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
+				CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
 			else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1)
-					CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
+				CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
 			else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0)
-					CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
+				CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
 		}
 	} else {
 		if (FirstDisConnect) {
@@ -489,52 +291,119 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;
 }
 
-/* 3============================================================ */
-/* 3 FASLE ALARM CHECK */
-/* 3============================================================ */
+static void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *adapter = pDM_Odm->Adapter;
 
-void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
+	pDM_Odm->bCckHighPower = (bool)rtl8188e_PHY_QueryBBReg(adapter, 0x824, BIT(9));
+	pDM_Odm->RFPathRxEnable = (u8)rtl8188e_PHY_QueryBBReg(adapter, 0xc04, 0x0F);
+}
+
+static void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
+{
+	u8 EntryCnt = 0;
+	u8 i;
+	struct sta_info *pEntry;
+
+	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
+		if (*pDM_Odm->pSecChOffset == 1)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
+		else if (*pDM_Odm->pSecChOffset == 2)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel + 2;
+	} else {
+		pDM_Odm->ControlChannel = *pDM_Odm->pChannel;
+	}
+
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		pEntry = pDM_Odm->pODM_StaInfo[i];
+		if (IS_STA_VALID(pEntry))
+			EntryCnt++;
+	}
+	if (EntryCnt == 1)
+		pDM_Odm->bOneEntryOnly = true;
+	else
+		pDM_Odm->bOneEntryOnly = false;
+}
+
+static void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
+
+	pOdmRA->RATRState = DM_RATR_STA_INIT;
+	pOdmRA->HighRSSIThresh = 50;
+	pOdmRA->LowRSSIThresh = 20;
+}
+
+static void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
+{
+	u8 i;
+	struct adapter *pAdapter = pDM_Odm->Adapter;
+
+	if (pAdapter->bDriverStopped)
+		return;
+
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
+
+		if (IS_STA_VALID(pstat)) {
+			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level))
+				rtw_hal_update_ra_mask(pAdapter, i, pstat->rssi_level);
+		}
+	}
+}
+
+static void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
+
+	pDM_PSTable->pre_rf_state = RF_MAX;
+	pDM_PSTable->cur_rf_state = RF_MAX;
+	pDM_PSTable->initialize = 0;
+}
+
+static void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 {
 	u32 ret_value;
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
+	struct adapter *adapter = pDM_Odm->Adapter;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return;
 
 	/* hold ofdm counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1); /* hold page C counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 1); /* hold page D counter */
+	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1); /* hold page C counter */
+	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 1); /* hold page D counter */
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_Fast_Fsync = (ret_value & 0xffff);
 	FalseAlmCnt->Cnt_SB_Search_fail = ((ret_value & 0xffff0000) >> 16);
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE2_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_OFDM_FA_TYPE2_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_OFDM_CCA = (ret_value & 0xffff);
 	FalseAlmCnt->Cnt_Parity_Fail = ((ret_value & 0xffff0000) >> 16);
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE3_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_OFDM_FA_TYPE3_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_Rate_Illegal = (ret_value & 0xffff);
 	FalseAlmCnt->Cnt_Crc8_fail = ((ret_value & 0xffff0000) >> 16);
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE4_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_OFDM_FA_TYPE4_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_Mcs_fail = (ret_value & 0xffff);
 
 	FalseAlmCnt->Cnt_Ofdm_fail = FalseAlmCnt->Cnt_Parity_Fail + FalseAlmCnt->Cnt_Rate_Illegal +
 				     FalseAlmCnt->Cnt_Crc8_fail + FalseAlmCnt->Cnt_Mcs_fail +
 				     FalseAlmCnt->Cnt_Fast_Fsync + FalseAlmCnt->Cnt_SB_Search_fail;
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_SC_CNT_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_SC_CNT_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_BW_LSC = (ret_value & 0xffff);
 	FalseAlmCnt->Cnt_BW_USC = ((ret_value & 0xffff0000) >> 16);
 
 	/* hold cck counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
-	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
+	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
+	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
 	FalseAlmCnt->Cnt_Cck_fail = ret_value;
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_MSB_11N, bMaskByte3);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_CCK_FA_MSB_11N, bMaskByte3);
 	FalseAlmCnt->Cnt_Cck_fail +=  (ret_value & 0xff) << 8;
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_CCA_CNT_11N, bMaskDWord);
+	ret_value = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_CCK_CCA_CNT_11N, bMaskDWord);
 	FalseAlmCnt->Cnt_CCK_CCA = ((ret_value & 0xFF) << 8) | ((ret_value & 0xFF00) >> 8);
 
 	FalseAlmCnt->Cnt_all = (FalseAlmCnt->Cnt_Fast_Fsync +
@@ -548,11 +417,7 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 	FalseAlmCnt->Cnt_CCA_all = FalseAlmCnt->Cnt_OFDM_CCA + FalseAlmCnt->Cnt_CCK_CCA;
 }
 
-/* 3============================================================ */
-/* 3 CCK Packet Detect Threshold */
-/* 3============================================================ */
-
-void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
+static void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 {
 	u8 CurCCK_CCAThres;
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
@@ -579,235 +444,9 @@ void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 	ODM_Write_CCK_CCA_Thres(pDM_Odm, CurCCK_CCAThres);
 }
 
-void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
-{
-	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
-
-	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)		/* modify by Guo.Mingzhi 2012-01-03 */
-		ODM_Write1Byte(pDM_Odm, ODM_REG_CCK_CCA_11N, CurCCK_CCAThres);
-	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
-	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
-}
-
-/* 3============================================================ */
-/* 3 BB Power Save */
-/* 3============================================================ */
-void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	pDM_PSTable->pre_cca_state = CCA_MAX;
-	pDM_PSTable->cur_cca_state = CCA_MAX;
-	pDM_PSTable->pre_rf_state = RF_MAX;
-	pDM_PSTable->cur_rf_state = RF_MAX;
-	pDM_PSTable->rssi_val_min = 0;
-	pDM_PSTable->initialize = 0;
-}
-
-void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
-{
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-	u8 Rssi_Up_bound = 30;
-	u8 Rssi_Low_bound = 25;
-
-	if (pDM_PSTable->initialize == 0) {
-		pDM_PSTable->reg_874 = (ODM_GetBBReg(pDM_Odm, 0x874, bMaskDWord) & 0x1CC000) >> 14;
-		pDM_PSTable->reg_c70 = (ODM_GetBBReg(pDM_Odm, 0xc70, bMaskDWord) & BIT(3)) >> 3;
-		pDM_PSTable->reg_85c = (ODM_GetBBReg(pDM_Odm, 0x85c, bMaskDWord) & 0xFF000000) >> 24;
-		pDM_PSTable->reg_a74 = (ODM_GetBBReg(pDM_Odm, 0xa74, bMaskDWord) & 0xF000) >> 12;
-		pDM_PSTable->initialize = 1;
-	}
-
-	if (!bForceInNormal) {
-		if (pDM_Odm->RSSI_Min != 0xFF) {
-			if (pDM_PSTable->pre_rf_state == RF_Normal) {
-				if (pDM_Odm->RSSI_Min >= Rssi_Up_bound)
-					pDM_PSTable->cur_rf_state = RF_Save;
-				else
-					pDM_PSTable->cur_rf_state = RF_Normal;
-			} else {
-				if (pDM_Odm->RSSI_Min <= Rssi_Low_bound)
-					pDM_PSTable->cur_rf_state = RF_Normal;
-				else
-					pDM_PSTable->cur_rf_state = RF_Save;
-			}
-		} else {
-			pDM_PSTable->cur_rf_state = RF_MAX;
-		}
-	} else {
-		pDM_PSTable->cur_rf_state = RF_Normal;
-	}
-
-	if (pDM_PSTable->pre_rf_state != pDM_PSTable->cur_rf_state) {
-		if (pDM_PSTable->cur_rf_state == RF_Save) {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), 0); /* RegC70[3]=1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0xC000, 0x2); /* Reg874[15:14]=2'b10 */
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, 0x3); /* RegA75[7:4]=0x3 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0); /* Reg818[28]=1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x1); /* Reg818[28]=1'b1 */
-		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000, pDM_PSTable->reg_874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), pDM_PSTable->reg_c70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->reg_85c);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->reg_a74);
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
-		}
-		pDM_PSTable->pre_rf_state = pDM_PSTable->cur_rf_state;
-	}
-}
-
-/* 3============================================================ */
-/* 3 RATR MASK */
-/* 3============================================================ */
-/* 3============================================================ */
-/* 3 Rate Adaptive */
-/* 3============================================================ */
-
-void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
-
-	pOdmRA->RATRState = DM_RATR_STA_INIT;
-	pOdmRA->HighRSSIThresh = 50;
-	pOdmRA->LowRSSIThresh = 20;
-}
-
-u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level)
-{
-	struct sta_info *pEntry;
-	u32 rate_bitmap = 0x0fffffff;
-	u8 WirelessMode;
-
-	pEntry = pDM_Odm->pODM_StaInfo[macid];
-	if (!IS_STA_VALID(pEntry))
-		return ra_mask;
-
-	WirelessMode = pEntry->wireless_mode;
-
-	switch (WirelessMode) {
-	case ODM_WM_B:
-		if (ra_mask & 0x0000000c)		/* 11M or 5.5M enable */
-			rate_bitmap = 0x0000000d;
-		else
-			rate_bitmap = 0x0000000f;
-		break;
-	case (ODM_WM_B | ODM_WM_G):
-		if (rssi_level == DM_RATR_STA_HIGH)
-			rate_bitmap = 0x00000f00;
-		else if (rssi_level == DM_RATR_STA_MIDDLE)
-			rate_bitmap = 0x00000ff0;
-		else
-			rate_bitmap = 0x00000ff5;
-		break;
-	case (ODM_WM_B | ODM_WM_G | ODM_WM_N24G):
-		if (rssi_level == DM_RATR_STA_HIGH) {
-			rate_bitmap = 0x000f0000;
-		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
-			rate_bitmap = 0x000ff000;
-		} else {
-			if (*pDM_Odm->pBandWidth == ODM_BW40M)
-				rate_bitmap = 0x000ff015;
-			else
-				rate_bitmap = 0x000ff005;
-		}
-		break;
-	default:
-		/* case WIRELESS_11_24N: */
-		rate_bitmap = 0x0fffffff;
-		break;
-	}
-
-	return rate_bitmap;
-}
-
-/*-----------------------------------------------------------------------------
- * Function:	odm_RefreshRateAdaptiveMask()
- *
- * Overview:	Update rate table mask according to rssi
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/27/2009	hpfan	Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
-{
-	u8 i;
-	struct adapter *pAdapter = pDM_Odm->Adapter;
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
-		return;
-
-	if (pAdapter->bDriverStopped)
-		return;
-
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pstat)) {
-			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level))
-				rtw_hal_update_ra_mask(pAdapter, i, pstat->rssi_level);
-		}
-	}
-}
-
-/*  Return Value: bool */
-/*  - true: RATRState is changed. */
-bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate, u8 *pRATRState)
-{
-	struct odm_rate_adapt *pRA = &pDM_Odm->RateAdaptive;
-	const u8 GoUpGap = 5;
-	u8 HighRSSIThreshForRA = pRA->HighRSSIThresh;
-	u8 LowRSSIThreshForRA = pRA->LowRSSIThresh;
-	u8 RATRState;
-
-	/*  Threshold Adjustment: */
-	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
-	/*  Here GoUpGap is added to solve the boundary's level alternation issue. */
-	switch (*pRATRState) {
-	case DM_RATR_STA_INIT:
-	case DM_RATR_STA_HIGH:
-		break;
-	case DM_RATR_STA_MIDDLE:
-		HighRSSIThreshForRA += GoUpGap;
-		break;
-	case DM_RATR_STA_LOW:
-		HighRSSIThreshForRA += GoUpGap;
-		LowRSSIThreshForRA += GoUpGap;
-		break;
-	default:
-		break;
-	}
-
-	/*  Decide RATRState by RSSI. */
-	if (RSSI > HighRSSIThreshForRA)
-		RATRState = DM_RATR_STA_HIGH;
-	else if (RSSI > LowRSSIThreshForRA)
-		RATRState = DM_RATR_STA_MIDDLE;
-	else
-		RATRState = DM_RATR_STA_LOW;
-
-	if (*pRATRState != RATRState || bForceUpdate) {
-		*pRATRState = RATRState;
-		return true;
-	}
-	return false;
-}
-
-/* 3============================================================ */
-/* 3 RSSI Monitor */
-/* 3============================================================ */
-
 static void FindMinimumRSSI(struct adapter *pAdapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
+	struct hal_data_8188e *pHalData = &pAdapter->haldata;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
@@ -819,10 +458,10 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 	pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
-void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
+static void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	int	i;
 	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
@@ -877,44 +516,15 @@ void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
-/* 3============================================================ */
-/* 3 Tx Power Tracking */
-/* 3============================================================ */
-
-void odm_TXPowerTrackingInit(struct odm_dm_struct *pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
-
-void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
+static void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
 {
 	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
 	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
 	pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = false;
-	MSG_88E("pDM_Odm TxPowerTrackControl = %d\n", pDM_Odm->RFCalibrateInfo.TxPowerTrackControl);
-
 	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
 }
 
-void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-
-	if (!(pDM_Odm->SupportAbility & ODM_RF_TX_PWR_TRACK))
-		return;
-
-	if (!pDM_Odm->RFCalibrateInfo.TM_Trigger) {		/* at least delay 1 sec */
-		PHY_SetRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, BIT(17) | BIT(16), 0x03);
-
-		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
-		return;
-	} else {
-		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
-		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
-	}
-}
-
-void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
+static void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 {
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
@@ -922,7 +532,7 @@ void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 	ODM_AntennaDiversityInit_88E(pDM_Odm);
 }
 
-void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
+static void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 {
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
@@ -930,17 +540,15 @@ void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 	ODM_AntennaDiversity_88E(pDM_Odm);
 }
 
-/* EDCA Turbo */
-void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
+static void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
+}
 
-}	/*  ODM_InitEdcaTurbo */
-
-void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
+static void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	u32	trafficIndex;
@@ -948,7 +556,7 @@ void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 	u64	cur_tx_bytes = 0;
 	u64	cur_rx_bytes = 0;
 	u8	bbtchange = false;
-	struct hal_data_8188e		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct xmit_priv		*pxmitpriv = &Adapter->xmitpriv;
 	struct recv_priv		*precvpriv = &Adapter->recvpriv;
 	struct registry_priv	*pregpriv = &Adapter->registrypriv;
@@ -1004,7 +612,7 @@ void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 	} else {
 		/*  Turn Off EDCA turbo here. */
 		/*  Restore original EDCA according to the declaration of AP. */
-		 if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
+		if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
 			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
 			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 		}
@@ -1015,4 +623,307 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->bIsAnyNonBEPkts = false;
 	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
+}
+
+/*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
+void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
+{
+	/* 2012.05.03 Luke: For all IC series */
+	odm_CommonInfoSelfInit(pDM_Odm);
+	odm_DIGInit(pDM_Odm);
+	odm_RateAdaptiveMaskInit(pDM_Odm);
+
+	odm_DynamicBBPowerSavingInit(pDM_Odm);
+	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
+	ODM_EdcaTurboInit(pDM_Odm);
+	ODM_RAInfo_Init_all(pDM_Odm);
+	if ((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)	||
+	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV) ||
+	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
+		odm_InitHybridAntDiv(pDM_Odm);
+}
+
+/*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
+/*  You can not add any dummy function here, be care, you can only use DM structure */
+/*  to perform any new ODM_DM. */
+void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
+{
+	/* 2012.05.03 Luke: For all IC series */
+	odm_CommonInfoSelfUpdate(pDM_Odm);
+	odm_FalseAlarmCounterStatistics(pDM_Odm);
+	odm_RSSIMonitorCheck(pDM_Odm);
+
+	odm_DIG(pDM_Odm);
+	odm_CCKPacketDetectionThresh(pDM_Odm);
+
+	if (*pDM_Odm->pbPowerSaving)
+		return;
+
+	odm_RefreshRateAdaptiveMask(pDM_Odm);
+
+	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
+	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
+	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
+		odm_HwAntDiv(pDM_Odm);
+
+	ODM_TXPowerTrackingCheck(pDM_Odm);
+	odm_EdcaTurboCheck(pDM_Odm);
+}
+
+/*  Init /.. Fixed HW value. Only init time. */
+void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, u32 Value)
+{
+	/*  This section is used for init value */
+	switch	(CmnInfo) {
+	/*  Fixed ODM value. */
+	case	ODM_CMNINFO_MP_TEST_CHIP:
+		pDM_Odm->bIsMPChip = (u8)Value;
+		break;
+	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
+		pDM_Odm->AntDivType = (u8)Value;
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+
+	/*  Tx power tracking BB swing table. */
+	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	pDM_Odm->BbSwingIdxOfdm			= 12; /*  Set defalut value as index 12. */
+	pDM_Odm->BbSwingIdxOfdmCurrent	= 12;
+	pDM_Odm->BbSwingFlagOfdm		= false;
+}
+
+void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, void *pValue)
+{
+	/*  */
+	/*  Hook call by reference pointer. */
+	/*  */
+	switch	(CmnInfo) {
+	/*  Dynamic call by reference pointer. */
+	case	ODM_CMNINFO_WM_MODE:
+		pDM_Odm->pWirelessMode = (u8 *)pValue;
+		break;
+	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
+		pDM_Odm->pSecChOffset = (u8 *)pValue;
+		break;
+	case	ODM_CMNINFO_BW:
+		pDM_Odm->pBandWidth = (u8 *)pValue;
+		break;
+	case	ODM_CMNINFO_CHNL:
+		pDM_Odm->pChannel = (u8 *)pValue;
+		break;
+	case	ODM_CMNINFO_SCAN:
+		pDM_Odm->pbScanInProcess = (bool *)pValue;
+		break;
+	case	ODM_CMNINFO_POWER_SAVING:
+		pDM_Odm->pbPowerSaving = (bool *)pValue;
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+}
+
+/*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
+void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
+{
+	/*  */
+	/*  This init variable may be changed in run time. */
+	/*  */
+	switch	(CmnInfo) {
+	case	ODM_CMNINFO_ABILITY:
+		pDM_Odm->SupportAbility = (u32)Value;
+		break;
+	case	ODM_CMNINFO_LINK:
+		pDM_Odm->bLinked = (bool)Value;
+		break;
+	case	ODM_CMNINFO_RSSI_MIN:
+		pDM_Odm->RSSI_Min = (u8)Value;
+		break;
+	}
+}
+
+void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
+{
+	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct adapter *adapter = pDM_Odm->Adapter;
+
+	if (pDM_DigTable->CurIGValue != CurrentIGI) {
+		rtl8188e_PHY_SetBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
+		pDM_DigTable->CurIGValue = CurrentIGI;
+	}
+}
+
+void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
+{
+	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+
+	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)		/* modify by Guo.Mingzhi 2012-01-03 */
+		rtw_write8(pDM_Odm->Adapter, ODM_REG_CCK_CCA_11N, CurCCK_CCAThres);
+	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
+}
+
+void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
+{
+	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
+	struct adapter *adapter = pDM_Odm->Adapter;
+	u8 Rssi_Up_bound = 30;
+	u8 Rssi_Low_bound = 25;
+
+	if (pDM_PSTable->initialize == 0) {
+		pDM_PSTable->reg_874 = (rtl8188e_PHY_QueryBBReg(adapter, 0x874, bMaskDWord) & 0x1CC000) >> 14;
+		pDM_PSTable->reg_c70 = (rtl8188e_PHY_QueryBBReg(adapter, 0xc70, bMaskDWord) & BIT(3)) >> 3;
+		pDM_PSTable->reg_85c = (rtl8188e_PHY_QueryBBReg(adapter, 0x85c, bMaskDWord) & 0xFF000000) >> 24;
+		pDM_PSTable->reg_a74 = (rtl8188e_PHY_QueryBBReg(adapter, 0xa74, bMaskDWord) & 0xF000) >> 12;
+		pDM_PSTable->initialize = 1;
+	}
+
+	if (!bForceInNormal) {
+		if (pDM_Odm->RSSI_Min != 0xFF) {
+			if (pDM_PSTable->pre_rf_state == RF_Normal) {
+				if (pDM_Odm->RSSI_Min >= Rssi_Up_bound)
+					pDM_PSTable->cur_rf_state = RF_Save;
+				else
+					pDM_PSTable->cur_rf_state = RF_Normal;
+			} else {
+				if (pDM_Odm->RSSI_Min <= Rssi_Low_bound)
+					pDM_PSTable->cur_rf_state = RF_Normal;
+				else
+					pDM_PSTable->cur_rf_state = RF_Save;
+			}
+		} else {
+			pDM_PSTable->cur_rf_state = RF_MAX;
+		}
+	} else {
+		pDM_PSTable->cur_rf_state = RF_Normal;
+	}
+
+	if (pDM_PSTable->pre_rf_state != pDM_PSTable->cur_rf_state) {
+		if (pDM_PSTable->cur_rf_state == RF_Save) {
+			rtl8188e_PHY_SetBBReg(adapter, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
+			rtl8188e_PHY_SetBBReg(adapter, 0xc70, BIT(3), 0); /* RegC70[3]=1'b0 */
+			rtl8188e_PHY_SetBBReg(adapter, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
+			rtl8188e_PHY_SetBBReg(adapter, 0x874, 0xC000, 0x2); /* Reg874[15:14]=2'b10 */
+			rtl8188e_PHY_SetBBReg(adapter, 0xa74, 0xF000, 0x3); /* RegA75[7:4]=0x3 */
+			rtl8188e_PHY_SetBBReg(adapter, 0x818, BIT(28), 0x0); /* Reg818[28]=1'b0 */
+			rtl8188e_PHY_SetBBReg(adapter, 0x818, BIT(28), 0x1); /* Reg818[28]=1'b1 */
+		} else {
+			rtl8188e_PHY_SetBBReg(adapter, 0x874, 0x1CC000, pDM_PSTable->reg_874);
+			rtl8188e_PHY_SetBBReg(adapter, 0xc70, BIT(3), pDM_PSTable->reg_c70);
+			rtl8188e_PHY_SetBBReg(adapter, 0x85c, 0xFF000000, pDM_PSTable->reg_85c);
+			rtl8188e_PHY_SetBBReg(adapter, 0xa74, 0xF000, pDM_PSTable->reg_a74);
+			rtl8188e_PHY_SetBBReg(adapter, 0x818, BIT(28), 0x0);
+		}
+		pDM_PSTable->pre_rf_state = pDM_PSTable->cur_rf_state;
+	}
+}
+
+u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level)
+{
+	struct sta_info *pEntry;
+	u32 rate_bitmap = 0x0fffffff;
+	u8 WirelessMode;
+
+	pEntry = pDM_Odm->pODM_StaInfo[macid];
+	if (!IS_STA_VALID(pEntry))
+		return ra_mask;
+
+	WirelessMode = pEntry->wireless_mode;
+
+	switch (WirelessMode) {
+	case ODM_WM_B:
+		if (ra_mask & 0x0000000c)		/* 11M or 5.5M enable */
+			rate_bitmap = 0x0000000d;
+		else
+			rate_bitmap = 0x0000000f;
+		break;
+	case (ODM_WM_B | ODM_WM_G):
+		if (rssi_level == DM_RATR_STA_HIGH)
+			rate_bitmap = 0x00000f00;
+		else if (rssi_level == DM_RATR_STA_MIDDLE)
+			rate_bitmap = 0x00000ff0;
+		else
+			rate_bitmap = 0x00000ff5;
+		break;
+	case (ODM_WM_B | ODM_WM_G | ODM_WM_N24G):
+		if (rssi_level == DM_RATR_STA_HIGH) {
+			rate_bitmap = 0x000f0000;
+		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
+			rate_bitmap = 0x000ff000;
+		} else {
+			if (*pDM_Odm->pBandWidth == ODM_BW40M)
+				rate_bitmap = 0x000ff015;
+			else
+				rate_bitmap = 0x000ff005;
+		}
+		break;
+	default:
+		/* case WIRELESS_11_24N: */
+		rate_bitmap = 0x0fffffff;
+		break;
+	}
+
+	return rate_bitmap;
+}
+
+/*  Return Value: bool */
+/*  - true: RATRState is changed. */
+bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate, u8 *pRATRState)
+{
+	struct odm_rate_adapt *pRA = &pDM_Odm->RateAdaptive;
+	const u8 GoUpGap = 5;
+	u8 HighRSSIThreshForRA = pRA->HighRSSIThresh;
+	u8 LowRSSIThreshForRA = pRA->LowRSSIThresh;
+	u8 RATRState;
+
+	/*  Threshold Adjustment: */
+	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
+	/*  Here GoUpGap is added to solve the boundary's level alternation issue. */
+	switch (*pRATRState) {
+	case DM_RATR_STA_INIT:
+	case DM_RATR_STA_HIGH:
+		break;
+	case DM_RATR_STA_MIDDLE:
+		HighRSSIThreshForRA += GoUpGap;
+		break;
+	case DM_RATR_STA_LOW:
+		HighRSSIThreshForRA += GoUpGap;
+		LowRSSIThreshForRA += GoUpGap;
+		break;
+	default:
+		break;
+	}
+
+	/*  Decide RATRState by RSSI. */
+	if (RSSI > HighRSSIThreshForRA)
+		RATRState = DM_RATR_STA_HIGH;
+	else if (RSSI > LowRSSIThreshForRA)
+		RATRState = DM_RATR_STA_MIDDLE;
+	else
+		RATRState = DM_RATR_STA_LOW;
+
+	if (*pRATRState != RATRState || bForceUpdate) {
+		*pRATRState = RATRState;
+		return true;
+	}
+	return false;
+}
+
+void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *Adapter = pDM_Odm->Adapter;
+
+	if (!(pDM_Odm->SupportAbility & ODM_RF_TX_PWR_TRACK))
+		return;
+
+	if (!pDM_Odm->RFCalibrateInfo.TM_Trigger) {		/* at least delay 1 sec */
+		rtl8188e_PHY_SetRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, BIT(17) | BIT(16), 0x03);
+
+		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
+		return;
+	} else {
+		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
+		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
+	}
 }
