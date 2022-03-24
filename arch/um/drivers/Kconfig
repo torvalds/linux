@@ -64,6 +64,13 @@ config XTERM_CHAN
 	  its own xterm.
 	  It is safe to say 'Y' here.
 
+config XTERM_CHAN_DEFAULT_EMULATOR
+	string "xterm channel default terminal emulator"
+	depends on XTERM_CHAN
+	default "xterm"
+	help
+	  This option allows changing the default terminal emulator.
+
 config NOCONFIG_CHAN
 	bool
 	default !(XTERM_CHAN && TTY_CHAN && PTY_CHAN && PORT_CHAN && NULL_CHAN)
