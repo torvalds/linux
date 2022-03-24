@@ -337,6 +337,11 @@
 		reg = <0x25>;
 		sd-vsel-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
+		/*
+		 * The bootloader is expected to switch on the I2C level shifter for the TLA2024 ADC
+		 * behind this PMIC.
+		 */
+
 		regulators {
 			reg_vdd_soc: BUCK1 {
 				nxp,dvs-run-voltage = <850000>;
