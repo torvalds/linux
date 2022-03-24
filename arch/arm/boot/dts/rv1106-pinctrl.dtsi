@@ -395,11 +395,7 @@
 				/* mipi_lvds_d3n */
 				<3 RK_PB0 2 &pcfg_pull_none>,
 				/* mipi_lvds_d3p */
-				<3 RK_PB1 2 &pcfg_pull_none>,
-				/* mipi_refclk_out0 */
-				<3 RK_PC4 2 &pcfg_pull_none>,
-				/* mipi_refclk_out1 */
-				<3 RK_PC6 3 &pcfg_pull_none>;
+				<3 RK_PB1 2 &pcfg_pull_none>;
 		};
 	};
 
@@ -1091,8 +1087,6 @@
 			rockchip,pins =
 				/* vicap_clkin_m0 */
 				<3 RK_PC2 1 &pcfg_pull_none>,
-				/* vicap_clkout_m0 */
-				<3 RK_PC4 1 &pcfg_pull_none>,
 				/* vicap_d0_m0 */
 				<3 RK_PB0 1 &pcfg_pull_none>,
 				/* vicap_d1_m0 */
@@ -1124,8 +1118,6 @@
 			rockchip,pins =
 				/* vicap_clkin_m1 */
 				<1 RK_PD0 2 &pcfg_pull_none>,
-				/* vicap_clkout_m1 */
-				<1 RK_PD3 2 &pcfg_pull_none>,
 				/* vicap_d0_m1 */
 				<1 RK_PA2 3 &pcfg_pull_none>,
 				/* vicap_d1_m1 */
@@ -1187,6 +1179,42 @@
 			rockchip,pins =
 				/* vicap_d15 */
 				<3 RK_PD3 1 &pcfg_pull_none>;
+		};
+	};
+};
+
+/*
+ * This part is edited handly.
+ */
+&pinctrl {
+	vicap {
+		/omit-if-no-ref/
+		vicap_clkout_m0: vicap-clkout-m0 {
+			rockchip,pins =
+				/* vicap_clkout_m0 */
+				<3 RK_PC4 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		vicap_clkout_m1: vicap-clkout-m1 {
+			rockchip,pins =
+				/* vicap_clkout_m1 */
+				<1 RK_PD3 2 &pcfg_pull_none>;
+		};
+	};
+
+	mipi {
+		/omit-if-no-ref/
+		mipi_refclk_out0: mipi-refclk-out0 {
+			rockchip,pins =
+				/* mipi_refclk_out0 */
+				<3 RK_PC4 2 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		mipi_refclk_out1: mipi-refclk-out1 {
+			rockchip,pins =
+				/* mipi_refclk_out1 */
+				<3 RK_PC6 3 &pcfg_pull_none>;
 		};
 	};
 };
