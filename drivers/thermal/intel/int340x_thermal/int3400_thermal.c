@@ -186,10 +186,10 @@ static int int3400_thermal_run_osc(acpi_handle handle, char *uuid_str, int *enab
 		ret = *((u32 *)(context.ret.pointer + 4));
 		if (ret != *enable)
 			result = -EPERM;
+
+		kfree(context.ret.pointer);
 	} else
 		result = -EPERM;
-
-	kfree(context.ret.pointer);
 
 	return result;
 }
