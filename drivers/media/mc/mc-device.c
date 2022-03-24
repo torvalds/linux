@@ -604,8 +604,6 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	media_gobj_destroy(&entity->graph_obj);
 
 	/* invoke entity_notify callbacks to handle entity removal?? */
-
-	entity->graph_obj.mdev = NULL;
 }
 
 int __must_check media_device_register_entity(struct media_device *mdev,
