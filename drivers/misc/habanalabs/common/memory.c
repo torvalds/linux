@@ -238,18 +238,17 @@ static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 		goto pin_err;
 	}
 
-	rc = hdev->asic_funcs->asic_dma_map_sg(hdev, userptr->sgt->sgl,
-					userptr->sgt->nents, DMA_BIDIRECTIONAL);
-	if (rc) {
-		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
-		goto dma_map_err;
-	}
-
 	userptr->dma_mapped = true;
 	userptr->dir = DMA_BIDIRECTIONAL;
 	userptr->vm_type = VM_TYPE_USERPTR;
 
 	*p_userptr = userptr;
+
+	rc = hdev->asic_funcs->asic_dma_map_sgtable(hdev, userptr->sgt, DMA_BIDIRECTIONAL);
+	if (rc) {
+		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
+		goto dma_map_err;
+	}
 
 	return 0;
 
@@ -901,7 +900,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	 * consecutive block.
 	 */
 	total_npages = 0;
-	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
+	for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 		npages = hl_get_sg_info(sg, &dma_addr);
 
 		total_npages += npages;
@@ -930,7 +929,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->total_size = total_npages * page_size;
 
 	j = 0;
-	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
+	for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 		npages = hl_get_sg_info(sg, &dma_addr);
 
 		/* align down to physical page size and save the offset */
@@ -2444,9 +2443,7 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
-		hdev->asic_funcs->hl_dma_unmap_sg(hdev, userptr->sgt->sgl,
-							userptr->sgt->nents,
-							userptr->dir);
+		hdev->asic_funcs->hl_dma_unmap_sgtable(hdev, userptr->sgt, userptr->dir);
 
 	unpin_user_pages_dirty_lock(userptr->pages, userptr->npages, true);
 	kvfree(userptr->pages);

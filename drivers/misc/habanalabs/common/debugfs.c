@@ -370,8 +370,7 @@ static int userptr_lookup_show(struct seq_file *s, void *data)
 		if (dev_entry->userptr_lookup >= userptr->addr &&
 		dev_entry->userptr_lookup < userptr->addr + userptr->size) {
 			total_npages = 0;
-			for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents,
-					i) {
+			for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 				npages = hl_get_sg_info(sg, &dma_addr);
 				sg_start = userptr->addr +
 					total_npages * PAGE_SIZE;

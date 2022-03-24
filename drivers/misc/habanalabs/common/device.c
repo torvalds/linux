@@ -80,6 +80,38 @@ static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val
 	return 0;
 }
 
+int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int rc, i;
+
+	rc = dma_map_sgtable(&hdev->pdev->dev, sgt, dir, 0);
+	if (rc)
+		return rc;
+
+	/* Shift to the device's base physical address of host memory if necessary */
+	if (prop->device_dma_offset_for_host_access)
+		for_each_sgtable_dma_sg(sgt, sg, i)
+			sg->dma_address += prop->device_dma_offset_for_host_access;
+
+	return 0;
+}
+
+void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int i;
+
+	/* Cancel the device's base physical address of host memory if necessary */
+	if (prop->device_dma_offset_for_host_access)
+		for_each_sgtable_dma_sg(sgt, sg, i)
+			sg->dma_address -= prop->device_dma_offset_for_host_access;
+
+	dma_unmap_sgtable(&hdev->pdev->dev, sgt, dir, 0);
+}
+
 /*
  * hl_access_cfg_region - access the config region
  *

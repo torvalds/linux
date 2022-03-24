@@ -3311,35 +3311,6 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 	hl_fw_cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
-static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sgl,
-				int nents, enum dma_data_direction dir)
-{
-	struct scatterlist *sg;
-	int i;
-
-	if (!dma_map_sg(&hdev->pdev->dev, sgl, nents, dir))
-		return -ENOMEM;
-
-	/* Shift to the device's base physical address of host memory */
-	for_each_sg(sgl, sg, nents, i)
-		sg->dma_address += HOST_PHYS_BASE;
-
-	return 0;
-}
-
-static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sgl,
-				int nents, enum dma_data_direction dir)
-{
-	struct scatterlist *sg;
-	int i;
-
-	/* Cancel the device's base physical address of host memory */
-	for_each_sg(sgl, sg, nents, i)
-		sg->dma_address -= HOST_PHYS_BASE;
-
-	dma_unmap_sg(&hdev->pdev->dev, sgl, nents, dir);
-}
-
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt)
 {
 	struct scatterlist *sg, *sg_next_iter;
@@ -3349,8 +3320,7 @@ u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt)
 
 	dma_desc_cnt = 0;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
-
+	for_each_sgtable_dma_sg(sgt, sg, count) {
 		len = sg_dma_len(sg);
 		addr = sg_dma_address(sg);
 
@@ -3404,8 +3374,7 @@ static int goya_pin_memory_before_cs(struct hl_device *hdev,
 
 	list_add_tail(&userptr->job_node, parser->job_userptr_list);
 
-	rc = hdev->asic_funcs->asic_dma_map_sg(hdev, userptr->sgt->sgl,
-					userptr->sgt->nents, dir);
+	rc = hdev->asic_funcs->asic_dma_map_sgtable(hdev, userptr->sgt, dir);
 	if (rc) {
 		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
 		goto unpin_memory;
@@ -3869,7 +3838,7 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 	sgt = userptr->sgt;
 	dma_desc_cnt = 0;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
+	for_each_sgtable_dma_sg(sgt, sg, count) {
 		len = sg_dma_len(sg);
 		dma_addr = sg_dma_address(sg);
 
@@ -5497,9 +5466,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.asic_dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
-	.hl_dma_unmap_sg = goya_dma_unmap_sg,
+	.hl_dma_unmap_sgtable = hl_dma_unmap_sgtable,
 	.cs_parser = goya_cs_parser,
-	.asic_dma_map_sg = goya_dma_map_sg,
+	.asic_dma_map_sgtable = hl_dma_map_sgtable,
 	.get_dma_desc_list_size = goya_get_dma_desc_list_size,
 	.add_end_of_cb_packets = goya_add_end_of_cb_packets,
 	.update_eq_ci = goya_update_eq_ci,

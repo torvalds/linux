@@ -1274,9 +1274,9 @@ struct fw_load_mgr {
  * @asic_dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
- * @hl_dma_unmap_sg: DMA unmap scatter-gather list.
+ * @hl_dma_unmap_sgtable: DMA unmap scatter-gather table.
  * @cs_parser: parse Command Submission.
- * @asic_dma_map_sg: DMA map scatter-gather list.
+ * @asic_dma_map_sgtable: DMA map scatter-gather table.
  * @get_dma_desc_list_size: get number of LIN_DMA packets required for CB.
  * @add_end_of_cb_packets: Add packets to the end of CB, if device requires it.
  * @update_eq_ci: update event queue CI.
@@ -1389,12 +1389,11 @@ struct hl_asic_funcs {
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
-	void (*hl_dma_unmap_sg)(struct hl_device *hdev,
-				struct scatterlist *sgl, int nents,
+	void (*hl_dma_unmap_sgtable)(struct hl_device *hdev,
+				struct sg_table *sgt,
 				enum dma_data_direction dir);
 	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
-	int (*asic_dma_map_sg)(struct hl_device *hdev,
-				struct scatterlist *sgl, int nents,
+	int (*asic_dma_map_sgtable)(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
@@ -3011,6 +3010,9 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 }
 
 uint64_t hl_set_dram_bar_default(struct hl_device *hdev, u64 addr);
+int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir);
+void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir);
 int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type);
 int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
