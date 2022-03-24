@@ -5507,7 +5507,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 	}
 	args = (const struct btf_param *)(func + 1);
 	nargs = btf_type_vlen(func);
-	if (nargs >= MAX_BPF_FUNC_ARGS) {
+	if (nargs > MAX_BPF_FUNC_ARGS) {
 		bpf_log(log,
 			"The function %s has %d arguments. Too many.\n",
 			tname, nargs);
