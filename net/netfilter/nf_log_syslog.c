@@ -894,6 +894,33 @@ static struct nf_logger nf_ip6_logger __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
+static void nf_log_unknown_packet(struct net *net, u_int8_t pf,
+				  unsigned int hooknum,
+				  const struct sk_buff *skb,
+				  const struct net_device *in,
+				  const struct net_device *out,
+				  const struct nf_loginfo *loginfo,
+				  const char *prefix)
+{
+	struct nf_log_buf *m;
+
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
+		return;
+
+	m = nf_log_buf_open();
+
+	if (!loginfo)
+		loginfo = &default_loginfo;
+
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
+				  prefix);
+
+	dump_mac_header(m, loginfo, skb);
+
+	nf_log_buf_close(m);
+}
+
 static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 				 unsigned int hooknum,
 				 const struct sk_buff *skb,
@@ -912,6 +939,10 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 	case htons(ETH_P_ARP):
 	case htons(ETH_P_RARP):
 		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+		break;
+	default:
+		nf_log_unknown_packet(net, pf, hooknum, skb,
+				      in, out, loginfo, prefix);
 		break;
 	}
 }
