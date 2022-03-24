@@ -3396,6 +3396,8 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 	/* Memory barrier before checking head and tail */
 	smp_mb();
 
+	++tx_ring->tx_stats.tx_stopped;
+
 	/* Check again in a case another CPU has just made room available. */
 	if (likely(I40E_DESC_UNUSED(tx_ring) < size))
 		return -EBUSY;
