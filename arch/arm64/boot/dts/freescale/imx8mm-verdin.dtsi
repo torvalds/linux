@@ -757,10 +757,11 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_cd>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_cd>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_cd>;
+	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_cd_sleep>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 };
 
@@ -1174,6 +1175,11 @@
 			<MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x6>;	/* SODIMM 84 */
 	};
 
+	pinctrl_usdhc2_cd_sleep: usdhc2cdslpgrp {
+		fsl,pins =
+			<MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x0>;	/* SODIMM 84 */
+	};
+
 	pinctrl_usdhc2_pwr_en: usdhc2pwrengrp {
 		fsl,pins =
 			<MX8MM_IOMUXC_NAND_CLE_GPIO3_IO5		0x6>;	/* SODIMM 76 */
@@ -1214,6 +1220,18 @@
 			<MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1		0x96>,
 			<MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x96>,
 			<MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x96>;
+	};
+
+	/* Avoid backfeeding with removed card power */
+	pinctrl_usdhc2_sleep: usdhc2slpgrp {
+		fsl,pins =
+			<MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x0>,
+			<MX8MM_IOMUXC_SD2_CLK_USDHC2_CLK		0x0>,
+			<MX8MM_IOMUXC_SD2_CMD_USDHC2_CMD		0x0>,
+			<MX8MM_IOMUXC_SD2_DATA0_USDHC2_DATA0		0x0>,
+			<MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1		0x0>,
+			<MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x0>,
+			<MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x0>;
 	};
 
 	/*
