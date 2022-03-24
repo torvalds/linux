@@ -394,9 +394,9 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	usbc0: fusb302@22 {
-		compatible = "fcs,fusb302";
-		reg = <0x22>;
+	usbc0: husb311@4e {
+		compatible = "hynetek,husb311";
+		reg = <0x4e>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PB4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
