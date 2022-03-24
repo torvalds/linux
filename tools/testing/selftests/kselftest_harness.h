@@ -64,6 +64,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <setjmp.h>
 
 #include "kselftest.h"
 
@@ -183,7 +184,10 @@
 		struct __test_metadata *_metadata, \
 		struct __fixture_variant_metadata *variant) \
 	{ \
-		test_name(_metadata); \
+		_metadata->setup_completed = true; \
+		if (setjmp(_metadata->env) == 0) \
+			test_name(_metadata); \
+		__test_check_assert(_metadata); \
 	} \
 	static struct __test_metadata _##test_name##_object = \
 		{ .name = #test_name, \
@@ -356,10 +360,7 @@
  * Defines a test that depends on a fixture (e.g., is part of a test case).
  * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
- *
- * Warning: use of ASSERT_* here will skip TEARDOWN.
  */
-/* TODO(wad) register fixtures on dedicated test lists. */
 #define TEST_F(fixture_name, test_name) \
 	__TEST_F_IMPL(fixture_name, test_name, -1, TEST_TIMEOUT_DEFAULT)
 
@@ -381,12 +382,17 @@
 		/* fixture data is alloced, setup, and torn down per call. */ \
 		FIXTURE_DATA(fixture_name) self; \
 		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
-		fixture_name##_setup(_metadata, &self, variant->data); \
-		/* Let setup failure terminate early. */ \
-		if (!_metadata->passed) \
-			return; \
-		fixture_name##_##test_name(_metadata, &self, variant->data); \
-		fixture_name##_teardown(_metadata, &self); \
+		if (setjmp(_metadata->env) == 0) { \
+			fixture_name##_setup(_metadata, &self, variant->data); \
+			/* Let setup failure terminate early. */ \
+			if (!_metadata->passed) \
+				return; \
+			_metadata->setup_completed = true; \
+			fixture_name##_##test_name(_metadata, &self, variant->data); \
+		} \
+		if (_metadata->setup_completed) \
+			fixture_name##_teardown(_metadata, &self); \
+		__test_check_assert(_metadata); \
 	} \
 	static struct __test_metadata \
 		      _##fixture_name##_##test_name##_object = { \
@@ -683,7 +689,7 @@
  */
 #define OPTIONAL_HANDLER(_assert) \
 	for (; _metadata->trigger; _metadata->trigger = \
-			__bail(_assert, _metadata->no_print, _metadata->step))
+			__bail(_assert, _metadata))
 
 #define __INC_STEP(_metadata) \
 	/* Keep "step" below 255 (which is used for "SKIP" reporting). */	\
@@ -830,6 +836,9 @@ struct __test_metadata {
 	bool timed_out;	/* did this test timeout instead of exiting? */
 	__u8 step;
 	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
+	bool aborted;	/* stopped test due to failed ASSERT */
+	bool setup_completed; /* did setup finish? */
+	jmp_buf env;	/* for exiting out of test early */
 	struct __test_results *results;
 	struct __test_metadata *prev, *next;
 };
@@ -848,14 +857,24 @@ static inline void __register_test(struct __test_metadata *t)
 	__LIST_APPEND(t->fixture->tests, t);
 }
 
-static inline int __bail(int for_realz, bool no_print, __u8 step)
+static inline int __bail(int for_realz, struct __test_metadata *t)
 {
+	/* if this is ASSERT, return immediately. */
 	if (for_realz) {
-		if (no_print)
-			_exit(step);
+		t->aborted = true;
+		longjmp(t->env, 1);
+	}
+	/* otherwise, end the for loop and continue. */
+	return 0;
+}
+
+static inline void __test_check_assert(struct __test_metadata *t)
+{
+	if (t->aborted) {
+		if (t->no_print)
+			_exit(t->step);
 		abort();
 	}
-	return 0;
 }
 
 struct __test_metadata *__active_test;
