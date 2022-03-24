@@ -1852,7 +1852,7 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, cha
 
 	/* string trumps id */
 	if (pmu_attr->event_str)
-		return sprintf(page, "%s", pmu_attr->event_str);
+		return sprintf(page, "%s\n", pmu_attr->event_str);
 
 	return x86_pmu.events_sysfs_show(page, config);
 }
