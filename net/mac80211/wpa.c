@@ -317,13 +317,12 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 	__le16 mask_fc;
 	int a4_included, mgmt;
 	u8 qos_tid;
-	u16 len_a;
-	unsigned int hdrlen;
+	u16 len_a = 22;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	/*
 	 * Mask FC: zero subtype b4 b5 b6 (if not mgmt)
-	 * Retry, PwrMgt, MoreData; set Protected
+	 * Retry, PwrMgt, MoreData, Order (if Qos Data); set Protected
 	 */
 	mgmt = ieee80211_is_mgmt(hdr->frame_control);
 	mask_fc = hdr->frame_control;
@@ -333,14 +332,17 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 		mask_fc &= ~cpu_to_le16(0x0070);
 	mask_fc |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	len_a = hdrlen - 2;
 	a4_included = ieee80211_has_a4(hdr->frame_control);
+	if (a4_included)
+		len_a += 6;
 
-	if (ieee80211_is_data_qos(hdr->frame_control))
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qos_tid = ieee80211_get_tid(hdr);
-	else
+		mask_fc &= ~cpu_to_le16(IEEE80211_FCTL_ORDER);
+		len_a += 2;
+	} else {
 		qos_tid = 0;
+	}
 
 	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
 	 * mode authentication are not allowed to collide, yet both are derived
