@@ -1179,6 +1179,10 @@
 			<MX8MM_IOMUXC_NAND_CLE_GPIO3_IO5		0x6>;	/* SODIMM 76 */
 	};
 
+	/*
+	 * Note: Due to ERR050080 we use discrete external on-module resistors pulling-up to the
+	 * on-module +V3.3_1.8_SD (LDO5) rail and explicitly disable the internal pull-ups here.
+	 */
 	pinctrl_usdhc2: usdhc2grp {
 		fsl,pins =
 			<MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x10>,
