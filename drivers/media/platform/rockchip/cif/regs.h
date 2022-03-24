@@ -751,6 +751,12 @@ enum cif_reg_index {
 #define SW_SCALE_END(intstat, ch)	((intstat >> ((ch + 1) * 2)) & 0x3)
 #define SCALE_SOFT_RESET(ch)		(0x1 << (ch + 16))
 
+/* CIF TOISP*/
+#define CIF_TOISP0_FS(ch)		(BIT(14) << ch)
+#define CIF_TOISP1_FS(ch)		(BIT(17) << ch)
+#define CIF_TOISP0_FE(ch)		(BIT(20) << ch)
+#define CIF_TOISP1_FE(ch)		(BIT(23) << ch)
+
 /* CIF_CSI_ID_CTRL0 */
 #define CSI_DISABLE_CAPTURE		(0x0 << 0)
 #define CSI_ENABLE_CAPTURE		(0x1 << 0)
