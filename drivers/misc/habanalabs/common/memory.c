@@ -2140,7 +2140,7 @@ free_mem:
 	return -ENOMEM;
 }
 
-struct hl_mmap_mem_buf_ops hl_ts_behavior = {
+static struct hl_mmap_mem_buf_ops hl_ts_behavior = {
 	.mmap = hl_ts_mmap,
 	.alloc = hl_ts_alloc_buf,
 	.release = ts_buff_release,
