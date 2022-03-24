@@ -1076,7 +1076,7 @@ retry_under_glock:
 			from->count = min(from->count, window_size - leftover);
 			if (gfs2_holder_queued(gh))
 				goto retry_under_glock;
-			if (read)
+			if (read && !(iocb->ki_flags & IOCB_DIRECT))
 				goto out_uninit;
 			goto retry;
 		}
