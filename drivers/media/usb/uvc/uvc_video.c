@@ -383,7 +383,6 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	struct uvc_streaming_control *probe)
 {
 	struct uvc_streaming_control probe_min, probe_max;
-	u16 bandwidth;
 	unsigned int i;
 	int ret;
 
@@ -421,8 +420,7 @@ int uvc_probe_video(struct uvc_streaming *stream,
 		if (stream->intf->num_altsetting == 1)
 			break;
 
-		bandwidth = probe->dwMaxPayloadTransferSize;
-		if (bandwidth <= stream->maxpsize)
+		if (probe->dwMaxPayloadTransferSize <= stream->maxpsize)
 			break;
 
 		if (stream->dev->quirks & UVC_QUIRK_PROBE_MINMAX) {
