@@ -564,6 +564,9 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(10, 3, 5):
+	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(9, 3, 0):
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
 		 * for some ASICs, so set default to 1 for these ASICs.
