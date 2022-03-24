@@ -246,7 +246,7 @@ static inline void write_sys_grf_reg(struct csi2_dphy_hw *hw,
 	const struct grf_reg *reg = &hw->grf_regs[index];
 	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
 
-	if (reg->shift)
+	if (reg->mask)
 		regmap_write(hw->regmap_sys_grf, reg->offset, val);
 }
 
@@ -256,7 +256,7 @@ static inline void write_grf_reg(struct csi2_dphy_hw *hw,
 	const struct grf_reg *reg = &hw->grf_regs[index];
 	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
 
-	if (reg->shift)
+	if (reg->mask)
 		regmap_write(hw->regmap_grf, reg->offset, val);
 }
 
@@ -265,7 +265,7 @@ static inline u32 read_grf_reg(struct csi2_dphy_hw *hw, int index)
 	const struct grf_reg *reg = &hw->grf_regs[index];
 	unsigned int val = 0;
 
-	if (reg->shift) {
+	if (reg->mask) {
 		regmap_read(hw->regmap_grf, reg->offset, &val);
 		val = (val >> reg->shift) & reg->mask;
 	}
@@ -640,9 +640,9 @@ static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 				write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
 			} else if (hw->drv_data->chip_id == CHIP_ID_RV1106) {
 				if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY)
-					write_sys_grf_reg(hw, GRF_MIPI_HOST0_SEL, 0x0);
+					write_grf_reg(hw, GRF_MIPI_HOST0_SEL, 0x1);
 				else
-					write_sys_grf_reg(hw, GRF_LVDS_HOST0_SEL, 0x0);
+					write_grf_reg(hw, GRF_LVDS_HOST0_SEL, 0x1);
 			}
 			break;
 		case 2:
