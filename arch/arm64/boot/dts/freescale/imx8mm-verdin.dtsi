@@ -86,7 +86,7 @@
 		regulator-boot-on;
 		regulator-max-microvolt = <3300000>;
 		regulator-min-microvolt = <3300000>;
-		regulator-name = "+V3.3_ETH";
+		regulator-name = "On-module +V3.3_ETH";
 		startup-delay-us = <200000>;
 	};
 
@@ -99,7 +99,7 @@
 		pinctrl-0 = <&pinctrl_reg_usb1_en>;
 		regulator-max-microvolt = <5000000>;
 		regulator-min-microvolt = <5000000>;
-		regulator-name = "usb_otg1_vbus";
+		regulator-name = "USB_1_EN";
 	};
 
 	reg_usb_otg2_vbus: regulator-usb-otg2 {
@@ -111,7 +111,7 @@
 		pinctrl-0 = <&pinctrl_reg_usb2_en>;
 		regulator-max-microvolt = <5000000>;
 		regulator-min-microvolt = <5000000>;
-		regulator-name = "usb_otg2_vbus";
+		regulator-name = "USB_2_EN";
 	};
 
 	reg_usdhc2_vmmc: regulator-usdhc2 {
@@ -345,7 +345,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <850000>;
 				regulator-min-microvolt = <800000>;
-				regulator-name = "+VDD_SOC";
+				regulator-name = "On-module +VDD_SOC (BUCK1)";
 				regulator-ramp-delay = <3125>;
 			};
 
@@ -356,7 +356,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <950000>;
 				regulator-min-microvolt = <850000>;
-				regulator-name = "+VDD_ARM";
+				regulator-name = "On-module +VDD_ARM (BUCK2)";
 				regulator-ramp-delay = <3125>;
 			};
 
@@ -365,7 +365,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <950000>;
 				regulator-min-microvolt = <850000>;
-				regulator-name = "+VDD_GPU_VPU_DDR";
+				regulator-name = "On-module +VDD_GPU_VPU_DDR (BUCK3)";
 			};
 
 			reg_vdd_3v3: BUCK4 {
@@ -373,7 +373,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
-				regulator-name = "+V3.3";
+				regulator-name = "On-module +V3.3 (BUCK4)";
 			};
 
 			reg_vdd_1v8: BUCK5 {
@@ -381,7 +381,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <1800000>;
 				regulator-min-microvolt = <1800000>;
-				regulator-name = "PWR_1V8_MOCI";
+				regulator-name = "PWR_1V8_MOCI (BUCK5)";
 			};
 
 			reg_nvcc_dram: BUCK6 {
@@ -389,7 +389,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <1100000>;
 				regulator-min-microvolt = <1100000>;
-				regulator-name = "+VDD_DDR";
+				regulator-name = "On-module +VDD_DDR (BUCK6)";
 			};
 
 			reg_nvcc_snvs: LDO1 {
@@ -397,7 +397,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <1800000>;
 				regulator-min-microvolt = <1800000>;
-				regulator-name = "+V1.8_SNVS";
+				regulator-name = "On-module +V1.8_SNVS (LDO1)";
 			};
 
 			reg_vdd_snvs: LDO2 {
@@ -405,7 +405,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <900000>;
 				regulator-min-microvolt = <800000>;
-				regulator-name = "+V0.8_SNVS";
+				regulator-name = "On-module +V0.8_SNVS (LDO2)";
 			};
 
 			reg_vdda: LDO3 {
@@ -413,7 +413,7 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <1800000>;
 				regulator-min-microvolt = <1800000>;
-				regulator-name = "+V1.8A";
+				regulator-name = "On-module +V1.8A (LDO3)";
 			};
 
 			reg_vdd_phy: LDO4 {
@@ -421,13 +421,13 @@
 				regulator-boot-on;
 				regulator-max-microvolt = <900000>;
 				regulator-min-microvolt = <900000>;
-				regulator-name = "+V0.9_MIPI";
+				regulator-name = "On-module +V0.9_MIPI (LDO4)";
 			};
 
 			reg_nvcc_sd: LDO5 {
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
-				regulator-name = "+V3.3_1.8_SD";
+				regulator-name = "On-module +V3.3_1.8_SD (LDO5)";
 			};
 		};
 	};
