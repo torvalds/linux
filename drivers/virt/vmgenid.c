@@ -78,6 +78,7 @@ static void vmgenid_notify(struct acpi_device *device, u32 event)
 }
 
 static const struct acpi_device_id vmgenid_ids[] = {
+	{ "VMGENCTR", 0 },
 	{ "VM_GEN_COUNTER", 0 },
 	{ }
 };
