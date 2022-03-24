@@ -416,3 +416,33 @@ clean_up:
 	mutex_unlock(&adev->mes.mutex);
 	return r;
 }
+
+int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id)
+{
+	struct amdgpu_mes_gang *gang;
+
+	mutex_lock(&adev->mes.mutex);
+
+	gang = idr_find(&adev->mes.gang_id_idr, gang_id);
+	if (!gang) {
+		DRM_ERROR("gang id %d doesn't exist\n", gang_id);
+		mutex_unlock(&adev->mes.mutex);
+		return -EINVAL;
+	}
+
+	if (!list_empty(&gang->queue_list)) {
+		DRM_ERROR("queue list is not empty\n");
+		mutex_unlock(&adev->mes.mutex);
+		return -EBUSY;
+	}
+
+	idr_remove(&adev->mes.gang_id_idr, gang->gang_id);
+	amdgpu_bo_free_kernel(&gang->gang_ctx_bo,
+			      &gang->gang_ctx_gpu_addr,
+			      &gang->gang_ctx_cpu_ptr);
+	list_del(&gang->list);
+	kfree(gang);
+
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+}

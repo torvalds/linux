@@ -229,5 +229,6 @@ void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid);
 int amdgpu_mes_add_gang(struct amdgpu_device *adev, int pasid,
 			struct amdgpu_mes_gang_properties *gprops,
 			int *gang_id);
+int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id);
 
 #endif /* __AMDGPU_MES_H__ */
