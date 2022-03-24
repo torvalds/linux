@@ -568,19 +568,20 @@ spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int spidev_open(struct inode *inode, struct file *filp)
 {
-	struct spidev_data	*spidev;
+	struct spidev_data	*spidev = NULL, *iter;
 	int			status = -ENXIO;
 
 	mutex_lock(&device_list_lock);
 
-	list_for_each_entry(spidev, &device_list, device_entry) {
-		if (spidev->devt == inode->i_rdev) {
+	list_for_each_entry(iter, &device_list, device_entry) {
+		if (iter->devt == inode->i_rdev) {
 			status = 0;
+			spidev = iter;
 			break;
 		}
 	}
 
-	if (status) {
+	if (!spidev) {
 		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
 		goto err_find_dev;
 	}
