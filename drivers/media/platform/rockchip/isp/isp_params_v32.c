@@ -2452,7 +2452,7 @@ isp_hdrdrc_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = ISP_PACK_2SHORT(arg->min_ogain, arg->iir_weight);
 	isp3_param_write(params_vdev, value, ISP3X_DRC_IIRWG_GAIN);
 
-	value = arg->gas_t & 0xfff;
+	value = arg->gas_t & 0x1fff;
 	isp3_param_write(params_vdev, value, ISP32_DRC_LUM3X2_CTRL);
 
 	value = ISP_PACK_4BYTE(arg->gas_l0, arg->gas_l1, arg->gas_l2, arg->gas_l3);
@@ -4040,8 +4040,8 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		u32 val, wrap_line, wsize = w * 2;
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
-				      !new_params->others.bay3d_cfg.lo4x4_en &&
-				      w <= 1440);
+				      !new_params->others.bay3d_cfg.lo4x4_en);
+
 		if (is_bwsaving)
 			wsize = wsize * 3 / 4;
 		if (!is_glbpk)
