@@ -93,10 +93,13 @@ static ssize_t rpc_sysfs_xprt_dstaddr_show(struct kobject *kobj,
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	ssize_t ret;
 
-	if (!xprt)
-		return 0;
+	if (!xprt) {
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
+	}
 	ret = sprintf(buf, "%s\n", xprt->address_strings[RPC_DISPLAY_ADDR]);
 	xprt_put(xprt);
+out:
 	return ret;
 }
 
@@ -106,10 +109,10 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 {
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	size_t buflen = PAGE_SIZE;
-	ssize_t ret = -ENOTSOCK;
+	ssize_t ret;
 
 	if (!xprt || !xprt_connected(xprt)) {
-		ret = -ENOTCONN;
+		ret = sprintf(buf, "<closed>\n");
 	} else if (xprt->ops->get_srcaddr) {
 		ret = xprt->ops->get_srcaddr(xprt, buf, buflen);
 		if (ret > 0) {
@@ -118,8 +121,10 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 				ret++;
 				buf[ret] = '\0';
 			}
-		}
-	}
+		} else
+			ret = sprintf(buf, "<closed>\n");
+	} else
+		ret = sprintf(buf, "<not a socket>\n");
 	xprt_put(xprt);
 	return ret;
 }
@@ -133,8 +138,8 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 	ssize_t ret;
 
 	if (!xprt || !xprt_connected(xprt)) {
-		xprt_put(xprt);
-		return -ENOTCONN;
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
 	}
 
 	if (xprt->ops->get_srcport)
@@ -152,6 +157,7 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 		       xprt->backlog.qlen, xprt->main, srcport,
 		       atomic_long_read(&xprt->queuelen),
 		       xprt->address_strings[RPC_DISPLAY_PORT]);
+out:
 	xprt_put(xprt);
 	return ret;
 }
@@ -165,10 +171,7 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	int locked, connected, connecting, close_wait, bound, binding,
 	    closing, congested, cwnd_wait, write_space, offline, remove;
 
-	if (!xprt)
-		return 0;
-
-	if (!xprt->state) {
+	if (!(xprt && xprt->state)) {
 		ret = sprintf(buf, "state=CLOSED\n");
 	} else {
 		locked = test_bit(XPRT_LOCKED, &xprt->state);
