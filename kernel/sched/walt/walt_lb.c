@@ -16,15 +16,53 @@ static inline unsigned long walt_lb_cpu_util(int cpu)
 	return wrq->walt_stats.cumulative_runnable_avg_scaled;
 }
 
-static void walt_detach_task(struct task_struct *p, struct rq *src_rq,
-			     struct rq *dst_rq)
+
+static int walt_detach_task(struct task_struct *p, struct rq *src_rq,
+		struct rq *dst_rq, bool force_affinity_appropriate_cpu)
 {
+	int ret = -EINVAL;
+	int dest_cpu;
+	int retry_count = 0;
+
 	deactivate_task(src_rq, p, 0);
+retry:
 	double_lock_balance(src_rq, dst_rq);
-	if (!(src_rq->clock_update_flags & RQCF_UPDATED))
-		update_rq_clock(src_rq);
-	set_task_cpu(p, dst_rq->cpu);
+	/*
+	 * It's possible that src_rq lock was dropped while trying to acuire
+	 * double rq lock.
+	 * Task affinity could change then, recheck if moving the task to
+	 * dst is still valid.
+	 */
+	if (!force_affinity_appropriate_cpu ||
+			cpumask_test_cpu(cpu_of(dst_rq), p->cpus_ptr)) {
+		if (!(src_rq->clock_update_flags & RQCF_UPDATED))
+			update_rq_clock(src_rq);
+		set_task_cpu(p, dst_rq->cpu);
+		ret = 0;
+	}
 	double_unlock_balance(src_rq, dst_rq);
+
+	if (ret) {
+		/*
+		 * Couldn't move the task, reactivate it on an appropriate cpu.
+		 */
+		if (cpumask_test_cpu(cpu_of(src_rq), p->cpus_ptr) &&
+				cpu_active(cpu_of(src_rq)) &&
+				!cpu_halted(cpu_of(src_rq))) {
+			activate_task(src_rq, p, 0);
+		} else {
+			dest_cpu = select_fallback_rq(cpu_of(src_rq), p);
+			dst_rq = cpu_rq(dest_cpu);
+			if (retry_count < 5) {
+				retry_count++;
+				goto retry;
+			} else {
+				printk_deferred("Failed to select CPU in task's affinity list after 5 tries\n");
+			}
+		}
+	}
+
+	return ret;
 }
 
 static void walt_attach_task(struct task_struct *p, struct rq *rq)
@@ -64,8 +102,8 @@ static int stop_walt_lb_active_migration(void *data)
 			task_cpu(push_task) == busiest_cpu &&
 			cpu_active(target_cpu) &&
 			cpumask_test_cpu(target_cpu, push_task->cpus_ptr)) {
-		walt_detach_task(push_task, busiest_rq, target_rq);
-		push_task_detached = 1;
+		if (!walt_detach_task(push_task, busiest_rq, target_rq, true))
+			push_task_detached = 1;
 	}
 
 out_unlock: /* called with busiest_rq lock */
@@ -314,7 +352,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, false))
 			continue;
 
-		walt_detach_task(p, src_rq, dst_rq);
+		if (walt_detach_task(p, src_rq, dst_rq, true))
+			continue;
 		pulled_task = p;
 		goto unlock;
 	}
@@ -330,7 +369,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, true))
 			continue;
 
-		walt_detach_task(p, src_rq, dst_rq);
+		if (walt_detach_task(p, src_rq, dst_rq, true))
+			continue;
 		pulled_task = p;
 		goto unlock;
 	}
@@ -370,7 +410,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 			continue;
 		}
 
-		walt_detach_task(p, src_rq, dst_rq);
+		if (walt_detach_task(p, src_rq, dst_rq, true))
+			continue;
 		pulled_task = p;
 		goto unlock;
 	}
@@ -975,7 +1016,14 @@ static void walt_migrate_queued_task(void *unused, struct rq *rq,
 	BUG_ON(!rf);
 
 	rq_unpin_lock(rq, rf);
-	walt_detach_task(p, rq, cpu_rq(new_cpu));
+	/*
+	 * force_affinity_appropriate_cpu set to false allows p to be put on
+	 * a non-affinity-appropriate cpu. We shouldn't move the task to any
+	 * other cpu than new_cpu, even if affinity doesn't allow it, because
+	 * calls to migrate_queued_task are accompanied with a
+	 * activate_task on the new_cpu.
+	 */
+	walt_detach_task(p, rq, cpu_rq(new_cpu), false);
 	rq_repin_lock(rq, rf);
 
 	*detached = 1;
