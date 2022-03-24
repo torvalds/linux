@@ -37,7 +37,7 @@ config PARISC
 	select GENERIC_PCI_IOMAP
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_CPU_DEVICES
+	select GENERIC_ARCH_TOPOLOGY if SMP
 	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
@@ -279,16 +279,9 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PARISC_CPU_TOPOLOGY
-	bool "Support cpu topology definition"
-	depends on SMP
-	default y
-	help
-	  Support PARISC cpu topology definition.
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on PARISC_CPU_TOPOLOGY && PA8X00
+	depends on GENERIC_ARCH_TOPOLOGY && PA8X00
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
