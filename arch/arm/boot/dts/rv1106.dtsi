@@ -248,6 +248,11 @@
 		compatible = "rockchip,rv1106-grf", "syscon", "simple-mfd";
 		reg = <0xff000000 0x68000>;
 
+		grf_cru: grf-clock-controller {
+			compatible = "rockchip,rv1106-grf-cru";
+			#clock-cells = <1>;
+		};
+
 		reboot_mode: reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x20200>;
@@ -912,7 +917,7 @@
 		reg = <0xff9a0000 0x4000>;
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDIO>, <&cru CCLK_SRC_SDIO>,
-			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
+			 <&grf_cru SCLK_SDIO_DRV>, <&grf_cru SCLK_SDIO_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
@@ -1086,7 +1091,7 @@
 		reg = <0xffa90000 0x4000>;
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_EMMC>, <&cru CCLK_SRC_EMMC>,
-			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+			 <&grf_cru SCLK_EMMC_DRV>, <&grf_cru SCLK_EMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
@@ -1099,7 +1104,7 @@
 		reg = <0xffaa0000 0x4000>;
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC>, <&cru CCLK_SRC_SDMMC>,
-			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+			 <&grf_cru SCLK_SDMMC_DRV>, <&grf_cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
