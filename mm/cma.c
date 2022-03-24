@@ -111,6 +111,8 @@ static void __init cma_activate_area(struct cma *cma)
 	if (!cma->bitmap)
 		goto out_error;
 
+	if (IS_ENABLED(CONFIG_CMA_INACTIVE))
+		goto out;
 	/*
 	 * alloc_contig_range() requires the pfn range specified to be in the
 	 * same zone. Simplify by forcing the entire CMA resv range to be in the
@@ -128,6 +130,7 @@ static void __init cma_activate_area(struct cma *cma)
 	     pfn += pageblock_nr_pages)
 		init_cma_reserved_pageblock(pfn_to_page(pfn));
 
+out:
 	mutex_init(&cma->lock);
 
 #ifdef CONFIG_CMA_DEBUGFS
@@ -511,6 +514,11 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		mutex_unlock(&cma->lock);
 
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+		if (IS_ENABLED(CONFIG_CMA_INACTIVE)) {
+			page = pfn_to_page(pfn);
+			lru_cache_enable();
+			goto out;
+		}
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA, gfp_mask, &info);
 		cma_info.nr_migrated += info.nr_migrated;
 		cma_info.nr_reclaimed += info.nr_reclaimed;
@@ -610,8 +618,8 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
 		return false;
 
 	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
-
-	free_contig_range(pfn, count);
+	if (!IS_ENABLED(CONFIG_CMA_INACTIVE))
+		free_contig_range(pfn, count);
 	cma_clear_bitmap(cma, pfn, count);
 	trace_cma_release(cma->name, pfn, pages, count);
 

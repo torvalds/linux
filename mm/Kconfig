@@ -505,6 +505,15 @@ config CMA
 
 	  If unsure, say "n".
 
+config CMA_INACTIVE
+	bool "CMA not active to system"
+	depends on CMA
+	help
+	  This forbids the CMA to active its pages to system memory, to keep
+	  page from CMA never be borrowed by system.
+
+	  If unsure, say "n".
+
 config CMA_DEBUG
 	bool "CMA debug messages (DEVELOPMENT)"
 	depends on DEBUG_KERNEL && CMA
