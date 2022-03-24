@@ -970,8 +970,8 @@
 		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSIHOST0>;
-		clock-names = "pclk_csi2host";
+		clocks = <&cru PCLK_CSIHOST0>, <&cru CLK_RXBYTECLKHS_0>;
+		clock-names = "pclk_csi2host", "clk_rxbyte_hs";
 		resets = <&cru SRST_P_CSIHOST0>;
 		reset-names = "srst_csihost_p";
 		status = "disabled";
@@ -984,8 +984,8 @@
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSIHOST1>;
-		clock-names = "pclk_csi2host";
+		clocks = <&cru PCLK_CSIHOST1>, <&cru CLK_RXBYTECLKHS_1>;
+		clock-names = "pclk_csi2host", "clk_rxbyte_hs";
 		resets = <&cru SRST_P_CSIHOST1>;
 		reset-names = "srst_csihost_p";
 		status = "disabled";
