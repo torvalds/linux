@@ -747,7 +747,7 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		 * copied from, so it's unsafe to allow this with elevated
 		 * privileges (e.g. from a setuid binary) or via kernel_write().
 		 */
-		if (file->f_cred != current_cred() || uaccess_kernel()) {
+		if (file->f_cred != current_cred()) {
 			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is not allowed.\n",
 				    task_tgid_vnr(current), current->comm);
 			ret = -EACCES;

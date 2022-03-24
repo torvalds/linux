@@ -20,28 +20,20 @@ override c_flags = $(UAPI_CFLAGS) -Wp,-MMD,$(depfile) -I$(objtree)/usr/include
 # Please consider to fix the header first.
 #
 # Sorted alphabetically.
-no-header-test += asm/shmbuf.h
-no-header-test += asm/signal.h
 no-header-test += asm/ucontext.h
 no-header-test += drm/vmwgfx_drm.h
 no-header-test += linux/am437x-vpfe.h
-no-header-test += linux/android/binder.h
-no-header-test += linux/android/binderfs.h
 no-header-test += linux/coda.h
 no-header-test += linux/cyclades.h
 no-header-test += linux/errqueue.h
-no-header-test += linux/fsmap.h
 no-header-test += linux/hdlc/ioctl.h
 no-header-test += linux/ivtv.h
-no-header-test += linux/kexec.h
 no-header-test += linux/matroxfb.h
 no-header-test += linux/omap3isp.h
 no-header-test += linux/omapfb.h
 no-header-test += linux/patchkey.h
 no-header-test += linux/phonet.h
-no-header-test += linux/reiserfs_xattr.h
 no-header-test += linux/sctp.h
-no-header-test += linux/signal.h
 no-header-test += linux/sysctl.h
 no-header-test += linux/usb/audio.h
 no-header-test += linux/v4l2-mediabus.h

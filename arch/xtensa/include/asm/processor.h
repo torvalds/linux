@@ -152,17 +152,11 @@
  */
 #define SPILL_SLOT_CALL12(sp, reg) (*(((unsigned long *)(sp)) - 16 + (reg)))
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 struct thread_struct {
 
 	/* kernel's return address and stack pointer for context switching */
 	unsigned long ra; /* kernel's a0: return address and window call size */
 	unsigned long sp; /* kernel's a1: stack pointer */
-
-	mm_segment_t current_ds;    /* see uaccess.h for example uses */
 
 	/* struct xtensa_cpuinfo info; */
 
@@ -186,7 +180,6 @@ struct thread_struct {
 {									\
 	ra:		0, 						\
 	sp:		sizeof(init_stack) + (long) &init_stack,	\
-	current_ds:	{0},						\
 	/*info:		{0}, */						\
 	bad_vaddr:	0,						\
 	bad_uaddr:	0,						\
