@@ -2538,7 +2538,7 @@ static int filemap_create_folio(struct file *file,
 	 * the page cache as the locked folio would then be enough to
 	 * synchronize with hole punching. But there are code paths
 	 * such as filemap_update_page() filling in partially uptodate
-	 * pages or ->readpages() that need to hold invalidate_lock
+	 * pages or ->readahead() that need to hold invalidate_lock
 	 * while mapping blocks for IO so let's hold the lock here as
 	 * well to keep locking rules simple.
 	 */

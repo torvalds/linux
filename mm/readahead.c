@@ -170,13 +170,6 @@ static void read_pages(struct readahead_control *rac, struct list_head *pages,
 			unlock_page(page);
 			put_page(page);
 		}
-	} else if (aops->readpages) {
-		aops->readpages(rac->file, rac->mapping, pages,
-				readahead_count(rac));
-		/* Clean up the remaining pages */
-		put_pages_list(pages);
-		rac->_index += rac->_nr_pages;
-		rac->_nr_pages = 0;
 	} else {
 		while ((page = readahead_page(rac))) {
 			aops->readpage(rac->file, page);
@@ -253,10 +246,7 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 		folio = filemap_alloc_folio(gfp_mask, 0);
 		if (!folio)
 			break;
-		if (mapping->a_ops->readpages) {
-			folio->index = index + i;
-			list_add(&folio->lru, &page_pool);
-		} else if (filemap_add_folio(mapping, folio, index + i,
+		if (filemap_add_folio(mapping, folio, index + i,
 					gfp_mask) < 0) {
 			folio_put(folio);
 			read_pages(ractl, &page_pool, true);
@@ -318,8 +308,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
 
-	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages &&
-			!mapping->a_ops->readahead))
+	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readahead))
 		return;
 
 	/*

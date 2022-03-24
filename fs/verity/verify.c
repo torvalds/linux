@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Data verification functions, i.e. hooks for ->readpages()
+ * Data verification functions, i.e. hooks for ->readahead()
  *
  * Copyright 2019 Google LLC
  */
@@ -214,7 +214,7 @@ EXPORT_SYMBOL_GPL(fsverity_verify_page);
  * that fail verification are set to the Error state.  Verification is skipped
  * for pages already in the Error state, e.g. due to fscrypt decryption failure.
  *
- * This is a helper function for use by the ->readpages() method of filesystems
+ * This is a helper function for use by the ->readahead() method of filesystems
  * that issue bios to read data directly into the page cache.  Filesystems that
  * populate the page cache without issuing bios (e.g. non block-based
  * filesystems) must instead call fsverity_verify_page() directly on each page.
