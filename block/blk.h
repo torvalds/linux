@@ -453,8 +453,7 @@ extern struct device_attribute dev_attr_events_poll_msecs;
 static inline void bio_clear_polled(struct bio *bio)
 {
 	/* can't support alloc cache if we turn off polling */
-	bio_clear_flag(bio, BIO_PERCPU_CACHE);
-	bio->bi_opf &= ~REQ_POLLED;
+	bio->bi_opf &= ~(REQ_POLLED | REQ_ALLOC_CACHE);
 }
 
 long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg);
