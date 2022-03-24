@@ -244,7 +244,7 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  ARM           Grant Likely <grant.likely@arm.com>
+  ARM		Catalin Marinas <catalin.marinas@arm.com>
   AMD		Tom Lendacky <tom.lendacky@amd.com>
   IBM Z         Christian Borntraeger <borntraeger@de.ibm.com>
   IBM Power     Anton Blanchard <anton@linux.ibm.com>
