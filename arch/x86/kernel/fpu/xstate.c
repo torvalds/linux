@@ -83,6 +83,10 @@ static unsigned int xstate_sizes[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_comp_offsets[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
+static unsigned int xstate_flags[XFEATURE_MAX] __ro_after_init;
+
+#define XSTATE_FLAG_SUPERVISOR	BIT(0)
+#define XSTATE_FLAG_ALIGNED64	BIT(1)
 
 /*
  * Return whether the system supports a given xfeature.
@@ -122,17 +126,14 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 }
 EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 
+static bool xfeature_is_aligned64(int xfeature_nr)
+{
+	return xstate_flags[xfeature_nr] & XSTATE_FLAG_ALIGNED64;
+}
+
 static bool xfeature_is_supervisor(int xfeature_nr)
 {
-	/*
-	 * Extended State Enumeration Sub-leaves (EAX = 0DH, ECX = n, n > 1)
-	 * returns ECX[0] set to (1) for a supervisor state, and cleared (0)
-	 * for a user state.
-	 */
-	u32 eax, ebx, ecx, edx;
-
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
-	return ecx & 1;
+	return xstate_flags[xfeature_nr] & XSTATE_FLAG_SUPERVISOR;
 }
 
 /*
@@ -203,6 +204,7 @@ static void __init setup_xstate_cache(void)
 		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 
 		xstate_sizes[i] = eax;
+		xstate_flags[i] = ecx;
 
 		/*
 		 * If an xfeature is supervisor state, the offset in EBX is
@@ -262,31 +264,6 @@ static void __init print_xstate_features(void)
 } while (0)
 
 /*
- * We could cache this like xstate_size[], but we only use
- * it here, so it would be a waste of space.
- */
-static int xfeature_is_aligned(int xfeature_nr)
-{
-	u32 eax, ebx, ecx, edx;
-
-	CHECK_XFEATURE(xfeature_nr);
-
-	if (!xfeature_enabled(xfeature_nr)) {
-		WARN_ONCE(1, "Checking alignment of disabled xfeature %d\n",
-			  xfeature_nr);
-		return 0;
-	}
-
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
-	/*
-	 * The value returned by ECX[1] indicates the alignment
-	 * of state component 'i' when the compacted format
-	 * of the extended region of an XSAVE area is used:
-	 */
-	return !!(ecx & 2);
-}
-
-/*
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
  * of the xsave area.
@@ -314,7 +291,7 @@ static void __init setup_xstate_comp_offsets(void)
 	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
 	for_each_extended_xfeature(i, fpu_kernel_cfg.max_features) {
-		if (xfeature_is_aligned(i))
+		if (xfeature_is_aligned64(i))
 			next_offset = ALIGN(next_offset, 64);
 
 		xstate_comp_offsets[i] = next_offset;
@@ -619,7 +596,7 @@ static unsigned int xstate_calculate_size(u64 xfeatures, bool compacted)
 
 	for_each_extended_xfeature(i, xfeatures) {
 		/* Align from the end of the previous feature */
-		if (xfeature_is_aligned(i))
+		if (xfeature_is_aligned64(i))
 			size = ALIGN(size, 64);
 		/*
 		 * In compacted format the enabled features are packed,
