@@ -35,6 +35,7 @@
 #include "intel_backlight.h"
 #include "intel_display_types.h"
 #include "intel_opregion.h"
+#include "intel_pci_config.h"
 
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
@@ -46,10 +47,11 @@
 #define OPREGION_ASLE_EXT_OFFSET	0x1C00
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
-#define MBOX_ACPI      (1<<0)
-#define MBOX_SWSCI     (1<<1)
-#define MBOX_ASLE      (1<<2)
-#define MBOX_ASLE_EXT  (1<<4)
+#define MBOX_ACPI		BIT(0)	/* Mailbox #1 */
+#define MBOX_SWSCI		BIT(1)	/* Mailbox #2 (obsolete from v2.x) */
+#define MBOX_ASLE		BIT(2)	/* Mailbox #3 */
+#define MBOX_ASLE_EXT		BIT(4)	/* Mailbox #5 */
+#define MBOX_BACKLIGHT		BIT(5)	/* Mailbox #2 (valid from v3.x) */
 
 struct opregion_header {
 	u8 signature[16];
@@ -195,6 +197,8 @@ struct opregion_asle_ext {
 #define ASLE_IUER_WINDOWS_BTN		(1 << 1)
 #define ASLE_IUER_POWER_BTN		(1 << 0)
 
+#define ASLE_PHED_EDID_VALID_MASK	0x3
+
 /* Software System Control Interrupt (SWSCI) */
 #define SWSCI_SCIC_INDICATOR		(1 << 0)
 #define SWSCI_SCIC_MAIN_FUNCTION_SHIFT	1
@@ -242,14 +246,10 @@ struct opregion_asle_ext {
 
 #define MAX_DSLP	1500
 
-static int swsci(struct drm_i915_private *dev_priv,
-		 u32 function, u32 parm, u32 *parm_out)
+static int check_swsci_function(struct drm_i915_private *i915, u32 function)
 {
-	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	u32 main_function, sub_function, scic;
-	u16 swsci_val;
-	u32 dslp;
+	struct opregion_swsci *swsci = i915->opregion.swsci;
+	u32 main_function, sub_function;
 
 	if (!swsci)
 		return -ENODEV;
@@ -261,14 +261,30 @@ static int swsci(struct drm_i915_private *dev_priv,
 
 	/* Check if we can call the function. See swsci_setup for details. */
 	if (main_function == SWSCI_SBCB) {
-		if ((dev_priv->opregion.swsci_sbcb_sub_functions &
+		if ((i915->opregion.swsci_sbcb_sub_functions &
 		     (1 << sub_function)) == 0)
 			return -EINVAL;
 	} else if (main_function == SWSCI_GBDA) {
-		if ((dev_priv->opregion.swsci_gbda_sub_functions &
+		if ((i915->opregion.swsci_gbda_sub_functions &
 		     (1 << sub_function)) == 0)
 			return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int swsci(struct drm_i915_private *dev_priv,
+		 u32 function, u32 parm, u32 *parm_out)
+{
+	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	u32 scic, dslp;
+	u16 swsci_val;
+	int ret;
+
+	ret = check_swsci_function(dev_priv, function);
+	if (ret)
+		return ret;
 
 	/* Driver sleep timeout in ms. */
 	dslp = swsci->dslp;
@@ -343,10 +359,16 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	u32 parm = 0;
 	u32 type = 0;
 	u32 port;
+	int ret;
 
 	/* don't care about old stuff for now */
 	if (!HAS_DDI(dev_priv))
 		return 0;
+
+	/* Avoid port out of bounds checks if SWSCI isn't there. */
+	ret = check_swsci_function(dev_priv, SWSCI_SBCB_DISPLAY_POWER_STATE);
+	if (ret)
+		return ret;
 
 	if (intel_encoder->type == INTEL_OUTPUT_DSI)
 		port = 0;
@@ -911,9 +933,17 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	}
 
 	if (mboxes & MBOX_SWSCI) {
-		drm_dbg(&dev_priv->drm, "SWSCI supported\n");
-		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
-		swsci_setup(dev_priv);
+		u8 major = opregion->header->over.major;
+
+		if (major >= 3) {
+			drm_err(&dev_priv->drm, "SWSCI Mailbox #2 present for opregion v3.x, ignoring\n");
+		} else {
+			if (major >= 2)
+				drm_dbg(&dev_priv->drm, "SWSCI Mailbox #2 present for opregion v2.x\n");
+			drm_dbg(&dev_priv->drm, "SWSCI supported\n");
+			opregion->swsci = base + OPREGION_SWSCI_OFFSET;
+			swsci_setup(dev_priv);
+		}
 	}
 
 	if (mboxes & MBOX_ASLE) {
@@ -923,8 +953,14 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
 	}
 
-	if (mboxes & MBOX_ASLE_EXT)
+	if (mboxes & MBOX_ASLE_EXT) {
 		drm_dbg(&dev_priv->drm, "ASLE extension supported\n");
+		opregion->asle_ext = base + OPREGION_ASLE_EXT_OFFSET;
+	}
+
+	if (mboxes & MBOX_BACKLIGHT) {
+		drm_dbg(&dev_priv->drm, "Mailbox #2 for backlight present\n");
+	}
 
 	if (intel_load_vbt_firmware(dev_priv) == 0)
 		goto out;
@@ -1051,6 +1087,54 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	return ret - 1;
 }
 
+/**
+ * intel_opregion_get_edid - Fetch EDID from ACPI OpRegion mailbox #5
+ * @intel_connector: eDP connector
+ *
+ * This reads the ACPI Opregion mailbox #5 to extract the EDID that is passed
+ * to it.
+ *
+ * Returns:
+ * The EDID in the OpRegion, or NULL if there is none or it's invalid.
+ *
+ */
+struct edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
+{
+	struct drm_connector *connector = &intel_connector->base;
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_opregion *opregion = &i915->opregion;
+	const void *in_edid;
+	const struct edid *edid;
+	struct edid *new_edid;
+	int len;
+
+	if (!opregion->asle_ext)
+		return NULL;
+
+	in_edid = opregion->asle_ext->bddc;
+
+	/* Validity corresponds to number of 128-byte blocks */
+	len = (opregion->asle_ext->phed & ASLE_PHED_EDID_VALID_MASK) * 128;
+	if (!len || !memchr_inv(in_edid, 0, len))
+		return NULL;
+
+	edid = in_edid;
+
+	if (len < EDID_LENGTH * (1 + edid->extensions)) {
+		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5): too short\n");
+		return NULL;
+	}
+	new_edid = drm_edid_duplicate(edid);
+	if (!new_edid)
+		return NULL;
+	if (!drm_edid_is_valid(new_edid)) {
+		kfree(new_edid);
+		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5)\n");
+		return NULL;
+	}
+	return new_edid;
+}
+
 void intel_opregion_register(struct drm_i915_private *i915)
 {
 	struct intel_opregion *opregion = &i915->opregion;
@@ -1144,6 +1228,7 @@ void intel_opregion_unregister(struct drm_i915_private *i915)
 	opregion->acpi = NULL;
 	opregion->swsci = NULL;
 	opregion->asle = NULL;
+	opregion->asle_ext = NULL;
 	opregion->vbt = NULL;
 	opregion->lid_state = NULL;
 }

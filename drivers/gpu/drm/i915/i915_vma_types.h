@@ -95,6 +95,8 @@ enum i915_cache_level;
  *
  */
 
+struct i915_vma_resource;
+
 struct intel_remapped_plane_info {
 	/* in gtt pages */
 	u32 offset:31;
@@ -247,22 +249,20 @@ struct i915_vma {
 
 #define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)
 
-#define I915_VMA_ALLOC_BIT	12
-
-#define I915_VMA_ERROR_BIT	13
+#define I915_VMA_ERROR_BIT	12
 #define I915_VMA_ERROR		((int)BIT(I915_VMA_ERROR_BIT))
 
-#define I915_VMA_GGTT_BIT	14
-#define I915_VMA_CAN_FENCE_BIT	15
-#define I915_VMA_USERFAULT_BIT	16
-#define I915_VMA_GGTT_WRITE_BIT	17
+#define I915_VMA_GGTT_BIT	13
+#define I915_VMA_CAN_FENCE_BIT	14
+#define I915_VMA_USERFAULT_BIT	15
+#define I915_VMA_GGTT_WRITE_BIT	16
 
 #define I915_VMA_GGTT		((int)BIT(I915_VMA_GGTT_BIT))
 #define I915_VMA_CAN_FENCE	((int)BIT(I915_VMA_CAN_FENCE_BIT))
 #define I915_VMA_USERFAULT	((int)BIT(I915_VMA_USERFAULT_BIT))
 #define I915_VMA_GGTT_WRITE	((int)BIT(I915_VMA_GGTT_WRITE_BIT))
 
-#define I915_VMA_SCANOUT_BIT	18
+#define I915_VMA_SCANOUT_BIT	17
 #define I915_VMA_SCANOUT	((int)BIT(I915_VMA_SCANOUT_BIT))
 
 	struct i915_active active;
@@ -291,6 +291,9 @@ struct i915_vma {
 	struct list_head evict_link;
 
 	struct list_head closed_link;
+
+	/** The async vma resource. Protected by the vm_mutex */
+	struct i915_vma_resource *resource;
 };
 
 #endif

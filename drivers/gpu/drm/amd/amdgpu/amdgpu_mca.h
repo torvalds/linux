@@ -21,21 +21,13 @@
 #ifndef __AMDGPU_MCA_H__
 #define __AMDGPU_MCA_H__
 
-struct amdgpu_mca_ras_funcs {
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	void (*query_ras_error_count)(struct amdgpu_device *adev,
-				      void *ras_error_status);
-	void (*query_ras_error_address)(struct amdgpu_device *adev,
-					void *ras_error_status);
-	uint32_t ras_block;
-	uint32_t ras_sub_block;
-	const char* sysfs_name;
+struct amdgpu_mca_ras_block {
+	struct amdgpu_ras_block_object ras_block;
 };
 
 struct amdgpu_mca_ras {
 	struct ras_common_if *ras_if;
-	const struct amdgpu_mca_ras_funcs *ras_funcs;
+	struct amdgpu_mca_ras_block *ras;
 };
 
 struct amdgpu_mca_funcs {
@@ -63,11 +55,5 @@ void amdgpu_mca_reset_error_count(struct amdgpu_device *adev,
 void amdgpu_mca_query_ras_error_count(struct amdgpu_device *adev,
 				      uint64_t mc_status_addr,
 				      void *ras_error_status);
-
-int amdgpu_mca_ras_late_init(struct amdgpu_device *adev,
-			     struct amdgpu_mca_ras *mca_dev);
-
-void amdgpu_mca_ras_fini(struct amdgpu_device *adev,
-			 struct amdgpu_mca_ras *mca_dev);
 
 #endif

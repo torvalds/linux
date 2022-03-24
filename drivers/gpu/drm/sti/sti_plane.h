@@ -81,5 +81,4 @@ void sti_plane_update_fps(struct sti_plane *plane,
 
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type);
-void sti_plane_reset(struct drm_plane *plane);
 #endif

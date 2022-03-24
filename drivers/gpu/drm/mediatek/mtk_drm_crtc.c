@@ -55,6 +55,7 @@ struct mtk_drm_crtc {
 	struct cmdq_pkt			cmdq_handle;
 	u32				cmdq_event;
 	u32				cmdq_vblank_cnt;
+	wait_queue_head_t		cb_blocking_queue;
 #endif
 
 	struct device			*mmsys_dev;
@@ -313,6 +314,7 @@ static void ddp_cmdq_cb(struct mbox_client *cl, void *mssg)
 	}
 
 	mtk_crtc->cmdq_vblank_cnt = 0;
+	wake_up(&mtk_crtc->cb_blocking_queue);
 }
 #endif
 
@@ -699,6 +701,13 @@ static void mtk_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	mtk_crtc->pending_planes = true;
 
 	mtk_drm_crtc_update_config(mtk_crtc, false);
+#if IS_REACHABLE(CONFIG_MTK_CMDQ)
+	/* Wait for planes to be disabled by cmdq */
+	if (mtk_crtc->cmdq_client.chan)
+		wait_event_timeout(mtk_crtc->cb_blocking_queue,
+				   mtk_crtc->cmdq_vblank_cnt == 0,
+				   msecs_to_jiffies(500));
+#endif
 	/* Wait for planes to be disabled */
 	drm_crtc_wait_one_vblank(crtc);
 
@@ -977,6 +986,9 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 				mtk_crtc->cmdq_client.chan = NULL;
 			}
 		}
+
+		/* for sending blocking cmd in crtc disable */
+		init_waitqueue_head(&mtk_crtc->cb_blocking_queue);
 	}
 #endif
 	return 0;
