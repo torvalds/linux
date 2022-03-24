@@ -857,6 +857,7 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		writel(ISP32_DS_DS_DIS, dev->base_addr + ISP32_MI_BPDS_WR_CTRL);
 
 		writel(0, dev->base_addr + ISP32_BLS_ISP_OB_PREDGAIN);
+		writel(0x37, dev->base_addr + ISP32_MI_WR_WRAP_CTRL);
 	}
 
 	return 0;
