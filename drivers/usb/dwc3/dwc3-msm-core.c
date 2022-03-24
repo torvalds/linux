@@ -3597,24 +3597,16 @@ static void dwc3_dis_sleep_mode(struct dwc3_msm *mdwc)
 	dwc3_msm_write_reg(mdwc->base, DWC3_GUCTL1, reg);
 }
 
-/* Force Gen1 speed on Gen2 controller if required */
-static void dwc3_force_gen1(struct dwc3_msm *mdwc)
-{
-	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
-
-	if (mdwc->force_gen1 && DWC3_IP_IS(DWC31))
-		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
-}
-
 static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 {
 	struct dwc3 *dwc = NULL;
 	u32 val;
 
-	if (!mdwc->dwc3)
-		return 0;
+	if (mdwc->dwc3)
+		dwc = platform_get_drvdata(mdwc->dwc3);
 
-	dwc = platform_get_drvdata(mdwc->dwc3);
+	if (!mdwc->ip)
+		mdwc->ip = DWC3_GSNPS_ID(dwc3_msm_read_reg(mdwc->base, DWC3_GSNPSID));
 
 	if (mdwc->dynamic_disable)
 		return -EINVAL;
@@ -3645,14 +3637,16 @@ static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 		dwc3_msm_write_reg_field(mdwc->base, DWC3_GCTL,
 				DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG),
 				DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_HOST));
-		if (!dwc->dis_enblslpm_quirk)
+		if (dwc && !dwc->dis_enblslpm_quirk)
 			dwc3_en_sleep_mode(mdwc);
 
 		if (mdwc->dis_sending_cm_l1_quirk)
 			mdwc3_dis_sending_cm_l1(mdwc);
 	}
 
-	dwc3_force_gen1(mdwc);
+	/* Force Gen1 speed on Gen2 controller if required */
+	if (mdwc->force_gen1 && mdwc->ip == DWC31_IP)
+		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
 	return 0;
 }
 
@@ -4606,9 +4600,8 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	struct dwc3 *dwc = NULL;
 	u32 irq_stat, irq_clear = 0;
 
-	if (!mdwc->dwc3)
-		return;
-	dwc = platform_get_drvdata(mdwc->dwc3);
+	if (mdwc->dwc3)
+		dwc = platform_get_drvdata(mdwc->dwc3);
 
 	irq_stat = dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG);
 	dev_dbg(mdwc->dev, "%s irq_stat=%X\n", __func__, irq_stat);
@@ -4647,7 +4640,7 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	if (irq_stat & PWR_EVNT_LPM_OUT_L1_MASK) {
 		dev_dbg(mdwc->dev, "%s: handling PWR_EVNT_LPM_OUT_L1_MASK\n",
 				__func__);
-		if (!mdwc->in_host_mode) {
+		if (!mdwc->in_host_mode && dwc) {
 			if (usb_gadget_wakeup(dwc->gadget))
 				dev_err(mdwc->dev, "%s failed to take dwc out of L1\n",
 					__func__);
@@ -5716,7 +5709,6 @@ static int dwc3_msm_core_init(struct dwc3_msm *mdwc)
 	struct device_node *node = mdwc->dev->of_node, *dwc3_node;
 	struct dwc3	*dwc;
 	int ret = 0;
-	u32 val;
 
 	if (mdwc->dwc3)
 		return 0;
@@ -5812,11 +5804,6 @@ static int dwc3_msm_core_init(struct dwc3_msm *mdwc)
 	mdwc->xhci_pm_ops = kzalloc(sizeof(struct dev_pm_ops), GFP_ATOMIC);
 	if (!mdwc->xhci_pm_ops)
 		goto free_dwc_pm_ops;
-
-	val = dwc3_msm_read_reg(mdwc->base, DWC3_GSNPSID);
-	mdwc->ip = DWC3_GSNPS_ID(val);
-
-	dwc3_force_gen1(mdwc);
 
 	dwc3_msm_notify_event(dwc, DWC3_GSI_EVT_BUF_ALLOC, 0);
 	pm_runtime_set_autosuspend_delay(dwc->dev, 0);
