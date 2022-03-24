@@ -1457,6 +1457,28 @@ static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
 	return 0;
 }
 
+static int rkisp_set_fps(struct rkisp_stream *stream, int *fps)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32)
+		return -EINVAL;
+
+	rkisp_rockit_fps_set(fps, stream->id);
+	return 0;
+}
+
+static int rkisp_get_fps(struct rkisp_stream *stream, int *fps)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32)
+		return -EINVAL;
+
+	rkisp_rockit_fps_get(fps, stream->id);
+	return 0;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1514,6 +1536,12 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_SET_WRAP_LINE:
 		ret = rkisp_set_wrap_line(stream, arg);
+		break;
+	case RKISP_CMD_SET_FPS:
+		ret = rkisp_set_fps(stream, arg);
+		break;
+	case RKISP_CMD_GET_FPS:
+		ret = rkisp_get_fps(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;

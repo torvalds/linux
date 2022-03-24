@@ -79,6 +79,11 @@
 #define RKISP_CMD_SET_WRAP_LINE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 108, int)
 
+#define RKISP_CMD_SET_FPS \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 109, int)
+
+#define RKISP_CMD_GET_FPS \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 110, int)
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)

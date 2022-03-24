@@ -20,6 +20,11 @@ struct rkisp_stream_cfg {
 	struct rkisp_rockit_buffer *rkisp_buff[ROCKIT_BUF_NUM_MAX];
 	int buff_id[ROCKIT_BUF_NUM_MAX];
 	void *node;
+	int fps_cnt;
+	int dst_fps;
+	int cur_fps;
+	u64 old_time;
+	bool is_discard;
 };
 
 struct ISP_VIDEO_FRAMES {
@@ -49,6 +54,7 @@ struct rkisp_dev_cfg {
 struct rockit_cfg {
 	bool is_alloc;
 	bool is_empty;
+	bool is_qbuf;
 	char *current_name;
 	dma_addr_t dma_addr;
 	int *buff_id;
