@@ -1708,6 +1708,15 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 				       rarray, &rlen, varray, &vlen);
 	if (rc == 0 && rlen >= 10*8 && vlen >= 204) {
 		memcpy(ci->serial, rarray, 8);
+		ci->new_asym_mk_state = (char) rarray[4*8];
+		ci->cur_asym_mk_state = (char) rarray[5*8];
+		ci->old_asym_mk_state = (char) rarray[6*8];
+		if (ci->old_asym_mk_state == '2')
+			memcpy(ci->old_asym_mkvp, varray + 64, 16);
+		if (ci->cur_asym_mk_state == '2')
+			memcpy(ci->cur_asym_mkvp, varray + 84, 16);
+		if (ci->new_asym_mk_state == '3')
+			memcpy(ci->new_asym_mkvp, varray + 104, 16);
 		ci->new_aes_mk_state = (char) rarray[7*8];
 		ci->cur_aes_mk_state = (char) rarray[8*8];
 		ci->old_aes_mk_state = (char) rarray[9*8];
