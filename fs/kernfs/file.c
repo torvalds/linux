@@ -33,7 +33,6 @@ static DEFINE_SPINLOCK(kernfs_open_node_lock);
 static DEFINE_MUTEX(kernfs_open_file_mutex);
 
 struct kernfs_open_node {
-	atomic_t		refcnt;
 	atomic_t		event;
 	wait_queue_head_t	poll;
 	struct list_head	files; /* goes through kernfs_open_file.list */
@@ -530,10 +529,8 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 	}
 
 	on = kn->attr.open;
-	if (on) {
-		atomic_inc(&on->refcnt);
+	if (on)
 		list_add_tail(&of->list, &on->files);
-	}
 
 	spin_unlock_irq(&kernfs_open_node_lock);
 	mutex_unlock(&kernfs_open_file_mutex);
@@ -548,7 +545,6 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 	if (!new_on)
 		return -ENOMEM;
 
-	atomic_set(&new_on->refcnt, 0);
 	atomic_set(&new_on->event, 1);
 	init_waitqueue_head(&new_on->poll);
 	INIT_LIST_HEAD(&new_on->files);
@@ -557,11 +553,12 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 
 /**
  *	kernfs_put_open_node - put kernfs_open_node
- *	@kn: target kernfs_nodet
+ *	@kn: target kernfs_node
  *	@of: associated kernfs_open_file
  *
  *	Put @kn->attr.open and unlink @of from the files list.  If
- *	reference count reaches zero, disassociate and free it.
+ *	list of associated open files becomes empty, disassociate and
+ *	free kernfs_open_node.
  *
  *	LOCKING:
  *	None.
@@ -578,7 +575,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 	if (of)
 		list_del(&of->list);
 
-	if (atomic_dec_and_test(&on->refcnt))
+	if (list_empty(&on->files))
 		kn->attr.open = NULL;
 	else
 		on = NULL;
@@ -768,15 +765,15 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 	if (!(kn->flags & (KERNFS_HAS_MMAP | KERNFS_HAS_RELEASE)))
 		return;
 
-	spin_lock_irq(&kernfs_open_node_lock);
 	on = kn->attr.open;
-	if (on)
-		atomic_inc(&on->refcnt);
-	spin_unlock_irq(&kernfs_open_node_lock);
 	if (!on)
 		return;
 
 	mutex_lock(&kernfs_open_file_mutex);
+	if (!kn->attr.open) {
+		mutex_unlock(&kernfs_open_file_mutex);
+		return;
+	}
 
 	list_for_each_entry(of, &on->files, list) {
 		struct inode *inode = file_inode(of->file);
@@ -789,8 +786,6 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 	}
 
 	mutex_unlock(&kernfs_open_file_mutex);
-
-	kernfs_put_open_node(kn, NULL);
 }
 
 /*
