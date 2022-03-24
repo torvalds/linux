@@ -87,7 +87,7 @@ struct irq_routing_table {
 	u32 miniport_data;		/* Crap */
 	u8 rfu[11];
 	u8 checksum;			/* Modulo 256 checksum must give 0 */
-	struct irq_info slots[0];
+	struct irq_info slots[];
 } __attribute__((packed));
 
 extern unsigned int pcibios_irq_mask;

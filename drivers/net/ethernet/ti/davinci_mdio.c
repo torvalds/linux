@@ -70,7 +70,7 @@ struct davinci_mdio_regs {
 #define USERACCESS_DATA		(0xffff)
 
 		u32	physel;
-	}	user[0];
+	}	user[];
 };
 
 static const struct mdio_platform_data default_pdata = {

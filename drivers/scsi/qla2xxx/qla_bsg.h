@@ -157,7 +157,7 @@ struct qla84_msg_mgmt {
 	uint16_t rsrvd;
 	struct qla84_mgmt_param mgmtp;/* parameters for cmd */
 	uint32_t len; /* bytes in payload following this struct */
-	uint8_t payload[0]; /* payload for cmd */
+	uint8_t payload[]; /* payload for cmd */
 };
 
 struct qla_bsg_a84_mgmt {
@@ -216,7 +216,7 @@ struct qla_image_version {
 
 struct qla_image_version_list {
 	uint32_t count;
-	struct qla_image_version version[0];
+	struct qla_image_version version[];
 } __packed;
 
 struct qla_status_reg {
