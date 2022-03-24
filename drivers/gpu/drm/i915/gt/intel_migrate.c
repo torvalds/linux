@@ -530,6 +530,7 @@ intel_context_migrate_copy(struct intel_context *ce,
 	int err;
 
 	GEM_BUG_ON(ce->vm != ce->engine->gt->migrate.context->vm);
+	GEM_BUG_ON(IS_DGFX(ce->engine->i915) && (!src_is_lmem && !dst_is_lmem));
 	*out = NULL;
 
 	GEM_BUG_ON(ce->ring->size < SZ_64K);
@@ -566,8 +567,6 @@ intel_context_migrate_copy(struct intel_context *ce,
 		src_offset = 0;
 		dst_offset = CHUNK_SZ;
 		if (HAS_64K_PAGES(ce->engine->i915)) {
-			GEM_BUG_ON(!src_is_lmem && !dst_is_lmem);
-
 			src_offset = 0;
 			dst_offset = 0;
 			if (src_is_lmem)
