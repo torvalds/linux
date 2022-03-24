@@ -1045,10 +1045,7 @@ struct btrfs_fs_info {
 	 * Zone size > 0 when in ZONED mode, otherwise it's used for a check
 	 * if the mode is enabled
 	 */
-	union {
-		u64 zone_size;
-		u64 zoned;
-	};
+	u64 zone_size;
 
 	struct mutex zoned_meta_io_lock;
 	spinlock_t treelog_bg_lock;
@@ -4010,7 +4007,7 @@ static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 
 static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
 {
-	return fs_info->zoned != 0;
+	return fs_info->zone_size > 0;
 }
 
 static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
