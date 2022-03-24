@@ -9290,11 +9290,16 @@ static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 
 	ether_addr_copy(vport->vf_info.mac, mac_addr);
 
+	/* there is a timewindow for PF to know VF unalive, it may
+	 * cause send mailbox fail, but it doesn't matter, VF will
+	 * query it when reinit.
+	 */
 	if (test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
 		dev_info(&hdev->pdev->dev,
 			 "MAC of VF %d has been set to %s, and it will be reinitialized!\n",
 			 vf, format_mac_addr);
-		return hclge_inform_reset_assert_to_vf(vport);
+		(void)hclge_inform_reset_assert_to_vf(vport);
+		return 0;
 	}
 
 	dev_info(&hdev->pdev->dev, "MAC of VF %d has been set to %s\n",
@@ -10522,14 +10527,17 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 		return ret;
 	}
 
-	/* for DEVICE_VERSION_V3, vf doesn't need to know about the port based
+	/* there is a timewindow for PF to know VF unalive, it may
+	 * cause send mailbox fail, but it doesn't matter, VF will
+	 * query it when reinit.
+	 * for DEVICE_VERSION_V3, vf doesn't need to know about the port based
 	 * VLAN state.
 	 */
 	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3 &&
 	    test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
-		hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
-						  vport->vport_id, state,
-						  &vlan_info);
+		(void)hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
+							vport->vport_id,
+							state, &vlan_info);
 
 	return 0;
 }
