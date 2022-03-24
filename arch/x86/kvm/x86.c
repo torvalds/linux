@@ -961,11 +961,13 @@ void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu)
 			wrmsrl(MSR_IA32_XSS, vcpu->arch.ia32_xss);
 	}
 
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (static_cpu_has(X86_FEATURE_PKU) &&
-	    (kvm_read_cr4_bits(vcpu, X86_CR4_PKE) ||
-	     (vcpu->arch.xcr0 & XFEATURE_MASK_PKRU)) &&
-	    vcpu->arch.pkru != vcpu->arch.host_pkru)
+	    vcpu->arch.pkru != vcpu->arch.host_pkru &&
+	    ((vcpu->arch.xcr0 & XFEATURE_MASK_PKRU) ||
+	     kvm_read_cr4_bits(vcpu, X86_CR4_PKE)))
 		write_pkru(vcpu->arch.pkru);
+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
 }
 EXPORT_SYMBOL_GPL(kvm_load_guest_xsave_state);
 
@@ -974,13 +976,15 @@ void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.guest_state_protected)
 		return;
 
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (static_cpu_has(X86_FEATURE_PKU) &&
-	    (kvm_read_cr4_bits(vcpu, X86_CR4_PKE) ||
-	     (vcpu->arch.xcr0 & XFEATURE_MASK_PKRU))) {
+	    ((vcpu->arch.xcr0 & XFEATURE_MASK_PKRU) ||
+	     kvm_read_cr4_bits(vcpu, X86_CR4_PKE))) {
 		vcpu->arch.pkru = rdpkru();
 		if (vcpu->arch.pkru != vcpu->arch.host_pkru)
 			write_pkru(vcpu->arch.host_pkru);
 	}
+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
 
 	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
 
