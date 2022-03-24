@@ -213,7 +213,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	if (nmi_alloc_mcesa(&lc->mcesad))
 		goto out;
 	lowcore_ptr[cpu] = lc;
-	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
+	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, __pa(lc));
 	return 0;
 
 out:
