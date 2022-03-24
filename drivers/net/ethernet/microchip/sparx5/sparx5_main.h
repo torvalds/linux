@@ -65,10 +65,10 @@ enum sparx5_vlan_port_type {
 #define PGID_IPV6_MC_CTRL      (PGID_BASE + 5)
 #define PGID_BCAST	       (PGID_BASE + 6)
 #define PGID_CPU	       (PGID_BASE + 7)
+#define PGID_MCAST_START       (PGID_BASE + 8)
 
 #define PGID_TABLE_SIZE	       3290
 
-#define PGID_MCAST_START 65
 #define IFH_LEN                9 /* 36 bytes */
 #define NULL_VID               0
 #define SPX5_MACT_PULL_DELAY   (2 * HZ)
@@ -325,6 +325,7 @@ void sparx5_mact_init(struct sparx5 *sparx5);
 
 /* sparx5_vlan.c */
 void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable);
+void sparx5_pgid_read_mask(struct sparx5 *sparx5, int pgid, u32 portmask[3]);
 void sparx5_update_fwd(struct sparx5 *sparx5);
 void sparx5_vlan_init(struct sparx5 *sparx5);
 void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portno);

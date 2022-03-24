@@ -19,6 +19,9 @@ int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx)
 {
 	int i;
 
+	/* The multicast area starts at index 65, but the first 7
+	 * are reserved for flood masks and CPU. Start alloc after that.
+	 */
 	for (i = PGID_MCAST_START; i < PGID_TABLE_SIZE; i++) {
 		if (spx5->pgid_map[i] == SPX5_PGID_FREE) {
 			spx5->pgid_map[i] = SPX5_PGID_MULTICAST;
