@@ -160,7 +160,8 @@ static noinline void __save_stack_trace(struct task_struct *tsk,
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_stack_pointer;
 		frame.lr = (unsigned long)__builtin_return_address(0);
-		frame.pc = (unsigned long)__save_stack_trace;
+here:
+		frame.pc = (unsigned long)&&here;
 	}
 #ifdef CONFIG_KRETPROBES
 	frame.kr_cur = NULL;

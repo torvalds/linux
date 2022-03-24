@@ -60,6 +60,7 @@ config ARM
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
@@ -94,8 +95,8 @@ config ARM
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
-	select HAVE_FUNCTION_GRAPH_TRACER if !THUMB2_KERNEL && !CC_IS_CLANG
-	select HAVE_FUNCTION_TRACER if !XIP_KERNEL && !(THUMB2_KERNEL && CC_IS_CLANG)
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -129,7 +130,8 @@ config ARM
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select THREAD_INFO_IN_TASK if CURRENT_POINTER_IN_TPIDRURO
+	select THREAD_INFO_IN_TASK
+	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -140,6 +142,17 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
+
+config ARM_HAS_GROUP_RELOCS
+	def_bool y
+	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+	depends on !COMPILE_TEST
+	help
+	  Whether or not to use R_ARM_ALU_PC_Gn or R_ARM_LDR_PC_Gn group
+	  relocations, which have been around for a long time, but were not
+	  supported in LLD until version 14. The combined range is -/+ 256 MiB,
+	  which is usually sufficient, but not for allyesconfig, so we disable
+	  this feature when doing compile testing.
 
 config ARM_HAS_SG_CHAIN
 	bool
@@ -227,9 +240,6 @@ config GENERIC_ISA_DMA
 	bool
 
 config FIQ
-	bool
-
-config NEED_RET_TO_USER
 	bool
 
 config ARCH_MTD_XIP
@@ -325,7 +335,6 @@ config ARCH_MULTIPLATFORM
 	select AUTO_ZRELADDR
 	select TIMER_OF
 	select COMMON_CLK
-	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_PCI
 	select PCI_DOMAINS_GENERIC if PCI
 	select SPARSE_IRQ
@@ -349,7 +358,6 @@ config ARCH_EP93XX
 	select ARM_AMBA
 	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
-	select GENERIC_IRQ_MULTI_HANDLER
 	select AUTO_ZRELADDR
 	select CLKSRC_MMIO
 	select CPU_ARM920T
@@ -374,7 +382,6 @@ config ARCH_IOP32X
 	select CPU_XSCALE
 	select GPIO_IOP
 	select GPIOLIB
-	select NEED_RET_TO_USER
 	select FORCE_PCI
 	select PLAT_IOP
 	help
@@ -388,7 +395,6 @@ config ARCH_IXP4XX
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_IXP4XX
 	select GPIOLIB
 	select HAVE_PCI
@@ -404,7 +410,6 @@ config ARCH_IXP4XX
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select CPU_PJ4
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_PCI
 	select MVEBU_MBUS
@@ -427,7 +432,6 @@ config ARCH_PXA
 	select CLKSRC_MMIO
 	select TIMER_OF
 	select CPU_XSCALE if !CPU_XSC3
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_PXA
 	select GPIOLIB
 	select IRQ_DOMAIN
@@ -466,7 +470,6 @@ config ARCH_SA1100
 	select COMMON_CLK
 	select CPU_FREQ
 	select CPU_SA1100
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select IRQ_DOMAIN
 	select ISA
@@ -481,7 +484,6 @@ config ARCH_S3C24XX
 	select CLKSRC_SAMSUNG_PWM
 	select GPIO_SAMSUNG
 	select GPIOLIB
-	select GENERIC_IRQ_MULTI_HANDLER
 	select NEED_MACH_IO_H
 	select S3C2410_WATCHDOG
 	select SAMSUNG_ATAGS
@@ -499,7 +501,6 @@ config ARCH_OMAP1
 	select ARCH_OMAP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_LEGACY_CLK
 	select IRQ_DOMAIN
@@ -1166,7 +1167,12 @@ config SMP_ON_UP
 
 config CURRENT_POINTER_IN_TPIDRURO
 	def_bool y
-	depends on SMP && CPU_32v6K && !CPU_V6
+	depends on CPU_32v6K && !CPU_V6
+
+config IRQSTACKS
+	def_bool y
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"
@@ -1607,10 +1613,14 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
+config CC_HAVE_STACKPROTECTOR_TLS
+	def_bool $(cc-option,-mtp=cp15 -mstack-protector-guard=tls -mstack-protector-guard-offset=0)
+
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on GCC_PLUGINS && STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
-	select GCC_PLUGIN_ARM_SSP_PER_TASK
+	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA
+	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
+	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
 	default y
 	help
 	  Due to the fact that GCC uses an ordinary symbol reference from
