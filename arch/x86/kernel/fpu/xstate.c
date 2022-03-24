@@ -81,8 +81,6 @@ static unsigned int xstate_offsets[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_sizes[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
-static unsigned int xstate_comp_offsets[XFEATURE_MAX] __ro_after_init =
-	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_flags[XFEATURE_MAX] __ro_after_init;
 
 #define XSTATE_FLAG_SUPERVISOR	BIT(0)
@@ -134,6 +132,33 @@ static bool xfeature_is_aligned64(int xfeature_nr)
 static bool xfeature_is_supervisor(int xfeature_nr)
 {
 	return xstate_flags[xfeature_nr] & XSTATE_FLAG_SUPERVISOR;
+}
+
+static unsigned int xfeature_get_offset(u64 xcomp_bv, int xfeature)
+{
+	unsigned int offs, i;
+
+	/*
+	 * Non-compacted format and legacy features use the cached fixed
+	 * offsets.
+	 */
+	if (!cpu_feature_enabled(X86_FEATURE_XSAVES) || xfeature <= XFEATURE_SSE)
+		return xstate_offsets[xfeature];
+
+	/*
+	 * Compacted format offsets depend on the actual content of the
+	 * compacted xsave area which is determined by the xcomp_bv header
+	 * field.
+	 */
+	offs = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	for_each_extended_xfeature(i, xcomp_bv) {
+		if (xfeature_is_aligned64(i))
+			offs = ALIGN(offs, 64);
+		if (i == xfeature)
+			break;
+		offs += xstate_sizes[i];
+	}
+	return offs;
 }
 
 /*
@@ -264,42 +289,6 @@ static void __init print_xstate_features(void)
 } while (0)
 
 /*
- * This function sets up offsets and sizes of all extended states in
- * xsave area. This supports both standard format and compacted format
- * of the xsave area.
- */
-static void __init setup_xstate_comp_offsets(void)
-{
-	unsigned int next_offset;
-	int i;
-
-	/*
-	 * The FP xstates and SSE xstates are legacy states. They are always
-	 * in the fixed offsets in the xsave area in either compacted form
-	 * or standard form.
-	 */
-	xstate_comp_offsets[XFEATURE_FP] = 0;
-	xstate_comp_offsets[XFEATURE_SSE] = offsetof(struct fxregs_state,
-						     xmm_space);
-
-	if (!cpu_feature_enabled(X86_FEATURE_XSAVES)) {
-		for_each_extended_xfeature(i, fpu_kernel_cfg.max_features)
-			xstate_comp_offsets[i] = xstate_offsets[i];
-		return;
-	}
-
-	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
-
-	for_each_extended_xfeature(i, fpu_kernel_cfg.max_features) {
-		if (xfeature_is_aligned64(i))
-			next_offset = ALIGN(next_offset, 64);
-
-		xstate_comp_offsets[i] = next_offset;
-		next_offset += xstate_sizes[i];
-	}
-}
-
-/*
  * Print out xstate component offsets and sizes
  */
 static void __init print_xstate_offset_size(void)
@@ -308,7 +297,8 @@ static void __init print_xstate_offset_size(void)
 
 	for_each_extended_xfeature(i, fpu_kernel_cfg.max_features) {
 		pr_info("x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n",
-			 i, xstate_comp_offsets[i], i, xstate_sizes[i]);
+			i, xfeature_get_offset(fpu_kernel_cfg.max_features, i),
+			i, xstate_sizes[i]);
 	}
 }
 
@@ -901,7 +891,6 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 				  fpu_user_cfg.max_features);
 
 	setup_init_fpu_buf();
-	setup_xstate_comp_offsets();
 
 	/*
 	 * Paranoia check whether something in the setup modified the
@@ -956,13 +945,19 @@ void fpu__resume_cpu(void)
  */
 static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 {
-	if (!xfeature_enabled(xfeature_nr)) {
-		WARN_ON_FPU(1);
+	u64 xcomp_bv = xsave->header.xcomp_bv;
+
+	if (WARN_ON_ONCE(!xfeature_enabled(xfeature_nr)))
 		return NULL;
+
+	if (cpu_feature_enabled(X86_FEATURE_XSAVES)) {
+		if (WARN_ON_ONCE(!(xcomp_bv & BIT_ULL(xfeature_nr))))
+			return NULL;
 	}
 
-	return (void *)xsave + xstate_comp_offsets[xfeature_nr];
+	return (void *)xsave + xfeature_get_offset(xcomp_bv, xfeature_nr);
 }
+
 /*
  * Given the xsave area and a state inside, this function returns the
  * address of the state.
@@ -993,8 +988,9 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 	 * We should not ever be requesting features that we
 	 * have not enabled.
 	 */
-	WARN_ONCE(!(fpu_kernel_cfg.max_features & BIT_ULL(xfeature_nr)),
-		  "get of unsupported state");
+	if (WARN_ON_ONCE(!xfeature_enabled(xfeature_nr)))
+		return NULL;
+
 	/*
 	 * This assumes the last 'xsave*' instruction to
 	 * have requested that 'xfeature_nr' be saved.
