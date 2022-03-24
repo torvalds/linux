@@ -2658,6 +2658,7 @@ int btrfs_repair_one_sector(struct inode *inode,
 
 	repair_bio = btrfs_bio_alloc(1);
 	repair_bbio = btrfs_bio(repair_bio);
+	repair_bbio->file_offset = start;
 	repair_bio->bi_opf = REQ_OP_READ;
 	repair_bio->bi_end_io = failed_bio->bi_end_io;
 	repair_bio->bi_iter.bi_sector = failrec->logical >> 9;
