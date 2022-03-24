@@ -133,6 +133,9 @@ i915_ttm_place_from_region(const struct intel_memory_region *mr,
 	memset(place, 0, sizeof(*place));
 	place->mem_type = intel_region_to_ttm_type(mr);
 
+	if (mr->type == INTEL_MEMORY_SYSTEM)
+		return;
+
 	if (flags & I915_BO_ALLOC_CONTIGUOUS)
 		place->flags |= TTM_PL_FLAG_CONTIGUOUS;
 	if (offset != I915_BO_INVALID_OFFSET) {
