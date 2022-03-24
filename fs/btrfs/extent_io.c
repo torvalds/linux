@@ -3334,24 +3334,37 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
 	if (ret < 0)
 		goto error;
+
 	if (wbc) {
-		struct block_device *bdev;
+		/*
+		 * For Zone append we need the correct block_device that we are
+		 * going to write to set in the bio to be able to respect the
+		 * hardware limitation.  Look it up here:
+		 */
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+			struct btrfs_device *dev;
 
-		bdev = fs_info->fs_devices->latest_dev->bdev;
-		bio_set_dev(bio, bdev);
-		wbc_init_bio(wbc, bio);
-	}
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-		struct btrfs_device *device;
+			dev = btrfs_zoned_get_device(fs_info, disk_bytenr,
+						     fs_info->sectorsize);
+			if (IS_ERR(dev)) {
+				ret = PTR_ERR(dev);
+				goto error;
+			}
 
-		device = btrfs_zoned_get_device(fs_info, disk_bytenr,
-						fs_info->sectorsize);
-		if (IS_ERR(device)) {
-			ret = PTR_ERR(device);
-			goto error;
+			bio_set_dev(bio, dev->bdev);
+		} else {
+			/*
+			 * Otherwise pick the last added device to support
+			 * cgroup writeback.  For multi-device file systems this
+			 * means blk-cgroup policies have to always be set on the
+			 * last added/replaced device.  This is a bit odd but has
+			 * been like that for a long time.
+			 */
+			bio_set_dev(bio, fs_info->fs_devices->latest_dev->bdev);
 		}
-
-		btrfs_bio(bio)->device = device;
+		wbc_init_bio(wbc, bio);
+	} else {
+		ASSERT(bio_op(bio) != REQ_OP_ZONE_APPEND);
 	}
 	return 0;
 error:
