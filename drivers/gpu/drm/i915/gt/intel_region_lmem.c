@@ -123,6 +123,10 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		lmem_size = intel_uncore_read64(&i915->uncore, GEN12_GSMBASE);
 	}
 
+	if (i915->params.lmem_size > 0) {
+		lmem_size = min_t(resource_size_t, lmem_size,
+				  mul_u32_u32(i915->params.lmem_size, SZ_1M));
+	}
 
 	io_start = pci_resource_start(pdev, 2);
 	io_size = min(pci_resource_len(pdev, 2), lmem_size);
