@@ -75,33 +75,13 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
 
 /*
- * *_SPTE_HOST_WRITEABLE (aka Host-writable) indicates whether the host permits
- * writes to the guest page mapped by the SPTE. This bit is cleared on SPTEs
- * that map guest pages in read-only memslots and read-only VMAs.
- *
- * Invariants:
- *  - If Host-writable is clear, PT_WRITABLE_MASK must be clear.
- *
- *
- * *_SPTE_MMU_WRITEABLE (aka MMU-writable) indicates whether the shadow MMU
- * allows writes to the guest page mapped by the SPTE. This bit is cleared when
- * the guest page mapped by the SPTE contains a page table that is being
- * monitored for shadow paging. In this case the SPTE can only be made writable
- * by unsyncing the shadow page under the mmu_lock.
- *
- * Invariants:
- *  - If MMU-writable is clear, PT_WRITABLE_MASK must be clear.
- *  - If MMU-writable is set, Host-writable must be set.
- *
- * If MMU-writable is set, PT_WRITABLE_MASK is normally set but can be cleared
- * to track writes for dirty logging. For such SPTEs, KVM will locklessly set
- * PT_WRITABLE_MASK upon the next write from the guest and record the write in
- * the dirty log (see fast_page_fault()).
+ * {DEFAULT,EPT}_SPTE_{HOST,MMU}_WRITABLE are used to keep track of why a given
+ * SPTE is write-protected. See is_writable_pte() for details.
  */
 
 /* Bits 9 and 10 are ignored by all non-EPT PTEs. */
-#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(9)
-#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(10)
+#define DEFAULT_SPTE_HOST_WRITABLE	BIT_ULL(9)
+#define DEFAULT_SPTE_MMU_WRITABLE	BIT_ULL(10)
 
 /*
  * Low ignored bits are at a premium for EPT, use high ignored bits, taking care
@@ -339,15 +319,86 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 	       __is_rsvd_bits_set(rsvd_check, spte, level);
 }
 
+/*
+ * An shadow-present leaf SPTE may be non-writable for 3 possible reasons:
+ *
+ *  1. To intercept writes for dirty logging. KVM write-protects huge pages
+ *     so that they can be split be split down into the dirty logging
+ *     granularity (4KiB) whenever the guest writes to them. KVM also
+ *     write-protects 4KiB pages so that writes can be recorded in the dirty log
+ *     (e.g. if not using PML). SPTEs are write-protected for dirty logging
+ *     during the VM-iotcls that enable dirty logging.
+ *
+ *  2. To intercept writes to guest page tables that KVM is shadowing. When a
+ *     guest writes to its page table the corresponding shadow page table will
+ *     be marked "unsync". That way KVM knows which shadow page tables need to
+ *     be updated on the next TLB flush, INVLPG, etc. and which do not.
+ *
+ *  3. To prevent guest writes to read-only memory, such as for memory in a
+ *     read-only memslot or guest memory backed by a read-only VMA. Writes to
+ *     such pages are disallowed entirely.
+ *
+ * To keep track of why a given SPTE is write-protected, KVM uses 2
+ * software-only bits in the SPTE:
+ *
+ *  shadow_mmu_writable_mask, aka MMU-writable -
+ *    Cleared on SPTEs that KVM is currently write-protecting for shadow paging
+ *    purposes (case 2 above).
+ *
+ *  shadow_host_writable_mask, aka Host-writable -
+ *    Cleared on SPTEs that are not host-writable (case 3 above)
+ *
+ * Note, not all possible combinations of PT_WRITABLE_MASK,
+ * shadow_mmu_writable_mask, and shadow_host_writable_mask are valid. A given
+ * SPTE can be in only one of the following states, which map to the
+ * aforementioned 3 cases:
+ *
+ *   shadow_host_writable_mask | shadow_mmu_writable_mask | PT_WRITABLE_MASK
+ *   ------------------------- | ------------------------ | ----------------
+ *   1                         | 1                        | 1       (writable)
+ *   1                         | 1                        | 0       (case 1)
+ *   1                         | 0                        | 0       (case 2)
+ *   0                         | 0                        | 0       (case 3)
+ *
+ * The valid combinations of these bits are checked by
+ * check_spte_writable_invariants() whenever an SPTE is modified.
+ *
+ * Clearing the MMU-writable bit is always done under the MMU lock and always
+ * accompanied by a TLB flush before dropping the lock to avoid corrupting the
+ * shadow page tables between vCPUs. Write-protecting an SPTE for dirty logging
+ * (which does not clear the MMU-writable bit), does not flush TLBs before
+ * dropping the lock, as it only needs to synchronize guest writes with the
+ * dirty bitmap.
+ *
+ * So, there is the problem: clearing the MMU-writable bit can encounter a
+ * write-protected SPTE while CPUs still have writable mappings for that SPTE
+ * cached in their TLB. To address this, KVM always flushes TLBs when
+ * write-protecting SPTEs if the MMU-writable bit is set on the old SPTE.
+ *
+ * The Host-writable bit is not modified on present SPTEs, it is only set or
+ * cleared when an SPTE is first faulted in from non-present and then remains
+ * immutable.
+ */
+static inline bool is_writable_pte(unsigned long pte)
+{
+	return pte & PT_WRITABLE_MASK;
+}
+
+/* Note: spte must be a shadow-present leaf SPTE. */
+static inline void check_spte_writable_invariants(u64 spte)
+{
+	if (spte & shadow_mmu_writable_mask)
+		WARN_ONCE(!(spte & shadow_host_writable_mask),
+			  "kvm: MMU-writable SPTE is not Host-writable: %llx",
+			  spte);
+	else
+		WARN_ONCE(is_writable_pte(spte),
+			  "kvm: Writable SPTE is not MMU-writable: %llx", spte);
+}
+
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
-	if (spte & shadow_mmu_writable_mask) {
-		WARN_ON_ONCE(!(spte & shadow_host_writable_mask));
-		return true;
-	}
-
-	WARN_ON_ONCE(spte & PT_WRITABLE_MASK);
-	return false;
+	return spte & shadow_mmu_writable_mask;
 }
 
 static inline u64 get_mmio_spte_generation(u64 spte)
@@ -364,9 +415,25 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
 	       u64 old_spte, bool prefetch, bool can_unsync,
 	       bool host_writable, u64 *new_spte);
+u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index);
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled);
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access);
 u64 mark_spte_for_access_track(u64 spte);
+
+/* Restore an acc-track PTE back to a regular PTE */
+static inline u64 restore_acc_track_spte(u64 spte)
+{
+	u64 saved_bits = (spte >> SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
+			 & SHADOW_ACC_TRACK_SAVED_BITS_MASK;
+
+	spte &= ~shadow_acc_track_mask;
+	spte &= ~(SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
+		  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT);
+	spte |= saved_bits;
+
+	return spte;
+}
+
 u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn);
 
 void kvm_mmu_reset_all_pte_masks(void);

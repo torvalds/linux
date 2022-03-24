@@ -320,7 +320,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	kvm_vcpu_unmap(vcpu, &vmx->nested.pi_desc_map, true);
 	vmx->nested.pi_desc = NULL;
 
-	kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
+	kvm_mmu_free_roots(vcpu->kvm, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
 
 	nested_release_evmcs(vcpu);
 
@@ -1125,14 +1125,14 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 		return -EINVAL;
 	}
 
-	if (!nested_ept)
-		kvm_mmu_new_pgd(vcpu, cr3);
-
 	vcpu->arch.cr3 = cr3;
 	kvm_register_mark_dirty(vcpu, VCPU_EXREG_CR3);
 
 	/* Re-initialize the MMU, e.g. to pick up CR4 MMU role changes. */
 	kvm_init_mmu(vcpu);
+
+	if (!nested_ept)
+		kvm_mmu_new_pgd(vcpu, cr3);
 
 	return 0;
 }
@@ -4802,7 +4802,8 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 	return 0;
 }
 
-void nested_vmx_pmu_entry_exit_ctls_update(struct kvm_vcpu *vcpu)
+void nested_vmx_pmu_refresh(struct kvm_vcpu *vcpu,
+			    bool vcpu_has_perf_global_ctrl)
 {
 	struct vcpu_vmx *vmx;
 
@@ -4810,7 +4811,7 @@ void nested_vmx_pmu_entry_exit_ctls_update(struct kvm_vcpu *vcpu)
 		return;
 
 	vmx = to_vmx(vcpu);
-	if (kvm_x86_ops.pmu_ops->is_valid_msr(vcpu, MSR_CORE_PERF_GLOBAL_CTRL)) {
+	if (vcpu_has_perf_global_ctrl) {
 		vmx->nested.msrs.entry_ctls_high |=
 				VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
 		vmx->nested.msrs.exit_ctls_high |=
@@ -5011,7 +5012,7 @@ static inline void nested_release_vmcs12(struct kvm_vcpu *vcpu)
 				  vmx->nested.current_vmptr >> PAGE_SHIFT,
 				  vmx->nested.cached_vmcs12, 0, VMCS12_SIZE);
 
-	kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
+	kvm_mmu_free_roots(vcpu->kvm, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
 
 	vmx->nested.current_vmptr = INVALID_GPA;
 }
@@ -5470,7 +5471,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 
 		roots_to_free = 0;
-		if (nested_ept_root_matches(mmu->root_hpa, mmu->root_pgd,
+		if (nested_ept_root_matches(mmu->root.hpa, mmu->root.pgd,
 					    operand.eptp))
 			roots_to_free |= KVM_MMU_ROOT_CURRENT;
 
@@ -5490,7 +5491,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	}
 
 	if (roots_to_free)
-		kvm_mmu_free_roots(vcpu, mmu, roots_to_free);
+		kvm_mmu_free_roots(vcpu->kvm, mmu, roots_to_free);
 
 	return nested_vmx_succeed(vcpu);
 }
@@ -5579,7 +5580,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	 * TODO: sync only the affected SPTEs for INVDIVIDUAL_ADDR.
 	 */
 	if (!enable_ept)
-		kvm_mmu_free_guest_mode_roots(vcpu, &vcpu->arch.root_mmu);
+		kvm_mmu_free_guest_mode_roots(vcpu->kvm, &vcpu->arch.root_mmu);
 
 	return nested_vmx_succeed(vcpu);
 }

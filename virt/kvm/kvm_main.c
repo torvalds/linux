@@ -246,9 +246,8 @@ static inline bool kvm_kick_many_cpus(struct cpumask *cpus, bool wait)
 	return true;
 }
 
-static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
-				  unsigned int req, struct cpumask *tmp,
-				  int current_cpu)
+static void kvm_make_vcpu_request(struct kvm_vcpu *vcpu, unsigned int req,
+				  struct cpumask *tmp, int current_cpu)
 {
 	int cpu;
 
@@ -291,7 +290,7 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 		vcpu = kvm_get_vcpu(kvm, i);
 		if (!vcpu)
 			continue;
-		kvm_make_vcpu_request(kvm, vcpu, req, cpus, me);
+		kvm_make_vcpu_request(vcpu, req, cpus, me);
 	}
 
 	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
@@ -317,7 +316,7 @@ bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (vcpu == except)
 			continue;
-		kvm_make_vcpu_request(kvm, vcpu, req, cpus, me);
+		kvm_make_vcpu_request(vcpu, req, cpus, me);
 	}
 
 	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
@@ -354,11 +353,6 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 }
 EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
 #endif
-
-void kvm_reload_remote_mmus(struct kvm *kvm)
-{
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
-}
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
 static inline void *mmu_memory_cache_alloc_obj(struct kvm_mmu_memory_cache *mc,
@@ -1280,9 +1274,9 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
  */
 static int kvm_alloc_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
-	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
+	unsigned long dirty_bytes = kvm_dirty_bitmap_bytes(memslot);
 
-	memslot->dirty_bitmap = kvzalloc(dirty_bytes, GFP_KERNEL_ACCOUNT);
+	memslot->dirty_bitmap = __vcalloc(2, dirty_bytes, GFP_KERNEL_ACCOUNT);
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
@@ -5809,6 +5803,7 @@ static int kvm_vm_worker_thread(void *context)
 	 * we have to locally copy anything that is needed beyond initialization
 	 */
 	struct kvm_vm_worker_thread_context *init_context = context;
+	struct task_struct *parent;
 	struct kvm *kvm = init_context->kvm;
 	kvm_vm_thread_fn_t thread_fn = init_context->thread_fn;
 	uintptr_t data = init_context->data;
@@ -5835,13 +5830,32 @@ init_complete:
 	init_context = NULL;
 
 	if (err)
-		return err;
+		goto out;
 
 	/* Wait to be woken up by the spawner before proceeding. */
 	kthread_parkme();
 
 	if (!kthread_should_stop())
 		err = thread_fn(kvm, data);
+
+out:
+	/*
+	 * Move kthread back to its original cgroup to prevent it lingering in
+	 * the cgroup of the VM process, after the latter finishes its
+	 * execution.
+	 *
+	 * kthread_stop() waits on the 'exited' completion condition which is
+	 * set in exit_mm(), via mm_release(), in do_exit(). However, the
+	 * kthread is removed from the cgroup in the cgroup_exit() which is
+	 * called after the exit_mm(). This causes the kthread_stop() to return
+	 * before the kthread actually quits the cgroup.
+	 */
+	rcu_read_lock();
+	parent = rcu_dereference(current->real_parent);
+	get_task_struct(parent);
+	rcu_read_unlock();
+	cgroup_attach_task_all(parent, current);
+	put_task_struct(parent);
 
 	return err;
 }
