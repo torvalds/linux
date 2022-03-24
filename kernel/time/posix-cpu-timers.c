@@ -34,14 +34,20 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
  * tsk->signal->posix_cputimers.bases[clock].nextevt expiration cache if
  * necessary. Needs siglock protection since other code may update the
  * expiration cache as well.
+ *
+ * Returns 0 on success, -ESRCH on failure.  Can fail if the task is exiting and
+ * we cannot lock_task_sighand.  Cannot fail if task is current.
  */
-void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
+int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
 	u64 nsecs = rlim_new * NSEC_PER_SEC;
+	unsigned long irq_fl;
 
-	spin_lock_irq(&task->sighand->siglock);
+	if (!lock_task_sighand(task, &irq_fl))
+		return -ESRCH;
 	set_process_cpu_timer(task, CPUCLOCK_PROF, &nsecs, NULL);
-	spin_unlock_irq(&task->sighand->siglock);
+	unlock_task_sighand(task, &irq_fl);
+	return 0;
 }
 
 /*
