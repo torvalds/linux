@@ -34,6 +34,41 @@
 #define QM_WUSER_M_CFG_ENABLE		0x1000a8
 #define WUSER_M_CFG_ENABLE		0xffffffff
 
+/* mailbox */
+#define QM_MB_CMD_SQC                   0x0
+#define QM_MB_CMD_CQC                   0x1
+#define QM_MB_CMD_EQC                   0x2
+#define QM_MB_CMD_AEQC                  0x3
+#define QM_MB_CMD_SQC_BT                0x4
+#define QM_MB_CMD_CQC_BT                0x5
+#define QM_MB_CMD_SQC_VFT_V2            0x6
+#define QM_MB_CMD_STOP_QP               0x8
+#define QM_MB_CMD_SRC                   0xc
+#define QM_MB_CMD_DST                   0xd
+
+#define QM_MB_CMD_SEND_BASE		0x300
+#define QM_MB_EVENT_SHIFT               8
+#define QM_MB_BUSY_SHIFT		13
+#define QM_MB_OP_SHIFT			14
+#define QM_MB_CMD_DATA_ADDR_L		0x304
+#define QM_MB_CMD_DATA_ADDR_H		0x308
+#define QM_MB_MAX_WAIT_CNT		6000
+
+/* doorbell */
+#define QM_DOORBELL_CMD_SQ              0
+#define QM_DOORBELL_CMD_CQ              1
+#define QM_DOORBELL_CMD_EQ              2
+#define QM_DOORBELL_CMD_AEQ             3
+
+#define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
+#define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
+#define QM_QP_MAX_NUM_SHIFT             11
+#define QM_DB_CMD_SHIFT_V2		12
+#define QM_DB_RAND_SHIFT_V2		16
+#define QM_DB_INDEX_SHIFT_V2		32
+#define QM_DB_PRIORITY_SHIFT_V2		48
+#define QM_VF_STATE			0x60
+
 /* qm cache */
 #define QM_CACHE_CTL			0x100050
 #define SQC_CACHE_ENABLE		BIT(0)
@@ -126,6 +161,11 @@ enum qm_debug_file {
 	CURRENT_Q,
 	CLEAR_ENABLE,
 	DEBUG_FILE_NUM,
+};
+
+enum qm_vf_state {
+	QM_READY = 0,
+	QM_NOT_READY,
 };
 
 struct qm_dfx {
@@ -414,6 +454,10 @@ pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev);
 void hisi_qm_reset_prepare(struct pci_dev *pdev);
 void hisi_qm_reset_done(struct pci_dev *pdev);
 
+int hisi_qm_wait_mb_ready(struct hisi_qm *qm);
+int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
+	       bool op);
+
 struct hisi_acc_sgl_pool;
 struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	struct scatterlist *sgl, struct hisi_acc_sgl_pool *pool,
@@ -438,4 +482,9 @@ void hisi_qm_pm_init(struct hisi_qm *qm);
 int hisi_qm_get_dfx_access(struct hisi_qm *qm);
 void hisi_qm_put_dfx_access(struct hisi_qm *qm);
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
+
+/* Used by VFIO ACC live migration driver */
+struct pci_driver *hisi_sec_get_pf_driver(void);
+struct pci_driver *hisi_hpre_get_pf_driver(void);
+struct pci_driver *hisi_zip_get_pf_driver(void);
 #endif
