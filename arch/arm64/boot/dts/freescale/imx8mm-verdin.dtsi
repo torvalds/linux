@@ -668,7 +668,7 @@
 	#pwm-cells = <3>;
 };
 
-/* VERDIN I2S_1 */
+/* Verdin I2S_1 */
 &sai2 {
 	#sound-dai-cells = <0>;
 	assigned-clock-parents = <&clk IMX8MM_AUDIO_PLL1_OUT>;
