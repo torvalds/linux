@@ -4887,6 +4887,25 @@ bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	return intel_bios_is_port_edp(dev_priv, port);
 }
 
+static bool
+has_gamut_metadata_dip(struct drm_i915_private *i915, enum port port)
+{
+	if (intel_bios_is_lspcon_present(i915, port))
+		return false;
+
+	if (DISPLAY_VER(i915) >= 11)
+		return true;
+
+	if (port == PORT_A)
+		return false;
+
+	if (IS_HASWELL(i915) || IS_BROADWELL(i915) ||
+	    DISPLAY_VER(i915) >= 9)
+		return true;
+
+	return false;
+}
+
 static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
@@ -4913,7 +4932,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_attach_dp_colorspace_property(connector);
 	}
 
-	if (IS_GEMINILAKE(dev_priv) || DISPLAY_VER(dev_priv) >= 11)
+	if (has_gamut_metadata_dip(dev_priv, port))
 		drm_object_attach_property(&connector->base,
 					   connector->dev->mode_config.hdr_output_metadata_property,
 					   0);
