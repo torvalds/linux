@@ -1254,7 +1254,7 @@ static uint32_t dcn3_get_pix_clk_dividers(
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
-	unsigned long long actual_pix_clk_100Hz = pix_clk_params->requested_pix_clk_100hz;
+	unsigned long long actual_pix_clk_100Hz = pix_clk_params ? pix_clk_params->requested_pix_clk_100hz : 0;
 	struct dce110_clk_src *clk_src;
 
 	clk_src = TO_DCE110_CLK_SRC(cs);
