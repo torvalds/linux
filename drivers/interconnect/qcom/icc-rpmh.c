@@ -167,11 +167,14 @@ EXPORT_SYMBOL_GPL(qcom_icc_xlate_extended);
  *
  * Return: 0 on success, or an error code otherwise
  */
-int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
+int qcom_icc_bcm_init(struct qcom_icc_provider *qp, struct qcom_icc_bcm *bcm,
+		      struct device *dev)
 {
 	struct qcom_icc_node *qn;
 	const struct bcm_db *data;
+	struct bcm_voter *voter;
 	size_t data_count;
+	int ret;
 	int i;
 
 	/* BCM is already initialised*/
@@ -212,6 +215,18 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 		qn = bcm->nodes[i];
 		qn->bcms[qn->num_bcms] = bcm;
 		qn->num_bcms++;
+	}
+
+	if (bcm->keepalive || bcm->keepalive_early) {
+		voter = qp->voters[bcm->voter_idx];
+		qcom_icc_bcm_voter_add(voter, bcm);
+
+		ret = qcom_icc_bcm_voter_commit(voter);
+		if (ret) {
+			dev_err(dev, "failed to place initial vote for %s\n",
+				bcm->name);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -378,7 +393,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		return qp->num_clks;
 
 	for (i = 0; i < qp->num_bcms; i++)
-		qcom_icc_bcm_init(qp->bcms[i], dev);
+		qcom_icc_bcm_init(qp, qp->bcms[i], dev);
 
 	if (!qp->skip_qos) {
 		ret = enable_qos_deps(qp);
