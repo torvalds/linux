@@ -175,9 +175,8 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 			     nfs4_stateid *src_stateid,
 			     bool *restart)
 {
-	struct nfs4_copy_state *copy, *tmp_copy;
+	struct nfs4_copy_state *copy, *tmp_copy = NULL, *iter;
 	int status = NFS4_OK;
-	bool found_pending = false;
 	struct nfs_open_context *dst_ctx = nfs_file_open_context(dst);
 	struct nfs_open_context *src_ctx = nfs_file_open_context(src);
 
@@ -186,17 +185,17 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 		return -ENOMEM;
 
 	spin_lock(&dst_server->nfs_client->cl_lock);
-	list_for_each_entry(tmp_copy,
+	list_for_each_entry(iter,
 				&dst_server->nfs_client->pending_cb_stateids,
 				copies) {
-		if (memcmp(&res->write_res.stateid, &tmp_copy->stateid,
+		if (memcmp(&res->write_res.stateid, &iter->stateid,
 				NFS4_STATEID_SIZE))
 			continue;
-		found_pending = true;
-		list_del(&tmp_copy->copies);
+		tmp_copy = iter;
+		list_del(&iter->copies);
 		break;
 	}
-	if (found_pending) {
+	if (tmp_copy) {
 		spin_unlock(&dst_server->nfs_client->cl_lock);
 		kfree(copy);
 		copy = tmp_copy;
