@@ -4123,6 +4123,7 @@ void core_link_enable_stream(
 	struct link_encoder *link_enc;
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
 	if (is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
@@ -4151,56 +4152,19 @@ void core_link_enable_stream(
 			link_enc->funcs->setup(
 				link_enc,
 				pipe_ctx->stream->signal);
-		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
-			pipe_ctx->stream_res.stream_enc,
-			pipe_ctx->stream_res.tg->inst,
-			stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
 	}
-
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->set_stream_attribute(
-				pipe_ctx->stream_res.hpo_dp_stream_enc,
-				&stream->timing,
-				stream->output_color_space,
-				stream->use_vsc_sdp_for_colorimetry,
-				stream->timing.flags.DSC,
-				false);
-		otg_out_dest = OUT_MUX_HPO_DP;
-	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
-				pipe_ctx->stream_res.stream_enc,
-				&stream->timing,
-				stream->output_color_space,
-				stream->use_vsc_sdp_for_colorimetry,
-				stream->link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
-	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
-
-	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			stream->phy_pix_clk,
-			pipe_ctx->stream_res.audio != NULL);
 
 	pipe_ctx->stream->link->link_state_valid = true;
 
-	if (pipe_ctx->stream_res.tg->funcs->set_out_mux)
+	if (pipe_ctx->stream_res.tg->funcs->set_out_mux) {
+		if (is_dp_128b_132b_signal(pipe_ctx))
+			otg_out_dest = OUT_MUX_HPO_DP;
+		else
+			otg_out_dest = OUT_MUX_DIO;
 		pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, otg_out_dest);
+	}
 
-	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
-			true : false);
-
-	if (dc_is_lvds_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->lvds_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing);
+	link_hwss->setup_stream_attribute(pipe_ctx);
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		bool apply_edp_fast_boot_optimization =
@@ -4335,13 +4299,11 @@ void core_link_enable_stream(
 		dc->hwss.enable_audio_stream(pipe_ctx);
 
 	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		if (is_dp_128b_132b_signal(pipe_ctx)) {
+		if (is_dp_128b_132b_signal(pipe_ctx))
 			fpga_dp_hpo_enable_link_and_stream(state, pipe_ctx);
-		}
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 				dc_is_virtual_signal(pipe_ctx->stream->signal))
 			dp_set_dsc_enable(pipe_ctx, true);
-
 	}
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {

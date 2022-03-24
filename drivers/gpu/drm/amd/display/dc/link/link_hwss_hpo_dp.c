@@ -131,6 +131,22 @@ static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst);
 }
 
+static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
+{
+	struct hpo_dp_stream_encoder *stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+
+	stream_enc->funcs->set_stream_attribute(
+			stream_enc,
+			&stream->timing,
+			stream->output_color_space,
+			stream->use_vsc_sdp_for_colorimetry,
+			stream->timing.flags.DSC,
+			false);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
+}
+
 static void enable_hpo_dp_fpga_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal,
@@ -231,6 +247,7 @@ static void set_hpo_dp_lane_settings(struct dc_link *link,
 static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
+	.setup_stream_attribute = setup_hpo_dp_stream_attribute,
 	.ext = {
 		.set_throttled_vcp_size = set_hpo_dp_throttled_vcp_size,
 		.set_hblank_min_symbol_width = set_hpo_dp_hblank_min_symbol_width,

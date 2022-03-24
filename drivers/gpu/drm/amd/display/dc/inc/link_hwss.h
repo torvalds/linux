@@ -72,6 +72,7 @@ struct link_hwss {
 	 */
 	void (*setup_stream_encoder)(struct pipe_ctx *pipe_ctx);
 	void (*reset_stream_encoder)(struct pipe_ctx *pipe_ctx);
+	void (*setup_stream_attribute)(struct pipe_ctx *pipe_ctx);
 };
 #endif /* __DC_LINK_HWSS_H__ */
 
