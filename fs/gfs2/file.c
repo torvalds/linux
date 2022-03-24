@@ -951,12 +951,9 @@ static ssize_t gfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * and retry.
 	 */
 
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		ret = gfs2_file_direct_read(iocb, to, &gh);
-		if (likely(ret != -ENOTBLK))
-			return ret;
-		iocb->ki_flags &= ~IOCB_DIRECT;
-	}
+	if (iocb->ki_flags & IOCB_DIRECT)
+		return gfs2_file_direct_read(iocb, to, &gh);
+
 	pagefault_disable();
 	iocb->ki_flags |= IOCB_NOIO;
 	ret = generic_file_read_iter(iocb, to);
