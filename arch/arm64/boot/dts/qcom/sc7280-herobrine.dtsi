@@ -741,7 +741,7 @@ ap_ec_spi: &spi10 {
 		bias-pull-up;
 	};
 
-	sar1_irq_odl: sar0-irq-odl {
+	sar1_irq_odl: sar1-irq-odl {
 		pins = "gpio140";
 		function = "gpio";
 		bias-pull-up;
