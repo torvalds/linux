@@ -14,6 +14,8 @@
 #include <linux/if_vlan.h>
 #include <linux/bitmap.h>
 #include <linux/phylink.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
 
 #include "sparx5_main_regs.h"
@@ -64,6 +66,12 @@ enum sparx5_vlan_port_type {
 #define PGID_BCAST	       (PGID_BASE + 6)
 #define PGID_CPU	       (PGID_BASE + 7)
 
+#define PGID_TABLE_SIZE	       3290
+
+#define PGID_MCAST_START 65
+#define PGID_GLAG_START 833
+#define PGID_GLAG_END 1088
+
 #define IFH_LEN                9 /* 36 bytes */
 #define NULL_VID               0
 #define SPX5_MACT_PULL_DELAY   (2 * HZ)
@@ -78,6 +86,18 @@ enum sparx5_vlan_port_type {
 #define FDMA_DCB_MAX			64
 #define FDMA_RX_DCB_MAX_DBS		15
 #define FDMA_TX_DCB_MAX_DBS		1
+
+#define SPARX5_PHC_COUNT		3
+#define SPARX5_PHC_PORT			0
+
+#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ONE_STEP_PTP		0x3
+#define IFH_REW_OP_TWO_STEP_PTP		0x4
+
+#define IFH_PDU_TYPE_NONE		0x0
+#define IFH_PDU_TYPE_PTP		0x5
+#define IFH_PDU_TYPE_IPV4_UDP_PTP	0x6
+#define IFH_PDU_TYPE_IPV6_UDP_PTP	0x7
 
 struct sparx5;
 
@@ -167,9 +187,12 @@ struct sparx5_port {
 	enum sparx5_port_max_tags max_vlan_tags;
 	enum sparx5_vlan_port_type vlan_type;
 	u32 custom_etype;
-	u32 ifh[IFH_LEN];
 	bool vlan_aware;
 	struct hrtimer inj_timer;
+	/* ptp */
+	u8 ptp_cmd;
+	u16 ts_id;
+	struct sk_buff_head tx_skbs;
 };
 
 enum sparx5_core_clockfreq {
@@ -178,6 +201,26 @@ enum sparx5_core_clockfreq {
 	SPX5_CORE_CLOCK_500MHZ,   /* 500MHZ core clock frequency */
 	SPX5_CORE_CLOCK_625MHZ,   /* 625MHZ core clock frequency */
 };
+
+struct sparx5_phc {
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	struct hwtstamp_config hwtstamp_config;
+	struct sparx5 *sparx5;
+	u8 index;
+};
+
+struct sparx5_skb_cb {
+	u8 rew_op;
+	u8 pdu_type;
+	u8 pdu_w16_offset;
+	u16 ts_id;
+	unsigned long jiffies;
+};
+
+#define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
+#define SPARX5_SKB_CB(skb) \
+	((struct sparx5_skb_cb *)((skb)->cb))
 
 struct sparx5 {
 	struct platform_device *pdev;
@@ -226,6 +269,16 @@ struct sparx5 {
 	int fdma_irq;
 	struct sparx5_rx rx;
 	struct sparx5_tx tx;
+	/* PTP */
+	bool ptp;
+	struct sparx5_phc phc[SPARX5_PHC_COUNT];
+	spinlock_t ptp_clock_lock; /* lock for phc */
+	spinlock_t ptp_ts_id_lock; /* lock for ts_id */
+	struct mutex ptp_lock; /* lock for ptp interface state */
+	u16 ptp_skbs;
+	int ptp_irq;
+	/* PGID allocation map */
+	u8 pgid_map[PGID_TABLE_SIZE];
 };
 
 /* sparx5_switchdev.c */
@@ -235,6 +288,7 @@ void sparx5_unregister_notifier_blocks(struct sparx5 *sparx5);
 /* sparx5_packet.c */
 struct frame_info {
 	int src_port;
+	u32 timestamp;
 };
 
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
@@ -256,10 +310,13 @@ int sparx5_mact_learn(struct sparx5 *sparx5, int port,
 		      const unsigned char mac[ETH_ALEN], u16 vid);
 bool sparx5_mact_getnext(struct sparx5 *sparx5,
 			 unsigned char mac[ETH_ALEN], u16 *vid, u32 *pcfg2);
+bool sparx5_mact_find(struct sparx5 *sparx5,
+		      const unsigned char mac[ETH_ALEN], u16 vid, u32 *pcfg2);
 int sparx5_mact_forget(struct sparx5 *sparx5,
 		       const unsigned char mac[ETH_ALEN], u16 vid);
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
-			  struct sparx5_port *port,
+			  struct net_device *dev,
+			  u16 portno,
 			  const unsigned char *addr, u16 vid);
 int sparx5_del_mact_entry(struct sparx5 *sparx5,
 			  const unsigned char *addr,
@@ -288,11 +345,42 @@ void sparx5_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *stats
 int sparx_stats_init(struct sparx5 *sparx5);
 
 /* sparx5_netdev.c */
+void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
+void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
+void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type);
+void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset);
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portno);
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
 int sparx5_register_netdevs(struct sparx5 *sparx5);
 void sparx5_destroy_netdevs(struct sparx5 *sparx5);
 void sparx5_unregister_netdevs(struct sparx5 *sparx5);
+
+/* sparx5_ptp.c */
+int sparx5_ptp_init(struct sparx5 *sparx5);
+void sparx5_ptp_deinit(struct sparx5 *sparx5);
+int sparx5_ptp_hwtstamp_set(struct sparx5_port *port, struct ifreq *ifr);
+int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr);
+void sparx5_ptp_rxtstamp(struct sparx5 *sparx5, struct sk_buff *skb,
+			 u64 timestamp);
+int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
+				struct sk_buff *skb);
+void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
+				 struct sk_buff *skb);
+irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
+
+/* sparx5_pgid.c */
+enum sparx5_pgid_type {
+	SPX5_PGID_FREE,
+	SPX5_PGID_RESERVED,
+	SPX5_PGID_MULTICAST,
+	SPX5_PGID_GLAG
+};
+
+void sparx5_pgid_init(struct sparx5 *spx5);
+int sparx5_pgid_alloc_glag(struct sparx5 *spx5, u16 *idx);
+int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
+int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

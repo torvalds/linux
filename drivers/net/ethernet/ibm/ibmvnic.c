@@ -60,6 +60,7 @@
 #include <asm/hvcall.h>
 #include <linux/atomic.h>
 #include <asm/vio.h>
+#include <asm/xive.h>
 #include <asm/iommu.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
@@ -1429,6 +1430,15 @@ static int __ibmvnic_open(struct net_device *netdev)
 		return rc;
 	}
 
+	adapter->tx_queues_active = true;
+
+	/* Since queues were stopped until now, there shouldn't be any
+	 * one in ibmvnic_complete_tx() or ibmvnic_xmit() so maybe we
+	 * don't need the synchronize_rcu()? Leaving it for consistency
+	 * with setting ->tx_queues_active = false.
+	 */
+	synchronize_rcu();
+
 	netif_tx_start_all_queues(netdev);
 
 	if (prev_state == VNIC_CLOSED) {
@@ -1603,6 +1613,14 @@ static void ibmvnic_cleanup(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
 	/* ensure that transmissions are stopped if called by do_reset */
+
+	adapter->tx_queues_active = false;
+
+	/* Ensure complete_tx() and ibmvnic_xmit() see ->tx_queues_active
+	 * update so they don't restart a queue after we stop it below.
+	 */
+	synchronize_rcu();
+
 	if (test_bit(0, &adapter->resetting))
 		netif_tx_disable(netdev);
 	else
@@ -1842,14 +1860,21 @@ static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
 		tx_buff->skb = NULL;
 		adapter->netdev->stats.tx_dropped++;
 	}
+
 	ind_bufp->index = 0;
+
 	if (atomic_sub_return(entries, &tx_scrq->used) <=
 	    (adapter->req_tx_entries_per_subcrq / 2) &&
-	    __netif_subqueue_stopped(adapter->netdev, queue_num) &&
-	    !test_bit(0, &adapter->resetting)) {
-		netif_wake_subqueue(adapter->netdev, queue_num);
-		netdev_dbg(adapter->netdev, "Started queue %d\n",
-			   queue_num);
+	    __netif_subqueue_stopped(adapter->netdev, queue_num)) {
+		rcu_read_lock();
+
+		if (adapter->tx_queues_active) {
+			netif_wake_subqueue(adapter->netdev, queue_num);
+			netdev_dbg(adapter->netdev, "Started queue %d\n",
+				   queue_num);
+		}
+
+		rcu_read_unlock();
 	}
 }
 
@@ -1904,11 +1929,12 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int index = 0;
 	u8 proto = 0;
 
-	tx_scrq = adapter->tx_scrq[queue_num];
-	txq = netdev_get_tx_queue(netdev, queue_num);
-	ind_bufp = &tx_scrq->ind_buf;
-
-	if (test_bit(0, &adapter->resetting)) {
+	/* If a reset is in progress, drop the packet since
+	 * the scrqs may get torn down. Otherwise use the
+	 * rcu to ensure reset waits for us to complete.
+	 */
+	rcu_read_lock();
+	if (!adapter->tx_queues_active) {
 		dev_kfree_skb_any(skb);
 
 		tx_send_failed++;
@@ -1917,6 +1943,10 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
+	tx_scrq = adapter->tx_scrq[queue_num];
+	txq = netdev_get_tx_queue(netdev, queue_num);
+	ind_bufp = &tx_scrq->ind_buf;
+
 	if (ibmvnic_xmit_workarounds(skb, netdev)) {
 		tx_dropped++;
 		tx_send_failed++;
@@ -1924,6 +1954,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		ibmvnic_tx_scrq_flush(adapter, tx_scrq);
 		goto out;
 	}
+
 	if (skb_is_gso(skb))
 		tx_pool = &adapter->tso_pool[queue_num];
 	else
@@ -2078,6 +2109,7 @@ tx_err:
 		netif_carrier_off(netdev);
 	}
 out:
+	rcu_read_unlock();
 	netdev->stats.tx_dropped += tx_dropped;
 	netdev->stats.tx_bytes += tx_bytes;
 	netdev->stats.tx_packets += tx_packets;
@@ -3640,6 +3672,30 @@ static int disable_scrq_irq(struct ibmvnic_adapter *adapter,
 	return rc;
 }
 
+/* We can not use the IRQ chip EOI handler because that has the
+ * unintended effect of changing the interrupt priority.
+ */
+static void ibmvnic_xics_eoi(struct device *dev, struct ibmvnic_sub_crq_queue *scrq)
+{
+	u64 val = 0xff000000 | scrq->hw_irq;
+	unsigned long rc;
+
+	rc = plpar_hcall_norets(H_EOI, val);
+	if (rc)
+		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n", val, rc);
+}
+
+/* Due to a firmware bug, the hypervisor can send an interrupt to a
+ * transmit or receive queue just prior to a partition migration.
+ * Force an EOI after migration.
+ */
+static void ibmvnic_clear_pending_interrupt(struct device *dev,
+					    struct ibmvnic_sub_crq_queue *scrq)
+{
+	if (!xive_enabled())
+		ibmvnic_xics_eoi(dev, scrq);
+}
+
 static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 			   struct ibmvnic_sub_crq_queue *scrq)
 {
@@ -3653,15 +3709,7 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 
 	if (test_bit(0, &adapter->resetting) &&
 	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
-		u64 val = (0xff000000) | scrq->hw_irq;
-
-		rc = plpar_hcall_norets(H_EOI, val);
-		/* H_EOI would fail with rc = H_FUNCTION when running
-		 * in XIVE mode which is expected, but not an error.
-		 */
-		if (rc && (rc != H_FUNCTION))
-			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-				val, rc);
+		ibmvnic_clear_pending_interrupt(dev, scrq);
 	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
@@ -3732,9 +3780,15 @@ restart_loop:
 		    (adapter->req_tx_entries_per_subcrq / 2) &&
 		    __netif_subqueue_stopped(adapter->netdev,
 					     scrq->pool_index)) {
-			netif_wake_subqueue(adapter->netdev, scrq->pool_index);
-			netdev_dbg(adapter->netdev, "Started queue %d\n",
-				   scrq->pool_index);
+			rcu_read_lock();
+			if (adapter->tx_queues_active) {
+				netif_wake_subqueue(adapter->netdev,
+						    scrq->pool_index);
+				netdev_dbg(adapter->netdev,
+					   "Started queue %d\n",
+					   scrq->pool_index);
+			}
+			rcu_read_unlock();
 		}
 	}
 

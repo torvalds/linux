@@ -620,11 +620,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;
 		privptr->stats.rx_packets++;
 		privptr->stats.rx_bytes += skb->len;
-		/*
-		 * Since receiving is always initiated from a tasklet (in iucv.c),
-		 * we must use netif_rx_ni() instead of netif_rx()
-		 */
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		skb_pull(pskb, header->next);
 		skb_put(pskb, NETIUCV_HDRLEN);
 	}

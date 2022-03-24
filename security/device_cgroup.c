@@ -838,7 +838,7 @@ int devcgroup_check_permission(short type, u32 major, u32 minor, short access)
 	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
 
 	if (rc)
-		return -EPERM;
+		return rc;
 
 	#ifdef CONFIG_CGROUP_DEVICE
 	return devcgroup_legacy_check_permission(type, major, minor, access);

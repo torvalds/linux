@@ -35,6 +35,8 @@ properties:
               - renesas,r9a07g044-canfd    # RZ/G2{L,LC}
           - const: renesas,rzg2l-canfd     # RZ/G2L family
 
+      - const: renesas,r8a779a0-canfd      # R-Car V3U
+
   reg:
     maxItems: 1
 

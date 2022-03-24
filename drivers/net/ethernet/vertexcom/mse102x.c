@@ -362,7 +362,7 @@ static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
 		mse102x_dump_packet(__func__, skb->len, skb->data);
 
 	skb->protocol = eth_type_trans(skb, mse->ndev);
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 	mse->ndev->stats.rx_packets++;
 	mse->ndev->stats.rx_bytes += rxlen;

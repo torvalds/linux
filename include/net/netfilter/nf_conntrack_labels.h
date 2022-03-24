@@ -45,12 +45,9 @@ int nf_connlabels_replace(struct nf_conn *ct,
 
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 int nf_conntrack_labels_init(void);
-void nf_conntrack_labels_fini(void);
 int nf_connlabels_get(struct net *net, unsigned int bit);
 void nf_connlabels_put(struct net *net);
 #else
-static inline int nf_conntrack_labels_init(void) { return 0; }
-static inline void nf_conntrack_labels_fini(void) {}
 static inline int nf_connlabels_get(struct net *net, unsigned int bit) { return 0; }
 static inline void nf_connlabels_put(struct net *net) {}
 #endif

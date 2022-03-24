@@ -18,7 +18,7 @@ description: |
   wireless device. The node is expected to be specified as a child
   node of the PCI controller to which the wireless chip is connected.
   Alternatively, it can specify the wireless part of the MT7628/MT7688
-  or MT7622 SoC.
+  or MT7622/MT7986 SoC.
 
 allOf:
   - $ref: ieee80211.yaml#
@@ -29,15 +29,30 @@ properties:
       - mediatek,mt76
       - mediatek,mt7628-wmac
       - mediatek,mt7622-wmac
+      - mediatek,mt7986-wmac
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+    description:
+      MT7986 should contain 3 regions consys, dcm, and sku, in this order.
 
   interrupts:
     maxItems: 1
 
   power-domains:
     maxItems: 1
+
+  memory-region:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+    description:
+      Specify the consys reset for mt7986.
+
+  reset-name:
+    const: consys
 
   mediatek,infracfg:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -68,6 +83,15 @@ properties:
       Merge EEPROM data with OTP data. Can be used on boards where the flash
       calibration data is generic and specific calibration data should be
       pulled from the OTP ROM
+
+  mediatek,disable-radar-background:
+    type: boolean
+    description:
+      Disable/enable radar/CAC detection running on a dedicated offchannel
+      chain available on some hw.
+      Background radar/CAC detection allows to avoid the CAC downtime
+      switching on a different channel during CAC detection on the selected
+      radar channel.
 
   led:
     type: object
@@ -165,7 +189,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -230,4 +254,16 @@ examples:
       mediatek,infracfg = <&infracfg>;
 
       power-domains = <&scpsys 3>;
+    };
+
+  - |
+    wifi@18000000 {
+        compatible = "mediatek,mt7986-wmac";
+        resets = <&watchdog 23>;
+        reset-names = "consys";
+        reg = <0x18000000 0x1000000>,
+              <0x10003000 0x1000>,
+              <0x11d10000 0x1000>;
+        interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
+        memory-region = <&wmcpu_emi>;
     };

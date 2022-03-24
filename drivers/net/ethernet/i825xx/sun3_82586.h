@@ -150,7 +150,7 @@ struct rfd_struct
 #define RFD_ERR_RNR  0x02     /* status: receiver out of resources */
 #define RFD_ERR_OVR  0x01     /* DMA Overrun! */
 
-#define RFD_ERR_FTS  0x0080	/* Frame to short */
+#define RFD_ERR_FTS  0x0080	/* Frame too short */
 #define RFD_ERR_NEOP 0x0040	/* No EOP flag (for bitstuffing only) */
 #define RFD_ERR_TRUN 0x0020	/* (82596 only/SF mode) indicates truncated frame */
 #define RFD_MATCHADD 0x0002     /* status: Destinationaddress !matches IA (only 82596) */

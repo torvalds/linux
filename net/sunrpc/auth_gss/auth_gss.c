@@ -72,7 +72,8 @@ struct gss_auth {
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
 	struct rpc_clnt *client;
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 	/*
 	 * There are two upcall pipes; dentry[1], named "gssd", is used
 	 * for the new text-based upcall; dentry[0] is named after the
@@ -1013,7 +1014,8 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 			goto err_free;
 	}
 	gss_auth->client = clnt;
-	gss_auth->net = get_net(rpc_net_ns(clnt));
+	gss_auth->net = get_net_track(rpc_net_ns(clnt), &gss_auth->ns_tracker,
+				      GFP_KERNEL);
 	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech)
@@ -1068,7 +1070,7 @@ err_destroy_credcache:
 err_put_mech:
 	gss_mech_put(gss_auth->mech);
 err_put_net:
-	put_net(gss_auth->net);
+	put_net_track(gss_auth->net, &gss_auth->ns_tracker);
 err_free:
 	kfree(gss_auth->target_name);
 	kfree(gss_auth);
@@ -1084,7 +1086,7 @@ gss_free(struct gss_auth *gss_auth)
 	gss_pipe_free(gss_auth->gss_pipe[0]);
 	gss_pipe_free(gss_auth->gss_pipe[1]);
 	gss_mech_put(gss_auth->mech);
-	put_net(gss_auth->net);
+	put_net_track(gss_auth->net, &gss_auth->ns_tracker);
 	kfree(gss_auth->target_name);
 
 	kfree(gss_auth);

@@ -54,6 +54,10 @@ enum libbpf_strict_mode {
 	 *
 	 * Note, in this mode the program pin path will be based on the
 	 * function name instead of section name.
+	 *
+	 * Additionally, routines in the .text section are always considered
+	 * sub-programs. Legacy behavior allows for a single routine in .text
+	 * to be a program.
 	 */
 	LIBBPF_STRICT_SEC_NAME = 0x04,
 	/*
@@ -73,6 +77,11 @@ enum libbpf_strict_mode {
 	 * operation.
 	 */
 	LIBBPF_STRICT_AUTO_RLIMIT_MEMLOCK = 0x10,
+	/*
+	 * Error out on any SEC("maps") map definition, which are deprecated
+	 * in favor of BTF-defined map definitions in SEC(".maps").
+	 */
+	LIBBPF_STRICT_MAP_DEFINITIONS = 0x20,
 
 	__LIBBPF_STRICT_LAST,
 };
@@ -80,6 +89,23 @@ enum libbpf_strict_mode {
 LIBBPF_API int libbpf_set_strict_mode(enum libbpf_strict_mode mode);
 
 #define DECLARE_LIBBPF_OPTS LIBBPF_OPTS
+
+/* "Discouraged" APIs which don't follow consistent libbpf naming patterns.
+ * They are normally a trivial aliases or wrappers for proper APIs and are
+ * left to minimize unnecessary disruption for users of libbpf. But they
+ * shouldn't be used going forward.
+ */
+
+struct bpf_program;
+struct bpf_map;
+struct btf;
+struct btf_ext;
+
+LIBBPF_API enum bpf_prog_type bpf_program__get_type(const struct bpf_program *prog);
+LIBBPF_API enum bpf_attach_type bpf_program__get_expected_attach_type(const struct bpf_program *prog);
+LIBBPF_API const char *bpf_map__get_pin_path(const struct bpf_map *map);
+LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
+LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size);
 
 #ifdef __cplusplus
 } /* extern "C" */

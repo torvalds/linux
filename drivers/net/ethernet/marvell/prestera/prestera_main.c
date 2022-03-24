@@ -28,6 +28,12 @@
 #define PRESTERA_MAC_ADDR_NUM_MAX	255
 
 static struct workqueue_struct *prestera_wq;
+static struct workqueue_struct *prestera_owq;
+
+void prestera_queue_work(struct work_struct *work)
+{
+	queue_work(prestera_owq, work);
+}
 
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid)
 {
@@ -1025,12 +1031,19 @@ static int __init prestera_module_init(void)
 	if (!prestera_wq)
 		return -ENOMEM;
 
+	prestera_owq = alloc_ordered_workqueue("prestera_ordered", 0);
+	if (!prestera_owq) {
+		destroy_workqueue(prestera_wq);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 static void __exit prestera_module_exit(void)
 {
 	destroy_workqueue(prestera_wq);
+	destroy_workqueue(prestera_owq);
 }
 
 module_init(prestera_module_init);

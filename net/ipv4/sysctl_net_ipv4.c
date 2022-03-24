@@ -589,6 +589,14 @@ static struct ctl_table ipv4_table[] = {
 };
 
 static struct ctl_table ipv4_net_table[] = {
+	/* tcp_max_tw_buckets must be first in this table. */
+	{
+		.procname	= "tcp_max_tw_buckets",
+/*		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets, */
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
 	{
 		.procname	= "icmp_echo_ignore_all",
 		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
@@ -1001,13 +1009,6 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= &two,
 	},
 	{
-		.procname	= "tcp_max_tw_buckets",
-		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_max_syn_backlog",
 		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
 		.maxlen		= sizeof(int),
@@ -1271,6 +1272,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra1		= SYSCTL_ONE,
 	},
 	{
+		.procname	= "tcp_tso_rtt_log",
+		.data		= &init_net.ipv4.sysctl_tcp_tso_rtt_log,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+	},
+	{
 		.procname	= "tcp_min_rtt_wlen",
 		.data		= &init_net.ipv4.sysctl_tcp_min_rtt_wlen,
 		.maxlen		= sizeof(int),
@@ -1400,7 +1408,8 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		for (i = 0; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
+		/* skip first entry (sysctl_max_tw_buckets) */
+		for (i = 1; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
 			if (table[i].data) {
 				/* Update the variables to point into
 				 * the current struct net
@@ -1414,6 +1423,8 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 			}
 		}
 	}
+
+	table[0].data = &net->ipv4.tcp_death_row->sysctl_max_tw_buckets;
 
 	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (!net->ipv4.ipv4_hdr)

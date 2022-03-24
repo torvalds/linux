@@ -65,10 +65,6 @@ enum hal_rx_reception_type {
 	HAL_RX_RECEPTION_TYPE_MAX,
 };
 
-#define HAL_TLV_STATUS_PPDU_NOT_DONE            0
-#define HAL_TLV_STATUS_PPDU_DONE                1
-#define HAL_TLV_STATUS_BUF_DONE                 2
-#define HAL_TLV_STATUS_PPDU_NON_STD_DONE        3
 #define HAL_RX_FCS_LEN                          4
 
 enum hal_rx_mon_status {
@@ -76,6 +72,40 @@ enum hal_rx_mon_status {
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
 };
+
+struct hal_rx_user_status {
+	u32 mcs:4,
+	nss:3,
+	ofdma_info_valid:1,
+	dl_ofdma_ru_start_index:7,
+	dl_ofdma_ru_width:7,
+	dl_ofdma_ru_size:8;
+	u32 ul_ofdma_user_v0_word0;
+	u32 ul_ofdma_user_v0_word1;
+	u32 ast_index;
+	u32 tid;
+	u16 tcp_msdu_count;
+	u16 udp_msdu_count;
+	u16 other_msdu_count;
+	u16 frame_control;
+	u8 frame_control_info_valid;
+	u8 data_sequence_control_info_valid;
+	u16 first_data_seq_ctrl;
+	u32 preamble_type;
+	u16 ht_flags;
+	u16 vht_flags;
+	u16 he_flags;
+	u8 rs_flags;
+	u32 mpdu_cnt_fcs_ok;
+	u32 mpdu_cnt_fcs_err;
+	u32 mpdu_fcs_ok_bitmap[8];
+	u32 mpdu_ok_byte_count;
+	u32 mpdu_err_byte_count;
+};
+
+#define HAL_TLV_STATUS_PPDU_NOT_DONE    HAL_RX_MON_STATUS_PPDU_NOT_DONE
+#define HAL_TLV_STATUS_PPDU_DONE        HAL_RX_MON_STATUS_PPDU_DONE
+#define HAL_TLV_STATUS_BUF_DONE         HAL_RX_MON_STATUS_BUF_DONE
 
 struct hal_sw_mon_ring_entries {
 	dma_addr_t mon_dst_paddr;
@@ -107,6 +137,12 @@ struct hal_rx_mon_ppdu_info {
 	u8 mcs;
 	u8 nss;
 	u8 bw;
+	u8 vht_flag_values1;
+	u8 vht_flag_values2;
+	u8 vht_flag_values3[4];
+	u8 vht_flag_values4;
+	u8 vht_flag_values5;
+	u16 vht_flag_values6;
 	u8 is_stbc;
 	u8 gi;
 	u8 ldpc;
@@ -114,10 +150,46 @@ struct hal_rx_mon_ppdu_info {
 	u8 rssi_comb;
 	u8 rssi_chain_pri20[HAL_RX_MAX_NSS];
 	u8 tid;
+	u16 ht_flags;
+	u16 vht_flags;
+	u16 he_flags;
+	u16 he_mu_flags;
 	u8 dcm;
 	u8 ru_alloc;
 	u8 reception_type;
+	u64 tsft;
 	u64 rx_duration;
+	u16 frame_control;
+	u32 ast_index;
+	u8 rs_fcs_err;
+	u8 rs_flags;
+	u8 cck_flag;
+	u8 ofdm_flag;
+	u8 ulofdma_flag;
+	u8 frame_control_info_valid;
+	u16 he_per_user_1;
+	u16 he_per_user_2;
+	u8 he_per_user_position;
+	u8 he_per_user_known;
+	u16 he_flags1;
+	u16 he_flags2;
+	u8 he_RU[4];
+	u16 he_data1;
+	u16 he_data2;
+	u16 he_data3;
+	u16 he_data4;
+	u16 he_data5;
+	u16 he_data6;
+	u32 ppdu_len;
+	u32 prev_ppdu_id;
+	u32 device_id;
+	u16 first_data_seq_ctrl;
+	u8 monitor_direct_used;
+	u8 data_sequence_control_info_valid;
+	u8 ltf_size;
+	u8 rxpcu_filter_pass;
+	char rssi_chain[8][8];
+	struct hal_rx_user_status userstats;
 };
 
 #define HAL_RX_PPDU_START_INFO0_PPDU_ID		GENMASK(15, 0)
@@ -150,6 +222,9 @@ struct hal_rx_ppdu_start {
 #define HAL_RX_PPDU_END_USER_STATS_INFO6_TID_BITMAP		GENMASK(15, 0)
 #define HAL_RX_PPDU_END_USER_STATS_INFO6_TID_EOSP_BITMAP	GENMASK(31, 16)
 
+#define HAL_RX_PPDU_END_USER_STATS_RSVD2_6_MPDU_OK_BYTE_COUNT	GENMASK(24, 0)
+#define HAL_RX_PPDU_END_USER_STATS_RSVD2_8_MPDU_ERR_BYTE_COUNT	GENMASK(24, 0)
+
 struct hal_rx_ppdu_end_user_stats {
 	__le32 rsvd0[2];
 	__le32 info0;
@@ -162,6 +237,16 @@ struct hal_rx_ppdu_end_user_stats {
 	__le32 info5;
 	__le32 info6;
 	__le32 rsvd2[11];
+} __packed;
+
+struct hal_rx_ppdu_end_user_stats_ext {
+	u32 info0;
+	u32 info1;
+	u32 info2;
+	u32 info3;
+	u32 info4;
+	u32 info5;
+	u32 info6;
 } __packed;
 
 #define HAL_RX_HT_SIG_INFO_INFO0_MCS		GENMASK(6, 0)
@@ -212,25 +297,62 @@ enum hal_rx_vht_sig_a_gi_setting {
 	HAL_RX_VHT_SIG_A_SHORT_GI_AMBIGUITY = 3,
 };
 
+#define HAL_RX_SU_MU_CODING_LDPC 0x01
+
+#define HE_GI_0_8 0
+#define HE_GI_0_4 1
+#define HE_GI_1_6 2
+#define HE_GI_3_2 3
+
+#define HE_LTF_1_X 0
+#define HE_LTF_2_X 1
+#define HE_LTF_4_X 2
+#define HE_LTF_UNKNOWN 3
+
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_MCS	GENMASK(6, 3)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_DCM		BIT(7)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_BW	GENMASK(20, 19)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_CP_LTF_SIZE	GENMASK(22, 21)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_NSTS		GENMASK(25, 23)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO0_BSS_COLOR		GENMASK(13, 8)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO0_SPATIAL_REUSE	GENMASK(18, 15)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO0_FORMAT_IND	BIT(0)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO0_BEAM_CHANGE	BIT(1)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO0_DL_UL_FLAG	BIT(2)
 
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO1_TXOP_DURATION	GENMASK(6, 0)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO1_CODING		BIT(7)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO1_LDPC_EXTRA	BIT(8)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO1_STBC		BIT(9)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO1_TXBF		BIT(10)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO1_PKT_EXT_FACTOR	GENMASK(12, 11)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO1_PKT_EXT_PE_DISAM	BIT(13)
+#define HAL_RX_HE_SIG_A_SU_INFO_INFO1_DOPPLER_IND	BIT(15)
 
 struct hal_rx_he_sig_a_su_info {
 	__le32 info0;
 	__le32 info1;
 } __packed;
 
-#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW	GENMASK(17, 15)
-#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_CP_LTF_SIZE	GENMASK(24, 23)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_UL_FLAG		BIT(1)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_MCS_OF_SIGB		GENMASK(3, 1)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_DCM_OF_SIGB		BIT(4)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_BSS_COLOR		GENMASK(10, 5)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_SPATIAL_REUSE	GENMASK(14, 11)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW		GENMASK(17, 15)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_NUM_SIGB_SYMB	GENMASK(21, 18)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_COMP_MODE_SIGB	BIT(22)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_CP_LTF_SIZE		GENMASK(24, 23)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_DOPPLER_INDICATION	BIT(25)
 
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_TXOP_DURATION	GENMASK(6, 0)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_CODING		BIT(7)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_NUM_LTF_SYMB	GENMASK(10, 8)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_LDPC_EXTRA		BIT(11)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_STBC		BIT(12)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_TXBF		BIT(10)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_PKT_EXT_FACTOR	GENMASK(14, 13)
+#define HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_PKT_EXT_PE_DISAM	BIT(15)
 
 struct hal_rx_he_sig_a_mu_dl_info {
 	__le32 info0;
@@ -243,6 +365,7 @@ struct hal_rx_he_sig_b1_mu_info {
 	__le32 info0;
 } __packed;
 
+#define HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_ID		GENMASK(10, 0)
 #define HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_MCS		GENMASK(18, 15)
 #define HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_CODING	BIT(20)
 #define HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_NSTS		GENMASK(31, 29)
@@ -251,6 +374,7 @@ struct hal_rx_he_sig_b2_mu_info {
 	__le32 info0;
 } __packed;
 
+#define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_ID	GENMASK(10, 0)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_NSTS	GENMASK(13, 11)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_TXBF	BIT(19)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_MCS	GENMASK(18, 15)
@@ -279,11 +403,14 @@ struct hal_rx_phyrx_rssi_legacy_info {
 
 #define HAL_RX_MPDU_INFO_INFO0_PEERID	GENMASK(31, 16)
 #define HAL_RX_MPDU_INFO_INFO0_PEERID_WCN6855	GENMASK(15, 0)
+#define HAL_RX_MPDU_INFO_INFO1_MPDU_LEN		GENMASK(13, 0)
 
 struct hal_rx_mpdu_info {
 	__le32 rsvd0;
 	__le32 info0;
-	__le32 rsvd1[21];
+	__le32 rsvd1[11];
+	__le32 info1;
+	__le32 rsvd2[9];
 } __packed;
 
 struct hal_rx_mpdu_info_wcn6855 {

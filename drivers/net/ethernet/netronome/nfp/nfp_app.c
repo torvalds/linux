@@ -121,7 +121,7 @@ struct nfp_reprs *
 nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type)
 {
 	return rcu_dereference_protected(app->reprs[type],
-					 lockdep_is_held(&app->pf->lock));
+					 nfp_app_is_locked(app));
 }
 
 struct nfp_reprs *

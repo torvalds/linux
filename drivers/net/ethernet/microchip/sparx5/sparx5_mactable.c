@@ -186,11 +186,11 @@ bool sparx5_mact_getnext(struct sparx5 *sparx5,
 	return ret == 0;
 }
 
-static int sparx5_mact_lookup(struct sparx5 *sparx5,
-			      const unsigned char mac[ETH_ALEN],
-			      u16 vid)
+bool sparx5_mact_find(struct sparx5 *sparx5,
+		      const unsigned char mac[ETH_ALEN], u16 vid, u32 *pcfg2)
 {
 	int ret;
+	u32 cfg2;
 
 	mutex_lock(&sparx5->lock);
 
@@ -202,16 +202,29 @@ static int sparx5_mact_lookup(struct sparx5 *sparx5,
 		sparx5, LRN_COMMON_ACCESS_CTRL);
 
 	ret = sparx5_mact_wait_for_completion(sparx5);
-	if (ret)
-		goto out;
+	if (ret == 0) {
+		cfg2 = spx5_rd(sparx5, LRN_MAC_ACCESS_CFG_2);
+		if (LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_VLD_GET(cfg2))
+			*pcfg2 = cfg2;
+		else
+			ret = -ENOENT;
+	}
 
-	ret = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_VLD_GET
-		(spx5_rd(sparx5, LRN_MAC_ACCESS_CFG_2));
-
-out:
 	mutex_unlock(&sparx5->lock);
 
-	return ret;
+	return ret == 0;
+}
+
+static int sparx5_mact_lookup(struct sparx5 *sparx5,
+			      const unsigned char mac[ETH_ALEN],
+			      u16 vid)
+{
+	u32 pcfg2;
+
+	if (sparx5_mact_find(sparx5, mac, vid, &pcfg2))
+		return 1;
+
+	return 0;
 }
 
 int sparx5_mact_forget(struct sparx5 *sparx5,
@@ -286,7 +299,8 @@ static void sparx5_fdb_call_notifiers(enum switchdev_notifier_type type,
 }
 
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
-			  struct sparx5_port *port,
+			  struct net_device *dev,
+			  u16 portno,
 			  const unsigned char *addr, u16 vid)
 {
 	struct sparx5_mact_entry *mact_entry;
@@ -302,14 +316,14 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	 * mact thread to start the frame will reach CPU and the CPU will
 	 * add the entry but without the extern_learn flag.
 	 */
-	mact_entry = find_mact_entry(sparx5, addr, vid, port->portno);
+	mact_entry = find_mact_entry(sparx5, addr, vid, portno);
 	if (mact_entry)
 		goto update_hw;
 
 	/* Add the entry in SW MAC table not to get the notification when
 	 * SW is pulling again
 	 */
-	mact_entry = alloc_mact_entry(sparx5, addr, vid, port->portno);
+	mact_entry = alloc_mact_entry(sparx5, addr, vid, portno);
 	if (!mact_entry)
 		return -ENOMEM;
 
@@ -318,13 +332,13 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	mutex_unlock(&sparx5->mact_lock);
 
 update_hw:
-	ret = sparx5_mact_learn(sparx5, port->portno, addr, vid);
+	ret = sparx5_mact_learn(sparx5, portno, addr, vid);
 
 	/* New entry? */
 	if (mact_entry->flags == 0) {
 		mact_entry->flags |= MAC_ENT_LOCK; /* Don't age this */
 		sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE, addr, vid,
-					  port->ndev, true);
+					  dev, true);
 	}
 
 	return ret;

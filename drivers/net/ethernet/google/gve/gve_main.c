@@ -857,8 +857,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	int i, j;
 	int err;
 
-	/* Raw addressing means no QPLs */
-	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
+	if (num_qpls == 0)
 		return 0;
 
 	priv->qpls = kvcalloc(num_qpls, sizeof(*priv->qpls), GFP_KERNEL);
@@ -901,8 +900,7 @@ static void gve_free_qpls(struct gve_priv *priv)
 	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
 	int i;
 
-	/* Raw addressing means no QPLs */
-	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
+	if (num_qpls == 0)
 		return;
 
 	kvfree(priv->qpl_cfg.qpl_id_map);

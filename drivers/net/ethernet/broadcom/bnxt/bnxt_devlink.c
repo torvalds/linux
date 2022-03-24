@@ -241,37 +241,37 @@ static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.recover = bnxt_fw_recover,
 };
 
-void bnxt_dl_fw_reporters_create(struct bnxt *bp)
+static struct devlink_health_reporter *
+__bnxt_dl_reporter_create(struct bnxt *bp,
+			  const struct devlink_health_reporter_ops *ops)
 {
-	struct bnxt_fw_health *health = bp->fw_health;
+	struct devlink_health_reporter *reporter;
 
-	if (!health || health->fw_reporter)
-		return;
-
-	health->fw_reporter =
-		devlink_health_reporter_create(bp->dl, &bnxt_dl_fw_reporter_ops,
-					       0, bp);
-	if (IS_ERR(health->fw_reporter)) {
-		netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
-			    PTR_ERR(health->fw_reporter));
-		health->fw_reporter = NULL;
-		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+	reporter = devlink_health_reporter_create(bp->dl, ops, 0, bp);
+	if (IS_ERR(reporter)) {
+		netdev_warn(bp->dev, "Failed to create %s health reporter, rc = %ld\n",
+			    ops->name, PTR_ERR(reporter));
+		return NULL;
 	}
+
+	return reporter;
 }
 
-void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
+void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 {
-	struct bnxt_fw_health *health = bp->fw_health;
+	struct bnxt_fw_health *fw_health = bp->fw_health;
 
-	if (!health)
-		return;
+	if (fw_health && !fw_health->fw_reporter)
+		fw_health->fw_reporter = __bnxt_dl_reporter_create(bp, &bnxt_dl_fw_reporter_ops);
+}
 
-	if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) && !all)
-		return;
+void bnxt_dl_fw_reporters_destroy(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
 
-	if (health->fw_reporter) {
-		devlink_health_reporter_destroy(health->fw_reporter);
-		health->fw_reporter = NULL;
+	if (fw_health && fw_health->fw_reporter) {
+		devlink_health_reporter_destroy(fw_health->fw_reporter);
+		fw_health->fw_reporter = NULL;
 	}
 }
 

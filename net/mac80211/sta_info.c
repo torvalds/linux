@@ -364,8 +364,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 			goto free;
 		sta->mesh->plink_sta = sta;
 		spin_lock_init(&sta->mesh->plink_lock);
-		if (ieee80211_vif_is_mesh(&sdata->vif) &&
-		    !sdata->u.mesh.user_mpm)
+		if (!sdata->u.mesh.user_mpm)
 			timer_setup(&sta->mesh->plink_timer, mesh_plink_timer,
 				    0);
 		sta->mesh->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;

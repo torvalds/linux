@@ -369,14 +369,15 @@ static void mctp_test_route_input_sk(struct kunit *test)
 
 #define FL_S	(MCTP_HDR_FLAG_SOM)
 #define FL_E	(MCTP_HDR_FLAG_EOM)
-#define FL_T	(MCTP_HDR_FLAG_TO)
+#define FL_TO	(MCTP_HDR_FLAG_TO)
+#define FL_T(t)	((t) & MCTP_HDR_TAG_MASK)
 
 static const struct mctp_route_input_sk_test mctp_route_input_sk_tests[] = {
-	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_T), .type = 0, .deliver = true },
-	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_T), .type = 1, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO), .type = 0, .deliver = true },
+	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO), .type = 1, .deliver = false },
 	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E), .type = 0, .deliver = false },
-	{ .hdr = RX_HDR(1, 10, 8, FL_E | FL_T), .type = 0, .deliver = false },
-	{ .hdr = RX_HDR(1, 10, 8, FL_T), .type = 0, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_E | FL_TO), .type = 0, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_TO), .type = 0, .deliver = false },
 	{ .hdr = RX_HDR(1, 10, 8, 0), .type = 0, .deliver = false },
 };
 
@@ -436,7 +437,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 	__mctp_route_test_fini(test, dev, rt, sock);
 }
 
-#define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_T | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
+#define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_TO | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
 
 static const struct mctp_route_input_sk_reasm_test mctp_route_input_sk_reasm_tests[] = {
 	{
@@ -522,12 +523,156 @@ static void mctp_route_input_sk_reasm_to_desc(
 KUNIT_ARRAY_PARAM(mctp_route_input_sk_reasm, mctp_route_input_sk_reasm_tests,
 		  mctp_route_input_sk_reasm_to_desc);
 
+struct mctp_route_input_sk_keys_test {
+	const char	*name;
+	mctp_eid_t	key_peer_addr;
+	mctp_eid_t	key_local_addr;
+	u8		key_tag;
+	struct mctp_hdr hdr;
+	bool		deliver;
+};
+
+/* test packet rx in the presence of various key configurations */
+static void mctp_test_route_input_sk_keys(struct kunit *test)
+{
+	const struct mctp_route_input_sk_keys_test *params;
+	struct mctp_test_route *rt;
+	struct sk_buff *skb, *skb2;
+	struct mctp_test_dev *dev;
+	struct mctp_sk_key *key;
+	struct netns_mctp *mns;
+	struct mctp_sock *msk;
+	struct socket *sock;
+	unsigned long flags;
+	int rc;
+	u8 c;
+
+	params = test->param_value;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	msk = container_of(sock->sk, struct mctp_sock, sk);
+	mns = &sock_net(sock->sk)->mctp;
+
+	/* set the incoming tag according to test params */
+	key = mctp_key_alloc(msk, params->key_local_addr, params->key_peer_addr,
+			     params->key_tag, GFP_KERNEL);
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, key);
+
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	mctp_reserve_tag(&init_net, key, msk);
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+
+	/* create packet and route */
+	c = 0;
+	skb = mctp_test_create_skb_data(&params->hdr, &c);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+
+	skb->dev = dev->ndev;
+	__mctp_cb(skb);
+
+	rc = mctp_route_input(&rt->rt, skb);
+
+	/* (potentially) receive message */
+	skb2 = skb_recv_datagram(sock->sk, 0, 1, &rc);
+
+	if (params->deliver)
+		KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb2);
+	else
+		KUNIT_EXPECT_PTR_EQ(test, skb2, NULL);
+
+	if (skb2)
+		skb_free_datagram(sock->sk, skb2);
+
+	mctp_key_unref(key);
+	__mctp_route_test_fini(test, dev, rt, sock);
+}
+
+static const struct mctp_route_input_sk_keys_test mctp_route_input_sk_keys_tests[] = {
+	{
+		.name = "direct match",
+		.key_peer_addr = 9,
+		.key_local_addr = 8,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = true,
+	},
+	{
+		.name = "flipped src/dest",
+		.key_peer_addr = 8,
+		.key_local_addr = 9,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = false,
+	},
+	{
+		.name = "peer addr mismatch",
+		.key_peer_addr = 9,
+		.key_local_addr = 8,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = false,
+	},
+	{
+		.name = "tag value mismatch",
+		.key_peer_addr = 9,
+		.key_local_addr = 8,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(2)),
+		.deliver = false,
+	},
+	{
+		.name = "TO mismatch",
+		.key_peer_addr = 9,
+		.key_local_addr = 8,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(1) | FL_TO),
+		.deliver = false,
+	},
+	{
+		.name = "broadcast response",
+		.key_peer_addr = MCTP_ADDR_ANY,
+		.key_local_addr = 8,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 11, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = true,
+	},
+	{
+		.name = "any local match",
+		.key_peer_addr = 12,
+		.key_local_addr = MCTP_ADDR_ANY,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 12, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = true,
+	},
+};
+
+static void mctp_route_input_sk_keys_to_desc(
+				const struct mctp_route_input_sk_keys_test *t,
+				char *desc)
+{
+	sprintf(desc, "%s", t->name);
+}
+
+KUNIT_ARRAY_PARAM(mctp_route_input_sk_keys, mctp_route_input_sk_keys_tests,
+		  mctp_route_input_sk_keys_to_desc);
+
 static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_fragment, mctp_frag_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_rx_input, mctp_rx_input_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_route_input_sk, mctp_route_input_sk_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_route_input_sk_reasm,
 			 mctp_route_input_sk_reasm_gen_params),
+	KUNIT_CASE_PARAM(mctp_test_route_input_sk_keys,
+			 mctp_route_input_sk_keys_gen_params),
 	{}
 };
 

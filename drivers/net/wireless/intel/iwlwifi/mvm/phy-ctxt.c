@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -158,8 +158,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	iwl_mvm_set_chan_info_chandef(mvm, &cmd->ci, chandef);
 
 	/* we only support RLC command version 2 */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
-				  RLC_CONFIG_CMD, 0) < 2)
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) < 2)
 		iwl_mvm_phy_ctxt_set_rxchain(mvm, ctxt, &cmd->rxchain_info,
 					     chains_static, chains_dynamic);
 }
@@ -172,8 +171,7 @@ static int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm,
 		.phy_id = cpu_to_le32(ctxt->id),
 	};
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
-				  RLC_CONFIG_CMD, 0) < 2)
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) < 2)
 		return 0;
 
 	BUILD_BUG_ON(IWL_RLC_CHAIN_INFO_DRIVER_FORCE !=
@@ -209,8 +207,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 				  u32 action)
 {
 	int ret;
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					PHY_CONTEXT_CMD, 1);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1);
 
 	if (ver == 3 || ver == 4) {
 		struct iwl_phy_context_cmd cmd = {};
@@ -301,8 +298,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
-				  RLC_CONFIG_CMD, 0) >= 2 &&
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) >= 2 &&
 	    ctxt->channel == chandef->chan &&
 	    ctxt->width == chandef->width &&
 	    ctxt->center_freq1 == chandef->center_freq1)
@@ -349,18 +345,31 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 	 * otherwise we might not be able to reuse this phy.
 	 */
 	if (ctxt->ref == 0) {
-		struct ieee80211_channel *chan;
+		struct ieee80211_channel *chan = NULL;
 		struct cfg80211_chan_def chandef;
-		struct ieee80211_supported_band *sband = NULL;
-		enum nl80211_band band = NL80211_BAND_2GHZ;
+		struct ieee80211_supported_band *sband;
+		enum nl80211_band band;
+		int channel;
 
-		while (!sband && band < NUM_NL80211_BANDS)
-			sband = mvm->hw->wiphy->bands[band++];
+		for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
+			sband = mvm->hw->wiphy->bands[band];
 
-		if (WARN_ON(!sband))
+			if (!sband)
+				continue;
+
+			for (channel = 0; channel < sband->n_channels; channel++)
+				if (!(sband->channels[channel].flags &
+						IEEE80211_CHAN_DISABLED)) {
+					chan = &sband->channels[channel];
+					break;
+				}
+
+			if (chan)
+				break;
+		}
+
+		if (WARN_ON(!chan))
 			return;
-
-		chan = &sband->channels[0];
 
 		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
 		iwl_mvm_phy_ctxt_changed(mvm, ctxt, &chandef, 1, 1);

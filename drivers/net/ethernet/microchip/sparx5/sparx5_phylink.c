@@ -26,6 +26,15 @@ static bool port_conf_has_changed(struct sparx5_port_config *a, struct sparx5_po
 	return false;
 }
 
+static struct phylink_pcs *
+sparx5_phylink_mac_select_pcs(struct phylink_config *config,
+			      phy_interface_t interface)
+{
+	struct sparx5_port *port = netdev_priv(to_net_dev(config->dev));
+
+	return &port->phylink_pcs;
+}
+
 static void sparx5_phylink_mac_config(struct phylink_config *config,
 				      unsigned int mode,
 				      const struct phylink_link_state *state)
@@ -130,6 +139,7 @@ const struct phylink_pcs_ops sparx5_phylink_pcs_ops = {
 
 const struct phylink_mac_ops sparx5_phylink_mac_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = sparx5_phylink_mac_select_pcs,
 	.mac_config = sparx5_phylink_mac_config,
 	.mac_link_down = sparx5_phylink_mac_link_down,
 	.mac_link_up = sparx5_phylink_mac_link_up,

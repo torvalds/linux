@@ -33,7 +33,21 @@
 #define RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE	BIT_ULL(8)
 #define RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE	BIT_ULL(19)
 #define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA		0x80A8
+#define RPMX_MTI_MAC100X_CL23_PAUSE_QUANTA		0x80B0
+#define RPMX_MTI_MAC100X_CL45_PAUSE_QUANTA		0x80B8
+#define RPMX_MTI_MAC100X_CL67_PAUSE_QUANTA		0x80C0
 #define RPMX_MTI_MAC100X_CL01_QUANTA_THRESH		0x80C8
+#define RPMX_MTI_MAC100X_CL23_QUANTA_THRESH		0x80D0
+#define RPMX_MTI_MAC100X_CL45_QUANTA_THRESH		0x80D8
+#define RPMX_MTI_MAC100X_CL67_QUANTA_THRESH		0x80E0
+#define RPMX_MTI_MAC100X_CL89_PAUSE_QUANTA		0x8108
+#define RPMX_MTI_MAC100X_CL1011_PAUSE_QUANTA		0x8110
+#define RPMX_MTI_MAC100X_CL1213_PAUSE_QUANTA		0x8118
+#define RPMX_MTI_MAC100X_CL1415_PAUSE_QUANTA		0x8120
+#define RPMX_MTI_MAC100X_CL89_QUANTA_THRESH		0x8128
+#define RPMX_MTI_MAC100X_CL1011_QUANTA_THRESH		0x8130
+#define RPMX_MTI_MAC100X_CL1213_QUANTA_THRESH		0x8138
+#define RPMX_MTI_MAC100X_CL1415_QUANTA_THRESH		0x8140
 #define RPM_DEFAULT_PAUSE_TIME			0xFFFF
 #define RPMX_CMR_RX_OVR_BP		0x4120
 #define RPMX_CMR_RX_OVR_BP_EN(x)	BIT_ULL((x) + 8)
@@ -45,6 +59,18 @@
 #define RPM_LMAC_FWI			0xa
 #define RPM_TX_EN			BIT_ULL(0)
 #define RPM_RX_EN			BIT_ULL(1)
+#define RPMX_CMRX_PRT_CBFC_CTL                         0x5B08
+#define RPMX_CMRX_PRT_CBFC_CTL_LOGL_EN_RX_SHIFT        33
+#define RPMX_CMRX_PRT_CBFC_CTL_PHYS_BP_SHIFT           16
+#define RPMX_CMRX_PRT_CBFC_CTL_LOGL_EN_TX_SHIFT        0
+#define RPM_PFC_CLASS_MASK			       GENMASK_ULL(48, 33)
+#define RPMX_MTI_MAC100X_CL89_QUANTA_THRESH		0x8128
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_PAD_EN              BIT_ULL(11)
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE           BIT_ULL(8)
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_FWD              BIT_ULL(7)
+#define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA              0x80A8
+#define RPMX_MTI_MAC100X_CL89_PAUSE_QUANTA		0x8108
+#define RPM_DEFAULT_PAUSE_TIME                          0xFFFF
 
 /* Function Declarations */
 int rpm_get_nr_lmacs(void *rpmd);
@@ -61,4 +87,8 @@ int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat);
 void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable);
 int rpm_lmac_rx_tx_enable(void *rpmd, int lmac_id, bool enable);
 int rpm_lmac_tx_enable(void *rpmd, int lmac_id, bool enable);
+int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause,
+			u16 pfc_en);
+int rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause,
+			     u8 *rx_pause);
 #endif /* RPM_H */
