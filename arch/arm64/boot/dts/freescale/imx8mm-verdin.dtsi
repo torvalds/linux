@@ -580,8 +580,10 @@
 
 	atmel_mxt_ts: touch@4a {
 		compatible = "atmel,maxtouch";
-		/* Verdin GPIO_9_DSI */
-		/* (TOUCH_INT#, SODIMM 17, also routed to SN65dsi83 IRQ albeit currently unused) */
+		/*
+		 * Verdin GPIO_9_DSI
+		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI83 IRQ albeit currently unused)
+		 */
 		interrupt-parent = <&gpio3>;
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
@@ -695,8 +697,8 @@
 	uart-has-rtscts;
 };
 
-/* Verdin UART_4 */
 /*
+ * Verdin UART_4
  * Resource allocated to M4 by default, must not be accessed from Cortex-A35 or you get an OOPS
  */
 &uart4 {
@@ -1205,8 +1207,10 @@
 			<MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x1d0>;
 	};
 
-	/* On-module Wi-Fi/BT or type specific SDHC interface */
-	/* (e.g. on X52 extension slot of Verdin Development Board) */
+	/*
+	 * On-module Wi-Fi/BT or type specific SDHC interface
+	 * (e.g. on X52 extension slot of Verdin Development Board)
+	 */
 	pinctrl_usdhc3: usdhc3grp {
 		fsl,pins =
 			<MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK		0x190>,
