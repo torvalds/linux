@@ -4474,8 +4474,7 @@ static int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 	target_ctx = req->file->private_data;
 
 	spin_lock(&target_ctx->completion_lock);
-	filled = io_fill_cqe_aux(target_ctx, msg->user_data, msg->len,
-					IORING_CQE_F_MSG);
+	filled = io_fill_cqe_aux(target_ctx, msg->user_data, msg->len, 0);
 	io_commit_cqring(target_ctx);
 	spin_unlock(&target_ctx->completion_lock);
 
