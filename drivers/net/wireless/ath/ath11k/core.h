@@ -671,6 +671,7 @@ struct ath11k {
 	int hw_rate_code;
 	u8 twt_enabled;
 	bool nlo_enabled;
+	u8 alpha2[REG_ALPHA2_LEN + 1];
 };
 
 struct ath11k_band_cap {
