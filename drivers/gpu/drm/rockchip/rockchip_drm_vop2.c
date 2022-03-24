@@ -227,10 +227,15 @@ struct vop2_power_domain {
 	spinlock_t lock;
 	unsigned int ref_count;
 	bool on;
-	/*
-	 * If the module powered by this power domain was enabled.
+	/* @vp_mask: Bit mask of video port of the power domain's
+	 * module attached to.
+	 * For example: PD_CLUSTER0 belongs to module Cluster0, it's
+	 * bitmask is the VP which Cluster0 attached to. PD_ESMART is
+	 * shared between Esmart1/2/3, it's bitmask will be all the VP
+	 * which Esmart1/2/3 attached to.
+	 * This is used to check if we can power off a PD by vsync.
 	 */
-	bool module_on;
+	uint8_t vp_mask;
 
 	const struct vop2_power_domain_data *data;
 	struct list_head list;
@@ -1435,6 +1440,20 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 }
 
 /*
+ * A PD can power off by vsync when it's module attached to
+ * a activated VP.
+ */
+static uint32_t vop2_power_domain_can_off_by_vsync(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+
+	if (vop2->active_vp_mask & pd->vp_mask)
+		return true;
+	else
+		return false;
+}
+
+/*
  * Read VOP internal power domain on/off status.
  * We should query BISR_STS register in PMU for
  * power up/down status when memory repair is enabled.
@@ -1531,13 +1550,12 @@ static void vop2_power_domain_put(struct vop2_power_domain *pd)
 	 * but PD_Cluster0 must enabled as one of the child PD_CLUSTER1/2/3 is enabled.
 	 * when all child PD is disabled, we want disable the parent
 	 * PD(PD_CLUSTER0), but as module CLUSTER0 is not attcthed on a activated VP,
-	 * the turn down operation(which is take effect by vsync) will never take effect.
+	 * the turn off operation(which is take effect by vsync) will never take effect.
 	 * so we will see a "wait pd0 off timeout" log when we turn on PD_CLUSTER0 next time.
 	 *
-	 * So don't try to turn off a power domain when the module is not
-	 * enabled.
+	 * So we have a check here
 	 */
-	if (--pd->ref_count == 0 && pd->module_on) {
+	if (--pd->ref_count == 0 && vop2_power_domain_can_off_by_vsync(pd)) {
 		if (pd->vop2->data->delayed_pd)
 			schedule_delayed_work(&pd->power_off_work, msecs_to_jiffies(2500));
 		else
@@ -1570,7 +1588,7 @@ static void vop2_win_enable(struct vop2_win *win)
 	if (!win->enabled) {
 		if (win->pd) {
 			vop2_power_domain_get(win->pd);
-			win->pd->module_on = true;
+			win->pd->vp_mask |= win->vp_mask;
 		}
 		win->enabled = true;
 	}
@@ -1625,7 +1643,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			vop2_win_multi_area_disable(win);
 		if (win->pd) {
 			vop2_power_domain_put(win->pd);
-			win->pd->module_on = false;
+			win->pd->vp_mask &= ~BIT(win->vp_mask);
 		}
 		win->enabled = false;
 	}
@@ -3398,7 +3416,7 @@ static void vop2_power_off_all_pd(struct vop2 *vop2)
 		if (vop2_power_domain_status(pd))
 			vop2_power_domain_off_by_disabled_vp(pd);
 		pd->on = false;
-		pd->module_on = false;
+		pd->vp_mask = 0;
 	}
 }
 
@@ -3750,10 +3768,13 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		if (dual_channel) {
 			vop2_power_domain_put(vop2->dscs[0].pd);
 			vop2_power_domain_put(vop2->dscs[1].pd);
+			vop2->dscs[0].pd->vp_mask = 0;
+			vop2->dscs[1].pd->vp_mask = 0;
 			vop2->dscs[0].attach_vp_id = -1;
 			vop2->dscs[1].attach_vp_id = -1;
 		} else {
 			vop2_power_domain_put(vop2->dscs[vcstate->dsc_id].pd);
+			vop2->dscs[vcstate->dsc_id].pd->vp_mask = 0;
 			vop2->dscs[vcstate->dsc_id].attach_vp_id = -1;
 		}
 		vop2->dscs[vcstate->dsc_id].enabled = false;
@@ -6105,8 +6126,10 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 			  dsc_data->id, dsc_data->max_slice_num, vcstate->dsc_slice_num);
 
 	dsc = &vop2->dscs[dsc_id];
-	if (dsc->pd)
+	if (dsc->pd) {
+		dsc->pd->vp_mask = BIT(vp->id);
 		vop2_power_domain_get(dsc->pd);
+	}
 
 	VOP_MODULE_SET(vop2, dsc, scan_timing_para_imd_en, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_port_sel, vp->id);
@@ -8999,7 +9022,7 @@ static int vop2_pd_data_init(struct vop2 *vop2)
 			return -ENOMEM;
 		pd->vop2 = vop2;
 		pd->data = pd_data;
-		pd->module_on = false;
+		pd->vp_mask = 0;
 		spin_lock_init(&pd->lock);
 		list_add_tail(&pd->list, &vop2->pd_list_head);
 		INIT_DELAYED_WORK(&pd->power_off_work, vop2_power_domain_off_work);
