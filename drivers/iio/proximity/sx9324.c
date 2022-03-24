@@ -76,7 +76,10 @@
 
 #define SX9324_REG_PROX_CTRL0		0x30
 #define SX9324_REG_PROX_CTRL0_GAIN_MASK	GENMASK(5, 3)
-#define SX9324_REG_PROX_CTRL0_GAIN_1		0x80
+#define SX9324_REG_PROX_CTRL0_GAIN_SHIFT	3
+#define SX9324_REG_PROX_CTRL0_GAIN_RSVD		0x0
+#define SX9324_REG_PROX_CTRL0_GAIN_1		0x1
+#define SX9324_REG_PROX_CTRL0_GAIN_8		0x4
 #define SX9324_REG_PROX_CTRL0_RAWFILT_MASK	GENMASK(2, 0)
 #define SX9324_REG_PROX_CTRL0_RAWFILT_1P50	0x01
 #define SX9324_REG_PROX_CTRL1		0x31
@@ -379,7 +382,14 @@ static int sx9324_read_gain(struct sx_common_data *data,
 	if (ret)
 		return ret;
 
-	*val = 1 << FIELD_GET(SX9324_REG_PROX_CTRL0_GAIN_MASK, regval);
+	regval = FIELD_GET(SX9324_REG_PROX_CTRL0_GAIN_MASK, regval);
+	if (regval)
+		regval--;
+	else if (regval == SX9324_REG_PROX_CTRL0_GAIN_RSVD ||
+		 regval > SX9324_REG_PROX_CTRL0_GAIN_8)
+		return -EINVAL;
+
+	*val = 1 << regval;
 
 	return IIO_VAL_INT;
 }
@@ -725,8 +735,12 @@ static int sx9324_write_gain(struct sx_common_data *data,
 	unsigned int gain, reg;
 	int ret;
 
-	gain = ilog2(val);
 	reg = SX9324_REG_PROX_CTRL0 + chan->channel / 2;
+
+	gain = ilog2(val) + 1;
+	if (val <= 0 || gain > SX9324_REG_PROX_CTRL0_GAIN_8)
+		return -EINVAL;
+
 	gain = FIELD_PREP(SX9324_REG_PROX_CTRL0_GAIN_MASK, gain);
 
 	mutex_lock(&data->mutex);
@@ -784,9 +798,11 @@ static const struct sx_common_reg_default sx9324_default_regs[] = {
 	{ SX9324_REG_AFE_CTRL8, SX9324_REG_AFE_CTRL8_RESFILTN_4KOHM },
 	{ SX9324_REG_AFE_CTRL9, SX9324_REG_AFE_CTRL9_AGAIN_1 },
 
-	{ SX9324_REG_PROX_CTRL0, SX9324_REG_PROX_CTRL0_GAIN_1 |
+	{ SX9324_REG_PROX_CTRL0,
+		SX9324_REG_PROX_CTRL0_GAIN_1 << SX9324_REG_PROX_CTRL0_GAIN_SHIFT |
 		SX9324_REG_PROX_CTRL0_RAWFILT_1P50 },
-	{ SX9324_REG_PROX_CTRL1, SX9324_REG_PROX_CTRL0_GAIN_1 |
+	{ SX9324_REG_PROX_CTRL1,
+		SX9324_REG_PROX_CTRL0_GAIN_1 << SX9324_REG_PROX_CTRL0_GAIN_SHIFT |
 		SX9324_REG_PROX_CTRL0_RAWFILT_1P50 },
 	{ SX9324_REG_PROX_CTRL2, SX9324_REG_PROX_CTRL2_AVGNEG_THRESH_16K },
 	{ SX9324_REG_PROX_CTRL3, SX9324_REG_PROX_CTRL3_AVGDEB_2SAMPLES |
