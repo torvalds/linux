@@ -766,9 +766,9 @@ dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 		nf_log_buf_add(m, "MARK=0x%x ", skb->mark);
 }
 
-static void dump_ipv4_mac_header(struct nf_log_buf *m,
-				 const struct nf_loginfo *info,
-				 const struct sk_buff *skb)
+static void dump_mac_header(struct nf_log_buf *m,
+			    const struct nf_loginfo *info,
+			    const struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	unsigned int logflags = 0;
@@ -798,9 +798,26 @@ fallback:
 		const unsigned char *p = skb_mac_header(skb);
 		unsigned int i;
 
-		nf_log_buf_add(m, "%02x", *p++);
-		for (i = 1; i < dev->hard_header_len; i++, p++)
-			nf_log_buf_add(m, ":%02x", *p);
+		if (dev->type == ARPHRD_SIT) {
+			p -= ETH_HLEN;
+
+			if (p < skb->head)
+				p = NULL;
+		}
+
+		if (p) {
+			nf_log_buf_add(m, "%02x", *p++);
+			for (i = 1; i < dev->hard_header_len; i++)
+				nf_log_buf_add(m, ":%02x", *p++);
+		}
+
+		if (dev->type == ARPHRD_SIT) {
+			const struct iphdr *iph =
+				(struct iphdr *)skb_mac_header(skb);
+
+			nf_log_buf_add(m, " TUNNEL=%pI4->%pI4", &iph->saddr,
+				       &iph->daddr);
+		}
 	}
 	nf_log_buf_add(m, " ");
 }
@@ -827,7 +844,7 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 				  out, loginfo, prefix);
 
 	if (in)
-		dump_ipv4_mac_header(m, loginfo, skb);
+		dump_mac_header(m, loginfo, skb);
 
 	dump_ipv4_packet(net, m, loginfo, skb, 0);
 
@@ -840,64 +857,6 @@ static struct nf_logger nf_ip_logger __read_mostly = {
 	.logfn		= nf_log_ip_packet,
 	.me		= THIS_MODULE,
 };
-
-static void dump_ipv6_mac_header(struct nf_log_buf *m,
-				 const struct nf_loginfo *info,
-				 const struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	unsigned int logflags = 0;
-
-	if (info->type == NF_LOG_TYPE_LOG)
-		logflags = info->u.log.logflags;
-
-	if (!(logflags & NF_LOG_MACDECODE))
-		goto fallback;
-
-	switch (dev->type) {
-	case ARPHRD_ETHER:
-		nf_log_buf_add(m, "MACSRC=%pM MACDST=%pM ",
-			       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest);
-		nf_log_dump_vlan(m, skb);
-		nf_log_buf_add(m, "MACPROTO=%04x ",
-			       ntohs(eth_hdr(skb)->h_proto));
-		return;
-	default:
-		break;
-	}
-
-fallback:
-	nf_log_buf_add(m, "MAC=");
-	if (dev->hard_header_len &&
-	    skb->mac_header != skb->network_header) {
-		const unsigned char *p = skb_mac_header(skb);
-		unsigned int len = dev->hard_header_len;
-		unsigned int i;
-
-		if (dev->type == ARPHRD_SIT) {
-			p -= ETH_HLEN;
-
-			if (p < skb->head)
-				p = NULL;
-		}
-
-		if (p) {
-			nf_log_buf_add(m, "%02x", *p++);
-			for (i = 1; i < len; i++)
-				nf_log_buf_add(m, ":%02x", *p++);
-		}
-		nf_log_buf_add(m, " ");
-
-		if (dev->type == ARPHRD_SIT) {
-			const struct iphdr *iph =
-				(struct iphdr *)skb_mac_header(skb);
-			nf_log_buf_add(m, "TUNNEL=%pI4->%pI4 ", &iph->saddr,
-				       &iph->daddr);
-		}
-	} else {
-		nf_log_buf_add(m, " ");
-	}
-}
 
 static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 			      unsigned int hooknum, const struct sk_buff *skb,
@@ -921,7 +880,7 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 				  loginfo, prefix);
 
 	if (in)
-		dump_ipv6_mac_header(m, loginfo, skb);
+		dump_mac_header(m, loginfo, skb);
 
 	dump_ipv6_packet(net, m, loginfo, skb, skb_network_offset(skb), 1);
 
