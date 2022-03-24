@@ -734,6 +734,9 @@ static const char * const rv1106_cif_clks[] = {
 	"rx0clk_cif",
 	"rx1clk_cif",
 	"isp0clk_cif",
+	"sclk_m0_cif",
+	"sclk_m1_cif",
+	"pclk_vepu_cif",
 };
 
 static const char * const rv1106_cif_rsts[] = {
@@ -746,6 +749,7 @@ static const char * const rv1106_cif_rsts[] = {
 	"rst_cif_rx0",
 	"rst_cif_rx1",
 	"rst_cif_isp0",
+	"rst_cif_pclk_vepu",
 };
 
 static const struct cif_reg rv1106_cif_regs[] = {
