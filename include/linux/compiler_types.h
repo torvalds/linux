@@ -11,6 +11,7 @@
 # define BTF_TYPE_TAG(value) /* nothing */
 #endif
 
+/* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
 /* address spaces */
 # define __kernel	__attribute__((address_space(0)))
@@ -143,8 +144,6 @@ struct ftrace_likely_data {
  * restore the lr register to the value before mcount was called.
  */
 #define __naked			__attribute__((__naked__)) notrace
-
-#define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
 
 /*
  * Prefer gnu_inline, so that extern inline functions do not emit an
