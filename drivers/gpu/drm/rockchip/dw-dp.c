@@ -1924,6 +1924,9 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	if (dp->split_mode)
 		drm_mode_convert_to_origin_mode(&m);
 
+	if (m.hsync_end - m.hsync_start < 32)
+		return MODE_HSYNC_NARROW;
+
 	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->rate))
 		return MODE_CLOCK_HIGH;
 
