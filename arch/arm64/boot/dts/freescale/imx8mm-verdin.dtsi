@@ -306,7 +306,7 @@
 			  "SODIMM_151",
 			  "SODIMM_153";
 
-	ctrl_sleep_moci-hog {
+	ctrl-sleep-moci-hog {
 		gpio-hog;
 		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
 		gpios = <1 GPIO_ACTIVE_HIGH>;
