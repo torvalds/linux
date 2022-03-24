@@ -18,9 +18,7 @@
 	compatible = "lg,bullhead", "qcom,msm8992";
 	chassis-type = "handset";
 
-	/* required for bootloader to select correct board */
 	qcom,msm-id = <251 0>, <252 0>;
-	qcom,board-id = <0xb64 0>;
 	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
 
 	/* Bullhead firmware doesn't support PSCI */

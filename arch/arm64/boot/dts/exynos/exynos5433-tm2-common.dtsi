@@ -858,10 +858,10 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0x66>;
 
-		muic: max77843-muic {
+		muic: extcon {
 			compatible = "maxim,max77843-muic";
 
-			musb_con: musb-connector {
+			musb_con: connector {
 				compatible = "samsung,usb-connector-11pin",
 					     "usb-b-connector";
 				label = "micro-USB";
@@ -870,6 +870,17 @@
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
+
+					port@0 {
+						/*
+						 * TODO: The DTS this is based on does not have
+						 * port@0 which is a required property. The ports
+						 * look incomplete and need fixing.
+						 * Add a disabled port just to satisfy dtschema.
+						 */
+						reg = <0>;
+						status = "disabled";
+					};
 
 					port@3 {
 						reg = <3>;
@@ -910,7 +921,7 @@
 			};
 		};
 
-		haptic: max77843-haptic {
+		haptic: motor-driver {
 			compatible = "maxim,max77843-haptic";
 			haptic-supply = <&ldo38_reg>;
 			pwms = <&pwm 0 33670 0>;
@@ -1011,80 +1022,80 @@
 	pinctrl-0 = <&initial_alive>;
 
 	initial_alive: initial-state {
-		PIN(INPUT, gpa0-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpa0-1, NONE, FAST_SR1);
-		PIN(INPUT, gpa0-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpa0-3, NONE, FAST_SR1);
-		PIN(INPUT, gpa0-4, NONE, FAST_SR1);
-		PIN(INPUT, gpa0-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpa0-6, NONE, FAST_SR1);
-		PIN(INPUT, gpa0-7, NONE, FAST_SR1);
+		PIN_IN(gpa0-0, DOWN, FAST_SR1);
+		PIN_IN(gpa0-1, NONE, FAST_SR1);
+		PIN_IN(gpa0-2, DOWN, FAST_SR1);
+		PIN_IN(gpa0-3, NONE, FAST_SR1);
+		PIN_IN(gpa0-4, NONE, FAST_SR1);
+		PIN_IN(gpa0-5, DOWN, FAST_SR1);
+		PIN_IN(gpa0-6, NONE, FAST_SR1);
+		PIN_IN(gpa0-7, NONE, FAST_SR1);
 
-		PIN(INPUT, gpa1-0, UP, FAST_SR1);
-		PIN(INPUT, gpa1-1, UP, FAST_SR1);
-		PIN(INPUT, gpa1-2, NONE, FAST_SR1);
-		PIN(INPUT, gpa1-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpa1-4, DOWN, FAST_SR1);
-		PIN(INPUT, gpa1-5, NONE, FAST_SR1);
-		PIN(INPUT, gpa1-6, NONE, FAST_SR1);
-		PIN(INPUT, gpa1-7, NONE, FAST_SR1);
+		PIN_IN(gpa1-0, UP, FAST_SR1);
+		PIN_IN(gpa1-1, UP, FAST_SR1);
+		PIN_IN(gpa1-2, NONE, FAST_SR1);
+		PIN_IN(gpa1-3, DOWN, FAST_SR1);
+		PIN_IN(gpa1-4, DOWN, FAST_SR1);
+		PIN_IN(gpa1-5, NONE, FAST_SR1);
+		PIN_IN(gpa1-6, NONE, FAST_SR1);
+		PIN_IN(gpa1-7, NONE, FAST_SR1);
 
-		PIN(INPUT, gpa2-0, NONE, FAST_SR1);
-		PIN(INPUT, gpa2-1, NONE, FAST_SR1);
-		PIN(INPUT, gpa2-2, NONE, FAST_SR1);
-		PIN(INPUT, gpa2-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpa2-4, NONE, FAST_SR1);
-		PIN(INPUT, gpa2-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpa2-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpa2-7, NONE, FAST_SR1);
+		PIN_IN(gpa2-0, NONE, FAST_SR1);
+		PIN_IN(gpa2-1, NONE, FAST_SR1);
+		PIN_IN(gpa2-2, NONE, FAST_SR1);
+		PIN_IN(gpa2-3, DOWN, FAST_SR1);
+		PIN_IN(gpa2-4, NONE, FAST_SR1);
+		PIN_IN(gpa2-5, DOWN, FAST_SR1);
+		PIN_IN(gpa2-6, DOWN, FAST_SR1);
+		PIN_IN(gpa2-7, NONE, FAST_SR1);
 
-		PIN(INPUT, gpa3-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpa3-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpa3-2, NONE, FAST_SR1);
-		PIN(INPUT, gpa3-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpa3-4, NONE, FAST_SR1);
-		PIN(INPUT, gpa3-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpa3-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpa3-7, DOWN, FAST_SR1);
+		PIN_IN(gpa3-0, DOWN, FAST_SR1);
+		PIN_IN(gpa3-1, DOWN, FAST_SR1);
+		PIN_IN(gpa3-2, NONE, FAST_SR1);
+		PIN_IN(gpa3-3, DOWN, FAST_SR1);
+		PIN_IN(gpa3-4, NONE, FAST_SR1);
+		PIN_IN(gpa3-5, DOWN, FAST_SR1);
+		PIN_IN(gpa3-6, DOWN, FAST_SR1);
+		PIN_IN(gpa3-7, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpf1-0, NONE, FAST_SR1);
-		PIN(INPUT, gpf1-1, NONE, FAST_SR1);
-		PIN(INPUT, gpf1-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpf1-4, UP, FAST_SR1);
-		PIN(OUTPUT, gpf1-5, NONE, FAST_SR1);
-		PIN(INPUT, gpf1-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpf1-7, DOWN, FAST_SR1);
+		PIN_IN(gpf1-0, NONE, FAST_SR1);
+		PIN_IN(gpf1-1, NONE, FAST_SR1);
+		PIN_IN(gpf1-2, DOWN, FAST_SR1);
+		PIN_IN(gpf1-4, UP, FAST_SR1);
+		PIN_OT(gpf1-5, NONE, FAST_SR1);
+		PIN_IN(gpf1-6, DOWN, FAST_SR1);
+		PIN_IN(gpf1-7, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpf2-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpf2-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpf2-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpf2-3, DOWN, FAST_SR1);
+		PIN_IN(gpf2-0, DOWN, FAST_SR1);
+		PIN_IN(gpf2-1, DOWN, FAST_SR1);
+		PIN_IN(gpf2-2, DOWN, FAST_SR1);
+		PIN_IN(gpf2-3, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpf3-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpf3-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpf3-2, NONE, FAST_SR1);
-		PIN(INPUT, gpf3-3, DOWN, FAST_SR1);
+		PIN_IN(gpf3-0, DOWN, FAST_SR1);
+		PIN_IN(gpf3-1, DOWN, FAST_SR1);
+		PIN_IN(gpf3-2, NONE, FAST_SR1);
+		PIN_IN(gpf3-3, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpf4-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-4, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpf4-7, DOWN, FAST_SR1);
+		PIN_IN(gpf4-0, DOWN, FAST_SR1);
+		PIN_IN(gpf4-1, DOWN, FAST_SR1);
+		PIN_IN(gpf4-2, DOWN, FAST_SR1);
+		PIN_IN(gpf4-3, DOWN, FAST_SR1);
+		PIN_IN(gpf4-4, DOWN, FAST_SR1);
+		PIN_IN(gpf4-5, DOWN, FAST_SR1);
+		PIN_IN(gpf4-6, DOWN, FAST_SR1);
+		PIN_IN(gpf4-7, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpf5-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpf5-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpf5-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpf5-3, DOWN, FAST_SR1);
-		PIN(OUTPUT, gpf5-4, NONE, FAST_SR1);
-		PIN(INPUT, gpf5-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpf5-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpf5-7, DOWN, FAST_SR1);
+		PIN_IN(gpf5-0, DOWN, FAST_SR1);
+		PIN_IN(gpf5-1, DOWN, FAST_SR1);
+		PIN_IN(gpf5-2, DOWN, FAST_SR1);
+		PIN_IN(gpf5-3, DOWN, FAST_SR1);
+		PIN_OT(gpf5-4, NONE, FAST_SR1);
+		PIN_IN(gpf5-5, DOWN, FAST_SR1);
+		PIN_IN(gpf5-6, DOWN, FAST_SR1);
+		PIN_IN(gpf5-7, DOWN, FAST_SR1);
 	};
 
-	te_irq: te-irq {
+	te_irq: te-irq-pins {
 		samsung,pins = "gpf1-3";
 		samsung,pin-function = <0xf>;
 	};
@@ -1095,8 +1106,8 @@
 	pinctrl-0 = <&initial_cpif>;
 
 	initial_cpif: initial-state {
-		PIN(INPUT, gpv6-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpv6-1, DOWN, FAST_SR1);
+		PIN_IN(gpv6-0, DOWN, FAST_SR1);
+		PIN_IN(gpv6-1, DOWN, FAST_SR1);
 	};
 };
 
@@ -1104,13 +1115,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&initial_ese>;
 
-	pcie_wlanen: pcie-wlanen {
-		PIN(INPUT, gpj2-0, UP, FAST_SR4);
+	pcie_wlanen: pcie-wlanen-pins {
+		samsung,pins = "gpj2-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS5433_PIN_DRV_FAST_SR4>;
 	};
 
 	initial_ese: initial-state {
-		PIN(INPUT, gpj2-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpj2-2, DOWN, FAST_SR1);
+		PIN_IN(gpj2-1, DOWN, FAST_SR1);
+		PIN_IN(gpj2-2, DOWN, FAST_SR1);
 	};
 };
 
@@ -1119,11 +1133,11 @@
 	pinctrl-0 = <&initial_fsys>;
 
 	initial_fsys: initial-state {
-		PIN(INPUT, gpr3-0, NONE, FAST_SR1);
-		PIN(INPUT, gpr3-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpr3-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpr3-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpr3-7, NONE, FAST_SR1);
+		PIN_IN(gpr3-0, NONE, FAST_SR1);
+		PIN_IN(gpr3-1, DOWN, FAST_SR1);
+		PIN_IN(gpr3-2, DOWN, FAST_SR1);
+		PIN_IN(gpr3-3, DOWN, FAST_SR1);
+		PIN_IN(gpr3-7, NONE, FAST_SR1);
 	};
 };
 
@@ -1132,14 +1146,14 @@
 	pinctrl-0 = <&initial_imem>;
 
 	initial_imem: initial-state {
-		PIN(INPUT, gpf0-0, UP, FAST_SR1);
-		PIN(INPUT, gpf0-1, UP, FAST_SR1);
-		PIN(INPUT, gpf0-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpf0-3, UP, FAST_SR1);
-		PIN(INPUT, gpf0-4, DOWN, FAST_SR1);
-		PIN(INPUT, gpf0-5, NONE, FAST_SR1);
-		PIN(INPUT, gpf0-6, DOWN, FAST_SR1);
-		PIN(INPUT, gpf0-7, UP, FAST_SR1);
+		PIN_IN(gpf0-0, UP, FAST_SR1);
+		PIN_IN(gpf0-1, UP, FAST_SR1);
+		PIN_IN(gpf0-2, DOWN, FAST_SR1);
+		PIN_IN(gpf0-3, UP, FAST_SR1);
+		PIN_IN(gpf0-4, DOWN, FAST_SR1);
+		PIN_IN(gpf0-5, NONE, FAST_SR1);
+		PIN_IN(gpf0-6, DOWN, FAST_SR1);
+		PIN_IN(gpf0-7, UP, FAST_SR1);
 	};
 };
 
@@ -1148,7 +1162,7 @@
 	pinctrl-0 = <&initial_nfc>;
 
 	initial_nfc: initial-state {
-		PIN(INPUT, gpj0-2, DOWN, FAST_SR1);
+		PIN_IN(gpj0-2, DOWN, FAST_SR1);
 	};
 };
 
@@ -1157,53 +1171,53 @@
 	pinctrl-0 = <&initial_peric>;
 
 	initial_peric: initial-state {
-		PIN(INPUT, gpv7-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpv7-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpv7-2, NONE, FAST_SR1);
-		PIN(INPUT, gpv7-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpv7-4, DOWN, FAST_SR1);
-		PIN(INPUT, gpv7-5, DOWN, FAST_SR1);
+		PIN_IN(gpv7-0, DOWN, FAST_SR1);
+		PIN_IN(gpv7-1, DOWN, FAST_SR1);
+		PIN_IN(gpv7-2, NONE, FAST_SR1);
+		PIN_IN(gpv7-3, DOWN, FAST_SR1);
+		PIN_IN(gpv7-4, DOWN, FAST_SR1);
+		PIN_IN(gpv7-5, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpb0-4, DOWN, FAST_SR1);
+		PIN_IN(gpb0-4, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpc0-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpc0-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpc0-7, DOWN, FAST_SR1);
+		PIN_IN(gpc0-2, DOWN, FAST_SR1);
+		PIN_IN(gpc0-5, DOWN, FAST_SR1);
+		PIN_IN(gpc0-7, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpc1-1, DOWN, FAST_SR1);
+		PIN_IN(gpc1-1, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpc3-4, NONE, FAST_SR1);
-		PIN(INPUT, gpc3-5, NONE, FAST_SR1);
-		PIN(INPUT, gpc3-6, NONE, FAST_SR1);
-		PIN(INPUT, gpc3-7, NONE, FAST_SR1);
+		PIN_IN(gpc3-4, NONE, FAST_SR1);
+		PIN_IN(gpc3-5, NONE, FAST_SR1);
+		PIN_IN(gpc3-6, NONE, FAST_SR1);
+		PIN_IN(gpc3-7, NONE, FAST_SR1);
 
-		PIN(OUTPUT, gpg0-0, NONE, FAST_SR1);
-		PIN(2, gpg0-1, DOWN, FAST_SR1);
+		PIN_OT(gpg0-0, NONE, FAST_SR1);
+		PIN_F2(gpg0-1, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpd2-5, DOWN, FAST_SR1);
+		PIN_IN(gpd2-5, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpd4-0, NONE, FAST_SR1);
-		PIN(INPUT, gpd4-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpd4-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpd4-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpd4-4, DOWN, FAST_SR1);
+		PIN_IN(gpd4-0, NONE, FAST_SR1);
+		PIN_IN(gpd4-1, DOWN, FAST_SR1);
+		PIN_IN(gpd4-2, DOWN, FAST_SR1);
+		PIN_IN(gpd4-3, DOWN, FAST_SR1);
+		PIN_IN(gpd4-4, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpd6-3, DOWN, FAST_SR1);
+		PIN_IN(gpd6-3, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpd8-1, UP, FAST_SR1);
+		PIN_IN(gpd8-1, UP, FAST_SR1);
 
-		PIN(INPUT, gpg1-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpg1-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpg1-2, DOWN, FAST_SR1);
-		PIN(INPUT, gpg1-3, DOWN, FAST_SR1);
-		PIN(INPUT, gpg1-4, DOWN, FAST_SR1);
+		PIN_IN(gpg1-0, DOWN, FAST_SR1);
+		PIN_IN(gpg1-1, DOWN, FAST_SR1);
+		PIN_IN(gpg1-2, DOWN, FAST_SR1);
+		PIN_IN(gpg1-3, DOWN, FAST_SR1);
+		PIN_IN(gpg1-4, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpg2-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpg2-1, DOWN, FAST_SR1);
+		PIN_IN(gpg2-0, DOWN, FAST_SR1);
+		PIN_IN(gpg2-1, DOWN, FAST_SR1);
 
-		PIN(INPUT, gpg3-0, DOWN, FAST_SR1);
-		PIN(INPUT, gpg3-1, DOWN, FAST_SR1);
-		PIN(INPUT, gpg3-5, DOWN, FAST_SR1);
+		PIN_IN(gpg3-0, DOWN, FAST_SR1);
+		PIN_IN(gpg3-1, DOWN, FAST_SR1);
+		PIN_IN(gpg3-5, DOWN, FAST_SR1);
 	};
 };
 
@@ -1212,7 +1226,7 @@
 	pinctrl-0 = <&initial_touch>;
 
 	initial_touch: initial-state {
-		PIN(INPUT, gpj1-2, DOWN, FAST_SR1);
+		PIN_IN(gpj1-2, DOWN, FAST_SR1);
 	};
 };
 

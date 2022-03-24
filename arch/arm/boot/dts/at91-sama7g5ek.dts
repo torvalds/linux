@@ -131,6 +131,18 @@
 	status = "okay";
 };
 
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can0_default>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1_default>;
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vddcpu>;
 };
@@ -239,6 +251,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-microvolt = <3300000>;
 						regulator-mode = <4>;
 					};
 
@@ -279,6 +292,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-voltage = <1150000>;
 						regulator-mode = <4>;
 					};
 
@@ -290,7 +304,7 @@
 
 				vddcpu: VDD_OTHER {
 					regulator-name = "VDD_OTHER";
-					regulator-min-microvolt = <1125000>;
+					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1850000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
@@ -299,6 +313,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-voltage = <1050000>;
 						regulator-mode = <4>;
 					};
 
@@ -315,6 +330,7 @@
 					regulator-always-on;
 
 					regulator-state-standby {
+						regulator-suspend-voltage = <1800000>;
 						regulator-on-in-suspend;
 					};
 
@@ -329,6 +345,7 @@
 					regulator-max-microvolt = <3700000>;
 
 					regulator-state-standby {
+						regulator-suspend-voltage = <1800000>;
 						regulator-on-in-suspend;
 					};
 
@@ -454,6 +471,19 @@
 };
 
 &pioA {
+
+	pinctrl_can0_default: can0_default {
+		pinmux = <PIN_PD12__CANTX0>,
+			 <PIN_PD13__CANRX0 >;
+		bias-disable;
+	};
+
+	pinctrl_can1_default: can1_default {
+		pinmux = <PIN_PD14__CANTX1>,
+			 <PIN_PD15__CANRX1 >;
+		bias-disable;
+	};
+
 	pinctrl_flx0_default: flx0_default {
 		pinmux = <PIN_PE3__FLEXCOM0_IO0>,
 			 <PIN_PE4__FLEXCOM0_IO1>,

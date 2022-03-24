@@ -958,6 +958,7 @@
 			assigned-clocks = <&clk IMX8MP_CLK_USB_PHY_REF>;
 			assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
 			#phy-cells = <0>;
+			status = "disabled";
 		};
 
 		usb3_1: usb@32f10108 {

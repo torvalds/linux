@@ -77,7 +77,7 @@
 };
 
 &gpio6 {
-	usb_hub_reset {
+	usb-hub-reset-hog {
 		gpio-hog;
 		gpios = <10 GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -293,7 +293,6 @@
 	vqmmc-supply = <&reg_1p8v>;
 	non-removable;
 	cap-power-off-card;
-	pm-ignore-notify;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&wlan_pwrseq>;
 	status = "okay";

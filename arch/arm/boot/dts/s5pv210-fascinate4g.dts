@@ -126,39 +126,39 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_cfg>;
 
-	headset_det: headset-det {
+	headset_det: headset-det-pins {
 		samsung,pins = "gph0-6", "gph3-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
-	fg_irq: fg-irq {
+	fg_irq: fg-irq-pins {
 		samsung,pins = "gph3-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	headset_micbias_ena: headset-micbias-ena {
+	headset_micbias_ena: headset-micbias-ena-pins {
 		samsung,pins = "gpj2-5";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	earpath_sel: earpath-sel {
+	earpath_sel: earpath-sel-pins {
 		samsung,pins = "gpj2-6";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	main_micbias_ena: main-micbias-ena {
+	main_micbias_ena: main-micbias-ena-pins {
 		samsung,pins = "gpj4-2";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	/* Based on vendor kernel v2.6.35.7 */
-	sleep_cfg: sleep-cfg {
+	sleep_cfg: sleep-state {
 		PIN_SLP(gpa0-0, PREV, NONE);
 		PIN_SLP(gpa0-1, PREV, NONE);
 		PIN_SLP(gpa0-2, PREV, NONE);
