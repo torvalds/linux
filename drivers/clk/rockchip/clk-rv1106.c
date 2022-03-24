@@ -509,8 +509,6 @@ static struct rockchip_clk_branch rv1106_clk_branches[] __initdata = {
 	COMPOSITE(CCLK_SRC_EMMC, "cclk_src_emmc", mux_400m_24m_p, 0,
 			RV1106_PERICLKSEL_CON(7), 6, 1, MFLAGS, 0, 6, DFLAGS,
 			RV1106_PERICLKGATE_CON(4), 12, GFLAGS),
-	MMC(SCLK_EMMC_DRV, "emmc_drv", "cclk_src_emmc", RV1106_EMMC_CON0, 1),
-	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "cclk_src_emmc", RV1106_EMMC_CON1, 1),
 	GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri_root", 0,
 			RV1106_PERICLKGATE_CON(4), 13, GFLAGS),
 	GATE(PCLK_GPIO4, "pclk_gpio4", "pclk_peri_root", 0,
@@ -781,8 +779,6 @@ static struct rockchip_clk_branch rv1106_clk_branches[] __initdata = {
 	COMPOSITE(CCLK_SRC_SDMMC, "cclk_src_sdmmc", mux_400m_24m_p, 0,
 			RV1106_VICLKSEL_CON(1), 14, 1, MFLAGS, 8, 6, DFLAGS,
 			RV1106_VICLKGATE_CON(1), 11, GFLAGS),
-	MMC(SCLK_SDMMC_DRV,     "sdmmc_drv",    "cclk_src_sdmmc", RV1106_SDMMC_CON0, 1),
-	MMC(SCLK_SDMMC_SAMPLE,  "sdmmc_sample", "cclk_src_sdmmc", RV1106_SDMMC_CON1, 1),
 	GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_vi_root", 0,
 			RV1106_VICLKGATE_CON(1), 12, GFLAGS),
 	GATE(CLK_SDMMC_DETN_FLT, "clk_sdmmc_detn_flt", "xin24m", 0,
@@ -860,8 +856,6 @@ static struct rockchip_clk_branch rv1106_clk_branches[] __initdata = {
 	COMPOSITE(CCLK_SRC_SDIO, "cclk_src_sdio", mux_400m_24m_p, 0,
 			RV1106_VOCLKSEL_CON(2), 13, 1, MFLAGS, 7, 6, DFLAGS,
 			RV1106_VOCLKGATE_CON(1), 14, GFLAGS),
-	MMC(SCLK_SDIO_DRV, "sdio_drv", "cclk_src_sdio", RV1106_SDIO_CON0, 1),
-	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "cclk_src_sdio", RV1106_SDIO_CON1, 1),
 	GATE(HCLK_SDIO, "hclk_sdio", "hclk_vo_root", 0,
 			RV1106_VOCLKGATE_CON(1), 15, GFLAGS),
 	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_vo_root", 0,
@@ -907,7 +901,17 @@ static struct rockchip_clk_branch rv1106_clk_branches[] __initdata = {
 
 };
 
+static struct rockchip_clk_branch rv1106_grf_clk_branches[] __initdata = {
+	MMC(SCLK_EMMC_DRV, "emmc_drv", "cclk_src_emmc", RV1106_EMMC_CON0, 1),
+	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "cclk_src_emmc", RV1106_EMMC_CON1, 1),
+	MMC(SCLK_SDMMC_DRV,     "sdmmc_drv",    "cclk_src_sdmmc", RV1106_SDMMC_CON0, 1),
+	MMC(SCLK_SDMMC_SAMPLE,  "sdmmc_sample", "cclk_src_sdmmc", RV1106_SDMMC_CON1, 1),
+	MMC(SCLK_SDIO_DRV, "sdio_drv", "cclk_src_sdio", RV1106_SDIO_CON0, 1),
+	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "cclk_src_sdio", RV1106_SDIO_CON1, 1),
+};
+
 static void __iomem *rv1106_cru_base;
+static struct rockchip_clk_provider *grf_ctx;
 
 void rv1106_dump_cru(void)
 {
@@ -965,6 +969,9 @@ static void __init rv1106_clk_init(struct device_node *np)
 	rockchip_clk_register_branches(ctx, rv1106_clk_branches,
 				       ARRAY_SIZE(rv1106_clk_branches));
 
+	rockchip_clk_register_branches(grf_ctx, rv1106_grf_clk_branches,
+				       ARRAY_SIZE(rv1106_grf_clk_branches));
+
 	rockchip_register_softrst(np, 31745, reg_base + RV1106_PMUSOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
@@ -978,6 +985,28 @@ static void __init rv1106_clk_init(struct device_node *np)
 
 CLK_OF_DECLARE(rv1106_cru, "rockchip,rv1106-cru", rv1106_clk_init);
 
+static void __init rv1106_grf_clk_init(struct device_node *np)
+{
+	struct rockchip_clk_provider *ctx;
+	void __iomem *reg_base;
+
+	reg_base = of_iomap(of_get_parent(np), 0);
+	if (!reg_base) {
+		pr_err("%s: could not map cru grf region\n", __func__);
+		return;
+	}
+
+	ctx = rockchip_clk_init(np, reg_base, CLK_NR_GRF_CLKS);
+	if (IS_ERR(ctx)) {
+		pr_err("%s: rockchip grf clk init failed\n", __func__);
+		return;
+	}
+	grf_ctx = ctx;
+
+	rockchip_clk_of_add_provider(np, ctx);
+}
+CLK_OF_DECLARE(rv1106_grf_cru, "rockchip,rv1106-grf-cru", rv1106_grf_clk_init);
+
 struct clk_rv1106_inits {
 	void (*inits)(struct device_node *np);
 };
@@ -986,10 +1015,17 @@ static const struct clk_rv1106_inits clk_rv1106_init = {
 	.inits = rv1106_clk_init,
 };
 
+static const struct clk_rv1106_inits clk_rv1106_grf_init = {
+	.inits = rv1106_grf_clk_init,
+};
+
 static const struct of_device_id clk_rv1106_match_table[] = {
 	{
 		.compatible = "rockchip,rv1106-cru",
 		.data = &clk_rv1106_init,
+	}, {
+		.compatible = "rockchip,rv1106-grf-cru",
+		.data = &clk_rv1106_grf_init,
 	},
 	{ }
 };
