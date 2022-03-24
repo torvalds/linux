@@ -1619,7 +1619,7 @@ static int ssif_check_and_remove(struct i2c_client *client,
 	return 0;
 }
 
-static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ssif_probe(struct i2c_client *client)
 {
 	unsigned char     msg[3];
 	unsigned char     *resp;
@@ -2037,7 +2037,7 @@ static struct i2c_driver ssif_i2c_driver = {
 	.driver		= {
 		.name			= DEVICE_NAME
 	},
-	.probe		= ssif_probe,
+	.probe_new	= ssif_probe,
 	.remove		= ssif_remove,
 	.alert		= ssif_alert,
 	.id_table	= ssif_id,
