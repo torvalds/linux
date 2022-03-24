@@ -69,9 +69,6 @@ enum sparx5_vlan_port_type {
 #define PGID_TABLE_SIZE	       3290
 
 #define PGID_MCAST_START 65
-#define PGID_GLAG_START 833
-#define PGID_GLAG_END 1088
-
 #define IFH_LEN                9 /* 36 bytes */
 #define NULL_VID               0
 #define SPX5_MACT_PULL_DELAY   (2 * HZ)
@@ -374,7 +371,6 @@ enum sparx5_pgid_type {
 	SPX5_PGID_FREE,
 	SPX5_PGID_RESERVED,
 	SPX5_PGID_MULTICAST,
-	SPX5_PGID_GLAG
 };
 
 void sparx5_pgid_init(struct sparx5 *spx5);
