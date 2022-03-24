@@ -169,17 +169,14 @@ static int int3400_thermal_run_osc(acpi_handle handle, char *uuid_str, int *enab
 	acpi_status status;
 	int result = 0;
 	struct acpi_osc_context context = {
-		.uuid_str = NULL,
+		.uuid_str = uuid_str,
 		.rev = 1,
 		.cap.length = 8,
+		.cap.pointer = buf,
 	};
-
-	context.uuid_str = uuid_str;
 
 	buf[OSC_QUERY_DWORD] = 0;
 	buf[OSC_SUPPORT_DWORD] = *enable;
-
-	context.cap.pointer = buf;
 
 	status = acpi_run_osc(handle, &context);
 	if (ACPI_SUCCESS(status)) {
