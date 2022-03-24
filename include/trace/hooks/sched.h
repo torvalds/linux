@@ -251,12 +251,12 @@ DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_after_enqueue_task,
-	TP_PROTO(struct rq *rq, struct task_struct *p),
-	TP_ARGS(rq, p), 1);
+	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
+	TP_ARGS(rq, p, flags), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_after_dequeue_task,
-	TP_PROTO(struct rq *rq, struct task_struct *p),
-	TP_ARGS(rq, p), 1);
+	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
+	TP_ARGS(rq, p, flags), 1);
 
 struct cfs_rq;
 struct sched_entity;
