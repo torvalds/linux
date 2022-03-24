@@ -9818,19 +9818,28 @@ static void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 				       bool writen_to_tbl)
 {
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
+	struct hclge_dev *hdev = vport->back;
 
-	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node)
-		if (vlan->vlan_id == vlan_id)
+	mutex_lock(&hdev->vport_lock);
+
+	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
+		if (vlan->vlan_id == vlan_id) {
+			mutex_unlock(&hdev->vport_lock);
 			return;
+		}
+	}
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
-	if (!vlan)
+	if (!vlan) {
+		mutex_unlock(&hdev->vport_lock);
 		return;
+	}
 
 	vlan->hd_tbl_status = writen_to_tbl;
 	vlan->vlan_id = vlan_id;
 
 	list_add_tail(&vlan->node, &vport->vlan_list);
+	mutex_unlock(&hdev->vport_lock);
 }
 
 static int hclge_add_vport_all_vlan_table(struct hclge_vport *vport)
@@ -9838,6 +9847,8 @@ static int hclge_add_vport_all_vlan_table(struct hclge_vport *vport)
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
 	struct hclge_dev *hdev = vport->back;
 	int ret;
+
+	mutex_lock(&hdev->vport_lock);
 
 	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
 		if (!vlan->hd_tbl_status) {
@@ -9848,11 +9859,15 @@ static int hclge_add_vport_all_vlan_table(struct hclge_vport *vport)
 				dev_err(&hdev->pdev->dev,
 					"restore vport vlan list failed, ret=%d\n",
 					ret);
+
+				mutex_unlock(&hdev->vport_lock);
 				return ret;
 			}
 		}
 		vlan->hd_tbl_status = true;
 	}
+
+	mutex_unlock(&hdev->vport_lock);
 
 	return 0;
 }
@@ -9862,6 +9877,8 @@ static void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 {
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
 	struct hclge_dev *hdev = vport->back;
+
+	mutex_lock(&hdev->vport_lock);
 
 	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
 		if (vlan->vlan_id == vlan_id) {
@@ -9877,12 +9894,16 @@ static void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 			break;
 		}
 	}
+
+	mutex_unlock(&hdev->vport_lock);
 }
 
 void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list)
 {
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
 	struct hclge_dev *hdev = vport->back;
+
+	mutex_lock(&hdev->vport_lock);
 
 	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
 		if (vlan->hd_tbl_status)
@@ -9899,6 +9920,7 @@ void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list)
 		}
 	}
 	clear_bit(vport->vport_id, hdev->vf_vlan_full);
+	mutex_unlock(&hdev->vport_lock);
 }
 
 void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
@@ -9907,6 +9929,8 @@ void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
 	struct hclge_vport *vport;
 	int i;
 
+	mutex_lock(&hdev->vport_lock);
+
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
 		vport = &hdev->vport[i];
 		list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
@@ -9914,6 +9938,8 @@ void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
 			kfree(vlan);
 		}
 	}
+
+	mutex_unlock(&hdev->vport_lock);
 }
 
 void hclge_restore_vport_port_base_vlan_config(struct hclge_dev *hdev)
@@ -9953,6 +9979,8 @@ void hclge_restore_vport_vlan_table(struct hclge_vport *vport)
 	struct hclge_dev *hdev = vport->back;
 	int ret;
 
+	mutex_lock(&hdev->vport_lock);
+
 	if (vport->port_base_vlan_cfg.state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
 			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
@@ -9963,6 +9991,8 @@ void hclge_restore_vport_vlan_table(struct hclge_vport *vport)
 			vlan->hd_tbl_status = true;
 		}
 	}
+
+	mutex_unlock(&hdev->vport_lock);
 }
 
 /* For global reset and imp reset, hardware will clear the mac table,
@@ -11861,8 +11891,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_misc_irq_uninit(hdev);
 	hclge_devlink_uninit(hdev);
 	hclge_pci_uninit(hdev);
-	mutex_destroy(&hdev->vport_lock);
 	hclge_uninit_vport_vlan_table(hdev);
+	mutex_destroy(&hdev->vport_lock);
 	ae_dev->priv = NULL;
 }
 
