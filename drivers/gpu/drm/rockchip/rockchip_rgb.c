@@ -61,8 +61,14 @@ struct rockchip_rgb_funcs {
 	void (*disable)(struct rockchip_rgb *rgb);
 };
 
+struct rockchip_rgb_data {
+	u32 max_dclk_rate;
+	const struct rockchip_rgb_funcs *funcs;
+};
+
 struct rockchip_rgb {
 	u8 id;
+	u32 max_dclk_rate;
 	struct device *dev;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -248,11 +254,29 @@ static void rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 		panel_simple_loader_protect(rgb->panel);
 }
 
+static enum drm_mode_status
+rockchip_rgb_encoder_mode_valid(struct drm_encoder *encoder,
+				 const struct drm_display_mode *mode)
+{
+	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	u32 request_clock = mode->clock;
+	u32 max_clock = rgb->max_dclk_rate;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		request_clock *= 2;
+
+	if (max_clock != 0 && request_clock > max_clock)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static const
 struct drm_encoder_helper_funcs rockchip_rgb_encoder_helper_funcs = {
 	.enable = rockchip_rgb_encoder_enable,
 	.disable = rockchip_rgb_encoder_disable,
 	.atomic_check = rockchip_rgb_encoder_atomic_check,
+	.mode_valid = rockchip_rgb_encoder_mode_valid,
 };
 
 static const struct drm_encoder_funcs rockchip_rgb_encoder_funcs = {
@@ -357,6 +381,7 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_rgb *rgb;
+	const struct rockchip_rgb_data *rgb_data;
 	int ret, id;
 
 	rgb = devm_kzalloc(&pdev->dev, sizeof(*rgb), GFP_KERNEL);
@@ -367,9 +392,11 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	if (id < 0)
 		id = 0;
 
+	rgb_data = of_device_get_match_data(dev);
 	rgb->id = id;
 	rgb->dev = dev;
-	rgb->funcs = of_device_get_match_data(dev);
+	rgb->max_dclk_rate = rgb_data->max_dclk_rate;
+	rgb->funcs = rgb_data->funcs;
 	platform_set_drvdata(pdev, rgb);
 
 	rgb->data_sync_bypass =
@@ -414,6 +441,10 @@ static const struct rockchip_rgb_funcs px30_rgb_funcs = {
 	.enable = px30_rgb_enable,
 };
 
+static const struct rockchip_rgb_data px30_rgb = {
+	.funcs = &px30_rgb_funcs,
+};
+
 static void rk1808_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RK1808_GRF_PD_VO_CON1,
@@ -422,6 +453,10 @@ static void rk1808_rgb_enable(struct rockchip_rgb *rgb)
 
 static const struct rockchip_rgb_funcs rk1808_rgb_funcs = {
 	.enable = rk1808_rgb_enable,
+};
+
+static const struct rockchip_rgb_data rk1808_rgb = {
+	.funcs = &rk1808_rgb_funcs,
 };
 
 static void rk3288_rgb_enable(struct rockchip_rgb *rgb)
@@ -448,6 +483,10 @@ static const struct rockchip_rgb_funcs rk3288_rgb_funcs = {
 	.disable = rk3288_rgb_disable,
 };
 
+static const struct rockchip_rgb_data rk3288_rgb = {
+	.funcs = &rk3288_rgb_funcs,
+};
+
 static void rk3568_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RK3568_GRF_VO_CON1,
@@ -458,6 +497,10 @@ static const struct rockchip_rgb_funcs rk3568_rgb_funcs = {
 	.enable = rk3568_rgb_enable,
 };
 
+static const struct rockchip_rgb_data rk3568_rgb = {
+	.funcs = &rk3568_rgb_funcs,
+};
+
 static void rv1126_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RV1126_GRF_IOFUNC_CON3,
@@ -466,6 +509,10 @@ static void rv1126_rgb_enable(struct rockchip_rgb *rgb)
 
 static const struct rockchip_rgb_funcs rv1126_rgb_funcs = {
 	.enable = rv1126_rgb_enable,
+};
+
+static const struct rockchip_rgb_data rv1126_rgb = {
+	.funcs = &rv1126_rgb_funcs,
 };
 
 static void rv1106_rgb_enable(struct rockchip_rgb *rgb)
@@ -480,19 +527,24 @@ static const struct rockchip_rgb_funcs rv1106_rgb_funcs = {
 	.enable = rv1106_rgb_enable,
 };
 
+static const struct rockchip_rgb_data rv1106_rgb = {
+	.max_dclk_rate = 74250,
+	.funcs = &rv1106_rgb_funcs,
+};
+
 static const struct of_device_id rockchip_rgb_dt_ids[] = {
-	{ .compatible = "rockchip,px30-rgb", .data = &px30_rgb_funcs },
-	{ .compatible = "rockchip,rk1808-rgb", .data = &rk1808_rgb_funcs },
+	{ .compatible = "rockchip,px30-rgb", .data = &px30_rgb },
+	{ .compatible = "rockchip,rk1808-rgb", .data = &rk1808_rgb },
 	{ .compatible = "rockchip,rk3066-rgb", },
 	{ .compatible = "rockchip,rk3128-rgb", },
-	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb_funcs },
+	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb },
 	{ .compatible = "rockchip,rk3308-rgb", },
 	{ .compatible = "rockchip,rk3368-rgb", },
-	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb_funcs },
+	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb },
 	{ .compatible = "rockchip,rk3588-rgb", },
-	{ .compatible = "rockchip,rv1106-rgb", .data = &rv1106_rgb_funcs},
+	{ .compatible = "rockchip,rv1106-rgb", .data = &rv1106_rgb},
 	{ .compatible = "rockchip,rv1108-rgb", },
-	{ .compatible = "rockchip,rv1126-rgb", .data = &rv1126_rgb_funcs},
+	{ .compatible = "rockchip,rv1126-rgb", .data = &rv1126_rgb},
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_rgb_dt_ids);
