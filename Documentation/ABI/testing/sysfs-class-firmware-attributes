@@ -116,7 +116,7 @@ Description:
 					    <value>[ForceIf:<attribute>=<value>]
 					    <value>[ForceIfNot:<attribute>=<value>]
 
-					For example:
+					For example::
 
 					    LegacyOrom/dell_value_modifier has value:
 						    Disabled[ForceIf:SecureBoot=Enabled]
@@ -212,7 +212,7 @@ Description:
 		the next boot.
 
 		Lenovo specific class extensions
-		------------------------------
+		--------------------------------
 
 		On Lenovo systems the following additional settings are available:
 
@@ -349,7 +349,7 @@ Description:
 
 		    # echo "factory" > /sys/class/firmware-attributes/*/device/attributes/reset_bios
 		    # cat /sys/class/firmware-attributes/*/device/attributes/reset_bios
-		    # builtinsafe lastknowngood [factory] custom
+		    builtinsafe lastknowngood [factory] custom
 
 		Note that any changes to this attribute requires a reboot
 		for changes to take effect.
