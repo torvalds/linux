@@ -219,6 +219,11 @@ static int vcn_v3_0_sw_init(void *handle)
 					     cpu_to_le32(AMDGPU_VCN_MULTI_QUEUE_FLAG) |
 					     cpu_to_le32(AMDGPU_VCN_FW_SHARED_FLAG_0_RB);
 		fw_shared->sw_ring.is_enabled = cpu_to_le32(DEC_SW_RING_ENABLED);
+		fw_shared->present_flag_0 |= AMDGPU_VCN_SMU_VERSION_INFO_FLAG;
+		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 2))
+			fw_shared->smu_interface_info.smu_interface_type = 2;
+		else if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 1))
+			fw_shared->smu_interface_info.smu_interface_type = 1;
 
 		if (amdgpu_vcnfw_log)
 			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
