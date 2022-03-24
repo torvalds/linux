@@ -83,8 +83,6 @@ static unsigned int xstate_sizes[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_comp_offsets[XFEATURE_MAX] __ro_after_init =
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
-static unsigned int xstate_supervisor_only_offsets[XFEATURE_MAX] __ro_after_init =
-	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 
 /*
  * Return whether the system supports a given xfeature.
@@ -320,33 +318,6 @@ static void __init setup_xstate_comp_offsets(void)
 			next_offset = ALIGN(next_offset, 64);
 
 		xstate_comp_offsets[i] = next_offset;
-		next_offset += xstate_sizes[i];
-	}
-}
-
-/*
- * Setup offsets of a supervisor-state-only XSAVES buffer:
- *
- * The offsets stored in xstate_comp_offsets[] only work for one specific
- * value of the Requested Feature BitMap (RFBM).  In cases where a different
- * RFBM value is used, a different set of offsets is required.  This set of
- * offsets is for when RFBM=xfeatures_mask_supervisor().
- */
-static void __init setup_supervisor_only_offsets(void)
-{
-	unsigned int next_offset;
-	int i;
-
-	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
-
-	for_each_extended_xfeature(i, fpu_kernel_cfg.max_features) {
-		if (!xfeature_is_supervisor(i))
-			continue;
-
-		if (xfeature_is_aligned(i))
-			next_offset = ALIGN(next_offset, 64);
-
-		xstate_supervisor_only_offsets[i] = next_offset;
 		next_offset += xstate_sizes[i];
 	}
 }
@@ -951,7 +922,6 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 
 	setup_init_fpu_buf();
 	setup_xstate_comp_offsets();
-	setup_supervisor_only_offsets();
 
 	/*
 	 * Paranoia check whether something in the setup modified the
