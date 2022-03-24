@@ -180,7 +180,7 @@ static bool xfeature_enabled(enum xfeature xfeature)
  * Record the offsets and sizes of various xstates contained
  * in the XSAVE state memory layout.
  */
-static void __init setup_xstate_features(void)
+static void __init setup_xstate_cache(void)
 {
 	u32 eax, ebx, ecx, edx, i;
 	/* start at the beginning of the "extended state" */
@@ -390,7 +390,6 @@ static void __init setup_init_fpu_buf(void)
 	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return;
 
-	setup_xstate_features();
 	print_xstate_features();
 
 	xstate_init_xcomp_bv(&init_fpstate.regs.xsave, fpu_kernel_cfg.max_features);
@@ -906,6 +905,10 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
+
+	/* Cache size, offset and flags for initialization */
+	setup_xstate_cache();
+
 	err = init_xstate_size();
 	if (err)
 		goto out_disable;
