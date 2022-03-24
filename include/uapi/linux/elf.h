@@ -40,6 +40,9 @@ typedef __s64	Elf64_Sxword;
 
 #define PT_GNU_STACK	(PT_LOOS + 0x474e551)
 
+/* ARM MTE memory tag segment type */
+#define PT_ARM_MEMTAG_MTE	(PT_LOPROC + 0x1)
+
 /*
  * Extended Numbering
  *

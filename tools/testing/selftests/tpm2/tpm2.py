@@ -56,6 +56,7 @@ TSS2_RESMGR_TPM_RC_LAYER = (11 << TSS2_RC_LAYER_SHIFT)
 
 TPM2_CAP_HANDLES = 0x00000001
 TPM2_CAP_COMMANDS = 0x00000002
+TPM2_CAP_PCRS = 0x00000005
 TPM2_CAP_TPM_PROPERTIES = 0x00000006
 
 TPM2_PT_FIXED = 0x100
@@ -712,3 +713,33 @@ class Client:
             pt += 1
 
         return handles
+
+    def get_cap_pcrs(self):
+        pcr_banks = {}
+
+        fmt = '>HII III'
+
+        cmd = struct.pack(fmt,
+                          TPM2_ST_NO_SESSIONS,
+                          struct.calcsize(fmt),
+                          TPM2_CC_GET_CAPABILITY,
+                          TPM2_CAP_PCRS, 0, 1)
+        rsp = self.send_cmd(cmd)[10:]
+        _, _, cnt = struct.unpack('>BII', rsp[:9])
+        rsp = rsp[9:]
+
+        # items are TPMS_PCR_SELECTION's
+        for i in range(0, cnt):
+              hash, sizeOfSelect = struct.unpack('>HB', rsp[:3])
+              rsp = rsp[3:]
+
+              pcrSelect = 0
+              if sizeOfSelect > 0:
+                  pcrSelect, = struct.unpack('%ds' % sizeOfSelect,
+                                             rsp[:sizeOfSelect])
+                  rsp = rsp[sizeOfSelect:]
+                  pcrSelect = int.from_bytes(pcrSelect, byteorder='big')
+
+              pcr_banks[hash] = pcrSelect
+
+        return pcr_banks

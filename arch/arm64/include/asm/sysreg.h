@@ -774,6 +774,8 @@
 
 /* id_aa64isar2 */
 #define ID_AA64ISAR2_CLEARBHB_SHIFT	28
+#define ID_AA64ISAR2_APA3_SHIFT		12
+#define ID_AA64ISAR2_GPA3_SHIFT		8
 #define ID_AA64ISAR2_RPRES_SHIFT	4
 #define ID_AA64ISAR2_WFXT_SHIFT		0
 
@@ -786,6 +788,16 @@
  */
 #define ID_AA64ISAR2_WFXT_NI		0x0
 #define ID_AA64ISAR2_WFXT_SUPPORTED	0x2
+
+#define ID_AA64ISAR2_APA3_NI			0x0
+#define ID_AA64ISAR2_APA3_ARCHITECTED		0x1
+#define ID_AA64ISAR2_APA3_ARCH_EPAC		0x2
+#define ID_AA64ISAR2_APA3_ARCH_EPAC2		0x3
+#define ID_AA64ISAR2_APA3_ARCH_EPAC2_FPAC	0x4
+#define ID_AA64ISAR2_APA3_ARCH_EPAC2_FPAC_CMB	0x5
+
+#define ID_AA64ISAR2_GPA3_NI			0x0
+#define ID_AA64ISAR2_GPA3_ARCHITECTED		0x1
 
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_CSV3_SHIFT		60
@@ -1099,13 +1111,11 @@
 #define ZCR_ELx_LEN_SIZE	9
 #define ZCR_ELx_LEN_MASK	0x1ff
 
+#define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
+#define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
+
 #define CPACR_EL1_ZEN_EL1EN	(BIT(16)) /* enable EL1 access */
 #define CPACR_EL1_ZEN_EL0EN	(BIT(17)) /* enable EL0 access, if EL1EN set */
-#define CPACR_EL1_ZEN		(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
-
-/* TCR EL1 Bit Definitions */
-#define SYS_TCR_EL1_TCMA1	(BIT(58))
-#define SYS_TCR_EL1_TCMA0	(BIT(57))
 
 /* GCR_EL1 Definitions */
 #define SYS_GCR_EL1_RRND	(BIT(16))
