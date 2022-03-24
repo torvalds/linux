@@ -95,9 +95,9 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpfs_sys_controller *sys_controller;
-	int i;
+	int i, ret;
 
-	sys_controller = devm_kzalloc(dev, sizeof(*sys_controller), GFP_KERNEL);
+	sys_controller = kzalloc(sizeof(*sys_controller), GFP_KERNEL);
 	if (!sys_controller)
 		return -ENOMEM;
 
@@ -106,9 +106,12 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 	sys_controller->client.tx_block = 1U;
 
 	sys_controller->chan = mbox_request_channel(&sys_controller->client, 0);
-	if (IS_ERR(sys_controller->chan))
-		return dev_err_probe(dev, PTR_ERR(sys_controller->chan),
-				     "Failed to get mbox channel\n");
+	if (IS_ERR(sys_controller->chan)) {
+		ret = dev_err_probe(dev, PTR_ERR(sys_controller->chan),
+				    "Failed to get mbox channel\n");
+		kfree(sys_controller);
+		return ret;
+	}
 
 	init_completion(&sys_controller->c);
 	kref_init(&sys_controller->consumers);

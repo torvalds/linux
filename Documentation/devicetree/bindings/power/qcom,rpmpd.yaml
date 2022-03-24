@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - qcom,mdm9607-rpmpd
+      - qcom,msm8226-rpmpd
       - qcom,msm8916-rpmpd
       - qcom,msm8939-rpmpd
       - qcom,msm8953-rpmpd
