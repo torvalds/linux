@@ -1571,6 +1571,9 @@ static int __xstate_request_perm(u64 permitted, u64 requested, bool guest)
 
 	/* Calculate the resulting kernel state size */
 	mask = permitted | requested;
+	/* Take supervisor states into account on the host */
+	if (!guest)
+		mask |= xfeatures_mask_supervisor();
 	ksize = xstate_calculate_size(mask, compacted);
 
 	/* Calculate the resulting user state size */
