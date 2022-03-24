@@ -238,6 +238,14 @@ config UML_NET_DAEMON
 
 	  If unsure, say N.
 
+config UML_NET_DAEMON_DEFAULT_SOCK
+	string "Default socket for daemon transport"
+	default "/tmp/uml.ctl"
+	depends on UML_NET_DAEMON
+	help
+	  This option allows setting the default socket for the daemon
+	  transport, normally it defaults to /tmp/uml.ctl.
+
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	depends on UML_NET
