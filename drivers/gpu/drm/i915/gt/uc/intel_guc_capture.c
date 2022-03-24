@@ -1040,6 +1040,7 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 		if (!new->reginfo[i].regs) {
 			while (i)
 				kfree(new->reginfo[--i].regs);
+			kfree(new);
 			return NULL;
 		}
 	}
