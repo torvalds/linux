@@ -213,7 +213,7 @@ enum {
 /* Default number of milliseconds given for other jobs on the GPU to be
  * soft-stopped when the GPU needs to be reset.
  */
-#define JM_DEFAULT_RESET_TIMEOUT_MS (3000) /* 3s */
+#define JM_DEFAULT_RESET_TIMEOUT_MS (1) /* 1 ms */
 
 #endif /* MALI_USE_CSF */
 
