@@ -941,22 +941,24 @@
 			 <&cru DCLK_VICAP>, <&cru PCLK_VICAP>,
 			 <&cru I0CLK_VICAP>, <&cru I1CLK_VICAP>,
 			 <&cru RX0PCLK_VICAP>, <&cru RX1PCLK_VICAP>,
-			 <&cru ISP0CLK_VICAP>;
+			 <&cru ISP0CLK_VICAP>, <&cru SCLK_VICAP_M0>,
+			 <&cru SCLK_VICAP_M1>, <&cru PCLK_VICAP_VEPU>;
 		clock-names = "aclk_cif","hclk_cif",
 			      "dclk_cif", "pclk_cif",
 			      "i0clk_cif", "i1clk_cif",
 			      "rx0clk_cif", "rx1clk_cif",
-			      "isp0clk_cif";
+			      "isp0clk_cif", "sclk_m0_cif",
+			      "sclk_m1_cif", "pclk_vepu_cif";
 		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>,
 			 <&cru SRST_D_VICAP>, <&cru SRST_P_VICAP>,
 			 <&cru SRST_VICAP_I0>, <&cru SRST_VICAP_I1>,
 			 <&cru SRST_VICAP_RX0>, <&cru SRST_VICAP_RX1>,
-			 <&cru SRST_VICAP_ISP0>;
+			 <&cru SRST_VICAP_ISP0>, <&cru SRST_P_VICAP_VEPU>;
 		reset-names = "rst_cif_a","rst_cif_h",
 			      "rst_cif_d", "rst_cif_p",
 			      "rst_cif_i0", "rst_cif_i1",
 			      "rst_cif_rx0", "rst_cif_rx1",
-			      "rst_cif_isp0";
+			      "rst_cif_isp0", "rst_cif_pclk_vepu";
 		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
