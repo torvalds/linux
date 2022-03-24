@@ -407,8 +407,7 @@ static void staged_cs_put(struct hl_device *hdev, struct hl_cs *cs)
 
 static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 {
-	bool next_entry_found = false;
-	struct hl_cs *next, *first_cs;
+	struct hl_cs *next = NULL, *iter, *first_cs;
 
 	if (!cs_needs_timeout(cs))
 		return;
@@ -443,13 +442,13 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 	spin_lock(&hdev->cs_mirror_lock);
 
 	/* queue TDR for next CS */
-	list_for_each_entry(next, &hdev->cs_mirror_list, mirror_node)
-		if (cs_needs_timeout(next)) {
-			next_entry_found = true;
+	list_for_each_entry(iter, &hdev->cs_mirror_list, mirror_node)
+		if (cs_needs_timeout(iter)) {
+			next = iter;
 			break;
 		}
 
-	if (next_entry_found && !next->tdr_active) {
+	if (next && !next->tdr_active) {
 		next->tdr_active = true;
 		schedule_delayed_work(&next->work_tdr, next->timeout_jiffies);
 	}
