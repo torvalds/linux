@@ -165,8 +165,8 @@
 #define s_RGA2_OSD_CTRL0_SW_OSD_VER_MODE(x)		((x & 0x1) << 2)
 #define s_RGA2_OSD_CTRL0_SW_OSD_WIDTH_MODE(x)		((x & 0x1) << 3)
 #define s_RGA2_OSD_CTRL0_SW_OSD_BLK_NUM(x)		((x & 0x1f) << 4)
-#define s_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX(x)		((x & 0x3f) << 10)
-#define s_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH(x)		((x & 0x3f) << 20)
+#define s_RGA2_OSD_CTRL0_SW_OSD_FLAGS_INDEX(x)		((x & 0x3ff) << 10)
+#define s_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH(x)		((x & 0x3ff) << 20)
 #define s_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE(x)		((x & 0x1) << 30)
 
 /* RGA2_OSD_CTRL1 */

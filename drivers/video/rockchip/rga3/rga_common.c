@@ -338,6 +338,10 @@ const char *rga_get_format_name(uint32_t format)
 		return "ABGR5551";
 	case RGA_FORMAT_ABGR_4444:
 		return "ABGR4444";
+
+	case RGA_FORMAT_RGBA_2BPP:
+		return "RGBA2BPP";
+
 	default:
 		return "UNF";
 	}

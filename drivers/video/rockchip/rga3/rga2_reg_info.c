@@ -1450,6 +1450,9 @@ static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
 	/* The register is '0' as the first. */
 	block_num = msg->osd_info.mode_ctrl.block_num - 1;
 
+	if (msg->src1.format == RGA_FORMAT_RGBA_2BPP)
+		rgba2bpp_en = 1;
+
 	reg = 0;
 	reg = ((reg & (~m_RGA2_OSD_CTRL0_SW_OSD_MODE)) |
 	       (s_RGA2_OSD_CTRL0_SW_OSD_MODE(msg->osd_info.mode_ctrl.mode)));
@@ -1986,6 +1989,13 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 			default:
 				break;
 			}
+
+			if (req->osd_info.enable) {
+				/* set dst(osd_block) real color mode */
+				if (req->alpha_mode_0 & (0x01 << 9))
+					req->alpha_mode_0 |= (1 << 15);
+			}
+
 			/* Real color mode */
 			if ((req_rga->alpha_rop_flag >> 9) & 1) {
 				if (req->alpha_mode_0 & (0x01 << 1))
