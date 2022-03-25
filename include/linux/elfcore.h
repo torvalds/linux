@@ -84,15 +84,6 @@ static inline void elf_core_copy_regs(elf_gregset_t *elfregs, struct pt_regs *re
 #endif
 }
 
-static inline void elf_core_copy_kernel_regs(elf_gregset_t *elfregs, struct pt_regs *regs)
-{
-#ifdef ELF_CORE_COPY_KERNEL_REGS
-	ELF_CORE_COPY_KERNEL_REGS((*elfregs), regs);
-#else
-	elf_core_copy_regs(elfregs, regs);
-#endif
-}
-
 static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* elfregs)
 {
 #if defined (ELF_CORE_COPY_TASK_REGS)
