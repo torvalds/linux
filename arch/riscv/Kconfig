@@ -102,6 +102,7 @@ config RISCV
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_RSEQ
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA if MODULES
@@ -152,7 +153,7 @@ config PAGE_OFFSET
 	hex
 	default 0xC0000000 if 32BIT
 	default 0x80000000 if 64BIT && !MMU
-	default 0xffffaf8000000000 if 64BIT
+	default 0xff60000000000000 if 64BIT
 
 config KASAN_SHADOW_OFFSET
 	hex
@@ -200,7 +201,7 @@ config FIX_EARLYCON_MEM
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
+	default 5 if 64BIT
 	default 2
 
 config LOCKDEP_SUPPORT
@@ -330,19 +331,6 @@ config RISCV_ISA_C
 	   Linux binary.
 
 	   If you don't know what to do here, say Y.
-
-menu "supported PMU type"
-	depends on PERF_EVENTS
-
-config RISCV_BASE_PMU
-	bool "Base Performance Monitoring Unit"
-	def_bool y
-	help
-	  A base PMU that serves as a reference implementation and has limited
-	  feature of perf.  It can run on any RISC-V machines so serves as the
-	  fallback, but this option can also be disable to reduce kernel size.
-
-endmenu
 
 config FPU
 	bool "FPU support"
