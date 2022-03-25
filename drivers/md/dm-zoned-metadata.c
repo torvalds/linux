@@ -1101,8 +1101,8 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
  */
 static int dmz_read_sb(struct dmz_metadata *zmd, struct dmz_sb *sb, int set)
 {
-	dmz_zmd_debug(zmd, "read superblock set %d dev %s block %llu",
-		      set, sb->dev->name, sb->block);
+	dmz_zmd_debug(zmd, "read superblock set %d dev %pg block %llu",
+		      set, sb->dev->bdev, sb->block);
 
 	return dmz_rdwr_block(sb->dev, REQ_OP_READ,
 			      sb->block, sb->mblk->page);
