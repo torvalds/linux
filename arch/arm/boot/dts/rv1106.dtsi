@@ -918,6 +918,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0xff6c0000 0x40000>;
+
+		rkisp_sram: rkisp-sram@0 {
+			reg = <0 0x40000>;
+		};
 	};
 
 	rga2: rga@ff980000 {
@@ -973,6 +977,7 @@
 			 <&cru CLK_CORE_ISP3P2>, <&cru ISP0CLK_VICAP>;
 		clock-names = "aclk_isp", "hclk_isp",
 			      "clk_isp_core", "clk_isp_core_vicap";
+		rockchip,sram = <&rkisp_sram>;
 		status = "disabled";
 	};
 
