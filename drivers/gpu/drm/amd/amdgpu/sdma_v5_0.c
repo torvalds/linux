@@ -1648,7 +1648,7 @@ static int sdma_v5_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void sdma_v5_0_get_clockgating_state(void *handle, u32 *flags)
+static void sdma_v5_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

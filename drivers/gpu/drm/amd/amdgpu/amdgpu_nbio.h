@@ -83,7 +83,7 @@ struct amdgpu_nbio_funcs {
 	void (*update_medium_grain_light_sleep)(struct amdgpu_device *adev,
 						bool enable);
 	void (*get_clockgating_state)(struct amdgpu_device *adev,
-				      u32 *flags);
+				      u64 *flags);
 	void (*ih_control)(struct amdgpu_device *adev);
 	void (*init_registers)(struct amdgpu_device *adev);
 	void (*remap_hdp_registers)(struct amdgpu_device *adev);
