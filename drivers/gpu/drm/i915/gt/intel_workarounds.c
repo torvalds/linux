@@ -2624,6 +2624,11 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 		wa_write_or(wal, GEN12_GAMCNTRL_CTRL, INVALIDATION_BROADCAST_MODE_DIS |
 				GLOBAL_INVALIDATION_MODE);
 	}
+
+	if (IS_DG2(i915)) {
+		/* Wa_22014226127:dg2 */
+		wa_write_or(wal, LSC_CHICKEN_BIT_0, DISABLE_D8_D16_COASLESCE);
+	}
 }
 
 static void
