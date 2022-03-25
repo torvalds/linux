@@ -18,6 +18,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
+#include "util/string2.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -1166,9 +1167,9 @@ int cmd_lock(int argc, const char **argv)
 	if (!argc)
 		usage_with_options(lock_usage, lock_options);
 
-	if (!strncmp(argv[0], "rec", 3)) {
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		return __cmd_record(argc, argv);
-	} else if (!strncmp(argv[0], "report", 6)) {
+	} else if (strlen(argv[0]) > 2 && strstarts("report", argv[0])) {
 		trace_handler = &report_lock_ops;
 		if (argc) {
 			argc = parse_options(argc, argv,
