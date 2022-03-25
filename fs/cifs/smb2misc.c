@@ -203,7 +203,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 	if (smb2_rsp_struct_sizes[command] != pdu->StructureSize2) {
 		if (command != SMB2_OPLOCK_BREAK_HE && (shdr->Status == 0 ||
-		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2)) {
+		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
 			/* error packets have 9 byte structure size */
 			cifs_dbg(VFS, "Invalid response size %u for command %d\n",
 				 le16_to_cpu(pdu->StructureSize2), command);
@@ -303,7 +303,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *shdr)
 	/* error responses do not have data area */
 	if (shdr->Status && shdr->Status != STATUS_MORE_PROCESSING_REQUIRED &&
 	    (((struct smb2_err_rsp *)shdr)->StructureSize) ==
-						SMB2_ERROR_STRUCTURE_SIZE2)
+						SMB2_ERROR_STRUCTURE_SIZE2_LE)
 		return NULL;
 
 	/*
@@ -478,11 +478,11 @@ smb2_get_lease_state(struct cifsInodeInfo *cinode)
 	__le32 lease = 0;
 
 	if (CIFS_CACHE_WRITE(cinode))
-		lease |= SMB2_LEASE_WRITE_CACHING;
+		lease |= SMB2_LEASE_WRITE_CACHING_LE;
 	if (CIFS_CACHE_HANDLE(cinode))
-		lease |= SMB2_LEASE_HANDLE_CACHING;
+		lease |= SMB2_LEASE_HANDLE_CACHING_LE;
 	if (CIFS_CACHE_READ(cinode))
-		lease |= SMB2_LEASE_READ_CACHING;
+		lease |= SMB2_LEASE_READ_CACHING_LE;
 	return lease;
 }
 

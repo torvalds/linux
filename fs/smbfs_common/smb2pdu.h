@@ -115,6 +115,18 @@ struct smb2_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
+#define SMB2_ERROR_STRUCTURE_SIZE2	9
+#define SMB2_ERROR_STRUCTURE_SIZE2_LE	cpu_to_le16(SMB2_ERROR_STRUCTURE_SIZE2)
+
+struct smb2_err_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;
+	__u8   ErrorContextCount;
+	__u8   Reserved;
+	__le32 ByteCount;  /* even if zero, at least one byte follows */
+	__u8   ErrorData[1];  /* variable length */
+} __packed;
+
 #define SMB3_AES_CCM_NONCE 11
 #define SMB3_AES_GCM_NONCE 12
 
@@ -985,5 +997,94 @@ struct smb2_create_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+#define SMB2_LEASE_NONE_LE			cpu_to_le32(0x00)
+#define SMB2_LEASE_READ_CACHING_LE		cpu_to_le32(0x01)
+#define SMB2_LEASE_HANDLE_CACHING_LE		cpu_to_le32(0x02)
+#define SMB2_LEASE_WRITE_CACHING_LE		cpu_to_le32(0x04)
+
+#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS_LE	cpu_to_le32(0x02)
+
+#define SMB2_LEASE_KEY_SIZE			16
+
+struct lease_context {
+	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
+	__le32 LeaseState;
+	__le32 LeaseFlags;
+	__le64 LeaseDuration;
+} __packed;
+
+struct lease_context_v2 {
+	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
+	__le32 LeaseState;
+	__le32 LeaseFlags;
+	__le64 LeaseDuration;
+	__u8 ParentLeaseKey[SMB2_LEASE_KEY_SIZE];
+	__le16 Epoch;
+	__le16 Reserved;
+} __packed;
+
+struct create_lease {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct lease_context lcontext;
+} __packed;
+
+struct create_lease_v2 {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct lease_context_v2 lcontext;
+	__u8   Pad[4];
+} __packed;
+
+/* Possible InfoType values */
+#define SMB2_O_INFO_FILE	0x01
+#define SMB2_O_INFO_FILESYSTEM	0x02
+#define SMB2_O_INFO_SECURITY	0x03
+#define SMB2_O_INFO_QUOTA	0x04
+
+/* SMB2 Query Info see MS-SMB2 (2.2.37) or MS-DTYP */
+
+/* Security info type additionalinfo flags. */
+#define OWNER_SECINFO   0x00000001
+#define GROUP_SECINFO   0x00000002
+#define DACL_SECINFO   0x00000004
+#define SACL_SECINFO   0x00000008
+#define LABEL_SECINFO   0x00000010
+#define ATTRIBUTE_SECINFO   0x00000020
+#define SCOPE_SECINFO   0x00000040
+#define BACKUP_SECINFO   0x00010000
+#define UNPROTECTED_SACL_SECINFO   0x10000000
+#define UNPROTECTED_DACL_SECINFO   0x20000000
+#define PROTECTED_SACL_SECINFO   0x40000000
+#define PROTECTED_DACL_SECINFO   0x80000000
+
+/* Flags used for FileFullEAinfo */
+#define SL_RESTART_SCAN		0x00000001
+#define SL_RETURN_SINGLE_ENTRY	0x00000002
+#define SL_INDEX_SPECIFIED	0x00000004
+
+struct smb2_query_info_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 41 */
+	__u8   InfoType;
+	__u8   FileInfoClass;
+	__le32 OutputBufferLength;
+	__le16 InputBufferOffset;
+	__u16  Reserved;
+	__le32 InputBufferLength;
+	__le32 AdditionalInformation;
+	__le32 Flags;
+	__u64  PersistentFileId;
+	__u64  VolatileFileId;
+	__u8   Buffer[1];
+} __packed;
+
+struct smb2_query_info_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 9 */
+	__le16 OutputBufferOffset;
+	__le32 OutputBufferLength;
+	__u8   Buffer[1];
+} __packed;
 
 #endif				/* _COMMON_SMB2PDU_H */

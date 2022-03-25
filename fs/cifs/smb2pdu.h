@@ -56,16 +56,6 @@ struct smb2_rdma_crypto_transform {
 
 #define COMPOUND_FID 0xFFFFFFFFFFFFFFFFULL
 
-#define SMB2_ERROR_STRUCTURE_SIZE2 cpu_to_le16(9)
-
-struct smb2_err_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;
-	__le16 Reserved; /* MBZ */
-	__le32 ByteCount;  /* even if zero, at least one byte follows */
-	__u8   ErrorData[1];  /* variable length */
-} __packed;
-
 #define SYMLINK_ERROR_TAG 0x4c4d5953
 
 struct smb2_symlink_err_rsp {
@@ -138,47 +128,6 @@ struct share_redirect_error_context_rsp {
 #define SMB2_LEASE_READ_CACHING_HE	0x01
 #define SMB2_LEASE_HANDLE_CACHING_HE	0x02
 #define SMB2_LEASE_WRITE_CACHING_HE	0x04
-
-#define SMB2_LEASE_NONE			cpu_to_le32(0x00)
-#define SMB2_LEASE_READ_CACHING		cpu_to_le32(0x01)
-#define SMB2_LEASE_HANDLE_CACHING	cpu_to_le32(0x02)
-#define SMB2_LEASE_WRITE_CACHING	cpu_to_le32(0x04)
-
-#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x00000002)
-#define SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET cpu_to_le32(0x00000004)
-
-#define SMB2_LEASE_KEY_SIZE 16
-
-struct lease_context {
-	u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
-	__le32 LeaseState;
-	__le32 LeaseFlags;
-	__le64 LeaseDuration;
-} __packed;
-
-struct lease_context_v2 {
-	u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
-	__le32 LeaseState;
-	__le32 LeaseFlags;
-	__le64 LeaseDuration;
-	__le64 ParentLeaseKeyLow;
-	__le64 ParentLeaseKeyHigh;
-	__le16 Epoch;
-	__le16 Reserved;
-} __packed;
-
-struct create_lease {
-	struct create_context ccontext;
-	__u8   Name[8];
-	struct lease_context lcontext;
-} __packed;
-
-struct create_lease_v2 {
-	struct create_context ccontext;
-	__u8   Name[8];
-	struct lease_context_v2 lcontext;
-	__u8   Pad[4];
-} __packed;
 
 struct create_durable {
 	struct create_context ccontext;
@@ -597,55 +546,6 @@ struct smb2_query_directory_req {
 } __packed;
 
 struct smb2_query_directory_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 9 */
-	__le16 OutputBufferOffset;
-	__le32 OutputBufferLength;
-	__u8   Buffer[1];
-} __packed;
-
-/* Possible InfoType values */
-#define SMB2_O_INFO_FILE	0x01
-#define SMB2_O_INFO_FILESYSTEM	0x02
-#define SMB2_O_INFO_SECURITY	0x03
-#define SMB2_O_INFO_QUOTA	0x04
-
-/* Security info type additionalinfo flags. See MS-SMB2 (2.2.37) or MS-DTYP */
-#define OWNER_SECINFO   0x00000001
-#define GROUP_SECINFO   0x00000002
-#define DACL_SECINFO   0x00000004
-#define SACL_SECINFO   0x00000008
-#define LABEL_SECINFO   0x00000010
-#define ATTRIBUTE_SECINFO   0x00000020
-#define SCOPE_SECINFO   0x00000040
-#define BACKUP_SECINFO   0x00010000
-#define UNPROTECTED_SACL_SECINFO   0x10000000
-#define UNPROTECTED_DACL_SECINFO   0x20000000
-#define PROTECTED_SACL_SECINFO   0x40000000
-#define PROTECTED_DACL_SECINFO   0x80000000
-
-/* Flags used for FileFullEAinfo */
-#define SL_RESTART_SCAN		0x00000001
-#define SL_RETURN_SINGLE_ENTRY	0x00000002
-#define SL_INDEX_SPECIFIED	0x00000004
-
-struct smb2_query_info_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 41 */
-	__u8   InfoType;
-	__u8   FileInfoClass;
-	__le32 OutputBufferLength;
-	__le16 InputBufferOffset;
-	__u16  Reserved;
-	__le32 InputBufferLength;
-	__le32 AdditionalInformation;
-	__le32 Flags;
-	__u64  PersistentFileId; /* opaque endianness */
-	__u64  VolatileFileId; /* opaque endianness */
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_query_info_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 9 */
 	__le16 OutputBufferOffset;
