@@ -273,6 +273,12 @@
 				};
 			};
 		};
+
+		rknpor_powergood: rknpor-powergood {
+			compatible = "rockchip,rv1106-npor-powergood";
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
 	};
 
 	rtc: rtc@ff1c0000 {
