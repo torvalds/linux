@@ -9,6 +9,17 @@
 #include "rtw8852a.h"
 
 static const struct rtw89_pci_info rtw8852a_pci_info = {
+	.init_cfg_reg		= R_AX_PCIE_INIT_CFG1,
+	.txhci_en_bit		= B_AX_TXHCI_EN,
+	.rxhci_en_bit		= B_AX_RXHCI_EN,
+	.rxbd_mode_bit		= B_AX_RXBD_MODE,
+	.exp_ctrl_reg		= R_AX_PCIE_EXP_CTRL,
+	.max_tag_num_mask	= B_AX_MAX_TAG_NUM,
+	.rxbd_rwptr_clr_reg	= R_AX_RXBD_RWPTR_CLR,
+	.txbd_rwptr_clr2_reg	= R_AX_TXBD_RWPTR_CLR2,
+	.dma_stop1_reg		= R_AX_PCIE_DMA_STOP1,
+	.dma_stop2_reg		= R_AX_PCIE_DMA_STOP2,
+
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set,
 
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info,
