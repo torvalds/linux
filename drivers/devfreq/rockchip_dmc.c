@@ -1292,6 +1292,71 @@ out:
 	return ret;
 }
 
+static __maybe_unused int
+rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
+{
+	struct device *dev = dmcfreq->dev;
+	struct arm_smccc_res res;
+	struct dev_pm_opp *opp;
+	struct opp_table *opp_table;
+	unsigned long target_rate = 0, last_rate = 0;
+	int i, count = 0;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_GET_FREQ_INFO);
+	if (res.a0) {
+		dev_err(dev, "rockchip_sip_config_dram_get_freq_info error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
+	if (ddr_psci_param->freq_count == 0 || ddr_psci_param->freq_count > 6) {
+		dev_err(dev, "there is no available frequencies!\n");
+		return -EPERM;
+	}
+
+	for (i = 0; i < ddr_psci_param->freq_count; i++)
+		dmcfreq->freq_info_rate[i] = ddr_psci_param->freq_info_mhz[i] * 1000000;
+	dmcfreq->freq_count = ddr_psci_param->freq_count;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return -ENOMEM;
+
+	mutex_lock(&opp_table->lock);
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
+		/* Search for a rounded floor frequency */
+		target_rate = 0;
+		for (i = 0; i < dmcfreq->freq_count; i++) {
+			if (dmcfreq->freq_info_rate[i] <= opp->rate)
+				target_rate = dmcfreq->freq_info_rate[i];
+		}
+		/* If not find, disable the opp */
+		if (!target_rate) {
+			opp->available = false;
+		} else {
+			/* If the opp rate is equal to last opp rate, disable it */
+			if (target_rate == last_rate) {
+				opp->available = false;
+			} else {
+				opp->rate = target_rate;
+				last_rate = opp->rate;
+				count++;
+			}
+		}
+	}
+	mutex_unlock(&opp_table->lock);
+	dev_pm_opp_put_opp_table(opp_table);
+	if (!count) {
+		dev_err(dev, "there is no available opp\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
 					struct rockchip_dmcfreq *dmcfreq)
 {
@@ -1927,7 +1992,7 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	ret = rockchip_get_freq_info(dmcfreq);
+	ret = rockchip_dmcfreq_adjust_opp_table(dmcfreq);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot get frequency info\n");
 		return ret;
