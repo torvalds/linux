@@ -35,6 +35,11 @@ struct rkisp_monitor {
 	bool is_en;
 };
 
+struct rkisp_sram {
+	dma_addr_t dma_addr;
+	u32 size;
+};
+
 struct rkisp_hw_dev {
 	const struct isp_match_data *match_data;
 	struct platform_device *pdev;
@@ -59,6 +64,8 @@ struct rkisp_hw_dev {
 	struct mutex dev_lock;
 	spinlock_t rdbk_lock;
 	atomic_t refcnt;
+
+	struct rkisp_sram sram;
 
 	/* share buf for multi dev */
 	spinlock_t buf_lock;

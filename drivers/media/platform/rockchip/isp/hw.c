@@ -9,6 +9,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
@@ -868,6 +869,44 @@ err:
 	return ret;
 }
 
+static int rkisp_get_sram(struct rkisp_hw_dev *hw_dev)
+{
+	struct device *dev = hw_dev->dev;
+	struct rkisp_sram *sram = &hw_dev->sram;
+	struct device_node *np;
+	struct resource res;
+	int ret, size;
+
+	sram->size = 0;
+	np = of_parse_phandle(dev->of_node, "rockchip,sram", 0);
+	if (!np) {
+		dev_warn(dev, "no find phandle sram\n");
+		return -ENODEV;
+	}
+
+	ret = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
+	if (ret) {
+		dev_err(dev, "get sram res error\n");
+		return ret;
+	}
+	size = resource_size(&res);
+	sram->dma_addr = dma_map_resource(dev, res.start, size, DMA_BIDIRECTIONAL, 0);
+	if (dma_mapping_error(dev, sram->dma_addr))
+		return -ENOMEM;
+	sram->size = size;
+	dev_info(dev, "get sram size:%d\n", size);
+	return 0;
+}
+
+static void rkisp_put_sram(struct rkisp_hw_dev *hw_dev)
+{
+	if (hw_dev->sram.size)
+		dma_unmap_resource(hw_dev->dev, hw_dev->sram.dma_addr,
+				   hw_dev->sram.size, DMA_BIDIRECTIONAL, 0);
+	hw_dev->sram.size = 0;
+}
+
 static int rkisp_hw_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -978,6 +1017,8 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	else
 		hw_dev->is_feature_on = false;
 
+	rkisp_get_sram(hw_dev);
+
 	hw_dev->dev_num = 0;
 	hw_dev->dev_link_num = 0;
 	hw_dev->cur_dev_id = 0;
@@ -1020,6 +1061,7 @@ static int rkisp_hw_remove(struct platform_device *pdev)
 {
 	struct rkisp_hw_dev *hw_dev = platform_get_drvdata(pdev);
 
+	rkisp_put_sram(hw_dev);
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&hw_dev->dev_lock);
 	return 0;

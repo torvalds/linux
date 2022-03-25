@@ -4039,6 +4039,7 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		u32 w = ALIGN(isp_sdev->in_crop.width, 16);
 		u32 h = ALIGN(isp_sdev->in_crop.height, 16);
 		u32 val, wrap_line, wsize = w * 2;
+		dma_addr_t dma_addr;
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
 				      !new_params->others.bay3d_cfg.lo4x4_en);
@@ -4059,6 +4060,19 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_BASE);
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_RD_BASE);
 
+		val = ALIGN(w * h / 8, 16);
+		priv_val->buf_3dnr_ds.size = val;
+		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
+		if (ret) {
+			rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
+			dev_err(dev->dev, "alloc bay3d ds buf fail:%d\n", ret);
+			goto err_3dnr;
+		}
+		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_SIZE);
+		val = priv_val->buf_3dnr_ds.dma_addr;
+		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_BASE);
+		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_RD_BASE);
+
 		wrap_line = priv_val->is_lo8x8 ? 76 : 36;
 		wsize = w * 2;
 		if (is_bwsaving)
@@ -4068,36 +4082,27 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		wsize = ALIGN(wsize * 2, 16);
 		val = ALIGN(wsize * wrap_line / 2, 16);
 		priv_val->buf_3dnr_cur.size = val;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_cur);
-		if (ret) {
-			rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
-			dev_err(dev->dev, "alloc bay3d cur buf fail:%d\n", ret);
-			goto err_3dnr;
+		if (val > dev->hw_dev->sram.size) {
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_cur);
+			if (ret) {
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_ds);
+				dev_err(dev->dev, "alloc bay3d cur buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
+			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
+		} else {
+			dma_addr = dev->hw_dev->sram.dma_addr;
+			dev_info(dev->dev, "bay3d cur write to sram\n");
 		}
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_SIZE);
 		isp3_param_write(params_vdev, val, ISP32_MI_BAY3D_CUR_RD_SIZE);
 		isp3_param_write(params_vdev, wsize, ISP3X_MI_BAY3D_CUR_WR_LENGTH);
 		isp3_param_write(params_vdev, wsize, ISP3X_MI_BAY3D_CUR_RD_LENGTH);
-		val = priv_val->buf_3dnr_cur.dma_addr;
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_BASE);
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_RD_BASE);
+		isp3_param_write(params_vdev, dma_addr, ISP3X_MI_BAY3D_CUR_WR_BASE);
+		isp3_param_write(params_vdev, dma_addr, ISP3X_MI_BAY3D_CUR_RD_BASE);
 		val = wrap_line << 16 | 28;
 		isp3_param_write(params_vdev, val, ISP3X_BAY3D_MI_ST);
-
-		val = ALIGN(w * h / 8, 16);
-		priv_val->buf_3dnr_ds.size = val;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
-		if (ret) {
-			rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
-			rkisp_free_buffer(dev, &priv_val->buf_3dnr_cur);
-			dev_err(dev->dev, "alloc bay3d ds buf fail:%d\n", ret);
-			goto err_3dnr;
-		}
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_SIZE);
-		val = priv_val->buf_3dnr_ds.dma_addr;
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_BASE);
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_RD_BASE);
-
 	}
 	return 0;
 err_3dnr:
