@@ -41,6 +41,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_v1,
 
+	.ltr_set		= rtw89_pci_ltr_set_v1,
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info_v1,
 };
 

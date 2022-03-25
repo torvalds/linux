@@ -647,6 +647,7 @@ struct rtw89_pci_info {
 
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
 
+	int (*ltr_set)(struct rtw89_dev *rtwdev, bool en);
 	u32 (*fill_txaddr_info)(struct rtw89_dev *rtwdev,
 				void *txaddr_info_addr, u32 total_len,
 				dma_addr_t dma, u8 *add_info_nr);
@@ -912,6 +913,8 @@ struct pci_device_id;
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw89_pci_remove(struct pci_dev *pdev);
+int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en);
+int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en);
 u32 rtw89_pci_fill_txaddr_info(struct rtw89_dev *rtwdev,
 			       void *txaddr_info_addr, u32 total_len,
 			       dma_addr_t dma, u8 *add_info_nr);

@@ -2182,10 +2182,13 @@ static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
 
 static int rtw89_pci_ops_deinit(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+
 	if (rtwdev->chip->chip_id == RTL8852A) {
 		/* ltr sw trigger */
 		rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0, B_AX_APP_LTR_IDLE);
 	}
+	info->ltr_set(rtwdev, false);
 	rtw89_pci_ctrl_dma_all(rtwdev, false);
 	rtw89_pci_clr_idx_all(rtwdev);
 
@@ -2260,9 +2263,12 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev)
+int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en)
 {
 	u32 val;
+
+	if (!en)
+		return 0;
 
 	val = rtw89_read32(rtwdev, R_AX_LTR_CTRL_0);
 	if (rtw89_pci_ltr_is_err_reg_val(val))
@@ -2290,13 +2296,61 @@ static int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw89_pci_ltr_set);
+
+int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en)
+{
+	u32 dec_ctrl;
+	u32 val32;
+
+	val32 = rtw89_read32(rtwdev, R_AX_LTR_CTRL_0);
+	if (rtw89_pci_ltr_is_err_reg_val(val32))
+		return -EINVAL;
+	val32 = rtw89_read32(rtwdev, R_AX_LTR_CTRL_1);
+	if (rtw89_pci_ltr_is_err_reg_val(val32))
+		return -EINVAL;
+	dec_ctrl = rtw89_read32(rtwdev, R_AX_LTR_DEC_CTRL);
+	if (rtw89_pci_ltr_is_err_reg_val(dec_ctrl))
+		return -EINVAL;
+	val32 = rtw89_read32(rtwdev, R_AX_LTR_LATENCY_IDX3);
+	if (rtw89_pci_ltr_is_err_reg_val(val32))
+		return -EINVAL;
+	val32 = rtw89_read32(rtwdev, R_AX_LTR_LATENCY_IDX0);
+	if (rtw89_pci_ltr_is_err_reg_val(val32))
+		return -EINVAL;
+
+	if (!en) {
+		dec_ctrl &= ~(LTR_EN_BITS | B_AX_LTR_IDX_DRV_MASK | B_AX_LTR_HW_DEC_EN);
+		dec_ctrl |= FIELD_PREP(B_AX_LTR_IDX_DRV_MASK, PCIE_LTR_IDX_IDLE) |
+			    B_AX_LTR_REQ_DRV;
+	} else {
+		dec_ctrl |= B_AX_LTR_HW_DEC_EN;
+	}
+
+	dec_ctrl &= ~B_AX_LTR_SPACE_IDX_V1_MASK;
+	dec_ctrl |= FIELD_PREP(B_AX_LTR_SPACE_IDX_V1_MASK, PCI_LTR_SPC_500US);
+
+	if (en)
+		rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0,
+				  B_AX_LTR_WD_NOEMP_CHK_V1 | B_AX_LTR_HW_EN);
+	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_IDLE_TIMER_IDX_MASK,
+			   PCI_LTR_IDLE_TIMER_3_2MS);
+	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_1, B_AX_LTR_RX0_TH_MASK, 0x28);
+	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_1, B_AX_LTR_RX1_TH_MASK, 0x28);
+	rtw89_write32(rtwdev, R_AX_LTR_DEC_CTRL, dec_ctrl);
+	rtw89_write32(rtwdev, R_AX_LTR_LATENCY_IDX3, 0x90039003);
+	rtw89_write32(rtwdev, R_AX_LTR_LATENCY_IDX0, 0x880b880b);
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_pci_ltr_set_v1);
 
 static int rtw89_pci_ops_mac_post_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	int ret;
 
-	ret = rtw89_pci_ltr_set(rtwdev);
+	ret = info->ltr_set(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "pci ltr set fail\n");
 		return ret;
