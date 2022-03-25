@@ -2348,6 +2348,7 @@ EXPORT_SYMBOL(rtw89_pci_ltr_set_v1);
 static int rtw89_pci_ops_mac_post_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
 
 	ret = info->ltr_set(rtwdev, true);
@@ -2355,14 +2356,16 @@ static int rtw89_pci_ops_mac_post_init(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "pci ltr set fail\n");
 		return ret;
 	}
-	if (rtwdev->chip->chip_id == RTL8852A) {
+	if (chip_id == RTL8852A) {
 		/* ltr sw trigger */
 		rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0, B_AX_APP_LTR_ACT);
 	}
-	/* ADDR info 8-byte mode */
-	rtw89_write32_set(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
-			  B_AX_HOST_ADDR_INFO_8B_SEL);
-	rtw89_write32_clr(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		/* ADDR info 8-byte mode */
+		rtw89_write32_set(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
+				  B_AX_HOST_ADDR_INFO_8B_SEL);
+		rtw89_write32_clr(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
+	}
 
 	/* enable DMA for all queues */
 	rtw89_write32_clr(rtwdev, info->dma_stop1_reg, B_AX_TX_STOP1_ALL);
