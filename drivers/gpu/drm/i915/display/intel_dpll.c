@@ -935,6 +935,7 @@ static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 		to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_encoder *encoder =
 		intel_get_crtc_new_encoder(state, crtc_state);
+	int ret;
 
 	if (IS_DG2(dev_priv))
 		return intel_mpllb_calc_state(crtc_state, encoder);
@@ -943,11 +944,12 @@ static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		return 0;
 
-	if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
+	ret = intel_reserve_shared_dplls(state, crtc, encoder);
+	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "failed to find PLL for pipe %c\n",
 			    pipe_name(crtc->pipe));
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
@@ -1076,6 +1078,7 @@ static int ilk_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 		to_intel_atomic_state(crtc_state->uapi.state);
 	const struct intel_limit *limit;
 	int refclk = 120000;
+	int ret;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -1118,11 +1121,12 @@ static int ilk_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	ilk_compute_dpll(crtc_state, &crtc_state->dpll,
 			 &crtc_state->dpll);
 
-	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
+	ret = intel_reserve_shared_dplls(state, crtc, NULL);
+	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "failed to find PLL for pipe %c\n",
 			    pipe_name(crtc->pipe));
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
