@@ -406,11 +406,11 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 
 	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
 
-	if (res) {
+	if (res == 0) {
 		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
 
-		/* MC_IDX has an offset of 65 in the PGID table. */
-		pgid_idx += PGID_MCAST_START;
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
 		sparx5_pgid_update_mask(port, pgid_idx, true);
 	} else {
 		err = sparx5_pgid_alloc_mcast(spx5, &pgid_idx);
@@ -468,17 +468,15 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 
 	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
 
-	if (res) {
+	if (res == 0) {
 		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
 
-		/* MC_IDX has an offset of 65 in the PGID table. */
-		pgid_idx += PGID_MCAST_START;
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
 		sparx5_pgid_update_mask(port, pgid_idx, false);
 
-		pgid_entry[0] = spx5_rd(spx5, ANA_AC_PGID_CFG(pgid_idx));
-		pgid_entry[1] = spx5_rd(spx5, ANA_AC_PGID_CFG1(pgid_idx));
-		pgid_entry[2] = spx5_rd(spx5, ANA_AC_PGID_CFG2(pgid_idx));
-		if (pgid_entry[0] == 0 && pgid_entry[1] == 0 && pgid_entry[2] == 0) {
+		sparx5_pgid_read_mask(spx5, pgid_idx, pgid_entry);
+		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS)) {
 			/* No ports are in MC group. Remove entry */
 			err = sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
 			if (err)

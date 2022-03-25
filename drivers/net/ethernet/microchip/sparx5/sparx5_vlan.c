@@ -138,6 +138,13 @@ void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable)
 	}
 }
 
+void sparx5_pgid_read_mask(struct sparx5 *spx5, int pgid, u32 portmask[3])
+{
+	portmask[0] = spx5_rd(spx5, ANA_AC_PGID_CFG(pgid));
+	portmask[1] = spx5_rd(spx5, ANA_AC_PGID_CFG1(pgid));
+	portmask[2] = spx5_rd(spx5, ANA_AC_PGID_CFG2(pgid));
+}
+
 void sparx5_update_fwd(struct sparx5 *sparx5)
 {
 	DECLARE_BITMAP(workmask, SPX5_PORTS);
