@@ -133,28 +133,29 @@
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>; /* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
+		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch16";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
 		gpmc,device-width = <1>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <44>;
-		gpmc,cs-wr-off-ns = <44>;
-		gpmc,adv-on-ns = <6>;
-		gpmc,adv-rd-off-ns = <34>;
-		gpmc,adv-wr-off-ns = <44>;
+		gpmc,cs-rd-off-ns = <30>;
+		gpmc,cs-wr-off-ns = <30>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <30>;
+		gpmc,adv-wr-off-ns = <30>;
 		gpmc,we-on-ns = <0>;
-		gpmc,we-off-ns = <40>;
-		gpmc,oe-on-ns = <0>;
-		gpmc,oe-off-ns = <54>;
-		gpmc,access-ns = <64>;
-		gpmc,rd-cycle-ns = <82>;
-		gpmc,wr-cycle-ns = <82>;
+		gpmc,we-off-ns = <15>;
+		gpmc,oe-on-ns = <1>;
+		gpmc,oe-off-ns = <15>;
+		gpmc,access-ns = <30>;
+		gpmc,rd-cycle-ns = <30>;
+		gpmc,wr-cycle-ns = <30>;
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,clk-activation-ns = <0>;
-		gpmc,wr-access-ns = <40>;
+		gpmc,wr-access-ns = <0>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 
 		/*
@@ -198,18 +199,33 @@
 		};
 
 		partition@6 {
-			label = "u-boot-env";
-			reg = <0x300000 0x40000>;
+			label = "u-boot-2";
+			reg = <0x300000 0x100000>;
 		};
 
 		partition@7 {
-			label = "u-boot-env.backup1";
-			reg = <0x340000 0x40000>;
+			label = "u-boot-2.backup1";
+			reg = <0x400000 0x100000>;
 		};
 
 		partition@8 {
+			label = "u-boot-env";
+			reg = <0x500000 0x40000>;
+		};
+
+		partition@9 {
+			label = "u-boot-env.backup1";
+			reg = <0x540000 0x40000>;
+		};
+
+		partition@10 {
+			label = "splash-screen";
+			reg = <0x580000 0x40000>;
+		};
+
+		partition@11 {
 			label = "UBI";
-			reg = <0x380000 0x1fc80000>;
+			reg = <0x5c0000 0x1fa40000>;
 		};
 	};
 };
@@ -470,20 +486,35 @@
 
 	nandflash_pins: pinmux_nandflash_pins {
 		pinctrl-single,pins = <
+			/* (U7) gpmc_ad0.gpmc_ad0 */
 			AM33XX_IOPAD(0x800, PIN_INPUT | MUX_MODE0)
+			/* (V7) gpmc_ad1.gpmc_ad1 */
 			AM33XX_IOPAD(0x804, PIN_INPUT | MUX_MODE0)
+			/* (R8) gpmc_ad2.gpmc_ad2 */
 			AM33XX_IOPAD(0x808, PIN_INPUT | MUX_MODE0)
+			/* (T8) gpmc_ad3.gpmc_ad3 */
 			AM33XX_IOPAD(0x80c, PIN_INPUT | MUX_MODE0)
+			/* (U8) gpmc_ad4.gpmc_ad4 */
 			AM33XX_IOPAD(0x810, PIN_INPUT | MUX_MODE0)
+			/* (V8) gpmc_ad5.gpmc_ad5 */
 			AM33XX_IOPAD(0x814, PIN_INPUT | MUX_MODE0)
+			/* (R9) gpmc_ad6.gpmc_ad6 */
 			AM33XX_IOPAD(0x818, PIN_INPUT | MUX_MODE0)
+			/* (T9) gpmc_ad7.gpmc_ad7 */
 			AM33XX_IOPAD(0x81c, PIN_INPUT | MUX_MODE0)
+			/* (T17) gpmc_wait0.gpmc_wait0 */
 			AM33XX_IOPAD(0x870, PIN_INPUT | MUX_MODE0)
+			/* (U17) gpmc_wpn.gpmc_wpn */
 			AM33XX_IOPAD(0x874, PIN_OUTPUT | MUX_MODE0)
+			/* (V6) gpmc_csn0.gpmc_csn0 */
 			AM33XX_IOPAD(0x87c, PIN_OUTPUT | MUX_MODE0)
+			/* (R7) gpmc_advn_ale.gpmc_advn_ale */
 			AM33XX_IOPAD(0x890, PIN_OUTPUT | MUX_MODE0)
+			/* (T7) gpmc_oen_ren.gpmc_oen_ren */
 			AM33XX_IOPAD(0x894, PIN_OUTPUT | MUX_MODE0)
+			/* (U6) gpmc_wen.gpmc_wen */
 			AM33XX_IOPAD(0x898, PIN_OUTPUT | MUX_MODE0)
+			/* (T6) gpmc_be0n_cle.gpmc_be0n_cle */
 			AM33XX_IOPAD(0x89c, PIN_OUTPUT | MUX_MODE0)
 		>;
 	};
