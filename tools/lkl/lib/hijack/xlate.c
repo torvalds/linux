@@ -542,6 +542,14 @@ int lkl_solevel_xlate(int solevel)
 	return solevel;
 }
 
+#ifndef SIOCGSTAMP
+#define SIOCGSTAMP SIOCGSTAMP_OLD
+#endif
+
+#ifndef SIOCGSTAMPNS
+#define SIOCGSTAMPNS  SIOCGSTAMPNS_OLD
+#endif
+
 unsigned long lkl_ioctl_req_xlate(unsigned long req)
 {
 	switch (req) {
