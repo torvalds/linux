@@ -36,6 +36,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		select-button {
+			label = "guardian-select-button";
+			linux,code = <KEY_5>;
+			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
 		power-button {
 			label = "guardian-power-button";
 			linux,code = <KEY_POWER>;
@@ -114,6 +121,22 @@
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	mt_keypad: mt_keypad@0 {
+		compatible = "gpio-mt-keypad";
+		debounce-delay-ms = <10>;
+		col-scan-delay-us = <2>;
+		keypad,num-lines = <5>;
+		linux,no-autorepeat;
+		gpio-activelow;
+		line-gpios = <
+			&gpio1 24 GPIO_ACTIVE_LOW    /*gpio_56*/
+			&gpio1 23 GPIO_ACTIVE_LOW    /*gpio_55*/
+			&gpio1 22 GPIO_ACTIVE_LOW    /*gpio_54*/
+			&gpio1 20 GPIO_ACTIVE_LOW    /*gpio_52*/
+			&gpio1 16 GPIO_ACTIVE_LOW    /*gpio_48*/
+		>;
 	};
 };
 
@@ -369,6 +392,7 @@
 	guardian_button_pins: pinmux_guardian_button_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x940, PIN_INPUT | MUX_MODE7) /* (M16) gmii1_rxd0.gpio2[21] */
+			AM33XX_IOPAD(0x884, PIN_INPUT | MUX_MODE7) /* (V9)  gpmc_csn2.gpio1[31] */
 		>;
 	};
 
