@@ -108,7 +108,7 @@
 		ti,clock-source = <0x01>;
 	};
 
-	vmmcsd_fixed: regulator-3v3 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
@@ -303,6 +303,7 @@
 		};
 
 		dcdc2_reg: regulator@1 {
+			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <925000>;
 			regulator-max-microvolt = <1351500>;
@@ -311,6 +312,7 @@
 		};
 
 		dcdc3_reg: regulator@2 {
+			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <925000>;
 			regulator-max-microvolt = <1150000>;
