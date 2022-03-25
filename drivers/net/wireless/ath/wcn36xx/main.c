@@ -1400,6 +1400,21 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
+static void wcn36xx_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta, struct station_info *sinfo)
+{
+	struct wcn36xx *wcn;
+	u8 sta_index;
+	int status;
+
+	wcn = hw->priv;
+	sta_index = get_sta_index(vif, wcn36xx_sta_to_priv(sta));
+	status = wcn36xx_smd_get_stats(wcn, sta_index, HAL_GLOBAL_CLASS_A_STATS_INFO, sinfo);
+
+	if (status)
+		wcn36xx_err("wcn36xx_smd_get_stats failed\n");
+}
+
 static const struct ieee80211_ops wcn36xx_ops = {
 	.start			= wcn36xx_start,
 	.stop			= wcn36xx_stop,
@@ -1423,6 +1438,7 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.set_rts_threshold	= wcn36xx_set_rts_threshold,
 	.sta_add		= wcn36xx_sta_add,
 	.sta_remove		= wcn36xx_sta_remove,
+	.sta_statistics		= wcn36xx_sta_statistics,
 	.ampdu_action		= wcn36xx_ampdu_action,
 #if IS_ENABLED(CONFIG_IPV6)
 	.ipv6_addr_change	= wcn36xx_ipv6_addr_change,
