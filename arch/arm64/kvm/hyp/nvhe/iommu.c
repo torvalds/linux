@@ -31,6 +31,9 @@ static struct pkvm_iommu_driver iommu_drivers[PKVM_IOMMU_NR_DRIVERS];
 /* IOMMU device list. Must only be accessed with host_mmu.lock held. */
 static LIST_HEAD(iommu_list);
 
+static void *iommu_mem_pool;
+static size_t iommu_mem_remaining;
+
 static void assert_host_component_locked(void)
 {
 	hyp_assert_lock_held(&host_mmu.lock);
@@ -89,39 +92,54 @@ static inline bool is_driver_ready(struct pkvm_iommu_driver *drv)
 	return atomic_read(&drv->state) == IOMMU_DRIVER_READY;
 }
 
-/* Global memory pool for allocating IOMMU list entry structs. */
-static inline struct pkvm_iommu *
-alloc_iommu_list_entry(struct pkvm_iommu_driver *drv, void *mem, size_t mem_size)
+static size_t __iommu_alloc_size(struct pkvm_iommu_driver *drv)
 {
-	static void *pool;
-	static size_t remaining;
-	static DEFINE_HYP_SPINLOCK(lock);
-	size_t size = sizeof(struct pkvm_iommu) + drv->ops->data_size;
+	return ALIGN(sizeof(struct pkvm_iommu) + drv->ops->data_size,
+		     sizeof(unsigned long));
+}
+
+/* Global memory pool for allocating IOMMU list entry structs. */
+static inline struct pkvm_iommu *alloc_iommu(struct pkvm_iommu_driver *drv,
+					     void *mem, size_t mem_size)
+{
+	size_t size = __iommu_alloc_size(drv);
 	void *ptr;
 
-	size = ALIGN(size, sizeof(unsigned long));
-
-	hyp_spin_lock(&lock);
+	assert_host_component_locked();
 
 	/*
 	 * If new memory is being provided, replace the existing pool with it.
 	 * Any remaining memory in the pool is discarded.
 	 */
 	if (mem && mem_size) {
-		pool = mem;
-		remaining = mem_size;
+		iommu_mem_pool = mem;
+		iommu_mem_remaining = mem_size;
 	}
 
-	if (size <= remaining) {
-		ptr = pool;
-		pool += size;
-		remaining -= size;
-	} else {
-		ptr = NULL;
-	}
+	if (size > iommu_mem_remaining)
+		return NULL;
 
-	hyp_spin_unlock(&lock);
+	ptr = iommu_mem_pool;
+	iommu_mem_pool += size;
+	iommu_mem_remaining -= size;
 	return ptr;
+}
+
+static inline void free_iommu(struct pkvm_iommu_driver *drv, struct pkvm_iommu *ptr)
+{
+	size_t size = __iommu_alloc_size(drv);
+
+	assert_host_component_locked();
+
+	if (!ptr)
+		return;
+
+	/* Only allow freeing the last allocated buffer. */
+	if ((void *)ptr + size != iommu_mem_pool)
+		return;
+
+	iommu_mem_pool -= size;
+	iommu_mem_remaining += size;
 }
 
 static bool is_overlap(phys_addr_t r1_start, size_t r1_size,
@@ -310,16 +328,20 @@ int __pkvm_iommu_register(unsigned long dev_id,
 			return ret;
 	}
 
+	host_lock_component();
+
 	/* Allocate memory for the new device entry. */
-	dev = alloc_iommu_list_entry(drv, mem_va, mem_size);
-	if (!dev)
-		return -ENOMEM;
+	dev = alloc_iommu(drv, mem_va, mem_size);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* Create EL2 mapping for the device. */
 	ret = __pkvm_create_private_mapping(dev_pa, dev_size,
 				 PAGE_HYP_DEVICE,(unsigned long *)&dev_va);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Populate the new device entry. */
 	*dev = (struct pkvm_iommu){
@@ -330,14 +352,15 @@ int __pkvm_iommu_register(unsigned long dev_id,
 		.size = dev_size,
 	};
 
-	/* Take the host_mmu lock to block host stage-2 changes. */
-	host_lock_component();
 	if (!validate_against_existing_iommus(dev)) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	/* Unmap the device's MMIO range from host stage-2. */
+	/*
+	 * Unmap the device's MMIO range from host stage-2. Future attempts to
+	 * map will be blocked by pkvm_iommu_host_stage2_adjust_range.
+	 */
 	ret = host_stage2_unmap_dev_locked(dev_pa, dev_size);
 	if (ret)
 		goto out;
@@ -346,6 +369,8 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	list_add_tail(&dev->list, &iommu_list);
 
 out:
+	if (ret)
+		free_iommu(drv, dev);
 	host_unlock_component();
 	return ret;
 }
