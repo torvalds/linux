@@ -2382,15 +2382,20 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 		/* Note that memory is already initialized by the loop above. */
 		init = false;
 	}
-	if (kasan_has_integrated_init()) {
-		if (!init_tags) {
-			kasan_unpoison_pages(page, order, init);
-
-			/* Note that memory is already initialized by KASAN. */
-			init = false;
-		}
-	} else {
+	/*
+	 * If either a software KASAN mode is enabled, or,
+	 * in the case of hardware tag-based KASAN,
+	 * if memory tags have not been cleared via tag_clear_highpage().
+	 */
+	if (IS_ENABLED(CONFIG_KASAN_GENERIC) ||
+	    IS_ENABLED(CONFIG_KASAN_SW_TAGS) ||
+	    kasan_hw_tags_enabled() && !init_tags) {
+		/* Mark shadow memory or set memory tags. */
 		kasan_unpoison_pages(page, order, init);
+
+		/* Note that memory is already initialized by KASAN. */
+		if (kasan_has_integrated_init())
+			init = false;
 	}
 	/* If memory is still not initialized, do it now. */
 	if (init)
