@@ -293,7 +293,7 @@ int __pkvm_iommu_register(unsigned long dev_id,
 {
 	struct pkvm_iommu *dev = NULL;
 	struct pkvm_iommu_driver *drv;
-	void *dev_va, *mem_va = NULL;
+	void *mem_va = NULL;
 	int ret = 0;
 
 	drv = get_driver(drv_id);
@@ -337,18 +337,11 @@ int __pkvm_iommu_register(unsigned long dev_id,
 		goto out;
 	}
 
-	/* Create EL2 mapping for the device. */
-	ret = __pkvm_create_private_mapping(dev_pa, dev_size,
-				 PAGE_HYP_DEVICE,(unsigned long *)&dev_va);
-	if (ret)
-		goto out;
-
 	/* Populate the new device entry. */
 	*dev = (struct pkvm_iommu){
 		.id = dev_id,
 		.ops = drv->ops,
 		.pa = dev_pa,
-		.va = dev_va,
 		.size = dev_size,
 	};
 
@@ -358,12 +351,20 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	}
 
 	/*
-	 * Unmap the device's MMIO range from host stage-2. Future attempts to
-	 * map will be blocked by pkvm_iommu_host_stage2_adjust_range.
+	 * Unmap the device's MMIO range from host stage-2. If registration
+	 * is successful, future attempts to re-map will be blocked by
+	 * pkvm_iommu_host_stage2_adjust_range.
 	 */
 	ret = host_stage2_unmap_dev_locked(dev_pa, dev_size);
 	if (ret)
 		goto out;
+
+	/* Create EL2 mapping for the device. */
+	ret = __pkvm_create_private_mapping(dev_pa, dev_size,
+					    PAGE_HYP_DEVICE, (unsigned long *)(&dev->va));
+	if (ret){
+		goto out;
+	}
 
 	/* Register device and prevent host from mapping the MMIO range. */
 	list_add_tail(&dev->list, &iommu_list);
