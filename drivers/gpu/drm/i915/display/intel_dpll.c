@@ -938,9 +938,6 @@ static int hsw_crtc_compute_clock(struct intel_atomic_state *state,
 		intel_get_crtc_new_encoder(state, crtc_state);
 	int ret;
 
-	if (IS_DG2(dev_priv))
-		return intel_mpllb_calc_state(crtc_state, encoder);
-
 	if (DISPLAY_VER(dev_priv) < 11 &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		return 0;
@@ -954,6 +951,17 @@ static int hsw_crtc_compute_clock(struct intel_atomic_state *state,
 	}
 
 	return 0;
+}
+
+static int dg2_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_encoder *encoder =
+		intel_get_crtc_new_encoder(state, crtc_state);
+
+	return intel_mpllb_calc_state(crtc_state, encoder);
 }
 
 static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
@@ -1362,6 +1370,10 @@ static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
+static const struct intel_dpll_funcs dg2_dpll_funcs = {
+	.crtc_compute_clock = dg2_crtc_compute_clock,
+};
+
 static const struct intel_dpll_funcs hsw_dpll_funcs = {
 	.crtc_compute_clock = hsw_crtc_compute_clock,
 };
@@ -1418,7 +1430,9 @@ int intel_dpll_crtc_compute_clock(struct intel_atomic_state *state,
 void
 intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 {
-	if (DISPLAY_VER(dev_priv) >= 9 || HAS_DDI(dev_priv))
+	if (IS_DG2(dev_priv))
+		dev_priv->dpll_funcs = &dg2_dpll_funcs;
+	else if (DISPLAY_VER(dev_priv) >= 9 || HAS_DDI(dev_priv))
 		dev_priv->dpll_funcs = &hsw_dpll_funcs;
 	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->dpll_funcs = &ilk_dpll_funcs;
