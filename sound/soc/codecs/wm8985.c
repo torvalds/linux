@@ -1167,10 +1167,12 @@ static struct spi_driver wm8985_spi_driver = {
 #endif
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8985_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static const struct i2c_device_id wm8985_i2c_id[];
+
+static int wm8985_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8985_priv *wm8985;
+	const struct i2c_device_id *id = i2c_match_id(wm8985_i2c_id, i2c);
 	int ret;
 
 	wm8985 = devm_kzalloc(&i2c->dev, sizeof *wm8985, GFP_KERNEL);
@@ -1205,7 +1207,7 @@ static struct i2c_driver wm8985_i2c_driver = {
 	.driver = {
 		.name = "wm8985",
 	},
-	.probe = wm8985_i2c_probe,
+	.probe_new = wm8985_i2c_probe,
 	.id_table = wm8985_i2c_id
 };
 #endif
