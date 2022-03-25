@@ -61,5 +61,10 @@ err_alloc:
 
 void __net_exit smc_sysctl_net_exit(struct net *net)
 {
+	struct ctl_table *table;
+
+	table = net->smc.smc_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->smc.smc_hdr);
+	if (!net_eq(net, &init_net))
+		kfree(table);
 }
