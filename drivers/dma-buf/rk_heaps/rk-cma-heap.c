@@ -436,8 +436,8 @@ static struct dma_buf *rk_cma_heap_allocate(struct rk_dma_heap *heap,
 	mutex_init(&buffer->lock);
 	buffer->len = size;
 
-	if (align > CONFIG_CMA_ALIGNMENT)
-		align = CONFIG_CMA_ALIGNMENT;
+	if (align > CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_ALIGNMENT)
+		align = CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_ALIGNMENT;
 
 	cma_pages = cma_alloc(cma_heap->cma, pagecount, align, GFP_KERNEL);
 	if (!cma_pages)
@@ -527,8 +527,8 @@ static struct page *rk_cma_heap_allocate_pages(struct rk_dma_heap *heap,
 	struct page *page;
 	int ret;
 
-	if (align > CONFIG_CMA_ALIGNMENT)
-		align = CONFIG_CMA_ALIGNMENT;
+	if (align > CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_ALIGNMENT)
+		align = CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_ALIGNMENT;
 
 	page = cma_alloc(cma_heap->cma, pagecount, align, GFP_KERNEL);
 	if (!page)
