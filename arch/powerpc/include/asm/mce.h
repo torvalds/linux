@@ -235,8 +235,21 @@ extern void machine_check_print_event_info(struct machine_check_event *evt,
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr);
 extern void mce_common_process_ue(struct pt_regs *regs,
 				  struct mce_error_info *mce_err);
+void mce_irq_work_queue(void);
 int mce_register_notifier(struct notifier_block *nb);
 int mce_unregister_notifier(struct notifier_block *nb);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void mce_run_irq_context_handlers(void);
+#else
+static inline void mce_run_irq_context_handlers(void) { };
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void set_mce_pending_irq_work(void);
+void clear_mce_pending_irq_work(void);
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 #ifdef CONFIG_PPC_BOOK3S_64
 void flush_and_reload_slb(void);
 void flush_erat(void);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Userland implementation of gettimeofday() for 32 bits processes in a
- * ppc64 kernel for use in the vDSO
+ * Userland implementation of gettimeofday() for processes
+ * for use in the vDSO
  *
  * Copyright (C) 2004 Benjamin Herrenschmuidt (benh@kernel.crashing.org,
  *                    IBM Corp.
@@ -12,7 +12,49 @@
 #include <asm/vdso_datapage.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
-#include <asm/vdso/gettimeofday.h>
+
+/*
+ * The macro sets two stack frames, one for the caller and one for the callee
+ * because there are no requirement for the caller to set a stack frame when
+ * calling VDSO so it may have omitted to set one, especially on PPC64
+ */
+
+.macro cvdso_call funct call_time=0
+  .cfi_startproc
+	PPC_STLU	r1, -PPC_MIN_STKFRM(r1)
+	mflr		r0
+  .cfi_register lr, r0
+	PPC_STLU	r1, -PPC_MIN_STKFRM(r1)
+	PPC_STL		r0, PPC_MIN_STKFRM + PPC_LR_STKOFF(r1)
+#ifdef __powerpc64__
+	PPC_STL		r2, PPC_MIN_STKFRM + STK_GOT(r1)
+#endif
+	get_datapage	r5
+	.ifeq	\call_time
+	addi		r5, r5, VDSO_DATA_OFFSET
+	.else
+	addi		r4, r5, VDSO_DATA_OFFSET
+	.endif
+	bl		DOTSYM(\funct)
+	PPC_LL		r0, PPC_MIN_STKFRM + PPC_LR_STKOFF(r1)
+#ifdef __powerpc64__
+	PPC_LL		r2, PPC_MIN_STKFRM + STK_GOT(r1)
+#endif
+	.ifeq	\call_time
+	cmpwi		r3, 0
+	.endif
+	mtlr		r0
+  .cfi_restore lr
+	addi		r1, r1, 2 * PPC_MIN_STKFRM
+	crclr		so
+	.ifeq	\call_time
+	beqlr+
+	crset		so
+	neg		r3, r3
+	.endif
+	blr
+  .cfi_endproc
+.endm
 
 	.text
 /*
@@ -41,9 +83,11 @@ V_FUNCTION_END(__kernel_clock_gettime)
  * int __kernel_clock_gettime64(clockid_t clock_id, struct __timespec64 *ts);
  *
  */
+#ifndef __powerpc64__
 V_FUNCTION_BEGIN(__kernel_clock_gettime64)
 	cvdso_call __c_kernel_clock_gettime64
 V_FUNCTION_END(__kernel_clock_gettime64)
+#endif
 
 /*
  * Exact prototype of clock_getres()
@@ -63,12 +107,13 @@ V_FUNCTION_END(__kernel_clock_getres)
  *
  */
 V_FUNCTION_BEGIN(__kernel_time)
-	cvdso_call_time __c_kernel_time
+	cvdso_call __c_kernel_time call_time=1
 V_FUNCTION_END(__kernel_time)
 
 /* Routines for restoring integer registers, called by the compiler.  */
 /* Called with r11 pointing to the stack header word of the caller of the */
 /* function, just beyond the end of the integer restore area.  */
+#ifndef __powerpc64__
 _GLOBAL(_restgpr_31_x)
 _GLOBAL(_rest32gpr_31_x)
 	lwz	r0,4(r11)
@@ -76,3 +121,4 @@ _GLOBAL(_rest32gpr_31_x)
 	mtlr	r0
 	mr	r1,r11
 	blr
+#endif

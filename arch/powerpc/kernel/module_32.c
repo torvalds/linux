@@ -18,6 +18,7 @@
 #include <linux/bug.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
+#include <asm/code-patching.h>
 
 /* Count how many different relocations (different symbol, different
    addend) */
@@ -174,13 +175,23 @@ static uint32_t do_plt_call(void *location,
 		entry++;
 	}
 
-	entry->jump[0] = PPC_RAW_LIS(_R12, PPC_HA(val));
-	entry->jump[1] = PPC_RAW_ADDI(_R12, _R12, PPC_LO(val));
-	entry->jump[2] = PPC_RAW_MTCTR(_R12);
-	entry->jump[3] = PPC_RAW_BCTR();
+	if (patch_instruction(&entry->jump[0], ppc_inst(PPC_RAW_LIS(_R12, PPC_HA(val)))))
+		return 0;
+	if (patch_instruction(&entry->jump[1], ppc_inst(PPC_RAW_ADDI(_R12, _R12, PPC_LO(val)))))
+		return 0;
+	if (patch_instruction(&entry->jump[2], ppc_inst(PPC_RAW_MTCTR(_R12))))
+		return 0;
+	if (patch_instruction(&entry->jump[3], ppc_inst(PPC_RAW_BCTR())))
+		return 0;
 
 	pr_debug("Initialized plt for 0x%x at %p\n", val, entry);
 	return (uint32_t)entry;
+}
+
+static int patch_location_16(uint32_t *loc, u16 value)
+{
+	loc = PTR_ALIGN_DOWN(loc, sizeof(u32));
+	return patch_instruction(loc, ppc_inst((*loc & 0xffff0000) | value));
 }
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,
@@ -216,37 +227,42 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 		case R_PPC_ADDR16_LO:
 			/* Low half of the symbol */
-			*(uint16_t *)location = value;
+			if (patch_location_16(location, PPC_LO(value)))
+				return -EFAULT;
 			break;
 
 		case R_PPC_ADDR16_HI:
 			/* Higher half of the symbol */
-			*(uint16_t *)location = (value >> 16);
+			if (patch_location_16(location, PPC_HI(value)))
+				return -EFAULT;
 			break;
 
 		case R_PPC_ADDR16_HA:
-			/* Sign-adjusted lower 16 bits: PPC ELF ABI says:
-			   (((x >> 16) + ((x & 0x8000) ? 1 : 0))) & 0xFFFF.
-			   This is the same, only sane.
-			 */
-			*(uint16_t *)location = (value + 0x8000) >> 16;
+			if (patch_location_16(location, PPC_HA(value)))
+				return -EFAULT;
 			break;
 
 		case R_PPC_REL24:
 			if ((int)(value - (uint32_t)location) < -0x02000000
-			    || (int)(value - (uint32_t)location) >= 0x02000000)
+			    || (int)(value - (uint32_t)location) >= 0x02000000) {
 				value = do_plt_call(location, value,
 						    sechdrs, module);
+				if (!value)
+					return -EFAULT;
+			}
 
 			/* Only replace bits 2 through 26 */
 			pr_debug("REL24 value = %08X. location = %08X\n",
 			       value, (uint32_t)location);
 			pr_debug("Location before: %08X.\n",
 			       *(uint32_t *)location);
-			*(uint32_t *)location
-				= (*(uint32_t *)location & ~0x03fffffc)
+			value = (*(uint32_t *)location & ~0x03fffffc)
 				| ((value - (uint32_t)location)
 				   & 0x03fffffc);
+
+			if (patch_instruction(location, ppc_inst(value)))
+				return -EFAULT;
+
 			pr_debug("Location after: %08X.\n",
 			       *(uint32_t *)location);
 			pr_debug("ie. jump to %08X+%08X = %08X\n",

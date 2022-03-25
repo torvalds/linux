@@ -67,7 +67,6 @@
 #include <asm/kup.h>
 #include <asm/early_ioremap.h>
 #include <asm/pgalloc.h>
-#include <asm/asm-prototypes.h>
 
 #include "setup.h"
 
