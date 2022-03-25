@@ -36,8 +36,12 @@ void *kasan_find_first_bad_addr(void *addr, size_t size)
 	void *p = kasan_reset_tag(addr);
 	void *end = p + size;
 
+	if (!addr_has_metadata(p))
+		return p;
+
 	while (p < end && tag == *(u8 *)kasan_mem_to_shadow(p))
 		p += KASAN_GRANULE_SIZE;
+
 	return p;
 }
 

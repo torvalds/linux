@@ -444,10 +444,7 @@ static void __kasan_report(void *addr, size_t size, bool is_write,
 	start_report(&flags, true);
 
 	info.access_addr = addr;
-	if (addr_has_metadata(addr))
-		info.first_bad_addr = kasan_find_first_bad_addr(addr, size);
-	else
-		info.first_bad_addr = addr;
+	info.first_bad_addr = kasan_find_first_bad_addr(addr, size);
 	info.access_size = size;
 	info.is_write = is_write;
 	info.ip = ip;
