@@ -1954,8 +1954,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
+	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 	const char *attr_name = dev_attr->attr.name;
-	enum amd_asic_type asic_type = adev->asic_type;
 
 	if (!(attr->flags & mask)) {
 		*states = ATTR_STATE_UNSUPPORTED;
@@ -1965,53 +1966,55 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 #define DEVICE_ATTR_IS(_name)	(!strcmp(attr_name, #_name))
 
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
-		if (asic_type < CHIP_VEGA10)
+		if (gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		if (asic_type < CHIP_VEGA10 ||
-		    asic_type == CHIP_ARCTURUS ||
-		    asic_type == CHIP_ALDEBARAN)
+		if (gc_ver < IP_VERSION(9, 0, 0) ||
+		    gc_ver == IP_VERSION(9, 4, 1) ||
+		    gc_ver == IP_VERSION(9, 4, 2))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
-		if (asic_type < CHIP_VEGA20)
+		if (mp1_ver < IP_VERSION(10, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_od_clk_voltage)) {
 		*states = ATTR_STATE_UNSUPPORTED;
 		if (amdgpu_dpm_is_overdrive_supported(adev))
 			*states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
-		if (adev->flags & AMD_IS_APU || asic_type == CHIP_VEGA10)
+		if (adev->flags & AMD_IS_APU || gc_ver == IP_VERSION(9, 0, 1))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
 		if (adev->flags & AMD_IS_APU)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(unique_id)) {
-		if (asic_type != CHIP_VEGA10 &&
-		    asic_type != CHIP_VEGA20 &&
-		    asic_type != CHIP_ARCTURUS &&
-		    asic_type != CHIP_ALDEBARAN)
+		if (gc_ver != IP_VERSION(9, 0, 1) &&
+		    gc_ver != IP_VERSION(9, 4, 0) &&
+		    gc_ver != IP_VERSION(9, 4, 1) &&
+		    gc_ver != IP_VERSION(9, 4, 2))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_features)) {
-		if (adev->flags & AMD_IS_APU || asic_type < CHIP_VEGA10)
+		if (adev->flags & AMD_IS_APU || gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
-		if (asic_type < CHIP_VEGA12)
+		if (gc_ver < IP_VERSION(9, 1, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_vclk)) {
-		if (!(asic_type == CHIP_VANGOGH || asic_type == CHIP_SIENNA_CICHLID))
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 0)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk)) {
-		if (!(asic_type == CHIP_VANGOGH || asic_type == CHIP_SIENNA_CICHLID))
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 0)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
 		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
-	switch (asic_type) {
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
+	switch (gc_ver) {
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
 		/* the Mi series card does not support standalone mclk/socclk/fclk level setting */
 		if (DEVICE_ATTR_IS(pp_dpm_mclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
@@ -2026,7 +2029,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 	if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
 		/* SMU MP1 does not support dcefclk level setting */
-		if (asic_type >= CHIP_NAVI10) {
+		if (gc_ver >= IP_VERSION(10, 0, 0)) {
 			dev_attr->attr.mode &= ~S_IWUGO;
 			dev_attr->store = NULL;
 		}
@@ -2864,8 +2867,9 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 
-	if (adev->asic_type == CHIP_VANGOGH)
+	if (gc_ver == IP_VERSION(10, 3, 1))
 		return sysfs_emit(buf, "%s\n",
 				  to_sensor_dev_attr(attr)->index == PP_PWR_TYPE_FAST ?
 				  "fastPPT" : "slowPPT");
@@ -3177,6 +3181,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
@@ -3245,18 +3250,18 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
+	/* not implemented yet for GC 10.3.1 APUs */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-		 ((adev->flags & AMD_IS_APU) &&
-	      (adev->asic_type != CHIP_VANGOGH))) &&	/* not implemented yet */
+	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
+	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr))
 		return 0;
 
+	/* not implemented yet for APUs having <= GC 9.3.0 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) &&
-	      (adev->asic_type < CHIP_RENOIR))) &&	/* not implemented yet */
+	     ((adev->flags & AMD_IS_APU) && (gc_ver < IP_VERSION(9, 3, 0)))) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
 		return 0;
 
@@ -3294,8 +3299,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* only SOC15 dGPUs support hotspot and mem temperatures */
-	if (((adev->flags & AMD_IS_APU) ||
-	     adev->asic_type < CHIP_VEGA10) &&
+	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
 	    (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr ||
@@ -3310,13 +3314,13 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* only Vangogh has fast PPT limit and power labels */
-	if (!(adev->asic_type == CHIP_VANGOGH) &&
+	if (!(gc_ver == IP_VERSION(10, 3, 1)) &&
 	    (attr == &sensor_dev_attr_power2_average.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power2_cap_min.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap_default.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_power2_cap.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_cap_default.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_label.dev_attr.attr))
 		return 0;
 
 	return effective_mode;
@@ -3421,6 +3425,8 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
+	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 	uint32_t value;
 	uint64_t value64 = 0;
 	uint32_t query = 0;
@@ -3467,7 +3473,8 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
 		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
-	if (adev->asic_type > CHIP_VEGA20) {
+	/* ASICs greater than CHIP_VEGA20 supports these sensors */
+	if (gc_ver != IP_VERSION(9, 4, 0) && mp1_ver > IP_VERSION(9, 0, 0)) {
 		/* VCN clocks */
 		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCN_POWER_STATE, (void *)&value, &size)) {
 			if (!value) {
