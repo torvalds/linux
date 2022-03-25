@@ -51,6 +51,13 @@ int read_block(char *buf, int buf_size, FILE *fin)
 	return -1; /* EOF or no space left in buf. */
 }
 
+static int compare_txt(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return strcmp(l1->txt, l2->txt);
+}
+
 static int compare_stacktrace(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
@@ -137,12 +144,14 @@ static void usage(void)
 		"-m	Sort by total memory.\n"
 		"-s	Sort by the stack trace.\n"
 		"-t	Sort by times (default).\n"
+		"-c	cull by comparing stacktrace instead of total block.\n"
 	);
 }
 
 int main(int argc, char **argv)
 {
 	int (*cmp)(const void *, const void *) = compare_num;
+	int cull_st = 0;
 	FILE *fin, *fout;
 	char *buf;
 	int ret, i, count;
@@ -151,7 +160,7 @@ int main(int argc, char **argv)
 	int err;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "mst")) != -1)
+	while ((opt = getopt(argc, argv, "mstc")) != -1)
 		switch (opt) {
 		case 'm':
 			cmp = compare_page_num;
@@ -161,6 +170,9 @@ int main(int argc, char **argv)
 			break;
 		case 't':
 			cmp = compare_num;
+			break;
+		case 'c':
+			cull_st = 1;
 			break;
 		default:
 			usage();
@@ -209,7 +221,10 @@ int main(int argc, char **argv)
 
 	printf("sorting ....\n");
 
-	qsort(list, list_size, sizeof(list[0]), compare_stacktrace);
+	if (cull_st == 1)
+		qsort(list, list_size, sizeof(list[0]), compare_stacktrace);
+	else
+		qsort(list, list_size, sizeof(list[0]), compare_txt);
 
 	list2 = malloc(sizeof(*list) * list_size);
 	if (!list2) {
@@ -219,9 +234,11 @@ int main(int argc, char **argv)
 
 	printf("culling\n");
 
+	long offset = cull_st ? &list[0].stacktrace - &list[0].txt : 0;
+
 	for (i = count = 0; i < list_size; i++) {
 		if (count == 0 ||
-		    strcmp(list2[count-1].stacktrace, list[i].stacktrace) != 0) {
+		    strcmp(*(&list2[count-1].txt+offset), *(&list[i].txt+offset)) != 0) {
 			list2[count++] = list[i];
 		} else {
 			list2[count-1].num += list[i].num;
