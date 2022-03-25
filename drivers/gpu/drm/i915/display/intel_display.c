@@ -9665,7 +9665,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	}
 
 	intel_plane_possible_crtcs_init(i915);
-	intel_shared_dpll_init(dev);
+	intel_shared_dpll_init(i915);
 	intel_fdi_pll_freq_update(i915);
 
 	intel_update_czclk(i915);

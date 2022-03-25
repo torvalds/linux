@@ -4078,13 +4078,12 @@ static const struct intel_dpll_mgr adlp_pll_mgr = {
 
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
- * @dev: drm device
+ * @dev_priv: i915 device
  *
- * Initialize shared DPLLs for @dev.
+ * Initialize shared DPLLs for @dev_priv.
  */
-void intel_shared_dpll_init(struct drm_device *dev)
+void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;
@@ -4123,7 +4122,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	dpll_info = dpll_mgr->dpll_info;
 
 	for (i = 0; dpll_info[i].name; i++) {
-		drm_WARN_ON(dev, i != dpll_info[i].id);
+		drm_WARN_ON(&dev_priv->drm, i != dpll_info[i].id);
 		dev_priv->dpll.shared_dplls[i].info = &dpll_info[i];
 	}
 
