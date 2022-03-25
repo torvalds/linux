@@ -85,19 +85,11 @@ static inline void kasan_disable_current(void) {}
 #ifdef CONFIG_KASAN_HW_TAGS
 
 void kasan_alloc_pages(struct page *page, unsigned int order, gfp_t flags);
-void kasan_free_pages(struct page *page, unsigned int order);
 
 #else /* CONFIG_KASAN_HW_TAGS */
 
 static __always_inline void kasan_alloc_pages(struct page *page,
 					      unsigned int order, gfp_t flags)
-{
-	/* Only available for integrated init. */
-	BUILD_BUG();
-}
-
-static __always_inline void kasan_free_pages(struct page *page,
-					     unsigned int order)
 {
 	/* Only available for integrated init. */
 	BUILD_BUG();
