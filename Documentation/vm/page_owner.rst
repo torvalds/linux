@@ -97,7 +97,7 @@ Usage
 
    The ``page_owner_sort`` tool ignores ``PFN`` rows, puts the remaining rows
    in buf, uses regexp to extract the page order value, counts the times
-   and pages of buf, and finally sorts them according to the times.
+   and pages of buf, and finally sorts them according to the parameter(s).
 
    See the result about who allocated each page
    in the ``sorted_page_owner.txt``. General output::
@@ -107,4 +107,23 @@ Usage
 	 // Detailed stack
 
    By default, ``page_owner_sort`` is sorted according to the times of buf.
-   If you want to sort by the pages nums of buf, use the ``-m`` parameter.
+   If you want to sort by the page nums of buf, use the ``-m`` parameter.
+   The detailed parameters are:
+
+   fundamental function:
+
+	Sort:
+		-a		Sort by memory allocation time.
+		-m		Sort by total memory.
+		-p		Sort by pid.
+		-r		Sort by memory release time.
+		-s		Sort by stack trace.
+		-t		Sort by times (default).
+
+   additional function:
+
+	Cull:
+		-c		Cull by comparing stacktrace instead of total block.
+
+	Filter:
+		-f		Filter out the information of blocks whose memory has not been released.
