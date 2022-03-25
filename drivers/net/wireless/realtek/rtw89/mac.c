@@ -2065,6 +2065,8 @@ static int ptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		val = rtw89_read32(rtwdev, reg);
 		val = u32_replace_bits(val, S_AX_CTS2S_TH_1K,
 				       B_AX_HW_CTS2SELF_PKT_LEN_TH_MASK);
+		val = u32_replace_bits(val, S_AX_CTS2S_TH_SEC_256B,
+				       B_AX_HW_CTS2SELF_PKT_LEN_TH_TWW_MASK);
 		val |= B_AX_HW_CTS2SELF_EN;
 		rtw89_write32(rtwdev, reg, val);
 
@@ -2075,11 +2077,19 @@ static int ptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rtw89_write32(rtwdev, reg, val);
 	}
 
-	reg = rtw89_mac_reg_by_idx(R_AX_SIFS_SETTING, mac_idx);
-	val = rtw89_read32(rtwdev, reg);
-	val = u32_replace_bits(val, S_AX_CTS2S_TH_SEC_256B, B_AX_HW_CTS2SELF_PKT_LEN_TH_TWW_MASK);
-	val |= B_AX_HW_CTS2SELF_EN;
-	rtw89_write32(rtwdev, reg, val);
+	if (mac_idx == RTW89_MAC_0) {
+		rtw89_write8_set(rtwdev, R_AX_PTCL_COMMON_SETTING_0,
+				 B_AX_CMAC_TX_MODE_0 | B_AX_CMAC_TX_MODE_1);
+		rtw89_write8_clr(rtwdev, R_AX_PTCL_COMMON_SETTING_0,
+				 B_AX_PTCL_TRIGGER_SS_EN_0 |
+				 B_AX_PTCL_TRIGGER_SS_EN_1 |
+				 B_AX_PTCL_TRIGGER_SS_EN_UL);
+		rtw89_write8_mask(rtwdev, R_AX_PTCLRPT_FULL_HDL,
+				  B_AX_SPE_RPT_PATH_MASK, FWD_TO_WLCPU);
+	} else if (mac_idx == RTW89_MAC_1) {
+		rtw89_write8_mask(rtwdev, R_AX_PTCLRPT_FULL_HDL_C1,
+				  B_AX_SPE_RPT_PATH_MASK, FWD_TO_WLCPU);
+	}
 
 	return 0;
 }
