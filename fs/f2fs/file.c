@@ -34,7 +34,6 @@
 #include "gc.h"
 #include "iostat.h"
 #include <trace/events/f2fs.h>
-#include <trace/events/android_fs.h>
 #include <uapi/linux/f2fs.h>
 
 static vm_fault_t f2fs_filemap_fault(struct vm_fault *vmf)
@@ -4290,16 +4289,6 @@ static ssize_t f2fs_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		return 0; /* skip atime update */
 
 	trace_f2fs_direct_IO_enter(inode, iocb, count, READ);
-	if (trace_android_fs_dataread_start_enabled()) {
-		char *path, pathbuf[MAX_TRACE_PATHBUF_LEN];
-
-		path = android_fstrace_get_pathname(pathbuf,
-						    MAX_TRACE_PATHBUF_LEN,
-						    inode);
-		trace_android_fs_dataread_start(inode, pos,
-						count, current->pid, path,
-						current->comm);
-	}
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		if (!down_read_trylock(&fi->i_gc_rwsem[READ])) {
@@ -4330,8 +4319,6 @@ static ssize_t f2fs_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	file_accessed(file);
 out:
-	if (trace_android_fs_dataread_start_enabled())
-		trace_android_fs_dataread_end(inode, pos, count);
 	trace_f2fs_direct_IO_exit(inode, pos, count, READ, ret);
 	return ret;
 }
@@ -4501,16 +4488,6 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	ssize_t ret;
 
 	trace_f2fs_direct_IO_enter(inode, iocb, count, WRITE);
-	if (trace_android_fs_datawrite_start_enabled()) {
-		char *path, pathbuf[MAX_TRACE_PATHBUF_LEN];
-
-		path = android_fstrace_get_pathname(pathbuf,
-						    MAX_TRACE_PATHBUF_LEN,
-						    inode);
-		trace_android_fs_datawrite_start(inode, pos, count,
-						 current->pid, path,
-						 current->comm);
-	}
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/* f2fs_convert_inline_inode() and block allocation can block */
@@ -4613,8 +4590,6 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 		*may_need_sync = false;
 	}
 out:
-	if (trace_android_fs_datawrite_start_enabled())
-		trace_android_fs_datawrite_end(inode, pos, count);
 	trace_f2fs_direct_IO_exit(inode, pos, count, WRITE, ret);
 	return ret;
 }

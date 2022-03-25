@@ -27,7 +27,6 @@
 #include "segment.h"
 #include "iostat.h"
 #include <trace/events/f2fs.h>
-#include <trace/events/android_fs.h>
 
 #define NUM_PREALLOC_POST_READ_CTXS	128
 
@@ -3325,22 +3324,6 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	block_t blkaddr = NULL_ADDR;
 	int err = 0;
 
-	/*
-	 * Should avoid quota operations which can make deadlock:
-	 * kswapd -> f2fs_evict_inode -> dquot_drop ->
-	 *   f2fs_dquot_commit -> f2fs_write_begin ->
-	 *   d_obtain_alias -> __d_alloc -> kmem_cache_alloc(GFP_KERNEL)
-	 */
-	if (trace_android_fs_datawrite_start_enabled() && !IS_NOQUOTA(inode)) {
-		char *path, pathbuf[MAX_TRACE_PATHBUF_LEN];
-
-		path = android_fstrace_get_pathname(pathbuf,
-						    MAX_TRACE_PATHBUF_LEN,
-						    inode);
-		trace_android_fs_datawrite_start(inode, pos, len,
-						 current->pid, path,
-						 current->comm);
-	}
 	trace_f2fs_write_begin(inode, pos, len, flags);
 
 	if (!f2fs_is_checkpoint_ready(sbi)) {
@@ -3471,7 +3454,6 @@ static int f2fs_write_end(struct file *file,
 {
 	struct inode *inode = page->mapping->host;
 
-	trace_android_fs_datawrite_end(inode, pos, len);
 	trace_f2fs_write_end(inode, pos, len, copied);
 
 	/*
