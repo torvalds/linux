@@ -28,7 +28,6 @@ config RCU_SCALE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
-	select TASKS_RCU
 	select TASKS_RUDE_RCU
 	select TASKS_TRACE_RCU
 	default n
