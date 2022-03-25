@@ -19,16 +19,17 @@ possible we decided to do following:
     platform devices.
 
   - Devices behind real busses where there is a connector resource
-    are represented as struct spi_device or struct i2c_device
-    (standard UARTs are not busses so there is no struct uart_device).
+    are represented as struct spi_device or struct i2c_device. Note
+    that standard UARTs are not busses so there is no struct uart_device,
+    although some of them may be represented by sturct serdev_device.
 
 As both ACPI and Device Tree represent a tree of devices (and their
 resources) this implementation follows the Device Tree way as much as
 possible.
 
-The ACPI implementation enumerates devices behind busses (platform, SPI and
-I2C), creates the physical devices and binds them to their ACPI handle in
-the ACPI namespace.
+The ACPI implementation enumerates devices behind busses (platform, SPI,
+I2C, and in some cases UART), creates the physical devices and binds them
+to their ACPI handle in the ACPI namespace.
 
 This means that when ACPI_HANDLE(dev) returns non-NULL the device was
 enumerated from ACPI namespace. This handle can be used to extract other
@@ -46,18 +47,16 @@ some minor changes.
 Adding ACPI support for an existing driver should be pretty
 straightforward. Here is the simplest example::
 
-	#ifdef CONFIG_ACPI
 	static const struct acpi_device_id mydrv_acpi_match[] = {
 		/* ACPI IDs here */
 		{ }
 	};
 	MODULE_DEVICE_TABLE(acpi, mydrv_acpi_match);
-	#endif
 
 	static struct platform_driver my_driver = {
 		...
 		.driver = {
-			.acpi_match_table = ACPI_PTR(mydrv_acpi_match),
+			.acpi_match_table = mydrv_acpi_match,
 		},
 	};
 
@@ -155,7 +154,7 @@ Here is what the ACPI namespace for a SPI slave might look like::
 	Device (EEP0)
 	{
 		Name (_ADR, 1)
-		Name (_CID, Package() {
+		Name (_CID, Package () {
 			"ATML0025",
 			"AT25",
 		})
@@ -172,59 +171,51 @@ The SPI device drivers only need to add ACPI IDs in a similar way than with
 the platform device drivers. Below is an example where we add ACPI support
 to at25 SPI eeprom driver (this is meant for the above ACPI snippet)::
 
-	#ifdef CONFIG_ACPI
 	static const struct acpi_device_id at25_acpi_match[] = {
 		{ "AT25", 0 },
-		{ },
+		{ }
 	};
 	MODULE_DEVICE_TABLE(acpi, at25_acpi_match);
-	#endif
 
 	static struct spi_driver at25_driver = {
 		.driver = {
 			...
-			.acpi_match_table = ACPI_PTR(at25_acpi_match),
+			.acpi_match_table = at25_acpi_match,
 		},
 	};
 
 Note that this driver actually needs more information like page size of the
-eeprom etc. but at the time writing this there is no standard way of
-passing those. One idea is to return this in _DSM method like::
+eeprom, etc. This information can be passed via _DSD method like::
 
 	Device (EEP0)
 	{
 		...
-		Method (_DSM, 4, NotSerialized)
+		Name (_DSD, Package ()
 		{
-			Store (Package (6)
+			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+			Package ()
 			{
-				"byte-len", 1024,
-				"addr-mode", 2,
-				"page-size, 32
-			}, Local0)
+				Package () { "size", 1024 },
+				Package () { "pagesize", 32 },
+				Package () { "address-width", 16 },
+			}
+		})
+	}
 
-			// Check UUIDs etc.
+Then the at25 SPI driver can get this configuration by calling device property
+APIs during ->probe() phase like::
 
-			Return (Local0)
-		}
+	err = device_property_read_u32(dev, "size", &size);
+	if (err)
+		...error handling...
 
-Then the at25 SPI driver can get this configuration by calling _DSM on its
-ACPI handle like::
+	err = device_property_read_u32(dev, "pagesize", &page_size);
+	if (err)
+		...error handling...
 
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_object_list input;
-	acpi_status status;
-
-	/* Fill in the input buffer */
-
-	status = acpi_evaluate_object(ACPI_HANDLE(&spi->dev), "_DSM",
-				      &input, &output);
-	if (ACPI_FAILURE(status))
-		/* Handle the error */
-
-	/* Extract the data here */
-
-	kfree(output.pointer);
+	err = device_property_read_u32(dev, "address-width", &addr_width);
+	if (err)
+		...error handling...
 
 I2C serial bus support
 ======================
@@ -237,26 +228,24 @@ registered.
 Below is an example of how to add ACPI support to the existing mpu3050
 input driver::
 
-	#ifdef CONFIG_ACPI
 	static const struct acpi_device_id mpu3050_acpi_match[] = {
 		{ "MPU3050", 0 },
-		{ },
+		{ }
 	};
 	MODULE_DEVICE_TABLE(acpi, mpu3050_acpi_match);
-	#endif
 
 	static struct i2c_driver mpu3050_i2c_driver = {
 		.driver	= {
 			.name	= "mpu3050",
-			.owner	= THIS_MODULE,
 			.pm	= &mpu3050_pm,
 			.of_match_table = mpu3050_of_match,
-			.acpi_match_table = ACPI_PTR(mpu3050_acpi_match),
+			.acpi_match_table = mpu3050_acpi_match,
 		},
 		.probe		= mpu3050_probe,
 		.remove		= mpu3050_remove,
 		.id_table	= mpu3050_ids,
 	};
+	module_i2c_driver(mpu3050_i2c_driver);
 
 Reference to PWM device
 =======================
@@ -282,9 +271,9 @@ introduced, i.e.::
                     }
                 }
             }
-
         })
         ...
+    }
 
 In the above example the PWM-based LED driver references to the PWM channel 0
 of \_SB.PCI0.PWM device with initial period setting equal to 600 ms (note that
@@ -306,26 +295,13 @@ For example::
 		{
 			Name (SBUF, ResourceTemplate()
 			{
-				...
 				// Used to power on/off the device
-				GpioIo (Exclusive, PullDefault, 0x0000, 0x0000,
-					IoRestrictionOutputOnly, "\\_SB.PCI0.GPI0",
-					0x00, ResourceConsumer,,)
-				{
-					// Pin List
-					0x0055
-				}
+				GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly,
+					"\\_SB.PCI0.GPI0", 0, ResourceConsumer) { 85 }
 
 				// Interrupt for the device
-				GpioInt (Edge, ActiveHigh, ExclusiveAndWake, PullNone,
-					0x0000, "\\_SB.PCI0.GPI0", 0x00, ResourceConsumer,,)
-				{
-					// Pin list
-					0x0058
-				}
-
-				...
-
+				GpioInt (Edge, ActiveHigh, ExclusiveAndWake, PullNone, 0,
+					 "\\_SB.PCI0.GPI0", 0, ResourceConsumer) { 88 }
 			}
 
 			Return (SBUF)
@@ -337,11 +313,12 @@ For example::
 			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
 			Package ()
 			{
-				Package () {"power-gpios", Package() {^DEV, 0, 0, 0 }},
-				Package () {"irq-gpios", Package() {^DEV, 1, 0, 0 }},
+				Package () { "power-gpios", Package () { ^DEV, 0, 0, 0 } },
+				Package () { "irq-gpios", Package () { ^DEV, 1, 0, 0 } },
 			}
 		})
 		...
+	}
 
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
 specifies the path to the controller. In order to use these GPIOs in Linux
@@ -460,10 +437,10 @@ namespace link::
 	Device (TMP0)
 	{
 		Name (_HID, "PRP0001")
-		Name (_DSD, Package() {
+		Name (_DSD, Package () {
 			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
 			Package () {
-				Package (2) { "compatible", "ti,tmp75" },
+				Package () { "compatible", "ti,tmp75" },
 			}
 		})
 		Method (_CRS, 0, Serialized)

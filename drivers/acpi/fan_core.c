@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  acpi_fan.c - ACPI Fan Driver ($Revision: 29 $)
+ *  fan_core.c - ACPI Fan core Driver
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
+ *  Copyright (C) 2022 Intel Corporation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -45,33 +46,6 @@ static const struct dev_pm_ops acpi_fan_pm = {
 #define FAN_PM_OPS_PTR NULL
 #endif
 
-#define ACPI_FPS_NAME_LEN	20
-
-struct acpi_fan_fps {
-	u64 control;
-	u64 trip_point;
-	u64 speed;
-	u64 noise_level;
-	u64 power;
-	char name[ACPI_FPS_NAME_LEN];
-	struct device_attribute dev_attr;
-};
-
-struct acpi_fan_fif {
-	u64 revision;
-	u64 fine_grain_ctrl;
-	u64 step_size;
-	u64 low_speed_notification;
-};
-
-struct acpi_fan {
-	bool acpi4;
-	struct acpi_fan_fif fif;
-	struct acpi_fan_fps *fps;
-	int fps_count;
-	struct thermal_cooling_device *cdev;
-};
-
 static struct platform_driver acpi_fan_driver = {
 	.probe = acpi_fan_probe,
 	.remove = acpi_fan_remove,
@@ -89,25 +63,29 @@ static int fan_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_fan *fan = acpi_driver_data(device);
 
-	if (fan->acpi4)
-		*state = fan->fps_count - 1;
-	else
+	if (fan->acpi4) {
+		if (fan->fif.fine_grain_ctrl)
+			*state = 100 / fan->fif.step_size;
+		else
+			*state = fan->fps_count - 1;
+	} else {
 		*state = 1;
+	}
+
 	return 0;
 }
 
-static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
+int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_fan *fan = acpi_driver_data(device);
 	union acpi_object *obj;
 	acpi_status status;
-	int control, i;
+	int ret = 0;
 
 	status = acpi_evaluate_object(device->handle, "_FST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Get fan state failed\n");
-		return status;
+		return -ENODEV;
 	}
 
 	obj = buffer.pointer;
@@ -115,35 +93,52 @@ static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
 	    obj->package.count != 3 ||
 	    obj->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		dev_err(&device->dev, "Invalid _FST data\n");
-		status = -EINVAL;
+		ret = -EINVAL;
 		goto err;
 	}
 
-	control = obj->package.elements[1].integer.value;
-	for (i = 0; i < fan->fps_count; i++) {
-		/*
-		 * When Fine Grain Control is set, return the state
-		 * corresponding to maximum fan->fps[i].control
-		 * value compared to the current speed. Here the
-		 * fan->fps[] is sorted array with increasing speed.
-		 */
-		if (fan->fif.fine_grain_ctrl && control < fan->fps[i].control) {
-			i = (i > 0) ? i - 1 : 0;
-			break;
-		} else if (control == fan->fps[i].control) {
-			break;
+	fst->revision = obj->package.elements[0].integer.value;
+	fst->control = obj->package.elements[1].integer.value;
+	fst->speed = obj->package.elements[2].integer.value;
+
+err:
+	kfree(obj);
+	return ret;
+}
+
+static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
+{
+	struct acpi_fan *fan = acpi_driver_data(device);
+	struct acpi_fan_fst fst;
+	int status, i;
+
+	status = acpi_fan_get_fst(device, &fst);
+	if (status)
+		return status;
+
+	if (fan->fif.fine_grain_ctrl) {
+		/* This control should be same what we set using _FSL by spec */
+		if (fst.control > 100) {
+			dev_dbg(&device->dev, "Invalid control value returned\n");
+			goto match_fps;
 		}
+
+		*state = (int) fst.control / fan->fif.step_size;
+		return 0;
+	}
+
+match_fps:
+	for (i = 0; i < fan->fps_count; i++) {
+		if (fst.control == fan->fps[i].control)
+			break;
 	}
 	if (i == fan->fps_count) {
 		dev_dbg(&device->dev, "Invalid control value returned\n");
-		status = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	*state = i;
 
-err:
-	kfree(obj);
 	return status;
 }
 
@@ -187,15 +182,30 @@ static int fan_set_state_acpi4(struct acpi_device *device, unsigned long state)
 {
 	struct acpi_fan *fan = acpi_driver_data(device);
 	acpi_status status;
+	u64 value = state;
+	int max_state;
 
-	if (state >= fan->fps_count)
+	if (fan->fif.fine_grain_ctrl)
+		max_state = 100 / fan->fif.step_size;
+	else
+		max_state = fan->fps_count - 1;
+
+	if (state > max_state)
 		return -EINVAL;
 
-	status = acpi_execute_simple_method(device->handle, "_FSL",
-					    fan->fps[state].control);
+	if (fan->fif.fine_grain_ctrl) {
+		value *= fan->fif.step_size;
+		/* Spec allows compensate the last step only */
+		if (value + fan->fif.step_size > 100)
+			value = 100;
+	} else {
+		value = fan->fps[state].control;
+	}
+
+	status = acpi_execute_simple_method(device->handle, "_FSL", value);
 	if (ACPI_FAILURE(status)) {
 		dev_dbg(&device->dev, "Failed to set state by _FSL\n");
-		return status;
+		return -ENODEV;
 	}
 
 	return 0;
@@ -237,7 +247,8 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_fan *fan = acpi_driver_data(device);
 	struct acpi_buffer format = { sizeof("NNNN"), "NNNN" };
-	struct acpi_buffer fif = { sizeof(fan->fif), &fan->fif };
+	u64 fields[4];
+	struct acpi_buffer fif = { sizeof(fields), fields };
 	union acpi_object *obj;
 	acpi_status status;
 
@@ -258,6 +269,17 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 		status = -EINVAL;
 	}
 
+	fan->fif.revision = fields[0];
+	fan->fif.fine_grain_ctrl = fields[1];
+	fan->fif.step_size = fields[2];
+	fan->fif.low_speed_notification = fields[3];
+
+	/* If there is a bug in step size and set as 0, change to 1 */
+	if (!fan->fif.step_size)
+		fan->fif.step_size = 1;
+	/* If step size > 9, change to 9 (by spec valid values 1-9) */
+	else if (fan->fif.step_size > 9)
+		fan->fif.step_size = 9;
 err:
 	kfree(obj);
 	return status;
@@ -268,39 +290,6 @@ static int acpi_fan_speed_cmp(const void *a, const void *b)
 	const struct acpi_fan_fps *fps1 = a;
 	const struct acpi_fan_fps *fps2 = b;
 	return fps1->speed - fps2->speed;
-}
-
-static ssize_t show_state(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct acpi_fan_fps *fps = container_of(attr, struct acpi_fan_fps, dev_attr);
-	int count;
-
-	if (fps->control == 0xFFFFFFFF || fps->control > 100)
-		count = scnprintf(buf, PAGE_SIZE, "not-defined:");
-	else
-		count = scnprintf(buf, PAGE_SIZE, "%lld:", fps->control);
-
-	if (fps->trip_point == 0xFFFFFFFF || fps->trip_point > 9)
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "not-defined:");
-	else
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "%lld:", fps->trip_point);
-
-	if (fps->speed == 0xFFFFFFFF)
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "not-defined:");
-	else
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "%lld:", fps->speed);
-
-	if (fps->noise_level == 0xFFFFFFFF)
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "not-defined:");
-	else
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "%lld:", fps->noise_level * 100);
-
-	if (fps->power == 0xFFFFFFFF)
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "not-defined\n");
-	else
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "%lld\n", fps->power);
-
-	return count;
 }
 
 static int acpi_fan_get_fps(struct acpi_device *device)
@@ -347,25 +336,6 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 	sort(fan->fps, fan->fps_count, sizeof(*fan->fps),
 	     acpi_fan_speed_cmp, NULL);
 
-	for (i = 0; i < fan->fps_count; ++i) {
-		struct acpi_fan_fps *fps = &fan->fps[i];
-
-		snprintf(fps->name, ACPI_FPS_NAME_LEN, "state%d", i);
-		sysfs_attr_init(&fps->dev_attr.attr);
-		fps->dev_attr.show = show_state;
-		fps->dev_attr.store = NULL;
-		fps->dev_attr.attr.name = fps->name;
-		fps->dev_attr.attr.mode = 0444;
-		status = sysfs_create_file(&device->dev.kobj, &fps->dev_attr.attr);
-		if (status) {
-			int j;
-
-			for (j = 0; j < i; ++j)
-				sysfs_remove_file(&device->dev.kobj, &fan->fps[j].dev_attr.attr);
-			break;
-		}
-	}
-
 err:
 	kfree(obj);
 	return status;
@@ -393,6 +363,10 @@ static int acpi_fan_probe(struct platform_device *pdev)
 			return result;
 
 		result = acpi_fan_get_fps(device);
+		if (result)
+			return result;
+
+		result = acpi_fan_create_attributes(device);
 		if (result)
 			return result;
 
@@ -437,12 +411,8 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	return 0;
 
 err_end:
-	if (fan->acpi4) {
-		int i;
-
-		for (i = 0; i < fan->fps_count; ++i)
-			sysfs_remove_file(&device->dev.kobj, &fan->fps[i].dev_attr.attr);
-	}
+	if (fan->acpi4)
+		acpi_fan_delete_attributes(device);
 
 	return result;
 }
@@ -453,10 +423,8 @@ static int acpi_fan_remove(struct platform_device *pdev)
 
 	if (fan->acpi4) {
 		struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
-		int i;
 
-		for (i = 0; i < fan->fps_count; ++i)
-			sysfs_remove_file(&device->dev.kobj, &fan->fps[i].dev_attr.attr);
+		acpi_fan_delete_attributes(device);
 	}
 	sysfs_remove_link(&pdev->dev.kobj, "thermal_cooling");
 	sysfs_remove_link(&fan->cdev->device.kobj, "device");

@@ -689,8 +689,10 @@ static int load_image_and_restore(void)
 
 	lock_device_hotplug();
 	error = create_basic_memory_bitmaps();
-	if (error)
+	if (error) {
+		swsusp_close(FMODE_READ | FMODE_EXCL);
 		goto Unlock;
+	}
 
 	error = swsusp_read(&flags);
 	swsusp_close(FMODE_READ | FMODE_EXCL);
@@ -1328,7 +1330,7 @@ static int __init resumedelay_setup(char *str)
 	int rc = kstrtouint(str, 0, &resume_delay);
 
 	if (rc)
-		return rc;
+		pr_warn("resumedelay: bad option string '%s'\n", str);
 	return 1;
 }
 

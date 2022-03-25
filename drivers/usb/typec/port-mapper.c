@@ -59,7 +59,7 @@ int typec_link_ports(struct typec_port *con)
 	if (!has_acpi_companion(&con->dev))
 		return 0;
 
-	bus_for_each_dev(&acpi_bus_type, NULL, &arg, typec_port_match);
+	acpi_bus_for_each_dev(typec_port_match, &arg);
 	if (!arg.match)
 		return 0;
 

@@ -52,6 +52,8 @@ static int tegra_bpmp_thermal_get_temp(void *data, int *out_temp)
 	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret)
+		return -EINVAL;
 
 	*out_temp = reply.get_temp.temp;
 
@@ -63,6 +65,7 @@ static int tegra_bpmp_thermal_set_trips(void *data, int low, int high)
 	struct tegra_bpmp_thermal_zone *zone = data;
 	struct mrq_thermal_host_to_bpmp_request req;
 	struct tegra_bpmp_message msg;
+	int err;
 
 	memset(&req, 0, sizeof(req));
 	req.type = CMD_THERMAL_SET_TRIP;
@@ -76,7 +79,13 @@ static int tegra_bpmp_thermal_set_trips(void *data, int low, int high)
 	msg.tx.data = &req;
 	msg.tx.size = sizeof(req);
 
-	return tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
+	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
+	if (err)
+		return err;
+	if (msg.rx.ret)
+		return -EINVAL;
+
+	return 0;
 }
 
 static void tz_device_update_work_fn(struct work_struct *work)
@@ -140,6 +149,8 @@ static int tegra_bpmp_thermal_get_num_zones(struct tegra_bpmp *bpmp,
 	err = tegra_bpmp_transfer(bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret)
+		return -EINVAL;
 
 	*num_zones = reply.get_num_zones.num;
 

@@ -633,8 +633,8 @@ static bool is_cppc_supported(int revision, int num_ent)
  *  )
  */
 
-#ifndef init_freq_invariance_cppc
-static inline void init_freq_invariance_cppc(void) { }
+#ifndef arch_init_invariance_cppc
+static inline void arch_init_invariance_cppc(void) { }
 #endif
 
 /**
@@ -655,6 +655,9 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	int pcc_subspace_id = -1;
 	acpi_status status;
 	int ret = -EFAULT;
+
+	if (osc_sb_cppc_not_supported)
+		return -ENODEV;
 
 	/* Parse the ACPI _CPC table for this CPU. */
 	status = acpi_evaluate_object_typed(handle, "_CPC", NULL, &output,
@@ -816,7 +819,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
-	init_freq_invariance_cppc();
+	arch_init_invariance_cppc();
 
 	kfree(output.pointer);
 	return 0;
