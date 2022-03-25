@@ -569,8 +569,22 @@ static struct snd_soc_dai_driver wm8731_dai = {
 	.symmetric_rate = 1,
 };
 
-static int wm8731_request_supplies(struct device *dev,
-		struct wm8731_priv *wm8731)
+static const struct snd_soc_component_driver soc_component_dev_wm8731 = {
+	.set_bias_level		= wm8731_set_bias_level,
+	.controls		= wm8731_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8731_snd_controls),
+	.dapm_widgets		= wm8731_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes		= wm8731_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(wm8731_intercon),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+
+static int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
 {
 	int ret = 0, i;
 
@@ -590,28 +604,6 @@ static int wm8731_request_supplies(struct device *dev,
 		dev_err(dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static const struct snd_soc_component_driver soc_component_dev_wm8731 = {
-	.set_bias_level		= wm8731_set_bias_level,
-	.controls		= wm8731_snd_controls,
-	.num_controls		= ARRAY_SIZE(wm8731_snd_controls),
-	.dapm_widgets		= wm8731_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(wm8731_dapm_widgets),
-	.dapm_routes		= wm8731_intercon,
-	.num_dapm_routes	= ARRAY_SIZE(wm8731_intercon),
-	.suspend_bias_off	= 1,
-	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
-};
-
-static int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
-{
-	int ret = 0;
 
 	ret = wm8731_reset(wm8731->regmap);
 	if (ret < 0) {
@@ -695,10 +687,6 @@ static int wm8731_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm8731);
 
-	ret = wm8731_request_supplies(&spi->dev, wm8731);
-	if (ret != 0)
-		return ret;
-
 	wm8731->regmap = devm_regmap_init_spi(spi, &wm8731_regmap);
 	if (IS_ERR(wm8731->regmap)) {
 		ret = PTR_ERR(wm8731->regmap);
@@ -747,10 +735,6 @@ static int wm8731_i2c_probe(struct i2c_client *i2c,
 	mutex_init(&wm8731->lock);
 
 	i2c_set_clientdata(i2c, wm8731);
-
-	ret = wm8731_request_supplies(&i2c->dev, wm8731);
-	if (ret != 0)
-		return ret;
 
 	wm8731->regmap = devm_regmap_init_i2c(i2c, &wm8731_regmap);
 	if (IS_ERR(wm8731->regmap)) {
