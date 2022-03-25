@@ -106,6 +106,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.vsel_reg = RT4831_REG_VLCM,
 		.vsel_mask = RT4831_VOLT_MASK,
 		.bypass_reg = RT4831_REG_DSVEN,
+		.bypass_mask = RT4831_DSVMODE_MASK,
 		.bypass_val_on = DSV_MODE_BYPASS,
 		.bypass_val_off = DSV_MODE_NORMAL,
 		.owner = THIS_MODULE,
