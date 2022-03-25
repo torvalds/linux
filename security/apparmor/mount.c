@@ -217,7 +217,6 @@ static struct aa_perms compute_mnt_perms(struct aa_dfa *dfa,
 		.allow = dfa_user_allow(dfa, state),
 		.audit = dfa_user_audit(dfa, state),
 		.quiet = dfa_user_quiet(dfa, state),
-		.xindex = dfa_user_xindex(dfa, state),
 	};
 
 	return perms;
