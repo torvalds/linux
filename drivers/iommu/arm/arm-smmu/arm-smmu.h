@@ -257,6 +257,7 @@ enum arm_smmu_implementation {
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
 	QCOM_SMMUV2,
+	QCOM_SMMUV500,
 };
 
 struct arm_smmu_s2cr {
