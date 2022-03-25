@@ -138,6 +138,18 @@ ice_sw_type_from_tunnel(enum ice_tunnel_type type)
 	}
 }
 
+static u16 ice_check_supported_vlan_tpid(u16 vlan_tpid)
+{
+	switch (vlan_tpid) {
+	case ETH_P_8021Q:
+	case ETH_P_8021AD:
+	case ETH_P_QINQ1:
+		return vlan_tpid;
+	default:
+		return 0;
+	}
+}
+
 static int
 ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 			 struct ice_adv_lkup_elem *list)
@@ -273,7 +285,10 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 {
 	struct ice_tc_flower_lyr_2_4_hdrs *headers = &tc_fltr->outer_headers;
 	bool inner = false;
+	u16 vlan_tpid = 0;
 	int i = 0;
+
+	rule_info->vlan_type = vlan_tpid;
 
 	rule_info->tun_type = ice_sw_type_from_tunnel(tc_fltr->tunnel_type);
 	if (tc_fltr->tunnel_type != TNL_LAST) {
@@ -315,6 +330,10 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 
 	/* copy VLAN info */
 	if (flags & ICE_TC_FLWR_FIELD_VLAN) {
+		vlan_tpid = be16_to_cpu(headers->vlan_hdr.vlan_tpid);
+		rule_info->vlan_type =
+				ice_check_supported_vlan_tpid(vlan_tpid);
+
 		if (flags & ICE_TC_FLWR_FIELD_CVLAN)
 			list[i].type = ICE_VLAN_EX;
 		else
@@ -1075,6 +1094,8 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 				cpu_to_be16(match.key->vlan_id & VLAN_VID_MASK);
 		if (match.mask->vlan_priority)
 			headers->vlan_hdr.vlan_prio = match.key->vlan_priority;
+		if (match.mask->vlan_tpid)
+			headers->vlan_hdr.vlan_tpid = match.key->vlan_tpid;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {

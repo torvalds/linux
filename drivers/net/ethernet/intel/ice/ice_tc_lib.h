@@ -41,6 +41,7 @@ struct ice_tc_flower_action {
 struct ice_tc_vlan_hdr {
 	__be16 vlan_id; /* Only last 12 bits valid */
 	u16 vlan_prio; /* Only last 3 bits valid (valid values: 0..7) */
+	__be16 vlan_tpid;
 };
 
 struct ice_tc_l2_hdr {

@@ -111,12 +111,17 @@ enum ice_prot_id {
 #define ICE_GRE_OF_HW		64
 
 #define ICE_UDP_OF_HW	52 /* UDP Tunnels */
-#define ICE_META_DATA_ID_HW 255 /* this is used for tunnel type */
+#define ICE_META_DATA_ID_HW 255 /* this is used for tunnel and VLAN type */
 
 #define ICE_MDID_SIZE 2
+
 #define ICE_TUN_FLAG_MDID 21
 #define ICE_TUN_FLAG_MDID_OFF (ICE_MDID_SIZE * ICE_TUN_FLAG_MDID)
 #define ICE_TUN_FLAG_MASK 0xFF
+
+#define ICE_VLAN_FLAG_MDID 20
+#define ICE_VLAN_FLAG_MDID_OFF (ICE_MDID_SIZE * ICE_VLAN_FLAG_MDID)
+#define ICE_PKT_FLAGS_0_TO_15_VLAN_FLAGS_MASK 0xD000
 
 #define ICE_TUN_FLAG_FV_IND 2
 
