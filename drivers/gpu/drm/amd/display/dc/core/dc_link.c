@@ -3487,8 +3487,6 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
-	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct link_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
 	const struct dc_link_settings empty_link_settings = {0};
@@ -3522,7 +3520,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 						pipe_ctx->pipe_idx);
 	}
 
-	proposed_table.stream_allocations[0].hpo_dp_stream_enc = hpo_dp_stream_encoder;
+	proposed_table.stream_allocations[0].hpo_dp_stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
 
 	ASSERT(proposed_table.stream_count == 1);
 
@@ -3535,8 +3533,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 		proposed_table.stream_allocations[0].slot_count);
 
 	/* program DP source TX for payload */
-	hpo_dp_link_encoder->funcs->update_stream_allocation_table(
-			hpo_dp_link_encoder,
+	link_hwss->ext.update_stream_allocation_table(link, &pipe_ctx->link_res,
 			&proposed_table);
 
 	/* poll for ACT handled */
@@ -3573,8 +3570,6 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	struct link_encoder *link_encoder = NULL;
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
@@ -3583,9 +3578,6 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	enum act_return_status ret;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
-
-	link_encoder = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_encoder);
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
 	 * and stream is in link->stream[]. This is called during set mode,
@@ -3631,36 +3623,16 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	ASSERT(proposed_table.stream_count > 0);
 
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-		static enum dc_status status;
-		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
-
-		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
-			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
-
-		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
-			mst_alloc_slots, &prev_mst_slots_in_use);
-		ASSERT(status == DC_OK);
-		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
-				status, mst_alloc_slots, prev_mst_slots_in_use);
-	}
-
 	/* program DP source TX for payload */
-	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
-	case DP_8b_10b_ENCODING:
-		link_encoder->funcs->update_mst_stream_allocation_table(
-			link_encoder,
-			&link->mst_stream_alloc_table);
-		break;
-	case DP_128b_132b_ENCODING:
-		hpo_dp_link_encoder->funcs->update_stream_allocation_table(
-				hpo_dp_link_encoder,
-				&link->mst_stream_alloc_table);
-		break;
-	case DP_UNKNOWN_ENCODING:
+	if (link_hwss->ext.update_stream_allocation_table == NULL ||
+			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_ERROR("Failure: unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	link_hwss->ext.update_stream_allocation_table(link,
+			&pipe_ctx->link_res,
+			&link->mst_stream_alloc_table);
 
 	/* send down message */
 	ret = dm_helpers_dp_mst_poll_for_allocation_change_trigger(
@@ -3703,7 +3675,6 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
-	struct link_encoder *link_encoder = link->link_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
 	enum act_return_status ret;
@@ -3767,8 +3738,13 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	ASSERT(proposed_table.stream_count > 0);
 
 	/* update mst stream allocation table hardware state */
-	link_encoder->funcs->update_mst_stream_allocation_table(
-			link_encoder,
+	if (link_hwss->ext.update_stream_allocation_table == NULL ||
+			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
+		DC_LOG_ERROR("Failure: unknown encoding format\n");
+		return DC_ERROR_UNEXPECTED;
+	}
+
+	link_hwss->ext.update_stream_allocation_table(link, &pipe_ctx->link_res,
 			&link->mst_stream_alloc_table);
 
 	/* poll for immediate branch device ACT handled */
@@ -3863,8 +3839,6 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	struct link_encoder *link_encoder = NULL;
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 	int i;
@@ -3872,9 +3846,6 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	const struct dc_link_settings empty_link_settings = {0};
 	DC_LOGGER_INIT(link->ctx->logger);
-
-	link_encoder = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_encoder);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -3933,35 +3904,15 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
 	}
 
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-		enum dc_status status;
-		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
-
-		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
-			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
-
-		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
-			mst_alloc_slots, &prev_mst_slots_in_use);
-		ASSERT(status != DC_NOT_SUPPORTED);
-		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
-				status, mst_alloc_slots, prev_mst_slots_in_use);
-	}
-
-	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
-	case DP_8b_10b_ENCODING:
-		link_encoder->funcs->update_mst_stream_allocation_table(
-			link_encoder,
-			&link->mst_stream_alloc_table);
-		break;
-	case DP_128b_132b_ENCODING:
-		hpo_dp_link_encoder->funcs->update_stream_allocation_table(
-				hpo_dp_link_encoder,
-				&link->mst_stream_alloc_table);
-		break;
-	case DP_UNKNOWN_ENCODING:
+	/* update mst stream allocation table hardware state */
+	if (link_hwss->ext.update_stream_allocation_table == NULL ||
+			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_DEBUG("Unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	link_hwss->ext.update_stream_allocation_table(link, &pipe_ctx->link_res,
+			&link->mst_stream_alloc_table);
 
 	if (mst_mode) {
 		dm_helpers_dp_mst_poll_for_allocation_change_trigger(
@@ -4109,8 +4060,8 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 		proposed_table.stream_allocations[0].hpo_dp_stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	}
 
-	pipe_ctx->link_res.hpo_dp_link_enc->funcs->update_stream_allocation_table(
-			pipe_ctx->link_res.hpo_dp_link_enc,
+	link_hwss->ext.update_stream_allocation_table(stream->link,
+			&pipe_ctx->link_res,
 			&proposed_table);
 
 	if (link_hwss->ext.set_throttled_vcp_size)

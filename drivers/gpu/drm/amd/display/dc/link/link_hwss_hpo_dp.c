@@ -244,6 +244,15 @@ static void set_hpo_dp_lane_settings(struct dc_link *link,
 			lane_settings[0].FFE_PRESET.raw);
 }
 
+static void update_hpo_dp_stream_allocation_table(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_mst_stream_allocation_table *table)
+{
+	link_res->hpo_dp_link_enc->funcs->update_stream_allocation_table(
+			link_res->hpo_dp_link_enc,
+			table);
+}
+
 static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
@@ -255,6 +264,7 @@ static const struct link_hwss hpo_dp_link_hwss = {
 		.disable_dp_link_output = disable_hpo_dp_link_output,
 		.set_dp_link_test_pattern  = set_hpo_dp_link_test_pattern,
 		.set_dp_lane_settings = set_hpo_dp_lane_settings,
+		.update_stream_allocation_table = update_hpo_dp_stream_allocation_table,
 	},
 };
 

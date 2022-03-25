@@ -153,6 +153,16 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
 }
 
+static void update_dio_stream_allocation_table(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_mst_stream_allocation_table *table)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	ASSERT(link_enc);
+	link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
@@ -163,6 +173,7 @@ static const struct link_hwss dio_link_hwss = {
 		.disable_dp_link_output = disable_dio_dp_link_output,
 		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
 		.set_dp_lane_settings = set_dio_dp_lane_settings,
+		.update_stream_allocation_table = update_dio_stream_allocation_table,
 	},
 };
 
