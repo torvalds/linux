@@ -41,15 +41,32 @@ static const struct rga_backend_ops rga2_ops = {
 	.soft_reset = rga2_soft_reset
 };
 
-static int rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
-				    struct rga_video_frame_info *mpi_frame,
-				    struct rga_img_info_t *channel_info,
-				    struct rga_img_info_t *cache_info)
+static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf, struct rga_img_info_t *channel_info)
+{
+	struct rga_external_buffer buffer;
+
+	buffer.memory = (unsigned long)dma_buf;
+	buffer.type = RGA_DMA_BUFFER_PTR;
+	buffer.memory_parm.width = channel_info->vir_w;
+	buffer.memory_parm.height = channel_info->vir_h;
+	buffer.memory_parm.format = channel_info->format;
+
+	buffer.handle = rga_mm_import_buffer(&buffer);
+	if (buffer.handle == 0) {
+		pr_err("can not import dma_buf %p\n", dma_buf);
+		return -EFAULT;
+	}
+	channel_info->yrgb_addr = buffer.handle;
+
+	return 0;
+}
+
+static void rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
+				     struct rga_video_frame_info *mpi_frame,
+				     struct rga_img_info_t *channel_info,
+				     struct rga_img_info_t *cache_info)
 {
 	uint32_t fix_enable_flag, cache_info_flag;
-
-	if (mpi_frame == NULL)
-		return -EFAULT;
 
 	switch (flags_mask) {
 	case RGA_CONTEXT_SRC_MASK:
@@ -65,7 +82,7 @@ static int rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
 		cache_info_flag = RGA_CONTEXT_DST_CACHE_INFO;
 		break;
 	default:
-		return -EFAULT;
+		return;
 	}
 
 	if (flags & fix_enable_flag) {
@@ -91,8 +108,6 @@ static int rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
 
 		}
 	}
-
-	return 0;
 }
 
 int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
@@ -114,8 +129,8 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 
-	ctx->sync_mode = RGA_BLIT_SYNC;
 	/* TODO: batch mode need mpi async mode */
+	ctx->sync_mode = RGA_BLIT_SYNC;
 	ctx->use_batch_mode = false;
 
 	cached_cmd = ctx->cached_cmd;
@@ -123,37 +138,58 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
-	ret = rga_mpi_set_channel_info(RGA_CONTEXT_SRC_MASK,
-				       ctx->mpi_config_flags,
-				       mpi_job->src,
-				       &mpi_cmd.src,
-				       &cached_cmd->src);
-	if (ret < 0) {
-		pr_err("src channel set info error!\n");
-		return ret;
+	/* set channel info */
+	if ((mpi_job->src != NULL) && (ctx->flags & RGA_CONTEXT_SRC_MASK))
+		rga_mpi_set_channel_info(RGA_CONTEXT_SRC_MASK,
+					 ctx->flags,
+					 mpi_job->src,
+					 &mpi_cmd.src,
+					 &cached_cmd->src);
+
+	if ((mpi_job->pat != NULL) && (ctx->flags & RGA_CONTEXT_PAT_MASK))
+		rga_mpi_set_channel_info(RGA_CONTEXT_PAT_MASK,
+					 ctx->flags,
+					 mpi_job->pat,
+					 &mpi_cmd.pat,
+					 &cached_cmd->pat);
+
+	if ((mpi_job->dst != NULL) && (ctx->flags & RGA_CONTEXT_DST_MASK))
+		rga_mpi_set_channel_info(RGA_CONTEXT_DST_MASK,
+					 ctx->flags,
+					 mpi_job->dst,
+					 &mpi_cmd.dst,
+					 &cached_cmd->dst);
+
+	/* set buffer handle */
+	if (mpi_job->dma_buf_src0 != NULL) {
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src0, &mpi_cmd.src);
+		if (ret < 0) {
+			pr_err("src channel set buffer handle failed!\n");
+			return ret;
+		}
 	}
 
-	ret = rga_mpi_set_channel_info(RGA_CONTEXT_PAT_MASK,
-				       ctx->mpi_config_flags,
-				       mpi_job->pat,
-				       &mpi_cmd.pat,
-				       &cached_cmd->pat);
-	if (ret < 0) {
-		pr_err("src1 channel set info error!\n");
-		return ret;
+	if (mpi_job->dma_buf_src1 != NULL) {
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src1, &mpi_cmd.pat);
+		if (ret < 0) {
+			pr_err("src1 channel set buffer handle failed!\n");
+			return ret;
+		}
 	}
 
-	ret = rga_mpi_set_channel_info(RGA_CONTEXT_DST_MASK,
-				       ctx->mpi_config_flags,
-				       mpi_job->dst,
-				       &mpi_cmd.dst,
-				       &cached_cmd->dst);
-	if (ret < 0) {
-		pr_err("dst channel set info error!\n");
-		return ret;
+	if (mpi_job->dma_buf_dst != NULL) {
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_dst, &mpi_cmd.dst);
+		if (ret < 0) {
+			pr_err("dst channel set buffer handle failed!\n");
+			return ret;
+		}
 	}
 
+	mpi_cmd.handle_flag = 1;
+	mpi_cmd.mmu_info.mmu_en = 0;
+	mpi_cmd.mmu_info.mmu_flag = 0;
 
+	/* commit job */
 	if (ctx->cmd_num > 1) {
 		pr_err("Currently ctx does not support multiple tasks!");
 		/* TODO */
@@ -176,16 +212,23 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		return ret;
 	}
 
+	if ((mpi_job->dma_buf_src0 != NULL) && (mpi_cmd.src.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.src.yrgb_addr);
+	if ((mpi_job->dma_buf_src1 != NULL) && (mpi_cmd.pat.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.pat.yrgb_addr);
+	if ((mpi_job->dma_buf_dst != NULL) && (mpi_cmd.dst.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.dst.yrgb_addr);
+
 	/* copy dst info to mpi job for next node */
-	if (mpi_job->dst != NULL) {
-		mpi_job->dst->x_offset = mpi_cmd.dst.x_offset;
-		mpi_job->dst->y_offset = mpi_cmd.dst.y_offset;
-		mpi_job->dst->width = mpi_cmd.dst.act_w;
-		mpi_job->dst->height = mpi_cmd.dst.act_h;
-		mpi_job->dst->vir_w = mpi_cmd.dst.vir_w;
-		mpi_job->dst->vir_h = mpi_cmd.dst.vir_h;
-		mpi_job->dst->rd_mode = mpi_cmd.dst.rd_mode;
-		mpi_job->dst->format = mpi_cmd.dst.format;
+	if (mpi_job->output != NULL) {
+		mpi_job->output->x_offset = mpi_cmd.dst.x_offset;
+		mpi_job->output->y_offset = mpi_cmd.dst.y_offset;
+		mpi_job->output->width = mpi_cmd.dst.act_w;
+		mpi_job->output->height = mpi_cmd.dst.act_h;
+		mpi_job->output->vir_w = mpi_cmd.dst.vir_w;
+		mpi_job->output->vir_h = mpi_cmd.dst.vir_h;
+		mpi_job->output->rd_mode = mpi_cmd.dst.rd_mode;
+		mpi_job->output->format = mpi_cmd.dst.format;
 	}
 
 	return ret;
@@ -358,8 +401,10 @@ static long rga_ioctl_import_buffer(unsigned long arg)
 
 	for (i = 0; i < buffer_pool.size; i++) {
 		ret = rga_mm_import_buffer(&external_buffer[i]);
-		if (ret < 0) {
-			pr_err("buffer[%d] mm import buffer failed!\n", i);
+		if (ret == 0) {
+			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = 0x%x\n",
+			       i, (unsigned long)external_buffer[i].memory,
+			       external_buffer[i].type);
 
 			goto err_free_external_buffer;
 		}

@@ -24,9 +24,11 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 			    struct mm_struct *mm);
 void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_addr);
 
+int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buffer,
+		    enum dma_data_direction dir, struct device *rga_dev);
 int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 		   enum dma_data_direction dir, struct device *rga_dev);
-void rga_dma_unmap_fd(struct rga_dma_buffer *rga_dma_buffer);
+void rga_dma_unmap_buf(struct rga_dma_buffer *rga_dma_buffer);
 
 int rga_dma_get_info(struct rga_job *job);
 void rga_dma_put_info(struct rga_job *job);

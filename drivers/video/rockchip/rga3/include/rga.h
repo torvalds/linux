@@ -73,7 +73,8 @@
 enum rga_memory_type {
 	RGA_DMA_BUFFER = 0,
 	RGA_VIRTUAL_ADDRESS,
-	RGA_PHYSICAL_ADDRESS
+	RGA_PHYSICAL_ADDRESS,
+	RGA_DMA_BUFFER_PTR,
 };
 
 enum rga_scale_up_mode {
@@ -840,6 +841,7 @@ struct rga_mpi_job_t {
 	struct rga_video_frame_info *src;
 	struct rga_video_frame_info *pat;
 	struct rga_video_frame_info *dst;
+	struct rga_video_frame_info *output;
 
 	int ctx_id;
 };

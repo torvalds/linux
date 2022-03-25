@@ -226,6 +226,7 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 
 		switch (dump_buffer->type) {
 		case RGA_DMA_BUFFER:
+		case RGA_DMA_BUFFER_PTR:
 			seq_puts(m, "dma_buffer:\n");
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
 				seq_printf(m, "\t core %d:\n", dump_buffer->dma_buffer[i].core);

@@ -317,7 +317,7 @@ static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
 	int i;
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
-		rga_dma_unmap_fd(&internal_buffer->dma_buffer[i]);
+		rga_dma_unmap_buf(&internal_buffer->dma_buffer[i]);
 
 		if (i == 0 &&
 		    internal_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
@@ -351,10 +351,19 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		    i != 0)
 			continue;
 
-		ret = rga_dma_map_fd((int)external_buffer->memory,
-				     &internal_buffer->dma_buffer[i],
-				     DMA_BIDIRECTIONAL,
-				     rga_drvdata->rga_scheduler[i]->dev);
+		if (external_buffer->type == RGA_DMA_BUFFER)
+			ret = rga_dma_map_fd((int)external_buffer->memory,
+					     &internal_buffer->dma_buffer[i],
+					     DMA_BIDIRECTIONAL,
+					     rga_drvdata->rga_scheduler[i]->dev);
+		else if (external_buffer->type == RGA_DMA_BUFFER_PTR)
+			ret = rga_dma_map_buf((struct dma_buf *)
+					      u64_to_user_ptr(external_buffer->memory),
+					      &internal_buffer->dma_buffer[i],
+					      DMA_BIDIRECTIONAL,
+					      rga_drvdata->rga_scheduler[i]->dev);
+		else
+			ret = -EFAULT;
 		if (ret < 0) {
 			pr_err("%s core[%d] map dma buffer error!\n",
 				__func__, rga_drvdata->rga_scheduler[0]->core);
@@ -535,6 +544,7 @@ static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
 {
 	switch (internal_buffer->type) {
 	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
 		rga_mm_unmap_dma_buffer(internal_buffer);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
@@ -561,7 +571,8 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 
 	switch (external_buffer->type) {
 	case RGA_DMA_BUFFER:
-		internal_buffer->type = RGA_DMA_BUFFER;
+	case RGA_DMA_BUFFER_PTR:
+		internal_buffer->type = external_buffer->type;
 
 		ret = rga_mm_map_dma_buffer(external_buffer, internal_buffer);
 		if (ret < 0) {
@@ -669,6 +680,20 @@ rga_mm_lookup_external(struct rga_mm *mm_session,
 		}
 
 		break;
+	case RGA_DMA_BUFFER_PTR:
+		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
+			if (temp_buffer->dma_buffer == NULL)
+				continue;
+
+			if ((unsigned long)temp_buffer->dma_buffer[0].dma_buf ==
+			    external_buffer->memory) {
+				output_buffer = temp_buffer;
+				break;
+			}
+		}
+
+		break;
+
 	default:
 		pr_err("Illegal external buffer!\n");
 		return NULL;
@@ -742,6 +767,7 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 
 		switch (dump_buffer->type) {
 		case RGA_DMA_BUFFER:
+		case RGA_DMA_BUFFER_PTR:
 			pr_info("dma_buffer:\n");
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
 				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
@@ -904,6 +930,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 
 	switch (internal_buffer->type) {
 	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
 		    job->core == RGA3_SCHEDULER_CORE1) {
 			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
@@ -1071,7 +1098,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
 		pr_err("rga mm is null!\n");
-		return -EFAULT;
+		return 0;
 	}
 
 	mutex_lock(&mm->lock);
@@ -1091,7 +1118,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 		pr_err("%s alloc internal_buffer error!\n", __func__);
 
 		mutex_unlock(&mm->lock);
-		return -ENOMEM;
+		return 0;
 	}
 
 	ret = rga_mm_map_buffer(external_buffer, internal_buffer);
@@ -1117,7 +1144,7 @@ FREE_INTERNAL_BUFFER:
 	mutex_unlock(&mm->lock);
 	kfree(internal_buffer);
 
-	return ret;
+	return 0;
 }
 
 int rga_mm_release_buffer(uint32_t handle)
