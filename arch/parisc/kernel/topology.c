@@ -16,17 +16,18 @@
 #include <linux/cpu.h>
 
 #include <asm/topology.h>
+#include <asm/sections.h>
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
-static int dualcores_found __initdata;
+static int dualcores_found;
 
 /*
  * store_cpu_topology is called at boot when only one cpu is running
  * and with the mutex cpu_hotplug.lock locked, when several cpus have booted,
  * which prevents simultaneous write access to cpu_topology array
  */
-void __init store_cpu_topology(unsigned int cpuid)
+void store_cpu_topology(unsigned int cpuid)
 {
 	struct cpu_topology *cpuid_topo = &cpu_topology[cpuid];
 	struct cpuinfo_parisc *p;
