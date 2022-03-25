@@ -479,7 +479,6 @@ static int rtrs_str_to_sockaddr(const char *addr, size_t len,
  */
 int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 {
-
 	switch (addr->sa_family) {
 	case AF_IB:
 		return scnprintf(buf, len, "gid:%pI6",
