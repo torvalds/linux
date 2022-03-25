@@ -1809,19 +1809,24 @@ end:
 
 static int rtw89_pci_deglitch_setting(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
 
-	if (rtwdev->chip->chip_id != RTL8852A)
-		return 0;
-
-	ret = rtw89_write16_mdio_clr(rtwdev, RAC_ANA24, B_AX_DEGLITCH,
-				     PCIE_PHY_GEN1);
-	if (ret)
-		return ret;
-	ret = rtw89_write16_mdio_clr(rtwdev, RAC_ANA24, B_AX_DEGLITCH,
-				     PCIE_PHY_GEN2);
-	if (ret)
-		return ret;
+	if (chip_id == RTL8852A) {
+		ret = rtw89_write16_mdio_clr(rtwdev, RAC_ANA24, B_AX_DEGLITCH,
+					     PCIE_PHY_GEN1);
+		if (ret)
+			return ret;
+		ret = rtw89_write16_mdio_clr(rtwdev, RAC_ANA24, B_AX_DEGLITCH,
+					     PCIE_PHY_GEN2);
+		if (ret)
+			return ret;
+	} else if (chip_id == RTL8852C) {
+		rtw89_write16_clr(rtwdev, R_RAC_DIRECT_OFFSET_G1 + RAC_ANA24 * 2,
+				  B_AX_DEGLITCH);
+		rtw89_write16_clr(rtwdev, R_RAC_DIRECT_OFFSET_G2 + RAC_ANA24 * 2,
+				  B_AX_DEGLITCH);
+	}
 
 	return 0;
 }
