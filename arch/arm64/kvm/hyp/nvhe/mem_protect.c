@@ -883,14 +883,25 @@ static int host_complete_share(u64 addr, const struct pkvm_mem_transition *tx,
 			       enum kvm_pgtable_prot perms)
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
+	int err;
 
-	return __host_set_page_state_range(addr, size, PKVM_PAGE_SHARED_BORROWED);
+	err = __host_set_page_state_range(addr, size, PKVM_PAGE_SHARED_BORROWED);
+	if (err)
+		return err;
+
+	if (tx->initiator.id == PKVM_ID_GUEST)
+		psci_mem_protect_dec(tx->nr_pages);
+
+	return 0;
 }
 
 static int host_complete_unshare(u64 addr, const struct pkvm_mem_transition *tx)
 {
 	u8 owner_id = tx->initiator.id;
 	u64 size = tx->nr_pages * PAGE_SIZE;
+
+	if (tx->initiator.id == PKVM_ID_GUEST)
+		psci_mem_protect_inc(tx->nr_pages);
 
 	return host_stage2_set_owner_locked(addr, size, owner_id);
 }
@@ -1078,18 +1089,32 @@ static int guest_complete_donation(u64 addr, const struct pkvm_mem_transition *t
 	u64 size = tx->nr_pages * PAGE_SIZE;
 	int err;
 
+	if (tx->initiator.id == PKVM_ID_HOST)
+		psci_mem_protect_inc(tx->nr_pages);
+
 	if (pkvm_ipa_range_has_pvmfw(vm, addr, addr + size)) {
-		if (WARN_ON(!pkvm_hyp_vcpu_is_protected(vcpu)))
-			return -EPERM;
+		if (WARN_ON(!pkvm_hyp_vcpu_is_protected(vcpu))) {
+			err = -EPERM;
+			goto err_undo_psci;
+		}
 
 		WARN_ON(tx->initiator.id != PKVM_ID_HOST);
 		err = pkvm_load_pvmfw_pages(vm, addr, phys, size);
 		if (err)
-			return err;
+			goto err_undo_psci;
 	}
 
+	/*
+	 * If this fails, we effectively leak the pages since they're now
+	 * owned by the guest but not mapped into its stage-2 page-table.
+	 */
 	return kvm_pgtable_stage2_map(&vm->pgt, addr, size, phys, prot,
 				      &vcpu->vcpu.arch.pkvm_memcache);
+
+err_undo_psci:
+	if (tx->initiator.id == PKVM_ID_HOST)
+		psci_mem_protect_dec(tx->nr_pages);
+	return err;
 }
 
 static int __guest_get_completer_addr(u64 *completer_addr, phys_addr_t phys,
@@ -1837,6 +1862,7 @@ int __pkvm_host_reclaim_page(u64 pfn)
 	if (page->flags & HOST_PAGE_NEED_POISONING) {
 		hyp_poison_page(addr);
 		page->flags &= ~HOST_PAGE_NEED_POISONING;
+		psci_mem_protect_dec(1);
 	}
 
 	ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_HOST);
