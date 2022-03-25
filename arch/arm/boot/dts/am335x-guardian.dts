@@ -29,20 +29,21 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	gpio_keys {
+	guardian_buttons: gpio-keys {
+		pinctrl-names = "default";
+		pinctrl-0 = <&guardian_button_pins>;
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_keys_pins>;
 
-		button21 {
+		power-button {
 			label = "guardian-power-button";
 			linux,code = <KEY_POWER>;
-			gpios = <&gpio2 21 0>;
+			gpios = <&gpio2 21 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 	};
+
 
 	leds {
 		compatible = "gpio-leds";
@@ -365,9 +366,9 @@
 		>;
 	};
 
-	gpio_keys_pins: pinmux_gpio_keys_pins {
+	guardian_button_pins: pinmux_guardian_button_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x940, PIN_INPUT | MUX_MODE7)
+			AM33XX_IOPAD(0x940, PIN_INPUT | MUX_MODE7) /* (M16) gmii1_rxd0.gpio2[21] */
 		>;
 	};
 
