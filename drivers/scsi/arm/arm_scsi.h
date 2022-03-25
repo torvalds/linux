@@ -1,15 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/drivers/acorn/scsi/scsi.h
- *
  *  Copyright (C) 2002 Russell King
  *
- *  Commonly used scsi driver functions.
+ *  Commonly used functions by the ARM SCSI-II drivers.
  */
 
 #include <linux/scatterlist.h>
 
 #define BELT_AND_BRACES
+
+struct arm_cmd_priv {
+	struct scsi_pointer scsi_pointer;
+};
+
+static inline struct scsi_pointer *arm_scsi_pointer(struct scsi_cmnd *cmd)
+{
+	struct arm_cmd_priv *acmd = scsi_cmd_priv(cmd);
+
+	return &acmd->scsi_pointer;
+}
 
 /*
  * The scatter-gather list handling.  This contains all
@@ -78,16 +87,18 @@ static inline void put_next_SCp_byte(struct scsi_pointer *SCp, unsigned char c)
 
 static inline void init_SCp(struct scsi_cmnd *SCpnt)
 {
-	memset(&SCpnt->SCp, 0, sizeof(struct scsi_pointer));
+	struct scsi_pointer *scsi_pointer = arm_scsi_pointer(SCpnt);
+
+	memset(scsi_pointer, 0, sizeof(struct scsi_pointer));
 
 	if (scsi_bufflen(SCpnt)) {
 		unsigned long len = 0;
 
-		SCpnt->SCp.buffer = scsi_sglist(SCpnt);
-		SCpnt->SCp.buffers_residual = scsi_sg_count(SCpnt) - 1;
-		SCpnt->SCp.ptr = sg_virt(SCpnt->SCp.buffer);
-		SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
-		SCpnt->SCp.phase = scsi_bufflen(SCpnt);
+		scsi_pointer->buffer = scsi_sglist(SCpnt);
+		scsi_pointer->buffers_residual = scsi_sg_count(SCpnt) - 1;
+		scsi_pointer->ptr = sg_virt(scsi_pointer->buffer);
+		scsi_pointer->this_residual = scsi_pointer->buffer->length;
+		scsi_pointer->phase = scsi_bufflen(SCpnt);
 
 #ifdef BELT_AND_BRACES
 		{	/*
@@ -111,15 +122,15 @@ static inline void init_SCp(struct scsi_cmnd *SCpnt)
 				 * FIXME: Totaly naive fixup. We should abort
 				 * with error
 				 */
-				SCpnt->SCp.phase =
+				scsi_pointer->phase =
 					min_t(unsigned long, len,
 					      scsi_bufflen(SCpnt));
 			}
 		}
 #endif
 	} else {
-		SCpnt->SCp.ptr = NULL;
-		SCpnt->SCp.this_residual = 0;
-		SCpnt->SCp.phase = 0;
+		scsi_pointer->ptr = NULL;
+		scsi_pointer->this_residual = 0;
+		scsi_pointer->phase = 0;
 	}
 }

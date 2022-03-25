@@ -217,9 +217,6 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		if (req_op(clone) == REQ_OP_DISCARD &&
 		    !clone->q->limits.max_discard_sectors)
 			disable_discard(tio->md);
-		else if (req_op(clone) == REQ_OP_WRITE_SAME &&
-			 !clone->q->limits.max_write_same_sectors)
-			disable_write_same(tio->md);
 		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
 			 !clone->q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(tio->md);

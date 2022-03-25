@@ -693,6 +693,7 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *cgc)
 {
 	struct request_queue *q = bdev_get_queue(pd->bdev);
+	struct scsi_cmnd *scmd;
 	struct request *rq;
 	int ret = 0;
 
@@ -700,6 +701,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
 	if (cgc->buflen) {
 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
@@ -708,15 +710,15 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			goto out;
 	}
 
-	scsi_req(rq)->cmd_len = COMMAND_SIZE(cgc->cmd[0]);
-	memcpy(scsi_req(rq)->cmd, cgc->cmd, CDROM_PACKET_SIZE);
+	scmd->cmd_len = COMMAND_SIZE(cgc->cmd[0]);
+	memcpy(scmd->cmnd, cgc->cmd, CDROM_PACKET_SIZE);
 
 	rq->timeout = 60*HZ;
 	if (cgc->quiet)
 		rq->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(rq, false);
-	if (scsi_req(rq)->result)
+	if (scmd->result)
 		ret = -EIO;
 out:
 	blk_mq_free_request(rq);

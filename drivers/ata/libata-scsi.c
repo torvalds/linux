@@ -1022,7 +1022,9 @@ void ata_scsi_sdev_config(struct scsi_device *sdev)
  */
 bool ata_scsi_dma_need_drain(struct request *rq)
 {
-	return atapi_cmd_type(scsi_req(rq)->cmd[0]) == ATAPI_MISC;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return atapi_cmd_type(scmd->cmnd[0]) == ATAPI_MISC;
 }
 EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 

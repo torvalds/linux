@@ -23,10 +23,6 @@ struct block_device;
 struct scsi_device;
 struct Scsi_Host;
 
-struct pscsi_plugin_task {
-	unsigned char pscsi_cdb[0];
-} ____cacheline_aligned;
-
 #define PDF_HAS_CHANNEL_ID	0x01
 #define PDF_HAS_TARGET_ID	0x02
 #define PDF_HAS_LUN_ID		0x04
