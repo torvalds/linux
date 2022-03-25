@@ -1565,10 +1565,12 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 				     struct dm_table *map, struct bio *bio)
 {
 	struct clone_info ci;
+	struct dm_io *io;
 	struct bio *orig_bio = NULL;
 	blk_status_t error = BLK_STS_OK;
 
 	init_clone_info(&ci, md, map, bio);
+	io = ci.io;
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		__send_empty_flush(&ci);
@@ -1577,14 +1579,14 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	}
 
 	error = __split_and_process_bio(&ci);
-	ci.io->map_task = NULL;
+	io->map_task = NULL;
 	if (error || !ci.sector_count)
 		goto out;
 
 	/*
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
-	 * We take a clone of the original to store in ci.io->orig_bio to be
+	 * We take a clone of the original to store in io->orig_bio to be
 	 * used by dm_end_io_acct() and for dm_io_complete() to use for
 	 * completion handling.
 	 */
@@ -1596,9 +1598,9 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 out:
 	if (!orig_bio)
 		orig_bio = bio;
-	smp_store_release(&ci.io->orig_bio, orig_bio);
-	if (dm_io_flagged(ci.io, DM_IO_START_ACCT))
-		dm_start_io_acct(ci.io, NULL);
+	smp_store_release(&io->orig_bio, orig_bio);
+	if (dm_io_flagged(io, DM_IO_START_ACCT))
+		dm_start_io_acct(io, NULL);
 
 	/*
 	 * Drop the extra reference count for non-POLLED bio, and hold one
@@ -1610,7 +1612,7 @@ out:
 	if (error || !ci.submit_as_polled)
 		dm_io_dec_pending(ci.io, error);
 	else
-		dm_queue_poll_io(bio, ci.io);
+		dm_queue_poll_io(bio, io);
 }
 
 static void dm_submit_bio(struct bio *bio)
