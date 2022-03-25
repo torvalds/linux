@@ -19,7 +19,7 @@ void rt_task_arrival_marker(void *unused, bool preempt,
 {
 	unsigned int cpu = raw_smp_processor_id();
 
-	if (rt_task(next))
+	if (rt_task(next) && next != cpu_rq(cpu)->stop)
 		per_cpu(rt_task_arrival_time, cpu) = rq_clock_task(this_rq());
 	else
 		per_cpu(rt_task_arrival_time, cpu) = 0;
