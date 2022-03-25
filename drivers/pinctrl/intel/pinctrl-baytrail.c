@@ -443,6 +443,9 @@ static const unsigned int byt_sus_pcu_spi_pins[] = { 21 };
 static const unsigned int byt_sus_pcu_spi_mode_values[] = { 0 };
 static const unsigned int byt_sus_pcu_spi_gpio_mode_values[] = { 1 };
 
+static const unsigned int byt_sus_pmu_clk1_pins[] = { 5 };
+static const unsigned int byt_sus_pmu_clk2_pins[] = { 6 };
+
 static const struct intel_pingroup byt_sus_groups[] = {
 	PIN_GROUP("usb_oc_grp", byt_sus_usb_over_current_pins, byt_sus_usb_over_current_mode_values),
 	PIN_GROUP("usb_ulpi_grp", byt_sus_usb_ulpi_pins, byt_sus_usb_ulpi_mode_values),
@@ -450,20 +453,27 @@ static const struct intel_pingroup byt_sus_groups[] = {
 	PIN_GROUP("usb_oc_grp_gpio", byt_sus_usb_over_current_pins, byt_sus_usb_over_current_gpio_mode_values),
 	PIN_GROUP("usb_ulpi_grp_gpio", byt_sus_usb_ulpi_pins, byt_sus_usb_ulpi_gpio_mode_values),
 	PIN_GROUP("pcu_spi_grp_gpio", byt_sus_pcu_spi_pins, byt_sus_pcu_spi_gpio_mode_values),
+	PIN_GROUP("pmu_clk1_grp", byt_sus_pmu_clk1_pins, 1),
+	PIN_GROUP("pmu_clk2_grp", byt_sus_pmu_clk2_pins, 1),
 };
 
 static const char * const byt_sus_usb_groups[] = {
 	"usb_oc_grp", "usb_ulpi_grp",
 };
 static const char * const byt_sus_spi_groups[] = { "pcu_spi_grp" };
+static const char * const byt_sus_pmu_clk_groups[] = {
+	"pmu_clk1_grp", "pmu_clk2_grp",
+};
 static const char * const byt_sus_gpio_groups[] = {
 	"usb_oc_grp_gpio", "usb_ulpi_grp_gpio", "pcu_spi_grp_gpio",
+	"pmu_clk1_grp", "pmu_clk2_grp",
 };
 
 static const struct intel_function byt_sus_functions[] = {
 	FUNCTION("usb", byt_sus_usb_groups),
 	FUNCTION("spi", byt_sus_spi_groups),
 	FUNCTION("gpio", byt_sus_gpio_groups),
+	FUNCTION("pmu_clk", byt_sus_pmu_clk_groups),
 };
 
 static const struct intel_community byt_sus_communities[] = {
