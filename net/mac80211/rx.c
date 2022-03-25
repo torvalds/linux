@@ -3178,6 +3178,49 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb);
 }
 
+static void
+ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_mgmt *mgmt = (void *)rx->skb->data;
+	const struct element *ie;
+	size_t baselen;
+
+	if (!wiphy_ext_feature_isset(rx->local->hw.wiphy,
+				     NL80211_EXT_FEATURE_BSS_COLOR))
+		return;
+
+	if (ieee80211_hw_check(&rx->local->hw, DETECTS_COLOR_COLLISION))
+		return;
+
+	if (rx->sdata->vif.csa_active)
+		return;
+
+	baselen = mgmt->u.beacon.variable - rx->skb->data;
+	if (baselen > rx->skb->len)
+		return;
+
+	ie = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION,
+				    mgmt->u.beacon.variable,
+				    rx->skb->len - baselen);
+	if (ie && ie->datalen >= sizeof(struct ieee80211_he_operation) &&
+	    ie->datalen >= ieee80211_he_oper_size(ie->data + 1)) {
+		struct ieee80211_bss_conf *bss_conf = &rx->sdata->vif.bss_conf;
+		const struct ieee80211_he_operation *he_oper;
+		u8 color;
+
+		he_oper = (void *)(ie->data + 1);
+		if (le32_get_bits(he_oper->he_oper_params,
+				  IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED))
+			return;
+
+		color = le32_get_bits(he_oper->he_oper_params,
+				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
+		if (color == bss_conf->he_bss_color.color)
+			ieeee80211_obss_color_collision_notify(&rx->sdata->vif,
+							       BIT_ULL(color));
+	}
+}
+
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 {
@@ -3202,6 +3245,9 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	    ieee80211_is_beacon(mgmt->frame_control) &&
 	    !(rx->flags & IEEE80211_RX_BEACON_REPORTED)) {
 		int sig = 0;
+
+		/* sw bss color collision detection */
+		ieee80211_rx_check_bss_color_collision(rx);
 
 		if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM) &&
 		    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
