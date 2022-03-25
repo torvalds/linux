@@ -64,6 +64,11 @@
 		};
 	};
 
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+	};
+
 	panel {
 		compatible = "ti,tilcdc,panel";
 		pinctrl-names = "default", "sleep";
@@ -401,11 +406,42 @@
 
 &am33xx_pinmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <&clkout2_pin &gpio_pins>;
+	pinctrl-0 = <&clkout2_pin &guardian_interface_pins>;
 
 	clkout2_pin: pinmux_clkout2_pin {
 		pinctrl-single,pins = <
+			/* xdma_event_intr1.clkout2 */
 			AM33XX_IOPAD(0x9b4, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
+		>;
+	};
+
+	guardian_interface_pins: pinmux_interface_pins {
+		pinctrl-single,pins = <
+			/* ADC_BATSENSE_EN */
+			/* (A14) MCASP0_AHCLKx.gpio3[21] */
+			AM33XX_IOPAD(0x9ac, PIN_OUTPUT_PULLDOWN | MUX_MODE7 )
+			/* ADC_COINCELL_EN */
+			/* (J16) MII1_TX_EN.gpio3[3] */
+			AM33XX_IOPAD(0x914, PIN_OUTPUT_PULLDOWN | MUX_MODE7 )
+			/* ASP_ENABLE */
+			/* (A13) MCASP0_ACLKx.gpio3[14] */
+			AM33XX_IOPAD(0x990, PIN_OUTPUT_PULLUP | MUX_MODE7)
+			/* (D16) uart1_rxd.uart1_rxd */
+			AM33XX_IOPAD(0x980, PIN_INPUT | MUX_MODE7)
+			/* (D15) uart1_txd.uart1_txd */
+			AM33XX_IOPAD(0x984, PIN_INPUT | MUX_MODE7)
+			/*SWITCH-OFF_3V6*/
+			/* (M18) gpio0[1] */
+			AM33XX_IOPAD(0x94c, PIN_OUTPUT_PULLUP | MUX_MODE7)
+			/* MIRACULIX */
+			/* (H17) gmii1_crs.gpio3[1] */
+			AM33XX_IOPAD(0x90c, PIN_OUTPUT_PULLDOWN | MUX_MODE7 )
+			/* (H18) rmii1_refclk.gpio0[29] */
+			AM33XX_IOPAD(0x944, PIN_OUTPUT_PULLDOWN | MUX_MODE7 )
+			/* (J18) gmii1_txd3.gpio0[16] */
+			AM33XX_IOPAD(0x91c, PIN_INPUT           | MUX_MODE7 )
+			/* (J17) gmii1_rxdv.gpio3[4] */
+			AM33XX_IOPAD(0x918, PIN_OUTPUT_PULLDOWN | MUX_MODE7 )
 		>;
 	};
 
@@ -422,12 +458,6 @@
 		>;
 	};
 
-	gpio_pins: pinmux_gpio_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x928, PIN_OUTPUT | MUX_MODE7)
-			AM33XX_IOPAD(0x990, PIN_OUTPUT | MUX_MODE7)
-		>;
-	};
 
 	i2c0_pins: pinmux_i2c0_pins {
 		pinctrl-single,pins = <
