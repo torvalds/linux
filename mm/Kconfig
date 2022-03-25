@@ -63,6 +63,13 @@ config SPARSEMEM_MANUAL
 
 endchoice
 
+config MEMBLOCK_DEBUGFS
+	bool "Memblock debugfs for reserved memory"
+	depends on DEBUG_FS && ARCH_KEEP_MEMBLOCK
+	help
+	  Extend memblock debugfs to show size of each memblock, and shows the
+	  result of total size by KiB format.
+
 config DISCONTIGMEM
 	def_bool y
 	depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENABLE) || DISCONTIGMEM_MANUAL
