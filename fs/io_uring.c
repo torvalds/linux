@@ -1963,19 +1963,23 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 	return ret;
 }
 
-/* must to be called somewhat shortly after putting a request */
-static inline void io_put_task(struct task_struct *task, int nr)
+static void __io_put_task(struct task_struct *task, int nr)
 {
 	struct io_uring_task *tctx = task->io_uring;
 
-	if (likely(task == current)) {
-		tctx->cached_refs += nr;
-	} else {
-		percpu_counter_sub(&tctx->inflight, nr);
-		if (unlikely(atomic_read(&tctx->in_idle)))
-			wake_up(&tctx->wait);
-		put_task_struct_many(task, nr);
-	}
+	percpu_counter_sub(&tctx->inflight, nr);
+	if (unlikely(atomic_read(&tctx->in_idle)))
+		wake_up(&tctx->wait);
+	put_task_struct_many(task, nr);
+}
+
+/* must to be called somewhat shortly after putting a request */
+static inline void io_put_task(struct task_struct *task, int nr)
+{
+	if (likely(task == current))
+		task->io_uring->cached_refs += nr;
+	else
+		__io_put_task(task, nr);
 }
 
 static void io_task_refs_refill(struct io_uring_task *tctx)
