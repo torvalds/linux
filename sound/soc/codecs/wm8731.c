@@ -588,6 +588,20 @@ static int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
 {
 	int ret = 0, i;
 
+	wm8731->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(wm8731->mclk)) {
+		ret = PTR_ERR(wm8731->mclk);
+		if (ret == -ENOENT) {
+			wm8731->mclk = NULL;
+			dev_warn(dev, "Assuming static MCLK\n");
+		} else {
+			dev_err(dev, "Failed to get MCLK: %d\n", ret);
+			return ret;
+		}
+	}
+
+	mutex_init(&wm8731->lock);
+
 	for (i = 0; i < ARRAY_SIZE(wm8731->supplies); i++)
 		wm8731->supplies[i].supply = wm8731_supply_names[i];
 
@@ -670,21 +684,6 @@ static int wm8731_spi_probe(struct spi_device *spi)
 	if (wm8731 == NULL)
 		return -ENOMEM;
 
-	wm8731->mclk = devm_clk_get(&spi->dev, "mclk");
-	if (IS_ERR(wm8731->mclk)) {
-		ret = PTR_ERR(wm8731->mclk);
-		if (ret == -ENOENT) {
-			wm8731->mclk = NULL;
-			dev_warn(&spi->dev, "Assuming static MCLK\n");
-		} else {
-			dev_err(&spi->dev, "Failed to get MCLK: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	mutex_init(&wm8731->lock);
-
 	spi_set_drvdata(spi, wm8731);
 
 	wm8731->regmap = devm_regmap_init_spi(spi, &wm8731_regmap);
@@ -718,21 +717,6 @@ static int wm8731_i2c_probe(struct i2c_client *i2c,
 			      GFP_KERNEL);
 	if (wm8731 == NULL)
 		return -ENOMEM;
-
-	wm8731->mclk = devm_clk_get(&i2c->dev, "mclk");
-	if (IS_ERR(wm8731->mclk)) {
-		ret = PTR_ERR(wm8731->mclk);
-		if (ret == -ENOENT) {
-			wm8731->mclk = NULL;
-			dev_warn(&i2c->dev, "Assuming static MCLK\n");
-		} else {
-			dev_err(&i2c->dev, "Failed to get MCLK: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	mutex_init(&wm8731->lock);
 
 	i2c_set_clientdata(i2c, wm8731);
 
