@@ -124,7 +124,7 @@ static int xdpe122_identify(struct i2c_client *client,
 	return 0;
 }
 
-static const struct regulator_desc xdpe122_reg_desc[] = {
+static const struct regulator_desc __maybe_unused xdpe122_reg_desc[] = {
 	PMBUS_REGULATOR("vout", 0),
 	PMBUS_REGULATOR("vout", 1),
 };
