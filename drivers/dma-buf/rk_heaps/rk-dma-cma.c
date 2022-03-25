@@ -38,6 +38,13 @@ static int __init early_dma_heap_cma(char *p)
 }
 early_param("rk_dma_heap_cma", early_dma_heap_cma);
 
+#ifndef CONFIG_DMA_CMA
+void __weak
+dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
+{
+}
+#endif
+
 int __init rk_dma_heap_cma_setup(void)
 {
 	unsigned long size;
