@@ -484,21 +484,18 @@ static int mt7915_txbf_init(struct mt7915_dev *dev)
 	return mt7915_mcu_set_txbf(dev, MT_BF_TYPE_UPDATE);
 }
 
-static int mt7915_register_ext_phy(struct mt7915_dev *dev)
+static struct mt7915_phy *
+mt7915_alloc_ext_phy(struct mt7915_dev *dev)
 {
-	struct mt7915_phy *phy = mt7915_ext_phy(dev);
+	struct mt7915_phy *phy;
 	struct mt76_phy *mphy;
-	int ret;
 
 	if (!dev->dbdc_support)
-		return 0;
-
-	if (phy)
-		return 0;
+		return NULL;
 
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops);
 	if (!mphy)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	phy = mphy->priv;
 	phy->dev = dev;
@@ -506,6 +503,15 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 
 	/* Bind main phy to band0 and ext_phy to band1 for dbdc case */
 	phy->band_idx = 1;
+
+	return phy;
+}
+
+static int
+mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
+{
+	struct mt76_phy *mphy = phy->mt76;
+	int ret;
 
 	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
 
@@ -526,29 +532,22 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 
 	/* init wiphy according to mphy and phy */
 	mt7915_init_wiphy(mphy->hw);
-	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(phy->band_idx),
-				    MT7915_TX_RING_SIZE,
-				    MT_TXQ_RING_BASE(1));
-	if (ret)
-		goto error;
 
 	ret = mt76_register_phy(mphy, true, mt76_rates,
 				ARRAY_SIZE(mt76_rates));
 	if (ret)
-		goto error;
+		return ret;
 
 	ret = mt7915_thermal_init(phy);
 	if (ret)
-		goto error;
+		goto unreg;
 
-	ret = mt7915_init_debugfs(phy);
-	if (ret)
-		goto error;
+	mt7915_init_debugfs(phy);
 
 	return 0;
 
-error:
-	ieee80211_free_hw(mphy->hw);
+unreg:
+	mt76_unregister_phy(mphy);
 	return ret;
 }
 
@@ -645,7 +644,8 @@ static bool mt7915_band_config(struct mt7915_dev *dev)
 	return ret;
 }
 
-static int mt7915_init_hardware(struct mt7915_dev *dev)
+static int
+mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 {
 	int ret, idx;
 
@@ -653,14 +653,12 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
 
-	dev->dbdc_support = mt7915_band_config(dev);
-
 	/* If MCU was already running, it is likely in a bad state */
 	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
 	    FW_STATE_FW_DOWNLOAD)
 		mt7915_wfsys_reset(dev);
 
-	ret = mt7915_dma_init(dev);
+	ret = mt7915_dma_init(dev, phy2);
 	if (ret)
 		return ret;
 
@@ -1048,9 +1046,22 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
 	ieee80211_free_hw(mphy->hw);
 }
 
+static void mt7915_stop_hardware(struct mt7915_dev *dev)
+{
+	mt7915_mcu_exit(dev);
+	mt7915_tx_token_put(dev);
+	mt7915_dma_cleanup(dev);
+	tasklet_disable(&dev->irq_tasklet);
+
+	if (is_mt7986(&dev->mt76))
+		mt7986_wmac_disable(dev);
+}
+
+
 int mt7915_register_device(struct mt7915_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct mt7915_phy *phy2;
 	int ret;
 
 	dev->phy.dev = dev;
@@ -1066,9 +1077,15 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	init_waitqueue_head(&dev->reset_wait);
 	INIT_WORK(&dev->reset_work, mt7915_mac_reset_work);
 
-	ret = mt7915_init_hardware(dev);
+	dev->dbdc_support = mt7915_band_config(dev);
+
+	phy2 = mt7915_alloc_ext_phy(dev);
+	if (IS_ERR(phy2))
+		return PTR_ERR(phy2);
+
+	ret = mt7915_init_hardware(dev, phy2);
 	if (ret)
-		return ret;
+		goto free_phy2;
 
 	mt7915_init_wiphy(hw);
 
@@ -1085,19 +1102,34 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));
 	if (ret)
-		return ret;
+		goto stop_hw;
 
 	ret = mt7915_thermal_init(&dev->phy);
 	if (ret)
-		return ret;
+		goto unreg_dev;
 
 	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
 
-	ret = mt7915_register_ext_phy(dev);
-	if (ret)
-		return ret;
+	if (phy2) {
+		ret = mt7915_register_ext_phy(dev, phy2);
+		if (ret)
+			goto unreg_thermal;
+	}
 
-	return mt7915_init_debugfs(&dev->phy);
+	mt7915_init_debugfs(&dev->phy);
+
+	return 0;
+
+unreg_thermal:
+	mt7915_unregister_thermal(&dev->phy);
+unreg_dev:
+	mt76_unregister_device(&dev->mt76);
+stop_hw:
+	mt7915_stop_hardware(dev);
+free_phy2:
+	if (phy2)
+		ieee80211_free_hw(phy2->mt76->hw);
+	return ret;
 }
 
 void mt7915_unregister_device(struct mt7915_dev *dev)
@@ -1105,13 +1137,7 @@ void mt7915_unregister_device(struct mt7915_dev *dev)
 	mt7915_unregister_ext_phy(dev);
 	mt7915_unregister_thermal(&dev->phy);
 	mt76_unregister_device(&dev->mt76);
-	mt7915_mcu_exit(dev);
-	mt7915_tx_token_put(dev);
-	mt7915_dma_cleanup(dev);
-	tasklet_disable(&dev->irq_tasklet);
-
-	if (is_mt7986(&dev->mt76))
-		mt7986_wmac_disable(dev);
+	mt7915_stop_hardware(dev);
 
 	mt76_free_device(&dev->mt76);
 }
