@@ -204,4 +204,9 @@ config ROCKCHIP_THUNDER_BOOT_SFC
 	help
 	  Say y if boot from SPI Flash from SFC controller.
 
+config ROCKCHIP_NPOR_POWERGOOD
+	bool "Rockchip NPOR Powergood"
+	help
+	  Say y if SOC integrate ROCKCHIP NPOR Powergood.
+
 endif
