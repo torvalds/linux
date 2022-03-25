@@ -1560,6 +1560,17 @@ static bool dle_is_txq_empty(struct rtw89_dev *rtwdev)
 	return false;
 }
 
+static void _patch_ss2f_path(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+		return;
+
+	rtw89_write32_mask(rtwdev, R_AX_SS2FINFO_PATH, B_AX_SS_DEST_QUEUE_MASK,
+			   SS2F_PATH_WLCPU);
+}
+
 static int sta_sch_init(struct rtw89_dev *rtwdev)
 {
 	u32 p_val;
@@ -1581,7 +1592,10 @@ static int sta_sch_init(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	rtw89_write32_set(rtwdev, R_AX_SS_CTRL, B_AX_SS_WARM_INIT_FLG);
+	rtw89_write32_set(rtwdev, R_AX_SS_CTRL, B_AX_SS_WARM_INIT_FLG |
+						B_AX_SS_NONEMPTY_SS2FINFO_EN);
+
+	_patch_ss2f_path(rtwdev);
 
 	return 0;
 }
