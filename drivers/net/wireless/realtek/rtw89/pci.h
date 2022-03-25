@@ -490,6 +490,105 @@ enum rtw89_pcie_clkdly_hw {
 	PCIE_CLKDLY_HW_200US = 0x5,
 };
 
+enum mac_ax_bd_trunc_mode {
+	MAC_AX_BD_NORM,
+	MAC_AX_BD_TRUNC,
+	MAC_AX_BD_DEF = 0xFE
+};
+
+enum mac_ax_rxbd_mode {
+	MAC_AX_RXBD_PKT,
+	MAC_AX_RXBD_SEP,
+	MAC_AX_RXBD_DEF = 0xFE
+};
+
+enum mac_ax_tag_mode {
+	MAC_AX_TAG_SGL,
+	MAC_AX_TAG_MULTI,
+	MAC_AX_TAG_DEF = 0xFE
+};
+
+enum mac_ax_tx_burst {
+	MAC_AX_TX_BURST_16B = 0,
+	MAC_AX_TX_BURST_32B = 1,
+	MAC_AX_TX_BURST_64B = 2,
+	MAC_AX_TX_BURST_V1_64B = 0,
+	MAC_AX_TX_BURST_128B = 3,
+	MAC_AX_TX_BURST_V1_128B = 1,
+	MAC_AX_TX_BURST_256B = 4,
+	MAC_AX_TX_BURST_V1_256B = 2,
+	MAC_AX_TX_BURST_512B = 5,
+	MAC_AX_TX_BURST_1024B = 6,
+	MAC_AX_TX_BURST_2048B = 7,
+	MAC_AX_TX_BURST_DEF = 0xFE
+};
+
+enum mac_ax_rx_burst {
+	MAC_AX_RX_BURST_16B = 0,
+	MAC_AX_RX_BURST_32B = 1,
+	MAC_AX_RX_BURST_64B = 2,
+	MAC_AX_RX_BURST_V1_64B = 0,
+	MAC_AX_RX_BURST_128B = 3,
+	MAC_AX_RX_BURST_V1_128B = 1,
+	MAC_AX_RX_BURST_V1_256B = 0,
+	MAC_AX_RX_BURST_DEF = 0xFE
+};
+
+enum mac_ax_wd_dma_intvl {
+	MAC_AX_WD_DMA_INTVL_0S,
+	MAC_AX_WD_DMA_INTVL_256NS,
+	MAC_AX_WD_DMA_INTVL_512NS,
+	MAC_AX_WD_DMA_INTVL_768NS,
+	MAC_AX_WD_DMA_INTVL_1US,
+	MAC_AX_WD_DMA_INTVL_1_5US,
+	MAC_AX_WD_DMA_INTVL_2US,
+	MAC_AX_WD_DMA_INTVL_4US,
+	MAC_AX_WD_DMA_INTVL_8US,
+	MAC_AX_WD_DMA_INTVL_16US,
+	MAC_AX_WD_DMA_INTVL_DEF = 0xFE
+};
+
+enum mac_ax_multi_tag_num {
+	MAC_AX_TAG_NUM_1,
+	MAC_AX_TAG_NUM_2,
+	MAC_AX_TAG_NUM_3,
+	MAC_AX_TAG_NUM_4,
+	MAC_AX_TAG_NUM_5,
+	MAC_AX_TAG_NUM_6,
+	MAC_AX_TAG_NUM_7,
+	MAC_AX_TAG_NUM_8,
+	MAC_AX_TAG_NUM_DEF = 0xFE
+};
+
+enum mac_ax_lbc_tmr {
+	MAC_AX_LBC_TMR_8US = 0,
+	MAC_AX_LBC_TMR_16US,
+	MAC_AX_LBC_TMR_32US,
+	MAC_AX_LBC_TMR_64US,
+	MAC_AX_LBC_TMR_128US,
+	MAC_AX_LBC_TMR_256US,
+	MAC_AX_LBC_TMR_512US,
+	MAC_AX_LBC_TMR_1MS,
+	MAC_AX_LBC_TMR_2MS,
+	MAC_AX_LBC_TMR_4MS,
+	MAC_AX_LBC_TMR_8MS,
+	MAC_AX_LBC_TMR_DEF = 0xFE
+};
+
+enum mac_ax_pcie_func_ctrl {
+	MAC_AX_PCIE_DISABLE = 0,
+	MAC_AX_PCIE_ENABLE = 1,
+	MAC_AX_PCIE_DEFAULT = 0xFE,
+	MAC_AX_PCIE_IGNORE = 0xFF
+};
+
+enum mac_ax_io_rcy_tmr {
+	MAC_AX_IO_RCY_ANA_TMR_2MS = 24000,
+	MAC_AX_IO_RCY_ANA_TMR_4MS = 48000,
+	MAC_AX_IO_RCY_ANA_TMR_6MS = 72000,
+	MAC_AX_IO_RCY_ANA_TMR_DEF = 0xFE
+};
+
 struct rtw89_pci_ch_dma_addr {
 	u32 num;
 	u32 idx;
@@ -504,6 +603,21 @@ struct rtw89_pci_ch_dma_addr_set {
 };
 
 struct rtw89_pci_info {
+	enum mac_ax_bd_trunc_mode txbd_trunc_mode;
+	enum mac_ax_bd_trunc_mode rxbd_trunc_mode;
+	enum mac_ax_rxbd_mode rxbd_mode;
+	enum mac_ax_tag_mode tag_mode;
+	enum mac_ax_tx_burst tx_burst;
+	enum mac_ax_rx_burst rx_burst;
+	enum mac_ax_wd_dma_intvl wd_dma_idle_intvl;
+	enum mac_ax_wd_dma_intvl wd_dma_act_intvl;
+	enum mac_ax_multi_tag_num multi_tag_num;
+	enum mac_ax_pcie_func_ctrl lbc_en;
+	enum mac_ax_lbc_tmr lbc_tmr;
+	enum mac_ax_pcie_func_ctrl autok_en;
+	enum mac_ax_pcie_func_ctrl io_rcy_en;
+	enum mac_ax_io_rcy_tmr io_rcy_tmr;
+
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
 	u32 rxhci_en_bit;

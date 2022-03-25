@@ -1917,6 +1917,33 @@ static void rtw89_pci_set_sic(struct rtw89_dev *rtwdev)
 			  B_AX_SIC_EN_FORCE_CLKREQ);
 }
 
+static void rtw89_pci_set_io_rcy(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 val32;
+
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return;
+
+	if (info->io_rcy_en == MAC_AX_PCIE_ENABLE) {
+		val32 = FIELD_PREP(B_AX_PCIE_WDT_TIMER_M1_MASK,
+				   info->io_rcy_tmr);
+		rtw89_write32(rtwdev, R_AX_PCIE_WDT_TIMER_M1, val32);
+		rtw89_write32(rtwdev, R_AX_PCIE_WDT_TIMER_M2, val32);
+		rtw89_write32(rtwdev, R_AX_PCIE_WDT_TIMER_E0, val32);
+
+		rtw89_write32_set(rtwdev, R_AX_PCIE_IO_RCY_M1, B_AX_PCIE_IO_RCY_WDT_MODE_M1);
+		rtw89_write32_set(rtwdev, R_AX_PCIE_IO_RCY_M2, B_AX_PCIE_IO_RCY_WDT_MODE_M2);
+		rtw89_write32_set(rtwdev, R_AX_PCIE_IO_RCY_E0, B_AX_PCIE_IO_RCY_WDT_MODE_E0);
+	} else {
+		rtw89_write32_clr(rtwdev, R_AX_PCIE_IO_RCY_M1, B_AX_PCIE_IO_RCY_WDT_MODE_M1);
+		rtw89_write32_clr(rtwdev, R_AX_PCIE_IO_RCY_M2, B_AX_PCIE_IO_RCY_WDT_MODE_M2);
+		rtw89_write32_clr(rtwdev, R_AX_PCIE_IO_RCY_E0, B_AX_PCIE_IO_RCY_WDT_MODE_E0);
+	}
+
+	rtw89_write32_clr(rtwdev, R_AX_PCIE_IO_RCY_S1, B_AX_PCIE_IO_RCY_WDT_MODE_S1);
+}
+
 static void rtw89_pci_set_dbg(struct rtw89_dev *rtwdev)
 {
 	if (rtwdev->chip->chip_id == RTL8852C)
@@ -1950,6 +1977,95 @@ static void rtw89_pci_clr_idx_all(struct rtw89_dev *rtwdev)
 				  B_AX_CLR_CH10_IDX | B_AX_CLR_CH11_IDX);
 	rtw89_write32_set(rtwdev, rxbd_rwptr_clr,
 			  B_AX_CLR_RXQ_IDX | B_AX_CLR_RPQ_IDX);
+}
+
+static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	enum mac_ax_bd_trunc_mode txbd_trunc_mode = info->txbd_trunc_mode;
+	enum mac_ax_bd_trunc_mode rxbd_trunc_mode = info->rxbd_trunc_mode;
+	enum mac_ax_rxbd_mode rxbd_mode = info->rxbd_mode;
+	enum mac_ax_tag_mode tag_mode = info->tag_mode;
+	enum mac_ax_wd_dma_intvl wd_dma_idle_intvl = info->wd_dma_idle_intvl;
+	enum mac_ax_wd_dma_intvl wd_dma_act_intvl = info->wd_dma_act_intvl;
+	enum mac_ax_tx_burst tx_burst = info->tx_burst;
+	enum mac_ax_rx_burst rx_burst = info->rx_burst;
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u8 cv = rtwdev->hal.cv;
+	u32 val32;
+
+	if (txbd_trunc_mode == MAC_AX_BD_TRUNC) {
+		if (chip_id == RTL8852A && cv == CHIP_CBV)
+			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_TX_TRUNC_MODE);
+	} else if (txbd_trunc_mode == MAC_AX_BD_NORM) {
+		if (chip_id == RTL8852A || chip_id == RTL8852B)
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_TX_TRUNC_MODE);
+	}
+
+	if (rxbd_trunc_mode == MAC_AX_BD_TRUNC) {
+		if (chip_id == RTL8852A && cv == CHIP_CBV)
+			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RX_TRUNC_MODE);
+	} else if (rxbd_trunc_mode == MAC_AX_BD_NORM) {
+		if (chip_id == RTL8852A || chip_id == RTL8852B)
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RX_TRUNC_MODE);
+	}
+
+	if (rxbd_mode == MAC_AX_RXBD_PKT) {
+		rtw89_write32_clr(rtwdev, info->init_cfg_reg, info->rxbd_mode_bit);
+	} else if (rxbd_mode == MAC_AX_RXBD_SEP) {
+		rtw89_write32_set(rtwdev, info->init_cfg_reg, info->rxbd_mode_bit);
+
+		if (chip_id == RTL8852A || chip_id == RTL8852B)
+			rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG2,
+					   B_AX_PCIE_RX_APPLEN_MASK, 0);
+	}
+
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_PCIE_MAX_TXDMA_MASK, tx_burst);
+		rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_PCIE_MAX_RXDMA_MASK, rx_burst);
+	} else if (chip_id == RTL8852C) {
+		rtw89_write32_mask(rtwdev, R_AX_HAXI_INIT_CFG1, B_AX_HAXI_MAX_TXDMA_MASK, tx_burst);
+		rtw89_write32_mask(rtwdev, R_AX_HAXI_INIT_CFG1, B_AX_HAXI_MAX_RXDMA_MASK, rx_burst);
+	}
+
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		if (tag_mode == MAC_AX_TAG_SGL) {
+			val32 = rtw89_read32(rtwdev, R_AX_PCIE_INIT_CFG1) &
+					    ~B_AX_LATENCY_CONTROL;
+			rtw89_write32(rtwdev, R_AX_PCIE_INIT_CFG1, val32);
+		} else if (tag_mode == MAC_AX_TAG_MULTI) {
+			val32 = rtw89_read32(rtwdev, R_AX_PCIE_INIT_CFG1) |
+					    B_AX_LATENCY_CONTROL;
+			rtw89_write32(rtwdev, R_AX_PCIE_INIT_CFG1, val32);
+		}
+	}
+
+	rtw89_write32_mask(rtwdev, info->exp_ctrl_reg, info->max_tag_num_mask,
+			   info->multi_tag_num);
+
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG2, B_AX_WD_ITVL_IDLE,
+				   wd_dma_idle_intvl);
+		rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG2, B_AX_WD_ITVL_ACT,
+				   wd_dma_act_intvl);
+	} else if (chip_id == RTL8852C) {
+		rtw89_write32_mask(rtwdev, R_AX_HAXI_INIT_CFG1, B_AX_WD_ITVL_IDLE_V1_MASK,
+				   wd_dma_idle_intvl);
+		rtw89_write32_mask(rtwdev, R_AX_HAXI_INIT_CFG1, B_AX_WD_ITVL_ACT_V1_MASK,
+				   wd_dma_act_intvl);
+	}
+
+	if (txbd_trunc_mode == MAC_AX_BD_TRUNC) {
+		rtw89_write32_set(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
+				  B_AX_HOST_ADDR_INFO_8B_SEL);
+		rtw89_write32_clr(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
+	} else if (txbd_trunc_mode == MAC_AX_BD_NORM) {
+		rtw89_write32_clr(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
+				  B_AX_HOST_ADDR_INFO_8B_SEL);
+		rtw89_write32_set(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
+	}
+
+	return 0;
 }
 
 static int rtw89_pci_ops_deinit(struct rtw89_dev *rtwdev)
@@ -1995,6 +2111,7 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_pci_autoload_hang(rtwdev);
 	rtw89_pci_l12_vmain(rtwdev);
 	rtw89_pci_set_sic(rtwdev);
+	rtw89_pci_set_io_rcy(rtwdev);
 	rtw89_pci_set_dbg(rtwdev);
 
 	if (rtwdev->chip->chip_id == RTL8852A) {
@@ -2025,21 +2142,7 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_pci_clr_idx_all(rtwdev);
-
-	/* configure TX/RX op modes */
-	rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_TX_TRUNC_MODE |
-						       B_AX_RX_TRUNC_MODE);
-	rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RXBD_MODE);
-	rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_PCIE_MAX_TXDMA_MASK, 7);
-	rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_PCIE_MAX_RXDMA_MASK, 3);
-	/* multi-tag mode */
-	rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_LATENCY_CONTROL);
-	rtw89_write32_mask(rtwdev, R_AX_PCIE_EXP_CTRL, B_AX_MAX_TAG_NUM,
-			   RTW89_MAC_TAG_NUM_8);
-	rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG2, B_AX_WD_ITVL_IDLE,
-			   RTW89_MAC_WD_DMA_INTVL_256NS);
-	rtw89_write32_mask(rtwdev, R_AX_PCIE_INIT_CFG2, B_AX_WD_ITVL_ACT,
-			   RTW89_MAC_WD_DMA_INTVL_256NS);
+	rtw89_pci_mode_op(rtwdev);
 
 	/* fill TRX BD indexes */
 	rtw89_pci_ops_reset(rtwdev);
