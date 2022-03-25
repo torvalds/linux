@@ -1620,6 +1620,7 @@ static int mpdu_proc_init(struct rtw89_dev *rtwdev)
 
 static int sec_eng_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 val = 0;
 	int ret;
 
@@ -1633,7 +1634,8 @@ static int sec_eng_init(struct rtw89_dev *rtwdev)
 	/* init TX encryption */
 	val |= (B_AX_SEC_TX_ENC | B_AX_SEC_RX_DEC);
 	val |= (B_AX_MC_DEC | B_AX_BC_DEC);
-	val &= ~B_AX_TX_PARTIAL_MODE;
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+		val &= ~B_AX_TX_PARTIAL_MODE;
 	rtw89_write32(rtwdev, R_AX_SEC_ENG_CTRL, val);
 
 	/* init MIC ICV append */
@@ -1642,6 +1644,10 @@ static int sec_eng_init(struct rtw89_dev *rtwdev)
 
 	/* option init */
 	rtw89_write32(rtwdev, R_AX_SEC_MPDU_PROC, val);
+
+	if (chip->chip_id == RTL8852C)
+		rtw89_write32_mask(rtwdev, R_AX_SEC_DEBUG1,
+				   B_AX_TX_TIMEOUT_SEL_MASK, AX_TX_TO_VAL);
 
 	return 0;
 }
