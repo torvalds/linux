@@ -2683,6 +2683,9 @@ struct drm_i915_perf_oa_config {
  *
  * The behaviour is determined by the @query_id. Note that exactly what
  * @data_ptr is also depends on the specific @query_id.
+ *
+ * For specific queries see:
+ *  * `GuC HWCONFIG blob uAPI`_
  */
 struct drm_i915_query_item {
 	/** @query_id: The id for this query */
@@ -3134,6 +3137,16 @@ struct drm_i915_query_memory_regions {
 	/** @regions: Info about each supported region */
 	struct drm_i915_memory_region_info regions[];
 };
+
+/**
+ * DOC: GuC HWCONFIG blob uAPI
+ *
+ * The GuC produces a blob with information about the current device.
+ * i915 reads this blob from GuC and makes it available via this uAPI.
+ *
+ * The format and meaning of the blob content are documented in the
+ * Programmer's Reference Manual.
+ */
 
 /**
  * struct drm_i915_gem_create_ext - Existing gem_create behaviour, with added
