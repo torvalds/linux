@@ -1440,12 +1440,10 @@ next_chunk:
 	atomic_inc(&bp->b_io_remaining);
 	nr_pages = bio_max_segs(total_nr_pages);
 
-	bio = bio_alloc(GFP_NOIO, nr_pages);
-	bio_set_dev(bio, bp->b_target->bt_bdev);
+	bio = bio_alloc(bp->b_target->bt_bdev, nr_pages, op, GFP_NOIO);
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 	bio->bi_private = bp;
-	bio->bi_opf = op;
 
 	for (; size && nr_pages; nr_pages--, page_index++) {
 		int	rbytes, nbytes = PAGE_SIZE - offset;

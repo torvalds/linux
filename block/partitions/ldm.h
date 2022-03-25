@@ -14,7 +14,6 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/genhd.h>
 #include <linux/fs.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>

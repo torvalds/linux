@@ -36,9 +36,7 @@ xfs_flush_bdev_async(
 		return;
 	}
 
-	bio_init(bio, NULL, 0);
-	bio_set_dev(bio, bdev);
-	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
+	bio_init(bio, bdev, NULL, 0, REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC);
 	bio->bi_private = done;
 	bio->bi_end_io = xfs_flush_bdev_async_endio;
 
@@ -61,10 +59,9 @@ xfs_rw_bdev(
 	if (is_vmalloc && op == REQ_OP_WRITE)
 		flush_kernel_vmap_range(data, count);
 
-	bio = bio_alloc(GFP_KERNEL, bio_max_vecs(left));
-	bio_set_dev(bio, bdev);
+	bio = bio_alloc(bdev, bio_max_vecs(left), op | REQ_META | REQ_SYNC,
+			GFP_KERNEL);
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_opf = op | REQ_META | REQ_SYNC;
 
 	do {
 		struct page	*page = kmem_to_page(data);
@@ -74,10 +71,9 @@ xfs_rw_bdev(
 		while (bio_add_page(bio, page, len, off) != len) {
 			struct bio	*prev = bio;
 
-			bio = bio_alloc(GFP_KERNEL, bio_max_vecs(left));
-			bio_copy_dev(bio, prev);
+			bio = bio_alloc(prev->bi_bdev, bio_max_vecs(left),
+					prev->bi_opf, GFP_KERNEL);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
-			bio->bi_opf = prev->bi_opf;
 			bio_chain(prev, bio);
 
 			submit_bio(prev);

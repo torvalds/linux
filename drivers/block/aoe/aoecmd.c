@@ -10,7 +10,6 @@
 #include <linux/blk-mq.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/genhd.h>
 #include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>

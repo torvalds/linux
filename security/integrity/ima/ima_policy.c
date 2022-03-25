@@ -16,7 +16,6 @@
 #include <linux/parser.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
-#include <linux/genhd.h>
 #include <linux/seq_file.h>
 #include <linux/ima.h>
 

@@ -4276,7 +4276,6 @@ static int st_probe(struct device *dev)
 		goto out_buffer_free;
 	}
 	kref_init(&tpnt->kref);
-	tpnt->driver = &st_template;
 
 	tpnt->device = SDp;
 	if (SDp->scsi_level <= 2)

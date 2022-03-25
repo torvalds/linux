@@ -1343,7 +1343,7 @@ static inline void rnbd_init_hw_queue(struct rnbd_clt_dev *dev,
 
 static void rnbd_init_mq_hw_queues(struct rnbd_clt_dev *dev)
 {
-	int i;
+	unsigned long i;
 	struct blk_mq_hw_ctx *hctx;
 	struct rnbd_queue *q;
 
