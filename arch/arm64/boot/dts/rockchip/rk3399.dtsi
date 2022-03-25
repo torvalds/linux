@@ -428,8 +428,6 @@
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "grf_clk";
-		resets = <&cru SRST_A_USB3_OTG0>;
-		reset-names = "usb3-otg";
 		status = "disabled";
 
 		usbdrd_dwc3_0: usb@fe800000 {
@@ -439,6 +437,8 @@
 			clocks = <&cru SCLK_USB3OTG0_REF>, <&cru ACLK_USB3OTG0>,
 				 <&cru SCLK_USB3OTG0_SUSPEND>;
 			clock-names = "ref", "bus_early", "suspend";
+			resets = <&cru SRST_A_USB3_OTG0>;
+			reset-names = "usb3-otg";
 			dr_mode = "otg";
 			phys = <&u2phy0_otg>, <&tcphy0_usb3>;
 			phy-names = "usb2-phy", "usb3-phy";
@@ -466,8 +466,6 @@
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "grf_clk";
-		resets = <&cru SRST_A_USB3_OTG1>;
-		reset-names = "usb3-otg";
 		status = "disabled";
 
 		usbdrd_dwc3_1: usb@fe900000 {
@@ -477,6 +475,8 @@
 			clocks = <&cru SCLK_USB3OTG1_REF>, <&cru ACLK_USB3OTG1>,
 				 <&cru SCLK_USB3OTG1_SUSPEND>;
 			clock-names = "ref", "bus_early", "suspend";
+			resets = <&cru SRST_A_USB3_OTG1>;
+			reset-names = "usb3-otg";
 			dr_mode = "otg";
 			phys = <&u2phy1_otg>, <&tcphy1_usb3>;
 			phy-names = "usb2-phy", "usb3-phy";
