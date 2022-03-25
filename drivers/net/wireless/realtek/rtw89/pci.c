@@ -1437,12 +1437,19 @@ static void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable)
 					  B_AX_STOP_PCIEIO);
 		rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1,
 				  txhci_en | rxhci_en);
+		if (chip_id == RTL8852C)
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1,
+					  B_AX_STOP_AXI_MST);
 	} else {
 		if (chip_id != RTL8852C)
 			rtw89_write32_set(rtwdev, info->dma_stop1_reg,
 					  B_AX_STOP_PCIEIO);
-		rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1,
-				  txhci_en | rxhci_en);
+		else
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1,
+					  B_AX_STOP_AXI_MST);
+		if (chip_id == RTL8852C)
+			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1,
+					  B_AX_STOP_AXI_MST);
 	}
 }
 
@@ -1865,13 +1872,16 @@ static void rtw89_pci_aphy_pwrcut(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_hci_ldo(struct rtw89_dev *rtwdev)
 {
-	if (rtwdev->chip->chip_id != RTL8852A)
-		return;
-
-	rtw89_write32_set(rtwdev, R_AX_SYS_SDIO_CTRL,
-			  B_AX_PCIE_DIS_L2_CTRL_LDO_HCI);
-	rtw89_write32_clr(rtwdev, R_AX_SYS_SDIO_CTRL,
-			  B_AX_PCIE_DIS_WLSUS_AFT_PDN);
+	if (rtwdev->chip->chip_id == RTL8852A ||
+	    rtwdev->chip->chip_id == RTL8852B) {
+		rtw89_write32_set(rtwdev, R_AX_SYS_SDIO_CTRL,
+				  B_AX_PCIE_DIS_L2_CTRL_LDO_HCI);
+		rtw89_write32_clr(rtwdev, R_AX_SYS_SDIO_CTRL,
+				  B_AX_PCIE_DIS_WLSUS_AFT_PDN);
+	} else if (rtwdev->chip->chip_id == RTL8852C) {
+		rtw89_write32_clr(rtwdev, R_AX_SYS_SDIO_CTRL,
+				  B_AX_PCIE_DIS_L2_CTRL_LDO_HCI);
+	}
 }
 
 static int rtw89_pci_dphy_delay(struct rtw89_dev *rtwdev)
@@ -1902,10 +1912,22 @@ static void rtw89_pci_autoload_hang(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_l12_vmain(struct rtw89_dev *rtwdev)
 {
-	if (rtwdev->chip->chip_id != RTL8852C && rtwdev->hal.cv == CHIP_CAV)
+	if (!(rtwdev->chip->chip_id == RTL8852C && rtwdev->hal.cv == CHIP_CAV))
 		return;
 
 	rtw89_write32_set(rtwdev, R_AX_SYS_SDIO_CTRL, B_AX_PCIE_FORCE_PWR_NGAT);
+}
+
+static void rtw89_pci_gen2_force_ib(struct rtw89_dev *rtwdev)
+{
+	if (!(rtwdev->chip->chip_id == RTL8852C && rtwdev->hal.cv == CHIP_CAV))
+		return;
+
+	rtw89_write32_set(rtwdev, R_AX_PMC_DBG_CTRL2,
+			  B_AX_SYSON_DIS_PMCR_AX_WRMSK);
+	rtw89_write32_set(rtwdev, R_AX_HCI_BG_CTRL, B_AX_BG_CLR_ASYNC_M3);
+	rtw89_write32_clr(rtwdev, R_AX_PMC_DBG_CTRL2,
+			  B_AX_SYSON_DIS_PMCR_AX_WRMSK);
 }
 
 static void rtw89_pci_set_sic(struct rtw89_dev *rtwdev)
@@ -1915,6 +1937,25 @@ static void rtw89_pci_set_sic(struct rtw89_dev *rtwdev)
 
 	rtw89_write32_clr(rtwdev, R_AX_PCIE_EXP_CTRL,
 			  B_AX_SIC_EN_FORCE_CLKREQ);
+}
+
+static void rtw89_pci_set_lbc(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 lbc;
+
+	if (rtwdev->chip->chip_id == RTL8852C)
+		return;
+
+	lbc = rtw89_read32(rtwdev, R_AX_LBC_WATCHDOG);
+	if (info->lbc_en == MAC_AX_PCIE_ENABLE) {
+		lbc = u32_replace_bits(lbc, info->lbc_tmr, B_AX_LBC_TIMER);
+		lbc |= B_AX_LBC_FLAG | B_AX_LBC_EN;
+		rtw89_write32(rtwdev, R_AX_LBC_WATCHDOG, lbc);
+	} else {
+		lbc &= ~B_AX_LBC_EN;
+	}
+	rtw89_write32_set(rtwdev, R_AX_LBC_WATCHDOG, lbc);
 }
 
 static void rtw89_pci_set_io_rcy(struct rtw89_dev *rtwdev)
@@ -1957,6 +1998,15 @@ static void rtw89_pci_set_dbg(struct rtw89_dev *rtwdev)
 				  B_AX_EN_CHKDSC_NO_RX_STUCK);
 }
 
+static void rtw89_pci_set_keep_reg(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->chip->chip_id == RTL8852C)
+		return;
+
+	rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1,
+			  B_AX_PCIE_TXRST_KEEP_REG | B_AX_PCIE_RXRST_KEEP_REG);
+}
+
 static void rtw89_pci_clr_idx_all(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
@@ -1977,6 +2027,68 @@ static void rtw89_pci_clr_idx_all(struct rtw89_dev *rtwdev)
 				  B_AX_CLR_CH10_IDX | B_AX_CLR_CH11_IDX);
 	rtw89_write32_set(rtwdev, rxbd_rwptr_clr,
 			  B_AX_CLR_RXQ_IDX | B_AX_CLR_RPQ_IDX);
+}
+
+static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 ret, check, dma_busy;
+	u32 dma_busy1 = info->dma_busy1_reg;
+	u32 dma_busy2 = info->dma_busy2_reg;
+
+	check = B_AX_ACH0_BUSY | B_AX_ACH1_BUSY | B_AX_ACH2_BUSY |
+		B_AX_ACH3_BUSY | B_AX_ACH4_BUSY | B_AX_ACH5_BUSY |
+		B_AX_ACH6_BUSY | B_AX_ACH7_BUSY | B_AX_CH8_BUSY |
+		B_AX_CH9_BUSY | B_AX_CH12_BUSY;
+
+	ret = read_poll_timeout(rtw89_read32, dma_busy, (dma_busy & check) == 0,
+				10, 100, false, rtwdev, dma_busy1);
+	if (ret)
+		return ret;
+
+	check = B_AX_CH10_BUSY | B_AX_CH11_BUSY;
+
+	ret = read_poll_timeout(rtw89_read32, dma_busy, (dma_busy & check) == 0,
+				10, 100, false, rtwdev, dma_busy2);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rtw89_poll_rxdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 ret, check, dma_busy;
+	u32 dma_busy3 = info->dma_busy3_reg;
+
+	check = B_AX_RXQ_BUSY | B_AX_RPQ_BUSY;
+
+	ret = read_poll_timeout(rtw89_read32, dma_busy, (dma_busy & check) == 0,
+				10, 100, false, rtwdev, dma_busy3);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rtw89_pci_poll_dma_all_idle(struct rtw89_dev *rtwdev)
+{
+	u32 ret;
+
+	ret = rtw89_poll_txdma_ch_idle_pcie(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "txdma ch busy\n");
+		return ret;
+	}
+
+	ret = rtw89_poll_rxdma_ch_idle_pcie(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "rxdma ch busy\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
@@ -2083,9 +2195,6 @@ static int rtw89_pci_ops_deinit(struct rtw89_dev *rtwdev)
 static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
-	u32 dma_busy;
-	u32 check;
-	u32 lbc;
 	int ret;
 
 	rtw89_pci_rxdma_prefth(rtwdev);
@@ -2110,34 +2219,21 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_pci_power_wake(rtwdev, true);
 	rtw89_pci_autoload_hang(rtwdev);
 	rtw89_pci_l12_vmain(rtwdev);
+	rtw89_pci_gen2_force_ib(rtwdev);
 	rtw89_pci_set_sic(rtwdev);
+	rtw89_pci_set_lbc(rtwdev);
 	rtw89_pci_set_io_rcy(rtwdev);
 	rtw89_pci_set_dbg(rtwdev);
-
-	if (rtwdev->chip->chip_id == RTL8852A) {
-		rtw89_write32_clr(rtwdev, R_AX_SYS_SDIO_CTRL,
-				  B_AX_PCIE_AUXCLK_GATE);
-
-		lbc = rtw89_read32(rtwdev, R_AX_LBC_WATCHDOG);
-		lbc = u32_replace_bits(lbc, RTW89_MAC_LBC_TMR_128US, B_AX_LBC_TIMER);
-		lbc |= B_AX_LBC_FLAG | B_AX_LBC_EN;
-		rtw89_write32(rtwdev, R_AX_LBC_WATCHDOG, lbc);
-
-		rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1,
-				  B_AX_PCIE_TXRST_KEEP_REG | B_AX_PCIE_RXRST_KEEP_REG);
-	}
+	rtw89_pci_set_keep_reg(rtwdev);
 
 	rtw89_write32_set(rtwdev, info->dma_stop1_reg, B_AX_STOP_WPDMA);
 
 	/* stop DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, false);
 
-	/* check PCI at idle state */
-	check = B_AX_PCIEIO_BUSY | B_AX_PCIEIO_TX_BUSY | B_AX_PCIEIO_RX_BUSY;
-	ret = read_poll_timeout(rtw89_read32, dma_busy, (dma_busy & check) == 0,
-				100, 3000, false, rtwdev, R_AX_PCIE_DMA_BUSY1);
+	ret = rtw89_pci_poll_dma_all_idle(rtwdev);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to poll io busy\n");
+		rtw89_err(rtwdev, "[ERR] poll pcie dma all idle\n");
 		return ret;
 	}
 

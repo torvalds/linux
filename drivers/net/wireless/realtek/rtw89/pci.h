@@ -366,6 +366,19 @@
 #define B_AX_PCIEIO_TX_BUSY		BIT(21)
 #define B_AX_PCIEIO_BUSY		BIT(20)
 #define B_AX_WPDMA_BUSY			BIT(19)
+#define B_AX_CH12_BUSY			BIT(18)
+#define B_AX_CH9_BUSY			BIT(17)
+#define B_AX_CH8_BUSY			BIT(16)
+#define B_AX_ACH7_BUSY			BIT(15)
+#define B_AX_ACH6_BUSY			BIT(14)
+#define B_AX_ACH5_BUSY			BIT(13)
+#define B_AX_ACH4_BUSY			BIT(12)
+#define B_AX_ACH3_BUSY			BIT(11)
+#define B_AX_ACH2_BUSY			BIT(10)
+#define B_AX_ACH1_BUSY			BIT(9)
+#define B_AX_ACH0_BUSY			BIT(8)
+#define B_AX_RPQ_BUSY			BIT(1)
+#define B_AX_RXQ_BUSY			BIT(0)
 
 #define R_AX_PCIE_DMA_BUSY2	0x131C
 #define B_AX_CH11_BUSY			BIT(1)
@@ -628,6 +641,9 @@ struct rtw89_pci_info {
 	u32 txbd_rwptr_clr2_reg;
 	u32 dma_stop1_reg;
 	u32 dma_stop2_reg;
+	u32 dma_busy1_reg;
+	u32 dma_busy2_reg;
+	u32 dma_busy3_reg;
 
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
 
