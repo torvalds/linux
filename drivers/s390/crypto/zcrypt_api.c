@@ -671,7 +671,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		/* Check for useable accelarator or CCA card */
-		if (!zc->online || !zc->card->config ||
+		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x18000000))
 			continue;
 		/* Check for size limits */
@@ -692,7 +692,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is useable and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo ||
-			    !zq->queue->config)
+			    !zq->queue->config || zq->queue->chkstop)
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,
@@ -714,6 +714,8 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
+		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
+			       __func__);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -779,7 +781,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		/* Check for useable accelarator or CCA card */
-		if (!zc->online || !zc->card->config ||
+		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x18000000))
 			continue;
 		/* Check for size limits */
@@ -800,7 +802,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is useable and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo_crt ||
-			    !zq->queue->config)
+			    !zq->queue->config || zq->queue->chkstop)
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,
@@ -822,6 +824,8 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
+		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
+			       __func__);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -872,7 +876,7 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	}
 #endif
 
-	rc = get_cprb_fc(userspace, xcRB, &ap_msg, &func_code, &domain);
+	rc = prep_cca_ap_msg(userspace, xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
 
@@ -891,7 +895,7 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		/* Check for useable CCA card */
-		if (!zc->online || !zc->card->config ||
+		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x10000000))
 			continue;
 		/* Check for user selected CCA card */
@@ -914,9 +918,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 			continue;
 		for_each_zcrypt_queue(zq, zc) {
 			/* check for device useable and eligible */
-			if (!zq->online ||
-			    !zq->ops->send_cprb ||
-			    !zq->queue->config ||
+			if (!zq->online || !zq->ops->send_cprb ||
+			    !zq->queue->config || zq->queue->chkstop ||
 			    (tdom != AUTOSEL_DOM &&
 			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -940,6 +943,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
+		ZCRYPT_DBF_DBG("%s no match for address %02x.%04x => ENODEV\n",
+			       __func__, xcRB->user_defined, *domain);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -1016,7 +1021,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	struct ep11_target_dev *targets;
 	unsigned short target_num;
 	unsigned int wgt = 0, pref_wgt = 0;
-	unsigned int func_code;
+	unsigned int func_code, domain;
 	struct ap_message ap_msg;
 	int cpen, qpen, qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -1053,7 +1058,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		}
 	}
 
-	rc = get_ep11cprb_fc(userspace, xcrb, &ap_msg, &func_code);
+	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out_free;
 
@@ -1062,7 +1067,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		/* Check for useable EP11 card */
-		if (!zc->online || !zc->card->config ||
+		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x04000000))
 			continue;
 		/* Check for user selected EP11 card */
@@ -1085,9 +1090,8 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 			continue;
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is useable and eligible */
-			if (!zq->online ||
-			    !zq->ops->send_ep11_cprb ||
-			    !zq->queue->config ||
+			if (!zq->online || !zq->ops->send_ep11_cprb ||
+			    !zq->queue->config || zq->queue->chkstop ||
 			    (targets &&
 			     !is_desired_ep11_queue(zq->queue->qid,
 						    target_num, targets)))
@@ -1112,6 +1116,17 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
+		if (targets && target_num == 1) {
+			ZCRYPT_DBF_DBG("%s no match for address %02x.%04x => ENODEV\n",
+				       __func__, (int) targets->ap_id,
+				       (int) targets->dom_id);
+		} else if (targets) {
+			ZCRYPT_DBF_DBG("%s no match for %d target addrs => ENODEV\n",
+				       __func__, (int) target_num);
+		} else {
+			ZCRYPT_DBF_DBG("%s no match for address ff.ffff => ENODEV\n",
+				       __func__);
+		}
 		rc = -ENODEV;
 		goto out_free;
 	}
@@ -1156,7 +1171,7 @@ static long zcrypt_rng(char *buffer)
 	trace_s390_zcrypt_req(buffer, TP_HWRNGCPRB);
 
 	ap_init_message(&ap_msg);
-	rc = get_rng_fc(&ap_msg, &func_code, &domain);
+	rc = prep_rng_ap_msg(&ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
 
@@ -1165,7 +1180,7 @@ static long zcrypt_rng(char *buffer)
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		/* Check for useable CCA card */
-		if (!zc->online || !zc->card->config ||
+		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x10000000))
 			continue;
 		/* get weight index of the card device	*/
@@ -1175,7 +1190,7 @@ static long zcrypt_rng(char *buffer)
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is useable and eligible */
 			if (!zq->online || !zq->ops->rng ||
-			    !zq->queue->config)
+			    !zq->queue->config || zq->queue->chkstop)
 				continue;
 			if (!zcrypt_queue_compare(zq, pref_zq, wgt, pref_wgt))
 				continue;
@@ -1188,6 +1203,8 @@ static long zcrypt_rng(char *buffer)
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
+		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
+			__func__);
 		rc = -ENODEV;
 		goto out;
 	}

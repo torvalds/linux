@@ -184,7 +184,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 	sccb->evbuf.asa_size = SDIAS_ASA_SIZE_64;
 	sccb->evbuf.event_status = 0;
 	sccb->evbuf.blk_cnt = nr_blks;
-	sccb->evbuf.asa = (unsigned long)dest;
+	sccb->evbuf.asa = __pa(dest);
 	sccb->evbuf.fbn = start_blk;
 	sccb->evbuf.lbn = 0;
 	sccb->evbuf.dbs = 1;

@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
  */
 
@@ -20,6 +19,7 @@
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>

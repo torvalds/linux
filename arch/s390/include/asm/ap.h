@@ -13,6 +13,7 @@
 #define _ASM_S390_AP_H_
 
 #include <linux/io.h>
+#include <asm/asm-extable.h>
 
 /**
  * The ap_qid_t identifier of an ap queue.
