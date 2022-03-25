@@ -42,6 +42,8 @@ static regex_t free_ts_nsec_pattern;
 static struct block_list *list;
 static int list_size;
 static int max_size;
+static int cull_st;
+static int filter;
 
 int read_block(char *buf, int buf_size, FILE *fin)
 {
@@ -245,6 +247,9 @@ static void add_list(char *buf, int len)
 		exit(1);
 	}
 
+	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
+	if (filter == 1 && list[list_size].free_ts_nsec != 0)
+		return;
 	list[list_size].txt = malloc(len+1);
 	if (!list[list_size].txt) {
 		printf("Out of memory\n");
@@ -257,10 +262,11 @@ static void add_list(char *buf, int len)
 	memcpy(list[list_size].txt, buf, len);
 	list[list_size].txt[len] = 0;
 	list[list_size].stacktrace = strchr(list[list_size].txt, '\n') ?: "";
+	if (*list[list_size].stacktrace == '\n')
+		list[list_size].stacktrace++;
 	list[list_size].pid = get_pid(buf);
 	list[list_size].tgid = get_tgid(buf);
 	list[list_size].ts_nsec = get_ts_nsec(buf);
-	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
 	list_size++;
 	if (list_size % 1000 == 0) {
 		printf("loaded %d\r", list_size);
@@ -288,12 +294,9 @@ static void usage(void)
 int main(int argc, char **argv)
 {
 	int (*cmp)(const void *, const void *) = compare_num;
-	int cull_st = 0;
-	int filter = 0;
 	FILE *fin, *fout;
 	char *buf;
 	int ret, i, count;
-	struct block_list *list2;
 	struct stat st;
 	int opt;
 
@@ -376,11 +379,7 @@ int main(int argc, char **argv)
 	else
 		qsort(list, list_size, sizeof(list[0]), compare_txt);
 
-	list2 = malloc(sizeof(*list) * list_size);
-	if (!list2) {
-		printf("Out of memory\n");
-		exit(1);
-	}
+
 
 	printf("culling\n");
 
@@ -388,21 +387,23 @@ int main(int argc, char **argv)
 
 	for (i = count = 0; i < list_size; i++) {
 		if (count == 0 ||
-		    strcmp(*(&list2[count-1].txt+offset), *(&list[i].txt+offset)) != 0) {
-			list2[count++] = list[i];
+		    strcmp(*(&list[count-1].txt+offset), *(&list[i].txt+offset)) != 0) {
+			list[count++] = list[i];
 		} else {
-			list2[count-1].num += list[i].num;
-			list2[count-1].page_num += list[i].page_num;
+			list[count-1].num += list[i].num;
+			list[count-1].page_num += list[i].page_num;
 		}
 	}
 
-	qsort(list2, count, sizeof(list[0]), cmp);
+	qsort(list, count, sizeof(list[0]), cmp);
 
 	for (i = 0; i < count; i++) {
-		if (filter == 1 && list2[i].free_ts_nsec != 0)
-			continue;
-		fprintf(fout, "%d times, %d pages:\n%s\n",
-				list2[i].num, list2[i].page_num, list2[i].txt);
+		if (cull_st == 0)
+			fprintf(fout, "%d times, %d pages:\n%s\n",
+					list[i].num, list[i].page_num, list[i].txt);
+		else
+			fprintf(fout, "%d times, %d pages:\n%s\n",
+					list[i].num, list[i].page_num, list[i].stacktrace);
 	}
 	regfree(&order_pattern);
 	regfree(&pid_pattern);
