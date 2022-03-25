@@ -159,6 +159,8 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 	struct dma_fence_array *array;
 	size_t size = sizeof(*array);
 
+	WARN_ON(!num_fences || !fences);
+
 	/* Allocate the callback structures behind the array. */
 	size += num_fences * sizeof(struct dma_fence_array_cb);
 	array = kzalloc(size, GFP_KERNEL);
@@ -230,6 +232,9 @@ struct dma_fence *dma_fence_array_first(struct dma_fence *head)
 	array = to_dma_fence_array(head);
 	if (!array)
 		return head;
+
+	if (!array->num_fences)
+		return NULL;
 
 	return array->fences[0];
 }
