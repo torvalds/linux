@@ -1,8 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (c) 2014, 2018, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_COMMON_H__
 #define __QCOM_CLK_COMMON_H__
+
+#include <linux/reset-controller.h>
 
 struct platform_device;
 struct regmap_config;
@@ -41,6 +43,12 @@ struct parent_map {
 	u8 cfg;
 };
 
+struct clk_dummy {
+	struct clk_hw hw;
+	struct reset_controller_dev reset;
+	unsigned long rrate;
+};
+
 extern const struct freq_tbl *qcom_find_freq(const struct freq_tbl *f,
 					     unsigned long rate);
 extern const struct freq_tbl *qcom_find_freq_floor(const struct freq_tbl *f,
@@ -65,5 +73,5 @@ extern int qcom_cc_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc);
 extern int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
 				  const struct qcom_cc_desc *desc);
-
+extern const struct clk_ops clk_dummy_ops;
 #endif
