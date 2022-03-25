@@ -242,6 +242,8 @@ static struct ref_scale_ops rcu_tasks_ops = {
 
 #endif // #else // #ifdef CONFIG_TASKS_RCU
 
+#ifdef CONFIG_TASKS_TRACE_RCU
+
 // Definitions for RCU Tasks Trace ref scale testing.
 static void rcu_trace_ref_scale_read_section(const int nloops)
 {
@@ -270,6 +272,14 @@ static struct ref_scale_ops rcu_trace_ops = {
 	.delaysection	= rcu_trace_ref_scale_delay_section,
 	.name		= "rcu-trace"
 };
+
+#define RCU_TRACE_OPS &rcu_trace_ops,
+
+#else // #ifdef CONFIG_TASKS_TRACE_RCU
+
+#define RCU_TRACE_OPS
+
+#endif // #else // #ifdef CONFIG_TASKS_TRACE_RCU
 
 // Definitions for reference count
 static atomic_t refcnt;
@@ -800,7 +810,7 @@ ref_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &rcu_trace_ops, RCU_TASKS_OPS &refcnt_ops, &rwlock_ops,
+		&rcu_ops, &srcu_ops, RCU_TRACE_OPS RCU_TASKS_OPS &refcnt_ops, &rwlock_ops,
 		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops,
 	};
 
