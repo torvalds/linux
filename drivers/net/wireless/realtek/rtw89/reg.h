@@ -120,6 +120,7 @@
 #define B_AX_R_AX_BG GENMASK(1, 0)
 
 #define R_AX_PLATFORM_ENABLE 0x0088
+#define B_AX_AXIDMA_EN BIT(3)
 #define B_AX_WCPU_EN BIT(1)
 #define B_AX_PLATFORM_EN BIT(0)
 

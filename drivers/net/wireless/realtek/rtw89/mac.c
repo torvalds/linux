@@ -2756,18 +2756,41 @@ static int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason,
 	return 0;
 }
 
-static int rtw89_mac_fw_dl_pre_init(struct rtw89_dev *rtwdev)
+static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val;
 	int ret;
 
-	val = B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_DISPATCHER_EN |
-	      B_AX_PKT_BUF_EN;
+	if (chip_id == RTL8852C)
+		val = B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_DISPATCHER_EN |
+		      B_AX_PKT_BUF_EN | B_AX_H_AXIDMA_EN;
+	else
+		val = B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_DISPATCHER_EN |
+		      B_AX_PKT_BUF_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_FUNC_EN, val);
 
 	val = B_AX_DISPATCHER_CLK_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val);
 
+	if (chip_id != RTL8852C)
+		goto dle;
+
+	val = rtw89_read32(rtwdev, R_AX_HAXI_INIT_CFG1);
+	val &= ~(B_AX_DMA_MODE_MASK | B_AX_STOP_AXI_MST);
+	val |= FIELD_PREP(B_AX_DMA_MODE_MASK, DMA_MOD_PCIE_1B) |
+	       B_AX_TXHCI_EN_V1 | B_AX_RXHCI_EN_V1;
+	rtw89_write32(rtwdev, R_AX_HAXI_INIT_CFG1, val);
+
+	rtw89_write32_clr(rtwdev, R_AX_HAXI_DMA_STOP1,
+			  B_AX_STOP_ACH0 | B_AX_STOP_ACH1 | B_AX_STOP_ACH3 |
+			  B_AX_STOP_ACH4 | B_AX_STOP_ACH5 | B_AX_STOP_ACH6 |
+			  B_AX_STOP_ACH7 | B_AX_STOP_CH8 | B_AX_STOP_CH9 |
+			  B_AX_STOP_CH12 | B_AX_STOP_ACH2);
+	rtw89_write32_clr(rtwdev, R_AX_HAXI_DMA_STOP2, B_AX_STOP_CH10 | B_AX_STOP_CH11);
+	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_AXIDMA_EN);
+
+dle:
 	ret = dle_init(rtwdev, RTW89_QTA_DLFW, rtwdev->mac.qta_mode);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE pre init %d\n", ret);
@@ -2825,15 +2848,15 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev)
 
 	rtw89_mac_hci_func_en(rtwdev);
 
+	ret = rtw89_mac_dmac_pre_init(rtwdev);
+	if (ret)
+		return ret;
+
 	if (rtwdev->hci.ops->mac_pre_init) {
 		ret = rtwdev->hci.ops->mac_pre_init(rtwdev);
 		if (ret)
 			return ret;
 	}
-
-	ret = rtw89_mac_fw_dl_pre_init(rtwdev);
-	if (ret)
-		return ret;
 
 	rtw89_mac_disable_cpu(rtwdev);
 	ret = rtw89_mac_enable_cpu(rtwdev, 0, true);
