@@ -127,6 +127,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.enable_mask = RT4831_POSEN_MASK,
 		.active_discharge_reg = RT4831_REG_DSVEN,
 		.active_discharge_mask = RT4831_POSADEN_MASK,
+		.active_discharge_on = RT4831_POSADEN_MASK,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -145,6 +146,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.enable_mask = RT4831_NEGEN_MASK,
 		.active_discharge_reg = RT4831_REG_DSVEN,
 		.active_discharge_mask = RT4831_NEGADEN_MASK,
+		.active_discharge_on = RT4831_NEGADEN_MASK,
 		.owner = THIS_MODULE,
 	}
 };
