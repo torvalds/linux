@@ -1114,7 +1114,8 @@ static int cmac_func_en(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 
 	func_en = B_AX_CMAC_EN | B_AX_CMAC_TXEN | B_AX_CMAC_RXEN |
 			B_AX_PHYINTF_EN | B_AX_CMAC_DMA_EN | B_AX_PTCLTOP_EN |
-			B_AX_SCHEDULER_EN | B_AX_TMAC_EN | B_AX_RMAC_EN;
+			B_AX_SCHEDULER_EN | B_AX_TMAC_EN | B_AX_RMAC_EN |
+			B_AX_CMAC_CRPRT;
 	ck_en = B_AX_CMAC_CKEN | B_AX_PHYINTF_CKEN | B_AX_CMAC_DMA_CKEN |
 		      B_AX_PTCLTOP_CKEN | B_AX_SCHEDULER_CKEN | B_AX_TMAC_CKEN |
 		      B_AX_RMAC_CKEN;
