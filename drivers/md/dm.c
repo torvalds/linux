@@ -538,17 +538,15 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 
 	/*
 	 * Ensure IO accounting is only ever started once.
-	 * Expect no possibility for race unless DM_TIO_IS_DUPLICATE_BIO.
 	 */
-	if (!clone ||
-	    likely(!dm_tio_flagged(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO))) {
-		if (WARN_ON_ONCE(dm_io_flagged(io, DM_IO_ACCOUNTED)))
-			return;
+	if (dm_io_flagged(io, DM_IO_ACCOUNTED))
+		return;
+
+	/* Expect no possibility for race unless DM_TIO_IS_DUPLICATE_BIO. */
+	if (!clone || likely(dm_tio_is_normal(clone_to_tio(clone)))) {
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
 	} else {
 		unsigned long flags;
-		if (dm_io_flagged(io, DM_IO_ACCOUNTED))
-			return;
 		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
 		spin_lock_irqsave(&io->lock, flags);
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
@@ -921,12 +919,6 @@ static void dm_io_complete(struct dm_io *io)
 			bio->bi_status = io_error;
 		bio_endio(bio);
 	}
-}
-
-static inline bool dm_tio_is_normal(struct dm_target_io *tio)
-{
-	return (dm_tio_flagged(tio, DM_TIO_INSIDE_DM_IO) &&
-		!dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
 }
 
 /*

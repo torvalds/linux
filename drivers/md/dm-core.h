@@ -237,6 +237,12 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
 	tio->flags |= (1U << bit);
 }
 
+static inline bool dm_tio_is_normal(struct dm_target_io *tio)
+{
+	return (dm_tio_flagged(tio, DM_TIO_INSIDE_DM_IO) &&
+		!dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
+}
+
 /*
  * One of these is allocated per original bio.
  * It contains the first clone used for that original.
