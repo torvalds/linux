@@ -118,8 +118,9 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
-					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
+	drm_dbg_vbl(adev_to_drm(adev),
+		    "crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
+		    amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 
 }
 
