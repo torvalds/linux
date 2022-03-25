@@ -2286,17 +2286,17 @@ static void rga2_dump_read_back_sys_reg(struct rga_scheduler_t *scheduler)
 {
 	int i;
 	unsigned long flags;
-	uint32_t sys_reg[12] = {0};
+	uint32_t sys_reg[24] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < 24; i++)
 		sys_reg[i] = rga_read(RGA2_SYS_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	pr_info("SYS_READ_BACK_REG\n");
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 6; i++)
 		pr_info("0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_SYS_REG_BASE + i * 0x10,
 			sys_reg[0 + i * 4], sys_reg[1 + i * 4],
@@ -2439,6 +2439,22 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (job->full_csc.flag)
 		rga2_set_reg_full_csc(job, scheduler);
 
+#ifndef CONFIG_ROCKCHIP_FPGA
+	/* master mode */
+	rga_write(rga_read(RGA2_SYS_CTRL, scheduler) |
+		  (0x1 << 1) | (0x1 << 2) | (0x1 << 5) | (0x1 << 6) | (0x1 << 11) | (0x1 << 12),
+		  RGA2_SYS_CTRL, scheduler);
+#else
+	/* slave mode */
+	rga_write(rga_read(RGA2_SYS_CTRL, scheduler) |
+		  (0x0 << 1) | (0x1 << 2) | (0x1 << 5) | (0x1 << 6)  | (0x1 << 11) | (0x1 << 12),
+		  RGA2_SYS_CTRL, scheduler);
+#endif
+
+	/* All CMD finish int */
+	rga_write(rga_read(RGA2_INT, scheduler) | (0x1 << 10) | (0x1 << 9) |
+		 (0x1 << 8), RGA2_INT, scheduler);
+
 	if (DEBUGGER_EN(REG)) {
 		int32_t *p;
 
@@ -2452,20 +2468,6 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				p[0 + i * 4], p[1 + i * 4],
 				p[2 + i * 4], p[3 + i * 4]);
 	}
-
-#ifndef CONFIG_ROCKCHIP_FPGA
-	/* master mode */
-	rga_write((0x1 << 1) | (0x1 << 2) | (0x1 << 5) | (0x1 << 6),
-		 RGA2_SYS_CTRL, scheduler);
-#else
-	/* slave mode */
-	rga_write((0x0 << 1) | (0x1 << 2) | (0x1 << 5) | (0x1 << 6),
-		 RGA2_SYS_CTRL, scheduler);
-#endif
-
-	/* All CMD finish int */
-	rga_write(rga_read(RGA2_INT, scheduler) | (0x1 << 10) | (0x1 << 9) |
-		 (0x1 << 8), RGA2_INT, scheduler);
 
 	if (DEBUGGER_EN(TIME)) {
 		pr_info("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
