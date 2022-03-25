@@ -834,13 +834,8 @@ static inline int total_mapcount(struct page *page)
 	return folio_mapcount(page_folio(page));
 }
 
-int page_trans_huge_mapcount(struct page *page);
 #else
 static inline int total_mapcount(struct page *page)
-{
-	return page_mapcount(page);
-}
-static inline int page_trans_huge_mapcount(struct page *page)
 {
 	return page_mapcount(page);
 }

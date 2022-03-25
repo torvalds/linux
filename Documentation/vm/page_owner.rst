@@ -78,7 +78,7 @@ Usage
 
 2) Enable page owner: add "page_owner=on" to boot cmdline.
 
-3) Do the job what you want to debug
+3) Do the job that you want to debug.
 
 4) Analyze information from page owner::
 
@@ -89,22 +89,75 @@ Usage
 
 	Page allocated via order XXX, ...
 	PFN XXX ...
-	 // Detailed stack
+	// Detailed stack
 
 	Page allocated via order XXX, ...
 	PFN XXX ...
-	 // Detailed stack
+	// Detailed stack
 
    The ``page_owner_sort`` tool ignores ``PFN`` rows, puts the remaining rows
    in buf, uses regexp to extract the page order value, counts the times
-   and pages of buf, and finally sorts them according to the times.
+   and pages of buf, and finally sorts them according to the parameter(s).
 
    See the result about who allocated each page
    in the ``sorted_page_owner.txt``. General output::
 
 	XXX times, XXX pages:
 	Page allocated via order XXX, ...
-	 // Detailed stack
+	// Detailed stack
 
    By default, ``page_owner_sort`` is sorted according to the times of buf.
-   If you want to sort by the pages nums of buf, use the ``-m`` parameter.
+   If you want to sort by the page nums of buf, use the ``-m`` parameter.
+   The detailed parameters are:
+
+   fundamental function:
+
+	Sort:
+		-a		Sort by memory allocation time.
+		-m		Sort by total memory.
+		-p		Sort by pid.
+		-P		Sort by tgid.
+		-n		Sort by task command name.
+		-r		Sort by memory release time.
+		-s		Sort by stack trace.
+		-t		Sort by times (default).
+
+   additional function:
+
+	Cull:
+		-c		Cull by comparing stacktrace instead of total block.
+		--cull <rules>
+				Specify culling rules.Culling syntax is key[,key[,...]].Choose a
+				multi-letter key from the **STANDARD FORMAT SPECIFIERS** section.
+
+
+		<rules> is a single argument in the form of a comma-separated list,
+		which offers a way to specify individual culling rules.  The recognized
+		keywords are described in the **STANDARD FORMAT SPECIFIERS** section below.
+		<rules> can be specified by the sequence of keys k1,k2, ..., as described in
+		the STANDARD SORT KEYS section below. Mixed use of abbreviated and
+		complete-form of keys is allowed.
+
+
+		Examples:
+				./page_owner_sort <input> <output> --cull=stacktrace
+				./page_owner_sort <input> <output> --cull=st,pid,name
+				./page_owner_sort <input> <output> --cull=n,f
+
+	Filter:
+		-f		Filter out the information of blocks whose memory has been released.
+
+	Select:
+		--pid <PID>		Select by pid.
+		--tgid <TGID>		Select by tgid.
+		--name <command>	Select by task command name.
+
+STANDARD FORMAT SPECIFIERS
+==========================
+
+	KEY		LONG		DESCRIPTION
+	p		pid		process ID
+	tg		tgid		thread group ID
+	n		name		task command name
+	f		free		whether the page has been released or not
+	st		stacktrace	stace trace of the page allocation
