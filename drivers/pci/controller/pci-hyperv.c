@@ -616,6 +616,121 @@ static int hv_msi_prepare(struct irq_domain *domain, struct device *dev,
 {
 	return pci_msi_prepare(domain, dev, nvec, info);
 }
+
+/**
+ * hv_arch_irq_unmask() - "Unmask" the IRQ by setting its current
+ * affinity.
+ * @data:	Describes the IRQ
+ *
+ * Build new a destination for the MSI and make a hypercall to
+ * update the Interrupt Redirection Table. "Device Logical ID"
+ * is built out of this PCI bus's instance GUID and the function
+ * number of the device.
+ */
+static void hv_arch_irq_unmask(struct irq_data *data)
+{
+	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
+	struct hv_retarget_device_interrupt *params;
+	struct hv_pcibus_device *hbus;
+	struct cpumask *dest;
+	cpumask_var_t tmp;
+	struct pci_bus *pbus;
+	struct pci_dev *pdev;
+	unsigned long flags;
+	u32 var_size = 0;
+	int cpu, nr_bank;
+	u64 res;
+
+	dest = irq_data_get_effective_affinity_mask(data);
+	pdev = msi_desc_to_pci_dev(msi_desc);
+	pbus = pdev->bus;
+	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
+
+	spin_lock_irqsave(&hbus->retarget_msi_interrupt_lock, flags);
+
+	params = &hbus->retarget_msi_interrupt_params;
+	memset(params, 0, sizeof(*params));
+	params->partition_id = HV_PARTITION_ID_SELF;
+	params->int_entry.source = HV_INTERRUPT_SOURCE_MSI;
+	hv_set_msi_entry_from_desc(&params->int_entry.msi_entry, msi_desc);
+	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
+			   (hbus->hdev->dev_instance.b[4] << 16) |
+			   (hbus->hdev->dev_instance.b[7] << 8) |
+			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
+			   PCI_FUNC(pdev->devfn);
+	params->int_target.vector = hv_msi_get_int_vector(data);
+
+	/*
+	 * Honoring apic->delivery_mode set to APIC_DELIVERY_MODE_FIXED by
+	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
+	 * spurious interrupt storm. Not doing so does not seem to have a
+	 * negative effect (yet?).
+	 */
+
+	if (hbus->protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
+		/*
+		 * PCI_PROTOCOL_VERSION_1_2 supports the VP_SET version of the
+		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
+		 * with >64 VP support.
+		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
+		 * is not sufficient for this hypercall.
+		 */
+		params->int_target.flags |=
+			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
+
+		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
+			res = 1;
+			goto exit_unlock;
+		}
+
+		cpumask_and(tmp, dest, cpu_online_mask);
+		nr_bank = cpumask_to_vpset(&params->int_target.vp_set, tmp);
+		free_cpumask_var(tmp);
+
+		if (nr_bank <= 0) {
+			res = 1;
+			goto exit_unlock;
+		}
+
+		/*
+		 * var-sized hypercall, var-size starts after vp_mask (thus
+		 * vp_set.format does not count, but vp_set.valid_bank_mask
+		 * does).
+		 */
+		var_size = 1 + nr_bank;
+	} else {
+		for_each_cpu_and(cpu, dest, cpu_online_mask) {
+			params->int_target.vp_mask |=
+				(1ULL << hv_cpu_number_to_vp_number(cpu));
+		}
+	}
+
+	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
+			      params, NULL);
+
+exit_unlock:
+	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
+
+	/*
+	 * During hibernation, when a CPU is offlined, the kernel tries
+	 * to move the interrupt to the remaining CPUs that haven't
+	 * been offlined yet. In this case, the below hv_do_hypercall()
+	 * always fails since the vmbus channel has been closed:
+	 * refer to cpu_disable_common() -> fixup_irqs() ->
+	 * irq_migrate_all_off_this_cpu() -> migrate_one_irq().
+	 *
+	 * Suppress the error message for hibernation because the failure
+	 * during hibernation does not matter (at this time all the devices
+	 * have been frozen). Note: the correct affinity info is still updated
+	 * into the irqdata data structure in migrate_one_irq() ->
+	 * irq_do_set_affinity() -> hv_set_affinity(), so later when the VM
+	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
+	 * the interrupt with the correct affinity.
+	 */
+	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
+		dev_err(&hbus->hdev->device,
+			"%s() failed: %#llx", __func__, res);
+}
 #elif defined(CONFIG_ARM64)
 /*
  * SPI vectors to use for vPCI; arch SPIs range is [32, 1019], but leaving a bit
@@ -839,6 +954,12 @@ static struct irq_domain *hv_pci_get_root_domain(void)
 {
 	return hv_msi_gic_irq_domain;
 }
+
+/*
+ * SPIs are used for interrupts of PCI devices and SPIs is managed via GICD
+ * registers which Hyper-V already supports, so no hypercall needed.
+ */
+static void hv_arch_irq_unmask(struct irq_data *data) { }
 #endif /* CONFIG_ARM64 */
 
 /**
@@ -1456,119 +1577,9 @@ static void hv_irq_mask(struct irq_data *data)
 		irq_chip_mask_parent(data);
 }
 
-/**
- * hv_irq_unmask() - "Unmask" the IRQ by setting its current
- * affinity.
- * @data:	Describes the IRQ
- *
- * Build new a destination for the MSI and make a hypercall to
- * update the Interrupt Redirection Table. "Device Logical ID"
- * is built out of this PCI bus's instance GUID and the function
- * number of the device.
- */
 static void hv_irq_unmask(struct irq_data *data)
 {
-	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
-	struct hv_retarget_device_interrupt *params;
-	struct hv_pcibus_device *hbus;
-	struct cpumask *dest;
-	cpumask_var_t tmp;
-	struct pci_bus *pbus;
-	struct pci_dev *pdev;
-	unsigned long flags;
-	u32 var_size = 0;
-	int cpu, nr_bank;
-	u64 res;
-
-	dest = irq_data_get_effective_affinity_mask(data);
-	pdev = msi_desc_to_pci_dev(msi_desc);
-	pbus = pdev->bus;
-	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
-
-	spin_lock_irqsave(&hbus->retarget_msi_interrupt_lock, flags);
-
-	params = &hbus->retarget_msi_interrupt_params;
-	memset(params, 0, sizeof(*params));
-	params->partition_id = HV_PARTITION_ID_SELF;
-	params->int_entry.source = HV_INTERRUPT_SOURCE_MSI;
-	hv_set_msi_entry_from_desc(&params->int_entry.msi_entry, msi_desc);
-	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
-			   (hbus->hdev->dev_instance.b[4] << 16) |
-			   (hbus->hdev->dev_instance.b[7] << 8) |
-			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
-			   PCI_FUNC(pdev->devfn);
-	params->int_target.vector = hv_msi_get_int_vector(data);
-
-	/*
-	 * Honoring apic->delivery_mode set to APIC_DELIVERY_MODE_FIXED by
-	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
-	 * spurious interrupt storm. Not doing so does not seem to have a
-	 * negative effect (yet?).
-	 */
-
-	if (hbus->protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
-		/*
-		 * PCI_PROTOCOL_VERSION_1_2 supports the VP_SET version of the
-		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
-		 * with >64 VP support.
-		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
-		 * is not sufficient for this hypercall.
-		 */
-		params->int_target.flags |=
-			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
-
-		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
-			res = 1;
-			goto exit_unlock;
-		}
-
-		cpumask_and(tmp, dest, cpu_online_mask);
-		nr_bank = cpumask_to_vpset(&params->int_target.vp_set, tmp);
-		free_cpumask_var(tmp);
-
-		if (nr_bank <= 0) {
-			res = 1;
-			goto exit_unlock;
-		}
-
-		/*
-		 * var-sized hypercall, var-size starts after vp_mask (thus
-		 * vp_set.format does not count, but vp_set.valid_bank_mask
-		 * does).
-		 */
-		var_size = 1 + nr_bank;
-	} else {
-		for_each_cpu_and(cpu, dest, cpu_online_mask) {
-			params->int_target.vp_mask |=
-				(1ULL << hv_cpu_number_to_vp_number(cpu));
-		}
-	}
-
-	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
-			      params, NULL);
-
-exit_unlock:
-	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
-
-	/*
-	 * During hibernation, when a CPU is offlined, the kernel tries
-	 * to move the interrupt to the remaining CPUs that haven't
-	 * been offlined yet. In this case, the below hv_do_hypercall()
-	 * always fails since the vmbus channel has been closed:
-	 * refer to cpu_disable_common() -> fixup_irqs() ->
-	 * irq_migrate_all_off_this_cpu() -> migrate_one_irq().
-	 *
-	 * Suppress the error message for hibernation because the failure
-	 * during hibernation does not matter (at this time all the devices
-	 * have been frozen). Note: the correct affinity info is still updated
-	 * into the irqdata data structure in migrate_one_irq() ->
-	 * irq_do_set_affinity() -> hv_set_affinity(), so later when the VM
-	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
-	 * the interrupt with the correct affinity.
-	 */
-	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
-		dev_err(&hbus->hdev->device,
-			"%s() failed: %#llx", __func__, res);
+	hv_arch_irq_unmask(data);
 
 	if (data->parent_data->chip->irq_unmask)
 		irq_chip_unmask_parent(data);

@@ -473,7 +473,7 @@ int cpqhp_save_slot_config(struct controller *ctrl, struct pci_func *new_slot)
 	int sub_bus;
 	int max_functions;
 	int function = 0;
-	int cloop = 0;
+	int cloop;
 	int stop_it;
 
 	ID = 0xFFFFFFFF;
