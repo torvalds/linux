@@ -326,6 +326,8 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 	 * so cache the vm_struct.
 	 */
 	tsk->stack_vm_area = vm;
+	if (stack)
+		stack = kasan_reset_tag(stack);
 	tsk->stack = stack;
 	return 0;
 }
