@@ -342,9 +342,9 @@ static int resolve_seg_reg(struct insn *insn, struct pt_regs *regs, int regoff)
  */
 static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 {
-#ifdef CONFIG_X86_64
 	unsigned short sel;
 
+#ifdef CONFIG_X86_64
 	switch (seg_reg_idx) {
 	case INAT_SEG_REG_IGNORE:
 		return 0;
@@ -402,7 +402,8 @@ static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 	case INAT_SEG_REG_FS:
 		return (unsigned short)(regs->fs & 0xffff);
 	case INAT_SEG_REG_GS:
-		return get_user_gs(regs);
+		savesegment(gs, sel);
+		return sel;
 	case INAT_SEG_REG_IGNORE:
 	default:
 		return -EINVAL;

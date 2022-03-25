@@ -93,7 +93,7 @@ static bool restore_sigcontext(struct pt_regs *regs,
 		return false;
 
 #ifdef CONFIG_X86_32
-	set_user_gs(regs, sc.gs);
+	loadsegment(gs, sc.gs);
 	regs->fs = sc.fs;
 	regs->es = sc.es;
 	regs->ds = sc.ds;
@@ -146,8 +146,10 @@ __unsafe_setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 		     struct pt_regs *regs, unsigned long mask)
 {
 #ifdef CONFIG_X86_32
-	unsafe_put_user(get_user_gs(regs),
-				  (unsigned int __user *)&sc->gs, Efault);
+	unsigned int gs;
+	savesegment(gs, gs);
+
+	unsafe_put_user(gs,	  (unsigned int __user *)&sc->gs, Efault);
 	unsafe_put_user(regs->fs, (unsigned int __user *)&sc->fs, Efault);
 	unsafe_put_user(regs->es, (unsigned int __user *)&sc->es, Efault);
 	unsafe_put_user(regs->ds, (unsigned int __user *)&sc->ds, Efault);
