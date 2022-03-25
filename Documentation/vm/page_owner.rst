@@ -129,3 +129,8 @@ Usage
 
 	Filter:
 		-f		Filter out the information of blocks whose memory has been released.
+
+	Select:
+		--pid <PID>			Select by pid.
+		--tgid <TGID>		Select by tgid.
+		--name <command>	Select by task command name.

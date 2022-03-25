@@ -21,6 +21,12 @@
 #include <regex.h>
 #include <errno.h>
 #include <linux/types.h>
+#include <getopt.h>
+
+#define bool int
+#define true 1
+#define false 0
+#define TASK_COMM_LEN 16
 
 struct block_list {
 	char *txt;
@@ -34,7 +40,18 @@ struct block_list {
 	pid_t pid;
 	pid_t tgid;
 };
-
+enum FILTER_BIT {
+	FILTER_UNRELEASE = 1<<1,
+	FILTER_PID = 1<<2,
+	FILTER_TGID = 1<<3,
+	FILTER_TASK_COMM_NAME = 1<<4
+};
+struct filter_condition {
+	pid_t tgid;
+	pid_t pid;
+	char comm[TASK_COMM_LEN];
+};
+static struct filter_condition fc;
 static regex_t order_pattern;
 static regex_t pid_pattern;
 static regex_t tgid_pattern;
@@ -154,7 +171,6 @@ static void check_regcomp(regex_t *pattern, const char *regex)
 }
 
 # define FIELD_BUFF 25
-# define TASK_COMM_LEN 16
 
 static int get_page_num(char *buf)
 {
@@ -259,11 +275,30 @@ static char *get_comm(char *buf)
 	return comm_str;
 }
 
+static bool is_need(char *buf)
+{
+		if ((filter & FILTER_UNRELEASE) != 0 && get_free_ts_nsec(buf) != 0)
+			return false;
+		if ((filter & FILTER_PID) != 0 && get_pid(buf) != fc.pid)
+			return false;
+		if ((filter & FILTER_TGID) != 0 && get_tgid(buf) != fc.tgid)
+			return false;
+
+		char *comm = get_comm(buf);
+
+		if ((filter & FILTER_TASK_COMM_NAME) != 0  &&
+		strncmp(comm, fc.comm, TASK_COMM_LEN) != 0) {
+			free(comm);
+			return false;
+		}
+		return true;
+}
+
 static void add_list(char *buf, int len)
 {
 	if (list_size != 0 &&
-	    len == list[list_size-1].len &&
-	    memcmp(buf, list[list_size-1].txt, len) == 0) {
+		len == list[list_size-1].len &&
+		memcmp(buf, list[list_size-1].txt, len) == 0) {
 		list[list_size-1].num++;
 		list[list_size-1].page_num += get_page_num(buf);
 		return;
@@ -272,28 +307,27 @@ static void add_list(char *buf, int len)
 		printf("max_size too small??\n");
 		exit(1);
 	}
-
-	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
-	if (filter == 1 && list[list_size].free_ts_nsec != 0)
+	if (!is_need(buf))
 		return;
+	list[list_size].pid = get_pid(buf);
+	list[list_size].tgid = get_tgid(buf);
+	list[list_size].comm = get_comm(buf);
 	list[list_size].txt = malloc(len+1);
 	if (!list[list_size].txt) {
 		printf("Out of memory\n");
 		exit(1);
 	}
-
+	memcpy(list[list_size].txt, buf, len);
+	list[list_size].txt[len] = 0;
 	list[list_size].len = len;
 	list[list_size].num = 1;
 	list[list_size].page_num = get_page_num(buf);
-	memcpy(list[list_size].txt, buf, len);
-	list[list_size].txt[len] = 0;
+
 	list[list_size].stacktrace = strchr(list[list_size].txt, '\n') ?: "";
 	if (*list[list_size].stacktrace == '\n')
 		list[list_size].stacktrace++;
-	list[list_size].pid = get_pid(buf);
-	list[list_size].tgid = get_tgid(buf);
-	list[list_size].comm = get_comm(buf);
 	list[list_size].ts_nsec = get_ts_nsec(buf);
+	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
 	list_size++;
 	if (list_size % 1000 == 0) {
 		printf("loaded %d\r", list_size);
@@ -306,16 +340,19 @@ static void add_list(char *buf, int len)
 static void usage(void)
 {
 	printf("Usage: ./page_owner_sort [OPTIONS] <input> <output>\n"
-		"-m	Sort by total memory.\n"
-		"-s	Sort by the stack trace.\n"
-		"-t	Sort by times (default).\n"
-		"-p	Sort by pid.\n"
-		"-P	Sort by tgid.\n"
-		"-n	Sort by task command name.\n"
-		"-a	Sort by memory allocate time.\n"
-		"-r	Sort by memory release time.\n"
-		"-c	Cull by comparing stacktrace instead of total block.\n"
-		"-f	Filter out the information of blocks whose memory has been released.\n"
+		"-m\t\tSort by total memory.\n"
+		"-s\t\tSort by the stack trace.\n"
+		"-t\t\tSort by times (default).\n"
+		"-p\t\tSort by pid.\n"
+		"-P\t\tSort by tgid.\n"
+		"-n\t\tSort by task command name.\n"
+		"-a\t\tSort by memory allocate time.\n"
+		"-r\t\tSort by memory release time.\n"
+		"-c\t\tCull by comparing stacktrace instead of total block.\n"
+		"-f\t\tFilter out the information of blocks whose memory has been released.\n"
+		"--pid <PID>\tSelect by pid. This selects the information of blocks whose process ID number equals to <PID>.\n"
+		"--tgid <TGID>\tSelect by tgid. This selects the information of blocks whose Thread Group ID number equals to <TGID>.\n"
+		"--name <command>\n\t\tSelect by command name. This selects the information of blocks whose command name identical to <command>.\n"
 	);
 }
 
@@ -323,12 +360,18 @@ int main(int argc, char **argv)
 {
 	int (*cmp)(const void *, const void *) = compare_num;
 	FILE *fin, *fout;
-	char *buf;
+	char *buf, *endptr;
 	int ret, i, count;
 	struct stat st;
 	int opt;
+	struct option longopts[] = {
+		{ "pid", required_argument, NULL, 1 },
+		{ "tgid", required_argument, NULL, 2 },
+		{ "name", required_argument, NULL, 3 },
+		{ 0, 0, 0, 0},
+	};
 
-	while ((opt = getopt(argc, argv, "acfmnprstP")) != -1)
+	while ((opt = getopt_long(argc, argv, "acfmnprstP", longopts, NULL)) != -1)
 		switch (opt) {
 		case 'a':
 			cmp = compare_ts;
@@ -337,7 +380,7 @@ int main(int argc, char **argv)
 			cull_st = 1;
 			break;
 		case 'f':
-			filter = 1;
+			filter = filter | FILTER_UNRELEASE;
 			break;
 		case 'm':
 			cmp = compare_page_num;
@@ -359,6 +402,29 @@ int main(int argc, char **argv)
 			break;
 		case 'n':
 			cmp = compare_comm;
+			break;
+		case 1:
+			filter = filter | FILTER_PID;
+			errno = 0;
+			fc.pid = strtol(optarg, &endptr, 10);
+			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+				printf("wrong/invalid pid in from the command line:%s\n", optarg);
+				exit(1);
+			}
+			break;
+		case 2:
+			filter = filter | FILTER_TGID;
+			errno = 0;
+			fc.tgid = strtol(optarg, &endptr, 10);
+			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+				printf("wrong/invalid tgid in from the command line:%s\n", optarg);
+				exit(1);
+			}
+			break;
+		case 3:
+			filter = filter | FILTER_TASK_COMM_NAME;
+			strncpy(fc.comm, optarg, TASK_COMM_LEN);
+			fc.comm[TASK_COMM_LEN-1] = '\0';
 			break;
 		default:
 			usage();
