@@ -83,7 +83,7 @@ extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
 /* Firmware needs to be initially set to narrow to determine the 
  * actual firmware width. */
-int parisc_narrow_firmware __ro_after_init = 1;
+int parisc_narrow_firmware __ro_after_init = 2;
 #endif
 
 /* On most currently-supported platforms, IODC I/O calls are 32-bit calls
@@ -174,6 +174,11 @@ void set_firmware_width_unlocked(void)
 void set_firmware_width(void)
 {
 	unsigned long flags;
+
+	/* already initialized? */
+	if (parisc_narrow_firmware != 2)
+		return;
+
 	spin_lock_irqsave(&pdc_lock, flags);
 	set_firmware_width_unlocked();
 	spin_unlock_irqrestore(&pdc_lock, flags);
