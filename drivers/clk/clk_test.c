@@ -72,6 +72,19 @@ static int clk_dummy_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
+static int clk_dummy_single_set_parent(struct clk_hw *hw, u8 index)
+{
+	if (index >= clk_hw_get_num_parents(hw))
+		return -EINVAL;
+
+	return 0;
+}
+
+static u8 clk_dummy_single_get_parent(struct clk_hw *hw)
+{
+	return 0;
+}
+
 static const struct clk_ops clk_dummy_rate_ops = {
 	.recalc_rate = clk_dummy_recalc_rate,
 	.determine_rate = clk_dummy_determine_rate,
@@ -88,6 +101,11 @@ static const struct clk_ops clk_dummy_minimize_rate_ops = {
 	.recalc_rate = clk_dummy_recalc_rate,
 	.determine_rate = clk_dummy_minimize_rate,
 	.set_rate = clk_dummy_set_rate,
+};
+
+static const struct clk_ops clk_dummy_single_parent_ops = {
+	.set_parent = clk_dummy_single_set_parent,
+	.get_parent = clk_dummy_single_get_parent,
 };
 
 static int clk_test_init_with_ops(struct kunit *test, const struct clk_ops *ops)
@@ -237,6 +255,92 @@ static struct kunit_suite clk_test_suite = {
 	.init = clk_test_init,
 	.exit = clk_test_exit,
 	.test_cases = clk_test_cases,
+};
+
+struct clk_single_parent_ctx {
+	struct clk_dummy_context parent_ctx;
+	struct clk_hw hw;
+};
+
+static int clk_orphan_transparent_single_parent_mux_test_init(struct kunit *test)
+{
+	struct clk_single_parent_ctx *ctx;
+	struct clk_init_data init = { };
+	const char * const parents[] = { "orphan_parent" };
+	int ret;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	test->priv = ctx;
+
+	init.name = "test_orphan_dummy_parent";
+	init.ops = &clk_dummy_single_parent_ops;
+	init.parent_names = parents;
+	init.num_parents = ARRAY_SIZE(parents);
+	init.flags = CLK_SET_RATE_PARENT;
+	ctx->hw.init = &init;
+
+	ret = clk_hw_register(NULL, &ctx->hw);
+	if (ret)
+		return ret;
+
+	memset(&init, 0, sizeof(init));
+	init.name = "orphan_parent";
+	init.ops = &clk_dummy_rate_ops;
+	ctx->parent_ctx.hw.init = &init;
+	ctx->parent_ctx.rate = DUMMY_CLOCK_INIT_RATE;
+
+	ret = clk_hw_register(NULL, &ctx->parent_ctx.hw);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void clk_orphan_transparent_single_parent_mux_test_exit(struct kunit *test)
+{
+	struct clk_single_parent_ctx *ctx = test->priv;
+
+	clk_hw_unregister(&ctx->hw);
+	clk_hw_unregister(&ctx->parent_ctx.hw);
+}
+
+/*
+ * Test that a mux-only clock, with an initial rate within a range,
+ * will still have the same rate after the range has been enforced.
+ */
+static void clk_test_orphan_transparent_parent_mux_set_range(struct kunit *test)
+{
+	struct clk_single_parent_ctx *ctx = test->priv;
+	struct clk_hw *hw = &ctx->hw;
+	struct clk *clk = hw->clk;
+	unsigned long rate, new_rate;
+
+	rate = clk_get_rate(clk);
+	KUNIT_ASSERT_GT(test, rate, 0);
+
+	KUNIT_ASSERT_EQ(test,
+			clk_set_rate_range(clk,
+					   ctx->parent_ctx.rate - 1000,
+					   ctx->parent_ctx.rate + 1000),
+			0);
+
+	new_rate = clk_get_rate(clk);
+	KUNIT_ASSERT_GT(test, new_rate, 0);
+	KUNIT_EXPECT_EQ(test, rate, new_rate);
+}
+
+static struct kunit_case clk_orphan_transparent_single_parent_mux_test_cases[] = {
+	KUNIT_CASE(clk_test_orphan_transparent_parent_mux_set_range),
+	{}
+};
+
+static struct kunit_suite clk_orphan_transparent_single_parent_test_suite = {
+	.name = "clk-orphan-transparent-single-parent-test",
+	.init = clk_orphan_transparent_single_parent_mux_test_init,
+	.exit = clk_orphan_transparent_single_parent_mux_test_exit,
+	.test_cases = clk_orphan_transparent_single_parent_mux_test_cases,
 };
 
 /*
@@ -788,6 +892,7 @@ static struct kunit_suite clk_range_minimize_test_suite = {
 
 kunit_test_suites(
 	&clk_test_suite,
+	&clk_orphan_transparent_single_parent_test_suite,
 	&clk_range_test_suite,
 	&clk_range_maximize_test_suite,
 	&clk_range_minimize_test_suite
