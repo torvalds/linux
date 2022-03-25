@@ -51,7 +51,6 @@
 		};
 	};
 
-
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -61,13 +60,6 @@
 			label = "green:heartbeat";
 			gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-
-		led2 {
-			label = "green:mmc0";
-			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 	};
@@ -475,7 +467,6 @@
 
 	leds_pins: pinmux_leds_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x868, PIN_OUTPUT | MUX_MODE7)
 			AM33XX_IOPAD(0x86c, PIN_OUTPUT | MUX_MODE7)
 		>;
 	};
