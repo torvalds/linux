@@ -594,7 +594,22 @@ static int wm8731_request_supplies(struct device *dev,
 	return 0;
 }
 
-static int wm8731_hw_init(struct device *dev, struct wm8731_priv *wm8731)
+static const struct snd_soc_component_driver soc_component_dev_wm8731 = {
+	.set_bias_level		= wm8731_set_bias_level,
+	.controls		= wm8731_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8731_snd_controls),
+	.dapm_widgets		= wm8731_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes		= wm8731_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(wm8731_intercon),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+
+static int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
 {
 	int ret = 0;
 
@@ -618,27 +633,21 @@ static int wm8731_hw_init(struct device *dev, struct wm8731_priv *wm8731)
 
 	regcache_mark_dirty(wm8731->regmap);
 
+	ret = devm_snd_soc_register_component(dev,
+			&soc_component_dev_wm8731, &wm8731_dai, 1);
+	if (ret != 0) {
+		dev_err(dev, "Failed to register CODEC: %d\n", ret);
+		goto err_regulator_enable;
+	}
+
+	return 0;
+
 err_regulator_enable:
 	/* Regulators will be enabled by bias management */
 	regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies), wm8731->supplies);
 
 	return ret;
 }
-
-static const struct snd_soc_component_driver soc_component_dev_wm8731 = {
-	.set_bias_level		= wm8731_set_bias_level,
-	.controls		= wm8731_snd_controls,
-	.num_controls		= ARRAY_SIZE(wm8731_snd_controls),
-	.dapm_widgets		= wm8731_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(wm8731_dapm_widgets),
-	.dapm_routes		= wm8731_intercon,
-	.num_dapm_routes	= ARRAY_SIZE(wm8731_intercon),
-	.suspend_bias_off	= 1,
-	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
-};
 
 static const struct of_device_id wm8731_of_match[] = {
 	{ .compatible = "wlf,wm8731", },
@@ -698,18 +707,7 @@ static int wm8731_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = wm8731_hw_init(&spi->dev, wm8731);
-	if (ret != 0)
-		return ret;
-
-	ret = devm_snd_soc_register_component(&spi->dev,
-			&soc_component_dev_wm8731, &wm8731_dai, 1);
-	if (ret != 0) {
-		dev_err(&spi->dev, "Failed to register CODEC: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return wm8731_init(&spi->dev, wm8731);
 }
 
 static struct spi_driver wm8731_spi_driver = {
@@ -762,18 +760,7 @@ static int wm8731_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = wm8731_hw_init(&i2c->dev, wm8731);
-	if (ret != 0)
-		return ret;
-
-	ret = devm_snd_soc_register_component(&i2c->dev,
-			&soc_component_dev_wm8731, &wm8731_dai, 1);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return wm8731_init(&i2c->dev, wm8731);
 }
 
 static const struct i2c_device_id wm8731_i2c_id[] = {
