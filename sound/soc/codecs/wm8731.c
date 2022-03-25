@@ -15,13 +15,9 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
-#include <linux/spi/spi.h>
-#include <linux/of_device.h>
-#include <linux/mutex.h>
 #include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -32,28 +28,12 @@
 
 #include "wm8731.h"
 
-#define WM8731_NUM_SUPPLIES 4
 static const char *wm8731_supply_names[WM8731_NUM_SUPPLIES] = {
 	"AVDD",
 	"HPVDD",
 	"DCVDD",
 	"DBVDD",
 };
-
-/* codec private data */
-struct wm8731_priv {
-	struct regmap *regmap;
-	struct clk *mclk;
-	struct regulator_bulk_data supplies[WM8731_NUM_SUPPLIES];
-	const struct snd_pcm_hw_constraint_list *constraints;
-	unsigned int sysclk;
-	int sysclk_type;
-	int playback_fs;
-	bool deemph;
-
-	struct mutex lock;
-};
-
 
 /*
  * wm8731 register cache
@@ -584,7 +564,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8731 = {
 	.non_legacy_dai_naming	= 1,
 };
 
-static int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
+int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
 {
 	int ret = 0, i;
 
@@ -654,15 +634,9 @@ err_regulator_enable:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wm8731_init);
 
-static const struct of_device_id wm8731_of_match[] = {
-	{ .compatible = "wlf,wm8731", },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, wm8731_of_match);
-
-static const struct regmap_config wm8731_regmap = {
+const struct regmap_config wm8731_regmap = {
 	.reg_bits = 7,
 	.val_bits = 9,
 
@@ -673,111 +647,7 @@ static const struct regmap_config wm8731_regmap = {
 	.reg_defaults = wm8731_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8731_reg_defaults),
 };
-
-#if defined(CONFIG_SPI_MASTER)
-static int wm8731_spi_probe(struct spi_device *spi)
-{
-	struct wm8731_priv *wm8731;
-	int ret;
-
-	wm8731 = devm_kzalloc(&spi->dev, sizeof(*wm8731), GFP_KERNEL);
-	if (wm8731 == NULL)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, wm8731);
-
-	wm8731->regmap = devm_regmap_init_spi(spi, &wm8731_regmap);
-	if (IS_ERR(wm8731->regmap)) {
-		ret = PTR_ERR(wm8731->regmap);
-		dev_err(&spi->dev, "Failed to allocate register map: %d\n",
-			ret);
-		return ret;
-	}
-
-	return wm8731_init(&spi->dev, wm8731);
-}
-
-static struct spi_driver wm8731_spi_driver = {
-	.driver = {
-		.name	= "wm8731",
-		.of_match_table = wm8731_of_match,
-	},
-	.probe		= wm8731_spi_probe,
-};
-#endif /* CONFIG_SPI_MASTER */
-
-#if IS_ENABLED(CONFIG_I2C)
-static int wm8731_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm8731_priv *wm8731;
-	int ret;
-
-	wm8731 = devm_kzalloc(&i2c->dev, sizeof(struct wm8731_priv),
-			      GFP_KERNEL);
-	if (wm8731 == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, wm8731);
-
-	wm8731->regmap = devm_regmap_init_i2c(i2c, &wm8731_regmap);
-	if (IS_ERR(wm8731->regmap)) {
-		ret = PTR_ERR(wm8731->regmap);
-		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
-			ret);
-		return ret;
-	}
-
-	return wm8731_init(&i2c->dev, wm8731);
-}
-
-static const struct i2c_device_id wm8731_i2c_id[] = {
-	{ "wm8731", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
-
-static struct i2c_driver wm8731_i2c_driver = {
-	.driver = {
-		.name = "wm8731",
-		.of_match_table = wm8731_of_match,
-	},
-	.probe =    wm8731_i2c_probe,
-	.id_table = wm8731_i2c_id,
-};
-#endif
-
-static int __init wm8731_modinit(void)
-{
-	int ret = 0;
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8731_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8731 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8731_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8731 SPI driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm8731_modinit);
-
-static void __exit wm8731_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8731_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8731_spi_driver);
-#endif
-}
-module_exit(wm8731_exit);
+EXPORT_SYMBOL_GPL(wm8731_regmap);
 
 MODULE_DESCRIPTION("ASoC WM8731 driver");
 MODULE_AUTHOR("Richard Purdie");
