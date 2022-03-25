@@ -1481,6 +1481,8 @@ static void binder_free_txn_fixups(struct binder_transaction *t)
 
 	list_for_each_entry_safe(fixup, tmp, &t->fd_fixups, fixup_entry) {
 		fput(fixup->file);
+		if (fixup->target_fd >= 0)
+			put_unused_fd(fixup->target_fd);
 		list_del(&fixup->fixup_entry);
 		kfree(fixup);
 	}
@@ -2220,6 +2222,7 @@ static int binder_translate_fd(u32 fd, binder_size_t fd_offset,
 	}
 	fixup->file = file;
 	fixup->offset = fd_offset;
+	fixup->target_fd = -1;
 	trace_binder_transaction_fd_send(t, fd, fixup->offset);
 	list_add_tail(&fixup->fixup_entry, &t->fd_fixups);
 
@@ -4067,10 +4070,9 @@ static int binder_wait_for_work(struct binder_thread *thread,
  * Now that we are in the context of the transaction target
  * process, we can allocate and install fds. Process the
  * list of fds to translate and fixup the buffer with the
- * new fds.
+ * new fds first and only then install the files.
  *
- * If we fail to allocate an fd, then free the resources by
- * fput'ing files that have not been processed and ksys_close'ing
+ * If we fail to allocate an fd, skip the install and release
  * any fds that have already been allocated.
  */
 static int binder_apply_fd_fixups(struct binder_proc *proc,
@@ -4087,40 +4089,30 @@ static int binder_apply_fd_fixups(struct binder_proc *proc,
 				     "failed fd fixup txn %d fd %d\n",
 				     t->debug_id, fd);
 			ret = -ENOMEM;
-			break;
+			goto err;
 		}
 		binder_debug(BINDER_DEBUG_TRANSACTION,
 			     "fd fixup txn %d fd %d\n",
 			     t->debug_id, fd);
 		trace_binder_transaction_fd_recv(t, fd, fixup->offset);
-		fd_install(fd, fixup->file);
-		fixup->file = NULL;
+		fixup->target_fd = fd;
 		if (binder_alloc_copy_to_buffer(&proc->alloc, t->buffer,
 						fixup->offset, &fd,
 						sizeof(u32))) {
 			ret = -EINVAL;
-			break;
+			goto err;
 		}
 	}
 	list_for_each_entry_safe(fixup, tmp, &t->fd_fixups, fixup_entry) {
-		if (fixup->file) {
-			fput(fixup->file);
-		} else if (ret) {
-			u32 fd;
-			int err;
-
-			err = binder_alloc_copy_from_buffer(&proc->alloc, &fd,
-							    t->buffer,
-							    fixup->offset,
-							    sizeof(fd));
-			WARN_ON(err);
-			if (!err)
-				binder_deferred_fd_close(fd);
-		}
+		fd_install(fixup->target_fd, fixup->file);
 		list_del(&fixup->fixup_entry);
 		kfree(fixup);
 	}
 
+	return ret;
+
+err:
+	binder_free_txn_fixups(t);
 	return ret;
 }
 

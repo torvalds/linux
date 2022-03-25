@@ -515,6 +515,7 @@ struct binder_thread {
  * @fixup_entry:          list entry
  * @file:                 struct file to be associated with new fd
  * @offset:               offset in buffer data to this fixup
+ * @target_fd:            fd to use by the target to install @file
  *
  * List element for fd fixups in a transaction. Since file
  * descriptors need to be allocated in the context of the
@@ -525,6 +526,7 @@ struct binder_txn_fd_fixup {
 	struct list_head fixup_entry;
 	struct file *file;
 	size_t offset;
+	int target_fd;
 };
 
 struct binder_transaction {
