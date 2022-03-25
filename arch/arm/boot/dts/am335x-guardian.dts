@@ -51,14 +51,14 @@
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
+	guardian_leds: gpio-leds {
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins>;
+		pinctrl-0 = <&guardian_led_pins>;
+		compatible = "gpio-leds";
 
-		led1 {
-			label = "green:heartbeat";
-			gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+		life-led {
+			label = "guardian:life-led";
+			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
@@ -465,9 +465,9 @@
 		>;
 	};
 
-	leds_pins: pinmux_leds_pins {
+	guardian_led_pins: pinmux_guardian_led_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x86c, PIN_OUTPUT | MUX_MODE7)
+			AM33XX_IOPAD(0x868, PIN_OUTPUT | MUX_MODE7) /* (T16) gpmc_a10.gpio1[26] */
 		>;
 	};
 
