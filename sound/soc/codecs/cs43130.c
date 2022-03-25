@@ -2418,8 +2418,7 @@ static int cs43130_handle_device_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int cs43130_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs43130_i2c_probe(struct i2c_client *client)
 {
 	struct cs43130_private *cs43130;
 	int ret;
@@ -2702,7 +2701,7 @@ static struct i2c_driver cs43130_i2c_driver = {
 		.pm             = &cs43130_runtime_pm,
 	},
 	.id_table	= cs43130_i2c_id,
-	.probe		= cs43130_i2c_probe,
+	.probe_new	= cs43130_i2c_probe,
 	.remove		= cs43130_i2c_remove,
 };
 

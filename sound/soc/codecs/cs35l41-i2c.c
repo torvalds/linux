@@ -29,8 +29,7 @@ static const struct i2c_device_id cs35l41_id_i2c[] = {
 
 MODULE_DEVICE_TABLE(i2c, cs35l41_id_i2c);
 
-static int cs35l41_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs35l41_i2c_probe(struct i2c_client *client)
 {
 	struct cs35l41_private *cs35l41;
 	struct device *dev = &client->dev;
@@ -91,7 +90,7 @@ static struct i2c_driver cs35l41_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cs35l41_acpi_match),
 	},
 	.id_table	= cs35l41_id_i2c,
-	.probe		= cs35l41_i2c_probe,
+	.probe_new	= cs35l41_i2c_probe,
 	.remove		= cs35l41_i2c_remove,
 };
 

@@ -731,7 +731,7 @@ static int cs4234_powerup(struct cs4234 *cs4234)
 	return 0;
 }
 
-static int cs4234_i2c_probe(struct i2c_client *i2c_client, const struct i2c_device_id *id)
+static int cs4234_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs4234 *cs4234;
 	struct device *dev = &i2c_client->dev;
@@ -908,7 +908,7 @@ static struct i2c_driver cs4234_i2c_driver = {
 		.pm = &cs4234_pm,
 		.of_match_table = cs4234_of_match,
 	},
-	.probe =	cs4234_i2c_probe,
+	.probe_new =	cs4234_i2c_probe,
 	.remove =	cs4234_i2c_remove,
 };
 module_i2c_driver(cs4234_i2c_driver);

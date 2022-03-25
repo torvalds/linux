@@ -918,8 +918,7 @@ static struct regmap_config cs53l30_regmap = {
 	.use_single_write = true,
 };
 
-static int cs53l30_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs53l30_i2c_probe(struct i2c_client *client)
 {
 	const struct device_node *np = client->dev.of_node;
 	struct device *dev = &client->dev;
@@ -1125,7 +1124,7 @@ static struct i2c_driver cs53l30_i2c_driver = {
 		.pm = &cs53l30_runtime_pm,
 	},
 	.id_table = cs53l30_id,
-	.probe = cs53l30_i2c_probe,
+	.probe_new = cs53l30_i2c_probe,
 	.remove = cs53l30_i2c_remove,
 };
 

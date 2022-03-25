@@ -1167,8 +1167,7 @@ static int cs42l56_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
-			     const struct i2c_device_id *id)
+static int cs42l56_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l56_private *cs42l56;
 	struct cs42l56_platform_data *pdata =
@@ -1350,7 +1349,7 @@ static struct i2c_driver cs42l56_i2c_driver = {
 		.of_match_table = cs42l56_of_match,
 	},
 	.id_table = cs42l56_id,
-	.probe =    cs42l56_i2c_probe,
+	.probe_new = cs42l56_i2c_probe,
 	.remove =   cs42l56_i2c_remove,
 };
 
