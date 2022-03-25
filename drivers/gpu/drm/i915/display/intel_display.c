@@ -4908,6 +4908,10 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 		ret = intel_dpll_crtc_compute_clock(state, crtc);
 		if (ret)
 			return ret;
+
+		ret = intel_dpll_crtc_get_shared_dpll(state, crtc);
+		if (ret)
+			return ret;
 	}
 
 	/*
