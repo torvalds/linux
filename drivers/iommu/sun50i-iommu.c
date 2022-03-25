@@ -760,19 +760,21 @@ static int sun50i_iommu_of_xlate(struct device *dev,
 
 static const struct iommu_ops sun50i_iommu_ops = {
 	.pgsize_bitmap	= SZ_4K,
-	.attach_dev	= sun50i_iommu_attach_device,
-	.detach_dev	= sun50i_iommu_detach_device,
 	.device_group	= sun50i_iommu_device_group,
 	.domain_alloc	= sun50i_iommu_domain_alloc,
-	.domain_free	= sun50i_iommu_domain_free,
-	.flush_iotlb_all = sun50i_iommu_flush_iotlb_all,
-	.iotlb_sync	= sun50i_iommu_iotlb_sync,
-	.iova_to_phys	= sun50i_iommu_iova_to_phys,
-	.map		= sun50i_iommu_map,
 	.of_xlate	= sun50i_iommu_of_xlate,
 	.probe_device	= sun50i_iommu_probe_device,
 	.release_device	= sun50i_iommu_release_device,
-	.unmap		= sun50i_iommu_unmap,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= sun50i_iommu_attach_device,
+		.detach_dev	= sun50i_iommu_detach_device,
+		.flush_iotlb_all = sun50i_iommu_flush_iotlb_all,
+		.iotlb_sync	= sun50i_iommu_iotlb_sync,
+		.iova_to_phys	= sun50i_iommu_iova_to_phys,
+		.map		= sun50i_iommu_map,
+		.unmap		= sun50i_iommu_unmap,
+		.free		= sun50i_iommu_domain_free,
+	}
 };
 
 static void sun50i_iommu_report_fault(struct sun50i_iommu *iommu,
