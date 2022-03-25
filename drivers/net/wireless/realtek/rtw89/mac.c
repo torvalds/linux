@@ -1883,6 +1883,16 @@ static int cca_ctrl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	return 0;
 }
 
+static int nav_ctrl_init(struct rtw89_dev *rtwdev)
+{
+	rtw89_write32_set(rtwdev, R_AX_WMAC_NAV_CTL, B_AX_WMAC_PLCP_UP_NAV_EN |
+						     B_AX_WMAC_TF_UP_NAV_EN |
+						     B_AX_WMAC_NAV_UPPER_EN);
+	rtw89_write32_mask(rtwdev, R_AX_WMAC_NAV_CTL, B_AX_WMAC_NAV_UPPER_MASK, NAV_12MS);
+
+	return 0;
+}
+
 static int spatial_reuse_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	u32 reg;
@@ -2094,6 +2104,13 @@ static int cmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	ret = cca_ctrl_init(rtwdev, mac_idx);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]CMAC%d CCA CTRL init %d\n", mac_idx,
+			  ret);
+		return ret;
+	}
+
+	ret = nav_ctrl_init(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]CMAC%d NAV CTRL init %d\n", mac_idx,
 			  ret);
 		return ret;
 	}
