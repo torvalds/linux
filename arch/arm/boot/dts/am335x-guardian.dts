@@ -382,6 +382,80 @@
 	};
 };
 
+&gpio0 {
+	gpio-line-names =
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"MirxWakeup",
+		"",
+		"";
+};
+
+&gpio3 {
+	ti,gpio-always-on;
+	ti,no-reset-on-init;
+	gpio-line-names =
+		"",
+		"MirxBtReset",
+		"",
+		"CcVolAdcEn",
+		"MirxBlePause",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"AspEn",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"BatVolAdcEn",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
