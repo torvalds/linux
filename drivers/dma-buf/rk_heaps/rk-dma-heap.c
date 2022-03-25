@@ -39,6 +39,7 @@ static DEFINE_XARRAY_ALLOC(rk_dma_heap_minors);
 struct proc_dir_entry *proc_rk_dma_heap_dir;
 
 #define RK_DMA_HEAP_CMA_DEFAULT_SIZE SZ_32M
+#define K(size) ((unsigned long)((size) >> 10))
 
 static unsigned long rk_dma_heap_size __initdata;
 static unsigned long rk_dma_heap_base __initdata;
@@ -545,9 +546,9 @@ static int rk_dma_heap_dump_dmabuf(const struct dma_buf *dmabuf, void *data)
 					   dmabuf->file->f_inode->i_ino);
 				size = buf->end - buf->start + 1;
 				seq_printf(heap->s,
-					   "\tAlloc by (%s)\t[%pa-%pa]\t%pa\n",
+					   "\tAlloc by (%-20s)\t[%pa-%pa]\t%pa (%lu KiB)\n",
 					   buf->orig_alloc, &buf->start,
-					   &buf->end, &size);
+					   &buf->end, &size, K(size));
 				seq_puts(heap->s, "\t\tAttached Devices:\n");
 				attach_count = 0;
 				ret = dma_resv_lock_interruptible(dmabuf->resv,
@@ -585,8 +586,8 @@ static int rk_dma_heap_dump_contig(void *data)
 	list_for_each_entry(buf, &heap->contig_list, node) {
 		size = buf->end - buf->start + 1;
 		seq_printf(heap->s, "dma-heap:<%s> -non dmabuf\n", heap->name);
-		seq_printf(heap->s, "\tAlloc by (%s)\t[%pa-%pa]\t%pa\n",
-			   buf->orig_alloc, &buf->start, &buf->end, &size);
+		seq_printf(heap->s, "\tAlloc by (%-20s)\t[%pa-%pa]\t%pa (%lu KiB)\n",
+			   buf->orig_alloc, &buf->start, &buf->end, &size, K(size));
 	}
 	mutex_unlock(&heap->contig_lock);
 
@@ -660,7 +661,7 @@ static int rk_dma_heap_debug_show(struct seq_file *s, void *unused)
 		rk_dma_heap_dump_contig(heap);
 		total += heap->total_size;
 	}
-	seq_printf(s, "\nTotal : 0x%lx\n", total);
+	seq_printf(s, "\nTotal : 0x%lx (%lu KiB)\n", total, K(total));
 	mutex_unlock(&rk_heap_list_lock);
 
 	return 0;
@@ -709,7 +710,7 @@ static int rk_dma_heap_proc_show(struct seq_file *s, void *unused)
 		rk_dma_heap_dump_contig(heap);
 		total += heap->total_size;
 	}
-	seq_printf(s, "\nTotal : 0x%lx\n", total);
+	seq_printf(s, "\nTotal : 0x%lx (%lu KiB)\n", total, K(total));
 	mutex_unlock(&rk_heap_list_lock);
 
 	return 0;
