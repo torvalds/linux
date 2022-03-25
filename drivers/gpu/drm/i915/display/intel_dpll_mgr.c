@@ -1068,9 +1068,6 @@ static int hsw_get_dpll(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_shared_dpll *pll = NULL;
 
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
-
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		pll = hsw_ddi_wrpll_get_dpll(state, crtc);
 	else if (intel_crtc_has_dp_encoder(crtc_state))
@@ -1595,9 +1592,6 @@ static int skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 		DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 		wrpll_params.central_freq;
 
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
-
 	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
 	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
 	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
@@ -1707,9 +1701,6 @@ skl_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, 0);
 		break;
 	}
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
 
@@ -2138,8 +2129,6 @@ static int bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 	int vco = clk_div->vco;
 	u32 prop_coef, int_coef, gain_ctl, targ_cnt;
 	u32 lanestagger;
-
-	memset(dpll_hw_state, 0, sizeof(*dpll_hw_state));
 
 	if (vco >= 6200000 && vco <= 6700000) {
 		prop_coef = 4;
@@ -2701,8 +2690,6 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 {
 	u32 dco_fraction = pll_params->dco_fraction;
 
-	memset(pll_state, 0, sizeof(*pll_state));
-
 	if (ehl_combo_pll_div_frac_wa_needed(i915))
 		dco_fraction = DIV_ROUND_CLOSEST(dco_fraction, 2);
 
@@ -2819,8 +2806,6 @@ static int icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	bool is_dp = !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
 	bool is_dkl = DISPLAY_VER(dev_priv) >= 12;
 	int ret;
-
-	memset(pll_state, 0, sizeof(*pll_state));
 
 	ret = icl_mg_pll_find_divisors(clock, is_dp, use_ssc, &dco_khz,
 				       pll_state, is_dkl);
