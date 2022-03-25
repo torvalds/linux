@@ -1137,6 +1137,16 @@ config REGULATOR_SLG51000
 	  The SLG51000 is seven compact and customizable low dropout
 	  regulators.
 
+config REGULATOR_STF7110
+	tristate "Starfive JH7110 PMIC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to select this option to enable the power regulator of
+	  Starfive JH7110 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_STM32_BOOSTER
 	tristate "STMicroelectronics STM32 BOOSTER"
 	depends on ARCH_STM32 || COMPILE_TEST
