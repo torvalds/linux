@@ -3275,11 +3275,11 @@ static int check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
 	shash->tfm = fs_info->csum_shash;
 
 	crypto_shash_digest(shash, kaddr + pgoff, len, csum);
+	kunmap_atomic(kaddr);
 
 	if (memcmp(csum, csum_expected, csum_size))
 		goto zeroit;
 
-	kunmap_atomic(kaddr);
 	return 0;
 zeroit:
 	btrfs_print_data_csum_error(BTRFS_I(inode), start, csum, csum_expected,
@@ -3287,9 +3287,7 @@ zeroit:
 	if (bbio->device)
 		btrfs_dev_stat_inc_and_print(bbio->device,
 					     BTRFS_DEV_STAT_CORRUPTION_ERRS);
-	memset(kaddr + pgoff, 1, len);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr);
+	memzero_page(page, pgoff, len);
 	return -EIO;
 }
 
