@@ -3,6 +3,7 @@
 config PINCTRL_WPCM450
 	tristate "Pinctrl and GPIO driver for Nuvoton WPCM450"
 	depends on ARCH_WPCM450 || COMPILE_TEST
+	depends on OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
