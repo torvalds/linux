@@ -3287,19 +3287,27 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	if (PageAnon(vmf->page)) {
 		struct page *page = vmf->page;
 
-		/* PageKsm() doesn't necessarily raise the page refcount */
-		if (PageKsm(page) || page_count(page) != 1)
+		/*
+		 * We have to verify under page lock: these early checks are
+		 * just an optimization to avoid locking the page and freeing
+		 * the swapcache if there is little hope that we can reuse.
+		 *
+		 * PageKsm() doesn't necessarily raise the page refcount.
+		 */
+		if (PageKsm(page) || page_count(page) > 1 + PageSwapCache(page))
 			goto copy;
 		if (!trylock_page(page))
 			goto copy;
-		if (PageKsm(page) || page_mapcount(page) != 1 || page_count(page) != 1) {
+		if (PageSwapCache(page))
+			try_to_free_swap(page);
+		if (PageKsm(page) || page_count(page) != 1) {
 			unlock_page(page);
 			goto copy;
 		}
 		/*
-		 * Ok, we've got the only map reference, and the only
-		 * page count reference, and the page is locked,
-		 * it's dark out, and we're wearing sunglasses. Hit it.
+		 * Ok, we've got the only page reference from our mapping
+		 * and the page is locked, it's dark out, and we're wearing
+		 * sunglasses. Hit it.
 		 */
 		unlock_page(page);
 		wp_page_reuse(vmf);
