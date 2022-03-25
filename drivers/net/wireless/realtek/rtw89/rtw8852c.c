@@ -483,7 +483,52 @@ void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	}
 }
 
+static int rtw8852c_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	rtw89_write8_set(rtwdev, R_AX_SYS_FUNC_EN,
+			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
+
+	rtw89_write32_set(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
+	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
+	rtw89_write32_set(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
+
+	rtw89_write32_mask(rtwdev, R_AX_AFE_OFF_CTRL1, B_AX_S0_LDO_VSEL_F_MASK, 0x1);
+	rtw89_write32_mask(rtwdev, R_AX_AFE_OFF_CTRL1, B_AX_S1_LDO_VSEL_F_MASK, 0x1);
+
+	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL0, 0x7, FULL_BIT_MASK);
+	if (ret)
+		return ret;
+
+	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, 0x6c, FULL_BIT_MASK);
+	if (ret)
+		return ret;
+
+	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_WL_RFC_S0, 0xc7, FULL_BIT_MASK);
+	if (ret)
+		return ret;
+
+	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_WL_RFC_S1, 0xc7, FULL_BIT_MASK);
+	if (ret)
+		return ret;
+
+	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL3, 0xd, FULL_BIT_MASK);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN,
+			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
+}
+
 static const struct rtw89_chip_ops rtw8852c_chip_ops = {
+	.enable_bb_rf		= rtw8852c_mac_enable_bb_rf,
+	.disable_bb_rf		= rtw8852c_mac_disable_bb_rf,
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
 	.power_trim		= rtw8852c_power_trim,

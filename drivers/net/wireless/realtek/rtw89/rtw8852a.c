@@ -1997,6 +1997,8 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 }
 
 static const struct rtw89_chip_ops rtw8852a_chip_ops = {
+	.enable_bb_rf		= rtw89_mac_enable_bb_rf,
+	.disable_bb_rf		= rtw89_mac_disable_bb_rf,
 	.bb_reset		= rtw8852a_bb_reset,
 	.bb_sethw		= rtw8852a_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf,

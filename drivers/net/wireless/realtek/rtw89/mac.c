@@ -2828,7 +2828,7 @@ static void rtw89_mac_hci_func_en(struct rtw89_dev *rtwdev)
 			  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
 }
 
-void rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
+int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	rtw89_write8_set(rtwdev, R_AX_SYS_FUNC_EN,
 			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
@@ -2836,7 +2836,10 @@ void rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 			  B_AX_WLRF1_CTRL_7 | B_AX_WLRF1_CTRL_1 |
 			  B_AX_WLRF_CTRL_7 | B_AX_WLRF_CTRL_1);
 	rtw89_write8_set(rtwdev, R_AX_PHYREG_SET, PHYREG_SET_ALL_CYCLE);
+
+	return 0;
 }
+EXPORT_SYMBOL(rtw89_mac_enable_bb_rf);
 
 void rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 {
@@ -2847,6 +2850,7 @@ void rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 			  B_AX_WLRF_CTRL_7 | B_AX_WLRF_CTRL_1);
 	rtw89_write8_clr(rtwdev, R_AX_PHYREG_SET, PHYREG_SET_ALL_CYCLE);
 }
+EXPORT_SYMBOL(rtw89_mac_disable_bb_rf);
 
 int rtw89_mac_partial_init(struct rtw89_dev *rtwdev)
 {
@@ -2892,7 +2896,9 @@ int rtw89_mac_init(struct rtw89_dev *rtwdev)
 	if (ret)
 		goto fail;
 
-	rtw89_mac_enable_bb_rf(rtwdev);
+	ret = rtw89_chip_enable_bb_rf(rtwdev);
+	if (ret)
+		goto fail;
 
 	ret = rtw89_mac_sys_init(rtwdev);
 	if (ret)

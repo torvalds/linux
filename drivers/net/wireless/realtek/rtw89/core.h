@@ -2059,6 +2059,8 @@ struct rtw89_hci_info {
 };
 
 struct rtw89_chip_ops {
+	int (*enable_bb_rf)(struct rtw89_dev *rtwdev);
+	void (*disable_bb_rf)(struct rtw89_dev *rtwdev);
 	void (*bb_reset)(struct rtw89_dev *rtwdev,
 			 enum rtw89_phy_idx phy_idx);
 	void (*bb_sethw)(struct rtw89_dev *rtwdev);

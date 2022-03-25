@@ -797,8 +797,23 @@ int rtw89_mac_read_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 *val);
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
-void rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
+int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
 void rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
+
+static inline int rtw89_chip_enable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->enable_bb_rf(rtwdev);
+}
+
+static inline void rtw89_chip_disable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->disable_bb_rf(rtwdev);
+}
+
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev);
 int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err);
 void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
@@ -903,6 +918,8 @@ int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta, u8 *tx_retry);
 
 enum rtw89_mac_xtal_si_offset {
+	XTAL0 = 0x0,
+	XTAL3 = 0x3,
 	XTAL_SI_XTAL_SC_XI = 0x04,
 #define XTAL_SC_XI_MASK		GENMASK(7, 0)
 	XTAL_SI_XTAL_SC_XO = 0x05,
