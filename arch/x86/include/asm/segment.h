@@ -350,13 +350,6 @@ static inline void __loadsegment_fs(unsigned short value)
 #define savesegment(seg, value)				\
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
 
-/*
- * x86-32 user GS accessors.  This is ugly and could do with some cleaning up.
- */
-#ifdef CONFIG_X86_32
-# define load_gs_index(v)		loadsegment(gs, (v))
-#endif	/* X86_32 */
-
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
