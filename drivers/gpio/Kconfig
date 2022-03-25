@@ -247,6 +247,16 @@ config GPIO_EM
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
+config GPIO_EN7523
+	tristate "Airoha GPIO support"
+	depends on ARCH_AIROHA
+	default ARCH_AIROHA
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to support the GPIO controller block on the
+	  Airoha EN7523 SoC. It supports two banks of 32 GPIOs.
+
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
@@ -1380,7 +1390,7 @@ config GPIO_TPS65912
 	  This driver supports TPS65912 GPIO chip.
 
 config GPIO_TPS68470
-	bool "TPS68470 GPIO"
+	tristate "TPS68470 GPIO"
 	depends on INTEL_SKL_INT3472
 	help
 	  Select this option to enable GPIO driver for the TPS68470
@@ -1389,10 +1399,6 @@ config GPIO_TPS68470
 	  by the TPS68470. While the 7 GPIOs can be configured as
 	  input or output as appropriate, the sensor related GPIOs
 	  are "output only" GPIOs.
-
-	  This driver config is bool, as the GPIO functionality
-	  of the TPS68470 must be available before dependent
-	  drivers are loaded.
 
 config GPIO_TQMX86
 	tristate "TQ-Systems QTMX86 GPIO"
