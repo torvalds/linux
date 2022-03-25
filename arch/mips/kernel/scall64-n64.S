@@ -18,7 +18,6 @@
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/war.h>
 
 #ifndef CONFIG_MIPS32_COMPAT
 /* Neither O32 nor N32, so define handle_sys here */
