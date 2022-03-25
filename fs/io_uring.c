@@ -6959,9 +6959,10 @@ static int io_req_prep_async(struct io_kiocb *req)
 static u32 io_get_sequence(struct io_kiocb *req)
 {
 	u32 seq = req->ctx->cached_sq_head;
+	struct io_kiocb *cur;
 
 	/* need original cached_sq_head, but it was increased for each req */
-	io_for_each_link(req, req)
+	io_for_each_link(cur, req)
 		seq--;
 	return seq;
 }
