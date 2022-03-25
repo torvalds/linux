@@ -38,6 +38,13 @@
 #define R_AX_MDIO_WDATA			0x10A4
 #define R_AX_MDIO_RDATA			0x10A6
 
+#define R_AX_PCIE_PS_CTRL_V1		0x3008
+#define B_AX_CMAC_EXIT_L1_EN		BIT(7)
+#define B_AX_DMAC0_EXIT_L1_EN		BIT(6)
+#define B_AX_SEL_XFER_PENDING		BIT(3)
+#define B_AX_SEL_REQ_ENTR_L1		BIT(2)
+#define B_AX_SEL_REQ_EXIT_L1		BIT(0)
+
 #define R_AX_PCIE_BG_CLR		0x303C
 #define B_AX_BG_CLR_ASYNC_M3		BIT(4)
 

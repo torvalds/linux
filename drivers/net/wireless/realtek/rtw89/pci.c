@@ -1935,6 +1935,22 @@ static void rtw89_pci_gen2_force_ib(struct rtw89_dev *rtwdev)
 			  B_AX_SYSON_DIS_PMCR_AX_WRMSK);
 }
 
+static void rtw89_pci_l1_ent_lat(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return;
+
+	rtw89_write32_clr(rtwdev, R_AX_PCIE_PS_CTRL_V1, B_AX_SEL_REQ_ENTR_L1);
+}
+
+static void rtw89_pci_wd_exit_l1(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return;
+
+	rtw89_write32_set(rtwdev, R_AX_PCIE_PS_CTRL_V1, B_AX_DMAC0_EXIT_L1_EN);
+}
+
 static void rtw89_pci_set_sic(struct rtw89_dev *rtwdev)
 {
 	if (rtwdev->chip->chip_id == RTL8852C)
@@ -2228,6 +2244,8 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_pci_autoload_hang(rtwdev);
 	rtw89_pci_l12_vmain(rtwdev);
 	rtw89_pci_gen2_force_ib(rtwdev);
+	rtw89_pci_l1_ent_lat(rtwdev);
+	rtw89_pci_wd_exit_l1(rtwdev);
 	rtw89_pci_set_sic(rtwdev);
 	rtw89_pci_set_lbc(rtwdev);
 	rtw89_pci_set_io_rcy(rtwdev);
