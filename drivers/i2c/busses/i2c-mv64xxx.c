@@ -1047,14 +1047,6 @@ mv64xxx_i2c_remove(struct platform_device *pd)
 	return 0;
 }
 
-static void
-mv64xxx_i2c_shutdown(struct platform_device *pd)
-{
-	pm_runtime_disable(&pd->dev);
-	if (!pm_runtime_status_suspended(&pd->dev))
-		mv64xxx_i2c_runtime_suspend(&pd->dev);
-}
-
 static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(mv64xxx_i2c_runtime_suspend,
 			   mv64xxx_i2c_runtime_resume, NULL)
@@ -1065,7 +1057,6 @@ static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
 	.remove	= mv64xxx_i2c_remove,
-	.shutdown = mv64xxx_i2c_shutdown,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
 		.pm     = &mv64xxx_i2c_pm_ops,
