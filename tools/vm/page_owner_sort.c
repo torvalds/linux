@@ -24,6 +24,7 @@
 
 struct block_list {
 	char *txt;
+	char *comm; // task command name
 	char *stacktrace;
 	__u64 ts_nsec;
 	__u64 free_ts_nsec;
@@ -37,6 +38,7 @@ struct block_list {
 static regex_t order_pattern;
 static regex_t pid_pattern;
 static regex_t tgid_pattern;
+static regex_t comm_pattern;
 static regex_t ts_nsec_pattern;
 static regex_t free_ts_nsec_pattern;
 static struct block_list *list;
@@ -102,6 +104,13 @@ static int compare_tgid(const void *p1, const void *p2)
 	return l1->tgid - l2->tgid;
 }
 
+static int compare_comm(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return strcmp(l1->comm, l2->comm);
+}
+
 static int compare_ts(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
@@ -145,6 +154,7 @@ static void check_regcomp(regex_t *pattern, const char *regex)
 }
 
 # define FIELD_BUFF 25
+# define TASK_COMM_LEN 16
 
 static int get_page_num(char *buf)
 {
@@ -233,6 +243,22 @@ static __u64 get_free_ts_nsec(char *buf)
 	return free_ts_nsec;
 }
 
+static char *get_comm(char *buf)
+{
+	char *comm_str = malloc(TASK_COMM_LEN);
+
+	memset(comm_str, 0, TASK_COMM_LEN);
+
+	search_pattern(&comm_pattern, comm_str, buf);
+	errno = 0;
+	if (errno != 0) {
+		printf("wrong comm in follow buf:\n%s\n", buf);
+		return NULL;
+	}
+
+	return comm_str;
+}
+
 static void add_list(char *buf, int len)
 {
 	if (list_size != 0 &&
@@ -266,6 +292,7 @@ static void add_list(char *buf, int len)
 		list[list_size].stacktrace++;
 	list[list_size].pid = get_pid(buf);
 	list[list_size].tgid = get_tgid(buf);
+	list[list_size].comm = get_comm(buf);
 	list[list_size].ts_nsec = get_ts_nsec(buf);
 	list_size++;
 	if (list_size % 1000 == 0) {
@@ -284,6 +311,7 @@ static void usage(void)
 		"-t	Sort by times (default).\n"
 		"-p	Sort by pid.\n"
 		"-P	Sort by tgid.\n"
+		"-n	Sort by task command name.\n"
 		"-a	Sort by memory allocate time.\n"
 		"-r	Sort by memory release time.\n"
 		"-c	Cull by comparing stacktrace instead of total block.\n"
@@ -300,7 +328,7 @@ int main(int argc, char **argv)
 	struct stat st;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "acfmprstP")) != -1)
+	while ((opt = getopt(argc, argv, "acfmnprstP")) != -1)
 		switch (opt) {
 		case 'a':
 			cmp = compare_ts;
@@ -329,6 +357,9 @@ int main(int argc, char **argv)
 		case 'P':
 			cmp = compare_tgid;
 			break;
+		case 'n':
+			cmp = compare_comm;
+			break;
 		default:
 			usage();
 			exit(1);
@@ -350,6 +381,7 @@ int main(int argc, char **argv)
 	check_regcomp(&order_pattern, "order\\s*([0-9]*),");
 	check_regcomp(&pid_pattern, "pid\\s*([0-9]*),");
 	check_regcomp(&tgid_pattern, "tgid\\s*([0-9]*) ");
+	check_regcomp(&comm_pattern, "tgid\\s*[0-9]*\\s*\\((.*)\\),\\s*ts");
 	check_regcomp(&ts_nsec_pattern, "ts\\s*([0-9]*)\\s*ns,");
 	check_regcomp(&free_ts_nsec_pattern, "free_ts\\s*([0-9]*)\\s*ns");
 	fstat(fileno(fin), &st);
@@ -408,6 +440,7 @@ int main(int argc, char **argv)
 	regfree(&order_pattern);
 	regfree(&pid_pattern);
 	regfree(&tgid_pattern);
+	regfree(&comm_pattern);
 	regfree(&ts_nsec_pattern);
 	regfree(&free_ts_nsec_pattern);
 	return 0;

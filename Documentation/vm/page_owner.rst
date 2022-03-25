@@ -117,6 +117,7 @@ Usage
 		-m		Sort by total memory.
 		-p		Sort by pid.
 		-P		Sort by tgid.
+		-n		Sort by task command name.
 		-r		Sort by memory release time.
 		-s		Sort by stack trace.
 		-t		Sort by times (default).
