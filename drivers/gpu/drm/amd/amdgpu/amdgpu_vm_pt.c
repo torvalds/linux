@@ -620,7 +620,7 @@ error_free_pt:
 }
 
 /**
- * amdgpu_vm_free_table - fre one PD/PT
+ * amdgpu_vm_pt_free - free one PD/PT
  *
  * @entry: PDE to free
  */

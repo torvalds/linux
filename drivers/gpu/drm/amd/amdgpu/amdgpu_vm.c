@@ -89,7 +89,7 @@ struct amdgpu_prt_cb {
 };
 
 /**
- * amdgpu_vm_tlb_seq_cb - Helper to increment the TLB flush sequence
+ * struct amdgpu_vm_tlb_seq_cb - Helper to increment the TLB flush sequence
  */
 struct amdgpu_vm_tlb_seq_cb {
 	/**
