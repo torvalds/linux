@@ -395,6 +395,8 @@
 
 &usb1 {
 	dr_mode = "host";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &am33xx_pinmux {
