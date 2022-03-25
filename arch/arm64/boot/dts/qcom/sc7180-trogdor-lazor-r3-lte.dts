@@ -20,10 +20,6 @@
 		"qcom,sc7180";
 };
 
-&ap_sar_sensor {
-	status = "okay";
-};
-
 &ap_sar_sensor_i2c {
 	status = "okay";
 };

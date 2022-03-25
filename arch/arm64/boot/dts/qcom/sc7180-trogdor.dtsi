@@ -722,7 +722,6 @@ ap_sar_sensor_i2c: &i2c5 {
 		vdd-supply = <&pp3300_a>;
 		svdd-supply = <&pp1800_prox>;
 
-		status = "disabled";
 		label = "proximity-wifi";
 	};
 };
