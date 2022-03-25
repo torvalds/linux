@@ -6958,13 +6958,9 @@ intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 
 static void intel_modeset_clear_plls(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
-
-	if (!dev_priv->dpll_funcs)
-		return;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state))
