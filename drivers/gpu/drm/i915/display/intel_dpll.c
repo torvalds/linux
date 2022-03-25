@@ -1419,6 +1419,16 @@ int intel_dpll_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	drm_WARN_ON(&i915->drm, !intel_crtc_needs_modeset(crtc_state));
+
+	if (drm_WARN_ON(&i915->drm, crtc_state->shared_dpll))
+		return 0;
+
+	if (!crtc_state->hw.enable)
+		return 0;
 
 	return i915->dpll_funcs->crtc_compute_clock(state, crtc);
 }

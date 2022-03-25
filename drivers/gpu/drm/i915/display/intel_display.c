@@ -4904,8 +4904,7 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	    mode_changed && !crtc_state->hw.active)
 		crtc_state->update_wm_post = true;
 
-	if (mode_changed && crtc_state->hw.enable &&
-	    !drm_WARN_ON(&dev_priv->drm, crtc_state->shared_dpll)) {
+	if (mode_changed) {
 		ret = intel_dpll_crtc_compute_clock(state, crtc);
 		if (ret)
 			return ret;
