@@ -128,8 +128,8 @@ static inline bool kasan_sync_fault_possible(void)
 #define META_ROWS_AROUND_ADDR 2
 
 struct kasan_access_info {
-	const void *access_addr;
-	const void *first_bad_addr;
+	void *access_addr;
+	void *first_bad_addr;
 	size_t access_size;
 	bool is_write;
 	unsigned long ip;
@@ -239,7 +239,8 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 
 static inline bool addr_has_metadata(const void *addr)
 {
-	return (addr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
+	return (kasan_reset_tag(addr) >=
+		kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
 }
 
 /**
