@@ -570,6 +570,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		nvmem-cells = <&cpul_leakage>;
+		nvmem-cell-names = "leakage";
+
 		rockchip,pvtm-voltage-sel = <
 			0	1410	0
 			1411	1434	1
@@ -698,6 +701,9 @@
 	cluster1_opp_table: cluster1-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
+
+		nvmem-cells = <&cpub0_leakage>;
+		nvmem-cell-names = "leakage";
 
 		rockchip,pvtm-voltage-sel = <
 			0	1640	0
@@ -858,6 +864,9 @@
 	cluster2_opp_table: cluster2-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
+
+		nvmem-cells = <&cpub1_leakage>;
+		nvmem-cell-names = "leakage";
 
 		rockchip,pvtm-voltage-sel = <
 			0	1640	0
@@ -1158,6 +1167,9 @@
 
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
+
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
 
 		opp-2750000000 {
 			opp-hz = /bits/ 64 <2750000000>;
@@ -1508,6 +1520,9 @@
 
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
+
+		nvmem-cells = <&gpu_leakage>;
+		nvmem-cell-names = "leakage";
 
 		rockchip,pvtm-voltage-sel = <
 			0	830	0
@@ -2495,6 +2510,9 @@
 
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
+
+		nvmem-cells = <&npu_leakage>;
+		nvmem-cell-names = "leakage";
 
 		rockchip,pvtm-voltage-sel = <
 			0	840	0
@@ -5269,6 +5287,27 @@
 		otp_cpu_version: cpu-version@1c {
 			reg = <0x1c 0x1>;
 			bits = <3 3>;
+		};
+		cpub0_leakage: cpub0-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+		cpub1_leakage: cpub1-leakage@18 {
+			reg = <0x18 0x1>;
+		};
+		cpul_leakage: cpul-leakage@19 {
+			reg = <0x19 0x1>;
+		};
+		log_leakage: log-leakage@1a {
+			reg = <0x1a 0x1>;
+		};
+		gpu_leakage: gpu-leakage@1b {
+			reg = <0x1b 0x1>;
+		};
+		npu_leakage: npu-leakage@28 {
+			reg = <0x28 0x1>;
+		};
+		codec_leakage: codec-leakage@29 {
+			reg = <0x29 0x1>;
 		};
 	};
 
