@@ -1654,6 +1654,29 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->interlaced = true;
 }
 
+static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
+{
+	switch (link_rate) {
+	case DP_LINK_BW_1_62:
+	case DP_LINK_BW_2_7:
+	case DP_LINK_BW_5_4:
+		break;
+	default:
+		return false;
+	}
+
+	switch (lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 static enum drm_mode_status
 analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 			      const struct drm_display_info *info,
@@ -1672,8 +1695,8 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 			      dp->link_train.link_rate);
 	max_lane_count = min_t(u32, dp->video_info.max_lane_count,
 			       dp->link_train.lane_count);
-
-	if (!analogix_dp_bandwidth_ok(dp, &m,
+	if (analogix_dp_link_config_validate(max_link_rate, max_lane_count) &&
+	    !analogix_dp_bandwidth_ok(dp, &m,
 				      drm_dp_bw_code_to_link_rate(max_link_rate),
 				      max_lane_count))
 		return MODE_BAD;
