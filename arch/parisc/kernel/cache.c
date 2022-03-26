@@ -273,7 +273,7 @@ parisc_cache_init(void)
 	}
 }
 
-void __init disable_sr_hashing(void)
+void disable_sr_hashing(void)
 {
 	int srhash_type, retval;
 	unsigned long space_bits;

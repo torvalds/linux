@@ -563,7 +563,7 @@ static void claim_cpu_irqs(void)
 #endif
 }
 
-void __init init_IRQ(void)
+void init_IRQ(void)
 {
 	local_irq_disable();	/* PARANOID - should already be disabled */
 	mtctl(~0UL, 23);	/* EIRR : clear all pending external intr */

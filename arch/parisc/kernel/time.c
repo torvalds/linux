@@ -150,7 +150,7 @@ static struct clocksource clocksource_cr16 = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void __init start_cpu_itimer(void)
+void start_cpu_itimer(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned long next_tick = mfctl(16) + clocktick;
