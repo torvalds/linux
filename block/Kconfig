@@ -73,6 +73,7 @@ config BLK_DEV_INTEGRITY_T10
 	tristate
 	depends on BLK_DEV_INTEGRITY
 	select CRC_T10DIF
+	select CRC64_ROCKSOFT
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
