@@ -1,0 +1,27 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build_job:
+    runs-on: ubuntu-20.04
+    name: Build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install pip dependencies
+        run: sudo pip install yamlish junit-xml
+      - name: Build
+        run: make -j$(nproc) -C tools/lkl
+      - name: Tests
+        run: mkdir /tmp/junit && make -C tools/lkl run-tests tests="--junit-dir /tmp/junit"
+      - name: Save test results
+        uses: actions/upload-artifact@v2
+        if: success() || failure()
+        with:
+          name: test-results
+          path: /tmp/junit/*.xml

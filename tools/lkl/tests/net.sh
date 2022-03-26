@@ -28,6 +28,11 @@ cleanup_backend()
 
 get_test_ip()
 {
+    # skip if we don't explicitly allow testing on live host network
+    if [ -z "$LKL_TEST_ON_LIVE_HOST_NETWORK" ]; then
+        echo "LKL_TEST_ON_LIVE_HOST_NETWORK is not set, skipping test"
+        return $TEST_SKIP
+    fi
     # DHCP test parameters
     TEST_HOST=8.8.8.8
     HOST_IF=$(lkl_test_cmd ip route get $TEST_HOST | head -n1 |cut -d ' ' -f5)
