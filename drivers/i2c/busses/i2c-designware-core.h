@@ -227,6 +227,8 @@ struct reset_control;
  * @hs_lcnt: high speed LCNT value
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
+ * @semaphore_idx: Index of table with semaphore type attached to the bus. It's
+ *	-1 if there is no semaphore.
  * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
  * @disable_int: function to disable all interrupts
@@ -234,7 +236,6 @@ struct reset_control;
  * @set_sda_hold_time: callback to retrieve IP specific SDA hold timing
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
  * @rinfo: I²C GPIO recovery information
- * @suspended: set to true if the controller is suspended
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -285,6 +286,7 @@ struct dw_i2c_dev {
 	u16			hs_lcnt;
 	int			(*acquire_lock)(void);
 	void			(*release_lock)(void);
+	int			semaphore_idx;
 	bool			shared_with_punit;
 	void			(*disable)(struct dw_i2c_dev *dev);
 	void			(*disable_int)(struct dw_i2c_dev *dev);
@@ -292,11 +294,11 @@ struct dw_i2c_dev {
 	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
-	bool			suspended;
 };
 
 #define ACCESS_INTR_MASK	BIT(0)
 #define ACCESS_NO_IRQ_SUSPEND	BIT(1)
+#define ARBITRATION_SEMAPHORE	BIT(2)
 
 #define MODEL_MSCC_OCELOT	BIT(8)
 #define MODEL_BAIKAL_BT1	BIT(9)
@@ -309,6 +311,11 @@ struct dw_i2c_dev {
  */
 #define AMD_UCSI_INTR_REG	0x474
 #define AMD_UCSI_INTR_EN	0xd
+
+struct i2c_dw_semaphore_callbacks {
+	int	(*probe)(struct dw_i2c_dev *dev);
+	void	(*remove)(struct dw_i2c_dev *dev);
+};
 
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
@@ -370,9 +377,12 @@ static inline void i2c_dw_configure(struct dw_i2c_dev *dev)
 }
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
-extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
-#else
-static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; }
+int i2c_dw_baytrail_probe_lock_support(struct dw_i2c_dev *dev);
+#endif
+
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_AMDPSP)
+int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev);
+void i2c_dw_amdpsp_remove_lock_support(struct dw_i2c_dev *dev);
 #endif
 
 int i2c_dw_validate_speed(struct dw_i2c_dev *dev);
