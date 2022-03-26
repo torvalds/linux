@@ -44,6 +44,10 @@
 	status = "okay";
 };
 
+&rkvenc_pp {
+	status = "okay";
+};
+
 &rng {
 	status = "okay";
 };
