@@ -197,18 +197,18 @@ static bool vec_is_stale(struct aa_profile **vec, int n)
 	return false;
 }
 
-static bool vec_unconfined(struct aa_profile **vec, int n)
+static long union_vec_flags(struct aa_profile **vec, int n, long mask)
 {
+	long u = 0;
 	int i;
 
 	AA_BUG(!vec);
 
 	for (i = 0; i < n; i++) {
-		if (!profile_unconfined(vec[i]))
-			return false;
+		u |= vec[i]->label.flags & mask;
 	}
 
-	return true;
+	return u;
 }
 
 static int sort_cmp(const void *a, const void *b)
@@ -1097,8 +1097,8 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		else if (k == b->size)
 			return aa_get_label(b);
 	}
-	if (vec_unconfined(new->vec, new->size))
-		new->flags |= FLAG_UNCONFINED;
+	new->flags |= union_vec_flags(new->vec, new->size, FLAG_UNCONFINED |
+					      FLAG_DEBUG1 | FLAG_DEBUG2);
 	ls = labels_set(new);
 	write_lock_irqsave(&ls->lock, flags);
 	label = __label_insert(labels_set(new), new, false);

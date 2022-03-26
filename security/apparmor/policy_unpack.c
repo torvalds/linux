@@ -748,6 +748,10 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	if (tmp & PACKED_FLAG_HAT)
 		profile->label.flags |= FLAG_HAT;
+	if (tmp & PACKED_FLAG_DEBUG1)
+		profile->label.flags |= FLAG_DEBUG1;
+	if (tmp & PACKED_FLAG_DEBUG2)
+		profile->label.flags |= FLAG_DEBUG2;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG)) {
