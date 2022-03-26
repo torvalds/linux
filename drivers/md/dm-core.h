@@ -250,17 +250,19 @@ static inline bool dm_tio_is_normal(struct dm_target_io *tio)
 #define DM_IO_MAGIC 19577
 struct dm_io {
 	unsigned short magic;
-	blk_short_t flags;
-	atomic_t io_count;
-	struct mapped_device *md;
-	struct bio *orig_bio;
-	blk_status_t status;
+
 	spinlock_t lock;
 	unsigned long start_time;
 	void *data;
 	struct hlist_node node;
 	struct task_struct *map_task;
 	struct dm_stats_aux stats_aux;
+
+	blk_short_t flags;
+	blk_status_t status;
+	atomic_t io_count;
+	struct mapped_device *md;
+	struct bio *orig_bio;
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
 };
