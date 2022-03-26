@@ -26,25 +26,6 @@
 
 #define RK_DMA_HEAP_NAME_LEN 16
 
-struct rk_cma_heap {
-	struct rk_dma_heap *heap;
-	struct cma *cma;
-};
-
-struct rk_cma_heap_buffer {
-	struct rk_cma_heap *heap;
-	struct list_head attachments;
-	struct mutex lock;
-	unsigned long len;
-	struct page *cma_pages;
-	struct page **pages;
-	pgoff_t pagecount;
-	int vmap_cnt;
-	void *vaddr;
-	phys_addr_t phys;
-	bool attached;
-};
-
 struct rk_vmap_pfn_data {
 	unsigned long	pfn; /* first pfn of contiguous */
 	pgprot_t	prot;

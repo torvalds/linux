@@ -28,6 +28,25 @@
 
 #include "rk-dma-heap.h"
 
+struct rk_cma_heap {
+	struct rk_dma_heap *heap;
+	struct cma *cma;
+};
+
+struct rk_cma_heap_buffer {
+	struct rk_cma_heap *heap;
+	struct list_head attachments;
+	struct mutex lock;
+	unsigned long len;
+	struct page *cma_pages;
+	struct page **pages;
+	pgoff_t pagecount;
+	int vmap_cnt;
+	void *vaddr;
+	phys_addr_t phys;
+	bool attached;
+};
+
 struct rk_cma_heap_attachment {
 	struct device *dev;
 	struct sg_table table;
