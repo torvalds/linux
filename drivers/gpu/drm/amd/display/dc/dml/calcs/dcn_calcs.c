@@ -764,7 +764,7 @@ static unsigned int get_highest_allowed_voltage_level(uint32_t chip_family,
 	return 4;
 }
 
-bool dcn10_validate_bandwidth(
+bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -790,7 +790,6 @@ bool dcn10_validate_bandwidth(
 		dcn_bw_sync_calcs_and_dml(dc);
 
 	memset(v, 0, sizeof(*v));
-	DC_FP_START();
 
 	v->sr_exit_time = dc->dcn_soc->sr_exit_time;
 	v->sr_enter_plus_exit_time = dc->dcn_soc->sr_enter_plus_exit_time;
@@ -1322,8 +1321,6 @@ bool dcn10_validate_bandwidth(
 
 	bw_limit = dc->dcn_soc->percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
 	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
-
-	DC_FP_END();
 
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();

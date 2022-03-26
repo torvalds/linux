@@ -1141,6 +1141,20 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+static bool dcn10_validate_bandwidth(
+		struct dc *dc,
+		struct dc_state *context,
+		bool fast_validate)
+{
+	bool voltage_supported;
+
+	DC_FP_START();
+	voltage_supported = dcn_validate_bandwidth(dc, context, fast_validate);
+	DC_FP_END();
+
+	return voltage_supported;
+}
+
 static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
 {
 	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
