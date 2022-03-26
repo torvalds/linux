@@ -13,6 +13,7 @@
 #include <linux/ktime.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-crypto-profile.h>
+#include <linux/jump_label.h>
 
 #include <trace/events/block.h>
 
@@ -153,6 +154,10 @@ static inline struct dm_stats *dm_get_stats(struct mapped_device *md)
 {
 	return &md->stats;
 }
+
+DECLARE_STATIC_KEY_FALSE(stats_enabled);
+DECLARE_STATIC_KEY_FALSE(swap_bios_enabled);
+DECLARE_STATIC_KEY_FALSE(zoned_enabled);
 
 static inline bool dm_emulate_zone_append(struct mapped_device *md)
 {

@@ -71,6 +71,10 @@ void dm_issue_global_event(void)
 	wake_up(&dm_global_eventq);
 }
 
+DEFINE_STATIC_KEY_FALSE(stats_enabled);
+DEFINE_STATIC_KEY_FALSE(swap_bios_enabled);
+DEFINE_STATIC_KEY_FALSE(zoned_enabled);
+
 /*
  * One of these is allocated (on-stack) per original bio.
  */
@@ -516,7 +520,8 @@ static void dm_io_acct(bool end, struct mapped_device *md, struct bio *bio,
 	else
 		bio_end_io_acct(bio, start_time);
 
-	if (unlikely(dm_stats_used(&md->stats)))
+	if (static_branch_unlikely(&stats_enabled) &&
+	    unlikely(dm_stats_used(&md->stats)))
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
 				    bio->bi_iter.bi_sector, bio_sectors(bio),
 				    end, start_time, stats_aux);
@@ -586,7 +591,8 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	io->start_time = jiffies;
 	io->flags = 0;
 
-	dm_stats_record_start(&md->stats, &io->stats_aux);
+	if (static_branch_unlikely(&stats_enabled))
+		dm_stats_record_start(&md->stats, &io->stats_aux);
 
 	return io;
 }
@@ -1012,21 +1018,25 @@ static void clone_endio(struct bio *bio)
 			disable_write_zeroes(md);
 	}
 
-	if (unlikely(blk_queue_is_zoned(q)))
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    unlikely(blk_queue_is_zoned(q)))
 		dm_zone_endio(io, bio);
 
 	if (endio) {
 		int r = endio(ti, bio, &error);
 		switch (r) {
 		case DM_ENDIO_REQUEUE:
-			/*
-			 * Requeuing writes to a sequential zone of a zoned
-			 * target will break the sequential write pattern:
-			 * fail such IO.
-			 */
-			if (WARN_ON_ONCE(dm_is_zone_write(md, bio)))
-				error = BLK_STS_IOERR;
-			else
+			if (static_branch_unlikely(&zoned_enabled)) {
+				/*
+				 * Requeuing writes to a sequential zone of a zoned
+				 * target will break the sequential write pattern:
+				 * fail such IO.
+				 */
+				if (WARN_ON_ONCE(dm_is_zone_write(md, bio)))
+					error = BLK_STS_IOERR;
+				else
+					error = BLK_STS_DM_REQUEUE;
+			} else
 				error = BLK_STS_DM_REQUEUE;
 			fallthrough;
 		case DM_ENDIO_DONE:
@@ -1040,7 +1050,8 @@ static void clone_endio(struct bio *bio)
 		}
 	}
 
-	if (unlikely(swap_bios_limit(ti, bio)))
+	if (static_branch_unlikely(&swap_bios_enabled) &&
+	    unlikely(swap_bios_limit(ti, bio)))
 		up(&md->swap_bios_semaphore);
 
 	free_tio(bio);
@@ -1295,21 +1306,25 @@ static void __map_bio(struct bio *clone)
 	dm_io_inc_pending(io);
 	tio->old_sector = clone->bi_iter.bi_sector;
 
-	if (unlikely(swap_bios_limit(ti, clone))) {
+	if (static_branch_unlikely(&swap_bios_enabled) &&
+	    unlikely(swap_bios_limit(ti, clone))) {
 		int latch = get_swap_bios();
 		if (unlikely(latch != md->swap_bios))
 			__set_swap_bios_limit(md, latch);
 		down(&md->swap_bios_semaphore);
 	}
 
-	/*
-	 * Check if the IO needs a special mapping due to zone append emulation
-	 * on zoned target. In this case, dm_zone_map_bio() calls the target
-	 * map operation.
-	 */
-	if (unlikely(dm_emulate_zone_append(md)))
-		r = dm_zone_map_bio(tio);
-	else
+	if (static_branch_unlikely(&zoned_enabled)) {
+		/*
+		 * Check if the IO needs a special mapping due to zone append
+		 * emulation on zoned target. In this case, dm_zone_map_bio()
+		 * calls the target map operation.
+		 */
+		if (unlikely(dm_emulate_zone_append(md)))
+			r = dm_zone_map_bio(tio);
+		else
+			r = ti->type->map(ti, clone);
+	} else
 		r = ti->type->map(ti, clone);
 
 	switch (r) {
@@ -1329,7 +1344,8 @@ static void __map_bio(struct bio *clone)
 		break;
 	case DM_MAPIO_KILL:
 	case DM_MAPIO_REQUEUE:
-		if (unlikely(swap_bios_limit(ti, clone)))
+		if (static_branch_unlikely(&swap_bios_enabled) &&
+		    unlikely(swap_bios_limit(ti, clone)))
 			up(&md->swap_bios_semaphore);
 		free_tio(clone);
 		if (r == DM_MAPIO_KILL)
@@ -1565,7 +1581,8 @@ static void init_clone_info(struct clone_info *ci, struct mapped_device *md,
 	ci->sector_count = bio_sectors(bio);
 
 	/* Shouldn't happen but sector_count was being set to 0 so... */
-	if (WARN_ON_ONCE(op_is_zone_mgmt(bio_op(bio)) && ci->sector_count))
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    WARN_ON_ONCE(op_is_zone_mgmt(bio_op(bio)) && ci->sector_count))
 		ci->sector_count = 0;
 }
 
