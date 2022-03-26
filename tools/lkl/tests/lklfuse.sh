@@ -21,7 +21,7 @@ function prepfs()
 {
     set -e
 
-    dd if=/dev/zero of=$1 bs=1024 count=102400
+    dd if=/dev/zero of=$1 bs=1024 count=204800
 
     yes | mkfs.$2 $1
 }
@@ -89,6 +89,12 @@ fi
 if ! [ -e /dev/fuse ]; then
     lkl_test_plan 0 "lklfuse.sh $fstype"
     echo "/dev/fuse not available"
+    exit 0
+fi
+
+if [ -z $(which mkfs.$fstype) ]; then
+    lkl_test_plan 0 "lklfuse.sh $fstype"
+    echo "mkfs.$fstype not available"
     exit 0
 fi
 
