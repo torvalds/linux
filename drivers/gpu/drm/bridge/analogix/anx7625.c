@@ -2660,7 +2660,7 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			DRM_DEV_ERROR(dev, "fail to parse DT : %d\n", ret);
-		return ret;
+		goto free_wq;
 	}
 
 	if (anx7625_register_i2c_dummy_clients(platform, client) != 0) {
@@ -2675,7 +2675,7 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 	pm_suspend_ignore_children(dev, true);
 	ret = devm_add_action_or_reset(dev, anx7625_runtime_disable, dev);
 	if (ret)
-		return ret;
+		goto free_wq;
 
 	if (!platform->pdata.low_power_mode) {
 		anx7625_disable_pd_protocol(platform);
