@@ -60,6 +60,7 @@ enum {
 	FUNC_CAN0_a,
 	FUNC_CAN0_b,
 	FUNC_CAN1,
+	FUNC_CLKMON,
 	FUNC_NONE,
 	FUNC_FC0_a,
 	FUNC_FC0_b,
@@ -185,6 +186,7 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_CAN0_a]		= "can0_a",
 	[FUNC_CAN0_b]		= "can0_b",
 	[FUNC_CAN1]		= "can1",
+	[FUNC_CLKMON]		= "clkmon",
 	[FUNC_NONE]		= "none",
 	[FUNC_FC0_a]		= "fc0_a",
 	[FUNC_FC0_b]		= "fc0_b",
@@ -982,8 +984,8 @@ LAN966X_P(26,   GPIO,   FC0_b, IB_TRG_a,   USB_S_c, OB_TRG_a,   CAN0_a,    SFP_S
 LAN966X_P(27,   GPIO,    NONE,     NONE,      NONE, OB_TRG_a,   CAN0_a,     PWM_a,        R);
 LAN966X_P(28,   GPIO,  MIIM_a,     NONE,      NONE, OB_TRG_a, IRQ_OUT_c,   SFP_SD,        R);
 LAN966X_P(29,   GPIO,  MIIM_a,     NONE,      NONE, OB_TRG_a,     NONE,      NONE,        R);
-LAN966X_P(30,   GPIO,   FC3_c,     CAN1,      NONE,   OB_TRG,   RECO_b,      NONE,        R);
-LAN966X_P(31,   GPIO,   FC3_c,     CAN1,      NONE,   OB_TRG,   RECO_b,      NONE,        R);
+LAN966X_P(30,   GPIO,   FC3_c,     CAN1,    CLKMON,   OB_TRG,   RECO_b,      NONE,        R);
+LAN966X_P(31,   GPIO,   FC3_c,     CAN1,    CLKMON,   OB_TRG,   RECO_b,      NONE,        R);
 LAN966X_P(32,   GPIO,   FC3_c,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,      NONE,        R);
 LAN966X_P(33,   GPIO,   FC1_b,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,    MIIM_b,        R);
 LAN966X_P(34,   GPIO,   FC1_b,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,    MIIM_b,        R);
