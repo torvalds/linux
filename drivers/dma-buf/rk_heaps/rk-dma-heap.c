@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
-#include <linux/rk-dma-heap.h>
 #include <uapi/linux/rk-dma-heap.h>
 
 #include "rk-dma-heap.h"

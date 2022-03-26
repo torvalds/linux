@@ -14,6 +14,7 @@
 #include <linux/cdev.h>
 #include <linux/types.h>
 #include <linux/dma-buf.h>
+#include <linux/rk-dma-heap.h>
 
 #if defined(CONFIG_DMABUF_RK_HEAPS_DEBUG)
 #define dma_heap_print(fmt, ...)	\
