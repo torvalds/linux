@@ -128,6 +128,7 @@ class KernelCmd(Directive):
         return out
 
     def nestedParse(self, lines, fname):
+        env = self.state.document.settings.env
         content = ViewList()
         node = nodes.section()
 
@@ -153,6 +154,9 @@ class KernelCmd(Directive):
                 if new_f != f and content:
                     self.do_parse(content, node)
                     content = ViewList()
+
+                    # Add the file to Sphinx build dependencies
+                    env.note_dependency(os.path.abspath(f))
 
                 f = new_f
 
