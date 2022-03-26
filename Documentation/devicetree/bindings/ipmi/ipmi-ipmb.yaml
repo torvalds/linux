@@ -36,6 +36,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of retries before a failure is declared.  Defaults to 1.
 
+  slave-dev:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      The slave i2c device.  If not present, the main device is used. This
+      lets you use two devices on the IPMB, one for master and one for slave,
+      in case you have a slave device that can only be a slave.  The slave
+      will receive messages and the master will transmit.
+
 required:
   - compatible
   - reg
