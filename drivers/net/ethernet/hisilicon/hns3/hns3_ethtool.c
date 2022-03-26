@@ -1766,9 +1766,6 @@ static int hns3_set_tx_spare_buf_size(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int ret;
 
-	if (hns3_nic_resetting(netdev))
-		return -EBUSY;
-
 	h->kinfo.tx_spare_buf_size = data;
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
@@ -1798,6 +1795,11 @@ static int hns3_set_tunable(struct net_device *netdev,
 	u32 old_tx_spare_buf_size, new_tx_spare_buf_size;
 	struct hnae3_handle *h = priv->ae_handle;
 	int i, ret = 0;
+
+	if (hns3_nic_resetting(netdev) || !priv->ring) {
+		netdev_err(netdev, "failed to set tunable value, dev resetting!");
+		return -EBUSY;
+	}
 
 	switch (tuna->id) {
 	case ETHTOOL_TX_COPYBREAK:
