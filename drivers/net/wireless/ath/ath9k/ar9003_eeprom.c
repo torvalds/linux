@@ -4747,7 +4747,7 @@ static void ar9003_hw_get_target_power_eeprom(struct ath_hw *ah,
 }
 
 static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
-				  int mode,
+				  bool is2ghz,
 				  int ipier,
 				  int ichain,
 				  int *pfrequency,
@@ -4757,7 +4757,6 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 {
 	u8 *pCalPier;
 	struct ar9300_cal_data_per_freq_op_loop *pCalPierStruct;
-	int is2GHz;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -4768,17 +4767,7 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 		return -1;
 	}
 
-	if (mode) {		/* 5GHz */
-		if (ipier >= AR9300_NUM_5G_CAL_PIERS) {
-			ath_dbg(common, EEPROM,
-				"Invalid 5GHz cal pier index, must be less than %d\n",
-				AR9300_NUM_5G_CAL_PIERS);
-			return -1;
-		}
-		pCalPier = &(eep->calFreqPier5G[ipier]);
-		pCalPierStruct = &(eep->calPierData5G[ichain][ipier]);
-		is2GHz = 0;
-	} else {
+	if (is2ghz) {
 		if (ipier >= AR9300_NUM_2G_CAL_PIERS) {
 			ath_dbg(common, EEPROM,
 				"Invalid 2GHz cal pier index, must be less than %d\n",
@@ -4788,10 +4777,18 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 
 		pCalPier = &(eep->calFreqPier2G[ipier]);
 		pCalPierStruct = &(eep->calPierData2G[ichain][ipier]);
-		is2GHz = 1;
+	} else {
+		if (ipier >= AR9300_NUM_5G_CAL_PIERS) {
+			ath_dbg(common, EEPROM,
+				"Invalid 5GHz cal pier index, must be less than %d\n",
+				AR9300_NUM_5G_CAL_PIERS);
+			return -1;
+		}
+		pCalPier = &(eep->calFreqPier5G[ipier]);
+		pCalPierStruct = &(eep->calPierData5G[ichain][ipier]);
 	}
 
-	*pfrequency = ath9k_hw_fbin2freq(*pCalPier, is2GHz);
+	*pfrequency = ath9k_hw_fbin2freq(*pCalPier, is2ghz);
 	*pcorrection = pCalPierStruct->refPower;
 	*ptemperature = pCalPierStruct->tempMeas;
 	*pvoltage = pCalPierStruct->voltMeas;
@@ -4960,7 +4957,6 @@ tempslope:
 static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 {
 	int ichain, ipier, npier;
-	int mode;
 	int lfrequency[AR9300_MAX_CHAINS],
 	    lcorrection[AR9300_MAX_CHAINS],
 	    ltemperature[AR9300_MAX_CHAINS], lvoltage[AR9300_MAX_CHAINS],
@@ -4976,12 +4972,12 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	int pfrequency, pcorrection, ptemperature, pvoltage,
 	    pnf_cal, pnf_pwr;
 	struct ath_common *common = ath9k_hw_common(ah);
+	bool is2ghz = frequency < 4000;
 
-	mode = (frequency >= 4000);
-	if (mode)
-		npier = AR9300_NUM_5G_CAL_PIERS;
-	else
+	if (is2ghz)
 		npier = AR9300_NUM_2G_CAL_PIERS;
+	else
+		npier = AR9300_NUM_5G_CAL_PIERS;
 
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
 		lfrequency[ichain] = 0;
@@ -4990,7 +4986,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	/* identify best lower and higher frequency calibration measurement */
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
 		for (ipier = 0; ipier < npier; ipier++) {
-			if (!ar9003_hw_cal_pier_get(ah, mode, ipier, ichain,
+			if (!ar9003_hw_cal_pier_get(ah, is2ghz, ipier, ichain,
 						    &pfrequency, &pcorrection,
 						    &ptemperature, &pvoltage,
 						    &pnf_cal, &pnf_pwr)) {
@@ -5127,12 +5123,12 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 
 	/* Store calibrated noise floor values */
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++)
-		if (mode) {
-			ah->nf_5g.cal[ichain] = nf_cal[ichain];
-			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
-		} else {
+		if (is2ghz) {
 			ah->nf_2g.cal[ichain] = nf_cal[ichain];
 			ah->nf_2g.pwr[ichain] = nf_pwr[ichain];
+		} else {
+			ah->nf_5g.cal[ichain] = nf_cal[ichain];
+			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
 		}
 
 	return 0;
