@@ -416,6 +416,7 @@ static void rk_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 }
 
 static const struct dma_buf_ops rk_cma_heap_buf_ops = {
+	.cache_sgt_mapping = true,
 	.attach = rk_cma_heap_attach,
 	.detach = rk_cma_heap_detach,
 	.map_dma_buf = rk_cma_heap_map_dma_buf,
