@@ -446,6 +446,10 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		id = of_alias_get_id(np, "serial");
 		if (id >= 0)
 			p->line = id;
+
+		if (IS_ENABLED(CONFIG_ROCKCHIP_MINI_KERNEL))
+			return;
+
 #ifdef CONFIG_64BIT
 		if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
 			p->serial_in = dw8250_serial_inq;
@@ -470,6 +474,9 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		p->serial_in = dw8250_serial_in32;
 		data->uart_16550_compatible = true;
 	}
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_MINI_KERNEL))
+		return;
 
 	/* Platforms with iDMA 64-bit */
 	if (platform_get_resource_byname(to_platform_device(p->dev),
@@ -775,9 +782,11 @@ static const struct dev_pm_ops dw8250_pm_ops = {
 
 static const struct of_device_id dw8250_of_match[] = {
 	{ .compatible = "snps,dw-apb-uart" },
+#ifndef CONFIG_ROCKCHIP_MINI_KERNEL
 	{ .compatible = "cavium,octeon-3860-uart" },
 	{ .compatible = "marvell,armada-38x-uart" },
 	{ .compatible = "renesas,rzn1-uart" },
+#endif
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dw8250_of_match);

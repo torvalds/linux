@@ -56,6 +56,7 @@
  * Here we define the default xmit fifo size used for each type of UART.
  */
 static const struct serial8250_config uart_config[] = {
+#ifndef CONFIG_ROCKCHIP_MINI_KERNEL
 	[PORT_UNKNOWN] = {
 		.name		= "unknown",
 		.fifo_size	= 1,
@@ -76,6 +77,7 @@ static const struct serial8250_config uart_config[] = {
 		.fifo_size	= 1,
 		.tx_loadsz	= 1,
 	},
+#endif
 	[PORT_16550A] = {
 		.name		= "16550A",
 		.fifo_size	= 16,
@@ -84,6 +86,7 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 4, 8, 14},
 		.flags		= UART_CAP_FIFO,
 	},
+#ifndef CONFIG_ROCKCHIP_MINI_KERNEL
 	[PORT_CIRRUS] = {
 		.name		= "Cirrus",
 		.fifo_size	= 1,
@@ -306,6 +309,7 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 32, 64, 112},
 		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP,
 	},
+#endif
 };
 
 /* Uart divisor latch read */
@@ -383,6 +387,7 @@ static void au_serial_dl_write(struct uart_8250_port *up, int value)
 
 #endif
 
+#ifndef CONFIG_ROCKCHIP_MINI_KERNEL
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
 {
 	offset = offset << p->regshift;
@@ -456,6 +461,7 @@ static void io_serial_out(struct uart_port *p, int offset, int value)
 	offset = offset << p->regshift;
 	outb(value, p->iobase + offset);
 }
+#endif
 
 static int serial8250_default_handle_irq(struct uart_port *port);
 
@@ -466,6 +472,7 @@ static void set_io_from_upio(struct uart_port *p)
 	up->dl_read = default_serial_dl_read;
 	up->dl_write = default_serial_dl_write;
 
+#ifndef CONFIG_ROCKCHIP_MINI_KERNEL
 	switch (p->iotype) {
 	case UPIO_HUB6:
 		p->serial_in = hub6_serial_in;
@@ -506,6 +513,7 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_out = io_serial_out;
 		break;
 	}
+#endif
 	/* Remember loaded iotype */
 	up->cur_iotype = p->iotype;
 	p->handle_irq = serial8250_default_handle_irq;
