@@ -47,21 +47,22 @@ struct rkisp_dev_cfg {
 };
 
 struct rockit_cfg {
-	u32 nick_id;
-	int *buff_id;
-	int mpi_id;
-	void *vvi_dev[ROCKIT_ISP_NUM_MAX];
-	void *node;
-	void *mpibuf;
-	char *current_name;
 	bool is_alloc;
 	bool is_empty;
-	struct dma_buf *buf;
+	char *current_name;
 	dma_addr_t dma_addr;
+	int *buff_id;
+	int mpi_id;
+	int isp_num;
+	u32 nick_id;
+	u32 event;
+	void *node;
+	void *mpibuf;
+	void *vvi_dev[ROCKIT_ISP_NUM_MAX];
+	struct dma_buf *buf;
 	struct ISP_VIDEO_FRAMES frame;
 	struct rkisp_dev_cfg rkisp_dev_cfg[ROCKIT_ISP_NUM_MAX];
 	struct rkisp_stream_cfg rkisp_stream_cfg[ROCKIT_STREAM_NUM_MAX];
-	int isp_num;
 	int (*rkisp_rockit_mpibuf_done)(struct rockit_cfg *rockit_isp_cfg);
 };
 
@@ -73,7 +74,7 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg);
 
 #else
 
-static inline void rkisp_rockit_function_register(void *function, int cmd) { return }
+static inline void *rkisp_rockit_function_register(void *function, int cmd) { return NULL; }
 static inline int rkisp_rockit_get_ispdev(char **name) { return -EINVAL; }
 static inline int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 {

@@ -60,6 +60,11 @@
 struct rkisp_stream;
 
 enum {
+	ROCKIT_DVBM_END,
+	ROCKIT_DVBM_START,
+};
+
+enum {
 	RDBK_L,
 	RDBK_M,
 	RDBK_S,

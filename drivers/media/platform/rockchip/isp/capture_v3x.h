@@ -28,7 +28,7 @@ void rkisp_mipi_v32_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rki
 
 int rkisp_rockit_buf_free(struct rkisp_stream *stream);
 void rkisp_rockit_dev_init(struct rkisp_device *dev);
-int rkisp_rockit_buf_done(struct rkisp_stream *stream);
+int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd);
 #else
 static inline int rkisp_register_stream_v32(struct rkisp_device *dev) { return -EINVAL; }
 static inline void rkisp_unregister_stream_v32(struct rkisp_device *dev) {}
@@ -37,7 +37,7 @@ static inline void rkisp_mipi_v32_isr(u32 phy, u32 packet, u32 overflow, u32 sta
 
 static inline int rkisp_rockit_buf_free(struct rkisp_stream *stream) { return -EINVAL; }
 static inline void rkisp_rockit_dev_init(struct rkisp_device *dev) { return; }
-static inline int rkisp_rockit_buf_done(struct rkisp_stream *stream) { return -EINVAL; }
+static inline int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd) { return -EINVAL; }
 #endif
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_DVBM)

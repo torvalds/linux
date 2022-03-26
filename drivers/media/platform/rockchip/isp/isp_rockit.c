@@ -95,8 +95,6 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		return -EINVAL;
 	}
 
-	ispdev = stream->ispdev;
-	g_ops = ispdev->hw_dev->mem_ops;
 	stream_cfg = &rockit_cfg->rkisp_stream_cfg[stream->id];
 
 	for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
@@ -107,6 +105,13 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 	}
 
 	stream_cfg->node = input_rockit_cfg->node;
+
+	if (!input_rockit_cfg->buf)
+		return -EINVAL;
+
+	ispdev = stream->ispdev;
+	g_ops = ispdev->hw_dev->mem_ops;
+
 	if (input_rockit_cfg->is_alloc) {
 		for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
 			if (stream_cfg->buff_id[i] == 0) {
@@ -124,6 +129,8 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 			return -EINVAL;
 
 		isprk_buf = stream_cfg->rkisp_buff[i];
+		isprk_buf->mpi_buf = input_rockit_cfg->mpibuf;
+
 		mem = g_ops->attach_dmabuf(stream->ispdev->hw_dev->dev,
 					   input_rockit_cfg->buf,
 					   input_rockit_cfg->buf->size,
@@ -133,7 +140,6 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 
 		isprk_buf->mpi_mem = mem;
 		isprk_buf->dmabuf = input_rockit_cfg->buf;
-		isprk_buf->mpi_buf = input_rockit_cfg->mpibuf;
 
 		ret = g_ops->map_dmabuf(mem);
 		if (ret)
@@ -153,14 +159,13 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 				break;
 		}
 	}
+
 	for (i = 0; i < stream->out_isp_fmt.mplanes; i++)
 		isprk_buf->isp_buf.buff_addr[i] = isprk_buf->buff_addr;
 
 	if (stream->out_isp_fmt.mplanes == 1) {
 		for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
 			height = stream->out_fmt.height;
-			if (ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP)
-				height = ispdev->cap_dev.wrap_line;
 			offset = (i == 0) ?
 				stream->out_fmt.plane_fmt[i].bytesperline * height :
 				stream->out_fmt.plane_fmt[i].sizeimage;
@@ -189,16 +194,37 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 	return 0;
 }
 
-int rkisp_rockit_buf_done(struct rkisp_stream *stream)
+int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	struct rkisp_rockit_buffer *isprk_buf =
-		container_of(stream->curr_buf, struct rkisp_rockit_buffer, isp_buf);
+	struct rkisp_rockit_buffer *isprk_buf = NULL;
 	struct rkisp_stream_cfg *stream_cfg = &rockit_cfg->rkisp_stream_cfg[stream->id];
+	u32 seq;
+	u64 ns = 0;
 
 	if (!rockit_cfg->rkisp_rockit_mpibuf_done) {
 		pr_err("mpi_buf_done is null\n");
 		return -EINVAL;
+	}
+
+	if (stream->curr_buf != NULL) {
+		isprk_buf =
+			container_of(stream->curr_buf, struct rkisp_rockit_buffer, isp_buf);
+
+		rockit_cfg->mpibuf = isprk_buf->mpi_buf;
+
+		rockit_cfg->frame.u64PTS = stream->curr_buf->vb.vb2_buf.timestamp;
+
+		rockit_cfg->frame.u32TimeRef = stream->curr_buf->vb.sequence;
+	} else {
+		rkisp_dmarx_get_frame(stream->ispdev, &seq, NULL, &ns, true);
+
+		if (!ns)
+			ns = ktime_get_ns();
+
+		rockit_cfg->frame.u64PTS = ns;
+
+		rockit_cfg->frame.u32TimeRef = seq;
 	}
 
 	rockit_cfg->frame.u32Height = stream->out_fmt.height;
@@ -211,15 +237,11 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream)
 
 	rockit_cfg->frame.u32VirHeight = stream->out_fmt.height;
 
-	rockit_cfg->frame.u64PTS = stream->curr_buf->vb.vb2_buf.timestamp;
-
-	rockit_cfg->frame.u32TimeRef = stream->curr_buf->vb.sequence;
-
 	rockit_cfg->current_name = dev->name;
 
 	rockit_cfg->node = stream_cfg->node;
 
-	rockit_cfg->mpibuf = isprk_buf->mpi_buf;
+	rockit_cfg->event = cmd;
 
 	if (list_empty(&stream->buf_queue))
 		rockit_cfg->is_empty = true;

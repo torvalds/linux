@@ -992,6 +992,11 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 {
 	unsigned long lock_flags = 0;
 
+	if (stream->ispdev->cap_dev.wrap_line &&
+	    stream->id == RKISP_STREAM_MP &&
+	    stream->streaming && mis != 0)
+		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
+
 	/* readback start to update stream buf if null */
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->streaming) {
@@ -1058,7 +1063,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		if (vb2_buf->memory)
 			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
 		else
-			rkisp_rockit_buf_done(stream);
+			rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END);
 	}
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
@@ -1716,7 +1721,8 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 				wake_up(&stream->done);
 			}
 		} else {
-			mi_frame_end(stream);
+			if (stream->id != RKISP_STREAM_MP || !dev->cap_dev.wrap_line)
+				mi_frame_end(stream);
 		}
 	}
 
