@@ -1059,6 +1059,9 @@ static int stmmac_init_phy(struct net_device *dev)
 	struct device_node *node;
 	int ret;
 
+	if (priv->plat->integrated_phy_power)
+		ret = priv->plat->integrated_phy_power(priv->plat->bsp_priv, true);
+
 	node = priv->plat->phylink_node;
 
 	if (node)
@@ -2945,6 +2948,9 @@ static int stmmac_release(struct net_device *dev)
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
 	phylink_disconnect_phy(priv->phylink);
+
+	if (priv->plat->integrated_phy_power)
+		priv->plat->integrated_phy_power(priv->plat->bsp_priv, false);
 
 	stmmac_disable_all_queues(priv);
 
@@ -5231,6 +5237,9 @@ int stmmac_suspend(struct device *dev)
 		rtnl_lock();
 		if (device_may_wakeup(priv->device))
 			phylink_speed_down(priv->phylink, false);
+		if (priv->plat->integrated_phy_power)
+			priv->plat->integrated_phy_power(priv->plat->bsp_priv,
+							 false);
 		phylink_stop(priv->phylink);
 		rtnl_unlock();
 		mutex_lock(&priv->lock);
@@ -5314,6 +5323,9 @@ int stmmac_resume(struct device *dev)
 		/* reset the phy so that it's ready */
 		if (priv->mii)
 			stmmac_mdio_reset(priv->mii);
+		if (priv->plat->integrated_phy_power)
+			priv->plat->integrated_phy_power(priv->plat->bsp_priv,
+							 true);
 	}
 
 	if (priv->plat->serdes_powerup) {

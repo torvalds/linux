@@ -1609,7 +1609,20 @@ static const struct rk_gmac_ops rk3588_ops = {
 
 #define RV1106_VOGRF_MACPHY_CON1		0X6002C
 
-#define RV1106_VOGRF_MACPHY_BGS			GRF_BIT(2)
+#define RV1106_VOGRF_MACPHY_BGS			HIWORD_UPDATE(0xd, 0xf, 0)
+
+static void rv1106_set_to_rmii(struct rk_priv_data *bsp_priv)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RV1106_VOGRF_GMAC_CLK_CON,
+		     RV1106_VOGRF_MACPHY_RMII_MODE);
+}
 
 static void rv1106_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
@@ -1644,8 +1657,6 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 	}
 
 	if (up) {
-		regmap_write(priv->grf, RV1106_VOGRF_GMAC_CLK_CON,
-			     RV1106_VOGRF_MACPHY_RMII_MODE);
 		reset_control_assert(priv->phy_reset);
 		udelay(20);
 		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
@@ -1655,7 +1666,9 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 			     RV1106_VOGRF_MACPHY_PHY_ID);
 		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON1,
 			     RV1106_VOGRF_MACPHY_BGS);
+		usleep_range(10 * 1000, 12 * 1000);
 		reset_control_deassert(priv->phy_reset);
+		usleep_range(50 * 1000, 60 * 1000);
 	} else {
 		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
 			     RV1106_VOGRF_MACPHY_SHUTDOWN);
@@ -1663,6 +1676,7 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 }
 
 static const struct rk_gmac_ops rv1106_ops = {
+	.set_to_rmii = rv1106_set_to_rmii,
 	.set_rmii_speed = rv1106_set_rmii_speed,
 	.integrated_phy_power = rv1106_integrated_sphy_power,
 };
@@ -2183,20 +2197,12 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	if (bsp_priv->integrated_phy && bsp_priv->ops &&
-	    bsp_priv->ops->integrated_phy_power)
-		bsp_priv->ops->integrated_phy_power(bsp_priv, true);
-
 	return 0;
 }
 
 static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 {
 	struct device *dev = &gmac->pdev->dev;
-
-	if (gmac->integrated_phy && gmac->ops &&
-	    gmac->ops->integrated_phy_power)
-		gmac->ops->integrated_phy_power(gmac, false);
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
@@ -2228,6 +2234,19 @@ static void rk_fix_speed(void *priv, unsigned int speed)
 	default:
 		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
 	}
+}
+
+static int rk_integrated_phy_power(void *priv, bool up)
+{
+	struct rk_priv_data *bsp_priv = priv;
+
+	if (!bsp_priv->integrated_phy || !bsp_priv->ops ||
+	    !bsp_priv->ops->integrated_phy_power)
+		return 0;
+
+	bsp_priv->ops->integrated_phy_power(bsp_priv, up);
+
+	return 0;
 }
 
 void dwmac_rk_set_rgmii_delayline(struct stmmac_priv *priv,
@@ -2332,6 +2351,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	plat_dat->sph_disable = true;
 	plat_dat->fix_mac_speed = rk_fix_speed;
 	plat_dat->get_eth_addr = rk_get_eth_addr;
+	plat_dat->integrated_phy_power = rk_integrated_phy_power;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, plat_dat, data);
 	if (IS_ERR(plat_dat->bsp_priv)) {
