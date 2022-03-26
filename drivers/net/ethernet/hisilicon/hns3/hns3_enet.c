@@ -1038,6 +1038,12 @@ static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 		return;
 
 	order = get_order(alloc_size);
+	if (order >= MAX_ORDER) {
+		if (net_ratelimit())
+			dev_warn(ring_to_dev(ring), "failed to allocate tx spare buffer, exceed to max order\n");
+		return;
+	}
+
 	tx_spare = devm_kzalloc(ring_to_dev(ring), sizeof(*tx_spare),
 				GFP_KERNEL);
 	if (!tx_spare) {
