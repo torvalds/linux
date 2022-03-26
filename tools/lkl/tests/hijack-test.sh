@@ -227,13 +227,21 @@ test_tap_ping_host()
 
 test_tap_ping_lkl()
 {
-    set -e
-
-    # Now let's check that the host can see LKL.
+    # Flush the neighbour cache and without reporting errors since there might
+    # not be any entries present.
     lkl_test_cmd sudo ip -6 neigh del $(ip6_lkl) dev $(tap_ifname)
     lkl_test_cmd sudo ip neigh del $(ip_lkl) dev $(tap_ifname)
+
+    # no errors beyond this point
+    set -e
+
+    # start LKL and wait a bit so the host can ping
     run_hijack_cfg $(lkl_test_cmd which sleep) 3 &
+
+    # wait for LKL to boot
     sleep 2
+
+    # Now let's check that the host can see LKL.
     lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl)
     lkl_test_cmd sudo ping6 -i 0.01 -c 65 $(ip6_lkl)
 }
