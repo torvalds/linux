@@ -1241,6 +1241,18 @@ struct kbase_device {
 
 	struct notifier_block oom_notifier_block;
 
+#if !MALI_USE_CSF
+	spinlock_t quick_reset_lock;
+	bool quick_reset_enabled;
+	/*
+	 * 进入 quck_reset_mode 后 (quick_reset_enabled 为 true),
+	 * 对已经进入 KBASE_JD_ATOM_STATE_HW_COMPLETED 状态的 atom 的计数.
+	 *
+	 * 若 num_of_atoms_hw_completed 达到一定值, 将退出 quck_reset_mode.
+	 * 见 kbase_js_complete_atom() 对 num_of_atoms_hw_completed 的引用.
+	 */
+	u32 num_of_atoms_hw_completed;
+#endif
 };
 
 /**

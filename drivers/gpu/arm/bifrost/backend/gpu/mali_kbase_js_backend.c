@@ -131,10 +131,15 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 				} else {
 					soft_stop_ticks =
 						js_devdata->soft_stop_ticks;
+					if (kbase_is_quick_reset_enabled(kbdev)) {
+						hard_stop_ticks = 2;
+						gpu_reset_ticks = 3;
+					} else {
 					hard_stop_ticks =
 						js_devdata->hard_stop_ticks_ss;
 					gpu_reset_ticks =
 						js_devdata->gpu_reset_ticks_ss;
+					}
 				}
 
 				/* If timeouts have been changed then ensure

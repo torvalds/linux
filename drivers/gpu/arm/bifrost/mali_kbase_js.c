@@ -3484,6 +3484,11 @@ struct kbase_jd_atom *kbase_js_complete_atom(struct kbase_jd_atom *katom,
 
 	katom->status = KBASE_JD_ATOM_STATE_HW_COMPLETED;
 	dev_dbg(kbdev->dev, "Atom %pK status to HW completed\n", (void *)katom);
+	if (kbase_is_quick_reset_enabled(kbdev)) {
+		kbdev->num_of_atoms_hw_completed++;
+		if (kbdev->num_of_atoms_hw_completed >= 20)
+			kbase_disable_quick_reset(kbdev);
+	}
 
 	if (katom->event_code != BASE_JD_EVENT_DONE) {
 		kbase_js_evict_deps(kctx, katom, katom->slot_nr,

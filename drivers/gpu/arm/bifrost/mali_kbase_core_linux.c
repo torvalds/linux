@@ -5564,6 +5564,11 @@ static int kbase_device_resume(struct device *dev)
 	if (kbdev->devfreq)
 		kbase_devfreq_enqueue_work(kbdev, DEVFREQ_WORK_RESUME);
 #endif
+
+#if !MALI_USE_CSF
+	kbase_enable_quick_reset(kbdev);
+#endif
+
 	return 0;
 }
 

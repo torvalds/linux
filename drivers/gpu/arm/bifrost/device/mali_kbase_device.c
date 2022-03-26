@@ -326,6 +326,13 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 			"Unable to register OOM notifier for Mali - but will continue\n");
 		kbdev->oom_notifier_block.notifier_call = NULL;
 	}
+
+#if !MALI_USE_CSF
+	spin_lock_init(&kbdev->quick_reset_lock);
+	kbdev->quick_reset_enabled = true;
+	kbdev->num_of_atoms_hw_completed = 0;
+#endif
+
 	return 0;
 
 term_ktrace:
@@ -355,6 +362,33 @@ void kbase_device_misc_term(struct kbase_device *kbdev)
 	if (kbdev->oom_notifier_block.notifier_call)
 		unregister_oom_notifier(&kbdev->oom_notifier_block);
 }
+
+#if !MALI_USE_CSF
+void kbase_enable_quick_reset(struct kbase_device *kbdev)
+{
+	spin_lock(&kbdev->quick_reset_lock);
+
+	kbdev->quick_reset_enabled = true;
+	kbdev->num_of_atoms_hw_completed = 0;
+
+	spin_unlock(&kbdev->quick_reset_lock);
+}
+
+void kbase_disable_quick_reset(struct kbase_device *kbdev)
+{
+	spin_lock(&kbdev->quick_reset_lock);
+
+	kbdev->quick_reset_enabled = false;
+	kbdev->num_of_atoms_hw_completed = 0;
+
+	spin_unlock(&kbdev->quick_reset_lock);
+}
+
+bool kbase_is_quick_reset_enabled(struct kbase_device *kbdev)
+{
+	return kbdev->quick_reset_enabled;
+}
+#endif
 
 void kbase_device_free(struct kbase_device *kbdev)
 {

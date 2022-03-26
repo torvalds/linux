@@ -115,6 +115,13 @@ struct kbase_device *kbase_device_alloc(void);
 
 int kbase_device_misc_init(struct kbase_device *kbdev);
 void kbase_device_misc_term(struct kbase_device *kbdev);
+
+#if !MALI_USE_CSF
+void kbase_enable_quick_reset(struct kbase_device *kbdev);
+void kbase_disable_quick_reset(struct kbase_device *kbdev);
+bool kbase_is_quick_reset_enabled(struct kbase_device *kbdev);
+#endif
+
 void kbase_device_free(struct kbase_device *kbdev);
 int kbase_device_has_feature(struct kbase_device *kbdev, u32 feature);
 
