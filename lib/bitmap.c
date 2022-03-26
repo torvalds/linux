@@ -527,33 +527,39 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * cpumap_print_to_pagebuf() or directly by drivers to export hexadecimal
  * bitmask and decimal list to userspace by sysfs ABI.
  * Drivers might be using a normal attribute for this kind of ABIs. A
- * normal attribute typically has show entry as below:
- * static ssize_t example_attribute_show(struct device *dev,
+ * normal attribute typically has show entry as below::
+ *
+ *   static ssize_t example_attribute_show(struct device *dev,
  * 		struct device_attribute *attr, char *buf)
- * {
+ *   {
  * 	...
  * 	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
- * }
+ *   }
+ *
  * show entry of attribute has no offset and count parameters and this
  * means the file is limited to one page only.
  * bitmap_print_to_pagebuf() API works terribly well for this kind of
- * normal attribute with buf parameter and without offset, count:
- * bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
+ * normal attribute with buf parameter and without offset, count::
+ *
+ *   bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
  * 			   int nmaskbits)
- * {
- * }
+ *   {
+ *   }
+ *
  * The problem is once we have a large bitmap, we have a chance to get a
  * bitmask or list more than one page. Especially for list, it could be
  * as complex as 0,3,5,7,9,... We have no simple way to know it exact size.
  * It turns out bin_attribute is a way to break this limit. bin_attribute
- * has show entry as below:
- * static ssize_t
- * example_bin_attribute_show(struct file *filp, struct kobject *kobj,
+ * has show entry as below::
+ *
+ *   static ssize_t
+ *   example_bin_attribute_show(struct file *filp, struct kobject *kobj,
  * 		struct bin_attribute *attr, char *buf,
  * 		loff_t offset, size_t count)
- * {
+ *   {
  * 	...
- * }
+ *   }
+ *
  * With the new offset and count parameters, this makes sysfs ABI be able
  * to support file size more than one page. For example, offset could be
  * >= 4096.
@@ -577,6 +583,7 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * This function is not a replacement for sprintf() or bitmap_print_to_pagebuf().
  * It is intended to workaround sysfs limitations discussed above and should be
  * used carefully in general case for the following reasons:
+ *
  *  - Time complexity is O(nbits^2/count), comparing to O(nbits) for snprintf().
  *  - Memory complexity is O(nbits), comparing to O(1) for snprintf().
  *  - @off and @count are NOT offset and number of bits to print.
