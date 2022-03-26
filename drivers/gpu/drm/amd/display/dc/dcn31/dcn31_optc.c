@@ -91,8 +91,7 @@ static void optc31_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 	optc1->opp_count = opp_cnt;
 }
 
-/**
- * Enable CRTC
+/*
  * Enable CRTC - call ASIC Control Object to enable Timing generator.
  */
 static bool optc31_enable_crtc(struct timing_generator *optc)
