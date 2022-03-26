@@ -125,6 +125,9 @@ DECLARE_HOOK(android_vh_drain_all_pages_bypass,
 DECLARE_HOOK(android_vh_cma_drain_all_pages_bypass,
 	TP_PROTO(unsigned int migratetype, bool *bypass),
 	TP_ARGS(migratetype, bypass));
+DECLARE_HOOK(android_vh_pcplist_add_cma_pages_bypass,
+	TP_PROTO(int migratetype, bool *bypass),
+	TP_ARGS(migratetype, bypass));
 struct device;
 DECLARE_HOOK(android_vh_subpage_dma_contig_alloc,
 	TP_PROTO(bool *allow_subpage_alloc, struct device *dev, size_t *size),
