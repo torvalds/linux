@@ -1818,7 +1818,8 @@ static int hns3_set_tunable(struct net_device *netdev,
 		old_tx_spare_buf_size = h->kinfo.tx_spare_buf_size;
 		new_tx_spare_buf_size = *(u32 *)data;
 		ret = hns3_set_tx_spare_buf_size(netdev, new_tx_spare_buf_size);
-		if (ret) {
+		if (ret ||
+		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
 			int ret1;
 
 			netdev_warn(netdev,
