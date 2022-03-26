@@ -88,8 +88,7 @@ properties:
           The DSS DPI output port node from video port 2
 
   ti,am65x-oldi-io-ctrl:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-    maxItems: 1
+    $ref: "/schemas/types.yaml#/definitions/phandle"
     description:
       phandle to syscon device node mapping OLDI IO_CTRL registers.
       The mapped range should point to OLDI_DAT0_IO_CTRL, map it and

@@ -77,7 +77,7 @@ properties:
           - delta,ahe50dc-fan
             # Delta Electronics DPS-650-AB power supply
           - delta,dps650ab
-          # Delta Electronics DPS920AB 920W 54V Power Supply
+            # Delta Electronics DPS920AB 920W 54V Power Supply
           - delta,dps920ab
             # 1/4 Brick DC/DC Regulated Power Module
           - delta,q54sj108a2
@@ -123,13 +123,13 @@ properties:
           - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
-          # Infineon IR38060 Voltage Regulator
+            # Infineon IR38060 Voltage Regulator
           - infineon,ir38060
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
-          # Infineon IR38164 Voltage Regulator
+            # Infineon IR38164 Voltage Regulator
           - infineon,ir38164
-          # Infineon IR38263 Voltage Regulator
+            # Infineon IR38263 Voltage Regulator
           - infineon,ir38263
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
