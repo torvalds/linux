@@ -277,7 +277,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 {
 	unsigned long max_capacity, capacity, freq_hz, throttled_freq;
 	struct cpufreq_policy *policy = data->policy;
-	int cpu = cpumask_first(policy->cpus);
+	int cpu = cpumask_first(policy->related_cpus);
 	struct device *dev = get_cpu_device(cpu);
 	struct dev_pm_opp *opp;
 	unsigned int freq;
