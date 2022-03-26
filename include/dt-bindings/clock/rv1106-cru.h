@@ -30,7 +30,6 @@
 #define ACLK_RKNN		23
 #define PCLK_ACODEC		24
 #define MCLK_ACODEC_TX		25
-#define MCLK_ACODEC_RX		26
 #define CLK_CORE_CRYPTO		27
 #define CLK_PKA_CRYPTO		28
 #define ACLK_CRYPTO		29
