@@ -38,7 +38,7 @@
 		sys_clk: sys_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <162500000>;
+			clock-frequency = <165625000>;
 		};
 
 		cpu_clk: cpu_clk {
