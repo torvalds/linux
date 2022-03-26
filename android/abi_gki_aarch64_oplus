@@ -2432,6 +2432,7 @@
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
+  swp_swap_info
   sync_file_create
   sync_file_get_fence
   synchronize_irq
@@ -3339,6 +3340,7 @@
   wakeup_source_register
   wakeup_source_remove
   wakeup_source_unregister
+  walk_page_range
   __warn_printk
   watchdog_init_timeout
   watchdog_set_restart_priority
