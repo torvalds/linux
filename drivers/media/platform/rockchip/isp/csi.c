@@ -654,7 +654,6 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS,
 				     true, dev->hw_dev->is_unite);
 
-	memset(dev->filt_state, 0, sizeof(dev->filt_state));
 	dev->rdbk_cnt = -1;
 	dev->rdbk_cnt_x1 = -1;
 	dev->rdbk_cnt_x2 = -1;

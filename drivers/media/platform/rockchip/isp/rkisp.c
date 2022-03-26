@@ -669,9 +669,6 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	if (is_3dlut_upd)
 		rkisp_write(dev, ISP_3DLUT_UPDATE, 1, true);
 
-	memset(dev->filt_state, 0, sizeof(dev->filt_state));
-	dev->filt_state[RDBK_F_VS] = dma2frm;
-
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
 	tmp = SW_IBUF_OP_MODE(dev->rd_mode);
@@ -2584,6 +2581,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
+		atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 		return 0;
 	}
 
@@ -2595,7 +2593,6 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		return -EINVAL;
 	}
 
-	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 	rkisp_config_cif(isp_dev);
 	rkisp_isp_start(isp_dev);
 	rkisp_global_update_mi(isp_dev);
@@ -3268,7 +3265,7 @@ int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 	rkisp_isp_sd_init_default_fmt(isp_sdev);
 	isp_dev->hdr.sensor = NULL;
 	isp_dev->isp_state = ISP_STOP;
-
+	atomic_set(&isp_sdev->frm_sync_seq, 0);
 	rkisp_monitor_init(isp_dev);
 	return 0;
 err_cleanup_media_entity:
@@ -3515,11 +3512,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			if (!completion_done(&dev->hw_dev->monitor.cmpl))
 				complete(&dev->hw_dev->monitor.cmpl);
 		}
-		/* last vsync to config next buf */
-		if (!dev->filt_state[RDBK_F_VS])
-			rkisp_stream_frame_start(dev, isp_mis);
-		else
-			dev->filt_state[RDBK_F_VS]--;
+
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
 			/* read 3d lut at isp readback */
 			if (!dev->hw_dev->is_single)
@@ -3553,6 +3546,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		if (dev->vs_irq < 0 && !sof_event_later) {
 			dev->isp_sdev.frm_timestamp = ktime_get_ns();
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
+			rkisp_stream_frame_start(dev, isp_mis);
 		}
 vs_skip:
 		writel(CIF_ISP_V_START, base + CIF_ISP_ICR);
@@ -3671,6 +3665,7 @@ vs_skip:
 	if (dev->vs_irq < 0 && sof_event_later) {
 		dev->isp_sdev.frm_timestamp = ktime_get_ns();
 		rkisp_isp_queue_event_sof(&dev->isp_sdev);
+		rkisp_stream_frame_start(dev, isp_mis);
 	}
 
 	if (isp_mis & CIF_ISP_FRAME_IN)

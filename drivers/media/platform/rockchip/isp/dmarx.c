@@ -389,7 +389,7 @@ static void update_rawrd(struct rkisp_stream *stream)
 			};
 
 			if (!vbuf->sequence)
-				trigger.frame_id = atomic_inc_return(&dev->isp_sdev.frm_sync_seq);
+				trigger.frame_id = atomic_inc_return(&dev->isp_sdev.frm_sync_seq) - 1;
 			rkisp_rdbk_trigger_event(dev, T_CMD_QUEUE, &trigger);
 		}
 	} else if (dev->dmarx_dev.trigger == T_AUTO) {
