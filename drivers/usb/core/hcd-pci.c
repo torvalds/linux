@@ -248,7 +248,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
 					hcd->rsrc_len, driver->description))
 				break;
 		}
-		if (region == PCI_ROM_RESOURCE) {
+		if (region == PCI_STD_NUM_BARS) {
 			dev_dbg(&dev->dev, "no i/o regions available\n");
 			retval = -EBUSY;
 			goto put_hcd;

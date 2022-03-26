@@ -1159,7 +1159,7 @@ static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct pxa_ep		*ep;
 	struct udc_usb_ep	*udc_usb_ep;
-	struct pxa27x_request	*req;
+	struct pxa27x_request	*req = NULL, *iter;
 	unsigned long		flags;
 	int			rc = -EINVAL;
 
@@ -1173,11 +1173,12 @@ static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&ep->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req) {
-			rc = 0;
-			break;
-		}
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		rc = 0;
+		break;
 	}
 
 	spin_unlock_irqrestore(&ep->lock, flags);

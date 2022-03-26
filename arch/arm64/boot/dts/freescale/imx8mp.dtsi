@@ -921,7 +921,8 @@
 
 		usb3_0: usb@32f10100 {
 			compatible = "fsl,imx8mp-dwc3";
-			reg = <0x32f10100 0x8>;
+			reg = <0x32f10100 0x8>,
+			      <0x381f0000 0x20>;
 			clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
 				 <&clk IMX8MP_CLK_USB_ROOT>;
 			clock-names = "hsio", "suspend";
@@ -963,7 +964,8 @@
 
 		usb3_1: usb@32f10108 {
 			compatible = "fsl,imx8mp-dwc3";
-			reg = <0x32f10108 0x8>;
+			reg = <0x32f10108 0x8>,
+			      <0x382f0000 0x20>;
 			clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
 				 <&clk IMX8MP_CLK_USB_ROOT>;
 			clock-names = "hsio", "suspend";
