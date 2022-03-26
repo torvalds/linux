@@ -1068,9 +1068,9 @@ static struct platform_driver rockchip_pm_domain_driver = {
 		.name   = "rockchip-pm-domain",
 		.of_match_table = rockchip_pm_domain_dt_match,
 		/*
-		 * We can't forcibly eject devices form power domain,
-		 * so we can't really remove power domains once they
-		 * were added.
+		 * We can't forcibly eject devices from the power
+		 * domain, so we can't really remove power domains
+		 * once they were added.
 		 */
 		.suppress_bind_attrs = true,
 	},
