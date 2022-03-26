@@ -2517,7 +2517,8 @@ isp_gic_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->noise_base & 0xFFF);
 	isp3_param_write(params_vdev, value, ISP3X_GIC_NOISE_PARA1);
 
-	isp3_param_write(params_vdev, arg->diff_clip, ISP3X_GIC_NOISE_PARA2);
+	value = arg->diff_clip & 0x7fff;
+	isp3_param_write(params_vdev, value, ISP3X_GIC_NOISE_PARA2);
 
 	for (i = 0; i < ISP32_GIC_SIGMA_Y_NUM / 2; i++) {
 		value = ISP_PACK_2SHORT(arg->sigma_y[2 * i], arg->sigma_y[2 * i + 1]);
@@ -3439,7 +3440,7 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	val = arg->expo_thed_b & 0x1fffff;
 	isp3_param_write(params_vdev, val, ISP32_CAC_EXPO_THED_B);
 
-	val = arg->expo_thed_b & 0x1fffff;
+	val = arg->expo_thed_r & 0x1fffff;
 	isp3_param_write(params_vdev, val, ISP32_CAC_EXPO_THED_R);
 
 	val = arg->expo_adj_b & 0xfffff;
