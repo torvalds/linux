@@ -7581,7 +7581,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 		goto out;
 	}
 
-	cnt_code = le32_to_cpu(req->CntCode);
+	cnt_code = le32_to_cpu(req->CtlCode);
 	ret = smb2_calc_max_out_buf_len(work, 48,
 					le32_to_cpu(req->MaxOutputResponse));
 	if (ret < 0) {
@@ -7687,7 +7687,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 		rsp->PersistentFileId = req->PersistentFileId;
 		fsctl_copychunk(work,
 				(struct copychunk_ioctl_req *)&req->Buffer[0],
-				le32_to_cpu(req->CntCode),
+				le32_to_cpu(req->CtlCode),
 				le32_to_cpu(req->InputCount),
 				req->VolatileFileId,
 				req->PersistentFileId,
@@ -7841,7 +7841,7 @@ dup_ext_out:
 		goto out;
 	}
 
-	rsp->CntCode = cpu_to_le32(cnt_code);
+	rsp->CtlCode = cpu_to_le32(cnt_code);
 	rsp->InputCount = cpu_to_le32(0);
 	rsp->InputOffset = cpu_to_le32(112);
 	rsp->OutputOffset = cpu_to_le32(112);

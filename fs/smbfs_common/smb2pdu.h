@@ -61,6 +61,40 @@
 #define NUMBER_OF_SMB2_COMMANDS	0x0013
 
 /*
+ * Size of the session key (crypto key encrypted with the password
+ */
+#define SMB2_NTLMV2_SESSKEY_SIZE	16
+#define SMB2_SIGNATURE_SIZE		16
+#define SMB2_HMACSHA256_SIZE		32
+#define SMB2_CMACAES_SIZE		16
+#define SMB3_GCM128_CRYPTKEY_SIZE	16
+#define SMB3_GCM256_CRYPTKEY_SIZE	32
+
+/*
+ * Size of the smb3 encryption/decryption keys
+ * This size is big enough to store any cipher key types.
+ */
+#define SMB3_ENC_DEC_KEY_SIZE		32
+
+/*
+ * Size of the smb3 signing key
+ */
+#define SMB3_SIGN_KEY_SIZE		16
+
+#define CIFS_CLIENT_CHALLENGE_SIZE	8
+
+/* Maximum buffer size value we can send with 1 credit */
+#define SMB2_MAX_BUFFER_SIZE 65536
+
+/*
+ * The default wsize is 1M for SMB2 (and for some CIFS cases).
+ * find_get_pages seems to return a maximum of 256
+ * pages in a single call. With PAGE_SIZE == 4k, this means we can
+ * fill a single wsize request with a single call.
+ */
+#define SMB3_DEFAULT_IOSIZE (4 * 1024 * 1024)
+
+/*
  * SMB2 Header Definition
  *
  * "MBZ" :  Must be Zero
@@ -87,6 +121,15 @@
 #define SMB2_FLAGS_PRIORITY_MASK	cpu_to_le32(0x00000070) /* SMB3.1.1 */
 #define SMB2_FLAGS_DFS_OPERATIONS	cpu_to_le32(0x10000000)
 #define SMB2_FLAGS_REPLAY_OPERATION	cpu_to_le32(0x20000000) /* SMB3 & up */
+
+/*
+ *	Definitions for SMB2 Protocol Data Units (network frames)
+ *
+ *  See MS-SMB2.PDF specification for protocol details.
+ *  The Naming convention is the lower case version of the SMB2
+ *  command code name for the struct. Note that structures must be packed.
+ *
+ */
 
 /* See MS-SMB2 section 2.2.1 */
 struct smb2_hdr {
@@ -997,6 +1040,13 @@ struct smb2_create_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+struct create_posix {
+	struct create_context ccontext;
+	__u8    Name[16];
+	__le32  Mode;
+	__u32   Reserved;
+} __packed;
+
 #define SMB2_LEASE_NONE_LE			cpu_to_le32(0x00)
 #define SMB2_LEASE_READ_CACHING_LE		cpu_to_le32(0x01)
 #define SMB2_LEASE_HANDLE_CACHING_LE		cpu_to_le32(0x02)
@@ -1034,6 +1084,41 @@ struct create_lease_v2 {
 	__u8   Name[8];
 	struct lease_context_v2 lcontext;
 	__u8   Pad[4];
+} __packed;
+
+/* See MS-SMB2 2.2.31 and 2.2.32 */
+struct smb2_ioctl_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 57 */
+	__le16 Reserved; /* offset from start of SMB2 header to write data */
+	__le32 CtlCode;
+	__u64  PersistentFileId;
+	__u64  VolatileFileId;
+	__le32 InputOffset; /* Reserved MBZ */
+	__le32 InputCount;
+	__le32 MaxInputResponse;
+	__le32 OutputOffset;
+	__le32 OutputCount;
+	__le32 MaxOutputResponse;
+	__le32 Flags;
+	__le32 Reserved2;
+	__u8   Buffer[];
+} __packed;
+
+struct smb2_ioctl_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 49 */
+	__le16 Reserved;
+	__le32 CtlCode;
+	__u64  PersistentFileId;
+	__u64  VolatileFileId;
+	__le32 InputOffset; /* Reserved MBZ */
+	__le32 InputCount;
+	__le32 OutputOffset;
+	__le32 OutputCount;
+	__le32 Flags;
+	__le32 Reserved2;
+	__u8   Buffer[];
 } __packed;
 
 /* Possible InfoType values */

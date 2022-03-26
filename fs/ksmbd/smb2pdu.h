@@ -16,42 +16,13 @@
 #define FILE_CREATED           0x00000002
 #define FILE_OVERWRITTEN       0x00000003
 
-/*
- * Size of the session key (crypto key encrypted with the password
- */
-#define SMB2_NTLMV2_SESSKEY_SIZE	16
-#define SMB2_SIGNATURE_SIZE		16
-#define SMB2_HMACSHA256_SIZE		32
-#define SMB2_CMACAES_SIZE		16
-#define SMB3_GCM128_CRYPTKEY_SIZE	16
-#define SMB3_GCM256_CRYPTKEY_SIZE	32
-
-/*
- * Size of the smb3 encryption/decryption keys
- */
-#define SMB3_ENC_DEC_KEY_SIZE		32
-
-/*
- * Size of the smb3 signing key
- */
-#define SMB3_SIGN_KEY_SIZE		16
-
-#define CIFS_CLIENT_CHALLENGE_SIZE	8
-#define SMB_SERVER_CHALLENGE_SIZE	8
-
 /* SMB2 Max Credits */
 #define SMB2_MAX_CREDITS		8192
-
-/* Maximum buffer size value we can send with 1 credit */
-#define SMB2_MAX_BUFFER_SIZE 65536
-
-#define NUMBER_OF_SMB2_COMMANDS	0x0013
 
 /* BB FIXME - analyze following length BB */
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
-#define SMB3_DEFAULT_IOSIZE	(4 * 1024 * 1024)
 #define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
 #define SMB3_MIN_IOSIZE	(64 * 1024)
 #define SMB3_MAX_IOSIZE	(8 * 1024 * 1024)
@@ -149,13 +120,6 @@ struct create_alloc_size_req {
 	__le64 AllocationSize;
 } __packed;
 
-struct create_posix {
-	struct create_context ccontext;
-	__u8    Name[16];
-	__le32  Mode;
-	__u32   Reserved;
-} __packed;
-
 struct create_durable_rsp {
 	struct create_context ccontext;
 	__u8   Name[8];
@@ -211,40 +175,6 @@ struct duplicate_extents_to_file {
 	__le64 SourceFileOffset;
 	__le64 TargetFileOffset;
 	__le64 ByteCount;  /* Bytes to be copied */
-} __packed;
-
-struct smb2_ioctl_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 57 */
-	__le16 Reserved; /* offset from start of SMB2 header to write data */
-	__le32 CntCode;
-	__u64  PersistentFileId;
-	__u64  VolatileFileId;
-	__le32 InputOffset; /* Reserved MBZ */
-	__le32 InputCount;
-	__le32 MaxInputResponse;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 MaxOutputResponse;
-	__le32 Flags;
-	__le32 Reserved2;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_ioctl_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 49 */
-	__le16 Reserved; /* offset from start of SMB2 header to write data */
-	__le32 CntCode;
-	__u64  PersistentFileId;
-	__u64  VolatileFileId;
-	__le32 InputOffset; /* Reserved MBZ */
-	__le32 InputCount;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 Flags;
-	__le32 Reserved2;
-	__u8   Buffer[1];
 } __packed;
 
 struct validate_negotiate_info_req {

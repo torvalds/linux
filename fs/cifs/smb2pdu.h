@@ -141,13 +141,6 @@ struct create_durable {
 	} Data;
 } __packed;
 
-struct create_posix {
-	struct create_context ccontext;
-	__u8	Name[16];
-	__le32  Mode;
-	__u32	Reserved;
-} __packed;
-
 /* See MS-SMB2 2.2.13.2.11 */
 /* Flags */
 #define SMB2_DHANDLE_FLAG_PERSISTENT	0x00000002
@@ -427,40 +420,6 @@ struct duplicate_extents_to_file {
  * [1] : in_data
  */
 #define SMB2_IOCTL_IOV_SIZE 2
-
-struct smb2_ioctl_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 57 */
-	__u16 Reserved;
-	__le32 CtlCode;
-	__u64  PersistentFileId; /* opaque endianness */
-	__u64  VolatileFileId; /* opaque endianness */
-	__le32 InputOffset;
-	__le32 InputCount;
-	__le32 MaxInputResponse;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 MaxOutputResponse;
-	__le32 Flags;
-	__u32  Reserved2;
-	__u8   Buffer[];
-} __packed;
-
-struct smb2_ioctl_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 57 */
-	__u16 Reserved;
-	__le32 CtlCode;
-	__u64  PersistentFileId; /* opaque endianness */
-	__u64  VolatileFileId; /* opaque endianness */
-	__le32 InputOffset;
-	__le32 InputCount;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 Flags;
-	__u32  Reserved2;
-	/* char * buffer[] */
-} __packed;
 
 #define SMB2_LOCKFLAG_SHARED_LOCK	0x0001
 #define SMB2_LOCKFLAG_EXCLUSIVE_LOCK	0x0002

@@ -852,13 +852,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
 #define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
 #define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
 
-/*
- * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_SIZE == 4k, this means we can fill
- * a single wsize request with a single call.
- */
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
-#define SMB3_DEFAULT_IOSIZE (4 * 1024 * 1024)
 
 /*
  * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
