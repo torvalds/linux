@@ -715,7 +715,6 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	}
 
 	mpp_power_on(mpp);
-	mpp_time_record(task);
 	mpp_debug_func(DEBUG_TASK_INFO, "pid %d run %s\n",
 		       task->session->pid, dev_name(mpp->dev));
 
@@ -728,6 +727,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	mpp_reset_down_read(mpp->reset_group);
 
 	set_bit(TASK_STATE_START, &task->state);
+	mpp_time_record(task);
 	schedule_delayed_work(&task->timeout_work,
 			      msecs_to_jiffies(MPP_WORK_TIMEOUT_DELAY));
 	if (mpp->dev_ops->run)
@@ -2244,9 +2244,9 @@ int mpp_time_part_diff(struct mpp_task *task)
 	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
 	end = ktime_get();
-	mpp_debug(DEBUG_PART_TIMING, "%s: session %d:%d part time: %lld us\n",
-		  dev_name(mpp->dev), task->session->pid, task->session->index,
-		  ktime_us_delta(end, task->part));
+	mpp_debug(DEBUG_PART_TIMING, "%s:%d session %d:%d part time: %lld us\n",
+		  dev_name(mpp->dev), task->core_id, task->session->pid,
+		  task->session->index, ktime_us_delta(end, task->part));
 	task->part = end;
 
 	return 0;
@@ -2258,9 +2258,9 @@ int mpp_time_diff(struct mpp_task *task)
 	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
 	end = ktime_get();
-	mpp_debug(DEBUG_TIMING, "%s: session %d:%d task time: %lld us\n",
-		  dev_name(mpp->dev), task->session->pid, task->session->index,
-		  ktime_us_delta(end, task->start));
+	mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
+		  dev_name(mpp->dev), task->core_id, task->session->pid,
+		  task->session->index, ktime_us_delta(end, task->start));
 
 	return 0;
 }

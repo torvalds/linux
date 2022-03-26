@@ -293,92 +293,33 @@ fail:
 	return NULL;
 }
 
-static struct vepu_dev *vepu_core_balance(struct vepu_ccu *ccu)
+static void *vepu_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
-	struct vepu_dev *enc;
-	struct vepu_dev *core = NULL, *n;
+	struct mpp_taskqueue *queue = mpp->queue;
+	unsigned long flags;
+	s32 core_id;
 
-	mpp_debug_enter();
+	spin_lock_irqsave(&queue->running_lock, flags);
 
-	mutex_lock(&ccu->lock);
-	enc = list_first_entry(&ccu->core_list, struct vepu_dev, core_link);
-	list_for_each_entry_safe(core, n, &ccu->core_list, core_link) {
-		mpp_debug(DEBUG_DEVICE, "%s, disable_work=%d, task_count=%d, task_index=%d\n",
-			  dev_name(core->mpp.dev), core->disable_work,
-			  atomic_read(&core->mpp.task_count), atomic_read(&core->mpp.task_index));
-		/* if core (except main-core) disabled, skip it */
-		if (core->disable_work)
-			continue;
-		/* choose core with less task in queue */
-		if (atomic_read(&core->mpp.task_count) < atomic_read(&enc->mpp.task_count)) {
-			enc = core;
-			break;
-		}
-		/* choose core with less task which done */
-		if (atomic_read(&core->mpp.task_index) < atomic_read(&enc->mpp.task_index))
-			enc = core;
-	}
-	mutex_unlock(&ccu->lock);
+	core_id = find_first_bit(&queue->core_idle, queue->core_count);
 
-	mpp_debug_leave();
+	if (core_id >= queue->core_count) {
+		mpp_task = NULL;
+		mpp_dbg_core("core %d all busy %lx\n", core_id, queue->core_idle);
+	} else {
+		unsigned long core_idle = queue->core_idle;
 
-	return enc;
-}
+		clear_bit(core_id, &queue->core_idle);
+		mpp_task->mpp = queue->cores[core_id];
+		mpp_task->core_id = core_id;
 
-static void *vepu_ccu_alloc_task(struct mpp_session *session,
-				 struct mpp_task_msgs *msgs)
-{
-	int ret;
-	struct mpp_task *mpp_task = NULL;
-	struct vepu_task *task = NULL;
-	struct mpp_dev *mpp = session->mpp;
-	struct vepu_dev *enc = to_vepu_dev(mpp);
-
-	mpp_debug_enter();
-
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (!task)
-		return NULL;
-
-	mpp_task = &task->mpp_task;
-	/* if multicore, choose one for current task */
-	if (enc->ccu) {
-		enc = vepu_core_balance(enc->ccu);
-		mpp_task->mpp = &enc->mpp;
-		mpp = mpp_task->mpp;
-		mpp_debug(DEBUG_TASK_INFO, "%s\n", dev_name(mpp->dev));
+		mpp_dbg_core("core %d set idle %lx -> %lx\n", core_id,
+			     core_idle, queue->core_idle);
 	}
 
-	mpp_task_init(session, mpp_task);
-	mpp_task->hw_info = mpp->var->hw_info;
-	mpp_task->reg = task->reg;
-	/* extract reqs for current task */
-	ret = vepu_extract_task_msg(task, msgs);
-	if (ret)
-		goto fail;
-	/* process fd in register */
-	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
-		ret = vepu_process_reg_fd(session, task, msgs);
-		if (ret)
-			goto fail;
-	}
-	task->clk_mode = CLK_MODE_NORMAL;
-	/* get resolution info */
-	task->width = VEPU2_GET_WIDTH(task->reg[VEPU2_REG_ENC_EN_INDEX]);
-	task->height = VEPU2_GET_HEIGHT(task->reg[VEPU2_REG_ENC_EN_INDEX]);
-	task->pixels = task->width * task->height;
-	mpp_debug(DEBUG_TASK_INFO, "width=%d, height=%d\n", task->width, task->height);
-
-	mpp_debug_leave();
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 
 	return mpp_task;
-
-fail:
-	mpp_task_dump_mem_region(mpp, mpp_task);
-	mpp_task_dump_reg(mpp, mpp_task);
-	mpp_task_finalize(session, mpp_task);
-	kfree(task);
-	return NULL;
 }
 
 static int vepu_run(struct mpp_dev *mpp,
@@ -433,6 +374,8 @@ static int vepu_isr(struct mpp_dev *mpp)
 	u32 err_mask;
 	struct vepu_task *task = NULL;
 	struct mpp_task *mpp_task = mpp->cur_task;
+	struct mpp_taskqueue *queue = mpp->queue;
+	unsigned long core_idle;
 
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
@@ -454,6 +397,12 @@ static int vepu_isr(struct mpp_dev *mpp)
 		atomic_inc(&mpp->reset_request);
 
 	mpp_task_finish(mpp_task->session, mpp_task);
+
+	core_idle = queue->core_idle;
+	set_bit(mpp->core_id, &queue->core_idle);
+
+	mpp_dbg_core("core %d isr idle %lx -> %lx\n", mpp->core_id, core_idle,
+		     queue->core_idle);
 
 	mpp_debug_leave();
 
@@ -847,6 +796,7 @@ static int vepu_reduce_freq(struct mpp_dev *mpp)
 static int vepu_reset(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
+	struct mpp_taskqueue *queue = mpp->queue;
 
 	if (enc->rst_a && enc->rst_h) {
 		/* Don't skip this or iommu won't work after reset */
@@ -859,6 +809,9 @@ static int vepu_reset(struct mpp_dev *mpp)
 		mpp_pmu_idle_request(mpp, false);
 	}
 	mpp_write(mpp, VEPU2_REG_INT, VEPU2_INT_CLEAR);
+
+	set_bit(mpp->core_id, &queue->core_idle);
+	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, queue->core_idle);
 
 	return 0;
 }
@@ -898,7 +851,8 @@ static struct mpp_dev_ops vepu_v2_dev_ops = {
 };
 
 static struct mpp_dev_ops vepu_ccu_dev_ops = {
-	.alloc_task = vepu_ccu_alloc_task,
+	.alloc_task = vepu_alloc_task,
+	.prepare = vepu_prepare,
 	.run = vepu_run,
 	.irq = vepu_irq,
 	.isr = vepu_isr,
