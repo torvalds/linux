@@ -18,11 +18,23 @@ properties:
   compatible:
     enum:
       - ti,am3352-elm
+      - ti,am64-elm
 
   reg:
     maxItems: 1
 
   interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description: Functional clock.
+
+  clock-names:
+    items:
+      - const: fck
+
+  power-domains:
     maxItems: 1
 
   ti,hwmods:
@@ -36,6 +48,18 @@ required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am64-elm
+    then:
+      required:
+        - clocks
+        - clock-names
+        - power-domains
 
 additionalProperties: false
 
