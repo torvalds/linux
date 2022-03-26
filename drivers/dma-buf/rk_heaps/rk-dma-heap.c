@@ -173,6 +173,8 @@ struct dma_buf *rk_dma_heap_buffer_alloc(struct rk_dma_heap *heap, size_t len,
 					 unsigned int heap_flags,
 					 const char *name)
 {
+	struct dma_buf *dmabuf;
+
 	if (fd_flags & ~RK_DMA_HEAP_VALID_FD_FLAGS)
 		return ERR_PTR(-EINVAL);
 
@@ -186,7 +188,12 @@ struct dma_buf *rk_dma_heap_buffer_alloc(struct rk_dma_heap *heap, size_t len,
 	if (!len)
 		return ERR_PTR(-EINVAL);
 
-	return heap->ops->allocate(heap, len, fd_flags, heap_flags, name);
+	dmabuf = heap->ops->allocate(heap, len, fd_flags, heap_flags, name);
+
+	if (IS_ENABLED(CONFIG_DMABUF_RK_HEAPS_DEBUG) && !IS_ERR(dmabuf))
+		dma_buf_set_name(dmabuf, name);
+
+	return dmabuf;
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_buffer_alloc);
 
@@ -209,6 +216,7 @@ int rk_dma_heap_bufferfd_alloc(struct rk_dma_heap *heap, size_t len,
 		dma_buf_put(dmabuf);
 		/* just return, as put will call release and that will free */
 	}
+
 	return fd;
 
 }
