@@ -976,11 +976,12 @@ static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
 static void clone_endio(struct bio *bio)
 {
 	blk_status_t error = bio->bi_status;
-	struct dm_target_io *tio = clone_to_tio(bio);
-	struct dm_io *io = tio->io;
-	struct mapped_device *md = tio->io->md;
-	dm_endio_fn endio = tio->ti->type->end_io;
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+	struct dm_target_io *tio = clone_to_tio(bio);
+	struct dm_target *ti = tio->ti;
+	dm_endio_fn endio = ti->type->end_io;
+	struct dm_io *io = tio->io;
+	struct mapped_device *md = io->md;
 
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_DISCARD &&
@@ -995,7 +996,7 @@ static void clone_endio(struct bio *bio)
 		dm_zone_endio(io, bio);
 
 	if (endio) {
-		int r = endio(tio->ti, bio, &error);
+		int r = endio(ti, bio, &error);
 		switch (r) {
 		case DM_ENDIO_REQUEUE:
 			/*
@@ -1019,10 +1020,8 @@ static void clone_endio(struct bio *bio)
 		}
 	}
 
-	if (unlikely(swap_bios_limit(tio->ti, bio))) {
-		struct mapped_device *md = io->md;
+	if (unlikely(swap_bios_limit(ti, bio)))
 		up(&md->swap_bios_semaphore);
-	}
 
 	free_tio(bio);
 	dm_io_dec_pending(io, error);
@@ -1263,9 +1262,10 @@ static noinline void __set_swap_bios_limit(struct mapped_device *md, int latch)
 static void __map_bio(struct bio *clone)
 {
 	struct dm_target_io *tio = clone_to_tio(clone);
-	int r;
-	struct dm_io *io = tio->io;
 	struct dm_target *ti = tio->ti;
+	struct dm_io *io = tio->io;
+	struct mapped_device *md = io->md;
+	int r;
 
 	clone->bi_end_io = clone_endio;
 
@@ -1276,7 +1276,6 @@ static void __map_bio(struct bio *clone)
 	tio->old_sector = clone->bi_iter.bi_sector;
 
 	if (unlikely(swap_bios_limit(ti, clone))) {
-		struct mapped_device *md = io->md;
 		int latch = get_swap_bios();
 		if (unlikely(latch != md->swap_bios))
 			__set_swap_bios_limit(md, latch);
@@ -1288,7 +1287,7 @@ static void __map_bio(struct bio *clone)
 	 * on zoned target. In this case, dm_zone_map_bio() calls the target
 	 * map operation.
 	 */
-	if (unlikely(dm_emulate_zone_append(io->md)))
+	if (unlikely(dm_emulate_zone_append(md)))
 		r = dm_zone_map_bio(tio);
 	else
 		r = ti->type->map(ti, clone);
@@ -1304,14 +1303,14 @@ static void __map_bio(struct bio *clone)
 		 * the bio has been remapped so dispatch it, but defer
 		 * dm_start_io_acct() until after possible bio_split().
 		 */
-		__dm_submit_bio_remap(clone, disk_devt(io->md->disk),
+		__dm_submit_bio_remap(clone, disk_devt(md->disk),
 				      tio->old_sector);
 		dm_io_set_flag(io, DM_IO_START_ACCT);
 		break;
 	case DM_MAPIO_KILL:
 	case DM_MAPIO_REQUEUE:
 		if (unlikely(swap_bios_limit(ti, clone)))
-			up(&io->md->swap_bios_semaphore);
+			up(&md->swap_bios_semaphore);
 		free_tio(clone);
 		if (r == DM_MAPIO_KILL)
 			dm_io_dec_pending(io, BLK_STS_IOERR);
