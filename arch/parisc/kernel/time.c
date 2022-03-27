@@ -40,6 +40,8 @@
 
 #include <linux/timex.h>
 
+int time_keeper_id __read_mostly;	/* CPU used for timekeeping. */
+
 static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
 
 /*
@@ -84,7 +86,7 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	cpuinfo->it_value = next_tick;
 
 	/* Go do system house keeping. */
-	if (cpu != 0)
+	if (IS_ENABLED(CONFIG_SMP) && (cpu != time_keeper_id))
 		ticks_elapsed = 0;
 	legacy_timer_tick(ticks_elapsed);
 

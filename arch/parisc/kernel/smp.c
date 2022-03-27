@@ -465,6 +465,12 @@ int __cpu_disable(void)
 	 */
 	set_cpu_online(cpu, false);
 
+	/* Find a new timesync master */
+	if (cpu == time_keeper_id) {
+		time_keeper_id = cpumask_first(cpu_online_mask);
+		pr_info("CPU %d is now promoted to time-keeper master\n", time_keeper_id);
+	}
+
 	disable_percpu_irq(IPI_IRQ);
 
 	irq_migrate_all_off_this_cpu();
