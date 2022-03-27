@@ -29,11 +29,6 @@ enum WIFI_FRAME_SUBTYPE {
 
 	/*  below is for control frame */
 	WIFI_PSPOLL         = (BIT(7) | BIT(5) | IEEE80211_FTYPE_CTL),
-	WIFI_RTS            = (BIT(7) | BIT(5) | BIT(4) | IEEE80211_FTYPE_CTL),
-	WIFI_CTS            = (BIT(7) | BIT(6) | IEEE80211_FTYPE_CTL),
-	WIFI_ACK            = (BIT(7) | BIT(6) | BIT(4) | IEEE80211_FTYPE_CTL),
-	WIFI_CFEND          = (BIT(7) | BIT(6) | BIT(5) | IEEE80211_FTYPE_CTL),
-	WIFI_CFEND_CFACK    = (BIT(7) | BIT(6) | BIT(5) | BIT(4) | IEEE80211_FTYPE_CTL),
 
 	/*  below is for data frame */
 	WIFI_DATA           = (0 | IEEE80211_FTYPE_DATA),
