@@ -801,9 +801,10 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *pframe = precv_frame->rx_data;
+	__le16 fc = *(__le16 *)pframe;
 	/* uint len = precv_frame->len; */
 
-	if (GetFrameType(pframe) != WIFI_CTRL_TYPE)
+	if (!ieee80211_is_ctl(fc))
 		return _FAIL;
 
 	/* receive the frames that ra(a1) is my address */
