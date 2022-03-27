@@ -62,22 +62,7 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	salt_p = MLX5_ADDR_OF(ipsec_obj, obj, salt);
 	memcpy(salt_p, &aes_gcm->salt, sizeof(aes_gcm->salt));
 
-	switch (aes_gcm->icv_len) {
-	case 64:
-		MLX5_SET(ipsec_obj, obj, icv_length,
-			 MLX5_IPSEC_OBJECT_ICV_LEN_8B);
-		break;
-	case 96:
-		MLX5_SET(ipsec_obj, obj, icv_length,
-			 MLX5_IPSEC_OBJECT_ICV_LEN_12B);
-		break;
-	case 128:
-		MLX5_SET(ipsec_obj, obj, icv_length,
-			 MLX5_IPSEC_OBJECT_ICV_LEN_16B);
-		break;
-	default:
-		return -EINVAL;
-	}
+	MLX5_SET(ipsec_obj, obj, icv_length, MLX5_IPSEC_OBJECT_ICV_LEN_16B);
 	salt_iv_p = MLX5_ADDR_OF(ipsec_obj, obj, implicit_iv);
 	memcpy(salt_iv_p, &aes_gcm->seq_iv, sizeof(aes_gcm->seq_iv));
 	/* esn */
