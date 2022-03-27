@@ -995,10 +995,11 @@ open_file:
 
 	nf->nf_mark = nfsd_file_mark_find_or_create(nf);
 	if (nf->nf_mark) {
-		if (open)
+		if (open) {
 			status = nfsd_open_verified(rqstp, fhp, may_flags,
 						    &nf->nf_file);
-		else
+			trace_nfsd_file_open(nf, status);
+		} else
 			status = nfs_ok;
 	} else
 		status = nfserr_jukebox;
