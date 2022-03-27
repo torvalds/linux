@@ -117,7 +117,7 @@
 			};
 		};
 
-		pdma0: dma@e0900000 {
+		pdma0: dma-controller@e0900000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xe0900000 0x1000>;
 			interrupt-parent = <&vic0>;
@@ -129,7 +129,7 @@
 			#dma-requests = <32>;
 		};
 
-		pdma1: dma@e0a00000 {
+		pdma1: dma-controller@e0a00000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xe0a00000 0x1000>;
 			interrupt-parent = <&vic0>;
@@ -518,7 +518,7 @@
 			clock-names = "sclk_fimg2d", "fimg2d";
 		};
 
-		mdma1: mdma@fa200000 {
+		mdma1: dma-controller@fa200000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xfa200000 0x1000>;
 			interrupt-parent = <&vic0>;
