@@ -1063,7 +1063,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	u8 bDumpRxPkt;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	u8 *ptr = precv_frame->rx_data;
-	__le16 fc = *(__le16 *)ptr;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
@@ -1072,31 +1072,31 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 			pmlmeext->channel_set[ch_set_idx].rx_count++;
 	}
 
-	if ((fc & cpu_to_le16(IEEE80211_FCTL_VERS)) != 0)
+	if ((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_VERS)) != 0)
 		return _FAIL;
 
 	pattrib->to_fr_ds = get_tofr_ds(ptr);
 
 	pattrib->frag_num = GetFragNum(ptr);
-	pattrib->seq_num = GetSequence(ptr);
+	pattrib->seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
-	pattrib->pw_save = ieee80211_has_pm(fc);
-	pattrib->mfrag = ieee80211_has_morefrags(fc);
-	pattrib->mdata = ieee80211_has_moredata(fc);
-	pattrib->privacy = ieee80211_has_protected(fc);
-	pattrib->order = ieee80211_has_order(fc);
+	pattrib->pw_save = ieee80211_has_pm(hdr->frame_control);
+	pattrib->mfrag = ieee80211_has_morefrags(hdr->frame_control);
+	pattrib->mdata = ieee80211_has_moredata(hdr->frame_control);
+	pattrib->privacy = ieee80211_has_protected(hdr->frame_control);
+	pattrib->order = ieee80211_has_order(hdr->frame_control);
 
 	/* Dump rx packets */
 	GetHalDefVar8188EUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 
 	/* We return _SUCCESS only for data frames. */
-	if (ieee80211_is_mgmt(fc))
+	if (ieee80211_is_mgmt(hdr->frame_control))
 		validate_recv_mgnt_frame(adapter, precv_frame);
-	else if (ieee80211_is_ctl(fc))
+	else if (ieee80211_is_ctl(hdr->frame_control))
 		validate_recv_ctrl_frame(adapter, precv_frame);
-	else if (ieee80211_is_data(fc)) {
+	else if (ieee80211_is_data(hdr->frame_control)) {
 		rtw_led_control(adapter, LED_CTL_RX);
-		pattrib->qos = ieee80211_is_data_qos(fc);
+		pattrib->qos = ieee80211_is_data_qos(hdr->frame_control);
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
 			struct recv_priv *precvpriv = &adapter->recvpriv;
