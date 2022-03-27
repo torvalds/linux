@@ -21,6 +21,7 @@ properties:
       - qcom,msm8916-apcs-kpss-global
       - qcom,msm8939-apcs-kpss-global
       - qcom,msm8953-apcs-kpss-global
+      - qcom,msm8976-apcs-kpss-global
       - qcom,msm8994-apcs-kpss-global
       - qcom,msm8996-apcs-hmss-global
       - qcom,msm8998-apcs-hmss-global
