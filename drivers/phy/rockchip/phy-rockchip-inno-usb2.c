@@ -296,9 +296,10 @@ struct rockchip_usb2phy_port {
  * @usbctrl_grf: USB Controller General Register Files regmap.
  * *phy_base: the base address of USB PHY.
  * @phy_reset: phy reset control.
- * @clk: clock struct of phy input clk.
+ * @clks: array of phy input clocks.
  * @clk480m: clock struct of phy output clk.
  * @clk480m_hw: clock struct of phy output clk management.
+ * @num_clks: number of phy input clocks.
  * @chg_state: states involved in USB charger detection.
  * @chg_type: USB charger types.
  * @dcd_retries: The retry count used to track Data contact
@@ -320,9 +321,10 @@ struct rockchip_usb2phy {
 	struct regmap	*usbctrl_grf;
 	void __iomem	*phy_base;
 	struct reset_control	*phy_reset;
-	struct clk	*clk;
+	struct clk_bulk_data	*clks;
 	struct clk	*clk480m;
 	struct clk_hw	clk480m_hw;
+	int		num_clks;
 	enum usb_chg_state	chg_state;
 	enum power_supply_type	chg_type;
 	u8			dcd_retries;
@@ -452,6 +454,7 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 {
 	struct device_node *node = rphy->dev->of_node;
 	struct clk_init_data init = {};
+	struct clk *refclk = of_clk_get_by_name(node, "phyclk");
 	const char *clk_name;
 	int ret;
 
@@ -462,8 +465,8 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 	/* optional override of the clockname */
 	of_property_read_string(node, "clock-output-names", &init.name);
 
-	if (rphy->clk) {
-		clk_name = __clk_get_name(rphy->clk);
+	if (!IS_ERR(refclk)) {
+		clk_name = __clk_get_name(refclk);
 		init.parent_names = &clk_name;
 		init.num_parents = 1;
 	} else {
@@ -2206,13 +2209,19 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	if (IS_ERR(rphy->phy_reset))
 		return PTR_ERR(rphy->phy_reset);
 
-	rphy->clk = of_clk_get_by_name(np, "phyclk");
-	if (!IS_ERR(rphy->clk)) {
-		clk_prepare_enable(rphy->clk);
-	} else {
-		dev_info(&pdev->dev, "no phyclk specified\n");
-		rphy->clk = NULL;
-	}
+	ret = devm_clk_bulk_get_all(dev, &rphy->clks);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	/* Clocks are optional */
+	if (ret < 0)
+		rphy->num_clks = 0;
+	else
+		rphy->num_clks = ret;
+
+	ret = clk_bulk_prepare_enable(rphy->num_clks, rphy->clks);
+	if (ret)
+		return ret;
 
 	if (rphy->phy_cfg->phy_tuning) {
 		ret = rphy->phy_cfg->phy_tuning(rphy);
@@ -2304,10 +2313,7 @@ put_child:
 disable_clks:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	if (rphy->clk) {
-		clk_disable_unprepare(rphy->clk);
-		clk_put(rphy->clk);
-	}
+	clk_bulk_disable_unprepare(rphy->num_clks, rphy->clks);
 	return ret;
 }
 
