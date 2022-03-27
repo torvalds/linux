@@ -661,14 +661,16 @@ static void queue_io(struct mapped_device *md, struct bio *bio)
  * function to access the md->map field, and make sure they call
  * dm_put_live_table() when finished.
  */
-struct dm_table *dm_get_live_table(struct mapped_device *md, int *srcu_idx) __acquires(md->io_barrier)
+struct dm_table *dm_get_live_table(struct mapped_device *md,
+				   int *srcu_idx) __acquires(md->io_barrier)
 {
 	*srcu_idx = srcu_read_lock(&md->io_barrier);
 
 	return srcu_dereference(md->map, &md->io_barrier);
 }
 
-void dm_put_live_table(struct mapped_device *md, int srcu_idx) __releases(md->io_barrier)
+void dm_put_live_table(struct mapped_device *md,
+		       int srcu_idx) __releases(md->io_barrier)
 {
 	srcu_read_unlock(&md->io_barrier, srcu_idx);
 }
@@ -692,6 +694,24 @@ static struct dm_table *dm_get_live_table_fast(struct mapped_device *md) __acqui
 static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 {
 	rcu_read_unlock();
+}
+
+static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
+						     int *srcu_idx, struct bio *bio)
+{
+	if (bio->bi_opf & REQ_NOWAIT)
+		return dm_get_live_table_fast(md);
+	else
+		return dm_get_live_table(md, srcu_idx);
+}
+
+static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
+					 struct bio *bio)
+{
+	if (bio->bi_opf & REQ_NOWAIT)
+		dm_put_live_table_fast(md);
+	else
+		dm_put_live_table(md, srcu_idx);
 }
 
 static char *_dm_claim_ptr = "I belong to device-mapper";
@@ -1612,7 +1632,7 @@ static void dm_submit_bio(struct bio *bio)
 	int srcu_idx;
 	struct dm_table *map;
 
-	map = dm_get_live_table(md, &srcu_idx);
+	map = dm_get_live_table_bio(md, &srcu_idx, bio);
 
 	/* If suspended, or map not yet available, queue this IO for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
@@ -1635,7 +1655,7 @@ static void dm_submit_bio(struct bio *bio)
 
 	dm_split_and_process_bio(md, map, bio);
 out:
-	dm_put_live_table(md, srcu_idx);
+	dm_put_live_table_bio(md, srcu_idx, bio);
 }
 
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,
