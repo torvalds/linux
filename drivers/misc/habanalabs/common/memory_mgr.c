@@ -48,7 +48,7 @@ static void hl_mmap_mem_buf_release(struct kref *kref)
 		container_of(kref, struct hl_mmap_mem_buf, refcount);
 
 	spin_lock(&buf->mmg->lock);
-	idr_remove(&buf->mmg->handles, buf->handle);
+	idr_remove(&buf->mmg->handles, lower_32_bits(buf->handle >> PAGE_SHIFT));
 	spin_unlock(&buf->mmg->lock);
 
 	if (buf->ops->release)
