@@ -438,7 +438,6 @@ static const struct csi2dphy_reg rk3588_csi2dcphy_regs[] = {
 
 static const struct grf_reg rv1106_grf_dphy_regs[] = {
 	[GRF_DPHY_CSI2PHY_FORCERXMODE] = GRF_REG(GRF_VI_CSIPHY_CON5, 4, 0),
-	[GRF_DPHY_CSI2PHY_DATALANE_EN] = GRF_REG(GRF_VI_CSIPHY_CON5, 4, 4),
 	[GRF_DPHY_CSI2PHY_CLKLANE_EN] = GRF_REG(GRF_VI_CSIPHY_CON5, 1, 8),
 	[GRF_DPHY_CSI2PHY_DATALANE_EN] = GRF_REG(GRF_VI_CSIPHY_CON5, 4, 4),
 	[GRF_DPHY_CSI2PHY_DATALANE_EN0] = GRF_REG(GRF_VI_CSIPHY_CON5, 2, 4),
@@ -819,7 +818,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			} else {
 				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x4);
 				lvds_width = get_lvds_data_width(sensor->format.code);
-				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_LVDS_MODEL, (lvds_width << 4) | 0X01);
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH0_LVDS_MODEL, (lvds_width << 4) | 0X0f);
 			}
 		} else {
 			if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
@@ -827,7 +826,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			} else {
 				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x4);
 				lvds_width = get_lvds_data_width(sensor->format.code);
-				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_LVDS_MODEL, (lvds_width << 4) | 0X01);
+				write_csi2_dphy_reg(hw, CSI2PHY_PATH1_LVDS_MODEL, (lvds_width << 4) | 0X0f);
 			}
 		}
 		if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {

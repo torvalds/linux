@@ -315,7 +315,7 @@ static int csi2_dphy_get_set_fmt(struct v4l2_subdev *sd,
 	if (!sensor_sd)
 		return -ENODEV;
 	ret = v4l2_subdev_call(sensor_sd, pad, get_fmt, NULL, fmt);
-	if (!ret && fmt->pad == 0)
+	if (!ret && fmt->pad == 0 && fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		sensor->format = fmt->format;
 	return ret;
 }
@@ -439,6 +439,9 @@ static int rockchip_csi2_dphy_fwnode_parse(struct device *dev,
 		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = vep->bus.mipi_csi2.flags;
 		s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
+	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
+		config->type = V4L2_MBUS_CCP2;
+		s_asd->lanes = vep->bus.mipi_csi1.data_lane;
 	} else {
 		dev_err(dev, "Only CSI2 type is currently supported\n");
 		return -EINVAL;
