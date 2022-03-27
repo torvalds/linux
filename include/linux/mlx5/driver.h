@@ -632,6 +632,7 @@ enum mlx5_device_state {
 
 enum mlx5_interface_state {
 	MLX5_INTERFACE_STATE_UP = BIT(0),
+	MLX5_BREAK_FW_WAIT = BIT(1),
 };
 
 enum mlx5_pci_status {
