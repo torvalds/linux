@@ -306,6 +306,7 @@ intel_pt_info_priv_size(struct auxtrace_record *itr, struct evlist *evlist)
 
 	ptr->priv_size = (INTEL_PT_AUXTRACE_PRIV_MAX * sizeof(u64)) +
 			 intel_pt_filter_bytes(filter);
+	ptr->priv_size += sizeof(u64); /* Cap Event Trace */
 
 	return ptr->priv_size;
 }
@@ -335,6 +336,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	unsigned long max_non_turbo_ratio;
 	size_t filter_str_len;
 	const char *filter;
+	int event_trace;
 	__u64 *info;
 	int err;
 
@@ -357,6 +359,9 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	if (perf_pmu__scan_file(intel_pt_pmu, "max_nonturbo_ratio",
 				"%lu", &max_non_turbo_ratio) != 1)
 		max_non_turbo_ratio = 0;
+	if (perf_pmu__scan_file(intel_pt_pmu, "caps/event_trace",
+				"%d", &event_trace) != 1)
+		event_trace = 0;
 
 	filter = intel_pt_find_filter(session->evlist, ptr->intel_pt_pmu);
 	filter_str_len = filter ? strlen(filter) : 0;
@@ -406,6 +411,8 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 		strncpy((char *)info, filter, len);
 		info += len >> 3;
 	}
+
+	*info++ = event_trace;
 
 	return 0;
 }

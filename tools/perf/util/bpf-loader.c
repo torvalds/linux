@@ -26,6 +26,8 @@
 #include "util.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
+#include "hashmap.h"
+#include "asm/bug.h"
 
 #include <internal/xyarray.h>
 
@@ -49,7 +51,53 @@ struct bpf_prog_priv {
 	int *type_mapping;
 };
 
+struct bpf_perf_object {
+	struct list_head list;
+	struct bpf_object *obj;
+};
+
+static LIST_HEAD(bpf_objects_list);
+static struct hashmap *bpf_program_hash;
+static struct hashmap *bpf_map_hash;
+
+static struct bpf_perf_object *
+bpf_perf_object__next(struct bpf_perf_object *prev)
+{
+	struct bpf_perf_object *next;
+
+	if (!prev)
+		next = list_first_entry(&bpf_objects_list,
+					struct bpf_perf_object,
+					list);
+	else
+		next = list_next_entry(prev, list);
+
+	/* Empty list is noticed here so don't need checking on entry. */
+	if (&next->list == &bpf_objects_list)
+		return NULL;
+
+	return next;
+}
+
+#define bpf_perf_object__for_each(perf_obj, tmp)	\
+	for ((perf_obj) = bpf_perf_object__next(NULL),	\
+	     (tmp) = bpf_perf_object__next(perf_obj);	\
+	     (perf_obj) != NULL;			\
+	     (perf_obj) = (tmp), (tmp) = bpf_perf_object__next(tmp))
+
 static bool libbpf_initialized;
+
+static int bpf_perf_object__add(struct bpf_object *obj)
+{
+	struct bpf_perf_object *perf_obj = zalloc(sizeof(*perf_obj));
+
+	if (perf_obj) {
+		INIT_LIST_HEAD(&perf_obj->list);
+		perf_obj->obj = obj;
+		list_add_tail(&perf_obj->list, &bpf_objects_list);
+	}
+	return perf_obj ? 0 : -ENOMEM;
+}
 
 struct bpf_object *
 bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
@@ -68,7 +116,19 @@ bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (bpf_perf_object__add(obj)) {
+		bpf_object__close(obj);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	return obj;
+}
+
+static void bpf_perf_object__close(struct bpf_perf_object *perf_obj)
+{
+	list_del(&perf_obj->list);
+	bpf_object__close(perf_obj->obj);
+	free(perf_obj);
 }
 
 struct bpf_object *bpf__prepare_load(const char *filename, bool source)
@@ -102,29 +162,25 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 			llvm__dump_obj(filename, obj_buf, obj_buf_sz);
 
 		free(obj_buf);
-	} else
+	} else {
 		obj = bpf_object__open(filename);
+	}
 
 	if (IS_ERR_OR_NULL(obj)) {
 		pr_debug("bpf: failed to load %s\n", filename);
 		return obj;
 	}
 
+	if (bpf_perf_object__add(obj)) {
+		bpf_object__close(obj);
+		return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
+	}
+
 	return obj;
 }
 
-void bpf__clear(void)
-{
-	struct bpf_object *obj, *tmp;
-
-	bpf_object__for_each_safe(obj, tmp) {
-		bpf__unprobe(obj);
-		bpf_object__close(obj);
-	}
-}
-
 static void
-clear_prog_priv(struct bpf_program *prog __maybe_unused,
+clear_prog_priv(const struct bpf_program *prog __maybe_unused,
 		void *_priv)
 {
 	struct bpf_prog_priv *priv = _priv;
@@ -135,6 +191,83 @@ clear_prog_priv(struct bpf_program *prog __maybe_unused,
 	zfree(&priv->sys_name);
 	zfree(&priv->evt_name);
 	free(priv);
+}
+
+static void bpf_program_hash_free(void)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	if (IS_ERR_OR_NULL(bpf_program_hash))
+		return;
+
+	hashmap__for_each_entry(bpf_program_hash, cur, bkt)
+		clear_prog_priv(cur->key, cur->value);
+
+	hashmap__free(bpf_program_hash);
+	bpf_program_hash = NULL;
+}
+
+static void bpf_map_hash_free(void);
+
+void bpf__clear(void)
+{
+	struct bpf_perf_object *perf_obj, *tmp;
+
+	bpf_perf_object__for_each(perf_obj, tmp) {
+		bpf__unprobe(perf_obj->obj);
+		bpf_perf_object__close(perf_obj);
+	}
+
+	bpf_program_hash_free();
+	bpf_map_hash_free();
+}
+
+static size_t ptr_hash(const void *__key, void *ctx __maybe_unused)
+{
+	return (size_t) __key;
+}
+
+static bool ptr_equal(const void *key1, const void *key2,
+			  void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
+
+static void *program_priv(const struct bpf_program *prog)
+{
+	void *priv;
+
+	if (IS_ERR_OR_NULL(bpf_program_hash))
+		return NULL;
+	if (!hashmap__find(bpf_program_hash, prog, &priv))
+		return NULL;
+	return priv;
+}
+
+static int program_set_priv(struct bpf_program *prog, void *priv)
+{
+	void *old_priv;
+
+	/*
+	 * Should not happen, we warn about it in the
+	 * caller function - config_bpf_program
+	 */
+	if (IS_ERR(bpf_program_hash))
+		return PTR_ERR(bpf_program_hash);
+
+	if (!bpf_program_hash) {
+		bpf_program_hash = hashmap__new(ptr_hash, ptr_equal, NULL);
+		if (IS_ERR(bpf_program_hash))
+			return PTR_ERR(bpf_program_hash);
+	}
+
+	old_priv = program_priv(prog);
+	if (old_priv) {
+		clear_prog_priv(prog, old_priv);
+		return hashmap__set(bpf_program_hash, prog, priv, NULL, NULL);
+	}
+	return hashmap__add(bpf_program_hash, prog, priv);
 }
 
 static int
@@ -378,7 +511,7 @@ config_bpf_program(struct bpf_program *prog)
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
 set_priv:
-	err = bpf_program__set_priv(prog, priv, clear_prog_priv);
+	err = program_set_priv(prog, priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
 		goto errout;
@@ -419,7 +552,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 		     struct bpf_insn *orig_insns, int orig_insns_cnt,
 		     struct bpf_prog_prep_result *res)
 {
-	struct bpf_prog_priv *priv = bpf_program__priv(prog);
+	struct bpf_prog_priv *priv = program_priv(prog);
 	struct probe_trace_event *tev;
 	struct perf_probe_event *pev;
 	struct bpf_insn *buf;
@@ -570,7 +703,7 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 static int hook_load_preprocessor(struct bpf_program *prog)
 {
-	struct bpf_prog_priv *priv = bpf_program__priv(prog);
+	struct bpf_prog_priv *priv = program_priv(prog);
 	struct perf_probe_event *pev;
 	bool need_prologue = false;
 	int err, i;
@@ -646,7 +779,7 @@ int bpf__probe(struct bpf_object *obj)
 		if (err)
 			goto out;
 
-		priv = bpf_program__priv(prog);
+		priv = program_priv(prog);
 		if (IS_ERR_OR_NULL(priv)) {
 			if (!priv)
 				err = -BPF_LOADER_ERRNO__INTERNAL;
@@ -698,7 +831,7 @@ int bpf__unprobe(struct bpf_object *obj)
 	struct bpf_program *prog;
 
 	bpf_object__for_each_program(prog, obj) {
-		struct bpf_prog_priv *priv = bpf_program__priv(prog);
+		struct bpf_prog_priv *priv = program_priv(prog);
 		int i;
 
 		if (IS_ERR_OR_NULL(priv) || priv->is_tp)
@@ -754,7 +887,7 @@ int bpf__foreach_event(struct bpf_object *obj,
 	int err;
 
 	bpf_object__for_each_program(prog, obj) {
-		struct bpf_prog_priv *priv = bpf_program__priv(prog);
+		struct bpf_prog_priv *priv = program_priv(prog);
 		struct probe_trace_event *tev;
 		struct perf_probe_event *pev;
 		int i, fd;
@@ -850,13 +983,60 @@ bpf_map_priv__purge(struct bpf_map_priv *priv)
 }
 
 static void
-bpf_map_priv__clear(struct bpf_map *map __maybe_unused,
+bpf_map_priv__clear(const struct bpf_map *map __maybe_unused,
 		    void *_priv)
 {
 	struct bpf_map_priv *priv = _priv;
 
 	bpf_map_priv__purge(priv);
 	free(priv);
+}
+
+static void *map_priv(const struct bpf_map *map)
+{
+	void *priv;
+
+	if (IS_ERR_OR_NULL(bpf_map_hash))
+		return NULL;
+	if (!hashmap__find(bpf_map_hash, map, &priv))
+		return NULL;
+	return priv;
+}
+
+static void bpf_map_hash_free(void)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	if (IS_ERR_OR_NULL(bpf_map_hash))
+		return;
+
+	hashmap__for_each_entry(bpf_map_hash, cur, bkt)
+		bpf_map_priv__clear(cur->key, cur->value);
+
+	hashmap__free(bpf_map_hash);
+	bpf_map_hash = NULL;
+}
+
+static int map_set_priv(struct bpf_map *map, void *priv)
+{
+	void *old_priv;
+
+	if (WARN_ON_ONCE(IS_ERR(bpf_map_hash)))
+		return PTR_ERR(bpf_program_hash);
+
+	if (!bpf_map_hash) {
+		bpf_map_hash = hashmap__new(ptr_hash, ptr_equal, NULL);
+		if (IS_ERR(bpf_map_hash))
+			return PTR_ERR(bpf_map_hash);
+	}
+
+	old_priv = map_priv(map);
+	if (old_priv) {
+		bpf_map_priv__clear(map, old_priv);
+		return hashmap__set(bpf_map_hash, map, priv, NULL, NULL);
+	}
+	return hashmap__add(bpf_map_hash, map, priv);
 }
 
 static int
@@ -958,7 +1138,7 @@ static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
 	const char *map_name = bpf_map__name(map);
-	struct bpf_map_priv *priv = bpf_map__priv(map);
+	struct bpf_map_priv *priv = map_priv(map);
 
 	if (IS_ERR(priv)) {
 		pr_debug("Failed to get private from map %s\n", map_name);
@@ -973,7 +1153,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 		}
 		INIT_LIST_HEAD(&priv->ops_list);
 
-		if (bpf_map__set_priv(map, priv, bpf_map_priv__clear)) {
+		if (map_set_priv(map, priv)) {
 			free(priv);
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
@@ -1305,7 +1485,7 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 	int err, map_fd, type;
 	struct bpf_map_op *op;
 	const char *name = bpf_map__name(map);
-	struct bpf_map_priv *priv = bpf_map__priv(map);
+	struct bpf_map_priv *priv = map_priv(map);
 
 	if (IS_ERR(priv)) {
 		pr_debug("ERROR: failed to get private from map %s\n", name);
@@ -1494,11 +1674,11 @@ apply_obj_config_object(struct bpf_object *obj)
 
 int bpf__apply_obj_config(void)
 {
-	struct bpf_object *obj, *tmp;
+	struct bpf_perf_object *perf_obj, *tmp;
 	int err;
 
-	bpf_object__for_each_safe(obj, tmp) {
-		err = apply_obj_config_object(obj);
+	bpf_perf_object__for_each(perf_obj, tmp) {
+		err = apply_obj_config_object(perf_obj->obj);
 		if (err)
 			return err;
 	}
@@ -1506,27 +1686,25 @@ int bpf__apply_obj_config(void)
 	return 0;
 }
 
-#define bpf__for_each_map(pos, obj, objtmp)	\
-	bpf_object__for_each_safe(obj, objtmp)	\
-		bpf_object__for_each_map(pos, obj)
+#define bpf__perf_for_each_map(map, pobj, tmp)			\
+	bpf_perf_object__for_each(pobj, tmp)			\
+		bpf_object__for_each_map(map, pobj->obj)
 
-#define bpf__for_each_map_named(pos, obj, objtmp, name)	\
-	bpf__for_each_map(pos, obj, objtmp) 		\
-		if (bpf_map__name(pos) && 		\
-			(strcmp(name, 			\
-				bpf_map__name(pos)) == 0))
+#define bpf__perf_for_each_map_named(map, pobj, pobjtmp, name)	\
+	bpf__perf_for_each_map(map, pobj, pobjtmp)		\
+		if (bpf_map__name(map) && (strcmp(name, bpf_map__name(map)) == 0))
 
 struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 {
 	struct bpf_map_priv *tmpl_priv = NULL;
-	struct bpf_object *obj, *tmp;
+	struct bpf_perf_object *perf_obj, *tmp;
 	struct evsel *evsel = NULL;
 	struct bpf_map *map;
 	int err;
 	bool need_init = false;
 
-	bpf__for_each_map_named(map, obj, tmp, name) {
-		struct bpf_map_priv *priv = bpf_map__priv(map);
+	bpf__perf_for_each_map_named(map, perf_obj, tmp, name) {
+		struct bpf_map_priv *priv = map_priv(map);
 
 		if (IS_ERR(priv))
 			return ERR_PTR(-BPF_LOADER_ERRNO__INTERNAL);
@@ -1561,8 +1739,8 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 		evsel = evlist__last(evlist);
 	}
 
-	bpf__for_each_map_named(map, obj, tmp, name) {
-		struct bpf_map_priv *priv = bpf_map__priv(map);
+	bpf__perf_for_each_map_named(map, perf_obj, tmp, name) {
+		struct bpf_map_priv *priv = map_priv(map);
 
 		if (IS_ERR(priv))
 			return ERR_PTR(-BPF_LOADER_ERRNO__INTERNAL);
@@ -1574,7 +1752,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 			if (!priv)
 				return ERR_PTR(-ENOMEM);
 
-			err = bpf_map__set_priv(map, priv, bpf_map_priv__clear);
+			err = map_set_priv(map, priv);
 			if (err) {
 				bpf_map_priv__clear(map, priv);
 				return ERR_PTR(err);
