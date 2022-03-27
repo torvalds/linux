@@ -245,7 +245,7 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			tcon->need_reconnect = true;
-			tcon->tidStatus = CifsNeedReconnect;
+			tcon->status = TID_NEED_RECON;
 		}
 		if (ses->tcon_ipc)
 			ses->tcon_ipc->need_reconnect = true;
@@ -2207,7 +2207,7 @@ get_ses_fail:
 
 static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
-	if (tcon->tidStatus == CifsExiting)
+	if (tcon->status == TID_EXITING)
 		return 0;
 	if (strncmp(tcon->treeName, ctx->UNC, MAX_TREE_SIZE))
 		return 0;
@@ -4486,12 +4486,12 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->ses->status != CifsGood ||
-	    (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon)) {
+	    (tcon->status != TID_NEW &&
+	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
-	tcon->tidStatus = CifsInTcon;
+	tcon->status = TID_IN_TCON;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
@@ -4532,13 +4532,13 @@ out:
 
 	if (rc) {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsNeedTcon;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_NEED_TCON;
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsGood;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_GOOD;
 		spin_unlock(&cifs_tcp_ses_lock);
 		tcon->need_reconnect = false;
 	}
@@ -4554,24 +4554,24 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->ses->status != CifsGood ||
-	    (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon)) {
+	    (tcon->status != TID_NEW &&
+	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
-	tcon->tidStatus = CifsInTcon;
+	tcon->status = TID_IN_TCON;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	rc = ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
 	if (rc) {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsNeedTcon;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_NEED_TCON;
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsGood;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_GOOD;
 		spin_unlock(&cifs_tcp_ses_lock);
 		tcon->need_reconnect = false;
 	}

@@ -115,10 +115,18 @@ enum statusEnum {
 	CifsInNegotiate,
 	CifsNeedSessSetup,
 	CifsInSessSetup,
-	CifsNeedTcon,
-	CifsInTcon,
-	CifsNeedFilesInvalidate,
-	CifsInFilesInvalidate
+};
+
+/* associated with each tree connection to the server */
+enum tid_status_enum {
+	TID_NEW = 0,
+	TID_GOOD,
+	TID_EXITING,
+	TID_NEED_RECON,
+	TID_NEED_TCON,
+	TID_IN_TCON,
+	TID_NEED_FILES_INVALIDATE, /* currently unused */
+	TID_IN_FILES_INVALIDATE
 };
 
 enum securityEnum {
@@ -1032,7 +1040,7 @@ struct cifs_tcon {
 	char *password;		/* for share-level security */
 	__u32 tid;		/* The 4 byte tree id */
 	__u16 Flags;		/* optional support bits */
-	enum statusEnum tidStatus;
+	enum tid_status_enum status;
 	atomic_t num_smbs_sent;
 	union {
 		struct {

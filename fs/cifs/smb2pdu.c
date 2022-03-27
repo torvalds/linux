@@ -163,7 +163,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		return 0;
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->tidStatus == CifsExiting) {
+	if (tcon->status == TID_EXITING) {
 		/*
 		 * only tree disconnect, open, and write,
 		 * (and ulogoff which does not have tcon)
@@ -3860,7 +3860,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		goto done;
 	}
 
-	tcon->tidStatus = CifsGood;
+	tcon->status = TID_GOOD;
 	tcon->retry = false;
 	tcon->need_reconnect = false;
 
