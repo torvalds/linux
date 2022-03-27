@@ -26,7 +26,7 @@
 #include "common.h"
 #include "rkcif-externel.h"
 
-#define CIF_REQ_BUFS_MIN	3
+#define CIF_REQ_BUFS_MIN	1
 #define CIF_MIN_WIDTH		64
 #define CIF_MIN_HEIGHT		64
 #define CIF_MAX_WIDTH		8192
@@ -2429,10 +2429,8 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				 CSI_DMA_END_INTSTAT(channel->id) |
 				 CSI_LINE_INTSTAT_V1(channel->id)));
 
-	/* enable id0 frame start int for sof(long frame, for hdr) */
-	if (channel->id == RKCIF_STREAM_MIPI_ID0)
-		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
-					CSI_START_INTEN(channel->id));
+	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
+				CSI_START_INTEN(channel->id));
 
 	if (priv && priv->toisp_inf.link_mode == TOISP_NONE && detect_stream->is_line_wake_up) {
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
@@ -2553,50 +2551,11 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 	if (stream->state < RKCIF_STATE_STREAMING)
 		stream->frame_idx = 0;
 
-	if (mbus_type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus_type == V4L2_MBUS_CSI2_CPHY) {
-		rkcif_csi_get_vc_num(dev, flags);
+	rkcif_csi_get_vc_num(dev, flags);
 
-		channel = &dev->channels[stream->id];
-		channel->id = stream->id;
-		rkcif_csi_channel_init(stream, channel);
-		if (stream->state != RKCIF_STATE_STREAMING) {
-			if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE) {
-				stream->dma_en |= RKCIF_DMAEN_BY_VICAP;
-			} else if ((mode & RKCIF_STREAM_MODE_TOISP) == RKCIF_STREAM_MODE_TOISP) {
-				if (dev->hdr.hdr_mode == HDR_X2 &&
-				    stream->id == 0)
-					stream->dma_en |= RKCIF_DMAEN_BY_ISP;
-				else if (dev->hdr.hdr_mode == HDR_X3 && (stream->id == 0 || stream->id == 1))
-					stream->dma_en |= RKCIF_DMAEN_BY_ISP;
-			}
-			if (stream->cifdev->chip_id < CHIP_RK3588_CIF)
-				rkcif_csi_channel_set(stream, channel, mbus_type);
-			else
-				rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode);
-		} else {
-			if (stream->cifdev->chip_id >= CHIP_RK3588_CIF) {
-				if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE &&
-				    (!stream->dma_en)) {
-					stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
-				} else if ((mode & RKCIF_STREAM_MODE_TOISP) == RKCIF_STREAM_MODE_TOISP) {
-					if (dev->hdr.hdr_mode == HDR_X2 &&
-					    stream->id == 0 &&
-					    (!stream->dma_en))
-						stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
-					else if (dev->hdr.hdr_mode == HDR_X3 &&
-						 (stream->id == 0 || stream->id == 1) &&
-						 (!stream->dma_en))
-						stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
-				}
-			}
-		}
-	} else if (mbus_type == V4L2_MBUS_CCP2) {
-		rkcif_csi_get_vc_num(dev, flags);
-
-		channel = &dev->channels[stream->id];
-		channel->id = stream->id;
-
+	channel = &dev->channels[stream->id];
+	channel->id = stream->id;
+	if (mbus_type == V4L2_MBUS_CCP2) {
 		ret = v4l2_subdev_call(dev->terminal_sensor.sd, core,
 				       ioctl, RKMODULE_GET_LVDS_CFG,
 				       &channel->lvds_cfg);
@@ -2604,9 +2563,38 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 			v4l2_err(&dev->v4l2_dev, "Err: get lvds config failed!!\n");
 			return ret;
 		}
-
-		rkcif_csi_channel_init(stream, channel);
-		rkcif_csi_channel_set(stream, channel, V4L2_MBUS_CCP2);
+	}
+	rkcif_csi_channel_init(stream, channel);
+	if (stream->state != RKCIF_STATE_STREAMING) {
+		if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE) {
+			stream->dma_en |= RKCIF_DMAEN_BY_VICAP;
+		} else if ((mode & RKCIF_STREAM_MODE_TOISP) == RKCIF_STREAM_MODE_TOISP) {
+			if (dev->hdr.hdr_mode == HDR_X2 &&
+			    stream->id == 0)
+				stream->dma_en |= RKCIF_DMAEN_BY_ISP;
+			else if (dev->hdr.hdr_mode == HDR_X3 && (stream->id == 0 || stream->id == 1))
+				stream->dma_en |= RKCIF_DMAEN_BY_ISP;
+		}
+		if (stream->cifdev->chip_id < CHIP_RK3588_CIF)
+			rkcif_csi_channel_set(stream, channel, mbus_type);
+		else
+			rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode);
+	} else {
+		if (stream->cifdev->chip_id >= CHIP_RK3588_CIF) {
+			if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE &&
+			    (!stream->dma_en)) {
+				stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
+			} else if ((mode & RKCIF_STREAM_MODE_TOISP) == RKCIF_STREAM_MODE_TOISP) {
+				if (dev->hdr.hdr_mode == HDR_X2 &&
+				    stream->id == 0 &&
+				    (!stream->dma_en))
+					stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
+				else if (dev->hdr.hdr_mode == HDR_X3 &&
+					 (stream->id == 0 || stream->id == 1) &&
+					 (!stream->dma_en))
+					stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
+			}
+		}
 	}
 	if (stream->state != RKCIF_STATE_STREAMING) {
 		stream->line_int_cnt = 0;
@@ -3571,7 +3559,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct v4l2_rect input, *crop;
 
-	stream->cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
+	stream->cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
 					   &input, stream->id, &dev->channels[stream->id]);
 	if (!stream->cif_fmt_in) {
 		v4l2_err(v4l2_dev, "Input fmt is invalid\n");
@@ -5481,6 +5469,7 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	struct rkcif_lvds_subdev *lvds_subdev = &dev->lvds_subdev;
 	struct v4l2_subdev *sd;
 	int ret;
+	int pad_num = 4;
 
 	memset(lvds_subdev, 0, sizeof(*lvds_subdev));
 	lvds_subdev->cifdev = dev;
@@ -5489,7 +5478,7 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	v4l2_subdev_init(sd, &rkcif_lvds_sd_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.ops = &rkcif_lvds_sd_media_ops;
-	if (dev->chip_id == CHIP_RV1126_CIF)
+	if (dev->chip_id != CHIP_RV1126_CIF_LITE)
 		snprintf(sd->name, sizeof(sd->name), "rkcif-lvds-subdev");
 	else
 		snprintf(sd->name, sizeof(sd->name), "rkcif-lite-lvds-subdev");
@@ -5500,6 +5489,13 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID1].flags = MEDIA_PAD_FL_SOURCE;
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID2].flags = MEDIA_PAD_FL_SOURCE;
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID3].flags = MEDIA_PAD_FL_SOURCE;
+	if (dev->chip_id == CHIP_RV1106_CIF) {
+		lvds_subdev->pads[RKCIF_LVDS_PAD_SCL_ID0].flags = MEDIA_PAD_FL_SOURCE;
+		lvds_subdev->pads[RKCIF_LVDS_PAD_SCL_ID1].flags = MEDIA_PAD_FL_SOURCE;
+		lvds_subdev->pads[RKCIF_LVDS_PAD_SCL_ID2].flags = MEDIA_PAD_FL_SOURCE;
+		lvds_subdev->pads[RKCIF_LVDS_PAD_SCL_ID3].flags = MEDIA_PAD_FL_SOURCE;
+		pad_num = RKCIF_LVDS_PAD_MAX;
+	}
 
 	lvds_subdev->in_fmt.width = RKCIF_DEFAULT_WIDTH;
 	lvds_subdev->in_fmt.height = RKCIF_DEFAULT_HEIGHT;
@@ -5508,7 +5504,7 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	lvds_subdev->crop.width = RKCIF_DEFAULT_WIDTH;
 	lvds_subdev->crop.height = RKCIF_DEFAULT_HEIGHT;
 
-	ret = media_entity_pads_init(&sd->entity, RKCIF_LVDS_PAD_MAX,
+	ret = media_entity_pads_init(&sd->entity, pad_num,
 				     lvds_subdev->pads);
 	if (ret < 0)
 		return ret;
