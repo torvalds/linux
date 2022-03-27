@@ -35,6 +35,11 @@
 				remote-endpoint = <&sc4336_out>;
 				data-lanes = <1 2>;
 			};
+			csi_dphy_input3: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&os04a10_out>;
+				data-lanes = <1 2>;
+			};
 		};
 
 		port@1 {
@@ -117,6 +122,28 @@
 		port {
 			sc4336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input2>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	os04a10: os04a10@36 {
+		compatible = "ovti,os04a10";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <3>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "408b170b9d8a";
+		rockchip,camera-module-lens-name = "40IRC-F10";
+		port {
+			os04a10_out: endpoint {
+				remote-endpoint = <&csi_dphy_input3>;
 				data-lanes = <1 2>;
 			};
 		};
