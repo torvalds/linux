@@ -733,6 +733,7 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 		{ 0x130A, 0x00 },
 		{ 0x130F, 0x00 },
 	};
+	int fsv_old, fsv_new;
 
 	/* Bring CS42L42 out of Reset */
 	gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
@@ -749,8 +750,13 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 	/* Clear interrupts, by reading interrupt status registers */
 	cs8409_i2c_bulk_read(cs42l42, irq_regs, ARRAY_SIZE(irq_regs));
 
-	if (cs42l42->full_scale_vol)
-		cs8409_i2c_write(cs42l42, 0x2001, 0x01);
+	fsv_old = cs8409_i2c_read(cs42l42, 0x2001);
+	if (cs42l42->full_scale_vol == CS42L42_FULL_SCALE_VOL_0DB)
+		fsv_new = fsv_old & ~CS42L42_FULL_SCALE_VOL_MASK;
+	else
+		fsv_new = fsv_old & CS42L42_FULL_SCALE_VOL_MASK;
+	if (fsv_new != fsv_old)
+		cs8409_i2c_write(cs42l42, 0x2001, fsv_new);
 
 	/* we have to explicitly allow unsol event handling even during the
 	 * resume phase so that the jack event is processed properly
@@ -997,21 +1003,15 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		 * Additionally set HSBIAS_SENSE_EN and Full Scale volume for some variants.
 		 */
 		switch (codec->fixup_id) {
-		case CS8409_WARLOCK:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
-			break;
-		case CS8409_BULLSEYE:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 0;
-			break;
 		case CS8409_CYBORG:
 			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x00a0;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol =
+				CS42L42_FULL_SCALE_VOL_MINUS6DB;
 			break;
 		default:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0003;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
+			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol =
+				CS42L42_FULL_SCALE_VOL_MINUS6DB;
 			break;
 		}
 
@@ -1221,6 +1221,9 @@ void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int ac
 		cs8409_fix_caps(codec, DOLPHIN_HP_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_LO_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_AMIC_PIN_NID);
+
+		spec->scodecs[CS8409_CODEC0]->full_scale_vol = CS42L42_FULL_SCALE_VOL_MINUS6DB;
+		spec->scodecs[CS8409_CODEC1]->full_scale_vol = CS42L42_FULL_SCALE_VOL_MINUS6DB;
 
 		break;
 	case HDA_FIXUP_ACT_PROBE:
