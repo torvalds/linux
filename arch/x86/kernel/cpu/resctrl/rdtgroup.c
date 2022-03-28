@@ -3221,13 +3221,13 @@ static int __init rdtgroup_setup_root(void)
 
 	list_add(&rdtgroup_default.rdtgroup_list, &rdt_all_groups);
 
-	ret = rdtgroup_add_files(rdt_root->kn, RF_CTRL_BASE);
+	ret = rdtgroup_add_files(kernfs_root_to_node(rdt_root), RF_CTRL_BASE);
 	if (ret) {
 		kernfs_destroy_root(rdt_root);
 		goto out;
 	}
 
-	rdtgroup_default.kn = rdt_root->kn;
+	rdtgroup_default.kn = kernfs_root_to_node(rdt_root);
 	kernfs_activate(rdtgroup_default.kn);
 
 out:
