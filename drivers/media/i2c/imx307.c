@@ -1203,10 +1203,7 @@ static int imx307_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	val = 1 << (imx307->cur_mode->lanes - 1) |
 			V4L2_MBUS_CSI2_CHANNEL_0 |
 			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	if (imx307->bus_cfg.bus_type == 3)
-		config->type = V4L2_MBUS_CCP2;
-	else
-		config->type = V4L2_MBUS_CSI2_DPHY;
+	config->type = imx307->bus_cfg.bus_type;
 	config->flags = val;
 
 	return 0;
@@ -1259,7 +1256,7 @@ static int imx307_set_hdrae(struct imx307 *imx307,
 	}
 
 	//long exposure and short exposure
-	if (imx307->cur_mode->lanes == 2 && imx307->bus_cfg.bus_type == 3)
+	if (imx307->cur_mode->lanes == 2 && imx307->bus_cfg.bus_type == V4L2_MBUS_CCP2)
 		rhs1 = RHS1;
 	else
 		rhs1 = 0xe1;
@@ -1467,7 +1464,7 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_LVDS_CFG:
 		lvds_cfg = (struct rkmodule_lvds_cfg *)arg;
-		if (imx307->bus_cfg.bus_type == 3)
+		if (imx307->bus_cfg.bus_type == V4L2_MBUS_CCP2)
 			memcpy(lvds_cfg, &imx307->cur_mode->lvds_cfg,
 				sizeof(struct rkmodule_lvds_cfg));
 		else
@@ -1882,7 +1879,7 @@ static int imx307_get_selection(struct v4l2_subdev *sd,
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
 		sel->r.left = CROP_START(imx307->cur_mode->width, DST_WIDTH);
 		sel->r.width = DST_WIDTH;
-		if (imx307->bus_cfg.bus_type == 3) {
+		if (imx307->bus_cfg.bus_type == V4L2_MBUS_CCP2) {
 			if (imx307->cur_mode->hdr_mode == NO_HDR)
 				sel->r.top = 21;
 			else
@@ -1964,29 +1961,33 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		shs1 = imx307->cur_vts - (ctrl->val + 1);
-		ret = imx307_write_reg(imx307->client,
-			IMX307_REG_SHS1_H,
-			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_HIGH_BYTE_EXP(shs1));
-		ret |= imx307_write_reg(imx307->client,
-			IMX307_REG_SHS1_M,
-			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_MID_BYTE_EXP(shs1));
-		ret |= imx307_write_reg(imx307->client,
-			IMX307_REG_SHS1_L,
-			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_LOW_BYTE_EXP(shs1));
-		dev_dbg(&client->dev, "set exposure 0x%x, cur_vts 0x%x,shs1 0x%x\n",
-			ctrl->val, imx307->cur_vts, shs1);
+		if (imx307->cur_mode->hdr_mode == NO_HDR) {
+			shs1 = imx307->cur_vts - (ctrl->val + 1);
+			ret = imx307_write_reg(imx307->client,
+				IMX307_REG_SHS1_H,
+				IMX307_REG_VALUE_08BIT,
+				IMX307_FETCH_HIGH_BYTE_EXP(shs1));
+			ret |= imx307_write_reg(imx307->client,
+				IMX307_REG_SHS1_M,
+				IMX307_REG_VALUE_08BIT,
+				IMX307_FETCH_MID_BYTE_EXP(shs1));
+			ret |= imx307_write_reg(imx307->client,
+				IMX307_REG_SHS1_L,
+				IMX307_REG_VALUE_08BIT,
+				IMX307_FETCH_LOW_BYTE_EXP(shs1));
+			dev_dbg(&client->dev, "set exposure 0x%x, cur_vts 0x%x,shs1 0x%x\n",
+				ctrl->val, imx307->cur_vts, shs1);
+		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = imx307_write_reg(imx307->client,
-			IMX307_REG_LF_GAIN,
-			IMX307_REG_VALUE_08BIT,
-			ctrl->val);
-		dev_dbg(&client->dev, "set analog gain 0x%x\n",
-			ctrl->val);
+		if (imx307->cur_mode->hdr_mode == NO_HDR) {
+			ret = imx307_write_reg(imx307->client,
+				IMX307_REG_LF_GAIN,
+				IMX307_REG_VALUE_08BIT,
+				ctrl->val);
+			dev_dbg(&client->dev, "set analog gain 0x%x\n",
+				ctrl->val);
+		}
 		break;
 	case V4L2_CID_VBLANK:
 		vts = ctrl->val + imx307->cur_mode->height;
@@ -2214,7 +2215,7 @@ static int imx307_probe(struct i2c_client *client,
 		&imx307->bus_cfg);
 	if (ret)
 		dev_warn(dev, "could not get bus config!\n");
-	if (imx307->bus_cfg.bus_type == 3) {
+	if (imx307->bus_cfg.bus_type == V4L2_MBUS_CCP2) {
 		if (imx307->bus_cfg.bus.mipi_csi1.data_lane == 2) {
 			imx307->support_modes = lvds_2lane_supported_modes;
 			imx307->support_modes_num = ARRAY_SIZE(lvds_2lane_supported_modes);
