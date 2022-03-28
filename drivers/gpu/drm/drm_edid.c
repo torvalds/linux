@@ -2150,7 +2150,7 @@ static u32 edid_extract_panel_id(const struct edid *edid)
 
 u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 {
-	struct edid *edid;
+	const struct edid *edid;
 	u32 panel_id;
 
 	edid = drm_do_get_edid_base_block(NULL, drm_do_probe_ddc_edid, adapter);
@@ -3664,7 +3664,7 @@ static bool drm_valid_hdmi_vic(u8 vic)
 }
 
 static int
-add_alternate_cea_modes(struct drm_connector *connector, struct edid *edid)
+add_alternate_cea_modes(struct drm_connector *connector, const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode, *tmp;
@@ -4345,7 +4345,7 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 }
 
 static int
-add_cea_modes(struct drm_connector *connector, struct edid *edid)
+add_cea_modes(struct drm_connector *connector, const struct edid *edid)
 {
 	const u8 *cea = drm_find_cea_extension(edid);
 	const u8 *db, *hdmi = NULL, *video = NULL;
@@ -4551,7 +4551,7 @@ static int get_monitor_name(const struct edid *edid, char name[13])
  * @bufsize: The size of the name buffer (should be at least 14 chars.)
  *
  */
-void drm_edid_get_monitor_name(struct edid *edid, char *name, int bufsize)
+void drm_edid_get_monitor_name(const struct edid *edid, char *name, int bufsize)
 {
 	int name_length;
 	char buf[13];
@@ -4585,7 +4585,8 @@ static void clear_eld(struct drm_connector *connector)
  * Fill the ELD (EDID-Like Data) buffer for passing to the audio driver. The
  * HDCP and Port_ID ELD fields are left for the graphics driver to fill in.
  */
-static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
+static void drm_edid_to_eld(struct drm_connector *connector,
+			    const struct edid *edid)
 {
 	uint8_t *eld = connector->eld;
 	const u8 *cea;
@@ -4681,7 +4682,7 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
  *
  * Return: The number of found SADs or negative number on error.
  */
-int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
+int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads)
 {
 	int count = 0;
 	int i, start, end, dbl;
@@ -4743,7 +4744,7 @@ EXPORT_SYMBOL(drm_edid_to_sad);
  * Return: The number of found Speaker Allocation Blocks or negative number on
  * error.
  */
-int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb)
+int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb)
 {
 	int count = 0;
 	int i, start, end, dbl;
@@ -4838,7 +4839,7 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  *
  * Return: True if the monitor is HDMI, false if not or unknown.
  */
-bool drm_detect_hdmi_monitor(struct edid *edid)
+bool drm_detect_hdmi_monitor(const struct edid *edid)
 {
 	const u8 *edid_ext;
 	int i;
@@ -4876,7 +4877,7 @@ EXPORT_SYMBOL(drm_detect_hdmi_monitor);
  *
  * Return: True if the monitor supports audio, false otherwise.
  */
-bool drm_detect_monitor_audio(struct edid *edid)
+bool drm_detect_monitor_audio(const struct edid *edid)
 {
 	const u8 *edid_ext;
 	int i, j;
@@ -5538,7 +5539,7 @@ static int add_displayid_detailed_1_modes(struct drm_connector *connector,
 }
 
 static int add_displayid_detailed_modes(struct drm_connector *connector,
-					struct edid *edid)
+					const struct edid *edid)
 {
 	const struct displayid_block *block;
 	struct displayid_iter iter;
