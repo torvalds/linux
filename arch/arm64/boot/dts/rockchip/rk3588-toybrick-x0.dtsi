@@ -565,14 +565,15 @@
 };
 
 &pcie30phy {
-	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
+	rockchip,pcie30-phymode = <PHY_MODE_PCIE_NANBNB>;
 	status = "okay";
 };
 
 &pcie3x4 {
 	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
-	status = "disabled";
+	num-lanes=<2>;
+	status = "okay";
 };
 
 &pinctrl {
