@@ -526,7 +526,6 @@ static int mma9551_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int mma9551_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -558,9 +557,7 @@ static int mma9551_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int mma9551_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -586,12 +583,10 @@ static int mma9551_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops mma9551_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mma9551_suspend, mma9551_resume)
-	SET_RUNTIME_PM_OPS(mma9551_runtime_suspend,
-			   mma9551_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mma9551_suspend, mma9551_resume)
+	RUNTIME_PM_OPS(mma9551_runtime_suspend, mma9551_runtime_resume, NULL)
 };
 
 static const struct acpi_device_id mma9551_acpi_match[] = {
@@ -612,7 +607,7 @@ static struct i2c_driver mma9551_driver = {
 	.driver = {
 		   .name = MMA9551_DRV_NAME,
 		   .acpi_match_table = ACPI_PTR(mma9551_acpi_match),
-		   .pm = &mma9551_pm_ops,
+		   .pm = pm_ptr(&mma9551_pm_ops),
 		   },
 	.probe = mma9551_probe,
 	.remove = mma9551_remove,
@@ -625,3 +620,4 @@ MODULE_AUTHOR("Irina Tirdea <irina.tirdea@intel.com>");
 MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MMA9551L motion-sensing platform driver");
+MODULE_IMPORT_NS(IIO_MMA9551);

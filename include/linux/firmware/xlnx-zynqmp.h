@@ -144,6 +144,9 @@ enum pm_ioctl_id {
 	IOCTL_OSPI_MUX_SELECT = 21,
 	/* Register SGI to ATF */
 	IOCTL_REGISTER_SGI = 25,
+	/* Runtime feature configuration */
+	IOCTL_SET_FEATURE_CONFIG = 26,
+	IOCTL_GET_FEATURE_CONFIG = 27,
 };
 
 enum pm_query_id {
@@ -377,6 +380,14 @@ enum ospi_mux_select_type {
 	PM_OSPI_MUX_SEL_LINEAR = 1,
 };
 
+enum pm_feature_config_id {
+	PM_FEATURE_INVALID = 0,
+	PM_FEATURE_OVERTEMP_STATUS = 1,
+	PM_FEATURE_OVERTEMP_VALUE = 2,
+	PM_FEATURE_EXTWDT_STATUS = 3,
+	PM_FEATURE_EXTWDT_VALUE = 4,
+};
+
 /**
  * struct zynqmp_pm_query_data - PM query data
  * @qid:	query ID
@@ -449,6 +460,8 @@ int zynqmp_pm_load_pdi(const u32 src, const u64 address);
 int zynqmp_pm_register_notifier(const u32 node, const u32 event,
 				const u32 wake, const u32 enable);
 int zynqmp_pm_feature(const u32 api_id);
+int zynqmp_pm_set_feature_config(enum pm_feature_config_id id, u32 value);
+int zynqmp_pm_get_feature_config(enum pm_feature_config_id id, u32 *payload);
 #else
 static inline int zynqmp_pm_get_api_version(u32 *version)
 {
@@ -694,6 +707,18 @@ static inline int zynqmp_pm_register_notifier(const u32 node, const u32 event,
 }
 
 static inline int zynqmp_pm_feature(const u32 api_id)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_set_feature_config(enum pm_feature_config_id id,
+					       u32 value)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_get_feature_config(enum pm_feature_config_id id,
+					       u32 *payload)
 {
 	return -ENODEV;
 }

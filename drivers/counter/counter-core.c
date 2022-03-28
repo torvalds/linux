@@ -22,6 +22,8 @@
 #include "counter-chrdev.h"
 #include "counter-sysfs.h"
 
+#define COUNTER_NAME	"counter"
+
 /* Provides a unique ID for each counter device */
 static DEFINE_IDA(counter_ida);
 
@@ -113,8 +115,15 @@ struct counter_device *counter_alloc(size_t sizeof_priv)
 
 	device_initialize(dev);
 
+	err = dev_set_name(dev, COUNTER_NAME "%d", dev->id);
+	if (err)
+		goto err_dev_set_name;
+
 	return counter;
 
+err_dev_set_name:
+
+	counter_chrdev_remove(counter);
 err_chrdev_add:
 
 	ida_free(&counter_ida, dev->id);
@@ -247,7 +256,8 @@ static int __init counter_init(void)
 	if (err < 0)
 		return err;
 
-	err = alloc_chrdev_region(&counter_devt, 0, COUNTER_DEV_MAX, "counter");
+	err = alloc_chrdev_region(&counter_devt, 0, COUNTER_DEV_MAX,
+				  COUNTER_NAME);
 	if (err < 0)
 		goto err_unregister_bus;
 

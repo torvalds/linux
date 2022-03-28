@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+if (ARCH_MXC && ARM64) || COMPILE_TEST
+
 config PHY_FSL_IMX8MQ_USB
 	tristate "Freescale i.MX8M USB3 PHY"
 	depends on OF && HAS_IOMEM
@@ -32,3 +35,5 @@ config PHY_FSL_LYNX_28G
 	  found on NXP's Layerscape platforms such as LX2160A.
 	  Used to change the protocol running on SerDes lanes at runtime.
 	  Only useful for a restricted set of Ethernet protocols.
+
+endif

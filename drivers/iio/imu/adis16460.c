@@ -428,3 +428,4 @@ module_spi_driver(adis16460_driver);
 MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16460 IMU driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_ADISLIB);

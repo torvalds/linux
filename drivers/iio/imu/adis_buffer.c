@@ -20,7 +20,7 @@
 #include <linux/iio/imu/adis.h>
 
 static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
-	const unsigned long *scan_mask)
+				       const unsigned long *scan_mask)
 {
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
 	unsigned int burst_length, burst_max_length;
@@ -67,7 +67,7 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 }
 
 int adis_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *scan_mask)
+			  const unsigned long *scan_mask)
 {
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
 	const struct iio_chan_spec *chan;
@@ -124,7 +124,7 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(adis_update_scan_mode);
+EXPORT_SYMBOL_NS_GPL(adis_update_scan_mode, IIO_ADISLIB);
 
 static irqreturn_t adis_trigger_handler(int irq, void *p)
 {
@@ -158,7 +158,7 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
-		pf->timestamp);
+					   pf->timestamp);
 
 irq_done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -212,5 +212,5 @@ devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
 	return devm_add_action_or_reset(&adis->spi->dev, adis_buffer_cleanup,
 					adis);
 }
-EXPORT_SYMBOL_GPL(devm_adis_setup_buffer_and_trigger);
+EXPORT_SYMBOL_NS_GPL(devm_adis_setup_buffer_and_trigger, IIO_ADISLIB);
 

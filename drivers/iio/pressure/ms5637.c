@@ -252,3 +252,4 @@ MODULE_DESCRIPTION("Measurement-Specialties ms5637 temperature & pressure driver
 MODULE_AUTHOR("William Markezana <william.markezana@meas-spec.com>");
 MODULE_AUTHOR("Ludovic Tancerel <ludovic.tancerel@maplehightech.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_MEAS_SPEC_SENSORS);

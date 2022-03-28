@@ -780,6 +780,7 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @xbar_binning_mask: Xbar binning mask, 1 bit per Xbar instance
  *                     (0 = functional 1 = binned)
+ * @fw_os_version: Firmware OS Version
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -807,6 +808,7 @@ struct cpucp_info {
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
+	__u8 fw_os_version[VERSION_MAX_LEN];
 };
 
 struct cpucp_mac_addr {
