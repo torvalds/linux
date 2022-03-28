@@ -399,6 +399,8 @@ int pkvm_iommu_resume(struct device *dev);
 int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t pa);
 int pkvm_iommu_sysmmu_sync_register(struct device *dev, phys_addr_t pa,
 				    struct device *parent);
+/* Reject future calls to pkvm_iommu_driver_init() and pkvm_iommu_register(). */
+int pkvm_iommu_finalize(void);
 
 struct vcpu_reset_state {
 	unsigned long	pc;

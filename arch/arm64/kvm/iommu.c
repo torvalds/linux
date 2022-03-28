@@ -55,3 +55,9 @@ int pkvm_iommu_resume(struct device *dev)
 				 PKVM_IOMMU_PM_RESUME);
 }
 EXPORT_SYMBOL_GPL(pkvm_iommu_resume);
+
+int pkvm_iommu_finalize(void)
+{
+	return kvm_call_hyp_nvhe(__pkvm_iommu_finalize);
+}
+EXPORT_SYMBOL_GPL(pkvm_iommu_finalize);
