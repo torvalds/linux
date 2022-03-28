@@ -28,12 +28,12 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    highmem
    ksm
    frontswap
+   hwpoison
 
 TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
 * hmm
-* hwpoison
 * hugetlbfs_reserv
 * memory-model
 * mmu_notifier
