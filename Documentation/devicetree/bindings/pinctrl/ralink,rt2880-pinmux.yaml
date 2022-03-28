@@ -10,7 +10,7 @@ maintainers:
   - Sergio Paracuellos <sergio.paracuellos@gmail.com>
 
 description:
-  The rt2880 pinmux can only set the muxing of pin groups. muxing indiviual pins
+  The rt2880 pinmux can only set the muxing of pin groups. Muxing indiviual pins
   is not supported. There is no pinconf support.
 
 properties:
@@ -29,12 +29,13 @@ patternProperties:
         properties:
           groups:
             description: Name of the pin group to use for the functions.
-            enum: [i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2, mdio,
-                   pcie, sdhci]
+            enum: [i2c, jtag, mdio, pcie, rgmii1, rgmii2, sdhci, spi,
+                   uart1, uart2, uart3, wdt]
           function:
             description: The mux function to select
-            enum: [gpio, i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2,
-                   mdio, nand1, nand2, sdhci]
+            enum: [gpio, i2c, i2s, jtag, mdio, nand1, nand2, pcie refclk,
+                   pcie rst, pcm, rgmii1, rgmii2, sdhci, spdif2, spdif3,
+                   spi, uart1, uart2, uart3, wdt refclk, wdt rst]
 
         required:
           - groups
