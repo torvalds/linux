@@ -2438,61 +2438,78 @@ drm_monitor_supports_rb(struct edid *edid)
 }
 
 static void
-find_gtf2(struct detailed_timing *t, void *data)
+find_gtf2(struct detailed_timing *descriptor, void *data)
 {
-	u8 *r = (u8 *)t;
+	struct detailed_timing **res = data;
 
-	if (!is_display_descriptor(t, EDID_DETAIL_MONITOR_RANGE))
+	if (!is_display_descriptor(descriptor, EDID_DETAIL_MONITOR_RANGE))
 		return;
 
-	if (r[10] == 0x02)
-		*(u8 **)data = r;
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.flags) != 10);
+
+	if (descriptor->data.other_data.data.range.flags == 0x02)
+		*res = descriptor;
 }
 
 /* Secondary GTF curve kicks in above some break frequency */
 static int
 drm_gtf2_hbreak(struct edid *edid)
 {
-	u8 *r = NULL;
+	struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
-	return r ? (r[12] * 2) : 0;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.hfreq_start_khz) != 12);
+
+	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.hfreq_start_khz * 2 : 0;
 }
 
 static int
 drm_gtf2_2c(struct edid *edid)
 {
-	u8 *r = NULL;
+	struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
-	return r ? r[13] : 0;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.c) != 13);
+
+	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.c : 0;
 }
 
 static int
 drm_gtf2_m(struct edid *edid)
 {
-	u8 *r = NULL;
+	struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
-	return r ? (r[15] << 8) + r[14] : 0;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.m) != 14);
+
+	return descriptor ? le16_to_cpu(descriptor->data.other_data.data.range.formula.gtf2.m) : 0;
 }
 
 static int
 drm_gtf2_k(struct edid *edid)
 {
-	u8 *r = NULL;
+	struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
-	return r ? r[16] : 0;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.k) != 16);
+
+	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.k : 0;
 }
 
 static int
 drm_gtf2_2j(struct edid *edid)
 {
-	u8 *r = NULL;
+	struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
-	return r ? r[17] : 0;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.j) != 17);
+
+	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.j : 0;
 }
 
 /**
