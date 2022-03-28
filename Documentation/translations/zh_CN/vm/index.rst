@@ -31,6 +31,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    hwpoison
    memory-model
    mmu_notifier
+   overcommit-accounting
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -38,7 +39,6 @@ TODOLIST:
 * hmm
 * hugetlbfs_reserv
 * numa
-* overcommit-accounting
 * page_migration
 * page_frags
 * page_owner
