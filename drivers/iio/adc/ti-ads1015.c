@@ -80,6 +80,7 @@ enum chip_ids {
 	ADSXXXX = 0,
 	ADS1015,
 	ADS1115,
+	TLA2024,
 };
 
 enum ads1015_channels {
@@ -247,6 +248,22 @@ static const struct regmap_config ads1015_regmap_config = {
 	.wr_table = &ads1015_writeable_table,
 };
 
+static const struct regmap_range tla2024_writeable_ranges[] = {
+	regmap_reg_range(ADS1015_CFG_REG, ADS1015_CFG_REG),
+};
+
+static const struct regmap_access_table tla2024_writeable_table = {
+	.yes_ranges = tla2024_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(tla2024_writeable_ranges),
+};
+
+static const struct regmap_config tla2024_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.max_register = ADS1015_CFG_REG,
+	.wr_table = &tla2024_writeable_table,
+};
+
 static const struct iio_chan_spec ads1015_channels[] = {
 	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 12, 4,
 			    ads1015_events, ARRAY_SIZE(ads1015_events)),
@@ -286,6 +303,19 @@ static const struct iio_chan_spec ads1115_channels[] = {
 		       ads1015_events, ARRAY_SIZE(ads1015_events)),
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
+
+static const struct iio_chan_spec tla2024_channels[] = {
+	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 12, 4, NULL, 0),
+	ADS1015_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3, 12, 4, NULL, 0),
+	ADS1015_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3, 12, 4, NULL, 0),
+	ADS1015_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3, 12, 4, NULL, 0),
+	ADS1015_V_CHAN(0, ADS1015_AIN0, 12, 4, NULL, 0),
+	ADS1015_V_CHAN(1, ADS1015_AIN1, 12, 4, NULL, 0),
+	ADS1015_V_CHAN(2, ADS1015_AIN2, 12, 4, NULL, 0),
+	ADS1015_V_CHAN(3, ADS1015_AIN3, 12, 4, NULL, 0),
+	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
+};
+
 
 #ifdef CONFIG_PM
 static int ads1015_set_power_state(struct ads1015_data *data, bool on)
@@ -823,6 +853,12 @@ static const struct iio_info ads1115_info = {
 	.attrs          = &ads1115_attribute_group,
 };
 
+static const struct iio_info tla2024_info = {
+	.read_raw	= ads1015_read_raw,
+	.write_raw	= ads1015_write_raw,
+	.attrs          = &ads1015_attribute_group,
+};
+
 static int ads1015_client_get_channels_config(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
@@ -937,6 +973,12 @@ static int ads1015_probe(struct i2c_client *client,
 		indio_dev->info = &ads1115_info;
 		data->data_rate = (unsigned int *) &ads1115_data_rate;
 		break;
+	case TLA2024:
+		indio_dev->channels = tla2024_channels;
+		indio_dev->num_channels = ARRAY_SIZE(tla2024_channels);
+		indio_dev->info = &tla2024_info;
+		data->data_rate = (unsigned int *) &ads1015_data_rate;
+		break;
 	default:
 		dev_err(&client->dev, "Unknown chip %d\n", chip);
 		return -EINVAL;
@@ -957,7 +999,9 @@ static int ads1015_probe(struct i2c_client *client,
 	/* we need to keep this ABI the same as used by hwmon ADS1015 driver */
 	ads1015_get_channels_config(client);
 
-	data->regmap = devm_regmap_init_i2c(client, &ads1015_regmap_config);
+	data->regmap = devm_regmap_init_i2c(client, (chip == TLA2024) ?
+					    &tla2024_regmap_config :
+					    &ads1015_regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "Failed to allocate register map\n");
 		return PTR_ERR(data->regmap);
@@ -971,7 +1015,7 @@ static int ads1015_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (client->irq) {
+	if (client->irq && chip != TLA2024) {
 		unsigned long irq_trig =
 			irqd_get_trigger_type(irq_get_irq_data(client->irq));
 		unsigned int cfg_comp_mask = ADS1015_CFG_COMP_QUE_MASK |
@@ -1073,6 +1117,7 @@ static const struct dev_pm_ops ads1015_pm_ops = {
 static const struct i2c_device_id ads1015_id[] = {
 	{"ads1015", ADS1015},
 	{"ads1115", ADS1115},
+	{"tla2024", TLA2024},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
@@ -1085,6 +1130,10 @@ static const struct of_device_id ads1015_of_match[] = {
 	{
 		.compatible = "ti,ads1115",
 		.data = (void *)ADS1115
+	},
+	{
+		.compatible = "ti,tla2024",
+		.data = (void *)TLA2024
 	},
 	{}
 };
