@@ -442,12 +442,15 @@ isp_sdg_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_sdg_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
+	u32 val;
+
+	val = isp3_param_read_cache(params_vdev, ISP3X_ISP_CTRL0);
 	if (en)
-		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL0,
-				    CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
+		isp3_param_write(params_vdev, val | CIF_ISP_CTRL_ISP_GAMMA_IN_ENA,
+				 ISP3X_ISP_CTRL0);
 	else
-		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL0,
-				      CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
+		isp3_param_write(params_vdev, val & ~CIF_ISP_CTRL_ISP_GAMMA_IN_ENA,
+				      ISP3X_ISP_CTRL0);
 }
 
 static void
@@ -716,12 +719,15 @@ isp_awbgain_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_awbgain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
+	u32 val;
+
+	val = isp3_param_read_cache(params_vdev, ISP3X_ISP_CTRL0);
 	if (en)
-		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL0,
-				    CIF_ISP_CTRL_ISP_AWB_ENA);
+		isp3_param_write(params_vdev, val | CIF_ISP_CTRL_ISP_AWB_ENA,
+				 ISP3X_ISP_CTRL0);
 	else
-		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL0,
-				      CIF_ISP_CTRL_ISP_AWB_ENA);
+		isp3_param_write(params_vdev, val & ~CIF_ISP_CTRL_ISP_AWB_ENA,
+				 ISP3X_ISP_CTRL0);
 }
 
 static void
@@ -3509,14 +3515,15 @@ isp_csm_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_ISP_CC_COEFF_0 + i * 4);
 	}
 
-	val = CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
+	val = isp3_param_read_cache(params_vdev, ISP3X_ISP_CTRL0);
 	if (arg->csm_full_range) {
 		params_vdev->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL0, val);
+		val |= CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
 	} else {
 		params_vdev->quantization = V4L2_QUANTIZATION_LIM_RANGE;
-		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL0, val);
+		val &= ~(CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA);
 	}
+	isp3_param_write(params_vdev, val, ISP3X_ISP_CTRL0);
 
 	eff_ctrl = isp3_param_read(params_vdev, ISP3X_IMG_EFF_CTRL);
 	if (eff_ctrl & CIF_IMG_EFF_CTRL_ENABLE) {
@@ -3542,7 +3549,7 @@ static void
 isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp21_cgc_cfg *arg)
 {
-	u32 val = isp3_param_read(params_vdev, ISP3X_ISP_CTRL0);
+	u32 val = isp3_param_read_cache(params_vdev, ISP3X_ISP_CTRL0);
 
 	val &= ~(ISP3X_SW_CGC_YUV_LIMIT | ISP3X_SW_CGC_RATIO_EN);
 	if (arg->yuv_limit)

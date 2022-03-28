@@ -1136,6 +1136,8 @@ static void rkisp_monitor_init(struct rkisp_device *dev)
  */
 static void rkisp_config_color_space(struct rkisp_device *dev)
 {
+	u32 val = 0;
+
 	u16 bt601_coeff[] = {
 		0x0026, 0x004b, 0x000f,
 		0x01ea, 0x01d6, 0x0040,
@@ -1170,16 +1172,18 @@ static void rkisp_config_color_space(struct rkisp_device *dev)
 		rkisp_unite_write(dev, CIF_ISP_CC_COEFF_0 + i * 4,
 				  *(coeff + i), false, dev->hw_dev->is_unite);
 
+	val = rkisp_read_reg_cache(dev, CIF_ISP_CTRL);
+
 	if (dev->isp_sdev.quantization == V4L2_QUANTIZATION_FULL_RANGE)
-		rkisp_unite_set_bits(dev, CIF_ISP_CTRL, 0,
-				     CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA |
-				     CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA,
-				     false, dev->hw_dev->is_unite);
+		rkisp_unite_write(dev, CIF_ISP_CTRL, val |
+				  CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA |
+				  CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA,
+				  false, dev->hw_dev->is_unite);
 	else
-		rkisp_unite_clear_bits(dev, CIF_ISP_CTRL,
-				       CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA |
-				       CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA,
-				       false, dev->hw_dev->is_unite);
+		rkisp_unite_write(dev, CIF_ISP_CTRL, val &
+				  ~(CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA |
+				  CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA),
+				  false, dev->hw_dev->is_unite);
 }
 
 static void rkisp_config_cmsk_single(struct rkisp_device *dev,
@@ -1474,6 +1478,9 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		if (sensor->mbus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
 			signal |= CIF_ISP_ACQ_PROP_HSYNC_LOW;
 	}
+
+	if (rkisp_read_reg_cache(dev, CIF_ISP_CTRL) & ISP32_MIR_ENABLE)
+		isp_ctrl |= ISP32_MIR_ENABLE;
 
 	rkisp_unite_write(dev, CIF_ISP_CTRL, isp_ctrl, false, is_unite);
 	acq_prop |= signal | in_fmt->yuv_seq |
@@ -1928,7 +1935,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		}
 	}
 	/* Activate ISP */
-	val = rkisp_read(dev, CIF_ISP_CTRL, false);
+	val = rkisp_read_reg_cache(dev, CIF_ISP_CTRL);
 	val |= CIF_ISP_CTRL_ISP_CFG_UPD | CIF_ISP_CTRL_ISP_ENABLE |
 	       CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_CFG_UPD_PERMANENT;
 	if (dev->isp_ver == ISP_V20)
@@ -1936,6 +1943,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	if (atomic_read(&dev->hw_dev->refcnt) > 1)
 		is_direct = false;
 	rkisp_unite_write(dev, CIF_ISP_CTRL, val, is_direct, dev->hw_dev->is_unite);
+	rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, CIF_ISP_CTRL_ISP_CFG_UPD);
 
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
