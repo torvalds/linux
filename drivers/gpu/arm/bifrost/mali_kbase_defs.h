@@ -1073,6 +1073,7 @@ struct kbase_device {
 	struct mutex            kctx_list_lock;
 
 	struct rockchip_opp_info opp_info;
+	bool is_runtime_resumed;
 #ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;
 	struct devfreq *devfreq;

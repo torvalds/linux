@@ -5391,6 +5391,11 @@ static int kbase_device_suspend(struct device *dev)
 		flush_workqueue(kbdev->devfreq_queue.workq);
 	}
 #endif
+	if (kbdev->is_runtime_resumed) {
+		if (kbdev->pm.backend.callback_power_runtime_off)
+			kbdev->pm.backend.callback_power_runtime_off(kbdev);
+	}
+
 	return 0;
 }
 
@@ -5409,6 +5414,11 @@ static int kbase_device_resume(struct device *dev)
 
 	if (!kbdev)
 		return -ENODEV;
+
+	if (kbdev->is_runtime_resumed) {
+		if (kbdev->pm.backend.callback_power_runtime_on)
+			kbdev->pm.backend.callback_power_runtime_on(kbdev);
+	}
 
 	kbase_pm_resume(kbdev);
 
@@ -5469,6 +5479,7 @@ static int kbase_device_runtime_suspend(struct device *dev)
 
 	if (kbdev->pm.backend.callback_power_runtime_off) {
 		kbdev->pm.backend.callback_power_runtime_off(kbdev);
+		kbdev->is_runtime_resumed = false;
 		dev_dbg(dev, "runtime suspend\n");
 	}
 	return ret;
@@ -5498,6 +5509,7 @@ static int kbase_device_runtime_resume(struct device *dev)
 	// KBASE_KTRACE_ADD(kbdev, PM_RUNTIME_RESUME_CALLBACK, NULL, 0);
 	if (kbdev->pm.backend.callback_power_runtime_on) {
 		ret = kbdev->pm.backend.callback_power_runtime_on(kbdev);
+		kbdev->is_runtime_resumed = true;
 		dev_dbg(dev, "runtime resume\n");
 	}
 
