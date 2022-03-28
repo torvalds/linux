@@ -626,7 +626,7 @@ void exfat_evict_inode(struct inode *inode)
 	if (!inode->i_nlink) {
 		i_size_write(inode, 0);
 		mutex_lock(&EXFAT_SB(inode->i_sb)->s_lock);
-		__exfat_truncate(inode, 0);
+		__exfat_truncate(inode);
 		mutex_unlock(&EXFAT_SB(inode->i_sb)->s_lock);
 	}
 
