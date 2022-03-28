@@ -2349,7 +2349,7 @@ static bool is_detailed_timing_descriptor(const struct detailed_timing *descript
 	return descriptor->pixel_clock != 0;
 }
 
-typedef void detailed_cb(struct detailed_timing *timing, void *closure);
+typedef void detailed_cb(const struct detailed_timing *timing, void *closure);
 
 static void
 cea_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
@@ -2408,7 +2408,7 @@ drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 }
 
 static void
-is_rb(struct detailed_timing *descriptor, void *data)
+is_rb(const struct detailed_timing *descriptor, void *data)
 {
 	bool *res = data;
 
@@ -2438,9 +2438,9 @@ drm_monitor_supports_rb(struct edid *edid)
 }
 
 static void
-find_gtf2(struct detailed_timing *descriptor, void *data)
+find_gtf2(const struct detailed_timing *descriptor, void *data)
 {
-	struct detailed_timing **res = data;
+	const struct detailed_timing **res = data;
 
 	if (!is_display_descriptor(descriptor, EDID_DETAIL_MONITOR_RANGE))
 		return;
@@ -2455,7 +2455,7 @@ find_gtf2(struct detailed_timing *descriptor, void *data)
 static int
 drm_gtf2_hbreak(struct edid *edid)
 {
-	struct detailed_timing *descriptor = NULL;
+	const struct detailed_timing *descriptor = NULL;
 
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
 
@@ -2467,7 +2467,7 @@ drm_gtf2_hbreak(struct edid *edid)
 static int
 drm_gtf2_2c(struct edid *edid)
 {
-	struct detailed_timing *descriptor = NULL;
+	const struct detailed_timing *descriptor = NULL;
 
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
 
@@ -2479,7 +2479,7 @@ drm_gtf2_2c(struct edid *edid)
 static int
 drm_gtf2_m(struct edid *edid)
 {
-	struct detailed_timing *descriptor = NULL;
+	const struct detailed_timing *descriptor = NULL;
 
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
 
@@ -2491,7 +2491,7 @@ drm_gtf2_m(struct edid *edid)
 static int
 drm_gtf2_k(struct edid *edid)
 {
-	struct detailed_timing *descriptor = NULL;
+	const struct detailed_timing *descriptor = NULL;
 
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
 
@@ -2503,7 +2503,7 @@ drm_gtf2_k(struct edid *edid)
 static int
 drm_gtf2_2j(struct edid *edid)
 {
-	struct detailed_timing *descriptor = NULL;
+	const struct detailed_timing *descriptor = NULL;
 
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &descriptor);
 
@@ -3009,7 +3009,7 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 }
 
 static void
-do_inferred_modes(struct detailed_timing *timing, void *c)
+do_inferred_modes(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 	const struct detailed_non_pixel *data = &timing->data.other_data;
@@ -3091,7 +3091,7 @@ drm_est3_modes(struct drm_connector *connector, const struct detailed_timing *ti
 }
 
 static void
-do_established_modes(struct detailed_timing *timing, void *c)
+do_established_modes(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 
@@ -3142,7 +3142,7 @@ add_established_modes(struct drm_connector *connector, struct edid *edid)
 }
 
 static void
-do_standard_modes(struct detailed_timing *timing, void *c)
+do_standard_modes(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 	const struct detailed_non_pixel *data = &timing->data.other_data;
@@ -3255,7 +3255,7 @@ static int drm_cvt_modes(struct drm_connector *connector,
 }
 
 static void
-do_cvt_mode(struct detailed_timing *timing, void *c)
+do_cvt_mode(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 
@@ -3284,7 +3284,7 @@ add_cvt_modes(struct drm_connector *connector, struct edid *edid)
 static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode);
 
 static void
-do_detailed_mode(struct detailed_timing *timing, void *c)
+do_detailed_mode(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 	struct drm_display_mode *newmode;
@@ -4517,17 +4517,19 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 }
 
 static void
-monitor_name(struct detailed_timing *t, void *data)
+monitor_name(const struct detailed_timing *timing, void *data)
 {
-	if (!is_display_descriptor(t, EDID_DETAIL_MONITOR_NAME))
+	const char **res = data;
+
+	if (!is_display_descriptor(timing, EDID_DETAIL_MONITOR_NAME))
 		return;
 
-	*(u8 **)data = t->data.other_data.data.str.str;
+	*res = timing->data.other_data.data.str.str;
 }
 
 static int get_monitor_name(struct edid *edid, char name[13])
 {
-	char *edid_name = NULL;
+	const char *edid_name = NULL;
 	int mnl;
 
 	if (!edid || !name)
@@ -5242,7 +5244,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 }
 
 static
-void get_monitor_range(struct detailed_timing *timing,
+void get_monitor_range(const struct detailed_timing *timing,
 		       void *info_monitor_range)
 {
 	struct drm_monitor_range_info *monitor_range = info_monitor_range;
