@@ -2342,9 +2342,11 @@ static bool is_display_descriptor(const struct detailed_timing *descriptor, u8 t
 		descriptor->data.other_data.type == type;
 }
 
-static bool is_detailed_timing_descriptor(const u8 d[18])
+static bool is_detailed_timing_descriptor(const struct detailed_timing *descriptor)
 {
-	return d[0] != 0x00 || d[1] != 0x00;
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), pixel_clock) != 0);
+
+	return descriptor->pixel_clock != 0;
 }
 
 typedef void detailed_cb(struct detailed_timing *timing, void *closure);
@@ -3266,7 +3268,7 @@ do_detailed_mode(struct detailed_timing *timing, void *c)
 	struct detailed_mode_closure *closure = c;
 	struct drm_display_mode *newmode;
 
-	if (!is_detailed_timing_descriptor((const u8 *)timing))
+	if (!is_detailed_timing_descriptor(timing))
 		return;
 
 	newmode = drm_mode_detailed(closure->connector->dev,
