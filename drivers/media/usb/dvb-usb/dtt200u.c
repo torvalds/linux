@@ -158,19 +158,33 @@ static int dtt200u_usb_probe(struct usb_interface *intf,
 	return -ENODEV;
 }
 
-static struct usb_device_id dtt200u_usb_table [] = {
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_COLD) },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_WARM) },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_COLD)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_WARM)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZL0353_COLD)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZL0353_WARM)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_COLD)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_WARM)  },
-	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZAP250_COLD)  },
-	{ USB_DEVICE(USB_VID_MIGLIA, USB_PID_WT220U_ZAP250_COLD)  },
-	{ 0 },
+enum {
+	WIDEVIEW_DTT200U_COLD,
+	WIDEVIEW_DTT200U_WARM,
+	WIDEVIEW_WT220U_COLD,
+	WIDEVIEW_WT220U_WARM,
+	WIDEVIEW_WT220U_ZL0353_COLD,
+	WIDEVIEW_WT220U_ZL0353_WARM,
+	WIDEVIEW_WT220U_FC_COLD,
+	WIDEVIEW_WT220U_FC_WARM,
+	WIDEVIEW_WT220U_ZAP250_COLD,
+	MIGLIA_WT220U_ZAP250_COLD,
 };
+
+static struct usb_device_id dtt200u_usb_table[] = {
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DTT200U_COLD),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DTT200U_WARM),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_COLD),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_WARM),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_ZL0353_COLD),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_ZL0353_WARM),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_FC_COLD),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_FC_WARM),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_ZAP250_COLD),
+	DVB_USB_DEV(MIGLIA, MIGLIA_WT220U_ZAP250_COLD),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
 
 static struct dvb_usb_device_properties dtt200u_properties = {
@@ -218,8 +232,8 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView/Yuan/Yakumo/Hama/Typhoon DVB-T USB2.0 (WT-200U)",
-		  .cold_ids = { &dtt200u_usb_table[0], NULL },
-		  .warm_ids = { &dtt200u_usb_table[1], NULL },
+		  .cold_ids = { &dtt200u_usb_table[WIDEVIEW_DTT200U_COLD], NULL },
+		  .warm_ids = { &dtt200u_usb_table[WIDEVIEW_DTT200U_WARM], NULL },
 		},
 		{ NULL },
 	}
@@ -270,8 +284,8 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView WT-220U PenType Receiver (Typhoon/Freecom)",
-		  .cold_ids = { &dtt200u_usb_table[2], &dtt200u_usb_table[8], NULL },
-		  .warm_ids = { &dtt200u_usb_table[3], NULL },
+		  .cold_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_COLD], &dtt200u_usb_table[WIDEVIEW_WT220U_ZAP250_COLD], NULL },
+		  .warm_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_WARM], NULL },
 		},
 		{ NULL },
 	}
@@ -322,8 +336,8 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView WT-220U PenType Receiver (Typhoon/Freecom)",
-		  .cold_ids = { &dtt200u_usb_table[6], NULL },
-		  .warm_ids = { &dtt200u_usb_table[7], NULL },
+		  .cold_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_FC_COLD], NULL },
+		  .warm_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_FC_WARM], NULL },
 		},
 		{ NULL },
 	}
@@ -374,8 +388,8 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView WT-220U PenType Receiver (based on ZL353)",
-		  .cold_ids = { &dtt200u_usb_table[4], NULL },
-		  .warm_ids = { &dtt200u_usb_table[5], NULL },
+		  .cold_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_ZL0353_COLD], NULL },
+		  .warm_ids = { &dtt200u_usb_table[WIDEVIEW_WT220U_ZL0353_WARM], NULL },
 		},
 		{ NULL },
 	}
@@ -393,7 +407,7 @@ static struct dvb_usb_device_properties wt220u_miglia_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView WT-220U PenType Receiver (Miglia)",
-		  .cold_ids = { &dtt200u_usb_table[9], NULL },
+		  .cold_ids = { &dtt200u_usb_table[MIGLIA_WT220U_ZAP250_COLD], NULL },
 		  /* This device turns into WT220U_ZL0353_WARM when fw
 		     has been uploaded */
 		  .warm_ids = { NULL },
