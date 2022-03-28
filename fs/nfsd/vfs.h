@@ -71,10 +71,6 @@ __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_access(struct svc_rqst *, struct svc_fh *, u32 *, u32 *);
 __be32		nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct svc_fh *resfhp, struct iattr *iap);
-__be32		do_nfsd_create(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, struct iattr *attrs,
-				struct svc_fh *res, int createmode,
-				u32 *verifier, bool *truncp, bool *created);
 __be32		nfsd_commit(struct svc_rqst *rqst, struct svc_fh *fhp,
 				u64 offset, u32 count, __be32 *verf);
 #ifdef CONFIG_NFSD_V4
@@ -159,12 +155,6 @@ static inline __be32 fh_getattr(const struct svc_fh *fh, struct kstat *stat)
 			 .dentry = fh->fh_dentry};
 	return nfserrno(vfs_getattr(&p, stat, STATX_BASIC_STATS,
 				    AT_STATX_SYNC_AS_STAT));
-}
-
-static inline int nfsd_create_is_exclusive(int createmode)
-{
-	return createmode == NFS3_CREATE_EXCLUSIVE
-	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
 }
 
 #endif /* LINUX_NFSD_VFS_H */
