@@ -69,7 +69,7 @@ int riscv_of_parent_hartid(struct device_node *node)
 		.uprop = #UPROP,				\
 		.isa_ext_id = EXTID,				\
 	}
-/**
+/*
  * Here are the ordering rules of extension naming defined by RISC-V
  * specification :
  * 1. All extensions should be separated from other multi-letter extensions
@@ -110,7 +110,7 @@ static void print_isa_ext(struct seq_file *f)
 	}
 }
 
-/**
+/*
  * These are the only valid base (single letter) ISA extensions as per the spec.
  * It also specifies the canonical order in which it appears in the spec.
  * Some of the extension may just be a place holder for now (B, K, P, J).
