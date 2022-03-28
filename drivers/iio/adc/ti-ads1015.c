@@ -76,11 +76,12 @@
 #define ADS1015_DEFAULT_DATA_RATE	4
 #define ADS1015_DEFAULT_CHAN		0
 
-enum chip_ids {
-	ADSXXXX = 0,
-	ADS1015,
-	ADS1115,
-	TLA2024,
+struct ads1015_chip_data {
+	struct iio_chan_spec const	*channels;
+	int				num_channels;
+	const struct iio_info		*info;
+	const int			*data_rate;
+	bool				has_comparator;
 };
 
 enum ads1015_channels {
@@ -95,11 +96,11 @@ enum ads1015_channels {
 	ADS1015_TIMESTAMP,
 };
 
-static const unsigned int ads1015_data_rate[] = {
+static const int ads1015_data_rate[] = {
 	128, 250, 490, 920, 1600, 2400, 3300, 3300
 };
 
-static const unsigned int ads1115_data_rate[] = {
+static const int ads1115_data_rate[] = {
 	8, 16, 32, 64, 128, 250, 475, 860
 };
 
@@ -226,7 +227,7 @@ struct ads1015_data {
 	unsigned int comp_mode;
 	struct ads1015_thresh_data thresh_data[ADS1015_CHANNELS];
 
-	unsigned int *data_rate;
+	const int *data_rate;
 	/*
 	 * Set to true when the ADC is switched to the continuous-conversion
 	 * mode and exits from a power-down state.  This flag is used to avoid
@@ -961,11 +962,17 @@ static int ads1015_set_conv_mode(struct ads1015_data *data, int mode)
 static int ads1015_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	const struct ads1015_chip_data *chip;
 	struct iio_dev *indio_dev;
 	struct ads1015_data *data;
 	int ret;
-	enum chip_ids chip;
 	int i;
+
+	chip = device_get_match_data(&client->dev);
+	if (!chip)
+		chip = (const struct ads1015_chip_data *)id->driver_data;
+	if (!chip)
+		return dev_err_probe(&client->dev, -EINVAL, "Unknown chip\n");
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -979,34 +986,12 @@ static int ads1015_probe(struct i2c_client *client,
 	indio_dev->name = ADS1015_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	chip = (uintptr_t)device_get_match_data(&client->dev);
-	if (chip == ADSXXXX)
-		chip = id->driver_data;
-	switch (chip) {
-	case ADS1015:
-		indio_dev->channels = ads1015_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ads1015_channels);
-		indio_dev->info = &ads1015_info;
-		data->data_rate = (unsigned int *) &ads1015_data_rate;
-		break;
-	case ADS1115:
-		indio_dev->channels = ads1115_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ads1115_channels);
-		indio_dev->info = &ads1115_info;
-		data->data_rate = (unsigned int *) &ads1115_data_rate;
-		break;
-	case TLA2024:
-		indio_dev->channels = tla2024_channels;
-		indio_dev->num_channels = ARRAY_SIZE(tla2024_channels);
-		indio_dev->info = &tla2024_info;
-		data->data_rate = (unsigned int *) &ads1015_data_rate;
-		break;
-	default:
-		dev_err(&client->dev, "Unknown chip %d\n", chip);
-		return -EINVAL;
-	}
-
+	indio_dev->channels = chip->channels;
+	indio_dev->num_channels = chip->num_channels;
+	indio_dev->info = chip->info;
+	data->data_rate = chip->data_rate;
 	data->event_channel = ADS1015_CHANNELS;
+
 	/*
 	 * Set default lower and upper threshold to min and max value
 	 * respectively.
@@ -1021,9 +1006,9 @@ static int ads1015_probe(struct i2c_client *client,
 	/* we need to keep this ABI the same as used by hwmon ADS1015 driver */
 	ads1015_get_channels_config(client);
 
-	data->regmap = devm_regmap_init_i2c(client, (chip == TLA2024) ?
-					    &tla2024_regmap_config :
-					    &ads1015_regmap_config);
+	data->regmap = devm_regmap_init_i2c(client, chip->has_comparator ?
+					    &ads1015_regmap_config :
+					    &tla2024_regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "Failed to allocate register map\n");
 		return PTR_ERR(data->regmap);
@@ -1037,7 +1022,7 @@ static int ads1015_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (client->irq && chip != TLA2024) {
+	if (client->irq && chip->has_comparator) {
 		unsigned long irq_trig =
 			irqd_get_trigger_type(irq_get_irq_data(client->irq));
 		unsigned int cfg_comp_mask = ADS1015_CFG_COMP_QUE_MASK |
@@ -1136,27 +1121,42 @@ static const struct dev_pm_ops ads1015_pm_ops = {
 			   ads1015_runtime_resume, NULL)
 };
 
+static const struct ads1015_chip_data ads1015_data = {
+	.channels	= ads1015_channels,
+	.num_channels	= ARRAY_SIZE(ads1015_channels),
+	.info		= &ads1015_info,
+	.data_rate	= ads1015_data_rate,
+	.has_comparator	= true,
+};
+
+static const struct ads1015_chip_data ads1115_data = {
+	.channels	= ads1115_channels,
+	.num_channels	= ARRAY_SIZE(ads1115_channels),
+	.info		= &ads1115_info,
+	.data_rate	= ads1115_data_rate,
+	.has_comparator	= true,
+};
+
+static const struct ads1015_chip_data tla2024_data = {
+	.channels	= tla2024_channels,
+	.num_channels	= ARRAY_SIZE(tla2024_channels),
+	.info		= &tla2024_info,
+	.data_rate	= ads1015_data_rate,
+	.has_comparator	= false,
+};
+
 static const struct i2c_device_id ads1015_id[] = {
-	{"ads1015", ADS1015},
-	{"ads1115", ADS1115},
-	{"tla2024", TLA2024},
+	{ "ads1015", (kernel_ulong_t)&ads1015_data },
+	{ "ads1115", (kernel_ulong_t)&ads1115_data },
+	{ "tla2024", (kernel_ulong_t)&tla2024_data },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
 
 static const struct of_device_id ads1015_of_match[] = {
-	{
-		.compatible = "ti,ads1015",
-		.data = (void *)ADS1015
-	},
-	{
-		.compatible = "ti,ads1115",
-		.data = (void *)ADS1115
-	},
-	{
-		.compatible = "ti,tla2024",
-		.data = (void *)TLA2024
-	},
+	{ .compatible = "ti,ads1015", .data = &ads1015_data },
+	{ .compatible = "ti,ads1115", .data = &ads1115_data },
+	{ .compatible = "ti,tla2024", .data = &tla2024_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ads1015_of_match);
