@@ -121,56 +121,77 @@ static int dibusb_probe(struct usb_interface *intf,
 }
 
 /* do not change the order of the ID table */
-static struct usb_device_id dibusb_dib3000mb_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_WARM) },
-/* 02 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_COLD) },
-/* 03 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_WARM) },
-/* 04 */	{ USB_DEVICE(USB_VID_COMPRO_UNK,	USB_PID_COMPRO_DVBU2000_UNK_COLD) },
-/* 05 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3000_COLD) },
-/* 06 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3000_WARM) },
-/* 07 */	{ USB_DEVICE(USB_VID_EMPIA,		USB_PID_KWORLD_VSTREAM_COLD) },
-/* 08 */	{ USB_DEVICE(USB_VID_EMPIA,		USB_PID_KWORLD_VSTREAM_WARM) },
-/* 09 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_GRANDTEC_DVBT_USB_COLD) },
-/* 10 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_GRANDTEC_DVBT_USB_WARM) },
-/* 11 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_DIBCOM_MOD3000_COLD) },
-/* 12 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_DIBCOM_MOD3000_WARM) },
-/* 13 */	{ USB_DEVICE(USB_VID_HYPER_PALTEK,	USB_PID_UNK_HYPER_PALTEK_COLD) },
-/* 14 */	{ USB_DEVICE(USB_VID_HYPER_PALTEK,	USB_PID_UNK_HYPER_PALTEK_WARM) },
-/* 15 */	{ USB_DEVICE(USB_VID_VISIONPLUS,	USB_PID_TWINHAN_VP7041_COLD) },
-/* 16 */	{ USB_DEVICE(USB_VID_VISIONPLUS,	USB_PID_TWINHAN_VP7041_WARM) },
-/* 17 */	{ USB_DEVICE(USB_VID_TWINHAN,		USB_PID_TWINHAN_VP7041_COLD) },
-/* 18 */	{ USB_DEVICE(USB_VID_TWINHAN,		USB_PID_TWINHAN_VP7041_WARM) },
-/* 19 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_COLD) },
-/* 20 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_WARM) },
-/* 21 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_AN2235_COLD) },
-/* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
-/* 23 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_COLD) },
-
-/* device ID with default DIBUSB2_0-firmware and with the hacked firmware */
-/* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
-/* 25 */	{ USB_DEVICE(USB_VID_KYE,		USB_PID_KYE_DVB_T_COLD) },
-/* 26 */	{ USB_DEVICE(USB_VID_KYE,		USB_PID_KYE_DVB_T_WARM) },
-
-/* 27 */	{ USB_DEVICE(USB_VID_KWORLD,		USB_PID_KWORLD_VSTREAM_COLD) },
-
-/* 28 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_USB2_COLD) },
-/* 29 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_USB2_WARM) },
-
-/*
- * XXX: As Artec just 'forgot' to program the EEPROM on some Artec T1 devices
- *      we don't catch these faulty IDs (namely 'Cypress FX1 USB controller') that
- *      have been left on the device. If you don't have such a device but an Artec
- *      device that's supposed to work with this driver but is not detected by it,
- *      free to enable CONFIG_DVB_USB_DIBUSB_MB_FAULTY via your kernel config.
- */
-
-#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
-/* 30 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
-#endif
-
-			{ }		/* Terminating entry */
+enum {
+	WIDEVIEW_DVBT_USB_COLD,
+	WIDEVIEW_DVBT_USB_WARM,
+	COMPRO_DVBU2000_COLD,
+	COMPRO_DVBU2000_WARM,
+	COMPRO_DVBU2000_UNK_COLD,
+	DIBCOM_MOD3000_COLD,
+	DIBCOM_MOD3000_WARM,
+	EMPIA_VSTREAM_COLD,
+	EMPIA_VSTREAM_WARM,
+	GRANDTEC_DVBT_USB_COLD,
+	GRANDTEC_DVBT_USB_WARM,
+	GRANDTEC_MOD3000_COLD,
+	GRANDTEC_MOD3000_WARM,
+	UNK_HYPER_PALTEK_COLD,
+	UNK_HYPER_PALTEK_WARM,
+	VISIONPLUS_VP7041_COLD,
+	VISIONPLUS_VP7041_WARM,
+	TWINHAN_VP7041_COLD,
+	TWINHAN_VP7041_WARM,
+	ULTIMA_TVBOX_COLD,
+	ULTIMA_TVBOX_WARM,
+	ULTIMA_TVBOX_AN2235_COLD,
+	ULTIMA_TVBOX_AN2235_WARM,
+	ADSTECH_USB2_COLD,
+	ADSTECH_USB2_WARM,
+	KYE_DVB_T_COLD,
+	KYE_DVB_T_WARM,
+	KWORLD_VSTREAM_COLD,
+	ULTIMA_TVBOX_USB2_COLD,
+	ULTIMA_TVBOX_USB2_WARM,
+	ULTIMA_TVBOX_ANCHOR_COLD,
 };
+
+static struct usb_device_id dibusb_dib3000mb_table[] = {
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DVBT_USB_COLD),
+	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DVBT_USB_WARM),
+	DVB_USB_DEV(COMPRO, COMPRO_DVBU2000_COLD),
+	DVB_USB_DEV(COMPRO, COMPRO_DVBU2000_WARM),
+	DVB_USB_DEV(COMPRO_UNK, COMPRO_DVBU2000_UNK_COLD),
+	DVB_USB_DEV(DIBCOM, DIBCOM_MOD3000_COLD),
+	DVB_USB_DEV(DIBCOM, DIBCOM_MOD3000_WARM),
+	DVB_USB_DEV(EMPIA, EMPIA_VSTREAM_COLD),
+	DVB_USB_DEV(EMPIA, EMPIA_VSTREAM_WARM),
+	DVB_USB_DEV(GRANDTEC, GRANDTEC_DVBT_USB_COLD),
+	DVB_USB_DEV(GRANDTEC, GRANDTEC_DVBT_USB_WARM),
+	DVB_USB_DEV(GRANDTEC, GRANDTEC_MOD3000_COLD),
+	DVB_USB_DEV(GRANDTEC, GRANDTEC_MOD3000_WARM),
+	DVB_USB_DEV(HYPER_PALTEK, UNK_HYPER_PALTEK_COLD),
+	DVB_USB_DEV(HYPER_PALTEK, UNK_HYPER_PALTEK_WARM),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7041_COLD),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7041_WARM),
+	DVB_USB_DEV(TWINHAN, TWINHAN_VP7041_COLD),
+	DVB_USB_DEV(TWINHAN, TWINHAN_VP7041_WARM),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_COLD),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_WARM),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_AN2235_COLD),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_AN2235_WARM),
+	DVB_USB_DEV(ADSTECH, ADSTECH_USB2_COLD),
+	DVB_USB_DEV(ADSTECH, ADSTECH_USB2_WARM),
+	DVB_USB_DEV(KYE, KYE_DVB_T_COLD),
+	DVB_USB_DEV(KYE, KYE_DVB_T_WARM),
+	DVB_USB_DEV(KWORLD, KWORLD_VSTREAM_COLD),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_USB2_COLD),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_USB2_WARM),
+#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
+	DVB_USB_DEV(ANCHOR, ULTIMA_TVBOX_ANCHOR_COLD),
+#endif
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mb_table);
 
 static struct dvb_usb_device_properties dibusb1_1_properties = {
@@ -226,40 +247,40 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 	.num_device_descs = 9,
 	.devices = {
 		{	"AVerMedia AverTV DVBT USB1.1",
-			{ &dibusb_dib3000mb_table[0],  NULL },
-			{ &dibusb_dib3000mb_table[1],  NULL },
+			{ &dibusb_dib3000mb_table[WIDEVIEW_DVBT_USB_COLD],  NULL },
+			{ &dibusb_dib3000mb_table[WIDEVIEW_DVBT_USB_WARM],  NULL },
 		},
 		{	"Compro Videomate DVB-U2000 - DVB-T USB1.1 (please confirm to linux-dvb)",
-			{ &dibusb_dib3000mb_table[2], &dibusb_dib3000mb_table[4], NULL},
-			{ &dibusb_dib3000mb_table[3], NULL },
+			{ &dibusb_dib3000mb_table[COMPRO_DVBU2000_COLD], &dibusb_dib3000mb_table[COMPRO_DVBU2000_UNK_COLD], NULL},
+			{ &dibusb_dib3000mb_table[COMPRO_DVBU2000_WARM], NULL },
 		},
 		{	"DiBcom USB1.1 DVB-T reference design (MOD3000)",
-			{ &dibusb_dib3000mb_table[5],  NULL },
-			{ &dibusb_dib3000mb_table[6],  NULL },
+			{ &dibusb_dib3000mb_table[DIBCOM_MOD3000_COLD],  NULL },
+			{ &dibusb_dib3000mb_table[DIBCOM_MOD3000_WARM],  NULL },
 		},
 		{	"KWorld V-Stream XPERT DTV - DVB-T USB1.1",
-			{ &dibusb_dib3000mb_table[7], NULL },
-			{ &dibusb_dib3000mb_table[8], NULL },
+			{ &dibusb_dib3000mb_table[EMPIA_VSTREAM_COLD], NULL },
+			{ &dibusb_dib3000mb_table[EMPIA_VSTREAM_WARM], NULL },
 		},
 		{	"Grandtec USB1.1 DVB-T",
-			{ &dibusb_dib3000mb_table[9],  &dibusb_dib3000mb_table[11], NULL },
-			{ &dibusb_dib3000mb_table[10], &dibusb_dib3000mb_table[12], NULL },
+			{ &dibusb_dib3000mb_table[GRANDTEC_DVBT_USB_COLD],  &dibusb_dib3000mb_table[GRANDTEC_MOD3000_COLD], NULL },
+			{ &dibusb_dib3000mb_table[GRANDTEC_DVBT_USB_WARM], &dibusb_dib3000mb_table[GRANDTEC_MOD3000_WARM], NULL },
 		},
 		{	"Unknown USB1.1 DVB-T device ???? please report the name to the author",
-			{ &dibusb_dib3000mb_table[13], NULL },
-			{ &dibusb_dib3000mb_table[14], NULL },
+			{ &dibusb_dib3000mb_table[UNK_HYPER_PALTEK_COLD], NULL },
+			{ &dibusb_dib3000mb_table[UNK_HYPER_PALTEK_WARM], NULL },
 		},
 		{	"TwinhanDTV USB-Ter USB1.1 / Magic Box I / HAMA USB1.1 DVB-T device",
-			{ &dibusb_dib3000mb_table[15], &dibusb_dib3000mb_table[17], NULL},
-			{ &dibusb_dib3000mb_table[16], &dibusb_dib3000mb_table[18], NULL},
+			{ &dibusb_dib3000mb_table[VISIONPLUS_VP7041_COLD], &dibusb_dib3000mb_table[TWINHAN_VP7041_COLD], NULL},
+			{ &dibusb_dib3000mb_table[VISIONPLUS_VP7041_WARM], &dibusb_dib3000mb_table[TWINHAN_VP7041_WARM], NULL},
 		},
 		{	"Artec T1 USB1.1 TVBOX with AN2135",
-			{ &dibusb_dib3000mb_table[19], NULL },
-			{ &dibusb_dib3000mb_table[20], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_COLD], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_WARM], NULL },
 		},
 		{	"VideoWalker DVB-T USB",
-			{ &dibusb_dib3000mb_table[25], NULL },
-			{ &dibusb_dib3000mb_table[26], NULL },
+			{ &dibusb_dib3000mb_table[KYE_DVB_T_COLD], NULL },
+			{ &dibusb_dib3000mb_table[KYE_DVB_T_WARM], NULL },
 		},
 	}
 };
@@ -319,12 +340,12 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 #endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
-			{ &dibusb_dib3000mb_table[21], NULL },
-			{ &dibusb_dib3000mb_table[22], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_AN2235_COLD], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_AN2235_WARM], NULL },
 		},
 #ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
-			{ &dibusb_dib3000mb_table[30], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_ANCHOR_COLD], NULL },
 			{ NULL },
 		},
 		{ NULL },
@@ -384,11 +405,11 @@ static struct dvb_usb_device_properties dibusb2_0b_properties = {
 	.num_device_descs = 2,
 	.devices = {
 		{	"KWorld/ADSTech Instant DVB-T USB2.0",
-			{ &dibusb_dib3000mb_table[23], NULL },
-			{ &dibusb_dib3000mb_table[24], NULL },
+			{ &dibusb_dib3000mb_table[ADSTECH_USB2_COLD], NULL },
+			{ &dibusb_dib3000mb_table[ADSTECH_USB2_WARM], NULL },
 		},
 		{	"KWorld Xpert DVB-T USB2.0",
-			{ &dibusb_dib3000mb_table[27], NULL },
+			{ &dibusb_dib3000mb_table[KWORLD_VSTREAM_COLD], NULL },
 			{ NULL }
 		},
 		{ NULL },
@@ -446,8 +467,8 @@ static struct dvb_usb_device_properties artec_t1_usb2_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{	"Artec T1 USB2.0",
-			{ &dibusb_dib3000mb_table[28], NULL },
-			{ &dibusb_dib3000mb_table[29], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_USB2_COLD], NULL },
+			{ &dibusb_dib3000mb_table[ULTIMA_TVBOX_USB2_WARM], NULL },
 		},
 		{ NULL },
 	}
