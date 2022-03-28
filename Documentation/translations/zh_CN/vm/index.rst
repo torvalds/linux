@@ -34,6 +34,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    overcommit-accounting
    page_frags
    page_owner
+   page_table_check
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -42,7 +43,6 @@ TODOLIST:
 * hugetlbfs_reserv
 * numa
 * page_migration
-* page_table_check
 * remap_file_pages
 * slub
 * split_page_table_lock
