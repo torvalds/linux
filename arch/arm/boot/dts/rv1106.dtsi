@@ -276,7 +276,7 @@
 	};
 
 	rtc: rtc@ff1c0000 {
-		compatible = "rockchip,rtc-1.0";
+		compatible = "rockchip,rv1106-rtc";
 		reg = <0xff1c0000 0x1000>;
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
