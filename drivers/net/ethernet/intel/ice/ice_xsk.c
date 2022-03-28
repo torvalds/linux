@@ -754,7 +754,7 @@ skip:
 		next_dd = next_dd + tx_thresh;
 		if (next_dd >= desc_cnt)
 			next_dd = tx_thresh - 1;
-	} while (budget--);
+	} while (--budget);
 
 	xdp_ring->next_dd = next_dd;
 
