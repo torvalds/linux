@@ -121,20 +121,6 @@
 		status = "disabled";
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		linux,cma {
-			compatible = "shared-dma-pool";
-			inactive;
-			reusable;
-			size = <0x800000>;
-			linux,cma-default;
-		};
-	};
-
 	rkcif_dvp: rkcif-dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
