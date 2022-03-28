@@ -169,29 +169,6 @@ struct smb2_buffer_desc_v1 {
 
 #define SMB2_0_IOCTL_IS_FSCTL 0x00000001
 
-struct duplicate_extents_to_file {
-	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
-	__u64 VolatileFileHandle;
-	__le64 SourceFileOffset;
-	__le64 TargetFileOffset;
-	__le64 ByteCount;  /* Bytes to be copied */
-} __packed;
-
-struct validate_negotiate_info_req {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 DialectCount;
-	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
-} __packed;
-
-struct validate_negotiate_info_rsp {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 Dialect; /* Dialect in use for the connection */
-} __packed;
-
 struct smb_sockaddr_in {
 	__be16 Port;
 	__be32 IPv4address;
@@ -265,18 +242,6 @@ struct file_sparse {
 	__u8	SetSparse;
 } __packed;
 
-struct file_zero_data_information {
-	__le64	FileOffset;
-	__le64	BeyondFinalZero;
-} __packed;
-
-struct reparse_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__u8	DataBuffer[]; /* Variable Length */
-} __packed;
-
 /* FILE Info response size */
 #define FILE_DIRECTORY_INFORMATION_SIZE       1
 #define FILE_FULL_DIRECTORY_INFORMATION_SIZE  2
@@ -332,48 +297,10 @@ struct fs_type_info {
 	long		magic_number;
 } __packed;
 
-struct smb2_oplock_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 24 */
-	__u8   OplockLevel;
-	__u8   Reserved;
-	__le32 Reserved2;
-	__le64  PersistentFid;
-	__le64  VolatileFid;
-} __packed;
-
-#define SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
-
-struct smb2_lease_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 44 */
-	__le16 Epoch;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 CurrentLeaseState;
-	__le32 NewLeaseState;
-	__le32 BreakReason;
-	__le32 AccessMaskHint;
-	__le32 ShareMaskHint;
-} __packed;
-
-struct smb2_lease_ack {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 36 */
-	__le16 Reserved;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 LeaseState;
-	__le64 LeaseDuration;
-} __packed;
-
 /*
  *	PDU query infolevel structure definitions
  *	BB consider moving to a different header
  */
-
-#define OP_BREAK_STRUCT_SIZE_20		24
-#define OP_BREAK_STRUCT_SIZE_21		36
 
 struct smb2_file_access_info {
 	__le32 AccessFlags;

@@ -229,12 +229,6 @@ struct copychunk_ioctl {
 	__u32 Reserved2;
 } __packed;
 
-/* this goes in the ioctl buffer when doing FSCTL_SET_ZERO_DATA */
-struct file_zero_data_information {
-	__le64	FileOffset;
-	__le64	BeyondFinalZero;
-} __packed;
-
 struct copychunk_ioctl_rsp {
 	__le32 ChunksWritten;
 	__le32 ChunkBytesWritten;
@@ -288,53 +282,6 @@ struct fsctl_get_integrity_information_rsp {
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
 
-/* Reparse structures - see MS-FSCC 2.1.2 */
-
-/* struct fsctl_reparse_info_req is empty, only response structs (see below) */
-
-struct reparse_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__u8	DataBuffer[]; /* Variable Length */
-} __packed;
-
-struct reparse_guid_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__u8	ReparseGuid[16];
-	__u8	DataBuffer[]; /* Variable Length */
-} __packed;
-
-struct reparse_mount_point_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__le16	SubstituteNameOffset;
-	__le16	SubstituteNameLength;
-	__le16	PrintNameOffset;
-	__le16	PrintNameLength;
-	__u8	PathBuffer[]; /* Variable Length */
-} __packed;
-
-#define SYMLINK_FLAG_RELATIVE 0x00000001
-
-struct reparse_symlink_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__le16	SubstituteNameOffset;
-	__le16	SubstituteNameLength;
-	__le16	PrintNameOffset;
-	__le16	PrintNameLength;
-	__le32	Flags;
-	__u8	PathBuffer[]; /* Variable Length */
-} __packed;
-
-/* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
-
-
 /* See MS-DFSC 2.2.2 */
 struct fsctl_get_dfs_referral_req {
 	__le16 MaxReferralLevel;
@@ -349,22 +296,6 @@ struct network_resiliency_req {
 	__le32 Reserved;
 } __packed;
 /* There is no buffer for the response ie no struct network_resiliency_rsp */
-
-
-struct validate_negotiate_info_req {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 DialectCount;
-	__le16 Dialects[4]; /* BB expand this if autonegotiate > 4 dialects */
-} __packed;
-
-struct validate_negotiate_info_rsp {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 Dialect; /* Dialect in use for the connection */
-} __packed;
 
 #define RSS_CAPABLE	cpu_to_le32(0x00000001)
 #define RDMA_CAPABLE	cpu_to_le32(0x00000002)
@@ -401,55 +332,12 @@ struct compress_ioctl {
 	__le16 CompressionState; /* See cifspdu.h for possible flag values */
 } __packed;
 
-struct duplicate_extents_to_file {
-	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
-	__u64 VolatileFileHandle;
-	__le64 SourceFileOffset;
-	__le64 TargetFileOffset;
-	__le64 ByteCount;  /* Bytes to be copied */
-} __packed;
-
 /*
  * Maximum number of iovs we need for an ioctl request.
  * [0] : struct smb2_ioctl_req
  * [1] : in_data
  */
 #define SMB2_IOCTL_IOV_SIZE 2
-
-struct smb2_oplock_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 24 */
-	__u8   OplockLevel;
-	__u8   Reserved;
-	__le32 Reserved2;
-	__u64  PersistentFid;
-	__u64  VolatileFid;
-} __packed;
-
-#define SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
-
-struct smb2_lease_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 44 */
-	__le16 Epoch;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 CurrentLeaseState;
-	__le32 NewLeaseState;
-	__le32 BreakReason;
-	__le32 AccessMaskHint;
-	__le32 ShareMaskHint;
-} __packed;
-
-struct smb2_lease_ack {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 36 */
-	__le16 Reserved;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 LeaseState;
-	__le64 LeaseDuration;
-} __packed;
 
 /*
  *	PDU query infolevel structure definitions
