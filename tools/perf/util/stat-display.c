@@ -929,7 +929,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 	int all_idx;
 	struct perf_cpu cpu;
 
-	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.cpus) {
+	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.user_requested_cpus) {
 		struct evsel *counter;
 		bool first = true;
 
