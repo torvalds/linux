@@ -173,7 +173,7 @@ static int hsl_orientation(struct pmc_usb_port *port)
 	return port->orientation - 1;
 }
 
-static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
+static int pmc_usb_send_command(struct intel_scu_ipc_dev *ipc, u8 *msg, u32 len)
 {
 	u8 response[4];
 	u8 status_res;
@@ -184,7 +184,7 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 * Status can be checked from the response message if the
 	 * function intel_scu_ipc_dev_command succeeds.
 	 */
-	ret = intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg,
+	ret = intel_scu_ipc_dev_command(ipc, PMC_USBC_CMD, 0, msg,
 					len, response, sizeof(response));
 
 	if (ret)
@@ -201,6 +201,23 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	}
 
 	return 0;
+}
+
+static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
+{
+	int retry_count = 3;
+	int ret;
+
+	/*
+	 * If PMC is busy then retry the command once again
+	 */
+	while (retry_count--) {
+		ret = pmc_usb_send_command(port->pmc->ipc, msg, len);
+		if (ret != -EBUSY)
+			break;
+	}
+
+	return ret;
 }
 
 static int
