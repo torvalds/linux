@@ -346,6 +346,7 @@ static const struct of_device_id sun6i_rtc_ccu_match[] = {
 		.compatible	= "allwinner,sun50i-r329-rtc",
 		.data		= &sun50i_r329_rtc_ccu_data,
 	},
+	{},
 };
 
 int sun6i_rtc_ccu_probe(struct device *dev, void __iomem *reg)
