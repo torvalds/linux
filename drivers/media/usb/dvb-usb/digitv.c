@@ -291,10 +291,15 @@ static int digitv_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static struct usb_device_id digitv_table [] = {
-		{ USB_DEVICE(USB_VID_ANCHOR, USB_PID_NEBULA_DIGITV) },
-		{ }		/* Terminating entry */
+enum {
+	ANCHOR_NEBULA_DIGITV,
 };
+
+static struct usb_device_id digitv_table[] = {
+	DVB_USB_DEV(ANCHOR, ANCHOR_NEBULA_DIGITV),
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, digitv_table);
 
 static struct dvb_usb_device_properties digitv_properties = {
@@ -343,7 +348,7 @@ static struct dvb_usb_device_properties digitv_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "Nebula Electronics uDigiTV DVB-T USB2.0)",
-			{ &digitv_table[0], NULL },
+			{ &digitv_table[ANCHOR_NEBULA_DIGITV], NULL },
 			{ NULL },
 		},
 		{ NULL },
