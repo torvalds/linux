@@ -927,7 +927,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->commit(&params, fence);
 
-	if (!unlocked && (!(flags & AMDGPU_PTE_VALID) || params.table_freed)) {
+	if (!(flags & AMDGPU_PTE_VALID) || params.table_freed) {
 		tlb_cb->vm = vm;
 		if (!fence || !*fence ||
 		    dma_fence_add_callback(*fence, &tlb_cb->cb,
