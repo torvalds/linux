@@ -66,8 +66,11 @@
 
 #define RGA_CORE_REG_OFFSET 0x10000
 
-/* sample interval: 1000ms */
-#define RGA_LOAD_INTERVAL 1000000000
+/* load interval: 1000ms */
+#define RGA_LOAD_INTERVAL_US 1000000
+
+/* timer interval: 1000ms */
+#define RGA_TIMER_INTERVAL_NS 1000000000
 
 #if ((defined(CONFIG_RK_IOMMU) || defined(CONFIG_ROCKCHIP_IOMMU)) \
 	&& defined(CONFIG_ION_ROCKCHIP))

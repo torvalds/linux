@@ -297,10 +297,12 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 
 static void rga_init_timer(void)
 {
-	kt = ktime_set(0, RGA_LOAD_INTERVAL);
+	kt = ktime_set(0, RGA_TIMER_INTERVAL_NS);
 	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer_start(&timer, kt, HRTIMER_MODE_REL);
+
 	timer.function = hrtimer_handler;
+
+	hrtimer_start(&timer, kt, HRTIMER_MODE_REL);
 }
 
 static void rga_cancel_timer(void)
