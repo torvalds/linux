@@ -3808,6 +3808,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vcstate->splice_mode = false;
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
+	splice_vp->splice_mode_right = false;
 	vop2_unlock(vop2);
 
 	vop2->active_vp_mask &= ~BIT(vp->id);
