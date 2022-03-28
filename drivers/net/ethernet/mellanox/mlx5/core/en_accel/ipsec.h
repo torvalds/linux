@@ -55,11 +55,6 @@ enum mlx5_accel_esp_action {
 	MLX5_ACCEL_ESP_ACTION_ENCRYPT,
 };
 
-enum mlx5_accel_esp_keymats {
-	MLX5_ACCEL_ESP_KEYMAT_AES_NONE,
-	MLX5_ACCEL_ESP_KEYMAT_AES_GCM,
-};
-
 struct aes_gcm_keymat {
 	u64   seq_iv;
 
@@ -73,21 +68,9 @@ struct aes_gcm_keymat {
 struct mlx5_accel_esp_xfrm_attrs {
 	enum mlx5_accel_esp_action action;
 	u32   esn;
-	__be32 spi;
-	u32   seq;
-	u32   tfc_pad;
+	u32   spi;
 	u32   flags;
-	u32   sa_handle;
-	union {
-		struct {
-			u32 size;
-
-		} bmp;
-	} replay;
-	enum mlx5_accel_esp_keymats keymat_type;
-	union {
-		struct aes_gcm_keymat aes_gcm;
-	} keymat;
+	struct aes_gcm_keymat aes_gcm;
 
 	union {
 		__be32 a4;

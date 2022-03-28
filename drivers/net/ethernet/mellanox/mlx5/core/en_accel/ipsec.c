@@ -137,7 +137,7 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 				   struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct xfrm_state *x = sa_entry->x;
-	struct aes_gcm_keymat *aes_gcm = &attrs->keymat.aes_gcm;
+	struct aes_gcm_keymat *aes_gcm = &attrs->aes_gcm;
 	struct aead_geniv_ctx *geniv_ctx;
 	struct crypto_aead *aead;
 	unsigned int crypto_data_len, key_len;
@@ -171,12 +171,6 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 			attrs->flags |= MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP;
 	}
 
-	/* rx handle */
-	attrs->sa_handle = sa_entry->handle;
-
-	/* algo type */
-	attrs->keymat_type = MLX5_ACCEL_ESP_KEYMAT_AES_GCM;
-
 	/* action */
 	attrs->action = (!(x->xso.flags & XFRM_OFFLOAD_INBOUND)) ?
 			MLX5_ACCEL_ESP_ACTION_ENCRYPT :
@@ -187,7 +181,7 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 			MLX5_ACCEL_ESP_FLAGS_TUNNEL;
 
 	/* spi */
-	attrs->spi = x->id.spi;
+	attrs->spi = be32_to_cpu(x->id.spi);
 
 	/* source , destination ips */
 	memcpy(&attrs->saddr, x->props.saddr.a6, sizeof(attrs->saddr));

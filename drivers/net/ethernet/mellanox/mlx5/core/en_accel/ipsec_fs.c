@@ -356,8 +356,8 @@ static void setup_fte_common(struct mlx5_accel_esp_xfrm_attrs *attrs,
 
 	/* SPI number */
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, misc_parameters.outer_esp_spi);
-	MLX5_SET(fte_match_param, spec->match_value, misc_parameters.outer_esp_spi,
-		 be32_to_cpu(attrs->spi));
+	MLX5_SET(fte_match_param, spec->match_value,
+		 misc_parameters.outer_esp_spi, attrs->spi);
 
 	if (ip_version == 4) {
 		memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
