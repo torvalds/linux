@@ -216,7 +216,14 @@ void bch2_journal_space_available(struct journal *j)
 		bch_err(c, "journal stuck\n%s", buf.buf);
 		printbuf_exit(&buf);
 
+		/*
+		 * Hack: bch2_fatal_error() calls bch2_journal_halt() which
+		 * takes journal lock:
+		 */
+		spin_unlock(&j->lock);
 		bch2_fatal_error(c);
+		spin_lock(&j->lock);
+
 		ret = cur_entry_journal_stuck;
 	} else if (!j->space[journal_space_discarded].next_entry)
 		ret = cur_entry_journal_full;
