@@ -134,7 +134,7 @@ static const struct iio_event_spec ads1015_events[] = {
 	},
 };
 
-#define ADS1015_V_CHAN(_chan, _addr) {				\
+#define ADS1015_V_CHAN(_chan, _addr, _realbits, _shift) {	\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.address = _addr,					\
@@ -145,9 +145,9 @@ static const struct iio_event_spec ads1015_events[] = {
 	.scan_index = _addr,					\
 	.scan_type = {						\
 		.sign = 's',					\
-		.realbits = 12,					\
+		.realbits = (_realbits),			\
 		.storagebits = 16,				\
-		.shift = 4,					\
+		.shift = (_shift),				\
 		.endianness = IIO_CPU,				\
 	},							\
 	.event_spec = ads1015_events,				\
@@ -155,7 +155,7 @@ static const struct iio_event_spec ads1015_events[] = {
 	.datasheet_name = "AIN"#_chan,				\
 }
 
-#define ADS1015_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
+#define ADS1015_V_DIFF_CHAN(_chan, _chan2, _addr, _realbits, _shift) { \
 	.type = IIO_VOLTAGE,					\
 	.differential = 1,					\
 	.indexed = 1,						\
@@ -168,51 +168,9 @@ static const struct iio_event_spec ads1015_events[] = {
 	.scan_index = _addr,					\
 	.scan_type = {						\
 		.sign = 's',					\
-		.realbits = 12,					\
+		.realbits = (_realbits),			\
 		.storagebits = 16,				\
-		.shift = 4,					\
-		.endianness = IIO_CPU,				\
-	},							\
-	.event_spec = ads1015_events,				\
-	.num_event_specs = ARRAY_SIZE(ads1015_events),		\
-	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
-}
-
-#define ADS1115_V_CHAN(_chan, _addr) {				\
-	.type = IIO_VOLTAGE,					\
-	.indexed = 1,						\
-	.address = _addr,					\
-	.channel = _chan,					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
-				BIT(IIO_CHAN_INFO_SCALE) |	\
-				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
-	.scan_index = _addr,					\
-	.scan_type = {						\
-		.sign = 's',					\
-		.realbits = 16,					\
-		.storagebits = 16,				\
-		.endianness = IIO_CPU,				\
-	},							\
-	.event_spec = ads1015_events,				\
-	.num_event_specs = ARRAY_SIZE(ads1015_events),		\
-	.datasheet_name = "AIN"#_chan,				\
-}
-
-#define ADS1115_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
-	.type = IIO_VOLTAGE,					\
-	.differential = 1,					\
-	.indexed = 1,						\
-	.address = _addr,					\
-	.channel = _chan,					\
-	.channel2 = _chan2,					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
-				BIT(IIO_CHAN_INFO_SCALE) |	\
-				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
-	.scan_index = _addr,					\
-	.scan_type = {						\
-		.sign = 's',					\
-		.realbits = 16,					\
-		.storagebits = 16,				\
+		.shift = (_shift),				\
 		.endianness = IIO_CPU,				\
 	},							\
 	.event_spec = ads1015_events,				\
@@ -290,26 +248,26 @@ static const struct regmap_config ads1015_regmap_config = {
 };
 
 static const struct iio_chan_spec ads1015_channels[] = {
-	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1),
-	ADS1015_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3),
-	ADS1015_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3),
-	ADS1015_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3),
-	ADS1015_V_CHAN(0, ADS1015_AIN0),
-	ADS1015_V_CHAN(1, ADS1015_AIN1),
-	ADS1015_V_CHAN(2, ADS1015_AIN2),
-	ADS1015_V_CHAN(3, ADS1015_AIN3),
+	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 12, 4),
+	ADS1015_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3, 12, 4),
+	ADS1015_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3, 12, 4),
+	ADS1015_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3, 12, 4),
+	ADS1015_V_CHAN(0, ADS1015_AIN0, 12, 4),
+	ADS1015_V_CHAN(1, ADS1015_AIN1, 12, 4),
+	ADS1015_V_CHAN(2, ADS1015_AIN2, 12, 4),
+	ADS1015_V_CHAN(3, ADS1015_AIN3, 12, 4),
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
 static const struct iio_chan_spec ads1115_channels[] = {
-	ADS1115_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1),
-	ADS1115_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3),
-	ADS1115_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3),
-	ADS1115_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3),
-	ADS1115_V_CHAN(0, ADS1015_AIN0),
-	ADS1115_V_CHAN(1, ADS1015_AIN1),
-	ADS1115_V_CHAN(2, ADS1015_AIN2),
-	ADS1115_V_CHAN(3, ADS1015_AIN3),
+	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 16, 0),
+	ADS1015_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3, 16, 0),
+	ADS1015_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3, 16, 0),
+	ADS1015_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3, 16, 0),
+	ADS1015_V_CHAN(0, ADS1015_AIN0, 16, 0),
+	ADS1015_V_CHAN(1, ADS1015_AIN1, 16, 0),
+	ADS1015_V_CHAN(2, ADS1015_AIN2, 16, 0),
+	ADS1015_V_CHAN(3, ADS1015_AIN3, 16, 0),
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
