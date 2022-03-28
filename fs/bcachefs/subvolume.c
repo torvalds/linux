@@ -139,7 +139,7 @@ static int bch2_snapshots_set_equiv(struct btree_trans *trans)
 	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k, ret) {
 		u32 id = k.k->p.offset, child[2];
-		unsigned nr_live = 0, live_idx;
+		unsigned nr_live = 0, live_idx = 0;
 
 		if (k.k->type != KEY_TYPE_snapshot)
 			continue;
@@ -151,7 +151,7 @@ static int bch2_snapshots_set_equiv(struct btree_trans *trans)
 		for (i = 0; i < 2; i++) {
 			ret = snapshot_live(trans, child[i]);
 			if (ret < 0)
-				break;
+				goto err;
 
 			if (ret)
 				live_idx = i;
@@ -162,6 +162,7 @@ static int bch2_snapshots_set_equiv(struct btree_trans *trans)
 			? snapshot_t(c, child[live_idx])->equiv
 			: id;
 	}
+err:
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret)
