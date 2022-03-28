@@ -1932,11 +1932,52 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 {
 	struct dw_dp *dp = encoder_to_dp(encoder);
+	struct dw_dp_link *link = &dp->link;
+	struct drm_connector *conn = &dp->connector;
+	struct drm_display_info *di = &conn->display_info;
 
-	if (on)
+	u32 value;
+
+	if (on) {
+		di->color_formats = DRM_COLOR_FORMAT_RGB444;
+		di->bpc = 8;
+
+		regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &value);
+		switch (FIELD_GET(PHY_LANES, value)) {
+		case 2:
+			link->lanes = 4;
+			break;
+		case 1:
+			link->lanes = 2;
+			break;
+		case 0:
+			fallthrough;
+		default:
+			link->lanes = 1;
+			break;
+		}
+
+		switch (FIELD_GET(PHY_RATE, value)) {
+		case 3:
+			link->rate = 810000;
+			break;
+		case 2:
+			link->rate = 540000;
+			break;
+		case 1:
+			link->rate = 270000;
+			break;
+		case 0:
+			fallthrough;
+		default:
+			link->rate = 162000;
+			break;
+		}
+
 		phy_power_on(dp->phy);
-	else
+	} else {
 		phy_power_off(dp->phy);
+	}
 }
 
 static int dw_dp_bridge_attach(struct drm_bridge *bridge,
