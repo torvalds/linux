@@ -135,6 +135,28 @@ static const struct iio_event_spec ads1015_events[] = {
 	},
 };
 
+/*
+ * Compile-time check whether _fitbits can accommodate up to _testbits
+ * bits. Returns _fitbits on success, fails to compile otherwise.
+ *
+ * The test works such that it multiplies constant _fitbits by constant
+ * double-negation of size of a non-empty structure, i.e. it multiplies
+ * constant _fitbits by constant 1 in each successful compilation case.
+ * The non-empty structure may contain C11 _Static_assert(), make use of
+ * this and place the kernel variant of static assert in there, so that
+ * it performs the compile-time check for _testbits <= _fitbits. Note
+ * that it is not possible to directly use static_assert in compound
+ * statements, hence this convoluted construct.
+ */
+#define FIT_CHECK(_testbits, _fitbits)					\
+	(								\
+		(_fitbits) *						\
+		!!sizeof(struct {					\
+			static_assert((_testbits) <= (_fitbits));	\
+			int pad;					\
+		})							\
+	)
+
 #define ADS1015_V_CHAN(_chan, _addr, _realbits, _shift, _event_spec, _num_event_specs) { \
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
@@ -147,7 +169,7 @@ static const struct iio_event_spec ads1015_events[] = {
 	.scan_type = {						\
 		.sign = 's',					\
 		.realbits = (_realbits),			\
-		.storagebits = 16,				\
+		.storagebits = FIT_CHECK((_realbits) + (_shift), 16),	\
 		.shift = (_shift),				\
 		.endianness = IIO_CPU,				\
 	},							\
@@ -170,7 +192,7 @@ static const struct iio_event_spec ads1015_events[] = {
 	.scan_type = {						\
 		.sign = 's',					\
 		.realbits = (_realbits),			\
-		.storagebits = 16,				\
+		.storagebits = FIT_CHECK((_realbits) + (_shift), 16),	\
 		.shift = (_shift),				\
 		.endianness = IIO_CPU,				\
 	},							\
