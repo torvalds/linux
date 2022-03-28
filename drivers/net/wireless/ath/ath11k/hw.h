@@ -291,9 +291,16 @@ enum ath11k_bd_ie_board_type {
 	ATH11K_BD_IE_BOARD_DATA = 1,
 };
 
+enum ath11k_bd_ie_regdb_type {
+	ATH11K_BD_IE_REGDB_NAME = 0,
+	ATH11K_BD_IE_REGDB_DATA = 1,
+};
+
 enum ath11k_bd_ie_type {
 	/* contains sub IEs of enum ath11k_bd_ie_board_type */
 	ATH11K_BD_IE_BOARD = 0,
+	/* contains sub IEs of enum ath11k_bd_ie_regdb_type */
+	ATH11K_BD_IE_REGDB = 1,
 };
 
 struct ath11k_hw_regs {
@@ -360,5 +367,17 @@ extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
 extern const struct ath11k_hw_regs wcn6855_regs;
+
+static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
+{
+	switch (type) {
+	case ATH11K_BD_IE_BOARD:
+		return "board data";
+	case ATH11K_BD_IE_REGDB:
+		return "regdb data";
+	}
+
+	return "unknown";
+}
 
 #endif
