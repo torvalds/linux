@@ -2408,7 +2408,7 @@ is_rb(struct detailed_timing *t, void *data)
 	if (!is_display_descriptor(r, EDID_DETAIL_MONITOR_RANGE))
 		return;
 
-	if (r[15] & 0x10)
+	if (r[10] == DRM_EDID_CVT_SUPPORT_FLAG && r[15] & 0x10)
 		*(bool *)data = true;
 }
 
