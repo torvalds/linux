@@ -36,6 +36,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    page_owner
    page_table_check
    remap_file_pages
+   split_page_table_lock
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -45,7 +46,6 @@ TODOLIST:
 * numa
 * page_migration
 * slub
-* split_page_table_lock
 * transhuge
 * unevictable-lru
 * vmalloced-kernel-stacks
