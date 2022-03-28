@@ -1632,6 +1632,19 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 			if (channels[i].scan_index < 0)
 				continue;
 
+			/* Verify that sample bits fit into storage */
+			if (channels[i].scan_type.storagebits <
+			    channels[i].scan_type.realbits +
+			    channels[i].scan_type.shift) {
+				dev_err(&indio_dev->dev,
+					"Channel %d storagebits (%d) < shifted realbits (%d + %d)\n",
+					i, channels[i].scan_type.storagebits,
+					channels[i].scan_type.realbits,
+					channels[i].scan_type.shift);
+				ret = -EINVAL;
+				goto error_cleanup_dynamic;
+			}
+
 			ret = iio_buffer_add_channel_sysfs(indio_dev, buffer,
 							 &channels[i]);
 			if (ret < 0)
