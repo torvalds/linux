@@ -331,7 +331,7 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
 	struct bnxt *bp = ptp->bp;
-	u8 pin_id;
+	int pin_id;
 	int rc;
 
 	switch (rq->type) {
@@ -339,6 +339,8 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 		/* Configure an External PPS IN */
 		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_EXTTS,
 				      rq->extts.index);
+		if (!TSIO_PIN_VALID(pin_id))
+			return -EOPNOTSUPP;
 		if (!on)
 			break;
 		rc = bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_PPS_IN);
@@ -352,6 +354,8 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 		/* Configure a Periodic PPS OUT */
 		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_PEROUT,
 				      rq->perout.index);
+		if (!TSIO_PIN_VALID(pin_id))
+			return -EOPNOTSUPP;
 		if (!on)
 			break;
 
