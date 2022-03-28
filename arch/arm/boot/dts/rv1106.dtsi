@@ -871,7 +871,8 @@
 	wdt: watchdog@ff5a0000 {
 		compatible = "rockchip,rv1106-wdt", "snps,dw-wdt";
 		reg = <0xff5a0000 0x100>;
-		clocks = <&cru PCLK_WDT_NS>;
+		clocks = <&cru TCLK_WDT_NS>, <&cru PCLK_WDT_NS>;
+		clock-names = "tclk", "pclk";
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
