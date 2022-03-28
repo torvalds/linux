@@ -10,6 +10,14 @@
 #ifndef _DVB_USB_IDS_H_
 #define _DVB_USB_IDS_H_
 
+#include <linux/usb.h>
+
+#define DVB_USB_DEV(pid, vid) \
+    [vid] = { USB_DEVICE(USB_VID_ ## pid, USB_PID_ ## vid) }
+
+#define DVB_USB_DEV_VER(pid, vid, lo, hi) \
+    [vid] = { USB_DEVICE_VER(USB_VID_ ## pid, USB_PID_ ## vid, lo, hi) }
+
 /* Vendor IDs */
 
 #define USB_VID_774				0x7a69
