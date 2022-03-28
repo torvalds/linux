@@ -385,25 +385,6 @@ static void __init setup_init_fpu_buf(void)
 	fxsave(&init_fpstate.regs.fxsave);
 }
 
-static int xfeature_uncompacted_offset(int xfeature_nr)
-{
-	u32 eax, ebx, ecx, edx;
-
-	/*
-	 * Only XSAVES supports supervisor states and it uses compacted
-	 * format. Checking a supervisor state's uncompacted offset is
-	 * an error.
-	 */
-	if (XFEATURE_MASK_SUPERVISOR_ALL & BIT_ULL(xfeature_nr)) {
-		WARN_ONCE(1, "No fixed offset for xstate %d\n", xfeature_nr);
-		return -1;
-	}
-
-	CHECK_XFEATURE(xfeature_nr);
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
-	return ebx;
-}
-
 int xfeature_size(int xfeature_nr)
 {
 	u32 eax, ebx, ecx, edx;
@@ -581,29 +562,15 @@ static bool __init check_xstate_against_struct(int nr)
 
 static unsigned int xstate_calculate_size(u64 xfeatures, bool compacted)
 {
-	unsigned int size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
-	int i;
+	unsigned int topmost = fls64(xfeatures) -  1;
+	unsigned int offset = xstate_offsets[topmost];
 
-	for_each_extended_xfeature(i, xfeatures) {
-		/* Align from the end of the previous feature */
-		if (xfeature_is_aligned64(i))
-			size = ALIGN(size, 64);
-		/*
-		 * In compacted format the enabled features are packed,
-		 * i.e. disabled features do not occupy space.
-		 *
-		 * In non-compacted format the offsets are fixed and
-		 * disabled states still occupy space in the memory buffer.
-		 */
-		if (!compacted)
-			size = xfeature_uncompacted_offset(i);
-		/*
-		 * Add the feature size even for non-compacted format
-		 * to make the end result correct
-		 */
-		size += xfeature_size(i);
-	}
-	return size;
+	if (topmost <= XFEATURE_SSE)
+		return sizeof(struct xregs_state);
+
+	if (compacted)
+		offset = xfeature_get_offset(xfeatures, topmost);
+	return offset + xstate_sizes[topmost];
 }
 
 /*
