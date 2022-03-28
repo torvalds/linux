@@ -2141,7 +2141,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		param = pinconf_to_config_param(configs[i]);
 		arg = pinconf_to_config_argument(configs[i]);
 
-		if (param == (PIN_CONFIG_OUTPUT | PIN_CONFIG_INPUT_ENABLE)) {
+		if (param == PIN_CONFIG_OUTPUT || param == PIN_CONFIG_INPUT_ENABLE) {
 			/*
 			 * Check for gpio driver not being probed yet.
 			 * The lock makes sure that either gpio-probe has completed
@@ -2190,6 +2190,16 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 			rc = gpio->direction_output(gpio, pin - bank->pin_base,
 						    arg);
+			if (rc)
+				return rc;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			rc = rockchip_set_mux(bank, pin - bank->pin_base,
+					      RK_FUNC_GPIO);
+			if (rc != RK_FUNC_GPIO)
+				return -EINVAL;
+
+			rc = gpio->direction_input(gpio, pin - bank->pin_base);
 			if (rc)
 				return rc;
 			break;
