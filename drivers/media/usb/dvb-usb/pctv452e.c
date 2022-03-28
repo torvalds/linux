@@ -951,13 +951,19 @@ static int pctv452e_tuner_attach(struct dvb_usb_adapter *a)
 	return 0;
 }
 
-static struct usb_device_id pctv452e_usb_table[] = {
-	{USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_452E)},
-	{USB_DEVICE(USB_VID_TECHNOTREND, USB_PID_TECHNOTREND_CONNECT_S2_3600)},
-	{USB_DEVICE(USB_VID_TECHNOTREND,
-				USB_PID_TECHNOTREND_CONNECT_S2_3650_CI)},
-	{}
+enum {
+	PINNACLE_PCTV_452E,
+	TECHNOTREND_CONNECT_S2_3600,
+	TECHNOTREND_CONNECT_S2_3650_CI,
 };
+
+static struct usb_device_id pctv452e_usb_table[] = {
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_452E),
+	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3600),
+	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3650_CI),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, pctv452e_usb_table);
 
 static struct dvb_usb_device_properties pctv452e_properties = {
@@ -1006,7 +1012,7 @@ static struct dvb_usb_device_properties pctv452e_properties = {
 	.devices = {
 		{ .name = "PCTV HDTV USB",
 		  .cold_ids = { NULL, NULL }, /* this is a warm only device */
-		  .warm_ids = { &pctv452e_usb_table[0], NULL }
+		  .warm_ids = { &pctv452e_usb_table[PINNACLE_PCTV_452E], NULL }
 		},
 		{ NULL },
 	}
@@ -1060,11 +1066,11 @@ static struct dvb_usb_device_properties tt_connect_s2_3600_properties = {
 	.devices = {
 		{ .name = "Technotrend TT Connect S2-3600",
 		  .cold_ids = { NULL, NULL }, /* this is a warm only device */
-		  .warm_ids = { &pctv452e_usb_table[1], NULL }
+		  .warm_ids = { &pctv452e_usb_table[TECHNOTREND_CONNECT_S2_3600], NULL }
 		},
 		{ .name = "Technotrend TT Connect S2-3650-CI",
 		  .cold_ids = { NULL, NULL },
-		  .warm_ids = { &pctv452e_usb_table[2], NULL }
+		  .warm_ids = { &pctv452e_usb_table[TECHNOTREND_CONNECT_S2_3650_CI], NULL }
 		},
 		{ NULL },
 	}
