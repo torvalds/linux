@@ -338,6 +338,7 @@ static int ice_repr_add(struct ice_vf *vf)
 	repr->netdev->min_mtu = ETH_MIN_MTU;
 	repr->netdev->max_mtu = ICE_MAX_MTU;
 
+	SET_NETDEV_DEV(repr->netdev, ice_pf_to_dev(vf->pf));
 	err = ice_repr_reg_netdev(repr->netdev);
 	if (err)
 		goto err_netdev;
