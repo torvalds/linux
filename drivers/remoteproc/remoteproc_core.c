@@ -2071,6 +2071,12 @@ int rproc_shutdown(struct rproc *rproc)
 		return ret;
 	}
 
+	if (rproc->state != RPROC_RUNNING &&
+	    rproc->state != RPROC_ATTACHED) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* if the remote proc is still needed, bail out */
 	if (!atomic_dec_and_test(&rproc->power))
 		goto out;
@@ -2128,6 +2134,11 @@ int rproc_detach(struct rproc *rproc)
 	if (ret) {
 		dev_err(dev, "can't lock rproc %s: %d\n", rproc->name, ret);
 		return ret;
+	}
+
+	if (rproc->state != RPROC_ATTACHED) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* if the remote proc is still needed, bail out */

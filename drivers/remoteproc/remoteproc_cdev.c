@@ -34,15 +34,8 @@ static ssize_t rproc_cdev_write(struct file *filp, const char __user *buf, size_
 	if (!strncmp(cmd, "start", len)) {
 		ret = rproc_boot(rproc);
 	} else if (!strncmp(cmd, "stop", len)) {
-		if (rproc->state != RPROC_RUNNING &&
-		    rproc->state != RPROC_ATTACHED)
-			return -EINVAL;
-
 		ret = rproc_shutdown(rproc);
 	} else if (!strncmp(cmd, "detach", len)) {
-		if (rproc->state != RPROC_ATTACHED)
-			return -EINVAL;
-
 		ret = rproc_detach(rproc);
 	} else {
 		dev_err(&rproc->dev, "Unrecognized option\n");
