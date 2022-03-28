@@ -87,13 +87,13 @@
 		reg = <0x30>;
 		clocks = <&cru MCLK_REF_MIPI0>;
 		clock-names = "xvclk";
-		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2119-PC1";
-		rockchip,camera-module-lens-name = "YT10081-H115";
+		rockchip,camera-module-lens-name = "30IRC-F16";
 		port {
 			sc3336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input0>;
@@ -108,13 +108,13 @@
 		reg = <0x30>;
 		clocks = <&cru MCLK_REF_MIPI0>;
 		clock-names = "xvclk";
-		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2117-PC1";
-		rockchip,camera-module-lens-name = "YT10123-5MP";
+		rockchip,camera-module-lens-name = "30IRC-F16";
 		port {
 			sc4336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input1>;
@@ -135,7 +135,7 @@
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2115-PC1";
-		rockchip,camera-module-lens-name = "YT10123-5MP";
+		rockchip,camera-module-lens-name = "30IRC-F16";
 		port {
 			sc530ai_out: endpoint {
 				remote-endpoint = <&csi_dphy_input2>;
