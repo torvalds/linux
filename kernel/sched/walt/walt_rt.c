@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -19,7 +20,7 @@ void rt_task_arrival_marker(void *unused, bool preempt,
 {
 	unsigned int cpu = raw_smp_processor_id();
 
-	if (rt_task(next) && next != cpu_rq(cpu)->stop)
+	if (next->policy == SCHED_FIFO)
 		per_cpu(rt_task_arrival_time, cpu) = rq_clock_task(this_rq());
 	else
 		per_cpu(rt_task_arrival_time, cpu) = 0;
