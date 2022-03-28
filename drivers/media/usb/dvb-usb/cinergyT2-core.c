@@ -194,7 +194,7 @@ static int cinergyt2_usb_probe(struct usb_interface *intf,
 }
 
 static struct usb_device_id cinergyt2_usb_table[] = {
-	{ USB_DEVICE(USB_VID_TERRATEC, 0x0038) },
+	{ USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T2) },
 	{ 0 }
 };
 

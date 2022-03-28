@@ -163,7 +163,7 @@ static int dtv5100_probe(struct usb_interface *intf,
 }
 
 static struct usb_device_id dtv5100_table[] = {
-	{ USB_DEVICE(0x06be, 0xa232) },
+	{ USB_DEVICE(USB_VID_AME, USB_PID_AME_DTV5100) },
 	{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dtv5100_table);
