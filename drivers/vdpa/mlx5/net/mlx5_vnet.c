@@ -1475,7 +1475,7 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 	virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
 	struct mlx5_core_dev *pfmdev;
 	size_t read;
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN], mac_back[ETH_ALEN];
 
 	pfmdev = pci_get_drvdata(pci_physfn(mvdev->mdev->pdev));
 	switch (cmd) {
@@ -1488,6 +1488,9 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 			status = VIRTIO_NET_OK;
 			break;
 		}
+
+		if (is_zero_ether_addr(mac))
+			break;
 
 		if (!is_zero_ether_addr(ndev->config.mac)) {
 			if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
@@ -1503,7 +1506,47 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 			break;
 		}
 
+		/* backup the original mac address so that if failed to add the forward rules
+		 * we could restore it
+		 */
+		memcpy(mac_back, ndev->config.mac, ETH_ALEN);
+
 		memcpy(ndev->config.mac, mac, ETH_ALEN);
+
+		/* Need recreate the flow table entry, so that the packet could forward back
+		 */
+		remove_fwd_to_tir(ndev);
+
+		if (add_fwd_to_tir(ndev)) {
+			mlx5_vdpa_warn(mvdev, "failed to insert forward rules, try to restore\n");
+
+			/* Although it hardly run here, we still need double check */
+			if (is_zero_ether_addr(mac_back)) {
+				mlx5_vdpa_warn(mvdev, "restore mac failed: Original MAC is zero\n");
+				break;
+			}
+
+			/* Try to restore original mac address to MFPS table, and try to restore
+			 * the forward rule entry.
+			 */
+			if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
+				mlx5_vdpa_warn(mvdev, "restore mac failed: delete MAC %pM from MPFS table failed\n",
+					       ndev->config.mac);
+			}
+
+			if (mlx5_mpfs_add_mac(pfmdev, mac_back)) {
+				mlx5_vdpa_warn(mvdev, "restore mac failed: insert old MAC %pM into MPFS table failed\n",
+					       mac_back);
+			}
+
+			memcpy(ndev->config.mac, mac_back, ETH_ALEN);
+
+			if (add_fwd_to_tir(ndev))
+				mlx5_vdpa_warn(mvdev, "restore forward rules failed: insert forward rules failed\n");
+
+			break;
+		}
+
 		status = VIRTIO_NET_OK;
 		break;
 
