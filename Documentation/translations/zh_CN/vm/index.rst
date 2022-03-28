@@ -37,6 +37,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    page_table_check
    remap_file_pages
    split_page_table_lock
+   z3fold
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -49,5 +50,4 @@ TODOLIST:
 * transhuge
 * unevictable-lru
 * vmalloced-kernel-stacks
-* z3fold
 * zsmalloc
