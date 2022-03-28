@@ -760,6 +760,11 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 				dev_warn(dev, "setting output pin %u to %u failed\n", cfg->pin,
 					 cfg->arg);
 			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			ret = rockchip_gpio_direction_input(&bank->gpio_chip, cfg->pin);
+			if (ret)
+				dev_warn(dev, "setting input pin %u failed\n", cfg->pin);
+			break;
 		default:
 			dev_warn(dev, "unknown deferred config param %d\n", cfg->param);
 			break;
