@@ -227,7 +227,7 @@ struct ads1015_data {
 	unsigned int comp_mode;
 	struct ads1015_thresh_data thresh_data[ADS1015_CHANNELS];
 
-	const int *data_rate;
+	const struct ads1015_chip_data *chip;
 	/*
 	 * Set to true when the ADC is switched to the continuous-conversion
 	 * mode and exits from a power-down state.  This flag is used to avoid
@@ -368,6 +368,7 @@ static int ads1015_set_power_state(struct ads1015_data *data, bool on)
 static
 int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 {
+	const int *data_rate = data->chip->data_rate;
 	int ret, pga, dr, dr_old, conv_time;
 	unsigned int old, mask, cfg;
 
@@ -402,8 +403,8 @@ int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 	}
 	if (data->conv_invalid) {
 		dr_old = (old & ADS1015_CFG_DR_MASK) >> ADS1015_CFG_DR_SHIFT;
-		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr_old]);
-		conv_time += DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
+		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data_rate[dr_old]);
+		conv_time += DIV_ROUND_UP(USEC_PER_SEC, data_rate[dr]);
 		conv_time += conv_time / 10; /* 10% internal clock inaccuracy */
 		usleep_range(conv_time, conv_time + 1);
 		data->conv_invalid = false;
@@ -470,7 +471,7 @@ static int ads1015_set_data_rate(struct ads1015_data *data, int chan, int rate)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ads1015_data_rate); i++) {
-		if (data->data_rate[i] == rate) {
+		if (data->chip->data_rate[i] == rate) {
 			data->channel_data[chan].data_rate = i;
 			return 0;
 		}
@@ -528,7 +529,7 @@ release_direct:
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		idx = data->channel_data[chan->address].data_rate;
-		*val = data->data_rate[idx];
+		*val = data->chip->data_rate[idx];
 		ret = IIO_VAL_INT;
 		break;
 	default:
@@ -588,7 +589,7 @@ static int ads1015_read_event(struct iio_dev *indio_dev,
 		dr = data->channel_data[chan->address].data_rate;
 		comp_queue = data->thresh_data[chan->address].comp_queue;
 		period = ads1015_comp_queue[comp_queue] *
-			USEC_PER_SEC / data->data_rate[dr];
+			USEC_PER_SEC / data->chip->data_rate[dr];
 
 		*val = period / USEC_PER_SEC;
 		*val2 = period % USEC_PER_SEC;
@@ -610,6 +611,7 @@ static int ads1015_write_event(struct iio_dev *indio_dev,
 	int val2)
 {
 	struct ads1015_data *data = iio_priv(indio_dev);
+	const int *data_rate = data->chip->data_rate;
 	int realbits = chan->scan_type.realbits;
 	int ret = 0;
 	long long period;
@@ -635,7 +637,7 @@ static int ads1015_write_event(struct iio_dev *indio_dev,
 
 		for (i = 0; i < ARRAY_SIZE(ads1015_comp_queue) - 1; i++) {
 			if (period <= ads1015_comp_queue[i] *
-					USEC_PER_SEC / data->data_rate[dr])
+					USEC_PER_SEC / data_rate[dr])
 				break;
 		}
 		data->thresh_data[chan->address].comp_queue = i;
@@ -989,7 +991,7 @@ static int ads1015_probe(struct i2c_client *client,
 	indio_dev->channels = chip->channels;
 	indio_dev->num_channels = chip->num_channels;
 	indio_dev->info = chip->info;
-	data->data_rate = chip->data_rate;
+	data->chip = chip;
 	data->event_channel = ADS1015_CHANNELS;
 
 	/*
