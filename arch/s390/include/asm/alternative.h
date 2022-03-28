@@ -75,7 +75,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	"\tnopr\n"							\
 	".else\n"							\
 	"\t.rept " oldinstr_pad_len(num) " / 6\n"			\
-	"\t.jgnop .\n"							\
+	"\t.brcl 0,0\n"							\
 	"\t.endr\n"							\
 	"\t.rept " oldinstr_pad_len(num) " %% 6 / 4\n"			\
 	"\tnop\n"							\

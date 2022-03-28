@@ -38,7 +38,7 @@
  */
 .macro alt_pad_fill bytes
 	.rept	( \bytes ) / 6
-	jgnop	.
+	brcl	0,0
 	.endr
 	.rept	( \bytes ) % 6 / 4
 	nop
