@@ -151,6 +151,12 @@ module_param(max_users, uint, 0644);
 MODULE_PARM_DESC(max_users,
 		 "The most users that may use the IPMI stack at one time.");
 
+/* The default maximum number of message a user may have outstanding. */
+static unsigned int max_msgs_per_user = 100;
+module_param(max_msgs_per_user, uint, 0644);
+MODULE_PARM_DESC(max_msgs_per_user,
+		 "The most message a user may have outstanding.");
+
 /* Call every ~1000 ms. */
 #define IPMI_TIMEOUT_TIME	1000
 
@@ -192,6 +198,8 @@ struct ipmi_user {
 
 	/* Does this interface receive IPMI events? */
 	bool gets_events;
+
+	atomic_t nr_msgs;
 
 	/* Free must run in process context for RCU cleanup. */
 	struct work_struct remove_work;
@@ -934,11 +942,13 @@ static int deliver_response(struct ipmi_smi *intf, struct ipmi_recv_msg *msg)
 		 * risk.  At this moment, simply skip it in that case.
 		 */
 		ipmi_free_recv_msg(msg);
+		atomic_dec(&msg->user->nr_msgs);
 	} else {
 		int index;
 		struct ipmi_user *user = acquire_ipmi_user(msg->user, &index);
 
 		if (user) {
+			atomic_dec(&user->nr_msgs);
 			user->handler->ipmi_recv_hndl(msg, user->handler_data);
 			release_ipmi_user(user, index);
 		} else {
@@ -1256,6 +1266,7 @@ int ipmi_create_user(unsigned int          if_num,
 	/* Note that each existing user holds a refcount to the interface. */
 	kref_get(&intf->refcount);
 
+	atomic_set(&new_user->nr_msgs, 0);
 	kref_init(&new_user->refcount);
 	new_user->handler = handler;
 	new_user->handler_data = handler_data;
@@ -2298,6 +2309,14 @@ static int i_ipmi_request(struct ipmi_user     *user,
 	struct ipmi_recv_msg *recv_msg;
 	int rv = 0;
 
+	if (user) {
+		if (atomic_add_return(1, &user->nr_msgs) > max_msgs_per_user) {
+			/* Decrement will happen at the end of the routine. */
+			rv = -EBUSY;
+			goto out;
+		}
+	}
+
 	if (supplied_recv)
 		recv_msg = supplied_recv;
 	else {
@@ -2369,6 +2388,8 @@ out_err:
 	rcu_read_unlock();
 
 out:
+	if (rv && user)
+		atomic_dec(&user->nr_msgs);
 	return rv;
 }
 
