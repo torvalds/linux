@@ -425,8 +425,8 @@ static struct dvb_usb_device_properties vp702x_properties = {
 		  .warm_ids = { NULL },
 		},
 /*		{ .name = "TwinhanDTV StarBox DVB-S USB2.0 (VP7020)",
-		  .cold_ids = { &vp702x_usb_table[2], NULL },
-		  .warm_ids = { &vp702x_usb_table[3], NULL },
+		  .cold_ids = { &vp702x_usb_table[1], NULL },
+		  .warm_ids = { &vp702x_usb_table[2], NULL },
 		},
 */		{ NULL },
 	}
