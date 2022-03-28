@@ -32,6 +32,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    memory-model
    mmu_notifier
    overcommit-accounting
+   page_frags
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -40,7 +41,6 @@ TODOLIST:
 * hugetlbfs_reserv
 * numa
 * page_migration
-* page_frags
 * page_owner
 * page_table_check
 * remap_file_pages
