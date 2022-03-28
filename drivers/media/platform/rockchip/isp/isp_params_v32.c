@@ -3252,14 +3252,14 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 		 !!arg->hiabs_possel << 6 |
 		 !!arg->higaus_bypass_en << 5 |
 		 !!arg->himed_bypass_en << 4 |
-		 !!arg->lobypass_en << 3 |
+		 //!!arg->lobypass_en << 3 |
 		 !!arg->hibypass_en << 2 |
 		 !!arg->bypass_en << 1;
 	isp3_param_write(params_vdev, value, ISP3X_BAY3D_CTRL);
 
 	value = !!arg->wgtmix_opt_en << 12 |
 		!!arg->higaus5x5_en << 11 |
-		!!arg->higaus3_mode << 9 |
+		(arg->higaus3_mode & 0x3) << 9 |
 		!!arg->curds_high_en << 8 |
 		!!arg->iirwr_rnd_en << 7 |
 		!!arg->pksig_ind_sel << 6 |
@@ -3342,6 +3342,10 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 			dev_err(ispdev->dev, "no bay3d buffer available\n");
 			return;
 		}
+
+		/* mibuf_size for fifo_cur_full, set to max: (3072 - 2) / 2, 2 align */
+		value = 0x5fe << 16;
+		isp3_param_set_bits(params_vdev, ISP3X_BAY3D_IN_IRQ_LINECNT, value);
 
 		value = isp3_param_read_cache(params_vdev, ISP32_BAY3D_CTRL1);
 		if (priv_val->is_lo8x8) {
@@ -4042,20 +4046,30 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		bool is_hdr = !(dev->rd_mode == HDR_NORMAL || dev->rd_mode == HDR_RDBK_FRAME1);
 		bool is_bwsaving = !!new_params->others.bay3d_cfg.bwsaving_en;
 		bool is_glbpk = !!new_params->others.bay3d_cfg.glbpk_en;
+		bool is_bwopt_dis = !!new_params->others.bay3d_cfg.bwopt_gain_dis;
 		bool is_predgain = !!new_params->others.bls_cfg.isp_ob_predgain;
 		u32 w = ALIGN(isp_sdev->in_crop.width, 16);
 		u32 h = ALIGN(isp_sdev->in_crop.height, 16);
-		u32 val, wrap_line, wsize = w * 2;
+		u32 val, wrap_line, wsize, div;
 		dma_addr_t dma_addr;
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
 				      !new_params->others.bay3d_cfg.lo4x4_en);
 
+		/*
+		 * bwopt_dis one line image with one line pk gain
+		 * other two line image with one line pk gain
+		 */
+		wsize = is_bwopt_dis ? w : w * 2;
 		if (is_bwsaving)
 			wsize = wsize * 3 / 4;
+		/* pk gain to ddr */
 		if (!is_glbpk)
 			wsize += w / 8;
-		val = ALIGN(wsize * h, 16);
+		/* pixel to Byte */
+		wsize *= 2;
+		div = is_bwopt_dis ? 1 : 2;
+		val = ALIGN(wsize * h / div, 16);
 		priv_val->buf_3dnr_iir.size = val;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_iir);
 		if (ret) {
@@ -4067,7 +4081,9 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_BASE);
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_RD_BASE);
 
-		val = ALIGN(w * h / 8, 16);
+		div = new_params->others.bay3d_cfg.lo4x4_en ?
+			16 : (new_params->others.bay3d_cfg.lo4x8_en ? 32 : 64);
+		val = ALIGN(w * h / div, 16);
 		priv_val->buf_3dnr_ds.size = val;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
 		if (ret) {
@@ -4081,13 +4097,15 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_RD_BASE);
 
 		wrap_line = priv_val->is_lo8x8 ? 76 : 36;
-		wsize = w * 2;
+		wsize = is_bwopt_dis ? w : w * 2;
 		if (is_bwsaving)
 			wsize = wsize * 3 / 4;
 		if (is_hdr || is_predgain)
 			wsize += w / 8;
+		/* pixel to Byte and align */
 		wsize = ALIGN(wsize * 2, 16);
-		val = ALIGN(wsize * wrap_line / 2, 16);
+		div = is_bwopt_dis ? 1 : 2;
+		val = ALIGN(wsize * wrap_line / div, 16);
 		priv_val->buf_3dnr_cur.size = val;
 		if (val > dev->hw_dev->sram.size) {
 			ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_cur);
