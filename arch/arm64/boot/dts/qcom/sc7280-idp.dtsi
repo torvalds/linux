@@ -547,3 +547,7 @@
 	};
 };
 
+&remoteproc_wpss {
+	status = "okay";
+};
+
