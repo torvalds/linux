@@ -88,6 +88,7 @@ struct rk817_codec_priv {
 	struct gpio_desc *hp_ctl_gpio;
 	int spk_mute_delay;
 	int hp_mute_delay;
+	int chip_ver;
 };
 
 static const struct reg_default rk817_reg_defaults[] = {
@@ -153,6 +154,8 @@ static bool rk817_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case RK817_CODEC_DTOP_LPT_SRST:
+	case RK817_PMIC_CHIP_NAME:
+	case RK817_PMIC_CHIP_VER:
 		return true;
 	default:
 		return false;
@@ -218,6 +221,8 @@ static bool rk817_codec_register(struct device *dev, unsigned int reg)
 	case RK817_CODEC_DI2S_TXCR1:
 	case RK817_CODEC_DI2S_TXCR2:
 	case RK817_CODEC_DI2S_TXCR3_TXCMD:
+	case RK817_PMIC_CHIP_NAME:
+	case RK817_PMIC_CHIP_VER:
 		return true;
 	default:
 		return false;
@@ -858,12 +863,23 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned char apll_cfg3_val;
 	unsigned char dtop_digen_sr_lmt0;
 	unsigned char dtop_digen_clke;
 
 	DBG("%s : sample rate = %dHz\n", __func__, rate);
+
+	if (rk817->chip_ver <= 0x4) {
+		DBG("%s: SMIC TudorAG and previous versions\n", __func__);
+		snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x0c);
+		snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0x95);
+	} else {
+		DBG("%s: SMIC TudorAG version later\n", __func__);
+		snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x04);
+		snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0xa5);
+	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dtop_digen_clke = DAC_DIG_CLK_EN;
@@ -1084,6 +1100,8 @@ static int rk817_resume(struct snd_soc_component *component)
 static int rk817_probe(struct snd_soc_component *component)
 {
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
+	int chip_name = 0;
+	int chip_ver = 0;
 
 	DBG("%s\n", __func__);
 
@@ -1096,6 +1114,11 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817->component = component;
 	rk817->playback_path = OFF;
 	rk817->capture_path = MIC_OFF;
+
+	chip_name = snd_soc_component_read(component, RK817_PMIC_CHIP_NAME);
+	chip_ver = snd_soc_component_read(component, RK817_PMIC_CHIP_VER);
+	rk817->chip_ver = (chip_ver & 0x0f);
+	dev_info(component->dev, "%s: chip_name:0x%x, chip_ver:0x%x\n", __func__, chip_name, chip_ver);
 
 	rk817_reset(component);
 	snd_soc_add_component_controls(component, rk817_snd_path_controls,
@@ -1233,7 +1256,7 @@ static const struct regmap_config rk817_codec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.reg_stride = 1,
-	.max_register = 0x4f,
+	.max_register = 0xfe,
 	.cache_type = REGCACHE_FLAT,
 	.volatile_reg = rk817_volatile_register,
 	.writeable_reg = rk817_codec_register,
