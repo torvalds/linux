@@ -554,7 +554,6 @@ static void max3100_shutdown(struct uart_port *port)
 		del_timer_sync(&s->timer);
 
 	if (s->workqueue) {
-		flush_workqueue(s->workqueue);
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 	}
