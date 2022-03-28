@@ -85,8 +85,10 @@ struct block_device {
  */
 #if defined(CONFIG_ALPHA) && !defined(__alpha_bwx__)
 typedef u32 __bitwise blk_status_t;
+typedef u32 blk_short_t;
 #else
 typedef u8 __bitwise blk_status_t;
+typedef u16 blk_short_t;
 #endif
 #define	BLK_STS_OK 0
 #define BLK_STS_NOTSUPP		((__force blk_status_t)1)
