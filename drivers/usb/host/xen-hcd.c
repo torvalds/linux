@@ -1101,14 +1101,14 @@ static void xenhcd_destroy_rings(struct xenhcd_info *info)
 	info->irq = 0;
 
 	if (info->urb_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(info->urb_ring_ref, 0,
+		gnttab_end_foreign_access(info->urb_ring_ref,
 					  (unsigned long)info->urb_ring.sring);
 		info->urb_ring_ref = GRANT_INVALID_REF;
 	}
 	info->urb_ring.sring = NULL;
 
 	if (info->conn_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(info->conn_ring_ref, 0,
+		gnttab_end_foreign_access(info->conn_ring_ref,
 					  (unsigned long)info->conn_ring.sring);
 		info->conn_ring_ref = GRANT_INVALID_REF;
 	}
