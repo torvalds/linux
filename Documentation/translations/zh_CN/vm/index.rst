@@ -29,13 +29,14 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    ksm
    frontswap
    hwpoison
+   memory-model
 
 TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
 * hmm
 * hugetlbfs_reserv
-* memory-model
+
 * mmu_notifier
 * numa
 * overcommit-accounting
