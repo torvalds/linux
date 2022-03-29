@@ -11633,7 +11633,7 @@ static inline void kvm_ops_update(struct kvm_x86_init_ops *ops)
 #include <asm/kvm-x86-ops.h>
 #undef __KVM_X86_OP
 
-	kvm_pmu_ops_update(ops->runtime_ops->pmu_ops);
+	kvm_pmu_ops_update(ops->pmu_ops);
 }
 
 int kvm_arch_hardware_setup(void *opaque)
