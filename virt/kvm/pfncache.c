@@ -191,6 +191,7 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 		gpc->uhva = gfn_to_hva_memslot(gpc->memslot, gfn);
 
 		if (kvm_is_error_hva(gpc->uhva)) {
+			gpc->pfn = KVM_PFN_ERR_FAULT;
 			ret = -EFAULT;
 			goto out;
 		}
