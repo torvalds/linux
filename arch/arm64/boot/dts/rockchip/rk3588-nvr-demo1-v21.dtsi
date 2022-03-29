@@ -153,6 +153,10 @@
 	status = "okay";
 };
 
+&route_dp0 {
+	status = "disabled";
+};
+
 &usbdp_phy0 {
 	status = "okay";
 	rockchip,dp-lane-mux = < 0 1 2 3 >;
