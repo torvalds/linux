@@ -957,6 +957,38 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static bool is_params_dirty(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai,
+			    unsigned int div_bclk,
+			    unsigned int div_lrck,
+			    unsigned int fmt)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
+	unsigned int last_div_bclk, last_div_lrck, last_fmt, val;
+
+	regmap_read(i2s_tdm->regmap, I2S_CLKDIV, &val);
+	last_div_bclk = ((val & I2S_CLKDIV_TXM_MASK) >> I2S_CLKDIV_TXM_SHIFT) + 1;
+	if (last_div_bclk != div_bclk)
+		return true;
+
+	regmap_read(i2s_tdm->regmap, I2S_CKR, &val);
+	last_div_lrck = ((val & I2S_CKR_TSD_MASK) >> I2S_CKR_TSD_SHIFT) + 1;
+	if (last_div_lrck != div_lrck)
+		return true;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(i2s_tdm->regmap, I2S_TXCR, &val);
+		last_fmt = val & (I2S_TXCR_VDW_MASK | I2S_TXCR_CSR_MASK);
+	} else {
+		regmap_read(i2s_tdm->regmap, I2S_RXCR, &val);
+		last_fmt = val & (I2S_RXCR_VDW_MASK | I2S_RXCR_CSR_MASK);
+	}
+	if (last_fmt != fmt)
+		return true;
+
+	return false;
+}
+
 static int rockchip_i2s_trcm_mode(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai,
 				  unsigned int div_bclk,
@@ -967,6 +999,9 @@ static int rockchip_i2s_trcm_mode(struct snd_pcm_substream *substream,
 	unsigned long flags;
 
 	if (!i2s_tdm->clk_trcm)
+		return 0;
+
+	if (!is_params_dirty(substream, dai, div_bclk, div_lrck, fmt))
 		return 0;
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
