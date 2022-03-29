@@ -66,9 +66,9 @@ struct sys_stat_struct {
 #define my_syscall0(num)                                                      \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
+	register long _num __asm__ ("eax") = (num);                           \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "0"(_num)                                                   \
@@ -80,10 +80,10 @@ struct sys_stat_struct {
 #define my_syscall1(num, arg1)                                                \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
-	register long _arg1 asm("ebx") = (long)(arg1);                        \
+	register long _num __asm__ ("eax") = (num);                           \
+	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1),                                                 \
@@ -96,11 +96,11 @@ struct sys_stat_struct {
 #define my_syscall2(num, arg1, arg2)                                          \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
-	register long _arg1 asm("ebx") = (long)(arg1);                        \
-	register long _arg2 asm("ecx") = (long)(arg2);                        \
+	register long _num __asm__ ("eax") = (num);                           \
+	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
+	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2),                                     \
@@ -113,12 +113,12 @@ struct sys_stat_struct {
 #define my_syscall3(num, arg1, arg2, arg3)                                    \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
-	register long _arg1 asm("ebx") = (long)(arg1);                        \
-	register long _arg2 asm("ecx") = (long)(arg2);                        \
-	register long _arg3 asm("edx") = (long)(arg3);                        \
+	register long _num __asm__ ("eax") = (num);                           \
+	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
+	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
+	register long _arg3 __asm__ ("edx") = (long)(arg3);                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
@@ -131,13 +131,13 @@ struct sys_stat_struct {
 #define my_syscall4(num, arg1, arg2, arg3, arg4)                              \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
-	register long _arg1 asm("ebx") = (long)(arg1);                        \
-	register long _arg2 asm("ecx") = (long)(arg2);                        \
-	register long _arg3 asm("edx") = (long)(arg3);                        \
-	register long _arg4 asm("esi") = (long)(arg4);                        \
+	register long _num __asm__ ("eax") = (num);                           \
+	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
+	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
+	register long _arg3 __asm__ ("edx") = (long)(arg3);                   \
+	register long _arg4 __asm__ ("esi") = (long)(arg4);                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4),             \
@@ -150,14 +150,14 @@ struct sys_stat_struct {
 #define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
 ({                                                                            \
 	long _ret;                                                            \
-	register long _num asm("eax") = (num);                                \
-	register long _arg1 asm("ebx") = (long)(arg1);                        \
-	register long _arg2 asm("ecx") = (long)(arg2);                        \
-	register long _arg3 asm("edx") = (long)(arg3);                        \
-	register long _arg4 asm("esi") = (long)(arg4);                        \
-	register long _arg5 asm("edi") = (long)(arg5);                        \
+	register long _num __asm__ ("eax") = (num);                           \
+	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
+	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
+	register long _arg3 __asm__ ("edx") = (long)(arg3);                   \
+	register long _arg4 __asm__ ("esi") = (long)(arg4);                   \
+	register long _arg5 __asm__ ("edi") = (long)(arg5);                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
@@ -174,7 +174,7 @@ struct sys_stat_struct {
  * 2) The deepest stack frame should be set to zero
  *
  */
-asm(".section .text\n"
+__asm__ (".section .text\n"
     ".weak _start\n"
     ".global _start\n"
     "_start:\n"

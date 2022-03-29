@@ -69,10 +69,10 @@ struct sys_stat_struct {
 
 #define my_syscall0(num)                                                      \
 ({                                                                            \
-	register long _num asm("v0") = (num);                                 \
-	register long _arg4 asm("a3");                                        \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg4 __asm__ ("a3");                                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -86,11 +86,11 @@ struct sys_stat_struct {
 
 #define my_syscall1(num, arg1)                                                \
 ({                                                                            \
-	register long _num asm("v0") = (num);                                 \
-	register long _arg1 asm("a0") = (long)(arg1);                         \
-	register long _arg4 asm("a3");                                        \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
+	register long _arg4 __asm__ ("a3");                                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -105,12 +105,12 @@ struct sys_stat_struct {
 
 #define my_syscall2(num, arg1, arg2)                                          \
 ({                                                                            \
-	register long _num asm("v0") = (num);                                 \
-	register long _arg1 asm("a0") = (long)(arg1);                         \
-	register long _arg2 asm("a1") = (long)(arg2);                         \
-	register long _arg4 asm("a3");                                        \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
+	register long _arg4 __asm__ ("a3");                                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -125,13 +125,13 @@ struct sys_stat_struct {
 
 #define my_syscall3(num, arg1, arg2, arg3)                                    \
 ({                                                                            \
-	register long _num asm("v0")  = (num);                                \
-	register long _arg1 asm("a0") = (long)(arg1);                         \
-	register long _arg2 asm("a1") = (long)(arg2);                         \
-	register long _arg3 asm("a2") = (long)(arg3);                         \
-	register long _arg4 asm("a3");                                        \
+	register long _num __asm__ ("v0")  = (num);                           \
+	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
+	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
+	register long _arg4 __asm__ ("a3");                                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -146,13 +146,13 @@ struct sys_stat_struct {
 
 #define my_syscall4(num, arg1, arg2, arg3, arg4)                              \
 ({                                                                            \
-	register long _num asm("v0") = (num);                                 \
-	register long _arg1 asm("a0") = (long)(arg1);                         \
-	register long _arg2 asm("a1") = (long)(arg2);                         \
-	register long _arg3 asm("a2") = (long)(arg3);                         \
-	register long _arg4 asm("a3") = (long)(arg4);                         \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
+	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
+	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -167,14 +167,14 @@ struct sys_stat_struct {
 
 #define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
 ({                                                                            \
-	register long _num asm("v0") = (num);                                 \
-	register long _arg1 asm("a0") = (long)(arg1);                         \
-	register long _arg2 asm("a1") = (long)(arg2);                         \
-	register long _arg3 asm("a2") = (long)(arg3);                         \
-	register long _arg4 asm("a3") = (long)(arg4);                         \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
+	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
+	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 	register long _arg5 = (long)(arg5);                                   \
 	                                                                      \
-	asm volatile (                                                        \
+	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"sw %7, 16($sp)\n"                                            \
 		"syscall\n  "                                                 \
@@ -189,7 +189,7 @@ struct sys_stat_struct {
 })
 
 /* startup code, note that it's called __start on MIPS */
-asm(".section .text\n"
+__asm__ (".section .text\n"
     ".weak __start\n"
     ".set nomips16\n"
     ".global __start\n"
