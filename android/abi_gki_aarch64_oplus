@@ -2248,6 +2248,7 @@
   __sg_page_iter_start
   sg_scsi_ioctl
   show_regs
+  shrink_slab
   sigprocmask
   si_mem_available
   si_meminfo
