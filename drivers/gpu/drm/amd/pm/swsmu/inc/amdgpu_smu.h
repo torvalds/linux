@@ -1333,6 +1333,8 @@ typedef enum {
 	METRICS_VOLTAGE_VDDGFX,
 	METRICS_SS_APU_SHARE,
 	METRICS_SS_DGPU_SHARE,
+	METRICS_UNIQUE_ID_UPPER32,
+	METRICS_UNIQUE_ID_LOWER32,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
