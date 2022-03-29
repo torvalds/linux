@@ -3198,6 +3198,31 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 	return ret;
 }
 
+static inline bool should_reclaim_block_group(struct btrfs_block_group *bg,
+					      u64 bytes_freed)
+{
+	const struct btrfs_space_info *space_info = bg->space_info;
+	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
+	const u64 new_val = bg->used;
+	const u64 old_val = new_val + bytes_freed;
+	u64 thresh;
+
+	if (reclaim_thresh == 0)
+		return false;
+
+	thresh = div_factor_fine(bg->length, reclaim_thresh);
+
+	/*
+	 * If we were below the threshold before don't reclaim, we are likely a
+	 * brand new block group and we don't want to relocate new block groups.
+	 */
+	if (old_val < thresh)
+		return false;
+	if (new_val >= thresh)
+		return false;
+	return true;
+}
+
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 			     u64 bytenr, u64 num_bytes, bool alloc)
 {
@@ -3220,6 +3245,8 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 	spin_unlock(&info->delalloc_root_lock);
 
 	while (total) {
+		bool reclaim;
+
 		cache = btrfs_lookup_block_group(info, bytenr);
 		if (!cache) {
 			ret = -ENOENT;
@@ -3265,6 +3292,8 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 					cache->space_info, num_bytes);
 			cache->space_info->bytes_used -= num_bytes;
 			cache->space_info->disk_used -= num_bytes * factor;
+
+			reclaim = should_reclaim_block_group(cache, num_bytes);
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
 
@@ -3291,6 +3320,8 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		if (!alloc && old_val == 0) {
 			if (!btrfs_test_opt(info, DISCARD_ASYNC))
 				btrfs_mark_bg_unused(cache);
+		} else if (!alloc && reclaim) {
+			btrfs_mark_bg_to_reclaim(cache);
 		}
 
 		btrfs_put_block_group(cache);
