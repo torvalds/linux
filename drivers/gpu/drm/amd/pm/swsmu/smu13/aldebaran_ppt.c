@@ -650,6 +650,12 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_THROTTLER_STATUS:
 		*value = metrics->ThrottlerStatus;
 		break;
+	case METRICS_UNIQUE_ID_UPPER32:
+		*value = metrics->PublicSerialNumUpper32;
+		break;
+	case METRICS_UNIQUE_ID_LOWER32:
+		*value = metrics->PublicSerialNumLower32;
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
@@ -1614,16 +1620,12 @@ static void aldebaran_i2c_control_fini(struct smu_context *smu)
 static void aldebaran_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_t *metrics = smu->smu_table.metrics_table;
 	uint32_t upper32 = 0, lower32 = 0;
-	int ret;
 
-	ret = smu_cmn_get_metrics_table(smu, NULL, false);
-	if (ret)
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_UPPER32, &upper32))
 		goto out;
-
-	upper32 = metrics->PublicSerialNumUpper32;
-	lower32 = metrics->PublicSerialNumLower32;
+	if (aldebaran_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_LOWER32, &lower32))
+		goto out;
 
 out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
