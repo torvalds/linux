@@ -144,6 +144,19 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_OPMODE] = 0x28,
 		[PLL_OFF_STATUS] = 0x38,
 	},
+	[CLK_ALPHA_PLL_TYPE_ZONDA_5LPE] = {
+		[PLL_OFF_L_VAL] = 0x04,
+		[PLL_OFF_ALPHA_VAL] = 0x08,
+		[PLL_OFF_USER_CTL] = 0x0c,
+		[PLL_OFF_CONFIG_CTL] = 0x10,
+		[PLL_OFF_CONFIG_CTL_U] = 0x14,
+		[PLL_OFF_CONFIG_CTL_U1] = 0x18,
+		[PLL_OFF_TEST_CTL] = 0x1c,
+		[PLL_OFF_TEST_CTL_U] = 0x20,
+		[PLL_OFF_TEST_CTL_U1] = 0x24,
+		[PLL_OFF_OPMODE] = 0x28,
+		[PLL_OFF_STATUS] = 0x38,
+	},
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 
@@ -184,6 +197,7 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 #define ZONDA_PLL_OUT_MASK	0xf
 #define ZONDA_STAY_IN_CFA	BIT(16)
 #define ZONDA_PLL_FREQ_LOCK_DET	BIT(29)
+#define ZONDA_5LPE_ENABLE_VOTE_RUN	BIT(21)
 
 #define pll_alpha_width(p)					\
 		((PLL_ALPHA_VAL_U(p) - PLL_ALPHA_VAL(p) == 4) ?	\
@@ -2471,3 +2485,124 @@ const struct clk_ops clk_alpha_pll_zonda_ops = {
 	.init = clk_alpha_pll_zonda_init,
 };
 EXPORT_SYMBOL(clk_alpha_pll_zonda_ops);
+
+static int clk_zonda_5lpe_pll_enable(struct clk_hw *hw)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 val, test_ctl_val;
+	int ret;
+
+	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
+	if (ret)
+		return ret;
+
+	/* If in FSM mode, just vote for it */
+	if (val & ZONDA_5LPE_ENABLE_VOTE_RUN) {
+		ret = clk_enable_regmap(hw);
+		if (ret)
+			return ret;
+		return wait_for_pll_enable_active(pll);
+	}
+
+	/* Check if PLL is already enabled */
+	ret = trion_pll_is_enabled(pll, pll->clkr.regmap);
+	if (ret < 0)
+		return ret;
+	else if (ret) {
+		pr_warn("%s PLL is already enabled\n",
+				clk_hw_get_name(&pll->clkr.hw));
+		return 0;
+	}
+
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
+						 PLL_RESET_N | PLL_BYPASSNL,
+						 PLL_RESET_N | PLL_BYPASSNL);
+	if (ret)
+		return ret;
+
+	/* Set operation mode to RUN */
+	regmap_write(pll->clkr.regmap, PLL_OPMODE(pll), PLL_RUN);
+
+	ret = regmap_read(pll->clkr.regmap, PLL_TEST_CTL(pll), &test_ctl_val);
+	if (ret)
+		return ret;
+
+	/* If cfa mode then poll for freq lock */
+	if (test_ctl_val & ZONDA_STAY_IN_CFA)
+		ret = wait_for_zonda_pll_freq_lock(pll);
+	else
+		ret = wait_for_pll_enable_lock(pll);
+	if (ret)
+		return ret;
+
+	/* Enable the PLL outputs */
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
+				ZONDA_PLL_OUT_MASK, ZONDA_PLL_OUT_MASK);
+	if (ret)
+		return ret;
+
+	/* Enable the global PLL outputs */
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
+				 PLL_OUTCTRL, PLL_OUTCTRL);
+	if (ret)
+		return ret;
+
+	/* Ensure that the write above goes through before returning. */
+	mb();
+
+	return ret;
+}
+
+static void clk_zonda_5lpe_pll_disable(struct clk_hw *hw)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 val, mask;
+	int ret;
+
+	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
+	if (ret)
+		return;
+
+	/* If in FSM mode, just unvote it */
+	if (val & ZONDA_5LPE_ENABLE_VOTE_RUN) {
+		clk_disable_regmap(hw);
+		return;
+	}
+
+	/* Disable the global PLL output */
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
+							PLL_OUTCTRL, 0);
+	if (ret)
+		return;
+
+	/* Disable the PLL outputs */
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
+			PLL_OUT_MASK, 0);
+	if (ret)
+		return;
+
+	/* Place the PLL mode in STANDBY */
+	regmap_write(pll->clkr.regmap, PLL_OPMODE(pll),
+			PLL_STANDBY);
+
+	mask = PLL_RESET_N | PLL_BYPASSNL;
+	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), mask, 0);
+	if (ret)
+		return;
+}
+
+const struct clk_ops clk_alpha_pll_zonda_5lpe_ops = {
+	.prepare = clk_prepare_regmap,
+	.unprepare = clk_unprepare_regmap,
+	.pre_rate_change = clk_pre_change_regmap,
+	.post_rate_change = clk_post_change_regmap,
+	.enable = clk_zonda_5lpe_pll_enable,
+	.disable = clk_zonda_5lpe_pll_disable,
+	.is_enabled = clk_trion_pll_is_enabled,
+	.recalc_rate = clk_trion_pll_recalc_rate,
+	.round_rate = clk_alpha_pll_round_rate,
+	.set_rate = clk_zonda_pll_set_rate,
+	.debug_init = clk_common_debug_init,
+	.init = clk_alpha_pll_zonda_init,
+};
+EXPORT_SYMBOL(clk_alpha_pll_zonda_5lpe_ops);
