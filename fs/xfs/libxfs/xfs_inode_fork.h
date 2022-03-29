@@ -40,19 +40,6 @@ struct xfs_ifork {
 #define XFS_IEXT_PUNCH_HOLE_CNT		(1)
 
 /*
- * Directory entry addition can cause the following,
- * 1. Data block can be added/removed.
- *    A new extent can cause extent count to increase by 1.
- * 2. Free disk block can be added/removed.
- *    Same behaviour as described above for Data block.
- * 3. Dabtree blocks.
- *    XFS_DA_NODE_MAXDEPTH blocks can be added. Each of these can be new
- *    extents. Hence extent count can increase by XFS_DA_NODE_MAXDEPTH.
- */
-#define XFS_IEXT_DIR_MANIP_CNT(mp) \
-	((XFS_DA_NODE_MAXDEPTH + 1 + 1) * (mp)->m_dir_geo->fsbcount)
-
-/*
  * Adding/removing an xattr can cause XFS_DA_NODE_MAXDEPTH extents to
  * be added. One extra extent for dabtree in case a local attr is
  * large enough to cause a double split.  It can also cause extent

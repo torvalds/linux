@@ -226,11 +226,6 @@ xfs_symlink(
 		goto out_trans_cancel;
 	}
 
-	error = xfs_iext_count_may_overflow(dp, XFS_DATA_FORK,
-			XFS_IEXT_DIR_MANIP_CNT(mp));
-	if (error)
-		goto out_trans_cancel;
-
 	/*
 	 * Allocate an inode for the symlink.
 	 */
