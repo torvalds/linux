@@ -2827,16 +2827,6 @@ static const unsigned int qspi0_ctrl_pins[] = {
 static const unsigned int qspi0_ctrl_mux[] = {
 	QSPI0_SPCLK_MARK, QSPI0_SSL_MARK,
 };
-static const unsigned int qspi0_data_pins[] = {
-	/* QSPI0_MOSI_IO0, QSPI0_MISO_IO1 */
-	RCAR_GP_PIN(2, 1), RCAR_GP_PIN(2, 2),
-	/* QSPI0_IO2, QSPI0_IO3 */
-	RCAR_GP_PIN(2, 3), RCAR_GP_PIN(2, 4),
-};
-static const unsigned int qspi0_data_mux[] = {
-	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
-	QSPI0_IO2_MARK, QSPI0_IO3_MARK,
-};
 /* - QSPI1 ------------------------------------------------------------------ */
 static const unsigned int qspi1_ctrl_pins[] = {
 	/* QSPI1_SPCLK, QSPI1_SSL */
@@ -2845,15 +2835,50 @@ static const unsigned int qspi1_ctrl_pins[] = {
 static const unsigned int qspi1_ctrl_mux[] = {
 	QSPI1_SPCLK_MARK, QSPI1_SSL_MARK,
 };
-static const unsigned int qspi1_data_pins[] = {
-	/* QSPI1_MOSI_IO0, QSPI1_MISO_IO1 */
+
+/* - RPC -------------------------------------------------------------------- */
+static const unsigned int rpc_clk_pins[] = {
+	/* Octal-SPI flash: C/SCLK */
+	/* HyperFlash: CK, CK# */
+	RCAR_GP_PIN(2, 0), RCAR_GP_PIN(2, 6),
+};
+static const unsigned int rpc_clk_mux[] = {
+	QSPI0_SPCLK_MARK, QSPI1_SPCLK_MARK,
+};
+static const unsigned int rpc_ctrl_pins[] = {
+	/* Octal-SPI flash: S#/CS, DQS */
+	/* HyperFlash: CS#, RDS */
+	RCAR_GP_PIN(2, 5), RCAR_GP_PIN(2, 11),
+};
+static const unsigned int rpc_ctrl_mux[] = {
+	QSPI0_SSL_MARK, QSPI1_SSL_MARK,
+};
+static const unsigned int rpc_data_pins[] = {
+	/* DQ[0:7] */
+	RCAR_GP_PIN(2, 1), RCAR_GP_PIN(2, 2),
+	RCAR_GP_PIN(2, 3), RCAR_GP_PIN(2, 4),
 	RCAR_GP_PIN(2, 7), RCAR_GP_PIN(2, 8),
-	/* QSPI1_IO2, QSPI1_IO3 */
 	RCAR_GP_PIN(2, 9), RCAR_GP_PIN(2, 10),
 };
-static const unsigned int qspi1_data_mux[] = {
+static const unsigned int rpc_data_mux[] = {
+	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
+	QSPI0_IO2_MARK, QSPI0_IO3_MARK,
 	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
 	QSPI1_IO2_MARK, QSPI1_IO3_MARK,
+};
+static const unsigned int rpc_reset_pins[] = {
+	/* RPC_RESET# */
+	RCAR_GP_PIN(2, 13),
+};
+static const unsigned int rpc_reset_mux[] = {
+	RPC_RESET_N_MARK,
+};
+static const unsigned int rpc_int_pins[] = {
+	/* RPC_INT# */
+	RCAR_GP_PIN(2, 12),
+};
+static const unsigned int rpc_int_mux[] = {
+	RPC_INT_N_MARK,
 };
 
 /* - SCIF0 ------------------------------------------------------------------ */
@@ -3758,7 +3783,7 @@ static const unsigned int vin5_clk_b_mux[] = {
 };
 
 static const struct {
-	struct sh_pfc_pin_group common[255];
+	struct sh_pfc_pin_group common[261];
 #ifdef CONFIG_PINCTRL_PFC_R8A77990
 	struct sh_pfc_pin_group automotive[22];
 #endif
@@ -3907,11 +3932,17 @@ static const struct {
 		SH_PFC_PIN_GROUP(pwm6_a),
 		SH_PFC_PIN_GROUP(pwm6_b),
 		SH_PFC_PIN_GROUP(qspi0_ctrl),
-		BUS_DATA_PIN_GROUP(qspi0_data, 2),
-		BUS_DATA_PIN_GROUP(qspi0_data, 4),
+		SH_PFC_PIN_GROUP_SUBSET(qspi0_data2, rpc_data, 0, 2),
+		SH_PFC_PIN_GROUP_SUBSET(qspi0_data4, rpc_data, 0, 4),
 		SH_PFC_PIN_GROUP(qspi1_ctrl),
-		BUS_DATA_PIN_GROUP(qspi1_data, 2),
-		BUS_DATA_PIN_GROUP(qspi1_data, 4),
+		SH_PFC_PIN_GROUP_SUBSET(qspi1_data2, rpc_data, 4, 2),
+		SH_PFC_PIN_GROUP_SUBSET(qspi1_data4, rpc_data, 4, 4),
+		BUS_DATA_PIN_GROUP(rpc_clk, 1),
+		BUS_DATA_PIN_GROUP(rpc_clk, 2),
+		SH_PFC_PIN_GROUP(rpc_ctrl),
+		SH_PFC_PIN_GROUP(rpc_data),
+		SH_PFC_PIN_GROUP(rpc_reset),
+		SH_PFC_PIN_GROUP(rpc_int),
 		SH_PFC_PIN_GROUP(scif0_data_a),
 		SH_PFC_PIN_GROUP(scif0_clk_a),
 		SH_PFC_PIN_GROUP(scif0_ctrl_a),
@@ -4336,6 +4367,15 @@ static const char * const qspi1_groups[] = {
 	"qspi1_data4",
 };
 
+static const char * const rpc_groups[] = {
+	"rpc_clk1",
+	"rpc_clk2",
+	"rpc_ctrl",
+	"rpc_data",
+	"rpc_reset",
+	"rpc_int",
+};
+
 static const char * const scif0_groups[] = {
 	"scif0_data_a",
 	"scif0_clk_a",
@@ -4492,7 +4532,7 @@ static const char * const vin5_groups[] = {
 };
 
 static const struct {
-	struct sh_pfc_function common[49];
+	struct sh_pfc_function common[50];
 #ifdef CONFIG_PINCTRL_PFC_R8A77990
 	struct sh_pfc_function automotive[5];
 #endif
@@ -4531,6 +4571,7 @@ static const struct {
 		SH_PFC_FUNCTION(pwm6),
 		SH_PFC_FUNCTION(qspi0),
 		SH_PFC_FUNCTION(qspi1),
+		SH_PFC_FUNCTION(rpc),
 		SH_PFC_FUNCTION(scif0),
 		SH_PFC_FUNCTION(scif1),
 		SH_PFC_FUNCTION(scif2),
