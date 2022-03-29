@@ -2076,7 +2076,6 @@ static int hdptx_phy_clk_enable(struct clk_hw *hw)
 		}
 	}
 
-	clk_get_rate(hdptx->dclk);
 	hdptx->count++;
 
 	return 0;
