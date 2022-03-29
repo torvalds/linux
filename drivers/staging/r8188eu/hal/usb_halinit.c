@@ -1148,19 +1148,19 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				AcmCtrl = AcmCtrl | 0x1;
 
 			if (acm_ctrl & BIT(3))
-				AcmCtrl |= AcmHw_VoqEn;
+				AcmCtrl |= ACMHW_VOQEN;
 			else
-				AcmCtrl &= (~AcmHw_VoqEn);
+				AcmCtrl &= (~ACMHW_VOQEN);
 
 			if (acm_ctrl & BIT(2))
-				AcmCtrl |= AcmHw_ViqEn;
+				AcmCtrl |= ACMHW_VIQEN;
 			else
-				AcmCtrl &= (~AcmHw_ViqEn);
+				AcmCtrl &= (~ACMHW_VIQEN);
 
 			if (acm_ctrl & BIT(1))
-				AcmCtrl |= AcmHw_BeqEn;
+				AcmCtrl |= ACMHW_BEQEN;
 			else
-				AcmCtrl &= (~AcmHw_BeqEn);
+				AcmCtrl &= (~ACMHW_BEQEN);
 
 			rtw_write8(Adapter, REG_ACMHWCTRL, AcmCtrl);
 		}
