@@ -9,3 +9,5 @@ arch/arm/boot/zImage
 vmlinux
 System.map
 "
+
+NDK_TRIPLE=arm-linux-androideabi31
