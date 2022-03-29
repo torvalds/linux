@@ -1656,11 +1656,12 @@ smb2_ioctl_query_info(const unsigned int xid,
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	buffer = memdup_user(arg + sizeof(struct smb_query_info),
-			     qi.output_buffer_length);
-	if (IS_ERR(buffer)) {
-		kfree(vars);
-		return PTR_ERR(buffer);
+	if (qi.output_buffer_length) {
+		buffer = memdup_user(arg + sizeof(struct smb_query_info), qi.output_buffer_length);
+		if (IS_ERR(buffer)) {
+			kfree(vars);
+			return PTR_ERR(buffer);
+		}
 	}
 
 	/* Open */
@@ -1723,10 +1724,13 @@ smb2_ioctl_query_info(const unsigned int xid,
 		/* Can eventually relax perm check since server enforces too */
 		if (!capable(CAP_SYS_ADMIN))
 			rc = -EPERM;
-		else  {
+		else if (qi.output_buffer_length < 8)
+			rc = -EINVAL;
+		else {
 			rqst[1].rq_iov = &vars->si_iov[0];
 			rqst[1].rq_nvec = 1;
 
+			/* MS-FSCC 2.4.13 FileEndOfFileInformation */
 			size[0] = 8;
 			data[0] = buffer;
 
