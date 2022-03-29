@@ -4109,8 +4109,8 @@
 		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_DP0>, <&cru CLK_AUX16M_0>,
 			 <&cru MCLK_I2S4_8CH_TX>, <&cru MCLK_SPDIF2_DP0>,
-			 <&hclk_vo0>;
-		clock-names = "apb", "aux", "i2s", "spdif", "hclk";
+			 <&hclk_vo0>, <&cru CLK_DP0>;
+		clock-names = "apb", "aux", "i2s", "spdif", "hclk", "hdcp";
 		assigned-clocks = <&cru CLK_AUX16M_0>;
 		assigned-clock-rates = <16000000>;
 		resets = <&cru SRST_DP0>;
