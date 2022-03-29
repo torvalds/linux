@@ -2630,15 +2630,18 @@ out:
 static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 					u64 bytenr, u64 size, bool used)
 {
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
+	struct btrfs_space_info *sinfo = block_group->space_info;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	u64 offset = bytenr - block_group->start;
 	u64 to_free, to_unusable;
-	const int bg_reclaim_threshold = READ_ONCE(fs_info->bg_reclaim_threshold);
+	int bg_reclaim_threshold = 0;
 	bool initial = (size == block_group->length);
 	u64 reclaimable_unusable;
 
 	WARN_ON(!initial && offset + size > block_group->zone_capacity);
+
+	if (!initial)
+		bg_reclaim_threshold = READ_ONCE(sinfo->bg_reclaim_threshold);
 
 	spin_lock(&ctl->tree_lock);
 	if (!used)

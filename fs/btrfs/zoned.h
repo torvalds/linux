@@ -10,11 +10,7 @@
 #include "block-group.h"
 #include "btrfs_inode.h"
 
-/*
- * Block groups with more than this value (percents) of unusable space will be
- * scheduled for background reclaim.
- */
-#define BTRFS_DEFAULT_RECLAIM_THRESH		75
+#define BTRFS_DEFAULT_RECLAIM_THRESH           			(75)
 
 struct btrfs_zoned_device_info {
 	/*
