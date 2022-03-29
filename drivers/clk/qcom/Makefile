@@ -19,6 +19,8 @@ clk-qcom-y += reset.o
 clk-qcom-$(CONFIG_QCOM_GDSC) += gdsc.o
 obj-$(CONFIG_COMMON_CLK_QCOM) += clk-dummy.o
 
+obj-$(CONFIG_QCOM_GDSC_REGULATOR) += gdsc-regulator.o
+
 # Keep alphabetically sorted by config
 obj-$(CONFIG_APQ_GCC_8084) += gcc-apq8084.o
 obj-$(CONFIG_APQ_MMCC_8084) += mmcc-apq8084.o

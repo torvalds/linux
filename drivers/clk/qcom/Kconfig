@@ -689,4 +689,13 @@ config CLK_GFM_LPASS_SM8250
 	  Support for the Glitch Free Mux (GFM) Low power audio
           subsystem (LPASS) clocks found on SM8250 SoCs.
 
+config QCOM_GDSC_REGULATOR
+	tristate "GDSC regulator driver"
+	depends on COMMON_CLK_QCOM
+	help
+	  This driver supports globally distributed switch controller (GDSC)
+	  devices in regulator framework.
+	  Say Y if you want to support clients using regulator framework APIs
+	  to control GDSCs.
+
 endif
