@@ -3608,6 +3608,11 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 	hdmi0_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll");
 	hdmi1_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll");
 
+	if (hdmi0_phy_pll)
+		clk_get_rate(hdmi0_phy_pll->clk);
+	if (hdmi1_phy_pll)
+		clk_get_rate(hdmi1_phy_pll->clk);
+
 	if ((!hdmi0_phy_pll && !hdmi1_phy_pll) ||
 	    ((vcstate->output_if & VOP_OUTPUT_IF_HDMI0) && !hdmi0_phy_pll) ||
 	    ((vcstate->output_if & VOP_OUTPUT_IF_HDMI1) && !hdmi1_phy_pll))
