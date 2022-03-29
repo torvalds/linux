@@ -11,7 +11,12 @@
 #include "arch.h"
 #include "types.h"
 #include "sys.h"
+#include "string.h"
 
+struct nolibc_heap {
+	size_t	len;
+	char	user_p[] __attribute__((__aligned__));
+};
 
 /* Buffer used to store int-to-ASCII conversions. Will only be implemented if
  * any of the related functions is implemented. The area is large enough to
@@ -60,6 +65,18 @@ int atoi(const char *s)
 	return atol(s);
 }
 
+static __attribute__((unused))
+void free(void *ptr)
+{
+	struct nolibc_heap *heap;
+
+	if (!ptr)
+		return;
+
+	heap = container_of(ptr, struct nolibc_heap, user_p);
+	munmap(heap, heap->len);
+}
+
 /* getenv() tries to find the environment variable named <name> in the
  * environment array pointed to by global variable "environ" which must be
  * declared as a char **, and must be terminated by a NULL (it is recommended
@@ -89,6 +106,70 @@ char *getenv(const char *name)
 {
 	extern char **environ;
 	return _getenv(name, environ);
+}
+
+static __attribute__((unused))
+void *malloc(size_t len)
+{
+	struct nolibc_heap *heap;
+
+	/* Always allocate memory with size multiple of 4096. */
+	len  = sizeof(*heap) + len;
+	len  = (len + 4095UL) & -4096UL;
+	heap = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE,
+		    -1, 0);
+	if (__builtin_expect(heap == MAP_FAILED, 0))
+		return NULL;
+
+	heap->len = len;
+	return heap->user_p;
+}
+
+static __attribute__((unused))
+void *calloc(size_t size, size_t nmemb)
+{
+	void *orig;
+	size_t res = 0;
+
+	if (__builtin_expect(__builtin_mul_overflow(nmemb, size, &res), 0)) {
+		SET_ERRNO(ENOMEM);
+		return NULL;
+	}
+
+	/*
+	 * No need to zero the heap, the MAP_ANONYMOUS in malloc()
+	 * already does it.
+	 */
+	return malloc(res);
+}
+
+static __attribute__((unused))
+void *realloc(void *old_ptr, size_t new_size)
+{
+	struct nolibc_heap *heap;
+	size_t user_p_len;
+	void *ret;
+
+	if (!old_ptr)
+		return malloc(new_size);
+
+	heap = container_of(old_ptr, struct nolibc_heap, user_p);
+	user_p_len = heap->len - sizeof(*heap);
+	/*
+	 * Don't realloc() if @user_p_len >= @new_size, this block of
+	 * memory is still enough to handle the @new_size. Just return
+	 * the same pointer.
+	 */
+	if (user_p_len >= new_size)
+		return old_ptr;
+
+	ret = malloc(new_size);
+	if (__builtin_expect(!ret, 0))
+		return NULL;
+
+	memcpy(ret, heap->user_p, heap->len);
+	munmap(heap, heap->len);
+	return ret;
 }
 
 /* Converts the unsigned long integer <in> to its hex representation into
