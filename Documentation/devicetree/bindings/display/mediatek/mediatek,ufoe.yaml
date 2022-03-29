@@ -51,11 +51,18 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/power/mt8173-power.h>
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
 
-    ufoe@1401a000 {
-        compatible = "mediatek,mt8173-disp-ufoe";
-        reg = <0 0x1401a000 0 0x1000>;
-        interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_LOW>;
-        power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-        clocks = <&mmsys CLK_MM_DISP_UFOE>;
+        ufoe@1401a000 {
+            compatible = "mediatek,mt8173-disp-ufoe";
+            reg = <0 0x1401a000 0 0x1000>;
+            interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_UFOE>;
+        };
     };

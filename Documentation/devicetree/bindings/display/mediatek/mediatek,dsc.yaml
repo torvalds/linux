@@ -60,12 +60,21 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8195-clk.h>
+    #include <dt-bindings/power/mt8195-power.h>
+    #include <dt-bindings/gce/mt8195-gce.h>
 
-    dsc0: disp_dsc_wrap@1c009000 {
-        compatible = "mediatek,mt8195-disp-dsc";
-        reg = <0 0x1c009000 0 0x1000>;
-        interrupts = <GIC_SPI 645 IRQ_TYPE_LEVEL_HIGH 0>;
-        power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS0>;
-        clocks = <&vdosys0 CLK_VDO0_DSC_WRAP0>;
-        mediatek,gce-client-reg = <&gce1 SUBSYS_1c00XXXX 0x9000 0x1000>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        dsc0: disp_dsc_wrap@1c009000 {
+            compatible = "mediatek,mt8195-disp-dsc";
+            reg = <0 0x1c009000 0 0x1000>;
+            interrupts = <GIC_SPI 645 IRQ_TYPE_LEVEL_HIGH 0>;
+            power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS0>;
+            clocks = <&vdosys0 CLK_VDO0_DSC_WRAP0>;
+            mediatek,gce-client-reg = <&gce1 SUBSYS_1c00XXXX 0x9000 0x1000>;
+        };
     };
