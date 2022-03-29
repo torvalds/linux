@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
-#include <linux/tracehook.h>
+#include <linux/task_work.h>
 #include <linux/audit.h>
 #include <uapi/linux/io_uring.h>
 
@@ -522,7 +522,9 @@ static bool io_flush_signals(void)
 {
 	if (unlikely(test_thread_flag(TIF_NOTIFY_SIGNAL))) {
 		__set_current_state(TASK_RUNNING);
-		tracehook_notify_signal();
+		clear_notify_signal();
+		if (task_work_pending(current))
+			task_work_run();
 		return true;
 	}
 	return false;

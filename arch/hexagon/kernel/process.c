@@ -14,7 +14,7 @@
 #include <linux/tick.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
@@ -177,7 +177,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	}
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 		return 1;
 	}
 

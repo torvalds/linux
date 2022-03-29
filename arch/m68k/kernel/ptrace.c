@@ -19,7 +19,6 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
-#include <linux/tracehook.h>
 
 #include <linux/uaccess.h>
 #include <asm/page.h>
@@ -282,13 +281,13 @@ asmlinkage int syscall_trace_enter(void)
 	int ret = 0;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = tracehook_report_syscall_entry(task_pt_regs(current));
+		ret = ptrace_report_syscall_entry(task_pt_regs(current));
 	return ret;
 }
 
 asmlinkage void syscall_trace_leave(void)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(task_pt_regs(current), 0);
+		ptrace_report_syscall_exit(task_pt_regs(current), 0);
 }
 #endif /* CONFIG_COLDFIRE */

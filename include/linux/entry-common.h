@@ -3,7 +3,7 @@
 #define __LINUX_ENTRYCOMMON_H
 
 #include <linux/static_call_types.h>
-#include <linux/tracehook.h>
+#include <linux/ptrace.h>
 #include <linux/syscalls.h>
 #include <linux/seccomp.h>
 #include <linux/sched.h>
@@ -80,26 +80,6 @@ static __always_inline void arch_check_user_regs(struct pt_regs *regs) {}
 #endif
 
 /**
- * arch_syscall_enter_tracehook - Wrapper around tracehook_report_syscall_entry()
- * @regs:	Pointer to currents pt_regs
- *
- * Returns: 0 on success or an error code to skip the syscall.
- *
- * Defaults to tracehook_report_syscall_entry(). Can be replaced by
- * architecture specific code.
- *
- * Invoked from syscall_enter_from_user_mode()
- */
-static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs);
-
-#ifndef arch_syscall_enter_tracehook
-static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs)
-{
-	return tracehook_report_syscall_entry(regs);
-}
-#endif
-
-/**
  * enter_from_user_mode - Establish state when coming from user mode
  *
  * Syscall/interrupt entry disables interrupts, but user mode is traced as
@@ -157,7 +137,7 @@ void syscall_enter_from_user_mode_prepare(struct pt_regs *regs);
  * It handles the following work items:
  *
  *  1) syscall_work flag dependent invocations of
- *     arch_syscall_enter_tracehook(), __secure_computing(), trace_sys_enter()
+ *     ptrace_report_syscall_entry(), __secure_computing(), trace_sys_enter()
  *  2) Invocation of audit_syscall_entry()
  */
 long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall);
@@ -277,26 +257,7 @@ static __always_inline void arch_exit_to_user_mode(void) { }
  *
  * Invoked from exit_to_user_mode_loop().
  */
-void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal);
-
-/**
- * arch_syscall_exit_tracehook - Wrapper around tracehook_report_syscall_exit()
- * @regs:	Pointer to currents pt_regs
- * @step:	Indicator for single step
- *
- * Defaults to tracehook_report_syscall_exit(). Can be replaced by
- * architecture specific code.
- *
- * Invoked from syscall_exit_to_user_mode()
- */
-static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step);
-
-#ifndef arch_syscall_exit_tracehook
-static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
-{
-	tracehook_report_syscall_exit(regs, step);
-}
-#endif
+void arch_do_signal_or_restart(struct pt_regs *regs);
 
 /**
  * exit_to_user_mode - Fixup state when exiting to user mode
@@ -347,7 +308,7 @@ void syscall_exit_to_user_mode_work(struct pt_regs *regs);
  *	- rseq syscall exit
  *      - audit
  *	- syscall tracing
- *	- tracehook (single stepping)
+ *	- ptrace (single stepping)
  *
  *  2) Preparatory work
  *	- Exit to user mode loop (common TIF handling). Invokes

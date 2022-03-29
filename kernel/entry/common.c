@@ -2,6 +2,7 @@
 
 #include <linux/context_tracking.h>
 #include <linux/entry-common.h>
+#include <linux/resume_user_mode.h>
 #include <linux/highmem.h>
 #include <linux/jump_label.h>
 #include <linux/livepatch.h>
@@ -59,7 +60,7 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 
 	/* Handle ptrace */
 	if (work & (SYSCALL_WORK_SYSCALL_TRACE | SYSCALL_WORK_SYSCALL_EMU)) {
-		ret = arch_syscall_enter_tracehook(regs);
+		ret = ptrace_report_syscall_entry(regs);
 		if (ret || (work & SYSCALL_WORK_SYSCALL_EMU))
 			return -1L;
 	}
@@ -139,15 +140,7 @@ void noinstr exit_to_user_mode(void)
 }
 
 /* Workaround to allow gradual conversion of architecture code */
-void __weak arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal) { }
-
-static void handle_signal_work(struct pt_regs *regs, unsigned long ti_work)
-{
-	if (ti_work & _TIF_NOTIFY_SIGNAL)
-		tracehook_notify_signal();
-
-	arch_do_signal_or_restart(regs, ti_work & _TIF_SIGPENDING);
-}
+void __weak arch_do_signal_or_restart(struct pt_regs *regs) { }
 
 #ifdef CONFIG_RT_DELAYED_SIGNALS
 static inline void raise_delayed_signal(void)
@@ -184,10 +177,10 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			klp_update_patch_state(current);
 
 		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
-			handle_signal_work(regs, ti_work);
+			arch_do_signal_or_restart(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME)
-			tracehook_notify_resume(regs);
+			resume_user_mode_work(regs);
 
 		/* Architecture specific TIF work */
 		arch_exit_to_user_mode_work(regs, ti_work);
@@ -267,7 +260,7 @@ static void syscall_exit_work(struct pt_regs *regs, unsigned long work)
 
 	step = report_single_step(work);
 	if (step || work & SYSCALL_WORK_SYSCALL_TRACE)
-		arch_syscall_exit_tracehook(regs, step);
+		ptrace_report_syscall_exit(regs, step);
 }
 
 /*

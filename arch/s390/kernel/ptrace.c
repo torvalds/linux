@@ -21,7 +21,6 @@
 #include <linux/signal.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
-#include <linux/tracehook.h>
 #include <linux/seccomp.h>
 #include <linux/compat.h>
 #include <trace/syscall.h>
