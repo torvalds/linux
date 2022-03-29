@@ -1989,6 +1989,8 @@ void mlx5e_put_flow_list(struct mlx5e_priv *priv, struct list_head *flow_list)
 static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = flow->priv->mdev->priv.eswitch;
+	struct mlx5e_tc_flow *peer_flow;
+	struct mlx5e_tc_flow *tmp;
 
 	if (!flow_flag_test(flow, ESWITCH) ||
 	    !flow_flag_test(flow, DUP))
@@ -2000,12 +2002,13 @@ static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
 
 	flow_flag_clear(flow, DUP);
 
-	if (refcount_dec_and_test(&flow->peer_flow->refcnt)) {
-		mlx5e_tc_del_fdb_flow(flow->peer_flow->priv, flow->peer_flow);
-		kfree(flow->peer_flow);
+	list_for_each_entry_safe(peer_flow, tmp, &flow->peer_flows, peer_flows) {
+		if (refcount_dec_and_test(&peer_flow->refcnt)) {
+			mlx5e_tc_del_fdb_flow(peer_flow->priv, peer_flow);
+			list_del(&peer_flow->peer_flows);
+			kfree(peer_flow);
+		}
 	}
-
-	flow->peer_flow = NULL;
 }
 
 static void mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
@@ -4295,6 +4298,7 @@ mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
 	INIT_LIST_HEAD(&flow->hairpin);
 	INIT_LIST_HEAD(&flow->l3_to_l2_reformat);
 	INIT_LIST_HEAD(&flow->attrs);
+	INIT_LIST_HEAD(&flow->peer_flows);
 	refcount_set(&flow->refcnt, 1);
 	init_completion(&flow->init_done);
 	init_completion(&flow->del_hw_done);
@@ -4443,7 +4447,7 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 		goto out;
 	}
 
-	flow->peer_flow = peer_flow;
+	list_add_tail(&peer_flow->peer_flows, &flow->peer_flows);
 	flow_flag_set(flow, DUP);
 	mutex_lock(&esw->offloads.peer_mutex);
 	list_add_tail(&flow->peer, &esw->offloads.peer_flows);
@@ -4741,19 +4745,26 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	if (!peer_esw)
 		goto out;
 
-	if (flow_flag_test(flow, DUP) &&
-	    flow_flag_test(flow->peer_flow, OFFLOADED)) {
-		u64 bytes2;
-		u64 packets2;
-		u64 lastuse2;
+	if (flow_flag_test(flow, DUP)) {
+		struct mlx5e_tc_flow *peer_flow;
 
-		if (flow_flag_test(flow, USE_ACT_STATS)) {
-			f->use_act_stats = true;
-		} else {
-			counter = mlx5e_tc_get_counter(flow->peer_flow);
+		list_for_each_entry(peer_flow, &flow->peer_flows, peer_flows) {
+			u64 packets2;
+			u64 lastuse2;
+			u64 bytes2;
+
+			if (!flow_flag_test(peer_flow, OFFLOADED))
+				continue;
+			if (flow_flag_test(flow, USE_ACT_STATS)) {
+				f->use_act_stats = true;
+				break;
+			}
+
+			counter = mlx5e_tc_get_counter(peer_flow);
 			if (!counter)
 				goto no_peer_counter;
-			mlx5_fc_query_cached(counter, &bytes2, &packets2, &lastuse2);
+			mlx5_fc_query_cached(counter, &bytes2, &packets2,
+					     &lastuse2);
 
 			bytes += bytes2;
 			packets += packets2;
