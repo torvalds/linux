@@ -608,6 +608,9 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
+		if (unlikely(rx_ring->next_to_clean == rx_ring->next_to_use))
+			break;
+
 		xdp = *ice_xdp_buf(rx_ring, rx_ring->next_to_clean);
 
 		size = le16_to_cpu(rx_desc->wb.pkt_len) &
@@ -754,7 +757,7 @@ skip:
 		next_dd = next_dd + tx_thresh;
 		if (next_dd >= desc_cnt)
 			next_dd = tx_thresh - 1;
-	} while (budget--);
+	} while (--budget);
 
 	xdp_ring->next_dd = next_dd;
 
