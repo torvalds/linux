@@ -11827,7 +11827,7 @@ MARVELL XENON MMC/SD/SDIO HOST CONTROLLER DRIVER
 M:	Hu Ziji <huziji@marvell.com>
 L:	linux-mmc@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/mmc/marvell,xenon-sdhci.txt
+F:	Documentation/devicetree/bindings/mmc/marvell,xenon-sdhci.yaml
 F:	drivers/mmc/host/sdhci-xenon*
 
 MATROX FRAMEBUFFER DRIVER
