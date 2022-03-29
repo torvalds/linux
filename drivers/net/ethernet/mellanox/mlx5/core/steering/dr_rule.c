@@ -3,7 +3,8 @@
 
 #include "dr_types.h"
 
-#define DR_RULE_MAX_STE_CHAIN (DR_RULE_MAX_STES + DR_ACTION_MAX_STES)
+#define DR_RULE_MAX_STES_OPTIMIZED 5
+#define DR_RULE_MAX_STE_CHAIN_OPTIMIZED (DR_RULE_MAX_STES_OPTIMIZED + DR_ACTION_MAX_STES)
 
 static int dr_rule_append_to_miss_list(struct mlx5dr_ste_ctx *ste_ctx,
 				       struct mlx5dr_ste *new_last_ste,
@@ -1089,6 +1090,7 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 			size_t num_actions,
 			struct mlx5dr_action *actions[])
 {
+	u8 hw_ste_arr_optimized[DR_RULE_MAX_STE_CHAIN_OPTIMIZED * DR_STE_SIZE] = {};
 	struct mlx5dr_ste_send_info *ste_info, *tmp_ste_info;
 	struct mlx5dr_matcher *matcher = rule->matcher;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
@@ -1098,6 +1100,7 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 	struct mlx5dr_ste_htbl *cur_htbl;
 	struct mlx5dr_ste *ste = NULL;
 	LIST_HEAD(send_ste_list);
+	bool hw_ste_arr_is_opt;
 	u8 *hw_ste_arr = NULL;
 	u32 new_hw_ste_arr_sz;
 	int ret, i;
@@ -1109,22 +1112,29 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 			 rule->flow_source))
 		return 0;
 
-	hw_ste_arr = kzalloc(DR_RULE_MAX_STE_CHAIN * DR_STE_SIZE, GFP_KERNEL);
-	if (!hw_ste_arr)
-		return -ENOMEM;
+	ret = mlx5dr_matcher_select_builders(matcher,
+					     nic_matcher,
+					     dr_rule_get_ipv(&param->outer),
+					     dr_rule_get_ipv(&param->inner));
+	if (ret)
+		return ret;
+
+	hw_ste_arr_is_opt = nic_matcher->num_of_builders <= DR_RULE_MAX_STES_OPTIMIZED;
+	if (likely(hw_ste_arr_is_opt)) {
+		hw_ste_arr = hw_ste_arr_optimized;
+	} else {
+		hw_ste_arr = kzalloc((nic_matcher->num_of_builders + DR_ACTION_MAX_STES) *
+				     DR_STE_SIZE, GFP_KERNEL);
+
+		if (!hw_ste_arr)
+			return -ENOMEM;
+	}
 
 	mlx5dr_domain_nic_lock(nic_dmn);
 
 	ret = mlx5dr_matcher_add_to_tbl_nic(dmn, nic_matcher);
 	if (ret)
 		goto free_hw_ste;
-
-	ret = mlx5dr_matcher_select_builders(matcher,
-					     nic_matcher,
-					     dr_rule_get_ipv(&param->outer),
-					     dr_rule_get_ipv(&param->inner));
-	if (ret)
-		goto remove_from_nic_tbl;
 
 	/* Set the tag values inside the ste array */
 	ret = mlx5dr_ste_build_ste_arr(matcher, nic_matcher, param, hw_ste_arr);
@@ -1187,7 +1197,8 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	mlx5dr_domain_nic_unlock(nic_dmn);
 
-	kfree(hw_ste_arr);
+	if (unlikely(!hw_ste_arr_is_opt))
+		kfree(hw_ste_arr);
 
 	return 0;
 
@@ -1204,7 +1215,10 @@ remove_from_nic_tbl:
 
 free_hw_ste:
 	mlx5dr_domain_nic_unlock(nic_dmn);
-	kfree(hw_ste_arr);
+
+	if (unlikely(!hw_ste_arr_is_opt))
+		kfree(hw_ste_arr);
+
 	return ret;
 }
 
