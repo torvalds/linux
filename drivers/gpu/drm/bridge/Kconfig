@@ -83,6 +83,16 @@ config DRM_LVDS_CODEC
 	  Support for transparent LVDS encoders and decoders that don't
 	  require any configuration.
 
+config DRM_MAXIM_MAX96745
+	tristate "Maxim max96745 GMSL2 Serializer"
+	depends on OF
+	select MFD_MAX96745
+	select PINCTRL_MAX96745
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Driver for Maxim MAX96745 GMSL2 Serializer with eDP1.4a/DP1.4 Input.
+
 config DRM_MAXIM_MAX96752F
 	tristate "Maxim max96752F GMSL2 Deserializer"
 	depends on OF
