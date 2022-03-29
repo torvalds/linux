@@ -3571,7 +3571,7 @@ static bool f2fs_dirty_data_folio(struct address_space *mapping,
 		f2fs_update_dirty_folio(inode, folio);
 		return true;
 	}
-	return true;
+	return false;
 }
 
 
