@@ -46,7 +46,7 @@ static inline void rtw_reset_continual_urb_error(struct dvobj_priv *dvobj)
 #define USB_HIGH_SPEED_BULK_SIZE	512
 #define USB_FULL_SPEED_BULK_SIZE	64
 
-static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter, int buf_len)
+static inline bool rtw_usb_bulk_size_boundary(struct adapter *padapter, int buf_len)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 
