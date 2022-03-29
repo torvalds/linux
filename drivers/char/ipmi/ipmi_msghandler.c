@@ -458,6 +458,7 @@ struct ipmi_smi {
 	struct srcu_struct users_srcu;
 	atomic_t nr_users;
 	struct device_attribute nr_users_devattr;
+	struct device_attribute nr_msgs_devattr;
 
 
 	/* Used for wake ups at startup. */
@@ -3519,6 +3520,25 @@ static ssize_t nr_users_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(nr_users);
 
+static ssize_t nr_msgs_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct ipmi_smi *intf = container_of(attr,
+			 struct ipmi_smi, nr_msgs_devattr);
+	struct ipmi_user *user;
+	int index;
+	unsigned int count = 0;
+
+	index = srcu_read_lock(&intf->users_srcu);
+	list_for_each_entry_rcu(user, &intf->users, link)
+		count += atomic_read(&user->nr_msgs);
+	srcu_read_unlock(&intf->users_srcu, index);
+
+	return sysfs_emit(buf, "%u\n", count);
+}
+static DEVICE_ATTR_RO(nr_msgs);
+
 static void redo_bmc_reg(struct work_struct *work)
 {
 	struct ipmi_smi *intf = container_of(work, struct ipmi_smi,
@@ -3647,6 +3667,14 @@ int ipmi_add_smi(struct module         *owner,
 	if (rv)
 		goto out_err_bmc_reg;
 
+	intf->nr_msgs_devattr = dev_attr_nr_msgs;
+	sysfs_attr_init(&intf->nr_msgs_devattr.attr);
+	rv = device_create_file(intf->si_dev, &intf->nr_msgs_devattr);
+	if (rv) {
+		device_remove_file(intf->si_dev, &intf->nr_users_devattr);
+		goto out_err_bmc_reg;
+	}
+
 	/*
 	 * Keep memory order straight for RCU readers.  Make
 	 * sure everything else is committed to memory before
@@ -3746,6 +3774,7 @@ void ipmi_unregister_smi(struct ipmi_smi *intf)
 
 	/* At this point no users can be added to the interface. */
 
+	device_remove_file(intf->si_dev, &intf->nr_msgs_devattr);
 	device_remove_file(intf->si_dev, &intf->nr_users_devattr);
 
 	/*
