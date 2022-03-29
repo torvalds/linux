@@ -34,6 +34,7 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
                                     int *major, int *minor, int *revision);
 
 int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev);
+int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev);
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_DISCOVERY__ */

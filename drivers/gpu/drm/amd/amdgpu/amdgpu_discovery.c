@@ -1250,6 +1250,52 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 	return 0;
 }
 
+union mall_info {
+	struct mall_info_v1_0 v1;
+};
+
+int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
+{
+	struct binary_header *bhdr;
+	union mall_info *mall_info;
+	u32 u, mall_size_per_umc, m_s_present, half_use;
+	u64 mall_size;
+
+	if (!adev->mman.discovery_bin) {
+		DRM_ERROR("ip discovery uninitialized\n");
+		return -EINVAL;
+	}
+
+	bhdr = (struct binary_header *)adev->mman.discovery_bin;
+	mall_info = (union mall_info *)(adev->mman.discovery_bin +
+			le16_to_cpu(bhdr->table_list[MALL_INFO].offset));
+
+	switch (le16_to_cpu(mall_info->v1.header.version_major)) {
+	case 1:
+		mall_size = 0;
+		mall_size_per_umc = le32_to_cpu(mall_info->v1.mall_size_per_m);
+		m_s_present = le32_to_cpu(mall_info->v1.m_s_present);
+		half_use = le32_to_cpu(mall_info->v1.m_half_use);
+		for (u = 0; u < adev->gmc.num_umc; u++) {
+			if (m_s_present & (1 << u))
+				mall_size += mall_size_per_umc * 2;
+			else if (half_use & (1 << u))
+				mall_size += mall_size_per_umc / 2;
+			else
+				mall_size += mall_size_per_umc;
+		}
+		adev->gmc.mall_size = mall_size;
+		break;
+	default:
+		dev_err(adev->dev,
+			"Unhandled MALL info table %d.%d\n",
+			le16_to_cpu(mall_info->v1.header.version_major),
+			le16_to_cpu(mall_info->v1.header.version_minor));
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
 {
 	/* what IP to use for this? */
