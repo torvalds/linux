@@ -177,7 +177,6 @@ struct sys_stat_struct {
 /* startup code */
 __asm__ (".section .text\n"
     ".weak _start\n"
-    ".global _start\n"
     "_start:\n"
 #if defined(__THUMBEB__) || defined(__THUMBEL__)
     /* We enter here in 32-bit mode but if some previous functions were in

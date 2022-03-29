@@ -184,7 +184,6 @@ struct sys_stat_struct {
 /* startup code */
 __asm__ (".section .text\n"
     ".weak _start\n"
-    ".global _start\n"
     "_start:\n"
     "ldr x0, [sp]\n"              // argc (x0) was in the stack
     "add x1, sp, 8\n"             // argv (x1) = sp
