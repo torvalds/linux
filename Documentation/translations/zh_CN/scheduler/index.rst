@@ -25,6 +25,7 @@ Linux调度器
     sched-domains
     sched-capacity
     sched-energy
+    schedutil
     sched-nice-design
     sched-stats
     sched-debug
