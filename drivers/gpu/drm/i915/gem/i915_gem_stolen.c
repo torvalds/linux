@@ -15,6 +15,7 @@
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_mchbar_regs.h"
 
@@ -401,7 +402,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		return 0;
 	}
 
-	if (intel_vtd_active(i915) && GRAPHICS_VER(i915) < 8) {
+	if (i915_vtd_active(i915) && GRAPHICS_VER(i915) < 8) {
 		drm_notice(&i915->drm,
 			   "%s, disabling use of stolen memory\n",
 			   "DMAR active");

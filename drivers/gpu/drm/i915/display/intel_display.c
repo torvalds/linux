@@ -77,6 +77,7 @@
 #include "g4x_hdmi.h"
 #include "hsw_ips.h"
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
@@ -1197,7 +1198,7 @@ static bool needs_async_flip_vtd_wa(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	return crtc_state->uapi.async_flip && intel_vtd_active(i915) &&
+	return crtc_state->uapi.async_flip && i915_vtd_active(i915) &&
 		(DISPLAY_VER(i915) == 9 || IS_BROADWELL(i915) || IS_HASWELL(i915));
 }
 
@@ -10695,4 +10696,9 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 
 	acpi_video_unregister();
 	intel_opregion_unregister(i915);
+}
+
+bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915)
+{
+	return DISPLAY_VER(i915) >= 6 && i915_vtd_active(i915);
 }

@@ -694,4 +694,6 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 #define I915_STATE_WARN_ON(x)						\
 	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
+bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915);
+
 #endif

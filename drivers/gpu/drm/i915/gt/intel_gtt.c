@@ -13,9 +13,21 @@
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "i915_trace.h"
+#include "i915_utils.h"
 #include "intel_gt.h"
 #include "intel_gt_regs.h"
 #include "intel_gtt.h"
+
+
+static bool intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
+{
+	return IS_BROXTON(i915) && i915_vtd_active(i915);
+}
+
+bool intel_vm_no_concurrent_access_wa(struct drm_i915_private *i915)
+{
+	return IS_CHERRYVIEW(i915) || intel_ggtt_update_needs_vtd_wa(i915);
+}
 
 struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 {

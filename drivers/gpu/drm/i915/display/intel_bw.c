@@ -6,6 +6,7 @@
 #include <drm/drm_atomic_state_helper.h>
 
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
@@ -649,7 +650,7 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
-	if (DISPLAY_VER(dev_priv) >= 13 && intel_vtd_active(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 13 && i915_vtd_active(dev_priv))
 		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;

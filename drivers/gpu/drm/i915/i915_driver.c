@@ -88,6 +88,7 @@
 #include "i915_suspend.h"
 #include "i915_switcheroo.h"
 #include "i915_sysfs.h"
+#include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_dram.h"
 #include "intel_gvt.h"
@@ -754,7 +755,7 @@ void
 i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p)
 {
 	drm_printf(p, "iommu: %s\n",
-		   str_enabled_disabled(intel_vtd_active(i915)));
+		   str_enabled_disabled(i915_vtd_active(i915)));
 }
 
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
