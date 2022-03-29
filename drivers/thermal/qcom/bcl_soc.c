@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/thermal.h>
+#include "thermal_zone_internal.h"
 
 #define BCL_DRIVER_NAME       "bcl_soc_peripheral"
 
@@ -119,9 +120,11 @@ static int bcl_soc_remove(struct platform_device *pdev)
 {
 	power_supply_unreg_notifier(&bcl_perph->psy_nb);
 	flush_work(&bcl_perph->soc_eval_work);
-	if (bcl_perph->tz_dev)
+	if (bcl_perph->tz_dev) {
 		thermal_zone_of_sensor_unregister(&pdev->dev,
 				bcl_perph->tz_dev);
+		qti_update_tz_ops(bcl_perph->tz_dev, false);
+	}
 
 	return 0;
 }
@@ -156,6 +159,7 @@ static int bcl_soc_probe(struct platform_device *pdev)
 		bcl_perph->tz_dev = NULL;
 		goto bcl_soc_probe_exit;
 	}
+	qti_update_tz_ops(bcl_perph->tz_dev, true);
 	thermal_zone_device_update(bcl_perph->tz_dev, THERMAL_DEVICE_UP);
 	schedule_work(&bcl_perph->soc_eval_work);
 

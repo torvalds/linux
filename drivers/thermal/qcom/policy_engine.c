@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
+#include "thermal_zone_internal.h"
 
 #define PE_SENS_DRIVER		"policy-engine-sensor"
 #define PE_INT_ENABLE_OFFSET	0x530
@@ -168,6 +169,8 @@ static int pe_sens_device_probe(struct platform_device *pdev)
 		pe_sens->tz_dev = NULL;
 		return ret;
 	}
+	qti_update_tz_ops(pe_sens->tz_dev, true);
+
 	writel_relaxed(PE_INTR_CFG, pe_sens->regmap + PE_INT_ENABLE_OFFSET);
 	writel_relaxed(PE_INTR_CLEAR, pe_sens->regmap + PE_INT_STATUS_OFFSET);
 	writel_relaxed(PE_STS_CLEAR, pe_sens->regmap + PE_INT_STATUS1_OFFSET);
@@ -194,6 +197,7 @@ static int pe_sens_device_remove(struct platform_device *pdev)
 		(struct pe_sensor_data *)dev_get_drvdata(&pdev->dev);
 
 	thermal_zone_of_sensor_unregister(pe_sens->dev, pe_sens->tz_dev);
+	qti_update_tz_ops(pe_sens->tz_dev, false);
 
 	return 0;
 }

@@ -19,6 +19,7 @@
 
 #include "thermal_sensor_service_v02.h"
 #include "qmi_sensors.h"
+#include "thermal_zone_internal.h"
 
 #define QMI_SENS_DRIVER		"qmi-therm-sensors-v2"
 #define QMI_TS_RESP_TOUT	msecs_to_jiffies(100)
@@ -292,8 +293,9 @@ static int qmi_register_sensor_device(struct qmi_sensor *qmi_sens)
 		qmi_sens->tz_dev = NULL;
 		return ret;
 	}
-	pr_debug("Sensor register success for %s\n", qmi_sens->qmi_name);
+	qti_update_tz_ops(qmi_sens->tz_dev, true);
 
+	pr_debug("Sensor register success for %s\n", qmi_sens->qmi_name);
 	return 0;
 }
 
@@ -472,6 +474,7 @@ static void qmi_ts_cleanup(void)
 			if (qmi_sens->tz_dev) {
 				thermal_zone_of_sensor_unregister(
 				qmi_sens->dev, qmi_sens->tz_dev);
+				qti_update_tz_ops(qmi_sens->tz_dev, false);
 				qmi_sens->tz_dev = NULL;
 			}
 
