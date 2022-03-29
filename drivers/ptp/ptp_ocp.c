@@ -1214,10 +1214,9 @@ ptp_ocp_nvmem_device_get(struct ptp_ocp *bp, const void * const tag)
 static inline void
 ptp_ocp_nvmem_device_put(struct nvmem_device **nvmemp)
 {
-	if (*nvmemp != NULL) {
+	if (!IS_ERR_OR_NULL(*nvmemp))
 		nvmem_device_put(*nvmemp);
-		*nvmemp = NULL;
-	}
+	*nvmemp = NULL;
 }
 
 static void
@@ -1241,13 +1240,15 @@ ptp_ocp_read_eeprom(struct ptp_ocp *bp)
 		}
 		if (!nvmem) {
 			nvmem = ptp_ocp_nvmem_device_get(bp, tag);
-			if (!nvmem)
-				goto out;
+			if (IS_ERR(nvmem)) {
+				ret = PTR_ERR(nvmem);
+				goto fail;
+			}
 		}
 		ret = nvmem_device_read(nvmem, map->off, map->len,
 					BP_MAP_ENTRY_ADDR(bp, map));
 		if (ret != map->len)
-			goto read_fail;
+			goto fail;
 	}
 
 	bp->has_eeprom_data = true;
@@ -1256,7 +1257,7 @@ out:
 	ptp_ocp_nvmem_device_put(&nvmem);
 	return;
 
-read_fail:
+fail:
 	dev_err(&bp->pdev->dev, "could not read eeprom: %d\n", ret);
 	goto out;
 }
