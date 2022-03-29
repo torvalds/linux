@@ -1289,6 +1289,31 @@ static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
+static int tc_common_atomic_check(struct drm_bridge *bridge,
+				  struct drm_bridge_state *bridge_state,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state,
+				  const unsigned int max_khz)
+{
+	tc_bridge_mode_fixup(bridge, &crtc_state->mode,
+			     &crtc_state->adjusted_mode);
+
+	if (crtc_state->adjusted_mode.clock > max_khz)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int tc_edp_atomic_check(struct drm_bridge *bridge,
+			       struct drm_bridge_state *bridge_state,
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_connector_state *conn_state)
+{
+	/* DPI->(e)DP interface clock limitation: upto 154 MHz */
+	return tc_common_atomic_check(bridge, bridge_state, crtc_state,
+				      conn_state, 154000);
+}
+
 static enum drm_mode_status
 tc_edp_mode_valid(struct drm_bridge *bridge,
 		  const struct drm_display_info *info,
@@ -1463,6 +1488,7 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.detach = tc_edp_bridge_detach,
 	.mode_valid = tc_edp_mode_valid,
 	.mode_set = tc_bridge_mode_set,
+	.atomic_check = tc_edp_atomic_check,
 	.atomic_enable = tc_edp_bridge_atomic_enable,
 	.atomic_disable = tc_edp_bridge_atomic_disable,
 	.mode_fixup = tc_bridge_mode_fixup,
