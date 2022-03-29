@@ -329,7 +329,44 @@ int __pdc_cpu_rendezvous(void)
 		return mem_pdc_call(PDC_PROC, 1, 0);
 }
 
+/**
+ * pdc_cpu_rendezvous_lock - Lock PDC while transitioning to rendezvous state
+ */
+void pdc_cpu_rendezvous_lock(void)
+{
+	spin_lock(&pdc_lock);
+}
 
+/**
+ * pdc_cpu_rendezvous_unlock - Unlock PDC after reaching rendezvous state
+ */
+void pdc_cpu_rendezvous_unlock(void)
+{
+	spin_unlock(&pdc_lock);
+}
+
+/**
+ * pdc_pat_get_PDC_entrypoint - Get PDC entry point for current CPU
+ * @retval: -1 on error, 0 on success
+ */
+int pdc_pat_get_PDC_entrypoint(unsigned long *pdc_entry)
+{
+	int retval = 0;
+	unsigned long flags;
+
+	if (!IS_ENABLED(CONFIG_SMP) || !is_pdc_pat()) {
+		*pdc_entry = MEM_PDC;
+		return 0;
+	}
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_CPU, PDC_PAT_CPU_GET_PDC_ENTRYPOINT,
+			__pa(pdc_result));
+	*pdc_entry = pdc_result[0];
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
 /**
  * pdc_chassis_warn - Fetches chassis warnings
  * @retval: -1 on error, 0 on success
