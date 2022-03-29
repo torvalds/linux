@@ -1621,6 +1621,50 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 	return ret;
 }
 
+static int tc_probe_bridge_endpoint(struct tc_data *tc)
+{
+	struct device *dev = tc->dev;
+	struct of_endpoint endpoint;
+	struct device_node *node = NULL;
+	const u8 mode_dpi_to_edp = BIT(1) | BIT(2);
+	const u8 mode_dsi_to_edp = BIT(0) | BIT(2);
+	const u8 mode_dsi_to_dpi = BIT(0) | BIT(1);
+	u8 mode = 0;
+
+	/*
+	 * Determine bridge configuration.
+	 *
+	 * Port allocation:
+	 * port@0 - DSI input
+	 * port@1 - DPI input/output
+	 * port@2 - eDP output
+	 *
+	 * Possible connections:
+	 * DPI -> port@1 -> port@2 -> eDP :: [port@0 is not connected]
+	 * DSI -> port@0 -> port@2 -> eDP :: [port@1 is not connected]
+	 * DSI -> port@0 -> port@1 -> DPI :: [port@2 is not connected]
+	 */
+
+	for_each_endpoint_of_node(dev->of_node, node) {
+		of_graph_parse_endpoint(node, &endpoint);
+		if (endpoint.port > 2)
+			return -EINVAL;
+
+		mode |= BIT(endpoint.port);
+	}
+
+	if (mode == mode_dpi_to_edp)
+		return tc_probe_edp_bridge_endpoint(tc);
+	else if (mode == mode_dsi_to_dpi)
+		dev_warn(dev, "The mode DSI-to-DPI is not supported!\n");
+	else if (mode == mode_dsi_to_edp)
+		dev_warn(dev, "The mode DSI-to-(e)DP is not supported!\n");
+	else
+		dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
+
+	return -EINVAL;
+}
+
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
@@ -1633,7 +1677,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tc->dev = dev;
 
-	ret = tc_probe_edp_bridge_endpoint(tc);
+	ret = tc_probe_bridge_endpoint(tc);
 	if (ret)
 		return ret;
 
