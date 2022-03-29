@@ -493,6 +493,7 @@ const struct file_operations rve_fops = {
 };
 
 static struct miscdevice rve_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
 	.name = "rve",
 	.fops = &rve_fops,
 };
@@ -711,11 +712,9 @@ static int __init rve_init(void)
 
 	ret = platform_driver_register(&rve_driver);
 	if (ret != 0) {
-		pr_err("Platform device rve3_core0_driver register failed (%d).\n", ret);
+		pr_err("Platform device rve register failed (%d).\n", ret);
 		return ret;
 	}
-
-	rve_init_timer();
 
 #ifdef CONFIG_SYNC_FILE
 	rve_drvdata->fence_ctx = rve_fence_context_alloc();
@@ -733,6 +732,8 @@ static int __init rve_init(void)
 	}
 
 	rve_ctx_manager_init(&rve_drvdata->pend_ctx_manager);
+
+	rve_init_timer();
 
 #ifdef CONFIG_ROCKCHIP_RVE_DEBUGGER
 	rve_debugger_init(&rve_drvdata->debugger);

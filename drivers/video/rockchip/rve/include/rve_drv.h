@@ -56,8 +56,6 @@
 #include "rve_debugger.h"
 #include "rve.h"
 
-#define RVE_PD_AWAYS_ON 1
-
 /* sample interval: 1000ms */
 #define RVE_LOAD_INTERVAL 1000000000
 
