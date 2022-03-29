@@ -707,13 +707,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		trans->journal_res.seq = c->journal.replay_journal_seq;
 	}
 
-	if (unlikely(trans->extra_journal_entry_u64s)) {
+	if (unlikely(trans->extra_journal_entries.nr)) {
 		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
-				  trans->extra_journal_entries,
-				  trans->extra_journal_entry_u64s);
+				  trans->extra_journal_entries.data,
+				  trans->extra_journal_entries.nr);
 
-		trans->journal_res.offset	+= trans->extra_journal_entry_u64s;
-		trans->journal_res.u64s		-= trans->extra_journal_entry_u64s;
+		trans->journal_res.offset	+= trans->extra_journal_entries.nr;
+		trans->journal_res.u64s		-= trans->extra_journal_entries.nr;
 	}
 
 	/*
@@ -1096,7 +1096,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	int ret = 0;
 
 	if (!trans->nr_updates &&
-	    !trans->extra_journal_entry_u64s)
+	    !trans->extra_journal_entries.nr)
 		goto out_reset;
 
 	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)
@@ -1120,7 +1120,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
-	trans->journal_u64s		= trans->extra_journal_entry_u64s;
+	trans->journal_u64s		= trans->extra_journal_entries.nr;
 	trans->journal_preres_u64s	= 0;
 
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
@@ -1180,8 +1180,7 @@ out_reset:
 	trans->extra_journal_res	= 0;
 	trans->nr_updates		= 0;
 	trans->hooks			= NULL;
-	trans->extra_journal_entries	= NULL;
-	trans->extra_journal_entry_u64s	= 0;
+	trans->extra_journal_entries.nr	= 0;
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;

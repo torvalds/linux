@@ -3055,8 +3055,7 @@ void bch2_trans_begin(struct btree_trans *trans)
 	trans->mem_top			= 0;
 
 	trans->hooks			= NULL;
-	trans->extra_journal_entries	= NULL;
-	trans->extra_journal_entry_u64s	= 0;
+	trans->extra_journal_entries.nr	= 0;
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;
@@ -3195,6 +3194,8 @@ void bch2_trans_exit(struct btree_trans *trans)
 	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
+
+	kfree(trans->extra_journal_entries.data);
 
 	if (trans->fs_usage_deltas) {
 		if (trans->fs_usage_deltas->size + sizeof(trans->fs_usage_deltas) ==
