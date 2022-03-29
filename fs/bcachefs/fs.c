@@ -1478,7 +1478,7 @@ static void bch2_evict_inode(struct inode *vinode)
 }
 
 void bch2_evict_subvolume_inodes(struct bch_fs *c,
-				 struct snapshot_id_list *s)
+				 snapshot_id_list *s)
 {
 	struct super_block *sb = c->vfs_sb;
 	struct inode *inode;

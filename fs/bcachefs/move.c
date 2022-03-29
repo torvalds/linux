@@ -91,10 +91,10 @@ next:
 
 		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, old_pos.snapshot)) {
 			struct bkey_i *update;
-			size_t i;
+			u32 *i;
 
-			for (i = 0; i < s.nr; i++)
-				if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, s.d[i]))
+			darray_for_each(s.ids, i)
+				if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, *i))
 					goto next;
 
 			update = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
@@ -124,7 +124,7 @@ next:
 		}
 	}
 	bch2_trans_iter_exit(trans, &iter);
-	kfree(s.d);
+	darray_exit(&s.ids);
 
 	return ret;
 }

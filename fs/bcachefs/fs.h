@@ -190,7 +190,7 @@ int bch2_setattr_nonsize(struct mnt_idmap *,
 			 struct iattr *);
 int __bch2_unlink(struct inode *, struct dentry *, bool);
 
-void bch2_evict_subvolume_inodes(struct bch_fs *, struct snapshot_id_list *);
+void bch2_evict_subvolume_inodes(struct bch_fs *, snapshot_id_list *);
 
 void bch2_vfs_exit(void);
 int bch2_vfs_init(void);
@@ -198,7 +198,7 @@ int bch2_vfs_init(void);
 #else
 
 static inline void bch2_evict_subvolume_inodes(struct bch_fs *c,
-					       struct snapshot_id_list *s) {}
+					       snapshot_id_list *s) {}
 static inline void bch2_vfs_exit(void) {}
 static inline int bch2_vfs_init(void) { return 0; }
 

@@ -544,36 +544,21 @@ err:
 	return ret;
 }
 
-static int snapshot_id_add(struct snapshot_id_list *s, u32 id)
+static int snapshot_id_add(snapshot_id_list *s, u32 id)
 {
 	BUG_ON(snapshot_list_has_id(s, id));
 
-	if (s->nr == s->size) {
-		size_t new_size = max(8U, s->size * 2);
-		void *n = krealloc(s->d,
-				   new_size * sizeof(s->d[0]),
-				   GFP_KERNEL);
-		if (!n) {
-			pr_err("error allocating snapshot ID list");
-			return -ENOMEM;
-		}
-
-		s->d	= n;
-		s->size = new_size;
-	};
-
-	s->d[s->nr++] = id;
-	return 0;
+	return darray_push(s, id);
 }
 
 static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
-					   struct snapshot_id_list *deleted,
+					   snapshot_id_list *deleted,
 					   enum btree_id btree_id)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct snapshot_id_list equiv_seen = { 0 };
+	snapshot_id_list equiv_seen = { 0 };
 	struct bpos last_pos = POS_MIN;
 	int ret = 0;
 
@@ -620,7 +605,7 @@ static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
-	kfree(equiv_seen.d);
+	darray_exit(&equiv_seen);
 
 	return ret;
 }
@@ -632,7 +617,7 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_snapshot snap;
-	struct snapshot_id_list deleted = { 0 };
+	snapshot_id_list deleted = { 0 };
 	u32 i, id, children[2];
 	int ret = 0;
 
@@ -712,15 +697,15 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 
 	for (i = 0; i < deleted.nr; i++) {
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-			bch2_snapshot_node_delete(&trans, deleted.d[i]));
+			bch2_snapshot_node_delete(&trans, deleted.data[i]));
 		if (ret) {
 			bch_err(c, "error deleting snapshot %u: %i",
-				deleted.d[i], ret);
+				deleted.data[i], ret);
 			goto err;
 		}
 	}
 err:
-	kfree(deleted.d);
+	darray_exit(&deleted);
 	bch2_trans_exit(&trans);
 	percpu_ref_put(&c->writes);
 }
@@ -875,14 +860,14 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs,
 				snapshot_wait_for_pagecache_and_delete_work);
-	struct snapshot_id_list s;
+	snapshot_id_list s;
 	u32 *id;
 	int ret = 0;
 
 	while (!ret) {
 		mutex_lock(&c->snapshots_unlinked_lock);
 		s = c->snapshots_unlinked;
-		memset(&c->snapshots_unlinked, 0, sizeof(c->snapshots_unlinked));
+		darray_init(&c->snapshots_unlinked);
 		mutex_unlock(&c->snapshots_unlinked_lock);
 
 		if (!s.nr)
@@ -890,7 +875,7 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 
 		bch2_evict_subvolume_inodes(c, &s);
 
-		for (id = s.d; id < s.d + s.nr; id++) {
+		for (id = s.data; id < s.data + s.nr; id++) {
 			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
 				      bch2_subvolume_delete(&trans, *id));
 			if (ret) {
@@ -899,7 +884,7 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 			}
 		}
 
-		kfree(s.d);
+		darray_exit(&s);
 	}
 
 	percpu_ref_put(&c->writes);

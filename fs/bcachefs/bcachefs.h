@@ -665,7 +665,7 @@ struct bch_fs {
 	struct mutex		snapshot_table_lock;
 	struct work_struct	snapshot_delete_work;
 	struct work_struct	snapshot_wait_for_pagecache_and_delete_work;
-	struct snapshot_id_list	snapshots_unlinked;
+	snapshot_id_list	snapshots_unlinked;
 	struct mutex		snapshots_unlinked_lock;
 
 	/* BTREE CACHE */

@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_SUBVOLUME_H
 #define _BCACHEFS_SUBVOLUME_H
 
+#include "darray.h"
 #include "subvolume_types.h"
 
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
@@ -58,15 +59,13 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 
 struct snapshots_seen {
 	struct bpos			pos;
-	size_t				nr;
-	size_t				size;
-	u32				*d;
+	DARRAY(u32)			ids;
 };
 
 static inline void snapshots_seen_exit(struct snapshots_seen *s)
 {
-	kfree(s->d);
-	s->d = NULL;
+	kfree(s->ids.data);
+	s->ids.data = NULL;
 }
 
 static inline void snapshots_seen_init(struct snapshots_seen *s)
@@ -76,30 +75,19 @@ static inline void snapshots_seen_init(struct snapshots_seen *s)
 
 static inline int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
 {
-	if (s->nr == s->size) {
-		size_t new_size = max(s->size, (size_t) 128) * 2;
-		u32 *d = krealloc(s->d, new_size * sizeof(s->d[0]), GFP_KERNEL);
-
-		if (!d) {
-			bch_err(c, "error reallocating snapshots_seen table (new size %zu)",
-				new_size);
-			return -ENOMEM;
-		}
-
-		s->size = new_size;
-		s->d	= d;
-	}
-
-	s->d[s->nr++] = id;
-	return 0;
+	int ret = darray_push(&s->ids, id);
+	if (ret)
+		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
+			s->ids.size);
+	return ret;
 }
 
-static inline bool snapshot_list_has_id(struct snapshot_id_list *s, u32 id)
+static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)
 {
-	unsigned i;
+	u32 *i;
 
-	for (i = 0; i < s->nr; i++)
-		if (id == s->d[i])
+	darray_for_each(*s, i)
+		if (*i == id)
 			return true;
 	return false;
 }

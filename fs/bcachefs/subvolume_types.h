@@ -2,10 +2,8 @@
 #ifndef _BCACHEFS_SUBVOLUME_TYPES_H
 #define _BCACHEFS_SUBVOLUME_TYPES_H
 
-struct snapshot_id_list {
-	u32		nr;
-	u32		size;
-	u32		*d;
-};
+#include "darray.h"
+
+typedef DARRAY(u32) snapshot_id_list;
 
 #endif /* _BCACHEFS_SUBVOLUME_TYPES_H */
