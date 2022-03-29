@@ -503,6 +503,31 @@ int WMM_param_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	return true;
 }
 
+static void set_acm_ctrl(struct adapter *adapter, u8 acm_mask)
+{
+	u8 acmctrl = rtw_read8(adapter, REG_ACMHWCTRL);
+
+	if (acm_mask > 1)
+		acmctrl = acmctrl | 0x1;
+
+	if (acm_mask & BIT(3))
+		acmctrl |= ACMHW_VOQEN;
+	else
+		acmctrl &= (~ACMHW_VOQEN);
+
+	if (acm_mask & BIT(2))
+		acmctrl |= ACMHW_VIQEN;
+	else
+		acmctrl &= (~ACMHW_VIQEN);
+
+	if (acm_mask & BIT(1))
+		acmctrl |= ACMHW_BEQEN;
+	else
+		acmctrl &= (~ACMHW_BEQEN);
+
+	rtw_write8(adapter, REG_ACMHWCTRL, acmctrl);
+}
+
 void WMMOnAssocRsp(struct adapter *padapter)
 {
 	u8	ACI, ACM, AIFS, ECWMin, ECWMax, aSifsTime;
@@ -564,7 +589,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 	}
 
 	if (padapter->registrypriv.acm_method == 1)
-		SetHwReg8188EU(padapter, HW_VAR_ACM_CTRL, (u8 *)(&acm_mask));
+		set_acm_ctrl(padapter, acm_mask);
 	else
 		padapter->mlmepriv.acm_mask = acm_mask;
 

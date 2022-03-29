@@ -1139,32 +1139,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		haldata->AcParam_BE = ((u32 *)(val))[0];
 		rtw_write32(Adapter, REG_EDCA_BE_PARAM, ((u32 *)(val))[0]);
 		break;
-	case HW_VAR_ACM_CTRL:
-		{
-			u8 acm_ctrl = *((u8 *)val);
-			u8 AcmCtrl = rtw_read8(Adapter, REG_ACMHWCTRL);
-
-			if (acm_ctrl > 1)
-				AcmCtrl = AcmCtrl | 0x1;
-
-			if (acm_ctrl & BIT(3))
-				AcmCtrl |= ACMHW_VOQEN;
-			else
-				AcmCtrl &= (~ACMHW_VOQEN);
-
-			if (acm_ctrl & BIT(2))
-				AcmCtrl |= ACMHW_VIQEN;
-			else
-				AcmCtrl &= (~ACMHW_VIQEN);
-
-			if (acm_ctrl & BIT(1))
-				AcmCtrl |= ACMHW_BEQEN;
-			else
-				AcmCtrl &= (~ACMHW_BEQEN);
-
-			rtw_write8(Adapter, REG_ACMHWCTRL, AcmCtrl);
-		}
-		break;
 	case HW_VAR_AMPDU_MIN_SPACE:
 		{
 			u8 MinSpacingToSet;
