@@ -712,6 +712,10 @@ int rve_job_commit_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 	ctx->running_job_count = 0;
 	ctx->is_running = true;
 
+	ctx->sync_mode = user_ctx->sync_mode;
+	if (ctx->sync_mode == 0)
+		ctx->sync_mode = RVE_SYNC;
+
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
 	for (i = 0; i < ctx->cmd_num; i++) {
@@ -823,9 +827,6 @@ int rve_job_commit(struct rve_internal_ctx_t *ctx)
 	struct dma_fence *in_fence;
 #endif
 	int ret = 0;
-
-	/* TODO: remove */
-	ctx->sync_mode = RVE_SYNC;
 
 	job = rve_job_alloc(ctx);
 	if (!job) {
