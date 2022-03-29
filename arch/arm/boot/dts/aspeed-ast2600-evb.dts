@@ -314,6 +314,11 @@
 	clk-phase-sd-hs = <7>, <200>;
 };
 
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+};
+
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
