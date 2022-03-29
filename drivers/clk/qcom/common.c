@@ -24,6 +24,7 @@
 #include "reset.h"
 #include "gdsc.h"
 #include "vdd-level.h"
+#include "clk-debug.h"
 
 struct qcom_cc {
 	struct qcom_reset_controller reset;
@@ -563,4 +564,17 @@ int qcom_cc_runtime_suspend(struct device *dev)
 }
 EXPORT_SYMBOL(qcom_cc_runtime_suspend);
 
+static int __init qcom_clk_init(void)
+{
+	return clk_debug_init();
+}
+subsys_initcall(qcom_clk_init);
+
+static void __exit qcom_clk_exit(void)
+{
+	clk_debug_exit();
+}
+module_exit(qcom_clk_exit);
+
+MODULE_DESCRIPTION("Common QCOM clock control library");
 MODULE_LICENSE("GPL v2");
