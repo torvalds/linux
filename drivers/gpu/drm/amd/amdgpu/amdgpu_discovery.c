@@ -436,7 +436,8 @@ next_ip:
 }
 
 static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
-						     uint32_t *vcn_harvest_count)
+						     uint32_t *vcn_harvest_count,
+						     uint32_t *umc_harvest_count)
 {
 	struct binary_header *bhdr;
 	struct harvest_table *harvest_info;
@@ -459,6 +460,9 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 			break;
 		case DMU_HWID:
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
+			break;
+		case UMC_HWID:
+			(*umc_harvest_count)++;
 			break;
 		default:
 			break;
@@ -1126,6 +1130,7 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
 void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	int vcn_harvest_count = 0;
+	int umc_harvest_count = 0;
 
 	/*
 	 * Harvest table does not fit Navi1x and legacy GPUs,
@@ -1144,7 +1149,8 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 				&vcn_harvest_count);
 	} else {
 		amdgpu_discovery_read_from_harvest_table(adev,
-			&vcn_harvest_count);
+							 &vcn_harvest_count,
+							 &umc_harvest_count);
 	}
 
 	amdgpu_discovery_harvest_config_quirk(adev);
@@ -1152,6 +1158,10 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 	if (vcn_harvest_count == adev->vcn.num_vcn_inst) {
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
+	}
+
+	if (umc_harvest_count < adev->gmc.num_umc) {
+		adev->gmc.num_umc -= umc_harvest_count;
 	}
 }
 
