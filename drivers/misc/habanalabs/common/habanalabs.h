@@ -796,6 +796,7 @@ struct hl_mmap_mem_buf {
  * @hdev: pointer to device this CB belongs to.
  * @ctx: pointer to the CB owner's context.
  * @lock: spinlock to protect mmap flows.
+ * @buf: back pointer to the parent mappable memory buffer
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
  * @va_block_list: list of virtual addresses blocks of the CB if it is mapped to
@@ -816,6 +817,7 @@ struct hl_cb {
 	struct hl_device	*hdev;
 	struct hl_ctx		*ctx;
 	spinlock_t		lock;
+	struct hl_mmap_mem_buf	*buf;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
 	struct list_head	va_block_list;
@@ -2662,6 +2664,7 @@ struct hl_reset_info {
  * @cs_mirror_list: CS mirror list for TDR.
  * @cs_mirror_lock: protects cs_mirror_list.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CBs.
+ * @kernel_mem_mgr: memory manager for memory buffers with lifespan of driver.
  * @event_queue: event queue for IRQ from CPU-CP.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: Host <-> CPU-CP shared memory CPU address.
@@ -2794,6 +2797,7 @@ struct hl_device {
 	struct list_head		cs_mirror_list;
 	spinlock_t			cs_mirror_lock;
 	struct hl_cb_mgr		kernel_cb_mgr;
+	struct hl_mem_mgr		kernel_mem_mgr;
 	struct hl_eq			event_queue;
 	struct dma_pool			*dma_pool;
 	void				*cpu_accessible_dma_mem;
@@ -3098,6 +3102,10 @@ void hl_sysfs_fini(struct hl_device *hdev);
 int hl_hwmon_init(struct hl_device *hdev);
 void hl_hwmon_fini(struct hl_device *hdev);
 
+int hl_cb_create_unified_mem_mgr(struct hl_device *hdev, struct hl_mem_mgr *mmg,
+			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
+			bool map_cb, u64 *handle);
+int hl_cb_destroy_unified_mem_mgr(struct hl_mem_mgr *mmg, u64 cb_handle);
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
 			bool map_cb, u64 *handle);

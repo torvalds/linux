@@ -378,6 +378,162 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 	return rc;
 }
 
+struct hl_cb_mmap_mem_alloc_args {
+	struct hl_device *hdev;
+	struct hl_ctx *ctx;
+	u32 cb_size;
+	bool internal_cb;
+	bool map_cb;
+};
+
+static void hl_cb_mmap_mem_release(struct hl_mmap_mem_buf *buf)
+{
+	struct hl_cb *cb = buf->private;
+
+	hl_debugfs_remove_cb(cb);
+
+	if (cb->is_mmu_mapped)
+		cb_unmap_mem(cb->ctx, cb);
+
+	hl_ctx_put(cb->ctx);
+
+	cb_do_release(cb->hdev, cb);
+}
+
+static int hl_cb_mmap_mem_alloc(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
+{
+	struct hl_cb_mmap_mem_alloc_args *cb_args = args;
+	struct hl_cb *cb;
+	int rc, ctx_id = cb_args->ctx->asid;
+	bool alloc_new_cb = true;
+
+	if (!cb_args->internal_cb) {
+		/* Minimum allocation must be PAGE SIZE */
+		if (cb_args->cb_size < PAGE_SIZE)
+			cb_args->cb_size = PAGE_SIZE;
+
+		if (ctx_id == HL_KERNEL_ASID_ID &&
+				cb_args->cb_size <= cb_args->hdev->asic_prop.cb_pool_cb_size) {
+
+			spin_lock(&cb_args->hdev->cb_pool_lock);
+			if (!list_empty(&cb_args->hdev->cb_pool)) {
+				cb = list_first_entry(&cb_args->hdev->cb_pool,
+						typeof(*cb), pool_list);
+				list_del(&cb->pool_list);
+				spin_unlock(&cb_args->hdev->cb_pool_lock);
+				alloc_new_cb = false;
+			} else {
+				spin_unlock(&cb_args->hdev->cb_pool_lock);
+				dev_dbg(cb_args->hdev->dev, "CB pool is empty\n");
+			}
+		}
+	}
+
+	if (alloc_new_cb) {
+		cb = hl_cb_alloc(cb_args->hdev, cb_args->cb_size, ctx_id, cb_args->internal_cb);
+		if (!cb)
+			return -ENOMEM;
+	}
+
+	cb->hdev = cb_args->hdev;
+	cb->ctx = cb_args->ctx;
+	cb->buf = buf;
+	cb->buf->mappable_size = cb->size;
+	cb->buf->private = cb;
+
+	hl_ctx_get(cb_args->hdev, cb->ctx);
+
+	if (cb_args->map_cb) {
+		if (ctx_id == HL_KERNEL_ASID_ID) {
+			dev_err(cb_args->hdev->dev,
+				"CB mapping is not supported for kernel context\n");
+			rc = -EINVAL;
+			goto release_cb;
+		}
+
+		rc = cb_map_mem(cb_args->ctx, cb);
+		if (rc)
+			goto release_cb;
+	}
+
+	hl_debugfs_add_cb(cb);
+
+	return 0;
+
+release_cb:
+	hl_ctx_put(cb->ctx);
+	cb_do_release(cb_args->hdev, cb);
+
+	return rc;
+}
+
+static int hl_cb_mmap_unified_mem_mgr(struct hl_mmap_mem_buf *buf,
+				      struct vm_area_struct *vma, void *args)
+{
+	struct hl_cb *cb = buf->private;
+
+	return cb->hdev->asic_funcs->mmap(cb->hdev, vma, cb->kernel_address,
+					cb->bus_address, cb->size);
+}
+
+static struct hl_mmap_mem_buf_behavior cb_behavior = {
+	.mem_id = HL_MMAP_TYPE_CB,
+	.alloc = hl_cb_mmap_mem_alloc,
+	.release = hl_cb_mmap_mem_release,
+	.mmap = hl_cb_mmap_unified_mem_mgr,
+};
+
+int hl_cb_create_unified_mem_mgr(struct hl_device *hdev, struct hl_mem_mgr *mmg,
+			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
+			bool map_cb, u64 *handle)
+{
+	struct hl_cb_mmap_mem_alloc_args args = {
+		.hdev = hdev,
+		.ctx = ctx,
+		.cb_size = cb_size,
+		.internal_cb = internal_cb,
+		.map_cb = map_cb,
+	};
+	struct hl_mmap_mem_buf *buf;
+	int ctx_id = ctx->asid;
+
+	if ((hdev->disabled) || (hdev->reset_info.in_reset && (ctx_id != HL_KERNEL_ASID_ID))) {
+		dev_warn_ratelimited(hdev->dev,
+			"Device is disabled or in reset. Can't create new CBs\n");
+		return -EBUSY;
+	}
+
+	if (cb_size > SZ_2M) {
+		dev_err(hdev->dev, "CB size %d must be less than %d\n",
+			cb_size, SZ_2M);
+		return -EINVAL;
+	}
+
+	buf = hl_mmap_mem_buf_alloc(
+		mmg, &cb_behavior,
+		ctx_id == HL_KERNEL_ASID_ID ? GFP_ATOMIC : GFP_KERNEL, &args);
+	if (!buf)
+		return -ENOMEM;
+
+	*handle = buf->handle;
+
+	return 0;
+}
+
+int hl_cb_destroy_unified_mem_mgr(struct hl_mem_mgr *mmg, u64 cb_handle)
+{
+	int rc;
+
+	rc = hl_mmap_mem_buf_put_handle(mmg, cb_handle);
+	if (rc < 0)
+		return rc; /* Invalid handle */
+
+	if (rc == 0)
+		dev_warn(mmg->dev, "CB 0x%llx is destroyed while still in use\n", cb_handle);
+
+	return 0;
+}
+
 static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 			u64 cb_handle, u32 flags, u32 *usage_cnt, u64 *device_va)
 {
