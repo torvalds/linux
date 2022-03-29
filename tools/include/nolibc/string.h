@@ -148,6 +148,15 @@ size_t nolibc_strlen(const char *str)
 #endif
 
 static __attribute__((unused))
+size_t strnlen(const char *str, size_t maxlen)
+{
+	size_t len;
+
+	for (len = 0; (len < maxlen) && str[len]; len++);
+	return len;
+}
+
+static __attribute__((unused))
 size_t strlcat(char *dst, const char *src, size_t size)
 {
 	size_t len;
