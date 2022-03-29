@@ -25,7 +25,7 @@
  * @return true:
  * @return false:
  */
-static inline int rtw_inc_and_chk_continual_urb_error(struct dvobj_priv *dvobj)
+static inline bool rtw_inc_and_chk_continual_urb_error(struct dvobj_priv *dvobj)
 {
 	int value = atomic_inc_return(&dvobj->continual_urb_error);
 
