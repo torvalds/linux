@@ -128,11 +128,18 @@ static int rockchip_saradc_read_v1(struct rockchip_saradc *info)
 static int rockchip_saradc_read_v2(struct rockchip_saradc *info)
 {
 	int offset;
+	int channel;
 
 	/* Clear irq */
 	writel_relaxed(0x1, info->regs + SARADC2_END_INT_ST);
 
-	offset = SARADC2_DATA_BASE + info->last_chan->channel * 0x4;
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	channel = info->chn;
+#else
+	channel = info->last_chan->channel;
+#endif
+
+	offset = SARADC2_DATA_BASE + channel * 0x4;
 
 	return readl_relaxed(info->regs + offset);
 }
@@ -220,7 +227,9 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 
 	/* Read value */
 	info->last_val = rockchip_saradc_read(info);
+#ifndef CONFIG_ROCKCHIP_SARADC_TEST_CHN
 	info->last_val &= GENMASK(info->last_chan->scan_type.realbits - 1, 0);
+#endif
 
 	rockchip_saradc_power_down(info);
 
