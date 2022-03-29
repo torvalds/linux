@@ -1789,20 +1789,14 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 
 static void rtw_set_threshold(struct adapter *adapter)
 {
-	u8 threshold;
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
 	struct ht_priv *htpriv = &mlmepriv->htpriv;
 
-	/*  TH = 1 => means that invalidate usb rx aggregation */
-	/*  TH = 0 => means that validate usb rx aggregation, use init value. */
-	if (htpriv->ht_option) {
-		if (adapter->registrypriv.wifi_spec == 1)
-			threshold = 1;
-		else
-			threshold = USB_RXAGG_PAGE_COUNT;
-
-		rtw_write8(adapter, REG_RXDMA_AGG_PG_TH, threshold);
+	if (htpriv->ht_option && adapter->registrypriv.wifi_spec != 1) {
+		/* validate usb rx aggregation, use init value. */
+		rtw_write8(adapter, REG_RXDMA_AGG_PG_TH, USB_RXAGG_PAGE_COUNT);
 	} else {
+		/* invalidate usb rx aggregation */
 		rtw_write8(adapter, REG_RXDMA_AGG_PG_TH, 1);
 	}
 }
