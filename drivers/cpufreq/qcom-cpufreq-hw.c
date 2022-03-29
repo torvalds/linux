@@ -28,6 +28,7 @@
 
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
+	u32 reg_dcvs_ctrl;
 	u32 reg_freq_lut;
 	u32 reg_volt_lut;
 	u32 reg_current_vote;
@@ -50,6 +51,8 @@ struct qcom_cpufreq_data {
 	bool cancel_throttle;
 	struct delayed_work throttle_work;
 	struct cpufreq_policy *policy;
+
+	bool per_core_dcvs;
 };
 
 static unsigned long cpu_hw_rate, xo_rate;
@@ -102,8 +105,13 @@ static int qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 	struct qcom_cpufreq_data *data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = data->soc_data;
 	unsigned long freq = policy->freq_table[index].frequency;
+	unsigned int i;
 
 	writel_relaxed(index, data->base + soc_data->reg_perf_state);
+
+	if (data->per_core_dcvs)
+		for (i = 1; i < cpumask_weight(policy->related_cpus); i++)
+			writel_relaxed(index, data->base + soc_data->reg_perf_state + i * 4);
 
 	if (icc_scaling_enabled)
 		qcom_cpufreq_set_bw(policy, freq);
@@ -137,9 +145,14 @@ static unsigned int qcom_cpufreq_hw_fast_switch(struct cpufreq_policy *policy,
 	struct qcom_cpufreq_data *data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = data->soc_data;
 	unsigned int index;
+	unsigned int i;
 
 	index = policy->cached_resolved_idx;
 	writel_relaxed(index, data->base + soc_data->reg_perf_state);
+
+	if (data->per_core_dcvs)
+		for (i = 1; i < cpumask_weight(policy->related_cpus); i++)
+			writel_relaxed(index, data->base + soc_data->reg_perf_state + i * 4);
 
 	return policy->freq_table[index].frequency;
 }
@@ -342,6 +355,7 @@ static irqreturn_t qcom_lmh_dcvs_handle_irq(int irq, void *data)
 
 static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_enable = 0x0,
+	.reg_dcvs_ctrl = 0xbc,
 	.reg_freq_lut = 0x110,
 	.reg_volt_lut = 0x114,
 	.reg_current_vote = 0x704,
@@ -351,6 +365,7 @@ static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 
 static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_enable = 0x0,
+	.reg_dcvs_ctrl = 0xb0,
 	.reg_freq_lut = 0x100,
 	.reg_volt_lut = 0x200,
 	.reg_perf_state = 0x320,
@@ -481,8 +496,11 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		goto error;
 	}
 
+	if (readl_relaxed(base + data->soc_data->reg_dcvs_ctrl) & 0x1)
+		data->per_core_dcvs = true;
+
 	qcom_get_related_cpus(index, policy->cpus);
-	if (!cpumask_weight(policy->cpus)) {
+	if (cpumask_empty(policy->cpus)) {
 		dev_err(dev, "Domain-%d failed to get related CPUs\n", index);
 		ret = -ENOENT;
 		goto error;
