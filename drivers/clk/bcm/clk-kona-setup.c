@@ -510,7 +510,7 @@ static bool kona_clk_valid(struct kona_clk *bcm_clk)
  * placeholders for non-supported clocks.  Keep track of the
  * position of each clock name in the original array.
  *
- * Allocates an array of pointers to to hold the names of all
+ * Allocates an array of pointers to hold the names of all
  * non-null entries in the original array, and returns a pointer to
  * that array in *names.  This will be used for registering the
  * clock with the common clock code.  On successful return,
