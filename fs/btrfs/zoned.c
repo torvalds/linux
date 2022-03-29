@@ -2073,3 +2073,30 @@ void btrfs_free_zone_cache(struct btrfs_fs_info *fs_info)
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 }
+
+bool btrfs_zoned_should_reclaim(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	u64 used = 0;
+	u64 total = 0;
+	u64 factor;
+
+	ASSERT(btrfs_is_zoned(fs_info));
+
+	if (fs_info->bg_reclaim_threshold == 0)
+		return false;
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		if (!device->bdev)
+			continue;
+
+		total += device->disk_total_bytes;
+		used += device->bytes_used;
+	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	factor = div64_u64(used * 100, total);
+	return factor >= fs_info->bg_reclaim_threshold;
+}

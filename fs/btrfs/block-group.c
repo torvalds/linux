@@ -1512,6 +1512,13 @@ static int reclaim_bgs_cmp(void *unused, const struct list_head *a,
 	return bg1->used > bg2->used;
 }
 
+static inline bool btrfs_should_reclaim(struct btrfs_fs_info *fs_info)
+{
+	if (btrfs_is_zoned(fs_info))
+		return btrfs_zoned_should_reclaim(fs_info);
+	return true;
+}
+
 void btrfs_reclaim_bgs_work(struct work_struct *work)
 {
 	struct btrfs_fs_info *fs_info =
@@ -1520,6 +1527,9 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	struct btrfs_space_info *space_info;
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
+		return;
+
+	if (!btrfs_should_reclaim(fs_info))
 		return;
 
 	sb_start_write(fs_info->sb);
