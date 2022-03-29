@@ -2119,7 +2119,7 @@ void __init cpu_feature_keys_init(void)
 struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS] = {
 			[0 ... NUM_MMU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
 };
-EXPORT_SYMBOL_GPL(mmu_feature_keys);
+EXPORT_SYMBOL(mmu_feature_keys);
 
 void __init mmu_feature_keys_init(void)
 {
