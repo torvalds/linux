@@ -1464,11 +1464,13 @@ void kbase_jd_done_worker(struct work_struct *data)
 	}
 
 	if ((katom->event_code != BASE_JD_EVENT_DONE) &&
-			(!kbase_ctx_flag(katom->kctx, KCTX_DYING)))
-		dev_err(kbdev->dev,
-			"t6xx: GPU fault 0x%02lx from job slot %d\n",
-					(unsigned long)katom->event_code,
-								katom->slot_nr);
+			(!kbase_ctx_flag(katom->kctx, KCTX_DYING))) {
+		if (!kbase_is_quick_reset_enabled(kbdev))
+			dev_err(kbdev->dev,
+				"t6xx: GPU fault 0x%02lx from job slot %d\n",
+						(unsigned long)katom->event_code,
+									katom->slot_nr);
+	}
 
 	/* Retain state before the katom disappears */
 	kbasep_js_atom_retained_state_copy(&katom_retained_state, katom);

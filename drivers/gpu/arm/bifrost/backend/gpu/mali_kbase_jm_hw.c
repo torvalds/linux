@@ -1071,6 +1071,9 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 			KBASE_RESET_GPU_SILENT)
 		silent = true;
 
+	if (kbase_is_quick_reset_enabled(kbdev))
+		silent = true;
+
 	KBASE_KTRACE_ADD_JM(kbdev, JM_BEGIN_RESET_WORKER, NULL, NULL, 0u, 0);
 
 	/* Disable GPU hardware counters.
@@ -1383,8 +1386,9 @@ void kbase_reset_gpu(struct kbase_device *kbdev)
 	atomic_set(&kbdev->hwaccess.backend.reset_gpu,
 						KBASE_RESET_GPU_COMMITTED);
 
-	dev_err(kbdev->dev, "Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
-			kbdev->reset_timeout_ms);
+	if (!kbase_is_quick_reset_enabled(kbdev))
+		dev_err(kbdev->dev, "Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
+				kbdev->reset_timeout_ms);
 
 	hrtimer_start(&kbdev->hwaccess.backend.reset_timer,
 			HR_TIMER_DELAY_MSEC(kbdev->reset_timeout_ms),
@@ -1407,8 +1411,9 @@ void kbase_reset_gpu_locked(struct kbase_device *kbdev)
 	atomic_set(&kbdev->hwaccess.backend.reset_gpu,
 						KBASE_RESET_GPU_COMMITTED);
 
-	dev_err(kbdev->dev, "Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
-			kbdev->reset_timeout_ms);
+	if (!kbase_is_quick_reset_enabled(kbdev))
+		dev_err(kbdev->dev, "Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
+				kbdev->reset_timeout_ms);
 	hrtimer_start(&kbdev->hwaccess.backend.reset_timer,
 			HR_TIMER_DELAY_MSEC(kbdev->reset_timeout_ms),
 			HRTIMER_MODE_REL);

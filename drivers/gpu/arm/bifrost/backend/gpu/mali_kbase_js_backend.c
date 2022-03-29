@@ -201,9 +201,10 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					int ms =
 						js_devdata->scheduling_period_ns
 								/ 1000000u;
-					dev_warn(kbdev->dev, "JS: Job Hard-Stopped (took more than %lu ticks at %lu ms/tick)",
-							(unsigned long)ticks,
-							(unsigned long)ms);
+					if (!kbase_is_quick_reset_enabled(kbdev))
+						dev_warn(kbdev->dev, "JS: Job Hard-Stopped (took more than %lu ticks at %lu ms/tick)",
+								(unsigned long)ticks,
+								(unsigned long)ms);
 					kbase_job_slot_hardstop(atom->kctx, s,
 									atom);
 #endif
@@ -260,7 +261,11 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 		}
 	}
 	if (reset_needed) {
-		dev_err(kbdev->dev, "JS: Job has been on the GPU for too long (JS_RESET_TICKS_SS/DUMPING timeout hit). Issuing GPU soft-reset to resolve.");
+		if (kbase_is_quick_reset_enabled(kbdev))
+			dev_err(kbdev->dev, "quick reset");
+		else {
+			dev_err(kbdev->dev, "JS: Job has been on the GPU for too long (JS_RESET_TICKS_SS/DUMPING timeout hit). Issuing GPU soft-reset to resolve.");
+		}
 
 		if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_NONE))
 			kbase_reset_gpu_locked(kbdev);
