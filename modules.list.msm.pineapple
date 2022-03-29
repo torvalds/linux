@@ -1,5 +1,6 @@
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pineapple.ko
+clk-qcom.ko
 clk-dummy.ko
 stub-regulator.ko
