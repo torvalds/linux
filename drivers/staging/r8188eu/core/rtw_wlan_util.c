@@ -1326,7 +1326,6 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 void update_wireless_mode(struct adapter *padapter)
 {
 	int ratelen, network_type = 0;
-	u32 SIFS_Timer;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex	*cur_network = &pmlmeinfo->network;
@@ -1353,10 +1352,12 @@ void update_wireless_mode(struct adapter *padapter)
 
 	pmlmeext->cur_wireless_mode = network_type & padapter->registrypriv.wireless_mode;
 
-	SIFS_Timer = 0x0a0a0808;/* 0x0808 -> for CCK, 0x0a0a -> for OFDM */
-				/* change this value if having IOT issues. */
-
-	SetHwReg8188EU(padapter, HW_VAR_RESP_SIFS, (u8 *)&SIFS_Timer);
+	/* RESP_SIFS for CCK */
+	rtw_write8(padapter, REG_R2T_SIFS, 0x08);
+	rtw_write8(padapter, REG_R2T_SIFS + 1, 0x08);
+	/* RESP_SIFS for OFDM */
+	rtw_write8(padapter, REG_T2T_SIFS, 0x0a);
+	rtw_write8(padapter, REG_T2T_SIFS + 1, 0x0a);
 
 	if (pmlmeext->cur_wireless_mode & WIRELESS_11B)
 		update_mgnt_tx_rate(padapter, IEEE80211_CCK_RATE_1MB);
