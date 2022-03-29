@@ -8,6 +8,7 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v2_reg.h"
+#include "rk_crypto_v2_pka.h"
 
 #define PKA_WORDS2BITS(words)		((words) * 32)
 #define PKA_BITS2WORDS(bits)		(((bits) + 31) / 32)
