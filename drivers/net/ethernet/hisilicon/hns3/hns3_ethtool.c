@@ -653,8 +653,8 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int rx_queue_index = h->kinfo.num_tqps;
 
-	if (hns3_nic_resetting(netdev)) {
-		netdev_err(netdev, "dev resetting!");
+	if (hns3_nic_resetting(netdev) || !priv->ring) {
+		netdev_err(netdev, "failed to get ringparam value, due to dev resetting or uninited\n");
 		return;
 	}
 
@@ -1074,8 +1074,14 @@ static int hns3_check_ringparam(struct net_device *ndev,
 {
 #define RX_BUF_LEN_2K 2048
 #define RX_BUF_LEN_4K 4096
-	if (hns3_nic_resetting(ndev))
+
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+
+	if (hns3_nic_resetting(ndev) || !priv->ring) {
+		netdev_err(ndev, "failed to set ringparam value, due to dev resetting or uninited\n");
 		return -EBUSY;
+	}
+
 
 	if (param->rx_mini_pending || param->rx_jumbo_pending)
 		return -EINVAL;
@@ -1766,9 +1772,6 @@ static int hns3_set_tx_spare_buf_size(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int ret;
 
-	if (hns3_nic_resetting(netdev))
-		return -EBUSY;
-
 	h->kinfo.tx_spare_buf_size = data;
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
@@ -1799,6 +1802,11 @@ static int hns3_set_tunable(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int i, ret = 0;
 
+	if (hns3_nic_resetting(netdev) || !priv->ring) {
+		netdev_err(netdev, "failed to set tunable value, dev resetting!");
+		return -EBUSY;
+	}
+
 	switch (tuna->id) {
 	case ETHTOOL_TX_COPYBREAK:
 		priv->tx_copybreak = *(u32 *)data;
@@ -1818,7 +1826,8 @@ static int hns3_set_tunable(struct net_device *netdev,
 		old_tx_spare_buf_size = h->kinfo.tx_spare_buf_size;
 		new_tx_spare_buf_size = *(u32 *)data;
 		ret = hns3_set_tx_spare_buf_size(netdev, new_tx_spare_buf_size);
-		if (ret) {
+		if (ret ||
+		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
 			int ret1;
 
 			netdev_warn(netdev,
