@@ -508,7 +508,7 @@
 	};
 
 	saradc: saradc@ff3c0000 {
-		compatible = "rockchip,rk3588-saradc";
+		compatible = "rockchip,rv1106-saradc";
 		reg = <0xff3c0000 0x100>;
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
