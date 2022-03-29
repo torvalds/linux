@@ -73,8 +73,16 @@ static int dr_domain_init_mem_resources(struct mlx5dr_domain *dmn)
 		goto free_ste_icm_pool;
 	}
 
+	ret = mlx5dr_send_info_pool_create(dmn);
+	if (ret) {
+		mlx5dr_err(dmn, "Couldn't create send info pool\n");
+		goto free_action_icm_pool;
+	}
+
 	return 0;
 
+free_action_icm_pool:
+	mlx5dr_icm_pool_destroy(dmn->action_icm_pool);
 free_ste_icm_pool:
 	mlx5dr_icm_pool_destroy(dmn->ste_icm_pool);
 	return ret;
@@ -82,6 +90,7 @@ free_ste_icm_pool:
 
 static void dr_domain_uninit_mem_resources(struct mlx5dr_domain *dmn)
 {
+	mlx5dr_send_info_pool_destroy(dmn);
 	mlx5dr_icm_pool_destroy(dmn->action_icm_pool);
 	mlx5dr_icm_pool_destroy(dmn->ste_icm_pool);
 }
