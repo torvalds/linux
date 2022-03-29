@@ -398,8 +398,10 @@ void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
 
 	error_flag = rve_read(RVE_SWREG6_IVE_WORK_STA, scheduler);
 
+	rve_get_monitor_info(job);
+
 	if (DEBUGGER_EN(MSG))
-		pr_err("irq thread work_status[%.8x]\n", error_flag);
+		pr_info("irq thread work_status[%.8x]\n", error_flag);
 
 	/* disable llp enable, TODO: support pause mode */
 	rve_write(0, RVE_SWLTB3_ENABLE, scheduler);

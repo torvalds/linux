@@ -171,11 +171,18 @@ static int rve_load_show(struct seq_file *m, void *data)
 
 	load = (busy_time_total * 100000 / RVE_LOAD_INTERVAL);
 	seq_printf(m, "\t load = %d\n", load);
-	seq_printf(m, "-----------------------------------\n");
+
+	seq_printf(m, "---------------- PID INFO ---------------\n");
 
 	for (i = 0; i < RVE_MAX_PID_INFO; i++) {
 		seq_printf(m, "\t [pid: %d] hw_time_total = %llu us\n",
 			pid_info[i].pid, ktime_to_us(pid_info[i].hw_time_total));
+		seq_printf(m, "\t\t last_job_rd_bandwidth: %u bytes/s\n",
+			pid_info[i].last_job_rd_bandwidth);
+		seq_printf(m, "\t\t last_job_wr_bandwidth: %u bytes/s\n",
+			pid_info[i].last_job_wr_bandwidth);
+		seq_printf(m, "\t\t last_job_cycle_cnt/s: %u\n",
+			pid_info[i].last_job_cycle_cnt);
 	}
 	return 0;
 }

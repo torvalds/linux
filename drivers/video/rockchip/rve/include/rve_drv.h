@@ -159,6 +159,10 @@ struct rve_sche_pid_info_t {
 	pid_t pid;
 	/* hw total use time, per hrtimer */
 	u32 hw_time_total;
+
+	uint32_t last_job_rd_bandwidth;
+	uint32_t last_job_wr_bandwidth;
+	uint32_t last_job_cycle_cnt;
 };
 
 struct rve_sche_session_info_t {

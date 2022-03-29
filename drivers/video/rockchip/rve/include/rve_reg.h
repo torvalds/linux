@@ -82,7 +82,7 @@ int rve_init_reg(struct rve_job *job);
 int rve_get_version(struct rve_scheduler_t *scheduler);
 
 void rve_dump_read_back_reg(struct rve_scheduler_t *scheduler);
-void rve_get_monitor_info(struct rve_scheduler_t *scheduler);
+void rve_get_monitor_info(struct rve_job *job);
 
 #endif
 

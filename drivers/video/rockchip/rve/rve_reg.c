@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rve_reg: " fmt
 
 #include "rve_reg.h"
+#include "rve_job.h"
 
 void rve_soft_reset(struct rve_scheduler_t *scheduler)
 {
@@ -232,10 +233,16 @@ int rve_get_version(struct rve_scheduler_t *scheduler)
 	return 0;
 }
 
-void rve_get_monitor_info(struct rve_scheduler_t *scheduler)
+void rve_get_monitor_info(struct rve_job *job)
 {
+	struct rve_sche_pid_info_t *pid_info = NULL;
+	struct rve_scheduler_t *scheduler = NULL;
 	unsigned long flags;
 	uint32_t rd_bandwidth, wr_bandwidth, cycle_cnt;
+	int i;
+
+	scheduler = rve_job_get_scheduler(job);
+	pid_info = scheduler->session.pid_info;
 
 	/* monitor */
 	if (DEBUGGER_EN(MONITOR)) {
@@ -248,9 +255,22 @@ void rve_get_monitor_info(struct rve_scheduler_t *scheduler)
 
 		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-		scheduler->session.rd_bandwidth = rd_bandwidth;
-		scheduler->session.wr_bandwidth = wr_bandwidth;
-		scheduler->session.cycle_cnt = cycle_cnt;
+		for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+			if (pid_info[i].pid == job->pid) {
+				pid_info[i].last_job_rd_bandwidth = rd_bandwidth;
+				pid_info[i].last_job_wr_bandwidth = wr_bandwidth;
+				pid_info[i].last_job_cycle_cnt = cycle_cnt;
+				break;
+			}
+		}
+
+		if (DEBUGGER_EN(MSG))
+			pr_info("rd_bandwidth = %d, wd_bandwidth = %d, cycle_cnt = %d\n",
+				rd_bandwidth, wr_bandwidth, cycle_cnt);
+
+		scheduler->session.rd_bandwidth += rd_bandwidth;
+		scheduler->session.wr_bandwidth += wr_bandwidth;
+		scheduler->session.cycle_cnt += cycle_cnt;
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 	}

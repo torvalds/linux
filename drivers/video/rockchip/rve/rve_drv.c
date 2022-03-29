@@ -66,6 +66,11 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		scheduler->timer.busy_time_record = scheduler->timer.busy_time;
 		scheduler->timer.busy_time = 0;
 
+		/* monitor */
+		scheduler->session.rd_bandwidth = 0;
+		scheduler->session.wr_bandwidth = 0;
+		scheduler->session.cycle_cnt = 0;
+
 		for (i = 0; i < RVE_MAX_PID_INFO; i++) {
 			if (scheduler->session.pid_info[i].pid > 0)
 				scheduler->session.pid_info[i].hw_time_total = 0;
@@ -80,9 +85,6 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		idr_for_each(&ctx_manager->ctx_id_idr, &rve_ctx_set_debuf_info_cb, ctx_manager);
 
 		spin_unlock_irqrestore(&ctx_manager->lock, flags);
-
-		/* monitor */
-		rve_get_monitor_info(scheduler);
 	}
 
 	hrtimer_forward_now(timer, kt);
