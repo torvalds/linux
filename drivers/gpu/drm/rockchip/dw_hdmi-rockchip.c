@@ -181,7 +181,6 @@ struct rockchip_hdmi {
 	unsigned long enc_out_encoding;
 	int color_changed;
 	int hpd_irq;
-	int hdmi_num;
 	int vp_id;
 
 	struct drm_property *color_depth_property;
@@ -2912,6 +2911,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder;
 	struct rockchip_hdmi *hdmi;
 	struct dw_hdmi_plat_data *plat_data;
+	struct rockchip_hdmi *secondary;
 	int ret;
 	u32 val;
 
@@ -2956,13 +2956,9 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
+	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
 	/* If don't enable hdmi0 and hdmi1, we don't enable split mode */
-	if (hdmi->chip_data->split_mode && (hdmi->hdmi_num == 2)) {
-		struct rockchip_hdmi *secondary =
-			rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
-
-		if (!secondary)
-			return -EPROBE_DEFER;
+	if (hdmi->chip_data->split_mode && secondary) {
 
 		/*
 		 * hdmi can only attach bridge and init encoder/connector in the
@@ -3161,10 +3157,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
 		}
 
-		if (plat_data->split_mode) {
-			struct rockchip_hdmi *secondary =
-				rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
-
+		if (plat_data->split_mode && secondary) {
 			if (device_property_read_bool(dev, "split-mode")) {
 				plat_data->right = secondary->hdmi_qp;
 				secondary->plat_data->left = hdmi->hdmi_qp;
@@ -3252,8 +3245,7 @@ static int dw_hdmi_rockchip_probe(struct platform_device *pdev)
 	id = of_alias_get_id(pdev->dev.of_node, "hdmi");
 	if (id < 0)
 		id = 0;
-	else
-		hdmi->hdmi_num++;
+
 	hdmi->id = id;
 	hdmi->dev = &pdev->dev;
 
