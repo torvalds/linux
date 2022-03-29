@@ -341,6 +341,43 @@ vreg_edp_3p3: &pp3300_left_in_mlb {};
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
+ap_sar_sensor_i2c: &i2c1 {
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	ap_sar_sensor0: proximity@28 {
+		compatible = "semtech,sx9324";
+		reg = <0x28>;
+		#io-channel-cells = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sar0_irq_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <141 IRQ_TYPE_LEVEL_LOW>;
+
+		vdd-supply = <&pp1800_prox>;
+
+		label = "proximity-wifi-lte0";
+		status = "disabled";
+	};
+
+	ap_sar_sensor1: proximity@2c {
+		compatible = "semtech,sx9324";
+		reg = <0x2c>;
+		#io-channel-cells = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sar1_irq_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <140 IRQ_TYPE_LEVEL_LOW>;
+
+		vdd-supply = <&pp1800_prox>;
+
+		label = "proximity-wifi-lte1";
+		status = "disabled";
+	};
+};
+
 ap_i2c_tpm: &i2c14 {
 	status = "okay";
 	clock-frequency = <400000>;
