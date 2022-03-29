@@ -1787,10 +1787,29 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 
 }
 
+static void rtw_set_threshold(struct adapter *adapter)
+{
+	u8 threshold;
+	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+	struct ht_priv *htpriv = &mlmepriv->htpriv;
+
+	/*  TH = 1 => means that invalidate usb rx aggregation */
+	/*  TH = 0 => means that validate usb rx aggregation, use init value. */
+	if (htpriv->ht_option) {
+		if (adapter->registrypriv.wifi_spec == 1)
+			threshold = 1;
+		else
+			threshold = USB_RXAGG_PAGE_COUNT;
+
+		rtw_write8(adapter, REG_RXDMA_AGG_PG_TH, threshold);
+	} else {
+		rtw_write8(adapter, REG_RXDMA_AGG_PG_TH, 1);
+	}
+}
+
 /* the function is at passive_level */
 void rtw_joinbss_reset(struct adapter *padapter)
 {
-	u8	threshold;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
 
@@ -1801,18 +1820,7 @@ void rtw_joinbss_reset(struct adapter *padapter)
 
 	phtpriv->ampdu_enable = false;/* reset to disabled */
 
-	/*  TH = 1 => means that invalidate usb rx aggregation */
-	/*  TH = 0 => means that validate usb rx aggregation, use init value. */
-	if (phtpriv->ht_option) {
-		if (padapter->registrypriv.wifi_spec == 1)
-			threshold = 1;
-		else
-			threshold = 0;
-		SetHwReg8188EU(padapter, HW_VAR_RXDMA_AGG_PG_TH, (u8 *)(&threshold));
-	} else {
-		threshold = 1;
-		SetHwReg8188EU(padapter, HW_VAR_RXDMA_AGG_PG_TH, (u8 *)(&threshold));
-	}
+	rtw_set_threshold(padapter);
 }
 
 /* the function is >= passive_level */
