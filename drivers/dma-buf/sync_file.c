@@ -262,7 +262,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	}
 
 	if (index == 0)
-		add_fence(fences, &index, dma_fence_get_stub());
+		fences[index++] = dma_fence_get_stub();
 
 	if (num_fences > index) {
 		struct dma_fence **tmp;
