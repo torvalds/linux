@@ -1033,6 +1033,19 @@ EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_earc);
  * HDMI TX Setup
  */
 
+static void hdmi_infoframe_set_checksum(u8 *ptr, int size)
+{
+	u8 csum = 0;
+	int i;
+
+	ptr[3] = 0;
+	/* compute checksum */
+	for (i = 0; i < size; i++)
+		csum += ptr[i];
+
+	ptr[3] = 256 - csum;
+}
+
 static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 			    const struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
@@ -1102,6 +1115,16 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
 
 	hdmi_avi_infoframe_pack_only(&frame, buff, 17);
+
+	/* mode which vic >= 128 must use avi version 3 */
+	if (hdmi->vic >= 128) {
+		frame.version = 3;
+		buff[1] = frame.version;
+		buff[4] &= 0x1f;
+		buff[4] |= ((frame.colorspace & 0x7) << 5);
+		buff[7] = frame.video_code;
+		hdmi_infoframe_set_checksum(buff, 17);
+	}
 
 	/*
 	 * The Designware IP uses a different byte format from standard
