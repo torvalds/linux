@@ -773,6 +773,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct snd_soc_tplg_mixer_control *mc =
 		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
 	int tlv[TLV_ITEMS];
+	unsigned int mask;
 	int ret;
 
 	/* validate topology data */
@@ -819,6 +820,16 @@ skip:
 		dev_err(scomp->dev, "error: parse led tokens failed %d\n",
 			le32_to_cpu(mc->priv.size));
 		goto err;
+	}
+
+	if (scontrol->led_ctl.use_led) {
+		mask = scontrol->led_ctl.direction ? SNDRV_CTL_ELEM_ACCESS_MIC_LED :
+							SNDRV_CTL_ELEM_ACCESS_SPK_LED;
+		scontrol->access &= ~SNDRV_CTL_ELEM_ACCESS_LED_MASK;
+		scontrol->access |= mask;
+		kc->access &= ~SNDRV_CTL_ELEM_ACCESS_LED_MASK;
+		kc->access |= mask;
+		sdev->led_present = true;
 	}
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
@@ -2027,6 +2038,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct firmware *fw;
 	int ret;
 
@@ -2049,6 +2061,10 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	}
 
 	release_firmware(fw);
+
+	if (ret >= 0 && sdev->led_present)
+		ret = snd_ctl_led_request();
+
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_load_topology);

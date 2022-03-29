@@ -15,36 +15,6 @@
 #include "sof-priv.h"
 #include "sof-audio.h"
 
-static void update_mute_led(struct snd_sof_control *scontrol,
-			    struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	int temp = 0;
-	int mask;
-	int i;
-
-	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-
-	for (i = 0; i < scontrol->num_channels; i++) {
-		if (ucontrol->value.integer.value[i]) {
-			temp |= mask;
-			break;
-		}
-	}
-
-	if (temp == scontrol->led_ctl.led_value)
-		return;
-
-	scontrol->led_ctl.led_value = temp;
-
-#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
-	if (!scontrol->led_ctl.direction)
-		ledtrig_audio_set(LED_AUDIO_MUTE, temp ? LED_OFF : LED_ON);
-	else
-		ledtrig_audio_set(LED_AUDIO_MICMUTE, temp ? LED_OFF : LED_ON);
-#endif
-}
-
 int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
@@ -120,9 +90,6 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
-
-	if (scontrol->led_ctl.use_led)
-		update_mute_led(scontrol, kcontrol, ucontrol);
 
 	if (tplg_ops->control->switch_put)
 		return tplg_ops->control->switch_put(scontrol, ucontrol);
