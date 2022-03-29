@@ -684,10 +684,6 @@ static int rproc_handle_trace(struct rproc *rproc, void *ptr,
 
 	/* create the debugfs entry */
 	trace->tfile = rproc_create_trace_file(name, rproc, trace);
-	if (!trace->tfile) {
-		kfree(trace);
-		return -EINVAL;
-	}
 
 	list_add_tail(&trace->node, &rproc->traces);
 
