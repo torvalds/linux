@@ -1011,7 +1011,7 @@ free_job:
 
 release_cb:
 	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	return rc;
 }
@@ -1473,7 +1473,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 		job->patched_cb = NULL;
 
 	job->job_cb_size = job->user_cb_size;
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	/* increment refcount as for external queues we get completion */
 	if (hw_queue_prop->type == QUEUE_TYPE_EXT)
@@ -5525,7 +5525,7 @@ static int gaudi_patch_cb(struct hl_device *hdev,
 static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 		struct hl_cs_parser *parser)
 {
-	u64 patched_cb_handle;
+	u64 handle;
 	u32 patched_cb_size;
 	struct hl_cb *user_cb;
 	int rc;
@@ -5541,9 +5541,9 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	else
 		parser->patched_cb_size = parser->user_cb_size;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
+	rc = hl_cb_create(hdev, &hdev->kernel_mem_mgr, hdev->kernel_ctx,
 				parser->patched_cb_size, false, false,
-				&patched_cb_handle);
+				&handle);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -5552,13 +5552,10 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 		return rc;
 	}
 
-	patched_cb_handle >>= PAGE_SHIFT;
-	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
-				(u32) patched_cb_handle);
+	parser->patched_cb = hl_cb_get(&hdev->kernel_mem_mgr, handle);
 	/* hl_cb_get should never fail */
 	if (!parser->patched_cb) {
-		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%llx\n", handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -5598,8 +5595,7 @@ out:
 	 * cb_put will release it, but here we want to remove it from the
 	 * idr
 	 */
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
-					patched_cb_handle << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, handle);
 
 	return rc;
 }
@@ -5607,7 +5603,7 @@ out:
 static int gaudi_parse_cb_no_mmu(struct hl_device *hdev,
 		struct hl_cs_parser *parser)
 {
-	u64 patched_cb_handle;
+	u64 handle;
 	int rc;
 
 	rc = gaudi_validate_cb(hdev, parser, false);
@@ -5615,22 +5611,19 @@ static int gaudi_parse_cb_no_mmu(struct hl_device *hdev,
 	if (rc)
 		goto free_userptr;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
+	rc = hl_cb_create(hdev, &hdev->kernel_mem_mgr, hdev->kernel_ctx,
 				parser->patched_cb_size, false, false,
-				&patched_cb_handle);
+				&handle);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate patched CB for DMA CS %d\n", rc);
 		goto free_userptr;
 	}
 
-	patched_cb_handle >>= PAGE_SHIFT;
-	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
-				(u32) patched_cb_handle);
+	parser->patched_cb = hl_cb_get(&hdev->kernel_mem_mgr, handle);
 	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
-		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
-				(u32) patched_cb_handle);
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%llx\n", handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -5647,8 +5640,7 @@ out:
 	 * cb_put will release it, but here we want to remove it from the
 	 * idr
 	 */
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
-				patched_cb_handle << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, handle);
 
 free_userptr:
 	if (rc)
@@ -5761,7 +5753,6 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	struct hl_cs_job *job;
 	u32 cb_size, ctl, err_cause;
 	struct hl_cb *cb;
-	u64 id;
 	int rc;
 
 	cb = hl_cb_kernel_create(hdev, PAGE_SIZE, false);
@@ -5828,9 +5819,8 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	}
 
 release_cb:
-	id = cb->id;
 	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	return rc;
 }
@@ -5893,7 +5883,7 @@ static int gaudi_memset_registers(struct hl_device *hdev, u64 reg_base,
 
 release_cb:
 	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	return rc;
 }

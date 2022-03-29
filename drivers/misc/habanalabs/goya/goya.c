@@ -4001,7 +4001,7 @@ static int goya_patch_cb(struct hl_device *hdev,
 static int goya_parse_cb_mmu(struct hl_device *hdev,
 		struct hl_cs_parser *parser)
 {
-	u64 patched_cb_handle;
+	u64 handle;
 	u32 patched_cb_size;
 	struct hl_cb *user_cb;
 	int rc;
@@ -4014,9 +4014,9 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 	parser->patched_cb_size = parser->user_cb_size +
 			sizeof(struct packet_msg_prot) * 2;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
+	rc = hl_cb_create(hdev, &hdev->kernel_mem_mgr, hdev->kernel_ctx,
 				parser->patched_cb_size, false, false,
-				&patched_cb_handle);
+				&handle);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -4025,13 +4025,10 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 		return rc;
 	}
 
-	patched_cb_handle >>= PAGE_SHIFT;
-	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
-				(u32) patched_cb_handle);
+	parser->patched_cb = hl_cb_get(&hdev->kernel_mem_mgr, handle);
 	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
-		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%llx\n", handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -4071,8 +4068,7 @@ out:
 	 * cb_put will release it, but here we want to remove it from the
 	 * idr
 	 */
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
-					patched_cb_handle << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, handle);
 
 	return rc;
 }
@@ -4080,7 +4076,7 @@ out:
 static int goya_parse_cb_no_mmu(struct hl_device *hdev,
 				struct hl_cs_parser *parser)
 {
-	u64 patched_cb_handle;
+	u64 handle;
 	int rc;
 
 	rc = goya_validate_cb(hdev, parser, false);
@@ -4088,22 +4084,19 @@ static int goya_parse_cb_no_mmu(struct hl_device *hdev,
 	if (rc)
 		goto free_userptr;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
+	rc = hl_cb_create(hdev, &hdev->kernel_mem_mgr, hdev->kernel_ctx,
 				parser->patched_cb_size, false, false,
-				&patched_cb_handle);
+				&handle);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate patched CB for DMA CS %d\n", rc);
 		goto free_userptr;
 	}
 
-	patched_cb_handle >>= PAGE_SHIFT;
-	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
-				(u32) patched_cb_handle);
+	parser->patched_cb = hl_cb_get(&hdev->kernel_mem_mgr, handle);
 	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
-		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%llx\n", handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -4120,8 +4113,7 @@ out:
 	 * cb_put will release it, but here we want to remove it from the
 	 * idr
 	 */
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
-				patched_cb_handle << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, handle);
 
 free_userptr:
 	if (rc)
@@ -4853,7 +4845,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 release_cb:
 	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	return rc;
 }

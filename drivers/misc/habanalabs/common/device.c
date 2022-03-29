@@ -324,7 +324,6 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	 */
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
-	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
 	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
@@ -386,14 +385,11 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	vm_pgoff = vma->vm_pgoff;
 
 	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
-	case HL_MMAP_TYPE_CB:
-		vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
-		return hl_cb_mmap(hpriv, vma);
-
 	case HL_MMAP_TYPE_BLOCK:
 		vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 		return hl_hw_block_mmap(hpriv, vma);
 
+	case HL_MMAP_TYPE_CB:
 	case HL_MMAP_TYPE_TS_BUFF:
 		return hl_mem_mgr_mmap(&hpriv->mem_mgr, vma, NULL);
 	}
@@ -616,7 +612,7 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		goto free_chip_info;
 
-	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
+	hl_mem_mgr_init(hdev->dev, &hdev->kernel_mem_mgr);
 
 	hdev->device_reset_work.wq =
 			create_singlethread_workqueue("hl_device_reset");
@@ -645,7 +641,7 @@ static int device_early_init(struct hl_device *hdev)
 	return 0;
 
 free_cb_mgr:
-	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
 free_ts_free_wq:
@@ -684,7 +680,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	mutex_destroy(&hdev->clk_throttling.lock);
 
-	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
 
 	kfree(hdev->hl_chip_info);
 

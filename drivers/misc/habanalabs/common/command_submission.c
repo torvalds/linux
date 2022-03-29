@@ -1071,17 +1071,14 @@ static int validate_queue_index(struct hl_device *hdev,
 }
 
 static struct hl_cb *get_cb_from_cs_chunk(struct hl_device *hdev,
-					struct hl_cb_mgr *cb_mgr,
+					struct hl_mem_mgr *mmg,
 					struct hl_cs_chunk *chunk)
 {
 	struct hl_cb *cb;
-	u32 cb_handle;
 
-	cb_handle = (u32) (chunk->cb_handle >> PAGE_SHIFT);
-
-	cb = hl_cb_get(hdev, cb_mgr, cb_handle);
+	cb = hl_cb_get(mmg, chunk->cb_handle);
 	if (!cb) {
-		dev_err(hdev->dev, "CB handle 0x%x invalid\n", cb_handle);
+		dev_err(hdev->dev, "CB handle 0x%llx invalid\n", chunk->cb_handle);
 		return NULL;
 	}
 
@@ -1343,7 +1340,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		}
 
 		if (is_kernel_allocated_cb) {
-			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
+			cb = get_cb_from_cs_chunk(hdev, &hpriv->mem_mgr, chunk);
 			if (!cb) {
 				atomic64_inc(
 					&ctx->cs_counters.validation_drop_cnt);
@@ -1771,7 +1768,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	 */
 	job->patched_cb = job->user_cb;
 	job->job_cb_size = job->user_cb_size;
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	/* increment refcount as for external queues we get completion */
 	cs_get(cs);
@@ -2946,13 +2943,12 @@ start_over:
 }
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
-				struct hl_cb_mgr *cb_mgr, struct hl_mem_mgr *mmg,
+				struct hl_mem_mgr *cb_mmg, struct hl_mem_mgr *mmg,
 				u64 timeout_us, u64 cq_counters_handle,	u64 cq_counters_offset,
 				u64 target_value, struct hl_user_interrupt *interrupt,
 				bool register_ts_record, u64 ts_handle, u64 ts_offset,
 				u32 *status, u64 *timestamp)
 {
-	u32 cq_patched_handle;
 	struct hl_user_pending_interrupt *pend;
 	struct hl_mmap_mem_buf *buf;
 	struct hl_cb *cq_cb;
@@ -2964,8 +2960,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	hl_ctx_get(hdev, ctx);
 
-	cq_patched_handle = lower_32_bits(cq_counters_handle >> PAGE_SHIFT);
-	cq_cb = hl_cb_get(hdev, cb_mgr, cq_patched_handle);
+	cq_cb = hl_cb_get(cb_mmg, cq_counters_handle);
 	if (!cq_cb) {
 		rc = -EINVAL;
 		goto put_ctx;
@@ -3250,7 +3245,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
 	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ)
-		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr, &hpriv->mem_mgr,
+		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->mem_mgr, &hpriv->mem_mgr,
 				args->in.interrupt_timeout_us, args->in.cq_counters_handle,
 				args->in.cq_counters_offset,
 				args->in.target, interrupt,

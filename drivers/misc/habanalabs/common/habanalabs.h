@@ -704,26 +704,6 @@ struct hl_cs_compl {
  */
 
 /**
- * struct hl_cb_mgr - describes a Command Buffer Manager.
- * @cb_lock: protects cb_handles.
- * @cb_handles: an idr to hold all command buffer handles.
- */
-struct hl_cb_mgr {
-	spinlock_t		cb_lock;
-	struct idr		cb_handles; /* protected by cb_lock */
-};
-
-/**
- * struct hl_ts_mgr - describes the timestamp registration memory manager.
- * @ts_lock: protects ts_handles.
- * @ts_handles: an idr to hold all ts bufferes handles.
- */
-struct hl_ts_mgr {
-	spinlock_t		ts_lock;
-	struct idr		ts_handles;
-};
-
-/**
  * struct hl_ts_buff - describes a timestamp buffer.
  * @kernel_buff_address: Holds the internal buffer's kernel virtual address.
  * @user_buff_address: Holds the user buffer's kernel virtual address.
@@ -792,42 +772,32 @@ struct hl_mmap_mem_buf {
 
 /**
  * struct hl_cb - describes a Command Buffer.
- * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
  * @ctx: pointer to the CB owner's context.
- * @lock: spinlock to protect mmap flows.
  * @buf: back pointer to the parent mappable memory buffer
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
  * @va_block_list: list of virtual addresses blocks of the CB if it is mapped to
  *                 the device's MMU.
- * @id: the CB's ID.
  * @kernel_address: Holds the CB's kernel virtual address.
  * @bus_address: Holds the CB's DMA address.
- * @mmap_size: Holds the CB's size that was mmaped.
  * @size: holds the CB's size.
  * @cs_cnt: holds number of CS that this CB participates in.
- * @mmap: true if the CB is currently mmaped to user.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
  * @is_internal: internaly allocated
  * @is_mmu_mapped: true if the CB is mapped to the device's MMU.
  */
 struct hl_cb {
-	struct kref		refcount;
 	struct hl_device	*hdev;
 	struct hl_ctx		*ctx;
-	spinlock_t		lock;
 	struct hl_mmap_mem_buf	*buf;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
 	struct list_head	va_block_list;
-	u64			id;
 	void			*kernel_address;
 	dma_addr_t		bus_address;
-	u32			mmap_size;
 	u32			size;
 	atomic_t		cs_cnt;
-	u8			mmap;
 	u8			is_pool;
 	u8			is_internal;
 	u8			is_mmu_mapped;
@@ -1982,7 +1952,6 @@ struct hl_fpriv {
 	struct pid		*taskpid;
 	struct hl_ctx		*ctx;
 	struct hl_ctx_mgr	ctx_mgr;
-	struct hl_cb_mgr	cb_mgr;
 	struct hl_mem_mgr	mem_mgr;
 	struct list_head	debugfs_list;
 	struct list_head	dev_node;
@@ -2663,7 +2632,6 @@ struct hl_reset_info {
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
  * @cs_mirror_lock: protects cs_mirror_list.
- * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CBs.
  * @kernel_mem_mgr: memory manager for memory buffers with lifespan of driver.
  * @event_queue: event queue for IRQ from CPU-CP.
  * @dma_pool: DMA pool for small allocations.
@@ -2796,7 +2764,6 @@ struct hl_device {
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
 	spinlock_t			cs_mirror_lock;
-	struct hl_cb_mgr		kernel_cb_mgr;
 	struct hl_mem_mgr		kernel_mem_mgr;
 	struct hl_eq			event_queue;
 	struct dma_pool			*dma_pool;
@@ -3102,21 +3069,13 @@ void hl_sysfs_fini(struct hl_device *hdev);
 int hl_hwmon_init(struct hl_device *hdev);
 void hl_hwmon_fini(struct hl_device *hdev);
 
-int hl_cb_create_unified_mem_mgr(struct hl_device *hdev, struct hl_mem_mgr *mmg,
+int hl_cb_create(struct hl_device *hdev, struct hl_mem_mgr *mmg,
 			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
 			bool map_cb, u64 *handle);
-int hl_cb_destroy_unified_mem_mgr(struct hl_mem_mgr *mmg, u64 cb_handle);
-int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
-			bool map_cb, u64 *handle);
-int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
-int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
+int hl_cb_destroy(struct hl_mem_mgr *mmg, u64 cb_handle);
 int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
-struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
-			u32 handle);
+struct hl_cb *hl_cb_get(struct hl_mem_mgr *mmg, u64 handle);
 void hl_cb_put(struct hl_cb *cb);
-void hl_cb_mgr_init(struct hl_cb_mgr *mgr);
-void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr);
 struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 					bool internal_cb);
 int hl_cb_pool_init(struct hl_device *hdev);
