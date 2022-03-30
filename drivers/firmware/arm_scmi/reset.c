@@ -126,8 +126,8 @@ static int scmi_reset_num_domains_get(const struct scmi_protocol_handle *ph)
 	return pi->num_domains;
 }
 
-static char *scmi_reset_name_get(const struct scmi_protocol_handle *ph,
-				 u32 domain)
+static const char *
+scmi_reset_name_get(const struct scmi_protocol_handle *ph, u32 domain)
 {
 	struct scmi_reset_info *pi = ph->get_priv(ph);
 

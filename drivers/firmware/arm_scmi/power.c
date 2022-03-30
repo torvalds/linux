@@ -174,8 +174,9 @@ static int scmi_power_num_domains_get(const struct scmi_protocol_handle *ph)
 	return pi->num_domains;
 }
 
-static char *scmi_power_name_get(const struct scmi_protocol_handle *ph,
-				 u32 domain)
+static const char *
+scmi_power_name_get(const struct scmi_protocol_handle *ph,
+		    u32 domain)
 {
 	struct scmi_power_info *pi = ph->get_priv(ph);
 	struct power_dom_info *dom = pi->dom_info + domain;
