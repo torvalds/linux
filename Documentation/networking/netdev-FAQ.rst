@@ -183,10 +183,10 @@ it is requested that you make it look like this::
    * another line of text
    */
 
-I am working in existing code that has the former comment style and not the latter. Should I submit new code in the former style or the latter?
------------------------------------------------------------------------------------------------------------------------------------------------
-Make it the latter style, so that eventually all code in the domain
-of netdev is of this format.
+I am working in existing code which uses non-standard formatting. Which formatting should I use?
+------------------------------------------------------------------------------------------------
+Make your code follow the most recent guidelines, so that eventually all code
+in the domain of netdev is in the preferred format.
 
 I found a bug that might have possible security implications or similar. Should I mail the main netdev maintainer off-list?
 ---------------------------------------------------------------------------------------------------------------------------
