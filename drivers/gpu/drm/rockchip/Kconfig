@@ -150,6 +150,12 @@ config DRM_ROCKCHIP_VVOP
 	  don't need a real vop driver(et: you just want rockchip drm
 	  gem driver to allocate memory).
 
+config ROCKCHIP_DW_HDCP2
+	tristate "Synopsis Designware HDCP2 interface"
+	help
+	  Choose this option to enable support for the Synopsys
+	  Designware HDCP2 Controller.
+
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 
 endif
