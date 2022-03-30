@@ -311,6 +311,14 @@
 	status = "okay";
 };
 
+&mscc_felix_port4 {
+	dsa-tag-protocol = "ocelot-8021q";
+};
+
+&mscc_felix_port5 {
+	dsa-tag-protocol = "ocelot-8021q";
+};
+
 &usb0 {
 	status = "okay";
 };
