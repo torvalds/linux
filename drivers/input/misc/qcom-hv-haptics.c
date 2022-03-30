@@ -3799,177 +3799,169 @@ exit:
 }
 #endif
 
-static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
+static int haptics_parse_effect_pattern_data(struct haptics_chip *chip,
 		struct device_node *node, struct haptics_effect *effect)
 {
 	struct haptics_hw_config *config = &chip->config;
 	u32 data[SAMPLES_PER_PATTERN * 3];
 	int rc, tmp, i;
 
-	if (!effect)
-		return -EINVAL;
-
-	rc = of_property_read_u32(node, "qcom,effect-id", &effect->id);
-	if (rc < 0) {
-		dev_err(chip->dev, "Read qcom,effect-id failed, rc=%d\n",
-				rc);
-		return rc;
-	}
-
-	effect->vmax_mv = config->vmax_mv;
-	rc = of_property_read_u32(node, "qcom,wf-vmax-mv", &tmp);
-	if (rc < 0)
-		dev_dbg(chip->dev, "Read qcom,wf-vmax-mv failed, rc=%d\n",
-				rc);
-	else
-		effect->vmax_mv = tmp;
-
-	if (effect->vmax_mv > MAX_VMAX_MV) {
-		dev_err(chip->dev, "qcom,wf-vmax-mv (%d) exceed the max value: %d\n",
-				effect->vmax_mv, MAX_VMAX_MV);
-		return -EINVAL;
-	}
-
 	effect->t_lra_us = config->t_lra_us;
 	tmp = of_property_count_elems_of_size(node,
 			"qcom,wf-pattern-data", sizeof(u32));
+	if (tmp <= 0) {
+		dev_dbg(chip->dev, "qcom,wf-pattern-data is not defined properly for effect %d\n",
+				effect->id);
+		return 0;
+	}
+
 	if (tmp > SAMPLES_PER_PATTERN * 3) {
 		dev_err(chip->dev, "Pattern src can only play 8 samples at max\n");
 		return -EINVAL;
 	}
 
-	if (tmp > 0) {
-		effect->pattern = devm_kzalloc(chip->dev,
-				sizeof(*effect->pattern), GFP_KERNEL);
-		if (!effect->pattern)
-			return -ENOMEM;
+	effect->pattern = devm_kzalloc(chip->dev,
+			sizeof(*effect->pattern), GFP_KERNEL);
+	if (!effect->pattern)
+		return -ENOMEM;
 
-		rc = of_property_read_u32_array(node,
-				"qcom,wf-pattern-data", data, tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read wf-pattern-data failed, rc=%d\n",
-					rc);
-			return rc;
+	rc = of_property_read_u32_array(node,
+			"qcom,wf-pattern-data", data, tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Read wf-pattern-data failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	for (i = 0; i < tmp / 3; i++) {
+		if (data[3 * i] > 0x1ff || data[3 * i + 1] > T_LRA_X_8
+				|| data[3 * i + 2] > 1) {
+			dev_err(chip->dev, "allowed tuples: [amplitude(<= 0x1ff) period(<=6(T_LRA_X_8)) f_lra_x2(0,1)]\n");
+			return -EINVAL;
 		}
 
-		for (i = 0; i < tmp / 3; i++) {
-			if (data[3 * i] > 0x1ff || data[3 * i + 1] > T_LRA_X_8
-					|| data[3 * i + 2] > 1) {
-				dev_err(chip->dev, "allowed tuples: [amplitude(<= 0x1ff) period(<=6(T_LRA_X_8)) f_lra_x2(0,1)]\n");
-				return -EINVAL;
-			}
+		effect->pattern->samples[i].amplitude =
+			(u16)data[3 * i];
+		effect->pattern->samples[i].period =
+			(enum s_period)data[3 * i + 1];
+		effect->pattern->samples[i].f_lra_x2 =
+			(bool)data[3 * i + 2];
+	}
 
-			effect->pattern->samples[i].amplitude =
-				(u16)data[3 * i];
-			effect->pattern->samples[i].period =
-				(enum s_period)data[3 * i + 1];
-			effect->pattern->samples[i].f_lra_x2 =
-				(bool)data[3 * i + 2];
-		}
-
-		effect->pattern->preload = of_property_read_bool(node,
-				"qcom,wf-pattern-preload");
-		/*
-		 * Use PATTERN1 src by default, effect with preloaded
-		 * pattern will use PATTERN2 by default and only the
-		 * 1st preloaded pattern will be served.
-		 */
-		effect->src = PATTERN1;
-		if (effect->pattern->preload) {
-			if (config->preload_effect != -EINVAL) {
-				dev_err(chip->dev, "effect %d has been defined as preloaded\n",
-						config->preload_effect);
-				effect->pattern->preload = false;
-			} else {
-				config->preload_effect = effect->id;
-				effect->src = PATTERN2;
-			}
+	effect->pattern->preload = of_property_read_bool(node,
+			"qcom,wf-pattern-preload");
+	/*
+	 * Use PATTERN1 src by default, effect with preloaded
+	 * pattern will use PATTERN2 by default and only the
+	 * 1st preloaded pattern will be served.
+	 */
+	effect->src = PATTERN1;
+	if (effect->pattern->preload) {
+		if (config->preload_effect != -EINVAL) {
+			dev_err(chip->dev, "effect %d has been defined as preloaded\n",
+					config->preload_effect);
+			effect->pattern->preload = false;
+		} else {
+			config->preload_effect = effect->id;
+			effect->src = PATTERN2;
 		}
 	}
 
-	tmp = of_property_count_u8_elems(node, "qcom,wf-fifo-data");
-	if (tmp > 0) {
-		effect->fifo = devm_kzalloc(chip->dev,
-				sizeof(*effect->fifo), GFP_KERNEL);
-		if (!effect->fifo)
-			return -ENOMEM;
+	if (config->is_erm)
+		effect->pattern->play_rate_us = DEFAULT_ERM_PLAY_RATE_US;
+	else
+		effect->pattern->play_rate_us = config->t_lra_us;
 
-		effect->fifo->samples = devm_kcalloc(chip->dev,
-				tmp, sizeof(u8), GFP_KERNEL);
-		if (!effect->fifo->samples)
-			return -ENOMEM;
+	rc = of_property_read_u32(node, "qcom,wf-pattern-period-us", &tmp);
+	if (rc < 0)
+		dev_dbg(chip->dev, "Read qcom,wf-pattern-period-us failed, rc=%d\n",
+				rc);
+	else
+		effect->pattern->play_rate_us = tmp;
 
-		rc = of_property_read_u8_array(node, "qcom,wf-fifo-data",
-				effect->fifo->samples, tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read wf-fifo-data failed, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		effect->fifo->num_s = tmp;
-	}
-
-	if (!effect->pattern && !effect->fifo) {
-		dev_err(chip->dev, "no pattern specified for effect %d\n",
-				effect->id);
+	if (effect->pattern->play_rate_us > TLRA_MAX_US) {
+		dev_err(chip->dev, "qcom,wf-pattern-period-us (%d) exceed the max value: %d\n",
+				effect->pattern->play_rate_us,
+				TLRA_MAX_US);
 		return -EINVAL;
 	}
 
-	if (effect->pattern) {
-		if (config->is_erm)
-			effect->pattern->play_rate_us =
-				DEFAULT_ERM_PLAY_RATE_US;
-		else
-			effect->pattern->play_rate_us = config->t_lra_us;
-
-		rc = of_property_read_u32(node, "qcom,wf-pattern-period-us",
-					&tmp);
-		if (rc < 0)
-			dev_dbg(chip->dev, "Read qcom,wf-pattern-period-us failed, rc=%d\n",
-					rc);
-		else
-			effect->pattern->play_rate_us = tmp;
-
-		if (effect->pattern->play_rate_us > TLRA_MAX_US) {
-			dev_err(chip->dev, "qcom,wf-pattern-period-us (%d) exceed the max value: %d\n",
-					effect->pattern->play_rate_us,
-					TLRA_MAX_US);
-			return -EINVAL;
-		}
-
-		effect->pattern->play_length_us =
-			get_pattern_play_length_us(effect->pattern);
-		if (effect->pattern->play_length_us == -EINVAL) {
-			dev_err(chip->dev, "get pattern play length failed\n");
-			return -EINVAL;
-		}
-
-		if (effect->fifo)
-			dev_dbg(chip->dev, "Ignore FIFO data if pattern is specified!\n");
-
-	} else if (effect->fifo) {
-		effect->fifo->period_per_s = T_LRA;
-		rc = of_property_read_u32(node, "qcom,wf-fifo-period", &tmp);
-		if (tmp > F_48KHZ) {
-			dev_err(chip->dev, "FIFO playing period %d is not supported\n",
-					tmp);
-			return -EINVAL;
-		} else if (!rc) {
-			effect->fifo->period_per_s = tmp;
-		}
-
-		effect->fifo->play_length_us =
-			get_fifo_play_length_us(effect->fifo, config->t_lra_us);
-		if (effect->fifo->play_length_us == -EINVAL) {
-			dev_err(chip->dev, "get fifo play length failed\n");
-			return -EINVAL;
-		}
-
-		effect->src = FIFO;
-		effect->fifo->preload = of_property_read_bool(node,
-						"qcom,wf-fifo-preload");
+	effect->pattern->play_length_us = get_pattern_play_length_us(effect->pattern);
+	if (effect->pattern->play_length_us == -EINVAL) {
+		dev_err(chip->dev, "get pattern play length failed\n");
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int haptics_parse_effect_fifo_data(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
+
+	if (effect->pattern) {
+		dev_dbg(chip->dev, "ignore parsing FIFO effect when pattern effect is present\n");
+		return 0;
+	}
+
+	tmp = of_property_count_u8_elems(node, "qcom,wf-fifo-data");
+	if (tmp <= 0) {
+		dev_dbg(chip->dev, "qcom,wf-fifo-data is not defined properly for effect %d\n",
+				effect->id);
+		return 0;
+	}
+
+	effect->fifo = devm_kzalloc(chip->dev,
+			sizeof(*effect->fifo), GFP_KERNEL);
+	if (!effect->fifo)
+		return -ENOMEM;
+
+	effect->fifo->samples = devm_kcalloc(chip->dev,
+			tmp, sizeof(u8), GFP_KERNEL);
+	if (!effect->fifo->samples)
+		return -ENOMEM;
+
+	rc = of_property_read_u8_array(node, "qcom,wf-fifo-data",
+			effect->fifo->samples, tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Read wf-fifo-data failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	effect->fifo->num_s = tmp;
+	effect->fifo->period_per_s = T_LRA;
+	rc = of_property_read_u32(node, "qcom,wf-fifo-period", &tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Get qcom,wf-fifo-period failed, rc=%d\n", rc);
+		return rc;
+	} else if (tmp > F_48KHZ) {
+		dev_err(chip->dev, "FIFO playing period %d is not supported\n",
+				tmp);
+		return -EINVAL;
+	}
+
+	effect->fifo->period_per_s = tmp;
+	effect->fifo->play_length_us =
+		get_fifo_play_length_us(effect->fifo, config->t_lra_us);
+	if (effect->fifo->play_length_us == -EINVAL) {
+		dev_err(chip->dev, "get fifo play length failed\n");
+		return -EINVAL;
+	}
+
+	effect->src = FIFO;
+	effect->fifo->preload = of_property_read_bool(node,
+					"qcom,wf-fifo-preload");
+	return 0;
+}
+
+static int haptics_parse_effect_brake_data(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
 
 	effect->brake = devm_kzalloc(chip->dev,
 			sizeof(*effect->brake), GFP_KERNEL);
@@ -4024,12 +4016,66 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 	effect->brake->play_length_us =
 		get_brake_play_length_us(effect->brake, config->t_lra_us);
 
-	if (config->is_erm)
-		return 0;
+	return 0;
+}
 
-	/* LRA specific per-effect settings are parsed below */
-	effect->auto_res_disable = of_property_read_bool(node,
-			"qcom,wf-auto-res-disable");
+static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
+
+	if (!effect)
+		return -EINVAL;
+
+	rc = of_property_read_u32(node, "qcom,effect-id", &effect->id);
+	if (rc < 0) {
+		dev_err(chip->dev, "read qcom,effect-id failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	effect->vmax_mv = config->vmax_mv;
+	rc = of_property_read_u32(node, "qcom,wf-vmax-mv", &tmp);
+	if (rc < 0)
+		dev_dbg(chip->dev, "read qcom,wf-vmax-mv failed, rc=%d\n",
+				rc);
+	else
+		effect->vmax_mv = tmp;
+
+	if (effect->vmax_mv > MAX_VMAX_MV) {
+		dev_err(chip->dev, "qcom,wf-vmax-mv (%d) exceed the max value: %d\n",
+				effect->vmax_mv, MAX_VMAX_MV);
+		return -EINVAL;
+	}
+
+	rc = haptics_parse_effect_pattern_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect PATTERN data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = haptics_parse_effect_fifo_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect FIFO data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (!effect->pattern && !effect->fifo) {
+		dev_err(chip->dev, "no pattern specified for effect %d\n",
+				effect->id);
+		return -EINVAL;
+	}
+
+	rc = haptics_parse_effect_brake_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect brake data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (!config->is_erm)
+		effect->auto_res_disable = of_property_read_bool(node,
+				"qcom,wf-auto-res-disable");
 
 	return 0;
 }
