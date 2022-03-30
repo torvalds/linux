@@ -174,16 +174,70 @@ struct scmi_protocol_handle {
 };
 
 /**
+ * struct scmi_iterator_state  - Iterator current state descriptor
+ * @desc_index: Starting index for the current mulit-part request.
+ * @num_returned: Number of returned items in the last multi-part reply.
+ * @num_remaining: Number of remaining items in the multi-part message.
+ * @max_resources: Maximum acceptable number of items, configured by the caller
+ *		   depending on the underlying resources that it is querying.
+ * @loop_idx: The iterator loop index in the current multi-part reply.
+ * @priv: Optional pointer to some additional state-related private data setup
+ *	  by the caller during the iterations.
+ */
+struct scmi_iterator_state {
+	unsigned int desc_index;
+	unsigned int num_returned;
+	unsigned int num_remaining;
+	unsigned int max_resources;
+	unsigned int loop_idx;
+	void *priv;
+};
+
+/**
+ * struct scmi_iterator_ops  - Custom iterator operations
+ * @prepare_message: An operation to provide the custom logic to fill in the
+ *		     SCMI command request pointed by @message. @desc_index is
+ *		     a reference to the next index to use in the multi-part
+ *		     request.
+ * @update_state: An operation to provide the custom logic to update the
+ *		  iterator state from the actual message response.
+ * @process_response: An operation to provide the custom logic needed to process
+ *		      each chunk of the multi-part message.
+ */
+struct scmi_iterator_ops {
+	void (*prepare_message)(void *message, unsigned int desc_index,
+				const void *priv);
+	int (*update_state)(struct scmi_iterator_state *st,
+			    const void *response, void *priv);
+	int (*process_response)(const struct scmi_protocol_handle *ph,
+				const void *response,
+				struct scmi_iterator_state *st, void *priv);
+};
+
+/**
  * struct scmi_proto_helpers_ops  - References to common protocol helpers
  * @extended_name_get: A common helper function to retrieve extended naming
  *		       for the specified resource using the specified command.
  *		       Result is returned as a NULL terminated string in the
  *		       pre-allocated area pointed to by @name with maximum
  *		       capacity of @len bytes.
+ * @iter_response_init: A common helper to initialize a generic iterator to
+ *			parse multi-message responses: when run the iterator
+ *			will take care to send the initial command request as
+ *			specified by @msg_id and @tx_size and then to parse the
+ *			multi-part responses using the custom operations
+ *			provided in @ops.
+ * @iter_response_run: A common helper to trigger the run of a previously
+ *		       initialized iterator.
  */
 struct scmi_proto_helpers_ops {
 	int (*extended_name_get)(const struct scmi_protocol_handle *ph,
 				 u8 cmd_id, u32 res_id, char *name, size_t len);
+	void *(*iter_response_init)(const struct scmi_protocol_handle *ph,
+				    struct scmi_iterator_ops *ops,
+				    unsigned int max_resources, u8 msg_id,
+				    size_t tx_size, void *priv);
+	int (*iter_response_run)(void *iter);
 };
 
 /**

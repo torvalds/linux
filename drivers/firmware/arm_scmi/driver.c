@@ -1148,8 +1148,117 @@ out:
 	return ret;
 }
 
+/**
+ * struct scmi_iterator  - Iterator descriptor
+ * @msg: A reference to the message TX buffer; filled by @prepare_message with
+ *	 a proper custom command payload for each multi-part command request.
+ * @resp: A reference to the response RX buffer; used by @update_state and
+ *	  @process_response to parse the multi-part replies.
+ * @t: A reference to the underlying xfer initialized and used transparently by
+ *     the iterator internal routines.
+ * @ph: A reference to the associated protocol handle to be used.
+ * @ops: A reference to the custom provided iterator operations.
+ * @state: The current iterator state; used and updated in turn by the iterators
+ *	   internal routines and by the caller-provided @scmi_iterator_ops.
+ * @priv: A reference to optional private data as provided by the caller and
+ *	  passed back to the @@scmi_iterator_ops.
+ */
+struct scmi_iterator {
+	void *msg;
+	void *resp;
+	struct scmi_xfer *t;
+	const struct scmi_protocol_handle *ph;
+	struct scmi_iterator_ops *ops;
+	struct scmi_iterator_state state;
+	void *priv;
+};
+
+static void *scmi_iterator_init(const struct scmi_protocol_handle *ph,
+				struct scmi_iterator_ops *ops,
+				unsigned int max_resources, u8 msg_id,
+				size_t tx_size, void *priv)
+{
+	int ret;
+	struct scmi_iterator *i;
+
+	i = devm_kzalloc(ph->dev, sizeof(*i), GFP_KERNEL);
+	if (!i)
+		return ERR_PTR(-ENOMEM);
+
+	i->ph = ph;
+	i->ops = ops;
+	i->priv = priv;
+
+	ret = ph->xops->xfer_get_init(ph, msg_id, tx_size, 0, &i->t);
+	if (ret) {
+		devm_kfree(ph->dev, i);
+		return ERR_PTR(ret);
+	}
+
+	i->state.max_resources = max_resources;
+	i->msg = i->t->tx.buf;
+	i->resp = i->t->rx.buf;
+
+	return i;
+}
+
+static int scmi_iterator_run(void *iter)
+{
+	int ret = -EINVAL;
+	struct scmi_iterator *i = iter;
+	struct scmi_iterator_state *st = &i->state;
+	struct scmi_iterator_ops *iops = i->ops;
+	const struct scmi_protocol_handle *ph = i->ph;
+	const struct scmi_xfer_ops *xops = ph->xops;
+
+	if (!i)
+		return ret;
+
+	do {
+		iops->prepare_message(i->msg, st->desc_index, i->priv);
+		ret = xops->do_xfer(ph, i->t);
+		if (ret)
+			break;
+
+		ret = iops->update_state(st, i->resp, i->priv);
+		if (ret)
+			break;
+
+		if (st->num_returned > st->max_resources - st->desc_index) {
+			dev_err(ph->dev,
+				"No. of resources can't exceed %d\n",
+				st->max_resources);
+			ret = -EINVAL;
+			break;
+		}
+
+		for (st->loop_idx = 0; st->loop_idx < st->num_returned;
+		     st->loop_idx++) {
+			ret = iops->process_response(ph, i->resp, st, i->priv);
+			if (ret)
+				goto out;
+		}
+
+		st->desc_index += st->num_returned;
+		xops->reset_rx_to_maxsz(ph, i->t);
+		/*
+		 * check for both returned and remaining to avoid infinite
+		 * loop due to buggy firmware
+		 */
+	} while (st->num_returned && st->num_remaining);
+
+out:
+	/* Finalize and destroy iterator */
+	xops->xfer_put(ph, i->t);
+	devm_kfree(ph->dev, i);
+
+	return ret;
+}
+
 static const struct scmi_proto_helpers_ops helpers_ops = {
 	.extended_name_get = scmi_common_extended_name_get,
+	.iter_response_init = scmi_iterator_init,
+	.iter_response_run = scmi_iterator_run,
 };
 
 /**
