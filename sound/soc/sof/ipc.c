@@ -823,7 +823,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 	enum sof_ipc_ctrl_type ctrl_type;
 	struct snd_sof_widget *swidget;
 	bool widget_found = false;
-	size_t send_bytes;
 	u32 ipc_cmd;
 	int err;
 
@@ -846,27 +845,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 	 */
 	if (!swidget->use_count)
 		return 0;
-
-	/* read or write firmware volume */
-	if (scontrol->readback_offset != 0) {
-		/* write/read value header via mmaped region */
-		send_bytes = sizeof(struct sof_ipc_ctrl_value_chan) *
-		cdata->num_elems;
-		if (set)
-			err = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM,
-						      scontrol->readback_offset,
-						      cdata->chanv, send_bytes);
-
-		else
-			err = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_IRAM,
-						     scontrol->readback_offset,
-						     cdata->chanv, send_bytes);
-
-		if (err)
-			dev_err_once(sdev->dev, "error: %s TYPE_IRAM failed\n",
-				     set ? "write to" :  "read from");
-		return err;
-	}
 
 	/*
 	 * Select the IPC cmd and the ctrl_type based on the ctrl_cmd and the

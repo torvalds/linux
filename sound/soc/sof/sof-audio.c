@@ -16,9 +16,6 @@ static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *
 {
 	int ret;
 
-	/* reset readback offset for scontrol */
-	scontrol->readback_offset = 0;
-
 	ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: failed kcontrol value set for widget: %d\n",
