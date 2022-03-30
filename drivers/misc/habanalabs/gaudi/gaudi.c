@@ -3795,9 +3795,6 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_
 {
 	u32 wait_timeout_ms;
 
-	dev_info(hdev->dev,
-		"Halting compute engines and disabling interrupts\n");
-
 	if (hdev->pldm)
 		wait_timeout_ms = GAUDI_PLDM_RESET_WAIT_MSEC;
 	else
