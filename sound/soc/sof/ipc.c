@@ -373,8 +373,8 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
 {
 	int ret;
 
-	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
-	    reply_bytes > SOF_IPC_MSG_MAX_SIZE)
+	if (msg_bytes > ipc->max_payload_size ||
+	    reply_bytes > ipc->max_payload_size)
 		return -ENOBUFS;
 
 	/* Serialise IPC TX */
