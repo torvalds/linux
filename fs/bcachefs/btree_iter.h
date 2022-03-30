@@ -149,6 +149,7 @@ bch2_btree_path_make_mut(struct btree_trans *trans,
 {
 	if (path->ref > 1 || path->preserve)
 		path = __bch2_btree_path_make_mut(trans, path, intent);
+	path->should_be_locked = false;
 	return path;
 }
 
