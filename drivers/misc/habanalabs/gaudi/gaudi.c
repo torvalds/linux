@@ -4212,7 +4212,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset
 	}
 
 	if (fw_reset) {
-		dev_info(hdev->dev,
+		dev_dbg(hdev->dev,
 			"Firmware performs HARD reset, going to wait %dms\n",
 			reset_timeout_ms);
 
@@ -4304,11 +4304,11 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
 
-		dev_info(hdev->dev,
+		dev_dbg(hdev->dev,
 			"Issued HARD reset command, going to wait %dms\n",
 			reset_timeout_ms);
 	} else {
-		dev_info(hdev->dev,
+		dev_dbg(hdev->dev,
 			"Firmware performs HARD reset, going to wait %dms\n",
 			reset_timeout_ms);
 	}

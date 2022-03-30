@@ -2825,12 +2825,12 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 		goya_set_pll_refclk(hdev);
 
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG, RESET_ALL);
-		dev_info(hdev->dev,
+		dev_dbg(hdev->dev,
 			"Issued HARD reset command, going to wait %dms\n",
 			reset_timeout_ms);
 	} else {
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG, DMA_MME_TPC_RESET);
-		dev_info(hdev->dev,
+		dev_dbg(hdev->dev,
 			"Issued SOFT reset command, going to wait %dms\n",
 			reset_timeout_ms);
 	}
