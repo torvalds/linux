@@ -1405,6 +1405,11 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 	u16 maj_ver, min_ver;
 	int rc;
 
+	if (!bcdev->wls_fw_name) {
+		pr_err("wireless FW name is not specified\n");
+		return -EINVAL;
+	}
+
 	pm_stay_awake(bcdev->dev);
 
 	/*
