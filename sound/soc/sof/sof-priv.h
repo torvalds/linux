@@ -394,6 +394,9 @@ struct snd_sof_ipc {
 	/* disables further sending of ipc's */
 	bool disable_ipc_tx;
 
+	/* Maximum allowed size of a single IPC message/reply */
+	size_t max_payload_size;
+
 	struct snd_sof_ipc_msg msg;
 
 	/* IPC ops based on version */
