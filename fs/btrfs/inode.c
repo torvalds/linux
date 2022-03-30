@@ -10461,13 +10461,11 @@ static ssize_t btrfs_encoded_read_regular(struct kiocb *iocb,
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
-	for (i = 0; i < nr_pages; i++) {
-		pages[i] = alloc_page(GFP_NOFS);
-		if (!pages[i]) {
-			ret = -ENOMEM;
-			goto out;
+	ret = btrfs_alloc_page_array(nr_pages, pages);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out;
 		}
-	}
 
 	ret = btrfs_encoded_read_regular_fill_pages(inode, start, disk_bytenr,
 						    disk_io_size, pages);

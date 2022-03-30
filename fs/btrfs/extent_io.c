@@ -3133,6 +3133,34 @@ readpage_ok:
 	bio_put(bio);
 }
 
+/**
+ * Populate every free slot in a provided array with pages.
+ *
+ * @nr_pages:   number of pages to allocate
+ * @page_array: the array to fill with pages; any existing non-null entries in
+ * 		the array will be skipped
+ *
+ * Return: 0        if all pages were able to be allocated;
+ *         -ENOMEM  otherwise, and the caller is responsible for freeing all
+ *                  non-null page pointers in the array.
+ */
+int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
+{
+	int i;
+
+	for (i = 0; i < nr_pages; i++) {
+		struct page *page;
+
+		if (page_array[i])
+			continue;
+		page = alloc_page(GFP_NOFS);
+		if (!page)
+			return -ENOMEM;
+		page_array[i] = page;
+	}
+	return 0;
+}
+
 /*
  * Initialize the members up to but not including 'bio'. Use after allocating a
  * new bio by bio_alloc_bioset as it does not initialize the bytes outside of
@@ -5912,9 +5940,9 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 {
 	int i;
-	struct page *p;
 	struct extent_buffer *new;
 	int num_pages = num_extent_pages(src);
+	int ret;
 
 	new = __alloc_extent_buffer(src->fs_info, src->start, src->len);
 	if (new == NULL)
@@ -5927,22 +5955,23 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 	 */
 	set_bit(EXTENT_BUFFER_UNMAPPED, &new->bflags);
 
+	memset(new->pages, 0, sizeof(*new->pages) * num_pages);
+	ret = btrfs_alloc_page_array(num_pages, new->pages);
+	if (ret) {
+		btrfs_release_extent_buffer(new);
+		return NULL;
+	}
+
 	for (i = 0; i < num_pages; i++) {
 		int ret;
+		struct page *p = new->pages[i];
 
-		p = alloc_page(GFP_NOFS);
-		if (!p) {
-			btrfs_release_extent_buffer(new);
-			return NULL;
-		}
 		ret = attach_extent_buffer_page(new, p, NULL);
 		if (ret < 0) {
-			put_page(p);
 			btrfs_release_extent_buffer(new);
 			return NULL;
 		}
 		WARN_ON(PageDirty(p));
-		new->pages[i] = p;
 		copy_page(page_address(p), page_address(src->pages[i]));
 	}
 	set_extent_buffer_uptodate(new);
@@ -5956,31 +5985,36 @@ struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 	struct extent_buffer *eb;
 	int num_pages;
 	int i;
+	int ret;
 
 	eb = __alloc_extent_buffer(fs_info, start, len);
 	if (!eb)
 		return NULL;
 
 	num_pages = num_extent_pages(eb);
-	for (i = 0; i < num_pages; i++) {
-		int ret;
+	ret = btrfs_alloc_page_array(num_pages, eb->pages);
+	if (ret)
+		goto err;
 
-		eb->pages[i] = alloc_page(GFP_NOFS);
-		if (!eb->pages[i])
-			goto err;
-		ret = attach_extent_buffer_page(eb, eb->pages[i], NULL);
+	for (i = 0; i < num_pages; i++) {
+		struct page *p = eb->pages[i];
+
+		ret = attach_extent_buffer_page(eb, p, NULL);
 		if (ret < 0)
 			goto err;
 	}
+
 	set_extent_buffer_uptodate(eb);
 	btrfs_set_header_nritems(eb, 0);
 	set_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
 	return eb;
 err:
-	for (; i > 0; i--) {
-		detach_extent_buffer_page(eb, eb->pages[i - 1]);
-		__free_page(eb->pages[i - 1]);
+	for (i = 0; i < num_pages; i++) {
+		if (eb->pages[i]) {
+			detach_extent_buffer_page(eb, eb->pages[i]);
+			__free_page(eb->pages[i]);
+		}
 	}
 	__free_extent_buffer(eb);
 	return NULL;

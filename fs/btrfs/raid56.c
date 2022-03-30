@@ -1026,37 +1026,16 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 /* allocate pages for all the stripes in the bio, including parity */
 static int alloc_rbio_pages(struct btrfs_raid_bio *rbio)
 {
-	int i;
-	struct page *page;
-
-	for (i = 0; i < rbio->nr_pages; i++) {
-		if (rbio->stripe_pages[i])
-			continue;
-		page = alloc_page(GFP_NOFS);
-		if (!page)
-			return -ENOMEM;
-		rbio->stripe_pages[i] = page;
-	}
-	return 0;
+	return btrfs_alloc_page_array(rbio->nr_pages, rbio->stripe_pages);
 }
 
 /* only allocate pages for p/q stripes */
 static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
 {
-	int i;
-	struct page *page;
+	int data_pages = rbio_stripe_page_index(rbio, rbio->nr_data, 0);
 
-	i = rbio_stripe_page_index(rbio, rbio->nr_data, 0);
-
-	for (; i < rbio->nr_pages; i++) {
-		if (rbio->stripe_pages[i])
-			continue;
-		page = alloc_page(GFP_NOFS);
-		if (!page)
-			return -ENOMEM;
-		rbio->stripe_pages[i] = page;
-	}
-	return 0;
+	return btrfs_alloc_page_array(rbio->nr_pages - data_pages,
+				      rbio->stripe_pages + data_pages);
 }
 
 /*
