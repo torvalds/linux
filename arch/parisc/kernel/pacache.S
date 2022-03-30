@@ -300,7 +300,6 @@ fdoneloop2:
 	fdce,m		%arg1(%sr1, %arg0)	/* Fdce for one loop */
 
 fdsync:
-	syncdma
 	sync
 	mtsm		%r22			/* restore I-bit */
 89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
@@ -1098,7 +1097,6 @@ ENTRY_CFI(flush_kernel_dcache_range_asm)
 
 	sync
 89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
-	syncdma
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_kernel_dcache_range_asm)
@@ -1140,7 +1138,6 @@ ENTRY_CFI(purge_kernel_dcache_range_asm)
 
 	sync
 89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
-	syncdma
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(purge_kernel_dcache_range_asm)
