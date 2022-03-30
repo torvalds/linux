@@ -1858,6 +1858,9 @@ call_encode(struct rpc_task *task)
 	xprt_request_dequeue_xprt(task);
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	rpc_xdr_encode(task);
+	/* Add task to reply queue before transmission to avoid races */
+	if (task->tk_status == 0 && rpc_reply_expected(task))
+		task->tk_status = xprt_request_enqueue_receive(task);
 	/* Did the encode result in an error condition? */
 	if (task->tk_status != 0) {
 		/* Was the error nonfatal? */
@@ -1881,9 +1884,6 @@ call_encode(struct rpc_task *task)
 		return;
 	}
 
-	/* Add task to reply queue before transmission to avoid races */
-	if (rpc_reply_expected(task))
-		xprt_request_enqueue_receive(task);
 	xprt_request_enqueue_transmit(task);
 out:
 	task->tk_action = call_transmit;
