@@ -166,6 +166,11 @@
 #define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
 #define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
 
+#define VCN_CODEC_DISABLE_MASK_AV1  (1 << 0)
+#define VCN_CODEC_DISABLE_MASK_VP9  (1 << 1)
+#define VCN_CODEC_DISABLE_MASK_HEVC (1 << 2)
+#define VCN_CODEC_DISABLE_MASK_H264 (1 << 3)
+
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
 	FW_QUEUE_DPG_HOLD_OFF = 2,
@@ -250,6 +255,7 @@ struct amdgpu_vcn {
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	uint8_t			 vcn_config[AMDGPU_MAX_VCN_INSTANCES];
+	uint32_t		 vcn_codec_disable_mask[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
 	struct mutex		 vcn_pg_lock;
 	struct mutex		vcn1_jpeg1_workaround;

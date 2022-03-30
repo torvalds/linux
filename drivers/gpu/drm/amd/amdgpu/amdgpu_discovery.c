@@ -1396,6 +1396,54 @@ int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 	return 0;
 }
 
+union vcn_info {
+	struct vcn_info_v1_0 v1;
+};
+
+int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
+{
+	struct binary_header *bhdr;
+	union vcn_info *vcn_info;
+	u16 offset;
+	int v;
+
+	if (!adev->mman.discovery_bin) {
+		DRM_ERROR("ip discovery uninitialized\n");
+		return -EINVAL;
+	}
+
+	if (adev->vcn.num_vcn_inst > VCN_INFO_TABLE_MAX_NUM_INSTANCES) {
+		dev_err(adev->dev, "invalid vcn instances\n");
+		return -EINVAL;
+	}
+
+	bhdr = (struct binary_header *)adev->mman.discovery_bin;
+	offset = le16_to_cpu(bhdr->table_list[VCN_INFO].offset);
+
+	if (!offset) {
+		dev_err(adev->dev, "invalid vcn table offset\n");
+		return -EINVAL;
+	}
+
+	vcn_info = (union vcn_info *)(adev->mman.discovery_bin + offset);
+
+	switch (le16_to_cpu(vcn_info->v1.header.version_major)) {
+	case 1:
+		for (v = 0; v < adev->vcn.num_vcn_inst; v++) {
+			adev->vcn.vcn_codec_disable_mask[v] =
+				le32_to_cpu(vcn_info->v1.instance_info[v].fuse_data.all_bits);
+		}
+		break;
+	default:
+		dev_err(adev->dev,
+			"Unhandled VCN info table %d.%d\n",
+			le16_to_cpu(vcn_info->v1.header.version_major),
+			le16_to_cpu(vcn_info->v1.header.version_minor));
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
 {
 	/* what IP to use for this? */
