@@ -870,7 +870,7 @@ static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
 				 msg->perm);
 }
 
-static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
+static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev, u32 asid,
 					struct vhost_iotlb_msg *msg)
 {
 	struct vhost_vdpa *v = container_of(dev, struct vhost_vdpa, vdev);
@@ -878,6 +878,9 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 	const struct vdpa_config_ops *ops = vdpa->config;
 	struct vhost_iotlb *iotlb = v->iotlb;
 	int r = 0;
+
+	if (asid != 0)
+		return -EINVAL;
 
 	mutex_lock(&dev->mutex);
 
