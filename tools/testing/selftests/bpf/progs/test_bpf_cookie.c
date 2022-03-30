@@ -37,14 +37,14 @@ int handle_kretprobe(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("uprobe/trigger_func")
+SEC("uprobe")
 int handle_uprobe(struct pt_regs *ctx)
 {
 	update(ctx, &uprobe_res);
 	return 0;
 }
 
-SEC("uretprobe/trigger_func")
+SEC("uretprobe")
 int handle_uretprobe(struct pt_regs *ctx)
 {
 	update(ctx, &uretprobe_res);

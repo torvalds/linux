@@ -8630,6 +8630,7 @@ int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log
 }
 
 static int attach_kprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link);
+static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_raw_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_trace(const struct bpf_program *prog, long cookie, struct bpf_link **link);
@@ -8642,9 +8643,9 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("sk_reuseport/migrate",	SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 	SEC_DEF("sk_reuseport",		SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 	SEC_DEF("kprobe/",		KPROBE,	0, SEC_NONE, attach_kprobe),
-	SEC_DEF("uprobe/",		KPROBE,	0, SEC_NONE),
+	SEC_DEF("uprobe+",		KPROBE,	0, SEC_NONE, attach_uprobe),
 	SEC_DEF("kretprobe/",		KPROBE, 0, SEC_NONE, attach_kprobe),
-	SEC_DEF("uretprobe/",		KPROBE, 0, SEC_NONE),
+	SEC_DEF("uretprobe+",		KPROBE, 0, SEC_NONE, attach_uprobe),
 	SEC_DEF("kprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
 	SEC_DEF("kretprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
 	SEC_DEF("tc",			SCHED_CLS, 0, SEC_NONE),
@@ -10843,6 +10844,75 @@ err_out:
 	free(legacy_probe);
 	return libbpf_err_ptr(err);
 
+}
+
+/* Format of u[ret]probe section definition supporting auto-attach:
+ * u[ret]probe/binary:function[+offset]
+ *
+ * binary can be an absolute/relative path or a filename; the latter is resolved to a
+ * full binary path via bpf_program__attach_uprobe_opts.
+ *
+ * Specifying uprobe+ ensures we carry out strict matching; either "uprobe" must be
+ * specified (and auto-attach is not possible) or the above format is specified for
+ * auto-attach.
+ */
+static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link)
+{
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
+	char *func, *probe_name, *func_end;
+	char *func_name, binary_path[512];
+	unsigned long long raw_offset;
+	size_t offset = 0;
+	int n;
+
+	*link = NULL;
+
+	opts.retprobe = str_has_pfx(prog->sec_name, "uretprobe");
+	if (opts.retprobe)
+		probe_name = prog->sec_name + sizeof("uretprobe") - 1;
+	else
+		probe_name = prog->sec_name + sizeof("uprobe") - 1;
+	if (probe_name[0] == '/')
+		probe_name++;
+
+	/* handle SEC("u[ret]probe") - format is valid, but auto-attach is impossible. */
+	if (strlen(probe_name) == 0)
+		return 0;
+
+	snprintf(binary_path, sizeof(binary_path), "%s", probe_name);
+	/* ':' should be prior to function+offset */
+	func_name = strrchr(binary_path, ':');
+	if (!func_name) {
+		pr_warn("section '%s' missing ':function[+offset]' specification\n",
+			prog->sec_name);
+		return -EINVAL;
+	}
+	func_name[0] = '\0';
+	func_name++;
+	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%li", &func, &offset);
+	if (n < 1) {
+		pr_warn("uprobe name '%s' is invalid\n", func_name);
+		return -EINVAL;
+	}
+	if (opts.retprobe && offset != 0) {
+		free(func);
+		pr_warn("uretprobes do not support offset specification\n");
+		return -EINVAL;
+	}
+
+	/* Is func a raw address? */
+	errno = 0;
+	raw_offset = strtoull(func, &func_end, 0);
+	if (!errno && !*func_end) {
+		free(func);
+		func = NULL;
+		offset = (size_t)raw_offset;
+	}
+	opts.func_name = func;
+
+	*link = bpf_program__attach_uprobe_opts(prog, -1, binary_path, offset, &opts);
+	free(func);
+	return libbpf_get_error(*link);
 }
 
 struct bpf_link *bpf_program__attach_uprobe(const struct bpf_program *prog,
