@@ -128,7 +128,8 @@ struct scmi_protocol_instance {
  *	       usage.
  * @protocols_mtx: A mutex to protect protocols instances initialization.
  * @protocols_imp: List of protocols implemented, currently maximum of
- *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
+ *		   scmi_revision_info.num_protocols elements allocated by the
+ *		   base protocol
  * @active_protocols: IDR storing device_nodes for protocols actually defined
  *		      in the DT and confirmed as implemented by fw.
  * @atomic_threshold: Optional system wide DT-configured threshold, expressed
@@ -1310,11 +1311,12 @@ scmi_is_protocol_implemented(const struct scmi_handle *handle, u8 prot_id)
 {
 	int i;
 	struct scmi_info *info = handle_to_scmi_info(handle);
+	struct scmi_revision_info *rev = handle->version;
 
 	if (!info->protocols_imp)
 		return false;
 
-	for (i = 0; i < MAX_PROTOCOLS_IMP; i++)
+	for (i = 0; i < rev->num_protocols; i++)
 		if (info->protocols_imp[i] == prot_id)
 			return true;
 	return false;

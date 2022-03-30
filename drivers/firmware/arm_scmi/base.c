@@ -178,6 +178,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 	__le32 *num_skip, *num_ret;
 	u32 tot_num_ret = 0, loop_num_ret;
 	struct device *dev = ph->dev;
+	struct scmi_revision_info *rev = ph->get_priv(ph);
 
 	ret = ph->xops->xfer_get_init(ph, BASE_DISCOVER_LIST_PROTOCOLS,
 				      sizeof(*num_skip), 0, &t);
@@ -203,8 +204,9 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		if (!loop_num_ret)
 			break;
 
-		if (loop_num_ret > MAX_PROTOCOLS_IMP - tot_num_ret) {
-			dev_err(dev, "No. of Protocol > MAX_PROTOCOLS_IMP");
+		if (loop_num_ret > rev->num_protocols - tot_num_ret) {
+			dev_err(dev,
+				"No. Returned protocols > Total protocols.\n");
 			break;
 		}
 
@@ -232,7 +234,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		tot_num_ret += loop_num_ret;
 
 		ph->xops->reset_rx_to_maxsz(ph, t);
-	} while (loop_num_ret);
+	} while (tot_num_ret < rev->num_protocols);
 
 	ph->xops->xfer_put(ph, t);
 
@@ -375,10 +377,6 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	prot_imp = devm_kcalloc(dev, MAX_PROTOCOLS_IMP, sizeof(u8), GFP_KERNEL);
-	if (!prot_imp)
-		return -ENOMEM;
-
 	rev->major_ver = PROTOCOL_REV_MAJOR(version),
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 	ph->set_priv(ph, rev);
@@ -386,6 +384,11 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	ret = scmi_base_attributes_get(ph);
 	if (ret)
 		return ret;
+
+	prot_imp = devm_kcalloc(dev, rev->num_protocols, sizeof(u8),
+				GFP_KERNEL);
+	if (!prot_imp)
+		return -ENOMEM;
 
 	scmi_base_vendor_id_get(ph, false);
 	scmi_base_vendor_id_get(ph, true);
