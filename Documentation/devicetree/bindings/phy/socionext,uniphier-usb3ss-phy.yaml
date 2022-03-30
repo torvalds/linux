@@ -61,7 +61,7 @@ properties:
           - const: phy
 
   vbus-supply:
-    description: A phandle to the regulator for USB VBUS
+    description: A phandle to the regulator for USB VBUS, only for USB host
 
 required:
   - compatible
@@ -71,7 +71,6 @@ required:
   - clock-names
   - resets
   - reset-names
-  - vbus-supply
 
 additionalProperties: false
 
