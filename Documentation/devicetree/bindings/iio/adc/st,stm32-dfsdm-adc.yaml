@@ -174,7 +174,7 @@ patternProperties:
               contains:
                 const: st,stm32-dfsdm-adc
 
-      - then:
+        then:
           properties:
             st,adc-channels:
               minItems: 1
@@ -206,7 +206,7 @@ patternProperties:
               contains:
                 const: st,stm32-dfsdm-dmic
 
-      - then:
+        then:
           properties:
             st,adc-channels:
               maxItems: 1
@@ -254,7 +254,7 @@ allOf:
           contains:
             const: st,stm32h7-dfsdm
 
-  - then:
+    then:
       patternProperties:
         "^filter@[0-9]+$":
           properties:
@@ -269,7 +269,7 @@ allOf:
           contains:
             const: st,stm32mp1-dfsdm
 
-  - then:
+    then:
       patternProperties:
         "^filter@[0-9]+$":
           properties:

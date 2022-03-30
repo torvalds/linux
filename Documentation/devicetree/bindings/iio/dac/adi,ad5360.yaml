@@ -59,9 +59,9 @@ allOf:
           contains:
             enum:
               - adi,ad5371
-      then:
-        required:
-          - vref2-supply
+    then:
+      required:
+        - vref2-supply
 
 examples:
   - |

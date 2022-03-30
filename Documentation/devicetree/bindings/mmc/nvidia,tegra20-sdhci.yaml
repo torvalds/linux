@@ -197,6 +197,8 @@ allOf:
               - nvidia,tegra30-sdhci
               - nvidia,tegra114-sdhci
               - nvidia,tegra124-sdhci
+    then:
+      properties:
         clocks:
           items:
             - description: module clock
