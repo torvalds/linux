@@ -1666,8 +1666,10 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 {
 	struct mlx5e_priv *out_priv, *route_priv;
 	struct mlx5_core_dev *route_mdev;
+	struct mlx5_devcom *devcom;
 	struct mlx5_eswitch *esw;
 	u16 vhca_id;
+	int err;
 
 	out_priv = netdev_priv(out_dev);
 	esw = out_priv->mdev->priv.eswitch;
@@ -1675,28 +1677,20 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 	route_mdev = route_priv->mdev;
 
 	vhca_id = MLX5_CAP_GEN(route_mdev, vhca_id);
-	if (mlx5_lag_is_active(out_priv->mdev)) {
-		struct mlx5_devcom *devcom;
-		int err;
-
-		/* In lag case we may get devices from different eswitch instances.
-		 * If we failed to get vport num, it means, mostly, that we on the wrong
-		 * eswitch.
-		 */
-		err = mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport);
-		if (err != -ENOENT)
-			return err;
-
-		rcu_read_lock();
-		devcom = out_priv->mdev->priv.devcom;
-		esw = mlx5_devcom_get_peer_data_rcu(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-		err = esw ? mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport) : -ENODEV;
-		rcu_read_unlock();
-
+	err = mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport);
+	if (!err)
 		return err;
-	}
 
-	return mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport);
+	if (!mlx5_lag_is_active(out_priv->mdev))
+		return err;
+
+	rcu_read_lock();
+	devcom = out_priv->mdev->priv.devcom;
+	esw = mlx5_devcom_get_peer_data_rcu(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	err = esw ? mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport) : -ENODEV;
+	rcu_read_unlock();
+
+	return err;
 }
 
 static int
