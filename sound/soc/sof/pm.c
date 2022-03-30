@@ -135,8 +135,8 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* resume DMA trace, only need send ipc */
-	ret = snd_sof_init_trace_ipc(sdev);
+	/* resume DMA trace */
+	ret = snd_sof_trace_resume(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
@@ -209,8 +209,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (tplg_ops->tear_down_all_pipelines)
 		tplg_ops->tear_down_all_pipelines(sdev, false);
 
-	/* release trace */
-	snd_sof_release_trace(sdev);
+	/* suspend DMA trace */
+	snd_sof_trace_suspend(sdev, pm_state);
 
 	/* Notify clients not managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);

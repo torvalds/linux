@@ -403,6 +403,12 @@ struct snd_sof_ipc {
 	const struct sof_ipc_ops *ops;
 };
 
+enum sof_dtrace_state {
+	SOF_DTRACE_DISABLED,
+	SOF_DTRACE_STOPPED,
+	SOF_DTRACE_ENABLED,
+};
+
 /*
  * SOF Device Level.
  */
@@ -489,9 +495,9 @@ struct snd_sof_dev {
 	wait_queue_head_t trace_sleep;
 	u32 host_offset;
 	bool dtrace_is_supported; /* set with Kconfig or module parameter */
-	bool dtrace_is_enabled;
 	bool dtrace_error;
 	bool dtrace_draining;
+	enum sof_dtrace_state dtrace_state;
 
 	bool msi_enabled;
 
@@ -595,7 +601,6 @@ static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_i
  * Trace/debug
  */
 int snd_sof_init_trace(struct snd_sof_dev *sdev);
-void snd_sof_release_trace(struct snd_sof_dev *sdev);
 void snd_sof_free_trace(struct snd_sof_dev *sdev);
 int snd_sof_dbg_init(struct snd_sof_dev *sdev);
 void snd_sof_free_debug(struct snd_sof_dev *sdev);
@@ -609,7 +614,8 @@ void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 			      u32 panic_code, u32 tracep_code, void *oops,
 			      struct sof_ipc_panic_info *panic_info,
 			      void *stack, size_t stack_words);
-int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
+void snd_sof_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state);
+int snd_sof_trace_resume(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,

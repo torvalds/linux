@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/sched/signal.h>
 #include "sof-priv.h"
+#include "sof-audio.h"
 #include "ops.h"
 #include "sof-utils.h"
 
@@ -263,7 +264,7 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	if (ret)
 		return ret;
 
-	if (!sdev->dtrace_is_enabled && sdev->dtrace_draining) {
+	if (sdev->dtrace_state != SOF_DTRACE_ENABLED && sdev->dtrace_draining) {
 		/*
 		 * tracing has ended and all traces have been
 		 * read by client, return EOF
@@ -344,7 +345,7 @@ static int sof_dfsentry_trace_release(struct inode *inode, struct file *file)
 	struct snd_sof_dev *sdev = dfse->sdev;
 
 	/* avoid duplicate traces at next open */
-	if (!sdev->dtrace_is_enabled)
+	if (sdev->dtrace_state != SOF_DTRACE_ENABLED)
 		sdev->host_offset = 0;
 
 	return 0;
@@ -384,7 +385,7 @@ static int trace_debugfs_create(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
+static int snd_sof_enable_trace(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
@@ -395,8 +396,11 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	if (!sdev->dtrace_is_supported)
 		return 0;
 
-	if (sdev->dtrace_is_enabled || !sdev->dma_trace_pages)
+	if (sdev->dtrace_state == SOF_DTRACE_ENABLED || !sdev->dma_trace_pages)
 		return -EINVAL;
+
+	if (sdev->dtrace_state == SOF_DTRACE_STOPPED)
+		goto start;
 
 	/* set IPC parameters */
 	params.hdr.cmd = SOF_IPC_GLB_TRACE_MSG;
@@ -435,6 +439,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 		goto trace_release;
 	}
 
+start:
 	ret = snd_sof_dma_trace_trigger(sdev, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev,
@@ -442,7 +447,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 		goto trace_release;
 	}
 
-	sdev->dtrace_is_enabled = true;
+	sdev->dtrace_state = SOF_DTRACE_ENABLED;
 
 	return 0;
 
@@ -459,7 +464,7 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 		return 0;
 
 	/* set false before start initialization */
-	sdev->dtrace_is_enabled = false;
+	sdev->dtrace_state = SOF_DTRACE_DISABLED;
 
 	/* allocate trace page table buffer */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->dev,
@@ -498,7 +503,7 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 
 	init_waitqueue_head(&sdev->trace_sleep);
 
-	ret = snd_sof_init_trace_ipc(sdev);
+	ret = snd_sof_enable_trace(sdev);
 	if (ret < 0)
 		goto table_err;
 
@@ -518,7 +523,8 @@ int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 	if (!sdev->dtrace_is_supported)
 		return 0;
 
-	if (sdev->dtrace_is_enabled && sdev->host_offset != posn->host_offset) {
+	if (sdev->dtrace_state == SOF_DTRACE_ENABLED &&
+	    sdev->host_offset != posn->host_offset) {
 		sdev->host_offset = posn->host_offset;
 		wake_up(&sdev->trace_sleep);
 	}
@@ -537,14 +543,14 @@ void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev)
 	if (!sdev->dtrace_is_supported)
 		return;
 
-	if (sdev->dtrace_is_enabled) {
+	if (sdev->dtrace_state == SOF_DTRACE_ENABLED) {
 		sdev->dtrace_error = true;
 		wake_up(&sdev->trace_sleep);
 	}
 }
 EXPORT_SYMBOL(snd_sof_trace_notify_for_error);
 
-void snd_sof_release_trace(struct snd_sof_dev *sdev)
+static void snd_sof_release_trace(struct snd_sof_dev *sdev, bool only_stop)
 {
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
@@ -552,13 +558,14 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev)
 	struct sof_ipc_reply ipc_reply;
 	int ret;
 
-	if (!sdev->dtrace_is_supported || !sdev->dtrace_is_enabled)
+	if (!sdev->dtrace_is_supported || sdev->dtrace_state == SOF_DTRACE_DISABLED)
 		return;
 
 	ret = snd_sof_dma_trace_trigger(sdev, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0)
 		dev_err(sdev->dev,
 			"error: snd_sof_dma_trace_trigger: stop: %d\n", ret);
+	sdev->dtrace_state = SOF_DTRACE_STOPPED;
 
 	/*
 	 * stop and free trace DMA in the DSP. TRACE_DMA_FREE is only supported from
@@ -574,23 +581,40 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev)
 			dev_err(sdev->dev, "DMA_TRACE_FREE failed with error: %d\n", ret);
 	}
 
+	if (only_stop)
+		goto out;
+
 	ret = snd_sof_dma_trace_release(sdev);
 	if (ret < 0)
 		dev_err(sdev->dev,
 			"error: fail in snd_sof_dma_trace_release %d\n", ret);
 
-	sdev->dtrace_is_enabled = false;
+	sdev->dtrace_state = SOF_DTRACE_DISABLED;
+
+out:
 	sdev->dtrace_draining = true;
 	wake_up(&sdev->trace_sleep);
 }
-EXPORT_SYMBOL(snd_sof_release_trace);
+
+void snd_sof_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state)
+{
+	snd_sof_release_trace(sdev, pm_state.event == SOF_DSP_PM_D0);
+}
+EXPORT_SYMBOL(snd_sof_trace_suspend);
+
+int snd_sof_trace_resume(struct snd_sof_dev *sdev)
+{
+	return snd_sof_enable_trace(sdev);
+}
+EXPORT_SYMBOL(snd_sof_trace_resume);
 
 void snd_sof_free_trace(struct snd_sof_dev *sdev)
 {
 	if (!sdev->dtrace_is_supported)
 		return;
 
-	snd_sof_release_trace(sdev);
+	/* release trace */
+	snd_sof_release_trace(sdev, false);
 
 	if (sdev->dma_trace_pages) {
 		snd_dma_free_pages(&sdev->dmatb);
