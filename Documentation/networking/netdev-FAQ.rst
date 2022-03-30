@@ -116,10 +116,12 @@ patch. Patches are indexed by the ``Message-ID`` header of the emails
 which carried them so if you have trouble finding your patch append
 the value of ``Message-ID`` to the URL above.
 
-The above only says "Under Review".  How can I find out more?
--------------------------------------------------------------
+How long before my patch is accepted?
+-------------------------------------
 Generally speaking, the patches get triaged quickly (in less than
-48h).  So be patient.  Asking the maintainer for status updates on your
+48h). But be patient, if your patch is active in patchwork (i.e. it's
+listed on the project's patch list) the chances it was missed are close to zero.
+Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
 
