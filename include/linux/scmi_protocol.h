@@ -44,6 +44,8 @@ struct scmi_clock_info {
 	char name[SCMI_MAX_STR_SIZE];
 	unsigned int enable_latency;
 	bool rate_discrete;
+	bool rate_changed_notifications;
+	bool rate_change_requested_notifications;
 	union {
 		struct {
 			int num_rates;
@@ -744,6 +746,8 @@ void scmi_protocol_unregister(const struct scmi_protocol *proto);
 /* SCMI Notification API - Custom Event Reports */
 enum scmi_notification_events {
 	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
+	SCMI_EVENT_CLOCK_RATE_CHANGED = 0x0,
+	SCMI_EVENT_CLOCK_RATE_CHANGE_REQUESTED = 0x1,
 	SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED = 0x0,
 	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
 	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
@@ -758,6 +762,13 @@ struct scmi_power_state_changed_report {
 	unsigned int	agent_id;
 	unsigned int	domain_id;
 	unsigned int	power_state;
+};
+
+struct scmi_clock_rate_notif_report {
+	ktime_t			timestamp;
+	unsigned int		agent_id;
+	unsigned int		clock_id;
+	unsigned long long	rate;
 };
 
 struct scmi_system_power_state_notifier_report {
