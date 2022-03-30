@@ -3923,6 +3923,7 @@ xlog_force_shutdown(
 	xlog_state_shutdown_callbacks(log);
 	spin_unlock(&log->l_icloglock);
 
+	wake_up_var(&log->l_opstate);
 	return log_error;
 }
 
