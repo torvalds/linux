@@ -69,6 +69,8 @@ struct vdpa_mgmt_dev;
  * @cf_lock: Protects get and set access to configuration layout.
  * @index: device index
  * @features_valid: were features initialized? for legacy guests
+ * @ngroups: the number of virtqueue groups
+ * @nas: the number of address spaces
  * @use_va: indicate whether virtual address must be used by this device
  * @nvqs: maximum number of supported virtqueues
  * @mdev: management device pointer; caller must setup when registering device as part
@@ -86,6 +88,7 @@ struct vdpa_device {
 	u32 nvqs;
 	struct vdpa_mgmt_dev *mdev;
 	unsigned int ngroups;
+	unsigned int nas;
 };
 
 /**
@@ -241,6 +244,7 @@ struct vdpa_map_file {
  *				Needed for device that using device
  *				specific DMA translation (on-chip IOMMU)
  *				@vdev: vdpa device
+ *				@asid: address space identifier
  *				@iotlb: vhost memory mapping to be
  *				used by the vDPA
  *				Returns integer: success (0) or error (< 0)
@@ -249,6 +253,7 @@ struct vdpa_map_file {
  *				specific DMA translation (on-chip IOMMU)
  *				and preferring incremental map.
  *				@vdev: vdpa device
+ *				@asid: address space identifier
  *				@iova: iova to be mapped
  *				@size: size of the area
  *				@pa: physical address for the map
@@ -260,6 +265,7 @@ struct vdpa_map_file {
  *				specific DMA translation (on-chip IOMMU)
  *				and preferring incremental unmap.
  *				@vdev: vdpa device
+ *				@asid: address space identifier
  *				@iova: iova to be unmapped
  *				@size: size of the area
  *				Returns integer: success (0) or error (< 0)
@@ -313,10 +319,12 @@ struct vdpa_config_ops {
 	struct vdpa_iova_range (*get_iova_range)(struct vdpa_device *vdev);
 
 	/* DMA ops */
-	int (*set_map)(struct vdpa_device *vdev, struct vhost_iotlb *iotlb);
-	int (*dma_map)(struct vdpa_device *vdev, u64 iova, u64 size,
-		       u64 pa, u32 perm, void *opaque);
-	int (*dma_unmap)(struct vdpa_device *vdev, u64 iova, u64 size);
+	int (*set_map)(struct vdpa_device *vdev, unsigned int asid,
+		       struct vhost_iotlb *iotlb);
+	int (*dma_map)(struct vdpa_device *vdev, unsigned int asid,
+		       u64 iova, u64 size, u64 pa, u32 perm, void *opaque);
+	int (*dma_unmap)(struct vdpa_device *vdev, unsigned int asid,
+			 u64 iova, u64 size);
 
 	/* Free device resources */
 	void (*free)(struct vdpa_device *vdev);
@@ -324,7 +332,7 @@ struct vdpa_config_ops {
 
 struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 					const struct vdpa_config_ops *config,
-					unsigned int ngroups,
+					unsigned int ngroups, unsigned int nas,
 					size_t size, const char *name,
 					bool use_va);
 
@@ -336,17 +344,19 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
  * @parent: the parent device
  * @config: the bus operations that is supported by this device
  * @ngroups: the number of virtqueue groups supported by this device
+ * @nas: the number of address spaces
  * @name: name of the vdpa device
  * @use_va: indicate whether virtual address must be used by this device
  *
  * Return allocated data structure or ERR_PTR upon error
  */
-#define vdpa_alloc_device(dev_struct, member, parent, config, ngroups, name, use_va)   \
+#define vdpa_alloc_device(dev_struct, member, parent, config, ngroups, nas, \
+			  name, use_va) \
 			  container_of((__vdpa_alloc_device( \
-				       parent, config, ngroups, \
-				       sizeof(dev_struct) + \
+				       parent, config, ngroups, nas, \
+				       (sizeof(dev_struct) + \
 				       BUILD_BUG_ON_ZERO(offsetof( \
-				       dev_struct, member)), name, use_va)), \
+				       dev_struct, member))), name, use_va)), \
 				       dev_struct, member)
 
 int vdpa_register_device(struct vdpa_device *vdev, u32 nvqs);

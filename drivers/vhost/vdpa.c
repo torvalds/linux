@@ -633,10 +633,10 @@ static int vhost_vdpa_map(struct vhost_vdpa *v, struct vhost_iotlb *iotlb,
 		return r;
 
 	if (ops->dma_map) {
-		r = ops->dma_map(vdpa, iova, size, pa, perm, opaque);
+		r = ops->dma_map(vdpa, 0, iova, size, pa, perm, opaque);
 	} else if (ops->set_map) {
 		if (!v->in_batch)
-			r = ops->set_map(vdpa, iotlb);
+			r = ops->set_map(vdpa, 0, iotlb);
 	} else {
 		r = iommu_map(v->domain, iova, pa, size,
 			      perm_to_iommu_flags(perm));
@@ -662,10 +662,10 @@ static void vhost_vdpa_unmap(struct vhost_vdpa *v,
 	vhost_vdpa_iotlb_unmap(v, iotlb, iova, iova + size - 1);
 
 	if (ops->dma_map) {
-		ops->dma_unmap(vdpa, iova, size);
+		ops->dma_unmap(vdpa, 0, iova, size);
 	} else if (ops->set_map) {
 		if (!v->in_batch)
-			ops->set_map(vdpa, iotlb);
+			ops->set_map(vdpa, 0, iotlb);
 	} else {
 		iommu_unmap(v->domain, iova, size);
 	}
@@ -897,7 +897,7 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 		break;
 	case VHOST_IOTLB_BATCH_END:
 		if (v->in_batch && ops->set_map)
-			ops->set_map(vdpa, iotlb);
+			ops->set_map(vdpa, 0, iotlb);
 		v->in_batch = false;
 		break;
 	default:
@@ -1162,6 +1162,10 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	struct vhost_vdpa *v;
 	int minor;
 	int r;
+
+	/* Only support 1 address space and 1 groups */
+	if (vdpa->ngroups != 1 || vdpa->nas != 1)
+		return -EOPNOTSUPP;
 
 	v = kzalloc(sizeof(*v), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!v)
