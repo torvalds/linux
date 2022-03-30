@@ -162,6 +162,15 @@ $pgt_fill_loop:
 	/* FALLTHROUGH */
 	.procend
 
+#ifdef CONFIG_HOTPLUG_CPU
+	/* common_stext is far away in another section... jump there */
+	load32		PA(common_stext), %rp
+	bv,n		(%rp)
+
+	/* common_stext and smp_slave_stext needs to be in text section */
+	.text
+#endif
+
 	/*
 	** Code Common to both Monarch and Slave processors.
 	** Entry:
@@ -370,8 +379,6 @@ smp_slave_stext:
 
 	.procend
 #endif /* CONFIG_SMP */
-
-ENDPROC(parisc_kernel_start)
 
 #ifndef CONFIG_64BIT
 	.section .data..ro_after_init

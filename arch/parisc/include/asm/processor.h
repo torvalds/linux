@@ -95,6 +95,7 @@ struct cpuinfo_parisc {
 
 extern struct system_cpuinfo_parisc boot_cpu_data;
 DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
+extern int time_keeper_id;		/* CPU used for timekeeping */
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
 
