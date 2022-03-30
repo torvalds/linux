@@ -1265,10 +1265,20 @@ static void vblank_control_worker(struct work_struct *work)
 
 	DRM_DEBUG_KMS("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
 
-	/* Control PSR based on vblank requirements from OS */
+	/*
+	 * Control PSR based on vblank requirements from OS
+	 *
+	 * If panel supports PSR SU, there's no need to disable PSR when OS is
+	 * submitting fast atomic commits (we infer this by whether the OS
+	 * requests vblank events). Fast atomic commits will simply trigger a
+	 * full-frame-update (FFU); a specific case of selective-update (SU)
+	 * where the SU region is the full hactive*vactive region. See
+	 * fill_dc_dirty_rects().
+	 */
 	if (vblank_work->stream && vblank_work->stream->link) {
 		if (vblank_work->enable) {
-			if (vblank_work->stream->link->psr_settings.psr_allow_active)
+			if (vblank_work->stream->link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 &&
+			    vblank_work->stream->link->psr_settings.psr_allow_active)
 				amdgpu_dm_psr_disable(vblank_work->stream);
 		} else if (vblank_work->stream->link->psr_settings.psr_feature_enabled &&
 			   !vblank_work->stream->link->psr_settings.psr_allow_active &&
@@ -5733,6 +5743,117 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	return 0;
 }
 
+/**
+ * fill_dc_dirty_rects() - Fill DC dirty regions for PSR selective updates
+ *
+ * @plane: DRM plane containing dirty regions that need to be flushed to the eDP
+ *         remote fb
+ * @old_plane_state: Old state of @plane
+ * @new_plane_state: New state of @plane
+ * @crtc_state: New state of CRTC connected to the @plane
+ * @flip_addrs: DC flip tracking struct, which also tracts dirty rects
+ *
+ * For PSR SU, DC informs the DMUB uController of dirty rectangle regions
+ * (referred to as "damage clips" in DRM nomenclature) that require updating on
+ * the eDP remote buffer. The responsibility of specifying the dirty regions is
+ * amdgpu_dm's.
+ *
+ * A damage-aware DRM client should fill the FB_DAMAGE_CLIPS property on the
+ * plane with regions that require flushing to the eDP remote buffer. In
+ * addition, certain use cases - such as cursor and multi-plane overlay (MPO) -
+ * implicitly provide damage clips without any client support via the plane
+ * bounds.
+ *
+ * Today, amdgpu_dm only supports the MPO and cursor usecase.
+ *
+ * TODO: Also enable for FB_DAMAGE_CLIPS
+ */
+static void fill_dc_dirty_rects(struct drm_plane *plane,
+				struct drm_plane_state *old_plane_state,
+				struct drm_plane_state *new_plane_state,
+				struct drm_crtc_state *crtc_state,
+				struct dc_flip_addrs *flip_addrs)
+{
+	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(crtc_state);
+	struct rect *dirty_rects = flip_addrs->dirty_rects;
+	uint32_t num_clips;
+	bool bb_changed;
+	bool fb_changed;
+	uint32_t i = 0;
+
+	flip_addrs->dirty_rect_count = 0;
+
+	/*
+	 * Cursor plane has it's own dirty rect update interface. See
+	 * dcn10_dmub_update_cursor_data and dmub_cmd_update_cursor_info_data
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+		return;
+
+	/*
+	 * Today, we only consider MPO use-case for PSR SU. If MPO not
+	 * requested, and there is a plane update, do FFU.
+	 */
+	if (!dm_crtc_state->mpo_requested) {
+		dirty_rects[0].x = 0;
+		dirty_rects[0].y = 0;
+		dirty_rects[0].width = dm_crtc_state->base.mode.crtc_hdisplay;
+		dirty_rects[0].height = dm_crtc_state->base.mode.crtc_vdisplay;
+		flip_addrs->dirty_rect_count = 1;
+		DRM_DEBUG_DRIVER("[PLANE:%d] PSR FFU dirty rect size (%d, %d)\n",
+				 new_plane_state->plane->base.id,
+				 dm_crtc_state->base.mode.crtc_hdisplay,
+				 dm_crtc_state->base.mode.crtc_vdisplay);
+		return;
+	}
+
+	/*
+	 * MPO is requested. Add entire plane bounding box to dirty rects if
+	 * flipped to or damaged.
+	 *
+	 * If plane is moved or resized, also add old bounding box to dirty
+	 * rects.
+	 */
+	num_clips = drm_plane_get_damage_clips_count(new_plane_state);
+	fb_changed = old_plane_state->fb->base.id !=
+		     new_plane_state->fb->base.id;
+	bb_changed = (old_plane_state->crtc_x != new_plane_state->crtc_x ||
+		      old_plane_state->crtc_y != new_plane_state->crtc_y ||
+		      old_plane_state->crtc_w != new_plane_state->crtc_w ||
+		      old_plane_state->crtc_h != new_plane_state->crtc_h);
+
+	DRM_DEBUG_DRIVER("[PLANE:%d] PSR bb_changed:%d fb_changed:%d num_clips:%d\n",
+			 new_plane_state->plane->base.id,
+			 bb_changed, fb_changed, num_clips);
+
+	if (num_clips || fb_changed || bb_changed) {
+		dirty_rects[i].x = new_plane_state->crtc_x;
+		dirty_rects[i].y = new_plane_state->crtc_y;
+		dirty_rects[i].width = new_plane_state->crtc_w;
+		dirty_rects[i].height = new_plane_state->crtc_h;
+		DRM_DEBUG_DRIVER("[PLANE:%d] PSR SU dirty rect at (%d, %d) size (%d, %d)\n",
+				 new_plane_state->plane->base.id,
+				 dirty_rects[i].x, dirty_rects[i].y,
+				 dirty_rects[i].width, dirty_rects[i].height);
+		i += 1;
+	}
+
+	/* Add old plane bounding-box if plane is moved or resized */
+	if (bb_changed) {
+		dirty_rects[i].x = old_plane_state->crtc_x;
+		dirty_rects[i].y = old_plane_state->crtc_y;
+		dirty_rects[i].width = old_plane_state->crtc_w;
+		dirty_rects[i].height = old_plane_state->crtc_h;
+		DRM_DEBUG_DRIVER("[PLANE:%d] PSR SU dirty rect at (%d, %d) size (%d, %d)\n",
+				old_plane_state->plane->base.id,
+				dirty_rects[i].x, dirty_rects[i].y,
+				dirty_rects[i].width, dirty_rects[i].height);
+		i += 1;
+	}
+
+	flip_addrs->dirty_rect_count = i;
+}
+
 static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 					   const struct dm_connector_state *dm_state,
 					   struct dc_stream_state *stream)
@@ -6681,6 +6802,7 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
 	state->force_dpms_off = cur->force_dpms_off;
+	state->mpo_requested = cur->mpo_requested;
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
 	return &state->base;
@@ -9328,6 +9450,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		bundle->surface_updates[planes_count].plane_info =
 			&bundle->plane_infos[planes_count];
 
+		fill_dc_dirty_rects(plane, old_plane_state, new_plane_state,
+				    new_crtc_state,
+				    &bundle->flip_addrs[planes_count]);
+
 		/*
 		 * Only allow immediate flips for fast updates that don't
 		 * change FB pitch, DCC state, rotation or mirroing.
@@ -9523,6 +9649,18 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 			/* Allow PSR when skip count is 0. */
 			acrtc_attach->dm_irq_params.allow_psr_entry = !aconn->psr_skip_count;
+
+			/*
+			 * If sink supports PSR SU, there is no need to rely on
+			 * a vblank event disable request to enable PSR. PSR SU
+			 * can be enabled immediately once OS demonstrates an
+			 * adequate number of fast atomic commits to notify KMD
+			 * of update events. See `vblank_control_worker()`.
+			 */
+			if (acrtc_state->stream->link->psr_settings.psr_version >= DC_PSR_VERSION_SU_1 &&
+			    acrtc_attach->dm_irq_params.allow_psr_entry &&
+			    !acrtc_state->stream->link->psr_settings.psr_allow_active)
+				amdgpu_dm_psr_enable(acrtc_state->stream);
 		} else {
 			acrtc_attach->dm_irq_params.allow_psr_entry = false;
 		}
