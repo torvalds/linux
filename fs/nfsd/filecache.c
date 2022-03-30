@@ -897,9 +897,9 @@ nfsd_file_is_cached(struct inode *inode)
 	return ret;
 }
 
-__be32
-nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		  unsigned int may_flags, struct nfsd_file **pnf)
+static __be32
+nfsd_do_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		     unsigned int may_flags, struct nfsd_file **pnf, bool open)
 {
 	__be32	status;
 	struct net *net = SVC_NET(rqstp);
@@ -994,10 +994,13 @@ open_file:
 		nfsd_file_gc();
 
 	nf->nf_mark = nfsd_file_mark_find_or_create(nf);
-	if (nf->nf_mark)
-		status = nfsd_open_verified(rqstp, fhp, may_flags,
-					    &nf->nf_file);
-	else
+	if (nf->nf_mark) {
+		if (open)
+			status = nfsd_open_verified(rqstp, fhp, may_flags,
+						    &nf->nf_file);
+		else
+			status = nfs_ok;
+	} else
 		status = nfserr_jukebox;
 	/*
 	 * If construction failed, or we raced with a call to unlink()
@@ -1015,6 +1018,40 @@ open_file:
 	smp_mb__after_atomic();
 	wake_up_bit(&nf->nf_flags, NFSD_FILE_PENDING);
 	goto out;
+}
+
+/**
+ * nfsd_file_acquire - Get a struct nfsd_file with an open file
+ * @rqstp: the RPC transaction being executed
+ * @fhp: the NFS filehandle of the file to be opened
+ * @may_flags: NFSD_MAY_ settings for the file
+ * @pnf: OUT: new or found "struct nfsd_file" object
+ *
+ * Returns nfs_ok and sets @pnf on success; otherwise an nfsstat in
+ * network byte order is returned.
+ */
+__be32
+nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		  unsigned int may_flags, struct nfsd_file **pnf)
+{
+	return nfsd_do_file_acquire(rqstp, fhp, may_flags, pnf, true);
+}
+
+/**
+ * nfsd_file_create - Get a struct nfsd_file, do not open
+ * @rqstp: the RPC transaction being executed
+ * @fhp: the NFS filehandle of the file just created
+ * @may_flags: NFSD_MAY_ settings for the file
+ * @pnf: OUT: new or found "struct nfsd_file" object
+ *
+ * Returns nfs_ok and sets @pnf on success; otherwise an nfsstat in
+ * network byte order is returned.
+ */
+__be32
+nfsd_file_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		 unsigned int may_flags, struct nfsd_file **pnf)
+{
+	return nfsd_do_file_acquire(rqstp, fhp, may_flags, pnf, false);
 }
 
 /*

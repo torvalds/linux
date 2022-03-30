@@ -2640,6 +2640,8 @@ static inline struct file *file_open_root_mnt(struct vfsmount *mnt,
 			      name, flags, mode);
 }
 extern struct file * dentry_open(const struct path *, int, const struct cred *);
+extern struct file *dentry_create(const struct path *path, int flags,
+				  umode_t mode, const struct cred *cred);
 extern struct file * open_with_fake_path(const struct path *, int,
 					 struct inode*, const struct cred *);
 static inline struct file *file_clone_open(struct file *file)

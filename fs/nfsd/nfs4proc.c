@@ -243,6 +243,37 @@ static inline bool nfsd4_create_is_exclusive(int createmode)
 		createmode == NFS4_CREATE_EXCLUSIVE4_1;
 }
 
+static __be32
+nfsd4_vfs_create(struct svc_fh *fhp, struct dentry *child,
+		 struct nfsd4_open *open)
+{
+	struct file *filp;
+	struct path path;
+	int oflags;
+
+	oflags = O_CREAT | O_LARGEFILE;
+	switch (open->op_share_access & NFS4_SHARE_ACCESS_BOTH) {
+	case NFS4_SHARE_ACCESS_WRITE:
+		oflags |= O_WRONLY;
+		break;
+	case NFS4_SHARE_ACCESS_BOTH:
+		oflags |= O_RDWR;
+		break;
+	default:
+		oflags |= O_RDONLY;
+	}
+
+	path.mnt = fhp->fh_export->ex_path.mnt;
+	path.dentry = child;
+	filp = dentry_create(&path, oflags, open->op_iattr.ia_mode,
+			     current_cred());
+	if (IS_ERR(filp))
+		return nfserrno(PTR_ERR(filp));
+
+	open->op_filp = filp;
+	return nfs_ok;
+}
+
 /*
  * Implement NFSv4's unchecked, guarded, and exclusive create
  * semantics for regular files. Open state for this new file is
@@ -355,11 +386,9 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!IS_POSIXACL(inode))
 		iap->ia_mode &= ~current_umask();
 
-	host_err = vfs_create(&init_user_ns, inode, child, iap->ia_mode, true);
-	if (host_err < 0) {
-		status = nfserrno(host_err);
+	status = nfsd4_vfs_create(fhp, child, open);
+	if (status != nfs_ok)
 		goto out;
-	}
 	open->op_created = true;
 
 	/* A newly created file already has a file size of zero. */
@@ -517,6 +546,8 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		(int)open->op_fnamelen, open->op_fname,
 		open->op_openowner);
 
+	open->op_filp = NULL;
+
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
@@ -613,6 +644,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (reclaim && !status)
 		nn->somebody_reclaimed = true;
 out:
+	if (open->op_filp) {
+		fput(open->op_filp);
+		open->op_filp = NULL;
+	}
 	if (resfh && resfh != &cstate->current_fh) {
 		fh_dup2(&cstate->current_fh, resfh);
 		fh_put(resfh);
