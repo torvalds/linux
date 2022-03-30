@@ -571,8 +571,21 @@ static void serial8250_clear_fifos(struct uart_8250_port *p)
 	}
 }
 
+static inline void serial8250_em485_update_temt_delay(struct uart_8250_port *p,
+			unsigned int cflag, unsigned int baud)
+{
+	unsigned int bits;
+
+	if (!p->em485)
+		return;
+
+	bits = tty_get_frame_size(cflag);
+	p->em485->no_temt_delay = DIV_ROUND_UP(bits * NSEC_PER_SEC, baud);
+}
+
 static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t);
 static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t);
+static enum hrtimer_restart serial8250_em485_handle_no_temt(struct hrtimer *t);
 
 void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
 {
@@ -631,6 +644,16 @@ static int serial8250_em485_init(struct uart_8250_port *p)
 		     HRTIMER_MODE_REL);
 	hrtimer_init(&p->em485->start_tx_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
+
+	if (p->capabilities & UART_CAP_NOTEMT) {
+		struct tty_struct *tty = p->port.state->port.tty;
+
+		serial8250_em485_update_temt_delay(p, tty->termios.c_cflag,
+						   tty_get_baud_rate(tty));
+		hrtimer_init(&p->em485->no_temt_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		p->em485->no_temt_timer.function = &serial8250_em485_handle_no_temt;
+	}
+
 	p->em485->stop_tx_timer.function = &serial8250_em485_handle_stop_tx;
 	p->em485->start_tx_timer.function = &serial8250_em485_handle_start_tx;
 	p->em485->port = p;
@@ -662,6 +685,7 @@ void serial8250_em485_destroy(struct uart_8250_port *p)
 
 	hrtimer_cancel(&p->em485->start_tx_timer);
 	hrtimer_cancel(&p->em485->stop_tx_timer);
+	hrtimer_cancel(&p->em485->no_temt_timer);
 
 	kfree(p->em485);
 	p->em485 = NULL;
@@ -1504,6 +1528,11 @@ static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 	hrtimer_start(hrt, ms_to_ktime(msec), HRTIMER_MODE_REL);
 }
 
+static void start_hrtimer_ns(struct hrtimer *hrt, unsigned long nsec)
+{
+	hrtimer_start(hrt, ns_to_ktime(nsec), HRTIMER_MODE_REL);
+}
+
 static void __stop_tx_rs485(struct uart_8250_port *p)
 {
 	struct uart_8250_em485 *em485 = p->em485;
@@ -1535,14 +1564,33 @@ static inline void __stop_tx(struct uart_8250_port *p)
 
 	if (em485) {
 		unsigned char lsr = serial_in(p, UART_LSR);
+
+		p->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
+
 		/*
-		 * To provide required timeing and allow FIFO transfer,
+		 * To provide required timing and allow FIFO transfer,
 		 * __stop_tx_rs485() must be called only when both FIFO and
 		 * shift register are empty. It is for device driver to enable
 		 * interrupt on TEMT.
 		 */
-		if ((lsr & BOTH_EMPTY) != BOTH_EMPTY)
+		if ((lsr & BOTH_EMPTY) != BOTH_EMPTY) {
+			if (!(p->capabilities & UART_CAP_NOTEMT))
+				/* __stop_tx will be called again once TEMT triggers */
+				return;
+
+			if (!(lsr & UART_LSR_THRE))
+				/* __stop_tx will be called again once THRE triggers */
+				return;
+
+			/*
+			 * On devices with no TEMT interrupt available, start
+			 * a timer for a byte time. The timer will recall
+			 * __stop_tx().
+			 */
+			em485->active_timer = &em485->no_temt_timer;
+			start_hrtimer_ns(&em485->no_temt_timer, em485->no_temt_delay);
 			return;
+		}
 
 		__stop_tx_rs485(p);
 	}
@@ -1651,6 +1699,27 @@ static inline void start_tx_rs485(struct uart_port *port)
 	}
 
 	__start_tx(port);
+}
+
+static enum hrtimer_restart serial8250_em485_handle_no_temt(struct hrtimer *t)
+{
+	struct uart_8250_em485 *em485;
+	struct uart_8250_port *p;
+	unsigned long flags;
+
+	em485 = container_of(t, struct uart_8250_em485, no_temt_timer);
+	p = em485->port;
+
+	serial8250_rpm_get(p);
+	spin_lock_irqsave(&p->port.lock, flags);
+	if (em485->active_timer == &em485->no_temt_timer) {
+		em485->active_timer = NULL;
+		__stop_tx(p);
+	}
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
+	serial8250_rpm_put(p);
+	return HRTIMER_NORESTART;
 }
 
 static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
@@ -2857,6 +2926,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	serial8250_set_divisor(port, baud, quot, frac);
+
+	if (up->capabilities & UART_CAP_NOTEMT)
+		serial8250_em485_update_temt_delay(up, termios->c_cflag, baud);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR

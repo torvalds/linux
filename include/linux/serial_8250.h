@@ -79,7 +79,9 @@ struct uart_8250_ops {
 struct uart_8250_em485 {
 	struct hrtimer		start_tx_timer; /* "rs485 start tx" timer */
 	struct hrtimer		stop_tx_timer;  /* "rs485 stop tx" timer */
+	struct hrtimer		no_temt_timer;  /* "rs485 no TEMT interrupt" timer */
 	struct hrtimer		*active_timer;  /* pointer to active timer */
+	unsigned long		no_temt_delay;  /* Delay for no_temt_timer */
 	struct uart_8250_port	*port;          /* for hrtimer callbacks */
 	unsigned int		tx_stopped:1;	/* tx is currently stopped */
 };
