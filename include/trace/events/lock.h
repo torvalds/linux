@@ -14,6 +14,7 @@
 #define LCB_F_WRITE	(1U << 2)
 #define LCB_F_RT	(1U << 3)
 #define LCB_F_PERCPU	(1U << 4)
+#define LCB_F_MUTEX	(1U << 5)
 
 
 #ifdef CONFIG_LOCKDEP
@@ -113,7 +114,8 @@ TRACE_EVENT(contention_begin,
 				{ LCB_F_READ,		"READ" },
 				{ LCB_F_WRITE,		"WRITE" },
 				{ LCB_F_RT,		"RT" },
-				{ LCB_F_PERCPU,		"PERCPU" }
+				{ LCB_F_PERCPU,		"PERCPU" },
+				{ LCB_F_MUTEX,		"MUTEX" }
 			  ))
 );
 

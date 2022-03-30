@@ -602,12 +602,14 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 	preempt_disable();
 	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, ip);
 
+	trace_contention_begin(lock, LCB_F_MUTEX | LCB_F_SPIN);
 	if (__mutex_trylock(lock) ||
 	    mutex_optimistic_spin(lock, ww_ctx, NULL)) {
 		/* got the lock, yay! */
 		lock_acquired(&lock->dep_map, ip);
 		if (ww_ctx)
 			ww_mutex_set_context_fastpath(ww, ww_ctx);
+		trace_contention_end(lock, 0);
 		preempt_enable();
 		return 0;
 	}
@@ -644,7 +646,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 	}
 
 	set_current_state(state);
-	trace_contention_begin(lock, 0);
+	trace_contention_begin(lock, LCB_F_MUTEX);
 	for (;;) {
 		bool first;
 
@@ -684,9 +686,15 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 		 * state back to RUNNING and fall through the next schedule(),
 		 * or we must see its unlock and acquire.
 		 */
-		if (__mutex_trylock_or_handoff(lock, first) ||
-		    (first && mutex_optimistic_spin(lock, ww_ctx, &waiter)))
+		if (__mutex_trylock_or_handoff(lock, first))
 			break;
+
+		if (first) {
+			trace_contention_begin(lock, LCB_F_MUTEX | LCB_F_SPIN);
+			if (mutex_optimistic_spin(lock, ww_ctx, &waiter))
+				break;
+			trace_contention_begin(lock, LCB_F_MUTEX);
+		}
 
 		raw_spin_lock(&lock->wait_lock);
 	}
@@ -723,8 +731,8 @@ skip_wait:
 err:
 	__set_current_state(TASK_RUNNING);
 	__mutex_remove_waiter(lock, &waiter);
-	trace_contention_end(lock, ret);
 err_early_kill:
+	trace_contention_end(lock, ret);
 	raw_spin_unlock(&lock->wait_lock);
 	debug_mutex_free_waiter(&waiter);
 	mutex_release(&lock->dep_map, ip);
