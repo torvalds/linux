@@ -68,6 +68,12 @@ struct scmi_clock_set_rate {
 	__le32 value_high;
 };
 
+struct scmi_msg_resp_set_rate_complete {
+	__le32 id;
+	__le32 rate_low;
+	__le32 rate_high;
+};
+
 struct clock_info {
 	u32 version;
 	int num_clocks;
@@ -266,10 +272,22 @@ static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 	cfg->value_low = cpu_to_le32(rate & 0xffffffff);
 	cfg->value_high = cpu_to_le32(rate >> 32);
 
-	if (flags & CLOCK_SET_ASYNC)
+	if (flags & CLOCK_SET_ASYNC) {
 		ret = ph->xops->do_xfer_with_response(ph, t);
-	else
+		if (!ret) {
+			struct scmi_msg_resp_set_rate_complete *resp;
+
+			resp = t->rx.buf;
+			if (le32_to_cpu(resp->id) == clk_id)
+				dev_dbg(ph->dev,
+					"Clk ID %d set async to %llu\n", clk_id,
+					get_unaligned_le64(&resp->rate_low));
+			else
+				ret = -EPROTO;
+		}
+	} else {
 		ret = ph->xops->do_xfer(ph, t);
+	}
 
 	if (ci->max_async_req)
 		atomic_dec(&ci->cur_async_req);
