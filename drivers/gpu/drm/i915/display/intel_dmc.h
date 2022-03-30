@@ -13,10 +13,6 @@
 struct drm_i915_error_state_buf;
 struct drm_i915_private;
 
-#define DMC_VERSION(major, minor)	((major) << 16 | (minor))
-#define DMC_VERSION_MAJOR(version)	((version) >> 16)
-#define DMC_VERSION_MINOR(version)	((version) & 0xffff)
-
 enum {
 	DMC_FW_MAIN = 0,
 	DMC_FW_PIPEA,
