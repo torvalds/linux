@@ -973,7 +973,7 @@ The ``->dynticks`` field counts the corresponding CPU's transitions to
 and from either dyntick-idle or user mode, so that this counter has an
 even value when the CPU is in dyntick-idle mode or user mode and an odd
 value otherwise. The transitions to/from user mode need to be counted
-for user mode adaptive-ticks support (see timers/NO_HZ.txt).
+for user mode adaptive-ticks support (see Documentation/timers/no_hz.rst).
 
 The ``->rcu_need_heavy_qs`` field is used to record the fact that the
 RCU core code would really like to see a quiescent state from the

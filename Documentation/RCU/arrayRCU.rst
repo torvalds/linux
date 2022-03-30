@@ -33,8 +33,8 @@ Situation 1: Hash Tables
 
 Hash tables are often implemented as an array, where each array entry
 has a linked-list hash chain.  Each hash chain can be protected by RCU
-as described in the listRCU.txt document.  This approach also applies
-to other array-of-list situations, such as radix trees.
+as described in listRCU.rst.  This approach also applies to other
+array-of-list situations, such as radix trees.
 
 .. _static_arrays:
 

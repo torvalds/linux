@@ -370,8 +370,8 @@ pointer fetched by rcu_dereference() may not be used outside of the
 outermost RCU read-side critical section containing that
 rcu_dereference(), unless protection of the corresponding data
 element has been passed from RCU to some other synchronization
-mechanism, most commonly locking or `reference
-counting <https://www.kernel.org/doc/Documentation/RCU/rcuref.txt>`__.
+mechanism, most commonly locking or reference counting
+(see ../../rcuref.rst).
 
 .. |high-quality implementation of C11 memory_order_consume [PDF]| replace:: high-quality implementation of C11 ``memory_order_consume`` [PDF]
 .. _high-quality implementation of C11 memory_order_consume [PDF]: http://www.rdrop.com/users/paulmck/RCU/consume.2015.07.13a.pdf
