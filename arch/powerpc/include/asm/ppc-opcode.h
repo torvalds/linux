@@ -130,6 +130,8 @@
 #define OP_PREFIX	1
 #define OP_TRAP_64	2
 #define OP_TRAP		3
+#define OP_SC		17
+#define OP_19		19
 #define OP_31		31
 #define OP_LWZ		32
 #define OP_LWZU		33
@@ -159,6 +161,20 @@
 #define OP_LD		58
 #define OP_STD		62
 
+#define OP_19_XOP_RFID		18
+#define OP_19_XOP_RFMCI		38
+#define OP_19_XOP_RFDI		39
+#define OP_19_XOP_RFI		50
+#define OP_19_XOP_RFCI		51
+#define OP_19_XOP_RFSCV		82
+#define OP_19_XOP_HRFID		274
+#define OP_19_XOP_URFID		306
+#define OP_19_XOP_STOP		370
+#define OP_19_XOP_DOZE		402
+#define OP_19_XOP_NAP		434
+#define OP_19_XOP_SLEEP		466
+#define OP_19_XOP_RVWINKLE	498
+
 #define OP_31_XOP_TRAP      4
 #define OP_31_XOP_LDX       21
 #define OP_31_XOP_LWZX      23
@@ -179,6 +195,8 @@
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MSGSNDP   142
 #define OP_31_XOP_MSGCLRP   174
+#define OP_31_XOP_MTMSR     146
+#define OP_31_XOP_MTMSRD    178
 #define OP_31_XOP_TLBIE     306
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
