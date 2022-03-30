@@ -915,6 +915,11 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
 	int ret;
 
+	/* power on to config default format from sensor */
+	if (isp_dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS | INP_CIF) &&
+	    rkisp_update_sensor_info(isp_dev) >= 0)
+		_set_pipeline_default_fmt(isp_dev);
+
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
 	mutex_lock(&isp_dev->hw_dev->dev_lock);
