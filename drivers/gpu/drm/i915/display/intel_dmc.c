@@ -28,6 +28,7 @@
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
+#include "intel_dmc_regs.h"
 
 /**
  * DOC: DMC Firmware Support
