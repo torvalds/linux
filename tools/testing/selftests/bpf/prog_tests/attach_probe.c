@@ -11,15 +11,22 @@ static void trigger_func(void)
 	asm volatile ("");
 }
 
+/* attach point for byname uprobe */
+static void trigger_func2(void)
+{
+	asm volatile ("");
+}
+
 void test_attach_probe(void)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
-	int duration = 0;
 	struct bpf_link *kprobe_link, *kretprobe_link;
 	struct bpf_link *uprobe_link, *uretprobe_link;
 	struct test_attach_probe* skel;
 	ssize_t uprobe_offset, ref_ctr_offset;
+	struct bpf_link *uprobe_err_link;
 	bool legacy;
+	char *mem;
 
 	/* Check if new-style kprobe/uprobe API is supported.
 	 * Kernels that support new FD-based kprobe and uprobe BPF attachment
@@ -43,9 +50,9 @@ void test_attach_probe(void)
 		return;
 
 	skel = test_attach_probe__open_and_load();
-	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		return;
-	if (CHECK(!skel->bss, "check_bss", ".bss wasn't mmap()-ed\n"))
+	if (!ASSERT_OK_PTR(skel->bss, "check_bss"))
 		goto cleanup;
 
 	kprobe_link = bpf_program__attach_kprobe(skel->progs.handle_kprobe,
@@ -90,25 +97,73 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_uretprobe = uretprobe_link;
 
+	/* verify auto-attach fails for old-style uprobe definition */
+	uprobe_err_link = bpf_program__attach(skel->progs.handle_uprobe_byname);
+	if (!ASSERT_EQ(libbpf_get_error(uprobe_err_link), -EOPNOTSUPP,
+		       "auto-attach should fail for old-style name"))
+		goto cleanup;
+
+	uprobe_opts.func_name = "trigger_func2";
+	uprobe_opts.retprobe = false;
+	uprobe_opts.ref_ctr_offset = 0;
+	skel->links.handle_uprobe_byname =
+			bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe_byname,
+							0 /* this pid */,
+							"/proc/self/exe",
+							0, &uprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.handle_uprobe_byname, "attach_uprobe_byname"))
+		goto cleanup;
+
+	/* verify auto-attach works */
+	skel->links.handle_uretprobe_byname =
+			bpf_program__attach(skel->progs.handle_uretprobe_byname);
+	if (!ASSERT_OK_PTR(skel->links.handle_uretprobe_byname, "attach_uretprobe_byname"))
+		goto cleanup;
+
+	/* test attach by name for a library function, using the library
+	 * as the binary argument. libc.so.6 will be resolved via dlopen()/dlinfo().
+	 */
+	uprobe_opts.func_name = "malloc";
+	uprobe_opts.retprobe = false;
+	skel->links.handle_uprobe_byname2 =
+			bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe_byname2,
+							0 /* this pid */,
+							"libc.so.6",
+							0, &uprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.handle_uprobe_byname2, "attach_uprobe_byname2"))
+		goto cleanup;
+
+	uprobe_opts.func_name = "free";
+	uprobe_opts.retprobe = true;
+	skel->links.handle_uretprobe_byname2 =
+			bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe_byname2,
+							-1 /* any pid */,
+							"libc.so.6",
+							0, &uprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.handle_uretprobe_byname2, "attach_uretprobe_byname2"))
+		goto cleanup;
+
 	/* trigger & validate kprobe && kretprobe */
 	usleep(1);
 
-	if (CHECK(skel->bss->kprobe_res != 1, "check_kprobe_res",
-		  "wrong kprobe res: %d\n", skel->bss->kprobe_res))
-		goto cleanup;
-	if (CHECK(skel->bss->kretprobe_res != 2, "check_kretprobe_res",
-		  "wrong kretprobe res: %d\n", skel->bss->kretprobe_res))
-		goto cleanup;
+	/* trigger & validate shared library u[ret]probes attached by name */
+	mem = malloc(1);
+	free(mem);
 
 	/* trigger & validate uprobe & uretprobe */
 	trigger_func();
 
-	if (CHECK(skel->bss->uprobe_res != 3, "check_uprobe_res",
-		  "wrong uprobe res: %d\n", skel->bss->uprobe_res))
-		goto cleanup;
-	if (CHECK(skel->bss->uretprobe_res != 4, "check_uretprobe_res",
-		  "wrong uretprobe res: %d\n", skel->bss->uretprobe_res))
-		goto cleanup;
+	/* trigger & validate uprobe attached by name */
+	trigger_func2();
+
+	ASSERT_EQ(skel->bss->kprobe_res, 1, "check_kprobe_res");
+	ASSERT_EQ(skel->bss->kretprobe_res, 2, "check_kretprobe_res");
+	ASSERT_EQ(skel->bss->uprobe_res, 3, "check_uprobe_res");
+	ASSERT_EQ(skel->bss->uretprobe_res, 4, "check_uretprobe_res");
+	ASSERT_EQ(skel->bss->uprobe_byname_res, 5, "check_uprobe_byname_res");
+	ASSERT_EQ(skel->bss->uretprobe_byname_res, 6, "check_uretprobe_byname_res");
+	ASSERT_EQ(skel->bss->uprobe_byname2_res, 7, "check_uprobe_byname2_res");
+	ASSERT_EQ(skel->bss->uretprobe_byname2_res, 8, "check_uretprobe_byname2_res");
 
 cleanup:
 	test_attach_probe__destroy(skel);
