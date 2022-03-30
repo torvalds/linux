@@ -148,11 +148,8 @@ static void intel_enable_hdmi_audio(struct intel_encoder *encoder,
 				    const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 
 	drm_WARN_ON(&i915->drm, !pipe_config->has_hdmi_sink);
-	drm_dbg_kms(&i915->drm, "Enabling HDMI audio on pipe %c\n",
-		    pipe_name(crtc->pipe));
 	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 

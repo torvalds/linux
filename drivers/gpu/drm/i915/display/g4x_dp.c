@@ -658,9 +658,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 dp_reg = intel_de_read(dev_priv, intel_dp->output_reg);
-	enum pipe pipe = crtc->pipe;
 	intel_wakeref_t wakeref;
 
 	if (drm_WARN_ON(&dev_priv->drm, dp_reg & DP_PORT_EN))
@@ -694,11 +692,8 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	intel_dp_start_link_train(intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 
-	if (pipe_config->has_audio) {
-		drm_dbg(&dev_priv->drm, "Enabling DP audio on pipe %c\n",
-			pipe_name(pipe));
+	if (pipe_config->has_audio)
 		intel_audio_codec_enable(encoder, pipe_config, conn_state);
-	}
 }
 
 static void g4x_enable_dp(struct intel_atomic_state *state,
