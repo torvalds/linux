@@ -57,11 +57,9 @@ static int zpa2326_probe_spi(struct spi_device *spi)
 			     spi->irq, ZPA2326_DEVICE_ID, regmap);
 }
 
-static int zpa2326_remove_spi(struct spi_device *spi)
+static void zpa2326_remove_spi(struct spi_device *spi)
 {
 	zpa2326_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id zpa2326_spi_ids[] = {

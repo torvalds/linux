@@ -589,7 +589,7 @@ error_disable_clk:
 	return ret;
 }
 
-static int adf4350_remove(struct spi_device *spi)
+static void adf4350_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct adf4350_state *st = iio_priv(indio_dev);
@@ -604,8 +604,6 @@ static int adf4350_remove(struct spi_device *spi)
 
 	if (!IS_ERR(reg))
 		regulator_disable(reg);
-
-	return 0;
 }
 
 static const struct of_device_id adf4350_of_match[] = {

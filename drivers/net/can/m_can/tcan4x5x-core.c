@@ -388,7 +388,7 @@ out_power:
 	return ret;
 }
 
-static int tcan4x5x_can_remove(struct spi_device *spi)
+static void tcan4x5x_can_remove(struct spi_device *spi)
 {
 	struct tcan4x5x_priv *priv = spi_get_drvdata(spi);
 
@@ -397,8 +397,6 @@ static int tcan4x5x_can_remove(struct spi_device *spi)
 	tcan4x5x_power_enable(priv->power, 0);
 
 	m_can_class_free_dev(priv->cdev.net);
-
-	return 0;
 }
 
 static const struct of_device_id tcan4x5x_of_match[] = {

@@ -428,7 +428,7 @@ error_disable_reg_pos:
 	return ret;
 }
 
-static int ad5791_remove(struct spi_device *spi)
+static void ad5791_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5791_state *st = iio_priv(indio_dev);
@@ -439,8 +439,6 @@ static int ad5791_remove(struct spi_device *spi)
 
 	if (!IS_ERR(st->reg_vss))
 		regulator_disable(st->reg_vss);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5791_id[] = {

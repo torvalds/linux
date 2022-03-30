@@ -232,12 +232,11 @@ static int wfx_spi_probe(struct spi_device *func)
 	return wfx_probe(bus->core);
 }
 
-static int wfx_spi_remove(struct spi_device *func)
+static void wfx_spi_remove(struct spi_device *func)
 {
 	struct wfx_spi_priv *bus = spi_get_drvdata(func);
 
 	wfx_release(bus->core);
-	return 0;
 }
 
 /* For dynamic driver binding, kernel does not use OF to match driver. It only

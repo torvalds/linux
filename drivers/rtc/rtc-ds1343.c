@@ -434,11 +434,9 @@ static int ds1343_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds1343_remove(struct spi_device *spi)
+static void ds1343_remove(struct spi_device *spi)
 {
 	dev_pm_clear_wake_irq(&spi->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

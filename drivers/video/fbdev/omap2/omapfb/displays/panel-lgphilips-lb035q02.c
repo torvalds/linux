@@ -316,7 +316,7 @@ err_gpio:
 	return r;
 }
 
-static int lb035q02_panel_spi_remove(struct spi_device *spi)
+static void lb035q02_panel_spi_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = spi_get_drvdata(spi);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -328,8 +328,6 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	lb035q02_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 static const struct of_device_id lb035q02_of_match[] = {

@@ -38,9 +38,7 @@ properties:
 
   clock-names:
     items:
-      - enum:
-          - SSPCLK
-          - sspclk
+      - const: sspclk
       - const: apb_pclk
 
   pl022,autosuspend-delay:

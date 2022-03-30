@@ -22,7 +22,7 @@ description: |
 
   [1] Documentation/devicetree/bindings/serial/samsung_uart.yaml
   [2] Documentation/devicetree/bindings/i2c/i2c-exynos5.txt
-  [3] Documentation/devicetree/bindings/spi/spi-samsung.txt
+  [3] Documentation/devicetree/bindings/spi/samsung,spi.yaml
 
 properties:
   $nodename:

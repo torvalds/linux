@@ -206,13 +206,11 @@ static int arizona_spi_probe(struct spi_device *spi)
 	return arizona_dev_init(arizona);
 }
 
-static int arizona_spi_remove(struct spi_device *spi)
+static void arizona_spi_remove(struct spi_device *spi)
 {
 	struct arizona *arizona = spi_get_drvdata(spi);
 
 	arizona_dev_exit(arizona);
-
-	return 0;
 }
 
 static const struct spi_device_id arizona_spi_ids[] = {
