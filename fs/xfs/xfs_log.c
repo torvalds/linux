@@ -3847,11 +3847,7 @@ xlog_force_shutdown(
 {
 	bool		log_error = (shutdown_flags & SHUTDOWN_LOG_IO_ERROR);
 
-	/*
-	 * If this happens during log recovery then we aren't using the runtime
-	 * log mechanisms yet so there's nothing to shut down.
-	 */
-	if (!log || xlog_in_recovery(log))
+	if (!log)
 		return false;
 
 	/*
@@ -3860,10 +3856,16 @@ xlog_force_shutdown(
 	 * before the force will prevent the log force from flushing the iclogs
 	 * to disk.
 	 *
-	 * Re-entry due to a log IO error shutdown during the log force is
-	 * prevented by the atomicity of higher level shutdown code.
+	 * When we are in recovery, there are no transactions to flush, and
+	 * we don't want to touch the log because we don't want to perturb the
+	 * current head/tail for future recovery attempts. Hence we need to
+	 * avoid a log force in this case.
+	 *
+	 * If we are shutting down due to a log IO error, then we must avoid
+	 * trying to write the log as that may just result in more IO errors and
+	 * an endless shutdown/force loop.
 	 */
-	if (!log_error)
+	if (!log_error && !xlog_in_recovery(log))
 		xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
 	/*
