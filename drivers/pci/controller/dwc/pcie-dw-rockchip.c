@@ -160,6 +160,7 @@ struct rk_pcie {
 	struct reset_control		*rsts;
 	unsigned int			clk_cnt;
 	struct gpio_desc		*rst_gpio;
+	u32				perst_inactive_ms;
 	struct gpio_desc		*prsnt_gpio;
 	phys_addr_t			mem_start;
 	size_t				mem_size;
@@ -754,9 +755,10 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
 	 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
 	 * Card Electromechanical Specification 3.0. So 100ms in total is the min
-	 * requuirement here. We add a 200ms for sake of hoping everthings work fine.
+	 * requuirement here. We add a 200ms by default for sake of hoping everthings
+	 * work fine. If it doesn't, please add more in DT node by add rockchip,perst-inactive-ms.
 	 */
-	msleep(200);
+	msleep(rk_pcie->perst_inactive_ms);
 	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 	/*
@@ -1205,6 +1207,10 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 		dev_err(&pdev->dev, "invalid reset-gpios property in node\n");
 		return PTR_ERR(rk_pcie->rst_gpio);
 	}
+
+	if (device_property_read_u32(&pdev->dev, "rockchip,perst-inactive-ms",
+				     &rk_pcie->perst_inactive_ms))
+		rk_pcie->perst_inactive_ms = 200;
 
 	rk_pcie->prsnt_gpio = devm_gpiod_get_optional(&pdev->dev, "prsnt", GPIOD_IN);
 	if (IS_ERR_OR_NULL(rk_pcie->prsnt_gpio))
