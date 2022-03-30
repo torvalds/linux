@@ -7,10 +7,7 @@
  */
 
 #include <linux/cma.h>
-#include <linux/device.h>
 #include <linux/dma-map-ops.h>
-#include <linux/err.h>
-#include <linux/syscalls.h>
 
 #include "rk-dma-heap.h"
 
@@ -59,14 +56,17 @@ int __init rk_dma_heap_cma_setup(void)
 	if (rk_dma_heap_base)
 		fix = true;
 
-	ret = cma_declare_contiguous(rk_dma_heap_base, size, 0x0, 0, 0, fix,
-				     "rk-dma-heap-cma", &rk_dma_heap_cma);
+	ret = cma_declare_contiguous(rk_dma_heap_base, PAGE_ALIGN(size), 0x0,
+				     PAGE_SIZE, 0, fix, "rk-dma-heap-cma",
+				     &rk_dma_heap_cma);
 	if (ret)
 		return ret;
 
+#if !IS_ENABLED(CONFIG_CMA_INACTIVE)
 	/* Architecture specific contiguous memory fixup. */
 	dma_contiguous_early_fixup(cma_get_base(rk_dma_heap_cma),
 	cma_get_size(rk_dma_heap_cma));
+#endif
 
 	return 0;
 }
