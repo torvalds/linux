@@ -8,7 +8,7 @@ title: Samsung SoC external/osc/XXTI/XusbXTI clock
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Sylwester Nawrocki <s.nawrocki@samsung.com>
   - Tomasz Figa <tomasz.figa@gmail.com>
 
