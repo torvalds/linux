@@ -152,8 +152,7 @@ static int sof_ipc_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 		dev_err(sdev->dev, "error: enabling device failed: %d\n", ret);
 		goto error;
 	}
-	ret = sof_ipc_tx_message(sdev->ipc, msg->hdr.cmd, msg, msg->hdr.size,
-				 &reply, sizeof(reply));
+	ret = sof_ipc_tx_message(sdev->ipc, msg, msg->hdr.size, &reply, sizeof(reply));
 	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 
@@ -430,9 +429,7 @@ static int snd_sof_enable_trace(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "%s: stream_tag: %d\n", __func__, params.stream_tag);
 
 	/* send IPC to the DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 params.hdr.cmd, &params, sizeof(params),
-				 &ipc_reply, sizeof(ipc_reply));
+	ret = sof_ipc_tx_message(sdev->ipc, &params, sizeof(params), &ipc_reply, sizeof(ipc_reply));
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: can't set params for DMA for trace %d\n", ret);
@@ -575,7 +572,7 @@ static void snd_sof_release_trace(struct snd_sof_dev *sdev, bool only_stop)
 		hdr.size = sizeof(hdr);
 		hdr.cmd = SOF_IPC_GLB_TRACE_MSG | SOF_IPC_TRACE_DMA_FREE;
 
-		ret = sof_ipc_tx_message(sdev->ipc, hdr.cmd, &hdr, hdr.size,
+		ret = sof_ipc_tx_message(sdev->ipc, &hdr, hdr.size,
 					 &ipc_reply, sizeof(ipc_reply));
 		if (ret < 0)
 			dev_err(sdev->dev, "DMA_TRACE_FREE failed with error: %d\n", ret);

@@ -341,9 +341,8 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc,
 }
 
 /* send IPC message from host to DSP */
-int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
-		       void *msg_data, size_t msg_bytes, void *reply_data,
-		       size_t reply_bytes)
+int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
+		       void *reply_data, size_t reply_bytes)
 {
 	const struct sof_dsp_power_state target_state = {
 		.state = SOF_DSP_PM_D0,
@@ -357,7 +356,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		return ret;
 	}
 
-	return sof_ipc_tx_message_no_pm(ipc, header, msg_data, msg_bytes,
+	return sof_ipc_tx_message_no_pm(ipc, msg_data, msg_bytes,
 					reply_data, reply_bytes);
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
@@ -367,8 +366,7 @@ EXPORT_SYMBOL(sof_ipc_tx_message);
  * This will be used for IPC's that can be handled by the DSP
  * even in a low-power D0 substate.
  */
-int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
-			     void *msg_data, size_t msg_bytes,
+int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes)
 {
 	int ret;
@@ -701,8 +699,7 @@ int snd_sof_ipc_stream_posn(struct snd_soc_component *scomp,
 	stream.comp_id = spcm->stream[direction].comp_id;
 
 	/* send IPC to the DSP */
-	err = sof_ipc_tx_message(sdev->ipc,
-				 stream.hdr.cmd, &stream, sizeof(stream), posn,
+	err = sof_ipc_tx_message(sdev->ipc, &stream, sizeof(stream), posn,
 				 sizeof(*posn));
 	if (err < 0) {
 		dev_err(sdev->dev, "error: failed to get stream %d position\n",
@@ -893,9 +890,8 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 
 	/* send normal size ipc in one part */
 	if (cdata->rhdr.hdr.size <= SOF_IPC_MSG_MAX_SIZE) {
-		err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
-					 cdata->rhdr.hdr.size, cdata,
-					 cdata->rhdr.hdr.size);
+		err = sof_ipc_tx_message(sdev->ipc, cdata, cdata->rhdr.hdr.size,
+					 cdata, cdata->rhdr.hdr.size);
 
 		if (err < 0)
 			dev_err(sdev->dev, "error: set/get ctrl ipc comp %d\n",
