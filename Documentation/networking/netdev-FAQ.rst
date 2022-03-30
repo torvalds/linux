@@ -19,7 +19,7 @@ The netdev list is managed (like many other Linux mailing lists) through
 VGER (http://vger.kernel.org/) with archives available at
 https://lore.kernel.org/netdev/
 
-Aside from subsystems like that mentioned above, all network-related
+Aside from subsystems like those mentioned above, all network-related
 Linux development (i.e. RFC, review, comments, etc.) takes place on
 netdev.
 
