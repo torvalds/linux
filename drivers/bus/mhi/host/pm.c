@@ -437,7 +437,6 @@ static int mhi_pm_mission_mode_transition(struct mhi_controller *mhi_cntrl)
 
 	read_unlock_bh(&mhi_cntrl->pm_lock);
 
-	mhi_misc_mission_mode(mhi_cntrl);
 	mhi_process_sleeping_events(mhi_cntrl);
 
 	/*
@@ -445,6 +444,7 @@ static int mhi_pm_mission_mode_transition(struct mhi_controller *mhi_cntrl)
 	 * Execution Environment (EE) to either SBL or AMSS states
 	 */
 	mhi_create_devices(mhi_cntrl);
+	mhi_misc_mission_mode(mhi_cntrl);
 
 	read_lock_bh(&mhi_cntrl->pm_lock);
 
