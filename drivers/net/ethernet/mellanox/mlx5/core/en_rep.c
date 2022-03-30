@@ -374,7 +374,9 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep)
 {
 	struct mlx5e_rep_sq *rep_sq, *tmp;
+	struct mlx5e_rep_sq_peer *sq_peer;
 	struct mlx5e_rep_priv *rpriv;
+	unsigned long i;
 
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return;
@@ -382,8 +384,15 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 	list_for_each_entry_safe(rep_sq, tmp, &rpriv->vport_sqs_list, list) {
 		mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
-		if (rep_sq->send_to_vport_rule_peer)
-			mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule_peer);
+		xa_for_each(&rep_sq->sq_peer, i, sq_peer) {
+			if (sq_peer->rule)
+				mlx5_eswitch_del_send_to_vport_rule(sq_peer->rule);
+
+			xa_erase(&rep_sq->sq_peer, i);
+			kfree(sq_peer);
+		}
+
+		xa_destroy(&rep_sq->sq_peer);
 		list_del(&rep_sq->list);
 		kfree(rep_sq);
 	}
@@ -395,6 +404,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 {
 	struct mlx5_eswitch *peer_esw = NULL;
 	struct mlx5_flow_handle *flow_rule;
+	struct mlx5e_rep_sq_peer *sq_peer;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
 	int err;
@@ -414,6 +424,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 			err = -ENOMEM;
 			goto out_err;
 		}
+		xa_init(&rep_sq->sq_peer);
 
 		/* Add re-inject rule to the PF/representor sqs */
 		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, esw, rep,
@@ -427,15 +438,26 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		rep_sq->sqn = sqns_array[i];
 
 		if (peer_esw) {
+			int peer_rule_idx = mlx5_get_dev_index(peer_esw->dev);
+
+			sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
+			if (!sq_peer) {
+				err = -ENOMEM;
+				goto out_sq_peer_err;
+			}
+
 			flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw,
 									rep, sqns_array[i]);
 			if (IS_ERR(flow_rule)) {
 				err = PTR_ERR(flow_rule);
-				mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
-				kfree(rep_sq);
-				goto out_err;
+				goto out_flow_rule_err;
 			}
-			rep_sq->send_to_vport_rule_peer = flow_rule;
+
+			sq_peer->rule = flow_rule;
+			sq_peer->peer = peer_esw;
+			err = xa_insert(&rep_sq->sq_peer, peer_rule_idx, sq_peer, GFP_KERNEL);
+			if (err)
+				goto out_xa_err;
 		}
 
 		list_add(&rep_sq->list, &rpriv->vport_sqs_list);
@@ -446,6 +468,14 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 
 	return 0;
 
+out_xa_err:
+	mlx5_eswitch_del_send_to_vport_rule(flow_rule);
+out_flow_rule_err:
+	kfree(sq_peer);
+out_sq_peer_err:
+	mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
+	xa_destroy(&rep_sq->sq_peer);
+	kfree(rep_sq);
 out_err:
 	mlx5e_sqs2vport_stop(esw, rep);
 
@@ -1530,17 +1560,24 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 	return rpriv->netdev;
 }
 
-static void mlx5e_vport_rep_event_unpair(struct mlx5_eswitch_rep *rep)
+static void mlx5e_vport_rep_event_unpair(struct mlx5_eswitch_rep *rep,
+					 struct mlx5_eswitch *peer_esw)
 {
+	int i = mlx5_get_dev_index(peer_esw->dev);
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
 
+	WARN_ON_ONCE(!peer_esw);
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 	list_for_each_entry(rep_sq, &rpriv->vport_sqs_list, list) {
-		if (!rep_sq->send_to_vport_rule_peer)
+		struct mlx5e_rep_sq_peer *sq_peer = xa_load(&rep_sq->sq_peer, i);
+
+		if (!sq_peer || sq_peer->peer != peer_esw)
 			continue;
-		mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule_peer);
-		rep_sq->send_to_vport_rule_peer = NULL;
+
+		mlx5_eswitch_del_send_to_vport_rule(sq_peer->rule);
+		xa_erase(&rep_sq->sq_peer, i);
+		kfree(sq_peer);
 	}
 }
 
@@ -1548,24 +1585,52 @@ static int mlx5e_vport_rep_event_pair(struct mlx5_eswitch *esw,
 				      struct mlx5_eswitch_rep *rep,
 				      struct mlx5_eswitch *peer_esw)
 {
+	int i = mlx5_get_dev_index(peer_esw->dev);
 	struct mlx5_flow_handle *flow_rule;
+	struct mlx5e_rep_sq_peer *sq_peer;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
+	int err;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 	list_for_each_entry(rep_sq, &rpriv->vport_sqs_list, list) {
-		if (rep_sq->send_to_vport_rule_peer)
+		sq_peer = xa_load(&rep_sq->sq_peer, i);
+
+		if (sq_peer && sq_peer->peer)
 			continue;
-		flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw, rep, rep_sq->sqn);
-		if (IS_ERR(flow_rule))
+
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw, rep,
+								rep_sq->sqn);
+		if (IS_ERR(flow_rule)) {
+			err = PTR_ERR(flow_rule);
 			goto err_out;
-		rep_sq->send_to_vport_rule_peer = flow_rule;
+		}
+
+		if (sq_peer) {
+			sq_peer->rule = flow_rule;
+			sq_peer->peer = peer_esw;
+			continue;
+		}
+		sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
+		if (!sq_peer) {
+			err = -ENOMEM;
+			goto err_sq_alloc;
+		}
+		err = xa_insert(&rep_sq->sq_peer, i, sq_peer, GFP_KERNEL);
+		if (err)
+			goto err_xa;
+		sq_peer->rule = flow_rule;
+		sq_peer->peer = peer_esw;
 	}
 
 	return 0;
+err_xa:
+	kfree(sq_peer);
+err_sq_alloc:
+	mlx5_eswitch_del_send_to_vport_rule(flow_rule);
 err_out:
-	mlx5e_vport_rep_event_unpair(rep);
-	return PTR_ERR(flow_rule);
+	mlx5e_vport_rep_event_unpair(rep, peer_esw);
+	return err;
 }
 
 static int mlx5e_vport_rep_event(struct mlx5_eswitch *esw,
@@ -1578,7 +1643,7 @@ static int mlx5e_vport_rep_event(struct mlx5_eswitch *esw,
 	if (event == MLX5_SWITCHDEV_EVENT_PAIR)
 		err = mlx5e_vport_rep_event_pair(esw, rep, data);
 	else if (event == MLX5_SWITCHDEV_EVENT_UNPAIR)
-		mlx5e_vport_rep_event_unpair(rep);
+		mlx5e_vport_rep_event_unpair(rep, data);
 
 	return err;
 }
