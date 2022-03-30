@@ -393,7 +393,7 @@ EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
 void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply reply;
+	struct sof_ipc_reply *reply;
 	int ret = 0;
 
 	/*
@@ -407,13 +407,12 @@ void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 	}
 
 	/* get the generic reply */
-	snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset, &reply,
-				 sizeof(reply));
+	reply = msg->reply_data;
+	snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset, reply, sizeof(*reply));
 
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
-	} else if (!reply.hdr.size) {
+	if (reply->error < 0) {
+		ret = reply->error;
+	} else if (!reply->hdr.size) {
 		/* Reply should always be >= sizeof(struct sof_ipc_reply) */
 		if (msg->reply_size)
 			dev_err(sdev->dev,
@@ -424,24 +423,27 @@ void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 
 		ret = -EINVAL;
 	} else if (msg->reply_size > 0) {
-		if (reply.hdr.size == msg->reply_size) {
+		if (reply->hdr.size == msg->reply_size) {
 			ret = 0;
-		} else if (reply.hdr.size < msg->reply_size) {
+		} else if (reply->hdr.size < msg->reply_size) {
 			dev_dbg(sdev->dev,
 				"reply size (%u) is less than expected (%zu)\n",
-				reply.hdr.size, msg->reply_size);
+				reply->hdr.size, msg->reply_size);
 
-			msg->reply_size = reply.hdr.size;
+			msg->reply_size = reply->hdr.size;
 			ret = 0;
 		} else {
 			dev_err(sdev->dev,
 				"reply size (%u) exceeds the buffer size (%zu)\n",
-				reply.hdr.size, msg->reply_size);
+				reply->hdr.size, msg->reply_size);
 			ret = -EINVAL;
 		}
 
-		/* get the full message if reply.hdr.size <= msg->reply_size */
-		if (!ret)
+		/*
+		 * get the full message if reply->hdr.size <= msg->reply_size
+		 * and the reply->hdr.size > sizeof(struct sof_ipc_reply)
+		 */
+		if (!ret && msg->reply_size > sizeof(*reply))
 			snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset,
 						 msg->reply_data, msg->reply_size);
 	}
