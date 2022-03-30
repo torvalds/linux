@@ -361,7 +361,9 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	int clkid, ret;
 	struct clock_info *cinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "Clock Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
@@ -370,7 +372,9 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!cinfo)
 		return -ENOMEM;
 
-	scmi_clock_protocol_attributes_get(ph, cinfo);
+	ret = scmi_clock_protocol_attributes_get(ph, cinfo);
+	if (ret)
+		return ret;
 
 	cinfo->clk = devm_kcalloc(ph->dev, cinfo->num_clocks,
 				  sizeof(*cinfo->clk), GFP_KERNEL);

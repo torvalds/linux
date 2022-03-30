@@ -966,7 +966,9 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	int ret;
 	struct sensors_info *sinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "Sensor Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));

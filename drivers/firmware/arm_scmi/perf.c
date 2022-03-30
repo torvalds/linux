@@ -873,11 +873,13 @@ static const struct scmi_protocol_events perf_protocol_events = {
 
 static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 {
-	int domain;
+	int domain, ret;
 	u32 version;
 	struct scmi_perf_info *pinfo;
 
-	ph->xops->version_get(ph, &version);
+	ret = ph->xops->version_get(ph, &version);
+	if (ret)
+		return ret;
 
 	dev_dbg(ph->dev, "Performance Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
@@ -886,7 +888,9 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo)
 		return -ENOMEM;
 
-	scmi_perf_attributes_get(ph, pinfo);
+	ret = scmi_perf_attributes_get(ph, pinfo);
+	if (ret)
+		return ret;
 
 	pinfo->dom_info = devm_kcalloc(ph->dev, pinfo->num_domains,
 				       sizeof(*pinfo->dom_info), GFP_KERNEL);

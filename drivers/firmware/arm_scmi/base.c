@@ -359,7 +359,10 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 	ph->set_priv(ph, rev);
 
-	scmi_base_attributes_get(ph);
+	ret = scmi_base_attributes_get(ph);
+	if (ret)
+		return ret;
+
 	scmi_base_vendor_id_get(ph, false);
 	scmi_base_vendor_id_get(ph, true);
 	scmi_base_implementation_version_get(ph);
