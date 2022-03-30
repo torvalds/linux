@@ -125,9 +125,11 @@ Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
 
-I submitted multiple versions of the patch series. Should I directly update patchwork for the previous versions of these patch series?
---------------------------------------------------------------------------------------------------------------------------------------
-No, please don't interfere with the patch status on patchwork, leave
+Should I directly update patchwork state of my own patches?
+-----------------------------------------------------------
+It may be tempting to help the maintainers and update the state of your
+own patches when you post a new version or spot a bug. Please do not do that.
+Interfering with the patch status on patchwork will only cause confusion. Leave
 it to the maintainer to figure out what is the most recent and current
 version that should be applied. If there is any doubt, the maintainer
 will reply and ask what should be done.
