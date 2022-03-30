@@ -254,11 +254,12 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		timeout = nvmet_req_subsys(req)->admin_timeout;
 	}
 
-	rq = nvme_alloc_request(q, req->cmd, 0);
+	rq = blk_mq_alloc_request(q, nvme_req_op(req->cmd), 0);
 	if (IS_ERR(rq)) {
 		status = NVME_SC_INTERNAL;
 		goto out_put_ns;
 	}
+	nvme_init_request(rq, req->cmd);
 
 	if (timeout)
 		rq->timeout = timeout;

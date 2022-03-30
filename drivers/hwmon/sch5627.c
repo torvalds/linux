@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -50,6 +51,9 @@ static const u16 SCH5627_REG_FAN[SCH5627_NO_FANS] = {
 	0x2C, 0x2E, 0x30, 0x32 };
 static const u16 SCH5627_REG_FAN_MIN[SCH5627_NO_FANS] = {
 	0x62, 0x64, 0x66, 0x68 };
+
+static const u16 SCH5627_REG_PWM_MAP[SCH5627_NO_FANS] = {
+	0xA0, 0xA1, 0xA2, 0xA3 };
 
 static const u16 SCH5627_REG_IN_MSB[SCH5627_NO_IN] = {
 	0x22, 0x23, 0x24, 0x25, 0x189 };
@@ -222,6 +226,9 @@ static int reg_to_rpm(u16 reg)
 static umode_t sch5627_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
 				  int channel)
 {
+	if (type == hwmon_pwm && attr == hwmon_pwm_auto_channels_temp)
+		return 0644;
+
 	return 0444;
 }
 
@@ -277,6 +284,23 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 			break;
 		}
 		break;
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_auto_channels_temp:
+			mutex_lock(&data->update_lock);
+			ret = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel]);
+			mutex_unlock(&data->update_lock);
+
+			if (ret < 0)
+				return ret;
+
+			*val = ret;
+
+			return 0;
+		default:
+			break;
+		}
+		break;
 	case hwmon_in:
 		ret = sch5627_update_in(data);
 		if (ret < 0)
@@ -317,10 +341,42 @@ static int sch5627_read_string(struct device *dev, enum hwmon_sensor_types type,
 	return -EOPNOTSUPP;
 }
 
+static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
+			 long val)
+{
+	struct sch5627_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	switch (type) {
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_auto_channels_temp:
+			/* registers are 8 bit wide */
+			if (val > U8_MAX || val < 0)
+				return -EINVAL;
+
+			mutex_lock(&data->update_lock);
+			ret = sch56xx_write_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel],
+							val);
+			mutex_unlock(&data->update_lock);
+
+			return ret;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static const struct hwmon_ops sch5627_ops = {
 	.is_visible = sch5627_is_visible,
 	.read = sch5627_read,
 	.read_string = sch5627_read_string,
+	.write = sch5627_write,
 };
 
 static const struct hwmon_channel_info *sch5627_info[] = {
@@ -340,6 +396,12 @@ static const struct hwmon_channel_info *sch5627_info[] = {
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT
+			   ),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP
 			   ),
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_LABEL,
@@ -456,11 +518,20 @@ static int sch5627_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id sch5627_device_id[] = {
+	{
+		.name = "sch5627",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sch5627_device_id);
+
 static struct platform_driver sch5627_driver = {
 	.driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5627_probe,
+	.id_table	= sch5627_device_id,
 };
 
 module_platform_driver(sch5627_driver);

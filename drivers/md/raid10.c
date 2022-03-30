@@ -861,7 +861,6 @@ static void flush_pending_writes(struct r10conf *conf)
 		struct bio *bio;
 
 		bio = bio_list_get(&conf->pending_bio_list);
-		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
 
 		/*
@@ -1054,16 +1053,9 @@ static sector_t choose_data_offset(struct r10bio *r10_bio,
 		return rdev->new_data_offset;
 }
 
-struct raid10_plug_cb {
-	struct blk_plug_cb	cb;
-	struct bio_list		pending;
-	int			pending_cnt;
-};
-
 static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 {
-	struct raid10_plug_cb *plug = container_of(cb, struct raid10_plug_cb,
-						   cb);
+	struct raid1_plug_cb *plug = container_of(cb, struct raid1_plug_cb, cb);
 	struct mddev *mddev = plug->cb.data;
 	struct r10conf *conf = mddev->private;
 	struct bio *bio;
@@ -1071,7 +1063,6 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	if (from_schedule || current->bio_list) {
 		spin_lock_irq(&conf->device_lock);
 		bio_list_merge(&conf->pending_bio_list, &plug->pending);
-		conf->pending_count += plug->pending_cnt;
 		spin_unlock_irq(&conf->device_lock);
 		wake_up(&conf->wait_barrier);
 		md_wakeup_thread(mddev->thread);
@@ -1238,7 +1229,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
 	unsigned long flags;
 	struct blk_plug_cb *cb;
-	struct raid10_plug_cb *plug = NULL;
+	struct raid1_plug_cb *plug = NULL;
 	struct r10conf *conf = mddev->private;
 	struct md_rdev *rdev;
 	int devnum = r10_bio->devs[n_copy].devnum;
@@ -1280,16 +1271,14 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 
 	cb = blk_check_plugged(raid10_unplug, mddev, sizeof(*plug));
 	if (cb)
-		plug = container_of(cb, struct raid10_plug_cb, cb);
+		plug = container_of(cb, struct raid1_plug_cb, cb);
 	else
 		plug = NULL;
 	if (plug) {
 		bio_list_add(&plug->pending, mbio);
-		plug->pending_cnt++;
 	} else {
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 		md_wakeup_thread(mddev->thread);
 	}
