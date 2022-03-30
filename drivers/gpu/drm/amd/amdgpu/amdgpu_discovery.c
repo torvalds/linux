@@ -1046,7 +1046,7 @@ static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev)
 
 /* ================================================== */
 
-int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
+static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
@@ -1212,7 +1212,7 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
 	return -EINVAL;
 }
 
-void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
+static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	int vcn_harvest_count = 0;
 	int umc_harvest_count = 0;
@@ -1257,7 +1257,7 @@ union gc_info {
 	struct gc_info_v2_0 v2;
 };
 
-int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
+static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
 	union gc_info *gc_info;
@@ -1271,10 +1271,8 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	offset = le16_to_cpu(bhdr->table_list[GC].offset);
 
-	if (!offset) {
-		dev_err(adev->dev, "invalid GC table offset\n");
-		return -EINVAL;
-	}
+	if (!offset)
+		return 0;
 
 	gc_info = (union gc_info *)(adev->mman.discovery_bin + offset);
 
@@ -1363,10 +1361,8 @@ int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	offset = le16_to_cpu(bhdr->table_list[MALL_INFO].offset);
 
-	if (!offset) {
-		dev_err(adev->dev, "invalid mall table offset\n");
-		return -EINVAL;
-	}
+	if (!offset)
+		return 0;
 
 	mall_info = (union mall_info *)(adev->mman.discovery_bin + offset);
 
@@ -1400,7 +1396,7 @@ union vcn_info {
 	struct vcn_info_v1_0 v1;
 };
 
-int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
+static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
 	union vcn_info *vcn_info;
@@ -1420,10 +1416,8 @@ int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	offset = le16_to_cpu(bhdr->table_list[VCN_INFO].offset);
 
-	if (!offset) {
-		dev_err(adev->dev, "invalid vcn table offset\n");
-		return -EINVAL;
-	}
+	if (!offset)
+		return 0;
 
 	vcn_info = (union vcn_info *)(adev->mman.discovery_bin + offset);
 
@@ -2037,6 +2031,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			return -EINVAL;
 
 		amdgpu_discovery_harvest_ip(adev);
+		amdgpu_discovery_get_gfx_info(adev);
+		amdgpu_discovery_get_mall_info(adev);
+		amdgpu_discovery_get_vcn_info(adev);
 		break;
 	}
 
