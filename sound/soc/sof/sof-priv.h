@@ -349,7 +349,6 @@ struct snd_sof_mailbox {
 /* IPC message descriptor for host <-> DSP IO */
 struct snd_sof_ipc_msg {
 	/* message data */
-	u32 header;
 	void *msg_data;
 	void *reply_data;
 	size_t msg_size;
