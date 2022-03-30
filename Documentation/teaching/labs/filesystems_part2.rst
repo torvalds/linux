@@ -477,7 +477,7 @@ In the minix case, the function is ``minix_lookup``.
 This function is called indirectly when information about the inode associated with an entry in a directory is needed.
 Such a function performs the following operations:
 
-  #. Searces in the directory indicated by ``dir`` the entry having the name ``dentry->d_name.name``.
+  #. Searches in the directory indicated by ``dir`` the entry having the name ``dentry->d_name.name``.
   #. If the entry is found, it will return ``NULL`` and associate the inode with the name using the :c:func:`d_add` function.
   #. Otherwise, returns ``ERR_PTR``.
 
