@@ -490,10 +490,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
 
-	if (init_mlme_ext_priv(padapter) == _FAIL) {
-		dev_err(dvobj_to_dev(padapter->dvobj), "init_mlme_ext_priv failed\n");
-		goto free_mlme_priv;
-	}
+	init_mlme_ext_priv(padapter);
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_xmit_priv failed\n");
@@ -534,7 +531,6 @@ free_xmit_priv:
 free_mlme_ext:
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
-free_mlme_priv:
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 
 free_evt_priv:
