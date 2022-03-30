@@ -31,12 +31,14 @@ properties:
     const: 0
 
   clocks:
-    minItems: 1
+    minItems: 2
     maxItems: 3
 
   clock-names:
     oneOf:
-      - const: link          # for PXs2
+      - items:               # for Pro5
+          - const: gio
+          - const: link
       - items:               # for PXs3 with phy-ext
           - const: link
           - const: phy
@@ -49,9 +51,13 @@ properties:
     maxItems: 2
 
   reset-names:
-    items:
-      - const: link
-      - const: phy
+    oneOf:
+      - items:               # for Pro5
+          - const: gio
+          - const: link
+      - items:               # for others
+          - const: link
+          - const: phy
 
   vbus-supply:
     description: A phandle to the regulator for USB VBUS
