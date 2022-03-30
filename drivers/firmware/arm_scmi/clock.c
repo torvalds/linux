@@ -164,81 +164,111 @@ static int rate_cmp_func(const void *_r1, const void *_r2)
 		return 1;
 }
 
+struct scmi_clk_ipriv {
+	u32 clk_id;
+	struct scmi_clock_info *clk;
+};
+
+static void iter_clk_describe_prepare_message(void *message,
+					      const unsigned int desc_index,
+					      const void *priv)
+{
+	struct scmi_msg_clock_describe_rates *msg = message;
+	const struct scmi_clk_ipriv *p = priv;
+
+	msg->id = cpu_to_le32(p->clk_id);
+	/* Set the number of rates to be skipped/already read */
+	msg->rate_index = cpu_to_le32(desc_index);
+}
+
+static int
+iter_clk_describe_update_state(struct scmi_iterator_state *st,
+			       const void *response, void *priv)
+{
+	u32 flags;
+	struct scmi_clk_ipriv *p = priv;
+	const struct scmi_msg_resp_clock_describe_rates *r = response;
+
+	flags = le32_to_cpu(r->num_rates_flags);
+	st->num_remaining = NUM_REMAINING(flags);
+	st->num_returned = NUM_RETURNED(flags);
+	p->clk->rate_discrete = RATE_DISCRETE(flags);
+
+	return 0;
+}
+
+static int
+iter_clk_describe_process_response(const struct scmi_protocol_handle *ph,
+				   const void *response,
+				   struct scmi_iterator_state *st, void *priv)
+{
+	int ret = 0;
+	struct scmi_clk_ipriv *p = priv;
+	const struct scmi_msg_resp_clock_describe_rates *r = response;
+
+	if (!p->clk->rate_discrete) {
+		switch (st->desc_index + st->loop_idx) {
+		case 0:
+			p->clk->range.min_rate = RATE_TO_U64(r->rate[0]);
+			break;
+		case 1:
+			p->clk->range.max_rate = RATE_TO_U64(r->rate[1]);
+			break;
+		case 2:
+			p->clk->range.step_size = RATE_TO_U64(r->rate[2]);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+	} else {
+		u64 *rate = &p->clk->list.rates[st->desc_index + st->loop_idx];
+
+		*rate = RATE_TO_U64(r->rate[st->loop_idx]);
+		p->clk->list.num_rates++;
+		//XXX dev_dbg(ph->dev, "Rate %llu Hz\n", *rate);
+	}
+
+	return ret;
+}
+
 static int
 scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
-	u64 *rate = NULL;
-	int ret, cnt;
-	bool rate_discrete = false;
-	u32 tot_rate_cnt = 0, rates_flag;
-	u16 num_returned, num_remaining;
-	struct scmi_xfer *t;
-	struct scmi_msg_clock_describe_rates *clk_desc;
-	struct scmi_msg_resp_clock_describe_rates *rlist;
+	int ret;
 
-	ret = ph->xops->xfer_get_init(ph, CLOCK_DESCRIBE_RATES,
-				      sizeof(*clk_desc), 0, &t);
+	void *iter;
+	struct scmi_msg_clock_describe_rates *msg;
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_clk_describe_prepare_message,
+		.update_state = iter_clk_describe_update_state,
+		.process_response = iter_clk_describe_process_response,
+	};
+	struct scmi_clk_ipriv cpriv = {
+		.clk_id = clk_id,
+		.clk = clk,
+	};
+
+	iter = ph->hops->iter_response_init(ph, &ops, SCMI_MAX_NUM_RATES,
+					    CLOCK_DESCRIBE_RATES,
+					    sizeof(*msg), &cpriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	ret = ph->hops->iter_response_run(iter);
 	if (ret)
 		return ret;
 
-	clk_desc = t->tx.buf;
-	rlist = t->rx.buf;
-
-	do {
-		clk_desc->id = cpu_to_le32(clk_id);
-		/* Set the number of rates to be skipped/already read */
-		clk_desc->rate_index = cpu_to_le32(tot_rate_cnt);
-
-		ret = ph->xops->do_xfer(ph, t);
-		if (ret)
-			goto err;
-
-		rates_flag = le32_to_cpu(rlist->num_rates_flags);
-		num_remaining = NUM_REMAINING(rates_flag);
-		rate_discrete = RATE_DISCRETE(rates_flag);
-		num_returned = NUM_RETURNED(rates_flag);
-
-		if (tot_rate_cnt + num_returned > SCMI_MAX_NUM_RATES) {
-			dev_err(ph->dev, "No. of rates > MAX_NUM_RATES");
-			break;
-		}
-
-		if (!rate_discrete) {
-			clk->range.min_rate = RATE_TO_U64(rlist->rate[0]);
-			clk->range.max_rate = RATE_TO_U64(rlist->rate[1]);
-			clk->range.step_size = RATE_TO_U64(rlist->rate[2]);
-			dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
-				clk->range.min_rate, clk->range.max_rate,
-				clk->range.step_size);
-			break;
-		}
-
-		rate = &clk->list.rates[tot_rate_cnt];
-		for (cnt = 0; cnt < num_returned; cnt++, rate++) {
-			*rate = RATE_TO_U64(rlist->rate[cnt]);
-			dev_dbg(ph->dev, "Rate %llu Hz\n", *rate);
-		}
-
-		tot_rate_cnt += num_returned;
-
-		ph->xops->reset_rx_to_maxsz(ph, t);
-		/*
-		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
-		 */
-	} while (num_returned && num_remaining);
-
-	if (rate_discrete && rate) {
-		clk->list.num_rates = tot_rate_cnt;
-		sort(clk->list.rates, tot_rate_cnt, sizeof(*rate),
-		     rate_cmp_func, NULL);
+	if (!clk->rate_discrete) {
+		dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
+			clk->range.min_rate, clk->range.max_rate,
+			clk->range.step_size);
+	} else if (clk->list.num_rates) {
+		sort(clk->list.rates, clk->list.num_rates,
+		     sizeof(clk->list.rates[0]), rate_cmp_func, NULL);
 	}
 
-	clk->rate_discrete = rate_discrete;
-
-err:
-	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
