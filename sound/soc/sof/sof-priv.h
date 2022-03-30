@@ -457,8 +457,6 @@ struct snd_sof_dev {
 	bool ipc_dump_printed;
 
 	/* firmware loader */
-	struct snd_dma_buffer dmab;
-	struct snd_dma_buffer dmab_bdl;
 	struct sof_ipc_fw_ready fw_ready;
 	struct sof_ipc_fw_version fw_version;
 	struct sof_ipc_cc_version *cc_version;
