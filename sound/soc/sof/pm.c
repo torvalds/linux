@@ -102,11 +102,18 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 
 	/*
 	 * Nothing further to be done for platforms that support the low power
-	 * D0 substate.
+	 * D0 substate. Resume trace and return when resuming from
+	 * low-power D0 substate
 	 */
 	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
-	    old_state == SOF_DSP_PM_D0)
+	    old_state == SOF_DSP_PM_D0) {
+		ret = snd_sof_trace_resume(sdev);
+		if (ret < 0)
+			/* non fatal */
+			dev_warn(sdev->dev,
+				 "failed to enable trace after resume %d\n", ret);
 		return 0;
+	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
 
@@ -201,6 +208,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
 	if (target_state == SOF_DSP_PM_D0) {
+		snd_sof_trace_suspend(sdev, pm_state);
 		/* Notify clients not managed by pm framework about core suspend */
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
