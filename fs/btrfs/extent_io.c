@@ -3146,17 +3146,20 @@ readpage_ok:
  */
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
 {
-	int i;
+	unsigned int allocated;
 
-	for (i = 0; i < nr_pages; i++) {
-		struct page *page;
+	for (allocated = 0; allocated < nr_pages;) {
+		unsigned int last = allocated;
 
-		if (page_array[i])
-			continue;
-		page = alloc_page(GFP_NOFS);
-		if (!page)
+		allocated = alloc_pages_bulk_array(GFP_NOFS, nr_pages, page_array);
+
+		/*
+		 * During this iteration, no page could be allocated, even
+		 * though alloc_pages_bulk_array() falls back to alloc_page()
+		 * if  it could not bulk-allocate. So we must be out of memory.
+		 */
+		if (allocated == last)
 			return -ENOMEM;
-		page_array[i] = page;
 	}
 	return 0;
 }
