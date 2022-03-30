@@ -21,13 +21,15 @@ enum scmi_voltage_protocol_cmd {
 	VOLTAGE_CONFIG_GET = 0x6,
 	VOLTAGE_LEVEL_SET = 0x7,
 	VOLTAGE_LEVEL_GET = 0x8,
+	VOLTAGE_DOMAIN_NAME_GET = 0x09,
 };
 
 #define NUM_VOLTAGE_DOMAINS(x)	((u16)(FIELD_GET(VOLTAGE_DOMS_NUM_MASK, (x))))
 
 struct scmi_msg_resp_domain_attributes {
 	__le32 attr;
-	u8 name[SCMI_MAX_STR_SIZE];
+#define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(30))
+	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 struct scmi_msg_cmd_describe_levels {
@@ -148,6 +150,16 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 		v->id = dom;
 		v->attributes = le32_to_cpu(resp_dom->attr);
 		strlcpy(v->name, resp_dom->name, SCMI_MAX_STR_SIZE);
+
+		/*
+		 * If supported overwrite short name with the extended one;
+		 * on error just carry on and use already provided short name.
+		 */
+		if (PROTOCOL_REV_MAJOR(vinfo->version) >= 0x2 &&
+		    SUPPORTS_EXTENDED_NAMES(v->attributes))
+			ph->hops->extended_name_get(ph, VOLTAGE_DOMAIN_NAME_GET,
+						    v->id, v->name,
+						    SCMI_MAX_STR_SIZE);
 
 		cmd = tl->tx.buf;
 		/* ...then retrieve domain levels descriptions */

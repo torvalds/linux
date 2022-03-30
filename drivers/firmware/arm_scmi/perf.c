@@ -32,6 +32,7 @@ enum scmi_performance_protocol_cmd {
 	PERF_NOTIFY_LIMITS = 0x9,
 	PERF_NOTIFY_LEVEL = 0xa,
 	PERF_DESCRIBE_FASTCHANNEL = 0xb,
+	PERF_DOMAIN_NAME_GET = 0xc,
 };
 
 struct scmi_opp {
@@ -56,10 +57,11 @@ struct scmi_msg_resp_perf_domain_attributes {
 #define SUPPORTS_PERF_LIMIT_NOTIFY(x)	((x) & BIT(29))
 #define SUPPORTS_PERF_LEVEL_NOTIFY(x)	((x) & BIT(28))
 #define SUPPORTS_PERF_FASTCHANNELS(x)	((x) & BIT(27))
+#define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(26))
 	__le32 rate_limit_us;
 	__le32 sustained_freq_khz;
 	__le32 sustained_perf_level;
-	    u8 name[SCMI_MAX_STR_SIZE];
+	    u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 struct scmi_msg_perf_describe_levels {
@@ -209,9 +211,11 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 
 static int
 scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
-				u32 domain, struct perf_dom_info *dom_info)
+				u32 domain, struct perf_dom_info *dom_info,
+				u32 version)
 {
 	int ret;
+	u32 flags;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_domain_attributes *attr;
 
@@ -225,7 +229,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
-		u32 flags = le32_to_cpu(attr->flags);
+		flags = le32_to_cpu(attr->flags);
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->set_perf = SUPPORTS_SET_PERF_LVL(flags);
@@ -248,6 +252,16 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	/*
+	 * If supported overwrite short name with the extended one;
+	 * on error just carry on and use already provided short name.
+	 */
+	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	    SUPPORTS_EXTENDED_NAMES(flags))
+		ph->hops->extended_name_get(ph, PERF_DOMAIN_NAME_GET, domain,
+					    dom_info->name, SCMI_MAX_STR_SIZE);
+
 	return ret;
 }
 
@@ -902,7 +916,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct perf_dom_info *dom = pinfo->dom_info + domain;
 
-		scmi_perf_domain_attributes_get(ph, domain, dom);
+		scmi_perf_domain_attributes_get(ph, domain, dom, version);
 		scmi_perf_describe_levels_get(ph, domain, dom);
 
 		if (dom->perf_fastchannels)

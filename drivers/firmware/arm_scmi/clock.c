@@ -16,6 +16,7 @@ enum scmi_clock_protocol_cmd {
 	CLOCK_RATE_SET = 0x5,
 	CLOCK_RATE_GET = 0x6,
 	CLOCK_CONFIG_SET = 0x7,
+	CLOCK_NAME_GET = 0x8,
 };
 
 struct scmi_msg_resp_clock_protocol_attributes {
@@ -27,7 +28,8 @@ struct scmi_msg_resp_clock_protocol_attributes {
 struct scmi_msg_resp_clock_attributes {
 	__le32 attributes;
 #define	CLOCK_ENABLE	BIT(0)
-	u8 name[SCMI_MAX_STR_SIZE];
+#define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(29))
+	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 	__le32 clock_enable_latency;
 };
 
@@ -108,9 +110,11 @@ scmi_clock_protocol_attributes_get(const struct scmi_protocol_handle *ph,
 }
 
 static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
-				     u32 clk_id, struct scmi_clock_info *clk)
+				     u32 clk_id, struct scmi_clock_info *clk,
+				     u32 version)
 {
 	int ret;
+	u32 attributes;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_clock_attributes *attr;
 
@@ -124,6 +128,7 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
+		attributes = le32_to_cpu(attr->attributes);
 		strlcpy(clk->name, attr->name, SCMI_MAX_STR_SIZE);
 		/* Is optional field clock_enable_latency provided ? */
 		if (t->rx.len == sizeof(*attr))
@@ -132,6 +137,16 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	/*
+	 * If supported overwrite short name with the extended one;
+	 * on error just carry on and use already provided short name.
+	 */
+	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x2 &&
+	    SUPPORTS_EXTENDED_NAMES(attributes))
+		ph->hops->extended_name_get(ph, CLOCK_NAME_GET, clk_id,
+					    clk->name, SCMI_MAX_STR_SIZE);
+
 	return ret;
 }
 
@@ -400,7 +415,7 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	for (clkid = 0; clkid < cinfo->num_clocks; clkid++) {
 		struct scmi_clock_info *clk = cinfo->clk + clkid;
 
-		ret = scmi_clock_attributes_get(ph, clkid, clk);
+		ret = scmi_clock_attributes_get(ph, clkid, clk, version);
 		if (!ret)
 			scmi_clock_describe_rates_get(ph, clkid, clk);
 	}

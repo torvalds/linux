@@ -27,6 +27,7 @@ enum scmi_sensor_protocol_cmd {
 	SENSOR_CONFIG_GET = 0x9,
 	SENSOR_CONFIG_SET = 0xA,
 	SENSOR_CONTINUOUS_UPDATE_NOTIFY = 0xB,
+	SENSOR_NAME_GET = 0xC,
 };
 
 struct scmi_msg_resp_sensor_attributes {
@@ -71,6 +72,7 @@ struct scmi_msg_resp_sensor_description {
 		__le32 attributes_low;
 /* Common attributes_low macros */
 #define SUPPORTS_ASYNC_READ(x)		FIELD_GET(BIT(31), (x))
+#define SUPPORTS_EXTENDED_NAMES(x)	FIELD_GET(BIT(29), (x))
 #define NUM_TRIP_POINTS(x)		FIELD_GET(GENMASK(7, 0), (x))
 		__le32 attributes_high;
 /* Common attributes_high macros */
@@ -78,7 +80,7 @@ struct scmi_msg_resp_sensor_description {
 #define SENSOR_SCALE_SIGN		BIT(4)
 #define SENSOR_SCALE_EXTEND		GENMASK(31, 5)
 #define SENSOR_TYPE(x)			FIELD_GET(GENMASK(7, 0), (x))
-		u8 name[SCMI_MAX_STR_SIZE];
+		u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 		/* only for version > 2.0 */
 		__le32 power;
 		__le32 resolution;
@@ -518,6 +520,17 @@ static int scmi_sensor_description_get(const struct scmi_protocol_handle *ph,
 					    SENSOR_AXIS_NUMBER(attrh) : 0,
 					    SCMI_MAX_NUM_SENSOR_AXIS);
 			strlcpy(s->name, sdesc->name, SCMI_MAX_STR_SIZE);
+
+			/*
+			 * If supported overwrite short name with the extended
+			 * one; on error just carry on and use already provided
+			 * short name.
+			 */
+			if (PROTOCOL_REV_MAJOR(si->version) >= 0x3 &&
+			    SUPPORTS_EXTENDED_NAMES(attrl))
+				ph->hops->extended_name_get(ph, SENSOR_NAME_GET,
+							    s->id, s->name,
+							    SCMI_MAX_STR_SIZE);
 
 			if (s->extended_scalar_attrs) {
 				s->sensor_power = le32_to_cpu(sdesc->power);
