@@ -35,6 +35,17 @@ for the future release.  You can find the trees here:
 - https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 - https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 
+How do I indicate which tree (net vs. net-next) my patch should be in?
+----------------------------------------------------------------------
+To help maintainers and CI bots you should explicitly mark which tree
+your patch is targeting. Assuming that you use git, use the prefix
+flag::
+
+  git format-patch --subject-prefix='PATCH net-next' start..finish
+
+Use ``net`` instead of ``net-next`` (always lower case) in the above for
+bug-fix ``net`` content.
+
 How often do changes from these trees make it to the mainline Linus tree?
 -------------------------------------------------------------------------
 To understand this, you need to know a bit of background information on
@@ -89,20 +100,6 @@ Load the mainline (Linus) page here:
 and note the top of the "tags" section.  If it is rc1, it is early in
 the dev cycle.  If it was tagged rc7 a week ago, then a release is
 probably imminent.
-
-How do I indicate which tree (net vs. net-next) my patch should be in?
-----------------------------------------------------------------------
-Firstly, think whether you have a bug fix or new "next-like" content.
-Then once decided, assuming that you use git, use the prefix flag, i.e.
-::
-
-  git format-patch --subject-prefix='PATCH net-next' start..finish
-
-Use ``net`` instead of ``net-next`` (always lower case) in the above for
-bug-fix ``net`` content.  If you don't use git, then note the only magic
-in the above is just the subject text of the outgoing e-mail, and you
-can manually change it yourself with whatever MUA you are comfortable
-with.
 
 I sent a patch and I'm wondering what happened to it - how can I tell whether it got merged?
 --------------------------------------------------------------------------------------------
