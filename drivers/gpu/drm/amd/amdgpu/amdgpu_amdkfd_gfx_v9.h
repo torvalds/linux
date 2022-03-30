@@ -64,3 +64,12 @@ void kgd_gfx_v9_acquire_queue(struct amdgpu_device *adev, uint32_t pipe_id,
 uint64_t kgd_gfx_v9_get_queue_mask(struct amdgpu_device *adev,
 				uint32_t pipe_id, uint32_t queue_id);
 void kgd_gfx_v9_release_queue(struct amdgpu_device *adev, uint32_t inst);
+void kgd_gfx_v9_set_wave_launch_stall(struct amdgpu_device *adev,
+					uint32_t vmid,
+					bool stall);
+uint32_t kgd_gfx_v9_enable_debug_trap(struct amdgpu_device *adev,
+				      bool restore_dbg_registers,
+				      uint32_t vmid);
+uint32_t kgd_gfx_v9_disable_debug_trap(struct amdgpu_device *adev,
+					bool keep_trap_enabled,
+					uint32_t vmid);
