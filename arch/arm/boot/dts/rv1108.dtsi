@@ -85,24 +85,6 @@
 		#clock-cells = <0>;
 	};
 
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		pdma: pdma@102a0000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x102a0000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMAC>;
-			clock-names = "apb_pclk";
-		};
-	};
-
 	bus_intmem: sram@10080000 {
 		compatible = "mmio-sram";
 		reg = <0x10080000 0x2000>;
@@ -257,6 +239,17 @@
 		pinctrl-0 = <&pwm7_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
+	};
+
+	pdma: dma-controller@102a0000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x102a0000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMAC>;
+		clock-names = "apb_pclk";
 	};
 
 	grf: syscon@10300000 {
