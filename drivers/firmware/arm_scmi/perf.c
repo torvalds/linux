@@ -423,6 +423,9 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 	struct scmi_perf_info *pi = ph->get_priv(ph);
 	struct perf_dom_info *dom = pi->dom_info + domain;
 
+	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3 && !max_perf && !min_perf)
+		return -EINVAL;
+
 	if (dom->fc_info && dom->fc_info->limit_set_addr) {
 		iowrite32(max_perf, dom->fc_info->limit_set_addr);
 		iowrite32(min_perf, dom->fc_info->limit_set_addr + 4);
