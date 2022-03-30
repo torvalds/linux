@@ -889,7 +889,6 @@ static const struct media_device_ops rvin_csi2_media_ops = {
 
 static int rvin_csi2_create_link(struct rvin_group *group, unsigned int id,
 				 const struct rvin_group_route *route)
-
 {
 	struct media_entity *source = &group->remotes[route->csi].subdev->entity;
 	struct media_entity *sink = &group->vin[id]->vdev.entity;
