@@ -716,14 +716,12 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 			use_metrics_v2 ? metrics_v2->CurrFanSpeed : metrics->CurrFanSpeed;
 		break;
 	case METRICS_UNIQUE_ID_UPPER32:
-		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumUpper32 :
-			use_metrics_v2 ? metrics_v2->PublicSerialNumUpper32 :
-			metrics->PublicSerialNumUpper32;
+		/* Only supported in 0x3A5300+, metrics_v3 requires 0x3A4900+ */
+		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumUpper32 : 0;
 		break;
 	case METRICS_UNIQUE_ID_LOWER32:
-		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumLower32 :
-			use_metrics_v2 ? metrics_v2->PublicSerialNumLower32 :
-			metrics->PublicSerialNumLower32;
+		/* Only supported in 0x3A5300+, metrics_v3 requires 0x3A4900+ */
+		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumLower32 : 0;
 		break;
 	default:
 		*value = UINT_MAX;

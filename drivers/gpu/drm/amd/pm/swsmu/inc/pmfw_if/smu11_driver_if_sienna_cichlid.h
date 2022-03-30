@@ -1420,9 +1420,6 @@ typedef struct {
   uint8_t  PcieWidth              ;
   uint16_t AverageGfxclkFrequencyTarget;
 
-  uint32_t PublicSerialNumLower32;
-  uint32_t PublicSerialNumUpper32;
-
   uint16_t Padding16_2;
 } SmuMetrics_t;
 
@@ -1479,9 +1476,6 @@ typedef struct {
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
   uint16_t AverageGfxclkFrequencyTarget;
-
-  uint32_t PublicSerialNumLower32;
-  uint32_t PublicSerialNumUpper32;
 
   uint16_t Padding16_2;
 } SmuMetrics_V2_t;
