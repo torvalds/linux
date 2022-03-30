@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Performance Protocol
  *
- * Copyright (C) 2018-2021 ARM Ltd.
+ * Copyright (C) 2018-2022 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications PERF - " fmt
@@ -17,8 +17,10 @@
 #include <linux/scmi_protocol.h>
 #include <linux/sort.h>
 
-#include "common.h"
+#include "protocols.h"
 #include "notify.h"
+
+#define MAX_OPPS		16
 
 enum scmi_performance_protocol_cmd {
 	PERF_DOMAIN_ATTRIBUTES = 0x3,

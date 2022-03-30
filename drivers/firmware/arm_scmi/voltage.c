@@ -2,13 +2,13 @@
 /*
  * System Control and Management Interface (SCMI) Voltage Protocol
  *
- * Copyright (C) 2020-2021 ARM Ltd.
+ * Copyright (C) 2020-2022 ARM Ltd.
  */
 
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
-#include "common.h"
+#include "protocols.h"
 
 #define VOLTAGE_DOMS_NUM_MASK		GENMASK(15, 0)
 #define REMAINING_LEVELS_MASK		GENMASK(31, 16)

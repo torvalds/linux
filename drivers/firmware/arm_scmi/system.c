@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) System Power Protocol
  *
- * Copyright (C) 2020-2021 ARM Ltd.
+ * Copyright (C) 2020-2022 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications SYSTEM - " fmt
@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
-#include "common.h"
+#include "protocols.h"
 #include "notify.h"
 
 #define SCMI_SYSTEM_NUM_SOURCES		1
