@@ -218,7 +218,7 @@ or the user space project is not reviewed on netdev include a link
 to a public repo where user space patches can be seen.
 
 In case user space tooling lives in a separate repository but is
-reviewed on netdev  (e.g. patches to `iproute2` tools) kernel and
+reviewed on netdev  (e.g. patches to ``iproute2`` tools) kernel and
 user space patches should form separate series (threads) when posted
 to the mailing list, e.g.::
 
@@ -251,18 +251,18 @@ traffic if we can help it.
 netdevsim is great, can I extend it for my out-of-tree tests?
 -------------------------------------------------------------
 
-No, `netdevsim` is a test vehicle solely for upstream tests.
-(Please add your tests under tools/testing/selftests/.)
+No, ``netdevsim`` is a test vehicle solely for upstream tests.
+(Please add your tests under ``tools/testing/selftests/``.)
 
-We also give no guarantees that `netdevsim` won't change in the future
+We also give no guarantees that ``netdevsim`` won't change in the future
 in a way which would break what would normally be considered uAPI.
 
 Is netdevsim considered a "user" of an API?
 -------------------------------------------
 
 Linux kernel has a long standing rule that no API should be added unless
-it has a real, in-tree user. Mock-ups and tests based on `netdevsim` are
-strongly encouraged when adding new APIs, but `netdevsim` in itself
+it has a real, in-tree user. Mock-ups and tests based on ``netdevsim`` are
+strongly encouraged when adding new APIs, but ``netdevsim`` in itself
 is **not** considered a use case/user.
 
 Any other tips to help ensure my net/net-next patch gets OK'd?
