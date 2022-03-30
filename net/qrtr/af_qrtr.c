@@ -1472,7 +1472,7 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 	if (!*port) {
 		rc = xa_alloc_cyclic(&qrtr_ports, port, ipc,
 				     QRTR_EPH_PORT_RANGE, &qrtr_ports_next,
-				     GFP_KERNEL);
+				     GFP_ATOMIC);
 	} else if (*port < QRTR_MIN_EPH_SOCKET &&
 		   !(capable(CAP_NET_ADMIN) ||
 		   in_egroup_p(AID_VENDOR_QRTR) ||
