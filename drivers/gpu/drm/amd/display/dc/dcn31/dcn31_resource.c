@@ -1742,6 +1742,27 @@ void dcn31_calculate_wm_and_dlg(
 	DC_FP_END();
 }
 
+void
+dcn31_populate_dml_writeback_from_context(struct dc *dc,
+					  struct resource_context *res_ctx,
+					  display_e2e_pipe_params_st *pipes)
+{
+	DC_FP_START();
+	dcn30_populate_dml_writeback_from_context(dc, res_ctx, pipes);
+	DC_FP_END();
+}
+
+void
+dcn31_set_mcif_arb_params(struct dc *dc,
+			  struct dc_state *context,
+			  display_e2e_pipe_params_st *pipes,
+			  int pipe_cnt)
+{
+	DC_FP_START();
+	dcn30_set_mcif_arb_params(dc, context, pipes, pipe_cnt);
+	DC_FP_END();
+}
+
 bool dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -1815,8 +1836,8 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
-	.populate_dml_writeback_from_context = dcn30_populate_dml_writeback_from_context,
-	.set_mcif_arb_params = dcn30_set_mcif_arb_params,
+	.populate_dml_writeback_from_context = dcn31_populate_dml_writeback_from_context,
+	.set_mcif_arb_params = dcn31_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,

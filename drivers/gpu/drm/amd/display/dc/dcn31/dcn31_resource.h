@@ -50,6 +50,15 @@ int dcn31_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
 	bool fast_validate);
+void
+dcn31_populate_dml_writeback_from_context(struct dc *dc,
+					  struct resource_context *res_ctx,
+					  display_e2e_pipe_params_st *pipes);
+void
+dcn31_set_mcif_arb_params(struct dc *dc,
+			  struct dc_state *context,
+			  display_e2e_pipe_params_st *pipes,
+			  int pipe_cnt);
 void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
 
 struct resource_pool *dcn31_create_resource_pool(
