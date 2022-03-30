@@ -76,6 +76,8 @@
 #define LPC18XX_PWM_EVENT_PERIOD	0
 #define LPC18XX_PWM_EVENT_MAX		16
 
+#define LPC18XX_NUM_PWMS		16
+
 /* SCT conflict resolution */
 enum lpc18xx_pwm_res_action {
 	LPC18XX_PWM_RES_NONE,
@@ -101,6 +103,7 @@ struct lpc18xx_pwm_chip {
 	unsigned long event_map;
 	struct mutex res_lock;
 	struct mutex period_lock;
+	struct lpc18xx_pwm_data channeldata[LPC18XX_NUM_PWMS];
 };
 
 static inline struct lpc18xx_pwm_chip *
@@ -163,7 +166,7 @@ static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
 				    struct pwm_device *pwm, int duty_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 	u64 val;
 
 	val = (u64)duty_ns * lpc18xx_pwm->clk_rate;
@@ -233,7 +236,7 @@ static int lpc18xx_pwm_set_polarity(struct pwm_chip *chip,
 static int lpc18xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 	enum lpc18xx_pwm_res_action res_action;
 	unsigned int set_event, clear_event;
 
@@ -268,7 +271,7 @@ static int lpc18xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void lpc18xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_EVCTRL(lpc18xx_data->duty_event), 0);
@@ -279,7 +282,7 @@ static void lpc18xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 	unsigned long event;
 
 	event = find_first_zero_bit(&lpc18xx_pwm->event_map,
@@ -300,7 +303,7 @@ static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 static void lpc18xx_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 
 	clear_bit(lpc18xx_data->duty_event, &lpc18xx_pwm->event_map);
 }
@@ -324,8 +327,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_pwm_of_match);
 static int lpc18xx_pwm_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm;
-	struct pwm_device *pwm;
-	int ret, i;
+	int ret;
 	u64 val;
 
 	lpc18xx_pwm = devm_kzalloc(&pdev->dev, sizeof(*lpc18xx_pwm),
@@ -370,7 +372,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	lpc18xx_pwm->chip.dev = &pdev->dev;
 	lpc18xx_pwm->chip.ops = &lpc18xx_pwm_ops;
-	lpc18xx_pwm->chip.npwm = 16;
+	lpc18xx_pwm->chip.npwm = LPC18XX_NUM_PWMS;
 
 	/* SCT counter must be in unify (32 bit) mode */
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CONFIG,
@@ -395,29 +397,6 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_LIMIT,
 			   BIT(lpc18xx_pwm->period_event));
 
-	ret = pwmchip_add(&lpc18xx_pwm->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pwmchip_add failed: %d\n", ret);
-		goto disable_pwmclk;
-	}
-
-	for (i = 0; i < lpc18xx_pwm->chip.npwm; i++) {
-		struct lpc18xx_pwm_data *data;
-
-		pwm = &lpc18xx_pwm->chip.pwms[i];
-
-		data = devm_kzalloc(lpc18xx_pwm->dev, sizeof(*data),
-				    GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto remove_pwmchip;
-		}
-
-		pwm_set_chip_data(pwm, data);
-	}
-
-	platform_set_drvdata(pdev, lpc18xx_pwm);
-
 	val = lpc18xx_pwm_readl(lpc18xx_pwm, LPC18XX_PWM_CTRL);
 	val &= ~LPC18XX_PWM_BIDIR;
 	val &= ~LPC18XX_PWM_CTRL_HALT;
@@ -425,10 +404,16 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	val |= LPC18XX_PWM_PRE(0);
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CTRL, val);
 
+	ret = pwmchip_add(&lpc18xx_pwm->chip);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "pwmchip_add failed: %d\n", ret);
+		goto disable_pwmclk;
+	}
+
+	platform_set_drvdata(pdev, lpc18xx_pwm);
+
 	return 0;
 
-remove_pwmchip:
-	pwmchip_remove(&lpc18xx_pwm->chip);
 disable_pwmclk:
 	clk_disable_unprepare(lpc18xx_pwm->pwm_clk);
 	return ret;
