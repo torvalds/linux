@@ -149,6 +149,16 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
 		ring->funcs->end_use(ring);
 }
 
+#define amdgpu_ring_get_gpu_addr(ring, offset)				\
+	(ring->is_mes_queue ?						\
+	 (ring->mes_ctx->meta_data_gpu_addr + offset) :			\
+	 (ring->adev->wb.gpu_addr + offset * 4))
+
+#define amdgpu_ring_get_cpu_addr(ring, offset)				\
+	(ring->is_mes_queue ?						\
+	 (void *)((uint8_t *)(ring->mes_ctx->meta_data_ptr) + offset) : \
+	 (&ring->adev->wb.wb[offset]))
+
 /**
  * amdgpu_ring_init - init driver ring struct.
  *
@@ -189,51 +199,88 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return -EINVAL;
 
 		ring->adev = adev;
-		ring->idx = adev->num_rings++;
-		adev->rings[ring->idx] = ring;
 		ring->num_hw_submission = sched_hw_submission;
 		ring->sched_score = sched_score;
 		ring->vmid_wait = dma_fence_get_stub();
+
+		if (!ring->is_mes_queue) {
+			ring->idx = adev->num_rings++;
+			adev->rings[ring->idx] = ring;
+		}
+
 		r = amdgpu_fence_driver_init_ring(ring);
 		if (r)
 			return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->rptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-		return r;
+	if (ring->is_mes_queue) {
+		ring->rptr_offs = amdgpu_mes_ctx_get_offs(ring,
+				AMDGPU_MES_CTX_RPTR_OFFS);
+		ring->wptr_offs = amdgpu_mes_ctx_get_offs(ring,
+				AMDGPU_MES_CTX_WPTR_OFFS);
+		ring->fence_offs = amdgpu_mes_ctx_get_offs(ring,
+				AMDGPU_MES_CTX_FENCE_OFFS);
+		ring->trail_fence_offs = amdgpu_mes_ctx_get_offs(ring,
+				AMDGPU_MES_CTX_TRAIL_FENCE_OFFS);
+		ring->cond_exe_offs = amdgpu_mes_ctx_get_offs(ring,
+				AMDGPU_MES_CTX_COND_EXE_OFFS);
+	} else {
+		r = amdgpu_device_wb_get(adev, &ring->rptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_device_wb_get(adev, &ring->wptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_device_wb_get(adev, &ring->fence_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring fence_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_device_wb_get(adev, &ring->trail_fence_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring trail_fence_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_device_wb_get(adev, &ring->cond_exe_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
+			return r;
+		}
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->wptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-		return r;
-	}
+	ring->fence_gpu_addr =
+		amdgpu_ring_get_gpu_addr(ring, ring->fence_offs);
+	ring->fence_cpu_addr =
+		amdgpu_ring_get_cpu_addr(ring, ring->fence_offs);
 
-	r = amdgpu_device_wb_get(adev, &ring->fence_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring fence_offs wb alloc failed\n", r);
-		return r;
-	}
+	ring->rptr_gpu_addr =
+		amdgpu_ring_get_gpu_addr(ring, ring->rptr_offs);
+	ring->rptr_cpu_addr =
+		amdgpu_ring_get_cpu_addr(ring, ring->rptr_offs);
 
-	r = amdgpu_device_wb_get(adev, &ring->trail_fence_offs);
-	if (r) {
-		dev_err(adev->dev,
-			"(%d) ring trail_fence_offs wb alloc failed\n", r);
-		return r;
-	}
+	ring->wptr_gpu_addr =
+		amdgpu_ring_get_gpu_addr(ring, ring->wptr_offs);
+	ring->wptr_cpu_addr =
+		amdgpu_ring_get_cpu_addr(ring, ring->wptr_offs);
+
 	ring->trail_fence_gpu_addr =
-		adev->wb.gpu_addr + (ring->trail_fence_offs * 4);
-	ring->trail_fence_cpu_addr = &adev->wb.wb[ring->trail_fence_offs];
+		amdgpu_ring_get_gpu_addr(ring, ring->trail_fence_offs);
+	ring->trail_fence_cpu_addr =
+		amdgpu_ring_get_cpu_addr(ring, ring->trail_fence_offs);
 
-	r = amdgpu_device_wb_get(adev, &ring->cond_exe_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
-		return r;
-	}
-	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
-	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
+	ring->cond_exe_gpu_addr =
+		amdgpu_ring_get_gpu_addr(ring, ring->cond_exe_offs);
+	ring->cond_exe_cpu_addr =
+		amdgpu_ring_get_cpu_addr(ring, ring->cond_exe_offs);
+
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
@@ -248,8 +295,20 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->buf_mask = (ring->ring_size / 4) - 1;
 	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?
 		0xffffffffffffffff : ring->buf_mask;
+
 	/* Allocate ring buffer */
-	if (ring->ring_obj == NULL) {
+	if (ring->is_mes_queue) {
+		int offset = 0;
+
+		BUG_ON(ring->ring_size > PAGE_SIZE*4);
+
+		offset = amdgpu_mes_ctx_get_offs(ring,
+					 AMDGPU_MES_CTX_RING_OFFS);
+		ring->gpu_addr = amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
+		ring->ring = amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset);
+		amdgpu_ring_clear_ring(ring);
+
+	} else if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create_kernel(adev, ring->ring_size + ring->funcs->extra_dw, PAGE_SIZE,
 					    AMDGPU_GEM_DOMAIN_GTT,
 					    &ring->ring_obj,
@@ -286,26 +345,30 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 
 	/* Not to finish a ring which is not initialized */
-	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
+	if (!(ring->adev) ||
+	    (!ring->is_mes_queue && !(ring->adev->rings[ring->idx])))
 		return;
 
 	ring->sched.ready = false;
 
-	amdgpu_device_wb_free(ring->adev, ring->rptr_offs);
-	amdgpu_device_wb_free(ring->adev, ring->wptr_offs);
+	if (!ring->is_mes_queue) {
+		amdgpu_device_wb_free(ring->adev, ring->rptr_offs);
+		amdgpu_device_wb_free(ring->adev, ring->wptr_offs);
 
-	amdgpu_device_wb_free(ring->adev, ring->cond_exe_offs);
-	amdgpu_device_wb_free(ring->adev, ring->fence_offs);
+		amdgpu_device_wb_free(ring->adev, ring->cond_exe_offs);
+		amdgpu_device_wb_free(ring->adev, ring->fence_offs);
 
-	amdgpu_bo_free_kernel(&ring->ring_obj,
-			      &ring->gpu_addr,
-			      (void **)&ring->ring);
+		amdgpu_bo_free_kernel(&ring->ring_obj,
+				      &ring->gpu_addr,
+				      (void **)&ring->ring);
+	}
 
 	dma_fence_put(ring->vmid_wait);
 	ring->vmid_wait = NULL;
 	ring->me = 0;
 
-	ring->adev->rings[ring->idx] = NULL;
+	if (!ring->is_mes_queue)
+		ring->adev->rings[ring->idx] = NULL;
 }
 
 /**
