@@ -108,6 +108,9 @@ TRACE_MAKE_SYSTEM_STR();
 #undef __bitmask
 #define __bitmask(item, nr_bits) __dynamic_array(char, item, -1)
 
+#undef __sockaddr
+#define __sockaddr(field, len) __dynamic_array(u8, field, len)
+
 #undef __rel_dynamic_array
 #define __rel_dynamic_array(type, item, len) u32 __rel_loc_##item;
 
@@ -119,6 +122,9 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef __rel_bitmask
 #define __rel_bitmask(item, nr_bits) __rel_dynamic_array(char, item, -1)
+
+#undef __rel_sockaddr
+#define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
 
 #undef TP_STRUCT__entry
 #define TP_STRUCT__entry(args...) args
@@ -212,11 +218,14 @@ TRACE_MAKE_SYSTEM_STR();
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
 
+#undef __string_len
+#define __string_len(item, src, len) __dynamic_array(char, item, -1)
+
 #undef __bitmask
 #define __bitmask(item, nr_bits) __dynamic_array(unsigned long, item, -1)
 
-#undef __string_len
-#define __string_len(item, src, len) __dynamic_array(char, item, -1)
+#undef __sockaddr
+#define __sockaddr(field, len) __dynamic_array(u8, field, len)
 
 #undef __rel_dynamic_array
 #define __rel_dynamic_array(type, item, len)	u32 item;
@@ -229,6 +238,9 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef __rel_bitmask
 #define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item, -1)
+
+#undef __rel_sockaddr
+#define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -348,6 +360,12 @@ TRACE_MAKE_SYSTEM_STR();
 		__bitmask_size = __get_rel_dynamic_array_len(field);	\
 		trace_print_bitmask_seq(p, __bitmask, __bitmask_size);	\
 	})
+
+#undef __get_sockaddr
+#define __get_sockaddr(field)	((struct sockaddr *)__get_dynamic_array(field))
+
+#undef __get_rel_sockaddr
+#define __get_rel_sockaddr(field)	((struct sockaddr *)__get_rel_dynamic_array(field))
 
 #undef __print_flags
 #define __print_flags(flag, delim, flag_array...)			\
@@ -518,6 +536,9 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 #undef __bitmask
 #define __bitmask(item, nr_bits) __dynamic_array(unsigned long, item, -1)
 
+#undef __sockaddr
+#define __sockaddr(field, len) __dynamic_array(u8, field, len)
+
 #undef __rel_dynamic_array
 #define __rel_dynamic_array(_type, _item, _len) {			\
 	.type = "__rel_loc " #_type "[]", .name = #_item,		\
@@ -532,6 +553,9 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 
 #undef __rel_bitmask
 #define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item, -1)
+
+#undef __rel_sockaddr
+#define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
@@ -623,6 +647,12 @@ static struct trace_event_fields trace_event_fields_##call[] = {	\
 #undef __rel_bitmask
 #define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item,	\
 					 __bitmask_size_in_longs(nr_bits))
+
+#undef __sockaddr
+#define __sockaddr(field, len) __dynamic_array(u8, field, len)
+
+#undef __rel_sockaddr
+#define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -788,6 +818,15 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #define __assign_bitmask(dst, src, nr_bits)					\
 	memcpy(__get_bitmask(dst), (src), __bitmask_size_in_bytes(nr_bits))
 
+#undef __sockaddr
+#define __sockaddr(field, len) __dynamic_array(u8, field, len)
+
+#undef __get_sockaddr
+#define __get_sockaddr(field)	((struct sockaddr *)__get_dynamic_array(field))
+
+#define __assign_sockaddr(dest, src, len)					\
+	memcpy(__get_dynamic_array(dest), src, len)
+
 #undef __rel_dynamic_array
 #define __rel_dynamic_array(type, item, len)				\
 	__entry->__rel_loc_##item = __data_offsets.item;
@@ -818,6 +857,16 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #undef __assign_rel_bitmask
 #define __assign_rel_bitmask(dst, src, nr_bits)					\
 	memcpy(__get_rel_bitmask(dst), (src), __bitmask_size_in_bytes(nr_bits))
+
+#undef __rel_sockaddr
+#define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
+
+#undef __get_rel_sockaddr
+#define __get_rel_sockaddr(field)	((struct sockaddr *)__get_rel_dynamic_array(field))
+
+#define __assign_rel_sockaddr(dest, src, len)					\
+	memcpy(__get_rel_dynamic_array(dest), src, len)
+
 
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
@@ -883,10 +932,12 @@ static inline void ftrace_test_probe_##call(void)			\
 #undef __get_dynamic_array_len
 #undef __get_str
 #undef __get_bitmask
+#undef __get_sockaddr
 #undef __get_rel_dynamic_array
 #undef __get_rel_dynamic_array_len
 #undef __get_rel_str
 #undef __get_rel_bitmask
+#undef __get_rel_sockaddr
 #undef __print_array
 #undef __print_hex_dump
 

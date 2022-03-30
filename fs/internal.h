@@ -158,11 +158,6 @@ extern void dput_to_list(struct dentry *, struct list_head *);
 extern void shrink_dentry_list(struct list_head *);
 
 /*
- * read_write.c
- */
-extern int rw_verify_area(int, struct file *, const loff_t *, size_t);
-
-/*
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;

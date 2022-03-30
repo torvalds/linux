@@ -611,8 +611,6 @@ out_negative:
 	return nfserr_serverfault;
 }
 
-#ifdef CONFIG_NFSD_V3
-
 /**
  * fh_fill_pre_attrs - Fill in pre-op attributes
  * @fhp: file handle to be updated
@@ -672,8 +670,6 @@ void fh_fill_post_attrs(struct svc_fh *fhp)
 		fhp->fh_post_change =
 			nfsd4_change_attribute(&fhp->fh_post_attr, inode);
 }
-
-#endif /* CONFIG_NFSD_V3 */
 
 /*
  * Release a file handle.

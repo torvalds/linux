@@ -384,6 +384,12 @@ static void test_event_printk(struct trace_event_call *call)
 			if (!(dereference_flags & (1ULL << arg)))
 				goto next_arg;
 
+			/* Check for __get_sockaddr */;
+			if (str_has_prefix(fmt + i, "__get_sockaddr(")) {
+				dereference_flags &= ~(1ULL << arg);
+				goto next_arg;
+			}
+
 			/* Find the REC-> in the argument */
 			c = strchr(fmt + i, ',');
 			r = strstr(fmt + i, "REC->");
