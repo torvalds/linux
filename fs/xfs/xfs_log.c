@@ -1374,7 +1374,7 @@ xlog_ioend_work(
 	 */
 	if (XFS_TEST_ERROR(error, log->l_mp, XFS_ERRTAG_IODONE_IOERR)) {
 		xfs_alert(log->l_mp, "log I/O error %d", error);
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	}
 
 	xlog_state_done_syncing(iclog);
@@ -1913,7 +1913,7 @@ xlog_write_iclog(
 	iclog->ic_flags &= ~(XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA);
 
 	if (xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count)) {
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 		return;
 	}
 	if (is_vmalloc_addr(iclog->ic_data))
@@ -2488,7 +2488,7 @@ xlog_write(
 		xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
 		     "ctx ticket reservation ran out. Need to up reservation");
 		xlog_print_tic_res(log->l_mp, ticket);
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	}
 
 	len = xlog_write_calc_vec_length(ticket, log_vector, optype);
@@ -3822,9 +3822,10 @@ xlog_verify_iclog(
 #endif
 
 /*
- * Perform a forced shutdown on the log. This should be called once and once
- * only by the high level filesystem shutdown code to shut the log subsystem
- * down cleanly.
+ * Perform a forced shutdown on the log.
+ *
+ * This can be called from low level log code to trigger a shutdown, or from the
+ * high level mount shutdown code when the mount shuts down.
  *
  * Our main objectives here are to make sure that:
  *	a. if the shutdown was not due to a log IO error, flush the logs to
@@ -3833,6 +3834,8 @@ xlog_verify_iclog(
  *	   parties to find out. Nothing new gets queued after this is done.
  *	c. Tasks sleeping on log reservations, pinned objects and
  *	   other resources get woken up.
+ *	d. The mount is also marked as shut down so that log triggered shutdowns
+ *	   still behave the same as if they called xfs_forced_shutdown().
  *
  * Return true if the shutdown cause was a log IO error and we actually shut the
  * log down.
@@ -3850,8 +3853,6 @@ xlog_force_shutdown(
 	 */
 	if (!log || xlog_in_recovery(log))
 		return false;
-
-	ASSERT(!xlog_is_shutdown(log));
 
 	/*
 	 * Flush all the completed transactions to disk before marking the log
@@ -3879,10 +3880,23 @@ xlog_force_shutdown(
 	spin_lock(&log->l_icloglock);
 	if (test_and_set_bit(XLOG_IO_ERROR, &log->l_opstate)) {
 		spin_unlock(&log->l_icloglock);
-		ASSERT(0);
 		return false;
 	}
 	spin_unlock(&log->l_icloglock);
+
+	/*
+	 * If this log shutdown also sets the mount shutdown state, issue a
+	 * shutdown warning message.
+	 */
+	if (!test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &log->l_mp->m_opstate)) {
+		xfs_alert_tag(log->l_mp, XFS_PTAG_SHUTDOWN_LOGERROR,
+"Filesystem has been shut down due to log error (0x%x).",
+				shutdown_flags);
+		xfs_alert(log->l_mp,
+"Please unmount the filesystem and rectify the problem(s).");
+		if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
+			xfs_stack_trace();
+	}
 
 	/*
 	 * We don't want anybody waiting for log reservations after this. That

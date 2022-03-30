@@ -2485,7 +2485,7 @@ xlog_finish_defer_ops(
 		error = xfs_trans_alloc(mp, &resv, dfc->dfc_blkres,
 				dfc->dfc_rtxres, XFS_TRANS_RESERVE, &tp);
 		if (error) {
-			xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
+			xlog_force_shutdown(mp->m_log, SHUTDOWN_LOG_IO_ERROR);
 			return error;
 		}
 
@@ -3454,7 +3454,7 @@ xlog_recover_finish(
 		 */
 		xlog_recover_cancel_intents(log);
 		xfs_alert(log->l_mp, "Failed to recover intents");
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 		return error;
 	}
 
@@ -3501,7 +3501,7 @@ xlog_recover_finish(
 		 * end of intents processing can be pushed through the CIL
 		 * and AIL.
 		 */
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	}
 
 	return 0;
