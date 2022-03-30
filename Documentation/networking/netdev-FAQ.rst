@@ -74,6 +74,9 @@ sent to netdev, but knowing the above, you can predict that in advance.
   Do not send new ``net-next`` content to netdev during the
   period during which ``net-next`` tree is closed.
 
+RFC patches sent for review only are obviously welcome at any time
+(use ``--subject-prefix='RFC net-next'`` with ``git format-patch``).
+
 Shortly after the two weeks have passed (and vX.Y-rc1 is released), the
 tree for ``net-next`` reopens to collect content for the next (vX.Y+1)
 release.
