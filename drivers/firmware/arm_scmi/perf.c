@@ -45,6 +45,7 @@ struct scmi_msg_resp_perf_attributes {
 	__le16 num_domains;
 	__le16 flags;
 #define POWER_SCALE_IN_MILLIWATT(x)	((x) & BIT(0))
+#define POWER_SCALE_IN_MICROWATT(x)	((x) & BIT(1))
 	__le32 stats_addr_low;
 	__le32 stats_addr_high;
 	__le32 stats_size;
@@ -170,6 +171,7 @@ struct scmi_perf_info {
 	u32 version;
 	int num_domains;
 	bool power_scale_mw;
+	bool power_scale_uw;
 	u64 stats_addr;
 	u32 stats_size;
 	struct perf_dom_info *dom_info;
@@ -200,6 +202,8 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 
 		pi->num_domains = le16_to_cpu(attr->num_domains);
 		pi->power_scale_mw = POWER_SCALE_IN_MILLIWATT(flags);
+		if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3)
+			pi->power_scale_uw = POWER_SCALE_IN_MICROWATT(flags);
 		pi->stats_addr = le32_to_cpu(attr->stats_addr_low) |
 				(u64)le32_to_cpu(attr->stats_addr_high) << 32;
 		pi->stats_size = le32_to_cpu(attr->stats_size);
