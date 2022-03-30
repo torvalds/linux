@@ -34,8 +34,6 @@ static int to_nd_device_type(struct device *dev)
 		return ND_DEVICE_DIMM;
 	else if (is_memory(dev))
 		return ND_DEVICE_REGION_PMEM;
-	else if (is_nd_blk(dev))
-		return ND_DEVICE_REGION_BLK;
 	else if (is_nd_dax(dev))
 		return ND_DEVICE_DAX_PMEM;
 	else if (is_nd_region(dev->parent))
