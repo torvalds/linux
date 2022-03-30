@@ -1338,9 +1338,6 @@ void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)pValue) = haldata->odmpriv.SupportAbility;
 		break;
-	case HAL_DEF_DBG_DUMP_TXPKT:
-		*((u8 *)pValue) = haldata->bDumpTxPkt;
-		break;
 	default:
 		break;
 	}
@@ -1369,9 +1366,6 @@ void SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 				podmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
 			}
 		}
-		break;
-	case HAL_DEF_DBG_DUMP_TXPKT:
-		haldata->bDumpTxPkt = *((u8 *)pValue);
 		break;
 	default:
 		break;

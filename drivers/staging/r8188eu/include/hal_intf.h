@@ -41,7 +41,6 @@ enum hal_def_variable {
 	HAL_DEF_IS_SUPPORT_ANT_DIV,
 	HAL_DEF_CURRENT_ANTENNA,
 	HAL_DEF_DBG_DM_FUNC,/* for dbg */
-	HAL_DEF_DBG_DUMP_TXPKT,
 };
 
 typedef s32 (*c2h_id_filter)(u8 id);

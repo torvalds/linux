@@ -160,8 +160,6 @@ struct hal_data_8188e {
 	u8	AntDivCfg;
 	u8	TRxAntDivType;
 
-	u8	bDumpTxPkt;/* for debug */
-
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
