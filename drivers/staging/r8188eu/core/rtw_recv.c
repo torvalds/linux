@@ -1060,7 +1060,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	/* then call check if rx seq/frag. duplicated. */
 
 	int retval = _FAIL;
-	u8 bDumpRxPkt;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
@@ -1085,9 +1084,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	pattrib->mdata = ieee80211_has_moredata(hdr->frame_control);
 	pattrib->privacy = ieee80211_has_protected(hdr->frame_control);
 	pattrib->order = ieee80211_has_order(hdr->frame_control);
-
-	/* Dump rx packets */
-	GetHalDefVar8188EUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 
 	/* We return _SUCCESS only for data frames. */
 	if (ieee80211_is_mgmt(hdr->frame_control))

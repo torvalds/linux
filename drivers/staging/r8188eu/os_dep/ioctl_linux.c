@@ -3633,11 +3633,8 @@ static int rtw_dbg_port(struct net_device *dev,
 		case 0x09:
 			break;
 		case 0x0c:/* dump rx/tx packet */
-			if (arg == 0) {
-				SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DUMP_RXPKT, &extra_arg);
-			} else if (arg == 1) {
+			if (arg == 1)
 				SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DUMP_TXPKT, &extra_arg);
-			}
 			break;
 		case 0x15:
 			break;
