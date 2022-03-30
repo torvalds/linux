@@ -1466,10 +1466,12 @@ retry_lookup:
 			} else if (have_lease) {
 				if (d_unhashed(dn))
 					d_add(dn, NULL);
+			}
+
+			if (!d_unhashed(dn) && have_lease)
 				update_dentry_lease(dir, dn,
 						    rinfo->dlease, session,
 						    req->r_request_started);
-			}
 			goto done;
 		}
 
