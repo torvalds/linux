@@ -821,6 +821,9 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
+	if (!crtc_state->has_audio)
+		return;
+
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Enable audio codec on pipe %c, %u bytes ELD\n",
 		    connector->base.id, connector->name,
 		    encoder->base.base.id, encoder->base.name,
@@ -879,6 +882,9 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_connector *connector = old_conn_state->connector;
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
+
+	if (!old_crtc_state->has_audio)
+		return;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Disable audio codec on pipe %c\n",
 		    connector->base.id, connector->name,

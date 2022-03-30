@@ -2819,8 +2819,7 @@ static void intel_enable_ddi_dp(struct intel_atomic_state *state,
 	if (!dig_port->lspcon.active || dig_port->dp.has_hdmi_sink)
 		intel_dp_set_infoframes(encoder, true, crtc_state, conn_state);
 
-	if (crtc_state->has_audio)
-		intel_audio_codec_enable(encoder, crtc_state, conn_state);
+	intel_audio_codec_enable(encoder, crtc_state, conn_state);
 
 	trans_port_sync_stop_link_train(state, encoder, crtc_state);
 }
@@ -2914,8 +2913,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	intel_de_write(dev_priv, DDI_BUF_CTL(port),
 		       dig_port->saved_port_bits | DDI_BUF_CTL_ENABLE);
 
-	if (crtc_state->has_audio)
-		intel_audio_codec_enable(encoder, crtc_state, conn_state);
+	intel_audio_codec_enable(encoder, crtc_state, conn_state);
 }
 
 static void intel_enable_ddi(struct intel_atomic_state *state,
@@ -2956,9 +2954,7 @@ static void intel_disable_ddi_dp(struct intel_atomic_state *state,
 
 	intel_dp->link_trained = false;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
+	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 
 	intel_psr_disable(intel_dp, old_crtc_state);
 	intel_edp_backlight_off(old_conn_state);
@@ -2978,9 +2974,7 @@ static void intel_disable_ddi_hdmi(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct drm_connector *connector = old_conn_state->connector;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
+	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       false, false))

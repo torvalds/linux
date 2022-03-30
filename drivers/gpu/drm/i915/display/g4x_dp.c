@@ -495,9 +495,7 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 
 	intel_dp->link_trained = false;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
+	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 
 	/*
 	 * Make sure the panel is off before trying to change the mode.
@@ -692,8 +690,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	intel_dp_start_link_train(intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 
-	if (pipe_config->has_audio)
-		intel_audio_codec_enable(encoder, pipe_config, conn_state);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void g4x_enable_dp(struct intel_atomic_state *state,
