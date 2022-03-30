@@ -129,8 +129,6 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 		if (t->rx.len == sizeof(*attr))
 			clk->enable_latency =
 				le32_to_cpu(attr->clock_enable_latency);
-	} else {
-		clk->name[0] = '\0';
 	}
 
 	ph->xops->xfer_put(ph, t);
