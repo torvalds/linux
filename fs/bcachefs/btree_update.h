@@ -83,6 +83,8 @@ void bch2_trans_commit_hook(struct btree_trans *,
 			    struct btree_trans_commit_hook *);
 int __bch2_trans_commit(struct btree_trans *);
 
+int bch2_trans_log_msg(struct btree_trans *, const char *);
+
 /**
  * bch2_trans_commit - insert keys at given iterator positions
  *

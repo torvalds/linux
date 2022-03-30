@@ -1795,3 +1795,30 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			     bch2_btree_delete_range_trans(&trans, id, start, end,
 							   update_flags, journal_seq));
 }
+
+int bch2_trans_log_msg(struct btree_trans *trans, const char *msg)
+{
+	unsigned len = strlen(msg);
+	unsigned u64s = DIV_ROUND_UP(len, sizeof(u64));
+	struct jset_entry_log *l;
+	int ret;
+
+	ret = darray_make_room(&trans->extra_journal_entries, jset_u64s(u64s));
+	if (ret)
+		return ret;
+
+	l = (void *) &darray_top(trans->extra_journal_entries);
+	l->entry.u64s		= cpu_to_le16(u64s);
+	l->entry.btree_id	= 0;
+	l->entry.level		= 1;
+	l->entry.type		= BCH_JSET_ENTRY_log;
+	l->entry.pad[0]		= 0;
+	l->entry.pad[1]		= 0;
+	l->entry.pad[2]		= 0;
+	memcpy(l->d, msg, len);
+	while (len & 7)
+		l->d[len++] = '\0';
+
+	trans->extra_journal_entries.nr += jset_u64s(u64s);
+	return 0;
+}
