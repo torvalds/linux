@@ -4346,10 +4346,6 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	bool need_unlock; /* for mut. excl. ops lock */
 	int ret;
 
-	if (!arg)
-		btrfs_warn(fs_info,
-	"IOC_BALANCE ioctl (v1) is deprecated and will be removed in kernel 5.18");
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -4405,29 +4401,25 @@ again:
 
 locked:
 
-	if (arg) {
-		bargs = memdup_user(arg, sizeof(*bargs));
-		if (IS_ERR(bargs)) {
-			ret = PTR_ERR(bargs);
-			goto out_unlock;
+	bargs = memdup_user(arg, sizeof(*bargs));
+	if (IS_ERR(bargs)) {
+		ret = PTR_ERR(bargs);
+		goto out_unlock;
+	}
+
+	if (bargs->flags & BTRFS_BALANCE_RESUME) {
+		if (!fs_info->balance_ctl) {
+			ret = -ENOTCONN;
+			goto out_bargs;
 		}
 
-		if (bargs->flags & BTRFS_BALANCE_RESUME) {
-			if (!fs_info->balance_ctl) {
-				ret = -ENOTCONN;
-				goto out_bargs;
-			}
+		bctl = fs_info->balance_ctl;
+		spin_lock(&fs_info->balance_lock);
+		bctl->flags |= BTRFS_BALANCE_RESUME;
+		spin_unlock(&fs_info->balance_lock);
+		btrfs_exclop_balance(fs_info, BTRFS_EXCLOP_BALANCE);
 
-			bctl = fs_info->balance_ctl;
-			spin_lock(&fs_info->balance_lock);
-			bctl->flags |= BTRFS_BALANCE_RESUME;
-			spin_unlock(&fs_info->balance_lock);
-			btrfs_exclop_balance(fs_info, BTRFS_EXCLOP_BALANCE);
-
-			goto do_balance;
-		}
-	} else {
-		bargs = NULL;
+		goto do_balance;
 	}
 
 	if (fs_info->balance_ctl) {
@@ -4441,16 +4433,11 @@ locked:
 		goto out_bargs;
 	}
 
-	if (arg) {
-		memcpy(&bctl->data, &bargs->data, sizeof(bctl->data));
-		memcpy(&bctl->meta, &bargs->meta, sizeof(bctl->meta));
-		memcpy(&bctl->sys, &bargs->sys, sizeof(bctl->sys));
+	memcpy(&bctl->data, &bargs->data, sizeof(bctl->data));
+	memcpy(&bctl->meta, &bargs->meta, sizeof(bctl->meta));
+	memcpy(&bctl->sys, &bargs->sys, sizeof(bctl->sys));
 
-		bctl->flags = bargs->flags;
-	} else {
-		/* balance everything - no filters */
-		bctl->flags |= BTRFS_BALANCE_TYPE_MASK;
-	}
+	bctl->flags = bargs->flags;
 
 	if (bctl->flags & ~(BTRFS_BALANCE_ARGS_MASK | BTRFS_BALANCE_TYPE_MASK)) {
 		ret = -EINVAL;
@@ -4469,7 +4456,7 @@ do_balance:
 	ret = btrfs_balance(fs_info, bctl, bargs);
 	bctl = NULL;
 
-	if ((ret == 0 || ret == -ECANCELED) && arg) {
+	if (ret == 0 || ret == -ECANCELED) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
 			ret = -EFAULT;
 	}
