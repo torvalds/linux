@@ -196,11 +196,15 @@ as possible alternative mechanisms.
 
 What level of testing is expected before I submit my change?
 ------------------------------------------------------------
-If your changes are against ``net-next``, the expectation is that you
-have tested by layering your changes on top of ``net-next``.  Ideally
-you will have done run-time testing specific to your change, but at a
-minimum, your changes should survive an ``allyesconfig`` and an
-``allmodconfig`` build without new warnings or failures.
+At the very minimum your changes must survive an ``allyesconfig`` and an
+``allmodconfig`` build with ``W=1`` set without new warnings or failures.
+
+Ideally you will have done run-time testing specific to your change,
+and the patch series contains a set of kernel selftest for
+``tools/testing/selftests/net`` or using the KUnit framework.
+
+You are expected to test your changes on top of the relevant networking
+tree (``net`` or ``net-next``) and not e.g. a stable tree or ``linux-next``.
 
 How do I post corresponding changes to user space components?
 -------------------------------------------------------------
