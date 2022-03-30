@@ -140,6 +140,17 @@ No, please resend the entire patch series and make sure you do number your
 patches such that it is clear this is the latest and greatest set of patches
 that can be applied.
 
+I have received review feedback, when should I post a revised version of the patches?
+-------------------------------------------------------------------------------------
+Allow at least 24 hours to pass between postings. This will ensure reviewers
+from all geographical locations have a chance to chime in. Do not wait
+too long (weeks) between postings either as it will make it harder for reviewers
+to recall all the context.
+
+Make sure you address all the feedback in your new posting. Do not post a new
+version of the code if the discussion about the previous version is still
+ongoing, unless directly instructed by a reviewer.
+
 I submitted multiple versions of a patch series and it looks like a version other than the last one has been accepted, what should I do?
 ----------------------------------------------------------------------------------------------------------------------------------------
 There is no revert possible, once it is pushed out, it stays like that.
