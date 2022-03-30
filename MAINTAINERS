@@ -1833,6 +1833,7 @@ C:	irc://irc.oftc.net/asahi-dev
 T:	git https://github.com/AsahiLinux/linux.git
 F:	Documentation/devicetree/bindings/arm/apple.yaml
 F:	Documentation/devicetree/bindings/arm/apple/*
+F:	Documentation/devicetree/bindings/clock/apple,nco.yaml
 F:	Documentation/devicetree/bindings/i2c/apple,i2c.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/apple,*
 F:	Documentation/devicetree/bindings/mailbox/apple,mailbox.yaml
@@ -1841,6 +1842,7 @@ F:	Documentation/devicetree/bindings/pinctrl/apple,pinctrl.yaml
 F:	Documentation/devicetree/bindings/power/apple*
 F:	Documentation/devicetree/bindings/watchdog/apple,wdt.yaml
 F:	arch/arm64/boot/dts/apple/
+F:	drivers/clk/clk-apple-nco.c
 F:	drivers/i2c/busses/i2c-pasemi-core.c
 F:	drivers/i2c/busses/i2c-pasemi-platform.c
 F:	drivers/irqchip/irq-apple-aic.c
@@ -14065,7 +14067,10 @@ M:	Abel Vesa <abel.vesa@nxp.com>
 L:	linux-clk@vger.kernel.org
 L:	linux-imx@nxp.com
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/abelvesa/linux.git clk/imx
+F:	Documentation/devicetree/bindings/clock/imx*
 F:	drivers/clk/imx/
+F:	include/dt-bindings/clock/imx*
 
 NXP i.MX 8MQ DCSS DRIVER
 M:	Laurentiu Palcu <laurentiu.palcu@oss.nxp.com>
@@ -18723,12 +18728,12 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/ethernet/adaptec/starfire*
 
-STARFIVE JH7100 CLOCK DRIVER
+STARFIVE JH7100 CLOCK DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
 S:	Maintained
-F:	Documentation/devicetree/bindings/clock/starfive,jh7100-clkgen.yaml
-F:	drivers/clk/starfive/clk-starfive-jh7100.c
-F:	include/dt-bindings/clock/starfive-jh7100.h
+F:	Documentation/devicetree/bindings/clock/starfive,jh7100-*.yaml
+F:	drivers/clk/starfive/clk-starfive-jh7100*
+F:	include/dt-bindings/clock/starfive-jh7100*.h
 
 STARFIVE JH7100 PINCTRL DRIVER
 M:	Emil Renner Berthing <kernel@esmil.dk>

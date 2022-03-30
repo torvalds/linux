@@ -374,85 +374,6 @@ static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
 	}
 }
 
-static int clk_master_pres_determine_rate(struct clk_hw *hw,
-					  struct clk_rate_request *req)
-{
-	struct clk_master *master = to_clk_master(hw);
-	struct clk_rate_request req_parent = *req;
-	const struct clk_master_characteristics *characteristics =
-							master->characteristics;
-	struct clk_hw *parent;
-	long best_rate = LONG_MIN, best_diff = LONG_MIN;
-	u32 pres;
-	int i;
-
-	if (master->chg_pid < 0)
-		return -EOPNOTSUPP;
-
-	parent = clk_hw_get_parent_by_index(hw, master->chg_pid);
-	if (!parent)
-		return -EOPNOTSUPP;
-
-	for (i = 0; i <= MASTER_PRES_MAX; i++) {
-		if (characteristics->have_div3_pres && i == MASTER_PRES_MAX)
-			pres = 3;
-		else
-			pres = 1 << i;
-
-		req_parent.rate = req->rate * pres;
-		if (__clk_determine_rate(parent, &req_parent))
-			continue;
-
-		clk_sama7g5_master_best_diff(req, parent, req_parent.rate,
-					     &best_diff, &best_rate, pres);
-		if (!best_diff)
-			break;
-	}
-
-	return 0;
-}
-
-static int clk_master_pres_set_rate(struct clk_hw *hw, unsigned long rate,
-				    unsigned long parent_rate)
-{
-	struct clk_master *master = to_clk_master(hw);
-	unsigned long flags;
-	unsigned int pres, mckr, tmp;
-	int ret;
-
-	pres = DIV_ROUND_CLOSEST(parent_rate, rate);
-	if (pres > MASTER_PRES_MAX)
-		return -EINVAL;
-
-	else if (pres == 3)
-		pres = MASTER_PRES_MAX;
-	else if (pres)
-		pres = ffs(pres) - 1;
-
-	spin_lock_irqsave(master->lock, flags);
-	ret = regmap_read(master->regmap, master->layout->offset, &mckr);
-	if (ret)
-		goto unlock;
-
-	mckr &= master->layout->mask;
-	tmp = (mckr >> master->layout->pres_shift) & MASTER_PRES_MASK;
-	if (pres == tmp)
-		goto unlock;
-
-	mckr &= ~(MASTER_PRES_MASK << master->layout->pres_shift);
-	mckr |= (pres << master->layout->pres_shift);
-	ret = regmap_write(master->regmap, master->layout->offset, mckr);
-	if (ret)
-		goto unlock;
-
-	while (!clk_master_ready(master))
-		cpu_relax();
-unlock:
-	spin_unlock_irqrestore(master->lock, flags);
-
-	return ret;
-}
-
 static unsigned long clk_master_pres_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
@@ -539,13 +460,6 @@ static void clk_master_pres_restore_context(struct clk_hw *hw)
 		pr_warn("MCKR PRES was not configured properly by firmware!\n");
 }
 
-static void clk_master_pres_restore_context_chg(struct clk_hw *hw)
-{
-	struct clk_master *master = to_clk_master(hw);
-
-	clk_master_pres_set_rate(hw, master->pms.rate, master->pms.parent_rate);
-}
-
 static const struct clk_ops master_pres_ops = {
 	.prepare = clk_master_prepare,
 	.is_prepared = clk_master_is_prepared,
@@ -555,25 +469,13 @@ static const struct clk_ops master_pres_ops = {
 	.restore_context = clk_master_pres_restore_context,
 };
 
-static const struct clk_ops master_pres_ops_chg = {
-	.prepare = clk_master_prepare,
-	.is_prepared = clk_master_is_prepared,
-	.determine_rate = clk_master_pres_determine_rate,
-	.recalc_rate = clk_master_pres_recalc_rate,
-	.get_parent = clk_master_pres_get_parent,
-	.set_rate = clk_master_pres_set_rate,
-	.save_context = clk_master_pres_save_context,
-	.restore_context = clk_master_pres_restore_context_chg,
-};
-
 static struct clk_hw * __init
 at91_clk_register_master_internal(struct regmap *regmap,
 		const char *name, int num_parents,
 		const char **parent_names,
 		const struct clk_master_layout *layout,
 		const struct clk_master_characteristics *characteristics,
-		const struct clk_ops *ops, spinlock_t *lock, u32 flags,
-		int chg_pid)
+		const struct clk_ops *ops, spinlock_t *lock, u32 flags)
 {
 	struct clk_master *master;
 	struct clk_init_data init;
@@ -599,7 +501,6 @@ at91_clk_register_master_internal(struct regmap *regmap,
 	master->layout = layout;
 	master->characteristics = characteristics;
 	master->regmap = regmap;
-	master->chg_pid = chg_pid;
 	master->lock = lock;
 
 	if (ops == &master_div_ops_chg) {
@@ -628,19 +529,13 @@ at91_clk_register_master_pres(struct regmap *regmap,
 		const char **parent_names,
 		const struct clk_master_layout *layout,
 		const struct clk_master_characteristics *characteristics,
-		spinlock_t *lock, u32 flags, int chg_pid)
+		spinlock_t *lock)
 {
-	const struct clk_ops *ops;
-
-	if (flags & CLK_SET_RATE_GATE)
-		ops = &master_pres_ops;
-	else
-		ops = &master_pres_ops_chg;
-
 	return at91_clk_register_master_internal(regmap, name, num_parents,
 						 parent_names, layout,
-						 characteristics, ops,
-						 lock, flags, chg_pid);
+						 characteristics,
+						 &master_pres_ops,
+						 lock, CLK_SET_RATE_GATE);
 }
 
 struct clk_hw * __init
@@ -661,7 +556,7 @@ at91_clk_register_master_div(struct regmap *regmap,
 	hw = at91_clk_register_master_internal(regmap, name, 1,
 					       &parent_name, layout,
 					       characteristics, ops,
-					       lock, flags, -EINVAL);
+					       lock, flags);
 
 	if (!IS_ERR(hw) && safe_div) {
 		master_div = to_clk_master(hw);

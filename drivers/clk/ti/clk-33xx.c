@@ -279,10 +279,7 @@ int __init am33xx_dt_clk_init(void)
 {
 	struct clk *clk1, *clk2;
 
-	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-		ti_dt_clocks_register(am33xx_compat_clks);
-	else
-		ti_dt_clocks_register(am33xx_clks);
+	ti_dt_clocks_register(am33xx_clks);
 
 	omap2_clk_disable_autoidle_all();
 
