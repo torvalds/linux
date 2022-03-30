@@ -189,6 +189,9 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 	list = t->rx.buf + sizeof(*num_ret);
 
 	do {
+		size_t real_list_sz;
+		u32 calc_list_sz;
+
 		/* Set the number of protocols to be skipped/already read */
 		*num_skip = cpu_to_le32(tot_num_ret);
 
@@ -197,8 +200,29 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 			break;
 
 		loop_num_ret = le32_to_cpu(*num_ret);
+		if (!loop_num_ret)
+			break;
+
 		if (loop_num_ret > MAX_PROTOCOLS_IMP - tot_num_ret) {
 			dev_err(dev, "No. of Protocol > MAX_PROTOCOLS_IMP");
+			break;
+		}
+
+		if (t->rx.len < (sizeof(u32) * 2)) {
+			dev_err(dev, "Truncated reply - rx.len:%zd\n",
+				t->rx.len);
+			ret = -EPROTO;
+			break;
+		}
+
+		real_list_sz = t->rx.len - sizeof(u32);
+		calc_list_sz = (1 + (loop_num_ret - 1) / sizeof(u32)) *
+				sizeof(u32);
+		if (calc_list_sz != real_list_sz) {
+			dev_err(dev,
+				"Malformed reply - real_sz:%zd  calc_sz:%u\n",
+				real_list_sz, calc_list_sz);
+			ret = -EPROTO;
 			break;
 		}
 
