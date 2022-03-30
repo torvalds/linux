@@ -2445,6 +2445,40 @@ err:
 	return -EINVAL;
 }
 
+static void rkisp_check_stream_dcrop(struct rkisp_device *dev,
+				     struct v4l2_rect *crop)
+{
+	struct rkisp_stream *stream;
+	struct v4l2_rect *dcrop;
+	u32 i;
+
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		if (i != RKISP_STREAM_MP && i != RKISP_STREAM_SP &&
+		    i != RKISP_STREAM_FBC && i != RKISP_STREAM_BP)
+			continue;
+		stream = &dev->cap_dev.stream[i];
+		dcrop = &stream->dcrop;
+		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+			 "%s id:%d %dx%d(%d %d) from %dx%d(%d %d)\n",
+			__func__, i,
+			dcrop->width, dcrop->height, dcrop->left, dcrop->top,
+			crop->width, crop->height, crop->left, crop->top);
+		/* make sure dcrop window in isp output window */
+		if (dcrop->width > crop->width) {
+			dcrop->width = crop->width;
+			dcrop->left = 0;
+		} else if ((dcrop->left + dcrop->width) > crop->width) {
+			dcrop->left = crop->width - dcrop->width;
+		}
+		if (dcrop->height > crop->height) {
+			dcrop->height = crop->height;
+			dcrop->top = 0;
+		} else if ((dcrop->left + dcrop->width) > crop->height) {
+			dcrop->top = crop->height - dcrop->height;
+		}
+	}
+}
+
 static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_pad_config *cfg,
 				      struct v4l2_subdev_selection *sel)
@@ -2490,6 +2524,8 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 			*crop = isp_sd->out_crop;
 		isp_sd->out_crop = *crop;
 	}
+
+	rkisp_check_stream_dcrop(dev, crop);
 
 	return 0;
 err:
