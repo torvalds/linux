@@ -28,6 +28,7 @@ enum scmi_voltage_protocol_cmd {
 
 struct scmi_msg_resp_domain_attributes {
 	__le32 attr;
+#define SUPPORTS_ASYNC_LEVEL_SET(x)	((x) & BIT(31))
 #define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(30))
 	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
@@ -53,6 +54,11 @@ struct scmi_msg_cmd_config_set {
 struct scmi_msg_cmd_level_set {
 	__le32 domain_id;
 	__le32 flags;
+	__le32 voltage_level;
+};
+
+struct scmi_resp_voltage_level_set_complete {
+	__le32 domain_id;
 	__le32 voltage_level;
 };
 
@@ -214,6 +220,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 	resp_dom = td->rx.buf;
 
 	for (dom = 0; dom < vinfo->num_domains; dom++) {
+		u32 attributes;
 		struct scmi_voltage_info *v;
 
 		/* Retrieve domain attributes at first ... */
@@ -225,18 +232,22 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 
 		v = vinfo->domains + dom;
 		v->id = dom;
-		v->attributes = le32_to_cpu(resp_dom->attr);
+		attributes = le32_to_cpu(resp_dom->attr);
 		strlcpy(v->name, resp_dom->name, SCMI_MAX_STR_SIZE);
 
 		/*
 		 * If supported overwrite short name with the extended one;
 		 * on error just carry on and use already provided short name.
 		 */
-		if (PROTOCOL_REV_MAJOR(vinfo->version) >= 0x2 &&
-		    SUPPORTS_EXTENDED_NAMES(v->attributes))
-			ph->hops->extended_name_get(ph, VOLTAGE_DOMAIN_NAME_GET,
-						    v->id, v->name,
-						    SCMI_MAX_STR_SIZE);
+		if (PROTOCOL_REV_MAJOR(vinfo->version) >= 0x2) {
+			if (SUPPORTS_EXTENDED_NAMES(attributes))
+				ph->hops->extended_name_get(ph,
+							VOLTAGE_DOMAIN_NAME_GET,
+							v->id, v->name,
+							SCMI_MAX_STR_SIZE);
+			if (SUPPORTS_ASYNC_LEVEL_SET(attributes))
+				v->async_level_set = true;
+		}
 
 		ret = scmi_voltage_levels_get(ph, v);
 		/* Skip invalid voltage descriptors */
@@ -308,12 +319,15 @@ static int scmi_voltage_config_get(const struct scmi_protocol_handle *ph,
 }
 
 static int scmi_voltage_level_set(const struct scmi_protocol_handle *ph,
-				  u32 domain_id, u32 flags, s32 volt_uV)
+				  u32 domain_id,
+				  enum scmi_voltage_level_mode mode,
+				  s32 volt_uV)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct voltage_info *vinfo = ph->get_priv(ph);
 	struct scmi_msg_cmd_level_set *cmd;
+	struct scmi_voltage_info *v;
 
 	if (domain_id >= vinfo->num_domains)
 		return -EINVAL;
@@ -323,12 +337,31 @@ static int scmi_voltage_level_set(const struct scmi_protocol_handle *ph,
 	if (ret)
 		return ret;
 
+	v = vinfo->domains + domain_id;
+
 	cmd = t->tx.buf;
 	cmd->domain_id = cpu_to_le32(domain_id);
-	cmd->flags = cpu_to_le32(flags);
 	cmd->voltage_level = cpu_to_le32(volt_uV);
 
-	ret = ph->xops->do_xfer(ph, t);
+	if (!v->async_level_set || mode != SCMI_VOLTAGE_LEVEL_SET_AUTO) {
+		cmd->flags = cpu_to_le32(0x0);
+		ret = ph->xops->do_xfer(ph, t);
+	} else {
+		cmd->flags = cpu_to_le32(0x1);
+		ret = ph->xops->do_xfer_with_response(ph, t);
+		if (!ret) {
+			struct scmi_resp_voltage_level_set_complete *resp;
+
+			resp = t->rx.buf;
+			if (le32_to_cpu(resp->domain_id) == domain_id)
+				dev_dbg(ph->dev,
+					"Voltage domain %d set async to %d\n",
+					v->id,
+					le32_to_cpu(resp->voltage_level));
+			else
+				ret = -EPROTO;
+		}
+	}
 
 	ph->xops->xfer_put(ph, t);
 	return ret;

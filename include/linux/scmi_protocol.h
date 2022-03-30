@@ -495,6 +495,11 @@ struct scmi_reset_proto_ops {
 	int (*deassert)(const struct scmi_protocol_handle *ph, u32 domain);
 };
 
+enum scmi_voltage_level_mode {
+	SCMI_VOLTAGE_LEVEL_SET_AUTO,
+	SCMI_VOLTAGE_LEVEL_SET_SYNC,
+};
+
 /**
  * struct scmi_voltage_info - describe one available SCMI Voltage Domain
  *
@@ -507,7 +512,8 @@ struct scmi_reset_proto_ops {
  *	         supported voltage level
  * @negative_volts_allowed: True if any of the entries of @levels_uv represent
  *			    a negative voltage.
- * @attributes: represents Voltage Domain advertised attributes
+ * @async_level_set: True when the voltage domain supports asynchronous level
+ *		     set commands.
  * @name: name assigned to the Voltage Domain by platform
  * @num_levels: number of total entries in @levels_uv.
  * @levels_uv: array of entries describing the available voltage levels for
@@ -517,7 +523,7 @@ struct scmi_voltage_info {
 	unsigned int id;
 	bool segmented;
 	bool negative_volts_allowed;
-	unsigned int attributes;
+	bool async_level_set;
 	char name[SCMI_MAX_STR_SIZE];
 	unsigned int num_levels;
 #define SCMI_VOLTAGE_SEGMENT_LOW	0
@@ -548,7 +554,7 @@ struct scmi_voltage_proto_ops {
 	int (*config_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			  u32 *config);
 	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
-			 u32 flags, s32 volt_uV);
+			 enum scmi_voltage_level_mode mode, s32 volt_uV);
 	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			 s32 *volt_uV);
 };
