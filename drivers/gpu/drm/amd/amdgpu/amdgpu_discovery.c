@@ -1172,7 +1172,7 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	gc_info = (union gc_info *)(adev->mman.discovery_bin +
 			le16_to_cpu(bhdr->table_list[GC].offset));
-	switch (gc_info->v1.header.version_major) {
+	switch (le16_to_cpu(gc_info->v1.header.version_major)) {
 	case 1:
 		adev->gfx.config.max_shader_engines = le32_to_cpu(gc_info->v1.gc_num_se);
 		adev->gfx.config.max_cu_per_sh = 2 * (le32_to_cpu(gc_info->v1.gc_num_wgp0_per_sa) +
@@ -1230,8 +1230,8 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 	default:
 		dev_err(adev->dev,
 			"Unhandled GC info table %d.%d\n",
-			gc_info->v1.header.version_major,
-			gc_info->v1.header.version_minor);
+			le16_to_cpu(gc_info->v1.header.version_major),
+			le16_to_cpu(gc_info->v1.header.version_minor));
 		return -EINVAL;
 	}
 	return 0;
