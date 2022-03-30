@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106.dtsi"
+#include "rv1106-uvc-demo.dtsi"
+
+/ {
+	model = "Rockchip RV1106 UVC EMMC V10 Board";
+	compatible = "rockchip,rv1106-uvc-demo", "rockchip,rv1106";
+};
+
+
