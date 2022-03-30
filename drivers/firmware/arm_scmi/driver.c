@@ -1103,6 +1103,55 @@ static const struct scmi_xfer_ops xfer_ops = {
 	.xfer_put = xfer_put,
 };
 
+struct scmi_msg_resp_domain_name_get {
+	__le32 flags;
+	u8 name[SCMI_MAX_STR_SIZE];
+};
+
+/**
+ * scmi_common_extended_name_get  - Common helper to get extended resources name
+ * @ph: A protocol handle reference.
+ * @cmd_id: The specific command ID to use.
+ * @res_id: The specific resource ID to use.
+ * @name: A pointer to the preallocated area where the retrieved name will be
+ *	  stored as a NULL terminated string.
+ * @len: The len in bytes of the @name char array.
+ *
+ * Return: 0 on Succcess
+ */
+static int scmi_common_extended_name_get(const struct scmi_protocol_handle *ph,
+					 u8 cmd_id, u32 res_id, char *name,
+					 size_t len)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_msg_resp_domain_name_get *resp;
+
+	ret = ph->xops->xfer_get_init(ph, cmd_id, sizeof(res_id),
+				      sizeof(*resp), &t);
+	if (ret)
+		goto out;
+
+	put_unaligned_le32(res_id, t->tx.buf);
+	resp = t->rx.buf;
+
+	ret = ph->xops->do_xfer(ph, t);
+	if (!ret)
+		strscpy(name, resp->name, len);
+
+	ph->xops->xfer_put(ph, t);
+out:
+	if (ret)
+		dev_warn(ph->dev,
+			 "Failed to get extended name - id:%u (ret:%d). Using %s\n",
+			 res_id, ret, name);
+	return ret;
+}
+
+static const struct scmi_proto_helpers_ops helpers_ops = {
+	.extended_name_get = scmi_common_extended_name_get,
+};
+
 /**
  * scmi_revision_area_get  - Retrieve version memory area.
  *
@@ -1163,6 +1212,7 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	pi->handle = handle;
 	pi->ph.dev = handle->dev;
 	pi->ph.xops = &xfer_ops;
+	pi->ph.hops = &helpers_ops;
 	pi->ph.set_priv = scmi_set_protocol_priv;
 	pi->ph.get_priv = scmi_get_protocol_priv;
 	refcount_set(&pi->users, 1);

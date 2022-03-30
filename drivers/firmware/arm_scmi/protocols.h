@@ -141,6 +141,7 @@ struct scmi_xfer {
 };
 
 struct scmi_xfer_ops;
+struct scmi_proto_helpers_ops;
 
 /**
  * struct scmi_protocol_handle  - Reference to an initialized protocol instance
@@ -165,8 +166,22 @@ struct scmi_xfer_ops;
 struct scmi_protocol_handle {
 	struct device *dev;
 	const struct scmi_xfer_ops *xops;
+	const struct scmi_proto_helpers_ops *hops;
 	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv);
 	void *(*get_priv)(const struct scmi_protocol_handle *ph);
+};
+
+/**
+ * struct scmi_proto_helpers_ops  - References to common protocol helpers
+ * @extended_name_get: A common helper function to retrieve extended naming
+ *		       for the specified resource using the specified command.
+ *		       Result is returned as a NULL terminated string in the
+ *		       pre-allocated area pointed to by @name with maximum
+ *		       capacity of @len bytes.
+ */
+struct scmi_proto_helpers_ops {
+	int (*extended_name_get)(const struct scmi_protocol_handle *ph,
+				 u8 cmd_id, u32 res_id, char *name, size_t len);
 };
 
 /**
