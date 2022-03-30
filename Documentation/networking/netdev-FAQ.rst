@@ -70,8 +70,9 @@ relating to vX.Y
 An announcement indicating when ``net-next`` has been closed is usually
 sent to netdev, but knowing the above, you can predict that in advance.
 
-IMPORTANT: Do not send new ``net-next`` content to netdev during the
-period during which ``net-next`` tree is closed.
+.. warning::
+  Do not send new ``net-next`` content to netdev during the
+  period during which ``net-next`` tree is closed.
 
 Shortly after the two weeks have passed (and vX.Y-rc1 is released), the
 tree for ``net-next`` reopens to collect content for the next (vX.Y+1)
