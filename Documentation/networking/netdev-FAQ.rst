@@ -105,14 +105,16 @@ and note the top of the "tags" section.  If it is rc1, it is early in
 the dev cycle.  If it was tagged rc7 a week ago, then a release is
 probably imminent.
 
-I sent a patch and I'm wondering what happened to it - how can I tell whether it got merged?
---------------------------------------------------------------------------------------------
+How can I tell the status of a patch I've sent?
+-----------------------------------------------
 Start by looking at the main patchworks queue for netdev:
 
   https://patchwork.kernel.org/project/netdevbpf/list/
 
 The "State" field will tell you exactly where things are at with your
-patch.
+patch. Patches are indexed by the ``Message-ID`` header of the emails
+which carried them so if you have trouble finding your patch append
+the value of ``Message-ID`` to the URL above.
 
 The above only says "Under Review".  How can I find out more?
 -------------------------------------------------------------
