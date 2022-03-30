@@ -1495,7 +1495,7 @@ static int vduse_dev_init_vdpa(struct vduse_dev *dev, const char *name)
 		return -EEXIST;
 
 	vdev = vdpa_alloc_device(struct vduse_vdpa, vdpa, dev->dev,
-				 &vduse_vdpa_config_ops, name, true);
+				 &vduse_vdpa_config_ops, 1, name, true);
 	if (IS_ERR(vdev))
 		return PTR_ERR(vdev);
 
