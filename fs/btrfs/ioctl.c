@@ -4353,6 +4353,13 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
+	bargs = memdup_user(arg, sizeof(*bargs));
+	if (IS_ERR(bargs)) {
+		ret = PTR_ERR(bargs);
+		bargs = NULL;
+		goto out;
+	}
+
 again:
 	if (btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE)) {
 		mutex_lock(&fs_info->balance_mutex);
@@ -4400,17 +4407,10 @@ again:
 	}
 
 locked:
-
-	bargs = memdup_user(arg, sizeof(*bargs));
-	if (IS_ERR(bargs)) {
-		ret = PTR_ERR(bargs);
-		goto out_unlock;
-	}
-
 	if (bargs->flags & BTRFS_BALANCE_RESUME) {
 		if (!fs_info->balance_ctl) {
 			ret = -ENOTCONN;
-			goto out_bargs;
+			goto out_unlock;
 		}
 
 		bctl = fs_info->balance_ctl;
@@ -4422,15 +4422,20 @@ locked:
 		goto do_balance;
 	}
 
+	if (bargs->flags & ~(BTRFS_BALANCE_ARGS_MASK | BTRFS_BALANCE_TYPE_MASK)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	if (fs_info->balance_ctl) {
 		ret = -EINPROGRESS;
-		goto out_bargs;
+		goto out_unlock;
 	}
 
 	bctl = kzalloc(sizeof(*bctl), GFP_KERNEL);
 	if (!bctl) {
 		ret = -ENOMEM;
-		goto out_bargs;
+		goto out_unlock;
 	}
 
 	memcpy(&bctl->data, &bargs->data, sizeof(bctl->data));
@@ -4438,12 +4443,6 @@ locked:
 	memcpy(&bctl->sys, &bargs->sys, sizeof(bctl->sys));
 
 	bctl->flags = bargs->flags;
-
-	if (bctl->flags & ~(BTRFS_BALANCE_ARGS_MASK | BTRFS_BALANCE_TYPE_MASK)) {
-		ret = -EINVAL;
-		goto out_bctl;
-	}
-
 do_balance:
 	/*
 	 * Ownership of bctl and exclusive operation goes to btrfs_balance.
@@ -4461,16 +4460,14 @@ do_balance:
 			ret = -EFAULT;
 	}
 
-out_bctl:
 	kfree(bctl);
-out_bargs:
-	kfree(bargs);
 out_unlock:
 	mutex_unlock(&fs_info->balance_mutex);
 	if (need_unlock)
 		btrfs_exclop_finish(fs_info);
 out:
 	mnt_drop_write_file(file);
+	kfree(bargs);
 	return ret;
 }
 
