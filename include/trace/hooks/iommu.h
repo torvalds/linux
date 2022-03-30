@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 DECLARE_RESTRICTED_HOOK(android_rvh_iommu_setup_dma_ops,

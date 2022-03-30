@@ -7,7 +7,6 @@
 #if !defined(_TRACE_HOOK_EPOCH_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_EPOCH_H
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 DECLARE_HOOK(android_vh_show_suspend_epoch_val,
