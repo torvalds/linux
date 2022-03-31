@@ -1171,6 +1171,18 @@
 		nvmem-cells = <&log_leakage>;
 		nvmem-cell-names = "leakage";
 
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <675000>;
+		};
+		opp-1068000000 {
+			opp-hz = /bits/ 64 <1068000000>;
+			opp-microvolt = <725000>;
+		};
+		opp-1560000000 {
+			opp-hz = /bits/ 64 <1560000000>;
+			opp-microvolt = <800000>;
+		};
 		opp-2750000000 {
 			opp-hz = /bits/ 64 <2750000000>;
 			opp-microvolt = <850000>;
