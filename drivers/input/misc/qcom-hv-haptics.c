@@ -29,6 +29,9 @@
 
 #include <linux/soc/qcom/battery_charger.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/qcom_haptics.h>
+
 /* status register definitions in HAPTICS_CFG module */
 #define HAP_CFG_REVISION2_REG			0x01
 #define HAP_CFG_V1				0x1
@@ -948,6 +951,17 @@ static int haptics_get_status_data(struct haptics_chip *chip,
 {
 	int rc;
 	u8 mod_sel_val[2];
+	const char *hap_status_name[BRAKE_CAL_SCALAR + 1] = {
+		"CAL_TLRA_CL_STS",
+		"T_WIND_STS",
+		"T_WIND_STS_PREV",
+		"LAST_GOOD_TLRA_CL_STS",
+		"TLRA_CL_ERR_STS",
+		"HAP_DRV_STS",
+		"RNAT_RCAL_INT",
+		"BRAKE_CAL_SCALAR",
+	};
+	const char *name;
 
 	mod_sel_val[0] = sel & 0xff;
 	mod_sel_val[1] = (sel >> 8) & 0xff;
@@ -966,8 +980,15 @@ static int haptics_get_status_data(struct haptics_chip *chip,
 	if (rc < 0)
 		return rc;
 
-	dev_dbg(chip->dev, "Get status data[%x] = (%#x, %#x)\n",
-			sel, data[0], data[1]);
+	if (sel <= BRAKE_CAL_SCALAR)
+		name = hap_status_name[sel];
+	else if (sel == CLAMPED_DUTY_CYCLE_STS)
+		name = "CLAMPED_DUTY_CYCLE_STS";
+	else if (sel == FIFO_REAL_TIME_STS)
+		name = "FIFO_REAL_TIME_STS";
+
+	dev_dbg(chip->dev, "Get status data[%s] = (%#x, %#x)\n", name, data[0], data[1]);
+	trace_qcom_haptics_status(name, data[0], data[1]);
 	return 0;
 }
 
@@ -1538,6 +1559,7 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 		}
 	}
 
+	trace_qcom_haptics_play(en);
 	return rc;
 }
 
@@ -1755,6 +1777,7 @@ static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 {
 	int rc;
 	u8 val[2], fill_status_mask;
+	u32 filled, available;
 	bool empty = false, full = false;
 
 	rc = haptics_get_status_data(chip, FIFO_REAL_TIME_STS, val);
@@ -1777,11 +1800,15 @@ static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 		return -EINVAL;
 	}
 
-	*fill = ((val[0] & fill_status_mask) << 8) | val[1];
+	filled = ((val[0] & fill_status_mask) << 8) | val[1];
 	empty = !!(val[0] & FIFO_EMPTY_FLAG_BIT);
 	full = !!(val[0] & FIFO_FULL_FLAG_BIT);
+	available = get_max_fifo_samples(chip) - filled;
 
-	dev_dbg(chip->dev, "filled=%d, full=%d, empty=%d\n", *fill, full, empty);
+	dev_dbg(chip->dev, "filled=%u, available=%u, full=%d, empty=%d\n",
+			filled, available, full, empty);
+	trace_qcom_haptics_fifo_hw_status(filled, available, full, empty);
+	*fill = filled;
 	return 0;
 }
 
@@ -1962,6 +1989,7 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 
 	atomic_set(&status->is_busy, 1);
 	status->samples_written = num;
+	trace_qcom_haptics_fifo_prgm_status(fifo->num_s, status->samples_written, num);
 	if (num == fifo->num_s) {
 		fifo_thresh = 0;
 		atomic_set(&status->written_done, 1);
@@ -3112,6 +3140,7 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		}
 
 		status->samples_written += num;
+		trace_qcom_haptics_fifo_prgm_status(fifo->num_s, status->samples_written, num);
 		if (status->samples_written == fifo->num_s) {
 			dev_dbg(chip->dev, "FIFO programming is done\n");
 			atomic_set(&chip->play.fifo_status.written_done, 1);
