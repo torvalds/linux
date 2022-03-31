@@ -464,7 +464,7 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 }
 
 static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_entry *i,
-			   bool overwrite)
+				 bool overwrite)
 {
 	/*
 	 * Transactional triggers create new btree_insert_entries, so we can't
@@ -473,42 +473,31 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 	 */
 	struct bkey old_k = i->old_k;
 	struct bkey_s_c old = { &old_k, i->old_v };
-	int ret = 0;
 
 	if ((i->flags & BTREE_TRIGGER_NORUN) ||
 	    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
 		return 0;
 
-	if (!overwrite) {
-		if (i->insert_trigger_run)
-			return 0;
-
-		BUG_ON(i->overwrite_trigger_run);
-		i->insert_trigger_run = true;
-	} else {
-		if (i->overwrite_trigger_run)
-			return 0;
-
-		BUG_ON(!i->insert_trigger_run);
-		i->overwrite_trigger_run = true;
-	}
-
-	if (overwrite) {
-		ret = bch2_trans_mark_old(trans, old, i->flags);
-	} else if (bch2_bkey_ops[old.k->type].trans_trigger ==
-		   bch2_bkey_ops[i->k->k.type].trans_trigger &&
+	if (!i->insert_trigger_run &&
+	    !i->overwrite_trigger_run &&
+	    bch2_bkey_ops[old.k->type].trans_trigger ==
+	    bch2_bkey_ops[i->k->k.type].trans_trigger &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
 		i->overwrite_trigger_run = true;
-		ret = bch2_trans_mark_key(trans, old, i->k,
-				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|i->flags);
+		i->insert_trigger_run = true;
+		return bch2_trans_mark_key(trans, old, i->k,
+					   BTREE_TRIGGER_INSERT|
+					   BTREE_TRIGGER_OVERWRITE|
+					   i->flags) ?: 1;
+	} else if (overwrite && !i->overwrite_trigger_run) {
+		i->overwrite_trigger_run = true;
+		return bch2_trans_mark_old(trans, old, i->flags) ?: 1;
+	} else if (!overwrite && !i->insert_trigger_run) {
+		i->insert_trigger_run = true;
+		return bch2_trans_mark_new(trans, i->k, i->flags) ?: 1;
 	} else {
-		ret = bch2_trans_mark_new(trans, i->k, i->flags);
+		return 0;
 	}
-
-	if (ret == -EINTR)
-		trace_trans_restart_mark(trans->fn, _RET_IP_,
-					 i->btree_id, &i->path->pos);
-	return ret ?: 1;
 }
 
 static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
@@ -518,7 +507,7 @@ static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
 	bool trans_trigger_run;
 	int ret, overwrite;
 
-	for (overwrite = 0; overwrite < 2; overwrite++) {
+	for (overwrite = 1; overwrite >= 0; --overwrite) {
 
 		/*
 		 * Running triggers will append more updates to the list of updates as

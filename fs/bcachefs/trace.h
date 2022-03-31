@@ -714,14 +714,6 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_btree_node_split,
 	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
 );
 
-DEFINE_EVENT(transaction_restart_iter,	trans_restart_mark,
-	TP_PROTO(const char *trans_fn,
-		 unsigned long caller_ip,
-		 enum btree_id btree_id,
-		 struct bpos *pos),
-	TP_ARGS(trans_fn, caller_ip, btree_id, pos)
-);
-
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_upgrade,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip,
