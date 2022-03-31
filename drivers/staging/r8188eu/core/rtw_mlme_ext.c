@@ -5761,7 +5761,7 @@ unsigned int send_beacon(struct adapter *padapter)
 
 	u32 start = jiffies;
 
-	clear_bacon_valid_bit(padapter);
+	clear_beacon_valid_bit(padapter);
 
 	do {
 		issue_beacon(padapter, 100);
@@ -5784,7 +5784,7 @@ unsigned int send_beacon(struct adapter *padapter)
 	}
 }
 
-void clear_bacon_valid_bit(struct adapter *adapter)
+void clear_beacon_valid_bit(struct adapter *adapter)
 {
 	/* BIT(16) of REG_TDECTRL = BIT(0) of REG_TDECTRL+2, write 1 to clear, Clear by sw */
 	rtw_write8(adapter, REG_TDECTRL + 2, rtw_read8(adapter, REG_TDECTRL + 2) | BIT(0));
