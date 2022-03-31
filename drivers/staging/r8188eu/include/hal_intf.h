@@ -33,7 +33,6 @@ enum hw_variables {
 	HW_VAR_FIFO_CLEARN_UP,
 	HW_VAR_RPT_TIMER_SETTING,
 	HW_VAR_H2C_MEDIA_STATUS_RPT,
-	HW_VAR_CHK_HI_QUEUE_EMPTY,
 };
 
 enum hal_def_variable {

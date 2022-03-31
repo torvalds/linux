@@ -1199,6 +1199,11 @@ exit:
 	return res;
 }
 
+static bool rtw_is_hi_queue_empty(struct adapter *adapter)
+{
+	return (rtw_read32(adapter, REG_HGQ_INFORMATION) & 0x0000ff00) == 0;
+}
+
 static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 {
 	int cnt = 0;
@@ -1210,12 +1215,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 		return;
 
 	if (psta_bmc->sleepq_len == 0) {
-		u8 val = 0;
-
-		/* while ((rtw_read32(padapter, 0x414)&0x00ffff00)!= 0) */
-		/* while ((rtw_read32(padapter, 0x414)&0x0000ff00)!= 0) */
-
-		GetHwReg8188EU(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &val);
+		bool val = rtw_is_hi_queue_empty(padapter);
 
 		while (!val) {
 			msleep(100);
@@ -1225,7 +1225,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 			if (cnt > 10)
 				break;
 
-			GetHwReg8188EU(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &val);
+			val = rtw_is_hi_queue_empty(padapter);
 		}
 
 		if (cnt <= 10) {
