@@ -516,6 +516,13 @@
 				sound-name-prefix = "MIXER1";
 				status = "disabled";
 			};
+
+			tegra_asrc: asrc@2910000 {
+				compatible = "nvidia,tegra186-asrc";
+				reg = <0x2910000 0x2000>;
+				sound-name-prefix = "ASRC1";
+				status = "disabled";
+			};
 		};
 	};
 
