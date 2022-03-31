@@ -1059,7 +1059,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 	struct iio_device_config *config)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	struct iio_buffer *buffer;
+	struct iio_buffer *buffer, *tmp = NULL;
 	int ret;
 
 	indio_dev->active_scan_mask = config->scan_mask;
@@ -1097,8 +1097,10 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 
 	list_for_each_entry(buffer, &iio_dev_opaque->buffer_list, buffer_list) {
 		ret = iio_buffer_enable(buffer, indio_dev);
-		if (ret)
+		if (ret) {
+			tmp = buffer;
 			goto err_disable_buffers;
+		}
 	}
 
 	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
@@ -1125,6 +1127,7 @@ err_detach_pollfunc:
 					     indio_dev->pollfunc);
 	}
 err_disable_buffers:
+	buffer = list_prepare_entry(tmp, &iio_dev_opaque->buffer_list, buffer_list);
 	list_for_each_entry_continue_reverse(buffer, &iio_dev_opaque->buffer_list,
 					     buffer_list)
 		iio_buffer_disable(buffer, indio_dev);
