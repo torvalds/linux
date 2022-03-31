@@ -968,7 +968,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_connector->edid = edid;
 
 	/* Try EDID first */
-	intel_panel_add_edid_fixed_mode(intel_connector);
+	intel_panel_add_edid_fixed_modes(intel_connector, false);
 
 	/* Failed to get EDID, what about VBT? */
 	if (!intel_panel_preferred_fixed_mode(intel_connector))

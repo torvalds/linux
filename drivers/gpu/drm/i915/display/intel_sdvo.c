@@ -2907,7 +2907,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		intel_ddc_get_modes(connector, &intel_sdvo->ddc);
-		intel_panel_add_edid_fixed_mode(intel_connector);
+		intel_panel_add_edid_fixed_modes(intel_connector, false);
 	}
 
 	intel_panel_init(intel_connector);

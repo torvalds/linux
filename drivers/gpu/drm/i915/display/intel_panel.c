@@ -159,7 +159,7 @@ static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
 		downclock_mode->clock < fixed_mode->clock;
 }
 
-void intel_panel_add_edid_downclock_mode(struct intel_connector *connector)
+static void intel_panel_add_edid_downclock_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
@@ -202,7 +202,7 @@ void intel_panel_add_edid_downclock_mode(struct intel_connector *connector)
 	list_add_tail(&downclock_mode->head, &connector->panel.fixed_modes);
 }
 
-void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
+static void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *scan;
@@ -242,6 +242,13 @@ void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
 		    DRM_MODE_ARG(fixed_mode));
 
 	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
+}
+
+void intel_panel_add_edid_fixed_modes(struct intel_connector *connector, bool has_drrs)
+{
+	intel_panel_add_edid_fixed_mode(connector);
+	if (intel_panel_preferred_fixed_mode(connector) && has_drrs)
+		intel_panel_add_edid_downclock_mode(connector);
 }
 
 static void intel_panel_add_fixed_mode(struct intel_connector *connector,
