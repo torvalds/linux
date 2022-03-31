@@ -354,27 +354,3 @@ void intel_crtc_drrs_init(struct intel_crtc *crtc)
 	mutex_init(&crtc->drrs.mutex);
 	crtc->drrs.cpu_transcoder = INVALID_TRANSCODER;
 }
-
-/**
- * intel_drrs_init - Init DRRS for eDP connector
- * @connector: eDP connector
- *
- * This function is called only once at driver load to initialize
- * DRRS support for the connector.
- *
- * Returns:
- * Downclock mode if panel supports it, else return NULL.
- * DRRS support is determined by the presence of downclock mode (apart
- * from VBT setting).
- */
-void intel_drrs_init(struct intel_connector *connector)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-
-	intel_panel_add_edid_downclock_mode(connector);
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] DRRS type: %s\n",
-		    connector->base.base.id, connector->base.name,
-		    intel_drrs_type_str(intel_panel_drrs_type(connector)));
-}

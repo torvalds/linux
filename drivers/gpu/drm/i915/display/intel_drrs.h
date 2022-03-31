@@ -27,6 +27,5 @@ void intel_drrs_compute_config(struct intel_connector *connector,
 			       struct intel_crtc_state *pipe_config,
 			       int output_bpp, bool constant_n);
 void intel_crtc_drrs_init(struct intel_crtc *crtc);
-void intel_drrs_init(struct intel_connector *connector);
 
 #endif /* __INTEL_DRRS_H__ */

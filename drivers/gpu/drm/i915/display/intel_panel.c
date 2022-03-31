@@ -35,6 +35,7 @@
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_drrs.h"
 #include "intel_panel.h"
 
 bool intel_panel_use_ssc(struct drm_i915_private *i915)
@@ -633,6 +634,11 @@ int intel_panel_init(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 
 	intel_backlight_init_funcs(panel);
+
+	drm_dbg_kms(connector->base.dev,
+		    "[CONNECTOR:%d:%s] DRRS type: %s\n",
+		    connector->base.base.id, connector->base.name,
+		    intel_drrs_type_str(intel_panel_drrs_type(connector)));
 
 	return 0;
 }

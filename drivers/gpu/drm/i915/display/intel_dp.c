@@ -5075,7 +5075,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_panel_add_edid_fixed_mode(intel_connector);
 	if (intel_panel_preferred_fixed_mode(intel_connector) &&
 	    intel_edp_has_drrs(intel_dp))
-		intel_drrs_init(intel_connector);
+		intel_panel_add_edid_downclock_mode(intel_connector);
 
 	/* MSO requires information from the EDID */
 	intel_edp_mso_init(intel_dp);
