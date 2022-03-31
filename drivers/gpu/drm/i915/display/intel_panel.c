@@ -159,42 +159,24 @@ static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
 		downclock_mode->clock < fixed_mode->clock;
 }
 
-static void intel_panel_add_edid_downclock_mode(struct intel_connector *connector)
+static void intel_panel_add_edid_downclock_modes(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(connector);
-	struct drm_display_mode *scan, *best_mode = NULL;
-	int best_clock = fixed_mode->clock;
+	struct drm_display_mode *mode, *next;
 
-	list_for_each_entry(scan, &connector->base.probed_modes, head) {
-		/*
-		 * If one mode has the same resolution with the fixed_panel
-		 * mode while they have the different refresh rate, it means
-		 * that the reduced downclock is found. In such
-		 * case we can set the different FPx0/1 to dynamically select
-		 * between low and high frequency.
-		 */
-		if (is_downclock_mode(scan, fixed_mode) &&
-		    scan->clock < best_clock) {
-			/*
-			 * The downclock is already found. But we
-			 * expect to find the lower downclock.
-			 */
-			best_clock = scan->clock;
-			best_mode = scan;
-		}
+	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
+		if (!is_downclock_mode(mode, fixed_mode))
+			continue;
+
+		drm_dbg_kms(&dev_priv->drm,
+			    "[CONNECTOR:%d:%s] using EDID downclock mode: " DRM_MODE_FMT "\n",
+			    connector->base.base.id, connector->base.name,
+			    DRM_MODE_ARG(mode));
+
+		list_move_tail(&mode->head, &connector->panel.fixed_modes);
 	}
-
-	if (!best_mode)
-		return;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] using EDID downclock mode: " DRM_MODE_FMT "\n",
-		    connector->base.base.id, connector->base.name,
-		    DRM_MODE_ARG(best_mode));
-
-	list_move_tail(&best_mode->head, &connector->panel.fixed_modes);
 }
 
 static void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
@@ -243,7 +225,7 @@ void intel_panel_add_edid_fixed_modes(struct intel_connector *connector, bool ha
 {
 	intel_panel_add_edid_fixed_mode(connector);
 	if (intel_panel_preferred_fixed_mode(connector) && has_drrs)
-		intel_panel_add_edid_downclock_mode(connector);
+		intel_panel_add_edid_downclock_modes(connector);
 	intel_panel_destroy_probed_modes(connector);
 }
 
