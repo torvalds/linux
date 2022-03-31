@@ -1811,6 +1811,12 @@
 #define ISP3X_SW_CMSK_EN_SP		BIT(2)
 #define ISP3X_SW_CMSK_EN_BP		BIT(3)
 #define ISP3X_SW_CMSK_BLKSIZE(x)	(((x) & 3) << 4)
+
+#define ISP32_SW_CMSK_EN_PATH		GENMASK(3, 0)
+#define ISP32_SW_CMSK_EN_PATH_SHD       GENMASK(11, 8)
+
+#define ISP3X_SW_CMSK_FORCE_UPD		BIT(31)
+
 #define ISP3X_SW_CMSK_ORDER_MODE	BIT(1)
 
 #define ISP3X_SW_CMSK_YUV(x, y, z)	(((x) & 0xff) | ((y) & 0xff) << 8 | ((z) & 0xff) << 16)

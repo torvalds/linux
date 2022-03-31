@@ -1238,6 +1238,11 @@ static void rkisp_config_cmsk_single(struct rkisp_device *dev,
 		ctrl |= ISP3X_SW_CMSK_EN | ISP3X_SW_CMSK_ORDER_MODE;
 	}
 	rkisp_write(dev, ISP3X_CMSK_CTRL0, ctrl, false);
+
+	val = rkisp_read(dev, ISP3X_CMSK_CTRL0, true);
+	if (dev->hw_dev->is_single &&
+	    ((val & ISP32_SW_CMSK_EN_PATH) != (val & ISP32_SW_CMSK_EN_PATH_SHD)))
+		rkisp_write(dev, ISP3X_CMSK_CTRL0, val | ISP3X_SW_CMSK_FORCE_UPD, true);
 }
 
 static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
@@ -1348,6 +1353,11 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 		ctrl |= ISP3X_SW_CMSK_EN | ISP3X_SW_CMSK_ORDER_MODE;
 	}
 	rkisp_next_write(dev, ISP3X_CMSK_CTRL0, ctrl, false);
+
+	val = rkisp_next_read(dev, ISP3X_CMSK_CTRL0, true);
+	if (dev->hw_dev->is_single &&
+	    ((val & ISP32_SW_CMSK_EN_PATH) != (val & ISP32_SW_CMSK_EN_PATH_SHD)))
+		rkisp_next_write(dev, ISP3X_CMSK_CTRL0, val | ISP3X_SW_CMSK_FORCE_UPD, false);
 }
 
 static void rkisp_config_cmsk(struct rkisp_device *dev)
