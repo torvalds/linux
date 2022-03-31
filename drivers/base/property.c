@@ -823,33 +823,16 @@ EXPORT_SYMBOL_GPL(device_get_child_node_count);
 
 bool device_dma_supported(struct device *dev)
 {
-	const struct fwnode_handle *fwnode = dev_fwnode(dev);
-
-	/* For DT, this is always supported.
-	 * For ACPI, this depends on CCA, which
-	 * is determined by the acpi_dma_supported().
-	 */
-	if (is_of_node(fwnode))
-		return true;
-
-	return acpi_dma_supported(to_acpi_device_node(fwnode));
+	return fwnode_call_bool_op(dev_fwnode(dev), device_dma_supported);
 }
 EXPORT_SYMBOL_GPL(device_dma_supported);
 
 enum dev_dma_attr device_get_dma_attr(struct device *dev)
 {
-	const struct fwnode_handle *fwnode = dev_fwnode(dev);
-	enum dev_dma_attr attr = DEV_DMA_NOT_SUPPORTED;
+	if (!fwnode_has_op(dev_fwnode(dev), device_get_dma_attr))
+		return DEV_DMA_NOT_SUPPORTED;
 
-	if (is_of_node(fwnode)) {
-		if (of_dma_is_coherent(to_of_node(fwnode)))
-			attr = DEV_DMA_COHERENT;
-		else
-			attr = DEV_DMA_NON_COHERENT;
-	} else
-		attr = acpi_get_dma_attr(to_acpi_device_node(fwnode));
-
-	return attr;
+	return fwnode_call_int_op(dev_fwnode(dev), device_get_dma_attr);
 }
 EXPORT_SYMBOL_GPL(device_get_dma_attr);
 

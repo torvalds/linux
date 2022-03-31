@@ -1256,6 +1256,17 @@ static bool acpi_fwnode_device_is_available(const struct fwnode_handle *fwnode)
 	return acpi_device_is_present(to_acpi_device_node(fwnode));
 }
 
+static bool acpi_fwnode_device_dma_supported(const struct fwnode_handle *fwnode)
+{
+	return acpi_dma_supported(to_acpi_device_node(fwnode));
+}
+
+static enum dev_dma_attr
+acpi_fwnode_device_get_dma_attr(const struct fwnode_handle *fwnode)
+{
+	return acpi_get_dma_attr(to_acpi_device_node(fwnode));
+}
+
 static bool acpi_fwnode_property_present(const struct fwnode_handle *fwnode,
 					 const char *propname)
 {
@@ -1387,6 +1398,9 @@ acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 	const struct fwnode_operations ops = {				\
 		.device_is_available = acpi_fwnode_device_is_available, \
 		.device_get_match_data = acpi_fwnode_device_get_match_data, \
+		.device_dma_supported =				\
+			acpi_fwnode_device_dma_supported,		\
+		.device_get_dma_attr = acpi_fwnode_device_get_dma_attr,	\
 		.property_present = acpi_fwnode_property_present,	\
 		.property_read_int_array =				\
 			acpi_fwnode_property_read_int_array,		\

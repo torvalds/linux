@@ -22,6 +22,7 @@
 #define pr_fmt(fmt)	"OF: " fmt
 
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_irq.h>
@@ -872,6 +873,20 @@ static bool of_fwnode_device_is_available(const struct fwnode_handle *fwnode)
 	return of_device_is_available(to_of_node(fwnode));
 }
 
+static bool of_fwnode_device_dma_supported(const struct fwnode_handle *fwnode)
+{
+	return true;
+}
+
+static enum dev_dma_attr
+of_fwnode_device_get_dma_attr(const struct fwnode_handle *fwnode)
+{
+	if (of_dma_is_coherent(to_of_node(fwnode)))
+		return DEV_DMA_COHERENT;
+	else
+		return DEV_DMA_NON_COHERENT;
+}
+
 static bool of_fwnode_property_present(const struct fwnode_handle *fwnode,
 				       const char *propname)
 {
@@ -1472,6 +1487,8 @@ const struct fwnode_operations of_fwnode_ops = {
 	.put = of_fwnode_put,
 	.device_is_available = of_fwnode_device_is_available,
 	.device_get_match_data = of_fwnode_device_get_match_data,
+	.device_dma_supported = of_fwnode_device_dma_supported,
+	.device_get_dma_attr = of_fwnode_device_get_dma_attr,
 	.property_present = of_fwnode_property_present,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,
