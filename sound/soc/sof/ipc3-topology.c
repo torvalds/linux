@@ -1592,6 +1592,7 @@ static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_
 	if (scontrol->priv_size > 0) {
 		memcpy(cdata->data, scontrol->priv, scontrol->priv_size);
 		kfree(scontrol->priv);
+		scontrol->priv = NULL;
 
 		if (cdata->data->magic != SOF_ABI_MAGIC) {
 			dev_err(sdev->dev, "Wrong ABI magic 0x%08x.\n", cdata->data->magic);
