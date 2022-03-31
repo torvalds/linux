@@ -459,6 +459,9 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 
 	dout("alloc_inode %p\n", &ci->vfs_inode);
 
+	/* Set parameters for the netfs library */
+	netfs_i_context_init(&ci->vfs_inode, &ceph_netfs_ops);
+
 	spin_lock_init(&ci->i_ceph_lock);
 
 	ci->i_version = 0;
@@ -544,9 +547,6 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	INIT_WORK(&ci->i_work, ceph_inode_work);
 	ci->i_work_mask = 0;
 	memset(&ci->i_btime, '\0', sizeof(ci->i_btime));
-
-	ceph_fscache_inode_init(ci);
-
 	return &ci->vfs_inode;
 }
 
