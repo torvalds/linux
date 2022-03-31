@@ -1020,6 +1020,13 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	/* get boot_values from vbios to set revision, gfxclk, and etc. */
+	ret = smu_get_vbios_bootup_values(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to get VBIOS boot clock values!\n");
+		return ret;
+	}
+
 	ret = smu_register_irq_handler(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to register smc irq handler!\n");
@@ -1303,13 +1310,6 @@ static int smu_hw_init(void *handle)
 
 	if (!smu->pm_enabled)
 		return 0;
-
-	/* get boot_values from vbios to set revision, gfxclk, and etc. */
-	ret = smu_get_vbios_bootup_values(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to get VBIOS boot clock values!\n");
-		return ret;
-	}
 
 	ret = smu_setup_pptable(smu);
 	if (ret) {
