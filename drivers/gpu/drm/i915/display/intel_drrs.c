@@ -358,7 +358,6 @@ void intel_crtc_drrs_init(struct intel_crtc *crtc)
 /**
  * intel_drrs_init - Init DRRS for eDP connector
  * @connector: eDP connector
- * @fixed_mode: preferred mode of panel
  *
  * This function is called only once at driver load to initialize
  * DRRS support for the connector.
@@ -368,25 +367,14 @@ void intel_crtc_drrs_init(struct intel_crtc *crtc)
  * DRRS support is determined by the presence of downclock mode (apart
  * from VBT setting).
  */
-struct drm_display_mode *
-intel_drrs_init(struct intel_connector *connector,
-		const struct drm_display_mode *fixed_mode)
+void intel_drrs_init(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct drm_display_mode *downclock_mode;
 
-	downclock_mode = intel_panel_edid_downclock_mode(connector, fixed_mode);
-	if (!downclock_mode) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "[CONNECTOR:%d:%s] DRRS not supported due to lack of downclock mode\n",
-			    connector->base.base.id, connector->base.name);
-		return NULL;
-	}
+	intel_panel_add_edid_downclock_mode(connector);
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "[CONNECTOR:%d:%s] %s DRRS supported\n",
+		    "[CONNECTOR:%d:%s] DRRS type: %s\n",
 		    connector->base.base.id, connector->base.name,
-		    intel_drrs_type_str(dev_priv->vbt.drrs_type));
-
-	return downclock_mode;
+		    intel_drrs_type_str(intel_panel_drrs_type(connector)));
 }

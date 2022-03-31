@@ -520,8 +520,6 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 
 		intel_connector_attach_encoder(intel_connector, intel_encoder);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
-			struct drm_display_mode *fixed_mode;
-
 			/*
 			 * For our LVDS chipsets, we should hopefully be able
 			 * to dig the fixed panel mode out of the BIOS data.
@@ -530,10 +528,11 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 * headers, likely), so for now, just get the current
 			 * mode being output through DVO.
 			 */
-			fixed_mode = intel_panel_encoder_fixed_mode(intel_connector,
-								    intel_encoder);
+			intel_panel_add_encoder_fixed_mode(intel_connector,
+							   intel_encoder);
 
-			intel_panel_init(intel_connector, fixed_mode, NULL);
+			intel_panel_init(intel_connector);
+
 			intel_dvo->panel_wants_dither = true;
 		}
 

@@ -2871,7 +2871,6 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
-	struct drm_display_mode *fixed_mode;
 
 	DRM_DEBUG_KMS("initialising LVDS device %d\n", device);
 
@@ -2904,13 +2903,14 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
 	 * SDVO->LVDS transcoders can't cope with the EDID mode.
 	 */
-	fixed_mode = intel_panel_vbt_sdvo_fixed_mode(intel_connector);
-	if (!fixed_mode) {
+	intel_panel_add_vbt_sdvo_fixed_mode(intel_connector);
+
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		intel_ddc_get_modes(connector, &intel_sdvo->ddc);
-		fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+		intel_panel_add_edid_fixed_mode(intel_connector);
 	}
 
-	intel_panel_init(intel_connector, fixed_mode, NULL);
+	intel_panel_init(intel_connector);
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		goto err;

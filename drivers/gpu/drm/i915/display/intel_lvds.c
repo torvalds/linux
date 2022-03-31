@@ -829,8 +829,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_display_mode *fixed_mode = NULL;
-	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
 	i915_reg_t lvds_reg;
 	u32 lvds;
@@ -969,30 +967,29 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_connector->edid = edid;
 
-	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
-	if (fixed_mode)
-		goto out;
+	/* Try EDID first */
+	intel_panel_add_edid_fixed_mode(intel_connector);
 
 	/* Failed to get EDID, what about VBT? */
-	fixed_mode = intel_panel_vbt_lfp_fixed_mode(intel_connector);
-	if (fixed_mode)
-		goto out;
+	if (!intel_panel_preferred_fixed_mode(intel_connector))
+		intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 
 	/*
-	 * If we didn't get EDID, try checking if the panel is already turned
-	 * on.  If so, assume that whatever is currently programmed is the
-	 * correct mode.
+	 * If we didn't get a fixed mode from EDID or VBT, try checking
+	 * if the panel is already turned on.  If so, assume that
+	 * whatever is currently programmed is the correct mode.
 	 */
-	fixed_mode = intel_panel_encoder_fixed_mode(intel_connector, intel_encoder);
+	if (!intel_panel_preferred_fixed_mode(intel_connector))
+		intel_panel_add_encoder_fixed_mode(intel_connector, intel_encoder);
 
-	/* If we still don't have a mode after all that, give up. */
-	if (!fixed_mode)
-		goto failed;
-
-out:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	intel_panel_init(intel_connector, fixed_mode, downclock_mode);
+	/* If we still don't have a mode after all that, give up. */
+	if (!intel_panel_preferred_fixed_mode(intel_connector))
+		goto failed;
+
+	intel_panel_init(intel_connector);
+
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
@@ -1004,8 +1001,6 @@ out:
 	return;
 
 failed:
-	mutex_unlock(&dev->mode_config.mutex);
-
 	drm_dbg_kms(&dev_priv->drm, "No LVDS modes found, disabling.\n");
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);

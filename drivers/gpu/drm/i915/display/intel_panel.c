@@ -158,11 +158,11 @@ static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
 		downclock_mode->clock < fixed_mode->clock;
 }
 
-struct drm_display_mode *
-intel_panel_edid_downclock_mode(struct intel_connector *connector,
-				const struct drm_display_mode *fixed_mode)
+void intel_panel_add_edid_downclock_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(connector);
 	const struct drm_display_mode *scan, *best_mode = NULL;
 	struct drm_display_mode *downclock_mode;
 	int best_clock = fixed_mode->clock;
@@ -187,29 +187,28 @@ intel_panel_edid_downclock_mode(struct intel_connector *connector,
 	}
 
 	if (!best_mode)
-		return NULL;
+		return;
 
 	downclock_mode = drm_mode_duplicate(&dev_priv->drm, best_mode);
 	if (!downclock_mode)
-		return NULL;
+		return;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CONNECTOR:%d:%s] using downclock mode from EDID: " DRM_MODE_FMT "\n",
 		    connector->base.base.id, connector->base.name,
 		    DRM_MODE_ARG(downclock_mode));
 
-	return downclock_mode;
+	list_add_tail(&downclock_mode->head, &connector->panel.fixed_modes);
 }
 
-struct drm_display_mode *
-intel_panel_edid_fixed_mode(struct intel_connector *connector)
+void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *scan;
 	struct drm_display_mode *fixed_mode;
 
 	if (list_empty(&connector->base.probed_modes))
-		return NULL;
+		return;
 
 	/* prefer fixed mode from EDID if available */
 	list_for_each_entry(scan, &connector->base.probed_modes, head) {
@@ -218,47 +217,45 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 
 		fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
 		if (!fixed_mode)
-			return NULL;
+			return;
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CONNECTOR:%d:%s] using preferred mode from EDID: " DRM_MODE_FMT "\n",
 			    connector->base.base.id, connector->base.name,
 			    DRM_MODE_ARG(fixed_mode));
 
-		return fixed_mode;
+		list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
+		return;
 	}
 
 	scan = list_first_entry(&connector->base.probed_modes,
 				typeof(*scan), head);
-
 	fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
 	if (!fixed_mode)
-		return NULL;
+		return;
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CONNECTOR:%d:%s] using first mode from EDID: " DRM_MODE_FMT "\n",
 		    connector->base.base.id, connector->base.name,
 		    DRM_MODE_ARG(fixed_mode));
 
-	return fixed_mode;
+	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
 }
 
-struct drm_display_mode *
-intel_panel_vbt_lfp_fixed_mode(struct intel_connector *connector)
+void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct drm_display_info *info = &connector->base.display_info;
 	struct drm_display_mode *fixed_mode;
 
 	if (!dev_priv->vbt.lfp_lvds_vbt_mode)
-		return NULL;
+		return;
 
 	fixed_mode = drm_mode_duplicate(&dev_priv->drm,
 					dev_priv->vbt.lfp_lvds_vbt_mode);
 	if (!fixed_mode)
-		return NULL;
+		return;
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
@@ -269,39 +266,37 @@ intel_panel_vbt_lfp_fixed_mode(struct intel_connector *connector)
 	info->width_mm = fixed_mode->width_mm;
 	info->height_mm = fixed_mode->height_mm;
 
-	return fixed_mode;
+	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
 }
 
-struct drm_display_mode *
-intel_panel_vbt_sdvo_fixed_mode(struct intel_connector *connector)
+void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_display_mode *fixed_mode;
 
 	if (!i915->vbt.sdvo_lvds_vbt_mode)
-		return NULL;
+		return;
 
 	fixed_mode = drm_mode_duplicate(&i915->drm,
 					i915->vbt.sdvo_lvds_vbt_mode);
 	if (!fixed_mode)
-		return NULL;
+		return;
 
 	/* Guarantee the mode is preferred */
 	fixed_mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 
-	return fixed_mode;
+	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
 }
 
-struct drm_display_mode *
-intel_panel_encoder_fixed_mode(struct intel_connector *connector,
-			       struct intel_encoder *encoder)
+void intel_panel_add_encoder_fixed_mode(struct intel_connector *connector,
+					struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_display_mode *fixed_mode;
 
 	fixed_mode = intel_encoder_current_mode(encoder);
 	if (!fixed_mode)
-		return NULL;
+		return;
 
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] using current (BIOS) mode: " DRM_MODE_FMT "\n",
 		    connector->base.base.id, connector->base.name,
@@ -309,7 +304,7 @@ intel_panel_encoder_fixed_mode(struct intel_connector *connector,
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
-	return fixed_mode;
+	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
@@ -639,18 +634,11 @@ intel_panel_mode_valid(struct intel_connector *connector,
 	return MODE_OK;
 }
 
-int intel_panel_init(struct intel_connector *connector,
-		     struct drm_display_mode *fixed_mode,
-		     struct drm_display_mode *downclock_mode)
+int intel_panel_init(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 
 	intel_backlight_init_funcs(panel);
-
-	if (fixed_mode)
-		list_add_tail(&fixed_mode->head, &panel->fixed_modes);
-	if (downclock_mode)
-		list_add_tail(&downclock_mode->head, &panel->fixed_modes);
 
 	return 0;
 }
