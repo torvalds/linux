@@ -796,7 +796,6 @@ static void ssip_rx_strans(struct hsi_client *cl, u32 cmd)
 		dev_err(&cl->device, "No memory for rx skb\n");
 		goto out1;
 	}
-	skb->dev = ssi->netdev;
 	skb_put(skb, len * 4);
 	msg = ssip_alloc_data(ssi, skb, GFP_ATOMIC);
 	if (unlikely(!msg)) {
