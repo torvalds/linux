@@ -93,6 +93,15 @@ struct irq_routing_table {
 	struct irq_info slots[];
 } __attribute__((packed));
 
+struct irt_routing_table {
+	u32 signature;			/* IRT_SIGNATURE should be here */
+	u8 size;			/* Number of entries provided */
+	u8 used;			/* Number of entries actually used */
+	u16 exclusive_irqs;		/* IRQs devoted exclusively to
+					   PCI usage */
+	struct irq_info slots[];
+} __attribute__((packed));
+
 extern unsigned int pcibios_irq_mask;
 
 extern raw_spinlock_t pci_config_lock;

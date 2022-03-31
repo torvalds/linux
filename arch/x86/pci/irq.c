@@ -25,6 +25,8 @@
 #define PIRQ_SIGNATURE	(('$' << 0) + ('P' << 8) + ('I' << 16) + ('R' << 24))
 #define PIRQ_VERSION 0x0100
 
+#define IRT_SIGNATURE	(('$' << 0) + ('I' << 8) + ('R' << 16) + ('T' << 24))
+
 static int broken_hp_bios_irq9;
 static int acer_tm360_irqrouting;
 
@@ -93,7 +95,74 @@ static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr,
 	return NULL;
 }
 
+/*
+ * Handle the $IRT PCI IRQ Routing Table format used by AMI for its BCP
+ * (BIOS Configuration Program) external tool meant for tweaking BIOS
+ * structures without the need to rebuild it from sources.  The $IRT
+ * format has been invented by AMI before Microsoft has come up with its
+ * $PIR format and a $IRT table is therefore there in some systems that
+ * lack a $PIR table.
+ *
+ * It uses the same PCI BIOS 2.1 format for interrupt routing entries
+ * themselves but has a different simpler header prepended instead,
+ * occupying 8 bytes, where a `$IRT' signature is followed by one byte
+ * specifying the total number of interrupt routing entries allocated in
+ * the table, then one byte specifying the actual number of entries used
+ * (which the BCP tool can take advantage of when modifying the table),
+ * and finally a 16-bit word giving the IRQs devoted exclusively to PCI.
+ * Unlike with the $PIR table there is no alignment guarantee.
+ *
+ * Given the similarity of the two formats the $IRT one is trivial to
+ * convert to the $PIR one, which we do here, except that obviously we
+ * have no information as to the router device to use, but we can handle
+ * it by matching PCI device IDs actually seen on the bus against ones
+ * that our individual routers recognise.
+ *
+ * Reportedly there is another $IRT table format where a 16-bit word
+ * follows the header instead that points to interrupt routing entries
+ * in a $PIR table provided elsewhere.  In that case this code will not
+ * be reached though as the $PIR table will have been chosen instead.
+ */
+static inline struct irq_routing_table *pirq_convert_irt_table(u8 *addr,
+							       u8 *limit)
+{
+	struct irt_routing_table *ir;
+	struct irq_routing_table *rt;
+	u16 size;
+	u8 sum;
+	int i;
 
+	ir = (struct irt_routing_table *)addr;
+	if (ir->signature != IRT_SIGNATURE || !ir->used || ir->size < ir->used)
+		return NULL;
+
+	size = sizeof(*ir) + ir->used * sizeof(ir->slots[0]);
+	if (size > limit - addr)
+		return NULL;
+
+	DBG(KERN_DEBUG "PCI: $IRT Interrupt Routing Table found at 0x%lx\n",
+	    __pa(ir));
+
+	size = sizeof(*rt) + ir->used * sizeof(rt->slots[0]);
+	rt = kzalloc(size, GFP_KERNEL);
+	if (!rt)
+		return NULL;
+
+	rt->signature = PIRQ_SIGNATURE;
+	rt->version = PIRQ_VERSION;
+	rt->size = size;
+	rt->exclusive_irqs = ir->exclusive_irqs;
+	for (i = 0; i < ir->used; i++)
+		rt->slots[i] = ir->slots[i];
+
+	addr = (u8 *)rt;
+	sum = 0;
+	for (i = 0; i < size; i++)
+		sum += addr[i];
+	rt->checksum = -sum;
+
+	return rt;
+}
 
 /*
  *  Search 0xf0000 -- 0xfffff for the PCI IRQ Routing Table.
@@ -117,6 +186,13 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 	     addr < bios_end - sizeof(struct irq_routing_table);
 	     addr += 16) {
 		rt = pirq_check_routing_table(addr, bios_end);
+		if (rt)
+			return rt;
+	}
+	for (addr = bios_start;
+	     addr < bios_end - sizeof(struct irt_routing_table);
+	     addr++) {
+		rt = pirq_convert_irt_table(addr, bios_end);
 		if (rt)
 			return rt;
 	}
