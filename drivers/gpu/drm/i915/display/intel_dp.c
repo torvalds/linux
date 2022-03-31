@@ -1769,10 +1769,22 @@ intel_dp_compute_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
 		intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GAMUT_METADATA);
 }
 
+static bool cpu_transcoder_has_drrs(struct drm_i915_private *i915,
+				    enum transcoder cpu_transcoder)
+{
+	/* M1/N1 is double buffered */
+	if (DISPLAY_VER(i915) >= 9 || IS_BROADWELL(i915))
+		return true;
+
+	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);
+}
+
 static bool can_enable_drrs(struct intel_connector *connector,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_display_mode *downclock_mode)
 {
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
 	if (pipe_config->vrr.enable)
 		return false;
 
@@ -1783,6 +1795,13 @@ static bool can_enable_drrs(struct intel_connector *connector,
 	 * after intel_psr_compute_config().
 	 */
 	if (pipe_config->has_psr)
+		return false;
+
+	/* FIXME missing FDI M2/N2 etc. */
+	if (pipe_config->has_pch_encoder)
+		return false;
+
+	if (!cpu_transcoder_has_drrs(i915, pipe_config->cpu_transcoder))
 		return false;
 
 	return downclock_mode &&
@@ -5029,39 +5048,6 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 						       fixed_mode->vdisplay);
 }
 
-static bool
-intel_edp_has_drrs(struct intel_dp *intel_dp)
-{
-	struct intel_connector *connector = intel_dp->attached_connector;
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-
-	if (DISPLAY_VER(i915) < 5) {
-		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] DRRS not supported on platform\n",
-			    connector->base.base.id, connector->base.name);
-		return false;
-	}
-
-	if ((DISPLAY_VER(i915) < 8 && !HAS_GMCH(i915)) &&
-	    encoder->port != PORT_A) {
-		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] DRRS not supported on [ENCODER:%d:%s]\n",
-			    connector->base.base.id, connector->base.name,
-			    encoder->base.base.id, encoder->base.name);
-		return false;
-	}
-
-	if (i915->vbt.drrs_type == DRRS_TYPE_NONE) {
-		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] DRRS not supported according to VBT\n",
-			    connector->base.base.id, connector->base.name);
-		return false;
-	}
-
-	return true;
-}
-
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector)
 {
@@ -5126,7 +5112,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_connector->edid = edid;
 
 	intel_panel_add_edid_fixed_modes(intel_connector,
-					 intel_edp_has_drrs(intel_dp));
+					 dev_priv->vbt.drrs_type != DRRS_TYPE_NONE);
 
 	/* MSO requires information from the EDID */
 	intel_edp_mso_init(intel_dp);
