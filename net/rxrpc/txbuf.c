@@ -99,3 +99,37 @@ void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what)
 			call_rcu(&txb->rcu, rxrpc_free_txbuf);
 	}
 }
+
+/*
+ * Shrink the transmit buffer.
+ */
+void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
+{
+	struct rxrpc_txbuf *txb;
+	rxrpc_seq_t hard_ack = smp_load_acquire(&call->acks_hard_ack);
+
+	_enter("%x/%x/%x", call->tx_bottom, call->acks_hard_ack, call->tx_top);
+
+	for (;;) {
+		spin_lock(&call->tx_lock);
+		txb = list_first_entry_or_null(&call->tx_buffer,
+					       struct rxrpc_txbuf, call_link);
+		if (!txb)
+			break;
+		hard_ack = smp_load_acquire(&call->acks_hard_ack);
+		if (before(hard_ack, txb->seq))
+			break;
+
+		ASSERTCMP(txb->seq, ==, call->tx_bottom + 1);
+		call->tx_bottom++;
+		list_del_rcu(&txb->call_link);
+
+		trace_rxrpc_txqueue(call, rxrpc_txqueue_dequeue);
+
+		spin_unlock(&call->tx_lock);
+
+		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_rotated);
+	}
+
+	spin_unlock(&call->tx_lock);
+}

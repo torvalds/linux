@@ -54,7 +54,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 	unsigned long timeout = 0;
-	rxrpc_seq_t tx_hard_ack;
+	rxrpc_seq_t acks_hard_ack;
 	char lbuff[50], rbuff[50];
 	u64 wtmp;
 
@@ -91,7 +91,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		timeout -= jiffies;
 	}
 
-	tx_hard_ack = READ_ONCE(call->tx_hard_ack);
+	acks_hard_ack = READ_ONCE(call->acks_hard_ack);
 	wtmp   = atomic64_read_acquire(&call->ackr_window);
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
@@ -106,7 +106,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
 		   call->debug_id,
-		   tx_hard_ack, READ_ONCE(call->tx_top) - tx_hard_ack,
+		   acks_hard_ack, READ_ONCE(call->tx_top) - acks_hard_ack,
 		   lower_32_bits(wtmp), upper_32_bits(wtmp) - lower_32_bits(wtmp),
 		   call->rx_serial,
 		   timeout);
@@ -459,9 +459,8 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_slow_start]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_small_txwin]));
 	seq_printf(seq,
-		   "Buffers  : txb=%u,%u rxb=%u\n",
+		   "Buffers  : txb=%u rxb=%u\n",
 		   atomic_read(&rxrpc_nr_txbuf),
-		   atomic_read(&rxrpc_n_tx_skbs),
 		   atomic_read(&rxrpc_n_rx_skbs));
 	return 0;
 }

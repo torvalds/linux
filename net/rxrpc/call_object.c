@@ -155,11 +155,13 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	INIT_LIST_HEAD(&call->accept_link);
 	INIT_LIST_HEAD(&call->recvmsg_link);
 	INIT_LIST_HEAD(&call->sock_link);
+	INIT_LIST_HEAD(&call->tx_buffer);
 	skb_queue_head_init(&call->recvmsg_queue);
 	skb_queue_head_init(&call->rx_oos_queue);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
 	spin_lock_init(&call->notify_lock);
+	spin_lock_init(&call->tx_lock);
 	spin_lock_init(&call->input_lock);
 	rwlock_init(&call->state_lock);
 	refcount_set(&call->ref, 1);
@@ -175,7 +177,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->tx_winsize = 16;
 
 	call->cong_cwnd = 2;
-	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
+	call->cong_ssthresh = RXRPC_TX_MAX_WINDOW;
 
 	call->rxnet = rxnet;
 	call->rtt_avail = RXRPC_CALL_RTT_AVAIL_MASK;
@@ -510,7 +512,7 @@ void rxrpc_get_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 }
 
 /*
- * Clean up the RxTx skb ring.
+ * Clean up the Rx skb ring.
  */
 static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 {
@@ -686,6 +688,8 @@ static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
  */
 void rxrpc_cleanup_call(struct rxrpc_call *call)
 {
+	struct rxrpc_txbuf *txb;
+
 	_net("DESTROY CALL %d", call->debug_id);
 
 	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
@@ -694,7 +698,12 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 	ASSERT(test_bit(RXRPC_CALL_RELEASED, &call->flags));
 
 	rxrpc_cleanup_ring(call);
-	rxrpc_free_skb(call->tx_pending, rxrpc_skb_cleaned);
+	while ((txb = list_first_entry_or_null(&call->tx_buffer,
+					       struct rxrpc_txbuf, call_link))) {
+		list_del(&txb->call_link);
+		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_cleaned);
+	}
+	rxrpc_put_txbuf(call->tx_pending, rxrpc_txbuf_put_cleaned);
 
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }

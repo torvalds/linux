@@ -32,7 +32,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	bool resend = false;
 
 	summary->flight_size =
-		(call->tx_top - call->tx_hard_ack) - summary->nr_acks;
+		(call->tx_top - call->acks_hard_ack) - summary->nr_acks;
 
 	if (test_and_clear_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags)) {
 		summary->retrans_timeo = true;
@@ -150,8 +150,8 @@ resume_normality:
 out:
 	cumulative_acks = 0;
 out_no_clear_ca:
-	if (cwnd >= RXRPC_RXTX_BUFF_SIZE - 1)
-		cwnd = RXRPC_RXTX_BUFF_SIZE - 1;
+	if (cwnd >= RXRPC_TX_MAX_WINDOW)
+		cwnd = RXRPC_TX_MAX_WINDOW;
 	call->cong_cwnd = cwnd;
 	call->cong_cumul_acks = cumulative_acks;
 	trace_rxrpc_congest(call, summary, acked_serial, change);
@@ -169,9 +169,8 @@ send_extra_data:
 	/* Send some previously unsent DATA if we have some to advance the ACK
 	 * state.
 	 */
-	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
-	    RXRPC_TX_ANNO_LAST ||
-	    summary->nr_acks != call->tx_top - call->tx_hard_ack) {
+	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) ||
+	    summary->nr_acks != call->tx_top - call->acks_hard_ack) {
 		call->cong_extra++;
 		wake_up(&call->waitq);
 	}
@@ -184,53 +183,40 @@ send_extra_data:
 static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 				   struct rxrpc_ack_summary *summary)
 {
-	struct sk_buff *skb, *list = NULL;
+	struct rxrpc_txbuf *txb;
 	bool rot_last = false;
-	int ix;
-	u8 annotation;
 
-	if (call->acks_lowest_nak == call->tx_hard_ack) {
+	list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
+		if (before_eq(txb->seq, call->acks_hard_ack))
+			continue;
+		if (!test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
+			summary->nr_rot_new_acks++;
+		if (test_bit(RXRPC_TXBUF_LAST, &txb->flags)) {
+			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
+			rot_last = true;
+		}
+		if (txb->seq == to)
+			break;
+	}
+
+	if (rot_last)
+		set_bit(RXRPC_CALL_TX_ALL_ACKED, &call->flags);
+
+	_enter("%x,%x,%x,%d", to, call->acks_hard_ack, call->tx_top, rot_last);
+
+	if (call->acks_lowest_nak == call->acks_hard_ack) {
 		call->acks_lowest_nak = to;
 	} else if (before_eq(call->acks_lowest_nak, to)) {
 		summary->new_low_nack = true;
 		call->acks_lowest_nak = to;
 	}
 
-	spin_lock(&call->lock);
+	smp_store_release(&call->acks_hard_ack, to);
 
-	while (before(call->tx_hard_ack, to)) {
-		call->tx_hard_ack++;
-		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
-		skb = call->rxtx_buffer[ix];
-		annotation = call->rxtx_annotations[ix];
-		rxrpc_see_skb(skb, rxrpc_skb_rotated);
-		call->rxtx_buffer[ix] = NULL;
-		call->rxtx_annotations[ix] = 0;
-		skb->next = list;
-		list = skb;
-
-		if (annotation & RXRPC_TX_ANNO_LAST) {
-			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
-			rot_last = true;
-		}
-		if ((annotation & RXRPC_TX_ANNO_MASK) != RXRPC_TX_ANNO_ACK)
-			summary->nr_rot_new_acks++;
-	}
-
-	spin_unlock(&call->lock);
-
-	trace_rxrpc_transmit(call, (rot_last ?
-				    rxrpc_transmit_rotate_last :
-				    rxrpc_transmit_rotate));
+	trace_rxrpc_txqueue(call, (rot_last ?
+				   rxrpc_txqueue_rotate_last :
+				   rxrpc_txqueue_rotate));
 	wake_up(&call->waitq);
-
-	while (list) {
-		skb = list;
-		list = skb->next;
-		skb_mark_not_on_list(skb);
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
-	}
-
 	return rot_last;
 }
 
@@ -270,9 +256,9 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	write_unlock(&call->state_lock);
 	if (state == RXRPC_CALL_CLIENT_AWAIT_REPLY)
-		trace_rxrpc_transmit(call, rxrpc_transmit_await_reply);
+		trace_rxrpc_txqueue(call, rxrpc_txqueue_await_reply);
 	else
-		trace_rxrpc_transmit(call, rxrpc_transmit_end);
+		trace_rxrpc_txqueue(call, rxrpc_txqueue_end);
 	_leave(" = ok");
 	return true;
 
@@ -678,29 +664,20 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
  */
 static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
 {
-	rxrpc_seq_t top, bottom, seq;
+	struct rxrpc_txbuf *txb;
+	rxrpc_seq_t top, bottom;
 	bool resend = false;
 
-	spin_lock_bh(&call->lock);
-
-	bottom = call->tx_hard_ack + 1;
-	top = call->acks_lost_top;
+	bottom = READ_ONCE(call->acks_hard_ack) + 1;
+	top = READ_ONCE(call->acks_lost_top);
 	if (before(bottom, top)) {
-		for (seq = bottom; before_eq(seq, top); seq++) {
-			int ix = seq & RXRPC_RXTX_BUFF_MASK;
-			u8 annotation = call->rxtx_annotations[ix];
-			u8 anno_type = annotation & RXRPC_TX_ANNO_MASK;
-
-			if (anno_type != RXRPC_TX_ANNO_UNACK)
+		list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
+			if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
 				continue;
-			annotation &= ~RXRPC_TX_ANNO_MASK;
-			annotation |= RXRPC_TX_ANNO_RETRANS;
-			call->rxtx_annotations[ix] = annotation;
+			set_bit(RXRPC_TXBUF_RETRANS, &txb->flags);
 			resend = true;
 		}
 	}
-
-	spin_unlock_bh(&call->lock);
 
 	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
 		rxrpc_queue_call(call);
@@ -735,8 +712,8 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 	       ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU),
 	       rwind, ntohl(ackinfo->jumbo_max));
 
-	if (rwind > RXRPC_RXTX_BUFF_SIZE - 1)
-		rwind = RXRPC_RXTX_BUFF_SIZE - 1;
+	if (rwind > RXRPC_TX_MAX_WINDOW)
+		rwind = RXRPC_TX_MAX_WINDOW;
 	if (call->tx_winsize != rwind) {
 		if (rwind > call->tx_winsize)
 			wake = true;
@@ -775,22 +752,24 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 				  rxrpc_seq_t seq, int nr_acks,
 				  struct rxrpc_ack_summary *summary)
 {
-	int ix;
-	u8 annotation, anno_type;
+	struct rxrpc_txbuf *txb;
 
-	for (; nr_acks > 0; nr_acks--, seq++) {
-		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		annotation = call->rxtx_annotations[ix];
-		anno_type = annotation & RXRPC_TX_ANNO_MASK;
-		annotation &= ~RXRPC_TX_ANNO_MASK;
-		switch (*acks++) {
+	list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
+		if (before(txb->seq, seq))
+			continue;
+		if (after_eq(txb->seq, seq + nr_acks))
+			break;
+		switch (acks[txb->seq - seq]) {
 		case RXRPC_ACK_TYPE_ACK:
 			summary->nr_acks++;
-			if (anno_type == RXRPC_TX_ANNO_ACK)
+			if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
 				continue;
+			/* A lot of the time the packet is going to
+			 * have been ACK.'d already.
+			 */
+			clear_bit(RXRPC_TXBUF_NACKED, &txb->flags);
+			set_bit(RXRPC_TXBUF_ACKED, &txb->flags);
 			summary->nr_new_acks++;
-			call->rxtx_annotations[ix] =
-				RXRPC_TX_ANNO_ACK | annotation;
 			break;
 		case RXRPC_ACK_TYPE_NACK:
 			if (!summary->nr_nacks &&
@@ -799,13 +778,12 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 				summary->new_low_nack = true;
 			}
 			summary->nr_nacks++;
-			if (anno_type == RXRPC_TX_ANNO_NAK)
+			if (test_bit(RXRPC_TXBUF_NACKED, &txb->flags))
 				continue;
 			summary->nr_new_nacks++;
-			if (anno_type == RXRPC_TX_ANNO_RETRANS)
-				continue;
-			call->rxtx_annotations[ix] =
-				RXRPC_TX_ANNO_NAK | annotation;
+			clear_bit(RXRPC_TXBUF_ACKED, &txb->flags);
+			set_bit(RXRPC_TXBUF_NACKED, &txb->flags);
+			set_bit(RXRPC_TXBUF_RETRANS, &txb->flags);
 			break;
 		default:
 			return rxrpc_proto_abort("SFT", call, 0);
@@ -930,7 +908,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (unlikely(buf.ack.reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
-	    call->tx_hard_ack == 0 &&
+	    call->acks_hard_ack == 0 &&
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
@@ -989,7 +967,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (before(hard_ack, call->tx_hard_ack) ||
+	if (before(hard_ack, call->acks_hard_ack) ||
 	    after(hard_ack, call->tx_top)) {
 		rxrpc_proto_abort("AKW", call, 0);
 		goto out;
@@ -999,7 +977,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (after(hard_ack, call->tx_hard_ack)) {
+	if (after(hard_ack, call->acks_hard_ack)) {
 		if (rxrpc_rotate_tx_window(call, hard_ack, &summary)) {
 			rxrpc_end_tx_phase(call, false, "ETA");
 			goto out;
@@ -1015,8 +993,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 				      &summary);
 	}
 
-	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
-	    RXRPC_TX_ANNO_LAST &&
+	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
 	    summary.nr_acks == call->tx_top - hard_ack &&
 	    rxrpc_is_client_call(call))
 		rxrpc_propose_ping(call, ack_serial,

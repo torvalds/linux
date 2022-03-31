@@ -25,8 +25,7 @@ static int none_how_much_data(struct rxrpc_call *call, size_t remain,
 	return 0;
 }
 
-static int none_secure_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			      size_t data_size)
+static int none_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	return 0;
 }

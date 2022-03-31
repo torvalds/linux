@@ -148,62 +148,52 @@ static void rxrpc_congestion_timeout(struct rxrpc_call *call)
  */
 static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 {
-	struct sk_buff *skb;
+	struct rxrpc_txbuf *txb;
 	unsigned long resend_at;
-	rxrpc_seq_t cursor, seq, top;
+	rxrpc_seq_t transmitted = READ_ONCE(call->tx_transmitted);
 	ktime_t now, max_age, oldest, ack_ts;
-	int ix;
-	u8 annotation, anno_type, retrans = 0, unacked = 0;
+	bool unacked = false;
+	LIST_HEAD(retrans_queue);
 
-	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
+	_enter("{%d,%d}", call->acks_hard_ack, call->tx_top);
 
 	now = ktime_get_real();
 	max_age = ktime_sub_us(now, jiffies_to_usecs(call->peer->rto_j));
 
-	spin_lock_bh(&call->lock);
-
-	cursor = call->tx_hard_ack;
-	top = call->tx_top;
-	ASSERT(before_eq(cursor, top));
-	if (cursor == top)
-		goto out_unlock;
+	spin_lock(&call->tx_lock);
 
 	/* Scan the packet list without dropping the lock and decide which of
 	 * the packets in the Tx buffer we're going to resend and what the new
 	 * resend timeout will be.
 	 */
-	trace_rxrpc_resend(call, (cursor + 1) & RXRPC_RXTX_BUFF_MASK);
+	trace_rxrpc_resend(call);
 	oldest = now;
-	for (seq = cursor + 1; before_eq(seq, top); seq++) {
-		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		annotation = call->rxtx_annotations[ix];
-		anno_type = annotation & RXRPC_TX_ANNO_MASK;
-		annotation &= ~RXRPC_TX_ANNO_MASK;
-		if (anno_type == RXRPC_TX_ANNO_ACK)
+	list_for_each_entry(txb, &call->tx_buffer, call_link) {
+		if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
 			continue;
+		if (after(txb->seq, transmitted))
+			break;
 
-		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb, rxrpc_skb_seen);
+		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
 
-		if (anno_type == RXRPC_TX_ANNO_UNACK) {
-			if (ktime_after(skb->tstamp, max_age)) {
-				if (ktime_before(skb->tstamp, oldest))
-					oldest = skb->tstamp;
+		if (test_bit(RXRPC_TXBUF_RESENT, &txb->flags)) {
+			if (ktime_after(txb->last_sent, max_age)) {
+				if (ktime_before(txb->last_sent, oldest))
+					oldest = txb->last_sent;
 				continue;
 			}
-			if (!(annotation & RXRPC_TX_ANNO_RESENT))
-				unacked++;
+			unacked = true;
 		}
 
-		/* Okay, we need to retransmit a packet. */
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
-		retrans++;
-		trace_rxrpc_retransmit(call, seq, annotation | anno_type,
-				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
+		rxrpc_get_txbuf(txb, rxrpc_txbuf_get_retrans);
+		list_move_tail(&txb->tx_link, &retrans_queue);
 	}
 
+	spin_unlock(&call->tx_lock);
+
 	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
-	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer, retrans);
+	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer,
+						     !list_empty(&retrans_queue));
 	WRITE_ONCE(call->resend_at, resend_at);
 
 	if (unacked)
@@ -213,7 +203,8 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	 * that an ACK got lost somewhere.  Send a ping to find out instead of
 	 * retransmitting data.
 	 */
-	if (!retrans) {
+	if (list_empty(&retrans_queue)) {
+		spin_lock_bh(&call->lock);
 		rxrpc_reduce_call_timer(call, resend_at, now_j,
 					rxrpc_timer_set_for_resend);
 		spin_unlock_bh(&call->lock);
@@ -225,50 +216,19 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 		goto out;
 	}
 
-	/* Now go through the Tx window and perform the retransmissions.  We
-	 * have to drop the lock for each send.  If an ACK comes in whilst the
-	 * lock is dropped, it may clear some of the retransmission markers for
-	 * packets that it soft-ACKs.
-	 */
-	for (seq = cursor + 1; before_eq(seq, top); seq++) {
-		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		annotation = call->rxtx_annotations[ix];
-		anno_type = annotation & RXRPC_TX_ANNO_MASK;
-		if (anno_type != RXRPC_TX_ANNO_RETRANS)
-			continue;
-
-		/* We need to reset the retransmission state, but we need to do
-		 * so before we drop the lock as a new ACK/NAK may come in and
-		 * confuse things
-		 */
-		annotation &= ~RXRPC_TX_ANNO_MASK;
-		annotation |= RXRPC_TX_ANNO_UNACK | RXRPC_TX_ANNO_RESENT;
-		call->rxtx_annotations[ix] = annotation;
-
-		skb = call->rxtx_buffer[ix];
-		if (!skb)
-			continue;
-
-		rxrpc_get_skb(skb, rxrpc_skb_got);
-		spin_unlock_bh(&call->lock);
-
+	while ((txb = list_first_entry_or_null(&retrans_queue,
+					       struct rxrpc_txbuf, tx_link))) {
+		list_del_init(&txb->tx_link);
+		set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
-		if (rxrpc_send_data_packet(call, skb, true) < 0) {
-			rxrpc_free_skb(skb, rxrpc_skb_freed);
-			return;
-		}
+		rxrpc_send_data_packet(call, txb);
+		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_trans);
 
-		if (rxrpc_is_client_call(call))
-			rxrpc_expose_client_call(call);
-
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
-		spin_lock_bh(&call->lock);
-		if (after(call->tx_hard_ack, seq))
-			seq = call->tx_hard_ack;
+		trace_rxrpc_retransmit(call, txb->seq,
+				       ktime_to_ns(ktime_sub(txb->last_sent,
+							     max_age)));
 	}
 
-out_unlock:
-	spin_unlock_bh(&call->lock);
 out:
 	_leave("");
 }
@@ -300,6 +260,9 @@ recheck_state:
 		rxrpc_send_abort_packet(call);
 		goto recheck_state;
 	}
+
+	if (READ_ONCE(call->acks_hard_ack) != call->tx_bottom)
+		rxrpc_shrink_call_tx_buffer(call);
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
 		rxrpc_delete_call_timer(call);
