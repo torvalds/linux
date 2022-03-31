@@ -281,4 +281,16 @@ config MSM_BOOT_TIME_MARKER
 	  An instrumentation for boot time measurement.
 	  To create an entry, call "place_marker" function.
 	  At userspace, write marker name to "/sys/kernel/boot_kpi/kpi_values"
+
+config QCOM_CPU_VENDOR_HOOKS
+        tristate "QTI Vendor Hooks Support"
+        depends on ARCH_QCOM && ANDROID_VENDOR_HOOKS
+        help
+          CPU vendor hooks driver registers with andriod vendor hooks
+          provided by core kernel to extend kernel functionality.
+
+          Currently these features are not supported by upstream kernel and not
+          having scope to upstream.
+          If unsure, say N.
+
 endmenu
