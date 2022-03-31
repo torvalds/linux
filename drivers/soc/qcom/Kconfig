@@ -136,6 +136,14 @@ config QCOM_RPMPD
 	  value to RPM which then translates it into corresponding voltage
 	  for the voltage rail.
 
+config QCOM_RUN_QUEUE_STATS
+       tristate "Enable collection and exporting of QTI Run Queue stats to userspace"
+       help
+        This option enables the driver to periodically collecting the statistics
+        of kernel run queue information and calculate the load of the system.
+        This information is exported to usespace via sysfs entries and userspace
+        algorithms uses info and decide when to turn on/off the cpu cores.
+
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
 	depends on ARCH_QCOM || COMPILE_TEST
