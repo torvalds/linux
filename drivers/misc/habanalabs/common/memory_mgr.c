@@ -14,8 +14,8 @@
  * @mmg: parent unifed memory manager
  * @handle: requested buffer handle
  *
- * @return Find the buffer in the store and return a pointer to its descriptor.
- *         Increase buffer refcount. If not found - return NULL.
+ * Find the buffer in the store and return a pointer to its descriptor.
+ * Increase buffer refcount. If not found - return NULL.
  */
 struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 {
@@ -35,6 +35,23 @@ struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 }
 
 /**
+ * hl_mmap_mem_buf_destroy - destroy the unused buffer
+ *
+ * @buf: memory manager buffer descriptor
+ *
+ * Internal function, used as a final step of buffer release. Shall be invoked
+ * only when the buffer is no longer in use (removed from idr). Will call the
+ * release callback (if applicable), and free the memory.
+ */
+static void hl_mmap_mem_buf_destroy(struct hl_mmap_mem_buf *buf)
+{
+	if (buf->behavior->release)
+		buf->behavior->release(buf);
+
+	kfree(buf);
+}
+
+/**
  * hl_mmap_mem_buf_release - release buffer
  *
  * @kref: kref that reached 0.
@@ -51,10 +68,23 @@ static void hl_mmap_mem_buf_release(struct kref *kref)
 	idr_remove(&buf->mmg->handles, lower_32_bits(buf->handle >> PAGE_SHIFT));
 	spin_unlock(&buf->mmg->lock);
 
-	if (buf->behavior->release)
-		buf->behavior->release(buf);
+	hl_mmap_mem_buf_destroy(buf);
+}
 
-	kfree(buf);
+/**
+ * hl_mmap_mem_buf_remove_idr_locked - remove handle from idr
+ *
+ * @kref: kref that reached 0.
+ *
+ * Internal function, used for kref put by handle. Assumes mmg lock is taken.
+ * Will remove the buffer from idr, without destroying it.
+ */
+static void hl_mmap_mem_buf_remove_idr_locked(struct kref *kref)
+{
+	struct hl_mmap_mem_buf *buf =
+		container_of(kref, struct hl_mmap_mem_buf, refcount);
+
+	idr_remove(&buf->mmg->handles, lower_32_bits(buf->handle >> PAGE_SHIFT));
 }
 
 /**
@@ -71,7 +101,41 @@ int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf)
 }
 
 /**
- * hl_mmap_mem_buf_alloc - allocate a new mappable buffer
+ * hl_mmap_mem_buf_put_handle - decrease the reference to the buffer with the
+ *                              given handle.
+ *
+ * @mmg: parent unifed memory manager
+ * @handle: requested buffer handle
+ *
+ * Decrease the reference to the buffer, and release it if it was the last one.
+ * Shall not be called from an interrupt context. Return -EINVAL if handle was
+ * not found, else return the put outcome (0 or 1).
+ */
+int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
+{
+	struct hl_mmap_mem_buf *buf;
+
+	spin_lock(&mmg->lock);
+	buf = idr_find(&mmg->handles, lower_32_bits(handle >> PAGE_SHIFT));
+	if (!buf) {
+		spin_unlock(&mmg->lock);
+		dev_warn(mmg->dev,
+			 "Buff put failed, no match to handle %llu\n", handle);
+		return -EINVAL;
+	}
+
+	if (kref_put(&buf->refcount, hl_mmap_mem_buf_remove_idr_locked)) {
+		spin_unlock(&mmg->lock);
+		hl_mmap_mem_buf_destroy(buf);
+		return 1;
+	}
+
+	spin_unlock(&mmg->lock);
+	return 0;
+}
+
+/**
+ * @hl_mmap_mem_buf_alloc - allocate a new mappable buffer
  *
  * @mmg: parent unifed memory manager
  * @behavior: behavior object describing this buffer polymorphic behavior
