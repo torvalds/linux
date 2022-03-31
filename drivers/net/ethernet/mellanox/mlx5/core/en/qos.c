@@ -180,6 +180,8 @@ out:
 	return res;
 }
 
+/* SQ lifecycle */
+
 static struct mlx5e_txqsq *mlx5e_get_qos_sq(struct mlx5e_priv *priv, int qid)
 {
 	struct mlx5e_params *params = &priv->channels.params;
@@ -194,8 +196,6 @@ static struct mlx5e_txqsq *mlx5e_get_qos_sq(struct mlx5e_priv *priv, int qid)
 	qos_sqs = mlx5e_state_dereference(priv, c->qos_sqs);
 	return mlx5e_state_dereference(priv, qos_sqs[qid]);
 }
-
-/* SQ lifecycle */
 
 static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 			     struct mlx5e_qos_node *node)
