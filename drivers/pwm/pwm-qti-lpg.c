@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -1551,19 +1551,21 @@ static int qpnp_lpg_parse_ramp_props_dt(struct device_node *node,
 	ramp->pattern_repeat = of_property_read_bool(node,
 			"qcom,ramp-pattern-repeat");
 
+	ramp->pause_hi_count = 0;
 	rc = of_property_read_u32(node, "qcom,ramp-pause-hi-count", &tmp);
-	if (rc < 0)
-		ramp->pause_hi_count = 0;
-	else if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
-		return -EINVAL;
-	ramp->pause_hi_count = (u8)tmp;
+	if (!rc) {
+		if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
+			return -EINVAL;
+		ramp->pause_hi_count = (u8)tmp;
+	}
 
+	ramp->pause_lo_count = 0;
 	rc = of_property_read_u32(node, "qcom,ramp-pause-lo-count", &tmp);
-	if (rc < 0)
-		ramp->pause_lo_count = 0;
-	else if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
-		return -EINVAL;
-	ramp->pause_lo_count = (u8)tmp;
+	if (!rc) {
+		if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
+			return -EINVAL;
+		ramp->pause_lo_count = (u8)tmp;
+	}
 
 	if (chip->use_sdam)
 		return 0;
