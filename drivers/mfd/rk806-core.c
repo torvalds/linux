@@ -343,6 +343,7 @@ static struct regmap_irq_chip rk806_irq_chip = {
 
 static const struct regmap_range rk806_yes_ranges[] = {
 	/* regmap_reg_range(RK806_INT_STS0, RK806_GPIO_INT_CONFIG), */
+	regmap_reg_range(RK806_POWER_EN0, RK806_POWER_EN5),
 	regmap_reg_range(0x70, 0x7a),
 };
 
