@@ -291,6 +291,72 @@ out:
 	_leave("");
 }
 
+static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
+{
+	unsigned int winsize = min_t(unsigned int, call->tx_winsize,
+				     call->cong_cwnd + call->cong_extra);
+	rxrpc_seq_t window = call->acks_hard_ack, wtop = window + winsize;
+	rxrpc_seq_t tx_top = call->tx_top;
+	int space;
+
+	space = wtop - tx_top;
+	return space > 0;
+}
+
+/*
+ * Decant some if the sendmsg prepared queue into the transmission buffer.
+ */
+static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
+{
+	struct rxrpc_txbuf *txb;
+
+	if (rxrpc_is_client_call(call) &&
+	    !test_bit(RXRPC_CALL_EXPOSED, &call->flags))
+		rxrpc_expose_client_call(call);
+
+	while ((txb = list_first_entry_or_null(&call->tx_sendmsg,
+					       struct rxrpc_txbuf, call_link))) {
+		spin_lock(&call->tx_lock);
+		list_del(&txb->call_link);
+		spin_unlock(&call->tx_lock);
+
+		call->tx_top = txb->seq;
+		list_add_tail(&txb->call_link, &call->tx_buffer);
+
+		rxrpc_transmit_one(call, txb);
+
+		// TODO: Drain the transmission buffers.  Do this somewhere better
+		if (after(call->acks_hard_ack, call->tx_bottom + 16))
+			rxrpc_shrink_call_tx_buffer(call);
+
+		if (!rxrpc_tx_window_has_space(call))
+			break;
+	}
+}
+
+static void rxrpc_transmit_some_data(struct rxrpc_call *call)
+{
+	switch (call->state) {
+	case RXRPC_CALL_SERVER_ACK_REQUEST:
+		if (list_empty(&call->tx_sendmsg))
+			return;
+		fallthrough;
+
+	case RXRPC_CALL_SERVER_SEND_REPLY:
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
+		if (!rxrpc_tx_window_has_space(call))
+			return;
+		if (list_empty(&call->tx_sendmsg))
+			return;
+		rxrpc_decant_prepared_tx(call);
+		break;
+	default:
+		return;
+	}
+}
+
 /*
  * Handle retransmission and deferred ACK/abort generation.
  */
@@ -309,18 +375,21 @@ void rxrpc_process_call(struct work_struct *work)
 	       call->debug_id, rxrpc_call_states[call->state], call->events);
 
 recheck_state:
+	if (call->acks_hard_ack != call->tx_bottom)
+		rxrpc_shrink_call_tx_buffer(call);
+
 	/* Limit the number of times we do this before returning to the manager */
-	iterations++;
-	if (iterations > 5)
-		goto requeue;
+	if (!rxrpc_tx_window_has_space(call) ||
+	    list_empty(&call->tx_sendmsg)) {
+		iterations++;
+		if (iterations > 5)
+			goto requeue;
+	}
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 		rxrpc_send_abort_packet(call);
 		goto recheck_state;
 	}
-
-	if (READ_ONCE(call->acks_hard_ack) != call->tx_bottom)
-		rxrpc_shrink_call_tx_buffer(call);
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
 		del_timer_sync(&call->timer);
@@ -386,6 +455,8 @@ recheck_state:
 		cmpxchg(&call->resend_at, t, now + MAX_JIFFY_OFFSET);
 		set_bit(RXRPC_CALL_EV_RESEND, &call->events);
 	}
+
+	rxrpc_transmit_some_data(call);
 
 	/* Process events */
 	if (test_and_clear_bit(RXRPC_CALL_EV_EXPIRED, &call->events)) {

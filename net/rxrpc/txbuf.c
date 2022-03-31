@@ -34,7 +34,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->offset		= 0;
 		txb->flags		= 0;
 		txb->ack_why		= 0;
-		txb->seq		= call->tx_top + 1;
+		txb->seq		= call->tx_prepared + 1;
 		txb->wire.epoch		= htonl(call->conn->proto.epoch);
 		txb->wire.cid		= htonl(call->cid);
 		txb->wire.callNumber	= htonl(call->call_id);
@@ -107,6 +107,7 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 {
 	struct rxrpc_txbuf *txb;
 	rxrpc_seq_t hard_ack = smp_load_acquire(&call->acks_hard_ack);
+	bool wake = false;
 
 	_enter("%x/%x/%x", call->tx_bottom, call->acks_hard_ack, call->tx_top);
 
@@ -123,7 +124,7 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 		if (txb->seq != call->tx_bottom + 1)
 			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_out_of_step);
 		ASSERTCMP(txb->seq, ==, call->tx_bottom + 1);
-		call->tx_bottom++;
+		smp_store_release(&call->tx_bottom, call->tx_bottom + 1);
 		list_del_rcu(&txb->call_link);
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_dequeue);
@@ -131,7 +132,12 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 		spin_unlock(&call->tx_lock);
 
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_rotated);
+		if (after(call->acks_hard_ack, call->tx_bottom + 128))
+			wake = true;
 	}
 
 	spin_unlock(&call->tx_lock);
+
+	if (wake)
+		wake_up(&call->waitq);
 }
