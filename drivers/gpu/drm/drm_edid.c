@@ -1714,6 +1714,12 @@ static bool edid_block_status_valid(enum edid_block_status status, int tag)
 		(status == EDID_BLOCK_CHECKSUM && tag == CEA_EXT);
 }
 
+static bool edid_block_valid(const void *block, bool base)
+{
+	return edid_block_status_valid(edid_block_check(block, base),
+				       edid_block_tag(block));
+}
+
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
  * @raw_edid: pointer to raw EDID block
@@ -2080,7 +2086,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		for (i = 0; i <= edid->extensions; i++) {
 			void *block = edid + i;
 
-			if (!drm_edid_block_valid(block, i, false, NULL))
+			if (!edid_block_valid(block, i == 0))
 				continue;
 
 			memcpy(dest_block, block, EDID_LENGTH);
