@@ -1193,6 +1193,26 @@ E.g. ``os_close_file()`` is just a wrapper around ``close()``
 which ensures that the userspace function close does not clash
 with similarly named function(s) in the kernel part.
 
+Using UML as a Test Platform
+============================
+
+UML is an excellent test platform for device driver development. As
+with most things UML, "some user assembly may be required". It is
+up to the user to build their emulation environment. UML at present
+provides only the kernel infrastructure.
+
+Part of this infrastructure is the ability to load and parse fdt
+device tree blobs as used in Arm or Open Firmware platforms. These
+are supplied as an optional extra argument to the kernel command
+line::
+
+    dtb=filename
+
+The device tree is loaded and parsed at boottime and is accessible by
+drivers which query it. At this moment in time this facility is
+intended solely for development purposes. UML's own devices do not
+query the device tree.
+
 Security Considerations
 -----------------------
 

@@ -20539,14 +20539,15 @@ F:	Documentation/admin-guide/media/zr364xx*
 F:	drivers/media/usb/zr364xx/
 
 USER-MODE LINUX (UML)
-M:	Jeff Dike <jdike@addtoit.com>
 M:	Richard Weinberger <richard@nod.at>
 M:	Anton Ivanov <anton.ivanov@cambridgegreys.com>
+M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-um@lists.infradead.org
 S:	Maintained
 W:	http://user-mode-linux.sourceforge.net
 Q:	https://patchwork.ozlabs.org/project/linux-um/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/uml.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/uml/linux.git next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/uml/linux.git fixes
 F:	Documentation/virt/uml/
 F:	arch/um/
 F:	arch/x86/um/

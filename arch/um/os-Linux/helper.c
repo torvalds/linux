@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
@@ -98,6 +99,10 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 		}
 		CATCH_EINTR(waitpid(pid, NULL, __WALL));
 	}
+
+	if (ret < 0)
+		printk(UM_KERN_ERR "run_helper : failed to exec %s on host: %s\n",
+		       argv[0], strerror(-ret));
 
 out_free2:
 	kfree(data.buf);
