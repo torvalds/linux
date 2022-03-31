@@ -1298,4 +1298,11 @@ struct ib_uverbs_ex_modify_cq {
 
 #define IB_DEVICE_NAME_MAX 64
 
+enum ib_uverbs_raw_packet_caps {
+	IB_UVERBS_RAW_PACKET_CAP_CVLAN_STRIPPING = 1 << 0,
+	IB_UVERBS_RAW_PACKET_CAP_SCATTER_FCS = 1 << 1,
+	IB_UVERBS_RAW_PACKET_CAP_IP_CSUM = 1 << 2,
+	IB_UVERBS_RAW_PACKET_CAP_DELAY_DROP = 1 << 3,
+};
+
 #endif /* IB_USER_VERBS_H */
