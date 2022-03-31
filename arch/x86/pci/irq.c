@@ -77,7 +77,7 @@ static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr,
 	int i;
 	u8 sum;
 
-	rt = (struct irq_routing_table *) addr;
+	rt = (struct irq_routing_table *)addr;
 	if (rt->signature != PIRQ_SIGNATURE ||
 	    rt->version != PIRQ_VERSION ||
 	    rt->size % 16 ||
