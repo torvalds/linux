@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(file_ra_state_init);
 static void read_pages(struct readahead_control *rac)
 {
 	const struct address_space_operations *aops = rac->mapping->a_ops;
-	struct page *page;
+	struct folio *folio;
 	struct blk_plug plug;
 
 	if (!readahead_count(rac))
@@ -156,24 +156,23 @@ static void read_pages(struct readahead_control *rac)
 	if (aops->readahead) {
 		aops->readahead(rac);
 		/*
-		 * Clean up the remaining pages.  The sizes in ->ra
+		 * Clean up the remaining folios.  The sizes in ->ra
 		 * may be used to size the next readahead, so make sure
 		 * they accurately reflect what happened.
 		 */
-		while ((page = readahead_page(rac))) {
-			rac->ra->size -= 1;
-			if (rac->ra->async_size > 0) {
-				rac->ra->async_size -= 1;
-				delete_from_page_cache(page);
+		while ((folio = readahead_folio(rac)) != NULL) {
+			unsigned long nr = folio_nr_pages(folio);
+
+			rac->ra->size -= nr;
+			if (rac->ra->async_size >= nr) {
+				rac->ra->async_size -= nr;
+				filemap_remove_folio(folio);
 			}
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
 		}
 	} else {
-		while ((page = readahead_page(rac))) {
-			aops->readpage(rac->file, page);
-			put_page(page);
-		}
+		while ((folio = readahead_folio(rac)))
+			aops->readpage(rac->file, &folio->page);
 	}
 
 	blk_finish_plug(&plug);
