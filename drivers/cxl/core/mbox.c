@@ -225,6 +225,8 @@ static int cxl_to_mem_cmd_raw(struct cxl_mem_command *mem_cmd,
 	if (!cxl_mem_raw_command_allowed(send_cmd->raw.opcode))
 		return -EPERM;
 
+	dev_WARN_ONCE(cxlds->dev, true, "raw command path used\n");
+
 	*mem_cmd = (struct cxl_mem_command) {
 		.info = {
 			.id = CXL_MEM_COMMAND_ID_RAW,
@@ -416,9 +418,6 @@ static int handle_mailbox_cmd_from_user(struct cxl_dev_state *cxlds,
 		"\tsize: %ub\n",
 		cxl_command_names[cmd->info.id].name, mbox_cmd.opcode,
 		cmd->info.size_in);
-
-	dev_WARN_ONCE(dev, cmd->info.id == CXL_MEM_COMMAND_ID_RAW,
-		      "raw command path used\n");
 
 	rc = cxlds->mbox_send(cxlds, &mbox_cmd);
 	if (rc)
