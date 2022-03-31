@@ -310,7 +310,7 @@ recheck_state:
 	}
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
-		del_timer_sync(&call->timer);
+		rxrpc_delete_call_timer(call);
 		goto out_put;
 	}
 

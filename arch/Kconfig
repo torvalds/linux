@@ -164,7 +164,13 @@ config ARCH_USE_BUILTIN_BSWAP
 
 config KRETPROBES
 	def_bool y
-	depends on KPROBES && HAVE_KRETPROBES
+	depends on KPROBES && (HAVE_KRETPROBES || HAVE_RETHOOK)
+
+config KRETPROBE_ON_RETHOOK
+	def_bool y
+	depends on HAVE_RETHOOK
+	depends on KRETPROBES
+	select RETHOOK
 
 config USER_RETURN_NOTIFIER
 	bool

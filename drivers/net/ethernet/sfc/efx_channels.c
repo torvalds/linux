@@ -91,11 +91,9 @@ static unsigned int count_online_cores(struct efx_nic *efx, bool local_node)
 	}
 
 	cpumask_copy(filter_mask, cpu_online_mask);
-	if (local_node) {
-		int numa_node = pcibus_to_node(efx->pci_dev->bus);
-
-		cpumask_and(filter_mask, filter_mask, cpumask_of_node(numa_node));
-	}
+	if (local_node)
+		cpumask_and(filter_mask, filter_mask,
+			    cpumask_of_pcibus(efx->pci_dev->bus));
 
 	count = 0;
 	for_each_cpu(cpu, filter_mask) {
@@ -386,8 +384,7 @@ int efx_probe_interrupts(struct efx_nic *efx)
 #if defined(CONFIG_SMP)
 void efx_set_interrupt_affinity(struct efx_nic *efx)
 {
-	int numa_node = pcibus_to_node(efx->pci_dev->bus);
-	const struct cpumask *numa_mask = cpumask_of_node(numa_node);
+	const struct cpumask *numa_mask = cpumask_of_pcibus(efx->pci_dev->bus);
 	struct efx_channel *channel;
 	unsigned int cpu;
 

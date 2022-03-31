@@ -1092,6 +1092,8 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 		dev->data_bt_const.brp_inc = le32_to_cpu(bt_const_extended->dbrp_inc);
 
 		dev->can.data_bittiming_const = &dev->data_bt_const;
+
+		kfree(bt_const_extended);
 	}
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
