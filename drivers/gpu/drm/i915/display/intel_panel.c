@@ -149,29 +149,29 @@ int intel_panel_compute_config(struct intel_connector *connector,
 	return 0;
 }
 
-static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
-			      const struct drm_display_mode *fixed_mode)
+static bool is_alt_fixed_mode(const struct drm_display_mode *mode,
+			      const struct drm_display_mode *preferred_mode)
 {
-	return drm_mode_match(downclock_mode, fixed_mode,
+	return drm_mode_match(mode, preferred_mode,
 			      DRM_MODE_MATCH_TIMINGS |
 			      DRM_MODE_MATCH_FLAGS |
 			      DRM_MODE_MATCH_3D_FLAGS) &&
-		downclock_mode->clock < fixed_mode->clock;
+		mode->clock != preferred_mode->clock;
 }
 
-static void intel_panel_add_edid_downclock_modes(struct intel_connector *connector)
+static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	const struct drm_display_mode *fixed_mode =
+	const struct drm_display_mode *preferred_mode =
 		intel_panel_preferred_fixed_mode(connector);
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
-		if (!is_downclock_mode(mode, fixed_mode))
+		if (!is_alt_fixed_mode(mode, preferred_mode))
 			continue;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "[CONNECTOR:%d:%s] using EDID downclock mode: " DRM_MODE_FMT "\n",
+			    "[CONNECTOR:%d:%s] using alternate EDID fixed mode: " DRM_MODE_FMT "\n",
 			    connector->base.base.id, connector->base.name,
 			    DRM_MODE_ARG(mode));
 
@@ -179,7 +179,7 @@ static void intel_panel_add_edid_downclock_modes(struct intel_connector *connect
 	}
 }
 
-static void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
+static void intel_panel_add_edid_preferred_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct drm_display_mode *scan, *fixed_mode = NULL;
@@ -223,9 +223,9 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 
 void intel_panel_add_edid_fixed_modes(struct intel_connector *connector, bool has_drrs)
 {
-	intel_panel_add_edid_fixed_mode(connector);
+	intel_panel_add_edid_preferred_mode(connector);
 	if (intel_panel_preferred_fixed_mode(connector) && has_drrs)
-		intel_panel_add_edid_downclock_modes(connector);
+		intel_panel_add_edid_alt_fixed_modes(connector);
 	intel_panel_destroy_probed_modes(connector);
 }
 
