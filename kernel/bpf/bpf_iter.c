@@ -330,35 +330,34 @@ static void cache_btf_id(struct bpf_iter_target_info *tinfo,
 bool bpf_iter_prog_supported(struct bpf_prog *prog)
 {
 	const char *attach_fname = prog->aux->attach_func_name;
+	struct bpf_iter_target_info *tinfo = NULL, *iter;
 	u32 prog_btf_id = prog->aux->attach_btf_id;
 	const char *prefix = BPF_ITER_FUNC_PREFIX;
-	struct bpf_iter_target_info *tinfo;
 	int prefix_len = strlen(prefix);
-	bool supported = false;
 
 	if (strncmp(attach_fname, prefix, prefix_len))
 		return false;
 
 	mutex_lock(&targets_mutex);
-	list_for_each_entry(tinfo, &targets, list) {
-		if (tinfo->btf_id && tinfo->btf_id == prog_btf_id) {
-			supported = true;
+	list_for_each_entry(iter, &targets, list) {
+		if (iter->btf_id && iter->btf_id == prog_btf_id) {
+			tinfo = iter;
 			break;
 		}
-		if (!strcmp(attach_fname + prefix_len, tinfo->reg_info->target)) {
-			cache_btf_id(tinfo, prog);
-			supported = true;
+		if (!strcmp(attach_fname + prefix_len, iter->reg_info->target)) {
+			cache_btf_id(iter, prog);
+			tinfo = iter;
 			break;
 		}
 	}
 	mutex_unlock(&targets_mutex);
 
-	if (supported) {
+	if (tinfo) {
 		prog->aux->ctx_arg_info_size = tinfo->reg_info->ctx_arg_info_size;
 		prog->aux->ctx_arg_info = tinfo->reg_info->ctx_arg_info;
 	}
 
-	return supported;
+	return tinfo != NULL;
 }
 
 const struct bpf_func_proto *
@@ -499,12 +498,11 @@ bool bpf_link_is_iter(struct bpf_link *link)
 int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 			 struct bpf_prog *prog)
 {
+	struct bpf_iter_target_info *tinfo = NULL, *iter;
 	struct bpf_link_primer link_primer;
-	struct bpf_iter_target_info *tinfo;
 	union bpf_iter_link_info linfo;
 	struct bpf_iter_link *link;
 	u32 prog_btf_id, linfo_len;
-	bool existed = false;
 	bpfptr_t ulinfo;
 	int err;
 
@@ -530,14 +528,14 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 
 	prog_btf_id = prog->aux->attach_btf_id;
 	mutex_lock(&targets_mutex);
-	list_for_each_entry(tinfo, &targets, list) {
-		if (tinfo->btf_id == prog_btf_id) {
-			existed = true;
+	list_for_each_entry(iter, &targets, list) {
+		if (iter->btf_id == prog_btf_id) {
+			tinfo = iter;
 			break;
 		}
 	}
 	mutex_unlock(&targets_mutex);
-	if (!existed)
+	if (!tinfo)
 		return -ENOENT;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
