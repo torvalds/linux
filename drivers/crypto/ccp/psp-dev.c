@@ -99,18 +99,6 @@ static int psp_check_tee_support(struct psp_device *psp)
 	return 0;
 }
 
-static int psp_check_support(struct psp_device *psp)
-{
-	int sev_support = psp_check_sev_support(psp);
-	int tee_support = psp_check_tee_support(psp);
-
-	/* Return error if device neither supports SEV nor TEE */
-	if (sev_support && tee_support)
-		return -ENODEV;
-
-	return 0;
-}
-
 static int psp_init(struct psp_device *psp)
 {
 	int ret;
@@ -153,10 +141,6 @@ int psp_dev_init(struct sp_device *sp)
 	psp->io_regs = sp->io_map;
 
 	ret = psp_get_capability(psp);
-	if (ret)
-		goto e_disable;
-
-	ret = psp_check_support(psp);
 	if (ret)
 		goto e_disable;
 
