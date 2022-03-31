@@ -74,6 +74,12 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 	}
 	psp->capability = val;
 
+	/* Detect if TSME and SME are both enabled */
+	if (psp->capability & PSP_CAPABILITY_PSP_SECURITY_REPORTING &&
+	    psp->capability & (PSP_SECURITY_TSME_STATUS << PSP_CAPABILITY_PSP_SECURITY_OFFSET) &&
+	    cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
+		dev_notice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
+
 	return 0;
 }
 
