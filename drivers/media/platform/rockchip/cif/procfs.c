@@ -315,7 +315,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->channels[0].width, dev->channels[0].height,
 			   dev->channels[0].crop_st_x, dev->channels[0].crop_st_y);
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
-		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx);
+		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx - 1);
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
 			time_val = div_u64(stream->readout.early_time, 1000000);
 			seq_printf(f, "\tearly:%u ms\n", time_val);

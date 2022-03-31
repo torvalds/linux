@@ -62,6 +62,10 @@ struct rkcif_multi_sync_config {
 	enum rkcif_sync_mode mode;
 	int dev_cnt;
 	int streaming_cnt;
+	u32 sync_code;
+	u32 sync_mask;
+	u32 update_code;
+	u32 update_cache;
 	bool is_attach;
 };
 
@@ -122,7 +126,7 @@ struct rkcif_hw {
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
 	struct rkcif_multi_sync_config	sync_config;
-	bool				is_in_group_sync;
+	spinlock_t			group_lock;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);

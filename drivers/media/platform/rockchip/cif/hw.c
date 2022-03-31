@@ -1151,7 +1151,6 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	cif_hw->chip_id = data->chip_id;
 	cif_hw->sync_config.is_attach = false;
 	cif_hw->sync_config.mode = RKCIF_NOSYNC_MODE;
-	cif_hw->is_in_group_sync = false;
 	if (data->chip_id >= CHIP_RK1808_CIF) {
 		res = platform_get_resource_byname(pdev,
 						   IORESOURCE_MEM,
@@ -1214,6 +1213,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	cif_hw->is_dma_sg_ops = true;
 	cif_hw->is_dma_contig = true;
 	mutex_init(&cif_hw->dev_lock);
+	spin_lock_init(&cif_hw->group_lock);
 
 	cif_hw->iommu_en = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
