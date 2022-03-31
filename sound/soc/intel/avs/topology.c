@@ -1004,3 +1004,180 @@ static int avs_tplg_parse_bindings(struct snd_soc_component *comp,
 				AVS_TKN_BINDING_ID_U32,
 				binding_parsers, ARRAY_SIZE(binding_parsers));
 }
+
+static const struct avs_tplg_token_parser module_parsers[] = {
+	{
+		.token = AVS_TKN_MOD_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MOD_MODCFG_BASE_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, cfg_base),
+		.parse = avs_parse_modcfg_base_ptr,
+	},
+	{
+		.token = AVS_TKN_MOD_IN_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, in_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MOD_CORE_ID_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_module, core_id),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_MOD_PROC_DOMAIN_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_module, domain),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_MOD_MODCFG_EXT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, cfg_ext),
+		.parse = avs_parse_modcfg_ext_ptr,
+	},
+};
+
+static struct avs_tplg_module *
+avs_tplg_module_create(struct snd_soc_component *comp, struct avs_tplg_pipeline *owner,
+		       struct snd_soc_tplg_vendor_array *tuples, u32 block_size)
+{
+	struct avs_tplg_module *module;
+	int ret;
+
+	module = devm_kzalloc(comp->card->dev, sizeof(*module), GFP_KERNEL);
+	if (!module)
+		return ERR_PTR(-ENOMEM);
+
+	ret = avs_parse_tokens(comp, module, module_parsers,
+			       ARRAY_SIZE(module_parsers), tuples, block_size);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	module->owner = owner;
+	INIT_LIST_HEAD(&module->node);
+
+	return module;
+}
+
+static const struct avs_tplg_token_parser pipeline_parsers[] = {
+	{
+		.token = AVS_TKN_PPL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pipeline, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_PPL_PPLCFG_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pipeline, cfg),
+		.parse = avs_parse_pplcfg_ptr,
+	},
+	{
+		.token = AVS_TKN_PPL_NUM_BINDING_IDS_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pipeline, num_bindings),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static const struct avs_tplg_token_parser bindings_parsers[] = {
+	{
+		.token = AVS_TKN_PPL_BINDING_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = 0, /* to treat pipeline->bindings as dictionary */
+		.parse = avs_parse_binding_ptr,
+	},
+};
+
+static struct avs_tplg_pipeline *
+avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *owner,
+			 struct snd_soc_tplg_vendor_array *tuples, u32 block_size)
+{
+	struct avs_tplg_pipeline *pipeline;
+	u32 modblk_size, offset;
+	int ret;
+
+	pipeline = devm_kzalloc(comp->card->dev, sizeof(*pipeline), GFP_KERNEL);
+	if (!pipeline)
+		return ERR_PTR(-ENOMEM);
+
+	pipeline->owner = owner;
+	INIT_LIST_HEAD(&pipeline->mod_list);
+
+	/* Pipeline header MUST be followed by at least one module. */
+	ret = avs_tplg_vendor_array_lookup(tuples, block_size,
+					   AVS_TKN_MOD_ID_U32, &offset);
+	if (!ret && !offset)
+		ret = -EINVAL;
+	if (ret)
+		return ERR_PTR(ret);
+
+	/* Process header which precedes module sections. */
+	ret = avs_parse_tokens(comp, pipeline, pipeline_parsers,
+			       ARRAY_SIZE(pipeline_parsers), tuples, offset);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	block_size -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	/* Optionally, binding sections follow module ones. */
+	ret = avs_tplg_vendor_array_lookup_next(tuples, block_size,
+						AVS_TKN_PPL_BINDING_ID_U32, &offset);
+	if (ret) {
+		if (ret != -ENOENT)
+			return ERR_PTR(ret);
+
+		/* Does header information match actual block layout? */
+		if (pipeline->num_bindings)
+			return ERR_PTR(-EINVAL);
+
+		modblk_size = block_size;
+	} else {
+		pipeline->bindings = devm_kcalloc(comp->card->dev, pipeline->num_bindings,
+						  sizeof(*pipeline->bindings), GFP_KERNEL);
+		if (!pipeline->bindings)
+			return ERR_PTR(-ENOMEM);
+
+		modblk_size = offset;
+	}
+
+	block_size -= modblk_size;
+	do {
+		struct avs_tplg_module *module;
+		u32 esize;
+
+		ret = avs_tplg_vendor_entry_size(tuples, modblk_size,
+						 AVS_TKN_MOD_ID_U32, &esize);
+		if (ret)
+			return ERR_PTR(ret);
+
+		module = avs_tplg_module_create(comp, pipeline, tuples, esize);
+		if (IS_ERR(module)) {
+			dev_err(comp->dev, "parse module failed: %ld\n",
+				PTR_ERR(module));
+			return ERR_CAST(module);
+		}
+
+		list_add_tail(&module->node, &pipeline->mod_list);
+		modblk_size -= esize;
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+	} while (modblk_size > 0);
+
+	/* What's left is optional range of bindings. */
+	ret = parse_dictionary_entries(comp, tuples, block_size, pipeline->bindings,
+				       pipeline->num_bindings, sizeof(*pipeline->bindings),
+				       AVS_TKN_PPL_BINDING_ID_U32,
+				       bindings_parsers, ARRAY_SIZE(bindings_parsers));
+	if (ret)
+		return ERR_PTR(ret);
+
+	return pipeline;
+}

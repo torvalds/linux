@@ -128,4 +128,35 @@ struct avs_tplg_binding {
 	u8 is_sink;
 };
 
+struct avs_tplg_path {
+	u32 id;
+};
+
+struct avs_tplg_pipeline {
+	u32 id;
+
+	struct avs_tplg_pplcfg *cfg;
+	struct avs_tplg_binding **bindings;
+	u32 num_bindings;
+	struct list_head mod_list;
+
+	struct avs_tplg_path *owner;
+	/* Path pipelines management. */
+	struct list_head node;
+};
+
+struct avs_tplg_module {
+	u32 id;
+
+	struct avs_tplg_modcfg_base *cfg_base;
+	struct avs_audio_format *in_fmt;
+	u8 core_id;
+	u8 domain;
+	struct avs_tplg_modcfg_ext *cfg_ext;
+
+	struct avs_tplg_pipeline *owner;
+	/* Pipeline modules management. */
+	struct list_head node;
+};
+
 #endif
