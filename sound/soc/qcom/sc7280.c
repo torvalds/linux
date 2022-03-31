@@ -12,14 +12,21 @@
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/rt5682s.h>
 #include <linux/soundwire/sdw.h>
 
+#include "../codecs/rt5682.h"
+#include "../codecs/rt5682s.h"
 #include "common.h"
 #include "lpass.h"
+
+#define DEFAULT_MCLK_RATE              19200000
+#define RT5682_PLL1_FREQ (48000 * 512)
 
 struct sc7280_snd_data {
 	struct snd_soc_card card;
 	struct sdw_stream_runtime *sruntime[LPASS_MAX_PORTS];
+	u32 pri_mi2s_clk_count;
 	struct snd_soc_jack hs_jack;
 	struct snd_soc_jack hdmi_jack;
 	bool jack_setup;
@@ -69,6 +76,7 @@ static int sc7280_headset_init(struct snd_soc_pcm_runtime *rtd)
 		pdata->jack_setup = true;
 	}
 	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
 	case LPASS_CDC_DMA_RX0:
 	case LPASS_CDC_DMA_TX3:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
@@ -110,11 +118,51 @@ static int sc7280_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	return snd_soc_component_set_jack(component, &pdata->hdmi_jack, NULL);
 }
 
+static int sc7280_rt5682_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_card *card = rtd->card;
+	struct sc7280_snd_data *data = snd_soc_card_get_drvdata(card);
+	int ret;
+
+	if (++data->pri_mi2s_clk_count == 1) {
+		snd_soc_dai_set_sysclk(cpu_dai,
+			LPASS_MCLK0,
+			DEFAULT_MCLK_RATE,
+			SNDRV_PCM_STREAM_PLAYBACK);
+	}
+	snd_soc_dai_set_fmt(codec_dai,
+				SND_SOC_DAIFMT_CBC_CFC |
+				SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_I2S);
+
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL1, RT5682S_PLL_S_BCLK1,
+					1536000, RT5682_PLL1_FREQ);
+	if (ret) {
+		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL1,
+					RT5682_PLL1_FREQ,
+					SND_SOC_CLOCK_IN);
+
+	if (ret) {
+		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int sc7280_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 
 	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
 	case LPASS_CDC_DMA_TX3:
 		return sc7280_headset_init(rtd);
 	case LPASS_CDC_DMA_RX0:
@@ -227,10 +275,66 @@ static int sc7280_snd_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void sc7280_snd_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct sc7280_snd_data *data = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+
+	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
+		if (--data->pri_mi2s_clk_count == 0) {
+			snd_soc_dai_set_sysclk(cpu_dai,
+					       LPASS_MCLK0,
+					       0,
+					       SNDRV_PCM_STREAM_PLAYBACK);
+		}
+		break;
+	case MI2S_SECONDARY:
+		break;
+	case LPASS_DP_RX:
+		break;
+	default:
+		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
+			cpu_dai->id);
+		break;
+	}
+}
+
+static int sc7280_snd_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int ret = 0;
+
+	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
+		ret = sc7280_rt5682_init(rtd);
+		break;
+	case MI2S_SECONDARY:
+		break;
+	case LPASS_DP_RX:
+		break;
+	default:
+		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
+			cpu_dai->id);
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static const struct snd_soc_ops sc7280_ops = {
+	.startup = sc7280_snd_startup,
 	.hw_params = sc7280_snd_hw_params,
 	.hw_free = sc7280_snd_hw_free,
 	.prepare = sc7280_snd_prepare,
+	.shutdown = sc7280_snd_shutdown,
+};
+
+static const struct snd_soc_dapm_widget sc7280_snd_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
 
 static int sc7280_snd_platform_probe(struct platform_device *pdev)
@@ -251,6 +355,9 @@ static int sc7280_snd_platform_probe(struct platform_device *pdev)
 	card->owner = THIS_MODULE;
 	card->driver_name = "SC7280";
 	card->dev = dev;
+
+	card->dapm_widgets = sc7280_snd_widgets;
+	card->num_dapm_widgets = ARRAY_SIZE(sc7280_snd_widgets);
 
 	ret = qcom_snd_parse_of(card);
 	if (ret)
