@@ -127,6 +127,17 @@ static struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
 	return NULL;
 }
 
+static const char *cxl_mem_opcode_to_name(u16 opcode)
+{
+	struct cxl_mem_command *c;
+
+	c = cxl_mem_find_command(opcode);
+	if (!c)
+		return NULL;
+
+	return cxl_command_names[c->info.id].name;
+}
+
 /**
  * cxl_mbox_send_cmd() - Send a mailbox command to a device.
  * @cxlds: The device data for the operation
@@ -452,9 +463,9 @@ static int handle_mailbox_cmd_from_user(struct cxl_dev_state *cxlds,
 	dev_dbg(dev,
 		"Submitting %s command for user\n"
 		"\topcode: %x\n"
-		"\tsize: %ub\n",
-		cxl_command_names[cmd->info.id].name, mbox_cmd.opcode,
-		cmd->info.size_in);
+		"\tsize: %zx\n",
+		cxl_mem_opcode_to_name(mbox_cmd.opcode),
+		mbox_cmd.opcode, mbox_cmd.size_in);
 
 	rc = cxlds->mbox_send(cxlds, &mbox_cmd);
 	if (rc)
