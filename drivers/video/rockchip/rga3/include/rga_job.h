@@ -23,6 +23,8 @@ enum job_flags {
 
 struct rga_scheduler_t *rga_job_get_scheduler(struct rga_job *job);
 
+void rga_job_session_destroy(struct rga_session *session);
+
 void rga_job_done(struct rga_scheduler_t *scheduler, int ret);
 int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx);
 
@@ -36,7 +38,9 @@ int rga_ctx_manager_remove(struct rga_pending_ctx_manager **ctx_manager_session)
 
 struct rga_internal_ctx_t *
 	rga_internal_ctx_lookup(struct rga_pending_ctx_manager *ctx_manager, uint32_t id);
-uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags);
+
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags, struct rga_session *session);
+
 void rga_internal_ctx_kref_release(struct kref *ref);
 int rga_internal_ctx_config_by_user_ctx(struct rga_user_ctx_t *user_ctx);
 int rga_internal_ctx_commit_by_user_ctx(struct rga_user_ctx_t *user_ctx);

@@ -119,6 +119,35 @@ static void rga_job_free(struct rga_job *job)
 	free_page((unsigned long)job);
 }
 
+void rga_job_session_destroy(struct rga_session *session)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job_pos, *job_q;
+	int i;
+
+	unsigned long flags;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
+			if (session == job_pos->session) {
+				list_del(&job_pos->head);
+
+				spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+				rga_job_free(job_pos);
+
+				spin_lock_irqsave(&scheduler->irq_lock, flags);
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+}
+
 static int rga_job_cleanup(struct rga_job *job)
 {
 	ktime_t now = ktime_get();
@@ -638,6 +667,7 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *
 
 	job->use_batch_mode = ctx->use_batch_mode;
 	job->ctx_id = ctx->id;
+	job->session = ctx->session;
 
 	/*
 	 * because fd can not pass on other thread,
@@ -908,7 +938,7 @@ int rga_internal_ctx_signal(struct rga_scheduler_t *scheduler, struct rga_job *j
 	return 0;
 }
 
-uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags)
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags, struct rga_session *session)
 {
 	struct rga_pending_ctx_manager *ctx_manager;
 	struct rga_internal_ctx_t *ctx;
@@ -944,6 +974,7 @@ uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags)
 	kref_init(&ctx->refcount);
 	ctx->pid = current->pid;
 	ctx->flags = flags;
+	ctx->session = session;
 
 	mutex_unlock(&ctx_manager->lock);
 

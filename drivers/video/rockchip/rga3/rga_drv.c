@@ -394,6 +394,131 @@ static void rga_power_disable_all(void)
 
 #endif //CONFIG_ROCKCHIP_FPGA
 
+static int rga_session_manager_init(struct rga_session_manager **session_manager_ptr)
+{
+	struct rga_session_manager *session_manager = NULL;
+
+	*session_manager_ptr = kzalloc(sizeof(struct rga_session_manager), GFP_KERNEL);
+	if (*session_manager_ptr == NULL) {
+		pr_err("can not kzalloc for rga_session_manager\n");
+		return -ENOMEM;
+	}
+
+	session_manager = *session_manager_ptr;
+
+	mutex_init(&session_manager->lock);
+
+	idr_init_base(&session_manager->ctx_id_idr, 1);
+
+	return 0;
+}
+
+/*
+ * Called at driver close to release the rga session's id references.
+ */
+static int rga_session_free_remove_idr_cb(int id, void *ptr, void *data)
+{
+	struct rga_session *session = ptr;
+
+	idr_remove(&rga_drvdata->session_manager->ctx_id_idr, session->id);
+	kfree(session);
+
+	return 0;
+}
+
+static int rga_session_free_remove_idr(struct rga_session *session)
+{
+	struct rga_session_manager *session_manager;
+
+	session_manager = rga_drvdata->session_manager;
+
+	mutex_lock(&session_manager->lock);
+
+	session_manager->session_cnt--;
+	idr_remove(&session_manager->ctx_id_idr, session->id);
+
+	mutex_unlock(&session_manager->lock);
+
+	return 0;
+}
+
+static int rga_session_manager_remove(struct rga_session_manager **session_manager_ptr)
+{
+	struct rga_session_manager *session_manager = *session_manager_ptr;
+
+	mutex_lock(&session_manager->lock);
+
+	idr_for_each(&session_manager->ctx_id_idr, &rga_session_free_remove_idr_cb, session_manager);
+	idr_destroy(&session_manager->ctx_id_idr);
+
+	mutex_unlock(&session_manager->lock);
+
+	kfree(*session_manager_ptr);
+
+	*session_manager_ptr = NULL;
+
+	return 0;
+}
+
+static struct rga_session *rga_session_init(void)
+{
+	struct rga_session_manager *session_manager = NULL;
+	struct rga_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
+
+	session_manager = rga_drvdata->session_manager;
+	if (session_manager == NULL) {
+		pr_err("rga_session_manager is null!\n");
+		kfree(session);
+		return NULL;
+	}
+
+	mutex_lock(&session_manager->lock);
+
+	idr_preload(GFP_KERNEL);
+	session->id = idr_alloc(&session_manager->ctx_id_idr, session, 1, 0, GFP_ATOMIC);
+	session_manager->session_cnt++;
+	idr_preload_end();
+
+	mutex_unlock(&session_manager->lock);
+
+	return session;
+}
+
+static int rga_session_deinit(struct rga_session *session)
+{
+	pid_t pid;
+	int ctx_id;
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+
+	pid = current->pid;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	mutex_lock(&ctx_manager->lock);
+
+	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
+
+		mutex_unlock(&ctx_manager->lock);
+
+		if (session == ctx->session) {
+			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
+			kref_put(&ctx->refcount, rga_internal_ctx_kref_release);
+		}
+
+		mutex_lock(&ctx_manager->lock);
+	}
+
+	mutex_unlock(&ctx_manager->lock);
+
+	rga_session_free_remove_idr(session);
+	rga_job_session_destroy(session);
+
+	kfree(session);
+
+	return 0;
+}
+
 static long rga_ioctl_import_buffer(unsigned long arg)
 {
 	int i;
@@ -517,7 +642,7 @@ err_free_external_buffer:
 	return ret;
 }
 
-static long rga_ioctl_cmd_start(unsigned long arg)
+static long rga_ioctl_cmd_start(unsigned long arg, struct rga_session *session)
 {
 	uint32_t rga_user_ctx_id;
 	uint32_t flags;
@@ -526,7 +651,7 @@ static long rga_ioctl_cmd_start(unsigned long arg)
 	if (copy_from_user(&flags, (void *)arg, sizeof(uint32_t)))
 		ret = -EFAULT;
 
-	rga_user_ctx_id = rga_internal_ctx_alloc_to_get_idr_id(flags);
+	rga_user_ctx_id = rga_internal_ctx_alloc_to_get_idr_id(flags, session);
 
 	if (copy_to_user((void *)arg, &rga_user_ctx_id, sizeof(uint32_t)))
 		ret = -EFAULT;
@@ -638,9 +763,9 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	char version[16] = { 0 };
 	struct rga_version_t driver_version;
 	struct rga_hw_versions_t hw_versions;
-	struct rga_internal_ctx_t ctx;
+	struct rga_internal_ctx_t *ctx;
 
-	memset(&ctx, 0x0, sizeof(ctx));
+	struct rga_session *session = file->private_data;
 
 	if (!rga) {
 		pr_err("rga_drvdata is null, rga is not init\n");
@@ -663,10 +788,17 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (DEBUGGER_EN(MSG))
 			rga_cmd_print_debug_info(&req_rga);
 
-		ctx.sync_mode = cmd;
-		ctx.use_batch_mode = false;
+		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+		if (!ctx) {
+			pr_err("can not kzalloc for ctx!\n");
+			return -ENOMEM;
+		}
 
-		ret = rga_job_commit(&req_rga, &ctx);
+		ctx->sync_mode = cmd;
+		ctx->use_batch_mode = false;
+		ctx->session = session;
+
+		ret = rga_job_commit(&req_rga, ctx);
 		if (ret < 0) {
 			if (ret == -ERESTARTSYS) {
 				if (DEBUGGER_EN(MSG))
@@ -684,6 +816,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
+
+		kfree(ctx);
 
 		break;
 	case RGA_CACHE_FLUSH:
@@ -779,7 +913,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		break;
 
 	case RGA_START_CONFIG:
-		ret = rga_ioctl_cmd_start(arg);
+		ret = rga_ioctl_cmd_start(arg, session);
 
 		break;
 
@@ -852,35 +986,22 @@ static int rga_debugger_remove(struct rga_debugger **debugger_p)
 
 static int rga_open(struct inode *inode, struct file *file)
 {
+	struct rga_session *session = NULL;
+
+	session = rga_session_init();
+	if (!session)
+		return -ENOMEM;
+
+	file->private_data = (void *)session;
+
 	return nonseekable_open(inode, file);
 }
 
 static int rga_release(struct inode *inode, struct file *file)
 {
-	pid_t pid;
-	int ctx_id;
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
+	struct rga_session *session = file->private_data;
 
-	pid = current->pid;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	mutex_lock(&ctx_manager->lock);
-
-	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
-
-		mutex_unlock(&ctx_manager->lock);
-
-		if (pid == ctx->pid) {
-			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
-			kref_put(&ctx->refcount, rga_internal_ctx_kref_release);
-		}
-
-		mutex_lock(&ctx_manager->lock);
-	}
-
-	mutex_unlock(&ctx_manager->lock);
+	rga_session_deinit(session);
 
 	return 0;
 }
@@ -1377,6 +1498,8 @@ static int __init rga_init(void)
 
 	rga_ctx_manager_init(&rga_drvdata->pend_ctx_manager);
 
+	rga_session_manager_init(&rga_drvdata->session_manager);
+
 #ifdef CONFIG_ROCKCHIP_RGA_ASYNC
 	rga_fence_context_init(&rga_drvdata->fence_ctx);
 #endif
@@ -1407,6 +1530,8 @@ static void __exit rga_exit(void)
 	rga_mm_remove(&rga_drvdata->mm);
 
 	rga_ctx_manager_remove(&rga_drvdata->pend_ctx_manager);
+
+	rga_session_manager_remove(&rga_drvdata->session_manager);
 
 	rga_cancel_timer();
 

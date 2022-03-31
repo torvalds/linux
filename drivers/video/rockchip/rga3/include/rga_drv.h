@@ -248,10 +248,15 @@ struct rga2_mmu_other_t {
 
 struct rga_scheduler_t;
 
+struct rga_session {
+	int id;
+};
+
 struct rga_job {
 	struct list_head head;
 
 	struct rga_scheduler_t *scheduler;
+	struct rga_session *session;
 
 	struct rga_req rga_command_base;
 	uint32_t cmd_reg[32 * 8];
@@ -334,6 +339,8 @@ struct rga_scheduler_t {
 
 struct rga_internal_ctx_t {
 	struct rga_req *cached_cmd;
+	struct rga_session *session;
+
 	int cmd_num;
 	int flags;
 	int id;
@@ -370,6 +377,14 @@ struct rga_pending_ctx_manager {
 	int ctx_count;
 };
 
+struct rga_session_manager {
+	struct mutex lock;
+
+	struct idr ctx_id_idr;
+
+	int session_cnt;
+};
+
 struct rga_drvdata_t {
 	struct miscdevice miscdev;
 
@@ -385,6 +400,8 @@ struct rga_drvdata_t {
 
 	/* rga_job pending manager, import by RGA_START_CONFIG */
 	struct rga_pending_ctx_manager *pend_ctx_manager;
+
+	struct rga_session_manager *session_manager;
 
 #ifdef CONFIG_ROCKCHIP_RGA_ASYNC
 	struct rga_fence_context *fence_ctx;
