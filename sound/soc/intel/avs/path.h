@@ -38,6 +38,7 @@ struct avs_path_pipeline {
 struct avs_path_module {
 	u16 module_id;
 	u16 instance_id;
+	union avs_gtw_attributes gtw_attrs;
 
 	struct avs_tplg_module *template;
 	struct avs_path_pipeline *owner;

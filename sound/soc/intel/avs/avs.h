@@ -106,6 +106,7 @@ struct avs_dev {
 
 	struct completion fw_ready;
 
+	struct nhlt_acpi_table *nhlt;
 	struct list_head comp_list;
 	struct mutex comp_list_mutex;
 	struct list_head path_list;

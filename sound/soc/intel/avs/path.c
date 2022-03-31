@@ -113,6 +113,375 @@ avs_path_find_variant(struct avs_dev *adev,
 	return NULL;
 }
 
+__maybe_unused
+static bool avs_dma_type_is_host(u32 dma_type)
+{
+	return dma_type == AVS_DMA_HDA_HOST_OUTPUT ||
+	       dma_type == AVS_DMA_HDA_HOST_INPUT;
+}
+
+__maybe_unused
+static bool avs_dma_type_is_link(u32 dma_type)
+{
+	return !avs_dma_type_is_host(dma_type);
+}
+
+__maybe_unused
+static bool avs_dma_type_is_output(u32 dma_type)
+{
+	return dma_type == AVS_DMA_HDA_HOST_OUTPUT ||
+	       dma_type == AVS_DMA_HDA_LINK_OUTPUT ||
+	       dma_type == AVS_DMA_I2S_LINK_OUTPUT;
+}
+
+__maybe_unused
+static bool avs_dma_type_is_input(u32 dma_type)
+{
+	return !avs_dma_type_is_output(dma_type);
+}
+
+static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct nhlt_acpi_table *nhlt = adev->nhlt;
+	struct avs_tplg_module *t = mod->template;
+	struct avs_copier_cfg *cfg;
+	struct nhlt_specific_cfg *ep_blob;
+	union avs_connector_node_id node_id = {0};
+	size_t cfg_size, data_size = 0;
+	void *data = NULL;
+	u32 dma_type;
+	int ret;
+
+	dma_type = t->cfg_ext->copier.dma_type;
+	node_id.dma_type = dma_type;
+
+	switch (dma_type) {
+		struct avs_audio_format *fmt;
+		int direction;
+
+	case AVS_DMA_I2S_LINK_OUTPUT:
+	case AVS_DMA_I2S_LINK_INPUT:
+		if (avs_dma_type_is_input(dma_type))
+			direction = SNDRV_PCM_STREAM_CAPTURE;
+		else
+			direction = SNDRV_PCM_STREAM_PLAYBACK;
+
+		if (t->cfg_ext->copier.blob_fmt)
+			fmt = t->cfg_ext->copier.blob_fmt;
+		else if (direction == SNDRV_PCM_STREAM_CAPTURE)
+			fmt = t->in_fmt;
+		else
+			fmt = t->cfg_ext->copier.out_fmt;
+
+		ep_blob = intel_nhlt_get_endpoint_blob(adev->dev,
+			nhlt, t->cfg_ext->copier.vindex.i2s.instance,
+			NHLT_LINK_SSP, fmt->valid_bit_depth, fmt->bit_depth,
+			fmt->num_channels, fmt->sampling_freq, direction,
+			NHLT_DEVICE_I2S);
+		if (!ep_blob) {
+			dev_err(adev->dev, "no I2S ep_blob found\n");
+			return -ENOENT;
+		}
+
+		data = ep_blob->caps;
+		data_size = ep_blob->size;
+		/* I2S gateway's vindex is statically assigned in topology */
+		node_id.vindex = t->cfg_ext->copier.vindex.val;
+
+		break;
+
+	case AVS_DMA_DMIC_LINK_INPUT:
+		direction = SNDRV_PCM_STREAM_CAPTURE;
+
+		if (t->cfg_ext->copier.blob_fmt)
+			fmt = t->cfg_ext->copier.blob_fmt;
+		else
+			fmt = t->in_fmt;
+
+		ep_blob = intel_nhlt_get_endpoint_blob(adev->dev, nhlt, 0,
+				NHLT_LINK_DMIC, fmt->valid_bit_depth,
+				fmt->bit_depth, fmt->num_channels,
+				fmt->sampling_freq, direction, NHLT_DEVICE_DMIC);
+		if (!ep_blob) {
+			dev_err(adev->dev, "no DMIC ep_blob found\n");
+			return -ENOENT;
+		}
+
+		data = ep_blob->caps;
+		data_size = ep_blob->size;
+		/* DMIC gateway's vindex is statically assigned in topology */
+		node_id.vindex = t->cfg_ext->copier.vindex.val;
+
+		break;
+
+	case AVS_DMA_HDA_HOST_OUTPUT:
+	case AVS_DMA_HDA_HOST_INPUT:
+		/* HOST gateway's vindex is dynamically assigned with DMA id */
+		node_id.vindex = mod->owner->owner->dma_id;
+		break;
+
+	case AVS_DMA_HDA_LINK_OUTPUT:
+	case AVS_DMA_HDA_LINK_INPUT:
+		node_id.vindex = t->cfg_ext->copier.vindex.val |
+				 mod->owner->owner->dma_id;
+		break;
+
+	case INVALID_OBJECT_ID:
+	default:
+		node_id = INVALID_NODE_ID;
+		break;
+	}
+
+	cfg_size = sizeof(*cfg) + data_size;
+	/* Every config-BLOB contains gateway attributes. */
+	if (data_size)
+		cfg_size -= sizeof(cfg->gtw_cfg.config.attrs);
+
+	cfg = kzalloc(cfg_size, GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	cfg->base.cpc = t->cfg_base->cpc;
+	cfg->base.ibs = t->cfg_base->ibs;
+	cfg->base.obs = t->cfg_base->obs;
+	cfg->base.is_pages = t->cfg_base->is_pages;
+	cfg->base.audio_fmt = *t->in_fmt;
+	cfg->out_fmt = *t->cfg_ext->copier.out_fmt;
+	cfg->feature_mask = t->cfg_ext->copier.feature_mask;
+	cfg->gtw_cfg.node_id = node_id;
+	cfg->gtw_cfg.dma_buffer_size = t->cfg_ext->copier.dma_buffer_size;
+	/* config_length in DWORDs */
+	cfg->gtw_cfg.config_length = DIV_ROUND_UP(data_size, 4);
+	if (data)
+		memcpy(&cfg->gtw_cfg.config, data, data_size);
+
+	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
+
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				  t->core_id, t->domain, cfg, cfg_size,
+				  &mod->instance_id);
+	kfree(cfg);
+	return ret;
+}
+
+static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_updown_mixer_cfg cfg;
+	int i;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.out_channel_config = t->cfg_ext->updown_mix.out_channel_config;
+	cfg.coefficients_select = t->cfg_ext->updown_mix.coefficients_select;
+	for (i = 0; i < AVS_CHANNELS_MAX; i++)
+		cfg.coefficients[i] = t->cfg_ext->updown_mix.coefficients[i];
+	cfg.channel_map = t->cfg_ext->updown_mix.channel_map;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_src_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_src_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.out_freq = t->cfg_ext->src.out_freq;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_asrc_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_asrc_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.out_freq = t->cfg_ext->asrc.out_freq;
+	cfg.mode = t->cfg_ext->asrc.mode;
+	cfg.disable_jitter_buffer = t->cfg_ext->asrc.disable_jitter_buffer;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_aec_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_aec_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.ref_fmt = *t->cfg_ext->aec.ref_fmt;
+	cfg.out_fmt = *t->cfg_ext->aec.out_fmt;
+	cfg.cpc_lp_mode = t->cfg_ext->aec.cpc_lp_mode;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_mux_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_mux_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.ref_fmt = *t->cfg_ext->mux.ref_fmt;
+	cfg.out_fmt = *t->cfg_ext->mux.out_fmt;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_wov_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_wov_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.cpc_lp_mode = t->cfg_ext->wov.cpc_lp_mode;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_micsel_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_micsel_cfg cfg;
+
+	cfg.base.cpc = t->cfg_base->cpc;
+	cfg.base.ibs = t->cfg_base->ibs;
+	cfg.base.obs = t->cfg_base->obs;
+	cfg.base.is_pages = t->cfg_base->is_pages;
+	cfg.base.audio_fmt = *t->in_fmt;
+	cfg.out_fmt = *t->cfg_ext->micsel.out_fmt;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_modbase_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_modcfg_base cfg;
+
+	cfg.cpc = t->cfg_base->cpc;
+	cfg.ibs = t->cfg_base->ibs;
+	cfg.obs = t->cfg_base->obs;
+	cfg.is_pages = t->cfg_base->is_pages;
+	cfg.audio_fmt = *t->in_fmt;
+
+	return avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				   t->core_id, t->domain, &cfg, sizeof(cfg),
+				   &mod->instance_id);
+}
+
+static int avs_modext_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_tplg_modcfg_ext *tcfg = t->cfg_ext;
+	struct avs_modcfg_ext *cfg;
+	size_t cfg_size, num_pins;
+	int ret, i;
+
+	num_pins = tcfg->generic.num_input_pins + tcfg->generic.num_output_pins;
+	cfg_size = sizeof(*cfg) + sizeof(*cfg->pin_fmts) * num_pins;
+
+	cfg = kzalloc(cfg_size, GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	cfg->base.cpc = t->cfg_base->cpc;
+	cfg->base.ibs = t->cfg_base->ibs;
+	cfg->base.obs = t->cfg_base->obs;
+	cfg->base.is_pages = t->cfg_base->is_pages;
+	cfg->base.audio_fmt = *t->in_fmt;
+	cfg->num_input_pins = tcfg->generic.num_input_pins;
+	cfg->num_output_pins = tcfg->generic.num_output_pins;
+
+	/* configure pin formats */
+	for (i = 0; i < num_pins; i++) {
+		struct avs_tplg_pin_format *tpin = &tcfg->generic.pin_fmts[i];
+		struct avs_pin_format *pin = &cfg->pin_fmts[i];
+
+		pin->pin_index = tpin->pin_index;
+		pin->iobs = tpin->iobs;
+		pin->audio_fmt = *tpin->fmt;
+	}
+
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
+				  t->core_id, t->domain, cfg, cfg_size,
+				  &mod->instance_id);
+	kfree(cfg);
+	return ret;
+}
+
+static int avs_path_module_type_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	const guid_t *type = &mod->template->cfg_ext->type;
+
+	if (guid_equal(type, &AVS_MIXIN_MOD_UUID) ||
+	    guid_equal(type, &AVS_MIXOUT_MOD_UUID) ||
+	    guid_equal(type, &AVS_KPBUFF_MOD_UUID))
+		return avs_modbase_create(adev, mod);
+	if (guid_equal(type, &AVS_COPIER_MOD_UUID))
+		return avs_copier_create(adev, mod);
+	if (guid_equal(type, &AVS_MICSEL_MOD_UUID))
+		return avs_micsel_create(adev, mod);
+	if (guid_equal(type, &AVS_MUX_MOD_UUID))
+		return avs_mux_create(adev, mod);
+	if (guid_equal(type, &AVS_UPDWMIX_MOD_UUID))
+		return avs_updown_mix_create(adev, mod);
+	if (guid_equal(type, &AVS_SRCINTC_MOD_UUID))
+		return avs_src_create(adev, mod);
+	if (guid_equal(type, &AVS_AEC_MOD_UUID))
+		return avs_aec_create(adev, mod);
+	if (guid_equal(type, &AVS_ASRC_MOD_UUID))
+		return avs_asrc_create(adev, mod);
+	if (guid_equal(type, &AVS_INTELWOV_MOD_UUID))
+		return avs_wov_create(adev, mod);
+
+	if (guid_equal(type, &AVS_PROBE_MOD_UUID)) {
+		dev_err(adev->dev, "Probe module can't be instantiated by topology");
+		return -EINVAL;
+	}
+
+	return avs_modext_create(adev, mod);
+}
+
 static void avs_path_module_free(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	kfree(mod);
@@ -124,7 +493,7 @@ avs_path_module_create(struct avs_dev *adev,
 		       struct avs_tplg_module *template)
 {
 	struct avs_path_module *mod;
-	int module_id;
+	int module_id, ret;
 
 	module_id = avs_get_module_id(adev, &template->cfg_ext->type);
 	if (module_id < 0)
@@ -138,6 +507,13 @@ avs_path_module_create(struct avs_dev *adev,
 	mod->module_id = module_id;
 	mod->owner = owner;
 	INIT_LIST_HEAD(&mod->node);
+
+	ret = avs_path_module_type_create(adev, mod);
+	if (ret) {
+		dev_err(adev->dev, "module-type create failed: %d\n", ret);
+		kfree(mod);
+		return ERR_PTR(ret);
+	}
 
 	return mod;
 }
