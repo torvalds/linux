@@ -382,10 +382,19 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	return 0;
 }
 
-static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+static void vc4_hvs_install_dlist(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+
+	HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
+		  vc4_state->mm.start);
+}
+
+static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	unsigned long flags;
@@ -404,9 +413,6 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
-
-	HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
-		  vc4_state->mm.start);
 
 	spin_lock_irqsave(&vc4_crtc->irq_lock, flags);
 	vc4_crtc->current_dlist = vc4_state->mm.start;
@@ -434,6 +440,7 @@ void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	bool oneshot = vc4_crtc->feeds_txp;
 
+	vc4_hvs_install_dlist(crtc);
 	vc4_hvs_update_dlist(crtc);
 	vc4_hvs_init_channel(vc4, crtc, mode, oneshot);
 }
@@ -509,8 +516,10 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 	 * If the CRTC is being disabled, there's no point in updating this
 	 * information.
 	 */
-	if (crtc->state->active && old_state->active)
+	if (crtc->state->active && old_state->active) {
+		vc4_hvs_install_dlist(crtc);
 		vc4_hvs_update_dlist(crtc);
+	}
 
 	if (crtc->state->color_mgmt_changed) {
 		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(channel));
