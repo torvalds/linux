@@ -310,6 +310,8 @@ struct timing_generator_funcs {
 			uint32_t slave_pixel_clock_100Hz,
 			uint8_t master_clock_divider,
 			uint8_t slave_clock_divider);
+
+	void (*init_odm)(struct timing_generator *tg);
 };
 
 #endif

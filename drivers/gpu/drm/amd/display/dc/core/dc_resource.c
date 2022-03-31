@@ -2120,6 +2120,8 @@ static int acquire_resource_from_hw_enabled_state(
 {
 	struct dc_link *link = stream->link;
 	unsigned int i, inst, tg_inst = 0;
+	uint32_t numPipes = 1;
+	uint32_t id_src[4] = {0};
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
@@ -2148,38 +2150,62 @@ static int acquire_resource_from_hw_enabled_state(
 	if (!res_ctx->pipe_ctx[tg_inst].stream) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
 
-		pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
-		pipe_ctx->plane_res.mi = pool->mis[tg_inst];
-		pipe_ctx->plane_res.hubp = pool->hubps[tg_inst];
-		pipe_ctx->plane_res.ipp = pool->ipps[tg_inst];
-		pipe_ctx->plane_res.xfm = pool->transforms[tg_inst];
-		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
-		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
+		id_src[0] = tg_inst;
 
-		if (pool->dpps[tg_inst]) {
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+		if (pipe_ctx->stream_res.tg->funcs->get_optc_source)
+			pipe_ctx->stream_res.tg->funcs->get_optc_source(pipe_ctx->stream_res.tg,
+					&numPipes, &id_src[0], &id_src[1]);
 
-			// Read DPP->MPCC->OPP Pipe from HW State
-			if (pool->mpc->funcs->read_mpcc_state) {
-				struct mpcc_state s = {0};
+		for (i = 0; i < numPipes; i++) {
+			//Check if src id invalid
+			if (id_src[i] == 0xf)
+				return -1;
 
-				pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+			pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
+			pipe_ctx->plane_res.mi = pool->mis[id_src[i]];
+			pipe_ctx->plane_res.hubp = pool->hubps[id_src[i]];
+			pipe_ctx->plane_res.ipp = pool->ipps[id_src[i]];
+			pipe_ctx->plane_res.xfm = pool->transforms[id_src[i]];
+			pipe_ctx->plane_res.dpp = pool->dpps[id_src[i]];
+			pipe_ctx->stream_res.opp = pool->opps[id_src[i]];
 
-				if (s.dpp_id < MAX_MPCC)
-					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id = s.dpp_id;
+			if (pool->dpps[id_src[i]]) {
+				pipe_ctx->plane_res.mpcc_inst = pool->dpps[id_src[i]]->inst;
 
-				if (s.bot_mpcc_id < MAX_MPCC)
-					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
-							&pool->mpc->mpcc_array[s.bot_mpcc_id];
-
-				if (s.opp_id < MAX_OPP)
-					pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+				if (pool->mpc->funcs->read_mpcc_state) {
+					struct mpcc_state s = {0};
+					pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+					if (s.dpp_id < MAX_MPCC)
+						pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id =
+								s.dpp_id;
+					if (s.bot_mpcc_id < MAX_MPCC)
+						pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
+								&pool->mpc->mpcc_array[s.bot_mpcc_id];
+					if (s.opp_id < MAX_OPP)
+						pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+				}
 			}
-		}
-		pipe_ctx->pipe_idx = tg_inst;
+			pipe_ctx->pipe_idx = id_src[i];
 
-		pipe_ctx->stream = stream;
-		return tg_inst;
+			if (id_src[i] >= pool->timing_generator_count) {
+				id_src[i] = pool->timing_generator_count - 1;
+				pipe_ctx->stream_res.tg = pool->timing_generators[id_src[i]];
+				pipe_ctx->stream_res.opp = pool->opps[id_src[i]];
+			}
+
+			pipe_ctx->stream = stream;
+		}
+
+		if (numPipes == 2) {
+			stream->apply_boot_odm_mode = dm_odm_combine_policy_2to1;
+			res_ctx->pipe_ctx[id_src[0]].next_odm_pipe = &res_ctx->pipe_ctx[id_src[1]];
+			res_ctx->pipe_ctx[id_src[0]].prev_odm_pipe = NULL;
+			res_ctx->pipe_ctx[id_src[1]].next_odm_pipe = NULL;
+			res_ctx->pipe_ctx[id_src[1]].prev_odm_pipe = &res_ctx->pipe_ctx[id_src[0]];
+		} else
+			stream->apply_boot_odm_mode = dm_odm_combine_mode_disabled;
+
+		return id_src[0];
 	}
 
 	return -1;
