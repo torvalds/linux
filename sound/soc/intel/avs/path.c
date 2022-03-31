@@ -13,6 +13,73 @@
 #include "path.h"
 #include "topology.h"
 
+/* Must be called with adev->comp_list_mutex held. */
+static struct avs_tplg *
+avs_path_find_tplg(struct avs_dev *adev, const char *name)
+{
+	struct avs_soc_component *acomp;
+
+	list_for_each_entry(acomp, &adev->comp_list, node)
+		if (!strcmp(acomp->tplg->name, name))
+			return acomp->tplg;
+	return NULL;
+}
+
+static struct avs_path_module *
+avs_path_find_module(struct avs_path_pipeline *ppl, u32 template_id)
+{
+	struct avs_path_module *mod;
+
+	list_for_each_entry(mod, &ppl->mod_list, node)
+		if (mod->template->id == template_id)
+			return mod;
+	return NULL;
+}
+
+static struct avs_path_pipeline *
+avs_path_find_pipeline(struct avs_path *path, u32 template_id)
+{
+	struct avs_path_pipeline *ppl;
+
+	list_for_each_entry(ppl, &path->ppl_list, node)
+		if (ppl->template->id == template_id)
+			return ppl;
+	return NULL;
+}
+
+static struct avs_path *
+avs_path_find_path(struct avs_dev *adev, const char *name, u32 template_id)
+{
+	struct avs_tplg_path_template *pos, *template = NULL;
+	struct avs_tplg *tplg;
+	struct avs_path *path;
+
+	tplg = avs_path_find_tplg(adev, name);
+	if (!tplg)
+		return NULL;
+
+	list_for_each_entry(pos, &tplg->path_tmpl_list, node) {
+		if (pos->id == template_id) {
+			template = pos;
+			break;
+		}
+	}
+	if (!template)
+		return NULL;
+
+	spin_lock(&adev->path_list_lock);
+	/* Only one variant of given path template may be instantiated at a time. */
+	list_for_each_entry(path, &adev->path_list, node) {
+		if (path->template->owner == template) {
+			spin_unlock(&adev->path_list_lock);
+			return path;
+		}
+	}
+
+	spin_unlock(&adev->path_list_lock);
+	return NULL;
+}
+
 static bool avs_test_hw_params(struct snd_pcm_hw_params *params,
 			       struct avs_audio_format *fmt)
 {
@@ -75,6 +142,58 @@ avs_path_module_create(struct avs_dev *adev,
 	return mod;
 }
 
+static int avs_path_binding_arm(struct avs_dev *adev, struct avs_path_binding *binding)
+{
+	struct avs_path_module *this_mod, *target_mod;
+	struct avs_path_pipeline *target_ppl;
+	struct avs_path *target_path;
+	struct avs_tplg_binding *t;
+
+	t = binding->template;
+	this_mod = avs_path_find_module(binding->owner,
+					t->mod_id);
+	if (!this_mod) {
+		dev_err(adev->dev, "path mod %d not found\n", t->mod_id);
+		return -EINVAL;
+	}
+
+	/* update with target_tplg_name too */
+	target_path = avs_path_find_path(adev, t->target_tplg_name,
+					 t->target_path_tmpl_id);
+	if (!target_path) {
+		dev_err(adev->dev, "target path %s:%d not found\n",
+			t->target_tplg_name, t->target_path_tmpl_id);
+		return -EINVAL;
+	}
+
+	target_ppl = avs_path_find_pipeline(target_path,
+					    t->target_ppl_id);
+	if (!target_ppl) {
+		dev_err(adev->dev, "target ppl %d not found\n", t->target_ppl_id);
+		return -EINVAL;
+	}
+
+	target_mod = avs_path_find_module(target_ppl, t->target_mod_id);
+	if (!target_mod) {
+		dev_err(adev->dev, "target mod %d not found\n", t->target_mod_id);
+		return -EINVAL;
+	}
+
+	if (t->is_sink) {
+		binding->sink = this_mod;
+		binding->sink_pin = t->mod_pin;
+		binding->source = target_mod;
+		binding->source_pin = t->target_mod_pin;
+	} else {
+		binding->sink = target_mod;
+		binding->sink_pin = t->target_mod_pin;
+		binding->source = this_mod;
+		binding->source_pin = t->mod_pin;
+	}
+
+	return 0;
+}
+
 static void avs_path_binding_free(struct avs_dev *adev, struct avs_path_binding *binding)
 {
 	kfree(binding);
@@ -95,6 +214,38 @@ static struct avs_path_binding *avs_path_binding_create(struct avs_dev *adev,
 	INIT_LIST_HEAD(&binding->node);
 
 	return binding;
+}
+
+static int avs_path_pipeline_arm(struct avs_dev *adev,
+				 struct avs_path_pipeline *ppl)
+{
+	struct avs_path_module *mod;
+
+	list_for_each_entry(mod, &ppl->mod_list, node) {
+		struct avs_path_module *source, *sink;
+		int ret;
+
+		/*
+		 * Only one module (so it's implicitly last) or it is the last
+		 * one, either way we don't have next module to bind it to.
+		 */
+		if (mod == list_last_entry(&ppl->mod_list,
+					   struct avs_path_module, node))
+			break;
+
+		/* bind current module to next module on list */
+		source = mod;
+		sink = list_next_entry(mod, node);
+		if (!source || !sink)
+			return -EINVAL;
+
+		ret = avs_ipc_bind(adev, source->module_id, source->instance_id,
+				   sink->module_id, sink->instance_id, 0, 0);
+		if (ret)
+			return AVS_IPC_RET(ret);
+	}
+
+	return 0;
 }
 
 static void avs_path_pipeline_free(struct avs_dev *adev,
@@ -212,6 +363,31 @@ static int avs_path_init(struct avs_dev *adev, struct avs_path *path,
 	return 0;
 }
 
+static int avs_path_arm(struct avs_dev *adev, struct avs_path *path)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_path_binding *binding;
+	int ret;
+
+	list_for_each_entry(ppl, &path->ppl_list, node) {
+		/*
+		 * Arm all ppl bindings before binding internal modules
+		 * as it costs no IPCs which isn't true for the latter.
+		 */
+		list_for_each_entry(binding, &ppl->binding_list, node) {
+			ret = avs_path_binding_arm(adev, binding);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret = avs_path_pipeline_arm(adev, ppl);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void avs_path_free_unlocked(struct avs_path *path)
 {
 	struct avs_path_pipeline *ppl, *save;
@@ -237,6 +413,10 @@ static struct avs_path *avs_path_create_unlocked(struct avs_dev *adev, u32 dma_i
 		return ERR_PTR(-ENOMEM);
 
 	ret = avs_path_init(adev, path, template, dma_id);
+	if (ret < 0)
+		goto err;
+
+	ret = avs_path_arm(adev, path);
 	if (ret < 0)
 		goto err;
 
