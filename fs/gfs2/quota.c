@@ -443,9 +443,8 @@ static int qd_check_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
 
 static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 {
-	struct gfs2_quota_data *qd = NULL;
+	struct gfs2_quota_data *qd = NULL, *iter;
 	int error;
-	int found = 0;
 
 	*qdp = NULL;
 
@@ -454,14 +453,12 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 
 	spin_lock(&qd_lock);
 
-	list_for_each_entry(qd, &sdp->sd_quota_list, qd_list) {
-		found = qd_check_sync(sdp, qd, &sdp->sd_quota_sync_gen);
-		if (found)
+	list_for_each_entry(iter, &sdp->sd_quota_list, qd_list) {
+		if (qd_check_sync(sdp, iter, &sdp->sd_quota_sync_gen)) {
+			qd = iter;
 			break;
+		}
 	}
-
-	if (!found)
-		qd = NULL;
 
 	spin_unlock(&qd_lock);
 
