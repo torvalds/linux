@@ -324,6 +324,7 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
 
 /**
  * cxl_validate_cmd_from_user() - Check fields for CXL_MEM_SEND_COMMAND.
+ * @mbox_cmd: Sanitized and populated &struct cxl_mbox_cmd.
  * @cxlds: The device data for the operation
  * @send_cmd: &struct cxl_send_command copied in from userspace.
  * @out_cmd: Sanitized and populated &struct cxl_mem_command.
@@ -341,10 +342,13 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
  *
  * See handle_mailbox_cmd_from_user()
  */
-static int cxl_validate_cmd_from_user(struct cxl_dev_state *cxlds,
+static int cxl_validate_cmd_from_user(struct cxl_mbox_cmd *mbox_cmd,
+				      struct cxl_dev_state *cxlds,
 				      const struct cxl_send_command *send_cmd,
 				      struct cxl_mem_command *out_cmd)
 {
+	int rc;
+
 	if (send_cmd->id == 0 || send_cmd->id >= CXL_MEM_COMMAND_ID_MAX)
 		return -ENOTTY;
 
@@ -358,9 +362,17 @@ static int cxl_validate_cmd_from_user(struct cxl_dev_state *cxlds,
 
 	/* Sanitize and construct a cxl_mem_command */
 	if (send_cmd->id == CXL_MEM_COMMAND_ID_RAW)
-		return cxl_to_mem_cmd_raw(out_cmd, send_cmd, cxlds);
+		rc = cxl_to_mem_cmd_raw(out_cmd, send_cmd, cxlds);
 	else
-		return cxl_to_mem_cmd(out_cmd, send_cmd, cxlds);
+		rc = cxl_to_mem_cmd(out_cmd, send_cmd, cxlds);
+
+	if (rc)
+		return rc;
+
+	/* Sanitize and construct a cxl_mbox_cmd */
+	return cxl_mbox_cmd_ctor(mbox_cmd, cxlds, out_cmd->opcode,
+				 out_cmd->info.size_in, out_cmd->info.size_out,
+				 send_cmd->in.payload);
 }
 
 int cxl_query_cmd(struct cxl_memdev *cxlmd,
@@ -477,6 +489,7 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	struct device *dev = &cxlmd->dev;
 	struct cxl_send_command send;
 	struct cxl_mem_command c;
+	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
 	dev_dbg(dev, "Send IOCTL\n");
@@ -484,7 +497,7 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	if (copy_from_user(&send, s, sizeof(send)))
 		return -EFAULT;
 
-	rc = cxl_validate_cmd_from_user(cxlmd->cxlds, &send, &c);
+	rc = cxl_validate_cmd_from_user(&mbox_cmd, cxlmd->cxlds, &send, &c);
 	if (rc)
 		return rc;
 
