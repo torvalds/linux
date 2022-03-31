@@ -338,7 +338,6 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
  * @mbox_cmd: Sanitized and populated &struct cxl_mbox_cmd.
  * @cxlds: The device data for the operation
  * @send_cmd: &struct cxl_send_command copied in from userspace.
- * @out_cmd: Sanitized and populated &struct cxl_mem_command.
  *
  * Return:
  *  * %0	- @out_cmd is ready to send.
@@ -348,16 +347,14 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
  *  * %-EPERM	- Attempted to use a protected command.
  *  * %-EBUSY	- Kernel has claimed exclusive access to this opcode
  *
- * The result of this command is a fully validated command in @out_cmd that is
+ * The result of this command is a fully validated command in @mbox_cmd that is
  * safe to send to the hardware.
- *
- * See handle_mailbox_cmd_from_user()
  */
 static int cxl_validate_cmd_from_user(struct cxl_mbox_cmd *mbox_cmd,
 				      struct cxl_dev_state *cxlds,
-				      const struct cxl_send_command *send_cmd,
-				      struct cxl_mem_command *out_cmd)
+				      const struct cxl_send_command *send_cmd)
 {
+	struct cxl_mem_command mem_cmd;
 	int rc;
 
 	if (send_cmd->id == 0 || send_cmd->id >= CXL_MEM_COMMAND_ID_MAX)
@@ -373,16 +370,16 @@ static int cxl_validate_cmd_from_user(struct cxl_mbox_cmd *mbox_cmd,
 
 	/* Sanitize and construct a cxl_mem_command */
 	if (send_cmd->id == CXL_MEM_COMMAND_ID_RAW)
-		rc = cxl_to_mem_cmd_raw(out_cmd, send_cmd, cxlds);
+		rc = cxl_to_mem_cmd_raw(&mem_cmd, send_cmd, cxlds);
 	else
-		rc = cxl_to_mem_cmd(out_cmd, send_cmd, cxlds);
+		rc = cxl_to_mem_cmd(&mem_cmd, send_cmd, cxlds);
 
 	if (rc)
 		return rc;
 
 	/* Sanitize and construct a cxl_mbox_cmd */
-	return cxl_mbox_cmd_ctor(mbox_cmd, cxlds, out_cmd->opcode,
-				 out_cmd->info.size_in, out_cmd->info.size_out,
+	return cxl_mbox_cmd_ctor(mbox_cmd, cxlds, mem_cmd.opcode,
+				 mem_cmd.info.size_in, mem_cmd.info.size_out,
 				 send_cmd->in.payload);
 }
 
@@ -490,7 +487,6 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *dev = &cxlmd->dev;
 	struct cxl_send_command send;
-	struct cxl_mem_command c;
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
@@ -499,7 +495,7 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	if (copy_from_user(&send, s, sizeof(send)))
 		return -EFAULT;
 
-	rc = cxl_validate_cmd_from_user(&mbox_cmd, cxlmd->cxlds, &send, &c);
+	rc = cxl_validate_cmd_from_user(&mbox_cmd, cxlmd->cxlds, &send);
 	if (rc)
 		return rc;
 
