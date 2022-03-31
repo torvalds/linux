@@ -521,6 +521,7 @@ int sx_common_probe(struct i2c_client *client,
 		return dev_err_probe(dev, ret, "error reading WHOAMI\n");
 
 	ACPI_COMPANION_SET(&indio_dev->dev, ACPI_COMPANION(dev));
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	indio_dev->channels =  data->chip_info->iio_channels;
