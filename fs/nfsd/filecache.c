@@ -236,6 +236,13 @@ nfsd_file_check_write_error(struct nfsd_file *nf)
 }
 
 static void
+nfsd_file_flush(struct nfsd_file *nf)
+{
+	if (nf->nf_file && vfs_fsync(nf->nf_file, 1) != 0)
+		nfsd_reset_write_verifier(net_generic(nf->nf_net, nfsd_net_id));
+}
+
+static void
 nfsd_file_do_unhash(struct nfsd_file *nf)
 {
 	lockdep_assert_held(&nfsd_file_hashtbl[nf->nf_hashval].nfb_lock);
@@ -302,11 +309,14 @@ nfsd_file_put(struct nfsd_file *nf)
 		return;
 	}
 
-	filemap_flush(nf->nf_file->f_mapping);
 	is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
-	nfsd_file_put_noref(nf);
-	if (is_hashed)
+	if (!is_hashed) {
+		nfsd_file_flush(nf);
+		nfsd_file_put_noref(nf);
+	} else {
+		nfsd_file_put_noref(nf);
 		nfsd_file_schedule_laundrette();
+	}
 	if (atomic_long_read(&nfsd_filecache_count) >= NFSD_FILE_LRU_LIMIT)
 		nfsd_file_gc();
 }
@@ -327,6 +337,7 @@ nfsd_file_dispose_list(struct list_head *dispose)
 	while(!list_empty(dispose)) {
 		nf = list_first_entry(dispose, struct nfsd_file, nf_lru);
 		list_del(&nf->nf_lru);
+		nfsd_file_flush(nf);
 		nfsd_file_put_noref(nf);
 	}
 }
@@ -340,6 +351,7 @@ nfsd_file_dispose_list_sync(struct list_head *dispose)
 	while(!list_empty(dispose)) {
 		nf = list_first_entry(dispose, struct nfsd_file, nf_lru);
 		list_del(&nf->nf_lru);
+		nfsd_file_flush(nf);
 		if (!refcount_dec_and_test(&nf->nf_ref))
 			continue;
 		if (nfsd_file_free(nf))
