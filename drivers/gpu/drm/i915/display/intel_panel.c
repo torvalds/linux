@@ -243,68 +243,62 @@ void intel_panel_add_edid_fixed_mode(struct intel_connector *connector)
 	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
 }
 
-void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
+static void intel_panel_add_fixed_mode(struct intel_connector *connector,
+				       struct drm_display_mode *fixed_mode,
+				       const char *type)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_display_info *info = &connector->base.display_info;
-	struct drm_display_mode *fixed_mode;
 
-	if (!dev_priv->vbt.lfp_lvds_vbt_mode)
-		return;
-
-	fixed_mode = drm_mode_duplicate(&dev_priv->drm,
-					dev_priv->vbt.lfp_lvds_vbt_mode);
 	if (!fixed_mode)
 		return;
 
-	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-
-	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] using mode from VBT: " DRM_MODE_FMT "\n",
-		    connector->base.base.id, connector->base.name,
-		    DRM_MODE_ARG(fixed_mode));
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 
 	info->width_mm = fixed_mode->width_mm;
 	info->height_mm = fixed_mode->height_mm;
 
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] using %s fixed mode: " DRM_MODE_FMT "\n",
+		    connector->base.base.id, connector->base.name, type,
+		    DRM_MODE_ARG(fixed_mode));
+
 	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
+}
+
+void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	const struct drm_display_mode *mode;
+
+	mode = i915->vbt.lfp_lvds_vbt_mode;
+	if (!mode)
+		return;
+
+	intel_panel_add_fixed_mode(connector,
+				   drm_mode_duplicate(&i915->drm, mode),
+				   "VBT LFP");
 }
 
 void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct drm_display_mode *fixed_mode;
+	const struct drm_display_mode *mode;
 
-	if (!i915->vbt.sdvo_lvds_vbt_mode)
+	mode = i915->vbt.sdvo_lvds_vbt_mode;
+	if (!mode)
 		return;
 
-	fixed_mode = drm_mode_duplicate(&i915->drm,
-					i915->vbt.sdvo_lvds_vbt_mode);
-	if (!fixed_mode)
-		return;
-
-	/* Guarantee the mode is preferred */
-	fixed_mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
-
-	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
+	intel_panel_add_fixed_mode(connector,
+				   drm_mode_duplicate(&i915->drm, mode),
+				   "VBT SDVO");
 }
 
 void intel_panel_add_encoder_fixed_mode(struct intel_connector *connector,
 					struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct drm_display_mode *fixed_mode;
-
-	fixed_mode = intel_encoder_current_mode(encoder);
-	if (!fixed_mode)
-		return;
-
-	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] using current (BIOS) mode: " DRM_MODE_FMT "\n",
-		    connector->base.base.id, connector->base.name,
-		    DRM_MODE_ARG(fixed_mode));
-
-	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-
-	list_add_tail(&fixed_mode->head, &connector->panel.fixed_modes);
+	intel_panel_add_fixed_mode(connector,
+				   intel_encoder_current_mode(encoder),
+				   "current (BIOS)");
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
