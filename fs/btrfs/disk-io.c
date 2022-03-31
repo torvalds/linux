@@ -1984,7 +1984,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 
 static int cleaner_kthread(void *arg)
 {
-	struct btrfs_fs_info *fs_info = (struct btrfs_fs_info *)arg;
+	struct btrfs_fs_info *fs_info = arg;
 	int again;
 
 	while (1) {
@@ -3317,7 +3317,7 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 
 static int btrfs_uuid_rescan_kthread(void *data)
 {
-	struct btrfs_fs_info *fs_info = (struct btrfs_fs_info *)data;
+	struct btrfs_fs_info *fs_info = data;
 	int ret;
 
 	/*

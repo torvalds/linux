@@ -2033,7 +2033,7 @@ continue_loop:
 
 static void btrfsic_bio_end_io(struct bio *bp)
 {
-	struct btrfsic_block *block = (struct btrfsic_block *)bp->bi_private;
+	struct btrfsic_block *block = bp->bi_private;
 	int iodone_w_error;
 
 	/* mutex is not held! This is not save if IO is not yet completed

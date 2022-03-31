@@ -8266,7 +8266,7 @@ bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr)
 
 static int relocating_repair_kthread(void *data)
 {
-	struct btrfs_block_group *cache = (struct btrfs_block_group *)data;
+	struct btrfs_block_group *cache = data;
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	u64 target;
 	int ret = 0;

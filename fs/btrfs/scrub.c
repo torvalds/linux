@@ -2790,7 +2790,7 @@ static void scrub_parity_bio_endio_worker(struct btrfs_work *work)
 
 static void scrub_parity_bio_endio(struct bio *bio)
 {
-	struct scrub_parity *sparity = (struct scrub_parity *)bio->bi_private;
+	struct scrub_parity *sparity = bio->bi_private;
 	struct btrfs_fs_info *fs_info = sparity->sctx->fs_info;
 
 	if (bio->bi_status)

@@ -519,7 +519,7 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 		items = calc_reclaim_items_nr(fs_info, to_reclaim) * 2;
 	}
 
-	trans = (struct btrfs_trans_handle *)current->journal_info;
+	trans = current->journal_info;
 
 	/*
 	 * If we are doing more ordered than delalloc we need to just wait on

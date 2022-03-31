@@ -2596,15 +2596,13 @@ err:
 static noinline int btrfs_ioctl_tree_search(struct inode *inode,
 					    void __user *argp)
 {
-	struct btrfs_ioctl_search_args __user *uargs;
+	struct btrfs_ioctl_search_args __user *uargs = argp;
 	struct btrfs_ioctl_search_key sk;
 	int ret;
 	size_t buf_size;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	uargs = (struct btrfs_ioctl_search_args __user *)argp;
 
 	if (copy_from_user(&sk, &uargs->key, sizeof(sk)))
 		return -EFAULT;
@@ -2628,7 +2626,7 @@ static noinline int btrfs_ioctl_tree_search(struct inode *inode,
 static noinline int btrfs_ioctl_tree_search_v2(struct inode *inode,
 					       void __user *argp)
 {
-	struct btrfs_ioctl_search_args_v2 __user *uarg;
+	struct btrfs_ioctl_search_args_v2 __user *uarg = argp;
 	struct btrfs_ioctl_search_args_v2 args;
 	int ret;
 	size_t buf_size;
@@ -2638,7 +2636,6 @@ static noinline int btrfs_ioctl_tree_search_v2(struct inode *inode,
 		return -EPERM;
 
 	/* copy search header and buffer size */
-	uarg = (struct btrfs_ioctl_search_args_v2 __user *)argp;
 	if (copy_from_user(&args, uarg, sizeof(args)))
 		return -EFAULT;
 

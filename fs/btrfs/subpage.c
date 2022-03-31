@@ -150,7 +150,7 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 	if (!btrfs_is_subpage(fs_info, page) || !PagePrivate(page))
 		return;
 
-	subpage = (struct btrfs_subpage *)detach_page_private(page);
+	subpage = detach_page_private(page);
 	ASSERT(subpage);
 	btrfs_free_subpage(subpage);
 }
