@@ -475,6 +475,17 @@ config QCOM_APR
 	  used by audio driver to configure QDSP6
 	  ASM, ADM and AFE modules.
 
+config QCOM_EUD
+	tristate "QTI Embedded USB Debugger (EUD)"
+	depends on ARCH_QCOM
+	select SERIAL_CORE
+	help
+	  The EUD (Embedded USB Debugger) is a mini-USB hub implemented
+	  on chip to support the USB-based debug and trace capabilities.
+	  This module enables support for Qualcomm Technologies, Inc.
+	  Embedded USB Debugger (EUD).
+	  If unsure, say N.
+
 config QPNP_PBS
 	tristate "PBS trigger support for QPNP PMIC"
 	depends on SPMI
