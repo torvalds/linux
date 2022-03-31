@@ -1292,24 +1292,6 @@ void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FLAG:
 		val[0] = podmpriv->SupportAbility;
 		break;
-	case HW_VAR_FWLPS_RF_ON:
-		{
-			/* When we halt NIC, we should check if FW LPS is leave. */
-			if (Adapter->pwrctrlpriv.rf_pwrstate == rf_off) {
-				/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
-				/*  because Fw is unload. */
-				val[0] = true;
-			} else {
-				u32 valRCR;
-				valRCR = rtw_read32(Adapter, REG_RCR);
-				valRCR &= 0x00070000;
-				if (valRCR)
-					val[0] = false;
-				else
-					val[0] = true;
-			}
-		}
-		break;
 	default:
 		break;
 	}
