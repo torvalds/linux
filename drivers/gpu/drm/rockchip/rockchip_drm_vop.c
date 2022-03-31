@@ -2736,7 +2736,12 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	    VOP_MINOR(vop->version) <= 2)
 		return MODE_BAD;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	/*
+	 * Dclk need to be double if BT656 interface and vop version >= 2.12.
+	 */
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK ||
+	    (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) >= 12 &&
+	     s->output_if & VOP_OUTPUT_IF_BT656))
 		request_clock *= 2;
 	clock = clk_round_rate(vop->dclk, request_clock * 1000) / 1000;
 
@@ -3038,6 +3043,8 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
 
 	if (mode->hdisplay > vop_data->max_output.width)
 		return false;
@@ -3045,7 +3052,12 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	drm_mode_set_crtcinfo(adj_mode,
 			      CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	/*
+	 * Dclk need to be double if BT656 interface and vop version >= 2.12.
+	 */
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK ||
+	    (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) >= 12 &&
+	     s->output_if & VOP_OUTPUT_IF_BT656))
 		adj_mode->crtc_clock *= 2;
 
 	adj_mode->crtc_clock =
