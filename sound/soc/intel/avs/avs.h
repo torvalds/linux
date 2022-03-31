@@ -13,10 +13,12 @@
 #include <linux/firmware.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_register.h>
+#include <sound/soc-component.h>
 #include "messages.h"
 #include "registers.h"
 
 struct avs_dev;
+struct avs_tplg;
 
 /*
  * struct avs_dsp_ops - Platform-specific DSP operations
@@ -243,5 +245,17 @@ int avs_hda_load_basefw(struct avs_dev *adev, struct firmware *fw);
 int avs_hda_load_library(struct avs_dev *adev, struct firmware *lib, u32 id);
 int avs_hda_transfer_modules(struct avs_dev *adev, bool load,
 			     struct avs_module_entry *mods, u32 num_mods);
+
+/* Soc component members */
+
+struct avs_soc_component {
+	struct snd_soc_component base;
+	struct avs_tplg *tplg;
+
+	struct list_head node;
+};
+
+#define to_avs_soc_component(comp) \
+	container_of(comp, struct avs_soc_component, base)
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
