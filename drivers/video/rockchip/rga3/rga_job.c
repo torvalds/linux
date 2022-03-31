@@ -44,23 +44,9 @@ rga_scheduler_get_running_job(struct rga_scheduler_t *scheduler)
 	return job;
 }
 
-struct rga_scheduler_t *rga_job_get_scheduler(int core)
+struct rga_scheduler_t *rga_job_get_scheduler(struct rga_job *job)
 {
-	struct rga_scheduler_t *scheduler = NULL;
-	int i;
-
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (core == rga_drvdata->scheduler[i]->core) {
-			scheduler = rga_drvdata->scheduler[i];
-
-			if (DEBUGGER_EN(MSG))
-				pr_info("job choose core: %d\n",
-					rga_drvdata->scheduler[i]->core);
-			break;
-		}
-	}
-
-	return scheduler;
+	return job->scheduler;
 }
 
 static int rga_job_get_current_mm(struct rga_job *job)
@@ -465,10 +451,10 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 			return NULL;
 		}
 	} else {
-		job->core = rga_drvdata->scheduler[0]->core;
+		job->scheduler = rga_drvdata->scheduler[0];
 	}
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
 		return NULL;

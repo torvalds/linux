@@ -283,6 +283,7 @@ skip_functional_policy:
 
 			if (scheduler->running_job == NULL) {
 				core = scheduler->core;
+				job->scheduler = scheduler;
 				spin_unlock_irqrestore(&scheduler->irq_lock,
 							 flags);
 				break;
@@ -291,6 +292,7 @@ skip_functional_policy:
 					(min_of_job_count == 0)) {
 					min_of_job_count = scheduler->job_count;
 					core = scheduler->core;
+					job->scheduler = scheduler;
 				}
 			}
 

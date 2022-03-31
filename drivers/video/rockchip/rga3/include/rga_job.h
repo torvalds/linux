@@ -21,7 +21,7 @@ enum job_flags {
 	RGA_JOB_UNSUPPORT_RGA2		= 1 << 4,
 };
 
-struct rga_scheduler_t *rga_job_get_scheduler(int core);
+struct rga_scheduler_t *rga_job_get_scheduler(struct rga_job *job);
 
 void rga_job_done(struct rga_scheduler_t *scheduler, int ret);
 int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx);

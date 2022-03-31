@@ -533,7 +533,7 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 
 static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 					 struct rga_dma_buffer_t **rga_dma_buffer,
-					 int writeFlag, int core, struct mm_struct *mm)
+					 int writeFlag, struct rga_job *job, struct mm_struct *mm)
 {
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_dma_buffer_t *alloc_buffer;
@@ -566,7 +566,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		return -ENOMEM;
 	}
 
-	scheduler = rga_job_get_scheduler(core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 			__LINE__);
@@ -904,7 +904,7 @@ static void rga_dma_unmap_buffer(struct rga_dma_buffer_t *rga_dma_buffer)
 
 static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 			struct rga_dma_buffer_t **rga_dma_buffer, int mmu_flag,
-			struct dma_buf **dma_buf, int core)
+			struct dma_buf **dma_buf, struct rga_job *job)
 {
 	int ret;
 	struct rga_dma_buffer_t *alloc_buffer;
@@ -925,7 +925,7 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 
 		alloc_buffer->use_viraddr = false;
 
-		scheduler = rga_job_get_scheduler(core);
+		scheduler = rga_job_get_scheduler(job);
 		if (scheduler == NULL) {
 			pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				 __LINE__);
@@ -962,7 +962,7 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 	/* The value of dma_fd is no longer needed. */
 	channel_info->yrgb_addr = 0;
 
-	if (core == RGA3_SCHEDULER_CORE0 || core == RGA3_SCHEDULER_CORE1)
+	if (job->core == RGA3_SCHEDULER_CORE0 || job->core == RGA3_SCHEDULER_CORE1)
 		if (*rga_dma_buffer)
 			channel_info->yrgb_addr = (*rga_dma_buffer)->iova;
 
@@ -1106,7 +1106,7 @@ int rga_dma_get_info(struct rga_job *job)
 		if (job->dma_buf_src0 != NULL) {
 			ret = rga_dma_buf_get_channel_info(src0,
 				&job->rga_dma_buffer_src0, mmu_flag,
-				&job->dma_buf_src0, job->core);
+				&job->dma_buf_src0, job);
 
 			if (unlikely(ret < 0)) {
 				pr_err("src0 channel get info error!\n");
@@ -1118,7 +1118,7 @@ int rga_dma_get_info(struct rga_job *job)
 			if (job->core == RGA3_SCHEDULER_CORE0 || job->core == RGA3_SCHEDULER_CORE1) {
 				if (src0->yrgb_addr > 0 && mmu_flag) {
 					ret = rga_viraddr_get_channel_info(src0, &job->rga_dma_buffer_src0,
-						0, job->core, job->mm);
+						0, job, job->mm);
 
 					if (unlikely(ret < 0)) {
 						pr_err("src0 channel viraddr get info error!\n");
@@ -1137,7 +1137,7 @@ int rga_dma_get_info(struct rga_job *job)
 		if (job->dma_buf_dst != NULL) {
 			ret = rga_dma_buf_get_channel_info(dst,
 				&job->rga_dma_buffer_dst, mmu_flag,
-				&job->dma_buf_dst, job->core);
+				&job->dma_buf_dst, job);
 
 			if (unlikely(ret < 0)) {
 				pr_err("dst channel get info error!\n");
@@ -1149,7 +1149,7 @@ int rga_dma_get_info(struct rga_job *job)
 			if (job->core == RGA3_SCHEDULER_CORE0 || job->core == RGA3_SCHEDULER_CORE1) {
 				if (dst->yrgb_addr > 0 && mmu_flag) {
 					ret = rga_viraddr_get_channel_info(dst, &job->rga_dma_buffer_dst,
-						1, job->core, job->mm);
+						1, job, job->mm);
 
 					if (unlikely(ret < 0)) {
 						pr_err("dst channel viraddr get info error!\n");
@@ -1168,7 +1168,7 @@ int rga_dma_get_info(struct rga_job *job)
 		if (job->dma_buf_src1 != NULL) {
 			ret = rga_dma_buf_get_channel_info(src1,
 				&job->rga_dma_buffer_src1, mmu_flag,
-				&job->dma_buf_src1, job->core);
+				&job->dma_buf_src1, job);
 
 			if (unlikely(ret < 0)) {
 				pr_err("src1 channel get info error!\n");
@@ -1180,7 +1180,7 @@ int rga_dma_get_info(struct rga_job *job)
 			if (job->core == RGA3_SCHEDULER_CORE0 || job->core == RGA3_SCHEDULER_CORE1) {
 				if (src1->yrgb_addr > 0 && mmu_flag) {
 					ret = rga_viraddr_get_channel_info(src1, &job->rga_dma_buffer_src1,
-						0, job->core, job->mm);
+						0, job, job->mm);
 
 					if (unlikely(ret < 0)) {
 						pr_err("src1 channel viraddr get info error!\n");
@@ -1199,7 +1199,7 @@ int rga_dma_get_info(struct rga_job *job)
 		if (job->dma_buf_els != NULL) {
 			ret = rga_dma_buf_get_channel_info(els,
 				&job->rga_dma_buffer_els, mmu_flag,
-				&job->dma_buf_els, job->core);
+				&job->dma_buf_els, job);
 
 			if (unlikely(ret < 0)) {
 				pr_err("els channel get info error!\n");
@@ -1211,7 +1211,7 @@ int rga_dma_get_info(struct rga_job *job)
 			if (job->core == RGA3_SCHEDULER_CORE0 || job->core == RGA3_SCHEDULER_CORE1) {
 				if (els->yrgb_addr > 0 && mmu_flag) {
 					ret = rga_viraddr_get_channel_info(els, &job->rga_dma_buffer_els,
-						0, job->core, job->mm);
+						0, job, job->mm);
 
 					if (unlikely(ret < 0)) {
 						pr_err("els channel viraddr get info error!\n");

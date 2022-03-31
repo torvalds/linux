@@ -851,23 +851,23 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 }
 
 static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
-					 int core,
+					 struct rga_job *job,
 					 enum dma_data_direction dir)
 {
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	scheduler = rga_job_get_scheduler(core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
-		       __func__, __LINE__, core);
+		       __func__, __LINE__, job->core);
 		return -EFAULT;
 	}
 
-	sgt = rga_mm_lookup_sgt(buffer, core);
+	sgt = rga_mm_lookup_sgt(buffer, job->core);
 	if (sgt == NULL) {
 		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, core);
+		       __func__, __LINE__, job->core);
 		return -EINVAL;
 	}
 
@@ -877,23 +877,23 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 }
 
 static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
-				      int core,
+				      struct rga_job *job,
 				      enum dma_data_direction dir)
 {
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	scheduler = rga_job_get_scheduler(core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
-		       __func__, __LINE__, core);
+		       __func__, __LINE__, job->core);
 		return -EFAULT;
 	}
 
-	sgt = rga_mm_lookup_sgt(buffer, core);
+	sgt = rga_mm_lookup_sgt(buffer, job->core);
 	if (sgt == NULL) {
 		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, core);
+		       __func__, __LINE__, job->core);
 		return -EINVAL;
 	}
 
@@ -967,7 +967,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		 * interface for flushing the cache, so it is mandatory
 		 * to flush the cache when the virtual address is used.
 		 */
-		ret = rga_mm_sync_dma_sg_for_device(internal_buffer, job->core, dir);
+		ret = rga_mm_sync_dma_sg_for_device(internal_buffer, job, dir);
 		if (ret < 0) {
 			pr_err("sync sgt for device error!\n");
 			goto unlock_mm_and_return;
@@ -995,13 +995,13 @@ unlock_mm_and_return:
 
 static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
 					   struct rga_internal_buffer *internal_buffer,
-					   int core,
+					   struct rga_job *job,
 					   enum dma_data_direction dir)
 {
 	int ret;
 
 	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE) {
-		ret = rga_mm_sync_dma_sg_for_cpu(internal_buffer, core, dir);
+		ret = rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir);
 		if (ret < 0) {
 			pr_err("sync sgt for cpu error!\n");
 			goto put_internal_buffer;
@@ -1080,13 +1080,13 @@ void rga_mm_put_handle_info(struct rga_job *job)
 	mm = rga_drvdata->mm;
 
 	if (job->src_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src_buffer, job->core, DMA_NONE);
+		rga_mm_put_channel_handle_info(mm, job->src_buffer, job, DMA_NONE);
 	if (job->dst_buffer)
-		rga_mm_put_channel_handle_info(mm, job->dst_buffer, job->core, DMA_FROM_DEVICE);
+		rga_mm_put_channel_handle_info(mm, job->dst_buffer, job, DMA_FROM_DEVICE);
 	if (job->src1_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src1_buffer, job->core, DMA_NONE);
+		rga_mm_put_channel_handle_info(mm, job->src1_buffer, job, DMA_NONE);
 	if (job->els_buffer)
-		rga_mm_put_channel_handle_info(mm, job->els_buffer, job->core, DMA_NONE);
+		rga_mm_put_channel_handle_info(mm, job->els_buffer, job, DMA_NONE);
 }
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)

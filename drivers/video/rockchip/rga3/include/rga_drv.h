@@ -246,8 +246,13 @@ struct rga2_mmu_other_t {
 	bool MMU_map;
 };
 
+struct rga_scheduler_t;
+
 struct rga_job {
 	struct list_head head;
+
+	struct rga_scheduler_t *scheduler;
+
 	struct rga_req rga_command_base;
 	uint32_t cmd_reg[32 * 8];
 	struct rga_full_csc full_csc;
@@ -291,8 +296,6 @@ struct rga_job {
 	pid_t pid;
 	bool use_batch_mode;
 };
-
-struct rga_scheduler_t;
 
 struct rga_backend_ops {
 	int (*get_version)(struct rga_scheduler_t *scheduler);

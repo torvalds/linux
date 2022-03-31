@@ -408,7 +408,7 @@ static int rga2_mmu_flush_cache(struct rga2_mmu_other_t *reg,
 	DstPageCount = 0;
 	DstStart = 0;
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);
@@ -563,7 +563,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	struct rga_scheduler_t *scheduler = NULL;
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);
@@ -837,7 +837,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 		return -EINVAL;
 	}
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);
@@ -1003,7 +1003,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 
 	struct rga_scheduler_t *scheduler = NULL;
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);
@@ -1139,7 +1139,7 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_mmu_other_t *reg,
 		return -EINVAL;
 	}
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);

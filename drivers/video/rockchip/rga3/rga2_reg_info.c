@@ -2216,7 +2216,7 @@ int rga2_init_reg(struct rga_job *job)
 	struct rga2_mmu_info_t *tbuf = &rga2_mmu_info;
 	struct rga_scheduler_t *scheduler = NULL;
 
-	scheduler = rga_job_get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);
