@@ -1181,3 +1181,161 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 
 	return pipeline;
 }
+
+static const struct avs_tplg_token_parser path_parsers[] = {
+	{
+		.token = AVS_TKN_PATH_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_PATH_FE_FMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, fe_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_PATH_BE_FMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, be_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+};
+
+static struct avs_tplg_path *
+avs_tplg_path_create(struct snd_soc_component *comp, struct avs_tplg_path_template *owner,
+		     struct snd_soc_tplg_vendor_array *tuples, u32 block_size,
+		     const struct avs_tplg_token_parser *parsers, u32 num_parsers)
+{
+	struct avs_tplg_pipeline *pipeline;
+	struct avs_tplg_path *path;
+	u32 offset;
+	int ret;
+
+	path = devm_kzalloc(comp->card->dev, sizeof(*path), GFP_KERNEL);
+	if (!path)
+		return ERR_PTR(-ENOMEM);
+
+	path->owner = owner;
+	INIT_LIST_HEAD(&path->ppl_list);
+	INIT_LIST_HEAD(&path->node);
+
+	/* Path header MAY be followed by one or more pipelines. */
+	ret = avs_tplg_vendor_array_lookup(tuples, block_size,
+					   AVS_TKN_PPL_ID_U32, &offset);
+	if (ret == -ENOENT)
+		offset = block_size;
+	else if (ret)
+		return ERR_PTR(ret);
+	else if (!offset)
+		return ERR_PTR(-EINVAL);
+
+	/* Process header which precedes pipeline sections. */
+	ret = avs_parse_tokens(comp, path, parsers, num_parsers, tuples, offset);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	block_size -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+	while (block_size > 0) {
+		u32 esize;
+
+		ret = avs_tplg_vendor_entry_size(tuples, block_size,
+						 AVS_TKN_PPL_ID_U32, &esize);
+		if (ret)
+			return ERR_PTR(ret);
+
+		pipeline = avs_tplg_pipeline_create(comp, path, tuples, esize);
+		if (IS_ERR(pipeline)) {
+			dev_err(comp->dev, "parse pipeline failed: %ld\n",
+				PTR_ERR(pipeline));
+			return ERR_CAST(pipeline);
+		}
+
+		list_add_tail(&pipeline->node, &path->ppl_list);
+		block_size -= esize;
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+	}
+
+	return path;
+}
+
+static const struct avs_tplg_token_parser path_tmpl_parsers[] = {
+	{
+		.token = AVS_TKN_PATH_TMPL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path_template, id),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static int parse_path_template(struct snd_soc_component *comp,
+			       struct snd_soc_tplg_vendor_array *tuples, u32 block_size,
+			       struct avs_tplg_path_template *template,
+			       const struct avs_tplg_token_parser *tmpl_tokens, u32 num_tmpl_tokens,
+			       const struct avs_tplg_token_parser *path_tokens, u32 num_path_tokens)
+{
+	struct avs_tplg_path *path;
+	u32 offset;
+	int ret;
+
+	/* Path template header MUST be followed by at least one path variant. */
+	ret = avs_tplg_vendor_array_lookup(tuples, block_size,
+					   AVS_TKN_PATH_ID_U32, &offset);
+	if (ret)
+		return ret;
+
+	/* Process header which precedes path variants sections. */
+	ret = avs_parse_tokens(comp, template, tmpl_tokens, num_tmpl_tokens, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	block_size -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+	do {
+		u32 esize;
+
+		ret = avs_tplg_vendor_entry_size(tuples, block_size,
+						 AVS_TKN_PATH_ID_U32, &esize);
+		if (ret)
+			return ret;
+
+		path = avs_tplg_path_create(comp, template, tuples, esize, path_tokens,
+					    num_path_tokens);
+		if (IS_ERR(path)) {
+			dev_err(comp->dev, "parse path failed: %ld\n", PTR_ERR(path));
+			return PTR_ERR(path);
+		}
+
+		list_add_tail(&path->node, &template->path_list);
+		block_size -= esize;
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+	} while (block_size > 0);
+
+	return 0;
+}
+
+static struct avs_tplg_path_template *
+avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *owner,
+			      struct snd_soc_tplg_vendor_array *tuples, u32 block_size)
+{
+	struct avs_tplg_path_template *template;
+	int ret;
+
+	template = devm_kzalloc(comp->card->dev, sizeof(*template), GFP_KERNEL);
+	if (!template)
+		return ERR_PTR(-ENOMEM);
+
+	template->owner = owner; /* Used to access component tplg is assigned to. */
+	INIT_LIST_HEAD(&template->path_list);
+	INIT_LIST_HEAD(&template->node);
+
+	ret = parse_path_template(comp, tuples, block_size, template, path_tmpl_parsers,
+				  ARRAY_SIZE(path_tmpl_parsers), path_parsers,
+				  ARRAY_SIZE(path_parsers));
+	if (ret)
+		return ERR_PTR(ret);
+
+	return template;
+}

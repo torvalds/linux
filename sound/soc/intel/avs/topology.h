@@ -33,6 +33,8 @@ struct avs_tplg {
 	u32 num_pplcfgs;
 	struct avs_tplg_binding *bindings;
 	u32 num_bindings;
+
+	struct list_head path_tmpl_list;
 };
 
 struct avs_tplg_library {
@@ -128,8 +130,33 @@ struct avs_tplg_binding {
 	u8 is_sink;
 };
 
+struct avs_tplg_path_template_id {
+	u32 id;
+	char tplg_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+};
+
+struct avs_tplg_path_template {
+	u32 id;
+
+	struct list_head path_list;
+
+	struct avs_tplg *owner;
+	/* Driver path templates management. */
+	struct list_head node;
+};
+
 struct avs_tplg_path {
 	u32 id;
+
+	/* Path format requirements. */
+	struct avs_audio_format *fe_fmt;
+	struct avs_audio_format *be_fmt;
+
+	struct list_head ppl_list;
+
+	struct avs_tplg_path_template *owner;
+	/* Path template path-variants management. */
+	struct list_head node;
 };
 
 struct avs_tplg_pipeline {
