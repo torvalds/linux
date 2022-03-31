@@ -301,21 +301,14 @@ nfsd_file_put_noref(struct nfsd_file *nf)
 void
 nfsd_file_put(struct nfsd_file *nf)
 {
-	bool is_hashed;
-
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (refcount_read(&nf->nf_ref) > 2 || !nf->nf_file) {
-		nfsd_file_put_noref(nf);
-		return;
-	}
-
-	is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
-	if (!is_hashed) {
+	if (test_bit(NFSD_FILE_HASHED, &nf->nf_flags) == 0) {
 		nfsd_file_flush(nf);
 		nfsd_file_put_noref(nf);
 	} else {
 		nfsd_file_put_noref(nf);
-		nfsd_file_schedule_laundrette();
+		if (nf->nf_file)
+			nfsd_file_schedule_laundrette();
 	}
 	if (atomic_long_read(&nfsd_filecache_count) >= NFSD_FILE_LRU_LIMIT)
 		nfsd_file_gc();
