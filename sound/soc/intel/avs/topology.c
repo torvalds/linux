@@ -6,6 +6,7 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
+#include <linux/firmware.h>
 #include <linux/uuid.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
@@ -13,6 +14,8 @@
 #include <uapi/sound/intel/avs/tokens.h>
 #include "avs.h"
 #include "topology.h"
+
+const struct snd_soc_dai_ops avs_dai_fe_ops;
 
 /* Get pointer to vendor array at the specified offset. */
 #define avs_tplg_vendor_array_at(array, offset) \
@@ -365,26 +368,6 @@ parse_audio_format_bitfield(struct snd_soc_component *comp, void *elem, void *ob
 		audio_format->sample_type = le32_to_cpu(velem->value);
 		break;
 	}
-
-	return 0;
-}
-
-static int parse_link_formatted_string(struct snd_soc_component *comp, void *elem,
-				       void *object, u32 offset)
-{
-	struct snd_soc_tplg_vendor_string_elem *tuple = elem;
-	struct snd_soc_acpi_mach *mach = dev_get_platdata(comp->card->dev);
-	char *val = (char *)((u8 *)object + offset);
-
-	/*
-	 * Dynamic naming - string formats, e.g.: ssp%d - supported only for
-	 * topologies describing single device e.g.: an I2S codec on SSP0.
-	 */
-	if (hweight_long(mach->link_mask) != 1)
-		return avs_parse_string_token(comp, elem, object, offset);
-
-	snprintf(val, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, tuple->string,
-		 __ffs(mach->link_mask));
 
 	return 0;
 }
@@ -945,7 +928,7 @@ static const struct avs_tplg_token_parser binding_parsers[] = {
 		.token = AVS_TKN_BINDING_TARGET_TPLG_NAME_STRING,
 		.type = SND_SOC_TPLG_TUPLE_TYPE_STRING,
 		.offset = offsetof(struct avs_tplg_binding, target_tplg_name),
-		.parse = parse_link_formatted_string,
+		.parse = avs_parse_string_token,
 	},
 	{
 		.token = AVS_TKN_BINDING_TARGET_PATH_TMPL_ID_U32,
@@ -1338,4 +1321,225 @@ avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *o
 		return ERR_PTR(ret);
 
 	return template;
+}
+
+static int avs_widget_load(struct snd_soc_component *comp, int index,
+			   struct snd_soc_dapm_widget *w,
+			   struct snd_soc_tplg_dapm_widget *dw)
+{
+	struct snd_soc_acpi_mach *mach;
+	struct avs_tplg_path_template *template;
+	struct avs_soc_component *acomp = to_avs_soc_component(comp);
+	struct avs_tplg *tplg;
+
+	if (!le32_to_cpu(dw->priv.size))
+		return 0;
+
+	tplg = acomp->tplg;
+	mach = dev_get_platdata(comp->card->dev);
+
+	template = avs_tplg_path_template_create(comp, tplg, dw->priv.array,
+						 le32_to_cpu(dw->priv.size));
+	if (IS_ERR(template)) {
+		dev_err(comp->dev, "widget %s load failed: %ld\n", dw->name,
+			PTR_ERR(template));
+		return PTR_ERR(template);
+	}
+
+	w->priv = template; /* link path information to widget */
+	list_add_tail(&template->node, &tplg->path_tmpl_list);
+	return 0;
+}
+
+static int avs_dai_load(struct snd_soc_component *comp, int index,
+			struct snd_soc_dai_driver *dai_drv, struct snd_soc_tplg_pcm *pcm,
+			struct snd_soc_dai *dai)
+{
+	if (pcm)
+		dai_drv->ops = &avs_dai_fe_ops;
+	return 0;
+}
+
+static int avs_link_load(struct snd_soc_component *comp, int index, struct snd_soc_dai_link *link,
+			 struct snd_soc_tplg_link_config *cfg)
+{
+	if (!link->no_pcm) {
+		/* Stream control handled by IPCs. */
+		link->nonatomic = true;
+
+		/* Open LINK (BE) pipes last and close them first to prevent xruns. */
+		link->trigger[0] = SND_SOC_DPCM_TRIGGER_PRE;
+		link->trigger[1] = SND_SOC_DPCM_TRIGGER_PRE;
+	}
+
+	return 0;
+}
+
+static const struct avs_tplg_token_parser manifest_parsers[] = {
+	{
+		.token = AVS_TKN_MANIFEST_NAME_STRING,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_STRING,
+		.offset = offsetof(struct avs_tplg, name),
+		.parse = avs_parse_string_token,
+	},
+	{
+		.token = AVS_TKN_MANIFEST_VERSION_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg, version),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static int avs_manifest(struct snd_soc_component *comp, int index,
+			struct snd_soc_tplg_manifest *manifest)
+{
+	struct snd_soc_tplg_vendor_array *tuples = manifest->priv.array;
+	struct avs_soc_component *acomp = to_avs_soc_component(comp);
+	size_t remaining = le32_to_cpu(manifest->priv.size);
+	u32 offset;
+	int ret;
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_LIBRARIES_U32, &offset);
+	/* Manifest MUST begin with a header. */
+	if (!ret && !offset)
+		ret = -EINVAL;
+	if (ret) {
+		dev_err(comp->dev, "incorrect manifest format: %d\n", ret);
+		return ret;
+	}
+
+	/* Process header which precedes any of the dictionaries. */
+	ret = avs_parse_tokens(comp, acomp->tplg, manifest_parsers,
+			       ARRAY_SIZE(manifest_parsers), tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_AFMTS_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "audio formats lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Libraries dictionary. */
+	ret = avs_tplg_parse_libraries(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_MODCFGS_BASE_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "modcfgs_base lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Audio formats dictionary. */
+	ret = avs_tplg_parse_audio_formats(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_MODCFGS_EXT_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "modcfgs_ext lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Module configs-base dictionary. */
+	ret = avs_tplg_parse_modcfgs_base(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_PPLCFGS_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "pplcfgs lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Module configs-ext dictionary. */
+	ret = avs_tplg_parse_modcfgs_ext(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_BINDINGS_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "bindings lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Pipeline configs dictionary. */
+	ret = avs_tplg_parse_pplcfgs(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	/* Bindings dictionary. */
+	return avs_tplg_parse_bindings(comp, tuples, remaining);
+}
+
+static struct snd_soc_tplg_ops avs_tplg_ops = {
+	.widget_load		= avs_widget_load,
+	.dai_load		= avs_dai_load,
+	.link_load		= avs_link_load,
+	.manifest		= avs_manifest,
+};
+
+struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp)
+{
+	struct avs_tplg *tplg;
+
+	tplg = devm_kzalloc(comp->card->dev, sizeof(*tplg), GFP_KERNEL);
+	if (!tplg)
+		return NULL;
+
+	tplg->comp = comp;
+	INIT_LIST_HEAD(&tplg->path_tmpl_list);
+
+	return tplg;
+}
+
+int avs_load_topology(struct snd_soc_component *comp, const char *filename)
+{
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, filename, comp->dev);
+	if (ret < 0) {
+		dev_err(comp->dev, "request topology \"%s\" failed: %d\n", filename, ret);
+		return ret;
+	}
+
+	ret = snd_soc_tplg_component_load(comp, &avs_tplg_ops, fw);
+	if (ret < 0)
+		dev_err(comp->dev, "load topology \"%s\" failed: %d\n", filename, ret);
+
+	release_firmware(fw);
+	return ret;
+}
+
+int avs_remove_topology(struct snd_soc_component *comp)
+{
+	snd_soc_tplg_component_remove(comp);
+
+	return 0;
 }

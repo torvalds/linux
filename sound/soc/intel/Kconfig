@@ -214,6 +214,7 @@ config SND_SOC_INTEL_AVS
 	depends on PCI && ACPI
 	depends on COMMON_CLK
 	select SND_SOC_ACPI
+	select SND_SOC_TOPOLOGY
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
 	help

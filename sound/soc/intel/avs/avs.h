@@ -258,4 +258,6 @@ struct avs_soc_component {
 #define to_avs_soc_component(comp) \
 	container_of(comp, struct avs_soc_component, base)
 
+extern const struct snd_soc_dai_ops avs_dai_fe_ops;
+
 #endif /* __SOUND_SOC_INTEL_AVS_H */

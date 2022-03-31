@@ -186,4 +186,9 @@ struct avs_tplg_module {
 	struct list_head node;
 };
 
+struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp);
+
+int avs_load_topology(struct snd_soc_component *comp, const char *filename);
+int avs_remove_topology(struct snd_soc_component *comp);
+
 #endif
