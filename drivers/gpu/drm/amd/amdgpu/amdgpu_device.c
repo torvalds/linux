@@ -2171,7 +2171,8 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 		adev->has_pr3 = parent ? pci_pr3_present(parent) : false;
 	}
 
-	amdgpu_amdkfd_device_probe(adev);
+	if (!adev->enable_mes)
+		amdgpu_amdkfd_device_probe(adev);
 
 	adev->pm.pp_feature = amdgpu_pp_feature_mask;
 	if (amdgpu_sriov_vf(adev) || sched_policy == KFD_SCHED_POLICY_NO_HWS)
@@ -2499,7 +2500,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		goto init_failed;
 
 	/* Don't init kfd if whole hive need to be reset during init */
-	if (!adev->gmc.xgmi.pending_reset)
+	if (!adev->gmc.xgmi.pending_reset &&
+	    !adev->enable_mes)
 		amdgpu_amdkfd_device_init(adev);
 
 	amdgpu_fru_get_product_info(adev);
@@ -2862,7 +2864,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
 		amdgpu_xgmi_remove_device(adev);
 
-	amdgpu_amdkfd_device_fini_sw(adev);
+	if (!adev->enable_mes)
+		amdgpu_amdkfd_device_fini_sw(adev);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.sw)
@@ -4123,7 +4126,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	amdgpu_device_ip_suspend_phase1(adev);
 
-	if (!adev->in_s0ix)
+	if (!adev->in_s0ix && !adev->enable_mes)
 		amdgpu_amdkfd_suspend(adev, adev->in_runpm);
 
 	amdgpu_device_evict_resources(adev);
@@ -4177,7 +4180,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	queue_delayed_work(system_wq, &adev->delayed_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
-	if (!adev->in_s0ix) {
+	if (!adev->in_s0ix && !adev->enable_mes) {
 		r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
 		if (r)
 			return r;
@@ -4460,7 +4463,8 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	int retry_limit = 0;
 
 retry:
-	amdgpu_amdkfd_pre_reset(adev);
+	if (!adev->enable_mes)
+		amdgpu_amdkfd_pre_reset(adev);
 
 	amdgpu_amdkfd_pre_reset(adev);
 
@@ -4498,7 +4502,9 @@ retry:
 	if (!r) {
 		amdgpu_irq_gpu_reset_resume_helper(adev);
 		r = amdgpu_ib_ring_tests(adev);
-		amdgpu_amdkfd_post_reset(adev);
+
+		if (!adev->enable_mes)
+			amdgpu_amdkfd_post_reset(adev);
 	}
 
 error:
@@ -5143,7 +5149,7 @@ int amdgpu_device_gpu_recover_imp(struct amdgpu_device *adev,
 
 		cancel_delayed_work_sync(&tmp_adev->delayed_init_work);
 
-		if (!amdgpu_sriov_vf(tmp_adev))
+		if (!amdgpu_sriov_vf(tmp_adev) && !adev->enable_mes)
 			amdgpu_amdkfd_pre_reset(tmp_adev);
 
 		/*
@@ -5266,7 +5272,8 @@ skip_hw_reset:
 skip_sched_resume:
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		/* unlock kfd: SRIOV would do it separately */
-		if (!need_emergency_restart && !amdgpu_sriov_vf(tmp_adev))
+		if (!need_emergency_restart && !amdgpu_sriov_vf(tmp_adev) &&
+		    !adev->enable_mes)
 			amdgpu_amdkfd_post_reset(tmp_adev);
 
 		/* kfd_post_reset will do nothing if kfd device is not initialized,
