@@ -315,6 +315,7 @@ int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
 {
 	int ret = -EINVAL;
 	int i;
+	unsigned long flags;
 
 	pm_runtime_get_sync(rga_scheduler->dev);
 	pm_stay_awake(rga_scheduler->dev);
@@ -326,6 +327,11 @@ int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
 				goto err_enable_clk;
 		}
 	}
+	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+
+	rga_scheduler->pd_refcount++;
+
+	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
 
 	return 0;
 
@@ -337,14 +343,13 @@ err_enable_clk:
 	pm_relax(rga_scheduler->dev);
 	pm_runtime_put_sync_suspend(rga_scheduler->dev);
 
-	rga_scheduler->pd_refcount++;
-
 	return ret;
 }
 
 int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 {
 	int i;
+	unsigned long flags;
 
 	for (i = rga_scheduler->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(rga_scheduler->clks[i]))
@@ -353,9 +358,38 @@ int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 	pm_relax(rga_scheduler->dev);
 	pm_runtime_put_sync_suspend(rga_scheduler->dev);
 
+	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+
 	rga_scheduler->pd_refcount--;
 
+	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+
 	return 0;
+}
+
+static void rga_power_enable_all(void)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->rga_scheduler[i];
+		ret = rga_power_enable(scheduler);
+		if (ret < 0)
+			pr_err("power enable failed");
+	}
+}
+
+static void rga_power_disable_all(void)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+	int i;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->rga_scheduler[i];
+		rga_power_disable(scheduler);
+	}
 }
 
 #endif //CONFIG_ROCKCHIP_FPGA
@@ -727,12 +761,20 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		break;
 
 	case RGA_IOC_IMPORT_BUFFER:
+		rga_power_enable_all();
+
 		ret = rga_ioctl_import_buffer(arg);
+
+		rga_power_disable_all();
 
 		break;
 
 	case RGA_IOC_RELEASE_BUFFER:
+		rga_power_enable_all();
+
 		ret = rga_ioctl_release_buffer(arg);
+
+		rga_power_disable_all();
 
 		break;
 
