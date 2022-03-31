@@ -202,7 +202,6 @@ static int dw9714_remove(struct i2c_client *client)
 		if (ret) {
 			dev_err(&client->dev,
 				"Failed to disable vcc: %d\n", ret);
-			return ret;
 		}
 	}
 	pm_runtime_set_suspended(&client->dev);
