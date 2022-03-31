@@ -26,6 +26,12 @@ static inline sector_t bucket_remainder(const struct bch_dev *ca, sector_t s)
 	return remainder;
 }
 
+static inline size_t sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s,
+						 u32 *offset)
+{
+	return div_u64_rem(s, ca->mi.bucket_size, offset);
+}
+
 static inline bool bch2_dev_is_online(struct bch_dev *ca)
 {
 	return !percpu_ref_is_zero(&ca->io_ref);
