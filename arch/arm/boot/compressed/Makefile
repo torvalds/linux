@@ -97,6 +97,8 @@ endif
 $(foreach o, $(libfdt_objs) atags_to_fdt.o fdt_check_mem_start.o, \
 	$(eval CFLAGS_$(o) := -I $(srctree)/scripts/dtc/libfdt -fno-stack-protector))
 
+OBJS	+= lib1funcs.o ashldi3.o bswapsdi2.o
+
 targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 		 head.o $(OBJS)
 
@@ -129,8 +131,6 @@ LDFLAGS_vmlinux += --orphan-handling=warn
 endif
 # Next argument is a linker script
 LDFLAGS_vmlinux += -T
-
-OBJS	+= lib1funcs.o ashldi3.o bswapsdi2.o
 
 # We need to prevent any GOTOFF relocs being used with references
 # to symbols in the .bss section since we cannot relocate them
