@@ -2980,7 +2980,6 @@ int security_fs_use(struct selinux_state *state, struct super_block *sb)
 	}
 
 retry:
-	rc = 0;
 	rcu_read_lock();
 	policy = rcu_dereference(state->policy);
 	policydb = &policy->policydb;
