@@ -218,6 +218,40 @@ static bool cxl_mem_raw_command_allowed(u16 opcode)
 	return true;
 }
 
+/**
+ * cxl_payload_from_user_allowed() - Check contents of in_payload.
+ * @opcode: The mailbox command opcode.
+ * @payload_in: Pointer to the input payload passed in from user space.
+ *
+ * Return:
+ *  * true	- payload_in passes check for @opcode.
+ *  * false	- payload_in contains invalid or unsupported values.
+ *
+ * The driver may inspect payload contents before sending a mailbox
+ * command from user space to the device. The intent is to reject
+ * commands with input payloads that are known to be unsafe. This
+ * check is not intended to replace the users careful selection of
+ * mailbox command parameters and makes no guarantee that the user
+ * command will succeed, nor that it is appropriate.
+ *
+ * The specific checks are determined by the opcode.
+ */
+static bool cxl_payload_from_user_allowed(u16 opcode, void *payload_in)
+{
+	switch (opcode) {
+	case CXL_MBOX_OP_SET_PARTITION_INFO: {
+		struct cxl_mbox_set_partition_info *pi = payload_in;
+
+		if (pi->flags && CXL_SET_PARTITION_IMMEDIATE_FLAG)
+			return false;
+		break;
+	}
+	default:
+		break;
+	}
+	return true;
+}
+
 static int cxl_mbox_cmd_ctor(struct cxl_mbox_cmd *mbox,
 			     struct cxl_dev_state *cxlds, u16 opcode,
 			     size_t in_size, size_t out_size, u64 in_payload)
@@ -232,6 +266,13 @@ static int cxl_mbox_cmd_ctor(struct cxl_mbox_cmd *mbox,
 						in_size);
 		if (!mbox->payload_in)
 			return PTR_ERR(mbox->payload_in);
+
+		if (!cxl_payload_from_user_allowed(opcode, mbox->payload_in)) {
+			dev_dbg(cxlds->dev, "%s: input payload not allowed\n",
+				cxl_mem_opcode_to_name(opcode));
+			kvfree(mbox->payload_in);
+			return -EBUSY;
+		}
 	}
 
 	/* Prepare to handle a full payload for variable sized output */
