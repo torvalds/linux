@@ -1991,29 +1991,28 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	void *data)
 {
 	int i, j = 0, valid_extensions = 0;
-	u8 *edid, *new;
-	struct edid *override;
+	struct edid *edid, *new, *override;
 
 	override = drm_get_override_edid(connector);
 	if (override)
 		return override;
 
-	edid = (u8 *)drm_do_get_edid_base_block(connector, get_edid_block, data);
+	edid = drm_do_get_edid_base_block(connector, get_edid_block, data);
 	if (!edid)
 		return NULL;
 
 	/* if there's no extensions or no connector, we're done */
-	valid_extensions = edid[0x7e];
+	valid_extensions = edid->extensions;
 	if (valid_extensions == 0)
-		return (struct edid *)edid;
+		return edid;
 
 	new = krealloc(edid, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
 	if (!new)
 		goto out;
 	edid = new;
 
-	for (j = 1; j <= edid[0x7e]; j++) {
-		u8 *block = edid + j * EDID_LENGTH;
+	for (j = 1; j <= edid->extensions; j++) {
+		void *block = edid + j;
 
 		for (i = 0; i < 4; i++) {
 			if (get_edid_block(data, block, j, EDID_LENGTH))
@@ -2026,35 +2025,35 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 			valid_extensions--;
 	}
 
-	if (valid_extensions != edid[0x7e]) {
-		u8 *base;
+	if (valid_extensions != edid->extensions) {
+		struct edid *dest_block;
 
-		connector_bad_edid(connector, edid, edid[0x7e] + 1);
+		connector_bad_edid(connector, (u8 *)edid, edid->extensions + 1);
 
 		new = kmalloc_array(valid_extensions + 1, EDID_LENGTH,
 				    GFP_KERNEL);
 		if (!new)
 			goto out;
 
-		base = new;
-		for (i = 0; i <= edid[0x7e]; i++) {
-			u8 *block = edid + i * EDID_LENGTH;
+		dest_block = new;
+		for (i = 0; i <= edid->extensions; i++) {
+			void *block = edid + i;
 
 			if (!drm_edid_block_valid(block, i, false, NULL))
 				continue;
 
-			memcpy(base, block, EDID_LENGTH);
-			base += EDID_LENGTH;
+			memcpy(dest_block, block, EDID_LENGTH);
+			dest_block++;
 		}
 
-		new[EDID_LENGTH - 1] += new[0x7e] - valid_extensions;
-		new[0x7e] = valid_extensions;
+		new->checksum += new->extensions - valid_extensions;
+		new->extensions = valid_extensions;
 
 		kfree(edid);
 		edid = new;
 	}
 
-	return (struct edid *)edid;
+	return edid;
 
 out:
 	kfree(edid);
