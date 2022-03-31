@@ -1973,25 +1973,25 @@ static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
 	int *null_edid_counter = connector ? &connector->null_edid_counter : NULL;
 	bool *edid_corrupt = connector ? &connector->edid_corrupt : NULL;
 	void *edid;
-	int i;
+	int try;
 
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (edid == NULL)
 		return NULL;
 
 	/* base block fetch */
-	for (i = 0; i < 4; i++) {
+	for (try = 0; try < 4; try++) {
 		if (get_edid_block(data, edid, 0, EDID_LENGTH))
 			goto out;
 		if (drm_edid_block_valid(edid, 0, false, edid_corrupt))
 			break;
-		if (i == 0 && edid_is_zero(edid, EDID_LENGTH)) {
+		if (try == 0 && edid_is_zero(edid, EDID_LENGTH)) {
 			if (null_edid_counter)
 				(*null_edid_counter)++;
 			goto carp;
 		}
 	}
-	if (i == 4)
+	if (try == 4)
 		goto carp;
 
 	return edid;
@@ -2029,7 +2029,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 			      size_t len),
 	void *data)
 {
-	int i, j = 0, valid_extensions = 0;
+	int j, valid_extensions = 0;
 	struct edid *edid, *new, *override;
 
 	override = drm_get_override_edid(connector);
@@ -2052,20 +2052,22 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 
 	for (j = 1; j <= edid->extensions; j++) {
 		void *block = edid + j;
+		int try;
 
-		for (i = 0; i < 4; i++) {
+		for (try = 0; try < 4; try++) {
 			if (get_edid_block(data, block, j, EDID_LENGTH))
 				goto out;
 			if (drm_edid_block_valid(block, j, false, NULL))
 				break;
 		}
 
-		if (i == 4)
+		if (try == 4)
 			valid_extensions--;
 	}
 
 	if (valid_extensions != edid->extensions) {
 		struct edid *dest_block;
+		int i;
 
 		connector_bad_edid(connector, (u8 *)edid, edid->extensions + 1);
 
