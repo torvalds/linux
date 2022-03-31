@@ -96,6 +96,8 @@ static bool has_table(struct drm_i915_private *i915)
 {
 	if (IS_ALDERLAKE_P(i915))
 		return true;
+	if (IS_DG2(i915))
+		return true;
 
 	return false;
 }
