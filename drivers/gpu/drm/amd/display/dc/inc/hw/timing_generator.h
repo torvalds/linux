@@ -318,6 +318,8 @@ struct timing_generator_funcs {
 			int vmin, int vmax);
 	bool (*validate_vtotal_change_limit)(struct timing_generator *optc,
 			uint32_t vtotal_change_limit);
+
+	void (*init_odm)(struct timing_generator *tg);
 };
 
 #endif
