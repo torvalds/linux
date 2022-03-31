@@ -62,5 +62,10 @@ struct avs_path *avs_path_create(struct avs_dev *adev, u32 dma_id,
 				 struct avs_tplg_path_template *template,
 				 struct snd_pcm_hw_params *fe_params,
 				 struct snd_pcm_hw_params *be_params);
+int avs_path_bind(struct avs_path *path);
+int avs_path_unbind(struct avs_path *path);
+int avs_path_reset(struct avs_path *path);
+int avs_path_pause(struct avs_path *path);
+int avs_path_run(struct avs_path *path, int trigger);
 
 #endif

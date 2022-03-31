@@ -282,3 +282,133 @@ struct avs_path *avs_path_create(struct avs_dev *adev, u32 dma_id,
 
 	return path;
 }
+
+int avs_path_bind(struct avs_path *path)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_dev *adev = path->owner;
+	int ret;
+
+	list_for_each_entry(ppl, &path->ppl_list, node) {
+		struct avs_path_binding *binding;
+
+		list_for_each_entry(binding, &ppl->binding_list, node) {
+			struct avs_path_module *source, *sink;
+
+			source = binding->source;
+			sink = binding->sink;
+
+			ret = avs_ipc_bind(adev, source->module_id,
+					   source->instance_id, sink->module_id,
+					   sink->instance_id, binding->sink_pin,
+					   binding->source_pin);
+			if (ret) {
+				dev_err(adev->dev, "bind path failed: %d\n", ret);
+				return AVS_IPC_RET(ret);
+			}
+		}
+	}
+
+	return 0;
+}
+
+int avs_path_unbind(struct avs_path *path)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_dev *adev = path->owner;
+	int ret;
+
+	list_for_each_entry(ppl, &path->ppl_list, node) {
+		struct avs_path_binding *binding;
+
+		list_for_each_entry(binding, &ppl->binding_list, node) {
+			struct avs_path_module *source, *sink;
+
+			source = binding->source;
+			sink = binding->sink;
+
+			ret = avs_ipc_unbind(adev, source->module_id,
+					     source->instance_id, sink->module_id,
+					     sink->instance_id, binding->sink_pin,
+					     binding->source_pin);
+			if (ret) {
+				dev_err(adev->dev, "unbind path failed: %d\n", ret);
+				return AVS_IPC_RET(ret);
+			}
+		}
+	}
+
+	return 0;
+}
+
+int avs_path_reset(struct avs_path *path)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_dev *adev = path->owner;
+	int ret;
+
+	if (path->state == AVS_PPL_STATE_RESET)
+		return 0;
+
+	list_for_each_entry(ppl, &path->ppl_list, node) {
+		ret = avs_ipc_set_pipeline_state(adev, ppl->instance_id,
+						 AVS_PPL_STATE_RESET);
+		if (ret) {
+			dev_err(adev->dev, "reset path failed: %d\n", ret);
+			path->state = AVS_PPL_STATE_INVALID;
+			return AVS_IPC_RET(ret);
+		}
+	}
+
+	path->state = AVS_PPL_STATE_RESET;
+	return 0;
+}
+
+int avs_path_pause(struct avs_path *path)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_dev *adev = path->owner;
+	int ret;
+
+	if (path->state == AVS_PPL_STATE_PAUSED)
+		return 0;
+
+	list_for_each_entry_reverse(ppl, &path->ppl_list, node) {
+		ret = avs_ipc_set_pipeline_state(adev, ppl->instance_id,
+						 AVS_PPL_STATE_PAUSED);
+		if (ret) {
+			dev_err(adev->dev, "pause path failed: %d\n", ret);
+			path->state = AVS_PPL_STATE_INVALID;
+			return AVS_IPC_RET(ret);
+		}
+	}
+
+	path->state = AVS_PPL_STATE_PAUSED;
+	return 0;
+}
+
+int avs_path_run(struct avs_path *path, int trigger)
+{
+	struct avs_path_pipeline *ppl;
+	struct avs_dev *adev = path->owner;
+	int ret;
+
+	if (path->state == AVS_PPL_STATE_RUNNING && trigger == AVS_TPLG_TRIGGER_AUTO)
+		return 0;
+
+	list_for_each_entry(ppl, &path->ppl_list, node) {
+		if (ppl->template->cfg->trigger != trigger)
+			continue;
+
+		ret = avs_ipc_set_pipeline_state(adev, ppl->instance_id,
+						 AVS_PPL_STATE_RUNNING);
+		if (ret) {
+			dev_err(adev->dev, "run path failed: %d\n", ret);
+			path->state = AVS_PPL_STATE_INVALID;
+			return AVS_IPC_RET(ret);
+		}
+	}
+
+	path->state = AVS_PPL_STATE_RUNNING;
+	return 0;
+}
