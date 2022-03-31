@@ -344,6 +344,7 @@ avs_parse_##name##_ptr(struct snd_soc_component *comp, void *elem, void *object,
 
 AVS_DEFINE_PTR_PARSER(audio_format, struct avs_audio_format, fmts);
 AVS_DEFINE_PTR_PARSER(modcfg_base, struct avs_tplg_modcfg_base, modcfgs_base);
+AVS_DEFINE_PTR_PARSER(modcfg_ext, struct avs_tplg_modcfg_ext, modcfgs_ext);
 
 static int
 parse_audio_format_bitfield(struct snd_soc_component *comp, void *elem, void *object, u32 offset)
@@ -592,4 +593,300 @@ static int avs_tplg_parse_modcfgs_base(struct snd_soc_component *comp,
 				AVS_TKN_MANIFEST_NUM_MODCFGS_BASE_U32,
 				AVS_TKN_MODCFG_BASE_ID_U32,
 				modcfg_base_parsers, ARRAY_SIZE(modcfg_base_parsers));
+}
+
+static const struct avs_tplg_token_parser modcfg_ext_parsers[] = {
+	{
+		.token = AVS_TKN_MODCFG_EXT_TYPE_UUID,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_UUID,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, type),
+		.parse = avs_parse_uuid_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_OUT_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.out_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_FEATURE_MASK_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.feature_mask),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_VINDEX_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.vindex),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_DMA_TYPE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.dma_type),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_DMABUFF_SIZE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.dma_buffer_size),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_CPR_BLOB_FMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, copier.blob_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_MICSEL_OUT_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, micsel.out_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_INTELWOV_CPC_LP_MODE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, wov.cpc_lp_mode),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_SRC_OUT_FREQ_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, src.out_freq),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_MUX_REF_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, mux.ref_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_MUX_OUT_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, mux.out_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_AEC_REF_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, aec.ref_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_AEC_OUT_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, aec.out_fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+	{
+		.token = AVS_TKN_MODCFG_AEC_CPC_LP_MODE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, aec.cpc_lp_mode),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_ASRC_OUT_FREQ_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, asrc.out_freq),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_ASRC_MODE_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, asrc.mode),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_ASRC_DISABLE_JITTER_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, asrc.disable_jitter_buffer),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_OUT_CHAN_CFG_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.out_channel_config),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_SELECT_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients_select),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_0_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[0]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_1_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[1]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_2_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[2]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_3_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[3]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_4_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[4]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_5_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[5]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_6_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[6]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_COEFF_7_S32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.coefficients[7]),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_UPDOWN_MIX_CHAN_MAP_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, updown_mix.channel_map),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_EXT_NUM_INPUT_PINS_U16,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_SHORT,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, generic.num_input_pins),
+		.parse = avs_parse_short_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_EXT_NUM_OUTPUT_PINS_U16,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_SHORT,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, generic.num_output_pins),
+		.parse = avs_parse_short_token,
+	},
+};
+
+static const struct avs_tplg_token_parser pin_format_parsers[] = {
+	{
+		.token = AVS_TKN_PIN_FMT_INDEX_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pin_format, pin_index),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_PIN_FMT_IOBS_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pin_format, iobs),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_PIN_FMT_AFMT_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_pin_format, fmt),
+		.parse = avs_parse_audio_format_ptr,
+	},
+};
+
+static int avs_tplg_parse_modcfg_ext(struct snd_soc_component *comp,
+				     struct avs_tplg_modcfg_ext *cfg,
+				     struct snd_soc_tplg_vendor_array *tuples,
+				     u32 block_size)
+{
+	u32 esize;
+	int ret;
+
+	/* See where pin block starts. */
+	ret = avs_tplg_vendor_entry_size(tuples, block_size,
+					 AVS_TKN_PIN_FMT_INDEX_U32, &esize);
+	if (ret)
+		return ret;
+
+	ret = avs_parse_tokens(comp, cfg, modcfg_ext_parsers,
+			       ARRAY_SIZE(modcfg_ext_parsers), tuples, esize);
+	if (ret)
+		return ret;
+
+	block_size -= esize;
+	/* Parse trailing in/out pin formats if any. */
+	if (block_size) {
+		struct avs_tplg_pin_format *pins;
+		u32 num_pins;
+
+		num_pins = cfg->generic.num_input_pins + cfg->generic.num_output_pins;
+		if (!num_pins)
+			return -EINVAL;
+
+		pins = devm_kcalloc(comp->card->dev, num_pins, sizeof(*pins), GFP_KERNEL);
+		if (!pins)
+			return -ENOMEM;
+
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+		ret = parse_dictionary_entries(comp, tuples, block_size,
+					       pins, num_pins, sizeof(*pins),
+					       AVS_TKN_PIN_FMT_INDEX_U32,
+					       pin_format_parsers,
+					       ARRAY_SIZE(pin_format_parsers));
+		if (ret)
+			return ret;
+		cfg->generic.pin_fmts = pins;
+	}
+
+	return 0;
+}
+
+static int avs_tplg_parse_modcfgs_ext(struct snd_soc_component *comp,
+				      struct snd_soc_tplg_vendor_array *tuples,
+				      u32 block_size)
+{
+	struct avs_soc_component *acomp = to_avs_soc_component(comp);
+	struct avs_tplg *tplg = acomp->tplg;
+	int ret, i;
+
+	ret = parse_dictionary_header(comp, tuples, (void **)&tplg->modcfgs_ext,
+				      &tplg->num_modcfgs_ext,
+				      sizeof(*tplg->modcfgs_ext),
+				      AVS_TKN_MANIFEST_NUM_MODCFGS_EXT_U32);
+	if (ret)
+		return ret;
+
+	block_size -= le32_to_cpu(tuples->size);
+	/* With header parsed, move on to parsing entries. */
+	tuples = avs_tplg_vendor_array_next(tuples);
+
+	for (i = 0; i < tplg->num_modcfgs_ext; i++) {
+		struct avs_tplg_modcfg_ext *cfg = &tplg->modcfgs_ext[i];
+		u32 esize;
+
+		ret = avs_tplg_vendor_entry_size(tuples, block_size,
+						 AVS_TKN_MODCFG_EXT_ID_U32, &esize);
+		if (ret)
+			return ret;
+
+		ret = avs_tplg_parse_modcfg_ext(comp, cfg, tuples, esize);
+		if (ret)
+			return ret;
+
+		block_size -= esize;
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+	}
+
+	return 0;
 }
