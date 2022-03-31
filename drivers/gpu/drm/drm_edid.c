@@ -1823,6 +1823,33 @@ bool drm_edid_is_valid(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_edid_is_valid);
 
+static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
+					       int valid_extensions)
+{
+	struct edid *new, *dest_block;
+	int i;
+
+	new = kmalloc_array(valid_extensions + 1, EDID_LENGTH, GFP_KERNEL);
+	if (!new)
+		goto out;
+
+	dest_block = new;
+	for (i = 0; i <= edid->extensions; i++) {
+		const void *block = edid + i;
+
+		if (edid_block_valid(block, i == 0))
+			memcpy(dest_block++, block, EDID_LENGTH);
+	}
+
+	new->checksum += new->extensions - valid_extensions;
+	new->extensions = valid_extensions;
+
+out:
+	kfree(edid);
+
+	return new;
+}
+
 #define DDC_SEGMENT_ADDR 0x30
 /**
  * drm_do_probe_ddc_edid() - get EDID information via I2C
@@ -2072,32 +2099,9 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	}
 
 	if (valid_extensions != edid->extensions) {
-		struct edid *dest_block;
-		int i;
-
 		connector_bad_edid(connector, (u8 *)edid, edid->extensions + 1);
 
-		new = kmalloc_array(valid_extensions + 1, EDID_LENGTH,
-				    GFP_KERNEL);
-		if (!new)
-			goto out;
-
-		dest_block = new;
-		for (i = 0; i <= edid->extensions; i++) {
-			void *block = edid + i;
-
-			if (!edid_block_valid(block, i == 0))
-				continue;
-
-			memcpy(dest_block, block, EDID_LENGTH);
-			dest_block++;
-		}
-
-		new->checksum += new->extensions - valid_extensions;
-		new->extensions = valid_extensions;
-
-		kfree(edid);
-		edid = new;
+		edid = edid_filter_invalid_blocks(edid, valid_extensions);
 	}
 
 	return edid;
