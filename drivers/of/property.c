@@ -1465,6 +1465,15 @@ static int of_link_property(struct device_node *con_np, const char *prop_name)
 	return 0;
 }
 
+static void __iomem *of_fwnode_iomap(struct fwnode_handle *fwnode, int index)
+{
+#ifdef CONFIG_OF_ADDRESS
+	return of_iomap(to_of_node(fwnode), index);
+#else
+	return NULL;
+#endif
+}
+
 static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 {
 	struct property *p;
@@ -1502,6 +1511,7 @@ const struct fwnode_operations of_fwnode_ops = {
 	.graph_get_remote_endpoint = of_fwnode_graph_get_remote_endpoint,
 	.graph_get_port_parent = of_fwnode_graph_get_port_parent,
 	.graph_parse_endpoint = of_fwnode_graph_parse_endpoint,
+	.iomap = of_fwnode_iomap,
 	.add_links = of_fwnode_add_links,
 };
 EXPORT_SYMBOL_GPL(of_fwnode_ops);
