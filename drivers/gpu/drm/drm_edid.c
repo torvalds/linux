@@ -1842,8 +1842,8 @@ static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
 			memcpy(dest_block++, block, EDID_LENGTH);
 	}
 
-	new->checksum += new->extensions - valid_extensions;
 	new->extensions = valid_extensions;
+	new->checksum = edid_block_compute_checksum(new);
 
 out:
 	kfree(edid);
