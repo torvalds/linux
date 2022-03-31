@@ -771,6 +771,9 @@ void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 
 	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	WREG32(SOC15_REG_OFFSET(GC, 0, regSPI_GDBG_TRAP_DATA0), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, regSPI_GDBG_TRAP_DATA1), 0);
 }
 
 void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev)
