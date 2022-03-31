@@ -61,60 +61,6 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 	return str[drrs_type];
 }
 
-static bool can_enable_drrs(struct intel_connector *connector,
-			    const struct intel_crtc_state *pipe_config,
-			    const struct drm_display_mode *downclock_mode)
-{
-	if (pipe_config->vrr.enable)
-		return false;
-
-	/*
-	 * DRRS and PSR can't be enable together, so giving preference to PSR
-	 * as it allows more power-savings by complete shutting down display,
-	 * so to guarantee this, intel_drrs_compute_config() must be called
-	 * after intel_psr_compute_config().
-	 */
-	if (pipe_config->has_psr)
-		return false;
-
-	return downclock_mode &&
-		intel_panel_drrs_type(connector) == DRRS_TYPE_SEAMLESS;
-}
-
-void
-intel_drrs_compute_config(struct intel_connector *connector,
-			  struct intel_crtc_state *pipe_config,
-			  int output_bpp, bool constant_n)
-{
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	const struct drm_display_mode *downclock_mode =
-		intel_panel_downclock_mode(connector, &pipe_config->hw.adjusted_mode);
-	int pixel_clock;
-
-	if (!can_enable_drrs(connector, pipe_config, downclock_mode)) {
-		if (intel_cpu_transcoder_has_m2_n2(i915, pipe_config->cpu_transcoder))
-			intel_zero_m_n(&pipe_config->dp_m2_n2);
-		return;
-	}
-
-	if (IS_IRONLAKE(i915) || IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915))
-		pipe_config->msa_timing_delay = i915->vbt.edp.drrs_msa_timing_delay;
-
-	pipe_config->has_drrs = true;
-
-	pixel_clock = downclock_mode->clock;
-	if (pipe_config->splitter.enable)
-		pixel_clock /= pipe_config->splitter.link_count;
-
-	intel_link_compute_m_n(output_bpp, pipe_config->lane_count, pixel_clock,
-			       pipe_config->port_clock, &pipe_config->dp_m2_n2,
-			       constant_n, pipe_config->fec_enable);
-
-	/* FIXME: abstract this better */
-	if (pipe_config->splitter.enable)
-		pipe_config->dp_m2_n2.data_m *= pipe_config->splitter.link_count;
-}
-
 static void
 intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 				     enum drrs_refresh_rate refresh_rate)

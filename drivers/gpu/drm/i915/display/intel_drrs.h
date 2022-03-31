@@ -23,9 +23,6 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 			   unsigned int frontbuffer_bits);
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
 		      unsigned int frontbuffer_bits);
-void intel_drrs_compute_config(struct intel_connector *connector,
-			       struct intel_crtc_state *pipe_config,
-			       int output_bpp, bool constant_n);
 void intel_crtc_drrs_init(struct intel_crtc *crtc);
 
 #endif /* __INTEL_DRRS_H__ */
