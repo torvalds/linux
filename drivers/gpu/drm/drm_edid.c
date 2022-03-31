@@ -1580,13 +1580,15 @@ static const u8 edid_header[] = {
  *
  * Return: 8 if the header is perfect, down to 0 if it's totally wrong.
  */
-int drm_edid_header_is_valid(const u8 *raw_edid)
+int drm_edid_header_is_valid(const void *_edid)
 {
+	const struct edid *edid = _edid;
 	int i, score = 0;
 
-	for (i = 0; i < sizeof(edid_header); i++)
-		if (raw_edid[i] == edid_header[i])
+	for (i = 0; i < sizeof(edid_header); i++) {
+		if (edid->header[i] == edid_header[i])
 			score++;
+	}
 
 	return score;
 }
