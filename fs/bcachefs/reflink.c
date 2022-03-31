@@ -98,6 +98,24 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 	return l.v->refcount == r.v->refcount && bch2_extent_merge(c, _l, _r);
 }
 
+int bch2_trans_mark_reflink_v(struct btree_trans *trans,
+			      struct bkey_s_c old, struct bkey_i *new,
+			      unsigned flags)
+{
+	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
+		struct bkey_i_reflink_v *r = bkey_i_to_reflink_v(new);
+
+		if (!r->v.refcount) {
+			r->k.type = KEY_TYPE_deleted;
+			r->k.size = 0;
+			set_bkey_val_u64s(&r->k, 0);
+			return 0;
+		}
+	}
+
+	return bch2_trans_mark_extent(trans, old, new, flags);
+}
+
 /* indirect inline data */
 
 const char *bch2_indirect_inline_data_invalid(const struct bch_fs *c,
@@ -117,6 +135,24 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 	pr_buf(out, "refcount %llu datalen %u: %*phN",
 	       le64_to_cpu(d.v->refcount), datalen,
 	       min(datalen, 32U), d.v->data);
+}
+
+int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
+			      struct bkey_s_c old, struct bkey_i *new,
+			      unsigned flags)
+{
+	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
+		struct bkey_i_indirect_inline_data *r =
+			bkey_i_to_indirect_inline_data(new);
+
+		if (!r->v.refcount) {
+			r->k.type = KEY_TYPE_deleted;
+			r->k.size = 0;
+			set_bkey_val_u64s(&r->k, 0);
+		}
+	}
+
+	return 0;
 }
 
 static int bch2_make_extent_indirect(struct btree_trans *trans,

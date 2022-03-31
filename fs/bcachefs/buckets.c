@@ -1798,11 +1798,6 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 
 	le64_add_cpu(refcount, add);
 
-	if (!*refcount) {
-		n->k.type = KEY_TYPE_deleted;
-		set_bkey_val_u64s(&n->k, 0);
-	}
-
 	bch2_btree_iter_set_pos_to_extent_start(&iter);
 	ret = bch2_trans_update(trans, &iter, n, 0);
 	if (ret)
