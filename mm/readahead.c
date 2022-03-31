@@ -142,8 +142,7 @@ file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 }
 EXPORT_SYMBOL_GPL(file_ra_state_init);
 
-static void read_pages(struct readahead_control *rac, struct list_head *pages,
-		bool skip_page)
+static void read_pages(struct readahead_control *rac, bool skip_page)
 {
 	const struct address_space_operations *aops = rac->mapping->a_ops;
 	struct page *page;
@@ -179,7 +178,6 @@ static void read_pages(struct readahead_control *rac, struct list_head *pages,
 
 	blk_finish_plug(&plug);
 
-	BUG_ON(pages && !list_empty(pages));
 	BUG_ON(readahead_count(rac));
 
 out:
@@ -206,7 +204,6 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 {
 	struct address_space *mapping = ractl->mapping;
 	unsigned long index = readahead_index(ractl);
-	LIST_HEAD(page_pool);
 	gfp_t gfp_mask = readahead_gfp_mask(mapping);
 	unsigned long i;
 
@@ -238,7 +235,7 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 			 * have a stable reference to this page, and it's
 			 * not worth getting one just for that.
 			 */
-			read_pages(ractl, &page_pool, true);
+			read_pages(ractl, true);
 			i = ractl->_index + ractl->_nr_pages - index - 1;
 			continue;
 		}
@@ -249,7 +246,7 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 		if (filemap_add_folio(mapping, folio, index + i,
 					gfp_mask) < 0) {
 			folio_put(folio);
-			read_pages(ractl, &page_pool, true);
+			read_pages(ractl, true);
 			i = ractl->_index + ractl->_nr_pages - index - 1;
 			continue;
 		}
@@ -263,7 +260,7 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 * uptodate then the caller will launch readpage again, and
 	 * will then handle the error.
 	 */
-	read_pages(ractl, &page_pool, false);
+	read_pages(ractl, false);
 	filemap_invalidate_unlock_shared(mapping);
 	memalloc_nofs_restore(nofs);
 }
@@ -537,7 +534,7 @@ void page_cache_ra_order(struct readahead_control *ractl,
 		ra->async_size += index - limit - 1;
 	}
 
-	read_pages(ractl, NULL, false);
+	read_pages(ractl, false);
 
 	/*
 	 * If there were already pages in the page cache, then we may have
