@@ -4190,7 +4190,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 static void rkcif_attach_sync_mode(struct rkcif_hw *hw)
 {
 	struct rkcif_device *dev;
-	int i = 0;
+	int i = 0, j = 0;
 	int ret = 0;
 	int sync_type = 0;
 	int count = 0;
@@ -4201,10 +4201,21 @@ static void rkcif_attach_sync_mode(struct rkcif_hw *hw)
 	memset(&hw->sync_config, 0, sizeof(struct rkcif_multi_sync_config));
 	for (i = 0; i < hw->dev_num; i++) {
 		dev = hw->cif_dev[i];
-		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
-				       core, ioctl,
-				       RKMODULE_GET_SYNC_MODE,
-				       &sync_type);
+		if (dev->sditf_cnt == 1) {
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					core, ioctl,
+					RKMODULE_GET_SYNC_MODE,
+					&sync_type);
+		} else {
+			for (j = 0; j < dev->sditf_cnt; j++) {
+				ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
+						core, ioctl,
+						RKMODULE_GET_SYNC_MODE,
+						&sync_type);
+				if (sync_type)
+					break;
+			}
+		}
 		if (!ret) {
 			if (sync_type == EXTERNAL_MASTER_MODE) {
 				count = hw->sync_config.ext_master.count;
