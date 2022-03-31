@@ -386,9 +386,10 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	if (vc4->hvs->hvs5) {
+		unsigned long state_rate = max(old_hvs_state->core_clock_rate,
+					       new_hvs_state->core_clock_rate);
 		unsigned long core_rate = max_t(unsigned long,
-						500000000,
-						new_hvs_state->core_clock_rate);
+						500000000, state_rate);
 
 		drm_dbg(dev, "Raising the core clock at %lu Hz\n", core_rate);
 
