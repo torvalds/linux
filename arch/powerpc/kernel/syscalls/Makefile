@@ -2,8 +2,7 @@
 kapi := arch/$(SRCARCH)/include/generated/asm
 uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 
-_dummy := $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')	\
-	  $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)')
+$(shell mkdir -p $(uapi) $(kapi))
 
 syscall := $(src)/syscall.tbl
 syshdr := $(srctree)/scripts/syscallhdr.sh

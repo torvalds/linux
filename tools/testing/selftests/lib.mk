@@ -1,7 +1,13 @@
 # This mimics the top-level Makefile. We do it explicitly here so that this
 # Makefile can operate with or without the kbuild infrastructure.
 ifneq ($(LLVM),)
-CC := clang
+ifneq ($(filter %/,$(LLVM)),)
+LLVM_PREFIX := $(LLVM)
+else ifneq ($(filter -%,$(LLVM)),)
+LLVM_SUFFIX := $(LLVM)
+endif
+
+CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
 else
 CC := $(CROSS_COMPILE)gcc
 endif
