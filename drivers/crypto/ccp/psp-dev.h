@@ -45,6 +45,8 @@ struct psp_device {
 
 	void *sev_data;
 	void *tee_data;
+
+	unsigned int capability;
 };
 
 void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
@@ -56,5 +58,8 @@ void psp_set_tee_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
 void psp_clear_tee_irq_handler(struct psp_device *psp);
 
 struct psp_device *psp_get_master_device(void);
+
+#define PSP_CAPABILITY_SEV			BIT(0)
+#define PSP_CAPABILITY_TEE			BIT(1)
 
 #endif /* __PSP_DEV_H */

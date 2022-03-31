@@ -70,17 +70,17 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 	 */
 	if (val == 0xffffffff) {
 		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
-		return 0;
+		return -ENODEV;
 	}
+	psp->capability = val;
 
-	return val;
+	return 0;
 }
 
-static int psp_check_sev_support(struct psp_device *psp,
-				 unsigned int capability)
+static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
-	if (!(capability & 1)) {
+	if (!(psp->capability & PSP_CAPABILITY_SEV)) {
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
@@ -88,11 +88,10 @@ static int psp_check_sev_support(struct psp_device *psp,
 	return 0;
 }
 
-static int psp_check_tee_support(struct psp_device *psp,
-				 unsigned int capability)
+static int psp_check_tee_support(struct psp_device *psp)
 {
 	/* Check if device supports TEE feature */
-	if (!(capability & 2)) {
+	if (!(psp->capability & PSP_CAPABILITY_TEE)) {
 		dev_dbg(psp->dev, "psp does not support TEE\n");
 		return -ENODEV;
 	}
@@ -100,11 +99,10 @@ static int psp_check_tee_support(struct psp_device *psp,
 	return 0;
 }
 
-static int psp_check_support(struct psp_device *psp,
-			     unsigned int capability)
+static int psp_check_support(struct psp_device *psp)
 {
-	int sev_support = psp_check_sev_support(psp, capability);
-	int tee_support = psp_check_tee_support(psp, capability);
+	int sev_support = psp_check_sev_support(psp);
+	int tee_support = psp_check_tee_support(psp);
 
 	/* Return error if device neither supports SEV nor TEE */
 	if (sev_support && tee_support)
@@ -113,17 +111,17 @@ static int psp_check_support(struct psp_device *psp,
 	return 0;
 }
 
-static int psp_init(struct psp_device *psp, unsigned int capability)
+static int psp_init(struct psp_device *psp)
 {
 	int ret;
 
-	if (!psp_check_sev_support(psp, capability)) {
+	if (!psp_check_sev_support(psp)) {
 		ret = sev_dev_init(psp);
 		if (ret)
 			return ret;
 	}
 
-	if (!psp_check_tee_support(psp, capability)) {
+	if (!psp_check_tee_support(psp)) {
 		ret = tee_dev_init(psp);
 		if (ret)
 			return ret;
@@ -136,7 +134,6 @@ int psp_dev_init(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
 	struct psp_device *psp;
-	unsigned int capability;
 	int ret;
 
 	ret = -ENOMEM;
@@ -155,11 +152,11 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->io_regs = sp->io_map;
 
-	capability = psp_get_capability(psp);
-	if (!capability)
+	ret = psp_get_capability(psp);
+	if (ret)
 		goto e_disable;
 
-	ret = psp_check_support(psp, capability);
+	ret = psp_check_support(psp);
 	if (ret)
 		goto e_disable;
 
@@ -174,7 +171,7 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ret = psp_init(psp, capability);
+	ret = psp_init(psp);
 	if (ret)
 		goto e_irq;
 
