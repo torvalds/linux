@@ -327,7 +327,7 @@ sub output_rest {
 		my @filepath = split / /, $data{$what}->{filepath};
 
 		if ($enable_lineno) {
-			printf "#define LINENO %s%s#%s\n\n",
+			printf ".. LINENO %s%s#%s\n\n",
 			       $prefix, $file[0],
 			       $data{$what}->{line_no};
 		}
@@ -1023,7 +1023,7 @@ logic (B<--no-rst-source>).
 
 =item B<--enable-lineno>
 
-Enable output of #define LINENO lines.
+Enable output of .. LINENO lines.
 
 =item B<--debug> I<debug level>
 

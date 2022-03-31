@@ -211,9 +211,6 @@ raw_spinlock_t and spinlock_t
 raw_spinlock_t
 --------------
 
-raw_spinlock_t is a strict spinning lock implementation regardless of the
-kernel configuration including PREEMPT_RT enabled kernels.
-
 raw_spinlock_t is a strict spinning lock implementation in all kernels,
 including PREEMPT_RT kernels.  Use raw_spinlock_t only in real critical
 core code, low-level interrupt handling and places where disabling
