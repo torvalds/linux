@@ -1577,7 +1577,7 @@ static void __ceph_flush_snaps(struct ceph_inode_info *ci,
 
 	while (first_tid <= last_tid) {
 		struct ceph_cap *cap = ci->i_auth_cap;
-		struct ceph_cap_flush *cf;
+		struct ceph_cap_flush *cf = NULL, *iter;
 		int ret;
 
 		if (!(cap && cap->session == session)) {
@@ -1587,8 +1587,9 @@ static void __ceph_flush_snaps(struct ceph_inode_info *ci,
 		}
 
 		ret = -ENOENT;
-		list_for_each_entry(cf, &ci->i_cap_flush_list, i_list) {
-			if (cf->tid >= first_tid) {
+		list_for_each_entry(iter, &ci->i_cap_flush_list, i_list) {
+			if (iter->tid >= first_tid) {
+				cf = iter;
 				ret = 0;
 				break;
 			}
