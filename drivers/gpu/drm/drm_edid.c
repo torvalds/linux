@@ -1597,25 +1597,25 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
-static int drm_edid_block_checksum(const u8 *raw_edid)
+static int edid_block_compute_checksum(const void *_block)
 {
+	const u8 *block = _block;
 	int i;
 	u8 csum = 0, crc = 0;
 
 	for (i = 0; i < EDID_LENGTH - 1; i++)
-		csum += raw_edid[i];
+		csum += block[i];
 
 	crc = 0x100 - csum;
 
 	return crc;
 }
 
-static bool drm_edid_block_checksum_diff(const u8 *raw_edid, u8 real_checksum)
+static int edid_block_get_checksum(const void *_block)
 {
-	if (raw_edid[EDID_LENGTH - 1] != real_checksum)
-		return true;
-	else
-		return false;
+	const struct edid *block = _block;
+
+	return block->checksum;
 }
 
 static bool drm_edid_is_zero(const u8 *in_edid, int length)
@@ -1704,8 +1704,8 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 		}
 	}
 
-	csum = drm_edid_block_checksum(raw_edid);
-	if (drm_edid_block_checksum_diff(raw_edid, csum)) {
+	csum = edid_block_compute_checksum(raw_edid);
+	if (csum != edid_block_get_checksum(raw_edid)) {
 		if (edid_corrupt)
 			*edid_corrupt = true;
 
@@ -1859,7 +1859,7 @@ static void connector_bad_edid(struct drm_connector *connector,
 	/* Calculate real checksum for the last edid extension block data */
 	if (last_block < num_blocks)
 		connector->real_edid_checksum =
-			drm_edid_block_checksum(edid + last_block * EDID_LENGTH);
+			edid_block_compute_checksum(edid + last_block * EDID_LENGTH);
 
 	if (connector->bad_edid_counter++ && !drm_debug_enabled(DRM_UT_KMS))
 		return;
