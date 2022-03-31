@@ -207,6 +207,81 @@ static bool cxl_mem_raw_command_allowed(u16 opcode)
 	return true;
 }
 
+static int cxl_to_mem_cmd_raw(struct cxl_mem_command *mem_cmd,
+			      const struct cxl_send_command *send_cmd,
+			      struct cxl_dev_state *cxlds)
+{
+	if (send_cmd->raw.rsvd)
+		return -EINVAL;
+
+	/*
+	 * Unlike supported commands, the output size of RAW commands
+	 * gets passed along without further checking, so it must be
+	 * validated here.
+	 */
+	if (send_cmd->out.size > cxlds->payload_size)
+		return -EINVAL;
+
+	if (!cxl_mem_raw_command_allowed(send_cmd->raw.opcode))
+		return -EPERM;
+
+	*mem_cmd = (struct cxl_mem_command) {
+		.info = {
+			.id = CXL_MEM_COMMAND_ID_RAW,
+			.size_in = send_cmd->in.size,
+			.size_out = send_cmd->out.size,
+		},
+		.opcode = send_cmd->raw.opcode
+	};
+
+	return 0;
+}
+
+static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
+			  const struct cxl_send_command *send_cmd,
+			  struct cxl_dev_state *cxlds)
+{
+	struct cxl_mem_command *c = &cxl_mem_commands[send_cmd->id];
+	const struct cxl_command_info *info = &c->info;
+
+	if (send_cmd->flags & ~CXL_MEM_COMMAND_FLAG_MASK)
+		return -EINVAL;
+
+	if (send_cmd->rsvd)
+		return -EINVAL;
+
+	if (send_cmd->in.rsvd || send_cmd->out.rsvd)
+		return -EINVAL;
+
+	/* Check that the command is enabled for hardware */
+	if (!test_bit(info->id, cxlds->enabled_cmds))
+		return -ENOTTY;
+
+	/* Check that the command is not claimed for exclusive kernel use */
+	if (test_bit(info->id, cxlds->exclusive_cmds))
+		return -EBUSY;
+
+	/* Check the input buffer is the expected size */
+	if (info->size_in >= 0 && info->size_in != send_cmd->in.size)
+		return -ENOMEM;
+
+	/* Check the output buffer is at least large enough */
+	if (info->size_out >= 0 && send_cmd->out.size < info->size_out)
+		return -ENOMEM;
+
+	*mem_cmd = (struct cxl_mem_command) {
+		.info = {
+			.id = info->id,
+			.flags = info->flags,
+			.size_in = send_cmd->in.size,
+			.size_out = send_cmd->out.size,
+		},
+		.opcode = c->opcode
+	};
+
+	return 0;
+}
+
 /**
  * cxl_validate_cmd_from_user() - Check fields for CXL_MEM_SEND_COMMAND.
  * @cxlds: The device data for the operation
@@ -230,9 +305,6 @@ static int cxl_validate_cmd_from_user(struct cxl_dev_state *cxlds,
 				      const struct cxl_send_command *send_cmd,
 				      struct cxl_mem_command *out_cmd)
 {
-	const struct cxl_command_info *info;
-	struct cxl_mem_command *c;
-
 	if (send_cmd->id == 0 || send_cmd->id >= CXL_MEM_COMMAND_ID_MAX)
 		return -ENOTTY;
 
@@ -244,78 +316,11 @@ static int cxl_validate_cmd_from_user(struct cxl_dev_state *cxlds,
 	if (send_cmd->in.size > cxlds->payload_size)
 		return -EINVAL;
 
-	/*
-	 * Checks are bypassed for raw commands but a WARN/taint will occur
-	 * later in the callchain
-	 */
-	if (send_cmd->id == CXL_MEM_COMMAND_ID_RAW) {
-		const struct cxl_mem_command temp = {
-			.info = {
-				.id = CXL_MEM_COMMAND_ID_RAW,
-				.flags = 0,
-				.size_in = send_cmd->in.size,
-				.size_out = send_cmd->out.size,
-			},
-			.opcode = send_cmd->raw.opcode
-		};
-
-		if (send_cmd->raw.rsvd)
-			return -EINVAL;
-
-		/*
-		 * Unlike supported commands, the output size of RAW commands
-		 * gets passed along without further checking, so it must be
-		 * validated here.
-		 */
-		if (send_cmd->out.size > cxlds->payload_size)
-			return -EINVAL;
-
-		if (!cxl_mem_raw_command_allowed(send_cmd->raw.opcode))
-			return -EPERM;
-
-		memcpy(out_cmd, &temp, sizeof(temp));
-
-		return 0;
-	}
-
-	if (send_cmd->flags & ~CXL_MEM_COMMAND_FLAG_MASK)
-		return -EINVAL;
-
-	if (send_cmd->rsvd)
-		return -EINVAL;
-
-	if (send_cmd->in.rsvd || send_cmd->out.rsvd)
-		return -EINVAL;
-
-	/* Convert user's command into the internal representation */
-	c = &cxl_mem_commands[send_cmd->id];
-	info = &c->info;
-
-	/* Check that the command is enabled for hardware */
-	if (!test_bit(info->id, cxlds->enabled_cmds))
-		return -ENOTTY;
-
-	/* Check that the command is not claimed for exclusive kernel use */
-	if (test_bit(info->id, cxlds->exclusive_cmds))
-		return -EBUSY;
-
-	/* Check the input buffer is the expected size */
-	if (info->size_in >= 0 && info->size_in != send_cmd->in.size)
-		return -ENOMEM;
-
-	/* Check the output buffer is at least large enough */
-	if (info->size_out >= 0 && send_cmd->out.size < info->size_out)
-		return -ENOMEM;
-
-	memcpy(out_cmd, c, sizeof(*c));
-	out_cmd->info.size_in = send_cmd->in.size;
-	/*
-	 * XXX: out_cmd->info.size_out will be controlled by the driver, and the
-	 * specified number of bytes @send_cmd->out.size will be copied back out
-	 * to userspace.
-	 */
-
-	return 0;
+	/* Sanitize and construct a cxl_mem_command */
+	if (send_cmd->id == CXL_MEM_COMMAND_ID_RAW)
+		return cxl_to_mem_cmd_raw(out_cmd, send_cmd, cxlds);
+	else
+		return cxl_to_mem_cmd(out_cmd, send_cmd, cxlds);
 }
 
 int cxl_query_cmd(struct cxl_memdev *cxlmd,
