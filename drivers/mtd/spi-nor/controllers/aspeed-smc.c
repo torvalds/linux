@@ -781,6 +781,18 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 			 chip->cs, size >> 20);
 	}
 
+	/*
+	 * The decoding size of AST2600 SPI controller should set at
+	 * least 2MB.
+	 */
+	if ((controller->info == &spi_2600_info ||
+	     controller->info == &fmc_2600_info) && size < SZ_2M) {
+		size = SZ_2M;
+		dev_info(chip->nor.dev,
+			 "CE%d window resized to %dMB (AST2600 Decoding)",
+			 chip->cs, size >> 20);
+	}
+
 	ahb_base_phy = controller->ahb_base_phy;
 
 	/*
