@@ -260,6 +260,8 @@ struct amdgpu_gmc {
 
 	/* MALL size */
 	u64 mall_size;
+	/* number of UMC instances */
+	int num_umc;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
