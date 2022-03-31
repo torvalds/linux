@@ -3620,9 +3620,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		case 0x06:
 			{
-				u32	ODMFlag;
-				GetHwReg8188EU(padapter, HW_VAR_DM_FLAG, (u8 *)(&ODMFlag));
-				ODMFlag = (u32)(0x0f & arg);
+				u32 ODMFlag = (u32)(0x0f & arg);
 				SetHwReg8188EU(padapter, HW_VAR_DM_FLAG, (u8 *)(&ODMFlag));
 			}
 			break;
