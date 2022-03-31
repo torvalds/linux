@@ -274,7 +274,7 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 	ktime_t now = ktime_get();
 
 	for (i = 0; i < rga->num_of_scheduler; i++) {
-		scheduler = rga->rga_scheduler[i];
+		scheduler = rga->scheduler[i];
 
 		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -311,58 +311,58 @@ static void rga_cancel_timer(void)
 }
 
 #ifndef CONFIG_ROCKCHIP_FPGA
-int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
+int rga_power_enable(struct rga_scheduler_t *scheduler)
 {
 	int ret = -EINVAL;
 	int i;
 	unsigned long flags;
 
-	pm_runtime_get_sync(rga_scheduler->dev);
-	pm_stay_awake(rga_scheduler->dev);
+	pm_runtime_get_sync(scheduler->dev);
+	pm_stay_awake(scheduler->dev);
 
-	for (i = 0; i < rga_scheduler->num_clks; i++) {
-		if (!IS_ERR(rga_scheduler->clks[i])) {
-			ret = clk_prepare_enable(rga_scheduler->clks[i]);
+	for (i = 0; i < scheduler->num_clks; i++) {
+		if (!IS_ERR(scheduler->clks[i])) {
+			ret = clk_prepare_enable(scheduler->clks[i]);
 			if (ret < 0)
 				goto err_enable_clk;
 		}
 	}
-	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	rga_scheduler->pd_refcount++;
+	scheduler->pd_refcount++;
 
-	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	return 0;
 
 err_enable_clk:
 	for (--i; i >= 0; --i)
-		if (!IS_ERR(rga_scheduler->clks[i]))
-			clk_disable_unprepare(rga_scheduler->clks[i]);
+		if (!IS_ERR(scheduler->clks[i]))
+			clk_disable_unprepare(scheduler->clks[i]);
 
-	pm_relax(rga_scheduler->dev);
-	pm_runtime_put_sync_suspend(rga_scheduler->dev);
+	pm_relax(scheduler->dev);
+	pm_runtime_put_sync_suspend(scheduler->dev);
 
 	return ret;
 }
 
-int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
+int rga_power_disable(struct rga_scheduler_t *scheduler)
 {
 	int i;
 	unsigned long flags;
 
-	for (i = rga_scheduler->num_clks - 1; i >= 0; i--)
-		if (!IS_ERR(rga_scheduler->clks[i]))
-			clk_disable_unprepare(rga_scheduler->clks[i]);
+	for (i = scheduler->num_clks - 1; i >= 0; i--)
+		if (!IS_ERR(scheduler->clks[i]))
+			clk_disable_unprepare(scheduler->clks[i]);
 
-	pm_relax(rga_scheduler->dev);
-	pm_runtime_put_sync_suspend(rga_scheduler->dev);
+	pm_relax(scheduler->dev);
+	pm_runtime_put_sync_suspend(scheduler->dev);
 
-	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	rga_scheduler->pd_refcount--;
+	scheduler->pd_refcount--;
 
-	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	return 0;
 }
@@ -374,7 +374,7 @@ static void rga_power_enable_all(void)
 	int i;
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 		ret = rga_power_enable(scheduler);
 		if (ret < 0)
 			pr_err("power enable failed");
@@ -387,7 +387,7 @@ static void rga_power_disable_all(void)
 	int i;
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 		rga_power_disable(scheduler);
 	}
 }
@@ -565,7 +565,7 @@ static long rga_ioctl_cmd_config(unsigned long arg)
 		pr_info("config cmd id = %d", rga_user_ctx.id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_job_config_by_user_ctx(&rga_user_ctx);
+	ret = rga_internal_ctx_config_by_user_ctx(&rga_user_ctx);
 	if (ret < 0) {
 		pr_err("config ctx id[%d] failed!\n", rga_user_ctx.id);
 		return -EFAULT;
@@ -589,7 +589,7 @@ static long rga_ioctl_cmd_end(unsigned long arg)
 		pr_info("config end id = %d", rga_user_ctx.id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_job_commit_by_user_ctx(&rga_user_ctx);
+	ret = rga_internal_ctx_commit_by_user_ctx(&rga_user_ctx);
 	if (ret < 0) {
 		pr_err("commit ctx id[%d] failed!\n", rga_user_ctx.id);
 		return -EFAULT;
@@ -619,7 +619,7 @@ static long rga_ioctl_cmd_cancel(unsigned long arg)
 		pr_info("config cancel id = %d", rga_user_ctx_id);
 
 	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_job_cancel_by_user_ctx(rga_user_ctx_id);
+	ret = rga_internal_ctx_cancel_by_user_ctx(rga_user_ctx_id);
 	if (ret < 0) {
 		pr_err("cancel ctx id[%d] failed!\n", rga_user_ctx_id);
 		return -EFAULT;
@@ -691,7 +691,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	case RGA_GET_RESULT:
 		break;
 	case RGA_GET_VERSION:
-		sscanf(rga->rga_scheduler[i]->version.str, "%x.%x.%*x",
+		sscanf(rga->scheduler[i]->version.str, "%x.%x.%*x",
 			 &major_version, &minor_version);
 		snprintf(version, 5, "%x.%02x", major_version, minor_version);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
@@ -706,10 +706,10 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		break;
 	case RGA2_GET_VERSION:
 		for (i = 0; i < rga->num_of_scheduler; i++) {
-			if (rga->rga_scheduler[i]->ops == &rga2_ops) {
+			if (rga->scheduler[i]->ops == &rga2_ops) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-				if (copy_to_user((void *)arg, rga->rga_scheduler[i]->version.str,
-					sizeof(rga->rga_scheduler[i]->version.str)))
+				if (copy_to_user((void *)arg, rga->scheduler[i]->version.str,
+					sizeof(rga->scheduler[i]->version.str)))
 					ret = -EFAULT;
 #else
 				if (copy_to_user((void *)arg, RGA3_VERSION,
@@ -735,8 +735,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			RGA_HW_SIZE : rga->num_of_scheduler;
 
 		for (i = 0; i < hw_versions.size; i++) {
-			memcpy(&hw_versions.version[i], &rga->rga_scheduler[i]->version,
-				sizeof(rga->rga_scheduler[i]->version));
+			memcpy(&hw_versions.version[i], &rga->scheduler[i]->version,
+				sizeof(rga->scheduler[i]->version));
 		}
 
 		if (copy_to_user((void *)arg, &hw_versions, sizeof(hw_versions)))
@@ -874,7 +874,7 @@ static int rga_release(struct inode *inode, struct file *file)
 
 		if (pid == ctx->pid) {
 			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
-			kref_put(&ctx->refcount, rga_internel_ctx_kref_release);
+			kref_put(&ctx->refcount, rga_internal_ctx_kref_release);
 		}
 
 		mutex_lock(&ctx_manager->lock);
@@ -887,29 +887,29 @@ static int rga_release(struct inode *inode, struct file *file)
 
 static irqreturn_t rga3_irq_handler(int irq, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = data;
+	struct rga_scheduler_t *scheduler = data;
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irqthread INT[%x],STATS0[%x], STATS1[%x]\n",
-			rga_read(RGA3_INT_RAW, rga_scheduler),
-			rga_read(RGA3_STATUS0, rga_scheduler),
-			rga_read(RGA3_STATUS1, rga_scheduler));
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_STATUS1, scheduler));
 
 	/* TODO: if error interrupt then soft reset hardware */
-	//rga_scheduler->ops->soft_reset(job->core);
+	//scheduler->ops->soft_reset(job->core);
 
 	/*clear INT */
-	rga_write(1, RGA3_INT_CLR, rga_scheduler);
+	rga_write(1, RGA3_INT_CLR, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t rga3_irq_thread(int irq, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = data;
+	struct rga_scheduler_t *scheduler = data;
 	struct rga_job *job;
 
-	job = rga_scheduler->running_job;
+	job = scheduler->running_job;
 
 	if (!job) {
 		pr_err("running job is invaild on irq thread\n");
@@ -918,62 +918,62 @@ static irqreturn_t rga3_irq_thread(int irq, void *data)
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq INT[%x], STATS0[%x], STATS1[%x]\n",
-			rga_read(RGA3_INT_RAW, rga_scheduler),
-			rga_read(RGA3_STATUS0, rga_scheduler),
-			rga_read(RGA3_STATUS1, rga_scheduler));
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_STATUS1, scheduler));
 
-	rga_job_done(rga_scheduler, 0);
+	rga_job_done(scheduler, 0);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t rga2_irq_handler(int irq, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = data;
+	struct rga_scheduler_t *scheduler = data;
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irqthread INT[%x],STATS0[%x]\n",
-			rga_read(RGA2_INT, rga_scheduler), rga_read(RGA2_STATUS,
-								 rga_scheduler));
+			rga_read(RGA2_INT, scheduler), rga_read(RGA2_STATUS,
+								 scheduler));
 
 	/*if error interrupt then soft reset hardware */
 	//warning
-	if (rga_read(RGA2_INT, rga_scheduler) & 0x01) {
+	if (rga_read(RGA2_INT, scheduler) & 0x01) {
 		pr_err("err irq! INT[%x],STATS0[%x]\n",
-			 rga_read(RGA2_INT, rga_scheduler),
-			 rga_read(RGA2_STATUS, rga_scheduler));
-		rga_scheduler->ops->soft_reset(rga_scheduler);
+			 rga_read(RGA2_INT, scheduler),
+			 rga_read(RGA2_STATUS, scheduler));
+		scheduler->ops->soft_reset(scheduler);
 	}
 
 	/*clear INT */
-	rga_write(rga_read(RGA2_INT, rga_scheduler) |
+	rga_write(rga_read(RGA2_INT, scheduler) |
 		  (0x1 << 4) | (0x1 << 5) | (0x1 << 6) | (0x1 << 7) |
-		  (0x1 << 15) | (0x1 << 16), RGA2_INT, rga_scheduler);
+		  (0x1 << 15) | (0x1 << 16), RGA2_INT, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t rga2_irq_thread(int irq, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = data;
+	struct rga_scheduler_t *scheduler = data;
 	struct rga_job *job;
 
-	job = rga_scheduler->running_job;
+	job = scheduler->running_job;
 
 	if (!job)
 		return IRQ_HANDLED;
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq INT[%x], STATS0[%x]\n",
-			rga_read(RGA2_INT, rga_scheduler), rga_read(RGA2_STATUS,
-								 rga_scheduler));
+			rga_read(RGA2_INT, scheduler), rga_read(RGA2_STATUS,
+								 scheduler));
 
 	job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0_OFFSET,
-							     rga_scheduler);
+							     scheduler);
 	job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1_OFFSET,
-							     rga_scheduler);
+							     scheduler);
 
-	rga_job_done(rga_scheduler, 0);
+	rga_job_done(scheduler, 0);
 
 	return IRQ_HANDLED;
 }
@@ -1085,23 +1085,23 @@ static const struct of_device_id rga2_dt_ids[] = {
 	{},
 };
 
-static void init_scheduler(struct rga_scheduler_t *rga_scheduler,
+static void init_scheduler(struct rga_scheduler_t *scheduler,
 			 const char *name)
 {
-	spin_lock_init(&rga_scheduler->irq_lock);
-	INIT_LIST_HEAD(&rga_scheduler->todo_list);
-	init_waitqueue_head(&rga_scheduler->job_done_wq);
+	spin_lock_init(&scheduler->irq_lock);
+	INIT_LIST_HEAD(&scheduler->todo_list);
+	init_waitqueue_head(&scheduler->job_done_wq);
 
 	if (!strcmp(name, "rga3_core0")) {
-		rga_scheduler->ops = &rga3_ops;
+		scheduler->ops = &rga3_ops;
 		/* TODO: get by hw version */
-		rga_scheduler->core = RGA3_SCHEDULER_CORE0;
+		scheduler->core = RGA3_SCHEDULER_CORE0;
 	} else if (!strcmp(name, "rga3_core1")) {
-		rga_scheduler->ops = &rga3_ops;
-		rga_scheduler->core = RGA3_SCHEDULER_CORE1;
+		scheduler->ops = &rga3_ops;
+		scheduler->core = RGA3_SCHEDULER_CORE1;
 	} else if (!strcmp(name, "rga2")) {
-		rga_scheduler->ops = &rga2_ops;
-		rga_scheduler->core = RGA2_SCHEDULER_CORE0;
+		scheduler->ops = &rga2_ops;
+		scheduler->core = RGA2_SCHEDULER_CORE0;
 	}
 }
 
@@ -1114,7 +1114,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct rga_match_data_t *match_data;
 	int i, irq;
-	struct rga_scheduler_t *rga_scheduler = NULL;
+	struct rga_scheduler_t *scheduler = NULL;
 
 	if (!pdev->dev.of_node)
 		return -EINVAL;
@@ -1131,19 +1131,19 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rga_scheduler =
+	scheduler =
 		devm_kzalloc(&pdev->dev, sizeof(struct rga_scheduler_t),
 			GFP_KERNEL);
-	if (rga_scheduler == NULL) {
+	if (scheduler == NULL) {
 		pr_err("failed to allocate scheduler. dev name = %s\n",
 			dev_driver_string(dev));
 		return -ENOMEM;
 	}
 
-	init_scheduler(rga_scheduler,
+	init_scheduler(scheduler,
 		dev_driver_string(dev));
 
-	rga_scheduler->dev = &pdev->dev;
+	scheduler->dev = &pdev->dev;
 
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1152,9 +1152,9 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	rga_scheduler->rga_base =
+	scheduler->rga_base =
 		devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!rga_scheduler->rga_base) {
+	if (!scheduler->rga_base) {
 		pr_err("ioremap failed\n");
 		ret = -ENOENT;
 		return ret;
@@ -1171,7 +1171,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	rga_scheduler->irq = irq;
+	scheduler->irq = irq;
 
 	pr_info("%s, irq = %d, match scheduler\n", match_data->irqs[0].name, irq);
 
@@ -1179,7 +1179,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 			match_data->irqs[0].irq_hdl,
 			match_data->irqs[0].irq_thread, IRQF_SHARED,
 			dev_driver_string(dev),
-			rga_scheduler);
+			scheduler);
 	if (ret < 0) {
 		pr_err("request irq name: %s failed: %d\n",
 				match_data->irqs[0].name, ret);
@@ -1193,12 +1193,12 @@ static int rga_drv_probe(struct platform_device *pdev)
 		if (IS_ERR(clk))
 			pr_err("failed to get %s\n", match_data->clks[i]);
 
-		rga_scheduler->clks[i] = clk;
+		scheduler->clks[i] = clk;
 	}
-	rga_scheduler->num_clks = match_data->num_clks;
+	scheduler->num_clks = match_data->num_clks;
 #endif
 
-	platform_set_drvdata(pdev, rga_scheduler);
+	platform_set_drvdata(pdev, scheduler);
 
 	device_init_wakeup(dev, true);
 
@@ -1206,16 +1206,16 @@ static int rga_drv_probe(struct platform_device *pdev)
 #ifndef CONFIG_ROCKCHIP_FPGA
 	pm_runtime_enable(&pdev->dev);
 
-	ret = pm_runtime_get_sync(rga_scheduler->dev);
+	ret = pm_runtime_get_sync(scheduler->dev);
 	if (ret < 0) {
 		pr_err("failed to get pm runtime, ret = %d\n",
 			 ret);
 		goto failed;
 	}
 
-	for (i = 0; i < rga_scheduler->num_clks; i++) {
-		if (!IS_ERR(rga_scheduler->clks[i])) {
-			ret = clk_prepare_enable(rga_scheduler->clks[i]);
+	for (i = 0; i < scheduler->num_clks; i++) {
+		if (!IS_ERR(scheduler->clks[i])) {
+			ret = clk_prepare_enable(scheduler->clks[i]);
 			if (ret < 0) {
 				pr_err("failed to enable clk\n");
 				goto failed;
@@ -1224,28 +1224,28 @@ static int rga_drv_probe(struct platform_device *pdev)
 	}
 #endif //CONFIG_ROCKCHIP_FPGA
 
-	rga_scheduler->ops->get_version(rga_scheduler);
+	scheduler->ops->get_version(scheduler);
 	pr_info("%s driver loaded successfully ver:%s\n",
-		dev_driver_string(dev), rga_scheduler->version.str);
+		dev_driver_string(dev), scheduler->version.str);
 
 	/* TODO: get by hw version, Currently only supports judgment 1106. */
-	if (rga_scheduler->core == RGA3_SCHEDULER_CORE0 ||
-	    rga_scheduler->core == RGA3_SCHEDULER_CORE1) {
-		rga_scheduler->data = &rga3_data;
-	} else if (rga_scheduler->core == RGA2_SCHEDULER_CORE0) {
-		if (!strcmp(rga_scheduler->version.str, "3.3.87975"))
-			rga_scheduler->data = &rga2e_1106_data;
+	if (scheduler->core == RGA3_SCHEDULER_CORE0 ||
+	    scheduler->core == RGA3_SCHEDULER_CORE1) {
+		scheduler->data = &rga3_data;
+	} else if (scheduler->core == RGA2_SCHEDULER_CORE0) {
+		if (!strcmp(scheduler->version.str, "3.3.87975"))
+			scheduler->data = &rga2e_1106_data;
 		else
-			rga_scheduler->data = &rga2e_data;
+			scheduler->data = &rga2e_data;
 	}
 
-	data->rga_scheduler[data->num_of_scheduler] = rga_scheduler;
+	data->scheduler[data->num_of_scheduler] = scheduler;
 
 	data->num_of_scheduler++;
 
-	for (i = rga_scheduler->num_clks - 1; i >= 0; i--)
-		if (!IS_ERR(rga_scheduler->clks[i]))
-			clk_disable_unprepare(rga_scheduler->clks[i]);
+	for (i = scheduler->num_clks - 1; i >= 0; i--)
+		if (!IS_ERR(scheduler->clks[i]))
+			clk_disable_unprepare(scheduler->clks[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
 

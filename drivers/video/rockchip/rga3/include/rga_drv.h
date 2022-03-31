@@ -373,7 +373,7 @@ struct rga_drvdata_t {
 	/* used by rga2's mmu lock */
 	struct mutex lock;
 
-	struct rga_scheduler_t *rga_scheduler[RGA_MAX_SCHEDULER];
+	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
 
 	struct delayed_work power_off_work;
@@ -405,18 +405,18 @@ struct rga_match_data_t {
 	int num_irqs;
 };
 
-static inline int rga_read(int offset, struct rga_scheduler_t *rga_scheduler)
+static inline int rga_read(int offset, struct rga_scheduler_t *scheduler)
 {
-	return readl(rga_scheduler->rga_base + offset);
+	return readl(scheduler->rga_base + offset);
 }
 
-static inline void rga_write(int value, int offset, struct rga_scheduler_t *rga_scheduler)
+static inline void rga_write(int value, int offset, struct rga_scheduler_t *scheduler)
 {
-	writel(value, rga_scheduler->rga_base + offset);
+	writel(value, scheduler->rga_base + offset);
 }
 
-int rga_power_enable(struct rga_scheduler_t *rga_scheduler);
-int rga_power_disable(struct rga_scheduler_t *rga_scheduler);
+int rga_power_enable(struct rga_scheduler_t *scheduler);
+int rga_power_disable(struct rga_scheduler_t *scheduler);
 
 int rga_kernel_commit(struct rga_req *cmd);
 

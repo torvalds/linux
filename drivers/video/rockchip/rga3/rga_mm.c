@@ -346,7 +346,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
-		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		if ((rga_drvdata->scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
 		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G) &&
 		    i != 0)
 			continue;
@@ -355,22 +355,22 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 			ret = rga_dma_map_fd((int)external_buffer->memory,
 					     &internal_buffer->dma_buffer[i],
 					     DMA_BIDIRECTIONAL,
-					     rga_drvdata->rga_scheduler[i]->dev);
+					     rga_drvdata->scheduler[i]->dev);
 		else if (external_buffer->type == RGA_DMA_BUFFER_PTR)
 			ret = rga_dma_map_buf((struct dma_buf *)
 					      u64_to_user_ptr(external_buffer->memory),
 					      &internal_buffer->dma_buffer[i],
 					      DMA_BIDIRECTIONAL,
-					      rga_drvdata->rga_scheduler[i]->dev);
+					      rga_drvdata->scheduler[i]->dev);
 		else
 			ret = -EFAULT;
 		if (ret < 0) {
 			pr_err("%s core[%d] map dma buffer error!\n",
-				__func__, rga_drvdata->rga_scheduler[0]->core);
+				__func__, rga_drvdata->scheduler[0]->core);
 			goto FREE_RGA_DMA_BUF;
 		}
 
-		internal_buffer->dma_buffer[i].core = rga_drvdata->rga_scheduler[i]->core;
+		internal_buffer->dma_buffer[i].core = rga_drvdata->scheduler[i]->core;
 
 		/* At first, check whether the physical address. */
 		if (i == 0) {
@@ -407,11 +407,11 @@ static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
 	WARN_ON(internal_buffer->dma_buffer == NULL || internal_buffer->virt_addr == NULL);
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
-		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+		if (rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE1)
 			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
 		else if (internal_buffer->dma_buffer[i].core != 0)
-			dma_unmap_sg(rga_drvdata->rga_scheduler[i]->dev,
+			dma_unmap_sg(rga_drvdata->scheduler[i]->dev,
 				     internal_buffer->dma_buffer[i].sgt->sgl,
 				     internal_buffer->dma_buffer[i].sgt->orig_nents,
 				     DMA_BIDIRECTIONAL);
@@ -463,7 +463,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
-		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		if ((rga_drvdata->scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
 		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G) &&
 		    i != 0)
 			continue;
@@ -472,7 +472,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 				    &internal_buffer->dma_buffer[i]);
 		if (ret < 0) {
 			pr_err("%s core[%d] alloc sgt error!\n", __func__,
-			       rga_drvdata->rga_scheduler[0]->core);
+			       rga_drvdata->scheduler[0]->core);
 			goto free_sgt_and_dma_buffer;
 		}
 
@@ -482,47 +482,47 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	}
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
-		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		if ((rga_drvdata->scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
 		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G))
 			continue;
 
-		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1) {
+		if (rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE1) {
 			ret = rga_iommu_map_virt_addr(&internal_buffer->memory_parm,
 						      &internal_buffer->dma_buffer[i],
-						      rga_drvdata->rga_scheduler[i]->dev,
+						      rga_drvdata->scheduler[i]->dev,
 						      internal_buffer->current_mm);
 			if (ret < 0) {
 				pr_err("%s core[%d] iommu_map virtual address error!\n",
-				       __func__, rga_drvdata->rga_scheduler[i]->core);
+				       __func__, rga_drvdata->scheduler[i]->core);
 				goto unmap_virt_addr;
 			}
 		} else {
-			ret = dma_map_sg(rga_drvdata->rga_scheduler[i]->dev,
+			ret = dma_map_sg(rga_drvdata->scheduler[i]->dev,
 					 internal_buffer->dma_buffer[i].sgt->sgl,
 					 internal_buffer->dma_buffer[i].sgt->orig_nents,
 					 DMA_BIDIRECTIONAL);
 			if (ret == 0) {
 				pr_err("%s core[%d] dma_map_sgt error! va = 0x%lx, nents = %d\n",
-				       __func__, rga_drvdata->rga_scheduler[i]->core,
+				       __func__, rga_drvdata->scheduler[i]->core,
 				       (unsigned long)internal_buffer->virt_addr->addr,
 				       internal_buffer->dma_buffer[i].sgt->orig_nents);
 				goto unmap_virt_addr;
 			}
 		}
 
-		internal_buffer->dma_buffer[i].core = rga_drvdata->rga_scheduler[i]->core;
+		internal_buffer->dma_buffer[i].core = rga_drvdata->scheduler[i]->core;
 	}
 
 	return 0;
 
 unmap_virt_addr:
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
-		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+		if (rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE1)
 			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
 		else if (internal_buffer->dma_buffer[i].core != 0)
-			dma_unmap_sg(rga_drvdata->rga_scheduler[i]->dev,
+			dma_unmap_sg(rga_drvdata->scheduler[i]->dev,
 				     internal_buffer->dma_buffer[i].sgt->sgl,
 				     internal_buffer->dma_buffer[i].sgt->orig_nents,
 				     DMA_BIDIRECTIONAL);

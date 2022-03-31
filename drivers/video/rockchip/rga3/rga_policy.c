@@ -188,8 +188,8 @@ int rga_job_assign(struct rga_job *job)
 
 	/* function */
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		data = rga_drvdata->rga_scheduler[i]->data;
-		scheduler = rga_drvdata->rga_scheduler[i];
+		data = rga_drvdata->scheduler[i]->data;
+		scheduler = rga_drvdata->scheduler[i];
 
 		if (DEBUGGER_EN(MSG))
 			pr_info("start policy on core = %d", scheduler->core);
@@ -276,7 +276,7 @@ int rga_job_assign(struct rga_job *job)
 
 skip_functional_policy:
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 
 		if (optional_cores & scheduler->core) {
 			spin_lock_irqsave(&scheduler->irq_lock, flags);

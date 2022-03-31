@@ -50,12 +50,12 @@ struct rga_scheduler_t *rga_job_get_scheduler(int core)
 	int i;
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (core == rga_drvdata->rga_scheduler[i]->core) {
-			scheduler = rga_drvdata->rga_scheduler[i];
+		if (core == rga_drvdata->scheduler[i]->core) {
+			scheduler = rga_drvdata->scheduler[i];
 
 			if (DEBUGGER_EN(MSG))
 				pr_info("job choose core: %d\n",
-					rga_drvdata->rga_scheduler[i]->core);
+					rga_drvdata->scheduler[i]->core);
 			break;
 		}
 	}
@@ -242,112 +242,6 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	return job;
 }
 
-struct rga_internal_ctx_t *
-rga_internal_ctx_lookup(struct rga_pending_ctx_manager *ctx_manager, uint32_t id)
-{
-	struct rga_internal_ctx_t *ctx = NULL;
-
-	mutex_lock(&ctx_manager->lock);
-
-	ctx = idr_find(&ctx_manager->ctx_id_idr, id);
-
-	mutex_unlock(&ctx_manager->lock);
-
-	return ctx;
-}
-
-/*
- * Called at driver close to release the internal ctx's id references.
- */
-static int rga_internal_ctx_free_remove_idr_cb(int id, void *ptr, void *data)
-{
-	struct rga_internal_ctx_t *ctx = ptr;
-
-	idr_remove(&rga_drvdata->pend_ctx_manager->ctx_id_idr, ctx->id);
-	if (ctx->cached_cmd != NULL) {
-		kfree(ctx->cached_cmd);
-		ctx->cached_cmd = NULL;
-	}
-	kfree(ctx);
-
-	return 0;
-}
-
-static int rga_internal_ctx_free_remove_idr(struct rga_internal_ctx_t *ctx)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_req *cached_cmd;
-	unsigned long flags;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("ctx already freed");
-		return -EFAULT;
-	}
-
-	mutex_lock(&ctx_manager->lock);
-
-	ctx_manager->ctx_count--;
-	idr_remove(&ctx_manager->ctx_id_idr, ctx->id);
-
-	mutex_unlock(&ctx_manager->lock);
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	cached_cmd = ctx->cached_cmd;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	if (cached_cmd != NULL)
-		kfree(cached_cmd);
-
-	kfree(ctx);
-
-	return 0;
-}
-
-static int rga_internal_ctx_signal(struct rga_scheduler_t *scheduler, struct rga_job *job)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-	int finished_job_count;
-	unsigned long flags;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	ctx = rga_internal_ctx_lookup(ctx_manager, job->ctx_id);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx from id[%d]", job->ctx_id);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	finished_job_count = ++ctx->finished_job_count;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	if (finished_job_count >= ctx->cmd_num) {
-		rga_dma_fence_signal(ctx->out_fence);
-
-		job->flags |= RGA_JOB_DONE;
-
-		if (job->flags & RGA_JOB_ASYNC)
-			rga_job_cleanup(job);
-
-		wake_up(&scheduler->job_done_wq);
-
-		spin_lock_irqsave(&ctx->lock, flags);
-
-		ctx->is_running = false;
-
-		spin_unlock_irqrestore(&ctx->lock, flags);
-	}
-
-	return 0;
-}
-
 static void rga_job_dump_info(struct rga_job *job)
 {
 	pr_info("job: priority = %d, core = %d\n",
@@ -403,42 +297,42 @@ failed:
 	return ret;
 }
 
-static void rga_job_next(struct rga_scheduler_t *rga_scheduler)
+static void rga_job_next(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job = NULL;
 	unsigned long flags;
 
 next_job:
-	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	if (rga_scheduler->running_job ||
-		list_empty(&rga_scheduler->todo_list)) {
-		spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	if (scheduler->running_job ||
+		list_empty(&scheduler->todo_list)) {
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 		return;
 	}
 
-	job = list_first_entry(&rga_scheduler->todo_list, struct rga_job, head);
+	job = list_first_entry(&scheduler->todo_list, struct rga_job, head);
 
 	list_del_init(&job->head);
 
-	rga_scheduler->job_count--;
+	scheduler->job_count--;
 
-	rga_scheduler->running_job = job;
+	scheduler->running_job = job;
 
-	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-	job->ret = rga_job_run(job, rga_scheduler);
+	job->ret = rga_job_run(job, scheduler);
 
 	/* If some error before hw run */
 	if (job->ret < 0) {
 		pr_err("some error on rga_job_run before hw start, %s(%d)\n",
 			__func__, __LINE__);
 
-		spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-		rga_scheduler->running_job = NULL;
+		scheduler->running_job = NULL;
 
-		spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 		if (job->flags & RGA_JOB_USE_HANDLE)
 			rga_mm_put_handle_info(job);
@@ -446,7 +340,7 @@ next_job:
 			rga_dma_put_info(job);
 
 		if (job->use_batch_mode) {
-			rga_internal_ctx_signal(rga_scheduler, job);
+			rga_internal_ctx_signal(scheduler, job);
 		} else {
 			rga_dma_fence_signal(job->out_fence);
 
@@ -455,14 +349,14 @@ next_job:
 			if (job->flags & RGA_JOB_ASYNC)
 				rga_job_cleanup(job);
 
-			wake_up(&rga_scheduler->job_done_wq);
+			wake_up(&scheduler->job_done_wq);
 		}
 
 		goto next_job;
 	}
 }
 
-static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
+static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
 		struct rga_job *job, int ret)
 {
 	ktime_t now;
@@ -478,7 +372,7 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 
 	if (job->core == RGA2_SCHEDULER_CORE0)
 		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
-			rga_scheduler);
+			scheduler);
 
 	if (job->flags & RGA_JOB_USE_HANDLE)
 		rga_mm_put_handle_info(job);
@@ -486,7 +380,7 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 		rga_dma_put_info(job);
 
 	if (job->use_batch_mode)
-		rga_internal_ctx_signal(rga_scheduler, job);
+		rga_internal_ctx_signal(scheduler, job);
 	else {
 		rga_dma_fence_signal(job->out_fence);
 
@@ -495,30 +389,30 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 		if (job->flags & RGA_JOB_ASYNC)
 			rga_job_cleanup(job);
 
-		wake_up(&rga_scheduler->job_done_wq);
+		wake_up(&scheduler->job_done_wq);
 	}
 
-	rga_job_next(rga_scheduler);
+	rga_job_next(scheduler);
 
-	rga_power_disable(rga_scheduler);
+	rga_power_disable(scheduler);
 }
 
-void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
+void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 {
 	struct rga_job *job;
 	unsigned long flags;
 	ktime_t now = ktime_get();
 
-	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	job = rga_scheduler->running_job;
-	rga_scheduler->running_job = NULL;
+	job = scheduler->running_job;
+	scheduler->running_job = NULL;
 
-	rga_scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
 
-	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-	rga_job_finish_and_next(rga_scheduler, job, ret);
+	rga_job_finish_and_next(scheduler, job, ret);
 }
 
 static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
@@ -571,7 +465,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 			return NULL;
 		}
 	} else {
-		job->core = rga_drvdata->rga_scheduler[0]->core;
+		job->core = rga_drvdata->scheduler[0]->core;
 	}
 
 	scheduler = rga_job_get_scheduler(job->core);
@@ -619,18 +513,17 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 }
 
 static void rga_running_job_abort(struct rga_job *job,
-				 struct rga_scheduler_t *rga_scheduler)
+				 struct rga_scheduler_t *scheduler)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	/* invalid job */
-	if (job == rga_scheduler->running_job) {
-		rga_scheduler->running_job = NULL;
-	}
+	if (job == scheduler->running_job)
+		scheduler->running_job = NULL;
 
-	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_cleanup(job);
 }
@@ -640,20 +533,20 @@ static void rga_invalid_job_abort(struct rga_job *job)
 	rga_job_cleanup(job);
 }
 
-static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
+static inline int rga_job_wait(struct rga_scheduler_t *scheduler,
 				 struct rga_job *job)
 {
 	int left_time;
 	ktime_t now;
 	int ret;
 
-	left_time = wait_event_interruptible_timeout(rga_scheduler->job_done_wq,
+	left_time = wait_event_interruptible_timeout(scheduler->job_done_wq,
 		job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
 
 	switch (left_time) {
 	case 0:
 		pr_err("%s timeout", __func__);
-		rga_scheduler->ops->soft_reset(rga_scheduler);
+		scheduler->ops->soft_reset(scheduler);
 		ret = -EBUSY;
 		break;
 	case -ERESTARTSYS:
@@ -669,235 +562,6 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	if (DEBUGGER_EN(TIME))
 		pr_info("%s use time = %lld\n", __func__,
 			ktime_us_delta(now, job->hw_running_time));
-
-	return ret;
-}
-
-uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx == NULL) {
-		pr_err("can not kzalloc for rga_pending_ctx_manager\n");
-		return -ENOMEM;
-	}
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-	if (ctx_manager == NULL) {
-		pr_err("rga_pending_ctx_manager is null!\n");
-		kfree(ctx);
-		return -EFAULT;
-	}
-
-	spin_lock_init(&ctx->lock);
-
-	/*
-	 * Get the user-visible handle using idr. Preload and perform
-	 * allocation under our spinlock.
-	 */
-
-	mutex_lock(&ctx_manager->lock);
-
-	idr_preload(GFP_KERNEL);
-	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_KERNEL);
-	idr_preload_end();
-
-	ctx_manager->ctx_count++;
-
-	kref_init(&ctx->refcount);
-	ctx->pid = current->pid;
-	ctx->flags = flags;
-
-	mutex_unlock(&ctx_manager->lock);
-
-	if (ctx->id < 0)
-		pr_err("[pid: %d]alloc ctx_id failed", ctx->pid);
-
-	return (uint32_t)ctx->id;
-}
-
-int rga_job_config_by_user_ctx(struct rga_user_ctx_t *user_ctx)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-	struct rga_req *cached_cmd;
-	int ret = 0;
-	bool first_config = false;
-	unsigned long flags;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	ctx = rga_internal_ctx_lookup(ctx_manager, user_ctx->id);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx from id[%d]", user_ctx->id);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	cached_cmd = ctx->cached_cmd;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	if (cached_cmd == NULL) {
-		cached_cmd = kmalloc_array(user_ctx->cmd_num, sizeof(struct rga_req), GFP_KERNEL);
-		if (cached_cmd == NULL) {
-			pr_err("cmd_cached list alloc error!\n");
-			return -ENOMEM;
-		}
-
-		first_config = true;
-	}
-
-	if (unlikely(copy_from_user(cached_cmd, u64_to_user_ptr(user_ctx->cmd_ptr),
-				    sizeof(struct rga_req) * user_ctx->cmd_num))) {
-		pr_err("rga_user_ctx cmd list copy_from_user failed\n");
-		if (first_config)
-			kfree(cached_cmd);
-		return -EFAULT;
-	}
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	ctx->sync_mode = user_ctx->sync_mode;
-	ctx->cmd_num = user_ctx->cmd_num;
-	ctx->cached_cmd = cached_cmd;
-	ctx->mpi_config_flags = user_ctx->mpi_config_flags;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	return ret;
-}
-
-int rga_job_commit_by_user_ctx(struct rga_user_ctx_t *user_ctx)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-	struct rga_req *cached_cmd;
-	int i;
-	int ret = 0;
-	unsigned long flags;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	ctx = rga_internal_ctx_lookup(ctx_manager, user_ctx->id);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx from id[%d]", user_ctx->id);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	if (ctx->is_running) {
-		pr_err("can not re-config when ctx is running");
-		spin_unlock_irqrestore(&ctx->lock, flags);
-		return -EFAULT;
-	}
-
-	/* Reset */
-	ctx->finished_job_count = 0;
-
-	cached_cmd = ctx->cached_cmd;
-	if (cached_cmd == NULL) {
-		pr_err("can not find cached cmd from id[%d]", user_ctx->id);
-		spin_unlock_irqrestore(&ctx->lock, flags);
-		return -EINVAL;
-	}
-
-	ctx->use_batch_mode = true;
-	ctx->is_running = true;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	for (i = 0; i < ctx->cmd_num; i++) {
-		ret = rga_job_commit(&(cached_cmd[i]), ctx);
-		if (ret < 0) {
-			pr_err("rga_job_commit failed\n");
-			return -EFAULT;
-		}
-	}
-
-	user_ctx->out_fence_fd = ctx->out_fence_fd;
-
-	return ret;
-}
-
-void rga_internel_ctx_kref_release(struct kref *ref)
-{
-	struct rga_internal_ctx_t *ctx;
-	struct rga_scheduler_t *scheduler = NULL;
-	struct rga_job *job_pos, *job_q, *job;
-	int i;
-	bool need_reset = false;
-	unsigned long flags;
-	ktime_t now = ktime_get();
-
-	ctx = container_of(ref, struct rga_internal_ctx_t, refcount);
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	if (!ctx->is_running || ctx->finished_job_count >= ctx->cmd_num) {
-		spin_unlock_irqrestore(&ctx->lock, flags);
-		goto free_ctx;
-	}
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->rga_scheduler[i];
-
-		spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
-			if (ctx->id == job_pos->ctx_id) {
-				job = job_pos;
-				list_del_init(&job_pos->head);
-
-				scheduler->job_count--;
-			}
-		}
-
-		if (scheduler->running_job) {
-			job = scheduler->running_job;
-
-			if (job->ctx_id == ctx->id) {
-				scheduler->running_job = NULL;
-				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
-				need_reset = true;
-			}
-		}
-
-		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-		if (need_reset) {
-			pr_info("reset core[%d] by user cancel", scheduler->core);
-			scheduler->ops->soft_reset(scheduler);
-
-			rga_job_finish_and_next(scheduler, job, 0);
-		}
-	}
-
-free_ctx:
-	rga_internal_ctx_free_remove_idr(ctx);
-}
-
-int rga_job_cancel_by_user_ctx(uint32_t ctx_id)
-{
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-	int ret = 0;
-
-	ctx_manager = rga_drvdata->pend_ctx_manager;
-
-	ctx = rga_internal_ctx_lookup(ctx_manager, ctx_id);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx from id[%d]", ctx_id);
-		return -EINVAL;
-	}
-
-	kref_put(&ctx->refcount, rga_internel_ctx_kref_release);
 
 	return ret;
 }
@@ -1149,6 +813,341 @@ invalid_job:
 /* only used by SYNC mode */
 running_job_abort:
 	rga_running_job_abort(job, scheduler);
+	return ret;
+}
+
+struct rga_internal_ctx_t *
+rga_internal_ctx_lookup(struct rga_pending_ctx_manager *ctx_manager, uint32_t id)
+{
+	struct rga_internal_ctx_t *ctx = NULL;
+
+	mutex_lock(&ctx_manager->lock);
+
+	ctx = idr_find(&ctx_manager->ctx_id_idr, id);
+
+	mutex_unlock(&ctx_manager->lock);
+
+	return ctx;
+}
+
+/*
+ * Called at driver close to release the internal ctx's id references.
+ */
+static int rga_internal_ctx_free_remove_idr_cb(int id, void *ptr, void *data)
+{
+	struct rga_internal_ctx_t *ctx = ptr;
+
+	idr_remove(&rga_drvdata->pend_ctx_manager->ctx_id_idr, ctx->id);
+	if (ctx->cached_cmd != NULL) {
+		kfree(ctx->cached_cmd);
+		ctx->cached_cmd = NULL;
+	}
+	kfree(ctx);
+
+	return 0;
+}
+
+static int rga_internal_ctx_free_remove_idr(struct rga_internal_ctx_t *ctx)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_req *cached_cmd;
+	unsigned long flags;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("ctx already freed");
+		return -EFAULT;
+	}
+
+	mutex_lock(&ctx_manager->lock);
+
+	ctx_manager->ctx_count--;
+	idr_remove(&ctx_manager->ctx_id_idr, ctx->id);
+
+	mutex_unlock(&ctx_manager->lock);
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	cached_cmd = ctx->cached_cmd;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	if (cached_cmd != NULL)
+		kfree(cached_cmd);
+
+	kfree(ctx);
+
+	return 0;
+}
+
+int rga_internal_ctx_signal(struct rga_scheduler_t *scheduler, struct rga_job *job)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+	int finished_job_count;
+	unsigned long flags;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	ctx = rga_internal_ctx_lookup(ctx_manager, job->ctx_id);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx from id[%d]", job->ctx_id);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	finished_job_count = ++ctx->finished_job_count;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	if (finished_job_count >= ctx->cmd_num) {
+		rga_dma_fence_signal(ctx->out_fence);
+
+		job->flags |= RGA_JOB_DONE;
+
+		if (job->flags & RGA_JOB_ASYNC)
+			rga_job_cleanup(job);
+
+		wake_up(&scheduler->job_done_wq);
+
+		spin_lock_irqsave(&ctx->lock, flags);
+
+		ctx->is_running = false;
+
+		spin_unlock_irqrestore(&ctx->lock, flags);
+	}
+
+	return 0;
+}
+
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(uint32_t flags)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (ctx == NULL) {
+		pr_err("can not kzalloc for rga_pending_ctx_manager\n");
+		return -ENOMEM;
+	}
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+	if (ctx_manager == NULL) {
+		pr_err("rga_pending_ctx_manager is null!\n");
+		kfree(ctx);
+		return -EFAULT;
+	}
+
+	spin_lock_init(&ctx->lock);
+
+	/*
+	 * Get the user-visible handle using idr. Preload and perform
+	 * allocation under our spinlock.
+	 */
+
+	mutex_lock(&ctx_manager->lock);
+
+	idr_preload(GFP_KERNEL);
+	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_KERNEL);
+	idr_preload_end();
+
+	ctx_manager->ctx_count++;
+
+	kref_init(&ctx->refcount);
+	ctx->pid = current->pid;
+	ctx->flags = flags;
+
+	mutex_unlock(&ctx_manager->lock);
+
+	if (ctx->id < 0)
+		pr_err("[pid: %d]alloc ctx_id failed", ctx->pid);
+
+	return (uint32_t)ctx->id;
+}
+
+int rga_internal_ctx_config_by_user_ctx(struct rga_user_ctx_t *user_ctx)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+	struct rga_req *cached_cmd;
+	int ret = 0;
+	bool first_config = false;
+	unsigned long flags;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	ctx = rga_internal_ctx_lookup(ctx_manager, user_ctx->id);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx from id[%d]", user_ctx->id);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	cached_cmd = ctx->cached_cmd;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	if (cached_cmd == NULL) {
+		cached_cmd = kmalloc_array(user_ctx->cmd_num, sizeof(struct rga_req), GFP_KERNEL);
+		if (cached_cmd == NULL) {
+			pr_err("cmd_cached list alloc error!\n");
+			return -ENOMEM;
+		}
+
+		first_config = true;
+	}
+
+	if (unlikely(copy_from_user(cached_cmd, u64_to_user_ptr(user_ctx->cmd_ptr),
+				    sizeof(struct rga_req) * user_ctx->cmd_num))) {
+		pr_err("rga_user_ctx cmd list copy_from_user failed\n");
+		if (first_config)
+			kfree(cached_cmd);
+		return -EFAULT;
+	}
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	ctx->sync_mode = user_ctx->sync_mode;
+	ctx->cmd_num = user_ctx->cmd_num;
+	ctx->cached_cmd = cached_cmd;
+	ctx->mpi_config_flags = user_ctx->mpi_config_flags;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	return ret;
+}
+
+int rga_internal_ctx_commit_by_user_ctx(struct rga_user_ctx_t *user_ctx)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+	struct rga_req *cached_cmd;
+	int i;
+	int ret = 0;
+	unsigned long flags;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	ctx = rga_internal_ctx_lookup(ctx_manager, user_ctx->id);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx from id[%d]", user_ctx->id);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	if (ctx->is_running) {
+		pr_err("can not re-config when ctx is running");
+		spin_unlock_irqrestore(&ctx->lock, flags);
+		return -EFAULT;
+	}
+
+	/* Reset */
+	ctx->finished_job_count = 0;
+
+	cached_cmd = ctx->cached_cmd;
+	if (cached_cmd == NULL) {
+		pr_err("can not find cached cmd from id[%d]", user_ctx->id);
+		spin_unlock_irqrestore(&ctx->lock, flags);
+		return -EINVAL;
+	}
+
+	ctx->use_batch_mode = true;
+	ctx->is_running = true;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	for (i = 0; i < ctx->cmd_num; i++) {
+		ret = rga_job_commit(&(cached_cmd[i]), ctx);
+		if (ret < 0) {
+			pr_err("rga_job_commit failed\n");
+			return -EFAULT;
+		}
+	}
+
+	user_ctx->out_fence_fd = ctx->out_fence_fd;
+
+	return ret;
+}
+
+void rga_internal_ctx_kref_release(struct kref *ref)
+{
+	struct rga_internal_ctx_t *ctx;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job_pos, *job_q, *job;
+	int i;
+	bool need_reset = false;
+	unsigned long flags;
+	ktime_t now = ktime_get();
+
+	ctx = container_of(ref, struct rga_internal_ctx_t, refcount);
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	if (!ctx->is_running || ctx->finished_job_count >= ctx->cmd_num) {
+		spin_unlock_irqrestore(&ctx->lock, flags);
+		goto free_ctx;
+	}
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
+			if (ctx->id == job_pos->ctx_id) {
+				job = job_pos;
+				list_del_init(&job_pos->head);
+
+				scheduler->job_count--;
+			}
+		}
+
+		if (scheduler->running_job) {
+			job = scheduler->running_job;
+
+			if (job->ctx_id == ctx->id) {
+				scheduler->running_job = NULL;
+				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+				need_reset = true;
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		if (need_reset) {
+			pr_info("reset core[%d] by user cancel", scheduler->core);
+			scheduler->ops->soft_reset(scheduler);
+
+			rga_job_finish_and_next(scheduler, job, 0);
+		}
+	}
+
+free_ctx:
+	rga_internal_ctx_free_remove_idr(ctx);
+}
+
+int rga_internal_ctx_cancel_by_user_ctx(uint32_t ctx_id)
+{
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+	int ret = 0;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	ctx = rga_internal_ctx_lookup(ctx_manager, ctx_id);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx from id[%d]", ctx_id);
+		return -EINVAL;
+	}
+
+	kref_put(&ctx->refcount, rga_internal_ctx_kref_release);
+
 	return ret;
 }
 

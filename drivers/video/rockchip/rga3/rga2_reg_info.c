@@ -2056,16 +2056,16 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	}
 }
 
-void rga2_soft_reset(struct rga_scheduler_t *rga_scheduler)
+void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
 
-	rga_write((1 << 3) | (1 << 4) | (1 << 6), RGA2_SYS_CTRL, rga_scheduler);
+	rga_write((1 << 3) | (1 << 4) | (1 << 6), RGA2_SYS_CTRL, scheduler);
 
 	for (i = 0; i < RGA_RESET_TIMEOUT; i++) {
 		/* RGA_SYS_CTRL */
-		reg = rga_read(RGA2_SYS_CTRL, rga_scheduler) & 1;
+		reg = rga_read(RGA2_SYS_CTRL, scheduler) & 1;
 
 		if (reg == 0)
 			break;
