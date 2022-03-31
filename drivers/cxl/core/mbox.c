@@ -207,6 +207,44 @@ static bool cxl_mem_raw_command_allowed(u16 opcode)
 	return true;
 }
 
+static int cxl_mbox_cmd_ctor(struct cxl_mbox_cmd *mbox,
+			     struct cxl_dev_state *cxlds, u16 opcode,
+			     size_t in_size, size_t out_size, u64 in_payload)
+{
+	*mbox = (struct cxl_mbox_cmd) {
+		.opcode = opcode,
+		.size_in = in_size,
+	};
+
+	if (in_size) {
+		mbox->payload_in = vmemdup_user(u64_to_user_ptr(in_payload),
+						in_size);
+		if (!mbox->payload_in)
+			return PTR_ERR(mbox->payload_in);
+	}
+
+	/* Prepare to handle a full payload for variable sized output */
+	if (out_size < 0)
+		mbox->size_out = cxlds->payload_size;
+	else
+		mbox->size_out = out_size;
+
+	if (mbox->size_out) {
+		mbox->payload_out = kvzalloc(mbox->size_out, GFP_KERNEL);
+		if (!mbox->payload_out) {
+			kvfree(mbox->payload_in);
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static void cxl_mbox_cmd_dtor(struct cxl_mbox_cmd *mbox)
+{
+	kvfree(mbox->payload_in);
+	kvfree(mbox->payload_out);
+}
+
 static int cxl_to_mem_cmd_raw(struct cxl_mem_command *mem_cmd,
 			      const struct cxl_send_command *send_cmd,
 			      struct cxl_dev_state *cxlds)
@@ -390,27 +428,14 @@ static int handle_mailbox_cmd_from_user(struct cxl_dev_state *cxlds,
 					s32 *size_out, u32 *retval)
 {
 	struct device *dev = cxlds->dev;
-	struct cxl_mbox_cmd mbox_cmd = {
-		.opcode = cmd->opcode,
-		.size_in = cmd->info.size_in,
-		.size_out = cmd->info.size_out,
-	};
+	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
-	if (cmd->info.size_out) {
-		mbox_cmd.payload_out = kvzalloc(cmd->info.size_out, GFP_KERNEL);
-		if (!mbox_cmd.payload_out)
-			return -ENOMEM;
-	}
-
-	if (cmd->info.size_in) {
-		mbox_cmd.payload_in = vmemdup_user(u64_to_user_ptr(in_payload),
-						   cmd->info.size_in);
-		if (IS_ERR(mbox_cmd.payload_in)) {
-			kvfree(mbox_cmd.payload_out);
-			return PTR_ERR(mbox_cmd.payload_in);
-		}
-	}
+	rc = cxl_mbox_cmd_ctor(&mbox_cmd, cxlds, cmd->opcode,
+			       cmd->info.size_in, cmd->info.size_out,
+			       in_payload);
+	if (rc)
+		return rc;
 
 	dev_dbg(dev,
 		"Submitting %s command for user\n"
@@ -442,8 +467,7 @@ static int handle_mailbox_cmd_from_user(struct cxl_dev_state *cxlds,
 	*retval = mbox_cmd.return_code;
 
 out:
-	kvfree(mbox_cmd.payload_in);
-	kvfree(mbox_cmd.payload_out);
+	cxl_mbox_cmd_dtor(&mbox_cmd);
 	return rc;
 }
 
@@ -463,10 +487,6 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	rc = cxl_validate_cmd_from_user(cxlmd->cxlds, &send, &c);
 	if (rc)
 		return rc;
-
-	/* Prepare to handle a full payload for variable sized output */
-	if (c.info.size_out < 0)
-		c.info.size_out = cxlds->payload_size;
 
 	rc = handle_mailbox_cmd_from_user(cxlds, &c, send.in.payload,
 					  send.out.payload, &send.out.size,
