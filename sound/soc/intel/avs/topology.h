@@ -29,6 +29,10 @@ struct avs_tplg {
 	u32 num_modcfgs_base;
 	struct avs_tplg_modcfg_ext *modcfgs_ext;
 	u32 num_modcfgs_ext;
+	struct avs_tplg_pplcfg *pplcfgs;
+	u32 num_pplcfgs;
+	struct avs_tplg_binding *bindings;
+	u32 num_bindings;
 };
 
 struct avs_tplg_library {
@@ -98,6 +102,30 @@ struct avs_tplg_modcfg_ext {
 			struct avs_audio_format *out_fmt;
 		} micsel;
 	};
+};
+
+/* Specifies path behaviour during PCM ->trigger(START) command. */
+enum avs_tplg_trigger {
+	AVS_TPLG_TRIGGER_AUTO = 0,
+};
+
+struct avs_tplg_pplcfg {
+	u16 req_size;
+	u8 priority;
+	bool lp;
+	u16 attributes;
+	enum avs_tplg_trigger trigger;
+};
+
+struct avs_tplg_binding {
+	char target_tplg_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	u32 target_path_tmpl_id;
+	u32 target_ppl_id;
+	u32 target_mod_id;
+	u8 target_mod_pin;
+	u32 mod_id;
+	u8 mod_pin;
+	u8 is_sink;
 };
 
 #endif
