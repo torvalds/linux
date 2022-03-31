@@ -2697,6 +2697,7 @@
   __traceiter_android_vh_tune_swappiness
   __traceiter_android_vh_page_referenced_check_bypass
   __traceiter_android_vh_drain_all_pages_bypass
+  __traceiter_android_vh_cma_drain_all_pages_bypass
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_send_tm_command
@@ -2902,6 +2903,7 @@
   __tracepoint_android_vh_tune_swappiness
   __tracepoint_android_vh_page_referenced_check_bypass
   __tracepoint_android_vh_drain_all_pages_bypass
+  __tracepoint_android_vh_cma_drain_all_pages_bypass
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
