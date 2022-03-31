@@ -297,7 +297,7 @@ struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 	if (!cmd)
 		return NULL;
 
-	list_add(&cmd->list, &hdev->mgmt_pending);
+	list_add_tail(&cmd->list, &hdev->mgmt_pending);
 
 	return cmd;
 }
