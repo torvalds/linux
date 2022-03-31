@@ -324,14 +324,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_post_init_entity_util_avg,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se), 1);
 
-DECLARE_HOOK(android_vh_do_wake_up_sync,
-	TP_PROTO(struct wait_queue_head *wq_head, int *done),
-	TP_ARGS(wq_head, done));
-
-DECLARE_HOOK(android_vh_set_wake_flags,
-	TP_PROTO(int *wake_flags, unsigned int *mode),
-	TP_ARGS(wake_flags, mode));
-
 DECLARE_RESTRICTED_HOOK(android_rvh_util_est_update,
 	TP_PROTO(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep, int *ret),
 	TP_ARGS(cfs_rq, p, task_sleep, ret), 1);
