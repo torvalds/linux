@@ -40,6 +40,8 @@ unsigned int stdbg_mask = 0x7F;
 unsigned int stdbg_level = ST_ERR;
 unsigned int stdbg_mask = 0x7F;
 #endif
+EXPORT_SYMBOL_GPL(stdbg_level);
+EXPORT_SYMBOL_GPL(stdbg_mask);
 
 static const struct reg_name mem_reg_name[] = {
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
