@@ -536,9 +536,43 @@ static int rkcif_sditf_attach_cifdev(struct sditf_priv *sditf)
 	return 0;
 }
 
+static int rkcif_sditf_get_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct sditf_priv *priv = container_of(ctrl->handler,
+					       struct sditf_priv,
+					       ctrl_handler);
+	struct v4l2_ctrl *sensor_ctrl = NULL;
+
+	switch (ctrl->id) {
+	case V4L2_CID_PIXEL_RATE:
+		if (priv->cif_dev->terminal_sensor.sd) {
+			sensor_ctrl = v4l2_ctrl_find(priv->cif_dev->terminal_sensor.sd->ctrl_handler, V4L2_CID_PIXEL_RATE);
+			if (sensor_ctrl) {
+				ctrl->val = v4l2_ctrl_g_ctrl_int64(sensor_ctrl);
+				__v4l2_ctrl_s_ctrl_int64(priv->pixel_rate, ctrl->val);
+				v4l2_dbg(3, rkcif_debug, &priv->cif_dev->v4l2_dev,
+					"%s, %s pixel rate %d\n",
+					__func__, priv->cif_dev->terminal_sensor.sd->name, ctrl->val);
+				return 0;
+			} else {
+				return -EINVAL;
+			}
+		}
+		return -EINVAL;
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct v4l2_ctrl_ops rkcif_sditf_ctrl_ops = {
+	.g_volatile_ctrl = rkcif_sditf_get_ctrl,
+};
+
 static int rkcif_subdev_media_init(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
+	struct v4l2_ctrl_handler *handler = &priv->ctrl_handler;
+	unsigned long flags = V4L2_CTRL_FLAG_VOLATILE;
 	int ret;
 
 	priv->pads.flags = MEDIA_PAD_FL_SOURCE;
@@ -546,6 +580,21 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	ret = media_entity_pads_init(&priv->sd.entity, 1, &priv->pads);
 	if (ret < 0)
 		return ret;
+
+	ret = v4l2_ctrl_handler_init(handler, 1);
+	if (ret)
+		return ret;
+	priv->pixel_rate = v4l2_ctrl_new_std(handler, &rkcif_sditf_ctrl_ops,
+					     V4L2_CID_PIXEL_RATE,
+					     0, SDITF_PIXEL_RATE_MAX,
+					     1, SDITF_PIXEL_RATE_MAX);
+	if (priv->pixel_rate)
+		priv->pixel_rate->flags |= flags;
+	priv->sd.ctrl_handler = handler;
+	if (handler->error) {
+		v4l2_ctrl_handler_free(handler);
+		return handler->error;
+	}
 
 	strncpy(priv->sd.name, dev_name(cif_dev->dev), sizeof(priv->sd.name));
 	priv->cap_info.width = 0;

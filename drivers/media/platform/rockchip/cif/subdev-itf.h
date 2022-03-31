@@ -28,6 +28,8 @@
 #define RKCIF_TOISP_CH2	2
 #define TOISP_CH_MAX 3
 
+#define SDITF_PIXEL_RATE_MAX (1000000000)
+
 struct capture_info {
 	unsigned int offset_x;
 	unsigned int offset_y;
@@ -61,6 +63,8 @@ struct sditf_priv {
 	struct capture_info cap_info;
 	struct rkisp_vicap_mode mode;
 	struct toisp_info toisp_inf;
+	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl_handler ctrl_handler;
 	int buf_num;
 };
 
