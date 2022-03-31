@@ -106,7 +106,7 @@ static void nest_epollfd(void)
 	printinfo("Nesting level(s): %d\n", nested);
 
 	epollfdp = calloc(nested, sizeof(int));
-	if (!epollfd)
+	if (!epollfdp)
 		err(EXIT_FAILURE, "calloc");
 
 	for (i = 0; i < nested; i++) {

@@ -16,6 +16,8 @@
 #include <linux/phylink.h>
 #include <linux/hrtimer.h>
 
+#include "sparx5_main_regs.h"
+
 /* Target chip type */
 enum spx5_target_chiptype {
 	SPX5_TARGET_CT_7546    = 0x7546,  /* SparX-5-64  Enterprise */

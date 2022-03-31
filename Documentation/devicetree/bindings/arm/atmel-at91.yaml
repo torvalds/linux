@@ -8,7 +8,8 @@ title: Atmel AT91 device tree bindings.
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
-  - Ludovic Desroches <ludovic.desroches@microchip.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
 
 description: |
   Boards with a SoC of the Atmel AT91 or SMART family shall have the following

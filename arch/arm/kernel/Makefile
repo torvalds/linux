@@ -106,4 +106,6 @@ endif
 
 obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
 
+obj-$(CONFIG_GENERIC_CPU_VULNERABILITIES) += spectre.o
+
 extra-y := $(head-y) vmlinux.lds

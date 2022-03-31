@@ -289,6 +289,8 @@ static void blkdev_bio_end_io_async(struct bio *bio)
 	struct kiocb *iocb = dio->iocb;
 	ssize_t ret;
 
+	WRITE_ONCE(iocb->private, NULL);
+
 	if (likely(!bio->bi_status)) {
 		ret = dio->size;
 		iocb->ki_pos += ret;

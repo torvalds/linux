@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_dp_aux_bus.h>
 #include <drm/drm_panel.h>
 
 #include "dp.h"
@@ -569,6 +570,12 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	mutex_lock(&dpaux_lock);
 	list_add_tail(&dpaux->list, &dpaux_list);
 	mutex_unlock(&dpaux_lock);
+
+	err = devm_of_dp_aux_populate_ep_devices(&dpaux->aux);
+	if (err < 0) {
+		dev_err(dpaux->dev, "failed to populate AUX bus: %d\n", err);
+		return err;
+	}
 
 	return 0;
 }

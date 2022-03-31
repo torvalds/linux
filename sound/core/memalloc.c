@@ -511,7 +511,8 @@ static void *snd_dma_noncontig_alloc(struct snd_dma_buffer *dmab, size_t size)
 				      DEFAULT_GFP, 0);
 	if (!sgt)
 		return NULL;
-	dmab->dev.need_sync = dma_need_sync(dmab->dev.dev, dmab->dev.dir);
+	dmab->dev.need_sync = dma_need_sync(dmab->dev.dev,
+					    sg_dma_address(sgt->sgl));
 	p = dma_vmap_noncontiguous(dmab->dev.dev, size, sgt);
 	if (p)
 		dmab->private_data = sgt;
@@ -540,9 +541,9 @@ static void snd_dma_noncontig_sync(struct snd_dma_buffer *dmab,
 	if (mode == SNDRV_DMA_SYNC_CPU) {
 		if (dmab->dev.dir == DMA_TO_DEVICE)
 			return;
+		invalidate_kernel_vmap_range(dmab->area, dmab->bytes);
 		dma_sync_sgtable_for_cpu(dmab->dev.dev, dmab->private_data,
 					 dmab->dev.dir);
-		invalidate_kernel_vmap_range(dmab->area, dmab->bytes);
 	} else {
 		if (dmab->dev.dir == DMA_FROM_DEVICE)
 			return;
@@ -671,9 +672,13 @@ static const struct snd_malloc_ops snd_dma_sg_wc_ops = {
  */
 static void *snd_dma_noncoherent_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
-	dmab->dev.need_sync = dma_need_sync(dmab->dev.dev, dmab->dev.dir);
-	return dma_alloc_noncoherent(dmab->dev.dev, size, &dmab->addr,
-				     dmab->dev.dir, DEFAULT_GFP);
+	void *p;
+
+	p = dma_alloc_noncoherent(dmab->dev.dev, size, &dmab->addr,
+				  dmab->dev.dir, DEFAULT_GFP);
+	if (p)
+		dmab->dev.need_sync = dma_need_sync(dmab->dev.dev, dmab->addr);
+	return p;
 }
 
 static void snd_dma_noncoherent_free(struct snd_dma_buffer *dmab)

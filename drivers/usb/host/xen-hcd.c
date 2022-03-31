@@ -716,8 +716,9 @@ static int xenhcd_map_urb_for_request(struct xenhcd_info *info, struct urb *urb,
 	return 0;
 }
 
-static void xenhcd_gnttab_done(struct usb_shadow *shadow)
+static void xenhcd_gnttab_done(struct xenhcd_info *info, unsigned int id)
 {
+	struct usb_shadow *shadow = info->shadow + id;
 	int nr_segs = 0;
 	int i;
 
@@ -726,8 +727,10 @@ static void xenhcd_gnttab_done(struct usb_shadow *shadow)
 	if (xenusb_pipeisoc(shadow->req.pipe))
 		nr_segs += shadow->req.u.isoc.nr_frame_desc_segs;
 
-	for (i = 0; i < nr_segs; i++)
-		gnttab_end_foreign_access(shadow->req.seg[i].gref, 0, 0UL);
+	for (i = 0; i < nr_segs; i++) {
+		if (!gnttab_try_end_foreign_access(shadow->req.seg[i].gref))
+			xenhcd_set_error(info, "backend didn't release grant");
+	}
 
 	shadow->req.nr_buffer_segs = 0;
 	shadow->req.u.isoc.nr_frame_desc_segs = 0;
@@ -841,7 +844,9 @@ static void xenhcd_cancel_all_enqueued_urbs(struct xenhcd_info *info)
 	list_for_each_entry_safe(urbp, tmp, &info->in_progress_list, list) {
 		req_id = urbp->req_id;
 		if (!urbp->unlinked) {
-			xenhcd_gnttab_done(&info->shadow[req_id]);
+			xenhcd_gnttab_done(info, req_id);
+			if (info->error)
+				return;
 			if (urbp->urb->status == -EINPROGRESS)
 				/* not dequeued */
 				xenhcd_giveback_urb(info, urbp->urb,
@@ -942,8 +947,7 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 	rp = info->urb_ring.sring->rsp_prod;
 	if (RING_RESPONSE_PROD_OVERFLOW(&info->urb_ring, rp)) {
 		xenhcd_set_error(info, "Illegal index on urb-ring");
-		spin_unlock_irqrestore(&info->lock, flags);
-		return 0;
+		goto err;
 	}
 	rmb(); /* ensure we see queued responses up to "rp" */
 
@@ -952,11 +956,13 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 		id = res.id;
 		if (id >= XENUSB_URB_RING_SIZE) {
 			xenhcd_set_error(info, "Illegal data on urb-ring");
-			continue;
+			goto err;
 		}
 
 		if (likely(xenusb_pipesubmit(info->shadow[id].req.pipe))) {
-			xenhcd_gnttab_done(&info->shadow[id]);
+			xenhcd_gnttab_done(info, id);
+			if (info->error)
+				goto err;
 			urb = info->shadow[id].urb;
 			if (likely(urb)) {
 				urb->actual_length = res.actual_length;
@@ -978,6 +984,10 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 	spin_unlock_irqrestore(&info->lock, flags);
 
 	return more_to_do;
+
+ err:
+	spin_unlock_irqrestore(&info->lock, flags);
+	return 0;
 }
 
 static int xenhcd_conn_notify(struct xenhcd_info *info)

@@ -1489,6 +1489,14 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 /* Extended advertising support */
 #define ext_adv_capable(dev) (((dev)->le_features[1] & HCI_LE_EXT_ADV))
 
+/* BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 1789:
+ *
+ * C24: Mandatory if the LE Controller supports Connection State and either
+ * LE Feature (LL Privacy) or LE Feature (Extended Advertising) is supported
+ */
+#define use_enhanced_conn_complete(dev) (ll_privacy_capable(dev) || \
+					 ext_adv_capable(dev))
+
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
 

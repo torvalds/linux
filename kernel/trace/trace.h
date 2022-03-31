@@ -136,7 +136,6 @@ struct kprobe_trace_entry_head {
 
 struct eprobe_trace_entry_head {
 	struct trace_entry	ent;
-	unsigned int		type;
 };
 
 struct kretprobe_trace_entry_head {

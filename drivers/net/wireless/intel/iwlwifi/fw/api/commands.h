@@ -502,11 +502,6 @@ enum iwl_legacy_cmds {
 	DEBUG_LOG_MSG = 0xf7,
 
 	/**
-	 * @BCAST_FILTER_CMD: &struct iwl_bcast_filter_cmd
-	 */
-	BCAST_FILTER_CMD = 0xcf,
-
-	/**
 	 * @MCAST_FILTER_CMD: &struct iwl_mcast_filter_cmd
 	 */
 	MCAST_FILTER_CMD = 0xd0,

@@ -233,7 +233,11 @@ static bool contain_vport_reformat_action(struct mlx5_flow_rule *dst)
 		dst->dest_attr.vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
 }
 
-#define MLX5_FLOW_CONTEXT_ACTION_MAX  32
+/* We want to support a rule with 32 destinations, which means we need to
+ * account for 32 destinations plus usually a counter plus one more action
+ * for a multi-destination flow table.
+ */
+#define MLX5_FLOW_CONTEXT_ACTION_MAX  34
 static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft,
 				  struct mlx5_flow_group *group,
@@ -403,9 +407,9 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 			enum mlx5_flow_destination_type type = dst->dest_attr.type;
 			u32 id;
 
-			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
-			    num_term_actions >= MLX5_FLOW_CONTEXT_ACTION_MAX) {
-				err = -ENOSPC;
+			if (fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+			    num_term_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+				err = -EOPNOTSUPP;
 				goto free_actions;
 			}
 
@@ -478,8 +482,9 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 			    MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				continue;
 
-			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-				err = -ENOSPC;
+			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+			    fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+				err = -EOPNOTSUPP;
 				goto free_actions;
 			}
 
@@ -499,14 +504,28 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	params.match_sz = match_sz;
 	params.match_buf = (u64 *)fte->val;
 	if (num_term_actions == 1) {
-		if (term_actions->reformat)
+		if (term_actions->reformat) {
+			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+				err = -EOPNOTSUPP;
+				goto free_actions;
+			}
 			actions[num_actions++] = term_actions->reformat;
+		}
 
+		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
 		actions[num_actions++] = term_actions->dest;
 	} else if (num_term_actions > 1) {
 		bool ignore_flow_level =
 			!!(fte->action.flags & FLOW_ACT_IGNORE_FLOW_LEVEL);
 
+		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
+		    fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
 		tmp_action = mlx5dr_action_create_mult_dest_tbl(domain,
 								term_actions,
 								num_term_actions,

@@ -429,7 +429,7 @@ static void timerlat_hist_usage(char *usage)
 	char *msg[] = {
 		"",
 		"  usage: [rtla] timerlat hist [-h] [-q] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] [-t[=file]] \\",
-		"         [-c cpu-list] [-P priority] [-e N] [-b N]  [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
+		"         [-c cpu-list] [-P priority] [-E N] [-b N]  [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
 		"         [--no-index] [--with-zeros]",
 		"",
 		"	  -h/--help: print this menu",
@@ -443,7 +443,7 @@ static void timerlat_hist_usage(char *usage)
 		"	  -T/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
 		"	  -n/--nano: display data in nanoseconds",
 		"	  -b/--bucket-size N: set the histogram bucket size (default 1)",
-		"	  -e/--entries N: set the number of entries of the histogram (default 256)",
+		"	  -E/--entries N: set the number of entries of the histogram (default 256)",
 		"	     --no-irq: ignore IRQ latencies",
 		"	     --no-thread: ignore thread latencies",
 		"	     --no-header: do not print header",
@@ -494,7 +494,7 @@ static struct timerlat_hist_params
 			{"cpus",		required_argument,	0, 'c'},
 			{"bucket-size",		required_argument,	0, 'b'},
 			{"debug",		no_argument,		0, 'D'},
-			{"entries",		required_argument,	0, 'e'},
+			{"entries",		required_argument,	0, 'E'},
 			{"duration",		required_argument,	0, 'd'},
 			{"help",		no_argument,		0, 'h'},
 			{"irq",			required_argument,	0, 'i'},
@@ -516,7 +516,7 @@ static struct timerlat_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:b:d:e:Dhi:np:P:s:t::T:012345",
+		c = getopt_long(argc, argv, "c:b:d:E:Dhi:np:P:s:t::T:012345",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -543,7 +543,7 @@ static struct timerlat_hist_params
 			if (!params->duration)
 				timerlat_hist_usage("Invalid -D duration\n");
 			break;
-		case 'e':
+		case 'E':
 			params->entries = get_llong_from_str(optarg);
 			if ((params->entries < 10) || (params->entries > 9999999))
 					timerlat_hist_usage("Entries must be > 10 and < 9999999\n");

@@ -6870,6 +6870,9 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->max_mtu = MVPP2_BM_JUMBO_PKT_SIZE;
 	dev->dev.of_node = port_node;
 
+	port->pcs_gmac.ops = &mvpp2_phylink_gmac_pcs_ops;
+	port->pcs_xlg.ops = &mvpp2_phylink_xlg_pcs_ops;
+
 	if (!mvpp2_use_acpi_compat_mode(port_fwnode)) {
 		port->phylink_config.dev = &dev->dev;
 		port->phylink_config.type = PHYLINK_NETDEV;
@@ -6939,9 +6942,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			__set_bit(PHY_INTERFACE_MODE_SGMII,
 				  port->phylink_config.supported_interfaces);
 		}
-
-		port->pcs_gmac.ops = &mvpp2_phylink_gmac_pcs_ops;
-		port->pcs_xlg.ops = &mvpp2_phylink_xlg_pcs_ops;
 
 		phylink = phylink_create(&port->phylink_config, port_fwnode,
 					 phy_mode, &mvpp2_phylink_ops);

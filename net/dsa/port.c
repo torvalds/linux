@@ -395,9 +395,16 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 		.tree_index = dp->ds->dst->index,
 		.sw_index = dp->ds->index,
 		.port = dp->index,
-		.bridge = *dp->bridge,
 	};
 	int err;
+
+	/* If the port could not be offloaded to begin with, then
+	 * there is nothing to do.
+	 */
+	if (!dp->bridge)
+		return;
+
+	info.bridge = *dp->bridge;
 
 	/* Here the port is already unbridged. Reflect the current configuration
 	 * so that drivers can program their chips accordingly.
@@ -781,9 +788,15 @@ int dsa_port_host_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	struct dsa_port *cpu_dp = dp->cpu_dp;
 	int err;
 
-	err = dev_uc_add(cpu_dp->master, addr);
-	if (err)
-		return err;
+	/* Avoid a call to __dev_set_promiscuity() on the master, which
+	 * requires rtnl_lock(), since we can't guarantee that is held here,
+	 * and we can't take it either.
+	 */
+	if (cpu_dp->master->priv_flags & IFF_UNICAST_FLT) {
+		err = dev_uc_add(cpu_dp->master, addr);
+		if (err)
+			return err;
+	}
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_FDB_ADD, &info);
 }
@@ -800,9 +813,11 @@ int dsa_port_host_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	struct dsa_port *cpu_dp = dp->cpu_dp;
 	int err;
 
-	err = dev_uc_del(cpu_dp->master, addr);
-	if (err)
-		return err;
+	if (cpu_dp->master->priv_flags & IFF_UNICAST_FLT) {
+		err = dev_uc_del(cpu_dp->master, addr);
+		if (err)
+			return err;
+	}
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_FDB_DEL, &info);
 }

@@ -367,6 +367,16 @@ bnxt_dl_livepatch_report_err(struct bnxt *bp, struct netlink_ext_ack *extack,
 	}
 }
 
+/* Live patch status in NVM */
+#define BNXT_LIVEPATCH_NOT_INSTALLED	0
+#define BNXT_LIVEPATCH_INSTALLED	FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL
+#define BNXT_LIVEPATCH_REMOVED		FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE
+#define BNXT_LIVEPATCH_MASK		(FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL | \
+					 FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE)
+#define BNXT_LIVEPATCH_ACTIVATED	BNXT_LIVEPATCH_MASK
+
+#define BNXT_LIVEPATCH_STATE(flags)	((flags) & BNXT_LIVEPATCH_MASK)
+
 static int
 bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 {
@@ -374,8 +384,9 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 	struct hwrm_fw_livepatch_query_input *query_req;
 	struct hwrm_fw_livepatch_output *patch_resp;
 	struct hwrm_fw_livepatch_input *patch_req;
+	u16 flags, live_patch_state;
+	bool activated = false;
 	u32 installed = 0;
-	u16 flags;
 	u8 target;
 	int rc;
 
@@ -394,7 +405,6 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 		hwrm_req_drop(bp, query_req);
 		return rc;
 	}
-	patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_ACTIVATE;
 	patch_req->loadtype = FW_LIVEPATCH_REQ_LOADTYPE_NVM_INSTALL;
 	patch_resp = hwrm_req_hold(bp, patch_req);
 
@@ -407,12 +417,20 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 		}
 
 		flags = le16_to_cpu(query_resp->status_flags);
-		if (~flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL)
+		live_patch_state = BNXT_LIVEPATCH_STATE(flags);
+
+		if (live_patch_state == BNXT_LIVEPATCH_NOT_INSTALLED)
 			continue;
-		if ((flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE) &&
-		    !strncmp(query_resp->active_ver, query_resp->install_ver,
-			     sizeof(query_resp->active_ver)))
+
+		if (live_patch_state == BNXT_LIVEPATCH_ACTIVATED) {
+			activated = true;
 			continue;
+		}
+
+		if (live_patch_state == BNXT_LIVEPATCH_INSTALLED)
+			patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_ACTIVATE;
+		else if (live_patch_state == BNXT_LIVEPATCH_REMOVED)
+			patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_DEACTIVATE;
 
 		patch_req->fw_target = target;
 		rc = hwrm_req_send(bp, patch_req);
@@ -424,8 +442,13 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 	}
 
 	if (!rc && !installed) {
-		NL_SET_ERR_MSG_MOD(extack, "No live patches found");
-		rc = -ENOENT;
+		if (activated) {
+			NL_SET_ERR_MSG_MOD(extack, "Live patch already activated");
+			rc = -EEXIST;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "No live patches found");
+			rc = -ENOENT;
+		}
 	}
 	hwrm_req_drop(bp, query_req);
 	hwrm_req_drop(bp, patch_req);

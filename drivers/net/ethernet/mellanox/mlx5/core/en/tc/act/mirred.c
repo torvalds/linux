@@ -177,6 +177,12 @@ parse_mirred_encap(struct mlx5e_tc_act_parse_state *parse_state,
 		return -ENOMEM;
 
 	parse_state->encap = false;
+
+	if (parse_state->mpls_push) {
+		memcpy(&parse_attr->mpls_info[esw_attr->out_count],
+		       &parse_state->mpls_info, sizeof(parse_state->mpls_info));
+		parse_state->mpls_push = false;
+	}
 	esw_attr->dests[esw_attr->out_count].flags |= MLX5_ESW_DEST_ENCAP;
 	esw_attr->out_count++;
 	/* attr->dests[].rep is resolved when we handle encap */

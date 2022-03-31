@@ -513,24 +513,24 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	memset(&args, 0, sizeof(args));
 
 	EXPECT_BEGIN(KERN_INFO,
-		     "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found -1");
+		     "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found 1");
 
 	rc = of_parse_phandle_with_args(np, "phandle-list-bad-args",
 					"#phandle-cells", 1, &args);
 
 	EXPECT_END(KERN_INFO,
-		   "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found -1");
+		   "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found 1");
 
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 
 	EXPECT_BEGIN(KERN_INFO,
-		     "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found -1");
+		     "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found 1");
 
 	rc = of_count_phandle_with_args(np, "phandle-list-bad-args",
 					"#phandle-cells");
 
 	EXPECT_END(KERN_INFO,
-		   "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found -1");
+		   "OF: /testcase-data/phandle-tests/consumer-a: #phandle-cells = 3 found 1");
 
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
@@ -670,12 +670,12 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 	memset(&args, 0, sizeof(args));
 
 	EXPECT_BEGIN(KERN_INFO,
-		     "OF: /testcase-data/phandle-tests/consumer-b: #phandle-cells = 2 found -1");
+		     "OF: /testcase-data/phandle-tests/consumer-b: #phandle-cells = 2 found 1");
 
 	rc = of_parse_phandle_with_args_map(np, "phandle-list-bad-args",
 					    "phandle", 1, &args);
 	EXPECT_END(KERN_INFO,
-		   "OF: /testcase-data/phandle-tests/consumer-b: #phandle-cells = 2 found -1");
+		   "OF: /testcase-data/phandle-tests/consumer-b: #phandle-cells = 2 found 1");
 
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
@@ -1257,12 +1257,12 @@ static void __init of_unittest_platform_populate(void)
 		unittest(pdev, "device 2 creation failed\n");
 
 		EXPECT_BEGIN(KERN_INFO,
-			     "platform testcase-data:testcase-device2: IRQ index 0 not found");
+			     "platform testcase-data:testcase-device2: error -ENXIO: IRQ index 0 not found");
 
 		irq = platform_get_irq(pdev, 0);
 
 		EXPECT_END(KERN_INFO,
-			   "platform testcase-data:testcase-device2: IRQ index 0 not found");
+			   "platform testcase-data:testcase-device2: error -ENXIO: IRQ index 0 not found");
 
 		unittest(irq < 0 && irq != -EPROBE_DEFER,
 			 "device parsing error failed - %d\n", irq);
