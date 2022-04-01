@@ -25,7 +25,11 @@ enum {
 
 /********************* Private MACRO Definition ******************************/
 #define PKA_POLL_PERIOD_US	1000
-#define PKA_POLL_TIMEOUT_US	1000000
+#define PKA_POLL_TIMEOUT_US	50000
+
+/* for private key EXP_MOD operation */
+#define PKA_MAX_POLL_PERIOD_US	20000
+#define PKA_MAX_POLL_TIMEOUT_US	2000000
 
 #define PKA_MAX_CALC_BITS	4096
 #define PKA_MAX_CALC_WORDS	PKA_BITS2WORDS(PKA_MAX_CALC_BITS)
@@ -198,6 +202,14 @@ static int pka_wait_done(void)
 
 	return readl_poll_timeout(pka_base + CRYPTO_PKA_DONE, reg_val,
 				  reg_val, PKA_POLL_PERIOD_US, PKA_POLL_TIMEOUT_US);
+}
+
+static int pka_max_wait_done(void)
+{
+	u32 reg_val = 0;
+
+	return readl_poll_timeout(pka_base + CRYPTO_PKA_DONE, reg_val,
+				  reg_val, PKA_MAX_POLL_PERIOD_US, PKA_MAX_POLL_TIMEOUT_US);
 }
 
 static u32 pka_check_status(u32 mask)
@@ -459,10 +471,19 @@ static void pka_copy_bn_into_reg(u8 dst_reg, struct rk_bignum *bn)
 	pka_clr_mem(cur_addr, size_words - bn_words);
 }
 
-static void pka_copy_bn_from_reg(struct rk_bignum *bn, u32 size_words, u8 src_reg)
+static int pka_copy_bn_from_reg(struct rk_bignum *bn, u32 size_words, u8 src_reg, bool is_max_poll)
 {
+	int ret;
+
 	PKA_WRITE(0, CRYPTO_OPCODE);
+
+	ret = is_max_poll ? pka_max_wait_done() : pka_wait_done();
+	if (ret)
+		return ret;
+
 	pka_read_data(pka_get_map_addr(src_reg), bn->data, size_words);
+
+	return 0;
 }
 
 /***********	pka_div_bignum function		**********************/
@@ -634,6 +655,7 @@ int rk_pka_expt_mod(struct rk_bignum *in,
 {
 	int ret = -1;
 	u32 max_word_size;
+	bool is_max_poll;
 	u8 r_in = 2, r_e = 3, r_out = 4;
 	u8 r_t0 = 2, r_t1 = 3, r_t2 = 4;
 
@@ -667,7 +689,10 @@ int rk_pka_expt_mod(struct rk_bignum *in,
 		goto exit;
 	}
 
-	pka_copy_bn_from_reg(out, max_word_size, r_out);
+	/* e is usually 0x10001 in public key EXP_MOD operation */
+	is_max_poll = rk_bn_highest_bit(e) * 2 > rk_bn_highest_bit(n) ? true : false;
+
+	ret = pka_copy_bn_from_reg(out, max_word_size, r_out, is_max_poll);
 
 exit:
 	pka_clear_regs_block(0, 5);
