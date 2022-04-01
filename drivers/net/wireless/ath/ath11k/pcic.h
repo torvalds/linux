@@ -50,4 +50,5 @@ int ath11k_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 void ath11k_pcic_aspm_restore(struct ath11k_pci *ab_pci);
 int ath11k_pcic_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
 				      const struct cpumask *m);
+int ath11k_pcic_init_msi_config(struct ath11k_base *ab);
 #endif
