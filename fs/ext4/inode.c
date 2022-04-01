@@ -3589,7 +3589,7 @@ const struct iomap_ops ext4_iomap_report_ops = {
 static bool ext4_journalled_dirty_folio(struct address_space *mapping,
 		struct folio *folio)
 {
-	WARN_ON_ONCE(!page_has_buffers(&folio->page));
+	WARN_ON_ONCE(!folio_buffers(folio));
 	folio_set_checked(folio);
 	return filemap_dirty_folio(mapping, folio);
 }

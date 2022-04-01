@@ -2352,8 +2352,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 	if (err)
 		goto out;
 
-	err = pagecache_write_begin(NULL, mapping, size, 0,
-				    AOP_FLAG_CONT_EXPAND, &page, &fsdata);
+	err = pagecache_write_begin(NULL, mapping, size, 0, 0, &page, &fsdata);
 	if (err)
 		goto out;
 

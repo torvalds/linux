@@ -241,8 +241,6 @@ prototypes::
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
-	int (*readpages)(struct file *filp, struct address_space *mapping,
-			struct list_head *pages, unsigned nr_pages);
 	int (*write_begin)(struct file *, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata);
@@ -274,7 +272,6 @@ readpage:		yes, unlocks				shared
 writepages:
 dirty_folio		maybe
 readahead:		yes, unlocks				shared
-readpages:		no					shared
 write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
@@ -299,9 +296,6 @@ the request handler (/dev/loop).
 completion.
 
 ->readahead() unlocks the pages that I/O is attempted on like ->readpage().
-
-->readpages() populates the pagecache with the passed pages and starts
-I/O against them.  They come unlocked upon I/O completion.
 
 ->writepage() is used for two purposes: for "memory cleansing" and for
 "sync".  These are quite different operations and the behaviour may differ

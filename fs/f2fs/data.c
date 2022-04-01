@@ -164,7 +164,7 @@ static void f2fs_verify_bio(struct work_struct *work)
 	bool may_have_compressed_pages = (ctx->enabled_steps & STEP_DECOMPRESS);
 
 	/*
-	 * fsverity_verify_bio() may call readpages() again, and while verity
+	 * fsverity_verify_bio() may call readahead() again, and while verity
 	 * will be disabled for this, decryption and/or decompression may still
 	 * be needed, resulting in another bio_post_read_ctx being allocated.
 	 * So to prevent deadlocks we need to release the current ctx to the
@@ -2392,7 +2392,7 @@ static void f2fs_readahead(struct readahead_control *rac)
 	if (!f2fs_is_compress_backend_ready(inode))
 		return;
 
-	/* If the file has inline data, skip readpages */
+	/* If the file has inline data, skip readahead */
 	if (f2fs_has_inline_data(inode))
 		return;
 
@@ -3571,7 +3571,7 @@ static bool f2fs_dirty_data_folio(struct address_space *mapping,
 		f2fs_update_dirty_folio(inode, folio);
 		return true;
 	}
-	return true;
+	return false;
 }
 
 

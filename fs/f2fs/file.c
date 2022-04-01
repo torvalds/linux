@@ -4448,7 +4448,7 @@ static ssize_t f2fs_buffered_write_iter(struct kiocb *iocb,
 		return -EOPNOTSUPP;
 
 	current->backing_dev_info = inode_to_bdi(inode);
-	ret = generic_perform_write(file, from, iocb->ki_pos);
+	ret = generic_perform_write(iocb, from);
 	current->backing_dev_info = NULL;
 
 	if (ret > 0) {
