@@ -1171,12 +1171,14 @@ static ssize_t stm_source_link_store(struct device *dev,
 	struct stm_device *link;
 	int err;
 
+	mutex_lock(&src->link_mutex);
 	stm_source_link_drop(src);
 
 	link = stm_find_device(buf);
-	if (!link)
+	if (!link) {
+		mutex_unlock(&src->link_mutex);
 		return -EINVAL;
-
+	}
 	pm_runtime_get(&link->dev);
 
 	err = stm_source_link_add(src, link);
@@ -1185,7 +1187,7 @@ static ssize_t stm_source_link_store(struct device *dev,
 		/* matches the stm_find_device() above */
 		stm_put_device(link);
 	}
-
+	mutex_unlock(&src->link_mutex);
 	return err ? : count;
 }
 
@@ -1251,6 +1253,7 @@ int stm_source_register_device(struct device *parent,
 
 	stm_output_init(&src->output);
 	spin_lock_init(&src->link_lock);
+	mutex_init(&src->link_mutex);
 	INIT_LIST_HEAD(&src->link_entry);
 	src->data = data;
 	data->src = src;
