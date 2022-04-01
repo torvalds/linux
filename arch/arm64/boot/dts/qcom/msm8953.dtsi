@@ -326,7 +326,7 @@
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: rpmcc {
-					compatible = "qcom,rpmcc-msm8953";
+					compatible = "qcom,rpmcc-msm8953", "qcom,rpmcc";
 					clocks = <&xo_board>;
 					clock-names = "xo";
 					#clock-cells = <1>;

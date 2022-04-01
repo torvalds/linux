@@ -461,7 +461,7 @@
 			qcom,glink-channels = "rpm_requests";
 
 			rpmcc: qcom,rpmcc {
-				compatible = "qcom,rpmcc-msm8996";
+				compatible = "qcom,rpmcc-msm8996", "qcom,rpmcc";
 				#clock-cells = <1>;
 			};
 

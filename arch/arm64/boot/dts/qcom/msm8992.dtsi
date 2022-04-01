@@ -33,7 +33,7 @@
 };
 
 &rpmcc {
-	compatible = "qcom,rpmcc-msm8992";
+	compatible = "qcom,rpmcc-msm8992", "qcom,rpmcc";
 };
 
 &tcsr_mutex {
