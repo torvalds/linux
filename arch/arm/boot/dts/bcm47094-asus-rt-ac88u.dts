@@ -205,6 +205,7 @@
 		sw0_p5: port@5 {
 			reg = <5>;
 			label = "extsw";
+			phy-mode = "rgmii";
 
 			fixed-link {
 				speed = <1000>;
