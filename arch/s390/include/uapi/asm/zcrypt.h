@@ -4,7 +4,7 @@
  *
  *  zcrypt 2.2.1 (user-visible header)
  *
- *  Copyright IBM Corp. 2001, 2019
+ *  Copyright IBM Corp. 2001, 2022
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -85,7 +85,7 @@ struct ica_rsa_modexpo_crt {
 struct CPRBX {
 	__u16	     cprb_len;		/* CPRB length	      220	 */
 	__u8	     cprb_ver_id;	/* CPRB version id.   0x02	 */
-	__u8	     pad_000[3];	/* Alignment pad bytes		 */
+	__u8	     _pad_000[3];	/* Alignment pad bytes		 */
 	__u8	     func_id[2];	/* function id	      0x5432	 */
 	__u8	     cprb_flags[4];	/* Flags			 */
 	__u32	     req_parml;		/* request parameter buffer len	 */
@@ -95,19 +95,19 @@ struct CPRBX {
 	__u32	     rpl_datal;		/* reply data block len		 */
 	__u32	     rpld_datal;	/* replied data block len	 */
 	__u32	     req_extbl;		/* request extension block len	 */
-	__u8	     pad_001[4];	/* reserved			 */
+	__u8	     _pad_001[4];	/* reserved			 */
 	__u32	     rpld_extbl;	/* replied extension block len	 */
-	__u8	     padx000[16 - sizeof(__u8 *)];
+	__u8	     _pad_002[16 - sizeof(__u8 *)];
 	__u8 __user *req_parmb;		/* request parm block 'address'	 */
-	__u8	     padx001[16 - sizeof(__u8 *)];
+	__u8	     _pad_003[16 - sizeof(__u8 *)];
 	__u8 __user *req_datab;		/* request data block 'address'	 */
-	__u8	     padx002[16 - sizeof(__u8 *)];
+	__u8	     _pad_004[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_parmb;		/* reply parm block 'address'	 */
-	__u8	     padx003[16 - sizeof(__u8 *)];
+	__u8	     _pad_005[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_datab;		/* reply data block 'address'	 */
-	__u8	     padx004[16 - sizeof(__u8 *)];
+	__u8	     _pad_006[16 - sizeof(__u8 *)];
 	__u8 __user *req_extb;		/* request extension block 'addr'*/
-	__u8	     padx005[16 - sizeof(__u8 *)];
+	__u8	     _pad_007[16 - sizeof(__u8 *)];
 	__u8 __user *rpl_extb;		/* reply extension block 'address'*/
 	__u16	     ccp_rtcode;	/* server return code		 */
 	__u16	     ccp_rscode;	/* server reason code		 */
@@ -115,12 +115,10 @@ struct CPRBX {
 	__u8	     logon_id[8];	/* Logon Identifier		 */
 	__u8	     mac_value[8];	/* Mac Value			 */
 	__u8	     mac_content_flgs;	/* Mac content flag byte	 */
-	__u8	     pad_002;		/* Alignment			 */
+	__u8	     _pad_008;		/* Alignment			 */
 	__u16	     domain;		/* Domain			 */
-	__u8	     usage_domain[4];	/* Usage domain			 */
-	__u8	     cntrl_domain[4];	/* Control domain		 */
-	__u8	     S390enf_mask[4];	/* S/390 enforcement mask	 */
-	__u8	     pad_004[36];	/* reserved			 */
+	__u8	     _pad_009[12];	/* reserved, checked for zeros	 */
+	__u8	     _pad_010[36];	/* reserved			 */
 } __attribute__((packed));
 
 /**

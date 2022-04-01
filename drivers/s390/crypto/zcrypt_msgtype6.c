@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright IBM Corp. 2001, 2012
+ *  Copyright IBM Corp. 2001, 2022
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -43,63 +43,6 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Cryptographic Coprocessor (message type 6), " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
-
-/*
- * CPRB
- *	  Note that all shorts, ints and longs are little-endian.
- *	  All pointer fields are 32-bits long, and mean nothing
- *
- *	  A request CPRB is followed by a request_parameter_block.
- *
- *	  The request (or reply) parameter block is organized thus:
- *	    function code
- *	    VUD block
- *	    key block
- */
-struct CPRB {
-	unsigned short cprb_len;	/* CPRB length			 */
-	unsigned char cprb_ver_id;	/* CPRB version id.		 */
-	unsigned char pad_000;		/* Alignment pad byte.		 */
-	unsigned char srpi_rtcode[4];	/* SRPI return code LELONG	 */
-	unsigned char srpi_verb;	/* SRPI verb type		 */
-	unsigned char flags;		/* flags			 */
-	unsigned char func_id[2];	/* function id			 */
-	unsigned char checkpoint_flag;	/*				 */
-	unsigned char resv2;		/* reserved			 */
-	unsigned short req_parml;	/* request parameter buffer	 */
-					/* length 16-bit little endian	 */
-	unsigned char req_parmp[4];	/* request parameter buffer	 *
-					 * pointer (means nothing: the	 *
-					 * parameter buffer follows	 *
-					 * the CPRB).			 */
-	unsigned char req_datal[4];	/* request data buffer		 */
-					/* length	  ULELONG	 */
-	unsigned char req_datap[4];	/* request data buffer		 */
-					/* pointer			 */
-	unsigned short rpl_parml;	/* reply  parameter buffer	 */
-					/* length 16-bit little endian	 */
-	unsigned char pad_001[2];	/* Alignment pad bytes. ULESHORT */
-	unsigned char rpl_parmp[4];	/* reply parameter buffer	 *
-					 * pointer (means nothing: the	 *
-					 * parameter buffer follows	 *
-					 * the CPRB).			 */
-	unsigned char rpl_datal[4];	/* reply data buffer len ULELONG */
-	unsigned char rpl_datap[4];	/* reply data buffer		 */
-					/* pointer			 */
-	unsigned short ccp_rscode;	/* server reason code	ULESHORT */
-	unsigned short ccp_rtcode;	/* server return code	ULESHORT */
-	unsigned char repd_parml[2];	/* replied parameter len ULESHORT*/
-	unsigned char mac_data_len[2];	/* Mac Data Length	ULESHORT */
-	unsigned char repd_datal[4];	/* replied data length	ULELONG	 */
-	unsigned char req_pc[2];	/* PC identifier		 */
-	unsigned char res_origin[8];	/* resource origin		 */
-	unsigned char mac_value[8];	/* Mac Value			 */
-	unsigned char logon_id[8];	/* Logon Identifier		 */
-	unsigned char usage_domain[2];	/* cdx				 */
-	unsigned char resv3[18];	/* reserved for requestor	 */
-	unsigned short svr_namel;	/* server name length  ULESHORT	 */
-	unsigned char svr_name[8];	/* server name			 */
-} __packed;
 
 struct function_and_rules_block {
 	unsigned char function_code[2];
