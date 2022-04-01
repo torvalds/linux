@@ -674,7 +674,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 #define __TB_PORT_PRINT(level, _port, fmt, arg...)                      \
 	do {                                                            \
 		const struct tb_port *__port = (_port);                 \
-		level(__port->sw->tb, "%llx:%x: " fmt,                  \
+		level(__port->sw->tb, "%llx:%u: " fmt,                  \
 		      tb_route(__port->sw), __port->port, ## arg);      \
 	} while (0)
 #define tb_port_WARN(port, fmt, arg...) \
