@@ -63,7 +63,7 @@ struct ath11k_pci {
 	u16 dev_id;
 	char amss_path[100];
 	struct mhi_controller *mhi_ctrl;
-	unsigned long mhi_state;
+	const struct ath11k_msi_config *msi_config;
 	u32 register_window;
 
 	/* protects register_window above */
