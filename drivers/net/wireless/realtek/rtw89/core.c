@@ -1940,9 +1940,9 @@ static void rtw89_ips_work(struct work_struct *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						ips_work);
-
 	mutex_lock(&rtwdev->mutex);
-	rtw89_enter_ips(rtwdev);
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE)
+		rtw89_enter_ips(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -2848,7 +2848,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 
 	rtwdev->scanning = true;
 	rtw89_leave_lps(rtwdev);
-	if (hw_scan && rtwvif->net_type == RTW89_NET_TYPE_NO_LINK)
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
 		rtw89_leave_ips(rtwdev);
 
 	ether_addr_copy(rtwvif->mac_addr, mac_addr);
@@ -2872,7 +2872,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 
 	rtwdev->scanning = false;
 	rtwdev->dig.bypass_dig = true;
-	if (hw_scan && rtwvif->net_type == RTW89_NET_TYPE_NO_LINK)
+	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
 }
 
