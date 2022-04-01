@@ -47,7 +47,7 @@ static void print_backtrace(char *bt)
 static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 				unsigned long sp)
 {
-	int frame_count, prev_is_func2, seen_func2_func1;
+	int frame_count, prev_is_func2, seen_func2_func1, seen_kretprobe_trampoline;
 	const int max_frames = 128;
 	struct unwind_state state;
 	size_t bt_pos = 0;
@@ -63,6 +63,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	frame_count = 0;
 	prev_is_func2 = 0;
 	seen_func2_func1 = 0;
+	seen_kretprobe_trampoline = 0;
 	unwind_for_each_frame(&state, task, regs, sp) {
 		unsigned long addr = unwind_get_return_address(&state);
 		char sym[KSYM_SYMBOL_LEN];
@@ -88,6 +89,8 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		if (prev_is_func2 && str_has_prefix(sym, "unwindme_func1"))
 			seen_func2_func1 = 1;
 		prev_is_func2 = str_has_prefix(sym, "unwindme_func2");
+		if (str_has_prefix(sym, "__kretprobe_trampoline+0x0/"))
+			seen_kretprobe_trampoline = 1;
 	}
 
 	/* Check the results. */
@@ -101,6 +104,10 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	}
 	if (frame_count == max_frames) {
 		kunit_err(current_test, "Maximum number of frames exceeded\n");
+		ret = -EINVAL;
+	}
+	if (seen_kretprobe_trampoline) {
+		kunit_err(current_test, "__kretprobe_trampoline+0x0 in unwinding results\n");
 		ret = -EINVAL;
 	}
 	if (ret || force_bt)
@@ -132,21 +139,28 @@ static struct unwindme *unwindme;
 #define UWM_PGM			0x40	/* Unwind from program check handler */
 #define UWM_KPROBE_ON_FTRACE	0x80	/* Unwind from kprobe handler called via ftrace. */
 #define UWM_FTRACE		0x100	/* Unwind from ftrace handler. */
-#define UWM_KRETPROBE		0x200	/* Unwind kretprobe handlers. */
+#define UWM_KRETPROBE		0x200	/* Unwind through kretprobed function. */
+#define UWM_KRETPROBE_HANDLER	0x400	/* Unwind from kretprobe handler. */
 
-static __always_inline unsigned long get_psw_addr(void)
+static __always_inline struct pt_regs fake_pt_regs(void)
 {
-	unsigned long psw_addr;
+	struct pt_regs regs;
+
+	memset(&regs, 0, sizeof(regs));
+	regs.gprs[15] = current_stack_pointer();
 
 	asm volatile(
 		"basr	%[psw_addr],0\n"
-		: [psw_addr] "=d" (psw_addr));
-	return psw_addr;
+		: [psw_addr] "=d" (regs.psw.addr));
+	return regs;
 }
 
 static int kretprobe_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct unwindme *u = unwindme;
+
+	if (!(u->flags & UWM_KRETPROBE_HANDLER))
+		return 0;
 
 	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? regs : NULL,
 			     (u->flags & UWM_SP) ? u->sp : 0);
@@ -154,14 +168,21 @@ static int kretprobe_ret_handler(struct kretprobe_instance *ri, struct pt_regs *
 	return 0;
 }
 
-static noinline notrace void test_unwind_kretprobed_func(void)
+static noinline notrace int test_unwind_kretprobed_func(struct unwindme *u)
 {
-	asm volatile("	nop\n");
+	struct pt_regs regs;
+
+	if (!(u->flags & UWM_KRETPROBE))
+		return 0;
+
+	regs = fake_pt_regs();
+	return test_unwind(NULL, (u->flags & UWM_REGS) ? &regs : NULL,
+			   (u->flags & UWM_SP) ? u->sp : 0);
 }
 
-static noinline void test_unwind_kretprobed_func_caller(void)
+static noinline int test_unwind_kretprobed_func_caller(struct unwindme *u)
 {
-	test_unwind_kretprobed_func();
+	return test_unwind_kretprobed_func(u);
 }
 
 static int test_unwind_kretprobe(struct unwindme *u)
@@ -187,10 +208,12 @@ static int test_unwind_kretprobe(struct unwindme *u)
 		return -EINVAL;
 	}
 
-	test_unwind_kretprobed_func_caller();
+	ret = test_unwind_kretprobed_func_caller(u);
 	unregister_kretprobe(&my_kretprobe);
 	unwindme = NULL;
-	return u->ret;
+	if (u->flags & UWM_KRETPROBE_HANDLER)
+		ret = u->ret;
+	return ret;
 }
 
 static int kprobe_pre_handler(struct kprobe *p, struct pt_regs *regs)
@@ -304,16 +327,13 @@ static noinline int unwindme_func4(struct unwindme *u)
 		return 0;
 	} else if (u->flags & (UWM_PGM | UWM_KPROBE_ON_FTRACE)) {
 		return test_unwind_kprobe(u);
-	} else if (u->flags & (UWM_KRETPROBE)) {
+	} else if (u->flags & (UWM_KRETPROBE | UWM_KRETPROBE_HANDLER)) {
 		return test_unwind_kretprobe(u);
 	} else if (u->flags & UWM_FTRACE) {
 		return test_unwind_ftrace(u);
 	} else {
-		struct pt_regs regs;
+		struct pt_regs regs = fake_pt_regs();
 
-		memset(&regs, 0, sizeof(regs));
-		regs.psw.addr = get_psw_addr();
-		regs.gprs[15] = current_stack_pointer();
 		return test_unwind(NULL,
 				   (u->flags & UWM_REGS) ? &regs : NULL,
 				   (u->flags & UWM_SP) ? u->sp : 0);
@@ -452,6 +472,10 @@ static const struct test_params param_list[] = {
 	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_SP),
 	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_REGS),
 	TEST_WITH_FLAGS(UWM_KRETPROBE | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KRETPROBE_HANDLER),
+	TEST_WITH_FLAGS(UWM_KRETPROBE_HANDLER | UWM_SP),
+	TEST_WITH_FLAGS(UWM_KRETPROBE_HANDLER | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KRETPROBE_HANDLER | UWM_SP | UWM_REGS),
 };
 
 /*
