@@ -495,20 +495,30 @@ static void bch2_btree_update_free(struct btree_update *as)
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
-static void btree_update_will_delete_key(struct btree_update *as,
-					 struct bkey_i *k)
+static void btree_update_add_key(struct btree_update *as,
+				 struct keylist *keys, struct btree *b)
 {
-	BUG_ON(bch2_keylist_u64s(&as->old_keys) + k->k.u64s >
+	struct bkey_i *k = &b->key;
+
+	BUG_ON(bch2_keylist_u64s(keys) + k->k.u64s >
 	       ARRAY_SIZE(as->_old_keys));
-	bch2_keylist_add(&as->old_keys, k);
+
+	bkey_copy(keys->top, k);
+	bkey_i_to_btree_ptr_v2(keys->top)->v.mem_ptr = b->c.level + 1;
+
+	bch2_keylist_push(keys);
+}
+
+static void btree_update_will_delete_key(struct btree_update *as,
+					 struct btree *b)
+{
+	btree_update_add_key(as, &as->old_keys, b);
 }
 
 static void btree_update_will_add_key(struct btree_update *as,
-				      struct bkey_i *k)
+				      struct btree *b)
 {
-	BUG_ON(bch2_keylist_u64s(&as->new_keys) + k->k.u64s >
-	       ARRAY_SIZE(as->_new_keys));
-	bch2_keylist_add(&as->new_keys, k);
+	btree_update_add_key(as, &as->new_keys, b);
 }
 
 /*
@@ -533,13 +543,17 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	trans->journal_pin = &as->journal;
 
 	for_each_keylist_key(&as->new_keys, k) {
-		ret = bch2_trans_mark_new(trans, k, 0);
+		unsigned level = bkey_i_to_btree_ptr_v2(k)->v.mem_ptr;
+
+		ret = bch2_trans_mark_new(trans, as->btree_id, level, k, 0);
 		if (ret)
 			return ret;
 	}
 
 	for_each_keylist_key(&as->old_keys, k) {
-		ret = bch2_trans_mark_old(trans, bkey_i_to_s_c(k), 0);
+		unsigned level = bkey_i_to_btree_ptr_v2(k)->v.mem_ptr;
+
+		ret = bch2_trans_mark_old(trans, as->btree_id, level, bkey_i_to_s_c(k), 0);
 		if (ret)
 			return ret;
 	}
@@ -642,8 +656,8 @@ err:
 
 			if (!ret) {
 				i->journal_seq = cpu_to_le64(
-					max(journal_seq,
-					    le64_to_cpu(i->journal_seq)));
+							     max(journal_seq,
+								 le64_to_cpu(i->journal_seq)));
 
 				bch2_btree_add_journal_pin(c, b, journal_seq);
 			} else {
@@ -811,7 +825,7 @@ static void bch2_btree_update_add_new_node(struct btree_update *as, struct btree
 
 	mutex_unlock(&c->btree_interior_update_lock);
 
-	btree_update_will_add_key(as, &b->key);
+	btree_update_will_add_key(as, b);
 }
 
 /*
@@ -864,7 +878,7 @@ static void bch2_btree_update_get_open_buckets(struct btree_update *as, struct b
  * btree_updates to point to this btree_update:
  */
 static void bch2_btree_interior_update_will_free_node(struct btree_update *as,
-					       struct btree *b)
+						      struct btree *b)
 {
 	struct bch_fs *c = as->c;
 	struct btree_update *p, *n;
@@ -928,7 +942,7 @@ static void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 	 */
 	btree_update_drop_new_node(c, b);
 
-	btree_update_will_delete_key(as, &b->key);
+	btree_update_will_delete_key(as, b);
 
 	as->old_nodes[as->nr_old_nodes] = b;
 	as->old_nodes_seq[as->nr_old_nodes] = b->data->keys.seq;
@@ -1924,11 +1938,13 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	int ret;
 
 	if (!skip_triggers) {
-		ret = bch2_trans_mark_new(trans, new_key, 0);
+		ret = bch2_trans_mark_new(trans, b->c.btree_id, b->c.level + 1,
+					  new_key, 0);
 		if (ret)
 			return ret;
 
-		ret = bch2_trans_mark_old(trans, bkey_i_to_s_c(&b->key), 0);
+		ret = bch2_trans_mark_old(trans, b->c.btree_id, b->c.level + 1,
+					  bkey_i_to_s_c(&b->key), 0);
 		if (ret)
 			return ret;
 	}

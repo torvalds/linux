@@ -110,6 +110,7 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 }
 
 int bch2_trans_mark_reflink_v(struct btree_trans *trans,
+			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_i *new,
 			      unsigned flags)
 {
@@ -124,7 +125,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 		}
 	}
 
-	return bch2_trans_mark_extent(trans, old, new, flags);
+	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
 }
 
 /* indirect inline data */
@@ -153,6 +154,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 }
 
 int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
+			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_i *new,
 			      unsigned flags)
 {

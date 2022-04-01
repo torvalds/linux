@@ -202,40 +202,13 @@ int bch2_mark_inode(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsi
 int bch2_mark_reservation(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_reflink_p(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
 
-int bch2_trans_mark_extent(struct btree_trans *, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_stripe(struct btree_trans *, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_inode(struct btree_trans *, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_reservation(struct btree_trans *, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_reflink_p(struct btree_trans *, struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trans_mark_inode(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 
 int bch2_mark_key(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-
-int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c,
-			struct bkey_i *, unsigned);
-
-static inline int bch2_trans_mark_old(struct btree_trans *trans,
-				      struct bkey_s_c old, unsigned flags)
-{
-	struct bkey_i deleted;
-
-	bkey_init(&deleted.k);
-	deleted.k.p = old.k->p;
-
-	return bch2_trans_mark_key(trans, old, &deleted,
-				   BTREE_TRIGGER_OVERWRITE|flags);
-}
-
-static inline int bch2_trans_mark_new(struct btree_trans *trans,
-				      struct bkey_i *new, unsigned flags)
-{
-	struct bkey_i deleted;
-
-	bkey_init(&deleted.k);
-	deleted.k.p = new->k.p;
-
-	return bch2_trans_mark_key(trans, bkey_i_to_s_c(&deleted), new,
-				   BTREE_TRIGGER_INSERT|flags);
-}
 
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 

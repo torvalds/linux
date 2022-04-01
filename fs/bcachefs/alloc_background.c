@@ -540,6 +540,7 @@ err:
 }
 
 int bch2_trans_mark_alloc(struct btree_trans *trans,
+			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old, struct bkey_i *new,
 			  unsigned flags)
 {
