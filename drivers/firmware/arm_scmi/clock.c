@@ -49,7 +49,7 @@ struct scmi_msg_resp_clock_describe_rates {
 	struct {
 		__le32 value_low;
 		__le32 value_high;
-	} rate[0];
+	} rate[];
 #define RATE_TO_U64(X)		\
 ({				\
 	typeof(X) x = (X);	\
