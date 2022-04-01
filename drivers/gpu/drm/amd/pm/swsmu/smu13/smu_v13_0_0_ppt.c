@@ -1549,6 +1549,7 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.set_power_source = smu_v13_0_set_power_source,
 	.get_power_profile_mode = smu_v13_0_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v13_0_0_set_power_profile_mode,
+	.run_btc = smu_v13_0_run_btc,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)

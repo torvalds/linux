@@ -273,5 +273,7 @@ int smu_v13_0_set_jpeg_enable(struct smu_context *smu,
 
 int smu_v13_0_init_pptable_microcode(struct smu_context *smu);
 
+int smu_v13_0_run_btc(struct smu_context *smu);
+
 #endif
 #endif

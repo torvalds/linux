@@ -2100,3 +2100,14 @@ int smu_v13_0_set_jpeg_enable(struct smu_context *smu,
 					       SMU_MSG_PowerUpJpeg : SMU_MSG_PowerDownJpeg,
 					       0, NULL);
 }
+
+int smu_v13_0_run_btc(struct smu_context *smu)
+{
+	int res;
+
+	res = smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
+	if (res)
+		dev_err(smu->adev->dev, "RunDcBtc failed!\n");
+
+	return res;
+}
