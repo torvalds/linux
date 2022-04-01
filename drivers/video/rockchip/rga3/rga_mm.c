@@ -1089,7 +1089,8 @@ void rga_mm_put_handle_info(struct rga_job *job)
 		rga_mm_put_channel_handle_info(mm, job->els_buffer, job, DMA_NONE);
 }
 
-uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
+uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
+			      struct rga_session *session)
 {
 	int ret = 0;
 	struct rga_mm *mm;
@@ -1126,6 +1127,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 		goto FREE_INTERNAL_BUFFER;
 
 	kref_init(&internal_buffer->refcount);
+	internal_buffer->session = session;
 
 	/*
 	 * Get the user-visible handle using idr. Preload and perform
@@ -1170,6 +1172,32 @@ int rga_mm_release_buffer(uint32_t handle)
 	}
 
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
+
+	mutex_unlock(&mm->lock);
+	return 0;
+}
+
+int rga_mm_session_release_buffer(struct rga_session *session)
+{
+	int i;
+	struct rga_mm *mm;
+	struct rga_internal_buffer *buffer;
+
+	mm = rga_drvdata->mm;
+	if (mm == NULL) {
+		pr_err("rga mm is null!\n");
+		return -EFAULT;
+	}
+
+	mutex_lock(&mm->lock);
+
+	idr_for_each_entry(&mm->memory_idr, buffer, i) {
+		if (session == buffer->session) {
+			pr_err("[tgid:%d] Decrement the reference of handle[%d] when the user exits\n",
+			       session->tgid, buffer->handle);
+			kref_put(&buffer->refcount, rga_mm_kref_release_buffer);
+		}
+	}
 
 	mutex_unlock(&mm->lock);
 	return 0;

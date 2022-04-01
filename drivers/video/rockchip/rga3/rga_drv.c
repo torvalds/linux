@@ -41,7 +41,9 @@ static const struct rga_backend_ops rga2_ops = {
 	.soft_reset = rga2_soft_reset
 };
 
-static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf, struct rga_img_info_t *channel_info)
+static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf,
+				      struct rga_img_info_t *channel_info,
+				      struct rga_session *session)
 {
 	struct rga_external_buffer buffer;
 
@@ -51,7 +53,7 @@ static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf, struct rga_img_in
 	buffer.memory_parm.height = channel_info->vir_h;
 	buffer.memory_parm.format = channel_info->format;
 
-	buffer.handle = rga_mm_import_buffer(&buffer);
+	buffer.handle = rga_mm_import_buffer(&buffer, session);
 	if (buffer.handle == 0) {
 		pr_err("can not import dma_buf %p\n", dma_buf);
 		return -EFAULT;
@@ -162,7 +164,9 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	/* set buffer handle */
 	if (mpi_job->dma_buf_src0 != NULL) {
-		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src0, &mpi_cmd.src);
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src0,
+						 &mpi_cmd.src,
+						 ctx->session);
 		if (ret < 0) {
 			pr_err("src channel set buffer handle failed!\n");
 			return ret;
@@ -170,7 +174,9 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	}
 
 	if (mpi_job->dma_buf_src1 != NULL) {
-		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src1, &mpi_cmd.pat);
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src1,
+						 &mpi_cmd.pat,
+						 ctx->session);
 		if (ret < 0) {
 			pr_err("src1 channel set buffer handle failed!\n");
 			return ret;
@@ -178,7 +184,9 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	}
 
 	if (mpi_job->dma_buf_dst != NULL) {
-		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_dst, &mpi_cmd.dst);
+		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_dst,
+						 &mpi_cmd.dst,
+						 ctx->session);
 		if (ret < 0) {
 			pr_err("dst channel set buffer handle failed!\n");
 			return ret;
@@ -481,6 +489,8 @@ static struct rga_session *rga_session_init(void)
 
 	mutex_unlock(&session_manager->lock);
 
+	session->tgid = current->tgid;
+
 	return session;
 }
 
@@ -511,15 +521,16 @@ static int rga_session_deinit(struct rga_session *session)
 
 	mutex_unlock(&ctx_manager->lock);
 
-	rga_session_free_remove_idr(session);
 	rga_job_session_destroy(session);
+	rga_mm_session_release_buffer(session);
 
+	rga_session_free_remove_idr(session);
 	kfree(session);
 
 	return 0;
 }
 
-static long rga_ioctl_import_buffer(unsigned long arg)
+static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *session)
 {
 	int i;
 	int ret = 0;
@@ -561,7 +572,7 @@ static long rga_ioctl_import_buffer(unsigned long arg)
 	}
 
 	for (i = 0; i < buffer_pool.size; i++) {
-		ret = rga_mm_import_buffer(&external_buffer[i]);
+		ret = rga_mm_import_buffer(&external_buffer[i], session);
 		if (ret == 0) {
 			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = 0x%x\n",
 			       i, (unsigned long)external_buffer[i].memory,
@@ -897,7 +908,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	case RGA_IOC_IMPORT_BUFFER:
 		rga_power_enable_all();
 
-		ret = rga_ioctl_import_buffer(arg);
+		ret = rga_ioctl_import_buffer(arg, session);
 
 		rga_power_disable_all();
 

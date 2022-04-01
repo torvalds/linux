@@ -86,7 +86,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		6
+#define DRIVER_REVISION_VERSION		7
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -227,6 +227,7 @@ struct rga_internal_buffer {
 	uint32_t mm_flag;
 
 	struct kref refcount;
+	struct rga_session *session;
 };
 
 /*
@@ -250,6 +251,8 @@ struct rga_scheduler_t;
 
 struct rga_session {
 	int id;
+
+	pid_t tgid;
 };
 
 struct rga_job {
