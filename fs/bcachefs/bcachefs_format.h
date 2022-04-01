@@ -1222,13 +1222,16 @@ LE64_BITMASK(BCH_KDF_SCRYPT_P,	struct bch_sb_field_crypt, kdf_flags, 32, 48);
 /* BCH_SB_FIELD_replicas: */
 
 #define BCH_DATA_TYPES()		\
-	x(none,		0)		\
+	x(free,		0)		\
 	x(sb,		1)		\
 	x(journal,	2)		\
 	x(btree,	3)		\
 	x(user,		4)		\
 	x(cached,	5)		\
-	x(parity,	6)
+	x(parity,	6)		\
+	x(stripe,	7)		\
+	x(need_gc_gens,	8)		\
+	x(need_discard,	9)
 
 enum bch_data_type {
 #define x(t, n) BCH_DATA_##t,
@@ -1236,6 +1239,29 @@ enum bch_data_type {
 #undef x
 	BCH_DATA_NR
 };
+
+static inline bool data_type_is_empty(enum bch_data_type type)
+{
+	switch (type) {
+	case BCH_DATA_free:
+	case BCH_DATA_need_gc_gens:
+	case BCH_DATA_need_discard:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool data_type_is_hidden(enum bch_data_type type)
+{
+	switch (type) {
+	case BCH_DATA_sb:
+	case BCH_DATA_journal:
+		return true;
+	default:
+		return false;
+	}
+}
 
 struct bch_replicas_entry_v0 {
 	__u8			data_type;
@@ -1364,7 +1390,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(subvol_dirent,		17)		\
 	x(inode_v2,			18)		\
 	x(freespace,			19)		\
-	x(alloc_v4,			20)
+	x(alloc_v4,			20)		\
+	x(new_data_types,		21)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1822,7 +1849,7 @@ struct jset_entry_dev_usage {
 	__u32			pad;
 
 	__le64			buckets_ec;
-	__le64			buckets_unavailable;
+	__le64			_buckets_unavailable; /* No longer used */
 
 	struct jset_entry_dev_usage_type d[];
 } __attribute__((packed));

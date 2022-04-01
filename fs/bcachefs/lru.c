@@ -155,7 +155,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 
 	bch2_alloc_to_v4(k, &a);
 
-	if (fsck_err_on(bucket_state(a) != BUCKET_cached ||
+	if (fsck_err_on(a.data_type != BCH_DATA_cached ||
 			a.io_time[READ] != lru_k.k->p.offset, c,
 			"incorrect lru entry %s\n"
 			"  for %s",

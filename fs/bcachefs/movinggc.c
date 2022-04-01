@@ -235,8 +235,15 @@ static int bch2_copygc(struct bch_fs *c)
 	}
 
 	for_each_rw_member(ca, c, dev_idx) {
-		s64 avail = min(dev_buckets_available(ca, RESERVE_movinggc),
-				ca->mi.nbuckets >> 6);
+		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+
+		u64 avail = max_t(s64, 0,
+				  usage.d[BCH_DATA_free].buckets +
+				  usage.d[BCH_DATA_need_discard].buckets -
+				  ca->nr_open_buckets -
+				  bch2_dev_buckets_reserved(ca, RESERVE_movinggc));
+
+		avail = min(avail, ca->mi.nbuckets >> 6);
 
 		sectors_reserved += avail * ca->mi.bucket_size;
 	}

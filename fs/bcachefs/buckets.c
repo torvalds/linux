@@ -283,9 +283,9 @@ bch2_fs_usage_read_short(struct bch_fs *c)
 	return ret;
 }
 
-static inline int is_unavailable_bucket(struct bch_alloc_v4 a)
+void bch2_dev_usage_init(struct bch_dev *ca)
 {
-	return a.dirty_sectors || a.stripe;
+	ca->usage_base->d[BCH_DATA_free].buckets = ca->mi.nbuckets - ca->mi.first_bucket;
 }
 
 static inline int bucket_sectors_fragmented(struct bch_dev *ca,
@@ -294,24 +294,6 @@ static inline int bucket_sectors_fragmented(struct bch_dev *ca,
 	return a.dirty_sectors
 		? max(0, (int) ca->mi.bucket_size - (int) a.dirty_sectors)
 		: 0;
-}
-
-static inline enum bch_data_type bucket_type(struct bch_alloc_v4 a)
-{
-	return a.cached_sectors && !a.dirty_sectors
-		? BCH_DATA_cached
-		: a.data_type;
-}
-
-static inline void account_bucket(struct bch_fs_usage *fs_usage,
-				  struct bch_dev_usage *dev_usage,
-				  enum bch_data_type type,
-				  int nr, s64 size)
-{
-	if (type == BCH_DATA_sb || type == BCH_DATA_journal)
-		fs_usage->hidden	+= size;
-
-	dev_usage->d[type].buckets	+= nr;
 }
 
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
@@ -324,23 +306,25 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	preempt_disable();
 	fs_usage = fs_usage_ptr(c, journal_seq, gc);
+
+	if (data_type_is_hidden(old.data_type))
+		fs_usage->hidden -= ca->mi.bucket_size;
+	if (data_type_is_hidden(new.data_type))
+		fs_usage->hidden += ca->mi.bucket_size;
+
 	u = dev_usage_ptr(ca, journal_seq, gc);
 
-	if (bucket_type(old))
-		account_bucket(fs_usage, u, bucket_type(old),
-			       -1, -ca->mi.bucket_size);
+	u->d[old.data_type].buckets--;
+	u->d[new.data_type].buckets++;
 
-	if (bucket_type(new))
-		account_bucket(fs_usage, u, bucket_type(new),
-			       1, ca->mi.bucket_size);
-
-	u->buckets_unavailable +=
-		is_unavailable_bucket(new) - is_unavailable_bucket(old);
+	u->buckets_ec -= (int) !!old.stripe;
+	u->buckets_ec += (int) !!new.stripe;
 
 	u->d[old.data_type].sectors -= old.dirty_sectors;
 	u->d[new.data_type].sectors += new.dirty_sectors;
-	u->d[BCH_DATA_cached].sectors +=
-		(int) new.cached_sectors - (int) old.cached_sectors;
+
+	u->d[BCH_DATA_cached].sectors += new.cached_sectors;
+	u->d[BCH_DATA_cached].sectors -= old.cached_sectors;
 
 	u->d[old.data_type].fragmented -= bucket_sectors_fragmented(ca, old);
 	u->d[new.data_type].fragmented += bucket_sectors_fragmented(ca, new);
@@ -531,7 +515,8 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	bch2_alloc_to_v4(new, &new_a);
 
 	if ((flags & BTREE_TRIGGER_INSERT) &&
-	    !old_a.data_type != !new_a.data_type &&
+	    data_type_is_empty(old_a.data_type) !=
+	    data_type_is_empty(new_a.data_type) &&
 	    new.k->type == KEY_TYPE_alloc_v4) {
 		struct bch_alloc_v4 *v = (struct bch_alloc_v4 *) new.v;
 
@@ -542,14 +527,16 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		 * before the bucket became empty again, then the we don't have
 		 * to wait on a journal flush before we can reuse the bucket:
 		 */
-		new_a.journal_seq = !new_a.data_type &&
+		new_a.journal_seq = data_type_is_empty(new_a.data_type) &&
 			(journal_seq == v->journal_seq ||
 			 bch2_journal_noflush_seq(&c->journal, v->journal_seq))
 			? 0 : journal_seq;
 		v->journal_seq = new_a.journal_seq;
 	}
 
-	if (old_a.data_type && !new_a.data_type && new_a.journal_seq) {
+	if (!data_type_is_empty(old_a.data_type) &&
+	    data_type_is_empty(new_a.data_type) &&
+	    new_a.journal_seq) {
 		ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
 				c->journal.flushed_seq_ondisk,
 				new.k->p.inode, new.k->p.offset,
@@ -561,24 +548,21 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		}
 	}
 
-	if (!new_a.data_type &&
+	if (new_a.data_type == BCH_DATA_free &&
 	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
 		closure_wake_up(&c->freelist_wait);
 
-	if ((flags & BTREE_TRIGGER_INSERT) &&
-	    BCH_ALLOC_V4_NEED_DISCARD(&new_a) &&
-	    !new_a.journal_seq)
+	if (new_a.data_type == BCH_DATA_need_discard &&
+	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
 		bch2_do_discards(c);
 
-	if (!old_a.data_type &&
-	    new_a.data_type &&
-	    should_invalidate_buckets(ca))
+	if (old_a.data_type != BCH_DATA_cached &&
+	    new_a.data_type == BCH_DATA_cached &&
+	    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
 		bch2_do_invalidates(c);
 
-	if (bucket_state(new_a) == BUCKET_need_gc_gens) {
-		atomic_inc(&c->kick_gc);
-		wake_up_process(c->gc_thread);
-	}
+	if (new_a.data_type == BCH_DATA_need_gc_gens)
+		bch2_do_gc_gens(c);
 
 	percpu_down_read(&c->mark_lock);
 	if (!gc && new_a.gen != old_a.gen)
@@ -704,6 +688,9 @@ static int check_bucket_ref(struct bch_fs *c,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
+	if (bucket_data_type == BCH_DATA_cached)
+		bucket_data_type = BCH_DATA_user;
+
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
@@ -748,7 +735,8 @@ static int check_bucket_ref(struct bch_fs *c,
 		goto err;
 	}
 
-	if (bucket_data_type && ptr_data_type &&
+	if (!data_type_is_empty(bucket_data_type) &&
+	    ptr_data_type &&
 	    bucket_data_type != ptr_data_type) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
@@ -1401,14 +1389,8 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 
 	ret = __mark_pointer(trans, k, &p.ptr, sectors, data_type,
 			     a->v.gen, &a->v.data_type,
-			     &a->v.dirty_sectors, &a->v.cached_sectors);
-	if (ret)
-		goto out;
-
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
-	if (ret)
-		goto out;
-out:
+			     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
+		bch2_trans_update(trans, &iter, &a->k_i, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

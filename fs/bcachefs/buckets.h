@@ -121,12 +121,10 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 /* Device usage: */
 
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
+void bch2_dev_usage_init(struct bch_dev *);
 
-static inline u64 __dev_buckets_available(struct bch_dev *ca,
-					  struct bch_dev_usage stats,
-					  enum alloc_reserve reserve)
+static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum alloc_reserve reserve)
 {
-	s64 total = ca->mi.nbuckets - ca->mi.first_bucket;
 	s64 reserved = 0;
 
 	switch (reserve) {
@@ -141,20 +139,19 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 		fallthrough;
 	case RESERVE_btree_movinggc:
 		break;
-	default:
-		BUG();
 	}
 
-	if (WARN_ONCE(stats.buckets_unavailable > total,
-		      "buckets_unavailable overflow (%llu > %llu)\n",
-		      stats.buckets_unavailable, total))
-		return 0;
+	return reserved;
+}
 
+static inline u64 __dev_buckets_available(struct bch_dev *ca,
+					  struct bch_dev_usage usage,
+					  enum alloc_reserve reserve)
+{
 	return max_t(s64, 0,
-		     total -
-		     stats.buckets_unavailable -
+		     usage.d[BCH_DATA_free].buckets -
 		     ca->nr_open_buckets -
-		     reserved);
+		     bch2_dev_buckets_reserved(ca, reserve));
 }
 
 static inline u64 dev_buckets_available(struct bch_dev *ca,

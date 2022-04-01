@@ -1566,6 +1566,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err;
 	}
 
+	bch2_dev_usage_init(ca);
+
 	ret = __bch2_dev_attach_bdev(ca, &sb);
 	if (ret) {
 		bch2_dev_free(ca);

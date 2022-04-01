@@ -331,7 +331,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	}
 
-	if (a.data_type != BUCKET_free) {
+	if (a.data_type != BCH_DATA_free) {
 		pr_buf(&buf, "non free bucket in freespace btree\n"
 		       "  freespace key ");
 		bch2_bkey_val_to_text(&buf, c, freespace_k);
@@ -417,7 +417,7 @@ again:
 
 		bch2_alloc_to_v4(k, &a);
 
-		if (bucket_state(a) != BUCKET_free)
+		if (a.data_type != BCH_DATA_free)
 			continue;
 
 		(*buckets_seen)++;
@@ -517,27 +517,31 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct open_bucket *ob = NULL;
-	u64 avail = dev_buckets_available(ca, reserve);
+	struct bch_dev_usage usage;
+	u64 avail;
 	u64 buckets_seen = 0;
 	u64 skipped_open = 0;
 	u64 skipped_need_journal_commit = 0;
 	u64 skipped_nouse = 0;
-
-	if (may_alloc_partial) {
-		ob = try_alloc_partial_bucket(c, ca, reserve);
-		if (ob)
-			return ob;
-	}
+	bool waiting = false;
 again:
+	usage = bch2_dev_usage_read(ca);
+	avail = __dev_buckets_available(ca, usage,reserve);
+
+	if (usage.d[BCH_DATA_need_discard].buckets > avail)
+		bch2_do_discards(c);
+
+	if (usage.d[BCH_DATA_need_gc_gens].buckets > avail)
+		bch2_do_gc_gens(c);
+
+	if (should_invalidate_buckets(ca, usage))
+		bch2_do_invalidates(c);
+
 	if (!avail) {
-		if (cl) {
+		if (cl && !waiting) {
 			closure_wait(&c->freelist_wait, cl);
-			/* recheck after putting ourself on waitlist */
-			avail = dev_buckets_available(ca, reserve);
-			if (avail) {
-				closure_wake_up(&c->freelist_wait);
-				goto again;
-			}
+			waiting = true;
+			goto again;
 		}
 
 		if (!c->blocked_allocate)
@@ -545,6 +549,15 @@ again:
 
 		ob = ERR_PTR(-FREELIST_EMPTY);
 		goto err;
+	}
+
+	if (waiting)
+		closure_wake_up(&c->freelist_wait);
+
+	if (may_alloc_partial) {
+		ob = try_alloc_partial_bucket(c, ca, reserve);
+		if (ob)
+			return ob;
 	}
 
 	ob = likely(ca->mi.freespace_initialized)

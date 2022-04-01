@@ -34,7 +34,6 @@ struct bucket_gens {
 
 struct bch_dev_usage {
 	u64			buckets_ec;
-	u64			buckets_unavailable;
 
 	struct {
 		u64		buckets;

@@ -28,32 +28,35 @@ static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 	return a.gen - a.oldest_gen;
 }
 
-enum bucket_state {
-	BUCKET_free,
-	BUCKET_need_gc_gens,
-	BUCKET_need_discard,
-	BUCKET_cached,
-	BUCKET_dirty,
-};
-
-extern const char * const bch2_bucket_states[];
-
-static inline enum bucket_state bucket_state(struct bch_alloc_v4 a)
+static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
+						   u32 cached_sectors,
+						   u32 stripe,
+						   struct bch_alloc_v4 a,
+						   enum bch_data_type data_type)
 {
-	if (a.dirty_sectors || a.stripe)
-		return BUCKET_dirty;
-	if (a.cached_sectors)
-		return BUCKET_cached;
+	if (dirty_sectors)
+		return data_type;
+	if (stripe)
+		return BCH_DATA_stripe;
+	if (cached_sectors)
+		return BCH_DATA_cached;
 	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
-		return BUCKET_need_discard;
+		return BCH_DATA_need_discard;
 	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
-		return BUCKET_need_gc_gens;
-	return BUCKET_free;
+		return BCH_DATA_need_gc_gens;
+	return BCH_DATA_free;
+}
+
+static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
+						 enum bch_data_type data_type)
+{
+	return __alloc_data_type(a.dirty_sectors, a.cached_sectors,
+				 a.stripe, a, data_type);
 }
 
 static inline u64 alloc_lru_idx(struct bch_alloc_v4 a)
 {
-	return bucket_state(a) == BUCKET_cached ? a.io_time[READ] : 0;
+	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
 }
 
 static inline u64 alloc_freespace_genbits(struct bch_alloc_v4 a)
@@ -128,13 +131,14 @@ int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);
 
-static inline bool should_invalidate_buckets(struct bch_dev *ca)
+static inline u64 should_invalidate_buckets(struct bch_dev *ca,
+					    struct bch_dev_usage u)
 {
-	struct bch_dev_usage u = bch2_dev_usage_read(ca);
+	u64 free = u.d[BCH_DATA_free].buckets +
+		u.d[BCH_DATA_need_discard].buckets;
 
-	return u.d[BCH_DATA_cached].buckets &&
-		u.buckets_unavailable + u.d[BCH_DATA_cached].buckets <
-		ca->mi.nbuckets >> 7;
+	return clamp_t(s64, (ca->mi.nbuckets >> 7) - free,
+		       0, u.d[BCH_DATA_cached].buckets);
 }
 
 void bch2_do_invalidates(struct bch_fs *);

@@ -713,7 +713,6 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
 		ca->usage_base->buckets_ec		= le64_to_cpu(u->buckets_ec);
-		ca->usage_base->buckets_unavailable	= le64_to_cpu(u->buckets_unavailable);
 
 		for (i = 0; i < min_t(unsigned, nr_types, BCH_DATA_NR); i++) {
 			ca->usage_base->d[i].buckets	= le64_to_cpu(u->d[i].buckets);
@@ -1080,18 +1079,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!c->opts.nochanges) {
-		if (c->sb.version < bcachefs_metadata_version_inode_backpointers) {
-			bch_info(c, "version prior to inode backpointers, upgrade and fsck required");
+		if (c->sb.version < bcachefs_metadata_version_new_data_types) {
+			bch_info(c, "version prior to new_data_types, upgrade and fsck required");
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;
-		} else if (c->sb.version < bcachefs_metadata_version_subvol_dirent) {
-			bch_info(c, "filesystem version is prior to subvol_dirent - upgrading");
-			c->opts.version_upgrade = true;
-			c->opts.fsck		= true;
-		} else if (c->sb.version < bcachefs_metadata_version_alloc_v4) {
-			bch_info(c, "filesystem version is prior to alloc_v4 - upgrading");
-			c->opts.version_upgrade = true;
 		}
 	}
 
@@ -1435,6 +1427,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
+
+	for_each_online_member(ca, c, i)
+		bch2_dev_usage_init(ca);
 
 	err = "unable to allocate journal buckets";
 	for_each_online_member(ca, c, i) {

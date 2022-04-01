@@ -585,9 +585,7 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 		       le64_to_cpu(u->d[i].fragmented));
 	}
 
-	pr_buf(out, " buckets_ec: %llu buckets_unavailable: %llu",
-	       le64_to_cpu(u->buckets_ec),
-	       le64_to_cpu(u->buckets_unavailable));
+	pr_buf(out, " buckets_ec: %llu", le64_to_cpu(u->buckets_ec));
 }
 
 static int journal_entry_log_validate(struct bch_fs *c,

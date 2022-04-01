@@ -1216,7 +1216,6 @@ static int bch2_gc_done(struct bch_fs *c,
 					     dev_usage_u64s());
 
 		copy_dev_field(buckets_ec,		"buckets_ec");
-		copy_dev_field(buckets_unavailable,	"buckets_unavailable");
 
 		for (i = 0; i < BCH_DATA_NR; i++) {
 			copy_dev_field(d[i].buckets,	"%s buckets", bch2_data_types[i]);
@@ -1301,6 +1300,9 @@ static int bch2_gc_start(struct bch_fs *c,
 			percpu_ref_put(&ca->ref);
 			return -ENOMEM;
 		}
+
+		this_cpu_write(ca->usage_gc->d[BCH_DATA_free].buckets,
+			       ca->mi.nbuckets - ca->mi.first_bucket);
 	}
 
 	return 0;
@@ -1325,10 +1327,11 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, iter->pos.inode);
-	struct bucket gc;
+	struct bucket gc, *b;
 	struct bkey_s_c k;
 	struct bkey_i_alloc_v4 *a;
 	struct bch_alloc_v4 old, new;
+	enum bch_data_type type;
 	int ret;
 
 	k = bch2_btree_iter_peek_slot(iter);
@@ -1340,7 +1343,29 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	new = old;
 
 	percpu_down_read(&c->mark_lock);
-	gc = *gc_bucket(ca, iter->pos.offset);
+	b = gc_bucket(ca, iter->pos.offset);
+
+	/*
+	 * b->data_type doesn't yet include need_discard & need_gc_gen states -
+	 * fix that here:
+	 */
+	type = __alloc_data_type(b->dirty_sectors,
+				 b->cached_sectors,
+				 b->stripe,
+				 old,
+				 b->data_type);
+	if (b->data_type != type) {
+		struct bch_dev_usage *u;
+
+		preempt_disable();
+		u = this_cpu_ptr(ca->usage_gc);
+		u->d[b->data_type].buckets--;
+		b->data_type = type;
+		u->d[b->data_type].buckets++;
+		preempt_enable();
+	}
+
+	gc = *b;
 	percpu_up_read(&c->mark_lock);
 
 	if (metadata_only &&
@@ -1926,6 +1951,7 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 		return ret;
 
 	a_mut->v.oldest_gen = ca->oldest_gen[iter->pos.offset];
+	a_mut->v.data_type = alloc_data_type(a_mut->v, a_mut->v.data_type);
 
 	return bch2_trans_update(trans, iter, &a_mut->k_i, 0);
 }
