@@ -270,7 +270,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 		i915_tt->is_shmem = true;
 	}
 
-	ret = ttm_tt_init(&i915_tt->ttm, bo, page_flags, caching);
+	ret = ttm_tt_init(&i915_tt->ttm, bo, page_flags, caching, 0);
 	if (ret)
 		goto err_free;
 
