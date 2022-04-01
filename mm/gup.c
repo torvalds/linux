@@ -1404,6 +1404,7 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long nr_pages = (end - start) / PAGE_SIZE;
 	int gup_flags;
+	long ret;
 
 	VM_BUG_ON(!PAGE_ALIGNED(start));
 	VM_BUG_ON(!PAGE_ALIGNED(end));
@@ -1438,8 +1439,10 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 	 * We made sure addr is within a VMA, so the following will
 	 * not result in a stack expansion that recurses back here.
 	 */
-	return __get_user_pages(mm, start, nr_pages, gup_flags,
+	ret = __get_user_pages(mm, start, nr_pages, gup_flags,
 				NULL, NULL, locked);
+	lru_add_drain();
+	return ret;
 }
 
 /*
@@ -1471,6 +1474,7 @@ long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long nr_pages = (end - start) / PAGE_SIZE;
 	int gup_flags;
+	long ret;
 
 	VM_BUG_ON(!PAGE_ALIGNED(start));
 	VM_BUG_ON(!PAGE_ALIGNED(end));
@@ -1498,8 +1502,10 @@ long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
 	if (check_vma_flags(vma, gup_flags))
 		return -EINVAL;
 
-	return __get_user_pages(mm, start, nr_pages, gup_flags,
+	ret = __get_user_pages(mm, start, nr_pages, gup_flags,
 				NULL, NULL, locked);
+	lru_add_drain();
+	return ret;
 }
 
 /*
