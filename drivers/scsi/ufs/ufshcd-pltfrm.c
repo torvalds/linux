@@ -341,7 +341,7 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	err = ufshcd_alloc_host(dev, &hba);
 	if (err) {
-		dev_err(&pdev->dev, "Allocation failed\n");
+		dev_err(dev, "Allocation failed\n");
 		goto out;
 	}
 
@@ -349,13 +349,13 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	err = ufshcd_parse_clock_info(hba);
 	if (err) {
-		dev_err(&pdev->dev, "%s: clock parse failed %d\n",
+		dev_err(dev, "%s: clock parse failed %d\n",
 				__func__, err);
 		goto dealloc_host;
 	}
 	err = ufshcd_parse_regulator_info(hba);
 	if (err) {
-		dev_err(&pdev->dev, "%s: regulator init failed %d\n",
+		dev_err(dev, "%s: regulator init failed %d\n",
 				__func__, err);
 		goto dealloc_host;
 	}
@@ -368,8 +368,8 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 		goto dealloc_host;
 	}
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 
