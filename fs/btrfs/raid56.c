@@ -101,15 +101,6 @@ struct btrfs_raid_bio {
 	 */
 	unsigned long flags;
 
-	/* size of each individual stripe on disk */
-	int stripe_len;
-
-	/* number of data stripes (no p/q) */
-	int nr_data;
-
-	int real_stripes;
-
-	int stripe_npages;
 	/*
 	 * set if we're doing a parity rebuild
 	 * for a read from higher up, which is handled
@@ -118,18 +109,29 @@ struct btrfs_raid_bio {
 	 */
 	enum btrfs_rbio_ops operation;
 
-	/* first bad stripe */
-	int faila;
+	/* Size of each individual stripe on disk */
+	u32 stripe_len;
 
-	/* second bad stripe (for raid6 use) */
-	int failb;
+	/* How many pages there are for the full stripe including P/Q */
+	u16 nr_pages;
 
-	int scrubp;
-	/*
-	 * number of pages needed to represent the full
-	 * stripe
-	 */
-	int nr_pages;
+	/* Number of data stripes (no p/q) */
+	u8 nr_data;
+
+	/* Numer of all stripes (including P/Q) */
+	u8 real_stripes;
+
+	/* How many pages there are for each stripe */
+	u8 stripe_npages;
+
+	/* First bad stripe, -1 means no corruption */
+	s8 faila;
+
+	/* Second bad stripe (for RAID6 use) */
+	s8 failb;
+
+	/* Stripe number that we're scrubbing  */
+	u8 scrubp;
 
 	/*
 	 * size of all the bios in the bio_list.  This
