@@ -2616,7 +2616,6 @@ static int lan8814_config_init(struct phy_device *phydev)
 
 static int lan8814_probe(struct phy_device *phydev)
 {
-	const struct device_node *np = phydev->mdio.dev.of_node;
 	struct kszphy_priv *priv;
 	u16 addr;
 	int err;
@@ -2630,8 +2629,7 @@ static int lan8814_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 
 	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
-	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING) ||
-	    of_property_read_bool(np, "lan8814,ignore-ts"))
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
 		return 0;
 
 	/* Strap-in value for PHY address, below register read gives starting
