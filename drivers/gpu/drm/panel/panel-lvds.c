@@ -33,7 +33,6 @@ struct panel_lvds {
 	struct drm_display_mode dmode;
 	u32 bus_flags;
 	unsigned int bus_format;
-	bool data_mirror;
 
 	struct regulator *supply;
 
@@ -99,9 +98,7 @@ static int panel_lvds_get_modes(struct drm_panel *panel,
 	connector->display_info.height_mm = lvds->dmode.height_mm;
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &lvds->bus_format, 1);
-	connector->display_info.bus_flags = lvds->data_mirror
-					  ? DRM_BUS_FLAG_DATA_LSB_TO_MSB
-					  : DRM_BUS_FLAG_DATA_MSB_TO_LSB;
+	connector->display_info.bus_flags = lvds->bus_flags;
 	drm_connector_set_panel_orientation(connector, lvds->orientation);
 
 	return 1;
@@ -154,7 +151,9 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 
 	lvds->bus_format = ret;
 
-	lvds->data_mirror = of_property_read_bool(np, "data-mirror");
+	lvds->bus_flags |= of_property_read_bool(np, "data-mirror") ?
+			   DRM_BUS_FLAG_DATA_LSB_TO_MSB :
+			   DRM_BUS_FLAG_DATA_MSB_TO_LSB;
 
 	return 0;
 }
