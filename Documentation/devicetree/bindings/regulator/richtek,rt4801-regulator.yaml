@@ -17,9 +17,6 @@ description: |
   Datasheet is available at
   https://www.richtek.com/assets/product_file/RT4801H/DS4801H-00.pdf
 
-#The valid names for RT4801 regulator nodes are:
-#DSVP, DSVN
-
 properties:
   compatible:
     enum:
@@ -33,8 +30,8 @@ properties:
       The first one is ENP to enable DSVP, and second one is ENM to enable DSVN.
       Number of GPIO in the array list could be 1 or 2.
       If only one gpio is specified, only one gpio used to control ENP/ENM.
-      Else both are spefied, DSVP/DSVN could be controlled individually.
-      Othersie, this property not specified. treat both as always-on regulator.
+      Else if both are specified, DSVP/DSVN could be controlled individually.
+      If this property not specified, treat both as always-on regulators.
     minItems: 1
     maxItems: 2
 
