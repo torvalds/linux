@@ -532,7 +532,7 @@ int nilfs_mdt_save_to_shadow_map(struct inode *inode)
 		goto out;
 
 	ret = nilfs_copy_dirty_pages(&shadow->frozen_btnodes,
-				     &ii->i_btnode_cache);
+				     ii->i_assoc_inode->i_mapping);
 	if (ret)
 		goto out;
 
@@ -623,8 +623,9 @@ void nilfs_mdt_restore_from_shadow_map(struct inode *inode)
 	nilfs_clear_dirty_pages(inode->i_mapping, true);
 	nilfs_copy_back_pages(inode->i_mapping, &shadow->frozen_data);
 
-	nilfs_clear_dirty_pages(&ii->i_btnode_cache, true);
-	nilfs_copy_back_pages(&ii->i_btnode_cache, &shadow->frozen_btnodes);
+	nilfs_clear_dirty_pages(ii->i_assoc_inode->i_mapping, true);
+	nilfs_copy_back_pages(ii->i_assoc_inode->i_mapping,
+			      &shadow->frozen_btnodes);
 
 	nilfs_bmap_restore(ii->i_bmap, &shadow->bmap_store);
 
