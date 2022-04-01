@@ -386,9 +386,31 @@ enum dcc_option {
 	DCC_HALF_REQ_DISALBE = 2,
 };
 
+/**
+ * enum pipe_split_policy - Pipe split strategy supported by DCN
+ *
+ * This enum is used to define the pipe split policy supported by DCN. By
+ * default, DC favors MPC_SPLIT_DYNAMIC.
+ */
 enum pipe_split_policy {
+	/**
+	 * @MPC_SPLIT_DYNAMIC: DC will automatically decide how to split the
+	 * pipe in order to bring the best trade-off between performance and
+	 * power consumption. This is the recommended option.
+	 */
 	MPC_SPLIT_DYNAMIC = 0,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: Avoid pipe split, which means that DC will not
+	 * try any sort of split optimization.
+	 */
 	MPC_SPLIT_AVOID = 1,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: With this option, DC will only try to optimize
+	 * the pipe utilization when using a single display; if the user
+	 * connects to a second display, DC will avoid pipe split.
+	 */
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
 
@@ -623,6 +645,14 @@ struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 
+/**
+ * struct dc_debug_options - DC debug struct
+ *
+ * This struct provides a simple mechanism for developers to change some
+ * configurations, enable/disable features, and activate extra debug options.
+ * This can be very handy to narrow down whether some specific feature is
+ * causing an issue or not.
+ */
 struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
@@ -642,6 +672,11 @@ struct dc_debug_options {
 	bool disable_stutter;
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
+
+	/**
+	 * @pipe_split_policy: Define which pipe split policy is used by the
+	 * display core.
+	 */
 	enum pipe_split_policy pipe_split_policy;
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
