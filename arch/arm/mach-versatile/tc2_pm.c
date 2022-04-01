@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arch/arm/mach-vexpress/tc2_pm.c - TC2 power management support
- *
  * Created by:	Nicolas Pitre, October 2012
  * Copyright:	(C) 2012-2013  Linaro Limited
  *

@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/arch/arm/plat-versatile/include/plat/platsmp.h
- *
  *  Copyright (C) 2011 ARM Ltd.
  *  All Rights Reserved
  */

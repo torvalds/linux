@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/plat-versatile/platsmp.c
- *
  *  Copyright (C) 2002 ARM Ltd.
  *  All Rights Reserved
  *
@@ -20,7 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
-#include <plat/platsmp.h>
+#include "platsmp.h"
 
 /*
  * versatile_cpu_release controls the release of CPUs from the holding

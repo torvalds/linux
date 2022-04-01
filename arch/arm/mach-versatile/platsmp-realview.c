@@ -13,7 +13,7 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#include <plat/platsmp.h>
+#include "platsmp.h"
 
 #define REALVIEW_SYS_FLAGSSET_OFFSET	0x30
 

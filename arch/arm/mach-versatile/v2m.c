@@ -3,7 +3,7 @@
 #include <linux/of_address.h>
 #include <asm/mach/arch.h>
 
-#include "core.h"
+#include "vexpress.h"
 
 #define SYS_FLAGSSET		0x030
 #define SYS_FLAGSCLR		0x034

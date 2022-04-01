@@ -15,7 +15,7 @@
 #include <asm/smp_plat.h>
 #include <asm/cp15.h>
 
-#include <plat/platsmp.h>
+#include "platsmp.h"
 
 static inline void versatile_immitation_enter_lowpower(unsigned int actrl_mask)
 {

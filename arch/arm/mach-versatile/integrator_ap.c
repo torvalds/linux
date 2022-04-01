@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  linux/arch/arm/mach-integrator/integrator_ap.c
- *
  *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd
  */
 #include <linux/kernel.h>
@@ -20,9 +18,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "hardware.h"
-#include "cm.h"
-#include "common.h"
+#include "integrator-hardware.h"
+#include "integrator-cm.h"
+#include "integrator.h"
 
 /* Regmap to the AP system controller */
 static struct regmap *ap_syscon_map;

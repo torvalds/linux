@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/mach-integrator/integrator_cp.c
- *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd
  */
 #include <linux/kernel.h>
@@ -18,9 +16,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "hardware.h"
-#include "cm.h"
-#include "common.h"
+#include "integrator-hardware.h"
+#include "integrator-cm.h"
+#include "integrator.h"
 
 /* Base address to the core module header */
 static struct regmap *cm_map;

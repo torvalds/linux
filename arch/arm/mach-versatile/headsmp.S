@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/arch/arm/plat-versatile/headsmp.S
- *
  *  Copyright (c) 2003 ARM Limited
  *  All Rights Reserved
  */

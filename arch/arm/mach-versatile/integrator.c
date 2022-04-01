@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/mach-integrator/core.c
- *
  *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd
  */
 #include <linux/types.h>
@@ -26,9 +24,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
 
-#include "hardware.h"
-#include "cm.h"
-#include "common.h"
+#include "integrator-hardware.h"
+#include "integrator-cm.h"
+#include "integrator.h"
 
 static DEFINE_RAW_SPINLOCK(cm_lock);
 static void __iomem *cm_base;

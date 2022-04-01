@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * arch/arm/include/asm/dcscb_setup.S
- *
  * Created by:  Dave Martin, 2012-06-22
  * Copyright:   (C) 2012-2013  Linaro Limited
  */
