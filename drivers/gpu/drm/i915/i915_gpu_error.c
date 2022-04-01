@@ -509,13 +509,10 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct i915_gem_context_coredump *ctx)
 {
-	const u32 period = to_gt(m->i915)->clock_period_ns;
-
 	err_printf(m, "%s%s[%d] prio %d, guilty %d active %d, runtime total %lluns, avg %lluns\n",
 		   header, ctx->comm, ctx->pid, ctx->sched_attr.priority,
 		   ctx->guilty, ctx->active,
-		   ctx->total_runtime * period,
-		   mul_u32_u32(ctx->avg_runtime, period));
+		   ctx->total_runtime, ctx->avg_runtime);
 }
 
 static struct i915_vma_coredump *
@@ -1364,8 +1361,8 @@ static bool record_context(struct i915_gem_context_coredump *e,
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 
-	e->total_runtime = rq->context->runtime.total;
-	e->avg_runtime = ewma_runtime_read(&rq->context->runtime.avg);
+	e->total_runtime = intel_context_get_total_runtime_ns(rq->context);
+	e->avg_runtime = intel_context_get_avg_runtime_ns(rq->context);
 
 	simulated = i915_gem_context_no_error_capture(ctx);
 

@@ -94,7 +94,7 @@ struct intel_engine_coredump {
 		char comm[TASK_COMM_LEN];
 
 		u64 total_runtime;
-		u32 avg_runtime;
+		u64 avg_runtime;
 
 		pid_t pid;
 		int active;

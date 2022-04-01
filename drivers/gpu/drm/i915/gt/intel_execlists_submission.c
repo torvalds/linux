@@ -624,8 +624,6 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		GEM_BUG_ON(test_bit(ccid - 1, &engine->context_tag));
 		__set_bit(ccid - 1, &engine->context_tag);
 	}
-
-	lrc_update_runtime(ce);
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 	if (engine->fw_domain && !--engine->fw_active)
@@ -2004,8 +2002,23 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 	 * and merits a fresh timeslice. We reinstall the timer after
 	 * inspecting the queue to see if we need to resumbit.
 	 */
-	if (*prev != *execlists->active) /* elide lite-restores */
+	if (*prev != *execlists->active) { /* elide lite-restores */
+		/*
+		 * Note the inherent discrepancy between the HW runtime,
+		 * recorded as part of the context switch, and the CPU
+		 * adjustment for active contexts. We have to hope that
+		 * the delay in processing the CS event is very small
+		 * and consistent. It works to our advantage to have
+		 * the CPU adjustment _undershoot_ (i.e. start later than)
+		 * the CS timestamp so we never overreport the runtime
+		 * and correct overselves later when updating from HW.
+		 */
+		if (*prev)
+			lrc_runtime_stop((*prev)->context);
+		if (*execlists->active)
+			lrc_runtime_start((*execlists->active)->context);
 		new_timeslice(execlists);
+	}
 
 	return inactive;
 }
@@ -2637,7 +2650,7 @@ unwind:
 }
 
 static const struct intel_context_ops execlists_context_ops = {
-	.flags = COPS_HAS_INFLIGHT,
+	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
 
 	.alloc = execlists_context_alloc,
 
@@ -3695,7 +3708,7 @@ virtual_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
 }
 
 static const struct intel_context_ops virtual_context_ops = {
-	.flags = COPS_HAS_INFLIGHT,
+	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
 
 	.alloc = virtual_context_alloc,
 
