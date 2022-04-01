@@ -180,6 +180,11 @@ struct rkisp_isp_params_val_v32 {
 	struct rkisp_dummy_buffer buf_cac[ISP3X_MESH_BUF_NUM];
 	u32 buf_cac_idx;
 
+	struct rkisp_dummy_buffer buf_info[RKISP_INFO2DDR_BUF_MAX];
+	u32 buf_info_owner;
+	u32 buf_info_cnt;
+	int buf_info_idx;
+
 	struct rkisp_dummy_buffer buf_3dnr_iir;
 	struct rkisp_dummy_buffer buf_3dnr_cur;
 	struct rkisp_dummy_buffer buf_3dnr_ds;

@@ -396,6 +396,17 @@ bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev)
 	return 0;
 }
 
+int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev,
+			       void *arg)
+{
+	int ret = -EINVAL;
+
+	if (params_vdev->ops->info2ddr_cfg)
+		ret = params_vdev->ops->info2ddr_cfg(params_vdev, arg);
+
+	return ret;
+}
+
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 				struct v4l2_device *v4l2_dev,
 				struct rkisp_device *dev)

@@ -12,6 +12,7 @@
 #include "common.h"
 #include "isp_stats.h"
 #include "isp_stats_v32.h"
+#include "isp_params_v32.h"
 
 #define ISP32_3A_MEAS_DONE		BIT(31)
 
@@ -471,6 +472,70 @@ rkisp_stats_update_buf(struct rkisp_isp_stats_vdev *stats_vdev)
 }
 
 static void
+rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+		     struct rkisp32_isp_stat_buffer *pbuf)
+{
+	struct rkisp_device *dev = stats_vdev->dev;
+	struct rkisp_isp_params_val_v32 *priv_val;
+
+	priv_val = (struct rkisp_isp_params_val_v32 *)dev->params_vdev.priv_val;
+	if (priv_val->buf_info_owner && pbuf) {
+		int idx = priv_val->buf_info_idx;
+		struct rkisp_dummy_buffer *buf;
+		u32 reg = 0, ctrl;
+
+		if (priv_val->buf_info_owner == RKISP_INFO2DRR_OWNER_GAIN) {
+			reg = ISP3X_GAIN_CTRL;
+			ctrl = ISP3X_GAIN_2DDR_EN;
+		} else {
+			reg = ISP3X_RAWAWB_CTRL;
+			ctrl = ISP32_RAWAWB_2DDR_PATH_EN;
+		}
+		if (idx >= 0) {
+			buf = &priv_val->buf_info[idx];
+			rkisp_finish_buffer(dev, buf);
+			if (*(u32 *)buf->vaddr != RKISP_INFO2DDR_BUF_INIT &&
+			    (reg != ISP3X_RAWAWB_CTRL ||
+			     !(rkisp_read(dev, reg, true) & ISP32_RAWAWB_2DDR_PATH_ERR))) {
+				pbuf->params.info2ddr.buf_fd = buf->dma_fd;
+				pbuf->params.info2ddr.owner = priv_val->buf_info_owner;
+				pbuf->meas_type |= ISP32_STAT_INFO2DDR;
+			} else if (reg == ISP3X_RAWAWB_CTRL &&
+				   rkisp_read(dev, reg, true) & ISP32_RAWAWB_2DDR_PATH_ERR) {
+				v4l2_warn(&dev->v4l2_dev,
+					  "rawawb2ddr path error idx:%d\n", idx);
+			}
+
+			if (pbuf->params.info2ddr.buf_fd == -1)
+				return;
+		}
+		/* get next unused buf to hw */
+		for (idx = 0; idx < priv_val->buf_info_cnt; idx++) {
+			buf = &priv_val->buf_info[idx];
+			if (*(u32 *)buf->vaddr == RKISP_INFO2DDR_BUF_INIT)
+				break;
+		}
+
+		if (idx == priv_val->buf_info_cnt) {
+			rkisp_clear_bits(dev, reg, ctrl, false);
+			priv_val->buf_info_idx = -1;
+		} else {
+			buf = &priv_val->buf_info[idx];
+			rkisp_write(dev, ISP3X_MI_GAIN_WR_BASE, buf->dma_addr, false);
+			if (dev->hw_dev->is_single)
+				rkisp_write(dev, ISP3X_MI_WR_CTRL2, ISP3X_GAINSELF_UPD, true);
+			if (priv_val->buf_info_idx < 0)
+				rkisp_set_bits(dev, reg, 0, ctrl, false);
+			priv_val->buf_info_idx = idx;
+		}
+	} else if (priv_val->buf_info_idx >= 0) {
+		priv_val->buf_info_idx = -1;
+		rkisp_clear_bits(dev, ISP3X_GAIN_CTRL, ISP3X_GAIN_2DDR_EN, false);
+		rkisp_clear_bits(dev, ISP3X_RAWAWB_CTRL, ISP32_RAWAWB_2DDR_PATH_EN, false);
+	}
+}
+
+static void
 rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work)
 {
@@ -496,6 +561,8 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		cur_stat_buf =
 			(struct rkisp32_isp_stat_buffer *)(cur_buf->vaddr[0]);
 		cur_stat_buf->frame_id = cur_frame_id;
+		cur_stat_buf->params.info2ddr.buf_fd = -1;
+		cur_stat_buf->params.info2ddr.owner = 0;
 	}
 
 	if (meas_work->isp_ris & ISP3X_AFM_SUM_OF)
@@ -554,6 +621,7 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 			list_add_tail(&cur_buf->queue, &stats_vdev->stat);
 			spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 		} else {
+			rkisp_stats_info2ddr(stats_vdev, cur_stat_buf);
 			vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0, size);
 			cur_buf->vb.sequence = cur_frame_id;
 			cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;

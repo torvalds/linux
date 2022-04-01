@@ -2111,6 +2111,10 @@
 
 #define ISP32_EXPD_DATA(a, b)		((a) | (b) << 16)
 
+/* GAIN */
+#define ISP3X_GAIN_2DDR_EN		BIT(24)
+#define ISP3X_GAIN_2DDR_mode(a)		(((a) & 0x3) << 25)
+
 /* DPCC */
 
 /* CCM */
@@ -2169,5 +2173,10 @@
 
 #define ISP3X_RAWAF_INELINE0(x)		((x) & 0xf)
 #define ISP3X_RAWAF_INTLINE0_EN		BIT(27)
+
+/* RAWAWB */
+#define ISP32_RAWAWB_2DDR_PATH_EN	BIT(23)
+#define ISP32_RAWAWB_2DDR_PATH_DS	BIT(27)
+#define ISP32_RAWAWB_2DDR_PATH_ERR	BIT(29)
 
 #endif /* _RKISP_REGS_V3X_H */

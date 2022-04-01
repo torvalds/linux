@@ -64,6 +64,7 @@
 #define ISP32_STAT_BLS			ISP3X_STAT_BLS
 #define ISP32_STAT_DHAZ			ISP3X_STAT_DHAZ
 #define ISP32_STAT_VSM			BIT(18)
+#define ISP32_STAT_INFO2DDR		BIT(19)
 
 #define ISP32_MESH_BUF_NUM		ISP3X_MESH_BUF_NUM
 
@@ -750,11 +751,9 @@ struct isp32_rawawb_meas_cfg {
 	u8 wind_size;
 	u8 rawlsc_bypass_en;
 	u8 light_num;
-	u8 ddr_path_en;
 	u8 uv_en1;
 	u8 xy_en1;
 	u8 yuv3d_en1;
-	u8 ddr_path_sel;
 	u8 low12bit_val;
 	/* RAWAWB_WEIGHT_CURVE_CTRL */
 	u8 wp_luma_wei_en0;
@@ -1306,7 +1305,7 @@ struct isp32_rawaf_stat {
 	u32 afm_sum_b;
 	u32 afm_lum_b;
 	u32 highlit_cnt_winb;
-	u32 reserved[20];
+	u32 reserved[18];
 } __attribute__ ((packed));
 
 struct isp32_rawawb_ramdata {
@@ -1348,6 +1347,11 @@ struct isp32_vsm_stat {
 	u16 delta_v;
 } __attribute__ ((packed));
 
+struct isp32_info2ddr_stat {
+	u32 owner;
+	s32 buf_fd;
+} __attribute__ ((packed));
+
 struct isp32_isp_params_cfg {
 	u64 module_en_update;
 	u64 module_ens;
@@ -1374,6 +1378,7 @@ struct isp32_stat {
 	struct isp32_rawaf_stat rawaf;		//offset 0x1c00
 	struct isp3x_dhaz_stat dhaz;
 	struct isp32_vsm_stat vsm;
+	struct isp32_info2ddr_stat info2ddr;
 	struct isp32_rawawb_meas_stat rawawb;	//offset 0x2b00
 } __attribute__ ((packed));
 

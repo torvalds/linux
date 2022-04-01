@@ -3140,6 +3140,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		idxfd = (struct isp2x_buf_idxfd *)arg;
 		ret = rkisp_bridge_get_fbcbuf_fd(isp_dev, idxfd);
 		break;
+	case RKISP_CMD_INFO2DDR:
+		ret = rkisp_params_info2ddr_cfg(&isp_dev->params_vdev, arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3160,6 +3163,7 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkisp_meshbuf_size meshsize;
 	struct rkisp_thunderboot_shmem shmem;
 	struct isp2x_buf_idxfd idxfd;
+	struct rkisp_info2ddr info2ddr;
 	long ret = 0;
 
 	if (!up && cmd != RKISP_CMD_FREE_SHARED_BUF)
@@ -3223,6 +3227,13 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKISP_CMD_GET_FBCBUF_FD:
 		ret = rkisp_ioctl(sd, cmd, &idxfd);
 		if (!ret && copy_to_user(up, &idxfd, sizeof(idxfd)))
+			ret = -EFAULT;
+		break;
+	case RKISP_CMD_INFO2DDR:
+		if (copy_from_user(&info2ddr, up, sizeof(info2ddr)))
+			return -EFAULT;
+		ret = rkisp_ioctl(sd, cmd, &info2ddr);
+		if (!ret && copy_to_user(up, &info2ddr, sizeof(info2ddr)))
 			ret = -EFAULT;
 		break;
 	default:

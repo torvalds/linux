@@ -44,6 +44,9 @@
 #define RKISP_CMD_SET_MESHBUF_SIZE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 9, struct rkisp_meshbuf_size)
 
+#define RKISP_CMD_INFO2DDR \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 10, struct rkisp_info2ddr)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -403,6 +406,46 @@ enum isp_csi_memory {
 	CSI_MEM_WORD_LITTLE_ALIGN = 1,
 	CSI_MEM_WORD_BIG_ALIGN = 2,
 };
+
+#define RKISP_INFO2DDR_BUF_MAX	4
+/* 32bit flag for user set to memory after buf used */
+#define RKISP_INFO2DDR_BUF_INIT 0x5AA5
+
+enum rkisp_info2ddr_owner {
+	RKISP_INFO2DRR_OWNER_NULL,
+	RKISP_INFO2DRR_OWNER_GAIN,
+	RKISP_INFO2DRR_OWNER_AWB,
+};
+
+/* struct rkisp_info2ddr
+ * awb and gain debug info write to ddr
+ *
+ * owner: 0: off, 1: gain, 2: awb.
+ * u: gain or awb mode parameters.
+ * buf_cnt: buf num to request. return actual result.
+ * buf_fd: fd of memory alloc result.
+ * wsize: data width to request. if useless to 0. return actual result.
+ * vsize: data height to request. if useless to 0. return actual result.
+ */
+struct rkisp_info2ddr {
+	enum rkisp_info2ddr_owner owner;
+
+	union {
+		struct {
+			u8 gain2ddr_mode;
+		} gain;
+
+		struct {
+			u8 awb2ddr_sel;
+		} awb;
+	} u;
+
+	u8 buf_cnt;
+	s32 buf_fd[RKISP_INFO2DDR_BUF_MAX];
+
+	u32 wsize;
+	u32 vsize;
+} __attribute__ ((packed));
 
 struct isp2x_ispgain_buf {
 	u32 gain_dmaidx;

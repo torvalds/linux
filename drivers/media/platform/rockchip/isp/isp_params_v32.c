@@ -2044,14 +2044,14 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 		       ISP32_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
-	value = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL);
-	value &= ISP32_MODULE_EN;
+	value = isp3_param_read_cache(params_vdev, ISP3X_RAWAWB_CTRL);
+	value &= (ISP32_MODULE_EN |
+		  ISP32_RAWAWB_2DDR_PATH_EN |
+		  ISP32_RAWAWB_2DDR_PATH_DS);
 	value |= !!arg->low12bit_val << 28 |
-		 //!!arg->ddr_path_sel << 27 |
 		 !!arg->yuv3d_en1 << 26 |
 		 !!arg->xy_en1 << 25 |
 		 !!arg->uv_en1 << 24 |
-		 //!!(arg->ddr_path_en << 23 |
 		 (arg->light_num & 0x7) << 20 |
 		 !!arg->rawlsc_bypass_en << 19 |
 		 !!arg->wind_size << 18 |
@@ -2078,7 +2078,7 @@ isp_rawawb_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
 	u32 awb_ctrl;
 
-	awb_ctrl = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL);
+	awb_ctrl = isp3_param_read_cache(params_vdev, ISP3X_RAWAWB_CTRL);
 	awb_ctrl &= ~ISP32_REG_WR_MASK;
 	if (en)
 		awb_ctrl |= ISP32_MODULE_EN;
@@ -3397,7 +3397,7 @@ isp_gain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 	if (val & ISP32_MODULE_EN && en)
 		return;
 
-	val = 0;
+	val = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL);
 	if (en) {
 		val |= priv_val->lut3d_en << 20 |
 			priv_val->dhaz_en << 16 |
@@ -3880,7 +3880,9 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP32_MODULE_CAC)
 		ops->cac_enable(params_vdev, !!(module_ens & ISP32_MODULE_CAC));
 
-	if (module_en_update & ISP32_MODULE_GAIN)
+	if (module_en_update & ISP32_MODULE_GAIN ||
+	    ((priv_val->buf_info_owner == RKISP_INFO2DRR_OWNER_GAIN) &&
+	     !(isp3_param_read(params_vdev, ISP3X_GAIN_CTRL) & ISP3X_GAIN_2DDR_EN)))
 		ops->gain_enable(params_vdev, !!(module_ens & ISP32_MODULE_GAIN));
 
 	if (module_en_update & ISP32_MODULE_VSM)
@@ -3904,6 +3906,8 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct rkisp_isp_params_ops_v32 *ops =
 		(struct rkisp_isp_params_ops_v32 *)params_vdev->priv_ops;
+	struct rkisp_isp_params_val_v32 *priv_val =
+		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
 	if (type == RKISP_PARAMS_SHD)
@@ -3940,7 +3944,9 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	if ((module_cfg_update & ISP32_MODULE_RAWHIST3))
 		ops->rawhst3_config(params_vdev, &new_params->meas.rawhist3);
 
-	if ((module_cfg_update & ISP32_MODULE_RAWAWB))
+	if ((module_cfg_update & ISP32_MODULE_RAWAWB) ||
+	    ((priv_val->buf_info_owner == RKISP_INFO2DRR_OWNER_AWB) &&
+	     !(isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL) & ISP32_RAWAWB_2DDR_PATH_EN)))
 		ops->rawawb_config(params_vdev, &new_params->meas.rawawb);
 }
 
@@ -4359,6 +4365,128 @@ rkisp_params_set_meshbuf_size_v32(struct rkisp_isp_params_vdev *params_vdev,
 	rkisp_init_mesh_buf(params_vdev, meshsize);
 }
 
+static int
+rkisp_params_info2ddr_cfg_v32(struct rkisp_isp_params_vdev *params_vdev, void *arg)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_params_val_v32 *priv_val;
+	struct rkisp_info2ddr *cfg = arg;
+	struct rkisp_dummy_buffer *buf;
+	u32 reg, ctrl, mask, size, val, wsize = 0, vsize = 0;
+	int i, ret;
+
+	priv_val = params_vdev->priv_val;
+
+	if (cfg->buf_cnt > RKISP_INFO2DDR_BUF_MAX)
+		cfg->buf_cnt = RKISP_INFO2DDR_BUF_MAX;
+	else if (cfg->buf_cnt == 0)
+		cfg->buf_cnt = 1;
+	for (val = 0; val < cfg->buf_cnt; val++)
+		cfg->buf_fd[val] = -1;
+
+	switch (cfg->owner) {
+	case RKISP_INFO2DRR_OWNER_NULL:
+		rkisp_clear_reg_cache_bits(dev, ISP3X_RAWAWB_CTRL,
+					   ISP32_RAWAWB_2DDR_PATH_EN);
+		rkisp_clear_reg_cache_bits(dev, ISP3X_GAIN_CTRL,
+					   ISP3X_GAIN_2DDR_EN);
+		priv_val->buf_info_owner = cfg->owner;
+		return 0;
+	case RKISP_INFO2DRR_OWNER_GAIN:
+		ctrl = ISP3X_GAIN_2DDR_mode(cfg->u.gain.gain2ddr_mode);
+		ctrl |= ISP3X_GAIN_2DDR_EN;
+		mask = ISP3X_GAIN_2DDR_mode(3);
+		reg = ISP3X_GAIN_CTRL;
+
+		if (cfg->wsize)
+			wsize = (cfg->wsize + 7) / 8;
+		else
+			wsize = (dev->isp_sdev.in_crop.width + 7) / 8;
+		/* 0 or 3: 4x8mode, 1: 2x8 mode, 2: 1x8mode */
+		val = cfg->u.gain.gain2ddr_mode;
+		val = (val == 1) ? 2 : ((val == 2) ? 1 : 4);
+		if (cfg->vsize)
+			vsize = cfg->vsize;
+		else
+			vsize = dev->isp_sdev.in_crop.height / val;
+		break;
+	case RKISP_INFO2DRR_OWNER_AWB:
+		ctrl = cfg->u.awb.awb2ddr_sel ? ISP32_RAWAWB_2DDR_PATH_DS : 0;
+		ctrl |= ISP32_RAWAWB_2DDR_PATH_EN;
+		mask = ISP32_RAWAWB_2DDR_PATH_DS;
+		reg = ISP3X_RAWAWB_CTRL;
+
+		val = cfg->u.awb.awb2ddr_sel ? 8 : 1;
+		if (cfg->wsize)
+			wsize = cfg->wsize;
+		else
+			wsize = dev->isp_sdev.in_crop.width * 4 / val;
+		if (cfg->vsize)
+			vsize = cfg->vsize;
+		else
+			vsize = dev->isp_sdev.in_crop.height / val;
+		break;
+	default:
+		dev_err(dev->dev, "%s no support owner:%d\n", __func__, cfg->owner);
+		return -EINVAL;
+	}
+
+	if (!wsize || !vsize) {
+		dev_err(dev->dev, "%s inval wsize:%d vsize:%d\n", __func__, wsize, vsize);
+		return -EINVAL;
+	}
+
+	wsize = ALIGN(wsize, 16);
+	size = wsize * vsize;
+	for (i = 0; i < cfg->buf_cnt; i++) {
+		buf = &priv_val->buf_info[i];
+		if (buf->mem_priv) {
+			if (buf->size < size) {
+				rkisp_free_buffer(dev, buf);
+			} else {
+				*(u32 *)buf->vaddr = RKISP_INFO2DDR_BUF_INIT;
+				cfg->buf_fd[i] = buf->dma_fd;
+				continue;
+			}
+		}
+		buf->size = size;
+		buf->is_need_dbuf = true;
+		buf->is_need_dmafd = true;
+		buf->is_need_vaddr = true;
+		ret = rkisp_alloc_buffer(dev, buf);
+		if (ret) {
+			dev_err(dev->dev, "%s alloc buf failed\n", __func__);
+			goto err;
+		}
+		*(u32 *)buf->vaddr = RKISP_INFO2DDR_BUF_INIT;
+		cfg->buf_fd[i] = buf->dma_fd;
+	}
+	buf = &priv_val->buf_info[0];
+	isp3_param_write(params_vdev, buf->dma_addr, ISP3X_MI_GAIN_WR_BASE);
+	isp3_param_write(params_vdev, buf->size, ISP3X_MI_GAIN_WR_SIZE);
+	isp3_param_write(params_vdev, wsize, ISP3X_MI_GAIN_WR_LENGTH);
+	if (dev->hw_dev->is_single)
+		rkisp_write(dev, ISP3X_MI_WR_CTRL2, ISP3X_GAINSELF_UPD, true);
+	rkisp_set_reg_cache_bits(dev, reg, mask, ctrl);
+
+	priv_val->buf_info_idx = 0;
+	priv_val->buf_info_cnt = cfg->buf_cnt;
+	priv_val->buf_info_owner = cfg->owner;
+
+	cfg->wsize = wsize;
+	cfg->vsize = vsize;
+	return 0;
+err:
+	for (i -= 1; i >= 0; i--) {
+		buf = &priv_val->buf_info[i];
+		rkisp_free_buffer(dev, buf);
+		cfg->buf_fd[i] = -1;
+	}
+	cfg->owner = RKISP_INFO2DRR_OWNER_NULL;
+	cfg->buf_cnt = 0;
+	return -ENOMEM;
+}
+
 static void
 rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -4375,6 +4503,12 @@ rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[i]);
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
 		rkisp_free_buffer(ispdev, &ispdev->stats_vdev.stats_buf[i]);
+	priv_val->buf_info_owner = 0;
+	priv_val->buf_info_cnt = 0;
+	priv_val->buf_info_idx = -1;
+	for (i = 0; i < priv_val->buf_info_cnt; i++)
+		rkisp_free_buffer(ispdev, &priv_val->buf_info[i]);
+
 }
 
 static void
@@ -4555,6 +4689,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.stream_stop = rkisp_params_stream_stop_v32,
 	.fop_release = rkisp_params_fop_release_v32,
 	.check_bigmode = rkisp_params_check_bigmode_v32,
+	.info2ddr_cfg = rkisp_params_info2ddr_cfg_v32,
 };
 
 int rkisp_init_params_vdev_v32(struct rkisp_isp_params_vdev *params_vdev)
@@ -4581,6 +4716,9 @@ int rkisp_init_params_vdev_v32(struct rkisp_isp_params_vdev *params_vdev)
 		     isp_lsc_cfg_sram_task,
 		     (unsigned long)params_vdev);
 	tasklet_disable(&priv_val->lsc_tasklet);
+	priv_val->buf_info_owner = 0;
+	priv_val->buf_info_cnt = 0;
+	priv_val->buf_info_idx = -1;
 	return 0;
 }
 

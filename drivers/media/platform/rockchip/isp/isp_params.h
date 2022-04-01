@@ -42,6 +42,8 @@ struct rkisp_isp_params_ops {
 	void (*stream_stop)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*fop_release)(struct rkisp_isp_params_vdev *params_vdev);
 	bool (*check_bigmode)(struct rkisp_isp_params_vdev *params_vdev);
+	int (*info2ddr_cfg)(struct rkisp_isp_params_vdev *params_vdev,
+			    void *arg);
 };
 
 /*
@@ -147,4 +149,5 @@ void rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
 				   void *meshsize);
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev);
 bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev);
+int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 #endif /* _RKISP_ISP_PARAM_H */
