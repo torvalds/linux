@@ -609,6 +609,8 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 		return ret;
 	}
 
+	rockchip_monitor_volt_adjust_lock(rknpu_dev->mdev_info);
+
 	if (rknpu_dev->multiple_domains) {
 		if (rknpu_dev->genpd_dev_npu0) {
 #if KERNEL_VERSION(5, 4, 0) < LINUX_VERSION_CODE
@@ -622,7 +624,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 					dev,
 					"failed to get pm runtime for npu0, ret = %d\n",
 					ret);
-				return ret;
+				goto out;
 			}
 		}
 		if (rknpu_dev->genpd_dev_npu1) {
@@ -637,7 +639,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 					dev,
 					"failed to get pm runtime for npu1, ret = %d\n",
 					ret);
-				return ret;
+				goto out;
 			}
 		}
 		if (rknpu_dev->genpd_dev_npu2) {
@@ -652,7 +654,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 					dev,
 					"failed to get pm runtime for npu2, ret = %d\n",
 					ret);
-				return ret;
+				goto out;
 			}
 		}
 	}
@@ -661,8 +663,10 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 		LOG_DEV_ERROR(dev,
 			      "failed to get pm runtime for rknpu, ret = %d\n",
 			      ret);
-		return ret;
 	}
+
+out:
+	rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
 
 	return ret;
 }
@@ -670,6 +674,8 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 {
 	struct device *dev = rknpu_dev->dev;
+
+	rockchip_monitor_volt_adjust_lock(rknpu_dev->mdev_info);
 
 	pm_runtime_put_sync(dev);
 
@@ -690,6 +696,8 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 		if (rknpu_dev->genpd_dev_npu0)
 			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu0);
 	}
+
+	rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
 
 	clk_bulk_disable_unprepare(rknpu_dev->num_clks, rknpu_dev->clks);
 
@@ -729,8 +737,16 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
+	bool is_set_rm = true;
+	bool is_set_clk = true;
 	u32 target_rm = UINT_MAX;
 	int ret = 0;
+
+	if (!pm_runtime_active(dev)) {
+		is_set_rm = false;
+		if (opp_info->scmi_clk)
+			is_set_clk = false;
+	}
 
 	ret = clk_bulk_prepare_enable(opp_info->num_clks, opp_info->clks);
 	if (ret < 0) {
@@ -746,7 +762,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
 		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
-					       new_freq, true, true);
+					       new_freq, true, is_set_clk);
 		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -763,19 +779,17 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 				      new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		rockchip_set_read_margin(dev, opp_info, target_rm, true);
-		ret = clk_set_rate(clk, new_freq);
-		if (ret) {
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(clk, new_freq)) {
 			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
 			goto restore_rm;
 		}
 		/* Scaling down? Scale voltage after frequency */
 	} else {
 		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
-					       new_freq, false, true);
-		rockchip_set_read_margin(dev, opp_info, target_rm, true);
-		ret = clk_set_rate(clk, new_freq);
-		if (ret) {
+					       new_freq, false, is_set_clk);
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(clk, new_freq)) {
 			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
 			goto restore_rm;
 		}
@@ -802,13 +816,13 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
-	if (clk_set_rate(clk, old_freq))
+	if (is_set_clk && clk_set_rate(clk, old_freq))
 		LOG_DEV_ERROR(dev, "failed to restore old-freq %lu Hz\n",
 			      old_freq);
 restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
 				 &target_rm);
-	rockchip_set_read_margin(dev, opp_info, opp_info->current_rm, true);
+	rockchip_set_read_margin(dev, opp_info, opp_info->current_rm, is_set_rm);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
