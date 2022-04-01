@@ -2550,10 +2550,8 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 {
 	int ret;
 
-	tplg->pass = SOC_TPLG_PASS_START;
-
 	/* process the header types from start to end */
-	while (tplg->pass <= SOC_TPLG_PASS_END) {
+	for (tplg->pass = SOC_TPLG_PASS_START; tplg->pass <= SOC_TPLG_PASS_END; tplg->pass++) {
 		struct snd_soc_tplg_hdr *hdr;
 
 		tplg->hdr_pos = tplg->fw->data;
@@ -2585,8 +2583,6 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 			hdr = (struct snd_soc_tplg_hdr *)tplg->hdr_pos;
 		}
 
-		/* next data type pass */
-		tplg->pass++;
 	}
 
 	/* signal DAPM we are complete */
@@ -2653,10 +2649,10 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 {
 	struct snd_card *card = comp->card->snd_card;
 	struct snd_soc_dobj *dobj, *next_dobj;
-	int pass = SOC_TPLG_PASS_END;
+	int pass;
 
 	/* process the header types from end to start */
-	while (pass >= SOC_TPLG_PASS_START) {
+	for (pass = SOC_TPLG_PASS_END; pass >= SOC_TPLG_PASS_START; pass--) {
 
 		/* remove mixer controls */
 		down_write(&card->controls_rwsem);
@@ -2699,7 +2695,6 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 			}
 		}
 		up_write(&card->controls_rwsem);
-		pass--;
 	}
 
 	/* let caller know if FW can be freed when no objects are left */
