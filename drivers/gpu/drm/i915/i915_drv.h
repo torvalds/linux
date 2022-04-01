@@ -533,6 +533,7 @@ struct drm_i915_private {
 	struct pci_dev *bridge_dev;
 
 	struct rb_root uabi_engines;
+	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
 
 	struct resource mch_res;
 
