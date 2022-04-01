@@ -14,7 +14,7 @@
 	compatible = "rockchip,rk3588-nvr-demo-v10-spi-nand", "rockchip,rk3588";
 
 	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 clk_gate.always_on=1 pm_domains.always_on=1 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs rw rootwait";
+		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 clk_gate.always_on=1 pm_domains.always_on=1 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs rw rootwait";
 	};
 };
 
