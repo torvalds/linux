@@ -774,6 +774,7 @@ The uvc function provides these attributes in its function directory:
 	streaming_maxpacket maximum packet size this endpoint is capable of
 			    sending or receiving when this configuration is
 			    selected
+	function_name       name of the interface
 	=================== ================================================
 
 There are also "control" and "streaming" subdirectories, each of which contain
