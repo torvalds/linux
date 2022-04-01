@@ -1948,7 +1948,7 @@ static uint32_t vcn_v2_6_query_poison_by_instance(struct amdgpu_device *adev,
 		break;
 	default:
 		break;
-	};
+	}
 
 	if (poison_stat)
 		dev_info(adev->dev, "Poison detected in VCN%d, sub_block%d\n",
