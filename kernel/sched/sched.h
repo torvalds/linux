@@ -67,6 +67,7 @@
 #include <linux/task_work.h>
 #include <linux/tsacct_kern.h>
 #include <linux/android_vendor.h>
+#include "android.h"
 
 #include <asm/tlb.h>
 
