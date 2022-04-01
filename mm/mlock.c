@@ -28,7 +28,14 @@
 
 #include "internal.h"
 
-static DEFINE_PER_CPU(struct pagevec, mlock_pvec);
+struct mlock_pvec {
+	local_lock_t lock;
+	struct pagevec vec;
+};
+
+static DEFINE_PER_CPU(struct mlock_pvec, mlock_pvec) = {
+	.lock = INIT_LOCAL_LOCK(lock),
+};
 
 bool can_do_mlock(void)
 {
@@ -203,18 +210,30 @@ static void mlock_pagevec(struct pagevec *pvec)
 	pagevec_reinit(pvec);
 }
 
-void mlock_page_drain(int cpu)
+void mlock_page_drain_local(void)
 {
 	struct pagevec *pvec;
 
-	pvec = &per_cpu(mlock_pvec, cpu);
+	local_lock(&mlock_pvec.lock);
+	pvec = this_cpu_ptr(&mlock_pvec.vec);
+	if (pagevec_count(pvec))
+		mlock_pagevec(pvec);
+	local_unlock(&mlock_pvec.lock);
+}
+
+void mlock_page_drain_remote(int cpu)
+{
+	struct pagevec *pvec;
+
+	WARN_ON_ONCE(cpu_online(cpu));
+	pvec = &per_cpu(mlock_pvec.vec, cpu);
 	if (pagevec_count(pvec))
 		mlock_pagevec(pvec);
 }
 
 bool need_mlock_page_drain(int cpu)
 {
-	return pagevec_count(&per_cpu(mlock_pvec, cpu));
+	return pagevec_count(&per_cpu(mlock_pvec.vec, cpu));
 }
 
 /**
@@ -223,7 +242,10 @@ bool need_mlock_page_drain(int cpu)
  */
 void mlock_folio(struct folio *folio)
 {
-	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+	struct pagevec *pvec;
+
+	local_lock(&mlock_pvec.lock);
+	pvec = this_cpu_ptr(&mlock_pvec.vec);
 
 	if (!folio_test_set_mlocked(folio)) {
 		int nr_pages = folio_nr_pages(folio);
@@ -236,7 +258,7 @@ void mlock_folio(struct folio *folio)
 	if (!pagevec_add(pvec, mlock_lru(&folio->page)) ||
 	    folio_test_large(folio) || lru_cache_disabled())
 		mlock_pagevec(pvec);
-	put_cpu_var(mlock_pvec);
+	local_unlock(&mlock_pvec.lock);
 }
 
 /**
@@ -245,9 +267,11 @@ void mlock_folio(struct folio *folio)
  */
 void mlock_new_page(struct page *page)
 {
-	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+	struct pagevec *pvec;
 	int nr_pages = thp_nr_pages(page);
 
+	local_lock(&mlock_pvec.lock);
+	pvec = this_cpu_ptr(&mlock_pvec.vec);
 	SetPageMlocked(page);
 	mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
 	__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
@@ -256,7 +280,7 @@ void mlock_new_page(struct page *page)
 	if (!pagevec_add(pvec, mlock_new(page)) ||
 	    PageHead(page) || lru_cache_disabled())
 		mlock_pagevec(pvec);
-	put_cpu_var(mlock_pvec);
+	local_unlock(&mlock_pvec.lock);
 }
 
 /**
@@ -265,8 +289,10 @@ void mlock_new_page(struct page *page)
  */
 void munlock_page(struct page *page)
 {
-	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+	struct pagevec *pvec;
 
+	local_lock(&mlock_pvec.lock);
+	pvec = this_cpu_ptr(&mlock_pvec.vec);
 	/*
 	 * TestClearPageMlocked(page) must be left to __munlock_page(),
 	 * which will check whether the page is multiply mlocked.
@@ -276,7 +302,7 @@ void munlock_page(struct page *page)
 	if (!pagevec_add(pvec, page) ||
 	    PageHead(page) || lru_cache_disabled())
 		mlock_pagevec(pvec);
-	put_cpu_var(mlock_pvec);
+	local_unlock(&mlock_pvec.lock);
 }
 
 static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
