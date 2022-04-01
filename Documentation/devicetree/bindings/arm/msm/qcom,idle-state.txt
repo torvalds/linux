@@ -81,4 +81,4 @@ Example:
 		};
 	};
 
-[1]. Documentation/devicetree/bindings/arm/idle-states.yaml
+[1]. Documentation/devicetree/bindings/cpu/idle-states.yaml
