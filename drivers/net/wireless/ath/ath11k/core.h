@@ -239,6 +239,8 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_CE_IRQ_ENABLED,
 	ATH11K_FLAG_EXT_IRQ_ENABLED,
 	ATH11K_FLAG_FIXED_MEM_RGN,
+	ATH11K_FLAG_DEVICE_INIT_DONE,
+	ATH11K_FLAG_MULTI_MSI_VECTORS,
 };
 
 enum ath11k_monitor_flags {
@@ -728,6 +730,14 @@ struct ath11k_bus_params {
 	bool static_window_map;
 };
 
+struct ath11k_pci_ops {
+	int (*wakeup)(struct ath11k_base *ab);
+	void (*release)(struct ath11k_base *ab);
+	int (*get_msi_irq)(struct ath11k_base *ab, unsigned int vector);
+	void (*window_write32)(struct ath11k_base *ab, u32 offset, u32 value);
+	u32 (*window_read32)(struct ath11k_base *ab, u32 offset);
+};
+
 /* IPQ8074 HW channel counters frequency value in hertz */
 #define IPQ8074_CC_FREQ_HERTZ 320000
 
@@ -925,6 +935,8 @@ struct ath11k_base {
 			u32 addr_lo;
 			u32 addr_hi;
 		} msi;
+
+		const struct ath11k_pci_ops *ops;
 	} pci;
 
 	/* must be last */

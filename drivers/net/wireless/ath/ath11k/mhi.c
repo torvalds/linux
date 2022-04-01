@@ -273,10 +273,10 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	for (i = 0; i < num_vectors; i++) {
 		msi_data = base_vector;
 
-		if (test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		if (test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
 			msi_data += i;
 
-		irq[i] = ath11k_pcic_get_msi_irq(ab->dev, msi_data);
+		irq[i] = ath11k_pci_get_msi_irq(ab, msi_data);
 	}
 
 	ab_pci->mhi_ctrl->irq = irq;
@@ -406,7 +406,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 		return ret;
 	}
 
-	if (!test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+	if (!test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
 		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
 
 	if (test_bit(ATH11K_FLAG_FIXED_MEM_RGN, &ab->dev_flags)) {

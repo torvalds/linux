@@ -36,6 +36,85 @@ static const struct pci_device_id ath11k_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ath11k_pci_id_table);
 
+static int ath11k_pci_bus_wake_up(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	return mhi_device_get_sync(ab_pci->mhi_ctrl->mhi_dev);
+}
+
+static void ath11k_pci_bus_release(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
+}
+
+static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offset)
+{
+	struct ath11k_base *ab = ab_pci->ab;
+
+	u32 window = FIELD_GET(ATH11K_PCI_WINDOW_VALUE_MASK, offset);
+
+	lockdep_assert_held(&ab_pci->window_lock);
+
+	if (window != ab_pci->register_window) {
+		iowrite32(ATH11K_PCI_WINDOW_ENABLE_BIT | window,
+			  ab->mem + ATH11K_PCI_WINDOW_REG_ADDRESS);
+		ioread32(ab->mem + ATH11K_PCI_WINDOW_REG_ADDRESS);
+		ab_pci->register_window = window;
+	}
+}
+
+static void
+ath11k_pci_window_write32(struct ath11k_base *ab, u32 offset, u32 value)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+	u32 window_start = ATH11K_PCI_WINDOW_START;
+
+	spin_lock_bh(&ab_pci->window_lock);
+	ath11k_pci_select_window(ab_pci, offset);
+	iowrite32(value, ab->mem + window_start +
+		  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	spin_unlock_bh(&ab_pci->window_lock);
+}
+
+static u32 ath11k_pci_window_read32(struct ath11k_base *ab, u32 offset)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+	u32 window_start = ATH11K_PCI_WINDOW_START;
+	u32 val;
+
+	spin_lock_bh(&ab_pci->window_lock);
+	ath11k_pci_select_window(ab_pci, offset);
+	val = ioread32(ab->mem + window_start +
+		       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	spin_unlock_bh(&ab_pci->window_lock);
+
+	return val;
+}
+
+int ath11k_pci_get_msi_irq(struct ath11k_base *ab, unsigned int vector)
+{
+	struct pci_dev *pci_dev = to_pci_dev(ab->dev);
+
+	return pci_irq_vector(pci_dev, vector);
+}
+
+static const struct ath11k_pci_ops ath11k_pci_ops_qca6390 = {
+	.wakeup = ath11k_pci_bus_wake_up,
+	.release = ath11k_pci_bus_release,
+	.get_msi_irq = ath11k_pci_get_msi_irq,
+	.window_write32 = ath11k_pci_window_write32,
+	.window_read32 = ath11k_pci_window_read32,
+};
+
+static const struct ath11k_pci_ops ath11k_pci_ops_qcn9074 = {
+	.get_msi_irq = ath11k_pci_get_msi_irq,
+	.window_write32 = ath11k_pci_window_write32,
+	.window_read32 = ath11k_pci_window_read32,
+};
+
 static const struct ath11k_bus_params ath11k_pci_bus_params = {
 	.mhi_support = true,
 	.m3_fw_support = true,
@@ -318,8 +397,7 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 					    msi_config->total_vectors,
 					    PCI_IRQ_MSI);
 	if (num_vectors == msi_config->total_vectors) {
-		set_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
-		ab_pci->irq_flags = IRQF_SHARED;
+		set_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
 	} else {
 		num_vectors = pci_alloc_irq_vectors(ab_pci->pdev,
 						    1,
@@ -329,9 +407,8 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 			ret = -EINVAL;
 			goto reset_msi_config;
 		}
-		clear_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
+		clear_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
 		ab->pci.msi.config = &msi_config_one_msi;
-		ab_pci->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
 		ath11k_dbg(ab, ATH11K_DBG_PCI, "request MSI one vector\n");
 	}
 	ath11k_info(ab, "MSI vectors: %d\n", num_vectors);
@@ -487,13 +564,20 @@ static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
 	set_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags);
 }
 
+static void ath11k_pci_aspm_restore(struct ath11k_pci *ab_pci)
+{
+	if (test_and_clear_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags))
+		pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+					   ab_pci->link_ctl);
+}
+
 static int ath11k_pci_power_up(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	int ret;
 
 	ab_pci->register_window = 0;
-	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
+	clear_bit(ATH11K_FLAG_DEVICE_INIT_DONE, &ab->dev_flags);
 	ath11k_pci_sw_reset(ab_pci->ab, true);
 
 	/* Disable ASPM during firmware download due to problems switching
@@ -520,14 +604,14 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	/* restore aspm in case firmware bootup fails */
-	ath11k_pcic_aspm_restore(ab_pci);
+	ath11k_pci_aspm_restore(ab_pci);
 
 	ath11k_pci_force_wake(ab_pci->ab);
 
 	ath11k_pci_msi_disable(ab_pci);
 
 	ath11k_mhi_stop(ab_pci);
-	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
+	clear_bit(ATH11K_FLAG_DEVICE_INIT_DONE, &ab->dev_flags);
 	ath11k_pci_sw_reset(ab_pci->ab, false);
 }
 
@@ -559,8 +643,25 @@ static void ath11k_pci_hif_ce_irq_disable(struct ath11k_base *ab)
 	ath11k_pcic_ce_irq_disable_sync(ab);
 }
 
+static int ath11k_pci_start(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	/* TODO: for now don't restore ASPM in case of single MSI
+	 * vector as MHI register reading in M2 causes system hang.
+	 */
+	if (test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
+		ath11k_pci_aspm_restore(ab_pci);
+	else
+		ath11k_info(ab, "leaving PCI ASPM disabled to avoid MHI M2 problems\n");
+
+	ath11k_pcic_start(ab);
+
+	return 0;
+}
+
 static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
-	.start = ath11k_pcic_start,
+	.start = ath11k_pci_start,
 	.stop = ath11k_pcic_stop,
 	.read32 = ath11k_pcic_read32,
 	.write32 = ath11k_pcic_write32,
@@ -590,6 +691,15 @@ static void ath11k_pci_read_hw_version(struct ath11k_base *ab, u32 *major, u32 *
 
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci tcsr_soc_hw_version major %d minor %d\n",
 		   *major, *minor);
+}
+
+static int ath11k_pci_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
+					    const struct cpumask *m)
+{
+	if (test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab_pci->ab->dev_flags))
+		return 0;
+
+	return irq_set_affinity_hint(ab_pci->pdev->irq, m);
 }
 
 static int ath11k_pci_probe(struct pci_dev *pdev,
@@ -654,9 +764,12 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 			ret = -EOPNOTSUPP;
 			goto err_pci_free_region;
 		}
+
+		ab->pci.ops = &ath11k_pci_ops_qca6390;
 		break;
 	case QCN9074_DEVICE_ID:
 		ab->bus_params.static_window_map = true;
+		ab->pci.ops = &ath11k_pci_ops_qcn9074;
 		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;
 	case WCN6855_DEVICE_ID:
@@ -685,6 +798,8 @@ unsupported_wcn6855_soc:
 			ret = -EOPNOTSUPP;
 			goto err_pci_free_region;
 		}
+
+		ab->pci.ops = &ath11k_pci_ops_qca6390;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
@@ -733,6 +848,12 @@ unsupported_wcn6855_soc:
 		goto err_ce_free;
 	}
 
+	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
+		goto err_free_irq;
+	}
+
 	/* kernel may allocate a dummy vector before request_irq and
 	 * then allocate a real vector when request_irq is called.
 	 * So get msi_data here again to avoid spurious interrupt
@@ -741,15 +862,18 @@ unsupported_wcn6855_soc:
 	ret = ath11k_pci_config_msi_data(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to config msi_data: %d\n", ret);
-		goto err_free_irq;
+		goto err_irq_affinity_cleanup;
 	}
 
 	ret = ath11k_core_init(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to init core: %d\n", ret);
-		goto err_free_irq;
+		goto err_irq_affinity_cleanup;
 	}
 	return 0;
+
+err_irq_affinity_cleanup:
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 err_free_irq:
 	ath11k_pcic_free_irq(ab);
@@ -780,7 +904,7 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 	struct ath11k_base *ab = pci_get_drvdata(pdev);
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
-	ath11k_pcic_set_irq_affinity_hint(ab_pci, NULL);
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath11k_pci_power_down(ab);

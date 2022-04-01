@@ -8,7 +8,6 @@
 #define _ATH11K_PCI_CMN_H
 
 #include "core.h"
-#include "pci.h"
 
 #define ATH11K_PCI_IRQ_CE0_OFFSET	3
 #define ATH11K_PCI_IRQ_DP_OFFSET	14
@@ -28,7 +27,6 @@
 int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 					int *num_vectors, u32 *user_base_data,
 					u32 *base_vector);
-int ath11k_pcic_get_msi_irq(struct device *dev, unsigned int vector);
 void ath11k_pcic_write32(struct ath11k_base *ab, u32 offset, u32 value);
 u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset);
 void ath11k_pcic_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
@@ -44,8 +42,5 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 				    u8 *ul_pipe, u8 *dl_pipe);
 void ath11k_pcic_ce_irqs_enable(struct ath11k_base *ab);
 void ath11k_pcic_ce_irq_disable_sync(struct ath11k_base *ab);
-void ath11k_pcic_aspm_restore(struct ath11k_pci *ab_pci);
-int ath11k_pcic_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
-				      const struct cpumask *m);
 int ath11k_pcic_init_msi_config(struct ath11k_base *ab);
 #endif
