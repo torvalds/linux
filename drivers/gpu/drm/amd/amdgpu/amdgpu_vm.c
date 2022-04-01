@@ -837,6 +837,12 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error_unlock;
 	}
 
+	/* Vega20+XGMI where PTEs get inadvertently cached in L2 texture cache,
+	 * heavy-weight flush TLB unconditionally.
+	 */
+	flush_tlb |= adev->gmc.xgmi.num_physical_nodes &&
+		     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 0);
+
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.vm = vm;
