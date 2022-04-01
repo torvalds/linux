@@ -106,7 +106,6 @@ allOf:
           enum:
             - mediatek,mt8173-vcodec-enc
             - mediatek,mt8192-vcodec-enc
-            - mediatek,mt8173-vcodec-enc
 
     then:
       properties:
