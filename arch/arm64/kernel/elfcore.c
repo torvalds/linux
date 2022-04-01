@@ -25,10 +25,11 @@ static unsigned long mte_vma_tag_dump_size(struct vm_area_struct *vma)
 static int mte_dump_tag_range(struct coredump_params *cprm,
 			      unsigned long start, unsigned long end)
 {
+	int ret = 1;
 	unsigned long addr;
+	void *tags = NULL;
 
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
-		char tags[MTE_PAGE_TAG_STORAGE];
 		struct page *page = get_dump_page(addr);
 
 		/*
@@ -52,13 +53,28 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 			continue;
 		}
 
+		if (!tags) {
+			tags = mte_allocate_tag_storage();
+			if (!tags) {
+				put_page(page);
+				ret = 0;
+				break;
+			}
+		}
+
 		mte_save_page_tags(page_address(page), tags);
 		put_page(page);
-		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE))
-			return 0;
+		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE)) {
+			mte_free_tag_storage(tags);
+			ret = 0;
+			break;
+		}
 	}
 
-	return 1;
+	if (tags)
+		mte_free_tag_storage(tags);
+
+	return ret;
 }
 
 Elf_Half elf_core_extra_phdrs(void)
