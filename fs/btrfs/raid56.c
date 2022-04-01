@@ -1491,18 +1491,48 @@ static int fail_bio_stripe(struct btrfs_raid_bio *rbio,
 }
 
 /*
+ * For subpage case, we can no longer set page Uptodate directly for
+ * stripe_pages[], thus we need to locate the sector.
+ */
+static struct sector_ptr *find_stripe_sector(struct btrfs_raid_bio *rbio,
+					     struct page *page,
+					     unsigned int pgoff)
+{
+	int i;
+
+	for (i = 0; i < rbio->nr_sectors; i++) {
+		struct sector_ptr *sector = &rbio->stripe_sectors[i];
+
+		if (sector->page == page && sector->pgoff == pgoff)
+			return sector;
+	}
+	return NULL;
+}
+
+/*
  * this sets each page in the bio uptodate.  It should only be used on private
  * rbio pages, nothing that comes in from the higher layers
  */
-static void set_bio_pages_uptodate(struct bio *bio)
+static void set_bio_pages_uptodate(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 
-	bio_for_each_segment_all(bvec, bio, iter_all)
-		SetPageUptodate(bvec->bv_page);
+	bio_for_each_segment_all(bvec, bio, iter_all) {
+		struct sector_ptr *sector;
+		int pgoff;
+
+		for (pgoff = bvec->bv_offset; pgoff - bvec->bv_offset < bvec->bv_len;
+		     pgoff += sectorsize) {
+			sector = find_stripe_sector(rbio, bvec->bv_page, pgoff);
+			ASSERT(sector);
+			if (sector)
+				sector->uptodate = 1;
+		}
+	}
 }
 
 /*
@@ -1520,7 +1550,7 @@ static void raid_rmw_end_io(struct bio *bio)
 	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
-		set_bio_pages_uptodate(bio);
+		set_bio_pages_uptodate(rbio, bio);
 
 	bio_put(bio);
 
@@ -2076,7 +2106,7 @@ static void raid_recover_end_io(struct bio *bio)
 	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
-		set_bio_pages_uptodate(bio);
+		set_bio_pages_uptodate(rbio, bio);
 	bio_put(bio);
 
 	if (!atomic_dec_and_test(&rbio->stripes_pending))
@@ -2633,7 +2663,7 @@ static void raid56_parity_scrub_end_io(struct bio *bio)
 	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
-		set_bio_pages_uptodate(bio);
+		set_bio_pages_uptodate(rbio, bio);
 
 	bio_put(bio);
 
