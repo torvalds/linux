@@ -90,3 +90,11 @@
 	status = "okay";
 };
 #endif
+
+#if (SW_RSPI_CAN)
+&spi1 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+#endif
