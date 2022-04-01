@@ -115,6 +115,9 @@ struct btrfs_raid_bio {
 	/* How many pages there are for the full stripe including P/Q */
 	u16 nr_pages;
 
+	/* How many sectors there are for the full stripe including P/Q */
+	u16 nr_sectors;
+
 	/* Number of data stripes (no p/q) */
 	u8 nr_data;
 
@@ -123,6 +126,9 @@ struct btrfs_raid_bio {
 
 	/* How many pages there are for each stripe */
 	u8 stripe_npages;
+
+	/* How many sectors there are for each stripe */
+	u8 stripe_nsectors;
 
 	/* First bad stripe, -1 means no corruption */
 	s8 faila;
@@ -172,7 +178,7 @@ struct btrfs_raid_bio {
 	/* allocated with real_stripes-many pointers for finish_*() calls */
 	void **finish_pointers;
 
-	/* allocated with stripe_npages-many bits for finish_*() calls */
+	/* Allocated with stripe_nsectors-many bits for finish_*() calls */
 	unsigned long *finish_pbitmap;
 };
 
@@ -958,19 +964,22 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	const unsigned int real_stripes = bioc->num_stripes - bioc->num_tgtdevs;
 	const unsigned int stripe_npages = stripe_len >> PAGE_SHIFT;
 	const unsigned int num_pages = stripe_npages * real_stripes;
+	const unsigned int stripe_nsectors = stripe_len >> fs_info->sectorsize_bits;
+	const unsigned int num_sectors = stripe_nsectors * real_stripes;
 	struct btrfs_raid_bio *rbio;
 	int nr_data = 0;
 	void *p;
 
 	ASSERT(IS_ALIGNED(stripe_len, PAGE_SIZE));
+	/* PAGE_SIZE must also be aligned to sectorsize for subpage support */
+	ASSERT(IS_ALIGNED(PAGE_SIZE, fs_info->sectorsize));
 
 	rbio = kzalloc(sizeof(*rbio) +
 		       sizeof(*rbio->stripe_pages) * num_pages +
 		       sizeof(*rbio->bio_pages) * num_pages +
 		       sizeof(*rbio->finish_pointers) * real_stripes +
-		       sizeof(*rbio->dbitmap) * BITS_TO_LONGS(stripe_npages) +
-		       sizeof(*rbio->finish_pbitmap) *
-				BITS_TO_LONGS(stripe_npages),
+		       sizeof(*rbio->dbitmap) * BITS_TO_LONGS(stripe_nsectors) +
+		       sizeof(*rbio->finish_pbitmap) * BITS_TO_LONGS(stripe_nsectors),
 		       GFP_NOFS);
 	if (!rbio)
 		return ERR_PTR(-ENOMEM);
@@ -983,8 +992,10 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	rbio->bioc = bioc;
 	rbio->stripe_len = stripe_len;
 	rbio->nr_pages = num_pages;
+	rbio->nr_sectors = num_sectors;
 	rbio->real_stripes = real_stripes;
 	rbio->stripe_npages = stripe_npages;
+	rbio->stripe_nsectors = stripe_nsectors;
 	rbio->faila = -1;
 	rbio->failb = -1;
 	refcount_set(&rbio->refs, 1);
@@ -1003,8 +1014,8 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	CONSUME_ALLOC(rbio->stripe_pages, num_pages);
 	CONSUME_ALLOC(rbio->bio_pages, num_pages);
 	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
-	CONSUME_ALLOC(rbio->dbitmap, BITS_TO_LONGS(stripe_npages));
-	CONSUME_ALLOC(rbio->finish_pbitmap, BITS_TO_LONGS(stripe_npages));
+	CONSUME_ALLOC(rbio->dbitmap, BITS_TO_LONGS(stripe_nsectors));
+	CONSUME_ALLOC(rbio->finish_pbitmap, BITS_TO_LONGS(stripe_nsectors));
 #undef  CONSUME_ALLOC
 
 	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID5)
