@@ -2415,14 +2415,16 @@ void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
  */
 static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 {
-	int i;
-	int bit;
-	int index;
-	struct page *page;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	int stripe;
+	int sectornr;
 
-	for_each_set_bit(bit, rbio->dbitmap, rbio->stripe_npages) {
-		for (i = 0; i < rbio->real_stripes; i++) {
-			index = i * rbio->stripe_npages + bit;
+	for_each_set_bit(sectornr, rbio->dbitmap, rbio->stripe_nsectors) {
+		for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
+			struct page *page;
+			int index = (stripe * rbio->stripe_nsectors + sectornr) *
+				    sectorsize >> PAGE_SHIFT;
+
 			if (rbio->stripe_pages[index])
 				continue;
 
