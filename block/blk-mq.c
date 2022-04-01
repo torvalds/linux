@@ -4462,21 +4462,28 @@ static bool blk_mq_elv_switch_none(struct list_head *head,
 	return true;
 }
 
-static void blk_mq_elv_switch_back(struct list_head *head,
-		struct request_queue *q)
+static struct blk_mq_qe_pair *blk_lookup_qe_pair(struct list_head *head,
+						struct request_queue *q)
 {
 	struct blk_mq_qe_pair *qe;
-	struct elevator_type *t = NULL;
 
 	list_for_each_entry(qe, head, node)
-		if (qe->q == q) {
-			t = qe->type;
-			break;
-		}
+		if (qe->q == q)
+			return qe;
 
-	if (!t)
+	return NULL;
+}
+
+static void blk_mq_elv_switch_back(struct list_head *head,
+				  struct request_queue *q)
+{
+	struct blk_mq_qe_pair *qe;
+	struct elevator_type *t;
+
+	qe = blk_lookup_qe_pair(head, q);
+	if (!qe)
 		return;
-
+	t = qe->type;
 	list_del(&qe->node);
 	kfree(qe);
 
