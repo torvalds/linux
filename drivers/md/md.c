@@ -4031,7 +4031,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	oldpriv = mddev->private;
 	mddev->pers = pers;
 	mddev->private = priv;
-	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
+	strscpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 	mddev->level = mddev->new_level;
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = mddev->new_chunk_sectors;
@@ -5765,7 +5765,7 @@ static int add_named_array(const char *val, const struct kernel_param *kp)
 		len--;
 	if (len >= DISK_NAME_LEN)
 		return -E2BIG;
-	strlcpy(buf, val, len+1);
+	strscpy(buf, val, len+1);
 	if (strncmp(buf, "md_", 3) == 0)
 		return md_alloc(0, buf);
 	if (strncmp(buf, "md", 2) == 0 &&
@@ -5898,7 +5898,7 @@ int md_run(struct mddev *mddev)
 		mddev->level = pers->level;
 		mddev->new_level = pers->level;
 	}
-	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
+	strscpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 
 	if (mddev->reshape_position != MaxSector &&
 	    pers->start_reshape == NULL) {

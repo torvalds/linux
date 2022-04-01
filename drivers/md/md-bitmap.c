@@ -666,7 +666,7 @@ re_read:
 	 */
 	if (sb->version == cpu_to_le32(BITMAP_MAJOR_CLUSTERED)) {
 		nodes = le32_to_cpu(sb->nodes);
-		strlcpy(bitmap->mddev->bitmap_info.cluster_name,
+		strscpy(bitmap->mddev->bitmap_info.cluster_name,
 				sb->cluster_name, 64);
 	}
 
@@ -697,7 +697,6 @@ re_read:
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
 		set_bit(BITMAP_HOSTENDIAN, &bitmap->flags);
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
-	strlcpy(bitmap->mddev->bitmap_info.cluster_name, sb->cluster_name, 64);
 	err = 0;
 
 out:
