@@ -111,7 +111,6 @@ static const struct ath11k_msi_config ath11k_msi_config[] = {
 
 int ath11k_pcic_init_msi_config(struct ath11k_base *ab)
 {
-	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	const struct ath11k_msi_config *msi_config;
 	int i;
 
@@ -128,7 +127,7 @@ int ath11k_pcic_init_msi_config(struct ath11k_base *ab)
 		return -EINVAL;
 	}
 
-	ab_pci->msi_config = msi_config;
+	ab->pci.msi.config = msi_config;
 	return 0;
 }
 EXPORT_SYMBOL(ath11k_pcic_init_msi_config);
@@ -267,33 +266,22 @@ int ath11k_pcic_get_msi_irq(struct device *dev, unsigned int vector)
 void ath11k_pcic_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
 				 u32 *msi_addr_hi)
 {
-	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
-	struct pci_dev *pci_dev = to_pci_dev(ab->dev);
-
-	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_LO,
-			      msi_addr_lo);
-
-	if (test_bit(ATH11K_PCI_FLAG_IS_MSI_64, &ab_pci->flags)) {
-		pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
-				      msi_addr_hi);
-	} else {
-		*msi_addr_hi = 0;
-	}
+	*msi_addr_lo = ab->pci.msi.addr_lo;
+	*msi_addr_hi = ab->pci.msi.addr_hi;
 }
 
-int ath11k_pcic_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_name,
+int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 					int *num_vectors, u32 *user_base_data,
 					u32 *base_vector)
 {
-	struct ath11k_base *ab = ab_pci->ab;
-	const struct ath11k_msi_config *msi_config = ab_pci->msi_config;
+	const struct ath11k_msi_config *msi_config = ab->pci.msi.config;
 	int idx;
 
 	for (idx = 0; idx < msi_config->total_users; idx++) {
 		if (strcmp(user_name, msi_config->users[idx].name) == 0) {
 			*num_vectors = msi_config->users[idx].num_vectors;
 			*base_vector =  msi_config->users[idx].base_vector;
-			*user_base_data = *base_vector + ab_pci->msi_ep_base_data;
+			*user_base_data = *base_vector + ab->pci.msi.ep_base_data;
 
 			ath11k_dbg(ab, ATH11K_DBG_PCI,
 				   "Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
@@ -323,17 +311,6 @@ void ath11k_pcic_get_ce_msi_idx(struct ath11k_base *ab, u32 ce_id, u32 *msi_idx)
 		msi_data_idx++;
 	}
 	*msi_idx = msi_data_idx;
-}
-
-int ath11k_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
-				   int *num_vectors, u32 *user_base_data,
-				   u32 *base_vector)
-{
-	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
-
-	return ath11k_pcic_get_user_msi_assignment(ab_pci, user_name,
-						   num_vectors, user_base_data,
-						   base_vector);
 }
 
 static void ath11k_pcic_free_ext_irq(struct ath11k_base *ab)
@@ -586,8 +563,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 	int i, j, ret, num_vectors = 0;
 	u32 user_base_data = 0, base_vector = 0;
 
-	ret = ath11k_pcic_get_user_msi_assignment(ath11k_pci_priv(ab), "DP",
-						  &num_vectors,
+	ret = ath11k_pcic_get_user_msi_assignment(ab, "DP", &num_vectors,
 						  &user_base_data,
 						  &base_vector);
 	if (ret < 0)
@@ -662,8 +638,7 @@ int ath11k_pcic_config_irq(struct ath11k_base *ab)
 	unsigned int msi_data;
 	int irq, i, ret, irq_idx;
 
-	ret = ath11k_pcic_get_user_msi_assignment(ath11k_pci_priv(ab),
-						  "CE", &msi_data_count,
+	ret = ath11k_pcic_get_user_msi_assignment(ab, "CE", &msi_data_count,
 						  &msi_data_start, &msi_irq_start);
 	if (ret)
 		return ret;

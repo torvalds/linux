@@ -258,8 +258,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	int *irq;
 	unsigned int msi_data;
 
-	ret = ath11k_pcic_get_user_msi_assignment(ab_pci,
-						  "MHI", &num_vectors,
+	ret = ath11k_pcic_get_user_msi_assignment(ab, "MHI", &num_vectors,
 						  &user_base_data, &base_vector);
 	if (ret)
 		return ret;

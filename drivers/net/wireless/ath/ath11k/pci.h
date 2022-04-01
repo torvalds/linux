@@ -53,22 +53,8 @@
 #define WLAON_QFPROM_PWR_CTRL_REG		0x01f8031c
 #define QFPROM_PWR_CTRL_VDD4BLOW_MASK		0x4
 
-struct ath11k_msi_user {
-	char *name;
-	int num_vectors;
-	u32 base_vector;
-};
-
-struct ath11k_msi_config {
-	int total_vectors;
-	int total_users;
-	struct ath11k_msi_user *users;
-	u16 hw_rev;
-};
-
 enum ath11k_pci_flags {
 	ATH11K_PCI_FLAG_INIT_DONE,
-	ATH11K_PCI_FLAG_IS_MSI_64,
 	ATH11K_PCI_ASPM_RESTORE,
 	ATH11K_PCI_FLAG_MULTI_MSI_VECTORS,
 };
@@ -78,9 +64,7 @@ struct ath11k_pci {
 	struct ath11k_base *ab;
 	u16 dev_id;
 	char amss_path[100];
-	u32 msi_ep_base_data;
 	struct mhi_controller *mhi_ctrl;
-	const struct ath11k_msi_config *msi_config;
 	unsigned long mhi_state;
 	u32 register_window;
 

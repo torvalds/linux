@@ -769,6 +769,19 @@ struct ath11k_soc_dp_stats {
 	struct ath11k_dp_ring_bp_stats bp_stats;
 };
 
+struct ath11k_msi_user {
+	char *name;
+	int num_vectors;
+	u32 base_vector;
+};
+
+struct ath11k_msi_config {
+	int total_vectors;
+	int total_users;
+	struct ath11k_msi_user *users;
+	u16 hw_rev;
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath11k_base {
 	enum ath11k_hw_rev hw_rev;
@@ -904,6 +917,15 @@ struct ath11k_base {
 		u32 subsystem_vendor;
 		u32 subsystem_device;
 	} id;
+
+	struct {
+		struct {
+			const struct ath11k_msi_config *config;
+			u32 ep_base_data;
+			u32 addr_lo;
+			u32 addr_hi;
+		} msi;
+	} pci;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));

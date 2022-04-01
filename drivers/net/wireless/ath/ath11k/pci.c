@@ -307,12 +307,13 @@ static void ath11k_pci_msi_disable(struct ath11k_pci *ab_pci)
 static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 {
 	struct ath11k_base *ab = ab_pci->ab;
-	const struct ath11k_msi_config *msi_config = ab_pci->msi_config;
+	const struct ath11k_msi_config *msi_config = ab->pci.msi.config;
+	struct pci_dev *pci_dev = ab_pci->pdev;
 	struct msi_desc *msi_desc;
 	int num_vectors;
 	int ret;
 
-	num_vectors = pci_alloc_irq_vectors(ab_pci->pdev,
+	num_vectors = pci_alloc_irq_vectors(pci_dev,
 					    msi_config->total_vectors,
 					    msi_config->total_vectors,
 					    PCI_IRQ_MSI);
@@ -329,7 +330,7 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 			goto reset_msi_config;
 		}
 		clear_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
-		ab_pci->msi_config = &msi_config_one_msi;
+		ab->pci.msi.config = &msi_config_one_msi;
 		ab_pci->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
 		ath11k_dbg(ab, ATH11K_DBG_PCI, "request MSI one vector\n");
 	}
@@ -344,11 +345,19 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 		goto free_msi_vector;
 	}
 
-	ab_pci->msi_ep_base_data = msi_desc->msg.data;
-	if (msi_desc->pci.msi_attrib.is_64)
-		set_bit(ATH11K_PCI_FLAG_IS_MSI_64, &ab_pci->flags);
+	ab->pci.msi.ep_base_data = msi_desc->msg.data;
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "msi base data is %d\n", ab_pci->msi_ep_base_data);
+	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_LO,
+			      &ab->pci.msi.addr_lo);
+
+	if (msi_desc->pci.msi_attrib.is_64) {
+		pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
+				      &ab->pci.msi.addr_hi);
+	} else {
+		ab->pci.msi.addr_hi = 0;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "msi base data is %d\n", ab->pci.msi.ep_base_data);
 
 	return 0;
 
@@ -375,10 +384,10 @@ static int ath11k_pci_config_msi_data(struct ath11k_pci *ab_pci)
 		return -EINVAL;
 	}
 
-	ab_pci->msi_ep_base_data = msi_desc->msg.data;
+	ab_pci->ab->pci.msi.ep_base_data = msi_desc->msg.data;
 
 	ath11k_dbg(ab_pci->ab, ATH11K_DBG_PCI, "pci after request_irq msi_ep_base_data %d\n",
-		   ab_pci->msi_ep_base_data);
+		   ab_pci->ab->pci.msi.ep_base_data);
 
 	return 0;
 }
@@ -562,7 +571,7 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.irq_enable = ath11k_pcic_ext_irq_enable,
 	.irq_disable = ath11k_pcic_ext_irq_disable,
 	.get_msi_address =  ath11k_pcic_get_msi_address,
-	.get_user_msi_vector = ath11k_get_user_msi_assignment,
+	.get_user_msi_vector = ath11k_pcic_get_user_msi_assignment,
 	.map_service_to_pipe = ath11k_pcic_map_service_to_pipe,
 	.ce_irq_enable = ath11k_pci_hif_ce_irq_enable,
 	.ce_irq_disable = ath11k_pci_hif_ce_irq_disable,

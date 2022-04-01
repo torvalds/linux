@@ -25,7 +25,7 @@
  */
 #define ATH11K_PCI_ACCESS_ALWAYS_OFF 0xFE0
 
-int ath11k_pcic_get_user_msi_assignment(struct ath11k_pci *ar_pci, char *user_name,
+int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 					int *num_vectors, u32 *user_base_data,
 					u32 *base_vector);
 int ath11k_pcic_get_msi_irq(struct device *dev, unsigned int vector);
@@ -44,9 +44,6 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 				    u8 *ul_pipe, u8 *dl_pipe);
 void ath11k_pcic_ce_irqs_enable(struct ath11k_base *ab);
 void ath11k_pcic_ce_irq_disable_sync(struct ath11k_base *ab);
-int ath11k_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
-				   int *num_vectors, u32 *user_base_data,
-				   u32 *base_vector);
 void ath11k_pcic_aspm_restore(struct ath11k_pci *ab_pci);
 int ath11k_pcic_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
 				      const struct cpumask *m);
