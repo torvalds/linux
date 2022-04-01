@@ -48,3 +48,7 @@
 	status = "okay";
 };
 #endif
+
+&vccq_sdhi1 {
+	gpios = <&pinctrl RZG2L_GPIO(39, 1) GPIO_ACTIVE_HIGH>;
+};
