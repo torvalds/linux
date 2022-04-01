@@ -3686,14 +3686,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		btrfs_warn(fs_info,
 		"read-write for sector size %u with page size %lu is experimental",
 			   sectorsize, PAGE_SIZE);
-		if (btrfs_super_incompat_flags(fs_info->super_copy) &
-			BTRFS_FEATURE_INCOMPAT_RAID56) {
-			btrfs_err(fs_info,
-		"RAID56 is not yet supported for sector size %u with page size %lu",
-				sectorsize, PAGE_SIZE);
-			err = -EINVAL;
-			goto fail_alloc;
-		}
 		subpage_info = kzalloc(sizeof(*subpage_info), GFP_KERNEL);
 		if (!subpage_info)
 			goto fail_alloc;

@@ -1154,9 +1154,6 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 	ASSERT(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors);
 	ASSERT(sector->page);
 
-	/* We don't yet support subpage, thus pgoff should always be 0 */
-	ASSERT(sector->pgoff == 0);
-
 	stripe = &rbio->bioc->stripes[stripe_nr];
 	disk_start = stripe->physical + sector_nr * sectorsize;
 
@@ -2378,9 +2375,6 @@ struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 	}
 	ASSERT(i < rbio->real_stripes);
 
-	/* Now we just support the sectorsize equals to page size */
-	ASSERT(fs_info->sectorsize == PAGE_SIZE);
-	ASSERT(rbio->stripe_npages == stripe_nsectors);
 	bitmap_copy(rbio->dbitmap, dbitmap, stripe_nsectors);
 
 	/*
