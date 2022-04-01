@@ -1932,14 +1932,18 @@ int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc, u32 stri
  */
 static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 {
-	int pagenr, stripe;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	int sectornr, stripe;
 	void **pointers;
 	void **unmap_array;
 	int faila = -1, failb = -1;
-	struct page *page;
 	blk_status_t err;
 	int i;
 
+	/*
+	 * This array stores the pointer for each sector, thus it has the extra
+	 * pgoff value added from each sector
+	 */
 	pointers = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
 	if (!pointers) {
 		err = BLK_STS_RESOURCE;
@@ -1968,43 +1972,44 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 
 	index_rbio_pages(rbio);
 
-	for (pagenr = 0; pagenr < rbio->stripe_npages; pagenr++) {
+	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
+		struct sector_ptr *sector;
+
 		/*
 		 * Now we just use bitmap to mark the horizontal stripes in
 		 * which we have data when doing parity scrub.
 		 */
 		if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB &&
-		    !test_bit(pagenr, rbio->dbitmap))
+		    !test_bit(sectornr, rbio->dbitmap))
 			continue;
 
 		/*
-		 * Setup our array of pointers with pages from each stripe
+		 * Setup our array of pointers with sectors from each stripe
 		 *
 		 * NOTE: store a duplicate array of pointers to preserve the
 		 * pointer order
 		 */
 		for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 			/*
-			 * if we're rebuilding a read, we have to use
+			 * If we're rebuilding a read, we have to use
 			 * pages from the bio list
 			 */
 			if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
 			     rbio->operation == BTRFS_RBIO_REBUILD_MISSING) &&
 			    (stripe == faila || stripe == failb)) {
-				page = page_in_rbio(rbio, stripe, pagenr, 0);
+				sector = sector_in_rbio(rbio, stripe, sectornr, 0);
 			} else {
-				page = rbio_stripe_page(rbio, stripe, pagenr);
+				sector = rbio_stripe_sector(rbio, stripe, sectornr);
 			}
-			pointers[stripe] = kmap_local_page(page);
+			ASSERT(sector->page);
+			pointers[stripe] = kmap_local_page(sector->page) +
+					   sector->pgoff;
 			unmap_array[stripe] = pointers[stripe];
 		}
 
-		/* all raid6 handling here */
+		/* All raid6 handling here */
 		if (rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6) {
-			/*
-			 * single failure, rebuild from parity raid5
-			 * style
-			 */
+			/* Single failure, rebuild from parity raid5 style */
 			if (failb < 0) {
 				if (faila == rbio->nr_data) {
 					/*
@@ -2047,10 +2052,10 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 
 			if (rbio->bioc->raid_map[failb] == RAID5_P_STRIPE) {
 				raid6_datap_recov(rbio->real_stripes,
-						  PAGE_SIZE, faila, pointers);
+						  sectorsize, faila, pointers);
 			} else {
 				raid6_2data_recov(rbio->real_stripes,
-						  PAGE_SIZE, faila, failb,
+						  sectorsize, faila, failb,
 						  pointers);
 			}
 		} else {
@@ -2060,7 +2065,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			BUG_ON(failb != -1);
 pstripe:
 			/* Copy parity block into failed block to start with */
-			copy_page(pointers[faila], pointers[rbio->nr_data]);
+			memcpy(pointers[faila], pointers[rbio->nr_data], sectorsize);
 
 			/* rearrange the pointer array */
 			p = pointers[faila];
@@ -2069,7 +2074,7 @@ pstripe:
 			pointers[rbio->nr_data - 1] = p;
 
 			/* xor in the rest */
-			run_xor(pointers, rbio->nr_data - 1, PAGE_SIZE);
+			run_xor(pointers, rbio->nr_data - 1, sectorsize);
 		}
 		/* if we're doing this rebuild as part of an rmw, go through
 		 * and set all of our private rbio pages in the
@@ -2078,14 +2083,14 @@ pstripe:
 		 * other endio functions will fiddle the uptodate bits
 		 */
 		if (rbio->operation == BTRFS_RBIO_WRITE) {
-			for (i = 0;  i < rbio->stripe_npages; i++) {
+			for (i = 0;  i < rbio->stripe_nsectors; i++) {
 				if (faila != -1) {
-					page = rbio_stripe_page(rbio, faila, i);
-					SetPageUptodate(page);
+					sector = rbio_stripe_sector(rbio, faila, i);
+					sector->uptodate = 1;
 				}
 				if (failb != -1) {
-					page = rbio_stripe_page(rbio, failb, i);
-					SetPageUptodate(page);
+					sector = rbio_stripe_sector(rbio, failb, i);
+					sector->uptodate = 1;
 				}
 			}
 		}
